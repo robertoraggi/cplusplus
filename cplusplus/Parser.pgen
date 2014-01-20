@@ -1,0 +1,2365 @@
+// Copyright (c) 2014 Roberto Raggi <roberto.raggi@gmail.com>
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy of
+// this software and associated documentation files (the "Software"), to deal in
+// the Software without restriction, including without limitation the rights to
+// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+// the Software, and to permit persons to whom the Software is furnished to do so,
+// subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+// FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+// COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+// IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+// CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+%class Parser
+
+%token alignas
+     , alignof
+     , amp
+     , amp_amp
+     , amp_equal
+     , asm
+     , auto
+     , bar
+     , bar_bar
+     , bar_equal
+     , bool
+     , break
+     , caret
+     , caret_equal
+     , case
+     , catch
+     , char
+     , char16_t
+     , char32_t
+     , char_literal
+     , class
+     , colon
+     , colon_colon
+     , comma
+     , const
+     , const_cast
+     , constexpr
+     , continue
+     , decltype
+     , default
+     , delete
+     , do
+     , dot
+     , dot_dot_dot
+     , dot_star
+     , double
+     , dynamic_cast
+     , else
+     , enum
+     , equal
+     , equal_equal
+     , exclaim
+     , exclaim_equal
+     , explicit
+     , extern
+     , false
+     , float
+     , for
+     , friend
+     , goto
+     , greater
+     , identifier
+     , if
+     , inline
+     , int
+     , int_literal
+     , lbrace
+     , lbracket
+     , less
+     , less_equal
+     , less_less
+     , less_less_equal
+     , long
+     , lparen
+     , minus
+     , minus_equal
+     , minus_greater
+     , minus_greater_star
+     , minus_minus
+     , mutable
+     , namespace
+     , new
+     , noexcept
+     , nullptr
+     , operator
+     , percent
+     , percent_equal
+     , plus
+     , plus_equal
+     , plus_plus
+     , private
+     , protected
+     , public
+     , question
+     , rbrace
+     , rbracket
+     , register
+     , reinterpret_cast
+     , return
+     , rparen
+     , semicolon
+     , short
+     , signed
+     , sizeof
+     , slash
+     , slash_equal
+     , star
+     , star_equal
+     , static
+     , static_assert
+     , static_cast
+     , string_literal
+     , struct
+     , switch
+     , template
+     , this
+     , thread_local
+     , throw
+     , tilde
+     , tilde_equal
+     , true
+     , try
+     , typedef
+     , typeid
+     , typename
+     , union
+     , unsigned
+     , using
+     , virtual
+     , void
+     , volatile
+     , wchar_t
+     , while
+
+%{
+  bool yyparse(TranslationUnit* u);
+
+  enum struct Assoc { Left, Right, };
+  inline Assoc assoc();
+  inline int precedence();
+
+  bool parseBinaryExpression(ExpressionAST*& yyast, bool templArg, int minPrec);
+  bool parseBinaryExpressionHelper(ExpressionAST*& yyast, bool templArg, int minPrec);
+
+  Arena* pool{0};
+  TranslationUnit* unit{0};
+  Control* control{0};
+  Scope* scope{0};
+  Scope* globalScope{0};
+
+  struct EnterScope {
+    Parser* p{0};
+    Scope* scope{0};
+    void operator()(Parser* p, Scope* scope) {
+      this->p = p;
+      this->scope = scope;
+      std::swap(this->p->scope, this->scope);
+    }
+    ~EnterScope() {
+      if (! p)
+        return;
+      std::swap(this->p->scope, this->scope);
+    }
+  };
+
+  std::set<const Identifier*> templates;
+
+  bool isTemplateName(const Identifier* id) const {
+    auto it = templates.find(id);
+    if (it != templates.end())
+      return true;
+    return false;
+  }
+
+  void enterTemplate(const Identifier* id) {
+    templates.insert(id);
+  }
+
+  bool templDecl{false};
+  struct EnterTemplateDecl {
+    Parser* p{0};
+    bool templDecl{false};
+    void operator()(Parser* p, bool x = true) {
+      this->p = p;
+      this->templDecl = x;
+      std::swap(p->templDecl, this->templDecl);
+    }
+    ~EnterTemplateDecl() {
+      std::swap(p->templDecl, this->templDecl);
+    }
+  };
+%}
+
+literal(ExpressionAST*& yyast)
+: (string_literal+
+| int_literal
+| char_literal
+| true
+| false
+| nullptr)
+    {
+      auto ast = new (pool) LiteralExpressionAST;
+      ast->literal_token = yycursor - 1; // ### wrong
+      yyast = ast;
+    }
+;
+
+primary_expression(ExpressionAST*& yyast)
+{
+  NameAST* name = 0;
+  ExpressionAST* e = 0;
+}
+: literal(yyast)
+| this
+    {
+      auto ast = new (pool) ThisExpressionAST;
+      yyast = ast;
+    }
+| lparen expression(e) rparen
+    {
+      auto ast = new (pool) NestedExpressionAST;
+      ast->expression = e;
+      yyast = ast;
+    }
+| name(name)
+    {
+      auto ast = new (pool) IdExpressionAST;
+      ast->name = name;
+      yyast = ast;
+    }
+| lambda_expression(yyast)
+;
+
+scope
+: colon_colon
+;
+
+explict_template_or_unqualified_id(NameAST*& yyast)
+: template simple_template_id(yyast)
+| unqualified_id(yyast)
+;
+
+name(NameAST*& yyast)
+{
+    NameAST* n = 0;
+}
+: scope? explict_template_or_unqualified_id(yyast)
+        (colon_colon explict_template_or_unqualified_id(n)
+            {
+                auto ast = new (pool) QualifiedNameAST;
+                ast->base = yyast;
+                ast->name = n;
+                yyast = ast;
+            }
+        )*
+;
+
+class_or_namespace_name(NameAST*& yyast)
+: simple_name(yyast) colon_colon
+| template? simple_template_id(yyast) colon_colon
+| decltype_specifier(yyast) colon_colon
+;
+
+simple_name(NameAST*& yyast)
+: identifier
+    {
+        auto ast = new (pool) SimpleNameAST;
+        ast->identifier_token = yycursor - 1;
+        yyast = ast;
+    }
+;
+
+unqualified_id(NameAST*& yyast)
+: template_id(yyast)
+| simple_name(yyast)
+| destructor_id(yyast)
+| decltype_specifier(yyast)
+| operator_function_id(yyast)
+| conversion_function_id(yyast)
+;
+
+destructor_id(NameAST*& yyast)
+{
+    NameAST* n = 0;
+}
+: tilde unqualified_id(n)
+    {
+        auto ast = new (pool) DestructorNameAST;
+        ast->name = n;
+        yyast = ast;
+    }
+;
+
+lambda_expression(ExpressionAST*& yyast)
+{
+  LambdaDeclaratorAST* d = 0;
+  StatementAST* s = 0;
+}
+: lbracket lambda_capture? rbracket lambda_declarator(d)? compound_statement(s)
+    {
+      auto ast = new (pool) LambdaExpressionAST;
+      ast->lambda_declarator = d;
+      ast->statement = s;
+      yyast = ast;
+    }
+;
+
+lambda_declarator(LambdaDeclaratorAST*& yyast)
+{
+  ParametersAndQualifiersAST* p = 0;
+}
+: parameters_and_qualifiers(p) mutable? exception_specification? attribute_specifier_seq trailing_return_type?
+    {
+        auto ast = new (pool) LambdaDeclaratorAST;
+        ast->parameters_and_qualifiers = p;
+        yyast = ast;
+    }
+;
+
+lambda_capture
+: (capture_default / (comma | rbracket)) (comma capture_list)?
+| capture_list
+;
+
+capture_list
+: capture dot_dot_dot? (comma capture dot_dot_dot?)*
+;
+
+capture_default
+: amp
+| equal
+;
+
+capture
+{
+  ExpressionAST* i = 0;
+}
+: amp? identifier initializer(i)?
+| this
+;
+
+postfix_base_expression(ExpressionAST*& yyast)
+{
+  TypeIdAST* t = 0;
+  ExpressionAST* e = 0;
+  List<ExpressionAST*>* args = 0;
+  SpecifierAST* spec = 0;
+}
+: primary_expression(yyast)
+| (dynamic_cast | static_cast | reinterpret_cast | const_cast)
+  less type_id(t) greater lparen expression(e) rparen
+    {
+      auto ast = new (pool) CppCastExpressionAST;
+      ast->type_id = t;
+      ast->expression = e;
+      yyast = ast;
+    }
+| typeid lparen expression(e) rparen
+    {
+      auto ast = new (pool) TypeidExpressionAST;
+      ast->expression = e;
+      yyast = ast;
+    }
+| typeid lparen type_id(t) rparen
+    {
+      auto ast = new (pool) TypeidExpressionAST;
+      ast->expression = t;
+      yyast = ast;
+    }
+| (simple_type_specifier(spec) | typename_specifier(spec)) lparen expression_list(args)? rparen
+    {
+      auto ast = new (pool) TypeCallExpressionAST;
+      ast->expression_list = args;
+      yyast = ast;
+    }
+;
+
+postfix_expression(ExpressionAST*& yyast)
+{
+  unsigned access_token = 0;
+  unsigned incr_token = 0;
+  ExpressionAST* e = 0;
+  List<ExpressionAST*>* args = 0;
+  NameAST* name = 0;
+}
+: postfix_base_expression(yyast)
+    (lparen expression_list(args)? rparen
+        {
+          auto ast = new (pool) CallExpressionAST;
+          ast->base_expression = yyast;
+          ast->expression_list = args;
+          yyast = ast;
+        }
+   | lbracket expression(e) rbracket
+       {
+         auto ast = new (pool) SubscriptExpressionAST;
+         ast->base_expression = yyast;
+         yyast = ast;
+       }
+   | (dot | minus_greater) parsed_token(&access_token) template? name(name)
+       {
+         auto ast = new (pool) MemberExpressionAST;
+         ast->access_token = access_token;
+         ast->base_expression = yyast;
+         ast->name = name;
+         yyast = ast;
+       }
+   | (plus_plus | minus_minus) parsed_token(&incr_token)
+       {
+         auto ast = new (pool) IncrExpressionAST;
+         ast->incr_token = incr_token;
+         ast->base_expression = yyast;
+         yyast = ast;
+       }
+   )*
+;
+
+unary_expression(ExpressionAST*& yyast)
+{
+  unsigned op_token = 0;
+  TypeIdAST* t = 0;
+  ExpressionAST* e = 0;
+  NameAST* name = 0;
+}
+: (plus_plus | minus_minus | star | amp | plus | minus | exclaim | tilde)
+  parsed_token(&op_token)
+  cast_expression(e)
+    {
+      auto ast = new (pool) UnaryExpressionAST;
+      ast->op = unit->tokenKind(op_token);
+      ast->expression = e;
+      yyast = ast;
+    }
+| sizeof dot_dot_dot lparen simple_name(name) rparen
+    {
+      auto ast = new (pool) SizeofPackedArgsExpressionAST;
+      ast->name = name;
+      yyast = ast;
+    }
+| sizeof lparen type_id(t) rparen
+    {
+      auto ast = new (pool) SizeofTypeExpressionAST;
+      ast->type_id = t;
+      yyast = ast;
+    }
+| sizeof lparen unary_expression(e) rparen
+    {
+      auto ast = new (pool) SizeofExpressionAST;
+      ast->expression = e;
+      yyast = ast;
+    }
+| alignof lparen type_id(t) rparen
+    {
+      auto ast = new (pool) AlignofExpressionAST;
+      ast->type_id = t;
+      yyast = ast;
+    }
+| noexcept_expression(yyast)
+| new_expression(yyast)
+| delete_expression(yyast)
+| postfix_expression(yyast)
+;
+
+new_expression(ExpressionAST*& yyast)
+{
+  TypeIdAST* t = 0;
+  ExpressionAST* i = 0;
+}
+: colon_colon? new new_placement? (new_type_id new_initializer(i)?
+                                 | lparen type_id(t) rparen new_initializer(i)?)
+    {
+      auto ast = new (pool) NewExpressionAST;
+      ast->type_id = t;
+      yyast = ast;
+    }
+;
+
+new_placement
+{
+  List<ExpressionAST*>* args = 0;
+}
+: lparen expression_list(args) rparen
+;
+
+new_type_id
+{
+  List<SpecifierAST*>* specs = 0;
+}
+: type_specifier_list(specs) new_declarator?
+;
+
+new_declarator
+{
+  PtrOperatorAST* ptr_op = 0;
+}
+: ptr_operator(ptr_op) new_declarator?
+| noptr_new_declarator
+;
+
+noptr_new_declarator
+{
+  ExpressionAST* e = 0;
+}
+: (lbracket expression(e) rbracket)+
+;
+
+new_initializer(ExpressionAST*& yyast)
+{
+  List<ExpressionAST*>* args = 0;
+}
+: lparen expression_list(args)? rparen
+| braced_init_list(yyast)
+;
+
+delete_expression(ExpressionAST*& yyast)
+{
+  ExpressionAST* e = 0;
+}
+: scope? delete (lbracket rbracket)? cast_expression(e)
+    {
+      auto ast = new (pool) DeleteExpressionAST;
+      ast->expression = e;
+      yyast = ast;
+    }
+;
+
+noexcept_expression(ExpressionAST*& yyast)
+{
+  ExpressionAST* e = 0;
+}
+: noexcept lparen expression(e) rparen
+    {
+      auto ast = new (pool) NoexceptExpressionAST;
+      ast->expression = e;
+      yyast = ast;
+    }
+;
+
+cast_expression(ExpressionAST*& yyast)
+{
+  TypeIdAST* t = 0;
+  ExpressionAST* e = 0;
+}
+: lparen type_id(t) rparen cast_expression(e)
+    {
+      auto ast = new (pool) CastExpressionAST;
+      ast->type_id = t;
+      ast->expression = e;
+      yyast = ast;
+    }
+| unary_expression(yyast)
+;
+
+assignment_expression(ExpressionAST*& yyast, bool inTempl)
+: throw_exception(yyast)
+| { return parseBinaryExpression(yyast, inTempl, /*precedence T_EQUAL*/ 110); }
+;
+
+initializer_clause(ExpressionAST*& yyast, bool inTempl)
+: braced_init_list(yyast)
+| assignment_expression(yyast, inTempl)
+;
+
+template_argument_expression(ExpressionAST*& yyast)
+: { return parseBinaryExpression(yyast, true, /*precedence T_QUESTION*/ 115); }
+;
+
+constant_expression(ExpressionAST*& yyast)
+: { return parseBinaryExpression(yyast, false, /*precedence T_QUESTION*/ 115); }
+;
+
+expression(ExpressionAST*& yyast)
+{
+  ExpressionAST* e = 0;
+}
+: assignment_expression(yyast, false)
+    (comma assignment_expression(e, false)
+      {
+        auto ast = new (pool) BinaryExpressionAST;
+        ast->op = T_COMMA;
+        ast->left_expression = yyast;
+        ast->right_expression = e;
+        yyast = ast;
+      }
+    )*
+;
+
+expression_list(List<ExpressionAST*>*& yyast)
+: initializer_list(yyast)
+;
+
+statement(StatementAST*& yyast)
+: labeled_statement(yyast)
+| declaration_statement(yyast)
+| attribute_specifier_seq (expression_statement(yyast)
+                         | compound_statement(yyast)
+                         | selection_statement(yyast)
+                         | iteration_statement(yyast)
+                         | jump_statement(yyast)
+                         | try_block(yyast))
+;
+
+labeled_statement(StatementAST*& yyast)
+{
+  ExpressionAST* e = 0;
+  StatementAST* s = 0;
+}
+: attribute_specifier_seq
+    (identifier colon statement(s)
+      {
+        auto ast = new (pool) LabeledStatementAST;
+        ast->statement = s;
+        yyast = ast;
+      }
+   | case constant_expression(e) colon statement(s)
+      {
+        auto ast = new (pool) CaseStatementAST;
+        ast->expression = e;
+        ast->statement = s;
+        yyast = ast;
+      }
+   | default colon statement(s)
+      {
+        auto ast = new (pool) DefaultStatementAST;
+        ast->statement = s;
+        yyast = ast;
+      }
+   )
+;
+
+expression_statement(StatementAST*& yyast)
+{
+  ExpressionAST* e = 0;
+}
+: semicolon
+    {
+      auto ast = new (pool) ExpressionStatementAST;
+      yyast = ast;
+    }
+| expression(e) semicolon
+    {
+      auto ast = new (pool) ExpressionStatementAST;
+      ast->expression = e;
+      yyast = ast;
+    }
+;
+
+compound_statement(StatementAST*& yyast)
+{
+  StatementAST* s = 0;
+  List<StatementAST*>* statement_list = 0;
+  auto it = &statement_list;
+}
+: lbrace (statement(s)
+    {
+      *it = new (pool) List<StatementAST*>(s);
+      it = &(*it)->next;
+    }
+  )* rbrace
+    {
+      auto ast = new (pool) CompoundStatementAST;
+      ast->statement_list = statement_list;
+      yyast = ast;
+    }
+;
+
+selection_statement(StatementAST*& yyast)
+{
+  ExpressionAST* e = 0;
+  StatementAST* s1 = 0;
+  StatementAST* s2 = 0;
+}
+: if lparen condition(e) rparen statement(s1) (else statement(s2))?
+    {
+      auto ast = new (pool) IfStatementAST;
+      ast->condition = e;
+      ast->statement = s1;
+      ast->else_statement = s2;
+      yyast = ast;
+    }
+| switch lparen condition(e) rparen statement(s1)
+    {
+      auto ast = new (pool) SwitchStatementAST;
+      ast->condition = e;
+      ast->statement = s1;
+      yyast = ast;
+    }
+;
+
+condition(ExpressionAST*& yyast)
+{
+  List<SpecifierAST*>* specifier_list = 0;
+  DeclaratorAST* d = 0;
+  ExpressionAST* i = 0;
+  TranslationUnit::Specs specs;
+}
+: attribute_specifier_seq
+  decl_specifier_list(specifier_list)
+    {
+      specs = unit->specifiers(specifier_list);
+    }
+  declarator(d)
+    {
+      unit->declarator(specs, d);
+    }
+  brace_or_equal_initializer(i)
+    {
+      auto ast = new (pool) ConditionAST;
+      ast->specifier_list = specifier_list;
+      ast->declarator = d;
+      ast->initializer = i;
+      yyast = ast;
+    }
+| expression(yyast)
+;
+
+iteration_statement(StatementAST*& yyast)
+{
+  DeclarationAST* d = 0;
+  ExpressionAST* e1 = 0;
+  ExpressionAST* e2 = 0;
+  StatementAST* s1 = 0;
+  StatementAST* s2 = 0;
+}
+: while lparen condition(e1) rparen statement(s1)
+    {
+      auto ast = new (pool) WhileStatementAST;
+      ast->condition = e1;
+      ast->statement = s1;
+      yyast = ast;
+    }
+| do statement(s1) while lparen expression(e1) rparen semicolon
+    {
+      auto ast = new (pool) DoStatementAST;
+      ast->statement = s1;
+      ast->expression = e1;
+      yyast = ast;
+    }
+| for lparen for_init_statement(s1) condition(e1)? semicolon expression(e2)? rparen statement(s2)
+    {
+      auto ast = new (pool) ForStatementAST;
+      ast->initializer = s1;
+      ast->condition = e1;
+      ast->expression = e2;
+      ast->statement = s2;
+      yyast = ast;
+    }
+| for lparen for_range_declaration(d) colon for_range_initializer(e1) rparen statement(s1)
+    {
+      auto ast = new (pool) ForRangeStatementAST;
+      ast->initializer = d;
+      ast->expression = e1;
+      ast->statement = s1;
+      yyast = ast;
+    }
+;
+
+for_init_statement(StatementAST*& yyast)
+{
+  DeclarationAST* d = 0;
+}
+: simple_declaration(d)
+    {
+      auto ast = new (pool) DeclarationStatementAST;
+      ast->declaration = d;
+      yyast = ast;
+    }
+| expression_statement(yyast)
+;
+
+for_range_declaration(DeclarationAST*& yyast)
+{
+  List<SpecifierAST*>* specifier_list = 0;
+  DeclaratorAST* d = 0;
+  TranslationUnit::Specs specs;
+}
+: attribute_specifier_seq
+  decl_specifier_list(specifier_list)
+    {
+      specs = unit->specifiers(specifier_list);
+    }
+  declarator(d)
+    {
+      unit->declarator(specs, d);
+      auto ast = new (pool) SimpleDeclarationAST;
+      ast->specifier_list = specifier_list;
+      ast->declarator_list = new (pool) List<DeclaratorAST*>(d);
+      yyast = ast;
+    }
+;
+
+for_range_initializer(ExpressionAST*& yyast)
+: expression(yyast)
+| braced_init_list(yyast)
+;
+
+jump_statement(StatementAST*& yyast)
+{
+  NameAST* name = 0;
+  ExpressionAST* e = 0;
+}
+: break semicolon
+    {
+      auto ast = new (pool) BreakStatementAST;
+      yyast = ast;
+    }
+| continue semicolon
+    {
+      auto ast = new (pool) ContinueStatementAST;
+      yyast = ast;
+    }
+| return (expression(e) | braced_init_list(e))? semicolon
+    {
+      auto ast = new (pool) ReturnStatementAST;
+      ast->expression = e;
+      yyast = ast;
+    }
+| goto simple_name(name) semicolon
+    {
+      auto ast = new (pool) GotoStatementAST;
+      ast->name = name;
+      yyast = ast;
+    }
+;
+
+declaration_statement(StatementAST*& yyast)
+{
+  DeclarationAST* d = 0;
+}
+: block_declaration(d)
+    {
+      auto ast = new (pool) DeclarationStatementAST;
+      ast->declaration = d;
+      yyast = ast;
+    }
+;
+
+declaration(DeclarationAST*& yyast, bool templDecl)
+{
+  EnterTemplateDecl enterTemplateDecl;
+  enterTemplateDecl(this, templDecl);
+}
+: template_declaration(yyast)
+| block_declaration(yyast)
+| linkage_specification(yyast)
+| namespace_definition(yyast)
+| empty_declaration(yyast)
+| attribute_declaration(yyast)
+;
+
+is_function_decl(DeclaratorAST* ast, const TranslationUnit::Specs& specs)
+: {
+    auto decl = unit->declarator(specs, ast);
+    if (! decl->isFunctionType())
+      return false;
+  }
+;
+
+is_function_def(DeclaratorAST* decl, const TranslationUnit::Specs& specs)
+: is_function_decl(decl, specs) / (lbrace | colon | equal)
+;
+
+simple_declaration_or_function_definition(DeclarationAST*& yyast)
+{
+  List<SpecifierAST*>* specifier_list = 0;
+  List<DeclaratorAST*>* decls = 0;
+  auto it = &decls;
+  TranslationUnit::Specs specs;
+  DeclaratorAST* d = 0;
+  ExpressionAST* i = 0;
+  StatementAST* s = 0;
+  EnterScope enterScope;
+}
+: attribute_specifier_seq
+  decl_specifier_no_type_specifier_list(specifier_list)?
+    {
+      specs = unit->specifiers(specifier_list);
+    }
+  (declarator(d) is_function_def(d, specs))
+    {
+      auto funDecl = unit->declarator(specs, d);
+      auto funTy = funDecl->asFunctionType();
+      assert(funTy);
+      auto fun = funTy->symbol();
+      assert(fun);
+      fun->setType(QualType(funTy));
+      fun->setName(funDecl.name);
+      fun->setEnclosingScope(scope); // lexical scope
+      scope->addSymbol(fun); // ### wrong we should not use the lexical scope here.
+      enterScope(this, fun);
+    }
+  function_body(s)
+    {
+      auto ast = new (pool) FunctionDefinitionAST;
+      ast->specifier_list = specifier_list;
+      ast->declarator = d;
+      ast->statement = s;
+      yyast = ast;
+    }
+
+| { specifier_list = 0; }
+  attribute_specifier_seq
+  processed_decl_specifier_list(specifier_list, &specs)?
+  (semicolon
+    {
+      auto ast = new (pool) SimpleDeclarationAST;
+      ast->specifier_list = specifier_list;
+      yyast = ast;
+    }
+  |declarator(d)
+    (is_function_def(d, specs)
+        {
+          auto funDecl = unit->declarator(specs, d);
+          auto funTy = funDecl->asFunctionType();
+          assert(funTy);
+          auto fun = funTy->symbol();
+          assert(fun);
+          fun->setType(QualType(funTy));
+          fun->setName(funDecl.name);
+          fun->setEnclosingScope(scope); // lexical scope
+          scope->addSymbol(fun); // ### wrong we should not use the lexical scope here.
+          enterScope(this, fun);
+        }
+     function_body(s)
+        {
+          auto ast = new (pool) FunctionDefinitionAST;
+          ast->specifier_list = specifier_list;
+          ast->declarator = d;
+          ast->statement = s;
+          yyast = ast;
+        }
+    |
+      { return true; } / (lparen | lbrace | comma | semicolon | colon | equal | try)
+        {
+          auto decl = unit->declarator(specs, d);
+
+          *it = new (pool) List<DeclaratorAST*>(d);
+          it = &(*it)->next;
+        }
+     (initializer(i) { d->initializer = i; })?
+     (comma init_declarator(d, specs)
+        {
+          *it = new (pool) List<DeclaratorAST*>(d);
+          it = &(*it)->next;
+        }
+     )* semicolon
+      {
+        auto ast = new (pool) SimpleDeclarationAST;
+        ast->specifier_list = specifier_list;
+        ast->declarator_list = decls;
+        yyast = ast;
+      }
+    )
+  )
+;
+
+block_declaration(DeclarationAST*& yyast)
+: simple_declaration_or_function_definition(yyast)
+| asm_definition(yyast)
+| namespace_alias_definition(yyast)
+| using_declaration(yyast)
+| using_directive(yyast)
+| static_assert_declaration(yyast)
+| alias_declaration(yyast)
+;
+
+alias_declaration(DeclarationAST*& yyast)
+{
+    NameAST* name = 0;
+    TypeIdAST* t = 0;
+}
+: using simple_name(name) attribute_specifier_seq equal type_id(t) semicolon
+    {
+      auto ast = new (pool) AliasDeclarationAST;
+      ast->alias_name = name;
+      ast->type_id = t;
+      yyast = ast;
+    }
+;
+
+processed_decl_specifier_list(List<SpecifierAST*>*& yyast, TranslationUnit::Specs* specs)
+: decl_specifier_list(yyast) { *specs = unit->specifiers(yyast); }
+;
+
+simple_declaration(DeclarationAST*& yyast)
+{
+  List<SpecifierAST*>* specifier_list = 0;
+  List<DeclaratorAST*>* decls = 0;
+  TranslationUnit::Specs specs;
+}
+: attribute_specifier_list?
+  processed_decl_specifier_list(specifier_list, &specs)?
+  init_declarator_list(decls, specs)? semicolon
+    {
+      auto ast = new (pool) SimpleDeclarationAST;
+      ast->specifier_list = specifier_list;
+      ast->declarator_list = decls;
+      yyast = ast;
+    }
+;
+
+static_assert_declaration(DeclarationAST*& yyast)
+{
+  ExpressionAST* e = 0;
+}
+: static_assert lparen constant_expression(e) comma string_literal+ rparen semicolon
+    {
+      auto ast = new (pool) StaticAssertDeclarationAST;
+      ast->expression = e;
+      yyast = ast;
+    }
+;
+
+empty_declaration(DeclarationAST*& yyast)
+: semicolon
+    {
+      auto ast = new (pool) SimpleDeclarationAST;
+      yyast = ast;
+    }
+;
+
+attribute_declaration(DeclarationAST*& yyast)
+: attribute_specifier_list semicolon
+    {
+      auto ast = new (pool) SimpleDeclarationAST;
+      yyast = ast;
+    }
+;
+
+type_specifier_list(List<SpecifierAST*>*& yyast)
+: decl_specifier_list(yyast)
+;
+
+decl_specifier_list(List<SpecifierAST*>*& yyast)
+{
+  auto it = &yyast;
+  unsigned start = 0;
+  SpecifierAST* spec = 0;
+}
+: save(&start)
+  (decl_specifier_no_type_specifier(spec)
+    {
+        *it = new (pool) List<SpecifierAST*>(spec);
+        it = &(*it)->next;
+    }
+  )*
+  ((simple_type_specifier(spec)
+      {
+          *it = new (pool) List<SpecifierAST*>(spec);
+          it = &(*it)->next;
+      }
+   )+
+  |(type_specifier_no_simple_type_spec(spec)
+      {
+          *it = new (pool) List<SpecifierAST*>(spec);
+          it = &(*it)->next;
+      }
+  ))?
+  (decl_specifier_no_type_specifier(spec)
+      {
+          *it = new (pool) List<SpecifierAST*>(spec);
+          it = &(*it)->next;
+      }
+  )*
+{ return yycursor != start; }
+;
+
+decl_specifier_no_type_specifier_list(List<SpecifierAST*>*& yyast)
+{
+  SpecifierAST* spec = 0;
+  auto it = &yyast;
+}
+: (decl_specifier_no_type_specifier(spec)
+    {
+        *it = new (pool) List<SpecifierAST*>(spec);
+        it = &(*it)->next;
+    }
+    )*
+;
+
+decl_specifier_no_type_specifier(SpecifierAST*& yyast)
+: storage_class_specifier(yyast)
+| function_specifier(yyast)
+| cv_qualifier(yyast)
+| (friend | typedef | constexpr)
+    {
+      auto ast = new (pool) SimpleSpecifierAST;
+      ast->specifier_token = yycursor - 1;
+      yyast = ast;
+    }
+;
+
+storage_class_specifier(SpecifierAST*& yyast)
+: (register | static | extern | mutable | thread_local)
+    {
+      auto ast = new (pool) SimpleSpecifierAST;
+      ast->specifier_token = yycursor - 1;
+      yyast = ast;
+    }
+;
+
+function_specifier(SpecifierAST*& yyast)
+: (inline | virtual | explicit)
+    {
+      auto ast = new (pool) SimpleSpecifierAST;
+      ast->specifier_token = yycursor - 1;
+      yyast = ast;
+    }
+;
+
+type_specifier(SpecifierAST*& yyast)
+: type_specifier_no_simple_type_spec(yyast)
+| simple_type_specifier(yyast)
+;
+
+type_specifier_no_simple_type_spec(SpecifierAST*& yyast)
+{
+    NameAST* name = 0;
+}
+: class_specifier(yyast)
+| enum_specifier(yyast)
+| trailing_type_specifier_no_simple_type_spec(yyast)
+| name(name)
+    {
+      auto ast = new (pool) NamedSpecifierAST;
+      ast->name = name;
+      yyast = ast;
+    }
+;
+
+trailing_type_specifier(SpecifierAST*& yyast)
+: trailing_type_specifier_no_simple_type_spec(yyast)
+| simple_type_specifier(yyast)
+;
+
+trailing_type_specifier_no_simple_type_spec(SpecifierAST*& yyast)
+: elaborated_type_specifier(yyast)
+| typename_specifier(yyast)
+;
+
+simple_type_specifier(SpecifierAST*& yyast)
+: (char | char16_t | char32_t | wchar_t | bool | short | int | long | signed | unsigned | float | double | void | auto)
+    {
+      auto ast = new (pool) SimpleSpecifierAST;
+      ast->specifier_token = yycursor - 1;
+      yyast = ast;
+    }
+;
+
+decltype_specifier(NameAST*& yyast)
+{
+  ExpressionAST* e = 0;
+}
+: decltype lparen expression(e) rparen
+    {
+        auto ast = new (pool) DecltypeNameAST;
+        ast->expression = e;
+        yyast = ast;
+    }
+| decltype lparen auto rparen
+    {
+        auto ast = new (pool) DecltypeAutoNameAST;
+        yyast = ast;
+    }
+;
+
+elaborated_type_specifier(SpecifierAST*& yyast)
+{
+    NameAST* name = 0;
+}
+: class_key attribute_specifier_seq name(name)
+    {
+        auto ast = new (pool) ElaboratedTypeSpecifierAST;
+        ast->name = name;
+        yyast = ast;
+    }
+| enum name(name)
+    {
+        auto ast = new (pool) ElaboratedTypeSpecifierAST;
+        ast->name = name;
+        yyast = ast;
+    }
+;
+
+enum_specifier(SpecifierAST*& yyast)
+{
+    NameAST* name = 0;
+    List<EnumeratorAST*>* enums = 0;
+    auto it = &enums;
+    List<SpecifierAST*>* specs = 0;
+    EnumeratorAST* d = 0;
+}
+: enum (class | struct)? attribute_specifier_seq simple_name(name)?
+        (colon type_specifier_list(specs))?
+        lbrace (enumerator_definition(d)
+                    {
+                        *it = new (pool) List<EnumeratorAST*>(d);
+                        it = &(*it)->next;
+                    }
+                (comma enumerator_definition(d)
+                    {
+                        *it = new (pool) List<EnumeratorAST*>(d);
+                        it = &(*it)->next;
+                    }
+                )*)? comma? rbrace
+    {
+      auto ast = new (pool) EnumSpecifierAST;
+      ast->name = name;
+      ast->specifier_list = specs;
+      ast->enumerator_list = enums;
+      yyast = ast;
+    }
+;
+
+enumerator_definition(EnumeratorAST*& yyast)
+{
+    NameAST* name = 0;
+    ExpressionAST* e = 0;
+}
+: simple_name(name) (equal constant_expression(e))?
+    {
+        auto ast = new (pool) EnumeratorAST;
+        ast->name = name;
+        ast->expression = e;
+        yyast = ast;
+    }
+;
+
+namespace_definition(DeclarationAST*& yyast)
+{
+  NameAST* n = 0;
+  List<DeclarationAST*>* declaration_list = 0;
+  auto it = &declaration_list;
+  DeclarationAST* d = 0;
+  unsigned yypos = 0;
+  EnterScope enterScope;
+}
+: inline? {yypos=yycursor;} namespace simple_name(n)?
+  lbrace
+    {
+      auto name = unit->name(n);
+      auto ns = scope->findNamespace(name);
+      if (! ns) {
+        ns = control->newNamespace();
+        ns->setName(name);
+        ns->setEnclosingScope(scope);
+        scope->addSymbol(ns);
+      }
+      enterScope(this, ns);
+    }
+  (declaration(d, false)
+    {
+      *it = new (pool) List<DeclarationAST*>(d);
+      it = &(*it)->next;
+    }
+  )* rbrace
+    {
+      auto ast = new (pool) NamespaceDefinitionAST;
+      ast->namespace_token = yypos;
+      ast->name = n;
+      ast->declaration_list = declaration_list;
+      yyast = ast;
+    }
+;
+
+namespace_alias_definition(DeclarationAST*& yyast)
+{
+    NameAST* alias_name = 0;
+    NameAST* name = 0;
+}
+: namespace simple_name(name) equal name(name) semicolon
+    {
+      auto ast = new (pool) NamespaceAliasDefinitionAST;
+      ast->alias_name = alias_name;
+      ast->name = name;
+      yyast = ast;
+    }
+;
+
+using_declaration(DeclarationAST*& yyast)
+{
+    NameAST* name = 0;
+}
+: using typename? name(name) semicolon
+    {
+      auto ast = new (pool) UsingDeclarationAST;
+      ast->name = name;
+      yyast = ast;
+    }
+;
+
+using_directive(DeclarationAST*& yyast)
+{
+    NameAST* name = 0;
+}
+: attribute_specifier_seq using namespace name(name) semicolon
+    {
+      auto ast = new (pool) UsingDirectiveAST;
+      ast->name = name;
+      yyast = ast;
+    }
+;
+
+asm_definition(DeclarationAST*& yyast)
+: asm lparen string_literal rparen semicolon
+    {
+      auto ast = new (pool) AsmDefinitionAST;
+      yyast = ast;
+    }
+;
+
+attribute_specifier_list
+: (attribute_specifier | alignment_specifier)+
+;
+
+attribute_specifier_seq
+: (attribute_specifier | alignment_specifier)*
+;
+
+attribute_specifier
+: lbracket lbracket identifier rbracket rbracket
+;
+
+linkage_specification(DeclarationAST*& yyast)
+{
+  DeclarationAST* d = 0;
+  List<DeclarationAST*>* declaration_list = 0;
+  auto it = &declaration_list;
+}
+: extern string_literal lbrace (declaration(d, false)
+    {
+      *it = new (pool) List<DeclarationAST*>(d);
+      it = &(*it)->next;
+    }
+  )* rbrace
+    {
+      auto ast = new (pool) LinkageSpecificationAST;
+      ast->declaration_list = declaration_list;
+      yyast = ast;
+    }
+| extern string_literal declaration(yyast, false)
+    {
+        auto ast = new (pool) LinkageSpecificationAST;
+        ast->declaration_list = new (pool) List<DeclarationAST*>(yyast);
+        yyast = ast;
+    }
+;
+
+alignment_specifier
+{
+  TypeIdAST* t = 0;
+  ExpressionAST* e = 0;
+}
+: alignas lparen type_id(t) dot_dot_dot? rparen
+| alignas lparen assignment_expression(e, false)? rparen
+;
+
+init_declarator_list(List<DeclaratorAST*>*& yyast, const TranslationUnit::Specs& specs)
+{
+  auto it = &yyast;
+  DeclaratorAST* d = 0;
+}
+: init_declarator(d, specs)
+    {
+      *it = new (pool) List<DeclaratorAST*>(d);
+      it = &(*it)->next;
+    }
+  (comma init_declarator(d, specs)
+      {
+        *it = new (pool) List<DeclaratorAST*>(d);
+        it = &(*it)->next;
+      }
+  )*
+;
+
+init_declarator(DeclaratorAST*& yyast, const TranslationUnit::Specs& specs)
+{
+  ExpressionAST* i = 0;
+}
+: processed_declarator(yyast, specs)
+    {
+      auto decl = unit->declarator(specs, yyast);
+    }
+  initializer(i)?
+    {
+      if (! i)
+        return true;
+
+      yyast->initializer = i;
+    }
+;
+
+processed_declarator(DeclaratorAST*& yyast, const TranslationUnit::Specs& specs)
+: declarator(yyast) { unit->declarator(specs, yyast); }
+;
+
+declarator(DeclaratorAST*& yyast)
+{
+  List<PtrOperatorAST*>* ptr_op_list = 0;
+  auto ptr_op_it = &ptr_op_list;
+  PtrOperatorAST* ptr_op = 0;
+  List<PostfixDeclaratorAST*>* postfix_list = 0;
+  auto postfix_it = &postfix_list;
+  PostfixDeclaratorAST* p = 0;
+  CoreDeclaratorAST* c = 0;
+}
+: (ptr_operator(ptr_op)
+    {
+      *ptr_op_it = new (pool) List<PtrOperatorAST*>(ptr_op);
+      ptr_op_it = &(*ptr_op_it)->next;
+    }
+  )* core_declarator(c)
+  (postfix_declarator(p)
+    {
+      *postfix_it = new (pool) List<PostfixDeclaratorAST*>(p);
+      postfix_it = &(*postfix_it)->next;
+    }
+  )*
+    {
+      auto ast = new (pool) DeclaratorAST;
+      ast->ptr_op_list = ptr_op_list;
+      ast->core_declarator = c;
+      ast->postfix_declarator_list = postfix_list;
+      yyast = ast;
+    }
+;
+
+core_declarator(CoreDeclaratorAST*& yyast)
+{
+  DeclaratorAST* d = 0;
+}
+: declarator_id(yyast) attribute_specifier_seq
+| lparen declarator(d) rparen
+    {
+      auto ast = new (pool) NestedDeclaratorAST;
+      ast->declarator = d;
+      yyast = ast;
+    }
+;
+
+postfix_declarator(PostfixDeclaratorAST*& yyast)
+{
+  ParametersAndQualifiersAST* p = 0;
+  ExpressionAST* e = 0;
+}
+: parameters_and_qualifiers(p) trailing_return_type? virt_specifier*
+    {
+      auto ast = new (pool) FunctionDeclaratorAST;
+      ast->parameters_and_qualifiers = p;
+      yyast = ast;
+    }
+| lbracket expression(e)? rbracket attribute_specifier_seq
+    {
+      auto ast = new (pool) ArrayDeclaratorAST;
+      ast->size_expression = e;
+      yyast = ast;
+    }
+;
+
+parameters_and_qualifiers(ParametersAndQualifiersAST*& yyast)
+{
+  List<DeclarationAST*>* params = 0;
+  SpecifierAST* cv = 0;
+}
+: lparen parameter_declaration_clause(params)? rparen cv_qualifier(cv)* ref_qualifier? exception_specification?
+  attribute_specifier_seq
+    {
+      auto ast = new (pool) ParametersAndQualifiersAST;
+      ast->parameter_list = params;
+      yyast = ast;
+    }
+;
+
+trailing_return_type
+{
+  List<SpecifierAST*>* specifier_list = 0;
+  DeclaratorAST* d = 0;
+  TranslationUnit::Specs specs;
+}
+: minus_greater type_specifier_list(specifier_list)
+    {
+      specs = unit->specifiers(specifier_list);
+    }
+  abstract_declarator(d)?
+    {
+      unit->declarator(specs, d);
+    }
+;
+
+ptr_operator(PtrOperatorAST*& yyast)
+{
+  unsigned op_token = 0;
+  SpecifierAST* spec = 0;
+  List<SpecifierAST*>* cv = 0;
+  auto it = &cv;
+  NameAST* n = 0;
+  List<NameAST*>* nested_name_specifier = 0;
+  auto x = &nested_name_specifier;
+}
+: star parsed_token(&op_token) attribute_specifier_seq
+        (cv_qualifier(spec)
+            {
+                *it = new (pool) List<SpecifierAST*>(spec);
+                it = &(*it)->next;
+            }
+        )*
+    {
+      auto ast = new (pool) PtrOperatorAST;
+      ast->op = unit->tokenKind(op_token);
+      ast->cv_qualifier_list = cv;
+      yyast = ast;
+    }
+| (amp | amp_amp) parsed_token(&op_token) attribute_specifier_seq
+    {
+      auto ast = new (pool) PtrOperatorAST;
+      ast->op = unit->tokenKind(op_token);
+      ast->cv_qualifier_list = cv;
+      yyast = ast;
+    }
+| colon_colon? (class_or_namespace_name(n)
+                    {
+                        *x = new (pool) List<NameAST*>(n);
+                        x = &(*x)->next;
+                    }
+               )+ star parsed_token(&op_token) attribute_specifier_seq
+            (cv_qualifier(spec)
+              {
+                *it = new (pool) List<SpecifierAST*>(spec);
+                it = &(*it)->next;
+              }
+            )*
+    {
+        auto ast = new (pool) PtrOperatorAST;
+        ast->op = unit->tokenKind(op_token);
+        ast->nested_name_specifier = nested_name_specifier;
+        ast->cv_qualifier_list = cv;
+        yyast = ast;
+    }
+;
+
+cv_qualifier(SpecifierAST*& yyast)
+: (const | volatile)
+    {
+      auto ast = new (pool) SimpleSpecifierAST;
+      ast->specifier_token = yycursor - 1;
+      yyast = ast;
+    }
+;
+
+ref_qualifier
+: amp
+| amp_amp
+;
+
+declarator_id(CoreDeclaratorAST*& yyast)
+{
+    NameAST* name = 0;
+}
+: dot_dot_dot? name(name)
+    {
+      auto ast = new (pool) DeclaratorIdAST;
+      ast->name = name;
+      yyast = ast;
+    }
+;
+
+type_id(TypeIdAST*& yyast)
+{
+    List<SpecifierAST*>* specifier_list = 0;
+    DeclaratorAST* d = 0;
+    TranslationUnit::Specs specs;
+}
+: type_specifier_list(specifier_list)
+    {
+      specs = unit->specifiers(specifier_list);
+    }
+  abstract_declarator(d)?
+    {
+      unit->declarator(specs, d);
+      auto ast = new (pool) TypeIdAST;
+      ast->specifier_list = specifier_list;
+      ast->declarator = d;
+      yyast = ast;
+    }
+;
+
+abstract_core_declarator(CoreDeclaratorAST*& yyast)
+{
+  DeclaratorAST* d = 0;
+}
+: lparen abstract_declarator(d) rparen
+    {
+      auto ast = new (pool) NestedDeclaratorAST;
+      ast->declarator = d;
+      yyast = ast;
+    }
+| dot_dot_dot
+;
+
+abstract_declarator(DeclaratorAST*& yyast)
+{
+  List<PtrOperatorAST*>* ptr_op_list = 0;
+  auto ptr_op_it = &ptr_op_list;
+  PtrOperatorAST* ptr_op = 0;
+  ParametersAndQualifiersAST* p = 0;
+  ExpressionAST* e = 0;
+  List<PostfixDeclaratorAST*>* postfix_list = 0;
+  auto postfix_it = &postfix_list;
+  CoreDeclaratorAST* c = 0;
+}
+: (ptr_operator(ptr_op)
+    {
+      *ptr_op_it = new (pool) List<PtrOperatorAST*>(ptr_op);
+      ptr_op_it = &(*ptr_op_it)->next;
+    }
+  )*
+
+  abstract_core_declarator(c)?
+
+  (parameters_and_qualifiers(p)
+        {
+          auto ast = new (pool) FunctionDeclaratorAST;
+          ast->parameters_and_qualifiers = p;
+
+          *postfix_it = new (pool) List<PostfixDeclaratorAST*>(ast);
+          postfix_it = &(*postfix_it)->next;
+        }
+   | lbracket constant_expression(e)? rbracket
+        {
+          auto ast = new (pool) ArrayDeclaratorAST;
+          ast->size_expression = e;
+
+          *postfix_it = new (pool) List<PostfixDeclaratorAST*>(ast);
+          postfix_it = &(*postfix_it)->next;
+        }
+   )*
+  {
+    if (ptr_op_list || c || postfix_list) {
+      auto ast = new (pool) DeclaratorAST;
+      ast->ptr_op_list = ptr_op_list;
+      ast->core_declarator = c;
+      ast->postfix_declarator_list = postfix_list;
+      yyast = ast;
+    } else {
+      yyast = 0;
+    }
+  }
+;
+
+parameter_declaration_clause(List<DeclarationAST*>*& yyast)
+{
+  auto it = &yyast;
+  DeclarationAST* d = 0;
+}
+: parameter_declaration(d, false) dot_dot_dot?
+    {
+      *it = new (pool) List<DeclarationAST*>(d);
+      it = &(*it)->next;
+    }
+    (comma parameter_declaration(d, false) dot_dot_dot?
+        {
+          *it = new (pool) List<DeclarationAST*>(d);
+          it = &(*it)->next;
+        }
+    )* comma? dot_dot_dot?
+| dot_dot_dot
+;
+
+parameter_declaration(DeclarationAST*& yyast, bool inTempl)
+{
+  List<SpecifierAST*>* specifier_list = 0;
+  DeclaratorAST* d = 0;
+  ExpressionAST* e = 0;
+  TranslationUnit::Specs specs;
+}
+: attribute_specifier_seq decl_specifier_list(specifier_list)
+    {
+      specs = unit->specifiers(specifier_list);
+    }
+  (declarator(d) | abstract_declarator(d)?)
+    {
+      unit->declarator(specs, d);
+    }
+  (equal initializer_clause(e, inTempl))?
+    {
+      auto ast = new (pool) ParameterDeclarationAST;
+      ast->specifier_list = specifier_list;
+      ast->declarator = d;
+      ast->expression = e;
+      yyast = ast;
+    }
+;
+
+function_definition(DeclarationAST*& yyast)
+{
+  List<SpecifierAST*>* specifier_list = 0;
+  DeclaratorAST* d = 0;
+  StatementAST* s = 0;
+  TranslationUnit::Specs specs;
+  EnterScope enterScope;
+}
+: attribute_specifier_seq
+  (decl_specifier_no_type_specifier_list(specifier_list)
+    {
+      specs = unit->specifiers(specifier_list);
+    }
+   (declarator(d) / (lbrace | colon | equal))
+    {
+      unit->declarator(specs, d);
+    }
+
+  |decl_specifier_list(specifier_list)?
+    {
+      specs = unit->specifiers(specifier_list);
+    }
+   (declarator(d) / (lbrace | colon | equal)))
+     {
+      auto funDecl = unit->declarator(specs, d);
+      auto funTy = funDecl->asFunctionType();
+      assert(funTy);
+      auto fun = funTy->symbol();
+      assert(fun);
+      fun->setType(QualType(funTy));
+      fun->setName(funDecl.name);
+      fun->setEnclosingScope(scope); // lexical scope
+      scope->addSymbol(fun); // ### wrong we should not use the lexical scope here.
+      enterScope(this, fun);
+     }
+
+  function_body(s)
+    {
+      auto ast = new (pool) FunctionDefinitionAST;
+      ast->specifier_list = specifier_list;
+      ast->declarator = d;
+      ast->statement = s;
+      yyast = ast;
+    }
+;
+
+function_body(StatementAST*& yyast)
+{
+    List<MemInitializerAST*>* i = 0;
+}
+: ctor_initializer(i)? compound_statement(yyast)
+| function_try_block
+| equal default semicolon
+| equal delete semicolon
+;
+
+initializer(ExpressionAST*& yyast)
+{
+  List<ExpressionAST*>* args = 0;
+}
+: brace_or_equal_initializer(yyast)
+| lparen expression_list(args)? rparen
+;
+
+brace_or_equal_initializer(ExpressionAST*& yyast)
+{
+  ExpressionAST* e = 0;
+}
+: equal initializer_clause(e, false)
+    {
+      auto ast = new (pool) SimpleInitializerAST;
+      ast->expression = e;
+      yyast = ast;
+    }
+| braced_init_list(yyast)
+;
+
+initializer_list(List<ExpressionAST*>*& yyast)
+{
+  auto it = &yyast;
+  ExpressionAST* e = 0;
+}
+: initializer_clause(e, false) dot_dot_dot?
+    {
+      *it = new (pool) List<ExpressionAST*>(e);
+      it = &(*it)->next;
+    }
+    (comma initializer_clause(e, false) dot_dot_dot?
+        {
+          *it = new (pool) List<ExpressionAST*>(e);
+          it = &(*it)->next;
+        }
+    )*
+;
+
+braced_init_list(ExpressionAST*& yyast)
+{
+  List<ExpressionAST*>* args = 0;
+}
+: lbrace (rbrace | initializer_list(args) comma? rbrace)
+    {
+        auto ast = new (pool) BracedInitializerAST;
+        ast->expression_list = args;
+        yyast = ast;
+    }
+;
+
+class_specifier(SpecifierAST*& yyast)
+{
+  DeclarationAST* d = 0;
+  List<DeclarationAST*>* declaration_list = 0;
+  auto it = &declaration_list;
+  NameAST* name = 0;
+  List<BaseClassAST*>* b = 0;
+  unsigned yypos = 0;
+  EnterScope enterScope;
+  ClassSymbol* klass = 0;
+}
+: class_key attribute_specifier_seq
+  { yypos=yycursor; } ((name(name) (final | explicit)?)?)
+  / (colon | lbrace)
+    {
+      klass = control->newClass();
+      klass->setName(unit->name(name));
+      klass->setEnclosingScope(scope);
+      scope->addSymbol(klass);
+    }
+  base_clause(b, klass)?
+  lbrace
+    {
+      enterScope(this, klass);
+    }
+  (member_declaration(d)
+    {
+      *it = new (pool) List<DeclarationAST*>(d);
+      it = &(*it)->next;
+    }
+  )* rbrace
+    {
+      auto ast = new (pool) ClassSpecifierAST;
+      ast->symbol = klass;
+      ast->name = name;
+      ast->base_class_list = b;
+      ast->declaration_list = declaration_list;
+      yyast = ast;
+    }
+;
+
+class_key
+: class
+| struct
+| union
+;
+
+member_declaration(DeclarationAST*& yyast)
+{
+    List<SpecifierAST*>* specifier_list = 0;
+    DeclaratorAST* d = 0;
+    List<DeclaratorAST*>* decls = 0;
+    TranslationUnit::Specs specs;
+}
+: (public | protected | private) colon
+| template_member_declaration(yyast)
+
+| attribute_specifier_seq
+  decl_specifier_list(specifier_list)?
+    {
+      specs = unit->specifiers(specifier_list);
+    }
+  member_declarator_list(decls, specs)? semicolon
+    {
+      auto ast = new (pool) SimpleDeclarationAST;
+      ast->specifier_list = specifier_list;
+      ast->declarator_list = decls;
+      yyast = ast;
+    }
+
+| attribute_specifier_seq
+  decl_specifier_no_type_specifier_list(specifier_list)
+    {
+      specs = unit->specifiers(specifier_list);
+    }
+  member_declarator(d, specs) semicolon
+    {
+      auto decl = unit->declarator(specs, d);
+
+      auto ast = new (pool) SimpleDeclarationAST;
+      ast->specifier_list = specifier_list;
+      ast->declarator_list = new (pool) List<DeclaratorAST*>(d);
+      yyast = ast;
+    }
+
+| function_definition(yyast) semicolon?
+| using_declaration(yyast)
+| static_assert_declaration(yyast)
+| alias_declaration(yyast)
+;
+
+member_declarator_list(List<DeclaratorAST*>*& yyast, const TranslationUnit::Specs& specs)
+{
+    auto it = &yyast;
+    DeclaratorAST* d = 0;
+}
+: member_declarator(d, specs)
+    {
+        *it = new (pool) List<DeclaratorAST*>(d);
+        it = &(*it)->next;
+    }
+  (comma member_declarator(d, specs)
+      {
+          *it = new (pool) List<DeclaratorAST*>(d);
+          it = &(*it)->next;
+      }
+  )*
+;
+
+member_declarator(DeclaratorAST*& yyast, const TranslationUnit::Specs& specs)
+{
+    NameAST* n = 0;
+    DeclaratorAST* d = 0;
+    ExpressionAST* e = 0;
+    ExpressionAST* i = 0;
+}
+: simple_name(n)? attribute_specifier_seq colon constant_expression(e)
+    {
+        auto decl_id = new (pool) DeclaratorIdAST;
+        decl_id->name = n;
+        auto ast = new (pool) DeclaratorAST;
+        ast->core_declarator = decl_id;
+        ast->initializer = e;
+        yyast = ast;
+    }
+| declarator(yyast)
+  / (lbrace | comma | semicolon | colon | equal | try)
+    {
+      auto decl = unit->declarator(specs, yyast);
+    }
+  brace_or_equal_initializer(i)?
+    {
+        if (! i)
+            return true;
+        yyast->initializer = i;
+    }
+;
+
+virt_specifier
+: override
+| final
+;
+
+base_clause(List<BaseClassAST*>*& yyast, ClassSymbol* klass)
+: colon base_specifier_list(yyast, klass)
+;
+
+base_specifier_list(List<BaseClassAST*>*& yyast, ClassSymbol* klass)
+{
+    auto it = &yyast;
+    BaseClassAST* bc = 0;
+}
+: base_specifier(bc, klass) dot_dot_dot?
+    {
+      *it = new (pool) List<BaseClassAST*>(bc);
+      it = &(*it)->next;
+    }
+  (comma base_specifier(bc, klass) dot_dot_dot?
+    {
+      *it = new (pool) List<BaseClassAST*>(bc);
+      it = &(*it)->next;
+    }
+  )*
+;
+
+base_specifier(BaseClassAST*& yyast, ClassSymbol* klass)
+{
+    NameAST* name = 0;
+}
+: attribute_specifier_seq (virtual | public | protected | private)*
+  base_type_specifier(name)
+    {
+      auto baseClass = new BaseClassSymbol();
+      baseClass->setName(unit->name(name));
+      baseClass->setEnclosingScope(klass);
+      klass->addBaseClass(baseClass);
+      auto ast = new (pool) BaseClassAST;
+      ast->name = name;
+      yyast = ast;
+    }
+;
+
+base_type_specifier(NameAST*& yyast)
+: name(yyast)
+| decltype_specifier(yyast)
+;
+
+conversion_function_id(NameAST*& yyast)
+{
+    List<SpecifierAST*>* specs = 0;
+    PtrOperatorAST* ptr_op = 0;
+}
+: operator type_specifier_list(specs) ptr_operator(ptr_op)*
+;
+
+ctor_initializer(List<MemInitializerAST*>*& yyast)
+: colon mem_initializer_list(yyast)
+;
+
+mem_initializer_list(List<MemInitializerAST*>*& yyast)
+{
+    auto it = &yyast;
+    MemInitializerAST* i = 0;
+}
+: mem_initializer(i)
+    {
+        *it = new (pool) List<MemInitializerAST*>(i);
+        it = &(*it)->next;
+    }
+        (comma mem_initializer(i)
+            {
+                *it = new (pool) List<MemInitializerAST*>(i);
+                it = &(*it)->next;
+            }
+        )*
+;
+
+mem_initializer(MemInitializerAST*& yyast)
+{
+  NameAST* n = 0;
+  List<ExpressionAST*>* args = 0;
+  ExpressionAST* e = 0;
+}
+: mem_initializer_id(n) (lparen expression_list(args)? rparen | braced_init_list(e)) dot_dot_dot?
+    {
+        auto ast = new (pool) MemInitializerAST;
+        ast->name = n;
+        ast->expression_list = args;
+        yyast = ast;
+    }
+;
+
+mem_initializer_id(NameAST*& yyast)
+: name(yyast)
+| decltype_specifier(yyast)
+;
+
+operator_function_id(NameAST*& yyast)
+{
+  unsigned op_token = 0;
+}
+: operator { op_token = yycursor; }
+    (new lbracket rbracket | delete lbracket rbracket | new | delete | amp | amp_amp | amp_equal | bar | bar_bar
+          | bar_equal | caret | caret_equal | comma | equal | equal_equal | exclaim | exclaim_equal
+          | greater greater equal | greater greater | greater equal | greater | less | less_equal | less_less
+          | less_less_equal | lparen rparen | minus | minus_equal | minus_greater | minus_greater_star | minus_minus
+          | percent | percent_equal | plus | plus_equal | plus_plus | slash | slash_equal | star | star_equal | tilde
+          | tilde_equal | lbracket rbracket)
+    {
+      auto ast = new (pool) OperatorNameAST;
+      ast->op_token = op_token;
+      yyast = ast;
+    }
+;
+
+template_declaration(DeclarationAST*& yyast)
+{
+  List<DeclarationAST*>* params = 0;
+  auto it = &params;
+  DeclarationAST* d = 0;
+  EnterScope enterScope;
+}
+: extern? template (less
+            (template_parameter(d) dot_dot_dot?
+                {
+                  *it = new (pool) List<DeclarationAST*>(d);
+                  it = &(*it)->next;
+                }
+                (comma template_parameter(d) dot_dot_dot?
+                    {
+                      *it = new (pool) List<DeclarationAST*>(d);
+                      it = &(*it)->next;
+                    }
+                )*)? greater)?
+    {
+      auto templ = control->newTemplate();
+      templ->setEnclosingScope(templ);
+      scope->addSymbol(templ);
+      enterScope(this, templ);
+    }
+  (declaration(d, true)
+    {
+      auto ast = new (pool) TemplateDeclarationAST;
+      ast->declaration = d;
+      yyast = d;
+    }
+  |fatal("internal compiler error while parsing a toplevel template declaration"))
+;
+
+template_member_declaration(DeclarationAST*& yyast)
+{
+  List<DeclarationAST*>* params = 0;
+  auto it = &params;
+  DeclarationAST* p = 0;
+  DeclarationAST* d = 0;
+  EnterScope enterScope;
+}
+: extern? template (less
+        (template_parameter(p) dot_dot_dot?
+            {
+              *it = new (pool) List<DeclarationAST*>(p);
+              it = &(*it)->next;
+            }
+            (comma template_parameter(p) dot_dot_dot?
+                {
+                  *it = new (pool) List<DeclarationAST*>(p);
+                  it = &(*it)->next;
+                }
+            )*)? greater)?
+    {
+      auto templ = control->newTemplate();
+      templ->setEnclosingScope(scope);
+      enterScope(this, templ);
+    }
+  (member_declaration(d)
+    {
+      auto ast = new (pool) TemplateDeclarationAST;
+      ast->template_parameter_list = params;
+      ast->declaration = d;
+      yyast = ast;
+    }
+  |fatal("internal compiler error while parsing a template member declaration"))
+;
+
+template_parameter(DeclarationAST*& yyast)
+: type_parameter(yyast)
+| parameter_declaration(yyast, true) / (comma | greater)
+;
+
+type_parameter(DeclarationAST*& yyast)
+{
+  TypeIdAST* t = 0;
+  DeclarationAST* p = 0;
+  List<DeclarationAST*>* params = 0;
+  auto it = &params;
+  NameAST* n = 0;
+}
+: ((class | typename) dot_dot_dot? simple_name(n)? (equal type_id(t))?) / (comma | greater)
+    {
+      auto ast = new (pool) TypeParameterAST;
+      ast->name = n;
+      ast->type_id = t;
+      yyast = ast;
+    }
+| template less
+    template_parameter(p) dot_dot_dot?
+        {
+          *it = new (pool) List<DeclarationAST*>(p);
+          it = &(*it)->next;
+        }
+        (comma template_parameter(p) dot_dot_dot?
+            {
+              *it = new (pool) List<DeclarationAST*>(p);
+              it = &(*it)->next;
+            }
+        )* greater class dot_dot_dot? simple_name(n)? (equal type_id(t))?
+    {
+      auto ast = new (pool) TemplateTypeParameterAST;
+      ast->name = n;
+      ast->template_parameter_list = params;
+      ast->type_id = t;
+      yyast = ast;
+    }
+;
+
+template_id(NameAST*& yyast)
+{
+  List<ExpressionAST*>* args = 0;
+  auto it = &args;
+  ExpressionAST* e = 0;
+}
+: simple_template_id(yyast)
+| operator_function_id(yyast) less
+    (template_argument(e)
+        {
+          *it = new (pool) List<ExpressionAST*>(e);
+          it = &(*it)->next;
+        }
+    (comma template_argument(e)
+        {
+          *it = new (pool) List<ExpressionAST*>(e);
+          it = &(*it)->next;
+        }
+    )*)? greater
+        {
+            auto ast = new (pool) TemplateIdAST;
+            ast->name = yyast;
+            ast->expression_list = args;
+            yyast = ast;
+        }
+;
+
+simple_template_id(NameAST*& yyast)
+{
+  List<ExpressionAST*>* args = 0;
+  auto it = &args;
+  ExpressionAST* e = 0;
+  NameAST* name = 0;
+}
+: simple_name(name) less
+    (template_argument(e)
+        {
+            *it = new (pool) List<ExpressionAST*>(e);
+            it = &(*it)->next;
+        }
+    (comma template_argument(e)
+        {
+            *it = new (pool) List<ExpressionAST*>(e);
+            it = &(*it)->next;
+        }
+    )*)? greater
+        {
+            auto ast = new (pool) TemplateIdAST;
+            ast->name = name;
+            ast->expression_list = args;
+            yyast = ast;
+        }
+;
+
+template_argument(ExpressionAST*& yyast)
+{
+  TypeIdAST* t = 0;
+  ExpressionAST* e = 0;
+}
+: (type_id(t) / (comma | greater | dot_dot_dot)) dot_dot_dot? { yyast = t; }
+| template_argument_expression(e) dot_dot_dot? { yyast = e; }
+;
+
+typename_specifier(SpecifierAST*& yyast)
+{
+    NameAST* name = 0;
+}
+: typename name(name)
+    {
+      auto ast = new (pool) TypenameSpecifierAST;
+      ast->name = name;
+      yyast = ast;
+    }
+;
+
+try_block(StatementAST*& yyast)
+{
+  StatementAST* s = 0;
+}
+: try compound_statement(s) handler+
+;
+
+function_try_block
+{
+    List<MemInitializerAST*>* i = 0;
+    StatementAST* s = 0;
+}
+: try ctor_initializer(i)? compound_statement(s) handler+
+;
+
+handler
+{
+  StatementAST* s = 0;
+}
+: catch lparen exception_declaration rparen compound_statement(s)
+;
+
+exception_declaration
+{
+  List<SpecifierAST*>* specifier_list = 0;
+  DeclaratorAST* d = 0;
+  TranslationUnit::Specs specs;
+}
+: dot_dot_dot
+| attribute_specifier_seq
+  type_specifier_list(specifier_list)
+    {
+      specs = unit->specifiers(specifier_list);
+    }
+  (declarator(d) | abstract_declarator(d)?)
+    {
+      unit->declarator(specs, d);
+    }
+;
+
+throw_exception(ExpressionAST*& yyast)
+{
+  ExpressionAST* e = 0;
+}
+: throw expression(e)?
+;
+
+exception_specification
+: noexcept_specification
+| dynamic_exception_specification
+;
+
+dynamic_exception_specification
+{
+  TypeIdAST* t = 0;
+}
+: throw lparen (type_id(t) dot_dot_dot? (comma type_id(t) dot_dot_dot?)*)? rparen
+;
+
+noexcept_specification
+{
+  ExpressionAST* e = 0;
+}
+: noexcept (lparen constant_expression(e) rparen)?
+;
+
+translation_unit(TranslationUnitAST*& yyast)
+{
+  DeclarationAST* d = 0;
+
+  yyast = new (pool) TranslationUnitAST;
+  auto it = &yyast->declaration_list;
+}
+: (declaration(d, false)
+    {
+      *it = new (pool) List<DeclarationAST*>(d);
+      it = &(*it)->next;
+    }
+  )*
+;
+
+final
+: identifier / (colon | lbrace | semicolon | override)
+  { return !strcmp("final", unit->tokenText(yycursor - 1)); }
+;
+
+override
+: identifier / (colon | lbrace | semicolon | final)
+  { return !strcmp("override", unit->tokenText(yycursor - 1)); }
+;
+
+save(unsigned* cursor)
+: { *cursor = yycursor; }
+;
+
+parsed_token(unsigned* cursor)
+: { *cursor = yycursor - 1; }
+;
+
+restore(unsigned cursor)
+: { yycursor = cursor; }
+;
+
+warning(const std::string& msg)
+: { unit->warning(yycursor, "%s", msg.c_str()); }
+;
+
+error(const std::string& msg)
+: { yycursor = yyparsed; unit->error(yycursor, "%s", msg.c_str()); }
+;
+
+fatal(const std::string& msg)
+: { yycursor = yyparsed; unit->fatal(yycursor, "%s", msg.c_str()); }
+;
