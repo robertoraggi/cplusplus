@@ -177,7 +177,7 @@ public:
   void dump(std::ostream& out, int depth) override;
 };
 
-class TypeParameterSymbol final: public ExtendsSymbol<SymbolKind::kDeclaration, Symbol> {
+class TypeParameterSymbol final: public ExtendsSymbol<SymbolKind::kTypeParameter, Symbol> {
 public:
   void dump(std::ostream& out, int depth) override;
 };
