@@ -924,7 +924,7 @@ struct Nullables: ItemVisitor {
       for (auto&& rule: all_rules) {
         rule->def->accept(this);
         if (rule->def->nullable)
-          nullable_non_terminals.insert(rule->lhs);
+          changed |= nullable_non_terminals.insert(rule->lhs).second;
       }
     } while (changed);
   }
@@ -978,15 +978,17 @@ private:
   }
   void visit(Postfix<Star>* p) override {
     p->item->accept(this);
-    p->nullable = true;
-    if (! changed)
+    if (! p->nullable) {
+      p->nullable = true;
       changed = true;
+    }
   }
   void visit(Postfix<Question>* p) override {
     p->item->accept(this);
-    p->nullable = true;
-    if (! changed)
+    if (! p->nullable) {
+      p->nullable = true;
       changed = true;
+    }
   }
 };
 
