@@ -174,19 +174,6 @@
     }
   };
 
-  std::set<const Identifier*> templates;
-
-  bool isTemplateName(const Identifier* id) const {
-    auto it = templates.find(id);
-    if (it != templates.end())
-      return true;
-    return false;
-  }
-
-  void enterTemplate(const Identifier* id) {
-    templates.insert(id);
-  }
-
   bool templDecl{false};
   struct EnterTemplateDecl {
     Parser* p{0};
