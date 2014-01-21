@@ -398,6 +398,8 @@ struct ProcessName {
   }
 
   const Name* process(NameAST* ast) {
+    if (! ast)
+      return 0;
     switch (ast->kind()) {
     case ASTKind::kQualifiedName: {
       auto q = ast->asQualifiedName();

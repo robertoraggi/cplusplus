@@ -848,6 +848,8 @@ declaration(DeclarationAST*& yyast, bool templDecl)
 
 is_function_decl(DeclaratorAST* ast, const TranslationUnit::Specs& specs)
 : {
+    if (! ast)
+      return false;
     auto decl = unit->declarator(specs, ast);
     if (! decl->isFunctionType())
       return false;
@@ -874,7 +876,17 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
     {
       specs = unit->specifiers(specifier_list);
     }
-  (declarator(d) is_function_def(d, specs))
+  (declarator(d)
+
+  (is_function_decl(d, specs) semicolon
+    {
+      auto funDecl = unit->declarator(specs, d);
+      auto ast = new (pool) SimpleDeclarationAST;
+      ast->specifier_list = specifier_list;
+      ast->declarator_list = new (pool) List<DeclaratorAST*>(d);
+      yyast = ast;
+    }
+  |is_function_def(d, specs)
     {
       auto funDecl = unit->declarator(specs, d);
       auto funTy = funDecl->asFunctionType();
@@ -895,6 +907,7 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
       ast->statement = s;
       yyast = ast;
     }
+  ))
 
 | { specifier_list = 0; }
   attribute_specifier_seq
@@ -905,7 +918,7 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
       ast->specifier_list = specifier_list;
       yyast = ast;
     }
-  |declarator(d)
+  |( { return scope->isClassSymbol(); } / colon { d = 0; } | declarator(d))
     (is_function_def(d, specs)
         {
           auto funDecl = unit->declarator(specs, d);
@@ -930,6 +943,9 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
     |
       { return true; } / (lparen | lbrace | comma | semicolon | colon | equal | try)
         {
+          if (! d)
+            d = new (pool) DeclaratorAST;
+
           auto decl = unit->declarator(specs, d);
 
           *it = new (pool) List<DeclaratorAST*>(d);
@@ -1375,10 +1391,15 @@ init_declarator(DeclaratorAST*& yyast, const TranslationUnit::Specs& specs)
 {
   ExpressionAST* i = 0;
 }
-: processed_declarator(yyast, specs)
+: ({ return scope->isClassSymbol(); } / colon
+     {
+       yyast = new (pool) DeclaratorAST();
+     }
+  |declarator(yyast)
     {
       auto decl = unit->declarator(specs, yyast);
     }
+  )
   initializer(i)?
     {
       if (! i)
@@ -1386,10 +1407,6 @@ init_declarator(DeclaratorAST*& yyast, const TranslationUnit::Specs& specs)
 
       yyast->initializer = i;
     }
-;
-
-processed_declarator(DeclaratorAST*& yyast, const TranslationUnit::Specs& specs)
-: declarator(yyast) { unit->declarator(specs, yyast); }
 ;
 
 declarator(DeclaratorAST*& yyast)
@@ -1750,7 +1767,8 @@ initializer(ExpressionAST*& yyast)
   List<ExpressionAST*>* args = 0;
 }
 : brace_or_equal_initializer(yyast)
-| lparen expression_list(args)? rparen
+| { return !scope->isClassSymbol(); } lparen expression_list(args)? rparen
+| { return scope->isClassSymbol(); } colon constant_expression(yyast)
 ;
 
 brace_or_equal_initializer(ExpressionAST*& yyast)
@@ -1852,86 +1870,10 @@ member_declaration(DeclarationAST*& yyast)
 }
 : (public | protected | private) colon
 | template_member_declaration(yyast)
-
-| attribute_specifier_seq
-  decl_specifier_list(specifier_list)?
-    {
-      specs = unit->specifiers(specifier_list);
-    }
-  member_declarator_list(decls, specs)? semicolon
-    {
-      auto ast = new (pool) SimpleDeclarationAST;
-      ast->specifier_list = specifier_list;
-      ast->declarator_list = decls;
-      yyast = ast;
-    }
-
-| attribute_specifier_seq
-  decl_specifier_no_type_specifier_list(specifier_list)
-    {
-      specs = unit->specifiers(specifier_list);
-    }
-  member_declarator(d, specs) semicolon
-    {
-      auto decl = unit->declarator(specs, d);
-
-      auto ast = new (pool) SimpleDeclarationAST;
-      ast->specifier_list = specifier_list;
-      ast->declarator_list = new (pool) List<DeclaratorAST*>(d);
-      yyast = ast;
-    }
-
-| function_definition(yyast) semicolon?
 | using_declaration(yyast)
 | static_assert_declaration(yyast)
 | alias_declaration(yyast)
-;
-
-member_declarator_list(List<DeclaratorAST*>*& yyast, const TranslationUnit::Specs& specs)
-{
-    auto it = &yyast;
-    DeclaratorAST* d = 0;
-}
-: member_declarator(d, specs)
-    {
-        *it = new (pool) List<DeclaratorAST*>(d);
-        it = &(*it)->next;
-    }
-  (comma member_declarator(d, specs)
-      {
-          *it = new (pool) List<DeclaratorAST*>(d);
-          it = &(*it)->next;
-      }
-  )*
-;
-
-member_declarator(DeclaratorAST*& yyast, const TranslationUnit::Specs& specs)
-{
-    NameAST* n = 0;
-    DeclaratorAST* d = 0;
-    ExpressionAST* e = 0;
-    ExpressionAST* i = 0;
-}
-: simple_name(n)? attribute_specifier_seq colon constant_expression(e)
-    {
-        auto decl_id = new (pool) DeclaratorIdAST;
-        decl_id->name = n;
-        auto ast = new (pool) DeclaratorAST;
-        ast->core_declarator = decl_id;
-        ast->initializer = e;
-        yyast = ast;
-    }
-| declarator(yyast)
-  / (lbrace | comma | semicolon | colon | equal | try)
-    {
-      auto decl = unit->declarator(specs, yyast);
-    }
-  brace_or_equal_initializer(i)?
-    {
-        if (! i)
-            return true;
-        yyast->initializer = i;
-    }
+| simple_declaration_or_function_definition(yyast)
 ;
 
 virt_specifier
