@@ -26,28 +26,28 @@ add_executable(pgen tools/pgen.cpp)
 add_executable(kwgen tools/kwgen.cpp)
 
 add_executable(cplusplus
-cplusplus/AST.cpp
-cplusplus/AST.h
-cplusplus/ASTVisitor.cpp
-cplusplus/ASTVisitor.h
-cplusplus/Arena.h
-cplusplus/Control.cpp
-cplusplus/Control.h
-cplusplus/Globals.h
-cplusplus/Main.cpp
-cplusplus/Names.cpp
-cplusplus/Names.h
-cplusplus/Parser.cpp
-cplusplus/Symbols.cpp
-cplusplus/Symbols.h
-cplusplus/Token.cpp
-cplusplus/Token.h
-cplusplus/TranslationUnit.cpp
-cplusplus/TranslationUnit.h
-cplusplus/Types.cpp
-cplusplus/Types.h
-cplusplus/Keywords.kwgen
-cplusplus/Parser.pgen
+src/AST.cpp
+src/AST.h
+src/ASTVisitor.cpp
+src/ASTVisitor.h
+src/Arena.h
+src/Control.cpp
+src/Control.h
+src/Globals.h
+src/Main.cpp
+src/Names.cpp
+src/Names.h
+src/Parser.cpp
+src/Symbols.cpp
+src/Symbols.h
+src/Token.cpp
+src/Token.h
+src/TranslationUnit.cpp
+src/TranslationUnit.h
+src/Types.cpp
+src/Types.h
+src/Keywords.kwgen
+src/Parser.pgen
 # generated files
 KeywordsP.h
 ParserP.h
@@ -56,11 +56,22 @@ include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 add_dependencies(cplusplus kwgen pgen)
 
 add_custom_command(OUTPUT ParserP.h
-COMMAND ${CMAKE_CURRENT_BINARY_DIR}/pgen ${CMAKE_CURRENT_SOURCE_DIR}/cplusplus/Parser.pgen -o ParserP.h
-DEPENDS cplusplus/Parser.pgen
+COMMAND ${CMAKE_CURRENT_BINARY_DIR}/pgen ${CMAKE_CURRENT_SOURCE_DIR}/src/Parser.pgen -o ParserP.h
+DEPENDS src/Parser.pgen
 COMMENT "Generate ParserP.h")
 
 add_custom_command(OUTPUT KeywordsP.h
-COMMAND ${CMAKE_CURRENT_BINARY_DIR}/kwgen < ${CMAKE_CURRENT_SOURCE_DIR}/cplusplus/Keywords.kwgen > KeywordsP.h
-DEPENDS cplusplus/Keywords.kwgen
+COMMAND ${CMAKE_CURRENT_BINARY_DIR}/kwgen < ${CMAKE_CURRENT_SOURCE_DIR}/src/Keywords.kwgen > KeywordsP.h
+DEPENDS src/Keywords.kwgen
 COMMENT "Generate KeywordsP.h")
+
+
+enable_testing()
+add_executable(test-frontend
+tests/test-frontend.cpp
+3rdparty/gtest-1.7.0/src/gtest-all.cc
+3rdparty/gtest-1.7.0/src/gtest_main.cc)
+include_directories(3rdparty/gtest-1.7.0/include 3rdparty/gtest-1.7.0)
+add_definitions(-DGTEST_HAS_PTHREAD=0)
+add_dependencies(test-frontend cplusplus)
+add_test(test-frontend test-frontend)
