@@ -21,27 +21,9 @@
 #define NAMES_H
 
 #include "Types.h"
-#include "Token.h"
 #include <string>
 #include <tuple>
 #include <vector>
-
-#define FOR_EACH_NAME(V) \
-  V(Identifier) \
-  V(DestructorName) \
-  V(OperatorName) \
-  V(QualifiedName) \
-  V(TemplateName)
-
-enum struct NameKind {
-#define VISIT_NAME(T) k##T,
-  FOR_EACH_NAME(VISIT_NAME)
-#undef VISIT_NAME
-};
-
-#define VISIT_NAME(T) class T;
-  FOR_EACH_NAME(VISIT_NAME)
-#undef VISIT_NAME
 
 class Name {
   NameKind _kind;

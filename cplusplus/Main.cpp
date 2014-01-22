@@ -19,12 +19,8 @@
 
 #include "Control.h"
 #include "TranslationUnit.h"
-#include "AST.h"
-#include "Arena.h"
 #include <fstream>
-#include <cstdio>
-#include <cstdarg>
-#include <cstdlib>
+#include <string>
 
 void parse_file(const char* file) {
   std::fstream in(file);

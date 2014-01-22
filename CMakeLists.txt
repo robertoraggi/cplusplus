@@ -30,10 +30,10 @@ cplusplus/AST.cpp
 cplusplus/AST.h
 cplusplus/ASTVisitor.cpp
 cplusplus/ASTVisitor.h
-cplusplus/ASTfwd.h
 cplusplus/Arena.h
 cplusplus/Control.cpp
 cplusplus/Control.h
+cplusplus/Globals.h
 cplusplus/Main.cpp
 cplusplus/Names.cpp
 cplusplus/Names.h

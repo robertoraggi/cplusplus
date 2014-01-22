@@ -18,17 +18,9 @@
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "Control.h"
-#include "Names.h"
-#include "Types.h"
-#include "AST.h"
-#include <set>
 
-struct Control::Data {
-};
-
-Control::Control() : d(new Data) {
+Control::Control() {
 }
 
 Control::~Control() {
-  delete d;
 }

@@ -19,7 +19,6 @@
 
 #include "Symbols.h"
 #include "Names.h"
-#include "Types.h"
 #include <iostream>
 #include <cassert>
 

@@ -22,24 +22,8 @@
 
 #include "Token.h"
 #include "Types.h"
-
 #include <string>
-#include <set>
 #include <vector>
-#include <algorithm>
-#include <cstring>
-#include <cassert>
-
-class Control;
-class Name;
-class Identifier;
-
-class QualType;
-
-template <typename> struct List;
-struct SpecifierAST;
-struct NameAST;
-struct DeclaratorAST;
 
 class TranslationUnit {
   Control* control_;
@@ -76,41 +60,13 @@ public:
   inline unsigned tokenCount() const { return tokens_.size(); }
   inline const Token& tokenAt(unsigned index) const { return tokens_[index]; }
   inline TokenKind tokenKind(unsigned index) const { return tokens_[index].kind(); }
-  int tokenLength(unsigned index) const {
-    auto&& tk = tokens_[index];
-    if (tk.kind() == T_IDENTIFIER) {
-      const std::string* id = reinterpret_cast<const std::string*>(tk.priv_);
-      return id->size();
-    }
-    return ::strlen(token_spell[tk.kind()]);
-  }
+  int tokenLength(unsigned index) const;
   const char* tokenText(unsigned index) const;
   const Identifier* identifier(unsigned index) const;
-  void getTokenStartPosition(unsigned index,
-                             unsigned* line,
-                             unsigned* column) const {
-    auto offset = tokens_[index].offset();
-    auto it = std::lower_bound(lines_.cbegin(), lines_.cend(), offset);
-    if (it != lines_.cbegin()) {
-      --it;
-      assert(*it <= offset);
-      *line = std::distance(lines_.cbegin(), it) + 1;
-      *column = offset - *it;
-    } else {
-      *line = 1;
-      *column = offset + 1;
-    }
-  }
-  void tokenize() {
-    TokenKind kind;
-    tokens_.emplace_back(T_ERROR, 0, nullptr);
-    do {
-      unsigned offset = 0;
-      const void* value = 0;
-      kind = yylex(&offset, &value);
-      tokens_.emplace_back(kind, offset, value);
-    } while (kind != T_EOF_SYMBOL);
-  }
+  void getTokenStartPosition(unsigned index, unsigned* line, unsigned* column) const;
+
+  // front end
+  void tokenize();
   bool parse();
 
   struct Specs {

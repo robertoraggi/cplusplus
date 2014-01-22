@@ -20,33 +20,9 @@
 #ifndef SYMBOLS_H
 #define SYMBOLS_H
 
+#include "Globals.h"
 #include "Types.h"
 #include <vector>
-
-class Name;
-
-#define FOR_EACH_SYMBOL(V) \
-  V(Namespace) \
-  V(Class) \
-  V(BaseClass) \
-  V(Template) \
-  V(Function) \
-  V(Block) \
-  V(Argument) \
-  V(Declaration) \
-  V(TypeParameter)
-
-#define VISIT_SYMBOL(T) class T##Symbol;
-  FOR_EACH_SYMBOL(VISIT_SYMBOL)
-#undef VISIT_SYMBOL
-
-enum struct SymbolKind {
-#define VISIT_SYMBOL(T) k##T,
-  FOR_EACH_SYMBOL(VISIT_SYMBOL)
-#undef VISIT_SYMBOL
-};
-
-class Scope;
 
 class Symbol {
   SymbolKind _kind;

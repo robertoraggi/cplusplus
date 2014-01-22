@@ -18,7 +18,6 @@
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "Names.h"
-#include "Types.h"
 #include "Token.h"
 
 std::string Identifier::toString() const {

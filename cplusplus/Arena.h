@@ -20,11 +20,11 @@
 #ifndef ARENA_H
 #define ARENA_H
 
+#include "Globals.h"
 #include <vector>
 #include <new>
 #include <cstdlib>
 #include <cstdint>
-#include <cassert>
 
 class Arena {
   struct Block {

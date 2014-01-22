@@ -20,22 +20,14 @@
 #ifndef CONTROL_H
 #define CONTROL_H
 
+#include "Globals.h"
 #include "Types.h"
 #include "Names.h"
 #include "Symbols.h"
-#include <string>
 #include <set>
 #include <forward_list>
 
-class Name;
-class Identifier;
-class TemplateName;
-class QualifiedName;
-
 class Control {
-  struct Data;
-  Data* d;
-
 public:
   Control(const Control& other) = delete;
   Control& operator=(const Control& other) = delete;

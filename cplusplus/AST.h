@@ -20,28 +20,15 @@
 #ifndef AST_H
 #define AST_H
 
-#include "Arena.h"
-#include "ASTfwd.h"
 #include "ASTVisitor.h"
-#include "Token.h"
 #include "Types.h"
-
-#include <new>
-#include <cstddef>
-
-class Name;
+#include "Arena.h"
 
 template <typename T>
 struct List final: Managed {
   T value;
   List* next;
   explicit List(const T& value, List* next = 0): value(value), next(next) {}
-};
-
-enum struct ASTKind {
-#define VISIT_AST(x) k##x,
-FOR_EACH_AST(VISIT_AST)
-#undef VISIT_AST
 };
 
 struct AST: Managed {

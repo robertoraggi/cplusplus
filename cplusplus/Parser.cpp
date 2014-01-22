@@ -25,9 +25,11 @@
 #include "Types.h"
 #include "Names.h"
 #include "Control.h"
-#include "ParserP.h"
-#include <iostream>
+#include <cstring>
 #include <cassert>
+#include <iostream>
+
+#include "ParserP.h"
 
 Parser::Assoc Parser::assoc() {
   switch (yytoken()) {
@@ -152,7 +154,7 @@ bool Parser::yyparse(TranslationUnit* u) {
   TranslationUnitAST* ast = 0;
   auto parsed = parse_translation_unit(ast);
   if (parsed && yytoken() == T_EOF_SYMBOL) {
-    RecursiveVisitor v{unit};
+    RecursiveASTVisitor v{unit};
     v(ast);
     return true;
   }

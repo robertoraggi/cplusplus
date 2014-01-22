@@ -20,85 +20,9 @@
 #ifndef TYPES_H
 #define TYPES_H
 
+#include "Globals.h"
 #include <tuple>
 #include <string>
-#include <cassert>
-
-// ### move
-class Symbol;
-class FunctionSymbol;
-class ClassSymbol;
-class Name;
-
-#define FOR_EACH_SINGLETON_TYPE(V) \
-  V(Undefined) \
-  V(Auto) \
-  V(Void) \
-  V(Nullptr)
-
-#define FOR_EACH_OTHER_TYPE(V) \
-  V(Integer) \
-  V(Float) \
-  V(Pointer) \
-  V(LValueReference) \
-  V(RValueReference) \
-  V(BoundedArray) \
-  V(UnboundedArray) \
-  V(Function) \
-  V(Class) \
-  V(Named)
-
-#define FOR_EACH_TYPE(V) \
-  FOR_EACH_SINGLETON_TYPE(V) \
-  FOR_EACH_OTHER_TYPE(V)
-
-#define VISIT_TYPE(T) class T##Type;
-  FOR_EACH_TYPE(VISIT_TYPE)
-#undef VISIT_TYPE
-
-enum struct TypeKind {
-#define VISIT_TYPE(T) k##T,
-  FOR_EACH_TYPE(VISIT_TYPE)
-#undef VISIT_TYPE
-};
-
-#define FOR_EACH_INTEGER_TYPE(V) \
-  V(SignedChar, "signed char") \
-  V(ShortInt, "short int") \
-  V(Int, "int") \
-  V(LongInt, "long int") \
-  V(LongLongInt, "long long int") \
-  V(UnsignedChar, "unsigned char") \
-  V(UnsignedShortInt, "unsigned short int") \
-  V(UnsignedInt, "unsigned int") \
-  V(UnsignedLongInt, "unsigned long int") \
-  V(UnsignedLongLongInt, "unsigned long long int") \
-  V(WCharT, "wchar_t") \
-  V(Char, "char") \
-  V(Char16T, "char16_t") \
-  V(Char32T, "char32_t") \
-  V(Bool, "bool")
-
-#define FOR_EACH_FLOAT_TYPE(V) \
-  V(Float, "float") \
-  V(Double, "double") \
-  V(LongDouble, "long double")
-
-enum struct IntegerKind {
-#define VISIT_INTEGER_TYPE(T,N) k##T,
-  FOR_EACH_INTEGER_TYPE(VISIT_INTEGER_TYPE)
-#undef VISIT_INTEGER_TYPE
-};
-
-enum struct FloatKind {
-#define VISIT_FLOAT_TYPE(T,N) k##T,
-  FOR_EACH_FLOAT_TYPE(VISIT_FLOAT_TYPE)
-#undef VISIT_FLOAT_TYPE
-};
-
-class Type;
-class ArrayType;
-class ReferenceType;
 
 class QualType {
   const Type* _type;
@@ -112,7 +36,7 @@ class QualType {
   };
 public:
   explicit QualType(const Type* type = 0);
-  void setType(const Type* type) { assert(type); _type = type; }
+  void setType(const Type* type) { _type = type; }
   const Type* operator->() const { return _type; }
   const Type* operator*() const { return _type; }
   bool isConst() const { return _isConst; }
@@ -291,7 +215,6 @@ inline QualType::QualType(const Type* type)
 }
 
 inline QualType::operator bool() const {
-  assert(_type != 0);
   return ! _type->asUndefinedType();
 }
 

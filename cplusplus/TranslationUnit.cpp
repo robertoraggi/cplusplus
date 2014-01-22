@@ -25,8 +25,10 @@
 #include "Symbols.h"
 #include "Names.h"
 #include "Types.h"
+#include <cstring>
 #include <cstdarg>
 #include <cstdlib>
+#include <cassert>
 
 #define printf(a...) do {} while (0)
 
@@ -366,6 +368,16 @@ void TranslationUnit::fatal(unsigned index, const char* format...) {
   exit(EXIT_FAILURE);
 }
 
+int TranslationUnit::tokenLength(unsigned index) const
+{
+  auto&& tk = tokens_[index];
+  if (tk.kind() == T_IDENTIFIER) {
+    const std::string* id = reinterpret_cast<const std::string*>(tk.priv_);
+    return id->size();
+  }
+  return ::strlen(token_spell[tk.kind()]);
+}
+
 const char* TranslationUnit::tokenText(unsigned index) const {
   auto&& tk = tokens_[index];
   switch (tk.kind()) {
@@ -386,6 +398,31 @@ const Identifier* TranslationUnit::identifier(unsigned index) const {
     return 0;
   auto&& tk = tokens_[index];
   return reinterpret_cast<const Identifier*>(tk.priv_);
+}
+
+void TranslationUnit::getTokenStartPosition(unsigned index, unsigned* line, unsigned* column) const {
+  auto offset = tokens_[index].offset();
+  auto it = std::lower_bound(lines_.cbegin(), lines_.cend(), offset);
+  if (it != lines_.cbegin()) {
+    --it;
+    assert(*it <= offset);
+    *line = std::distance(lines_.cbegin(), it) + 1;
+    *column = offset - *it;
+  } else {
+    *line = 1;
+    *column = offset + 1;
+  }
+}
+
+void TranslationUnit::tokenize() {
+  TokenKind kind;
+  tokens_.emplace_back(T_ERROR, 0, nullptr);
+  do {
+    unsigned offset = 0;
+    const void* value = 0;
+    kind = yylex(&offset, &value);
+    tokens_.emplace_back(kind, offset, value);
+  } while (kind != T_EOF_SYMBOL);
 }
 
 bool TranslationUnit::parse() {

@@ -20,10 +20,7 @@
 #ifndef ASTVISITOR_H
 #define ASTVISITOR_H
 
-#include "ASTfwd.h"
-
-class TranslationUnit;
-class Control;
+#include "Globals.h"
 
 class ASTVisitor {
   TranslationUnit* unit;
@@ -39,10 +36,10 @@ FOR_EACH_AST(VISIT_AST)
 #undef VISIT_AST
 };
 
-class RecursiveVisitor: public ASTVisitor {
+class RecursiveASTVisitor: public ASTVisitor {
 public:
-  RecursiveVisitor(TranslationUnit* unit): ASTVisitor(unit) {}
-  ~RecursiveVisitor() override;
+  RecursiveASTVisitor(TranslationUnit* unit): ASTVisitor(unit) {}
+  ~RecursiveASTVisitor() override;
 
   void operator()(TranslationUnitAST* ast);
 
