@@ -28,7 +28,8 @@ template <typename T>
 struct List final: Managed {
   T value;
   List* next;
-  explicit List(const T& value, List* next = 0): value(value), next(next) {}
+  explicit List(const T& value, List* next = nullptr)
+    : value(value), next(next) {}
 };
 
 struct AST: Managed {
@@ -68,7 +69,7 @@ struct NameAST: AST {
   using AST::AST;
 
 private:
-  const Name* _name{0};
+  const Name* _name{nullptr};
   friend class TranslationUnit;
 };
 
@@ -77,20 +78,20 @@ struct ExpressionAST: AST {
 };
 
 struct StatementAST: AST {
-  List<SpecifierAST*>* attribute_specifier_list{0};
+  List<SpecifierAST*>* attribute_specifier_list{nullptr};
   using AST::AST;
 };
 
 struct TypeIdAST final: ExtendsAST<ASTKind::kTypeId, ExpressionAST> {
-  List<SpecifierAST*>* specifier_list{0};
-  DeclaratorAST* declarator{0};
+  List<SpecifierAST*>* specifier_list{nullptr};
+  DeclaratorAST* declarator{nullptr};
 };
 
 //
 // unit
 //
 struct TranslationUnitAST final: ExtendsAST<ASTKind::kTranslationUnit, AST> {
-  List<DeclarationAST*>* declaration_list{0};
+  List<DeclarationAST*>* declaration_list{nullptr};
 };
 
 //
@@ -104,7 +105,7 @@ struct AttributeAST final: ExtendsAST<ASTKind::kAttribute, AST> {
 };
 
 struct AttributeSpecifierAST final: ExtendsAST<ASTKind::kAttributeSpecifier, SpecifierAST> {
-  List<AttributeAST*>* attribute_list{0};
+  List<AttributeAST*>* attribute_list{nullptr};
   unsigned lbracket_token{0};
   unsigned nested_lbracket_token{0};
   unsigned nested_rbracket_token{0};
@@ -112,7 +113,7 @@ struct AttributeSpecifierAST final: ExtendsAST<ASTKind::kAttributeSpecifier, Spe
 };
 
 struct AlignasTypeAttributeSpecifierAST final: ExtendsAST<ASTKind::kAlignasTypeAttributeSpecifier, SpecifierAST> {
-  TypeIdAST* type_id{0};
+  TypeIdAST* type_id{nullptr};
   unsigned alignas_token{0};
   unsigned lparen_token{0};
   unsigned dot_dot_dot_token{0};
@@ -120,7 +121,7 @@ struct AlignasTypeAttributeSpecifierAST final: ExtendsAST<ASTKind::kAlignasTypeA
 };
 
 struct AlignasAttributeSpecifierAST final: ExtendsAST<ASTKind::kAlignasAttributeSpecifier, SpecifierAST> {
-  ExpressionAST* expression{0};
+  ExpressionAST* expression{nullptr};
   unsigned alignas_token{0};
   unsigned lparen_token{0};
   unsigned dot_dot_dot_token{0};
@@ -132,30 +133,30 @@ struct SimpleSpecifierAST final: ExtendsAST<ASTKind::kSimpleSpecifier, Specifier
 };
 
 struct NamedSpecifierAST final: ExtendsAST<ASTKind::kNamedSpecifier, SpecifierAST> {
-  NameAST* name{0};
+  NameAST* name{nullptr};
 };
 
 struct TypenameSpecifierAST final: ExtendsAST<ASTKind::kTypenameSpecifier, SpecifierAST> {
-  NameAST* name{0};
+  NameAST* name{nullptr};
 };
 
 struct ElaboratedTypeSpecifierAST final: ExtendsAST<ASTKind::kElaboratedTypeSpecifier, SpecifierAST> {
-  List<SpecifierAST*>* attribute_specifier_list{0};
-  NameAST* name{0};
+  List<SpecifierAST*>* attribute_specifier_list{nullptr};
+  NameAST* name{nullptr};
   unsigned class_key_token{0};
 };
 
 struct EnumeratorAST final: ExtendsAST<ASTKind::kEnumerator, AST> {
-  NameAST* name{0};
-  ExpressionAST* expression{0};
+  NameAST* name{nullptr};
+  ExpressionAST* expression{nullptr};
   unsigned equal_token{0};
 };
 
 struct EnumSpecifierAST final: ExtendsAST<ASTKind::kEnumSpecifier, SpecifierAST> {
-  List<SpecifierAST*>* attribute_specifier_list{0};
-  NameAST* name{0};
-  List<SpecifierAST*>* specifier_list{0};
-  List<EnumeratorAST*>* enumerator_list{0};
+  List<SpecifierAST*>* attribute_specifier_list{nullptr};
+  NameAST* name{nullptr};
+  List<SpecifierAST*>* specifier_list{nullptr};
+  List<EnumeratorAST*>* enumerator_list{nullptr};
   unsigned enum_token{0};
   unsigned enum_key_token{0};
   unsigned lbrace_token{0};
@@ -163,35 +164,35 @@ struct EnumSpecifierAST final: ExtendsAST<ASTKind::kEnumSpecifier, SpecifierAST>
 };
 
 struct BaseClassAST final: ExtendsAST<ASTKind::kBaseClass, AST> {
-  List<SpecifierAST*>* specifier_list{0};
-  NameAST* name{0};
+  List<SpecifierAST*>* specifier_list{nullptr};
+  NameAST* name{nullptr};
 };
 
 struct ClassSpecifierAST final: ExtendsAST<ASTKind::kClassSpecifier, SpecifierAST> {
-  List<SpecifierAST*>* attribute_specifier_list{0};
-  NameAST* name{0};
-  List<SpecifierAST*>* specifier_list{0};
-  List<BaseClassAST*>* base_class_list{0};
-  List<DeclarationAST*>* declaration_list{0};
+  List<SpecifierAST*>* attribute_specifier_list{nullptr};
+  NameAST* name{nullptr};
+  List<SpecifierAST*>* specifier_list{nullptr};
+  List<BaseClassAST*>* base_class_list{nullptr};
+  List<DeclarationAST*>* declaration_list{nullptr};
   unsigned class_key_token{0};
   unsigned colon_token{0};
   unsigned lbrace_token{0};
   unsigned rbrace_token{0};
 // attributes
-  ClassSymbol* symbol{0};
+  ClassSymbol* symbol{nullptr};
 };
 
 //
 // names
 //
 struct QualifiedNameAST final: ExtendsAST<ASTKind::kQualifiedName, NameAST> {
-  NameAST* base{0};
-  NameAST* name{0};
+  NameAST* base{nullptr};
+  NameAST* name{nullptr};
   unsigned scope_token{0};
 };
 
 struct PackedNameAST final: ExtendsAST<ASTKind::kPackedName, NameAST> {
-  NameAST* name{0};
+  NameAST* name{nullptr};
   unsigned dot_dot_dot_token{0};
 };
 
@@ -200,7 +201,7 @@ struct SimpleNameAST final: ExtendsAST<ASTKind::kSimpleName, NameAST> {
 };
 
 struct DestructorNameAST final: ExtendsAST<ASTKind::kDestructorName, NameAST> {
-  NameAST* name{0};
+  NameAST* name{nullptr};
   unsigned tilde_token{0};
 };
 
@@ -210,19 +211,19 @@ struct OperatorNameAST final: ExtendsAST<ASTKind::kOperatorName, NameAST> {
 };
 
 struct TemplateArgumentAST final: ExtendsAST<ASTKind::kTemplateArgument, ExpressionAST> {
-  TypeIdAST* type_id{0};
+  TypeIdAST* type_id{nullptr};
 };
 
 struct TemplateIdAST final: ExtendsAST<ASTKind::kTemplateId, NameAST> {
-  NameAST* name{0};
-  List<ExpressionAST*>* expression_list{0};
+  NameAST* name{nullptr};
+  List<ExpressionAST*>* expression_list{nullptr};
   unsigned template_token{0};
   unsigned less_token{0};
   unsigned greater_token{0};
 };
 
 struct DecltypeNameAST final: ExtendsAST<ASTKind::kDecltypeName, NameAST> {
-  ExpressionAST* expression{0};
+  ExpressionAST* expression{nullptr};
   unsigned decltype_token{0};
   unsigned lparen_token{0};
   unsigned rparen_token{0};
@@ -239,7 +240,7 @@ struct DecltypeAutoNameAST final: ExtendsAST<ASTKind::kDecltypeAutoName, NameAST
 // expressions
 //
 struct PackedExpressionAST final: ExtendsAST<ASTKind::kPackedExpression, ExpressionAST> {
-  ExpressionAST* name{0};
+  ExpressionAST* name{nullptr};
   unsigned dot_dot_dot_token{0};
 };
 
@@ -252,11 +253,11 @@ struct ThisExpressionAST final: ExtendsAST<ASTKind::kThisExpression, ExpressionA
 };
 
 struct IdExpressionAST final: ExtendsAST<ASTKind::kIdExpression, ExpressionAST> {
-  NameAST* name{0};
+  NameAST* name{nullptr};
 };
 
 struct NestedExpressionAST final: ExtendsAST<ASTKind::kNestedExpression, ExpressionAST> {
-  ExpressionAST* expression{0};
+  ExpressionAST* expression{nullptr};
   unsigned lparen_token{0};
   unsigned rparen_token{0};
 };
@@ -266,62 +267,62 @@ struct LambdaCaptureAST final: ExtendsAST<ASTKind::kLambdaCapture, AST> {
 };
 
 struct LambdaDeclaratorAST final: ExtendsAST<ASTKind::kLambdaDeclarator, AST> { // ### ?
-  ParametersAndQualifiersAST* parameters_and_qualifiers{0};
-  ExceptionSpecificationAST* exception_specification{0};
-  List<SpecifierAST*>* attribute_specifier_list{0};
-  List<SpecifierAST*>* specifier_list{0};
+  ParametersAndQualifiersAST* parameters_and_qualifiers{nullptr};
+  ExceptionSpecificationAST* exception_specification{nullptr};
+  List<SpecifierAST*>* attribute_specifier_list{nullptr};
+  List<SpecifierAST*>* specifier_list{nullptr};
 };
 
 struct LambdaExpressionAST final: ExtendsAST<ASTKind::kLambdaExpression, ExpressionAST> {
-  LambdaDeclaratorAST* lambda_declarator{0};
-  StatementAST* statement{0};
+  LambdaDeclaratorAST* lambda_declarator{nullptr};
+  StatementAST* statement{nullptr};
   unsigned lbracket_token{0};
   unsigned rbracket_token{0};
 };
 
 struct SubscriptExpressionAST final: ExtendsAST<ASTKind::kSubscriptExpression, ExpressionAST> {
-  ExpressionAST* base_expression{0};
-  ExpressionAST* index_expression{0};
+  ExpressionAST* base_expression{nullptr};
+  ExpressionAST* index_expression{nullptr};
   unsigned lbracket_token{0};
   unsigned rbracket_token{0};
 };
 
 struct CallExpressionAST final: ExtendsAST<ASTKind::kCallExpression, ExpressionAST> {
-  ExpressionAST* base_expression{0};
-  List<ExpressionAST*>* expression_list{0};
+  ExpressionAST* base_expression{nullptr};
+  List<ExpressionAST*>* expression_list{nullptr};
   unsigned lparen_token{0};
   unsigned rparen_token{0};
 };
 
 struct TypeCallExpressionAST final: ExtendsAST<ASTKind::kTypeCallExpression, ExpressionAST> {
-  List<SpecifierAST*>* specifier_list{0};
-  List<ExpressionAST*>* expression_list{0};
+  List<SpecifierAST*>* specifier_list{nullptr};
+  List<ExpressionAST*>* expression_list{nullptr};
   unsigned lparen_token{0};
   unsigned rparen_token{0};
 };
 
 struct BracedTypeCallExpressionAST final: ExtendsAST<ASTKind::kBracedTypeCallExpression, ExpressionAST> {
-  List<SpecifierAST*>* type_specifier_list{0};
-  List<ExpressionAST*>* expression_list{0};
+  List<SpecifierAST*>* type_specifier_list{nullptr};
+  List<ExpressionAST*>* expression_list{nullptr};
   unsigned lbrace_token{0};
   unsigned rbrace_token{0};
 };
 
 struct MemberExpressionAST final: ExtendsAST<ASTKind::kMemberExpression, ExpressionAST> {
-  ExpressionAST* base_expression{0};
-  NameAST* name{0};
+  ExpressionAST* base_expression{nullptr};
+  NameAST* name{nullptr};
   unsigned access_token{0};
   unsigned template_token{0};
 };
 
 struct IncrExpressionAST final: ExtendsAST<ASTKind::kIncrExpression, ExpressionAST> {
-  ExpressionAST* base_expression{0};
+  ExpressionAST* base_expression{nullptr};
   unsigned incr_token{0};
 };
 
 struct CppCastExpressionAST final: ExtendsAST<ASTKind::kCppCastExpression, ExpressionAST> {
-  TypeIdAST* type_id{0};
-  ExpressionAST* expression{0};
+  TypeIdAST* type_id{nullptr};
+  ExpressionAST* expression{nullptr};
   unsigned cast_token{0};
   unsigned less_token{0};
   unsigned greater_token{0};
@@ -330,31 +331,31 @@ struct CppCastExpressionAST final: ExtendsAST<ASTKind::kCppCastExpression, Expre
 };
 
 struct TypeidExpressionAST final: ExtendsAST<ASTKind::kTypeidExpression, ExpressionAST> {
-  ExpressionAST* expression{0};
+  ExpressionAST* expression{nullptr};
   unsigned typeid_token{0};
   unsigned lparen_token{0};
   unsigned rparen_token{0};
 };
 
 struct UnaryExpressionAST final: ExtendsAST<ASTKind::kUnaryExpression, ExpressionAST> {
-  ExpressionAST* expression{0};
+  ExpressionAST* expression{nullptr};
   TokenKind op{T_EOF_SYMBOL};
 };
 
 struct SizeofExpressionAST final: ExtendsAST<ASTKind::kSizeofExpression, ExpressionAST> {
-  ExpressionAST* expression{0};
+  ExpressionAST* expression{nullptr};
   unsigned sizeof_token{0};
 };
 
 struct SizeofTypeExpressionAST final: ExtendsAST<ASTKind::kSizeofTypeExpression, ExpressionAST> {
-  TypeIdAST* type_id{0};
+  TypeIdAST* type_id{nullptr};
   unsigned sizeof_token{0};
   unsigned lparen_token{0};
   unsigned rparen_token{0};
 };
 
 struct SizeofPackedArgsExpressionAST final: ExtendsAST<ASTKind::kSizeofPackedArgsExpression, ExpressionAST> {
-  NameAST* name{0};
+  NameAST* name{nullptr};
   unsigned sizeof_token{0};
   unsigned dot_dot_dot_token{0};
   unsigned lparen_token{0};
@@ -362,21 +363,21 @@ struct SizeofPackedArgsExpressionAST final: ExtendsAST<ASTKind::kSizeofPackedArg
 };
 
 struct AlignofExpressionAST final: ExtendsAST<ASTKind::kAlignofExpression, ExpressionAST> {
-  TypeIdAST* type_id{0};
+  TypeIdAST* type_id{nullptr};
   unsigned alignof_token{0};
   unsigned lparen_token{0};
   unsigned rparen_token{0};
 };
 
 struct NoexceptExpressionAST final: ExtendsAST<ASTKind::kNoexceptExpression, ExpressionAST> {
-  ExpressionAST* expression{0};
+  ExpressionAST* expression{nullptr};
   unsigned noexcept_token{0};
 };
 
 struct NewExpressionAST final: ExtendsAST<ASTKind::kNewExpression, ExpressionAST> {
-  List<ExpressionAST*>* placement_expression_list{0};
-  TypeIdAST* type_id{0};
-  ExpressionAST* initializer{0};
+  List<ExpressionAST*>* placement_expression_list{nullptr};
+  TypeIdAST* type_id{nullptr};
+  ExpressionAST* initializer{nullptr};
   unsigned scope_token{0};
   unsigned new_token{0};
   unsigned placement_lparen_token{0};
@@ -386,7 +387,7 @@ struct NewExpressionAST final: ExtendsAST<ASTKind::kNewExpression, ExpressionAST
 };
 
 struct DeleteExpressionAST final: ExtendsAST<ASTKind::kDeleteExpression, ExpressionAST> {
-  ExpressionAST* expression{0};
+  ExpressionAST* expression{nullptr};
   unsigned scope_token{0};
   unsigned delete_token{0};
   unsigned lbracket_token{0};
@@ -394,44 +395,44 @@ struct DeleteExpressionAST final: ExtendsAST<ASTKind::kDeleteExpression, Express
 };
 
 struct CastExpressionAST final: ExtendsAST<ASTKind::kCastExpression, ExpressionAST> {
-  TypeIdAST* type_id{0};
-  ExpressionAST* expression{0};
+  TypeIdAST* type_id{nullptr};
+  ExpressionAST* expression{nullptr};
   unsigned lparen_token{0};
   unsigned rparen_token{0};
 };
 
 struct BinaryExpressionAST final: ExtendsAST<ASTKind::kBinaryExpression, ExpressionAST> {
-  ExpressionAST* left_expression{0};
-  ExpressionAST* right_expression{0};
+  ExpressionAST* left_expression{nullptr};
+  ExpressionAST* right_expression{nullptr};
   unsigned op_token{0};
   TokenKind op{T_EOF_SYMBOL};
 };
 
 struct ConditionalExpressionAST final: ExtendsAST<ASTKind::kConditionalExpression, ExpressionAST> {
-  ExpressionAST* expression{0};
-  ExpressionAST* iftrue_expression{0};
-  ExpressionAST* iffalse_expression{0};
+  ExpressionAST* expression{nullptr};
+  ExpressionAST* iftrue_expression{nullptr};
+  ExpressionAST* iffalse_expression{nullptr};
   unsigned question_token{0};
   unsigned colon_token{0};
 };
 
 struct BracedInitializerAST final: ExtendsAST<ASTKind::kBracedInitializer, ExpressionAST> {
-  List<ExpressionAST*>* expression_list{0};
+  List<ExpressionAST*>* expression_list{nullptr};
   unsigned lbrace_token{0};
   unsigned rbrace_token{0};
 };
 
 struct SimpleInitializerAST final: ExtendsAST<ASTKind::kSimpleInitializer, ExpressionAST> {
-  ExpressionAST* expression{0};
+  ExpressionAST* expression{nullptr};
   unsigned equal_token{0};
 };
 
 
 struct ConditionAST final: ExtendsAST<ASTKind::kCondition, ExpressionAST> {
-  List<SpecifierAST*>* attribute_specifier_list{0};
-  List<SpecifierAST*>* specifier_list{0};
-  DeclaratorAST* declarator{0};
-  ExpressionAST* initializer{0};
+  List<SpecifierAST*>* attribute_specifier_list{nullptr};
+  List<SpecifierAST*>* specifier_list{nullptr};
+  DeclaratorAST* declarator{nullptr};
+  ExpressionAST* initializer{nullptr};
 };
 
 
@@ -439,37 +440,37 @@ struct ConditionAST final: ExtendsAST<ASTKind::kCondition, ExpressionAST> {
 // statements
 //
 struct LabeledStatementAST final: ExtendsAST<ASTKind::kLabeledStatement, StatementAST> {
-  NameAST* name{0};
-  StatementAST* statement{0};
+  NameAST* name{nullptr};
+  StatementAST* statement{nullptr};
   unsigned colon_token{0};
 };
 
 struct CaseStatementAST final: ExtendsAST<ASTKind::kCaseStatement, StatementAST> {
-  ExpressionAST* expression{0};
-  StatementAST* statement{0};
+  ExpressionAST* expression{nullptr};
+  StatementAST* statement{nullptr};
   unsigned case_token{0};
   unsigned colon_token{0};
 };
 
 struct DefaultStatementAST final: ExtendsAST<ASTKind::kDefaultStatement, StatementAST> {
-  StatementAST* statement{0};
+  StatementAST* statement{nullptr};
   unsigned default_token{0};
   unsigned colon_token{0};
 };
 
 struct ExpressionStatementAST final: ExtendsAST<ASTKind::kExpressionStatement, StatementAST> {
-  ExpressionAST* expression{0};
+  ExpressionAST* expression{nullptr};
   unsigned semicolon_token{0};
 };
 
 struct CompoundStatementAST final: ExtendsAST<ASTKind::kCompoundStatement, StatementAST> {
-  List<StatementAST*>* statement_list{0};
+  List<StatementAST*>* statement_list{nullptr};
   unsigned lbrace_token{0};
   unsigned rbrace_token{0};
 };
 
 struct TryBlockStatementAST final: ExtendsAST<ASTKind::kTryBlockStatement, StatementAST> {
-  StatementAST* statemebt{0};
+  StatementAST* statemebt{nullptr};
   unsigned try_token{0};
   unsigned catch_token{0};
   unsigned lparen_token{0};
@@ -478,13 +479,13 @@ struct TryBlockStatementAST final: ExtendsAST<ASTKind::kTryBlockStatement, State
 };
 
 struct DeclarationStatementAST final: ExtendsAST<ASTKind::kDeclarationStatement, StatementAST> {
-  DeclarationAST* declaration{0};
+  DeclarationAST* declaration{nullptr};
 };
 
 struct IfStatementAST final: ExtendsAST<ASTKind::kIfStatement, StatementAST> {
-  ExpressionAST* condition{0};
-  StatementAST* statement{0};
-  StatementAST* else_statement{0};
+  ExpressionAST* condition{nullptr};
+  StatementAST* statement{nullptr};
+  StatementAST* else_statement{nullptr};
   unsigned if_token{0};
   unsigned lparen_token{0};
   unsigned rparen_token{0};
@@ -492,24 +493,24 @@ struct IfStatementAST final: ExtendsAST<ASTKind::kIfStatement, StatementAST> {
 };
 
 struct SwitchStatementAST final: ExtendsAST<ASTKind::kSwitchStatement, StatementAST> {
-  ExpressionAST* condition{0};
-  StatementAST* statement{0};
+  ExpressionAST* condition{nullptr};
+  StatementAST* statement{nullptr};
   unsigned switch_token{0};
   unsigned lparen_token{0};
   unsigned rparen_token{0};
 };
 
 struct WhileStatementAST final: ExtendsAST<ASTKind::kWhileStatement, StatementAST> {
-  ExpressionAST* condition{0};
-  StatementAST* statement{0};
+  ExpressionAST* condition{nullptr};
+  StatementAST* statement{nullptr};
   unsigned while_token{0};
   unsigned lparen_token{0};
   unsigned rparen_token{0};
 };
 
 struct DoStatementAST final: ExtendsAST<ASTKind::kDoStatement, StatementAST> {
-  StatementAST* statement{0};
-  ExpressionAST* expression{0};
+  StatementAST* statement{nullptr};
+  ExpressionAST* expression{nullptr};
   unsigned do_token{0};
   unsigned lparen_token{0};
   unsigned rparen_token{0};
@@ -517,10 +518,10 @@ struct DoStatementAST final: ExtendsAST<ASTKind::kDoStatement, StatementAST> {
 };
 
 struct ForStatementAST final: ExtendsAST<ASTKind::kForStatement, StatementAST> {
-  StatementAST* initializer{0};
-  ExpressionAST* condition{0};
-  ExpressionAST* expression{0};
-  StatementAST* statement{0};
+  StatementAST* initializer{nullptr};
+  ExpressionAST* condition{nullptr};
+  ExpressionAST* expression{nullptr};
+  StatementAST* statement{nullptr};
   unsigned for_token{0};
   unsigned lparen_token{0};
   unsigned semicolon_token{0};
@@ -528,9 +529,9 @@ struct ForStatementAST final: ExtendsAST<ASTKind::kForStatement, StatementAST> {
 };
 
 struct ForRangeStatementAST final: ExtendsAST<ASTKind::kForRangeStatement, StatementAST> {
-  DeclarationAST* initializer{0};
-  ExpressionAST* expression{0};
-  StatementAST* statement{0};
+  DeclarationAST* initializer{nullptr};
+  ExpressionAST* expression{nullptr};
+  StatementAST* statement{nullptr};
   unsigned for_token{0};
   unsigned lparen_token{0};
   unsigned colon_token{0};
@@ -548,13 +549,13 @@ struct ContinueStatementAST final: ExtendsAST<ASTKind::kContinueStatement, State
 };
 
 struct ReturnStatementAST final: ExtendsAST<ASTKind::kReturnStatement, StatementAST> {
-  ExpressionAST* expression{0};
+  ExpressionAST* expression{nullptr};
   unsigned return_token{0};
   unsigned semicolon_token{0};
 };
 
 struct GotoStatementAST final: ExtendsAST<ASTKind::kGotoStatement, StatementAST> {
-  NameAST* name{0};
+  NameAST* name{nullptr};
   unsigned goto_token{0};
   unsigned semicolon_token{0};
 };
@@ -568,18 +569,18 @@ struct AccessDeclarationAST final: ExtendsAST<ASTKind::kAccessDeclaration, Decla
 };
 
 struct MemInitializerAST final: ExtendsAST<ASTKind::kMemInitializer, AST> {
-  NameAST* name{0};
-  List<ExpressionAST*>* expression_list{0};
+  NameAST* name{nullptr};
+  List<ExpressionAST*>* expression_list{nullptr};
   unsigned lparen_token{0};
   unsigned rparen_token{0};
 };
 
 struct FunctionDefinitionAST final: ExtendsAST<ASTKind::kFunctionDefinition, DeclarationAST> {
-  List<SpecifierAST*>* attribute_specifier_list{0};
-  List<SpecifierAST*>* specifier_list{0};
-  DeclaratorAST* declarator{0};
-  List<MemInitializerAST*>* mem_initializer_list{0};
-  StatementAST* statement{0};
+  List<SpecifierAST*>* attribute_specifier_list{nullptr};
+  List<SpecifierAST*>* specifier_list{nullptr};
+  DeclaratorAST* declarator{nullptr};
+  List<MemInitializerAST*>* mem_initializer_list{nullptr};
+  StatementAST* statement{nullptr};
   unsigned colon_token{0};
   unsigned equal_token{0};
   unsigned special_token{0};
@@ -587,17 +588,17 @@ struct FunctionDefinitionAST final: ExtendsAST<ASTKind::kFunctionDefinition, Dec
 };
 
 struct TypeParameterAST final: ExtendsAST<ASTKind::kTypeParameter, DeclarationAST> {
-  NameAST* name{0};
-  TypeIdAST* type_id{0};
+  NameAST* name{nullptr};
+  TypeIdAST* type_id{nullptr};
   unsigned typename_token{0};
   unsigned dot_dot_dot_token{0};
   unsigned equal_token{0};
 };
 
 struct TemplateTypeParameterAST final: ExtendsAST<ASTKind::kTemplateTypeParameter, DeclarationAST> {
-  List<DeclarationAST*>* template_parameter_list{0};
-  NameAST* name{0};
-  TypeIdAST* type_id{0};
+  List<DeclarationAST*>* template_parameter_list{nullptr};
+  NameAST* name{nullptr};
+  TypeIdAST* type_id{nullptr};
   unsigned template_token{0};
   unsigned less_token{0};
   unsigned greater_token{0};
@@ -607,15 +608,15 @@ struct TemplateTypeParameterAST final: ExtendsAST<ASTKind::kTemplateTypeParamete
 };
 
 struct ParameterDeclarationAST final: ExtendsAST<ASTKind::kParameterDeclaration, DeclarationAST> {
-  List<SpecifierAST*>* attribute_specifier_list{0};
-  List<SpecifierAST*>* specifier_list{0};
-  DeclaratorAST* declarator{0};
-  ExpressionAST* expression{0};
+  List<SpecifierAST*>* attribute_specifier_list{nullptr};
+  List<SpecifierAST*>* specifier_list{nullptr};
+  DeclaratorAST* declarator{nullptr};
+  ExpressionAST* expression{nullptr};
 };
 
 struct TemplateDeclarationAST final: ExtendsAST<ASTKind::kTemplateDeclaration, DeclarationAST> {
-  List<DeclarationAST*>* template_parameter_list{0};
-  DeclarationAST* declaration{0};
+  List<DeclarationAST*>* template_parameter_list{nullptr};
+  DeclarationAST* declaration{nullptr};
   unsigned extern_token{0};
   unsigned template_token{0};
   unsigned less_token{0};
@@ -623,7 +624,7 @@ struct TemplateDeclarationAST final: ExtendsAST<ASTKind::kTemplateDeclaration, D
 };
 
 struct LinkageSpecificationAST final: ExtendsAST<ASTKind::kLinkageSpecification, DeclarationAST> {
-  List<DeclarationAST*>* declaration_list{0};
+  List<DeclarationAST*>* declaration_list{nullptr};
   unsigned extern_token{0};
   unsigned string_literal_token{0};
   unsigned lbrace_token{0};
@@ -631,8 +632,8 @@ struct LinkageSpecificationAST final: ExtendsAST<ASTKind::kLinkageSpecification,
 };
 
 struct NamespaceDefinitionAST final: ExtendsAST<ASTKind::kNamespaceDefinition, DeclarationAST> {
-  NameAST* name{0};
-  List<DeclarationAST*>* declaration_list{0};
+  NameAST* name{nullptr};
+  List<DeclarationAST*>* declaration_list{nullptr};
   unsigned inline_token{0};
   unsigned namespace_token{0};
   unsigned lbrace_token{0};
@@ -640,7 +641,7 @@ struct NamespaceDefinitionAST final: ExtendsAST<ASTKind::kNamespaceDefinition, D
 };
 
 struct AsmDefinitionAST final: ExtendsAST<ASTKind::kAsmDefinition, DeclarationAST> {
-  List<ExpressionAST*>* expression_list{0};
+  List<ExpressionAST*>* expression_list{nullptr};
   unsigned asm_token{0};
   unsigned lparen_token{0};
   unsigned rparen_token{0};
@@ -648,55 +649,55 @@ struct AsmDefinitionAST final: ExtendsAST<ASTKind::kAsmDefinition, DeclarationAS
 };
 
 struct NamespaceAliasDefinitionAST final: ExtendsAST<ASTKind::kNamespaceAliasDefinition, DeclarationAST> {
-  NameAST* alias_name{0};
-  NameAST* name{0};
+  NameAST* alias_name{nullptr};
+  NameAST* name{nullptr};
   unsigned namespace_token{0};
   unsigned equal_token{0};
   unsigned semicolon_token{0};
 };
 
 struct UsingDeclarationAST final: ExtendsAST<ASTKind::kUsingDeclaration, DeclarationAST> {
-  List<SpecifierAST*>* attribute_specifier_list{0};
-  NameAST* name{0};
+  List<SpecifierAST*>* attribute_specifier_list{nullptr};
+  NameAST* name{nullptr};
   unsigned using_token{0};
   unsigned typename_token{0};
   unsigned semicolon_token{0};
 };
 
 struct UsingDirectiveAST final: ExtendsAST<ASTKind::kUsingDirective, DeclarationAST> {
-  List<SpecifierAST*>* attribute_specifier_list{0};
-  NameAST* name{0};
+  List<SpecifierAST*>* attribute_specifier_list{nullptr};
+  NameAST* name{nullptr};
   unsigned using_token{0};
   unsigned namespace_token{0};
   unsigned semicolon_token{0};
 };
 
 struct OpaqueEnumDeclarationAST final: ExtendsAST<ASTKind::kOpaqueEnumDeclaration, DeclarationAST> {
-  List<SpecifierAST*>* attribute_specifier_list{0};
-  NameAST* name{0};
-  List<SpecifierAST*>* specifier_list{0};
+  List<SpecifierAST*>* attribute_specifier_list{nullptr};
+  NameAST* name{nullptr};
+  List<SpecifierAST*>* specifier_list{nullptr};
   unsigned enum_token{0};
   unsigned enum_key_token{0};
 };
 
 struct AliasDeclarationAST final: ExtendsAST<ASTKind::kAliasDeclaration, DeclarationAST> {
-  NameAST* alias_name{0};
-  List<SpecifierAST*>* attribute_specifier_list{0};
-  TypeIdAST* type_id{0};
+  NameAST* alias_name{nullptr};
+  List<SpecifierAST*>* attribute_specifier_list{nullptr};
+  TypeIdAST* type_id{nullptr};
   unsigned using_token{0};
   unsigned equal_token{0};
   unsigned semicolon_token{0};
 };
 
 struct SimpleDeclarationAST final: ExtendsAST<ASTKind::kSimpleDeclaration, DeclarationAST> {
-  List<SpecifierAST*>* attribute_specifier_list{0};
-  List<SpecifierAST*>* specifier_list{0};
-  List<DeclaratorAST*>* declarator_list{0};
+  List<SpecifierAST*>* attribute_specifier_list{nullptr};
+  List<SpecifierAST*>* specifier_list{nullptr};
+  List<DeclaratorAST*>* declarator_list{nullptr};
   unsigned semicolon_token{0};
 };
 
 struct StaticAssertDeclarationAST final: ExtendsAST<ASTKind::kStaticAssertDeclaration, DeclarationAST> {
-  ExpressionAST* expression{0};
+  ExpressionAST* expression{nullptr};
   unsigned static_assert_token{0};
   unsigned lparen_token{0};
   unsigned rparen_token{0};
@@ -707,55 +708,55 @@ struct StaticAssertDeclarationAST final: ExtendsAST<ASTKind::kStaticAssertDeclar
 // declarators
 //
 struct DeclaratorAST final: ExtendsAST<ASTKind::kDeclarator, AST> {
-  List<PtrOperatorAST*>* ptr_op_list{0};
-  CoreDeclaratorAST* core_declarator{0};
-  List<PostfixDeclaratorAST*>* postfix_declarator_list{0};
-  ExpressionAST* initializer{0};
+  List<PtrOperatorAST*>* ptr_op_list{nullptr};
+  CoreDeclaratorAST* core_declarator{nullptr};
+  List<PostfixDeclaratorAST*>* postfix_declarator_list{nullptr};
+  ExpressionAST* initializer{nullptr};
 
 private:
   QualType _type;
-  const Name* _name{0};
+  const Name* _name{nullptr};
   friend class TranslationUnit;
 };
 
 struct NestedDeclaratorAST final: ExtendsAST<ASTKind::kNestedDeclarator, CoreDeclaratorAST> {
-  DeclaratorAST* declarator{0};
+  DeclaratorAST* declarator{nullptr};
   unsigned lparen_token{0};
   unsigned rparen_token{0};
 };
 
 struct DeclaratorIdAST final: ExtendsAST<ASTKind::kDeclaratorId, CoreDeclaratorAST> {
-  NameAST* name{0};
-  List<SpecifierAST*>* attribute_specifier_list{0};
+  NameAST* name{nullptr};
+  List<SpecifierAST*>* attribute_specifier_list{nullptr};
 };
 
 struct PtrOperatorAST final: ExtendsAST<ASTKind::kPtrOperator, AST> {
-  List<NameAST*>* nested_name_specifier{0};
-  List<SpecifierAST*>* cv_qualifier_list{0};
-  List<SpecifierAST*>* attribute_specifier_list{0};
+  List<NameAST*>* nested_name_specifier{nullptr};
+  List<SpecifierAST*>* cv_qualifier_list{nullptr};
+  List<SpecifierAST*>* attribute_specifier_list{nullptr};
   TokenKind op{T_EOF_SYMBOL};
 };
 
 struct ArrayDeclaratorAST final: ExtendsAST<ASTKind::kArrayDeclarator, PostfixDeclaratorAST> {
-  ExpressionAST* size_expression{0};
-  List<SpecifierAST*>* attribute_specifier_list{0};
+  ExpressionAST* size_expression{nullptr};
+  List<SpecifierAST*>* attribute_specifier_list{nullptr};
   unsigned lbracket_token{0};
   unsigned rbracket_token{0};
 };
 
 struct ParametersAndQualifiersAST final: ExtendsAST<ASTKind::kParametersAndQualifiers, AST> {
-  List<DeclarationAST*>* parameter_list{0};
-  List<SpecifierAST*>* specifier_list{0};
-  SpecifierAST* ref_qualifier{0};
-  ExceptionSpecificationAST* exception_specification{0};
-  List<SpecifierAST*>* attribute_specifier_list{0};
+  List<DeclarationAST*>* parameter_list{nullptr};
+  List<SpecifierAST*>* specifier_list{nullptr};
+  SpecifierAST* ref_qualifier{nullptr};
+  ExceptionSpecificationAST* exception_specification{nullptr};
+  List<SpecifierAST*>* attribute_specifier_list{nullptr};
   unsigned lparen_token{0};
   unsigned rparen_token{0};
 };
 
 struct FunctionDeclaratorAST final: ExtendsAST<ASTKind::kFunctionDeclarator, PostfixDeclaratorAST> {
-  ParametersAndQualifiersAST* parameters_and_qualifiers{0};
-  List<SpecifierAST*>* trailing_type_specifier_list{0};
+  ParametersAndQualifiersAST* parameters_and_qualifiers{nullptr};
+  List<SpecifierAST*>* trailing_type_specifier_list{nullptr};
   unsigned arrow_token{0};
 };
 

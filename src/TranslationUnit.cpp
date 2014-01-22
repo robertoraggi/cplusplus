@@ -46,7 +46,7 @@ again:
   while (isspace(yychar))
     yyinp();
   *offset = yypos;
-  *priv = 0;
+  *priv = nullptr;
   if (yychar == 0)
     return T_EOF_SYMBOL;
   auto ch = yychar;
@@ -418,8 +418,8 @@ void TranslationUnit::tokenize() {
   TokenKind kind;
   tokens_.emplace_back(T_ERROR, 0, nullptr);
   do {
-    unsigned offset = 0;
-    const void* value = 0;
+    unsigned offset{0};
+    const void* value{nullptr};
     kind = yylex(&offset, &value);
     tokens_.emplace_back(kind, offset, value);
   } while (kind != T_EOF_SYMBOL);
@@ -671,7 +671,7 @@ class ProcessDeclarator {
         _decl.specs.type = QualType(control->getUnboundedArrayType(elementType));
       } else {
         printf("todo array size_expression\n");
-        size_t size = 0;
+        size_t size{0};
         _decl.specs.type = QualType(control->getBoundedArrayType(elementType, size));
       }
       break;

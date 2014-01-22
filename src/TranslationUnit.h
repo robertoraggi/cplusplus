@@ -34,7 +34,7 @@ class TranslationUnit {
   std::string yyfilename;
   std::string yytext;
   std::string yycode;
-  const char* yyptr{0};
+  const char* yyptr{nullptr};
 
 public:
   TranslationUnit(Control* control): control_(control) {}
@@ -88,7 +88,7 @@ public:
 
   struct Decl {
     Specs specs;
-    const Name* name{0};
+    const Name* name{nullptr};
     const Type* operator->() const { return *specs.type; }
     void setType(const Type* type) {
       specs.type.setType(type);

@@ -30,7 +30,7 @@ class Token {
   unsigned offset_;
   const void* priv_;
 public:
-  Token(TokenKind kind = T_ERROR, unsigned offset = 0, const void* priv = 0)
+  Token(TokenKind kind = T_ERROR, unsigned offset = 0, const void* priv = nullptr)
     : kind_(kind), offset_(offset), priv_(priv) {}
   inline TokenKind kind() const { return kind_; }
   inline unsigned offset() const { return offset_; }

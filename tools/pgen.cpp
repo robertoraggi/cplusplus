@@ -56,7 +56,7 @@ std::string read_file(const std::string& filename) {
 
 std::string indent(const std::string& text) {
   std::string prefix;
-  size_t i = 0;
+  size_t i{0};
   for (; i < text.size(); ++i) {
     if (text[i] != '\n')
       break;
@@ -355,11 +355,11 @@ struct Code final: Item {
 };
 
 struct Rule final {
-  int line {0};
+  int line{0};
   std::string lhs;
   std::string extra;
   std::string init;
-  Item* def{0};
+  Item* def{nullptr};
 };
 
 class Parser {
@@ -717,7 +717,7 @@ struct BasicBlock: std::vector<Stmt*> {
 
 class Print final: ExprVisitor, StmtVisitor {
   std::ostream& out;
-  IR::BasicBlock* nextBlock{0};
+  IR::BasicBlock* nextBlock{nullptr};
   bool lookat{false};
 
   void outCode(Code* c) {
@@ -995,8 +995,8 @@ private:
 class CodeGenerator: public ItemVisitor {
 protected:
   struct Result {
-    IR::BasicBlock* iftrue{0};
-    IR::BasicBlock* iffalse{0};
+    IR::BasicBlock* iftrue{nullptr};
+    IR::BasicBlock* iffalse{nullptr};
     Result() = default;
     Result(IR::BasicBlock* iftrue, IR::BasicBlock* iffalse)
       : iftrue(iftrue), iffalse(iffalse) {}
@@ -1004,8 +1004,8 @@ protected:
 
   std::ostream& out;
   Result code;
-  IR::Function* function{0};
-  IR::BasicBlock* block{0};
+  IR::Function* function{nullptr};
+  IR::BasicBlock* block{nullptr};
 
   IR::Temp* newTemp(const std::string& type = std::string()) {
     return function->newTemp(type);

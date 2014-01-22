@@ -168,7 +168,7 @@ bool starts_with(const std::string &line, const std::string &text) {
 
 void doit(State &state)
 {
-  static int depth = 0;
+  static int depth{0};
 
   ++depth;
 

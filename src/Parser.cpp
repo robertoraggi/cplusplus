@@ -151,7 +151,7 @@ bool Parser::yyparse(TranslationUnit* u) {
   pool = &arena;
   globalScope = control->newNamespace();
   scope = globalScope;
-  TranslationUnitAST* ast = 0;
+  TranslationUnitAST* ast{nullptr};
   auto parsed = parse_translation_unit(ast);
   if (parsed && yytoken() == T_EOF_SYMBOL) {
     RecursiveASTVisitor v{unit};
@@ -185,8 +185,8 @@ bool Parser::parseBinaryExpressionHelper(ExpressionAST*& yyast, bool templArg, i
     }
 
     ++yycursor;
-    unsigned colon_token = 0;
-    ExpressionAST* iftrue_expression = 0;
+    unsigned colon_token{0};
+    ExpressionAST* iftrue_expression{nullptr};
 
     if (op == T_QUESTION) {
       auto parsed = parse_expression(iftrue_expression);
@@ -195,7 +195,7 @@ bool Parser::parseBinaryExpressionHelper(ExpressionAST*& yyast, bool templArg, i
       colon_token = yycursor++;
     }
 
-    ExpressionAST* rhs = 0;
+    ExpressionAST* rhs{nullptr};
     auto e = parse_cast_expression(rhs);
     if (! e) {
       yycursor = saved;

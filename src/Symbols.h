@@ -26,8 +26,8 @@
 
 class Symbol {
   SymbolKind _kind;
-  const Name* _name{0};
-  Scope* _enclosingScope{0};
+  const Name* _name{nullptr};
+  Scope* _enclosingScope{nullptr};
   QualType _type;
 public:
   explicit Symbol(SymbolKind kind): _kind(kind) {}

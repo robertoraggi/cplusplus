@@ -35,7 +35,7 @@ class QualType {
     };
   };
 public:
-  explicit QualType(const Type* type = 0);
+  explicit QualType(const Type* type = nullptr);
   void setType(const Type* type) { _type = type; }
   const Type* operator->() const { return _type; }
   const Type* operator*() const { return _type; }
@@ -220,7 +220,7 @@ inline QualType::operator bool() const {
 
 class TypeToString {
 public:
-  std::string operator()(QualType type, const Name* name = 0);
+  std::string operator()(QualType type, const Name* name = nullptr);
   std::string operator()(QualType type, std::string decl) { return print(type, std::move(decl)); }
 private:
   std::string text;

@@ -153,15 +153,15 @@
   bool parseBinaryExpression(ExpressionAST*& yyast, bool templArg, int minPrec);
   bool parseBinaryExpressionHelper(ExpressionAST*& yyast, bool templArg, int minPrec);
 
-  Arena* pool{0};
-  TranslationUnit* unit{0};
-  Control* control{0};
-  Scope* scope{0};
-  Scope* globalScope{0};
+  Arena* pool{nullptr};
+  TranslationUnit* unit{nullptr};
+  Control* control{nullptr};
+  Scope* scope{nullptr};
+  Scope* globalScope{nullptr};
 
   struct EnterScope {
-    Parser* p{0};
-    Scope* scope{0};
+    Parser* p{nullptr};
+    Scope* scope{nullptr};
     void operator()(Parser* p, Scope* scope) {
       this->p = p;
       this->scope = scope;
@@ -176,7 +176,7 @@
 
   bool templDecl{false};
   struct EnterTemplateDecl {
-    Parser* p{0};
+    Parser* p{nullptr};
     bool templDecl{false};
     void operator()(Parser* p, bool x = true) {
       this->p = p;
@@ -205,8 +205,8 @@ literal(ExpressionAST*& yyast)
 
 primary_expression(ExpressionAST*& yyast)
 {
-  NameAST* name = 0;
-  ExpressionAST* e = 0;
+  NameAST* name{nullptr};
+  ExpressionAST* e{nullptr};
 }
 : literal(yyast)
 | this
@@ -240,7 +240,7 @@ explict_template_or_unqualified_id(NameAST*& yyast)
 
 name(NameAST*& yyast)
 {
-    NameAST* n = 0;
+    NameAST* n{nullptr};
 }
 : scope? explict_template_or_unqualified_id(yyast)
         (colon_colon explict_template_or_unqualified_id(n)
@@ -279,7 +279,7 @@ unqualified_id(NameAST*& yyast)
 
 destructor_id(NameAST*& yyast)
 {
-    NameAST* n = 0;
+    NameAST* n{nullptr};
 }
 : tilde unqualified_id(n)
     {
@@ -291,8 +291,8 @@ destructor_id(NameAST*& yyast)
 
 lambda_expression(ExpressionAST*& yyast)
 {
-  LambdaDeclaratorAST* d = 0;
-  StatementAST* s = 0;
+  LambdaDeclaratorAST* d{nullptr};
+  StatementAST* s{nullptr};
 }
 : lbracket lambda_capture? rbracket lambda_declarator(d)? compound_statement(s)
     {
@@ -305,7 +305,7 @@ lambda_expression(ExpressionAST*& yyast)
 
 lambda_declarator(LambdaDeclaratorAST*& yyast)
 {
-  ParametersAndQualifiersAST* p = 0;
+  ParametersAndQualifiersAST* p{nullptr};
 }
 : parameters_and_qualifiers(p) mutable? exception_specification? attribute_specifier_seq trailing_return_type?
     {
@@ -331,7 +331,7 @@ capture_default
 
 capture
 {
-  ExpressionAST* i = 0;
+  ExpressionAST* i{nullptr};
 }
 : amp? identifier initializer(i)?
 | this
@@ -339,10 +339,10 @@ capture
 
 postfix_base_expression(ExpressionAST*& yyast)
 {
-  TypeIdAST* t = 0;
-  ExpressionAST* e = 0;
-  List<ExpressionAST*>* args = 0;
-  SpecifierAST* spec = 0;
+  TypeIdAST* t{nullptr};
+  ExpressionAST* e{nullptr};
+  List<ExpressionAST*>* args{nullptr};
+  SpecifierAST* spec{nullptr};
 }
 : primary_expression(yyast)
 | (dynamic_cast | static_cast | reinterpret_cast | const_cast)
@@ -375,11 +375,11 @@ postfix_base_expression(ExpressionAST*& yyast)
 
 postfix_expression(ExpressionAST*& yyast)
 {
-  unsigned access_token = 0;
-  unsigned incr_token = 0;
-  ExpressionAST* e = 0;
-  List<ExpressionAST*>* args = 0;
-  NameAST* name = 0;
+  unsigned access_token{0};
+  unsigned incr_token{0};
+  ExpressionAST* e{nullptr};
+  List<ExpressionAST*>* args{nullptr};
+  NameAST* name{nullptr};
 }
 : postfix_base_expression(yyast)
     (lparen expression_list(args)? rparen
@@ -415,10 +415,10 @@ postfix_expression(ExpressionAST*& yyast)
 
 unary_expression(ExpressionAST*& yyast)
 {
-  unsigned op_token = 0;
-  TypeIdAST* t = 0;
-  ExpressionAST* e = 0;
-  NameAST* name = 0;
+  unsigned op_token{0};
+  TypeIdAST* t{nullptr};
+  ExpressionAST* e{nullptr};
+  NameAST* name{nullptr};
 }
 : (plus_plus | minus_minus | star | amp | plus | minus | exclaim | tilde)
   parsed_token(&op_token)
@@ -461,8 +461,8 @@ unary_expression(ExpressionAST*& yyast)
 
 new_expression(ExpressionAST*& yyast)
 {
-  TypeIdAST* t = 0;
-  ExpressionAST* i = 0;
+  TypeIdAST* t{nullptr};
+  ExpressionAST* i{nullptr};
 }
 : colon_colon? new new_placement? (new_type_id new_initializer(i)?
                                  | lparen type_id(t) rparen new_initializer(i)?)
@@ -475,21 +475,21 @@ new_expression(ExpressionAST*& yyast)
 
 new_placement
 {
-  List<ExpressionAST*>* args = 0;
+  List<ExpressionAST*>* args{nullptr};
 }
 : lparen expression_list(args) rparen
 ;
 
 new_type_id
 {
-  List<SpecifierAST*>* specs = 0;
+  List<SpecifierAST*>* specs{nullptr};
 }
 : type_specifier_list(specs) new_declarator?
 ;
 
 new_declarator
 {
-  PtrOperatorAST* ptr_op = 0;
+  PtrOperatorAST* ptr_op{nullptr};
 }
 : ptr_operator(ptr_op) new_declarator?
 | noptr_new_declarator
@@ -497,14 +497,14 @@ new_declarator
 
 noptr_new_declarator
 {
-  ExpressionAST* e = 0;
+  ExpressionAST* e{nullptr};
 }
 : (lbracket expression(e) rbracket)+
 ;
 
 new_initializer(ExpressionAST*& yyast)
 {
-  List<ExpressionAST*>* args = 0;
+  List<ExpressionAST*>* args{nullptr};
 }
 : lparen expression_list(args)? rparen
 | braced_init_list(yyast)
@@ -512,7 +512,7 @@ new_initializer(ExpressionAST*& yyast)
 
 delete_expression(ExpressionAST*& yyast)
 {
-  ExpressionAST* e = 0;
+  ExpressionAST* e{nullptr};
 }
 : scope? delete (lbracket rbracket)? cast_expression(e)
     {
@@ -524,7 +524,7 @@ delete_expression(ExpressionAST*& yyast)
 
 noexcept_expression(ExpressionAST*& yyast)
 {
-  ExpressionAST* e = 0;
+  ExpressionAST* e{nullptr};
 }
 : noexcept lparen expression(e) rparen
     {
@@ -536,8 +536,8 @@ noexcept_expression(ExpressionAST*& yyast)
 
 cast_expression(ExpressionAST*& yyast)
 {
-  TypeIdAST* t = 0;
-  ExpressionAST* e = 0;
+  TypeIdAST* t{nullptr};
+  ExpressionAST* e{nullptr};
 }
 : lparen type_id(t) rparen cast_expression(e)
     {
@@ -569,7 +569,7 @@ constant_expression(ExpressionAST*& yyast)
 
 expression(ExpressionAST*& yyast)
 {
-  ExpressionAST* e = 0;
+  ExpressionAST* e{nullptr};
 }
 : assignment_expression(yyast, false)
     (comma assignment_expression(e, false)
@@ -600,8 +600,8 @@ statement(StatementAST*& yyast)
 
 labeled_statement(StatementAST*& yyast)
 {
-  ExpressionAST* e = 0;
-  StatementAST* s = 0;
+  ExpressionAST* e{nullptr};
+  StatementAST* s{nullptr};
 }
 : attribute_specifier_seq
     (identifier colon statement(s)
@@ -628,7 +628,7 @@ labeled_statement(StatementAST*& yyast)
 
 expression_statement(StatementAST*& yyast)
 {
-  ExpressionAST* e = 0;
+  ExpressionAST* e{nullptr};
 }
 : semicolon
     {
@@ -645,8 +645,8 @@ expression_statement(StatementAST*& yyast)
 
 compound_statement(StatementAST*& yyast)
 {
-  StatementAST* s = 0;
-  List<StatementAST*>* statement_list = 0;
+  StatementAST* s{nullptr};
+  List<StatementAST*>* statement_list{nullptr};
   auto it = &statement_list;
 }
 : lbrace (statement(s)
@@ -664,9 +664,9 @@ compound_statement(StatementAST*& yyast)
 
 selection_statement(StatementAST*& yyast)
 {
-  ExpressionAST* e = 0;
-  StatementAST* s1 = 0;
-  StatementAST* s2 = 0;
+  ExpressionAST* e{nullptr};
+  StatementAST* s1{nullptr};
+  StatementAST* s2{nullptr};
 }
 : if lparen condition(e) rparen statement(s1) (else statement(s2))?
     {
@@ -687,9 +687,9 @@ selection_statement(StatementAST*& yyast)
 
 condition(ExpressionAST*& yyast)
 {
-  List<SpecifierAST*>* specifier_list = 0;
-  DeclaratorAST* d = 0;
-  ExpressionAST* i = 0;
+  List<SpecifierAST*>* specifier_list{nullptr};
+  DeclaratorAST* d{nullptr};
+  ExpressionAST* i{nullptr};
   TranslationUnit::Specs specs;
 }
 : attribute_specifier_seq
@@ -714,11 +714,11 @@ condition(ExpressionAST*& yyast)
 
 iteration_statement(StatementAST*& yyast)
 {
-  DeclarationAST* d = 0;
-  ExpressionAST* e1 = 0;
-  ExpressionAST* e2 = 0;
-  StatementAST* s1 = 0;
-  StatementAST* s2 = 0;
+  DeclarationAST* d{nullptr};
+  ExpressionAST* e1{nullptr};
+  ExpressionAST* e2{nullptr};
+  StatementAST* s1{nullptr};
+  StatementAST* s2{nullptr};
 }
 : while lparen condition(e1) rparen statement(s1)
     {
@@ -755,7 +755,7 @@ iteration_statement(StatementAST*& yyast)
 
 for_init_statement(StatementAST*& yyast)
 {
-  DeclarationAST* d = 0;
+  DeclarationAST* d{nullptr};
 }
 : simple_declaration(d)
     {
@@ -768,8 +768,8 @@ for_init_statement(StatementAST*& yyast)
 
 for_range_declaration(DeclarationAST*& yyast)
 {
-  List<SpecifierAST*>* specifier_list = 0;
-  DeclaratorAST* d = 0;
+  List<SpecifierAST*>* specifier_list{nullptr};
+  DeclaratorAST* d{nullptr};
   TranslationUnit::Specs specs;
 }
 : attribute_specifier_seq
@@ -794,8 +794,8 @@ for_range_initializer(ExpressionAST*& yyast)
 
 jump_statement(StatementAST*& yyast)
 {
-  NameAST* name = 0;
-  ExpressionAST* e = 0;
+  NameAST* name{nullptr};
+  ExpressionAST* e{nullptr};
 }
 : break semicolon
     {
@@ -823,7 +823,7 @@ jump_statement(StatementAST*& yyast)
 
 declaration_statement(StatementAST*& yyast)
 {
-  DeclarationAST* d = 0;
+  DeclarationAST* d{nullptr};
 }
 : block_declaration(d)
     {
@@ -862,13 +862,13 @@ is_function_def(DeclaratorAST* decl, const TranslationUnit::Specs& specs)
 
 simple_declaration_or_function_definition(DeclarationAST*& yyast)
 {
-  List<SpecifierAST*>* specifier_list = 0;
-  List<DeclaratorAST*>* decls = 0;
+  List<SpecifierAST*>* specifier_list{nullptr};
+  List<DeclaratorAST*>* decls{nullptr};
   auto it = &decls;
   TranslationUnit::Specs specs;
-  DeclaratorAST* d = 0;
-  ExpressionAST* i = 0;
-  StatementAST* s = 0;
+  DeclaratorAST* d{nullptr};
+  ExpressionAST* i{nullptr};
+  StatementAST* s{nullptr};
   EnterScope enterScope;
 }
 : attribute_specifier_seq
@@ -909,7 +909,7 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
     }
   ))
 
-| { specifier_list = 0; }
+| { specifier_list = nullptr; }
   attribute_specifier_seq
   processed_decl_specifier_list(specifier_list, &specs)?
   (semicolon
@@ -918,7 +918,7 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
       ast->specifier_list = specifier_list;
       yyast = ast;
     }
-  |( { return scope->isClassSymbol(); } / colon { d = 0; } | declarator(d))
+  |( { return scope->isClassSymbol(); } / colon { d = nullptr; } | declarator(d))
     (is_function_def(d, specs)
         {
           auto funDecl = unit->declarator(specs, d);
@@ -980,8 +980,8 @@ block_declaration(DeclarationAST*& yyast)
 
 alias_declaration(DeclarationAST*& yyast)
 {
-    NameAST* name = 0;
-    TypeIdAST* t = 0;
+    NameAST* name{nullptr};
+    TypeIdAST* t{nullptr};
 }
 : using simple_name(name) attribute_specifier_seq equal type_id(t) semicolon
     {
@@ -998,8 +998,8 @@ processed_decl_specifier_list(List<SpecifierAST*>*& yyast, TranslationUnit::Spec
 
 simple_declaration(DeclarationAST*& yyast)
 {
-  List<SpecifierAST*>* specifier_list = 0;
-  List<DeclaratorAST*>* decls = 0;
+  List<SpecifierAST*>* specifier_list{nullptr};
+  List<DeclaratorAST*>* decls{nullptr};
   TranslationUnit::Specs specs;
 }
 : attribute_specifier_list?
@@ -1015,7 +1015,7 @@ simple_declaration(DeclarationAST*& yyast)
 
 static_assert_declaration(DeclarationAST*& yyast)
 {
-  ExpressionAST* e = 0;
+  ExpressionAST* e{nullptr};
 }
 : static_assert lparen constant_expression(e) comma string_literal+ rparen semicolon
     {
@@ -1048,8 +1048,8 @@ type_specifier_list(List<SpecifierAST*>*& yyast)
 decl_specifier_list(List<SpecifierAST*>*& yyast)
 {
   auto it = &yyast;
-  unsigned start = 0;
-  SpecifierAST* spec = 0;
+  unsigned start{0};
+  SpecifierAST* spec{nullptr};
 }
 : save(&start)
   (decl_specifier_no_type_specifier(spec)
@@ -1081,7 +1081,7 @@ decl_specifier_list(List<SpecifierAST*>*& yyast)
 
 decl_specifier_no_type_specifier_list(List<SpecifierAST*>*& yyast)
 {
-  SpecifierAST* spec = 0;
+  SpecifierAST* spec{nullptr};
   auto it = &yyast;
 }
 : (decl_specifier_no_type_specifier(spec)
@@ -1129,7 +1129,7 @@ type_specifier(SpecifierAST*& yyast)
 
 type_specifier_no_simple_type_spec(SpecifierAST*& yyast)
 {
-    NameAST* name = 0;
+    NameAST* name{nullptr};
 }
 : class_specifier(yyast)
 | enum_specifier(yyast)
@@ -1163,7 +1163,7 @@ simple_type_specifier(SpecifierAST*& yyast)
 
 decltype_specifier(NameAST*& yyast)
 {
-  ExpressionAST* e = 0;
+  ExpressionAST* e{nullptr};
 }
 : decltype lparen expression(e) rparen
     {
@@ -1180,7 +1180,7 @@ decltype_specifier(NameAST*& yyast)
 
 elaborated_type_specifier(SpecifierAST*& yyast)
 {
-    NameAST* name = 0;
+    NameAST* name{nullptr};
 }
 : class_key attribute_specifier_seq name(name)
     {
@@ -1198,11 +1198,11 @@ elaborated_type_specifier(SpecifierAST*& yyast)
 
 enum_specifier(SpecifierAST*& yyast)
 {
-    NameAST* name = 0;
-    List<EnumeratorAST*>* enums = 0;
+    NameAST* name{nullptr};
+    List<EnumeratorAST*>* enums{nullptr};
     auto it = &enums;
-    List<SpecifierAST*>* specs = 0;
-    EnumeratorAST* d = 0;
+    List<SpecifierAST*>* specs{nullptr};
+    EnumeratorAST* d{nullptr};
 }
 : enum (class | struct)? attribute_specifier_seq simple_name(name)?
         (colon type_specifier_list(specs))?
@@ -1228,8 +1228,8 @@ enum_specifier(SpecifierAST*& yyast)
 
 enumerator_definition(EnumeratorAST*& yyast)
 {
-    NameAST* name = 0;
-    ExpressionAST* e = 0;
+    NameAST* name{nullptr};
+    ExpressionAST* e{nullptr};
 }
 : simple_name(name) (equal constant_expression(e))?
     {
@@ -1242,11 +1242,11 @@ enumerator_definition(EnumeratorAST*& yyast)
 
 namespace_definition(DeclarationAST*& yyast)
 {
-  NameAST* n = 0;
-  List<DeclarationAST*>* declaration_list = 0;
+  NameAST* n{nullptr};
+  List<DeclarationAST*>* declaration_list{nullptr};
   auto it = &declaration_list;
-  DeclarationAST* d = 0;
-  unsigned yypos = 0;
+  DeclarationAST* d{nullptr};
+  unsigned yypos{0};
   EnterScope enterScope;
 }
 : inline? {yypos=yycursor;} namespace simple_name(n)?
@@ -1279,8 +1279,8 @@ namespace_definition(DeclarationAST*& yyast)
 
 namespace_alias_definition(DeclarationAST*& yyast)
 {
-    NameAST* alias_name = 0;
-    NameAST* name = 0;
+    NameAST* alias_name{nullptr};
+    NameAST* name{nullptr};
 }
 : namespace simple_name(name) equal name(name) semicolon
     {
@@ -1293,7 +1293,7 @@ namespace_alias_definition(DeclarationAST*& yyast)
 
 using_declaration(DeclarationAST*& yyast)
 {
-    NameAST* name = 0;
+    NameAST* name{nullptr};
 }
 : using typename? name(name) semicolon
     {
@@ -1305,7 +1305,7 @@ using_declaration(DeclarationAST*& yyast)
 
 using_directive(DeclarationAST*& yyast)
 {
-    NameAST* name = 0;
+    NameAST* name{nullptr};
 }
 : attribute_specifier_seq using namespace name(name) semicolon
     {
@@ -1337,8 +1337,8 @@ attribute_specifier
 
 linkage_specification(DeclarationAST*& yyast)
 {
-  DeclarationAST* d = 0;
-  List<DeclarationAST*>* declaration_list = 0;
+  DeclarationAST* d{nullptr};
+  List<DeclarationAST*>* declaration_list{nullptr};
   auto it = &declaration_list;
 }
 : extern string_literal lbrace (declaration(d, false)
@@ -1362,8 +1362,8 @@ linkage_specification(DeclarationAST*& yyast)
 
 alignment_specifier
 {
-  TypeIdAST* t = 0;
-  ExpressionAST* e = 0;
+  TypeIdAST* t{nullptr};
+  ExpressionAST* e{nullptr};
 }
 : alignas lparen type_id(t) dot_dot_dot? rparen
 | alignas lparen assignment_expression(e, false)? rparen
@@ -1372,7 +1372,7 @@ alignment_specifier
 init_declarator_list(List<DeclaratorAST*>*& yyast, const TranslationUnit::Specs& specs)
 {
   auto it = &yyast;
-  DeclaratorAST* d = 0;
+  DeclaratorAST* d{nullptr};
 }
 : init_declarator(d, specs)
     {
@@ -1389,7 +1389,7 @@ init_declarator_list(List<DeclaratorAST*>*& yyast, const TranslationUnit::Specs&
 
 init_declarator(DeclaratorAST*& yyast, const TranslationUnit::Specs& specs)
 {
-  ExpressionAST* i = 0;
+  ExpressionAST* i{nullptr};
 }
 : ({ return scope->isClassSymbol(); } / colon
      {
@@ -1411,13 +1411,13 @@ init_declarator(DeclaratorAST*& yyast, const TranslationUnit::Specs& specs)
 
 declarator(DeclaratorAST*& yyast)
 {
-  List<PtrOperatorAST*>* ptr_op_list = 0;
+  List<PtrOperatorAST*>* ptr_op_list{nullptr};
   auto ptr_op_it = &ptr_op_list;
-  PtrOperatorAST* ptr_op = 0;
-  List<PostfixDeclaratorAST*>* postfix_list = 0;
+  PtrOperatorAST* ptr_op{nullptr};
+  List<PostfixDeclaratorAST*>* postfix_list{nullptr};
   auto postfix_it = &postfix_list;
-  PostfixDeclaratorAST* p = 0;
-  CoreDeclaratorAST* c = 0;
+  PostfixDeclaratorAST* p{nullptr};
+  CoreDeclaratorAST* c{nullptr};
 }
 : (ptr_operator(ptr_op)
     {
@@ -1442,7 +1442,7 @@ declarator(DeclaratorAST*& yyast)
 
 core_declarator(CoreDeclaratorAST*& yyast)
 {
-  DeclaratorAST* d = 0;
+  DeclaratorAST* d{nullptr};
 }
 : declarator_id(yyast) attribute_specifier_seq
 | lparen declarator(d) rparen
@@ -1455,8 +1455,8 @@ core_declarator(CoreDeclaratorAST*& yyast)
 
 postfix_declarator(PostfixDeclaratorAST*& yyast)
 {
-  ParametersAndQualifiersAST* p = 0;
-  ExpressionAST* e = 0;
+  ParametersAndQualifiersAST* p{nullptr};
+  ExpressionAST* e{nullptr};
 }
 : parameters_and_qualifiers(p) trailing_return_type? virt_specifier*
     {
@@ -1474,8 +1474,8 @@ postfix_declarator(PostfixDeclaratorAST*& yyast)
 
 parameters_and_qualifiers(ParametersAndQualifiersAST*& yyast)
 {
-  List<DeclarationAST*>* params = 0;
-  SpecifierAST* cv = 0;
+  List<DeclarationAST*>* params{nullptr};
+  SpecifierAST* cv{nullptr};
 }
 : lparen parameter_declaration_clause(params)? rparen cv_qualifier(cv)* ref_qualifier? exception_specification?
   attribute_specifier_seq
@@ -1488,8 +1488,8 @@ parameters_and_qualifiers(ParametersAndQualifiersAST*& yyast)
 
 trailing_return_type
 {
-  List<SpecifierAST*>* specifier_list = 0;
-  DeclaratorAST* d = 0;
+  List<SpecifierAST*>* specifier_list{nullptr};
+  DeclaratorAST* d{nullptr};
   TranslationUnit::Specs specs;
 }
 : minus_greater type_specifier_list(specifier_list)
@@ -1504,12 +1504,12 @@ trailing_return_type
 
 ptr_operator(PtrOperatorAST*& yyast)
 {
-  unsigned op_token = 0;
-  SpecifierAST* spec = 0;
-  List<SpecifierAST*>* cv = 0;
+  unsigned op_token{0};
+  SpecifierAST* spec{nullptr};
+  List<SpecifierAST*>* cv{nullptr};
   auto it = &cv;
-  NameAST* n = 0;
-  List<NameAST*>* nested_name_specifier = 0;
+  NameAST* n{nullptr};
+  List<NameAST*>* nested_name_specifier{nullptr};
   auto x = &nested_name_specifier;
 }
 : star parsed_token(&op_token) attribute_specifier_seq
@@ -1569,7 +1569,7 @@ ref_qualifier
 
 declarator_id(CoreDeclaratorAST*& yyast)
 {
-    NameAST* name = 0;
+    NameAST* name{nullptr};
 }
 : dot_dot_dot? name(name)
     {
@@ -1581,8 +1581,8 @@ declarator_id(CoreDeclaratorAST*& yyast)
 
 type_id(TypeIdAST*& yyast)
 {
-    List<SpecifierAST*>* specifier_list = 0;
-    DeclaratorAST* d = 0;
+    List<SpecifierAST*>* specifier_list{nullptr};
+    DeclaratorAST* d{nullptr};
     TranslationUnit::Specs specs;
 }
 : type_specifier_list(specifier_list)
@@ -1601,7 +1601,7 @@ type_id(TypeIdAST*& yyast)
 
 abstract_core_declarator(CoreDeclaratorAST*& yyast)
 {
-  DeclaratorAST* d = 0;
+  DeclaratorAST* d{nullptr};
 }
 : lparen abstract_declarator(d) rparen
     {
@@ -1614,14 +1614,14 @@ abstract_core_declarator(CoreDeclaratorAST*& yyast)
 
 abstract_declarator(DeclaratorAST*& yyast)
 {
-  List<PtrOperatorAST*>* ptr_op_list = 0;
+  List<PtrOperatorAST*>* ptr_op_list{nullptr};
   auto ptr_op_it = &ptr_op_list;
-  PtrOperatorAST* ptr_op = 0;
-  ParametersAndQualifiersAST* p = 0;
-  ExpressionAST* e = 0;
-  List<PostfixDeclaratorAST*>* postfix_list = 0;
+  PtrOperatorAST* ptr_op{nullptr};
+  ParametersAndQualifiersAST* p{nullptr};
+  ExpressionAST* e{nullptr};
+  List<PostfixDeclaratorAST*>* postfix_list{nullptr};
   auto postfix_it = &postfix_list;
-  CoreDeclaratorAST* c = 0;
+  CoreDeclaratorAST* c{nullptr};
 }
 : (ptr_operator(ptr_op)
     {
@@ -1657,7 +1657,7 @@ abstract_declarator(DeclaratorAST*& yyast)
       ast->postfix_declarator_list = postfix_list;
       yyast = ast;
     } else {
-      yyast = 0;
+      yyast = nullptr;
     }
   }
 ;
@@ -1665,7 +1665,7 @@ abstract_declarator(DeclaratorAST*& yyast)
 parameter_declaration_clause(List<DeclarationAST*>*& yyast)
 {
   auto it = &yyast;
-  DeclarationAST* d = 0;
+  DeclarationAST* d{nullptr};
 }
 : parameter_declaration(d, false) dot_dot_dot?
     {
@@ -1683,9 +1683,9 @@ parameter_declaration_clause(List<DeclarationAST*>*& yyast)
 
 parameter_declaration(DeclarationAST*& yyast, bool inTempl)
 {
-  List<SpecifierAST*>* specifier_list = 0;
-  DeclaratorAST* d = 0;
-  ExpressionAST* e = 0;
+  List<SpecifierAST*>* specifier_list{nullptr};
+  DeclaratorAST* d{nullptr};
+  ExpressionAST* e{nullptr};
   TranslationUnit::Specs specs;
 }
 : attribute_specifier_seq decl_specifier_list(specifier_list)
@@ -1708,9 +1708,9 @@ parameter_declaration(DeclarationAST*& yyast, bool inTempl)
 
 function_definition(DeclarationAST*& yyast)
 {
-  List<SpecifierAST*>* specifier_list = 0;
-  DeclaratorAST* d = 0;
-  StatementAST* s = 0;
+  List<SpecifierAST*>* specifier_list{nullptr};
+  DeclaratorAST* d{nullptr};
+  StatementAST* s{nullptr};
   TranslationUnit::Specs specs;
   EnterScope enterScope;
 }
@@ -1754,7 +1754,7 @@ function_definition(DeclarationAST*& yyast)
 
 function_body(StatementAST*& yyast)
 {
-    List<MemInitializerAST*>* i = 0;
+    List<MemInitializerAST*>* i{nullptr};
 }
 : ctor_initializer(i)? compound_statement(yyast)
 | function_try_block
@@ -1764,7 +1764,7 @@ function_body(StatementAST*& yyast)
 
 initializer(ExpressionAST*& yyast)
 {
-  List<ExpressionAST*>* args = 0;
+  List<ExpressionAST*>* args{nullptr};
 }
 : brace_or_equal_initializer(yyast)
 | { return !scope->isClassSymbol(); } lparen expression_list(args)? rparen
@@ -1773,7 +1773,7 @@ initializer(ExpressionAST*& yyast)
 
 brace_or_equal_initializer(ExpressionAST*& yyast)
 {
-  ExpressionAST* e = 0;
+  ExpressionAST* e{nullptr};
 }
 : equal initializer_clause(e, false)
     {
@@ -1787,7 +1787,7 @@ brace_or_equal_initializer(ExpressionAST*& yyast)
 initializer_list(List<ExpressionAST*>*& yyast)
 {
   auto it = &yyast;
-  ExpressionAST* e = 0;
+  ExpressionAST* e{nullptr};
 }
 : initializer_clause(e, false) dot_dot_dot?
     {
@@ -1804,7 +1804,7 @@ initializer_list(List<ExpressionAST*>*& yyast)
 
 braced_init_list(ExpressionAST*& yyast)
 {
-  List<ExpressionAST*>* args = 0;
+  List<ExpressionAST*>* args{nullptr};
 }
 : lbrace (rbrace | initializer_list(args) comma? rbrace)
     {
@@ -1816,14 +1816,14 @@ braced_init_list(ExpressionAST*& yyast)
 
 class_specifier(SpecifierAST*& yyast)
 {
-  DeclarationAST* d = 0;
-  List<DeclarationAST*>* declaration_list = 0;
+  DeclarationAST* d{nullptr};
+  List<DeclarationAST*>* declaration_list{nullptr};
   auto it = &declaration_list;
-  NameAST* name = 0;
-  List<BaseClassAST*>* b = 0;
-  unsigned yypos = 0;
+  NameAST* name{nullptr};
+  List<BaseClassAST*>* b{nullptr};
+  unsigned yypos{0};
   EnterScope enterScope;
-  ClassSymbol* klass = 0;
+  ClassSymbol* klass{nullptr};
 }
 : class_key attribute_specifier_seq
   { yypos=yycursor; } ((name(name) (final | explicit)?)?)
@@ -1863,9 +1863,9 @@ class_key
 
 member_declaration(DeclarationAST*& yyast)
 {
-    List<SpecifierAST*>* specifier_list = 0;
-    DeclaratorAST* d = 0;
-    List<DeclaratorAST*>* decls = 0;
+    List<SpecifierAST*>* specifier_list{nullptr};
+    DeclaratorAST* d{nullptr};
+    List<DeclaratorAST*>* decls{nullptr};
     TranslationUnit::Specs specs;
 }
 : (public | protected | private) colon
@@ -1888,7 +1888,7 @@ base_clause(List<BaseClassAST*>*& yyast, ClassSymbol* klass)
 base_specifier_list(List<BaseClassAST*>*& yyast, ClassSymbol* klass)
 {
     auto it = &yyast;
-    BaseClassAST* bc = 0;
+    BaseClassAST* bc{nullptr};
 }
 : base_specifier(bc, klass) dot_dot_dot?
     {
@@ -1905,7 +1905,7 @@ base_specifier_list(List<BaseClassAST*>*& yyast, ClassSymbol* klass)
 
 base_specifier(BaseClassAST*& yyast, ClassSymbol* klass)
 {
-    NameAST* name = 0;
+    NameAST* name{nullptr};
 }
 : attribute_specifier_seq (virtual | public | protected | private)*
   base_type_specifier(name)
@@ -1927,8 +1927,8 @@ base_type_specifier(NameAST*& yyast)
 
 conversion_function_id(NameAST*& yyast)
 {
-    List<SpecifierAST*>* specs = 0;
-    PtrOperatorAST* ptr_op = 0;
+    List<SpecifierAST*>* specs{nullptr};
+    PtrOperatorAST* ptr_op{nullptr};
 }
 : operator type_specifier_list(specs) ptr_operator(ptr_op)*
 ;
@@ -1940,7 +1940,7 @@ ctor_initializer(List<MemInitializerAST*>*& yyast)
 mem_initializer_list(List<MemInitializerAST*>*& yyast)
 {
     auto it = &yyast;
-    MemInitializerAST* i = 0;
+    MemInitializerAST* i{nullptr};
 }
 : mem_initializer(i)
     {
@@ -1957,9 +1957,9 @@ mem_initializer_list(List<MemInitializerAST*>*& yyast)
 
 mem_initializer(MemInitializerAST*& yyast)
 {
-  NameAST* n = 0;
-  List<ExpressionAST*>* args = 0;
-  ExpressionAST* e = 0;
+  NameAST* n{nullptr};
+  List<ExpressionAST*>* args{nullptr};
+  ExpressionAST* e{nullptr};
 }
 : mem_initializer_id(n) (lparen expression_list(args)? rparen | braced_init_list(e)) dot_dot_dot?
     {
@@ -1977,7 +1977,7 @@ mem_initializer_id(NameAST*& yyast)
 
 operator_function_id(NameAST*& yyast)
 {
-  unsigned op_token = 0;
+  unsigned op_token{0};
 }
 : operator { op_token = yycursor; }
     (new lbracket rbracket | delete lbracket rbracket | new | delete | amp | amp_amp | amp_equal | bar | bar_bar
@@ -1995,9 +1995,9 @@ operator_function_id(NameAST*& yyast)
 
 template_declaration(DeclarationAST*& yyast)
 {
-  List<DeclarationAST*>* params = 0;
+  List<DeclarationAST*>* params{nullptr};
   auto it = &params;
-  DeclarationAST* d = 0;
+  DeclarationAST* d{nullptr};
   EnterScope enterScope;
 }
 : extern? template (less
@@ -2029,10 +2029,10 @@ template_declaration(DeclarationAST*& yyast)
 
 template_member_declaration(DeclarationAST*& yyast)
 {
-  List<DeclarationAST*>* params = 0;
+  List<DeclarationAST*>* params{nullptr};
   auto it = &params;
-  DeclarationAST* p = 0;
-  DeclarationAST* d = 0;
+  DeclarationAST* p{nullptr};
+  DeclarationAST* d{nullptr};
   EnterScope enterScope;
 }
 : extern? template (less
@@ -2069,11 +2069,11 @@ template_parameter(DeclarationAST*& yyast)
 
 type_parameter(DeclarationAST*& yyast)
 {
-  TypeIdAST* t = 0;
-  DeclarationAST* p = 0;
-  List<DeclarationAST*>* params = 0;
+  TypeIdAST* t{nullptr};
+  DeclarationAST* p{nullptr};
+  List<DeclarationAST*>* params{nullptr};
   auto it = &params;
-  NameAST* n = 0;
+  NameAST* n{nullptr};
 }
 : ((class | typename) dot_dot_dot? simple_name(n)? (equal type_id(t))?) / (comma | greater)
     {
@@ -2105,9 +2105,9 @@ type_parameter(DeclarationAST*& yyast)
 
 template_id(NameAST*& yyast)
 {
-  List<ExpressionAST*>* args = 0;
+  List<ExpressionAST*>* args{nullptr};
   auto it = &args;
-  ExpressionAST* e = 0;
+  ExpressionAST* e{nullptr};
 }
 : simple_template_id(yyast)
 | operator_function_id(yyast) less
@@ -2132,10 +2132,10 @@ template_id(NameAST*& yyast)
 
 simple_template_id(NameAST*& yyast)
 {
-  List<ExpressionAST*>* args = 0;
+  List<ExpressionAST*>* args{nullptr};
   auto it = &args;
-  ExpressionAST* e = 0;
-  NameAST* name = 0;
+  ExpressionAST* e{nullptr};
+  NameAST* name{nullptr};
 }
 : simple_name(name) less
     (template_argument(e)
@@ -2159,8 +2159,8 @@ simple_template_id(NameAST*& yyast)
 
 template_argument(ExpressionAST*& yyast)
 {
-  TypeIdAST* t = 0;
-  ExpressionAST* e = 0;
+  TypeIdAST* t{nullptr};
+  ExpressionAST* e{nullptr};
 }
 : (type_id(t) / (comma | greater | dot_dot_dot)) dot_dot_dot? { yyast = t; }
 | template_argument_expression(e) dot_dot_dot? { yyast = e; }
@@ -2168,7 +2168,7 @@ template_argument(ExpressionAST*& yyast)
 
 typename_specifier(SpecifierAST*& yyast)
 {
-    NameAST* name = 0;
+    NameAST* name{nullptr};
 }
 : typename name(name)
     {
@@ -2180,30 +2180,30 @@ typename_specifier(SpecifierAST*& yyast)
 
 try_block(StatementAST*& yyast)
 {
-  StatementAST* s = 0;
+  StatementAST* s{nullptr};
 }
 : try compound_statement(s) handler+
 ;
 
 function_try_block
 {
-    List<MemInitializerAST*>* i = 0;
-    StatementAST* s = 0;
+    List<MemInitializerAST*>* i{nullptr};
+    StatementAST* s{nullptr};
 }
 : try ctor_initializer(i)? compound_statement(s) handler+
 ;
 
 handler
 {
-  StatementAST* s = 0;
+  StatementAST* s{nullptr};
 }
 : catch lparen exception_declaration rparen compound_statement(s)
 ;
 
 exception_declaration
 {
-  List<SpecifierAST*>* specifier_list = 0;
-  DeclaratorAST* d = 0;
+  List<SpecifierAST*>* specifier_list{nullptr};
+  DeclaratorAST* d{nullptr};
   TranslationUnit::Specs specs;
 }
 : dot_dot_dot
@@ -2220,7 +2220,7 @@ exception_declaration
 
 throw_exception(ExpressionAST*& yyast)
 {
-  ExpressionAST* e = 0;
+  ExpressionAST* e{nullptr};
 }
 : throw expression(e)?
 ;
@@ -2232,21 +2232,21 @@ exception_specification
 
 dynamic_exception_specification
 {
-  TypeIdAST* t = 0;
+  TypeIdAST* t{nullptr};
 }
 : throw lparen (type_id(t) dot_dot_dot? (comma type_id(t) dot_dot_dot?)*)? rparen
 ;
 
 noexcept_specification
 {
-  ExpressionAST* e = 0;
+  ExpressionAST* e{nullptr};
 }
 : noexcept (lparen constant_expression(e) rparen)?
 ;
 
 translation_unit(TranslationUnitAST*& yyast)
 {
-  DeclarationAST* d = 0;
+  DeclarationAST* d{nullptr};
 
   yyast = new (pool) TranslationUnitAST;
   auto it = &yyast->declaration_list;
