@@ -643,7 +643,7 @@ class ProcessDeclarator {
           auto param = it->value->asParameterDeclaration();
           auto declTy = unit->specifiers(param->specifier_list);
           auto paramDecl = unit->declarator(declTy, param->declarator);
-          auto arg = new ArgumentSymbol();
+          auto arg = control->newArgument();
           arg->setEnclosingScope(fun);
           arg->setName(paramDecl.name);
           arg->setType(paramDecl.specs.type);
