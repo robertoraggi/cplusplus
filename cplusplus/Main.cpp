@@ -26,9 +26,7 @@
 #include <cstdarg>
 #include <cstdlib>
 
-bool yyparse(TranslationUnit* unit);
-
-void parse_file(const char* file = 0) {
+void parse_file(const char* file) {
   std::fstream in(file);
   std::string code;
   char buffer[4 * 1024];
@@ -40,15 +38,13 @@ void parse_file(const char* file = 0) {
   Control control;
   TranslationUnit unit(&control);
   unit.setSource(std::move(code));
-  unit.setFileName(file ? file : "<stdin>");
+  unit.setFileName(file);
   unit.tokenize();
-  yyparse(&unit);
+  unit.parse();
 }
 
 int main(int argc, char* argv[]) {
   for (auto it = argv + 1; it != argv + argc; ++it)
     parse_file(*it);
-  if (argc == 1)
-    parse_file();
   return 0;
 }

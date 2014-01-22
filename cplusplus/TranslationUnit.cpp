@@ -30,6 +30,8 @@
 
 #define printf(a...) do {} while (0)
 
+bool yyparse(TranslationUnit* unit);
+
 inline void TranslationUnit::yyinp() {
   if (yychar == '\n')
     lines_.push_back(yypos);
@@ -384,6 +386,10 @@ const Identifier* TranslationUnit::identifier(unsigned index) const {
     return 0;
   auto&& tk = tokens_[index];
   return reinterpret_cast<const Identifier*>(tk.priv_);
+}
+
+bool TranslationUnit::parse() {
+  return yyparse(this);
 }
 
 namespace {

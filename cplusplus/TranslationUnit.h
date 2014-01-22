@@ -111,6 +111,7 @@ public:
       tokens_.emplace_back(kind, offset, value);
     } while (kind != T_EOF_SYMBOL);
   }
+  bool parse();
 
   struct Specs {
     Specs() = default;
