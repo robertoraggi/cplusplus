@@ -1,4 +1,4 @@
 cplusplus
 =========
 
-My experimental C++ front end
+My new experimental front end for C++ 11.
