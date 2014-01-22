@@ -25,7 +25,7 @@
 #include "Symbols.h"
 #include <string>
 #include <set>
-#include <list>
+#include <forward_list>
 
 class Name;
 class Identifier;
@@ -63,10 +63,10 @@ public:
   };
 
   template <typename T>
-  struct Sequence final: std::list<T> {
+  struct Sequence final: std::forward_list<T> {
     template <typename...Args>
     T* operator()(Args&&...args) {
-      return &*this->emplace(this->end(), std::forward<Args>(args)...);
+      return &*this->emplace_after(this->before_begin(), std::forward<Args>(args)...);
     }
   };
 
