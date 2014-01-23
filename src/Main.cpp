@@ -20,10 +20,11 @@
 #include "Control.h"
 #include "TranslationUnit.h"
 #include <fstream>
+#include <iostream>
 #include <string>
 
-void parse_file(const char* file) {
-  std::fstream in(file);
+void parse_file(const char *file, std::istream &in)
+{
   std::string code;
   char buffer[4 * 1024];
   do {
@@ -37,6 +38,16 @@ void parse_file(const char* file) {
   unit.setFileName(file);
   unit.tokenize();
   unit.parse();
+}
+
+void parse_file(const char* file) {
+
+  if (file[0] == '-' && file[1] == '\0') {
+    parse_file("<stdin>", std::cin);
+  } else {
+    std::fstream in(file);
+    parse_file(file, in);
+  }
 }
 
 int main(int argc, char* argv[]) {
