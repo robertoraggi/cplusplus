@@ -27,33 +27,29 @@ add_executable(pgen tools/pgen.cpp)
 add_executable(kwgen tools/kwgen.cpp)
 
 add_library(CPlusPlusObjects OBJECT
-src/AST.cpp
-src/AST.h
-src/ASTVisitor.cpp
-src/ASTVisitor.h
-src/Arena.h
-src/Control.cpp
-src/Control.h
-src/Globals.h
-src/Names.cpp
-src/Names.h
-src/Parser.cpp
-src/Symbols.cpp
-src/Symbols.h
-src/Token.cpp
-src/Token.h
-src/TranslationUnit.cpp
-src/TranslationUnit.h
-src/Types.cpp
-src/Types.h
-# generated files
-KeywordsP.h
-ParserP.h
-)
+    src/AST.cpp
+    src/AST.h
+    src/ASTVisitor.cpp
+    src/ASTVisitor.h
+    src/Arena.h
+    src/Control.cpp
+    src/Control.h
+    src/Globals.h
+    src/Names.cpp
+    src/Names.h
+    src/Parser.cpp
+    src/Symbols.cpp
+    src/Symbols.h
+    src/Token.cpp
+    src/Token.h
+    src/TranslationUnit.cpp
+    src/TranslationUnit.h
+    src/Types.cpp
+    src/Types.h
+    # generated files
+    KeywordsP.h
+    ParserP.h)
 target_include_directories(CPlusPlusObjects PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
-
-
-add_executable(cplusplus src/Main.cpp $<TARGET_OBJECTS:CPlusPlusObjects>)
 
 add_custom_command(OUTPUT ParserP.h
 COMMAND ${CMAKE_CURRENT_BINARY_DIR}/pgen ${CMAKE_CURRENT_SOURCE_DIR}/src/Parser.pgen -o ParserP.h
@@ -65,13 +61,23 @@ COMMAND ${CMAKE_CURRENT_BINARY_DIR}/kwgen < ${CMAKE_CURRENT_SOURCE_DIR}/src/Keyw
 DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/kwgen src/Keywords.kwgen
 COMMENT "Generate KeywordsP.h")
 
+add_executable(cplusplus src/Main.cpp $<TARGET_OBJECTS:CPlusPlusObjects>)
+
+add_library(GTestObjects OBJECT
+    3rdparty/gtest-1.7.0/src/gtest-all.cc
+    3rdparty/gtest-1.7.0/src/gtest_main.cc)
+target_include_directories(GTestObjects PRIVATE src 3rdparty/gtest-1.7.0/include 3rdparty/gtest-1.7.0)
+target_compile_definitions(GTestObjects PRIVATE "-DGTEST_HAS_PTHREAD=0")
+
+function(add_cplusplus_test TARGET FILES)
+add_executable(${TARGET} ${FILES}
+    $<TARGET_OBJECTS:GTestObjects>
+    $<TARGET_OBJECTS:CPlusPlusObjects>)
+target_include_directories(${TARGET} PRIVATE src 3rdparty/gtest-1.7.0/include 3rdparty/gtest-1.7.0)
+add_test(${TARGET} ${TARGET})
+endfunction(add_cplusplus_test)
+
 
 enable_testing()
-add_executable(test-frontend
-tests/test-frontend.cpp
-3rdparty/gtest-1.7.0/src/gtest-all.cc
-3rdparty/gtest-1.7.0/src/gtest_main.cc
-$<TARGET_OBJECTS:CPlusPlusObjects>)
-target_include_directories(test-frontend PRIVATE src 3rdparty/gtest-1.7.0/include 3rdparty/gtest-1.7.0)
-target_compile_definitions(test-frontend PRIVATE "-DGTEST_HAS_PTHREAD=0")
-add_test(test-frontend test-frontend)
+add_cplusplus_test(test-frontend tests/test-frontend.cpp)
+add_cplusplus_test(test-symbols tests/test-symbols.cpp)
