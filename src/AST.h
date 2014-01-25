@@ -92,6 +92,8 @@ struct TypeIdAST final: ExtendsAST<ASTKind::kTypeId, ExpressionAST> {
 //
 struct TranslationUnitAST final: ExtendsAST<ASTKind::kTranslationUnit, AST> {
   List<DeclarationAST*>* declaration_list{nullptr};
+// attributes
+  NamespaceSymbol* globalScope{nullptr};
 };
 
 //

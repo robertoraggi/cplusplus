@@ -157,7 +157,7 @@
   TranslationUnit* unit{nullptr};
   Control* control{nullptr};
   Scope* scope{nullptr};
-  Scope* globalScope{nullptr};
+  NamespaceSymbol* globalScope{nullptr};
 
   struct EnterScope {
     Parser* p{nullptr};
@@ -2250,6 +2250,8 @@ translation_unit(TranslationUnitAST*& yyast)
 
   yyast = new (pool) TranslationUnitAST;
   auto it = &yyast->declaration_list;
+
+  yyast->globalScope = globalScope;
 }
 : (declaration(d, false)
     {

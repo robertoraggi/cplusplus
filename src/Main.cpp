@@ -20,9 +20,12 @@
 #include "Control.h"
 #include "TranslationUnit.h"
 #include "ASTVisitor.h"
+#include "AST.h"
+#include "Symbols.h"
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <cassert>
 
 std::string readAll(const std::string& fileName, std::istream& in)
 {
@@ -54,13 +57,16 @@ bool parseFile(const std::string& fileName, const std::function<void (Translatio
 
 int main(int argc, char* argv[]) {
   std::vector<std::string> inputFiles;
-  bool astDump = false;
+  bool dumpAST{false};
+  bool dumpSymbols{false};
 
   int index = 1;
   while (index < argc) {
     std::string arg{argv[index++]};
-    if (arg == "-ast-dump" || arg == "--ast-dump") {
-      astDump = true;
+    if (arg == "--ast") {
+      dumpAST = true;
+    } else if (arg == "--symbols") {
+        dumpSymbols = true;
     } else {
       inputFiles.push_back(std::move(arg));
     }
@@ -72,10 +78,14 @@ int main(int argc, char* argv[]) {
   }
 
   for (auto&& fileName: inputFiles) {
-    parseFile(fileName, [astDump](TranslationUnit* unit, TranslationUnitAST* ast) {
-      if (astDump) {
+    parseFile(fileName, [=](TranslationUnit* unit, TranslationUnitAST* ast) {
+      if (dumpAST) {
         RecursiveASTVisitor dump{unit};
         dump(ast);
+      }
+      if (dumpSymbols && ast) {
+        assert(ast->globalScope);
+        ast->globalScope->dump(std::cout, 0);
       }
     });
   }
