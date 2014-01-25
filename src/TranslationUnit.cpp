@@ -426,6 +426,8 @@ void TranslationUnit::tokenize() {
 }
 
 bool TranslationUnit::parse(const std::function<void(TranslationUnitAST*)>& consume) {
+  if (tokens_.empty())
+    tokenize();
   return yyparse(this, consume);
 }
 

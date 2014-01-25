@@ -19,11 +19,12 @@
 
 #include "Control.h"
 #include "TranslationUnit.h"
+#include "ASTVisitor.h"
 #include <fstream>
 #include <iostream>
 #include <string>
 
-void parse_file(const char *file, std::istream &in)
+std::string readAll(const std::string& fileName, std::istream& in)
 {
   std::string code;
   char buffer[4 * 1024];
@@ -31,27 +32,53 @@ void parse_file(const char *file, std::istream &in)
     in.read(buffer, sizeof(buffer));
     code.append(buffer, in.gcount());
   } while (in);
-
-  Control control;
-  TranslationUnit unit(&control);
-  unit.setSource(std::move(code));
-  unit.setFileName(file);
-  unit.tokenize();
-  unit.parse();
+  return code;
 }
 
-void parse_file(const char* file) {
+std::string readAll(const std::string& fileName) {
+  if (fileName == "-" || fileName.empty())
+    return readAll("<stdin>", std::cin);
+  std::ifstream stream(fileName);
+  return readAll(fileName, stream);
+}
 
-  if (file[0] == '-' && file[1] == '\0') {
-    parse_file("<stdin>", std::cin);
-  } else {
-    std::fstream in(file);
-    parse_file(file, in);
-  }
+bool parseFile(const std::string& fileName, const std::function<void (TranslationUnit*, TranslationUnitAST*)>& consume) {
+  Control control;
+  TranslationUnit unit(&control);
+  unit.setFileName(fileName);
+  unit.setSource(readAll(fileName));
+  return unit.parse([&unit, consume](TranslationUnitAST* ast) {
+    consume(&unit, ast);
+  });
 }
 
 int main(int argc, char* argv[]) {
-  for (auto it = argv + 1; it != argv + argc; ++it)
-    parse_file(*it);
-  return 0;
+  std::vector<std::string> inputFiles;
+  bool astDump = false;
+
+  int index = 1;
+  while (index < argc) {
+    std::string arg{argv[index++]};
+    if (arg == "-ast-dump" || arg == "--ast-dump") {
+      astDump = true;
+    } else {
+      inputFiles.push_back(std::move(arg));
+    }
+  }
+
+  if (inputFiles.empty()) {
+    std::cerr << "cplusplus: no input files" << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  for (auto&& fileName: inputFiles) {
+    parseFile(fileName, [astDump](TranslationUnit* unit, TranslationUnitAST* ast) {
+      if (astDump) {
+        RecursiveASTVisitor dump{unit};
+        dump(ast);
+      }
+    });
+  }
+
+  return EXIT_SUCCESS;
 }
