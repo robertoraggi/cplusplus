@@ -20,12 +20,13 @@ project(cplusplus)
 
 cmake_minimum_required(VERSION 2.8)
 
-set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
+set(CMAKE_CXX_FLAGS "-std=c++11")
 
+### our tools
 add_executable(pgen tools/pgen.cpp)
 add_executable(kwgen tools/kwgen.cpp)
 
-add_executable(cplusplus
+add_library(CPlusPlusObjects OBJECT
 src/AST.cpp
 src/AST.h
 src/ASTVisitor.cpp
@@ -34,7 +35,6 @@ src/Arena.h
 src/Control.cpp
 src/Control.h
 src/Globals.h
-src/Main.cpp
 src/Names.cpp
 src/Names.h
 src/Parser.cpp
@@ -46,23 +46,23 @@ src/TranslationUnit.cpp
 src/TranslationUnit.h
 src/Types.cpp
 src/Types.h
-src/Keywords.kwgen
-src/Parser.pgen
 # generated files
 KeywordsP.h
 ParserP.h
 )
-include_directories("${CMAKE_CURRENT_BINARY_DIR}")
-add_dependencies(cplusplus kwgen pgen)
+target_include_directories(CPlusPlusObjects PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+
+
+add_executable(cplusplus src/Main.cpp $<TARGET_OBJECTS:CPlusPlusObjects>)
 
 add_custom_command(OUTPUT ParserP.h
 COMMAND ${CMAKE_CURRENT_BINARY_DIR}/pgen ${CMAKE_CURRENT_SOURCE_DIR}/src/Parser.pgen -o ParserP.h
-DEPENDS src/Parser.pgen
+DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/pgen src/Parser.pgen
 COMMENT "Generate ParserP.h")
 
 add_custom_command(OUTPUT KeywordsP.h
 COMMAND ${CMAKE_CURRENT_BINARY_DIR}/kwgen < ${CMAKE_CURRENT_SOURCE_DIR}/src/Keywords.kwgen > KeywordsP.h
-DEPENDS src/Keywords.kwgen
+DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/kwgen src/Keywords.kwgen
 COMMENT "Generate KeywordsP.h")
 
 
@@ -70,8 +70,8 @@ enable_testing()
 add_executable(test-frontend
 tests/test-frontend.cpp
 3rdparty/gtest-1.7.0/src/gtest-all.cc
-3rdparty/gtest-1.7.0/src/gtest_main.cc)
-include_directories(3rdparty/gtest-1.7.0/include 3rdparty/gtest-1.7.0)
-add_definitions(-DGTEST_HAS_PTHREAD=0)
-add_dependencies(test-frontend cplusplus)
+3rdparty/gtest-1.7.0/src/gtest_main.cc
+$<TARGET_OBJECTS:CPlusPlusObjects>)
+target_include_directories(test-frontend PRIVATE src 3rdparty/gtest-1.7.0/include 3rdparty/gtest-1.7.0)
+target_compile_definitions(test-frontend PRIVATE "-DGTEST_HAS_PTHREAD=0")
 add_test(test-frontend test-frontend)

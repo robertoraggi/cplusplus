@@ -18,8 +18,13 @@
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <gtest/gtest.h>
+#include <Control.h>
+#include <TranslationUnit.h>
 
-TEST(frontend, nop) {
-  int i = 1;
-  EXPECT_EQ(i, 1);
+TEST(test_frontend, instantiate) {
+  Control control;
+  TranslationUnit unit(&control);
+  unit.setSource("int main() { return 0; }");
+  unit.tokenize();
+  unit.parse();
 }
