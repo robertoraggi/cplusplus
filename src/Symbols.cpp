@@ -95,7 +95,7 @@ void ClassSymbol::dump(std::ostream& out, int depth) {
     sym->dump(out, depth + 1);
   }
   out << indent(depth) << "}";
-  out << std::endl;
+  out << ';' << std::endl;
 }
 
 void TemplateSymbol::dump(std::ostream& out, int depth) {
@@ -117,7 +117,7 @@ void TemplateSymbol::dump(std::ostream& out, int depth) {
 
 void FunctionSymbol::dump(std::ostream& out, int depth) {
   out << indent(depth) << typeToString(type(), name());
-  out << std::endl;
+  out << " {}" << std::endl;
 }
 
 void BlockSymbol::dump(std::ostream& out, int depth) {
@@ -130,7 +130,7 @@ void ArgumentSymbol::dump(std::ostream& out, int depth) {
 
 void DeclarationSymbol::dump(std::ostream& out, int depth) {
   out << indent(depth) << typeToString(type(), name());
-  out << std::endl;
+  out << ';' << std::endl;
 }
 
 void TypeParameterSymbol::dump(std::ostream& out, int depth) {

@@ -880,7 +880,13 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
 
   (is_function_decl(d, specs) semicolon
     {
-      auto funDecl = unit->declarator(specs, d);
+      auto decl = unit->declarator(specs, d);
+      auto sym = control->newDeclaration();
+      sym->setEnclosingScope(scope);
+      sym->setName(decl.name);
+      sym->setType(decl.specs.type);
+      scope->addSymbol(sym);
+
       auto ast = new (pool) SimpleDeclarationAST;
       ast->specifier_list = specifier_list;
       ast->declarator_list = new (pool) List<DeclaratorAST*>(d);
@@ -947,6 +953,11 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
             d = new (pool) DeclaratorAST;
 
           auto decl = unit->declarator(specs, d);
+          auto sym = control->newDeclaration();
+          sym->setEnclosingScope(scope);
+          sym->setName(decl.name);
+          sym->setType(decl.specs.type);
+          scope->addSymbol(sym);
 
           *it = new (pool) List<DeclaratorAST*>(d);
           it = &(*it)->next;
@@ -1398,6 +1409,11 @@ init_declarator(DeclaratorAST*& yyast, const TranslationUnit::Specs& specs)
   |declarator(yyast)
     {
       auto decl = unit->declarator(specs, yyast);
+      auto sym = control->newDeclaration();
+      sym->setEnclosingScope(scope);
+      sym->setName(decl.name);
+      sym->setType(decl.specs.type);
+      scope->addSymbol(sym);
     }
   )
   initializer(i)?
