@@ -32,7 +32,7 @@
 
 #define printf(a...) do {} while (0)
 
-bool yyparse(TranslationUnit* unit);
+bool yyparse(TranslationUnit* unit, const std::function<void(TranslationUnitAST*)>& consume);
 
 inline void TranslationUnit::yyinp() {
   if (yychar == '\n')
@@ -425,8 +425,8 @@ void TranslationUnit::tokenize() {
   } while (kind != T_EOF_SYMBOL);
 }
 
-bool TranslationUnit::parse() {
-  return yyparse(this);
+bool TranslationUnit::parse(const std::function<void(TranslationUnitAST*)>& consume) {
+  return yyparse(this, consume);
 }
 
 namespace {

@@ -24,6 +24,7 @@
 #include "Types.h"
 #include <string>
 #include <vector>
+#include <functional>
 
 class TranslationUnit {
   Control* control_;
@@ -67,7 +68,7 @@ public:
 
   // front end
   void tokenize();
-  bool parse();
+  bool parse(const std::function<void(TranslationUnitAST*)>& consume = nullptr);
 
   struct Specs {
     Specs() = default;

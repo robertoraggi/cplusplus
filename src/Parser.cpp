@@ -132,16 +132,16 @@ int Parser::precedence() {
   }
 }
 
-bool yyparse(TranslationUnit* unit) {
-  Parser p;
-  return p.yyparse(unit);
-}
-
 int Parser::yytoken(int n) {
   return unit->tokenKind(yycursor + n);
 }
 
-bool Parser::yyparse(TranslationUnit* u) {
+bool yyparse(TranslationUnit* unit, const std::function<void(TranslationUnitAST*)>& consume) {
+  Parser p;
+  return p.yyparse(unit, consume);
+}
+
+bool Parser::yyparse(TranslationUnit* u, const std::function<void(TranslationUnitAST*)>& consume) {
   unit = u;
   control = unit->control();
   yydepth = -1;
@@ -153,13 +153,13 @@ bool Parser::yyparse(TranslationUnit* u) {
   scope = globalScope;
   TranslationUnitAST* ast{nullptr};
   auto parsed = parse_translation_unit(ast);
-  if (parsed && yytoken() == T_EOF_SYMBOL) {
-    RecursiveASTVisitor v{unit};
-    v(ast);
-    return true;
-  }
-  unit->error(yyparsed, "syntax error");
-  return false;
+  if (parsed && yytoken() != T_EOF_SYMBOL)
+    parsed = false; // expected EOF
+  if (! parsed)
+    unit->error(yyparsed, "syntax error"); // ### remove me
+  if (consume)
+    consume(ast);
+  return parsed;
 }
 
 bool Parser::parseBinaryExpression(ExpressionAST*& yyast, bool templArg, int minPrec) {
