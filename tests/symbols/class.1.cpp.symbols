@@ -1,0 +1,18 @@
+namespace {
+    class Class {
+        int a;
+        int b;
+        int *ptr;
+        const char *s;
+        class Private {
+            int a;
+            int b;
+            Class *p;
+            Private(Class *p);
+            const Class *getClass();
+        };
+        class Private *x;
+        void dump();
+        void init(const char *s);
+    };
+}
