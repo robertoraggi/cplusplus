@@ -47,11 +47,11 @@
 
 namespace IR {
 
-#define VISIT_IR_STMT(x) struct x##IR_STMT;
+#define VISIT_IR_STMT(x) struct x;
 FOR_EACH_IR_STMT(VISIT_IR_STMT)
 #undef VISIT_IR_STMT
 
-#define VISIT_IR_EXPR(x) struct x##IR_EXPR;
+#define VISIT_IR_EXPR(x) struct x;
 FOR_EACH_IR_EXPR(VISIT_IR_EXPR)
 #undef VISIT_IR_EXPR
 
@@ -86,7 +86,7 @@ template <StmtKind K, typename Base, typename..._Args>
 struct ExtendsStmt: Base, std::tuple<_Args...> {
   template <typename...Args>
   ExtendsStmt(Args&&...args)
-    : Stmt(K), std::tuple<_Args...>(std::forward<Args>(args)...) {}
+    : Base(K), std::tuple<_Args...>(std::forward<Args>(args)...) {}
 };
 
 template <ExprKind K, typename..._Args>
@@ -236,14 +236,13 @@ struct BasicBlock final: std::vector<Stmt*> {
       : basicBlock(basicBlock) {}
 
     template <typename...Args>
-    T* operator()(Args&&...args) {
+    void operator()(Args&&...args) {
       auto node = &*this->emplace_after(this->before_begin(), std::forward<Args>(args)...);
       basicBlock->push_back(node);
-      return node;
     }
   };
 
-#define VISIT_IR_STMT(T) Sequence<T> new##T{this};
+#define VISIT_IR_STMT(T) Sequence<T> emit##T{this};
   FOR_EACH_IR_STMT(VISIT_IR_STMT)
 #undef VISIT_IR_STMT
 };

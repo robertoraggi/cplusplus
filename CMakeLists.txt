@@ -85,6 +85,7 @@ endfunction(add_cplusplus_test)
 enable_testing()
 add_cplusplus_test(test-frontend tests/unittest/test-frontend.cpp)
 add_cplusplus_test(test-symbols tests/unittest/test-symbols.cpp)
+add_cplusplus_test(test-ir tests/unittest/test-ir.cpp)
 
 ##
 ## symbols
