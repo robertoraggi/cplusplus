@@ -339,6 +339,15 @@ class Type;
 class ArrayType;
 class ReferenceType;
 
+namespace IR {
+struct Module;
+struct Function;
+struct BasicBlock;
+struct Terminator;
+struct Stmt;
+struct Expr;
+} // end of namespace IR
+
 //
 // forward classes
 //

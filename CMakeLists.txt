@@ -37,6 +37,8 @@ add_library(CPlusPlusObjects OBJECT
     src/Control.cpp
     src/Control.h
     src/Globals.h
+    src/IR.cpp
+    src/IR.h
     src/Names.cpp
     src/Names.h
     src/Parser.cpp
