@@ -120,6 +120,22 @@ void FunctionSymbol::dump(std::ostream& out, int depth) {
   out << " {}" << std::endl;
 }
 
+unsigned FunctionSymbol::sourceLocation() const {
+  return _sourceLocation;
+}
+
+void FunctionSymbol::setSourceLocation(unsigned sourceLocation) {
+  _sourceLocation = sourceLocation;
+}
+
+StatementAST**FunctionSymbol::internalNode() const {
+  return _internalNode;
+}
+
+void FunctionSymbol::setInternalNode(StatementAST** internalNode) {
+  _internalNode = internalNode;
+}
+
 void BlockSymbol::dump(std::ostream& out, int depth) {
   assert(!"todo");
 }

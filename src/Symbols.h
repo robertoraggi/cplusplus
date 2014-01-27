@@ -131,9 +131,19 @@ public:
   void setConst(bool isConst) { _isConst = isConst; }
 
   void dump(std::ostream& out, int depth) override;
+
+  // ### internal
+  unsigned sourceLocation() const;
+  void setSourceLocation(unsigned sourceLocation);
+
+  StatementAST** internalNode() const;
+  void setInternalNode(StatementAST** internalNode);
+
 private:
   QualType _returnType;
   std::vector<ArgumentSymbol*> _arguments;
+  StatementAST** _internalNode{nullptr};
+  unsigned _sourceLocation{0};
   bool _isVariadic{false};
   bool _isConst{false};
 };

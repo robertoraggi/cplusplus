@@ -187,6 +187,8 @@
       std::swap(p->templDecl, this->templDecl);
     }
   };
+
+  std::vector<FunctionSymbol*> todo;
 %}
 
 literal(ExpressionAST*& yyast)
@@ -648,18 +650,28 @@ compound_statement(StatementAST*& yyast)
   StatementAST* s{nullptr};
   List<StatementAST*>* statement_list{nullptr};
   auto it = &statement_list;
+  EnterScope enterScope;
+  unsigned start = yycursor;
 }
-: lbrace (statement(s)
-    {
-      *it = new (pool) List<StatementAST*>(s);
-      it = &(*it)->next;
-    }
-  )* rbrace
-    {
-      auto ast = new (pool) CompoundStatementAST;
-      ast->statement_list = statement_list;
-      yyast = ast;
-    }
+: lbrace
+    (({
+        auto block = control->newBlock();
+        block->setEnclosingScope(scope);
+        enterScope(this, block);
+      }
+    (statement(s)
+      {
+        *it = new (pool) List<StatementAST*>(s);
+        it = &(*it)->next;
+      }
+    )*
+    rbrace
+      {
+        auto ast = new (pool) CompoundStatementAST;
+        ast->statement_list = statement_list;
+        yyast = ast;
+      })
+    | { unit->fatal(start, "internal compiler error, failed to parse the compound statement"); })
 ;
 
 selection_statement(StatementAST*& yyast)
@@ -866,6 +878,7 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
   List<DeclaratorAST*>* decls{nullptr};
   auto it = &decls;
   TranslationUnit::Specs specs;
+  TranslationUnit::Decl funDecl;
   DeclaratorAST* d{nullptr};
   ExpressionAST* i{nullptr};
   StatementAST* s{nullptr};
@@ -894,7 +907,7 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
     }
   |is_function_def(d, specs)
     {
-      auto funDecl = unit->declarator(specs, d);
+      funDecl = unit->declarator(specs, d);
       auto funTy = funDecl->asFunctionType();
       assert(funTy);
       auto fun = funTy->symbol();
@@ -905,13 +918,16 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
       scope->addSymbol(fun); // ### wrong we should not use the lexical scope here.
       enterScope(this, fun);
     }
-  function_body(s)
+  function_body(s, funDecl)
     {
       auto ast = new (pool) FunctionDefinitionAST;
       ast->specifier_list = specifier_list;
       ast->declarator = d;
       ast->statement = s;
       yyast = ast;
+
+      auto fun = funDecl->asFunctionType()->symbol();
+      fun->setInternalNode(&ast->statement);
     }
   ))
 
@@ -927,7 +943,7 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
   |( { return scope->isClassSymbol(); } / colon { d = nullptr; } | declarator(d))
     (is_function_def(d, specs)
         {
-          auto funDecl = unit->declarator(specs, d);
+          funDecl = unit->declarator(specs, d);
           auto funTy = funDecl->asFunctionType();
           assert(funTy);
           auto fun = funTy->symbol();
@@ -938,13 +954,16 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
           scope->addSymbol(fun); // ### wrong we should not use the lexical scope here.
           enterScope(this, fun);
         }
-     function_body(s)
+     function_body(s, funDecl)
         {
           auto ast = new (pool) FunctionDefinitionAST;
           ast->specifier_list = specifier_list;
           ast->declarator = d;
           ast->statement = s;
           yyast = ast;
+
+          auto fun = funDecl->asFunctionType()->symbol();
+          fun->setInternalNode(&ast->statement);
         }
     |
       { return true; } / (lparen | lbrace | comma | semicolon | colon | equal | try)
@@ -1729,6 +1748,7 @@ function_definition(DeclarationAST*& yyast)
   StatementAST* s{nullptr};
   TranslationUnit::Specs specs;
   EnterScope enterScope;
+  TranslationUnit::Decl funDecl;
 }
 : attribute_specifier_seq
   (decl_specifier_no_type_specifier_list(specifier_list)
@@ -1746,7 +1766,7 @@ function_definition(DeclarationAST*& yyast)
     }
    (declarator(d) / (lbrace | colon | equal)))
      {
-      auto funDecl = unit->declarator(specs, d);
+      funDecl = unit->declarator(specs, d);
       auto funTy = funDecl->asFunctionType();
       assert(funTy);
       auto fun = funTy->symbol();
@@ -1758,24 +1778,62 @@ function_definition(DeclarationAST*& yyast)
       enterScope(this, fun);
      }
 
-  function_body(s)
+  function_body(s, funDecl)
     {
       auto ast = new (pool) FunctionDefinitionAST;
       ast->specifier_list = specifier_list;
       ast->declarator = d;
       ast->statement = s;
       yyast = ast;
+
+      auto fun = funDecl->asFunctionType()->symbol();
+      fun->setInternalNode(&ast->statement);
     }
 ;
 
-function_body(StatementAST*& yyast)
+function_body(StatementAST*& yyast, const TranslationUnit::Decl& funDecl)
 {
-    List<MemInitializerAST*>* i{nullptr};
+  List<MemInitializerAST*>* i{nullptr};
 }
-: ctor_initializer(i)? compound_statement(yyast)
+: ctor_initializer(i)? function_compound_statement(yyast, funDecl)
 | function_try_block
 | equal default semicolon
 | equal delete semicolon
+;
+
+function_compound_statement(StatementAST*& yyast, const TranslationUnit::Decl& funDecl)
+{
+  auto funTy = funDecl->asFunctionType();
+  assert(funTy);
+  auto fun = funTy->symbol();
+  auto enclosingClass = fun->enclosingScope()->asClassSymbol();
+  fun->setSourceLocation(yycursor);
+}
+: {
+    if (yytoken() != T_LBRACE)
+      return false;
+    if (! enclosingClass)
+      return false;
+    todo.push_back(fun);
+  }
+  skip_compound_statement
+| compound_statement(yyast)
+;
+
+skip_compound_statement
+: lbrace
+    {
+      int count = 1;
+      for (; auto tk = yytoken(); ++yycursor) {
+        if (tk == T_LBRACE)
+          ++count;
+        else if (tk == T_RBRACE) {
+          if (! --count)
+            return true;
+        }
+      }
+    }
+  rbrace
 ;
 
 initializer(ExpressionAST*& yyast)
@@ -1862,6 +1920,22 @@ class_specifier(SpecifierAST*& yyast)
     }
   )* rbrace
     {
+      auto savedScope = scope;
+
+      std::vector<FunctionSymbol*> wl;
+      std::swap(todo, wl);
+      for (auto&& f: wl) {
+        auto pos = f->sourceLocation();
+        std::swap(yycursor, pos);
+        scope = f; // enter the function scope
+        StatementAST* body = 0;
+        if (! parse_compound_statement(*f->internalNode()))
+          unit->fatal(yyparsed, "cannot parse function body");
+        std::swap(yycursor, pos);
+      }
+
+      scope = savedScope;
+
       auto ast = new (pool) ClassSpecifierAST;
       ast->symbol = klass;
       ast->name = name;
