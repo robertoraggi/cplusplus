@@ -23,7 +23,6 @@
 #include "Globals.h"
 
 class Codegen {
-  TranslationUnit* unit;
 public:
   Codegen(TranslationUnit* unit);
   ~Codegen();
@@ -34,11 +33,61 @@ public:
   void operator()(TranslationUnitAST* ast);
 
 private:
+  enum Format { ex, cx, nx };
+  struct Result {
+    Format format{nx};
+    Format requested{ex};
+    IR::BasicBlock* iftrue{0};
+    IR::BasicBlock* iffalse{0};
+    const IR::Expr* code{0};
+
+    explicit Result(Format requested)
+      : requested(requested) {}
+
+    explicit Result(const IR::Expr* code)
+      : format(ex), requested(ex), code(code) {}
+
+    explicit Result(IR::BasicBlock* iftrue, IR::BasicBlock* iffalse)
+      : requested(cx), iftrue(iftrue), iffalse(iffalse) {}
+
+    const IR::Expr* operator*() const { return code; }
+    const IR::Expr* operator->() const { return code; }
+
+    bool is(Format f) const { return format == f; }
+    bool isNot(Format f) const { return format != f; }
+
+    bool accept(Format f) {
+      if (requested == f) {
+        format = f;
+        return true;
+      }
+      return false;
+    }
+  };
+
+  Result reduce(const Result& expr);
+  Result expression(ExpressionAST* ast);
+  void condition(ExpressionAST* ast,
+                 IR::BasicBlock* iftrue,
+                 IR::BasicBlock* iffalse);
+  void statement(ExpressionAST* ast);
+  void statement(StatementAST* ast);
+  void declaration(DeclarationAST* ast);
+
   void accept(AST* ast);
 
 #define VISIT_AST(x) void visit(x##AST* ast);
 FOR_EACH_AST(VISIT_AST)
 #undef VISIT_AST
+
+private:
+  TranslationUnit* unit;
+  IR::Function* function{0};
+  IR::BasicBlock* block{0};
+  IR::BasicBlock* exitBlock{0};
+  const IR::Expr* exitValue{0};
+  Result result{ex};
+  int tempCount{0};
 };
 
 #endif // CODEGEN_H

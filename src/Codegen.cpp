@@ -20,6 +20,8 @@
 #include "Codegen.h"
 #include "AST.h"
 #include "TranslationUnit.h"
+#include "IR.h"
+#include <cassert>
 
 Codegen::Codegen(TranslationUnit* unit)
   : unit(unit) {
@@ -33,9 +35,57 @@ Control* Codegen::control() const {
 }
 
 void Codegen::operator()(TranslationUnitAST* ast) {
+  accept(ast);
+}
+
+Codegen::Result Codegen::reduce(const Result& expr) {
+  return expr;
+}
+
+Codegen::Result Codegen::expression(ExpressionAST* ast) {
+  Result r{ex};
+  if (ast) {
+    std::swap(result, r);
+    accept(ast);
+    std::swap(result, r);
+  }
+  assert(r.is(ex));
+  return r;
+}
+
+void Codegen::condition(ExpressionAST* ast,
+                        IR::BasicBlock* iftrue,
+                        IR::BasicBlock* iffalse) {
+  Result r{iftrue, iffalse};
+  if (ast) {
+    std::swap(result, r);
+    accept(ast);
+    std::swap(result, r);
+  }
+  assert(r.is(cx));
+}
+
+void Codegen::statement(ExpressionAST* ast) {
+  Result r{nx};
+  if (ast) {
+    std::swap(result, r);
+    accept(ast);
+    std::swap(result, r);
+  }
+  assert(r.is(nx));
+}
+
+void Codegen::statement(StatementAST* ast) {
+  accept(ast);
+}
+
+void Codegen::declaration(DeclarationAST* ast) {
+  accept(ast);
 }
 
 void Codegen::accept(AST* ast) {
+  if (! ast)
+    return;
   switch (ast->kind()) {
 #define VISIT_AST(x) case ASTKind::k##x: visit(reinterpret_cast<x##AST*>(ast)); break;
 FOR_EACH_AST(VISIT_AST)
