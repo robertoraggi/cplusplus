@@ -657,6 +657,7 @@ compound_statement(StatementAST*& yyast)
     (({
         auto block = control->newBlock();
         block->setEnclosingScope(scope);
+        scope->addSymbol(block);
         enterScope(this, block);
       }
     (statement(s)
