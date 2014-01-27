@@ -32,6 +32,8 @@ add_library(CPlusPlusObjects OBJECT
     src/ASTVisitor.cpp
     src/ASTVisitor.h
     src/Arena.h
+    src/Codegen.cpp
+    src/Codegen.h
     src/Control.cpp
     src/Control.h
     src/Globals.h
