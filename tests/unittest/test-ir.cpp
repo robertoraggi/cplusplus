@@ -71,12 +71,12 @@ TEST(test_ir, expressions) {
   EXPECT_EQ(fun->getSym(id_0), fun->getSym(id_0));
   EXPECT_NE(fun->getSym(id_0), fun->getSym(id_1));
 
-  EXPECT_EQ(fun->getCast(control.getIntType(), fun->getConst(zero)),
-            fun->getCast(control.getIntType(), fun->getConst(zero)));
+  EXPECT_EQ(fun->getCast(QualType(control.getIntType()), fun->getConst(zero)),
+            fun->getCast(QualType(control.getIntType()), fun->getConst(zero)));
 
-  EXPECT_NE(fun->getCast(control.getIntType(), fun->getConst(zero)),
-            fun->getCast(control.getIntType(), fun->getConst(one)));
+  EXPECT_NE(fun->getCast(QualType(control.getIntType()), fun->getConst(zero)),
+            fun->getCast(QualType(control.getIntType()), fun->getConst(one)));
 
-  EXPECT_NE(fun->getCast(control.getIntType(), fun->getConst(zero)),
-            fun->getCast(control.getCharType(), fun->getConst(zero)));
+  EXPECT_NE(fun->getCast(QualType(control.getIntType()), fun->getConst(zero)),
+            fun->getCast(QualType(control.getCharType()), fun->getConst(zero)));
 }
