@@ -116,7 +116,13 @@ void TemplateSymbol::dump(std::ostream& out, int depth) {
 }
 
 void FunctionSymbol::dump(std::ostream& out, int depth) {
-  out << indent(depth) << typeToString(type(), name());
+  auto funTy = type()->asFunctionType();
+  assert(funTy);
+  std::vector<const Name*> actuals;
+  for (auto&& arg: _arguments)
+    actuals.push_back(arg->name()); // ### this is a bit slow.
+  out << indent(depth) << typeToString(funTy->returnType(), name())
+      << typeToString.prototype(funTy, actuals);
   out << " {}" << std::endl;
 }
 

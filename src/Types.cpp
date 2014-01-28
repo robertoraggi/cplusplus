@@ -23,26 +23,6 @@
 #include <string>
 #include <cassert>
 
-QualType FunctionType::returnType() const {
-  assert(!"todo");
-  return QualType();
-}
-
-unsigned FunctionType::argumentCount() const {
-  assert(!"todo");
-  return 0;
-}
-
-QualType FunctionType::argumentAt(unsigned index) const {
-  assert(!"todo");
-  return QualType();
-}
-
-bool FunctionType::isVariadic() const {
-  assert(!"todo");
-  return false;
-}
-
 void TypeToString::accept(QualType type) {
   switch (type->kind()) {
 #define VISIT_TYPE(T) case TypeKind::k##T: visit(type->as##T##Type()); break;
@@ -178,22 +158,30 @@ void TypeToString::visit(const UnboundedArrayType* type) {
   text = print(type->elementType(), decl + subscript);
 }
 
-void TypeToString::visit(const FunctionType* type) {
+std::string TypeToString::prototype(const FunctionType* type,
+                                    const std::vector<const Name*>& actuals) {
   std::string proto;
   proto += '(';
-  auto fun = type->symbol();
-  for (unsigned i = 0; i < fun->argumentCount(); ++i) {
-    auto arg = fun->argumentAt(i);
+  auto&& argTypes = type->argumentTypes();
+  for (size_t i = 0; i < argTypes.size(); ++i) {
+    auto&& argTy = argTypes[i];
     if (i != 0)
       proto += ", ";
-    proto += print(arg->type(), arg->name());
+    const Name* argName = i < actuals.size() ? actuals[i] : nullptr;
+    proto += print(argTy, argName);
   }
-  if (fun->isVariadic())
+  if (type->isVariadic())
     proto += "...";
   proto += ')';
-  if (fun->isConst())
+  if (type->isConst())
     proto += " const";
-  text = print(fun->returnType(), decl + proto);}
+  return proto;
+}
+
+void TypeToString::visit(const FunctionType* type) {
+  auto&& proto = prototype(type, std::vector<const Name*>{});
+  text = print(type->returnType(), decl + proto);
+}
 
 void TypeToString::visit(const ClassType* type) {
   text = "class";

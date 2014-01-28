@@ -23,6 +23,7 @@
 #include "Globals.h"
 #include <tuple>
 #include <string>
+#include <vector>
 
 class QualType {
   const Type* _type;
@@ -184,14 +185,15 @@ public:
   QualType elementType() const { return std::get<0>(*this); }
 };
 
-class FunctionType final: public ExtendsType<TypeKind::kFunction>, public std::tuple<FunctionSymbol*> {
+class FunctionType final
+    : public ExtendsType<TypeKind::kFunction>
+    , public std::tuple<QualType, std::vector<QualType>, bool, bool> {
 public:
   using tuple::tuple;
-  FunctionSymbol* symbol() const { return std::get<0>(*this); }
-  QualType returnType() const;
-  unsigned argumentCount() const;
-  QualType argumentAt(unsigned index) const;
-  bool isVariadic() const;
+  QualType returnType() const { return std::get<0>(*this); }
+  const std::vector<QualType>& argumentTypes() const { return std::get<1>(*this); }
+  bool isVariadic() const { return std::get<2>(*this); }
+  bool isConst() const { return std::get<3>(*this); } // ### TODO: ref and cv-qualifiers.
 };
 
 class ClassType final: public ExtendsType<TypeKind::kClass>, public std::tuple<ClassSymbol*> {
@@ -222,6 +224,7 @@ class TypeToString {
 public:
   std::string operator()(QualType type, const Name* name = nullptr);
   std::string operator()(QualType type, std::string decl) { return print(type, std::move(decl)); }
+  std::string prototype(const FunctionType* type, const std::vector<const Name*>& actuals);
 private:
   std::string text;
   std::string decl;

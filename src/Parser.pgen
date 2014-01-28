@@ -885,6 +885,7 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
   DeclaratorAST* d{nullptr};
   ExpressionAST* i{nullptr};
   StatementAST* s{nullptr};
+  FunctionSymbol* fun{nullptr};
   EnterScope enterScope;
 }
 : attribute_specifier_seq
@@ -911,17 +912,31 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
   |is_function_def(d, specs)
     {
       funDecl = context.declarator(specs, d);
+
       auto funTy = funDecl->asFunctionType();
       assert(funTy);
-      auto fun = funTy->symbol();
-      assert(fun);
+
+      fun = control->newFunction();
+
+      auto&& proto = funTy->argumentTypes();
+      for (size_t i = 0; i < proto.size(); ++i) {
+        auto argName = funDecl.actuals[i];
+        auto argTy = proto[i];
+
+        auto arg = control->newArgument();
+        arg->setEnclosingScope(fun);
+        arg->setName(argName);
+        arg->setType(argTy);
+        fun->addArgument(arg);
+      }
+
       fun->setType(QualType(funTy));
       fun->setName(funDecl.name);
       fun->setEnclosingScope(scope); // lexical scope
       scope->addSymbol(fun); // ### wrong we should not use the lexical scope here.
       enterScope(this, fun);
     }
-  function_body(s, funDecl)
+  function_body(s)
     {
       auto ast = new (pool) FunctionDefinitionAST;
       ast->specifier_list = specifier_list;
@@ -929,7 +944,6 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
       ast->statement = s;
       yyast = ast;
 
-      auto fun = funDecl->asFunctionType()->symbol();
       fun->setInternalNode(&ast->statement);
     }
   ))
@@ -947,17 +961,32 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
     (is_function_def(d, specs)
         {
           funDecl = context.declarator(specs, d);
+
           auto funTy = funDecl->asFunctionType();
           assert(funTy);
-          auto fun = funTy->symbol();
-          assert(fun);
+
+          fun = control->newFunction();
+
+          auto&& proto = funTy->argumentTypes();
+          for (size_t i = 0; i < proto.size(); ++i) {
+            auto argName = funDecl.actuals[i];
+            auto argTy = proto[i];
+
+            auto arg = control->newArgument();
+            arg->setEnclosingScope(fun);
+            arg->setName(argName);
+            arg->setType(argTy);
+            fun->addArgument(arg);
+          }
+
           fun->setType(QualType(funTy));
           fun->setName(funDecl.name);
           fun->setEnclosingScope(scope); // lexical scope
           scope->addSymbol(fun); // ### wrong we should not use the lexical scope here.
           enterScope(this, fun);
+
         }
-     function_body(s, funDecl)
+     function_body(s)
         {
           auto ast = new (pool) FunctionDefinitionAST;
           ast->specifier_list = specifier_list;
@@ -965,7 +994,6 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
           ast->statement = s;
           yyast = ast;
 
-          auto fun = funDecl->asFunctionType()->symbol();
           fun->setInternalNode(&ast->statement);
         }
     |
@@ -1744,73 +1772,22 @@ parameter_declaration(DeclarationAST*& yyast, bool inTempl)
     }
 ;
 
-function_definition(DeclarationAST*& yyast)
-{
-  List<SpecifierAST*>* specifier_list{nullptr};
-  DeclaratorAST* d{nullptr};
-  StatementAST* s{nullptr};
-  ParseContext::Specs specs;
-  EnterScope enterScope;
-  ParseContext::Decl funDecl;
-}
-: attribute_specifier_seq
-  (decl_specifier_no_type_specifier_list(specifier_list)
-    {
-      specs = context.specifiers(specifier_list);
-    }
-   (declarator(d) / (lbrace | colon | equal))
-    {
-      context.declarator(specs, d);
-    }
-
-  |decl_specifier_list(specifier_list)?
-    {
-      specs = context.specifiers(specifier_list);
-    }
-   (declarator(d) / (lbrace | colon | equal)))
-     {
-      funDecl = context.declarator(specs, d);
-      auto funTy = funDecl->asFunctionType();
-      assert(funTy);
-      auto fun = funTy->symbol();
-      assert(fun);
-      fun->setType(QualType(funTy));
-      fun->setName(funDecl.name);
-      fun->setEnclosingScope(scope); // lexical scope
-      scope->addSymbol(fun); // ### wrong we should not use the lexical scope here.
-      enterScope(this, fun);
-     }
-
-  function_body(s, funDecl)
-    {
-      auto ast = new (pool) FunctionDefinitionAST;
-      ast->specifier_list = specifier_list;
-      ast->declarator = d;
-      ast->statement = s;
-      yyast = ast;
-
-      auto fun = funDecl->asFunctionType()->symbol();
-      fun->setInternalNode(&ast->statement);
-    }
-;
-
-function_body(StatementAST*& yyast, const ParseContext::Decl& funDecl)
+function_body(StatementAST*& yyast)
 {
   List<MemInitializerAST*>* i{nullptr};
 }
-: ctor_initializer(i)? function_compound_statement(yyast, funDecl)
+: ctor_initializer(i)? function_compound_statement(yyast)
 | function_try_block
 | equal default semicolon
 | equal delete semicolon
 ;
 
-function_compound_statement(StatementAST*& yyast, const ParseContext::Decl& funDecl)
+function_compound_statement(StatementAST*& yyast)
 {
-  auto funTy = funDecl->asFunctionType();
-  assert(funTy);
-  auto fun = funTy->symbol();
-  auto enclosingClass = fun->enclosingScope()->asClassSymbol();
+  auto fun = scope->asFunctionSymbol();
+  assert(fun);
   fun->setSourceLocation(yycursor);
+  auto enclosingClass = fun ? fun->enclosingScope()->asClassSymbol() : nullptr;
 }
 : {
     if (yytoken() != T_LBRACE)

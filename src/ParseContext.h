@@ -48,16 +48,24 @@ struct ParseContext {
   struct Decl {
     Specs specs;
     const Name* name{nullptr};
-    const Type* operator->() const { return *specs.type; }
+    std::vector<const Name*> actuals;
+
+    const Type* operator->() const {
+      return *specs.type;
+    }
+
     void setType(const Type* type) {
       specs.type.setType(type);
     }
+
     void setUnsigned(bool isUnsigned) {
       specs.type.setUnsigned(isUnsigned);
     }
+
     void setConst(bool isConst) {
       specs.type.setConst(isConst);
     }
+
     void setVolatile(bool isVolatile) {
       specs.type.setVolatile(isVolatile);
     }

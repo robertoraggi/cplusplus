@@ -284,22 +284,26 @@ class ParseContext::ProcessDeclarator {
     }
 
     case ASTKind::kFunctionDeclarator: {
+      const QualType returnType{context->finish(_decl.specs.type)};
+      std::vector<QualType> argTypes;
+      std::vector<const Name*> actuals;
       auto decl = ast->asFunctionDeclarator();
-      auto fun = control()->newFunction();
-      fun->setReturnType(context->finish(_decl.specs.type));
       if (auto params = decl->parameters_and_qualifiers) {
         for (auto it = params->parameter_list; it; it = it->next) {
           auto param = it->value->asParameterDeclaration();
           auto declTy = context->specifiers(param->specifier_list);
           auto paramDecl = context->declarator(declTy, param->declarator);
-          auto arg = control()->newArgument();
-          arg->setEnclosingScope(fun);
-          arg->setName(paramDecl.name);
-          arg->setType(paramDecl.specs.type);
-          fun->addArgument(arg);
+          auto argTy = paramDecl.specs.type;
+          argTypes.push_back(argTy);
+          actuals.push_back(paramDecl.name);
         }
       }
-      _decl.specs.type = QualType(control()->getFunctionType(fun));
+
+      bool isVariadic = false; // ### TODO
+      bool isConst = false; // ### TODO
+      QualType funTy(control()->getFunctionType(returnType, argTypes, isVariadic, isConst));
+      _decl.specs.type = funTy;
+      _decl.actuals = std::move(actuals);
       break;
     }
 
@@ -386,15 +390,9 @@ ParseContext::Decl ParseContext::declarator(const Specs& specs, DeclaratorAST* a
   decl.specs = specs;
   if (! ast)
     return decl;
-  if (! ast->_type) {
-    ProcessDeclarator process{this};
-    auto r = process(specs, ast);
-    ast->_type = r.specs.type; // ### wrong
-    ast->_name = r.name;
-  }
-  decl.name = ast->_name;
-  decl.specs.type = ast->_type; // ### wrong
-  return decl;
+  ProcessDeclarator process{this};
+  auto r = process(specs, ast);
+  return r;
 }
 
 QualType ParseContext::finish(QualType type) {

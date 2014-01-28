@@ -117,18 +117,10 @@ private:
 
 class FunctionSymbol final: public ExtendsSymbol<SymbolKind::kFunction, Scope> {
 public:
-  QualType returnType() const { return _returnType; }
-  void setReturnType(const QualType& returnType) { _returnType = returnType; }
-
+  // ### FIXME
   unsigned argumentCount() const { return _arguments.size(); }
   ArgumentSymbol* argumentAt(unsigned index) const { return _arguments[index]; }
   void addArgument(ArgumentSymbol* arg) { _arguments.push_back(arg); }
-
-  bool isVariadic() const { return _isVariadic; }
-  void setVariadic(bool isVariadic) { _isVariadic = isVariadic; }
-
-  bool isConst() const { return _isConst; }
-  void setConst(bool isConst) { _isConst = isConst; }
 
   void dump(std::ostream& out, int depth) override;
 

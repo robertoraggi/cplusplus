@@ -25,10 +25,12 @@
 #include <iostream>
 
 FunctionSymbol* newMainFunction(Control* control) {
+  QualType funTy{control->getFunctionType(QualType{control->getIntType()},
+                                          std::vector<QualType>{},
+                                          false, false)};
   auto symbol = control->newFunction();
   symbol->setName(control->getIdentifier("main"));
-  symbol->setType(QualType(control->getFunctionType(symbol)));
-  symbol->setReturnType(QualType(control->getIntType()));
+  symbol->setType(funTy);
   return symbol;
 }
 

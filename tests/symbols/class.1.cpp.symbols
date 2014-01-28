@@ -8,11 +8,11 @@ namespace {
             int a;
             int b;
             Class *p;
-            Private(Class *p);
+            Private(Class *);
             const Class *getClass();
         };
         class Private *x;
         void dump();
-        void init(const char *s);
+        void init(const char *);
     };
 }
