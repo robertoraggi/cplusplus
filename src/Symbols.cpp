@@ -115,6 +115,11 @@ void TemplateSymbol::dump(std::ostream& out, int depth) {
     out << indent(depth + 1) << "@template-declaration" << std::endl;
 }
 
+void TemplateSymbol::addSymbol(Symbol* symbol) {
+  assert(! _symbol);
+  _symbol = symbol;
+}
+
 void FunctionSymbol::dump(std::ostream& out, int depth) {
   auto funTy = type()->asFunctionType();
   assert(funTy);
@@ -134,7 +139,7 @@ void FunctionSymbol::setSourceLocation(unsigned sourceLocation) {
   _sourceLocation = sourceLocation;
 }
 
-StatementAST**FunctionSymbol::internalNode() const {
+StatementAST** FunctionSymbol::internalNode() const {
   return _internalNode;
 }
 
@@ -147,7 +152,7 @@ void BlockSymbol::dump(std::ostream& out, int depth) {
 }
 
 void ArgumentSymbol::dump(std::ostream& out, int depth) {
-  assert(!"todo");
+  out << typeToString(type(), name());
 }
 
 void DeclarationSymbol::dump(std::ostream& out, int depth) {
@@ -155,8 +160,16 @@ void DeclarationSymbol::dump(std::ostream& out, int depth) {
   out << ';' << std::endl;
 }
 
-void TypeParameterSymbol::dump(std::ostream& out, int depth) {
-  assert(!"todo");
+void TypeParameterSymbol::dump(std::ostream& out, int) {
+  out << "typename";
+  if (auto id = name())
+    out << " " << id->toString();
+}
+
+void TemplateTypeParameterSymbol::dump(std::ostream& out, int) {
+  out << "template <@...@> class";
+  if (auto id = name())
+    out << " " << id->toString();
 }
 
 NamespaceSymbol* Scope::findNamespace(const Name* name) const {
@@ -167,14 +180,4 @@ NamespaceSymbol* Scope::findNamespace(const Name* name) const {
       return sym->asNamespaceSymbol();
   }
   return nullptr;
-}
-
-void TemplateSymbol::addSymbol(Symbol *symbol) {
-  // nothing to do (for now).
-  if (_symbol) {
-    std::cout << "*** there is already a symbol in this template" << std::endl;
-    _symbol->dump(std::cout, 0);
-  }
-  //assert(! _symbol);
-  _symbol = symbol;
 }

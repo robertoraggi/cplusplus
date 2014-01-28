@@ -107,12 +107,15 @@ private:
 
 class TemplateSymbol final: public ExtendsSymbol<SymbolKind::kTemplate, Scope> {
 public:
+  const std::vector<Symbol*>& parameters() const { return _parameters; }
+  void addParameter(Symbol* param) { this->Scope::addSymbol(param); }
   Symbol* symbol() const { return _symbol; }
   void setSymbol(Symbol* symbol) { _symbol = symbol; }
   void dump(std::ostream& out, int depth) override;
   void addSymbol(Symbol *symbol) override;
 private:
   Symbol* _symbol;
+  std::vector<Symbol*> _parameters;
 };
 
 class FunctionSymbol final: public ExtendsSymbol<SymbolKind::kFunction, Scope> {
@@ -156,6 +159,11 @@ public:
 };
 
 class TypeParameterSymbol final: public ExtendsSymbol<SymbolKind::kTypeParameter, Symbol> {
+public:
+  void dump(std::ostream& out, int depth) override;
+};
+
+class TemplateTypeParameterSymbol final: public ExtendsSymbol<SymbolKind::kTemplateTypeParameter, Symbol> {
 public:
   void dump(std::ostream& out, int depth) override;
 };

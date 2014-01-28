@@ -134,7 +134,8 @@
   V(Block) \
   V(Argument) \
   V(Declaration) \
-  V(TypeParameter)
+  V(TypeParameter) \
+  V(TemplateTypeParameter)
 
 #define FOR_EACH_TOKEN(V) \
   V(EOF_SYMBOL, "<eof symbol>") \

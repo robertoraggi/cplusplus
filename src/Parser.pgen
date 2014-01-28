@@ -1753,6 +1753,7 @@ parameter_declaration(DeclarationAST*& yyast, bool inTempl)
   DeclaratorAST* d{nullptr};
   ExpressionAST* e{nullptr};
   ParseContext::Specs specs;
+  ParseContext::Decl decl;
 }
 : attribute_specifier_seq decl_specifier_list(specifier_list)
     {
@@ -1760,7 +1761,16 @@ parameter_declaration(DeclarationAST*& yyast, bool inTempl)
     }
   (declarator(d) | abstract_declarator(d)?)
     {
-      context.declarator(specs, d);
+      decl = context.declarator(specs, d);
+      if (inTempl) {
+        auto templ = scope->asTemplateSymbol();
+        assert(templ);
+
+        auto arg = control->newArgument();
+        arg->setName(decl.name);
+        arg->setType(decl.specs.type);
+        templ->addParameter(arg);
+      }
     }
   (equal initializer_clause(e, inTempl))?
     {
@@ -2069,25 +2079,26 @@ template_declaration(DeclarationAST*& yyast)
   auto it = &params;
   DeclarationAST* d{nullptr};
   EnterScope enterScope;
+  TemplateSymbol* templ{nullptr};
 }
-: extern? template (less
-            (template_parameter(d) dot_dot_dot?
-                {
-                  *it = new (pool) List<DeclarationAST*>(d);
-                  it = &(*it)->next;
-                }
-                (comma template_parameter(d) dot_dot_dot?
-                    {
-                      *it = new (pool) List<DeclarationAST*>(d);
-                      it = &(*it)->next;
-                    }
-                )*)? greater)?
+: extern? template
     {
-      auto templ = control->newTemplate();
+      templ = control->newTemplate();
       templ->setEnclosingScope(templ);
-      scope->addSymbol(templ);
+      scope->addSymbol(templ); // ### TODO: check
       enterScope(this, templ);
     }
+  (less (template_parameter(d, templ) dot_dot_dot?
+          {
+            *it = new (pool) List<DeclarationAST*>(d);
+            it = &(*it)->next;
+          }
+          (comma template_parameter(d, templ) dot_dot_dot?
+              {
+                *it = new (pool) List<DeclarationAST*>(d);
+                it = &(*it)->next;
+              }
+          )*)? greater)?
   (declaration(d, true)
     {
       auto ast = new (pool) TemplateDeclarationAST;
@@ -2104,24 +2115,26 @@ template_member_declaration(DeclarationAST*& yyast)
   DeclarationAST* p{nullptr};
   DeclarationAST* d{nullptr};
   EnterScope enterScope;
+  TemplateSymbol* templ{nullptr};
 }
-: extern? template (less
-        (template_parameter(p) dot_dot_dot?
-            {
-              *it = new (pool) List<DeclarationAST*>(p);
-              it = &(*it)->next;
-            }
-            (comma template_parameter(p) dot_dot_dot?
-                {
-                  *it = new (pool) List<DeclarationAST*>(p);
-                  it = &(*it)->next;
-                }
-            )*)? greater)?
+: extern? template
     {
-      auto templ = control->newTemplate();
-      templ->setEnclosingScope(scope);
+      templ = control->newTemplate();
+      templ->setEnclosingScope(templ);
+      scope->addSymbol(templ); // ### TODO: check
       enterScope(this, templ);
     }
+  (less (template_parameter(d, templ) dot_dot_dot?
+          {
+            *it = new (pool) List<DeclarationAST*>(d);
+            it = &(*it)->next;
+          }
+          (comma template_parameter(d, templ) dot_dot_dot?
+              {
+                *it = new (pool) List<DeclarationAST*>(d);
+                it = &(*it)->next;
+              }
+          )*)? greater)?
   (member_declaration(d)
     {
       auto ast = new (pool) TemplateDeclarationAST;
@@ -2132,39 +2145,54 @@ template_member_declaration(DeclarationAST*& yyast)
   |fatal("internal compiler error while parsing a template member declaration"))
 ;
 
-template_parameter(DeclarationAST*& yyast)
-: type_parameter(yyast)
-| parameter_declaration(yyast, true) / (comma | greater)
+template_parameter(DeclarationAST*& yyast, TemplateSymbol* templ)
+: type_parameter(yyast, templ)
+| parameter_declaration(yyast, templ) / (comma | greater)
 ;
 
-type_parameter(DeclarationAST*& yyast)
+type_parameter(DeclarationAST*& yyast, TemplateSymbol* templ)
 {
   TypeIdAST* t{nullptr};
   DeclarationAST* p{nullptr};
   List<DeclarationAST*>* params{nullptr};
   auto it = &params;
   NameAST* n{nullptr};
+  TemplateTypeParameterSymbol* templTypeParam{nullptr};
 }
 : ((class | typename) dot_dot_dot? simple_name(n)? (equal type_id(t))?) / (comma | greater)
     {
+      if (templ) {
+        auto arg = control->newTypeParameter();
+        arg->setName(context.name(n));
+        templ->addParameter(arg);
+      }
+
       auto ast = new (pool) TypeParameterAST;
       ast->name = n;
       ast->type_id = t;
       yyast = ast;
     }
 | template less
-    template_parameter(p) dot_dot_dot?
+      {
+        templTypeParam = control->newTemplateTypeParameter();
+      }
+    template_parameter(p, nullptr) dot_dot_dot?
         {
           *it = new (pool) List<DeclarationAST*>(p);
           it = &(*it)->next;
         }
-        (comma template_parameter(p) dot_dot_dot?
+        (comma template_parameter(p, nullptr) dot_dot_dot?
             {
               *it = new (pool) List<DeclarationAST*>(p);
               it = &(*it)->next;
             }
         )* greater class dot_dot_dot? simple_name(n)? (equal type_id(t))?
     {
+      if (templ) {
+        templTypeParam->setName(context.name(n));
+        templ->addParameter(templTypeParam);
+      }
+
       auto ast = new (pool) TemplateTypeParameterAST;
       ast->name = n;
       ast->template_parameter_list = params;
