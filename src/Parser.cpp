@@ -25,6 +25,7 @@
 #include "Types.h"
 #include "Names.h"
 #include "Control.h"
+#include "ParseContext.h"
 #include <cstring>
 #include <cassert>
 #include <iostream>
@@ -151,6 +152,7 @@ bool Parser::yyparse(TranslationUnit* u, const std::function<void(TranslationUni
   pool = &arena;
   globalScope = control->newNamespace();
   scope = globalScope;
+  context.unit = unit;
   TranslationUnitAST* ast{nullptr};
   auto parsed = parse_translation_unit(ast);
   if (parsed && yytoken() != T_EOF_SYMBOL)

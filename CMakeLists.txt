@@ -41,6 +41,8 @@ add_library(CPlusPlusObjects OBJECT
     src/IR.h
     src/Names.cpp
     src/Names.h
+    src/ParseContext.cpp
+    src/ParseContext.h
     src/Parser.cpp
     src/Symbols.cpp
     src/Symbols.h

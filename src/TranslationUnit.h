@@ -70,46 +70,6 @@ public:
   void tokenize();
   bool parse(const std::function<void(TranslationUnitAST*)>& consume = nullptr);
 
-  struct Specs {
-    Specs() = default;
-    QualType type;
-    union {
-      unsigned _flags{0};
-      unsigned isExtern: 1;
-      unsigned isInline: 1;
-      unsigned isStatic: 1;
-      unsigned isTypedef: 1;
-      unsigned isVirtual: 1;
-      unsigned isFriend: 1;
-      unsigned isExplicit: 1;
-      unsigned isMutable: 1;
-      unsigned isConstexpr: 1;
-    };
-  };
-
-  struct Decl {
-    Specs specs;
-    const Name* name{nullptr};
-    const Type* operator->() const { return *specs.type; }
-    void setType(const Type* type) {
-      specs.type.setType(type);
-    }
-    void setUnsigned(bool isUnsigned) {
-      specs.type.setUnsigned(isUnsigned);
-    }
-    void setConst(bool isConst) {
-      specs.type.setConst(isConst);
-    }
-    void setVolatile(bool isVolatile) {
-      specs.type.setVolatile(isVolatile);
-    }
-  };
-
-  const Name* name(NameAST* ast);
-  Specs specifiers(List<SpecifierAST*>* specifiers);
-  Decl declarator(const Specs& specs, DeclaratorAST* decl);
-  QualType finish(QualType type);
-
 private:
   void yyinp();
   TokenKind yylex(unsigned* offset, const void** priv);

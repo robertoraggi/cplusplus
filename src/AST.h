@@ -70,7 +70,7 @@ struct NameAST: AST {
 
 private:
   const Name* _name{nullptr};
-  friend class TranslationUnit;
+  friend class ParseContext;
 };
 
 struct ExpressionAST: AST {
@@ -718,7 +718,7 @@ struct DeclaratorAST final: ExtendsAST<ASTKind::kDeclarator, AST> {
 private:
   QualType _type;
   const Name* _name{nullptr};
-  friend class TranslationUnit;
+  friend class ParseContext;
 };
 
 struct NestedDeclaratorAST final: ExtendsAST<ASTKind::kNestedDeclarator, CoreDeclaratorAST> {

@@ -174,6 +174,8 @@
     }
   };
 
+  ParseContext context;
+
   bool templDecl{false};
   struct EnterTemplateDecl {
     Parser* p{nullptr};
@@ -703,16 +705,16 @@ condition(ExpressionAST*& yyast)
   List<SpecifierAST*>* specifier_list{nullptr};
   DeclaratorAST* d{nullptr};
   ExpressionAST* i{nullptr};
-  TranslationUnit::Specs specs;
+  ParseContext::Specs specs;
 }
 : attribute_specifier_seq
   decl_specifier_list(specifier_list)
     {
-      specs = unit->specifiers(specifier_list);
+      specs = context.specifiers(specifier_list);
     }
   declarator(d)
     {
-      unit->declarator(specs, d);
+      context.declarator(specs, d);
     }
   brace_or_equal_initializer(i)
     {
@@ -783,16 +785,16 @@ for_range_declaration(DeclarationAST*& yyast)
 {
   List<SpecifierAST*>* specifier_list{nullptr};
   DeclaratorAST* d{nullptr};
-  TranslationUnit::Specs specs;
+  ParseContext::Specs specs;
 }
 : attribute_specifier_seq
   decl_specifier_list(specifier_list)
     {
-      specs = unit->specifiers(specifier_list);
+      specs = context.specifiers(specifier_list);
     }
   declarator(d)
     {
-      unit->declarator(specs, d);
+      context.declarator(specs, d);
       auto ast = new (pool) SimpleDeclarationAST;
       ast->specifier_list = specifier_list;
       ast->declarator_list = new (pool) List<DeclaratorAST*>(d);
@@ -859,17 +861,17 @@ declaration(DeclarationAST*& yyast, bool templDecl)
 | attribute_declaration(yyast)
 ;
 
-is_function_decl(DeclaratorAST* ast, const TranslationUnit::Specs& specs)
+is_function_decl(DeclaratorAST* ast, const ParseContext::Specs& specs)
 : {
     if (! ast)
       return false;
-    auto decl = unit->declarator(specs, ast);
+    auto decl = context.declarator(specs, ast);
     if (! decl->isFunctionType())
       return false;
   }
 ;
 
-is_function_def(DeclaratorAST* decl, const TranslationUnit::Specs& specs)
+is_function_def(DeclaratorAST* decl, const ParseContext::Specs& specs)
 : is_function_decl(decl, specs) / (lbrace | colon | equal)
 ;
 
@@ -878,8 +880,8 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
   List<SpecifierAST*>* specifier_list{nullptr};
   List<DeclaratorAST*>* decls{nullptr};
   auto it = &decls;
-  TranslationUnit::Specs specs;
-  TranslationUnit::Decl funDecl;
+  ParseContext::Specs specs;
+  ParseContext::Decl funDecl;
   DeclaratorAST* d{nullptr};
   ExpressionAST* i{nullptr};
   StatementAST* s{nullptr};
@@ -888,13 +890,13 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
 : attribute_specifier_seq
   decl_specifier_no_type_specifier_list(specifier_list)?
     {
-      specs = unit->specifiers(specifier_list);
+      specs = context.specifiers(specifier_list);
     }
   (declarator(d)
 
   (is_function_decl(d, specs) semicolon
     {
-      auto decl = unit->declarator(specs, d);
+      auto decl = context.declarator(specs, d);
       auto sym = control->newDeclaration();
       sym->setEnclosingScope(scope);
       sym->setName(decl.name);
@@ -908,7 +910,7 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
     }
   |is_function_def(d, specs)
     {
-      funDecl = unit->declarator(specs, d);
+      funDecl = context.declarator(specs, d);
       auto funTy = funDecl->asFunctionType();
       assert(funTy);
       auto fun = funTy->symbol();
@@ -944,7 +946,7 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
   |( { return scope->isClassSymbol(); } / colon { d = nullptr; } | declarator(d))
     (is_function_def(d, specs)
         {
-          funDecl = unit->declarator(specs, d);
+          funDecl = context.declarator(specs, d);
           auto funTy = funDecl->asFunctionType();
           assert(funTy);
           auto fun = funTy->symbol();
@@ -972,7 +974,7 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
           if (! d)
             d = new (pool) DeclaratorAST;
 
-          auto decl = unit->declarator(specs, d);
+          auto decl = context.declarator(specs, d);
           auto sym = control->newDeclaration();
           sym->setEnclosingScope(scope);
           sym->setName(decl.name);
@@ -1023,15 +1025,15 @@ alias_declaration(DeclarationAST*& yyast)
     }
 ;
 
-processed_decl_specifier_list(List<SpecifierAST*>*& yyast, TranslationUnit::Specs* specs)
-: decl_specifier_list(yyast) { *specs = unit->specifiers(yyast); }
+processed_decl_specifier_list(List<SpecifierAST*>*& yyast, ParseContext::Specs* specs)
+: decl_specifier_list(yyast) { *specs = context.specifiers(yyast); }
 ;
 
 simple_declaration(DeclarationAST*& yyast)
 {
   List<SpecifierAST*>* specifier_list{nullptr};
   List<DeclaratorAST*>* decls{nullptr};
-  TranslationUnit::Specs specs;
+  ParseContext::Specs specs;
 }
 : attribute_specifier_list?
   processed_decl_specifier_list(specifier_list, &specs)?
@@ -1283,7 +1285,7 @@ namespace_definition(DeclarationAST*& yyast)
 : inline? {yypos=yycursor;} namespace simple_name(n)?
   lbrace
     {
-      auto name = unit->name(n);
+      auto name = context.name(n);
       auto ns = scope->findNamespace(name);
       if (! ns) {
         ns = control->newNamespace();
@@ -1400,7 +1402,7 @@ alignment_specifier
 | alignas lparen assignment_expression(e, false)? rparen
 ;
 
-init_declarator_list(List<DeclaratorAST*>*& yyast, const TranslationUnit::Specs& specs)
+init_declarator_list(List<DeclaratorAST*>*& yyast, const ParseContext::Specs& specs)
 {
   auto it = &yyast;
   DeclaratorAST* d{nullptr};
@@ -1418,7 +1420,7 @@ init_declarator_list(List<DeclaratorAST*>*& yyast, const TranslationUnit::Specs&
   )*
 ;
 
-init_declarator(DeclaratorAST*& yyast, const TranslationUnit::Specs& specs)
+init_declarator(DeclaratorAST*& yyast, const ParseContext::Specs& specs)
 {
   ExpressionAST* i{nullptr};
 }
@@ -1428,7 +1430,7 @@ init_declarator(DeclaratorAST*& yyast, const TranslationUnit::Specs& specs)
      }
   |declarator(yyast)
     {
-      auto decl = unit->declarator(specs, yyast);
+      auto decl = context.declarator(specs, yyast);
       auto sym = control->newDeclaration();
       sym->setEnclosingScope(scope);
       sym->setName(decl.name);
@@ -1526,15 +1528,15 @@ trailing_return_type
 {
   List<SpecifierAST*>* specifier_list{nullptr};
   DeclaratorAST* d{nullptr};
-  TranslationUnit::Specs specs;
+  ParseContext::Specs specs;
 }
 : minus_greater type_specifier_list(specifier_list)
     {
-      specs = unit->specifiers(specifier_list);
+      specs = context.specifiers(specifier_list);
     }
   abstract_declarator(d)?
     {
-      unit->declarator(specs, d);
+      context.declarator(specs, d);
     }
 ;
 
@@ -1619,15 +1621,15 @@ type_id(TypeIdAST*& yyast)
 {
     List<SpecifierAST*>* specifier_list{nullptr};
     DeclaratorAST* d{nullptr};
-    TranslationUnit::Specs specs;
+    ParseContext::Specs specs;
 }
 : type_specifier_list(specifier_list)
     {
-      specs = unit->specifiers(specifier_list);
+      specs = context.specifiers(specifier_list);
     }
   abstract_declarator(d)?
     {
-      unit->declarator(specs, d);
+      context.declarator(specs, d);
       auto ast = new (pool) TypeIdAST;
       ast->specifier_list = specifier_list;
       ast->declarator = d;
@@ -1722,15 +1724,15 @@ parameter_declaration(DeclarationAST*& yyast, bool inTempl)
   List<SpecifierAST*>* specifier_list{nullptr};
   DeclaratorAST* d{nullptr};
   ExpressionAST* e{nullptr};
-  TranslationUnit::Specs specs;
+  ParseContext::Specs specs;
 }
 : attribute_specifier_seq decl_specifier_list(specifier_list)
     {
-      specs = unit->specifiers(specifier_list);
+      specs = context.specifiers(specifier_list);
     }
   (declarator(d) | abstract_declarator(d)?)
     {
-      unit->declarator(specs, d);
+      context.declarator(specs, d);
     }
   (equal initializer_clause(e, inTempl))?
     {
@@ -1747,27 +1749,27 @@ function_definition(DeclarationAST*& yyast)
   List<SpecifierAST*>* specifier_list{nullptr};
   DeclaratorAST* d{nullptr};
   StatementAST* s{nullptr};
-  TranslationUnit::Specs specs;
+  ParseContext::Specs specs;
   EnterScope enterScope;
-  TranslationUnit::Decl funDecl;
+  ParseContext::Decl funDecl;
 }
 : attribute_specifier_seq
   (decl_specifier_no_type_specifier_list(specifier_list)
     {
-      specs = unit->specifiers(specifier_list);
+      specs = context.specifiers(specifier_list);
     }
    (declarator(d) / (lbrace | colon | equal))
     {
-      unit->declarator(specs, d);
+      context.declarator(specs, d);
     }
 
   |decl_specifier_list(specifier_list)?
     {
-      specs = unit->specifiers(specifier_list);
+      specs = context.specifiers(specifier_list);
     }
    (declarator(d) / (lbrace | colon | equal)))
      {
-      funDecl = unit->declarator(specs, d);
+      funDecl = context.declarator(specs, d);
       auto funTy = funDecl->asFunctionType();
       assert(funTy);
       auto fun = funTy->symbol();
@@ -1792,7 +1794,7 @@ function_definition(DeclarationAST*& yyast)
     }
 ;
 
-function_body(StatementAST*& yyast, const TranslationUnit::Decl& funDecl)
+function_body(StatementAST*& yyast, const ParseContext::Decl& funDecl)
 {
   List<MemInitializerAST*>* i{nullptr};
 }
@@ -1802,7 +1804,7 @@ function_body(StatementAST*& yyast, const TranslationUnit::Decl& funDecl)
 | equal delete semicolon
 ;
 
-function_compound_statement(StatementAST*& yyast, const TranslationUnit::Decl& funDecl)
+function_compound_statement(StatementAST*& yyast, const ParseContext::Decl& funDecl)
 {
   auto funTy = funDecl->asFunctionType();
   assert(funTy);
@@ -1905,7 +1907,7 @@ class_specifier(SpecifierAST*& yyast)
   / (colon | lbrace)
     {
       klass = control->newClass();
-      klass->setName(unit->name(name));
+      klass->setName(context.name(name));
       klass->setEnclosingScope(scope);
       scope->addSymbol(klass);
     }
@@ -1957,7 +1959,7 @@ member_declaration(DeclarationAST*& yyast)
     List<SpecifierAST*>* specifier_list{nullptr};
     DeclaratorAST* d{nullptr};
     List<DeclaratorAST*>* decls{nullptr};
-    TranslationUnit::Specs specs;
+    ParseContext::Specs specs;
 }
 : (public | protected | private) colon
 | template_member_declaration(yyast)
@@ -2002,7 +2004,7 @@ base_specifier(BaseClassAST*& yyast, ClassSymbol* klass)
   base_type_specifier(name)
     {
       auto baseClass = new BaseClassSymbol();
-      baseClass->setName(unit->name(name));
+      baseClass->setName(context.name(name));
       baseClass->setEnclosingScope(klass);
       klass->addBaseClass(baseClass);
       auto ast = new (pool) BaseClassAST;
@@ -2295,17 +2297,17 @@ exception_declaration
 {
   List<SpecifierAST*>* specifier_list{nullptr};
   DeclaratorAST* d{nullptr};
-  TranslationUnit::Specs specs;
+  ParseContext::Specs specs;
 }
 : dot_dot_dot
 | attribute_specifier_seq
   type_specifier_list(specifier_list)
     {
-      specs = unit->specifiers(specifier_list);
+      specs = context.specifiers(specifier_list);
     }
   (declarator(d) | abstract_declarator(d)?)
     {
-      unit->declarator(specs, d);
+      context.declarator(specs, d);
     }
 ;
 
