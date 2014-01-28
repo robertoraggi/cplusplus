@@ -41,8 +41,6 @@ public:
   RecursiveASTVisitor(TranslationUnit* unit): ASTVisitor(unit) {}
   ~RecursiveASTVisitor() override;
 
-  void operator()(TranslationUnitAST* ast);
-
   virtual bool preVisit(AST*) { return true; }
   virtual void postVisit(AST*) {}
 
@@ -51,6 +49,23 @@ public:
 #define VISIT_AST(x) void visit(x##AST*) override;
 FOR_EACH_AST(VISIT_AST)
 #undef VISIT_AST
+
+private:
+  void accept0(AST*);
+};
+
+class DumpAST final: protected RecursiveASTVisitor {
+public:
+  DumpAST(TranslationUnit* unit);
+
+  void operator()(AST* ast);
+
+protected:
+  bool preVisit(AST*) override;
+  void postVisit(AST*) override;
+
+private:
+  int depth{-1};
 };
 
 #endif // ASTVISITOR_H

@@ -80,7 +80,7 @@ int main(int argc, char* argv[]) {
   for (auto&& fileName: inputFiles) {
     parseFile(fileName, [=](TranslationUnit* unit, TranslationUnitAST* ast) {
       if (dumpAST) {
-        RecursiveASTVisitor dump{unit};
+        DumpAST dump{unit};
         dump(ast);
       }
       if (dumpSymbols && ast) {

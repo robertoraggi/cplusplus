@@ -35,30 +35,20 @@ Control* ASTVisitor::control() const {
 RecursiveASTVisitor::~RecursiveASTVisitor() {
 }
 
-void RecursiveASTVisitor::operator()(TranslationUnitAST* ast) {
-  if (preVisit(ast))
-    accept(ast);
-  postVisit(ast);
-}
-
 void RecursiveASTVisitor::accept(AST* ast) {
   if (! ast)
     return;
+  if (preVisit(ast))
+    accept0(ast);
+  postVisit(ast);
+}
 
-  static int depth = -1;
-
-  ++depth;
-
-  std::string ind(2 * depth, ' ');
-  printf("%s%s\n", ind.c_str(), ast_name[(int)ast->kind()]);
-
+void RecursiveASTVisitor::accept0(AST* ast) {
   switch (ast->kind()) {
 #define VISIT_AST(x) case ASTKind::k##x: visit(reinterpret_cast<x##AST*>(ast)); break;
 FOR_EACH_AST(VISIT_AST)
 #undef VISIT_AST
   } // switch
-
-  --depth;
 }
 
 void RecursiveASTVisitor::visit(TypeIdAST* ast) {
@@ -568,4 +558,24 @@ void RecursiveASTVisitor::visit(ParametersAndQualifiersAST* ast) {
   accept(ast->exception_specification);
   for (auto it = ast->attribute_specifier_list; it; it = it->next)
     accept(it->value);
+}
+
+DumpAST::DumpAST(TranslationUnit* unit)
+  : RecursiveASTVisitor(unit) {
+}
+
+void DumpAST::operator()(AST* ast) {
+  accept(ast);
+}
+
+bool DumpAST::preVisit(AST* ast) {
+  ++depth;
+
+  std::string ind(2 * depth, ' ');
+  printf("%s%s\n", ind.c_str(), ast_name[(int)ast->kind()]);
+  return true;
+}
+
+void DumpAST::postVisit(AST*) {
+  --depth;
 }
