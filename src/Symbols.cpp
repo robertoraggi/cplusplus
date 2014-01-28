@@ -77,7 +77,7 @@ void BaseClassSymbol::dump(std::ostream& out, int depth) {
 
 void ClassSymbol::dump(std::ostream& out, int depth) {
   out << indent(depth) << "class";
-  if (auto n = unqualifiedName())
+  if (auto n = name())
     out << " " << n->toString();
   bool first = true;
   for (auto&& bc: _baseClasses) {
