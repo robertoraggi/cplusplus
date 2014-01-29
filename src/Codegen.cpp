@@ -286,7 +286,7 @@ void Codegen::visit(BinaryExpressionAST* ast) {
     if (_result.accept(nx)) {
       auto target = expression(ast->left_expression);
       auto source = expression(ast->right_expression);
-      _block->emitMove(*target, *source);
+      _block->emitMove(*target, *source, ast->op);
       return;
     }
     // ### TODO
@@ -442,7 +442,7 @@ void Codegen::visit(SizeofTypeExpressionAST* ast) {
 
 void Codegen::visit(SubscriptExpressionAST* ast) {
   auto base = expression(ast->base_expression);
-  auto index = expression(ast->base_expression);
+  auto index = expression(ast->index_expression);
   _result = Result{_function->getSubscript(*base, *index)};
 }
 

@@ -57,7 +57,7 @@ void Exp::dump(std::ostream& out) const {
 
 void Move::dump(std::ostream& out) const {
   target()->dump(out);
-  out << " = ";
+  out << ' ' << token_spell[int(op())] << ' ';
   source()->dump(out);
   out << ';' << std::endl;
 }
