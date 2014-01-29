@@ -965,6 +965,10 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
 | { specifier_list = nullptr; }
   attribute_specifier_seq
   processed_decl_specifier_list(specifier_list, &specs)?
+    {
+      if (! specifier_list)
+        return ! scope->isBlockSymbol();
+    }
   (semicolon
     {
       auto ast = new (pool) SimpleDeclarationAST;
