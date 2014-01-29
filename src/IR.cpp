@@ -51,13 +51,11 @@ void Function::placeBasicBlock(BasicBlock* basicBlock) {
 }
 
 void Exp::dump(std::ostream& out) const {
-  out << '\t';
   expr()->dump(out);
   out << ';' << std::endl;
 }
 
 void Move::dump(std::ostream& out) const {
-  out << '\t';
   target()->dump(out);
   out << " = ";
   source()->dump(out);
@@ -65,17 +63,17 @@ void Move::dump(std::ostream& out) const {
 }
 
 void Ret::dump(std::ostream& out) const {
-  out << "\treturn ";
+  out << "return ";
   expr()->dump(out);
   out << ';' << std::endl;
 }
 
 void Jump::dump(std::ostream& out) const {
-  out << "\tgoto .L" << target()->index << ';' << std::endl;
+  out << "goto .L" << target()->index << ';' << std::endl;
 }
 
 void CJump::dump(std::ostream& out) const {
-  out << "\tif (";
+  out << "if (";
   expr()->dump(out);
   out << ") goto .L" << iftrue()->index << "; else goto .L" << iffalse()->index << ';' << std::endl;
 }
@@ -131,17 +129,44 @@ void Unop::dump(std::ostream& out) const {
 }
 
 void Binop::dump(std::ostream& out) const {
+  out << '(';
   left()->dump(out);
   out << ' ' << token_spell[op()] << ' ';
   right()->dump(out);
+  out << ')';
 }
 
 void Function::dump(std::ostream& out) {
-  for (auto block: *this) {
-    out << ".L" << block->index << ":" << std::endl;
+  auto it = begin();
+  while (it != end()) {
+    auto block = *it++;
+    auto nextBlock = it != end() ? *it : nullptr;
+    out << ".L" << block->index << ":";
     for (auto s: *block) {
+      if (s->asTerminator())
+        break;
+      out << '\t';
       s->dump(out);
     }
+    auto t = block->terminator();
+    assert(t);
+    auto j = t->asJump();
+    auto cj = t->asCJump();
+    if (j && j->target() == nextBlock) {
+      // nothing to do
+    } else if (cj && cj->iffalse() == nextBlock) {
+      out << "\tif (";
+      cj->expr()->dump(out);
+      out << ") goto .L" << cj->iftrue()->index << std::endl;
+    } else if (cj && cj->iftrue() == nextBlock) {
+      out << "\tiffalse (";
+      cj->expr()->dump(out);
+      out << ") goto .L" << cj->iffalse()->index << std::endl;
+    } else {
+      out << '\t';
+      t->dump(out);
+    }
+    out << std::endl;
   }
 }
 

@@ -353,7 +353,10 @@ postfix_base_expression(ExpressionAST*& yyast)
 | (dynamic_cast | static_cast | reinterpret_cast | const_cast)
   less type_id(t) greater lparen expression(e) rparen
     {
+      auto specs = context.specifiers(t->specifier_list);
+      auto decl = context.declarator(specs, t->declarator);
       auto ast = new (pool) CppCastExpressionAST;
+      ast->targetTy = decl.specs.type;
       ast->type_id = t;
       ast->expression = e;
       yyast = ast;
@@ -547,7 +550,10 @@ cast_expression(ExpressionAST*& yyast)
 }
 : lparen type_id(t) rparen cast_expression(e)
     {
+      auto specs = context.specifiers(t->specifier_list);
+      auto decl = context.declarator(specs, t->declarator);
       auto ast = new (pool) CastExpressionAST;
+      ast->targetTy = decl.specs.type;
       ast->type_id = t;
       ast->expression = e;
       yyast = ast;
@@ -608,11 +614,14 @@ labeled_statement(StatementAST*& yyast)
 {
   ExpressionAST* e{nullptr};
   StatementAST* s{nullptr};
+  NameAST* n{nullptr};
 }
 : attribute_specifier_seq
-    (identifier colon statement(s)
+    (simple_name(n) colon statement(s)
       {
         auto ast = new (pool) LabeledStatementAST;
+        ast->id = context.name(n);
+        ast->name = n;
         ast->statement = s;
         yyast = ast;
       }
@@ -833,6 +842,7 @@ jump_statement(StatementAST*& yyast)
 | goto simple_name(name) semicolon
     {
       auto ast = new (pool) GotoStatementAST;
+      ast->id = context.name(name);
       ast->name = name;
       yyast = ast;
     }

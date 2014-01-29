@@ -38,33 +38,7 @@ Control* Codegen::control() const {
 }
 
 void Codegen::operator()(FunctionDefinitionAST* ast) {
-  auto function = _module->newFunction(ast->symbol);
-  auto entryBlock = function->newBasicBlock();
-  auto exitBlock = function->newBasicBlock();
-  int tempCount = 0;
-
-  std::swap(_tempCount, tempCount);
-
-  std::swap(_function, function);
-  std::swap(_exitBlock, exitBlock);
-
-  const IR::Expr* exitValue = newTemp();
-  std::swap(_exitValue, exitValue);
-
-  place(entryBlock);
-  _block->emitMove(_exitValue, _function->getConst("0"));
-  statement(ast->statement);
-
-  _block->emitJump(_exitBlock);
-  place(_exitBlock);
-  _block->emitRet(_exitValue);
-
-  _function->dump(std::cout);
-
-  std::swap(_function, function);
-  std::swap(_exitBlock, exitBlock);
-  std::swap(_tempCount, tempCount);
-  std::swap(_exitValue, exitValue);
+  accept(ast);
 }
 
 Codegen::Result Codegen::reduce(const Result& expr) {
@@ -199,6 +173,38 @@ void Codegen::visit(AsmDefinitionAST* ast) {
 }
 
 void Codegen::visit(FunctionDefinitionAST* ast) {
+  auto function = _module->newFunction(ast->symbol);
+  auto entryBlock = function->newBasicBlock();
+  auto exitBlock = function->newBasicBlock();
+  int tempCount = 0;
+  std::map<const Name*, IR::BasicBlock*> labels;
+  Loop loop{nullptr, nullptr};
+
+  std::swap(_tempCount, tempCount);
+  std::swap(_function, function);
+  std::swap(_exitBlock, exitBlock);
+  std::swap(_labels, labels);
+  std::swap(_loop, loop);
+
+  const IR::Expr* exitValue = newTemp();
+  std::swap(_exitValue, exitValue);
+
+  place(entryBlock);
+  _block->emitMove(_exitValue, _function->getConst("0"));
+  statement(ast->statement);
+
+  _block->emitJump(_exitBlock);
+  place(_exitBlock);
+  _block->emitRet(_exitValue);
+
+  _function->dump(std::cout);
+
+  std::swap(_function, function);
+  std::swap(_exitBlock, exitBlock);
+  std::swap(_tempCount, tempCount);
+  std::swap(_exitValue, exitValue);
+  std::swap(_labels, labels);
+  std::swap(_loop, loop);
 }
 
 void Codegen::visit(LinkageSpecificationAST* ast) {
@@ -243,6 +249,78 @@ void Codegen::visit(AlignofExpressionAST* ast) {
 }
 
 void Codegen::visit(BinaryExpressionAST* ast) {
+  if (ast->op == T_COMMA) {
+    if (_result.accept(nx)) {
+      statement(ast->left_expression);
+      statement(ast->right_expression);
+      return;
+    }
+
+    if (_result.accept(ex)) {
+      statement(ast->left_expression);
+      _result = expression(ast->right_expression);
+      return;
+    }
+
+    if (_result.accept(cx)) {
+      statement(ast->left_expression);
+      condition(ast->right_expression, _result.iftrue, _result.iffalse);
+      return;
+    }
+
+    assert(!"unreachable");
+  }
+
+  switch (ast->op) {
+  case T_EQUAL:
+  case T_PLUS_EQUAL:
+  case T_MINUS_EQUAL:
+  case T_STAR_EQUAL:
+  case T_SLASH_EQUAL:
+  case T_PERCENT_EQUAL:
+  case T_AMP_EQUAL:
+  case T_CARET_EQUAL:
+  case T_BAR_EQUAL:
+  case T_LESS_LESS_EQUAL:
+  case T_GREATER_GREATER_EQUAL: {
+    if (_result.accept(nx)) {
+      auto target = expression(ast->left_expression);
+      auto source = expression(ast->right_expression);
+      _block->emitMove(*target, *source);
+      return;
+    }
+    // ### TODO
+    break;
+  }
+
+  case T_AMP_AMP: {
+    if (_result.accept(cx)) {
+      auto iftrue = _function->newBasicBlock();
+      condition(ast->left_expression, iftrue, _result.iffalse);
+      place(iftrue);
+      condition(ast->right_expression, _result.iftrue, _result.iffalse);
+      return;
+    }
+    // ### TODO
+    break;
+  }
+
+  case T_BAR_BAR: {
+    if (_result.accept(cx)) {
+      auto iffalse = _function->newBasicBlock();
+      condition(ast->left_expression, _result.iftrue, iffalse);
+      place(iffalse);
+      condition(ast->right_expression, _result.iftrue, _result.iffalse);
+      return;
+    }
+    // ### TODO
+    break;
+  }
+
+  default:
+    break;
+  } // switch
+
   auto left = expression(ast->left_expression);
   auto right = expression(ast->right_expression);
   _result = Result{_function->getBinop(ast->op, *left, *right)};
@@ -263,13 +341,17 @@ void Codegen::visit(CallExpressionAST* ast) {
     auto arg = expression(it->value);
     args.push_back(*arg);
   }
-  _result = Result{_function->getCall(*base, std::move(args))};
+  auto call = _function->getCall(*base, std::move(args));
+  if (_result.accept(nx)) {
+    _block->emitExp(call);
+    return;
+  }
+  _result = Result{call};
 }
 
 void Codegen::visit(CastExpressionAST* ast) {
-  const QualType targetTy{unit->control()->getNamedType(unit->control()->getIdentifier("@target-type@"))};
   auto r = expression(ast->expression);
-  _result = Result{_function->getCast(targetTy, *r)};
+  _result = Result{_function->getCast(ast->targetTy, *r)};
 }
 
 void Codegen::visit(ConditionAST* ast) {
@@ -277,13 +359,26 @@ void Codegen::visit(ConditionAST* ast) {
 }
 
 void Codegen::visit(ConditionalExpressionAST* ast) {
-  _result = Result{_function->getConst("@conditional@")};
+  auto iftrue = _function->newBasicBlock();
+  auto iffalse = _function->newBasicBlock();
+  auto endif = _function->newBasicBlock();
+  auto t = newTemp();
+  condition(ast->expression, iftrue, iffalse);
+  place(iftrue);
+  auto ok = expression(ast->iftrue_expression);
+  _block->emitMove(t, *ok);
+  _block->emitJump(endif);
+  place(iffalse);
+  auto ko = expression(ast->iffalse_expression);
+  _block->emitMove(t, *ko);
+  _block->emitJump(endif);
+  place(endif);
+  _result = Result{t};
 }
 
 void Codegen::visit(CppCastExpressionAST* ast) {
-  const QualType targetTy{unit->control()->getNamedType(unit->control()->getIdentifier("@target-type@"))};
   auto r = expression(ast->expression);
-  _result = Result{_function->getCast(targetTy, *r)};
+  _result = Result{_function->getCast(ast->targetTy, *r)}; // ### TODO: dynamic_cast, static_cast, ...
 }
 
 void Codegen::visit(DeleteExpressionAST* ast) {
@@ -443,7 +538,10 @@ void Codegen::visit(TypenameSpecifierAST* ast) {
 
 // statements
 void Codegen::visit(BreakStatementAST* ast) {
-  _block->emitExp(_function->getConst("@break-stmt"));
+  if (auto breakLabel = _loop.breakLabel)
+    _block->emitJump(breakLabel);
+  else
+    _block->emitExp(_function->getConst("@break-stmt"));
 }
 
 void Codegen::visit(CaseStatementAST* ast) {
@@ -458,7 +556,10 @@ void Codegen::visit(CompoundStatementAST* ast) {
 }
 
 void Codegen::visit(ContinueStatementAST* ast) {
-  _block->emitExp(_function->getConst("@continue-stmt"));
+  if (auto continueLabel = _loop.continueLabel)
+    _block->emitJump(continueLabel);
+  else
+    _block->emitExp(_function->getConst("@continue-stmt"));
 }
 
 void Codegen::visit(DeclarationStatementAST* ast) {
@@ -470,7 +571,17 @@ void Codegen::visit(DefaultStatementAST* ast) {
 }
 
 void Codegen::visit(DoStatementAST* ast) {
-  _block->emitExp(_function->getConst("@do-stmt"));
+  auto toploop = _function->newBasicBlock();
+  auto continueLoop = _function->newBasicBlock();
+  auto endloop = _function->newBasicBlock();
+  Loop loop{endloop, continueLoop};
+  std::swap(_loop, loop);
+  place(toploop);
+  statement(ast->statement);
+  place(continueLoop);
+  condition(ast->expression, toploop, endloop);
+  place(endloop);
+  std::swap(_loop, loop);
 }
 
 void Codegen::visit(ExpressionStatementAST* ast) {
@@ -482,14 +593,42 @@ void Codegen::visit(ForRangeStatementAST* ast) {
 }
 
 void Codegen::visit(ForStatementAST* ast) {
-  _block->emitExp(_function->getConst("@for-stmt"));
+  auto topfor = _function->newBasicBlock();
+  auto bodyfor = _function->newBasicBlock();
+  auto stepfor = _function->newBasicBlock();
+  auto endfor = _function->newBasicBlock();
+  Loop loop{endfor, stepfor};
+  statement(ast->initializer);
+  std::swap(_loop, loop);
+  place(topfor);
+  condition(ast->condition, bodyfor, endfor);
+  place(bodyfor);
+  statement(ast->statement);
+  place(stepfor);
+  statement(ast->expression);
+  _block->emitJump(topfor);
+  place(endfor);
+  std::swap(_loop, loop);
 }
 
 void Codegen::visit(GotoStatementAST* ast) {
-  _block->emitExp(_function->getConst("@goto-stmt"));
+  auto& target = _labels[ast->id];
+  if (! target)
+    target = _function->newBasicBlock();
+  _block->emitJump(target);
 }
 
 void Codegen::visit(IfStatementAST* ast) {
+  if (! ast->else_statement) {
+    auto iftrue = _function->newBasicBlock();
+    auto endif = _function->newBasicBlock();
+    condition(ast->condition, iftrue, endif);
+    place(iftrue);
+    statement(ast->statement);
+    place(endif);
+    return;
+  }
+
   auto iftrue = _function->newBasicBlock();
   auto iffalse = _function->newBasicBlock();
   auto endif = _function->newBasicBlock();
@@ -503,7 +642,10 @@ void Codegen::visit(IfStatementAST* ast) {
 }
 
 void Codegen::visit(LabeledStatementAST* ast) {
-  _block->emitExp(_function->getConst("@labeled-stmt"));
+  auto& target = _labels[ast->id];
+  if (! target)
+    target = _function->newBasicBlock();
+  place(target);
   statement(ast->statement);
 }
 
@@ -527,10 +669,13 @@ void Codegen::visit(WhileStatementAST* ast) {
   auto topwhile = _function->newBasicBlock();
   auto bodywhile = _function->newBasicBlock();
   auto endwhile = _function->newBasicBlock();
+  Loop loop{endwhile, topwhile};
+  std::swap(_loop, loop);
   place(topwhile);
   condition(ast->condition, bodywhile, endwhile);
   place(bodywhile);
   statement(ast->statement);
   _block->emitJump(topwhile);
   place(endwhile);
+  std::swap(_loop, loop);
 }

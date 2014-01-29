@@ -21,6 +21,7 @@
 #define CODEGEN_H
 
 #include "Globals.h"
+#include <map>
 
 class Codegen {
 public:
@@ -88,6 +89,13 @@ FOR_EACH_AST(VISIT_AST)
 #undef VISIT_AST
 
 private:
+  struct Loop {
+    IR::BasicBlock* breakLabel;
+    IR::BasicBlock* continueLabel;
+    Loop(IR::BasicBlock* breakLabel, IR::BasicBlock* continueLabel)
+      : breakLabel(breakLabel), continueLabel(continueLabel) {}
+  };
+
   TranslationUnit* unit;
   IR::Module* _module{nullptr};
   IR::Function* _function{nullptr};
@@ -96,6 +104,8 @@ private:
   const IR::Expr* _exitValue{nullptr};
   Result _result{nx};
   int _tempCount{0};
+  std::map<const Name*, IR::BasicBlock*> _labels;
+  Loop _loop{nullptr, nullptr};
 };
 
 #endif // CODEGEN_H

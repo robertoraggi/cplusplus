@@ -334,6 +334,8 @@ struct CppCastExpressionAST final: ExtendsAST<ASTKind::kCppCastExpression, Expre
   unsigned greater_token{0};
   unsigned lparen_token{0};
   unsigned rparen_token{0};
+// attributes
+  QualType targetTy;
 };
 
 struct TypeidExpressionAST final: ExtendsAST<ASTKind::kTypeidExpression, ExpressionAST> {
@@ -405,6 +407,8 @@ struct CastExpressionAST final: ExtendsAST<ASTKind::kCastExpression, ExpressionA
   ExpressionAST* expression{nullptr};
   unsigned lparen_token{0};
   unsigned rparen_token{0};
+// attributes
+  QualType targetTy;
 };
 
 struct BinaryExpressionAST final: ExtendsAST<ASTKind::kBinaryExpression, ExpressionAST> {
@@ -449,6 +453,8 @@ struct LabeledStatementAST final: ExtendsAST<ASTKind::kLabeledStatement, Stateme
   NameAST* name{nullptr};
   StatementAST* statement{nullptr};
   unsigned colon_token{0};
+// attributes
+  const Name* id{nullptr};
 };
 
 struct CaseStatementAST final: ExtendsAST<ASTKind::kCaseStatement, StatementAST> {
@@ -564,6 +570,8 @@ struct GotoStatementAST final: ExtendsAST<ASTKind::kGotoStatement, StatementAST>
   NameAST* name{nullptr};
   unsigned goto_token{0};
   unsigned semicolon_token{0};
+// attributes
+  const Name* id{nullptr};
 };
 
 //
