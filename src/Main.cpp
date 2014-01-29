@@ -83,7 +83,15 @@ int main(int argc, char* argv[]) {
   int index = 1;
   while (index < argc) {
     std::string arg{argv[index++]};
-    if (arg == "--ast") {
+    if (arg == "--help") {
+      std::cerr << "Usage: cplusplus [options] files..." << std::endl
+                << " The options are:" << std::endl
+                << "  --ast             dump the AST" << std::endl
+                << "  --ir              dump the IR code" << std::endl
+                << "  --symbols         dump the symbols" << std::endl
+                << "  --help            display this output" << std::endl;
+      exit(EXIT_SUCCESS);
+    } else if (arg == "--ast") {
       dumpAST = true;
     } else if (arg == "--symbols") {
       dumpSymbols = true;
@@ -95,7 +103,8 @@ int main(int argc, char* argv[]) {
   }
 
   if (inputFiles.empty()) {
-    std::cerr << "cplusplus: no input files" << std::endl;
+    std::cerr << "cplusplus: no input files" << std::endl
+              << "Usage: cplusplus [options] files..." << std::endl;
     return EXIT_FAILURE;
   }
 
