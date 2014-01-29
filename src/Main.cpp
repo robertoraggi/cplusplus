@@ -22,13 +22,32 @@
 #include "ASTVisitor.h"
 #include "AST.h"
 #include "Symbols.h"
+#include "Codegen.h"
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <cassert>
 
-std::string readAll(const std::string& fileName, std::istream& in)
-{
+class DumpIR: protected RecursiveASTVisitor {
+public:
+  DumpIR(TranslationUnit* unit)
+    : RecursiveASTVisitor(unit), cg(unit) {}
+
+  void operator()(AST* ast) { accept(ast); }
+
+protected:
+  void visit(FunctionDefinitionAST* ast) {
+    auto fun = ast->symbol;
+    printf("%s {\n", typeToString(fun->type(), fun->name()).c_str());
+    cg(ast);
+    printf("}\n\n");
+  }
+private:
+  Codegen cg;
+  TypeToString typeToString;
+};
+
+std::string readAll(const std::string& fileName, std::istream& in) {
   std::string code;
   char buffer[4 * 1024];
   do {
@@ -59,6 +78,7 @@ int main(int argc, char* argv[]) {
   std::vector<std::string> inputFiles;
   bool dumpAST{false};
   bool dumpSymbols{false};
+  bool dumpIR{false};
 
   int index = 1;
   while (index < argc) {
@@ -66,7 +86,9 @@ int main(int argc, char* argv[]) {
     if (arg == "--ast") {
       dumpAST = true;
     } else if (arg == "--symbols") {
-        dumpSymbols = true;
+      dumpSymbols = true;
+    } else if (arg == "--ir") {
+      dumpIR = true;
     } else {
       inputFiles.push_back(std::move(arg));
     }
@@ -86,6 +108,10 @@ int main(int argc, char* argv[]) {
       if (dumpSymbols && ast) {
         assert(ast->globalScope);
         ast->globalScope->dump(std::cout, 0);
+      }
+      if (dumpIR && ast) {
+        DumpIR dump{unit};
+        dump(ast);
       }
     });
   }

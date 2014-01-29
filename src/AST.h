@@ -256,6 +256,8 @@ struct ThisExpressionAST final: ExtendsAST<ASTKind::kThisExpression, ExpressionA
 
 struct IdExpressionAST final: ExtendsAST<ASTKind::kIdExpression, ExpressionAST> {
   NameAST* name{nullptr};
+// attributes
+  const Name* id{nullptr}; // ### rename
 };
 
 struct NestedExpressionAST final: ExtendsAST<ASTKind::kNestedExpression, ExpressionAST> {
@@ -315,6 +317,8 @@ struct MemberExpressionAST final: ExtendsAST<ASTKind::kMemberExpression, Express
   NameAST* name{nullptr};
   unsigned access_token{0};
   unsigned template_token{0};
+// attributes
+  const Name* id{nullptr};
 };
 
 struct IncrExpressionAST final: ExtendsAST<ASTKind::kIncrExpression, ExpressionAST> {
@@ -587,6 +591,8 @@ struct FunctionDefinitionAST final: ExtendsAST<ASTKind::kFunctionDefinition, Dec
   unsigned equal_token{0};
   unsigned special_token{0};
   unsigned semicolon_token{0};
+// attributes
+  FunctionSymbol* symbol{0};
 };
 
 struct TypeParameterAST final: ExtendsAST<ASTKind::kTypeParameter, DeclarationAST> {

@@ -227,6 +227,7 @@ primary_expression(ExpressionAST*& yyast)
 | name(name)
     {
       auto ast = new (pool) IdExpressionAST;
+      ast->id = context.name(name);
       ast->name = name;
       yyast = ast;
     }
@@ -402,6 +403,7 @@ postfix_expression(ExpressionAST*& yyast)
    | (dot | minus_greater) parsed_token(&access_token) template? name(name)
        {
          auto ast = new (pool) MemberExpressionAST;
+         ast->id = context.name(name);
          ast->access_token = access_token;
          ast->base_expression = yyast;
          ast->name = name;
@@ -939,6 +941,7 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
   function_body(s)
     {
       auto ast = new (pool) FunctionDefinitionAST;
+      ast->symbol = fun;
       ast->specifier_list = specifier_list;
       ast->declarator = d;
       ast->statement = s;
@@ -989,6 +992,7 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
      function_body(s)
         {
           auto ast = new (pool) FunctionDefinitionAST;
+          ast->symbol = fun;
           ast->specifier_list = specifier_list;
           ast->declarator = d;
           ast->statement = s;

@@ -18,6 +18,9 @@
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "IR.h"
+#include "Names.h"
+#include "Token.h"
+#include <iostream>
 #include <cassert>
 
 namespace IR {
@@ -45,6 +48,101 @@ void Function::placeBasicBlock(BasicBlock* basicBlock) {
   assert(basicBlock->index == -1);
   basicBlock->index = size();
   push_back(basicBlock);
+}
+
+void Exp::dump(std::ostream& out) const {
+  out << '\t';
+  expr()->dump(out);
+  out << ';' << std::endl;
+}
+
+void Move::dump(std::ostream& out) const {
+  out << '\t';
+  target()->dump(out);
+  out << " = ";
+  source()->dump(out);
+  out << ';' << std::endl;
+}
+
+void Ret::dump(std::ostream& out) const {
+  out << "\treturn ";
+  expr()->dump(out);
+  out << ';' << std::endl;
+}
+
+void Jump::dump(std::ostream& out) const {
+  out << "\tgoto .L" << target()->index << ';' << std::endl;
+}
+
+void CJump::dump(std::ostream& out) const {
+  out << "\tif (";
+  expr()->dump(out);
+  out << ") goto .L" << iftrue()->index << "; else goto .L" << iffalse()->index << ';' << std::endl;
+}
+
+void Const::dump(std::ostream& out) const {
+  out << value();
+}
+
+void Temp::dump(std::ostream& out) const {
+  out << '$' << index();
+}
+
+void Sym::dump(std::ostream& out) const {
+  out << name()->toString();
+}
+
+void Cast::dump(std::ostream& out) const {
+  TypeToString typeToString;
+  out << "reinterpret_cast<" << typeToString(type(), nullptr) << ">(";
+  expr()->dump(out);
+  out << ')';
+}
+
+void Call::dump(std::ostream& out) const {
+  expr()->dump(out);
+  out << '(';
+  bool first = true;
+  for (auto arg: args()) {
+    if (first)
+      first = false;
+    else
+      out << ", ";
+    arg->dump(out);
+  }
+  out << ')';
+}
+
+void Member::dump(std::ostream& out) const {
+  expr()->dump(out);
+  out << token_spell[op()] << name()->toString();
+}
+
+void Subscript::dump(std::ostream& out) const {
+  expr()->dump(out);
+  out << '[';
+  index()->dump(out);
+  out << ']';
+}
+
+void Unop::dump(std::ostream& out) const {
+  out << token_spell[op()];
+  expr()->dump(out);
+}
+
+void Binop::dump(std::ostream& out) const {
+  left()->dump(out);
+  out << ' ' << token_spell[op()] << ' ';
+  right()->dump(out);
+}
+
+void Function::dump(std::ostream& out) {
+  for (auto block: *this) {
+    out << ".L" << block->index << ":" << std::endl;
+    for (auto s: *block) {
+      s->dump(out);
+    }
+  }
 }
 
 } // end of namespace IR

@@ -347,6 +347,7 @@ struct BasicBlock;
 struct Terminator;
 struct Stmt;
 struct Expr;
+struct Temp;
 } // end of namespace IR
 
 //

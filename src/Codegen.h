@@ -27,19 +27,22 @@ public:
   Codegen(TranslationUnit* unit);
   ~Codegen();
 
+  Codegen(const Codegen& other) = delete;
+  Codegen& operator=(const Codegen& other) = delete;
+
   TranslationUnit* translationUnit() const { return unit; }
   Control* control() const;
 
-  void operator()(TranslationUnitAST* ast);
+  void operator()(FunctionDefinitionAST* ast);
 
 private:
   enum Format { ex, cx, nx };
   struct Result {
     Format format{nx};
     Format requested{ex};
-    IR::BasicBlock* iftrue{0};
-    IR::BasicBlock* iffalse{0};
-    const IR::Expr* code{0};
+    IR::BasicBlock* iftrue{nullptr};
+    IR::BasicBlock* iffalse{nullptr};
+    const IR::Expr* code{nullptr};
 
     explicit Result(Format requested)
       : requested(requested) {}
@@ -74,7 +77,11 @@ private:
   void statement(StatementAST* ast);
   void declaration(DeclarationAST* ast);
 
+  void place(IR::BasicBlock* block);
+
   void accept(AST* ast);
+
+  const IR::Temp* newTemp();
 
 #define VISIT_AST(x) void visit(x##AST* ast);
 FOR_EACH_AST(VISIT_AST)
@@ -82,12 +89,13 @@ FOR_EACH_AST(VISIT_AST)
 
 private:
   TranslationUnit* unit;
-  IR::Function* function{0};
-  IR::BasicBlock* block{0};
-  IR::BasicBlock* exitBlock{0};
-  const IR::Expr* exitValue{0};
-  Result result{ex};
-  int tempCount{0};
+  IR::Module* _module{nullptr};
+  IR::Function* _function{nullptr};
+  IR::BasicBlock* _block{nullptr};
+  IR::BasicBlock* _exitBlock{nullptr};
+  const IR::Expr* _exitValue{nullptr};
+  Result _result{nx};
+  int _tempCount{0};
 };
 
 #endif // CODEGEN_H

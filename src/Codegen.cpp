@@ -21,35 +21,70 @@
 #include "AST.h"
 #include "TranslationUnit.h"
 #include "IR.h"
+#include "Control.h"
+#include <iostream>
 #include <cassert>
 
-Codegen::Codegen(TranslationUnit* unit)
-  : unit(unit) {
+Codegen::Codegen(TranslationUnit* unit): unit(unit) {
+  _module = new IR::Module();
 }
 
 Codegen::~Codegen() {
+  delete _module;
 }
 
 Control* Codegen::control() const {
   return unit->control();
 }
 
-void Codegen::operator()(TranslationUnitAST* ast) {
-  accept(ast);
+void Codegen::operator()(FunctionDefinitionAST* ast) {
+  auto function = _module->newFunction(ast->symbol);
+  auto entryBlock = function->newBasicBlock();
+  auto exitBlock = function->newBasicBlock();
+  int tempCount = 0;
+
+  std::swap(_tempCount, tempCount);
+
+  std::swap(_function, function);
+  std::swap(_exitBlock, exitBlock);
+
+  const IR::Expr* exitValue = newTemp();
+  std::swap(_exitValue, exitValue);
+
+  place(entryBlock);
+  _block->emitMove(_exitValue, _function->getConst("0"));
+  statement(ast->statement);
+
+  _block->emitJump(_exitBlock);
+  place(_exitBlock);
+  _block->emitRet(_exitValue);
+
+  _function->dump(std::cout);
+
+  std::swap(_function, function);
+  std::swap(_exitBlock, exitBlock);
+  std::swap(_tempCount, tempCount);
+  std::swap(_exitValue, exitValue);
 }
 
 Codegen::Result Codegen::reduce(const Result& expr) {
-  return expr;
+  if (expr->isTemp())
+    return expr;
+  auto t = newTemp();
+  _block->emitMove(t, *expr);
+  return Result{t};
 }
 
 Codegen::Result Codegen::expression(ExpressionAST* ast) {
   Result r{ex};
   if (ast) {
-    std::swap(result, r);
+    std::swap(_result, r);
     accept(ast);
-    std::swap(result, r);
+    std::swap(_result, r);
   }
-  assert(r.is(ex));
+  if (! r.is(ex)) {
+    return Result{_function->getConst("@@expr@@")};
+  }
   return r;
 }
 
@@ -58,20 +93,31 @@ void Codegen::condition(ExpressionAST* ast,
                         IR::BasicBlock* iffalse) {
   Result r{iftrue, iffalse};
   if (ast) {
-    std::swap(result, r);
+    std::swap(_result, r);
     accept(ast);
-    std::swap(result, r);
+    std::swap(_result, r);
   }
-  assert(r.is(cx));
+  if (r.is(ex)) {
+    _block->emitCJump(*r, iftrue, iffalse);
+    return;
+  }
+  if (r.is(nx)) {
+    _block->emitCJump(_function->getConst("@@condi@@"), iftrue, iffalse);
+  }
 }
 
 void Codegen::statement(ExpressionAST* ast) {
   Result r{nx};
   if (ast) {
-    std::swap(result, r);
+    std::swap(_result, r);
     accept(ast);
-    std::swap(result, r);
+    std::swap(_result, r);
   }
+  if (r.is(ex)) {
+    _block->emitExp(*r);
+    return;
+  }
+
   assert(r.is(nx));
 }
 
@@ -83,6 +129,13 @@ void Codegen::declaration(DeclarationAST* ast) {
   accept(ast);
 }
 
+void Codegen::place(IR::BasicBlock* block) {
+  if (_block && ! _block->isTerminated())
+    _block->emitJump(block);
+  _function->placeBasicBlock(block);
+  _block = block;
+}
+
 void Codegen::accept(AST* ast) {
   if (! ast)
     return;
@@ -91,6 +144,10 @@ void Codegen::accept(AST* ast) {
 FOR_EACH_AST(VISIT_AST)
 #undef VISIT_AST
   } // switch
+}
+
+const IR::Temp* Codegen::newTemp() {
+  return _function->getTemp(_tempCount++);
 }
 
 // ASTs
@@ -182,93 +239,141 @@ void Codegen::visit(UsingDirectiveAST* ast) {
 
 // expressions
 void Codegen::visit(AlignofExpressionAST* ast) {
+  _result = Result{_function->getConst("@align-expr@")};
 }
 
 void Codegen::visit(BinaryExpressionAST* ast) {
+  auto left = expression(ast->left_expression);
+  auto right = expression(ast->right_expression);
+  _result = Result{_function->getBinop(ast->op, *left, *right)};
 }
 
 void Codegen::visit(BracedInitializerAST* ast) {
+  _result = Result{_function->getConst("@braced-init@")};
 }
 
 void Codegen::visit(BracedTypeCallExpressionAST* ast) {
+  _result = Result{_function->getConst("@braced-type-call@")};
 }
 
 void Codegen::visit(CallExpressionAST* ast) {
+  auto base = expression(ast->base_expression);
+  std::vector<const IR::Expr*> args;
+  for (auto it = ast->expression_list; it; it = it->next) {
+    auto arg = expression(it->value);
+    args.push_back(*arg);
+  }
+  _result = Result{_function->getCall(*base, std::move(args))};
 }
 
 void Codegen::visit(CastExpressionAST* ast) {
+  const QualType targetTy{unit->control()->getNamedType(unit->control()->getIdentifier("@target-type@"))};
+  auto r = expression(ast->expression);
+  _result = Result{_function->getCast(targetTy, *r)};
 }
 
 void Codegen::visit(ConditionAST* ast) {
+  _result = Result{_function->getConst("@condition@")};
 }
 
 void Codegen::visit(ConditionalExpressionAST* ast) {
+  _result = Result{_function->getConst("@conditional@")};
 }
 
 void Codegen::visit(CppCastExpressionAST* ast) {
+  const QualType targetTy{unit->control()->getNamedType(unit->control()->getIdentifier("@target-type@"))};
+  auto r = expression(ast->expression);
+  _result = Result{_function->getCast(targetTy, *r)};
 }
 
 void Codegen::visit(DeleteExpressionAST* ast) {
+  _result = Result{_function->getConst("@delete@")};
 }
 
 void Codegen::visit(IdExpressionAST* ast) {
+  _result = Result{_function->getSym(ast->id)};
 }
 
 void Codegen::visit(IncrExpressionAST* ast) {
+  _result = Result{_function->getConst("@incr/decr@")};
 }
 
 void Codegen::visit(LambdaExpressionAST* ast) {
+  _result = Result{_function->getConst("@lambda@")};
 }
 
 void Codegen::visit(LiteralExpressionAST* ast) {
+  auto value = unit->tokenText(ast->literal_token);
+  _result = Result{_function->getConst(value)};
 }
 
 void Codegen::visit(MemberExpressionAST* ast) {
+  auto op = unit->tokenKind(ast->access_token);
+  auto base = expression(ast->base_expression);
+  _result = Result{_function->getMember(op, *base, ast->id)};
 }
 
 void Codegen::visit(NestedExpressionAST* ast) {
+  accept(ast->expression);
 }
 
 void Codegen::visit(NewExpressionAST* ast) {
+  _result = Result{_function->getConst("@new@")};
 }
 
 void Codegen::visit(NoexceptExpressionAST* ast) {
+  _result = Result{_function->getConst("@noexcept@")};
 }
 
 void Codegen::visit(PackedExpressionAST* ast) {
+  _result = Result{_function->getConst("@packed-expr@")};
 }
 
 void Codegen::visit(SimpleInitializerAST* ast) {
+  _result = Result{_function->getConst("@simple-init@")};
 }
 
 void Codegen::visit(SizeofExpressionAST* ast) {
+  _result = Result{_function->getConst("@sizeof@")};
 }
 
 void Codegen::visit(SizeofPackedArgsExpressionAST* ast) {
+  _result = Result{_function->getConst("@sizeof...@")};
 }
 
 void Codegen::visit(SizeofTypeExpressionAST* ast) {
+  _result = Result{_function->getConst("@sizeof-type@")};
 }
 
 void Codegen::visit(SubscriptExpressionAST* ast) {
+  auto base = expression(ast->base_expression);
+  auto index = expression(ast->base_expression);
+  _result = Result{_function->getSubscript(*base, *index)};
 }
 
 void Codegen::visit(TemplateArgumentAST* ast) {
+  _result = Result{_function->getConst("@templ-arg@")};
 }
 
 void Codegen::visit(ThisExpressionAST* ast) {
+  _result = Result{_function->getSym(unit->control()->getIdentifier("this"))};
 }
 
 void Codegen::visit(TypeCallExpressionAST* ast) {
+  _result = Result{_function->getConst("@type-call@")};
 }
 
 void Codegen::visit(TypeIdAST* ast) {
+  _result = Result{_function->getConst("@type-id@")};
 }
 
 void Codegen::visit(TypeidExpressionAST* ast) {
+  _result = Result{_function->getConst("@typeid-expr@")};
 }
 
 void Codegen::visit(UnaryExpressionAST* ast) {
+  auto expr = expression(ast->expression);
+  _result = Result{_function->getUnop(ast->op, *expr)};
 }
 
 // names
@@ -338,52 +443,94 @@ void Codegen::visit(TypenameSpecifierAST* ast) {
 
 // statements
 void Codegen::visit(BreakStatementAST* ast) {
+  _block->emitExp(_function->getConst("@break-stmt"));
 }
 
 void Codegen::visit(CaseStatementAST* ast) {
+  _block->emitExp(_function->getConst("@case-stmt"));
+  statement(ast->statement);
 }
 
 void Codegen::visit(CompoundStatementAST* ast) {
+  for (auto it = ast->statement_list; it; it = it->next) {
+    statement(it->value);
+  }
 }
 
 void Codegen::visit(ContinueStatementAST* ast) {
+  _block->emitExp(_function->getConst("@continue-stmt"));
 }
 
 void Codegen::visit(DeclarationStatementAST* ast) {
+  _block->emitExp(_function->getConst("@decl-stmt"));
 }
 
 void Codegen::visit(DefaultStatementAST* ast) {
+  _block->emitExp(_function->getConst("@default-stmt"));
 }
 
 void Codegen::visit(DoStatementAST* ast) {
+  _block->emitExp(_function->getConst("@do-stmt"));
 }
 
 void Codegen::visit(ExpressionStatementAST* ast) {
+  statement(ast->expression);
 }
 
 void Codegen::visit(ForRangeStatementAST* ast) {
+  _block->emitExp(_function->getConst("@for-range-stmt"));
 }
 
 void Codegen::visit(ForStatementAST* ast) {
+  _block->emitExp(_function->getConst("@for-stmt"));
 }
 
 void Codegen::visit(GotoStatementAST* ast) {
+  _block->emitExp(_function->getConst("@goto-stmt"));
 }
 
 void Codegen::visit(IfStatementAST* ast) {
+  auto iftrue = _function->newBasicBlock();
+  auto iffalse = _function->newBasicBlock();
+  auto endif = _function->newBasicBlock();
+  condition(ast->condition, iftrue, iffalse);
+  place(iftrue);
+  statement(ast->statement);
+  _block->emitJump(endif);
+  place(iffalse);
+  statement(ast->else_statement);
+  place(endif);
 }
 
 void Codegen::visit(LabeledStatementAST* ast) {
+  _block->emitExp(_function->getConst("@labeled-stmt"));
+  statement(ast->statement);
 }
 
 void Codegen::visit(ReturnStatementAST* ast) {
+  if (ast->expression) {
+    auto r = expression(ast->expression);
+    _block->emitMove(_exitValue, *r);
+  }
+  _block->emitJump(_exitBlock);
 }
 
 void Codegen::visit(SwitchStatementAST* ast) {
+  _block->emitExp(_function->getConst("@switch-stmt"));
 }
 
 void Codegen::visit(TryBlockStatementAST* ast) {
+  _block->emitExp(_function->getConst("@try-block-stmt"));
 }
 
 void Codegen::visit(WhileStatementAST* ast) {
+  auto topwhile = _function->newBasicBlock();
+  auto bodywhile = _function->newBasicBlock();
+  auto endwhile = _function->newBasicBlock();
+  place(topwhile);
+  condition(ast->condition, bodywhile, endwhile);
+  place(bodywhile);
+  statement(ast->statement);
+  _block->emitJump(topwhile);
+  place(endwhile);
 }

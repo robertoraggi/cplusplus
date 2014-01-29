@@ -70,7 +70,19 @@ FOR_EACH_IR_EXPR(VISIT_IR_EXPR)
 struct Stmt {
   Stmt(StmtKind kind): _kind(kind) {}
   virtual ~Stmt() = default;
+
+#define VISIT_IR_STMT(T) \
+  inline bool is##T() const { \
+    return _kind == StmtKind::k##T; \
+  } \
+  inline const T* as##T() const { \
+    return is##T() ? reinterpret_cast<const T*>(this) : nullptr; \
+  }
+  FOR_EACH_IR_STMT(VISIT_IR_STMT)
+#undef VISIT_IR_STMT
+
   virtual Terminator* asTerminator() { return nullptr; }
+  virtual void dump(std::ostream& out) const = 0;
 private:
   StmtKind _kind;
 };
@@ -78,6 +90,18 @@ private:
 struct Expr {
   Expr(ExprKind kind): _kind(kind) {}
   virtual ~Expr() = default;
+
+#define VISIT_IR_EXPR(T) \
+  inline bool is##T() const { \
+    return _kind == ExprKind::k##T; \
+  } \
+  inline const T* as##T() const { \
+    return is##T() ? reinterpret_cast<const T*>(this) : nullptr; \
+  }
+  FOR_EACH_IR_EXPR(VISIT_IR_EXPR)
+#undef VISIT_IR_EXPR
+
+  virtual void dump(std::ostream& out) const = 0;
 private:
   ExprKind _kind;
 };
@@ -107,22 +131,26 @@ struct Terminator: Stmt {
 struct Exp final: ExtendsStmt<StmtKind::kExp, Stmt, const Expr*> {
   using ExtendsStmt::ExtendsStmt;
   const Expr* expr() const { return std::get<0>(*this); }
+  void dump(std::ostream& out) const override;
 };
 
 struct Move final: ExtendsStmt<StmtKind::kMove, Stmt, const Expr*, const Expr*> {
   using ExtendsStmt::ExtendsStmt;
   const Expr* target() const { return std::get<0>(*this); }
   const Expr* source() const { return std::get<1>(*this); }
+  void dump(std::ostream& out) const override;
 };
 
 struct Ret final: ExtendsStmt<StmtKind::kRet, Terminator, const Expr*> {
   using ExtendsStmt::ExtendsStmt;
   const Expr* expr() const { return std::get<0>(*this); }
+  void dump(std::ostream& out) const override;
 };
 
 struct Jump final: ExtendsStmt<StmtKind::kJump, Terminator, BasicBlock*> {
   using ExtendsStmt::ExtendsStmt;
   BasicBlock* target() const { return std::get<0>(*this); }
+  void dump(std::ostream& out) const override;
 };
 
 struct CJump final: ExtendsStmt<StmtKind::kCJump, Terminator, const Expr*, BasicBlock*, BasicBlock*> {
@@ -130,6 +158,7 @@ struct CJump final: ExtendsStmt<StmtKind::kCJump, Terminator, const Expr*, Basic
   const Expr* expr() const { return std::get<0>(*this); }
   BasicBlock* iftrue() const { return std::get<1>(*this); }
   BasicBlock* iffalse() const { return std::get<2>(*this); }
+  void dump(std::ostream& out) const override;
 };
 
 //
@@ -138,28 +167,33 @@ struct CJump final: ExtendsStmt<StmtKind::kCJump, Terminator, const Expr*, Basic
 struct Const final: ExtendsExpr<ExprKind::kConst, const char*> { // ### TODO: LiteralValue*.
   using ExtendsExpr::ExtendsExpr;
   const char* value() const { return std::get<0>(*this); }
+  void dump(std::ostream& out) const override;
 };
 
 struct Temp final: ExtendsExpr<ExprKind::kTemp, int> {
   using ExtendsExpr::ExtendsExpr;
   int index() const { return std::get<0>(*this); }
+  void dump(std::ostream& out) const override;
 };
 
 struct Sym final: ExtendsExpr<ExprKind::kSym, const Name*> {
   using ExtendsExpr::ExtendsExpr;
   const Name* name() const { return std::get<0>(*this); }
+  void dump(std::ostream& out) const override;
 };
 
 struct Cast final: ExtendsExpr<ExprKind::kCast, QualType, const Expr*> {
   using ExtendsExpr::ExtendsExpr;
   QualType type() const { return std::get<0>(*this); }
   const Expr* expr() const { return std::get<1>(*this); }
+  void dump(std::ostream& out) const override;
 };
 
 struct Call final: ExtendsExpr<ExprKind::kCall, const Expr*, std::vector<const Expr*>> {
   using ExtendsExpr::ExtendsExpr;
   const Expr* expr() const { return std::get<0>(*this); }
   const std::vector<const Expr*>& args() const { return std::get<1>(*this); }
+  void dump(std::ostream& out) const override;
 };
 
 struct Member final: ExtendsExpr<ExprKind::kMember, TokenKind, const Expr*, const Name*> {
@@ -167,18 +201,21 @@ struct Member final: ExtendsExpr<ExprKind::kMember, TokenKind, const Expr*, cons
   TokenKind op() const { return std::get<0>(*this); }
   const Expr* expr() const { return std::get<1>(*this); }
   const Name* name() const { return std::get<2>(*this); }
+  void dump(std::ostream& out) const override;
 };
 
 struct Subscript final: ExtendsExpr<ExprKind::kSubscript, const Expr*, const Expr*> {
   using ExtendsExpr::ExtendsExpr;
   const Expr* expr() const { return std::get<0>(*this); }
   const Expr* index() const { return std::get<1>(*this); }
+  void dump(std::ostream& out) const override;
 };
 
 struct Unop final: ExtendsExpr<ExprKind::kUnop, TokenKind, const Expr*> {
   using ExtendsExpr::ExtendsExpr;
   TokenKind op() const { return std::get<0>(*this); }
   const Expr* expr() const { return std::get<1>(*this); }
+  void dump(std::ostream& out) const override;
 };
 
 struct Binop final: ExtendsExpr<ExprKind::kBinop, TokenKind, const Expr*, const Expr*> {
@@ -186,6 +223,7 @@ struct Binop final: ExtendsExpr<ExprKind::kBinop, TokenKind, const Expr*, const 
   TokenKind op() const { return std::get<0>(*this); }
   const Expr* left() const { return std::get<1>(*this); }
   const Expr* right() const { return std::get<2>(*this); }
+  void dump(std::ostream& out) const override;
 };
 
 struct Module {
@@ -208,6 +246,8 @@ struct Function final: std::vector<BasicBlock*> {
   BasicBlock* newBasicBlock();
   void placeBasicBlock(BasicBlock* basicBlock);
 
+  void dump(std::ostream& out);
+
   template <typename T>
   struct Table final: std::set<T> {
     template <typename...Args>
@@ -228,6 +268,14 @@ struct BasicBlock final: std::vector<Stmt*> {
   BasicBlock(Function* function)
     : function(function) {}
 
+  Terminator* terminator() const {
+    return empty() ? nullptr : back()->asTerminator();
+  }
+
+  bool isTerminated() const {
+    return terminator() != nullptr;
+  }
+
   template <typename T>
   struct Sequence final: std::forward_list<T> {
     BasicBlock* basicBlock;
@@ -237,6 +285,8 @@ struct BasicBlock final: std::vector<Stmt*> {
 
     template <typename...Args>
     void operator()(Args&&...args) {
+      if (basicBlock->isTerminated())
+        return;
       auto node = &*this->emplace_after(this->before_begin(), std::forward<Args>(args)...);
       basicBlock->push_back(node);
     }
