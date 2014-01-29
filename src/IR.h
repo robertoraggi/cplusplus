@@ -136,11 +136,9 @@ struct Exp final: ExtendsStmt<StmtKind::kExp, Stmt, const Expr*> {
 
 struct Move final: ExtendsStmt<StmtKind::kMove, Stmt, const Expr*, const Expr*, TokenKind> {
   using ExtendsStmt::ExtendsStmt;
-  Move(const Expr* target, const Expr* source)
-    : ExtendsStmt(target, source, T_EQUAL) {}
   const Expr* target() const { return std::get<0>(*this); }
   const Expr* source() const { return std::get<1>(*this); }
-  TokenKind op() const { return std::get<2>(*this); }
+  TokenKind op() const { auto op = std::get<2>(*this); return op ? op : T_EQUAL; }
   void dump(std::ostream& out) const override;
 };
 
