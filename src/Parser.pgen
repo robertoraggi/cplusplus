@@ -890,7 +890,8 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
   FunctionSymbol* fun{nullptr};
   EnterScope enterScope;
 }
-: attribute_specifier_seq
+: { return ! scope->isBlockSymbol(); }
+  attribute_specifier_seq
   decl_specifier_no_type_specifier_list(specifier_list)?
     {
       specs = context.specifiers(specifier_list);
