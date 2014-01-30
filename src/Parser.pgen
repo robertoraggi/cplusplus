@@ -401,6 +401,7 @@ postfix_expression(ExpressionAST*& yyast)
        {
          auto ast = new (pool) SubscriptExpressionAST;
          ast->base_expression = yyast;
+         ast->index_expression = e;
          yyast = ast;
        }
    | (dot | minus_greater) parsed_token(&access_token) template? name(name)
