@@ -73,12 +73,14 @@ TEST(test_ir, expressions) {
   EXPECT_EQ(fun->getSym(id_0), fun->getSym(id_0));
   EXPECT_NE(fun->getSym(id_0), fun->getSym(id_1));
 
-  EXPECT_EQ(fun->getCast(QualType(control.getIntType()), fun->getConst(zero)),
-            fun->getCast(QualType(control.getIntType()), fun->getConst(zero)));
+  const QualType intTy{control.getIntType()};
+  auto cast1 = fun->getCast(intTy, fun->getConst(zero));
+  auto cast2 = fun->getCast(intTy, fun->getConst(zero));
+  auto cast3 = fun->getCast(intTy, fun->getConst(one));
+  auto cast4 = fun->getCast(intTy, fun->getConst(one));
 
-  EXPECT_NE(fun->getCast(QualType(control.getIntType()), fun->getConst(zero)),
-            fun->getCast(QualType(control.getIntType()), fun->getConst(one)));
-
-  EXPECT_NE(fun->getCast(QualType(control.getIntType()), fun->getConst(zero)),
-            fun->getCast(QualType(control.getCharType()), fun->getConst(zero)));
+  EXPECT_EQ(cast1, cast2);
+  EXPECT_EQ(cast3, cast4);
+  EXPECT_NE(cast1, cast3);
+  EXPECT_NE(cast2, cast4);
 }

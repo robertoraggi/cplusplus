@@ -106,18 +106,14 @@ private:
   ExprKind _kind;
 };
 
-template <StmtKind K, typename Base, typename..._Args>
-struct ExtendsStmt: Base, std::tuple<_Args...> {
-  template <typename...Args>
-  ExtendsStmt(Args&&...args)
-    : Base(K), std::tuple<_Args...>(std::forward<Args>(args)...) {}
+template <StmtKind K, typename Base = Stmt>
+struct ExtendsStmt: Base {
+  ExtendsStmt(): Base(K) {}
 };
 
-template <ExprKind K, typename..._Args>
-struct ExtendsExpr: Expr, std::tuple<_Args...> {
-  template <typename...Args>
-  ExtendsExpr(Args&&...args)
-    : Expr(K), std::tuple<_Args...>(std::forward<Args>(args)...) {}
+template <ExprKind K, typename Base = Expr>
+struct ExtendsExpr: Expr {
+  ExtendsExpr(): Expr(K) {}
 };
 
 //
@@ -128,35 +124,35 @@ struct Terminator: Stmt {
   Terminator* asTerminator() override { return this; }
 };
 
-struct Exp final: ExtendsStmt<StmtKind::kExp, Stmt, const Expr*> {
-  using ExtendsStmt::ExtendsStmt;
+struct Exp final: ExtendsStmt<StmtKind::kExp>, std::tuple<const Expr*> {
+  using tuple::tuple;
   const Expr* expr() const { return std::get<0>(*this); }
   void dump(std::ostream& out) const override;
 };
 
-struct Move final: ExtendsStmt<StmtKind::kMove, Stmt, const Expr*, const Expr*, TokenKind> {
+struct Move final: ExtendsStmt<StmtKind::kMove>, std::tuple<const Expr*, const Expr*, TokenKind> {
   Move(const Expr* target, const Expr* source, TokenKind op = T_EQUAL)
-    : ExtendsStmt(target, source, op) {} // ### libstdc++
+    : tuple(target, source, op) {}
   const Expr* target() const { return std::get<0>(*this); }
   const Expr* source() const { return std::get<1>(*this); }
   TokenKind op() const { auto op = std::get<2>(*this); return op ? op : T_EQUAL; }
   void dump(std::ostream& out) const override;
 };
 
-struct Ret final: ExtendsStmt<StmtKind::kRet, Terminator, const Expr*> {
-  using ExtendsStmt::ExtendsStmt;
+struct Ret final: ExtendsStmt<StmtKind::kRet, Terminator>, std::tuple<const Expr*> {
+  using tuple::tuple;
   const Expr* expr() const { return std::get<0>(*this); }
   void dump(std::ostream& out) const override;
 };
 
-struct Jump final: ExtendsStmt<StmtKind::kJump, Terminator, BasicBlock*> {
-  using ExtendsStmt::ExtendsStmt;
+struct Jump final: ExtendsStmt<StmtKind::kJump, Terminator>, std::tuple<BasicBlock*> {
+  using tuple::tuple;
   BasicBlock* target() const { return std::get<0>(*this); }
   void dump(std::ostream& out) const override;
 };
 
-struct CJump final: ExtendsStmt<StmtKind::kCJump, Terminator, const Expr*, BasicBlock*, BasicBlock*> {
-  using ExtendsStmt::ExtendsStmt;
+struct CJump final: ExtendsStmt<StmtKind::kCJump, Terminator>, std::tuple<const Expr*, BasicBlock*, BasicBlock*> {
+  using tuple::tuple;
   const Expr* expr() const { return std::get<0>(*this); }
   BasicBlock* iftrue() const { return std::get<1>(*this); }
   BasicBlock* iffalse() const { return std::get<2>(*this); }
@@ -166,62 +162,62 @@ struct CJump final: ExtendsStmt<StmtKind::kCJump, Terminator, const Expr*, Basic
 //
 // expressions
 //
-struct Const final: ExtendsExpr<ExprKind::kConst, const char*> { // ### TODO: LiteralValue*.
-  using ExtendsExpr::ExtendsExpr;
+struct Const final: ExtendsExpr<ExprKind::kConst>, std::tuple<const char*> { // ### TODO: LiteralValue*.
+  using tuple::tuple;
   const char* value() const { return std::get<0>(*this); }
   void dump(std::ostream& out) const override;
 };
 
-struct Temp final: ExtendsExpr<ExprKind::kTemp, int> {
-  using ExtendsExpr::ExtendsExpr;
+struct Temp final: ExtendsExpr<ExprKind::kTemp>, std::tuple<int> {
+  using tuple::tuple;
   int index() const { return std::get<0>(*this); }
   void dump(std::ostream& out) const override;
 };
 
-struct Sym final: ExtendsExpr<ExprKind::kSym, const Name*> {
-  using ExtendsExpr::ExtendsExpr;
+struct Sym final: ExtendsExpr<ExprKind::kSym>, std::tuple<const Name*> {
+  using tuple::tuple;
   const Name* name() const { return std::get<0>(*this); }
   void dump(std::ostream& out) const override;
 };
 
-struct Cast final: ExtendsExpr<ExprKind::kCast, QualType, const Expr*> {
-  using ExtendsExpr::ExtendsExpr;
+struct Cast final: ExtendsExpr<ExprKind::kCast>, std::tuple<QualType, const Expr*> {
+  using tuple::tuple;
   QualType type() const { return std::get<0>(*this); }
   const Expr* expr() const { return std::get<1>(*this); }
   void dump(std::ostream& out) const override;
 };
 
-struct Call final: ExtendsExpr<ExprKind::kCall, const Expr*, std::vector<const Expr*>> {
-  using ExtendsExpr::ExtendsExpr;
+struct Call final: ExtendsExpr<ExprKind::kCall>, std::tuple<const Expr*, std::vector<const Expr*>> {
+  using tuple::tuple;
   const Expr* expr() const { return std::get<0>(*this); }
   const std::vector<const Expr*>& args() const { return std::get<1>(*this); }
   void dump(std::ostream& out) const override;
 };
 
-struct Member final: ExtendsExpr<ExprKind::kMember, TokenKind, const Expr*, const Name*> {
-  using ExtendsExpr::ExtendsExpr;
+struct Member final: ExtendsExpr<ExprKind::kMember>, std::tuple<TokenKind, const Expr*, const Name*> {
+  using tuple::tuple;
   TokenKind op() const { return std::get<0>(*this); }
   const Expr* expr() const { return std::get<1>(*this); }
   const Name* name() const { return std::get<2>(*this); }
   void dump(std::ostream& out) const override;
 };
 
-struct Subscript final: ExtendsExpr<ExprKind::kSubscript, const Expr*, const Expr*> {
-  using ExtendsExpr::ExtendsExpr;
+struct Subscript final: ExtendsExpr<ExprKind::kSubscript>, std::tuple<const Expr*, const Expr*> {
+  using tuple::tuple;
   const Expr* expr() const { return std::get<0>(*this); }
   const Expr* index() const { return std::get<1>(*this); }
   void dump(std::ostream& out) const override;
 };
 
-struct Unop final: ExtendsExpr<ExprKind::kUnop, TokenKind, const Expr*> {
-  using ExtendsExpr::ExtendsExpr;
+struct Unop final: ExtendsExpr<ExprKind::kUnop>, std::tuple<TokenKind, const Expr*> {
+  using tuple::tuple;
   TokenKind op() const { return std::get<0>(*this); }
   const Expr* expr() const { return std::get<1>(*this); }
   void dump(std::ostream& out) const override;
 };
 
-struct Binop final: ExtendsExpr<ExprKind::kBinop, TokenKind, const Expr*, const Expr*> {
-  using ExtendsExpr::ExtendsExpr;
+struct Binop final: ExtendsExpr<ExprKind::kBinop>, std::tuple<TokenKind, const Expr*, const Expr*> {
+  using tuple::tuple;
   TokenKind op() const { return std::get<0>(*this); }
   const Expr* left() const { return std::get<1>(*this); }
   const Expr* right() const { return std::get<2>(*this); }
