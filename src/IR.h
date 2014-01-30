@@ -244,6 +244,7 @@ struct Function final: std::vector<BasicBlock*> {
   Function(Module* module, FunctionSymbol* symbol)
     : module(module)
     , symbol(symbol) {}
+  ~Function();
 
   BasicBlock* newBasicBlock();
   void placeBasicBlock(BasicBlock* basicBlock);

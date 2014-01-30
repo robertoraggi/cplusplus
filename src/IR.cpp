@@ -44,6 +44,11 @@ BasicBlock* Function::newBasicBlock() {
   return block;
 }
 
+Function::~Function() {
+  for (auto block: *this)
+    delete block;
+}
+
 void Function::placeBasicBlock(BasicBlock* basicBlock) {
   assert(basicBlock->index == -1);
   basicBlock->index = size();
