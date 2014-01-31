@@ -33,15 +33,17 @@ struct ParseContext {
     QualType type;
     union {
       unsigned _flags{0};
-      unsigned isExtern: 1;
-      unsigned isInline: 1;
-      unsigned isStatic: 1;
-      unsigned isTypedef: 1;
-      unsigned isVirtual: 1;
-      unsigned isFriend: 1;
-      unsigned isExplicit: 1;
-      unsigned isMutable: 1;
-      unsigned isConstexpr: 1;
+      struct {
+        unsigned isExtern: 1;
+        unsigned isInline: 1;
+        unsigned isStatic: 1;
+        unsigned isTypedef: 1;
+        unsigned isVirtual: 1;
+        unsigned isFriend: 1;
+        unsigned isExplicit: 1;
+        unsigned isMutable: 1;
+        unsigned isConstexpr: 1;
+      };
     };
   };
 
