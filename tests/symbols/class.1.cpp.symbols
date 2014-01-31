@@ -4,7 +4,7 @@ namespace {
         int b;
         int *ptr;
         const char *s;
-        class Private {
+        struct Private {
             int a;
             int b;
             Class *p;

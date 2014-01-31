@@ -169,6 +169,11 @@ void DeclarationSymbol::dump(std::ostream& out, int depth) {
   out << ';' << std::endl;
 }
 
+void TypedefSymbol::dump(std::ostream& out, int depth) {
+  out << indent(depth) << "typedef " << typeToString(type(), name());
+  out << ';' << std::endl;
+}
+
 void TypeParameterSymbol::dump(std::ostream& out, int) {
   out << "typename";
   if (auto id = name())

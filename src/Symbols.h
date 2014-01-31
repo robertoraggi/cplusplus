@@ -161,6 +161,11 @@ public:
   void dump(std::ostream& out, int depth) override;
 };
 
+class TypedefSymbol final: public ExtendsSymbol<SymbolKind::kTypedef, Symbol> {
+public:
+  void dump(std::ostream& out, int depth) override;
+};
+
 class TypeParameterSymbol final: public ExtendsSymbol<SymbolKind::kTypeParameter, Symbol> {
 public:
   void dump(std::ostream& out, int depth) override;

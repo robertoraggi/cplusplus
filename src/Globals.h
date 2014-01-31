@@ -134,6 +134,7 @@
   V(Block) \
   V(Argument) \
   V(Declaration) \
+  V(Typedef) \
   V(TypeParameter) \
   V(TemplateTypeParameter)
 

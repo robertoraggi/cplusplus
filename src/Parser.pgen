@@ -912,7 +912,11 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
   (is_function_decl(d, specs) semicolon
     {
       auto decl = context.declarator(specs, d);
-      auto sym = control->newDeclaration();
+      Symbol* sym{nullptr};
+      if (decl.specs.isTypedef)
+        sym = control->newTypedef();
+      else
+        sym = control->newDeclaration();
       sym->setEnclosingScope(scope);
       sym->setName(decl.name);
       sym->setType(decl.specs.type);
@@ -1023,7 +1027,11 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
             d = new (pool) DeclaratorAST;
 
           auto decl = context.declarator(specs, d);
-          auto sym = control->newDeclaration();
+          Symbol* sym{nullptr};
+          if (decl.specs.isTypedef)
+            sym = control->newTypedef();
+          else
+            sym = control->newDeclaration();
           sym->setEnclosingScope(scope);
           sym->setName(decl.name);
           sym->setType(decl.specs.type);
@@ -1481,7 +1489,11 @@ init_declarator(DeclaratorAST*& yyast, const ParseContext::Specs& specs)
   |declarator(yyast)
     {
       auto decl = context.declarator(specs, yyast);
-      auto sym = control->newDeclaration();
+      Symbol* sym{nullptr};
+      if (decl.specs.isTypedef)
+        sym = control->newTypedef();
+      else
+        sym = control->newDeclaration();
       sym->setEnclosingScope(scope);
       sym->setName(decl.name);
       sym->setType(decl.specs.type);
