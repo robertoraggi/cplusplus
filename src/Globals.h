@@ -215,6 +215,7 @@
   V(DECLTYPE, "decltype") \
   V(DEFAULT, "default") \
   V(DELETE, "delete") \
+  V(DELETE_ARRAY, "delete[]") \
   V(DO, "do") \
   V(DOUBLE, "double") \
   V(DYNAMIC_CAST, "dynamic_cast") \
@@ -235,6 +236,7 @@
   V(MUTABLE, "mutable") \
   V(NAMESPACE, "namespace") \
   V(NEW, "new") \
+  V(NEW_ARRAY, "new[]") \
   V(NOEXCEPT, "noexcept") \
   V(NULLPTR, "nullptr") \
   V(OPERATOR, "operator") \

@@ -2082,18 +2082,55 @@ mem_initializer_id(NameAST*& yyast)
 
 operator_function_id(NameAST*& yyast)
 {
-  unsigned op_token{0};
+  TokenKind op{T_ERROR};
 }
-: operator { op_token = yycursor; }
-    (new lbracket rbracket | delete lbracket rbracket | new | delete | amp | amp_amp | amp_equal | bar | bar_bar
-          | bar_equal | caret | caret_equal | comma | equal | equal_equal | exclaim | exclaim_equal
-          | greater greater equal | greater greater | greater equal | greater | less | less_equal | less_less
-          | less_less_equal | lparen rparen | minus | minus_equal | minus_greater | minus_greater_star | minus_minus
-          | percent | percent_equal | plus | plus_equal | plus_plus | slash | slash_equal | star | star_equal | tilde
-          | tilde_equal | lbracket rbracket)
+: operator { op = unit->tokenKind(yycursor); }
+    (new lbracket rbracket   { op = T_NEW_ARRAY; }
+  | delete lbracket rbracket { op = T_DELETE_ARRAY; }
+  | new
+  | delete
+  | amp
+  | amp_amp
+  | amp_equal
+  | bar
+  | bar_bar
+  | bar_equal
+  | caret
+  | caret_equal
+  | comma
+  | equal
+  | equal_equal
+  | exclaim
+  | exclaim_equal
+  | greater greater equal { op = T_GREATER_GREATER_EQUAL; }
+  | greater greater       { op = T_GREATER_GREATER; }
+  | greater equal         { op = T_GREATER_EQUAL; }
+  | greater
+  | less
+  | less_equal
+  | less_less
+  | less_less_equal
+  | lparen rparen
+  | minus
+  | minus_equal
+  | minus_greater
+  | minus_greater_star
+  | minus_minus
+  | percent
+  | percent_equal
+  | plus
+  | plus_equal
+  | plus_plus
+  | slash
+  | slash_equal
+  | star
+  | star_equal
+  | tilde
+  | tilde_equal
+  | lbracket rbracket)
     {
       auto ast = new (pool) OperatorNameAST;
-      ast->op_token = op_token;
+      ast->op = op;
       yyast = ast;
     }
 ;

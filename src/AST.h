@@ -210,6 +210,7 @@ struct DestructorNameAST final: ExtendsAST<ASTKind::kDestructorName, NameAST> {
 struct OperatorNameAST final: ExtendsAST<ASTKind::kOperatorName, NameAST> {
   unsigned operator_token{0};
   unsigned op_token{0};
+  TokenKind op{T_ERROR};
 };
 
 struct TemplateArgumentAST final: ExtendsAST<ASTKind::kTemplateArgument, ExpressionAST> {

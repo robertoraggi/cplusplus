@@ -66,7 +66,7 @@ public:
 
     case ASTKind::kOperatorName: {
       auto op = ast->asOperatorName();
-      return control()->getOperatorName(unit()->tokenKind(op->op_token));
+      return control()->getOperatorName(op->op);
     }
 
     case ASTKind::kTemplateId: {
