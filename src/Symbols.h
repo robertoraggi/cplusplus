@@ -123,6 +123,9 @@ private:
 
 class FunctionSymbol final: public ExtendsSymbol<SymbolKind::kFunction, Scope> {
 public:
+  TokenKind storageClassSpecifier() const;
+  void setStorageClassSpecifier(TokenKind storageClassSpecifier);
+
   // ### FIXME
   unsigned argumentCount() const { return _arguments.size(); }
   ArgumentSymbol* argumentAt(unsigned index) const { return _arguments[index]; }
@@ -142,6 +145,7 @@ private:
   std::vector<ArgumentSymbol*> _arguments;
   StatementAST** _internalNode{nullptr};
   unsigned _sourceLocation{0};
+  TokenKind _storageClassSpecifier{T_EOF_SYMBOL};
   bool _isVariadic{false};
   bool _isConst{false};
 };
@@ -158,7 +162,13 @@ public:
 
 class DeclarationSymbol final: public ExtendsSymbol<SymbolKind::kDeclaration, Symbol> {
 public:
+  TokenKind storageClassSpecifier() const;
+  void setStorageClassSpecifier(TokenKind storageClassSpecifier);
+
   void dump(std::ostream& out, int depth) override;
+
+private:
+  TokenKind _storageClassSpecifier{T_EOF_SYMBOL};
 };
 
 class TypedefSymbol final: public ExtendsSymbol<SymbolKind::kTypedef, Symbol> {

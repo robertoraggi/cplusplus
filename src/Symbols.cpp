@@ -129,13 +129,24 @@ void TemplateSymbol::addSymbol(Symbol* symbol) {
   _symbol = symbol;
 }
 
+TokenKind FunctionSymbol::storageClassSpecifier() const {
+  return _storageClassSpecifier;
+}
+
+void FunctionSymbol::setStorageClassSpecifier(TokenKind storageClassSpecifier) {
+  _storageClassSpecifier = storageClassSpecifier;
+}
+
 void FunctionSymbol::dump(std::ostream& out, int depth) {
   auto funTy = type()->asFunctionType();
   assert(funTy);
   std::vector<const Name*> actuals;
   for (auto&& arg: _arguments)
     actuals.push_back(arg->name()); // ### this is a bit slow.
-  out << indent(depth) << typeToString(funTy->returnType(), name())
+  out << indent(depth);
+  if (_storageClassSpecifier)
+    out << token_spell[_storageClassSpecifier] << ' ';
+  out << typeToString(funTy->returnType(), name())
       << typeToString.prototype(funTy, actuals);
   out << " {}" << std::endl;
 }
@@ -164,8 +175,19 @@ void ArgumentSymbol::dump(std::ostream& out, int depth) {
   out << typeToString(type(), name());
 }
 
+TokenKind DeclarationSymbol::storageClassSpecifier() const {
+  return _storageClassSpecifier;
+}
+
+void DeclarationSymbol::setStorageClassSpecifier(TokenKind storageClassSpecifier) {
+  _storageClassSpecifier = storageClassSpecifier;
+}
+
 void DeclarationSymbol::dump(std::ostream& out, int depth) {
-  out << indent(depth) << typeToString(type(), name());
+  out << indent(depth);
+  if (_storageClassSpecifier)
+    out << token_spell[_storageClassSpecifier] << ' ';
+  out << typeToString(type(), name());
   out << ';' << std::endl;
 }
 

@@ -126,7 +126,8 @@ class ParseContext::ProcessDeclarator {
       break;
 
     case ASTKind::kSimpleSpecifier: {
-      auto k = unit()->tokenKind(ast->asSimpleSpecifier()->specifier_token);
+      auto spec = ast->asSimpleSpecifier();
+      auto k = unit()->tokenKind(spec->specifier_token);
       switch (k) {
       case T_SIGNED:
         // nothing to do (for now).
@@ -183,14 +184,15 @@ class ParseContext::ProcessDeclarator {
         else
           _decl.setType(control()->getFloatType(FloatKind::kDouble));
         break;
+      case T_REGISTER:
+      case T_STATIC:
       case T_EXTERN:
-        _decl.specs.isExtern = true;
+      case T_MUTABLE:
+      case T_THREAD_LOCAL:
+        _decl.specs.storageSpec = k;
         break;
       case T_INLINE:
         _decl.specs.isInline = true;
-        break;
-      case T_STATIC:
-        _decl.specs.isStatic = true;
         break;
       case T_TYPEDEF:
         _decl.specs.isTypedef = true;
@@ -203,9 +205,6 @@ class ParseContext::ProcessDeclarator {
         break;
       case T_EXPLICIT:
         _decl.specs.isExplicit = true;
-        break;
-      case T_MUTABLE:
-        _decl.specs.isMutable = true;
         break;
       case T_CONSTEXPR:
         _decl.specs.isConstexpr = true;

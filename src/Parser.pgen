@@ -915,8 +915,11 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
       Symbol* sym{nullptr};
       if (decl.specs.isTypedef)
         sym = control->newTypedef();
-      else
-        sym = control->newDeclaration();
+      else {
+        auto d = control->newDeclaration();
+        d->setStorageClassSpecifier(decl.specs.storageSpec);
+        sym = d;
+      }
       sym->setEnclosingScope(scope);
       sym->setName(decl.name);
       sym->setType(decl.specs.type);
@@ -935,6 +938,7 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
       assert(funTy);
 
       fun = control->newFunction();
+      fun->setStorageClassSpecifier(funDecl.specs.storageSpec);
 
       auto&& proto = funTy->argumentTypes();
       for (size_t i = 0; i < proto.size(); ++i) {
@@ -989,6 +993,7 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
           assert(funTy);
 
           fun = control->newFunction();
+          fun->setStorageClassSpecifier(funDecl.specs.storageSpec);
 
           auto&& proto = funTy->argumentTypes();
           for (size_t i = 0; i < proto.size(); ++i) {
@@ -1030,8 +1035,11 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
           Symbol* sym{nullptr};
           if (decl.specs.isTypedef)
             sym = control->newTypedef();
-          else
-            sym = control->newDeclaration();
+          else {
+            auto d = control->newDeclaration();
+            d->setStorageClassSpecifier(decl.specs.storageSpec);
+            sym = d;
+          }
           sym->setEnclosingScope(scope);
           sym->setName(decl.name);
           sym->setType(decl.specs.type);
@@ -1492,8 +1500,11 @@ init_declarator(DeclaratorAST*& yyast, const ParseContext::Specs& specs)
       Symbol* sym{nullptr};
       if (decl.specs.isTypedef)
         sym = control->newTypedef();
-      else
-        sym = control->newDeclaration();
+      else {
+        auto d = control->newDeclaration();
+        d->setStorageClassSpecifier(decl.specs.storageSpec);
+        sym = d;
+      }
       sym->setEnclosingScope(scope);
       sym->setName(decl.name);
       sym->setType(decl.specs.type);
