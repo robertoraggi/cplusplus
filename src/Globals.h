@@ -286,7 +286,8 @@
   V(UnboundedArray) \
   V(Function) \
   V(Class) \
-  V(Named)
+  V(Named) \
+  V(Elaborated)
 
 #define FOR_EACH_TYPE(V) \
   FOR_EACH_SINGLETON_TYPE(V) \

@@ -20,6 +20,7 @@
 #include "Types.h"
 #include "Names.h"
 #include "Symbols.h"
+#include "Token.h"
 #include <string>
 #include <cassert>
 
@@ -201,3 +202,11 @@ void TypeToString::visit(const NamedType* type) {
   text += decl;
 }
 
+void TypeToString::visit(const ElaboratedType* type) {
+  text += token_spell[type->classKey()];
+  text += ' ';
+  text += type->name()->toString();
+  if (! decl.empty())
+    text += ' ';
+  text += decl;
+}

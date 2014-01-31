@@ -98,10 +98,13 @@ public:
 
 class ClassSymbol final: public ExtendsSymbol<SymbolKind::kClass, Scope> {
 public:
+  TokenKind classKey() const;
+  void setClassKey(TokenKind classKey);
   void dump(std::ostream& out, int depth) override;
   const std::vector<BaseClassSymbol*>& baseClasses() const { return _baseClasses; }
   void addBaseClass(BaseClassSymbol* baseClass) { _baseClasses.push_back(baseClass); }
 private:
+  TokenKind _classKey;
   std::vector<BaseClassSymbol*> _baseClasses;
 };
 

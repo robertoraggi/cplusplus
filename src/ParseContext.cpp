@@ -230,12 +230,19 @@ class ParseContext::ProcessDeclarator {
     case ASTKind::kTypenameSpecifier:
       printf("todo typename specifier\n");
       break;
-    case ASTKind::kElaboratedTypeSpecifier:
-      printf("todo elaborated specifier\n");
+
+    case ASTKind::kElaboratedTypeSpecifier: {
+      auto spec = ast->asElaboratedTypeSpecifier();
+      auto classKey = context->unit->tokenKind(spec->class_key_token);
+      auto name = context->name(spec->name);
+      _decl.setType(control()->getElaboratedType(name, classKey)); // ### rename.
       break;
+    }
+
     case ASTKind::kEnumSpecifier:
       printf("todo enum specifier\n");
       break;
+
     case ASTKind::kClassSpecifier: {
       auto spec = ast->asClassSpecifier();
       _decl.setType(control()->getClassType(spec->symbol));

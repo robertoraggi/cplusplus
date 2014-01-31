@@ -208,6 +208,18 @@ public:
   const Name* name() const { return std::get<0>(*this); }
 };
 
+class ElaboratedType final: public ExtendsType<TypeKind::kElaborated>, public std::tuple<const Name*> {
+public:
+  ElaboratedType(const Name* name, TokenKind classKey = T_CLASS)
+    : tuple(name), _classKey(classKey) {}
+
+  TokenKind classKey() const { return _classKey; }
+  const Name* name() const { return std::get<0>(*this); }
+
+private:
+  TokenKind _classKey;
+};
+
 //
 // implementation
 //

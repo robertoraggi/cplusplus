@@ -19,6 +19,7 @@
 
 #include "Symbols.h"
 #include "Names.h"
+#include "Token.h"
 #include <iostream>
 #include <cassert>
 
@@ -76,7 +77,7 @@ void BaseClassSymbol::dump(std::ostream& out, int depth) {
 }
 
 void ClassSymbol::dump(std::ostream& out, int depth) {
-  out << indent(depth) << "class";
+  out << indent(depth) << token_spell[_classKey];
   if (auto n = name())
     out << " " << n->toString();
   bool first = true;
@@ -96,6 +97,14 @@ void ClassSymbol::dump(std::ostream& out, int depth) {
   }
   out << indent(depth) << "}";
   out << ';' << std::endl;
+}
+
+TokenKind ClassSymbol::classKey() const {
+  return _classKey;
+}
+
+void ClassSymbol::setClassKey(TokenKind classKey) {
+  _classKey = classKey;
 }
 
 void TemplateSymbol::dump(std::ostream& out, int depth) {

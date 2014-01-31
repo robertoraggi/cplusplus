@@ -1261,11 +1261,13 @@ decltype_specifier(NameAST*& yyast)
 
 elaborated_type_specifier(SpecifierAST*& yyast)
 {
-    NameAST* name{nullptr};
+  unsigned k{0};
+  NameAST* name{nullptr};
 }
-: class_key attribute_specifier_seq name(name)
+: class_key parsed_token(&k) attribute_specifier_seq name(name)
     {
         auto ast = new (pool) ElaboratedTypeSpecifierAST;
+        ast->class_key_token = k;
         ast->name = name;
         yyast = ast;
     }
@@ -1900,6 +1902,7 @@ braced_init_list(ExpressionAST*& yyast)
 
 class_specifier(SpecifierAST*& yyast)
 {
+  unsigned k{0};
   DeclarationAST* d{nullptr};
   List<DeclarationAST*>* declaration_list{nullptr};
   auto it = &declaration_list;
@@ -1909,11 +1912,12 @@ class_specifier(SpecifierAST*& yyast)
   EnterScope enterScope;
   ClassSymbol* klass{nullptr};
 }
-: class_key attribute_specifier_seq
+: class_key parsed_token(&k) attribute_specifier_seq
   { yypos=yycursor; } ((name(name) (final | explicit)?)?)
   / (colon | lbrace)
     {
       klass = control->newClass();
+      klass->setClassKey(unit->tokenKind(k));
       klass->setName(context.name(name));
       klass->setEnclosingScope(scope);
       scope->addSymbol(klass);
@@ -1947,6 +1951,7 @@ class_specifier(SpecifierAST*& yyast)
       scope = savedScope;
 
       auto ast = new (pool) ClassSpecifierAST;
+      ast->class_key_token = k;
       ast->symbol = klass;
       ast->name = name;
       ast->base_class_list = b;
