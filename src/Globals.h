@@ -317,7 +317,8 @@
   V(Char16T, "char16_t") \
   V(Char32T, "char32_t") \
   V(Bool, "bool") \
-  V(Int128, "__int128")
+  V(Int128, "__int128") \
+  V(UnsignedInt128, "unsigned __int128")
 
 
 #define FOR_EACH_FLOAT_TYPE(V) \

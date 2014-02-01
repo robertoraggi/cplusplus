@@ -52,6 +52,8 @@ add_library(CPlusPlusObjects OBJECT
     src/TranslationUnit.h
     src/Types.cpp
     src/Types.h
+    src/Mangler.cpp
+    src/Mangler.h
     # generated files
     KeywordsP.h
     ParserP.h)
