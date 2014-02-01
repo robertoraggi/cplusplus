@@ -41,6 +41,7 @@
   V(SimpleName) \
   V(DestructorName) \
   V(OperatorName) \
+  V(ConversionFunctionId) \
   V(TemplateArgument) \
   V(TemplateId) \
   V(DecltypeName) \

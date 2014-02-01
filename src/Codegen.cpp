@@ -484,6 +484,9 @@ void Codegen::visit(DestructorNameAST* ast) {
 void Codegen::visit(OperatorNameAST* ast) {
 }
 
+void Codegen::visit(ConversionFunctionIdAST* ast) {
+}
+
 void Codegen::visit(PackedNameAST* ast) {
 }
 

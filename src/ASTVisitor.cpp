@@ -151,6 +151,13 @@ void RecursiveASTVisitor::visit(DestructorNameAST* ast) {
 void RecursiveASTVisitor::visit(OperatorNameAST* ast) {
 }
 
+void RecursiveASTVisitor::visit(ConversionFunctionIdAST* ast) {
+  for (auto it = ast->specifier_list; it; it = it->next)
+    accept(it->value);
+  for (auto it = ast->ptr_op_list; it; it = it->next)
+    accept(it->value);
+}
+
 void RecursiveASTVisitor::visit(TemplateArgumentAST* ast) {
   accept(ast->type_id);
 }

@@ -2055,10 +2055,24 @@ base_type_specifier(NameAST*& yyast)
 
 conversion_function_id(NameAST*& yyast)
 {
-    List<SpecifierAST*>* specs{nullptr};
-    PtrOperatorAST* ptr_op{nullptr};
+  List<SpecifierAST*>* specs{nullptr};
+  PtrOperatorAST* ptr_op{nullptr};
+  List<PtrOperatorAST*>* ptr_op_list{nullptr};
+  auto it = &ptr_op_list;
 }
-: operator type_specifier_list(specs) ptr_operator(ptr_op)*
+: operator type_specifier_list(specs)
+      (ptr_operator(ptr_op)
+        {
+          *it = new (pool) List<PtrOperatorAST*>(ptr_op);
+          it = &(*it)->next;
+        }
+      )*
+    {
+      auto ast = new (pool) ConversionFunctionIdAST;
+      ast->specifier_list = specs;
+      ast->ptr_op_list = ptr_op_list;
+      yyast = ast;
+    }
 ;
 
 ctor_initializer(List<MemInitializerAST*>*& yyast)
