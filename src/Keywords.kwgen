@@ -4,6 +4,10 @@
 
 %%
 
+__int64
+__int128
+__float80
+__float128
 alignas
 alignof
 asm

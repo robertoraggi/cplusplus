@@ -198,6 +198,10 @@
   V(STAR_EQUAL, "*=") \
   V(TILDE, "~") \
   V(TILDE_EQUAL, "~=") \
+  V(__INT64, "__int64") \
+  V(__INT128, "__int128") \
+  V(__FLOAT80, "__float80") \
+  V(__FLOAT128, "__float128") \
   V(ALIGNAS, "alignas") \
   V(ALIGNOF, "alignof") \
   V(ASM, "asm") \
@@ -312,12 +316,15 @@
   V(Char, "char") \
   V(Char16T, "char16_t") \
   V(Char32T, "char32_t") \
-  V(Bool, "bool")
+  V(Bool, "bool") \
+  V(Int128, "__int128")
+
 
 #define FOR_EACH_FLOAT_TYPE(V) \
   V(Float, "float") \
   V(Double, "double") \
-  V(LongDouble, "long double")
+  V(LongDouble, "long double") \
+  V(Float128, "__float128")
 
 
 template <typename T> struct List;

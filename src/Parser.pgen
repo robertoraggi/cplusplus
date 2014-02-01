@@ -19,7 +19,12 @@
 
 %class Parser
 
-%token alignas
+%token
+       __int64
+     , __int128
+     , __float80
+     , __float128
+     , alignas
      , alignof
      , amp
      , amp_amp
@@ -1250,7 +1255,24 @@ trailing_type_specifier_no_simple_type_spec(SpecifierAST*& yyast)
 ;
 
 simple_type_specifier(SpecifierAST*& yyast)
-: (char | char16_t | char32_t | wchar_t | bool | short | int | long | signed | unsigned | float | double | void | auto)
+: (char
+| char16_t
+| char32_t
+| wchar_t
+| bool
+| short
+| int
+| long
+| signed
+| unsigned
+| float
+| double
+| void
+| __int64
+| __int128
+| __float80
+| __float128
+| auto)
     {
       auto ast = new (pool) SimpleSpecifierAST;
       ast->specifier_token = yycursor - 1;

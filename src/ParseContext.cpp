@@ -144,6 +144,18 @@ class ParseContext::ProcessDeclarator {
       case T_AUTO:
         _decl.setType(control()->getAutoType());
         break;
+      case T___INT64:
+        _decl.setType(control()->getLongLongIntType());
+        break;
+      case T___INT128:
+        _decl.setType(control()->getInt128Type());
+        break;
+      case T___FLOAT80:
+        _decl.setType(control()->getFloatType(FloatKind::kLongDouble));
+        break;
+      case T___FLOAT128:
+        _decl.setType(control()->getFloatType(FloatKind::kFloat128));
+        break;
       case T_VOID:
         _decl.setType(control()->getVoidType());
         break;
