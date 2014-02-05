@@ -309,7 +309,7 @@ class ParseContext::ProcessDeclarator {
     case ASTKind::kFunctionDeclarator: {
       const QualType returnType{context->finish(_decl.specs.type)};
       std::vector<QualType> argTypes;
-      std::vector<const Name*> actuals;
+      std::vector<const Name*> formals;
       auto decl = ast->asFunctionDeclarator();
       if (auto params = decl->parameters_and_qualifiers) {
         for (auto it = params->parameter_list; it; it = it->next) {
@@ -318,7 +318,7 @@ class ParseContext::ProcessDeclarator {
           auto paramDecl = context->declarator(declTy, param->declarator);
           auto argTy = paramDecl.specs.type;
           argTypes.push_back(argTy);
-          actuals.push_back(paramDecl.name);
+          formals.push_back(paramDecl.name);
         }
       }
 
@@ -326,7 +326,7 @@ class ParseContext::ProcessDeclarator {
       bool isConst = false; // ### TODO
       QualType funTy(control()->getFunctionType(returnType, argTypes, isVariadic, isConst));
       _decl.specs.type = funTy;
-      _decl.actuals = std::move(actuals);
+      _decl.formals = std::move(formals);
       break;
     }
 

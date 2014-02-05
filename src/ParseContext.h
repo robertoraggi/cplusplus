@@ -81,7 +81,7 @@ struct ParseContext {
   struct Decl {
     Specs specs;
     const Name* name{nullptr};
-    std::vector<const Name*> actuals;
+    std::vector<const Name*> formals;
 
     const Type* operator->() const {
       return *specs.type;

@@ -988,7 +988,7 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
 
       auto&& proto = funTy->argumentTypes();
       for (size_t i = 0; i < proto.size(); ++i) {
-        auto argName = funDecl.actuals[i];
+        auto argName = funDecl.formals[i];
         auto argTy = proto[i];
 
         auto arg = control->newArgument();
@@ -1043,7 +1043,7 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
 
           auto&& proto = funTy->argumentTypes();
           for (size_t i = 0; i < proto.size(); ++i) {
-            auto argName = funDecl.actuals[i];
+            auto argName = funDecl.formals[i];
             auto argTy = proto[i];
 
             auto arg = control->newArgument();
