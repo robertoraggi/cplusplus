@@ -28,6 +28,39 @@ struct ParseContext {
 
   ParseContext() = default;
 
+  struct NameAttrs {
+    NameAST* ast;
+    Scope* scope{nullptr};
+    Symbol* symbol{nullptr};
+    union {
+      unsigned flags;
+      struct {
+        unsigned is_destructor_id: 1;
+        unsigned want_qualified_lookup: 1;
+        unsigned want_template_id: 1;
+      };
+    };
+
+    inline explicit NameAttrs(NameAST* ast = nullptr)
+      : ast(ast), flags(0) {}
+
+    void reset(Scope* scope = nullptr) {
+      this->ast = nullptr;
+      this->scope = scope;
+      this->symbol = nullptr;
+      this->flags = 0;
+    }
+
+    inline NameAST* operator->() const { return ast; }
+    inline NameAST* operator*() const { return ast; }
+
+    inline operator NameAST*() const { return ast; }
+    inline NameAttrs& operator=(NameAST* ast) {
+      this->ast = ast;
+      return *this;
+    }
+  };
+
   struct Specs {
     Specs(): _flags(0) {}
     QualType type;

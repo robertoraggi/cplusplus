@@ -214,7 +214,7 @@ literal(ExpressionAST*& yyast)
 
 primary_expression(ExpressionAST*& yyast)
 {
-  NameAST* name{nullptr};
+  ParseContext::NameAttrs name{nullptr};
   ExpressionAST* e{nullptr};
 }
 : literal(yyast)
@@ -243,33 +243,43 @@ scope
 : colon_colon
 ;
 
-explict_template_or_unqualified_id(NameAST*& yyast)
-: template simple_template_id(yyast)
+explicit_template_or_unqualified_id(ParseContext::NameAttrs& yyast)
+: template / (identifier less) { yyast.want_template_id = true; } simple_template_id(yyast)
 | unqualified_id(yyast)
 ;
 
-name(NameAST*& yyast)
+name(ParseContext::NameAttrs& yyast)
 {
-    NameAST* n{nullptr};
+  ParseContext::NameAttrs n{nullptr};
+
+  if (! yyast.scope)
+    yyast.scope = scope;
 }
-: scope? explict_template_or_unqualified_id(yyast)
-        (colon_colon explict_template_or_unqualified_id(n)
-            {
-                auto ast = new (pool) QualifiedNameAST;
-                ast->base = yyast;
-                ast->name = n;
-                yyast = ast;
-            }
+: (scope { yyast.scope = globalScope; yyast.want_qualified_lookup = true; })?
+        explicit_template_or_unqualified_id(yyast)
+        (colon_colon
+          {
+            auto currentScope = yyast.symbol ? yyast.symbol->asScope() : nullptr;
+            n.reset(currentScope);
+            n.want_qualified_lookup = true;
+          }
+         explicit_template_or_unqualified_id(n)
+          {
+            auto ast = new (pool) QualifiedNameAST;
+            ast->base = yyast;
+            ast->name = n;
+            yyast = ast;
+          }
         )*
 ;
 
-class_or_namespace_name(NameAST*& yyast)
+class_or_namespace_name(ParseContext::NameAttrs& yyast)
 : simple_name(yyast) colon_colon
 | template? simple_template_id(yyast) colon_colon
 | decltype_specifier(yyast) colon_colon
 ;
 
-simple_name(NameAST*& yyast)
+simple_name(ParseContext::NameAttrs& yyast)
 : identifier
     {
         auto ast = new (pool) SimpleNameAST;
@@ -278,7 +288,7 @@ simple_name(NameAST*& yyast)
     }
 ;
 
-unqualified_id(NameAST*& yyast)
+unqualified_id(ParseContext::NameAttrs& yyast)
 : template_id(yyast)
 | simple_name(yyast)
 | destructor_id(yyast)
@@ -287,15 +297,16 @@ unqualified_id(NameAST*& yyast)
 | conversion_function_id(yyast)
 ;
 
-destructor_id(NameAST*& yyast)
+destructor_id(ParseContext::NameAttrs& yyast)
 {
-    NameAST* n{nullptr};
+    ParseContext::NameAttrs n{nullptr};
 }
 : tilde unqualified_id(n)
     {
         auto ast = new (pool) DestructorNameAST;
         ast->name = n;
         yyast = ast;
+        yyast.is_destructor_id = true;
     }
 ;
 
@@ -392,7 +403,7 @@ postfix_expression(ExpressionAST*& yyast)
   unsigned incr_token{0};
   ExpressionAST* e{nullptr};
   List<ExpressionAST*>* args{nullptr};
-  NameAST* name{nullptr};
+  ParseContext::NameAttrs name{nullptr};
 }
 : postfix_base_expression(yyast)
     (lparen expression_list(args)? rparen
@@ -433,7 +444,7 @@ unary_expression(ExpressionAST*& yyast)
   unsigned op_token{0};
   TypeIdAST* t{nullptr};
   ExpressionAST* e{nullptr};
-  NameAST* name{nullptr};
+  ParseContext::NameAttrs name{nullptr};
 }
 : (plus_plus | minus_minus | star | amp | plus | minus | exclaim | tilde)
   parsed_token(&op_token)
@@ -620,7 +631,7 @@ labeled_statement(StatementAST*& yyast)
 {
   ExpressionAST* e{nullptr};
   StatementAST* s{nullptr};
-  NameAST* n{nullptr};
+  ParseContext::NameAttrs n{nullptr};
 }
 : attribute_specifier_seq
     (simple_name(n) colon statement(s)
@@ -856,7 +867,7 @@ for_range_initializer(ExpressionAST*& yyast)
 
 jump_statement(StatementAST*& yyast)
 {
-  NameAST* name{nullptr};
+  ParseContext::NameAttrs name{nullptr};
   ExpressionAST* e{nullptr};
 }
 : break semicolon
@@ -1118,7 +1129,7 @@ block_declaration(DeclarationAST*& yyast)
 
 alias_declaration(DeclarationAST*& yyast)
 {
-    NameAST* name{nullptr};
+    ParseContext::NameAttrs name{nullptr};
     TypeIdAST* t{nullptr};
 }
 : using simple_name(name) attribute_specifier_seq equal type_id(t) semicolon
@@ -1267,7 +1278,7 @@ type_specifier(SpecifierAST*& yyast)
 
 type_specifier_no_simple_type_spec(SpecifierAST*& yyast)
 {
-    NameAST* name{nullptr};
+    ParseContext::NameAttrs name{nullptr};
 }
 : class_specifier(yyast)
 | enum_specifier(yyast)
@@ -1316,7 +1327,7 @@ simple_type_specifier(SpecifierAST*& yyast)
     }
 ;
 
-decltype_specifier(NameAST*& yyast)
+decltype_specifier(ParseContext::NameAttrs& yyast)
 {
   ExpressionAST* e{nullptr};
 }
@@ -1336,7 +1347,7 @@ decltype_specifier(NameAST*& yyast)
 elaborated_type_specifier(SpecifierAST*& yyast)
 {
   unsigned k{0};
-  NameAST* name{nullptr};
+  ParseContext::NameAttrs name{nullptr};
 }
 : class_key parsed_token(&k) attribute_specifier_seq name(name)
     {
@@ -1355,7 +1366,7 @@ elaborated_type_specifier(SpecifierAST*& yyast)
 
 enum_specifier(SpecifierAST*& yyast)
 {
-    NameAST* name{nullptr};
+    ParseContext::NameAttrs name{nullptr};
     List<EnumeratorAST*>* enums{nullptr};
     auto it = &enums;
     List<SpecifierAST*>* specs{nullptr};
@@ -1385,7 +1396,7 @@ enum_specifier(SpecifierAST*& yyast)
 
 enumerator_definition(EnumeratorAST*& yyast)
 {
-    NameAST* name{nullptr};
+    ParseContext::NameAttrs name{nullptr};
     ExpressionAST* e{nullptr};
 }
 : simple_name(name) (equal constant_expression(e))?
@@ -1399,7 +1410,7 @@ enumerator_definition(EnumeratorAST*& yyast)
 
 namespace_definition(DeclarationAST*& yyast)
 {
-  NameAST* n{nullptr};
+  ParseContext::NameAttrs n{nullptr};
   List<DeclarationAST*>* declaration_list{nullptr};
   auto it = &declaration_list;
   DeclarationAST* d{nullptr};
@@ -1436,8 +1447,8 @@ namespace_definition(DeclarationAST*& yyast)
 
 namespace_alias_definition(DeclarationAST*& yyast)
 {
-    NameAST* alias_name{nullptr};
-    NameAST* name{nullptr};
+    ParseContext::NameAttrs alias_name{nullptr};
+    ParseContext::NameAttrs name{nullptr};
 }
 : namespace simple_name(name) equal name(name) semicolon
     {
@@ -1450,7 +1461,7 @@ namespace_alias_definition(DeclarationAST*& yyast)
 
 using_declaration(DeclarationAST*& yyast)
 {
-    NameAST* name{nullptr};
+    ParseContext::NameAttrs name{nullptr};
 }
 : using typename? name(name) semicolon
     {
@@ -1462,7 +1473,7 @@ using_declaration(DeclarationAST*& yyast)
 
 using_directive(DeclarationAST*& yyast)
 {
-    NameAST* name{nullptr};
+    ParseContext::NameAttrs name{nullptr};
 }
 : attribute_specifier_seq using namespace name(name) semicolon
     {
@@ -1677,7 +1688,7 @@ ptr_operator(PtrOperatorAST*& yyast)
   SpecifierAST* spec{nullptr};
   List<SpecifierAST*>* cv{nullptr};
   auto it = &cv;
-  NameAST* n{nullptr};
+  ParseContext::NameAttrs n{nullptr};
   List<NameAST*>* nested_name_specifier{nullptr};
   auto x = &nested_name_specifier;
 }
@@ -1738,7 +1749,7 @@ ref_qualifier
 
 declarator_id(CoreDeclaratorAST*& yyast)
 {
-    NameAST* name{nullptr};
+    ParseContext::NameAttrs name{nullptr};
 }
 : dot_dot_dot? name(name)
     {
@@ -1987,7 +1998,7 @@ class_specifier(SpecifierAST*& yyast)
   DeclarationAST* d{nullptr};
   List<DeclarationAST*>* declaration_list{nullptr};
   auto it = &declaration_list;
-  NameAST* name{nullptr};
+  ParseContext::NameAttrs name{nullptr};
   List<BaseClassAST*>* b{nullptr};
   unsigned yypos{0};
   EnterScope enterScope;
@@ -2091,7 +2102,7 @@ base_specifier_list(List<BaseClassAST*>*& yyast, ClassSymbol* klass)
 
 base_specifier(BaseClassAST*& yyast, ClassSymbol* klass)
 {
-    NameAST* name{nullptr};
+    ParseContext::NameAttrs name{nullptr};
 }
 : attribute_specifier_seq (virtual | public | protected | private)*
   base_type_specifier(name)
@@ -2106,12 +2117,12 @@ base_specifier(BaseClassAST*& yyast, ClassSymbol* klass)
     }
 ;
 
-base_type_specifier(NameAST*& yyast)
+base_type_specifier(ParseContext::NameAttrs& yyast)
 : name(yyast)
 | decltype_specifier(yyast)
 ;
 
-conversion_function_id(NameAST*& yyast)
+conversion_function_id(ParseContext::NameAttrs& yyast)
 {
   List<SpecifierAST*>* specifier_list{nullptr};
   PtrOperatorAST* ptr_op{nullptr};
@@ -2164,7 +2175,7 @@ mem_initializer_list(List<MemInitializerAST*>*& yyast)
 
 mem_initializer(MemInitializerAST*& yyast)
 {
-  NameAST* n{nullptr};
+  ParseContext::NameAttrs n{nullptr};
   List<ExpressionAST*>* args{nullptr};
   ExpressionAST* e{nullptr};
 }
@@ -2177,12 +2188,12 @@ mem_initializer(MemInitializerAST*& yyast)
     }
 ;
 
-mem_initializer_id(NameAST*& yyast)
+mem_initializer_id(ParseContext::NameAttrs& yyast)
 : name(yyast)
 | decltype_specifier(yyast)
 ;
 
-operator_function_id(NameAST*& yyast)
+operator_function_id(ParseContext::NameAttrs& yyast)
 {
   TokenKind op{T_ERROR};
 }
@@ -2320,7 +2331,7 @@ type_parameter(DeclarationAST*& yyast, TemplateSymbol* templ)
   DeclarationAST* p{nullptr};
   List<DeclarationAST*>* params{nullptr};
   auto it = &params;
-  NameAST* n{nullptr};
+  ParseContext::NameAttrs n{nullptr};
   TemplateTypeParameterSymbol* templTypeParam{nullptr};
 }
 : ((class | typename) dot_dot_dot? simple_name(n)? (equal type_id(t))?) / (comma | greater)
@@ -2365,7 +2376,7 @@ type_parameter(DeclarationAST*& yyast, TemplateSymbol* templ)
     }
 ;
 
-template_id(NameAST*& yyast)
+template_id(ParseContext::NameAttrs& yyast)
 {
   List<ExpressionAST*>* args{nullptr};
   auto it = &args;
@@ -2392,12 +2403,12 @@ template_id(NameAST*& yyast)
         }
 ;
 
-simple_template_id(NameAST*& yyast)
+simple_template_id(ParseContext::NameAttrs& yyast)
 {
   List<ExpressionAST*>* args{nullptr};
   auto it = &args;
   ExpressionAST* e{nullptr};
-  NameAST* name{nullptr};
+  ParseContext::NameAttrs name{nullptr};
 }
 : simple_name(name) less
     (template_argument(e)
@@ -2430,7 +2441,7 @@ template_argument(ExpressionAST*& yyast)
 
 typename_specifier(SpecifierAST*& yyast)
 {
-    NameAST* name{nullptr};
+    ParseContext::NameAttrs name{nullptr};
 }
 : typename name(name)
     {
