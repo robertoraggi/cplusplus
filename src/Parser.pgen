@@ -1033,6 +1033,12 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
     |
       { return true; } / (lparen | lbrace | comma | semicolon | colon | equal | try)
         {
+          if (scope->isBlockSymbol() && yytoken() == T_SEMICOLON && (d && d->core_declarator->isNestedDeclarator())) {
+            if (specifier_list && ! specifier_list->next && specifier_list->value->asNamedSpecifier()) {
+              return false;
+            }
+          }
+
           if (! d)
             d = new (pool) DeclaratorAST;
 
