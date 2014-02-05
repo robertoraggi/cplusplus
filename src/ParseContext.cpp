@@ -95,6 +95,10 @@ public:
       printf("todo decltype auto name\n");
       break;
 
+    case ASTKind::kConversionFunctionId:
+      printf("todo conversion function id\n");
+      break;
+
     default:
       assert(!"unreachable");
     } // switch
