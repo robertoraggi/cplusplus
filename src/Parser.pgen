@@ -699,8 +699,16 @@ selection_statement(StatementAST*& yyast)
   ExpressionAST* e{nullptr};
   StatementAST* s1{nullptr};
   StatementAST* s2{nullptr};
+  EnterScope enterScope;
 }
-: if lparen condition(e) rparen statement(s1) (else statement(s2))?
+: if lparen
+    {
+      auto block = control->newBlock();
+      block->setEnclosingScope(scope);
+      scope->addSymbol(block);
+      enterScope(this, block);
+    }
+  condition(e) rparen statement(s1) (else statement(s2))?
     {
       auto ast = new (pool) IfStatementAST;
       ast->condition = e;
@@ -708,7 +716,14 @@ selection_statement(StatementAST*& yyast)
       ast->else_statement = s2;
       yyast = ast;
     }
-| switch lparen condition(e) rparen statement(s1)
+| switch
+    {
+      auto block = control->newBlock();
+      block->setEnclosingScope(scope);
+      scope->addSymbol(block);
+      enterScope(this, block);
+    }
+  lparen condition(e) rparen statement(s1)
     {
       auto ast = new (pool) SwitchStatementAST;
       ast->condition = e;
@@ -751,8 +766,16 @@ iteration_statement(StatementAST*& yyast)
   ExpressionAST* e2{nullptr};
   StatementAST* s1{nullptr};
   StatementAST* s2{nullptr};
+  EnterScope enterScope;
 }
-: while lparen condition(e1) rparen statement(s1)
+: while
+    {
+      auto block = control->newBlock();
+      block->setEnclosingScope(scope);
+      scope->addSymbol(block);
+      enterScope(this, block);
+    }
+  lparen condition(e1) rparen statement(s1)
     {
       auto ast = new (pool) WhileStatementAST;
       ast->condition = e1;
@@ -766,16 +789,14 @@ iteration_statement(StatementAST*& yyast)
       ast->expression = e1;
       yyast = ast;
     }
-| for lparen for_init_statement(s1) condition(e1)? semicolon expression(e2)? rparen statement(s2)
+| for lparen
     {
-      auto ast = new (pool) ForStatementAST;
-      ast->initializer = s1;
-      ast->condition = e1;
-      ast->expression = e2;
-      ast->statement = s2;
-      yyast = ast;
+      auto block = control->newBlock();
+      block->setEnclosingScope(scope);
+      scope->addSymbol(block);
+      enterScope(this, block);
     }
-| for lparen for_range_declaration(d) colon for_range_initializer(e1) rparen statement(s1)
+  (for_range_declaration(d) colon for_range_initializer(e1) rparen statement(s1)
     {
       auto ast = new (pool) ForRangeStatementAST;
       ast->initializer = d;
@@ -783,6 +804,15 @@ iteration_statement(StatementAST*& yyast)
       ast->statement = s1;
       yyast = ast;
     }
+  | for_init_statement(s1) condition(e1)? semicolon expression(e2)? rparen statement(s2)
+    {
+      auto ast = new (pool) ForStatementAST;
+      ast->initializer = s1;
+      ast->condition = e1;
+      ast->expression = e2;
+      ast->statement = s2;
+      yyast = ast;
+    })
 ;
 
 for_init_statement(StatementAST*& yyast)
