@@ -147,7 +147,8 @@ void TypeToString::visit(const RValueReferenceType* type) {
 void TypeToString::visit(const BoundedArrayType* type) {
   std::string subscript;
   subscript += '[';
-  subscript += std::to_string(type->size());
+  if (type->size())
+    subscript += std::to_string(type->size());
   subscript += ']';
   text = print(type->elementType(), decl + subscript);
 }

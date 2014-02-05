@@ -159,6 +159,7 @@ void Function::dump(std::ostream& out) {
     auto cj = t->asCJump();
     if (j && j->target() == nextBlock) {
       // nothing to do
+      out << std::endl;
     } else if (cj && cj->iffalse() == nextBlock) {
       out << "\tif (";
       cj->expr()->dump(out);
@@ -171,7 +172,6 @@ void Function::dump(std::ostream& out) {
       out << '\t';
       t->dump(out);
     }
-    out << std::endl;
   }
 }
 
