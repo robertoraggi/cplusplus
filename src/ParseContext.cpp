@@ -95,9 +95,10 @@ public:
       printf("todo decltype auto name\n");
       break;
 
-    case ASTKind::kConversionFunctionId:
-      printf("todo conversion function id\n");
-      break;
+    case ASTKind::kConversionFunctionId: {
+      auto conv = ast->asConversionFunctionId();
+      return control()->getConversionName(conv->type);
+    }
 
     default:
       assert(!"unreachable");

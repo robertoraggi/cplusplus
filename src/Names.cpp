@@ -36,6 +36,11 @@ std::string OperatorName::toString() const {
   return s;
 }
 
+std::string ConversionName::toString() const {
+  TypeToString typeToString;
+  return "operator " + typeToString(type(), nullptr);
+}
+
 std::string DestructorName::toString() const {
   return "~" + name()->toString();
 }

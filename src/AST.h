@@ -216,7 +216,7 @@ struct OperatorNameAST final: ExtendsAST<ASTKind::kOperatorName, NameAST> {
 struct ConversionFunctionIdAST final: ExtendsAST<ASTKind::kConversionFunctionId, NameAST> {
   unsigned operator_token{0};
   List<SpecifierAST*>* specifier_list{nullptr};
-  List<PtrOperatorAST*>* ptr_op_list{nullptr};
+  DeclaratorAST* declarator{nullptr};
   QualType type;
 };
 

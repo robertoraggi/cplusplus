@@ -2083,12 +2083,12 @@ base_type_specifier(NameAST*& yyast)
 
 conversion_function_id(NameAST*& yyast)
 {
-  List<SpecifierAST*>* specs{nullptr};
+  List<SpecifierAST*>* specifier_list{nullptr};
   PtrOperatorAST* ptr_op{nullptr};
   List<PtrOperatorAST*>* ptr_op_list{nullptr};
   auto it = &ptr_op_list;
 }
-: operator type_specifier_list(specs)
+: operator type_specifier_list(specifier_list)
       (ptr_operator(ptr_op)
         {
           *it = new (pool) List<PtrOperatorAST*>(ptr_op);
@@ -2096,9 +2096,16 @@ conversion_function_id(NameAST*& yyast)
         }
       )*
     {
+      auto declarator = new (pool) DeclaratorAST;
+      declarator->ptr_op_list = ptr_op_list;
       auto ast = new (pool) ConversionFunctionIdAST;
-      ast->specifier_list = specs;
-      ast->ptr_op_list = ptr_op_list;
+      ast->specifier_list = specifier_list;
+      ast->declarator = declarator;
+
+      auto specs = context.specifiers(specifier_list);
+      auto decl = context.declarator(specs, declarator);
+      ast->type = decl.specs.type;
+
       yyast = ast;
     }
 ;

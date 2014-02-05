@@ -103,6 +103,10 @@ std::string Mangler::mangleOperatorName(const OperatorName* name, const QualType
   return "!";
 }
 
+std::string Mangler::mangleConversionName(const ConversionName* name, const QualType& type) {
+  return "@conv-name@";
+}
+
 std::string Mangler::mangleQualifiedName(const QualifiedName* name, const QualType& type) {
   return "@qualified-name@";
 }

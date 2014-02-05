@@ -71,6 +71,15 @@ public:
   std::string toString() const override;
 };
 
+class ConversionName final
+    : public ExtendsName<NameKind::kConversionName>
+    , public std::tuple<QualType> {
+public:
+  using tuple::tuple;
+  inline QualType type() const { return std::get<0>(*this); }
+  std::string toString() const override;
+};
+
 class DestructorName final
     : public ExtendsName<NameKind::kDestructorName>
     , public std::tuple<const Name*> {

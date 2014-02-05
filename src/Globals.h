@@ -122,6 +122,7 @@
   V(Identifier) \
   V(DestructorName) \
   V(OperatorName) \
+  V(ConversionName) \
   V(QualifiedName) \
   V(TemplateName)
 
