@@ -29,11 +29,11 @@ struct ParseContext {
   ParseContext() = default;
 
   struct Specs {
-    Specs() = default;
+    Specs(): _flags(0) {}
     QualType type;
     TokenKind storageSpec{T_EOF_SYMBOL};
     union {
-      unsigned _flags{0};
+      unsigned _flags;
       struct {
         unsigned isInline: 1;
         unsigned isTypedef: 1;
