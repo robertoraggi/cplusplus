@@ -701,7 +701,9 @@ void Codegen::visit(SwitchStatementAST* ast) {
   CollectCaseStatements collectCaseStatements{unit};
   collectCaseStatements(ast->statement);
 
-  auto lhs = expression(ast->condition);
+  auto r = expression(ast->condition);
+  auto lhs = newTemp();
+  _block->emitMove(lhs, *r);
 
   std::vector<std::tuple<CaseStatementAST*, IR::BasicBlock*, IR::BasicBlock*>> cases;
   IR::BasicBlock* defaultCase = collectCaseStatements.defaultStatement ? _function->newBasicBlock() : endswitch;
@@ -722,7 +724,7 @@ void Codegen::visit(SwitchStatementAST* ast) {
     auto next = it != _cases.end() ? std::get<1>(*it) : _defaultCase;
     place(entry);
     auto rhs = expression(ast->expression);
-    _block->emitCJump(_function->getBinop(T_EQUAL_EQUAL, *lhs, *rhs), body, next);
+    _block->emitCJump(_function->getBinop(T_EQUAL_EQUAL, lhs, *rhs), body, next);
   }
 
   Loop loop{endswitch, _loop.continueLabel};
