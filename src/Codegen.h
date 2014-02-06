@@ -22,6 +22,7 @@
 
 #include "Globals.h"
 #include <map>
+#include <vector>
 
 class Codegen {
 public:
@@ -88,6 +89,14 @@ private:
 FOR_EACH_AST(VISIT_AST)
 #undef VISIT_AST
 
+  int indexOfCase(CaseStatementAST* ast) const {
+    for (size_t i = 0; i < _cases.size(); ++i) {
+      if (std::get<0>(_cases[i]) == ast)
+        return i;
+    }
+    return -1;
+  }
+
 private:
   struct Loop {
     IR::BasicBlock* breakLabel;
@@ -105,6 +114,8 @@ private:
   Result _result{nx};
   int _tempCount{0};
   std::map<const Name*, IR::BasicBlock*> _labels;
+  std::vector<std::tuple<CaseStatementAST*, IR::BasicBlock*, IR::BasicBlock*>> _cases;
+  IR::BasicBlock* _defaultCase{nullptr};
   Loop _loop{nullptr, nullptr};
 };
 

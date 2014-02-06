@@ -548,7 +548,11 @@ void Codegen::visit(BreakStatementAST* ast) {
 }
 
 void Codegen::visit(CaseStatementAST* ast) {
-  _block->emitExp(_function->getConst("@case-stmt"));
+  auto index = indexOfCase(ast);
+  assert(index != -1);
+  auto&& info = _cases[index];
+  auto body = std::get<2>(info);
+  place(body);
   statement(ast->statement);
 }
 
@@ -570,7 +574,8 @@ void Codegen::visit(DeclarationStatementAST* ast) {
 }
 
 void Codegen::visit(DefaultStatementAST* ast) {
-  _block->emitExp(_function->getConst("@default-stmt"));
+  place(_defaultCase);
+  statement(ast->statement);
 }
 
 void Codegen::visit(DoStatementAST* ast) {
@@ -660,8 +665,76 @@ void Codegen::visit(ReturnStatementAST* ast) {
   _block->emitJump(_exitBlock);
 }
 
+namespace {
+
+struct CollectCaseStatements final: RecursiveASTVisitor {
+  std::vector<CaseStatementAST*> cases;
+  DefaultStatementAST* defaultStatement{nullptr};
+  bool done{false};
+
+  using RecursiveASTVisitor::RecursiveASTVisitor;
+
+  void operator()(AST* ast) { accept(ast); }
+
+  bool preVisit(AST* ast) override {
+    if (! ast || done)
+      return false;
+    if (ast->isSwitchStatement()) {
+      done = true;
+      return false;
+    }
+    if (auto s = ast->asCaseStatement())
+      cases.push_back(s);
+    else if (auto s = ast->asDefaultStatement()) {
+      assert(! defaultStatement);
+      defaultStatement = s;
+    }
+    return true;
+  }
+};
+
+} // end of anonymous namespace
+
 void Codegen::visit(SwitchStatementAST* ast) {
-  _block->emitExp(_function->getConst("@switch-stmt"));
+  auto endswitch = _function->newBasicBlock();
+
+  CollectCaseStatements collectCaseStatements{unit};
+  collectCaseStatements(ast->statement);
+
+  auto lhs = expression(ast->condition);
+
+  std::vector<std::tuple<CaseStatementAST*, IR::BasicBlock*, IR::BasicBlock*>> cases;
+  IR::BasicBlock* defaultCase = collectCaseStatements.defaultStatement ? _function->newBasicBlock() : endswitch;
+  std::swap(_cases, cases);
+  std::swap(_defaultCase, defaultCase);
+
+  for (auto&& c: collectCaseStatements.cases) {
+    auto entry = _function->newBasicBlock();
+    auto body = _function->newBasicBlock();
+    _cases.emplace_back(c, entry, body);
+  }
+
+  for (auto it = _cases.begin(); it != _cases.end();) {
+    auto&& c = *it++;
+    auto ast = std::get<0>(c);
+    auto entry = std::get<1>(c);
+    auto body = std::get<2>(c);
+    auto next = it != _cases.end() ? std::get<1>(*it) : _defaultCase;
+    place(entry);
+    auto rhs = expression(ast->expression);
+    _block->emitCJump(_function->getBinop(T_EQUAL_EQUAL, *lhs, *rhs), body, next);
+  }
+
+  Loop loop{endswitch, _loop.continueLabel};
+
+  std::swap(_loop, loop);
+  statement(ast->statement);
+  std::swap(_loop, loop);
+
+  std::swap(_cases, cases);
+  std::swap(_defaultCase, defaultCase);
+
+  place(endswitch);
 }
 
 void Codegen::visit(TryBlockStatementAST* ast) {
