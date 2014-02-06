@@ -163,11 +163,11 @@ void Function::dump(std::ostream& out) {
     } else if (cj && cj->iffalse() == nextBlock) {
       out << "\tif (";
       cj->expr()->dump(out);
-      out << ") goto .L" << cj->iftrue()->index << std::endl;
+      out << ") goto .L" << cj->iftrue()->index << ';' << std::endl;
     } else if (cj && cj->iftrue() == nextBlock) {
       out << "\tiffalse (";
       cj->expr()->dump(out);
-      out << ") goto .L" << cj->iffalse()->index << std::endl;
+      out << ") goto .L" << cj->iffalse()->index << ';' << std::endl;
     } else {
       out << '\t';
       t->dump(out);
