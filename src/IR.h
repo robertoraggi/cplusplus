@@ -71,12 +71,17 @@ struct Stmt {
   Stmt(StmtKind kind): _kind(kind) {}
   virtual ~Stmt() = default;
 
+  inline StmtKind kind() const { return _kind; }
+
 #define VISIT_IR_STMT(T) \
   inline bool is##T() const { \
     return _kind == StmtKind::k##T; \
   } \
   inline const T* as##T() const { \
     return is##T() ? reinterpret_cast<const T*>(this) : nullptr; \
+  } \
+  inline T* as##T() { \
+    return is##T() ? reinterpret_cast<T*>(this) : nullptr; \
   }
   FOR_EACH_IR_STMT(VISIT_IR_STMT)
 #undef VISIT_IR_STMT
@@ -90,6 +95,8 @@ private:
 struct Expr {
   Expr(ExprKind kind): _kind(kind) {}
   virtual ~Expr() = default;
+
+  inline ExprKind kind() const { return _kind; }
 
 #define VISIT_IR_EXPR(T) \
   inline bool is##T() const { \
@@ -126,36 +133,59 @@ struct Terminator: Stmt {
 
 struct Exp final: ExtendsStmt<StmtKind::kExp>, std::tuple<const Expr*> {
   using tuple::tuple;
+
   const Expr* expr() const { return std::get<0>(*this); }
+  void setExpr(const Expr* expr) { std::get<0>(*this) = expr; }
+
   void dump(std::ostream& out) const override;
 };
 
 struct Move final: ExtendsStmt<StmtKind::kMove>, std::tuple<const Expr*, const Expr*, TokenKind> {
   Move(const Expr* target, const Expr* source, TokenKind op = T_EQUAL)
     : tuple(target, source, op) {}
+
   const Expr* target() const { return std::get<0>(*this); }
+  void setTarget(const Expr* target) { std::get<0>(*this) = target; }
+
   const Expr* source() const { return std::get<1>(*this); }
+  void setSource(const Expr* source) { std::get<1>(*this) = source; }
+
   TokenKind op() const { auto op = std::get<2>(*this); return op ? op : T_EQUAL; }
+  void setOp(TokenKind op) { std::get<2>(*this) = op; }
+
   void dump(std::ostream& out) const override;
 };
 
 struct Ret final: ExtendsStmt<StmtKind::kRet, Terminator>, std::tuple<const Expr*> {
   using tuple::tuple;
+
   const Expr* expr() const { return std::get<0>(*this); }
+  void setExpr(const Expr* expr) { std::get<0>(*this) = expr; }
+
   void dump(std::ostream& out) const override;
 };
 
 struct Jump final: ExtendsStmt<StmtKind::kJump, Terminator>, std::tuple<BasicBlock*> {
   using tuple::tuple;
+
   BasicBlock* target() const { return std::get<0>(*this); }
+  void setTarget(BasicBlock* target) { std::get<0>(*this) = target; }
+
   void dump(std::ostream& out) const override;
 };
 
 struct CJump final: ExtendsStmt<StmtKind::kCJump, Terminator>, std::tuple<const Expr*, BasicBlock*, BasicBlock*> {
   using tuple::tuple;
+
   const Expr* expr() const { return std::get<0>(*this); }
+  void setExpr(const Expr* expr) { std::get<0>(*this) = expr; }
+
   BasicBlock* iftrue() const { return std::get<1>(*this); }
+  void setIftrue(BasicBlock* iftrue) { std::get<1>(*this) = iftrue; }
+
   BasicBlock* iffalse() const { return std::get<2>(*this); }
+  void setIffalse(BasicBlock* iffalse) { std::get<2>(*this) = iffalse; }
+
   void dump(std::ostream& out) const override;
 };
 
@@ -244,6 +274,8 @@ struct Function final: std::vector<BasicBlock*> {
 
   BasicBlock* newBasicBlock();
   void placeBasicBlock(BasicBlock* basicBlock);
+
+  void removeUnreachableBasicBlocks();
 
   void dump(std::ostream& out);
 

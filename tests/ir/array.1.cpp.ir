@@ -5,7 +5,7 @@ void foo(double [][], int [], double []) {
 	@decl-stmt;
 	i = 0;
 
-.L1:	iffalse ((i < N)) goto .L12;
+.L1:	iffalse ((i < N)) goto .L13;
 .L2:	index[i] = 0;
 	x = a[i][0];
 	iffalse ((x < 0)) goto .L4;
@@ -27,7 +27,6 @@ void foo(double [][], int [], double []) {
 	goto .L5;
 .L11:	i = (i + 1);
 	goto .L1;
-.L12:
 .L13:	return $0;
 }
 

@@ -197,6 +197,7 @@ void Codegen::visit(FunctionDefinitionAST* ast) {
   place(_exitBlock);
   _block->emitRet(_exitValue);
 
+  _function->removeUnreachableBasicBlocks();
   _function->dump(std::cout);
 
   std::swap(_function, function);

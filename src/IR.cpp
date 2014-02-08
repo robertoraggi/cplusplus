@@ -141,6 +141,47 @@ void Binop::dump(std::ostream& out) const {
   out << ')';
 }
 
+void Function::removeUnreachableBasicBlocks() {
+  std::set<IR::BasicBlock*> toremove;
+  bool changed;
+  do {
+    changed = false;
+    for (auto&& block: *this) {
+      if (auto j = block->terminator()->asJump()) {
+        if (j->target()->size() == 1) {
+          if (auto jj = j->target()->front()->asJump()) {
+            toremove.insert(j->target());
+            j->setTarget(jj->target());
+            changed = true;
+          }
+        }
+      } else if (auto cj = block->terminator()->asCJump()) {
+        if (cj->iftrue()->size() == 1) {
+          if (auto jj = cj->iftrue()->front()->asJump()) {
+            toremove.insert(cj->iftrue());
+            cj->setIftrue(jj->target());
+            changed = true;
+          }
+        }
+        if (cj->iffalse()->size() == 1) {
+          if (auto jj = cj->iffalse()->front()->asJump()) {
+            toremove.insert(cj->iffalse());
+            cj->setIffalse(jj->target());
+            changed = true;
+          }
+        }
+      }
+    }
+  } while (changed);
+  for (auto&& block: toremove) {
+    auto it = std::find(begin(), end(), block);
+    if (it != end()) {
+      erase(it);
+      delete block;
+    }
+  }
+}
+
 void Function::dump(std::ostream& out) {
   auto it = begin();
   while (it != end()) {
