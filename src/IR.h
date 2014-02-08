@@ -287,9 +287,22 @@ struct Function final: std::vector<BasicBlock*> {
     }
   };
 
+  template <typename T>
+  struct Sequence final: std::forward_list<T> {
+    template <typename...Args>
+    T* operator()(Args&&...args) {
+      auto node = &*this->emplace_after(this->before_begin(), std::forward<Args>(args)...);
+      return node;
+    }
+  };
+
 #define VISIT_IR_EXPR(T) Table<T> get##T;
   FOR_EACH_IR_EXPR(VISIT_IR_EXPR)
 #undef VISIT_IR_EXPR
+
+#define VISIT_IR_STMT(T) Sequence<T> new##T;
+  FOR_EACH_IR_STMT(VISIT_IR_STMT)
+#undef VISIT_IR_STMT
 };
 
 struct BasicBlock final: std::vector<Stmt*> {
@@ -307,23 +320,14 @@ struct BasicBlock final: std::vector<Stmt*> {
     return terminator() != nullptr;
   }
 
-  template <typename T>
-  struct Sequence final: std::forward_list<T> {
-    BasicBlock* basicBlock;
-
-    Sequence(BasicBlock* basicBlock)
-      : basicBlock(basicBlock) {}
-
-    template <typename...Args>
-    void operator()(Args&&...args) {
-      if (basicBlock->isTerminated())
-        return;
-      auto node = &*this->emplace_after(this->before_begin(), std::forward<Args>(args)...);
-      basicBlock->push_back(node);
-    }
-  };
-
-#define VISIT_IR_STMT(T) Sequence<T> emit##T{this};
+#define VISIT_IR_STMT(T) \
+  template <typename...Args> \
+  void emit##T(Args&&...args) { \
+    if (isTerminated()) \
+      return; \
+    auto node = function->new##T(std::forward<Args>(args)...); \
+    push_back(node); \
+  }
   FOR_EACH_IR_STMT(VISIT_IR_STMT)
 #undef VISIT_IR_STMT
 };
