@@ -164,13 +164,13 @@ bool Parser::yyparse(TranslationUnit* u, const std::function<void(TranslationUni
   return parsed;
 }
 
-bool Parser::parseBinaryExpression(ExpressionAST*& yyast, bool templArg, int minPrec) {
+bool Parser::parseBinaryExpression(ParseContext::ExprAttrs& yyast, bool templArg, int minPrec) {
   if (! parse_cast_expression(yyast))
     return false;
   return parseBinaryExpressionHelper(yyast, templArg, minPrec);
 }
 
-bool Parser::parseBinaryExpressionHelper(ExpressionAST*& yyast, bool templArg, int minPrec) {
+bool Parser::parseBinaryExpressionHelper(ParseContext::ExprAttrs& yyast, bool templArg, int minPrec) {
   int prec, nextPrec;
   while (prec = precedence(), prec >= minPrec) {
     auto saved = yycursor;
@@ -188,7 +188,7 @@ bool Parser::parseBinaryExpressionHelper(ExpressionAST*& yyast, bool templArg, i
 
     ++yycursor;
     unsigned colon_token{0};
-    ExpressionAST* iftrue_expression{nullptr};
+    ParseContext::ExprAttrs iftrue_expression{nullptr};
 
     if (op == T_QUESTION) {
       auto parsed = parse_expression(iftrue_expression);
@@ -197,7 +197,7 @@ bool Parser::parseBinaryExpressionHelper(ExpressionAST*& yyast, bool templArg, i
       colon_token = yycursor++;
     }
 
-    ExpressionAST* rhs{nullptr};
+    ParseContext::ExprAttrs rhs{nullptr};
     auto e = parse_cast_expression(rhs);
     if (! e) {
       yycursor = saved;

@@ -61,6 +61,33 @@ struct ParseContext {
     }
   };
 
+  struct ExprAttrs {
+    ExpressionAST* ast;
+    union {
+      unsigned flags;
+      struct {
+        unsigned want_constant_expr: 1;
+      };
+    };
+
+    inline explicit ExprAttrs(ExpressionAST* ast = nullptr)
+      : ast(ast), flags(0) {}
+
+    void reset(Scope* scope = nullptr) {
+      this->ast = nullptr;
+      this->flags = 0;
+    }
+
+    inline ExpressionAST* operator->() const { return ast; }
+    inline ExpressionAST* operator*() const { return ast; }
+
+    inline operator ExpressionAST*() const { return ast; }
+    inline ExprAttrs& operator=(ExpressionAST* ast) {
+      this->ast = ast;
+      return *this;
+    }
+  };
+
   struct Specs {
     Specs(): _flags(0) {}
     QualType type;

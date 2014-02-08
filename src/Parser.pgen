@@ -155,8 +155,8 @@
   inline Assoc assoc();
   inline int precedence();
 
-  bool parseBinaryExpression(ExpressionAST*& yyast, bool templArg, int minPrec);
-  bool parseBinaryExpressionHelper(ExpressionAST*& yyast, bool templArg, int minPrec);
+  bool parseBinaryExpression(ParseContext::ExprAttrs& yyast, bool templArg, int minPrec);
+  bool parseBinaryExpressionHelper(ParseContext::ExprAttrs& yyast, bool templArg, int minPrec);
 
   Arena* pool{nullptr};
   TranslationUnit* unit{nullptr};
@@ -198,7 +198,7 @@
   std::vector<FunctionSymbol*> todo;
 %}
 
-literal(ExpressionAST*& yyast)
+literal(ParseContext::ExprAttrs& yyast)
 : (string_literal+
 | int_literal
 | char_literal
@@ -212,10 +212,10 @@ literal(ExpressionAST*& yyast)
     }
 ;
 
-primary_expression(ExpressionAST*& yyast)
+primary_expression(ParseContext::ExprAttrs& yyast)
 {
   ParseContext::NameAttrs name{nullptr};
-  ExpressionAST* e{nullptr};
+  ParseContext::ExprAttrs e{nullptr};
 }
 : literal(yyast)
 | this
@@ -310,7 +310,7 @@ destructor_id(ParseContext::NameAttrs& yyast)
     }
 ;
 
-lambda_expression(ExpressionAST*& yyast)
+lambda_expression(ParseContext::ExprAttrs& yyast)
 {
   LambdaDeclaratorAST* d{nullptr};
   StatementAST* s{nullptr};
@@ -352,16 +352,16 @@ capture_default
 
 capture
 {
-  ExpressionAST* i{nullptr};
+  ParseContext::ExprAttrs i{nullptr};
 }
 : amp? identifier initializer(i)?
 | this
 ;
 
-postfix_base_expression(ExpressionAST*& yyast)
+postfix_base_expression(ParseContext::ExprAttrs& yyast)
 {
   TypeIdAST* t{nullptr};
-  ExpressionAST* e{nullptr};
+  ParseContext::ExprAttrs e{nullptr};
   List<ExpressionAST*>* args{nullptr};
   SpecifierAST* spec{nullptr};
 }
@@ -397,11 +397,11 @@ postfix_base_expression(ExpressionAST*& yyast)
     }
 ;
 
-postfix_expression(ExpressionAST*& yyast)
+postfix_expression(ParseContext::ExprAttrs& yyast)
 {
   unsigned access_token{0};
   unsigned incr_token{0};
-  ExpressionAST* e{nullptr};
+  ParseContext::ExprAttrs e{nullptr};
   List<ExpressionAST*>* args{nullptr};
   ParseContext::NameAttrs name{nullptr};
 }
@@ -439,11 +439,11 @@ postfix_expression(ExpressionAST*& yyast)
    )*
 ;
 
-unary_expression(ExpressionAST*& yyast)
+unary_expression(ParseContext::ExprAttrs& yyast)
 {
   unsigned op_token{0};
   TypeIdAST* t{nullptr};
-  ExpressionAST* e{nullptr};
+  ParseContext::ExprAttrs e{nullptr};
   ParseContext::NameAttrs name{nullptr};
 }
 : (plus_plus | minus_minus | star | amp | plus | minus | exclaim | tilde)
@@ -485,10 +485,10 @@ unary_expression(ExpressionAST*& yyast)
 | postfix_expression(yyast)
 ;
 
-new_expression(ExpressionAST*& yyast)
+new_expression(ParseContext::ExprAttrs& yyast)
 {
   TypeIdAST* t{nullptr};
-  ExpressionAST* i{nullptr};
+  ParseContext::ExprAttrs i{nullptr};
 }
 : colon_colon? new new_placement? (new_type_id new_initializer(i)?
                                  | lparen type_id(t) rparen new_initializer(i)?)
@@ -523,12 +523,12 @@ new_declarator
 
 noptr_new_declarator
 {
-  ExpressionAST* e{nullptr};
+  ParseContext::ExprAttrs e{nullptr};
 }
 : (lbracket expression(e) rbracket)+
 ;
 
-new_initializer(ExpressionAST*& yyast)
+new_initializer(ParseContext::ExprAttrs& yyast)
 {
   List<ExpressionAST*>* args{nullptr};
 }
@@ -536,9 +536,9 @@ new_initializer(ExpressionAST*& yyast)
 | braced_init_list(yyast)
 ;
 
-delete_expression(ExpressionAST*& yyast)
+delete_expression(ParseContext::ExprAttrs& yyast)
 {
-  ExpressionAST* e{nullptr};
+  ParseContext::ExprAttrs e{nullptr};
 }
 : scope? delete (lbracket rbracket)? cast_expression(e)
     {
@@ -548,9 +548,9 @@ delete_expression(ExpressionAST*& yyast)
     }
 ;
 
-noexcept_expression(ExpressionAST*& yyast)
+noexcept_expression(ParseContext::ExprAttrs& yyast)
 {
-  ExpressionAST* e{nullptr};
+  ParseContext::ExprAttrs e{nullptr};
 }
 : noexcept lparen expression(e) rparen
     {
@@ -560,10 +560,10 @@ noexcept_expression(ExpressionAST*& yyast)
     }
 ;
 
-cast_expression(ExpressionAST*& yyast)
+cast_expression(ParseContext::ExprAttrs& yyast)
 {
   TypeIdAST* t{nullptr};
-  ExpressionAST* e{nullptr};
+  ParseContext::ExprAttrs e{nullptr};
 }
 : lparen type_id(t) rparen cast_expression(e)
     {
@@ -578,27 +578,28 @@ cast_expression(ExpressionAST*& yyast)
 | unary_expression(yyast)
 ;
 
-assignment_expression(ExpressionAST*& yyast, bool inTempl)
+assignment_expression(ParseContext::ExprAttrs& yyast, bool inTempl)
 : throw_exception(yyast)
 | { return parseBinaryExpression(yyast, inTempl, /*precedence T_EQUAL*/ 110); }
 ;
 
-initializer_clause(ExpressionAST*& yyast, bool inTempl)
+initializer_clause(ParseContext::ExprAttrs& yyast, bool inTempl)
 : braced_init_list(yyast)
 | assignment_expression(yyast, inTempl)
 ;
 
-template_argument_expression(ExpressionAST*& yyast)
+template_argument_expression(ParseContext::ExprAttrs& yyast)
 : { return parseBinaryExpression(yyast, true, /*precedence T_QUESTION*/ 115); }
 ;
 
-constant_expression(ExpressionAST*& yyast)
+constant_expression(ParseContext::ExprAttrs& yyast)
+  { yyast.want_constant_expr = true; }
 : { return parseBinaryExpression(yyast, false, /*precedence T_QUESTION*/ 115); }
 ;
 
-expression(ExpressionAST*& yyast)
+expression(ParseContext::ExprAttrs& yyast)
 {
-  ExpressionAST* e{nullptr};
+  ParseContext::ExprAttrs e{nullptr};
 }
 : assignment_expression(yyast, false)
     (comma assignment_expression(e, false)
@@ -629,7 +630,7 @@ statement(StatementAST*& yyast)
 
 labeled_statement(StatementAST*& yyast)
 {
-  ExpressionAST* e{nullptr};
+  ParseContext::ExprAttrs e{nullptr};
   StatementAST* s{nullptr};
   ParseContext::NameAttrs n{nullptr};
 }
@@ -660,7 +661,7 @@ labeled_statement(StatementAST*& yyast)
 
 expression_statement(StatementAST*& yyast)
 {
-  ExpressionAST* e{nullptr};
+  ParseContext::ExprAttrs e{nullptr};
 }
 : semicolon
     {
@@ -707,7 +708,7 @@ compound_statement(StatementAST*& yyast)
 
 selection_statement(StatementAST*& yyast)
 {
-  ExpressionAST* e{nullptr};
+  ParseContext::ExprAttrs e{nullptr};
   StatementAST* s1{nullptr};
   StatementAST* s2{nullptr};
   EnterScope enterScope;
@@ -743,11 +744,11 @@ selection_statement(StatementAST*& yyast)
     }
 ;
 
-condition(ExpressionAST*& yyast)
+condition(ParseContext::ExprAttrs& yyast)
 {
   List<SpecifierAST*>* specifier_list{nullptr};
   DeclaratorAST* d{nullptr};
-  ExpressionAST* i{nullptr};
+  ParseContext::ExprAttrs i{nullptr};
   ParseContext::Specs specs;
 }
 : attribute_specifier_seq
@@ -773,8 +774,8 @@ condition(ExpressionAST*& yyast)
 iteration_statement(StatementAST*& yyast)
 {
   DeclarationAST* d{nullptr};
-  ExpressionAST* e1{nullptr};
-  ExpressionAST* e2{nullptr};
+  ParseContext::ExprAttrs e1{nullptr};
+  ParseContext::ExprAttrs e2{nullptr};
   StatementAST* s1{nullptr};
   StatementAST* s2{nullptr};
   EnterScope enterScope;
@@ -860,7 +861,7 @@ for_range_declaration(DeclarationAST*& yyast)
     }
 ;
 
-for_range_initializer(ExpressionAST*& yyast)
+for_range_initializer(ParseContext::ExprAttrs& yyast)
 : expression(yyast)
 | braced_init_list(yyast)
 ;
@@ -868,7 +869,7 @@ for_range_initializer(ExpressionAST*& yyast)
 jump_statement(StatementAST*& yyast)
 {
   ParseContext::NameAttrs name{nullptr};
-  ExpressionAST* e{nullptr};
+  ParseContext::ExprAttrs e{nullptr};
 }
 : break semicolon
     {
@@ -942,7 +943,7 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
   ParseContext::Specs specs;
   ParseContext::Decl funDecl;
   DeclaratorAST* d{nullptr};
-  ExpressionAST* i{nullptr};
+  ParseContext::ExprAttrs i{nullptr};
   StatementAST* s{nullptr};
   FunctionSymbol* fun{nullptr};
   EnterScope enterScope;
@@ -1164,7 +1165,7 @@ simple_declaration(DeclarationAST*& yyast)
 
 static_assert_declaration(DeclarationAST*& yyast)
 {
-  ExpressionAST* e{nullptr};
+  ParseContext::ExprAttrs e{nullptr};
 }
 : static_assert lparen constant_expression(e) comma string_literal+ rparen semicolon
     {
@@ -1329,7 +1330,7 @@ simple_type_specifier(SpecifierAST*& yyast)
 
 decltype_specifier(ParseContext::NameAttrs& yyast)
 {
-  ExpressionAST* e{nullptr};
+  ParseContext::ExprAttrs e{nullptr};
 }
 : decltype lparen expression(e) rparen
     {
@@ -1397,7 +1398,7 @@ enum_specifier(SpecifierAST*& yyast)
 enumerator_definition(EnumeratorAST*& yyast)
 {
     ParseContext::NameAttrs name{nullptr};
-    ExpressionAST* e{nullptr};
+    ParseContext::ExprAttrs e{nullptr};
 }
 : simple_name(name) (equal constant_expression(e))?
     {
@@ -1531,7 +1532,7 @@ linkage_specification(DeclarationAST*& yyast)
 alignment_specifier
 {
   TypeIdAST* t{nullptr};
-  ExpressionAST* e{nullptr};
+  ParseContext::ExprAttrs e{nullptr};
 }
 : alignas lparen type_id(t) dot_dot_dot? rparen
 | alignas lparen assignment_expression(e, false)? rparen
@@ -1557,7 +1558,7 @@ init_declarator_list(List<DeclaratorAST*>*& yyast, const ParseContext::Specs& sp
 
 init_declarator(DeclaratorAST*& yyast, const ParseContext::Specs& specs)
 {
-  ExpressionAST* i{nullptr};
+  ParseContext::ExprAttrs i{nullptr};
 }
 : ({ return scope->isClassSymbol(); } / colon
      {
@@ -1636,7 +1637,7 @@ core_declarator(CoreDeclaratorAST*& yyast)
 postfix_declarator(PostfixDeclaratorAST*& yyast)
 {
   ParametersAndQualifiersAST* p{nullptr};
-  ExpressionAST* e{nullptr};
+  ParseContext::ExprAttrs e{nullptr};
 }
 : parameters_and_qualifiers(p) trailing_return_type? virt_specifier*
     {
@@ -1798,7 +1799,7 @@ abstract_declarator(DeclaratorAST*& yyast)
   auto ptr_op_it = &ptr_op_list;
   PtrOperatorAST* ptr_op{nullptr};
   ParametersAndQualifiersAST* p{nullptr};
-  ExpressionAST* e{nullptr};
+  ParseContext::ExprAttrs e{nullptr};
   List<PostfixDeclaratorAST*>* postfix_list{nullptr};
   auto postfix_it = &postfix_list;
   CoreDeclaratorAST* c{nullptr};
@@ -1865,7 +1866,7 @@ parameter_declaration(DeclarationAST*& yyast, bool inTempl)
 {
   List<SpecifierAST*>* specifier_list{nullptr};
   DeclaratorAST* d{nullptr};
-  ExpressionAST* e{nullptr};
+  ParseContext::ExprAttrs e{nullptr};
   ParseContext::Specs specs;
   ParseContext::Decl decl;
 }
@@ -1940,7 +1941,7 @@ skip_compound_statement
   rbrace
 ;
 
-initializer(ExpressionAST*& yyast)
+initializer(ParseContext::ExprAttrs& yyast)
 {
   List<ExpressionAST*>* args{nullptr};
 }
@@ -1949,9 +1950,9 @@ initializer(ExpressionAST*& yyast)
 | { return scope->isClassSymbol(); } colon constant_expression(yyast)
 ;
 
-brace_or_equal_initializer(ExpressionAST*& yyast)
+brace_or_equal_initializer(ParseContext::ExprAttrs& yyast)
 {
-  ExpressionAST* e{nullptr};
+  ParseContext::ExprAttrs e{nullptr};
 }
 : equal initializer_clause(e, false)
     {
@@ -1965,7 +1966,7 @@ brace_or_equal_initializer(ExpressionAST*& yyast)
 initializer_list(List<ExpressionAST*>*& yyast)
 {
   auto it = &yyast;
-  ExpressionAST* e{nullptr};
+  ParseContext::ExprAttrs e{nullptr};
 }
 : initializer_clause(e, false) dot_dot_dot?
     {
@@ -1980,7 +1981,7 @@ initializer_list(List<ExpressionAST*>*& yyast)
     )*
 ;
 
-braced_init_list(ExpressionAST*& yyast)
+braced_init_list(ParseContext::ExprAttrs& yyast)
 {
   List<ExpressionAST*>* args{nullptr};
 }
@@ -2177,7 +2178,7 @@ mem_initializer(MemInitializerAST*& yyast)
 {
   ParseContext::NameAttrs n{nullptr};
   List<ExpressionAST*>* args{nullptr};
-  ExpressionAST* e{nullptr};
+  ParseContext::ExprAttrs e{nullptr};
 }
 : mem_initializer_id(n) (lparen expression_list(args)? rparen | braced_init_list(e)) dot_dot_dot?
     {
@@ -2380,7 +2381,7 @@ template_id(ParseContext::NameAttrs& yyast)
 {
   List<ExpressionAST*>* args{nullptr};
   auto it = &args;
-  ExpressionAST* e{nullptr};
+  ParseContext::ExprAttrs e{nullptr};
 }
 : simple_template_id(yyast)
 | operator_function_id(yyast) less
@@ -2407,7 +2408,7 @@ simple_template_id(ParseContext::NameAttrs& yyast)
 {
   List<ExpressionAST*>* args{nullptr};
   auto it = &args;
-  ExpressionAST* e{nullptr};
+  ParseContext::ExprAttrs e{nullptr};
   ParseContext::NameAttrs name{nullptr};
 }
 : simple_name(name) less
@@ -2430,10 +2431,10 @@ simple_template_id(ParseContext::NameAttrs& yyast)
         }
 ;
 
-template_argument(ExpressionAST*& yyast)
+template_argument(ParseContext::ExprAttrs& yyast)
 {
   TypeIdAST* t{nullptr};
-  ExpressionAST* e{nullptr};
+  ParseContext::ExprAttrs e{nullptr};
 }
 : (type_id(t) / (comma | greater | dot_dot_dot)) dot_dot_dot? { yyast = t; }
 | template_argument_expression(e) dot_dot_dot? { yyast = e; }
@@ -2491,9 +2492,9 @@ exception_declaration
     }
 ;
 
-throw_exception(ExpressionAST*& yyast)
+throw_exception(ParseContext::ExprAttrs& yyast)
 {
-  ExpressionAST* e{nullptr};
+  ParseContext::ExprAttrs e{nullptr};
 }
 : throw expression(e)?
 ;
@@ -2512,7 +2513,7 @@ dynamic_exception_specification
 
 noexcept_specification
 {
-  ExpressionAST* e{nullptr};
+  ParseContext::ExprAttrs e{nullptr};
 }
 : noexcept (lparen constant_expression(e) rparen)?
 ;
