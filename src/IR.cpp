@@ -20,6 +20,7 @@
 #include "IR.h"
 #include "Names.h"
 #include "Token.h"
+#include <algorithm>
 #include <iostream>
 #include <cassert>
 
