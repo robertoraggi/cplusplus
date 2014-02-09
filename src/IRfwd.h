@@ -41,6 +41,13 @@
 
 namespace IR {
 
+struct Module;
+struct Function;
+struct BasicBlock;
+struct Terminator;
+struct Stmt;
+struct Expr;
+
 #define VISIT_IR_STMT(x) struct x;
 FOR_EACH_IR_STMT(VISIT_IR_STMT)
 #undef VISIT_IR_STMT

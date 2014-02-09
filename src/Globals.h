@@ -354,16 +354,6 @@ class Token;
 class Type;
 class ReferenceType;
 
-namespace IR {
-struct Module;
-struct Function;
-struct BasicBlock;
-struct Terminator;
-struct Stmt;
-struct Expr;
-struct Temp;
-} // end of namespace IR
-
 //
 // forward classes
 //
