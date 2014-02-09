@@ -178,10 +178,35 @@ struct Sym final: ExtendsExpr<ExprKind::kSym>, std::tuple<const Name*> {
   void dump(std::ostream& out) const override;
 };
 
-struct Cast final: ExtendsExpr<ExprKind::kCast>, std::tuple<QualType, const Expr*> {
+template <ExprKind K>
+struct ExtendsCast: ExtendsExpr<K>, std::tuple<QualType, const Expr*> {
   using tuple::tuple;
   QualType type() const { return std::get<0>(*this); }
   const Expr* expr() const { return std::get<1>(*this); }
+};
+
+struct Cast final: ExtendsCast<ExprKind::kCast> {
+  using ExtendsCast::ExtendsCast;
+  void dump(std::ostream& out) const override;
+};
+
+struct DynamicCast final: ExtendsCast<ExprKind::kDynamicCast> {
+  using ExtendsCast::ExtendsCast;
+  void dump(std::ostream& out) const override;
+};
+
+struct StaticCast final: ExtendsCast<ExprKind::kStaticCast> {
+  using ExtendsCast::ExtendsCast;
+  void dump(std::ostream& out) const override;
+};
+
+struct ReinterpretCast final: ExtendsCast<ExprKind::kReinterpretCast> {
+  using ExtendsCast::ExtendsCast;
+  void dump(std::ostream& out) const override;
+};
+
+struct ConstCast final: ExtendsCast<ExprKind::kConstCast> {
+  using ExtendsCast::ExtendsCast;
   void dump(std::ostream& out) const override;
 };
 

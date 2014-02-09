@@ -33,6 +33,10 @@
   V(Temp) \
   V(Sym) \
   V(Cast) \
+  V(DynamicCast) \
+  V(StaticCast) \
+  V(ReinterpretCast) \
+  V(ConstCast) \
   V(Call) \
   V(Member) \
   V(Subscript) \

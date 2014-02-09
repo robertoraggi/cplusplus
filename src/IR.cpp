@@ -102,7 +102,35 @@ void Sym::dump(std::ostream& out) const {
 
 void Cast::dump(std::ostream& out) const {
   TypeToString typeToString;
+  out << "(" << typeToString(type(), nullptr) << ")(";
+  expr()->dump(out);
+  out << ')';
+}
+
+void DynamicCast::dump(std::ostream& out) const {
+  TypeToString typeToString;
+  out << "dynamic_cast<" << typeToString(type(), nullptr) << ">(";
+  expr()->dump(out);
+  out << ')';
+}
+
+void StaticCast::dump(std::ostream& out) const {
+  TypeToString typeToString;
+  out << "static_cast<" << typeToString(type(), nullptr) << ">(";
+  expr()->dump(out);
+  out << ')';
+}
+
+void ReinterpretCast::dump(std::ostream& out) const {
+  TypeToString typeToString;
   out << "reinterpret_cast<" << typeToString(type(), nullptr) << ">(";
+  expr()->dump(out);
+  out << ')';
+}
+
+void ConstCast::dump(std::ostream& out) const {
+  TypeToString typeToString;
+  out << "const_cast<" << typeToString(type(), nullptr) << ">(";
   expr()->dump(out);
   out << ')';
 }

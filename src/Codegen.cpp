@@ -377,7 +377,22 @@ void Codegen::visit(ConditionalExpressionAST* ast) {
 
 void Codegen::visit(CppCastExpressionAST* ast) {
   auto r = expression(ast->expression);
-  _result = Result{_function->getCast(ast->targetTy, *r)}; // ### TODO: dynamic_cast, static_cast, ...
+  switch (unit->tokenKind(ast->cast_token)) {
+  case T_DYNAMIC_CAST:
+    _result = Result{_function->getDynamicCast(ast->targetTy, *r)};
+    break;
+  case T_STATIC_CAST:
+    _result = Result{_function->getStaticCast(ast->targetTy, *r)};
+    break;
+  case T_REINTERPRET_CAST:
+    _result = Result{_function->getReinterpretCast(ast->targetTy, *r)};
+    break;
+  case T_CONST_CAST:
+    _result = Result{_function->getConstCast(ast->targetTy, *r)};
+    break;
+  default:
+    assert(!"unreachable");
+  } // switch
 }
 
 void Codegen::visit(DeleteExpressionAST* ast) {

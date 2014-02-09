@@ -366,14 +366,16 @@ postfix_base_expression(ParseContext::ExprAttrs& yyast)
   ParseContext::ExprAttrs e{nullptr};
   List<ExpressionAST*>* args{nullptr};
   SpecifierAST* spec{nullptr};
+  unsigned cast_token{0};
 }
 : primary_expression(yyast)
-| (dynamic_cast | static_cast | reinterpret_cast | const_cast)
+| (dynamic_cast | static_cast | reinterpret_cast | const_cast) parsed_token(&cast_token)
   less type_id(t) greater lparen expression(e) rparen
     {
       auto specs = context.specifiers(t->specifier_list);
       auto decl = context.declarator(specs, t->declarator);
       auto ast = new (pool) CppCastExpressionAST;
+      ast->cast_token = cast_token;
       ast->targetTy = decl.specs.type;
       ast->type_id = t;
       ast->expression = e;
