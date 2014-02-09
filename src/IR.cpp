@@ -84,6 +84,10 @@ void CJump::dump(std::ostream& out) const {
   out << ") goto .L" << iftrue()->index << "; else goto .L" << iffalse()->index << ';' << std::endl;
 }
 
+void This::dump(std::ostream& out) const {
+  out << "this";
+}
+
 void Const::dump(std::ostream& out) const {
   out << value();
 }

@@ -28,6 +28,7 @@
   V(CJump)
 
 #define FOR_EACH_IR_EXPR(V) \
+  V(This) \
   V(Const) \
   V(Temp) \
   V(Sym) \

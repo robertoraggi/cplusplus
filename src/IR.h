@@ -154,6 +154,12 @@ struct CJump final: ExtendsStmt<StmtKind::kCJump, Terminator>, std::tuple<const 
 //
 // expressions
 //
+struct This final: ExtendsExpr<ExprKind::kThis> {
+  This() = default;
+  bool operator<(const This&) const { return false; }
+  void dump(std::ostream& out) const override;
+};
+
 struct Const final: ExtendsExpr<ExprKind::kConst>, std::tuple<const char*> { // ### TODO: LiteralValue*.
   using tuple::tuple;
   const char* value() const { return std::get<0>(*this); }

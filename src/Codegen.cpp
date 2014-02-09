@@ -450,7 +450,7 @@ void Codegen::visit(TemplateArgumentAST* ast) {
 }
 
 void Codegen::visit(ThisExpressionAST* ast) {
-  _result = Result{_function->getSym(unit->control()->getIdentifier("this"))};
+  _result = Result{_function->getThis()};
 }
 
 void Codegen::visit(TypeCallExpressionAST* ast) {
