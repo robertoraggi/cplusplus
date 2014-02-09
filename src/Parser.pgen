@@ -218,6 +218,7 @@ primary_expression(ParseContext::ExprAttrs& yyast)
 {
   ParseContext::NameAttrs name{nullptr};
   ParseContext::ExprAttrs e{nullptr};
+  e.flags = yyast.flags;
 }
 : literal(yyast)
 | this

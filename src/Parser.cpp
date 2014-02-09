@@ -195,6 +195,7 @@ bool Parser::parseBinaryExpressionHelper(ParseContext::ExprAttrs& yyast, bool te
     ++yycursor;
     unsigned colon_token{0};
     ParseContext::ExprAttrs iftrue_expression{nullptr};
+    iftrue_expression.flags = yyast.flags;
 
     if (op == T_QUESTION) {
       auto parsed = parse_expression(iftrue_expression);
@@ -204,6 +205,7 @@ bool Parser::parseBinaryExpressionHelper(ParseContext::ExprAttrs& yyast, bool te
     }
 
     ParseContext::ExprAttrs rhs{nullptr};
+    rhs.flags = yyast.flags;
     auto e = parse_cast_expression(rhs);
     if (! e) {
       yycursor = saved;
