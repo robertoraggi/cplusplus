@@ -27,45 +27,7 @@
 #include <set>
 #include <forward_list>
 
-#define FOR_EACH_IR_STMT(V) \
-  V(Exp) \
-  V(Move) \
-  V(Ret) \
-  V(Jump) \
-  V(CJump)
-
-#define FOR_EACH_IR_EXPR(V) \
-  V(Const) \
-  V(Temp) \
-  V(Sym) \
-  V(Cast) \
-  V(Call) \
-  V(Member) \
-  V(Subscript) \
-  V(Unop) \
-  V(Binop)
-
 namespace IR {
-
-#define VISIT_IR_STMT(x) struct x;
-FOR_EACH_IR_STMT(VISIT_IR_STMT)
-#undef VISIT_IR_STMT
-
-#define VISIT_IR_EXPR(x) struct x;
-FOR_EACH_IR_EXPR(VISIT_IR_EXPR)
-#undef VISIT_IR_EXPR
-
-enum struct StmtKind {
-#define VISIT_IR_STMT(x) k##x,
-FOR_EACH_IR_STMT(VISIT_IR_STMT)
-#undef VISIT_IR_STMT
-};
-
-enum struct ExprKind {
-#define VISIT_IR_EXPR(x) k##x,
-FOR_EACH_IR_EXPR(VISIT_IR_EXPR)
-#undef VISIT_IR_EXPR
-};
 
 struct Stmt {
   Stmt(StmtKind kind): _kind(kind) {}

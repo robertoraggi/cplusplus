@@ -39,6 +39,7 @@ add_library(CPlusPlusObjects OBJECT
     src/Globals.h
     src/IR.cpp
     src/IR.h
+    src/IRfwd.h
     src/Names.cpp
     src/Names.h
     src/ParseContext.cpp

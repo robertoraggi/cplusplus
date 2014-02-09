@@ -20,6 +20,8 @@
 #ifndef GLOBALS_H
 #define GLOBALS_H
 
+#include "IRfwd.h"
+
 #define FOR_EACH_AST(V) \
   V(TypeId) \
   V(TranslationUnit) \
