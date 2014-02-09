@@ -21,7 +21,9 @@
 #include "Names.h"
 #include "Symbols.h"
 #include "Token.h"
+#include "IR.h"
 #include <string>
+#include <sstream>
 #include <cassert>
 
 void TypeToString::accept(QualType type) {
@@ -144,18 +146,14 @@ void TypeToString::visit(const RValueReferenceType* type) {
   text = print(elementType, prefix + decl + suffix);
 }
 
-void TypeToString::visit(const BoundedArrayType* type) {
+void TypeToString::visit(const ArrayType* type) {
   std::string subscript;
   subscript += '[';
-  if (type->size())
-    subscript += std::to_string(type->size());
-  subscript += ']';
-  text = print(type->elementType(), decl + subscript);
-}
-
-void TypeToString::visit(const UnboundedArrayType* type) {
-  std::string subscript;
-  subscript += '[';
+  if (auto size = type->size()) {
+    std::ostringstream s; // ### this is slow!
+    size->dump(s);
+    subscript += s.str();
+  }
   subscript += ']';
   text = print(type->elementType(), decl + subscript);
 }

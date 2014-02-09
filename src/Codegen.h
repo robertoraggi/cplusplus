@@ -26,13 +26,18 @@
 
 class Codegen {
 public:
-  Codegen(TranslationUnit* unit);
+  Codegen(IR::Module* module = nullptr);
   ~Codegen();
 
   Codegen(const Codegen& other) = delete;
   Codegen& operator=(const Codegen& other) = delete;
 
   TranslationUnit* translationUnit() const { return unit; }
+  void setTranslationUnit(TranslationUnit* u) { unit = u; }
+
+  IR::Module* module() const { return _module; }
+  void setModule(IR::Module* module) { _module = module; }
+
   Control* control() const;
 
   void operator()(FunctionDefinitionAST* ast);
@@ -105,7 +110,7 @@ private:
       : breakLabel(breakLabel), continueLabel(continueLabel) {}
   };
 
-  TranslationUnit* unit;
+  TranslationUnit* unit{nullptr};
   IR::Module* _module{nullptr};
   IR::Function* _function{nullptr};
   IR::BasicBlock* _block{nullptr};

@@ -78,7 +78,6 @@ public:
   FOR_EACH_TYPE(VISIT_TYPE)
 #undef VISIT_TYPE
 
-  virtual const ArrayType* asArrayType() const { return 0; }
   virtual const ReferenceType* asReferenceType() const { return 0; }  
 };
 
@@ -86,12 +85,6 @@ class ReferenceType: public Type {
 public:
   using Type::Type;
   const ReferenceType* asReferenceType() const override { return this; }
-};
-
-class ArrayType: public Type {
-public:
-  using Type::Type;
-  const ArrayType* asArrayType() const override { return this; }
 };
 
 template <TypeKind K, typename Base = Type>
@@ -170,19 +163,12 @@ public:
   QualType elementType() const { return std::get<0>(*this); }
 };
 
-class BoundedArrayType final: public ExtendsType<TypeKind::kBoundedArray, ArrayType>,
-                              public std::tuple<QualType, size_t> {
+class ArrayType final: public ExtendsType<TypeKind::kArray>,
+                              public std::tuple<QualType, const IR::Expr*> {
 public:
   using tuple::tuple;
   QualType elementType() const { return std::get<0>(*this); }
-  size_t size() const { return std::get<1>(*this); }
-};
-
-class UnboundedArrayType final: public ExtendsType<TypeKind::kUnboundedArray, ArrayType>,
-                                public std::tuple<QualType> {
-public:
-  using tuple::tuple;
-  QualType elementType() const { return std::get<0>(*this); }
+  const IR::Expr* size() const { return std::get<1>(*this); }
 };
 
 class FunctionType final

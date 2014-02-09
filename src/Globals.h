@@ -293,8 +293,7 @@
   V(Pointer) \
   V(LValueReference) \
   V(RValueReference) \
-  V(BoundedArray) \
-  V(UnboundedArray) \
+  V(Array) \
   V(Function) \
   V(Class) \
   V(Named) \
@@ -353,7 +352,6 @@ class Symbol;
 class TranslationUnit;
 class Token;
 class Type;
-class ArrayType;
 class ReferenceType;
 
 namespace IR {

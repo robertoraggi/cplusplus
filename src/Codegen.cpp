@@ -25,16 +25,14 @@
 #include <iostream>
 #include <cassert>
 
-Codegen::Codegen(TranslationUnit* unit): unit(unit) {
-  _module = new IR::Module();
+Codegen::Codegen(IR::Module* module): _module(module) {
 }
 
 Codegen::~Codegen() {
-  delete _module;
 }
 
 Control* Codegen::control() const {
-  return unit->control();
+  return unit ? unit->control() : nullptr;
 }
 
 void Codegen::operator()(FunctionDefinitionAST* ast) {
@@ -174,6 +172,7 @@ void Codegen::visit(AsmDefinitionAST* ast) {
 
 void Codegen::visit(FunctionDefinitionAST* ast) {
   auto function = _module->newFunction(ast->symbol);
+  ast->symbol->setCode(function);
   auto entryBlock = function->newBasicBlock();
   auto exitBlock = function->newBasicBlock();
   int tempCount = 0;
@@ -198,7 +197,6 @@ void Codegen::visit(FunctionDefinitionAST* ast) {
   _block->emitRet(_exitValue);
 
   _function->removeUnreachableBasicBlocks();
-  _function->dump(std::cout);
 
   std::swap(_function, function);
   std::swap(_exitBlock, exitBlock);

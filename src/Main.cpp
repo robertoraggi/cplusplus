@@ -23,6 +23,7 @@
 #include "AST.h"
 #include "Symbols.h"
 #include "Codegen.h"
+#include "IR.h"
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -31,7 +32,7 @@
 class DumpIR: protected RecursiveASTVisitor {
 public:
   DumpIR(TranslationUnit* unit)
-    : RecursiveASTVisitor(unit), cg(unit) {}
+    : RecursiveASTVisitor(unit) {}
 
   void operator()(AST* ast) { accept(ast); }
 
@@ -39,11 +40,11 @@ protected:
   void visit(FunctionDefinitionAST* ast) {
     auto fun = ast->symbol;
     printf("%s {\n", typeToString(fun->type(), fun->name()).c_str());
-    cg(ast);
+    if (auto code = fun->code())
+      code->dump(std::cout);
     printf("}\n\n");
   }
 private:
-  Codegen cg;
   TypeToString typeToString;
 };
 
@@ -64,7 +65,9 @@ std::string readAll(const std::string& fileName) {
   return readAll(fileName, stream);
 }
 
-bool parseFile(const std::string& fileName, const std::function<void (TranslationUnit*, TranslationUnitAST*)>& consume) {
+bool parseFile(const std::string& fileName,
+               const std::function<void (TranslationUnit*,
+                                         TranslationUnitAST*)>& consume) {
   Control control;
   TranslationUnit unit(&control);
   unit.setFileName(fileName);

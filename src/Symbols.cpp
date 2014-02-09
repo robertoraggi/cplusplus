@@ -159,12 +159,20 @@ void FunctionSymbol::setSourceLocation(unsigned sourceLocation) {
   _sourceLocation = sourceLocation;
 }
 
-StatementAST** FunctionSymbol::internalNode() const {
+FunctionDefinitionAST* FunctionSymbol::internalNode() const {
   return _internalNode;
 }
 
-void FunctionSymbol::setInternalNode(StatementAST** internalNode) {
+void FunctionSymbol::setInternalNode(FunctionDefinitionAST* internalNode) {
   _internalNode = internalNode;
+}
+
+IR::Function* FunctionSymbol::code() const {
+  return _code;
+}
+
+void FunctionSymbol::setCode(IR::Function* code) {
+  _code = code;
 }
 
 void BlockSymbol::dump(std::ostream& out, int depth) {

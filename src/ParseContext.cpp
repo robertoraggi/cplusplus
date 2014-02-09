@@ -295,14 +295,12 @@ class ParseContext::ProcessDeclarator {
     auto elementType = context->finish(_decl.specs.type);
     switch (ast->kind()) {
     case ASTKind::kArrayDeclarator: {
+      const IR::Expr* size{nullptr};
       auto decl = ast->asArrayDeclarator();
-      if (! decl->size_expression) {
-        _decl.specs.type = QualType(control()->getUnboundedArrayType(elementType));
-      } else {
-        printf("todo array size_expression\n");
-        size_t size{0};
-        _decl.specs.type = QualType(control()->getBoundedArrayType(elementType, size));
+      if (decl->size_expression) {
+        // ### TODO
       }
+      _decl.specs.type = QualType(control()->getArrayType(elementType, size));
       break;
     }
 

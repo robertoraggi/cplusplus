@@ -137,15 +137,19 @@ public:
   unsigned sourceLocation() const;
   void setSourceLocation(unsigned sourceLocation);
 
-  StatementAST** internalNode() const;
-  void setInternalNode(StatementAST** internalNode);
+  FunctionDefinitionAST* internalNode() const;
+  void setInternalNode(FunctionDefinitionAST* internalNode);
+
+  IR::Function* code() const;
+  void setCode(IR::Function* code);
 
 private:
   QualType _returnType;
   std::vector<ArgumentSymbol*> _arguments;
-  StatementAST** _internalNode{nullptr};
+  FunctionDefinitionAST* _internalNode{nullptr};
   unsigned _sourceLocation{0};
   TokenKind _storageClassSpecifier{T_EOF_SYMBOL};
+  IR::Function* _code{nullptr};
   bool _isVariadic{false};
   bool _isConst{false};
 };

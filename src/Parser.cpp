@@ -25,6 +25,8 @@
 #include "Types.h"
 #include "Names.h"
 #include "Control.h"
+#include "IR.h"
+#include "Codegen.h"
 #include "ParseContext.h"
 #include <cstring>
 #include <cassert>
@@ -150,6 +152,10 @@ bool Parser::yyparse(TranslationUnit* u, const std::function<void(TranslationUni
   yyparsed = yycursor;
   Arena arena;
   pool = &arena;
+  IR::Module mod;
+  module = &mod;
+  cg.setModule(module);
+  cg.setTranslationUnit(unit);
   globalScope = control->newNamespace();
   scope = globalScope;
   context.unit = unit;

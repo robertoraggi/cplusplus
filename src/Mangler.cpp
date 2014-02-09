@@ -188,12 +188,8 @@ std::string Mangler::mangleRValueReferenceType(const RValueReferenceType* type) 
   return "O" + mangleType(type->elementType());
 }
 
-std::string Mangler::mangleBoundedArrayType(const BoundedArrayType* type) {
+std::string Mangler::mangleArrayType(const ArrayType* type) {
   return "@array@";
-}
-
-std::string Mangler::mangleUnboundedArrayType(const UnboundedArrayType* type) {
-  return "@unbounded-array@";
 }
 
 std::string Mangler::mangleBareFunctionType(const FunctionType* funTy) {
