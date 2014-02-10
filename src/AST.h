@@ -75,6 +75,8 @@ private:
 
 struct ExpressionAST: AST {
   using AST::AST;
+// attributes
+  const IR::Expr* value{nullptr};
 };
 
 struct StatementAST: AST {

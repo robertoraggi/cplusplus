@@ -164,7 +164,26 @@
   Scope* scope{nullptr};
   NamespaceSymbol* globalScope{nullptr};
   IR::Module* module{nullptr};
+  IR::Function* globalCode{nullptr};
+  IR::Function* function{nullptr};
   Codegen cg;
+  ParseContext context;
+  bool templDecl{false};
+
+  struct EnterFunction {
+    Parser* p{nullptr};
+    IR::Function* function{nullptr};
+    void operator()(Parser* p, IR::Function* function) {
+      this->p = p;
+      this->function = function;
+      std::swap(this->p->function, this->function);
+    }
+    ~EnterFunction() {
+      if (! p)
+        return;
+      std::swap(this->p->function, this->function);
+    }
+  };
 
   struct EnterScope {
     Parser* p{nullptr};
@@ -181,9 +200,6 @@
     }
   };
 
-  ParseContext context;
-
-  bool templDecl{false};
   struct EnterTemplateDecl {
     Parser* p{nullptr};
     bool templDecl{false};

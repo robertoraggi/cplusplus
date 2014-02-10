@@ -150,23 +150,37 @@ bool Parser::yyparse(TranslationUnit* u, const std::function<void(TranslationUni
   yydepth = -1;
   yycursor = 1;
   yyparsed = yycursor;
+
   Arena arena;
   pool = &arena;
+
   IR::Module mod;
   module = &mod;
   cg.setModule(module);
   cg.setTranslationUnit(unit);
+
   globalScope = control->newNamespace();
+  globalCode = module->newFunction(nullptr);
+
+  EnterFunction enterFunction;
+  enterFunction(this, globalCode);
+
   scope = globalScope;
   context.unit = unit;
+
   TranslationUnitAST* ast{nullptr};
+
   auto parsed = parse_translation_unit(ast);
+
   if (parsed && yytoken() != T_EOF_SYMBOL)
     parsed = false; // expected EOF
+
   if (! parsed)
     unit->error(yyparsed, "syntax error"); // ### remove me
+
   if (consume)
     consume(ast);
+
   return parsed;
 }
 
