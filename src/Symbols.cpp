@@ -20,8 +20,74 @@
 #include "Symbols.h"
 #include "Names.h"
 #include "Token.h"
+#include <functional>
+#include <algorithm>
 #include <iostream>
 #include <cassert>
+
+class SymbolTable {
+public:
+  SymbolTable(const SymbolTable& other) = delete;
+  SymbolTable& operator=(const SymbolTable& other) = delete;
+
+  SymbolTable(): _buckets(4) {}
+  ~SymbolTable() = default;
+
+  using iterator = Symbol**;
+
+  inline iterator begin() {
+    return ! _symbols.empty() ? &_symbols[0] : nullptr;
+  }
+
+  inline iterator end() {
+    return begin() + _symbols.size();
+  }
+
+  inline unsigned symbolCount() const {
+    return _symbols.size();
+  }
+
+  inline Symbol* symbolAt(unsigned index) const {
+    return _symbols[index];
+  }
+
+  void addSymbol(Symbol* symbol) {
+    _symbols.push_back(symbol);
+    if (_symbols.size() * 3 >= _buckets.size() * 2) {
+      rehash();
+    } else {
+      auto h = hashValue(symbol->name()) % _buckets.size();
+      symbol->_next = _buckets[h];
+      _buckets[h] = symbol;
+    }
+  }
+
+  Symbol* findSymbol(const Name* name) const {
+    if (! _symbols.empty()) {
+      auto h = hashValue(name) % _buckets.size();
+      for (auto symbol = _buckets[h]; symbol; symbol = symbol->_next) {
+        if (symbol->name() == name)
+          return symbol;
+      }
+    }
+    return nullptr;
+  }
+
+  void rehash() {
+    _buckets.resize(_buckets.size() * 2);
+    std::fill(_buckets.begin(), _buckets.end(), nullptr);
+    for (auto symbol: _symbols) {
+      auto h = hashValue(symbol->name()) % _buckets.size();
+      symbol->_next = _buckets[h];
+      _buckets[h] = symbol;
+    }
+  }
+
+private:
+  std::vector<Symbol*> _symbols;
+  std::vector<Symbol*> _buckets;
+  std::hash<const Name*> hashValue;
+};
 
 namespace {
 static std::string indent(int depth) {
@@ -59,13 +125,17 @@ void Symbol::setEnclosingScope(Scope* enclosingScope) {
   _enclosingScope = enclosingScope;
 }
 
+Symbol* Symbol::next() const {
+  return _next;
+}
+
 void NamespaceSymbol::dump(std::ostream& out, int depth) {
   out << indent(depth) << "namespace";
   if (auto n = unqualifiedName())
     out << " " << n->toString();
   out << " {";
   out << std::endl;
-  for (auto sym: symbols()) {
+  for (auto sym: *this) {
     sym->dump(out, depth + 1);
   }
   out << indent(depth) << "}";
@@ -92,7 +162,7 @@ void ClassSymbol::dump(std::ostream& out, int depth) {
   }
   out << " {";
   out << std::endl;
-  for (auto sym: symbols()) {
+  for (auto sym: *this) {
     sym->dump(out, depth + 1);
   }
   out << indent(depth) << "}";
@@ -110,7 +180,7 @@ void ClassSymbol::setClassKey(TokenKind classKey) {
 void TemplateSymbol::dump(std::ostream& out, int depth) {
   out << indent(depth) << "template <";
   bool first = true;
-  for (auto sym: symbols()) {
+  for (auto sym: *this) {
     if (first)
       first = false;
     else
@@ -216,10 +286,36 @@ void TemplateTypeParameterSymbol::dump(std::ostream& out, int) {
     out << " " << id->toString();
 }
 
+Scope::~Scope() {
+  delete _symbols;
+}
+
+unsigned Scope::symbolCount() const {
+  return _symbols ? _symbols->symbolCount() : 0;
+}
+
+Symbol* Scope::symbolAt(unsigned index) const {
+  return _symbols ? _symbols->symbolAt(index) : nullptr;
+}
+
+void Scope::addSymbol(Symbol* symbol) {
+  if (! _symbols)
+    _symbols = new SymbolTable();
+  _symbols->addSymbol(symbol);
+}
+
+Scope::iterator Scope::begin() const {
+  return _symbols ? _symbols->begin() : nullptr;
+}
+
+Scope::iterator Scope::end() const {
+  return _symbols ? _symbols->end() : nullptr;
+}
+
 NamespaceSymbol* Scope::findNamespace(const Name* name) const {
   auto q = name ? name->asQualifiedName() : nullptr;
   auto u = q ? q->name() : name;
-  for (auto sym: _symbols) {
+  for (auto sym: *this) {
     if (sym->unqualifiedName() == u && sym->isNamespaceSymbol())
       return sym->asNamespaceSymbol();
   }

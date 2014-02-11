@@ -24,10 +24,14 @@
 #include "Types.h"
 #include <vector>
 
+class SymbolTable;
+
 class Symbol {
+  friend class SymbolTable;
   SymbolKind _kind;
   const Name* _name{nullptr};
   Scope* _enclosingScope{nullptr};
+  Symbol* _next{nullptr};
   QualType _type;
 public:
   explicit Symbol(SymbolKind kind): _kind(kind) {}
@@ -49,6 +53,8 @@ public:
 
   Scope* enclosingScope() const;
   void setEnclosingScope(Scope* enclosingScope);
+
+  Symbol* next() const;
 
 #define VISIT_SYMBOL(T) \
   inline bool is##T##Symbol() const { \
@@ -72,18 +78,23 @@ struct ExtendsSymbol: Base {
 class Scope: public Symbol {
 public:
   using Symbol::Symbol;
+  ~Scope() override;
 
   Scope* asScope() override { return this; }
 
-  unsigned symbolCount() const { return _symbols.size(); }
-  Symbol* symbolAt(unsigned index) const { return _symbols[index]; }
-  virtual void addSymbol(Symbol* symbol) { _symbols.push_back(symbol); }
-  const std::vector<Symbol*>& symbols() const { return _symbols; }
+  unsigned symbolCount() const;
+  Symbol* symbolAt(unsigned index) const;
+  virtual void addSymbol(Symbol* symbol);
+  //const std::vector<Symbol*>& symbols() const { return _symbols; }
+
+  using iterator = Symbol**;
+  iterator begin() const;
+  iterator end() const;
 
   virtual NamespaceSymbol* findNamespace(const Name* name) const;
 
 private:
-  std::vector<Symbol*> _symbols; // ### TODO: index by name and types.
+  SymbolTable* _symbols{nullptr};
 };
 
 class NamespaceSymbol final: public ExtendsSymbol<SymbolKind::kNamespace, Scope> {
