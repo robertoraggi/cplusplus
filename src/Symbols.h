@@ -84,8 +84,8 @@ public:
 
   unsigned symbolCount() const;
   Symbol* symbolAt(unsigned index) const;
+  Symbol* findSymbol(const Name* name) const;
   virtual void addSymbol(Symbol* symbol);
-  //const std::vector<Symbol*>& symbols() const { return _symbols; }
 
   using iterator = Symbol**;
   iterator begin() const;
@@ -121,15 +121,13 @@ private:
 
 class TemplateSymbol final: public ExtendsSymbol<SymbolKind::kTemplate, Scope> {
 public:
-  const std::vector<Symbol*>& parameters() const { return _parameters; }
-  void addParameter(Symbol* param) { this->Scope::addSymbol(param); }
+  void addParameter(Symbol* param);
   Symbol* symbol() const { return _symbol; }
   void setSymbol(Symbol* symbol) { _symbol = symbol; }
   void dump(std::ostream& out, int depth) override;
   void addSymbol(Symbol *symbol) override;
 private:
   Symbol* _symbol;
-  std::vector<Symbol*> _parameters;
 };
 
 class FunctionSymbol final: public ExtendsSymbol<SymbolKind::kFunction, Scope> {
@@ -138,9 +136,10 @@ public:
   void setStorageClassSpecifier(TokenKind storageClassSpecifier);
 
   // ### FIXME
-  unsigned argumentCount() const { return _arguments.size(); }
-  ArgumentSymbol* argumentAt(unsigned index) const { return _arguments[index]; }
-  void addArgument(ArgumentSymbol* arg) { _arguments.push_back(arg); }
+  unsigned argumentCount() const { return symbolCount(); }
+  ArgumentSymbol* argumentAt(unsigned index) const;
+  void addArgument(ArgumentSymbol* arg);
+  void addSymbol(Symbol* symbol) override;
 
   void dump(std::ostream& out, int depth) override;
 
@@ -154,9 +153,12 @@ public:
   IR::Function* code() const;
   void setCode(IR::Function* code);
 
+  BlockSymbol* block() const;
+  void setBlock(BlockSymbol* block);
+
 private:
   QualType _returnType;
-  std::vector<ArgumentSymbol*> _arguments;
+  BlockSymbol* _block{nullptr};
   FunctionDefinitionAST* _internalNode{nullptr};
   unsigned _sourceLocation{0};
   TokenKind _storageClassSpecifier{T_EOF_SYMBOL};

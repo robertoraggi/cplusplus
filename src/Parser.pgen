@@ -953,7 +953,7 @@ is_function_decl(DeclaratorAST* ast, const ParseContext::Specs& specs)
 ;
 
 is_function_def(DeclaratorAST* decl, const ParseContext::Specs& specs)
-: is_function_decl(decl, specs) / (lbrace | colon | equal)
+: is_function_decl(decl, specs) / (lbrace | colon | equal (default | delete))
 ;
 
 simple_declaration_or_function_definition(DeclarationAST*& yyast)
@@ -2282,8 +2282,7 @@ template_declaration(DeclarationAST*& yyast)
 : extern? template
     {
       templ = control->newTemplate();
-      templ->setEnclosingScope(templ);
-      scope->addSymbol(templ); // ### TODO: check
+      templ->setEnclosingScope(scope);
       enterScope(this, templ);
     }
   (less (template_parameter(d, templ) dot_dot_dot?
@@ -2318,8 +2317,7 @@ template_member_declaration(DeclarationAST*& yyast)
 : extern? template
     {
       templ = control->newTemplate();
-      templ->setEnclosingScope(templ);
-      scope->addSymbol(templ); // ### TODO: check
+      templ->setEnclosingScope(scope);
       enterScope(this, templ);
     }
   (less (template_parameter(d, templ) dot_dot_dot?

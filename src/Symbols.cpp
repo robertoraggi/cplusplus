@@ -122,6 +122,7 @@ Scope* Symbol::enclosingScope() const {
 }
 
 void Symbol::setEnclosingScope(Scope* enclosingScope) {
+  assert(enclosingScope != this);
   _enclosingScope = enclosingScope;
 }
 
@@ -177,6 +178,10 @@ void ClassSymbol::setClassKey(TokenKind classKey) {
   _classKey = classKey;
 }
 
+void TemplateSymbol::addParameter(Symbol* param) {
+  this->Scope::addSymbol(param);
+}
+
 void TemplateSymbol::dump(std::ostream& out, int depth) {
   out << indent(depth) << "template <";
   bool first = true;
@@ -197,6 +202,9 @@ void TemplateSymbol::dump(std::ostream& out, int depth) {
 void TemplateSymbol::addSymbol(Symbol* symbol) {
   assert(! _symbol);
   _symbol = symbol;
+  auto scope = enclosingScope();
+  assert(scope);
+  scope->addSymbol(symbol);
 }
 
 TokenKind FunctionSymbol::storageClassSpecifier() const {
@@ -207,11 +215,31 @@ void FunctionSymbol::setStorageClassSpecifier(TokenKind storageClassSpecifier) {
   _storageClassSpecifier = storageClassSpecifier;
 }
 
+ArgumentSymbol* FunctionSymbol::argumentAt(unsigned index) const {
+  auto arg = symbolAt(index)->asArgumentSymbol();
+  assert(arg);
+  return arg;
+}
+
+void FunctionSymbol::addArgument(ArgumentSymbol* arg) {
+  addSymbol(arg);
+}
+
+void FunctionSymbol::addSymbol(Symbol* symbol) {
+  if (symbol->isArgumentSymbol()) {
+    Scope::addSymbol(symbol);
+  } else if (auto block = symbol->asBlockSymbol()) {
+    setBlock(block);
+  } else {
+    assert(!"unreachable");
+  }
+}
+
 void FunctionSymbol::dump(std::ostream& out, int depth) {
   auto funTy = type()->asFunctionType();
   assert(funTy);
   std::vector<const Name*> actuals;
-  for (auto&& arg: _arguments)
+  for (auto&& arg: *this)
     actuals.push_back(arg->name()); // ### this is a bit slow.
   out << indent(depth);
   if (_storageClassSpecifier)
@@ -243,6 +271,15 @@ IR::Function* FunctionSymbol::code() const {
 
 void FunctionSymbol::setCode(IR::Function* code) {
   _code = code;
+}
+
+BlockSymbol* FunctionSymbol::block() const {
+  return _block;
+}
+
+void FunctionSymbol::setBlock(BlockSymbol* block) {
+  assert(! _block);
+  _block = block;
 }
 
 void BlockSymbol::dump(std::ostream& out, int depth) {
@@ -298,6 +335,10 @@ Symbol* Scope::symbolAt(unsigned index) const {
   return _symbols ? _symbols->symbolAt(index) : nullptr;
 }
 
+Symbol* Scope::findSymbol(const Name* name) const {
+  return _symbols ? _symbols->findSymbol(name) : nullptr;
+}
+
 void Scope::addSymbol(Symbol* symbol) {
   if (! _symbols)
     _symbols = new SymbolTable();
@@ -313,11 +354,15 @@ Scope::iterator Scope::end() const {
 }
 
 NamespaceSymbol* Scope::findNamespace(const Name* name) const {
-  auto q = name ? name->asQualifiedName() : nullptr;
-  auto u = q ? q->name() : name;
-  for (auto sym: *this) {
-    if (sym->unqualifiedName() == u && sym->isNamespaceSymbol())
-      return sym->asNamespaceSymbol();
+  if (name) {
+    auto id = name->asIdentifier();
+    assert(id);
+    for (auto sym = findSymbol(name); sym; sym = sym->next()) {
+      if (sym->name() != name)
+        continue;
+      if (auto ns = sym->asNamespaceSymbol())
+        return ns;
+    }
   }
   return nullptr;
 }
