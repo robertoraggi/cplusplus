@@ -119,6 +119,11 @@ private:
   std::vector<BaseClassSymbol*> _baseClasses;
 };
 
+class EnumSymbol final: public ExtendsSymbol<SymbolKind::kEnum, Scope> {
+public:
+  void dump(std::ostream& out, int depth) override;
+};
+
 class TemplateSymbol final: public ExtendsSymbol<SymbolKind::kTemplate, Scope> {
 public:
   void addParameter(Symbol* param);

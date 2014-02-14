@@ -147,6 +147,19 @@ void BaseClassSymbol::dump(std::ostream& out, int depth) {
   assert(!"todo");
 }
 
+void EnumSymbol::dump(std::ostream& out, int depth) {
+  out << indent(depth) << "enum";
+  if (auto n = name())
+    out << " " << n->toString();
+  out << " {";
+  out << std::endl;
+  for (auto sym: *this) {
+    sym->dump(out, depth + 1);
+  }
+  out << indent(depth) << "}";
+  out << ';' << std::endl;
+}
+
 void ClassSymbol::dump(std::ostream& out, int depth) {
   out << indent(depth) << token_spell[_classKey];
   if (auto n = name())

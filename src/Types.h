@@ -188,6 +188,12 @@ public:
   ClassSymbol* symbol() const { return std::get<0>(*this); }
 };
 
+class EnumType final: public ExtendsType<TypeKind::kEnum>, public std::tuple<EnumSymbol*> {
+public:
+  using tuple::tuple;
+  EnumSymbol* symbol() const { return std::get<0>(*this); }
+};
+
 class NamedType final: public ExtendsType<TypeKind::kNamed>, public std::tuple<const Name*> {
 public:
   using tuple::tuple;

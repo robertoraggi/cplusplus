@@ -131,6 +131,7 @@
 
 #define FOR_EACH_SYMBOL(V) \
   V(Namespace) \
+  V(Enum) \
   V(Class) \
   V(BaseClass) \
   V(Template) \
@@ -296,6 +297,7 @@
   V(Array) \
   V(Function) \
   V(Class) \
+  V(Enum) \
   V(Named) \
   V(Elaborated)
 

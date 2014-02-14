@@ -1387,15 +1387,27 @@ enum_specifier(SpecifierAST*& yyast)
     auto it = &enums;
     List<SpecifierAST*>* specs{nullptr};
     EnumeratorAST* d{nullptr};
+    EnumSymbol* e{nullptr};
+    bool scoped{false};
+    EnterScope enterScope;
 }
-: enum (class | struct)? attribute_specifier_seq simple_name(name)?
+: enum ((class | struct) { scoped = true; })? attribute_specifier_seq simple_name(name)?
+    {
+      e = control->newEnum();
+      e->setName(context.name(name));
+      e->setEnclosingScope(scope);
+      scope->addSymbol(e);
+      if (scoped)
+        enterScope(this, e);
+    }
+
         (colon type_specifier_list(specs))?
-        lbrace (enumerator_definition(d)
+        lbrace (enumerator_definition(d, e)
                     {
                         *it = new (pool) List<EnumeratorAST*>(d);
                         it = &(*it)->next;
                     }
-                (comma enumerator_definition(d)
+                (comma enumerator_definition(d, e)
                     {
                         *it = new (pool) List<EnumeratorAST*>(d);
                         it = &(*it)->next;
@@ -1410,17 +1422,24 @@ enum_specifier(SpecifierAST*& yyast)
     }
 ;
 
-enumerator_definition(EnumeratorAST*& yyast)
+enumerator_definition(EnumeratorAST*& yyast, EnumSymbol* e)
 {
     ParseContext::NameAttrs name{nullptr};
-    ParseContext::ExprAttrs e{nullptr};
+    ParseContext::ExprAttrs expr{nullptr};
+    assert(e);
+    const QualType enumTy{control->getEnumType(e)};
 }
-: simple_name(name) (equal constant_expression(e))?
+: simple_name(name) (equal constant_expression(expr))?
     {
-        auto ast = new (pool) EnumeratorAST;
-        ast->name = name;
-        ast->expression = e;
-        yyast = ast;
+      auto sym = control->newDeclaration(); // ### newEnumerator
+      sym->setType(enumTy);
+      sym->setName(context.name(name));
+      scope->addSymbol(sym);
+
+      auto ast = new (pool) EnumeratorAST;
+      ast->name = name;
+      ast->expression = expr;
+      yyast = ast;
     }
 ;
 

@@ -194,6 +194,17 @@ void TypeToString::visit(const ClassType* type) {
   text += decl;
 }
 
+void TypeToString::visit(const EnumType* type) {
+  text = "enum";
+  if (auto name = type->symbol()->name()) {
+    text += ' ';
+    text += name->toString();
+  }
+  if (! decl.empty())
+    text += ' ';
+  text += decl;
+}
+
 void TypeToString::visit(const NamedType* type) {
   text += type->name()->toString();
   if (! decl.empty())

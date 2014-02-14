@@ -214,6 +214,10 @@ std::string Mangler::mangleClassType(const ClassType* type) {
   return "@class-type@";
 }
 
+std::string Mangler::mangleEnumType(const EnumType* type) {
+  return "@enum-type@";
+}
+
 std::string Mangler::mangleNamedType(const NamedType* type) {
   return "@named-type@";
 }
