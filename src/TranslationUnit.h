@@ -36,6 +36,7 @@ class TranslationUnit {
   std::string yytext;
   std::string yycode;
   const char* yyptr{nullptr};
+  bool resolveSymbols_{false};
 
 public:
   TranslationUnit(Control* control): control_(control) {}
@@ -52,6 +53,9 @@ public:
     yycode = std::forward<T>(source);
     yyptr = yycode.c_str();
   }
+
+  bool resolveSymbols() const { return resolveSymbols_; }
+  void setResolveSymbols(bool resolveSymbols) { resolveSymbols_ = resolveSymbols; }
 
   void warning(unsigned index, const char* format...);
   void error(unsigned index, const char* format...);

@@ -1,6 +1,6 @@
 int case_1() {
 .L0:	$0 = 0;
-	printf("%s\n", __FUNCTION__);
+	printf("case_1\n");
 	$0 = 123;
 
 .L1:	return $0;
@@ -8,7 +8,7 @@ int case_1() {
 
 int case_2() {
 .L0:	$0 = 0;
-	printf("%s\n", __FUNCTION__);
+	printf("case_2\n");
 	$0 = 321;
 
 .L1:	return $0;
@@ -16,7 +16,7 @@ int case_2() {
 
 int case_3() {
 .L0:	$0 = 0;
-	printf("%s\n", __FUNCTION__);
+	printf("case_3\n");
 	$0 = 999;
 
 .L1:	return $0;
@@ -24,7 +24,7 @@ int case_3() {
 
 int default_case() {
 .L0:	$0 = 0;
-	printf("%s\n", __FUNCTION__);
+	printf("case_4\n");
 	$0 = 444;
 
 .L1:	return $0;

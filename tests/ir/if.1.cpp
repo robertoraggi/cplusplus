@@ -1,5 +1,5 @@
 
-#include <cstdio>
+extern "C" int printf(const char*, ...);
 
 enum {
   T_ASM,

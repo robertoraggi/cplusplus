@@ -170,6 +170,17 @@
   ParseContext context;
   bool templDecl{false};
 
+  Symbol* lookup(const Name* name, Scope* current,
+                 bool want_qualified_lookup) const {
+    for (; current; current = current->enclosingScope()) {
+      if (auto sym = current->findSymbol(name))
+        return sym;
+      if (want_qualified_lookup)
+        break;
+    }
+    return nullptr;
+  }
+
   struct EnterFunction {
     Parser* p{nullptr};
     IR::Function* function{nullptr};
@@ -235,6 +246,7 @@ primary_expression(ParseContext::ExprAttrs& yyast)
   ParseContext::NameAttrs name{nullptr};
   ParseContext::ExprAttrs e{nullptr};
   e.flags = yyast.flags;
+  unsigned yypos = yycursor;
 }
 : literal(yyast)
 | this
@@ -254,6 +266,11 @@ primary_expression(ParseContext::ExprAttrs& yyast)
       ast->id = context.name(name);
       ast->name = name;
       yyast = ast;
+
+      auto sym = name.symbol;
+      if (unit->resolveSymbols() && ! sym)
+        unit->error(yypos, "undefined symbol `%s'",
+            ast->id ? ast->id->toString().c_str() : "??");
     }
 | lambda_expression(yyast)
 ;
@@ -301,9 +318,16 @@ class_or_namespace_name(ParseContext::NameAttrs& yyast)
 simple_name(ParseContext::NameAttrs& yyast)
 : identifier
     {
-        auto ast = new (pool) SimpleNameAST;
-        ast->identifier_token = yycursor - 1;
-        yyast = ast;
+      auto name = unit->identifier(yycursor - 1);
+      yyast.symbol = lookup(name, yyast.scope, yyast.want_qualified_lookup);
+      if (yyast.symbol)
+        yyast.scope = yyast.symbol->enclosingScope();
+      else
+        yyast.scope = nullptr;
+
+      auto ast = new (pool) SimpleNameAST;
+      ast->identifier_token = yycursor - 1;
+      yyast = ast;
     }
 ;
 
@@ -1301,6 +1325,22 @@ type_specifier_no_simple_type_spec(SpecifierAST*& yyast)
 | trailing_type_specifier_no_simple_type_spec(yyast)
 | name(name)
     {
+      Symbol* type{nullptr};
+      for (auto sym = name.symbol; !type && sym; sym = sym->next()) {
+        switch (sym->kind()) {
+        case SymbolKind::kTypedef:
+        case SymbolKind::kClass:
+        case SymbolKind::kEnum:
+        case SymbolKind::kTypeParameter:
+        case SymbolKind::kTemplateTypeParameter:
+          type = sym;
+          break;
+        default:
+          break;
+        } // switch
+      }
+      if (unit->resolveSymbols() && ! type)
+        return false;
       auto ast = new (pool) NamedSpecifierAST;
       ast->name = name;
       yyast = ast;

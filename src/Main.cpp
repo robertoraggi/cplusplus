@@ -66,12 +66,14 @@ std::string readAll(const std::string& fileName) {
 }
 
 bool parseFile(const std::string& fileName,
+               bool resolveSymbols,
                const std::function<void (TranslationUnit*,
                                          TranslationUnitAST*)>& consume) {
   Control control;
   TranslationUnit unit(&control);
   unit.setFileName(fileName);
   unit.setSource(readAll(fileName));
+  unit.setResolveSymbols(resolveSymbols);
   return unit.parse([&unit, consume](TranslationUnitAST* ast) {
     consume(&unit, ast);
   });
@@ -82,6 +84,7 @@ int main(int argc, char* argv[]) {
   bool dumpAST{false};
   bool dumpSymbols{false};
   bool dumpIR{false};
+  bool resolveSymbols{false};
 
   int index = 1;
   while (index < argc) {
@@ -92,6 +95,7 @@ int main(int argc, char* argv[]) {
                 << "  --ast             dump the AST" << std::endl
                 << "  --ir              dump the IR code" << std::endl
                 << "  --symbols         dump the symbols" << std::endl
+                << "  --lookup          resolve symbols" << std::endl
                 << "  --help            display this output" << std::endl;
       exit(EXIT_SUCCESS);
     } else if (arg == "--ast") {
@@ -100,6 +104,8 @@ int main(int argc, char* argv[]) {
       dumpSymbols = true;
     } else if (arg == "--ir") {
       dumpIR = true;
+    } else if (arg == "--lookup") {
+      resolveSymbols = true;
     } else {
       inputFiles.push_back(std::move(arg));
     }
@@ -112,7 +118,8 @@ int main(int argc, char* argv[]) {
   }
 
   for (auto&& fileName: inputFiles) {
-    parseFile(fileName, [=](TranslationUnit* unit, TranslationUnitAST* ast) {
+    parseFile(fileName, resolveSymbols,
+              [=](TranslationUnit* unit, TranslationUnitAST* ast) {
       if (dumpAST) {
         DumpAST dump{unit};
         dump(ast);

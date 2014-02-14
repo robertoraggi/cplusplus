@@ -1,8 +1,9 @@
-#include <stdio.h>
-int case_1() { printf("%s\n", __FUNCTION__); return 123; }
-int case_2() { printf("%s\n", __FUNCTION__); return 321; }
-int case_3() { printf("%s\n", __FUNCTION__); return 999; }
-int default_case() { printf("%s\n", __FUNCTION__); return 444; }
+extern "C" int printf(const char*, ...);
+
+int case_1() { printf("case_1\n"); return 123; }
+int case_2() { printf("case_2\n"); return 321; }
+int case_3() { printf("case_3\n"); return 999; }
+int default_case() { printf("case_4\n"); return 444; }
 
 int switch_1(int a) {
   switch (a) {
