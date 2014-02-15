@@ -91,20 +91,30 @@ public:
   iterator begin() const;
   iterator end() const;
 
-  virtual NamespaceSymbol* findNamespace(const Name* name) const;
-
 private:
   SymbolTable* _symbols{nullptr};
 };
 
 class NamespaceSymbol final: public ExtendsSymbol<SymbolKind::kNamespace, Scope> {
 public:
+  const std::vector<NamespaceSymbol*>& usings() const { return _usings; }
+  void addUsing(NamespaceSymbol* u) { _usings.push_back(u); }
+
   void dump(std::ostream& out, int depth) override;
+
+private:
+  std::vector<NamespaceSymbol*> _usings;
 };
 
 class BaseClassSymbol final: public ExtendsSymbol<SymbolKind::kBaseClass, Symbol> {
 public:
+  ClassSymbol* symbol() const { return _symbol; }
+  void setSymbol(ClassSymbol* symbol) { _symbol = symbol; }
+
   void dump(std::ostream& out, int depth) override;
+
+private:
+  ClassSymbol* _symbol{nullptr};
 };
 
 class ClassSymbol final: public ExtendsSymbol<SymbolKind::kClass, Scope> {
@@ -115,7 +125,7 @@ public:
   const std::vector<BaseClassSymbol*>& baseClasses() const { return _baseClasses; }
   void addBaseClass(BaseClassSymbol* baseClass) { _baseClasses.push_back(baseClass); }
 private:
-  TokenKind _classKey;
+  TokenKind _classKey{T_EOF_SYMBOL};
   std::vector<BaseClassSymbol*> _baseClasses;
 };
 

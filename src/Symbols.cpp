@@ -365,17 +365,3 @@ Scope::iterator Scope::begin() const {
 Scope::iterator Scope::end() const {
   return _symbols ? _symbols->end() : nullptr;
 }
-
-NamespaceSymbol* Scope::findNamespace(const Name* name) const {
-  if (name) {
-    auto id = name->asIdentifier();
-    assert(id);
-    for (auto sym = findSymbol(name); sym; sym = sym->next()) {
-      if (sym->name() != name)
-        continue;
-      if (auto ns = sym->asNamespaceSymbol())
-        return ns;
-    }
-  }
-  return nullptr;
-}

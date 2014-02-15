@@ -110,5 +110,17 @@ foreach(CPP_TEST ${IRTests})
     get_filename_component(TEST_NAME ${CPP_TEST} NAME)
         add_test(NAME ir/${TEST_NAME}
         WORKING_DIRECTORY ${CMAKE_HOME_DIRECTORY}
-        COMMAND /bin/bash -c "${CMAKE_CURRENT_BINARY_DIR}/cplusplus ${CPP_TEST} --ir | diff -r ${CPP_TEST}.ir -")
+        COMMAND /bin/bash -c "${CMAKE_CURRENT_BINARY_DIR}/cplusplus ${CPP_TEST} --ir --lookup | diff -r ${CPP_TEST}.ir -")
 endforeach(CPP_TEST)
+
+##
+## IR
+##
+FILE(GLOB IRTests tests/lookup/*.cpp)
+foreach(CPP_TEST ${IRTests})
+    get_filename_component(TEST_NAME ${CPP_TEST} NAME)
+        add_test(NAME lookup/${TEST_NAME}
+        WORKING_DIRECTORY ${CMAKE_HOME_DIRECTORY}
+        COMMAND /bin/bash -c "${CMAKE_CURRENT_BINARY_DIR}/cplusplus ${CPP_TEST} --lookup 2>&1 | diff -r ${CPP_TEST}.output -")
+endforeach(CPP_TEST)
+

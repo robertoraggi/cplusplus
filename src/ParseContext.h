@@ -30,7 +30,6 @@ struct ParseContext {
 
   struct NameAttrs {
     NameAST* ast;
-    Scope* scope{nullptr};
     Symbol* symbol{nullptr};
     union {
       unsigned flags;
@@ -44,9 +43,8 @@ struct ParseContext {
     inline explicit NameAttrs(NameAST* ast = nullptr)
       : ast(ast), flags(0) {}
 
-    void reset(Scope* scope = nullptr) {
+    void reset() {
       this->ast = nullptr;
-      this->scope = scope;
       this->symbol = nullptr;
       this->flags = 0;
     }

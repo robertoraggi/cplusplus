@@ -158,6 +158,12 @@
   bool parseBinaryExpression(ParseContext::ExprAttrs& yyast, bool templArg, int minPrec);
   bool parseBinaryExpressionHelper(ParseContext::ExprAttrs& yyast, bool templArg, int minPrec);
 
+#if 0
+  inline bool parse_name(ParseContext::NameAttrs& yyast, Scope* current) {
+    return parse_name(yyast, current, Validate());
+  }
+#endif
+
   Arena* pool{nullptr};
   TranslationUnit* unit{nullptr};
   Control* control{nullptr};
@@ -170,11 +176,96 @@
   ParseContext context;
   bool templDecl{false};
 
-  Symbol* lookup(const Name* name, Scope* current,
-                 bool want_qualified_lookup) const {
-    for (; current; current = current->enclosingScope()) {
-      if (auto sym = current->findSymbol(name))
+  using Validate = std::function<bool(Symbol*)>;
+
+  Validate all_names;
+
+  static bool is_enum(Symbol* s) {
+    return s && s->isEnumSymbol();
+  }
+
+  static bool is_class(Symbol* s) {
+    return s && s->isClassSymbol();
+  }
+
+  static bool is_namespace(Symbol* s) {
+    return s && s->isNamespaceSymbol();
+  }
+
+  static bool is_class_or_namespace(Symbol* s) {
+    return is_class(s) || is_namespace(s);
+  }
+
+  static bool is_type_symbol(Symbol* s) {
+    switch (s->kind()) {
+    case SymbolKind::kTypedef:
+    case SymbolKind::kClass:
+    case SymbolKind::kEnum:
+    case SymbolKind::kTypeParameter:
+    case SymbolKind::kTemplateTypeParameter:
+      return true;
+    default:
+      return false;
+    } // switch
+  }
+
+  void collectNamespaces(NamespaceSymbol* ns, std::vector<NamespaceSymbol*>* list) const {
+    if (! ns)
+      return;
+    std::vector<NamespaceSymbol*> todo;
+    for (auto u: ns->usings()) {
+      if (std::find(list->begin(), list->end(), u) == list->end()) {
+        list->push_back(u);
+        todo.push_back(u);
+      }
+    }
+    for (auto u: todo)
+      collectNamespaces(u, list);
+  }
+
+  Symbol* findSymbol(const Name* name, Scope* current,
+                     const Validate& validate) const {
+    if (! current)
+      return nullptr;
+    for (auto sym = current->findSymbol(name); sym; sym = sym->next()) {
+      if (sym->name() != name)
+        continue;
+      if (! validate || validate(sym))
         return sym;
+    }
+    return nullptr;
+  }
+
+  Symbol* lookup(const Name* name, Scope* current,
+                 bool want_qualified_lookup,
+                 const Validate& validate) const {
+    for (; current; current = current->enclosingScope()) {
+      if (auto sym = findSymbol(name, current, validate))
+        return sym;
+      if (auto ns = current->asNamespaceSymbol()) {
+        std::vector<NamespaceSymbol*> usings;
+        collectNamespaces(ns, &usings);
+        std::vector<Symbol*> candidates;
+        for (auto u: usings) {
+          if (auto sym = findSymbol(name, u, validate))
+            candidates.push_back(sym);
+        }
+        if (candidates.size() > 1) {
+          assert(!"reference is ambiguous");
+        }
+        if (! candidates.empty())
+          return candidates.front();
+      }
+      if (auto klass = current->asClassSymbol()) {
+        for (auto bc: klass->baseClasses()) {
+          auto baseClass = bc->symbol();
+          if (! baseClass)
+            continue;
+          if (auto sym = lookup(name, baseClass, true, validate)) {
+            return sym;
+          }
+        }
+      }
       if (want_qualified_lookup)
         break;
     }
@@ -260,7 +351,7 @@ primary_expression(ParseContext::ExprAttrs& yyast)
       ast->expression = e;
       yyast = ast;
     }
-| name(name)
+| name(name, scope, all_names)
     {
       auto ast = new (pool) IdExpressionAST;
       ast->id = context.name(name);
@@ -279,51 +370,59 @@ scope
 : colon_colon
 ;
 
-explicit_template_or_unqualified_id(ParseContext::NameAttrs& yyast)
-: template / (identifier less) { yyast.want_template_id = true; } simple_template_id(yyast)
-| unqualified_id(yyast)
+explicit_template_or_unqualified_id(ParseContext::NameAttrs& yyast, Scope* current)
+: template / (identifier less) { yyast.want_template_id = true; } simple_template_id(yyast, current)
+| unqualified_id(yyast, current)
 ;
 
-name(ParseContext::NameAttrs& yyast)
+name(ParseContext::NameAttrs& yyast, Scope* current, const Validate& v)
 {
   ParseContext::NameAttrs n{nullptr};
-
-  if (! yyast.scope)
-    yyast.scope = scope;
 }
-: (scope { yyast.scope = globalScope; yyast.want_qualified_lookup = true; })?
-        explicit_template_or_unqualified_id(yyast)
-        (colon_colon
-          {
-            auto currentScope = yyast.symbol ? yyast.symbol->asScope() : nullptr;
-            n.reset(currentScope);
-            n.want_qualified_lookup = true;
-          }
-         explicit_template_or_unqualified_id(n)
-          {
-            auto ast = new (pool) QualifiedNameAST;
-            ast->base = yyast;
-            ast->name = n;
-            yyast = ast;
-          }
-        )*
+: (scope
+    {
+      current = globalScope;
+      yyast.want_qualified_lookup = true;
+    })?
+  explicit_template_or_unqualified_id(yyast, current)
+  (colon_colon
+    {
+      current = yyast.symbol ? yyast.symbol->asScope() : nullptr;
+
+      if (unit->resolveSymbols()) {
+        if (! (current && (current->isClassSymbol() || current->isNamespaceSymbol()))) {
+          unit->error(yycursor, "expected class or namespace name");
+          return false;
+        }
+      }
+
+      n.reset();
+      n.want_qualified_lookup = true;
+    }
+   explicit_template_or_unqualified_id(n, current)
+    {
+      auto ast = new (pool) QualifiedNameAST;
+      ast->base = yyast;
+      ast->name = n;
+      yyast = ast;
+
+      // update the symbol
+      yyast.symbol = n.symbol;
+    }
+  )*
 ;
 
-class_or_namespace_name(ParseContext::NameAttrs& yyast)
-: simple_name(yyast) colon_colon
-| template? simple_template_id(yyast) colon_colon
+class_or_namespace_name(ParseContext::NameAttrs& yyast, Scope* current)
+: simple_name(yyast, current) colon_colon
+| template? simple_template_id(yyast, current) colon_colon
 | decltype_specifier(yyast) colon_colon
 ;
 
-simple_name(ParseContext::NameAttrs& yyast)
+simple_name(ParseContext::NameAttrs& yyast, Scope* current)
 : identifier
     {
       auto name = unit->identifier(yycursor - 1);
-      yyast.symbol = lookup(name, yyast.scope, yyast.want_qualified_lookup);
-      if (yyast.symbol)
-        yyast.scope = yyast.symbol->enclosingScope();
-      else
-        yyast.scope = nullptr;
+      yyast.symbol = lookup(name, current, yyast.want_qualified_lookup, all_names);
 
       auto ast = new (pool) SimpleNameAST;
       ast->identifier_token = yycursor - 1;
@@ -331,20 +430,20 @@ simple_name(ParseContext::NameAttrs& yyast)
     }
 ;
 
-unqualified_id(ParseContext::NameAttrs& yyast)
-: template_id(yyast)
-| simple_name(yyast)
-| destructor_id(yyast)
+unqualified_id(ParseContext::NameAttrs& yyast, Scope* current)
+: template_id(yyast, current)
+| simple_name(yyast, current)
+| destructor_id(yyast, current)
 | decltype_specifier(yyast)
 | operator_function_id(yyast)
 | conversion_function_id(yyast)
 ;
 
-destructor_id(ParseContext::NameAttrs& yyast)
+destructor_id(ParseContext::NameAttrs& yyast, Scope* current)
 {
     ParseContext::NameAttrs n{nullptr};
 }
-: tilde unqualified_id(n)
+: tilde unqualified_id(n, current)
     {
         auto ast = new (pool) DestructorNameAST;
         ast->name = n;
@@ -449,6 +548,7 @@ postfix_expression(ParseContext::ExprAttrs& yyast)
   ParseContext::ExprAttrs e{nullptr};
   List<ExpressionAST*>* args{nullptr};
   ParseContext::NameAttrs name{nullptr};
+  ClassSymbol* klass{nullptr}; // ### resolve
 }
 : postfix_base_expression(yyast)
     (lparen expression_list(args)? rparen
@@ -465,7 +565,7 @@ postfix_expression(ParseContext::ExprAttrs& yyast)
          ast->index_expression = e;
          yyast = ast;
        }
-   | (dot | minus_greater) parsed_token(&access_token) template? name(name)
+   | (dot | minus_greater) parsed_token(&access_token) template? name(name, klass, all_names)
        {
          auto ast = new (pool) MemberExpressionAST;
          ast->id = context.name(name);
@@ -500,7 +600,7 @@ unary_expression(ParseContext::ExprAttrs& yyast)
       ast->expression = e;
       yyast = ast;
     }
-| sizeof dot_dot_dot lparen simple_name(name) rparen
+| sizeof dot_dot_dot lparen simple_name(name, scope) rparen
     {
       auto ast = new (pool) SizeofPackedArgsExpressionAST;
       ast->name = name;
@@ -680,7 +780,7 @@ labeled_statement(StatementAST*& yyast)
   ParseContext::NameAttrs n{nullptr};
 }
 : attribute_specifier_seq
-    (simple_name(n) colon statement(s)
+    (simple_name(n, scope) colon statement(s)
       {
         auto ast = new (pool) LabeledStatementAST;
         ast->id = context.name(n);
@@ -932,7 +1032,7 @@ jump_statement(StatementAST*& yyast)
       ast->expression = e;
       yyast = ast;
     }
-| goto simple_name(name) semicolon
+| goto simple_name(name, scope) semicolon
     {
       auto ast = new (pool) GotoStatementAST;
       ast->id = context.name(name);
@@ -1172,7 +1272,7 @@ alias_declaration(DeclarationAST*& yyast)
     ParseContext::NameAttrs name{nullptr};
     TypeIdAST* t{nullptr};
 }
-: using simple_name(name) attribute_specifier_seq equal type_id(t) semicolon
+: using simple_name(name, scope) attribute_specifier_seq equal type_id(t) semicolon
     {
       auto ast = new (pool) AliasDeclarationAST;
       ast->alias_name = name;
@@ -1318,28 +1418,14 @@ type_specifier(SpecifierAST*& yyast)
 
 type_specifier_no_simple_type_spec(SpecifierAST*& yyast)
 {
-    ParseContext::NameAttrs name{nullptr};
+  ParseContext::NameAttrs name{nullptr};
 }
 : class_specifier(yyast)
 | enum_specifier(yyast)
 | trailing_type_specifier_no_simple_type_spec(yyast)
-| name(name)
+| name(name, scope, is_type_symbol)
     {
-      Symbol* type{nullptr};
-      for (auto sym = name.symbol; !type && sym; sym = sym->next()) {
-        switch (sym->kind()) {
-        case SymbolKind::kTypedef:
-        case SymbolKind::kClass:
-        case SymbolKind::kEnum:
-        case SymbolKind::kTypeParameter:
-        case SymbolKind::kTemplateTypeParameter:
-          type = sym;
-          break;
-        default:
-          break;
-        } // switch
-      }
-      if (unit->resolveSymbols() && ! type)
+      if (unit->resolveSymbols() && ! name.symbol)
         return false;
       auto ast = new (pool) NamedSpecifierAST;
       ast->name = name;
@@ -1405,14 +1491,14 @@ elaborated_type_specifier(SpecifierAST*& yyast)
   unsigned k{0};
   ParseContext::NameAttrs name{nullptr};
 }
-: class_key parsed_token(&k) attribute_specifier_seq name(name)
+: class_key parsed_token(&k) attribute_specifier_seq name(name, scope, all_names)
     {
         auto ast = new (pool) ElaboratedTypeSpecifierAST;
         ast->class_key_token = k;
         ast->name = name;
         yyast = ast;
     }
-| enum name(name)
+| enum name(name, scope, all_names)
     {
         auto ast = new (pool) ElaboratedTypeSpecifierAST;
         ast->name = name;
@@ -1431,7 +1517,7 @@ enum_specifier(SpecifierAST*& yyast)
     bool scoped{false};
     EnterScope enterScope;
 }
-: enum ((class | struct) { scoped = true; })? attribute_specifier_seq simple_name(name)?
+: enum ((class | struct) { scoped = true; })? attribute_specifier_seq simple_name(name, scope)?
     {
       e = control->newEnum();
       e->setName(context.name(name));
@@ -1469,7 +1555,7 @@ enumerator_definition(EnumeratorAST*& yyast, EnumSymbol* e)
     assert(e);
     const QualType enumTy{control->getEnumType(e)};
 }
-: simple_name(name) (equal constant_expression(expr))?
+: simple_name(name, scope) (equal constant_expression(expr))?
     {
       auto sym = control->newDeclaration(); // ### newEnumerator
       sym->setType(enumTy);
@@ -1492,11 +1578,13 @@ namespace_definition(DeclarationAST*& yyast)
   unsigned yypos{0};
   EnterScope enterScope;
 }
-: inline? {yypos=yycursor;} namespace simple_name(n)?
+: inline? {yypos=yycursor;} namespace simple_name(n, scope)?
   lbrace
     {
       auto name = context.name(n);
-      auto ns = scope->findNamespace(name);
+      NamespaceSymbol* ns{nullptr};
+      if (auto sym = findSymbol(name, scope, is_namespace))
+        ns = sym->asNamespaceSymbol();
       if (! ns) {
         ns = control->newNamespace();
         ns->setName(name);
@@ -1525,7 +1613,7 @@ namespace_alias_definition(DeclarationAST*& yyast)
     ParseContext::NameAttrs alias_name{nullptr};
     ParseContext::NameAttrs name{nullptr};
 }
-: namespace simple_name(name) equal name(name) semicolon
+: namespace simple_name(name, scope) equal name(name, scope, all_names) semicolon
     {
       auto ast = new (pool) NamespaceAliasDefinitionAST;
       ast->alias_name = alias_name;
@@ -1538,7 +1626,7 @@ using_declaration(DeclarationAST*& yyast)
 {
     ParseContext::NameAttrs name{nullptr};
 }
-: using typename? name(name) semicolon
+: using typename? name(name, scope, all_names) semicolon
     {
       auto ast = new (pool) UsingDeclarationAST;
       ast->name = name;
@@ -1548,10 +1636,22 @@ using_declaration(DeclarationAST*& yyast)
 
 using_directive(DeclarationAST*& yyast)
 {
-    ParseContext::NameAttrs name{nullptr};
+  ParseContext::NameAttrs name{nullptr};
+  auto yypos = yycursor;
 }
-: attribute_specifier_seq using namespace name(name) semicolon
+: attribute_specifier_seq using namespace name(name, scope, is_namespace) semicolon
     {
+      if (! name.symbol)
+        unit->error(yypos, "expected a namespace name");
+      else if (auto u = name.symbol->asNamespaceSymbol()) {
+        if (auto ns = scope->asNamespaceSymbol())
+          ns->addUsing(u);
+        else if (auto block = scope->asBlockSymbol())
+          unit->warning(yypos, "TODO: using namespace directive");
+        else
+          unit->error(yypos, "unexpected using directive");
+      }
+
       auto ast = new (pool) UsingDirectiveAST;
       ast->name = name;
       yyast = ast;
@@ -1766,6 +1866,7 @@ ptr_operator(PtrOperatorAST*& yyast)
   ParseContext::NameAttrs n{nullptr};
   List<NameAST*>* nested_name_specifier{nullptr};
   auto x = &nested_name_specifier;
+  Scope* current = scope;
 }
 : star parsed_token(&op_token) attribute_specifier_seq
         (cv_qualifier(spec)
@@ -1787,24 +1888,31 @@ ptr_operator(PtrOperatorAST*& yyast)
       ast->cv_qualifier_list = cv;
       yyast = ast;
     }
-| colon_colon? (class_or_namespace_name(n)
-                    {
-                        *x = new (pool) List<NameAST*>(n);
-                        x = &(*x)->next;
-                    }
-               )+ star parsed_token(&op_token) attribute_specifier_seq
-            (cv_qualifier(spec)
-              {
-                *it = new (pool) List<SpecifierAST*>(spec);
-                it = &(*it)->next;
-              }
-            )*
+| (colon_colon
     {
-        auto ast = new (pool) PtrOperatorAST;
-        ast->op = unit->tokenKind(op_token);
-        ast->nested_name_specifier = nested_name_specifier;
-        ast->cv_qualifier_list = cv;
-        yyast = ast;
+      current = globalScope;
+    }
+  )?
+  (class_or_namespace_name(n, current)
+    {
+      *x = new (pool) List<NameAST*>(n);
+      x = &(*x)->next;
+      current = n.symbol ? n.symbol->asScope() : nullptr;
+    }
+  )+
+  star parsed_token(&op_token) attribute_specifier_seq
+  (cv_qualifier(spec)
+    {
+      *it = new (pool) List<SpecifierAST*>(spec);
+      it = &(*it)->next;
+    }
+  )*
+    {
+      auto ast = new (pool) PtrOperatorAST;
+      ast->op = unit->tokenKind(op_token);
+      ast->nested_name_specifier = nested_name_specifier;
+      ast->cv_qualifier_list = cv;
+      yyast = ast;
     }
 ;
 
@@ -1826,7 +1934,7 @@ declarator_id(CoreDeclaratorAST*& yyast)
 {
     ParseContext::NameAttrs name{nullptr};
 }
-: dot_dot_dot? name(name)
+: dot_dot_dot? name(name, scope, all_names)
     {
       auto ast = new (pool) DeclaratorIdAST;
       ast->name = name;
@@ -2088,7 +2196,7 @@ class_specifier(SpecifierAST*& yyast)
   ClassSymbol* klass{nullptr};
 }
 : class_key parsed_token(&k) attribute_specifier_seq
-  { yypos=yycursor; } ((name(name) (final | explicit)?)?)
+  { yypos=yycursor; } ((name(name, scope, all_names) (final | explicit)?)?)
   / (colon | lbrace)
     {
       klass = control->newClass();
@@ -2166,8 +2274,8 @@ base_clause(List<BaseClassAST*>*& yyast, ClassSymbol* klass)
 
 base_specifier_list(List<BaseClassAST*>*& yyast, ClassSymbol* klass)
 {
-    auto it = &yyast;
-    BaseClassAST* bc{nullptr};
+  auto it = &yyast;
+  BaseClassAST* bc{nullptr};
 }
 : base_specifier(bc, klass) dot_dot_dot?
     {
@@ -2184,7 +2292,8 @@ base_specifier_list(List<BaseClassAST*>*& yyast, ClassSymbol* klass)
 
 base_specifier(BaseClassAST*& yyast, ClassSymbol* klass)
 {
-    ParseContext::NameAttrs name{nullptr};
+  ParseContext::NameAttrs name{nullptr};
+  unsigned yypos = yycursor;
 }
 : attribute_specifier_seq (virtual | public | protected | private)*
   base_type_specifier(name)
@@ -2192,6 +2301,11 @@ base_specifier(BaseClassAST*& yyast, ClassSymbol* klass)
       auto baseClass = new BaseClassSymbol();
       baseClass->setName(context.name(name));
       baseClass->setEnclosingScope(klass);
+      if (name.symbol)
+        baseClass->setSymbol(name.symbol->asClassSymbol());
+      else if (unit->resolveSymbols())
+        unit->error(yypos, "expected a class name `%s'",
+          baseClass->name() ? baseClass->name()->toString().c_str() : "??");
       klass->addBaseClass(baseClass);
       auto ast = new (pool) BaseClassAST;
       ast->name = name;
@@ -2200,7 +2314,7 @@ base_specifier(BaseClassAST*& yyast, ClassSymbol* klass)
 ;
 
 base_type_specifier(ParseContext::NameAttrs& yyast)
-: name(yyast)
+: name(yyast, scope, is_class)
 | decltype_specifier(yyast)
 ;
 
@@ -2271,7 +2385,7 @@ mem_initializer(MemInitializerAST*& yyast)
 ;
 
 mem_initializer_id(ParseContext::NameAttrs& yyast)
-: name(yyast)
+: name(yyast, scope, all_names)
 | decltype_specifier(yyast)
 ;
 
@@ -2414,7 +2528,7 @@ type_parameter(DeclarationAST*& yyast, TemplateSymbol* templ)
   ParseContext::NameAttrs n{nullptr};
   TemplateTypeParameterSymbol* templTypeParam{nullptr};
 }
-: ((class | typename) dot_dot_dot? simple_name(n)? (equal type_id(t))?) / (comma | greater)
+: ((class | typename) dot_dot_dot? simple_name(n, scope)? (equal type_id(t))?) / (comma | greater)
     {
       if (templ) {
         auto arg = control->newTypeParameter();
@@ -2441,7 +2555,7 @@ type_parameter(DeclarationAST*& yyast, TemplateSymbol* templ)
               *it = new (pool) List<DeclarationAST*>(p);
               it = &(*it)->next;
             }
-        )* greater class dot_dot_dot? simple_name(n)? (equal type_id(t))?
+        )* greater class dot_dot_dot? simple_name(n, scope)? (equal type_id(t))?
     {
       if (templ) {
         templTypeParam->setName(context.name(n));
@@ -2456,13 +2570,13 @@ type_parameter(DeclarationAST*& yyast, TemplateSymbol* templ)
     }
 ;
 
-template_id(ParseContext::NameAttrs& yyast)
+template_id(ParseContext::NameAttrs& yyast, Scope* current)
 {
   List<ExpressionAST*>* args{nullptr};
   auto it = &args;
   ParseContext::ExprAttrs e{nullptr};
 }
-: simple_template_id(yyast)
+: simple_template_id(yyast, current)
 | operator_function_id(yyast) less
     (template_argument(e)
         {
@@ -2483,14 +2597,14 @@ template_id(ParseContext::NameAttrs& yyast)
         }
 ;
 
-simple_template_id(ParseContext::NameAttrs& yyast)
+simple_template_id(ParseContext::NameAttrs& yyast, Scope* current)
 {
   List<ExpressionAST*>* args{nullptr};
   auto it = &args;
   ParseContext::ExprAttrs e{nullptr};
   ParseContext::NameAttrs name{nullptr};
 }
-: simple_name(name) less
+: simple_name(name, current) less
     (template_argument(e)
         {
             *it = new (pool) List<ExpressionAST*>(e);
@@ -2523,7 +2637,7 @@ typename_specifier(SpecifierAST*& yyast)
 {
     ParseContext::NameAttrs name{nullptr};
 }
-: typename name(name)
+: typename name(name, scope, all_names)
     {
       auto ast = new (pool) TypenameSpecifierAST;
       ast->name = name;
