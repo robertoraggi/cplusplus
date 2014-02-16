@@ -169,6 +169,7 @@
   Codegen cg;
   ParseContext context;
   bool templDecl{false};
+  bool classDecl{false};
 
   using OnDeclaratorId = std::function<void(DeclaratorIdAST*)>;
   using OnSymbol = std::function<bool(Symbol*)>;
@@ -306,7 +307,22 @@
       std::swap(p->templDecl, this->templDecl);
     }
     ~EnterTemplateDecl() {
-      std::swap(p->templDecl, this->templDecl);
+      if (p)
+        std::swap(p->templDecl, this->templDecl);
+    }
+  };
+
+  struct EnterClassDecl {
+    Parser* p{nullptr};
+    bool classDecl{false};
+    void operator()(Parser* p, bool x = true) {
+      this->p = p;
+      this->classDecl = x;
+      std::swap(p->classDecl, this->classDecl);
+    }
+    ~EnterClassDecl() {
+      if (p)
+        std::swap(p->classDecl, this->classDecl);
     }
   };
 
@@ -1089,6 +1105,15 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
   StatementAST* s{nullptr};
   FunctionSymbol* fun{nullptr};
   EnterScope enterScope;
+  Scope* parentScope{scope};
+
+  auto onDeclaratorId = [this, &parentScope] (DeclaratorIdAST* declId) {
+    if (! unit->resolveSymbols())
+      return;
+    if (auto q = declId->name ? declId->name->asQualifiedName() : nullptr) {
+      parentScope = q->scope;
+    }
+  };
 }
 : { return ! scope->isBlockSymbol(); }
   attribute_specifier_seq
@@ -1096,7 +1121,7 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
     {
       specs = context.specifiers(specifier_list);
     }
-  (declarator(d, OnDeclaratorId())
+  (declarator(d, onDeclaratorId)
 
   (is_function_decl(d, specs) semicolon
     {
@@ -1143,8 +1168,8 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
 
       fun->setType(QualType(funTy));
       fun->setName(funDecl.name);
-      fun->setEnclosingScope(scope); // lexical scope
-      scope->addSymbol(fun); // ### wrong we should not use the lexical scope here.
+      fun->setEnclosingScope(parentScope);
+      parentScope->addSymbol(fun); // ### wrong we should not use the lexical scope here.
       enterScope(this, fun);
 
       fun_ast = new (pool) FunctionDefinitionAST;
@@ -1170,7 +1195,7 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
       ast->specifier_list = specifier_list;
       yyast = ast;
     }
-  |( { return scope->isClassSymbol(); } / colon { d = nullptr; } | declarator(d, OnDeclaratorId()))
+  |( { return scope->isClassSymbol(); } / colon { d = nullptr; } | declarator(d, onDeclaratorId))
     (is_function_def(d, specs)
         {
           funDecl = context.declarator(specs, d);
@@ -1195,8 +1220,8 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
 
           fun->setType(QualType(funTy));
           fun->setName(funDecl.name);
-          fun->setEnclosingScope(scope); // lexical scope
-          scope->addSymbol(fun); // ### wrong we should not use the lexical scope here.
+          fun->setEnclosingScope(parentScope);
+          parentScope->addSymbol(fun);
           enterScope(this, fun);
 
           fun_ast = new (pool) FunctionDefinitionAST;
@@ -1769,7 +1794,7 @@ declarator(DeclaratorAST*& yyast, const OnDeclaratorId& onDeclaratorId)
   auto postfix_it = &postfix_list;
   PostfixDeclaratorAST* p{nullptr};
   CoreDeclaratorAST* c{nullptr};
-  Scope* nestedScope{nullptr};
+  Scope* parentScope{nullptr};
   EnterScope enterScope;
 }
 : (ptr_operator(ptr_op)
@@ -1777,15 +1802,15 @@ declarator(DeclaratorAST*& yyast, const OnDeclaratorId& onDeclaratorId)
       *ptr_op_it = new (pool) List<PtrOperatorAST*>(ptr_op);
       ptr_op_it = &(*ptr_op_it)->next;
     }
-  )* core_declarator(c, [&nestedScope, &onDeclaratorId](DeclaratorIdAST* declId) {
+  )* core_declarator(c, [&parentScope, &onDeclaratorId](DeclaratorIdAST* declId) {
                           if (auto q = declId->name ? declId->name->asQualifiedName() : nullptr)
-                            nestedScope = q->scope;
+                            parentScope = q->scope;
                           if (onDeclaratorId)
                             onDeclaratorId(declId);
                         })
     {
-      if (nestedScope)
-        enterScope(this, nestedScope);
+      if (parentScope)
+        enterScope(this, parentScope);
     }
   (postfix_declarator(p)
     {
@@ -2105,12 +2130,11 @@ function_compound_statement(FunctionDefinitionAST* yyast)
   auto fun = yyast->symbol;
   assert(fun);
   fun->setSourceLocation(yycursor);
-  auto enclosingClass = fun ? fun->enclosingScope()->asClassSymbol() : nullptr;
 }
 : {
-    if (yytoken() != T_LBRACE)
+    if (! classDecl)
       return false;
-    if (! enclosingClass)
+    if (yytoken() != T_LBRACE)
       return false;
     todo.push_back(fun);
   }
@@ -2205,6 +2229,7 @@ class_specifier(SpecifierAST*& yyast)
   unsigned yypos{0};
   EnterScope enterScope;
   ClassSymbol* klass{nullptr};
+  EnterClassDecl enterClassDecl;
 }
 : class_key parsed_token(&k) attribute_specifier_seq
   { yypos=yycursor; } ((name(name, scope, all_names) (final | explicit)?)?)
@@ -2215,6 +2240,7 @@ class_specifier(SpecifierAST*& yyast)
       klass->setName(context.name(name));
       klass->setEnclosingScope(scope);
       scope->addSymbol(klass);
+      enterClassDecl(this, klass);
     }
   base_clause(b, klass)?
   lbrace
