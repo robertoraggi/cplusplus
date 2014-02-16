@@ -193,6 +193,8 @@ struct QualifiedNameAST final: ExtendsAST<ASTKind::kQualifiedName, NameAST> {
   NameAST* base{nullptr};
   NameAST* name{nullptr};
   unsigned scope_token{0};
+// attributes:
+  Scope* scope{nullptr};
 };
 
 struct PackedNameAST final: ExtendsAST<ASTKind::kPackedName, NameAST> {

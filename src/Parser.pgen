@@ -158,12 +158,6 @@
   bool parseBinaryExpression(ParseContext::ExprAttrs& yyast, bool templArg, int minPrec);
   bool parseBinaryExpressionHelper(ParseContext::ExprAttrs& yyast, bool templArg, int minPrec);
 
-#if 0
-  inline bool parse_name(ParseContext::NameAttrs& yyast, Scope* current) {
-    return parse_name(yyast, current, Validate());
-  }
-#endif
-
   Arena* pool{nullptr};
   TranslationUnit* unit{nullptr};
   Control* control{nullptr};
@@ -176,9 +170,10 @@
   ParseContext context;
   bool templDecl{false};
 
-  using Validate = std::function<bool(Symbol*)>;
+  using OnDeclaratorId = std::function<void(DeclaratorIdAST*)>;
+  using OnSymbol = std::function<bool(Symbol*)>;
 
-  Validate all_names;
+  OnSymbol all_names;
 
   static bool is_enum(Symbol* s) {
     return s && s->isEnumSymbol();
@@ -224,13 +219,13 @@
   }
 
   Symbol* findSymbol(const Name* name, Scope* current,
-                     const Validate& validate) const {
+                     const OnSymbol& onSymbol) const {
     if (! current)
       return nullptr;
     for (auto sym = current->findSymbol(name); sym; sym = sym->next()) {
       if (sym->name() != name)
         continue;
-      if (! validate || validate(sym))
+      if (! onSymbol || onSymbol(sym))
         return sym;
     }
     return nullptr;
@@ -238,16 +233,16 @@
 
   Symbol* lookup(const Name* name, Scope* current,
                  bool want_qualified_lookup,
-                 const Validate& validate) const {
+                 const OnSymbol& onSymbol) const {
     for (; current; current = current->enclosingScope()) {
-      if (auto sym = findSymbol(name, current, validate))
+      if (auto sym = findSymbol(name, current, onSymbol))
         return sym;
       if (auto ns = current->asNamespaceSymbol()) {
         std::vector<NamespaceSymbol*> usings;
         collectNamespaces(ns, &usings);
         std::vector<Symbol*> candidates;
         for (auto u: usings) {
-          if (auto sym = findSymbol(name, u, validate))
+          if (auto sym = findSymbol(name, u, onSymbol))
             candidates.push_back(sym);
         }
         if (candidates.size() > 1) {
@@ -261,7 +256,7 @@
           auto baseClass = bc->symbol();
           if (! baseClass)
             continue;
-          if (auto sym = lookup(name, baseClass, true, validate)) {
+          if (auto sym = lookup(name, baseClass, true, onSymbol)) {
             return sym;
           }
         }
@@ -375,7 +370,7 @@ explicit_template_or_unqualified_id(ParseContext::NameAttrs& yyast, Scope* curre
 | unqualified_id(yyast, current)
 ;
 
-name(ParseContext::NameAttrs& yyast, Scope* current, const Validate& v)
+name(ParseContext::NameAttrs& yyast, Scope* current, const OnSymbol& onSymbol)
 {
   ParseContext::NameAttrs n{nullptr};
 }
@@ -404,6 +399,7 @@ name(ParseContext::NameAttrs& yyast, Scope* current, const Validate& v)
       auto ast = new (pool) QualifiedNameAST;
       ast->base = yyast;
       ast->name = n;
+      ast->scope = current;
       yyast = ast;
 
       // update the symbol
@@ -901,7 +897,7 @@ condition(ParseContext::ExprAttrs& yyast)
     {
       specs = context.specifiers(specifier_list);
     }
-  declarator(d)
+  declarator(d, OnDeclaratorId())
     {
       context.declarator(specs, d);
     }
@@ -996,7 +992,7 @@ for_range_declaration(DeclarationAST*& yyast)
     {
       specs = context.specifiers(specifier_list);
     }
-  declarator(d)
+  declarator(d, OnDeclaratorId())
     {
       context.declarator(specs, d);
       auto ast = new (pool) SimpleDeclarationAST;
@@ -1100,7 +1096,7 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
     {
       specs = context.specifiers(specifier_list);
     }
-  (declarator(d)
+  (declarator(d, OnDeclaratorId())
 
   (is_function_decl(d, specs) semicolon
     {
@@ -1174,7 +1170,7 @@ simple_declaration_or_function_definition(DeclarationAST*& yyast)
       ast->specifier_list = specifier_list;
       yyast = ast;
     }
-  |( { return scope->isClassSymbol(); } / colon { d = nullptr; } | declarator(d))
+  |( { return scope->isClassSymbol(); } / colon { d = nullptr; } | declarator(d, OnDeclaratorId()))
     (is_function_def(d, specs)
         {
           funDecl = context.declarator(specs, d);
@@ -1738,7 +1734,7 @@ init_declarator(DeclaratorAST*& yyast, const ParseContext::Specs& specs)
      {
        yyast = new (pool) DeclaratorAST();
      }
-  |declarator(yyast)
+  |declarator(yyast, OnDeclaratorId())
     {
       auto decl = context.declarator(specs, yyast);
       Symbol* sym{nullptr};
@@ -1764,7 +1760,7 @@ init_declarator(DeclaratorAST*& yyast, const ParseContext::Specs& specs)
     }
 ;
 
-declarator(DeclaratorAST*& yyast)
+declarator(DeclaratorAST*& yyast, const OnDeclaratorId& onDeclaratorId)
 {
   List<PtrOperatorAST*>* ptr_op_list{nullptr};
   auto ptr_op_it = &ptr_op_list;
@@ -1773,13 +1769,24 @@ declarator(DeclaratorAST*& yyast)
   auto postfix_it = &postfix_list;
   PostfixDeclaratorAST* p{nullptr};
   CoreDeclaratorAST* c{nullptr};
+  Scope* nestedScope{nullptr};
+  EnterScope enterScope;
 }
 : (ptr_operator(ptr_op)
     {
       *ptr_op_it = new (pool) List<PtrOperatorAST*>(ptr_op);
       ptr_op_it = &(*ptr_op_it)->next;
     }
-  )* core_declarator(c)
+  )* core_declarator(c, [&nestedScope, &onDeclaratorId](DeclaratorIdAST* declId) {
+                          if (auto q = declId->name ? declId->name->asQualifiedName() : nullptr)
+                            nestedScope = q->scope;
+                          if (onDeclaratorId)
+                            onDeclaratorId(declId);
+                        })
+    {
+      if (nestedScope)
+        enterScope(this, nestedScope);
+    }
   (postfix_declarator(p)
     {
       *postfix_it = new (pool) List<PostfixDeclaratorAST*>(p);
@@ -1795,12 +1802,16 @@ declarator(DeclaratorAST*& yyast)
     }
 ;
 
-core_declarator(CoreDeclaratorAST*& yyast)
+core_declarator(CoreDeclaratorAST*& yyast, const OnDeclaratorId& onDeclaratorId)
 {
   DeclaratorAST* d{nullptr};
 }
 : declarator_id(yyast) attribute_specifier_seq
-| lparen declarator(d) rparen
+    {
+      if (onDeclaratorId)
+        onDeclaratorId(yyast->asDeclaratorId());
+    }
+| lparen declarator(d, onDeclaratorId) rparen
     {
       auto ast = new (pool) NestedDeclaratorAST;
       ast->declarator = d;
@@ -2056,7 +2067,7 @@ parameter_declaration(DeclarationAST*& yyast, bool inTempl)
     {
       specs = context.specifiers(specifier_list);
     }
-  (declarator(d) | abstract_declarator(d)?)
+  (declarator(d, OnDeclaratorId()) | abstract_declarator(d)?)
     {
       decl = context.declarator(specs, d);
       if (inTempl) {
@@ -2679,7 +2690,7 @@ exception_declaration
     {
       specs = context.specifiers(specifier_list);
     }
-  (declarator(d) | abstract_declarator(d)?)
+  (declarator(d, OnDeclaratorId()) | abstract_declarator(d)?)
     {
       context.declarator(specs, d);
     }
