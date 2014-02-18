@@ -2335,7 +2335,7 @@ base_specifier(BaseClassAST*& yyast, ClassSymbol* klass)
 : attribute_specifier_seq (virtual | public | protected | private)*
   base_type_specifier(name)
     {
-      auto baseClass = new BaseClassSymbol();
+      auto baseClass = control->newBaseClass();
       baseClass->setName(context.name(name));
       baseClass->setEnclosingScope(klass);
       if (name.symbol)
