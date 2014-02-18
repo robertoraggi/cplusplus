@@ -88,6 +88,17 @@ struct ExpressionAST: AST {
     this->type = type;
     this->valueKind = valueKind;
   }
+
+  void resolvePureValue(const QualType& type) {
+    resolve(type, ValueKind::kPure);
+  }
+
+  void resolveLValue(const QualType& type) {
+    resolve(type, ValueKind::kLValue);
+  }
+  void resolveXValue(const QualType& type) {
+    resolve(type, ValueKind::kXValue);
+  }
 };
 
 struct StatementAST: AST {

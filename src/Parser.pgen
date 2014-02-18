@@ -155,6 +155,14 @@
   inline Assoc assoc();
   inline int precedence();
 
+  LiteralExpressionAST* newLiteralExpression(ParseContext::ExprAttrs& yyast,
+                                             unsigned literal_token) {
+    auto ast = new (pool) LiteralExpressionAST;
+    ast->literal_token = literal_token;
+    yyast = ast;
+    return ast;
+  }
+
   bool parseBinaryExpression(ParseContext::ExprAttrs& yyast, bool templArg, int minPrec);
   bool parseBinaryExpressionHelper(ParseContext::ExprAttrs& yyast, bool templArg, int minPrec);
 
@@ -331,16 +339,39 @@
 
 literal(ParseContext::ExprAttrs& yyast)
 : (string_literal
-| int_literal
-| char_literal
-| true
-| false
-| nullptr)
     {
-      auto ast = new (pool) LiteralExpressionAST;
-      ast->literal_token = yycursor - 1;
-      yyast = ast;
+      auto ast = newLiteralExpression(yyast, yycursor - 1);
+      QualType charTy{control->getCharType()};
+      charTy.setConst(true);
+      QualType ptrTy{control->getPointerType(charTy)};
+      ast->resolveLValue(ptrTy);
     }
+| int_literal
+    {
+      auto ast = newLiteralExpression(yyast, yycursor - 1);
+      ast->resolvePureValue(QualType{control->getIntType()});
+    }
+| char_literal
+    {
+      auto ast = newLiteralExpression(yyast, yycursor - 1);
+      ast->resolvePureValue(QualType{control->getCharType()});
+    }
+| true
+    {
+      auto ast = newLiteralExpression(yyast, yycursor - 1);
+      ast->resolvePureValue(QualType{control->getBoolType()});
+    }
+| false
+    {
+      auto ast = newLiteralExpression(yyast, yycursor - 1);
+      ast->resolvePureValue(QualType{control->getBoolType()});
+    }
+| nullptr
+    {
+      auto ast = newLiteralExpression(yyast, yycursor - 1);
+      ast->resolvePureValue(QualType{control->getNullptrType()});
+    }
+)
 ;
 
 primary_expression(ParseContext::ExprAttrs& yyast)
