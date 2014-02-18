@@ -28,6 +28,7 @@
 #include "IR.h"
 #include "Codegen.h"
 #include "ParseContext.h"
+#include <algorithm>
 #include <cstring>
 #include <cassert>
 #include <iostream>
