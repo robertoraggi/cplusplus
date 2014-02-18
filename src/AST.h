@@ -160,6 +160,8 @@ struct SimpleSpecifierAST final: ExtendsAST<ASTKind::kSimpleSpecifier, Specifier
 
 struct NamedSpecifierAST final: ExtendsAST<ASTKind::kNamedSpecifier, SpecifierAST> {
   NameAST* name{nullptr};
+// attributes:
+  QualType type;
 };
 
 struct TypenameSpecifierAST final: ExtendsAST<ASTKind::kTypenameSpecifier, SpecifierAST> {

@@ -1511,6 +1511,22 @@ type_specifier_no_simple_type_spec(SpecifierAST*& yyast)
     {
       auto ast = new (pool) NamedSpecifierAST;
       ast->name = name;
+      if (unit->resolveSymbols()) {
+        assert(name.symbol);
+        switch (name.symbol->kind()) {
+        case SymbolKind::kEnum:
+          ast->type.setType(control->getEnumType(name.symbol->asEnumSymbol()));
+          break;
+        case SymbolKind::kClass:
+          ast->type.setType(control->getClassType(name.symbol->asClassSymbol()));
+          break;
+        case SymbolKind::kTypedef:
+          ast->type.setType(*name.symbol->asTypedefSymbol()->type()); // ### merge the cv qualifiers
+          break;
+        default:
+          assert(!"todo");
+        } // switch
+      }
       yyast = ast;
     }
 ;
