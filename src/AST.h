@@ -24,6 +24,10 @@
 #include "Types.h"
 #include "Arena.h"
 
+enum struct ValueKind {
+  kPure, kXValue, kLValue,
+};
+
 template <typename T>
 struct List final: Managed {
   T value;
@@ -77,6 +81,13 @@ struct ExpressionAST: AST {
   using AST::AST;
 // attributes
   const IR::Expr* value{nullptr};
+  QualType type;
+  ValueKind valueKind{ValueKind::kPure};
+
+  void resolve(const QualType& type, ValueKind valueKind) {
+    this->type = type;
+    this->valueKind = valueKind;
+  }
 };
 
 struct StatementAST: AST {
