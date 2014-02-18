@@ -365,3 +365,19 @@ Scope::iterator Scope::begin() const {
 Scope::iterator Scope::end() const {
   return _symbols ? _symbols->end() : nullptr;
 }
+
+ClassSymbol* Scope::currentClass() {
+  for (auto sym = this; sym; sym = sym->enclosingScope()) {
+    if (auto klass = sym->asClassSymbol())
+      return klass;
+  }
+  return nullptr;
+}
+
+FunctionSymbol* Scope::currentFunction() {
+  for (auto sym = this; sym; sym = sym->enclosingScope()) {
+    if (auto fun = sym->asFunctionSymbol())
+      return fun;
+  }
+  return nullptr;
+}

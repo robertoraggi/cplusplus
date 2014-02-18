@@ -91,6 +91,9 @@ public:
   iterator begin() const;
   iterator end() const;
 
+  ClassSymbol* currentClass();
+  FunctionSymbol* currentFunction();
+
 private:
   SymbolTable* _symbols{nullptr};
 };

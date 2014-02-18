@@ -341,35 +341,42 @@ literal(ParseContext::ExprAttrs& yyast)
 : (string_literal
     {
       auto ast = newLiteralExpression(yyast, yycursor - 1);
-      QualType charTy{control->getCharType()};
-      charTy.setConst(true);
-      QualType ptrTy{control->getPointerType(charTy)};
-      ast->resolveLValue(ptrTy);
+      if (unit->resolveSymbols()) {
+        QualType charTy{control->getCharType()};
+        charTy.setConst(true);
+        QualType ptrTy{control->getPointerType(charTy)};
+        ast->resolveLValue(ptrTy);
+      }
     }
 | int_literal
     {
       auto ast = newLiteralExpression(yyast, yycursor - 1);
-      ast->resolvePureValue(QualType{control->getIntType()});
+      if (unit->resolveSymbols())
+        ast->resolvePureValue(QualType{control->getIntType()});
     }
 | char_literal
     {
       auto ast = newLiteralExpression(yyast, yycursor - 1);
-      ast->resolvePureValue(QualType{control->getCharType()});
+      if (unit->resolveSymbols())
+        ast->resolvePureValue(QualType{control->getCharType()});
     }
 | true
     {
       auto ast = newLiteralExpression(yyast, yycursor - 1);
-      ast->resolvePureValue(QualType{control->getBoolType()});
+      if (unit->resolveSymbols())
+        ast->resolvePureValue(QualType{control->getBoolType()});
     }
 | false
     {
       auto ast = newLiteralExpression(yyast, yycursor - 1);
-      ast->resolvePureValue(QualType{control->getBoolType()});
+      if (unit->resolveSymbols())
+        ast->resolvePureValue(QualType{control->getBoolType()});
     }
 | nullptr
     {
       auto ast = newLiteralExpression(yyast, yycursor - 1);
-      ast->resolvePureValue(QualType{control->getNullptrType()});
+      if (unit->resolveSymbols())
+        ast->resolvePureValue(QualType{control->getNullptrType()});
     }
 )
 ;
@@ -385,12 +392,22 @@ primary_expression(ParseContext::ExprAttrs& yyast)
 | this
     {
       auto ast = new (pool) ThisExpressionAST;
+      if (unit->resolveSymbols()) {
+        assert(scope->isClassSymbol() || scope->currentFunction());
+        auto klass = scope->currentClass();
+        assert(klass);
+        QualType classTy{control->getClassType(klass)};
+        QualType ptrTy{control->getPointerType(classTy)};
+        ast->resolvePureValue(ptrTy);
+      }
       yyast = ast;
     }
 | lparen expression(e) rparen
     {
       auto ast = new (pool) NestedExpressionAST;
       ast->expression = e;
+      if (unit->resolveSymbols())
+        ast->resolve(e->type, e->valueKind);
       yyast = ast;
     }
 | name(name, scope, all_names)
@@ -400,10 +417,15 @@ primary_expression(ParseContext::ExprAttrs& yyast)
       ast->name = name;
       yyast = ast;
 
-      auto sym = name.symbol;
-      if (unit->resolveSymbols() && ! sym)
-        unit->error(yypos, "undefined symbol `%s'",
-            ast->id ? ast->id->toString().c_str() : "??");
+      if (unit->resolveSymbols()) {
+        if (auto sym = name.symbol) {
+          auto kind = ValueKind::kLValue; // ### TODO: enumerators and other non-lvalue entities
+          ast->resolve(sym->type(), kind);
+        } else {
+          unit->error(yypos, "undefined symbol `%s'",
+                      ast->id ? ast->id->toString().c_str() : "??");
+        }
+      }
     }
 | lambda_expression(yyast)
 ;
