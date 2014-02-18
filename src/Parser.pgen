@@ -330,7 +330,7 @@
 %}
 
 literal(ParseContext::ExprAttrs& yyast)
-: (string_literal+
+: (string_literal
 | int_literal
 | char_literal
 | true
@@ -338,7 +338,7 @@ literal(ParseContext::ExprAttrs& yyast)
 | nullptr)
     {
       auto ast = new (pool) LiteralExpressionAST;
-      ast->literal_token = yycursor - 1; // ### wrong
+      ast->literal_token = yycursor - 1;
       yyast = ast;
     }
 ;
