@@ -201,6 +201,8 @@
   }
 
   static bool is_type_symbol(Symbol* s) {
+    if (! s)
+      return false;
     switch (s->kind()) {
     case SymbolKind::kTypedef:
     case SymbolKind::kClass:
@@ -440,6 +442,14 @@ explicit_template_or_unqualified_id(ParseContext::NameAttrs& yyast, Scope* curre
 ;
 
 name(ParseContext::NameAttrs& yyast, Scope* current, const OnSymbol& onSymbol)
+: name0(yyast, current)
+    {
+      if (unit->resolveSymbols() && onSymbol && ! onSymbol(yyast.symbol))
+        return false;
+    }
+;
+
+name0(ParseContext::NameAttrs& yyast, Scope* current)
 {
   ParseContext::NameAttrs n{nullptr};
 }
@@ -1499,8 +1509,6 @@ type_specifier_no_simple_type_spec(SpecifierAST*& yyast)
 | trailing_type_specifier_no_simple_type_spec(yyast)
 | name(name, scope, is_type_symbol)
     {
-      if (unit->resolveSymbols() && ! name.symbol)
-        return false;
       auto ast = new (pool) NamedSpecifierAST;
       ast->name = name;
       yyast = ast;
