@@ -1580,6 +1580,7 @@ decltype_specifier(ParseContext::NameAttrs& yyast)
     {
         auto ast = new (pool) DecltypeNameAST;
         ast->expression = e;
+        ast->type = ast->expression->type;
         yyast = ast;
     }
 | decltype lparen auto rparen

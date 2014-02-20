@@ -267,6 +267,8 @@ struct DecltypeNameAST final: ExtendsAST<ASTKind::kDecltypeName, NameAST> {
   unsigned decltype_token{0};
   unsigned lparen_token{0};
   unsigned rparen_token{0};
+// attributes:
+  QualType type;
 };
 
 struct DecltypeAutoNameAST final: ExtendsAST<ASTKind::kDecltypeAutoName, NameAST> {

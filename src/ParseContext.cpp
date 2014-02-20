@@ -87,9 +87,14 @@ public:
       return control()->getTemplateName(name, std::move(args));
     }
 
-    case ASTKind::kDecltypeName:
+    case ASTKind::kDecltypeName: {
+      auto spec = ast->asDecltypeName();
+      if (context->unit->resolveSymbols()) {
+        return control()->getDecltypeName(spec->type);
+      }
       printf("todo decltype name\n");
       break;
+    }
 
     case ASTKind::kDecltypeAutoName:
       printf("todo decltype auto name\n");
@@ -235,12 +240,17 @@ class ParseContext::ProcessDeclarator {
 
     case ASTKind::kNamedSpecifier: {
       auto spec = ast->asNamedSpecifier();
-      if (context->unit->resolveSymbols())
+      if (context->unit->resolveSymbols()) {
         _decl.setType(*spec->type); // ### merge the cv qualifiers
-      else if (auto name = context->name(spec->name))
-        _decl.setType(control()->getNamedType(name));
-      else
+      } else if (auto name = context->name(spec->name)) {
+        if (auto declTy = name->asDecltypeName()) {
+          _decl.setType(*declTy->type()); // ### merge the cv qualifiers
+        } else {
+          _decl.setType(control()->getNamedType(name));
+        }
+      } else {
         printf("todo named specifier\n");
+      }
       break;
     }
 

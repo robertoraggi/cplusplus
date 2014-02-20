@@ -109,4 +109,13 @@ public:
   std::string toString() const override;
 };
 
+class DecltypeName final
+    : public ExtendsName<NameKind::kDecltypeName>
+    , public std::tuple<QualType> {
+public:
+  using tuple::tuple;
+  inline QualType type() const { return std::get<0>(*this); }
+  std::string toString() const override;
+};
+
 #endif // NAMES_H

@@ -66,3 +66,8 @@ std::string QualifiedName::toString() const {
     return b->toString() + "::" + name()->toString();
   return "::" + name()->toString();
 }
+
+std::string DecltypeName::toString() const {
+  TypeToString typeToString;
+  return "decltype(" + typeToString(type(), nullptr) + ")";
+}

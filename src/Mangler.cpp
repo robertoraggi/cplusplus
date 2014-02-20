@@ -115,6 +115,10 @@ std::string Mangler::mangleTemplateName(const TemplateName* name, const QualType
   return "@template-name@";
 }
 
+std::string Mangler::mangleDecltypeName(const DecltypeName* name, const QualType& type) {
+  return "@decltype-name@";
+}
+
 //
 // types
 //

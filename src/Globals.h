@@ -126,7 +126,8 @@
   V(OperatorName) \
   V(ConversionName) \
   V(QualifiedName) \
-  V(TemplateName)
+  V(TemplateName) \
+  V(DecltypeName)
 
 
 #define FOR_EACH_SYMBOL(V) \
