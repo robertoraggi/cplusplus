@@ -254,7 +254,7 @@
   V(PROTECTED, "protected") \
   V(PUBLIC, "public") \
   V(REGISTER, "register") \
-  V(REINTERPRET_CAST, "reintepret_cast") \
+  V(REINTERPRET_CAST, "reinterpret_cast") \
   V(RETURN, "return") \
   V(SHORT, "short") \
   V(SIGNED, "signed") \
