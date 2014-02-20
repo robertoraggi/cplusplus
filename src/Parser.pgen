@@ -422,7 +422,12 @@ primary_expression(ParseContext::ExprAttrs& yyast)
       if (unit->resolveSymbols()) {
         if (auto sym = name.symbol) {
           auto kind = ValueKind::kLValue; // ### TODO: enumerators and other non-lvalue entities
-          ast->resolve(sym->type(), kind);
+          QualType ty = sym->type();
+          if (auto refTy = ty->asLValueReferenceType())
+            ty = refTy->elementType();
+          else if (auto refTy = ty->asRValueReferenceType())
+            ty = refTy->elementType();
+          ast->resolve(ty, kind);
         } else {
           unit->error(yypos, "undefined symbol `%s'",
                       ast->id ? ast->id->toString().c_str() : "??");
