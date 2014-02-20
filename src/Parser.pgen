@@ -2457,11 +2457,17 @@ base_specifier(BaseClassAST*& yyast, ClassSymbol* klass)
       auto baseClass = control->newBaseClass();
       baseClass->setName(context.name(name));
       baseClass->setEnclosingScope(klass);
-      if (name.symbol)
-        baseClass->setSymbol(name.symbol->asClassSymbol());
-      else if (unit->resolveSymbols())
-        unit->error(yypos, "expected a class name `%s'",
-          baseClass->name() ? baseClass->name()->toString().c_str() : "??");
+      if (unit->resolveSymbols()) {
+        if (auto bc = name.symbol ? name.symbol->asClassSymbol() : nullptr) {
+          if (bc->isCompleted())
+            baseClass->setSymbol(bc);
+          else
+            unit->error(yypos, "base class has incomplete type");
+        } else {
+          unit->error(yypos, "expected a class name `%s'",
+            baseClass->name() ? baseClass->name()->toString().c_str() : "??");
+        }
+      }
       klass->addBaseClass(baseClass);
       auto ast = new (pool) BaseClassAST;
       ast->name = name;
