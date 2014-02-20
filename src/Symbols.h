@@ -91,6 +91,7 @@ public:
   iterator begin() const;
   iterator end() const;
 
+  NamespaceSymbol* currentNamespace();
   ClassSymbol* currentClass();
   FunctionSymbol* currentFunction();
 
@@ -127,9 +128,12 @@ public:
   void dump(std::ostream& out, int depth) override;
   const std::vector<BaseClassSymbol*>& baseClasses() const { return _baseClasses; }
   void addBaseClass(BaseClassSymbol* baseClass) { _baseClasses.push_back(baseClass); }
+  bool isCompleted() const { return _isCompleted; }
+  void setCompleted(bool isCompleted) { _isCompleted = isCompleted; }
 private:
   TokenKind _classKey{T_EOF_SYMBOL};
   std::vector<BaseClassSymbol*> _baseClasses;
+  bool _isCompleted{false};
 };
 
 class EnumSymbol final: public ExtendsSymbol<SymbolKind::kEnum, Scope> {

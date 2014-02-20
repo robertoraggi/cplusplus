@@ -235,8 +235,9 @@ class ParseContext::ProcessDeclarator {
 
     case ASTKind::kNamedSpecifier: {
       auto spec = ast->asNamedSpecifier();
-      auto name = context->name(spec->name);
-      if (name)
+      if (context->unit->resolveSymbols())
+        _decl.setType(*spec->type); // ### merge the cv qualifiers
+      else if (auto name = context->name(spec->name))
         _decl.setType(control()->getNamedType(name));
       else
         printf("todo named specifier\n");
@@ -250,8 +251,16 @@ class ParseContext::ProcessDeclarator {
     case ASTKind::kElaboratedTypeSpecifier: {
       auto spec = ast->asElaboratedTypeSpecifier();
       auto classKey = context->unit->tokenKind(spec->class_key_token);
-      auto name = context->name(spec->name);
-      _decl.setType(control()->getElaboratedType(name, classKey)); // ### rename.
+      auto sym = spec->symbol;
+      if (! sym) {
+        auto name = context->name(spec->name);
+        _decl.setType(control()->getElaboratedType(name, classKey)); // ### rename.
+        break;
+      }
+      if (auto klass = sym->asClassSymbol()) {
+        _decl.setType(control()->getClassType(klass));
+      }
+      printf("todo elaborated type specifier\n");
       break;
     }
 

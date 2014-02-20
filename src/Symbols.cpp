@@ -366,6 +366,14 @@ Scope::iterator Scope::end() const {
   return _symbols ? _symbols->end() : nullptr;
 }
 
+NamespaceSymbol* Scope::currentNamespace() {
+  for (auto sym = this; sym; sym = sym->enclosingScope()) {
+    if (auto ns = sym->asNamespaceSymbol())
+      return ns;
+  }
+  return nullptr;
+}
+
 ClassSymbol* Scope::currentClass() {
   for (auto sym = this; sym; sym = sym->enclosingScope()) {
     if (auto klass = sym->asClassSymbol())

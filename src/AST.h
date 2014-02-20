@@ -172,6 +172,8 @@ struct ElaboratedTypeSpecifierAST final: ExtendsAST<ASTKind::kElaboratedTypeSpec
   List<SpecifierAST*>* attribute_specifier_list{nullptr};
   NameAST* name{nullptr};
   unsigned class_key_token{0};
+// attributes:
+  Symbol* symbol{nullptr};
 };
 
 struct EnumeratorAST final: ExtendsAST<ASTKind::kEnumerator, AST> {

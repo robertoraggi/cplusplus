@@ -1591,16 +1591,40 @@ elaborated_type_specifier(SpecifierAST*& yyast)
 }
 : class_key parsed_token(&k) attribute_specifier_seq name(name, scope, all_names)
     {
-        auto ast = new (pool) ElaboratedTypeSpecifierAST;
-        ast->class_key_token = k;
-        ast->name = name;
-        yyast = ast;
+      auto typeName = context.name(name);
+
+      ClassSymbol* klass{nullptr};
+      for (auto sym = name.symbol; !klass && sym; sym = sym->next()) {
+        if (sym->name() != name.symbol->name())
+          continue;
+        klass = sym->asClassSymbol();
+      }
+
+      if (! klass) {
+        if (auto q = typeName ? typeName->asQualifiedName() : nullptr) {
+          assert(!"not a valid nested name specifier");
+        }
+
+        auto parentScope = scope;
+        if (yytoken() != T_SEMICOLON)
+          parentScope = scope->currentNamespace();
+        klass = control->newClass();
+        klass->setClassKey(unit->tokenKind(k));
+        klass->setName(typeName);
+        klass->setEnclosingScope(parentScope);
+        parentScope->addSymbol(klass);
+      }
+      auto ast = new (pool) ElaboratedTypeSpecifierAST;
+      ast->class_key_token = k;
+      ast->name = name;
+      ast->symbol = klass;
+      yyast = ast;
     }
 | enum name(name, scope, all_names)
     {
-        auto ast = new (pool) ElaboratedTypeSpecifierAST;
-        ast->name = name;
-        yyast = ast;
+      auto ast = new (pool) ElaboratedTypeSpecifierAST;
+      ast->name = name;
+      yyast = ast;
     }
 ;
 
@@ -2312,11 +2336,24 @@ class_specifier(SpecifierAST*& yyast)
   { yypos=yycursor; } ((name(name, scope, all_names) (final | explicit)?)?)
   / (colon | lbrace)
     {
-      klass = control->newClass();
-      klass->setClassKey(unit->tokenKind(k));
-      klass->setName(context.name(name));
-      klass->setEnclosingScope(scope);
-      scope->addSymbol(klass);
+      auto className = context.name(name);
+      auto q = className ? className->asQualifiedName() : nullptr;
+      if (! q && name.symbol && name.symbol->enclosingScope() != scope)
+        name.symbol = nullptr; // ### ignore this class, it's false positive. TODO: move this extra check
+      for (auto sym = name.symbol; !klass && sym; sym = sym->next()) {
+        if (sym->name() != className)
+          continue;
+        klass = sym->asClassSymbol();
+      }
+      if (! klass) {
+        klass = control->newClass();
+        klass->setClassKey(unit->tokenKind(k));
+        klass->setName(className);
+        klass->setEnclosingScope(scope);
+        scope->addSymbol(klass);
+      } else if (klass->isCompleted()) {
+        unit->error(yypos, "duplicate class declaration");
+      }
       enterClassDecl(this, klass);
     }
   base_clause(b, klass)?
@@ -2332,7 +2369,7 @@ class_specifier(SpecifierAST*& yyast)
   )* rbrace
     {
       auto savedScope = scope;
-
+      klass->setCompleted(true);
       std::vector<FunctionSymbol*> wl;
       std::swap(todo, wl);
       for (auto&& f: wl) {
