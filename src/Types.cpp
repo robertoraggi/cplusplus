@@ -184,7 +184,7 @@ void TypeToString::visit(const FunctionType* type) {
 }
 
 void TypeToString::visit(const ClassType* type) {
-  text = "class";
+  text = token_spell[type->symbol()->classKey()];
   if (auto name = type->symbol()->name()) {
     text += ' ';
     text += name->toString();

@@ -7,11 +7,11 @@ namespace {
         struct Private {
             int a;
             int b;
-            Class *p;
-            Private(Class *);
-            const Class *getClass();
+            class Class *p;
+            Private(class Class *);
+            const class Class *getClass();
         };
-        class Private *x;
+        struct Private *x;
         void dump();
         void init(const char *);
     };

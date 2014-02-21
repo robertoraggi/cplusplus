@@ -99,7 +99,7 @@ foreach(CPP_TEST ${SymbolTests})
     get_filename_component(TEST_NAME ${CPP_TEST} NAME)
         add_test(NAME symbols/${TEST_NAME}
         WORKING_DIRECTORY ${CMAKE_HOME_DIRECTORY}
-        COMMAND /bin/bash -c "${CMAKE_CURRENT_BINARY_DIR}/cplusplus ${CPP_TEST} --symbols | diff -r ${CPP_TEST}.symbols -")
+        COMMAND /bin/bash -c "${CMAKE_CURRENT_BINARY_DIR}/cplusplus ${CPP_TEST} --symbols --lookup | diff -r ${CPP_TEST}.symbols -")
 endforeach(CPP_TEST)
 
 ##
