@@ -324,10 +324,19 @@ class ParseContext::ProcessDeclarator {
     }
 
     case ASTKind::kFunctionDeclarator: {
-      const QualType returnType{context->finish(_decl.specs.type)};
+      QualType returnType{context->finish(_decl.specs.type)};
       std::vector<QualType> argTypes;
       std::vector<const Name*> formals;
       auto decl = ast->asFunctionDeclarator();
+      if (context->unit->resolveSymbols()) {
+        if (decl->trailing_return_type) {
+          assert(returnType->isAutoType());
+        }
+        if (returnType->isAutoType()) {
+          assert(decl->trailing_return_type);
+          returnType = decl->trailing_return_type;
+        }
+      }
       if (auto params = decl->parameters_and_qualifiers) {
         for (auto it = params->parameter_list; it; it = it->next) {
           auto param = it->value->asParameterDeclaration();

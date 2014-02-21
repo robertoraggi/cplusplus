@@ -814,6 +814,7 @@ struct FunctionDeclaratorAST final: ExtendsAST<ASTKind::kFunctionDeclarator, Pos
   ParametersAndQualifiersAST* parameters_and_qualifiers{nullptr};
   List<SpecifierAST*>* trailing_type_specifier_list{nullptr};
   unsigned arrow_token{0};
+  QualType trailing_return_type;
 };
 
 #endif // AST_H

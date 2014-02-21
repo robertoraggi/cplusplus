@@ -1,0 +1,12 @@
+namespace {
+    struct foo {
+        int x;
+        int *p;
+        int get_x() {}
+        int get_x_again();
+        int *get_p();
+        struct foo *get_this();
+        const char *get_string();
+        decltype(nullptr) get_null();
+    };
+}

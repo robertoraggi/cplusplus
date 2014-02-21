@@ -549,12 +549,14 @@ lambda_expression(ParseContext::ExprAttrs& yyast)
 lambda_declarator(LambdaDeclaratorAST*& yyast)
 {
   ParametersAndQualifiersAST* p{nullptr};
+  QualType t;
 }
-: parameters_and_qualifiers(p) mutable? exception_specification? attribute_specifier_seq trailing_return_type?
+: parameters_and_qualifiers(p) mutable? exception_specification? attribute_specifier_seq
+  trailing_return_type(t)?
     {
-        auto ast = new (pool) LambdaDeclaratorAST;
-        ast->parameters_and_qualifiers = p;
-        yyast = ast;
+      auto ast = new (pool) LambdaDeclaratorAST;
+      ast->parameters_and_qualifiers = p;
+      yyast = ast;
     }
 ;
 
@@ -1964,11 +1966,13 @@ postfix_declarator(PostfixDeclaratorAST*& yyast)
 {
   ParametersAndQualifiersAST* p{nullptr};
   ParseContext::ExprAttrs e{nullptr};
+  QualType t;
 }
-: parameters_and_qualifiers(p) trailing_return_type? virt_specifier*
+: parameters_and_qualifiers(p) trailing_return_type(t)? virt_specifier*
     {
       auto ast = new (pool) FunctionDeclaratorAST;
       ast->parameters_and_qualifiers = p;
+      ast->trailing_return_type = t; // ### AST
       yyast = ast;
     }
 | lbracket expression(e)? rbracket attribute_specifier_seq
@@ -1993,7 +1997,7 @@ parameters_and_qualifiers(ParametersAndQualifiersAST*& yyast)
     }
 ;
 
-trailing_return_type
+trailing_return_type(QualType& type)
 {
   List<SpecifierAST*>* specifier_list{nullptr};
   DeclaratorAST* d{nullptr};
@@ -2005,7 +2009,8 @@ trailing_return_type
     }
   abstract_declarator(d)?
     {
-      context.declarator(specs, d);
+      auto decl = context.declarator(specs, d);
+      type = decl.specs.type;
     }
 ;
 
