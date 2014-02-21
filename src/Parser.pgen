@@ -1512,6 +1512,15 @@ type_specifier_no_simple_type_spec(SpecifierAST*& yyast)
 : class_specifier(yyast)
 | enum_specifier(yyast)
 | trailing_type_specifier_no_simple_type_spec(yyast)
+| decltype_specifier(name)
+    {
+      auto ast = new (pool) NamedSpecifierAST;
+      ast->name = name;
+      auto declTy = ast->name->asDecltypeName();
+      assert(declTy);
+      ast->type = declTy->expression->type;
+      yyast = ast;
+    }
 | name(name, scope, is_type_symbol)
     {
       auto ast = new (pool) NamedSpecifierAST;
@@ -2477,8 +2486,13 @@ base_specifier(BaseClassAST*& yyast, ClassSymbol* klass)
 ;
 
 base_type_specifier(ParseContext::NameAttrs& yyast)
-: name(yyast, scope, is_class)
-| decltype_specifier(yyast)
+: decltype_specifier(yyast)
+    {
+      auto ast = yyast->asDecltypeName();
+      if (auto classTy = ast->expression->type->asClassType())
+        yyast.symbol = classTy->symbol();
+    }
+| name(yyast, scope, is_class)
 ;
 
 conversion_function_id(ParseContext::NameAttrs& yyast)

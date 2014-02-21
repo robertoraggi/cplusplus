@@ -105,7 +105,7 @@ void TypeToString::visit(const VoidType*) {
 }
 
 void TypeToString::visit(const NullptrType* type) {
-  text = "nullptr_t";
+  text = "decltype(nullptr)";
   if (! decl.empty())
     text += ' ';
   text += decl;
