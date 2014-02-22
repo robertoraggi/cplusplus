@@ -37,6 +37,7 @@ class TranslationUnit {
   std::string yycode;
   const char* yyptr{nullptr};
   bool resolveSymbols_{false};
+  bool fatalErrors_{false};
 
 public:
   TranslationUnit(Control* control): control_(control) {}
@@ -56,6 +57,9 @@ public:
 
   bool resolveSymbols() const { return resolveSymbols_; }
   void setResolveSymbols(bool resolveSymbols) { resolveSymbols_ = resolveSymbols; }
+
+  bool fatalErrors() const { return fatalErrors_; }
+  void setFatalErrors(bool fatalErrors) { fatalErrors_ = fatalErrors; }
 
   void warning(unsigned index, const char* format...);
   void error(unsigned index, const char* format...);

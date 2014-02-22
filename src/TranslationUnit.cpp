@@ -350,6 +350,8 @@ void TranslationUnit::error(unsigned index, const char* format...) {
   va_end(ap);
   va_end(args);
   fprintf(stderr, "\n");
+  if (fatalErrors_)
+    exit(EXIT_FAILURE);
 }
 
 void TranslationUnit::fatal(unsigned index, const char* format...) {

@@ -74,6 +74,7 @@ bool parseFile(const std::string& fileName,
   unit.setFileName(fileName);
   unit.setSource(readAll(fileName));
   unit.setResolveSymbols(resolveSymbols);
+  unit.setFatalErrors(true);
   return unit.parse([&unit, consume](TranslationUnitAST* ast) {
     consume(&unit, ast);
   });
