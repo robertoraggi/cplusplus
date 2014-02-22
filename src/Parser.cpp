@@ -255,3 +255,64 @@ bool Parser::parseBinaryExpressionHelper(ParseContext::ExprAttrs& yyast, bool te
   }
   return true;
 }
+
+bool Parser::implicitCvt(ExpressionAST* ast, const QualType& target) {
+  if (ast->type == target) // identity
+    return true;
+  // ### TODO: implicit conversions.
+  return false;
+}
+
+int Parser::compareType(ExpressionAST* source,
+                        const QualType& firstTarget,
+                        const QualType& secondTarget) {
+  if (firstTarget == secondTarget) return 0;
+  if (source->type == firstTarget) return -1;
+  if (source->type == secondTarget) return +1;
+  auto firstConv = implicitCvt(source, firstTarget);
+  auto secondConv = implicitCvt(source, secondTarget);
+  if (firstConv && ! secondConv) return -1;
+  if (secondConv && ! firstConv) return +1;
+  return 0;
+}
+
+Symbol* Parser::resolveOverload(Symbol* firstCandidate, List<ExpressionAST*>* actuals) {
+  auto bestCandidate = firstCandidate;
+  auto functionName = firstCandidate->unqualifiedName();
+  size_t argc = 0;
+  for (auto it = actuals; it; it = it->next) // ### TODO remove this loop
+    ++argc;
+  std::vector<Symbol*> candidates;
+  candidates.push_back(bestCandidate);
+  for (Symbol* candidate = firstCandidate->next(); candidate; candidate = candidate->next()) {
+    if (candidate->unqualifiedName() != functionName)
+      continue;
+    auto funTy = candidate->type()->asFunctionType();
+    if (! funTy)
+      continue;
+    auto&& funArgumentTypes = funTy->argumentTypes();
+    if (funArgumentTypes.size() != argc) // ### TODO variadic
+      continue;
+    auto bestFunTy = bestCandidate->type()->asFunctionType();
+    auto&& bestArgumentTypes = bestFunTy->argumentTypes();
+    assert(funArgumentTypes.size() == bestArgumentTypes.size()); // ### TODO variadic
+    int bestScore = 0, funScore = 0;
+    auto it = actuals;
+    for (size_t index = 0, end = funArgumentTypes.size(); index != end; ++index, it = it->next) {
+      assert(it->value);
+      auto delta = compareType(it->value, bestArgumentTypes[index], funArgumentTypes[index]);
+      if (delta < 0) ++bestScore;
+      else if (delta > 0) ++funScore;
+    }
+    if (funScore < bestScore)
+      continue;
+    if (funScore > bestScore) {
+      candidates.clear();
+      bestCandidate = candidate;
+    }
+    candidates.push_back(candidate);
+  }
+  if (candidates.size() == 1)
+    return candidates.front();
+  return nullptr;
+}

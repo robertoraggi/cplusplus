@@ -297,6 +297,7 @@
   V(RValueReference) \
   V(Array) \
   V(Function) \
+  V(OverloadSet) \
   V(Class) \
   V(Enum) \
   V(Named) \

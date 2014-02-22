@@ -166,6 +166,15 @@
   bool parseBinaryExpression(ParseContext::ExprAttrs& yyast, bool templArg, int minPrec);
   bool parseBinaryExpressionHelper(ParseContext::ExprAttrs& yyast, bool templArg, int minPrec);
 
+  int compareType(ExpressionAST* source,
+                  const QualType& firstTarget,
+                  const QualType& secondTarget);
+
+  bool implicitCvt(ExpressionAST* ast,
+                   const QualType& target);
+
+  Symbol* resolveOverload(Symbol* firstCandidate, List<ExpressionAST*>* args);
+
   Arena* pool{nullptr};
   TranslationUnit* unit{nullptr};
   Control* control{nullptr};
@@ -423,10 +432,23 @@ primary_expression(ParseContext::ExprAttrs& yyast)
         if (auto sym = name.symbol) {
           auto kind = ValueKind::kLValue; // ### TODO: enumerators and other non-lvalue entities
           QualType ty = sym->type();
-          if (auto refTy = ty->asLValueReferenceType())
+          if (auto funTy = ty->asFunctionType()) {
+            // if there's at least another symbol with function type then
+            // we change the type to `OverloadSetType'.
+            auto x = sym->next();
+            for (; x; x = x->next()) {
+              if (x->unqualifiedName() != sym->unqualifiedName())
+                continue;
+              if (x->type()->isFunctionType())
+                break;
+            }
+            if (x)
+              ty = QualType{control->getOverloadSetType(sym->enclosingScope(), sym->unqualifiedName())};
+          } else if (auto refTy = ty->asLValueReferenceType()) {
             ty = refTy->elementType();
-          else if (auto refTy = ty->asRValueReferenceType())
+          } else if (auto refTy = ty->asRValueReferenceType()) {
             ty = refTy->elementType();
+          }
           ast->resolve(ty, kind);
         } else {
           unit->error(yypos, "undefined symbol `%s'",
@@ -638,6 +660,23 @@ postfix_expression(ParseContext::ExprAttrs& yyast)
           auto ast = new (pool) CallExpressionAST;
           ast->base_expression = yyast;
           ast->expression_list = args;
+
+          QualType ty;
+          auto valueKind = ValueKind::kPure;
+          if (auto overloadSet = ast->base_expression->type->asOverloadSetType()) {
+            if (auto x = resolveOverload(overloadSet->firstCandidate(), args))
+              ty = x->type()->asFunctionType()->returnType();
+          } else if (auto funTy = ast->base_expression->type->asFunctionType()) {
+            ty = funTy->returnType();
+          }
+          if (auto refTy = ty->asLValueReferenceType()) {
+            ty = refTy->elementType();
+            valueKind = ValueKind::kLValue;
+          } else if (auto refTy = ty->asRValueReferenceType()) {
+            ty = refTy->elementType();
+            valueKind = ValueKind::kXValue;
+          }
+          ast->resolve(ty, valueKind);
           yyast = ast;
         }
    | lbracket expression(e) rbracket

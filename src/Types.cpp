@@ -26,6 +26,17 @@
 #include <sstream>
 #include <cassert>
 
+FunctionSymbol* OverloadSetType::firstCandidate() const {
+  auto n = name();
+  for (auto sym = scope()->findSymbol(n); sym; sym = sym->next()) {
+    if (sym->unqualifiedName() != n)
+      continue;
+    if (auto x = sym->asFunctionSymbol())
+      return x;
+  }
+  return nullptr;
+}
+
 void TypeToString::accept(QualType type) {
   switch (type->kind()) {
 #define VISIT_TYPE(T) case TypeKind::k##T: visit(type->as##T##Type()); break;
@@ -181,6 +192,10 @@ std::string TypeToString::prototype(const FunctionType* type,
 void TypeToString::visit(const FunctionType* type) {
   auto&& proto = prototype(type, std::vector<const Name*>{});
   text = print(type->returnType(), decl + proto);
+}
+
+void TypeToString::visit(const OverloadSetType* type) {
+  text = "@overload-set-type";
 }
 
 void TypeToString::visit(const ClassType* type) {

@@ -182,6 +182,16 @@ public:
   bool isConst() const { return std::get<3>(*this); } // ### TODO: ref and cv-qualifiers.
 };
 
+class OverloadSetType final
+    : public ExtendsType<TypeKind::kOverloadSet>
+    , public std::tuple<Scope*, const Name*> {
+public:
+  using tuple::tuple;
+  Scope* scope() const { return std::get<0>(*this); }
+  const Name* name() const { return std::get<1>(*this); }
+  FunctionSymbol* firstCandidate() const;
+};
+
 class ClassType final: public ExtendsType<TypeKind::kClass>, public std::tuple<ClassSymbol*> {
 public:
   using tuple::tuple;

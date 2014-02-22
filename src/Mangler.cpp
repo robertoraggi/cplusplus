@@ -214,6 +214,10 @@ std::string Mangler::mangleFunctionType(const FunctionType* type) {
   return sig;
 }
 
+std::string Mangler::mangleOverloadSetType(const OverloadSetType* type) {
+  return "@overload-set-type@";
+}
+
 std::string Mangler::mangleClassType(const ClassType* type) {
   return "@class-type@";
 }

@@ -387,7 +387,7 @@ public:
   }
 
   ParseContext::Decl operator()(const ParseContext::Specs& specs,
-                                   DeclaratorAST* ast) {
+                                DeclaratorAST* ast) {
     return process(specs, ast);
   }
 
@@ -401,7 +401,7 @@ public:
   }
 
   ParseContext::Decl process(const ParseContext::Specs& specs,
-                                DeclaratorAST* ast) {
+                             DeclaratorAST* ast) {
     ParseContext::Decl decl;
     decl.specs = specs;
     if (! ast)
@@ -450,4 +450,3 @@ QualType ParseContext::finish(QualType type) {
   }
   return type;
 }
-
