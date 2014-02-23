@@ -1,0 +1,4 @@
+namespace {
+    int args[];
+    int arg;
+}

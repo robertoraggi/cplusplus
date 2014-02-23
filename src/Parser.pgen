@@ -684,12 +684,38 @@ postfix_expression(ParseContext::ExprAttrs& yyast)
           yyast = ast;
         }
    | lbracket expression(e) rbracket
-       {
-         auto ast = new (pool) SubscriptExpressionAST;
-         ast->base_expression = yyast;
-         ast->index_expression = e;
-         yyast = ast;
-       }
+        {
+          auto ast = new (pool) SubscriptExpressionAST;
+          ast->base_expression = yyast;
+          ast->index_expression = e;
+          yyast = ast;
+          if (unit->resolveSymbols()) {
+            auto baseValueKind = ValueKind::kPure;
+            auto baseTy = unref(ast->base_expression->type, &baseValueKind);
+
+            auto indexValueKind = ValueKind::kPure;
+            auto indexTy = unref(ast->index_expression->type, &indexValueKind);
+
+            if (baseTy->isPointerType() || baseTy->isArrayType()) {
+              if (auto ptrTy = baseTy->asPointerType()) {
+                // ### TODO check index type
+                yyast->resolve(ptrTy->elementType(), ValueKind::kLValue); // ### fix value category
+              } else if (auto arrayTy = baseTy->asArrayType()) {
+                yyast->resolve(arrayTy->elementType(), ValueKind::kLValue); // ### fix value category
+              }
+            } else if (indexTy->isPointerType() || indexTy->isArrayType()) {
+              if (auto ptrTy = indexTy->asPointerType()) {
+                // ### TODO check base type
+                yyast->resolve(ptrTy->elementType(), ValueKind::kLValue); // ### fix value category
+              } else if (auto arrayTy = indexTy->asArrayType()) {
+                yyast->resolve(arrayTy->elementType(), ValueKind::kLValue); // ### fix value category
+              }
+            } else {
+              // ### TODO operator[]
+              unit->error(yycursor, "invalid element access");
+            }
+          }
+        }
    | (dot
         {
           if (unit->resolveSymbols()) {
