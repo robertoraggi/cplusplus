@@ -316,3 +316,23 @@ Symbol* Parser::resolveOverload(Symbol* firstCandidate, List<ExpressionAST*>* ac
     return candidates.front();
   return nullptr;
 }
+
+QualType Parser::unref(const QualType& type, ValueKind* valueKind)
+{
+  if (auto ty = type->asLValueReferenceType()) {
+    if (valueKind)
+      *valueKind = ValueKind::kLValue;
+    return ty->elementType();
+  }
+
+  if (auto ty = type->asRValueReferenceType()) {
+    if (valueKind)
+      *valueKind = ValueKind::kXValue;
+    return ty->elementType();
+  }
+
+  if (valueKind)
+    *valueKind = ValueKind::kPure;
+
+  return type;
+}

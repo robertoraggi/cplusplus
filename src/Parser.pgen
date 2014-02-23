@@ -166,6 +166,8 @@
   bool parseBinaryExpression(ParseContext::ExprAttrs& yyast, bool templArg, int minPrec);
   bool parseBinaryExpressionHelper(ParseContext::ExprAttrs& yyast, bool templArg, int minPrec);
 
+  QualType unref(const QualType& type, ValueKind* valueKind = nullptr);
+
   int compareType(ExpressionAST* source,
                   const QualType& firstTarget,
                   const QualType& secondTarget);
@@ -651,8 +653,10 @@ postfix_expression(ParseContext::ExprAttrs& yyast)
   unsigned incr_token{0};
   ParseContext::ExprAttrs e{nullptr};
   List<ExpressionAST*>* args{nullptr};
-  ParseContext::NameAttrs name{nullptr};
   ClassSymbol* klass{nullptr}; // ### resolve
+  ParseContext::NameAttrs memberName{nullptr};
+  ValueKind memberValueKind{ValueKind::kPure};
+  memberName.want_qualified_lookup = true;
 }
 : postfix_base_expression(yyast)
     (lparen expression_list(args)? rparen
@@ -686,13 +690,42 @@ postfix_expression(ParseContext::ExprAttrs& yyast)
          ast->index_expression = e;
          yyast = ast;
        }
-   | (dot | minus_greater) parsed_token(&access_token) template? name(name, klass, all_names)
+   | (dot
+        {
+          if (unit->resolveSymbols()) {
+            auto ty = unref(yyast->type, &memberValueKind);
+            auto classTy = ty->asClassType();
+            if (! classTy)
+              unit->error(yycursor, "expected an object type");
+            klass = classTy->symbol();
+          }
+        }
+     |minus_greater
+        {
+          if (unit->resolveSymbols()) {
+            auto ptrTy = unref(yyast->type)->asPointerType();
+              if (! ptrTy)
+            unit->error(yycursor, "expected a pointer type");
+            auto ty = unref(ptrTy->elementType(), &memberValueKind);
+            auto classTy = ty->asClassType();
+            if (! classTy)
+              unit->error(yycursor, "expected an object type");
+            klass = classTy->symbol();
+          }
+        }
+     )
+     parsed_token(&access_token) template? name(memberName, klass, all_names)
        {
          auto ast = new (pool) MemberExpressionAST;
-         ast->id = context.name(name);
+         ast->id = context.name(memberName); // ### remove me
          ast->access_token = access_token;
          ast->base_expression = yyast;
-         ast->name = name;
+         ast->name = memberName;
+         if (memberName.symbol) {
+           auto k = ValueKind::kPure;
+           auto ty = unref(memberName.symbol->type(), &k);
+           ast->resolve(ty, k == ValueKind::kPure ? memberValueKind : k);
+         }
          yyast = ast;
        }
    | (plus_plus | minus_minus) parsed_token(&incr_token)

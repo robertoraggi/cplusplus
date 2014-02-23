@@ -1,0 +1,15 @@
+namespace {
+    struct point_list {
+        int x;
+        int y;
+        struct point_list *next;
+    };
+    struct point_list pt;
+    int x;
+    int y;
+    struct point_list *next;
+    struct point_list *pt2;
+    int x2;
+    int y2;
+    struct point_list *next2;
+}
