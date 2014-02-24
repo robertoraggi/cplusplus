@@ -79,48 +79,28 @@ target_include_directories(GTestObjects PRIVATE src 3rdparty/gtest-1.7.0/include
 target_compile_definitions(GTestObjects PRIVATE "-DGTEST_HAS_PTHREAD=0")
 
 function(add_cplusplus_test TARGET FILES)
-add_executable(${TARGET} ${FILES}
-    $<TARGET_OBJECTS:GTestObjects>
-    $<TARGET_OBJECTS:CPlusPlusObjects>)
-target_include_directories(${TARGET} PRIVATE src 3rdparty/gtest-1.7.0/include 3rdparty/gtest-1.7.0)
-add_test(${TARGET} ${TARGET})
+    add_executable(${TARGET} ${FILES}
+        $<TARGET_OBJECTS:GTestObjects>
+        $<TARGET_OBJECTS:CPlusPlusObjects>)
+    target_include_directories(${TARGET} PRIVATE src 3rdparty/gtest-1.7.0/include 3rdparty/gtest-1.7.0)
+    add_test(${TARGET} ${TARGET})
 endfunction(add_cplusplus_test)
 
+function(add_cplusplus_unittests path options ext)
+    FILE(GLOB TESTS "${path}/*.cpp")
+    foreach(CPP_TEST ${TESTS})
+        string(LENGTH ${CMAKE_CURRENT_SOURCE_DIR} LEN)
+        math(EXPR LEN "${LEN} + 1")
+        string(SUBSTRING ${CPP_TEST} ${LEN} -1 TEST_NAME)
+        add_test(NAME ${TEST_NAME}
+            WORKING_DIRECTORY ${CMAKE_HOME_DIRECTORY}
+            COMMAND /bin/bash -c "${CMAKE_CURRENT_BINARY_DIR}/cplusplus ${TEST_NAME} ${options} 2>&1 | diff -r ${CPP_TEST}.${ext} -")
+    endforeach(CPP_TEST)
+endfunction()
 
 enable_testing()
 add_cplusplus_test(test-frontend tests/unittest/test-frontend.cpp)
 add_cplusplus_test(test-ir tests/unittest/test-ir.cpp)
-
-##
-## symbols
-##
-FILE(GLOB SymbolTests tests/symbols/*.cpp)
-foreach(CPP_TEST ${SymbolTests})
-    get_filename_component(TEST_NAME ${CPP_TEST} NAME)
-        add_test(NAME symbols/${TEST_NAME}
-        WORKING_DIRECTORY ${CMAKE_HOME_DIRECTORY}
-        COMMAND /bin/bash -c "${CMAKE_CURRENT_BINARY_DIR}/cplusplus ${CPP_TEST} --symbols --lookup | diff -r ${CPP_TEST}.symbols -")
-endforeach(CPP_TEST)
-
-##
-## IR
-##
-FILE(GLOB IRTests tests/ir/*.cpp)
-foreach(CPP_TEST ${IRTests})
-    get_filename_component(TEST_NAME ${CPP_TEST} NAME)
-        add_test(NAME ir/${TEST_NAME}
-        WORKING_DIRECTORY ${CMAKE_HOME_DIRECTORY}
-        COMMAND /bin/bash -c "${CMAKE_CURRENT_BINARY_DIR}/cplusplus ${CPP_TEST} --ir --lookup | diff -r ${CPP_TEST}.ir -")
-endforeach(CPP_TEST)
-
-##
-## IR
-##
-FILE(GLOB IRTests tests/lookup/*.cpp)
-foreach(CPP_TEST ${IRTests})
-    get_filename_component(TEST_NAME ${CPP_TEST} NAME)
-        add_test(NAME lookup/${TEST_NAME}
-        WORKING_DIRECTORY ${CMAKE_HOME_DIRECTORY}
-        COMMAND /bin/bash -c "${CMAKE_CURRENT_BINARY_DIR}/cplusplus ${CPP_TEST} --lookup 2>&1 | diff -r ${CPP_TEST}.output -")
-endforeach(CPP_TEST)
-
+add_cplusplus_unittests(tests/lookup "--lookup" output)
+add_cplusplus_unittests(tests/symbols "--lookup --symbols" symbols)
+add_cplusplus_unittests(tests/ir "--lookup --ir" ir)
