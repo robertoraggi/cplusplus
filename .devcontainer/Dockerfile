@@ -19,7 +19,7 @@ RUN apt-get update \
         llvm-dev \
         libc++-dev \
         libc++abi-dev \
-        bash-completion
+        bash-completion \
     #
     # clean up
     && apt-get autoremove -y \
