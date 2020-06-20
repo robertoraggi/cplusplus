@@ -24,36 +24,36 @@ set(CMAKE_CXX_STANDARD 20)
 
 add_subdirectory(tools/pgen)
 
-add_executable(kwgen tools/kwgen.cpp)
+add_executable(kwgen tools/kwgen.cc)
 
 add_library(CPlusPlus
-    src/AST.cpp
+    src/AST.cc
     src/AST.h
-    src/ASTVisitor.cpp
+    src/ASTVisitor.cc
     src/ASTVisitor.h
     src/Arena.h
-    src/Codegen.cpp
+    src/Codegen.cc
     src/Codegen.h
-    src/Control.cpp
+    src/Control.cc
     src/Control.h
     src/Globals.h
-    src/IR.cpp
+    src/IR.cc
     src/IR.h
     src/IRfwd.h
-    src/Names.cpp
+    src/Names.cc
     src/Names.h
-    src/ParseContext.cpp
+    src/ParseContext.cc
     src/ParseContext.h
-    src/Parser.cpp
-    src/Symbols.cpp
+    src/Parser.cc
+    src/Symbols.cc
     src/Symbols.h
-    src/Token.cpp
+    src/Token.cc
     src/Token.h
-    src/TranslationUnit.cpp
+    src/TranslationUnit.cc
     src/TranslationUnit.h
-    src/Types.cpp
+    src/Types.cc
     src/Types.h
-    src/Mangler.cpp
+    src/Mangler.cc
     src/Mangler.h
     # generated files
     KeywordsP.h
@@ -68,11 +68,11 @@ add_custom_command(OUTPUT ParserP.h
     COMMENT "Generate ParserP.h")
 
 add_custom_command(OUTPUT KeywordsP.h
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/kwgen < ${CMAKE_CURRENT_SOURCE_DIR}/src/Keywords.kwgen > KeywordsP.h
-    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/kwgen src/Keywords.kwgen
+    COMMAND kwgen < ${CMAKE_CURRENT_SOURCE_DIR}/src/Keywords.kwgen > KeywordsP.h
+    DEPENDS kwgen src/Keywords.kwgen
     COMMENT "Generate KeywordsP.h")
 
-add_executable(cxx-frontend src/Main.cpp)
+add_executable(cxx-frontend src/Main.cc)
 target_link_libraries(cxx-frontend CPlusPlus)
 
 enable_testing()
