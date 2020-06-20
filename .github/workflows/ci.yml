@@ -13,6 +13,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    
+    - name: Update git submodules
+      run: git submodule update --init
 
     - name: Install dependencies
       run: sudo apt update && sudo apt install libfmt-dev libgflags-dev libgtest-dev build-essential cmake ninja-build
