@@ -18,7 +18,7 @@ jobs:
       run: git submodule update --init
 
     - name: Install dependencies
-      run: sudo apt update && sudo apt install libfmt-dev libgflags-dev libgtest-dev build-essential cmake ninja-build
+      run: sudo apt update && sudo apt install --yes libfmt-dev libgflags-dev libgtest-dev build-essential cmake ninja-build
 
     - name: Build
       run: |
