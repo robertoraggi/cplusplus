@@ -14,6 +14,12 @@ RUN apt-get update \
         libfmt-dev \
         libboost-dev \
         ninja-build \
+        clang \
+        clang-format \
+        llvm-dev \
+        libc++-dev \
+        libc++abi-dev \
+        bash-completion
     #
     # clean up
     && apt-get autoremove -y \

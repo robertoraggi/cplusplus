@@ -10,7 +10,9 @@
         "terminal.integrated.shell.linux": "/bin/bash"
     },
     "extensions": [
-        "ms-vscode.cpptools"
+        "ms-vscode.cpptools",
+        "twxs.cmake",
+        "ms-vscode.cmake-tools"
     ],
     "remoteUser": "vscode"
 }
