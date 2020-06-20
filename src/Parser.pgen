@@ -2373,7 +2373,7 @@ skip_compound_statement
 : lbrace
     {
       int count = 1;
-      for (; auto tk = yytoken(); ++yycursor) {
+      for (; auto tk = yytoken(); yyconsume()) {
         if (tk == T_LBRACE)
           ++count;
         else if (tk == T_RBRACE) {
@@ -3027,7 +3027,7 @@ parsed_token(unsigned* cursor)
 ;
 
 restore(unsigned cursor)
-: { yycursor = cursor; }
+: { yyrewind(cursor); }
 ;
 
 warning(const std::string& msg)

@@ -22,7 +22,8 @@ cmake_minimum_required(VERSION 3.10)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_executable(pgen tools/pgen.cpp)
+add_subdirectory(tools/pgen)
+
 add_executable(kwgen tools/kwgen.cpp)
 
 add_library(CPlusPlus
@@ -62,8 +63,8 @@ add_library(CPlusPlus
 target_include_directories(CPlusPlus PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 
 add_custom_command(OUTPUT ParserP.h
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/pgen ${CMAKE_CURRENT_SOURCE_DIR}/src/Parser.pgen -o ParserP.h
-    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/pgen src/Parser.pgen
+    COMMAND pgen ${CMAKE_CURRENT_SOURCE_DIR}/src/Parser.pgen -o ParserP.h
+    DEPENDS pgen src/Parser.pgen
     COMMENT "Generate ParserP.h")
 
 add_custom_command(OUTPUT KeywordsP.h

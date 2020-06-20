@@ -198,14 +198,14 @@ bool Parser::parseBinaryExpressionHelper(ParseContext::ExprAttrs& yyast,
     if (op == T_GREATER) {
       if (templArg) return true;
       if (yytoken(1) == T_GREATER && yytoken(2) == T_EQUAL)
-        yycursor += 2, op = T_GREATER_GREATER_EQUAL;
+        yyconsume(), yyconsume(), op = T_GREATER_GREATER_EQUAL;
       else if (yytoken(1) == T_GREATER)
-        ++yycursor, op = T_GREATER_GREATER;
+        yyconsume(), op = T_GREATER_GREATER;
       else if (yytoken(1) == T_EQUAL)
-        ++yycursor, op = T_GREATER_EQUAL;
+        yyconsume(), op = T_GREATER_EQUAL;
     }
 
-    ++yycursor;
+    yyconsume();
     unsigned colon_token{0};
     ParseContext::ExprAttrs iftrue_expression{nullptr};
     iftrue_expression.flags = yyast.flags;
@@ -214,14 +214,15 @@ bool Parser::parseBinaryExpressionHelper(ParseContext::ExprAttrs& yyast,
       auto parsed = parse_expression(iftrue_expression);
       assert(parsed);
       assert(yytoken() == T_COLON);
-      colon_token = yycursor++;
+      colon_token = yycursor;
+      yyconsume();
     }
 
     ParseContext::ExprAttrs rhs{nullptr};
     rhs.flags = yyast.flags;
     auto e = parse_cast_expression(rhs);
     if (!e) {
-      yycursor = saved;
+      yyrewind(saved);
       return true;
     }
 

@@ -1,0 +1,3 @@
+[submodule "tools/pgen"]
+	path = tools/pgen
+	url = https://github.com/robertoraggi/pgen
