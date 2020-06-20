@@ -15,7 +15,7 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: Install dependencies
-      run: sudo apt udpate && sudo apt install libfmt-dev libgflags-dev libgtest-dev build-essential cmake ninja-build
+      run: sudo apt update && sudo apt install libfmt-dev libgflags-dev libgtest-dev build-essential cmake ninja-build
 
     - name: Build
       run: |
