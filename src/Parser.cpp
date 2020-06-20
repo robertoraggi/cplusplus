@@ -30,11 +30,13 @@
 #include "IR.h"
 #include "Names.h"
 #include "ParseContext.h"
-#include "ParserP.h"
 #include "Symbols.h"
 #include "Token.h"
 #include "TranslationUnit.h"
 #include "Types.h"
+
+// pgen generated parser
+#include "ParserP.h"
 
 Parser::Assoc Parser::assoc() {
   switch (yytoken()) {
