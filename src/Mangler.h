@@ -18,8 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef MANGLER_H
-#define MANGLER_H
+#pragma once
 
 #include <string>
 
@@ -47,5 +46,3 @@ class Mangler {
   FOR_EACH_TYPE(VISIT_TYPE)
 #undef VISIT_TYPE
 };
-
-#endif  // MANGLER_H

@@ -18,8 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef SYMBOLS_H
-#define SYMBOLS_H
+#pragma once
 
 #include <vector>
 
@@ -239,5 +238,3 @@ class TemplateTypeParameterSymbol final
  public:
   void dump(std::ostream& out, int depth) override;
 };
-
-#endif  // SYMBOLS_H

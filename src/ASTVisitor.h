@@ -18,8 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef ASTVISITOR_H
-#define ASTVISITOR_H
+#pragma once
 
 #include "Globals.h"
 
@@ -69,5 +68,3 @@ class DumpAST final : protected RecursiveASTVisitor {
  private:
   int depth{-1};
 };
-
-#endif  // ASTVISITOR_H

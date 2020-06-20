@@ -18,8 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef AST_H
-#define AST_H
+#pragma once
 
 #include "ASTVisitor.h"
 #include "Arena.h"
@@ -895,5 +894,3 @@ struct FunctionDeclaratorAST final
   unsigned arrow_token{0};
   QualType trailing_return_type;
 };
-
-#endif  // AST_H

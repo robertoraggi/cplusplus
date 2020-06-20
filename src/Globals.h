@@ -18,8 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef GLOBALS_H
-#define GLOBALS_H
+#pragma once
 
 #include "IRfwd.h"
 
@@ -419,5 +418,3 @@ enum struct FloatKind {
   FOR_EACH_FLOAT_TYPE(VISIT_FLOAT_TYPE)
 #undef VISIT_FLOAT_TYPE
 };
-
-#endif  // GLOBALS_H

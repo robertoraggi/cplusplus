@@ -18,8 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef NAMES_H
-#define NAMES_H
+#pragma once
 
 #include <string>
 #include <tuple>
@@ -114,5 +113,3 @@ class DecltypeName final : public ExtendsName<NameKind::kDecltypeName>,
   inline QualType type() const { return std::get<0>(*this); }
   std::string toString() const override;
 };
-
-#endif  // NAMES_H

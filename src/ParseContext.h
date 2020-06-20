@@ -18,8 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef PARSECONTEXT_H
-#define PARSECONTEXT_H
+#pragma once
 
 #include "Globals.h"
 #include "Types.h"
@@ -127,5 +126,3 @@ struct ParseContext {
   class ProcessName;
   class ProcessDeclarator;
 };
-
-#endif  // PARSECONTEXT_H

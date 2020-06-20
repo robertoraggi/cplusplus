@@ -18,8 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef TRANSLATIONUNIT_H
-#define TRANSLATIONUNIT_H
+#pragma once
 
 #include <functional>
 #include <string>
@@ -91,5 +90,3 @@ class TranslationUnit {
   void yyinp();
   TokenKind yylex(unsigned* offset, const void** priv);
 };
-
-#endif  // TRANSLATIONUNIT_H

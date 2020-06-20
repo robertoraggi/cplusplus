@@ -18,8 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef IR_H
-#define IR_H
+#pragma once
 
 #include <forward_list>
 #include <set>
@@ -333,5 +332,3 @@ struct BasicBlock final : std::vector<Stmt*> {
 };
 
 }  // end of namespace IR
-
-#endif  // IR_H

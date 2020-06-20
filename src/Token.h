@@ -18,8 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef TOKEN_H
-#define TOKEN_H
+#pragma once
 
 #include "Globals.h"
 
@@ -38,5 +37,3 @@ class Token {
   inline TokenKind kind() const { return kind_; }
   inline unsigned offset() const { return offset_; }
 };
-
-#endif  // TOKEN_H

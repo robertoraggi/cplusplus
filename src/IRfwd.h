@@ -18,8 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef IRFWD_H
-#define IRFWD_H
+#pragma once
 
 #define FOR_EACH_IR_STMT(V) \
   V(Exp)                    \
@@ -74,5 +73,3 @@ enum struct ExprKind {
 };
 
 }  // end of namespace IR
-
-#endif  // IRFWD_H

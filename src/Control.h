@@ -18,9 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef CONTROL_H
-#define CONTROL_H
-
 #include <forward_list>
 #include <set>
 
@@ -78,5 +75,3 @@ class Control {
   FOR_EACH_SYMBOL(VISIT_SYMBOL)
 #undef VISIT_SYMBOL
 };
-
-#endif  // CONTROL_H

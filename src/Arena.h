@@ -18,8 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef ARENA_H
-#define ARENA_H
+#pragma once
 
 #include <cstdint>
 #include <cstdlib>
@@ -65,5 +64,3 @@ struct Managed {
   }
   void operator delete(void* ptr, std::size_t) {}
 };
-
-#endif  // ARENA_H

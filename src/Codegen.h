@@ -18,8 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef CODEGEN_H
-#define CODEGEN_H
+#pragma once
 
 #include <map>
 #include <vector>
@@ -123,5 +122,3 @@ class Codegen {
   IR::BasicBlock* _defaultCase{nullptr};
   Loop _loop{nullptr, nullptr};
 };
-
-#endif  // CODEGEN_H

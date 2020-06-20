@@ -18,8 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef TYPES_H
-#define TYPES_H
+#pragma once
 
 #include <string>
 #include <tuple>
@@ -266,5 +265,3 @@ class TypeToString {
   std::string print(QualType type, std::string&& decl);
   std::string print(QualType type, const Name* name);
 };
-
-#endif  // TYPES_H
