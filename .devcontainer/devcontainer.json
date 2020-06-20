@@ -12,5 +12,5 @@
     "extensions": [
         "ms-vscode.cpptools"
     ],
-    "remoteUser": "workspace"
+    "remoteUser": "vscode"
 }
