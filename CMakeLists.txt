@@ -18,15 +18,14 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 project(cplusplus)
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.10)
 
-set(CMAKE_CXX_FLAGS "-std=c++11")
+set(CMAKE_CXX_STANDARD 20)
 
-### our tools
 add_executable(pgen tools/pgen.cpp)
 add_executable(kwgen tools/kwgen.cpp)
 
-add_library(CPlusPlusObjects OBJECT
+add_library(CPlusPlus
     src/AST.cpp
     src/AST.h
     src/ASTVisitor.cpp
@@ -57,50 +56,22 @@ add_library(CPlusPlusObjects OBJECT
     src/Mangler.h
     # generated files
     KeywordsP.h
-    ParserP.h)
-target_include_directories(CPlusPlusObjects PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+    ParserP.h
+)
+
+target_include_directories(CPlusPlus PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 
 add_custom_command(OUTPUT ParserP.h
-COMMAND ${CMAKE_CURRENT_BINARY_DIR}/pgen ${CMAKE_CURRENT_SOURCE_DIR}/src/Parser.pgen -o ParserP.h
-DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/pgen src/Parser.pgen
-COMMENT "Generate ParserP.h")
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/pgen ${CMAKE_CURRENT_SOURCE_DIR}/src/Parser.pgen -o ParserP.h
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/pgen src/Parser.pgen
+    COMMENT "Generate ParserP.h")
 
 add_custom_command(OUTPUT KeywordsP.h
-COMMAND ${CMAKE_CURRENT_BINARY_DIR}/kwgen < ${CMAKE_CURRENT_SOURCE_DIR}/src/Keywords.kwgen > KeywordsP.h
-DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/kwgen src/Keywords.kwgen
-COMMENT "Generate KeywordsP.h")
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/kwgen < ${CMAKE_CURRENT_SOURCE_DIR}/src/Keywords.kwgen > KeywordsP.h
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/kwgen src/Keywords.kwgen
+    COMMENT "Generate KeywordsP.h")
 
-add_executable(cplusplus src/Main.cpp $<TARGET_OBJECTS:CPlusPlusObjects>)
-
-add_library(GTestObjects OBJECT
-    3rdparty/gtest-1.7.0/src/gtest-all.cc
-    3rdparty/gtest-1.7.0/src/gtest_main.cc)
-target_include_directories(GTestObjects PRIVATE src 3rdparty/gtest-1.7.0/include 3rdparty/gtest-1.7.0)
-target_compile_definitions(GTestObjects PRIVATE "-DGTEST_HAS_PTHREAD=0")
-
-function(add_cplusplus_test TARGET FILES)
-    add_executable(${TARGET} ${FILES}
-        $<TARGET_OBJECTS:GTestObjects>
-        $<TARGET_OBJECTS:CPlusPlusObjects>)
-    target_include_directories(${TARGET} PRIVATE src 3rdparty/gtest-1.7.0/include 3rdparty/gtest-1.7.0)
-    add_test(${TARGET} ${TARGET})
-endfunction(add_cplusplus_test)
-
-function(add_cplusplus_unittests path options ext)
-    FILE(GLOB TESTS "${path}/*.cpp")
-    foreach(CPP_TEST ${TESTS})
-        string(LENGTH ${CMAKE_CURRENT_SOURCE_DIR} LEN)
-        math(EXPR LEN "${LEN} + 1")
-        string(SUBSTRING ${CPP_TEST} ${LEN} -1 TEST_NAME)
-        add_test(NAME ${TEST_NAME}
-            WORKING_DIRECTORY ${CMAKE_HOME_DIRECTORY}
-            COMMAND /bin/bash -c "${CMAKE_CURRENT_BINARY_DIR}/cplusplus ${TEST_NAME} ${options} 2>&1 | diff -r ${CPP_TEST}.${ext} -")
-    endforeach(CPP_TEST)
-endfunction()
+add_executable(cxx-frontend src/Main.cpp)
+target_link_libraries(cxx-frontend CPlusPlus)
 
 enable_testing()
-add_cplusplus_test(test-frontend tests/unittest/test-frontend.cpp)
-add_cplusplus_test(test-ir tests/unittest/test-ir.cpp)
-add_cplusplus_unittests(tests/lookup "--lookup" output)
-add_cplusplus_unittests(tests/symbols "--lookup --symbols" symbols)
-add_cplusplus_unittests(tests/ir "--lookup --ir" ir)
