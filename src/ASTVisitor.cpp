@@ -1,59 +1,59 @@
 // Copyright (c) 2014 Roberto Raggi <roberto.raggi@gmail.com>
 //
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-// the Software, and to permit persons to whom the Software is furnished to do so,
-// subject to the following conditions:
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-// FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-// COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-// IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-// CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
 
 #include "ASTVisitor.h"
+
+#include <string>
+
 #include "AST.h"
 #include "TranslationUnit.h"
-#include <string>
 
 static const char* const ast_name[] = {
 #define VISIT_AST(x) #x,
-FOR_EACH_AST(VISIT_AST)
+    FOR_EACH_AST(VISIT_AST)
 #undef VISIT_AST
 };
 
-Control* ASTVisitor::control() const {
-  return unit->control();
-}
+Control* ASTVisitor::control() const { return unit->control(); }
 
-RecursiveASTVisitor::~RecursiveASTVisitor() {
-}
+RecursiveASTVisitor::~RecursiveASTVisitor() {}
 
 void RecursiveASTVisitor::accept(AST* ast) {
-  if (! ast)
-    return;
-  if (preVisit(ast))
-    accept0(ast);
+  if (!ast) return;
+  if (preVisit(ast)) accept0(ast);
   postVisit(ast);
 }
 
 void RecursiveASTVisitor::accept0(AST* ast) {
   switch (ast->kind()) {
-#define VISIT_AST(x) case ASTKind::k##x: visit(reinterpret_cast<x##AST*>(ast)); break;
-FOR_EACH_AST(VISIT_AST)
+#define VISIT_AST(x)                       \
+  case ASTKind::k##x:                      \
+    visit(reinterpret_cast<x##AST*>(ast)); \
+    break;
+    FOR_EACH_AST(VISIT_AST)
 #undef VISIT_AST
-  } // switch
+  }  // switch
 }
 
 void RecursiveASTVisitor::visit(TypeIdAST* ast) {
-  for (auto it = ast->specifier_list; it; it = it->next)
-    accept(it->value);
+  for (auto it = ast->specifier_list; it; it = it->next) accept(it->value);
   accept(ast->declarator);
 }
 
@@ -63,15 +63,12 @@ void RecursiveASTVisitor::visit(TranslationUnitAST* ast) {
   }
 }
 
-void RecursiveASTVisitor::visit(ExceptionSpecificationAST* ast) {
-}
+void RecursiveASTVisitor::visit(ExceptionSpecificationAST* ast) {}
 
-void RecursiveASTVisitor::visit(AttributeAST* ast) {
-}
+void RecursiveASTVisitor::visit(AttributeAST* ast) {}
 
 void RecursiveASTVisitor::visit(AttributeSpecifierAST* ast) {
-  for (auto it = ast->attribute_list; it; it = it->next)
-    accept(it->value);
+  for (auto it = ast->attribute_list; it; it = it->next) accept(it->value);
 }
 
 void RecursiveASTVisitor::visit(AlignasTypeAttributeSpecifierAST* ast) {
@@ -82,12 +79,9 @@ void RecursiveASTVisitor::visit(AlignasAttributeSpecifierAST* ast) {
   accept(ast->expression);
 }
 
-void RecursiveASTVisitor::visit(SimpleSpecifierAST* ast) {
-}
+void RecursiveASTVisitor::visit(SimpleSpecifierAST* ast) {}
 
-void RecursiveASTVisitor::visit(NamedSpecifierAST* ast) {
-  accept(ast->name);
-}
+void RecursiveASTVisitor::visit(NamedSpecifierAST* ast) { accept(ast->name); }
 
 void RecursiveASTVisitor::visit(TypenameSpecifierAST* ast) {
   accept(ast->name);
@@ -108,15 +102,12 @@ void RecursiveASTVisitor::visit(EnumSpecifierAST* ast) {
   for (auto it = ast->attribute_specifier_list; it; it = it->next)
     accept(it->value);
   accept(ast->name);
-  for (auto it = ast->specifier_list; it; it = it->next)
-    accept(it->value);
-  for (auto it = ast->enumerator_list; it; it = it->next)
-    accept(it->value);
+  for (auto it = ast->specifier_list; it; it = it->next) accept(it->value);
+  for (auto it = ast->enumerator_list; it; it = it->next) accept(it->value);
 }
 
 void RecursiveASTVisitor::visit(BaseClassAST* ast) {
-  for (auto it = ast->specifier_list; it; it = it->next)
-    accept(it->value);
+  for (auto it = ast->specifier_list; it; it = it->next) accept(it->value);
   accept(ast->name);
 }
 
@@ -124,12 +115,9 @@ void RecursiveASTVisitor::visit(ClassSpecifierAST* ast) {
   for (auto it = ast->attribute_specifier_list; it; it = it->next)
     accept(it->value);
   accept(ast->name);
-  for (auto it = ast->specifier_list; it; it = it->next)
-    accept(it->value);
-  for (auto it = ast->base_class_list; it; it = it->next)
-    accept(it->value);
-  for (auto it = ast->declaration_list; it; it = it->next)
-    accept(it->value);
+  for (auto it = ast->specifier_list; it; it = it->next) accept(it->value);
+  for (auto it = ast->base_class_list; it; it = it->next) accept(it->value);
+  for (auto it = ast->declaration_list; it; it = it->next) accept(it->value);
 }
 
 void RecursiveASTVisitor::visit(QualifiedNameAST* ast) {
@@ -137,23 +125,16 @@ void RecursiveASTVisitor::visit(QualifiedNameAST* ast) {
   accept(ast->name);
 }
 
-void RecursiveASTVisitor::visit(PackedNameAST* ast) {
-  accept(ast->name);
-}
+void RecursiveASTVisitor::visit(PackedNameAST* ast) { accept(ast->name); }
 
-void RecursiveASTVisitor::visit(SimpleNameAST* ast) {
-}
+void RecursiveASTVisitor::visit(SimpleNameAST* ast) {}
 
-void RecursiveASTVisitor::visit(DestructorNameAST* ast) {
-  accept(ast->name);
-}
+void RecursiveASTVisitor::visit(DestructorNameAST* ast) { accept(ast->name); }
 
-void RecursiveASTVisitor::visit(OperatorNameAST* ast) {
-}
+void RecursiveASTVisitor::visit(OperatorNameAST* ast) {}
 
 void RecursiveASTVisitor::visit(ConversionFunctionIdAST* ast) {
-  for (auto it = ast->specifier_list; it; it = it->next)
-    accept(it->value);
+  for (auto it = ast->specifier_list; it; it = it->next) accept(it->value);
   accept(ast->declarator);
 }
 
@@ -163,44 +144,34 @@ void RecursiveASTVisitor::visit(TemplateArgumentAST* ast) {
 
 void RecursiveASTVisitor::visit(TemplateIdAST* ast) {
   accept(ast->name);
-  for (auto it = ast->expression_list; it; it = it->next)
-    accept(it->value);
+  for (auto it = ast->expression_list; it; it = it->next) accept(it->value);
 }
 
 void RecursiveASTVisitor::visit(DecltypeNameAST* ast) {
   accept(ast->expression);
 }
 
-void RecursiveASTVisitor::visit(DecltypeAutoNameAST* ast) {
-}
+void RecursiveASTVisitor::visit(DecltypeAutoNameAST* ast) {}
 
-void RecursiveASTVisitor::visit(PackedExpressionAST* ast) {
-  accept(ast->name);
-}
+void RecursiveASTVisitor::visit(PackedExpressionAST* ast) { accept(ast->name); }
 
-void RecursiveASTVisitor::visit(LiteralExpressionAST* ast) {
-}
+void RecursiveASTVisitor::visit(LiteralExpressionAST* ast) {}
 
-void RecursiveASTVisitor::visit(ThisExpressionAST* ast) {
-}
+void RecursiveASTVisitor::visit(ThisExpressionAST* ast) {}
 
-void RecursiveASTVisitor::visit(IdExpressionAST* ast) {
-  accept(ast->name);
-}
+void RecursiveASTVisitor::visit(IdExpressionAST* ast) { accept(ast->name); }
 
 void RecursiveASTVisitor::visit(NestedExpressionAST* ast) {
   accept(ast->expression);
 }
 
-void RecursiveASTVisitor::visit(LambdaCaptureAST* ast) {
-}
+void RecursiveASTVisitor::visit(LambdaCaptureAST* ast) {}
 
 void RecursiveASTVisitor::visit(LambdaDeclaratorAST* ast) {
   accept(ast->exception_specification);
   for (auto it = ast->attribute_specifier_list; it; it = it->next)
     accept(it->value);
-  for (auto it = ast->specifier_list; it; it = it->next)
-    accept(it->value);
+  for (auto it = ast->specifier_list; it; it = it->next) accept(it->value);
 }
 
 void RecursiveASTVisitor::visit(LambdaExpressionAST* ast) {
@@ -215,22 +186,17 @@ void RecursiveASTVisitor::visit(SubscriptExpressionAST* ast) {
 
 void RecursiveASTVisitor::visit(CallExpressionAST* ast) {
   accept(ast->base_expression);
-  for (auto it = ast->expression_list; it; it = it->next)
-    accept(it->value);
+  for (auto it = ast->expression_list; it; it = it->next) accept(it->value);
 }
 
 void RecursiveASTVisitor::visit(TypeCallExpressionAST* ast) {
-  for (auto it = ast->specifier_list; it; it = it->next)
-    accept(it->value);
-  for (auto it = ast->expression_list; it; it = it->next)
-    accept(it->value);
+  for (auto it = ast->specifier_list; it; it = it->next) accept(it->value);
+  for (auto it = ast->expression_list; it; it = it->next) accept(it->value);
 }
 
 void RecursiveASTVisitor::visit(BracedTypeCallExpressionAST* ast) {
-  for (auto it = ast->type_specifier_list; it; it = it->next)
-    accept(it->value);
-  for (auto it = ast->expression_list; it; it = it->next)
-    accept(it->value);
+  for (auto it = ast->type_specifier_list; it; it = it->next) accept(it->value);
+  for (auto it = ast->expression_list; it; it = it->next) accept(it->value);
 }
 
 void RecursiveASTVisitor::visit(MemberExpressionAST* ast) {
@@ -303,8 +269,7 @@ void RecursiveASTVisitor::visit(ConditionalExpressionAST* ast) {
 }
 
 void RecursiveASTVisitor::visit(BracedInitializerAST* ast) {
-  for (auto it = ast->expression_list; it; it = it->next)
-    accept(it->value);
+  for (auto it = ast->expression_list; it; it = it->next) accept(it->value);
 }
 
 void RecursiveASTVisitor::visit(SimpleInitializerAST* ast) {
@@ -314,8 +279,7 @@ void RecursiveASTVisitor::visit(SimpleInitializerAST* ast) {
 void RecursiveASTVisitor::visit(ConditionAST* ast) {
   for (auto it = ast->attribute_specifier_list; it; it = it->next)
     accept(it->value);
-  for (auto it = ast->specifier_list; it; it = it->next)
-    accept(it->value);
+  for (auto it = ast->specifier_list; it; it = it->next) accept(it->value);
   accept(ast->declarator);
   accept(ast->initializer);
 }
@@ -339,8 +303,7 @@ void RecursiveASTVisitor::visit(ExpressionStatementAST* ast) {
 }
 
 void RecursiveASTVisitor::visit(CompoundStatementAST* ast) {
-  for (auto it = ast->statement_list; it; it = it->next)
-    accept(it->value);
+  for (auto it = ast->statement_list; it; it = it->next) accept(it->value);
 }
 
 void RecursiveASTVisitor::visit(TryBlockStatementAST* ast) {
@@ -385,34 +348,27 @@ void RecursiveASTVisitor::visit(ForRangeStatementAST* ast) {
   accept(ast->statement);
 }
 
-void RecursiveASTVisitor::visit(BreakStatementAST* ast) {
-}
+void RecursiveASTVisitor::visit(BreakStatementAST* ast) {}
 
-void RecursiveASTVisitor::visit(ContinueStatementAST* ast) {
-}
+void RecursiveASTVisitor::visit(ContinueStatementAST* ast) {}
 
 void RecursiveASTVisitor::visit(ReturnStatementAST* ast) {
   accept(ast->expression);
 }
 
-void RecursiveASTVisitor::visit(GotoStatementAST* ast) {
-  accept(ast->name);
-}
+void RecursiveASTVisitor::visit(GotoStatementAST* ast) { accept(ast->name); }
 
-void RecursiveASTVisitor::visit(AccessDeclarationAST* ast) {
-}
+void RecursiveASTVisitor::visit(AccessDeclarationAST* ast) {}
 
 void RecursiveASTVisitor::visit(MemInitializerAST* ast) {
   accept(ast->name);
-  for (auto it = ast->expression_list; it; it = it->next)
-    accept(it->value);
+  for (auto it = ast->expression_list; it; it = it->next) accept(it->value);
 }
 
 void RecursiveASTVisitor::visit(FunctionDefinitionAST* ast) {
   for (auto it = ast->attribute_specifier_list; it; it = it->next)
     accept(it->value);
-  for (auto it = ast->specifier_list; it; it = it->next)
-    accept(it->value);
+  for (auto it = ast->specifier_list; it; it = it->next) accept(it->value);
   accept(ast->declarator);
   for (auto it = ast->mem_initializer_list; it; it = it->next)
     accept(it->value);
@@ -434,8 +390,7 @@ void RecursiveASTVisitor::visit(TemplateTypeParameterAST* ast) {
 void RecursiveASTVisitor::visit(ParameterDeclarationAST* ast) {
   for (auto it = ast->attribute_specifier_list; it; it = it->next)
     accept(it->value);
-  for (auto it = ast->specifier_list; it; it = it->next)
-    accept(it->value);
+  for (auto it = ast->specifier_list; it; it = it->next) accept(it->value);
   accept(ast->declarator);
   accept(ast->expression);
 }
@@ -447,24 +402,23 @@ void RecursiveASTVisitor::visit(TemplateDeclarationAST* ast) {
 }
 
 void RecursiveASTVisitor::visit(LinkageSpecificationAST* ast) {
-  for (auto it = ast->declaration_list; it; it = it->next)
-    accept(it->value);
+  for (auto it = ast->declaration_list; it; it = it->next) accept(it->value);
 }
 
 void RecursiveASTVisitor::visit(NamespaceDefinitionAST* ast) {
   const char* name = "";
-//  if (auto id = dynamic_cast<SimpleNameAST*>(ast->name))
-//    name = translationUnit()->tokenText(id->identifier_token);
-  //translationUnit()->warning(ast->namespace_token, "enter namespace `%s'", name);
+  //  if (auto id = dynamic_cast<SimpleNameAST*>(ast->name))
+  //    name = translationUnit()->tokenText(id->identifier_token);
+  // translationUnit()->warning(ast->namespace_token, "enter namespace `%s'",
+  // name);
   accept(ast->name);
-  for (auto it = ast->declaration_list; it; it = it->next)
-    accept(it->value);
-  //translationUnit()->warning(ast->namespace_token, "leave namespace `%s'", name);
+  for (auto it = ast->declaration_list; it; it = it->next) accept(it->value);
+  // translationUnit()->warning(ast->namespace_token, "leave namespace `%s'",
+  // name);
 }
 
 void RecursiveASTVisitor::visit(AsmDefinitionAST* ast) {
-  for (auto it = ast->expression_list; it; it = it->next)
-    accept(it->value);
+  for (auto it = ast->expression_list; it; it = it->next) accept(it->value);
 }
 
 void RecursiveASTVisitor::visit(NamespaceAliasDefinitionAST* ast) {
@@ -488,8 +442,7 @@ void RecursiveASTVisitor::visit(OpaqueEnumDeclarationAST* ast) {
   for (auto it = ast->attribute_specifier_list; it; it = it->next)
     accept(it->value);
   accept(ast->name);
-  for (auto it = ast->specifier_list; it; it = it->next)
-    accept(it->value);
+  for (auto it = ast->specifier_list; it; it = it->next) accept(it->value);
 }
 
 void RecursiveASTVisitor::visit(AliasDeclarationAST* ast) {
@@ -502,10 +455,8 @@ void RecursiveASTVisitor::visit(AliasDeclarationAST* ast) {
 void RecursiveASTVisitor::visit(SimpleDeclarationAST* ast) {
   for (auto it = ast->attribute_specifier_list; it; it = it->next)
     accept(it->value);
-  for (auto it = ast->specifier_list; it; it = it->next)
-    accept(it->value);
-  for (auto it = ast->declarator_list; it; it = it->next)
-    accept(it->value);
+  for (auto it = ast->specifier_list; it; it = it->next) accept(it->value);
+  for (auto it = ast->declarator_list; it; it = it->next) accept(it->value);
 }
 
 void RecursiveASTVisitor::visit(StaticAssertDeclarationAST* ast) {
@@ -513,8 +464,7 @@ void RecursiveASTVisitor::visit(StaticAssertDeclarationAST* ast) {
 }
 
 void RecursiveASTVisitor::visit(DeclaratorAST* ast) {
-  for (auto it = ast->ptr_op_list; it; it = it->next)
-    accept(it->value);
+  for (auto it = ast->ptr_op_list; it; it = it->next) accept(it->value);
   accept(ast->core_declarator);
   for (auto it = ast->postfix_declarator_list; it; it = it->next)
     accept(it->value);
@@ -526,9 +476,9 @@ void RecursiveASTVisitor::visit(NestedDeclaratorAST* ast) {
 }
 
 void RecursiveASTVisitor::visit(DeclaratorIdAST* ast) {
-//  if (auto id = dynamic_cast<SimpleNameAST*>(ast->name))
-//    translationUnit()->warning(id->identifier_token, "declared `%s'",
-//                               translationUnit()->tokenText(id->identifier_token));
+  //  if (auto id = dynamic_cast<SimpleNameAST*>(ast->name))
+  //    translationUnit()->warning(id->identifier_token, "declared `%s'",
+  //                               translationUnit()->tokenText(id->identifier_token));
   accept(ast->name);
   for (auto it = ast->attribute_specifier_list; it; it = it->next)
     accept(it->value);
@@ -537,8 +487,7 @@ void RecursiveASTVisitor::visit(DeclaratorIdAST* ast) {
 void RecursiveASTVisitor::visit(PtrOperatorAST* ast) {
   for (auto it = ast->nested_name_specifier; it; it = it->next)
     accept(it->value);
-  for (auto it = ast->cv_qualifier_list; it; it = it->next)
-    accept(it->value);
+  for (auto it = ast->cv_qualifier_list; it; it = it->next) accept(it->value);
   for (auto it = ast->attribute_specifier_list; it; it = it->next)
     accept(it->value);
 }
@@ -556,23 +505,17 @@ void RecursiveASTVisitor::visit(FunctionDeclaratorAST* ast) {
 }
 
 void RecursiveASTVisitor::visit(ParametersAndQualifiersAST* ast) {
-  for (auto it = ast->parameter_list; it; it = it->next)
-    accept(it->value);
-  for (auto it = ast->specifier_list; it; it = it->next)
-    accept(it->value);
+  for (auto it = ast->parameter_list; it; it = it->next) accept(it->value);
+  for (auto it = ast->specifier_list; it; it = it->next) accept(it->value);
   accept(ast->ref_qualifier);
   accept(ast->exception_specification);
   for (auto it = ast->attribute_specifier_list; it; it = it->next)
     accept(it->value);
 }
 
-DumpAST::DumpAST(TranslationUnit* unit)
-  : RecursiveASTVisitor(unit) {
-}
+DumpAST::DumpAST(TranslationUnit* unit) : RecursiveASTVisitor(unit) {}
 
-void DumpAST::operator()(AST* ast) {
-  accept(ast);
-}
+void DumpAST::operator()(AST* ast) { accept(ast); }
 
 bool DumpAST::preVisit(AST* ast) {
   ++depth;
@@ -582,6 +525,4 @@ bool DumpAST::preVisit(AST* ast) {
   return true;
 }
 
-void DumpAST::postVisit(AST*) {
-  --depth;
-}
+void DumpAST::postVisit(AST*) { --depth; }

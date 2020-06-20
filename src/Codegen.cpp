@@ -1,47 +1,43 @@
 // Copyright (c) 2014 Roberto Raggi <roberto.raggi@gmail.com>
 //
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-// the Software, and to permit persons to whom the Software is furnished to do so,
-// subject to the following conditions:
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-// FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-// COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-// IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-// CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
 
 #include "Codegen.h"
-#include "AST.h"
-#include "TranslationUnit.h"
-#include "IR.h"
-#include "Control.h"
-#include <iostream>
+
 #include <cassert>
+#include <iostream>
 
-Codegen::Codegen(IR::Module* module): _module(module) {
-}
+#include "AST.h"
+#include "Control.h"
+#include "IR.h"
+#include "TranslationUnit.h"
 
-Codegen::~Codegen() {
-}
+Codegen::Codegen(IR::Module* module) : _module(module) {}
 
-Control* Codegen::control() const {
-  return unit ? unit->control() : nullptr;
-}
+Codegen::~Codegen() {}
 
-void Codegen::operator()(FunctionDefinitionAST* ast) {
-  accept(ast);
-}
+Control* Codegen::control() const { return unit ? unit->control() : nullptr; }
+
+void Codegen::operator()(FunctionDefinitionAST* ast) { accept(ast); }
 
 Codegen::Result Codegen::reduce(const Result& expr) {
-  if (expr->isTemp())
-    return expr;
+  if (expr->isTemp()) return expr;
   auto t = newTemp();
   _block->emitMove(t, *expr);
   return Result{t};
@@ -54,14 +50,13 @@ Codegen::Result Codegen::expression(ExpressionAST* ast) {
     accept(ast);
     std::swap(_result, r);
   }
-  if (! r.is(ex)) {
+  if (!r.is(ex)) {
     return Result{_function->getConst("@@expr@@")};
   }
   return r;
 }
 
-void Codegen::condition(ExpressionAST* ast,
-                        IR::BasicBlock* iftrue,
+void Codegen::condition(ExpressionAST* ast, IR::BasicBlock* iftrue,
                         IR::BasicBlock* iffalse) {
   Result r{iftrue, iffalse};
   if (ast) {
@@ -93,82 +88,62 @@ void Codegen::statement(ExpressionAST* ast) {
   assert(r.is(nx));
 }
 
-void Codegen::statement(StatementAST* ast) {
-  accept(ast);
-}
+void Codegen::statement(StatementAST* ast) { accept(ast); }
 
-void Codegen::declaration(DeclarationAST* ast) {
-  accept(ast);
-}
+void Codegen::declaration(DeclarationAST* ast) { accept(ast); }
 
 void Codegen::place(IR::BasicBlock* block) {
-  if (_block && ! _block->isTerminated())
-    _block->emitJump(block);
+  if (_block && !_block->isTerminated()) _block->emitJump(block);
   _function->placeBasicBlock(block);
   _block = block;
 }
 
 void Codegen::accept(AST* ast) {
-  if (! ast)
-    return;
+  if (!ast) return;
   switch (ast->kind()) {
-#define VISIT_AST(x) case ASTKind::k##x: visit(reinterpret_cast<x##AST*>(ast)); break;
-FOR_EACH_AST(VISIT_AST)
+#define VISIT_AST(x)                       \
+  case ASTKind::k##x:                      \
+    visit(reinterpret_cast<x##AST*>(ast)); \
+    break;
+    FOR_EACH_AST(VISIT_AST)
 #undef VISIT_AST
-  } // switch
+  }  // switch
 }
 
-const IR::Temp* Codegen::newTemp() {
-  return _function->getTemp(_tempCount++);
-}
+const IR::Temp* Codegen::newTemp() { return _function->getTemp(_tempCount++); }
 
 // ASTs
-void Codegen::visit(AttributeAST* ast) {
-}
+void Codegen::visit(AttributeAST* ast) {}
 
-void Codegen::visit(BaseClassAST* ast) {
-}
+void Codegen::visit(BaseClassAST* ast) {}
 
-void Codegen::visit(DeclaratorAST* ast) {
-}
+void Codegen::visit(DeclaratorAST* ast) {}
 
-void Codegen::visit(EnumeratorAST* ast) {
-}
+void Codegen::visit(EnumeratorAST* ast) {}
 
-void Codegen::visit(LambdaCaptureAST* ast) {
-}
+void Codegen::visit(LambdaCaptureAST* ast) {}
 
-void Codegen::visit(LambdaDeclaratorAST* ast) {
-}
+void Codegen::visit(LambdaDeclaratorAST* ast) {}
 
-void Codegen::visit(MemInitializerAST* ast) {
-}
+void Codegen::visit(MemInitializerAST* ast) {}
 
-void Codegen::visit(ParametersAndQualifiersAST* ast) {
-}
+void Codegen::visit(ParametersAndQualifiersAST* ast) {}
 
-void Codegen::visit(PtrOperatorAST* ast) {
-}
+void Codegen::visit(PtrOperatorAST* ast) {}
 
-void Codegen::visit(TranslationUnitAST* ast) {
-}
+void Codegen::visit(TranslationUnitAST* ast) {}
 
 // core declarators
-void Codegen::visit(DeclaratorIdAST* ast) {
-}
+void Codegen::visit(DeclaratorIdAST* ast) {}
 
-void Codegen::visit(NestedDeclaratorAST* ast) {
-}
+void Codegen::visit(NestedDeclaratorAST* ast) {}
 
 // declarations
-void Codegen::visit(AccessDeclarationAST* ast) {
-}
+void Codegen::visit(AccessDeclarationAST* ast) {}
 
-void Codegen::visit(AliasDeclarationAST* ast) {
-}
+void Codegen::visit(AliasDeclarationAST* ast) {}
 
-void Codegen::visit(AsmDefinitionAST* ast) {
-}
+void Codegen::visit(AsmDefinitionAST* ast) {}
 
 void Codegen::visit(FunctionDefinitionAST* ast) {
   auto function = _module->newFunction(ast->symbol);
@@ -206,41 +181,29 @@ void Codegen::visit(FunctionDefinitionAST* ast) {
   std::swap(_loop, loop);
 }
 
-void Codegen::visit(LinkageSpecificationAST* ast) {
-}
+void Codegen::visit(LinkageSpecificationAST* ast) {}
 
-void Codegen::visit(NamespaceAliasDefinitionAST* ast) {
-}
+void Codegen::visit(NamespaceAliasDefinitionAST* ast) {}
 
-void Codegen::visit(NamespaceDefinitionAST* ast) {
-}
+void Codegen::visit(NamespaceDefinitionAST* ast) {}
 
-void Codegen::visit(OpaqueEnumDeclarationAST* ast) {
-}
+void Codegen::visit(OpaqueEnumDeclarationAST* ast) {}
 
-void Codegen::visit(ParameterDeclarationAST *ast) {
-}
+void Codegen::visit(ParameterDeclarationAST* ast) {}
 
-void Codegen::visit(SimpleDeclarationAST* ast) {
-}
+void Codegen::visit(SimpleDeclarationAST* ast) {}
 
-void Codegen::visit(StaticAssertDeclarationAST* ast) {
-}
+void Codegen::visit(StaticAssertDeclarationAST* ast) {}
 
-void Codegen::visit(TemplateDeclarationAST* ast) {
-}
+void Codegen::visit(TemplateDeclarationAST* ast) {}
 
-void Codegen::visit(TemplateTypeParameterAST* ast) {
-}
+void Codegen::visit(TemplateTypeParameterAST* ast) {}
 
-void Codegen::visit(TypeParameterAST* ast) {
-}
+void Codegen::visit(TypeParameterAST* ast) {}
 
-void Codegen::visit(UsingDeclarationAST* ast) {
-}
+void Codegen::visit(UsingDeclarationAST* ast) {}
 
-void Codegen::visit(UsingDirectiveAST* ast) {
-}
+void Codegen::visit(UsingDirectiveAST* ast) {}
 
 // expressions
 void Codegen::visit(AlignofExpressionAST* ast) {
@@ -271,54 +234,54 @@ void Codegen::visit(BinaryExpressionAST* ast) {
   }
 
   switch (ast->op) {
-  case T_EQUAL:
-  case T_PLUS_EQUAL:
-  case T_MINUS_EQUAL:
-  case T_STAR_EQUAL:
-  case T_SLASH_EQUAL:
-  case T_PERCENT_EQUAL:
-  case T_AMP_EQUAL:
-  case T_CARET_EQUAL:
-  case T_BAR_EQUAL:
-  case T_LESS_LESS_EQUAL:
-  case T_GREATER_GREATER_EQUAL: {
-    if (_result.accept(nx)) {
-      auto target = expression(ast->left_expression);
-      auto source = expression(ast->right_expression);
-      _block->emitMove(*target, *source, ast->op);
-      return;
+    case T_EQUAL:
+    case T_PLUS_EQUAL:
+    case T_MINUS_EQUAL:
+    case T_STAR_EQUAL:
+    case T_SLASH_EQUAL:
+    case T_PERCENT_EQUAL:
+    case T_AMP_EQUAL:
+    case T_CARET_EQUAL:
+    case T_BAR_EQUAL:
+    case T_LESS_LESS_EQUAL:
+    case T_GREATER_GREATER_EQUAL: {
+      if (_result.accept(nx)) {
+        auto target = expression(ast->left_expression);
+        auto source = expression(ast->right_expression);
+        _block->emitMove(*target, *source, ast->op);
+        return;
+      }
+      // ### TODO
+      break;
     }
-    // ### TODO
-    break;
-  }
 
-  case T_AMP_AMP: {
-    if (_result.accept(cx)) {
-      auto iftrue = _function->newBasicBlock();
-      condition(ast->left_expression, iftrue, _result.iffalse);
-      place(iftrue);
-      condition(ast->right_expression, _result.iftrue, _result.iffalse);
-      return;
+    case T_AMP_AMP: {
+      if (_result.accept(cx)) {
+        auto iftrue = _function->newBasicBlock();
+        condition(ast->left_expression, iftrue, _result.iffalse);
+        place(iftrue);
+        condition(ast->right_expression, _result.iftrue, _result.iffalse);
+        return;
+      }
+      // ### TODO
+      break;
     }
-    // ### TODO
-    break;
-  }
 
-  case T_BAR_BAR: {
-    if (_result.accept(cx)) {
-      auto iffalse = _function->newBasicBlock();
-      condition(ast->left_expression, _result.iftrue, iffalse);
-      place(iffalse);
-      condition(ast->right_expression, _result.iftrue, _result.iffalse);
-      return;
+    case T_BAR_BAR: {
+      if (_result.accept(cx)) {
+        auto iffalse = _function->newBasicBlock();
+        condition(ast->left_expression, _result.iftrue, iffalse);
+        place(iffalse);
+        condition(ast->right_expression, _result.iftrue, _result.iffalse);
+        return;
+      }
+      // ### TODO
+      break;
     }
-    // ### TODO
-    break;
-  }
 
-  default:
-    break;
-  } // switch
+    default:
+      break;
+  }  // switch
 
   auto left = expression(ast->left_expression);
   auto right = expression(ast->right_expression);
@@ -378,21 +341,21 @@ void Codegen::visit(ConditionalExpressionAST* ast) {
 void Codegen::visit(CppCastExpressionAST* ast) {
   auto r = expression(ast->expression);
   switch (unit->tokenKind(ast->cast_token)) {
-  case T_DYNAMIC_CAST:
-    _result = Result{_function->getDynamicCast(ast->targetTy, *r)};
-    break;
-  case T_STATIC_CAST:
-    _result = Result{_function->getStaticCast(ast->targetTy, *r)};
-    break;
-  case T_REINTERPRET_CAST:
-    _result = Result{_function->getReinterpretCast(ast->targetTy, *r)};
-    break;
-  case T_CONST_CAST:
-    _result = Result{_function->getConstCast(ast->targetTy, *r)};
-    break;
-  default:
-    assert(!"unreachable");
-  } // switch
+    case T_DYNAMIC_CAST:
+      _result = Result{_function->getDynamicCast(ast->targetTy, *r)};
+      break;
+    case T_STATIC_CAST:
+      _result = Result{_function->getStaticCast(ast->targetTy, *r)};
+      break;
+    case T_REINTERPRET_CAST:
+      _result = Result{_function->getReinterpretCast(ast->targetTy, *r)};
+      break;
+    case T_CONST_CAST:
+      _result = Result{_function->getConstCast(ast->targetTy, *r)};
+      break;
+    default:
+      assert(!"unreachable");
+  }  // switch
 }
 
 void Codegen::visit(DeleteExpressionAST* ast) {
@@ -422,9 +385,7 @@ void Codegen::visit(MemberExpressionAST* ast) {
   _result = Result{_function->getMember(op, *base, ast->id)};
 }
 
-void Codegen::visit(NestedExpressionAST* ast) {
-  accept(ast->expression);
-}
+void Codegen::visit(NestedExpressionAST* ast) { accept(ast->expression); }
 
 void Codegen::visit(NewExpressionAST* ast) {
   _result = Result{_function->getConst("@new@")};
@@ -486,72 +447,49 @@ void Codegen::visit(UnaryExpressionAST* ast) {
 }
 
 // names
-void Codegen::visit(DecltypeAutoNameAST* ast) {
-}
+void Codegen::visit(DecltypeAutoNameAST* ast) {}
 
-void Codegen::visit(DecltypeNameAST* ast) {
-}
+void Codegen::visit(DecltypeNameAST* ast) {}
 
-void Codegen::visit(DestructorNameAST* ast) {
-}
+void Codegen::visit(DestructorNameAST* ast) {}
 
-void Codegen::visit(OperatorNameAST* ast) {
-}
+void Codegen::visit(OperatorNameAST* ast) {}
 
-void Codegen::visit(ConversionFunctionIdAST* ast) {
-}
+void Codegen::visit(ConversionFunctionIdAST* ast) {}
 
-void Codegen::visit(PackedNameAST* ast) {
-}
+void Codegen::visit(PackedNameAST* ast) {}
 
-void Codegen::visit(QualifiedNameAST* ast) {
-}
+void Codegen::visit(QualifiedNameAST* ast) {}
 
-void Codegen::visit(SimpleNameAST* ast) {
-}
+void Codegen::visit(SimpleNameAST* ast) {}
 
-void Codegen::visit(TemplateIdAST* ast) {
-}
+void Codegen::visit(TemplateIdAST* ast) {}
 
 // postfix declarations
-void Codegen::visit(ArrayDeclaratorAST* ast) {
-}
+void Codegen::visit(ArrayDeclaratorAST* ast) {}
 
-void Codegen::visit(FunctionDeclaratorAST* ast) {
-}
-
+void Codegen::visit(FunctionDeclaratorAST* ast) {}
 
 // specifiers
-void Codegen::visit(AlignasAttributeSpecifierAST* ast) {
-}
+void Codegen::visit(AlignasAttributeSpecifierAST* ast) {}
 
-void Codegen::visit(AlignasTypeAttributeSpecifierAST* ast) {
-}
+void Codegen::visit(AlignasTypeAttributeSpecifierAST* ast) {}
 
-void Codegen::visit(AttributeSpecifierAST* ast) {
-}
+void Codegen::visit(AttributeSpecifierAST* ast) {}
 
-void Codegen::visit(ClassSpecifierAST* ast) {
-}
+void Codegen::visit(ClassSpecifierAST* ast) {}
 
-void Codegen::visit(ElaboratedTypeSpecifierAST* ast) {
-}
+void Codegen::visit(ElaboratedTypeSpecifierAST* ast) {}
 
-void Codegen::visit(EnumSpecifierAST* ast) {
-}
+void Codegen::visit(EnumSpecifierAST* ast) {}
 
-void Codegen::visit(ExceptionSpecificationAST* ast) {
-}
+void Codegen::visit(ExceptionSpecificationAST* ast) {}
 
-void Codegen::visit(NamedSpecifierAST* ast) {
-}
+void Codegen::visit(NamedSpecifierAST* ast) {}
 
-void Codegen::visit(SimpleSpecifierAST* ast) {
-}
+void Codegen::visit(SimpleSpecifierAST* ast) {}
 
-void Codegen::visit(TypenameSpecifierAST* ast) {
-}
-
+void Codegen::visit(TypenameSpecifierAST* ast) {}
 
 // statements
 void Codegen::visit(BreakStatementAST* ast) {
@@ -606,9 +544,7 @@ void Codegen::visit(DoStatementAST* ast) {
   std::swap(_loop, loop);
 }
 
-void Codegen::visit(ExpressionStatementAST* ast) {
-  statement(ast->expression);
-}
+void Codegen::visit(ExpressionStatementAST* ast) { statement(ast->expression); }
 
 void Codegen::visit(ForRangeStatementAST* ast) {
   _block->emitExp(_function->getConst("@for-range-stmt"));
@@ -635,13 +571,12 @@ void Codegen::visit(ForStatementAST* ast) {
 
 void Codegen::visit(GotoStatementAST* ast) {
   auto& target = _labels[ast->id];
-  if (! target)
-    target = _function->newBasicBlock();
+  if (!target) target = _function->newBasicBlock();
   _block->emitJump(target);
 }
 
 void Codegen::visit(IfStatementAST* ast) {
-  if (! ast->else_statement) {
+  if (!ast->else_statement) {
     auto iftrue = _function->newBasicBlock();
     auto endif = _function->newBasicBlock();
     condition(ast->condition, iftrue, endif);
@@ -665,8 +600,7 @@ void Codegen::visit(IfStatementAST* ast) {
 
 void Codegen::visit(LabeledStatementAST* ast) {
   auto& target = _labels[ast->id];
-  if (! target)
-    target = _function->newBasicBlock();
+  if (!target) target = _function->newBasicBlock();
   place(target);
   statement(ast->statement);
 }
@@ -681,7 +615,7 @@ void Codegen::visit(ReturnStatementAST* ast) {
 
 namespace {
 
-struct CollectCaseStatements final: RecursiveASTVisitor {
+struct CollectCaseStatements final : RecursiveASTVisitor {
   std::vector<CaseStatementAST*> cases;
   DefaultStatementAST* defaultStatement{nullptr};
   bool done{false};
@@ -691,8 +625,7 @@ struct CollectCaseStatements final: RecursiveASTVisitor {
   void operator()(AST* ast) { accept(ast); }
 
   bool preVisit(AST* ast) override {
-    if (! ast || done)
-      return false;
+    if (!ast || done) return false;
     if (ast->isSwitchStatement()) {
       done = true;
       return false;
@@ -700,14 +633,14 @@ struct CollectCaseStatements final: RecursiveASTVisitor {
     if (auto s = ast->asCaseStatement())
       cases.push_back(s);
     else if (auto s = ast->asDefaultStatement()) {
-      assert(! defaultStatement);
+      assert(!defaultStatement);
       defaultStatement = s;
     }
     return true;
   }
 };
 
-} // end of anonymous namespace
+}  // end of anonymous namespace
 
 void Codegen::visit(SwitchStatementAST* ast) {
   auto endswitch = _function->newBasicBlock();
@@ -719,12 +652,15 @@ void Codegen::visit(SwitchStatementAST* ast) {
   auto lhs = newTemp();
   _block->emitMove(lhs, *r);
 
-  std::vector<std::tuple<CaseStatementAST*, IR::BasicBlock*, IR::BasicBlock*>> cases;
-  IR::BasicBlock* defaultCase = collectCaseStatements.defaultStatement ? _function->newBasicBlock() : endswitch;
+  std::vector<std::tuple<CaseStatementAST*, IR::BasicBlock*, IR::BasicBlock*>>
+      cases;
+  IR::BasicBlock* defaultCase = collectCaseStatements.defaultStatement
+                                    ? _function->newBasicBlock()
+                                    : endswitch;
   std::swap(_cases, cases);
   std::swap(_defaultCase, defaultCase);
 
-  for (auto&& c: collectCaseStatements.cases) {
+  for (auto&& c : collectCaseStatements.cases) {
     auto entry = _function->newBasicBlock();
     auto body = _function->newBasicBlock();
     _cases.emplace_back(c, entry, body);
@@ -738,7 +674,8 @@ void Codegen::visit(SwitchStatementAST* ast) {
     auto next = it != _cases.end() ? std::get<1>(*it) : _defaultCase;
     place(entry);
     auto rhs = expression(ast->expression);
-    _block->emitCJump(_function->getBinop(T_EQUAL_EQUAL, lhs, *rhs), body, next);
+    _block->emitCJump(_function->getBinop(T_EQUAL_EQUAL, lhs, *rhs), body,
+                      next);
   }
 
   Loop loop{endswitch, _loop.continueLabel};

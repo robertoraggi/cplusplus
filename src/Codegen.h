@@ -1,31 +1,33 @@
 // Copyright (c) 2014 Roberto Raggi <roberto.raggi@gmail.com>
 //
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-// the Software, and to permit persons to whom the Software is furnished to do so,
-// subject to the following conditions:
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-// FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-// COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-// IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-// CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
 
 #ifndef CODEGEN_H
 #define CODEGEN_H
 
-#include "Globals.h"
 #include <map>
 #include <vector>
 
+#include "Globals.h"
+
 class Codegen {
-public:
+ public:
   Codegen(IR::Module* module = nullptr);
   ~Codegen();
 
@@ -42,7 +44,7 @@ public:
 
   void operator()(FunctionDefinitionAST* ast);
 
-private:
+ private:
   enum Format { ex, cx, nx };
   struct Result {
     Format format{nx};
@@ -51,14 +53,13 @@ private:
     IR::BasicBlock* iffalse{nullptr};
     const IR::Expr* code{nullptr};
 
-    explicit Result(Format requested)
-      : requested(requested) {}
+    explicit Result(Format requested) : requested(requested) {}
 
     explicit Result(const IR::Expr* code)
-      : format(ex), requested(ex), code(code) {}
+        : format(ex), requested(ex), code(code) {}
 
     explicit Result(IR::BasicBlock* iftrue, IR::BasicBlock* iffalse)
-      : requested(cx), iftrue(iftrue), iffalse(iffalse) {}
+        : requested(cx), iftrue(iftrue), iffalse(iffalse) {}
 
     const IR::Expr* operator*() const { return code; }
     const IR::Expr* operator->() const { return code; }
@@ -77,8 +78,7 @@ private:
 
   Result reduce(const Result& expr);
   Result expression(ExpressionAST* ast);
-  void condition(ExpressionAST* ast,
-                 IR::BasicBlock* iftrue,
+  void condition(ExpressionAST* ast, IR::BasicBlock* iftrue,
                  IR::BasicBlock* iffalse);
   void statement(ExpressionAST* ast);
   void statement(StatementAST* ast);
@@ -91,23 +91,22 @@ private:
   const IR::Temp* newTemp();
 
 #define VISIT_AST(x) void visit(x##AST* ast);
-FOR_EACH_AST(VISIT_AST)
+  FOR_EACH_AST(VISIT_AST)
 #undef VISIT_AST
 
   int indexOfCase(CaseStatementAST* ast) const {
     for (size_t i = 0; i < _cases.size(); ++i) {
-      if (std::get<0>(_cases[i]) == ast)
-        return i;
+      if (std::get<0>(_cases[i]) == ast) return i;
     }
     return -1;
   }
 
-private:
+ private:
   struct Loop {
     IR::BasicBlock* breakLabel;
     IR::BasicBlock* continueLabel;
     Loop(IR::BasicBlock* breakLabel, IR::BasicBlock* continueLabel)
-      : breakLabel(breakLabel), continueLabel(continueLabel) {}
+        : breakLabel(breakLabel), continueLabel(continueLabel) {}
   };
 
   TranslationUnit* unit{nullptr};
@@ -119,9 +118,10 @@ private:
   Result _result{nx};
   int _tempCount{0};
   std::map<const Name*, IR::BasicBlock*> _labels;
-  std::vector<std::tuple<CaseStatementAST*, IR::BasicBlock*, IR::BasicBlock*>> _cases;
+  std::vector<std::tuple<CaseStatementAST*, IR::BasicBlock*, IR::BasicBlock*>>
+      _cases;
   IR::BasicBlock* _defaultCase{nullptr};
   Loop _loop{nullptr, nullptr};
 };
 
-#endif // CODEGEN_H
+#endif  // CODEGEN_H

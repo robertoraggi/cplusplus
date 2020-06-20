@@ -1,28 +1,30 @@
 // Copyright (c) 2014 Roberto Raggi <roberto.raggi@gmail.com>
 //
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-// the Software, and to permit persons to whom the Software is furnished to do so,
-// subject to the following conditions:
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-// FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-// COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-// IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-// CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
 
 #ifndef SYMBOLS_H
 #define SYMBOLS_H
 
+#include <vector>
+
 #include "Globals.h"
 #include "Types.h"
-#include <vector>
 
 class SymbolTable;
 
@@ -33,8 +35,9 @@ class Symbol {
   Scope* _enclosingScope{nullptr};
   Symbol* _next{nullptr};
   QualType _type;
-public:
-  explicit Symbol(SymbolKind kind): _kind(kind) {}
+
+ public:
+  explicit Symbol(SymbolKind kind) : _kind(kind) {}
   virtual ~Symbol() = default;
 
   virtual void dump(std::ostream& out, int depth) = 0;
@@ -56,14 +59,12 @@ public:
 
   Symbol* next() const;
 
-#define VISIT_SYMBOL(T) \
-  inline bool is##T##Symbol() const { \
-    return _kind == SymbolKind::k##T; \
-  } \
-  inline const T##Symbol* as##T##Symbol() const { \
-    return const_cast<Symbol*>(this)->as##T##Symbol(); \
-  } \
-  inline T##Symbol* as##T##Symbol() { \
+#define VISIT_SYMBOL(T)                                                    \
+  inline bool is##T##Symbol() const { return _kind == SymbolKind::k##T; }  \
+  inline const T##Symbol* as##T##Symbol() const {                          \
+    return const_cast<Symbol*>(this)->as##T##Symbol();                     \
+  }                                                                        \
+  inline T##Symbol* as##T##Symbol() {                                      \
     return is##T##Symbol() ? reinterpret_cast<T##Symbol*>(this) : nullptr; \
   }
   FOR_EACH_SYMBOL(VISIT_SYMBOL)
@@ -71,12 +72,12 @@ public:
 };
 
 template <SymbolKind K, typename Base = Symbol>
-struct ExtendsSymbol: Base {
-  inline ExtendsSymbol(): Base(K) {}
+struct ExtendsSymbol : Base {
+  inline ExtendsSymbol() : Base(K) {}
 };
 
-class Scope: public Symbol {
-public:
+class Scope : public Symbol {
+ public:
   using Symbol::Symbol;
   ~Scope() override;
 
@@ -95,65 +96,75 @@ public:
   ClassSymbol* currentClass();
   FunctionSymbol* currentFunction();
 
-private:
+ private:
   SymbolTable* _symbols{nullptr};
 };
 
-class NamespaceSymbol final: public ExtendsSymbol<SymbolKind::kNamespace, Scope> {
-public:
+class NamespaceSymbol final
+    : public ExtendsSymbol<SymbolKind::kNamespace, Scope> {
+ public:
   const std::vector<NamespaceSymbol*>& usings() const { return _usings; }
   void addUsing(NamespaceSymbol* u) { _usings.push_back(u); }
 
   void dump(std::ostream& out, int depth) override;
 
-private:
+ private:
   std::vector<NamespaceSymbol*> _usings;
 };
 
-class BaseClassSymbol final: public ExtendsSymbol<SymbolKind::kBaseClass, Symbol> {
-public:
+class BaseClassSymbol final
+    : public ExtendsSymbol<SymbolKind::kBaseClass, Symbol> {
+ public:
   ClassSymbol* symbol() const { return _symbol; }
   void setSymbol(ClassSymbol* symbol) { _symbol = symbol; }
 
   void dump(std::ostream& out, int depth) override;
 
-private:
+ private:
   ClassSymbol* _symbol{nullptr};
 };
 
-class ClassSymbol final: public ExtendsSymbol<SymbolKind::kClass, Scope> {
-public:
+class ClassSymbol final : public ExtendsSymbol<SymbolKind::kClass, Scope> {
+ public:
   TokenKind classKey() const;
   void setClassKey(TokenKind classKey);
   void dump(std::ostream& out, int depth) override;
-  const std::vector<BaseClassSymbol*>& baseClasses() const { return _baseClasses; }
-  void addBaseClass(BaseClassSymbol* baseClass) { _baseClasses.push_back(baseClass); }
+  const std::vector<BaseClassSymbol*>& baseClasses() const {
+    return _baseClasses;
+  }
+  void addBaseClass(BaseClassSymbol* baseClass) {
+    _baseClasses.push_back(baseClass);
+  }
   bool isCompleted() const { return _isCompleted; }
   void setCompleted(bool isCompleted) { _isCompleted = isCompleted; }
-private:
+
+ private:
   TokenKind _classKey{T_EOF_SYMBOL};
   std::vector<BaseClassSymbol*> _baseClasses;
   bool _isCompleted{false};
 };
 
-class EnumSymbol final: public ExtendsSymbol<SymbolKind::kEnum, Scope> {
-public:
+class EnumSymbol final : public ExtendsSymbol<SymbolKind::kEnum, Scope> {
+ public:
   void dump(std::ostream& out, int depth) override;
 };
 
-class TemplateSymbol final: public ExtendsSymbol<SymbolKind::kTemplate, Scope> {
-public:
+class TemplateSymbol final
+    : public ExtendsSymbol<SymbolKind::kTemplate, Scope> {
+ public:
   void addParameter(Symbol* param);
   Symbol* symbol() const { return _symbol; }
   void setSymbol(Symbol* symbol) { _symbol = symbol; }
   void dump(std::ostream& out, int depth) override;
-  void addSymbol(Symbol *symbol) override;
-private:
+  void addSymbol(Symbol* symbol) override;
+
+ private:
   Symbol* _symbol;
 };
 
-class FunctionSymbol final: public ExtendsSymbol<SymbolKind::kFunction, Scope> {
-public:
+class FunctionSymbol final
+    : public ExtendsSymbol<SymbolKind::kFunction, Scope> {
+ public:
   TokenKind storageClassSpecifier() const;
   void setStorageClassSpecifier(TokenKind storageClassSpecifier);
 
@@ -178,7 +189,7 @@ public:
   BlockSymbol* block() const;
   void setBlock(BlockSymbol* block);
 
-private:
+ private:
   QualType _returnType;
   BlockSymbol* _block{nullptr};
   FunctionDefinitionAST* _internalNode{nullptr};
@@ -189,40 +200,44 @@ private:
   bool _isConst{false};
 };
 
-class BlockSymbol final: public ExtendsSymbol<SymbolKind::kBlock, Scope> {
-public:
+class BlockSymbol final : public ExtendsSymbol<SymbolKind::kBlock, Scope> {
+ public:
   void dump(std::ostream& out, int depth) override;
 };
 
-class ArgumentSymbol final: public ExtendsSymbol<SymbolKind::kArgument, Symbol> {
-public:
+class ArgumentSymbol final
+    : public ExtendsSymbol<SymbolKind::kArgument, Symbol> {
+ public:
   void dump(std::ostream& out, int depth) override;
 };
 
-class DeclarationSymbol final: public ExtendsSymbol<SymbolKind::kDeclaration, Symbol> {
-public:
+class DeclarationSymbol final
+    : public ExtendsSymbol<SymbolKind::kDeclaration, Symbol> {
+ public:
   TokenKind storageClassSpecifier() const;
   void setStorageClassSpecifier(TokenKind storageClassSpecifier);
 
   void dump(std::ostream& out, int depth) override;
 
-private:
+ private:
   TokenKind _storageClassSpecifier{T_EOF_SYMBOL};
 };
 
-class TypedefSymbol final: public ExtendsSymbol<SymbolKind::kTypedef, Symbol> {
-public:
+class TypedefSymbol final : public ExtendsSymbol<SymbolKind::kTypedef, Symbol> {
+ public:
   void dump(std::ostream& out, int depth) override;
 };
 
-class TypeParameterSymbol final: public ExtendsSymbol<SymbolKind::kTypeParameter, Symbol> {
-public:
+class TypeParameterSymbol final
+    : public ExtendsSymbol<SymbolKind::kTypeParameter, Symbol> {
+ public:
   void dump(std::ostream& out, int depth) override;
 };
 
-class TemplateTypeParameterSymbol final: public ExtendsSymbol<SymbolKind::kTemplateTypeParameter, Symbol> {
-public:
+class TemplateTypeParameterSymbol final
+    : public ExtendsSymbol<SymbolKind::kTemplateTypeParameter, Symbol> {
+ public:
   void dump(std::ostream& out, int depth) override;
 };
 
-#endif // SYMBOLS_H
+#endif  // SYMBOLS_H
