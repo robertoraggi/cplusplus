@@ -20,6 +20,8 @@
 
 #include "ParseContext.h"
 
+#include <fmt/format.h>
+
 #include <cassert>
 #include <cstdio>
 
@@ -27,9 +29,7 @@
 #include "Control.h"
 #include "TranslationUnit.h"
 
-#define printf(a...) \
-  do {               \
-  } while (0)
+static const bool debug = false;
 
 class ParseContext::ProcessName {
   ParseContext* context;
@@ -53,7 +53,7 @@ class ParseContext::ProcessName {
       }
 
       case ASTKind::kPackedName:
-        printf("todo packed name\n");
+        if (debug) fmt::print("todo packed name\n");
         break;
 
       case ASTKind::kSimpleName:
@@ -81,7 +81,7 @@ class ParseContext::ProcessName {
             auto specs = context->specifiers(type_id->specifier_list);
             argDecl = context->declarator(specs, type_id->declarator);
           } else {
-            printf("todo process constant expression\n");
+            if (debug) fmt::print("todo process constant expression\n");
           }
           args.push_back(argDecl.specs.type);
         }
@@ -93,12 +93,12 @@ class ParseContext::ProcessName {
         if (context->unit->resolveSymbols()) {
           return control()->getDecltypeName(spec->type);
         }
-        printf("todo decltype name\n");
+        if (debug) fmt::print("todo decltype name\n");
         break;
       }
 
       case ASTKind::kDecltypeAutoName:
-        printf("todo decltype auto name\n");
+        if (debug) fmt::print("todo decltype auto name\n");
         break;
 
       case ASTKind::kConversionFunctionId: {
