@@ -20,6 +20,8 @@ project(cplusplus)
 
 cmake_minimum_required(VERSION 3.10)
 
+find_package(fmt CONFIG REQUIRED)
+
 set(CMAKE_CXX_STANDARD 20)
 
 add_subdirectory(tools/pgen)
@@ -61,6 +63,7 @@ add_library(CPlusPlus
 )
 
 target_include_directories(CPlusPlus PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+target_link_libraries(CPlusPlus PUBLIC fmt::fmt)
 
 add_custom_command(OUTPUT ParserP.h
     COMMAND pgen ${CMAKE_CURRENT_SOURCE_DIR}/src/Parser.pgen -o ParserP.h
