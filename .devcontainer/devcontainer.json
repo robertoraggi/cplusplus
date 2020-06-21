@@ -14,5 +14,6 @@
         "twxs.cmake",
         "ms-vscode.cmake-tools"
     ],
+    "postCreateCommand": "git submodule update --init",
     "remoteUser": "vscode"
 }
