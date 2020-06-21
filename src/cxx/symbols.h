@@ -22,8 +22,10 @@
 
 #include <vector>
 
-#include "Globals.h"
-#include "Types.h"
+#include "cxx-fwd.h"
+#include "types.h"
+
+namespace cxx {
 
 class SymbolTable;
 
@@ -238,3 +240,5 @@ class TemplateTypeParameterSymbol final
  public:
   void dump(std::ostream& out, int depth) override;
 };
+
+}  // namespace cxx

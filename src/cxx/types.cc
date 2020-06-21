@@ -18,16 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "Types.h"
+#include "types.h"
 
 #include <cassert>
 #include <sstream>
 #include <string>
 
-#include "IR.h"
-#include "Names.h"
-#include "Symbols.h"
-#include "Token.h"
+#include "ir.h"
+#include "names.h"
+#include "symbols.h"
+#include "token.h"
+
+namespace cxx {
 
 FunctionSymbol* OverloadSetType::firstCandidate() const {
   auto n = name();
@@ -234,3 +236,5 @@ void TypeToString::visit(const ElaboratedType* type) {
   if (!decl.empty()) text += ' ';
   text += decl;
 }
+
+}  // namespace cxx

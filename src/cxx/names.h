@@ -24,7 +24,9 @@
 #include <tuple>
 #include <vector>
 
-#include "Types.h"
+#include "types.h"
+
+namespace cxx {
 
 class Name {
   NameKind _kind;
@@ -113,3 +115,5 @@ class DecltypeName final : public ExtendsName<NameKind::kDecltypeName>,
   inline QualType type() const { return std::get<0>(*this); }
   std::string toString() const override;
 };
+
+}  // namespace cxx

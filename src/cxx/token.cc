@@ -18,22 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#pragma once
+#include "token.h"
 
-#include "Globals.h"
+namespace cxx {
 
-extern const char* token_spell[];
+const char* token_spell[] = {
+#define TOKEN_SPELL(_, s) s,
+    FOR_EACH_TOKEN(TOKEN_SPELL)};
 
-class Token {
-  friend class TranslationUnit;
-  TokenKind kind_;
-  unsigned offset_;
-  const void* priv_;
-
- public:
-  Token(TokenKind kind = T_ERROR, unsigned offset = 0,
-        const void* priv = nullptr)
-      : kind_(kind), offset_(offset), priv_(priv) {}
-  inline TokenKind kind() const { return kind_; }
-  inline unsigned offset() const { return offset_; }
-};
+}  // namespace cxx

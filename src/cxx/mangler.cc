@@ -18,13 +18,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "Mangler.h"
+#include "mangler.h"
 
 #include <cassert>
 
-#include "Names.h"
-#include "Symbols.h"
-#include "Types.h"
+#include "names.h"
+#include "symbols.h"
+#include "types.h"
+
+namespace cxx {
 
 std::string Mangler::encode(FunctionSymbol* symbol) {
   auto funTy = symbol->type()->asFunctionType();
@@ -321,3 +323,5 @@ std::string Mangler::mangleNamedType(const NamedType* type) {
 std::string Mangler::mangleElaboratedType(const ElaboratedType* type) {
   return "@elaborated-type@";
 }
+
+}  // namespace cxx

@@ -18,15 +18,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "Symbols.h"
+#include "symbols.h"
 
 #include <algorithm>
 #include <cassert>
 #include <functional>
 #include <iostream>
 
-#include "Names.h"
-#include "Token.h"
+#include "names.h"
+#include "token.h"
+
+namespace cxx {
 
 class SymbolTable {
  public:
@@ -339,3 +341,5 @@ FunctionSymbol* Scope::currentFunction() {
   }
   return nullptr;
 }
+
+}  // namespace cxx

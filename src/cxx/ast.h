@@ -20,9 +20,11 @@
 
 #pragma once
 
-#include "ASTVisitor.h"
-#include "Arena.h"
-#include "Types.h"
+#include "arena.h"
+#include "ast-visitor.h"
+#include "types.h"
+
+namespace cxx {
 
 enum struct ValueKind {
   kPure,
@@ -894,3 +896,5 @@ struct FunctionDeclaratorAST final
   unsigned arrow_token{0};
   QualType trailing_return_type;
 };
+
+}  // namespace cxx

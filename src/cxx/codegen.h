@@ -23,7 +23,9 @@
 #include <map>
 #include <vector>
 
-#include "Globals.h"
+#include "cxx-fwd.h"
+
+namespace cxx {
 
 class Codegen {
  public:
@@ -122,3 +124,5 @@ class Codegen {
   IR::BasicBlock* _defaultCase{nullptr};
   Loop _loop{nullptr, nullptr};
 };
+
+}  // namespace cxx

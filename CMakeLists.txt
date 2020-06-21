@@ -28,54 +28,29 @@ add_subdirectory(tools/pgen)
 
 add_executable(kwgen tools/kwgen.cc)
 
-add_library(CPlusPlus
-    src/AST.cc
-    src/AST.h
-    src/ASTVisitor.cc
-    src/ASTVisitor.h
-    src/Arena.h
-    src/Codegen.cc
-    src/Codegen.h
-    src/Control.cc
-    src/Control.h
-    src/Globals.h
-    src/IR.cc
-    src/IR.h
-    src/IRfwd.h
-    src/Names.cc
-    src/Names.h
-    src/ParseContext.cc
-    src/ParseContext.h
-    src/Parser.cc
-    src/Symbols.cc
-    src/Symbols.h
-    src/Token.cc
-    src/Token.h
-    src/TranslationUnit.cc
-    src/TranslationUnit.h
-    src/Types.cc
-    src/Types.h
-    src/Mangler.cc
-    src/Mangler.h
+aux_source_directory(src/cxx SOURCES)
+
+add_library(CPlusPlus ${SOURCES}
     # generated files
-    KeywordsP.h
-    ParserP.h
+    keywords-priv.h
+    parser-priv.h
 )
 
+target_include_directories(CPlusPlus PUBLIC src)
 target_include_directories(CPlusPlus PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 target_link_libraries(CPlusPlus PUBLIC fmt::fmt)
 
-add_custom_command(OUTPUT ParserP.h
-    COMMAND pgen ${CMAKE_CURRENT_SOURCE_DIR}/src/Parser.pgen -o ParserP.h
-    DEPENDS pgen src/Parser.pgen
+add_custom_command(OUTPUT parser-priv.h
+    COMMAND pgen ${CMAKE_CURRENT_SOURCE_DIR}/src/cxx/parser.pgen -o parser-priv.h
+    DEPENDS pgen src/cxx/parser.pgen
     COMMENT "Generate ParserP.h")
 
-add_custom_command(OUTPUT KeywordsP.h
-    COMMAND kwgen < ${CMAKE_CURRENT_SOURCE_DIR}/src/Keywords.kwgen > KeywordsP.h
-    DEPENDS kwgen src/Keywords.kwgen
+add_custom_command(OUTPUT keywords-priv.h
+    COMMAND kwgen < ${CMAKE_CURRENT_SOURCE_DIR}/src/cxx/keywords.kwgen > keywords-priv.h
+    DEPENDS kwgen src/cxx/keywords.kwgen
     COMMENT "Generate KeywordsP.h")
 
-add_executable(cxx-frontend src/Main.cc)
+add_executable(cxx-frontend src/frontend/frontend.cc)
 target_link_libraries(cxx-frontend CPlusPlus)
 
 enable_testing()

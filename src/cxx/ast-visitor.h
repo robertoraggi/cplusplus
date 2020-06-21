@@ -18,8 +18,57 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "Token.h"
+#pragma once
 
-const char* token_spell[] = {
-#define TOKEN_SPELL(_, s) s,
-    FOR_EACH_TOKEN(TOKEN_SPELL)};
+#include "cxx-fwd.h"
+
+namespace cxx {
+
+class ASTVisitor {
+  TranslationUnit* unit;
+
+ public:
+  ASTVisitor(TranslationUnit* unit) : unit(unit) {}
+  virtual ~ASTVisitor() = default;
+
+  TranslationUnit* translationUnit() const { return unit; }
+  Control* control() const;
+
+#define VISIT_AST(x) virtual void visit(x##AST*) = 0;
+  FOR_EACH_AST(VISIT_AST)
+#undef VISIT_AST
+};
+
+class RecursiveASTVisitor : public ASTVisitor {
+ public:
+  RecursiveASTVisitor(TranslationUnit* unit) : ASTVisitor(unit) {}
+  ~RecursiveASTVisitor() override;
+
+  virtual bool preVisit(AST*) { return true; }
+  virtual void postVisit(AST*) {}
+
+  void accept(AST*);
+
+#define VISIT_AST(x) void visit(x##AST*) override;
+  FOR_EACH_AST(VISIT_AST)
+#undef VISIT_AST
+
+ private:
+  void accept0(AST*);
+};
+
+class DumpAST final : protected RecursiveASTVisitor {
+ public:
+  DumpAST(TranslationUnit* unit);
+
+  void operator()(AST* ast);
+
+ protected:
+  bool preVisit(AST*) override;
+  void postVisit(AST*) override;
+
+ private:
+  int depth{-1};
+};
+
+}  // namespace cxx

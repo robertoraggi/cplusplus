@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include "IRfwd.h"
+#include "ir-fwd.h"
 
 #define FOR_EACH_AST(V)            \
   V(TypeId)                        \
@@ -331,6 +331,8 @@
   V(LongDouble, "long double") \
   V(Float128, "__float128")
 
+namespace cxx {
+
 template <typename T>
 struct List;
 struct AST;
@@ -418,3 +420,5 @@ enum struct FloatKind {
   FOR_EACH_FLOAT_TYPE(VISIT_FLOAT_TYPE)
 #undef VISIT_FLOAT_TYPE
 };
+
+}  // namespace cxx

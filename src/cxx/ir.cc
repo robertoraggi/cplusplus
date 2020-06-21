@@ -18,16 +18,16 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "IR.h"
+#include "ir.h"
 
 #include <algorithm>
 #include <cassert>
 #include <iostream>
 
-#include "Names.h"
-#include "Token.h"
+#include "names.h"
+#include "token.h"
 
-namespace IR {
+namespace cxx::IR {
 
 Module::Module() {}
 
@@ -241,4 +241,4 @@ void Function::dump(std::ostream& out) {
   }
 }
 
-}  // end of namespace IR
+}  // namespace cxx::IR

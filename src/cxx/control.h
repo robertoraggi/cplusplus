@@ -21,10 +21,12 @@
 #include <forward_list>
 #include <set>
 
-#include "Globals.h"
-#include "Names.h"
-#include "Symbols.h"
-#include "Types.h"
+#include "cxx-fwd.h"
+#include "names.h"
+#include "symbols.h"
+#include "types.h"
+
+namespace cxx {
 
 class Control {
  public:
@@ -75,3 +77,5 @@ class Control {
   FOR_EACH_SYMBOL(VISIT_SYMBOL)
 #undef VISIT_SYMBOL
 };
+
+}  // namespace cxx

@@ -20,47 +20,33 @@
 
 #pragma once
 
-#include <cstdint>
-#include <cstdlib>
-#include <new>
-#include <vector>
+#include <string>
 
-#include "Globals.h"
+#include "cxx-fwd.h"
 
-class Arena {
-  struct Block {
-    static const std::size_t SIZE = 16 * 1024 - sizeof(char*);
-    char data[SIZE];
-    char* ptr{data};
-    Block() = default;
-  };
-  static_assert(sizeof(Block) == 16 * 1024, "not cool");
-  std::vector<Block*> blocks;
+namespace cxx {
 
+//
+// mangler
+//
+class Mangler {
  public:
-  Arena(const Arena& other) = delete;
-  Arena& operator=(const Arena& other) = delete;
-  Arena() = default;
-  ~Arena() {
-    for (auto&& block : blocks) delete block;
-  }
+  std::string operator()(FunctionSymbol* symbol) { return encode(symbol); }
 
-  void* allocate(std::size_t size) noexcept {
-    if (!blocks.empty()) {
-      auto block = blocks.back();
-      block->ptr = (char*)((intptr_t(block->ptr) + 7) & ~7);
-      void* addr = block->ptr;
-      block->ptr += size;
-      if (block->ptr < block->data + Block::SIZE) return addr;
-    }
-    blocks.push_back(::new Block());
-    return allocate(size);
-  }
+  std::string encode(FunctionSymbol* symbol);
+
+ private:
+  std::string mangleName(const Name* name, const QualType& type);
+  std::string mangleType(const QualType& type);
+  std::string mangleBareFunctionType(const FunctionType* funTy);
+
+#define VISIT_NAME(T) std::string mangle##T(const T*, const QualType& type);
+  FOR_EACH_NAME(VISIT_NAME)
+#undef VISIT_NAME
+
+#define VISIT_TYPE(T) std::string mangle##T##Type(const T##Type*);
+  FOR_EACH_TYPE(VISIT_TYPE)
+#undef VISIT_TYPE
 };
 
-struct Managed {
-  void* operator new(std::size_t size, Arena* arena) noexcept {
-    return arena->allocate(size);
-  }
-  void operator delete(void* ptr, std::size_t) {}
-};
+}  // namespace cxx

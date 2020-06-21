@@ -20,29 +20,24 @@
 
 #pragma once
 
-#include <string>
+#include "cxx-fwd.h"
 
-#include "Globals.h"
+namespace cxx {
 
-//
-// mangler
-//
-class Mangler {
+extern const char* token_spell[];
+
+class Token {
+  friend class TranslationUnit;
+  TokenKind kind_;
+  unsigned offset_;
+  const void* priv_;
+
  public:
-  std::string operator()(FunctionSymbol* symbol) { return encode(symbol); }
-
-  std::string encode(FunctionSymbol* symbol);
-
- private:
-  std::string mangleName(const Name* name, const QualType& type);
-  std::string mangleType(const QualType& type);
-  std::string mangleBareFunctionType(const FunctionType* funTy);
-
-#define VISIT_NAME(T) std::string mangle##T(const T*, const QualType& type);
-  FOR_EACH_NAME(VISIT_NAME)
-#undef VISIT_NAME
-
-#define VISIT_TYPE(T) std::string mangle##T##Type(const T##Type*);
-  FOR_EACH_TYPE(VISIT_TYPE)
-#undef VISIT_TYPE
+  Token(TokenKind kind = T_ERROR, unsigned offset = 0,
+        const void* priv = nullptr)
+      : kind_(kind), offset_(offset), priv_(priv) {}
+  inline TokenKind kind() const { return kind_; }
+  inline unsigned offset() const { return offset_; }
 };
+
+}  // namespace cxx

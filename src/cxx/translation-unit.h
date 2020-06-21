@@ -24,8 +24,10 @@
 #include <string>
 #include <vector>
 
-#include "Token.h"
-#include "Types.h"
+#include "token.h"
+#include "types.h"
+
+namespace cxx {
 
 class TranslationUnit {
   Control* control_;
@@ -90,3 +92,5 @@ class TranslationUnit {
   void yyinp();
   TokenKind yylex(unsigned* offset, const void** priv);
 };
+
+}  // namespace cxx

@@ -18,9 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "Names.h"
+#include "names.h"
 
-#include "Token.h"
+#include "token.h"
+
+namespace cxx {
 
 std::string Identifier::toString() const { return string(); }
 
@@ -70,3 +72,5 @@ std::string DecltypeName::toString() const {
   TypeToString typeToString;
   return "decltype(" + typeToString(type(), nullptr) + ")";
 }
+
+}  // namespace cxx

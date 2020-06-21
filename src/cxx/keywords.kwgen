@@ -1,5 +1,5 @@
 %no-enums
-%token-prefix=T_
+%token-prefix=cxx::T_
 %toupper
 
 %%

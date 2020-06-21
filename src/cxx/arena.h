@@ -20,51 +20,51 @@
 
 #pragma once
 
-#include "Globals.h"
+#include <cstdint>
+#include <cstdlib>
+#include <new>
+#include <vector>
 
-class ASTVisitor {
-  TranslationUnit* unit;
+#include "cxx-fwd.h"
+
+namespace cxx {
+
+class Arena {
+  struct Block {
+    static const std::size_t SIZE = 16 * 1024 - sizeof(char*);
+    char data[SIZE];
+    char* ptr{data};
+    Block() = default;
+  };
+  static_assert(sizeof(Block) == 16 * 1024, "not cool");
+  std::vector<Block*> blocks;
 
  public:
-  ASTVisitor(TranslationUnit* unit) : unit(unit) {}
-  virtual ~ASTVisitor() = default;
+  Arena(const Arena& other) = delete;
+  Arena& operator=(const Arena& other) = delete;
+  Arena() = default;
+  ~Arena() {
+    for (auto&& block : blocks) delete block;
+  }
 
-  TranslationUnit* translationUnit() const { return unit; }
-  Control* control() const;
-
-#define VISIT_AST(x) virtual void visit(x##AST*) = 0;
-  FOR_EACH_AST(VISIT_AST)
-#undef VISIT_AST
+  void* allocate(std::size_t size) noexcept {
+    if (!blocks.empty()) {
+      auto block = blocks.back();
+      block->ptr = (char*)((intptr_t(block->ptr) + 7) & ~7);
+      void* addr = block->ptr;
+      block->ptr += size;
+      if (block->ptr < block->data + Block::SIZE) return addr;
+    }
+    blocks.push_back(::new Block());
+    return allocate(size);
+  }
 };
 
-class RecursiveASTVisitor : public ASTVisitor {
- public:
-  RecursiveASTVisitor(TranslationUnit* unit) : ASTVisitor(unit) {}
-  ~RecursiveASTVisitor() override;
-
-  virtual bool preVisit(AST*) { return true; }
-  virtual void postVisit(AST*) {}
-
-  void accept(AST*);
-
-#define VISIT_AST(x) void visit(x##AST*) override;
-  FOR_EACH_AST(VISIT_AST)
-#undef VISIT_AST
-
- private:
-  void accept0(AST*);
+struct Managed {
+  void* operator new(std::size_t size, Arena* arena) noexcept {
+    return arena->allocate(size);
+  }
+  void operator delete(void* ptr, std::size_t) {}
 };
 
-class DumpAST final : protected RecursiveASTVisitor {
- public:
-  DumpAST(TranslationUnit* unit);
-
-  void operator()(AST* ast);
-
- protected:
-  bool preVisit(AST*) override;
-  void postVisit(AST*) override;
-
- private:
-  int depth{-1};
-};
+}  // namespace cxx

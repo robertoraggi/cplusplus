@@ -18,19 +18,24 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "TranslationUnit.h"
+#include "translation-unit.h"
 
 #include <cassert>
 #include <cstdarg>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 
-#include "AST.h"
-#include "Control.h"
-#include "KeywordsP.h"
-#include "Names.h"
-#include "Symbols.h"
-#include "Types.h"
+#include "ast.h"
+#include "control.h"
+#include "names.h"
+#include "symbols.h"
+#include "types.h"
+
+// generated keyword classifier
+#include "keywords-priv.h"
+
+namespace cxx {
 
 bool yyparse(TranslationUnit* unit,
              const std::function<void(TranslationUnitAST*)>& consume);
@@ -423,3 +428,5 @@ bool TranslationUnit::parse(
   if (tokens_.empty()) tokenize();
   return yyparse(this, consume);
 }
+
+}  // namespace cxx
