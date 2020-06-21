@@ -18,18 +18,20 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/ast.h>
+#include <cxx/ast-visitor.h>
+#include <cxx/codegen.h>
+#include <cxx/control.h>
+#include <cxx/ir.h>
+#include <cxx/symbols.h>
+#include <cxx/translation-unit.h>
+
 #include <cassert>
 #include <fstream>
 #include <iostream>
 #include <string>
 
-#include "AST.h"
-#include "ASTVisitor.h"
-#include "Codegen.h"
-#include "Control.h"
-#include "IR.h"
-#include "Symbols.h"
-#include "TranslationUnit.h"
+namespace cxx {
 
 class DumpIR : protected RecursiveASTVisitor {
  public:
@@ -78,7 +80,11 @@ bool parseFile(
       [&unit, consume](TranslationUnitAST* ast) { consume(&unit, ast); });
 }
 
+}  // namespace cxx
+
 int main(int argc, char* argv[]) {
+  using namespace cxx;
+
   std::vector<std::string> inputFiles;
   bool dumpAST{false};
   bool dumpSymbols{false};

@@ -18,16 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "ParseContext.h"
+#include "parse-context.h"
 
 #include <fmt/format.h>
 
 #include <cassert>
 #include <cstdio>
 
-#include "AST.h"
-#include "Control.h"
-#include "TranslationUnit.h"
+#include "ast.h"
+#include "control.h"
+#include "translation-unit.h"
+
+namespace cxx {
 
 static const bool debug = false;
 
@@ -449,3 +451,5 @@ QualType ParseContext::finish(QualType type) {
   }
   return type;
 }
+
+}  // namespace cxx

@@ -24,7 +24,9 @@
 #include <tuple>
 #include <vector>
 
-#include "Globals.h"
+#include "cxx-fwd.h"
+
+namespace cxx {
 
 class QualType {
   const Type* _type;
@@ -265,3 +267,5 @@ class TypeToString {
   std::string print(QualType type, std::string&& decl);
   std::string print(QualType type, const Name* name);
 };
+
+}  // namespace cxx

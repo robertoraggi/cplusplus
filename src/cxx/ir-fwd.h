@@ -43,6 +43,8 @@
   V(Unop)                   \
   V(Binop)
 
+namespace cxx {
+
 namespace IR {
 
 struct Module;
@@ -73,3 +75,5 @@ enum struct ExprKind {
 };
 
 }  // end of namespace IR
+
+}  // namespace cxx

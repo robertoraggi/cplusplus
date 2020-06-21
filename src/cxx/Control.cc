@@ -18,8 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "Control.h"
+#include "control.h"
+
+namespace cxx {
 
 Control::Control() {}
 
 Control::~Control() {}
+
+}  // namespace cxx

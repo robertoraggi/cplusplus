@@ -18,15 +18,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "Codegen.h"
+#include "codegen.h"
 
 #include <cassert>
 #include <iostream>
 
-#include "AST.h"
-#include "Control.h"
-#include "IR.h"
-#include "TranslationUnit.h"
+#include "ast.h"
+#include "control.h"
+#include "ir.h"
+#include "translation-unit.h"
+
+namespace cxx {
 
 Codegen::Codegen(IR::Module* module) : _module(module) {}
 
@@ -708,3 +710,5 @@ void Codegen::visit(WhileStatementAST* ast) {
   place(endwhile);
   std::swap(_loop, loop);
 }
+
+}  // namespace cxx

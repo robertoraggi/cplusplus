@@ -23,20 +23,22 @@
 #include <cstring>
 #include <iostream>
 
-#include "AST.h"
-#include "ASTVisitor.h"
-#include "Codegen.h"
-#include "Control.h"
-#include "IR.h"
-#include "Names.h"
-#include "ParseContext.h"
-#include "Symbols.h"
-#include "Token.h"
-#include "TranslationUnit.h"
-#include "Types.h"
+#include "ast-visitor.h"
+#include "ast.h"
+#include "codegen.h"
+#include "control.h"
+#include "ir.h"
+#include "names.h"
+#include "parse-context.h"
+#include "symbols.h"
+#include "token.h"
+#include "translation-unit.h"
+#include "types.h"
+
+namespace cxx {
 
 // pgen generated parser
-#include "ParserP.h"
+#include "parser-priv.h"
 
 Parser::Assoc Parser::assoc() {
   switch (yytoken()) {
@@ -330,3 +332,5 @@ QualType Parser::unref(const QualType& type, ValueKind* valueKind) {
 
   return type;
 }
+
+}  // namespace cxx

@@ -18,12 +18,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "ASTVisitor.h"
+#include "ast-visitor.h"
 
 #include <string>
 
-#include "AST.h"
-#include "TranslationUnit.h"
+#include "ast.h"
+#include "translation-unit.h"
+
+namespace cxx {
 
 static const char* const ast_name[] = {
 #define VISIT_AST(x) #x,
@@ -526,3 +528,5 @@ bool DumpAST::preVisit(AST* ast) {
 }
 
 void DumpAST::postVisit(AST*) { --depth; }
+
+}  // namespace cxx

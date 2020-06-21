@@ -20,8 +20,10 @@
 
 #pragma once
 
-#include "Globals.h"
-#include "Types.h"
+#include "cxx-fwd.h"
+#include "types.h"
+
+namespace cxx {
 
 struct ParseContext {
   TranslationUnit* unit{nullptr};
@@ -126,3 +128,5 @@ struct ParseContext {
   class ProcessName;
   class ProcessDeclarator;
 };
+
+}  // namespace cxx

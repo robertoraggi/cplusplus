@@ -25,10 +25,10 @@
 #include <tuple>
 #include <vector>
 
-#include "Globals.h"
-#include "Types.h"  // ### remove
+#include "cxx-fwd.h"
+#include "types.h"  // ### remove
 
-namespace IR {
+namespace cxx::IR {
 
 struct Stmt {
   Stmt(StmtKind kind) : _kind(kind) {}
@@ -331,4 +331,4 @@ struct BasicBlock final : std::vector<Stmt*> {
 #undef VISIT_IR_STMT
 };
 
-}  // end of namespace IR
+}  // end of namespace cxx::IR
