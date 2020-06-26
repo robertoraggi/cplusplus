@@ -371,12 +371,7 @@ lambda-introducer:
     [ lambda-capture-opt ]
 
 lambda-declarator:
-    ( parameter-declaration-clause ) decl-specifier-seq-opt
-
-noexcept-specifier-opt
-    attribute-specifier-seq-opt
-    trailing-return-type-opt
-    requires-clause-opt
+    ( parameter-declaration-clause ) decl-specifier-seq-opt noexcept-specifier-opt attribute-specifier-seq-opt trailing-return-type-opt requires-clause-opt
 
 lambda-capture:
     capture-default
@@ -590,7 +585,7 @@ yield-expression:
     co_yield braced-init-list
 
 throw-expression:
-    throw  assignment-expression-opt
+    throw assignment-expression-opt
 
 assignment-expression:
     conditional-expression
@@ -672,7 +667,7 @@ coroutine-return-statement:
 declaration-statement:
     block-declaration
 
-xdeclaration-seq:
+declaration-seq:
     declaration
     declaration-seq declaration
 
@@ -751,10 +746,6 @@ function-specifier:
 explicit-specifier:
     explicit ( constant-expression )
     explicit
-
-typedef-name:
-    identifier
-    simple-template-id
 
 type-specifier:
     simple-type-specifier
@@ -953,9 +944,6 @@ function-body:
     = default ;
     = delete ;
 
-enum-name:
-    identifier
-
 enum-specifier:
     enum-head { enumerator-list-opt }
     enum-head { enumerator-list , }
@@ -991,10 +979,6 @@ enumerator:
 using-enum-declaration:
     using elaborated-enum-specifier ;
 
-namespace-name:
-    identifier
-    namespace-alias
-
 namespace-definition:
     named-namespace-definition
     unnamed-namespace-definition
@@ -1015,9 +999,6 @@ enclosing-namespace-specifier:
 
 namespace-body:
     declaration-seq-opt
-
-namespace-alias:
-    identifier
 
 namespace-alias-definition:
     namespace identifier = qualified-namespace-specifier ;
@@ -1120,10 +1101,6 @@ global-module-fragment:
 private-module-fragment:
     module-keyword : private ; declaration-seq-opt
 
-class-name:
-    identifier
-    simple-template-id
-
 class-specifier:
     class-head { member-specification-opt }
 
@@ -1202,9 +1179,7 @@ base-specifier:
     attribute-specifier-seq-opt access-specifier virtual-opt class-or-decltype
 
 class-or-decltype:
-    nested-name-specifier-opt
-
- type-name
+    nested-name-specifier-opt type-name
     nested-name-specifier template simple-template-id
     decltype-specifier
 
@@ -1291,9 +1266,6 @@ template-id:
     simple-template-id
     operator-function-id < template-argument-list-opt >
     literal-operator-id < template-argument-list-opt >
-
-template-name:
-    identifier
 
 template-argument-list:
     template-argument ...-opt
