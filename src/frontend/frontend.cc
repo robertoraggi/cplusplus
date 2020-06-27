@@ -18,13 +18,16 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/ast.h>
 #include <cxx/ast-visitor.h>
+#include <cxx/ast.h>
 #include <cxx/codegen.h>
 #include <cxx/control.h>
 #include <cxx/ir.h>
+#include <cxx/lexer.h>
 #include <cxx/symbols.h>
 #include <cxx/translation-unit.h>
+#include <fmt/format.h>
+#include <fmt/ostream.h>
 
 #include <cassert>
 #include <fstream>
@@ -86,10 +89,11 @@ int main(int argc, char* argv[]) {
   using namespace cxx;
 
   std::vector<std::string> inputFiles;
-  bool dumpAST{false};
-  bool dumpSymbols{false};
-  bool dumpIR{false};
-  bool resolveSymbols{false};
+  bool dumpAST = false;
+  bool dumpSymbols = false;
+  bool dumpIR = false;
+  bool resolveSymbols = false;
+  bool dumpTokens = false;
 
   int index = 1;
   while (index < argc) {
@@ -101,7 +105,8 @@ int main(int argc, char* argv[]) {
                 << "  --ir              dump the IR code" << std::endl
                 << "  --symbols         dump the symbols" << std::endl
                 << "  --lookup          resolve symbols" << std::endl
-                << "  --help            display this output" << std::endl;
+                << "  --help            display this output" << std::endl
+                << "  -dump-tokens      dump tokens" << std::endl;
       exit(EXIT_SUCCESS);
     } else if (arg == "--ast") {
       dumpAST = true;
@@ -111,6 +116,8 @@ int main(int argc, char* argv[]) {
       dumpIR = true;
     } else if (arg == "--lookup") {
       resolveSymbols = true;
+    } else if (arg == "--dump-tokens") {
+      dumpTokens = true;
     } else {
       inputFiles.push_back(std::move(arg));
     }
@@ -123,6 +130,14 @@ int main(int argc, char* argv[]) {
   }
 
   for (auto&& fileName : inputFiles) {
+    if (dumpTokens) {
+      const auto source = readAll(fileName);
+      Lexer lex(source);
+      while (lex.next()) {
+      }
+      continue;
+    }
+
     parseFile(fileName, resolveSymbols,
               [=](TranslationUnit* unit, TranslationUnitAST* ast) {
                 if (dumpAST) {
