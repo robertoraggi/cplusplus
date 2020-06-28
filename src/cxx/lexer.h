@@ -41,6 +41,8 @@ class Lexer {
  public:
   Lexer(const std::string_view& text);
 
+  TokenKind operator()() { return next(); }
+
   TokenKind next() {
     tokenKind_ = readToken();
     return tokenKind_;
@@ -58,6 +60,26 @@ class Lexer {
 
   std::string_view tokenText() const {
     return text_.substr(tokenPos_, tokenLength());
+  }
+
+  struct State {
+    int pos_ = 0;
+    bool leadingSpace_ = false;
+    bool startOfLine_ = true;
+  };
+
+  State save() {
+    State state;
+    state.leadingSpace_ = leadingSpace_;
+    state.startOfLine_ = startOfLine_;
+    state.pos_ = pos_;
+    return state;
+  }
+
+  void restore(const State& state) {
+    leadingSpace_ = state.leadingSpace_;
+    startOfLine_ = state.startOfLine_;
+    pos_ = state.pos_;
   }
 
  private:

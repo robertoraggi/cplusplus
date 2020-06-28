@@ -28,6 +28,7 @@
 
 #include "ast.h"
 #include "control.h"
+#include "lexer.h"
 #include "names.h"
 #include "symbols.h"
 #include "types.h"
@@ -40,286 +41,16 @@ namespace cxx {
 bool yyparse(TranslationUnit* unit,
              const std::function<void(TranslationUnitAST*)>& consume);
 
-inline void TranslationUnit::yyinp() {
-  if (yychar == '\n') lines_.push_back(yypos);
-  yychar = *yyptr++;
-  ++yypos;
-}
-
-TokenKind TranslationUnit::yylex(unsigned* offset, const void** priv) {
-again:
-  while (isspace(yychar)) yyinp();
-  *offset = yypos;
-  *priv = nullptr;
-  if (yychar == 0) return T_EOF_SYMBOL;
-  auto ch = yychar;
-  yyinp();
-
-  // ### TODO: wide and unicode literals
-  if (ch == 'L' && (yychar == '\'' || yychar == '"')) {
-    ch = yychar;
-    yyinp();
-  } else if (toupper(ch) == 'U' && (yychar == '\'' || yychar == '"')) {
-    ch = yychar;
-    yyinp();
+void TranslationUnit::initializeLineMap() {
+  // ### remove
+  lines_.clear();
+  lines_.push_back(-1);
+  const auto start = yycode.c_str();
+  for (auto ptr = start; *ptr; ++ptr) {
+    if (*ptr == '\n') {
+      lines_.push_back(ptr - start);
+    }
   }
-
-  switch (ch) {
-    case '\'':
-    case '"': {
-      const auto quote = ch;
-      yytext = quote;
-      while (yychar) {
-        if (yychar == quote)
-          break;
-        else if (yychar == '\\') {
-          yytext += yychar;
-          yyinp();
-          if (yychar) {
-            yytext += yychar;
-            yyinp();
-          }
-        } else {
-          yytext += yychar;
-          yyinp();
-        }
-      }
-      assert(yychar == quote);
-      yytext += yychar;
-      yyinp();
-      *priv = control_->getIdentifier(yytext);
-      return quote == '"' ? T_STRING_LITERAL : T_CHARACTER_LITERAL;
-    }
-
-    case '=':
-      if (yychar == '=') {
-        yyinp();
-        return T_EQUAL_EQUAL;
-      }
-      return T_EQUAL;
-
-    case ',':
-      return T_COMMA;
-
-    case '~':
-      return T_TILDE;
-
-    case '{':
-      return T_LBRACE;
-
-    case '}':
-      return T_RBRACE;
-
-    case '[':
-      return T_LBRACKET;
-
-    case ']':
-      return T_RBRACKET;
-
-    case '#':
-      while (auto ch = yychar) {
-        yyinp();
-        if (ch == '\n') break;
-        if (ch == '\\' && yychar) yyinp();
-      }
-      goto again;
-#if 0
-    if (yychar == '#') {
-      yyinp();
-      return T_POUND_POUND;
-    }
-    return T_POUND;
-#endif
-
-    case '(':
-      return T_LPAREN;
-
-    case ')':
-      return T_RPAREN;
-
-    case ';':
-      return T_SEMICOLON;
-
-    case ':':
-      if (yychar == ':') {
-        yyinp();
-        return T_COLON_COLON;
-      }
-      return T_COLON;
-
-    case '.':
-      if (yychar == '.') {
-        yyinp();
-        if (yychar == '.') {
-          yyinp();
-          return T_DOT_DOT_DOT;
-        }
-        return T_ERROR;
-      } else if (yychar == '*') {
-        yyinp();
-        return T_DOT_STAR;
-      }
-      return T_DOT;
-
-    case '?':
-      return T_QUESTION;
-
-    case '*':
-      if (yychar == '=') {
-        yyinp();
-        return T_STAR_EQUAL;
-      }
-      return T_STAR;
-
-    case '%':
-      if (yychar == '=') {
-        yyinp();
-        return T_PERCENT_EQUAL;
-      }
-      return T_PERCENT;
-
-    case '^':
-      if (yychar == '=') {
-        yyinp();
-        return T_CARET_EQUAL;
-      }
-      return T_CARET;
-
-    case '&':
-      if (yychar == '=') {
-        yyinp();
-        return T_AMP_EQUAL;
-      } else if (yychar == '&') {
-        yyinp();
-        return T_AMP_AMP;
-      }
-      return T_AMP;
-
-    case '|':
-      if (yychar == '=') {
-        yyinp();
-        return T_BAR_EQUAL;
-      } else if (yychar == '|') {
-        yyinp();
-        return T_BAR_BAR;
-      }
-      return T_BAR;
-
-    case '!':
-      if (yychar == '=') {
-        yyinp();
-        return T_EXCLAIM_EQUAL;
-      }
-      return T_EXCLAIM;
-
-    case '+':
-      if (yychar == '+') {
-        yyinp();
-        return T_PLUS_PLUS;
-      } else if (yychar == '=') {
-        yyinp();
-        return T_PLUS_EQUAL;
-      }
-      return T_PLUS;
-
-    case '-':
-      if (yychar == '-') {
-        yyinp();
-        return T_MINUS_MINUS;
-      } else if (yychar == '=') {
-        yyinp();
-        return T_MINUS_EQUAL;
-      } else if (yychar == '>') {
-        yyinp();
-        if (yychar == '*') {
-          yyinp();
-          return T_MINUS_GREATER_STAR;
-        } else {
-          return T_MINUS_GREATER;
-        }
-      }
-      return T_MINUS;
-
-    case '<':
-      if (yychar == '=') {
-        yyinp();
-        return T_LESS_EQUAL;
-      } else if (yychar == '<') {
-        yyinp();
-        if (yychar == '=') {
-          yyinp();
-          return T_LESS_LESS_EQUAL;
-        }
-        return T_LESS_LESS;
-      }
-      return T_LESS;
-
-    case '>':
-#if 0
-    if (yychar == '=') {
-      yyinp();
-      return T_GREATER_EQUAL;
-    } else if (yychar == '>') {
-      yyinp();
-      if (yychar == '=') {
-        yyinp();
-        return T_GREATER_GREATER_EQUAL;
-      }
-      return T_GREATER_GREATER;
-    }
-#endif
-      return T_GREATER;
-
-    case '/':
-      if (yychar == '/') {
-        yyinp();
-        while (yychar && yychar != '\n') yyinp();
-        goto again;
-      } else if (yychar == '*') {
-        yyinp();
-        while (yychar) {
-          if (yychar == '*') {
-            yyinp();
-            if (yychar == '/') {
-              yyinp();
-              goto again;
-            }
-          } else {
-            yyinp();
-          }
-        }
-        assert(!"unexpected end of file");
-      } else if (yychar == '=') {
-        yyinp();
-        return T_SLASH_EQUAL;
-      }
-      return T_SLASH;
-
-    default:
-      if (std::isalpha(ch) || ch == '_' || ch == '$') {
-        yytext = ch;
-        while (std::isalnum(yychar) || yychar == '_' || yychar == '$') {
-          yytext += yychar;
-          yyinp();
-        }
-
-        auto k = classify(yytext.c_str(), yytext.size());
-        if (k != T_IDENTIFIER) return (TokenKind)k;
-
-        *priv = control_->getIdentifier(yytext);
-        return T_IDENTIFIER;
-      } else if (std::isdigit(ch)) {
-        yytext = ch;
-        while (std::isalnum(yychar) || yychar == '.') {
-          yytext += yychar;
-          yyinp();
-        }
-
-        *priv = control_->getIdentifier(yytext);
-        return T_INTEGER_LITERAL;
-      }
-  }  // switch
-  return T_ERROR;
 }
 
 void TranslationUnit::warning(unsigned index, const char* format...) {
@@ -333,6 +64,14 @@ void TranslationUnit::warning(unsigned index, const char* format...) {
   va_end(ap);
   va_end(args);
   fprintf(stderr, "\n");
+
+  const auto start = lines_.at(line - 1) + 1;
+  const auto end = line < lines_.size() ? lines_.at(line) : yycode.size();
+  std::string textLine = yycode.substr(start, end - start);
+  std::string cursor(column - 1, ' ');
+  cursor += "^";
+  fprintf(stderr, "%s\n", textLine.c_str());
+  fprintf(stderr, "%s\n", cursor.c_str());
 }
 
 void TranslationUnit::error(unsigned index, const char* format...) {
@@ -346,6 +85,14 @@ void TranslationUnit::error(unsigned index, const char* format...) {
   va_end(ap);
   va_end(args);
   fprintf(stderr, "\n");
+
+  const auto start = lines_.at(line - 1) + 1;
+  const auto end = line < lines_.size() ? lines_.at(line) : yycode.size();
+  std::string textLine = yycode.substr(start, end - start);
+  std::string cursor(column - 1, ' ');
+  cursor += "^";
+  fprintf(stderr, "%s\n", textLine.c_str());
+  fprintf(stderr, "%s\n", cursor.c_str());
   if (fatalErrors_) exit(EXIT_FAILURE);
 }
 
@@ -409,14 +156,25 @@ void TranslationUnit::getTokenStartPosition(unsigned index, unsigned* line,
 }
 
 void TranslationUnit::tokenize() {
+  Lexer lexer(yycode);
   TokenKind kind;
-  tokens_.emplace_back(T_ERROR, 0, nullptr);
+  tokens_.emplace_back(TokenKind::T_ERROR, 0, nullptr);
   do {
-    unsigned offset{0};
-    const void* value{nullptr};
-    kind = yylex(&offset, &value);
-    tokens_.emplace_back(kind, offset, value);
-  } while (kind != T_EOF_SYMBOL);
+    kind = lexer.next();
+    const void* value = nullptr;
+    switch (kind) {
+      case TokenKind::T_IDENTIFIER:
+      case TokenKind::T_STRING_LITERAL:
+      case TokenKind::T_CHARACTER_LITERAL:
+      case TokenKind::T_INTEGER_LITERAL:
+      case TokenKind::T_FLOATING_POINT_LITERAL:
+        value = control_->getIdentifier(lexer.tokenText());
+        break;
+      default:
+        break;
+    }
+    tokens_.emplace_back(kind, lexer.tokenPos(), value);
+  } while (kind != TokenKind::T_EOF_SYMBOL);
 }
 
 bool TranslationUnit::parse(

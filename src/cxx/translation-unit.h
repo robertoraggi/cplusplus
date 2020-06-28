@@ -33,14 +33,12 @@ class TranslationUnit {
   Control* control_;
   std::vector<Token> tokens_;
   std::vector<int> lines_;
-  int yychar{'\n'};
-  int yypos{-1};
   std::string yyfilename;
   std::string yytext;
   std::string yycode;
-  const char* yyptr{nullptr};
-  bool resolveSymbols_{false};
-  bool fatalErrors_{false};
+  const char* yyptr = nullptr;
+  bool resolveSymbols_ = false;
+  bool fatalErrors_ = false;
 
  public:
   TranslationUnit(Control* control) : control_(control) {}
@@ -58,6 +56,8 @@ class TranslationUnit {
   void setSource(T&& source) {
     yycode = std::forward<T>(source);
     yyptr = yycode.c_str();
+
+    initializeLineMap();
   }
 
   bool resolveSymbols() const { return resolveSymbols_; }
@@ -89,8 +89,7 @@ class TranslationUnit {
   bool parse(const std::function<void(TranslationUnitAST*)>& consume = nullptr);
 
  private:
-  void yyinp();
-  TokenKind yylex(unsigned* offset, const void** priv);
+  void initializeLineMap();
 };
 
 }  // namespace cxx
