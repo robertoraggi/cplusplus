@@ -50,9 +50,9 @@ class Lexer {
 
   bool tokenLeadingSpace() const { return tokenLeadingSpace_; }
 
-  bool tokenStartOfLine()const { return tokenStartOfLine_; }
+  bool tokenStartOfLine() const { return tokenStartOfLine_; }
 
-  int tokenPos()const { return tokenPos_; }
+  int tokenPos() const { return tokenPos_; }
 
   int tokenLength() const { return pos_ - tokenPos_; }
 
