@@ -133,8 +133,22 @@ int main(int argc, char* argv[]) {
     if (dumpTokens) {
       const auto source = readAll(fileName);
       Lexer lex(source);
-      while (lex.next()) {
-      }
+      do {
+        lex.next();
+
+        std::string flags;
+
+        if (lex.tokenStartOfLine()) {
+          flags += " [start-of-line]";
+        }
+
+        if (lex.tokenLeadingSpace()) {
+          flags += " [leading-space]";
+        }
+
+        fmt::print("{} '{}'{}\n", token_name[lex.tokenKind()], lex.tokenText(),
+                   flags);
+      } while (lex.tokenKind() != TokenKind::T_EOF_SYMBOL);
       continue;
     }
 

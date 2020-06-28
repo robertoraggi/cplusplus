@@ -25,6 +25,7 @@
 namespace cxx {
 
 extern const char* token_spell[];
+extern const char* token_name[];
 
 class Token {
   friend class TranslationUnit;

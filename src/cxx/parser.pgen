@@ -43,7 +43,7 @@
      , char
      , char16_t
      , char32_t
-     , char_literal
+     , character_literal
      , class
      , colon
      , colon_colon
@@ -79,7 +79,7 @@
      , if
      , inline
      , int
-     , int_literal
+     , integer_literal
      , lbrace
      , lbracket
      , less
@@ -110,7 +110,6 @@
      , question
      , rbrace
      , rbracket
-     , register
      , reinterpret_cast
      , return
      , rparen
@@ -133,7 +132,6 @@
      , thread_local
      , throw
      , tilde
-     , tilde_equal
      , true
      , try
      , typedef
@@ -361,13 +359,13 @@ literal(ParseContext::ExprAttrs& yyast)
         ast->resolveLValue(ptrTy);
       }
     }
-| int_literal
+| integer_literal
     {
       auto ast = newLiteralExpression(yyast, yycursor - 1);
       if (unit->resolveSymbols())
         ast->resolvePureValue(QualType{control->getIntType()});
     }
-| char_literal
+| character_literal
     {
       auto ast = newLiteralExpression(yyast, yycursor - 1);
       if (unit->resolveSymbols())
@@ -1583,7 +1581,7 @@ decl_specifier_no_type_specifier(SpecifierAST*& yyast)
 ;
 
 storage_class_specifier(SpecifierAST*& yyast)
-: (register | static | extern | mutable | thread_local)
+: (static | extern | mutable | thread_local)
     {
       auto ast = new (pool) SimpleSpecifierAST;
       ast->specifier_token = yycursor - 1;
@@ -2715,7 +2713,6 @@ operator_function_id(ParseContext::NameAttrs& yyast)
   | star
   | star_equal
   | tilde
-  | tilde_equal
   | lbracket rbracket)
     {
       auto ast = new (pool) OperatorNameAST;

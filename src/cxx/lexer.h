@@ -28,16 +28,40 @@ namespace cxx {
 
 class Lexer {
   std::string_view text_;
-  int pos_;
-  int end_;
-  TokenKind token_ = TokenKind::T_EOF_SYMBOL;
+  int pos_ = 0;
+  int end_ = 0;
   bool leadingSpace_ = false;
-  bool startOfLine_ = false;
+  bool startOfLine_ = true;
+
+  TokenKind tokenKind_ = TokenKind::T_EOF_SYMBOL;
+  bool tokenLeadingSpace_ = false;
+  bool tokenStartOfLine_ = true;
+  int tokenPos_ = 0;
 
  public:
   Lexer(const std::string_view& text);
 
-  bool next();
+  TokenKind next() {
+    tokenKind_ = readToken();
+    return tokenKind_;
+  }
+
+  TokenKind tokenKind() const { return tokenKind_; }
+
+  bool tokenLeadingSpace() const { return tokenLeadingSpace_; }
+
+  bool tokenStartOfLine()const { return tokenStartOfLine_; }
+
+  int tokenPos()const { return tokenPos_; }
+
+  int tokenLength() const { return pos_ - tokenPos_; }
+
+  std::string_view tokenText() const {
+    return text_.substr(tokenPos_, tokenLength());
+  }
+
+ private:
+  TokenKind readToken();
 
  private:
   bool skipSpaces();
