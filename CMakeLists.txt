@@ -53,4 +53,14 @@ add_custom_command(OUTPUT keywords-priv.h
 add_executable(cxx-frontend src/frontend/frontend.cc)
 target_link_libraries(cxx-frontend CPlusPlus)
 
+add_custom_target(unit
+    DEPENDS tests/unit/source.cc
+    COMMAND clang++-10 -E -stdlib=libc++ -xc++ -std=c++20 ${CMAKE_CURRENT_SOURCE_DIR}/tests/unit/source.cc | grep -v ^\# > unit.cc
+)
+
+add_custom_target(unit.tokens
+    DEPENDS unit cxx-frontend
+    COMMAND cxx-frontend --dump-tokens unit.cc > unit.tokens
+)
+
 enable_testing()

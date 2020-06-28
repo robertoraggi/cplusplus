@@ -50,10 +50,28 @@ TokenKind Lexer::readToken() {
   const char ch = text_[pos_];
 
   if (is_digit(ch)) {
-    do {
-      ++pos_;
-    } while (pos_ < end_ && is_digit(text_[pos_]));
-    return TokenKind::T_INTEGER_LITERAL;
+    bool integer_literal = true;
+    while (pos_ < end_) {
+      const auto ch = text_[pos_];
+      if (pos_ + 1 < end_ &&
+          (ch == 'e' || ch == 'E' || ch == 'p' || ch == 'P') &&
+          (text_[pos_ + 1] == '+' || text_[pos_ + 1] == '-')) {
+        pos_ += 2;
+        integer_literal = false;
+      } else if (pos_ + 1 < end_ && ch == '\'' &&
+                 (isalnum(text_[pos_ + 1]) || text_[pos_ + 1] == '_')) {
+        ++pos_;
+      } else if (is_alnum(text_[pos_]) || text_[pos_ + 1] == '_') {
+        ++pos_;
+      } else if (ch == '.') {
+        ++pos_;
+        integer_literal = false;
+      } else {
+        break;
+      }
+    }
+    return integer_literal ? TokenKind::T_INTEGER_LITERAL
+                           : TokenKind::T_FLOATING_POINT_LITERAL;
   }
 
   if (is_alpha(ch) || ch == '_') {
@@ -62,6 +80,57 @@ TokenKind Lexer::readToken() {
     } while (pos_ < end_ && is_idcont(text_[pos_]));
     const auto id = text_.substr(tokenPos_, pos_ - tokenPos_);
     return (TokenKind)classify(id.data(), id.size());
+  }
+
+  if (text_[pos_] == '"') {
+    ++pos_;
+    while (pos_ < end_ && text_[pos_] != '"') {
+      if (pos_ + 1 < end_ && text_[pos_] == '\\') {
+        pos_ += 2;
+      } else {
+        ++pos_;
+      }
+    }
+    if (text_[pos_] == '"') {
+      ++pos_;
+    }
+    return TokenKind::T_STRING_LITERAL;
+  }
+
+  if (text_[pos_] == '\'') {
+    ++pos_;
+    while (pos_ < end_ && text_[pos_] != '\'') {
+      if (pos_ + 1 < end_ && text_[pos_] == '\\') {
+        pos_ += 2;
+      } else {
+        ++pos_;
+      }
+    }
+    if (text_[pos_] == '\'') {
+      ++pos_;
+    }
+
+    return TokenKind::T_CHARACTER_LITERAL;
+  }
+
+  if (pos_ + 1 < end_ && text_[pos_] == '.' && is_digit(text_[pos_ + 1])) {
+    ++pos_;
+    while (pos_ < end_) {
+      const auto ch = text_[pos_];
+      if (pos_ + 1 < end_ &&
+          (ch == 'e' || ch == 'E' || ch == 'p' || ch == 'P') &&
+          (text_[pos_ + 1] == '+' || text_[pos_ + 1] == '-')) {
+        pos_ += 2;
+      } else if (pos_ + 1 < end_ && ch == '\'' &&
+                 (isalnum(text_[pos_ + 1]) || text_[pos_ + 1] == '_')) {
+        ++pos_;
+      } else if (is_alnum(text_[pos_]) || text_[pos_ + 1] == '_') {
+        ++pos_;
+      } else {
+        break;
+      }
+    }
+    return TokenKind::T_FLOATING_POINT_LITERAL;
   }
 
   ++pos_;
@@ -240,7 +309,7 @@ TokenKind Lexer::readToken() {
   }
 
   return TokenKind::T_ERROR;
-}
+}  // namespace cxx
 
 bool Lexer::skipSpaces() {
   tokenLeadingSpace_ = leadingSpace_;
@@ -253,7 +322,7 @@ bool Lexer::skipSpaces() {
       if (ch == '\n') {
         tokenStartOfLine_ = true;
         tokenLeadingSpace_ = false;
-      } else if (!tokenStartOfLine_) {
+      } else {
         tokenLeadingSpace_ = true;
       }
       ++pos_;
