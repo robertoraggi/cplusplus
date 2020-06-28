@@ -208,7 +208,6 @@ class ParseContext::ProcessDeclarator {
             else
               _decl.setType(control()->getFloatType(FloatKind::kDouble));
             break;
-          case T_REGISTER:
           case T_STATIC:
           case T_EXTERN:
           case T_MUTABLE:

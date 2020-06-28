@@ -38,7 +38,7 @@
 , slash_equal
 , colon
 , colon_colon
-, semi
+, semicolon
 , less
 , less_less
 , less_less_equal
@@ -112,6 +112,7 @@
 , new
 , noexcept
 , nullptr
+, operator
 , private
 , protected
 , public
@@ -349,15 +350,15 @@ requirement
 ;
 
 simple_requirement
-: expression semi
+: expression semicolon
 ;
 
 type_requirement
-: typename nested_name_specifier? type_name semi
+: typename nested_name_specifier? type_name semicolon
 ;
 
 compound_requirement
-: lbrace expression rbrace noexcept? return_type_requirement? semi
+: lbrace expression rbrace noexcept? return_type_requirement? semicolon
 ;
 
 return_type_requirement
@@ -365,7 +366,7 @@ return_type_requirement
 ;
 
 nested_requirement
-: requires constraint_expression semi
+: requires constraint_expression semicolon
 ;
 
 postfix_expression
@@ -603,7 +604,7 @@ labeled_statement
 ;
 
 expression_statement
-: expression? semi
+: expression? semicolon
 ;
 
 compound_statement
@@ -618,8 +619,8 @@ selection_statement
 
 iteration_statement
 : while lparen condition rparen statement
-| do statement while lparen expression rparen semi
-| for lparen init_statement condition? semi expression? rparen statement
+| do statement while lparen expression rparen semicolon
+| for lparen init_statement condition? semicolon expression? rparen statement
 | for lparen init_statement? for_range_declaration colon for_range_initializer rparen statement
 ;
 
@@ -633,15 +634,15 @@ for_range_initializer
 ;
 
 jump_statement
-: break semi
-| continue semi
-| return expr_or_braced_init_list? semi
+: break semicolon
+| continue semicolon
+| return expr_or_braced_init_list? semicolon
 | coroutine_return_statement
-| goto identifier semi
+| goto identifier semicolon
 ;
 
 coroutine_return_statement
-: co_return expr_or_braced_init_list? semi
+: co_return expr_or_braced_init_list? semicolon
 ;
 
 declaration_statement
@@ -677,30 +678,30 @@ block_declaration
 ;
 
 nodeclspec_function_declaration
-: attribute_specifier* declarator semi
+: attribute_specifier* declarator semicolon
 ;
 
 alias_declaration
-: using identifier attribute_specifier* equal defining_type_id semi
+: using identifier attribute_specifier* equal defining_type_id semicolon
 ;
 
 simple_declaration
-: decl_specifier_seq init_declarator_list? semi
-| attribute_specifier+ decl_specifier_seq init_declarator_list semi
-| attribute_specifier* decl_specifier_seq ref_qualifier? lbracket identifier_list rbracket initializer semi
+: decl_specifier_seq init_declarator_list? semicolon
+| attribute_specifier+ decl_specifier_seq init_declarator_list semicolon
+| attribute_specifier* decl_specifier_seq ref_qualifier? lbracket identifier_list rbracket initializer semicolon
 ;
 
 static_assert_declaration
-: static_assert lparen constant_expression rparen semi
-| static_assert lparen constant_expression comma string_literal rparen semi
+: static_assert lparen constant_expression rparen semicolon
+| static_assert lparen constant_expression comma string_literal rparen semicolon
 ;
 
 empty_declaration
-: semi
+: semicolon
 ;
 
 attribute_declaration
-: attribute_specifier+ semi
+: attribute_specifier+ semicolon
 ;
 
 decl_specifier
@@ -967,8 +968,8 @@ function_definition
 function_body
 : ctor_initializer? compound_statement
 | function_try_block
-| equal default semi
-| equal delete semi
+| equal default semicolon
+| equal delete semicolon
 ;
 
 enum_specifier
@@ -985,7 +986,7 @@ enum_head_name
 ;
 
 opaque_enum_declaration
-: enum_key attribute_specifier* enum_head_name enum_base? semi
+: enum_key attribute_specifier* enum_head_name enum_base? semicolon
 ;
 
 enum_key
@@ -1013,7 +1014,7 @@ enumerator
 ;
 
 using_enum_declaration
-: using elaborated_enum_specifier semi
+: using elaborated_enum_specifier semicolon
 ;
 
 namespace_definition
@@ -1044,7 +1045,7 @@ namespace_body
 ;
 
 namespace_alias_definition
-: namespace identifier equal qualified_namespace_specifier semi
+: namespace identifier equal qualified_namespace_specifier semicolon
 ;
 
 qualified_namespace_specifier
@@ -1052,11 +1053,11 @@ qualified_namespace_specifier
 ;
 
 using_directive
-: attribute_specifier* using namespace nested_name_specifier? namespace_name semi
+: attribute_specifier* using namespace nested_name_specifier? namespace_name semicolon
 ;
 
 using_declaration
-: using using_declarator_list semi
+: using using_declarator_list semicolon
 ;
 
 using_declarator_list
@@ -1069,7 +1070,7 @@ using_declarator
 ;
 
 asm_declaration
-: attribute_specifier* asm lparen string_literal rparen semi
+: attribute_specifier* asm lparen string_literal rparen semicolon
 ;
 
 linkage_specification
@@ -1120,7 +1121,7 @@ attribute_argument_clause
 ;
 
 module_declaration
-: export_keyword? module_keyword module_name module_partition? attribute_specifier* semi
+: export_keyword? module_keyword module_name module_partition? attribute_specifier* semicolon
 ;
 
 module_name
@@ -1143,17 +1144,17 @@ export_declaration
 ;
 
 module_import_declaration
-: import_keyword module_name attribute_specifier* semi
-| import_keyword module_partition attribute_specifier* semi
-| import_keyword header_name attribute_specifier* semi
+: import_keyword module_name attribute_specifier* semicolon
+| import_keyword module_partition attribute_specifier* semicolon
+| import_keyword header_name attribute_specifier* semicolon
 ;
 
 global_module_fragment
-: module_keyword semi declaration*
+: module_keyword semicolon declaration*
 ;
 
 private_module_fragment
-: module_keyword colon private semi declaration*
+: module_keyword colon private semicolon declaration*
 ;
 
 class_specifier
@@ -1185,7 +1186,7 @@ member_specification
 ;
 
 member_declaration
-: attribute_specifier* decl_specifier* member_declarator_list? semi
+: attribute_specifier* decl_specifier* member_declarator_list? semicolon
 | function_definition
 | using_declaration
 | using_enum_declaration
@@ -1278,10 +1279,10 @@ mem_initializer_id
 ;
 
 operator_function_id
-: operator operator
+: operator op
 ;
 
-operator
+op
 : new
 | delete
 | new lbracket rbracket
@@ -1411,11 +1412,11 @@ constraint_expression
 ;
 
 deduction_guide
-: explicit_specifier? template_name lparen parameter_declaration_clause rparen minus_greater simple_template_id semi
+: explicit_specifier? template_name lparen parameter_declaration_clause rparen minus_greater simple_template_id semicolon
 ;
 
 concept_definition
-: concept concept_name equal constraint_expression semi
+: concept concept_name equal constraint_expression semicolon
 ;
 
 concept_name

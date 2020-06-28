@@ -211,7 +211,7 @@ void gen_classify_n(State &start_state, int N)
 
 void gen_classify(const std::multimap<size_t, std::string> &keywords)
 {
-  std::cout << "int " << option_namespace_name << "classify(const " << option_char_type << " *s, int n) {" << std::endl
+  std::cout << "static int " << option_namespace_name << "classify(const " << option_char_type << " *s, int n) {" << std::endl
             << "  switch (n) {" << std::endl;
   std::multimap<size_t, std::string>::const_iterator it = keywords.begin();
   while (it != keywords.end()) {

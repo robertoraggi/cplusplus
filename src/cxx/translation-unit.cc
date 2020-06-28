@@ -88,7 +88,7 @@ again:
       yytext += yychar;
       yyinp();
       *priv = control_->getIdentifier(yytext);
-      return quote == '"' ? T_STRING_LITERAL : T_CHAR_LITERAL;
+      return quote == '"' ? T_STRING_LITERAL : T_CHARACTER_LITERAL;
     }
 
     case '=':
@@ -102,10 +102,6 @@ again:
       return T_COMMA;
 
     case '~':
-      if (yychar == '=') {
-        yyinp();
-        return T_TILDE_EQUAL;
-      }
       return T_TILDE;
 
     case '{':
@@ -320,7 +316,7 @@ again:
         }
 
         *priv = control_->getIdentifier(yytext);
-        return T_INT_LITERAL;
+        return T_INTEGER_LITERAL;
       }
   }  // switch
   return T_ERROR;
@@ -381,8 +377,8 @@ const char* TranslationUnit::tokenText(unsigned index) const {
   switch (tk.kind()) {
     case T_IDENTIFIER:
     case T_STRING_LITERAL:
-    case T_CHAR_LITERAL:
-    case T_INT_LITERAL: {
+    case T_CHARACTER_LITERAL:
+    case T_INTEGER_LITERAL: {
       const Identifier* id = reinterpret_cast<const Identifier*>(tk.priv_);
       return id->c_str();
     }

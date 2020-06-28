@@ -25,5 +25,11 @@ namespace cxx {
 const char* token_spell[] = {
 #define TOKEN_SPELL(_, s) s,
     FOR_EACH_TOKEN(TOKEN_SPELL)};
+#undef TOKEN_SPELL
+
+const char* token_name[] = {
+#define TOKEN_SPELL(s, _) #s,
+    FOR_EACH_TOKEN(TOKEN_SPELL)};
+#undef TOKEN_SPELL
 
 }  // namespace cxx
