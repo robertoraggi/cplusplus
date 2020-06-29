@@ -36,11 +36,11 @@ __reference_binds_to_temporary
 __underlying_type
 _Atomic
 
-
 __int64
 __int128
 __float80
 __float128
+
 alignas
 alignof
 asm
@@ -89,6 +89,7 @@ namespace
 new
 noexcept
 nullptr
+operator
 private
 protected
 public
