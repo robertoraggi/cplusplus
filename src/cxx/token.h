@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 #include "cxx-fwd.h"
 
 namespace cxx {
@@ -29,7 +31,9 @@ extern const char* token_name[];
 
 class Token {
   friend class TranslationUnit;
-  TokenKind kind_;
+  TokenKind kind_ : 16;
+  uint16_t startOfLine_ : 1;
+  uint16_t leadingSpace_ : 1;
   unsigned offset_;
   const void* priv_;
 
@@ -39,6 +43,8 @@ class Token {
       : kind_(kind), offset_(offset), priv_(priv) {}
   inline TokenKind kind() const { return kind_; }
   inline unsigned offset() const { return offset_; }
+  inline bool startOfLine() const { return startOfLine_; }
+  inline bool leadingSpace() const { return leadingSpace_; }
 };
 
 }  // namespace cxx
