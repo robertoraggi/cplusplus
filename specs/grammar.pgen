@@ -310,15 +310,15 @@ capture
 ;
 
 simple_capture
-: identifier dot_dot_dot
-| amp identifier dot_dot_dot
+: identifier dot_dot_dot?
+| amp identifier dot_dot_dot?
 | this
 | star this
 ;
 
 init_capture
-: dot_dot_dot identifier initializer
-| amp dot_dot_dot identifier initializer
+: dot_dot_dot? identifier initializer
+| amp dot_dot_dot? identifier initializer
 ;
 
 fold_expression
@@ -458,8 +458,8 @@ noexcept_expression
 ;
 
 new_expression
-: colon_colon new new_placement? new_type_id new_initializer?
-| colon_colon new new_placement? lparen type_id rparen new_initializer?
+: colon_colon? new new_placement? new_type_id new_initializer?
+| colon_colon? new new_placement? lparen type_id rparen new_initializer?
 ;
 
 new_placement
@@ -486,8 +486,8 @@ new_initializer
 ;
 
 delete_expression
-: colon_colon delete cast_expression
-| colon_colon delete lbracket rbracket cast_expression
+: colon_colon? delete cast_expression
+| colon_colon? delete lbracket rbracket cast_expression
 ;
 
 cast_expression
@@ -892,7 +892,7 @@ ref_qualifier
 ;
 
 declarator_id
-: dot_dot_dot id_expression
+: dot_dot_dot? id_expression
 ;
 
 type_id
@@ -928,12 +928,12 @@ abstract_pack_declarator
 noptr_abstract_pack_declarator
 : noptr_abstract_pack_declarator parameters_and_qualifiers
 | noptr_abstract_pack_declarator lbracket constant_expression? rbracket attribute_specifier*
-| dot_dot_dot
+| dot_dot_dot?
 ;
 
 parameter_declaration_clause
-: parameter_declaration_list? dot_dot_dot
-| parameter_declaration_list comma dot_dot_dot
+: parameter_declaration_list? dot_dot_dot?
+| parameter_declaration_list comma dot_dot_dot?
 ;
 
 parameter_declaration_list
@@ -970,8 +970,8 @@ braced_init_list
 ;
 
 initializer_list
-: initializer_clause dot_dot_dot
-| initializer_list comma initializer_clause dot_dot_dot
+: initializer_clause dot_dot_dot?
+| initializer_list comma initializer_clause dot_dot_dot?
 ;
 
 designated_initializer_list
@@ -1093,8 +1093,8 @@ using_declaration
 ;
 
 using_declarator_list
-: using_declarator dot_dot_dot
-| using_declarator_list comma using_declarator dot_dot_dot
+: using_declarator dot_dot_dot?
+| using_declarator_list comma using_declarator dot_dot_dot?
 ;
 
 using_declarator
@@ -1116,8 +1116,8 @@ attribute_specifier
 ;
 
 alignment_specifier
-: alignas lparen type_id dot_dot_dot rparen
-| alignas lparen constant_expression dot_dot_dot rparen
+: alignas lparen type_id dot_dot_dot? rparen
+| alignas lparen constant_expression dot_dot_dot? rparen
 ;
 
 attribute_using_prefix
@@ -1127,8 +1127,8 @@ attribute_using_prefix
 attribute_list
 : attribute?
 | attribute_list comma attribute?
-| attribute dot_dot_dot
-| attribute_list comma attribute dot_dot_dot
+| attribute dot_dot_dot?
+| attribute_list comma attribute dot_dot_dot?
 ;
 
 attribute
@@ -1269,8 +1269,8 @@ base_clause
 ;
 
 base_specifier_list
-: base_specifier dot_dot_dot
-| base_specifier_list comma base_specifier dot_dot_dot
+: base_specifier dot_dot_dot?
+| base_specifier_list comma base_specifier dot_dot_dot?
 ;
 
 base_specifier
@@ -1296,8 +1296,8 @@ ctor_initializer
 ;
 
 mem_initializer_list
-: mem_initializer dot_dot_dot
-| mem_initializer_list comma mem_initializer dot_dot_dot
+: mem_initializer dot_dot_dot?
+| mem_initializer_list comma mem_initializer dot_dot_dot?
 ;
 
 mem_initializer
@@ -1400,11 +1400,11 @@ template_parameter
 ;
 
 type_parameter
-: type_parameter_key dot_dot_dot identifier?
+: type_parameter_key dot_dot_dot? identifier?
 | type_parameter_key identifier? equal type_id
-| type_constraint dot_dot_dot identifier?
+| type_constraint dot_dot_dot? identifier?
 | type_constraint identifier? equal type_id
-| template_head type_parameter_key dot_dot_dot identifier?
+| template_head type_parameter_key dot_dot_dot? identifier?
 | template_head type_parameter_key identifier? equal id_expression
 ;
 
@@ -1429,8 +1429,8 @@ template_id
 ;
 
 template_argument_list
-: template_argument dot_dot_dot
-| template_argument_list comma template_argument dot_dot_dot
+: template_argument dot_dot_dot?
+| template_argument_list comma template_argument dot_dot_dot?
 ;
 
 template_argument
@@ -1483,7 +1483,7 @@ handler
 exception_declaration
 : attribute_specifier* type_specifier_seq declarator
 | attribute_specifier* type_specifier_seq abstract_declarator?
-| dot_dot_dot
+| dot_dot_dot?
 ;
 
 noexcept_specifier
