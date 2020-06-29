@@ -208,17 +208,26 @@
 , wchar_t
 , while
 
+id(const std::string_view& name): identifier
+{
+  return unit->identifier(yycursor - 1)->string() == name;
+};
+
 header_name: { return false; };
+
 balanced_token: { return false; };
-export_keyword: { return false; };
-import_keyword: { return false; };
-module_keyword: { return false; };
-final: { return false; };
-override: { return false; };
+
+export_keyword: at_start_of_line export;
+import_keyword: at_start_of_line id("import");
+module_keyword: at_start_of_line id("module");
+final: id("final");
+override: id("override");
+
+at_start_of_line: { return unit->tokenAt(yycursor).startOfLine(); };
 
 typedef_name
-: identifier
-| simple_template_id
+: simple_template_id
+| identifier
 ;
 
 namespace_name
@@ -231,8 +240,8 @@ namespace_alias
 ;
 
 class_name
-: identifier
-| simple_template_id
+: simple_template_id
+| identifier
 ;
 
 enum_name
@@ -263,8 +272,8 @@ pointer_literal
 ;
 
 translation_unit
-: declaration*
-| global_module_fragment? module_declaration declaration* private_module_fragment?
+: global_module_fragment? module_declaration declaration* private_module_fragment?
+| declaration*
 ;
 
 primary_expression
@@ -278,18 +287,18 @@ primary_expression
 ;
 
 id_expression
-: unqualified_id
-| qualified_id
+: qualified_id
+| unqualified_id
 ;
 
 unqualified_id
-: identifier
-| operator_function_id
+: operator_function_id
 | conversion_function_id
 | literal_operator_id
 | tilde type_name
 | tilde decltype_specifier
 | template_id
+| identifier
 ;
 
 qualified_id
@@ -297,17 +306,17 @@ qualified_id
 ;
 
 nested_name_specifier
-: colon_colon
-| type_name colon_colon
-| namespace_name colon_colon
-| decltype_specifier colon_colon
-| nested_name_specifier identifier colon_colon
-| nested_name_specifier template? simple_template_id colon_colon
+: (colon_colon
+  | type_name colon_colon
+  | namespace_name colon_colon
+  | decltype_specifier colon_colon)
+      ( template? simple_template_id colon_colon
+      | nested_name_specifier identifier colon_colon)*
 ;
 
 lambda_expression
-: lambda_introducer lambda_declarator? compound_statement
-| lambda_introducer less template_parameter_list greater requires_clause? lambda_declarator? compound_statement
+: lambda_introducer less template_parameter_list greater requires_clause? lambda_declarator? compound_statement
+| lambda_introducer lambda_declarator? compound_statement
 ;
 
 lambda_introducer
@@ -315,13 +324,12 @@ lambda_introducer
 ;
 
 lambda_declarator
-: lparen parameter_declaration_clause rparen decl_specifier* noexcept_specifier? attribute_specifier* trailing_return_type? requires_clause?
+: lparen parameter_declaration_clause rparen decl_specifier_seq? noexcept_specifier? attribute_specifier* trailing_return_type? requires_clause?
 ;
 
 lambda_capture
-: capture_default
+: capture_default (comma capture_list)*
 | capture_list
-| capture_default comma capture_list
 ;
 
 capture_default
@@ -330,13 +338,12 @@ capture_default
 ;
 
 capture_list
-: capture
-| capture_list comma capture
+: capture (comma capture)*
 ;
 
 capture
-: simple_capture
-| init_capture
+: init_capture
+| simple_capture
 ;
 
 simple_capture
@@ -432,23 +439,23 @@ nested_requirement
 ;
 
 postfix_expression
-: primary_expression
-| postfix_expression lbracket expr_or_braced_init_list rbracket
-| postfix_expression lparen expression_list? rparen
-| simple_type_specifier lparen expression_list? rparen
-| typename_specifier lparen expression_list? rparen
-| simple_type_specifier braced_init_list
-| typename_specifier braced_init_list
-| postfix_expression dot template? id_expression
-| postfix_expression minus_greater template? id_expression
-| postfix_expression plus_plus
-| postfix_expression minus_minus
-| dynamic_cast less type_id greater lparen expression rparen
-| static_cast less type_id greater lparen expression rparen
-| reinterpret_cast less type_id greater lparen expression rparen
-| const_cast less type_id greater lparen expression rparen
-| typeid lparen expression rparen
-| typeid lparen type_id rparen
+: (primary_expression
+  | const_cast less type_id greater lparen expression rparen
+  | dynamic_cast less type_id greater lparen expression rparen
+  | reinterpret_cast less type_id greater lparen expression rparen
+  | simple_type_specifier braced_init_list
+  | simple_type_specifier lparen expression_list? rparen
+  | static_cast less type_id greater lparen expression rparen
+  | typeid lparen expression rparen
+  | typeid lparen type_id rparen
+  | typename_specifier braced_init_list
+  | typename_specifier lparen expression_list? rparen)
+    ( dot template? id_expression
+    | lbracket expr_or_braced_init_list rbracket
+    | lparen expression_list? rparen
+    | minus_greater template? id_expression
+    | minus_minus
+    | plus_plus)*
 ;
 
 expression_list
@@ -506,8 +513,7 @@ new_declarator
 ;
 
 noptr_new_declarator
-: lbracket expression? rbracket attribute_specifier*
-| noptr_new_declarator lbracket constant_expression rbracket attribute_specifier*
+: lbracket expression? rbracket attribute_specifier* (lbracket constant_expression rbracket attribute_specifier*)*
 ;
 
 new_initializer
@@ -526,77 +532,55 @@ cast_expression
 ;
 
 pm_expression
-: cast_expression
-| pm_expression dot_star cast_expression
-| pm_expression minus_greater_star cast_expression
+: cast_expression ((dot_star | minus_greater_star) cast_expression)*
 ;
 
 multiplicative_expression
-: pm_expression
-| multiplicative_expression star pm_expression
-| multiplicative_expression slash pm_expression
-| multiplicative_expression percent pm_expression
+: pm_expression ((star | slash | percent) pm_expression)*
 ;
 
 additive_expression
-: multiplicative_expression
-| additive_expression plus multiplicative_expression
-| additive_expression minus multiplicative_expression
+: multiplicative_expression ((plus | minus) multiplicative_expression)*
 ;
 
 shift_expression
-: additive_expression
-| shift_expression less_less additive_expression
-| shift_expression greater_greater additive_expression
+: additive_expression ((less_less | greater_greater) additive_expression)*
 ;
 
 compare_expression
-: shift_expression
-| compare_expression less_equal_greater shift_expression
+: shift_expression (less_equal_greater shift_expression)*
 ;
 
 relational_expression
-: compare_expression
-| relational_expression less compare_expression
-| relational_expression greater compare_expression
-| relational_expression less_equal compare_expression
-| relational_expression greater_equal compare_expression
+: compare_expression ((less | greater | less_equal | greater_equal) compare_expression)*
 ;
 
 equality_expression
-: relational_expression
-| equality_expression equal_equal relational_expression
-| equality_expression exclaim_equal relational_expression
+: relational_expression ((equal_equal | exclaim_equal) relational_expression)*
 ;
 
 and_expression
-: equality_expression
-| and_expression amp equality_expression
+: equality_expression (amp equality_expression)*
 ;
 
 exclusive_or_expression
-: and_expression
-| exclusive_or_expression caret and_expression
+: and_expression (caret and_expression)*
 ;
 
 inclusive_or_expression
-: exclusive_or_expression
-| inclusive_or_expression bar exclusive_or_expression
+: exclusive_or_expression (bar exclusive_or_expression)*
 ;
 
 logical_and_expression
-: inclusive_or_expression
-| logical_and_expression amp_amp inclusive_or_expression
+: inclusive_or_expression (amp_amp inclusive_or_expression)*
 ;
 
 logical_or_expression
-: logical_and_expression
-| logical_or_expression bar_bar logical_and_expression
+: logical_and_expression (bar_bar logical_and_expression)*
 ;
 
 conditional_expression
-: logical_or_expression
-| logical_or_expression question expression colon assignment_expression
+: logical_or_expression (question expression colon assignment_expression)?
 ;
 
 yield_expression
@@ -609,10 +593,10 @@ throw_expression
 ;
 
 assignment_expression
-: conditional_expression
-| yield_expression
+: yield_expression
 | throw_expression
 | logical_or_expression assignment_operator initializer_clause
+| conditional_expression
 ;
 
 assignment_operator
@@ -630,8 +614,7 @@ assignment_operator
 ;
 
 expression
-: assignment_expression
-| expression comma assignment_expression
+: assignment_expression (comma assignment_expression)*
 ;
 
 constant_expression
@@ -650,13 +633,13 @@ statement
 ;
 
 init_statement
-: expression_statement
-| simple_declaration
+: simple_declaration
+| expression_statement
 ;
 
 condition
-: expression
-| attribute_specifier* decl_specifier_seq declarator brace_or_equal_initializer
+: attribute_specifier* decl_specifier_seq declarator brace_or_equal_initializer
+| expression
 ;
 
 labeled_statement
@@ -674,8 +657,7 @@ compound_statement
 ;
 
 selection_statement
-: if constexpr? lparen init_statement? condition rparen statement
-| if constexpr? lparen init_statement? condition rparen statement else statement
+: if constexpr? lparen init_statement? condition rparen statement (else statement)?
 | switch lparen init_statement? condition rparen statement
 ;
 
@@ -687,8 +669,8 @@ iteration_statement
 ;
 
 for_range_declaration
-: attribute_specifier* decl_specifier_seq declarator
-| attribute_specifier* decl_specifier_seq ref_qualifier? lbracket identifier_list rbracket
+: attribute_specifier* decl_specifier_seq ref_qualifier? lbracket identifier_list rbracket
+| attribute_specifier* decl_specifier_seq declarator
 ;
 
 for_range_initializer
@@ -749,8 +731,8 @@ alias_declaration
 
 simple_declaration
 : decl_specifier_seq init_declarator_list? semicolon
-| attribute_specifier+ decl_specifier_seq init_declarator_list semicolon
 | attribute_specifier* decl_specifier_seq ref_qualifier? lbracket identifier_list rbracket initializer semicolon
+| attribute_specifier+ decl_specifier_seq init_declarator_list semicolon
 ;
 
 static_assert_declaration
@@ -766,9 +748,9 @@ attribute_declaration
 : attribute_specifier+ semicolon
 ;
 
-decl_specifier
+decl_specifier(bool& ty)
 : storage_class_specifier
-| defining_type_specifier
+| { return !ty; } defining_type_specifier { ty = true; }
 | function_specifier
 | friend
 | typedef
@@ -779,7 +761,8 @@ decl_specifier
 ;
 
 decl_specifier_seq
-: (decl_specifier attribute_specifier*)+
+{ bool ty = false; }
+: (decl_specifier(ty) attribute_specifier*)+
 ;
 
 storage_class_specifier
@@ -811,9 +794,9 @@ type_specifier_seq
 ;
 
 defining_type_specifier
-: type_specifier
-| class_specifier
+: class_specifier
 | enum_specifier
+| type_specifier
 ;
 
 defining_type_specifier_seq
@@ -822,8 +805,8 @@ defining_type_specifier_seq
 ;
 
 simple_type_specifier
-: nested_name_specifier? type_name
-| nested_name_specifier template simple_template_id
+: nested_name_specifier template simple_template_id
+| nested_name_specifier? type_name
 | decltype_specifier
 | placeholder_type_specifier
 | nested_name_specifier? template_name
@@ -850,9 +833,9 @@ type_name
 ;
 
 elaborated_type_specifier
-: class_key attribute_specifier* nested_name_specifier? identifier
+: class_key nested_name_specifier template? simple_template_id
 | class_key simple_template_id
-| class_key nested_name_specifier template? simple_template_id
+| class_key attribute_specifier* nested_name_specifier? identifier
 | elaborated_enum_specifier
 ;
 
@@ -870,13 +853,12 @@ placeholder_type_specifier
 ;
 
 init_declarator_list
-: init_declarator
-| init_declarator_list comma init_declarator
+: init_declarator (comma init_declarator)*
 ;
 
 init_declarator
-: declarator initializer?
-| declarator requires_clause
+: declarator requires_clause
+| declarator initializer?
 ;
 
 declarator
@@ -885,15 +867,14 @@ declarator
 ;
 
 ptr_declarator
-: noptr_declarator
-| ptr_operator ptr_declarator
+: ptr_operator* noptr_declarator
 ;
 
 noptr_declarator
-: declarator_id attribute_specifier*
-| noptr_declarator parameters_and_qualifiers
-| noptr_declarator lbracket constant_expression? rbracket attribute_specifier*
-| lparen ptr_declarator rparen
+: ( declarator_id attribute_specifier*
+  | lparen ptr_declarator rparen)
+      ( parameters_and_qualifiers
+      | lbracket constant_expression? rbracket attribute_specifier*)*
 ;
 
 parameters_and_qualifiers
@@ -940,14 +921,14 @@ abstract_declarator
 ;
 
 ptr_abstract_declarator
-: noptr_abstract_declarator
-| ptr_operator ptr_abstract_declarator?
+: ptr_operator ptr_abstract_declarator?
+| noptr_abstract_declarator
 ;
 
 noptr_abstract_declarator
-: noptr_abstract_declarator? parameters_and_qualifiers
-| noptr_abstract_declarator? lbracket constant_expression? rbracket attribute_specifier*
-| lparen ptr_abstract_declarator rparen
+: (lparen ptr_abstract_declarator rparen)?
+      ( parameters_and_qualifiers
+      | lbracket constant_expression? rbracket attribute_specifier*)*
 ;
 
 abstract_pack_declarator
@@ -962,20 +943,17 @@ noptr_abstract_pack_declarator
 ;
 
 parameter_declaration_clause
-: parameter_declaration_list? dot_dot_dot?
-| parameter_declaration_list comma dot_dot_dot?
+: parameter_declaration_list comma dot_dot_dot?
+| parameter_declaration_list? dot_dot_dot?
 ;
 
 parameter_declaration_list
-: parameter_declaration
-| parameter_declaration_list comma parameter_declaration
+: parameter_declaration (comma parameter_declaration)*
 ;
 
 parameter_declaration
-: attribute_specifier* decl_specifier_seq declarator
-| attribute_specifier* decl_specifier_seq declarator equal initializer_clause
-| attribute_specifier* decl_specifier_seq abstract_declarator?
-| attribute_specifier* decl_specifier_seq abstract_declarator? equal initializer_clause
+: attribute_specifier* decl_specifier_seq declarator (equal initializer_clause)?
+| attribute_specifier* decl_specifier_seq abstract_declarator? (equal initializer_clause)?
 ;
 
 initializer
@@ -1000,13 +978,11 @@ braced_init_list
 ;
 
 initializer_list
-: initializer_clause dot_dot_dot?
-| initializer_list comma initializer_clause dot_dot_dot?
+: initializer_clause dot_dot_dot? (comma initializer_clause dot_dot_dot?)*
 ;
 
 designated_initializer_list
-: designated_initializer_clause
-| designated_initializer_list comma designated_initializer_clause
+: designated_initializer_clause (comma designated_initializer_clause)*
 ;
 
 designated_initializer_clause
@@ -1023,8 +999,8 @@ expr_or_braced_init_list
 ;
 
 function_definition
-: attribute_specifier* decl_specifier* declarator virt_specifier* function_body
-| attribute_specifier* decl_specifier* declarator requires_clause function_body
+: attribute_specifier* decl_specifier_seq? declarator requires_clause function_body
+| attribute_specifier* decl_specifier_seq? declarator virt_specifier* function_body
 ;
 
 function_body
@@ -1052,9 +1028,9 @@ opaque_enum_declaration
 ;
 
 enum_key
-: enum
-| enum class
+: enum class
 | enum struct
+| enum
 ;
 
 enum_base
@@ -1062,13 +1038,11 @@ enum_base
 ;
 
 enumerator_list
-: enumerator_definition
-| enumerator_list comma enumerator_definition
+: enumerator_definition (comma enumerator_definition)*
 ;
 
 enumerator_definition
-: enumerator
-| enumerator equal constant_expression
+: enumerator (equal constant_expression)*
 ;
 
 enumerator
@@ -1080,9 +1054,9 @@ using_enum_declaration
 ;
 
 namespace_definition
-: named_namespace_definition
+: nested_namespace_definition
+| named_namespace_definition
 | unnamed_namespace_definition
-| nested_namespace_definition
 ;
 
 named_namespace_definition
@@ -1098,8 +1072,7 @@ nested_namespace_definition
 ;
 
 enclosing_namespace_specifier
-: identifier
-| enclosing_namespace_specifier colon_colon inline? identifier
+: identifier (colon_colon inline? identifier / (colon_colon inline? identifier))*
 ;
 
 namespace_body
@@ -1123,8 +1096,7 @@ using_declaration
 ;
 
 using_declarator_list
-: using_declarator dot_dot_dot?
-| using_declarator_list comma using_declarator dot_dot_dot?
+: using_declarator dot_dot_dot? (comma using_declarator dot_dot_dot?)*
 ;
 
 using_declarator
@@ -1166,8 +1138,8 @@ attribute
 ;
 
 attribute_token
-: identifier
-| attribute_scoped_token
+: attribute_scoped_token
+| identifier
 ;
 
 attribute_scoped_token
@@ -1195,8 +1167,7 @@ module_partition
 ;
 
 module_name_qualifier
-: identifier dot
-| module_name_qualifier identifier dot
+: identifier dot (identifier dot)*
 ;
 
 export_declaration
@@ -1243,12 +1214,12 @@ class_key
 ;
 
 member_specification
-: member_declaration member_specification?
-| access_specifier colon member_specification?
+: access_specifier colon member_specification?
+| member_declaration member_specification?
 ;
 
 member_declaration
-: attribute_specifier* decl_specifier* member_declarator_list? semicolon
+: attribute_specifier* decl_specifier_seq? member_declarator_list? semicolon
 | function_definition
 | using_declaration
 | using_enum_declaration
@@ -1262,15 +1233,14 @@ member_declaration
 ;
 
 member_declarator_list
-: member_declarator
-| member_declarator_list comma member_declarator
+: member_declarator (comma member_declarator)*
 ;
 
 member_declarator
-: declarator virt_specifier* pure_specifier?
-| declarator requires_clause
-| declarator brace_or_equal_initializer?
-| identifier? attribute_specifier* colon constant_expression brace_or_equal_initializer?
+: identifier? attribute_specifier* colon constant_expression brace_or_equal_initializer?
+| declarator ( requires_clause
+             | virt_specifier* pure_specifier?
+             | brace_or_equal_initializer?)
 ;
 
 virt_specifier
@@ -1299,8 +1269,7 @@ base_clause
 ;
 
 base_specifier_list
-: base_specifier dot_dot_dot?
-| base_specifier_list comma base_specifier dot_dot_dot?
+: base_specifier dot_dot_dot? (comma base_specifier dot_dot_dot?)*
 ;
 
 base_specifier
@@ -1310,8 +1279,8 @@ base_specifier
 ;
 
 class_or_decltype
-: nested_name_specifier? type_name
-| nested_name_specifier template simple_template_id
+: nested_name_specifier template simple_template_id
+| nested_name_specifier? type_name
 | decltype_specifier
 ;
 
@@ -1326,8 +1295,7 @@ ctor_initializer
 ;
 
 mem_initializer_list
-: mem_initializer dot_dot_dot?
-| mem_initializer_list comma mem_initializer dot_dot_dot?
+: mem_initializer dot_dot_dot? (comma mem_initializer dot_dot_dot?)*
 ;
 
 mem_initializer
@@ -1345,10 +1313,10 @@ operator_function_id
 ;
 
 op
-: new
-| delete
-| new lbracket rbracket
+: new lbracket rbracket
 | delete lbracket rbracket
+| new
+| delete
 | co_await
 | lparen rparen
 | lbracket rbracket
@@ -1397,8 +1365,8 @@ literal_operator_id
 ;
 
 template_declaration
-: template_head declaration
-| template_head concept_definition
+: template_head concept_definition
+| template_head declaration
 ;
 
 template_head
@@ -1406,8 +1374,7 @@ template_head
 ;
 
 template_parameter_list
-: template_parameter
-| template_parameter_list comma template_parameter
+: template_parameter (comma template_parameter)*
 ;
 
 requires_clause
@@ -1415,13 +1382,11 @@ requires_clause
 ;
 
 constraint_logical_or_expression
-: constraint_logical_and_expression
-| constraint_logical_or_expression bar_bar constraint_logical_and_expression
+: constraint_logical_and_expression (bar_bar constraint_logical_and_expression)*
 ;
 
 constraint_logical_and_expression
-: primary_expression
-| constraint_logical_and_expression amp_amp primary_expression
+: primary_expression (amp_amp primary_expression)*
 ;
 
 template_parameter
@@ -1430,12 +1395,12 @@ template_parameter
 ;
 
 type_parameter
-: type_parameter_key dot_dot_dot? identifier?
-| type_parameter_key identifier? equal type_id
-| type_constraint dot_dot_dot? identifier?
+: type_parameter_key identifier? equal type_id
+| type_parameter_key dot_dot_dot? identifier?
 | type_constraint identifier? equal type_id
-| template_head type_parameter_key dot_dot_dot? identifier?
+| type_constraint dot_dot_dot? identifier?
 | template_head type_parameter_key identifier? equal id_expression
+| template_head type_parameter_key dot_dot_dot? identifier?
 ;
 
 type_parameter_key
@@ -1444,8 +1409,7 @@ type_parameter_key
 ;
 
 type_constraint
-: nested_name_specifier? concept_name
-| nested_name_specifier? concept_name less template_argument_list? greater
+: nested_name_specifier? concept_name (less template_argument_list? greater)?
 ;
 
 simple_template_id
@@ -1453,14 +1417,13 @@ simple_template_id
 ;
 
 template_id
-: simple_template_id
-| operator_function_id less template_argument_list? greater
+: operator_function_id less template_argument_list? greater
 | literal_operator_id less template_argument_list? greater
+| simple_template_id
 ;
 
 template_argument_list
-: template_argument dot_dot_dot?
-| template_argument_list comma template_argument dot_dot_dot?
+: template_argument dot_dot_dot? (comma template_argument dot_dot_dot?)*
 ;
 
 template_argument
@@ -1486,8 +1449,8 @@ concept_name
 ;
 
 typename_specifier
-: typename nested_name_specifier identifier
-| typename nested_name_specifier template? simple_template_id
+: typename nested_name_specifier template? simple_template_id
+| typename nested_name_specifier identifier
 ;
 
 explicit_instantiation
@@ -1522,7 +1485,6 @@ noexcept_specifier
 ;
 
 identifier_list
-: identifier
-| identifier_list comma identifier
+: identifier (comma identifier)*
 ;
 

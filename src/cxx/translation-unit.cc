@@ -174,6 +174,9 @@ void TranslationUnit::tokenize() {
         break;
     }
     tokens_.emplace_back(kind, lexer.tokenPos(), value);
+    auto& tok = tokens_.back();
+    tok.leadingSpace_ = lexer.tokenLeadingSpace();
+    tok.startOfLine_ = lexer.tokenStartOfLine();
   } while (kind != TokenKind::T_EOF_SYMBOL);
 }
 
