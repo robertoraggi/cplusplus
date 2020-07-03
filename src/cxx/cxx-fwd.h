@@ -210,6 +210,7 @@
   V(__FLOAT80, "__float80")                                           \
   V(__FLOAT128, "__float128")                                         \
   V(__ALIGNOF, "__alignof")                                           \
+  V(__ATTRIBUTE__, "__attribute__")                                   \
   V(__ATTRIBUTE, "__attribute")                                       \
   V(__EXTENSION__, "__extension__")                                   \
   V(__HAS_UNIQUE_OBJECT_REPRESENTATIONS,                              \

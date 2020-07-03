@@ -6,6 +6,7 @@
 
 __alignof
 __attribute
+__attribute__
 __extension__
 __has_unique_object_representations
 __has_virtual_destructor

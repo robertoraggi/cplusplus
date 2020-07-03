@@ -79,8 +79,6 @@
 , equal_equal
 , greater
 , greater_equal
-, greater_greater
-, greater_greater_equal
 , question
 , lbracket
 , rbracket
@@ -96,6 +94,7 @@
 // keywords
 
 , __alignof
+, __attribute__
 , __attribute
 , __extension__
 , __has_unique_object_representations
@@ -212,6 +211,18 @@ id(const std::string_view& name): identifier
 {
   return unit->identifier(yycursor - 1)->string() == name;
 };
+
+nospace:
+{
+  const auto& tk = unit->tokenAt(yycursor);
+  return !tk.leadingSpace() && !tk.startOfLine();
+};
+
+greater_greater
+: greater_greater_equal { return false; }
+| greater nospace greater;
+
+greater_greater_equal: greater nospace greater nospace equal;
 
 header_name: { return false; };
 
@@ -638,7 +649,7 @@ init_statement
 ;
 
 condition
-: attribute_specifier* decl_specifier_seq declarator brace_or_equal_initializer
+: attribute_specifier* decl_specifier_seq_followed_by_declarator declarator brace_or_equal_initializer
 | expression
 ;
 
@@ -670,7 +681,7 @@ iteration_statement
 
 for_range_declaration
 : attribute_specifier* decl_specifier_seq ref_qualifier? lbracket identifier_list rbracket
-| attribute_specifier* decl_specifier_seq declarator
+| attribute_specifier* decl_specifier_seq_followed_by_declarator declarator
 ;
 
 for_range_initializer
@@ -730,9 +741,9 @@ alias_declaration
 ;
 
 simple_declaration
-: decl_specifier_seq init_declarator_list? semicolon
-| attribute_specifier* decl_specifier_seq ref_qualifier? lbracket identifier_list rbracket initializer semicolon
-| attribute_specifier+ decl_specifier_seq init_declarator_list semicolon
+: attribute_specifier* decl_specifier_seq ref_qualifier? lbracket identifier_list rbracket initializer semicolon
+| attribute_specifier+ decl_specifier_seq_followed_by_declarator init_declarator_list semicolon
+| decl_specifier_seq_followed_by_declarator_or_semicolon? init_declarator_list? semicolon
 ;
 
 static_assert_declaration
@@ -748,9 +759,9 @@ attribute_declaration
 : attribute_specifier+ semicolon
 ;
 
-decl_specifier(bool& ty)
+decl_specifier
 : storage_class_specifier
-| { return !ty; } defining_type_specifier { ty = true; }
+| defining_type_specifier
 | function_specifier
 | friend
 | typedef
@@ -761,8 +772,19 @@ decl_specifier(bool& ty)
 ;
 
 decl_specifier_seq
-{ bool ty = false; }
-: (decl_specifier(ty) attribute_specifier*)+
+: (decl_specifier attribute_specifier*)+
+;
+
+decl_specifier_seq_followed_by_declarator
+: ((decl_specifier attribute_specifier*) / (decl_specifier | declarator))+
+;
+
+decl_specifier_seq_followed_by_declarator_or_semicolon
+: ((decl_specifier attribute_specifier*) / (semicolon | decl_specifier | declarator))+
+;
+
+decl_specifier_seq_followed_by_abstract_declarator
+: ((decl_specifier attribute_specifier*) / (rparen | equal | comma | greater | dot_dot_dot | decl_specifier | abstract_declarator))+
 ;
 
 storage_class_specifier
@@ -791,6 +813,10 @@ type_specifier
 
 type_specifier_seq
 : (type_specifier attribute_specifier*)+
+;
+
+type_specifier_seq_followed_by_declarator
+: ((type_specifier attribute_specifier*) / (type_specifier | declarator))+
 ;
 
 defining_type_specifier
@@ -952,7 +978,7 @@ parameter_declaration_list
 ;
 
 parameter_declaration
-: attribute_specifier* decl_specifier_seq declarator (equal initializer_clause)?
+: attribute_specifier* decl_specifier_seq_followed_by_declarator declarator (equal initializer_clause)?
 | attribute_specifier* decl_specifier_seq abstract_declarator? (equal initializer_clause)?
 ;
 
@@ -967,13 +993,13 @@ brace_or_equal_initializer
 ;
 
 initializer_clause
-: assignment_expression
-| braced_init_list
+: braced_init_list
+| assignment_expression
 ;
 
 braced_init_list
-: lbrace initializer_list comma rbrace
-| lbrace designated_initializer_list comma rbrace
+: lbrace initializer_list comma? rbrace
+| lbrace designated_initializer_list comma? rbrace
 | lbrace rbrace
 ;
 
@@ -999,8 +1025,8 @@ expr_or_braced_init_list
 ;
 
 function_definition
-: attribute_specifier* decl_specifier_seq? declarator requires_clause function_body
-| attribute_specifier* decl_specifier_seq? declarator virt_specifier* function_body
+: attribute_specifier* decl_specifier_seq_followed_by_declarator? declarator requires_clause function_body
+| attribute_specifier* decl_specifier_seq_followed_by_declarator? declarator virt_specifier* function_body
 ;
 
 function_body
@@ -1113,9 +1139,26 @@ linkage_specification
 ;
 
 attribute_specifier
-: lbracket lbracket attribute_using_prefix? attribute_list rbracket rbracket
+: (__attribute | __attribute__) lparen skip_balanced rparen
+| lbracket lbracket attribute_using_prefix? attribute_list rbracket rbracket
 | alignment_specifier
 ;
+
+skip_balanced
+: {
+  int count = 1;
+  while (auto tk = yytoken()) {
+    if (tk == TokenKind::T_LPAREN) {
+      ++count;
+    } else if (tk == TokenKind::T_RPAREN) {
+      if (!--count) {
+        return true;
+      }
+    }
+    yyconsume();
+  }
+  return false;
+};
 
 alignment_specifier
 : alignas lparen type_id dot_dot_dot? rparen
@@ -1219,7 +1262,7 @@ member_specification
 ;
 
 member_declaration
-: attribute_specifier* decl_specifier_seq? member_declarator_list? semicolon
+: attribute_specifier* decl_specifier_seq_followed_by_declarator_or_semicolon? member_declarator_list? semicolon
 | function_definition
 | using_declaration
 | using_enum_declaration
@@ -1239,8 +1282,8 @@ member_declarator_list
 member_declarator
 : identifier? attribute_specifier* colon constant_expression brace_or_equal_initializer?
 | declarator ( requires_clause
-             | virt_specifier* pure_specifier?
-             | brace_or_equal_initializer?)
+             | brace_or_equal_initializer
+             | virt_specifier* pure_specifier?)
 ;
 
 virt_specifier
@@ -1390,7 +1433,7 @@ constraint_logical_and_expression
 ;
 
 template_parameter
-: type_parameter
+: type_parameter / (comma | greater)
 | parameter_declaration
 ;
 
@@ -1427,9 +1470,9 @@ template_argument_list
 ;
 
 template_argument
-: constant_expression
-| type_id
-| id_expression
+: type_id / (comma | greater | dot_dot_dot)
+| constant_expression / (comma | greater | dot_dot_dot)
+| compare_expression
 ;
 
 constraint_expression
@@ -1474,7 +1517,7 @@ handler
 ;
 
 exception_declaration
-: attribute_specifier* type_specifier_seq declarator
+: attribute_specifier* type_specifier_seq_followed_by_declarator declarator
 | attribute_specifier* type_specifier_seq abstract_declarator?
 | dot_dot_dot?
 ;
