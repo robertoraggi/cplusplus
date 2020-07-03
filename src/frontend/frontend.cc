@@ -132,23 +132,25 @@ int main(int argc, char* argv[]) {
   for (auto&& fileName : inputFiles) {
     if (dumpTokens) {
       const auto source = readAll(fileName);
-      Lexer lex(source);
+      Lexer lexer(source);
+      lexer.setPreprocessing(true);
+
       do {
-        lex.next();
+        lexer.next();
 
         std::string flags;
 
-        if (lex.tokenStartOfLine()) {
+        if (lexer.tokenStartOfLine()) {
           flags += " [start-of-line]";
         }
 
-        if (lex.tokenLeadingSpace()) {
+        if (lexer.tokenLeadingSpace()) {
           flags += " [leading-space]";
         }
 
-        fmt::print("{} '{}'{}\n", token_name[lex.tokenKind()], lex.tokenText(),
-                   flags);
-      } while (lex.tokenKind() != TokenKind::T_EOF_SYMBOL);
+        fmt::print("{} '{}'{}\n", token_name[lexer.tokenKind()],
+                   lexer.tokenText(), flags);
+      } while (lexer.tokenKind() != TokenKind::T_EOF_SYMBOL);
       continue;
     }
 

@@ -58,10 +58,9 @@ TokenKind Lexer::readToken() {
           (text_[pos_ + 1] == '+' || text_[pos_ + 1] == '-')) {
         pos_ += 2;
         integer_literal = false;
-      } else if (pos_ + 1 < end_ && ch == '\'' &&
-                 (isalnum(text_[pos_ + 1]) || text_[pos_ + 1] == '_')) {
+      } else if (pos_ + 1 < end_ && ch == '\'' && is_idcont(text_[pos_ + 1])) {
         ++pos_;
-      } else if (is_alnum(text_[pos_]) || text_[pos_ + 1] == '_') {
+      } else if (is_idcont(ch)) {
         ++pos_;
       } else if (ch == '.') {
         ++pos_;
@@ -94,6 +93,11 @@ TokenKind Lexer::readToken() {
     if (text_[pos_] == '"') {
       ++pos_;
     }
+    if (is_alpha(text_[pos_]) || text_[pos_] == '_') {
+      do {
+        ++pos_;
+      } while (pos_ < end_ && is_idcont(text_[pos_]));
+    }
     return TokenKind::T_STRING_LITERAL;
   }
 
@@ -121,10 +125,9 @@ TokenKind Lexer::readToken() {
           (ch == 'e' || ch == 'E' || ch == 'p' || ch == 'P') &&
           (text_[pos_ + 1] == '+' || text_[pos_ + 1] == '-')) {
         pos_ += 2;
-      } else if (pos_ + 1 < end_ && ch == '\'' &&
-                 (isalnum(text_[pos_ + 1]) || text_[pos_ + 1] == '_')) {
+      } else if (pos_ + 1 < end_ && ch == '\'' && is_idcont(text_[pos_ + 1])) {
         ++pos_;
-      } else if (is_alnum(text_[pos_]) || text_[pos_ + 1] == '_') {
+      } else if (is_idcont(ch)) {
         ++pos_;
       } else {
         break;
@@ -285,19 +288,19 @@ TokenKind Lexer::readToken() {
       return TokenKind::T_LESS;
 
     case '>':
-#if 0
-      if (pos_ < end_ && text_[pos_] == '=') {
-        ++pos_;
-        return TokenKind::T_GREATER_EQUAL;
-      } else if (pos_ < end_ && text_[pos_] == '>') {
-        ++pos_;
+      if (preprocessing_) {
         if (pos_ < end_ && text_[pos_] == '=') {
           ++pos_;
-          return TokenKind::T_GREATER_GREATER_EQUAL;
+          return TokenKind::T_GREATER_EQUAL;
+        } else if (pos_ < end_ && text_[pos_] == '>') {
+          ++pos_;
+          if (pos_ < end_ && text_[pos_] == '=') {
+            ++pos_;
+            return TokenKind::T_GREATER_GREATER_EQUAL;
+          }
+          return TokenKind::T_GREATER_GREATER;
         }
-        return TokenKind::T_GREATER_GREATER;
       }
-#endif
       return TokenKind::T_GREATER;
 
     case '/':
@@ -318,7 +321,7 @@ bool Lexer::skipSpaces() {
   while (pos_ < end_) {
     const auto ch = text_[pos_];
 
-    if (std::isspace(ch)) {
+    if (is_space(ch)) {
       if (ch == '\n') {
         tokenStartOfLine_ = true;
         tokenLeadingSpace_ = false;

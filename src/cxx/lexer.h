@@ -38,8 +38,13 @@ class Lexer {
   bool tokenStartOfLine_ = true;
   int tokenPos_ = 0;
 
+  bool preprocessing_ = false;
+
  public:
   Lexer(const std::string_view& text);
+
+  bool preprocessing() const { return preprocessing_; }
+  void setPreprocessing(bool preprocessing) { preprocessing_ = preprocessing; }
 
   TokenKind operator()() { return next(); }
 
