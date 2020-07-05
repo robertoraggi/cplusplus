@@ -25,8 +25,7 @@ find_package(fmt CONFIG REQUIRED)
 set(CMAKE_CXX_STANDARD 20)
 
 add_subdirectory(tools/pgen)
-
-add_executable(kwgen tools/kwgen.cc)
+add_subdirectory(tools/kwgen)
 
 aux_source_directory(src/cxx SOURCES)
 
