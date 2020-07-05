@@ -28,6 +28,33 @@
 
 namespace cxx {
 
+inline namespace {
+
+enum struct EncodingPrefix { kNone, kWide, kUtf8, kUtf16, kUtf32 };
+
+const std::unordered_map<std::string_view, std::tuple<EncodingPrefix, bool>>
+    kStringLiteralPrefixes{
+        {"R", {EncodingPrefix::kNone, true}},
+        {"L", {EncodingPrefix::kWide, false}},
+        {"u8", {EncodingPrefix::kUtf8, false}},
+        {"u", {EncodingPrefix::kUtf16, false}},
+        {"U", {EncodingPrefix::kUtf32, false}},
+        {"LR", {EncodingPrefix::kWide, true}},
+        {"u8R", {EncodingPrefix::kUtf8, true}},
+        {"uR", {EncodingPrefix::kUtf16, true}},
+        {"UR", {EncodingPrefix::kUtf32, true}},
+    };
+
+const std::unordered_map<std::string_view, EncodingPrefix>
+    kCharacterLiteralPrefixes{
+        {"L", EncodingPrefix::kWide},
+        {"u8", EncodingPrefix::kUtf8},
+        {"u", EncodingPrefix::kUtf16},
+        {"U", EncodingPrefix::kUtf32},
+    };
+
+}  // namespace
+
 inline bool is_space(int ch) { return std::isspace((unsigned char)ch); }
 inline bool is_digit(int ch) { return std::isdigit((unsigned char)ch); }
 inline bool is_alpha(int ch) { return std::isalpha((unsigned char)ch); }
@@ -73,25 +100,78 @@ TokenKind Lexer::readToken() {
                            : TokenKind::T_FLOATING_POINT_LITERAL;
   }
 
+  EncodingPrefix encodingPrefix = EncodingPrefix::kNone;
+
+  bool isRawStringLiteral = false;
+
   if (is_alpha(ch) || ch == '_') {
     do {
       ++pos_;
     } while (pos_ < end_ && is_idcont(text_[pos_]));
+
     const auto id = text_.substr(tokenPos_, pos_ - tokenPos_);
-    return (TokenKind)classify(id.data(), id.size());
+
+    bool isStringOrCharacterLiteral = false;
+
+    if (pos_ < end_ && text_[pos_] == '"') {
+      auto it = kStringLiteralPrefixes.find(id);
+      if (it != kStringLiteralPrefixes.end()) {
+        auto [enc, raw] = it->second;
+        encodingPrefix = enc;
+        isRawStringLiteral = raw;
+        isStringOrCharacterLiteral = true;
+      }
+    } else if (pos_ < end_ && text_[pos_] == '\'') {
+      auto it = kCharacterLiteralPrefixes.find(id);
+      if (it != kCharacterLiteralPrefixes.end()) {
+        encodingPrefix = it->second;
+        isStringOrCharacterLiteral = true;
+      }
+    }
+
+    if (!isStringOrCharacterLiteral)
+      return (TokenKind)classify(id.data(), id.size());
   }
 
   if (text_[pos_] == '"') {
     ++pos_;
-    while (pos_ < end_ && text_[pos_] != '"') {
-      if (pos_ + 1 < end_ && text_[pos_] == '\\') {
+
+    std::string_view delimiter;
+    const auto startDelimiter = pos_;
+    int endDelimiter = pos_;
+
+    if (isRawStringLiteral) {
+      for (; pos_ < end_; ++pos_) {
+        const auto ch = text_[pos_];
+        if (ch == '(' || ch == '"' || ch == '\\' || ch == '\n') break;
+      }
+      endDelimiter = pos_;
+      delimiter = text_.substr(startDelimiter, endDelimiter - startDelimiter);
+    }
+
+    while (pos_ < end_) {
+      if (text_[pos_] == '"') {
+        ++pos_;
+
+        if (!isRawStringLiteral) break;
+
+        const auto N = endDelimiter - startDelimiter;
+
+        if (text_[pos_ - 2 - N] == ')') {
+          bool didMatch = true;
+          for (int i = 0; i < N; ++i) {
+            if (text_[startDelimiter + i] != text_[pos_ - 1 - N + i]) {
+              didMatch = false;
+              break;
+            }
+          }
+          if (didMatch) break;
+        }
+      } else if (pos_ + 1 < end_ && text_[pos_] == '\\') {
         pos_ += 2;
       } else {
         ++pos_;
       }
-    }
-    if (text_[pos_] == '"') {
-      ++pos_;
     }
     if (is_alpha(text_[pos_]) || text_[pos_] == '_') {
       do {
