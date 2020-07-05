@@ -23,6 +23,7 @@
 #include <fmt/format.h>
 
 #include <cctype>
+#include <unordered_map>
 
 #include "keywords-priv.h"
 
