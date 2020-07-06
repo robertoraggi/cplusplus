@@ -322,7 +322,7 @@ nested_name_specifier
   | namespace_name colon_colon
   | decltype_specifier colon_colon)
       ( template? simple_template_id colon_colon
-      | nested_name_specifier identifier colon_colon)*
+      | identifier colon_colon)*
 ;
 
 lambda_expression
