@@ -59,7 +59,7 @@ class Identifier final : public ExtendsName<NameKind::kIdentifier>,
   using tuple::tuple;
   inline const std::string& string() const { return std::get<0>(*this); }
   inline const char* c_str() const { return string().c_str(); }
-  inline unsigned size() const { return string().size(); }
+  inline unsigned size() const { return unsigned(string().size()); }
   std::string toString() const override;
 };
 

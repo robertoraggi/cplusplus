@@ -52,7 +52,7 @@ Function::~Function() {
 
 void Function::placeBasicBlock(BasicBlock* basicBlock) {
   assert(basicBlock->index == -1);
-  basicBlock->index = size();
+  basicBlock->index = int(size());
   push_back(basicBlock);
 }
 

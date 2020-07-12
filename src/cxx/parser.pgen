@@ -958,14 +958,13 @@ noptr_abstract_declarator
 ;
 
 abstract_pack_declarator
-: noptr_abstract_pack_declarator
-| ptr_operator abstract_pack_declarator
+: ptr_operator* noptr_abstract_pack_declarator
 ;
 
 noptr_abstract_pack_declarator
-: noptr_abstract_pack_declarator parameters_and_qualifiers
-| noptr_abstract_pack_declarator lbracket constant_expression? rbracket attribute_specifier*
-| dot_dot_dot?
+: dot_dot_dot?
+    ( parameters_and_qualifiers
+    | lbracket constant_expression? rbracket attribute_specifier*)*
 ;
 
 parameter_declaration_clause

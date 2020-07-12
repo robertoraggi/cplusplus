@@ -44,7 +44,7 @@ class SymbolTable {
 
   inline iterator end() { return begin() + _symbols.size(); }
 
-  inline unsigned symbolCount() const { return _symbols.size(); }
+  inline unsigned symbolCount() const { return unsigned(_symbols.size()); }
 
   inline Symbol* symbolAt(unsigned index) const { return _symbols[index]; }
 

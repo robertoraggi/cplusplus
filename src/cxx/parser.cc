@@ -38,7 +38,16 @@
 namespace cxx {
 
 // pgen generated parser
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4102)
+#endif
+
 #include "parser-priv.h"
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 int Parser::yytoken(int n) { return unit->tokenKind(yycursor + n); }
 

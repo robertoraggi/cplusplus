@@ -97,7 +97,7 @@ class Codegen {
 
   int indexOfCase(CaseStatementAST* ast) const {
     for (size_t i = 0; i < _cases.size(); ++i) {
-      if (std::get<0>(_cases[i]) == ast) return i;
+      if (std::get<0>(_cases[i]) == ast) return int(i);
     }
     return -1;
   }

@@ -73,7 +73,7 @@ class TranslationUnit {
   void fatal(unsigned index, const char* format...);
 
   // tokens
-  inline unsigned tokenCount() const { return tokens_.size(); }
+  inline unsigned tokenCount() const { return unsigned(tokens_.size()); }
   inline const Token& tokenAt(unsigned index) const { return tokens_[index]; }
   inline TokenKind tokenKind(unsigned index) const {
     return tokens_[index].kind();

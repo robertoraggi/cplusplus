@@ -48,7 +48,7 @@ void TranslationUnit::initializeLineMap() {
   const auto start = yycode.c_str();
   for (auto ptr = start; *ptr; ++ptr) {
     if (*ptr == '\n') {
-      lines_.push_back(ptr - start);
+      lines_.push_back(int(ptr - start));
     }
   }
 }
@@ -114,9 +114,9 @@ int TranslationUnit::tokenLength(unsigned index) const {
   auto&& tk = tokens_[index];
   if (tk.kind() == T_IDENTIFIER) {
     const std::string* id = reinterpret_cast<const std::string*>(tk.priv_);
-    return id->size();
+    return int(id->size());
   }
-  return ::strlen(token_spell[tk.kind()]);
+  return int(::strlen(token_spell[tk.kind()]));
 }
 
 const char* TranslationUnit::tokenText(unsigned index) const {
@@ -143,11 +143,11 @@ const Identifier* TranslationUnit::identifier(unsigned index) const {
 void TranslationUnit::getTokenStartPosition(unsigned index, unsigned* line,
                                             unsigned* column) const {
   auto offset = tokens_[index].offset();
-  auto it = std::lower_bound(lines_.cbegin(), lines_.cend(), offset);
+  auto it = std::lower_bound(lines_.cbegin(), lines_.cend(), int(offset));
   if (it != lines_.cbegin()) {
     --it;
-    assert(*it <= offset);
-    *line = std::distance(lines_.cbegin(), it) + 1;
+    assert(*it <= int(offset));
+    *line = int(std::distance(lines_.cbegin(), it) + 1);
     *column = offset - *it;
   } else {
     *line = 1;

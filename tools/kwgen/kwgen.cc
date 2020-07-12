@@ -71,7 +71,7 @@ public:
   }
 };
 
-struct State {
+class State {
 public:
   State() {}
 
@@ -324,7 +324,7 @@ int main(int argc, char *argv[]) {
     RuleList rules;
     do { rules.push_back(it->second); ++it; }
     while (it != keywords.end() && it->first == size);
-    gen_classify_n(State::start(rules.begin(), rules.end()), size);
+    gen_classify_n(State::start(rules.begin(), rules.end()), int(size));
     State::reset();
   }
 

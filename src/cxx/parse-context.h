@@ -25,7 +25,8 @@
 
 namespace cxx {
 
-struct ParseContext {
+class ParseContext {
+ public:
   TranslationUnit* unit{nullptr};
 
   ParseContext() = default;

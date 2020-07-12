@@ -66,7 +66,7 @@ inline bool is_idcont(int ch) {
 }
 
 Lexer::Lexer(const std::string_view& text)
-    : text_(text), pos_(0), end_(text.size()) {}
+    : text_(text), pos_(0), end_(int(text.size())) {}
 
 TokenKind Lexer::readToken() {
   const auto hasMoreChars = skipSpaces();
@@ -131,7 +131,7 @@ TokenKind Lexer::readToken() {
     }
 
     if (!isStringOrCharacterLiteral)
-      return (TokenKind)classify(id.data(), id.size());
+      return (TokenKind)classify(id.data(), int(id.size()));
   }
 
   if (text_[pos_] == '"') {
