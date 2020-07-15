@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 #include "ir-fwd.h"
 
 #define FOR_EACH_AST(V)            \
@@ -439,7 +441,7 @@ enum struct SymbolKind {
 #undef VISIT_SYMBOL
 };
 
-enum struct TokenKind {
+enum struct TokenKind : uint16_t {
 #define TOKEN_ENUM(tk, _) T_##tk,
   FOR_EACH_TOKEN(TOKEN_ENUM)
 };
