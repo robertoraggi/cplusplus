@@ -232,7 +232,7 @@ class ParseContext::ProcessDeclarator {
             _decl.specs.isConstexpr = true;
             break;
           default:
-            fmt::print("todo simple specifier `%s'\n", Token::spell(k));
+            fmt::print("todo simple specifier `{}'\n", Token::spell(k));
             break;
         }  // switch
         break;
