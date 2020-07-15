@@ -148,7 +148,7 @@ int main(int argc, char* argv[]) {
           flags += " [leading-space]";
         }
 
-        fmt::print("{} '{}'{}\n", token_name[lexer.tokenKind()],
+        fmt::print("{} '{}'{}\n", Token::name(lexer.tokenKind()),
                    lexer.tokenText(), flags);
       } while (lexer.tokenKind() != TokenKind::T_EOF_SYMBOL);
       continue;

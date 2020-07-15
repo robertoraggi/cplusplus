@@ -91,7 +91,7 @@ class ParseContext {
   struct Specs {
     Specs() : _flags(0) {}
     QualType type;
-    TokenKind storageSpec{T_EOF_SYMBOL};
+    TokenKind storageSpec{TokenKind::T_EOF_SYMBOL};
     union {
       unsigned _flags;
       struct {

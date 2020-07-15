@@ -144,7 +144,7 @@ void Call::dump(std::ostream& out) const {
 
 void Member::dump(std::ostream& out) const {
   expr()->dump(out);
-  out << token_spell[op()] << name()->toString();
+  out << Token::spell(op()) << name()->toString();
 }
 
 void Subscript::dump(std::ostream& out) const {
@@ -155,14 +155,14 @@ void Subscript::dump(std::ostream& out) const {
 }
 
 void Unop::dump(std::ostream& out) const {
-  out << token_spell[op()];
+  out << Token::spell(op());
   expr()->dump(out);
 }
 
 void Binop::dump(std::ostream& out) const {
   out << '(';
   left()->dump(out);
-  out << ' ' << token_spell[op()] << ' ';
+  out << ' ' << Token::spell(op()) << ' ';
   right()->dump(out);
   out << ')';
 }

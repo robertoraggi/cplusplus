@@ -132,6 +132,7 @@ static bool option_toupper = false;
 static std::string option_namespace_name;
 static std::string option_token_prefix = "Token_";
 static std::string option_char_type = "char";
+static std::string option_token_type = "int";
 static std::string option_unicode_function = "";
 
 std::string token_id(const std::string &id) {
@@ -191,8 +192,8 @@ void doit(State &state) {
 }
 
 void gen_classify_n(State &start_state, int N) {
-  std::cout << "static inline int classify" << N << "(const "
-            << option_char_type << " *s) {" << std::endl;
+  std::cout << "static inline " << option_token_type << " classify" << N
+            << "(const " << option_char_type << " *s) {" << std::endl;
   doit(start_state);
   std::cout << "  return " << option_namespace_name << token_id("identifier")
             << ";" << std::endl
@@ -201,8 +202,9 @@ void gen_classify_n(State &start_state, int N) {
 }
 
 void gen_classify(const std::multimap<size_t, std::string> &keywords) {
-  std::cout << "static int " << option_namespace_name << "classify(const "
-            << option_char_type << " *s, int n) {" << std::endl
+  std::cout << "static " << option_token_type << " " << option_namespace_name
+            << "classify(const " << option_char_type << " *s, int n) {"
+            << std::endl
             << "  switch (n) {" << std::endl;
   std::multimap<size_t, std::string>::const_iterator it = keywords.begin();
   while (it != keywords.end()) {
@@ -257,6 +259,7 @@ int main(int argc, char *argv[]) {
   const std::string opt_tok_prefix = "%token-prefix=";
   const std::string opt_char_type = "%char-type=";
   const std::string opt_unicode_function = "%unicode-function=";
+  const std::string opt_token_type = "%token-type=";
 
   while (getline(std::cin, textline)) {
     // remove trailing spaces
@@ -279,6 +282,9 @@ int main(int argc, char *argv[]) {
         } else if (starts_with(textline, opt_char_type)) {
           option_char_type.assign(textline.begin() + opt_char_type.size(),
                                   textline.end());
+        } else if (starts_with(textline, opt_token_type)) {
+          option_token_type.assign(textline.begin() + opt_token_type.size(),
+                                   textline.end());
         } else if (starts_with(textline, opt_unicode_function)) {
           option_unicode_function.assign(
               textline.begin() + opt_unicode_function.size(), textline.end());

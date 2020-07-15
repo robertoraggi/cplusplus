@@ -439,7 +439,7 @@ enum struct SymbolKind {
 #undef VISIT_SYMBOL
 };
 
-enum TokenKind {
+enum struct TokenKind {
 #define TOKEN_ENUM(tk, _) T_##tk,
   FOR_EACH_TOKEN(TOKEN_ENUM)
 };

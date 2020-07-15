@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string_view>
 
 #include "cxx-fwd.h"
 
@@ -38,13 +39,19 @@ class Token {
   const void* priv_;
 
  public:
-  Token(TokenKind kind = T_ERROR, unsigned offset = 0,
+  Token(TokenKind kind = TokenKind::T_ERROR, unsigned offset = 0,
         const void* priv = nullptr)
       : kind_(kind), offset_(offset), priv_(priv) {}
   inline TokenKind kind() const { return kind_; }
   inline unsigned offset() const { return offset_; }
   inline bool startOfLine() const { return startOfLine_; }
   inline bool leadingSpace() const { return leadingSpace_; }
+
+  static std::string_view spell(TokenKind kind);
+  std::string_view spell() const;
+
+  static std::string_view name(TokenKind kind);
+  std::string_view name() const;
 };
 
 }  // namespace cxx

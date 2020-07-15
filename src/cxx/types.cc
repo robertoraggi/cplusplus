@@ -204,7 +204,7 @@ void TypeToString::visit(const OverloadSetType* type) {
 }
 
 void TypeToString::visit(const ClassType* type) {
-  text = token_spell[type->symbol()->classKey()];
+  text = Token::spell(type->symbol()->classKey());
   if (auto name = type->symbol()->name()) {
     text += ' ';
     text += name->toString();
@@ -230,7 +230,7 @@ void TypeToString::visit(const NamedType* type) {
 }
 
 void TypeToString::visit(const ElaboratedType* type) {
-  text += token_spell[type->classKey()];
+  text += Token::spell(type->classKey());
   text += ' ';
   text += type->name()->toString();
   if (!decl.empty()) text += ' ';

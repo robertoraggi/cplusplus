@@ -70,91 +70,91 @@ std::string Mangler::mangleOperatorName(const OperatorName* name,
     default:
       assert(!"unreachable");
       return "!";
-    case T_NEW:
+    case TokenKind::T_NEW:
       return "nw";
-    case T_NEW_ARRAY:
+    case TokenKind::T_NEW_ARRAY:
       return "na";
-    case T_DELETE:
+    case TokenKind::T_DELETE:
       return "dl";
-    case T_DELETE_ARRAY:
+    case TokenKind::T_DELETE_ARRAY:
       return "da";
-    case T_PLUS:
+    case TokenKind::T_PLUS:
       return unary ? "ps" : "pl";
-    case T_MINUS:
+    case TokenKind::T_MINUS:
       return unary ? "ng" : "mi";
-    case T_AMP:
+    case TokenKind::T_AMP:
       return unary ? "ad" : "an";
-    case T_STAR:
+    case TokenKind::T_STAR:
       return unary ? "de" : "ml";
-    case T_TILDE:
+    case TokenKind::T_TILDE:
       return "co";
-    case T_SLASH:
+    case TokenKind::T_SLASH:
       return "dv";
-    case T_PERCENT:
+    case TokenKind::T_PERCENT:
       return "rm";
-    case T_BAR:
+    case TokenKind::T_BAR:
       return "or";
-    case T_CARET:
+    case TokenKind::T_CARET:
       return "eo";
-    case T_EQUAL:
+    case TokenKind::T_EQUAL:
       return "aS";
-    case T_PLUS_EQUAL:
+    case TokenKind::T_PLUS_EQUAL:
       return "pL";
-    case T_MINUS_EQUAL:
+    case TokenKind::T_MINUS_EQUAL:
       return "mI";
-    case T_STAR_EQUAL:
+    case TokenKind::T_STAR_EQUAL:
       return "mL";
-    case T_SLASH_EQUAL:
+    case TokenKind::T_SLASH_EQUAL:
       return "dV";
-    case T_PERCENT_EQUAL:
+    case TokenKind::T_PERCENT_EQUAL:
       return "rM";
-    case T_AMP_EQUAL:
+    case TokenKind::T_AMP_EQUAL:
       return "aN";
-    case T_BAR_EQUAL:
+    case TokenKind::T_BAR_EQUAL:
       return "oR";
-    case T_CARET_EQUAL:
+    case TokenKind::T_CARET_EQUAL:
       return "eO";
-    case T_LESS_LESS:
+    case TokenKind::T_LESS_LESS:
       return "ls";
-    case T_GREATER_GREATER:
+    case TokenKind::T_GREATER_GREATER:
       return "rs";
-    case T_LESS_LESS_EQUAL:
+    case TokenKind::T_LESS_LESS_EQUAL:
       return "lS";
-    case T_GREATER_GREATER_EQUAL:
+    case TokenKind::T_GREATER_GREATER_EQUAL:
       return "rS";
-    case T_EQUAL_EQUAL:
+    case TokenKind::T_EQUAL_EQUAL:
       return "eq";
-    case T_EXCLAIM_EQUAL:
+    case TokenKind::T_EXCLAIM_EQUAL:
       return "ne";
-    case T_LESS:
+    case TokenKind::T_LESS:
       return "lt";
-    case T_GREATER:
+    case TokenKind::T_GREATER:
       return "gt";
-    case T_LESS_EQUAL:
+    case TokenKind::T_LESS_EQUAL:
       return "le";
-    case T_GREATER_EQUAL:
+    case TokenKind::T_GREATER_EQUAL:
       return "ge";
-    case T_EXCLAIM:
+    case TokenKind::T_EXCLAIM:
       return "nt";
-    case T_AMP_AMP:
+    case TokenKind::T_AMP_AMP:
       return "aa";
-    case T_BAR_BAR:
+    case TokenKind::T_BAR_BAR:
       return "oo";
-    case T_PLUS_PLUS:
+    case TokenKind::T_PLUS_PLUS:
       return "pp";
-    case T_MINUS_MINUS:
+    case TokenKind::T_MINUS_MINUS:
       return "mm";
-    case T_COMMA:
+    case TokenKind::T_COMMA:
       return "cm";
-    case T_MINUS_GREATER_STAR:
+    case TokenKind::T_MINUS_GREATER_STAR:
       return "pm";
-    case T_MINUS_GREATER:
+    case TokenKind::T_MINUS_GREATER:
       return "pt";
-    case T_LPAREN:
+    case TokenKind::T_LPAREN:
       return "cl";
-    case T_LBRACKET:
+    case TokenKind::T_LBRACKET:
       return "ix";
-    case T_QUESTION:
+    case TokenKind::T_QUESTION:
       return "qu";
   }  // switch
 

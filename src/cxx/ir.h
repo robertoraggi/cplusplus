@@ -22,10 +22,10 @@
 
 #include <forward_list>
 #include <set>
+#include <string_view>
 #include <tuple>
 #include <vector>
 
-#include "cxx-fwd.h"
 #include "types.h"  // ### remove
 
 namespace cxx::IR {
@@ -101,7 +101,8 @@ struct Exp final : ExtendsStmt<StmtKind::kExp>, std::tuple<const Expr*> {
 
 struct Move final : ExtendsStmt<StmtKind::kMove>,
                     std::tuple<const Expr*, const Expr*, TokenKind> {
-  Move(const Expr* target, const Expr* source, TokenKind op = T_EQUAL)
+  Move(const Expr* target, const Expr* source,
+       TokenKind op = TokenKind::T_EQUAL)
       : tuple(target, source, op) {}
 
   const Expr* target() const { return std::get<0>(*this); }
@@ -112,7 +113,7 @@ struct Move final : ExtendsStmt<StmtKind::kMove>,
 
   TokenKind op() const {
     auto op = std::get<2>(*this);
-    return op ? op : T_EQUAL;
+    return op != TokenKind::T_EOF_SYMBOL ? op : TokenKind::T_EQUAL;
   }
   void setOp(TokenKind op) { std::get<2>(*this) = op; }
 
@@ -165,9 +166,9 @@ struct This final : ExtendsExpr<ExprKind::kThis> {
 };
 
 struct Const final : ExtendsExpr<ExprKind::kConst>,
-                     std::tuple<const char*> {  // ### TODO: LiteralValue*.
+                     std::tuple<std::string_view> {  // ### TODO: LiteralValue*.
   using tuple::tuple;
-  const char* value() const { return std::get<0>(*this); }
+  const std::string_view& value() const { return std::get<0>(*this); }
   void dump(std::ostream& out) const override;
 };
 

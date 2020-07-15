@@ -32,4 +32,12 @@ const char* token_name[] = {
     FOR_EACH_TOKEN(TOKEN_SPELL)};
 #undef TOKEN_SPELL
 
+std::string_view Token::spell(TokenKind kind) { return token_spell[(int)kind]; }
+
+std::string_view Token::spell() const { return spell(kind_); }
+
+std::string_view Token::name(TokenKind kind) { return token_name[(int)kind]; }
+
+std::string_view Token::name() const { return name(kind_); }
+
 }  // namespace cxx

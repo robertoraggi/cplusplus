@@ -22,6 +22,7 @@
 
 #include <functional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "token.h"
@@ -79,7 +80,7 @@ class TranslationUnit {
     return tokens_[index].kind();
   }
   int tokenLength(unsigned index) const;
-  const char* tokenText(unsigned index) const;
+  std::string_view tokenText(unsigned index) const;
   const Identifier* identifier(unsigned index) const;
   void getTokenStartPosition(unsigned index, unsigned* line,
                              unsigned* column) const;

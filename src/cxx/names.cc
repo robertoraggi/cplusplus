@@ -30,10 +30,10 @@ std::string OperatorName::toString() const {
   const auto o = op();
   std::string s;
   s += "operator ";
-  s += token_spell[int(o)];
-  if (o == T_LPAREN)
+  s += Token::spell(o);
+  if (o == TokenKind::T_LPAREN)
     s += ")";
-  else if (o == T_LBRACKET)
+  else if (o == TokenKind::T_LBRACKET)
     s += "]";
   return s;
 }

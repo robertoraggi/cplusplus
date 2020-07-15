@@ -213,7 +213,7 @@ void Codegen::visit(AlignofExpressionAST* ast) {
 }
 
 void Codegen::visit(BinaryExpressionAST* ast) {
-  if (ast->op == T_COMMA) {
+  if (ast->op == TokenKind::T_COMMA) {
     if (_result.accept(nx)) {
       statement(ast->left_expression);
       statement(ast->right_expression);
@@ -236,17 +236,17 @@ void Codegen::visit(BinaryExpressionAST* ast) {
   }
 
   switch (ast->op) {
-    case T_EQUAL:
-    case T_PLUS_EQUAL:
-    case T_MINUS_EQUAL:
-    case T_STAR_EQUAL:
-    case T_SLASH_EQUAL:
-    case T_PERCENT_EQUAL:
-    case T_AMP_EQUAL:
-    case T_CARET_EQUAL:
-    case T_BAR_EQUAL:
-    case T_LESS_LESS_EQUAL:
-    case T_GREATER_GREATER_EQUAL: {
+    case TokenKind::T_EQUAL:
+    case TokenKind::T_PLUS_EQUAL:
+    case TokenKind::T_MINUS_EQUAL:
+    case TokenKind::T_STAR_EQUAL:
+    case TokenKind::T_SLASH_EQUAL:
+    case TokenKind::T_PERCENT_EQUAL:
+    case TokenKind::T_AMP_EQUAL:
+    case TokenKind::T_CARET_EQUAL:
+    case TokenKind::T_BAR_EQUAL:
+    case TokenKind::T_LESS_LESS_EQUAL:
+    case TokenKind::T_GREATER_GREATER_EQUAL: {
       if (_result.accept(nx)) {
         auto target = expression(ast->left_expression);
         auto source = expression(ast->right_expression);
@@ -257,7 +257,7 @@ void Codegen::visit(BinaryExpressionAST* ast) {
       break;
     }
 
-    case T_AMP_AMP: {
+    case TokenKind::T_AMP_AMP: {
       if (_result.accept(cx)) {
         auto iftrue = _function->newBasicBlock();
         condition(ast->left_expression, iftrue, _result.iffalse);
@@ -269,7 +269,7 @@ void Codegen::visit(BinaryExpressionAST* ast) {
       break;
     }
 
-    case T_BAR_BAR: {
+    case TokenKind::T_BAR_BAR: {
       if (_result.accept(cx)) {
         auto iffalse = _function->newBasicBlock();
         condition(ast->left_expression, _result.iftrue, iffalse);
@@ -343,16 +343,16 @@ void Codegen::visit(ConditionalExpressionAST* ast) {
 void Codegen::visit(CppCastExpressionAST* ast) {
   auto r = expression(ast->expression);
   switch (unit->tokenKind(ast->cast_token)) {
-    case T_DYNAMIC_CAST:
+    case TokenKind::T_DYNAMIC_CAST:
       _result = Result{_function->getDynamicCast(ast->targetTy, *r)};
       break;
-    case T_STATIC_CAST:
+    case TokenKind::T_STATIC_CAST:
       _result = Result{_function->getStaticCast(ast->targetTy, *r)};
       break;
-    case T_REINTERPRET_CAST:
+    case TokenKind::T_REINTERPRET_CAST:
       _result = Result{_function->getReinterpretCast(ast->targetTy, *r)};
       break;
-    case T_CONST_CAST:
+    case TokenKind::T_CONST_CAST:
       _result = Result{_function->getConstCast(ast->targetTy, *r)};
       break;
     default:
@@ -676,8 +676,8 @@ void Codegen::visit(SwitchStatementAST* ast) {
     auto next = it != _cases.end() ? std::get<1>(*it) : _defaultCase;
     place(entry);
     auto rhs = expression(ast->expression);
-    _block->emitCJump(_function->getBinop(T_EQUAL_EQUAL, lhs, *rhs), body,
-                      next);
+    _block->emitCJump(_function->getBinop(TokenKind::T_EQUAL_EQUAL, lhs, *rhs),
+                      body, next);
   }
 
   Loop loop{endswitch, _loop.continueLabel};

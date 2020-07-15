@@ -139,7 +139,7 @@ void EnumSymbol::dump(std::ostream& out, int depth) {
 }
 
 void ClassSymbol::dump(std::ostream& out, int depth) {
-  out << indent(depth) << token_spell[_classKey];
+  out << indent(depth) << Token::spell(_classKey);
   if (auto n = name()) out << " " << n->toString();
   bool first = true;
   for (auto&& bc : _baseClasses) {
@@ -226,7 +226,8 @@ void FunctionSymbol::dump(std::ostream& out, int depth) {
   for (auto&& arg : *this)
     actuals.push_back(arg->name());  // ### this is a bit slow.
   out << indent(depth);
-  if (_storageClassSpecifier) out << token_spell[_storageClassSpecifier] << ' ';
+  if (_storageClassSpecifier != TokenKind::T_EOF_SYMBOL)
+    out << Token::spell(_storageClassSpecifier) << ' ';
   out << typeToString(funTy->returnType(), name())
       << typeToString.prototype(funTy, actuals);
   out << " {}" << std::endl;
@@ -274,7 +275,8 @@ void DeclarationSymbol::setStorageClassSpecifier(
 
 void DeclarationSymbol::dump(std::ostream& out, int depth) {
   out << indent(depth);
-  if (_storageClassSpecifier) out << token_spell[_storageClassSpecifier] << ' ';
+  if (_storageClassSpecifier != TokenKind::T_EOF_SYMBOL)
+    out << Token::spell(_storageClassSpecifier) << ' ';
   out << typeToString(type(), name());
   out << ';' << std::endl;
 }

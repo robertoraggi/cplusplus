@@ -227,7 +227,7 @@ class NamedType final : public ExtendsType<TypeKind::kNamed>,
 class ElaboratedType final : public ExtendsType<TypeKind::kElaborated>,
                              public std::tuple<const Name*> {
  public:
-  ElaboratedType(const Name* name, TokenKind classKey = T_CLASS)
+  ElaboratedType(const Name* name, TokenKind classKey = TokenKind::T_CLASS)
       : tuple(name), _classKey(classKey) {}
 
   TokenKind classKey() const { return _classKey; }

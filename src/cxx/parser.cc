@@ -49,7 +49,7 @@ namespace cxx {
 #pragma warning(pop)
 #endif
 
-int Parser::yytoken(int n) { return unit->tokenKind(yycursor + n); }
+TokenKind Parser::yytoken(int n) { return unit->tokenKind(yycursor + n); }
 
 bool yyparse(TranslationUnit* unit,
              const std::function<void(TranslationUnitAST*)>& consume) {

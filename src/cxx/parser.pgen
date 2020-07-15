@@ -20,6 +20,8 @@
 
 %class Parser
 
+%token-type TokenKind
+
 %{
   bool yyparse(TranslationUnit* unit,
     const std::function<void(TranslationUnitAST*)>& consume);
@@ -78,7 +80,6 @@
 , equal
 , equal_equal
 , greater
-, greater_equal
 , question
 , lbracket
 , rbracket
@@ -223,6 +224,8 @@ greater_greater
 | greater nospace greater;
 
 greater_greater_equal: greater nospace greater nospace equal;
+
+greater_equal: greater_equal nospace equal;
 
 header_name: { return false; };
 
@@ -396,13 +399,13 @@ fold_operator
 | bar_equal
 | less_less_equal
 | greater_greater_equal
+| greater_equal
 | equal
 | equal_equal
 | exclaim_equal
 | less
 | greater
 | less_equal
-| greater_equal
 | amp_amp
 | bar_bar
 | comma
@@ -450,8 +453,7 @@ nested_requirement
 ;
 
 postfix_expression
-: (primary_expression
-  | const_cast less type_id greater lparen expression rparen
+: ( const_cast less type_id greater lparen expression rparen
   | dynamic_cast less type_id greater lparen expression rparen
   | reinterpret_cast less type_id greater lparen expression rparen
   | simple_type_specifier braced_init_list
@@ -460,7 +462,8 @@ postfix_expression
   | typeid lparen expression rparen
   | typeid lparen type_id rparen
   | typename_specifier braced_init_list
-  | typename_specifier lparen expression_list? rparen)
+  | typename_specifier lparen expression_list? rparen
+  | primary_expression)
     ( dot template? id_expression
     | lbracket expr_or_braced_init_list rbracket
     | lparen expression_list? rparen
@@ -563,7 +566,7 @@ compare_expression
 ;
 
 relational_expression
-: compare_expression ((less | greater | less_equal | greater_equal) compare_expression)*
+: compare_expression ((less_equal | greater_equal | less | greater) compare_expression)*
 ;
 
 equality_expression
@@ -1146,7 +1149,8 @@ attribute_specifier
 skip_balanced
 : {
   int count = 1;
-  while (auto tk = yytoken()) {
+  TokenKind tk;
+  while ((tk = yytoken()) != TokenKind::T_EOF_SYMBOL) {
     if (tk == TokenKind::T_LPAREN) {
       ++count;
     } else if (tk == TokenKind::T_RPAREN) {
@@ -1386,7 +1390,6 @@ op
 | equal_equal
 | exclaim_equal
 | less
-| greater
 | less_equal
 | greater_equal
 | less_equal_greater
@@ -1399,6 +1402,7 @@ op
 | plus_plus
 | minus_minus
 | comma
+| greater
 ;
 
 literal_operator_id

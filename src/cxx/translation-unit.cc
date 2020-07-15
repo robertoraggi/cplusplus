@@ -112,25 +112,25 @@ void TranslationUnit::fatal(unsigned index, const char* format...) {
 
 int TranslationUnit::tokenLength(unsigned index) const {
   auto&& tk = tokens_[index];
-  if (tk.kind() == T_IDENTIFIER) {
+  if (tk.kind() == TokenKind::T_IDENTIFIER) {
     const std::string* id = reinterpret_cast<const std::string*>(tk.priv_);
     return int(id->size());
   }
-  return int(::strlen(token_spell[tk.kind()]));
+  return int(Token::spell(tk.kind()).size());
 }
 
-const char* TranslationUnit::tokenText(unsigned index) const {
+std::string_view TranslationUnit::tokenText(unsigned index) const {
   auto&& tk = tokens_[index];
   switch (tk.kind()) {
-    case T_IDENTIFIER:
-    case T_STRING_LITERAL:
-    case T_CHARACTER_LITERAL:
-    case T_INTEGER_LITERAL: {
+    case TokenKind::T_IDENTIFIER:
+    case TokenKind::T_STRING_LITERAL:
+    case TokenKind::T_CHARACTER_LITERAL:
+    case TokenKind::T_INTEGER_LITERAL: {
       const Identifier* id = reinterpret_cast<const Identifier*>(tk.priv_);
       return id->c_str();
     }
     default:
-      return token_spell[tk.kind()];
+      return Token::spell(tk.kind());
   }
 }
 

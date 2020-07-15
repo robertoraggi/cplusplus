@@ -23,7 +23,6 @@
 #include <fmt/format.h>
 
 #include <cassert>
-#include <cstdio>
 
 #include "ast.h"
 #include "control.h"
@@ -126,114 +125,114 @@ class ParseContext::ProcessDeclarator {
   void processSpecifier(SpecifierAST* ast) {
     switch (ast->kind()) {
       case ASTKind::kExceptionSpecification:
-        printf("todo exception specification\n");
+        fmt::print("todo exception specification\n");
         break;
       case ASTKind::kAttributeSpecifier:
-        printf("todo attribute specifier\n");
+        fmt::print("todo attribute specifier\n");
         break;
       case ASTKind::kAlignasTypeAttributeSpecifier:
-        printf("todo alignas-type specifier\n");
+        fmt::print("todo alignas-type specifier\n");
         break;
       case ASTKind::kAlignasAttributeSpecifier:
-        printf("todo alignas attribute specifier\n");
+        fmt::print("todo alignas attribute specifier\n");
         break;
 
       case ASTKind::kSimpleSpecifier: {
         auto spec = ast->asSimpleSpecifier();
         auto k = unit()->tokenKind(spec->specifier_token);
         switch (k) {
-          case T_SIGNED:
+          case TokenKind::T_SIGNED:
             // nothing to do (for now).
             break;
-          case T_UNSIGNED:
+          case TokenKind::T_UNSIGNED:
             _decl.setUnsigned(true);
             break;
-          case T_CONST:
+          case TokenKind::T_CONST:
             _decl.setConst(true);
             break;
-          case T_VOLATILE:
+          case TokenKind::T_VOLATILE:
             _decl.setVolatile(true);
             break;
-          case T_AUTO:
+          case TokenKind::T_AUTO:
             _decl.setType(control()->getAutoType());
             break;
-          case T___INT64:
+          case TokenKind::T___INT64:
             _decl.setType(control()->getLongLongIntType());
             break;
-          case T___INT128:
+          case TokenKind::T___INT128:
             _decl.setType(control()->getInt128Type());
             break;
-          case T___FLOAT80:
+          case TokenKind::T___FLOAT80:
             _decl.setType(control()->getFloatType(FloatKind::kLongDouble));
             break;
-          case T___FLOAT128:
+          case TokenKind::T___FLOAT128:
             _decl.setType(control()->getFloatType(FloatKind::kFloat128));
             break;
-          case T_VOID:
+          case TokenKind::T_VOID:
             _decl.setType(control()->getVoidType());
             break;
-          case T_WCHAR_T:
+          case TokenKind::T_WCHAR_T:
             _decl.setType(control()->getWCharTType());
             break;
-          case T_BOOL:
+          case TokenKind::T_BOOL:
             _decl.setType(control()->getBoolType());
             break;
-          case T_CHAR:
+          case TokenKind::T_CHAR:
             _decl.setType(control()->getCharType());
             break;
-          case T_CHAR16_T:
+          case TokenKind::T_CHAR16_T:
             _decl.setType(control()->getChar16TType());
             break;
-          case T_CHAR32_T:
+          case TokenKind::T_CHAR32_T:
             _decl.setType(control()->getChar32TType());
             break;
-          case T_SHORT:
+          case TokenKind::T_SHORT:
             _decl.setType(control()->getShortIntType());
             break;
-          case T_INT:
+          case TokenKind::T_INT:
             if (!_decl->isIntegerType()) _decl.setType(control()->getIntType());
             break;
-          case T_LONG:
+          case TokenKind::T_LONG:
             if (_decl->isIntegerType() && _decl->asIntegerType()->isLongInt())
               _decl.setType(control()->getLongLongIntType());
             else
               _decl.setType(control()->getLongIntType());
             break;
-          case T_FLOAT:
+          case TokenKind::T_FLOAT:
             _decl.setType(control()->getFloatType(FloatKind::kFloat));
             break;
-          case T_DOUBLE:
+          case TokenKind::T_DOUBLE:
             if (_decl->isIntegerType() && _decl->asIntegerType()->isLongInt())
               _decl.setType(control()->getFloatType(FloatKind::kLongDouble));
             else
               _decl.setType(control()->getFloatType(FloatKind::kDouble));
             break;
-          case T_STATIC:
-          case T_EXTERN:
-          case T_MUTABLE:
-          case T_THREAD_LOCAL:
+          case TokenKind::T_STATIC:
+          case TokenKind::T_EXTERN:
+          case TokenKind::T_MUTABLE:
+          case TokenKind::T_THREAD_LOCAL:
             _decl.specs.storageSpec = k;
             break;
-          case T_INLINE:
+          case TokenKind::T_INLINE:
             _decl.specs.isInline = true;
             break;
-          case T_TYPEDEF:
+          case TokenKind::T_TYPEDEF:
             _decl.specs.isTypedef = true;
             break;
-          case T_VIRTUAL:
+          case TokenKind::T_VIRTUAL:
             _decl.specs.isVirtual = true;
             break;
-          case T_FRIEND:
+          case TokenKind::T_FRIEND:
             _decl.specs.isFriend = true;
             break;
-          case T_EXPLICIT:
+          case TokenKind::T_EXPLICIT:
             _decl.specs.isExplicit = true;
             break;
-          case T_CONSTEXPR:
+          case TokenKind::T_CONSTEXPR:
             _decl.specs.isConstexpr = true;
             break;
           default:
-            printf("todo simple specifier `%s'\n", token_spell[k]);
+            fmt::print("todo simple specifier `%s'\n", Token::spell(k));
             break;
         }  // switch
         break;
@@ -250,13 +249,13 @@ class ParseContext::ProcessDeclarator {
             _decl.setType(control()->getNamedType(name));
           }
         } else {
-          printf("todo named specifier\n");
+          fmt::print("todo named specifier\n");
         }
         break;
       }
 
       case ASTKind::kTypenameSpecifier:
-        printf("todo typename specifier\n");
+        fmt::print("todo typename specifier\n");
         break;
 
       case ASTKind::kElaboratedTypeSpecifier: {
@@ -272,12 +271,12 @@ class ParseContext::ProcessDeclarator {
         if (auto klass = sym->asClassSymbol()) {
           _decl.setType(control()->getClassType(klass));
         }
-        printf("todo elaborated type specifier\n");
+        fmt::print("todo elaborated type specifier\n");
         break;
       }
 
       case ASTKind::kEnumSpecifier:
-        printf("todo enum specifier\n");
+        fmt::print("todo enum specifier\n");
         break;
 
       case ASTKind::kClassSpecifier: {
@@ -366,19 +365,19 @@ class ParseContext::ProcessDeclarator {
   void ptrOperator(PtrOperatorAST* ast) {
     auto elementType = context->finish(_decl.specs.type);
     switch (ast->op) {
-      case T_STAR:
+      case TokenKind::T_STAR:
         _decl.specs.type = QualType(control()->getPointerType(elementType));
         break;
-      case T_AMP:
+      case TokenKind::T_AMP:
         _decl.specs.type =
             QualType(control()->getLValueReferenceType(elementType));
         break;
-      case T_AMP_AMP:
+      case TokenKind::T_AMP_AMP:
         _decl.specs.type =
             QualType(control()->getRValueReferenceType(elementType));
         break;
       default:
-        printf("todo ptr operator\n");
+        fmt::print("todo ptr operator\n");
         break;
     }  // switch
   }

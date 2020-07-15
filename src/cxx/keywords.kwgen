@@ -1,5 +1,6 @@
 %no-enums
-%token-prefix=cxx::T_
+%token-prefix=cxx::TokenKind::T_
+%token-type=cxx::TokenKind
 %toupper
 
 %%

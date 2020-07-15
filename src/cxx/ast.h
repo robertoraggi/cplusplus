@@ -255,7 +255,7 @@ struct DestructorNameAST final : ExtendsAST<ASTKind::kDestructorName, NameAST> {
 struct OperatorNameAST final : ExtendsAST<ASTKind::kOperatorName, NameAST> {
   unsigned operator_token{0};
   unsigned op_token{0};
-  TokenKind op{T_ERROR};
+  TokenKind op{TokenKind::T_ERROR};
 };
 
 struct ConversionFunctionIdAST final
@@ -421,7 +421,7 @@ struct TypeidExpressionAST final
 struct UnaryExpressionAST final
     : ExtendsAST<ASTKind::kUnaryExpression, ExpressionAST> {
   ExpressionAST* expression{nullptr};
-  TokenKind op{T_EOF_SYMBOL};
+  TokenKind op{TokenKind::T_EOF_SYMBOL};
 };
 
 struct SizeofExpressionAST final
@@ -498,7 +498,7 @@ struct BinaryExpressionAST final
   ExpressionAST* left_expression{nullptr};
   ExpressionAST* right_expression{nullptr};
   unsigned op_token{0};
-  TokenKind op{T_EOF_SYMBOL};
+  TokenKind op{TokenKind::T_EOF_SYMBOL};
 };
 
 struct ConditionalExpressionAST final
@@ -867,7 +867,7 @@ struct PtrOperatorAST final : ExtendsAST<ASTKind::kPtrOperator, AST> {
   List<NameAST*>* nested_name_specifier{nullptr};
   List<SpecifierAST*>* cv_qualifier_list{nullptr};
   List<SpecifierAST*>* attribute_specifier_list{nullptr};
-  TokenKind op{T_EOF_SYMBOL};
+  TokenKind op{TokenKind::T_EOF_SYMBOL};
 };
 
 struct ArrayDeclaratorAST final

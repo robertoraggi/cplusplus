@@ -140,7 +140,7 @@ class ClassSymbol final : public ExtendsSymbol<SymbolKind::kClass, Scope> {
   void setCompleted(bool isCompleted) { _isCompleted = isCompleted; }
 
  private:
-  TokenKind _classKey{T_EOF_SYMBOL};
+  TokenKind _classKey{TokenKind::T_EOF_SYMBOL};
   std::vector<BaseClassSymbol*> _baseClasses;
   bool _isCompleted{false};
 };
@@ -195,7 +195,7 @@ class FunctionSymbol final
   BlockSymbol* _block{nullptr};
   FunctionDefinitionAST* _internalNode{nullptr};
   unsigned _sourceLocation{0};
-  TokenKind _storageClassSpecifier{T_EOF_SYMBOL};
+  TokenKind _storageClassSpecifier{TokenKind::T_EOF_SYMBOL};
   IR::Function* _code{nullptr};
   bool _isVariadic{false};
   bool _isConst{false};
@@ -221,7 +221,7 @@ class DeclarationSymbol final
   void dump(std::ostream& out, int depth) override;
 
  private:
-  TokenKind _storageClassSpecifier{T_EOF_SYMBOL};
+  TokenKind _storageClassSpecifier{TokenKind::T_EOF_SYMBOL};
 };
 
 class TypedefSymbol final : public ExtendsSymbol<SymbolKind::kTypedef, Symbol> {
