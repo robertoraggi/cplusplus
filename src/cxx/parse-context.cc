@@ -21,6 +21,7 @@
 #include "parse-context.h"
 
 #include <fmt/format.h>
+#include <fmt/ostream.h>
 
 #include <cassert>
 
