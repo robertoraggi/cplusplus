@@ -6,11 +6,15 @@
 %%
 
 __alignof
+__asm
+__asm__
 __attribute
 __attribute__
 __extension__
 __has_unique_object_representations
 __has_virtual_destructor
+__inline
+__inline__
 __is_abstract
 __is_aggregate
 __is_base_of

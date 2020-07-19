@@ -116,11 +116,15 @@
 // keywords
 
 , __alignof
+, __asm
+, __asm__
 , __attribute
 , __attribute__
 , __extension__
 , __has_unique_object_representations
 , __has_virtual_destructor
+, __inline
+, __inline__
 , __is_abstract
 , __is_aggregate
 , __is_base_of
@@ -362,7 +366,7 @@ lambda_introducer
 ;
 
 lambda_declarator
-: lparen parameter_declaration_clause rparen decl_specifier_seq? noexcept_specifier? attribute_specifier* trailing_return_type? requires_clause?
+: lparen parameter_declaration_clause rparen decl_specifier_seq? noexcept_specifier? attribute_specifier_seq? trailing_return_type? requires_clause?
 ;
 
 lambda_capture
@@ -528,8 +532,7 @@ expression_list
 ;
 
 unary_expression
-: postfix_expression
-| unary_operator cast_expression
+: unary_operator cast_expression
 | plus_plus cast_expression
 | minus_minus cast_expression
 | await_expression
@@ -541,6 +544,7 @@ unary_expression
 | noexcept_expression
 | new_expression
 | delete_expression
+| postfix_expression
 ;
 
 unary_operator
@@ -579,7 +583,7 @@ new_declarator
 ;
 
 noptr_new_declarator
-: lbracket expression? rbracket attribute_specifier* (lbracket constant_expression rbracket attribute_specifier*)*
+: lbracket expression? rbracket attribute_specifier_seq? (lbracket constant_expression rbracket attribute_specifier_seq?)*
 ;
 
 new_initializer
@@ -692,14 +696,15 @@ template_argument_constant_expression
 ;
 
 statement
-: labeled_statement
-| attribute_specifier* expression_statement
-| attribute_specifier* compound_statement
-| attribute_specifier* selection_statement
-| attribute_specifier* iteration_statement
-| attribute_specifier* jump_statement
+: __extension__ statement
+| labeled_statement
+| attribute_specifier_seq? expression_statement
+| attribute_specifier_seq? compound_statement
+| attribute_specifier_seq? selection_statement
+| attribute_specifier_seq? iteration_statement
+| attribute_specifier_seq? jump_statement
+| attribute_specifier_seq? try_block
 | declaration_statement
-| attribute_specifier* try_block
 ;
 
 init_statement
@@ -708,14 +713,14 @@ init_statement
 ;
 
 condition
-: attribute_specifier* decl_specifier_seq declarator brace_or_equal_initializer
+: attribute_specifier_seq? decl_specifier_seq declarator brace_or_equal_initializer
 | expression
 ;
 
 labeled_statement
-: attribute_specifier* identifier colon statement
-| attribute_specifier* case constant_expression colon statement
-| attribute_specifier* default colon statement
+: attribute_specifier_seq? identifier colon statement
+| attribute_specifier_seq? case constant_expression colon statement
+| attribute_specifier_seq? default colon statement
 ;
 
 expression_statement
@@ -739,8 +744,8 @@ iteration_statement
 ;
 
 for_range_declaration
-: attribute_specifier* decl_specifier_seq ref_qualifier? lbracket identifier_list rbracket
-| attribute_specifier* decl_specifier_seq declarator
+: attribute_specifier_seq? decl_specifier_seq ref_qualifier? lbracket identifier_list rbracket
+| attribute_specifier_seq? decl_specifier_seq declarator
 ;
 
 for_range_initializer
@@ -792,17 +797,17 @@ block_declaration
 ;
 
 nodeclspec_function_declaration
-: attribute_specifier* declarator semicolon
+: attribute_specifier_seq? declarator semicolon
 ;
 
 alias_declaration
-: using identifier attribute_specifier* equal defining_type_id semicolon
+: using identifier attribute_specifier_seq? equal defining_type_id semicolon
 ;
 
 simple_declaration
-: attribute_specifier* decl_specifier_seq ref_qualifier? lbracket identifier_list rbracket initializer semicolon
-| attribute_specifier+ decl_specifier_seq init_declarator_list semicolon
-| decl_specifier_seq? init_declarator_list? semicolon
+: __extension__? attribute_specifier_seq? decl_specifier_seq ref_qualifier? lbracket identifier_list rbracket initializer semicolon
+| __extension__? attribute_specifier_seq decl_specifier_seq init_declarator_list semicolon
+| __extension__? decl_specifier_seq? init_declarator_list? semicolon
 ;
 
 static_assert_declaration
@@ -815,7 +820,7 @@ empty_declaration
 ;
 
 attribute_declaration
-: attribute_specifier+ semicolon
+: attribute_specifier_seq semicolon
 ;
 
 decl_specifier(DeclSpecs& specs)
@@ -828,13 +833,15 @@ decl_specifier(DeclSpecs& specs)
 | consteval
 | constinit
 | inline
+| __inline
+| __inline__
 ;
 
 decl_specifier_seq
 {
   DeclSpecs specs;
 }
-: (decl_specifier(specs) attribute_specifier*)+
+: (decl_specifier(specs) attribute_specifier_seq?)+
 ;
 
 decl_specifier_seq_no_typespecs
@@ -842,7 +849,7 @@ decl_specifier_seq_no_typespecs
   DeclSpecs specs;
   specs.no_typespecs = true;
 }
-: (decl_specifier(specs) attribute_specifier*)+
+: (decl_specifier(specs) attribute_specifier_seq?)+
 ;
 
 storage_class_specifier
@@ -873,7 +880,7 @@ type_specifier_seq
 {
   DeclSpecs specs;
 }
-: (type_specifier(specs) attribute_specifier*)+
+: (type_specifier(specs) attribute_specifier_seq?)+
 ;
 
 defining_type_specifier(DeclSpecs& specs)
@@ -886,7 +893,7 @@ defining_type_specifier_seq
 {
   DeclSpecs specs;
 }
-: defining_type_specifier(specs)+ attribute_specifier*
+: defining_type_specifier(specs)+ attribute_specifier_seq?
 ;
 
 simple_type_specifier(DeclSpecs& specs)
@@ -935,7 +942,7 @@ elaborated_type_specifier(DeclSpecs& specs)
   { specs.has_complex_typespec = true; }
 | class_key simple_template_id
   { specs.has_complex_typespec = true; }
-| class_key attribute_specifier* nested_name_specifier? identifier
+| class_key attribute_specifier_seq? nested_name_specifier? identifier
   { specs.has_complex_typespec = true; }
 | elaborated_enum_specifier
   { specs.has_complex_typespec = true; }
@@ -973,18 +980,18 @@ ptr_declarator
 ;
 
 core_declarator
-: declarator_id attribute_specifier*
+: declarator_id attribute_specifier_seq?
 | lparen ptr_declarator rparen
 ;
 
 noptr_declarator
 : core_declarator
       ( parameters_and_qualifiers
-      | lbracket constant_expression? rbracket attribute_specifier*)*
+      | lbracket constant_expression? rbracket attribute_specifier_seq?)*
 ;
 
 parameters_and_qualifiers
-: lparen parameter_declaration_clause rparen cv_qualifier* ref_qualifier? noexcept_specifier? attribute_specifier*
+: lparen parameter_declaration_clause rparen cv_qualifier* ref_qualifier? noexcept_specifier? attribute_specifier_seq?
 ;
 
 trailing_return_type
@@ -992,10 +999,10 @@ trailing_return_type
 ;
 
 ptr_operator
-: star attribute_specifier* cv_qualifier*
-| amp attribute_specifier*
-| amp_amp attribute_specifier*
-| nested_name_specifier star attribute_specifier* cv_qualifier*
+: star attribute_specifier_seq? cv_qualifier*
+| amp attribute_specifier_seq?
+| amp_amp attribute_specifier_seq?
+| nested_name_specifier star attribute_specifier_seq? cv_qualifier*
 ;
 
 cv_qualifier
@@ -1034,7 +1041,7 @@ ptr_abstract_declarator
 noptr_abstract_declarator
 : (lparen ptr_abstract_declarator rparen)?
       ( parameters_and_qualifiers
-      | lbracket constant_expression? rbracket attribute_specifier*)*
+      | lbracket constant_expression? rbracket attribute_specifier_seq?)*
 ;
 
 abstract_pack_declarator
@@ -1044,7 +1051,7 @@ abstract_pack_declarator
 noptr_abstract_pack_declarator
 : dot_dot_dot?
     ( parameters_and_qualifiers
-    | lbracket constant_expression? rbracket attribute_specifier*)*
+    | lbracket constant_expression? rbracket attribute_specifier_seq?)*
 ;
 
 parameter_declaration_clause
@@ -1057,8 +1064,8 @@ parameter_declaration_list
 ;
 
 parameter_declaration
-: attribute_specifier* decl_specifier_seq declarator (equal initializer_clause)?
-| attribute_specifier* decl_specifier_seq abstract_declarator? (equal initializer_clause)?
+: attribute_specifier_seq? decl_specifier_seq declarator (equal initializer_clause)?
+| attribute_specifier_seq? decl_specifier_seq abstract_declarator? (equal initializer_clause)?
 ;
 
 initializer
@@ -1104,10 +1111,10 @@ expr_or_braced_init_list
 ;
 
 function_definition
-: attribute_specifier* decl_specifier_seq_no_typespecs? declarator_id attribute_specifier* parameters_and_qualifiers requires_clause function_body
-| attribute_specifier* decl_specifier_seq_no_typespecs? declarator_id attribute_specifier* parameters_and_qualifiers virt_specifier* function_body
-| attribute_specifier* decl_specifier_seq? declarator requires_clause function_body
-| attribute_specifier* decl_specifier_seq? declarator virt_specifier* function_body
+: __extension__? attribute_specifier_seq? decl_specifier_seq_no_typespecs? declarator_id attribute_specifier_seq? parameters_and_qualifiers requires_clause function_body
+| __extension__? attribute_specifier_seq? decl_specifier_seq_no_typespecs? declarator_id attribute_specifier_seq? parameters_and_qualifiers virt_specifier* function_body
+| __extension__? attribute_specifier_seq? decl_specifier_seq? declarator requires_clause function_body
+| __extension__? attribute_specifier_seq? decl_specifier_seq? declarator virt_specifier* function_body
 ;
 
 function_body
@@ -1123,7 +1130,7 @@ enum_specifier
 ;
 
 enum_head
-: enum_key attribute_specifier* enum_head_name? enum_base?
+: enum_key attribute_specifier_seq? enum_head_name? enum_base?
 ;
 
 enum_head_name
@@ -1131,7 +1138,7 @@ enum_head_name
 ;
 
 opaque_enum_declaration
-: enum_key attribute_specifier* enum_head_name enum_base? semicolon
+: enum_key attribute_specifier_seq? enum_head_name enum_base? semicolon
 ;
 
 enum_key
@@ -1153,7 +1160,7 @@ enumerator_definition
 ;
 
 enumerator
-: identifier attribute_specifier*
+: identifier attribute_specifier_seq?
 ;
 
 using_enum_declaration
@@ -1167,11 +1174,11 @@ namespace_definition
 ;
 
 named_namespace_definition
-: inline? namespace attribute_specifier* identifier lbrace namespace_body rbrace
+: inline? namespace attribute_specifier_seq? identifier lbrace namespace_body rbrace
 ;
 
 unnamed_namespace_definition
-: inline? namespace attribute_specifier* lbrace namespace_body rbrace
+: inline? namespace attribute_specifier_seq? lbrace namespace_body rbrace
 ;
 
 nested_namespace_definition
@@ -1195,7 +1202,7 @@ qualified_namespace_specifier
 ;
 
 using_directive
-: attribute_specifier* using namespace nested_name_specifier? namespace_name semicolon
+: attribute_specifier_seq? using namespace nested_name_specifier? namespace_name semicolon
 ;
 
 using_declaration
@@ -1211,7 +1218,7 @@ using_declarator
 ;
 
 asm_declaration
-: attribute_specifier* asm lparen string_literal rparen semicolon
+: attribute_specifier_seq? asm lparen string_literal rparen semicolon
 ;
 
 linkage_specification
@@ -1219,10 +1226,15 @@ linkage_specification
 | extern string_literal declaration
 ;
 
+attribute_specifier_seq
+: attribute_specifier+
+;
+
 attribute_specifier
 : (__attribute | __attribute__) lparen skip_balanced rparen
 | lbracket lbracket attribute_using_prefix? attribute_list rbracket rbracket
 | alignment_specifier
+| (__asm | __asm__) lparen string_literal+ rparen
 ;
 
 skip_balanced
@@ -1280,7 +1292,7 @@ attribute_argument_clause
 ;
 
 module_declaration
-: export_keyword? module_keyword module_name module_partition? attribute_specifier* semicolon
+: export_keyword? module_keyword module_name module_partition? attribute_specifier_seq? semicolon
 ;
 
 module_name
@@ -1302,9 +1314,9 @@ export_declaration
 ;
 
 module_import_declaration
-: import_keyword module_name attribute_specifier* semicolon
-| import_keyword module_partition attribute_specifier* semicolon
-| import_keyword header_name attribute_specifier* semicolon
+: import_keyword module_name attribute_specifier_seq? semicolon
+| import_keyword module_partition attribute_specifier_seq? semicolon
+| import_keyword header_name attribute_specifier_seq? semicolon
 ;
 
 global_module_fragment
@@ -1320,8 +1332,8 @@ class_specifier
 ;
 
 class_head
-: class_key attribute_specifier* class_head_name class_virt_specifier? base_clause?
-| class_key attribute_specifier* base_clause?
+: class_key attribute_specifier_seq? class_head_name class_virt_specifier? base_clause?
+| class_key attribute_specifier_seq? base_clause?
 ;
 
 class_head_name
@@ -1344,8 +1356,8 @@ member_specification
 ;
 
 member_declaration
-: attribute_specifier* decl_specifier_seq_no_typespecs? declarator_id attribute_specifier* parameters_and_qualifiers semicolon
-| attribute_specifier* decl_specifier_seq? member_declarator_list? semicolon
+: __extension__? attribute_specifier_seq? decl_specifier_seq_no_typespecs? declarator_id attribute_specifier_seq? parameters_and_qualifiers semicolon
+| __extension__? attribute_specifier_seq? decl_specifier_seq? member_declarator_list? semicolon
 | function_definition
 | using_declaration
 | using_enum_declaration
@@ -1363,7 +1375,7 @@ member_declarator_list
 ;
 
 member_declarator
-: identifier? attribute_specifier* colon constant_expression brace_or_equal_initializer?
+: identifier? attribute_specifier_seq? colon constant_expression brace_or_equal_initializer?
 | declarator ( requires_clause
              | brace_or_equal_initializer
              | virt_specifier* pure_specifier?)
@@ -1399,9 +1411,9 @@ base_specifier_list
 ;
 
 base_specifier
-: attribute_specifier* class_or_decltype
-| attribute_specifier* virtual access_specifier? class_or_decltype
-| attribute_specifier* access_specifier virtual? class_or_decltype
+: attribute_specifier_seq? class_or_decltype
+| attribute_specifier_seq? virtual access_specifier? class_or_decltype
+| attribute_specifier_seq? access_specifier virtual? class_or_decltype
 ;
 
 class_or_decltype
@@ -1600,14 +1612,15 @@ handler
 ;
 
 exception_declaration
-: attribute_specifier* type_specifier_seq declarator
-| attribute_specifier* type_specifier_seq abstract_declarator?
+: attribute_specifier_seq? type_specifier_seq declarator
+| attribute_specifier_seq? type_specifier_seq abstract_declarator?
 | dot_dot_dot?
 ;
 
 noexcept_specifier
 : noexcept lparen constant_expression rparen
 | noexcept
+| throw lparen rparen // deprecated
 ;
 
 identifier_list

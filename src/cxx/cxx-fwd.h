@@ -212,12 +212,16 @@
   V(__FLOAT80, "__float80")                                           \
   V(__FLOAT128, "__float128")                                         \
   V(__ALIGNOF, "__alignof")                                           \
+  V(__ASM, "__asm")                                                   \
+  V(__ASM__, "__asm__")                                               \
   V(__ATTRIBUTE__, "__attribute__")                                   \
   V(__ATTRIBUTE, "__attribute")                                       \
   V(__EXTENSION__, "__extension__")                                   \
   V(__HAS_UNIQUE_OBJECT_REPRESENTATIONS,                              \
     "__has_unique_object_representations")                            \
   V(__HAS_VIRTUAL_DESTRUCTOR, "__has_virtual_destructor")             \
+  V(__INLINE, "__inline")                                             \
+  V(__INLINE__, "__inline__")                                         \
   V(__IS_ABSTRACT, "__is_abstract")                                   \
   V(__IS_AGGREGATE, "__is_aggregate")                                 \
   V(__IS_BASE_OF, "__is_base_of")                                     \
