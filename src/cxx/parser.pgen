@@ -50,6 +50,7 @@
   TranslationUnit* unit = nullptr;
   Arena* pool = nullptr;
   Control* control = nullptr;
+  bool skip_function_body = true;
 %}
 
 %token
@@ -334,13 +335,13 @@ id_expression
 ;
 
 unqualified_id
-: operator_function_id
-| conversion_function_id
-| literal_operator_id
+: template_id
 | tilde type_name
 | tilde decltype_specifier
-| template_id
 | identifier
+| operator_function_id
+| conversion_function_id
+| literal_operator_id
 ;
 
 qualified_id
@@ -807,6 +808,7 @@ alias_declaration
 
 simple_declaration
 : __extension__? attribute_specifier_seq? decl_specifier_seq ref_qualifier? lbracket identifier_list rbracket initializer semicolon
+| __extension__? attribute_specifier_seq? decl_specifier_seq_no_typespecs? declarator_id attribute_specifier_seq? parameters_and_qualifiers semicolon
 | __extension__? attribute_specifier_seq decl_specifier_seq init_declarator_list semicolon
 | __extension__? decl_specifier_seq? init_declarator_list? semicolon
 ;
@@ -916,7 +918,10 @@ simple_type_specifier(DeclSpecs& specs)
   { specs.has_named_typespec = true; }
 
 | { return specs.accepts_simple_typespec(); }
-  (char
+  _Atomic lparen type_id rparen
+
+| { return specs.accepts_simple_typespec(); }
+  ( char
   | char8_t
   | char16_t
   | char32_t
@@ -939,9 +944,9 @@ type_name
 ;
 
 elaborated_type_specifier(DeclSpecs& specs)
-: class_key nested_name_specifier template? simple_template_id
+: class_key attribute_specifier_seq? nested_name_specifier template? simple_template_id
   { specs.has_complex_typespec = true; }
-| class_key simple_template_id
+| class_key attribute_specifier_seq? simple_template_id
   { specs.has_complex_typespec = true; }
 | class_key attribute_specifier_seq? nested_name_specifier? identifier
   { specs.has_complex_typespec = true; }
@@ -987,8 +992,8 @@ core_declarator
 
 noptr_declarator
 : core_declarator
-      ( parameters_and_qualifiers
-      | lbracket constant_expression? rbracket attribute_specifier_seq?)*
+    ( parameters_and_qualifiers
+    | lbracket constant_expression? rbracket attribute_specifier_seq?)*
 ;
 
 parameters_and_qualifiers
@@ -1041,8 +1046,8 @@ ptr_abstract_declarator
 
 noptr_abstract_declarator
 : (lparen ptr_abstract_declarator rparen)?
-      ( parameters_and_qualifiers
-      | lbracket constant_expression? rbracket attribute_specifier_seq?)*
+    ( parameters_and_qualifiers
+    | lbracket constant_expression? rbracket attribute_specifier_seq?)*
 ;
 
 abstract_pack_declarator
@@ -1119,7 +1124,24 @@ function_definition
 ;
 
 function_body
-: ctor_initializer? compound_statement
+: { return skip_function_body; }
+  ctor_initializer? lbrace
+    {
+      int depth = 1;
+      TokenKind tok;
+      while ((tok = yytoken()) != TokenKind::T_EOF_SYMBOL) {
+        if (tok == TokenKind::T_LBRACE) {
+          ++depth;
+        } else if (tok == TokenKind::T_RBRACE) {
+          if (!--depth) {
+            break;
+          }
+        }
+        yyconsume();
+      }
+    }
+  rbrace
+| ctor_initializer? compound_statement
 | function_try_block
 | equal default semicolon
 | equal delete semicolon
