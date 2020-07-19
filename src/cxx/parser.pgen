@@ -23,6 +23,26 @@
 %token-type TokenKind
 
 %{
+  struct DeclSpecs {
+    bool has_simple_typespec = false;
+    bool has_complex_typespec = false;
+    bool has_named_typespec = false;
+    bool has_placeholder_typespec = false;
+
+    bool accepts_simple_typespec() const {
+      return !(has_complex_typespec
+        || has_named_typespec
+        || has_placeholder_typespec);
+    }
+
+    bool has_typespec() const {
+      return has_simple_typespec
+        || has_complex_typespec
+        || has_named_typespec
+        || has_placeholder_typespec;
+    }
+  };
+
   bool yyparse(TranslationUnit* unit,
     const std::function<void(TranslationUnitAST*)>& consume);
 
@@ -453,11 +473,14 @@ nested_requirement
 ;
 
 postfix_expression
+{
+  DeclSpecs specs;
+}
 : ( const_cast less type_id greater lparen expression rparen
   | dynamic_cast less type_id greater lparen expression rparen
   | reinterpret_cast less type_id greater lparen expression rparen
-  | simple_type_specifier braced_init_list
-  | simple_type_specifier lparen expression_list? rparen
+  | simple_type_specifier(specs) ( braced_init_list
+                                 | lparen expression_list? rparen)
   | static_cast less type_id greater lparen expression rparen
   | typeid lparen expression rparen
   | typeid lparen type_id rparen
@@ -652,7 +675,7 @@ init_statement
 ;
 
 condition
-: attribute_specifier* decl_specifier_seq_followed_by_declarator declarator brace_or_equal_initializer
+: attribute_specifier* decl_specifier_seq declarator brace_or_equal_initializer
 | expression
 ;
 
@@ -684,7 +707,7 @@ iteration_statement
 
 for_range_declaration
 : attribute_specifier* decl_specifier_seq ref_qualifier? lbracket identifier_list rbracket
-| attribute_specifier* decl_specifier_seq_followed_by_declarator declarator
+| attribute_specifier* decl_specifier_seq declarator
 ;
 
 for_range_initializer
@@ -745,8 +768,8 @@ alias_declaration
 
 simple_declaration
 : attribute_specifier* decl_specifier_seq ref_qualifier? lbracket identifier_list rbracket initializer semicolon
-| attribute_specifier+ decl_specifier_seq_followed_by_declarator init_declarator_list semicolon
-| decl_specifier_seq_followed_by_declarator_or_semicolon? init_declarator_list? semicolon
+| attribute_specifier+ decl_specifier_seq init_declarator_list semicolon
+| decl_specifier_seq? init_declarator_list? semicolon
 ;
 
 static_assert_declaration
@@ -762,9 +785,9 @@ attribute_declaration
 : attribute_specifier+ semicolon
 ;
 
-decl_specifier
+decl_specifier(DeclSpecs& specs)
 : storage_class_specifier
-| defining_type_specifier
+| defining_type_specifier(specs)
 | function_specifier
 | friend
 | typedef
@@ -775,19 +798,10 @@ decl_specifier
 ;
 
 decl_specifier_seq
-: (decl_specifier attribute_specifier*)+
-;
-
-decl_specifier_seq_followed_by_declarator
-: ((decl_specifier attribute_specifier*) / (decl_specifier | declarator))+
-;
-
-decl_specifier_seq_followed_by_declarator_or_semicolon
-: ((decl_specifier attribute_specifier*) / (semicolon | decl_specifier | declarator))+
-;
-
-decl_specifier_seq_followed_by_abstract_declarator
-: ((decl_specifier attribute_specifier*) / (rparen | equal | comma | greater | dot_dot_dot | decl_specifier | abstract_declarator))+
+{
+  DeclSpecs specs;
+}
+: (decl_specifier(specs) attribute_specifier*)+
 ;
 
 storage_class_specifier
@@ -807,52 +821,62 @@ explicit_specifier
 | explicit
 ;
 
-type_specifier
-: simple_type_specifier
-| elaborated_type_specifier
-| typename_specifier
+type_specifier(DeclSpecs& specs)
+: simple_type_specifier(specs)
+| elaborated_type_specifier(specs)
+| typename_specifier { specs.has_named_typespec = true; }
 | cv_qualifier
 ;
 
 type_specifier_seq
-: (type_specifier attribute_specifier*)+
+{
+  DeclSpecs specs;
+}
+: (type_specifier(specs) attribute_specifier*)+
 ;
 
-type_specifier_seq_followed_by_declarator
-: ((type_specifier attribute_specifier*) / (type_specifier | declarator))+
-;
-
-defining_type_specifier
-: class_specifier
-| enum_specifier
-| type_specifier
+defining_type_specifier(DeclSpecs& specs)
+: class_specifier { specs.has_complex_typespec = true; }
+| enum_specifier  { specs.has_complex_typespec = true; }
+| type_specifier(specs)
 ;
 
 defining_type_specifier_seq
-: defining_type_specifier attribute_specifier*
-| defining_type_specifier defining_type_specifier_seq
+{
+  DeclSpecs specs;
+}
+: defining_type_specifier(specs)+ attribute_specifier*
 ;
 
-simple_type_specifier
-: nested_name_specifier template simple_template_id
-| nested_name_specifier? type_name
-| decltype_specifier
-| placeholder_type_specifier
-| nested_name_specifier? template_name
-| char
-| char8_t
-| char16_t
-| char32_t
-| wchar_t
-| bool
-| short
-| int
-| long
-| signed
-| unsigned
-| float
-| double
-| void
+simple_type_specifier(DeclSpecs& specs)
+: { return !specs.has_typespec(); }
+  ( nested_name_specifier ( template simple_template_id
+                          | type_name
+                          | template_name)
+  | type_name
+  | template_name) { specs.has_named_typespec = true; }
+
+| { return !specs.has_typespec(); }
+  placeholder_type_specifier { specs.has_placeholder_typespec = true; }
+
+| { return !specs.has_typespec(); }
+  decltype_specifier { specs.has_placeholder_typespec = true; }
+
+| { return specs.accepts_simple_typespec(); }
+  (char
+  | char8_t
+  | char16_t
+  | char32_t
+  | wchar_t
+  | bool
+  | short
+  | int
+  | long
+  | signed
+  | unsigned
+  | float
+  | double
+  | void) { specs.has_simple_typespec = true; }
 ;
 
 type_name
@@ -861,11 +885,15 @@ type_name
 | typedef_name
 ;
 
-elaborated_type_specifier
+elaborated_type_specifier(DeclSpecs& specs)
 : class_key nested_name_specifier template? simple_template_id
+  { specs.has_complex_typespec = true; }
 | class_key simple_template_id
+  { specs.has_complex_typespec = true; }
 | class_key attribute_specifier* nested_name_specifier? identifier
+  { specs.has_complex_typespec = true; }
 | elaborated_enum_specifier
+  { specs.has_complex_typespec = true; }
 ;
 
 elaborated_enum_specifier
@@ -980,7 +1008,7 @@ parameter_declaration_list
 ;
 
 parameter_declaration
-: attribute_specifier* decl_specifier_seq_followed_by_declarator declarator (equal initializer_clause)?
+: attribute_specifier* decl_specifier_seq declarator (equal initializer_clause)?
 | attribute_specifier* decl_specifier_seq abstract_declarator? (equal initializer_clause)?
 ;
 
@@ -1027,8 +1055,8 @@ expr_or_braced_init_list
 ;
 
 function_definition
-: attribute_specifier* decl_specifier_seq_followed_by_declarator? declarator requires_clause function_body
-| attribute_specifier* decl_specifier_seq_followed_by_declarator? declarator virt_specifier* function_body
+: attribute_specifier* decl_specifier_seq? declarator requires_clause function_body
+| attribute_specifier* decl_specifier_seq? declarator virt_specifier* function_body
 ;
 
 function_body
@@ -1265,7 +1293,7 @@ member_specification
 ;
 
 member_declaration
-: attribute_specifier* decl_specifier_seq_followed_by_declarator_or_semicolon? member_declarator_list? semicolon
+: attribute_specifier* decl_specifier_seq? member_declarator_list? semicolon
 | function_definition
 | using_declaration
 | using_enum_declaration
@@ -1520,7 +1548,7 @@ handler
 ;
 
 exception_declaration
-: attribute_specifier* type_specifier_seq_followed_by_declarator declarator
+: attribute_specifier* type_specifier_seq declarator
 | attribute_specifier* type_specifier_seq abstract_declarator?
 | dot_dot_dot?
 ;
