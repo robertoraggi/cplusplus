@@ -518,6 +518,7 @@ postfix_expression
   | __is_trivially_copyable lparen type_id rparen
   | __is_trivially_destructible lparen type_id rparen
   | __is_union lparen type_id rparen
+  | __reference_binds_to_temporary lparen type_id comma type_id rparen
   | primary_expression)
     ( dot template? id_expression
     | lbracket expr_or_braced_init_list rbracket
@@ -812,7 +813,7 @@ simple_declaration
 
 static_assert_declaration
 : static_assert lparen constant_expression rparen semicolon
-| static_assert lparen constant_expression comma string_literal rparen semicolon
+| static_assert lparen constant_expression comma string_literal+ rparen semicolon
 ;
 
 empty_declaration
@@ -1049,7 +1050,7 @@ abstract_pack_declarator
 ;
 
 noptr_abstract_pack_declarator
-: dot_dot_dot?
+: dot_dot_dot
     ( parameters_and_qualifiers
     | lbracket constant_expression? rbracket attribute_specifier_seq?)*
 ;
