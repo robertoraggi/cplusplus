@@ -541,8 +541,8 @@ delete_expression
 ;
 
 cast_expression
-: unary_expression
-| lparen type_id rparen cast_expression
+: lparen type_id rparen cast_expression
+| unary_expression
 ;
 
 pm_expression
