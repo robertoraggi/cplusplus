@@ -242,6 +242,7 @@
   V(__IS_TRIVIALLY_DESTRUCTIBLE, "__is_trivially_destructible")       \
   V(__IS_UNION, "__is_union")                                         \
   V(__REFERENCE_BINDS_TO_TEMPORARY, "__reference_binds_to_temporary") \
+  V(__RESTRICT, "__restrict")                                         \
   V(__UNDERLYING_TYPE, "__underlying_type")                           \
   V(_ATOMIC, "_Atomic")                                               \
   V(ALIGNAS, "alignas")                                               \

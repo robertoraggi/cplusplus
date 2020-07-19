@@ -42,12 +42,12 @@ target_link_libraries(CPlusPlus PUBLIC fmt::fmt)
 add_custom_command(OUTPUT parser-priv.h
     COMMAND pgen ${CMAKE_CURRENT_SOURCE_DIR}/src/cxx/parser.pgen -o parser-priv.h
     DEPENDS pgen src/cxx/parser.pgen
-    COMMENT "Generate ParserP.h")
+    COMMENT "Generate parser-priv.h")
 
 add_custom_command(OUTPUT keywords-priv.h
     COMMAND kwgen < ${CMAKE_CURRENT_SOURCE_DIR}/src/cxx/keywords.kwgen > keywords-priv.h
     DEPENDS kwgen src/cxx/keywords.kwgen
-    COMMENT "Generate KeywordsP.h")
+    COMMENT "Generate keywords-priv.h")
 
 add_executable(cxx-frontend src/frontend/frontend.cc)
 target_link_libraries(cxx-frontend CPlusPlus)

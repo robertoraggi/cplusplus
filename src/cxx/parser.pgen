@@ -28,6 +28,7 @@
     bool has_complex_typespec = false;
     bool has_named_typespec = false;
     bool has_placeholder_typespec = false;
+    bool no_typespecs = false;
 
     bool accepts_simple_typespec() const {
       return !(has_complex_typespec
@@ -115,8 +116,8 @@
 // keywords
 
 , __alignof
-, __attribute__
 , __attribute
+, __attribute__
 , __extension__
 , __has_unique_object_representations
 , __has_virtual_destructor
@@ -144,6 +145,7 @@
 , __is_trivially_destructible
 , __is_union
 , __reference_binds_to_temporary
+, __restrict
 , __underlying_type
 , _Atomic
 
@@ -227,6 +229,8 @@
 , volatile
 , wchar_t
 , while
+
+warn(const char* s): { unit->warning(yycursor, "%s", s); };
 
 id(const std::string_view& name): identifier
 {
@@ -486,6 +490,30 @@ postfix_expression
   | typeid lparen type_id rparen
   | typename_specifier braced_init_list
   | typename_specifier lparen expression_list? rparen
+  | __has_unique_object_representations lparen type_id rparen
+  | __has_virtual_destructor lparen type_id rparen
+  | __is_abstract lparen type_id rparen
+  | __is_aggregate lparen type_id rparen
+  | __is_base_of lparen type_id comma type_id rparen
+  | __is_class lparen type_id rparen
+  | __is_constructible lparen type_id comma type_id rparen
+  | __is_convertible_to lparen type_id comma type_id rparen
+  | __is_empty lparen type_id rparen
+  | __is_enum lparen type_id rparen
+  | __is_final lparen type_id rparen
+  | __is_function lparen type_id rparen
+  | __is_nothrow_assignable lparen type_id comma type_id rparen
+  | __is_nothrow_constructible lparen type_id comma type_id rparen
+  | __is_pod lparen type_id rparen
+  | __is_polymorphic lparen type_id rparen
+  | __is_same lparen type_id comma type_id rparen
+  | __is_standard_layout lparen type_id rparen
+  | __is_trivial lparen type_id rparen
+  | __is_trivially_assignable lparen type_id comma type_id rparen
+  | __is_trivially_constructible lparen type_id comma type_id rparen
+  | __is_trivially_copyable lparen type_id rparen
+  | __is_trivially_destructible lparen type_id rparen
+  | __is_union lparen type_id rparen
   | primary_expression)
     ( dot template? id_expression
     | lbracket expr_or_braced_init_list rbracket
@@ -509,6 +537,7 @@ unary_expression
 | sizeof lparen type_id rparen
 | sizeof dot_dot_dot lparen identifier rparen
 | alignof lparen type_id rparen
+| __alignof lparen type_id rparen
 | noexcept_expression
 | new_expression
 | delete_expression
@@ -588,36 +617,36 @@ compare_expression
 : shift_expression (less_equal_greater shift_expression)*
 ;
 
-relational_expression
-: compare_expression ((less_equal | greater_equal | less | greater) compare_expression)*
+relational_expression(bool templArg)
+: compare_expression ((less_equal | greater_equal | less | { return !templArg; } greater) compare_expression)*
 ;
 
-equality_expression
-: relational_expression ((equal_equal | exclaim_equal) relational_expression)*
+equality_expression(bool templArg)
+: relational_expression(templArg) ((equal_equal | exclaim_equal) relational_expression(templArg))*
 ;
 
-and_expression
-: equality_expression (amp equality_expression)*
+and_expression(bool templArg)
+: equality_expression(templArg) (amp equality_expression(templArg))*
 ;
 
-exclusive_or_expression
-: and_expression (caret and_expression)*
+exclusive_or_expression(bool templArg)
+: and_expression(templArg) (caret and_expression(templArg))*
 ;
 
-inclusive_or_expression
-: exclusive_or_expression (bar exclusive_or_expression)*
+inclusive_or_expression(bool templArg)
+: exclusive_or_expression(templArg) (bar exclusive_or_expression(templArg))*
 ;
 
-logical_and_expression
-: inclusive_or_expression (amp_amp inclusive_or_expression)*
+logical_and_expression(bool templArg)
+: inclusive_or_expression(templArg) (amp_amp inclusive_or_expression(templArg))*
 ;
 
-logical_or_expression
-: logical_and_expression (bar_bar logical_and_expression)*
+logical_or_expression(bool templArg)
+: logical_and_expression(templArg) (bar_bar logical_and_expression(templArg))*
 ;
 
-conditional_expression
-: logical_or_expression (question expression colon assignment_expression)?
+conditional_expression(bool templArg)
+: logical_or_expression(templArg) (question expression colon assignment_expression)?
 ;
 
 yield_expression
@@ -632,8 +661,8 @@ throw_expression
 assignment_expression
 : yield_expression
 | throw_expression
-| logical_or_expression assignment_operator initializer_clause
-| conditional_expression
+| logical_or_expression(false) assignment_operator initializer_clause
+| conditional_expression(false)
 ;
 
 assignment_operator
@@ -655,7 +684,11 @@ expression
 ;
 
 constant_expression
-: conditional_expression
+: conditional_expression(false)
+;
+
+template_argument_constant_expression
+: conditional_expression(true)
 ;
 
 statement
@@ -787,7 +820,7 @@ attribute_declaration
 
 decl_specifier(DeclSpecs& specs)
 : storage_class_specifier
-| defining_type_specifier(specs)
+| { return !specs.no_typespecs; } defining_type_specifier(specs)
 | function_specifier
 | friend
 | typedef
@@ -800,6 +833,14 @@ decl_specifier(DeclSpecs& specs)
 decl_specifier_seq
 {
   DeclSpecs specs;
+}
+: (decl_specifier(specs) attribute_specifier*)+
+;
+
+decl_specifier_seq_no_typespecs
+{
+  DeclSpecs specs;
+  specs.no_typespecs = true;
 }
 : (decl_specifier(specs) attribute_specifier*)+
 ;
@@ -862,6 +903,10 @@ simple_type_specifier(DeclSpecs& specs)
 | { return !specs.has_typespec(); }
   decltype_specifier { specs.has_placeholder_typespec = true; }
 
+| { return !specs.has_typespec(); }
+  __underlying_type lparen type_id rparen
+  { specs.has_named_typespec = true; }
+
 | { return specs.accepts_simple_typespec(); }
   (char
   | char8_t
@@ -919,17 +964,21 @@ init_declarator
 ;
 
 declarator
-: ptr_declarator
-| noptr_declarator parameters_and_qualifiers trailing_return_type
+: core_declarator parameters_and_qualifiers trailing_return_type
+| ptr_declarator
 ;
 
 ptr_declarator
 : ptr_operator* noptr_declarator
 ;
 
+core_declarator
+: declarator_id attribute_specifier*
+| lparen ptr_declarator rparen
+;
+
 noptr_declarator
-: ( declarator_id attribute_specifier*
-  | lparen ptr_declarator rparen)
+: core_declarator
       ( parameters_and_qualifiers
       | lbracket constant_expression? rbracket attribute_specifier*)*
 ;
@@ -952,6 +1001,7 @@ ptr_operator
 cv_qualifier
 : const
 | volatile
+| __restrict
 ;
 
 ref_qualifier
@@ -972,14 +1022,13 @@ defining_type_id
 ;
 
 abstract_declarator
-: ptr_abstract_declarator
-| noptr_abstract_declarator? parameters_and_qualifiers trailing_return_type
+: noptr_abstract_declarator? parameters_and_qualifiers trailing_return_type
 | abstract_pack_declarator
+| ptr_abstract_declarator
 ;
 
 ptr_abstract_declarator
-: ptr_operator ptr_abstract_declarator?
-| noptr_abstract_declarator
+: ptr_operator* noptr_abstract_declarator
 ;
 
 noptr_abstract_declarator
@@ -1055,7 +1104,9 @@ expr_or_braced_init_list
 ;
 
 function_definition
-: attribute_specifier* decl_specifier_seq? declarator requires_clause function_body
+: attribute_specifier* decl_specifier_seq_no_typespecs? declarator_id attribute_specifier* parameters_and_qualifiers requires_clause function_body
+| attribute_specifier* decl_specifier_seq_no_typespecs? declarator_id attribute_specifier* parameters_and_qualifiers virt_specifier* function_body
+| attribute_specifier* decl_specifier_seq? declarator requires_clause function_body
 | attribute_specifier* decl_specifier_seq? declarator virt_specifier* function_body
 ;
 
@@ -1293,7 +1344,8 @@ member_specification
 ;
 
 member_declaration
-: attribute_specifier* decl_specifier_seq? member_declarator_list? semicolon
+: attribute_specifier* decl_specifier_seq_no_typespecs? declarator_id attribute_specifier* parameters_and_qualifiers semicolon
+| attribute_specifier* decl_specifier_seq? member_declarator_list? semicolon
 | function_definition
 | using_declaration
 | using_enum_declaration
@@ -1502,12 +1554,12 @@ template_argument_list
 
 template_argument
 : type_id / (comma | greater | dot_dot_dot)
-| constant_expression / (comma | greater | dot_dot_dot)
-| compare_expression
+| template_argument_constant_expression / (comma | greater | dot_dot_dot)
+| id_expression
 ;
 
 constraint_expression
-: logical_or_expression
+: logical_or_expression(false)
 ;
 
 deduction_guide

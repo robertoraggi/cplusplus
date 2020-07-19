@@ -35,6 +35,7 @@ __is_trivially_copyable
 __is_trivially_destructible
 __is_union
 __reference_binds_to_temporary
+__restrict
 __underlying_type
 _Atomic
 
