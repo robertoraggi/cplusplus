@@ -225,7 +225,7 @@ greater_greater
 
 greater_greater_equal: greater nospace greater nospace equal;
 
-greater_equal: greater_equal nospace equal;
+greater_equal: greater nospace equal;
 
 header_name: { return false; };
 
@@ -388,7 +388,6 @@ fold_operator
 | amp
 | bar
 | less_less
-| greater_greater
 | plus_equal
 | minus_equal
 | star_equal
@@ -399,12 +398,13 @@ fold_operator
 | bar_equal
 | less_less_equal
 | greater_greater_equal
+| greater_greater
 | greater_equal
+| greater
 | equal
 | equal_equal
 | exclaim_equal
 | less
-| greater
 | less_equal
 | amp_amp
 | bar_bar
@@ -1391,18 +1391,18 @@ op
 | exclaim_equal
 | less
 | less_equal
+| greater_greater_equal
+| greater_greater
 | greater_equal
+| greater
 | less_equal_greater
 | amp_amp
 | bar_bar
 | less_less
-| greater_greater
 | less_less_equal
-| greater_greater_equal
 | plus_plus
 | minus_minus
 | comma
-| greater
 ;
 
 literal_operator_id
