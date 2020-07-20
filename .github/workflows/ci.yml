@@ -37,8 +37,6 @@ jobs:
       with:
         path: ~\AppData\Local\vcpkg
         key: vcpkg-cache
-        restore-keys: |
-          vcpkg-cache
 
     - name: Install dependencies
       run: |
