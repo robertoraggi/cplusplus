@@ -44,6 +44,18 @@
     }
   };
 
+  struct TemplArgContext {
+    TemplArgContext(const TemplArgContext&) = delete;
+    TemplArgContext& operator=(const TemplArgContext&) = delete;
+
+    Parser* p;
+
+    explicit TemplArgContext(Parser* p): p(p) { ++p->templArgDepth; }
+    ~TemplArgContext() { --p->templArgDepth; }
+  };
+
+  int templArgDepth = 0;
+
   bool yyparse(TranslationUnit* unit,
     const std::function<void(TranslationUnitAST*)>& consume);
 
@@ -615,16 +627,18 @@ additive_expression
 : multiplicative_expression ((plus | minus) multiplicative_expression)*
 ;
 
-shift_expression
-: additive_expression ((less_less | greater_greater) additive_expression)*
+shift_expression(bool templArg)
+: additive_expression
+    ((less_less | { if (templArg && templArgDepth >= 2) return false; } greater_greater)
+      additive_expression)*
 ;
 
-compare_expression
-: shift_expression (less_equal_greater shift_expression)*
+compare_expression(bool templArg)
+: shift_expression(templArg) (less_equal_greater shift_expression(templArg))*
 ;
 
 relational_expression(bool templArg)
-: compare_expression ((less_equal | greater_equal | less | { return !templArg; } greater) compare_expression)*
+: compare_expression(templArg) ((less_equal | greater_equal | less | { return !templArg; } greater) compare_expression(templArg))*
 ;
 
 equality_expression(bool templArg)
@@ -1584,6 +1598,9 @@ template_id
 ;
 
 template_argument_list
+{
+  TemplArgContext templArgContext(this);
+}
 : template_argument dot_dot_dot? (comma template_argument dot_dot_dot?)*
 ;
 

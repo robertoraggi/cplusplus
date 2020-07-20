@@ -174,12 +174,15 @@ TokenKind Lexer::readToken() {
         ++pos_;
       }
     }
+    bool ud = false;
     if (is_alpha(text_[pos_]) || text_[pos_] == '_') {
+      ud = true;
       do {
         ++pos_;
       } while (pos_ < end_ && is_idcont(text_[pos_]));
     }
-    return TokenKind::T_STRING_LITERAL;
+    return !ud ? TokenKind::T_STRING_LITERAL
+               : TokenKind::T_USER_DEFINED_STRING_LITERAL;
   }
 
   if (text_[pos_] == '\'') {
