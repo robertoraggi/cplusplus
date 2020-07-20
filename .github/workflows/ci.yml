@@ -12,9 +12,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-
-    - name: Update git submodules
-      run: git submodule update --init
+      with:
+        submodules: true
 
     - name: Install dependencies
       run: sudo apt update && sudo apt install --yes libfmt-dev libgflags-dev libgtest-dev build-essential cmake ninja-build
@@ -30,9 +29,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+      with:
+        submodules: true
 
-    - name: Update git submodules
-      run: git submodule update --init
+    - name: vcpkg binary cache info
+      run: vcpkg help binarycaching
 
     - name: Install dependencies
       run: |
