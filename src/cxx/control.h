@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <set>
+#include <string>
 #include <tuple>
 
 #include "cxx-fwd.h"
