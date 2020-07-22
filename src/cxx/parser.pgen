@@ -270,8 +270,6 @@ greater_equal: greater nospace equal;
 
 header_name: { return false; };
 
-balanced_token: { return false; };
-
 export_keyword: at_start_of_line export;
 import_keyword: at_start_of_line id("import");
 module_keyword: at_start_of_line id("module");
@@ -327,9 +325,11 @@ pointer_literal
 ;
 
 translation_unit
-: global_module_fragment? module_declaration declaration* private_module_fragment?
-| declaration*
+: global_module_fragment? module_declaration declaration_seq? private_module_fragment?
+| declaration_seq?
 ;
+
+declaration_seq: declaration+;
 
 primary_expression
 : literal
@@ -463,8 +463,10 @@ requirement_parameter_list
 ;
 
 requirement_body
-: lbrace requirement+ rbrace
+: lbrace requirement_seq rbrace
 ;
+
+requirement_seq: requirement+;
 
 requirement
 : simple_requirement
@@ -744,8 +746,10 @@ expression_statement
 ;
 
 compound_statement
-: lbrace statement* rbrace
+: lbrace statement_seq? rbrace
 ;
+
+statement_seq: statement+;
 
 selection_statement
 : if constexpr? lparen init_statement? condition rparen statement (else statement)?
@@ -829,8 +833,10 @@ simple_declaration
 
 static_assert_declaration
 : static_assert lparen constant_expression rparen semicolon
-| static_assert lparen constant_expression comma string_literal+ rparen semicolon
+| static_assert lparen constant_expression comma string_literal_seq rparen semicolon
 ;
+
+string_literal_seq: string_literal+;
 
 empty_declaration
 : semicolon
@@ -996,8 +1002,10 @@ declarator
 ;
 
 ptr_declarator
-: ptr_operator* noptr_declarator
+: ptr_operator_seq? noptr_declarator
 ;
+
+ptr_operator_seq: ptr_operator+;
 
 core_declarator
 : declarator_id attribute_specifier_seq?
@@ -1011,18 +1019,20 @@ noptr_declarator
 ;
 
 parameters_and_qualifiers
-: lparen parameter_declaration_clause rparen cv_qualifier* ref_qualifier? noexcept_specifier? attribute_specifier_seq?
+: lparen parameter_declaration_clause rparen cv_qualifier_seq? ref_qualifier? noexcept_specifier? attribute_specifier_seq?
 ;
+
+cv_qualifier_seq: cv_qualifier+;
 
 trailing_return_type
 : minus_greater type_id
 ;
 
 ptr_operator
-: star attribute_specifier_seq? cv_qualifier*
+: star attribute_specifier_seq? cv_qualifier_seq?
 | amp attribute_specifier_seq?
 | amp_amp attribute_specifier_seq?
-| nested_name_specifier star attribute_specifier_seq? cv_qualifier*
+| nested_name_specifier star attribute_specifier_seq? cv_qualifier_seq?
 ;
 
 cv_qualifier
@@ -1055,7 +1065,7 @@ abstract_declarator
 ;
 
 ptr_abstract_declarator
-: ptr_operator* noptr_abstract_declarator
+: ptr_operator_seq? noptr_abstract_declarator
 ;
 
 noptr_abstract_declarator
@@ -1065,7 +1075,7 @@ noptr_abstract_declarator
 ;
 
 abstract_pack_declarator
-: ptr_operator* noptr_abstract_pack_declarator
+: ptr_operator_seq? noptr_abstract_pack_declarator
 ;
 
 noptr_abstract_pack_declarator
@@ -1132,10 +1142,12 @@ expr_or_braced_init_list
 
 function_definition
 : __extension__? attribute_specifier_seq? decl_specifier_seq_no_typespecs? declarator_id attribute_specifier_seq? parameters_and_qualifiers requires_clause function_body
-| __extension__? attribute_specifier_seq? decl_specifier_seq_no_typespecs? declarator_id attribute_specifier_seq? parameters_and_qualifiers virt_specifier* function_body
+| __extension__? attribute_specifier_seq? decl_specifier_seq_no_typespecs? declarator_id attribute_specifier_seq? parameters_and_qualifiers virt_specifier_seq? function_body
 | __extension__? attribute_specifier_seq? decl_specifier_seq? declarator requires_clause function_body
-| __extension__? attribute_specifier_seq? decl_specifier_seq? declarator virt_specifier* function_body
+| __extension__? attribute_specifier_seq? decl_specifier_seq? declarator virt_specifier_seq? function_body
 ;
+
+virt_specifier_seq: virt_specifier+;
 
 function_body
 : { return skip_function_body; }
@@ -1227,7 +1239,7 @@ enclosing_namespace_specifier
 ;
 
 namespace_body
-: declaration*
+: declaration_seq?
 ;
 
 namespace_alias_definition
@@ -1259,7 +1271,7 @@ asm_declaration
 ;
 
 linkage_specification
-: extern string_literal lbrace declaration* rbrace
+: extern string_literal lbrace declaration_seq? rbrace
 | extern string_literal declaration
 ;
 
@@ -1271,7 +1283,7 @@ attribute_specifier
 : (__attribute | __attribute__) lparen skip_balanced rparen
 | lbracket lbracket attribute_using_prefix? attribute_list rbracket rbracket
 | alignment_specifier
-| (__asm | __asm__) lparen string_literal+ rparen
+| (__asm | __asm__) lparen string_literal_seq rparen
 ;
 
 skip_balanced
@@ -1301,10 +1313,8 @@ attribute_using_prefix
 ;
 
 attribute_list
-: attribute?
-| attribute_list comma attribute?
-| attribute dot_dot_dot?
-| attribute_list comma attribute dot_dot_dot?
+: (attribute dot_dot_dot? | attribute?)
+    (comma attribute? | attribute dot_dot_dot?)*
 ;
 
 attribute
@@ -1325,7 +1335,7 @@ attribute_namespace
 ;
 
 attribute_argument_clause
-: lparen balanced_token* rparen
+: lparen skip_balanced rparen
 ;
 
 module_declaration
@@ -1346,7 +1356,7 @@ module_name_qualifier
 
 export_declaration
 : export declaration
-| export lbrace declaration* rbrace
+| export lbrace declaration_seq? rbrace
 | export_keyword module_import_declaration
 ;
 
@@ -1357,11 +1367,11 @@ module_import_declaration
 ;
 
 global_module_fragment
-: module_keyword semicolon declaration*
+: module_keyword semicolon declaration_seq?
 ;
 
 private_module_fragment
-: module_keyword colon private semicolon declaration*
+: module_keyword colon private semicolon declaration_seq?
 ;
 
 class_specifier
@@ -1415,7 +1425,7 @@ member_declarator
 : identifier? attribute_specifier_seq? colon constant_expression brace_or_equal_initializer?
 | declarator ( requires_clause
              | brace_or_equal_initializer
-             | virt_specifier* pure_specifier?)
+             | virt_specifier_seq? pure_specifier?)
 ;
 
 virt_specifier
@@ -1640,16 +1650,18 @@ explicit_specialization
 ;
 
 try_block
-: try compound_statement handler+
+: try compound_statement handler_seq
 ;
 
 function_try_block
-: try ctor_initializer? compound_statement handler+
+: try ctor_initializer? compound_statement handler_seq
 ;
 
 handler
 : catch lparen exception_declaration rparen compound_statement
 ;
+
+handler_seq: handler+;
 
 exception_declaration
 : attribute_specifier_seq? type_specifier_seq declarator
