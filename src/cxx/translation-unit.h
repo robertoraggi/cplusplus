@@ -26,7 +26,6 @@
 #include <vector>
 
 #include "token.h"
-#include "types.h"
 
 namespace cxx {
 
@@ -38,7 +37,6 @@ class TranslationUnit {
   std::string yytext;
   std::string yycode;
   const char* yyptr = nullptr;
-  bool resolveSymbols_ = false;
   bool fatalErrors_ = false;
 
  public:
@@ -61,11 +59,6 @@ class TranslationUnit {
     initializeLineMap();
   }
 
-  bool resolveSymbols() const { return resolveSymbols_; }
-  void setResolveSymbols(bool resolveSymbols) {
-    resolveSymbols_ = resolveSymbols;
-  }
-
   bool fatalErrors() const { return fatalErrors_; }
   void setFatalErrors(bool fatalErrors) { fatalErrors_ = fatalErrors; }
 
@@ -81,13 +74,12 @@ class TranslationUnit {
   }
   int tokenLength(unsigned index) const;
   std::string_view tokenText(unsigned index) const;
-  const Identifier* identifier(unsigned index) const;
   void getTokenStartPosition(unsigned index, unsigned* line,
                              unsigned* column) const;
 
   // front end
   void tokenize();
-  bool parse(const std::function<void(TranslationUnitAST*)>& consume = nullptr);
+  bool parse(const std::function<void()>& consume = nullptr);
 
  private:
   void initializeLineMap();

@@ -26,20 +26,15 @@
 #include <cstring>
 #include <functional>
 
-#include "ast.h"
 #include "control.h"
 #include "lexer.h"
-#include "names.h"
-#include "symbols.h"
-#include "types.h"
 
 // generated keyword classifier
 #include "keywords-priv.h"
 
 namespace cxx {
 
-bool yyparse(TranslationUnit* unit,
-             const std::function<void(TranslationUnitAST*)>& consume);
+bool yyparse(TranslationUnit* unit, const std::function<void()>& consume);
 
 void TranslationUnit::initializeLineMap() {
   // ### remove
@@ -127,17 +122,11 @@ std::string_view TranslationUnit::tokenText(unsigned index) const {
     case TokenKind::T_CHARACTER_LITERAL:
     case TokenKind::T_INTEGER_LITERAL: {
       const Identifier* id = reinterpret_cast<const Identifier*>(tk.priv_);
-      return id->c_str();
+      return id->toString();
     }
     default:
       return Token::spell(tk.kind());
   }
-}
-
-const Identifier* TranslationUnit::identifier(unsigned index) const {
-  if (!index) return 0;
-  auto&& tk = tokens_[index];
-  return reinterpret_cast<const Identifier*>(tk.priv_);
 }
 
 void TranslationUnit::getTokenStartPosition(unsigned index, unsigned* line,
@@ -180,8 +169,7 @@ void TranslationUnit::tokenize() {
   } while (kind != TokenKind::T_EOF_SYMBOL);
 }
 
-bool TranslationUnit::parse(
-    const std::function<void(TranslationUnitAST*)>& consume) {
+bool TranslationUnit::parse(const std::function<void()>& consume) {
   if (tokens_.empty()) tokenize();
   return yyparse(this, consume);
 }

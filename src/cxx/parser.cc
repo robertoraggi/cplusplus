@@ -23,17 +23,10 @@
 #include <cstring>
 #include <iostream>
 
-#include "ast-visitor.h"
-#include "ast.h"
-#include "codegen.h"
+#include "arena.h"
 #include "control.h"
-#include "ir.h"
-#include "names.h"
-#include "parse-context.h"
-#include "symbols.h"
 #include "token.h"
 #include "translation-unit.h"
-#include "types.h"
 
 namespace cxx {
 
@@ -51,14 +44,12 @@ namespace cxx {
 
 TokenKind Parser::yytoken(int n) { return unit->tokenKind(yycursor + n); }
 
-bool yyparse(TranslationUnit* unit,
-             const std::function<void(TranslationUnitAST*)>& consume) {
+bool yyparse(TranslationUnit* unit, const std::function<void()>& consume) {
   Parser p;
   return p.yyparse(unit, consume);
 }
 
-bool Parser::yyparse(TranslationUnit* u,
-                     const std::function<void(TranslationUnitAST*)>& consume) {
+bool Parser::yyparse(TranslationUnit* u, const std::function<void()>& consume) {
   unit = u;
   control = unit->control();
   yydepth = -1;
@@ -68,8 +59,6 @@ bool Parser::yyparse(TranslationUnit* u,
   Arena arena;
   pool = &arena;
 
-  TranslationUnitAST* ast = nullptr;
-
   auto parsed = parse_translation_unit();
 
   if (parsed && yytoken() != TokenKind::T_EOF_SYMBOL)
@@ -77,7 +66,7 @@ bool Parser::yyparse(TranslationUnit* u,
 
   if (!parsed) unit->error(yyparsed, "syntax error");  // ### remove me
 
-  if (consume) consume(ast);
+  if (consume) consume();
 
   return parsed;
 }

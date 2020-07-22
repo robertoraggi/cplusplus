@@ -18,15 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <forward_list>
 #include <set>
+#include <tuple>
 
 #include "cxx-fwd.h"
-#include "names.h"
-#include "symbols.h"
-#include "types.h"
 
 namespace cxx {
+
+class Identifier : public std::tuple<std::string> {
+ public:
+  using tuple::tuple;
+  const std::string& toString() const { return std::get<0>(*this); }
+};
 
 class Control {
  public:
@@ -36,46 +39,13 @@ class Control {
   Control();
   ~Control();
 
-#define VISIT_TYPE(T) \
-  const T##Type* get##T##Type() { return T##Type::get(); }
-  FOR_EACH_SINGLETON_TYPE(VISIT_TYPE)
-#undef VISIT_TYPE
-
-#define VISIT_TYPE(T, X)                      \
-  const IntegerType* get##T##Type() {         \
-    return getIntegerType(IntegerKind::k##T); \
+  template <typename T>
+  const Identifier* getIdentifier(T&& name) {
+    return &*identifiers_.emplace(std::forward<T>(name)).first;
   }
-  FOR_EACH_INTEGER_TYPE(VISIT_TYPE)
-#undef VISIT_TYPE
 
-  template <typename T>
-  struct Table final : std::set<T> {
-    template <typename... Args>
-    const T* operator()(Args&&... args) {
-      return &*this->emplace(std::forward<Args>(args)...).first;
-    }
-  };
-
-  template <typename T>
-  struct Sequence final : std::forward_list<T> {
-    template <typename... Args>
-    T* operator()(Args&&... args) {
-      return &*this->emplace_after(this->before_begin(),
-                                   std::forward<Args>(args)...);
-    }
-  };
-
-#define VISIT_TYPE(T) Table<T##Type> get##T##Type;
-  FOR_EACH_OTHER_TYPE(VISIT_TYPE)
-#undef VISIT_TYPE
-
-#define VISIT_NAME(T) Table<T> get##T;
-  FOR_EACH_NAME(VISIT_NAME)
-#undef VISIT_NAME
-
-#define VISIT_SYMBOL(T) Sequence<T##Symbol> new##T;
-  FOR_EACH_SYMBOL(VISIT_SYMBOL)
-#undef VISIT_SYMBOL
+ private:
+  std::set<Identifier> identifiers_;
 };
 
 }  // namespace cxx

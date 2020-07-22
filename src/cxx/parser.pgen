@@ -56,8 +56,7 @@
 
   int templArgDepth = 0;
 
-  bool yyparse(TranslationUnit* unit,
-    const std::function<void(TranslationUnitAST*)>& consume);
+  bool yyparse(TranslationUnit* unit, const std::function<void()>& consume);
 
   TranslationUnit* unit = nullptr;
   Arena* pool = nullptr;
@@ -251,7 +250,7 @@ warn(const char* s): { unit->warning(yycursor, "%s", s); };
 
 id(const std::string_view& name): identifier
 {
-  return unit->identifier(yycursor - 1)->string() == name;
+  return unit->tokenText(yycursor - 1) == name;
 };
 
 nospace:

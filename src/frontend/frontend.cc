@@ -18,13 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/ast-visitor.h>
-#include <cxx/ast.h>
-#include <cxx/codegen.h>
 #include <cxx/control.h>
-#include <cxx/ir.h>
 #include <cxx/lexer.h>
-#include <cxx/symbols.h>
 #include <cxx/translation-unit.h>
 #include <fmt/format.h>
 #include <fmt/ostream.h>
@@ -35,24 +30,6 @@
 #include <string>
 
 namespace cxx {
-
-class DumpIR : protected RecursiveASTVisitor {
- public:
-  DumpIR(TranslationUnit* unit) : RecursiveASTVisitor(unit) {}
-
-  void operator()(AST* ast) { accept(ast); }
-
- protected:
-  void visit(FunctionDefinitionAST* ast) {
-    auto fun = ast->symbol;
-    printf("%s {\n", typeToString(fun->type(), fun->name()).c_str());
-    if (auto code = fun->code()) code->dump(std::cout);
-    printf("}\n\n");
-  }
-
- private:
-  TypeToString typeToString;
-};
 
 std::string readAll(const std::string& fileName, std::istream& in) {
   std::string code;
@@ -70,17 +47,14 @@ std::string readAll(const std::string& fileName) {
   return readAll(fileName, stream);
 }
 
-bool parseFile(
-    const std::string& fileName, bool resolveSymbols,
-    const std::function<void(TranslationUnit*, TranslationUnitAST*)>& consume) {
+bool parseFile(const std::string& fileName,
+               const std::function<void(TranslationUnit*)>& consume) {
   Control control;
   TranslationUnit unit(&control);
   unit.setFileName(fileName);
   unit.setSource(readAll(fileName));
-  unit.setResolveSymbols(resolveSymbols);
   unit.setFatalErrors(true);
-  return unit.parse(
-      [&unit, consume](TranslationUnitAST* ast) { consume(&unit, ast); });
+  return unit.parse([&unit, consume]() { consume(&unit); });
 }
 
 }  // namespace cxx
@@ -89,10 +63,6 @@ int main(int argc, char* argv[]) {
   using namespace cxx;
 
   std::vector<std::string> inputFiles;
-  bool dumpAST = false;
-  bool dumpSymbols = false;
-  bool dumpIR = false;
-  bool resolveSymbols = false;
   bool dumpTokens = false;
 
   int index = 1;
@@ -101,21 +71,9 @@ int main(int argc, char* argv[]) {
     if (arg == "--help") {
       std::cerr << "Usage: cplusplus [options] files..." << std::endl
                 << " The options are:" << std::endl
-                << "  --ast             dump the AST" << std::endl
-                << "  --ir              dump the IR code" << std::endl
-                << "  --symbols         dump the symbols" << std::endl
-                << "  --lookup          resolve symbols" << std::endl
                 << "  --help            display this output" << std::endl
                 << "  -dump-tokens      dump tokens" << std::endl;
       exit(EXIT_SUCCESS);
-    } else if (arg == "--ast") {
-      dumpAST = true;
-    } else if (arg == "--symbols") {
-      dumpSymbols = true;
-    } else if (arg == "--ir") {
-      dumpIR = true;
-    } else if (arg == "--lookup") {
-      resolveSymbols = true;
     } else if (arg == "--dump-tokens") {
       dumpTokens = true;
     } else {
@@ -154,21 +112,7 @@ int main(int argc, char* argv[]) {
       continue;
     }
 
-    parseFile(fileName, resolveSymbols,
-              [=](TranslationUnit* unit, TranslationUnitAST* ast) {
-                if (dumpAST) {
-                  DumpAST dump{unit};
-                  dump(ast);
-                }
-                if (dumpSymbols && ast) {
-                  assert(ast->globalScope);
-                  ast->globalScope->dump(std::cout, 0);
-                }
-                if (dumpIR && ast) {
-                  DumpIR dump{unit};
-                  dump(ast);
-                }
-              });
+    parseFile(fileName, [=](TranslationUnit* unit) {});
   }
 
   return EXIT_SUCCESS;
