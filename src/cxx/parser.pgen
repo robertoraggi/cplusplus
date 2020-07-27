@@ -56,16 +56,32 @@
 
   int templArgDepth = 0;
 
+  template <typename... Args>
+  bool parse_warn(const std::string_view& format, const Args&... args)
+  {
+    unit->report(yycursor, MessageKind::Warning, format, args...);
+    return true;
+  }
+
+  template <typename... Args>
+  bool parse_error(const std::string_view& format, const Args&... args)
+  {
+    unit->report(yycursor, MessageKind::Error, format, args...);
+    return true;
+  }
+
   bool yyparse(TranslationUnit* unit, const std::function<void()>& consume);
 
   TranslationUnit* unit = nullptr;
   Arena* pool = nullptr;
   Control* control = nullptr;
-  bool skip_function_body = true;
+  bool skip_function_body = false;
+  std::unordered_map<uint32_t, std::tuple<uint32_t, bool>> class_specifiers_;
+  std::unordered_map<uint32_t, std::tuple<uint32_t, bool>> nested_name_specifiers_;
 %}
 
 %token
-  eof
+  eof_symbol
 , error
 , identifier
 , character_literal
@@ -246,7 +262,8 @@
 , wchar_t
 , while
 
-warn(const char* s): { unit->warning(yycursor, "%s", s); };
+%extern warn
+%extern error
 
 id(const std::string_view& name): identifier
 {
@@ -308,7 +325,7 @@ literal
 : integer_literal
 | character_literal
 | floating_point_literal
-| string_literal
+| string_literal+
 | boolean_literal
 | pointer_literal
 | user_defined_literal
@@ -324,11 +341,42 @@ pointer_literal
 ;
 
 translation_unit
-: global_module_fragment? module_declaration declaration_seq? private_module_fragment?
-| declaration_seq?
+: eof_symbol
+| global_module_fragment? module_declaration declaration_seq? private_module_fragment? eof
+| top_level_declaration_seq eof
 ;
 
-declaration_seq: declaration+;
+eof
+: eof_symbol
+| error("unexpected eof")
+;
+
+top_level_declaration_seq
+{
+  bool skipping = false;
+}
+: ( declaration { skipping = false; }
+  | {
+      if (yytoken() == TokenKind::T_EOF_SYMBOL) return false;
+      if (!skipping) unit->report(yyparsed, MessageKind::Error, "expected a declaration");
+      yyconsume();
+      skipping = true;
+    })+
+;
+
+declaration_seq
+{
+  bool skipping = false;
+}
+: ( declaration { skipping = false; }
+  | {
+      if (yytoken() == TokenKind::T_EOF_SYMBOL) return false;
+      if (yytoken() == TokenKind::T_RBRACE) return false;
+      if (!skipping) unit->report(yyparsed, MessageKind::Error, "expected a declaration");
+      yyconsume();
+      skipping = true;
+    })+
+;
 
 primary_expression
 : literal
@@ -360,12 +408,30 @@ qualified_id
 ;
 
 nested_name_specifier
+{
+  const auto start = yycursor;
+  auto it = nested_name_specifiers_.find(start);
+  if (it != nested_name_specifiers_.end()) {
+    auto [cursor, parsed] = it->second;
+    yyrewind(cursor);
+    return parsed;
+  }
+  struct Context {
+    Parser* p;
+    uint32_t start;
+    bool parsed = false;
+    Context(Parser *p): p(p), start(p->yycursor) {}
+    ~Context() {
+      p->nested_name_specifiers_.emplace(start, std::make_tuple(p->yycursor, parsed));
+    }
+  } context(this);
+}
 : (colon_colon
   | type_name colon_colon
   | namespace_name colon_colon
   | decltype_specifier colon_colon)
       ( template? simple_template_id colon_colon
-      | identifier colon_colon)*
+      | identifier colon_colon)* { context.parsed = true; }
 ;
 
 lambda_expression
@@ -745,10 +811,27 @@ expression_statement
 ;
 
 compound_statement
-: lbrace statement_seq? rbrace
+: lbrace rbrace
+| lbrace statement_seq rbrace
 ;
 
-statement_seq: statement+;
+statement_seq
+{
+  bool skipping = false;
+}
+: ( statement { skipping = false; }
+  | {
+      if (yytoken() == TokenKind::T_EOF_SYMBOL) return false;
+      if (yytoken() == TokenKind::T_RBRACE) return false;
+      if (!skipping) unit->report(yycursor, MessageKind::Error, "expected a statement");
+      for (; yytoken() != TokenKind::T_EOF_SYMBOL; yyconsume()) {
+        if (yytoken() == TokenKind::T_SEMICOLON) break;
+        if (yytoken() == TokenKind::T_LBRACE) break;
+        if (yytoken() == TokenKind::T_RBRACE) break;
+      }
+      skipping = true;
+    })+
+;
 
 selection_statement
 : if constexpr? lparen init_statement? condition rparen statement (else statement)?
@@ -1374,7 +1457,37 @@ private_module_fragment
 ;
 
 class_specifier
-: class_head lbrace member_specification? rbrace
+{
+  const auto start = yycursor;
+  auto it = class_specifiers_.find(start);
+  if (it != class_specifiers_.end()) {
+    auto [cursor, parsed] = it->second;
+    yyrewind(cursor);
+    return parsed;
+  }
+}
+: class_head lbrace class_body? rbrace
+  {
+    class_specifiers_.emplace(start, std::make_tuple(yycursor, true));
+  }
+| {
+    class_specifiers_.emplace(start, std::make_tuple(yyparsed, false));
+    return false;
+  }
+;
+
+class_body
+{
+  bool skipping = false;
+}
+: ( member_specification { skipping = false; }
+  | {
+      if (yytoken() == TokenKind::T_EOF_SYMBOL) return false;
+      if (yytoken() == TokenKind::T_RBRACE) return false;
+      if (!skipping) unit->report(yyparsed, MessageKind::Error, "expected a declaration");
+      yyconsume();
+      skipping = true;
+    })+
 ;
 
 class_head
@@ -1397,12 +1510,12 @@ class_key
 ;
 
 member_specification
-: access_specifier colon member_specification?
-| member_declaration member_specification?
+: member_declaration
 ;
 
 member_declaration
-: __extension__? attribute_specifier_seq? decl_specifier_seq_no_typespecs? declarator_id attribute_specifier_seq? parameters_and_qualifiers semicolon
+: access_specifier colon
+| __extension__? attribute_specifier_seq? decl_specifier_seq_no_typespecs? declarator_id attribute_specifier_seq? parameters_and_qualifiers semicolon
 | __extension__? attribute_specifier_seq? decl_specifier_seq? member_declarator_list? semicolon
 | function_definition
 | using_declaration

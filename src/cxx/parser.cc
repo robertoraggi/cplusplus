@@ -61,11 +61,6 @@ bool Parser::yyparse(TranslationUnit* u, const std::function<void()>& consume) {
 
   auto parsed = parse_translation_unit();
 
-  if (parsed && yytoken() != TokenKind::T_EOF_SYMBOL)
-    parsed = false;  // expected EOF
-
-  if (!parsed) unit->error(yyparsed, "syntax error");  // ### remove me
-
   if (consume) consume();
 
   return parsed;

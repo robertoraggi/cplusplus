@@ -20,6 +20,11 @@
 
 #pragma once
 
+#include <fmt/format.h>
+#include <fmt/ostream.h>
+
+#include <cstdio>
+#include <cstdlib>
 #include <functional>
 #include <string>
 #include <string_view>
@@ -28,6 +33,8 @@
 #include "token.h"
 
 namespace cxx {
+
+enum struct MessageKind { Message, Warning, Error, Fatal };
 
 class TranslationUnit {
   Control* control_;
@@ -42,15 +49,18 @@ class TranslationUnit {
  public:
   TranslationUnit(Control* control) : control_(control) {}
   ~TranslationUnit() = default;
+
   Control* control() const { return control_; }
 
   const std::string& fileName() const { return yyfilename; }
+
   template <typename T>
   void setFileName(T&& fileName) {
     yyfilename = std::forward<T>(fileName);
   }
 
   const std::string& source() const { return yycode; }
+
   template <typename T>
   void setSource(T&& source) {
     yycode = std::forward<T>(source);
@@ -62,9 +72,41 @@ class TranslationUnit {
   bool fatalErrors() const { return fatalErrors_; }
   void setFatalErrors(bool fatalErrors) { fatalErrors_ = fatalErrors; }
 
-  void warning(unsigned index, const char* format...);
-  void error(unsigned index, const char* format...);
-  void fatal(unsigned index, const char* format...);
+  template <typename... Args>
+  void report(unsigned index, MessageKind kind, const std::string_view& format,
+              const Args&... args) {
+    unsigned line, column;
+    getTokenStartPosition(index, &line, &column);
+    std::string_view messageKind;
+    switch (kind) {
+      case MessageKind::Message:
+        messageKind = "message";
+        break;
+      case MessageKind::Warning:
+        messageKind = "warning";
+        break;
+      case MessageKind::Error:
+        messageKind = "error";
+        break;
+      case MessageKind::Fatal:
+        messageKind = "fatal";
+        break;
+    }  // switch
+
+    fmt::print(stderr, "{}:{}:{}: {}: ", yyfilename, line, column, messageKind);
+    fmt::vprint(stderr, format, fmt::make_format_args(args...));
+    fmt::print(stderr, "\n");
+
+    const auto start = lines_.at(line - 1) + 1;
+    const auto end = line < lines_.size() ? lines_.at(line) : yycode.size();
+    std::string cursor(column - 1, ' ');
+    cursor += "^";
+    fmt::print(stderr, "{}\n{}\n", yycode.substr(start, end - start), cursor);
+
+    if (kind == MessageKind::Fatal ||
+        (kind == MessageKind::Error && fatalErrors_))
+      exit(EXIT_FAILURE);
+  }
 
   // tokens
   inline unsigned tokenCount() const { return unsigned(tokens_.size()); }

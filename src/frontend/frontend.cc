@@ -53,7 +53,6 @@ bool parseFile(const std::string& fileName,
   TranslationUnit unit(&control);
   unit.setFileName(fileName);
   unit.setSource(readAll(fileName));
-  unit.setFatalErrors(true);
   return unit.parse([&unit, consume]() { consume(&unit); });
 }
 

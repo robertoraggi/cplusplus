@@ -21,10 +21,6 @@
 #include "translation-unit.h"
 
 #include <cassert>
-#include <cstdarg>
-#include <cstdlib>
-#include <cstring>
-#include <functional>
 
 #include "control.h"
 #include "lexer.h"
@@ -46,63 +42,6 @@ void TranslationUnit::initializeLineMap() {
       lines_.push_back(int(ptr - start));
     }
   }
-}
-
-void TranslationUnit::warning(unsigned index, const char* format...) {
-  unsigned line, column;
-  getTokenStartPosition(index, &line, &column);
-  fprintf(stderr, "%s:%d:%d: warning: ", yyfilename.c_str(), line, column);
-  va_list args, ap;
-  va_start(args, format);
-  va_copy(ap, args);
-  vfprintf(stderr, format, args);
-  va_end(ap);
-  va_end(args);
-  fprintf(stderr, "\n");
-
-  const auto start = lines_.at(line - 1) + 1;
-  const auto end = line < lines_.size() ? lines_.at(line) : yycode.size();
-  std::string textLine = yycode.substr(start, end - start);
-  std::string cursor(column - 1, ' ');
-  cursor += "^";
-  fprintf(stderr, "%s\n", textLine.c_str());
-  fprintf(stderr, "%s\n", cursor.c_str());
-}
-
-void TranslationUnit::error(unsigned index, const char* format...) {
-  unsigned line, column;
-  getTokenStartPosition(index, &line, &column);
-  fprintf(stderr, "%s:%d:%d: error: ", yyfilename.c_str(), line, column);
-  va_list args, ap;
-  va_start(args, format);
-  va_copy(ap, args);
-  vfprintf(stderr, format, args);
-  va_end(ap);
-  va_end(args);
-  fprintf(stderr, "\n");
-
-  const auto start = lines_.at(line - 1) + 1;
-  const auto end = line < lines_.size() ? lines_.at(line) : yycode.size();
-  std::string textLine = yycode.substr(start, end - start);
-  std::string cursor(column - 1, ' ');
-  cursor += "^";
-  fprintf(stderr, "%s\n", textLine.c_str());
-  fprintf(stderr, "%s\n", cursor.c_str());
-  if (fatalErrors_) exit(EXIT_FAILURE);
-}
-
-void TranslationUnit::fatal(unsigned index, const char* format...) {
-  unsigned line, column;
-  getTokenStartPosition(index, &line, &column);
-  fprintf(stderr, "%s:%d:%d: fatal: ", yyfilename.c_str(), line, column);
-  va_list args, ap;
-  va_start(args, format);
-  va_copy(ap, args);
-  vfprintf(stderr, format, args);
-  va_end(ap);
-  va_end(args);
-  fprintf(stderr, "\n");
-  exit(EXIT_FAILURE);
 }
 
 int TranslationUnit::tokenLength(unsigned index) const {
