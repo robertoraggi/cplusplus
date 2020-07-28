@@ -35,7 +35,7 @@ jobs:
     - uses: actions/cache@v2
       id: vcpkg-cache
       with:
-        path: ~\AppData\Local\vcpkg
+        path: ~\AppData\Local\vcpkg\archives
         key: vcpkg-cache
 
     - name: Install dependencies
