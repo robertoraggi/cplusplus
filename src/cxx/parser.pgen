@@ -70,6 +70,18 @@
     return true;
   }
 
+  bool parse_decl_specifier_seq_no_typespecs()
+  {
+    DeclSpecs specs;
+    return parse_decl_specifier_seq_no_typespecs(specs);
+  }
+
+  bool parse_decl_specifier_seq()
+  {
+    DeclSpecs specs;
+    return parse_decl_specifier_seq(specs);
+  }
+
   bool yyparse(TranslationUnit* unit, const std::function<void()>& consume);
 
   TranslationUnit* unit = nullptr;
@@ -479,9 +491,8 @@ init_capture
 ;
 
 fold_expression
-: lparen cast_expression fold_operator dot_dot_dot rparen
+: lparen cast_expression fold_operator dot_dot_dot (fold_operator cast_expression)? rparen
 | lparen dot_dot_dot fold_operator cast_expression rparen
-| lparen cast_expression fold_operator dot_dot_dot fold_operator cast_expression rparen
 ;
 
 fold_operator
@@ -823,7 +834,7 @@ statement_seq
   | {
       if (yytoken() == TokenKind::T_EOF_SYMBOL) return false;
       if (yytoken() == TokenKind::T_RBRACE) return false;
-      if (!skipping) unit->report(yycursor, MessageKind::Error, "expected a statement");
+      if (!skipping) unit->report(yyparsed, MessageKind::Error, "expected a statement");
       for (; yytoken() != TokenKind::T_EOF_SYMBOL; yyconsume()) {
         if (yytoken() == TokenKind::T_SEMICOLON) break;
         if (yytoken() == TokenKind::T_LBRACE) break;
@@ -907,15 +918,21 @@ alias_declaration
 ;
 
 simple_declaration
-: __extension__? attribute_specifier_seq? decl_specifier_seq ref_qualifier? lbracket identifier_list rbracket initializer semicolon
-| __extension__? attribute_specifier_seq? decl_specifier_seq_no_typespecs? declarator_id attribute_specifier_seq? parameters_and_qualifiers semicolon
-| __extension__? attribute_specifier_seq decl_specifier_seq init_declarator_list semicolon
-| __extension__? decl_specifier_seq? init_declarator_list? semicolon
+{
+  DeclSpecs specs;
+}
+: __extension__? attribute_specifier_seq? semicolon
+| __extension__? attribute_specifier_seq?
+    decl_specifier_seq_no_typespecs(specs)?
+        ( declarator_id attribute_specifier_seq? parameters_and_qualifiers semicolon
+        | decl_specifier_seq(specs)?
+          ({ return specs.has_typespec(); } ref_qualifier? lbracket identifier_list rbracket initializer semicolon
+          |{ return specs.has_complex_typespec; } semicolon
+          |{ return specs.has_typespec(); } init_declarator_list semicolon))
 ;
 
 static_assert_declaration
-: static_assert lparen constant_expression rparen semicolon
-| static_assert lparen constant_expression comma string_literal_seq rparen semicolon
+: static_assert lparen constant_expression (comma string_literal_seq)? rparen semicolon
 ;
 
 string_literal_seq: string_literal+;
@@ -942,16 +959,15 @@ decl_specifier(DeclSpecs& specs)
 | __inline__
 ;
 
-decl_specifier_seq
+decl_specifier_seq(DeclSpecs& specs)
 {
-  DeclSpecs specs;
+  specs.no_typespecs = false;
 }
 : (decl_specifier(specs) attribute_specifier_seq?)+
 ;
 
-decl_specifier_seq_no_typespecs
+decl_specifier_seq_no_typespecs(DeclSpecs& specs)
 {
-  DeclSpecs specs;
   specs.no_typespecs = true;
 }
 : (decl_specifier(specs) attribute_specifier_seq?)+
@@ -1074,8 +1090,7 @@ init_declarator_list
 ;
 
 init_declarator
-: declarator requires_clause
-| declarator initializer?
+: declarator (requires_clause | initializer?)
 ;
 
 declarator
@@ -1167,8 +1182,8 @@ noptr_abstract_pack_declarator
 ;
 
 parameter_declaration_clause
-: parameter_declaration_list comma dot_dot_dot?
-| parameter_declaration_list? dot_dot_dot?
+: parameter_declaration_list comma? dot_dot_dot?
+| dot_dot_dot?
 ;
 
 parameter_declaration_list
@@ -1176,8 +1191,8 @@ parameter_declaration_list
 ;
 
 parameter_declaration
-: attribute_specifier_seq? decl_specifier_seq declarator (equal initializer_clause)?
-| attribute_specifier_seq? decl_specifier_seq abstract_declarator? (equal initializer_clause)?
+: attribute_specifier_seq? decl_specifier_seq ( declarator (equal initializer_clause)?
+                                              | abstract_declarator? (equal initializer_clause)?)
 ;
 
 initializer
@@ -1196,9 +1211,9 @@ initializer_clause
 ;
 
 braced_init_list
-: lbrace initializer_list comma? rbrace
-| lbrace designated_initializer_list comma? rbrace
-| lbrace rbrace
+: lbrace comma? rbrace
+| lbrace / designator designated_initializer_list comma? rbrace
+| lbrace initializer_list comma? rbrace
 ;
 
 initializer_list
@@ -1223,10 +1238,13 @@ expr_or_braced_init_list
 ;
 
 function_definition
-: __extension__? attribute_specifier_seq? decl_specifier_seq_no_typespecs? declarator_id attribute_specifier_seq? parameters_and_qualifiers requires_clause function_body
-| __extension__? attribute_specifier_seq? decl_specifier_seq_no_typespecs? declarator_id attribute_specifier_seq? parameters_and_qualifiers virt_specifier_seq? function_body
-| __extension__? attribute_specifier_seq? decl_specifier_seq? declarator requires_clause function_body
-| __extension__? attribute_specifier_seq? decl_specifier_seq? declarator virt_specifier_seq? function_body
+{
+  DeclSpecs specs;
+}
+: __extension__? attribute_specifier_seq? decl_specifier_seq_no_typespecs(specs)?
+          ( declarator_id attribute_specifier_seq? parameters_and_qualifiers
+          | decl_specifier_seq(specs)? { return specs.has_typespec(); } declarator)
+    (requires_clause | virt_specifier_seq?) function_body
 ;
 
 virt_specifier_seq: virt_specifier+;
@@ -1256,8 +1274,8 @@ function_body
 ;
 
 enum_specifier
-: enum_head lbrace enumerator_list? rbrace
-| enum_head lbrace enumerator_list comma rbrace
+: enum_head lbrace rbrace
+| enum_head lbrace enumerator_list comma? rbrace
 ;
 
 enum_head
@@ -1491,8 +1509,7 @@ class_body
 ;
 
 class_head
-: class_key attribute_specifier_seq? class_head_name class_virt_specifier? base_clause?
-| class_key attribute_specifier_seq? base_clause?
+: class_key attribute_specifier_seq? (class_head_name class_virt_specifier?)? base_clause?
 ;
 
 class_head_name
@@ -1514,9 +1531,13 @@ member_specification
 ;
 
 member_declaration
+{
+  DeclSpecs specs;
+}
 : access_specifier colon
-| __extension__? attribute_specifier_seq? decl_specifier_seq_no_typespecs? declarator_id attribute_specifier_seq? parameters_and_qualifiers semicolon
-| __extension__? attribute_specifier_seq? decl_specifier_seq? member_declarator_list? semicolon
+| __extension__? attribute_specifier_seq? decl_specifier_seq_no_typespecs(specs)?
+        ( declarator_id attribute_specifier_seq? parameters_and_qualifiers member_declarator_suffix semicolon
+        | decl_specifier_seq(specs)? { return specs.has_typespec(); } member_declarator_list? semicolon)
 | function_definition
 | using_declaration
 | using_enum_declaration
@@ -1529,15 +1550,19 @@ member_declaration
 | empty_declaration
 ;
 
+member_declarator_suffix
+: requires_clause
+| brace_or_equal_initializer
+| virt_specifier_seq? pure_specifier?
+;
+
 member_declarator_list
 : member_declarator (comma member_declarator)*
 ;
 
 member_declarator
 : identifier? attribute_specifier_seq? colon constant_expression brace_or_equal_initializer?
-| declarator ( requires_clause
-             | brace_or_equal_initializer
-             | virt_specifier_seq? pure_specifier?)
+| declarator member_declarator_suffix
 ;
 
 virt_specifier
@@ -1570,15 +1595,14 @@ base_specifier_list
 ;
 
 base_specifier
-: attribute_specifier_seq? class_or_decltype
-| attribute_specifier_seq? virtual access_specifier? class_or_decltype
-| attribute_specifier_seq? access_specifier virtual? class_or_decltype
+: attribute_specifier_seq? (virtual access_specifier? | access_specifier virtual?)? class_or_decltype
 ;
 
 class_or_decltype
-: nested_name_specifier template simple_template_id
-| nested_name_specifier? type_name
+: nested_name_specifier ( template simple_template_id
+                        | type_name)
 | decltype_specifier
+| type_name
 ;
 
 access_specifier
@@ -1596,8 +1620,8 @@ mem_initializer_list
 ;
 
 mem_initializer
-: mem_initializer_id lparen expression_list? rparen
-| mem_initializer_id braced_init_list
+: mem_initializer_id ( lparen expression_list? rparen
+                     | braced_init_list)
 ;
 
 mem_initializer_id
@@ -1662,8 +1686,8 @@ literal_operator_id
 ;
 
 template_declaration
-: template_head concept_definition
-| template_head declaration
+: template_head ( concept_definition
+                | declaration)
 ;
 
 template_head
@@ -1776,8 +1800,7 @@ handler
 handler_seq: handler+;
 
 exception_declaration
-: attribute_specifier_seq? type_specifier_seq declarator
-| attribute_specifier_seq? type_specifier_seq abstract_declarator?
+: attribute_specifier_seq? type_specifier_seq (declarator | abstract_declarator?)
 | dot_dot_dot?
 ;
 
