@@ -16,9 +16,10 @@
 # COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-project(cplusplus)
 
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.16)
+
+project(cplusplus)
 
 find_package(fmt CONFIG REQUIRED)
 
@@ -54,7 +55,7 @@ target_link_libraries(cxx-frontend CPlusPlus)
 
 add_custom_target(unit
     DEPENDS tests/unit/source.cc
-    COMMAND clang++-10 -E -stdlib=libc++ -xc++ -std=c++20 ${CMAKE_CURRENT_SOURCE_DIR}/tests/unit/source.cc | grep -v ^\# > unit.cc
+    COMMAND clang++ -E -stdlib=libc++ -xc++ -std=c++20 ${CMAKE_CURRENT_SOURCE_DIR}/tests/unit/source.cc | grep -v ^\# > unit.cc
 )
 
 add_custom_target(unit.tokens

@@ -542,7 +542,8 @@ requirement_body
 : lbrace requirement_seq rbrace
 ;
 
-requirement_seq: requirement+;
+requirement_seq
+: requirement+;
 
 requirement
 : simple_requirement
@@ -759,8 +760,8 @@ throw_expression
 assignment_expression
 : yield_expression
 | throw_expression
-| logical_or_expression(false) assignment_operator initializer_clause
-| conditional_expression(false)
+| logical_or_expression(false)  ( assignment_operator initializer_clause
+                                | question expression colon assignment_expression)?
 ;
 
 assignment_operator
@@ -802,7 +803,7 @@ statement
 ;
 
 init_statement
-: simple_declaration
+: simple_declaration(false)
 | expression_statement
 ;
 
@@ -852,13 +853,14 @@ selection_statement
 iteration_statement
 : while lparen condition rparen statement
 | do statement while lparen expression rparen semicolon
-| for lparen init_statement condition? semicolon expression? rparen statement
-| for lparen init_statement? for_range_declaration colon for_range_initializer rparen statement
+| for lparen for_range_declaration colon for_range_initializer rparen statement
+| for lparen init_statement ( condition? semicolon expression? rparen statement
+                            | for_range_declaration colon for_range_initializer rparen statement)
 ;
 
 for_range_declaration
-: attribute_specifier_seq? decl_specifier_seq ref_qualifier? lbracket identifier_list rbracket
-| attribute_specifier_seq? decl_specifier_seq declarator
+: attribute_specifier_seq? decl_specifier_seq ( ref_qualifier? lbracket identifier_list rbracket
+                                              | declarator)
 ;
 
 for_range_initializer
@@ -868,7 +870,7 @@ for_range_initializer
 jump_statement
 : break semicolon
 | continue semicolon
-| return expr_or_braced_init_list? semicolon
+| return (semicolon | expr_or_braced_init_list semicolon)
 | coroutine_return_statement
 | goto identifier semicolon
 ;
@@ -878,13 +880,11 @@ coroutine_return_statement
 ;
 
 declaration_statement
-: block_declaration
+: block_declaration(false)
 ;
 
 declaration
-: block_declaration
-| nodeclspec_function_declaration
-| function_definition
+: block_declaration(true)
 | template_declaration
 | deduction_guide
 | explicit_instantiation
@@ -897,8 +897,8 @@ declaration
 | module_import_declaration
 ;
 
-block_declaration
-: simple_declaration
+block_declaration(bool fundef)
+: simple_declaration(fundef)
 | asm_declaration
 | namespace_alias_definition
 | using_declaration
@@ -909,33 +909,35 @@ block_declaration
 | opaque_enum_declaration
 ;
 
-nodeclspec_function_declaration
-: attribute_specifier_seq? declarator semicolon
-;
-
 alias_declaration
 : using identifier attribute_specifier_seq? equal defining_type_id semicolon
 ;
 
-simple_declaration
+simple_declaration(bool fundef)
 {
   DeclSpecs specs;
 }
-: __extension__? attribute_specifier_seq? semicolon
-| __extension__? attribute_specifier_seq?
-    decl_specifier_seq_no_typespecs(specs)?
-        ( declarator_id attribute_specifier_seq? parameters_and_qualifiers semicolon
+: __extension__? attribute_specifier_seq?
+    ( semicolon
+    | decl_specifier_seq_no_typespecs(specs)?
+        ( declarator_id attribute_specifier_seq? parameters_and_qualifiers (semicolon | function_definition_body)
         | decl_specifier_seq(specs)?
-          ({ return specs.has_typespec(); } ref_qualifier? lbracket identifier_list rbracket initializer semicolon
-          |{ return specs.has_complex_typespec; } semicolon
-          |{ return specs.has_typespec(); } init_declarator_list semicolon))
+          ({ return specs.has_complex_typespec; } semicolon
+          |{ return specs.has_typespec(); } ref_qualifier? lbracket identifier_list rbracket initializer semicolon
+          |{ return specs.has_typespec(); } declarator  ( declarator_initializer? (comma init_declarator)* semicolon
+                                                        | function_definition_body))))
+;
+
+function_definition_body
+: (requires_clause | virt_specifier_seq?) function_body
 ;
 
 static_assert_declaration
 : static_assert lparen constant_expression (comma string_literal_seq)? rparen semicolon
 ;
 
-string_literal_seq: string_literal+;
+string_literal_seq
+: string_literal+;
 
 empty_declaration
 : semicolon
@@ -1090,28 +1092,29 @@ init_declarator_list
 ;
 
 init_declarator
-: declarator (requires_clause | initializer?)
+: declarator declarator_initializer?
+;
+
+declarator_initializer
+: requires_clause
+| initializer
 ;
 
 declarator
-: core_declarator parameters_and_qualifiers trailing_return_type
-| ptr_declarator
-;
-
-ptr_declarator
 : ptr_operator_seq? noptr_declarator
 ;
 
-ptr_operator_seq: ptr_operator+;
+ptr_operator_seq
+: ptr_operator+;
 
 core_declarator
 : declarator_id attribute_specifier_seq?
-| lparen ptr_declarator rparen
+| lparen declarator rparen
 ;
 
 noptr_declarator
 : core_declarator
-    ( parameters_and_qualifiers
+    ( parameters_and_qualifiers trailing_return_type?
     | lbracket constant_expression? rbracket attribute_specifier_seq?)*
 ;
 
@@ -1119,7 +1122,8 @@ parameters_and_qualifiers
 : lparen parameter_declaration_clause rparen cv_qualifier_seq? ref_qualifier? noexcept_specifier? attribute_specifier_seq?
 ;
 
-cv_qualifier_seq: cv_qualifier+;
+cv_qualifier_seq
+: cv_qualifier+;
 
 trailing_return_type
 : minus_greater type_id
@@ -1237,17 +1241,8 @@ expr_or_braced_init_list
 | braced_init_list
 ;
 
-function_definition
-{
-  DeclSpecs specs;
-}
-: __extension__? attribute_specifier_seq? decl_specifier_seq_no_typespecs(specs)?
-          ( declarator_id attribute_specifier_seq? parameters_and_qualifiers
-          | decl_specifier_seq(specs)? { return specs.has_typespec(); } declarator)
-    (requires_clause | virt_specifier_seq?) function_body
-;
-
-virt_specifier_seq: virt_specifier+;
+virt_specifier_seq
+: virt_specifier+;
 
 function_body
 : { return skip_function_body; }
@@ -1536,9 +1531,8 @@ member_declaration
 }
 : access_specifier colon
 | __extension__? attribute_specifier_seq? decl_specifier_seq_no_typespecs(specs)?
-        ( declarator_id attribute_specifier_seq? parameters_and_qualifiers member_declarator_suffix semicolon
-        | decl_specifier_seq(specs)? { return specs.has_typespec(); } member_declarator_list? semicolon)
-| function_definition
+        ( declarator_id attribute_specifier_seq? parameters_and_qualifiers (member_declarator_addition semicolon | member_function_definition_body)
+        | decl_specifier_seq(specs)? { return specs.has_typespec(); } (member_declarator_list? semicolon | declarator member_function_definition_body))
 | using_declaration
 | using_enum_declaration
 | static_assert_declaration
@@ -1550,7 +1544,11 @@ member_declaration
 | empty_declaration
 ;
 
-member_declarator_suffix
+member_function_definition_body
+: (requires_clause | virt_specifier_seq?) function_body
+;
+
+member_declarator_addition
 : requires_clause
 | brace_or_equal_initializer
 | virt_specifier_seq? pure_specifier?
@@ -1562,7 +1560,7 @@ member_declarator_list
 
 member_declarator
 : identifier? attribute_specifier_seq? colon constant_expression brace_or_equal_initializer?
-| declarator member_declarator_suffix
+| declarator member_declarator_addition
 ;
 
 virt_specifier
@@ -1797,7 +1795,8 @@ handler
 : catch lparen exception_declaration rparen compound_statement
 ;
 
-handler_seq: handler+;
+handler_seq
+: handler+;
 
 exception_declaration
 : attribute_specifier_seq? type_specifier_seq (declarator | abstract_declarator?)
