@@ -23,6 +23,30 @@
 %token-type TokenKind
 
 %{
+  enum struct DeclaratorComponent {
+    kDeclaratorId,
+    kNested,
+    kPointer,
+    kParametersAndQualifiers,
+    kArray,
+  };
+
+  using Declarator = std::vector<DeclaratorComponent>;
+
+  bool isFunctionDeclarator(const Declarator& decl) {
+    for (auto d: decl) {
+      if (d == DeclaratorComponent::kNested) continue;
+      if (d == DeclaratorComponent::kDeclaratorId) continue;
+      switch (d) {
+        case DeclaratorComponent::kParametersAndQualifiers:
+          return true;
+        default:
+          return false;
+      }
+    }
+    return false;
+  }
+
   struct DeclSpecs {
     bool has_simple_typespec = false;
     bool has_complex_typespec = false;
@@ -80,6 +104,12 @@
   {
     DeclSpecs specs;
     return parse_decl_specifier_seq(specs);
+  }
+
+  bool parse_declarator()
+  {
+    Declarator decl;
+    return parse_declarator(decl);
   }
 
   bool yyparse(TranslationUnit* unit, const std::function<void()>& consume);
@@ -916,6 +946,7 @@ alias_declaration
 simple_declaration(bool fundef)
 {
   DeclSpecs specs;
+  Declarator decl;
 }
 : __extension__? attribute_specifier_seq?
     ( semicolon
@@ -924,8 +955,9 @@ simple_declaration(bool fundef)
         | decl_specifier_seq(specs)?
           ({ return specs.has_complex_typespec; } semicolon
           |{ return specs.has_typespec(); } ref_qualifier? lbracket identifier_list rbracket initializer semicolon
-          |{ return specs.has_typespec(); } declarator  ( declarator_initializer? (comma init_declarator)* semicolon
-                                                        | function_definition_body))))
+          |{ return specs.has_typespec(); } declarator(decl)
+              ( declarator_initializer? (comma init_declarator)* semicolon
+              | { return isFunctionDeclarator(decl); } function_definition_body))))
 ;
 
 function_definition_body
@@ -1100,22 +1132,26 @@ declarator_initializer
 | initializer
 ;
 
-declarator
-: ptr_operator_seq? noptr_declarator
+declarator(Declarator& decl)
+: ptr_operator declarator(decl) { decl.push_back(DeclaratorComponent::kPointer); }
+| noptr_declarator(decl)
 ;
 
 ptr_operator_seq
 : ptr_operator+;
 
-core_declarator
-: declarator_id attribute_specifier_seq?
-| lparen declarator rparen
+core_declarator(Declarator& decl)
+: declarator_id attribute_specifier_seq? { decl.push_back(DeclaratorComponent::kDeclaratorId); }
+| lparen declarator(decl) rparen { decl.push_back(DeclaratorComponent::kNested); }
 ;
 
-noptr_declarator
-: core_declarator
+noptr_declarator(Declarator& decl)
+: core_declarator(decl)
     ( parameters_and_qualifiers trailing_return_type?
-    | lbracket constant_expression? rbracket attribute_specifier_seq?)*
+        { decl.push_back(DeclaratorComponent::kParametersAndQualifiers); }
+    | lbracket constant_expression? rbracket attribute_specifier_seq?
+        { decl.push_back(DeclaratorComponent::kArray); }
+    )*
 ;
 
 parameters_and_qualifiers
@@ -1528,11 +1564,15 @@ member_specification
 member_declaration
 {
   DeclSpecs specs;
+  Declarator decl;
 }
 : access_specifier colon
 | __extension__? attribute_specifier_seq? decl_specifier_seq_no_typespecs(specs)?
-        ( declarator_id attribute_specifier_seq? parameters_and_qualifiers (member_declarator_addition semicolon | member_function_definition_body)
-        | decl_specifier_seq(specs)? { return specs.has_typespec(); } (member_declarator_list? semicolon | declarator member_function_definition_body))
+        ( declarator_id attribute_specifier_seq? parameters_and_qualifiers
+            (member_declarator_addition semicolon | member_function_definition_body)
+        | decl_specifier_seq(specs)? { return specs.has_typespec(); }
+            ( member_declarator_list? semicolon
+            | declarator(decl) { return isFunctionDeclarator(decl); } member_function_definition_body))
 | using_declaration
 | using_enum_declaration
 | static_assert_declaration
