@@ -15,14 +15,11 @@ jobs:
       with:
         submodules: true
 
-    - name: Install dependencies
-      run: sudo apt update && sudo apt install --yes libfmt-dev libgflags-dev libgtest-dev build-essential cmake ninja-build
-
     - name: Build
       run: |
-        mkdir -p build && cd build
-        cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=1 ..
-        cmake --build .
+        mkdir -p build
+        cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=1 .
+        cmake --build build
 
   build-windows:
     runs-on: windows-latest
@@ -41,9 +38,8 @@ jobs:
     - name: Build
       run: |
         mkdir build
-        cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=C:\Vcpkg\scripts\buildsystems\vcpkg.cmake ..
-        cmake --build .
+        cmake -Bbuild -DCMAKE_TOOLCHAIN_FILE=C:\Vcpkg\scripts\buildsystems\vcpkg.cmake .
+        cmake --build build
 
   build-emscripten:
     runs-on: ubuntu-20.04
@@ -63,4 +59,21 @@ jobs:
       run: |
         mkdir -p build
         emcmake cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_CROSSCOMPILING_EMULATOR=$(which node) .
+        cmake --build build
+
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+
+    - name: Install dependencies
+      run: brew install fmt gflags ninja
+
+    - name: Build
+      run: |
+        mkdir -p build
+        cmake -Bbuild -G Ninja -DCMAKE_BUILD_TYPE=Release .
         cmake --build build
