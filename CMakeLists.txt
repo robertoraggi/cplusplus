@@ -67,6 +67,14 @@ add_custom_command(OUTPUT keywords-priv.h
 add_executable(cxx-frontend src/frontend/frontend.cc)
 target_link_libraries(cxx-frontend CPlusPlus)
 
+if(EMSCRIPTEN)
+    target_link_options(cxx-frontend PUBLIC
+    "SHELL:-s EXIT_RUNTIME=1"
+    "SHELL:-s NODERAWFS=1"
+    "SHELL:-s ALLOW_MEMORY_GROWTH=1"
+    )
+endif()
+
 add_custom_target(unit
     DEPENDS tests/unit/source.cc
     COMMAND clang++ -E -stdlib=libc++ -xc++ -std=c++20 ${CMAKE_CURRENT_SOURCE_DIR}/tests/unit/source.cc | grep -v ^\# > unit.cc

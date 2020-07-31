@@ -22,6 +22,7 @@
 #include <cassert>
 #include <cstring>
 #include <iostream>
+#include <unordered_map>
 
 #include "arena.h"
 #include "control.h"

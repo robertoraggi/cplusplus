@@ -26,5 +26,13 @@ set(CMAKE_CXX_STANDARD 17)
 aux_source_directory(. SOURCES)
 add_executable(kwgen ${SOURCES})
 
+if(EMSCRIPTEN)
+    target_link_options(kwgen PUBLIC
+        "SHELL:-s EXIT_RUNTIME=1"
+        "SHELL:-s NODERAWFS=1"
+        "SHELL:-s ALLOW_MEMORY_GROWTH=1"
+    )
+endif()
+
 install(TARGETS kwgen EXPORT kwgen-targets DESTINATION bin)
 install(EXPORT kwgen-targets DESTINATION lib/kwgen)
