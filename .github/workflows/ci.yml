@@ -44,3 +44,23 @@ jobs:
         cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=C:\Vcpkg\scripts\buildsystems\vcpkg.cmake ..
         cmake --build .
+
+  build-emscripten:
+    runs-on: ubuntu-20.04
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+
+    - name: Setup emsdk
+      uses: mymindstorm/setup-emsdk@v6
+      with:
+        version: 1.39.20
+        actions-cache-folder: 'emsdk-cache'
+
+    - name: Build
+      run: |
+        mkdir -p build
+        emcmake cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_CROSSCOMPILING_EMULATOR=$(which node) .
+        cmake --build build
