@@ -21,7 +21,21 @@ cmake_minimum_required(VERSION 3.16)
 
 project(cplusplus)
 
-find_package(fmt CONFIG REQUIRED)
+include(FetchContent)
+
+find_package(fmt 6.1.2 CONFIG QUIET)
+
+if(NOT fmt_FOUND)
+    message(STATUS "fetching fmt")
+
+    FetchContent_Declare(
+        fmt
+        GIT_REPOSITORY https://github.com/fmtlib/fmt
+        GIT_TAG        7.0.2
+    )
+
+    FetchContent_MakeAvailable(fmt)
+endif()
 
 set(CMAKE_CXX_STANDARD 20)
 

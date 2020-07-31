@@ -38,10 +38,6 @@ jobs:
         path: ~\AppData\Local\vcpkg\archives
         key: vcpkg-cache
 
-    - name: Install dependencies
-      run: |
-        vcpkg install --triplet x64-windows fmt gflags gtest
-
     - name: Build
       run: |
         mkdir build
