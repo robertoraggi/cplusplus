@@ -23,6 +23,44 @@
 %token-type TokenKind
 
 %{
+  struct DeclarativeRegion {
+    DeclarativeRegion* enclosing;
+
+    explicit DeclarativeRegion(DeclarativeRegion* enclosing)
+      : enclosing(enclosing) {}
+
+    struct Context {
+      Context(const Context&) = delete;
+      Context& operator=(const Context&) = delete;
+
+      Parser* p;
+      DeclarativeRegion* savedRegion_;
+
+      explicit Context(Parser* p): p(p), savedRegion_(p->currentRegion_) {}
+
+      ~Context() { p->currentRegion_ = savedRegion_; }
+
+      void enter(DeclarativeRegion* region = nullptr) {
+        if (!region)
+          region = p->newDeclarativeRegion(savedRegion_);
+
+        p->currentRegion_ = region;
+      }
+
+      void leave()
+      {
+        p->currentRegion_ = savedRegion_;
+      }
+    };
+  };
+
+  DeclarativeRegion* newDeclarativeRegion(DeclarativeRegion* enclosing) {
+    return &regions_.emplace_front(DeclarativeRegion(enclosing));
+  }
+
+  DeclarativeRegion* currentRegion_ = nullptr;
+  std::forward_list<DeclarativeRegion> regions_;
+
   enum struct Prec {
     kLogicalOr,
     kLogicalAnd,
@@ -120,6 +158,7 @@
     bool has_named_typespec = false;
     bool has_placeholder_typespec = false;
     bool no_typespecs = false;
+    bool no_class_or_enum_specs = false;
 
     bool accepts_simple_typespec() const {
       return !(has_complex_typespec
@@ -450,9 +489,25 @@ pointer_literal
 ;
 
 translation_unit
+{
+  DeclarativeRegion::Context region(this);
+  region.enter();
+}
 : eof_symbol
-| global_module_fragment? module_declaration declaration_seq? private_module_fragment? eof
+| module_unit
 | top_level_declaration_seq eof
+;
+
+enter(DeclarativeRegion::Context& context)
+: { context.enter(); }
+;
+
+leave(DeclarativeRegion::Context& context)
+: { context.leave(); }
+;
+
+module_unit
+: global_module_fragment? module_declaration declaration_seq? private_module_fragment? eof
 ;
 
 eof
@@ -544,7 +599,10 @@ nested_name_specifier
 ;
 
 lambda_expression
-: lambda_introducer less template_parameter_list greater requires_clause? lambda_declarator? compound_statement
+{
+  DeclarativeRegion::Context region(this);
+}
+: lambda_introducer less enter(region) template_parameter_list greater requires_clause? lambda_declarator? compound_statement
 | lambda_introducer lambda_declarator? compound_statement
 ;
 
@@ -920,8 +978,11 @@ expression_statement
 ;
 
 compound_statement
+{
+  DeclarativeRegion::Context region(this);
+}
 : lbrace rbrace
-| lbrace statement_seq rbrace
+| lbrace enter(region) statement_seq rbrace
 ;
 
 statement_seq
@@ -982,10 +1043,10 @@ declaration_statement
 
 declaration
 : block_declaration(true)
-| template_declaration
-| deduction_guide
 | explicit_instantiation
 | explicit_specialization
+| template_declaration
+| deduction_guide
 | export_declaration
 | linkage_specification
 | namespace_definition
@@ -1101,20 +1162,18 @@ type_specifier(DeclSpecs& specs)
 type_specifier_seq
 {
   DeclSpecs specs;
+  specs.no_class_or_enum_specs = true;
 }
 : (type_specifier(specs) attribute_specifier_seq?)+
 ;
 
 defining_type_specifier(DeclSpecs& specs)
-: class_specifier { specs.has_complex_typespec = true; }
-| enum_specifier  { specs.has_complex_typespec = true; }
+: { return !specs.no_class_or_enum_specs; } class_specifier { specs.has_complex_typespec = true; }
+| { return !specs.no_class_or_enum_specs; } enum_specifier  { specs.has_complex_typespec = true; }
 | type_specifier(specs)
 ;
 
-defining_type_specifier_seq
-{
-  DeclSpecs specs;
-}
+defining_type_specifier_seq(DeclSpecs& specs)
 : defining_type_specifier(specs)+ attribute_specifier_seq?
 ;
 
@@ -1222,7 +1281,10 @@ noptr_declarator(Declarator& decl)
 ;
 
 parameters_and_qualifiers
-: lparen parameter_declaration_clause rparen cv_qualifier_seq? ref_qualifier? noexcept_specifier? attribute_specifier_seq?
+{
+  DeclarativeRegion::Context region(this);
+}
+: lparen enter(region) parameter_declaration_clause rparen cv_qualifier_seq? ref_qualifier? noexcept_specifier? attribute_specifier_seq?
 ;
 
 cv_qualifier_seq
@@ -1259,7 +1321,11 @@ type_id
 ;
 
 defining_type_id
-: defining_type_specifier_seq abstract_declarator?
+{
+  DeclSpecs specs;
+  specs.no_class_or_enum_specs = true;
+}
+: defining_type_specifier_seq(specs) abstract_declarator?
 ;
 
 abstract_declarator
@@ -1298,8 +1364,13 @@ parameter_declaration_list
 ;
 
 parameter_declaration
-: attribute_specifier_seq? decl_specifier_seq ( declarator (equal initializer_clause)?
-                                              | abstract_declarator? (equal initializer_clause)?)
+{
+  DeclSpecs specs;
+  specs.no_class_or_enum_specs = true;
+}
+: attribute_specifier_seq? decl_specifier_seq(specs)
+    ( declarator (equal initializer_clause)?
+    | abstract_declarator? (equal initializer_clause)?)
 ;
 
 initializer
@@ -1372,8 +1443,11 @@ function_body
 ;
 
 enum_specifier
+{
+  DeclarativeRegion::Context region(this);
+}
 : enum_head lbrace rbrace
-| enum_head lbrace enumerator_list comma? rbrace
+| enum_head lbrace enter(region) enumerator_list comma? rbrace
 ;
 
 enum_head
@@ -1421,15 +1495,24 @@ namespace_definition
 ;
 
 named_namespace_definition
-: inline? namespace attribute_specifier_seq? identifier lbrace namespace_body rbrace
+{
+  DeclarativeRegion::Context region(this);
+}
+: inline? namespace attribute_specifier_seq? identifier lbrace enter(region) namespace_body rbrace
 ;
 
 unnamed_namespace_definition
-: inline? namespace attribute_specifier_seq? lbrace namespace_body rbrace
+{
+  DeclarativeRegion::Context region(this);
+}
+: inline? namespace attribute_specifier_seq? lbrace enter(region) namespace_body rbrace
 ;
 
 nested_namespace_definition
-: namespace enclosing_namespace_specifier colon_colon inline? identifier lbrace namespace_body rbrace
+{
+  DeclarativeRegion::Context region(this);
+}
+: namespace enclosing_namespace_specifier colon_colon inline? identifier lbrace enter(region) namespace_body rbrace
 ;
 
 enclosing_namespace_specifier
@@ -1581,8 +1664,9 @@ class_specifier
     yyrewind(cursor);
     return parsed;
   }
+  DeclarativeRegion::Context region(this);
 }
-: class_head lbrace class_body? rbrace
+: class_head lbrace enter(region) class_body? rbrace
   {
     class_specifiers_.emplace(start, std::make_tuple(yycursor, true));
   }
@@ -1796,7 +1880,10 @@ template_declaration
 ;
 
 template_head
-: template less template_parameter_list greater requires_clause?
+{
+  DeclarativeRegion::Context region(this);
+}
+: template less enter(region) template_parameter_list greater requires_clause?
 ;
 
 template_parameter_list

@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstring>
+#include <forward_list>
 #include <iostream>
 #include <unordered_map>
 
