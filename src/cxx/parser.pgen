@@ -23,6 +23,73 @@
 %token-type TokenKind
 
 %{
+  enum struct Prec {
+    kLogicalOr,
+    kLogicalAnd,
+    kInclusiveOr,
+    kExclusiveOr,
+    kAnd,
+    kEquality,
+    kRelational,
+    kCompare,
+    kShift,
+    kAdditive,
+    kMultiplicative,
+    kPm,
+  };
+
+  static Prec prec(TokenKind tk) {
+    switch (tk) {
+    default:
+      std::runtime_error("expected a binary operator");
+
+    case TokenKind::T_DOT_STAR:
+    case TokenKind::T_MINUS_GREATER_STAR:
+      return Prec::kPm;
+
+    case TokenKind::T_STAR:
+    case TokenKind::T_SLASH:
+    case TokenKind::T_PERCENT:
+      return Prec::kMultiplicative;
+
+    case TokenKind::T_PLUS:
+    case TokenKind::T_MINUS:
+      return Prec::kAdditive;
+
+    case TokenKind::T_LESS_LESS:
+    case TokenKind::T_GREATER_GREATER:
+      return Prec::kShift;
+
+    case TokenKind::T_LESS_EQUAL_GREATER:
+      return Prec::kCompare;
+
+    case TokenKind::T_LESS_EQUAL:
+    case TokenKind::T_GREATER_EQUAL:
+    case TokenKind::T_LESS:
+    case TokenKind::T_GREATER:
+      return Prec::kRelational;
+
+    case TokenKind::T_EQUAL_EQUAL:
+    case TokenKind::T_EXCLAIM_EQUAL:
+      return Prec::kEquality;
+
+    case TokenKind::T_AMP:
+      return Prec::kAnd;
+
+    case TokenKind::T_CARET:
+      return Prec::kExclusiveOr;
+
+    case TokenKind::T_BAR:
+      return Prec::kInclusiveOr;
+
+    case TokenKind::T_AMP_AMP:
+      return Prec::kLogicalAnd;
+
+    case TokenKind::T_BAR_BAR:
+      return Prec::kLogicalOr;
+    } // switch
+  }
+
   enum struct DeclaratorComponent {
     kDeclaratorId,
     kNested,
@@ -724,54 +791,54 @@ cast_expression
 | unary_expression
 ;
 
-pm_expression
-: cast_expression ((dot_star | minus_greater_star) cast_expression)*
+binary_operator(TokenKind& tk, bool templArg)
+: greater_equal
+| greater_greater
+    {
+      if (templArg && templArgDepth >= 2)
+        return false;
+      tk = TokenKind::T_GREATER_GREATER;
+    }
+| ( star
+  | slash
+  | plus
+  | percent
+  | minus_greater_star
+  | minus
+  | less_less
+  | less_equal_greater
+  | less_equal
+  | less
+  | { return !templArg; } greater
+  | exclaim_equal
+  | equal_equal
+  | dot_star
+  | caret
+  | bar_bar
+  | bar
+  | amp_amp
+  | amp ) { tk = unit->tokenKind(yycursor - 1); }
 ;
 
-multiplicative_expression
-: pm_expression ((star | slash | percent) pm_expression)*
+binary_expression(bool templArg)
+: cast_expression binary_expression_helper(Prec::kLogicalOr, templArg)?
 ;
 
-additive_expression
-: multiplicative_expression ((plus | minus) multiplicative_expression)*
-;
-
-shift_expression(bool templArg)
-: additive_expression
-    ((less_less | { if (templArg && templArgDepth >= 2) return false; } greater_greater)
-      additive_expression)*
-;
-
-compare_expression(bool templArg)
-: shift_expression(templArg) (less_equal_greater shift_expression(templArg))*
-;
-
-relational_expression(bool templArg)
-: compare_expression(templArg) ((less_equal | greater_equal | less | { return !templArg; } greater) compare_expression(templArg))*
-;
-
-equality_expression(bool templArg)
-: relational_expression(templArg) ((equal_equal | exclaim_equal) relational_expression(templArg))*
-;
-
-and_expression(bool templArg)
-: equality_expression(templArg) (amp equality_expression(templArg))*
-;
-
-exclusive_or_expression(bool templArg)
-: and_expression(templArg) (caret and_expression(templArg))*
-;
-
-inclusive_or_expression(bool templArg)
-: exclusive_or_expression(templArg) (bar exclusive_or_expression(templArg))*
-;
-
-logical_and_expression(bool templArg)
-: inclusive_or_expression(templArg) (amp_amp inclusive_or_expression(templArg))*
+binary_expression_helper(Prec minPrec, bool templArg)
+{
+  TokenKind op = TokenKind::T_EOF_SYMBOL;
+  TokenKind nextOp = TokenKind::T_EOF_SYMBOL;
+}
+: (binary_operator(op, templArg) { return prec(op) >= minPrec; }
+    cast_expression
+    ({} / (binary_operator(nextOp, templArg) { return prec(nextOp) > prec(op); })
+      binary_expression_helper(prec(op), templArg)
+    )*
+  )+
 ;
 
 logical_or_expression(bool templArg)
-: logical_and_expression(templArg) (bar_bar logical_and_expression(templArg))*
+: binary_expression(templArg)
 ;
 
 conditional_expression(bool templArg)
