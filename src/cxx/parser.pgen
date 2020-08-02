@@ -23,8 +23,71 @@
 %token-type TokenKind
 
 %{
-  struct DeclarativeRegion {
+  enum struct SymbolKind {
+    kNone,
+    kNamespace,
+  };
+
+  class DeclarativeRegion;
+
+  struct NamespaceData {
+    DeclarativeRegion* region = nullptr;
+  };
+
+  class Symbol {
+   public:
+    const Name* name = nullptr;
+    Symbol* next = nullptr;
+    std::size_t index = 0;
+    SymbolKind kind = SymbolKind::kNone;
+    std::variant<std::monostate, NamespaceData> data;
+
+    inline size_t hashCode() const {
+      return name ? name->hashCode() : 0;
+    }
+  };
+
+  class Scope {
+    std::vector<Symbol*> symbols_;
+    std::vector<Symbol*> buckets_;
+
+   public:
+    Symbol* find(const Name* name) const {
+      if (symbols_.empty()) return nullptr;
+      const auto h = (name ? name->hashCode() : 0) % buckets_.size();
+      for (auto sym = buckets_[h]; sym; sym = sym->next) {
+        if (sym->name == name)
+          return sym;
+      }
+      return nullptr;
+    }
+
+    void enter(Symbol* symbol) {
+      symbol->index = symbols_.size();
+      symbols_.push_back(symbol);
+      if (symbols_.size() < (buckets_.size() * 0.6)) {
+        const auto h = symbol->hashCode() % buckets_.size();
+        symbol->next = buckets_[h];
+        buckets_[h] = symbol;
+      } else {
+        rehash();
+      }
+    }
+
+    void rehash() {
+      buckets_ = std::vector<Symbol*>(buckets_.empty() ? 8 : buckets_.size() * 2);
+      for (auto symbol: symbols_) {
+        const auto h = symbol->hashCode() % buckets_.size();
+        symbol->next = buckets_[h];
+        buckets_[h] = symbol;
+      }
+    }
+  };
+
+  class DeclarativeRegion {
+   public:
     DeclarativeRegion* enclosing;
+    Scope scope;
 
     explicit DeclarativeRegion(DeclarativeRegion* enclosing)
       : enclosing(enclosing) {}
@@ -58,8 +121,13 @@
     return &regions_.emplace_front(DeclarativeRegion(enclosing));
   }
 
+  Symbol* newSymbol() {
+    return &symbols_.emplace_front();
+  }
+
   DeclarativeRegion* currentRegion_ = nullptr;
   std::forward_list<DeclarativeRegion> regions_;
+  std::forward_list<Symbol> symbols_;
 
   enum struct Prec {
     kLogicalOr,
@@ -1522,16 +1590,45 @@ namespace_definition
 
 named_namespace_definition
 {
-  DeclarativeRegion::Context region(this);
+  DeclarativeRegion::Context context(this);
+  uint32_t name = 0;
 }
-: inline? namespace attribute_specifier_seq? identifier gcc_attribute_seq? lbrace enter(region) namespace_body rbrace
+: inline? namespace attribute_specifier_seq?
+  identifier { name = yycursor - 1; }
+  gcc_attribute_seq?
+  lbrace
+  {
+    const auto id = unit->identifier(name);
+    Symbol* ns = currentRegion_->scope.find(id);
+    for (; ns; ns = ns->next) {
+      if (ns->name == id && ns->kind == SymbolKind::kNamespace)
+        break;
+    }
+    if (!ns) {
+      ns = newSymbol();
+      ns->kind = SymbolKind::kNamespace;
+      ns->name = id;
+      NamespaceData data;
+      data.region = newDeclarativeRegion(currentRegion_);
+      ns->data = data;
+      currentRegion_->scope.enter(ns);
+    }
+    context.enter(std::get<NamespaceData>(ns->data).region);
+  }
+  namespace_body
+  rbrace
 ;
 
 unnamed_namespace_definition
 {
   DeclarativeRegion::Context region(this);
 }
-: inline? namespace attribute_specifier_seq? gcc_attribute_seq? lbrace enter(region) namespace_body rbrace
+: inline? namespace attribute_specifier_seq? gcc_attribute_seq? lbrace
+    {
+      auto ns = newSymbol();
+      ns->kind = SymbolKind::kNamespace;
+    }
+    enter(region) namespace_body rbrace
 ;
 
 nested_namespace_definition

@@ -34,6 +34,8 @@
 
 namespace cxx {
 
+class Identifier;
+
 enum struct MessageKind { Message, Warning, Error, Fatal };
 
 class TranslationUnit {
@@ -110,14 +112,21 @@ class TranslationUnit {
 
   // tokens
   inline unsigned tokenCount() const { return unsigned(tokens_.size()); }
+
   inline const Token& tokenAt(unsigned index) const { return tokens_[index]; }
+
   inline TokenKind tokenKind(unsigned index) const {
     return tokens_[index].kind();
   }
+
   int tokenLength(unsigned index) const;
+
   std::string_view tokenText(unsigned index) const;
+
   void getTokenStartPosition(unsigned index, unsigned* line,
                              unsigned* column) const;
+
+  const Identifier* identifier(unsigned index) const;
 
   // front end
   void tokenize();
