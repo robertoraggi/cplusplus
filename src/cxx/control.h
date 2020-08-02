@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <functional>
 #include <set>
 #include <string>
 #include <tuple>
@@ -26,10 +27,25 @@
 
 namespace cxx {
 
-class Identifier : public std::tuple<std::string> {
+class Name {
+ public:
+  virtual ~Name() = default;
+  virtual size_t hashCode() const = 0;
+};
+
+class Identifier : public Name, public std::tuple<std::string> {
+  mutable size_t hashCode_ = static_cast<size_t>(-1);
+
  public:
   using tuple::tuple;
+
   const std::string& toString() const { return std::get<0>(*this); }
+
+  size_t hashCode() const {
+    if (hashCode_ != static_cast<size_t>(-1)) return hashCode_;
+    hashCode_ = std::hash<std::string>()(toString());
+    return hashCode_;
+  }
 };
 
 class Control {

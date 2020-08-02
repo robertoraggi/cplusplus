@@ -24,6 +24,7 @@
 #include <forward_list>
 #include <iostream>
 #include <unordered_map>
+#include <variant>
 
 #include "arena.h"
 #include "control.h"

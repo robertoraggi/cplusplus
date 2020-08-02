@@ -45,7 +45,7 @@ void TranslationUnit::initializeLineMap() {
 }
 
 int TranslationUnit::tokenLength(unsigned index) const {
-  auto&& tk = tokens_[index];
+  const auto& tk = tokens_[index];
   if (tk.kind() == TokenKind::T_IDENTIFIER) {
     const std::string* id = reinterpret_cast<const std::string*>(tk.priv_);
     return int(id->size());
@@ -53,8 +53,13 @@ int TranslationUnit::tokenLength(unsigned index) const {
   return int(Token::spell(tk.kind()).size());
 }
 
+const Identifier* TranslationUnit::identifier(unsigned index) const {
+  const auto& tk = tokens_[index];
+  return reinterpret_cast<const Identifier*>(tk.priv_);
+}
+
 std::string_view TranslationUnit::tokenText(unsigned index) const {
-  auto&& tk = tokens_[index];
+  const auto& tk = tokens_[index];
   switch (tk.kind()) {
     case TokenKind::T_IDENTIFIER:
     case TokenKind::T_STRING_LITERAL:
