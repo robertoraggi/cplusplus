@@ -296,11 +296,19 @@
 , __asm__
 , __attribute
 , __attribute__
+, __complex__
+, __decltype
+, __decltype__
 , __extension__
+, __float128
+, __float80
 , __has_unique_object_representations
 , __has_virtual_destructor
+, __imag__
 , __inline
 , __inline__
+, __int128
+, __int64
 , __is_abstract
 , __is_aggregate
 , __is_base_of
@@ -324,9 +332,15 @@
 , __is_trivially_copyable
 , __is_trivially_destructible
 , __is_union
+, __real__
 , __reference_binds_to_temporary
 , __restrict
+, __restrict__
+, __thread
+, __typeof
+, __typeof__
 , __underlying_type
+
 , _Atomic
 
 , alignas
@@ -615,8 +629,8 @@ lambda_declarator
 ;
 
 lambda_capture
-: capture_default (comma capture_list)*
-| capture_list
+: capture_list
+| capture_default (comma capture_list)*
 ;
 
 capture_default
@@ -783,6 +797,8 @@ unary_expression
 : unary_operator cast_expression
 | plus_plus cast_expression
 | minus_minus cast_expression
+| __imag__ cast_expression
+| __real__ cast_expression
 | await_expression
 | sizeof unary_expression
 | sizeof lparen type_id rparen
@@ -1140,6 +1156,7 @@ storage_class_specifier
 | thread_local
 | extern
 | mutable
+| __thread
 ;
 
 function_specifier
@@ -1212,7 +1229,13 @@ simple_type_specifier(DeclSpecs& specs)
   | unsigned
   | float
   | double
-  | void) { specs.has_simple_typespec = true; }
+  | void
+  | __int64
+  | __int128
+  | __float80
+  | __float128
+  | __complex__
+  ) { specs.has_simple_typespec = true; }
 ;
 
 type_name
@@ -1238,6 +1261,8 @@ elaborated_enum_specifier
 
 decltype_specifier
 : decltype lparen expression rparen
+| (__decltype | __decltype__) lparen expression rparen
+| (__typeof | __typeof__) lparen expression rparen
 ;
 
 placeholder_type_specifier
@@ -1305,6 +1330,7 @@ cv_qualifier
 : const
 | volatile
 | __restrict
+| __restrict__
 ;
 
 ref_qualifier
@@ -1498,21 +1524,21 @@ named_namespace_definition
 {
   DeclarativeRegion::Context region(this);
 }
-: inline? namespace attribute_specifier_seq? identifier lbrace enter(region) namespace_body rbrace
+: inline? namespace attribute_specifier_seq? identifier gcc_attribute_seq? lbrace enter(region) namespace_body rbrace
 ;
 
 unnamed_namespace_definition
 {
   DeclarativeRegion::Context region(this);
 }
-: inline? namespace attribute_specifier_seq? lbrace enter(region) namespace_body rbrace
+: inline? namespace attribute_specifier_seq? gcc_attribute_seq? lbrace enter(region) namespace_body rbrace
 ;
 
 nested_namespace_definition
 {
   DeclarativeRegion::Context region(this);
 }
-: namespace enclosing_namespace_specifier colon_colon inline? identifier lbrace enter(region) namespace_body rbrace
+: namespace enclosing_namespace_specifier colon_colon inline? identifier gcc_attribute_seq? lbrace enter(region) namespace_body rbrace
 ;
 
 enclosing_namespace_specifier
@@ -1561,10 +1587,18 @@ attribute_specifier_seq
 ;
 
 attribute_specifier
-: (__attribute | __attribute__) lparen skip_balanced rparen
+: gcc_attribute
 | lbracket lbracket attribute_using_prefix? attribute_list rbracket rbracket
 | alignment_specifier
 | (__asm | __asm__) lparen string_literal_seq rparen
+;
+
+gcc_attribute
+: (__attribute | __attribute__) lparen skip_balanced rparen
+;
+
+gcc_attribute_seq
+: gcc_attribute+
 ;
 
 skip_balanced

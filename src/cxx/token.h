@@ -92,14 +92,18 @@
   V(__FLOAT80, "__float80")                                           \
   V(__FLOAT128, "__float128")                                         \
   V(__ALIGNOF, "__alignof")                                           \
-  V(__ASM, "__asm")                                                   \
   V(__ASM__, "__asm__")                                               \
+  V(__ASM, "__asm")                                                   \
   V(__ATTRIBUTE__, "__attribute__")                                   \
   V(__ATTRIBUTE, "__attribute")                                       \
+  V(__COMPLEX__, "__complex__")                                       \
+  V(__DECLTYPE, "__decltype")                                         \
+  V(__DECLTYPE__, "__decltype__")                                     \
   V(__EXTENSION__, "__extension__")                                   \
   V(__HAS_UNIQUE_OBJECT_REPRESENTATIONS,                              \
     "__has_unique_object_representations")                            \
   V(__HAS_VIRTUAL_DESTRUCTOR, "__has_virtual_destructor")             \
+  V(__IMAG__, "__imag__")                                             \
   V(__INLINE, "__inline")                                             \
   V(__INLINE__, "__inline__")                                         \
   V(__IS_ABSTRACT, "__is_abstract")                                   \
@@ -125,8 +129,13 @@
   V(__IS_TRIVIALLY_COPYABLE, "__is_trivially_copyable")               \
   V(__IS_TRIVIALLY_DESTRUCTIBLE, "__is_trivially_destructible")       \
   V(__IS_UNION, "__is_union")                                         \
+  V(__REAL__, "__real__")                                             \
   V(__REFERENCE_BINDS_TO_TEMPORARY, "__reference_binds_to_temporary") \
+  V(__RESTRICT__, "__restrict__")                                     \
   V(__RESTRICT, "__restrict")                                         \
+  V(__THREAD, "__thread")                                             \
+  V(__TYPEOF__, "__typeof__")                                         \
+  V(__TYPEOF, "__typeof")                                             \
   V(__UNDERLYING_TYPE, "__underlying_type")                           \
   V(_ATOMIC, "_Atomic")                                               \
   V(ALIGNAS, "alignas")                                               \
