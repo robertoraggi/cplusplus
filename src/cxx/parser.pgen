@@ -23,11 +23,6 @@
 %token-type TokenKind
 
 %{
-  enum struct SymbolKind {
-    kNone,
-    kNamespace,
-  };
-
   class DeclarativeRegion;
 
   struct NamespaceData {
@@ -36,14 +31,17 @@
 
   class Symbol {
    public:
-    const Name* name = nullptr;
+    Name name;
     Symbol* next = nullptr;
     std::size_t index = 0;
-    SymbolKind kind = SymbolKind::kNone;
     std::variant<std::monostate, NamespaceData> data;
 
-    inline size_t hashCode() const {
-      return name ? name->hashCode() : 0;
+    size_t hashCode() {
+      return cxx::hashCode(name);
+    }
+
+    bool isNamespace() const {
+      return std::holds_alternative<NamespaceData>(data);
     }
   };
 
@@ -52,9 +50,13 @@
     std::vector<Symbol*> buckets_;
 
    public:
-    Symbol* find(const Name* name) const {
+    auto begin() const { return symbols_.begin(); }
+
+    auto end() const { return symbols_.end(); }
+
+    Symbol* find(const Name& name) const {
       if (symbols_.empty()) return nullptr;
-      const auto h = (name ? name->hashCode() : 0) % buckets_.size();
+      const auto h = hashCode(name) % buckets_.size();
       for (auto sym = buckets_[h]; sym; sym = sym->next) {
         if (sym->name == name)
           return sym;
@@ -91,6 +93,16 @@
 
     explicit DeclarativeRegion(DeclarativeRegion* enclosing)
       : enclosing(enclosing) {}
+
+    void dump(std::ostream& out, int depth = 0) {
+      std::string ind(depth * 2, ' ');
+      for (auto sym: scope) {
+        fmt::print("{}- namespace {}\n", ind,toString(sym->name));
+        if (auto ns = std::get_if<NamespaceData>(&sym->data)) {
+          ns->region->dump(out, depth + 1);
+        }
+      }
+    }
 
     struct Context {
       Context(const Context&) = delete;
@@ -196,26 +208,31 @@
     } // switch
   }
 
-  enum struct DeclaratorComponent {
-    kDeclaratorId,
-    kNested,
-    kPointer,
-    kParametersAndQualifiers,
-    kArray,
-  };
+  struct DeclaratorId {};
+  struct NestedDeclarator {};
+  struct PtrDeclarator {};
+  struct FunctionDeclarator {};
+  struct ArrayDeclarator {};
+
+  using DeclaratorComponent = std::variant<
+    DeclaratorId,
+    NestedDeclarator,
+    PtrDeclarator,
+    FunctionDeclarator,
+    ArrayDeclarator>;
 
   using Declarator = std::vector<DeclaratorComponent>;
 
-  bool isFunctionDeclarator(const Declarator& decl) {
+  bool isFunctionDeclarator(const Declarator& decl) const {
     for (auto d: decl) {
-      if (d == DeclaratorComponent::kNested) continue;
-      if (d == DeclaratorComponent::kDeclaratorId) continue;
-      switch (d) {
-        case DeclaratorComponent::kParametersAndQualifiers:
-          return true;
-        default:
-          return false;
-      }
+      if (std::holds_alternative<NestedDeclarator>(d))
+        continue;
+      else if (std::holds_alternative<DeclaratorId>(d))
+        continue;
+      else if (std::holds_alternative<FunctionDeclarator>(d))
+        return true;
+      else
+        return false;
     }
     return false;
   }
@@ -1352,7 +1369,7 @@ declarator_initializer
 ;
 
 declarator(Declarator& decl)
-: ptr_operator declarator(decl) { decl.push_back(DeclaratorComponent::kPointer); }
+: ptr_operator declarator(decl) { decl.push_back(PtrDeclarator()); }
 | noptr_declarator(decl)
 ;
 
@@ -1360,16 +1377,16 @@ ptr_operator_seq
 : ptr_operator+;
 
 core_declarator(Declarator& decl)
-: declarator_id attribute_specifier_seq? { decl.push_back(DeclaratorComponent::kDeclaratorId); }
-| lparen declarator(decl) rparen { decl.push_back(DeclaratorComponent::kNested); }
+: declarator_id attribute_specifier_seq? { decl.push_back(DeclaratorId()); }
+| lparen declarator(decl) rparen { decl.push_back(NestedDeclarator()); }
 ;
 
 noptr_declarator(Declarator& decl)
 : core_declarator(decl)
     ( parameters_and_qualifiers trailing_return_type?
-        { decl.push_back(DeclaratorComponent::kParametersAndQualifiers); }
+        { decl.push_back(FunctionDeclarator()); }
     | lbracket constant_expression? rbracket attribute_specifier_seq?
-        { decl.push_back(DeclaratorComponent::kArray); }
+        { decl.push_back(ArrayDeclarator()); }
     )*
 ;
 
@@ -1598,15 +1615,14 @@ named_namespace_definition
   gcc_attribute_seq?
   lbrace
   {
-    const auto id = unit->identifier(name);
+    const auto id = Name(unit->identifier(name));
     Symbol* ns = currentRegion_->scope.find(id);
     for (; ns; ns = ns->next) {
-      if (ns->name == id && ns->kind == SymbolKind::kNamespace)
+      if (ns->name == id && ns->isNamespace())
         break;
     }
     if (!ns) {
       ns = newSymbol();
-      ns->kind = SymbolKind::kNamespace;
       ns->name = id;
       NamespaceData data;
       data.region = newDeclarativeRegion(currentRegion_);
@@ -1626,9 +1642,13 @@ unnamed_namespace_definition
 : inline? namespace attribute_specifier_seq? gcc_attribute_seq? lbrace
     {
       auto ns = newSymbol();
-      ns->kind = SymbolKind::kNamespace;
+      NamespaceData data;
+      data.region = newDeclarativeRegion(currentRegion_);
+      ns->data = data;
+      currentRegion_->scope.enter(ns);
     }
-    enter(region) namespace_body rbrace
+    namespace_body
+    rbrace
 ;
 
 nested_namespace_definition
@@ -2096,8 +2116,7 @@ concept_name
 ;
 
 typename_specifier
-: typename nested_name_specifier template? simple_template_id
-| typename nested_name_specifier identifier
+: typename nested_name_specifier (template? simple_template_id | identifier)
 ;
 
 explicit_instantiation

@@ -18,39 +18,4 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <set>
-
 #include "names.h"
-
-namespace cxx {
-
-class Control {
- public:
-  Control(const Control& other) = delete;
-  Control& operator=(const Control& other) = delete;
-
-  Control();
-  ~Control();
-
-  template <typename T>
-  const Identifier* getIdentifier(T&& name) {
-    return &*identifiers_.emplace(std::forward<T>(name)).first;
-  }
-
-  template <typename T>
-  const Identifier* getOperatorId(T&& name) {
-    return &*operatorIds_.emplace(std::forward<T>(name)).first;
-  }
-
-  template <typename... Args>
-  const Identifier* getTemplateId(Args&&... args) {
-    return &*templateIds_.emplace(std::forward<Args>(args)...).first;
-  }
-
- private:
-  std::set<Identifier> identifiers_;
-  std::set<OperatorId> operatorIds_;
-  std::set<TemplateId> templateIds_;
-};
-
-}  // namespace cxx
