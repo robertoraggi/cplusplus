@@ -29,12 +29,18 @@
     DeclarativeRegion* region = nullptr;
   };
 
+  struct ClassData {
+    DeclarativeRegion* region = nullptr;
+    DeclarativeRegion* lexicalRegion = nullptr;
+    bool isComplete = false;
+  };
+
   class Symbol {
    public:
     Name name;
     Symbol* next = nullptr;
     std::size_t index = 0;
-    std::variant<std::monostate, NamespaceData> data;
+    std::variant<std::monostate, NamespaceData, ClassData> data;
 
     size_t hashCode() {
       return cxx::hashCode(name);
@@ -42,6 +48,10 @@
 
     bool isNamespace() const {
       return std::holds_alternative<NamespaceData>(data);
+    }
+
+    bool isClass() const {
+      return std::holds_alternative<ClassData>(data);
     }
   };
 
@@ -64,7 +74,7 @@
       return nullptr;
     }
 
-    void enter(Symbol* symbol) {
+    void add(Symbol* symbol) {
       symbol->index = symbols_.size();
       symbols_.push_back(symbol);
       if (symbols_.size() < (buckets_.size() * 0.6)) {
@@ -97,9 +107,12 @@
     void dump(std::ostream& out, int depth = 0) {
       std::string ind(depth * 2, ' ');
       for (auto sym: scope) {
-        fmt::print("{}- namespace {}\n", ind,toString(sym->name));
         if (auto ns = std::get_if<NamespaceData>(&sym->data)) {
+          fmt::print("{}- namespace {}\n", ind, toString(sym->name));
           ns->region->dump(out, depth + 1);
+        } else if (auto udt = std::get_if<ClassData>(&sym->data)) {
+          fmt::print("{}- class {}\n", ind, toString(sym->name));
+          udt->region->dump(out, depth + 1);
         }
       }
     }
@@ -310,12 +323,13 @@
   Control* control = nullptr;
   bool skip_function_body = false;
   std::unordered_map<uint32_t, std::tuple<uint32_t, bool>> class_specifiers_;
-  std::unordered_map<uint32_t, std::tuple<uint32_t, bool>> nested_name_specifiers_;
+  std::unordered_map<uint32_t, std::tuple<uint32_t, bool, DeclarativeRegion*>> nested_name_specifiers_;
   bool module_unit = false;
   const Identifier* module_id = nullptr;
   const Identifier* import_id = nullptr;
   const Identifier* final_id = nullptr;
   const Identifier* override_id = nullptr;
+  DeclarativeRegion* globalRegion = nullptr;
 %}
 
 %token
@@ -580,8 +594,20 @@ namespace_alias
 ;
 
 class_name
-: simple_template_id
-| identifier
+{
+  Name name;
+}
+: class_name(name)
+;
+
+class_name(Name& name)
+: simple_template_id(name)
+| name_id(name)
+;
+
+name_id(Name& name)
+: identifier
+  { name = unit->identifier(yycursor - 1); }
 ;
 
 enum_name
@@ -589,7 +615,14 @@ enum_name
 ;
 
 template_name
-: identifier
+{
+  Name name;
+}
+: template_name(name)
+;
+
+template_name(Name& name)
+: name_id(name)
 ;
 
 literal
@@ -615,6 +648,7 @@ translation_unit
 : eof_symbol
 | module_unit
 | top_level_declaration_seq eof
+    // { globalRegion->dump(std::cout); }
 ;
 
 enter(DeclarativeRegion::Context& context)
@@ -628,7 +662,11 @@ leave(DeclarativeRegion::Context& context)
 module_unit
 {
   DeclarativeRegion::Context region(this);
-  region.enter();
+
+  globalRegion = newDeclarativeRegion(nullptr);
+
+  region.enter(globalRegion);
+
   module_unit = true;
 }
 : global_module_fragment? module_declaration declaration_seq? private_module_fragment? eof
@@ -642,8 +680,13 @@ eof
 top_level_declaration_seq
 {
   DeclarativeRegion::Context region(this);
-  region.enter();
+
+  globalRegion = newDeclarativeRegion(nullptr);
+
+  region.enter(globalRegion);
+
   bool skipping = false;
+
   module_unit = false;
 }
 : ( declaration { skipping = false; }
@@ -664,6 +707,7 @@ declaration_seq
       if (yytoken() == TokenKind::T_EOF_SYMBOL) return false;
       if (yytoken() == TokenKind::T_RBRACE) return false;
       if (yytoken() == TokenKind::T_MODULE) return false;
+      if (module_unit && yytoken() == TokenKind::T_EXPORT) return false;
       if (yytoken() == TokenKind::T_IMPORT) return false;
       if (!skipping) unit->report(yyparsed, MessageKind::Error, "expected a declaration");
       yyconsume();
@@ -702,29 +746,46 @@ qualified_id
 
 nested_name_specifier
 {
+  DeclarativeRegion* region = nullptr;
+}
+: nested_name_specifier(region)
+;
+
+nested_name_specifier(DeclarativeRegion*& region)
+{
   const auto start = yycursor;
   auto it = nested_name_specifiers_.find(start);
   if (it != nested_name_specifiers_.end()) {
-    auto [cursor, parsed] = it->second;
+    auto [cursor, parsed, result] = it->second;
     yyrewind(cursor);
+    region = result;
     return parsed;
   }
   struct Context {
     Parser* p;
     uint32_t start;
     bool parsed = false;
+    DeclarativeRegion* region = nullptr;
     Context(Parser *p): p(p), start(p->yycursor) {}
     ~Context() {
-      p->nested_name_specifiers_.emplace(start, std::make_tuple(p->yycursor, parsed));
+      p->nested_name_specifiers_.emplace(start, std::make_tuple(p->yycursor, parsed, region));
     }
   } context(this);
+  Symbol* sym = nullptr;
+  region = currentRegion_;
+  Name id;
 }
-: (colon_colon
-  | type_name colon_colon
-  | namespace_name colon_colon
+: ( colon_colon
+  | name_id(id) colon_colon
+  | simple_template_id(id) colon_colon
   | decltype_specifier colon_colon)
-      ( template? simple_template_id colon_colon
-      | identifier colon_colon)* { context.parsed = true; }
+      ( name_id(id) colon_colon
+      | template? simple_template_id(id) colon_colon
+      )*
+    {
+      context.parsed = true;
+      context.region = region;
+    }
 ;
 
 lambda_expression
@@ -1663,7 +1724,7 @@ named_namespace_definition
       NamespaceData data;
       data.region = newDeclarativeRegion(currentRegion_);
       ns->data = data;
-      currentRegion_->scope.enter(ns);
+      currentRegion_->scope.add(ns);
     }
     context.enter(std::get<NamespaceData>(ns->data).region);
   }
@@ -1681,7 +1742,7 @@ unnamed_namespace_definition
       NamespaceData data;
       data.region = newDeclarativeRegion(currentRegion_);
       ns->data = data;
-      currentRegion_->scope.enter(ns);
+      currentRegion_->scope.add(ns);
     }
     namespace_body
     rbrace
@@ -1852,9 +1913,34 @@ class_specifier
     return parsed;
   }
   DeclarativeRegion::Context region(this);
+
+  DeclarativeRegion* enclosingRegion = nullptr;
+
+  Symbol* classSymbol = nullptr;
+  Name className;
 }
-: class_head lbrace enter(region) class_body? rbrace
+: class_head(enclosingRegion, className)
+  lbrace
+    {
+      if (!enclosingRegion) {
+        unit->report(yycursor, MessageKind::Error, "unresolved nested name specifier");
+        enclosingRegion = currentRegion_;
+      }
+
+      classSymbol = newSymbol();
+      classSymbol->name = className;
+      enclosingRegion->scope.add(classSymbol);
+
+      ClassData classData;
+      classData.lexicalRegion = currentRegion_;
+      classData.region = newDeclarativeRegion(enclosingRegion);
+      classSymbol->data = classData;
+      region.enter(classData.region);
+    }
+  class_body?
+  rbrace
   {
+    get_if<ClassData>(&classSymbol->data)->isComplete = true;
     class_specifiers_.emplace(start, std::make_tuple(yycursor, true));
   }
 | {
@@ -1877,12 +1963,15 @@ class_body
     })+
 ;
 
-class_head
-: class_key attribute_specifier_seq? (class_head_name class_virt_specifier?)? base_clause?
+class_head(DeclarativeRegion*& region, Name& name)
+: class_key attribute_specifier_seq?
+  (class_head_name(region, name) class_virt_specifier?)?
+  base_clause?
 ;
 
-class_head_name
-: nested_name_specifier? class_name
+class_head_name(DeclarativeRegion*& region, Name& name)
+: nested_name_specifier(region) class_name(name)
+| class_name(name) { region = currentRegion_; }
 ;
 
 class_virt_specifier
@@ -2113,7 +2202,15 @@ type_constraint
 ;
 
 simple_template_id
-: template_name less template_argument_list? greater
+{
+  Name name;
+}
+: simple_template_id(name)
+;
+
+simple_template_id(Name& name)
+: template_name(name) less template_argument_list? greater
+    { name = control->getTemplateId(name); }
 ;
 
 template_id
