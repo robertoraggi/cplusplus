@@ -27,11 +27,13 @@
 namespace cxx {
 
 class Identifier;
+class DestructorId;
 class OperatorId;
 class TemplateId;
 
-using Name = std::variant<std::monostate, const Identifier*, const OperatorId*,
-                          const TemplateId*>;
+using Name =
+    std::variant<std::monostate, const Identifier*, const DestructorId*,
+                 const OperatorId*, const TemplateId*>;
 
 inline size_t hashCode(const Name& name);
 inline std::string toString(const Name& name);
@@ -52,7 +54,7 @@ class Identifier : public std::tuple<std::string> {
 };
 
 class OperatorId : public std::tuple<TokenKind> {
-  size_t hashCode_;
+  size_t hashCode_ = 0;
 
  public:
   OperatorId() = default;
@@ -66,21 +68,33 @@ class OperatorId : public std::tuple<TokenKind> {
   size_t hashCode() const { return hashCode_; }
 };
 
+class DestructorId : public std::tuple<Name> {
+ public:
+  using tuple::tuple;
+
+  const Name& name() const { return std::get<0>(*this); }
+
+  std::string toString() const { return "~" + cxx::toString(name()); }
+
+  size_t hashCode() const { return cxx::hashCode(name()); }
+};
+
 class TemplateId : public std::tuple<Name> {
  public:
   using tuple::tuple;
 
-  const Name& base() const { return std::get<0>(*this); }
+  const Name& name() const { return std::get<0>(*this); }
 
-  std::string toString() const { return cxx::toString(base()) + "<>"; }
+  std::string toString() const { return cxx::toString(name()) + "<>"; }
 
-  size_t hashCode() const { return cxx::hashCode(base()); }
+  size_t hashCode() const { return cxx::hashCode(name()); }
 };
 
 inline size_t hashCode(const Name& name) {
   static struct Hash {
     size_t operator()(const std::monostate&) const { return 0; }
     size_t operator()(const Identifier* id) const { return id->hashCode(); }
+    size_t operator()(const DestructorId* id) const { return id->hashCode(); }
     size_t operator()(const OperatorId* id) const { return id->hashCode(); }
     size_t operator()(const TemplateId* id) const { return id->hashCode(); }
   } hash;
@@ -93,6 +107,9 @@ inline std::string toString(const Name& name) {
       return std::string();
     }
     std::string operator()(const Identifier* id) const {
+      return id->toString();
+    }
+    std::string operator()(const DestructorId* id) const {
       return id->toString();
     }
     std::string operator()(const OperatorId* id) const {

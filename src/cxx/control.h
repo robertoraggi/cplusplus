@@ -38,7 +38,12 @@ class Control {
   }
 
   template <typename T>
-  const Identifier* getOperatorId(T&& name) {
+  const DestructorId* getDestructorId(T&& name) {
+    return &*destructorIds_.emplace(std::forward<T>(name)).first;
+  }
+
+  template <typename T>
+  const OperatorId* getOperatorId(T&& name) {
     return &*operatorIds_.emplace(std::forward<T>(name)).first;
   }
 
@@ -49,6 +54,7 @@ class Control {
 
  private:
   std::set<Identifier> identifiers_;
+  std::set<DestructorId> destructorIds_;
   std::set<OperatorId> operatorIds_;
   std::set<TemplateId> templateIds_;
 };
