@@ -115,6 +115,10 @@ class TranslationUnit {
 
   inline const Token& tokenAt(unsigned index) const { return tokens_[index]; }
 
+  void setTokenKind(unsigned index, TokenKind kind) {
+    tokens_[index].setKind(kind);
+  }
+
   inline TokenKind tokenKind(unsigned index) const {
     return tokens_[index].kind();
   }

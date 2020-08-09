@@ -62,6 +62,11 @@ bool Parser::yyparse(TranslationUnit* u, const std::function<void()>& consume) {
   Arena arena;
   pool = &arena;
 
+  module_id = control->getIdentifier("module");
+  import_id = control->getIdentifier("import");
+  final_id = control->getIdentifier("final");
+  override_id = control->getIdentifier("override");
+
   auto parsed = parse_translation_unit();
 
   if (consume) consume();

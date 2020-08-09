@@ -311,6 +311,11 @@
   bool skip_function_body = false;
   std::unordered_map<uint32_t, std::tuple<uint32_t, bool>> class_specifiers_;
   std::unordered_map<uint32_t, std::tuple<uint32_t, bool>> nested_name_specifiers_;
+  bool module_unit = false;
+  const Identifier* module_id = nullptr;
+  const Identifier* import_id = nullptr;
+  const Identifier* final_id = nullptr;
+  const Identifier* override_id = nullptr;
 %}
 
 %token
@@ -509,12 +514,16 @@
 , wchar_t
 , while
 
+// module
+, import
+, module
+
 %extern warn
 %extern error
 
-id(const std::string_view& name): identifier
+id(const Identifier* id): identifier
 {
-  return unit->tokenText(yycursor - 1) == name;
+  return unit->identifier(yycursor - 1) == id;
 };
 
 nospace:
@@ -533,13 +542,28 @@ greater_equal: greater nospace equal;
 
 header_name: { return false; };
 
-export_keyword: at_start_of_line export;
-import_keyword: at_start_of_line id("import");
-module_keyword: at_start_of_line id("module");
-final: id("final");
-override: id("override");
+export_keyword
+: { return module_unit; }
+  export
+;
 
-at_start_of_line: { return unit->tokenAt(yycursor).startOfLine(); };
+import_keyword
+: import
+| { return module_unit; }
+  id(import_id)
+  { unit->setTokenKind(yycursor - 1, TokenKind::T_MODULE); }
+;
+
+module_keyword
+: module
+| { return unit; }
+  id(module_id)
+  { unit->setTokenKind(yycursor - 1, TokenKind::T_MODULE); }
+;
+
+final: id(final_id);
+
+override: id(override_id);
 
 typedef_name
 : simple_template_id
@@ -588,10 +612,6 @@ pointer_literal
 ;
 
 translation_unit
-{
-  DeclarativeRegion::Context region(this);
-  region.enter();
-}
 : eof_symbol
 | module_unit
 | top_level_declaration_seq eof
@@ -606,6 +626,11 @@ leave(DeclarativeRegion::Context& context)
 ;
 
 module_unit
+{
+  DeclarativeRegion::Context region(this);
+  region.enter();
+  module_unit = true;
+}
 : global_module_fragment? module_declaration declaration_seq? private_module_fragment? eof
 ;
 
@@ -616,7 +641,10 @@ eof
 
 top_level_declaration_seq
 {
+  DeclarativeRegion::Context region(this);
+  region.enter();
   bool skipping = false;
+  module_unit = false;
 }
 : ( declaration { skipping = false; }
   | {
@@ -635,6 +663,8 @@ declaration_seq
   | {
       if (yytoken() == TokenKind::T_EOF_SYMBOL) return false;
       if (yytoken() == TokenKind::T_RBRACE) return false;
+      if (yytoken() == TokenKind::T_MODULE) return false;
+      if (yytoken() == TokenKind::T_IMPORT) return false;
       if (!skipping) unit->report(yyparsed, MessageKind::Error, "expected a declaration");
       yyconsume();
       skipping = true;
@@ -1143,7 +1173,14 @@ declaration_statement
 ;
 
 declaration
-: block_declaration(true)
+{
+  if (yytoken() == TokenKind::T_RBRACE)
+    return false;
+  else if (parse_module_keyword())
+    return false;
+}
+: empty_declaration
+| block_declaration(true)
 | explicit_instantiation
 | explicit_specialization
 | template_declaration
@@ -1151,7 +1188,6 @@ declaration
 | export_declaration
 | linkage_specification
 | namespace_definition
-| empty_declaration
 | attribute_declaration
 | module_import_declaration
 ;

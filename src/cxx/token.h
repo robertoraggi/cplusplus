@@ -87,6 +87,8 @@
   V(TILDE, "~")                                                       \
   V(NEW_ARRAY, "new[]")                                               \
   V(DELETE_ARRAY, "delete[]")                                         \
+  V(MODULE, "module")                                                 \
+  V(IMPORT, "import")                                                 \
   V(__INT64, "__int64")                                               \
   V(__INT128, "__int128")                                             \
   V(__FLOAT80, "__float80")                                           \
@@ -240,7 +242,10 @@ class Token {
   Token(TokenKind kind = TokenKind::T_ERROR, unsigned offset = 0,
         const void* priv = nullptr)
       : kind_(kind), offset_(offset), priv_(priv) {}
+
   inline TokenKind kind() const { return kind_; }
+  inline void setKind(TokenKind kind) { kind_ = kind; }
+
   inline unsigned offset() const { return offset_; }
   inline bool startOfLine() const { return startOfLine_; }
   inline bool leadingSpace() const { return leadingSpace_; }
