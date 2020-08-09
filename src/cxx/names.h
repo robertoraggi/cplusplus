@@ -85,7 +85,7 @@ class TemplateId : public std::tuple<Name> {
 
   const Name& name() const { return std::get<0>(*this); }
 
-  std::string toString() const { return cxx::toString(name()) + "<>"; }
+  std::string toString() const { return cxx::toString(name()) + "<...>"; }
 
   size_t hashCode() const { return cxx::hashCode(name()); }
 };

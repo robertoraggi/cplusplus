@@ -48,7 +48,7 @@ class Control {
   }
 
   template <typename... Args>
-  const Identifier* getTemplateId(Args&&... args) {
+  const TemplateId* getTemplateId(Args&&... args) {
     return &*templateIds_.emplace(std::forward<Args>(args)...).first;
   }
 
