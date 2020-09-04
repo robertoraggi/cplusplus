@@ -644,10 +644,10 @@ pointer_literal
 : nullptr
 ;
 
-translation_unit
+translation_unit(UnitAST*& yyast)
 : eof_symbol
-| module_unit
-| top_level_declaration_seq eof
+| module_unit(yyast)
+| top_level_declaration_seq(yyast) eof
     // { globalRegion->dump(std::cout); }
 ;
 
@@ -659,7 +659,7 @@ leave(DeclarativeRegion::Context& context)
 : { context.leave(); }
 ;
 
-module_unit
+module_unit(UnitAST*& yyast)
 {
   DeclarativeRegion::Context region(this);
 
@@ -677,7 +677,7 @@ eof
 | error("unexpected eof")
 ;
 
-top_level_declaration_seq
+top_level_declaration_seq(UnitAST*& yyast)
 {
   DeclarativeRegion::Context region(this);
 
@@ -688,8 +688,10 @@ top_level_declaration_seq
   bool skipping = false;
 
   module_unit = false;
+
+  DeclarationAST* d1 = nullptr;
 }
-: ( declaration { skipping = false; }
+: ( declaration(d1) { skipping = false; }
   | {
       if (yytoken() == TokenKind::T_EOF_SYMBOL) return false;
       if (!skipping) unit->report(yyparsed, MessageKind::Error, "expected a declaration");
@@ -701,8 +703,9 @@ top_level_declaration_seq
 declaration_seq
 {
   bool skipping = false;
+  DeclarationAST* d1 = nullptr;
 }
-: ( declaration { skipping = false; }
+: ( declaration(d1) { skipping = false; }
   | {
       if (yytoken() == TokenKind::T_EOF_SYMBOL) return false;
       if (yytoken() == TokenKind::T_RBRACE) return false;
@@ -715,14 +718,17 @@ declaration_seq
     })+
 ;
 
-primary_expression
+primary_expression(ExpressionAST*& yyast)
+{
+  ExpressionAST* e1 = nullptr;
+}
 : literal
 | this
-| lparen expression rparen
+| lparen expression(e1) rparen
 | id_expression
-| lambda_expression
-| fold_expression
-| requires_expression
+| lambda_expression(yyast)
+| fold_expression(yyast)
+| requires_expression(yyast)
 ;
 
 id_expression
@@ -788,12 +794,13 @@ nested_name_specifier(DeclarativeRegion*& region)
     }
 ;
 
-lambda_expression
+lambda_expression(ExpressionAST*& yyast)
 {
   DeclarativeRegion::Context region(this);
+  StatementAST* s1 = nullptr;
 }
-: lambda_introducer less enter(region) template_parameter_list greater requires_clause? lambda_declarator? compound_statement
-| lambda_introducer lambda_declarator? compound_statement
+: lambda_introducer less enter(region) template_parameter_list greater requires_clause? lambda_declarator? compound_statement(s1)
+| lambda_introducer lambda_declarator? compound_statement(s1)
 ;
 
 lambda_introducer
@@ -835,9 +842,13 @@ init_capture
 | amp dot_dot_dot? identifier initializer
 ;
 
-fold_expression
-: lparen cast_expression fold_operator dot_dot_dot (fold_operator cast_expression)? rparen
-| lparen dot_dot_dot fold_operator cast_expression rparen
+fold_expression(ExpressionAST*& yyast)
+{
+  ExpressionAST* e1 = nullptr;
+  ExpressionAST* e2 = nullptr;
+}
+: lparen cast_expression(e1) fold_operator dot_dot_dot (fold_operator cast_expression(e2))? rparen
+| lparen dot_dot_dot fold_operator cast_expression(e1) rparen
 ;
 
 fold_operator
@@ -875,7 +886,7 @@ fold_operator
 | minus_greater_star
 ;
 
-requires_expression
+requires_expression(ExpressionAST*& yyast)
 : requires requirement_parameter_list? requirement_body
 ;
 
@@ -898,7 +909,10 @@ requirement
 ;
 
 simple_requirement
-: expression semicolon
+{
+  ExpressionAST* e1 = nullptr;
+}
+: expression(e1) semicolon
 ;
 
 type_requirement
@@ -906,7 +920,10 @@ type_requirement
 ;
 
 compound_requirement
-: lbrace expression rbrace noexcept? return_type_requirement? semicolon
+{
+  ExpressionAST* e1 = nullptr;
+}
+: lbrace expression(e1) rbrace noexcept? return_type_requirement? semicolon
 ;
 
 return_type_requirement
@@ -914,20 +931,24 @@ return_type_requirement
 ;
 
 nested_requirement
-: requires constraint_expression semicolon
+{
+  ExpressionAST* e1 = nullptr;
+}
+: requires constraint_expression(e1) semicolon
 ;
 
-postfix_expression
+postfix_expression(ExpressionAST*& yyast)
 {
   DeclSpecs specs;
+  ExpressionAST* e1 = nullptr;
 }
-: ( const_cast less type_id greater lparen expression rparen
-  | dynamic_cast less type_id greater lparen expression rparen
-  | reinterpret_cast less type_id greater lparen expression rparen
+: ( const_cast less type_id greater lparen expression(e1) rparen
+  | dynamic_cast less type_id greater lparen expression(e1) rparen
+  | reinterpret_cast less type_id greater lparen expression(e1) rparen
   | simple_type_specifier(specs) ( braced_init_list
                                  | lparen expression_list? rparen)
-  | static_cast less type_id greater lparen expression rparen
-  | typeid lparen expression rparen
+  | static_cast less type_id greater lparen expression(e1) rparen
+  | typeid lparen expression(e1) rparen
   | typeid lparen type_id rparen
   | typename_specifier braced_init_list
   | typename_specifier lparen expression_list? rparen
@@ -956,7 +977,7 @@ postfix_expression
   | __is_trivially_destructible lparen type_id rparen
   | __is_union lparen type_id rparen
   | __reference_binds_to_temporary lparen type_id comma type_id rparen
-  | primary_expression)
+  | primary_expression(yyast))
     ( dot template? id_expression
     | lbracket expr_or_braced_init_list rbracket
     | lparen expression_list? rparen
@@ -969,22 +990,25 @@ expression_list
 : initializer_list
 ;
 
-unary_expression
-: unary_operator cast_expression
-| plus_plus cast_expression
-| minus_minus cast_expression
-| __imag__ cast_expression
-| __real__ cast_expression
-| await_expression
-| sizeof unary_expression
+unary_expression(ExpressionAST*& yyast)
+{
+  ExpressionAST* e1 = nullptr;
+}
+: unary_operator cast_expression(e1)
+| plus_plus cast_expression(e1)
+| minus_minus cast_expression(e1)
+| __imag__ cast_expression(e1)
+| __real__ cast_expression(e1)
+| await_expression(yyast)
+| sizeof unary_expression(e1)
 | sizeof lparen type_id rparen
 | sizeof dot_dot_dot lparen identifier rparen
 | alignof lparen type_id rparen
 | __alignof lparen type_id rparen
-| noexcept_expression
-| new_expression
-| delete_expression
-| postfix_expression
+| noexcept_expression(yyast)
+| new_expression(yyast)
+| delete_expression(yyast)
+| postfix_expression(yyast)
 ;
 
 unary_operator
@@ -996,15 +1020,21 @@ unary_operator
 | tilde
 ;
 
-await_expression
-: co_await cast_expression
+await_expression(ExpressionAST*& yyast)
+{
+  ExpressionAST* e1 = nullptr;
+}
+: co_await cast_expression(e1)
 ;
 
-noexcept_expression
-: noexcept lparen expression rparen
+noexcept_expression(ExpressionAST*& yyast)
+{
+  ExpressionAST* e1 = nullptr;
+}
+: noexcept lparen expression(e1) rparen
 ;
 
-new_expression
+new_expression(ExpressionAST*& yyast)
 : colon_colon? new new_placement? new_type_id new_initializer?
 | colon_colon? new new_placement? lparen type_id rparen new_initializer?
 ;
@@ -1023,7 +1053,11 @@ new_declarator
 ;
 
 noptr_new_declarator
-: lbracket expression? rbracket attribute_specifier_seq? (lbracket constant_expression rbracket attribute_specifier_seq?)*
+{
+  ExpressionAST* e1 = nullptr;
+  ExpressionAST* e2 = nullptr;
+}
+: lbracket expression(e1)? rbracket attribute_specifier_seq? (lbracket constant_expression(e2) rbracket attribute_specifier_seq?)*
 ;
 
 new_initializer
@@ -1031,14 +1065,20 @@ new_initializer
 | braced_init_list
 ;
 
-delete_expression
-: colon_colon? delete cast_expression
-| colon_colon? delete lbracket rbracket cast_expression
+delete_expression(ExpressionAST*& yyast)
+{
+  ExpressionAST* e1 = nullptr;
+}
+: colon_colon? delete cast_expression(e1)
+| colon_colon? delete lbracket rbracket cast_expression(e1)
 ;
 
-cast_expression
-: lparen type_id rparen cast_expression
-| unary_expression
+cast_expression(ExpressionAST*& yyast)
+{
+  ExpressionAST* e1 = nullptr;
+}
+: lparen type_id rparen cast_expression(e1)
+| unary_expression(yyast)
 ;
 
 binary_operator(TokenKind& tk, bool templArg)
@@ -1070,45 +1110,61 @@ binary_operator(TokenKind& tk, bool templArg)
   | amp ) { tk = unit->tokenKind(yycursor - 1); }
 ;
 
-binary_expression(bool templArg)
-: cast_expression binary_expression_helper(Prec::kLogicalOr, templArg)?
+binary_expression(ExpressionAST*& yyast, bool templArg)
+: cast_expression(yyast) binary_expression_helper(yyast, Prec::kLogicalOr, templArg)?
 ;
 
-binary_expression_helper(Prec minPrec, bool templArg)
+binary_expression_helper(ExpressionAST*& yyast, Prec minPrec, bool templArg)
 {
   TokenKind op = TokenKind::T_EOF_SYMBOL;
   TokenKind nextOp = TokenKind::T_EOF_SYMBOL;
+  ExpressionAST* rhs = nullptr;
 }
 : (binary_operator(op, templArg) { return prec(op) >= minPrec; }
-    cast_expression
+    cast_expression(rhs)
     ({} / (binary_operator(nextOp, templArg) { return prec(nextOp) > prec(op); })
-      binary_expression_helper(prec(op), templArg)
+      binary_expression_helper(rhs, prec(op), templArg)
     )*
   )+
 ;
 
-logical_or_expression(bool templArg)
-: binary_expression(templArg)
+logical_or_expression(ExpressionAST*& yyast, bool templArg)
+: binary_expression(yyast, templArg)
 ;
 
-conditional_expression(bool templArg)
-: logical_or_expression(templArg) (question expression colon assignment_expression)?
+conditional_expression(ExpressionAST*& yyast, bool templArg)
+{
+  ExpressionAST* e1 = nullptr;
+  ExpressionAST* e2 = nullptr;
+}
+: logical_or_expression(yyast, templArg) (question expression(e1) colon assignment_expression(e2))?
 ;
 
-yield_expression
-: co_yield assignment_expression
+yield_expression(ExpressionAST*& yyast)
+{
+  ExpressionAST* e1 = nullptr;
+}
+: co_yield assignment_expression(e1)
 | co_yield braced_init_list
 ;
 
-throw_expression
-: throw assignment_expression?
+throw_expression(ExpressionAST*& yyast)
+{
+  ExpressionAST* e1 = nullptr;
+}
+: throw assignment_expression(e1)?
 ;
 
-assignment_expression
-: yield_expression
-| throw_expression
-| logical_or_expression(false)  ( assignment_operator initializer_clause
-                                | question expression colon assignment_expression)?
+assignment_expression(ExpressionAST*& yyast)
+{
+  ExpressionAST* e1 = nullptr;
+  ExpressionAST* e2 = nullptr;
+}
+: yield_expression(yyast)
+| throw_expression(yyast)
+| logical_or_expression(yyast, false)
+    ( assignment_operator initializer_clause(e1)
+    | question expression(e1) colon assignment_expression(e2))?
 ;
 
 assignment_operator
@@ -1125,51 +1181,64 @@ assignment_operator
 | bar_equal
 ;
 
-expression
-: assignment_expression (comma assignment_expression)*
+expression(ExpressionAST*& yyast)
+{
+  ExpressionAST* e1 = nullptr;
+}
+: assignment_expression(yyast) (comma assignment_expression(e1))*
 ;
 
-constant_expression
-: conditional_expression(false)
+constant_expression(ExpressionAST*& yyast)
+: conditional_expression(yyast, false)
 ;
 
-template_argument_constant_expression
-: conditional_expression(true)
+template_argument_constant_expression(ExpressionAST*& yyast)
+: conditional_expression(yyast, true)
 ;
 
-statement
-: __extension__ statement
-| labeled_statement
-| attribute_specifier_seq? expression_statement
-| attribute_specifier_seq? compound_statement
-| attribute_specifier_seq? selection_statement
-| attribute_specifier_seq? iteration_statement
-| attribute_specifier_seq? jump_statement
-| attribute_specifier_seq? try_block
-| declaration_statement
+statement(StatementAST*& yyast)
+: __extension__ statement(yyast)
+| labeled_statement(yyast)
+| attribute_specifier_seq? expression_statement(yyast)
+| attribute_specifier_seq? compound_statement(yyast)
+| attribute_specifier_seq? selection_statement(yyast)
+| attribute_specifier_seq? iteration_statement(yyast)
+| attribute_specifier_seq? jump_statement(yyast)
+| attribute_specifier_seq? try_block(yyast)
+| declaration_statement(yyast)
 ;
 
-init_statement
-: simple_declaration(false)
-| expression_statement
+init_statement(StatementAST*& yyast)
+{
+  DeclarationAST* d1 = nullptr;
+}
+: simple_declaration(d1, false)
+| expression_statement(yyast)
 ;
 
-condition
+condition(ExpressionAST*& yyast)
 : attribute_specifier_seq? decl_specifier_seq declarator brace_or_equal_initializer
-| expression
+| expression(yyast)
 ;
 
-labeled_statement
-: attribute_specifier_seq? identifier colon statement
-| attribute_specifier_seq? case constant_expression colon statement
-| attribute_specifier_seq? default colon statement
+labeled_statement(StatementAST*& yyast)
+{
+  StatementAST* s1 = nullptr;
+  ExpressionAST* e1 = nullptr;
+}
+: attribute_specifier_seq? identifier colon statement(s1)
+| attribute_specifier_seq? case constant_expression(e1) colon statement(s1)
+| attribute_specifier_seq? default colon statement(s1)
 ;
 
-expression_statement
-: expression? semicolon
+expression_statement(StatementAST*& yyast)
+{
+  ExpressionAST* e1 = nullptr;
+}
+: expression(e1)? semicolon
 ;
 
-compound_statement
+compound_statement(StatementAST*& yyast)
 {
   DeclarativeRegion::Context region(this);
 }
@@ -1180,8 +1249,9 @@ compound_statement
 statement_seq
 {
   bool skipping = false;
+  StatementAST* s1 = nullptr;
 }
-: ( statement { skipping = false; }
+: ( statement(s1) { skipping = false; }
   | {
       if (yytoken() == TokenKind::T_EOF_SYMBOL) return false;
       if (yytoken() == TokenKind::T_RBRACE) return false;
@@ -1195,17 +1265,30 @@ statement_seq
     })+
 ;
 
-selection_statement
-: if constexpr? lparen init_statement? condition rparen statement (else statement)?
-| switch lparen init_statement? condition rparen statement
+selection_statement(StatementAST*& yyast)
+{
+  ExpressionAST* e1 = nullptr;
+  StatementAST* s1 = nullptr;
+  StatementAST* s2 = nullptr;
+  StatementAST* s3 = nullptr;
+}
+: if constexpr? lparen init_statement(s1)? condition(e1) rparen statement(s2) (else statement(s3))?
+| switch lparen init_statement(s1)? condition(e1) rparen statement(s2)
 ;
 
-iteration_statement
-: while lparen condition rparen statement
-| do statement while lparen expression rparen semicolon
-| for lparen for_range_declaration colon for_range_initializer rparen statement
-| for lparen init_statement ( condition? semicolon expression? rparen statement
-                            | for_range_declaration colon for_range_initializer rparen statement)
+iteration_statement(StatementAST*& yyast)
+{
+  StatementAST* s1 = nullptr;
+  StatementAST* s2 = nullptr;
+  ExpressionAST* e1 = nullptr;
+  ExpressionAST* e2 = nullptr;
+}
+: while lparen condition(e1) rparen statement(s1)
+| do statement(s1) while lparen expression(e1) rparen semicolon
+| for lparen for_range_declaration colon for_range_initializer rparen statement(s1)
+| for lparen init_statement(s1)
+    ( condition(e1)? semicolon expression(e2)? rparen statement(s2)
+    | for_range_declaration colon for_range_initializer rparen statement(s2))
 ;
 
 for_range_declaration
@@ -1217,59 +1300,62 @@ for_range_initializer
 : expr_or_braced_init_list
 ;
 
-jump_statement
+jump_statement(StatementAST*& yyast)
 : break semicolon
 | continue semicolon
 | return (semicolon | expr_or_braced_init_list semicolon)
-| coroutine_return_statement
+| coroutine_return_statement(yyast)
 | goto identifier semicolon
 ;
 
-coroutine_return_statement
+coroutine_return_statement(StatementAST*& yyast)
 : co_return expr_or_braced_init_list? semicolon
 ;
 
-declaration_statement
-: block_declaration(false)
+declaration_statement(StatementAST*& yyast)
+{
+  DeclarationAST* d1 = nullptr;
+}
+: block_declaration(d1, false)
 ;
 
-declaration
+declaration(DeclarationAST*& yyast)
 {
   if (yytoken() == TokenKind::T_RBRACE)
     return false;
   else if (parse_module_keyword())
     return false;
 }
-: empty_declaration
-| block_declaration(true)
-| explicit_instantiation
-| explicit_specialization
-| template_declaration
-| deduction_guide
-| export_declaration
-| linkage_specification
-| namespace_definition
-| attribute_declaration
-| module_import_declaration
+: empty_declaration(yyast)
+| block_declaration(yyast, true)
+| explicit_instantiation(yyast)
+| explicit_specialization(yyast)
+| template_declaration(yyast)
+| deduction_guide(yyast)
+| export_declaration(yyast)
+| linkage_specification(yyast)
+| namespace_definition(yyast)
+| attribute_declaration(yyast)
+| module_import_declaration(yyast)
 ;
 
-block_declaration(bool fundef)
-: simple_declaration(fundef)
-| asm_declaration
-| namespace_alias_definition
-| using_declaration
-| using_enum_declaration
-| using_directive
-| static_assert_declaration
-| alias_declaration
-| opaque_enum_declaration
+block_declaration(DeclarationAST*& yyast, bool fundef)
+: simple_declaration(yyast, fundef)
+| asm_declaration(yyast)
+| namespace_alias_definition(yyast)
+| using_declaration(yyast)
+| using_enum_declaration(yyast)
+| using_directive(yyast)
+| static_assert_declaration(yyast)
+| alias_declaration(yyast)
+| opaque_enum_declaration(yyast)
 ;
 
-alias_declaration
+alias_declaration(DeclarationAST*& yyast)
 : using identifier attribute_specifier_seq? equal defining_type_id semicolon
 ;
 
-simple_declaration(bool fundef)
+simple_declaration(DeclarationAST*& yyast, bool fundef)
 {
   DeclSpecs specs;
   Declarator decl;
@@ -1290,18 +1376,21 @@ function_definition_body
 : (requires_clause | virt_specifier_seq?) function_body
 ;
 
-static_assert_declaration
-: static_assert lparen constant_expression (comma string_literal_seq)? rparen semicolon
+static_assert_declaration(DeclarationAST*& yyast)
+{
+  ExpressionAST* e1 = nullptr;
+}
+: static_assert lparen constant_expression(e1) (comma string_literal_seq)? rparen semicolon
 ;
 
 string_literal_seq
 : string_literal+;
 
-empty_declaration
+empty_declaration(DeclarationAST*& yyast)
 : semicolon
 ;
 
-attribute_declaration
+attribute_declaration(DeclarationAST*& yyast)
 : attribute_specifier_seq semicolon
 ;
 
@@ -1347,7 +1436,10 @@ function_specifier
 ;
 
 explicit_specifier
-: explicit lparen constant_expression rparen
+{
+  ExpressionAST* e1 = nullptr;
+}
+: explicit lparen constant_expression(e1) rparen
 | explicit
 ;
 
@@ -1442,9 +1534,12 @@ elaborated_enum_specifier
 ;
 
 decltype_specifier
-: decltype lparen expression rparen
-| (__decltype | __decltype__) lparen expression rparen
-| (__typeof | __typeof__) lparen expression rparen
+{
+  ExpressionAST* e1 = nullptr;
+}
+: decltype lparen expression(e1) rparen
+| (__decltype | __decltype__) lparen expression(e1) rparen
+| (__typeof | __typeof__) lparen expression(e1) rparen
 ;
 
 placeholder_type_specifier
@@ -1479,10 +1574,13 @@ core_declarator(Declarator& decl)
 ;
 
 noptr_declarator(Declarator& decl)
+{
+  ExpressionAST* e1 = nullptr;
+}
 : core_declarator(decl)
     ( parameters_and_qualifiers trailing_return_type?
         { decl.push_back(FunctionDeclarator()); }
-    | lbracket constant_expression? rbracket attribute_specifier_seq?
+    | lbracket constant_expression(e1)? rbracket attribute_specifier_seq?
         { decl.push_back(ArrayDeclarator()); }
     )*
 ;
@@ -1547,9 +1645,12 @@ ptr_abstract_declarator
 ;
 
 noptr_abstract_declarator
+{
+  ExpressionAST* e1 = nullptr;
+}
 : (lparen ptr_abstract_declarator rparen)?
     ( parameters_and_qualifiers
-    | lbracket constant_expression? rbracket attribute_specifier_seq?)*
+    | lbracket constant_expression(e1)? rbracket attribute_specifier_seq?)*
 ;
 
 abstract_pack_declarator
@@ -1557,9 +1658,12 @@ abstract_pack_declarator
 ;
 
 noptr_abstract_pack_declarator
+{
+  ExpressionAST* e1 = nullptr;
+}
 : dot_dot_dot
     ( parameters_and_qualifiers
-    | lbracket constant_expression? rbracket attribute_specifier_seq?)*
+    | lbracket constant_expression(e1)? rbracket attribute_specifier_seq?)*
 ;
 
 parameter_declaration_clause
@@ -1575,10 +1679,12 @@ parameter_declaration
 {
   DeclSpecs specs;
   specs.no_class_or_enum_specs = true;
+
+  ExpressionAST* e1 = nullptr;
 }
 : attribute_specifier_seq? decl_specifier_seq(specs)
-    ( declarator (equal initializer_clause)?
-    | abstract_declarator? (equal initializer_clause)?)
+    ( declarator (equal initializer_clause(e1))?
+    | abstract_declarator? (equal initializer_clause(e1))?)
 ;
 
 initializer
@@ -1587,13 +1693,16 @@ initializer
 ;
 
 brace_or_equal_initializer
-: equal initializer_clause
+{
+  ExpressionAST* e1 = nullptr;
+}
+: equal initializer_clause(e1)
 | braced_init_list
 ;
 
-initializer_clause
+initializer_clause(ExpressionAST*& yyast)
 : braced_init_list
-| assignment_expression
+| assignment_expression(yyast)
 ;
 
 braced_init_list
@@ -1603,7 +1712,11 @@ braced_init_list
 ;
 
 initializer_list
-: initializer_clause dot_dot_dot? (comma initializer_clause dot_dot_dot?)*
+{
+  ExpressionAST* e1 = nullptr;
+  ExpressionAST* e2 = nullptr;
+}
+: initializer_clause(e1) dot_dot_dot? (comma initializer_clause(e2) dot_dot_dot?)*
 ;
 
 designated_initializer_list
@@ -1619,7 +1732,10 @@ designator
 ;
 
 expr_or_braced_init_list
-: expression
+{
+  ExpressionAST* e1 = nullptr;
+}
+: expression(e1)
 | braced_init_list
 ;
 
@@ -1627,6 +1743,9 @@ virt_specifier_seq
 : virt_specifier+;
 
 function_body
+{
+  StatementAST* s1 = nullptr;
+}
 : { return skip_function_body; }
   ctor_initializer? lbrace
     {
@@ -1644,7 +1763,7 @@ function_body
       }
     }
   rbrace
-| ctor_initializer? compound_statement
+| ctor_initializer? compound_statement(s1)
 | function_try_block
 | equal default semicolon
 | equal delete semicolon
@@ -1666,7 +1785,7 @@ enum_head_name
 : nested_name_specifier? identifier
 ;
 
-opaque_enum_declaration
+opaque_enum_declaration(DeclarationAST*& yyast)
 : enum_key attribute_specifier_seq? enum_head_name enum_base? semicolon
 ;
 
@@ -1685,24 +1804,27 @@ enumerator_list
 ;
 
 enumerator_definition
-: enumerator (equal constant_expression)*
+{
+  ExpressionAST* e1 = nullptr;
+}
+: enumerator (equal constant_expression(e1))*
 ;
 
 enumerator
 : identifier attribute_specifier_seq?
 ;
 
-using_enum_declaration
+using_enum_declaration(DeclarationAST*& yyast)
 : using elaborated_enum_specifier semicolon
 ;
 
-namespace_definition
-: nested_namespace_definition
-| named_namespace_definition
-| unnamed_namespace_definition
+namespace_definition(DeclarationAST*& yyast)
+: nested_namespace_definition(yyast)
+| named_namespace_definition(yyast)
+| unnamed_namespace_definition(yyast)
 ;
 
-named_namespace_definition
+named_namespace_definition(DeclarationAST*& yyast)
 {
   DeclarativeRegion::Context context(this);
   uint32_t name = 0;
@@ -1732,7 +1854,7 @@ named_namespace_definition
   rbrace
 ;
 
-unnamed_namespace_definition
+unnamed_namespace_definition(DeclarationAST*& yyast)
 {
   DeclarativeRegion::Context region(this);
 }
@@ -1748,7 +1870,7 @@ unnamed_namespace_definition
     rbrace
 ;
 
-nested_namespace_definition
+nested_namespace_definition(DeclarationAST*& yyast)
 {
   DeclarativeRegion::Context region(this);
 }
@@ -1763,7 +1885,7 @@ namespace_body
 : declaration_seq?
 ;
 
-namespace_alias_definition
+namespace_alias_definition(DeclarationAST*& yyast)
 : namespace identifier equal qualified_namespace_specifier semicolon
 ;
 
@@ -1771,11 +1893,11 @@ qualified_namespace_specifier
 : nested_name_specifier? namespace_name
 ;
 
-using_directive
+using_directive(DeclarationAST*& yyast)
 : attribute_specifier_seq? using namespace nested_name_specifier? namespace_name semicolon
 ;
 
-using_declaration
+using_declaration(DeclarationAST*& yyast)
 : using using_declarator_list semicolon
 ;
 
@@ -1787,13 +1909,16 @@ using_declarator
 : typename? nested_name_specifier unqualified_id
 ;
 
-asm_declaration
+asm_declaration(DeclarationAST*& yyast)
 : attribute_specifier_seq? asm lparen string_literal rparen semicolon
 ;
 
-linkage_specification
+linkage_specification(DeclarationAST*& yyast)
+{
+  DeclarationAST* d1 = nullptr;
+}
 : extern string_literal lbrace declaration_seq? rbrace
-| extern string_literal declaration
+| extern string_literal declaration(d1)
 ;
 
 attribute_specifier_seq
@@ -1833,8 +1958,11 @@ skip_balanced
 };
 
 alignment_specifier
+{
+  ExpressionAST* e1 = nullptr;
+}
 : alignas lparen type_id dot_dot_dot? rparen
-| alignas lparen constant_expression dot_dot_dot? rparen
+| alignas lparen constant_expression(e1) dot_dot_dot? rparen
 ;
 
 attribute_using_prefix
@@ -1883,13 +2011,16 @@ module_name_qualifier
 : identifier dot (identifier dot)*
 ;
 
-export_declaration
-: export declaration
+export_declaration(DeclarationAST*& yyast)
+{
+  DeclarationAST* d1 = nullptr;
+}
+: export declaration(d1)
 | export lbrace declaration_seq? rbrace
-| export_keyword module_import_declaration
+| export_keyword module_import_declaration(d1)
 ;
 
-module_import_declaration
+module_import_declaration(DeclarationAST*& yyast)
 : import_keyword module_name attribute_specifier_seq? semicolon
 | import_keyword module_partition attribute_specifier_seq? semicolon
 | import_keyword header_name attribute_specifier_seq? semicolon
@@ -1952,8 +2083,9 @@ class_specifier
 class_body
 {
   bool skipping = false;
+  DeclarationAST* d1 = nullptr;
 }
-: ( member_specification { skipping = false; }
+: ( member_specification(d1) { skipping = false; }
   | {
       if (yytoken() == TokenKind::T_EOF_SYMBOL) return false;
       if (yytoken() == TokenKind::T_RBRACE) return false;
@@ -1984,11 +2116,11 @@ class_key
 | union
 ;
 
-member_specification
-: member_declaration
+member_specification(DeclarationAST*& yyast)
+: member_declaration(yyast)
 ;
 
-member_declaration
+member_declaration(DeclarationAST*& yyast)
 {
   DeclSpecs specs;
   Declarator decl;
@@ -2000,15 +2132,15 @@ member_declaration
         | decl_specifier_seq(specs)? { return specs.has_typespec(); }
             ( member_declarator_list? semicolon
             | declarator(decl) { return isFunctionDeclarator(decl); } member_function_definition_body))
-| using_declaration
-| using_enum_declaration
-| static_assert_declaration
-| template_declaration
-| explicit_specialization
-| deduction_guide
-| alias_declaration
-| opaque_enum_declaration
-| empty_declaration
+| using_declaration(yyast)
+| using_enum_declaration(yyast)
+| static_assert_declaration(yyast)
+| template_declaration(yyast)
+| explicit_specialization(yyast)
+| deduction_guide(yyast)
+| alias_declaration(yyast)
+| opaque_enum_declaration(yyast)
+| empty_declaration(yyast)
 ;
 
 member_function_definition_body
@@ -2026,7 +2158,10 @@ member_declarator_list
 ;
 
 member_declarator
-: identifier? attribute_specifier_seq? colon constant_expression brace_or_equal_initializer?
+{
+  ExpressionAST* e1 = nullptr;
+}
+: identifier? attribute_specifier_seq? colon constant_expression(e1) brace_or_equal_initializer?
 | declarator member_declarator_addition
 ;
 
@@ -2150,9 +2285,12 @@ literal_operator_id
 | operator user_defined_string_literal
 ;
 
-template_declaration
+template_declaration(DeclarationAST*& yyast)
+{
+  DeclarationAST* d1 = nullptr;
+}
 : template_head ( concept_definition
-                | declaration)
+                | declaration(d1))
 ;
 
 template_head
@@ -2167,15 +2305,24 @@ template_parameter_list
 ;
 
 requires_clause
-: requires constraint_logical_or_expression
+{
+  ExpressionAST* e1 = nullptr;
+}
+: requires constraint_logical_or_expression(e1)
 ;
 
-constraint_logical_or_expression
-: constraint_logical_and_expression (bar_bar constraint_logical_and_expression)*
+constraint_logical_or_expression(ExpressionAST*& yyast)
+{
+  ExpressionAST* e1 = nullptr;
+}
+: constraint_logical_and_expression(yyast) (bar_bar constraint_logical_and_expression(e1))*
 ;
 
-constraint_logical_and_expression
-: primary_expression (amp_amp primary_expression)*
+constraint_logical_and_expression(ExpressionAST*& yyast)
+{
+  ExpressionAST* e1 = nullptr;
+}
+: primary_expression(yyast) (amp_amp primary_expression(e1))*
 ;
 
 template_parameter
@@ -2227,21 +2374,27 @@ template_argument_list
 ;
 
 template_argument
+{
+  ExpressionAST* e1 = nullptr;
+}
 : type_id / (comma | greater | dot_dot_dot)
-| template_argument_constant_expression / (comma | greater | dot_dot_dot)
+| template_argument_constant_expression(e1) / (comma | greater | dot_dot_dot)
 | id_expression
 ;
 
-constraint_expression
-: logical_or_expression(false)
+constraint_expression(ExpressionAST*& yyast)
+: logical_or_expression(yyast, false)
 ;
 
-deduction_guide
+deduction_guide(DeclarationAST*& yyast)
 : explicit_specifier? template_name lparen parameter_declaration_clause rparen minus_greater simple_template_id semicolon
 ;
 
 concept_definition
-: concept concept_name equal constraint_expression semicolon
+{
+  ExpressionAST* e1 = nullptr;
+}
+: concept concept_name equal constraint_expression(e1) semicolon
 ;
 
 concept_name
@@ -2252,24 +2405,39 @@ typename_specifier
 : typename nested_name_specifier (template? simple_template_id | identifier)
 ;
 
-explicit_instantiation
-: extern? template declaration
+explicit_instantiation(DeclarationAST*& yyast)
+{
+  DeclarationAST* d1 = nullptr;
+}
+: extern? template declaration(d1)
 ;
 
-explicit_specialization
-: template less greater declaration
+explicit_specialization(DeclarationAST*& yyast)
+{
+  DeclarationAST* d1 = nullptr;
+}
+: template less greater declaration(d1)
 ;
 
-try_block
-: try compound_statement handler_seq
+try_block(StatementAST*& yyast)
+{
+  StatementAST* s1 = nullptr;
+}
+: try compound_statement(s1) handler_seq
 ;
 
 function_try_block
-: try ctor_initializer? compound_statement handler_seq
+{
+  StatementAST* s1 = nullptr;
+}
+: try ctor_initializer? compound_statement(s1) handler_seq
 ;
 
 handler
-: catch lparen exception_declaration rparen compound_statement
+{
+  StatementAST* s1 = nullptr;
+}
+: catch lparen exception_declaration rparen compound_statement(s1)
 ;
 
 handler_seq
@@ -2281,7 +2449,10 @@ exception_declaration
 ;
 
 noexcept_specifier
-: noexcept lparen constant_expression rparen
+{
+  ExpressionAST* e1 = nullptr;
+}
+: noexcept lparen constant_expression(e1) rparen
 | noexcept
 | throw lparen rparen // deprecated
 ;

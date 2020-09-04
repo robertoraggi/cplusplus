@@ -27,6 +27,7 @@
 #include <variant>
 
 #include "arena.h"
+#include "ast.h"
 #include "control.h"
 #include "token.h"
 #include "translation-unit.h"
@@ -67,7 +68,8 @@ bool Parser::yyparse(TranslationUnit* u, const std::function<void()>& consume) {
   final_id = control->getIdentifier("final");
   override_id = control->getIdentifier("override");
 
-  auto parsed = parse_translation_unit();
+  UnitAST* ast = nullptr;
+  auto parsed = parse_translation_unit(ast);
 
   if (consume) consume();
 
