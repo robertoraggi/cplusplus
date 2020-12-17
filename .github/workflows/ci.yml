@@ -50,9 +50,8 @@ jobs:
         submodules: true
 
     - name: Setup emsdk
-      uses: mymindstorm/setup-emsdk@v6
+      uses: mymindstorm/setup-emsdk@master
       with:
-        version: 1.39.20
         actions-cache-folder: 'emsdk-cache'
 
     - name: Build
