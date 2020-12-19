@@ -318,6 +318,25 @@
 
   bool yyparse(TranslationUnit* unit, const std::function<void()>& consume);
 
+  const Token& LA(int n) const
+  {
+    return unit->tokenAt(yycursor + n);
+  }
+
+  bool match(TokenKind tk)
+  {
+    if (yytoken() != tk) return false;
+    yyconsume();
+    return true;
+  }
+
+  bool expect(TokenKind tk)
+  {
+    if (match(tk)) return true;
+    parse_error("expected '{}'", Token::spell(tk));
+    return false;
+  }
+
   TranslationUnit* unit = nullptr;
   Arena* pool = nullptr;
   Control* control = nullptr;
@@ -694,7 +713,7 @@ top_level_declaration_seq(UnitAST*& yyast)
 : ( declaration(d1) { skipping = false; }
   | {
       if (yytoken() == TokenKind::T_EOF_SYMBOL) return false;
-      if (!skipping) unit->report(yyparsed, MessageKind::Error, "expected a declaration");
+      if (!skipping) unit->report(yycursor, MessageKind::Error, "expected a declaration");
       yyconsume();
       skipping = true;
     })+
@@ -712,7 +731,7 @@ declaration_seq
       if (yytoken() == TokenKind::T_MODULE) return false;
       if (module_unit && yytoken() == TokenKind::T_EXPORT) return false;
       if (yytoken() == TokenKind::T_IMPORT) return false;
-      if (!skipping) unit->report(yyparsed, MessageKind::Error, "expected a declaration");
+      if (!skipping) unit->report(yycursor, MessageKind::Error, "expected a declaration");
       yyconsume();
       skipping = true;
     })+
@@ -1255,7 +1274,7 @@ statement_seq
   | {
       if (yytoken() == TokenKind::T_EOF_SYMBOL) return false;
       if (yytoken() == TokenKind::T_RBRACE) return false;
-      if (!skipping) unit->report(yyparsed, MessageKind::Error, "expected a statement");
+      if (!skipping) unit->report(yycursor, MessageKind::Error, "expected a statement");
       for (; yytoken() != TokenKind::T_EOF_SYMBOL; yyconsume()) {
         if (yytoken() == TokenKind::T_SEMICOLON) break;
         if (yytoken() == TokenKind::T_LBRACE) break;
@@ -2075,7 +2094,7 @@ class_specifier
     class_specifiers_.emplace(start, std::make_tuple(yycursor, true));
   }
 | {
-    class_specifiers_.emplace(start, std::make_tuple(yyparsed, false));
+    class_specifiers_.emplace(start, std::make_tuple(yycursor, false));
     return false;
   }
 ;
@@ -2089,7 +2108,7 @@ class_body
   | {
       if (yytoken() == TokenKind::T_EOF_SYMBOL) return false;
       if (yytoken() == TokenKind::T_RBRACE) return false;
-      if (!skipping) unit->report(yyparsed, MessageKind::Error, "expected a declaration");
+      if (!skipping) unit->report(yycursor, MessageKind::Error, "expected a declaration");
       yyconsume();
       skipping = true;
     })+

@@ -255,6 +255,8 @@ class Token {
 
   static std::string_view name(TokenKind kind);
   std::string_view name() const;
+
+  explicit operator bool() const { return kind_ != TokenKind::T_EOF_SYMBOL; }
 };
 
 }  // namespace cxx

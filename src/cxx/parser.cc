@@ -58,7 +58,6 @@ bool Parser::yyparse(TranslationUnit* u, const std::function<void()>& consume) {
   control = unit->control();
   yydepth = -1;
   yycursor = 1;
-  yyparsed = yycursor;
 
   Arena arena;
   pool = &arena;
