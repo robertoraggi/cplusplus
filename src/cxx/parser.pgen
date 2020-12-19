@@ -693,7 +693,7 @@ module_unit(UnitAST*& yyast)
 
 eof
 : eof_symbol
-| error("unexpected eof")
+| error("expected eof")
 ;
 
 top_level_declaration_seq(UnitAST*& yyast)
@@ -1852,42 +1852,50 @@ named_namespace_definition(DeclarationAST*& yyast)
   identifier { name = yycursor - 1; }
   gcc_attribute_seq?
   lbrace
-  {
-    const auto id = Name(unit->identifier(name));
-    Symbol* ns = currentRegion_->scope.find(id);
-    for (; ns; ns = ns->next) {
-      if (ns->name == id && ns->isNamespace())
-        break;
-    }
-    if (!ns) {
-      ns = newSymbol();
-      ns->name = id;
-      NamespaceData data;
-      data.region = newDeclarativeRegion(currentRegion_);
-      ns->data = data;
-      currentRegion_->scope.add(ns);
-    }
-    context.enter(std::get<NamespaceData>(ns->data).region);
-  }
+  enter_named_namespace_definition(context, name)
   namespace_body
   rbrace
 ;
+
+enter_named_namespace_definition(DeclarativeRegion::Context& context, uint32_t& name):
+{
+  const auto id = Name(unit->identifier(name));
+  Symbol* ns = currentRegion_->scope.find(id);
+  for (; ns; ns = ns->next) {
+    if (ns->name == id && ns->isNamespace())
+      break;
+  }
+  if (!ns) {
+    ns = newSymbol();
+    ns->name = id;
+    NamespaceData data;
+    data.region = newDeclarativeRegion(currentRegion_);
+    ns->data = data;
+    currentRegion_->scope.add(ns);
+  }
+  context.enter(std::get<NamespaceData>(ns->data).region);
+};
+
 
 unnamed_namespace_definition(DeclarationAST*& yyast)
 {
   DeclarativeRegion::Context region(this);
 }
 : inline? namespace attribute_specifier_seq? gcc_attribute_seq? lbrace
-    {
-      auto ns = newSymbol();
-      NamespaceData data;
-      data.region = newDeclarativeRegion(currentRegion_);
-      ns->data = data;
-      currentRegion_->scope.add(ns);
-    }
+    enter_unnamed_namespace_definition(region)
     namespace_body
     rbrace
 ;
+
+enter_unnamed_namespace_definition(DeclarativeRegion::Context& region):
+{
+  auto ns = newSymbol();
+  NamespaceData data;
+  data.region = newDeclarativeRegion(currentRegion_);
+  ns->data = data;
+  currentRegion_->scope.add(ns);
+};
+
 
 nested_namespace_definition(DeclarationAST*& yyast)
 {
@@ -2071,33 +2079,42 @@ class_specifier
 }
 : class_head(enclosingRegion, className)
   lbrace
-    {
-      if (!enclosingRegion) {
-        unit->report(yycursor, MessageKind::Error, "unresolved nested name specifier");
-        enclosingRegion = currentRegion_;
-      }
-
-      classSymbol = newSymbol();
-      classSymbol->name = className;
-      enclosingRegion->scope.add(classSymbol);
-
-      ClassData classData;
-      classData.lexicalRegion = currentRegion_;
-      classData.region = newDeclarativeRegion(enclosingRegion);
-      classSymbol->data = classData;
-      region.enter(classData.region);
-    }
+  enter_class_specifier(region, enclosingRegion, className, classSymbol)
   class_body?
   rbrace
-  {
-    get_if<ClassData>(&classSymbol->data)->isComplete = true;
-    class_specifiers_.emplace(start, std::make_tuple(yycursor, true));
-  }
-| {
-    class_specifiers_.emplace(start, std::make_tuple(yycursor, false));
-    return false;
-  }
+  leave_class_specifier(classSymbol, start)
+| reject_class_specifier(start)
 ;
+
+enter_class_specifier(DeclarativeRegion::Context& region, DeclarativeRegion* enclosingRegion, Name& className, Symbol*& classSymbol):
+{
+  if (!enclosingRegion) {
+    unit->report(yycursor, MessageKind::Error, "unresolved nested name specifier");
+    enclosingRegion = currentRegion_;
+  }
+
+  classSymbol = newSymbol();
+  classSymbol->name = className;
+  enclosingRegion->scope.add(classSymbol);
+
+  ClassData classData;
+  classData.lexicalRegion = currentRegion_;
+  classData.region = newDeclarativeRegion(enclosingRegion);
+  classSymbol->data = classData;
+  region.enter(classData.region);
+};
+
+leave_class_specifier(Symbol* classSymbol, uint32_t start):
+{
+  get_if<ClassData>(&classSymbol->data)->isComplete = true;
+  class_specifiers_.emplace(start, std::make_tuple(yycursor, true));
+};
+
+reject_class_specifier(uint32_t start):
+{
+  class_specifiers_.emplace(start, std::make_tuple(yycursor, false));
+  return false;
+};
 
 class_body
 {
