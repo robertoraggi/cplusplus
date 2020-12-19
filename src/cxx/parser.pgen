@@ -318,7 +318,7 @@
 
   bool yyparse(TranslationUnit* unit, const std::function<void()>& consume);
 
-  const Token& LA(int n) const
+  const Token& LA(int n = 0) const
   {
     return unit->tokenAt(yycursor + n);
   }
@@ -1215,17 +1215,63 @@ template_argument_constant_expression(ExpressionAST*& yyast)
 : conditional_expression(yyast, true)
 ;
 
-statement(StatementAST*& yyast)
-: __extension__ statement(yyast)
-| labeled_statement(yyast)
-| attribute_specifier_seq? expression_statement(yyast)
-| attribute_specifier_seq? compound_statement(yyast)
-| attribute_specifier_seq? selection_statement(yyast)
-| attribute_specifier_seq? iteration_statement(yyast)
-| attribute_specifier_seq? jump_statement(yyast)
-| attribute_specifier_seq? try_block(yyast)
-| declaration_statement(yyast)
-;
+statement(StatementAST*& yyast):
+{
+  bool has_extension = false;
+
+  if (match(TokenKind::T___EXTENSION__)) {
+    has_extension = false;
+  }
+
+  bool has_attribute_specifiers = false;
+
+  if (parse_attribute_specifier_seq()) {
+    has_attribute_specifiers = true;
+  }
+
+  const auto start = yycursor;
+
+  switch (yytoken()) {
+    case TokenKind::T_CASE:
+      return parse_case_statement(yyast);
+    case TokenKind::T_DEFAULT:
+      return parse_default_statement(yyast);
+    case TokenKind::T_WHILE:
+      return parse_while_statement(yyast);
+    case TokenKind::T_DO:
+      return parse_do_statement(yyast);
+    case TokenKind::T_FOR:
+      if (parse_for_range_statement(yyast))
+        return true;
+      yyrewind(start);
+      return parse_for_statement(yyast);
+    case TokenKind::T_IF:
+      return parse_if_statement(yyast);
+    case TokenKind::T_SWITCH:
+      return parse_switch_statement(yyast);
+    case TokenKind::T_BREAK:
+      return parse_break_statement(yyast);
+    case TokenKind::T_CONTINUE:
+      return parse_continue_statement(yyast);
+    case TokenKind::T_RETURN:
+      return parse_return_statement(yyast);
+    case TokenKind::T_GOTO:
+      return parse_goto_statement(yyast);
+    case TokenKind::T_CO_RETURN:
+      return parse_coroutine_return_statement(yyast);
+    case TokenKind::T_TRY:
+      return parse_try_block(yyast);
+    case TokenKind::T_LBRACE:
+      return parse_compound_statement(yyast);
+    default:
+      if (yytoken() == TokenKind::T_IDENTIFIER && yytoken(1) == TokenKind::T_COLON) {
+        return parse_labeled_statement(yyast);
+      } else if (parse_declaration_statement(yyast)) {
+        return true;
+      }
+      return parse_expression_statement(yyast);
+  } // switch
+};
 
 init_statement(StatementAST*& yyast)
 {
@@ -1245,9 +1291,22 @@ labeled_statement(StatementAST*& yyast)
   StatementAST* s1 = nullptr;
   ExpressionAST* e1 = nullptr;
 }
-: attribute_specifier_seq? identifier colon statement(s1)
-| attribute_specifier_seq? case constant_expression(e1) colon statement(s1)
-| attribute_specifier_seq? default colon statement(s1)
+: identifier colon statement(s1)
+;
+
+case_statement(StatementAST*& yyast)
+{
+  StatementAST* s1 = nullptr;
+  ExpressionAST* e1 = nullptr;
+}
+: case constant_expression(e1) colon statement(s1)
+;
+
+default_statement(StatementAST*& yyast)
+{
+  StatementAST* s1 = nullptr;
+}
+: default colon statement(s1)
 ;
 
 expression_statement(StatementAST*& yyast)
@@ -1257,34 +1316,39 @@ expression_statement(StatementAST*& yyast)
 : expression(e1)? semicolon
 ;
 
-compound_statement(StatementAST*& yyast)
-{
+compound_statement(StatementAST*& yyast): {
   DeclarativeRegion::Context region(this);
-}
-: lbrace rbrace
-| lbrace enter(region) statement_seq rbrace
-;
-
-statement_seq
-{
   bool skipping = false;
-  StatementAST* s1 = nullptr;
-}
-: ( statement(s1) { skipping = false; }
-  | {
-      if (yytoken() == TokenKind::T_EOF_SYMBOL) return false;
-      if (yytoken() == TokenKind::T_RBRACE) return false;
-      if (!skipping) unit->report(yycursor, MessageKind::Error, "expected a statement");
-      for (; yytoken() != TokenKind::T_EOF_SYMBOL; yyconsume()) {
-        if (yytoken() == TokenKind::T_SEMICOLON) break;
-        if (yytoken() == TokenKind::T_LBRACE) break;
-        if (yytoken() == TokenKind::T_RBRACE) break;
-      }
-      skipping = true;
-    })+
-;
+  if (!match(TokenKind::T_LBRACE)) return false;
+  parse_enter(region);
+  while (auto tk = LA()) {
+    if (yytoken() == TokenKind::T_RBRACE)
+      break;
+    StatementAST* s = nullptr;
+    if (parse_statement(s)) {
+      skipping = false;
+    } else {
+      parse_skip_statement(skipping);
+    }
+  }
+  if (!expect(TokenKind::T_RBRACE)) return false;
+  return true;
+};
 
-selection_statement(StatementAST*& yyast)
+skip_statement(bool& skipping): {
+  if (yytoken() == TokenKind::T_EOF_SYMBOL) return false;
+  if (yytoken() == TokenKind::T_RBRACE) return false;
+  if (!skipping) unit->report(yycursor, MessageKind::Error, "expected a statement");
+  for (; yytoken() != TokenKind::T_EOF_SYMBOL; yyconsume()) {
+    if (yytoken() == TokenKind::T_SEMICOLON) break;
+    if (yytoken() == TokenKind::T_LBRACE) break;
+    if (yytoken() == TokenKind::T_RBRACE) break;
+  }
+  skipping = true;
+};
+
+
+if_statement(StatementAST*& yyast)
 {
   ExpressionAST* e1 = nullptr;
   StatementAST* s1 = nullptr;
@@ -1292,20 +1356,48 @@ selection_statement(StatementAST*& yyast)
   StatementAST* s3 = nullptr;
 }
 : if constexpr? lparen init_statement(s1)? condition(e1) rparen statement(s2) (else statement(s3))?
-| switch lparen init_statement(s1)? condition(e1) rparen statement(s2)
 ;
 
-iteration_statement(StatementAST*& yyast)
+switch_statement(StatementAST*& yyast)
+{
+  ExpressionAST* e1 = nullptr;
+  StatementAST* s1 = nullptr;
+  StatementAST* s2 = nullptr;
+}
+: switch lparen init_statement(s1)? condition(e1) rparen statement(s2)
+;
+
+while_statement(StatementAST*& yyast)
+{
+  StatementAST* s1 = nullptr;
+  ExpressionAST* e1 = nullptr;
+}
+: while lparen condition(e1) rparen statement(s1)
+;
+
+do_statement(StatementAST*& yyast)
+{
+  StatementAST* s1 = nullptr;
+  ExpressionAST* e1 = nullptr;
+}
+: do statement(s1) while lparen expression(e1) rparen semicolon
+;
+
+for_range_statement(StatementAST*& yyast)
+{
+  StatementAST* s1 = nullptr;
+}
+: for lparen for_range_declaration colon for_range_initializer rparen statement(s1)
+;
+
+for_statement(StatementAST*& yyast)
 {
   StatementAST* s1 = nullptr;
   StatementAST* s2 = nullptr;
   ExpressionAST* e1 = nullptr;
   ExpressionAST* e2 = nullptr;
 }
-: while lparen condition(e1) rparen statement(s1)
-| do statement(s1) while lparen expression(e1) rparen semicolon
-| for lparen for_range_declaration colon for_range_initializer rparen statement(s1)
-| for lparen init_statement(s1)
+: for lparen init_statement(s1)
     ( condition(e1)? semicolon expression(e2)? rparen statement(s2)
     | for_range_declaration colon for_range_initializer rparen statement(s2))
 ;
@@ -1319,12 +1411,20 @@ for_range_initializer
 : expr_or_braced_init_list
 ;
 
-jump_statement(StatementAST*& yyast)
+break_statement(StatementAST*& yyast)
 : break semicolon
-| continue semicolon
-| return (semicolon | expr_or_braced_init_list semicolon)
-| coroutine_return_statement(yyast)
-| goto identifier semicolon
+;
+
+continue_statement(StatementAST*& yyast)
+: continue semicolon
+;
+
+return_statement(StatementAST*& yyast)
+: return (semicolon | expr_or_braced_init_list semicolon)
+;
+
+goto_statement(StatementAST*& yyast)
+: goto identifier semicolon
 ;
 
 coroutine_return_statement(StatementAST*& yyast)
