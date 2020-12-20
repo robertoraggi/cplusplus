@@ -714,31 +714,38 @@ top_level_declaration_seq(UnitAST*& yyast)
   DeclarationAST* d1 = nullptr;
 }
 : ( declaration(d1) { skipping = false; }
-  | {
-      if (yytoken() == TokenKind::T_EOF_SYMBOL) return false;
-      if (!skipping) unit->report(yycursor, MessageKind::Error, "expected a declaration");
-      yyconsume();
-      skipping = true;
-    })+
+  | skip_top_level_declaration(skipping))+
 ;
 
-declaration_seq
-{
+skip_top_level_declaration(bool& skipping): {
+  if (yytoken() == TokenKind::T_EOF_SYMBOL) return false;
+  if (!skipping) unit->report(yycursor, MessageKind::Error, "expected a declaration");
+  yyconsume();
+  skipping = true;
+};
+
+declaration_seq: {
   bool skipping = false;
-  DeclarationAST* d1 = nullptr;
-}
-: ( declaration(d1) { skipping = false; }
-  | {
-      if (yytoken() == TokenKind::T_EOF_SYMBOL) return false;
-      if (yytoken() == TokenKind::T_RBRACE) return false;
-      if (yytoken() == TokenKind::T_MODULE) return false;
-      if (module_unit && yytoken() == TokenKind::T_EXPORT) return false;
-      if (yytoken() == TokenKind::T_IMPORT) return false;
-      if (!skipping) unit->report(yycursor, MessageKind::Error, "expected a declaration");
-      yyconsume();
-      skipping = true;
-    })+
-;
+  while (yytoken() != TokenKind::T_EOF_SYMBOL) {
+    if (yytoken() == TokenKind::T_RBRACE) break;
+    DeclarationAST* decl = nullptr;
+    if (parse_declaration(decl)) {
+      skipping = false;
+    } else {
+      parse_skip_declaration(skipping);
+    }
+  }
+};
+
+skip_declaration(bool& skipping): {
+  if (yytoken() == TokenKind::T_RBRACE) return false;
+  if (yytoken() == TokenKind::T_MODULE) return false;
+  if (module_unit && yytoken() == TokenKind::T_EXPORT) return false;
+  if (yytoken() == TokenKind::T_IMPORT) return false;
+  if (!skipping) unit->report(yycursor, MessageKind::Error, "expected a declaration");
+  yyconsume();
+  skipping = true;
+};
 
 primary_expression(ExpressionAST*& yyast)
 {
@@ -1979,19 +1986,31 @@ namespace_definition(DeclarationAST*& yyast)
 | unnamed_namespace_definition(yyast)
 ;
 
-named_namespace_definition(DeclarationAST*& yyast)
-{
+named_namespace_definition(DeclarationAST*& yyast): {
+  bool has_inline = false;
+
+  if (match(TokenKind::T_INLINE)) {
+    has_inline = true;
+  }
+
+  if (!match(TokenKind::T_NAMESPACE))
+    return false;
+
+  parse_attribute_specifier_seq();
+
+  if (!match(TokenKind::T_IDENTIFIER))
+    return false;
+
+  auto name = yycursor - 1;
+
+  parse_gcc_attribute_seq();
+
+  expect(TokenKind::T_LBRACE);
   DeclarativeRegion::Context context(this);
-  uint32_t name = 0;
-}
-: inline? namespace attribute_specifier_seq?
-  identifier { name = yycursor - 1; }
-  gcc_attribute_seq?
-  lbrace
-  enter_named_namespace_definition(context, name)
-  namespace_body
-  rbrace
-;
+  parse_enter_named_namespace_definition(context, name);
+  parse_namespace_body();
+  expect(TokenKind::T_RBRACE);
+};
 
 enter_named_namespace_definition(DeclarativeRegion::Context& context, uint32_t& name):
 {
@@ -2012,16 +2031,21 @@ enter_named_namespace_definition(DeclarativeRegion::Context& context, uint32_t& 
   context.enter(std::get<NamespaceData>(ns->data).region);
 };
 
-
-unnamed_namespace_definition(DeclarationAST*& yyast)
-{
+unnamed_namespace_definition(DeclarationAST*& yyast): {
+  bool has_inline = false;
+  if (match(TokenKind::T_INLINE))
+    has_inline = true;
+  if (!match(TokenKind::T_NAMESPACE))
+    return false;
+  parse_attribute_specifier_seq();
+  parse_gcc_attribute_seq();
+  if (!match(TokenKind::T_LBRACE))
+    return false;
   DeclarativeRegion::Context region(this);
-}
-: inline? namespace attribute_specifier_seq? gcc_attribute_seq? lbrace
-    enter_unnamed_namespace_definition(region)
-    namespace_body
-    rbrace
-;
+  parse_enter_unnamed_namespace_definition(region);
+  parse_namespace_body();
+  expect(TokenKind::T_RBRACE);
+};
 
 enter_unnamed_namespace_definition(DeclarativeRegion::Context& region):
 {
@@ -2032,21 +2056,44 @@ enter_unnamed_namespace_definition(DeclarativeRegion::Context& region):
   currentRegion_->scope.add(ns);
 };
 
-
-nested_namespace_definition(DeclarationAST*& yyast)
-{
+nested_namespace_definition(DeclarationAST*& yyast): {
+  if (!match(TokenKind::T_NAMESPACE))
+    return false;
+  if (!parse_enclosing_namespace_specifier())
+    return false;
+  if (!match(TokenKind::T_COLON_COLON))
+    return false;
+  bool has_inline = false;
+  if (match(TokenKind::T_INLINE))
+    has_inline = true;
+  if (!match(TokenKind::T_IDENTIFIER))
+    return false;
+  parse_gcc_attribute_seq();
+  if (!match(TokenKind::T_LBRACE))
+    return false;
   DeclarativeRegion::Context region(this);
-}
-: namespace enclosing_namespace_specifier colon_colon inline? identifier gcc_attribute_seq? lbrace enter(region) namespace_body rbrace
-;
+  parse_enter(region);
+  parse_namespace_body();
+  expect(TokenKind::T_RBRACE);
+};
 
 enclosing_namespace_specifier
-: identifier (colon_colon inline? identifier / (colon_colon inline? identifier))*
+: identifier (colon_colon inline?
+    identifier / (colon_colon inline? identifier))*
 ;
 
-namespace_body
-: declaration_seq?
-;
+namespace_body: {
+  bool skipping = false;
+  while (yytoken() != TokenKind::T_EOF_SYMBOL) {
+    if (yytoken() == TokenKind::T_RBRACE) break;
+    DeclarationAST* decl = nullptr;
+    if (parse_declaration(decl)) {
+      skipping = false;
+    } else {
+      parse_skip_declaration(skipping);
+    }
+  }
+};
 
 namespace_alias_definition(DeclarationAST*& yyast)
 : namespace identifier equal qualified_namespace_specifier semicolon
