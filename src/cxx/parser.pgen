@@ -1357,41 +1357,69 @@ skip_statement(bool& skipping): {
   skipping = true;
 };
 
-
-if_statement(StatementAST*& yyast)
+if_statement(StatementAST*& yyast):
 {
-  ExpressionAST* e1 = nullptr;
-  StatementAST* s1 = nullptr;
-  StatementAST* s2 = nullptr;
-  StatementAST* s3 = nullptr;
-}
-: if constexpr? lparen init_statement(s1)? condition(e1) rparen statement(s2) (else statement(s3))?
-;
+  if (!match(TokenKind::T_IF)) return false;
+  bool has_constexpr = match(TokenKind::T_CONSTEXPR);
+  expect(TokenKind::T_LPAREN);
+  auto start = yycursor;
+  StatementAST* initializer = nullptr;
+  if (!parse_init_statement(initializer))
+    yyrewind(start);
+  ExpressionAST* condition = nullptr;
+  parse_condition(condition);
+  expect(TokenKind::T_RPAREN);
+  StatementAST* statement = nullptr;
+  if (!parse_statement(statement))
+    parse_error("expected a statement");
+  if (match(TokenKind::T_ELSE)) {
+    StatementAST* else_statement = nullptr;
+    if (!parse_statement(else_statement))
+      parse_error("expected a statement");
+  }
+};
 
-switch_statement(StatementAST*& yyast)
-{
-  ExpressionAST* e1 = nullptr;
-  StatementAST* s1 = nullptr;
-  StatementAST* s2 = nullptr;
-}
-: switch lparen init_statement(s1)? condition(e1) rparen statement(s2)
-;
+switch_statement(StatementAST*& yyast): {
+  if (!match(TokenKind::T_SWITCH))
+    return false;
+  expect(TokenKind::T_LPAREN);
+  StatementAST* initializer = nullptr;
+  auto start = yycursor;
+  if (!parse_init_statement(initializer))
+    yyrewind(start);
+  ExpressionAST* condition = nullptr;
+  parse_condition(condition);
+  expect(TokenKind::T_RPAREN);
+  StatementAST* statement = nullptr;
+  parse_statement(statement);
+};
 
-while_statement(StatementAST*& yyast)
-{
-  StatementAST* s1 = nullptr;
-  ExpressionAST* e1 = nullptr;
-}
-: while lparen condition(e1) rparen statement(s1)
-;
+while_statement(StatementAST*& yyast): {
+  if (!match(TokenKind::T_WHILE))
+    return false;
+  expect(TokenKind::T_LPAREN);
+  ExpressionAST* condition = nullptr;
+  if (!parse_condition(condition))
+    parse_error("expected a condition");
+  expect(TokenKind::T_RPAREN);
+  StatementAST* statement = nullptr;
+  if (!parse_statement(statement))
+    parse_error("expected a statement");
+};
 
-do_statement(StatementAST*& yyast)
-{
-  StatementAST* s1 = nullptr;
-  ExpressionAST* e1 = nullptr;
-}
-: do statement(s1) while lparen expression(e1) rparen semicolon
-;
+do_statement(StatementAST*& yyast): {
+  if (!match(TokenKind::T_DO))
+    return false;
+  StatementAST* statement = nullptr;
+  if (!parse_statement(statement))
+    parse_error("expected a statement");
+  expect(TokenKind::T_WHILE);
+  expect(TokenKind::T_LPAREN);
+  ExpressionAST* expression = nullptr;
+  if (!parse_expression(expression))
+    parse_error("expected an expression");
+  expect(TokenKind::T_RPAREN);
+};
 
 for_range_statement(StatementAST*& yyast)
 {
