@@ -644,23 +644,26 @@ template_name(Name& name)
 : name_id(name)
 ;
 
-literal
-: integer_literal
-| character_literal
-| floating_point_literal
-| string_literal+
-| boolean_literal
-| pointer_literal
-| user_defined_literal
-;
+literal: {
+  switch (yytoken()) {
+  case TokenKind::T_TRUE:
+  case TokenKind::T_FALSE:
+  case TokenKind::T_NULLPTR:
+  case TokenKind::T_INTEGER_LITERAL:
+  case TokenKind::T_CHARACTER_LITERAL:
+  case TokenKind::T_FLOATING_POINT_LITERAL:
+  case TokenKind::T_USER_DEFINED_LITERAL:
+    yyconsume();
+    return true;
+  case TokenKind::T_STRING_LITERAL:
+    while (match(TokenKind::T_STRING_LITERAL)) {
 
-boolean_literal
-: false
-| true
-;
-
-pointer_literal
-: nullptr
+    }
+    return true;
+  default:
+    return false;
+  } // switch
+}
 ;
 
 translation_unit(UnitAST*& yyast)
@@ -1487,8 +1490,10 @@ simple_declaration(DeclarationAST*& yyast, bool fundef)
           ({ return specs.has_complex_typespec; } semicolon
           |{ return specs.has_typespec(); } ref_qualifier? lbracket identifier_list rbracket initializer semicolon
           |{ return specs.has_typespec(); } declarator(decl)
-              ( declarator_initializer? (comma init_declarator)* semicolon
-              | { return isFunctionDeclarator(decl); } function_definition_body))))
+              ( semicolon
+              | { return isFunctionDeclarator(decl); } function_definition_body
+              | declarator_initializer? (comma init_declarator)* semicolon)
+              )))
 ;
 
 function_definition_body
@@ -1825,22 +1830,53 @@ initializer_clause(ExpressionAST*& yyast)
 ;
 
 braced_init_list
-: lbrace comma? rbrace
-| lbrace / designator designated_initializer_list comma? rbrace
-| lbrace initializer_list comma? rbrace
-;
+: {
+  if (!match(TokenKind::T_LBRACE)) return false;
 
-initializer_list
-{
-  ExpressionAST* e1 = nullptr;
-  ExpressionAST* e2 = nullptr;
-}
-: initializer_clause(e1) dot_dot_dot? (comma initializer_clause(e2) dot_dot_dot?)*
-;
+  if (yytoken() == TokenKind::T_DOT) {
+    if (!parse_designated_initializer_clause())
+      parse_error("expected designated initializer clause");
 
-designated_initializer_list
-: designated_initializer_clause (comma designated_initializer_clause)*
-;
+    while (match(TokenKind::T_COMMA)) {
+      if (yytoken() == TokenKind::T_RBRACE) break;
+
+      if (!parse_designated_initializer_clause())
+        parse_error("expected designated initializer clause");
+    }
+  } else if (match(TokenKind::T_COMMA)) {
+    // nothing to do
+  } else if (yytoken() != TokenKind::T_RBRACE) {
+    if (!parse_initializer_list())
+      parse_error("expected initializer list");
+  }
+
+  expect(TokenKind::T_RBRACE);
+};
+
+initializer_list: {
+  ExpressionAST* e = 0;
+
+  if (!parse_initializer_clause(e))
+    return false;
+
+  bool has_triple_dot = false;
+    if (match(TokenKind::T_DOT_DOT_DOT)) {
+    has_triple_dot = true;
+  }
+
+  while (match(TokenKind::T_COMMA)) {
+    if (yytoken() == TokenKind::T_RBRACE) break;
+
+    ExpressionAST* e = 0;
+    if (!parse_initializer_clause(e))
+      parse_error("expected initializer clause");
+
+    bool has_triple_dot = false;
+    if (match(TokenKind::T_DOT_DOT_DOT)) {
+      has_triple_dot = true;
+    }
+  }
+};
 
 designated_initializer_clause
 : designator brace_or_equal_initializer
@@ -2264,10 +2300,12 @@ member_declaration(DeclarationAST*& yyast)
 : access_specifier colon
 | __extension__? attribute_specifier_seq? decl_specifier_seq_no_typespecs(specs)?
         ( declarator_id attribute_specifier_seq? parameters_and_qualifiers
-            (member_declarator_addition semicolon | member_function_definition_body)
+            ( member_function_definition_body
+            | member_declarator_modifier semicolon)
         | decl_specifier_seq(specs)? { return specs.has_typespec(); }
-            ( member_declarator_list? semicolon
-            | declarator(decl) { return isFunctionDeclarator(decl); } member_function_definition_body))
+            ( semicolon
+            | declarator(decl) { return isFunctionDeclarator(decl); } member_function_definition_body
+            | member_declarator_list semicolon))
 | using_declaration(yyast)
 | using_enum_declaration(yyast)
 | static_assert_declaration(yyast)
@@ -2283,7 +2321,7 @@ member_function_definition_body
 : (requires_clause | virt_specifier_seq?) function_body
 ;
 
-member_declarator_addition
+member_declarator_modifier
 : requires_clause
 | brace_or_equal_initializer
 | virt_specifier_seq? pure_specifier?
@@ -2298,7 +2336,7 @@ member_declarator
   ExpressionAST* e1 = nullptr;
 }
 : identifier? attribute_specifier_seq? colon constant_expression(e1) brace_or_equal_initializer?
-| declarator member_declarator_addition
+| declarator member_declarator_modifier
 ;
 
 virt_specifier
