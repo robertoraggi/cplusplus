@@ -842,26 +842,58 @@ nested_name_specifier(DeclarativeRegion*& region)
     }
 ;
 
-lambda_expression(ExpressionAST*& yyast)
-{
+lambda_expression(ExpressionAST*& yyast): {
+  if (!parse_lambda_introducer())
+    return false;
+
   DeclarativeRegion::Context region(this);
-  StatementAST* s1 = nullptr;
-}
-: lambda_introducer less enter(region) template_parameter_list greater requires_clause? lambda_declarator? compound_statement(s1)
-| lambda_introducer lambda_declarator? compound_statement(s1)
-;
 
-lambda_introducer
-: lbracket lambda_capture? rbracket
-;
+  if (match(TokenKind::T_LESS)) {
+    parse_enter(region);
+    if (!parse_template_parameter_list())
+      parse_error("expected a template paramter");
+    expect(TokenKind::T_GREATER);
+    parse_requires_clause();
+  }
 
-lambda_declarator
-: lparen parameter_declaration_clause rparen decl_specifier_seq? noexcept_specifier? attribute_specifier_seq? trailing_return_type? requires_clause?
-;
+  if (yytoken() != TokenKind::T_LBRACE) {
+    if (!parse_lambda_declarator())
+      parse_error("expected lambda declarator");
+  }
+
+  StatementAST* statement = nullptr;
+  if (!parse_compound_statement(statement))
+    parse_error("expected a compound statement");
+};
+
+lambda_introducer: {
+  if (!match(TokenKind::T_LBRACKET))
+    return false;
+  if (!match(TokenKind::T_RBRACKET)) {
+    if (!parse_lambda_capture())
+      parse_error("expected a lambda capture");
+    expect(TokenKind::T_RBRACKET);
+  }
+};
+
+lambda_declarator: {
+  if (!match(TokenKind::T_LPAREN))
+    return false;
+  if (!match(TokenKind::T_RPAREN)) {
+    if (!parse_parameter_declaration_clause())
+      parse_error("expected a parameter declaration clause");
+    expect(TokenKind::T_RPAREN);
+  }
+  parse_decl_specifier_seq();
+  parse_noexcept_specifier();
+  parse_attribute_specifier_seq();
+  parse_trailing_return_type();
+  parse_requires_clause();
+};
 
 lambda_capture
 : capture_list
-| capture_default (comma capture_list)*
+| capture_default (comma capture_list)?
 ;
 
 capture_default
@@ -1117,8 +1149,7 @@ delete_expression(ExpressionAST*& yyast)
 {
   ExpressionAST* e1 = nullptr;
 }
-: colon_colon? delete cast_expression(e1)
-| colon_colon? delete lbracket rbracket cast_expression(e1)
+: colon_colon? delete (lbracket rbracket)? cast_expression(e1)
 ;
 
 cast_expression(ExpressionAST*& yyast)
