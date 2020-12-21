@@ -756,18 +756,28 @@ skip_declaration(bool& skipping): {
   skipping = true;
 };
 
-primary_expression(ExpressionAST*& yyast)
-{
-  ExpressionAST* e1 = nullptr;
-}
-: literal
-| this
-| lparen expression(e1) rparen
-| id_expression
-| lambda_expression(yyast)
-| fold_expression(yyast)
-| requires_expression(yyast)
-;
+primary_expression(ExpressionAST*& yyast): {
+  if (match(TokenKind::T_THIS))
+    return true;
+  else if (parse_literal())
+    return true;
+  else if (yytoken() == TokenKind::T_LBRACKET)
+    return parse_lambda_expression(yyast);
+  else if (yytoken() == TokenKind::T_REQUIRES)
+    return parse_requires_expression(yyast);
+  else if (yytoken() == TokenKind::T_LPAREN) {
+    auto saved = yycursor;
+    yyconsume();
+    ExpressionAST* expression = nullptr;
+    if (parse_expression(expression)) {
+      if (match(TokenKind::T_RPAREN))
+        return true;
+    }
+    yyrewind(saved);
+    return parse_fold_expression(yyast);
+  }
+  return parse_id_expression();
+};
 
 id_expression
 : qualified_id
