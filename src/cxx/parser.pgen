@@ -669,7 +669,7 @@ literal: {
 translation_unit(UnitAST*& yyast)
 : eof_symbol
 | module_unit(yyast)
-| top_level_declaration_seq(yyast) eof
+| top_level_declaration_seq(yyast)
     // { globalRegion->dump(std::cout); }
 ;
 
@@ -699,8 +699,7 @@ eof
 | error("expected eof")
 ;
 
-top_level_declaration_seq(UnitAST*& yyast)
-{
+top_level_declaration_seq(UnitAST*& yyast): {
   DeclarativeRegion::Context region(this);
 
   globalRegion = newDeclarativeRegion(nullptr);
@@ -712,15 +711,23 @@ top_level_declaration_seq(UnitAST*& yyast)
   module_unit = false;
 
   DeclarationAST* d1 = nullptr;
-}
-: ( declaration(d1) { skipping = false; }
-  | skip_top_level_declaration(skipping))+
-;
+
+  while (yytoken() != TokenKind::T_EOF_SYMBOL) {
+    auto saved = yycursor;
+    DeclarationAST* declaration = nullptr;
+    if (parse_declaration(declaration)) {
+      skipping = false;
+    } else {
+      parse_skip_top_level_declaration(skipping);
+      if (yycursor == saved)
+        yyconsume();
+    }
+  }
+};
 
 skip_top_level_declaration(bool& skipping): {
   if (yytoken() == TokenKind::T_EOF_SYMBOL) return false;
   if (!skipping) unit->report(yycursor, MessageKind::Error, "expected a declaration");
-  yyconsume();
   skipping = true;
 };
 
@@ -728,11 +735,14 @@ declaration_seq: {
   bool skipping = false;
   while (yytoken() != TokenKind::T_EOF_SYMBOL) {
     if (yytoken() == TokenKind::T_RBRACE) break;
+    auto saved = yycursor;
     DeclarationAST* decl = nullptr;
     if (parse_declaration(decl)) {
       skipping = false;
     } else {
       parse_skip_declaration(skipping);
+      if (yycursor == saved)
+        yyconsume();
     }
   }
 };
@@ -743,7 +753,6 @@ skip_declaration(bool& skipping): {
   if (module_unit && yytoken() == TokenKind::T_EXPORT) return false;
   if (yytoken() == TokenKind::T_IMPORT) return false;
   if (!skipping) unit->report(yycursor, MessageKind::Error, "expected a declaration");
-  yyconsume();
   skipping = true;
 };
 
@@ -1283,41 +1292,55 @@ statement(StatementAST*& yyast):
   } // switch
 };
 
-init_statement(StatementAST*& yyast)
-{
-  DeclarationAST* d1 = nullptr;
-}
-: simple_declaration(d1, false)
-| expression_statement(yyast)
-;
+init_statement(StatementAST*& yyast): {
+  if (yytoken() == TokenKind::T_RPAREN)
+    return false;
+  auto saved = yycursor;
+  DeclarationAST* declaration = nullptr;
+  if (parse_simple_declaration(declaration, false))
+    return true;
+  yyrewind(saved);
+  ExpressionAST* expression = nullptr;
+  if (!parse_expression(expression))
+    return false;
+  if (!match(TokenKind::T_SEMICOLON))
+    return false;
+};
 
 condition(ExpressionAST*& yyast)
 : attribute_specifier_seq? decl_specifier_seq declarator brace_or_equal_initializer
 | expression(yyast)
 ;
 
-labeled_statement(StatementAST*& yyast)
-{
-  StatementAST* s1 = nullptr;
-  ExpressionAST* e1 = nullptr;
-}
-: identifier colon statement(s1)
-;
+labeled_statement(StatementAST*& yyast): {
+  if (!match(TokenKind::T_IDENTIFIER))
+    return false;
+  expect(TokenKind::T_COLON);
+  StatementAST* statement = nullptr;
+  if (!parse_statement(statement))
+    parse_error("expected a statement");
+};
 
-case_statement(StatementAST*& yyast)
-{
-  StatementAST* s1 = nullptr;
-  ExpressionAST* e1 = nullptr;
-}
-: case constant_expression(e1) colon statement(s1)
-;
+case_statement(StatementAST*& yyast): {
+  if (!match(TokenKind::T_CASE))
+    return false;
+  ExpressionAST* expression = nullptr;
+  if (!parse_constant_expression(expression))
+    parse_error("expected an expression");
+  expect(TokenKind::T_COLON);
+  StatementAST* statement = nullptr;
+  if (!parse_statement(statement))
+    parse_error("expected a statement");
+};
 
-default_statement(StatementAST*& yyast)
-{
-  StatementAST* s1 = nullptr;
-}
-: default colon statement(s1)
-;
+default_statement(StatementAST*& yyast): {
+  if (!match(TokenKind::T_DEFAULT))
+    return false;
+  expect(TokenKind::T_COLON);
+  StatementAST* statement = nullptr;
+  if (!parse_statement(statement))
+    parse_error("expected a statement");
+};
 
 expression_statement(StatementAST*& yyast)
 {
@@ -1325,6 +1348,15 @@ expression_statement(StatementAST*& yyast)
 }
 : expression(e1)? semicolon
 ;
+
+expression_statement0(StatementAST*& yyast): {
+  if (!match(TokenKind::T_SEMICOLON)) {
+    ExpressionAST* expression = nullptr;
+    if (!parse_expression(expression))
+      return false;
+    expect(TokenKind::T_SEMICOLON);
+  }
+};
 
 compound_statement(StatementAST*& yyast): {
   DeclarativeRegion::Context region(this);
@@ -1421,24 +1453,50 @@ do_statement(StatementAST*& yyast): {
   expect(TokenKind::T_RPAREN);
 };
 
-for_range_statement(StatementAST*& yyast)
-{
-  StatementAST* s1 = nullptr;
-}
-: for lparen for_range_declaration colon for_range_initializer rparen statement(s1)
-;
+for_range_statement(StatementAST*& yyast): {
+  if (!match(TokenKind::T_FOR))
+    return false;
+  if (!match(TokenKind::T_LPAREN))
+    return false;
+  auto saved = yycursor;
+  StatementAST* initializer = nullptr;
+  if (!parse_init_statement(initializer))
+    yyrewind(saved);
+  if (!parse_for_range_declaration())
+    return false;
+  if (!match(TokenKind::T_COLON))
+    return false;
+  if (!parse_for_range_initializer())
+    parse_error("expected for-range intializer");
+  expect(TokenKind::T_RPAREN);
+  StatementAST* statement = nullptr;
+  if (!parse_statement(statement))
+    parse_error("expected a statement");
+};
 
-for_statement(StatementAST*& yyast)
-{
+for_statement(StatementAST*& yyast): {
   StatementAST* s1 = nullptr;
   StatementAST* s2 = nullptr;
   ExpressionAST* e1 = nullptr;
   ExpressionAST* e2 = nullptr;
-}
-: for lparen init_statement(s1)
-    ( condition(e1)? semicolon expression(e2)? rparen statement(s2)
-    | for_range_declaration colon for_range_initializer rparen statement(s2))
-;
+  if (!match(TokenKind::T_FOR))
+    return false;
+  expect(TokenKind::T_LPAREN);
+  if (!parse_init_statement(s1))
+    parse_error("expected a statement");
+  if (!match(TokenKind::T_SEMICOLON)) {
+    if (!parse_condition(e1))
+      parse_error("expected a condition");
+    expect(TokenKind::T_SEMICOLON);
+  }
+  if (!match(TokenKind::T_RPAREN)) {
+    if (!parse_expression(e2))
+      parse_error("expected an expression");
+    expect(TokenKind::T_RPAREN);
+  }
+  if (!parse_statement(s2))
+    parse_error("expected a statement");
+};
 
 for_range_declaration
 : attribute_specifier_seq? decl_specifier_seq ( ref_qualifier? lbracket identifier_list rbracket
@@ -1449,25 +1507,44 @@ for_range_initializer
 : expr_or_braced_init_list
 ;
 
-break_statement(StatementAST*& yyast)
-: break semicolon
-;
+break_statement(StatementAST*& yyast): {
+  if (!match(TokenKind::T_BREAK))
+    return false;
+  expect(TokenKind::T_SEMICOLON);
+};
 
-continue_statement(StatementAST*& yyast)
-: continue semicolon
-;
+continue_statement(StatementAST*& yyast): {
+  if (!match(TokenKind::T_CONTINUE))
+    return false;
+  expect(TokenKind::T_SEMICOLON);
+};
 
-return_statement(StatementAST*& yyast)
-: return (semicolon | expr_or_braced_init_list semicolon)
-;
+return_statement(StatementAST*& yyast): {
+  if (!match(TokenKind::T_RETURN))
+    return false;
+  if (!match(TokenKind::T_SEMICOLON)) {
+    if (!parse_expr_or_braced_init_list())
+      parse_error("expected an expression or ';'");
+    expect(TokenKind::T_SEMICOLON);
+  }
+};
 
-goto_statement(StatementAST*& yyast)
-: goto identifier semicolon
-;
+goto_statement(StatementAST*& yyast): {
+  if (!match(TokenKind::T_GOTO))
+    return false;
+  expect(TokenKind::T_IDENTIFIER);
+  expect(TokenKind::T_SEMICOLON);
+};
 
-coroutine_return_statement(StatementAST*& yyast)
-: co_return expr_or_braced_init_list? semicolon
-;
+coroutine_return_statement(StatementAST*& yyast): {
+  if (!match(TokenKind::T_CO_RETURN))
+    return false;
+  if (!match(TokenKind::T_SEMICOLON)) {
+    if (!parse_expr_or_braced_init_list())
+      parse_error("expected an expression");
+    expect(TokenKind::T_SEMICOLON);
+  }
+};
 
 declaration_statement(StatementAST*& yyast)
 {
@@ -1921,13 +1998,13 @@ designator
 : dot identifier
 ;
 
-expr_or_braced_init_list
-{
-  ExpressionAST* e1 = nullptr;
-}
-: expression(e1)
-| braced_init_list
-;
+expr_or_braced_init_list: {
+  if (yytoken() == TokenKind::T_LBRACE)
+    return parse_braced_init_list();
+  ExpressionAST* expression = nullptr;
+  if (!parse_expression(expression))
+    parse_error("expected an expression");
+};
 
 virt_specifier_seq
 : virt_specifier+;
@@ -2272,8 +2349,7 @@ private_module_fragment
 : module_keyword colon private semicolon declaration_seq?
 ;
 
-class_specifier
-{
+class_specifier: {
   const auto start = yycursor;
   auto it = class_specifiers_.find(start);
   if (it != class_specifiers_.end()) {
@@ -2287,15 +2363,23 @@ class_specifier
 
   Symbol* classSymbol = nullptr;
   Name className;
-}
-: class_head(enclosingRegion, className)
-  lbrace
-  enter_class_specifier(region, enclosingRegion, className, classSymbol)
-  class_body?
-  rbrace
-  leave_class_specifier(classSymbol, start)
-| reject_class_specifier(start)
-;
+
+  if (!parse_class_head(enclosingRegion, className)) {
+    parse_reject_class_specifier(start);
+    return false;
+  }
+  if (!match(TokenKind::T_LBRACE)) {
+    parse_reject_class_specifier(start);
+    return false;
+  }
+  parse_enter_class_specifier(region, enclosingRegion, className, classSymbol);
+  if (!match(TokenKind::T_RBRACE)) {
+    if (!parse_class_body())
+      parse_error("expected class body");
+    expect(TokenKind::T_RBRACE);
+  }
+  parse_leave_class_specifier(classSymbol, start);
+};
 
 enter_class_specifier(DeclarativeRegion::Context& region, DeclarativeRegion* enclosingRegion, Name& className, Symbol*& classSymbol):
 {
@@ -2327,20 +2411,24 @@ reject_class_specifier(uint32_t start):
   return false;
 };
 
-class_body
-{
+class_body: {
   bool skipping = false;
-  DeclarationAST* d1 = nullptr;
-}
-: ( member_specification(d1) { skipping = false; }
-  | {
-      if (yytoken() == TokenKind::T_EOF_SYMBOL) return false;
-      if (yytoken() == TokenKind::T_RBRACE) return false;
-      if (!skipping) unit->report(yycursor, MessageKind::Error, "expected a declaration");
-      yyconsume();
+  while (yytoken() != TokenKind::T_EOF_SYMBOL) {
+    if (yytoken() == TokenKind::T_RBRACE)
+      break;
+    auto saved = yycursor;
+    DeclarationAST* declaration = nullptr;
+    if (parse_member_specification(declaration)) {
+      skipping = false;
+    } else {
+      if (!skipping)
+        unit->report(yycursor, MessageKind::Error, "expected a declaration");
+      if (yycursor == saved)
+        yyconsume();
       skipping = true;
-    })+
-;
+    }
+  }
+};
 
 class_head(DeclarativeRegion*& region, Name& name)
 : class_key attribute_specifier_seq?
@@ -2668,29 +2756,50 @@ explicit_specialization(DeclarationAST*& yyast)
 : template less greater declaration(d1)
 ;
 
-try_block(StatementAST*& yyast)
-{
-  StatementAST* s1 = nullptr;
-}
-: try compound_statement(s1) handler_seq
-;
+try_block(StatementAST*& yyast): {
+  if (!match(TokenKind::T_TRY))
+    return false;
+  StatementAST* statement = nullptr;
+  if (!parse_compound_statement(statement))
+    parse_error("expected a compound statement");
+  if (!parse_handler_seq())
+    parse_error("expected an exception handler");
+};
 
-function_try_block
-{
-  StatementAST* s1 = nullptr;
-}
-: try ctor_initializer? compound_statement(s1) handler_seq
-;
+function_try_block: {
+  if (!match(TokenKind::T_TRY))
+    return false;
+  if (yytoken() != TokenKind::T_LBRACE) {
+    if (!parse_ctor_initializer())
+      parse_error("expected a ctor initializer");
+  }
+  StatementAST* statement = nullptr;
+  if (!parse_compound_statement(statement))
+    parse_error("expected a compound statement");
+  if (!parse_handler_seq())
+    parse_error("expected an exception handler");
+};
 
-handler
-{
+handler: {
   StatementAST* s1 = nullptr;
-}
-: catch lparen exception_declaration rparen compound_statement(s1)
-;
+  if (!match(TokenKind::T_CATCH))
+    return false;
+  expect(TokenKind::T_LPAREN);
+  if (!parse_exception_declaration())
+    parse_error("expected an exception declaration");
+  expect(TokenKind::T_RPAREN);
+  StatementAST* statement = nullptr;
+  if (!parse_compound_statement(statement))
+    parse_error("expected a compound statement");
+};
 
-handler_seq
-: handler+;
+handler_seq: {
+  if (yytoken() != TokenKind::T_CATCH)
+    return false;
+  while (yytoken() == TokenKind::T_CATCH) {
+    parse_handler();
+  }
+};
 
 exception_declaration
 : attribute_specifier_seq? type_specifier_seq (declarator | abstract_declarator?)
