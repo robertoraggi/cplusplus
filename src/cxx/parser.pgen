@@ -342,6 +342,7 @@
   Control* control = nullptr;
   bool skip_function_body = false;
   std::unordered_map<uint32_t, std::tuple<uint32_t, bool>> class_specifiers_;
+  std::unordered_map<uint32_t, std::tuple<uint32_t, bool>> template_arguments_;
   std::unordered_map<uint32_t, std::tuple<uint32_t, bool, DeclarativeRegion*>> nested_name_specifiers_;
   bool module_unit = false;
   const Identifier* module_id = nullptr;
@@ -2965,6 +2966,13 @@ template_argument_list: {
 };
 
 template_argument: {
+  const auto start = yycursor;
+  auto it = template_arguments_.find(start);
+  if (it != template_arguments_.end()) {
+    yyrewind(get<0>(it->second));
+    return get<1>(it->second);
+  }
+
   auto check = [&]() -> bool {
     auto tk = yytoken();
     return tk == TokenKind::T_COMMA ||
@@ -2972,13 +2980,18 @@ template_argument: {
       tk == TokenKind::T_DOT_DOT_DOT;
   };
   const auto saved = yycursor;
-  if (parse_type_id() && check())
+  if (parse_type_id() && check()) {
+    template_arguments_.emplace(start, std::make_tuple(yycursor, true));
     return true;
+  }
   yyrewind(saved);
   ExpressionAST* expression = nullptr;
   auto parsed = parse_template_argument_constant_expression(expression);
-  if (parsed && check())
+  if (parsed && check()) {
+    template_arguments_.emplace(start, std::make_tuple(yycursor, true));
     return true;
+  }
+  template_arguments_.emplace(start, std::make_tuple(yycursor, false));
   return false;
 };
 
