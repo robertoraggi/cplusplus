@@ -1219,32 +1219,49 @@ conditional_expression(ExpressionAST*& yyast, bool templArg)
 : logical_or_expression(yyast, templArg) (question expression(e1) colon assignment_expression(e2))?
 ;
 
-yield_expression(ExpressionAST*& yyast)
-{
-  ExpressionAST* e1 = nullptr;
-}
-: co_yield assignment_expression(e1)
-| co_yield braced_init_list
-;
+yield_expression(ExpressionAST*& yyast): {
+  if (!match(TokenKind::T_CO_YIELD))
+    return false;
+  if (yytoken() == TokenKind::T_LBRACE) {
+    if (!parse_braced_init_list())
+      parse_error("expected a braced initializer");
+  } else {
+    ExpressionAST* expression = nullptr;
+    if (!parse_assignment_expression(expression))
+      parse_error("expected an expression");
+  }
+};
 
-throw_expression(ExpressionAST*& yyast)
-{
-  ExpressionAST* e1 = nullptr;
-}
-: throw assignment_expression(e1)?
-;
+throw_expression(ExpressionAST*& yyast): {
+  if (!match(TokenKind::T_THROW))
+    return false;
+  ExpressionAST* expression = nullptr;
+  const auto saved = yycursor;
+  if (!parse_assignment_expression(expression))
+    yyrewind(saved);
+};
 
-assignment_expression(ExpressionAST*& yyast)
-{
-  ExpressionAST* e1 = nullptr;
-  ExpressionAST* e2 = nullptr;
-}
-: yield_expression(yyast)
-| throw_expression(yyast)
-| logical_or_expression(yyast, false)
-    ( assignment_operator initializer_clause(e1)
-    | question expression(e1) colon assignment_expression(e2))?
-;
+assignment_expression(ExpressionAST*& yyast): {
+  if (parse_yield_expression(yyast))
+    return true;
+  if (parse_throw_expression(yyast))
+    return true;
+  if (!parse_logical_or_expression(yyast, false))
+    return false;
+  if (parse_assignment_operator()) {
+    ExpressionAST* expression = nullptr;
+    if (!parse_initializer_clause(expression))
+      parse_error("expected an expression");
+  } else if (match(TokenKind::T_QUESTION)) {
+    ExpressionAST* iftrue_expression = nullptr;
+    if (!parse_expression(iftrue_expression))
+      parse_error("expected an expression");
+    expect(TokenKind::T_COLON);
+    ExpressionAST* iffalse_expression = nullptr;
+    if (!parse_expression(iffalse_expression))
+      parse_error("expected an expression");
+  }
+};
 
 assignment_operator
 : equal
@@ -1260,12 +1277,15 @@ assignment_operator
 | bar_equal
 ;
 
-expression(ExpressionAST*& yyast)
-{
-  ExpressionAST* e1 = nullptr;
-}
-: assignment_expression(yyast) (comma assignment_expression(e1))*
-;
+expression(ExpressionAST*& yyast): {
+  if (!parse_assignment_expression(yyast))
+    return false;
+  while (match(TokenKind::T_COMMA)) {
+    ExpressionAST* expression = nullptr;
+    if (!parse_assignment_expression(expression))
+      parse_error("expected an expression");
+  }
+};
 
 constant_expression(ExpressionAST*& yyast)
 : conditional_expression(yyast, false)
@@ -1348,10 +1368,23 @@ init_statement(StatementAST*& yyast): {
     return false;
 };
 
-condition(ExpressionAST*& yyast)
+condition0(ExpressionAST*& yyast)
 : attribute_specifier_seq? decl_specifier_seq declarator brace_or_equal_initializer
 | expression(yyast)
 ;
+
+condition(ExpressionAST*& yyast): {
+  const auto start = yycursor;
+  parse_attribute_specifier_seq();
+  if (parse_decl_specifier_seq()) {
+    if (parse_declarator()) {
+      if (parse_brace_or_equal_initializer())
+        return true;
+    }
+  }
+  yyrewind(start);
+  return parse_expression(yyast);
+};
 
 labeled_statement(StatementAST*& yyast): {
   if (!match(TokenKind::T_IDENTIFIER))
@@ -1423,8 +1456,7 @@ skip_statement(bool& skipping): {
   skipping = true;
 };
 
-if_statement(StatementAST*& yyast):
-{
+if_statement(StatementAST*& yyast): {
   if (!match(TokenKind::T_IF)) return false;
   bool has_constexpr = match(TokenKind::T_CONSTEXPR);
   expect(TokenKind::T_LPAREN);
@@ -1532,10 +1564,26 @@ for_statement(StatementAST*& yyast): {
     parse_error("expected a statement");
 };
 
-for_range_declaration
+for_range_declaration0
 : attribute_specifier_seq? decl_specifier_seq ( ref_qualifier? lbracket identifier_list rbracket
                                               | declarator)
 ;
+
+for_range_declaration: {
+  parse_attribute_specifier_seq();
+  if (!parse_decl_specifier_seq())
+    return false;
+  auto tk = yytoken();
+  if (tk == TokenKind::T_AMP || tk == TokenKind::T_AMP_AMP || tk == TokenKind::T_LBRACKET) {
+    parse_ref_qualifier();
+    expect(TokenKind::T_LBRACKET);
+    if (!parse_identifier_list())
+      parse_error("expected an identifier");
+    expect(TokenKind::T_RBRACKET);
+  } else {
+    return parse_declarator();
+  }
+};
 
 for_range_initializer
 : expr_or_braced_init_list
@@ -2293,11 +2341,14 @@ namespace_body: {
   bool skipping = false;
   while (yytoken() != TokenKind::T_EOF_SYMBOL) {
     if (yytoken() == TokenKind::T_RBRACE) break;
+    const auto saved = yycursor;
     DeclarationAST* decl = nullptr;
     if (parse_declaration(decl)) {
       skipping = false;
     } else {
       parse_skip_declaration(skipping);
+      if (yycursor == saved)
+        yyconsume();
     }
   }
 };
@@ -2677,18 +2728,39 @@ access_specifier
 | public
 ;
 
-ctor_initializer
-: colon mem_initializer_list
-;
+ctor_initializer: {
+  if (!match(TokenKind::T_COLON))
+    return false;
+  if (!parse_mem_initializer_list())
+    parse_error("expected a member intializer");
+};
 
-mem_initializer_list
-: mem_initializer dot_dot_dot? (comma mem_initializer dot_dot_dot?)*
-;
+mem_initializer_list: {
+  if (!parse_mem_initializer())
+    return false;
+  match(TokenKind::T_DOT_DOT_DOT);
+  while (match(TokenKind::T_COMMA)) {
+    if (!parse_mem_initializer())
+      parse_error("expected a member initializer");
+    match(TokenKind::T_DOT_DOT_DOT);
+  }
+};
 
-mem_initializer
-: mem_initializer_id ( lparen expression_list? rparen
-                     | braced_init_list)
-;
+mem_initializer: {
+  if (!parse_mem_initializer_id())
+    parse_error("expected an member id");
+  if (yytoken() == TokenKind::T_LBRACE) {
+    if (!parse_braced_init_list())
+      parse_error("expected an initializer");
+  } else {
+    expect(TokenKind::T_LPAREN);
+    if (!match(TokenKind::T_RPAREN)) {
+      if (!parse_expression_list())
+        parse_error("expected an expression");
+      expect(TokenKind::T_RPAREN);
+    }
+  }
+};
 
 mem_initializer_id
 : class_or_decltype
@@ -2778,9 +2850,14 @@ template_head: {
   parse_requires_clause();
 };
 
-template_parameter_list
-: template_parameter (comma template_parameter)*
-;
+template_parameter_list: {
+  if (!parse_template_parameter())
+    return false;
+  while (match(TokenKind::T_COMMA)) {
+    if (!parse_template_parameter())
+      parse_error("expected a template parameter");
+  }
+};
 
 requires_clause
 {
@@ -2844,21 +2921,35 @@ template_id
 | simple_template_id
 ;
 
-template_argument_list
-{
+template_argument_list: {
   TemplArgContext templArgContext(this);
-}
-: template_argument dot_dot_dot? (comma template_argument dot_dot_dot?)*
-;
+  if (!parse_template_argument())
+    return false;
+  match(TokenKind::T_DOT_DOT_DOT);
+  while (match(TokenKind::T_COMMA)) {
+    if (!parse_template_argument()) {
+      //parse_error("expected a template argument"); // ### FIXME
+    }
+    match(TokenKind::T_DOT_DOT_DOT);
+  }
+};
 
-template_argument
-{
-  ExpressionAST* e1 = nullptr;
-}
-: type_id / (comma | greater | dot_dot_dot)
-| template_argument_constant_expression(e1) / (comma | greater | dot_dot_dot)
-| id_expression
-;
+template_argument: {
+  auto check = [&]() -> bool {
+    auto tk = yytoken();
+    return tk == TokenKind::T_COMMA ||
+      tk == TokenKind::T_GREATER ||
+      tk == TokenKind::T_DOT_DOT_DOT;
+  };
+  const auto saved = yycursor;
+  if (parse_type_id() && check())
+    return true;
+  yyrewind(saved);
+  ExpressionAST* expression = nullptr;
+  if (parse_template_argument_constant_expression(expression) && check())
+    return true;
+  return false;
+};
 
 constraint_expression(ExpressionAST*& yyast)
 : logical_or_expression(yyast, false)
