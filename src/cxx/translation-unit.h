@@ -47,6 +47,7 @@ class TranslationUnit {
   std::string yycode;
   const char* yyptr = nullptr;
   bool fatalErrors_ = false;
+  bool blockErrors_ = false;
 
  public:
   TranslationUnit(Control* control) : control_(control) {}
@@ -74,9 +75,16 @@ class TranslationUnit {
   bool fatalErrors() const { return fatalErrors_; }
   void setFatalErrors(bool fatalErrors) { fatalErrors_ = fatalErrors; }
 
+  bool blockErrors(bool blockErrors = true) {
+    std::swap(blockErrors_, blockErrors);
+    return blockErrors;
+  }
+
   template <typename... Args>
   void report(unsigned index, MessageKind kind, const std::string_view& format,
               const Args&... args) {
+    if (blockErrors_) return;
+
     unsigned line, column;
     getTokenStartPosition(index, &line, &column);
     std::string_view messageKind;

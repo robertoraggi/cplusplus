@@ -784,11 +784,38 @@ id_expression
 | unqualified_id
 ;
 
+maybe_template_id: {
+  const auto start = yycursor;
+  const auto blockErrors = unit->blockErrors(true);
+  auto template_id = parse_template_id();
+  const auto tk = yytoken();
+  unit->blockErrors(blockErrors);
+  if (!template_id) return false;
+  switch (tk) {
+    default: return false;
+    case TokenKind::T_COMMA:
+    case TokenKind::T_GREATER:
+    case TokenKind::T_LPAREN:
+    case TokenKind::T_RPAREN:
+    case TokenKind::T_STAR:
+    case TokenKind::T_AMP:
+    case TokenKind::T_AMP_AMP:
+    case TokenKind::T_BAR_BAR:
+    case TokenKind::T_COLON_COLON:
+    case TokenKind::T_DOT_DOT_DOT:
+    case TokenKind::T_QUESTION:
+    case TokenKind::T_LBRACE:
+    case TokenKind::T_RBRACE:
+    case TokenKind::T_SEMICOLON:
+      return true;
+  } // switch
+};
+
 unqualified_id
-: template_id
+: maybe_template_id
+| identifier
 | tilde type_name
 | tilde decltype_specifier
-| identifier
 | operator_function_id
 | conversion_function_id
 | literal_operator_id
@@ -1211,13 +1238,24 @@ logical_or_expression(ExpressionAST*& yyast, bool templArg)
 : binary_expression(yyast, templArg)
 ;
 
-conditional_expression(ExpressionAST*& yyast, bool templArg)
-{
-  ExpressionAST* e1 = nullptr;
-  ExpressionAST* e2 = nullptr;
-}
-: logical_or_expression(yyast, templArg) (question expression(e1) colon assignment_expression(e2))?
-;
+conditional_expression(ExpressionAST*& yyast, bool templArg): {
+  if (!parse_logical_or_expression(yyast, templArg))
+    return false;
+  if (match(TokenKind::T_QUESTION)) {
+    ExpressionAST* iftrue_expression = nullptr;
+    if (!parse_expression(iftrue_expression))
+      parse_error("expected an expression");
+    expect(TokenKind::T_COLON);
+    ExpressionAST* iffalse_expression = nullptr;
+    if (templArg) {
+      if (!parse_conditional_expression(iffalse_expression, templArg)) {
+        parse_error("expected an expression");
+      }
+    } else if (!parse_assignment_expression(iffalse_expression)) {
+      parse_error("expected an expression");
+    }
+  }
+};
 
 yield_expression(ExpressionAST*& yyast): {
   if (!match(TokenKind::T_CO_YIELD))
@@ -1246,19 +1284,11 @@ assignment_expression(ExpressionAST*& yyast): {
     return true;
   if (parse_throw_expression(yyast))
     return true;
-  if (!parse_logical_or_expression(yyast, false))
+  if (!parse_conditional_expression(yyast, false))
     return false;
   if (parse_assignment_operator()) {
     ExpressionAST* expression = nullptr;
     if (!parse_initializer_clause(expression))
-      parse_error("expected an expression");
-  } else if (match(TokenKind::T_QUESTION)) {
-    ExpressionAST* iftrue_expression = nullptr;
-    if (!parse_expression(iftrue_expression))
-      parse_error("expected an expression");
-    expect(TokenKind::T_COLON);
-    ExpressionAST* iffalse_expression = nullptr;
-    if (!parse_expression(iffalse_expression))
       parse_error("expected an expression");
   }
 };
@@ -2946,7 +2976,8 @@ template_argument: {
     return true;
   yyrewind(saved);
   ExpressionAST* expression = nullptr;
-  if (parse_template_argument_constant_expression(expression) && check())
+  auto parsed = parse_template_argument_constant_expression(expression);
+  if (parsed && check())
     return true;
   return false;
 };
