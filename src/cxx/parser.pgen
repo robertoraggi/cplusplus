@@ -1399,11 +1399,6 @@ init_statement(StatementAST*& yyast): {
     return false;
 };
 
-condition0(ExpressionAST*& yyast)
-: attribute_specifier_seq? decl_specifier_seq declarator brace_or_equal_initializer
-| expression(yyast)
-;
-
 condition(ExpressionAST*& yyast): {
   const auto start = yycursor;
   parse_attribute_specifier_seq();
@@ -1595,11 +1590,6 @@ for_statement(StatementAST*& yyast): {
     parse_error("expected a statement");
 };
 
-for_range_declaration0
-: attribute_specifier_seq? decl_specifier_seq ( ref_qualifier? lbracket identifier_list rbracket
-                                              | declarator)
-;
-
 for_range_declaration: {
   parse_attribute_specifier_seq();
   if (!parse_decl_specifier_seq())
@@ -1789,19 +1779,37 @@ simple_declaration(DeclarationAST*& yyast, bool fundef)
               )))
 ;
 
-function_definition_body
-: (requires_clause | virt_specifier_seq?) function_body
-;
+function_definition_body: {
+  if (parse_requires_clause()) {
+    //
+  } else {
+    parse_virt_specifier_seq();
+  }
+  return parse_function_body();
+};
 
-static_assert_declaration(DeclarationAST*& yyast)
-{
-  ExpressionAST* e1 = nullptr;
-}
-: static_assert lparen constant_expression(e1) (comma string_literal_seq)? rparen semicolon
-;
+static_assert_declaration(DeclarationAST*& yyast): {
+  if (!match(TokenKind::T_STATIC_ASSERT))
+    return false;
+  expect(TokenKind::T_LPAREN);
+  ExpressionAST* expression = nullptr;
+  if (!parse_constant_expression(expression))
+    parse_error("expected an expression");
+  if (match(TokenKind::T_COMMA)) {
+    if (!parse_string_literal_seq())
+      parse_error("expected a string literal");
+  }
+  expect(TokenKind::T_RPAREN);
+  expect(TokenKind::T_SEMICOLON);
+};
 
-string_literal_seq
-: string_literal+;
+string_literal_seq: {
+  if (!match(TokenKind::T_STRING_LITERAL))
+    return false;
+  while (match(TokenKind::T_STRING_LITERAL)) {
+    //
+  }
+};
 
 empty_declaration(DeclarationAST*& yyast)
 : semicolon
@@ -1852,20 +1860,30 @@ function_specifier
 | explicit_specifier
 ;
 
-explicit_specifier
-{
-  ExpressionAST* e1 = nullptr;
-}
-: explicit lparen constant_expression(e1) rparen
-| explicit
-;
+explicit_specifier: {
+  if (!match(TokenKind::T_EXPLICIT))
+    return false;
+  if (match(TokenKind::T_LPAREN)) {
+    ExpressionAST* expression = nullptr;
+    if (!parse_constant_expression(expression))
+      parse_error("expected a expression");
+    expect(TokenKind::T_RPAREN);
+  }
+};
 
-type_specifier(DeclSpecs& specs)
-: simple_type_specifier(specs)
-| elaborated_type_specifier(specs)
-| typename_specifier { specs.has_named_typespec = true; }
-| cv_qualifier
-;
+type_specifier(DeclSpecs& specs): {
+  if (parse_simple_type_specifier(specs)) {
+    return true;
+  } else if (parse_elaborated_type_specifier(specs)) {
+    return true;
+  } else if (parse_typename_specifier()) {
+      specs.has_named_typespec = true;
+    return true;
+  } else if (parse_cv_qualifier()) {
+    return true;
+  }
+  return false;
+};
 
 type_specifier_seq
 {
@@ -1950,40 +1968,86 @@ elaborated_enum_specifier
 : enum nested_name_specifier? identifier
 ;
 
-decltype_specifier
-{
-  ExpressionAST* e1 = nullptr;
-}
-: decltype lparen expression(e1) rparen
-| (__decltype | __decltype__) lparen expression(e1) rparen
-| (__typeof | __typeof__) lparen expression(e1) rparen
-;
+decltype_specifier: {
+  if (match(TokenKind::T_DECLTYPE) || match(TokenKind::T___DECLTYPE)
+      || match(TokenKind::T___DECLTYPE__)) {
+    if (!match(TokenKind::T_LPAREN))
+      return false;
+    if (yytoken() == TokenKind::T_AUTO)
+      return false; // placeholder type specifier
+    ExpressionAST* expression = nullptr;
+    if (!parse_expression(expression))
+      parse_error("expected an expression");
+    expect(TokenKind::T_RPAREN);
+    return true;
+  }
 
-placeholder_type_specifier
-: type_constraint? auto
-| type_constraint? decltype lparen auto rparen
-;
+  if (match(TokenKind::T___TYPEOF) || match(TokenKind::T___TYPEOF__)) {
+    expect(TokenKind::T_LPAREN);
+    ExpressionAST* expression = nullptr;
+    if (!parse_expression(expression))
+      parse_error("expected an expression");
+    expect(TokenKind::T_RPAREN);
+    return true;
+  }
 
-init_declarator_list
-: init_declarator (comma init_declarator)*
-;
+  return false;
+};
 
-init_declarator
-: declarator declarator_initializer?
-;
+placeholder_type_specifier: {
+  parse_type_constraint();
 
-declarator_initializer
-: requires_clause
-| initializer
-;
+  if (match(TokenKind::T_AUTO))
+    return true;
+
+  if (match(TokenKind::T_DECLTYPE)) {
+    if (!match(TokenKind::T_LPAREN))
+      return false;
+    if (!match(TokenKind::T_AUTO))
+      return false;
+    if (!match(TokenKind::T_RPAREN))
+      return false;
+    return true;
+  }
+
+  return false;
+};
+
+init_declarator_list: {
+  if (!parse_init_declarator())
+    return false;
+  while (match(TokenKind::T_COMMA)) {
+    if (!parse_init_declarator())
+      parse_error("expected a declarator");
+  }
+};
+
+init_declarator: {
+  if (!parse_declarator())
+    return false;
+  const auto saved = yycursor;
+  if (!parse_declarator_initializer())
+    yyrewind(saved);
+};
+
+declarator_initializer: {
+  if (parse_requires_clause())
+    return true;
+  return parse_initializer();
+};
 
 declarator(Declarator& decl)
 : ptr_operator declarator(decl) { decl.push_back(PtrDeclarator()); }
 | noptr_declarator(decl)
 ;
 
-ptr_operator_seq
-: ptr_operator+;
+ptr_operator_seq: {
+  if (!parse_ptr_operator())
+    return false;
+  while (parse_ptr_operator()) {
+    //
+  }
+};
 
 core_declarator(Declarator& decl)
 : declarator_id attribute_specifier_seq? { decl.push_back(DeclaratorId()); }
@@ -2147,7 +2211,7 @@ braced_init_list
 };
 
 initializer_list: {
-  ExpressionAST* e = 0;
+  ExpressionAST* e = nullptr;
 
   if (!parse_initializer_clause(e))
     return false;
@@ -2160,7 +2224,7 @@ initializer_list: {
   while (match(TokenKind::T_COMMA)) {
     if (yytoken() == TokenKind::T_RBRACE) break;
 
-    ExpressionAST* e = 0;
+    ExpressionAST* e = nullptr;
     if (!parse_initializer_clause(e))
       parse_error("expected initializer clause");
 
@@ -2930,9 +2994,25 @@ type_parameter_key
 | typename
 ;
 
-type_constraint
-: nested_name_specifier? concept_name (less template_argument_list? greater)?
+type_constraint0
+: nested_name_specifier?
+  concept_name (less template_argument_list? greater)?
 ;
+
+type_constraint: {
+  const auto start = yycursor;
+  if (!parse_nested_name_specifier())
+    yyrewind(start);
+  if (!parse_concept_name()) {
+    yyrewind(start);
+    return false;
+  }
+  if (match(TokenKind::T_LESS)) {
+    if (!parse_template_argument_list())
+      parse_error("expected a template argument");
+    expect(TokenKind::T_GREATER);
+  }
+};
 
 simple_template_id
 {
@@ -3023,19 +3103,28 @@ typename_specifier
 : typename nested_name_specifier (template? simple_template_id | identifier)
 ;
 
-explicit_instantiation(DeclarationAST*& yyast)
-{
-  DeclarationAST* d1 = nullptr;
-}
-: extern? template declaration(d1)
-;
+explicit_instantiation(DeclarationAST*& yyast): {
+  const auto has_extern = match(TokenKind::T_EXTERN);
+  if (!match(TokenKind::T_TEMPLATE))
+    return false;
+  if (yytoken() == TokenKind::T_LESS)
+    return false;
+  DeclarationAST* declaration = nullptr;
+  if (!parse_declaration(declaration))
+    parse_error("expected a declaration");
+};
 
-explicit_specialization(DeclarationAST*& yyast)
-{
-  DeclarationAST* d1 = nullptr;
-}
-: template less greater declaration(d1)
-;
+explicit_specialization(DeclarationAST*& yyast): {
+  if (!match(TokenKind(TokenKind::T_TEMPLATE)))
+    return false;
+  if (!match(TokenKind::T_LESS))
+    return false;
+  if (!match(TokenKind::T_GREATER))
+    return false;
+  DeclarationAST* declaration = nullptr;
+  if (!parse_declaration(declaration))
+    parse_error("expected a declaration");
+};
 
 try_block(StatementAST*& yyast): {
   if (!match(TokenKind::T_TRY))
@@ -3082,21 +3171,45 @@ handler_seq: {
   }
 };
 
-exception_declaration
-: attribute_specifier_seq? type_specifier_seq (declarator | abstract_declarator?)
-| dot_dot_dot?
-;
+exception_declaration: {
+  if (match(TokenKind::T_DOT_DOT_DOT))
+    return true;
+  parse_attribute_specifier_seq();
+  if (!parse_type_specifier_seq())
+    parse_error("expected a type specifier");
+  if (yytoken() == TokenKind::T_RPAREN)
+    return true;
+  auto before_declarator = yycursor;
+  if (!parse_declarator())
+    yyrewind(before_declarator);
+  else if (!parse_abstract_declarator())
+    parse_error("expected a declarator");
+};
 
-noexcept_specifier
-{
-  ExpressionAST* e1 = nullptr;
-}
-: noexcept lparen constant_expression(e1) rparen
-| noexcept
-| throw lparen rparen // deprecated
-;
+noexcept_specifier: {
+  if (match(TokenKind::T_THROW)) {
+    expect(TokenKind::T_LPAREN);
+    expect(TokenKind::T_RPAREN);
+    return true;
+  }
 
-identifier_list
-: identifier (comma identifier)*
-;
+  if (!match(TokenKind::T_NOEXCEPT))
+    return false;
 
+  if (match(TokenKind::T_LPAREN)) {
+    ExpressionAST* expression = nullptr;
+
+    if (!parse_constant_expression(expression))
+      parse_error("expected a declaration");
+
+    expect(TokenKind::T_RPAREN);
+  }
+};
+
+identifier_list: {
+  if (!match(TokenKind::T_IDENTIFIER))
+    return false;
+  while (match(TokenKind::T_COMMA)) {
+    expect(TokenKind::T_IDENTIFIER);
+  }
+};
