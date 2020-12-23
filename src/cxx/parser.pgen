@@ -1819,46 +1819,67 @@ attribute_declaration(DeclarationAST*& yyast)
 : attribute_specifier_seq semicolon
 ;
 
-decl_specifier(DeclSpecs& specs)
-: storage_class_specifier
-| { return !specs.no_typespecs; } defining_type_specifier(specs)
-| function_specifier
-| friend
-| typedef
-| constexpr
-| consteval
-| constinit
-| inline
-| __inline
-| __inline__
-;
+decl_specifier(DeclSpecs& specs): {
+  switch (yytoken()) {
+  case TokenKind::T_FRIEND:
+  case TokenKind::T_TYPEDEF:
+  case TokenKind::T_CONSTEXPR:
+  case TokenKind::T_CONSTEVAL:
+  case TokenKind::T_CONSTINIT:
+  case TokenKind::T_INLINE:
+  case TokenKind::T___INLINE:
+  case TokenKind::T___INLINE__:
+    yyconsume();
+    return true;
+  default:
+    if (parse_storage_class_specifier())
+      return true;
+    else if (parse_function_specifier())
+      return true;
+    else if (!specs.no_typespecs)
+      return parse_defining_type_specifier(specs);
+    return false;
+  } // switch
+};
 
-decl_specifier_seq(DeclSpecs& specs)
-{
+decl_specifier_seq(DeclSpecs& specs): {
   specs.no_typespecs = false;
-}
-: (decl_specifier(specs) attribute_specifier_seq?)+
-;
+  if (!parse_decl_specifier(specs))
+    return false;
+  parse_attribute_specifier_seq();
+  while (parse_decl_specifier(specs)) {
+    parse_attribute_specifier_seq();
+  }
+};
 
-decl_specifier_seq_no_typespecs(DeclSpecs& specs)
-{
+decl_specifier_seq_no_typespecs(DeclSpecs& specs): {
   specs.no_typespecs = true;
-}
-: (decl_specifier(specs) attribute_specifier_seq?)+
-;
+  if (!parse_decl_specifier(specs))
+    return false;
+  parse_attribute_specifier_seq();
+  while (parse_decl_specifier(specs)) {
+    parse_attribute_specifier_seq();
+  }
+};
 
-storage_class_specifier
-: static
-| thread_local
-| extern
-| mutable
-| __thread
-;
+storage_class_specifier: {
+  switch (yytoken()) {
+  default: return false;
+  case TokenKind::T_STATIC:
+  case TokenKind::T_THREAD_LOCAL:
+  case TokenKind::T_EXTERN:
+  case TokenKind::T_MUTABLE:
+  case TokenKind::T___THREAD:
+    yyconsume();
+    return true;
+  } // switch
+};
 
-function_specifier
-: virtual
-| explicit_specifier
-;
+function_specifier: {
+  if (match(TokenKind::T_VIRTUAL))
+    return true;
+  return parse_explicit_specifier();
+};
 
 explicit_specifier: {
   if (!match(TokenKind::T_EXPLICIT))
@@ -1893,11 +1914,20 @@ type_specifier_seq
 : (type_specifier(specs) attribute_specifier_seq?)+
 ;
 
-defining_type_specifier(DeclSpecs& specs)
-: { return !specs.no_class_or_enum_specs; } class_specifier { specs.has_complex_typespec = true; }
-| { return !specs.no_class_or_enum_specs; } enum_specifier  { specs.has_complex_typespec = true; }
-| type_specifier(specs)
-;
+defining_type_specifier(DeclSpecs& specs): {
+  if (!specs.no_class_or_enum_specs) {
+    const auto start = yycursor;
+    if (parse_enum_specifier()) {
+      specs.has_complex_typespec = true;
+      return true;
+    } else if (parse_class_specifier()) {
+      specs.has_complex_typespec = true;
+      return true;
+    }
+    yyrewind(start);
+  }
+  return parse_type_specifier(specs);
+};
 
 defining_type_specifier_seq(DeclSpecs& specs)
 : defining_type_specifier(specs)+ attribute_specifier_seq?
@@ -1953,16 +1983,59 @@ type_name
 | typedef_name
 ;
 
-elaborated_type_specifier(DeclSpecs& specs)
-: class_key attribute_specifier_seq? nested_name_specifier template? simple_template_id
-  { specs.has_complex_typespec = true; }
-| class_key attribute_specifier_seq? simple_template_id
-  { specs.has_complex_typespec = true; }
-| class_key attribute_specifier_seq? nested_name_specifier? identifier
-  { specs.has_complex_typespec = true; }
-| elaborated_enum_specifier
-  { specs.has_complex_typespec = true; }
-;
+elaborated_type_specifier(DeclSpecs& specs): {
+  // ### cleanup
+
+  if (yytoken() == TokenKind::T_ENUM)
+    return parse_elaborated_enum_specifier();
+
+  if (!parse_class_key())
+    return false;
+
+  parse_attribute_specifier_seq();
+
+  const auto before_nested_name_specifier = yycursor;
+
+  if (!parse_nested_name_specifier()) {
+    yyrewind(before_nested_name_specifier);
+
+    if (parse_simple_template_id()) {
+      specs.has_complex_typespec = true;
+      return true;
+    }
+
+    yyrewind(before_nested_name_specifier);
+
+    if (!match(TokenKind::T_IDENTIFIER))
+      return false;
+
+    specs.has_complex_typespec = true;
+    return true;
+  }
+
+  const auto after_nested_name_specifier = yycursor;
+
+  const bool has_template = match(TokenKind::T_TEMPLATE);
+
+  if (parse_simple_template_id()) {
+    specs.has_complex_typespec = true;
+    return true;
+  }
+
+  if (has_template) {
+    parse_error("expected a template-id");
+    specs.has_complex_typespec = true;
+    return true;
+  }
+
+  yyrewind(after_nested_name_specifier);
+
+  if (!match(TokenKind::T_IDENTIFIER))
+    return false;
+
+  specs.has_complex_typespec = true;
+  return true;
+};
 
 elaborated_enum_specifier
 : enum nested_name_specifier? identifier
