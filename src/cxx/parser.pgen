@@ -1768,13 +1768,13 @@ simple_declaration(DeclarationAST*& yyast, bool fundef)
 : __extension__? attribute_specifier_seq?
     ( semicolon
     | decl_specifier_seq_no_typespecs(specs)?
-        ( declarator_id attribute_specifier_seq? parameters_and_qualifiers (semicolon | function_definition_body)
+        ( declarator_id attribute_specifier_seq? parameters_and_qualifiers (semicolon | { return fundef; } function_definition_body)
         | decl_specifier_seq(specs)?
           ({ return specs.has_complex_typespec; } semicolon
           |{ return specs.has_typespec(); } ref_qualifier? lbracket identifier_list rbracket initializer semicolon
           |{ return specs.has_typespec(); } declarator(decl)
               ( semicolon
-              | { return isFunctionDeclarator(decl); } function_definition_body
+              | { return fundef && isFunctionDeclarator(decl); } function_definition_body
               | declarator_initializer? (comma init_declarator)* semicolon)
               )))
 ;
@@ -2168,23 +2168,31 @@ parameter_declaration
     | abstract_declarator? (equal initializer_clause(e1))?)
 ;
 
-initializer
-: brace_or_equal_initializer
-| lparen expression_list rparen
-;
+initializer: {
+  if (match(TokenKind::T_LPAREN)) {
+    if (!parse_expression_list())
+      parse_error("expected an expression");
+    expect(TokenKind::T_RPAREN);
+    return true;
+  }
+  return parse_brace_or_equal_initializer();
+};
 
-brace_or_equal_initializer
-{
-  ExpressionAST* e1 = nullptr;
-}
-: equal initializer_clause(e1)
-| braced_init_list
-;
+brace_or_equal_initializer: {
+  if (yytoken() == TokenKind::T_LBRACE)
+    return parse_braced_init_list();
+  if (!match(TokenKind::T_EQUAL))
+    return false;
+  ExpressionAST* expression = nullptr;
+  if (!parse_initializer_clause(expression))
+    parse_error("expected an intializer");
+};
 
-initializer_clause(ExpressionAST*& yyast)
-: braced_init_list
-| assignment_expression(yyast)
-;
+initializer_clause(ExpressionAST*& yyast): {
+  if (yytoken() == TokenKind::T_LBRACE)
+    return parse_braced_init_list();
+  return parse_assignment_expression(yyast);
+};
 
 braced_init_list
 : {
@@ -2235,9 +2243,12 @@ initializer_list: {
   }
 };
 
-designated_initializer_clause
-: designator brace_or_equal_initializer
-;
+designated_initializer_clause: {
+  if (!parse_designator())
+    return false;
+  if (!parse_brace_or_equal_initializer())
+    parse_error("expected an initializer");
+};
 
 designator
 : dot identifier
@@ -2251,84 +2262,153 @@ expr_or_braced_init_list: {
     parse_error("expected an expression");
 };
 
-virt_specifier_seq
-: virt_specifier+;
+virt_specifier_seq: {
+  if (!parse_virt_specifier())
+    return false;
+  while (parse_virt_specifier()) {
+    //
+  }
+};
 
-function_body
-{
-  StatementAST* s1 = nullptr;
-}
-: { return skip_function_body; }
-  ctor_initializer? lbrace
-    {
-      int depth = 1;
-      TokenKind tok;
-      while ((tok = yytoken()) != TokenKind::T_EOF_SYMBOL) {
-        if (tok == TokenKind::T_LBRACE) {
-          ++depth;
-        } else if (tok == TokenKind::T_RBRACE) {
-          if (!--depth) {
-            break;
-          }
-        }
-        yyconsume();
-      }
+function_body: {
+  if (yytoken() == TokenKind::T_SEMICOLON)
+    return false;
+
+  if (parse_function_try_block())
+    return true;
+  else if (match(TokenKind::T_EQUAL)) {
+    if (match(TokenKind::T_DEFAULT)) {
+      expect(TokenKind::T_SEMICOLON);
+      return true;
+    } else if (match(TokenKind::T_DELETE)) {
+      expect(TokenKind::T_SEMICOLON);
+      return true;
     }
-  rbrace
-| ctor_initializer? compound_statement(s1)
-| function_try_block
-| equal default semicolon
-| equal delete semicolon
-;
+    return false;
+  }
 
-enum_specifier
-{
-  DeclarativeRegion::Context region(this);
-}
-: enum_head lbrace rbrace
-| enum_head lbrace enter(region) enumerator_list comma? rbrace
-;
+  parse_ctor_initializer();
 
-enum_head
-: enum_key attribute_specifier_seq? enum_head_name? enum_base?
-;
+  if (yytoken() != TokenKind::T_LBRACE)
+    return false;
 
-enum_head_name
-: nested_name_specifier? identifier
-;
+  if (skip_function_body) {
+    expect(TokenKind::T_LBRACE);
+    int depth = 1;
+    TokenKind tok;
+    while ((tok = yytoken()) != TokenKind::T_EOF_SYMBOL) {
+      if (tok == TokenKind::T_LBRACE) {
+        ++depth;
+      } else if (tok == TokenKind::T_RBRACE) {
+        if (!--depth) {
+          break;
+        }
+      }
+      yyconsume();
+    }
+    expect(TokenKind::T_RBRACE);
+  }
 
-opaque_enum_declaration(DeclarationAST*& yyast)
-: enum_key attribute_specifier_seq? enum_head_name enum_base? semicolon
-;
+  StatementAST* statement = nullptr;
+  if (!parse_compound_statement(statement))
+    parse_error("expected a compound statement");
+};
 
-enum_key
-: enum class
-| enum struct
-| enum
-;
+enum_specifier: {
+  if (!parse_enum_head())
+    return false;
+  if (!match(TokenKind::T_LBRACE))
+    return false;
+  if (!match(TokenKind::T_RBRACE)) {
+    DeclarativeRegion::Context region(this);
+    parse_enter(region);
+    parse_enumerator_list();
+    match(TokenKind::T_COMMA);
+    expect(TokenKind::T_RBRACE);
+  }
+};
 
-enum_base
-: colon type_specifier_seq
-;
+enum_head: {
+  if (!parse_enum_key())
+    return false;
+  parse_attribute_specifier_seq();
+  parse_enum_head_name();
+  parse_enum_base();
+};
 
-enumerator_list
-: enumerator_definition (comma enumerator_definition)*
-;
+enum_head_name: {
+  auto start = yycursor;
+  if (!parse_nested_name_specifier())
+    yyrewind(start);
+  if (!match(TokenKind::T_IDENTIFIER))
+    return false;
+};
 
-enumerator_definition
-{
-  ExpressionAST* e1 = nullptr;
-}
-: enumerator (equal constant_expression(e1))*
-;
+opaque_enum_declaration(DeclarationAST*& yyast): {
+  if (!parse_enum_key())
+    return false;
+  parse_attribute_specifier_seq();
+  if (!parse_enum_head_name())
+    return false;
+  parse_enum_base();
+  if (!match(TokenKind::T_SEMICOLON))
+    return false;
+};
 
-enumerator
-: identifier attribute_specifier_seq?
-;
+enum_key: {
+  if (!match(TokenKind::T_ENUM))
+    return false;
+  if (match(TokenKind::T_CLASS)) {
+    //
+  } else if (match (TokenKind::T_STRUCT)) {
+    //
+  }
+};
 
-using_enum_declaration(DeclarationAST*& yyast)
-: using elaborated_enum_specifier semicolon
-;
+enum_base: {
+  if (!match(TokenKind::T_COLON))
+    return false;
+  if (!parse_type_specifier_seq())
+    parse_error("expected a type specifier");
+};
+
+enumerator_list: {
+  if (!parse_enumerator_definition())
+    return false;
+  while (match(TokenKind::T_COMMA)) {
+    if (yytoken() == TokenKind::T_RBRACE) {
+      yyrewind(yycursor - 1);
+      break;
+    }
+    if (!parse_enumerator_definition())
+      parse_error("expected an enumerator");
+  }
+};
+
+enumerator_definition: {
+  if (!parse_enumerator())
+    return false;
+  if (match(TokenKind::T_EQUAL)) {
+    ExpressionAST* expression = nullptr;
+    if (!parse_constant_expression(expression))
+      parse_error("expected an expression");
+  }
+};
+
+enumerator: {
+  if (!match(TokenKind::T_IDENTIFIER))
+    return false;
+  parse_attribute_specifier_seq();
+};
+
+using_enum_declaration(DeclarationAST*& yyast): {
+  if (!match(TokenKind::T_USING))
+    return false;
+  if (!parse_elaborated_enum_specifier())
+    return false;
+  if (!match(TokenKind::T_SEMICOLON))
+    return false;
+};
 
 namespace_definition(DeclarationAST*& yyast)
 : nested_namespace_definition(yyast)
@@ -2992,11 +3072,6 @@ type_parameter
 type_parameter_key
 : class
 | typename
-;
-
-type_constraint0
-: nested_name_specifier?
-  concept_name (less template_argument_list? greater)?
 ;
 
 type_constraint: {
