@@ -780,10 +780,13 @@ primary_expression(ExpressionAST*& yyast): {
   return parse_id_expression();
 };
 
-id_expression
-: qualified_id
-| unqualified_id
-;
+id_expression: {
+  const auto start = yycursor;
+  if (parse_qualified_id())
+    return true;
+  yyrewind(start);
+  return parse_unqualified_id();
+};
 
 maybe_template_id: {
   const auto start = yycursor;
@@ -812,26 +815,52 @@ maybe_template_id: {
   } // switch
 };
 
-unqualified_id
-: maybe_template_id
-| identifier
-| tilde type_name
-| tilde decltype_specifier
-| operator_function_id
-| conversion_function_id
-| literal_operator_id
-;
+unqualified_id: {
+  const auto start = yycursor;
 
-qualified_id
-: nested_name_specifier template? unqualified_id
-;
+  if (parse_maybe_template_id())
+      return true;
 
-nested_name_specifier
-{
+  yyrewind(start);
+
+  if (match(TokenKind::T_TILDE)) {
+    if (parse_decltype_specifier())
+      return true;
+    return parse_type_name();
+  }
+
+  if (yytoken() == TokenKind::T_OPERATOR) {
+    if (parse_operator_function_id())
+      return true;
+    yyrewind(start);
+    if (parse_conversion_function_id())
+      return true;
+    yyrewind(start);
+    return parse_literal_operator_id();
+  }
+
+  if (!match(TokenKind::T_IDENTIFIER))
+    return false;
+  return true;
+};
+
+qualified_id: {
+  if (!parse_nested_name_specifier())
+    return false;
+  const auto has_template = match(TokenKind::T_TEMPLATE);
+  if (parse_unqualified_id())
+    return true;
+  if (has_template) {
+    parse_error("expected a template name");
+    return true;
+  }
+  return false;
+};
+
+nested_name_specifier: {
   DeclarativeRegion* region = nullptr;
-}
-: nested_name_specifier(region)
-;
+  return parse_nested_name_specifier(region);
+};
 
 nested_name_specifier(DeclarativeRegion*& region)
 {
@@ -1811,13 +1840,17 @@ string_literal_seq: {
   }
 };
 
-empty_declaration(DeclarationAST*& yyast)
-: semicolon
-;
+empty_declaration(DeclarationAST*& yyast): {
+  if (!match(TokenKind::T_SEMICOLON))
+    return false;
+};
 
-attribute_declaration(DeclarationAST*& yyast)
-: attribute_specifier_seq semicolon
-;
+attribute_declaration(DeclarationAST*& yyast): {
+  if (!parse_attribute_specifier_seq())
+    return false;
+  if (!match(TokenKind::T_SEMICOLON))
+    return false;
+};
 
 decl_specifier(DeclSpecs& specs): {
   switch (yytoken()) {
@@ -1906,13 +1939,21 @@ type_specifier(DeclSpecs& specs): {
   return false;
 };
 
-type_specifier_seq
-{
+type_specifier_seq: {
   DeclSpecs specs;
   specs.no_class_or_enum_specs = true;
-}
-: (type_specifier(specs) attribute_specifier_seq?)+
-;
+  if (!parse_type_specifier(specs))
+    return false;
+  parse_attribute_specifier_seq();
+  while (yytoken() != TokenKind::T_EOF_SYMBOL) {
+    const auto before_type_specifier = yycursor;
+    if (!parse_type_specifier(specs)) {
+      yyrewind(before_type_specifier);
+      break;
+    }
+    parse_attribute_specifier_seq();
+  }
+};
 
 defining_type_specifier(DeclSpecs& specs): {
   if (!specs.no_class_or_enum_specs) {
@@ -1929,9 +1970,19 @@ defining_type_specifier(DeclSpecs& specs): {
   return parse_type_specifier(specs);
 };
 
-defining_type_specifier_seq(DeclSpecs& specs)
-: defining_type_specifier(specs)+ attribute_specifier_seq?
-;
+defining_type_specifier_seq(DeclSpecs& specs): {
+  if (!parse_defining_type_specifier(specs))
+    return false;
+  parse_attribute_specifier_seq();
+  while (yytoken() != TokenKind::T_EOF_SYMBOL) {
+    const auto before_type_specifier = yycursor;
+    if (!parse_defining_type_specifier(specs)) {
+      yyrewind(before_type_specifier);
+      break;
+    }
+    parse_attribute_specifier_seq();
+  }
+};
 
 simple_type_specifier(DeclSpecs& specs)
 : { return !specs.has_typespec(); }
