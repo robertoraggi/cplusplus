@@ -1123,53 +1123,105 @@ postfix_expression(ExpressionAST*& yyast)
     | plus_plus)*
 ;
 
-expression_list
-: initializer_list
-;
+expression_list: {
+  return parse_initializer_list();
+};
 
 unary_expression(ExpressionAST*& yyast)
-{
-  ExpressionAST* e1 = nullptr;
-}
-: unary_operator cast_expression(e1)
-| plus_plus cast_expression(e1)
-| minus_minus cast_expression(e1)
-| __imag__ cast_expression(e1)
-| __real__ cast_expression(e1)
+: unop_expression(yyast)
+| complex_expression(yyast)
 | await_expression(yyast)
-| sizeof unary_expression(e1)
-| sizeof lparen type_id rparen
-| sizeof dot_dot_dot lparen identifier rparen
-| alignof lparen type_id rparen
-| __alignof lparen type_id rparen
+| sizeof_expression(yyast)
+| alignof_expression(yyast)
 | noexcept_expression(yyast)
 | new_expression(yyast)
 | delete_expression(yyast)
 | postfix_expression(yyast)
 ;
 
-unary_operator
-: star
-| amp
-| plus
-| minus
-| exclaim
-| tilde
-;
+unop_expression(ExpressionAST*& yyast): {
+  if (!parse_unary_operator() && !match(TokenKind::T_PLUS_PLUS) && !match(TokenKind::T_MINUS_MINUS))
+    return false;
+  ExpressionAST* expression = nullptr;
+  if (!parse_cast_expression(expression))
+    parse_error("expected an expression");
+};
 
-await_expression(ExpressionAST*& yyast)
-{
-  ExpressionAST* e1 = nullptr;
-}
-: co_await cast_expression(e1)
-;
+complex_expression(ExpressionAST*& yyast): {
+  if (!match(TokenKind::T___IMAG__) && !match(TokenKind::T___REAL__))
+    return false;
+  ExpressionAST* expression = nullptr;
+  if (!parse_cast_expression(expression))
+    parse_error("expected an expression");
+};
 
-noexcept_expression(ExpressionAST*& yyast)
-{
-  ExpressionAST* e1 = nullptr;
-}
-: noexcept lparen expression(e1) rparen
-;
+sizeof_expression(ExpressionAST*& yyast): {
+  if (!match(TokenKind::T_SIZEOF))
+    return false;
+
+  if (match(TokenKind::T_DOT_DOT_DOT)) {
+    expect(TokenKind::T_LPAREN);
+    expect(TokenKind::T_IDENTIFIER);
+    expect(TokenKind::T_RPAREN);
+    return true;
+  }
+
+  const auto after_sizeof_op = yycursor;
+
+  if (match(TokenKind::T_LPAREN)) {
+    if (parse_type_id() && match(TokenKind::T_RPAREN)) {
+      return true;
+    }
+    yyrewind(after_sizeof_op);
+  }
+
+  ExpressionAST* expression = nullptr;
+  if (!parse_unary_expression(expression))
+    parse_error("expected an expression");
+};
+
+alignof_expression(ExpressionAST*& yyast): {
+  if (!match(TokenKind::T_ALIGNOF) && !match(TokenKind::T___ALIGNOF))
+    return false;
+  expect(TokenKind::T_LPAREN);
+  if (!parse_type_id())
+    parse_error("expected a type id");
+  expect(TokenKind::T_RPAREN);
+};
+
+unary_operator: {
+  switch (yytoken()) {
+  default: return false;
+  case TokenKind::T_STAR:
+  case TokenKind::T_AMP:
+  case TokenKind::T_PLUS:
+  case TokenKind::T_MINUS:
+  case TokenKind::T_EXCLAIM:
+  case TokenKind::T_TILDE:
+    yyconsume();
+    return true;
+  } // switch
+};
+
+await_expression(ExpressionAST*& yyast): {
+  if (!match(TokenKind::T_CO_AWAIT))
+    return false;
+  expect(TokenKind::T_LPAREN);
+  ExpressionAST* expression = nullptr;
+  if (!parse_cast_expression(expression))
+    parse_error("expected an expression");
+  expect(TokenKind::T_RPAREN);
+};
+
+noexcept_expression(ExpressionAST*& yyast): {
+  if (!match(TokenKind::T_NOEXCEPT))
+    return false;
+  expect(TokenKind::T_LPAREN);
+  ExpressionAST* expression = nullptr;
+  if (!parse_expression(expression))
+    parse_error("expected an expression");
+  expect(TokenKind::T_RPAREN);
+};
 
 new_expression(ExpressionAST*& yyast)
 : colon_colon? new new_placement? new_type_id new_initializer?
