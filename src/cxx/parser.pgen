@@ -1355,8 +1355,7 @@ template_argument_constant_expression(ExpressionAST*& yyast)
 : conditional_expression(yyast, true)
 ;
 
-statement(StatementAST*& yyast):
-{
+statement(StatementAST*& yyast): {
   bool has_extension = false;
 
   if (match(TokenKind::T___EXTENSION__)) {
@@ -1409,6 +1408,7 @@ statement(StatementAST*& yyast):
       } else if (parse_declaration_statement(yyast)) {
         return true;
       }
+      yyrewind(start);
       return parse_expression_statement(yyast);
   } // switch
 };
@@ -1678,12 +1678,11 @@ coroutine_return_statement(StatementAST*& yyast): {
   }
 };
 
-declaration_statement(StatementAST*& yyast)
-{
-  DeclarationAST* d1 = nullptr;
-}
-: block_declaration(d1, false)
-;
+declaration_statement(StatementAST*& yyast): {
+  DeclarationAST* declaration = nullptr;
+  if (!parse_block_declaration(declaration, false))
+    return false;
+};
 
 declaration(DeclarationAST*& yyast): {
   if (yytoken() == TokenKind::T_RBRACE)
@@ -1985,48 +1984,142 @@ defining_type_specifier_seq(DeclSpecs& specs): {
 };
 
 simple_type_specifier(DeclSpecs& specs)
-: { return !specs.has_typespec(); }
-  ( nested_name_specifier ( template simple_template_id
-                          | type_name
-                          | template_name)
-  | type_name
-  | template_name) { specs.has_named_typespec = true; }
-
-| { return !specs.has_typespec(); }
-  placeholder_type_specifier { specs.has_placeholder_typespec = true; }
-
-| { return !specs.has_typespec(); }
-  decltype_specifier { specs.has_placeholder_typespec = true; }
-
-| { return !specs.has_typespec(); }
-  __underlying_type lparen type_id rparen
-  { specs.has_named_typespec = true; }
-
-| { return specs.accepts_simple_typespec(); }
-  _Atomic lparen type_id rparen
-
-| { return specs.accepts_simple_typespec(); }
-  ( char
-  | char8_t
-  | char16_t
-  | char32_t
-  | wchar_t
-  | bool
-  | short
-  | int
-  | long
-  | signed
-  | unsigned
-  | float
-  | double
-  | void
-  | __int64
-  | __int128
-  | __float80
-  | __float128
-  | __complex__
-  ) { specs.has_simple_typespec = true; }
+: primitive_type_specifier(specs)
+| underlying_type_specifier(specs)
+| atomic_type_specifier(specs)
+| named_type_specifier(specs)
+| placeholder_type_specifier_helper(specs)
+| decltype_specifier_type_specifier(specs)
 ;
+
+named_type_specifier(DeclSpecs& specs): {
+  if (!parse_named_type_specifier_helper(specs))
+    return false;
+  specs.has_named_typespec = true;
+};
+
+named_type_specifier_helper(DeclSpecs& specs): {
+  if (specs.has_typespec())
+    return false;
+
+  const auto start = yycursor;
+
+  if (parse_nested_name_specifier()) {
+    const auto after_nested_name_specifier = yycursor;
+
+    if (match(TokenKind::T_TEMPLATE) && parse_simple_template_id()) {
+      return true;
+    }
+
+    yyrewind(after_nested_name_specifier);
+
+    if (parse_type_name()) {
+      return true;
+    }
+
+    yyrewind(after_nested_name_specifier);
+
+    if (parse_template_name()) {
+      return true;
+    }
+  }
+
+  yyrewind(start);
+
+  if (parse_type_name()) {
+    return true;
+  }
+
+  yyrewind(start);
+
+  if (parse_template_name()) {
+    return true;
+  }
+
+  return false;
+};
+
+placeholder_type_specifier_helper(DeclSpecs& specs): {
+  if (specs.has_typespec())
+    return false;
+  if (!parse_placeholder_type_specifier())
+    return false;
+  specs.has_placeholder_typespec = true;
+};
+
+decltype_specifier_type_specifier(DeclSpecs& specs): {
+  if (specs.has_typespec())
+    return false;
+  if (!parse_decltype_specifier())
+    return false;
+  specs.has_placeholder_typespec = true;
+};
+
+underlying_type_specifier(DeclSpecs& specs): {
+  if (specs.has_typespec())
+    return false;
+  if (!match(TokenKind::T___UNDERLYING_TYPE))
+    return false;
+  expect(TokenKind::T_LPAREN);
+  if (!parse_type_id())
+    parse_error("expected type id");
+  expect(TokenKind::T_RPAREN);
+  specs.has_named_typespec = true;
+};
+
+automic_type_specifier(DeclSpecs& specs): {
+  if (!specs.accepts_simple_typespec())
+    return false;
+  if (!match(TokenKind::T__ATOMIC))
+    return false;
+  expect(TokenKind::T_LPAREN);
+  if (!parse_type_id())
+    parse_error("expected type id");
+  expect(TokenKind::T_RPAREN);
+  specs.has_simple_typespec = true;
+};
+
+atomic_type_specifier(DeclSpecs& specs): {
+  if (!specs.accepts_simple_typespec())
+    return false;
+  if (!match(TokenKind::T__ATOMIC))
+    return false;
+  expect(TokenKind::T_LPAREN);
+  if (!parse_type_id())
+    parse_error("expected type id");
+  expect(TokenKind::T_RPAREN);
+  specs.has_simple_typespec = true;
+};
+
+primitive_type_specifier(DeclSpecs& specs): {
+  if (!specs.accepts_simple_typespec())
+    return false;
+  switch (yytoken()) {
+  default: return false;
+  case TokenKind::T_CHAR:
+  case TokenKind::T_CHAR8_T:
+  case TokenKind::T_CHAR16_T:
+  case TokenKind::T_CHAR32_T:
+  case TokenKind::T_WCHAR_T:
+  case TokenKind::T_BOOL:
+  case TokenKind::T_SHORT:
+  case TokenKind::T_INT:
+  case TokenKind::T_LONG:
+  case TokenKind::T_SIGNED:
+  case TokenKind::T_UNSIGNED:
+  case TokenKind::T_FLOAT:
+  case TokenKind::T_DOUBLE:
+  case TokenKind::T_VOID:
+  case TokenKind::T___INT64:
+  case TokenKind::T___INT128:
+  case TokenKind::T___FLOAT80:
+  case TokenKind::T___FLOAT128:
+  case TokenKind::T___COMPLEX__:
+    yyconsume();
+    specs.has_simple_typespec = true;
+    return true;
+  } // switch
+};
 
 type_name
 : class_name
