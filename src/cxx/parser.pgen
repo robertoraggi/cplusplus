@@ -2139,12 +2139,23 @@ noptr_declarator(Declarator& decl)
     )*
 ;
 
-parameters_and_qualifiers
-{
+parameters_and_qualifiers: {
+  if (!match(TokenKind::T_LPAREN))
+    return false;
   DeclarativeRegion::Context region(this);
-}
-: lparen enter(region) parameter_declaration_clause rparen cv_qualifier_seq? ref_qualifier? noexcept_specifier? attribute_specifier_seq?
-;
+  parse_enter(region);
+  if (!match(TokenKind::T_RPAREN)) {
+    if (!parse_parameter_declaration_clause())
+      return false;
+    if (!match(TokenKind::T_RPAREN))
+      return false;
+  }
+  parse_cv_qualifier_seq();
+  parse_ref_qualifier();
+  parse_noexcept_specifier();
+  parse_attribute_specifier_seq();
+  return true;
+};
 
 cv_qualifier_seq
 : cv_qualifier+;
@@ -2220,16 +2231,32 @@ noptr_abstract_pack_declarator
     | lbracket constant_expression(e1)? rbracket attribute_specifier_seq?)*
 ;
 
-parameter_declaration_clause
+parameter_declaration_clause0
 : parameter_declaration_list comma? dot_dot_dot?
 | dot_dot_dot?
 ;
 
-parameter_declaration_list
-: parameter_declaration (comma parameter_declaration)*
-;
+parameter_declaration_clause: {
+  if (match(TokenKind::T_DOT_DOT_DOT))
+    return true;
+  if (!parse_parameter_declaration_list())
+    return false;
+  match(TokenKind::T_COMMA);
+  match(TokenKind::T_DOT_DOT_DOT);
+};
 
-parameter_declaration
+parameter_declaration_list: {
+  if (!parse_parameter_declaration())
+    return false;
+  while (match(TokenKind::T_COMMA)) {
+    if (!parse_parameter_declaration()) {
+      yyrewind(yycursor - 1);
+      break;
+    }
+  }
+};
+
+parameter_declaration0
 {
   DeclSpecs specs;
   specs.no_class_or_enum_specs = true;
@@ -2240,6 +2267,32 @@ parameter_declaration
     ( declarator (equal initializer_clause(e1))?
     | abstract_declarator? (equal initializer_clause(e1))?)
 ;
+
+parameter_declaration: {
+  parse_attribute_specifier_seq();
+
+  DeclSpecs specs;
+  specs.no_class_or_enum_specs = true;
+
+  if (!parse_decl_specifier_seq(specs))
+    return false;
+
+  const auto before_declarator = yycursor;
+
+  if (!parse_declarator()) {
+    yyrewind(before_declarator);
+    if (!parse_abstract_declarator())
+      yyrewind(before_declarator);
+  }
+
+  if (match(TokenKind::T_EQUAL)) {
+    ExpressionAST* expression = nullptr;
+    if (!parse_initializer_clause(expression))
+      parse_error("expected an initializer");
+  }
+
+  return true;
+};
 
 initializer: {
   if (match(TokenKind::T_LPAREN)) {
@@ -2267,8 +2320,7 @@ initializer_clause(ExpressionAST*& yyast): {
   return parse_assignment_expression(yyast);
 };
 
-braced_init_list
-: {
+braced_init_list: {
   if (!match(TokenKind::T_LBRACE)) return false;
 
   if (yytoken() == TokenKind::T_DOT) {
