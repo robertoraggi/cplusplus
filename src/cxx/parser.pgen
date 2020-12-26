@@ -555,24 +555,42 @@
 %extern warn
 %extern error
 
-id(const Identifier* id): identifier
-{
+id(const Identifier* id): {
+  if (!match(TokenKind::T_IDENTIFIER))
+    return false;
   return unit->identifier(yycursor - 1) == id;
 };
 
-nospace:
-{
+nospace: {
   const auto& tk = unit->tokenAt(yycursor);
   return !tk.leadingSpace() && !tk.startOfLine();
 };
 
-greater_greater
-: greater_greater_equal { return false; }
-| greater nospace greater;
+greater_greater: {
+  const auto saved = yycursor;
+  if (match(TokenKind::T_GREATER) && parse_nospace() && match(TokenKind::T_GREATER))
+    return true;
+  yyrewind(saved);
+  return false;
+};
 
-greater_greater_equal: greater nospace greater nospace equal;
+greater_greater_equal: {
+  const auto saved = yycursor;
+  if (match(TokenKind::T_GREATER) && parse_nospace()
+    && match(TokenKind::T_GREATER) && parse_nospace()
+    && match(TokenKind::T_EQUAL))
+    return true;
+  yyrewind(saved);
+  return false;
+};
 
-greater_equal: greater nospace equal;
+greater_equal: {
+  const auto saved = yycursor;
+  if (match(TokenKind::T_GREATER) && parse_nospace() && match(TokenKind::T_EQUAL))
+    return true;
+  yyrewind(saved);
+  return false;
+};
 
 header_name: { return false; };
 
@@ -1513,9 +1531,13 @@ binary_operator(TokenKind& tk, bool templArg)
   | amp ) { tk = unit->tokenKind(yycursor - 1); }
 ;
 
-binary_expression(ExpressionAST*& yyast, bool templArg)
-: cast_expression(yyast) binary_expression_helper(yyast, Prec::kLogicalOr, templArg)?
-;
+binary_expression(ExpressionAST*& yyast, bool templArg): {
+  if (!parse_cast_expression(yyast))
+    return false;
+  const auto saved = yycursor;
+  if (!parse_binary_expression_helper(yyast, Prec::kLogicalOr, templArg))
+    yyrewind(saved);
+};
 
 binary_expression_helper(ExpressionAST*& yyast, Prec minPrec, bool templArg)
 {
@@ -1531,9 +1553,9 @@ binary_expression_helper(ExpressionAST*& yyast, Prec minPrec, bool templArg)
   )+
 ;
 
-logical_or_expression(ExpressionAST*& yyast, bool templArg)
-: binary_expression(yyast, templArg)
-;
+logical_or_expression(ExpressionAST*& yyast, bool templArg): {
+  return parse_binary_expression(yyast, templArg);
+};
 
 conditional_expression(ExpressionAST*& yyast, bool templArg): {
   if (!parse_logical_or_expression(yyast, templArg))
@@ -1590,19 +1612,27 @@ assignment_expression(ExpressionAST*& yyast): {
   }
 };
 
-assignment_operator
-: equal
-| star_equal
-| slash_equal
-| percent_equal
-| plus_equal
-| minus_equal
-| greater_greater_equal
-| less_less_equal
-| amp_equal
-| caret_equal
-| bar_equal
-;
+assignment_operator: {
+  switch (yytoken()) {
+  case TokenKind::T_EQUAL:
+  case TokenKind::T_STAR_EQUAL:
+  case TokenKind::T_SLASH_EQUAL:
+  case TokenKind::T_PERCENT_EQUAL:
+  case TokenKind::T_PLUS_EQUAL:
+  case TokenKind::T_MINUS_EQUAL:
+  case TokenKind::T_LESS_LESS_EQUAL:
+  case TokenKind::T_AMP_EQUAL:
+  case TokenKind::T_CARET_EQUAL:
+  case TokenKind::T_BAR_EQUAL:
+  case TokenKind::T_GREATER_GREATER_EQUAL:
+    yyconsume();
+    return true;
+  case TokenKind::T_GREATER:
+    return parse_greater_greater_equal();
+  default:
+    return false;
+  } // switch
+};
 
 expression(ExpressionAST*& yyast): {
   if (!parse_assignment_expression(yyast))
@@ -1614,13 +1644,13 @@ expression(ExpressionAST*& yyast): {
   }
 };
 
-constant_expression(ExpressionAST*& yyast)
-: conditional_expression(yyast, false)
-;
+constant_expression(ExpressionAST*& yyast): {
+  return parse_conditional_expression(yyast, false);
+};
 
-template_argument_constant_expression(ExpressionAST*& yyast)
-: conditional_expression(yyast, true)
-;
+template_argument_constant_expression(ExpressionAST*& yyast): {
+  return parse_conditional_expression(yyast, true);
+};
 
 statement(StatementAST*& yyast): {
   bool has_extension = false;
@@ -1902,9 +1932,9 @@ for_range_declaration: {
   }
 };
 
-for_range_initializer
-: expr_or_braced_init_list
-;
+for_range_initializer: {
+  return parse_expr_or_braced_init_list();
+};
 
 break_statement(StatementAST*& yyast): {
   if (!match(TokenKind::T_BREAK))
