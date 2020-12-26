@@ -1079,49 +1079,210 @@ postfix_expression(ExpressionAST*& yyast)
   DeclSpecs specs;
   ExpressionAST* e1 = nullptr;
 }
-: ( const_cast less type_id greater lparen expression(e1) rparen
-  | dynamic_cast less type_id greater lparen expression(e1) rparen
-  | reinterpret_cast less type_id greater lparen expression(e1) rparen
-  | simple_type_specifier(specs) ( braced_init_list
-                                 | lparen expression_list? rparen)
-  | static_cast less type_id greater lparen expression(e1) rparen
-  | typeid lparen expression(e1) rparen
-  | typeid lparen type_id rparen
-  | typename_specifier braced_init_list
-  | typename_specifier lparen expression_list? rparen
-  | __has_unique_object_representations lparen type_id rparen
-  | __has_virtual_destructor lparen type_id rparen
-  | __is_abstract lparen type_id rparen
-  | __is_aggregate lparen type_id rparen
-  | __is_base_of lparen type_id comma type_id rparen
-  | __is_class lparen type_id rparen
-  | __is_constructible lparen type_id comma type_id rparen
-  | __is_convertible_to lparen type_id comma type_id rparen
-  | __is_empty lparen type_id rparen
-  | __is_enum lparen type_id rparen
-  | __is_final lparen type_id rparen
-  | __is_function lparen type_id rparen
-  | __is_nothrow_assignable lparen type_id comma type_id rparen
-  | __is_nothrow_constructible lparen type_id comma type_id rparen
-  | __is_pod lparen type_id rparen
-  | __is_polymorphic lparen type_id rparen
-  | __is_same lparen type_id comma type_id rparen
-  | __is_standard_layout lparen type_id rparen
-  | __is_trivial lparen type_id rparen
-  | __is_trivially_assignable lparen type_id comma type_id rparen
-  | __is_trivially_constructible lparen type_id comma type_id rparen
-  | __is_trivially_copyable lparen type_id rparen
-  | __is_trivially_destructible lparen type_id rparen
-  | __is_union lparen type_id rparen
-  | __reference_binds_to_temporary lparen type_id comma type_id rparen
-  | primary_expression(yyast))
-    ( dot template? id_expression
-    | lbracket expr_or_braced_init_list rbracket
-    | lparen expression_list? rparen
-    | minus_greater template? id_expression
-    | minus_minus
-    | plus_plus)*
+: start_of_postfix_expression(yyast)
+    ( member_expression(yyast)
+    | subscript_expression(yyast)
+    | call_expression(yyast)
+    | postincr_expression(yyast))*
 ;
+
+start_of_postfix_expression(ExpressionAST*& yyast): {
+  const auto start = yycursor;
+
+  if (parse_cpp_cast_expression(yyast))
+    return true;
+
+  if (parse_typeid_expression(yyast))
+    return true;
+
+  if (parse_builtin_call_expression(yyast))
+    return true;
+
+  if (parse_typename_expression(yyast))
+    return true;
+
+  if (parse_cpp_type_cast_expression(yyast))
+    return true;
+
+  yyrewind(start);
+  return parse_primary_expression(yyast);
+};
+
+member_expression(ExpressionAST*& yyast): {
+  if (!match(TokenKind::T_DOT) && !match(TokenKind::T_MINUS_GREATER))
+    return false;
+  const auto has_template = match(TokenKind::T_TEMPLATE);
+  if (!parse_id_expression())
+    parse_error("expected a member name");
+};
+
+subscript_expression(ExpressionAST*& yyast): {
+  if (!match(TokenKind::T_LBRACKET))
+    return false;
+  if (!parse_expr_or_braced_init_list())
+    parse_error("expected an expression");
+  expect(TokenKind::T_RBRACKET);
+};
+
+call_expression(ExpressionAST*& yyast): {
+  if (!match(TokenKind::T_LPAREN))
+    return false;
+  if (!match(TokenKind::T_RPAREN)) {
+    if (!parse_expression_list())
+      parse_error("expected an expression");
+    expect(TokenKind::T_RPAREN);
+  }
+};
+
+postincr_expression(ExpressionAST*& yyast): {
+  if (!match(TokenKind::T_MINUS_MINUS) && !match(TokenKind::T_PLUS_PLUS))
+    return false;
+};
+
+cpp_cast_head: {
+  switch (yytoken()) {
+  case TokenKind::T_CONST_CAST:
+  case TokenKind::T_DYNAMIC_CAST:
+  case TokenKind::T_REINTERPRET_CAST:
+  case TokenKind::T_STATIC_CAST:
+    yyconsume();
+    return true;
+  default:
+    return false;
+  } // switch
+};
+
+cpp_cast_expression(ExpressionAST*& yyast): {
+  if (!parse_cpp_cast_head())
+    return false;
+  expect(TokenKind::T_LESS);
+  if (!parse_type_id())
+    parse_error("expected a type-id");
+  expect(TokenKind::T_GREATER);
+  expect(TokenKind::T_LPAREN);
+  ExpressionAST* expression = nullptr;
+  if (!parse_expression(expression))
+    parse_error("expected an expression");
+  expect(TokenKind::T_RPAREN);
+};
+
+cpp_type_cast_expression(ExpressionAST*& yyast): {
+  DeclSpecs specs;
+
+  if (!parse_simple_type_specifier(specs))
+    return false;
+
+  if (parse_braced_init_list())
+    return true;
+
+  if (!match(TokenKind::T_LPAREN))
+    return false;
+
+  if (!match(TokenKind::T_RPAREN)) {
+    if (!parse_expression_list())
+      return false;
+    if (!match(TokenKind::T_RPAREN))
+      return false;
+  }
+};
+
+typeid_expression(ExpressionAST*& yyast): {
+  if (!match(TokenKind::T_TYPEID))
+    return false;
+  expect(TokenKind::T_LPAREN);
+  const auto saved = yycursor;
+  if (parse_type_id() && match(TokenKind::T_RPAREN)) {
+    //
+  } else {
+    yyrewind(saved);
+    ExpressionAST* expression = nullptr;
+    if (!parse_expression(expression))
+      parse_error("expected an expression");
+    expect(TokenKind::T_RPAREN);
+  }
+};
+
+typename_expression(ExpressionAST*& yyast): {
+  if (!parse_typename_specifier())
+    return false;
+
+  if (parse_braced_init_list())
+    return true;
+
+  if (!match(TokenKind::T_LPAREN))
+    return false;
+
+  if (!match(TokenKind::T_RPAREN)) {
+    if (!parse_expression_list())
+      return false;
+    if (!match(TokenKind::T_RPAREN))
+      return false;
+  }
+};
+
+builtin_function_1: {
+  switch (yytoken()) {
+  case TokenKind::T___HAS_UNIQUE_OBJECT_REPRESENTATIONS:
+  case TokenKind::T___HAS_VIRTUAL_DESTRUCTOR:
+  case TokenKind::T___IS_ABSTRACT:
+  case TokenKind::T___IS_AGGREGATE:
+  case TokenKind::T___IS_CLASS:
+  case TokenKind::T___IS_EMPTY:
+  case TokenKind::T___IS_ENUM:
+  case TokenKind::T___IS_FINAL:
+  case TokenKind::T___IS_FUNCTION:
+  case TokenKind::T___IS_POD:
+  case TokenKind::T___IS_POLYMORPHIC:
+  case TokenKind::T___IS_STANDARD_LAYOUT:
+  case TokenKind::T___IS_TRIVIAL:
+  case TokenKind::T___IS_TRIVIALLY_COPYABLE:
+  case TokenKind::T___IS_TRIVIALLY_DESTRUCTIBLE:
+  case TokenKind::T___IS_UNION:
+    yyconsume();
+    return true;
+  default:
+    return false;
+  } // switch
+};
+
+builtin_function_2: {
+  switch (yytoken()) {
+  case TokenKind::T___IS_BASE_OF:
+  case TokenKind::T___IS_CONSTRUCTIBLE:
+  case TokenKind::T___IS_CONVERTIBLE_TO:
+  case TokenKind::T___IS_NOTHROW_ASSIGNABLE:
+  case TokenKind::T___IS_NOTHROW_CONSTRUCTIBLE:
+  case TokenKind::T___IS_SAME:
+  case TokenKind::T___IS_TRIVIALLY_ASSIGNABLE:
+  case TokenKind::T___IS_TRIVIALLY_CONSTRUCTIBLE:
+  case TokenKind::T___REFERENCE_BINDS_TO_TEMPORARY:
+    yyconsume();
+    return true;
+  default:
+    return false;
+  } // switch
+};
+
+builtin_call_expression(ExpressionAST*& yyast): {
+  if (parse_builtin_function_1()) {
+    expect(TokenKind::T_LPAREN);
+    if (!parse_type_id())
+      parse_error("expected a type-id");
+    expect(TokenKind::T_RPAREN);
+    return true;
+  }
+
+  if (!parse_builtin_function_2())
+    return false;
+
+  expect(TokenKind::T_LPAREN);
+  if (!parse_type_id())
+    parse_error("expected a type-id");
+  expect(TokenKind::T_COMMA);
+  if (!parse_type_id())
+    parse_error("expected a type-id");
+  expect(TokenKind::T_RPAREN);
+};
 
 expression_list: {
   return parse_initializer_list();
@@ -1224,50 +1385,104 @@ noexcept_expression(ExpressionAST*& yyast): {
 };
 
 new_expression(ExpressionAST*& yyast)
-: colon_colon? new new_placement? new_type_id new_initializer?
-| colon_colon? new new_placement? lparen type_id rparen new_initializer?
+: colon_colon? new new_placement?
+    ( new_type_id new_initializer?
+    | lparen type_id rparen new_initializer?)
 ;
 
-new_placement
-: lparen expression_list rparen
-;
+new_placement: {
+  if (!match(TokenKind::T_LPAREN))
+    return false;
+  if (!parse_expression_list())
+    return false;
+  if (!match(TokenKind::T_RPAREN))
+    return false;
+};
 
-new_type_id
-: type_specifier_seq new_declarator?
-;
+new_type_id: {
+  if (!parse_type_specifier_seq())
+    return false;
+  const auto saved = yycursor;
+  if (!parse_new_declarator())
+    yyrewind(saved);
+  return true;
+};
 
-new_declarator
-: ptr_operator new_declarator?
-| noptr_new_declarator
-;
+new_declarator: {
+  if (parse_ptr_operator()) {
+    auto saved = yycursor;
+    if (!parse_new_declarator())
+      yyrewind(saved);
+    return true;
+  }
+  return parse_noptr_new_declarator();
+};
 
-noptr_new_declarator
-{
-  ExpressionAST* e1 = nullptr;
-  ExpressionAST* e2 = nullptr;
-}
-: lbracket expression(e1)? rbracket attribute_specifier_seq? (lbracket constant_expression(e2) rbracket attribute_specifier_seq?)*
-;
+noptr_new_declarator: {
+  if (!match(TokenKind::T_LBRACKET))
+    return false;
+  if (!match(TokenKind::T_RBRACKET)) {
+    ExpressionAST* expression = nullptr;
+    if (!parse_expression(expression))
+      parse_error("expected an expression");
+    expect(TokenKind::T_RBRACKET);
+  }
+  parse_attribute_specifier_seq();
+  while (match(TokenKind::T_LBRACKET)) {
+    if (!match(TokenKind::T_RBRACKET)) {
+      ExpressionAST* expression = nullptr;
+      if (!parse_constant_expression(expression))
+        parse_error("expected an expression");
+      expect(TokenKind::T_RBRACKET);
+    }
+    parse_attribute_specifier_seq();
+  }
+};
 
-new_initializer
-: lparen expression_list? rparen
-| braced_init_list
-;
+new_initializer: {
+  if (yytoken() == TokenKind::T_LBRACE)
+    return parse_braced_init_list();
+  if (!match(TokenKind::T_LPAREN))
+    return false;
+  if (!match(TokenKind::T_RPAREN)) {
+    if (!parse_expression_list())
+      return false;
+    if (!match(TokenKind::T_RPAREN))
+      return false;
+  }
+};
 
-delete_expression(ExpressionAST*& yyast)
-{
-  ExpressionAST* e1 = nullptr;
-}
-: colon_colon? delete (lbracket rbracket)? cast_expression(e1)
-;
+delete_expression(ExpressionAST*& yyast): {
+  const auto has_scope_op = match(TokenKind::T_COLON_COLON);
+  if (!match(TokenKind::T_DELETE))
+    return false;
+  if (match(TokenKind::T_LBRACKET)) {
+    expect(TokenKind::T_RBRACKET);
+  }
+  ExpressionAST* expression = nullptr;
+  if (!parse_cast_expression(expression))
+    parse_error("expected an expression");
+};
 
-cast_expression(ExpressionAST*& yyast)
-{
-  ExpressionAST* e1 = nullptr;
-}
-: lparen type_id rparen cast_expression(e1)
-| unary_expression(yyast)
-;
+cast_expression(ExpressionAST*& yyast): {
+  const auto start = yycursor;
+  if (parse_cast_expression_helper(yyast))
+    return true;
+  yyrewind(start);
+  return parse_unary_expression(yyast);
+};
+
+cast_expression_helper(ExpressionAST*& yyast): {
+  if (!match(TokenKind::T_LPAREN))
+    return false;
+  if (!parse_type_id())
+    return false;
+  if (!match(TokenKind::T_RPAREN))
+    return false;
+  ExpressionAST* expression = nullptr;
+  if (!parse_cast_expression(expression))
+    return false;
+};
 
 binary_operator(TokenKind& tk, bool templArg)
 : greater_equal
