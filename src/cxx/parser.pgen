@@ -2634,11 +2634,6 @@ ptr_operator_seq: {
   }
 };
 
-core_declarator0(Declarator& decl)
-: declarator_id attribute_specifier_seq? { decl.push_back(DeclaratorId()); }
-| lparen declarator(decl) rparen { decl.push_back(NestedDeclarator()); }
-;
-
 core_declarator(Declarator& decl): {
   if (parse_declarator_id()) {
     parse_attribute_specifier_seq();
@@ -2710,13 +2705,6 @@ trailing_return_type: {
   if (!parse_type_id())
     parse_error("expected a type id");
 };
-
-ptr_operator0
-: star attribute_specifier_seq? cv_qualifier_seq?
-| amp attribute_specifier_seq?
-| amp_amp attribute_specifier_seq?
-| nested_name_specifier star attribute_specifier_seq? cv_qualifier_seq?
-;
 
 ptr_operator: {
   if (match(TokenKind::T_STAR)) {
@@ -2820,11 +2808,6 @@ noptr_abstract_pack_declarator
 : dot_dot_dot
     ( parameters_and_qualifiers
     | lbracket constant_expression(e1)? rbracket attribute_specifier_seq?)*
-;
-
-parameter_declaration_clause0
-: parameter_declaration_list comma? dot_dot_dot?
-| dot_dot_dot?
 ;
 
 parameter_declaration_clause: {
