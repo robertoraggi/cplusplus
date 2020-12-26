@@ -2847,18 +2847,6 @@ parameter_declaration_list: {
   }
 };
 
-parameter_declaration0
-{
-  DeclSpecs specs;
-  specs.no_class_or_enum_specs = true;
-
-  ExpressionAST* e1 = nullptr;
-}
-: attribute_specifier_seq? decl_specifier_seq(specs)
-    ( declarator (equal initializer_clause(e1))?
-    | abstract_declarator? (equal initializer_clause(e1))?)
-;
-
 parameter_declaration: {
   parse_attribute_specifier_seq();
 
