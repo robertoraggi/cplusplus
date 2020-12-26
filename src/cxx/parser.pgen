@@ -2538,9 +2538,15 @@ elaborated_type_specifier(DeclSpecs& specs): {
   return true;
 };
 
-elaborated_enum_specifier
-: enum nested_name_specifier? identifier
-;
+elaborated_enum_specifier: {
+  if (!match(TokenKind::T_ENUM))
+    return false;
+  const auto saved = yycursor;
+  if (!parse_nested_name_specifier())
+    yyrewind(saved);
+  if (!match(TokenKind::T_IDENTIFIER))
+    return false;
+};
 
 decltype_specifier: {
   if (match(TokenKind::T_DECLTYPE) || match(TokenKind::T___DECLTYPE)
@@ -2610,10 +2616,15 @@ declarator_initializer: {
   return parse_initializer();
 };
 
-declarator(Declarator& decl)
-: ptr_operator declarator(decl) { decl.push_back(PtrDeclarator()); }
-| noptr_declarator(decl)
-;
+declarator(Declarator& decl): {
+  if (parse_ptr_operator()) {
+    if (!parse_declarator(decl))
+      return false;
+    decl.push_back(PtrDeclarator());
+    return true;
+  }
+  return parse_noptr_declarator(decl);
+};
 
 ptr_operator_seq: {
   if (!parse_ptr_operator())
@@ -2623,22 +2634,54 @@ ptr_operator_seq: {
   }
 };
 
-core_declarator(Declarator& decl)
+core_declarator0(Declarator& decl)
 : declarator_id attribute_specifier_seq? { decl.push_back(DeclaratorId()); }
 | lparen declarator(decl) rparen { decl.push_back(NestedDeclarator()); }
 ;
 
-noptr_declarator(Declarator& decl)
-{
-  ExpressionAST* e1 = nullptr;
-}
-: core_declarator(decl)
-    ( parameters_and_qualifiers trailing_return_type?
-        { decl.push_back(FunctionDeclarator()); }
-    | lbracket constant_expression(e1)? rbracket attribute_specifier_seq?
-        { decl.push_back(ArrayDeclarator()); }
-    )*
-;
+core_declarator(Declarator& decl): {
+  if (parse_declarator_id()) {
+    parse_attribute_specifier_seq();
+    decl.push_back(DeclaratorId());
+    return true;
+  }
+  if (!match(TokenKind::T_LPAREN))
+    return false;
+  if (!parse_declarator(decl))
+    return false;
+  if (!match(TokenKind::T_RPAREN))
+    return false;
+  decl.push_back(NestedDeclarator());
+};
+
+noptr_declarator(Declarator& decl): {
+  if (!parse_core_declarator(decl))
+    return false;
+  while (true) {
+    const auto saved = yycursor;
+    if (match(TokenKind::T_LBRACKET)) {
+      if (!match(TokenKind::T_RBRACKET)) {
+        ExpressionAST* expression = nullptr;
+        if (!parse_constant_expression(expression)) {
+          yyrewind(saved);
+          break;
+        }
+        if (!match(TokenKind::T_RBRACKET)) {
+          yyrewind(saved);
+          break;
+        }
+      }
+      parse_attribute_specifier_seq();
+      decl.push_back(ArrayDeclarator());
+    } else if (parse_parameters_and_qualifiers()) {
+      parse_trailing_return_type();
+      decl.push_back(FunctionDeclarator());
+    } else {
+      yyrewind(saved);
+      break;
+    }
+  }
+};
 
 parameters_and_qualifiers: {
   if (!match(TokenKind::T_LPAREN))
@@ -2661,44 +2704,91 @@ parameters_and_qualifiers: {
 cv_qualifier_seq
 : cv_qualifier+;
 
-trailing_return_type
-: minus_greater type_id
-;
+trailing_return_type: {
+  if (!match(TokenKind::T_MINUS_GREATER))
+    return false;
+  if (!parse_type_id())
+    parse_error("expected a type id");
+};
 
-ptr_operator
+ptr_operator0
 : star attribute_specifier_seq? cv_qualifier_seq?
 | amp attribute_specifier_seq?
 | amp_amp attribute_specifier_seq?
 | nested_name_specifier star attribute_specifier_seq? cv_qualifier_seq?
 ;
 
-cv_qualifier
-: const
-| volatile
-| __restrict
-| __restrict__
-;
+ptr_operator: {
+  if (match(TokenKind::T_STAR)) {
+    parse_attribute_specifier_seq();
+    parse_cv_qualifier_seq();
+    return true;
+  }
 
-ref_qualifier
-: amp
-| amp_amp
-;
+  if (match(TokenKind::T_AMP) || match(TokenKind::T_AMP_AMP)) {
+    parse_attribute_specifier_seq();
+    return true;
+  }
 
-declarator_id
-: dot_dot_dot? id_expression
-;
+  const auto saved = yycursor;
 
-type_id
-: type_specifier_seq abstract_declarator?
-;
+  if (parse_nested_name_specifier() && match(TokenKind::T_STAR)) {
+    parse_attribute_specifier_seq();
+    parse_cv_qualifier_seq();
+    return true;
+  }
 
-defining_type_id
-{
+  yyrewind(saved);
+  return false;
+};
+
+cv_qualifier: {
+  switch (yytoken()) {
+  case TokenKind::T_CONST:
+  case TokenKind::T_VOLATILE:
+  case TokenKind::T___RESTRICT:
+  case TokenKind::T___RESTRICT__:
+    yyconsume();
+    return true;
+  default:
+    return false;
+  } // switch
+};
+
+ref_qualifier: {
+  switch (yytoken()) {
+  case TokenKind::T_AMP:
+  case TokenKind::T_AMP_AMP:
+    yyconsume();
+    return true;
+  default:
+    return false;
+  } // switch
+};
+
+declarator_id: {
+  const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+  if (!parse_id_expression())
+    return false;
+};
+
+type_id: {
+  if (!parse_type_specifier_seq())
+    return false;
+  const auto before_declarator = yycursor;
+  if (!parse_abstract_declarator())
+    yyrewind(before_declarator);
+};
+
+defining_type_id: {
   DeclSpecs specs;
   specs.no_class_or_enum_specs = true;
-}
-: defining_type_specifier_seq(specs) abstract_declarator?
-;
+  if (!parse_defining_type_specifier_seq(specs))
+    return false;
+  const auto before_declarator = yycursor;
+  if (!parse_abstract_declarator())
+    yyrewind(before_declarator);
+};
 
 abstract_declarator
 : noptr_abstract_declarator? parameters_and_qualifiers trailing_return_type
