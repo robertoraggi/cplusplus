@@ -2085,24 +2085,84 @@ alias_declaration(DeclarationAST*& yyast): {
   expect(TokenKind::T_SEMICOLON);
 };
 
-simple_declaration(DeclarationAST*& yyast, bool fundef)
-{
+simple_declaration(DeclarationAST*& yyast, bool fundef): {
+  const bool has_extension = match(TokenKind::T___EXTENSION__);
+
+  parse_attribute_specifier_seq();
+
+  if (match(TokenKind::T_SEMICOLON))
+    return true;
+
+  const auto after_attributes = yycursor;
+
   DeclSpecs specs;
+  if (!parse_decl_specifier_seq_no_typespecs(specs))
+    yyrewind(after_attributes);
+
+  auto after_decl_specs = yycursor;
+
+  if (parse_declarator_id()) {
+    parse_attribute_specifier_seq();
+
+    if (parse_parameters_and_qualifiers()) {
+      if (match(TokenKind::T_SEMICOLON))
+        return true;
+      if (fundef && parse_function_definition_body())
+        return true;
+    }
+  }
+
+  yyrewind(after_decl_specs);
+
+  if (!parse_decl_specifier_seq(specs))
+    yyrewind(after_decl_specs);
+
+  after_decl_specs = yycursor;
+
+  if (match(TokenKind::T_SEMICOLON))
+    return specs.has_complex_typespec;
+
+  if (!specs.has_typespec())
+    return false;
+
+  const auto has_ref_qualifier = parse_ref_qualifier();
+
+  if (match(TokenKind::T_LBRACKET)) {
+    if (parse_identifier_list() && match(TokenKind::T_RBRACKET)) {
+      if (parse_initializer() && match(TokenKind::T_SEMICOLON))
+        return true;
+    }
+  }
+
+  yyrewind(after_decl_specs);
+
   Declarator decl;
-}
-: __extension__? attribute_specifier_seq?
-    ( semicolon
-    | decl_specifier_seq_no_typespecs(specs)?
-        ( declarator_id attribute_specifier_seq? parameters_and_qualifiers (semicolon | { return fundef; } function_definition_body)
-        | decl_specifier_seq(specs)?
-          ({ return specs.has_complex_typespec; } semicolon
-          |{ return specs.has_typespec(); } ref_qualifier? lbracket identifier_list rbracket initializer semicolon
-          |{ return specs.has_typespec(); } declarator(decl)
-              ( semicolon
-              | { return fundef && isFunctionDeclarator(decl); } function_definition_body
-              | declarator_initializer? (comma init_declarator)* semicolon)
-              )))
-;
+  if (!parse_declarator(decl))
+    return false;
+
+  const auto after_declarator = yycursor;
+
+  if (match(TokenKind::T_SEMICOLON))
+    return true;
+
+  if (fundef && isFunctionDeclarator(decl)) {
+    if (parse_function_definition_body())
+      return true;
+
+    yyrewind(after_declarator);
+  }
+
+  if (!parse_declarator_initializer())
+    yyrewind(after_declarator);
+
+  while (match(TokenKind::T_COMMA)) {
+    if (!parse_init_declarator())
+      return false;
+  }
+
+  if (!match(TokenKind::T_SEMICOLON))
+    return false;
+};
 
 function_definition_body: {
   if (parse_requires_clause()) {
