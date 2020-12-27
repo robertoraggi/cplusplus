@@ -2751,11 +2751,21 @@ primitive_type_specifier(DeclSpecs& specs): {
   } // switch
 };
 
-type_name
-: class_name
-| enum_name
-| typedef_name
-;
+type_name: {
+  const auto start = yycursor;
+
+  if (parse_class_name())
+    return true;
+
+  yyrewind(start);
+
+  if (parse_enum_name())
+    return true;
+
+  yyrewind(start);
+
+  return parse_typedef_name();
+};
 
 elaborated_type_specifier(DeclSpecs& specs): {
   // ### cleanup
@@ -2969,8 +2979,13 @@ parameters_and_qualifiers: {
   return true;
 };
 
-cv_qualifier_seq
-: cv_qualifier+;
+cv_qualifier_seq: {
+  if (!parse_cv_qualifier())
+    return false;
+  while (parse_cv_qualifier()) {
+    //
+  }
+};
 
 trailing_return_type: {
   if (!match(TokenKind::T_MINUS_GREATER))
@@ -3216,9 +3231,12 @@ designated_initializer_clause: {
     parse_error("expected an initializer");
 };
 
-designator
-: dot identifier
-;
+designator: {
+  if (!match(TokenKind::T_DOT))
+    return false;
+  if (!match(TokenKind::T_IDENTIFIER))
+    return false;
+};
 
 expr_or_braced_init_list: {
   if (yytoken() == TokenKind::T_LBRACE)
@@ -3530,13 +3548,25 @@ using_declaration(DeclarationAST*& yyast): {
   match(TokenKind::T_SEMICOLON);
 };
 
-using_declarator_list
-: using_declarator dot_dot_dot? (comma using_declarator dot_dot_dot?)*
-;
+using_declarator_list: {
+  if (!parse_using_declarator())
+    return false;
+  const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+  while (match(TokenKind::T_COMMA)) {
+    if (!parse_using_declarator())
+      parse_error("expected a using declarator");
+    const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+  }
+};
 
-using_declarator
-: typename? nested_name_specifier unqualified_id
-;
+using_declarator: {
+  const auto has_typename = match(TokenKind::T_TYPENAME);
+  const auto saved = yycursor;
+  if (!parse_nested_name_specifier())
+    yyrewind(saved);
+  if (!parse_unqualified_id())
+    return false;
+};
 
 asm_declaration(DeclarationAST*& yyast): {
   parse_attribute_specifier_seq();
@@ -3549,17 +3579,31 @@ asm_declaration(DeclarationAST*& yyast): {
   expect(TokenKind::T_SEMICOLON);
 };
 
-linkage_specification(DeclarationAST*& yyast)
-{
-  DeclarationAST* d1 = nullptr;
-}
-: extern string_literal lbrace declaration_seq? rbrace
-| extern string_literal declaration(d1)
-;
+linkage_specification(DeclarationAST*& yyast): {
+  if (!match(TokenKind::T_EXTERN))
+    return false;
+  if (!match(TokenKind::T_STRING_LITERAL))
+    return false;
+  if (match(TokenKind::T_LBRACE)) {
+    if (!match(TokenKind::T_RBRACE)) {
+      if (!parse_declaration_seq())
+        parse_error("expected a declaration");
+      expect(TokenKind::T_RBRACE);
+    }
+    return true;
+  }
+  DeclarationAST* declaration = nullptr;
+  if (!parse_declaration(declaration))
+    return false;
+};
 
-attribute_specifier_seq
-: attribute_specifier+
-;
+attribute_specifier_seq: {
+  if (!parse_attribute_specifier())
+    return false;
+  while (parse_attribute_specifier()) {
+    //
+  }
+};
 
 attribute_specifier
 : gcc_attribute
@@ -4075,16 +4119,40 @@ simple_template_id: {
   return parse_simple_template_id(name);
 };
 
-simple_template_id(Name& name)
-: template_name(name) less template_argument_list? greater
-    { name = control->getTemplateId(name); }
-;
+simple_template_id(Name& name): {
+  if (!parse_template_name(name))
+    return false;
+  if (!match(TokenKind::T_LESS))
+    return false;
+  if (!match(TokenKind::T_GREATER)) {
+    if (!parse_template_argument_list())
+      return false;
+    if (!match(TokenKind::T_GREATER))
+      return false;
+  }
+  name = control->getTemplateId(name);
+};
 
-template_id
-: operator_function_id less template_argument_list? greater
-| literal_operator_id less template_argument_list? greater
-| simple_template_id
-;
+template_id: {
+  if (yytoken() == TokenKind::T_OPERATOR) {
+    const auto start = yycursor;
+    if (!parse_literal_operator_id()) {
+      yyrewind(start);
+      if (!parse_operator_function_id())
+        return false;
+    }
+    if (!match(TokenKind::T_LESS))
+      return false;
+    if (!match(TokenKind::T_GREATER)) {
+      if (!parse_template_argument_list())
+        return false;
+      if (!match(TokenKind::T_GREATER))
+        return false;
+    }
+    return true;
+  }
+  return parse_simple_template_id();
+};
 
 template_argument_list: {
   TemplArgContext templArgContext(this);
