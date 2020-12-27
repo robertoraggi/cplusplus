@@ -295,6 +295,7 @@
   bool parse_error(const std::string_view& format, const Args&... args)
   {
     unit->report(yycursor, MessageKind::Error, format, args...);
+    // throw std::runtime_error("error");
     return true;
   }
 
@@ -617,51 +618,75 @@ final: id(final_id);
 
 override: id(override_id);
 
-typedef_name
-: simple_template_id
-| identifier
-;
+typedef_name: {
+  const auto start = yycursor;
 
-namespace_name
-: identifier
-| namespace_alias
-;
+  if (parse_simple_template_id())
+    return true;
 
-namespace_alias
-: identifier
-;
+  yyrewind(start);
 
-class_name
-{
+  if (!match(TokenKind::T_IDENTIFIER))
+    return false;
+};
+
+namespace_name: {
+  const auto start = yycursor;
+
+  if (parse_namespace_alias())
+    return true;
+
+  yyrewind(start);
+
+  if (!match(TokenKind::T_IDENTIFIER))
+    return false;
+};
+
+namespace_alias: {
+  if (!match(TokenKind::T_IDENTIFIER))
+    return false;
+};
+
+class_name: {
   Name name;
-}
-: class_name(name)
-;
+  if (!parse_class_name(name))
+    return false;
+};
 
-class_name(Name& name)
-: simple_template_id(name)
-| name_id(name)
-;
+class_name(Name& name): {
+  const auto start = yycursor;
 
-name_id(Name& name)
-: identifier
-  { name = unit->identifier(yycursor - 1); }
-;
+  if (parse_simple_template_id())
+    return true;
 
-enum_name
-: identifier
-;
+  yyrewind(start);
 
-template_name
-{
+  return parse_name_id(name);
+};
+
+name_id(Name& name): {
+  if (!match(TokenKind::T_IDENTIFIER))
+    return false;
+
+  name = unit->identifier(yycursor - 1);
+};
+
+enum_name: {
+  if (!match(TokenKind::T_IDENTIFIER))
+    return false;
+};
+
+template_name: {
   Name name;
-}
-: template_name(name)
-;
 
-template_name(Name& name)
-: name_id(name)
-;
+  if (!parse_template_name(name))
+    return false;
+};
+
+template_name(Name& name): {
+  if (!parse_name_id(name))
+    return false;
+};
 
 literal: {
   switch (yytoken()) {
@@ -672,18 +697,18 @@ literal: {
   case TokenKind::T_CHARACTER_LITERAL:
   case TokenKind::T_FLOATING_POINT_LITERAL:
   case TokenKind::T_USER_DEFINED_LITERAL:
+  case TokenKind::T_USER_DEFINED_STRING_LITERAL:
     yyconsume();
     return true;
   case TokenKind::T_STRING_LITERAL:
     while (match(TokenKind::T_STRING_LITERAL)) {
-
+      //
     }
     return true;
   default:
     return false;
   } // switch
-}
-;
+};
 
 translation_unit(UnitAST*& yyast)
 : eof_symbol
@@ -700,18 +725,31 @@ leave(DeclarativeRegion::Context& context)
 : { context.leave(); }
 ;
 
-module_unit(UnitAST*& yyast)
-{
+module_head: {
+  const auto start = yycursor;
+  const auto has_export = parse_export_keyword();
+  const auto is_module = parse_module_keyword();
+  yyrewind(start);
+  return is_module;
+};
+
+module_unit(UnitAST*& yyast): {
+  if (!parse_module_head())
+    return false;
+
   DeclarativeRegion::Context region(this);
 
   globalRegion = newDeclarativeRegion(nullptr);
-
   region.enter(globalRegion);
 
   module_unit = true;
-}
-: global_module_fragment? module_declaration declaration_seq? private_module_fragment? eof
-;
+  parse_global_module_fragment();
+  if (!parse_module_declaration())
+    return false;
+  parse_declaration_seq();
+  parse_private_module_fragment();
+  expect(TokenKind::T_EOF_SYMBOL);
+};
 
 eof
 : eof_symbol
@@ -785,16 +823,25 @@ primary_expression(ExpressionAST*& yyast): {
   else if (yytoken() == TokenKind::T_REQUIRES)
     return parse_requires_expression(yyast);
   else if (yytoken() == TokenKind::T_LPAREN) {
-    auto saved = yycursor;
-    yyconsume();
-    ExpressionAST* expression = nullptr;
-    if (parse_expression(expression)) {
-      if (match(TokenKind::T_RPAREN))
-        return true;
-    }
+    const auto saved = yycursor;
+
+    if (parse_fold_expression(yyast))
+      return true;
+
     yyrewind(saved);
-    return parse_fold_expression(yyast);
+    yyconsume();
+
+    ExpressionAST* expression = nullptr;
+
+    if (!parse_expression(expression))
+      return false;
+
+    if (!match(TokenKind::T_RPAREN))
+      return false;
+
+    return true;
   }
+
   return parse_id_expression();
 };
 
@@ -966,131 +1013,291 @@ lambda_declarator: {
   parse_requires_clause();
 };
 
-lambda_capture
-: capture_list
-| capture_default (comma capture_list)?
-;
+lambda_capture: {
+  if (parse_capture_default()) {
+    if (match(TokenKind::T_COMMA)) {
+      if (!parse_capture_list())
+        parse_error("expected a capture");
+    }
+    return true;
+  }
 
-capture_default
-: amp
-| equal
-;
+  return parse_capture_list();
+};
 
-capture_list
-: capture (comma capture)*
-;
+capture_default: {
+  const auto start = yycursor;
 
-capture
-: init_capture
-| simple_capture
-;
+  if (!match(TokenKind::T_AMP) && !match(TokenKind::T_EQUAL))
+    return false;
 
-simple_capture
-: identifier dot_dot_dot?
-| amp identifier dot_dot_dot?
-| this
-| star this
-;
+  if (yytoken() != TokenKind::T_COMMA && yytoken() != TokenKind::T_RBRACKET) {
+    yyrewind(start);
+    return false;
+  }
+};
 
-init_capture
-: dot_dot_dot? identifier initializer
-| amp dot_dot_dot? identifier initializer
-;
+capture_list: {
+  if (!parse_capture())
+    return false;
+  while (match(TokenKind::T_COMMA)) {
+    if (!parse_capture())
+      parse_error("expected a capture");
+  }
+};
 
-fold_expression(ExpressionAST*& yyast)
-{
-  ExpressionAST* e1 = nullptr;
-  ExpressionAST* e2 = nullptr;
-}
-: lparen cast_expression(e1) fold_operator dot_dot_dot (fold_operator cast_expression(e2))? rparen
-| lparen dot_dot_dot fold_operator cast_expression(e1) rparen
-;
+capture: {
+  const auto start = yycursor;
 
-fold_operator
-: plus
-| minus
-| star
-| slash
-| percent
-| caret
-| amp
-| bar
-| less_less
-| plus_equal
-| minus_equal
-| star_equal
-| slash_equal
-| percent_equal
-| caret_equal
-| amp_equal
-| bar_equal
-| less_less_equal
-| greater_greater_equal
-| greater_greater
-| greater_equal
-| greater
-| equal
-| equal_equal
-| exclaim_equal
-| less
-| less_equal
-| amp_amp
-| bar_bar
-| comma
-| dot_star
-| minus_greater_star
-;
+  if (parse_init_capture())
+    return true;
 
-requires_expression(ExpressionAST*& yyast)
-: requires requirement_parameter_list? requirement_body
-;
+  yyrewind(start);
 
-requirement_parameter_list
-: lparen parameter_declaration_clause? rparen
-;
+  return parse_simple_capture();
+};
 
-requirement_body
-: lbrace requirement_seq rbrace
-;
+simple_capture: {
+  if (match(TokenKind::T_THIS))
+    return true;
 
-requirement_seq
-: requirement+;
+  if (match(TokenKind::T_IDENTIFIER)) {
+    const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+    return true;
+  }
 
-requirement
-: simple_requirement
-| type_requirement
-| compound_requirement
-| nested_requirement
-;
+  if (match(TokenKind::T_STAR)) {
+    if (!match(TokenKind::T_THIS))
+      return false;
+    return true;
+  }
 
-simple_requirement
-{
-  ExpressionAST* e1 = nullptr;
-}
-: expression(e1) semicolon
-;
+  if (!match(TokenKind::T_AMP))
+    return false;
 
-type_requirement
-: typename nested_name_specifier? type_name semicolon
-;
+  if (!match(TokenKind::T_IDENTIFIER))
+    return false;
 
-compound_requirement
-{
-  ExpressionAST* e1 = nullptr;
-}
-: lbrace expression(e1) rbrace noexcept? return_type_requirement? semicolon
-;
+  const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+};
 
-return_type_requirement
-: minus_greater type_constraint
-;
+init_capture: {
+  if (match(TokenKind::T_AMP)) {
+    const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+    if (!match(TokenKind::T_IDENTIFIER))
+      return false;
+    if (!parse_initializer())
+      return false;
+    return true;
+  }
 
-nested_requirement
-{
-  ExpressionAST* e1 = nullptr;
-}
-: requires constraint_expression(e1) semicolon
-;
+  const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+  if (!match(TokenKind::T_IDENTIFIER))
+    return false;
+  if (!parse_initializer())
+    return false;
+};
+
+fold_expression(ExpressionAST*& yyast): {
+  if (!match(TokenKind::T_LPAREN))
+    return false;
+
+  if (match(TokenKind::T_DOT_DOT_DOT)) {
+    if (!parse_fold_operator())
+      parse_error("expected fold operator");
+
+    ExpressionAST* expression;
+
+    if (!parse_cast_expression(expression))
+      parse_error("expected an expression");
+
+    expect(TokenKind::T_RPAREN);
+
+    return true;
+  }
+
+  ExpressionAST* expression = nullptr;
+
+  if (!parse_cast_expression(expression))
+    return false;
+
+  if (!parse_fold_operator())
+    return false;
+
+  if (!match(TokenKind::T_DOT_DOT_DOT))
+    return false;
+
+  if (!match(TokenKind::T_RPAREN)) {
+    if (!parse_fold_operator())
+      parse_error("expected a fold operator");
+
+    ExpressionAST* rhs = nullptr;
+
+    if (!parse_cast_expression(rhs))
+      parse_error("expected an expression");
+
+    expect(TokenKind::T_RPAREN);
+  }
+};
+
+fold_operator: {
+  switch (yytoken()) {
+  case TokenKind::T_GREATER:
+    if (parse_greater_greater_equal())
+      return true;
+    if (parse_greater_greater())
+      return true;
+    if (parse_greater_equal())
+      return true;
+    yyconsume();
+    return true;
+
+  case TokenKind::T_GREATER_GREATER_EQUAL:
+  case TokenKind::T_GREATER_GREATER:
+  case TokenKind::T_GREATER_EQUAL:
+  case TokenKind::T_PLUS:
+  case TokenKind::T_MINUS:
+  case TokenKind::T_STAR:
+  case TokenKind::T_SLASH:
+  case TokenKind::T_PERCENT:
+  case TokenKind::T_CARET:
+  case TokenKind::T_AMP:
+  case TokenKind::T_BAR:
+  case TokenKind::T_LESS_LESS:
+  case TokenKind::T_PLUS_EQUAL:
+  case TokenKind::T_MINUS_EQUAL:
+  case TokenKind::T_STAR_EQUAL:
+  case TokenKind::T_SLASH_EQUAL:
+  case TokenKind::T_PERCENT_EQUAL:
+  case TokenKind::T_CARET_EQUAL:
+  case TokenKind::T_AMP_EQUAL:
+  case TokenKind::T_BAR_EQUAL:
+  case TokenKind::T_LESS_LESS_EQUAL:
+  case TokenKind::T_EQUAL:
+  case TokenKind::T_EQUAL_EQUAL:
+  case TokenKind::T_EXCLAIM_EQUAL:
+  case TokenKind::T_LESS:
+  case TokenKind::T_LESS_EQUAL:
+  case TokenKind::T_AMP_AMP:
+  case TokenKind::T_BAR_BAR:
+  case TokenKind::T_COMMA:
+  case TokenKind::T_DOT_STAR:
+  case TokenKind::T_MINUS_GREATER_STAR:
+    yyconsume();
+    return true;
+  default:
+    return false;
+  } // switch
+};
+
+requires_expression(ExpressionAST*& yyast): {
+  if (!match(TokenKind::T_REQUIRES))
+    return false;
+  if (yytoken() != TokenKind::T_LBRACE) {
+    if (!parse_requirement_parameter_list())
+      parse_error("expected a requirement parameter");
+  }
+  if (!parse_requirement_body())
+    parse_error("expected a requirement body");
+};
+
+requirement_parameter_list: {
+  if (!match(TokenKind::T_LPAREN))
+    return false;
+  if (!match(TokenKind::T_RPAREN)) {
+    if (!parse_parameter_declaration_clause())
+      parse_error("expected a parmater declaration");
+    expect(TokenKind::T_RPAREN);
+  }
+};
+
+requirement_body: {
+  if (!match(TokenKind::T_LBRACE))
+    return false;
+  if (!parse_requirement_seq())
+    parse_error("expected a requirement");
+  expect(TokenKind::T_RBRACE);
+};
+
+requirement_seq: {
+  bool skipping = false;
+  if (!parse_requirement())
+    return false;
+  while (yytoken() != TokenKind::T_EOF_SYMBOL) {
+    if (yytoken() == TokenKind::T_RBRACE)
+      break;
+    const auto before_requirement = yycursor;
+    if (parse_requirement()) {
+      skipping = false;
+    } else {
+      if (!skipping) parse_error("expected a requirement");
+      skipping = true;
+      if (yycursor == before_requirement) yyconsume();
+    }
+  }
+};
+
+requirement: {
+  if (parse_nested_requirement())
+    return true;
+  else if (parse_compound_requirement())
+    return true;
+  else if (parse_type_requirement())
+    return true;
+  else
+    return parse_simple_requirement();
+};
+
+simple_requirement: {
+  ExpressionAST* expression = nullptr;
+  if (!parse_expression(expression))
+    return false;
+  if (!match(TokenKind::T_SEMICOLON))
+    return false;
+};
+
+type_requirement: {
+  if (!match(TokenKind::T_TYPENAME))
+    return false;
+  const auto after_typename = yycursor;
+  if (!parse_nested_name_specifier())
+    yyrewind(after_typename);
+  if (!parse_type_name())
+    parse_error("expected a type name");
+  expect(TokenKind::T_SEMICOLON);
+};
+
+compound_requirement: {
+  if (!match(TokenKind::T_LBRACE))
+    return false;
+  ExpressionAST* expression = nullptr;
+  if (!parse_expression(expression))
+    return false;
+  if (!match(TokenKind::T_RBRACE))
+    return false;
+  const auto has_noexcept = match(TokenKind::T_NOEXCEPT);
+  if (!match(TokenKind::T_SEMICOLON)) {
+    if (!parse_return_type_requirement())
+      parse_error("expected return type requirement");
+    expect(TokenKind::T_SEMICOLON);
+  }
+};
+
+return_type_requirement: {
+  if (!match(TokenKind::T_MINUS_GREATER))
+    return false;
+  if (!parse_type_constraint())
+    parse_error("expected type constraint");
+};
+
+nested_requirement: {
+  if (!match(TokenKind::T_REQUIRES))
+    return false;
+  ExpressionAST* expression = nullptr;
+  if (!parse_constraint_expression(expression))
+    parse_error("expected an expression");
+  expect(TokenKind::T_SEMICOLON);
+};
 
 postfix_expression(ExpressionAST*& yyast): {
   DeclSpecs specs;
@@ -2924,11 +3131,17 @@ parameter_declaration: {
 
 initializer: {
   if (match(TokenKind::T_LPAREN)) {
+    if (yytoken() == TokenKind::T_RPAREN)
+      return false;
+
     if (!parse_expression_list())
       parse_error("expected an expression");
+
     expect(TokenKind::T_RPAREN);
+
     return true;
   }
+
   return parse_brace_or_equal_initializer();
 };
 
@@ -3694,9 +3907,12 @@ mem_initializer_id
 | identifier
 ;
 
-operator_function_id
-: operator op
-;
+operator_function_id: {
+  if (!match(TokenKind::T_OPERATOR))
+    return false;
+  if (!parse_op())
+    return false;
+};
 
 op
 : new lbracket rbracket
@@ -3745,10 +3961,16 @@ op
 | comma
 ;
 
-literal_operator_id
-: operator string_literal identifier
-| operator user_defined_string_literal
-;
+literal_operator_id: {
+  if (!match(TokenKind::T_OPERATOR))
+    return false;
+  if (match(TokenKind::T_USER_DEFINED_STRING_LITERAL))
+    return true;
+  if (!parse_string_literal_seq())
+    return false;
+  if (!match(TokenKind::T_IDENTIFIER))
+    return false;
+};
 
 template_declaration(DeclarationAST*& yyast): {
   if (!parse_template_head())
@@ -3786,26 +4008,33 @@ template_parameter_list: {
   }
 };
 
-requires_clause
-{
-  ExpressionAST* e1 = nullptr;
-}
-: requires constraint_logical_or_expression(e1)
-;
+requires_clause: {
+  if (!match(TokenKind::T_REQUIRES))
+    return false;
+  ExpressionAST* expression = nullptr;
+  if (!parse_constraint_logical_or_expression(expression))
+    return false;
+};
 
-constraint_logical_or_expression(ExpressionAST*& yyast)
-{
-  ExpressionAST* e1 = nullptr;
-}
-: constraint_logical_and_expression(yyast) (bar_bar constraint_logical_and_expression(e1))*
-;
+constraint_logical_or_expression(ExpressionAST*& yyast): {
+  if (!parse_constraint_logical_and_expression(yyast))
+    return false;
+  while (match(TokenKind::T_BAR_BAR)) {
+    ExpressionAST* expression = nullptr;
+    if (!parse_constraint_logical_and_expression(expression))
+      parse_error("expected a requirement expression");
+  }
+};
 
-constraint_logical_and_expression(ExpressionAST*& yyast)
-{
-  ExpressionAST* e1 = nullptr;
-}
-: primary_expression(yyast) (amp_amp primary_expression(e1))*
-;
+constraint_logical_and_expression(ExpressionAST*& yyast): {
+  if (!parse_primary_expression(yyast))
+    return false;
+  while (match(TokenKind::T_AMP_AMP)) {
+    ExpressionAST* expression = nullptr;
+    if (!parse_primary_expression(expression))
+      parse_error("expected an expression");
+  }
+};
 
 template_parameter
 : type_parameter / (comma | greater)
@@ -3821,10 +4050,10 @@ type_parameter
 | template_head type_parameter_key dot_dot_dot? identifier?
 ;
 
-type_parameter_key
-: class
-| typename
-;
+type_parameter_key: {
+  if (!match(TokenKind::T_CLASS) && !match(TokenKind::T_TYPENAME))
+    return false;
+};
 
 type_constraint: {
   const auto start = yycursor;
@@ -3841,12 +4070,10 @@ type_constraint: {
   }
 };
 
-simple_template_id
-{
+simple_template_id: {
   Name name;
-}
-: simple_template_id(name)
-;
+  return parse_simple_template_id(name);
+};
 
 simple_template_id(Name& name)
 : template_name(name) less template_argument_list? greater
