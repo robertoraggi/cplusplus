@@ -283,6 +283,7 @@
   };
 
   int templArgDepth = 0;
+  uint32_t lastErrorCursor = 0;
 
   template <typename... Args>
   bool parse_warn(const std::string_view& format, const Args&... args)
@@ -294,6 +295,8 @@
   template <typename... Args>
   bool parse_error(const std::string_view& format, const Args&... args)
   {
+    if (lastErrorCursor == yycursor) return true;
+    lastErrorCursor = yycursor;
     unit->report(yycursor, MessageKind::Error, format, args...);
     // throw std::runtime_error("error");
     return true;
@@ -595,17 +598,22 @@ greater_equal: {
 
 header_name: { return false; };
 
-export_keyword
-: { return module_unit; }
-  export
-;
+export_keyword: {
+  if (!module_unit)
+    return false;
+  if (!match(TokenKind::T_EXPORT))
+    return false;
+};
 
-import_keyword
-: import
-| { return module_unit; }
-  id(import_id)
-  { unit->setTokenKind(yycursor - 1, TokenKind::T_MODULE); }
-;
+import_keyword: {
+  if (!module_unit)
+    return false;
+  if (match(TokenKind::T_IMPORT))
+    return true;
+  if (!parse_id(import_id))
+    return false;
+  unit->setTokenKind(yycursor - 1, TokenKind::T_MODULE);
+};
 
 module_keyword
 : module
@@ -614,9 +622,13 @@ module_keyword
   { unit->setTokenKind(yycursor - 1, TokenKind::T_MODULE); }
 ;
 
-final: id(final_id);
+final: {
+  return parse_id(final_id);
+};
 
-override: id(override_id);
+override: {
+  return parse_id(override_id);
+};
 
 typedef_name: {
   const auto start = yycursor;
@@ -710,20 +722,20 @@ literal: {
   } // switch
 };
 
-translation_unit(UnitAST*& yyast)
-: eof_symbol
-| module_unit(yyast)
-| top_level_declaration_seq(yyast)
-    // { globalRegion->dump(std::cout); }
-;
+translation_unit(UnitAST*& yyast): {
+  if (parse_module_unit(yyast))
+    return true;
+  parse_top_level_declaration_seq(yyast);
+  // globalRegion->dump(std::cout);
+};
 
-enter(DeclarativeRegion::Context& context)
-: { context.enter(); }
-;
+enter(DeclarativeRegion::Context& context): {
+  context.enter();
+};
 
-leave(DeclarativeRegion::Context& context)
-: { context.leave(); }
-;
+leave(DeclarativeRegion::Context& context): {
+  context.leave();
+};
 
 module_head: {
   const auto start = yycursor;
@@ -750,11 +762,6 @@ module_unit(UnitAST*& yyast): {
   parse_private_module_fragment();
   expect(TokenKind::T_EOF_SYMBOL);
 };
-
-eof
-: eof_symbol
-| error("expected eof")
-;
 
 top_level_declaration_seq(UnitAST*& yyast): {
   DeclarativeRegion::Context region(this);
@@ -784,7 +791,7 @@ top_level_declaration_seq(UnitAST*& yyast): {
 
 skip_top_level_declaration(bool& skipping): {
   if (yytoken() == TokenKind::T_EOF_SYMBOL) return false;
-  if (!skipping) unit->report(yycursor, MessageKind::Error, "expected a declaration");
+  if (!skipping) parse_error("expected a declaration");
   skipping = true;
 };
 
@@ -809,7 +816,7 @@ skip_declaration(bool& skipping): {
   if (yytoken() == TokenKind::T_MODULE) return false;
   if (module_unit && yytoken() == TokenKind::T_EXPORT) return false;
   if (yytoken() == TokenKind::T_IMPORT) return false;
-  if (!skipping) unit->report(yycursor, MessageKind::Error, "expected a declaration");
+  if (!skipping) parse_error("expected a declaration");
   skipping = true;
 };
 
@@ -2062,7 +2069,7 @@ compound_statement(StatementAST*& yyast): {
 skip_statement(bool& skipping): {
   if (yytoken() == TokenKind::T_EOF_SYMBOL) return false;
   if (yytoken() == TokenKind::T_RBRACE) return false;
-  if (!skipping) unit->report(yycursor, MessageKind::Error, "expected a statement");
+  if (!skipping) parse_error("expected a statement");
   for (; yytoken() != TokenKind::T_EOF_SYMBOL; yyconsume()) {
     if (yytoken() == TokenKind::T_SEMICOLON) break;
     if (yytoken() == TokenKind::T_LBRACE) break;
@@ -3748,7 +3755,7 @@ class_specifier: {
 enter_class_specifier(DeclarativeRegion::Context& region, DeclarativeRegion* enclosingRegion, Name& className, Symbol*& classSymbol):
 {
   if (!enclosingRegion) {
-    unit->report(yycursor, MessageKind::Error, "unresolved nested name specifier");
+    parse_error("unresolved nested name specifier");
     enclosingRegion = currentRegion_;
   }
 
@@ -3786,7 +3793,7 @@ class_body: {
       skipping = false;
     } else {
       if (!skipping)
-        unit->report(yycursor, MessageKind::Error, "expected a declaration");
+        parse_error("expected a declaration");
       if (yycursor == saved)
         yyconsume();
       skipping = true;
@@ -3794,123 +3801,270 @@ class_body: {
   }
 };
 
-class_head(DeclarativeRegion*& region, Name& name)
-: class_key attribute_specifier_seq?
-  (class_head_name(region, name) class_virt_specifier?)?
-  base_clause?
-;
+class_head(DeclarativeRegion*& region, Name& name): {
+  if (!parse_class_key())
+    return false;
 
-class_head_name(DeclarativeRegion*& region, Name& name)
-: nested_name_specifier(region) class_name(name)
-| class_name(name) { region = currentRegion_; }
-;
+  parse_attribute_specifier_seq();
 
-class_virt_specifier
-: final
-;
+  if (parse_class_head_name(region, name)) {
+    parse_class_virt_specifier();
+  }
 
-class_key
-: class
-| struct
-| union
-;
+  parse_base_clause();
+};
 
-member_specification(DeclarationAST*& yyast)
-: member_declaration(yyast)
-;
+class_head_name(DeclarativeRegion*& region, Name& name): {
+  const auto start = yycursor;
+  if (!parse_nested_name_specifier(region))
+    yyrewind(start);
+  if (!parse_class_name(name))
+    return false;
+  region = currentRegion_;
+};
 
-member_declaration(DeclarationAST*& yyast)
-{
+class_virt_specifier: {
+  if (!parse_final())
+    return false;
+};
+
+class_key: {
+  switch (yytoken()) {
+  case TokenKind::T_CLASS:
+  case TokenKind::T_STRUCT:
+  case TokenKind::T_UNION:
+    yyconsume();
+    return true;
+  default:
+    return false;
+  } // switch
+};
+
+member_specification(DeclarationAST*& yyast): {
+  return parse_member_declaration(yyast);
+};
+
+member_declaration(DeclarationAST*& yyast): {
+  const auto start = yycursor;
+
+  if (parse_access_specifier()) {
+    expect(TokenKind::T_COLON);
+    return true;
+  }
+
+  if (parse_empty_declaration(yyast))
+    return true;
+
+  if (yytoken() == TokenKind::T_USING) {
+    if (parse_using_enum_declaration(yyast))
+      return true;
+    yyrewind(start);
+    if (parse_alias_declaration(yyast))
+      return true;
+    yyrewind(start);
+    if (parse_using_declaration(yyast))
+      return true;
+    return false;
+  }
+
+  if (parse_static_assert_declaration(yyast))
+    return true;
+
+  if (parse_maybe_template_member()) {
+    if (parse_template_declaration(yyast))
+      return true;
+    if (parse_explicit_specialization(yyast))
+      return true;
+    if (parse_deduction_guide(yyast))
+      return true;
+    return false;
+  }
+
+  if (parse_opaque_enum_declaration(yyast))
+    return true;
+
+  yyrewind(start);
+
+  return parse_rest_of_member_declaration(yyast);
+};
+
+maybe_template_member: {
+  const auto start = yycursor;
+  match(TokenKind::T_EXPLICIT);
+  const auto has_template = match(TokenKind::T_TEMPLATE);
+  yyrewind(start);
+  return has_template;
+};
+
+rest_of_member_declaration(DeclarationAST*& yyast) {
   DeclSpecs specs;
   Declarator decl;
 }
-: access_specifier colon
-| __extension__? attribute_specifier_seq? decl_specifier_seq_no_typespecs(specs)?
-        ( declarator_id attribute_specifier_seq? parameters_and_qualifiers
-            ( member_function_definition_body
-            | member_declarator_modifier semicolon)
-        | decl_specifier_seq(specs)? { return specs.has_typespec(); }
-            ( semicolon
-            | declarator(decl) { return isFunctionDeclarator(decl); } member_function_definition_body
-            | member_declarator_list semicolon))
-| empty_declaration(yyast)
-| using_enum_declaration(yyast)
-| alias_declaration(yyast)
-| using_declaration(yyast)
-| static_assert_declaration(yyast)
-| template_declaration(yyast)
-| explicit_specialization(yyast)
-| deduction_guide(yyast)
-| opaque_enum_declaration(yyast)
+: __extension__?
+  attribute_specifier_seq? decl_specifier_seq_no_typespecs(specs)?
+    ( declarator_id attribute_specifier_seq? parameters_and_qualifiers
+        ( member_function_definition_body
+        | member_declarator_modifier semicolon)
+    | decl_specifier_seq(specs)? { return specs.has_typespec(); }
+        ( semicolon
+        | declarator(decl) { return isFunctionDeclarator(decl); } member_function_definition_body
+        | member_declarator_list semicolon))
 ;
 
-member_function_definition_body
-: (requires_clause | virt_specifier_seq?) function_body
-;
+member_function_definition_body: {
+  const auto has_requires_clause = parse_requires_clause();
+  bool has_virt_specifier_seq = false;
+  if (!has_requires_clause)
+    has_virt_specifier_seq = parse_virt_specifier_seq();
+  if (!parse_function_body())
+    return false;
+};
 
-member_declarator_modifier
-: requires_clause
-| brace_or_equal_initializer
-| virt_specifier_seq? pure_specifier?
-;
+member_declarator_modifier: {
+  if (parse_requires_clause())
+    return true;
+  else if (yytoken() == TokenKind::T_LBRACE || yytoken() == TokenKind::T_EQUAL)
+    return parse_brace_or_equal_initializer();
 
-member_declarator_list
-: member_declarator (comma member_declarator)*
-;
+  parse_virt_specifier_seq();
+  parse_pure_specifier();
+};
 
-member_declarator
-{
-  ExpressionAST* e1 = nullptr;
-}
-: identifier? attribute_specifier_seq? colon constant_expression(e1) brace_or_equal_initializer?
-| declarator member_declarator_modifier
-;
+member_declarator_list: {
+  if (!parse_member_declarator())
+    return false;
+  while (match(TokenKind::T_COMMA)) {
+    if (!parse_member_declarator())
+      parse_error("expected a declarator");
+  }
+};
 
-virt_specifier
-: override
-| final
-;
+member_declarator: {
+  const auto start = yycursor;
 
-pure_specifier
-: equal integer_literal
-;
+  const auto has_identifier = match(TokenKind::T_IDENTIFIER);
 
-conversion_function_id
-: operator conversion_type_id
-;
+  parse_attribute_specifier();
 
-conversion_type_id
-: type_specifier_seq conversion_declarator?
-;
+  if (match(TokenKind::T_COLON)) {
+    ExpressionAST* expression = nullptr;
+    if (!parse_constant_expression(expression))
+      parse_error("expected an expression");
+    parse_brace_or_equal_initializer();
+    return true;
+  }
 
-conversion_declarator
-: ptr_operator conversion_declarator?
-;
+  yyrewind(start);
 
-base_clause
-: colon base_specifier_list
-;
+  if (!parse_declarator())
+    return false;
 
-base_specifier_list
-: base_specifier dot_dot_dot? (comma base_specifier dot_dot_dot?)*
-;
+  if (!parse_member_declarator_modifier())
+    return false;
+};
 
-base_specifier
-: attribute_specifier_seq? (virtual access_specifier? | access_specifier virtual?)? class_or_decltype
-;
+virt_specifier: {
+  if (parse_final())
+    return true;
+  else if (parse_override())
+    return true;
+  return false;
+};
 
-class_or_decltype
-: nested_name_specifier ( template simple_template_id
-                        | type_name)
-| decltype_specifier
-| type_name
-;
+pure_specifier: {
+  if (!match(TokenKind::T_EQUAL))
+    return false;
+  if (!match(TokenKind::T_INTEGER_LITERAL))
+    return false;
+  const auto& number = unit->tokenText(yycursor - 1);
+  if (number != "0")
+    return false;
+};
 
-access_specifier
-: private
-| protected
-| public
-;
+conversion_function_id: {
+  if (!match(TokenKind::T_OPERATOR))
+    return false;
+  if (!parse_conversion_type_id())
+    return false;
+};
+
+conversion_type_id: {
+  if (!parse_type_specifier_seq())
+    return false;
+  parse_conversion_declarator();
+};
+
+conversion_declarator: {
+  return parse_ptr_operator_seq();
+};
+
+base_clause: {
+  if (!match(TokenKind::T_COLON))
+    return false;
+  if (!parse_base_specifier_list())
+    parse_error("expected a base class specifier");
+};
+
+base_specifier_list: {
+  if (!parse_base_specifier())
+    return false;
+  const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+  while (match(TokenKind::T_COMMA)) {
+    if (!parse_base_specifier())
+      parse_error("expected a base class specifier");
+    const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+  }
+};
+
+base_specifier: {
+  parse_attribute_specifier_seq();
+
+  bool has_virtual = match(TokenKind::T_VIRTUAL);
+
+  bool has_access_specifier = false;
+
+  if (has_virtual)
+    has_access_specifier = parse_access_specifier();
+  else if (parse_access_specifier()) {
+    has_virtual = match(TokenKind::T_VIRTUAL);
+    has_access_specifier = true;
+  }
+
+  if (!parse_class_or_decltype())
+    return false;
+};
+
+class_or_decltype: {
+  const auto start = yycursor;
+
+  if (parse_nested_name_specifier()) {
+    if (match(TokenKind::T_TEMPLATE)) {
+      if (parse_simple_template_id())
+        return true;
+    }
+    if (parse_type_name())
+      return true;
+  }
+
+  yyrewind(start);
+
+  if (parse_decltype_specifier())
+    return true;
+
+  return parse_type_name();
+};
+
+access_specifier: {
+  switch (yytoken()) {
+  case TokenKind::T_PRIVATE:
+  case TokenKind::T_PROTECTED:
+  case TokenKind::T_PUBLIC:
+    yyconsume();
+    return true;
+  default:
+    return false;
+  } // switch
+};
 
 ctor_initializer: {
   if (!match(TokenKind::T_COLON))
@@ -3946,10 +4100,14 @@ mem_initializer: {
   }
 };
 
-mem_initializer_id
-: class_or_decltype
-| identifier
-;
+mem_initializer_id: {
+  const auto start = yycursor;
+  if (parse_class_or_decltype())
+    return true;
+  yyrewind(start);
+  if (!match(TokenKind::T_IDENTIFIER))
+    return false;
+};
 
 operator_function_id: {
   if (!match(TokenKind::T_OPERATOR))
