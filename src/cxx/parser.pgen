@@ -3625,20 +3625,53 @@ attribute_specifier_seq: {
   }
 };
 
-attribute_specifier
-: gcc_attribute
-| lbracket lbracket attribute_using_prefix? attribute_list rbracket rbracket
-| alignment_specifier
-| (__asm | __asm__) lparen string_literal_seq rparen
-;
+attribute_specifier: {
+  if (yytoken() == TokenKind::T_LBRACKET && yytoken(1) == TokenKind::T_LBRACKET) {
+    yyconsume();
+    yyconsume();
+    parse_attribute_using_prefix();
+    parse_attribute_list();
+    expect(TokenKind::T_RBRACKET);
+    expect(TokenKind::T_RBRACKET);
+    return true;
+  }
 
-gcc_attribute
-: (__attribute | __attribute__) lparen skip_balanced rparen
-;
+  if (parse_gcc_attribute())
+    return true;
 
-gcc_attribute_seq
-: gcc_attribute+
-;
+  if (parse_alignment_specifier())
+    return true;
+
+  if (parse_asm_specifier())
+    return true;
+
+  return false;
+};
+
+asm_specifier: {
+  if (!match(TokenKind::T___ASM__) && !match(TokenKind::T___ASM))
+    return false;
+  expect(TokenKind::T_LPAREN);
+  if (!parse_string_literal_seq())
+    parse_error("expected a string literal");
+  expect(TokenKind::T_RPAREN);
+};
+
+gcc_attribute: {
+  if (!match(TokenKind::T___ATTRIBUTE) && !match(TokenKind::T___ATTRIBUTE__))
+    return false;
+  expect(TokenKind::T_LPAREN);
+  parse_skip_balanced();
+  expect(TokenKind::T_RPAREN);
+};
+
+gcc_attribute_seq: {
+  if (!parse_gcc_attribute())
+    return false;
+  while (parse_gcc_attribute()) {
+    //
+  }
+};
 
 skip_balanced: {
   int count = 1;
@@ -3656,43 +3689,72 @@ skip_balanced: {
   return false;
 };
 
-alignment_specifier
-{
-  ExpressionAST* e1 = nullptr;
-}
-: alignas lparen type_id dot_dot_dot? rparen
-| alignas lparen constant_expression(e1) dot_dot_dot? rparen
-;
+alignment_specifier: {
+  if (!match(TokenKind::T_ALIGNAS))
+    return false;
+  expect(TokenKind::T_LPAREN);
+  const auto after_lparen = yycursor;
+  if (parse_type_id()) {
+    const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+    if (match(TokenKind::T_RPAREN)) {
+      return true;
+    }
+  }
+  yyrewind(after_lparen);
+  ExpressionAST* expression = nullptr;
+  if (!parse_constant_expression(expression))
+    parse_error("expected an expression");
+  const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+  expect(TokenKind::T_RPAREN);
+};
 
-attribute_using_prefix
-: using attribute_namespace colon
-;
+attribute_using_prefix: {
+  if (!match(TokenKind::T_USING))
+    return false;
+  if (!parse_attribute_namespace())
+    parse_error("expected an attribute namespace");
+  expect(TokenKind::T_COLON);
+};
 
 attribute_list
 : (attribute dot_dot_dot? | attribute?)
     (comma attribute? | attribute dot_dot_dot?)*
 ;
 
-attribute
-: attribute_token attribute_argument_clause?
-;
+attribute: {
+  if (!parse_attribute_token())
+    return false;
+  parse_attribute_argument_clause();
+};
 
-attribute_token
-: attribute_scoped_token
-| identifier
-;
+attribute_token: {
+  const auto saved = yycursor;
+  if (parse_attribute_scoped_token())
+    return true;
+  yyrewind(saved);
+  if (!match(TokenKind::T_IDENTIFIER))
+    return false;
+};
 
-attribute_scoped_token
-: attribute_namespace colon_colon identifier
-;
+attribute_scoped_token: {
+  if (!parse_attribute_namespace())
+    return false;
+  if (!match(TokenKind::T_COLON_COLON))
+    return false;
+  expect(TokenKind::T_IDENTIFIER);
+};
 
-attribute_namespace
-: identifier
-;
+attribute_namespace: {
+  if (!match(TokenKind::T_IDENTIFIER))
+    return false;
+};
 
-attribute_argument_clause
-: lparen skip_balanced rparen
-;
+attribute_argument_clause: {
+  if (!match(TokenKind::T_LPAREN))
+    return false;
+  parse_skip_balanced();
+  expect(TokenKind::T_RPAREN);
+};
 
 module_declaration: {
   const auto has_export = parse_export_keyword();
@@ -3726,12 +3788,12 @@ module_partition: {
 module_name_qualifier: {
   if (yytoken() != TokenKind::T_IDENTIFIER)
     return false;
-  if (yytoken(yycursor + 1) != TokenKind::T_DOT)
+  if (yytoken(1) != TokenKind::T_DOT)
     return false;
   do {
     yyconsume();
     yyconsume();
-  } while (yytoken() == TokenKind::T_IDENTIFIER && yytoken(yycursor + 1) == TokenKind::T_DOT);
+  } while (yytoken() == TokenKind::T_IDENTIFIER && yytoken(1) == TokenKind::T_DOT);
 };
 
 export_declaration(DeclarationAST*& yyast): {
