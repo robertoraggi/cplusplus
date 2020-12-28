@@ -3969,7 +3969,7 @@ member_declaration(DeclarationAST*& yyast): {
 
   yyrewind(start);
 
-  return parse_rest_of_member_declaration(yyast);
+  return parse_member_declaration_helper(yyast);
 };
 
 maybe_template_member: {
@@ -3980,20 +3980,60 @@ maybe_template_member: {
   return has_template;
 };
 
-rest_of_member_declaration(DeclarationAST*& yyast) {
+member_declaration_helper(DeclarationAST*& yyast): {
+  const auto has_extension = match(TokenKind::T___EXTENSION__);
+
+  parse_attribute_specifier_seq();
+
+  auto after_decl_specs = yycursor;
+
   DeclSpecs specs;
+
+  if (!parse_decl_specifier_seq_no_typespecs(specs))
+    yyrewind(after_decl_specs);
+
+  after_decl_specs = yycursor;
+
+  if (parse_declarator_id()) {
+    parse_attribute_specifier_seq();
+    if (parse_parameters_and_qualifiers()) {
+      const auto after_parameters = yycursor;
+      if (parse_member_function_definition_body())
+        return true;
+      yyrewind(after_parameters);
+      if (parse_member_declarator_modifier() && match(TokenKind::T_SEMICOLON)) {
+        return true;
+      }
+    }
+  }
+
+  yyrewind(after_decl_specs);
+
+  if (!parse_decl_specifier_seq(specs))
+    yyrewind(after_decl_specs);
+
+  after_decl_specs = yycursor;
+
+  if (!specs.has_typespec())
+    return false;
+
+  if (match(TokenKind::T_SEMICOLON))
+    return true; // ### complex typespec
+
   Declarator decl;
-}
-: __extension__?
-  attribute_specifier_seq? decl_specifier_seq_no_typespecs(specs)?
-    ( declarator_id attribute_specifier_seq? parameters_and_qualifiers
-        ( member_function_definition_body
-        | member_declarator_modifier semicolon)
-    | decl_specifier_seq(specs)? { return specs.has_typespec(); }
-        ( semicolon
-        | declarator(decl) { return isFunctionDeclarator(decl); } member_function_definition_body
-        | member_declarator_list semicolon))
-;
+
+  if (parse_declarator(decl) && isFunctionDeclarator(decl)) {
+    if (parse_member_function_definition_body())
+      return true;
+  }
+
+  yyrewind(after_decl_specs);
+
+  if (!parse_member_declarator_list())
+    parse_error("expected a declarator");
+
+  expect(TokenKind::T_SEMICOLON);
+};
 
 member_function_definition_body: {
   const auto has_requires_clause = parse_requires_clause();
