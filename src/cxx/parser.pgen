@@ -3082,37 +3082,85 @@ defining_type_id: {
     yyrewind(before_declarator);
 };
 
-abstract_declarator
-: noptr_abstract_declarator? parameters_and_qualifiers trailing_return_type
-| abstract_pack_declarator
-| ptr_abstract_declarator
-;
+abstract_declarator: {
+  if (parse_abstract_pack_declarator())
+    return true;
+  if (parse_ptr_abstract_declarator())
+    return true;
+  const auto saved = yycursor;
+  if (parse_parameters_and_qualifiers() && parse_trailing_return_type())
+    return true;
+  yyrewind(saved);
+  if (!parse_noptr_abstract_declarator())
+    return false;
+  const auto after_noptr_declarator = yycursor;
+  if (parse_parameters_and_qualifiers() && parse_trailing_return_type()) {
+    //
+  } else {
+    yyrewind(after_noptr_declarator);
+  }
+};
 
-ptr_abstract_declarator
-: ptr_operator_seq? noptr_abstract_declarator
-;
+ptr_abstract_declarator: {
+  if (!parse_ptr_operator_seq())
+    return false;
 
-noptr_abstract_declarator
-{
-  ExpressionAST* e1 = nullptr;
-}
-: (lparen ptr_abstract_declarator rparen)?
-    ( parameters_and_qualifiers
-    | lbracket constant_expression(e1)? rbracket attribute_specifier_seq?)*
-;
+  const auto saved = yycursor;
+  if (!parse_noptr_abstract_declarator())
+    yyrewind(saved);
+};
 
-abstract_pack_declarator
-: ptr_operator_seq? noptr_abstract_pack_declarator
-;
+noptr_abstract_declarator: {
+  const auto start = yycursor;
 
-noptr_abstract_pack_declarator
-{
-  ExpressionAST* e1 = nullptr;
-}
-: dot_dot_dot
-    ( parameters_and_qualifiers
-    | lbracket constant_expression(e1)? rbracket attribute_specifier_seq?)*
-;
+  auto has_nested_declarator = false;
+
+  if (match(TokenKind::T_LPAREN) && parse_ptr_abstract_declarator() && match(TokenKind::T_RPAREN)) {
+    has_nested_declarator = true;
+  } else {
+    yyrewind(start);
+  }
+
+  const auto after_nested_declarator = yycursor;
+
+  if (yytoken() == TokenKind::T_LPAREN) {
+    if (!parse_parameters_and_qualifiers())
+      yyrewind(after_nested_declarator);
+  }
+
+  if (yytoken() == TokenKind::T_LBRACKET) {
+    while (match(TokenKind::T_LBRACKET)) {
+      if (!match(TokenKind::T_RBRACKET)) {
+        ExpressionAST* expression = nullptr;
+        if (!parse_constant_expression(expression))
+          parse_error("expected an expression");
+        expect(TokenKind::T_RBRACKET);
+      }
+    }
+  }
+};
+
+abstract_pack_declarator: {
+  parse_ptr_operator_seq();
+  if (!parse_noptr_abstract_pack_declarator())
+    return false;
+};
+
+noptr_abstract_pack_declarator: {
+  if (!match(TokenKind::T_DOT_DOT_DOT))
+    return false;
+  if (parse_parameters_and_qualifiers())
+    return true;
+  while (match(TokenKind::T_LBRACKET)) {
+    if (!match(TokenKind::T_RBRACKET)) {
+      ExpressionAST* expression = nullptr;
+      if (!parse_constant_expression(expression))
+        parse_error("expected a constant expression");
+      expect(TokenKind::T_RBRACKET);
+      parse_attribute_specifier_seq();
+    }
+  }
+};
 
 parameter_declaration_clause: {
   if (match(TokenKind::T_DOT_DOT_DOT))
