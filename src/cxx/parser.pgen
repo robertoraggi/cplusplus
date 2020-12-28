@@ -4350,52 +4350,86 @@ operator_function_id: {
     return false;
 };
 
-op
-: new lbracket rbracket
-| delete lbracket rbracket
-| new
-| delete
-| co_await
-| lparen rparen
-| lbracket rbracket
-| minus_greater
-| minus_greater_star
-| tilde
-| exclaim
-| plus
-| minus
-| star
-| slash
-| percent
-| caret
-| amp
-| bar
-| equal
-| plus_equal
-| minus_equal
-| star_equal
-| slash_equal
-| percent_equal
-| caret_equal
-| amp_equal
-| bar_equal
-| equal_equal
-| exclaim_equal
-| less
-| less_equal
-| greater_greater_equal
-| greater_greater
-| greater_equal
-| greater
-| less_equal_greater
-| amp_amp
-| bar_bar
-| less_less
-| less_less_equal
-| plus_plus
-| minus_minus
-| comma
-;
+op: {
+  switch (yytoken()) {
+  case TokenKind::T_LPAREN:
+    yyconsume();
+    expect(TokenKind::T_RPAREN);
+    return true;
+
+  case TokenKind::T_LBRACKET:
+    yyconsume();
+    expect(TokenKind::T_RBRACKET);
+    return true;
+
+  case TokenKind::T_GREATER: {
+    if (parse_greater_greater_equal())
+      return true;
+    if (parse_greater_greater())
+      return true;
+    if (parse_greater_equal())
+      return true;
+    yyconsume();
+    return true;
+  }
+
+  case TokenKind::T_NEW:
+    yyconsume();
+    if (match(TokenKind::T_LBRACKET)) {
+      expect(TokenKind::T_RBRACKET);
+    }
+    return true;
+
+  case TokenKind::T_DELETE:
+    yyconsume();
+    if (match(TokenKind::T_LBRACKET)) {
+      expect(TokenKind::T_RBRACKET);
+    }
+    return true;
+
+  case TokenKind::T_CO_AWAIT:
+  case TokenKind::T_MINUS_GREATER:
+  case TokenKind::T_MINUS_GREATER_STAR:
+  case TokenKind::T_TILDE:
+  case TokenKind::T_EXCLAIM:
+  case TokenKind::T_PLUS:
+  case TokenKind::T_MINUS:
+  case TokenKind::T_STAR:
+  case TokenKind::T_SLASH:
+  case TokenKind::T_PERCENT:
+  case TokenKind::T_CARET:
+  case TokenKind::T_AMP:
+  case TokenKind::T_BAR:
+  case TokenKind::T_EQUAL:
+  case TokenKind::T_PLUS_EQUAL:
+  case TokenKind::T_MINUS_EQUAL:
+  case TokenKind::T_STAR_EQUAL:
+  case TokenKind::T_SLASH_EQUAL:
+  case TokenKind::T_PERCENT_EQUAL:
+  case TokenKind::T_CARET_EQUAL:
+  case TokenKind::T_AMP_EQUAL:
+  case TokenKind::T_BAR_EQUAL:
+  case TokenKind::T_EQUAL_EQUAL:
+  case TokenKind::T_EXCLAIM_EQUAL:
+  case TokenKind::T_LESS:
+  case TokenKind::T_LESS_EQUAL:
+  case TokenKind::T_GREATER_GREATER_EQUAL:
+  case TokenKind::T_GREATER_GREATER:
+  case TokenKind::T_GREATER_EQUAL:
+  case TokenKind::T_LESS_EQUAL_GREATER:
+  case TokenKind::T_AMP_AMP:
+  case TokenKind::T_BAR_BAR:
+  case TokenKind::T_LESS_LESS:
+  case TokenKind::T_LESS_LESS_EQUAL:
+  case TokenKind::T_PLUS_PLUS:
+  case TokenKind::T_MINUS_MINUS:
+  case TokenKind::T_COMMA:
+    yyconsume();
+    return true;
+  default:
+    return false;
+  } // switch
+};
 
 literal_operator_id: {
   if (!match(TokenKind::T_OPERATOR))
