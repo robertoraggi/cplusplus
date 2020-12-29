@@ -615,12 +615,18 @@ import_keyword: {
   unit->setTokenKind(yycursor - 1, TokenKind::T_IMPORT);
 };
 
-module_keyword
-: module
-| { return unit; }
-  id(module_id)
-  { unit->setTokenKind(yycursor - 1, TokenKind::T_MODULE); }
-;
+module_keyword: {
+  if (!module_unit)
+    return false;
+
+  if (match(TokenKind::T_MODULE))
+    return true;
+
+  if (!parse_id(module_id))
+    return false;
+
+  unit->setTokenKind(yycursor - 1, TokenKind::T_MODULE);
+};
 
 final: {
   return parse_id(final_id);
@@ -1309,7 +1315,6 @@ nested_requirement: {
 };
 
 postfix_expression(ExpressionAST*& yyast): {
-  DeclSpecs specs;
   ExpressionAST* e1 = nullptr;
   if (!parse_start_of_postfix_expression(yyast))
     return false;
@@ -1397,7 +1402,7 @@ cpp_cast_expression(ExpressionAST*& yyast): {
     return false;
   expect(TokenKind::T_LESS);
   if (!parse_type_id())
-    parse_error("expected a type-id");
+    parse_error("expected a type id");
   expect(TokenKind::T_GREATER);
   expect(TokenKind::T_LPAREN);
   ExpressionAST* expression = nullptr;
@@ -1507,7 +1512,7 @@ builtin_call_expression(ExpressionAST*& yyast): {
   if (parse_builtin_function_1()) {
     expect(TokenKind::T_LPAREN);
     if (!parse_type_id())
-      parse_error("expected a type-id");
+      parse_error("expected a type id");
     expect(TokenKind::T_RPAREN);
     return true;
   }
@@ -1517,10 +1522,10 @@ builtin_call_expression(ExpressionAST*& yyast): {
 
   expect(TokenKind::T_LPAREN);
   if (!parse_type_id())
-    parse_error("expected a type-id");
+    parse_error("expected a type id");
   expect(TokenKind::T_COMMA);
   if (!parse_type_id())
-    parse_error("expected a type-id");
+    parse_error("expected a type id");
   expect(TokenKind::T_RPAREN);
 };
 
@@ -3458,40 +3463,60 @@ using_enum_declaration(DeclarationAST*& yyast): {
     return false;
 };
 
-namespace_definition(DeclarationAST*& yyast)
-: nested_namespace_definition(yyast)
-| named_namespace_definition(yyast)
-| unnamed_namespace_definition(yyast)
-;
+namespace_definition(DeclarationAST*& yyast): {
+  const auto start = yycursor;
 
-named_namespace_definition(DeclarationAST*& yyast): {
-  bool has_inline = false;
+  const auto has_inline = match(TokenKind::T_INLINE);
 
-  if (match(TokenKind::T_INLINE)) {
-    has_inline = true;
-  }
-
-  if (!match(TokenKind::T_NAMESPACE))
+  if (!match(TokenKind::T_NAMESPACE)) {
+    yyrewind(start);
     return false;
+  }
 
   parse_attribute_specifier_seq();
 
-  if (!match(TokenKind::T_IDENTIFIER))
-    return false;
+  enum NamespaceKind { kAnonymous, kNamed, kNested } kind = NamespaceKind::kAnonymous;
 
-  auto name = yycursor - 1;
+  uint32_t namespace_name_token = 0;
 
-  parse_gcc_attribute_seq();
+  if (yytoken() == TokenKind::T_IDENTIFIER && yytoken(1) == TokenKind::T_COLON_COLON) {
+    yyconsume();
+    while (match(TokenKind::T_COLON_COLON)) {
+      match(TokenKind::T_INLINE);
+      expect(TokenKind::T_IDENTIFIER);
+    }
+    kind = NamespaceKind::kNested;
+  } else if (yytoken() == TokenKind::T_IDENTIFIER) {
+    kind = NamespaceKind::kNamed;
+    namespace_name_token = yycursor;
+    yyconsume();
+  }
+
+  parse_attribute_specifier_seq();
 
   expect(TokenKind::T_LBRACE);
-  DeclarativeRegion::Context context(this);
-  parse_enter_named_namespace_definition(context, name);
+
+  DeclarativeRegion::Context region(this);
+
+  switch (kind) {
+  case NamespaceKind::kAnonymous:
+    parse_enter_unnamed_namespace_definition(region);
+    break;
+  case NamespaceKind::kNamed:
+    parse_enter_named_namespace_definition(region, namespace_name_token);
+    break;
+  case NamespaceKind::kNested:
+    parse_enter(region); // ### TODO
+    break;
+  } // switch
+  parse_enter(region);
+
   parse_namespace_body();
+
   expect(TokenKind::T_RBRACE);
 };
 
-enter_named_namespace_definition(DeclarativeRegion::Context& context, uint32_t& name):
-{
+enter_named_namespace_definition(DeclarativeRegion::Context& context, uint32_t name): {
   const auto id = Name(unit->identifier(name));
   Symbol* ns = currentRegion_->scope.find(id);
   for (; ns; ns = ns->next) {
@@ -3509,56 +3534,13 @@ enter_named_namespace_definition(DeclarativeRegion::Context& context, uint32_t& 
   context.enter(std::get<NamespaceData>(ns->data).region);
 };
 
-unnamed_namespace_definition(DeclarationAST*& yyast): {
-  bool has_inline = false;
-  if (match(TokenKind::T_INLINE))
-    has_inline = true;
-  if (!match(TokenKind::T_NAMESPACE))
-    return false;
-  parse_attribute_specifier_seq();
-  parse_gcc_attribute_seq();
-  if (!match(TokenKind::T_LBRACE))
-    return false;
-  DeclarativeRegion::Context region(this);
-  parse_enter_unnamed_namespace_definition(region);
-  parse_namespace_body();
-  expect(TokenKind::T_RBRACE);
-};
-
-enter_unnamed_namespace_definition(DeclarativeRegion::Context& region):
-{
+enter_unnamed_namespace_definition(DeclarativeRegion::Context& region): {
   auto ns = newSymbol();
   NamespaceData data;
   data.region = newDeclarativeRegion(currentRegion_);
   ns->data = data;
   currentRegion_->scope.add(ns);
 };
-
-nested_namespace_definition(DeclarationAST*& yyast): {
-  if (!match(TokenKind::T_NAMESPACE))
-    return false;
-  if (!parse_enclosing_namespace_specifier())
-    return false;
-  if (!match(TokenKind::T_COLON_COLON))
-    return false;
-  bool has_inline = false;
-  if (match(TokenKind::T_INLINE))
-    has_inline = true;
-  if (!match(TokenKind::T_IDENTIFIER))
-    return false;
-  parse_gcc_attribute_seq();
-  if (!match(TokenKind::T_LBRACE))
-    return false;
-  DeclarativeRegion::Context region(this);
-  parse_enter(region);
-  parse_namespace_body();
-  expect(TokenKind::T_RBRACE);
-};
-
-enclosing_namespace_specifier
-: identifier (colon_colon inline?
-    identifier / (colon_colon inline? identifier))*
-;
 
 namespace_body: {
   bool skipping = false;
@@ -3764,10 +3746,14 @@ attribute_using_prefix: {
   expect(TokenKind::T_COLON);
 };
 
-attribute_list
-: (attribute dot_dot_dot? | attribute?)
-    (comma attribute? | attribute dot_dot_dot?)*
-;
+attribute_list: {
+  parse_attribute();
+  const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+  while (match(TokenKind::T_COMMA)) {
+    parse_attribute();
+    const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+  }
+};
 
 attribute: {
   if (!parse_attribute_token())
