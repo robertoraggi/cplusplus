@@ -942,16 +942,38 @@ nested_name_specifier: {
   return parse_nested_name_specifier(region);
 };
 
-nested_name_specifier(DeclarativeRegion*& region)
-{
+start_of_nested_name_specifier(Name& id): {
+  if (match(TokenKind::T_COLON_COLON))
+    return true;
+
+  if (parse_decltype_specifier() && match(TokenKind::T_COLON_COLON))
+    return true;
+
   const auto start = yycursor;
+
+  if (parse_name_id(id) && match(TokenKind::T_COLON_COLON))
+    return true;
+
+  yyrewind(start);
+
+  if (parse_simple_template_id(id) && match(TokenKind::T_COLON_COLON))
+    return true;
+
+  return false;
+};
+
+nested_name_specifier(DeclarativeRegion*& region): {
+  const auto start = yycursor;
+
   auto it = nested_name_specifiers_.find(start);
+
   if (it != nested_name_specifiers_.end()) {
     auto [cursor, parsed, result] = it->second;
     yyrewind(cursor);
     region = result;
     return parsed;
   }
+
   struct Context {
     Parser* p;
     uint32_t start;
@@ -961,23 +983,37 @@ nested_name_specifier(DeclarativeRegion*& region)
     ~Context() {
       p->nested_name_specifiers_.emplace(start, std::make_tuple(p->yycursor, parsed, region));
     }
-  } context(this);
+  };
+
+  Context context(this);
+
   Symbol* sym = nullptr;
+
   region = currentRegion_;
+
   Name id;
-}
-: ( colon_colon
-  | name_id(id) colon_colon
-  | simple_template_id(id) colon_colon
-  | decltype_specifier colon_colon)
-      ( name_id(id) colon_colon
-      | template? simple_template_id(id) colon_colon
-      )*
-    {
-      context.parsed = true;
-      context.region = region;
+
+  if (!parse_start_of_nested_name_specifier(id))
+    return false;
+
+  while (true) {
+    const auto saved = yycursor;
+    if (parse_name_id(id) && match(TokenKind::T_COLON_COLON)) {
+      //
+    } else {
+      yyrewind(saved);
+      const auto has_template = match(TokenKind::T_TEMPLATE);
+      if (parse_simple_template_id(id) && match(TokenKind::T_COLON_COLON)) {
+        //
+      } else {
+        yyrewind(saved);
+        break;
+      }
     }
-;
+  }
+  context.parsed = true;
+  context.region = region;
+};
 
 lambda_expression(ExpressionAST*& yyast): {
   if (!parse_lambda_introducer())
