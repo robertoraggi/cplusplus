@@ -5569,19 +5569,106 @@ constraint_logical_and_expression(ExpressionAST*& yyast): {
   return true;
 };
 
-template_parameter
-: type_parameter / (comma | greater)
-| parameter_declaration
-;
+template_parameter: {
+  const auto start = yycursor;
 
-type_parameter
-: type_parameter_key identifier? equal type_id
-| type_parameter_key dot_dot_dot? identifier?
-| type_constraint identifier? equal type_id
-| type_constraint dot_dot_dot? identifier?
-| template_head type_parameter_key identifier? equal id_expression
-| template_head type_parameter_key dot_dot_dot? identifier?
-;
+  if (parse_type_parameter() && (yytoken() == TokenKind::T_COMMA || yytoken() == TokenKind::T_GREATER))
+    return true;
+
+  yyrewind(start);
+
+  return parse_parameter_declaration();
+};
+
+type_parameter: {
+  if (parse_template_type_parameter())
+    return true;
+
+  if (parse_typename_type_parameter())
+    return true;
+
+  return parse_constraint_type_parameter();
+};
+
+typename_type_parameter: {
+  if (!parse_type_parameter_key())
+    return false;
+
+  const auto saved = yycursor;
+
+  if ((yytoken() == TokenKind::T_IDENTIFIER && yytoken(1) == TokenKind::T_EQUAL) || yytoken() == TokenKind::T_EQUAL) {
+    const auto has_identifier = match(TokenKind::T_IDENTIFIER);
+
+    expect(TokenKind::T_EQUAL);
+
+    if (!parse_type_id())
+      parse_error("expected a type id");
+
+    return true;
+  }
+
+  const auto has_tripled_dot = match(TokenKind::T_DOT_DOT_DOT);
+
+  const auto has_identifier = match(TokenKind::T_IDENTIFIER);
+
+  return true;
+};
+
+template_type_parameter: {
+  const auto start = yycursor;
+
+  if (!parse_template_head()) {
+    yyrewind(start);
+    return false;
+  }
+
+  if (!parse_type_parameter_key())
+    parse_error("expected a type parameter");
+
+  const auto saved = yycursor;
+
+  if ((yytoken() == TokenKind::T_IDENTIFIER && yytoken(1) == TokenKind::T_EQUAL) || yytoken() == TokenKind::T_EQUAL) {
+    const auto has_identifier = match(TokenKind::T_IDENTIFIER);
+
+    expect(TokenKind::T_EQUAL);
+
+    if (!parse_id_expression())
+      parse_error("expected an id-expression");
+
+    return true;
+  }
+
+  const auto has_tripled_dot = match(TokenKind::T_DOT_DOT_DOT);
+
+  const auto has_identifier = match(TokenKind::T_IDENTIFIER);
+
+  return true;
+};
+
+constraint_type_parameter: {
+  if (!parse_type_constraint())
+    return false;
+
+  const auto saved = yycursor;
+
+  if ((yytoken() == TokenKind::T_IDENTIFIER && yytoken(1) == TokenKind::T_EQUAL) || yytoken() == TokenKind::T_EQUAL) {
+    const auto has_identifier = match(TokenKind::T_IDENTIFIER);
+
+    expect(TokenKind::T_EQUAL);
+
+    if (!parse_type_id())
+      return false; // ### FIXME: parse_error("expected a type id");
+
+    return true;
+  }
+
+  const auto has_tripled_dot = match(TokenKind::T_DOT_DOT_DOT);
+
+  const auto has_identifier = match(TokenKind::T_IDENTIFIER);
+
+  return true;
+};
+
 
 type_parameter_key: {
   if (!match(TokenKind::T_CLASS) && !match(TokenKind::T_TYPENAME))
