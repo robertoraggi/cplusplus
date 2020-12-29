@@ -1815,34 +1815,62 @@ cast_expression_helper(ExpressionAST*& yyast): {
     return false;
 };
 
-binary_operator(TokenKind& tk, bool templArg)
-: greater_equal
-| greater_greater
-    {
-      if (templArg && templArgDepth >= 2)
+binary_operator(TokenKind& tk, bool templArg): {
+  const auto start = yycursor;
+
+  switch (yytoken()) {
+  case TokenKind::T_GREATER: {
+    if (parse_greater_greater()) {
+      if (templArg && templArgDepth >= 2) {
+        yyrewind(start);
         return false;
+      }
+
       tk = TokenKind::T_GREATER_GREATER;
+      return true;
     }
-| ( star
-  | slash
-  | plus
-  | percent
-  | minus_greater_star
-  | minus
-  | less_less
-  | less_equal_greater
-  | less_equal
-  | less
-  | { return !templArg; } greater
-  | exclaim_equal
-  | equal_equal
-  | dot_star
-  | caret
-  | bar_bar
-  | bar
-  | amp_amp
-  | amp ) { tk = unit->tokenKind(yycursor - 1); }
-;
+
+    if (parse_greater_equal()) {
+      tk = TokenKind::T_GREATER_EQUAL;
+      return true;
+    }
+
+    if (templArg) {
+      yyrewind(start);
+      return false;
+    }
+
+    yyconsume();
+    tk = TokenKind::T_GREATER;
+    return true;
+  }
+
+  case TokenKind::T_STAR:
+  case TokenKind::T_SLASH:
+  case TokenKind::T_PLUS:
+  case TokenKind::T_PERCENT:
+  case TokenKind::T_MINUS_GREATER_STAR:
+  case TokenKind::T_MINUS:
+  case TokenKind::T_LESS_LESS:
+  case TokenKind::T_LESS_EQUAL_GREATER:
+  case TokenKind::T_LESS_EQUAL:
+  case TokenKind::T_LESS:
+  case TokenKind::T_EXCLAIM_EQUAL:
+  case TokenKind::T_EQUAL_EQUAL:
+  case TokenKind::T_DOT_STAR:
+  case TokenKind::T_CARET:
+  case TokenKind::T_BAR_BAR:
+  case TokenKind::T_BAR:
+  case TokenKind::T_AMP_AMP:
+  case TokenKind::T_AMP:
+    tk = unit->tokenKind(yycursor);
+    yyconsume();
+    return true;
+
+  default:
+    return false;
+  } // switch
+};
 
 binary_expression(ExpressionAST*& yyast, bool templArg): {
   if (!parse_cast_expression(yyast))
