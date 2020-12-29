@@ -2628,7 +2628,8 @@ for_range_declaration: {
   if (tk == TokenKind::T_AMP || tk == TokenKind::T_AMP_AMP || tk == TokenKind::T_LBRACKET) {
     parse_ref_qualifier();
 
-    expect(TokenKind::T_LBRACKET);
+    if (!match(TokenKind::T_LBRACKET))
+      return false;
 
     if (!parse_identifier_list())
       parse_error("expected an identifier");
@@ -6004,10 +6005,12 @@ exception_declaration: {
 
   const auto before_declarator = yycursor;
 
-  if (!parse_declarator())
+  if (!parse_declarator()) {
     yyrewind(before_declarator);
-  else if (!parse_abstract_declarator())
-    parse_error("expected a declarator");
+
+    if (!parse_abstract_declarator())
+      yyrewind(before_declarator);
+  }
 
   return true;
 };
