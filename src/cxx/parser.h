@@ -25,6 +25,8 @@
 #include <cxx/translation-unit.h>
 
 #include <forward_list>
+#include <unordered_map>
+#include <variant>
 
 namespace cxx {
 
