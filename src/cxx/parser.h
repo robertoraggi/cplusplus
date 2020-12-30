@@ -21,132 +21,21 @@
 #pragma once
 
 #include <cxx/ast.h>
-#include <cxx/names.h>
+#include <cxx/control.h>
 #include <cxx/translation-unit.h>
 
 #include <forward_list>
+#include <functional>
 #include <unordered_map>
 #include <variant>
 
 namespace cxx {
 
-struct Parser {
-  class DeclarativeRegion;
+class TranslationUnit;
 
-  struct NamespaceData {
-    DeclarativeRegion* region = nullptr;
-  };
-
-  struct ClassData {
-    DeclarativeRegion* region = nullptr;
-    DeclarativeRegion* lexicalRegion = nullptr;
-    bool isComplete = false;
-  };
-
-  class Symbol {
-   public:
-    Name name;
-    Symbol* next = nullptr;
-    std::size_t index = 0;
-    std::variant<std::monostate, NamespaceData, ClassData> data;
-
-    size_t hashCode() { return cxx::hashCode(name); }
-
-    bool isNamespace() const {
-      return std::holds_alternative<NamespaceData>(data);
-    }
-
-    bool isClass() const { return std::holds_alternative<ClassData>(data); }
-  };
-
-  class Scope {
-    std::vector<Symbol*> symbols_;
-    std::vector<Symbol*> buckets_;
-
-   public:
-    auto begin() const { return symbols_.begin(); }
-
-    auto end() const { return symbols_.end(); }
-
-    Symbol* find(const Name& name) const {
-      if (symbols_.empty()) return nullptr;
-      const auto h = hashCode(name) % buckets_.size();
-      for (auto sym = buckets_[h]; sym; sym = sym->next) {
-        if (sym->name == name) return sym;
-      }
-      return nullptr;
-    }
-
-    void add(Symbol* symbol) {
-      symbol->index = symbols_.size();
-      symbols_.push_back(symbol);
-      if (symbols_.size() < (buckets_.size() * 0.6)) {
-        const auto h = symbol->hashCode() % buckets_.size();
-        symbol->next = buckets_[h];
-        buckets_[h] = symbol;
-      } else {
-        rehash();
-      }
-    }
-
-    void rehash() {
-      buckets_ =
-          std::vector<Symbol*>(buckets_.empty() ? 8 : buckets_.size() * 2);
-      for (auto symbol : symbols_) {
-        const auto h = symbol->hashCode() % buckets_.size();
-        symbol->next = buckets_[h];
-        buckets_[h] = symbol;
-      }
-    }
-  };
-
-  class DeclarativeRegion {
-   public:
-    DeclarativeRegion* enclosing;
-    Scope scope;
-
-    explicit DeclarativeRegion(DeclarativeRegion* enclosing)
-        : enclosing(enclosing) {}
-
-    void dump(std::ostream& out, int depth = 0) {
-      std::string ind(depth * 2, ' ');
-      for (auto sym : scope) {
-        if (auto ns = std::get_if<NamespaceData>(&sym->data)) {
-          fmt::print("{}- namespace {}\n", ind, toString(sym->name));
-          ns->region->dump(out, depth + 1);
-        } else if (auto udt = std::get_if<ClassData>(&sym->data)) {
-          fmt::print("{}- class {}\n", ind, toString(sym->name));
-          udt->region->dump(out, depth + 1);
-        }
-      }
-    }
-
-    struct Context {
-      Context(const Context&) = delete;
-      Context& operator=(const Context&) = delete;
-
-      Parser* p;
-      DeclarativeRegion* savedRegion_;
-
-      explicit Context(Parser* p) : p(p), savedRegion_(p->currentRegion_) {}
-
-      ~Context() { p->currentRegion_ = savedRegion_; }
-
-      void enter(DeclarativeRegion* region = nullptr) {
-        if (!region) region = p->newDeclarativeRegion(savedRegion_);
-
-        p->currentRegion_ = region;
-      }
-
-      void leave() { p->currentRegion_ = savedRegion_; }
-    };
-  };
-
-  DeclarativeRegion* newDeclarativeRegion(DeclarativeRegion* enclosing) {
-    return &regions_.emplace_front(DeclarativeRegion(enclosing));
-  }
-
-  Symbol* newSymbol() { return &symbols_.emplace_front(); }
+class Parser {
+ public:
+  bool yyparse(TranslationUnit* unit, const std::function<void()>& consume);
 
   enum struct Prec {
     kLogicalOr,
@@ -165,6 +54,9 @@ struct Parser {
 
   static Prec prec(TokenKind tk);
 
+  struct DeclSpecs;
+  struct TemplArgContext;
+
   struct DeclaratorId {};
   struct NestedDeclarator {};
   struct PtrDeclarator {};
@@ -178,31 +70,6 @@ struct Parser {
   using Declarator = std::vector<DeclaratorComponent>;
 
   bool isFunctionDeclarator(const Declarator& decl) const;
-
-  struct DeclSpecs;
-  struct TemplArgContext;
-
-  bool match(TokenKind tk) {
-    if (yytoken() != tk) return false;
-    yyconsume();
-    return true;
-  }
-
-  bool expect(TokenKind tk) {
-    if (match(tk)) return true;
-    parse_error("expected '{}'", Token::spell(tk));
-    return false;
-  }
-
-  uint32_t yyconsume() { return yycursor++; }
-
-  void yyrewind(uint32_t i) { yycursor = i; }
-
-  TokenKind yytoken(int la = 0);
-
-  const Token& LA(int n = 0) const;
-
-  bool yyparse(TranslationUnit* unit, const std::function<void()>& consume);
 
   template <typename... Args>
   bool parse_warn(const std::string_view& format, const Args&... args) {
@@ -243,8 +110,6 @@ struct Parser {
   bool parse_template_name(Name& name);
   bool parse_literal();
   bool parse_translation_unit(UnitAST*& yyast);
-  bool parse_enter(DeclarativeRegion::Context& context);
-  bool parse_leave(DeclarativeRegion::Context& context);
   bool parse_module_head();
   bool parse_module_unit(UnitAST*& yyast);
   bool parse_top_level_declaration_seq(UnitAST*& yyast);
@@ -258,7 +123,6 @@ struct Parser {
   bool parse_qualified_id();
   bool parse_nested_name_specifier();
   bool parse_start_of_nested_name_specifier(Name& id);
-  bool parse_nested_name_specifier(DeclarativeRegion*& region);
   bool parse_lambda_expression(ExpressionAST*& yyast);
   bool parse_lambda_introducer();
   bool parse_lambda_declarator();
@@ -431,10 +295,6 @@ struct Parser {
   bool parse_enumerator();
   bool parse_using_enum_declaration(DeclarationAST*& yyast);
   bool parse_namespace_definition(DeclarationAST*& yyast);
-  bool parse_enter_named_namespace_definition(
-      DeclarativeRegion::Context& context, uint32_t name);
-  bool parse_enter_unnamed_namespace_definition(
-      DeclarativeRegion::Context& region);
   bool parse_namespace_body();
   bool parse_namespace_alias_definition(DeclarationAST*& yyast);
   bool parse_qualified_namespace_specifier();
@@ -469,14 +329,11 @@ struct Parser {
   bool parse_global_module_fragment();
   bool parse_private_module_fragment();
   bool parse_class_specifier();
-  bool parse_enter_class_specifier(DeclarativeRegion::Context& region,
-                                   DeclarativeRegion* enclosingRegion,
-                                   Name& className, Symbol*& classSymbol);
-  bool parse_leave_class_specifier(Symbol* classSymbol, uint32_t start);
+  bool parse_leave_class_specifier(uint32_t start);
   bool parse_reject_class_specifier(uint32_t start);
   bool parse_class_body();
-  bool parse_class_head(DeclarativeRegion*& region, Name& name);
-  bool parse_class_head_name(DeclarativeRegion*& region, Name& name);
+  bool parse_class_head(Name& name);
+  bool parse_class_head_name(Name& name);
   bool parse_class_virt_specifier();
   bool parse_class_key();
   bool parse_member_specification(DeclarationAST*& yyast);
@@ -538,23 +395,40 @@ struct Parser {
   bool parse_identifier_list();
 
  private:
+  bool match(TokenKind tk) {
+    if (yytoken() != tk) return false;
+    yyconsume();
+    return true;
+  }
+
+  bool expect(TokenKind tk) {
+    if (match(tk)) return true;
+    parse_error("expected '{}'", Token::spell(tk));
+    return false;
+  }
+
+  uint32_t yyconsume() { return yycursor++; }
+
+  void yyrewind(uint32_t i) { yycursor = i; }
+
+  TokenKind yytoken(int la = 0);
+
+  const Token& LA(int n = 0) const;
+
+ private:
   TranslationUnit* unit = nullptr;
   Arena* pool = nullptr;
   Control* control = nullptr;
   bool skip_function_body = false;
   std::unordered_map<uint32_t, std::tuple<uint32_t, bool>> class_specifiers_;
   std::unordered_map<uint32_t, std::tuple<uint32_t, bool>> template_arguments_;
-  std::unordered_map<uint32_t, std::tuple<uint32_t, bool, DeclarativeRegion*>>
+  std::unordered_map<uint32_t, std::tuple<uint32_t, bool>>
       nested_name_specifiers_;
-  DeclarativeRegion* currentRegion_ = nullptr;
-  std::forward_list<DeclarativeRegion> regions_;
-  std::forward_list<Symbol> symbols_;
   bool module_unit = false;
   const Identifier* module_id = nullptr;
   const Identifier* import_id = nullptr;
   const Identifier* final_id = nullptr;
   const Identifier* override_id = nullptr;
-  DeclarativeRegion* globalRegion = nullptr;
   int templArgDepth = 0;
   uint32_t lastErrorCursor = 0;
   uint32_t yycursor = 0;

@@ -29,10 +29,8 @@
 #include <variant>
 
 #include "arena.h"
-#include "ast.h"
 #include "control.h"
 #include "token.h"
-#include "translation-unit.h"
 
 namespace cxx {
 
@@ -338,16 +336,6 @@ bool Parser::parse_translation_unit(UnitAST*& yyast) {
   return true;
 }
 
-bool Parser::parse_enter(DeclarativeRegion::Context& context) {
-  context.enter();
-  return true;
-}
-
-bool Parser::parse_leave(DeclarativeRegion::Context& context) {
-  context.leave();
-  return true;
-}
-
 bool Parser::parse_module_head() {
   const auto start = yycursor;
   const auto has_export = match(TokenKind::T_EXPORT);
@@ -361,27 +349,21 @@ bool Parser::parse_module_unit(UnitAST*& yyast) {
 
   if (!parse_module_head()) return false;
 
-  DeclarativeRegion::Context region(this);
-
-  globalRegion = newDeclarativeRegion(nullptr);
-  region.enter(globalRegion);
-
   parse_global_module_fragment();
+
   if (!parse_module_declaration()) return false;
+
   parse_declaration_seq();
+
   parse_private_module_fragment();
+
   expect(TokenKind::T_EOF_SYMBOL);
+
   return true;
 }
 
 bool Parser::parse_top_level_declaration_seq(UnitAST*& yyast) {
   module_unit = false;
-
-  DeclarativeRegion::Context region(this);
-
-  globalRegion = newDeclarativeRegion(nullptr);
-
-  region.enter(globalRegion);
 
   bool skipping = false;
 
@@ -539,12 +521,6 @@ bool Parser::parse_qualified_id() {
   return false;
 }
 
-bool Parser::parse_nested_name_specifier() {
-  DeclarativeRegion* region = nullptr;
-  return parse_nested_name_specifier(region);
-  return true;
-}
-
 bool Parser::parse_start_of_nested_name_specifier(Name& id) {
   if (match(TokenKind::T_COLON_COLON)) return true;
 
@@ -563,15 +539,14 @@ bool Parser::parse_start_of_nested_name_specifier(Name& id) {
   return false;
 }
 
-bool Parser::parse_nested_name_specifier(DeclarativeRegion*& region) {
+bool Parser::parse_nested_name_specifier() {
   const auto start = yycursor;
 
   auto it = nested_name_specifiers_.find(start);
 
   if (it != nested_name_specifiers_.end()) {
-    auto [cursor, parsed, result] = it->second;
+    auto [cursor, parsed] = it->second;
     yyrewind(cursor);
-    region = result;
     return parsed;
   }
 
@@ -579,20 +554,14 @@ bool Parser::parse_nested_name_specifier(DeclarativeRegion*& region) {
     Parser* p;
     uint32_t start;
     bool parsed = false;
-    DeclarativeRegion* region = nullptr;
     Context(Parser* p) : p(p), start(p->yycursor) {}
     ~Context() {
-      p->nested_name_specifiers_.emplace(
-          start, std::make_tuple(p->yycursor, parsed, region));
+      p->nested_name_specifiers_.emplace(start,
+                                         std::make_tuple(p->yycursor, parsed));
     }
   };
 
   Context context(this);
-
-  Symbol* sym = nullptr;
-
-  region = currentRegion_;
-
   Name id;
 
   if (!parse_start_of_nested_name_specifier(id)) return false;
@@ -613,20 +582,18 @@ bool Parser::parse_nested_name_specifier(DeclarativeRegion*& region) {
     }
   }
   context.parsed = true;
-  context.region = region;
   return true;
 }
 
 bool Parser::parse_lambda_expression(ExpressionAST*& yyast) {
   if (!parse_lambda_introducer()) return false;
 
-  DeclarativeRegion::Context region(this);
-
   if (match(TokenKind::T_LESS)) {
-    parse_enter(region);
     if (!parse_template_parameter_list())
       parse_error("expected a template paramter");
+
     expect(TokenKind::T_GREATER);
+
     parse_requires_clause();
   }
 
@@ -1861,13 +1828,9 @@ bool Parser::parse_expression_statement(StatementAST*& yyast) {
 }
 
 bool Parser::parse_compound_statement(StatementAST*& yyast) {
-  DeclarativeRegion::Context region(this);
-
   bool skipping = false;
 
   if (!match(TokenKind::T_LBRACE)) return false;
-
-  parse_enter(region);
 
   while (auto tk = LA()) {
     if (yytoken() == TokenKind::T_RBRACE) break;
@@ -2140,11 +2103,11 @@ bool Parser::parse_maybe_module() {
 
   match(TokenKind::T_EXPORT);
 
-  const auto module = parse_module_keyword();
+  const auto is_module = parse_module_keyword();
 
   yyrewind(start);
 
-  return module;
+  return is_module;
 }
 
 bool Parser::parse_declaration(DeclarationAST*& yyast) {
@@ -2933,10 +2896,6 @@ bool Parser::parse_noptr_declarator(Declarator& decl) {
 bool Parser::parse_parameters_and_qualifiers() {
   if (!match(TokenKind::T_LPAREN)) return false;
 
-  DeclarativeRegion::Context region(this);
-
-  parse_enter(region);
-
   if (!match(TokenKind::T_RPAREN)) {
     if (!parse_parameter_declaration_clause()) return false;
 
@@ -3384,10 +3343,6 @@ bool Parser::parse_enum_specifier() {
   if (!match(TokenKind::T_LBRACE)) return false;
 
   if (!match(TokenKind::T_RBRACE)) {
-    DeclarativeRegion::Context region(this);
-
-    parse_enter(region);
-
     parse_enumerator_list();
 
     match(TokenKind::T_COMMA);
@@ -3539,61 +3494,10 @@ bool Parser::parse_namespace_definition(DeclarationAST*& yyast) {
 
   expect(TokenKind::T_LBRACE);
 
-  DeclarativeRegion::Context region(this);
-
-  switch (kind) {
-    case NamespaceKind::kAnonymous:
-      parse_enter_unnamed_namespace_definition(region);
-      break;
-
-    case NamespaceKind::kNamed:
-      parse_enter_named_namespace_definition(region, namespace_name_token);
-      break;
-
-    case NamespaceKind::kNested:
-      parse_enter(region);  // ### TODO
-      break;
-  }  // switch
-
-  parse_enter(region);
-
   parse_namespace_body();
 
   expect(TokenKind::T_RBRACE);
 
-  return true;
-}
-
-bool Parser::parse_enter_named_namespace_definition(
-    DeclarativeRegion::Context& context, uint32_t name) {
-  const auto id = Name(unit->identifier(name));
-
-  Symbol* ns = currentRegion_->scope.find(id);
-
-  for (; ns; ns = ns->next) {
-    if (ns->name == id && ns->isNamespace()) break;
-  }
-  if (!ns) {
-    ns = newSymbol();
-    ns->name = id;
-    NamespaceData data;
-    data.region = newDeclarativeRegion(currentRegion_);
-    ns->data = data;
-    currentRegion_->scope.add(ns);
-  }
-
-  context.enter(std::get<NamespaceData>(ns->data).region);
-
-  return true;
-}
-
-bool Parser::parse_enter_unnamed_namespace_definition(
-    DeclarativeRegion::Context& region) {
-  auto ns = newSymbol();
-  NamespaceData data;
-  data.region = newDeclarativeRegion(currentRegion_);
-  ns->data = data;
-  currentRegion_->scope.add(ns);
   return true;
 }
 
@@ -4072,15 +3976,9 @@ bool Parser::parse_class_specifier() {
     return parsed;
   }
 
-  DeclarativeRegion::Context region(this);
-
-  DeclarativeRegion* enclosingRegion = nullptr;
-
-  Symbol* classSymbol = nullptr;
-
   Name className;
 
-  if (!parse_class_head(enclosingRegion, className)) {
+  if (!parse_class_head(className)) {
     parse_reject_class_specifier(start);
     return false;
   }
@@ -4090,43 +3988,18 @@ bool Parser::parse_class_specifier() {
     return false;
   }
 
-  parse_enter_class_specifier(region, enclosingRegion, className, classSymbol);
-
   if (!match(TokenKind::T_RBRACE)) {
     if (!parse_class_body()) parse_error("expected class body");
 
     expect(TokenKind::T_RBRACE);
   }
 
-  parse_leave_class_specifier(classSymbol, start);
+  parse_leave_class_specifier(start);
 
   return true;
 }
 
-bool Parser::parse_enter_class_specifier(DeclarativeRegion::Context& region,
-                                         DeclarativeRegion* enclosingRegion,
-                                         Name& className,
-                                         Symbol*& classSymbol) {
-  if (!enclosingRegion) {
-    parse_error("unresolved nested name specifier");
-    enclosingRegion = currentRegion_;
-  }
-
-  classSymbol = newSymbol();
-  classSymbol->name = className;
-  enclosingRegion->scope.add(classSymbol);
-
-  ClassData classData;
-  classData.lexicalRegion = currentRegion_;
-  classData.region = newDeclarativeRegion(enclosingRegion);
-  classSymbol->data = classData;
-  region.enter(classData.region);
-
-  return true;
-}
-
-bool Parser::parse_leave_class_specifier(Symbol* classSymbol, uint32_t start) {
-  get_if<ClassData>(&classSymbol->data)->isComplete = true;
+bool Parser::parse_leave_class_specifier(uint32_t start) {
   class_specifiers_.emplace(start, std::make_tuple(yycursor, true));
   return true;
 }
@@ -4160,12 +4033,12 @@ bool Parser::parse_class_body() {
   return true;
 }
 
-bool Parser::parse_class_head(DeclarativeRegion*& region, Name& name) {
+bool Parser::parse_class_head(Name& name) {
   if (!parse_class_key()) return false;
 
   parse_attribute_specifier_seq();
 
-  if (parse_class_head_name(region, name)) {
+  if (parse_class_head_name(name)) {
     parse_class_virt_specifier();
   }
 
@@ -4174,14 +4047,12 @@ bool Parser::parse_class_head(DeclarativeRegion*& region, Name& name) {
   return true;
 }
 
-bool Parser::parse_class_head_name(DeclarativeRegion*& region, Name& name) {
+bool Parser::parse_class_head_name(Name& name) {
   const auto start = yycursor;
 
-  if (!parse_nested_name_specifier(region)) yyrewind(start);
+  if (!parse_nested_name_specifier()) yyrewind(start);
 
   if (!parse_class_name(name)) return false;
-
-  region = currentRegion_;
 
   return true;
 }
@@ -4661,10 +4532,6 @@ bool Parser::parse_template_head() {
   if (!match(TokenKind::T_TEMPLATE)) return false;
 
   if (!match(TokenKind::T_LESS)) return false;
-
-  DeclarativeRegion::Context region(this);
-
-  parse_enter(region);
 
   if (!match(TokenKind::T_GREATER)) {
     if (!parse_template_parameter_list())
