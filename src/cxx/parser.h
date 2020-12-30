@@ -323,6 +323,12 @@ struct Parser {
     return false;
   }
 
+  uint32_t yyconsume() { return yycursor++; }
+
+  void yyrewind(uint32_t i) { yycursor = i; }
+
+  TokenKind yytoken(int la = 0);
+
   bool parse_error();
   bool parse_warn();
   bool parse_id(const Identifier* id);
@@ -653,29 +659,7 @@ struct Parser {
   const Identifier* final_id = nullptr;
   const Identifier* override_id = nullptr;
   DeclarativeRegion* globalRegion = nullptr;
-
-  bool yyinvalid = true;
-  TokenKind yytok{};
-  inline TokenKind yytoken() {
-    if (yyinvalid) {
-      yytok = yytoken(0);
-      yyinvalid = false;
-    }
-    return yytok;
-  }
-  inline void yyconsume() {
-    ++yycursor;
-    yyinvalid = true;
-  }
-  inline void yyrewind(int i) {
-    if (yycursor == i) return;
-    yycursor = i;
-    yyinvalid = true;
-  }
-  TokenKind yytoken(int index);
-
-  int yydepth = -1;
-  unsigned yycursor = 0;
+  uint32_t yycursor = 0;
 };
 
 }  // namespace cxx

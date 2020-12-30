@@ -36,7 +36,7 @@
 
 namespace cxx {
 
-TokenKind Parser::yytoken(int n) { return unit->tokenKind(yycursor + n); }
+TokenKind Parser::yytoken(int la) { return unit->tokenKind(yycursor + la); }
 
 bool yyparse(TranslationUnit* unit, const std::function<void()>& consume) {
   Parser p;
@@ -46,7 +46,6 @@ bool yyparse(TranslationUnit* unit, const std::function<void()>& consume) {
 bool Parser::yyparse(TranslationUnit* u, const std::function<void()>& consume) {
   unit = u;
   control = unit->control();
-  yydepth = -1;
   yycursor = 1;
 
   Arena arena;
