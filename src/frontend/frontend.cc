@@ -47,13 +47,12 @@ std::string readAll(const std::string& fileName) {
   return readAll(fileName, stream);
 }
 
-bool parseFile(const std::string& fileName,
-               const std::function<void(TranslationUnit*)>& consume) {
+bool parseFile(const std::string& fileName) {
   Control control;
   TranslationUnit unit(&control);
   unit.setFileName(fileName);
   unit.setSource(readAll(fileName));
-  return unit.parse([&unit, consume]() { consume(&unit); });
+  return unit.parse();
 }
 
 }  // namespace cxx
@@ -86,7 +85,7 @@ int main(int argc, char* argv[]) {
     return EXIT_FAILURE;
   }
 
-  for (auto&& fileName : inputFiles) {
+  for (const auto& fileName : inputFiles) {
     if (dumpTokens) {
       const auto source = readAll(fileName);
       Lexer lexer(source);
@@ -111,7 +110,7 @@ int main(int argc, char* argv[]) {
       continue;
     }
 
-    parseFile(fileName, [=](TranslationUnit* unit) {});
+    parseFile(fileName);
   }
 
   return EXIT_SUCCESS;

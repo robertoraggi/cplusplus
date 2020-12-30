@@ -24,13 +24,12 @@
 
 #include "control.h"
 #include "lexer.h"
+#include "parser.h"
 
 // generated keyword classifier
 #include "keywords-priv.h"
 
 namespace cxx {
-
-bool yyparse(TranslationUnit* unit, const std::function<void()>& consume);
 
 void TranslationUnit::initializeLineMap() {
   // ### remove
@@ -113,9 +112,10 @@ void TranslationUnit::tokenize() {
   } while (kind != TokenKind::T_EOF_SYMBOL);
 }
 
-bool TranslationUnit::parse(const std::function<void()>& consume) {
+bool TranslationUnit::parse() {
   if (tokens_.empty()) tokenize();
-  return yyparse(this, consume);
+  Parser parse;
+  return parse(this);
 }
 
 }  // namespace cxx

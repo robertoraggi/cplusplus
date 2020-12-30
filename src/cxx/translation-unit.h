@@ -140,9 +140,9 @@ class TranslationUnit {
 
   const Identifier* identifier(unsigned index) const;
 
-  // front end
   void tokenize();
-  bool parse(const std::function<void()>& consume = nullptr);
+
+  bool parse();
 
  private:
   void initializeLineMap();

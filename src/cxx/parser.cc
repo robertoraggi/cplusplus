@@ -129,19 +129,14 @@ struct Parser::TemplArgContext {
   ~TemplArgContext() { --p->templArgDepth; }
 };
 
-TokenKind Parser::yytoken(int la) { return unit->tokenKind(yycursor + la); }
+const Token& Parser::LA(int n) const { return unit->tokenAt(cursor_ + n); }
 
-const Token& Parser::LA(int la) const { return unit->tokenAt(yycursor + la); }
+bool Parser::operator()(TranslationUnit* unit) { return parse(unit); }
 
-bool yyparse(TranslationUnit* unit, const std::function<void()>& consume) {
-  Parser p;
-  return p.yyparse(unit, consume);
-}
-
-bool Parser::yyparse(TranslationUnit* u, const std::function<void()>& consume) {
+bool Parser::parse(TranslationUnit* u) {
   unit = u;
   control = unit->control();
-  yycursor = 1;
+  cursor_ = 1;
 
   Arena arena;
   pool = &arena;
@@ -152,48 +147,47 @@ bool Parser::yyparse(TranslationUnit* u, const std::function<void()>& consume) {
   override_id = control->getIdentifier("override");
 
   UnitAST* ast = nullptr;
-  auto parsed = parse_translation_unit(ast);
 
-  if (consume) consume();
+  auto parsed = parse_translation_unit(ast);
 
   return parsed;
 }
 
 bool Parser::parse_id(const Identifier* id) {
   if (!match(TokenKind::T_IDENTIFIER)) return false;
-  return unit->identifier(yycursor - 1) == id;
+  return unit->identifier(cursor_ - 1) == id;
 }
 
 bool Parser::parse_nospace() {
-  const auto& tk = unit->tokenAt(yycursor);
+  const auto& tk = unit->tokenAt(cursor_);
   return !tk.leadingSpace() && !tk.startOfLine();
 }
 
 bool Parser::parse_greater_greater() {
-  const auto saved = yycursor;
+  const auto saved = cursor_;
   if (match(TokenKind::T_GREATER) && parse_nospace() &&
       match(TokenKind::T_GREATER))
     return true;
-  yyrewind(saved);
+  rewind(saved);
   return false;
 }
 
 bool Parser::parse_greater_greater_equal() {
-  const auto saved = yycursor;
+  const auto saved = cursor_;
   if (match(TokenKind::T_GREATER) && parse_nospace() &&
       match(TokenKind::T_GREATER) && parse_nospace() &&
       match(TokenKind::T_EQUAL))
     return true;
-  yyrewind(saved);
+  rewind(saved);
   return false;
 }
 
 bool Parser::parse_greater_equal() {
-  const auto saved = yycursor;
+  const auto saved = cursor_;
   if (match(TokenKind::T_GREATER) && parse_nospace() &&
       match(TokenKind::T_EQUAL))
     return true;
-  yyrewind(saved);
+  rewind(saved);
   return false;
 }
 
@@ -212,7 +206,7 @@ bool Parser::parse_import_keyword() {
   if (!module_unit) return false;
   if (match(TokenKind::T_IMPORT)) return true;
   if (!parse_id(import_id)) return false;
-  unit->setTokenKind(yycursor - 1, TokenKind::T_IMPORT);
+  unit->setTokenKind(cursor_ - 1, TokenKind::T_IMPORT);
   return true;
 }
 
@@ -223,7 +217,7 @@ bool Parser::parse_module_keyword() {
 
   if (!parse_id(module_id)) return false;
 
-  unit->setTokenKind(yycursor - 1, TokenKind::T_MODULE);
+  unit->setTokenKind(cursor_ - 1, TokenKind::T_MODULE);
   return true;
 }
 
@@ -232,11 +226,11 @@ bool Parser::parse_final() { return parse_id(final_id); }
 bool Parser::parse_override() { return parse_id(override_id); }
 
 bool Parser::parse_typedef_name() {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   if (parse_simple_template_id()) return true;
 
-  yyrewind(start);
+  rewind(start);
 
   if (!match(TokenKind::T_IDENTIFIER)) return false;
 
@@ -244,11 +238,11 @@ bool Parser::parse_typedef_name() {
 }
 
 bool Parser::parse_namespace_name() {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   if (parse_namespace_alias()) return true;
 
-  yyrewind(start);
+  rewind(start);
 
   if (!match(TokenKind::T_IDENTIFIER)) return false;
 
@@ -270,11 +264,11 @@ bool Parser::parse_class_name() {
 }
 
 bool Parser::parse_class_name(Name& name) {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   if (parse_simple_template_id()) return true;
 
-  yyrewind(start);
+  rewind(start);
 
   return parse_name_id(name);
 }
@@ -282,7 +276,7 @@ bool Parser::parse_class_name(Name& name) {
 bool Parser::parse_name_id(Name& name) {
   if (!match(TokenKind::T_IDENTIFIER)) return false;
 
-  name = unit->identifier(yycursor - 1);
+  name = unit->identifier(cursor_ - 1);
   return true;
 }
 
@@ -306,7 +300,7 @@ bool Parser::parse_template_name(Name& name) {
 }
 
 bool Parser::parse_literal() {
-  switch (yytoken()) {
+  switch (TokenKind(LA())) {
     case TokenKind::T_TRUE:
     case TokenKind::T_FALSE:
     case TokenKind::T_NULLPTR:
@@ -315,7 +309,7 @@ bool Parser::parse_literal() {
     case TokenKind::T_FLOATING_POINT_LITERAL:
     case TokenKind::T_USER_DEFINED_LITERAL:
     case TokenKind::T_USER_DEFINED_STRING_LITERAL:
-      yyconsume();
+      consumeToken();
       return true;
 
     case TokenKind::T_STRING_LITERAL:
@@ -337,10 +331,10 @@ bool Parser::parse_translation_unit(UnitAST*& yyast) {
 }
 
 bool Parser::parse_module_head() {
-  const auto start = yycursor;
+  const auto start = cursor_;
   const auto has_export = match(TokenKind::T_EXPORT);
   const auto is_module = parse_id(module_id);
-  yyrewind(start);
+  rewind(start);
   return is_module;
 }
 
@@ -369,21 +363,21 @@ bool Parser::parse_top_level_declaration_seq(UnitAST*& yyast) {
 
   DeclarationAST* d1 = nullptr;
 
-  while (yytoken() != TokenKind::T_EOF_SYMBOL) {
-    auto saved = yycursor;
+  while (LA()) {
+    auto saved = cursor_;
     DeclarationAST* declaration = nullptr;
     if (parse_declaration(declaration)) {
       skipping = false;
     } else {
       parse_skip_top_level_declaration(skipping);
-      if (yycursor == saved) yyconsume();
+      if (cursor_ == saved) consumeToken();
     }
   }
   return true;
 }
 
 bool Parser::parse_skip_top_level_declaration(bool& skipping) {
-  if (yytoken() == TokenKind::T_EOF_SYMBOL) return false;
+  if (!LA()) return false;
   if (!skipping) parse_error("expected a declaration");
   skipping = true;
   return true;
@@ -391,26 +385,26 @@ bool Parser::parse_skip_top_level_declaration(bool& skipping) {
 
 bool Parser::parse_declaration_seq() {
   bool skipping = false;
-  while (yytoken() != TokenKind::T_EOF_SYMBOL) {
-    if (yytoken() == TokenKind::T_RBRACE) break;
+  while (LA()) {
+    if (LA().is(TokenKind::T_RBRACE)) break;
     if (parse_maybe_module()) break;
-    auto saved = yycursor;
+    auto saved = cursor_;
     DeclarationAST* decl = nullptr;
     if (parse_declaration(decl)) {
       skipping = false;
     } else {
       parse_skip_declaration(skipping);
-      if (yycursor == saved) yyconsume();
+      if (cursor_ == saved) consumeToken();
     }
   }
   return true;
 }
 
 bool Parser::parse_skip_declaration(bool& skipping) {
-  if (yytoken() == TokenKind::T_RBRACE) return false;
-  if (yytoken() == TokenKind::T_MODULE) return false;
-  if (module_unit && yytoken() == TokenKind::T_EXPORT) return false;
-  if (yytoken() == TokenKind::T_IMPORT) return false;
+  if (LA().is(TokenKind::T_RBRACE)) return false;
+  if (LA().is(TokenKind::T_MODULE)) return false;
+  if (module_unit && LA().is(TokenKind::T_EXPORT)) return false;
+  if (LA().is(TokenKind::T_IMPORT)) return false;
   if (!skipping) parse_error("expected a declaration");
   skipping = true;
   return true;
@@ -421,17 +415,17 @@ bool Parser::parse_primary_expression(ExpressionAST*& yyast) {
     return true;
   else if (parse_literal())
     return true;
-  else if (yytoken() == TokenKind::T_LBRACKET)
+  else if (LA().is(TokenKind::T_LBRACKET))
     return parse_lambda_expression(yyast);
-  else if (yytoken() == TokenKind::T_REQUIRES)
+  else if (LA().is(TokenKind::T_REQUIRES))
     return parse_requires_expression(yyast);
-  else if (yytoken() == TokenKind::T_LPAREN) {
-    const auto saved = yycursor;
+  else if (LA().is(TokenKind::T_LPAREN)) {
+    const auto saved = cursor_;
 
     if (parse_fold_expression(yyast)) return true;
 
-    yyrewind(saved);
-    yyconsume();
+    rewind(saved);
+    consumeToken();
 
     ExpressionAST* expression = nullptr;
 
@@ -446,20 +440,20 @@ bool Parser::parse_primary_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_id_expression() {
-  const auto start = yycursor;
+  const auto start = cursor_;
   if (parse_qualified_id()) return true;
-  yyrewind(start);
+  rewind(start);
   return parse_unqualified_id();
 }
 
 bool Parser::parse_maybe_template_id() {
-  const auto start = yycursor;
+  const auto start = cursor_;
   const auto blockErrors = unit->blockErrors(true);
   auto template_id = parse_template_id();
-  const auto tk = yytoken();
+  const auto& tk = LA();
   unit->blockErrors(blockErrors);
   if (!template_id) return false;
-  switch (tk) {
+  switch (TokenKind(tk)) {
     case TokenKind::T_COMMA:
     case TokenKind::T_GREATER:
     case TokenKind::T_LPAREN:
@@ -482,22 +476,22 @@ bool Parser::parse_maybe_template_id() {
 }
 
 bool Parser::parse_unqualified_id() {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   if (parse_maybe_template_id()) return true;
 
-  yyrewind(start);
+  rewind(start);
 
   if (match(TokenKind::T_TILDE)) {
     if (parse_decltype_specifier()) return true;
     return parse_type_name();
   }
 
-  if (yytoken() == TokenKind::T_OPERATOR) {
+  if (LA().is(TokenKind::T_OPERATOR)) {
     if (parse_operator_function_id()) return true;
-    yyrewind(start);
+    rewind(start);
     if (parse_conversion_function_id()) return true;
-    yyrewind(start);
+    rewind(start);
     return parse_literal_operator_id();
   }
 
@@ -527,11 +521,11 @@ bool Parser::parse_start_of_nested_name_specifier(Name& id) {
   if (parse_decltype_specifier() && match(TokenKind::T_COLON_COLON))
     return true;
 
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   if (parse_name_id(id) && match(TokenKind::T_COLON_COLON)) return true;
 
-  yyrewind(start);
+  rewind(start);
 
   if (parse_simple_template_id(id) && match(TokenKind::T_COLON_COLON))
     return true;
@@ -540,13 +534,13 @@ bool Parser::parse_start_of_nested_name_specifier(Name& id) {
 }
 
 bool Parser::parse_nested_name_specifier() {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   auto it = nested_name_specifiers_.find(start);
 
   if (it != nested_name_specifiers_.end()) {
     auto [cursor, parsed] = it->second;
-    yyrewind(cursor);
+    rewind(cursor);
     return parsed;
   }
 
@@ -554,10 +548,10 @@ bool Parser::parse_nested_name_specifier() {
     Parser* p;
     uint32_t start;
     bool parsed = false;
-    Context(Parser* p) : p(p), start(p->yycursor) {}
+    Context(Parser* p) : p(p), start(p->cursor_) {}
     ~Context() {
       p->nested_name_specifiers_.emplace(start,
-                                         std::make_tuple(p->yycursor, parsed));
+                                         std::make_tuple(p->cursor_, parsed));
     }
   };
 
@@ -567,16 +561,16 @@ bool Parser::parse_nested_name_specifier() {
   if (!parse_start_of_nested_name_specifier(id)) return false;
 
   while (true) {
-    const auto saved = yycursor;
+    const auto saved = cursor_;
     if (parse_name_id(id) && match(TokenKind::T_COLON_COLON)) {
       //
     } else {
-      yyrewind(saved);
+      rewind(saved);
       const auto has_template = match(TokenKind::T_TEMPLATE);
       if (parse_simple_template_id(id) && match(TokenKind::T_COLON_COLON)) {
         //
       } else {
-        yyrewind(saved);
+        rewind(saved);
         break;
       }
     }
@@ -597,7 +591,7 @@ bool Parser::parse_lambda_expression(ExpressionAST*& yyast) {
     parse_requires_clause();
   }
 
-  if (yytoken() != TokenKind::T_LBRACE) {
+  if (LA().isNot(TokenKind::T_LBRACE)) {
     if (!parse_lambda_declarator()) parse_error("expected lambda declarator");
   }
 
@@ -644,12 +638,12 @@ bool Parser::parse_lambda_capture() {
 }
 
 bool Parser::parse_capture_default() {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   if (!match(TokenKind::T_AMP) && !match(TokenKind::T_EQUAL)) return false;
 
-  if (yytoken() != TokenKind::T_COMMA && yytoken() != TokenKind::T_RBRACKET) {
-    yyrewind(start);
+  if (LA().isNot(TokenKind::T_COMMA) && LA().isNot(TokenKind::T_RBRACKET)) {
+    rewind(start);
     return false;
   }
 
@@ -667,11 +661,11 @@ bool Parser::parse_capture_list() {
 }
 
 bool Parser::parse_capture() {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   if (parse_init_capture()) return true;
 
-  yyrewind(start);
+  rewind(start);
 
   return parse_simple_capture();
 }
@@ -752,12 +746,12 @@ bool Parser::parse_fold_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_fold_operator() {
-  switch (yytoken()) {
+  switch (TokenKind(LA())) {
     case TokenKind::T_GREATER:
       if (parse_greater_greater_equal()) return true;
       if (parse_greater_greater()) return true;
       if (parse_greater_equal()) return true;
-      yyconsume();
+      consumeToken();
       return true;
 
     case TokenKind::T_GREATER_GREATER_EQUAL:
@@ -791,7 +785,7 @@ bool Parser::parse_fold_operator() {
     case TokenKind::T_COMMA:
     case TokenKind::T_DOT_STAR:
     case TokenKind::T_MINUS_GREATER_STAR:
-      yyconsume();
+      consumeToken();
       return true;
 
     default:
@@ -802,7 +796,7 @@ bool Parser::parse_fold_operator() {
 bool Parser::parse_requires_expression(ExpressionAST*& yyast) {
   if (!match(TokenKind::T_REQUIRES)) return false;
 
-  if (yytoken() != TokenKind::T_LBRACE) {
+  if (LA().isNot(TokenKind::T_LBRACE)) {
     if (!parse_requirement_parameter_list())
       parse_error("expected a requirement parameter");
   }
@@ -839,17 +833,17 @@ bool Parser::parse_requirement_seq() {
 
   if (!parse_requirement()) return false;
 
-  while (yytoken() != TokenKind::T_EOF_SYMBOL) {
-    if (yytoken() == TokenKind::T_RBRACE) break;
+  while (LA()) {
+    if (LA().is(TokenKind::T_RBRACE)) break;
 
-    const auto before_requirement = yycursor;
+    const auto before_requirement = cursor_;
 
     if (parse_requirement()) {
       skipping = false;
     } else {
       if (!skipping) parse_error("expected a requirement");
       skipping = true;
-      if (yycursor == before_requirement) yyconsume();
+      if (cursor_ == before_requirement) consumeToken();
     }
   }
 
@@ -878,9 +872,9 @@ bool Parser::parse_simple_requirement() {
 bool Parser::parse_type_requirement() {
   if (!match(TokenKind::T_TYPENAME)) return false;
 
-  const auto after_typename = yycursor;
+  const auto after_typename = cursor_;
 
-  if (!parse_nested_name_specifier()) yyrewind(after_typename);
+  if (!parse_nested_name_specifier()) rewind(after_typename);
 
   if (!parse_type_name()) parse_error("expected a type name");
 
@@ -937,7 +931,7 @@ bool Parser::parse_postfix_expression(ExpressionAST*& yyast) {
   if (!parse_start_of_postfix_expression(yyast)) return false;
 
   while (true) {
-    const auto saved = yycursor;
+    const auto saved = cursor_;
     if (parse_member_expression(yyast))
       continue;
     else if (parse_subscript_expression(yyast))
@@ -947,7 +941,7 @@ bool Parser::parse_postfix_expression(ExpressionAST*& yyast) {
     else if (parse_postincr_expression(yyast))
       continue;
     else {
-      yyrewind(saved);
+      rewind(saved);
       break;
     }
   }
@@ -956,7 +950,7 @@ bool Parser::parse_postfix_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_start_of_postfix_expression(ExpressionAST*& yyast) {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   if (parse_cpp_cast_expression(yyast)) return true;
 
@@ -968,7 +962,7 @@ bool Parser::parse_start_of_postfix_expression(ExpressionAST*& yyast) {
 
   if (parse_cpp_type_cast_expression(yyast)) return true;
 
-  yyrewind(start);
+  rewind(start);
   return parse_primary_expression(yyast);
 }
 
@@ -1013,12 +1007,12 @@ bool Parser::parse_postincr_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_cpp_cast_head() {
-  switch (yytoken()) {
+  switch (TokenKind(LA())) {
     case TokenKind::T_CONST_CAST:
     case TokenKind::T_DYNAMIC_CAST:
     case TokenKind::T_REINTERPRET_CAST:
     case TokenKind::T_STATIC_CAST:
-      yyconsume();
+      consumeToken();
       return true;
 
     default:
@@ -1068,12 +1062,12 @@ bool Parser::parse_typeid_expression(ExpressionAST*& yyast) {
 
   expect(TokenKind::T_LPAREN);
 
-  const auto saved = yycursor;
+  const auto saved = cursor_;
 
   if (parse_type_id() && match(TokenKind::T_RPAREN)) {
     //
   } else {
-    yyrewind(saved);
+    rewind(saved);
 
     ExpressionAST* expression = nullptr;
 
@@ -1102,7 +1096,7 @@ bool Parser::parse_typename_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_builtin_function_1() {
-  switch (yytoken()) {
+  switch (TokenKind(LA())) {
     case TokenKind::T___HAS_UNIQUE_OBJECT_REPRESENTATIONS:
     case TokenKind::T___HAS_VIRTUAL_DESTRUCTOR:
     case TokenKind::T___IS_ABSTRACT:
@@ -1119,7 +1113,7 @@ bool Parser::parse_builtin_function_1() {
     case TokenKind::T___IS_TRIVIALLY_COPYABLE:
     case TokenKind::T___IS_TRIVIALLY_DESTRUCTIBLE:
     case TokenKind::T___IS_UNION:
-      yyconsume();
+      consumeToken();
       return true;
 
     default:
@@ -1128,7 +1122,7 @@ bool Parser::parse_builtin_function_1() {
 }
 
 bool Parser::parse_builtin_function_2() {
-  switch (yytoken()) {
+  switch (TokenKind(LA())) {
     case TokenKind::T___IS_BASE_OF:
     case TokenKind::T___IS_CONSTRUCTIBLE:
     case TokenKind::T___IS_CONVERTIBLE_TO:
@@ -1138,7 +1132,7 @@ bool Parser::parse_builtin_function_2() {
     case TokenKind::T___IS_TRIVIALLY_ASSIGNABLE:
     case TokenKind::T___IS_TRIVIALLY_CONSTRUCTIBLE:
     case TokenKind::T___REFERENCE_BINDS_TO_TEMPORARY:
-      yyconsume();
+      consumeToken();
       return true;
 
     default:
@@ -1219,13 +1213,13 @@ bool Parser::parse_sizeof_expression(ExpressionAST*& yyast) {
     return true;
   }
 
-  const auto after_sizeof_op = yycursor;
+  const auto after_sizeof_op = cursor_;
 
   if (match(TokenKind::T_LPAREN)) {
     if (parse_type_id() && match(TokenKind::T_RPAREN)) {
       return true;
     }
-    yyrewind(after_sizeof_op);
+    rewind(after_sizeof_op);
   }
 
   ExpressionAST* expression = nullptr;
@@ -1250,14 +1244,14 @@ bool Parser::parse_alignof_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_unary_operator() {
-  switch (yytoken()) {
+  switch (TokenKind(LA())) {
     case TokenKind::T_STAR:
     case TokenKind::T_AMP:
     case TokenKind::T_PLUS:
     case TokenKind::T_MINUS:
     case TokenKind::T_EXCLAIM:
     case TokenKind::T_TILDE:
-      yyconsume();
+      consumeToken();
       return true;
 
     default:
@@ -1294,35 +1288,35 @@ bool Parser::parse_noexcept_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_new_expression(ExpressionAST*& yyast) {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   const auto has_scope_op = match(TokenKind::T_COLON_COLON);
 
   if (!match(TokenKind::T_NEW)) {
-    yyrewind(start);
+    rewind(start);
     return false;
   }
 
-  const auto after_new_op = yycursor;
+  const auto after_new_op = cursor_;
 
-  if (!parse_new_placement()) yyrewind(after_new_op);
+  if (!parse_new_placement()) rewind(after_new_op);
 
-  const auto after_new_placement = yycursor;
+  const auto after_new_placement = cursor_;
 
   if (match(TokenKind::T_LPAREN) && parse_type_id() &&
       match(TokenKind::T_RPAREN)) {
-    const auto saved = yycursor;
-    if (!parse_new_initializer()) yyrewind(saved);
+    const auto saved = cursor_;
+    if (!parse_new_initializer()) rewind(saved);
     return true;
   }
 
-  yyrewind(after_new_placement);
+  rewind(after_new_placement);
 
   if (!parse_new_type_id()) return false;
 
-  const auto saved = yycursor;
+  const auto saved = cursor_;
 
-  if (!parse_new_initializer()) yyrewind(saved);
+  if (!parse_new_initializer()) rewind(saved);
 
   return true;
 }
@@ -1340,18 +1334,18 @@ bool Parser::parse_new_placement() {
 bool Parser::parse_new_type_id() {
   if (!parse_type_specifier_seq()) return false;
 
-  const auto saved = yycursor;
+  const auto saved = cursor_;
 
-  if (!parse_new_declarator()) yyrewind(saved);
+  if (!parse_new_declarator()) rewind(saved);
 
   return true;
 }
 
 bool Parser::parse_new_declarator() {
   if (parse_ptr_operator()) {
-    auto saved = yycursor;
+    auto saved = cursor_;
 
-    if (!parse_new_declarator()) yyrewind(saved);
+    if (!parse_new_declarator()) rewind(saved);
 
     return true;
   }
@@ -1389,7 +1383,7 @@ bool Parser::parse_noptr_new_declarator() {
 }
 
 bool Parser::parse_new_initializer() {
-  if (yytoken() == TokenKind::T_LBRACE) return parse_braced_init_list();
+  if (LA().is(TokenKind::T_LBRACE)) return parse_braced_init_list();
 
   if (!match(TokenKind::T_LPAREN)) return false;
 
@@ -1403,12 +1397,12 @@ bool Parser::parse_new_initializer() {
 }
 
 bool Parser::parse_delete_expression(ExpressionAST*& yyast) {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   const auto has_scope_op = match(TokenKind::T_COLON_COLON);
 
   if (!match(TokenKind::T_DELETE)) {
-    yyrewind(start);
+    rewind(start);
     return false;
   }
 
@@ -1424,11 +1418,11 @@ bool Parser::parse_delete_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_cast_expression(ExpressionAST*& yyast) {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   if (parse_cast_expression_helper(yyast)) return true;
 
-  yyrewind(start);
+  rewind(start);
 
   return parse_unary_expression(yyast);
 }
@@ -1448,15 +1442,15 @@ bool Parser::parse_cast_expression_helper(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_binary_operator(TokenKind& tk, bool templArg) {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   tk = TokenKind::T_EOF_SYMBOL;
 
-  switch (yytoken()) {
+  switch (TokenKind(LA())) {
     case TokenKind::T_GREATER: {
       if (parse_greater_greater()) {
         if (templArg && templArgDepth >= 2) {
-          yyrewind(start);
+          rewind(start);
           return false;
         }
 
@@ -1470,11 +1464,11 @@ bool Parser::parse_binary_operator(TokenKind& tk, bool templArg) {
       }
 
       if (templArg) {
-        yyrewind(start);
+        rewind(start);
         return false;
       }
 
-      yyconsume();
+      consumeToken();
       tk = TokenKind::T_GREATER;
       return true;
     }
@@ -1497,8 +1491,8 @@ bool Parser::parse_binary_operator(TokenKind& tk, bool templArg) {
     case TokenKind::T_BAR:
     case TokenKind::T_AMP_AMP:
     case TokenKind::T_AMP:
-      tk = unit->tokenKind(yycursor);
-      yyconsume();
+      tk = unit->tokenKind(cursor_);
+      consumeToken();
       return true;
 
     default:
@@ -1509,20 +1503,20 @@ bool Parser::parse_binary_operator(TokenKind& tk, bool templArg) {
 bool Parser::parse_binary_expression(ExpressionAST*& yyast, bool templArg) {
   if (!parse_cast_expression(yyast)) return false;
 
-  const auto saved = yycursor;
+  const auto saved = cursor_;
 
   if (!parse_binary_expression_helper(yyast, Prec::kLogicalOr, templArg))
-    yyrewind(saved);
+    rewind(saved);
 
   return true;
 }
 
 bool Parser::parse_lookahead_binary_operator(TokenKind& tk, bool templArg) {
-  const auto saved = yycursor;
+  const auto saved = cursor_;
 
   const auto has_binop = parse_binary_operator(tk, templArg);
 
-  yyrewind(saved);
+  rewind(saved);
 
   return has_binop;
 }
@@ -1534,14 +1528,14 @@ bool Parser::parse_binary_expression_helper(ExpressionAST*& yyast, Prec minPrec,
   TokenKind op = TokenKind::T_EOF_SYMBOL;
 
   while (parse_lookahead_binary_operator(op, templArg) && prec(op) >= minPrec) {
-    const auto saved = yycursor;
+    const auto saved = cursor_;
 
     ExpressionAST* rhs = nullptr;
 
     parse_binary_operator(op, templArg);
 
     if (!parse_cast_expression(rhs)) {
-      yyrewind(saved);
+      rewind(saved);
       break;
     }
 
@@ -1593,7 +1587,7 @@ bool Parser::parse_conditional_expression(ExpressionAST*& yyast,
 bool Parser::parse_yield_expression(ExpressionAST*& yyast) {
   if (!match(TokenKind::T_CO_YIELD)) return false;
 
-  if (yytoken() == TokenKind::T_LBRACE) {
+  if (LA().is(TokenKind::T_LBRACE)) {
     if (!parse_braced_init_list()) parse_error("expected a braced initializer");
   } else {
     ExpressionAST* expression = nullptr;
@@ -1610,9 +1604,9 @@ bool Parser::parse_throw_expression(ExpressionAST*& yyast) {
 
   ExpressionAST* expression = nullptr;
 
-  const auto saved = yycursor;
+  const auto saved = cursor_;
 
-  if (!parse_assignment_expression(expression)) yyrewind(saved);
+  if (!parse_assignment_expression(expression)) rewind(saved);
 
   return true;
 }
@@ -1635,7 +1629,7 @@ bool Parser::parse_assignment_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_assignment_operator() {
-  switch (yytoken()) {
+  switch (TokenKind(LA())) {
     case TokenKind::T_EQUAL:
     case TokenKind::T_STAR_EQUAL:
     case TokenKind::T_SLASH_EQUAL:
@@ -1647,7 +1641,7 @@ bool Parser::parse_assignment_operator() {
     case TokenKind::T_CARET_EQUAL:
     case TokenKind::T_BAR_EQUAL:
     case TokenKind::T_GREATER_GREATER_EQUAL:
-      yyconsume();
+      consumeToken();
       return true;
 
     case TokenKind::T_GREATER:
@@ -1693,9 +1687,9 @@ bool Parser::parse_statement(StatementAST*& yyast) {
     has_attribute_specifiers = true;
   }
 
-  const auto start = yycursor;
+  const auto start = cursor_;
 
-  switch (yytoken()) {
+  switch (TokenKind(LA())) {
     case TokenKind::T_CASE:
       return parse_case_statement(yyast);
     case TokenKind::T_DEFAULT:
@@ -1706,7 +1700,7 @@ bool Parser::parse_statement(StatementAST*& yyast) {
       return parse_do_statement(yyast);
     case TokenKind::T_FOR:
       if (parse_for_range_statement(yyast)) return true;
-      yyrewind(start);
+      rewind(start);
       return parse_for_statement(yyast);
     case TokenKind::T_IF:
       return parse_if_statement(yyast);
@@ -1727,27 +1721,26 @@ bool Parser::parse_statement(StatementAST*& yyast) {
     case TokenKind::T_LBRACE:
       return parse_compound_statement(yyast);
     default:
-      if (yytoken() == TokenKind::T_IDENTIFIER &&
-          yytoken(1) == TokenKind::T_COLON) {
+      if (LA().is(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_COLON)) {
         return parse_labeled_statement(yyast);
       } else if (parse_declaration_statement(yyast)) {
         return true;
       }
-      yyrewind(start);
+      rewind(start);
       return parse_expression_statement(yyast);
   }  // switch
 }
 
 bool Parser::parse_init_statement(StatementAST*& yyast) {
-  if (yytoken() == TokenKind::T_RPAREN) return false;
+  if (LA().is(TokenKind::T_RPAREN)) return false;
 
-  auto saved = yycursor;
+  auto saved = cursor_;
 
   DeclarationAST* declaration = nullptr;
 
   if (parse_simple_declaration(declaration, false)) return true;
 
-  yyrewind(saved);
+  rewind(saved);
 
   ExpressionAST* expression = nullptr;
 
@@ -1759,7 +1752,7 @@ bool Parser::parse_init_statement(StatementAST*& yyast) {
 }
 
 bool Parser::parse_condition(ExpressionAST*& yyast) {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   parse_attribute_specifier_seq();
 
@@ -1769,7 +1762,7 @@ bool Parser::parse_condition(ExpressionAST*& yyast) {
     }
   }
 
-  yyrewind(start);
+  rewind(start);
 
   return parse_expression(yyast);
 }
@@ -1832,8 +1825,8 @@ bool Parser::parse_compound_statement(StatementAST*& yyast) {
 
   if (!match(TokenKind::T_LBRACE)) return false;
 
-  while (auto tk = LA()) {
-    if (yytoken() == TokenKind::T_RBRACE) break;
+  while (const auto& tk = LA()) {
+    if (LA().is(TokenKind::T_RBRACE)) break;
 
     StatementAST* s = nullptr;
 
@@ -1850,13 +1843,13 @@ bool Parser::parse_compound_statement(StatementAST*& yyast) {
 }
 
 bool Parser::parse_skip_statement(bool& skipping) {
-  if (yytoken() == TokenKind::T_EOF_SYMBOL) return false;
-  if (yytoken() == TokenKind::T_RBRACE) return false;
+  if (!LA()) return false;
+  if (LA().is(TokenKind::T_RBRACE)) return false;
   if (!skipping) parse_error("expected a statement");
-  for (; yytoken() != TokenKind::T_EOF_SYMBOL; yyconsume()) {
-    if (yytoken() == TokenKind::T_SEMICOLON) break;
-    if (yytoken() == TokenKind::T_LBRACE) break;
-    if (yytoken() == TokenKind::T_RBRACE) break;
+  for (; LA(); consumeToken()) {
+    if (LA().is(TokenKind::T_SEMICOLON)) break;
+    if (LA().is(TokenKind::T_LBRACE)) break;
+    if (LA().is(TokenKind::T_RBRACE)) break;
   }
   skipping = true;
   return true;
@@ -1869,11 +1862,11 @@ bool Parser::parse_if_statement(StatementAST*& yyast) {
 
   expect(TokenKind::T_LPAREN);
 
-  auto saved = yycursor;
+  auto saved = cursor_;
 
   StatementAST* initializer = nullptr;
 
-  if (!parse_init_statement(initializer)) yyrewind(saved);
+  if (!parse_init_statement(initializer)) rewind(saved);
 
   ExpressionAST* condition = nullptr;
 
@@ -1901,9 +1894,9 @@ bool Parser::parse_switch_statement(StatementAST*& yyast) {
 
   StatementAST* initializer = nullptr;
 
-  const auto saved = yycursor;
+  const auto saved = cursor_;
 
-  if (!parse_init_statement(initializer)) yyrewind(saved);
+  if (!parse_init_statement(initializer)) rewind(saved);
 
   ExpressionAST* condition = nullptr;
 
@@ -1958,11 +1951,11 @@ bool Parser::parse_for_range_statement(StatementAST*& yyast) {
 
   if (!match(TokenKind::T_LPAREN)) return false;
 
-  const auto saved = yycursor;
+  const auto saved = cursor_;
 
   StatementAST* initializer = nullptr;
 
-  if (!parse_init_statement(initializer)) yyrewind(saved);
+  if (!parse_init_statement(initializer)) rewind(saved);
 
   if (!parse_for_range_declaration()) return false;
 
@@ -2014,10 +2007,10 @@ bool Parser::parse_for_range_declaration() {
 
   if (!parse_decl_specifier_seq()) return false;
 
-  auto tk = yytoken();
+  const auto& tk = LA();
 
-  if (tk == TokenKind::T_AMP || tk == TokenKind::T_AMP_AMP ||
-      tk == TokenKind::T_LBRACKET) {
+  if (tk.is(TokenKind::T_AMP) || tk.is(TokenKind::T_AMP_AMP) ||
+      tk.is(TokenKind::T_LBRACKET)) {
     parse_ref_qualifier();
 
     if (!match(TokenKind::T_LBRACKET)) return false;
@@ -2099,85 +2092,84 @@ bool Parser::parse_declaration_statement(StatementAST*& yyast) {
 bool Parser::parse_maybe_module() {
   if (!module_unit) return false;
 
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   match(TokenKind::T_EXPORT);
 
   const auto is_module = parse_module_keyword();
 
-  yyrewind(start);
+  rewind(start);
 
   return is_module;
 }
 
 bool Parser::parse_declaration(DeclarationAST*& yyast) {
-  if (yytoken() == TokenKind::T_RBRACE) return false;
+  if (LA().is(TokenKind::T_RBRACE)) return false;
 
-  auto start = yycursor;
+  auto start = cursor_;
 
-  if (yytoken() == TokenKind::T_SEMICOLON)
-    return parse_empty_declaration(yyast);
+  if (LA().is(TokenKind::T_SEMICOLON)) return parse_empty_declaration(yyast);
 
-  yyrewind(start);
+  rewind(start);
   if (parse_explicit_instantiation(yyast)) return true;
 
-  yyrewind(start);
+  rewind(start);
   if (parse_explicit_specialization(yyast)) return true;
 
-  yyrewind(start);
+  rewind(start);
   if (parse_template_declaration(yyast)) return true;
 
-  yyrewind(start);
+  rewind(start);
   if (parse_deduction_guide(yyast)) return true;
 
-  yyrewind(start);
+  rewind(start);
   if (parse_export_declaration(yyast)) return true;
 
-  yyrewind(start);
+  rewind(start);
   if (parse_linkage_specification(yyast)) return true;
 
-  yyrewind(start);
+  rewind(start);
   if (parse_namespace_definition(yyast)) return true;
 
-  yyrewind(start);
+  rewind(start);
   if (parse_attribute_declaration(yyast)) return true;
 
-  yyrewind(start);
+  rewind(start);
   if (parse_module_import_declaration(yyast)) return true;
 
-  yyrewind(start);
+  rewind(start);
   return parse_block_declaration(yyast, true);
 }
 
 bool Parser::parse_block_declaration(DeclarationAST*& yyast, bool fundef) {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
-  const auto tk = yytoken();
+  const auto& tk = LA();
 
   if (parse_asm_declaration(yyast)) return true;
 
-  yyrewind(start);
+  rewind(start);
   if (parse_namespace_alias_definition(yyast)) return true;
 
-  yyrewind(start);
+  rewind(start);
   if (parse_using_directive(yyast)) return true;
 
-  yyrewind(start);
+  rewind(start);
   if (parse_alias_declaration(yyast)) return true;
 
-  yyrewind(start);
+  rewind(start);
   if (parse_using_declaration(yyast)) return true;
 
-  yyrewind(start);
+  rewind(start);
   if (parse_using_enum_declaration(yyast)) return true;
 
-  yyrewind(start);
+  rewind(start);
   if (parse_static_assert_declaration(yyast)) return true;
 
-  yyrewind(start);
+  rewind(start);
   if (parse_opaque_enum_declaration(yyast)) return true;
 
-  yyrewind(start);
+  rewind(start);
   return parse_simple_declaration(yyast, fundef);
 }
 
@@ -2204,12 +2196,12 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
 
   if (match(TokenKind::T_SEMICOLON)) return true;
 
-  const auto after_attributes = yycursor;
+  const auto after_attributes = cursor_;
 
   DeclSpecs specs;
-  if (!parse_decl_specifier_seq_no_typespecs(specs)) yyrewind(after_attributes);
+  if (!parse_decl_specifier_seq_no_typespecs(specs)) rewind(after_attributes);
 
-  auto after_decl_specs = yycursor;
+  auto after_decl_specs = cursor_;
 
   if (parse_declarator_id()) {
     parse_attribute_specifier_seq();
@@ -2220,11 +2212,11 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
     }
   }
 
-  yyrewind(after_decl_specs);
+  rewind(after_decl_specs);
 
-  if (!parse_decl_specifier_seq(specs)) yyrewind(after_decl_specs);
+  if (!parse_decl_specifier_seq(specs)) rewind(after_decl_specs);
 
-  after_decl_specs = yycursor;
+  after_decl_specs = cursor_;
 
   if (match(TokenKind::T_SEMICOLON)) return specs.has_complex_typespec;
 
@@ -2238,22 +2230,22 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
     }
   }
 
-  yyrewind(after_decl_specs);
+  rewind(after_decl_specs);
 
   Declarator decl;
   if (!parse_declarator(decl)) return false;
 
-  const auto after_declarator = yycursor;
+  const auto after_declarator = cursor_;
 
   if (match(TokenKind::T_SEMICOLON)) return true;
 
   if (fundef && isFunctionDeclarator(decl)) {
     if (parse_function_definition_body()) return true;
 
-    yyrewind(after_declarator);
+    rewind(after_declarator);
   }
 
-  if (!parse_declarator_initializer()) yyrewind(after_declarator);
+  if (!parse_declarator_initializer()) rewind(after_declarator);
 
   while (match(TokenKind::T_COMMA)) {
     if (!parse_init_declarator()) return false;
@@ -2319,7 +2311,7 @@ bool Parser::parse_attribute_declaration(DeclarationAST*& yyast) {
 }
 
 bool Parser::parse_decl_specifier(DeclSpecs& specs) {
-  switch (yytoken()) {
+  switch (TokenKind(LA())) {
     case TokenKind::T_FRIEND:
     case TokenKind::T_TYPEDEF:
     case TokenKind::T_CONSTEXPR:
@@ -2328,7 +2320,7 @@ bool Parser::parse_decl_specifier(DeclSpecs& specs) {
     case TokenKind::T_INLINE:
     case TokenKind::T___INLINE:
     case TokenKind::T___INLINE__:
-      yyconsume();
+      consumeToken();
       return true;
 
     default:
@@ -2371,13 +2363,13 @@ bool Parser::parse_decl_specifier_seq_no_typespecs(DeclSpecs& specs) {
 }
 
 bool Parser::parse_storage_class_specifier() {
-  switch (yytoken()) {
+  switch (TokenKind(LA())) {
     case TokenKind::T_STATIC:
     case TokenKind::T_THREAD_LOCAL:
     case TokenKind::T_EXTERN:
     case TokenKind::T_MUTABLE:
     case TokenKind::T___THREAD:
-      yyconsume();
+      consumeToken();
       return true;
 
     default:
@@ -2430,11 +2422,11 @@ bool Parser::parse_type_specifier_seq() {
 
   parse_attribute_specifier_seq();
 
-  while (yytoken() != TokenKind::T_EOF_SYMBOL) {
-    const auto before_type_specifier = yycursor;
+  while (LA()) {
+    const auto before_type_specifier = cursor_;
 
     if (!parse_type_specifier(specs)) {
-      yyrewind(before_type_specifier);
+      rewind(before_type_specifier);
       break;
     }
 
@@ -2446,7 +2438,7 @@ bool Parser::parse_type_specifier_seq() {
 
 bool Parser::parse_defining_type_specifier(DeclSpecs& specs) {
   if (!specs.no_class_or_enum_specs) {
-    const auto start = yycursor;
+    const auto start = cursor_;
 
     if (parse_enum_specifier()) {
       specs.has_complex_typespec = true;
@@ -2457,7 +2449,7 @@ bool Parser::parse_defining_type_specifier(DeclSpecs& specs) {
       specs.has_complex_typespec = true;
       return true;
     }
-    yyrewind(start);
+    rewind(start);
   }
 
   return parse_type_specifier(specs);
@@ -2468,11 +2460,11 @@ bool Parser::parse_defining_type_specifier_seq(DeclSpecs& specs) {
 
   parse_attribute_specifier_seq();
 
-  while (yytoken() != TokenKind::T_EOF_SYMBOL) {
-    const auto before_type_specifier = yycursor;
+  while (LA()) {
+    const auto before_type_specifier = cursor_;
 
     if (!parse_defining_type_specifier(specs)) {
-      yyrewind(before_type_specifier);
+      rewind(before_type_specifier);
       break;
     }
 
@@ -2483,15 +2475,15 @@ bool Parser::parse_defining_type_specifier_seq(DeclSpecs& specs) {
 }
 
 bool Parser::parse_simple_type_specifier(DeclSpecs& specs) {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   if (parse_named_type_specifier(specs)) return true;
 
-  yyrewind(start);
+  rewind(start);
 
   if (parse_placeholder_type_specifier_helper(specs)) return true;
 
-  yyrewind(start);
+  rewind(start);
 
   if (parse_primitive_type_specifier(specs)) return true;
 
@@ -2513,35 +2505,35 @@ bool Parser::parse_named_type_specifier(DeclSpecs& specs) {
 bool Parser::parse_named_type_specifier_helper(DeclSpecs& specs) {
   if (specs.has_typespec()) return false;
 
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   if (parse_nested_name_specifier()) {
-    const auto after_nested_name_specifier = yycursor;
+    const auto after_nested_name_specifier = cursor_;
 
     if (match(TokenKind::T_TEMPLATE) && parse_simple_template_id()) {
       return true;
     }
 
-    yyrewind(after_nested_name_specifier);
+    rewind(after_nested_name_specifier);
 
     if (parse_type_name()) {
       return true;
     }
 
-    yyrewind(after_nested_name_specifier);
+    rewind(after_nested_name_specifier);
 
     if (parse_template_name()) {
       return true;
     }
   }
 
-  yyrewind(start);
+  rewind(start);
 
   if (parse_type_name()) {
     return true;
   }
 
-  yyrewind(start);
+  rewind(start);
 
   if (parse_template_name()) {
     return true;
@@ -2621,7 +2613,7 @@ bool Parser::parse_atomic_type_specifier(DeclSpecs& specs) {
 bool Parser::parse_primitive_type_specifier(DeclSpecs& specs) {
   if (!specs.accepts_simple_typespec()) return false;
 
-  switch (yytoken()) {
+  switch (TokenKind(LA())) {
     case TokenKind::T_CHAR:
     case TokenKind::T_CHAR8_T:
     case TokenKind::T_CHAR16_T:
@@ -2641,7 +2633,7 @@ bool Parser::parse_primitive_type_specifier(DeclSpecs& specs) {
     case TokenKind::T___FLOAT80:
     case TokenKind::T___FLOAT128:
     case TokenKind::T___COMPLEX__:
-      yyconsume();
+      consumeToken();
       specs.has_simple_typespec = true;
       return true;
 
@@ -2651,15 +2643,15 @@ bool Parser::parse_primitive_type_specifier(DeclSpecs& specs) {
 }
 
 bool Parser::parse_type_name() {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   if (parse_class_name()) return true;
 
-  yyrewind(start);
+  rewind(start);
 
   if (parse_enum_name()) return true;
 
-  yyrewind(start);
+  rewind(start);
 
   return parse_typedef_name();
 }
@@ -2667,23 +2659,23 @@ bool Parser::parse_type_name() {
 bool Parser::parse_elaborated_type_specifier(DeclSpecs& specs) {
   // ### cleanup
 
-  if (yytoken() == TokenKind::T_ENUM) return parse_elaborated_enum_specifier();
+  if (LA().is(TokenKind::T_ENUM)) return parse_elaborated_enum_specifier();
 
   if (!parse_class_key()) return false;
 
   parse_attribute_specifier_seq();
 
-  const auto before_nested_name_specifier = yycursor;
+  const auto before_nested_name_specifier = cursor_;
 
   if (!parse_nested_name_specifier()) {
-    yyrewind(before_nested_name_specifier);
+    rewind(before_nested_name_specifier);
 
     if (parse_simple_template_id()) {
       specs.has_complex_typespec = true;
       return true;
     }
 
-    yyrewind(before_nested_name_specifier);
+    rewind(before_nested_name_specifier);
 
     if (!match(TokenKind::T_IDENTIFIER)) return false;
 
@@ -2691,7 +2683,7 @@ bool Parser::parse_elaborated_type_specifier(DeclSpecs& specs) {
     return true;
   }
 
-  const auto after_nested_name_specifier = yycursor;
+  const auto after_nested_name_specifier = cursor_;
 
   const bool has_template = match(TokenKind::T_TEMPLATE);
 
@@ -2706,7 +2698,7 @@ bool Parser::parse_elaborated_type_specifier(DeclSpecs& specs) {
     return true;
   }
 
-  yyrewind(after_nested_name_specifier);
+  rewind(after_nested_name_specifier);
 
   if (!match(TokenKind::T_IDENTIFIER)) return false;
 
@@ -2718,9 +2710,9 @@ bool Parser::parse_elaborated_type_specifier(DeclSpecs& specs) {
 bool Parser::parse_elaborated_enum_specifier() {
   if (!match(TokenKind::T_ENUM)) return false;
 
-  const auto saved = yycursor;
+  const auto saved = cursor_;
 
-  if (!parse_nested_name_specifier()) yyrewind(saved);
+  if (!parse_nested_name_specifier()) rewind(saved);
 
   if (!match(TokenKind::T_IDENTIFIER)) return false;
 
@@ -2747,8 +2739,7 @@ bool Parser::parse_decltype_specifier() {
       match(TokenKind::T___DECLTYPE__)) {
     if (!match(TokenKind::T_LPAREN)) return false;
 
-    if (yytoken() == TokenKind::T_AUTO)
-      return false;  // placeholder type specifier
+    if (LA().is(TokenKind::T_AUTO)) return false;  // placeholder type specifier
 
     ExpressionAST* expression = nullptr;
 
@@ -2805,9 +2796,9 @@ bool Parser::parse_init_declarator_list() {
 bool Parser::parse_init_declarator() {
   if (!parse_declarator()) return false;
 
-  const auto saved = yycursor;
+  const auto saved = cursor_;
 
-  if (!parse_declarator_initializer()) yyrewind(saved);
+  if (!parse_declarator_initializer()) rewind(saved);
 
   return true;
 }
@@ -2862,19 +2853,19 @@ bool Parser::parse_noptr_declarator(Declarator& decl) {
   if (!parse_core_declarator(decl)) return false;
 
   while (true) {
-    const auto saved = yycursor;
+    const auto saved = cursor_;
 
     if (match(TokenKind::T_LBRACKET)) {
       if (!match(TokenKind::T_RBRACKET)) {
         ExpressionAST* expression = nullptr;
 
         if (!parse_constant_expression(expression)) {
-          yyrewind(saved);
+          rewind(saved);
           break;
         }
 
         if (!match(TokenKind::T_RBRACKET)) {
-          yyrewind(saved);
+          rewind(saved);
           break;
         }
       }
@@ -2885,7 +2876,7 @@ bool Parser::parse_noptr_declarator(Declarator& decl) {
       parse_trailing_return_type();
       decl.push_back(FunctionDeclarator());
     } else {
-      yyrewind(saved);
+      rewind(saved);
       break;
     }
   }
@@ -2943,7 +2934,7 @@ bool Parser::parse_ptr_operator() {
     return true;
   }
 
-  const auto saved = yycursor;
+  const auto saved = cursor_;
 
   if (parse_nested_name_specifier() && match(TokenKind::T_STAR)) {
     parse_attribute_specifier_seq();
@@ -2951,18 +2942,18 @@ bool Parser::parse_ptr_operator() {
     return true;
   }
 
-  yyrewind(saved);
+  rewind(saved);
 
   return false;
 }
 
 bool Parser::parse_cv_qualifier() {
-  switch (yytoken()) {
+  switch (TokenKind(LA())) {
     case TokenKind::T_CONST:
     case TokenKind::T_VOLATILE:
     case TokenKind::T___RESTRICT:
     case TokenKind::T___RESTRICT__:
-      yyconsume();
+      consumeToken();
       return true;
 
     default:
@@ -2971,10 +2962,10 @@ bool Parser::parse_cv_qualifier() {
 }
 
 bool Parser::parse_ref_qualifier() {
-  switch (yytoken()) {
+  switch (TokenKind(LA())) {
     case TokenKind::T_AMP:
     case TokenKind::T_AMP_AMP:
-      yyconsume();
+      consumeToken();
       return true;
 
     default:
@@ -2993,9 +2984,9 @@ bool Parser::parse_declarator_id() {
 bool Parser::parse_type_id() {
   if (!parse_type_specifier_seq()) return false;
 
-  const auto before_declarator = yycursor;
+  const auto before_declarator = cursor_;
 
-  if (!parse_abstract_declarator()) yyrewind(before_declarator);
+  if (!parse_abstract_declarator()) rewind(before_declarator);
 
   return true;
 }
@@ -3007,9 +2998,9 @@ bool Parser::parse_defining_type_id() {
 
   if (!parse_defining_type_specifier_seq(specs)) return false;
 
-  const auto before_declarator = yycursor;
+  const auto before_declarator = cursor_;
 
-  if (!parse_abstract_declarator()) yyrewind(before_declarator);
+  if (!parse_abstract_declarator()) rewind(before_declarator);
 
   return true;
 }
@@ -3019,21 +3010,21 @@ bool Parser::parse_abstract_declarator() {
 
   if (parse_ptr_abstract_declarator()) return true;
 
-  const auto saved = yycursor;
+  const auto saved = cursor_;
 
   if (parse_parameters_and_qualifiers() && parse_trailing_return_type())
     return true;
 
-  yyrewind(saved);
+  rewind(saved);
 
   if (!parse_noptr_abstract_declarator()) return false;
 
-  const auto after_noptr_declarator = yycursor;
+  const auto after_noptr_declarator = cursor_;
 
   if (parse_parameters_and_qualifiers() && parse_trailing_return_type()) {
     //
   } else {
-    yyrewind(after_noptr_declarator);
+    rewind(after_noptr_declarator);
   }
 
   return true;
@@ -3042,15 +3033,15 @@ bool Parser::parse_abstract_declarator() {
 bool Parser::parse_ptr_abstract_declarator() {
   if (!parse_ptr_operator_seq()) return false;
 
-  const auto saved = yycursor;
+  const auto saved = cursor_;
 
-  if (!parse_noptr_abstract_declarator()) yyrewind(saved);
+  if (!parse_noptr_abstract_declarator()) rewind(saved);
 
   return true;
 }
 
 bool Parser::parse_noptr_abstract_declarator() {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   auto has_nested_declarator = false;
 
@@ -3058,16 +3049,16 @@ bool Parser::parse_noptr_abstract_declarator() {
       match(TokenKind::T_RPAREN)) {
     has_nested_declarator = true;
   } else {
-    yyrewind(start);
+    rewind(start);
   }
 
-  const auto after_nested_declarator = yycursor;
+  const auto after_nested_declarator = cursor_;
 
-  if (yytoken() == TokenKind::T_LPAREN) {
-    if (!parse_parameters_and_qualifiers()) yyrewind(after_nested_declarator);
+  if (LA().is(TokenKind::T_LPAREN)) {
+    if (!parse_parameters_and_qualifiers()) rewind(after_nested_declarator);
   }
 
-  if (yytoken() == TokenKind::T_LBRACKET) {
+  if (LA().is(TokenKind::T_LBRACKET)) {
     while (match(TokenKind::T_LBRACKET)) {
       if (!match(TokenKind::T_RBRACKET)) {
         ExpressionAST* expression = nullptr;
@@ -3129,7 +3120,7 @@ bool Parser::parse_parameter_declaration_list() {
 
   while (match(TokenKind::T_COMMA)) {
     if (!parse_parameter_declaration()) {
-      yyrewind(yycursor - 1);
+      rewind(cursor_ - 1);
       break;
     }
   }
@@ -3146,12 +3137,12 @@ bool Parser::parse_parameter_declaration() {
 
   if (!parse_decl_specifier_seq(specs)) return false;
 
-  const auto before_declarator = yycursor;
+  const auto before_declarator = cursor_;
 
   if (!parse_declarator()) {
-    yyrewind(before_declarator);
+    rewind(before_declarator);
 
-    if (!parse_abstract_declarator()) yyrewind(before_declarator);
+    if (!parse_abstract_declarator()) rewind(before_declarator);
   }
 
   if (match(TokenKind::T_EQUAL)) {
@@ -3166,7 +3157,7 @@ bool Parser::parse_parameter_declaration() {
 
 bool Parser::parse_initializer() {
   if (match(TokenKind::T_LPAREN)) {
-    if (yytoken() == TokenKind::T_RPAREN) return false;
+    if (LA().is(TokenKind::T_RPAREN)) return false;
 
     if (!parse_expression_list()) parse_error("expected an expression");
 
@@ -3179,7 +3170,7 @@ bool Parser::parse_initializer() {
 }
 
 bool Parser::parse_brace_or_equal_initializer() {
-  if (yytoken() == TokenKind::T_LBRACE) return parse_braced_init_list();
+  if (LA().is(TokenKind::T_LBRACE)) return parse_braced_init_list();
 
   if (!match(TokenKind::T_EQUAL)) return false;
 
@@ -3192,7 +3183,7 @@ bool Parser::parse_brace_or_equal_initializer() {
 }
 
 bool Parser::parse_initializer_clause(ExpressionAST*& yyast) {
-  if (yytoken() == TokenKind::T_LBRACE) return parse_braced_init_list();
+  if (LA().is(TokenKind::T_LBRACE)) return parse_braced_init_list();
 
   return parse_assignment_expression(yyast);
 }
@@ -3200,19 +3191,19 @@ bool Parser::parse_initializer_clause(ExpressionAST*& yyast) {
 bool Parser::parse_braced_init_list() {
   if (!match(TokenKind::T_LBRACE)) return false;
 
-  if (yytoken() == TokenKind::T_DOT) {
+  if (LA().is(TokenKind::T_DOT)) {
     if (!parse_designated_initializer_clause())
       parse_error("expected designated initializer clause");
 
     while (match(TokenKind::T_COMMA)) {
-      if (yytoken() == TokenKind::T_RBRACE) break;
+      if (LA().is(TokenKind::T_RBRACE)) break;
 
       if (!parse_designated_initializer_clause())
         parse_error("expected designated initializer clause");
     }
   } else if (match(TokenKind::T_COMMA)) {
     // nothing to do
-  } else if (yytoken() != TokenKind::T_RBRACE) {
+  } else if (LA().isNot(TokenKind::T_RBRACE)) {
     if (!parse_initializer_list()) parse_error("expected initializer list");
   }
 
@@ -3232,7 +3223,7 @@ bool Parser::parse_initializer_list() {
   }
 
   while (match(TokenKind::T_COMMA)) {
-    if (yytoken() == TokenKind::T_RBRACE) break;
+    if (LA().is(TokenKind::T_RBRACE)) break;
 
     ExpressionAST* e = nullptr;
     if (!parse_initializer_clause(e))
@@ -3265,7 +3256,7 @@ bool Parser::parse_designator() {
 }
 
 bool Parser::parse_expr_or_braced_init_list() {
-  if (yytoken() == TokenKind::T_LBRACE) return parse_braced_init_list();
+  if (LA().is(TokenKind::T_LBRACE)) return parse_braced_init_list();
 
   ExpressionAST* expression = nullptr;
 
@@ -3285,7 +3276,7 @@ bool Parser::parse_virt_specifier_seq() {
 }
 
 bool Parser::parse_function_body() {
-  if (yytoken() == TokenKind::T_SEMICOLON) return false;
+  if (LA().is(TokenKind::T_SEMICOLON)) return false;
 
   if (parse_function_try_block()) return true;
 
@@ -3305,25 +3296,23 @@ bool Parser::parse_function_body() {
 
   parse_ctor_initializer();
 
-  if (yytoken() != TokenKind::T_LBRACE) return false;
+  if (LA().isNot(TokenKind::T_LBRACE)) return false;
 
   if (skip_function_body) {
     expect(TokenKind::T_LBRACE);
 
     int depth = 1;
 
-    TokenKind tok;
-
-    while ((tok = yytoken()) != TokenKind::T_EOF_SYMBOL) {
-      if (tok == TokenKind::T_LBRACE) {
+    while (const auto& tok = LA()) {
+      if (tok.is(TokenKind::T_LBRACE)) {
         ++depth;
-      } else if (tok == TokenKind::T_RBRACE) {
+      } else if (tok.is(TokenKind::T_RBRACE)) {
         if (!--depth) {
           break;
         }
       }
 
-      yyconsume();
+      consumeToken();
     }
 
     expect(TokenKind::T_RBRACE);
@@ -3366,9 +3355,9 @@ bool Parser::parse_enum_head() {
 }
 
 bool Parser::parse_enum_head_name() {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
-  if (!parse_nested_name_specifier()) yyrewind(start);
+  if (!parse_nested_name_specifier()) rewind(start);
 
   if (!match(TokenKind::T_IDENTIFIER)) return false;
 
@@ -3413,8 +3402,8 @@ bool Parser::parse_enumerator_list() {
   if (!parse_enumerator_definition()) return false;
 
   while (match(TokenKind::T_COMMA)) {
-    if (yytoken() == TokenKind::T_RBRACE) {
-      yyrewind(yycursor - 1);
+    if (LA().is(TokenKind::T_RBRACE)) {
+      rewind(cursor_ - 1);
       break;
     }
 
@@ -3456,12 +3445,12 @@ bool Parser::parse_using_enum_declaration(DeclarationAST*& yyast) {
 }
 
 bool Parser::parse_namespace_definition(DeclarationAST*& yyast) {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   const auto has_inline = match(TokenKind::T_INLINE);
 
   if (!match(TokenKind::T_NAMESPACE)) {
-    yyrewind(start);
+    rewind(start);
     return false;
   }
 
@@ -3475,19 +3464,18 @@ bool Parser::parse_namespace_definition(DeclarationAST*& yyast) {
 
   uint32_t namespace_name_token = 0;
 
-  if (yytoken() == TokenKind::T_IDENTIFIER &&
-      yytoken(1) == TokenKind::T_COLON_COLON) {
-    yyconsume();
+  if (LA().is(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_COLON_COLON)) {
+    consumeToken();
 
     while (match(TokenKind::T_COLON_COLON)) {
       match(TokenKind::T_INLINE);
       expect(TokenKind::T_IDENTIFIER);
     }
     kind = NamespaceKind::kNested;
-  } else if (yytoken() == TokenKind::T_IDENTIFIER) {
+  } else if (LA().is(TokenKind::T_IDENTIFIER)) {
     kind = NamespaceKind::kNamed;
-    namespace_name_token = yycursor;
-    yyconsume();
+    namespace_name_token = cursor_;
+    consumeToken();
   }
 
   parse_attribute_specifier_seq();
@@ -3504,10 +3492,10 @@ bool Parser::parse_namespace_definition(DeclarationAST*& yyast) {
 bool Parser::parse_namespace_body() {
   bool skipping = false;
 
-  while (yytoken() != TokenKind::T_EOF_SYMBOL) {
-    if (yytoken() == TokenKind::T_RBRACE) break;
+  while (LA()) {
+    if (LA().is(TokenKind::T_RBRACE)) break;
 
-    const auto saved = yycursor;
+    const auto saved = cursor_;
 
     DeclarationAST* decl = nullptr;
 
@@ -3516,7 +3504,7 @@ bool Parser::parse_namespace_body() {
     } else {
       parse_skip_declaration(skipping);
 
-      if (yycursor == saved) yyconsume();
+      if (cursor_ == saved) consumeToken();
     }
   }
 
@@ -3539,9 +3527,9 @@ bool Parser::parse_namespace_alias_definition(DeclarationAST*& yyast) {
 }
 
 bool Parser::parse_qualified_namespace_specifier() {
-  const auto saved = yycursor;
+  const auto saved = cursor_;
 
-  if (!parse_nested_name_specifier()) yyrewind(saved);
+  if (!parse_nested_name_specifier()) rewind(saved);
 
   if (!parse_namespace_name()) return false;
 
@@ -3555,9 +3543,9 @@ bool Parser::parse_using_directive(DeclarationAST*& yyast) {
 
   if (!match(TokenKind::T_NAMESPACE)) return false;
 
-  const auto saved = yycursor;
+  const auto saved = cursor_;
 
-  if (!parse_nested_name_specifier()) yyrewind(saved);
+  if (!parse_nested_name_specifier()) rewind(saved);
 
   if (!parse_namespace_name()) parse_error("expected a namespace name");
 
@@ -3594,9 +3582,9 @@ bool Parser::parse_using_declarator_list() {
 bool Parser::parse_using_declarator() {
   const auto has_typename = match(TokenKind::T_TYPENAME);
 
-  const auto saved = yycursor;
+  const auto saved = cursor_;
 
-  if (!parse_nested_name_specifier()) yyrewind(saved);
+  if (!parse_nested_name_specifier()) rewind(saved);
 
   if (!parse_unqualified_id()) return false;
 
@@ -3653,10 +3641,9 @@ bool Parser::parse_attribute_specifier_seq() {
 }
 
 bool Parser::parse_attribute_specifier() {
-  if (yytoken() == TokenKind::T_LBRACKET &&
-      yytoken(1) == TokenKind::T_LBRACKET) {
-    yyconsume();
-    yyconsume();
+  if (LA().is(TokenKind::T_LBRACKET) && LA(1).is(TokenKind::T_LBRACKET)) {
+    consumeToken();
+    consumeToken();
     parse_attribute_using_prefix();
     parse_attribute_list();
     expect(TokenKind::T_RBRACKET);
@@ -3711,16 +3698,14 @@ bool Parser::parse_gcc_attribute_seq() {
 bool Parser::parse_skip_balanced() {
   int count = 1;
 
-  TokenKind tk;
-
-  while ((tk = yytoken()) != TokenKind::T_EOF_SYMBOL) {
-    if (tk == TokenKind::T_LPAREN) {
+  while (const auto& tk = LA()) {
+    if (tk.is(TokenKind::T_LPAREN)) {
       ++count;
-    } else if (tk == TokenKind::T_RPAREN) {
+    } else if (tk.is(TokenKind::T_RPAREN)) {
       if (!--count) return true;
     }
 
-    yyconsume();
+    consumeToken();
   }
 
   return false;
@@ -3731,7 +3716,7 @@ bool Parser::parse_alignment_specifier() {
 
   expect(TokenKind::T_LPAREN);
 
-  const auto after_lparen = yycursor;
+  const auto after_lparen = cursor_;
 
   if (parse_type_id()) {
     const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
@@ -3741,7 +3726,7 @@ bool Parser::parse_alignment_specifier() {
     }
   }
 
-  yyrewind(after_lparen);
+  rewind(after_lparen);
 
   ExpressionAST* expression = nullptr;
 
@@ -3789,11 +3774,11 @@ bool Parser::parse_attribute() {
 }
 
 bool Parser::parse_attribute_token() {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   if (parse_attribute_scoped_token()) return true;
 
-  yyrewind(start);
+  rewind(start);
 
   if (!match(TokenKind::T_IDENTIFIER)) return false;
 
@@ -3833,7 +3818,7 @@ bool Parser::parse_module_declaration() {
 
   if (!parse_module_name()) parse_error("expected a module name");
 
-  if (yytoken() == TokenKind::T_COLON) {
+  if (LA().is(TokenKind::T_COLON)) {
     parse_module_partition();
   }
 
@@ -3845,9 +3830,9 @@ bool Parser::parse_module_declaration() {
 }
 
 bool Parser::parse_module_name() {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
-  if (!parse_module_name_qualifier()) yyrewind(start);
+  if (!parse_module_name_qualifier()) rewind(start);
 
   expect(TokenKind::T_IDENTIFIER);
 
@@ -3857,9 +3842,9 @@ bool Parser::parse_module_name() {
 bool Parser::parse_module_partition() {
   if (!match(TokenKind::T_COLON)) return false;
 
-  const auto saved = yycursor;
+  const auto saved = cursor_;
 
-  if (!parse_module_name_qualifier()) yyrewind(saved);
+  if (!parse_module_name_qualifier()) rewind(saved);
 
   expect(TokenKind::T_IDENTIFIER);
 
@@ -3867,15 +3852,14 @@ bool Parser::parse_module_partition() {
 }
 
 bool Parser::parse_module_name_qualifier() {
-  if (yytoken() != TokenKind::T_IDENTIFIER) return false;
+  if (LA().isNot(TokenKind::T_IDENTIFIER)) return false;
 
-  if (yytoken(1) != TokenKind::T_DOT) return false;
+  if (LA(1).isNot(TokenKind::T_DOT)) return false;
 
   do {
-    yyconsume();
-    yyconsume();
-  } while (yytoken() == TokenKind::T_IDENTIFIER &&
-           yytoken(1) == TokenKind::T_DOT);
+    consumeToken();
+    consumeToken();
+  } while (LA().is(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_DOT));
 
   return true;
 }
@@ -3912,11 +3896,11 @@ bool Parser::parse_export_declaration(DeclarationAST*& yyast) {
 bool Parser::parse_maybe_import() {
   if (!module_unit) return false;
 
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   const auto import = parse_import_keyword();
 
-  yyrewind(start);
+  rewind(start);
 
   return import;
 }
@@ -3966,13 +3950,13 @@ bool Parser::parse_private_module_fragment() {
 }
 
 bool Parser::parse_class_specifier() {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   auto it = class_specifiers_.find(start);
 
   if (it != class_specifiers_.end()) {
     auto [cursor, parsed] = it->second;
-    yyrewind(cursor);
+    rewind(cursor);
     return parsed;
   }
 
@@ -4000,22 +3984,22 @@ bool Parser::parse_class_specifier() {
 }
 
 bool Parser::parse_leave_class_specifier(uint32_t start) {
-  class_specifiers_.emplace(start, std::make_tuple(yycursor, true));
+  class_specifiers_.emplace(start, std::make_tuple(cursor_, true));
   return true;
 }
 
 bool Parser::parse_reject_class_specifier(uint32_t start) {
-  class_specifiers_.emplace(start, std::make_tuple(yycursor, false));
+  class_specifiers_.emplace(start, std::make_tuple(cursor_, false));
   return true;
 }
 
 bool Parser::parse_class_body() {
   bool skipping = false;
 
-  while (yytoken() != TokenKind::T_EOF_SYMBOL) {
-    if (yytoken() == TokenKind::T_RBRACE) break;
+  while (LA()) {
+    if (LA().is(TokenKind::T_RBRACE)) break;
 
-    const auto saved = yycursor;
+    const auto saved = cursor_;
 
     DeclarationAST* declaration = nullptr;
 
@@ -4024,7 +4008,7 @@ bool Parser::parse_class_body() {
     } else {
       if (!skipping) parse_error("expected a declaration");
 
-      if (yycursor == saved) yyconsume();
+      if (cursor_ == saved) consumeToken();
 
       skipping = true;
     }
@@ -4048,9 +4032,9 @@ bool Parser::parse_class_head(Name& name) {
 }
 
 bool Parser::parse_class_head_name(Name& name) {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
-  if (!parse_nested_name_specifier()) yyrewind(start);
+  if (!parse_nested_name_specifier()) rewind(start);
 
   if (!parse_class_name(name)) return false;
 
@@ -4064,11 +4048,11 @@ bool Parser::parse_class_virt_specifier() {
 }
 
 bool Parser::parse_class_key() {
-  switch (yytoken()) {
+  switch (TokenKind(LA())) {
     case TokenKind::T_CLASS:
     case TokenKind::T_STRUCT:
     case TokenKind::T_UNION:
-      yyconsume();
+      consumeToken();
       return true;
 
     default:
@@ -4081,7 +4065,7 @@ bool Parser::parse_member_specification(DeclarationAST*& yyast) {
 }
 
 bool Parser::parse_member_declaration(DeclarationAST*& yyast) {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   if (parse_access_specifier()) {
     expect(TokenKind::T_COLON);
@@ -4090,14 +4074,14 @@ bool Parser::parse_member_declaration(DeclarationAST*& yyast) {
 
   if (parse_empty_declaration(yyast)) return true;
 
-  if (yytoken() == TokenKind::T_USING) {
+  if (LA().is(TokenKind::T_USING)) {
     if (parse_using_enum_declaration(yyast)) return true;
 
-    yyrewind(start);
+    rewind(start);
 
     if (parse_alias_declaration(yyast)) return true;
 
-    yyrewind(start);
+    rewind(start);
 
     if (parse_using_declaration(yyast)) return true;
 
@@ -4118,19 +4102,19 @@ bool Parser::parse_member_declaration(DeclarationAST*& yyast) {
 
   if (parse_opaque_enum_declaration(yyast)) return true;
 
-  yyrewind(start);
+  rewind(start);
 
   return parse_member_declaration_helper(yyast);
 }
 
 bool Parser::parse_maybe_template_member() {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   match(TokenKind::T_EXPLICIT);
 
   const auto has_template = match(TokenKind::T_TEMPLATE);
 
-  yyrewind(start);
+  rewind(start);
 
   return has_template;
 }
@@ -4140,23 +4124,23 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
 
   parse_attribute_specifier_seq();
 
-  auto after_decl_specs = yycursor;
+  auto after_decl_specs = cursor_;
 
   DeclSpecs specs;
 
-  if (!parse_decl_specifier_seq_no_typespecs(specs)) yyrewind(after_decl_specs);
+  if (!parse_decl_specifier_seq_no_typespecs(specs)) rewind(after_decl_specs);
 
-  after_decl_specs = yycursor;
+  after_decl_specs = cursor_;
 
   if (parse_declarator_id()) {
     parse_attribute_specifier_seq();
 
     if (parse_parameters_and_qualifiers()) {
-      const auto after_parameters = yycursor;
+      const auto after_parameters = cursor_;
 
       if (parse_member_function_definition_body()) return true;
 
-      yyrewind(after_parameters);
+      rewind(after_parameters);
 
       if (parse_member_declarator_modifier() && match(TokenKind::T_SEMICOLON)) {
         return true;
@@ -4164,11 +4148,11 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
     }
   }
 
-  yyrewind(after_decl_specs);
+  rewind(after_decl_specs);
 
-  if (!parse_decl_specifier_seq(specs)) yyrewind(after_decl_specs);
+  if (!parse_decl_specifier_seq(specs)) rewind(after_decl_specs);
 
-  after_decl_specs = yycursor;
+  after_decl_specs = cursor_;
 
   if (!specs.has_typespec()) return false;
 
@@ -4180,7 +4164,7 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
     if (parse_member_function_definition_body()) return true;
   }
 
-  yyrewind(after_decl_specs);
+  rewind(after_decl_specs);
 
   if (!parse_member_declarator_list()) parse_error("expected a declarator");
 
@@ -4204,7 +4188,7 @@ bool Parser::parse_member_function_definition_body() {
 bool Parser::parse_member_declarator_modifier() {
   if (parse_requires_clause()) return true;
 
-  if (yytoken() == TokenKind::T_LBRACE || yytoken() == TokenKind::T_EQUAL)
+  if (LA().is(TokenKind::T_LBRACE) || LA().is(TokenKind::T_EQUAL))
     return parse_brace_or_equal_initializer();
 
   parse_virt_specifier_seq();
@@ -4225,7 +4209,7 @@ bool Parser::parse_member_declarator_list() {
 }
 
 bool Parser::parse_member_declarator() {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   const auto has_identifier = match(TokenKind::T_IDENTIFIER);
 
@@ -4242,7 +4226,7 @@ bool Parser::parse_member_declarator() {
     return true;
   }
 
-  yyrewind(start);
+  rewind(start);
 
   if (!parse_declarator()) return false;
 
@@ -4264,7 +4248,7 @@ bool Parser::parse_pure_specifier() {
 
   if (!match(TokenKind::T_INTEGER_LITERAL)) return false;
 
-  const auto& number = unit->tokenText(yycursor - 1);
+  const auto& number = unit->tokenText(cursor_ - 1);
 
   if (number != "0") return false;
 
@@ -4332,7 +4316,7 @@ bool Parser::parse_base_specifier() {
 }
 
 bool Parser::parse_class_or_decltype() {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   if (parse_nested_name_specifier()) {
     if (match(TokenKind::T_TEMPLATE)) {
@@ -4342,7 +4326,7 @@ bool Parser::parse_class_or_decltype() {
     if (parse_type_name()) return true;
   }
 
-  yyrewind(start);
+  rewind(start);
 
   if (parse_decltype_specifier()) return true;
 
@@ -4350,11 +4334,11 @@ bool Parser::parse_class_or_decltype() {
 }
 
 bool Parser::parse_access_specifier() {
-  switch (yytoken()) {
+  switch (TokenKind(LA())) {
     case TokenKind::T_PRIVATE:
     case TokenKind::T_PROTECTED:
     case TokenKind::T_PUBLIC:
-      yyconsume();
+      consumeToken();
       return true;
 
     default:
@@ -4388,7 +4372,7 @@ bool Parser::parse_mem_initializer_list() {
 bool Parser::parse_mem_initializer() {
   if (!parse_mem_initializer_id()) parse_error("expected an member id");
 
-  if (yytoken() == TokenKind::T_LBRACE) {
+  if (LA().is(TokenKind::T_LBRACE)) {
     if (!parse_braced_init_list()) parse_error("expected an initializer");
   } else {
     expect(TokenKind::T_LPAREN);
@@ -4404,11 +4388,11 @@ bool Parser::parse_mem_initializer() {
 }
 
 bool Parser::parse_mem_initializer_id() {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   if (parse_class_or_decltype()) return true;
 
-  yyrewind(start);
+  rewind(start);
 
   if (!match(TokenKind::T_IDENTIFIER)) return false;
 
@@ -4424,14 +4408,14 @@ bool Parser::parse_operator_function_id() {
 }
 
 bool Parser::parse_op() {
-  switch (yytoken()) {
+  switch (TokenKind(LA())) {
     case TokenKind::T_LPAREN:
-      yyconsume();
+      consumeToken();
       expect(TokenKind::T_RPAREN);
       return true;
 
     case TokenKind::T_LBRACKET:
-      yyconsume();
+      consumeToken();
       expect(TokenKind::T_RBRACKET);
       return true;
 
@@ -4439,19 +4423,19 @@ bool Parser::parse_op() {
       if (parse_greater_greater_equal()) return true;
       if (parse_greater_greater()) return true;
       if (parse_greater_equal()) return true;
-      yyconsume();
+      consumeToken();
       return true;
     }
 
     case TokenKind::T_NEW:
-      yyconsume();
+      consumeToken();
       if (match(TokenKind::T_LBRACKET)) {
         expect(TokenKind::T_RBRACKET);
       }
       return true;
 
     case TokenKind::T_DELETE:
-      yyconsume();
+      consumeToken();
       if (match(TokenKind::T_LBRACKET)) {
         expect(TokenKind::T_RBRACKET);
       }
@@ -4494,7 +4478,7 @@ bool Parser::parse_op() {
     case TokenKind::T_PLUS_PLUS:
     case TokenKind::T_MINUS_MINUS:
     case TokenKind::T_COMMA:
-      yyconsume();
+      consumeToken();
       return true;
 
     default:
@@ -4517,7 +4501,7 @@ bool Parser::parse_literal_operator_id() {
 bool Parser::parse_template_declaration(DeclarationAST*& yyast) {
   if (!parse_template_head()) return false;
 
-  if (yytoken() == TokenKind::T_CONCEPT) {
+  if (LA().is(TokenKind::T_CONCEPT)) {
     parse_concept_definition();
   } else {
     DeclarationAST* declaration = nullptr;
@@ -4593,13 +4577,13 @@ bool Parser::parse_constraint_logical_and_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_template_parameter() {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   if (parse_type_parameter() &&
-      (yytoken() == TokenKind::T_COMMA || yytoken() == TokenKind::T_GREATER))
+      (LA().is(TokenKind::T_COMMA) || LA().is(TokenKind::T_GREATER)))
     return true;
 
-  yyrewind(start);
+  rewind(start);
 
   return parse_parameter_declaration();
 }
@@ -4615,11 +4599,10 @@ bool Parser::parse_type_parameter() {
 bool Parser::parse_typename_type_parameter() {
   if (!parse_type_parameter_key()) return false;
 
-  const auto saved = yycursor;
+  const auto saved = cursor_;
 
-  if ((yytoken() == TokenKind::T_IDENTIFIER &&
-       yytoken(1) == TokenKind::T_EQUAL) ||
-      yytoken() == TokenKind::T_EQUAL) {
+  if ((LA().is(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_EQUAL)) ||
+      LA().is(TokenKind::T_EQUAL)) {
     const auto has_identifier = match(TokenKind::T_IDENTIFIER);
 
     expect(TokenKind::T_EQUAL);
@@ -4637,20 +4620,19 @@ bool Parser::parse_typename_type_parameter() {
 }
 
 bool Parser::parse_template_type_parameter() {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   if (!parse_template_head()) {
-    yyrewind(start);
+    rewind(start);
     return false;
   }
 
   if (!parse_type_parameter_key()) parse_error("expected a type parameter");
 
-  const auto saved = yycursor;
+  const auto saved = cursor_;
 
-  if ((yytoken() == TokenKind::T_IDENTIFIER &&
-       yytoken(1) == TokenKind::T_EQUAL) ||
-      yytoken() == TokenKind::T_EQUAL) {
+  if ((LA().is(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_EQUAL)) ||
+      LA().is(TokenKind::T_EQUAL)) {
     const auto has_identifier = match(TokenKind::T_IDENTIFIER);
 
     expect(TokenKind::T_EQUAL);
@@ -4670,11 +4652,10 @@ bool Parser::parse_template_type_parameter() {
 bool Parser::parse_constraint_type_parameter() {
   if (!parse_type_constraint()) return false;
 
-  const auto saved = yycursor;
+  const auto saved = cursor_;
 
-  if ((yytoken() == TokenKind::T_IDENTIFIER &&
-       yytoken(1) == TokenKind::T_EQUAL) ||
-      yytoken() == TokenKind::T_EQUAL) {
+  if ((LA().is(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_EQUAL)) ||
+      LA().is(TokenKind::T_EQUAL)) {
     const auto has_identifier = match(TokenKind::T_IDENTIFIER);
 
     expect(TokenKind::T_EQUAL);
@@ -4699,12 +4680,12 @@ bool Parser::parse_type_parameter_key() {
 }
 
 bool Parser::parse_type_constraint() {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
-  if (!parse_nested_name_specifier()) yyrewind(start);
+  if (!parse_nested_name_specifier()) rewind(start);
 
   if (!parse_concept_name()) {
-    yyrewind(start);
+    rewind(start);
     return false;
   }
 
@@ -4740,11 +4721,11 @@ bool Parser::parse_simple_template_id(Name& name) {
 }
 
 bool Parser::parse_template_id() {
-  if (yytoken() == TokenKind::T_OPERATOR) {
-    const auto start = yycursor;
+  if (LA().is(TokenKind::T_OPERATOR)) {
+    const auto start = cursor_;
 
     if (!parse_literal_operator_id()) {
-      yyrewind(start);
+      rewind(start);
 
       if (!parse_operator_function_id()) return false;
     }
@@ -4782,41 +4763,41 @@ bool Parser::parse_template_argument_list() {
 }
 
 bool Parser::parse_template_argument() {
-  const auto start = yycursor;
+  const auto start = cursor_;
 
   auto it = template_arguments_.find(start);
 
   if (it != template_arguments_.end()) {
-    yyrewind(get<0>(it->second));
+    rewind(get<0>(it->second));
     return get<1>(it->second);
   }
 
   auto check = [&]() -> bool {
-    auto tk = yytoken();
+    const auto& tk = LA();
 
-    return tk == TokenKind::T_COMMA || tk == TokenKind::T_GREATER ||
-           tk == TokenKind::T_DOT_DOT_DOT;
+    return tk.is(TokenKind::T_COMMA) || tk.is(TokenKind::T_GREATER) ||
+           tk.is(TokenKind::T_DOT_DOT_DOT);
   };
 
-  const auto saved = yycursor;
+  const auto saved = cursor_;
 
   if (parse_type_id() && check()) {
-    template_arguments_.emplace(start, std::make_tuple(yycursor, true));
+    template_arguments_.emplace(start, std::make_tuple(cursor_, true));
     return true;
   }
 
-  yyrewind(saved);
+  rewind(saved);
 
   ExpressionAST* expression = nullptr;
 
   const auto parsed = parse_template_argument_constant_expression(expression);
 
   if (parsed && check()) {
-    template_arguments_.emplace(start, std::make_tuple(yycursor, true));
+    template_arguments_.emplace(start, std::make_tuple(cursor_, true));
     return true;
   }
 
-  template_arguments_.emplace(start, std::make_tuple(yycursor, false));
+  template_arguments_.emplace(start, std::make_tuple(cursor_, false));
 
   return false;
 }
@@ -4876,13 +4857,13 @@ bool Parser::parse_typename_specifier() {
 
   if (!parse_nested_name_specifier()) return false;
 
-  const auto after_nested_name_specifier = yycursor;
+  const auto after_nested_name_specifier = cursor_;
 
   const auto has_template = match(TokenKind::T_TEMPLATE);
 
   if (parse_simple_template_id()) return true;
 
-  yyrewind(after_nested_name_specifier);
+  rewind(after_nested_name_specifier);
 
   if (!match(TokenKind::T_IDENTIFIER)) return false;
 
@@ -4894,7 +4875,7 @@ bool Parser::parse_explicit_instantiation(DeclarationAST*& yyast) {
 
   if (!match(TokenKind::T_TEMPLATE)) return false;
 
-  if (yytoken() == TokenKind::T_LESS) return false;
+  if (LA().is(TokenKind::T_LESS)) return false;
 
   DeclarationAST* declaration = nullptr;
 
@@ -4933,7 +4914,7 @@ bool Parser::parse_try_block(StatementAST*& yyast) {
 bool Parser::parse_function_try_block() {
   if (!match(TokenKind::T_TRY)) return false;
 
-  if (yytoken() != TokenKind::T_LBRACE) {
+  if (LA().isNot(TokenKind::T_LBRACE)) {
     if (!parse_ctor_initializer()) parse_error("expected a ctor initializer");
   }
 
@@ -4968,9 +4949,9 @@ bool Parser::parse_handler() {
 }
 
 bool Parser::parse_handler_seq() {
-  if (yytoken() != TokenKind::T_CATCH) return false;
+  if (LA().isNot(TokenKind::T_CATCH)) return false;
 
-  while (yytoken() == TokenKind::T_CATCH) {
+  while (LA().is(TokenKind::T_CATCH)) {
     parse_handler();
   }
 
@@ -4984,14 +4965,14 @@ bool Parser::parse_exception_declaration() {
 
   if (!parse_type_specifier_seq()) parse_error("expected a type specifier");
 
-  if (yytoken() == TokenKind::T_RPAREN) return true;
+  if (LA().is(TokenKind::T_RPAREN)) return true;
 
-  const auto before_declarator = yycursor;
+  const auto before_declarator = cursor_;
 
   if (!parse_declarator()) {
-    yyrewind(before_declarator);
+    rewind(before_declarator);
 
-    if (!parse_abstract_declarator()) yyrewind(before_declarator);
+    if (!parse_abstract_declarator()) rewind(before_declarator);
   }
 
   return true;

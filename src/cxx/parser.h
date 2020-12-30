@@ -35,7 +35,8 @@ class TranslationUnit;
 
 class Parser {
  public:
-  bool yyparse(TranslationUnit* unit, const std::function<void()>& consume);
+  bool operator()(TranslationUnit* unit);
+  bool parse(TranslationUnit* unit);
 
   enum struct Prec {
     kLogicalOr,
@@ -73,15 +74,15 @@ class Parser {
 
   template <typename... Args>
   bool parse_warn(const std::string_view& format, const Args&... args) {
-    unit->report(yycursor, MessageKind::Warning, format, args...);
+    unit->report(cursor_, MessageKind::Warning, format, args...);
     return true;
   }
 
   template <typename... Args>
   bool parse_error(const std::string_view& format, const Args&... args) {
-    if (lastErrorCursor == yycursor) return true;
-    lastErrorCursor = yycursor;
-    unit->report(yycursor, MessageKind::Error, format, args...);
+    if (lastErrorCursor_ == cursor_) return true;
+    lastErrorCursor_ = cursor_;
+    unit->report(cursor_, MessageKind::Error, format, args...);
     // throw std::runtime_error("error");
     return true;
   }
@@ -395,25 +396,24 @@ class Parser {
   bool parse_identifier_list();
 
  private:
-  bool match(TokenKind tk) {
-    if (yytoken() != tk) return false;
-    yyconsume();
+  const Token& LA(int n = 0) const;
+
+  bool match(TokenKind tk, uint32_t* location = nullptr) {
+    if (LA().isNot(tk)) return false;
+    const auto loc = consumeToken();
+    if (location) *location = loc;
     return true;
   }
 
-  bool expect(TokenKind tk) {
-    if (match(tk)) return true;
+  bool expect(TokenKind tk, uint32_t* location = nullptr) {
+    if (match(tk, location)) return true;
     parse_error("expected '{}'", Token::spell(tk));
     return false;
   }
 
-  uint32_t yyconsume() { return yycursor++; }
+  uint32_t consumeToken() { return cursor_++; }
 
-  void yyrewind(uint32_t i) { yycursor = i; }
-
-  TokenKind yytoken(int la = 0);
-
-  const Token& LA(int n = 0) const;
+  void rewind(uint32_t i) { cursor_ = i; }
 
  private:
   TranslationUnit* unit = nullptr;
@@ -430,8 +430,8 @@ class Parser {
   const Identifier* final_id = nullptr;
   const Identifier* override_id = nullptr;
   int templArgDepth = 0;
-  uint32_t lastErrorCursor = 0;
-  uint32_t yycursor = 0;
+  uint32_t lastErrorCursor_ = 0;
+  uint32_t cursor_ = 0;
 };
 
 }  // namespace cxx

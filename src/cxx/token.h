@@ -257,6 +257,12 @@ class Token {
   std::string_view name() const;
 
   explicit operator bool() const { return kind_ != TokenKind::T_EOF_SYMBOL; }
+
+  explicit operator TokenKind() const { return kind_; }
+
+  bool is(TokenKind kind) const { return kind_ == kind; }
+
+  bool isNot(TokenKind kind) const { return kind_ != kind; }
 };
 
 }  // namespace cxx
