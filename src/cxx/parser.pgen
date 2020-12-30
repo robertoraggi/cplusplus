@@ -2038,6 +2038,8 @@ cast_expression_helper(ExpressionAST*& yyast): {
 binary_operator(TokenKind& tk, bool templArg): {
   const auto start = yycursor;
 
+  tk = TokenKind::T_EOF_SYMBOL;
+
   switch (yytoken()) {
   case TokenKind::T_GREATER: {
     if (parse_greater_greater()) {
@@ -2104,19 +2106,46 @@ binary_expression(ExpressionAST*& yyast, bool templArg): {
   return true;
 };
 
-binary_expression_helper(ExpressionAST*& yyast, Prec minPrec, bool templArg)
-{
+lookahead_binary_operator(TokenKind& tk, bool templArg): {
+  const auto saved = yycursor;
+
+  const auto has_binop = parse_binary_operator(tk, templArg);
+
+  yyrewind(saved);
+
+  return has_binop;
+};
+
+binary_expression_helper(ExpressionAST*& yyast, Prec minPrec, bool templArg): {
+  bool parsed = false;
+
   TokenKind op = TokenKind::T_EOF_SYMBOL;
-  TokenKind nextOp = TokenKind::T_EOF_SYMBOL;
-  ExpressionAST* rhs = nullptr;
-}
-: (binary_operator(op, templArg) { return prec(op) >= minPrec; }
-    cast_expression(rhs)
-    ({} / (binary_operator(nextOp, templArg) { return prec(nextOp) > prec(op); })
-      binary_expression_helper(rhs, prec(op), templArg)
-    )*
-  )+
-;
+
+  while (parse_lookahead_binary_operator(op, templArg) && prec(op) >= minPrec) {
+    const auto saved = yycursor;
+
+    ExpressionAST* rhs = nullptr;
+
+    parse_binary_operator(op, templArg);
+
+    if (!parse_cast_expression(rhs)) {
+      yyrewind(saved);
+      break;
+    }
+
+    parsed = true;
+
+    TokenKind nextOp = TokenKind::T_EOF_SYMBOL;
+
+    while (parse_lookahead_binary_operator(nextOp, templArg) && prec(nextOp) > prec(op)) {
+      if (!parse_binary_expression_helper(rhs, prec(op), templArg)) {
+        break;
+      }
+    }
+  }
+
+  return parsed;
+};
 
 logical_or_expression(ExpressionAST*& yyast, bool templArg): {
   return parse_binary_expression(yyast, templArg);
