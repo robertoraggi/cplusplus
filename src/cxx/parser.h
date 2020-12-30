@@ -148,10 +148,6 @@ struct Parser {
 
   Symbol* newSymbol() { return &symbols_.emplace_front(); }
 
-  DeclarativeRegion* currentRegion_ = nullptr;
-  std::forward_list<DeclarativeRegion> regions_;
-  std::forward_list<Symbol> symbols_;
-
   enum struct Prec {
     kLogicalOr,
     kLogicalAnd,
@@ -167,57 +163,7 @@ struct Parser {
     kPm,
   };
 
-  static Prec prec(TokenKind tk) {
-    switch (tk) {
-      default:
-        std::runtime_error("expected a binary operator");
-
-      case TokenKind::T_DOT_STAR:
-      case TokenKind::T_MINUS_GREATER_STAR:
-        return Prec::kPm;
-
-      case TokenKind::T_STAR:
-      case TokenKind::T_SLASH:
-      case TokenKind::T_PERCENT:
-        return Prec::kMultiplicative;
-
-      case TokenKind::T_PLUS:
-      case TokenKind::T_MINUS:
-        return Prec::kAdditive;
-
-      case TokenKind::T_LESS_LESS:
-      case TokenKind::T_GREATER_GREATER:
-        return Prec::kShift;
-
-      case TokenKind::T_LESS_EQUAL_GREATER:
-        return Prec::kCompare;
-
-      case TokenKind::T_LESS_EQUAL:
-      case TokenKind::T_GREATER_EQUAL:
-      case TokenKind::T_LESS:
-      case TokenKind::T_GREATER:
-        return Prec::kRelational;
-
-      case TokenKind::T_EQUAL_EQUAL:
-      case TokenKind::T_EXCLAIM_EQUAL:
-        return Prec::kEquality;
-
-      case TokenKind::T_AMP:
-        return Prec::kAnd;
-
-      case TokenKind::T_CARET:
-        return Prec::kExclusiveOr;
-
-      case TokenKind::T_BAR:
-        return Prec::kInclusiveOr;
-
-      case TokenKind::T_AMP_AMP:
-        return Prec::kLogicalAnd;
-
-      case TokenKind::T_BAR_BAR:
-        return Prec::kLogicalOr;
-    }  // switch
-  }
+  static Prec prec(TokenKind tk);
 
   struct DeclaratorId {};
   struct NestedDeclarator {};
@@ -231,85 +177,10 @@ struct Parser {
 
   using Declarator = std::vector<DeclaratorComponent>;
 
-  bool isFunctionDeclarator(const Declarator& decl) const {
-    for (auto d : decl) {
-      if (std::holds_alternative<NestedDeclarator>(d))
-        continue;
-      else if (std::holds_alternative<DeclaratorId>(d))
-        continue;
-      else if (std::holds_alternative<FunctionDeclarator>(d))
-        return true;
-      else
-        return false;
-    }
-    return false;
-  }
+  bool isFunctionDeclarator(const Declarator& decl) const;
 
-  struct DeclSpecs {
-    bool has_simple_typespec = false;
-    bool has_complex_typespec = false;
-    bool has_named_typespec = false;
-    bool has_placeholder_typespec = false;
-    bool no_typespecs = false;
-    bool no_class_or_enum_specs = false;
-
-    bool accepts_simple_typespec() const {
-      return !(has_complex_typespec || has_named_typespec ||
-               has_placeholder_typespec);
-    }
-
-    bool has_typespec() const {
-      return has_simple_typespec || has_complex_typespec ||
-             has_named_typespec || has_placeholder_typespec;
-    }
-  };
-
-  struct TemplArgContext {
-    TemplArgContext(const TemplArgContext&) = delete;
-    TemplArgContext& operator=(const TemplArgContext&) = delete;
-
-    Parser* p;
-
-    explicit TemplArgContext(Parser* p) : p(p) { ++p->templArgDepth; }
-    ~TemplArgContext() { --p->templArgDepth; }
-  };
-
-  int templArgDepth = 0;
-  uint32_t lastErrorCursor = 0;
-
-  template <typename... Args>
-  bool parse_warn(const std::string_view& format, const Args&... args) {
-    unit->report(yycursor, MessageKind::Warning, format, args...);
-    return true;
-  }
-
-  template <typename... Args>
-  bool parse_error(const std::string_view& format, const Args&... args) {
-    if (lastErrorCursor == yycursor) return true;
-    lastErrorCursor = yycursor;
-    unit->report(yycursor, MessageKind::Error, format, args...);
-    // throw std::runtime_error("error");
-    return true;
-  }
-
-  bool parse_decl_specifier_seq_no_typespecs() {
-    DeclSpecs specs;
-    return parse_decl_specifier_seq_no_typespecs(specs);
-  }
-
-  bool parse_decl_specifier_seq() {
-    DeclSpecs specs;
-    return parse_decl_specifier_seq(specs);
-  }
-
-  bool parse_declarator() {
-    Declarator decl;
-    return parse_declarator(decl);
-  }
-
-  bool yyparse(TranslationUnit* unit, const std::function<void()>& consume);
-
-  const Token& LA(int n = 0) const { return unit->tokenAt(yycursor + n); }
+  struct DeclSpecs;
+  struct TemplArgContext;
 
   bool match(TokenKind tk) {
     if (yytoken() != tk) return false;
@@ -328,6 +199,25 @@ struct Parser {
   void yyrewind(uint32_t i) { yycursor = i; }
 
   TokenKind yytoken(int la = 0);
+
+  const Token& LA(int n = 0) const;
+
+  bool yyparse(TranslationUnit* unit, const std::function<void()>& consume);
+
+  template <typename... Args>
+  bool parse_warn(const std::string_view& format, const Args&... args) {
+    unit->report(yycursor, MessageKind::Warning, format, args...);
+    return true;
+  }
+
+  template <typename... Args>
+  bool parse_error(const std::string_view& format, const Args&... args) {
+    if (lastErrorCursor == yycursor) return true;
+    lastErrorCursor = yycursor;
+    unit->report(yycursor, MessageKind::Error, format, args...);
+    // throw std::runtime_error("error");
+    return true;
+  }
 
   bool parse_error();
   bool parse_warn();
@@ -472,6 +362,8 @@ struct Parser {
   bool parse_decl_specifier(DeclSpecs& specs);
   bool parse_decl_specifier_seq(DeclSpecs& specs);
   bool parse_decl_specifier_seq_no_typespecs(DeclSpecs& specs);
+  bool parse_decl_specifier_seq_no_typespecs();
+  bool parse_decl_specifier_seq();
   bool parse_storage_class_specifier();
   bool parse_function_specifier();
   bool parse_explicit_specifier();
@@ -496,6 +388,7 @@ struct Parser {
   bool parse_init_declarator_list();
   bool parse_init_declarator();
   bool parse_declarator_initializer();
+  bool parse_declarator();
   bool parse_declarator(Declarator& decl);
   bool parse_ptr_operator_seq();
   bool parse_core_declarator(Declarator& decl);
@@ -653,12 +546,17 @@ struct Parser {
   std::unordered_map<uint32_t, std::tuple<uint32_t, bool>> template_arguments_;
   std::unordered_map<uint32_t, std::tuple<uint32_t, bool, DeclarativeRegion*>>
       nested_name_specifiers_;
+  DeclarativeRegion* currentRegion_ = nullptr;
+  std::forward_list<DeclarativeRegion> regions_;
+  std::forward_list<Symbol> symbols_;
   bool module_unit = false;
   const Identifier* module_id = nullptr;
   const Identifier* import_id = nullptr;
   const Identifier* final_id = nullptr;
   const Identifier* override_id = nullptr;
   DeclarativeRegion* globalRegion = nullptr;
+  int templArgDepth = 0;
+  uint32_t lastErrorCursor = 0;
   uint32_t yycursor = 0;
 };
 

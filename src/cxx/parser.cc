@@ -36,7 +36,104 @@
 
 namespace cxx {
 
+bool Parser::isFunctionDeclarator(const Declarator& decl) const {
+  for (auto d : decl) {
+    if (std::holds_alternative<NestedDeclarator>(d))
+      continue;
+    else if (std::holds_alternative<DeclaratorId>(d))
+      continue;
+    else if (std::holds_alternative<FunctionDeclarator>(d))
+      return true;
+    else
+      return false;
+  }
+  return false;
+}
+
+Parser::Prec Parser::prec(TokenKind tk) {
+  switch (tk) {
+    default:
+      std::runtime_error("expected a binary operator");
+
+    case TokenKind::T_DOT_STAR:
+    case TokenKind::T_MINUS_GREATER_STAR:
+      return Prec::kPm;
+
+    case TokenKind::T_STAR:
+    case TokenKind::T_SLASH:
+    case TokenKind::T_PERCENT:
+      return Prec::kMultiplicative;
+
+    case TokenKind::T_PLUS:
+    case TokenKind::T_MINUS:
+      return Prec::kAdditive;
+
+    case TokenKind::T_LESS_LESS:
+    case TokenKind::T_GREATER_GREATER:
+      return Prec::kShift;
+
+    case TokenKind::T_LESS_EQUAL_GREATER:
+      return Prec::kCompare;
+
+    case TokenKind::T_LESS_EQUAL:
+    case TokenKind::T_GREATER_EQUAL:
+    case TokenKind::T_LESS:
+    case TokenKind::T_GREATER:
+      return Prec::kRelational;
+
+    case TokenKind::T_EQUAL_EQUAL:
+    case TokenKind::T_EXCLAIM_EQUAL:
+      return Prec::kEquality;
+
+    case TokenKind::T_AMP:
+      return Prec::kAnd;
+
+    case TokenKind::T_CARET:
+      return Prec::kExclusiveOr;
+
+    case TokenKind::T_BAR:
+      return Prec::kInclusiveOr;
+
+    case TokenKind::T_AMP_AMP:
+      return Prec::kLogicalAnd;
+
+    case TokenKind::T_BAR_BAR:
+      return Prec::kLogicalOr;
+  }  // switch
+}
+
+struct Parser::DeclSpecs {
+  bool has_simple_typespec = false;
+  bool has_complex_typespec = false;
+  bool has_named_typespec = false;
+  bool has_placeholder_typespec = false;
+  bool no_typespecs = false;
+  bool no_class_or_enum_specs = false;
+
+  bool accepts_simple_typespec() const {
+    return !(has_complex_typespec || has_named_typespec ||
+             has_placeholder_typespec);
+  }
+
+  bool has_typespec() const {
+    return has_simple_typespec || has_complex_typespec || has_named_typespec ||
+           has_placeholder_typespec;
+  }
+};
+
+struct Parser::TemplArgContext {
+  TemplArgContext(const TemplArgContext&) = delete;
+  TemplArgContext& operator=(const TemplArgContext&) = delete;
+
+  Parser* p;
+
+  explicit TemplArgContext(Parser* p) : p(p) { ++p->templArgDepth; }
+  ~TemplArgContext() { --p->templArgDepth; }
+};
+
 TokenKind Parser::yytoken(int la) { return unit->tokenKind(yycursor + la); }
+
+const Token& Parser::LA(int la) const { return unit->tokenAt(yycursor + la); }
 
 bool yyparse(TranslationUnit* unit, const std::function<void()>& consume) {
   Parser p;
@@ -2665,6 +2762,21 @@ bool Parser::parse_elaborated_enum_specifier() {
   if (!match(TokenKind::T_IDENTIFIER)) return false;
 
   return true;
+}
+
+bool Parser::parse_decl_specifier_seq_no_typespecs() {
+  DeclSpecs specs;
+  return parse_decl_specifier_seq_no_typespecs(specs);
+}
+
+bool Parser::parse_decl_specifier_seq() {
+  DeclSpecs specs;
+  return parse_decl_specifier_seq(specs);
+}
+
+bool Parser::parse_declarator() {
+  Declarator decl;
+  return parse_declarator(decl);
 }
 
 bool Parser::parse_decltype_specifier() {
