@@ -39,7 +39,6 @@ endif()
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_subdirectory(tools/pgen)
 add_subdirectory(tools/kwgen)
 
 aux_source_directory(src/cxx SOURCES)
@@ -47,17 +46,11 @@ aux_source_directory(src/cxx SOURCES)
 add_library(CPlusPlus ${SOURCES}
     # generated files
     keywords-priv.h
-    parser-priv.h
 )
 
 target_include_directories(CPlusPlus PUBLIC src)
 target_include_directories(CPlusPlus PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 target_link_libraries(CPlusPlus PUBLIC fmt::fmt)
-
-add_custom_command(OUTPUT parser-priv.h
-    COMMAND pgen ${CMAKE_CURRENT_SOURCE_DIR}/src/cxx/parser.pgen -o parser-priv.h
-    DEPENDS pgen src/cxx/parser.pgen
-    COMMENT "Generate parser-priv.h")
 
 add_custom_command(OUTPUT keywords-priv.h
     COMMAND kwgen < ${CMAKE_CURRENT_SOURCE_DIR}/src/cxx/keywords.kwgen > keywords-priv.h
