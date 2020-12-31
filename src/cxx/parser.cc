@@ -155,7 +155,7 @@ bool Parser::parse(TranslationUnit* u) {
 
 bool Parser::parse_id(const Identifier* id) {
   SourceLocation location;
-  if (!match(TokenKind::T_IDENTIFIER, &location)) return false;
+  if (!match(TokenKind::T_IDENTIFIER, location)) return false;
   return unit->identifier(location.index()) == id;
 }
 
@@ -277,7 +277,7 @@ bool Parser::parse_class_name(Name& name) {
 bool Parser::parse_name_id(Name& name) {
   SourceLocation identifierLoc;
 
-  if (!match(TokenKind::T_IDENTIFIER, &identifierLoc)) return false;
+  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
 
   name = unit->identifier(identifierLoc.index());
 
@@ -1766,9 +1766,13 @@ bool Parser::parse_condition(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_labeled_statement(StatementAST*& yyast) {
-  if (!match(TokenKind::T_IDENTIFIER)) return false;
+  SourceLocation identifierLoc;
 
-  expect(TokenKind::T_COLON);
+  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
+
+  SourceLocation colonLoc;
+
+  expect(TokenKind::T_COLON, colonLoc);
 
   StatementAST* statement = nullptr;
 
@@ -3118,7 +3122,7 @@ bool Parser::parse_parameter_declaration_list() {
 
   SourceLocation commaLoc;
 
-  while (match(TokenKind::T_COMMA, &commaLoc)) {
+  while (match(TokenKind::T_COMMA, commaLoc)) {
     if (!parse_parameter_declaration()) {
       rewind(commaLoc);
       break;
@@ -3403,7 +3407,7 @@ bool Parser::parse_enumerator_list() {
 
   SourceLocation commaLoc;
 
-  while (match(TokenKind::T_COMMA, &commaLoc)) {
+  while (match(TokenKind::T_COMMA, commaLoc)) {
     if (LA().is(TokenKind::T_RBRACE)) {
       rewind(commaLoc);
       break;
@@ -3474,7 +3478,7 @@ bool Parser::parse_namespace_definition(DeclarationAST*& yyast) {
       expect(TokenKind::T_IDENTIFIER);
     }
     kind = NamespaceKind::kNested;
-  } else if (match(TokenKind::T_IDENTIFIER, &nameLoc)) {
+  } else if (match(TokenKind::T_IDENTIFIER, nameLoc)) {
     kind = NamespaceKind::kNamed;
   }
 
@@ -4247,7 +4251,7 @@ bool Parser::parse_pure_specifier() {
   if (!match(TokenKind::T_EQUAL)) return false;
 
   SourceLocation literalLoc;
-  if (!match(TokenKind::T_INTEGER_LITERAL, &literalLoc)) return false;
+  if (!match(TokenKind::T_INTEGER_LITERAL, literalLoc)) return false;
 
   const auto& number = unit->tokenText(literalLoc.index());
 

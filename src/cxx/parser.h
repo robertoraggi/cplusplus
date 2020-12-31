@@ -399,14 +399,26 @@ class Parser {
  private:
   const Token& LA(int n = 0) const;
 
-  bool match(TokenKind tk, SourceLocation* location = nullptr) {
+  bool match(TokenKind tk) {
     if (LA().isNot(tk)) return false;
-    const auto loc = consumeToken();
-    if (location) *location = loc;
+    (void)consumeToken();
     return true;
   }
 
-  bool expect(TokenKind tk, SourceLocation* location = nullptr) {
+  bool expect(TokenKind tk) {
+    if (match(tk)) return true;
+    parse_error("expected '{}'", Token::spell(tk));
+    return false;
+  }
+
+  bool match(TokenKind tk, SourceLocation& location) {
+    if (LA().isNot(tk)) return false;
+    const auto loc = consumeToken();
+    location = loc;
+    return true;
+  }
+
+  bool expect(TokenKind tk, SourceLocation& location) {
     if (match(tk, location)) return true;
     parse_error("expected '{}'", Token::spell(tk));
     return false;
