@@ -34,6 +34,7 @@ struct SpecifierAST;
 struct DeclaratorAST;
 struct NameAST;
 struct AttributeAST;
+struct TypeIdAST;
 
 // statements
 struct BreakStatementAST;

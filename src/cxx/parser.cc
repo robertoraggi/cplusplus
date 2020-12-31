@@ -2140,7 +2140,7 @@ bool Parser::parse_for_range_declaration(DeclarationAST*& yyast) {
 
     Declarator decl;
 
-    return parse_declarator(declarator, decl);
+    if (!parse_declarator(declarator, decl)) return false;
   }
 
   return true;
@@ -2335,19 +2335,39 @@ bool Parser::parse_block_declaration(DeclarationAST*& yyast, bool fundef) {
 }
 
 bool Parser::parse_alias_declaration(DeclarationAST*& yyast) {
-  if (!match(TokenKind::T_USING)) return false;
+  SourceLocation usingLoc;
 
-  if (!match(TokenKind::T_IDENTIFIER)) return false;
+  if (!match(TokenKind::T_USING, usingLoc)) return false;
+
+  SourceLocation identifierLoc;
+
+  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
 
   List<AttributeAST*>* attributes = nullptr;
 
   parse_attribute_specifier_seq(attributes);
 
-  if (!match(TokenKind::T_EQUAL)) return false;
+  SourceLocation equalLoc;
 
-  if (!parse_defining_type_id()) parse_error("expected a type id");
+  if (!match(TokenKind::T_EQUAL, equalLoc)) return false;
 
-  expect(TokenKind::T_SEMICOLON);
+  TypeIdAST* typeId = nullptr;
+
+  if (!parse_defining_type_id(typeId)) parse_error("expected a type id");
+
+  SourceLocation semicolonLoc;
+
+  expect(TokenKind::T_SEMICOLON, semicolonLoc);
+
+  auto ast = new (pool) AliasDeclarationAST;
+  yyast = ast;
+
+  ast->usingLoc = usingLoc;
+  ast->identifierLoc = identifierLoc;
+  ast->attributeList = attributes;
+  ast->equalLoc = equalLoc;
+  ast->typeId = typeId;
+  ast->semicolonLoc = semicolonLoc;
 
   return true;
 }
@@ -2474,7 +2494,14 @@ bool Parser::parse_string_literal_seq() {
 }
 
 bool Parser::parse_empty_declaration(DeclarationAST*& yyast) {
-  if (!match(TokenKind::T_SEMICOLON)) return false;
+  SourceLocation semicolonLoc;
+
+  if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return false;
+
+  auto ast = new (pool) EmptyDeclarationAST();
+  yyast = ast;
+
+  ast->semicolonLoc = semicolonLoc;
 
   return true;
 }
@@ -2484,7 +2511,15 @@ bool Parser::parse_attribute_declaration(DeclarationAST*& yyast) {
 
   if (!parse_attribute_specifier_seq(attributes)) return false;
 
-  if (!match(TokenKind::T_SEMICOLON)) return false;
+  SourceLocation semicolonLoc;
+
+  if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return false;
+
+  auto ast = new (pool) AttributeDeclarationAST();
+  yyast = ast;
+
+  ast->attributeList = attributes;
+  ast->semicolonLoc = semicolonLoc;
 
   return true;
 }
@@ -3213,7 +3248,7 @@ bool Parser::parse_type_id() {
   return true;
 }
 
-bool Parser::parse_defining_type_id() {
+bool Parser::parse_defining_type_id(TypeIdAST*& yyast) {
   DeclSpecs specs;
 
   specs.no_class_or_enum_specs = true;
@@ -3575,7 +3610,10 @@ bool Parser::parse_enum_specifier() {
 }
 
 bool Parser::parse_enum_head() {
-  if (!parse_enum_key()) return false;
+  SourceLocation enumLoc;
+  SourceLocation classLoc;
+
+  if (!parse_enum_key(enumLoc, classLoc)) return false;
 
   List<AttributeAST*>* attributes = nullptr;
 
@@ -3599,7 +3637,10 @@ bool Parser::parse_enum_head_name() {
 }
 
 bool Parser::parse_opaque_enum_declaration(DeclarationAST*& yyast) {
-  if (!parse_enum_key()) return false;
+  SourceLocation enumLoc;
+  SourceLocation classLoc;
+
+  if (!parse_enum_key(enumLoc, classLoc)) return false;
 
   List<AttributeAST*>* attributes = nullptr;
 
@@ -3609,17 +3650,19 @@ bool Parser::parse_opaque_enum_declaration(DeclarationAST*& yyast) {
 
   parse_enum_base();
 
-  if (!match(TokenKind::T_SEMICOLON)) return false;
+  SourceLocation semicolonLoc;
+
+  if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return false;
 
   return true;
 }
 
-bool Parser::parse_enum_key() {
-  if (!match(TokenKind::T_ENUM)) return false;
+bool Parser::parse_enum_key(SourceLocation& enumLoc, SourceLocation& classLoc) {
+  if (!match(TokenKind::T_ENUM, enumLoc)) return false;
 
-  if (match(TokenKind::T_CLASS)) {
+  if (match(TokenKind::T_CLASS, classLoc)) {
     //
-  } else if (match(TokenKind::T_STRUCT)) {
+  } else if (match(TokenKind::T_STRUCT, classLoc)) {
     //
   }
 

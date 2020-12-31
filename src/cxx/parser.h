@@ -266,7 +266,7 @@ class Parser {
   bool parse_ref_qualifier();
   bool parse_declarator_id();
   bool parse_type_id();
-  bool parse_defining_type_id();
+  bool parse_defining_type_id(TypeIdAST*& yyast);
   bool parse_abstract_declarator();
   bool parse_ptr_abstract_declarator();
   bool parse_noptr_abstract_declarator();
@@ -289,7 +289,7 @@ class Parser {
   bool parse_enum_head();
   bool parse_enum_head_name();
   bool parse_opaque_enum_declaration(DeclarationAST*& yyast);
-  bool parse_enum_key();
+  bool parse_enum_key(SourceLocation& enumLoc, SourceLocation& classLoc);
   bool parse_enum_base();
   bool parse_enumerator_list();
   bool parse_enumerator_definition();

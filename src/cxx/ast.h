@@ -59,6 +59,8 @@ struct NameAST : AST {};
 
 struct AttributeAST : AST {};
 
+struct TypeIdAST : AST {};
+
 // statements
 
 struct LabeledStatementAST final : StatementAST {
@@ -224,10 +226,22 @@ struct ForRangeDeclarationAST final : DeclarationAST {
 };
 
 struct AliasDeclarationAST final : DeclarationAST {
+  SourceLocation usingLoc;
+  SourceLocation identifierLoc;
+  List<AttributeAST*>* attributeList;
+  SourceLocation equalLoc;
+  TypeIdAST* typeId = nullptr;
+  SourceLocation semicolonLoc;
+
   void visit(DeclarationASTVisitor* visitor) override;
 };
 
 struct SimpleDeclarationAST final : DeclarationAST {
+  List<AttributeAST*>* attributes = nullptr;
+  List<SpecifierAST*>* declSpecifierList = nullptr;
+  List<DeclaratorAST*>* declaratorList = nullptr;
+  SourceLocation semicolonToken;
+
   void visit(DeclarationASTVisitor* visitor) override;
 };
 
@@ -236,10 +250,15 @@ struct StaticAssertDeclarationAST final : DeclarationAST {
 };
 
 struct EmptyDeclarationAST final : DeclarationAST {
+  SourceLocation semicolonLoc;
+
   void visit(DeclarationASTVisitor* visitor) override;
 };
 
 struct AttributeDeclarationAST final : DeclarationAST {
+  List<AttributeAST*>* attributeList = nullptr;
+  SourceLocation semicolonLoc;
+
   void visit(DeclarationASTVisitor* visitor) override;
 };
 
