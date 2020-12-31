@@ -226,15 +226,15 @@ class Parser {
   bool parse_empty_declaration(DeclarationAST*& yyast);
   bool parse_attribute_declaration(DeclarationAST*& yyast);
   bool parse_decl_specifier(DeclSpecs& specs);
-  bool parse_decl_specifier_seq(DeclSpecs& specs);
-  bool parse_decl_specifier_seq_no_typespecs(DeclSpecs& specs);
-  bool parse_decl_specifier_seq_no_typespecs();
-  bool parse_decl_specifier_seq();
+  bool parse_decl_specifier_seq(List<SpecifierAST*>*& yyast, DeclSpecs& specs);
+  bool parse_decl_specifier_seq_no_typespecs(List<SpecifierAST*>*& yyast,
+                                             DeclSpecs& specs);
+  bool parse_decl_specifier_seq_no_typespecs(List<SpecifierAST*>*& yyast);
   bool parse_storage_class_specifier();
   bool parse_function_specifier();
   bool parse_explicit_specifier();
   bool parse_type_specifier(DeclSpecs& specs);
-  bool parse_type_specifier_seq();
+  bool parse_type_specifier_seq(List<SpecifierAST*>*& yyast);
   bool parse_defining_type_specifier(DeclSpecs& specs);
   bool parse_defining_type_specifier_seq(DeclSpecs& specs);
   bool parse_simple_type_specifier(DeclSpecs& specs);

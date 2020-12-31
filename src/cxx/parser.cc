@@ -624,7 +624,11 @@ bool Parser::parse_lambda_declarator() {
     expect(TokenKind::T_RPAREN);
   }
 
-  parse_decl_specifier_seq();
+  List<SpecifierAST*>* declSpecifierList = nullptr;
+
+  DeclSpecs specs;
+
+  parse_decl_specifier_seq(declSpecifierList, specs);
 
   parse_noexcept_specifier();
 
@@ -1348,7 +1352,9 @@ bool Parser::parse_new_placement() {
 }
 
 bool Parser::parse_new_type_id() {
-  if (!parse_type_specifier_seq()) return false;
+  List<SpecifierAST*>* typeSpecifierList = nullptr;
+
+  if (!parse_type_specifier_seq(typeSpecifierList)) return false;
 
   const auto saved = currentLocation();
 
@@ -1775,7 +1781,11 @@ bool Parser::parse_condition(ExpressionAST*& yyast) {
 
   parse_attribute_specifier_seq(attributes);
 
-  if (parse_decl_specifier_seq()) {
+  List<SpecifierAST*>* declSpecifierList = nullptr;
+
+  DeclSpecs specs;
+
+  if (parse_decl_specifier_seq(declSpecifierList, specs)) {
     if (parse_declarator()) {
       if (parse_brace_or_equal_initializer()) return true;
     }
@@ -2104,7 +2114,11 @@ bool Parser::parse_for_range_declaration(DeclarationAST*& yyast) {
 
   parse_attribute_specifier_seq(attributes);
 
-  if (!parse_decl_specifier_seq()) return false;
+  List<SpecifierAST*>* declSpecifierList = nullptr;
+
+  DeclSpecs specs;
+
+  if (!parse_decl_specifier_seq(declSpecifierList, specs)) return false;
 
   const auto& tk = LA();
 
@@ -2343,7 +2357,10 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
 
   DeclSpecs specs;
 
-  if (!parse_decl_specifier_seq_no_typespecs(specs)) rewind(after_attributes);
+  List<SpecifierAST*>* declSpecifierList = nullptr;
+
+  if (!parse_decl_specifier_seq_no_typespecs(declSpecifierList, specs))
+    rewind(after_attributes);
 
   auto after_decl_specs = currentLocation();
 
@@ -2360,7 +2377,8 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
 
   rewind(after_decl_specs);
 
-  if (!parse_decl_specifier_seq(specs)) rewind(after_decl_specs);
+  if (!parse_decl_specifier_seq(declSpecifierList, specs))
+    rewind(after_decl_specs);
 
   after_decl_specs = currentLocation();
 
@@ -2482,7 +2500,8 @@ bool Parser::parse_decl_specifier(DeclSpecs& specs) {
   }  // switch
 }
 
-bool Parser::parse_decl_specifier_seq(DeclSpecs& specs) {
+bool Parser::parse_decl_specifier_seq(List<SpecifierAST*>*& yyast,
+                                      DeclSpecs& specs) {
   specs.no_typespecs = false;
 
   if (!parse_decl_specifier(specs)) return false;
@@ -2500,7 +2519,8 @@ bool Parser::parse_decl_specifier_seq(DeclSpecs& specs) {
   return true;
 }
 
-bool Parser::parse_decl_specifier_seq_no_typespecs(DeclSpecs& specs) {
+bool Parser::parse_decl_specifier_seq_no_typespecs(List<SpecifierAST*>*& yyast,
+                                                   DeclSpecs& specs) {
   specs.no_typespecs = true;
 
   if (!parse_decl_specifier(specs)) return false;
@@ -2569,7 +2589,7 @@ bool Parser::parse_type_specifier(DeclSpecs& specs) {
   return false;
 }
 
-bool Parser::parse_type_specifier_seq() {
+bool Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast) {
   DeclSpecs specs;
 
   specs.no_class_or_enum_specs = true;
@@ -2885,14 +2905,10 @@ bool Parser::parse_elaborated_enum_specifier() {
   return true;
 }
 
-bool Parser::parse_decl_specifier_seq_no_typespecs() {
+bool Parser::parse_decl_specifier_seq_no_typespecs(
+    List<SpecifierAST*>*& yyast) {
   DeclSpecs specs;
-  return parse_decl_specifier_seq_no_typespecs(specs);
-}
-
-bool Parser::parse_decl_specifier_seq() {
-  DeclSpecs specs;
-  return parse_decl_specifier_seq(specs);
+  return parse_decl_specifier_seq_no_typespecs(yyast, specs);
 }
 
 bool Parser::parse_declarator() {
@@ -3167,7 +3183,9 @@ bool Parser::parse_declarator_id() {
 }
 
 bool Parser::parse_type_id() {
-  if (!parse_type_specifier_seq()) return false;
+  List<SpecifierAST*>* specifierList = nullptr;
+
+  if (!parse_type_specifier_seq(specifierList)) return false;
 
   const auto before_declarator = currentLocation();
 
@@ -3326,7 +3344,9 @@ bool Parser::parse_parameter_declaration() {
 
   specs.no_class_or_enum_specs = true;
 
-  if (!parse_decl_specifier_seq(specs)) return false;
+  List<SpecifierAST*>* specifierList = nullptr;
+
+  if (!parse_decl_specifier_seq(specifierList, specs)) return false;
 
   const auto before_declarator = currentLocation();
 
@@ -3586,7 +3606,10 @@ bool Parser::parse_enum_key() {
 bool Parser::parse_enum_base() {
   if (!match(TokenKind::T_COLON)) return false;
 
-  if (!parse_type_specifier_seq()) parse_error("expected a type specifier");
+  List<SpecifierAST*>* typeSpecifierList = nullptr;
+
+  if (!parse_type_specifier_seq(typeSpecifierList))
+    parse_error("expected a type specifier");
 
   return true;
 }
@@ -4339,7 +4362,10 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
 
   DeclSpecs specs;
 
-  if (!parse_decl_specifier_seq_no_typespecs(specs)) rewind(after_decl_specs);
+  List<SpecifierAST*>* declSpecifierList = nullptr;
+
+  if (!parse_decl_specifier_seq_no_typespecs(declSpecifierList, specs))
+    rewind(after_decl_specs);
 
   after_decl_specs = currentLocation();
 
@@ -4363,7 +4389,8 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
 
   rewind(after_decl_specs);
 
-  if (!parse_decl_specifier_seq(specs)) rewind(after_decl_specs);
+  if (!parse_decl_specifier_seq(declSpecifierList, specs))
+    rewind(after_decl_specs);
 
   after_decl_specs = currentLocation();
 
@@ -4479,7 +4506,9 @@ bool Parser::parse_conversion_function_id() {
 }
 
 bool Parser::parse_conversion_type_id() {
-  if (!parse_type_specifier_seq()) return false;
+  List<SpecifierAST*>* typeSpecifierList = nullptr;
+
+  if (!parse_type_specifier_seq(typeSpecifierList)) return false;
 
   parse_conversion_declarator();
 
@@ -5184,7 +5213,10 @@ bool Parser::parse_exception_declaration() {
 
   parse_attribute_specifier_seq(attributes);
 
-  if (!parse_type_specifier_seq()) parse_error("expected a type specifier");
+  List<SpecifierAST*>* typeSpecifierList = nullptr;
+
+  if (!parse_type_specifier_seq(typeSpecifierList))
+    parse_error("expected a type specifier");
 
   if (LA().is(TokenKind::T_RPAREN)) return true;
 
