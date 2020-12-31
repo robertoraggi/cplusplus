@@ -252,10 +252,9 @@ class Parser {
   bool parse_decltype_specifier();
   bool parse_placeholder_type_specifier();
   bool parse_init_declarator_list();
-  bool parse_init_declarator();
+  bool parse_init_declarator(DeclaratorAST*& yyast);
   bool parse_declarator_initializer();
-  bool parse_declarator();
-  bool parse_declarator(Declarator& decl);
+  bool parse_declarator(DeclaratorAST*& yyast, Declarator& decl);
   bool parse_ptr_operator_seq();
   bool parse_core_declarator(Declarator& decl);
   bool parse_noptr_declarator(Declarator& decl);

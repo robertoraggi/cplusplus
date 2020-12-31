@@ -1786,7 +1786,11 @@ bool Parser::parse_condition(ExpressionAST*& yyast) {
   DeclSpecs specs;
 
   if (parse_decl_specifier_seq(declSpecifierList, specs)) {
-    if (parse_declarator()) {
+    DeclaratorAST* declarator = nullptr;
+
+    Declarator decl;
+
+    if (parse_declarator(declarator, decl)) {
       if (parse_brace_or_equal_initializer()) return true;
     }
   }
@@ -2132,7 +2136,11 @@ bool Parser::parse_for_range_declaration(DeclarationAST*& yyast) {
 
     expect(TokenKind::T_RBRACKET);
   } else {
-    return parse_declarator();
+    DeclaratorAST* declarator = nullptr;
+
+    Declarator decl;
+
+    return parse_declarator(declarator, decl);
   }
 
   return true;
@@ -2396,8 +2404,11 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
 
   rewind(after_decl_specs);
 
+  DeclaratorAST* declarator = nullptr;
+
   Declarator decl;
-  if (!parse_declarator(decl)) return false;
+
+  if (!parse_declarator(declarator, decl)) return false;
 
   const auto after_declarator = currentLocation();
 
@@ -2412,7 +2423,9 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
   if (!parse_declarator_initializer()) rewind(after_declarator);
 
   while (match(TokenKind::T_COMMA)) {
-    if (!parse_init_declarator()) return false;
+    DeclaratorAST* declarator = nullptr;
+
+    if (!parse_init_declarator(declarator)) return false;
   }
 
   if (!match(TokenKind::T_SEMICOLON)) return false;
@@ -2911,11 +2924,6 @@ bool Parser::parse_decl_specifier_seq_no_typespecs(
   return parse_decl_specifier_seq_no_typespecs(yyast, specs);
 }
 
-bool Parser::parse_declarator() {
-  Declarator decl;
-  return parse_declarator(decl);
-}
-
 bool Parser::parse_decltype_specifier() {
   if (match(TokenKind::T_DECLTYPE) || match(TokenKind::T___DECLTYPE) ||
       match(TokenKind::T___DECLTYPE__)) {
@@ -2966,17 +2974,24 @@ bool Parser::parse_placeholder_type_specifier() {
 }
 
 bool Parser::parse_init_declarator_list() {
-  if (!parse_init_declarator()) return false;
+  DeclaratorAST* declarator = nullptr;
+
+  if (!parse_init_declarator(declarator)) return false;
 
   while (match(TokenKind::T_COMMA)) {
-    if (!parse_init_declarator()) parse_error("expected a declarator");
+    DeclaratorAST* declarator = nullptr;
+
+    if (!parse_init_declarator(declarator))
+      parse_error("expected a declarator");
   }
 
   return true;
 }
 
-bool Parser::parse_init_declarator() {
-  if (!parse_declarator()) return false;
+bool Parser::parse_init_declarator(DeclaratorAST*& yyast) {
+  Declarator decl;
+
+  if (!parse_declarator(yyast, decl)) return false;
 
   const auto saved = currentLocation();
 
@@ -2991,9 +3006,11 @@ bool Parser::parse_declarator_initializer() {
   return parse_initializer();
 }
 
-bool Parser::parse_declarator(Declarator& decl) {
+bool Parser::parse_declarator(DeclaratorAST*& yyast, Declarator& decl) {
   if (parse_ptr_operator()) {
-    if (!parse_declarator(decl)) return false;
+    DeclaratorAST* declarator = nullptr;
+
+    if (!parse_declarator(declarator, decl)) return false;
 
     decl.push_back(PtrDeclarator());
 
@@ -3026,7 +3043,9 @@ bool Parser::parse_core_declarator(Declarator& decl) {
 
   if (!match(TokenKind::T_LPAREN)) return false;
 
-  if (!parse_declarator(decl)) return false;
+  DeclaratorAST* declarator = nullptr;
+
+  if (!parse_declarator(declarator, decl)) return false;
 
   if (!match(TokenKind::T_RPAREN)) return false;
 
@@ -3350,7 +3369,11 @@ bool Parser::parse_parameter_declaration() {
 
   const auto before_declarator = currentLocation();
 
-  if (!parse_declarator()) {
+  DeclaratorAST* declarator = nullptr;
+
+  Declarator decl;
+
+  if (!parse_declarator(declarator, decl)) {
     rewind(before_declarator);
 
     if (!parse_abstract_declarator()) rewind(before_declarator);
@@ -4398,9 +4421,11 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
 
   if (match(TokenKind::T_SEMICOLON)) return true;  // ### complex typespec
 
+  DeclaratorAST* declarator = nullptr;
+
   Declarator decl;
 
-  if (parse_declarator(decl) && isFunctionDeclarator(decl)) {
+  if (parse_declarator(declarator, decl) && isFunctionDeclarator(decl)) {
     if (parse_member_function_definition_body()) return true;
   }
 
@@ -4468,7 +4493,11 @@ bool Parser::parse_member_declarator() {
 
   rewind(start);
 
-  if (!parse_declarator()) return false;
+  DeclaratorAST* declarator = nullptr;
+
+  Declarator decl;
+
+  if (!parse_declarator(declarator, decl)) return false;
 
   if (!parse_member_declarator_modifier()) return false;
 
@@ -5222,7 +5251,11 @@ bool Parser::parse_exception_declaration() {
 
   const auto before_declarator = currentLocation();
 
-  if (!parse_declarator()) {
+  DeclaratorAST* declarator = nullptr;
+
+  Declarator decl;
+
+  if (!parse_declarator(declarator, decl)) {
     rewind(before_declarator);
 
     if (!parse_abstract_declarator()) rewind(before_declarator);
