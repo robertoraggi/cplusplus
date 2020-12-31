@@ -984,7 +984,10 @@ bool Parser::parse_member_expression(ExpressionAST*& yyast) {
 bool Parser::parse_subscript_expression(ExpressionAST*& yyast) {
   if (!match(TokenKind::T_LBRACKET)) return false;
 
-  if (!parse_expr_or_braced_init_list()) parse_error("expected an expression");
+  ExpressionAST* expression = nullptr;
+
+  if (!parse_expr_or_braced_init_list(expression))
+    parse_error("expected an expression");
 
   expect(TokenKind::T_RBRACKET);
 
@@ -1935,68 +1938,82 @@ bool Parser::parse_if_statement(StatementAST*& yyast) {
 }
 
 bool Parser::parse_switch_statement(StatementAST*& yyast) {
-  if (!match(TokenKind::T_SWITCH)) return false;
+  SourceLocation switchLoc;
 
-  expect(TokenKind::T_LPAREN);
+  if (!match(TokenKind::T_SWITCH, switchLoc)) return false;
 
-  StatementAST* initializer = nullptr;
+  auto ast = new (pool) SwitchStatementAST();
+  yyast = ast;
+
+  ast->switchLoc = switchLoc;
+
+  expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
   const auto saved = currentLocation();
 
-  if (!parse_init_statement(initializer)) rewind(saved);
+  if (!parse_init_statement(ast->initializer)) rewind(saved);
 
-  ExpressionAST* condition = nullptr;
+  if (!parse_condition(ast->condition)) parse_error("expected a condition");
 
-  if (!parse_condition(condition)) parse_error("expected a condition");
+  expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
-  expect(TokenKind::T_RPAREN);
-
-  StatementAST* statement = nullptr;
-
-  parse_statement(statement);
+  parse_statement(ast->statement);
 
   return true;
 }
 
 bool Parser::parse_while_statement(StatementAST*& yyast) {
-  if (!match(TokenKind::T_WHILE)) return false;
+  SourceLocation whileLoc;
 
-  expect(TokenKind::T_LPAREN);
+  if (!match(TokenKind::T_WHILE, whileLoc)) return false;
 
-  ExpressionAST* condition = nullptr;
+  auto ast = new (pool) WhileStatementAST();
+  yyast = ast;
 
-  if (!parse_condition(condition)) parse_error("expected a condition");
+  ast->whileLoc = whileLoc;
 
-  expect(TokenKind::T_RPAREN);
-  StatementAST* statement = nullptr;
-  if (!parse_statement(statement)) parse_error("expected a statement");
+  expect(TokenKind::T_LPAREN, ast->lparenLoc);
+
+  if (!parse_condition(ast->condition)) parse_error("expected a condition");
+
+  expect(TokenKind::T_RPAREN, ast->rparenLoc);
+
+  if (!parse_statement(ast->statement)) parse_error("expected a statement");
+
   return true;
 }
 
 bool Parser::parse_do_statement(StatementAST*& yyast) {
-  if (!match(TokenKind::T_DO)) return false;
+  SourceLocation doLoc;
 
-  StatementAST* statement = nullptr;
+  if (!match(TokenKind::T_DO, doLoc)) return false;
 
-  if (!parse_statement(statement)) parse_error("expected a statement");
+  auto ast = new (pool) DoStatementAST();
+  yyast = ast;
 
-  expect(TokenKind::T_WHILE);
+  ast->doLoc = doLoc;
 
-  expect(TokenKind::T_LPAREN);
+  if (!parse_statement(ast->statement)) parse_error("expected a statement");
 
-  ExpressionAST* expression = nullptr;
+  expect(TokenKind::T_WHILE, ast->whileLoc);
 
-  if (!parse_expression(expression)) parse_error("expected an expression");
+  expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
-  expect(TokenKind::T_RPAREN);
+  if (!parse_expression(ast->expression)) parse_error("expected an expression");
+
+  expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   return true;
 }
 
 bool Parser::parse_for_range_statement(StatementAST*& yyast) {
-  if (!match(TokenKind::T_FOR)) return false;
+  SourceLocation forLoc;
 
-  if (!match(TokenKind::T_LPAREN)) return false;
+  if (!match(TokenKind::T_FOR, forLoc)) return false;
+
+  SourceLocation lparenLoc;
+
+  if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
 
   const auto saved = currentLocation();
 
@@ -2004,18 +2021,26 @@ bool Parser::parse_for_range_statement(StatementAST*& yyast) {
 
   if (!parse_init_statement(initializer)) rewind(saved);
 
-  if (!parse_for_range_declaration()) return false;
+  DeclarationAST* rangeDeclaration = nullptr;
 
-  if (!match(TokenKind::T_COLON)) return false;
+  if (!parse_for_range_declaration(rangeDeclaration)) return false;
 
-  if (!parse_for_range_initializer())
+  SourceLocation colonLoc;
+
+  if (!match(TokenKind::T_COLON, colonLoc)) return false;
+
+  auto ast = new (pool) ForRangeStatementAST();
+  ast->forLoc = forLoc;
+  ast->lparenLoc = lparenLoc;
+  ast->initializer = initializer;
+  ast->colonLoc = colonLoc;
+
+  if (!parse_for_range_initializer(ast->rangeInitializer))
     parse_error("expected for-range intializer");
 
-  expect(TokenKind::T_RPAREN);
+  expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
-  StatementAST* statement = nullptr;
-
-  if (!parse_statement(statement)) parse_error("expected a statement");
+  if (!parse_statement(ast->statement)) parse_error("expected a statement");
 
   return true;
 }
@@ -2026,30 +2051,37 @@ bool Parser::parse_for_statement(StatementAST*& yyast) {
   ExpressionAST* e1 = nullptr;
   ExpressionAST* e2 = nullptr;
 
-  if (!match(TokenKind::T_FOR)) return false;
+  SourceLocation forLoc;
 
-  expect(TokenKind::T_LPAREN);
+  if (!match(TokenKind::T_FOR, forLoc)) return false;
 
-  if (!parse_init_statement(s1)) parse_error("expected a statement");
+  auto ast = new (pool) ForStatementAST();
+  yyast = ast;
 
-  if (!match(TokenKind::T_SEMICOLON)) {
-    if (!parse_condition(e1)) parse_error("expected a condition");
+  expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
-    expect(TokenKind::T_SEMICOLON);
+  if (!parse_init_statement(ast->initializer))
+    parse_error("expected a statement");
+
+  if (!match(TokenKind::T_SEMICOLON, ast->semicolonLoc)) {
+    if (!parse_condition(ast->condition)) parse_error("expected a condition");
+
+    expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
   }
 
-  if (!match(TokenKind::T_RPAREN)) {
-    if (!parse_expression(e2)) parse_error("expected an expression");
+  if (!match(TokenKind::T_RPAREN, ast->rparenLoc)) {
+    if (!parse_expression(ast->expression))
+      parse_error("expected an expression");
 
-    expect(TokenKind::T_RPAREN);
+    expect(TokenKind::T_RPAREN, ast->rparenLoc);
   }
 
-  if (!parse_statement(s2)) parse_error("expected a statement");
+  if (!parse_statement(ast->statement)) parse_error("expected a statement");
 
   return true;
 }
 
-bool Parser::parse_for_range_declaration() {
+bool Parser::parse_for_range_declaration(DeclarationAST*& yyast) {
   parse_attribute_specifier_seq();
 
   if (!parse_decl_specifier_seq()) return false;
@@ -2072,57 +2104,92 @@ bool Parser::parse_for_range_declaration() {
   return true;
 }
 
-bool Parser::parse_for_range_initializer() {
-  return parse_expr_or_braced_init_list();
+bool Parser::parse_for_range_initializer(ExpressionAST*& yyast) {
+  return parse_expr_or_braced_init_list(yyast);
 }
 
 bool Parser::parse_break_statement(StatementAST*& yyast) {
-  if (!match(TokenKind::T_BREAK)) return false;
+  SourceLocation breakLoc;
 
-  expect(TokenKind::T_SEMICOLON);
+  if (!match(TokenKind::T_BREAK, breakLoc)) return false;
+
+  auto ast = new (pool) BreakStatementAST();
+  yyast = ast;
+
+  ast->breakLoc = breakLoc;
+
+  expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
 
   return true;
 }
 
 bool Parser::parse_continue_statement(StatementAST*& yyast) {
-  if (!match(TokenKind::T_CONTINUE)) return false;
+  SourceLocation continueLoc;
 
-  expect(TokenKind::T_SEMICOLON);
+  if (!match(TokenKind::T_CONTINUE, continueLoc)) return false;
+
+  auto ast = new (pool) ContinueStatementAST();
+  yyast = ast;
+
+  ast->continueLoc = continueLoc;
+
+  expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
 
   return true;
 }
 
 bool Parser::parse_return_statement(StatementAST*& yyast) {
-  if (!match(TokenKind::T_RETURN)) return false;
+  SourceLocation returnLoc;
 
-  if (!match(TokenKind::T_SEMICOLON)) {
-    if (!parse_expr_or_braced_init_list())
+  if (!match(TokenKind::T_RETURN, returnLoc)) return false;
+
+  auto ast = new (pool) ReturnStatementAST();
+  yyast = ast;
+
+  ast->returnLoc = returnLoc;
+
+  if (!match(TokenKind::T_SEMICOLON, ast->semicolonLoc)) {
+    if (!parse_expr_or_braced_init_list(ast->expression))
       parse_error("expected an expression or ';'");
 
-    expect(TokenKind::T_SEMICOLON);
+    expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
   }
 
   return true;
 }
 
 bool Parser::parse_goto_statement(StatementAST*& yyast) {
-  if (!match(TokenKind::T_GOTO)) return false;
+  SourceLocation gotoLoc;
 
-  expect(TokenKind::T_IDENTIFIER);
+  if (!match(TokenKind::T_GOTO, gotoLoc)) return false;
 
-  expect(TokenKind::T_SEMICOLON);
+  auto ast = new (pool) GotoStatementAST();
+  yyast = ast;
+
+  ast->gotoLoc = gotoLoc;
+
+  expect(TokenKind::T_IDENTIFIER, ast->identifierLoc);
+
+  expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
 
   return true;
 }
 
 bool Parser::parse_coroutine_return_statement(StatementAST*& yyast) {
-  if (!match(TokenKind::T_CO_RETURN)) return false;
+  SourceLocation coreturnLoc;
 
-  if (!match(TokenKind::T_SEMICOLON)) {
-    if (!parse_expr_or_braced_init_list())
+  if (!match(TokenKind::T_CO_RETURN, coreturnLoc)) return false;
+
+  auto ast = new (pool) CoroutineReturnStatementAST();
+  yyast = ast;
+
+  ast->coreturnLoc = coreturnLoc;
+
+  if (!match(TokenKind::T_SEMICOLON, ast->semicolonLoc)) {
+    if (!parse_expr_or_braced_init_list(ast->expression))
       parse_error("expected an expression");
 
-    expect(TokenKind::T_SEMICOLON);
+    expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
   }
 
   return true;
@@ -2132,6 +2199,11 @@ bool Parser::parse_declaration_statement(StatementAST*& yyast) {
   DeclarationAST* declaration = nullptr;
 
   if (!parse_block_declaration(declaration, false)) return false;
+
+  auto ast = new (pool) DeclarationStatementAST();
+  yyast = ast;
+
+  ast->declaration = declaration;
 
   return true;
 }
@@ -3304,12 +3376,10 @@ bool Parser::parse_designator() {
   return true;
 }
 
-bool Parser::parse_expr_or_braced_init_list() {
+bool Parser::parse_expr_or_braced_init_list(ExpressionAST*& yyast) {
   if (LA().is(TokenKind::T_LBRACE)) return parse_braced_init_list();
 
-  ExpressionAST* expression = nullptr;
-
-  if (!parse_expression(expression)) parse_error("expected an expression");
+  if (!parse_expression(yyast)) parse_error("expected an expression");
 
   return true;
 }

@@ -207,8 +207,8 @@ class Parser {
   bool parse_do_statement(StatementAST*& yyast);
   bool parse_for_range_statement(StatementAST*& yyast);
   bool parse_for_statement(StatementAST*& yyast);
-  bool parse_for_range_declaration();
-  bool parse_for_range_initializer();
+  bool parse_for_range_declaration(DeclarationAST*& yyast);
+  bool parse_for_range_initializer(ExpressionAST*& yyast);
   bool parse_break_statement(StatementAST*& yyast);
   bool parse_continue_statement(StatementAST*& yyast);
   bool parse_return_statement(StatementAST*& yyast);
@@ -283,7 +283,7 @@ class Parser {
   bool parse_initializer_list();
   bool parse_designated_initializer_clause();
   bool parse_designator();
-  bool parse_expr_or_braced_init_list();
+  bool parse_expr_or_braced_init_list(ExpressionAST*& yyast);
   bool parse_virt_specifier_seq();
   bool parse_function_body();
   bool parse_enum_specifier();

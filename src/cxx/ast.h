@@ -107,26 +107,85 @@ struct IfStatementAST final : StatementAST {
   StatementAST* elseStatement = nullptr;
 };
 
-struct SwitchStatementAST final : StatementAST {};
+struct SwitchStatementAST final : StatementAST {
+  SourceLocation switchLoc;
+  SourceLocation lparenLoc;
+  StatementAST* initializer = nullptr;
+  ExpressionAST* condition = nullptr;
+  SourceLocation rparenLoc;
+  StatementAST* statement = nullptr;
+};
 
-struct WhileStatementAST final : StatementAST {};
+struct WhileStatementAST final : StatementAST {
+  SourceLocation whileLoc;
+  SourceLocation lparenLoc;
+  ExpressionAST* condition = nullptr;
+  SourceLocation rparenLoc;
+  StatementAST* statement = nullptr;
+};
 
-struct DoStatementAST final : StatementAST {};
+struct DoStatementAST final : StatementAST {
+  SourceLocation doLoc;
+  StatementAST* statement = nullptr;
+  SourceLocation whileLoc;
+  SourceLocation lparenLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation rparenLoc;
+  SourceLocation semicolonLoc;
+};
 
-struct ForRangeStatementAST final : StatementAST {};
+struct ForRangeStatementAST final : StatementAST {
+  SourceLocation forLoc;
+  SourceLocation lparenLoc;
+  StatementAST* initializer = nullptr;
+  DeclarationAST* rangeDeclaration = nullptr;
+  SourceLocation colonLoc;
+  ExpressionAST* rangeInitializer = nullptr;
+  SourceLocation rparenLoc;
+  StatementAST* statement = nullptr;
+};
 
-struct ForStatementAST final : StatementAST {};
+struct ForStatementAST final : StatementAST {
+  SourceLocation forLoc;
+  SourceLocation lparenLoc;
+  StatementAST* initializer = nullptr;
+  ExpressionAST* condition = nullptr;
+  SourceLocation semicolonLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation rparenLoc;
+  StatementAST* statement = nullptr;
+};
 
-struct BreakStatementAST final : StatementAST {};
+struct BreakStatementAST final : StatementAST {
+  SourceLocation breakLoc;
+  SourceLocation semicolonLoc;
+};
 
-struct ContinueStatementAST final : StatementAST {};
+struct ContinueStatementAST final : StatementAST {
+  SourceLocation continueLoc;
+  SourceLocation semicolonLoc;
+};
 
-struct ReturnStatementAST final : StatementAST {};
+struct ReturnStatementAST final : StatementAST {
+  SourceLocation returnLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation semicolonLoc;
+};
 
-struct GotoStatementAST final : StatementAST {};
+struct GotoStatementAST final : StatementAST {
+  SourceLocation gotoLoc;
+  SourceLocation identifierLoc;
+  SourceLocation semicolonLoc;
+};
 
-struct CoroutineReturnStatementAST final : StatementAST {};
+struct CoroutineReturnStatementAST final : StatementAST {
+  SourceLocation coreturnLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation semicolonLoc;
+};
 
-struct DeclarationStatementAST final : StatementAST {};
+struct DeclarationStatementAST final : StatementAST {
+  DeclarationAST* declaration = nullptr;
+};
 
 }  // namespace cxx
