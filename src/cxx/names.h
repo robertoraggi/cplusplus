@@ -20,11 +20,11 @@
 
 #pragma once
 
+#include <cxx/token.h>
+
 #include <string>
 #include <tuple>
 #include <variant>
-
-#include "token.h"
 
 namespace cxx {
 

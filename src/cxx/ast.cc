@@ -18,6 +18,79 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "ast.h"
+#include <cxx/ast.h>
+#include <cxx/statement_ast_visitor.h>
 
-namespace cxx {}  // namespace cxx
+namespace cxx {
+
+AST::~AST() = default;
+
+void LabeledStatementAST::visit(StatementASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void CaseStatementAST::visit(StatementASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void DefaultStatementAST::visit(StatementASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void ExpressionStatementAST::visit(StatementASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void CompoundStatementAST::visit(StatementASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void IfStatementAST::visit(StatementASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void SwitchStatementAST::visit(StatementASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void WhileStatementAST::visit(StatementASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void DoStatementAST::visit(StatementASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void ForRangeStatementAST::visit(StatementASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void ForStatementAST::visit(StatementASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void BreakStatementAST::visit(StatementASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void ContinueStatementAST::visit(StatementASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void ReturnStatementAST::visit(StatementASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void GotoStatementAST::visit(StatementASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void CoroutineReturnStatementAST::visit(StatementASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void DeclarationStatementAST::visit(StatementASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+}  // namespace cxx

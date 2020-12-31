@@ -18,16 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "translation_unit.h"
+#include <cxx/control.h>
+#include <cxx/lexer.h>
+#include <cxx/parser.h>
+#include <cxx/translation_unit.h>
 
 #include <cassert>
-
-#include "control.h"
-#include "lexer.h"
-#include "parser.h"
-
-// generated keyword classifier
-#include "keywords-priv.h"
 
 namespace cxx {
 

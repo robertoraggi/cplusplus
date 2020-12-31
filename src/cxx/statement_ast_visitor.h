@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2020 Roberto Raggi <roberto.raggi@gmail.com>
+// Copyright (c) 2020 Roberto Raggi <roberto.raggi@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -18,26 +18,33 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/token.h>
+#pragma once
+
+#include <cxx/ast_fwd.h>
 
 namespace cxx {
 
-const char* token_spell[] = {
-#define TOKEN_SPELL(_, s) s,
-    FOR_EACH_TOKEN(TOKEN_SPELL)};
-#undef TOKEN_SPELL
+struct StatementASTVisitor {
+  StatementASTVisitor();
+  virtual ~StatementASTVisitor();
 
-const char* token_name[] = {
-#define TOKEN_SPELL(s, _) #s,
-    FOR_EACH_TOKEN(TOKEN_SPELL)};
-#undef TOKEN_SPELL
-
-std::string_view Token::spell(TokenKind kind) { return token_spell[(int)kind]; }
-
-std::string_view Token::spell() const { return spell(kind_); }
-
-std::string_view Token::name(TokenKind kind) { return token_name[(int)kind]; }
-
-std::string_view Token::name() const { return name(kind_); }
+  virtual void visit(LabeledStatementAST*) = 0;
+  virtual void visit(CaseStatementAST*) = 0;
+  virtual void visit(DefaultStatementAST*) = 0;
+  virtual void visit(ExpressionStatementAST*) = 0;
+  virtual void visit(CompoundStatementAST*) = 0;
+  virtual void visit(IfStatementAST*) = 0;
+  virtual void visit(SwitchStatementAST*) = 0;
+  virtual void visit(WhileStatementAST*) = 0;
+  virtual void visit(DoStatementAST*) = 0;
+  virtual void visit(ForRangeStatementAST*) = 0;
+  virtual void visit(ForStatementAST*) = 0;
+  virtual void visit(BreakStatementAST*) = 0;
+  virtual void visit(ContinueStatementAST*) = 0;
+  virtual void visit(ReturnStatementAST*) = 0;
+  virtual void visit(GotoStatementAST*) = 0;
+  virtual void visit(CoroutineReturnStatementAST*) = 0;
+  virtual void visit(DeclarationStatementAST*) = 0;
+};
 
 }  // namespace cxx

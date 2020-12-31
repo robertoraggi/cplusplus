@@ -20,10 +20,10 @@
 
 #pragma once
 
+#include <cxx/cxx_fwd.h>
+
 #include <cstdint>
 #include <string_view>
-
-#include "cxx-fwd.h"
 
 #define FOR_EACH_TOKEN(V)                                             \
   V(EOF_SYMBOL, "eof")                                                \

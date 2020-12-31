@@ -20,9 +20,9 @@
 
 #pragma once
 
-#include <set>
+#include <cxx/names.h>
 
-#include "names.h"
+#include <set>
 
 namespace cxx {
 

@@ -21,21 +21,10 @@
 #pragma once
 
 #include <cxx/arena.h>
+#include <cxx/ast_fwd.h>
 #include <cxx/source_location.h>
 
 namespace cxx {
-
-template <typename T>
-struct List;
-
-struct AST;
-struct UnitAST;
-struct DeclarationAST;
-struct StatementAST;
-struct ExpressionAST;
-struct SpecifierAST;
-struct DeclaratorAST;
-struct NameAST;
 
 template <typename T>
 struct List final : Managed {
@@ -47,14 +36,16 @@ struct List final : Managed {
 };
 
 struct AST : Managed {
-  virtual ~AST() = default;
+  virtual ~AST();
 };
 
 struct UnitAST : AST {};
 
 struct DeclarationAST : AST {};
 
-struct StatementAST : AST {};
+struct StatementAST : AST {
+  virtual void visit(StatementASTVisitor*) = 0;
+};
 
 struct ExpressionAST : AST {};
 
@@ -70,6 +61,8 @@ struct LabeledStatementAST final : StatementAST {
   SourceLocation identifierLoc;
   SourceLocation colonLoc;
   StatementAST* statement = nullptr;
+
+  void visit(StatementASTVisitor* visitor) override;
 };
 
 struct CaseStatementAST final : StatementAST {
@@ -77,23 +70,31 @@ struct CaseStatementAST final : StatementAST {
   ExpressionAST* expression = nullptr;
   SourceLocation colonLoc;
   StatementAST* statement = nullptr;
+
+  void visit(StatementASTVisitor* visitor) override;
 };
 
 struct DefaultStatementAST final : StatementAST {
   SourceLocation defaultLoc;
   SourceLocation colonLoc;
   StatementAST* statement = nullptr;
+
+  void visit(StatementASTVisitor* visitor) override;
 };
 
 struct ExpressionStatementAST final : StatementAST {
   ExpressionAST* expression = nullptr;
   SourceLocation semicolonLoc;
+
+  void visit(StatementASTVisitor* visitor) override;
 };
 
 struct CompoundStatementAST final : StatementAST {
   SourceLocation lbraceLoc;
   List<StatementAST*>* statementList = nullptr;
   SourceLocation rbraceLoc;
+
+  void visit(StatementASTVisitor* visitor) override;
 };
 
 struct IfStatementAST final : StatementAST {
@@ -105,6 +106,8 @@ struct IfStatementAST final : StatementAST {
   SourceLocation rparenLoc;
   StatementAST* statement = nullptr;
   StatementAST* elseStatement = nullptr;
+
+  void visit(StatementASTVisitor* visitor) override;
 };
 
 struct SwitchStatementAST final : StatementAST {
@@ -114,6 +117,8 @@ struct SwitchStatementAST final : StatementAST {
   ExpressionAST* condition = nullptr;
   SourceLocation rparenLoc;
   StatementAST* statement = nullptr;
+
+  void visit(StatementASTVisitor* visitor) override;
 };
 
 struct WhileStatementAST final : StatementAST {
@@ -122,6 +127,8 @@ struct WhileStatementAST final : StatementAST {
   ExpressionAST* condition = nullptr;
   SourceLocation rparenLoc;
   StatementAST* statement = nullptr;
+
+  void visit(StatementASTVisitor* visitor) override;
 };
 
 struct DoStatementAST final : StatementAST {
@@ -132,6 +139,8 @@ struct DoStatementAST final : StatementAST {
   ExpressionAST* expression = nullptr;
   SourceLocation rparenLoc;
   SourceLocation semicolonLoc;
+
+  void visit(StatementASTVisitor* visitor) override;
 };
 
 struct ForRangeStatementAST final : StatementAST {
@@ -143,6 +152,8 @@ struct ForRangeStatementAST final : StatementAST {
   ExpressionAST* rangeInitializer = nullptr;
   SourceLocation rparenLoc;
   StatementAST* statement = nullptr;
+
+  void visit(StatementASTVisitor* visitor) override;
 };
 
 struct ForStatementAST final : StatementAST {
@@ -154,38 +165,52 @@ struct ForStatementAST final : StatementAST {
   ExpressionAST* expression = nullptr;
   SourceLocation rparenLoc;
   StatementAST* statement = nullptr;
+
+  void visit(StatementASTVisitor* visitor) override;
 };
 
 struct BreakStatementAST final : StatementAST {
   SourceLocation breakLoc;
   SourceLocation semicolonLoc;
+
+  void visit(StatementASTVisitor* visitor) override;
 };
 
 struct ContinueStatementAST final : StatementAST {
   SourceLocation continueLoc;
   SourceLocation semicolonLoc;
+
+  void visit(StatementASTVisitor* visitor) override;
 };
 
 struct ReturnStatementAST final : StatementAST {
   SourceLocation returnLoc;
   ExpressionAST* expression = nullptr;
   SourceLocation semicolonLoc;
+
+  void visit(StatementASTVisitor* visitor) override;
 };
 
 struct GotoStatementAST final : StatementAST {
   SourceLocation gotoLoc;
   SourceLocation identifierLoc;
   SourceLocation semicolonLoc;
+
+  void visit(StatementASTVisitor* visitor) override;
 };
 
 struct CoroutineReturnStatementAST final : StatementAST {
   SourceLocation coreturnLoc;
   ExpressionAST* expression = nullptr;
   SourceLocation semicolonLoc;
+
+  void visit(StatementASTVisitor* visitor) override;
 };
 
 struct DeclarationStatementAST final : StatementAST {
   DeclarationAST* declaration = nullptr;
+
+  void visit(StatementASTVisitor* visitor) override;
 };
 
 }  // namespace cxx

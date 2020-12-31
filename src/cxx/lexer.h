@@ -20,9 +20,9 @@
 
 #pragma once
 
-#include <string_view>
+#include <cxx/token.h>
 
-#include "token.h"
+#include <string_view>
 
 namespace cxx {
 

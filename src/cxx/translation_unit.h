@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <cxx/token.h>
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 
@@ -29,8 +30,6 @@
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include "token.h"
 
 namespace cxx {
 

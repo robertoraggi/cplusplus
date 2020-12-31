@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2020 Roberto Raggi <roberto.raggi@gmail.com>
+// Copyright (c) 2020 Roberto Raggi <roberto.raggi@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -18,26 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/token.h>
+#include <cxx/statement_ast_visitor.h>
 
 namespace cxx {
 
-const char* token_spell[] = {
-#define TOKEN_SPELL(_, s) s,
-    FOR_EACH_TOKEN(TOKEN_SPELL)};
-#undef TOKEN_SPELL
+StatementASTVisitor::StatementASTVisitor() = default;
 
-const char* token_name[] = {
-#define TOKEN_SPELL(s, _) #s,
-    FOR_EACH_TOKEN(TOKEN_SPELL)};
-#undef TOKEN_SPELL
-
-std::string_view Token::spell(TokenKind kind) { return token_spell[(int)kind]; }
-
-std::string_view Token::spell() const { return spell(kind_); }
-
-std::string_view Token::name(TokenKind kind) { return token_name[(int)kind]; }
-
-std::string_view Token::name() const { return name(kind_); }
+StatementASTVisitor::~StatementASTVisitor() = default;
 
 }  // namespace cxx

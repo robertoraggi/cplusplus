@@ -18,7 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "parser.h"
+#include <cxx/arena.h>
+#include <cxx/control.h>
+#include <cxx/parser.h>
+#include <cxx/token.h>
 
 #include <algorithm>
 #include <cassert>
@@ -27,10 +30,6 @@
 #include <iostream>
 #include <unordered_map>
 #include <variant>
-
-#include "arena.h"
-#include "control.h"
-#include "token.h"
 
 namespace cxx {
 

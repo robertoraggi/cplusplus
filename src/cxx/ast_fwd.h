@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2020 Roberto Raggi <roberto.raggi@gmail.com>
+// Copyright (c) 2020 Roberto Raggi <roberto.raggi@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -18,26 +18,42 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/token.h>
+#pragma once
 
 namespace cxx {
 
-const char* token_spell[] = {
-#define TOKEN_SPELL(_, s) s,
-    FOR_EACH_TOKEN(TOKEN_SPELL)};
-#undef TOKEN_SPELL
+template <typename T>
+struct List;
 
-const char* token_name[] = {
-#define TOKEN_SPELL(s, _) #s,
-    FOR_EACH_TOKEN(TOKEN_SPELL)};
-#undef TOKEN_SPELL
+struct AST;
+struct UnitAST;
+struct DeclarationAST;
+struct StatementAST;
+struct ExpressionAST;
+struct SpecifierAST;
+struct DeclaratorAST;
+struct NameAST;
 
-std::string_view Token::spell(TokenKind kind) { return token_spell[(int)kind]; }
+// statements
+struct LabeledStatementAST;
+struct CaseStatementAST;
+struct DefaultStatementAST;
+struct ExpressionStatementAST;
+struct CompoundStatementAST;
+struct IfStatementAST;
+struct SwitchStatementAST;
+struct WhileStatementAST;
+struct DoStatementAST;
+struct ForRangeStatementAST;
+struct ForStatementAST;
+struct BreakStatementAST;
+struct ContinueStatementAST;
+struct ReturnStatementAST;
+struct GotoStatementAST;
+struct CoroutineReturnStatementAST;
+struct DeclarationStatementAST;
 
-std::string_view Token::spell() const { return spell(kind_); }
-
-std::string_view Token::name(TokenKind kind) { return token_name[(int)kind]; }
-
-std::string_view Token::name() const { return name(kind_); }
+// visitors
+struct StatementASTVisitor;
 
 }  // namespace cxx
