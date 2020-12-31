@@ -20,7 +20,7 @@
 
 #include <cxx/control.h>
 #include <cxx/lexer.h>
-#include <cxx/translation-unit.h>
+#include <cxx/translation_unit.h>
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 

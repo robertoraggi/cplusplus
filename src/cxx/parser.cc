@@ -154,8 +154,9 @@ bool Parser::parse(TranslationUnit* u) {
 }
 
 bool Parser::parse_id(const Identifier* id) {
-  if (!match(TokenKind::T_IDENTIFIER)) return false;
-  return unit->identifier(cursor_ - 1) == id;
+  SourceLocation location;
+  if (!match(TokenKind::T_IDENTIFIER, &location)) return false;
+  return unit->identifier(location.index()) == id;
 }
 
 bool Parser::parse_nospace() {
@@ -164,7 +165,7 @@ bool Parser::parse_nospace() {
 }
 
 bool Parser::parse_greater_greater() {
-  const auto saved = cursor_;
+  const auto saved = currentLocation();
   if (match(TokenKind::T_GREATER) && parse_nospace() &&
       match(TokenKind::T_GREATER))
     return true;
@@ -173,7 +174,7 @@ bool Parser::parse_greater_greater() {
 }
 
 bool Parser::parse_greater_greater_equal() {
-  const auto saved = cursor_;
+  const auto saved = currentLocation();
   if (match(TokenKind::T_GREATER) && parse_nospace() &&
       match(TokenKind::T_GREATER) && parse_nospace() &&
       match(TokenKind::T_EQUAL))
@@ -183,7 +184,7 @@ bool Parser::parse_greater_greater_equal() {
 }
 
 bool Parser::parse_greater_equal() {
-  const auto saved = cursor_;
+  const auto saved = currentLocation();
   if (match(TokenKind::T_GREATER) && parse_nospace() &&
       match(TokenKind::T_EQUAL))
     return true;
@@ -226,7 +227,7 @@ bool Parser::parse_final() { return parse_id(final_id); }
 bool Parser::parse_override() { return parse_id(override_id); }
 
 bool Parser::parse_typedef_name() {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   if (parse_simple_template_id()) return true;
 
@@ -238,7 +239,7 @@ bool Parser::parse_typedef_name() {
 }
 
 bool Parser::parse_namespace_name() {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   if (parse_namespace_alias()) return true;
 
@@ -264,7 +265,7 @@ bool Parser::parse_class_name() {
 }
 
 bool Parser::parse_class_name(Name& name) {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   if (parse_simple_template_id()) return true;
 
@@ -274,9 +275,12 @@ bool Parser::parse_class_name(Name& name) {
 }
 
 bool Parser::parse_name_id(Name& name) {
-  if (!match(TokenKind::T_IDENTIFIER)) return false;
+  SourceLocation identifierLoc;
 
-  name = unit->identifier(cursor_ - 1);
+  if (!match(TokenKind::T_IDENTIFIER, &identifierLoc)) return false;
+
+  name = unit->identifier(identifierLoc.index());
+
   return true;
 }
 
@@ -331,7 +335,7 @@ bool Parser::parse_translation_unit(UnitAST*& yyast) {
 }
 
 bool Parser::parse_module_head() {
-  const auto start = cursor_;
+  const auto start = currentLocation();
   const auto has_export = match(TokenKind::T_EXPORT);
   const auto is_module = parse_id(module_id);
   rewind(start);
@@ -364,13 +368,13 @@ bool Parser::parse_top_level_declaration_seq(UnitAST*& yyast) {
   DeclarationAST* d1 = nullptr;
 
   while (LA()) {
-    auto saved = cursor_;
+    auto saved = currentLocation();
     DeclarationAST* declaration = nullptr;
     if (parse_declaration(declaration)) {
       skipping = false;
     } else {
       parse_skip_top_level_declaration(skipping);
-      if (cursor_ == saved) consumeToken();
+      if (currentLocation() == saved) consumeToken();
     }
   }
   return true;
@@ -388,13 +392,13 @@ bool Parser::parse_declaration_seq() {
   while (LA()) {
     if (LA().is(TokenKind::T_RBRACE)) break;
     if (parse_maybe_module()) break;
-    auto saved = cursor_;
+    auto saved = currentLocation();
     DeclarationAST* decl = nullptr;
     if (parse_declaration(decl)) {
       skipping = false;
     } else {
       parse_skip_declaration(skipping);
-      if (cursor_ == saved) consumeToken();
+      if (currentLocation() == saved) consumeToken();
     }
   }
   return true;
@@ -420,7 +424,7 @@ bool Parser::parse_primary_expression(ExpressionAST*& yyast) {
   else if (LA().is(TokenKind::T_REQUIRES))
     return parse_requires_expression(yyast);
   else if (LA().is(TokenKind::T_LPAREN)) {
-    const auto saved = cursor_;
+    const auto saved = currentLocation();
 
     if (parse_fold_expression(yyast)) return true;
 
@@ -440,14 +444,14 @@ bool Parser::parse_primary_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_id_expression() {
-  const auto start = cursor_;
+  const auto start = currentLocation();
   if (parse_qualified_id()) return true;
   rewind(start);
   return parse_unqualified_id();
 }
 
 bool Parser::parse_maybe_template_id() {
-  const auto start = cursor_;
+  const auto start = currentLocation();
   const auto blockErrors = unit->blockErrors(true);
   auto template_id = parse_template_id();
   const auto& tk = LA();
@@ -476,7 +480,7 @@ bool Parser::parse_maybe_template_id() {
 }
 
 bool Parser::parse_unqualified_id() {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   if (parse_maybe_template_id()) return true;
 
@@ -521,7 +525,7 @@ bool Parser::parse_start_of_nested_name_specifier(Name& id) {
   if (parse_decltype_specifier() && match(TokenKind::T_COLON_COLON))
     return true;
 
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   if (parse_name_id(id) && match(TokenKind::T_COLON_COLON)) return true;
 
@@ -534,7 +538,7 @@ bool Parser::parse_start_of_nested_name_specifier(Name& id) {
 }
 
 bool Parser::parse_nested_name_specifier() {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   auto it = nested_name_specifiers_.find(start);
 
@@ -546,12 +550,12 @@ bool Parser::parse_nested_name_specifier() {
 
   struct Context {
     Parser* p;
-    uint32_t start;
+    SourceLocation start;
     bool parsed = false;
-    Context(Parser* p) : p(p), start(p->cursor_) {}
+    Context(Parser* p) : p(p), start(p->currentLocation()) {}
     ~Context() {
-      p->nested_name_specifiers_.emplace(start,
-                                         std::make_tuple(p->cursor_, parsed));
+      p->nested_name_specifiers_.emplace(
+          start, std::make_tuple(p->currentLocation(), parsed));
     }
   };
 
@@ -561,7 +565,7 @@ bool Parser::parse_nested_name_specifier() {
   if (!parse_start_of_nested_name_specifier(id)) return false;
 
   while (true) {
-    const auto saved = cursor_;
+    const auto saved = currentLocation();
     if (parse_name_id(id) && match(TokenKind::T_COLON_COLON)) {
       //
     } else {
@@ -638,7 +642,7 @@ bool Parser::parse_lambda_capture() {
 }
 
 bool Parser::parse_capture_default() {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   if (!match(TokenKind::T_AMP) && !match(TokenKind::T_EQUAL)) return false;
 
@@ -661,7 +665,7 @@ bool Parser::parse_capture_list() {
 }
 
 bool Parser::parse_capture() {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   if (parse_init_capture()) return true;
 
@@ -836,14 +840,14 @@ bool Parser::parse_requirement_seq() {
   while (LA()) {
     if (LA().is(TokenKind::T_RBRACE)) break;
 
-    const auto before_requirement = cursor_;
+    const auto before_requirement = currentLocation();
 
     if (parse_requirement()) {
       skipping = false;
     } else {
       if (!skipping) parse_error("expected a requirement");
       skipping = true;
-      if (cursor_ == before_requirement) consumeToken();
+      if (currentLocation() == before_requirement) consumeToken();
     }
   }
 
@@ -872,7 +876,7 @@ bool Parser::parse_simple_requirement() {
 bool Parser::parse_type_requirement() {
   if (!match(TokenKind::T_TYPENAME)) return false;
 
-  const auto after_typename = cursor_;
+  const auto after_typename = currentLocation();
 
   if (!parse_nested_name_specifier()) rewind(after_typename);
 
@@ -931,7 +935,7 @@ bool Parser::parse_postfix_expression(ExpressionAST*& yyast) {
   if (!parse_start_of_postfix_expression(yyast)) return false;
 
   while (true) {
-    const auto saved = cursor_;
+    const auto saved = currentLocation();
     if (parse_member_expression(yyast))
       continue;
     else if (parse_subscript_expression(yyast))
@@ -950,7 +954,7 @@ bool Parser::parse_postfix_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_start_of_postfix_expression(ExpressionAST*& yyast) {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   if (parse_cpp_cast_expression(yyast)) return true;
 
@@ -1062,7 +1066,7 @@ bool Parser::parse_typeid_expression(ExpressionAST*& yyast) {
 
   expect(TokenKind::T_LPAREN);
 
-  const auto saved = cursor_;
+  const auto saved = currentLocation();
 
   if (parse_type_id() && match(TokenKind::T_RPAREN)) {
     //
@@ -1213,7 +1217,7 @@ bool Parser::parse_sizeof_expression(ExpressionAST*& yyast) {
     return true;
   }
 
-  const auto after_sizeof_op = cursor_;
+  const auto after_sizeof_op = currentLocation();
 
   if (match(TokenKind::T_LPAREN)) {
     if (parse_type_id() && match(TokenKind::T_RPAREN)) {
@@ -1288,7 +1292,7 @@ bool Parser::parse_noexcept_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_new_expression(ExpressionAST*& yyast) {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   const auto has_scope_op = match(TokenKind::T_COLON_COLON);
 
@@ -1297,15 +1301,15 @@ bool Parser::parse_new_expression(ExpressionAST*& yyast) {
     return false;
   }
 
-  const auto after_new_op = cursor_;
+  const auto after_new_op = currentLocation();
 
   if (!parse_new_placement()) rewind(after_new_op);
 
-  const auto after_new_placement = cursor_;
+  const auto after_new_placement = currentLocation();
 
   if (match(TokenKind::T_LPAREN) && parse_type_id() &&
       match(TokenKind::T_RPAREN)) {
-    const auto saved = cursor_;
+    const auto saved = currentLocation();
     if (!parse_new_initializer()) rewind(saved);
     return true;
   }
@@ -1314,7 +1318,7 @@ bool Parser::parse_new_expression(ExpressionAST*& yyast) {
 
   if (!parse_new_type_id()) return false;
 
-  const auto saved = cursor_;
+  const auto saved = currentLocation();
 
   if (!parse_new_initializer()) rewind(saved);
 
@@ -1334,7 +1338,7 @@ bool Parser::parse_new_placement() {
 bool Parser::parse_new_type_id() {
   if (!parse_type_specifier_seq()) return false;
 
-  const auto saved = cursor_;
+  const auto saved = currentLocation();
 
   if (!parse_new_declarator()) rewind(saved);
 
@@ -1343,7 +1347,7 @@ bool Parser::parse_new_type_id() {
 
 bool Parser::parse_new_declarator() {
   if (parse_ptr_operator()) {
-    auto saved = cursor_;
+    auto saved = currentLocation();
 
     if (!parse_new_declarator()) rewind(saved);
 
@@ -1397,7 +1401,7 @@ bool Parser::parse_new_initializer() {
 }
 
 bool Parser::parse_delete_expression(ExpressionAST*& yyast) {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   const auto has_scope_op = match(TokenKind::T_COLON_COLON);
 
@@ -1418,7 +1422,7 @@ bool Parser::parse_delete_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_cast_expression(ExpressionAST*& yyast) {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   if (parse_cast_expression_helper(yyast)) return true;
 
@@ -1442,7 +1446,7 @@ bool Parser::parse_cast_expression_helper(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_binary_operator(TokenKind& tk, bool templArg) {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   tk = TokenKind::T_EOF_SYMBOL;
 
@@ -1503,7 +1507,7 @@ bool Parser::parse_binary_operator(TokenKind& tk, bool templArg) {
 bool Parser::parse_binary_expression(ExpressionAST*& yyast, bool templArg) {
   if (!parse_cast_expression(yyast)) return false;
 
-  const auto saved = cursor_;
+  const auto saved = currentLocation();
 
   if (!parse_binary_expression_helper(yyast, Prec::kLogicalOr, templArg))
     rewind(saved);
@@ -1512,7 +1516,7 @@ bool Parser::parse_binary_expression(ExpressionAST*& yyast, bool templArg) {
 }
 
 bool Parser::parse_lookahead_binary_operator(TokenKind& tk, bool templArg) {
-  const auto saved = cursor_;
+  const auto saved = currentLocation();
 
   const auto has_binop = parse_binary_operator(tk, templArg);
 
@@ -1528,7 +1532,7 @@ bool Parser::parse_binary_expression_helper(ExpressionAST*& yyast, Prec minPrec,
   TokenKind op = TokenKind::T_EOF_SYMBOL;
 
   while (parse_lookahead_binary_operator(op, templArg) && prec(op) >= minPrec) {
-    const auto saved = cursor_;
+    const auto saved = currentLocation();
 
     ExpressionAST* rhs = nullptr;
 
@@ -1604,7 +1608,7 @@ bool Parser::parse_throw_expression(ExpressionAST*& yyast) {
 
   ExpressionAST* expression = nullptr;
 
-  const auto saved = cursor_;
+  const auto saved = currentLocation();
 
   if (!parse_assignment_expression(expression)) rewind(saved);
 
@@ -1675,19 +1679,11 @@ bool Parser::parse_template_argument_constant_expression(
 }
 
 bool Parser::parse_statement(StatementAST*& yyast) {
-  bool has_extension = false;
+  const bool has_extension = match(TokenKind::T___EXTENSION__);
 
-  if (match(TokenKind::T___EXTENSION__)) {
-    has_extension = false;
-  }
+  const bool has_attribute_specifiers = parse_attribute_specifier_seq();
 
-  bool has_attribute_specifiers = false;
-
-  if (parse_attribute_specifier_seq()) {
-    has_attribute_specifiers = true;
-  }
-
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   switch (TokenKind(LA())) {
     case TokenKind::T_CASE:
@@ -1723,10 +1719,12 @@ bool Parser::parse_statement(StatementAST*& yyast) {
     default:
       if (LA().is(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_COLON)) {
         return parse_labeled_statement(yyast);
-      } else if (parse_declaration_statement(yyast)) {
-        return true;
       }
+
+      if (parse_declaration_statement(yyast)) return true;
+
       rewind(start);
+
       return parse_expression_statement(yyast);
   }  // switch
 }
@@ -1734,7 +1732,7 @@ bool Parser::parse_statement(StatementAST*& yyast) {
 bool Parser::parse_init_statement(StatementAST*& yyast) {
   if (LA().is(TokenKind::T_RPAREN)) return false;
 
-  auto saved = cursor_;
+  auto saved = currentLocation();
 
   DeclarationAST* declaration = nullptr;
 
@@ -1752,7 +1750,7 @@ bool Parser::parse_init_statement(StatementAST*& yyast) {
 }
 
 bool Parser::parse_condition(ExpressionAST*& yyast) {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   parse_attribute_specifier_seq();
 
@@ -1862,7 +1860,7 @@ bool Parser::parse_if_statement(StatementAST*& yyast) {
 
   expect(TokenKind::T_LPAREN);
 
-  auto saved = cursor_;
+  auto saved = currentLocation();
 
   StatementAST* initializer = nullptr;
 
@@ -1894,7 +1892,7 @@ bool Parser::parse_switch_statement(StatementAST*& yyast) {
 
   StatementAST* initializer = nullptr;
 
-  const auto saved = cursor_;
+  const auto saved = currentLocation();
 
   if (!parse_init_statement(initializer)) rewind(saved);
 
@@ -1951,7 +1949,7 @@ bool Parser::parse_for_range_statement(StatementAST*& yyast) {
 
   if (!match(TokenKind::T_LPAREN)) return false;
 
-  const auto saved = cursor_;
+  const auto saved = currentLocation();
 
   StatementAST* initializer = nullptr;
 
@@ -2092,7 +2090,7 @@ bool Parser::parse_declaration_statement(StatementAST*& yyast) {
 bool Parser::parse_maybe_module() {
   if (!module_unit) return false;
 
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   match(TokenKind::T_EXPORT);
 
@@ -2106,7 +2104,7 @@ bool Parser::parse_maybe_module() {
 bool Parser::parse_declaration(DeclarationAST*& yyast) {
   if (LA().is(TokenKind::T_RBRACE)) return false;
 
-  auto start = cursor_;
+  auto start = currentLocation();
 
   if (LA().is(TokenKind::T_SEMICOLON)) return parse_empty_declaration(yyast);
 
@@ -2142,7 +2140,7 @@ bool Parser::parse_declaration(DeclarationAST*& yyast) {
 }
 
 bool Parser::parse_block_declaration(DeclarationAST*& yyast, bool fundef) {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   const auto& tk = LA();
 
@@ -2196,12 +2194,12 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
 
   if (match(TokenKind::T_SEMICOLON)) return true;
 
-  const auto after_attributes = cursor_;
+  const auto after_attributes = currentLocation();
 
   DeclSpecs specs;
   if (!parse_decl_specifier_seq_no_typespecs(specs)) rewind(after_attributes);
 
-  auto after_decl_specs = cursor_;
+  auto after_decl_specs = currentLocation();
 
   if (parse_declarator_id()) {
     parse_attribute_specifier_seq();
@@ -2216,7 +2214,7 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
 
   if (!parse_decl_specifier_seq(specs)) rewind(after_decl_specs);
 
-  after_decl_specs = cursor_;
+  after_decl_specs = currentLocation();
 
   if (match(TokenKind::T_SEMICOLON)) return specs.has_complex_typespec;
 
@@ -2235,7 +2233,7 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
   Declarator decl;
   if (!parse_declarator(decl)) return false;
 
-  const auto after_declarator = cursor_;
+  const auto after_declarator = currentLocation();
 
   if (match(TokenKind::T_SEMICOLON)) return true;
 
@@ -2423,7 +2421,7 @@ bool Parser::parse_type_specifier_seq() {
   parse_attribute_specifier_seq();
 
   while (LA()) {
-    const auto before_type_specifier = cursor_;
+    const auto before_type_specifier = currentLocation();
 
     if (!parse_type_specifier(specs)) {
       rewind(before_type_specifier);
@@ -2438,7 +2436,7 @@ bool Parser::parse_type_specifier_seq() {
 
 bool Parser::parse_defining_type_specifier(DeclSpecs& specs) {
   if (!specs.no_class_or_enum_specs) {
-    const auto start = cursor_;
+    const auto start = currentLocation();
 
     if (parse_enum_specifier()) {
       specs.has_complex_typespec = true;
@@ -2461,7 +2459,7 @@ bool Parser::parse_defining_type_specifier_seq(DeclSpecs& specs) {
   parse_attribute_specifier_seq();
 
   while (LA()) {
-    const auto before_type_specifier = cursor_;
+    const auto before_type_specifier = currentLocation();
 
     if (!parse_defining_type_specifier(specs)) {
       rewind(before_type_specifier);
@@ -2475,7 +2473,7 @@ bool Parser::parse_defining_type_specifier_seq(DeclSpecs& specs) {
 }
 
 bool Parser::parse_simple_type_specifier(DeclSpecs& specs) {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   if (parse_named_type_specifier(specs)) return true;
 
@@ -2505,10 +2503,10 @@ bool Parser::parse_named_type_specifier(DeclSpecs& specs) {
 bool Parser::parse_named_type_specifier_helper(DeclSpecs& specs) {
   if (specs.has_typespec()) return false;
 
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   if (parse_nested_name_specifier()) {
-    const auto after_nested_name_specifier = cursor_;
+    const auto after_nested_name_specifier = currentLocation();
 
     if (match(TokenKind::T_TEMPLATE) && parse_simple_template_id()) {
       return true;
@@ -2643,7 +2641,7 @@ bool Parser::parse_primitive_type_specifier(DeclSpecs& specs) {
 }
 
 bool Parser::parse_type_name() {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   if (parse_class_name()) return true;
 
@@ -2665,7 +2663,7 @@ bool Parser::parse_elaborated_type_specifier(DeclSpecs& specs) {
 
   parse_attribute_specifier_seq();
 
-  const auto before_nested_name_specifier = cursor_;
+  const auto before_nested_name_specifier = currentLocation();
 
   if (!parse_nested_name_specifier()) {
     rewind(before_nested_name_specifier);
@@ -2683,7 +2681,7 @@ bool Parser::parse_elaborated_type_specifier(DeclSpecs& specs) {
     return true;
   }
 
-  const auto after_nested_name_specifier = cursor_;
+  const auto after_nested_name_specifier = currentLocation();
 
   const bool has_template = match(TokenKind::T_TEMPLATE);
 
@@ -2710,7 +2708,7 @@ bool Parser::parse_elaborated_type_specifier(DeclSpecs& specs) {
 bool Parser::parse_elaborated_enum_specifier() {
   if (!match(TokenKind::T_ENUM)) return false;
 
-  const auto saved = cursor_;
+  const auto saved = currentLocation();
 
   if (!parse_nested_name_specifier()) rewind(saved);
 
@@ -2796,7 +2794,7 @@ bool Parser::parse_init_declarator_list() {
 bool Parser::parse_init_declarator() {
   if (!parse_declarator()) return false;
 
-  const auto saved = cursor_;
+  const auto saved = currentLocation();
 
   if (!parse_declarator_initializer()) rewind(saved);
 
@@ -2853,7 +2851,7 @@ bool Parser::parse_noptr_declarator(Declarator& decl) {
   if (!parse_core_declarator(decl)) return false;
 
   while (true) {
-    const auto saved = cursor_;
+    const auto saved = currentLocation();
 
     if (match(TokenKind::T_LBRACKET)) {
       if (!match(TokenKind::T_RBRACKET)) {
@@ -2934,7 +2932,7 @@ bool Parser::parse_ptr_operator() {
     return true;
   }
 
-  const auto saved = cursor_;
+  const auto saved = currentLocation();
 
   if (parse_nested_name_specifier() && match(TokenKind::T_STAR)) {
     parse_attribute_specifier_seq();
@@ -2984,7 +2982,7 @@ bool Parser::parse_declarator_id() {
 bool Parser::parse_type_id() {
   if (!parse_type_specifier_seq()) return false;
 
-  const auto before_declarator = cursor_;
+  const auto before_declarator = currentLocation();
 
   if (!parse_abstract_declarator()) rewind(before_declarator);
 
@@ -2998,7 +2996,7 @@ bool Parser::parse_defining_type_id() {
 
   if (!parse_defining_type_specifier_seq(specs)) return false;
 
-  const auto before_declarator = cursor_;
+  const auto before_declarator = currentLocation();
 
   if (!parse_abstract_declarator()) rewind(before_declarator);
 
@@ -3010,7 +3008,7 @@ bool Parser::parse_abstract_declarator() {
 
   if (parse_ptr_abstract_declarator()) return true;
 
-  const auto saved = cursor_;
+  const auto saved = currentLocation();
 
   if (parse_parameters_and_qualifiers() && parse_trailing_return_type())
     return true;
@@ -3019,7 +3017,7 @@ bool Parser::parse_abstract_declarator() {
 
   if (!parse_noptr_abstract_declarator()) return false;
 
-  const auto after_noptr_declarator = cursor_;
+  const auto after_noptr_declarator = currentLocation();
 
   if (parse_parameters_and_qualifiers() && parse_trailing_return_type()) {
     //
@@ -3033,7 +3031,7 @@ bool Parser::parse_abstract_declarator() {
 bool Parser::parse_ptr_abstract_declarator() {
   if (!parse_ptr_operator_seq()) return false;
 
-  const auto saved = cursor_;
+  const auto saved = currentLocation();
 
   if (!parse_noptr_abstract_declarator()) rewind(saved);
 
@@ -3041,7 +3039,7 @@ bool Parser::parse_ptr_abstract_declarator() {
 }
 
 bool Parser::parse_noptr_abstract_declarator() {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   auto has_nested_declarator = false;
 
@@ -3052,7 +3050,7 @@ bool Parser::parse_noptr_abstract_declarator() {
     rewind(start);
   }
 
-  const auto after_nested_declarator = cursor_;
+  const auto after_nested_declarator = currentLocation();
 
   if (LA().is(TokenKind::T_LPAREN)) {
     if (!parse_parameters_and_qualifiers()) rewind(after_nested_declarator);
@@ -3118,9 +3116,11 @@ bool Parser::parse_parameter_declaration_clause() {
 bool Parser::parse_parameter_declaration_list() {
   if (!parse_parameter_declaration()) return false;
 
-  while (match(TokenKind::T_COMMA)) {
+  SourceLocation commaLoc;
+
+  while (match(TokenKind::T_COMMA, &commaLoc)) {
     if (!parse_parameter_declaration()) {
-      rewind(cursor_ - 1);
+      rewind(commaLoc);
       break;
     }
   }
@@ -3137,7 +3137,7 @@ bool Parser::parse_parameter_declaration() {
 
   if (!parse_decl_specifier_seq(specs)) return false;
 
-  const auto before_declarator = cursor_;
+  const auto before_declarator = currentLocation();
 
   if (!parse_declarator()) {
     rewind(before_declarator);
@@ -3355,7 +3355,7 @@ bool Parser::parse_enum_head() {
 }
 
 bool Parser::parse_enum_head_name() {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   if (!parse_nested_name_specifier()) rewind(start);
 
@@ -3401,9 +3401,11 @@ bool Parser::parse_enum_base() {
 bool Parser::parse_enumerator_list() {
   if (!parse_enumerator_definition()) return false;
 
-  while (match(TokenKind::T_COMMA)) {
+  SourceLocation commaLoc;
+
+  while (match(TokenKind::T_COMMA, &commaLoc)) {
     if (LA().is(TokenKind::T_RBRACE)) {
-      rewind(cursor_ - 1);
+      rewind(commaLoc);
       break;
     }
 
@@ -3445,7 +3447,7 @@ bool Parser::parse_using_enum_declaration(DeclarationAST*& yyast) {
 }
 
 bool Parser::parse_namespace_definition(DeclarationAST*& yyast) {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   const auto has_inline = match(TokenKind::T_INLINE);
 
@@ -3462,7 +3464,7 @@ bool Parser::parse_namespace_definition(DeclarationAST*& yyast) {
     kNested
   } kind = NamespaceKind::kAnonymous;
 
-  uint32_t namespace_name_token = 0;
+  SourceLocation nameLoc;
 
   if (LA().is(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_COLON_COLON)) {
     consumeToken();
@@ -3472,10 +3474,8 @@ bool Parser::parse_namespace_definition(DeclarationAST*& yyast) {
       expect(TokenKind::T_IDENTIFIER);
     }
     kind = NamespaceKind::kNested;
-  } else if (LA().is(TokenKind::T_IDENTIFIER)) {
+  } else if (match(TokenKind::T_IDENTIFIER, &nameLoc)) {
     kind = NamespaceKind::kNamed;
-    namespace_name_token = cursor_;
-    consumeToken();
   }
 
   parse_attribute_specifier_seq();
@@ -3495,7 +3495,7 @@ bool Parser::parse_namespace_body() {
   while (LA()) {
     if (LA().is(TokenKind::T_RBRACE)) break;
 
-    const auto saved = cursor_;
+    const auto saved = currentLocation();
 
     DeclarationAST* decl = nullptr;
 
@@ -3504,7 +3504,7 @@ bool Parser::parse_namespace_body() {
     } else {
       parse_skip_declaration(skipping);
 
-      if (cursor_ == saved) consumeToken();
+      if (currentLocation() == saved) consumeToken();
     }
   }
 
@@ -3527,7 +3527,7 @@ bool Parser::parse_namespace_alias_definition(DeclarationAST*& yyast) {
 }
 
 bool Parser::parse_qualified_namespace_specifier() {
-  const auto saved = cursor_;
+  const auto saved = currentLocation();
 
   if (!parse_nested_name_specifier()) rewind(saved);
 
@@ -3543,7 +3543,7 @@ bool Parser::parse_using_directive(DeclarationAST*& yyast) {
 
   if (!match(TokenKind::T_NAMESPACE)) return false;
 
-  const auto saved = cursor_;
+  const auto saved = currentLocation();
 
   if (!parse_nested_name_specifier()) rewind(saved);
 
@@ -3582,7 +3582,7 @@ bool Parser::parse_using_declarator_list() {
 bool Parser::parse_using_declarator() {
   const auto has_typename = match(TokenKind::T_TYPENAME);
 
-  const auto saved = cursor_;
+  const auto saved = currentLocation();
 
   if (!parse_nested_name_specifier()) rewind(saved);
 
@@ -3716,7 +3716,7 @@ bool Parser::parse_alignment_specifier() {
 
   expect(TokenKind::T_LPAREN);
 
-  const auto after_lparen = cursor_;
+  const auto after_lparen = currentLocation();
 
   if (parse_type_id()) {
     const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
@@ -3774,7 +3774,7 @@ bool Parser::parse_attribute() {
 }
 
 bool Parser::parse_attribute_token() {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   if (parse_attribute_scoped_token()) return true;
 
@@ -3830,7 +3830,7 @@ bool Parser::parse_module_declaration() {
 }
 
 bool Parser::parse_module_name() {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   if (!parse_module_name_qualifier()) rewind(start);
 
@@ -3842,7 +3842,7 @@ bool Parser::parse_module_name() {
 bool Parser::parse_module_partition() {
   if (!match(TokenKind::T_COLON)) return false;
 
-  const auto saved = cursor_;
+  const auto saved = currentLocation();
 
   if (!parse_module_name_qualifier()) rewind(saved);
 
@@ -3896,7 +3896,7 @@ bool Parser::parse_export_declaration(DeclarationAST*& yyast) {
 bool Parser::parse_maybe_import() {
   if (!module_unit) return false;
 
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   const auto import = parse_import_keyword();
 
@@ -3950,7 +3950,7 @@ bool Parser::parse_private_module_fragment() {
 }
 
 bool Parser::parse_class_specifier() {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   auto it = class_specifiers_.find(start);
 
@@ -3983,13 +3983,13 @@ bool Parser::parse_class_specifier() {
   return true;
 }
 
-bool Parser::parse_leave_class_specifier(uint32_t start) {
-  class_specifiers_.emplace(start, std::make_tuple(cursor_, true));
+bool Parser::parse_leave_class_specifier(SourceLocation start) {
+  class_specifiers_.emplace(start, std::make_tuple(currentLocation(), true));
   return true;
 }
 
-bool Parser::parse_reject_class_specifier(uint32_t start) {
-  class_specifiers_.emplace(start, std::make_tuple(cursor_, false));
+bool Parser::parse_reject_class_specifier(SourceLocation start) {
+  class_specifiers_.emplace(start, std::make_tuple(currentLocation(), false));
   return true;
 }
 
@@ -3999,7 +3999,7 @@ bool Parser::parse_class_body() {
   while (LA()) {
     if (LA().is(TokenKind::T_RBRACE)) break;
 
-    const auto saved = cursor_;
+    const auto saved = currentLocation();
 
     DeclarationAST* declaration = nullptr;
 
@@ -4008,7 +4008,7 @@ bool Parser::parse_class_body() {
     } else {
       if (!skipping) parse_error("expected a declaration");
 
-      if (cursor_ == saved) consumeToken();
+      if (currentLocation() == saved) consumeToken();
 
       skipping = true;
     }
@@ -4032,7 +4032,7 @@ bool Parser::parse_class_head(Name& name) {
 }
 
 bool Parser::parse_class_head_name(Name& name) {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   if (!parse_nested_name_specifier()) rewind(start);
 
@@ -4065,7 +4065,7 @@ bool Parser::parse_member_specification(DeclarationAST*& yyast) {
 }
 
 bool Parser::parse_member_declaration(DeclarationAST*& yyast) {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   if (parse_access_specifier()) {
     expect(TokenKind::T_COLON);
@@ -4108,7 +4108,7 @@ bool Parser::parse_member_declaration(DeclarationAST*& yyast) {
 }
 
 bool Parser::parse_maybe_template_member() {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   match(TokenKind::T_EXPLICIT);
 
@@ -4124,19 +4124,19 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
 
   parse_attribute_specifier_seq();
 
-  auto after_decl_specs = cursor_;
+  auto after_decl_specs = currentLocation();
 
   DeclSpecs specs;
 
   if (!parse_decl_specifier_seq_no_typespecs(specs)) rewind(after_decl_specs);
 
-  after_decl_specs = cursor_;
+  after_decl_specs = currentLocation();
 
   if (parse_declarator_id()) {
     parse_attribute_specifier_seq();
 
     if (parse_parameters_and_qualifiers()) {
-      const auto after_parameters = cursor_;
+      const auto after_parameters = currentLocation();
 
       if (parse_member_function_definition_body()) return true;
 
@@ -4152,7 +4152,7 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
 
   if (!parse_decl_specifier_seq(specs)) rewind(after_decl_specs);
 
-  after_decl_specs = cursor_;
+  after_decl_specs = currentLocation();
 
   if (!specs.has_typespec()) return false;
 
@@ -4209,7 +4209,7 @@ bool Parser::parse_member_declarator_list() {
 }
 
 bool Parser::parse_member_declarator() {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   const auto has_identifier = match(TokenKind::T_IDENTIFIER);
 
@@ -4246,9 +4246,10 @@ bool Parser::parse_virt_specifier() {
 bool Parser::parse_pure_specifier() {
   if (!match(TokenKind::T_EQUAL)) return false;
 
-  if (!match(TokenKind::T_INTEGER_LITERAL)) return false;
+  SourceLocation literalLoc;
+  if (!match(TokenKind::T_INTEGER_LITERAL, &literalLoc)) return false;
 
-  const auto& number = unit->tokenText(cursor_ - 1);
+  const auto& number = unit->tokenText(literalLoc.index());
 
   if (number != "0") return false;
 
@@ -4316,7 +4317,7 @@ bool Parser::parse_base_specifier() {
 }
 
 bool Parser::parse_class_or_decltype() {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   if (parse_nested_name_specifier()) {
     if (match(TokenKind::T_TEMPLATE)) {
@@ -4388,7 +4389,7 @@ bool Parser::parse_mem_initializer() {
 }
 
 bool Parser::parse_mem_initializer_id() {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   if (parse_class_or_decltype()) return true;
 
@@ -4577,7 +4578,7 @@ bool Parser::parse_constraint_logical_and_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_template_parameter() {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   if (parse_type_parameter() &&
       (LA().is(TokenKind::T_COMMA) || LA().is(TokenKind::T_GREATER)))
@@ -4599,7 +4600,7 @@ bool Parser::parse_type_parameter() {
 bool Parser::parse_typename_type_parameter() {
   if (!parse_type_parameter_key()) return false;
 
-  const auto saved = cursor_;
+  const auto saved = currentLocation();
 
   if ((LA().is(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_EQUAL)) ||
       LA().is(TokenKind::T_EQUAL)) {
@@ -4620,7 +4621,7 @@ bool Parser::parse_typename_type_parameter() {
 }
 
 bool Parser::parse_template_type_parameter() {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   if (!parse_template_head()) {
     rewind(start);
@@ -4629,7 +4630,7 @@ bool Parser::parse_template_type_parameter() {
 
   if (!parse_type_parameter_key()) parse_error("expected a type parameter");
 
-  const auto saved = cursor_;
+  const auto saved = currentLocation();
 
   if ((LA().is(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_EQUAL)) ||
       LA().is(TokenKind::T_EQUAL)) {
@@ -4652,7 +4653,7 @@ bool Parser::parse_template_type_parameter() {
 bool Parser::parse_constraint_type_parameter() {
   if (!parse_type_constraint()) return false;
 
-  const auto saved = cursor_;
+  const auto saved = currentLocation();
 
   if ((LA().is(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_EQUAL)) ||
       LA().is(TokenKind::T_EQUAL)) {
@@ -4680,7 +4681,7 @@ bool Parser::parse_type_parameter_key() {
 }
 
 bool Parser::parse_type_constraint() {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   if (!parse_nested_name_specifier()) rewind(start);
 
@@ -4722,7 +4723,7 @@ bool Parser::parse_simple_template_id(Name& name) {
 
 bool Parser::parse_template_id() {
   if (LA().is(TokenKind::T_OPERATOR)) {
-    const auto start = cursor_;
+    const auto start = currentLocation();
 
     if (!parse_literal_operator_id()) {
       rewind(start);
@@ -4763,7 +4764,7 @@ bool Parser::parse_template_argument_list() {
 }
 
 bool Parser::parse_template_argument() {
-  const auto start = cursor_;
+  const auto start = currentLocation();
 
   auto it = template_arguments_.find(start);
 
@@ -4779,10 +4780,11 @@ bool Parser::parse_template_argument() {
            tk.is(TokenKind::T_DOT_DOT_DOT);
   };
 
-  const auto saved = cursor_;
+  const auto saved = currentLocation();
 
   if (parse_type_id() && check()) {
-    template_arguments_.emplace(start, std::make_tuple(cursor_, true));
+    template_arguments_.emplace(start,
+                                std::make_tuple(currentLocation(), true));
     return true;
   }
 
@@ -4793,11 +4795,12 @@ bool Parser::parse_template_argument() {
   const auto parsed = parse_template_argument_constant_expression(expression);
 
   if (parsed && check()) {
-    template_arguments_.emplace(start, std::make_tuple(cursor_, true));
+    template_arguments_.emplace(start,
+                                std::make_tuple(currentLocation(), true));
     return true;
   }
 
-  template_arguments_.emplace(start, std::make_tuple(cursor_, false));
+  template_arguments_.emplace(start, std::make_tuple(currentLocation(), false));
 
   return false;
 }
@@ -4857,7 +4860,7 @@ bool Parser::parse_typename_specifier() {
 
   if (!parse_nested_name_specifier()) return false;
 
-  const auto after_nested_name_specifier = cursor_;
+  const auto after_nested_name_specifier = currentLocation();
 
   const auto has_template = match(TokenKind::T_TEMPLATE);
 
@@ -4967,7 +4970,7 @@ bool Parser::parse_exception_declaration() {
 
   if (LA().is(TokenKind::T_RPAREN)) return true;
 
-  const auto before_declarator = cursor_;
+  const auto before_declarator = currentLocation();
 
   if (!parse_declarator()) {
     rewind(before_declarator);

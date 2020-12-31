@@ -22,7 +22,8 @@
 
 #include <cxx/ast.h>
 #include <cxx/control.h>
-#include <cxx/translation-unit.h>
+#include <cxx/source_location.h>
+#include <cxx/translation_unit.h>
 
 #include <forward_list>
 #include <functional>
@@ -330,8 +331,8 @@ class Parser {
   bool parse_global_module_fragment();
   bool parse_private_module_fragment();
   bool parse_class_specifier();
-  bool parse_leave_class_specifier(uint32_t start);
-  bool parse_reject_class_specifier(uint32_t start);
+  bool parse_leave_class_specifier(SourceLocation start);
+  bool parse_reject_class_specifier(SourceLocation start);
   bool parse_class_body();
   bool parse_class_head(Name& name);
   bool parse_class_head_name(Name& name);
@@ -398,32 +399,40 @@ class Parser {
  private:
   const Token& LA(int n = 0) const;
 
-  bool match(TokenKind tk, uint32_t* location = nullptr) {
+  bool match(TokenKind tk, SourceLocation* location = nullptr) {
     if (LA().isNot(tk)) return false;
     const auto loc = consumeToken();
     if (location) *location = loc;
     return true;
   }
 
-  bool expect(TokenKind tk, uint32_t* location = nullptr) {
+  bool expect(TokenKind tk, SourceLocation* location = nullptr) {
     if (match(tk, location)) return true;
     parse_error("expected '{}'", Token::spell(tk));
     return false;
   }
 
-  uint32_t consumeToken() { return cursor_++; }
+  SourceLocation consumeToken() { return SourceLocation(cursor_++); }
 
-  void rewind(uint32_t i) { cursor_ = i; }
+  SourceLocation currentLocation() const { return SourceLocation(cursor_); }
+
+  void rewind(SourceLocation location) { cursor_ = location.index(); }
 
  private:
   TranslationUnit* unit = nullptr;
   Arena* pool = nullptr;
   Control* control = nullptr;
   bool skip_function_body = false;
-  std::unordered_map<uint32_t, std::tuple<uint32_t, bool>> class_specifiers_;
-  std::unordered_map<uint32_t, std::tuple<uint32_t, bool>> template_arguments_;
-  std::unordered_map<uint32_t, std::tuple<uint32_t, bool>>
+
+  std::unordered_map<SourceLocation, std::tuple<SourceLocation, bool>>
+      class_specifiers_;
+
+  std::unordered_map<SourceLocation, std::tuple<SourceLocation, bool>>
+      template_arguments_;
+
+  std::unordered_map<SourceLocation, std::tuple<SourceLocation, bool>>
       nested_name_specifiers_;
+
   bool module_unit = false;
   const Identifier* module_id = nullptr;
   const Identifier* import_id = nullptr;
