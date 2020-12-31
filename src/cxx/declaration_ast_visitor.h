@@ -24,27 +24,31 @@
 
 namespace cxx {
 
-struct StatementASTVisitor {
-  StatementASTVisitor();
-  virtual ~StatementASTVisitor();
+struct DeclarationASTVisitor {
+  DeclarationASTVisitor();
+  virtual ~DeclarationASTVisitor();
 
-  virtual void visit(BreakStatementAST*) = 0;
-  virtual void visit(CaseStatementAST*) = 0;
-  virtual void visit(CompoundStatementAST*) = 0;
-  virtual void visit(ContinueStatementAST*) = 0;
-  virtual void visit(CoroutineReturnStatementAST*) = 0;
-  virtual void visit(DeclarationStatementAST*) = 0;
-  virtual void visit(DefaultStatementAST*) = 0;
-  virtual void visit(DoStatementAST*) = 0;
-  virtual void visit(ExpressionStatementAST*) = 0;
-  virtual void visit(ForRangeStatementAST*) = 0;
-  virtual void visit(ForStatementAST*) = 0;
-  virtual void visit(GotoStatementAST*) = 0;
-  virtual void visit(IfStatementAST*) = 0;
-  virtual void visit(LabeledStatementAST*) = 0;
-  virtual void visit(ReturnStatementAST*) = 0;
-  virtual void visit(SwitchStatementAST*) = 0;
-  virtual void visit(WhileStatementAST*) = 0;
+  virtual void visit(AliasDeclarationAST*) = 0;
+  virtual void visit(AsmDeclarationAST*) = 0;
+  virtual void visit(AttributeDeclarationAST*) = 0;
+  virtual void visit(DeductionGuideAST*) = 0;
+  virtual void visit(EmptyDeclarationAST*) = 0;
+  virtual void visit(ExplicitInstantiationAST*) = 0;
+  virtual void visit(ExportDeclarationAST*) = 0;
+  virtual void visit(ForRangeDeclarationAST*) = 0;
+  virtual void visit(LinkageSpecificationAST*) = 0;
+  virtual void visit(MemberDeclarationAST*) = 0;
+  virtual void visit(MemberSpecificationAST*) = 0;
+  virtual void visit(ModuleImportDeclarationAST*) = 0;
+  virtual void visit(NamespaceAliasDefinitionAST*) = 0;
+  virtual void visit(NamespaceDefinitionAST*) = 0;
+  virtual void visit(OpaqueEnumDeclarationAST*) = 0;
+  virtual void visit(SimpleDeclarationAST*) = 0;
+  virtual void visit(StaticAssertDeclarationAST*) = 0;
+  virtual void visit(TemplateDeclarationAST*) = 0;
+  virtual void visit(UsingDeclarationAST*) = 0;
+  virtual void visit(UsingDirectiveAST*) = 0;
+  virtual void visit(UsingEnumDeclarationAST*) = 0;
 };
 
 }  // namespace cxx

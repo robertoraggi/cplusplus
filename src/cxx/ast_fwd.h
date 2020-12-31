@@ -35,25 +35,49 @@ struct DeclaratorAST;
 struct NameAST;
 
 // statements
-struct LabeledStatementAST;
-struct CaseStatementAST;
-struct DefaultStatementAST;
-struct ExpressionStatementAST;
-struct CompoundStatementAST;
-struct IfStatementAST;
-struct SwitchStatementAST;
-struct WhileStatementAST;
-struct DoStatementAST;
-struct ForRangeStatementAST;
-struct ForStatementAST;
 struct BreakStatementAST;
+struct CaseStatementAST;
+struct CompoundStatementAST;
 struct ContinueStatementAST;
-struct ReturnStatementAST;
-struct GotoStatementAST;
 struct CoroutineReturnStatementAST;
 struct DeclarationStatementAST;
+struct DefaultStatementAST;
+struct DoStatementAST;
+struct ExpressionStatementAST;
+struct ForRangeStatementAST;
+struct ForStatementAST;
+struct GotoStatementAST;
+struct IfStatementAST;
+struct LabeledStatementAST;
+struct ReturnStatementAST;
+struct SwitchStatementAST;
+struct WhileStatementAST;
+
+// declarations
+struct AliasDeclarationAST;
+struct AsmDeclarationAST;
+struct AttributeDeclarationAST;
+struct DeductionGuideAST;
+struct EmptyDeclarationAST;
+struct ExplicitInstantiationAST;
+struct ExportDeclarationAST;
+struct ForRangeDeclarationAST;
+struct LinkageSpecificationAST;
+struct MemberDeclarationAST;
+struct MemberSpecificationAST;
+struct ModuleImportDeclarationAST;
+struct NamespaceAliasDefinitionAST;
+struct NamespaceDefinitionAST;
+struct OpaqueEnumDeclarationAST;
+struct SimpleDeclarationAST;
+struct StaticAssertDeclarationAST;
+struct TemplateDeclarationAST;
+struct UsingDeclarationAST;
+struct UsingDirectiveAST;
+struct UsingEnumDeclarationAST;
 
 // visitors
 struct StatementASTVisitor;
+struct DeclarationASTVisitor;
 
 }  // namespace cxx

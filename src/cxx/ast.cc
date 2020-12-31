@@ -19,11 +19,14 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
+#include <cxx/declaration_ast_visitor.h>
 #include <cxx/statement_ast_visitor.h>
 
 namespace cxx {
 
 AST::~AST() = default;
+
+// statements
 
 void LabeledStatementAST::visit(StatementASTVisitor* visitor) {
   visitor->visit(this);
@@ -89,7 +92,93 @@ void CoroutineReturnStatementAST::visit(StatementASTVisitor* visitor) {
   visitor->visit(this);
 }
 
+// declarations
+
 void DeclarationStatementAST::visit(StatementASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void ForRangeDeclarationAST::visit(DeclarationASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void AliasDeclarationAST::visit(DeclarationASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void SimpleDeclarationAST::visit(DeclarationASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void StaticAssertDeclarationAST::visit(DeclarationASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void EmptyDeclarationAST::visit(DeclarationASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void AttributeDeclarationAST::visit(DeclarationASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void OpaqueEnumDeclarationAST::visit(DeclarationASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void UsingEnumDeclarationAST::visit(DeclarationASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void NamespaceDefinitionAST::visit(DeclarationASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void NamespaceAliasDefinitionAST::visit(DeclarationASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void UsingDirectiveAST::visit(DeclarationASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void UsingDeclarationAST::visit(DeclarationASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void AsmDeclarationAST::visit(DeclarationASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void LinkageSpecificationAST::visit(DeclarationASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void ExportDeclarationAST::visit(DeclarationASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void ModuleImportDeclarationAST::visit(DeclarationASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void MemberSpecificationAST::visit(DeclarationASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void MemberDeclarationAST::visit(DeclarationASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void TemplateDeclarationAST::visit(DeclarationASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void DeductionGuideAST::visit(DeclarationASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void ExplicitInstantiationAST::visit(DeclarationASTVisitor* visitor) {
   visitor->visit(this);
 }
 

@@ -41,7 +41,9 @@ struct AST : Managed {
 
 struct UnitAST : AST {};
 
-struct DeclarationAST : AST {};
+struct DeclarationAST : AST {
+  virtual void visit(DeclarationASTVisitor*) = 0;
+};
 
 struct StatementAST : AST {
   virtual void visit(StatementASTVisitor*) = 0;
@@ -211,6 +213,92 @@ struct DeclarationStatementAST final : StatementAST {
   DeclarationAST* declaration = nullptr;
 
   void visit(StatementASTVisitor* visitor) override;
+};
+
+// declarations
+
+struct ForRangeDeclarationAST final : DeclarationAST {
+  void visit(DeclarationASTVisitor* visitor) override;
+};
+
+struct AliasDeclarationAST final : DeclarationAST {
+  void visit(DeclarationASTVisitor* visitor) override;
+};
+
+struct SimpleDeclarationAST final : DeclarationAST {
+  void visit(DeclarationASTVisitor* visitor) override;
+};
+
+struct StaticAssertDeclarationAST final : DeclarationAST {
+  void visit(DeclarationASTVisitor* visitor) override;
+};
+
+struct EmptyDeclarationAST final : DeclarationAST {
+  void visit(DeclarationASTVisitor* visitor) override;
+};
+
+struct AttributeDeclarationAST final : DeclarationAST {
+  void visit(DeclarationASTVisitor* visitor) override;
+};
+
+struct OpaqueEnumDeclarationAST final : DeclarationAST {
+  void visit(DeclarationASTVisitor* visitor) override;
+};
+
+struct UsingEnumDeclarationAST final : DeclarationAST {
+  void visit(DeclarationASTVisitor* visitor) override;
+};
+
+struct NamespaceDefinitionAST final : DeclarationAST {
+  void visit(DeclarationASTVisitor* visitor) override;
+};
+
+struct NamespaceAliasDefinitionAST final : DeclarationAST {
+  void visit(DeclarationASTVisitor* visitor) override;
+};
+
+struct UsingDirectiveAST final : DeclarationAST {
+  void visit(DeclarationASTVisitor* visitor) override;
+};
+
+struct UsingDeclarationAST final : DeclarationAST {
+  void visit(DeclarationASTVisitor* visitor) override;
+};
+
+struct AsmDeclarationAST final : DeclarationAST {
+  void visit(DeclarationASTVisitor* visitor) override;
+};
+
+struct LinkageSpecificationAST final : DeclarationAST {
+  void visit(DeclarationASTVisitor* visitor) override;
+};
+
+struct ExportDeclarationAST final : DeclarationAST {
+  void visit(DeclarationASTVisitor* visitor) override;
+};
+
+struct ModuleImportDeclarationAST final : DeclarationAST {
+  void visit(DeclarationASTVisitor* visitor) override;
+};
+
+struct MemberSpecificationAST final : DeclarationAST {
+  void visit(DeclarationASTVisitor* visitor) override;
+};
+
+struct MemberDeclarationAST final : DeclarationAST {
+  void visit(DeclarationASTVisitor* visitor) override;
+};
+
+struct TemplateDeclarationAST final : DeclarationAST {
+  void visit(DeclarationASTVisitor* visitor) override;
+};
+
+struct DeductionGuideAST final : DeclarationAST {
+  void visit(DeclarationASTVisitor* visitor) override;
+};
+
+struct ExplicitInstantiationAST final : DeclarationAST {
+  void visit(DeclarationASTVisitor* visitor) override;
 };
 
 }  // namespace cxx

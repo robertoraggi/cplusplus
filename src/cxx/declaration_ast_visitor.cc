@@ -18,33 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#pragma once
-
-#include <cxx/ast_fwd.h>
+#include <cxx/declaration_ast_visitor.h>
 
 namespace cxx {
 
-struct StatementASTVisitor {
-  StatementASTVisitor();
-  virtual ~StatementASTVisitor();
+DeclarationASTVisitor::DeclarationASTVisitor() = default;
 
-  virtual void visit(BreakStatementAST*) = 0;
-  virtual void visit(CaseStatementAST*) = 0;
-  virtual void visit(CompoundStatementAST*) = 0;
-  virtual void visit(ContinueStatementAST*) = 0;
-  virtual void visit(CoroutineReturnStatementAST*) = 0;
-  virtual void visit(DeclarationStatementAST*) = 0;
-  virtual void visit(DefaultStatementAST*) = 0;
-  virtual void visit(DoStatementAST*) = 0;
-  virtual void visit(ExpressionStatementAST*) = 0;
-  virtual void visit(ForRangeStatementAST*) = 0;
-  virtual void visit(ForStatementAST*) = 0;
-  virtual void visit(GotoStatementAST*) = 0;
-  virtual void visit(IfStatementAST*) = 0;
-  virtual void visit(LabeledStatementAST*) = 0;
-  virtual void visit(ReturnStatementAST*) = 0;
-  virtual void visit(SwitchStatementAST*) = 0;
-  virtual void visit(WhileStatementAST*) = 0;
-};
+DeclarationASTVisitor::~DeclarationASTVisitor() = default;
 
 }  // namespace cxx
