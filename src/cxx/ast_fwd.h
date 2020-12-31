@@ -33,6 +33,7 @@ struct ExpressionAST;
 struct SpecifierAST;
 struct DeclaratorAST;
 struct NameAST;
+struct AttributeAST;
 
 // statements
 struct BreakStatementAST;

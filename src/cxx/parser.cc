@@ -616,16 +616,26 @@ bool Parser::parse_lambda_introducer() {
 
 bool Parser::parse_lambda_declarator() {
   if (!match(TokenKind::T_LPAREN)) return false;
+
   if (!match(TokenKind::T_RPAREN)) {
     if (!parse_parameter_declaration_clause())
       parse_error("expected a parameter declaration clause");
+
     expect(TokenKind::T_RPAREN);
   }
+
   parse_decl_specifier_seq();
+
   parse_noexcept_specifier();
-  parse_attribute_specifier_seq();
+
+  List<AttributeAST*>* attributes = nullptr;
+
+  parse_attribute_specifier_seq(attributes);
+
   parse_trailing_return_type();
+
   parse_requires_clause();
+
   return true;
 }
 
@@ -1370,7 +1380,9 @@ bool Parser::parse_noptr_new_declarator() {
     expect(TokenKind::T_RBRACKET);
   }
 
-  parse_attribute_specifier_seq();
+  List<AttributeAST*>* attributes = nullptr;
+
+  parse_attribute_specifier_seq(attributes);
 
   while (match(TokenKind::T_LBRACKET)) {
     if (!match(TokenKind::T_RBRACKET)) {
@@ -1382,7 +1394,9 @@ bool Parser::parse_noptr_new_declarator() {
       expect(TokenKind::T_RBRACKET);
     }
 
-    parse_attribute_specifier_seq();
+    List<AttributeAST*>* attributes = nullptr;
+
+    parse_attribute_specifier_seq(attributes);
   }
 
   return true;
@@ -1683,7 +1697,10 @@ bool Parser::parse_template_argument_constant_expression(
 bool Parser::parse_statement(StatementAST*& yyast) {
   const bool has_extension = match(TokenKind::T___EXTENSION__);
 
-  const bool has_attribute_specifiers = parse_attribute_specifier_seq();
+  List<AttributeAST*>* attributes = nullptr;
+
+  const bool has_attribute_specifiers =
+      parse_attribute_specifier_seq(attributes);
 
   const auto start = currentLocation();
 
@@ -1754,7 +1771,9 @@ bool Parser::parse_init_statement(StatementAST*& yyast) {
 bool Parser::parse_condition(ExpressionAST*& yyast) {
   const auto start = currentLocation();
 
-  parse_attribute_specifier_seq();
+  List<AttributeAST*>* attributes = nullptr;
+
+  parse_attribute_specifier_seq(attributes);
 
   if (parse_decl_specifier_seq()) {
     if (parse_declarator()) {
@@ -2081,7 +2100,9 @@ bool Parser::parse_for_statement(StatementAST*& yyast) {
 }
 
 bool Parser::parse_for_range_declaration(DeclarationAST*& yyast) {
-  parse_attribute_specifier_seq();
+  List<AttributeAST*>* attributes = nullptr;
+
+  parse_attribute_specifier_seq(attributes);
 
   if (!parse_decl_specifier_seq()) return false;
 
@@ -2296,7 +2317,9 @@ bool Parser::parse_alias_declaration(DeclarationAST*& yyast) {
 
   if (!match(TokenKind::T_IDENTIFIER)) return false;
 
-  parse_attribute_specifier_seq();
+  List<AttributeAST*>* attributes = nullptr;
+
+  parse_attribute_specifier_seq(attributes);
 
   if (!match(TokenKind::T_EQUAL)) return false;
 
@@ -2310,19 +2333,24 @@ bool Parser::parse_alias_declaration(DeclarationAST*& yyast) {
 bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
   const bool has_extension = match(TokenKind::T___EXTENSION__);
 
-  parse_attribute_specifier_seq();
+  List<AttributeAST*>* attributes = nullptr;
+
+  parse_attribute_specifier_seq(attributes);
 
   if (match(TokenKind::T_SEMICOLON)) return true;
 
   const auto after_attributes = currentLocation();
 
   DeclSpecs specs;
+
   if (!parse_decl_specifier_seq_no_typespecs(specs)) rewind(after_attributes);
 
   auto after_decl_specs = currentLocation();
 
   if (parse_declarator_id()) {
-    parse_attribute_specifier_seq();
+    List<AttributeAST*>* attributes = nullptr;
+
+    parse_attribute_specifier_seq(attributes);
 
     if (parse_parameters_and_qualifiers()) {
       if (match(TokenKind::T_SEMICOLON)) return true;
@@ -2421,7 +2449,9 @@ bool Parser::parse_empty_declaration(DeclarationAST*& yyast) {
 }
 
 bool Parser::parse_attribute_declaration(DeclarationAST*& yyast) {
-  if (!parse_attribute_specifier_seq()) return false;
+  List<AttributeAST*>* attributes = nullptr;
+
+  if (!parse_attribute_specifier_seq(attributes)) return false;
 
   if (!match(TokenKind::T_SEMICOLON)) return false;
 
@@ -2457,10 +2487,14 @@ bool Parser::parse_decl_specifier_seq(DeclSpecs& specs) {
 
   if (!parse_decl_specifier(specs)) return false;
 
-  parse_attribute_specifier_seq();
+  List<AttributeAST*>* attributes = nullptr;
+
+  parse_attribute_specifier_seq(attributes);
 
   while (parse_decl_specifier(specs)) {
-    parse_attribute_specifier_seq();
+    List<AttributeAST*>* attributes = nullptr;
+
+    parse_attribute_specifier_seq(attributes);
   }
 
   return true;
@@ -2471,10 +2505,14 @@ bool Parser::parse_decl_specifier_seq_no_typespecs(DeclSpecs& specs) {
 
   if (!parse_decl_specifier(specs)) return false;
 
-  parse_attribute_specifier_seq();
+  List<AttributeAST*>* attributes = nullptr;
+
+  parse_attribute_specifier_seq(attributes);
 
   while (parse_decl_specifier(specs)) {
-    parse_attribute_specifier_seq();
+    List<AttributeAST*>* attributes = nullptr;
+
+    parse_attribute_specifier_seq(attributes);
   }
 
   return true;
@@ -2538,7 +2576,9 @@ bool Parser::parse_type_specifier_seq() {
 
   if (!parse_type_specifier(specs)) return false;
 
-  parse_attribute_specifier_seq();
+  List<AttributeAST*>* attributes = nullptr;
+
+  parse_attribute_specifier_seq(attributes);
 
   while (LA()) {
     const auto before_type_specifier = currentLocation();
@@ -2548,7 +2588,9 @@ bool Parser::parse_type_specifier_seq() {
       break;
     }
 
-    parse_attribute_specifier_seq();
+    List<AttributeAST*>* attributes = nullptr;
+
+    parse_attribute_specifier_seq(attributes);
   }
 
   return true;
@@ -2576,7 +2618,9 @@ bool Parser::parse_defining_type_specifier(DeclSpecs& specs) {
 bool Parser::parse_defining_type_specifier_seq(DeclSpecs& specs) {
   if (!parse_defining_type_specifier(specs)) return false;
 
-  parse_attribute_specifier_seq();
+  List<AttributeAST*>* attributes = nullptr;
+
+  parse_attribute_specifier_seq(attributes);
 
   while (LA()) {
     const auto before_type_specifier = currentLocation();
@@ -2586,7 +2630,9 @@ bool Parser::parse_defining_type_specifier_seq(DeclSpecs& specs) {
       break;
     }
 
-    parse_attribute_specifier_seq();
+    List<AttributeAST*>* attributes = nullptr;
+
+    parse_attribute_specifier_seq(attributes);
   }
 
   return true;
@@ -2781,7 +2827,9 @@ bool Parser::parse_elaborated_type_specifier(DeclSpecs& specs) {
 
   if (!parse_class_key()) return false;
 
-  parse_attribute_specifier_seq();
+  List<AttributeAST*>* attributes = nullptr;
+
+  parse_attribute_specifier_seq(attributes);
 
   const auto before_nested_name_specifier = currentLocation();
 
@@ -2951,8 +2999,12 @@ bool Parser::parse_ptr_operator_seq() {
 
 bool Parser::parse_core_declarator(Declarator& decl) {
   if (parse_declarator_id()) {
-    parse_attribute_specifier_seq();
+    List<AttributeAST*>* attributes = nullptr;
+
+    parse_attribute_specifier_seq(attributes);
+
     decl.push_back(DeclaratorId());
+
     return true;
   }
 
@@ -2988,7 +3040,10 @@ bool Parser::parse_noptr_declarator(Declarator& decl) {
         }
       }
 
-      parse_attribute_specifier_seq();
+      List<AttributeAST*>* attributes = nullptr;
+
+      parse_attribute_specifier_seq(attributes);
+
       decl.push_back(ArrayDeclarator());
     } else if (parse_parameters_and_qualifiers()) {
       parse_trailing_return_type();
@@ -3017,7 +3072,9 @@ bool Parser::parse_parameters_and_qualifiers() {
 
   parse_noexcept_specifier();
 
-  parse_attribute_specifier_seq();
+  List<AttributeAST*>* attributes = nullptr;
+
+  parse_attribute_specifier_seq(attributes);
 
   return true;
 }
@@ -3042,20 +3099,30 @@ bool Parser::parse_trailing_return_type() {
 
 bool Parser::parse_ptr_operator() {
   if (match(TokenKind::T_STAR)) {
-    parse_attribute_specifier_seq();
+    List<AttributeAST*>* attributes = nullptr;
+
+    parse_attribute_specifier_seq(attributes);
+
     parse_cv_qualifier_seq();
+
     return true;
   }
 
   if (match(TokenKind::T_AMP) || match(TokenKind::T_AMP_AMP)) {
-    parse_attribute_specifier_seq();
+    List<AttributeAST*>* attributes = nullptr;
+
+    parse_attribute_specifier_seq(attributes);
+
     return true;
   }
 
   const auto saved = currentLocation();
 
   if (parse_nested_name_specifier() && match(TokenKind::T_STAR)) {
-    parse_attribute_specifier_seq();
+    List<AttributeAST*>* attributes = nullptr;
+
+    parse_attribute_specifier_seq(attributes);
+
     parse_cv_qualifier_seq();
     return true;
   }
@@ -3214,7 +3281,9 @@ bool Parser::parse_noptr_abstract_pack_declarator() {
 
       expect(TokenKind::T_RBRACKET);
 
-      parse_attribute_specifier_seq();
+      List<AttributeAST*>* attributes = nullptr;
+
+      parse_attribute_specifier_seq(attributes);
     }
   }
 
@@ -3249,7 +3318,9 @@ bool Parser::parse_parameter_declaration_list() {
 }
 
 bool Parser::parse_parameter_declaration() {
-  parse_attribute_specifier_seq();
+  List<AttributeAST*>* attributes = nullptr;
+
+  parse_attribute_specifier_seq(attributes);
 
   DeclSpecs specs;
 
@@ -3463,7 +3534,9 @@ bool Parser::parse_enum_specifier() {
 bool Parser::parse_enum_head() {
   if (!parse_enum_key()) return false;
 
-  parse_attribute_specifier_seq();
+  List<AttributeAST*>* attributes = nullptr;
+
+  parse_attribute_specifier_seq(attributes);
 
   parse_enum_head_name();
 
@@ -3485,7 +3558,9 @@ bool Parser::parse_enum_head_name() {
 bool Parser::parse_opaque_enum_declaration(DeclarationAST*& yyast) {
   if (!parse_enum_key()) return false;
 
-  parse_attribute_specifier_seq();
+  List<AttributeAST*>* attributes = nullptr;
+
+  parse_attribute_specifier_seq(attributes);
 
   if (!parse_enum_head_name()) return false;
 
@@ -3549,7 +3624,9 @@ bool Parser::parse_enumerator_definition() {
 bool Parser::parse_enumerator() {
   if (!match(TokenKind::T_IDENTIFIER)) return false;
 
-  parse_attribute_specifier_seq();
+  List<AttributeAST*>* attributes = nullptr;
+
+  parse_attribute_specifier_seq(attributes);
 
   return true;
 }
@@ -3574,7 +3651,9 @@ bool Parser::parse_namespace_definition(DeclarationAST*& yyast) {
     return false;
   }
 
-  parse_attribute_specifier_seq();
+  List<AttributeAST*>* attributes = nullptr;
+
+  parse_attribute_specifier_seq(attributes);
 
   enum NamespaceKind {
     kAnonymous,
@@ -3596,7 +3675,9 @@ bool Parser::parse_namespace_definition(DeclarationAST*& yyast) {
     kind = NamespaceKind::kNamed;
   }
 
-  parse_attribute_specifier_seq();
+  List<AttributeAST*>* moreAttributes = nullptr;
+
+  parse_attribute_specifier_seq(moreAttributes);
 
   expect(TokenKind::T_LBRACE);
 
@@ -3655,7 +3736,9 @@ bool Parser::parse_qualified_namespace_specifier() {
 }
 
 bool Parser::parse_using_directive(DeclarationAST*& yyast) {
-  parse_attribute_specifier_seq();
+  List<AttributeAST*>* attributes = nullptr;
+
+  parse_attribute_specifier_seq(attributes);
 
   if (!match(TokenKind::T_USING)) return false;
 
@@ -3710,7 +3793,9 @@ bool Parser::parse_using_declarator() {
 }
 
 bool Parser::parse_asm_declaration(DeclarationAST*& yyast) {
-  parse_attribute_specifier_seq();
+  List<AttributeAST*>* attributes = nullptr;
+
+  parse_attribute_specifier_seq(attributes);
 
   if (!match(TokenKind::T_ASM)) return false;
 
@@ -3748,7 +3833,7 @@ bool Parser::parse_linkage_specification(DeclarationAST*& yyast) {
   return true;
 }
 
-bool Parser::parse_attribute_specifier_seq() {
+bool Parser::parse_attribute_specifier_seq(List<AttributeAST*>*& yyast) {
   if (!parse_attribute_specifier()) return false;
 
   while (parse_attribute_specifier()) {
@@ -3940,7 +4025,9 @@ bool Parser::parse_module_declaration() {
     parse_module_partition();
   }
 
-  parse_attribute_specifier_seq();
+  List<AttributeAST*>* attributes = nullptr;
+
+  parse_attribute_specifier_seq(attributes);
 
   expect(TokenKind::T_SEMICOLON);
 
@@ -4028,7 +4115,9 @@ bool Parser::parse_module_import_declaration(DeclarationAST*& yyast) {
 
   if (!parse_import_name()) parse_error("expected a module");
 
-  parse_attribute_specifier_seq();
+  List<AttributeAST*>* attributes = nullptr;
+
+  parse_attribute_specifier_seq(attributes);
 
   expect(TokenKind::T_SEMICOLON);
 
@@ -4138,7 +4227,9 @@ bool Parser::parse_class_body() {
 bool Parser::parse_class_head(Name& name) {
   if (!parse_class_key()) return false;
 
-  parse_attribute_specifier_seq();
+  List<AttributeAST*>* attributes = nullptr;
+
+  parse_attribute_specifier_seq(attributes);
 
   if (parse_class_head_name(name)) {
     parse_class_virt_specifier();
@@ -4240,7 +4331,9 @@ bool Parser::parse_maybe_template_member() {
 bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
   const auto has_extension = match(TokenKind::T___EXTENSION__);
 
-  parse_attribute_specifier_seq();
+  List<AttributeAST*>* attributes = nullptr;
+
+  parse_attribute_specifier_seq(attributes);
 
   auto after_decl_specs = currentLocation();
 
@@ -4251,7 +4344,9 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
   after_decl_specs = currentLocation();
 
   if (parse_declarator_id()) {
-    parse_attribute_specifier_seq();
+    List<AttributeAST*>* attributes = nullptr;
+
+    parse_attribute_specifier_seq(attributes);
 
     if (parse_parameters_and_qualifiers()) {
       const auto after_parameters = currentLocation();
@@ -4417,7 +4512,9 @@ bool Parser::parse_base_specifier_list() {
 }
 
 bool Parser::parse_base_specifier() {
-  parse_attribute_specifier_seq();
+  List<AttributeAST*>* attributes = nullptr;
+
+  parse_attribute_specifier_seq(attributes);
 
   bool has_virtual = match(TokenKind::T_VIRTUAL);
 
@@ -5083,7 +5180,9 @@ bool Parser::parse_handler_seq() {
 bool Parser::parse_exception_declaration() {
   if (match(TokenKind::T_DOT_DOT_DOT)) return true;
 
-  parse_attribute_specifier_seq();
+  List<AttributeAST*>* attributes = nullptr;
+
+  parse_attribute_specifier_seq(attributes);
 
   if (!parse_type_specifier_seq()) parse_error("expected a type specifier");
 

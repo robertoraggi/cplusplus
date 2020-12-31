@@ -306,7 +306,7 @@ class Parser {
   bool parse_using_declarator();
   bool parse_asm_declaration(DeclarationAST*& yyast);
   bool parse_linkage_specification(DeclarationAST*& yyast);
-  bool parse_attribute_specifier_seq();
+  bool parse_attribute_specifier_seq(List<AttributeAST*>*& yyast);
   bool parse_attribute_specifier();
   bool parse_asm_specifier();
   bool parse_gcc_attribute();

@@ -57,6 +57,8 @@ struct DeclaratorAST : AST {};
 
 struct NameAST : AST {};
 
+struct AttributeAST : AST {};
+
 // statements
 
 struct LabeledStatementAST final : StatementAST {
