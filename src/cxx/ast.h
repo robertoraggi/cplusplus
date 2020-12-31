@@ -20,7 +20,8 @@
 
 #pragma once
 
-#include "arena.h"
+#include <cxx/arena.h>
+#include <cxx/source_location.h>
 
 namespace cxx {
 
@@ -62,5 +63,70 @@ struct SpecifierAST : AST {};
 struct DeclaratorAST : AST {};
 
 struct NameAST : AST {};
+
+// statements
+
+struct LabeledStatementAST final : StatementAST {
+  SourceLocation identifierLoc;
+  SourceLocation colonLoc;
+  StatementAST* statement = nullptr;
+};
+
+struct CaseStatementAST final : StatementAST {
+  SourceLocation caseLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation colonLoc;
+  StatementAST* statement = nullptr;
+};
+
+struct DefaultStatementAST final : StatementAST {
+  SourceLocation defaultLoc;
+  SourceLocation colonLoc;
+  StatementAST* statement = nullptr;
+};
+
+struct ExpressionStatementAST final : StatementAST {
+  ExpressionAST* expression = nullptr;
+  SourceLocation semicolonLoc;
+};
+
+struct CompoundStatementAST final : StatementAST {
+  SourceLocation lbraceLoc;
+  List<StatementAST*>* statementList = nullptr;
+  SourceLocation rbraceLoc;
+};
+
+struct IfStatementAST final : StatementAST {
+  SourceLocation ifLoc;
+  SourceLocation constexprLoc;
+  SourceLocation lparenLoc;
+  StatementAST* initializer = nullptr;
+  ExpressionAST* condition = nullptr;
+  SourceLocation rparenLoc;
+  StatementAST* statement = nullptr;
+  StatementAST* elseStatement = nullptr;
+};
+
+struct SwitchStatementAST final : StatementAST {};
+
+struct WhileStatementAST final : StatementAST {};
+
+struct DoStatementAST final : StatementAST {};
+
+struct ForRangeStatementAST final : StatementAST {};
+
+struct ForStatementAST final : StatementAST {};
+
+struct BreakStatementAST final : StatementAST {};
+
+struct ContinueStatementAST final : StatementAST {};
+
+struct ReturnStatementAST final : StatementAST {};
+
+struct GotoStatementAST final : StatementAST {};
+
+struct CoroutineReturnStatementAST final : StatementAST {};
+
+struct DeclarationStatementAST final : StatementAST {};
 
 }  // namespace cxx
