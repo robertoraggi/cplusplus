@@ -486,7 +486,10 @@ bool Parser::parse_unqualified_id() {
   rewind(start);
 
   if (match(TokenKind::T_TILDE)) {
-    if (parse_decltype_specifier()) return true;
+    SpecifierAST* decltypeSpecifier = nullptr;
+
+    if (parse_decltype_specifier(decltypeSpecifier)) return true;
+
     return parse_type_name();
   }
 
@@ -521,7 +524,10 @@ bool Parser::parse_qualified_id() {
 bool Parser::parse_start_of_nested_name_specifier(Name& id) {
   if (match(TokenKind::T_COLON_COLON)) return true;
 
-  if (parse_decltype_specifier() && match(TokenKind::T_COLON_COLON))
+  SpecifierAST* decltypeSpecifier = nullptr;
+
+  if (parse_decltype_specifier(decltypeSpecifier) &&
+      match(TokenKind::T_COLON_COLON))
     return true;
 
   const auto start = currentLocation();
@@ -1060,9 +1066,11 @@ bool Parser::parse_cpp_cast_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast) {
+  SpecifierAST* typeSpecifier = nullptr;
+
   DeclSpecs specs;
 
-  if (!parse_simple_type_specifier(specs)) return false;
+  if (!parse_simple_type_specifier(typeSpecifier, specs)) return false;
 
   if (parse_braced_init_list()) return true;
 
@@ -1100,7 +1108,9 @@ bool Parser::parse_typeid_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_typename_expression(ExpressionAST*& yyast) {
-  if (!parse_typename_specifier()) return false;
+  SpecifierAST* typenameSpecifier = nullptr;
+
+  if (!parse_typename_specifier(typenameSpecifier)) return false;
 
   if (parse_braced_init_list()) return true;
 
@@ -2524,7 +2534,7 @@ bool Parser::parse_attribute_declaration(DeclarationAST*& yyast) {
   return true;
 }
 
-bool Parser::parse_decl_specifier(DeclSpecs& specs) {
+bool Parser::parse_decl_specifier(SpecifierAST*& yyast, DeclSpecs& specs) {
   switch (TokenKind(LA())) {
     case TokenKind::T_FRIEND:
     case TokenKind::T_TYPEDEF:
@@ -2538,12 +2548,13 @@ bool Parser::parse_decl_specifier(DeclSpecs& specs) {
       return true;
 
     default:
-      if (parse_storage_class_specifier())
-        return true;
-      else if (parse_function_specifier())
-        return true;
-      else if (!specs.no_typespecs)
-        return parse_defining_type_specifier(specs);
+      if (parse_storage_class_specifier(yyast)) return true;
+
+      if (parse_function_specifier(yyast)) return true;
+
+      if (!specs.no_typespecs)
+        return parse_defining_type_specifier(yyast, specs);
+
       return false;
   }  // switch
 }
@@ -2552,16 +2563,22 @@ bool Parser::parse_decl_specifier_seq(List<SpecifierAST*>*& yyast,
                                       DeclSpecs& specs) {
   specs.no_typespecs = false;
 
-  if (!parse_decl_specifier(specs)) return false;
+  SpecifierAST* specifier = nullptr;
+
+  if (!parse_decl_specifier(specifier, specs)) return false;
 
   List<AttributeAST*>* attributes = nullptr;
 
   parse_attribute_specifier_seq(attributes);
 
-  while (parse_decl_specifier(specs)) {
+  specifier = nullptr;
+
+  while (parse_decl_specifier(specifier, specs)) {
     List<AttributeAST*>* attributes = nullptr;
 
     parse_attribute_specifier_seq(attributes);
+
+    specifier = nullptr;
   }
 
   return true;
@@ -2571,22 +2588,28 @@ bool Parser::parse_decl_specifier_seq_no_typespecs(List<SpecifierAST*>*& yyast,
                                                    DeclSpecs& specs) {
   specs.no_typespecs = true;
 
-  if (!parse_decl_specifier(specs)) return false;
+  SpecifierAST* specifier = nullptr;
+
+  if (!parse_decl_specifier(specifier, specs)) return false;
 
   List<AttributeAST*>* attributes = nullptr;
 
   parse_attribute_specifier_seq(attributes);
 
-  while (parse_decl_specifier(specs)) {
+  specifier = nullptr;
+
+  while (parse_decl_specifier(specifier, specs)) {
     List<AttributeAST*>* attributes = nullptr;
 
     parse_attribute_specifier_seq(attributes);
+
+    specifier = nullptr;
   }
 
   return true;
 }
 
-bool Parser::parse_storage_class_specifier() {
+bool Parser::parse_storage_class_specifier(SpecifierAST*& yyast) {
   switch (TokenKind(LA())) {
     case TokenKind::T_STATIC:
     case TokenKind::T_THREAD_LOCAL:
@@ -2601,13 +2624,13 @@ bool Parser::parse_storage_class_specifier() {
   }  // switch
 }
 
-bool Parser::parse_function_specifier() {
+bool Parser::parse_function_specifier(SpecifierAST*& yyast) {
   if (match(TokenKind::T_VIRTUAL)) return true;
 
-  return parse_explicit_specifier();
+  return parse_explicit_specifier(yyast);
 }
 
-bool Parser::parse_explicit_specifier() {
+bool Parser::parse_explicit_specifier(SpecifierAST*& yyast) {
   if (!match(TokenKind::T_EXPLICIT)) return false;
 
   if (match(TokenKind::T_LPAREN)) {
@@ -2622,14 +2645,14 @@ bool Parser::parse_explicit_specifier() {
   return true;
 }
 
-bool Parser::parse_type_specifier(DeclSpecs& specs) {
-  if (parse_simple_type_specifier(specs)) return true;
+bool Parser::parse_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs) {
+  if (parse_simple_type_specifier(yyast, specs)) return true;
 
-  if (parse_elaborated_type_specifier(specs)) return true;
+  if (parse_elaborated_type_specifier(yyast, specs)) return true;
 
-  if (parse_cv_qualifier()) return true;
+  if (parse_cv_qualifier(yyast)) return true;
 
-  if (parse_typename_specifier()) {
+  if (parse_typename_specifier(yyast)) {
     specs.has_named_typespec = true;
     return true;
   }
@@ -2642,16 +2665,22 @@ bool Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast) {
 
   specs.no_class_or_enum_specs = true;
 
-  if (!parse_type_specifier(specs)) return false;
+  SpecifierAST* typeSpecifier = nullptr;
+
+  if (!parse_type_specifier(typeSpecifier, specs)) return false;
 
   List<AttributeAST*>* attributes = nullptr;
 
   parse_attribute_specifier_seq(attributes);
 
+  typeSpecifier = nullptr;
+
   while (LA()) {
     const auto before_type_specifier = currentLocation();
 
-    if (!parse_type_specifier(specs)) {
+    typeSpecifier = nullptr;
+
+    if (!parse_type_specifier(typeSpecifier, specs)) {
       rewind(before_type_specifier);
       break;
     }
@@ -2664,27 +2693,31 @@ bool Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast) {
   return true;
 }
 
-bool Parser::parse_defining_type_specifier(DeclSpecs& specs) {
+bool Parser::parse_defining_type_specifier(SpecifierAST*& yyast,
+                                           DeclSpecs& specs) {
   if (!specs.no_class_or_enum_specs) {
     const auto start = currentLocation();
 
-    if (parse_enum_specifier()) {
+    if (parse_enum_specifier(yyast)) {
       specs.has_complex_typespec = true;
       return true;
     }
 
-    if (parse_class_specifier()) {
+    if (parse_class_specifier(yyast)) {
       specs.has_complex_typespec = true;
       return true;
     }
     rewind(start);
   }
 
-  return parse_type_specifier(specs);
+  return parse_type_specifier(yyast, specs);
 }
 
-bool Parser::parse_defining_type_specifier_seq(DeclSpecs& specs) {
-  if (!parse_defining_type_specifier(specs)) return false;
+bool Parser::parse_defining_type_specifier_seq(List<SpecifierAST*>*& yyast,
+                                               DeclSpecs& specs) {
+  SpecifierAST* typeSpecifier = nullptr;
+
+  if (!parse_defining_type_specifier(typeSpecifier, specs)) return false;
 
   List<AttributeAST*>* attributes = nullptr;
 
@@ -2693,7 +2726,9 @@ bool Parser::parse_defining_type_specifier_seq(DeclSpecs& specs) {
   while (LA()) {
     const auto before_type_specifier = currentLocation();
 
-    if (!parse_defining_type_specifier(specs)) {
+    typeSpecifier = nullptr;
+
+    if (!parse_defining_type_specifier(typeSpecifier, specs)) {
       rewind(before_type_specifier);
       break;
     }
@@ -2706,35 +2741,38 @@ bool Parser::parse_defining_type_specifier_seq(DeclSpecs& specs) {
   return true;
 }
 
-bool Parser::parse_simple_type_specifier(DeclSpecs& specs) {
+bool Parser::parse_simple_type_specifier(SpecifierAST*& yyast,
+                                         DeclSpecs& specs) {
   const auto start = currentLocation();
 
-  if (parse_named_type_specifier(specs)) return true;
+  if (parse_named_type_specifier(yyast, specs)) return true;
 
   rewind(start);
 
-  if (parse_placeholder_type_specifier_helper(specs)) return true;
+  if (parse_placeholder_type_specifier_helper(yyast, specs)) return true;
 
   rewind(start);
 
-  if (parse_primitive_type_specifier(specs)) return true;
+  if (parse_primitive_type_specifier(yyast, specs)) return true;
 
-  if (parse_underlying_type_specifier(specs)) return true;
+  if (parse_underlying_type_specifier(yyast, specs)) return true;
 
-  if (parse_atomic_type_specifier(specs)) return true;
+  if (parse_atomic_type_specifier(yyast, specs)) return true;
 
-  return parse_decltype_specifier_type_specifier(specs);
+  return parse_decltype_specifier_type_specifier(yyast, specs);
 }
 
-bool Parser::parse_named_type_specifier(DeclSpecs& specs) {
-  if (!parse_named_type_specifier_helper(specs)) return false;
+bool Parser::parse_named_type_specifier(SpecifierAST*& yyast,
+                                        DeclSpecs& specs) {
+  if (!parse_named_type_specifier_helper(yyast, specs)) return false;
 
   specs.has_named_typespec = true;
 
   return true;
 }
 
-bool Parser::parse_named_type_specifier_helper(DeclSpecs& specs) {
+bool Parser::parse_named_type_specifier_helper(SpecifierAST*& yyast,
+                                               DeclSpecs& specs) {
   if (specs.has_typespec()) return false;
 
   const auto start = currentLocation();
@@ -2774,27 +2812,32 @@ bool Parser::parse_named_type_specifier_helper(DeclSpecs& specs) {
   return false;
 }
 
-bool Parser::parse_placeholder_type_specifier_helper(DeclSpecs& specs) {
+bool Parser::parse_placeholder_type_specifier_helper(SpecifierAST*& yyast,
+                                                     DeclSpecs& specs) {
   if (specs.has_typespec()) return false;
 
-  if (!parse_placeholder_type_specifier()) return false;
+  SpecifierAST* typeSpecifier = nullptr;
+
+  if (!parse_placeholder_type_specifier(typeSpecifier)) return false;
 
   specs.has_placeholder_typespec = true;
 
   return true;
 }
 
-bool Parser::parse_decltype_specifier_type_specifier(DeclSpecs& specs) {
+bool Parser::parse_decltype_specifier_type_specifier(SpecifierAST*& yyast,
+                                                     DeclSpecs& specs) {
   if (specs.has_typespec()) return false;
 
-  if (!parse_decltype_specifier()) return false;
+  if (!parse_decltype_specifier(yyast)) return false;
 
   specs.has_placeholder_typespec = true;
 
   return true;
 }
 
-bool Parser::parse_underlying_type_specifier(DeclSpecs& specs) {
+bool Parser::parse_underlying_type_specifier(SpecifierAST*& yyast,
+                                             DeclSpecs& specs) {
   if (specs.has_typespec()) return false;
 
   if (!match(TokenKind::T___UNDERLYING_TYPE)) return false;
@@ -2810,7 +2853,8 @@ bool Parser::parse_underlying_type_specifier(DeclSpecs& specs) {
   return true;
 }
 
-bool Parser::parse_automic_type_specifier(DeclSpecs& specs) {
+bool Parser::parse_atomic_type_specifier(SpecifierAST*& yyast,
+                                         DeclSpecs& specs) {
   if (!specs.accepts_simple_typespec()) return false;
 
   if (!match(TokenKind::T__ATOMIC)) return false;
@@ -2826,23 +2870,8 @@ bool Parser::parse_automic_type_specifier(DeclSpecs& specs) {
   return true;
 }
 
-bool Parser::parse_atomic_type_specifier(DeclSpecs& specs) {
-  if (!specs.accepts_simple_typespec()) return false;
-
-  if (!match(TokenKind::T__ATOMIC)) return false;
-
-  expect(TokenKind::T_LPAREN);
-
-  if (!parse_type_id()) parse_error("expected type id");
-
-  expect(TokenKind::T_RPAREN);
-
-  specs.has_simple_typespec = true;
-
-  return true;
-}
-
-bool Parser::parse_primitive_type_specifier(DeclSpecs& specs) {
+bool Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
+                                            DeclSpecs& specs) {
   if (!specs.accepts_simple_typespec()) return false;
 
   switch (TokenKind(LA())) {
@@ -2888,10 +2917,11 @@ bool Parser::parse_type_name() {
   return parse_typedef_name();
 }
 
-bool Parser::parse_elaborated_type_specifier(DeclSpecs& specs) {
+bool Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
+                                             DeclSpecs& specs) {
   // ### cleanup
 
-  if (LA().is(TokenKind::T_ENUM)) return parse_elaborated_enum_specifier();
+  if (LA().is(TokenKind::T_ENUM)) return parse_elaborated_enum_specifier(yyast);
 
   if (!parse_class_key()) return false;
 
@@ -2941,7 +2971,7 @@ bool Parser::parse_elaborated_type_specifier(DeclSpecs& specs) {
   return true;
 }
 
-bool Parser::parse_elaborated_enum_specifier() {
+bool Parser::parse_elaborated_enum_specifier(SpecifierAST*& yyast) {
   if (!match(TokenKind::T_ENUM)) return false;
 
   const auto saved = currentLocation();
@@ -2959,7 +2989,7 @@ bool Parser::parse_decl_specifier_seq_no_typespecs(
   return parse_decl_specifier_seq_no_typespecs(yyast, specs);
 }
 
-bool Parser::parse_decltype_specifier() {
+bool Parser::parse_decltype_specifier(SpecifierAST*& yyast) {
   if (match(TokenKind::T_DECLTYPE) || match(TokenKind::T___DECLTYPE) ||
       match(TokenKind::T___DECLTYPE__)) {
     if (!match(TokenKind::T_LPAREN)) return false;
@@ -2990,7 +3020,7 @@ bool Parser::parse_decltype_specifier() {
   return false;
 }
 
-bool Parser::parse_placeholder_type_specifier() {
+bool Parser::parse_placeholder_type_specifier(SpecifierAST*& yyast) {
   parse_type_constraint();
 
   if (match(TokenKind::T_AUTO)) return true;
@@ -3136,7 +3166,9 @@ bool Parser::parse_parameters_and_qualifiers() {
     if (!match(TokenKind::T_RPAREN)) return false;
   }
 
-  parse_cv_qualifier_seq();
+  List<SpecifierAST*>* cvQualifierList = nullptr;
+
+  parse_cv_qualifier_seq(cvQualifierList);
 
   parse_ref_qualifier();
 
@@ -3149,11 +3181,15 @@ bool Parser::parse_parameters_and_qualifiers() {
   return true;
 }
 
-bool Parser::parse_cv_qualifier_seq() {
-  if (!parse_cv_qualifier()) return false;
+bool Parser::parse_cv_qualifier_seq(List<SpecifierAST*>*& yyast) {
+  SpecifierAST* specifier = nullptr;
 
-  while (parse_cv_qualifier()) {
-    //
+  if (!parse_cv_qualifier(specifier)) return false;
+
+  specifier = nullptr;
+
+  while (parse_cv_qualifier(specifier)) {
+    specifier = nullptr;
   }
 
   return true;
@@ -3173,7 +3209,9 @@ bool Parser::parse_ptr_operator() {
 
     parse_attribute_specifier_seq(attributes);
 
-    parse_cv_qualifier_seq();
+    List<SpecifierAST*>* cvQualifierList = nullptr;
+
+    parse_cv_qualifier_seq(cvQualifierList);
 
     return true;
   }
@@ -3193,7 +3231,10 @@ bool Parser::parse_ptr_operator() {
 
     parse_attribute_specifier_seq(attributes);
 
-    parse_cv_qualifier_seq();
+    List<SpecifierAST*>* cvQualifierList = nullptr;
+
+    parse_cv_qualifier_seq(cvQualifierList);
+
     return true;
   }
 
@@ -3202,7 +3243,7 @@ bool Parser::parse_ptr_operator() {
   return false;
 }
 
-bool Parser::parse_cv_qualifier() {
+bool Parser::parse_cv_qualifier(SpecifierAST*& yyast) {
   switch (TokenKind(LA())) {
     case TokenKind::T_CONST:
     case TokenKind::T_VOLATILE:
@@ -3253,7 +3294,10 @@ bool Parser::parse_defining_type_id(TypeIdAST*& yyast) {
 
   specs.no_class_or_enum_specs = true;
 
-  if (!parse_defining_type_specifier_seq(specs)) return false;
+  List<SpecifierAST*>* typeSpecifierList = nullptr;
+
+  if (!parse_defining_type_specifier_seq(typeSpecifierList, specs))
+    return false;
 
   const auto before_declarator = currentLocation();
 
@@ -3593,7 +3637,7 @@ bool Parser::parse_function_body() {
   return true;
 }
 
-bool Parser::parse_enum_specifier() {
+bool Parser::parse_enum_specifier(SpecifierAST*& yyast) {
   if (!parse_enum_head()) return false;
 
   if (!match(TokenKind::T_LBRACE)) return false;
@@ -3723,7 +3767,9 @@ bool Parser::parse_enumerator() {
 bool Parser::parse_using_enum_declaration(DeclarationAST*& yyast) {
   if (!match(TokenKind::T_USING)) return false;
 
-  if (!parse_elaborated_enum_specifier()) return false;
+  SpecifierAST* enumSpecifier = nullptr;
+
+  if (!parse_elaborated_enum_specifier(enumSpecifier)) return false;
 
   if (!match(TokenKind::T_SEMICOLON)) return false;
 
@@ -4245,7 +4291,7 @@ bool Parser::parse_private_module_fragment() {
   return true;
 }
 
-bool Parser::parse_class_specifier() {
+bool Parser::parse_class_specifier(SpecifierAST*& yyast) {
   const auto start = currentLocation();
 
   auto it = class_specifiers_.find(start);
@@ -4646,7 +4692,9 @@ bool Parser::parse_class_or_decltype() {
 
   rewind(start);
 
-  if (parse_decltype_specifier()) return true;
+  SpecifierAST* decltypeSpecifier = nullptr;
+
+  if (parse_decltype_specifier(decltypeSpecifier)) return true;
 
   return parse_type_name();
 }
@@ -5127,7 +5175,9 @@ bool Parser::parse_constraint_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_deduction_guide(DeclarationAST*& yyast) {
-  const auto has_explicit_spec = parse_explicit_specifier();
+  SpecifierAST* explicitSpecifier = nullptr;
+
+  const auto has_explicit_spec = parse_explicit_specifier(explicitSpecifier);
 
   if (!parse_template_name()) return false;
 
@@ -5172,7 +5222,7 @@ bool Parser::parse_concept_name() {
   return true;
 }
 
-bool Parser::parse_typename_specifier() {
+bool Parser::parse_typename_specifier(SpecifierAST*& yyast) {
   if (!match(TokenKind::T_TYPENAME)) return false;
 
   if (!parse_nested_name_specifier()) return false;

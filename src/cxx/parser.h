@@ -225,32 +225,35 @@ class Parser {
   bool parse_string_literal_seq();
   bool parse_empty_declaration(DeclarationAST*& yyast);
   bool parse_attribute_declaration(DeclarationAST*& yyast);
-  bool parse_decl_specifier(DeclSpecs& specs);
+  bool parse_decl_specifier(SpecifierAST*& yyast, DeclSpecs& specs);
   bool parse_decl_specifier_seq(List<SpecifierAST*>*& yyast, DeclSpecs& specs);
   bool parse_decl_specifier_seq_no_typespecs(List<SpecifierAST*>*& yyast,
                                              DeclSpecs& specs);
   bool parse_decl_specifier_seq_no_typespecs(List<SpecifierAST*>*& yyast);
-  bool parse_storage_class_specifier();
-  bool parse_function_specifier();
-  bool parse_explicit_specifier();
-  bool parse_type_specifier(DeclSpecs& specs);
+  bool parse_storage_class_specifier(SpecifierAST*& yyast);
+  bool parse_function_specifier(SpecifierAST*& yyast);
+  bool parse_explicit_specifier(SpecifierAST*& yyast);
+  bool parse_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs);
   bool parse_type_specifier_seq(List<SpecifierAST*>*& yyast);
-  bool parse_defining_type_specifier(DeclSpecs& specs);
-  bool parse_defining_type_specifier_seq(DeclSpecs& specs);
-  bool parse_simple_type_specifier(DeclSpecs& specs);
-  bool parse_named_type_specifier(DeclSpecs& specs);
-  bool parse_named_type_specifier_helper(DeclSpecs& specs);
-  bool parse_placeholder_type_specifier_helper(DeclSpecs& specs);
-  bool parse_decltype_specifier_type_specifier(DeclSpecs& specs);
-  bool parse_underlying_type_specifier(DeclSpecs& specs);
-  bool parse_automic_type_specifier(DeclSpecs& specs);
-  bool parse_atomic_type_specifier(DeclSpecs& specs);
-  bool parse_primitive_type_specifier(DeclSpecs& specs);
+  bool parse_defining_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs);
+  bool parse_defining_type_specifier_seq(List<SpecifierAST*>*& yyast,
+                                         DeclSpecs& specs);
+  bool parse_simple_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs);
+  bool parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs);
+  bool parse_named_type_specifier_helper(SpecifierAST*& yyast,
+                                         DeclSpecs& specs);
+  bool parse_placeholder_type_specifier_helper(SpecifierAST*& yyast,
+                                               DeclSpecs& specs);
+  bool parse_decltype_specifier_type_specifier(SpecifierAST*& yyast,
+                                               DeclSpecs& specs);
+  bool parse_underlying_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs);
+  bool parse_atomic_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs);
+  bool parse_primitive_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs);
   bool parse_type_name();
-  bool parse_elaborated_type_specifier(DeclSpecs& specs);
-  bool parse_elaborated_enum_specifier();
-  bool parse_decltype_specifier();
-  bool parse_placeholder_type_specifier();
+  bool parse_elaborated_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs);
+  bool parse_elaborated_enum_specifier(SpecifierAST*& yyast);
+  bool parse_decltype_specifier(SpecifierAST*& yyast);
+  bool parse_placeholder_type_specifier(SpecifierAST*& yyast);
   bool parse_init_declarator_list();
   bool parse_init_declarator(DeclaratorAST*& yyast);
   bool parse_declarator_initializer();
@@ -259,10 +262,10 @@ class Parser {
   bool parse_core_declarator(Declarator& decl);
   bool parse_noptr_declarator(Declarator& decl);
   bool parse_parameters_and_qualifiers();
-  bool parse_cv_qualifier_seq();
+  bool parse_cv_qualifier_seq(List<SpecifierAST*>*& yyast);
   bool parse_trailing_return_type();
   bool parse_ptr_operator();
-  bool parse_cv_qualifier();
+  bool parse_cv_qualifier(SpecifierAST*& yyast);
   bool parse_ref_qualifier();
   bool parse_declarator_id();
   bool parse_type_id();
@@ -285,7 +288,7 @@ class Parser {
   bool parse_expr_or_braced_init_list(ExpressionAST*& yyast);
   bool parse_virt_specifier_seq();
   bool parse_function_body();
-  bool parse_enum_specifier();
+  bool parse_enum_specifier(SpecifierAST*& yyast);
   bool parse_enum_head();
   bool parse_enum_head_name();
   bool parse_opaque_enum_declaration(DeclarationAST*& yyast);
@@ -329,7 +332,7 @@ class Parser {
   bool parse_import_name();
   bool parse_global_module_fragment();
   bool parse_private_module_fragment();
-  bool parse_class_specifier();
+  bool parse_class_specifier(SpecifierAST*& yyast);
   bool parse_leave_class_specifier(SourceLocation start);
   bool parse_reject_class_specifier(SourceLocation start);
   bool parse_class_body();
@@ -384,7 +387,7 @@ class Parser {
   bool parse_deduction_guide(DeclarationAST*& yyast);
   bool parse_concept_definition();
   bool parse_concept_name();
-  bool parse_typename_specifier();
+  bool parse_typename_specifier(SpecifierAST*& yyast);
   bool parse_explicit_instantiation(DeclarationAST*& yyast);
   bool parse_explicit_specialization(DeclarationAST*& yyast);
   bool parse_try_block(StatementAST*& yyast);
