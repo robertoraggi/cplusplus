@@ -51,7 +51,9 @@ struct StatementAST : AST {
 
 struct ExpressionAST : AST {};
 
-struct SpecifierAST : AST {};
+struct SpecifierAST : AST {
+  virtual void visit(SpecifierASTVisitor*) = 0;
+};
 
 struct DeclaratorAST : AST {};
 
@@ -320,6 +322,76 @@ struct DeductionGuideAST final : DeclarationAST {
 
 struct ExplicitInstantiationAST final : DeclarationAST {
   void visit(DeclarationASTVisitor* visitor) override;
+};
+
+// specifiers
+
+struct StorageClassSpecifierAST final : SpecifierAST {
+  void visit(SpecifierASTVisitor* visitor) override;
+};
+
+struct FunctionSpecifierAST final : SpecifierAST {
+  void visit(SpecifierASTVisitor* visitor) override;
+};
+
+struct ExplicitSpecifierAST final : SpecifierAST {
+  void visit(SpecifierASTVisitor* visitor) override;
+};
+
+struct SimpleTypeSpecifierAST final : SpecifierAST {
+  void visit(SpecifierASTVisitor* visitor) override;
+};
+
+struct NamedTypeSpecifierAST final : SpecifierAST {
+  void visit(SpecifierASTVisitor* visitor) override;
+};
+
+struct PlaceholderTypeSpecifierHelperAST final : SpecifierAST {
+  void visit(SpecifierASTVisitor* visitor) override;
+};
+
+struct DecltypeSpecifierTypeSpecifierAST final : SpecifierAST {
+  void visit(SpecifierASTVisitor* visitor) override;
+};
+
+struct UnderlyingTypeSpecifierAST final : SpecifierAST {
+  void visit(SpecifierASTVisitor* visitor) override;
+};
+
+struct AtomicTypeSpecifierAST final : SpecifierAST {
+  void visit(SpecifierASTVisitor* visitor) override;
+};
+
+struct PrimitiveTypeSpecifierAST final : SpecifierAST {
+  void visit(SpecifierASTVisitor* visitor) override;
+};
+
+struct ElaboratedTypeSpecifierAST final : SpecifierAST {
+  void visit(SpecifierASTVisitor* visitor) override;
+};
+
+struct DecltypeSpecifierAST final : SpecifierAST {
+  void visit(SpecifierASTVisitor* visitor) override;
+};
+
+struct PlaceholderTypeSpecifierAST final : SpecifierAST {
+  void visit(SpecifierASTVisitor* visitor) override;
+};
+
+struct CvQualifierAST final : SpecifierAST {
+  void visit(SpecifierASTVisitor* visitor) override;
+};
+
+struct EnumSpecifierAST final : SpecifierAST {
+  void visit(SpecifierASTVisitor* visitor) override;
+};
+
+struct ClassSpecifierAST final : SpecifierAST {
+  void visit(SpecifierASTVisitor* visitor) override;
+};
+
+struct TypenameSpecifierAST final : SpecifierAST {
+  void visit(SpecifierASTVisitor* visitor) override;
 };
 
 }  // namespace cxx

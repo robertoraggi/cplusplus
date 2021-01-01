@@ -20,6 +20,7 @@
 
 #include <cxx/ast.h>
 #include <cxx/declaration_ast_visitor.h>
+#include <cxx/specifier_ast_visitor.h>
 #include <cxx/statement_ast_visitor.h>
 
 namespace cxx {
@@ -179,6 +180,76 @@ void DeductionGuideAST::visit(DeclarationASTVisitor* visitor) {
 }
 
 void ExplicitInstantiationAST::visit(DeclarationASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+// specifiers
+
+void StorageClassSpecifierAST::visit(SpecifierASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void FunctionSpecifierAST::visit(SpecifierASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void ExplicitSpecifierAST::visit(SpecifierASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void SimpleTypeSpecifierAST::visit(SpecifierASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void NamedTypeSpecifierAST::visit(SpecifierASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void PlaceholderTypeSpecifierHelperAST::visit(SpecifierASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void DecltypeSpecifierTypeSpecifierAST::visit(SpecifierASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void UnderlyingTypeSpecifierAST::visit(SpecifierASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void AtomicTypeSpecifierAST::visit(SpecifierASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void PrimitiveTypeSpecifierAST::visit(SpecifierASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void ElaboratedTypeSpecifierAST::visit(SpecifierASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void DecltypeSpecifierAST::visit(SpecifierASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void PlaceholderTypeSpecifierAST::visit(SpecifierASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void CvQualifierAST::visit(SpecifierASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void EnumSpecifierAST::visit(SpecifierASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void ClassSpecifierAST::visit(SpecifierASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
+void TypenameSpecifierAST::visit(SpecifierASTVisitor* visitor) {
   visitor->visit(this);
 }
 

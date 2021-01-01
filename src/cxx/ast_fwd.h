@@ -78,8 +78,28 @@ struct UsingDeclarationAST;
 struct UsingDirectiveAST;
 struct UsingEnumDeclarationAST;
 
+// specifiers
+struct AtomicTypeSpecifierAST;
+struct ClassSpecifierAST;
+struct CvQualifierAST;
+struct DecltypeSpecifierAST;
+struct DecltypeSpecifierTypeSpecifierAST;
+struct ElaboratedTypeSpecifierAST;
+struct EnumSpecifierAST;
+struct ExplicitSpecifierAST;
+struct FunctionSpecifierAST;
+struct NamedTypeSpecifierAST;
+struct PlaceholderTypeSpecifierAST;
+struct PlaceholderTypeSpecifierHelperAST;
+struct PrimitiveTypeSpecifierAST;
+struct SimpleTypeSpecifierAST;
+struct StorageClassSpecifierAST;
+struct TypenameSpecifierAST;
+struct UnderlyingTypeSpecifierAST;
+
 // visitors
 struct StatementASTVisitor;
 struct DeclarationASTVisitor;
+struct SpecifierASTVisitor;
 
 }  // namespace cxx
