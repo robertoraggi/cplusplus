@@ -286,7 +286,7 @@ class Parser {
   bool parse_enumerator();
   bool parse_using_enum_declaration(DeclarationAST*& yyast);
   bool parse_namespace_definition(DeclarationAST*& yyast);
-  bool parse_namespace_body();
+  bool parse_namespace_body(NamespaceDefinitionAST* yyast);
   bool parse_namespace_alias_definition(DeclarationAST*& yyast);
   bool parse_qualified_namespace_specifier();
   bool parse_using_directive(DeclarationAST*& yyast);

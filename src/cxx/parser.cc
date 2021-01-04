@@ -3879,22 +3879,24 @@ bool Parser::parse_using_enum_declaration(DeclarationAST*& yyast) {
 bool Parser::parse_namespace_definition(DeclarationAST*& yyast) {
   const auto start = currentLocation();
 
-  const auto has_inline = match(TokenKind::T_INLINE);
+  SourceLocation inlineLoc;
 
-  if (!match(TokenKind::T_NAMESPACE)) {
+  const auto hasInline = match(TokenKind::T_INLINE, inlineLoc);
+
+  SourceLocation namespaceLoc;
+
+  if (!match(TokenKind::T_NAMESPACE, namespaceLoc)) {
     rewind(start);
     return false;
   }
 
-  List<AttributeAST*>* attributes = nullptr;
+  auto ast = new (pool) NamespaceDefinitionAST();
+  yyast = ast;
 
-  parse_attribute_specifier_seq(attributes);
+  ast->inlineLoc = inlineLoc;
+  ast->namespaceLoc = namespaceLoc;
 
-  enum NamespaceKind {
-    kAnonymous,
-    kNamed,
-    kNested
-  } kind = NamespaceKind::kAnonymous;
+  parse_attribute_specifier_seq(ast->attributeList);
 
   SourceLocation nameLoc;
 
@@ -3905,36 +3907,41 @@ bool Parser::parse_namespace_definition(DeclarationAST*& yyast) {
       match(TokenKind::T_INLINE);
       expect(TokenKind::T_IDENTIFIER);
     }
-    kind = NamespaceKind::kNested;
+
   } else if (match(TokenKind::T_IDENTIFIER, nameLoc)) {
-    kind = NamespaceKind::kNamed;
+    //
   }
 
-  List<AttributeAST*>* moreAttributes = nullptr;
+  parse_attribute_specifier_seq(ast->extraAttributeList);
 
-  parse_attribute_specifier_seq(moreAttributes);
+  expect(TokenKind::T_LBRACE, ast->lbraceLoc);
 
-  expect(TokenKind::T_LBRACE);
+  parse_namespace_body(ast);
 
-  parse_namespace_body();
-
-  expect(TokenKind::T_RBRACE);
+  expect(TokenKind::T_RBRACE, ast->rbraceLoc);
 
   return true;
 }
 
-bool Parser::parse_namespace_body() {
+bool Parser::parse_namespace_body(NamespaceDefinitionAST* yyast) {
   bool skipping = false;
+
+  auto it = &yyast->declarationList;
 
   while (LA()) {
     if (LA().is(TokenKind::T_RBRACE)) break;
 
     const auto saved = currentLocation();
 
-    DeclarationAST* decl = nullptr;
+    DeclarationAST* declaration = nullptr;
 
-    if (parse_declaration(decl)) {
+    if (parse_declaration(declaration)) {
       skipping = false;
+
+      if (declaration) {
+        *it = new (pool) List(declaration);
+        it = &(*it)->next;
+      }
     } else {
       parse_skip_declaration(skipping);
 

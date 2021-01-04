@@ -279,6 +279,16 @@ struct UsingEnumDeclarationAST final : DeclarationAST {
 };
 
 struct NamespaceDefinitionAST final : DeclarationAST {
+  SourceLocation inlineLoc;
+  SourceLocation namespaceLoc;
+  List<AttributeAST*>* attributeList = nullptr;
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  NameAST* name = nullptr;
+  List<AttributeAST*>* extraAttributeList = nullptr;
+  SourceLocation lbraceLoc;
+  List<DeclarationAST*>* declarationList = nullptr;
+  SourceLocation rbraceLoc;
+
   void visit(DeclarationASTVisitor* visitor) override;
 };
 
