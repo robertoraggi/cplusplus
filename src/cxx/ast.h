@@ -319,6 +319,12 @@ struct MemberDeclarationAST final : DeclarationAST {
 };
 
 struct TemplateDeclarationAST final : DeclarationAST {
+  SourceLocation templateLoc;
+  SourceLocation lessLoc;
+  List<DeclarationAST*>* templateParameterList = nullptr;
+  SourceLocation greaterLoc;
+  DeclarationAST* declaration = nullptr;
+
   void visit(DeclarationASTVisitor* visitor) override;
 };
 
@@ -327,6 +333,10 @@ struct DeductionGuideAST final : DeclarationAST {
 };
 
 struct ExplicitInstantiationAST final : DeclarationAST {
+  SourceLocation externLoc;
+  SourceLocation templateLoc;
+  DeclarationAST* declaration = nullptr;
+
   void visit(DeclarationASTVisitor* visitor) override;
 };
 

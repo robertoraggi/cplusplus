@@ -107,8 +107,8 @@ class Parser {
   bool parse_primary_expression(ExpressionAST*& yyast);
   bool parse_id_expression();
   bool parse_maybe_template_id();
-  bool parse_unqualified_id();
-  bool parse_qualified_id();
+  bool parse_unqualified_id(NameAST*& yyast);
+  bool parse_qualified_id(NameAST*& yyast);
   bool parse_nested_name_specifier(NestedNameSpecifierAST*& yyast);
   bool parse_start_of_nested_name_specifier(Name& id);
   bool parse_lambda_expression(ExpressionAST*& yyast);
@@ -353,7 +353,9 @@ class Parser {
   bool parse_op();
   bool parse_literal_operator_id();
   bool parse_template_declaration(DeclarationAST*& yyast);
-  bool parse_template_head();
+  bool parse_template_head(SourceLocation& templateLoc, SourceLocation& lessLoc,
+                           List<DeclarationAST*>* templateParameterList,
+                           SourceLocation& greaterLoc);
   bool parse_template_parameter_list();
   bool parse_requires_clause();
   bool parse_constraint_logical_or_expression(ExpressionAST*& yyast);

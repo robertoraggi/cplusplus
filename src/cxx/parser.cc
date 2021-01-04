@@ -331,10 +331,7 @@ bool Parser::parse_literal() {
       return true;
 
     case TokenKind::T_STRING_LITERAL:
-      while (match(TokenKind::T_STRING_LITERAL)) {
-        //
-      }
-      return true;
+      return parse_string_literal_seq();
 
     default:
       return false;
@@ -459,9 +456,16 @@ bool Parser::parse_primary_expression(ExpressionAST*& yyast) {
 
 bool Parser::parse_id_expression() {
   const auto start = currentLocation();
-  if (parse_qualified_id()) return true;
+
+  NameAST* name = nullptr;
+
+  if (parse_qualified_id(name)) return true;
+
   rewind(start);
-  return parse_unqualified_id();
+
+  name = nullptr;
+
+  return parse_unqualified_id(name);
 }
 
 bool Parser::parse_maybe_template_id() {
@@ -493,7 +497,7 @@ bool Parser::parse_maybe_template_id() {
   }  // switch
 }
 
-bool Parser::parse_unqualified_id() {
+bool Parser::parse_unqualified_id(NameAST*& yyast) {
   const auto start = currentLocation();
 
   if (parse_maybe_template_id()) return true;
@@ -521,14 +525,16 @@ bool Parser::parse_unqualified_id() {
   return true;
 }
 
-bool Parser::parse_qualified_id() {
+bool Parser::parse_qualified_id(NameAST*& yyast) {
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
 
   if (!parse_nested_name_specifier(nestedNameSpecifier)) return false;
 
   const auto has_template = match(TokenKind::T_TEMPLATE);
 
-  if (parse_unqualified_id()) return true;
+  NameAST* unqualifiedId = nullptr;
+
+  if (parse_unqualified_id(unqualifiedId)) return true;
 
   if (has_template) {
     parse_error("expected a template name");
@@ -4022,7 +4028,9 @@ bool Parser::parse_using_declarator() {
 
   if (!parse_nested_name_specifier(nestedNameSpecifier)) rewind(saved);
 
-  if (!parse_unqualified_id()) return false;
+  NameAST* unqualifiedId = nullptr;
+
+  if (!parse_unqualified_id(unqualifiedId)) return false;
 
   return true;
 }
@@ -4969,29 +4977,49 @@ bool Parser::parse_literal_operator_id() {
 }
 
 bool Parser::parse_template_declaration(DeclarationAST*& yyast) {
-  if (!parse_template_head()) return false;
+  SourceLocation templateLoc;
+  SourceLocation lessLoc;
+  List<DeclarationAST*>* templateParameterList = nullptr;
+  SourceLocation greaterLoc;
+
+  if (!parse_template_head(templateLoc, lessLoc, templateParameterList,
+                           greaterLoc))
+    return false;
 
   if (LA().is(TokenKind::T_CONCEPT)) {
     parse_concept_definition();
-  } else {
-    DeclarationAST* declaration = nullptr;
-
-    if (!parse_declaration(declaration)) parse_error("expected a declaration");
+    return true;
   }
+
+  DeclarationAST* declaration = nullptr;
+
+  if (!parse_declaration(declaration)) parse_error("expected a declaration");
+
+  auto ast = new (pool) TemplateDeclarationAST();
+  yyast = ast;
+
+  ast->templateLoc = templateLoc;
+  ast->lessLoc = lessLoc;
+  ast->templateParameterList = templateParameterList;
+  ast->greaterLoc = greaterLoc;
+  ast->declaration = declaration;
 
   return true;
 }
 
-bool Parser::parse_template_head() {
-  if (!match(TokenKind::T_TEMPLATE)) return false;
+bool Parser::parse_template_head(SourceLocation& templateLoc,
+                                 SourceLocation& lessLoc,
+                                 List<DeclarationAST*>* templateParameterList,
+                                 SourceLocation& greaterLoc) {
+  if (!match(TokenKind::T_TEMPLATE, templateLoc)) return false;
 
-  if (!match(TokenKind::T_LESS)) return false;
+  if (!match(TokenKind::T_LESS, lessLoc)) return false;
 
-  if (!match(TokenKind::T_GREATER)) {
+  if (!match(TokenKind::T_GREATER, greaterLoc)) {
     if (!parse_template_parameter_list())
       parse_error("expected a template parameter");
 
-    expect(TokenKind::T_GREATER);
+    expect(TokenKind::T_GREATER, greaterLoc);
   }
 
   parse_requires_clause();
@@ -5092,7 +5120,13 @@ bool Parser::parse_typename_type_parameter() {
 bool Parser::parse_template_type_parameter() {
   const auto start = currentLocation();
 
-  if (!parse_template_head()) {
+  SourceLocation templateLoc;
+  SourceLocation lessLoc;
+  List<DeclarationAST*>* templateParameterList = nullptr;
+  SourceLocation greaterLoc;
+
+  if (!parse_template_head(templateLoc, lessLoc, templateParameterList,
+                           greaterLoc)) {
     rewind(start);
     return false;
   }
@@ -5349,29 +5383,62 @@ bool Parser::parse_typename_specifier(SpecifierAST*& yyast) {
 }
 
 bool Parser::parse_explicit_instantiation(DeclarationAST*& yyast) {
-  const auto has_extern = match(TokenKind::T_EXTERN);
+  const auto start = currentLocation();
 
-  if (!match(TokenKind::T_TEMPLATE)) return false;
+  SourceLocation externLoc;
 
-  if (LA().is(TokenKind::T_LESS)) return false;
+  match(TokenKind::T_EXTERN, externLoc);
+
+  SourceLocation templateLoc;
+
+  if (!match(TokenKind::T_TEMPLATE, templateLoc)) {
+    rewind(start);
+    return false;
+  }
+
+  if (LA().is(TokenKind::T_LESS)) {
+    rewind(start);
+    return false;
+  }
 
   DeclarationAST* declaration = nullptr;
 
   if (!parse_declaration(declaration)) parse_error("expected a declaration");
+
+  auto ast = new (pool) ExplicitInstantiationAST();
+  yyast = ast;
+
+  ast->externLoc = externLoc;
+  ast->templateLoc = templateLoc;
+  ast->declaration = declaration;
 
   return true;
 }
 
 bool Parser::parse_explicit_specialization(DeclarationAST*& yyast) {
-  if (!match(TokenKind(TokenKind::T_TEMPLATE))) return false;
+  SourceLocation templateLoc;
 
-  if (!match(TokenKind::T_LESS)) return false;
+  if (!match(TokenKind::T_TEMPLATE, templateLoc)) return false;
 
-  if (!match(TokenKind::T_GREATER)) return false;
+  SourceLocation lessLoc;
+
+  if (!match(TokenKind::T_LESS, lessLoc)) return false;
+
+  SourceLocation greaterLoc;
+
+  if (!match(TokenKind::T_GREATER, greaterLoc)) return false;
 
   DeclarationAST* declaration = nullptr;
 
   if (!parse_declaration(declaration)) parse_error("expected a declaration");
+
+  auto ast = new (pool) TemplateDeclarationAST();
+  yyast = ast;
+
+  ast->templateLoc = templateLoc;
+  ast->lessLoc = lessLoc;
+  ast->greaterLoc = greaterLoc;
+  ast->declaration = declaration;
 
   return true;
 }
