@@ -33,18 +33,33 @@
 
 namespace cxx {
 
-bool Parser::isFunctionDeclarator(const Declarator& decl) const {
-  for (auto d : decl) {
-    if (std::holds_alternative<NestedDeclarator>(d))
-      continue;
-    else if (std::holds_alternative<DeclaratorId>(d))
-      continue;
-    else if (std::holds_alternative<FunctionDeclarator>(d))
-      return true;
-    else
-      return false;
+std::pair<FunctionDeclaratorAST*, bool> getFunctionDeclaratorHelper(
+    DeclaratorAST* declarator) {
+  if (auto n = dynamic_cast<NestedDeclaratorAST*>(declarator->coreDeclarator)) {
+    auto [fundecl, done] = getFunctionDeclaratorHelper(n->declarator);
+
+    if (done) return std::make_pair(fundecl, done);
   }
-  return false;
+
+  std::vector<DeclaratorModifierAST*> modifiers;
+
+  for (auto it = declarator->modifiers; it; it = it->next)
+    modifiers.push_back(it->value);
+
+  for (auto it = rbegin(modifiers); it != rend(modifiers); ++it) {
+    auto modifier = *it;
+
+    if (auto decl = dynamic_cast<FunctionDeclaratorAST*>(modifier))
+      return std::make_pair(decl, true);
+
+    return std::make_pair(nullptr, true);
+  }
+
+  return std::make_pair(nullptr, false);
+}
+
+FunctionDeclaratorAST* getFunctionDeclarator(DeclaratorAST* declarator) {
+  return get<0>(getFunctionDeclaratorHelper(declarator));
 }
 
 Parser::Prec Parser::prec(TokenKind tk) {
@@ -507,7 +522,9 @@ bool Parser::parse_unqualified_id() {
 }
 
 bool Parser::parse_qualified_id() {
-  if (!parse_nested_name_specifier()) return false;
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+
+  if (!parse_nested_name_specifier(nestedNameSpecifier)) return false;
 
   const auto has_template = match(TokenKind::T_TEMPLATE);
 
@@ -542,7 +559,7 @@ bool Parser::parse_start_of_nested_name_specifier(Name& id) {
   return false;
 }
 
-bool Parser::parse_nested_name_specifier() {
+bool Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast) {
   const auto start = currentLocation();
 
   auto it = nested_name_specifiers_.find(start);
@@ -897,7 +914,9 @@ bool Parser::parse_type_requirement() {
 
   const auto after_typename = currentLocation();
 
-  if (!parse_nested_name_specifier()) rewind(after_typename);
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+
+  if (!parse_nested_name_specifier(nestedNameSpecifier)) rewind(after_typename);
 
   if (!parse_type_name()) parse_error("expected a type name");
 
@@ -1374,7 +1393,9 @@ bool Parser::parse_new_type_id() {
 }
 
 bool Parser::parse_new_declarator() {
-  if (parse_ptr_operator()) {
+  PtrOperatorAST* ptrOp = nullptr;
+
+  if (parse_ptr_operator(ptrOp)) {
     auto saved = currentLocation();
 
     if (!parse_new_declarator()) rewind(saved);
@@ -1798,9 +1819,7 @@ bool Parser::parse_condition(ExpressionAST*& yyast) {
   if (parse_decl_specifier_seq(declSpecifierList, specs)) {
     DeclaratorAST* declarator = nullptr;
 
-    Declarator decl;
-
-    if (parse_declarator(declarator, decl)) {
+    if (parse_declarator(declarator)) {
       if (parse_brace_or_equal_initializer()) return true;
     }
   }
@@ -2148,9 +2167,7 @@ bool Parser::parse_for_range_declaration(DeclarationAST*& yyast) {
   } else {
     DeclaratorAST* declarator = nullptr;
 
-    Declarator decl;
-
-    if (!parse_declarator(declarator, decl)) return false;
+    if (!parse_declarator(declarator)) return false;
   }
 
   return true;
@@ -2436,15 +2453,13 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
 
   DeclaratorAST* declarator = nullptr;
 
-  Declarator decl;
-
-  if (!parse_declarator(declarator, decl)) return false;
+  if (!parse_declarator(declarator)) return false;
 
   const auto after_declarator = currentLocation();
 
   if (match(TokenKind::T_SEMICOLON)) return true;
 
-  if (fundef && isFunctionDeclarator(decl)) {
+  if (fundef && getFunctionDeclarator(declarator)) {
     if (parse_function_definition_body()) return true;
 
     rewind(after_declarator);
@@ -2777,7 +2792,9 @@ bool Parser::parse_named_type_specifier_helper(SpecifierAST*& yyast,
 
   const auto start = currentLocation();
 
-  if (parse_nested_name_specifier()) {
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+
+  if (parse_nested_name_specifier(nestedNameSpecifier)) {
     const auto after_nested_name_specifier = currentLocation();
 
     if (match(TokenKind::T_TEMPLATE) && parse_simple_template_id()) {
@@ -2931,7 +2948,9 @@ bool Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
 
   const auto before_nested_name_specifier = currentLocation();
 
-  if (!parse_nested_name_specifier()) {
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+
+  if (!parse_nested_name_specifier(nestedNameSpecifier)) {
     rewind(before_nested_name_specifier);
 
     if (parse_simple_template_id()) {
@@ -2976,7 +2995,9 @@ bool Parser::parse_elaborated_enum_specifier(SpecifierAST*& yyast) {
 
   const auto saved = currentLocation();
 
-  if (!parse_nested_name_specifier()) rewind(saved);
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+
+  if (!parse_nested_name_specifier(nestedNameSpecifier)) rewind(saved);
 
   if (!match(TokenKind::T_IDENTIFIER)) return false;
 
@@ -3054,9 +3075,7 @@ bool Parser::parse_init_declarator_list() {
 }
 
 bool Parser::parse_init_declarator(DeclaratorAST*& yyast) {
-  Declarator decl;
-
-  if (!parse_declarator(yyast, decl)) return false;
+  if (!parse_declarator(yyast)) return false;
 
   const auto saved = currentLocation();
 
@@ -3071,70 +3090,109 @@ bool Parser::parse_declarator_initializer() {
   return parse_initializer();
 }
 
-bool Parser::parse_declarator(DeclaratorAST*& yyast, Declarator& decl) {
-  if (parse_ptr_operator()) {
-    DeclaratorAST* declarator = nullptr;
+bool Parser::parse_declarator(DeclaratorAST*& yyast) {
+  const auto start = currentLocation();
 
-    if (!parse_declarator(declarator, decl)) return false;
+  List<PtrOperatorAST*>* ptrOpList = nullptr;
 
-    decl.push_back(PtrDeclarator());
+  if (!parse_ptr_operator_seq(ptrOpList)) {
+    rewind(start);
 
-    return true;
+    ptrOpList = nullptr;
   }
 
-  return parse_noptr_declarator(decl);
+  if (!parse_noptr_declarator(yyast, ptrOpList)) return false;
+
+  return true;
 }
 
-bool Parser::parse_ptr_operator_seq() {
-  if (!parse_ptr_operator()) return false;
+bool Parser::parse_ptr_operator_seq(List<PtrOperatorAST*>*& yyast) {
+  auto it = &yyast;
 
-  while (parse_ptr_operator()) {
-    //
+  PtrOperatorAST* ptrOp = nullptr;
+
+  if (!parse_ptr_operator(ptrOp)) return false;
+
+  *it = new (pool) List(ptrOp);
+  it = &(*it)->next;
+
+  ptrOp = nullptr;
+
+  while (parse_ptr_operator(ptrOp)) {
+    *it = new (pool) List(ptrOp);
+    it = &(*it)->next;
+    ptrOp = nullptr;
   }
 
   return true;
 }
 
-bool Parser::parse_core_declarator(Declarator& decl) {
+bool Parser::parse_core_declarator(CoreDeclaratorAST*& yyast) {
   if (parse_declarator_id()) {
     List<AttributeAST*>* attributes = nullptr;
 
     parse_attribute_specifier_seq(attributes);
 
-    decl.push_back(DeclaratorId());
+    auto ast = new (pool) IdDeclaratorAST();
+    yyast = ast;
+
+    ast->attributeList = attributes;
 
     return true;
   }
 
-  if (!match(TokenKind::T_LPAREN)) return false;
+  SourceLocation lparenLoc;
+
+  if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
 
   DeclaratorAST* declarator = nullptr;
 
-  if (!parse_declarator(declarator, decl)) return false;
+  if (!parse_declarator(declarator)) return false;
 
-  if (!match(TokenKind::T_RPAREN)) return false;
+  SourceLocation rparenLoc;
 
-  decl.push_back(NestedDeclarator());
+  if (!match(TokenKind::T_RPAREN, rparenLoc)) return false;
+
+  auto ast = new (pool) NestedDeclaratorAST();
+  yyast = ast;
+
+  ast->lparenLoc = lparenLoc;
+  ast->declarator = declarator;
+  ast->rparenLoc = lparenLoc;
 
   return true;
 }
 
-bool Parser::parse_noptr_declarator(Declarator& decl) {
-  if (!parse_core_declarator(decl)) return false;
+bool Parser::parse_noptr_declarator(DeclaratorAST*& yyast,
+                                    List<PtrOperatorAST*>* ptrOpLst) {
+  CoreDeclaratorAST* coreDeclarator = nullptr;
+
+  if (!parse_core_declarator(coreDeclarator)) return false;
+
+  yyast = new (pool) DeclaratorAST();
+
+  yyast->ptrOpList = ptrOpLst;
+
+  yyast->coreDeclarator = coreDeclarator;
+
+  auto it = &yyast->modifiers;
 
   while (true) {
     const auto saved = currentLocation();
 
-    if (match(TokenKind::T_LBRACKET)) {
-      if (!match(TokenKind::T_RBRACKET)) {
-        ExpressionAST* expression = nullptr;
+    SourceLocation lbracketLoc;
 
+    if (match(TokenKind::T_LBRACKET, lbracketLoc)) {
+      SourceLocation rbracketLoc;
+      ExpressionAST* expression = nullptr;
+
+      if (!match(TokenKind::T_RBRACKET, rbracketLoc)) {
         if (!parse_constant_expression(expression)) {
           rewind(saved);
           break;
         }
 
-        if (!match(TokenKind::T_RBRACKET)) {
+        if (!match(TokenKind::T_RBRACKET, rbracketLoc)) {
           rewind(saved);
           break;
         }
@@ -3144,10 +3202,24 @@ bool Parser::parse_noptr_declarator(Declarator& decl) {
 
       parse_attribute_specifier_seq(attributes);
 
-      decl.push_back(ArrayDeclarator());
+      auto modifier = new (pool) ArrayDeclaratorAST();
+      modifier->lbracketLoc = lbracketLoc;
+      modifier->expression = expression;
+      modifier->rbracketLoc = rbracketLoc;
+      modifier->attributeList = attributes;
+
+      *it = new (pool) List<DeclaratorModifierAST*>(modifier);
+
+      it = &(*it)->next;
+
     } else if (parse_parameters_and_qualifiers()) {
       parse_trailing_return_type();
-      decl.push_back(FunctionDeclarator());
+
+      auto modifier = new (pool) FunctionDeclaratorAST();
+
+      *it = new (pool) List<DeclaratorModifierAST*>(modifier);
+
+      it = &(*it)->next;
     } else {
       rewind(saved);
       break;
@@ -3203,37 +3275,51 @@ bool Parser::parse_trailing_return_type() {
   return true;
 }
 
-bool Parser::parse_ptr_operator() {
-  if (match(TokenKind::T_STAR)) {
-    List<AttributeAST*>* attributes = nullptr;
+bool Parser::parse_ptr_operator(PtrOperatorAST*& yyast) {
+  SourceLocation starLoc;
 
-    parse_attribute_specifier_seq(attributes);
+  if (match(TokenKind::T_STAR, starLoc)) {
+    auto ast = new (pool) PointerOperatorAST();
+    yyast = ast;
 
-    List<SpecifierAST*>* cvQualifierList = nullptr;
+    ast->starLoc = starLoc;
 
-    parse_cv_qualifier_seq(cvQualifierList);
+    parse_attribute_specifier_seq(ast->attributeList);
+
+    parse_cv_qualifier_seq(ast->cvQualifierList);
 
     return true;
   }
 
-  if (match(TokenKind::T_AMP) || match(TokenKind::T_AMP_AMP)) {
-    List<AttributeAST*>* attributes = nullptr;
+  SourceLocation refLoc;
 
-    parse_attribute_specifier_seq(attributes);
+  if (match(TokenKind::T_AMP, refLoc) || match(TokenKind::T_AMP_AMP, refLoc)) {
+    auto ast = new (pool) ReferenceOperatorAST();
+    yyast = ast;
+
+    ast->refLoc = refLoc;
+
+    parse_attribute_specifier_seq(ast->attributeList);
 
     return true;
   }
 
   const auto saved = currentLocation();
 
-  if (parse_nested_name_specifier() && match(TokenKind::T_STAR)) {
-    List<AttributeAST*>* attributes = nullptr;
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
 
-    parse_attribute_specifier_seq(attributes);
+  if (parse_nested_name_specifier(nestedNameSpecifier) &&
+      match(TokenKind::T_STAR, starLoc)) {
+    auto ast = new (pool) PtrToMemberOperatorAST();
+    yyast = ast;
 
-    List<SpecifierAST*>* cvQualifierList = nullptr;
+    ast->nestedNameSpecifier = nestedNameSpecifier;
 
-    parse_cv_qualifier_seq(cvQualifierList);
+    ast->starLoc = starLoc;
+
+    parse_attribute_specifier_seq(ast->attributeList);
+
+    parse_cv_qualifier_seq(ast->cvQualifierList);
 
     return true;
   }
@@ -3284,7 +3370,9 @@ bool Parser::parse_type_id() {
 
   const auto before_declarator = currentLocation();
 
-  if (!parse_abstract_declarator()) rewind(before_declarator);
+  DeclaratorAST* declarator = nullptr;
+
+  if (!parse_abstract_declarator(declarator)) rewind(before_declarator);
 
   return true;
 }
@@ -3301,12 +3389,14 @@ bool Parser::parse_defining_type_id(TypeIdAST*& yyast) {
 
   const auto before_declarator = currentLocation();
 
-  if (!parse_abstract_declarator()) rewind(before_declarator);
+  DeclaratorAST* declarator = nullptr;
+
+  if (!parse_abstract_declarator(declarator)) rewind(before_declarator);
 
   return true;
 }
 
-bool Parser::parse_abstract_declarator() {
+bool Parser::parse_abstract_declarator(DeclaratorAST*& yyast) {
   if (parse_abstract_pack_declarator()) return true;
 
   if (parse_ptr_abstract_declarator()) return true;
@@ -3332,7 +3422,9 @@ bool Parser::parse_abstract_declarator() {
 }
 
 bool Parser::parse_ptr_abstract_declarator() {
-  if (!parse_ptr_operator_seq()) return false;
+  List<PtrOperatorAST*>* ptrOpList = nullptr;
+
+  if (!parse_ptr_operator_seq(ptrOpList)) return false;
 
   const auto saved = currentLocation();
 
@@ -3376,7 +3468,9 @@ bool Parser::parse_noptr_abstract_declarator() {
 }
 
 bool Parser::parse_abstract_pack_declarator() {
-  parse_ptr_operator_seq();
+  List<PtrOperatorAST*>* ptrOpList = nullptr;
+
+  parse_ptr_operator_seq(ptrOpList);
 
   if (!parse_noptr_abstract_pack_declarator()) return false;
 
@@ -3450,12 +3544,10 @@ bool Parser::parse_parameter_declaration() {
 
   DeclaratorAST* declarator = nullptr;
 
-  Declarator decl;
-
-  if (!parse_declarator(declarator, decl)) {
+  if (!parse_declarator(declarator)) {
     rewind(before_declarator);
 
-    if (!parse_abstract_declarator()) rewind(before_declarator);
+    if (!parse_abstract_declarator(declarator)) rewind(before_declarator);
   }
 
   if (match(TokenKind::T_EQUAL)) {
@@ -3673,7 +3765,9 @@ bool Parser::parse_enum_head() {
 bool Parser::parse_enum_head_name() {
   const auto start = currentLocation();
 
-  if (!parse_nested_name_specifier()) rewind(start);
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+
+  if (!parse_nested_name_specifier(nestedNameSpecifier)) rewind(start);
 
   if (!match(TokenKind::T_IDENTIFIER)) return false;
 
@@ -3863,7 +3957,9 @@ bool Parser::parse_namespace_alias_definition(DeclarationAST*& yyast) {
 bool Parser::parse_qualified_namespace_specifier() {
   const auto saved = currentLocation();
 
-  if (!parse_nested_name_specifier()) rewind(saved);
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+
+  if (!parse_nested_name_specifier(nestedNameSpecifier)) rewind(saved);
 
   if (!parse_namespace_name()) return false;
 
@@ -3881,7 +3977,9 @@ bool Parser::parse_using_directive(DeclarationAST*& yyast) {
 
   const auto saved = currentLocation();
 
-  if (!parse_nested_name_specifier()) rewind(saved);
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+
+  if (!parse_nested_name_specifier(nestedNameSpecifier)) rewind(saved);
 
   if (!parse_namespace_name()) parse_error("expected a namespace name");
 
@@ -3920,7 +4018,9 @@ bool Parser::parse_using_declarator() {
 
   const auto saved = currentLocation();
 
-  if (!parse_nested_name_specifier()) rewind(saved);
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+
+  if (!parse_nested_name_specifier(nestedNameSpecifier)) rewind(saved);
 
   if (!parse_unqualified_id()) return false;
 
@@ -4378,7 +4478,9 @@ bool Parser::parse_class_head(Name& name) {
 bool Parser::parse_class_head_name(Name& name) {
   const auto start = currentLocation();
 
-  if (!parse_nested_name_specifier()) rewind(start);
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+
+  if (!parse_nested_name_specifier(nestedNameSpecifier)) rewind(start);
 
   if (!parse_class_name(name)) return false;
 
@@ -4512,9 +4614,7 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
 
   DeclaratorAST* declarator = nullptr;
 
-  Declarator decl;
-
-  if (parse_declarator(declarator, decl) && isFunctionDeclarator(decl)) {
+  if (parse_declarator(declarator) && getFunctionDeclarator(declarator)) {
     if (parse_member_function_definition_body()) return true;
   }
 
@@ -4584,9 +4684,7 @@ bool Parser::parse_member_declarator() {
 
   DeclaratorAST* declarator = nullptr;
 
-  Declarator decl;
-
-  if (!parse_declarator(declarator, decl)) return false;
+  if (!parse_declarator(declarator)) return false;
 
   if (!parse_member_declarator_modifier()) return false;
 
@@ -4633,7 +4731,11 @@ bool Parser::parse_conversion_type_id() {
   return true;
 }
 
-bool Parser::parse_conversion_declarator() { return parse_ptr_operator_seq(); }
+bool Parser::parse_conversion_declarator() {
+  List<PtrOperatorAST*>* ptrOpList = nullptr;
+
+  return parse_ptr_operator_seq(ptrOpList);
+}
 
 bool Parser::parse_base_clause() {
   if (!match(TokenKind::T_COLON)) return false;
@@ -4682,7 +4784,9 @@ bool Parser::parse_base_specifier() {
 bool Parser::parse_class_or_decltype() {
   const auto start = currentLocation();
 
-  if (parse_nested_name_specifier()) {
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+
+  if (parse_nested_name_specifier(nestedNameSpecifier)) {
     if (match(TokenKind::T_TEMPLATE)) {
       if (parse_simple_template_id()) return true;
     }
@@ -5048,7 +5152,9 @@ bool Parser::parse_type_parameter_key() {
 bool Parser::parse_type_constraint() {
   const auto start = currentLocation();
 
-  if (!parse_nested_name_specifier()) rewind(start);
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+
+  if (!parse_nested_name_specifier(nestedNameSpecifier)) rewind(start);
 
   if (!parse_concept_name()) {
     rewind(start);
@@ -5225,7 +5331,9 @@ bool Parser::parse_concept_name() {
 bool Parser::parse_typename_specifier(SpecifierAST*& yyast) {
   if (!match(TokenKind::T_TYPENAME)) return false;
 
-  if (!parse_nested_name_specifier()) return false;
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+
+  if (!parse_nested_name_specifier(nestedNameSpecifier)) return false;
 
   const auto after_nested_name_specifier = currentLocation();
 
@@ -5346,12 +5454,10 @@ bool Parser::parse_exception_declaration() {
 
   DeclaratorAST* declarator = nullptr;
 
-  Declarator decl;
-
-  if (!parse_declarator(declarator, decl)) {
+  if (!parse_declarator(declarator)) {
     rewind(before_declarator);
 
-    if (!parse_abstract_declarator()) rewind(before_declarator);
+    if (!parse_abstract_declarator(declarator)) rewind(before_declarator);
   }
 
   return true;

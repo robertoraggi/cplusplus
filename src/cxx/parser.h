@@ -59,20 +59,6 @@ class Parser {
   struct DeclSpecs;
   struct TemplArgContext;
 
-  struct DeclaratorId {};
-  struct NestedDeclarator {};
-  struct PtrDeclarator {};
-  struct FunctionDeclarator {};
-  struct ArrayDeclarator {};
-
-  using DeclaratorComponent =
-      std::variant<DeclaratorId, NestedDeclarator, PtrDeclarator,
-                   FunctionDeclarator, ArrayDeclarator>;
-
-  using Declarator = std::vector<DeclaratorComponent>;
-
-  bool isFunctionDeclarator(const Declarator& decl) const;
-
   template <typename... Args>
   bool parse_warn(const std::string_view& format, const Args&... args) {
     unit->report(cursor_, MessageKind::Warning, format, args...);
@@ -123,7 +109,7 @@ class Parser {
   bool parse_maybe_template_id();
   bool parse_unqualified_id();
   bool parse_qualified_id();
-  bool parse_nested_name_specifier();
+  bool parse_nested_name_specifier(NestedNameSpecifierAST*& yyast);
   bool parse_start_of_nested_name_specifier(Name& id);
   bool parse_lambda_expression(ExpressionAST*& yyast);
   bool parse_lambda_introducer();
@@ -257,20 +243,21 @@ class Parser {
   bool parse_init_declarator_list();
   bool parse_init_declarator(DeclaratorAST*& yyast);
   bool parse_declarator_initializer();
-  bool parse_declarator(DeclaratorAST*& yyast, Declarator& decl);
-  bool parse_ptr_operator_seq();
-  bool parse_core_declarator(Declarator& decl);
-  bool parse_noptr_declarator(Declarator& decl);
+  bool parse_declarator(DeclaratorAST*& yyastl);
+  bool parse_ptr_operator_seq(List<PtrOperatorAST*>*& yyast);
+  bool parse_core_declarator(CoreDeclaratorAST*& yyast);
+  bool parse_noptr_declarator(DeclaratorAST*& yyast,
+                              List<PtrOperatorAST*>* ptrOpLst);
   bool parse_parameters_and_qualifiers();
   bool parse_cv_qualifier_seq(List<SpecifierAST*>*& yyast);
   bool parse_trailing_return_type();
-  bool parse_ptr_operator();
+  bool parse_ptr_operator(PtrOperatorAST*& yyast);
   bool parse_cv_qualifier(SpecifierAST*& yyast);
   bool parse_ref_qualifier();
   bool parse_declarator_id();
   bool parse_type_id();
   bool parse_defining_type_id(TypeIdAST*& yyast);
-  bool parse_abstract_declarator();
+  bool parse_abstract_declarator(DeclaratorAST*& yyast);
   bool parse_ptr_abstract_declarator();
   bool parse_noptr_abstract_declarator();
   bool parse_abstract_pack_declarator();

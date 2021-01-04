@@ -55,13 +55,19 @@ struct SpecifierAST : AST {
   virtual void visit(SpecifierASTVisitor*) = 0;
 };
 
-struct DeclaratorAST : AST {};
-
 struct NameAST : AST {};
 
 struct AttributeAST : AST {};
 
 struct TypeIdAST : AST {};
+
+struct PtrOperatorAST : AST {};
+
+struct CoreDeclaratorAST : AST {};
+
+struct DeclaratorModifierAST : AST {};
+
+struct NestedNameSpecifierAST : AST {};
 
 // statements
 
@@ -392,6 +398,51 @@ struct ClassSpecifierAST final : SpecifierAST {
 
 struct TypenameSpecifierAST final : SpecifierAST {
   void visit(SpecifierASTVisitor* visitor) override;
+};
+
+// declarators
+
+struct DeclaratorAST final : AST {
+  List<PtrOperatorAST*>* ptrOpList = nullptr;
+  CoreDeclaratorAST* coreDeclarator = nullptr;
+  List<DeclaratorModifierAST*>* modifiers = nullptr;
+};
+
+struct IdDeclaratorAST final : CoreDeclaratorAST {
+  List<AttributeAST*>* attributeList = nullptr;
+};
+
+struct NestedDeclaratorAST final : CoreDeclaratorAST {
+  SourceLocation lparenLoc;
+  DeclaratorAST* declarator = nullptr;
+  SourceLocation rparenLoc;
+};
+
+struct PointerOperatorAST final : PtrOperatorAST {
+  SourceLocation starLoc;
+  List<AttributeAST*>* attributeList = nullptr;
+  List<SpecifierAST*>* cvQualifierList = nullptr;
+};
+
+struct ReferenceOperatorAST final : PtrOperatorAST {
+  SourceLocation refLoc;
+  List<AttributeAST*>* attributeList = nullptr;
+};
+
+struct PtrToMemberOperatorAST final : PtrOperatorAST {
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  SourceLocation starLoc;
+  List<AttributeAST*>* attributeList = nullptr;
+  List<SpecifierAST*>* cvQualifierList = nullptr;
+};
+
+struct FunctionDeclaratorAST final : DeclaratorModifierAST {};
+
+struct ArrayDeclaratorAST final : DeclaratorModifierAST {
+  SourceLocation lbracketLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation rbracketLoc;
+  List<AttributeAST*>* attributeList = nullptr;
 };
 
 }  // namespace cxx

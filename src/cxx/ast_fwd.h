@@ -35,6 +35,10 @@ struct DeclaratorAST;
 struct NameAST;
 struct AttributeAST;
 struct TypeIdAST;
+struct PtrOperatorAST;
+struct CoreDeclaratorAST;
+struct DeclaratorModifierAST;
+struct NestedNameSpecifierAST;
 
 // statements
 struct BreakStatementAST;
@@ -96,6 +100,16 @@ struct SimpleTypeSpecifierAST;
 struct StorageClassSpecifierAST;
 struct TypenameSpecifierAST;
 struct UnderlyingTypeSpecifierAST;
+
+// declarators
+struct IdDeclaratorAST;
+struct NestedDeclaratorAST;
+
+struct PointerOperatorAST;
+struct ReferenceOperatorAST;
+struct PtrToMemberOperatorAST;
+struct FunctionDeclaratorAST;
+struct ArrayDeclaratorAST;
 
 // visitors
 struct StatementASTVisitor;
