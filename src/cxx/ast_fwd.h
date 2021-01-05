@@ -73,8 +73,6 @@ struct ExplicitInstantiationAST;
 struct ExportDeclarationAST;
 struct ForRangeDeclarationAST;
 struct LinkageSpecificationAST;
-struct MemberDeclarationAST;
-struct MemberSpecificationAST;
 struct ModuleImportDeclarationAST;
 struct NamespaceAliasDefinitionAST;
 struct NamespaceDefinitionAST;

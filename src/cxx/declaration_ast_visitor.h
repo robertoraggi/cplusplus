@@ -38,8 +38,6 @@ struct DeclarationASTVisitor {
   virtual void visit(ExportDeclarationAST*) = 0;
   virtual void visit(ForRangeDeclarationAST*) = 0;
   virtual void visit(LinkageSpecificationAST*) = 0;
-  virtual void visit(MemberDeclarationAST*) = 0;
-  virtual void visit(MemberSpecificationAST*) = 0;
   virtual void visit(ModuleImportDeclarationAST*) = 0;
   virtual void visit(NamespaceAliasDefinitionAST*) = 0;
   virtual void visit(NamespaceDefinitionAST*) = 0;

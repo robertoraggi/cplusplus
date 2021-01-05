@@ -87,13 +87,11 @@ class Parser {
   bool parse_module_keyword();
   bool parse_final();
   bool parse_override();
-  bool parse_typedef_name();
-  bool parse_class_name();
-  bool parse_class_name(Name& name);
-  bool parse_name_id(Name& name);
-  bool parse_enum_name();
-  bool parse_template_name();
-  bool parse_template_name(Name& name);
+  bool parse_typedef_name(NameAST*& yyast);
+  bool parse_class_name(NameAST*& yyast);
+  bool parse_name_id(NameAST*& yyast);
+  bool parse_enum_name(NameAST*& yyast);
+  bool parse_template_name(NameAST*& yyast);
   bool parse_literal();
   bool parse_translation_unit(UnitAST*& yyast);
   bool parse_module_head();
@@ -104,11 +102,12 @@ class Parser {
   bool parse_skip_declaration(bool& skipping);
   bool parse_primary_expression(ExpressionAST*& yyast);
   bool parse_id_expression();
-  bool parse_maybe_template_id();
+  bool parse_maybe_template_id(NameAST*& yyast);
   bool parse_unqualified_id(NameAST*& yyast);
   bool parse_qualified_id(NameAST*& yyast);
   bool parse_nested_name_specifier(NestedNameSpecifierAST*& yyast);
-  bool parse_start_of_nested_name_specifier(Name& id);
+  bool parse_start_of_nested_name_specifier(NameAST*& yyast,
+                                            SourceLocation& scopeLoc);
   bool parse_lambda_expression(ExpressionAST*& yyast);
   bool parse_lambda_introducer();
   bool parse_lambda_declarator();
@@ -233,7 +232,7 @@ class Parser {
   bool parse_underlying_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs);
   bool parse_atomic_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs);
   bool parse_primitive_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs);
-  bool parse_type_name();
+  bool parse_type_name(NameAST*& yyast);
   bool parse_elaborated_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs);
   bool parse_elaborated_enum_specifier(SpecifierAST*& yyast);
   bool parse_decltype_specifier(SpecifierAST*& yyast);
@@ -321,8 +320,8 @@ class Parser {
   bool parse_leave_class_specifier(SourceLocation start);
   bool parse_reject_class_specifier(SourceLocation start);
   bool parse_class_body();
-  bool parse_class_head(Name& name);
-  bool parse_class_head_name(Name& name);
+  bool parse_class_head(NameAST*& yyast);
+  bool parse_class_head_name(NameAST*& yyast);
   bool parse_class_virt_specifier();
   bool parse_class_key();
   bool parse_member_specification(DeclarationAST*& yyast);
@@ -365,9 +364,8 @@ class Parser {
   bool parse_constraint_type_parameter();
   bool parse_type_parameter_key();
   bool parse_type_constraint();
-  bool parse_simple_template_id();
-  bool parse_simple_template_id(Name& name);
-  bool parse_template_id();
+  bool parse_simple_template_id(NameAST*& yyast);
+  bool parse_template_id(NameAST*& yyast);
   bool parse_template_argument_list();
   bool parse_template_argument();
   bool parse_constraint_expression(ExpressionAST*& yyast);

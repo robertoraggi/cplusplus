@@ -167,14 +167,6 @@ void ModuleImportDeclarationAST::visit(DeclarationASTVisitor* visitor) {
   visitor->visit(this);
 }
 
-void MemberSpecificationAST::visit(DeclarationASTVisitor* visitor) {
-  visitor->visit(this);
-}
-
-void MemberDeclarationAST::visit(DeclarationASTVisitor* visitor) {
-  visitor->visit(this);
-}
-
 void TemplateDeclarationAST::visit(DeclarationASTVisitor* visitor) {
   visitor->visit(this);
 }

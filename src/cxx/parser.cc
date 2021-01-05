@@ -240,61 +240,46 @@ bool Parser::parse_final() { return parse_id(final_id); }
 
 bool Parser::parse_override() { return parse_id(override_id); }
 
-bool Parser::parse_typedef_name() {
+bool Parser::parse_typedef_name(NameAST*& yyast) {
   const auto start = currentLocation();
 
-  if (parse_simple_template_id()) return true;
+  if (parse_simple_template_id(yyast)) return true;
 
   rewind(start);
 
-  if (!match(TokenKind::T_IDENTIFIER)) return false;
-
-  return true;
+  return parse_name_id(yyast);
 }
 
-bool Parser::parse_class_name() {
-  Name name;
-
-  if (!parse_class_name(name)) return false;
-
-  return true;
-}
-
-bool Parser::parse_class_name(Name& name) {
+bool Parser::parse_class_name(NameAST*& yyast) {
   const auto start = currentLocation();
 
-  if (parse_simple_template_id()) return true;
+  if (parse_simple_template_id(yyast)) return true;
 
   rewind(start);
 
-  return parse_name_id(name);
+  return parse_name_id(yyast);
 }
 
-bool Parser::parse_name_id(Name& name) {
+bool Parser::parse_name_id(NameAST*& yyast) {
   SourceLocation identifierLoc;
 
   if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
 
-  name = unit->identifier(identifierLoc.index());
+  auto ast = new (pool) SimpleNameAST();
+  yyast = ast;
+
+  ast->identifierLoc = identifierLoc;
 
   return true;
 }
 
-bool Parser::parse_enum_name() {
+bool Parser::parse_enum_name(NameAST*& yyast) {
   if (!match(TokenKind::T_IDENTIFIER)) return false;
   return true;
 }
 
-bool Parser::parse_template_name() {
-  Name name;
-
-  if (!parse_template_name(name)) return false;
-
-  return true;
-}
-
-bool Parser::parse_template_name(Name& name) {
-  if (!parse_name_id(name)) return false;
+bool Parser::parse_template_name(NameAST*& yyast) {
+  if (!parse_name_id(yyast)) return false;
 
   return true;
 }
@@ -477,12 +462,17 @@ bool Parser::parse_id_expression() {
   return parse_unqualified_id(name);
 }
 
-bool Parser::parse_maybe_template_id() {
+bool Parser::parse_maybe_template_id(NameAST*& yyast) {
   const auto start = currentLocation();
+
   const auto blockErrors = unit->blockErrors(true);
-  auto template_id = parse_template_id();
+
+  auto template_id = parse_template_id(yyast);
+
   const auto& tk = LA();
+
   unit->blockErrors(blockErrors);
+
   if (!template_id) return false;
   switch (TokenKind(tk)) {
     case TokenKind::T_COMMA:
@@ -502,6 +492,7 @@ bool Parser::parse_maybe_template_id() {
       return true;
 
     default:
+      yyast = nullptr;
       return false;
   }  // switch
 }
@@ -509,7 +500,7 @@ bool Parser::parse_maybe_template_id() {
 bool Parser::parse_unqualified_id(NameAST*& yyast) {
   const auto start = currentLocation();
 
-  if (parse_maybe_template_id()) return true;
+  if (parse_maybe_template_id(yyast)) return true;
 
   rewind(start);
 
@@ -518,20 +509,26 @@ bool Parser::parse_unqualified_id(NameAST*& yyast) {
 
     if (parse_decltype_specifier(decltypeSpecifier)) return true;
 
-    return parse_type_name();
+    NameAST* name = nullptr;
+
+    if (!parse_type_name(name)) return false;
+
+    return true;
   }
 
   if (LA().is(TokenKind::T_OPERATOR)) {
     if (parse_operator_function_id()) return true;
+
     rewind(start);
+
     if (parse_conversion_function_id()) return true;
+
     rewind(start);
+
     return parse_literal_operator_id();
   }
 
-  if (!match(TokenKind::T_IDENTIFIER)) return false;
-
-  return true;
+  return parse_name_id(yyast);
 }
 
 bool Parser::parse_qualified_id(NameAST*& yyast) {
@@ -553,22 +550,27 @@ bool Parser::parse_qualified_id(NameAST*& yyast) {
   return false;
 }
 
-bool Parser::parse_start_of_nested_name_specifier(Name& id) {
-  if (match(TokenKind::T_COLON_COLON)) return true;
+bool Parser::parse_start_of_nested_name_specifier(NameAST*& yyast,
+                                                  SourceLocation& scopeLoc) {
+  yyast = nullptr;
+
+  if (match(TokenKind::T_COLON_COLON, scopeLoc)) return true;
 
   SpecifierAST* decltypeSpecifier = nullptr;
 
   if (parse_decltype_specifier(decltypeSpecifier) &&
-      match(TokenKind::T_COLON_COLON))
+      match(TokenKind::T_COLON_COLON, scopeLoc))
     return true;
 
   const auto start = currentLocation();
 
-  if (parse_name_id(id) && match(TokenKind::T_COLON_COLON)) return true;
+  if (parse_name_id(yyast) && match(TokenKind::T_COLON_COLON, scopeLoc))
+    return true;
 
   rewind(start);
 
-  if (parse_simple_template_id(id) && match(TokenKind::T_COLON_COLON))
+  if (parse_simple_template_id(yyast) &&
+      match(TokenKind::T_COLON_COLON, scopeLoc))
     return true;
 
   return false;
@@ -597,18 +599,25 @@ bool Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast) {
   };
 
   Context context(this);
-  Name id;
 
-  if (!parse_start_of_nested_name_specifier(id)) return false;
+  NameAST* name = nullptr;
+  SourceLocation scopeLoc;
+
+  if (!parse_start_of_nested_name_specifier(name, scopeLoc)) return false;
 
   while (true) {
     const auto saved = currentLocation();
-    if (parse_name_id(id) && match(TokenKind::T_COLON_COLON)) {
+
+    NameAST* name = nullptr;
+
+    if (parse_name_id(name) && match(TokenKind::T_COLON_COLON)) {
       //
     } else {
       rewind(saved);
+
       const auto has_template = match(TokenKind::T_TEMPLATE);
-      if (parse_simple_template_id(id) && match(TokenKind::T_COLON_COLON)) {
+
+      if (parse_simple_template_id(name) && match(TokenKind::T_COLON_COLON)) {
         //
       } else {
         rewind(saved);
@@ -616,7 +625,9 @@ bool Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast) {
       }
     }
   }
+
   context.parsed = true;
+
   return true;
 }
 
@@ -933,7 +944,9 @@ bool Parser::parse_type_requirement() {
 
   if (!parse_nested_name_specifier(nestedNameSpecifier)) rewind(after_typename);
 
-  if (!parse_type_name()) parse_error("expected a type name");
+  NameAST* name = nullptr;
+
+  if (!parse_type_name(name)) parse_error("expected a type name");
 
   expect(TokenKind::T_SEMICOLON);
 
@@ -2844,34 +2857,34 @@ bool Parser::parse_named_type_specifier_helper(SpecifierAST*& yyast,
   if (parse_nested_name_specifier(nestedNameSpecifier)) {
     const auto after_nested_name_specifier = currentLocation();
 
-    if (match(TokenKind::T_TEMPLATE) && parse_simple_template_id()) {
+    NameAST* name = nullptr;
+
+    if (match(TokenKind::T_TEMPLATE) && parse_simple_template_id(name)) {
       return true;
     }
 
     rewind(after_nested_name_specifier);
 
-    if (parse_type_name()) {
+    if (parse_type_name(name)) {
       return true;
     }
 
     rewind(after_nested_name_specifier);
 
-    if (parse_template_name()) {
+    if (parse_template_name(name)) {
       return true;
     }
   }
 
   rewind(start);
 
-  if (parse_type_name()) {
-    return true;
-  }
+  NameAST* name = nullptr;
+
+  if (parse_type_name(name)) return true;
 
   rewind(start);
 
-  if (parse_template_name()) {
-    return true;
-  }
+  if (parse_template_name(name)) return true;
 
   return false;
 }
@@ -2971,18 +2984,18 @@ bool Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
   }  // switch
 }
 
-bool Parser::parse_type_name() {
+bool Parser::parse_type_name(NameAST*& yyast) {
   const auto start = currentLocation();
 
-  if (parse_class_name()) return true;
+  if (parse_class_name(yyast)) return true;
 
   rewind(start);
 
-  if (parse_enum_name()) return true;
+  if (parse_enum_name(yyast)) return true;
 
   rewind(start);
 
-  return parse_typedef_name();
+  return parse_typedef_name(yyast);
 }
 
 bool Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
@@ -3004,7 +3017,9 @@ bool Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
   if (!parse_nested_name_specifier(nestedNameSpecifier)) {
     rewind(before_nested_name_specifier);
 
-    if (parse_simple_template_id()) {
+    NameAST* name = nullptr;
+
+    if (parse_simple_template_id(name)) {
       specs.has_complex_typespec = true;
       return true;
     }
@@ -3021,7 +3036,9 @@ bool Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
 
   const bool has_template = match(TokenKind::T_TEMPLATE);
 
-  if (parse_simple_template_id()) {
+  NameAST* name = nullptr;
+
+  if (parse_simple_template_id(name)) {
     specs.has_complex_typespec = true;
     return true;
   }
@@ -3034,7 +3051,7 @@ bool Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
 
   rewind(after_nested_name_specifier);
 
-  if (!match(TokenKind::T_IDENTIFIER)) return false;
+  if (!parse_name_id(name)) return false;
 
   specs.has_complex_typespec = true;
 
@@ -4599,7 +4616,7 @@ bool Parser::parse_class_specifier(SpecifierAST*& yyast) {
     return parsed;
   }
 
-  Name className;
+  NameAST* className = nullptr;
 
   if (!parse_class_head(className)) {
     parse_reject_class_specifier(start);
@@ -4656,12 +4673,14 @@ bool Parser::parse_class_body() {
   return true;
 }
 
-bool Parser::parse_class_head(Name& name) {
+bool Parser::parse_class_head(NameAST*& yyast) {
   if (!parse_class_key()) return false;
 
   List<AttributeAST*>* attributes = nullptr;
 
   parse_attribute_specifier_seq(attributes);
+
+  NameAST* name = nullptr;
 
   if (parse_class_head_name(name)) {
     parse_class_virt_specifier();
@@ -4672,14 +4691,18 @@ bool Parser::parse_class_head(Name& name) {
   return true;
 }
 
-bool Parser::parse_class_head_name(Name& name) {
+bool Parser::parse_class_head_name(NameAST*& yyast) {
   const auto start = currentLocation();
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
 
   if (!parse_nested_name_specifier(nestedNameSpecifier)) rewind(start);
 
+  NameAST* name = nullptr;
+
   if (!parse_class_name(name)) return false;
+
+  if (!nestedNameSpecifier) yyast = name;
 
   return true;
 }
@@ -4984,11 +5007,14 @@ bool Parser::parse_class_or_decltype() {
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
 
   if (parse_nested_name_specifier(nestedNameSpecifier)) {
-    if (match(TokenKind::T_TEMPLATE)) {
-      if (parse_simple_template_id()) return true;
-    }
+    const auto saved = currentLocation();
 
-    if (parse_type_name()) return true;
+    NameAST* name = nullptr;
+
+    if (match(TokenKind::T_TEMPLATE) && parse_simple_template_id(name))
+      return true;
+
+    if (parse_type_name(name)) return true;
   }
 
   rewind(start);
@@ -4997,7 +5023,9 @@ bool Parser::parse_class_or_decltype() {
 
   if (parse_decltype_specifier(decltypeSpecifier)) return true;
 
-  return parse_type_name();
+  NameAST* name = nullptr;
+
+  return parse_type_name(name);
 }
 
 bool Parser::parse_access_specifier() {
@@ -5397,13 +5425,8 @@ bool Parser::parse_type_constraint() {
   return true;
 }
 
-bool Parser::parse_simple_template_id() {
-  Name name;
-  return parse_simple_template_id(name);
-}
-
-bool Parser::parse_simple_template_id(Name& name) {
-  if (!parse_template_name(name)) return false;
+bool Parser::parse_simple_template_id(NameAST*& yyast) {
+  if (!parse_template_name(yyast)) return false;
 
   if (!match(TokenKind::T_LESS)) return false;
 
@@ -5413,12 +5436,10 @@ bool Parser::parse_simple_template_id(Name& name) {
     if (!match(TokenKind::T_GREATER)) return false;
   }
 
-  name = control->getTemplateId(name);
-
   return true;
 }
 
-bool Parser::parse_template_id() {
+bool Parser::parse_template_id(NameAST*& yyast) {
   if (LA().is(TokenKind::T_OPERATOR)) {
     const auto start = currentLocation();
 
@@ -5439,7 +5460,7 @@ bool Parser::parse_template_id() {
     return true;
   }
 
-  return parse_simple_template_id();
+  return parse_simple_template_id(yyast);
 }
 
 bool Parser::parse_template_argument_list() {
@@ -5513,7 +5534,9 @@ bool Parser::parse_deduction_guide(DeclarationAST*& yyast) {
 
   const auto has_explicit_spec = parse_explicit_specifier(explicitSpecifier);
 
-  if (!parse_template_name()) return false;
+  NameAST* name = nullptr;
+
+  if (!parse_template_name(name)) return false;
 
   if (!match(TokenKind::T_LPAREN)) return false;
 
@@ -5526,7 +5549,10 @@ bool Parser::parse_deduction_guide(DeclarationAST*& yyast) {
 
   if (!match(TokenKind::T_MINUS_GREATER)) return false;
 
-  if (!parse_simple_template_id()) parse_error("expected a template id");
+  NameAST* templateId = nullptr;
+
+  if (!parse_simple_template_id(templateId))
+    parse_error("expected a template id");
 
   expect(TokenKind::T_SEMICOLON);
 
@@ -5579,11 +5605,13 @@ bool Parser::parse_typename_specifier(SpecifierAST*& yyast) {
 
   const auto has_template = match(TokenKind::T_TEMPLATE);
 
-  if (parse_simple_template_id()) return true;
+  NameAST* name = nullptr;
+
+  if (parse_simple_template_id(name)) return true;
 
   rewind(after_nested_name_specifier);
 
-  if (!match(TokenKind::T_IDENTIFIER)) return false;
+  if (!parse_name_id(name)) return false;
 
   return true;
 }

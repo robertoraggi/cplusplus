@@ -372,14 +372,6 @@ struct ModuleImportDeclarationAST final : DeclarationAST {
   void visit(DeclarationASTVisitor* visitor) override;
 };
 
-struct MemberSpecificationAST final : DeclarationAST {
-  void visit(DeclarationASTVisitor* visitor) override;
-};
-
-struct MemberDeclarationAST final : DeclarationAST {
-  void visit(DeclarationASTVisitor* visitor) override;
-};
-
 struct TemplateDeclarationAST final : DeclarationAST {
   SourceLocation templateLoc;
   SourceLocation lessLoc;
