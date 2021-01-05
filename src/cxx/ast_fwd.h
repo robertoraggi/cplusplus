@@ -65,6 +65,7 @@ struct WhileStatementAST;
 struct AliasDeclarationAST;
 struct AsmDeclarationAST;
 struct AttributeDeclarationAST;
+struct ConceptDefinitionAST;
 struct DeductionGuideAST;
 struct EmptyDeclarationAST;
 struct ExplicitInstantiationAST;

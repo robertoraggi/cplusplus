@@ -93,9 +93,13 @@ void CoroutineReturnStatementAST::visit(StatementASTVisitor* visitor) {
   visitor->visit(this);
 }
 
+void DeclarationStatementAST::visit(StatementASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
 // declarations
 
-void DeclarationStatementAST::visit(StatementASTVisitor* visitor) {
+void ConceptDefinitionAST::visit(DeclarationASTVisitor* visitor) {
   visitor->visit(this);
 }
 

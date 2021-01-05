@@ -240,6 +240,16 @@ struct DeclarationStatementAST final : StatementAST {
 
 // declarations
 
+struct ConceptDefinitionAST final : DeclarationAST {
+  SourceLocation conceptLoc;
+  NameAST* name = nullptr;
+  SourceLocation equalLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation semicolonLoc;
+
+  void visit(DeclarationASTVisitor* visitor) override;
+};
+
 struct ForRangeDeclarationAST final : DeclarationAST {
   void visit(DeclarationASTVisitor* visitor) override;
 };

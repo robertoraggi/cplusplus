@@ -31,6 +31,7 @@ struct DeclarationASTVisitor {
   virtual void visit(AliasDeclarationAST*) = 0;
   virtual void visit(AsmDeclarationAST*) = 0;
   virtual void visit(AttributeDeclarationAST*) = 0;
+  virtual void visit(ConceptDefinitionAST*) = 0;
   virtual void visit(DeductionGuideAST*) = 0;
   virtual void visit(EmptyDeclarationAST*) = 0;
   virtual void visit(ExplicitInstantiationAST*) = 0;

@@ -373,8 +373,8 @@ class Parser {
   bool parse_template_argument();
   bool parse_constraint_expression(ExpressionAST*& yyast);
   bool parse_deduction_guide(DeclarationAST*& yyast);
-  bool parse_concept_definition();
-  bool parse_concept_name();
+  bool parse_concept_definition(DeclarationAST*& yyast);
+  bool parse_concept_name(NameAST*& yyast);
   bool parse_typename_specifier(SpecifierAST*& yyast);
   bool parse_explicit_instantiation(DeclarationAST*& yyast);
   bool parse_explicit_specialization(DeclarationAST*& yyast);

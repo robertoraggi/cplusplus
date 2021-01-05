@@ -5117,14 +5117,11 @@ bool Parser::parse_template_declaration(DeclarationAST*& yyast) {
                            greaterLoc))
     return false;
 
-  if (LA().is(TokenKind::T_CONCEPT)) {
-    parse_concept_definition();
-    return true;
-  }
-
   DeclarationAST* declaration = nullptr;
 
-  if (!parse_declaration(declaration)) parse_error("expected a declaration");
+  if (!parse_concept_definition(declaration)) {
+    if (!parse_declaration(declaration)) parse_error("expected a declaration");
+  }
 
   auto ast = new (pool) TemplateDeclarationAST();
   yyast = ast;
@@ -5325,7 +5322,9 @@ bool Parser::parse_type_constraint() {
 
   if (!parse_nested_name_specifier(nestedNameSpecifier)) rewind(start);
 
-  if (!parse_concept_name()) {
+  NameAST* name = nullptr;
+
+  if (!parse_concept_name(name)) {
     rewind(start);
     return false;
   }
@@ -5476,25 +5475,37 @@ bool Parser::parse_deduction_guide(DeclarationAST*& yyast) {
   return true;
 }
 
-bool Parser::parse_concept_definition() {
-  if (!match(TokenKind::T_CONCEPT)) return false;
+bool Parser::parse_concept_definition(DeclarationAST*& yyast) {
+  SourceLocation conceptLoc;
 
-  if (!parse_concept_name()) parse_error("expected a concept name");
+  if (!match(TokenKind::T_CONCEPT, conceptLoc)) return false;
 
-  expect(TokenKind::T_EQUAL);
+  auto ast = new (pool) ConceptDefinitionAST();
+  yyast = ast;
 
-  ExpressionAST* expression = nullptr;
+  ast->conceptLoc = conceptLoc;
 
-  if (!parse_constraint_expression(expression))
+  if (!parse_concept_name(ast->name)) parse_error("expected a concept name");
+
+  expect(TokenKind::T_EQUAL, ast->equalLoc);
+
+  if (!parse_constraint_expression(ast->expression))
     parse_error("expected a constraint expression");
 
-  expect(TokenKind::T_SEMICOLON);
+  expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
 
   return true;
 }
 
-bool Parser::parse_concept_name() {
-  if (!match(TokenKind::T_IDENTIFIER)) return false;
+bool Parser::parse_concept_name(NameAST*& yyast) {
+  SourceLocation identifierLoc;
+
+  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
+
+  auto ast = new (pool) SimpleNameAST();
+  yyast = ast;
+
+  ast->identifierLoc = identifierLoc;
 
   return true;
 }
