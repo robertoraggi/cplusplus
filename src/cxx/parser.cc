@@ -297,8 +297,11 @@ bool Parser::parse_literal() {
       consumeToken();
       return true;
 
-    case TokenKind::T_STRING_LITERAL:
-      return parse_string_literal_seq();
+    case TokenKind::T_STRING_LITERAL: {
+      List<SourceLocation>* stringLiterals = nullptr;
+
+      return parse_string_literal_seq(stringLiterals);
+    }
 
     default:
       return false;
@@ -2549,32 +2552,47 @@ bool Parser::parse_function_definition_body() {
 }
 
 bool Parser::parse_static_assert_declaration(DeclarationAST*& yyast) {
-  if (!match(TokenKind::T_STATIC_ASSERT)) return false;
+  SourceLocation staticAssertLoc;
 
-  expect(TokenKind::T_LPAREN);
+  if (!match(TokenKind::T_STATIC_ASSERT, staticAssertLoc)) return false;
 
-  ExpressionAST* expression = nullptr;
+  auto ast = new (pool) StaticAssertDeclarationAST();
+  yyast = ast;
 
-  if (!parse_constant_expression(expression))
+  ast->staticAssertLoc = staticAssertLoc;
+
+  expect(TokenKind::T_LPAREN, ast->lparenLoc);
+
+  if (!parse_constant_expression(ast->expression))
     parse_error("expected an expression");
 
-  if (match(TokenKind::T_COMMA)) {
-    if (!parse_string_literal_seq()) parse_error("expected a string literal");
+  if (match(TokenKind::T_COMMA, ast->commaLoc)) {
+    if (!parse_string_literal_seq(ast->stringLiteralList))
+      parse_error("expected a string literal");
   }
 
-  expect(TokenKind::T_RPAREN);
+  expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
-  expect(TokenKind::T_SEMICOLON);
+  expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
 
   return true;
 }
 
-bool Parser::parse_string_literal_seq() {
-  if (!match(TokenKind::T_STRING_LITERAL)) return false;
+bool Parser::parse_string_literal_seq(List<SourceLocation>*& yyast) {
+  auto it = &yyast;
 
-  while (match(TokenKind::T_STRING_LITERAL)) {
-    //
+  SourceLocation loc;
+
+  if (!match(TokenKind::T_STRING_LITERAL, loc)) return false;
+
+  *it = new (pool) List(loc);
+  it = &(*it)->next;
+
+  while (match(TokenKind::T_STRING_LITERAL, loc)) {
+    *it = new (pool) List(loc);
+    it = &(*it)->next;
   }
+
   return true;
 }
 
@@ -4241,7 +4259,7 @@ bool Parser::parse_asm_declaration(DeclarationAST*& yyast) {
 
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
-  parse_string_literal_seq();
+  parse_string_literal_seq(ast->stringLiteralList);
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
@@ -4310,7 +4328,10 @@ bool Parser::parse_asm_specifier() {
 
   expect(TokenKind::T_LPAREN);
 
-  if (!parse_string_literal_seq()) parse_error("expected a string literal");
+  List<SourceLocation>* stringLiteralList = nullptr;
+
+  if (!parse_string_literal_seq(stringLiteralList))
+    parse_error("expected a string literal");
 
   expect(TokenKind::T_RPAREN);
 
@@ -5205,7 +5226,9 @@ bool Parser::parse_literal_operator_id() {
 
   if (match(TokenKind::T_USER_DEFINED_STRING_LITERAL)) return true;
 
-  if (!parse_string_literal_seq()) return false;
+  List<SourceLocation>* stringLiteralList = nullptr;
+
+  if (!parse_string_literal_seq(stringLiteralList)) return false;
 
   if (!match(TokenKind::T_IDENTIFIER)) return false;
 

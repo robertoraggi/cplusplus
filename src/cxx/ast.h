@@ -263,7 +263,7 @@ struct ForRangeDeclarationAST final : DeclarationAST {
 struct AliasDeclarationAST final : DeclarationAST {
   SourceLocation usingLoc;
   SourceLocation identifierLoc;
-  List<AttributeAST*>* attributeList;
+  List<AttributeAST*>* attributeList = nullptr;
   SourceLocation equalLoc;
   TypeIdAST* typeId = nullptr;
   SourceLocation semicolonLoc;
@@ -281,6 +281,14 @@ struct SimpleDeclarationAST final : DeclarationAST {
 };
 
 struct StaticAssertDeclarationAST final : DeclarationAST {
+  SourceLocation staticAssertLoc;
+  SourceLocation lparenLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation commaLoc;
+  List<SourceLocation>* stringLiteralList = nullptr;
+  SourceLocation rparenLoc;
+  SourceLocation semicolonLoc;
+
   void visit(DeclarationASTVisitor* visitor) override;
 };
 
@@ -354,6 +362,7 @@ struct AsmDeclarationAST final : DeclarationAST {
   List<AttributeAST*>* attributeList = nullptr;
   SourceLocation asmLoc;
   SourceLocation lparenLoc;
+  List<SourceLocation>* stringLiteralList = nullptr;
   SourceLocation rparenLoc;
   SourceLocation semicolonLoc;
 

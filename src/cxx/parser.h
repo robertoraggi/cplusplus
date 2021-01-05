@@ -205,7 +205,7 @@ class Parser {
   bool parse_simple_declaration(DeclarationAST*& yyast, bool fundef);
   bool parse_function_definition_body();
   bool parse_static_assert_declaration(DeclarationAST*& yyast);
-  bool parse_string_literal_seq();
+  bool parse_string_literal_seq(List<SourceLocation>*& yyast);
   bool parse_empty_declaration(DeclarationAST*& yyast);
   bool parse_attribute_declaration(DeclarationAST*& yyast);
   bool parse_decl_specifier(SpecifierAST*& yyast, DeclSpecs& specs);
