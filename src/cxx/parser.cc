@@ -520,15 +520,15 @@ bool Parser::parse_unqualified_id(NameAST*& yyast) {
   }
 
   if (LA().is(TokenKind::T_OPERATOR)) {
-    if (parse_operator_function_id()) return true;
+    if (parse_operator_function_id(yyast)) return true;
 
     rewind(start);
 
-    if (parse_conversion_function_id()) return true;
+    if (parse_conversion_function_id(yyast)) return true;
 
     rewind(start);
 
-    return parse_literal_operator_id();
+    return parse_literal_operator_id(yyast);
   }
 
   return parse_name_id(yyast);
@@ -4973,7 +4973,7 @@ bool Parser::parse_pure_specifier() {
   return true;
 }
 
-bool Parser::parse_conversion_function_id() {
+bool Parser::parse_conversion_function_id(NameAST*& yyast) {
   if (!match(TokenKind::T_OPERATOR)) return false;
 
   if (!parse_conversion_type_id()) return false;
@@ -5134,15 +5134,15 @@ bool Parser::parse_mem_initializer_id() {
   return true;
 }
 
-bool Parser::parse_operator_function_id() {
+bool Parser::parse_operator_function_id(NameAST*& yyast) {
   if (!match(TokenKind::T_OPERATOR)) return false;
 
-  if (!parse_op()) return false;
+  if (!parse_operator()) return false;
 
   return true;
 }
 
-bool Parser::parse_op() {
+bool Parser::parse_operator() {
   switch (TokenKind(LA())) {
     case TokenKind::T_LPAREN:
       consumeToken();
@@ -5221,7 +5221,7 @@ bool Parser::parse_op() {
   }  // switch
 }
 
-bool Parser::parse_literal_operator_id() {
+bool Parser::parse_literal_operator_id(NameAST*& yyast) {
   if (!match(TokenKind::T_OPERATOR)) return false;
 
   if (match(TokenKind::T_USER_DEFINED_STRING_LITERAL)) return true;
@@ -5485,10 +5485,10 @@ bool Parser::parse_template_id(NameAST*& yyast) {
   if (LA().is(TokenKind::T_OPERATOR)) {
     const auto start = currentLocation();
 
-    if (!parse_literal_operator_id()) {
+    if (!parse_literal_operator_id(yyast)) {
       rewind(start);
 
-      if (!parse_operator_function_id()) return false;
+      if (!parse_operator_function_id(yyast)) return false;
     }
 
     if (!match(TokenKind::T_LESS)) return false;

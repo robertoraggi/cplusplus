@@ -335,7 +335,7 @@ class Parser {
   bool parse_member_declarator();
   bool parse_virt_specifier();
   bool parse_pure_specifier();
-  bool parse_conversion_function_id();
+  bool parse_conversion_function_id(NameAST*& yyast);
   bool parse_conversion_type_id();
   bool parse_conversion_declarator();
   bool parse_base_clause();
@@ -347,9 +347,9 @@ class Parser {
   bool parse_mem_initializer_list();
   bool parse_mem_initializer();
   bool parse_mem_initializer_id();
-  bool parse_operator_function_id();
-  bool parse_op();
-  bool parse_literal_operator_id();
+  bool parse_operator_function_id(NameAST*& yyast);
+  bool parse_operator();
+  bool parse_literal_operator_id(NameAST*& yyast);
   bool parse_template_declaration(DeclarationAST*& yyast);
   bool parse_template_head(SourceLocation& templateLoc, SourceLocation& lessLoc,
                            List<DeclarationAST*>* templateParameterList,
