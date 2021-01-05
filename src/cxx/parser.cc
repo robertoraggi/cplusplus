@@ -3762,7 +3762,10 @@ bool Parser::parse_enum_specifier(SpecifierAST*& yyast) {
 
   parse_attribute_specifier_seq(attributes);
 
-  parse_enum_head_name();
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  NameAST* name = nullptr;
+
+  parse_enum_head_name(nestedNameSpecifier, name);
 
   EnumBaseAST* enumBase = nullptr;
 
@@ -3778,6 +3781,8 @@ bool Parser::parse_enum_specifier(SpecifierAST*& yyast) {
   ast->enumLoc = enumLoc;
   ast->classLoc = classLoc;
   ast->attributeList = attributes;
+  ast->nestedNameSpecifier = nestedNameSpecifier;
+  ast->name = name;
   ast->enumBase = enumBase;
   ast->lbraceLoc = lbraceLoc;
 
@@ -3792,14 +3797,20 @@ bool Parser::parse_enum_specifier(SpecifierAST*& yyast) {
   return true;
 }
 
-bool Parser::parse_enum_head_name() {
+bool Parser::parse_enum_head_name(NestedNameSpecifierAST*& nestedNameSpecifier,
+                                  NameAST*& name) {
   const auto start = currentLocation();
-
-  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
 
   if (!parse_nested_name_specifier(nestedNameSpecifier)) rewind(start);
 
-  if (!match(TokenKind::T_IDENTIFIER)) return false;
+  SourceLocation identifierLoc;
+
+  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
+
+  auto id = new (pool) SimpleNameAST();
+  id->identifierLoc = identifierLoc;
+
+  name = id;
 
   return true;
 }
@@ -3814,7 +3825,10 @@ bool Parser::parse_opaque_enum_declaration(DeclarationAST*& yyast) {
 
   parse_attribute_specifier_seq(attributes);
 
-  if (!parse_enum_head_name()) return false;
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  NameAST* name = nullptr;
+
+  if (!parse_enum_head_name(nestedNameSpecifier, name)) return false;
 
   EnumBaseAST* enumBase = nullptr;
 
@@ -3823,6 +3837,17 @@ bool Parser::parse_opaque_enum_declaration(DeclarationAST*& yyast) {
   SourceLocation semicolonLoc;
 
   if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return false;
+
+  auto ast = new (pool) OpaqueEnumDeclarationAST();
+  yyast = ast;
+
+  ast->enumLoc = enumLoc;
+  ast->classLoc = classLoc;
+  ast->attributeList = attributes;
+  ast->nestedNameSpecifier = nestedNameSpecifier;
+  ast->name = name;
+  ast->enumBase = enumBase;
+  ast->emicolonLoc = semicolonLoc;
 
   return true;
 }

@@ -279,6 +279,14 @@ struct AttributeDeclarationAST final : DeclarationAST {
 };
 
 struct OpaqueEnumDeclarationAST final : DeclarationAST {
+  SourceLocation enumLoc;
+  SourceLocation classLoc;
+  List<AttributeAST*>* attributeList = nullptr;
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  NameAST* name = nullptr;
+  EnumBaseAST* enumBase = nullptr;
+  SourceLocation emicolonLoc;
+
   void visit(DeclarationASTVisitor* visitor) override;
 };
 
@@ -438,6 +446,7 @@ struct EnumSpecifierAST final : SpecifierAST {
   SourceLocation enumLoc;
   SourceLocation classLoc;
   List<AttributeAST*>* attributeList = nullptr;
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   NameAST* name = nullptr;
   EnumBaseAST* enumBase = nullptr;
   SourceLocation lbraceLoc;
