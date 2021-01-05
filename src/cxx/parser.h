@@ -276,14 +276,13 @@ class Parser {
   bool parse_virt_specifier_seq();
   bool parse_function_body();
   bool parse_enum_specifier(SpecifierAST*& yyast);
-  bool parse_enum_head();
   bool parse_enum_head_name();
   bool parse_opaque_enum_declaration(DeclarationAST*& yyast);
   bool parse_enum_key(SourceLocation& enumLoc, SourceLocation& classLoc);
-  bool parse_enum_base();
-  bool parse_enumerator_list();
-  bool parse_enumerator_definition();
-  bool parse_enumerator();
+  bool parse_enum_base(EnumBaseAST*& yyast);
+  bool parse_enumerator_list(List<EnumeratorAST*>*& yyast);
+  bool parse_enumerator_definition(EnumeratorAST*& yast);
+  bool parse_enumerator(EnumeratorAST*& yyast);
   bool parse_using_enum_declaration(DeclarationAST*& yyast);
   bool parse_namespace_definition(DeclarationAST*& yyast);
   bool parse_namespace_body(NamespaceDefinitionAST* yyast);

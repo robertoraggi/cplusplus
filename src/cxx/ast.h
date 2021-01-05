@@ -69,6 +69,14 @@ struct DeclaratorModifierAST : AST {};
 
 struct NestedNameSpecifierAST : AST {};
 
+// units
+
+struct TranslationUnitAST final : UnitAST {
+  List<DeclarationAST*>* declarationList = nullptr;
+};
+
+struct ModuleUnitAST final : UnitAST {};
+
 // statements
 
 struct LabeledStatementAST final : StatementAST {
@@ -350,6 +358,12 @@ struct ExplicitInstantiationAST final : DeclarationAST {
   void visit(DeclarationASTVisitor* visitor) override;
 };
 
+// names
+
+struct SimpleNameAST final : NameAST {
+  SourceLocation identifierLoc;
+};
+
 // specifiers
 
 struct StorageClassSpecifierAST final : SpecifierAST {
@@ -408,7 +422,29 @@ struct CvQualifierAST final : SpecifierAST {
   void visit(SpecifierASTVisitor* visitor) override;
 };
 
+struct EnumBaseAST final : AST {
+  SourceLocation colonLoc;
+  List<SpecifierAST*>* typeSpecifierList = nullptr;
+};
+
+struct EnumeratorAST final : AST {
+  NameAST* name = nullptr;
+  List<AttributeAST*>* attributeList = nullptr;
+  SourceLocation equalLoc;
+  ExpressionAST* expression = nullptr;
+};
+
 struct EnumSpecifierAST final : SpecifierAST {
+  SourceLocation enumLoc;
+  SourceLocation classLoc;
+  List<AttributeAST*>* attributeList = nullptr;
+  NameAST* name = nullptr;
+  EnumBaseAST* enumBase = nullptr;
+  SourceLocation lbraceLoc;
+  SourceLocation commaLoc;
+  List<EnumeratorAST*>* enumeratorList = nullptr;
+  SourceLocation rbraceLoc;
+
   void visit(SpecifierASTVisitor* visitor) override;
 };
 

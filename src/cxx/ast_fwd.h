@@ -39,6 +39,8 @@ struct PtrOperatorAST;
 struct CoreDeclaratorAST;
 struct DeclaratorModifierAST;
 struct NestedNameSpecifierAST;
+struct EnumeratorAST;
+struct EnumBaseAST;
 
 // statements
 struct BreakStatementAST;
@@ -81,6 +83,13 @@ struct TemplateDeclarationAST;
 struct UsingDeclarationAST;
 struct UsingDirectiveAST;
 struct UsingEnumDeclarationAST;
+
+// units
+struct TranslationUnitAST;
+struct ModuleUnitAST;
+
+// names
+struct SimpleNameAST;
 
 // specifiers
 struct AtomicTypeSpecifierAST;

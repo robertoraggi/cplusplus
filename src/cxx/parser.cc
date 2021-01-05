@@ -372,22 +372,34 @@ bool Parser::parse_module_unit(UnitAST*& yyast) {
 }
 
 bool Parser::parse_top_level_declaration_seq(UnitAST*& yyast) {
+  auto ast = new (pool) TranslationUnitAST();
+  yyast = ast;
+
   module_unit = false;
 
   bool skipping = false;
 
-  DeclarationAST* d1 = nullptr;
+  auto it = &ast->declarationList;
 
   while (LA()) {
-    auto saved = currentLocation();
+    const auto saved = currentLocation();
+
     DeclarationAST* declaration = nullptr;
+
     if (parse_declaration(declaration)) {
+      if (declaration) {
+        *it = new (pool) List(declaration);
+        it = &(*it)->next;
+      }
+
       skipping = false;
     } else {
       parse_skip_top_level_declaration(skipping);
+
       if (currentLocation() == saved) consumeToken();
     }
   }
+
   return true;
 }
 
@@ -3736,26 +3748,15 @@ bool Parser::parse_function_body() {
 }
 
 bool Parser::parse_enum_specifier(SpecifierAST*& yyast) {
-  if (!parse_enum_head()) return false;
+  const auto start = currentLocation();
 
-  if (!match(TokenKind::T_LBRACE)) return false;
-
-  if (!match(TokenKind::T_RBRACE)) {
-    parse_enumerator_list();
-
-    match(TokenKind::T_COMMA);
-
-    expect(TokenKind::T_RBRACE);
-  }
-
-  return true;
-}
-
-bool Parser::parse_enum_head() {
   SourceLocation enumLoc;
   SourceLocation classLoc;
 
-  if (!parse_enum_key(enumLoc, classLoc)) return false;
+  if (!parse_enum_key(enumLoc, classLoc)) {
+    rewind(start);
+    return false;
+  }
 
   List<AttributeAST*>* attributes = nullptr;
 
@@ -3763,7 +3764,30 @@ bool Parser::parse_enum_head() {
 
   parse_enum_head_name();
 
-  parse_enum_base();
+  EnumBaseAST* enumBase = nullptr;
+
+  parse_enum_base(enumBase);
+
+  SourceLocation lbraceLoc;
+
+  if (!match(TokenKind::T_LBRACE, lbraceLoc)) return false;
+
+  auto ast = new (pool) EnumSpecifierAST();
+  yyast = ast;
+
+  ast->enumLoc = enumLoc;
+  ast->classLoc = classLoc;
+  ast->attributeList = attributes;
+  ast->enumBase = enumBase;
+  ast->lbraceLoc = lbraceLoc;
+
+  if (!match(TokenKind::T_RBRACE, ast->rbraceLoc)) {
+    parse_enumerator_list(ast->enumeratorList);
+
+    match(TokenKind::T_COMMA, ast->commaLoc);
+
+    expect(TokenKind::T_RBRACE, ast->rbraceLoc);
+  }
 
   return true;
 }
@@ -3792,7 +3816,9 @@ bool Parser::parse_opaque_enum_declaration(DeclarationAST*& yyast) {
 
   if (!parse_enum_head_name()) return false;
 
-  parse_enum_base();
+  EnumBaseAST* enumBase = nullptr;
+
+  parse_enum_base(enumBase);
 
   SourceLocation semicolonLoc;
 
@@ -3813,19 +3839,34 @@ bool Parser::parse_enum_key(SourceLocation& enumLoc, SourceLocation& classLoc) {
   return true;
 }
 
-bool Parser::parse_enum_base() {
-  if (!match(TokenKind::T_COLON)) return false;
+bool Parser::parse_enum_base(EnumBaseAST*& yyast) {
+  SourceLocation colonLoc;
+
+  if (!match(TokenKind::T_COLON, colonLoc)) return false;
 
   List<SpecifierAST*>* typeSpecifierList = nullptr;
 
   if (!parse_type_specifier_seq(typeSpecifierList))
     parse_error("expected a type specifier");
 
+  auto ast = new (pool) EnumBaseAST();
+  yyast = ast;
+
+  ast->colonLoc = colonLoc;
+  ast->typeSpecifierList = typeSpecifierList;
+
   return true;
 }
 
-bool Parser::parse_enumerator_list() {
-  if (!parse_enumerator_definition()) return false;
+bool Parser::parse_enumerator_list(List<EnumeratorAST*>*& yyast) {
+  auto it = &yyast;
+
+  EnumeratorAST* enumerator = nullptr;
+
+  if (!parse_enumerator_definition(enumerator)) return false;
+
+  *it = new (pool) List(enumerator);
+  it = &(*it)->next;
 
   SourceLocation commaLoc;
 
@@ -3835,31 +3876,43 @@ bool Parser::parse_enumerator_list() {
       break;
     }
 
-    if (!parse_enumerator_definition()) parse_error("expected an enumerator");
+    EnumeratorAST* enumerator = nullptr;
+
+    if (!parse_enumerator_definition(enumerator))
+      parse_error("expected an enumerator");
+
+    *it = new (pool) List(enumerator);
+    it = &(*it)->next;
   }
 
   return true;
 }
 
-bool Parser::parse_enumerator_definition() {
-  if (!parse_enumerator()) return false;
+bool Parser::parse_enumerator_definition(EnumeratorAST*& yyast) {
+  if (!parse_enumerator(yyast)) return false;
 
-  if (match(TokenKind::T_EQUAL)) {
-    ExpressionAST* expression = nullptr;
+  if (!match(TokenKind::T_EQUAL, yyast->equalLoc)) return true;
 
-    if (!parse_constant_expression(expression))
-      parse_error("expected an expression");
-  }
+  if (!parse_constant_expression(yyast->expression))
+    parse_error("expected an expression");
 
   return true;
 }
 
-bool Parser::parse_enumerator() {
-  if (!match(TokenKind::T_IDENTIFIER)) return false;
+bool Parser::parse_enumerator(EnumeratorAST*& yyast) {
+  SourceLocation identifierLoc;
 
-  List<AttributeAST*>* attributes = nullptr;
+  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
 
-  parse_attribute_specifier_seq(attributes);
+  auto name = new (pool) SimpleNameAST();
+  name->identifierLoc = identifierLoc;
+
+  auto ast = new (pool) EnumeratorAST();
+  yyast = ast;
+
+  ast->name = name;
+
+  parse_attribute_specifier_seq(ast->attributeList);
 
   return true;
 }
@@ -3898,8 +3951,6 @@ bool Parser::parse_namespace_definition(DeclarationAST*& yyast) {
 
   parse_attribute_specifier_seq(ast->attributeList);
 
-  SourceLocation nameLoc;
-
   if (LA().is(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_COLON_COLON)) {
     consumeToken();
 
@@ -3907,9 +3958,15 @@ bool Parser::parse_namespace_definition(DeclarationAST*& yyast) {
       match(TokenKind::T_INLINE);
       expect(TokenKind::T_IDENTIFIER);
     }
+  } else {
+    SourceLocation identifierLoc;
 
-  } else if (match(TokenKind::T_IDENTIFIER, nameLoc)) {
-    //
+    if (match(TokenKind::T_IDENTIFIER, identifierLoc)) {
+      auto name = new (pool) SimpleNameAST();
+      name->identifierLoc = identifierLoc;
+
+      ast->name = name;
+    }
   }
 
   parse_attribute_specifier_seq(ast->extraAttributeList);
