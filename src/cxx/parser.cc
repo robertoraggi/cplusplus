@@ -3004,7 +3004,9 @@ bool Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
 
   if (LA().is(TokenKind::T_ENUM)) return parse_elaborated_enum_specifier(yyast);
 
-  if (!parse_class_key()) return false;
+  SourceLocation classLoc;
+
+  if (!parse_class_key(classLoc)) return false;
 
   List<AttributeAST*>* attributes = nullptr;
 
@@ -4616,22 +4618,35 @@ bool Parser::parse_class_specifier(SpecifierAST*& yyast) {
     return parsed;
   }
 
+  SourceLocation classLoc;
+  List<AttributeAST*>* attributeList = nullptr;
   NameAST* className = nullptr;
 
-  if (!parse_class_head(className)) {
+  if (!parse_class_head(classLoc, attributeList, className)) {
     parse_reject_class_specifier(start);
     return false;
   }
 
-  if (!match(TokenKind::T_LBRACE)) {
+  SourceLocation lbraceLoc;
+
+  if (!match(TokenKind::T_LBRACE, lbraceLoc)) {
     parse_reject_class_specifier(start);
     return false;
   }
 
-  if (!match(TokenKind::T_RBRACE)) {
-    if (!parse_class_body()) parse_error("expected class body");
+  auto ast = new (pool) ClassSpecifierAST();
+  yyast = ast;
 
-    expect(TokenKind::T_RBRACE);
+  ast->classLoc = classLoc;
+  ast->attributeList = attributeList;
+  ast->name = className;
+  ast->lbraceLoc = lbraceLoc;
+
+  if (!match(TokenKind::T_RBRACE, ast->rbraceLoc)) {
+    if (!parse_class_body(ast->declarationList))
+      parse_error("expected class body");
+
+    expect(TokenKind::T_RBRACE, ast->rbraceLoc);
   }
 
   parse_leave_class_specifier(start);
@@ -4649,7 +4664,9 @@ bool Parser::parse_reject_class_specifier(SourceLocation start) {
   return true;
 }
 
-bool Parser::parse_class_body() {
+bool Parser::parse_class_body(List<DeclarationAST*>*& yyast) {
+  auto it = &yyast;
+
   bool skipping = false;
 
   while (LA()) {
@@ -4660,6 +4677,10 @@ bool Parser::parse_class_body() {
     DeclarationAST* declaration = nullptr;
 
     if (parse_member_specification(declaration)) {
+      if (declaration) {
+        *it = new (pool) List(declaration);
+        it = &(*it)->next;
+      }
       skipping = false;
     } else {
       if (!skipping) parse_error("expected a declaration");
@@ -4673,14 +4694,12 @@ bool Parser::parse_class_body() {
   return true;
 }
 
-bool Parser::parse_class_head(NameAST*& yyast) {
-  if (!parse_class_key()) return false;
+bool Parser::parse_class_head(SourceLocation& classLoc,
+                              List<AttributeAST*>*& attributeList,
+                              NameAST*& name) {
+  if (!parse_class_key(classLoc)) return false;
 
-  List<AttributeAST*>* attributes = nullptr;
-
-  parse_attribute_specifier_seq(attributes);
-
-  NameAST* name = nullptr;
+  parse_attribute_specifier_seq(attributeList);
 
   if (parse_class_head_name(name)) {
     parse_class_virt_specifier();
@@ -4713,12 +4732,12 @@ bool Parser::parse_class_virt_specifier() {
   return true;
 }
 
-bool Parser::parse_class_key() {
+bool Parser::parse_class_key(SourceLocation& classLoc) {
   switch (TokenKind(LA())) {
     case TokenKind::T_CLASS:
     case TokenKind::T_STRUCT:
     case TokenKind::T_UNION:
-      consumeToken();
+      classLoc = consumeToken();
       return true;
 
     default:

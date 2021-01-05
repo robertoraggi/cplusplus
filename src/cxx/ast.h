@@ -488,6 +488,13 @@ struct EnumSpecifierAST final : SpecifierAST {
 };
 
 struct ClassSpecifierAST final : SpecifierAST {
+  SourceLocation classLoc;
+  List<AttributeAST*>* attributeList = nullptr;
+  NameAST* name = nullptr;
+  SourceLocation lbraceLoc;
+  List<DeclarationAST*>* declarationList = nullptr;
+  SourceLocation rbraceLoc;
+
   void visit(SpecifierASTVisitor* visitor) override;
 };
 

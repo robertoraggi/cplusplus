@@ -319,11 +319,12 @@ class Parser {
   bool parse_class_specifier(SpecifierAST*& yyast);
   bool parse_leave_class_specifier(SourceLocation start);
   bool parse_reject_class_specifier(SourceLocation start);
-  bool parse_class_body();
-  bool parse_class_head(NameAST*& yyast);
+  bool parse_class_body(List<DeclarationAST*>*& yyast);
+  bool parse_class_head(SourceLocation& classLoc,
+                        List<AttributeAST*>*& attributeList, NameAST*& name);
   bool parse_class_head_name(NameAST*& yyast);
   bool parse_class_virt_specifier();
-  bool parse_class_key();
+  bool parse_class_key(SourceLocation& classLoc);
   bool parse_member_specification(DeclarationAST*& yyast);
   bool parse_member_declaration(DeclarationAST*& yyast);
   bool parse_maybe_template_member();
