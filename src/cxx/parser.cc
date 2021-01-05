@@ -1088,7 +1088,9 @@ bool Parser::parse_cpp_cast_expression(ExpressionAST*& yyast) {
 
   expect(TokenKind::T_LESS);
 
-  if (!parse_type_id()) parse_error("expected a type id");
+  TypeIdAST* typeId = nullptr;
+
+  if (!parse_type_id(typeId)) parse_error("expected a type id");
 
   expect(TokenKind::T_GREATER);
   expect(TokenKind::T_LPAREN);
@@ -1129,7 +1131,9 @@ bool Parser::parse_typeid_expression(ExpressionAST*& yyast) {
 
   const auto saved = currentLocation();
 
-  if (parse_type_id() && match(TokenKind::T_RPAREN)) {
+  TypeIdAST* typeId = nullptr;
+
+  if (parse_type_id(typeId) && match(TokenKind::T_RPAREN)) {
     //
   } else {
     rewind(saved);
@@ -1210,18 +1214,32 @@ bool Parser::parse_builtin_function_2() {
 bool Parser::parse_builtin_call_expression(ExpressionAST*& yyast) {
   if (parse_builtin_function_1()) {
     expect(TokenKind::T_LPAREN);
-    if (!parse_type_id()) parse_error("expected a type id");
+
+    TypeIdAST* typeId = nullptr;
+
+    if (!parse_type_id(typeId)) parse_error("expected a type id");
+
     expect(TokenKind::T_RPAREN);
+
     return true;
   }
 
   if (!parse_builtin_function_2()) return false;
 
   expect(TokenKind::T_LPAREN);
-  if (!parse_type_id()) parse_error("expected a type id");
+
+  TypeIdAST* typeId = nullptr;
+
+  if (!parse_type_id(typeId)) parse_error("expected a type id");
+
   expect(TokenKind::T_COMMA);
-  if (!parse_type_id()) parse_error("expected a type id");
+
+  TypeIdAST* secondTypeId = nullptr;
+
+  if (!parse_type_id(secondTypeId)) parse_error("expected a type id");
+
   expect(TokenKind::T_RPAREN);
+
   return true;
 }
 
@@ -1282,12 +1300,14 @@ bool Parser::parse_sizeof_expression(ExpressionAST*& yyast) {
 
   const auto after_sizeof_op = currentLocation();
 
-  if (match(TokenKind::T_LPAREN)) {
-    if (parse_type_id() && match(TokenKind::T_RPAREN)) {
-      return true;
-    }
-    rewind(after_sizeof_op);
+  TypeIdAST* typeId = nullptr;
+
+  if (match(TokenKind::T_LPAREN) && parse_type_id(typeId) &&
+      match(TokenKind::T_RPAREN)) {
+    return true;
   }
+
+  rewind(after_sizeof_op);
 
   ExpressionAST* expression = nullptr;
 
@@ -1303,7 +1323,9 @@ bool Parser::parse_alignof_expression(ExpressionAST*& yyast) {
 
   expect(TokenKind::T_LPAREN);
 
-  if (!parse_type_id()) parse_error("expected a type id");
+  TypeIdAST* typeId = nullptr;
+
+  if (!parse_type_id(typeId)) parse_error("expected a type id");
 
   expect(TokenKind::T_RPAREN);
 
@@ -1370,10 +1392,14 @@ bool Parser::parse_new_expression(ExpressionAST*& yyast) {
 
   const auto after_new_placement = currentLocation();
 
-  if (match(TokenKind::T_LPAREN) && parse_type_id() &&
+  TypeIdAST* typeId = nullptr;
+
+  if (match(TokenKind::T_LPAREN) && parse_type_id(typeId) &&
       match(TokenKind::T_RPAREN)) {
     const auto saved = currentLocation();
+
     if (!parse_new_initializer()) rewind(saved);
+
     return true;
   }
 
@@ -1505,7 +1531,9 @@ bool Parser::parse_cast_expression(ExpressionAST*& yyast) {
 bool Parser::parse_cast_expression_helper(ExpressionAST*& yyast) {
   if (!match(TokenKind::T_LPAREN)) return false;
 
-  if (!parse_type_id()) return false;
+  TypeIdAST* typeId = nullptr;
+
+  if (!parse_type_id(typeId)) return false;
 
   if (!match(TokenKind::T_RPAREN)) return false;
 
@@ -2883,7 +2911,9 @@ bool Parser::parse_underlying_type_specifier(SpecifierAST*& yyast,
 
   expect(TokenKind::T_LPAREN);
 
-  if (!parse_type_id()) parse_error("expected type id");
+  TypeIdAST* typeId = nullptr;
+
+  if (!parse_type_id(typeId)) parse_error("expected type id");
 
   expect(TokenKind::T_RPAREN);
 
@@ -2900,7 +2930,9 @@ bool Parser::parse_atomic_type_specifier(SpecifierAST*& yyast,
 
   expect(TokenKind::T_LPAREN);
 
-  if (!parse_type_id()) parse_error("expected type id");
+  TypeIdAST* typeId = nullptr;
+
+  if (!parse_type_id(typeId)) parse_error("expected type id");
 
   expect(TokenKind::T_RPAREN);
 
@@ -3287,7 +3319,9 @@ bool Parser::parse_cv_qualifier_seq(List<SpecifierAST*>*& yyast) {
 bool Parser::parse_trailing_return_type() {
   if (!match(TokenKind::T_MINUS_GREATER)) return false;
 
-  if (!parse_type_id()) parse_error("expected a type id");
+  TypeIdAST* typeId = nullptr;
+
+  if (!parse_type_id(typeId)) parse_error("expected a type id");
 
   return true;
 }
@@ -3385,16 +3419,18 @@ bool Parser::parse_declarator_id() {
   return true;
 }
 
-bool Parser::parse_type_id() {
+bool Parser::parse_type_id(TypeIdAST*& yyast) {
   List<SpecifierAST*>* specifierList = nullptr;
 
   if (!parse_type_specifier_seq(specifierList)) return false;
 
+  yyast = new (pool) TypeIdAST();
+
+  yyast->typeSpecifierList = specifierList;
+
   const auto before_declarator = currentLocation();
 
-  DeclaratorAST* declarator = nullptr;
-
-  if (!parse_abstract_declarator(declarator)) rewind(before_declarator);
+  if (!parse_abstract_declarator(yyast->declarator)) rewind(before_declarator);
 
   return true;
 }
@@ -4257,7 +4293,9 @@ bool Parser::parse_alignment_specifier() {
 
   const auto after_lparen = currentLocation();
 
-  if (parse_type_id()) {
+  TypeIdAST* typeId = nullptr;
+
+  if (parse_type_id(typeId)) {
     const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
 
     if (match(TokenKind::T_RPAREN)) {
@@ -5198,7 +5236,9 @@ bool Parser::parse_typename_type_parameter() {
 
     expect(TokenKind::T_EQUAL);
 
-    if (!parse_type_id()) parse_error("expected a type id");
+    TypeIdAST* typeId = nullptr;
+
+    if (!parse_type_id(typeId)) parse_error("expected a type id");
 
     return true;
   }
@@ -5257,7 +5297,9 @@ bool Parser::parse_constraint_type_parameter() {
 
     expect(TokenKind::T_EQUAL);
 
-    if (!parse_type_id())
+    TypeIdAST* typeId = nullptr;
+
+    if (!parse_type_id(typeId))
       return false;  // ### FIXME: parse_error("expected a type id");
 
     return true;
@@ -5380,7 +5422,9 @@ bool Parser::parse_template_argument() {
 
   const auto saved = currentLocation();
 
-  if (parse_type_id() && check()) {
+  TypeIdAST* typeId = nullptr;
+
+  if (parse_type_id(typeId) && check()) {
     template_arguments_.emplace(start,
                                 std::make_tuple(currentLocation(), true));
     return true;

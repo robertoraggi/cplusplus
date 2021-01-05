@@ -59,7 +59,10 @@ struct NameAST : AST {};
 
 struct AttributeAST : AST {};
 
-struct TypeIdAST : AST {};
+struct TypeIdAST : AST {
+  List<SpecifierAST*>* typeSpecifierList = nullptr;
+  DeclaratorAST* declarator = nullptr;
+};
 
 struct PtrOperatorAST : AST {};
 
