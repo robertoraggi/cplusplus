@@ -2175,7 +2175,9 @@ bool Parser::parse_for_range_declaration(DeclarationAST*& yyast) {
 
   if (tk.is(TokenKind::T_AMP) || tk.is(TokenKind::T_AMP_AMP) ||
       tk.is(TokenKind::T_LBRACKET)) {
-    parse_ref_qualifier();
+    SourceLocation refLoc;
+
+    parse_ref_qualifier(refLoc);
 
     if (!match(TokenKind::T_LBRACKET)) return false;
 
@@ -2459,7 +2461,9 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
 
   if (!specs.has_typespec()) return false;
 
-  const auto has_ref_qualifier = parse_ref_qualifier();
+  SourceLocation refLoc;
+
+  parse_ref_qualifier(refLoc);
 
   if (match(TokenKind::T_LBRACKET)) {
     if (parse_identifier_list() && match(TokenKind::T_RBRACKET)) {
@@ -3077,21 +3081,6 @@ bool Parser::parse_placeholder_type_specifier(SpecifierAST*& yyast) {
   return false;
 }
 
-bool Parser::parse_init_declarator_list() {
-  DeclaratorAST* declarator = nullptr;
-
-  if (!parse_init_declarator(declarator)) return false;
-
-  while (match(TokenKind::T_COMMA)) {
-    DeclaratorAST* declarator = nullptr;
-
-    if (!parse_init_declarator(declarator))
-      parse_error("expected a declarator");
-  }
-
-  return true;
-}
-
 bool Parser::parse_init_declarator(DeclaratorAST*& yyast) {
   if (!parse_declarator(yyast)) return false;
 
@@ -3260,7 +3249,9 @@ bool Parser::parse_parameters_and_qualifiers() {
 
   parse_cv_qualifier_seq(cvQualifierList);
 
-  parse_ref_qualifier();
+  SourceLocation refLoc;
+
+  parse_ref_qualifier(refLoc);
 
   parse_noexcept_specifier();
 
@@ -3352,16 +3343,21 @@ bool Parser::parse_cv_qualifier(SpecifierAST*& yyast) {
     case TokenKind::T_CONST:
     case TokenKind::T_VOLATILE:
     case TokenKind::T___RESTRICT:
-    case TokenKind::T___RESTRICT__:
-      consumeToken();
+    case TokenKind::T___RESTRICT__: {
+      auto ast = new (pool) CvQualifierAST();
+      yyast = ast;
+
+      ast->qualifierLoc = consumeToken();
+
       return true;
+    }
 
     default:
       return false;
   }  // switch
 }
 
-bool Parser::parse_ref_qualifier() {
+bool Parser::parse_ref_qualifier(SourceLocation& refLoc) {
   switch (TokenKind(LA())) {
     case TokenKind::T_AMP:
     case TokenKind::T_AMP_AMP:

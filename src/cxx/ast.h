@@ -427,6 +427,8 @@ struct PlaceholderTypeSpecifierAST final : SpecifierAST {
 };
 
 struct CvQualifierAST final : SpecifierAST {
+  SourceLocation qualifierLoc;
+
   void visit(SpecifierASTVisitor* visitor) override;
 };
 

@@ -240,7 +240,6 @@ class Parser {
   bool parse_elaborated_enum_specifier(SpecifierAST*& yyast);
   bool parse_decltype_specifier(SpecifierAST*& yyast);
   bool parse_placeholder_type_specifier(SpecifierAST*& yyast);
-  bool parse_init_declarator_list();
   bool parse_init_declarator(DeclaratorAST*& yyast);
   bool parse_declarator_initializer();
   bool parse_declarator(DeclaratorAST*& yyastl);
@@ -253,7 +252,7 @@ class Parser {
   bool parse_trailing_return_type();
   bool parse_ptr_operator(PtrOperatorAST*& yyast);
   bool parse_cv_qualifier(SpecifierAST*& yyast);
-  bool parse_ref_qualifier();
+  bool parse_ref_qualifier(SourceLocation& refLoc);
   bool parse_declarator_id();
   bool parse_type_id();
   bool parse_defining_type_id(TypeIdAST*& yyast);
