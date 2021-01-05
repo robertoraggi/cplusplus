@@ -3263,13 +3263,21 @@ bool Parser::parse_parameters_and_qualifiers() {
 }
 
 bool Parser::parse_cv_qualifier_seq(List<SpecifierAST*>*& yyast) {
+  auto it = &yyast;
+
   SpecifierAST* specifier = nullptr;
 
   if (!parse_cv_qualifier(specifier)) return false;
 
+  *it = new (pool) List(specifier);
+  it = &(*it)->next;
+
   specifier = nullptr;
 
   while (parse_cv_qualifier(specifier)) {
+    *it = new (pool) List(specifier);
+    it = &(*it)->next;
+
     specifier = nullptr;
   }
 
@@ -3302,7 +3310,7 @@ bool Parser::parse_ptr_operator(PtrOperatorAST*& yyast) {
 
   SourceLocation refLoc;
 
-  if (match(TokenKind::T_AMP, refLoc) || match(TokenKind::T_AMP_AMP, refLoc)) {
+  if (parse_ref_qualifier(refLoc)) {
     auto ast = new (pool) ReferenceOperatorAST();
     yyast = ast;
 
