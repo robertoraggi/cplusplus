@@ -252,24 +252,6 @@ bool Parser::parse_typedef_name() {
   return true;
 }
 
-bool Parser::parse_namespace_name() {
-  const auto start = currentLocation();
-
-  if (parse_namespace_alias()) return true;
-
-  rewind(start);
-
-  if (!match(TokenKind::T_IDENTIFIER)) return false;
-
-  return true;
-}
-
-bool Parser::parse_namespace_alias() {
-  if (!match(TokenKind::T_IDENTIFIER)) return false;
-
-  return true;
-}
-
 bool Parser::parse_class_name() {
   Name name;
 
@@ -362,7 +344,9 @@ bool Parser::parse_module_unit(UnitAST*& yyast) {
 
   if (!parse_module_declaration()) return false;
 
-  parse_declaration_seq();
+  List<DeclarationAST*>* declarationList = nullptr;
+
+  parse_declaration_seq(declarationList);
 
   parse_private_module_fragment();
 
@@ -410,20 +394,33 @@ bool Parser::parse_skip_top_level_declaration(bool& skipping) {
   return true;
 }
 
-bool Parser::parse_declaration_seq() {
+bool Parser::parse_declaration_seq(List<DeclarationAST*>*& yyast) {
   bool skipping = false;
+
+  auto it = &yyast;
+
   while (LA()) {
     if (LA().is(TokenKind::T_RBRACE)) break;
+
     if (parse_maybe_module()) break;
+
     auto saved = currentLocation();
-    DeclarationAST* decl = nullptr;
-    if (parse_declaration(decl)) {
+
+    DeclarationAST* declaration = nullptr;
+
+    if (parse_declaration(declaration)) {
+      if (declaration) {
+        *it = new (pool) List(declaration);
+        it = &(*it)->next;
+      }
       skipping = false;
     } else {
       parse_skip_declaration(skipping);
+
       if (currentLocation() == saved) consumeToken();
     }
   }
+
   return true;
 }
 
@@ -4075,28 +4072,41 @@ bool Parser::parse_namespace_body(NamespaceDefinitionAST* yyast) {
 }
 
 bool Parser::parse_namespace_alias_definition(DeclarationAST*& yyast) {
-  if (!match(TokenKind::T_NAMESPACE)) return false;
+  SourceLocation namespaceLoc;
 
-  expect(TokenKind::T_IDENTIFIER);
+  if (!match(TokenKind::T_NAMESPACE, namespaceLoc)) return false;
 
-  expect(TokenKind::T_EQUAL);
+  auto ast = new (pool) NamespaceAliasDefinitionAST();
+  yyast = ast;
 
-  if (!parse_qualified_namespace_specifier())
+  ast->namespaceLoc = namespaceLoc;
+
+  expect(TokenKind::T_IDENTIFIER, ast->identifierLoc);
+
+  expect(TokenKind::T_EQUAL, ast->equalLoc);
+
+  if (!parse_qualified_namespace_specifier(ast->nestedNameSpecifier, ast->name))
     parse_error("expected a namespace name");
 
-  expect(TokenKind::T_SEMICOLON);
+  expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
 
   return true;
 }
 
-bool Parser::parse_qualified_namespace_specifier() {
+bool Parser::parse_qualified_namespace_specifier(
+    NestedNameSpecifierAST*& nestedNameSpecifier, NameAST*& name) {
   const auto saved = currentLocation();
-
-  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
 
   if (!parse_nested_name_specifier(nestedNameSpecifier)) rewind(saved);
 
-  if (!parse_namespace_name()) return false;
+  SourceLocation identifierLoc;
+
+  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
+
+  auto id = new (pool) SimpleNameAST();
+  id->identifierLoc = identifierLoc;
+
+  name = id;
 
   return true;
 }
@@ -4106,9 +4116,13 @@ bool Parser::parse_using_directive(DeclarationAST*& yyast) {
 
   parse_attribute_specifier_seq(attributes);
 
-  if (!match(TokenKind::T_USING)) return false;
+  SourceLocation usingLoc;
 
-  if (!match(TokenKind::T_NAMESPACE)) return false;
+  if (!match(TokenKind::T_USING, usingLoc)) return false;
+
+  SourceLocation namespaceLoc;
+
+  if (!match(TokenKind::T_NAMESPACE, namespaceLoc)) return false;
 
   const auto saved = currentLocation();
 
@@ -4116,7 +4130,7 @@ bool Parser::parse_using_directive(DeclarationAST*& yyast) {
 
   if (!parse_nested_name_specifier(nestedNameSpecifier)) rewind(saved);
 
-  if (!parse_namespace_name()) parse_error("expected a namespace name");
+  if (!match(TokenKind::T_IDENTIFIER)) parse_error("expected a namespace name");
 
   expect(TokenKind::T_SEMICOLON);
 
@@ -4124,32 +4138,54 @@ bool Parser::parse_using_directive(DeclarationAST*& yyast) {
 }
 
 bool Parser::parse_using_declaration(DeclarationAST*& yyast) {
-  if (!match(TokenKind::T_USING)) return false;
+  SourceLocation usingLoc;
 
-  if (!parse_using_declarator_list())
+  if (!match(TokenKind::T_USING, usingLoc)) return false;
+
+  auto ast = new (pool) UsingDeclarationAST();
+  yyast = ast;
+
+  ast->usingLoc = usingLoc;
+
+  if (!parse_using_declarator_list(ast->usingDeclaratorList))
     parse_error("expected a using declarator");
 
-  match(TokenKind::T_SEMICOLON);
+  match(TokenKind::T_SEMICOLON, ast->semicolonLoc);
 
   return true;
 }
 
-bool Parser::parse_using_declarator_list() {
-  if (!parse_using_declarator()) return false;
+bool Parser::parse_using_declarator_list(List<UsingDeclaratorAST*>*& yyast) {
+  auto it = &yyast;
+
+  UsingDeclaratorAST* declarator = nullptr;
+
+  if (!parse_using_declarator(declarator)) return false;
 
   const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
 
+  *it = new (pool) List(declarator);
+  it = &(*it)->next;
+
   while (match(TokenKind::T_COMMA)) {
-    if (!parse_using_declarator()) parse_error("expected a using declarator");
+    UsingDeclaratorAST* declarator = nullptr;
+
+    if (!parse_using_declarator(declarator))
+      parse_error("expected a using declarator");
 
     const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+
+    *it = new (pool) List(declarator);
+    it = &(*it)->next;
   }
 
   return true;
 }
 
-bool Parser::parse_using_declarator() {
-  const auto has_typename = match(TokenKind::T_TYPENAME);
+bool Parser::parse_using_declarator(UsingDeclaratorAST*& yyast) {
+  SourceLocation typenameLoc;
+
+  match(TokenKind::T_TYPENAME, typenameLoc);
 
   const auto saved = currentLocation();
 
@@ -4157,9 +4193,14 @@ bool Parser::parse_using_declarator() {
 
   if (!parse_nested_name_specifier(nestedNameSpecifier)) rewind(saved);
 
-  NameAST* unqualifiedId = nullptr;
+  NameAST* name = nullptr;
 
-  if (!parse_unqualified_id(unqualifiedId)) return false;
+  if (!parse_unqualified_id(name)) return false;
+
+  yyast = new (pool) UsingDeclaratorAST();
+  yyast->typenameLoc = typenameLoc;
+  yyast->nestedNameSpecifier = nestedNameSpecifier;
+  yyast->name = name;
 
   return true;
 }
@@ -4169,16 +4210,23 @@ bool Parser::parse_asm_declaration(DeclarationAST*& yyast) {
 
   parse_attribute_specifier_seq(attributes);
 
-  if (!match(TokenKind::T_ASM)) return false;
+  SourceLocation asmLoc;
 
-  expect(TokenKind::T_LPAREN);
+  if (!match(TokenKind::T_ASM, asmLoc)) return false;
 
-  while (match(TokenKind::T_STRING_LITERAL)) {
-  }
+  auto ast = new (pool) AsmDeclarationAST();
+  yyast = ast;
 
-  expect(TokenKind::T_RPAREN);
+  ast->attributeList = attributes;
+  ast->asmLoc = asmLoc;
 
-  expect(TokenKind::T_SEMICOLON);
+  expect(TokenKind::T_LPAREN, ast->lparenLoc);
+
+  parse_string_literal_seq();
+
+  expect(TokenKind::T_RPAREN, ast->rparenLoc);
+
+  expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
 
   return true;
 }
@@ -4190,7 +4238,10 @@ bool Parser::parse_linkage_specification(DeclarationAST*& yyast) {
 
   if (match(TokenKind::T_LBRACE)) {
     if (!match(TokenKind::T_RBRACE)) {
-      if (!parse_declaration_seq()) parse_error("expected a declaration");
+      List<DeclarationAST*>* declarationList = nullptr;
+
+      if (!parse_declaration_seq(declarationList))
+        parse_error("expected a declaration");
 
       expect(TokenKind::T_RBRACE);
     }
@@ -4448,7 +4499,10 @@ bool Parser::parse_export_declaration(DeclarationAST*& yyast) {
 
   if (match(TokenKind::T_LBRACE)) {
     if (!match(TokenKind::T_RBRACE)) {
-      if (!parse_declaration_seq()) parse_error("expected a declaration");
+      List<DeclarationAST*>* declarationList = nullptr;
+
+      if (!parse_declaration_seq(declarationList))
+        parse_error("expected a declaration");
 
       expect(TokenKind::T_RBRACE);
     }
@@ -4511,7 +4565,9 @@ bool Parser::parse_global_module_fragment() {
 
   if (!match(TokenKind::T_SEMICOLON)) return false;
 
-  parse_declaration_seq();
+  List<DeclarationAST*>* declarationList = nullptr;
+
+  parse_declaration_seq(declarationList);
 
   return true;
 }
@@ -4525,7 +4581,9 @@ bool Parser::parse_private_module_fragment() {
 
   expect(TokenKind::T_SEMICOLON);
 
-  parse_declaration_seq();
+  List<DeclarationAST*>* declarationList = nullptr;
+
+  parse_declaration_seq(declarationList);
 
   return true;
 }

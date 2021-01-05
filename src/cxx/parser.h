@@ -88,8 +88,6 @@ class Parser {
   bool parse_final();
   bool parse_override();
   bool parse_typedef_name();
-  bool parse_namespace_name();
-  bool parse_namespace_alias();
   bool parse_class_name();
   bool parse_class_name(Name& name);
   bool parse_name_id(Name& name);
@@ -102,7 +100,7 @@ class Parser {
   bool parse_module_unit(UnitAST*& yyast);
   bool parse_top_level_declaration_seq(UnitAST*& yyast);
   bool parse_skip_top_level_declaration(bool& skipping);
-  bool parse_declaration_seq();
+  bool parse_declaration_seq(List<DeclarationAST*>*& yyast);
   bool parse_skip_declaration(bool& skipping);
   bool parse_primary_expression(ExpressionAST*& yyast);
   bool parse_id_expression();
@@ -287,11 +285,12 @@ class Parser {
   bool parse_namespace_definition(DeclarationAST*& yyast);
   bool parse_namespace_body(NamespaceDefinitionAST* yyast);
   bool parse_namespace_alias_definition(DeclarationAST*& yyast);
-  bool parse_qualified_namespace_specifier();
+  bool parse_qualified_namespace_specifier(
+      NestedNameSpecifierAST*& nestedNameSpecifier, NameAST*& name);
   bool parse_using_directive(DeclarationAST*& yyast);
   bool parse_using_declaration(DeclarationAST*& yyast);
-  bool parse_using_declarator_list();
-  bool parse_using_declarator();
+  bool parse_using_declarator_list(List<UsingDeclaratorAST*>*& yyast);
+  bool parse_using_declarator(UsingDeclaratorAST*& yyast);
   bool parse_asm_declaration(DeclarationAST*& yyast);
   bool parse_linkage_specification(DeclarationAST*& yyast);
   bool parse_attribute_specifier_seq(List<AttributeAST*>*& yyast);

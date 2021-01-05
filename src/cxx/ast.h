@@ -72,6 +72,12 @@ struct DeclaratorModifierAST : AST {};
 
 struct NestedNameSpecifierAST : AST {};
 
+struct UsingDeclaratorAST : AST {
+  SourceLocation typenameLoc;
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  NameAST* name = nullptr;
+};
+
 // units
 
 struct TranslationUnitAST final : UnitAST {
@@ -322,6 +328,13 @@ struct NamespaceDefinitionAST final : DeclarationAST {
 };
 
 struct NamespaceAliasDefinitionAST final : DeclarationAST {
+  SourceLocation namespaceLoc;
+  SourceLocation identifierLoc;
+  SourceLocation equalLoc;
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  NameAST* name = nullptr;
+  SourceLocation semicolonLoc;
+
   void visit(DeclarationASTVisitor* visitor) override;
 };
 
@@ -330,10 +343,20 @@ struct UsingDirectiveAST final : DeclarationAST {
 };
 
 struct UsingDeclarationAST final : DeclarationAST {
+  SourceLocation usingLoc;
+  List<UsingDeclaratorAST*>* usingDeclaratorList = nullptr;
+  SourceLocation semicolonLoc;
+
   void visit(DeclarationASTVisitor* visitor) override;
 };
 
 struct AsmDeclarationAST final : DeclarationAST {
+  List<AttributeAST*>* attributeList = nullptr;
+  SourceLocation asmLoc;
+  SourceLocation lparenLoc;
+  SourceLocation rparenLoc;
+  SourceLocation semicolonLoc;
+
   void visit(DeclarationASTVisitor* visitor) override;
 };
 

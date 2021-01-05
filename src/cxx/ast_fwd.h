@@ -41,6 +41,7 @@ struct DeclaratorModifierAST;
 struct NestedNameSpecifierAST;
 struct EnumeratorAST;
 struct EnumBaseAST;
+struct UsingDeclaratorAST;
 
 // statements
 struct BreakStatementAST;
