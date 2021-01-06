@@ -42,6 +42,7 @@ struct NestedNameSpecifierAST;
 struct EnumeratorAST;
 struct EnumBaseAST;
 struct UsingDeclaratorAST;
+struct TemplateArgumentAST;
 
 // statements
 struct BreakStatementAST;
@@ -90,6 +91,7 @@ struct ModuleUnitAST;
 
 // names
 struct SimpleNameAST;
+struct TemplateNameAST;
 
 // specifiers
 struct AtomicTypeSpecifierAST;

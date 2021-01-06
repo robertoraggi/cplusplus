@@ -409,6 +409,20 @@ struct SimpleNameAST final : NameAST {
   SourceLocation identifierLoc;
 };
 
+struct OperatorNameAST final: NameAST {
+  SourceLocation loc;
+};
+
+struct TemplateArgumentAST final: AST {
+};
+
+struct TemplateNameAST final: NameAST {
+  NameAST* name = nullptr;
+  SourceLocation lessLoc;
+  List<TemplateArgumentAST*>* templateArgumentList = nullptr;
+  SourceLocation greaterLoc;
+};
+
 // specifiers
 
 struct StorageClassSpecifierAST final : SpecifierAST {

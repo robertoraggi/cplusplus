@@ -5485,26 +5485,46 @@ bool Parser::parse_type_constraint() {
     return false;
   }
 
-  if (match(TokenKind::T_LESS)) {
-    if (!parse_template_argument_list())
+  SourceLocation lessLoc;
+  SourceLocation greaterLoc;
+  List<TemplateArgumentAST*>* templateArgumentList = nullptr;
+
+  if (match(TokenKind::T_LESS, lessLoc)) {
+    if (!parse_template_argument_list(templateArgumentList))
       parse_error("expected a template argument");
 
-    expect(TokenKind::T_GREATER);
+    expect(TokenKind::T_GREATER, greaterLoc);
   }
 
   return true;
 }
 
 bool Parser::parse_simple_template_id(NameAST*& yyast) {
-  if (!parse_template_name(yyast)) return false;
+  NameAST* name = nullptr;
 
-  if (!match(TokenKind::T_LESS)) return false;
+  if (!parse_template_name(name)) return false;
 
-  if (!match(TokenKind::T_GREATER)) {
-    if (!parse_template_argument_list()) return false;
+  SourceLocation lessLoc;
 
-    if (!match(TokenKind::T_GREATER)) return false;
+  if (!match(TokenKind::T_LESS, lessLoc)) return false;
+
+  SourceLocation greaterLoc;
+
+  List<TemplateArgumentAST*>* templateArgumentList = nullptr;
+
+  if (!match(TokenKind::T_GREATER, greaterLoc)) {
+    if (!parse_template_argument_list(templateArgumentList)) return false;
+
+    if (!match(TokenKind::T_GREATER, greaterLoc)) return false;
   }
+
+  auto ast = new (pool) TemplateNameAST();
+  yyast = ast;
+
+  ast->name = name;
+  ast->lessLoc = lessLoc;
+  ast->templateArgumentList = templateArgumentList;
+  ast->greaterLoc = greaterLoc;
 
   return true;
 }
@@ -5513,19 +5533,37 @@ bool Parser::parse_template_id(NameAST*& yyast) {
   if (LA().is(TokenKind::T_OPERATOR)) {
     const auto start = currentLocation();
 
-    if (!parse_literal_operator_id(yyast)) {
+    NameAST* name = nullptr;
+
+    if (!parse_literal_operator_id(name)) {
       rewind(start);
 
-      if (!parse_operator_function_id(yyast)) return false;
+      name = nullptr;
+
+      if (!parse_operator_function_id(name)) return false;
     }
 
-    if (!match(TokenKind::T_LESS)) return false;
+    SourceLocation lessLoc;
 
-    if (!match(TokenKind::T_GREATER)) {
-      if (!parse_template_argument_list()) return false;
+    if (!match(TokenKind::T_LESS, lessLoc)) return false;
 
-      if (!match(TokenKind::T_GREATER)) return false;
+    List<TemplateArgumentAST*>* templateArgumentList = nullptr;
+
+    SourceLocation greaterLoc;
+
+    if (!match(TokenKind::T_GREATER, greaterLoc)) {
+      if (!parse_template_argument_list(templateArgumentList)) return false;
+
+      if (!match(TokenKind::T_GREATER, greaterLoc)) return false;
     }
+
+    auto ast = new (pool) TemplateNameAST();
+    yyast = ast;
+
+    ast->name = name;
+    ast->lessLoc = lessLoc;
+    ast->templateArgumentList = templateArgumentList;
+    ast->greaterLoc = greaterLoc;
 
     return true;
   }
@@ -5533,15 +5571,19 @@ bool Parser::parse_template_id(NameAST*& yyast) {
   return parse_simple_template_id(yyast);
 }
 
-bool Parser::parse_template_argument_list() {
+bool Parser::parse_template_argument_list(List<TemplateArgumentAST*>*& yyast) {
   TemplArgContext templArgContext(this);
 
-  if (!parse_template_argument()) return false;
+  TemplateArgumentAST* templateArgument = nullptr;
+
+  if (!parse_template_argument(templateArgument)) return false;
 
   match(TokenKind::T_DOT_DOT_DOT);
 
   while (match(TokenKind::T_COMMA)) {
-    if (!parse_template_argument()) {
+    TemplateArgumentAST* templateArgument = nullptr;
+
+    if (!parse_template_argument(templateArgument)) {
       // parse_error("expected a template argument"); // ### FIXME
     }
 
@@ -5551,7 +5593,7 @@ bool Parser::parse_template_argument_list() {
   return true;
 }
 
-bool Parser::parse_template_argument() {
+bool Parser::parse_template_argument(TemplateArgumentAST*& yyast) {
   const auto start = currentLocation();
 
   auto it = template_arguments_.find(start);

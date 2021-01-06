@@ -367,8 +367,8 @@ class Parser {
   bool parse_type_constraint();
   bool parse_simple_template_id(NameAST*& yyast);
   bool parse_template_id(NameAST*& yyast);
-  bool parse_template_argument_list();
-  bool parse_template_argument();
+  bool parse_template_argument_list(List<TemplateArgumentAST*>*& yyast);
+  bool parse_template_argument(TemplateArgumentAST*& yyast);
   bool parse_constraint_expression(ExpressionAST*& yyast);
   bool parse_deduction_guide(DeclarationAST*& yyast);
   bool parse_concept_definition(DeclarationAST*& yyast);
