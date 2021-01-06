@@ -5486,14 +5486,24 @@ bool Parser::parse_type_constraint() {
   }
 
   SourceLocation lessLoc;
-  SourceLocation greaterLoc;
-  List<TemplateArgumentAST*>* templateArgumentList = nullptr;
 
   if (match(TokenKind::T_LESS, lessLoc)) {
+    SourceLocation greaterLoc;
+
+    List<TemplateArgumentAST*>* templateArgumentList = nullptr;
+
     if (!parse_template_argument_list(templateArgumentList))
       parse_error("expected a template argument");
 
     expect(TokenKind::T_GREATER, greaterLoc);
+
+    auto templateId = new (pool) TemplateNameAST();
+    templateId->name = name;
+    templateId->lessLoc = lessLoc;
+    templateId->templateArgumentList = templateArgumentList;
+    templateId->greaterLoc = greaterLoc;
+
+    name = templateId;
   }
 
   return true;
@@ -5703,16 +5713,7 @@ bool Parser::parse_concept_definition(DeclarationAST*& yyast) {
 }
 
 bool Parser::parse_concept_name(NameAST*& yyast) {
-  SourceLocation identifierLoc;
-
-  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
-
-  auto ast = new (pool) SimpleNameAST();
-  yyast = ast;
-
-  ast->identifierLoc = identifierLoc;
-
-  return true;
+  return parse_name_id(yyast);
 }
 
 bool Parser::parse_typename_specifier(SpecifierAST*& yyast) {
