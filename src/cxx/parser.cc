@@ -450,21 +450,23 @@ bool Parser::parse_primary_expression(ExpressionAST*& yyast) {
     return true;
   }
 
-  return parse_id_expression();
-}
-
-bool Parser::parse_id_expression() {
-  const auto start = currentLocation();
-
   NameAST* name = nullptr;
 
-  if (parse_qualified_id(name)) return true;
+  if (!parse_id_expression(name)) return false;
+
+  return true;
+}
+
+bool Parser::parse_id_expression(NameAST*& yyast) {
+  const auto start = currentLocation();
+
+  if (parse_qualified_id(yyast)) return true;
 
   rewind(start);
 
-  name = nullptr;
+  yyast = nullptr;
 
-  return parse_unqualified_id(name);
+  return parse_unqualified_id(yyast);
 }
 
 bool Parser::parse_maybe_template_id(NameAST*& yyast) {
@@ -1047,7 +1049,9 @@ bool Parser::parse_member_expression(ExpressionAST*& yyast) {
 
   const auto has_template = match(TokenKind::T_TEMPLATE);
 
-  if (!parse_id_expression()) parse_error("expected a member name");
+  NameAST* name = nullptr;
+
+  if (!parse_id_expression(name)) parse_error("expected a member name");
 
   return true;
 }
@@ -3450,7 +3454,9 @@ bool Parser::parse_ref_qualifier(SourceLocation& refLoc) {
 bool Parser::parse_declarator_id() {
   const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
 
-  if (!parse_id_expression()) return false;
+  NameAST* name = nullptr;
+
+  if (!parse_id_expression(name)) return false;
 
   return true;
 }
@@ -5417,7 +5423,9 @@ bool Parser::parse_template_type_parameter() {
 
     expect(TokenKind::T_EQUAL);
 
-    if (!parse_id_expression()) parse_error("expected an id-expression");
+    NameAST* name = nullptr;
+
+    if (!parse_id_expression(name)) parse_error("expected an id-expression");
 
     return true;
   }

@@ -101,7 +101,7 @@ class Parser {
   bool parse_declaration_seq(List<DeclarationAST*>*& yyast);
   bool parse_skip_declaration(bool& skipping);
   bool parse_primary_expression(ExpressionAST*& yyast);
-  bool parse_id_expression();
+  bool parse_id_expression(NameAST*& yyast);
   bool parse_maybe_template_id(NameAST*& yyast);
   bool parse_unqualified_id(NameAST*& yyast);
   bool parse_qualified_id(NameAST*& yyast);
