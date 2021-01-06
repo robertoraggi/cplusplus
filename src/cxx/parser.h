@@ -331,8 +331,8 @@ class Parser {
   bool parse_member_declaration_helper(DeclarationAST*& yyast);
   bool parse_member_function_definition_body();
   bool parse_member_declarator_modifier();
-  bool parse_member_declarator_list();
-  bool parse_member_declarator();
+  bool parse_member_declarator_list(List<DeclaratorAST*>*& yyast);
+  bool parse_member_declarator(DeclaratorAST*& yyast);
   bool parse_virt_specifier();
   bool parse_pure_specifier();
   bool parse_conversion_function_id(NameAST*& yyast);

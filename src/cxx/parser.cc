@@ -35,6 +35,8 @@ namespace cxx {
 
 std::pair<FunctionDeclaratorAST*, bool> getFunctionDeclaratorHelper(
     DeclaratorAST* declarator) {
+  if (!declarator) return std::make_pair(nullptr, false);
+
   if (auto n = dynamic_cast<NestedDeclaratorAST*>(declarator->coreDeclarator)) {
     auto [fundecl, done] = getFunctionDeclaratorHelper(n->declarator);
 
@@ -4880,7 +4882,10 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
 
   rewind(after_decl_specs);
 
-  if (!parse_member_declarator_list()) parse_error("expected a declarator");
+  List<DeclaratorAST*>* declaratorList = nullptr;
+
+  if (!parse_member_declarator_list(declaratorList))
+    parse_error("expected a declarator");
 
   expect(TokenKind::T_SEMICOLON);
 
@@ -4912,17 +4917,32 @@ bool Parser::parse_member_declarator_modifier() {
   return true;
 }
 
-bool Parser::parse_member_declarator_list() {
-  if (!parse_member_declarator()) return false;
+bool Parser::parse_member_declarator_list(List<DeclaratorAST*>*& yyast) {
+  auto it = &yyast;
+
+  DeclaratorAST* declarator = nullptr;
+
+  if (!parse_member_declarator(declarator)) return false;
+
+  *it = new (pool) List(declarator);
+  it = &(*it)->next;
 
   while (match(TokenKind::T_COMMA)) {
-    if (!parse_member_declarator()) parse_error("expected a declarator");
+    DeclaratorAST* declarator = nullptr;
+
+    if (!parse_member_declarator(declarator))
+      parse_error("expected a declarator");
+
+    if (declarator) {
+      *it = new (pool) List(declarator);
+      it = &(*it)->next;
+    }
   }
 
   return true;
 }
 
-bool Parser::parse_member_declarator() {
+bool Parser::parse_member_declarator(DeclaratorAST*& yyast) {
   const auto start = currentLocation();
 
   const auto has_identifier = match(TokenKind::T_IDENTIFIER);
@@ -4942,9 +4962,7 @@ bool Parser::parse_member_declarator() {
 
   rewind(start);
 
-  DeclaratorAST* declarator = nullptr;
-
-  if (!parse_declarator(declarator)) return false;
+  if (!parse_declarator(yyast)) return false;
 
   if (!parse_member_declarator_modifier()) return false;
 
