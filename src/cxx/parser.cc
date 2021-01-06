@@ -5572,6 +5572,8 @@ bool Parser::parse_template_id(NameAST*& yyast) {
 }
 
 bool Parser::parse_template_argument_list(List<TemplateArgumentAST*>*& yyast) {
+  auto it = &yyast;
+
   TemplArgContext templArgContext(this);
 
   TemplateArgumentAST* templateArgument = nullptr;
@@ -5580,14 +5582,21 @@ bool Parser::parse_template_argument_list(List<TemplateArgumentAST*>*& yyast) {
 
   match(TokenKind::T_DOT_DOT_DOT);
 
+  *it = new (pool) List(templateArgument);
+  it = &(*it)->next;
+
   while (match(TokenKind::T_COMMA)) {
     TemplateArgumentAST* templateArgument = nullptr;
 
     if (!parse_template_argument(templateArgument)) {
       // parse_error("expected a template argument"); // ### FIXME
+      return false;
     }
 
     match(TokenKind::T_DOT_DOT_DOT);
+
+    *it = new (pool) List(templateArgument);
+    it = &(*it)->next;
   }
 
   return true;
