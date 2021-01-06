@@ -250,7 +250,7 @@ class Parser {
   bool parse_ptr_operator(PtrOperatorAST*& yyast);
   bool parse_cv_qualifier(SpecifierAST*& yyast);
   bool parse_ref_qualifier(SourceLocation& refLoc);
-  bool parse_declarator_id();
+  bool parse_declarator_id(IdDeclaratorAST*& yyast);
   bool parse_type_id(TypeIdAST*& yyast);
   bool parse_defining_type_id(TypeIdAST*& yyast);
   bool parse_abstract_declarator(DeclaratorAST*& yyast);

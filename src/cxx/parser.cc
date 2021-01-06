@@ -2486,11 +2486,9 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
 
   auto after_decl_specs = currentLocation();
 
-  if (parse_declarator_id()) {
-    List<AttributeAST*>* attributes = nullptr;
+  IdDeclaratorAST* declaratorId = nullptr;
 
-    parse_attribute_specifier_seq(attributes);
-
+  if (parse_declarator_id(declaratorId)) {
     if (parse_parameters_and_qualifiers()) {
       if (match(TokenKind::T_SEMICOLON)) return true;
       if (fundef && parse_function_definition_body()) return true;
@@ -3207,16 +3205,10 @@ bool Parser::parse_ptr_operator_seq(List<PtrOperatorAST*>*& yyast) {
 }
 
 bool Parser::parse_core_declarator(CoreDeclaratorAST*& yyast) {
-  if (parse_declarator_id()) {
-    List<AttributeAST*>* attributes = nullptr;
+  IdDeclaratorAST* declaratorId = nullptr;
 
-    parse_attribute_specifier_seq(attributes);
-
-    auto ast = new (pool) IdDeclaratorAST();
-    yyast = ast;
-
-    ast->attributeList = attributes;
-
+  if (parse_declarator_id(declaratorId)) {
+    yyast = declaratorId;
     return true;
   }
 
@@ -3451,12 +3443,20 @@ bool Parser::parse_ref_qualifier(SourceLocation& refLoc) {
   }  // switch
 }
 
-bool Parser::parse_declarator_id() {
-  const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+bool Parser::parse_declarator_id(IdDeclaratorAST*& yyast) {
+  SourceLocation ellipsisLoc;
+
+  match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
 
   NameAST* name = nullptr;
 
   if (!parse_id_expression(name)) return false;
+
+  yyast = new (pool) IdDeclaratorAST();
+  yyast->ellipsisLoc = ellipsisLoc;
+  yyast->name = name;
+
+  parse_attribute_specifier_seq(yyast->attributeList);
 
   return true;
 }
@@ -4851,7 +4851,9 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
 
   after_decl_specs = currentLocation();
 
-  if (parse_declarator_id()) {
+  IdDeclaratorAST* declaratorId = nullptr;
+
+  if (parse_declarator_id(declaratorId)) {
     List<AttributeAST*>* attributes = nullptr;
 
     parse_attribute_specifier_seq(attributes);

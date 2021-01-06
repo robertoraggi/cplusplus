@@ -520,6 +520,8 @@ struct DeclaratorAST final : AST {
 };
 
 struct IdDeclaratorAST final : CoreDeclaratorAST {
+  SourceLocation ellipsisLoc;
+  NameAST* name = nullptr;
   List<AttributeAST*>* attributeList = nullptr;
 };
 
