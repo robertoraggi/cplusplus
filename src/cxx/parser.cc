@@ -5800,14 +5800,20 @@ bool Parser::parse_explicit_specialization(DeclarationAST*& yyast) {
 }
 
 bool Parser::parse_try_block(StatementAST*& yyast) {
-  if (!match(TokenKind::T_TRY)) return false;
+  SourceLocation tryLoc;
 
-  StatementAST* statement = nullptr;
+  if (!match(TokenKind::T_TRY, tryLoc)) return false;
 
-  if (!parse_compound_statement(statement))
+  auto ast = new (pool) TryBlockStatementAST();
+  yyast = ast;
+
+  ast->tryLoc = tryLoc;
+
+  if (!parse_compound_statement(ast->statement))
     parse_error("expected a compound statement");
 
-  if (!parse_handler_seq()) parse_error("expected an exception handler");
+  if (!parse_handler_seq(ast->handlerList))
+    parse_error("expected an exception handler");
 
   return true;
 }
@@ -5824,63 +5830,78 @@ bool Parser::parse_function_try_block() {
   if (!parse_compound_statement(statement))
     parse_error("expected a compound statement");
 
-  if (!parse_handler_seq()) parse_error("expected an exception handler");
+  List<HandlerAST*>* handlerList = nullptr;
+
+  if (!parse_handler_seq(handlerList))
+    parse_error("expected an exception handler");
 
   return true;
 }
 
-bool Parser::parse_handler() {
-  StatementAST* s1 = nullptr;
+bool Parser::parse_handler(HandlerAST*& yyast) {
+  SourceLocation catchLoc;
 
-  if (!match(TokenKind::T_CATCH)) return false;
+  if (!match(TokenKind::T_CATCH, catchLoc)) return false;
 
-  expect(TokenKind::T_LPAREN);
+  yyast = new (pool) HandlerAST();
 
-  if (!parse_exception_declaration())
+  yyast->catchLoc = catchLoc;
+
+  expect(TokenKind::T_LPAREN, yyast->lparenLoc);
+
+  if (!parse_exception_declaration(yyast->exceptionDeclaration))
     parse_error("expected an exception declaration");
 
-  expect(TokenKind::T_RPAREN);
+  expect(TokenKind::T_RPAREN, yyast->rparenLoc);
 
-  StatementAST* statement = nullptr;
-
-  if (!parse_compound_statement(statement))
+  if (!parse_compound_statement(yyast->statement))
     parse_error("expected a compound statement");
 
   return true;
 }
 
-bool Parser::parse_handler_seq() {
+bool Parser::parse_handler_seq(List<HandlerAST*>*& yyast) {
   if (LA().isNot(TokenKind::T_CATCH)) return false;
 
+  auto it = &yyast;
+
   while (LA().is(TokenKind::T_CATCH)) {
-    parse_handler();
+    HandlerAST* handler = nullptr;
+    parse_handler(handler);
+    *it = new (pool) List(handler);
+    it = &(*it)->next;
   }
 
   return true;
 }
 
-bool Parser::parse_exception_declaration() {
-  if (match(TokenKind::T_DOT_DOT_DOT)) return true;
+bool Parser::parse_exception_declaration(ExceptionDeclarationAST*& yyast) {
+  SourceLocation ellipsisLoc;
 
-  List<AttributeAST*>* attributes = nullptr;
+  if (match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) {
+    auto ast = new (pool) EllipsisExceptionDeclarationAST();
+    yyast = ast;
 
-  parse_attribute_specifier_seq(attributes);
+    ast->ellipsisLoc = ellipsisLoc;
+    return true;
+  }
 
-  List<SpecifierAST*>* typeSpecifierList = nullptr;
+  auto ast = new (pool) TypeExceptionDeclarationAST();
+  yyast = ast;
 
-  if (!parse_type_specifier_seq(typeSpecifierList))
+  parse_attribute_specifier_seq(ast->attributeList);
+
+  if (!parse_type_specifier_seq(ast->typeSpecifierList))
     parse_error("expected a type specifier");
 
   if (LA().is(TokenKind::T_RPAREN)) return true;
 
   const auto before_declarator = currentLocation();
 
-  DeclaratorAST* declarator = nullptr;
-
-  if (!parse_declarator(declarator)) {
+  if (!parse_declarator(ast->declarator)) {
     rewind(before_declarator);
 
-    if (!parse_abstract_declarator(declarator)) rewind(before_declarator);
+    if (!parse_abstract_declarator(ast->declarator)) rewind(before_declarator);
   }
 
   return true;

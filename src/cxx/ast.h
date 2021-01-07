@@ -59,23 +59,47 @@ struct NameAST : AST {};
 
 struct AttributeAST : AST {};
 
-struct TypeIdAST : AST {
-  List<SpecifierAST*>* typeSpecifierList = nullptr;
-  DeclaratorAST* declarator = nullptr;
-};
-
 struct PtrOperatorAST : AST {};
 
 struct CoreDeclaratorAST : AST {};
 
 struct DeclaratorModifierAST : AST {};
 
-struct NestedNameSpecifierAST : AST {};
+struct ExceptionDeclarationAST : AST {};
 
-struct UsingDeclaratorAST : AST {
+// misc
+
+struct TypeIdAST final : AST {
+  List<SpecifierAST*>* typeSpecifierList = nullptr;
+  DeclaratorAST* declarator = nullptr;
+};
+
+struct NestedNameSpecifierAST final : AST {};
+
+struct UsingDeclaratorAST final : AST {
   SourceLocation typenameLoc;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   NameAST* name = nullptr;
+};
+
+struct HandlerAST final : AST {
+  SourceLocation catchLoc;
+  SourceLocation lparenLoc;
+  ExceptionDeclarationAST* exceptionDeclaration = nullptr;
+  SourceLocation rparenLoc;
+  StatementAST* statement = nullptr;
+};
+
+// exception declarations
+
+struct EllipsisExceptionDeclarationAST final : ExceptionDeclarationAST {
+  SourceLocation ellipsisLoc;
+};
+
+struct TypeExceptionDeclarationAST final : ExceptionDeclarationAST {
+  List<AttributeAST*>* attributeList = nullptr;
+  List<SpecifierAST*>* typeSpecifierList = nullptr;
+  DeclaratorAST* declarator = nullptr;
 };
 
 // units
@@ -240,6 +264,14 @@ struct CoroutineReturnStatementAST final : StatementAST {
 
 struct DeclarationStatementAST final : StatementAST {
   DeclarationAST* declaration = nullptr;
+
+  void visit(StatementASTVisitor* visitor) override;
+};
+
+struct TryBlockStatementAST final : StatementAST {
+  SourceLocation tryLoc;
+  StatementAST* statement = nullptr;
+  List<HandlerAST*>* handlerList = nullptr;
 
   void visit(StatementASTVisitor* visitor) override;
 };
@@ -409,14 +441,13 @@ struct SimpleNameAST final : NameAST {
   SourceLocation identifierLoc;
 };
 
-struct OperatorNameAST final: NameAST {
+struct OperatorNameAST final : NameAST {
   SourceLocation loc;
 };
 
-struct TemplateArgumentAST final: AST {
-};
+struct TemplateArgumentAST final : AST {};
 
-struct TemplateNameAST final: NameAST {
+struct TemplateNameAST final : NameAST {
   NameAST* name = nullptr;
   SourceLocation lessLoc;
   List<TemplateArgumentAST*>* templateArgumentList = nullptr;

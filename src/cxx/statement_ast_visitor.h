@@ -45,6 +45,7 @@ struct StatementASTVisitor {
   virtual void visit(ReturnStatementAST*) = 0;
   virtual void visit(SwitchStatementAST*) = 0;
   virtual void visit(WhileStatementAST*) = 0;
+  virtual void visit(TryBlockStatementAST*) = 0;
 };
 
 }  // namespace cxx

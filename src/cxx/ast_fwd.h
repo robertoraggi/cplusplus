@@ -43,6 +43,11 @@ struct EnumeratorAST;
 struct EnumBaseAST;
 struct UsingDeclaratorAST;
 struct TemplateArgumentAST;
+struct HandlerAST;
+struct ExceptionDeclarationAST;
+
+struct EllipsisExceptionDeclarationAST;
+struct TypeExceptionDeclarationAST;
 
 // statements
 struct BreakStatementAST;
@@ -62,6 +67,7 @@ struct LabeledStatementAST;
 struct ReturnStatementAST;
 struct SwitchStatementAST;
 struct WhileStatementAST;
+struct TryBlockStatementAST;
 
 // declarations
 struct AliasDeclarationAST;

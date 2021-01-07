@@ -97,6 +97,10 @@ void DeclarationStatementAST::visit(StatementASTVisitor* visitor) {
   visitor->visit(this);
 }
 
+void TryBlockStatementAST::visit(StatementASTVisitor* visitor) {
+  visitor->visit(this);
+}
+
 // declarations
 
 void ConceptDefinitionAST::visit(DeclarationASTVisitor* visitor) {

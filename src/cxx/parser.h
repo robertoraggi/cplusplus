@@ -378,9 +378,9 @@ class Parser {
   bool parse_explicit_specialization(DeclarationAST*& yyast);
   bool parse_try_block(StatementAST*& yyast);
   bool parse_function_try_block();
-  bool parse_handler();
-  bool parse_handler_seq();
-  bool parse_exception_declaration();
+  bool parse_handler(HandlerAST*& yyast);
+  bool parse_handler_seq(List<HandlerAST*>*& yyast);
+  bool parse_exception_declaration(ExceptionDeclarationAST*& yyast);
   bool parse_noexcept_specifier();
   bool parse_identifier_list();
 
