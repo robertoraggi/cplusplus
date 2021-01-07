@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Roberto Raggi <roberto.raggi@gmail.com>
+// Copyright (c) 2021 Roberto Raggi <roberto.raggi@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -98,6 +98,7 @@ struct ModuleUnitAST;
 // names
 struct SimpleNameAST;
 struct TemplateNameAST;
+struct OperatorNameAST;
 
 // specifiers
 struct AtomicTypeSpecifierAST;
@@ -127,10 +128,5 @@ struct ReferenceOperatorAST;
 struct PtrToMemberOperatorAST;
 struct FunctionDeclaratorAST;
 struct ArrayDeclaratorAST;
-
-// visitors
-struct StatementASTVisitor;
-struct DeclarationASTVisitor;
-struct SpecifierASTVisitor;
 
 }  // namespace cxx
