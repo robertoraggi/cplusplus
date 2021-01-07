@@ -97,8 +97,10 @@ struct ModuleUnitAST;
 
 // names
 struct SimpleNameAST;
+struct DestructorNameAST;
 struct TemplateNameAST;
 struct OperatorNameAST;
+struct DecltypeNameAST;
 
 // specifiers
 struct AtomicTypeSpecifierAST;

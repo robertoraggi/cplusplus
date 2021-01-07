@@ -511,14 +511,31 @@ bool Parser::parse_unqualified_id(NameAST*& yyast) {
 
   rewind(start);
 
-  if (match(TokenKind::T_TILDE)) {
+  SourceLocation tildeLoc;
+
+  if (match(TokenKind::T_TILDE, tildeLoc)) {
     SpecifierAST* decltypeSpecifier = nullptr;
 
-    if (parse_decltype_specifier(decltypeSpecifier)) return true;
+    if (parse_decltype_specifier(decltypeSpecifier)) {
+      auto decltypeName = new (pool) DecltypeNameAST();
+      decltypeName->decltypeSpecifier = decltypeSpecifier;
+
+      auto ast = new (pool) DestructorNameAST();
+      yyast = ast;
+
+      ast->name = decltypeName;
+
+      return true;
+    }
 
     NameAST* name = nullptr;
 
     if (!parse_type_name(name)) return false;
+
+    auto ast = new (pool) DestructorNameAST();
+    yyast = ast;
+
+    ast->name = name;
 
     return true;
   }
@@ -598,7 +615,9 @@ bool Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast) {
     Parser* p;
     SourceLocation start;
     bool parsed = false;
+
     Context(Parser* p) : p(p), start(p->currentLocation()) {}
+
     ~Context() {
       p->nested_name_specifiers_.emplace(
           start, std::make_tuple(p->currentLocation(), parsed));

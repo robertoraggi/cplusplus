@@ -42,10 +42,12 @@ struct ASTVisitor {
   virtual void visit(CvQualifierAST*) {}
   virtual void visit(DeclarationStatementAST*) {}
   virtual void visit(DeclaratorAST*) {}
+  virtual void visit(DecltypeNameAST*) {}
   virtual void visit(DecltypeSpecifierAST*) {}
   virtual void visit(DecltypeSpecifierTypeSpecifierAST*) {}
   virtual void visit(DeductionGuideAST*) {}
   virtual void visit(DefaultStatementAST*) {}
+  virtual void visit(DestructorNameAST*) {}
   virtual void visit(DoStatementAST*) {}
   virtual void visit(ElaboratedTypeSpecifierAST*) {}
   virtual void visit(EllipsisExceptionDeclarationAST*) {}

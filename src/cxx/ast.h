@@ -456,6 +456,19 @@ struct SimpleNameAST final : NameAST {
   void visit(ASTVisitor* visitor) override { visitor->visit(this); }
 };
 
+struct DestructorNameAST final : NameAST {
+  SourceLocation tildeLoc;
+  NameAST* name = nullptr;
+
+  void visit(ASTVisitor* visitor) override { visitor->visit(this); }
+};
+
+struct DecltypeNameAST final : NameAST {
+  SpecifierAST* decltypeSpecifier = nullptr;
+
+  void visit(ASTVisitor* visitor) override { visitor->visit(this); }
+};
+
 struct OperatorNameAST final : NameAST {
   SourceLocation loc;
 
