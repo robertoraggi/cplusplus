@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/arena.h>
 #include <cxx/control.h>
 #include <cxx/parser.h>
 #include <cxx/token.h>
@@ -158,8 +157,7 @@ bool Parser::parse(TranslationUnit* u, UnitAST*& ast) {
   control = unit->control();
   cursor_ = 1;
 
-  Arena arena;
-  pool = &arena;
+  pool = u->arena();
 
   module_id = control->getIdentifier("module");
   import_id = control->getIdentifier("import");

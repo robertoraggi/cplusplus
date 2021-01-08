@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/arena.h>
 #include <cxx/control.h>
 #include <cxx/lexer.h>
 #include <cxx/parser.h>
@@ -26,6 +27,12 @@
 #include <cassert>
 
 namespace cxx {
+
+TranslationUnit::TranslationUnit(Control* control) : control_(control) {
+  arena_ = new Arena();
+}
+
+TranslationUnit::~TranslationUnit() { delete arena_; }
 
 void TranslationUnit::initializeLineMap() {
   // ### remove

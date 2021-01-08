@@ -41,6 +41,7 @@ enum struct MessageKind { Message, Warning, Error, Fatal };
 
 class TranslationUnit {
   Control* control_;
+  Arena* arena_;
   std::vector<Token> tokens_;
   std::vector<int> lines_;
   std::string yyfilename;
@@ -52,10 +53,15 @@ class TranslationUnit {
   bool blockErrors_ = false;
 
  public:
-  TranslationUnit(Control* control) : control_(control) {}
-  ~TranslationUnit() = default;
+  TranslationUnit(const TranslationUnit&) = delete;
+  TranslationUnit& operator=(const TranslationUnit&) = delete;
+
+  TranslationUnit(Control* control);
+  ~TranslationUnit();
 
   Control* control() const { return control_; }
+
+  Arena* arena() const { return arena_; }
 
   UnitAST* ast() const { return ast_; }
 

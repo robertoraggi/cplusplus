@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/ast.h>
+#include <cxx/ast_visitor.h>
 #include <cxx/control.h>
 #include <cxx/lexer.h>
 #include <cxx/translation_unit.h>
@@ -52,7 +54,8 @@ bool parseFile(const std::string& fileName) {
   TranslationUnit unit(&control);
   unit.setFileName(fileName);
   unit.setSource(readAll(fileName));
-  return unit.parse();
+  const auto result = unit.parse();
+  return result;
 }
 
 }  // namespace cxx
