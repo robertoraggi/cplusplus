@@ -65,6 +65,7 @@ struct Managed {
     return arena->allocate(size);
   }
   void operator delete(void* ptr, std::size_t) {}
+  void operator delete(void* ptr, std::size_t, Arena*) {}
 };
 
 }  // namespace cxx
