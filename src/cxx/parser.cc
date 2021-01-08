@@ -145,11 +145,15 @@ struct Parser::TemplArgContext {
   ~TemplArgContext() { --p->templArgDepth; }
 };
 
-const Token& Parser::LA(int n) const { return unit->tokenAt(cursor_ + n); }
+const Token& Parser::LA(int n) const {
+  return unit->tokenAt(SourceLocation(cursor_ + n));
+}
 
-bool Parser::operator()(TranslationUnit* unit) { return parse(unit); }
+bool Parser::operator()(TranslationUnit* unit, UnitAST*& ast) {
+  return parse(unit, ast);
+}
 
-bool Parser::parse(TranslationUnit* u) {
+bool Parser::parse(TranslationUnit* u, UnitAST*& ast) {
   unit = u;
   control = unit->control();
   cursor_ = 1;
@@ -162,8 +166,6 @@ bool Parser::parse(TranslationUnit* u) {
   final_id = control->getIdentifier("final");
   override_id = control->getIdentifier("override");
 
-  UnitAST* ast = nullptr;
-
   auto parsed = parse_translation_unit(ast);
 
   return parsed;
@@ -172,11 +174,11 @@ bool Parser::parse(TranslationUnit* u) {
 bool Parser::parse_id(const Identifier* id) {
   SourceLocation location;
   if (!match(TokenKind::T_IDENTIFIER, location)) return false;
-  return unit->identifier(location.index()) == id;
+  return unit->identifier(location) == id;
 }
 
 bool Parser::parse_nospace() {
-  const auto& tk = unit->tokenAt(cursor_);
+  const auto& tk = unit->tokenAt(currentLocation());
   return !tk.leadingSpace() && !tk.startOfLine();
 }
 
@@ -223,7 +225,7 @@ bool Parser::parse_import_keyword() {
   if (!module_unit) return false;
   if (match(TokenKind::T_IMPORT)) return true;
   if (!parse_id(import_id)) return false;
-  unit->setTokenKind(cursor_ - 1, TokenKind::T_IMPORT);
+  unit->setTokenKind(SourceLocation(cursor_ - 1), TokenKind::T_IMPORT);
   return true;
 }
 
@@ -234,7 +236,7 @@ bool Parser::parse_module_keyword() {
 
   if (!parse_id(module_id)) return false;
 
-  unit->setTokenKind(cursor_ - 1, TokenKind::T_MODULE);
+  unit->setTokenKind(SourceLocation(cursor_ - 1), TokenKind::T_MODULE);
   return true;
 }
 
@@ -1632,7 +1634,7 @@ bool Parser::parse_binary_operator(TokenKind& tk, bool templArg) {
     case TokenKind::T_BAR:
     case TokenKind::T_AMP_AMP:
     case TokenKind::T_AMP:
-      tk = unit->tokenKind(cursor_);
+      tk = LA().kind();
       consumeToken();
       return true;
 
@@ -4114,7 +4116,7 @@ bool Parser::parse_namespace_body(NamespaceDefinitionAST* yyast) {
   while (LA()) {
     if (LA().is(TokenKind::T_RBRACE)) break;
 
-    const auto saved = currentLocation();
+    const auto beforeDeclaration = currentLocation();
 
     DeclarationAST* declaration = nullptr;
 
@@ -4128,7 +4130,7 @@ bool Parser::parse_namespace_body(NamespaceDefinitionAST* yyast) {
     } else {
       parse_skip_declaration(skipping);
 
-      if (currentLocation() == saved) consumeToken();
+      if (currentLocation() == beforeDeclaration) consumeToken();
     }
   }
 
@@ -5011,7 +5013,7 @@ bool Parser::parse_pure_specifier() {
 
   if (!match(TokenKind::T_INTEGER_LITERAL, literalLoc)) return false;
 
-  const auto& number = unit->tokenText(literalLoc.index());
+  const auto& number = unit->tokenText(literalLoc);
 
   if (number != "0") return false;
 

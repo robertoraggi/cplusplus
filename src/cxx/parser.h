@@ -36,8 +36,9 @@ class TranslationUnit;
 
 class Parser {
  public:
-  bool operator()(TranslationUnit* unit);
-  bool parse(TranslationUnit* unit);
+  bool operator()(TranslationUnit* unit, UnitAST*& ast);
+
+  bool parse(TranslationUnit* unit, UnitAST*& ast);
 
   enum struct Prec {
     kLogicalOr,
@@ -61,7 +62,8 @@ class Parser {
 
   template <typename... Args>
   bool parse_warn(const std::string_view& format, const Args&... args) {
-    unit->report(cursor_, MessageKind::Warning, format, args...);
+    unit->report(SourceLocation(cursor_), MessageKind::Warning, format,
+                 args...);
     return true;
   }
 
@@ -69,7 +71,7 @@ class Parser {
   bool parse_error(const std::string_view& format, const Args&... args) {
     if (lastErrorCursor_ == cursor_) return true;
     lastErrorCursor_ = cursor_;
-    unit->report(cursor_, MessageKind::Error, format, args...);
+    unit->report(SourceLocation(cursor_), MessageKind::Error, format, args...);
     // throw std::runtime_error("error");
     return true;
   }

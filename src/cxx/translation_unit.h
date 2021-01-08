@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include <cxx/ast_fwd.h>
+#include <cxx/source_location.h>
 #include <cxx/token.h>
 #include <fmt/format.h>
 #include <fmt/ostream.h>
@@ -44,6 +46,7 @@ class TranslationUnit {
   std::string yyfilename;
   std::string yytext;
   std::string yycode;
+  UnitAST* ast_ = nullptr;
   const char* yyptr = nullptr;
   bool fatalErrors_ = false;
   bool blockErrors_ = false;
@@ -53,6 +56,8 @@ class TranslationUnit {
   ~TranslationUnit() = default;
 
   Control* control() const { return control_; }
+
+  UnitAST* ast() const { return ast_; }
 
   const std::string& fileName() const { return yyfilename; }
 
@@ -80,13 +85,15 @@ class TranslationUnit {
   }
 
   template <typename... Args>
-  void report(unsigned index, MessageKind kind, const std::string_view& format,
-              const Args&... args) {
+  void report(SourceLocation loc, MessageKind kind,
+              const std::string_view& format, const Args&... args) {
     if (blockErrors_) return;
 
-    unsigned line, column;
-    getTokenStartPosition(index, &line, &column);
+    unsigned line = 0, column = 0;
+    getTokenStartPosition(loc, &line, &column);
+
     std::string_view messageKind;
+
     switch (kind) {
       case MessageKind::Message:
         messageKind = "message";
@@ -120,24 +127,26 @@ class TranslationUnit {
   // tokens
   inline unsigned tokenCount() const { return unsigned(tokens_.size()); }
 
-  inline const Token& tokenAt(unsigned index) const { return tokens_[index]; }
-
-  void setTokenKind(unsigned index, TokenKind kind) {
-    tokens_[index].setKind(kind);
+  inline const Token& tokenAt(SourceLocation loc) const {
+    return tokens_[loc.index()];
   }
 
-  inline TokenKind tokenKind(unsigned index) const {
-    return tokens_[index].kind();
+  void setTokenKind(SourceLocation loc, TokenKind kind) {
+    tokens_[loc.index()].setKind(kind);
   }
 
-  int tokenLength(unsigned index) const;
+  inline TokenKind tokenKind(SourceLocation loc) const {
+    return tokenAt(loc).kind();
+  }
 
-  std::string_view tokenText(unsigned index) const;
+  int tokenLength(SourceLocation loc) const;
 
-  void getTokenStartPosition(unsigned index, unsigned* line,
+  std::string_view tokenText(SourceLocation loc) const;
+
+  void getTokenStartPosition(SourceLocation loc, unsigned* line,
                              unsigned* column) const;
 
-  const Identifier* identifier(unsigned index) const;
+  const Identifier* identifier(SourceLocation loc) const;
 
   void tokenize();
 

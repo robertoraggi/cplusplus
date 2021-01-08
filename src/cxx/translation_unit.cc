@@ -39,8 +39,8 @@ void TranslationUnit::initializeLineMap() {
   }
 }
 
-int TranslationUnit::tokenLength(unsigned index) const {
-  const auto& tk = tokens_[index];
+int TranslationUnit::tokenLength(SourceLocation loc) const {
+  const auto& tk = tokenAt(loc);
   if (tk.kind() == TokenKind::T_IDENTIFIER) {
     const std::string* id = reinterpret_cast<const std::string*>(tk.priv_);
     return int(id->size());
@@ -48,13 +48,13 @@ int TranslationUnit::tokenLength(unsigned index) const {
   return int(Token::spell(tk.kind()).size());
 }
 
-const Identifier* TranslationUnit::identifier(unsigned index) const {
-  const auto& tk = tokens_[index];
+const Identifier* TranslationUnit::identifier(SourceLocation loc) const {
+  const auto& tk = tokenAt(loc);
   return reinterpret_cast<const Identifier*>(tk.priv_);
 }
 
-std::string_view TranslationUnit::tokenText(unsigned index) const {
-  const auto& tk = tokens_[index];
+std::string_view TranslationUnit::tokenText(SourceLocation loc) const {
+  const auto& tk = tokenAt(loc);
   switch (tk.kind()) {
     case TokenKind::T_IDENTIFIER:
     case TokenKind::T_STRING_LITERAL:
@@ -68,9 +68,9 @@ std::string_view TranslationUnit::tokenText(unsigned index) const {
   }
 }
 
-void TranslationUnit::getTokenStartPosition(unsigned index, unsigned* line,
+void TranslationUnit::getTokenStartPosition(SourceLocation loc, unsigned* line,
                                             unsigned* column) const {
-  auto offset = tokens_[index].offset();
+  auto offset = tokenAt(loc).offset();
   auto it = std::lower_bound(lines_.cbegin(), lines_.cend(), int(offset));
   if (it != lines_.cbegin()) {
     --it;
@@ -111,7 +111,7 @@ void TranslationUnit::tokenize() {
 bool TranslationUnit::parse() {
   if (tokens_.empty()) tokenize();
   Parser parse;
-  return parse(this);
+  return parse(this, ast_);
 }
 
 }  // namespace cxx
