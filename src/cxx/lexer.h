@@ -27,9 +27,9 @@
 namespace cxx {
 
 class Lexer {
-  std::string_view text_;
-  int pos_ = 0;
-  int end_ = 0;
+  const std::string_view text_;
+  std::string_view::const_iterator pos_;
+  std::string_view::const_iterator end_;
   bool leadingSpace_ = false;
   bool startOfLine_ = true;
 
@@ -37,15 +37,18 @@ class Lexer {
   bool tokenLeadingSpace_ = false;
   bool tokenStartOfLine_ = true;
   int tokenPos_ = 0;
+  uint32_t currentChar_ = 0;
 
   bool preprocessing_ = false;
 
-  inline void consume() { ++pos_; }
+  void consume();
+  void consume(int n);
 
-  inline char LA(int n = 0) const { return text_[pos_ + n]; }
+  uint32_t LA() const;
+  uint32_t LA(int n) const;
 
  public:
-  Lexer(const std::string_view& text);
+  explicit Lexer(const std::string_view& text);
 
   bool preprocessing() const { return preprocessing_; }
   void setPreprocessing(bool preprocessing) { preprocessing_ = preprocessing; }
@@ -65,30 +68,26 @@ class Lexer {
 
   int tokenPos() const { return tokenPos_; }
 
-  int tokenLength() const { return pos_ - tokenPos_; }
+  int tokenLength() const { return (pos_ - cbegin(text_)) - tokenPos_; }
 
   std::string_view tokenText() const {
     return text_.substr(tokenPos_, tokenLength());
   }
 
   struct State {
-    int pos_ = 0;
+    std::string_view::const_iterator pos_;
+    uint32_t currentChar_ = 0;
     bool leadingSpace_ = false;
     bool startOfLine_ = true;
   };
 
-  State save() {
-    State state;
-    state.leadingSpace_ = leadingSpace_;
-    state.startOfLine_ = startOfLine_;
-    state.pos_ = pos_;
-    return state;
-  }
+  State save() { return {pos_, currentChar_, leadingSpace_, startOfLine_}; }
 
   void restore(const State& state) {
+    pos_ = state.pos_;
+    currentChar_ = state.currentChar_;
     leadingSpace_ = state.leadingSpace_;
     startOfLine_ = state.startOfLine_;
-    pos_ = state.pos_;
   }
 
  private:

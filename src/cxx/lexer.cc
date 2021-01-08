@@ -20,7 +20,9 @@
 
 #include <cxx/lexer.h>
 #include <fmt/format.h>
+#include <utf8.h>
 
+#include <cassert>
 #include <cctype>
 #include <unordered_map>
 
@@ -55,35 +57,50 @@ const std::unordered_map<std::string_view, EncodingPrefix>
 
 }  // namespace
 
-inline bool is_space(int ch) { return std::isspace((unsigned char)ch); }
-inline bool is_digit(int ch) { return std::isdigit((unsigned char)ch); }
-inline bool is_alpha(int ch) { return std::isalpha((unsigned char)ch); }
-inline bool is_alnum(int ch) { return std::isalnum((unsigned char)ch); }
-
 inline bool is_idcont(int ch) {
   return ch == '_' || std::isalnum((unsigned char)ch);
 }
 
 Lexer::Lexer(const std::string_view& text)
-    : text_(text), pos_(0), end_(int(text.size())) {}
+    : text_(text), pos_(cbegin(text_)), end_(cend(text_)) {
+  currentChar_ = pos_ < end_ ? utf8::peek_next(pos_, end_) : 0;
+}
+
+void Lexer::consume() {
+  utf8::next(pos_, end_);
+  currentChar_ = pos_ < end_ ? utf8::peek_next(pos_, end_) : 0;
+}
+
+void Lexer::consume(int n) {
+  utf8::advance(pos_, n, end_);
+  currentChar_ = pos_ < end_ ? utf8::peek_next(pos_, end_) : 0;
+}
+
+uint32_t Lexer::LA() const { return currentChar_; }
+
+uint32_t Lexer::LA(int n) const {
+  auto it = pos_;
+  utf8::advance(it, n, end_);
+  return it < end_ ? utf8::peek_next(it, end_) : 0;
+}
 
 TokenKind Lexer::readToken() {
   const auto hasMoreChars = skipSpaces();
 
-  tokenPos_ = pos_;
+  tokenPos_ = pos_ - cbegin(text_);
 
   if (!hasMoreChars) return TokenKind::T_EOF_SYMBOL;
 
-  const char ch = LA();
+  const auto ch = LA();
 
-  if (is_digit(ch)) {
+  if (std::isdigit(ch)) {
     bool integer_literal = true;
-    while (pos_ < end_) {
+    while (pos_ != end_) {
       const auto ch = LA();
       if (pos_ + 1 < end_ &&
           (ch == 'e' || ch == 'E' || ch == 'p' || ch == 'P') &&
           (LA(1) == '+' || LA(1) == '-')) {
-        pos_ += 2;
+        consume(2);
         integer_literal = false;
       } else if (pos_ + 1 < end_ && ch == '\'' && is_idcont(LA(1))) {
         consume();
@@ -104,16 +121,17 @@ TokenKind Lexer::readToken() {
 
   bool isRawStringLiteral = false;
 
-  if (is_alpha(ch) || ch == '_') {
+  if (std::isalpha(ch) || ch == '_') {
     do {
       consume();
-    } while (pos_ < end_ && is_idcont(LA()));
+    } while (pos_ != end_ && is_idcont(LA()));
 
-    const auto id = text_.substr(tokenPos_, pos_ - tokenPos_);
+    const auto n = (pos_ - cbegin(text_)) - tokenPos_;
+    const auto id = text_.substr(tokenPos_, n);
 
     bool isStringOrCharacterLiteral = false;
 
-    if (pos_ < end_ && LA() == '"') {
+    if (pos_ != end_ && LA() == '"') {
       auto it = kStringLiteralPrefixes.find(id);
       if (it != kStringLiteralPrefixes.end()) {
         auto [enc, raw] = it->second;
@@ -121,7 +139,7 @@ TokenKind Lexer::readToken() {
         isRawStringLiteral = raw;
         isStringOrCharacterLiteral = true;
       }
-    } else if (pos_ < end_ && LA() == '\'') {
+    } else if (pos_ != end_ && LA() == '\'') {
       auto it = kCharacterLiteralPrefixes.find(id);
       if (it != kCharacterLiteralPrefixes.end()) {
         encodingPrefix = it->second;
@@ -129,8 +147,7 @@ TokenKind Lexer::readToken() {
       }
     }
 
-    if (!isStringOrCharacterLiteral)
-      return (TokenKind)classify(id.data(), int(id.size()));
+    if (!isStringOrCharacterLiteral) return classify(id.data(), int(id.size()));
   }
 
   if (LA() == '"') {
@@ -138,18 +155,19 @@ TokenKind Lexer::readToken() {
 
     std::string_view delimiter;
     const auto startDelimiter = pos_;
-    int endDelimiter = pos_;
+    auto endDelimiter = pos_;
 
     if (isRawStringLiteral) {
-      for (; pos_ < end_; consume()) {
+      for (; pos_ != end_; consume()) {
         const auto ch = LA();
         if (ch == '(' || ch == '"' || ch == '\\' || ch == '\n') break;
       }
       endDelimiter = pos_;
-      delimiter = text_.substr(startDelimiter, endDelimiter - startDelimiter);
+      delimiter = text_.substr(startDelimiter - cbegin(text_),
+                               endDelimiter - startDelimiter);
     }
 
-    while (pos_ < end_) {
+    while (pos_ != end_) {
       if (LA() == '"') {
         consume();
 
@@ -169,17 +187,17 @@ TokenKind Lexer::readToken() {
           if (didMatch) break;
         }
       } else if (pos_ + 1 < end_ && LA() == '\\') {
-        pos_ += 2;
+        consume(2);
       } else {
         consume();
       }
     }
     bool ud = false;
-    if (is_alpha(LA()) || LA() == '_') {
+    if (std::isalpha(LA()) || LA() == '_') {
       ud = true;
       do {
         consume();
-      } while (pos_ < end_ && is_idcont(LA()));
+      } while (pos_ != end_ && is_idcont(LA()));
     }
     return !ud ? TokenKind::T_STRING_LITERAL
                : TokenKind::T_USER_DEFINED_STRING_LITERAL;
@@ -187,9 +205,9 @@ TokenKind Lexer::readToken() {
 
   if (LA() == '\'') {
     consume();
-    while (pos_ < end_ && LA() != '\'') {
+    while (pos_ != end_ && LA() != '\'') {
       if (pos_ + 1 < end_ && LA() == '\\') {
-        pos_ += 2;
+        consume(2);
       } else {
         consume();
       }
@@ -201,14 +219,14 @@ TokenKind Lexer::readToken() {
     return TokenKind::T_CHARACTER_LITERAL;
   }
 
-  if (pos_ + 1 < end_ && LA() == '.' && is_digit(LA(1))) {
+  if (pos_ + 1 < end_ && LA() == '.' && std::isdigit(LA(1))) {
     consume();
-    while (pos_ < end_) {
+    while (pos_ != end_) {
       const auto ch = LA();
       if (pos_ + 1 < end_ &&
           (ch == 'e' || ch == 'E' || ch == 'p' || ch == 'P') &&
           (LA(1) == '+' || LA(1) == '-')) {
-        pos_ += 2;
+        consume(2);
       } else if (pos_ + 1 < end_ && ch == '\'' && is_idcont(LA(1))) {
         consume();
       } else if (is_idcont(ch)) {
@@ -224,7 +242,7 @@ TokenKind Lexer::readToken() {
 
   switch (ch) {
     case '=':
-      if (pos_ < end_ && LA() == '=') {
+      if (pos_ != end_ && LA() == '=') {
         consume();
         return TokenKind::T_EQUAL_EQUAL;
       }
@@ -258,7 +276,7 @@ TokenKind Lexer::readToken() {
       return TokenKind::T_SEMICOLON;
 
     case ':':
-      if (pos_ < end_ && LA() == ':') {
+      if (pos_ != end_ && LA() == ':') {
         consume();
         return TokenKind::T_COLON_COLON;
       }
@@ -266,9 +284,9 @@ TokenKind Lexer::readToken() {
 
     case '.':
       if (pos_ + 1 < end_ && LA() == '.' && LA(1) == '.') {
-        pos_ += 2;
+        consume(2);
         return TokenKind::T_DOT_DOT_DOT;
-      } else if (pos_ < end_ && LA() == '*') {
+      } else if (pos_ != end_ && LA() == '*') {
         consume();
         return TokenKind::T_DOT_STAR;
       }
@@ -278,73 +296,73 @@ TokenKind Lexer::readToken() {
       return TokenKind::T_QUESTION;
 
     case '*':
-      if (pos_ < end_ && LA() == '=') {
+      if (pos_ != end_ && LA() == '=') {
         consume();
         return TokenKind::T_STAR_EQUAL;
       }
       return TokenKind::T_STAR;
 
     case '%':
-      if (pos_ < end_ && LA() == '=') {
+      if (pos_ != end_ && LA() == '=') {
         consume();
         return TokenKind::T_PERCENT_EQUAL;
       }
       return TokenKind::T_PERCENT;
 
     case '^':
-      if (pos_ < end_ && LA() == '=') {
+      if (pos_ != end_ && LA() == '=') {
         consume();
         return TokenKind::T_CARET_EQUAL;
       }
       return TokenKind::T_CARET;
 
     case '&':
-      if (pos_ < end_ && LA() == '=') {
+      if (pos_ != end_ && LA() == '=') {
         consume();
         return TokenKind::T_AMP_EQUAL;
-      } else if (pos_ < end_ && LA() == '&') {
+      } else if (pos_ != end_ && LA() == '&') {
         consume();
         return TokenKind::T_AMP_AMP;
       }
       return TokenKind::T_AMP;
 
     case '|':
-      if (pos_ < end_ && LA() == '=') {
+      if (pos_ != end_ && LA() == '=') {
         consume();
         return TokenKind::T_BAR_EQUAL;
-      } else if (pos_ < end_ && LA() == '|') {
+      } else if (pos_ != end_ && LA() == '|') {
         consume();
         return TokenKind::T_BAR_BAR;
       }
       return TokenKind::T_BAR;
 
     case '!':
-      if (pos_ < end_ && LA() == '=') {
+      if (pos_ != end_ && LA() == '=') {
         consume();
         return TokenKind::T_EXCLAIM_EQUAL;
       }
       return TokenKind::T_EXCLAIM;
 
     case '+':
-      if (pos_ < end_ && LA() == '+') {
+      if (pos_ != end_ && LA() == '+') {
         consume();
         return TokenKind::T_PLUS_PLUS;
-      } else if (pos_ < end_ && LA() == '=') {
+      } else if (pos_ != end_ && LA() == '=') {
         consume();
         return TokenKind::T_PLUS_EQUAL;
       }
       return TokenKind::T_PLUS;
 
     case '-':
-      if (pos_ < end_ && LA() == '-') {
+      if (pos_ != end_ && LA() == '-') {
         consume();
         return TokenKind::T_MINUS_MINUS;
-      } else if (pos_ < end_ && LA() == '=') {
+      } else if (pos_ != end_ && LA() == '=') {
         consume();
         return TokenKind::T_MINUS_EQUAL;
-      } else if (pos_ < end_ && LA() == '>') {
+      } else if (pos_ != end_ && LA() == '>') {
         consume();
-        if (pos_ < end_ && LA() == '*') {
+        if (pos_ != end_ && LA() == '*') {
           consume();
           return TokenKind::T_MINUS_GREATER_STAR;
         } else {
@@ -354,16 +372,16 @@ TokenKind Lexer::readToken() {
       return TokenKind::T_MINUS;
 
     case '<':
-      if (pos_ < end_ && LA() == '=') {
+      if (pos_ != end_ && LA() == '=') {
         consume();
-        if (pos_ < end_ && LA() == '>') {
+        if (pos_ != end_ && LA() == '>') {
           consume();
           return TokenKind::T_LESS_EQUAL_GREATER;
         }
         return TokenKind::T_LESS_EQUAL;
-      } else if (pos_ < end_ && LA() == '<') {
+      } else if (pos_ != end_ && LA() == '<') {
         consume();
-        if (pos_ < end_ && LA() == '=') {
+        if (pos_ != end_ && LA() == '=') {
           consume();
           return TokenKind::T_LESS_LESS_EQUAL;
         }
@@ -373,12 +391,12 @@ TokenKind Lexer::readToken() {
 
     case '>':
       if (preprocessing_) {
-        if (pos_ < end_ && LA() == '=') {
+        if (pos_ != end_ && LA() == '=') {
           consume();
           return TokenKind::T_GREATER_EQUAL;
-        } else if (pos_ < end_ && LA() == '>') {
+        } else if (pos_ != end_ && LA() == '>') {
           consume();
-          if (pos_ < end_ && LA() == '=') {
+          if (pos_ != end_ && LA() == '=') {
             consume();
             return TokenKind::T_GREATER_GREATER_EQUAL;
           }
@@ -388,7 +406,7 @@ TokenKind Lexer::readToken() {
       return TokenKind::T_GREATER;
 
     case '/':
-      if (pos_ < end_ && LA() == '=') {
+      if (pos_ != end_ && LA() == '=') {
         consume();
         return TokenKind::T_SLASH_EQUAL;
       }
@@ -402,10 +420,10 @@ bool Lexer::skipSpaces() {
   tokenLeadingSpace_ = leadingSpace_;
   tokenStartOfLine_ = startOfLine_;
 
-  while (pos_ < end_) {
+  while (pos_ != end_) {
     const auto ch = LA();
 
-    if (is_space(ch)) {
+    if (std::isspace(ch)) {
       if (ch == '\n') {
         tokenStartOfLine_ = true;
         tokenLeadingSpace_ = false;
@@ -414,16 +432,16 @@ bool Lexer::skipSpaces() {
       }
       consume();
     } else if (pos_ + 1 < end_ && ch == '/' && LA(1) == '/') {
-      pos_ += 2;
-      for (; pos_ < end_; consume()) {
-        if (pos_ < end_ && LA() == '\n') {
+      consume(2);
+      for (; pos_ != end_; consume()) {
+        if (pos_ != end_ && LA() == '\n') {
           break;
         }
       }
     } else if (pos_ + 1 < end_ && ch == '/' && LA(1) == '*') {
-      while (pos_ < end_) {
+      while (pos_ != end_) {
         if (pos_ + 1 < end_ && LA() == '*' && LA(1) == '/') {
-          pos_ += 2;
+          consume(2);
           break;
         } else {
           consume();
@@ -438,7 +456,7 @@ bool Lexer::skipSpaces() {
   leadingSpace_ = false;
   startOfLine_ = false;
 
-  return pos_ < end_;
+  return pos_ != end_;
 }
 
 }  // namespace cxx

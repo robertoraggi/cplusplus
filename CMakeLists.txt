@@ -25,19 +25,27 @@ include(FetchContent)
 
 find_package(fmt 6.1.2 CONFIG QUIET)
 
+set(CMAKE_CXX_STANDARD 20)
+
 if(NOT fmt_FOUND)
     message(STATUS "fetching fmt")
 
     FetchContent_Declare(
         fmt
         GIT_REPOSITORY https://github.com/fmtlib/fmt
-        GIT_TAG        7.0.2
+        GIT_TAG        7.1.3
     )
 
     FetchContent_MakeAvailable(fmt)
 endif()
 
-set(CMAKE_CXX_STANDARD 20)
+FetchContent_Declare(
+    utfcpp
+    GIT_REPOSITORY https://github.com/nemtrif/utfcpp
+    GIT_TAG        v3.1.2
+)
+
+FetchContent_MakeAvailable(utfcpp)
 
 add_subdirectory(tools/kwgen)
 
@@ -50,7 +58,7 @@ add_library(CPlusPlus ${SOURCES}
 
 target_include_directories(CPlusPlus PUBLIC src)
 target_include_directories(CPlusPlus PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
-target_link_libraries(CPlusPlus PUBLIC fmt::fmt)
+target_link_libraries(CPlusPlus fmt::fmt-header-only utf8::cpp)
 
 add_custom_command(OUTPUT keywords-priv.h
     COMMAND kwgen < ${CMAKE_CURRENT_SOURCE_DIR}/src/cxx/keywords.kwgen > keywords-priv.h

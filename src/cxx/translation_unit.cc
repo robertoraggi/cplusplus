@@ -23,6 +23,7 @@
 #include <cxx/lexer.h>
 #include <cxx/parser.h>
 #include <cxx/translation_unit.h>
+#include <utf8.h>
 
 #include <cassert>
 
@@ -79,15 +80,13 @@ void TranslationUnit::getTokenStartPosition(SourceLocation loc, unsigned* line,
                                             unsigned* column) const {
   auto offset = tokenAt(loc).offset();
   auto it = std::lower_bound(lines_.cbegin(), lines_.cend(), int(offset));
-  if (it != lines_.cbegin()) {
-    --it;
-    assert(*it <= int(offset));
-    *line = int(std::distance(lines_.cbegin(), it) + 1);
-    *column = offset - *it;
-  } else {
-    *line = 1;
-    *column = offset + 1;
-  }
+  assert(it != cbegin(lines_));
+  --it;
+  assert(*it <= int(offset));
+  *line = int(std::distance(cbegin(lines_), it) + 1);
+  auto start = cbegin(source()) + *it;
+  auto end = cbegin(source()) + offset;
+  *column = utf8::distance(start, end);
 }
 
 void TranslationUnit::tokenize() {
