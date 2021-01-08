@@ -40,6 +40,10 @@ class Lexer {
 
   bool preprocessing_ = false;
 
+  inline void consume() { ++pos_; }
+
+  inline char LA(int n = 0) const { return text_[pos_ + n]; }
+
  public:
   Lexer(const std::string_view& text);
 
