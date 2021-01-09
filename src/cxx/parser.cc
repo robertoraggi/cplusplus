@@ -877,7 +877,10 @@ bool Parser::parse_fold_expression(ExpressionAST*& yyast) {
   if (!match(TokenKind::T_LPAREN)) return false;
 
   if (match(TokenKind::T_DOT_DOT_DOT)) {
-    if (!parse_fold_operator()) parse_error("expected fold operator");
+    SourceLocation opLoc;
+    TokenKind op = TokenKind::T_EOF_SYMBOL;
+
+    if (!parse_fold_operator(opLoc, op)) parse_error("expected fold operator");
 
     ExpressionAST* expression;
 
@@ -893,12 +896,19 @@ bool Parser::parse_fold_expression(ExpressionAST*& yyast) {
 
   if (!parse_cast_expression(expression)) return false;
 
-  if (!parse_fold_operator()) return false;
+    SourceLocation opLoc;
+    TokenKind op = TokenKind::T_EOF_SYMBOL;
+
+    if (!parse_fold_operator(opLoc, op)) return false;
+
 
   if (!match(TokenKind::T_DOT_DOT_DOT)) return false;
 
   if (!match(TokenKind::T_RPAREN)) {
-    if (!parse_fold_operator()) parse_error("expected a fold operator");
+    SourceLocation opLoc;
+    TokenKind op = TokenKind::T_EOF_SYMBOL;
+
+    if (!parse_fold_operator(opLoc, op)) parse_error("expected a fold operator");
 
     ExpressionAST* rhs = nullptr;
 
@@ -910,14 +920,32 @@ bool Parser::parse_fold_expression(ExpressionAST*& yyast) {
   return true;
 }
 
-bool Parser::parse_fold_operator() {
+bool Parser::parse_fold_operator(SourceLocation& loc, TokenKind& op) {
   switch (TokenKind(LA())) {
-    case TokenKind::T_GREATER:
-      if (parse_greater_greater_equal()) return true;
-      if (parse_greater_greater()) return true;
-      if (parse_greater_equal()) return true;
+    case TokenKind::T_GREATER: {
+      loc = currentLocation();
+
+      if (parse_greater_greater_equal()) {
+        op = TokenKind::T_GREATER_GREATER_EQUAL;
+        return true;
+      }
+
+      if (parse_greater_greater()) {
+        op = TokenKind::T_GREATER_GREATER;
+        return true;
+      }
+
+      if (parse_greater_equal()) {
+        op = TokenKind::T_GREATER_EQUAL;
+        return true;
+      }
+
+      op = TokenKind::T_GREATER;
+
       consumeToken();
+
       return true;
+    }
 
     case TokenKind::T_GREATER_GREATER_EQUAL:
     case TokenKind::T_GREATER_GREATER:
@@ -949,9 +977,11 @@ bool Parser::parse_fold_operator() {
     case TokenKind::T_BAR_BAR:
     case TokenKind::T_COMMA:
     case TokenKind::T_DOT_STAR:
-    case TokenKind::T_MINUS_GREATER_STAR:
+    case TokenKind::T_MINUS_GREATER_STAR: {
+      op = LA().kind();
       consumeToken();
       return true;
+    }
 
     default:
       return false;

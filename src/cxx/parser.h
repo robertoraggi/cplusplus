@@ -120,7 +120,7 @@ class Parser {
   bool parse_simple_capture();
   bool parse_init_capture();
   bool parse_fold_expression(ExpressionAST*& yyast);
-  bool parse_fold_operator();
+  bool parse_fold_operator(SourceLocation& loc, TokenKind& op);
   bool parse_requires_expression(ExpressionAST*& yyast);
   bool parse_requirement_parameter_list();
   bool parse_requirement_body();
