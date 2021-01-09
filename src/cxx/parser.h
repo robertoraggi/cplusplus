@@ -173,7 +173,7 @@ class Parser {
   bool parse_yield_expression(ExpressionAST*& yyast);
   bool parse_throw_expression(ExpressionAST*& yyast);
   bool parse_assignment_expression(ExpressionAST*& yyast);
-  bool parse_assignment_operator();
+  bool parse_assignment_operator(SourceLocation& loc, TokenKind& op);
   bool parse_expression(ExpressionAST*& yyast);
   bool parse_constant_expression(ExpressionAST*& yyast);
   bool parse_template_argument_constant_expression(ExpressionAST*& yyast);

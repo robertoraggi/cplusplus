@@ -896,11 +896,10 @@ bool Parser::parse_fold_expression(ExpressionAST*& yyast) {
 
   if (!parse_cast_expression(expression)) return false;
 
-    SourceLocation opLoc;
-    TokenKind op = TokenKind::T_EOF_SYMBOL;
+  SourceLocation opLoc;
+  TokenKind op = TokenKind::T_EOF_SYMBOL;
 
-    if (!parse_fold_operator(opLoc, op)) return false;
-
+  if (!parse_fold_operator(opLoc, op)) return false;
 
   if (!match(TokenKind::T_DOT_DOT_DOT)) return false;
 
@@ -908,7 +907,8 @@ bool Parser::parse_fold_expression(ExpressionAST*& yyast) {
     SourceLocation opLoc;
     TokenKind op = TokenKind::T_EOF_SYMBOL;
 
-    if (!parse_fold_operator(opLoc, op)) parse_error("expected a fold operator");
+    if (!parse_fold_operator(opLoc, op))
+      parse_error("expected a fold operator");
 
     ExpressionAST* rhs = nullptr;
 
@@ -1862,7 +1862,10 @@ bool Parser::parse_assignment_expression(ExpressionAST*& yyast) {
 
   if (!parse_conditional_expression(yyast, false)) return false;
 
-  if (parse_assignment_operator()) {
+  SourceLocation opLoc;
+  TokenKind op = TokenKind::T_EOF_SYMBOL;
+
+  if (parse_assignment_operator(opLoc, op)) {
     ExpressionAST* expression = nullptr;
 
     if (!parse_initializer_clause(expression))
@@ -1872,7 +1875,7 @@ bool Parser::parse_assignment_expression(ExpressionAST*& yyast) {
   return true;
 }
 
-bool Parser::parse_assignment_operator() {
+bool Parser::parse_assignment_operator(SourceLocation& loc, TokenKind& op) {
   switch (TokenKind(LA())) {
     case TokenKind::T_EQUAL:
     case TokenKind::T_STAR_EQUAL:
@@ -1884,12 +1887,17 @@ bool Parser::parse_assignment_operator() {
     case TokenKind::T_AMP_EQUAL:
     case TokenKind::T_CARET_EQUAL:
     case TokenKind::T_BAR_EQUAL:
-    case TokenKind::T_GREATER_GREATER_EQUAL:
-      consumeToken();
+    case TokenKind::T_GREATER_GREATER_EQUAL: {
+      op = LA().kind();
+      loc = consumeToken();
       return true;
+    }
 
-    case TokenKind::T_GREATER:
-      return parse_greater_greater_equal();
+    case TokenKind::T_GREATER: {
+      if (!parse_greater_greater_equal()) return false;
+      op = TokenKind::T_GREATER_GREATER_EQUAL;
+      return true;
+    }
 
     default:
       return false;
