@@ -65,7 +65,7 @@ struct Managed {
     return arena->allocate(size);
   }
   void operator delete(void* ptr, std::size_t) {}
-  void operator delete(void* ptr, std::size_t, Arena*) noexcept {}
+  void operator delete(void* ptr, Arena*) noexcept {}
 };
 
 }  // namespace cxx

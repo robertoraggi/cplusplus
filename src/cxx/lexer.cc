@@ -76,8 +76,6 @@ void Lexer::consume(int n) {
   currentChar_ = pos_ < end_ ? utf8::peek_next(pos_, end_) : 0;
 }
 
-uint32_t Lexer::LA() const { return currentChar_; }
-
 uint32_t Lexer::LA(int n) const {
   auto it = pos_;
   utf8::advance(it, n, end_);

@@ -286,23 +286,74 @@ bool Parser::parse_template_name(NameAST*& yyast) {
   return true;
 }
 
-bool Parser::parse_literal() {
+bool Parser::parse_literal(ExpressionAST*& yyast) {
   switch (TokenKind(LA())) {
-    case TokenKind::T_TRUE:
-    case TokenKind::T_FALSE:
-    case TokenKind::T_NULLPTR:
-    case TokenKind::T_INTEGER_LITERAL:
-    case TokenKind::T_CHARACTER_LITERAL:
-    case TokenKind::T_FLOATING_POINT_LITERAL:
-    case TokenKind::T_USER_DEFINED_LITERAL:
-    case TokenKind::T_USER_DEFINED_STRING_LITERAL:
-      consumeToken();
+    case TokenKind::T_CHARACTER_LITERAL: {
+      auto ast = new (pool) CharLiteralExpressionAST();
+      yyast = ast;
+
+      ast->literalLoc = consumeToken();
+
       return true;
+    }
+
+    case TokenKind::T_TRUE:
+    case TokenKind::T_FALSE: {
+      auto ast = new (pool) BoolLiteralExpressionAST();
+      yyast = ast;
+
+      ast->literalLoc = consumeToken();
+
+      return true;
+    }
+
+    case TokenKind::T_INTEGER_LITERAL: {
+      auto ast = new (pool) IntLiteralExpressionAST();
+      yyast = ast;
+
+      ast->literalLoc = consumeToken();
+
+      return true;
+    }
+
+    case TokenKind::T_FLOATING_POINT_LITERAL: {
+      auto ast = new (pool) FloatLiteralExpressionAST();
+      yyast = ast;
+
+      ast->literalLoc = consumeToken();
+
+      return true;
+    }
+
+    case TokenKind::T_NULLPTR: {
+      auto ast = new (pool) NullptrLiteralExpressionAST();
+      yyast = ast;
+
+      ast->literalLoc = consumeToken();
+
+      return true;
+    }
+
+    case TokenKind::T_USER_DEFINED_STRING_LITERAL: {
+      auto ast = new (pool) UserDefinedStringLiteralExpressionAST();
+      yyast = ast;
+
+      ast->literalLoc = consumeToken();
+
+      return true;
+    }
 
     case TokenKind::T_STRING_LITERAL: {
       List<SourceLocation>* stringLiterals = nullptr;
 
-      return parse_string_literal_seq(stringLiterals);
+      parse_string_literal_seq(stringLiterals);
+
+      auto ast = new (pool) StringLiteralExpressionAST();
+      yyast = ast;
+
+      ast->stringLiteralList = stringLiterals;
+
+      return true;
     }
 
     default:
@@ -425,27 +476,44 @@ bool Parser::parse_skip_declaration(bool& skipping) {
 }
 
 bool Parser::parse_primary_expression(ExpressionAST*& yyast) {
-  if (match(TokenKind::T_THIS))
+  SourceLocation thisLoc;
+
+  if (match(TokenKind::T_THIS, thisLoc)) {
+    auto ast = new (pool) ThisExpressionAST();
+    yyast = ast;
+    ast->thisLoc = thisLoc;
     return true;
-  else if (parse_literal())
-    return true;
-  else if (LA().is(TokenKind::T_LBRACKET))
-    return parse_lambda_expression(yyast);
-  else if (LA().is(TokenKind::T_REQUIRES))
-    return parse_requires_expression(yyast);
-  else if (LA().is(TokenKind::T_LPAREN)) {
+  }
+
+  if (parse_literal(yyast)) return true;
+
+  if (LA().is(TokenKind::T_LBRACKET)) return parse_lambda_expression(yyast);
+
+  if (LA().is(TokenKind::T_REQUIRES)) return parse_requires_expression(yyast);
+
+  if (LA().is(TokenKind::T_LPAREN)) {
     const auto saved = currentLocation();
 
     if (parse_fold_expression(yyast)) return true;
 
     rewind(saved);
-    consumeToken();
+
+    SourceLocation lparenLoc = consumeToken();
 
     ExpressionAST* expression = nullptr;
 
     if (!parse_expression(expression)) return false;
 
-    if (!match(TokenKind::T_RPAREN)) return false;
+    SourceLocation rparenLoc;
+
+    if (!match(TokenKind::T_RPAREN, rparenLoc)) return false;
+
+    auto ast = new (pool) NestedExpressionAST();
+    yyast = ast;
+
+    ast->lparenLoc = lparenLoc;
+    ast->expression = expression;
+    ast->rparenLoc = rparenLoc;
 
     return true;
   }

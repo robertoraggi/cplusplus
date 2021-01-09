@@ -49,6 +49,17 @@ struct ExceptionDeclarationAST;
 struct EllipsisExceptionDeclarationAST;
 struct TypeExceptionDeclarationAST;
 
+// expressions
+struct ThisExpressionAST;
+struct NestedExpressionAST;
+struct StringLiteralExpressionAST;
+struct UserDefinedStringLiteralExpressionAST;
+struct CharLiteralExpressionAST;
+struct BoolLiteralExpressionAST;
+struct IntLiteralExpressionAST;
+struct FloatLiteralExpressionAST;
+struct NullptrLiteralExpressionAST;
+
 // statements
 struct BreakStatementAST;
 struct CaseStatementAST;

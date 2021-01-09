@@ -44,7 +44,8 @@ class Lexer {
   void consume();
   void consume(int n);
 
-  uint32_t LA() const;
+  inline uint32_t LA() const { return currentChar_; }
+
   uint32_t LA(int n) const;
 
  public:

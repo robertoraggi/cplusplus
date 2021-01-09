@@ -123,6 +123,64 @@ struct ModuleUnitAST final : UnitAST {
   void visit(ASTVisitor* visitor) override { visitor->visit(this); }
 };
 
+// expressions
+
+struct ThisExpressionAST final : ExpressionAST {
+  SourceLocation thisLoc;
+
+  void visit(ASTVisitor* visitor) override { visitor->visit(this); }
+};
+
+struct CharLiteralExpressionAST final : ExpressionAST {
+  SourceLocation literalLoc;
+
+  void visit(ASTVisitor* visitor) override { visitor->visit(this); }
+};
+
+struct BoolLiteralExpressionAST final : ExpressionAST {
+  SourceLocation literalLoc;
+
+  void visit(ASTVisitor* visitor) override { visitor->visit(this); }
+};
+
+struct IntLiteralExpressionAST final : ExpressionAST {
+  SourceLocation literalLoc;
+
+  void visit(ASTVisitor* visitor) override { visitor->visit(this); }
+};
+
+struct FloatLiteralExpressionAST final : ExpressionAST {
+  SourceLocation literalLoc;
+
+  void visit(ASTVisitor* visitor) override { visitor->visit(this); }
+};
+
+struct NullptrLiteralExpressionAST final : ExpressionAST {
+  SourceLocation literalLoc;
+
+  void visit(ASTVisitor* visitor) override { visitor->visit(this); }
+};
+
+struct StringLiteralExpressionAST final : ExpressionAST {
+  List<SourceLocation>* stringLiteralList = nullptr;
+
+  void visit(ASTVisitor* visitor) override { visitor->visit(this); }
+};
+
+struct UserDefinedStringLiteralExpressionAST final : ExpressionAST {
+  SourceLocation literalLoc;
+
+  void visit(ASTVisitor* visitor) override { visitor->visit(this); }
+};
+
+struct NestedExpressionAST final : ExpressionAST {
+  SourceLocation lparenLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation rparenLoc;
+
+  void visit(ASTVisitor* visitor) override { visitor->visit(this); }
+};
+
 // statements
 
 struct LabeledStatementAST final : StatementAST {

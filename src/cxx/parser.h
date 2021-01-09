@@ -94,7 +94,7 @@ class Parser {
   bool parse_name_id(NameAST*& yyast);
   bool parse_enum_name(NameAST*& yyast);
   bool parse_template_name(NameAST*& yyast);
-  bool parse_literal();
+  bool parse_literal(ExpressionAST*& yyast);
   bool parse_translation_unit(UnitAST*& yyast);
   bool parse_module_head();
   bool parse_module_unit(UnitAST*& yyast);

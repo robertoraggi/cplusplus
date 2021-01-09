@@ -27,6 +27,16 @@ namespace cxx {
 struct ASTVisitor {
   virtual ~ASTVisitor() = default;
 
+  virtual void visit(ThisExpressionAST*) {}
+  virtual void visit(NestedExpressionAST*) {}
+  virtual void visit(StringLiteralExpressionAST*) {}
+  virtual void visit(UserDefinedStringLiteralExpressionAST*) {}
+  virtual void visit(CharLiteralExpressionAST*) {}
+  virtual void visit(BoolLiteralExpressionAST*) {}
+  virtual void visit(IntLiteralExpressionAST*) {}
+  virtual void visit(FloatLiteralExpressionAST*) {}
+  virtual void visit(NullptrLiteralExpressionAST*) {}
+
   virtual void visit(AliasDeclarationAST*) {}
   virtual void visit(ArrayDeclaratorAST*) {}
   virtual void visit(AsmDeclarationAST*) {}

@@ -33,7 +33,6 @@
   V(FLOATING_POINT_LITERAL, "floating_point_literal")                 \
   V(INTEGER_LITERAL, "integer_literal")                               \
   V(STRING_LITERAL, "string_literal")                                 \
-  V(USER_DEFINED_LITERAL, "user_defined_literal")                     \
   V(USER_DEFINED_STRING_LITERAL, "user_defined_string_literal")       \
   V(EXCLAIM, "!")                                                     \
   V(EXCLAIM_EQUAL, "!=")                                              \
