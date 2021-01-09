@@ -60,6 +60,8 @@ struct IntLiteralExpressionAST;
 struct FloatLiteralExpressionAST;
 struct NullptrLiteralExpressionAST;
 struct IdExpressionAST;
+struct BinaryExpressionAST;
+struct AssignmentExpressionAST;
 
 // statements
 struct BreakStatementAST;

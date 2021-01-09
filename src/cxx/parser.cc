@@ -1876,6 +1876,14 @@ bool Parser::parse_assignment_expression(ExpressionAST*& yyast) {
 
     if (!parse_initializer_clause(expression))
       parse_error("expected an expression");
+
+    auto ast = new (pool) AssignmentExpressionAST();
+    ast->leftExpression = yyast;
+    ast->opLoc = opLoc;
+    ast->op = op;
+    ast->rightExpression = expression;
+
+    yyast = ast;
   }
 
   return true;

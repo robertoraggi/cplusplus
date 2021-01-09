@@ -24,6 +24,7 @@
 #include <cxx/ast_fwd.h>
 #include <cxx/ast_visitor.h>
 #include <cxx/source_location.h>
+#include <cxx/token.h>
 
 namespace cxx {
 
@@ -183,6 +184,24 @@ struct NestedExpressionAST final : ExpressionAST {
   SourceLocation lparenLoc;
   ExpressionAST* expression = nullptr;
   SourceLocation rparenLoc;
+
+  void visit(ASTVisitor* visitor) override { visitor->visit(this); }
+};
+
+struct BinaryExpressionAST final : ExpressionAST {
+  ExpressionAST* leftExpression = nullptr;
+  SourceLocation opLoc;
+  TokenKind op = TokenKind::T_EOF_SYMBOL;
+  ExpressionAST* rightExpression = nullptr;
+
+  void visit(ASTVisitor* visitor) override { visitor->visit(this); }
+};
+
+struct AssignmentExpressionAST final : ExpressionAST {
+  ExpressionAST* leftExpression = nullptr;
+  SourceLocation opLoc;
+  TokenKind op = TokenKind::T_EOF_SYMBOL;
+  ExpressionAST* rightExpression = nullptr;
 
   void visit(ASTVisitor* visitor) override { visitor->visit(this); }
 };
