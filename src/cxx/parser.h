@@ -163,9 +163,10 @@ class Parser {
   bool parse_delete_expression(ExpressionAST*& yyast);
   bool parse_cast_expression(ExpressionAST*& yyast);
   bool parse_cast_expression_helper(ExpressionAST*& yyast);
-  bool parse_binary_operator(TokenKind& tk, bool templArg);
+  bool parse_binary_operator(SourceLocation& loc, TokenKind& tk, bool templArg);
   bool parse_binary_expression(ExpressionAST*& yyast, bool templArg);
-  bool parse_lookahead_binary_operator(TokenKind& tk, bool templArg);
+  bool parse_lookahead_binary_operator(SourceLocation& loc, TokenKind& tk,
+                                       bool templArg);
   bool parse_binary_expression_helper(ExpressionAST*& yyast, Prec minPrec,
                                       bool templArg);
   bool parse_logical_or_expression(ExpressionAST*& yyast, bool templArg);

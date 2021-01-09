@@ -1685,9 +1685,11 @@ bool Parser::parse_cast_expression_helper(ExpressionAST*& yyast) {
   return true;
 }
 
-bool Parser::parse_binary_operator(TokenKind& tk, bool templArg) {
+bool Parser::parse_binary_operator(SourceLocation& loc, TokenKind& tk,
+                                   bool templArg) {
   const auto start = currentLocation();
 
+  loc = start;
   tk = TokenKind::T_EOF_SYMBOL;
 
   switch (TokenKind(LA())) {
@@ -1755,10 +1757,11 @@ bool Parser::parse_binary_expression(ExpressionAST*& yyast, bool templArg) {
   return true;
 }
 
-bool Parser::parse_lookahead_binary_operator(TokenKind& tk, bool templArg) {
+bool Parser::parse_lookahead_binary_operator(SourceLocation& loc, TokenKind& tk,
+                                             bool templArg) {
   const auto saved = currentLocation();
 
-  const auto has_binop = parse_binary_operator(tk, templArg);
+  const auto has_binop = parse_binary_operator(loc, tk, templArg);
 
   rewind(saved);
 
@@ -1769,14 +1772,16 @@ bool Parser::parse_binary_expression_helper(ExpressionAST*& yyast, Prec minPrec,
                                             bool templArg) {
   bool parsed = false;
 
+  SourceLocation opLoc;
   TokenKind op = TokenKind::T_EOF_SYMBOL;
 
-  while (parse_lookahead_binary_operator(op, templArg) && prec(op) >= minPrec) {
+  while (parse_lookahead_binary_operator(opLoc, op, templArg) &&
+         prec(op) >= minPrec) {
     const auto saved = currentLocation();
 
     ExpressionAST* rhs = nullptr;
 
-    parse_binary_operator(op, templArg);
+    parse_binary_operator(opLoc, op, templArg);
 
     if (!parse_cast_expression(rhs)) {
       rewind(saved);
@@ -1785,9 +1790,10 @@ bool Parser::parse_binary_expression_helper(ExpressionAST*& yyast, Prec minPrec,
 
     parsed = true;
 
+    SourceLocation nextOpLoc;
     TokenKind nextOp = TokenKind::T_EOF_SYMBOL;
 
-    while (parse_lookahead_binary_operator(nextOp, templArg) &&
+    while (parse_lookahead_binary_operator(nextOpLoc, nextOp, templArg) &&
            prec(nextOp) > prec(op)) {
       if (!parse_binary_expression_helper(rhs, prec(op), templArg)) {
         break;
