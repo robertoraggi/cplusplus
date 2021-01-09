@@ -173,6 +173,12 @@ struct UserDefinedStringLiteralExpressionAST final : ExpressionAST {
   void visit(ASTVisitor* visitor) override { visitor->visit(this); }
 };
 
+struct IdExpressionAST final : ExpressionAST {
+  NameAST* name = nullptr;
+
+  void visit(ASTVisitor* visitor) override { visitor->visit(this); }
+};
+
 struct NestedExpressionAST final : ExpressionAST {
   SourceLocation lparenLoc;
   ExpressionAST* expression = nullptr;

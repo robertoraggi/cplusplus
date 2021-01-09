@@ -59,6 +59,7 @@ struct BoolLiteralExpressionAST;
 struct IntLiteralExpressionAST;
 struct FloatLiteralExpressionAST;
 struct NullptrLiteralExpressionAST;
+struct IdExpressionAST;
 
 // statements
 struct BreakStatementAST;

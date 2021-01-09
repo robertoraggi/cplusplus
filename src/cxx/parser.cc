@@ -522,6 +522,11 @@ bool Parser::parse_primary_expression(ExpressionAST*& yyast) {
 
   if (!parse_id_expression(name)) return false;
 
+  auto ast = new (pool) IdExpressionAST();
+  yyast = ast;
+
+  ast->name = name;
+
   return true;
 }
 

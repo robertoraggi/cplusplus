@@ -36,6 +36,7 @@ struct ASTVisitor {
   virtual void visit(IntLiteralExpressionAST*) {}
   virtual void visit(FloatLiteralExpressionAST*) {}
   virtual void visit(NullptrLiteralExpressionAST*) {}
+  virtual void visit(IdExpressionAST*) {}
 
   virtual void visit(AliasDeclarationAST*) {}
   virtual void visit(ArrayDeclaratorAST*) {}
