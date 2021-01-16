@@ -226,26 +226,36 @@ namespace cxx {
 enum struct TokenKind : uint16_t { FOR_EACH_TOKEN(TOKEN_ENUM) };
 #undef TOKEN_ENUM
 
-extern const char* token_spell[];
-extern const char* token_name[];
-
 class Token {
   friend class TranslationUnit;
+
   TokenKind kind_ : 16;
   uint16_t startOfLine_ : 1;
   uint16_t leadingSpace_ : 1;
   unsigned offset_;
+  unsigned length_;
   const void* priv_;
 
  public:
-  Token(TokenKind kind = TokenKind::T_ERROR, unsigned offset = 0,
-        const void* priv = nullptr)
-      : kind_(kind), offset_(offset), priv_(priv) {}
+  Token(const Token&) = default;
+  Token& operator=(const Token&) = default;
+
+  Token(Token&&) = default;
+  Token& operator=(Token&&) = default;
+
+  Token(TokenKind kind = TokenKind::T_EOF_SYMBOL, unsigned offset = 0,
+        unsigned length = 0, const void* priv = nullptr) noexcept
+      : kind_(kind), offset_(offset), length_(length), priv_(priv) {
+    startOfLine_ = 0;
+    leadingSpace_ = 0;
+  }
 
   inline TokenKind kind() const { return kind_; }
   inline void setKind(TokenKind kind) { kind_ = kind; }
 
   inline unsigned offset() const { return offset_; }
+  inline unsigned length() const { return length_; }
+
   inline bool startOfLine() const { return startOfLine_; }
   inline bool leadingSpace() const { return leadingSpace_; }
 

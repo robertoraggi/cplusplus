@@ -76,9 +76,8 @@ std::string_view TranslationUnit::tokenText(SourceLocation loc) const {
   }
 }
 
-void TranslationUnit::getTokenStartPosition(SourceLocation loc, unsigned* line,
-                                            unsigned* column) const {
-  auto offset = tokenAt(loc).offset();
+void TranslationUnit::getTokenPosition(unsigned offset, unsigned* line,
+                                       unsigned* column) const {
   auto it = std::lower_bound(lines_.cbegin(), lines_.cend(), int(offset));
   assert(it != cbegin(lines_));
   --it;
@@ -89,10 +88,23 @@ void TranslationUnit::getTokenStartPosition(SourceLocation loc, unsigned* line,
   *column = utf8::distance(start, end);
 }
 
+void TranslationUnit::getTokenStartPosition(SourceLocation loc, unsigned* line,
+                                            unsigned* column) const {
+  auto offset = tokenAt(loc).offset();
+  getTokenPosition(offset, line, column);
+}
+
+void TranslationUnit::getTokenEndPosition(SourceLocation loc, unsigned* line,
+                                          unsigned* column) const {
+  const auto& tk = tokenAt(loc);
+  auto offset = tk.offset();
+  getTokenPosition(offset, line, column);
+}
+
 void TranslationUnit::tokenize() {
   Lexer lexer(yycode);
   TokenKind kind;
-  tokens_.emplace_back(TokenKind::T_ERROR, 0, nullptr);
+  tokens_.emplace_back(TokenKind::T_ERROR, 0, 0, nullptr);
   do {
     kind = lexer.next();
     const void* value = nullptr;
@@ -107,7 +119,7 @@ void TranslationUnit::tokenize() {
       default:
         break;
     }
-    tokens_.emplace_back(kind, lexer.tokenPos(), value);
+    tokens_.emplace_back(kind, lexer.tokenPos(), lexer.tokenLength(), value);
     auto& tok = tokens_.back();
     tok.leadingSpace_ = lexer.tokenLeadingSpace();
     tok.startOfLine_ = lexer.tokenStartOfLine();

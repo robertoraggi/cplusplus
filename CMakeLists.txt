@@ -23,7 +23,7 @@ project(cplusplus)
 
 include(FetchContent)
 
-find_package(fmt 6.1.2 CONFIG QUIET)
+find_package(fmt 7.1.3 CONFIG QUIET)
 
 set(CMAKE_CXX_STANDARD 20)
 
@@ -74,6 +74,22 @@ if(EMSCRIPTEN)
     "SHELL:-s NODERAWFS=1"
     "SHELL:-s ALLOW_MEMORY_GROWTH=1"
     )
+endif()
+
+if(EMSCRIPTEN)
+
+    add_executable(cxx-js src/cxx-js/api.cc)
+
+    target_link_libraries(cxx-js CPlusPlus)
+
+    target_link_options(cxx-js PUBLIC
+        "SHELL:--bind"
+        "SHELL:-s WASM_ASYNC_COMPILATION=0"
+        "SHELL:-s MODULARIZE=1"
+        "SHELL:-s MALLOC=emmalloc"
+        "SHELL:-s ALLOW_MEMORY_GROWTH=1"
+    )
+
 endif()
 
 add_custom_target(unit
