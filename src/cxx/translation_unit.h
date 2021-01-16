@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/ast_fwd.h>
+#include <cxx/diagnostic.h>
 #include <cxx/source_location.h>
 #include <cxx/token.h>
 #include <fmt/format.h>
@@ -37,7 +38,12 @@ namespace cxx {
 
 class Identifier;
 
-enum struct MessageKind { Message, Warning, Error, Fatal };
+class DiagnosticClient {
+ public:
+  virtual ~DiagnosticClient() = default;
+
+  virtual void report(const Diagnostic& diagtic) = 0;
+};
 
 class TranslationUnit {
   Control* control_;
@@ -51,6 +57,7 @@ class TranslationUnit {
   const char* yyptr = nullptr;
   bool fatalErrors_ = false;
   bool blockErrors_ = false;
+  DiagnosticClient* diagnosticClient_ = nullptr;
 
  public:
   TranslationUnit(const TranslationUnit&) = delete;
@@ -62,6 +69,12 @@ class TranslationUnit {
   Control* control() const { return control_; }
 
   Arena* arena() const { return arena_; }
+
+  DiagnosticClient* diagnosticClient() const { return diagnosticClient_; }
+
+  void setDiagnosticClient(DiagnosticClient* diagnosticClient) {
+    diagnosticClient_ = diagnosticClient;
+  }
 
   UnitAST* ast() const { return ast_; }
 
@@ -91,31 +104,40 @@ class TranslationUnit {
   }
 
   template <typename... Args>
-  void report(SourceLocation loc, MessageKind kind,
-              const std::string_view& format, const Args&... args) {
+  void report(SourceLocation loc, Severity kind, const std::string_view& format,
+              const Args&... args) {
     if (blockErrors_) return;
 
     unsigned line = 0, column = 0;
     getTokenStartPosition(loc, &line, &column);
 
-    std::string_view messageKind;
+    if (diagnosticClient_) {
+      unsigned line = 0, column = 0;
+      getTokenStartPosition(loc, &line, &column);
+      diagnosticClient_->report(
+          Diagnostic(kind, yyfilename, line, column,
+                     fmt::vformat(format, fmt::make_format_args(args...))));
+      return;
+    }
+
+    std::string_view Severity;
 
     switch (kind) {
-      case MessageKind::Message:
-        messageKind = "message";
+      case Severity::Message:
+        Severity = "message";
         break;
-      case MessageKind::Warning:
-        messageKind = "warning";
+      case Severity::Warning:
+        Severity = "warning";
         break;
-      case MessageKind::Error:
-        messageKind = "error";
+      case Severity::Error:
+        Severity = "error";
         break;
-      case MessageKind::Fatal:
-        messageKind = "fatal";
+      case Severity::Fatal:
+        Severity = "fatal";
         break;
     }  // switch
 
-    fmt::print(stderr, "{}:{}:{}: {}: ", yyfilename, line, column, messageKind);
+    fmt::print(stderr, "{}:{}:{}: {}: ", yyfilename, line, column, Severity);
     fmt::vprint(stderr, format, fmt::make_format_args(args...));
     fmt::print(stderr, "\n");
 
@@ -125,8 +147,7 @@ class TranslationUnit {
     cursor += "^";
     fmt::print(stderr, "{}\n{}\n", yycode.substr(start, end - start), cursor);
 
-    if (kind == MessageKind::Fatal ||
-        (kind == MessageKind::Error && fatalErrors_))
+    if (kind == Severity::Fatal || (kind == Severity::Error && fatalErrors_))
       exit(EXIT_FAILURE);
   }
 
@@ -151,6 +172,12 @@ class TranslationUnit {
 
   void getTokenStartPosition(SourceLocation loc, unsigned* line,
                              unsigned* column) const;
+
+  void getTokenEndPosition(SourceLocation loc, unsigned* line,
+                           unsigned* column) const;
+
+  void getTokenPosition(unsigned offset, unsigned* line,
+                        unsigned* column) const;
 
   const Identifier* identifier(SourceLocation loc) const;
 

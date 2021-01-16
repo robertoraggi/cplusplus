@@ -2,77 +2,83 @@ name: CI
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request:
-    branches: [ master ]
+    branches: [master]
 
 jobs:
   build-linux:
     runs-on: ubuntu-20.04
 
     steps:
-    - uses: actions/checkout@v2
-      with:
-        submodules: true
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
 
-    - name: Build
-      run: |
-        mkdir -p build
-        cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=1 .
-        cmake --build build
+      - name: Build
+        run: |
+          mkdir -p build
+          cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=1 .
+          cmake --build build
 
   build-windows:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v2
-      with:
-        submodules: true
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
 
-    - uses: actions/cache@v2
-      id: vcpkg-cache
-      with:
-        path: ~\AppData\Local\vcpkg\archives
-        key: vcpkg-cache
+      - uses: actions/cache@v2
+        id: vcpkg-cache
+        with:
+          path: ~\AppData\Local\vcpkg\archives
+          key: vcpkg-cache
 
-    - name: Build
-      run: |
-        mkdir build
-        cmake -Bbuild -DCMAKE_TOOLCHAIN_FILE=C:\Vcpkg\scripts\buildsystems\vcpkg.cmake .
-        cmake --build build
+      - name: Build
+        run: |
+          mkdir build
+          cmake -Bbuild -DCMAKE_TOOLCHAIN_FILE=C:\Vcpkg\scripts\buildsystems\vcpkg.cmake .
+          cmake --build build
 
   build-emscripten:
     runs-on: ubuntu-20.04
 
     steps:
-    - uses: actions/checkout@v2
-      with:
-        submodules: true
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
 
-    - name: Setup emsdk
-      uses: mymindstorm/setup-emsdk@master
-      with:
-        actions-cache-folder: 'emsdk-cache'
+      - name: Setup emsdk
+        uses: mymindstorm/setup-emsdk@master
+        with:
+          actions-cache-folder: "emsdk-cache"
 
-    - name: Build
-      run: |
-        mkdir -p build
-        emcmake cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_CROSSCOMPILING_EMULATOR=$(which node) .
-        cmake --build build
+      - name: Build
+        run: |
+          mkdir -p build.em
+          emcmake cmake -Bbuild.em -DCMAKE_BUILD_TYPE=Release -DCMAKE_CROSSCOMPILING_EMULATOR=$(which node) .
+          cmake --build build.em
+
+          cd packages/cxx-frontend
+          npm install
+          npm run copy
+          npm run build
+          npm pack
 
   build-macos:
     runs-on: macos-latest
 
     steps:
-    - uses: actions/checkout@v2
-      with:
-        submodules: true
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
 
-    - name: Install dependencies
-      run: brew install fmt gflags ninja
+      - name: Install dependencies
+        run: brew install fmt gflags ninja
 
-    - name: Build
-      run: |
-        mkdir -p build
-        cmake -Bbuild -G Ninja -DCMAKE_BUILD_TYPE=Release .
-        cmake --build build
+      - name: Build
+        run: |
+          mkdir -p build
+          cmake -Bbuild -G Ninja -DCMAKE_BUILD_TYPE=Release .
+          cmake --build build
