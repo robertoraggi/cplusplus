@@ -429,7 +429,6 @@ bool Parser::parse_top_level_declaration_seq(UnitAST*& yyast) {
 }
 
 bool Parser::parse_skip_top_level_declaration(bool& skipping) {
-  if (!LA()) return false;
   if (!skipping) parse_error("expected a declaration");
   skipping = true;
   return true;
@@ -2893,9 +2892,12 @@ bool Parser::parse_storage_class_specifier(SpecifierAST*& yyast) {
     case TokenKind::T_THREAD_LOCAL:
     case TokenKind::T_EXTERN:
     case TokenKind::T_MUTABLE:
-    case TokenKind::T___THREAD:
-      consumeToken();
+    case TokenKind::T___THREAD: {
+      auto ast = new (pool) SimpleSpecifierAST();
+      yyast = ast;
+      ast->loc = consumeToken();
       return true;
+    }
 
     default:
       return false;
@@ -2903,22 +2905,39 @@ bool Parser::parse_storage_class_specifier(SpecifierAST*& yyast) {
 }
 
 bool Parser::parse_function_specifier(SpecifierAST*& yyast) {
-  if (match(TokenKind::T_VIRTUAL)) return true;
+  SourceLocation virtualLoc;
+  if (match(TokenKind::T_VIRTUAL)) {
+    auto ast = new (pool) SimpleSpecifierAST();
+    yyast = ast;
+    ast->loc = virtualLoc;
+
+    return true;
+  }
 
   return parse_explicit_specifier(yyast);
 }
 
 bool Parser::parse_explicit_specifier(SpecifierAST*& yyast) {
-  if (!match(TokenKind::T_EXPLICIT)) return false;
+  SourceLocation explicitLoc;
 
-  if (match(TokenKind::T_LPAREN)) {
-    ExpressionAST* expression = nullptr;
+  if (!match(TokenKind::T_EXPLICIT, explicitLoc)) return false;
 
-    if (!parse_constant_expression(expression))
-      parse_error("expected a expression");
+  SourceLocation lparenLoc;
 
-    expect(TokenKind::T_RPAREN);
+  if (!match(TokenKind::T_LPAREN, lparenLoc)) {
+    auto ast = new (pool) SimpleSpecifierAST();
+    yyast = ast;
+    ast->loc = explicitLoc;
+
+    return true;
   }
+
+  ExpressionAST* expression = nullptr;
+
+  if (!parse_constant_expression(expression))
+    parse_error("expected a expression");
+
+  expect(TokenKind::T_RPAREN);
 
   return true;
 }
@@ -3177,10 +3196,14 @@ bool Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
     case TokenKind::T___INT128:
     case TokenKind::T___FLOAT80:
     case TokenKind::T___FLOAT128:
-    case TokenKind::T___COMPLEX__:
-      consumeToken();
+    case TokenKind::T___COMPLEX__: {
+      auto ast = new (pool) SimpleSpecifierAST();
+      yyast = ast;
+      ast->loc = consumeToken();
       specs.has_simple_typespec = true;
+
       return true;
+    }
 
     default:
       return false;

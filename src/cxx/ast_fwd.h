@@ -127,13 +127,10 @@ struct DecltypeSpecifierTypeSpecifierAST;
 struct ElaboratedTypeSpecifierAST;
 struct EnumSpecifierAST;
 struct ExplicitSpecifierAST;
-struct FunctionSpecifierAST;
 struct NamedTypeSpecifierAST;
 struct PlaceholderTypeSpecifierAST;
 struct PlaceholderTypeSpecifierHelperAST;
-struct PrimitiveTypeSpecifierAST;
-struct SimpleTypeSpecifierAST;
-struct StorageClassSpecifierAST;
+struct SimpleSpecifierAST;
 struct TypenameSpecifierAST;
 struct UnderlyingTypeSpecifierAST;
 

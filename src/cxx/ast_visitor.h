@@ -77,7 +77,6 @@ struct ASTVisitor {
   virtual void visit(ForStatementAST*) {}
   virtual void visit(FunctionDeclaratorAST*) {}
   virtual void visit(FunctionDefinitionAST*) {}
-  virtual void visit(FunctionSpecifierAST*) {}
   virtual void visit(GotoStatementAST*) {}
   virtual void visit(HandlerAST*) {}
   virtual void visit(IdDeclaratorAST*) {}
@@ -96,15 +95,13 @@ struct ASTVisitor {
   virtual void visit(PlaceholderTypeSpecifierAST*) {}
   virtual void visit(PlaceholderTypeSpecifierHelperAST*) {}
   virtual void visit(PointerOperatorAST*) {}
-  virtual void visit(PrimitiveTypeSpecifierAST*) {}
   virtual void visit(PtrToMemberOperatorAST*) {}
   virtual void visit(ReferenceOperatorAST*) {}
   virtual void visit(ReturnStatementAST*) {}
   virtual void visit(SimpleDeclarationAST*) {}
   virtual void visit(SimpleNameAST*) {}
-  virtual void visit(SimpleTypeSpecifierAST*) {}
+  virtual void visit(SimpleSpecifierAST*) {}
   virtual void visit(StaticAssertDeclarationAST*) {}
-  virtual void visit(StorageClassSpecifierAST*) {}
   virtual void visit(SwitchStatementAST*) {}
   virtual void visit(TemplateArgumentAST*) {}
   virtual void visit(TemplateDeclarationAST*) {}

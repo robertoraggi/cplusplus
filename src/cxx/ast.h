@@ -581,19 +581,13 @@ struct TemplateNameAST final : NameAST {
 
 // specifiers
 
-struct StorageClassSpecifierAST final : SpecifierAST {
-  void visit(ASTVisitor* visitor) override { visitor->visit(this); }
-};
+struct SimpleSpecifierAST final : SpecifierAST {
+  SourceLocation loc;
 
-struct FunctionSpecifierAST final : SpecifierAST {
   void visit(ASTVisitor* visitor) override { visitor->visit(this); }
 };
 
 struct ExplicitSpecifierAST final : SpecifierAST {
-  void visit(ASTVisitor* visitor) override { visitor->visit(this); }
-};
-
-struct SimpleTypeSpecifierAST final : SpecifierAST {
   void visit(ASTVisitor* visitor) override { visitor->visit(this); }
 };
 
@@ -614,10 +608,6 @@ struct UnderlyingTypeSpecifierAST final : SpecifierAST {
 };
 
 struct AtomicTypeSpecifierAST final : SpecifierAST {
-  void visit(ASTVisitor* visitor) override { visitor->visit(this); }
-};
-
-struct PrimitiveTypeSpecifierAST final : SpecifierAST {
   void visit(ASTVisitor* visitor) override { visitor->visit(this); }
 };
 
