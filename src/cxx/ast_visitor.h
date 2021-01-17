@@ -76,6 +76,7 @@ struct ASTVisitor {
   virtual void visit(ForRangeStatementAST*) {}
   virtual void visit(ForStatementAST*) {}
   virtual void visit(FunctionDeclaratorAST*) {}
+  virtual void visit(FunctionDefinitionAST*) {}
   virtual void visit(FunctionSpecifierAST*) {}
   virtual void visit(GotoStatementAST*) {}
   virtual void visit(HandlerAST*) {}

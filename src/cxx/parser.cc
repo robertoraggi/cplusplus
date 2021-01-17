@@ -2635,13 +2635,39 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
   if (parse_declarator_id(declaratorId)) {
     if (parse_parameters_and_qualifiers()) {
       if (match(TokenKind::T_SEMICOLON)) return true;
-      if (fundef && parse_function_definition_body()) return true;
+
+      StatementAST* functionBody = nullptr;
+
+      if (fundef && parse_function_definition_body(functionBody)) {
+        auto declarator = new (pool) DeclaratorAST();
+        declarator->coreDeclarator = declaratorId;
+
+        auto functionDeclarator = new (pool) FunctionDeclaratorAST();
+
+        declarator->modifiers =
+            new (pool) List<DeclaratorModifierAST*>(functionDeclarator);
+
+        auto ast = new (pool) FunctionDefinitionAST();
+        yyast = ast;
+
+        ast->declSpecifierList = declSpecifierList;
+        ast->declarator = declarator;
+        ast->functionBody = functionBody;
+
+        return true;
+      }
     }
   }
 
   rewind(after_decl_specs);
 
-  if (!parse_decl_specifier_seq(declSpecifierList, specs))
+  auto lastDeclSpecifier = &declSpecifierList;
+
+  while (*lastDeclSpecifier) {
+    lastDeclSpecifier = &(*lastDeclSpecifier)->next;
+  }
+
+  if (!parse_decl_specifier_seq(*lastDeclSpecifier, specs))
     rewind(after_decl_specs);
 
   after_decl_specs = currentLocation();
@@ -2671,7 +2697,18 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
   if (match(TokenKind::T_SEMICOLON)) return true;
 
   if (fundef && getFunctionDeclarator(declarator)) {
-    if (parse_function_definition_body()) return true;
+    StatementAST* functionBody = nullptr;
+
+    if (parse_function_definition_body(functionBody)) {
+      auto ast = new (pool) FunctionDefinitionAST();
+      yyast = ast;
+
+      ast->declSpecifierList = declSpecifierList;
+      ast->declarator = declarator;
+      ast->functionBody = functionBody;
+
+      return true;
+    }
 
     rewind(after_declarator);
   }
@@ -2689,14 +2726,14 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
   return true;
 }
 
-bool Parser::parse_function_definition_body() {
+bool Parser::parse_function_definition_body(StatementAST*& yyast) {
   if (parse_requires_clause()) {
     //
   } else {
     parse_virt_specifier_seq();
   }
 
-  return parse_function_body();
+  return parse_function_body(yyast);
 }
 
 bool Parser::parse_static_assert_declaration(DeclarationAST*& yyast) {
@@ -3922,10 +3959,10 @@ bool Parser::parse_virt_specifier_seq() {
   return true;
 }
 
-bool Parser::parse_function_body() {
+bool Parser::parse_function_body(StatementAST*& yyast) {
   if (LA().is(TokenKind::T_SEMICOLON)) return false;
 
-  if (parse_function_try_block()) return true;
+  if (parse_function_try_block(yyast)) return true;
 
   if (match(TokenKind::T_EQUAL)) {
     if (match(TokenKind::T_DEFAULT)) {
@@ -3963,12 +4000,10 @@ bool Parser::parse_function_body() {
     }
 
     expect(TokenKind::T_RBRACE);
+  } else {
+    if (!parse_compound_statement(yyast))
+      parse_error("expected a compound statement");
   }
-
-  StatementAST* statement = nullptr;
-
-  if (!parse_compound_statement(statement))
-    parse_error("expected a compound statement");
 
   return true;
 }
@@ -5005,7 +5040,26 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
     if (parse_parameters_and_qualifiers()) {
       const auto after_parameters = currentLocation();
 
-      if (parse_member_function_definition_body()) return true;
+      StatementAST* functionBody = nullptr;
+
+      if (parse_member_function_definition_body(functionBody)) {
+        DeclaratorAST* declarator = new (pool) DeclaratorAST();
+        declarator->coreDeclarator = declaratorId;
+
+        auto functionDeclarator = new (pool) FunctionDeclaratorAST();
+
+        declarator->modifiers =
+            new (pool) List<DeclaratorModifierAST*>(functionDeclarator);
+
+        auto ast = new (pool) FunctionDefinitionAST();
+        yyast = ast;
+
+        ast->declSpecifierList = declSpecifierList;
+        ast->declarator = declarator;
+        ast->functionBody = functionBody;
+
+        return true;
+      }
 
       rewind(after_parameters);
 
@@ -5017,7 +5071,13 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
 
   rewind(after_decl_specs);
 
-  if (!parse_decl_specifier_seq(declSpecifierList, specs))
+  auto lastDeclSpecifier = &declSpecifierList;
+
+  while (*lastDeclSpecifier) {
+    lastDeclSpecifier = &(*lastDeclSpecifier)->next;
+  }
+
+  if (!parse_decl_specifier_seq(*lastDeclSpecifier, specs))
     rewind(after_decl_specs);
 
   after_decl_specs = currentLocation();
@@ -5029,7 +5089,18 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
   DeclaratorAST* declarator = nullptr;
 
   if (parse_declarator(declarator) && getFunctionDeclarator(declarator)) {
-    if (parse_member_function_definition_body()) return true;
+    StatementAST* functionBody = nullptr;
+
+    if (parse_member_function_definition_body(functionBody)) {
+      auto ast = new (pool) FunctionDefinitionAST();
+      yyast = ast;
+
+      ast->declSpecifierList = declSpecifierList;
+      ast->declarator = declarator;
+      ast->functionBody = functionBody;
+
+      return true;
+    }
   }
 
   rewind(after_decl_specs);
@@ -5044,14 +5115,14 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
   return true;
 }
 
-bool Parser::parse_member_function_definition_body() {
+bool Parser::parse_member_function_definition_body(StatementAST*& yyast) {
   const auto has_requires_clause = parse_requires_clause();
 
   bool has_virt_specifier_seq = false;
 
   if (!has_requires_clause) has_virt_specifier_seq = parse_virt_specifier_seq();
 
-  if (!parse_function_body()) return false;
+  if (!parse_function_body(yyast)) return false;
 
   return true;
 }
@@ -5962,7 +6033,7 @@ bool Parser::parse_try_block(StatementAST*& yyast) {
   return true;
 }
 
-bool Parser::parse_function_try_block() {
+bool Parser::parse_function_try_block(StatementAST*& yyast) {
   if (!match(TokenKind::T_TRY)) return false;
 
   if (LA().isNot(TokenKind::T_LBRACE)) {

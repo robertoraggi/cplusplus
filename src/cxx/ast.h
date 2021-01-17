@@ -374,6 +374,14 @@ struct TryBlockStatementAST final : StatementAST {
 
 // declarations
 
+struct FunctionDefinitionAST final : DeclarationAST {
+  List<SpecifierAST*>* declSpecifierList = nullptr;
+  DeclaratorAST* declarator = nullptr;
+  StatementAST* functionBody = nullptr;
+
+  void visit(ASTVisitor* visitor) override { visitor->visit(this); }
+};
+
 struct ConceptDefinitionAST final : DeclarationAST {
   SourceLocation conceptLoc;
   NameAST* name = nullptr;

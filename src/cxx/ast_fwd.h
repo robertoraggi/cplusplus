@@ -46,6 +46,7 @@ struct TemplateArgumentAST;
 struct HandlerAST;
 struct ExceptionDeclarationAST;
 
+// exceptions declarations
 struct EllipsisExceptionDeclarationAST;
 struct TypeExceptionDeclarationAST;
 
@@ -93,6 +94,7 @@ struct EmptyDeclarationAST;
 struct ExplicitInstantiationAST;
 struct ExportDeclarationAST;
 struct ForRangeDeclarationAST;
+struct FunctionDefinitionAST;
 struct LinkageSpecificationAST;
 struct ModuleImportDeclarationAST;
 struct NamespaceAliasDefinitionAST;
