@@ -21,8 +21,13 @@
 #pragma once
 
 #include <functional>
+#include <tuple>
 
 namespace cxx {
+
+class SourceLocation;
+
+using SourceLocationRange = std::tuple<SourceLocation, SourceLocation>;
 
 class SourceLocation {
   unsigned int index_ = 0;
