@@ -29,8 +29,8 @@ mkdir -p build.em
 emcmake cmake -Bbuild.em \
     -DCMAKE_EXPORT_COMPILE_COMMANDS=1 \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_CROSSCOMPILING_EMULATOR=$(which node) .
+    -DCMAKE_CROSSCOMPILING_EMULATOR=$(which node) \
+    .
 
 # build
 cmake --build build.em
