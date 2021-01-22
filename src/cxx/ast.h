@@ -41,7 +41,13 @@ struct AST : Managed {
   virtual ~AST();
 
   virtual void accept(ASTVisitor* visitor) = 0;
-  virtual SourceLocationRange sourceLocationRange() = 0;
+
+  virtual SourceLocation firstSourceLocation() = 0;
+  virtual SourceLocation lastSourceLocation() = 0;
+
+  SourceLocationRange sourceLocationRange() {
+    return SourceLocationRange(firstSourceLocation(), lastSourceLocation());
+  }
 };
 
 struct UnitAST : AST {};
@@ -73,12 +79,16 @@ struct TypeIdAST final : AST {
   DeclaratorAST* declarator = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct NestedNameSpecifierAST final : AST {
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct UsingDeclaratorAST final : AST {
@@ -87,7 +97,9 @@ struct UsingDeclaratorAST final : AST {
   NameAST* name = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct HandlerAST final : AST {
@@ -98,7 +110,9 @@ struct HandlerAST final : AST {
   StatementAST* statement = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 // exception declarations
@@ -107,7 +121,9 @@ struct EllipsisExceptionDeclarationAST final : ExceptionDeclarationAST {
   SourceLocation ellipsisLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct TypeExceptionDeclarationAST final : ExceptionDeclarationAST {
@@ -116,7 +132,9 @@ struct TypeExceptionDeclarationAST final : ExceptionDeclarationAST {
   DeclaratorAST* declarator = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 // units
@@ -125,12 +143,16 @@ struct TranslationUnitAST final : UnitAST {
   List<DeclarationAST*>* declarationList = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct ModuleUnitAST final : UnitAST {
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 // expressions
@@ -139,63 +161,81 @@ struct ThisExpressionAST final : ExpressionAST {
   SourceLocation thisLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct CharLiteralExpressionAST final : ExpressionAST {
   SourceLocation literalLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct BoolLiteralExpressionAST final : ExpressionAST {
   SourceLocation literalLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct IntLiteralExpressionAST final : ExpressionAST {
   SourceLocation literalLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct FloatLiteralExpressionAST final : ExpressionAST {
   SourceLocation literalLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct NullptrLiteralExpressionAST final : ExpressionAST {
   SourceLocation literalLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct StringLiteralExpressionAST final : ExpressionAST {
   List<SourceLocation>* stringLiteralList = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct UserDefinedStringLiteralExpressionAST final : ExpressionAST {
   SourceLocation literalLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct IdExpressionAST final : ExpressionAST {
   NameAST* name = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct NestedExpressionAST final : ExpressionAST {
@@ -204,7 +244,9 @@ struct NestedExpressionAST final : ExpressionAST {
   SourceLocation rparenLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct BinaryExpressionAST final : ExpressionAST {
@@ -214,7 +256,9 @@ struct BinaryExpressionAST final : ExpressionAST {
   ExpressionAST* rightExpression = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct AssignmentExpressionAST final : ExpressionAST {
@@ -224,7 +268,9 @@ struct AssignmentExpressionAST final : ExpressionAST {
   ExpressionAST* rightExpression = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 // statements
@@ -235,7 +281,9 @@ struct LabeledStatementAST final : StatementAST {
   StatementAST* statement = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct CaseStatementAST final : StatementAST {
@@ -245,7 +293,9 @@ struct CaseStatementAST final : StatementAST {
   StatementAST* statement = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct DefaultStatementAST final : StatementAST {
@@ -254,7 +304,9 @@ struct DefaultStatementAST final : StatementAST {
   StatementAST* statement = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct ExpressionStatementAST final : StatementAST {
@@ -262,7 +314,9 @@ struct ExpressionStatementAST final : StatementAST {
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct CompoundStatementAST final : StatementAST {
@@ -271,7 +325,9 @@ struct CompoundStatementAST final : StatementAST {
   SourceLocation rbraceLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct IfStatementAST final : StatementAST {
@@ -285,7 +341,9 @@ struct IfStatementAST final : StatementAST {
   StatementAST* elseStatement = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct SwitchStatementAST final : StatementAST {
@@ -297,7 +355,9 @@ struct SwitchStatementAST final : StatementAST {
   StatementAST* statement = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct WhileStatementAST final : StatementAST {
@@ -308,7 +368,9 @@ struct WhileStatementAST final : StatementAST {
   StatementAST* statement = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct DoStatementAST final : StatementAST {
@@ -321,7 +383,9 @@ struct DoStatementAST final : StatementAST {
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct ForRangeStatementAST final : StatementAST {
@@ -335,7 +399,9 @@ struct ForRangeStatementAST final : StatementAST {
   StatementAST* statement = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct ForStatementAST final : StatementAST {
@@ -349,7 +415,9 @@ struct ForStatementAST final : StatementAST {
   StatementAST* statement = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct BreakStatementAST final : StatementAST {
@@ -357,7 +425,9 @@ struct BreakStatementAST final : StatementAST {
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct ContinueStatementAST final : StatementAST {
@@ -365,7 +435,9 @@ struct ContinueStatementAST final : StatementAST {
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct ReturnStatementAST final : StatementAST {
@@ -374,7 +446,9 @@ struct ReturnStatementAST final : StatementAST {
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct GotoStatementAST final : StatementAST {
@@ -383,7 +457,9 @@ struct GotoStatementAST final : StatementAST {
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct CoroutineReturnStatementAST final : StatementAST {
@@ -392,14 +468,18 @@ struct CoroutineReturnStatementAST final : StatementAST {
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct DeclarationStatementAST final : StatementAST {
   DeclarationAST* declaration = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct TryBlockStatementAST final : StatementAST {
@@ -408,7 +488,9 @@ struct TryBlockStatementAST final : StatementAST {
   List<HandlerAST*>* handlerList = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 // declarations
@@ -419,7 +501,9 @@ struct FunctionDefinitionAST final : DeclarationAST {
   StatementAST* functionBody = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct ConceptDefinitionAST final : DeclarationAST {
@@ -430,12 +514,16 @@ struct ConceptDefinitionAST final : DeclarationAST {
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct ForRangeDeclarationAST final : DeclarationAST {
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct AliasDeclarationAST final : DeclarationAST {
@@ -447,7 +535,9 @@ struct AliasDeclarationAST final : DeclarationAST {
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct SimpleDeclarationAST final : DeclarationAST {
@@ -457,7 +547,9 @@ struct SimpleDeclarationAST final : DeclarationAST {
   SourceLocation semicolonToken;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct StaticAssertDeclarationAST final : DeclarationAST {
@@ -470,14 +562,18 @@ struct StaticAssertDeclarationAST final : DeclarationAST {
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct EmptyDeclarationAST final : DeclarationAST {
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct AttributeDeclarationAST final : DeclarationAST {
@@ -485,7 +581,9 @@ struct AttributeDeclarationAST final : DeclarationAST {
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct OpaqueEnumDeclarationAST final : DeclarationAST {
@@ -498,12 +596,16 @@ struct OpaqueEnumDeclarationAST final : DeclarationAST {
   SourceLocation emicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct UsingEnumDeclarationAST final : DeclarationAST {
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct NamespaceDefinitionAST final : DeclarationAST {
@@ -518,7 +620,9 @@ struct NamespaceDefinitionAST final : DeclarationAST {
   SourceLocation rbraceLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct NamespaceAliasDefinitionAST final : DeclarationAST {
@@ -530,12 +634,16 @@ struct NamespaceAliasDefinitionAST final : DeclarationAST {
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct UsingDirectiveAST final : DeclarationAST {
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct UsingDeclarationAST final : DeclarationAST {
@@ -544,7 +652,9 @@ struct UsingDeclarationAST final : DeclarationAST {
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct AsmDeclarationAST final : DeclarationAST {
@@ -556,22 +666,30 @@ struct AsmDeclarationAST final : DeclarationAST {
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct LinkageSpecificationAST final : DeclarationAST {
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct ExportDeclarationAST final : DeclarationAST {
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct ModuleImportDeclarationAST final : DeclarationAST {
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct TemplateDeclarationAST final : DeclarationAST {
@@ -582,12 +700,16 @@ struct TemplateDeclarationAST final : DeclarationAST {
   DeclarationAST* declaration = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct DeductionGuideAST final : DeclarationAST {
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct ExplicitInstantiationAST final : DeclarationAST {
@@ -596,7 +718,9 @@ struct ExplicitInstantiationAST final : DeclarationAST {
   DeclarationAST* declaration = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 // names
@@ -605,7 +729,9 @@ struct SimpleNameAST final : NameAST {
   SourceLocation identifierLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct DestructorNameAST final : NameAST {
@@ -613,26 +739,34 @@ struct DestructorNameAST final : NameAST {
   NameAST* name = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct DecltypeNameAST final : NameAST {
   SpecifierAST* decltypeSpecifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct OperatorNameAST final : NameAST {
   SourceLocation loc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct TemplateArgumentAST final : AST {
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct TemplateNameAST final : NameAST {
@@ -642,7 +776,9 @@ struct TemplateNameAST final : NameAST {
   SourceLocation greaterLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 // specifiers
@@ -651,59 +787,81 @@ struct SimpleSpecifierAST final : SpecifierAST {
   SourceLocation loc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct ExplicitSpecifierAST final : SpecifierAST {
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct NamedTypeSpecifierAST final : SpecifierAST {
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct PlaceholderTypeSpecifierHelperAST final : SpecifierAST {
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct DecltypeSpecifierTypeSpecifierAST final : SpecifierAST {
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct UnderlyingTypeSpecifierAST final : SpecifierAST {
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct AtomicTypeSpecifierAST final : SpecifierAST {
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct ElaboratedTypeSpecifierAST final : SpecifierAST {
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct DecltypeSpecifierAST final : SpecifierAST {
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct PlaceholderTypeSpecifierAST final : SpecifierAST {
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct CvQualifierAST final : SpecifierAST {
   SourceLocation qualifierLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct EnumBaseAST final : AST {
@@ -711,7 +869,9 @@ struct EnumBaseAST final : AST {
   List<SpecifierAST*>* typeSpecifierList = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct EnumeratorAST final : AST {
@@ -721,7 +881,9 @@ struct EnumeratorAST final : AST {
   ExpressionAST* expression = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct EnumSpecifierAST final : SpecifierAST {
@@ -737,7 +899,9 @@ struct EnumSpecifierAST final : SpecifierAST {
   SourceLocation rbraceLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct ClassSpecifierAST final : SpecifierAST {
@@ -749,12 +913,16 @@ struct ClassSpecifierAST final : SpecifierAST {
   SourceLocation rbraceLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct TypenameSpecifierAST final : SpecifierAST {
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 // declarators
@@ -765,7 +933,9 @@ struct DeclaratorAST final : AST {
   List<DeclaratorModifierAST*>* modifiers = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct IdDeclaratorAST final : CoreDeclaratorAST {
@@ -774,7 +944,9 @@ struct IdDeclaratorAST final : CoreDeclaratorAST {
   List<AttributeAST*>* attributeList = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct NestedDeclaratorAST final : CoreDeclaratorAST {
@@ -783,7 +955,9 @@ struct NestedDeclaratorAST final : CoreDeclaratorAST {
   SourceLocation rparenLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct PointerOperatorAST final : PtrOperatorAST {
@@ -792,7 +966,9 @@ struct PointerOperatorAST final : PtrOperatorAST {
   List<SpecifierAST*>* cvQualifierList = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct ReferenceOperatorAST final : PtrOperatorAST {
@@ -800,7 +976,9 @@ struct ReferenceOperatorAST final : PtrOperatorAST {
   List<AttributeAST*>* attributeList = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct PtrToMemberOperatorAST final : PtrOperatorAST {
@@ -810,12 +988,16 @@ struct PtrToMemberOperatorAST final : PtrOperatorAST {
   List<SpecifierAST*>* cvQualifierList = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct FunctionDeclaratorAST final : DeclaratorModifierAST {
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 struct ArrayDeclaratorAST final : DeclaratorModifierAST {
@@ -825,7 +1007,9 @@ struct ArrayDeclaratorAST final : DeclaratorModifierAST {
   List<AttributeAST*>* attributeList = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-  SourceLocationRange sourceLocationRange() override;
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
 };
 
 }  // namespace cxx

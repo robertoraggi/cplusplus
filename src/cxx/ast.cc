@@ -24,361 +24,683 @@ namespace cxx {
 
 AST::~AST() = default;
 
-SourceLocationRange TypeIdAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation TypeIdAST::firstSourceLocation() { return SourceLocation(); }
+
+SourceLocation NestedNameSpecifierAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation UsingDeclaratorAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation HandlerAST::firstSourceLocation() { return SourceLocation(); }
+
+SourceLocation EllipsisExceptionDeclarationAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation TypeExceptionDeclarationAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation TranslationUnitAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation ModuleUnitAST::firstSourceLocation() { return SourceLocation(); }
+
+SourceLocation ThisExpressionAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation CharLiteralExpressionAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation BoolLiteralExpressionAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation IntLiteralExpressionAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation FloatLiteralExpressionAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation NullptrLiteralExpressionAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation StringLiteralExpressionAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation UserDefinedStringLiteralExpressionAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation IdExpressionAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation NestedExpressionAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation BinaryExpressionAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation AssignmentExpressionAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation LabeledStatementAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation CaseStatementAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation DefaultStatementAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation ExpressionStatementAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation CompoundStatementAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation IfStatementAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation SwitchStatementAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation WhileStatementAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation DoStatementAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation ForRangeStatementAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation ForStatementAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation BreakStatementAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation ContinueStatementAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation ReturnStatementAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation GotoStatementAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation CoroutineReturnStatementAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation DeclarationStatementAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation TryBlockStatementAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation FunctionDefinitionAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation ConceptDefinitionAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation ForRangeDeclarationAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation AliasDeclarationAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation SimpleDeclarationAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation StaticAssertDeclarationAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation EmptyDeclarationAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation AttributeDeclarationAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation OpaqueEnumDeclarationAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation UsingEnumDeclarationAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation NamespaceDefinitionAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation NamespaceAliasDefinitionAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation UsingDirectiveAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation UsingDeclarationAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation AsmDeclarationAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation LinkageSpecificationAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation ExportDeclarationAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation ModuleImportDeclarationAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation TemplateDeclarationAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation DeductionGuideAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation ExplicitInstantiationAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation SimpleNameAST::firstSourceLocation() { return SourceLocation(); }
+
+SourceLocation DestructorNameAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation DecltypeNameAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation OperatorNameAST::firstSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange NestedNameSpecifierAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation TemplateArgumentAST::firstSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange UsingDeclaratorAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation TemplateNameAST::firstSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange HandlerAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation SimpleSpecifierAST::firstSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange EllipsisExceptionDeclarationAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation ExplicitSpecifierAST::firstSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange TypeExceptionDeclarationAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation NamedTypeSpecifierAST::firstSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange TranslationUnitAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation PlaceholderTypeSpecifierHelperAST::firstSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange ModuleUnitAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation DecltypeSpecifierTypeSpecifierAST::firstSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange ThisExpressionAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation UnderlyingTypeSpecifierAST::firstSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange CharLiteralExpressionAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation AtomicTypeSpecifierAST::firstSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange BoolLiteralExpressionAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation ElaboratedTypeSpecifierAST::firstSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange IntLiteralExpressionAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation DecltypeSpecifierAST::firstSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange FloatLiteralExpressionAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation PlaceholderTypeSpecifierAST::firstSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange NullptrLiteralExpressionAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation CvQualifierAST::firstSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange StringLiteralExpressionAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation EnumBaseAST::firstSourceLocation() { return SourceLocation(); }
+
+SourceLocation EnumeratorAST::firstSourceLocation() { return SourceLocation(); }
+
+SourceLocation EnumSpecifierAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation ClassSpecifierAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation TypenameSpecifierAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation DeclaratorAST::firstSourceLocation() { return SourceLocation(); }
+
+SourceLocation IdDeclaratorAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation NestedDeclaratorAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation PointerOperatorAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation ReferenceOperatorAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation PtrToMemberOperatorAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation FunctionDeclaratorAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation ArrayDeclaratorAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+// last source location
+SourceLocation TypeIdAST::lastSourceLocation() { return SourceLocation(); }
+
+SourceLocation NestedNameSpecifierAST::lastSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation UsingDeclaratorAST::lastSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation HandlerAST::lastSourceLocation() { return SourceLocation(); }
+
+SourceLocation EllipsisExceptionDeclarationAST::lastSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation TypeExceptionDeclarationAST::lastSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation TranslationUnitAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange
-UserDefinedStringLiteralExpressionAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation ModuleUnitAST::lastSourceLocation() { return SourceLocation(); }
+
+SourceLocation ThisExpressionAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange IdExpressionAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation CharLiteralExpressionAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange NestedExpressionAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation BoolLiteralExpressionAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange BinaryExpressionAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation IntLiteralExpressionAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange AssignmentExpressionAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation FloatLiteralExpressionAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange LabeledStatementAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation NullptrLiteralExpressionAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange CaseStatementAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation StringLiteralExpressionAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange DefaultStatementAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation UserDefinedStringLiteralExpressionAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange ExpressionStatementAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation IdExpressionAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange CompoundStatementAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation NestedExpressionAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange IfStatementAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation BinaryExpressionAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange SwitchStatementAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation AssignmentExpressionAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange WhileStatementAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation LabeledStatementAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange DoStatementAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation CaseStatementAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange ForRangeStatementAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation DefaultStatementAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange ForStatementAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation ExpressionStatementAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange BreakStatementAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation CompoundStatementAST::lastSourceLocation() {
+  return SourceLocation();
 }
+
+SourceLocation IfStatementAST::lastSourceLocation() { return SourceLocation(); }
 
-SourceLocationRange ContinueStatementAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation SwitchStatementAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange ReturnStatementAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation WhileStatementAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange GotoStatementAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation DoStatementAST::lastSourceLocation() { return SourceLocation(); }
+
+SourceLocation ForRangeStatementAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange CoroutineReturnStatementAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation ForStatementAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange DeclarationStatementAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation BreakStatementAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange TryBlockStatementAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation ContinueStatementAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange FunctionDefinitionAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation ReturnStatementAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange ConceptDefinitionAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation GotoStatementAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange ForRangeDeclarationAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation CoroutineReturnStatementAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange AliasDeclarationAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation DeclarationStatementAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange SimpleDeclarationAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation TryBlockStatementAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange StaticAssertDeclarationAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation FunctionDefinitionAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange EmptyDeclarationAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation ConceptDefinitionAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange AttributeDeclarationAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation ForRangeDeclarationAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange OpaqueEnumDeclarationAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation AliasDeclarationAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange UsingEnumDeclarationAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation SimpleDeclarationAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange NamespaceDefinitionAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation StaticAssertDeclarationAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange NamespaceAliasDefinitionAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation EmptyDeclarationAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange UsingDirectiveAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation AttributeDeclarationAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange UsingDeclarationAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation OpaqueEnumDeclarationAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange AsmDeclarationAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation UsingEnumDeclarationAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange LinkageSpecificationAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation NamespaceDefinitionAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange ExportDeclarationAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation NamespaceAliasDefinitionAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange ModuleImportDeclarationAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation UsingDirectiveAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange TemplateDeclarationAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation UsingDeclarationAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange DeductionGuideAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation AsmDeclarationAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange ExplicitInstantiationAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation LinkageSpecificationAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange SimpleNameAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation ExportDeclarationAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange DestructorNameAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation ModuleImportDeclarationAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange DecltypeNameAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation TemplateDeclarationAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange OperatorNameAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation DeductionGuideAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange TemplateArgumentAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation ExplicitInstantiationAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange TemplateNameAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation SimpleNameAST::lastSourceLocation() { return SourceLocation(); }
+
+SourceLocation DestructorNameAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange SimpleSpecifierAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation DecltypeNameAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange ExplicitSpecifierAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation OperatorNameAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange NamedTypeSpecifierAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation TemplateArgumentAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange PlaceholderTypeSpecifierHelperAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation TemplateNameAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange DecltypeSpecifierTypeSpecifierAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation SimpleSpecifierAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange UnderlyingTypeSpecifierAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation ExplicitSpecifierAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange AtomicTypeSpecifierAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation NamedTypeSpecifierAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange ElaboratedTypeSpecifierAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation PlaceholderTypeSpecifierHelperAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange DecltypeSpecifierAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation DecltypeSpecifierTypeSpecifierAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange PlaceholderTypeSpecifierAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation UnderlyingTypeSpecifierAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange CvQualifierAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation AtomicTypeSpecifierAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange EnumBaseAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation ElaboratedTypeSpecifierAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange EnumeratorAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation DecltypeSpecifierAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange EnumSpecifierAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation PlaceholderTypeSpecifierAST::lastSourceLocation() {
+  return SourceLocation();
 }
+
+SourceLocation CvQualifierAST::lastSourceLocation() { return SourceLocation(); }
 
-SourceLocationRange ClassSpecifierAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation EnumBaseAST::lastSourceLocation() { return SourceLocation(); }
+
+SourceLocation EnumeratorAST::lastSourceLocation() { return SourceLocation(); }
+
+SourceLocation EnumSpecifierAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange TypenameSpecifierAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation ClassSpecifierAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange DeclaratorAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation TypenameSpecifierAST::lastSourceLocation() {
+  return SourceLocation();
 }
+
+SourceLocation DeclaratorAST::lastSourceLocation() { return SourceLocation(); }
 
-SourceLocationRange IdDeclaratorAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation IdDeclaratorAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange NestedDeclaratorAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation NestedDeclaratorAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange PointerOperatorAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation PointerOperatorAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange ReferenceOperatorAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation ReferenceOperatorAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange PtrToMemberOperatorAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation PtrToMemberOperatorAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange FunctionDeclaratorAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation FunctionDeclaratorAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
-SourceLocationRange ArrayDeclaratorAST::sourceLocationRange() {
-  return SourceLocationRange();
+SourceLocation ArrayDeclaratorAST::lastSourceLocation() {
+  return SourceLocation();
 }
 
 }  // namespace cxx
