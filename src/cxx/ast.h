@@ -50,6 +50,38 @@ struct AST : Managed {
   }
 };
 
+inline SourceLocation firstSourceLocation(SourceLocation loc) { return loc; }
+
+template <typename T>
+inline SourceLocation firstSourceLocation(T* node) {
+  return node ? node->firstSourceLocation() : SourceLocation();
+}
+
+template <typename T>
+inline SourceLocation firstSourceLocation(List<T>* nodes) {
+  for (auto it = nodes; it; it = it->next) {
+    if (auto loc = firstSourceLocation(it->value)) return loc;
+  }
+  return SourceLocation();
+}
+
+inline SourceLocation lastSourceLocation(SourceLocation loc) {
+  return loc ? loc.next() : SourceLocation();
+}
+
+template <typename T>
+inline SourceLocation lastSourceLocation(T* node) {
+  return node ? node->lastSourceLocation() : SourceLocation();
+}
+
+template <typename T>
+inline SourceLocation lastSourceLocation(List<T>* nodes) {
+  if (!nodes) return SourceLocation();
+  if (auto loc = lastSourceLocation(nodes->next)) return loc;
+  if (auto loc = lastSourceLocation(nodes->value)) return loc;
+  return SourceLocation();
+}
+
 struct UnitAST : AST {};
 
 struct DeclarationAST : AST {};
