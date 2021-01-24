@@ -22,6 +22,7 @@
 #include <cxx/ast_visitor.h>
 #include <cxx/control.h>
 #include <cxx/lexer.h>
+#include <cxx/recursive_ast_visitor.h>
 #include <cxx/translation_unit.h>
 #include <fmt/format.h>
 #include <fmt/ostream.h>
@@ -31,7 +32,54 @@
 #include <iostream>
 #include <string>
 
+#if defined(__has_include)
+#if __has_include(<cxxabi.h>)
+#include <cxxabi.h>
+#define WITH_CXXABI
+#endif
+#endif
+
 namespace cxx {
+
+class DumpAST final : RecursiveASTVisitor {
+  TranslationUnit* unit_;
+  int depth_ = 0;
+
+  bool preVisit(AST* ast) override {
+    std::string ind(depth_ * 2, ' ');
+
+    std::string_view name = typeid(*ast).name();
+
+#ifdef WITH_CXXABI
+    int status = 0;
+    auto mangled = abi::__cxa_demangle(name.data(), nullptr, 0, &status);
+    name = mangled;
+#endif
+
+#if 0
+    if (ast->firstSourceLocation())
+      unit_->report(ast->firstSourceLocation(), Severity::Message, "{}{}", ind,
+                    name);
+#else
+    fmt::print("{}{}\n", ind, name);
+#endif
+
+#ifdef WITH_CXXABI
+    std::free(mangled);
+#endif
+
+    ++depth_;
+
+    return true;
+  }
+
+  void postVisit(AST*) override { --depth_; }
+
+ public:
+  explicit DumpAST(TranslationUnit* unit) : unit_(unit) {}
+
+  void operator()() { accept(unit_->ast()); }
+};
 
 std::string readAll(const std::string& fileName, std::istream& in) {
   std::string code;
@@ -49,12 +97,16 @@ std::string readAll(const std::string& fileName) {
   return readAll(fileName, stream);
 }
 
-bool parseFile(const std::string& fileName) {
+bool parseFile(const std::string& fileName, bool printAST) {
   Control control;
   TranslationUnit unit(&control);
   unit.setFileName(fileName);
   unit.setSource(readAll(fileName));
   const auto result = unit.parse();
+  if (printAST) {
+    DumpAST dump(&unit);
+    dump();
+  }
   return result;
 }
 
@@ -65,6 +117,7 @@ int main(int argc, char* argv[]) {
 
   std::vector<std::string> inputFiles;
   bool dumpTokens = false;
+  bool dumpAST = false;
 
   int index = 1;
   while (index < argc) {
@@ -73,10 +126,13 @@ int main(int argc, char* argv[]) {
       std::cerr << "Usage: cplusplus [options] files..." << std::endl
                 << " The options are:" << std::endl
                 << "  --help            display this output" << std::endl
-                << "  -dump-tokens      dump tokens" << std::endl;
+                << "  -dump-tokens      dump tokens" << std::endl
+                << "  -dump-ast         dump AST" << std::endl;
       exit(EXIT_SUCCESS);
     } else if (arg == "--dump-tokens") {
       dumpTokens = true;
+    } else if (arg == "--dump-ast") {
+      dumpAST = true;
     } else {
       inputFiles.push_back(std::move(arg));
     }
@@ -113,7 +169,7 @@ int main(int argc, char* argv[]) {
       continue;
     }
 
-    parseFile(fileName);
+    parseFile(fileName, dumpAST);
   }
 
   return EXIT_SUCCESS;
