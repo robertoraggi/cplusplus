@@ -90,6 +90,7 @@ struct DeclaratorModifierAST : AST {};
 struct ExceptionDeclarationAST : AST {};
 struct ExpressionAST : AST {};
 struct NameAST : AST {};
+struct NewInitializerAST : AST {};
 struct PtrOperatorAST : AST {};
 struct SpecifierAST : AST {};
 struct StatementAST : AST {};
@@ -192,6 +193,26 @@ struct BaseSpecifierAST final : AST {
 struct BaseClauseAST final : AST {
   SourceLocation colonLoc;
   List<BaseSpecifierAST*>* baseSpecifierList = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct NewTypeIdAST final : AST {
+  List<SpecifierAST*>* typeSpecifierList = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct NewParenInitializerAST final : NewInitializerAST {
+  SourceLocation lparenLoc;
+  List<ExpressionAST*>* expressionList = nullptr;
+  SourceLocation rparenLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -406,6 +427,18 @@ struct CppCastExpressionAST final : ExpressionAST {
   SourceLocation lparenLoc;
   ExpressionAST* expression = nullptr;
   SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct NewExpressionAST final : ExpressionAST {
+  SourceLocation scopeLoc;
+  SourceLocation newLoc;
+  NewTypeIdAST* typeId = nullptr;
+  NewInitializerAST* newInitalizer = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -936,6 +969,8 @@ struct ExplicitSpecifierAST final : SpecifierAST {
 };
 
 struct NamedTypeSpecifierAST final : SpecifierAST {
+  NameAST* name = nullptr;
+
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
   SourceLocation firstSourceLocation() override;

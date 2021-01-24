@@ -39,6 +39,10 @@ struct ASTVisitor {
   virtual void visit(DeclaratorAST* ast) = 0;
   virtual void visit(BaseSpecifierAST* ast) = 0;
   virtual void visit(BaseClauseAST* ast) = 0;
+  virtual void visit(NewTypeIdAST* ast) = 0;
+
+  // NewInitializerAST
+  virtual void visit(NewParenInitializerAST* ast) = 0;
 
   // ExceptionDeclarationAST
   virtual void visit(EllipsisExceptionDeclarationAST* ast) = 0;
@@ -66,6 +70,7 @@ struct ASTVisitor {
   virtual void visit(MemberExpressionAST* ast) = 0;
   virtual void visit(ConditionalExpressionAST* ast) = 0;
   virtual void visit(CppCastExpressionAST* ast) = 0;
+  virtual void visit(NewExpressionAST* ast) = 0;
 
   // StatementAST
   virtual void visit(LabeledStatementAST* ast) = 0;

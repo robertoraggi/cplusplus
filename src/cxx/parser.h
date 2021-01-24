@@ -155,10 +155,10 @@ class Parser {
   bool parse_noexcept_expression(ExpressionAST*& yyast);
   bool parse_new_expression(ExpressionAST*& yyast);
   bool parse_new_placement();
-  bool parse_new_type_id();
+  bool parse_new_type_id(NewTypeIdAST*& yyast);
   bool parse_new_declarator();
   bool parse_noptr_new_declarator();
-  bool parse_new_initializer();
+  bool parse_new_initializer(NewInitializerAST*& yyast);
   bool parse_delete_expression(ExpressionAST*& yyast);
   bool parse_cast_expression(ExpressionAST*& yyast);
   bool parse_cast_expression_helper(ExpressionAST*& yyast);

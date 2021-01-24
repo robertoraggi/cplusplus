@@ -80,6 +80,15 @@ void RecursiveASTVisitor::visit(BaseClauseAST* ast) {
     baseSpecifier(it->value);
 }
 
+void RecursiveASTVisitor::visit(NewTypeIdAST* ast) {
+  for (auto it = ast->typeSpecifierList; it; it = it->next)
+    specifier(it->value);
+}
+
+void RecursiveASTVisitor::visit(NewParenInitializerAST* ast) {
+  for (auto it = ast->expressionList; it; it = it->next) expression(it->value);
+}
+
 void RecursiveASTVisitor::visit(EllipsisExceptionDeclarationAST* ast) {}
 
 void RecursiveASTVisitor::visit(TypeExceptionDeclarationAST* ast) {
@@ -152,6 +161,11 @@ void RecursiveASTVisitor::visit(ConditionalExpressionAST* ast) {
 void RecursiveASTVisitor::visit(CppCastExpressionAST* ast) {
   typeId(ast->typeId);
   expression(ast->expression);
+}
+
+void RecursiveASTVisitor::visit(NewExpressionAST* ast) {
+  newTypeId(ast->typeId);
+  newInitializer(ast->newInitalizer);
 }
 
 void RecursiveASTVisitor::visit(LabeledStatementAST* ast) {
@@ -349,7 +363,7 @@ void RecursiveASTVisitor::visit(SimpleSpecifierAST* ast) {}
 
 void RecursiveASTVisitor::visit(ExplicitSpecifierAST* ast) {}
 
-void RecursiveASTVisitor::visit(NamedTypeSpecifierAST* ast) {}
+void RecursiveASTVisitor::visit(NamedTypeSpecifierAST* ast) { name(ast->name); }
 
 void RecursiveASTVisitor::visit(PlaceholderTypeSpecifierHelperAST* ast) {}
 

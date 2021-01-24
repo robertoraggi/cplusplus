@@ -60,9 +60,13 @@ struct RecursiveASTVisitor : ASTVisitor {
 
   virtual void declaration(DeclarationAST* ast) { return accept(ast); }
 
-  virtual void handler(HandlerAST* ast) { return accept(ast); }
-
   virtual void typeId(TypeIdAST* ast) { return accept(ast); }
+
+  virtual void newTypeId(NewTypeIdAST* ast) { return accept(ast); }
+
+  virtual void newInitializer(NewInitializerAST* ast) { return accept(ast); }
+
+  virtual void handler(HandlerAST* ast) { return accept(ast); }
 
   virtual void enumBase(EnumBaseAST* ast) { return accept(ast); }
 
@@ -89,6 +93,9 @@ struct RecursiveASTVisitor : ASTVisitor {
   void visit(DeclaratorAST* ast) override;
   void visit(BaseSpecifierAST* ast) override;
   void visit(BaseClauseAST* ast) override;
+  void visit(NewTypeIdAST* ast) override;
+
+  void visit(NewParenInitializerAST* ast) override;
 
   void visit(EllipsisExceptionDeclarationAST* ast) override;
   void visit(TypeExceptionDeclarationAST* ast) override;
@@ -113,6 +120,7 @@ struct RecursiveASTVisitor : ASTVisitor {
   void visit(MemberExpressionAST* ast) override;
   void visit(ConditionalExpressionAST* ast) override;
   void visit(CppCastExpressionAST* ast) override;
+  void visit(NewExpressionAST* ast) override;
 
   void visit(LabeledStatementAST* ast) override;
   void visit(CaseStatementAST* ast) override;

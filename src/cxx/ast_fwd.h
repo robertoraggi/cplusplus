@@ -35,6 +35,7 @@ struct DeclaratorModifierAST;
 struct ExceptionDeclarationAST;
 struct ExpressionAST;
 struct NameAST;
+struct NewInitializerAST;
 struct PtrOperatorAST;
 struct SpecifierAST;
 struct StatementAST;
@@ -51,6 +52,10 @@ struct EnumeratorAST;
 struct DeclaratorAST;
 struct BaseSpecifierAST;
 struct BaseClauseAST;
+struct NewTypeIdAST;
+
+// NewInitializerAST
+struct NewParenInitializerAST;
 
 // ExceptionDeclarationAST
 struct EllipsisExceptionDeclarationAST;
@@ -78,6 +83,7 @@ struct SubscriptExpressionAST;
 struct MemberExpressionAST;
 struct ConditionalExpressionAST;
 struct CppCastExpressionAST;
+struct NewExpressionAST;
 
 // StatementAST
 struct LabeledStatementAST;

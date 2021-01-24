@@ -155,6 +155,30 @@ SourceLocation BaseClauseAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation NewTypeIdAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(typeSpecifierList)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation NewTypeIdAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(typeSpecifierList)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation NewParenInitializerAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expressionList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation NewParenInitializerAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(expressionList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation EllipsisExceptionDeclarationAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
   return SourceLocation();
@@ -388,6 +412,44 @@ SourceLocation ConditionalExpressionAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(iftrueExpression)) return loc;
   if (auto loc = cxx::lastSourceLocation(questionLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(condition)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation CppCastExpressionAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(castLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lessLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::firstSourceLocation(greaterLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation CppCastExpressionAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(greaterLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lessLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(castLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation NewExpressionAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(scopeLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(newLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::firstSourceLocation(newInitalizer)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation NewExpressionAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(newInitalizer)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(newLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(scopeLoc)) return loc;
   return SourceLocation();
 }
 
@@ -1076,10 +1138,12 @@ SourceLocation ExplicitSpecifierAST::lastSourceLocation() {
 }
 
 SourceLocation NamedTypeSpecifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(name)) return loc;
   return SourceLocation();
 }
 
 SourceLocation NamedTypeSpecifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(name)) return loc;
   return SourceLocation();
 }
 
@@ -1298,28 +1362,6 @@ SourceLocation ArrayDeclaratorAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(rbracketLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(lbracketLoc)) return loc;
-  return SourceLocation();
-}
-
-SourceLocation CppCastExpressionAST::firstSourceLocation() {
-  if (auto loc = cxx::firstSourceLocation(castLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(lessLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
-  if (auto loc = cxx::firstSourceLocation(greaterLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
-  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
-  return SourceLocation();
-}
-
-SourceLocation CppCastExpressionAST::lastSourceLocation() {
-  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
-  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(greaterLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
-  if (auto loc = cxx::lastSourceLocation(lessLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(castLoc)) return loc;
   return SourceLocation();
 }
 

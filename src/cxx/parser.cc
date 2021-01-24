@@ -1578,12 +1578,22 @@ bool Parser::parse_noexcept_expression(ExpressionAST*& yyast) {
 bool Parser::parse_new_expression(ExpressionAST*& yyast) {
   const auto start = currentLocation();
 
-  const auto has_scope_op = match(TokenKind::T_COLON_COLON);
+  SourceLocation scopeLoc;
 
-  if (!match(TokenKind::T_NEW)) {
+  match(TokenKind::T_COLON_COLON);
+
+  SourceLocation newLoc;
+
+  if (!match(TokenKind::T_NEW, newLoc)) {
     rewind(start);
     return false;
   }
+
+  auto ast = new (pool) NewExpressionAST();
+  yyast = ast;
+
+  ast->scopeLoc = scopeLoc;
+  ast->newLoc = newLoc;
 
   const auto after_new_op = currentLocation();
 
@@ -1597,18 +1607,18 @@ bool Parser::parse_new_expression(ExpressionAST*& yyast) {
       match(TokenKind::T_RPAREN)) {
     const auto saved = currentLocation();
 
-    if (!parse_new_initializer()) rewind(saved);
+    if (!parse_new_initializer(ast->newInitalizer)) rewind(saved);
 
     return true;
   }
 
   rewind(after_new_placement);
 
-  if (!parse_new_type_id()) return false;
+  if (!parse_new_type_id(ast->typeId)) return false;
 
   const auto saved = currentLocation();
 
-  if (!parse_new_initializer()) rewind(saved);
+  if (!parse_new_initializer(ast->newInitalizer)) rewind(saved);
 
   return true;
 }
@@ -1625,10 +1635,15 @@ bool Parser::parse_new_placement() {
   return true;
 }
 
-bool Parser::parse_new_type_id() {
+bool Parser::parse_new_type_id(NewTypeIdAST*& yyast) {
   List<SpecifierAST*>* typeSpecifierList = nullptr;
 
   if (!parse_type_specifier_seq(typeSpecifierList)) return false;
+
+  auto ast = new (pool) NewTypeIdAST();
+  yyast = ast;
+
+  ast->typeSpecifierList = typeSpecifierList;
 
   const auto saved = currentLocation();
 
@@ -1684,17 +1699,20 @@ bool Parser::parse_noptr_new_declarator() {
   return true;
 }
 
-bool Parser::parse_new_initializer() {
-  if (LA().is(TokenKind::T_LBRACE)) return parse_braced_init_list();
+bool Parser::parse_new_initializer(NewInitializerAST*& yyast) {
+  if (parse_braced_init_list()) return true;
 
-  if (!match(TokenKind::T_LPAREN)) return false;
+  SourceLocation lparenLoc;
 
-  if (!match(TokenKind::T_RPAREN)) {
-    List<ExpressionAST*>* expressionList = nullptr;
+  if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
 
-    if (!parse_expression_list(expressionList)) return false;
+  auto ast = new (pool) NewParenInitializerAST();
+  yyast = ast;
 
-    if (!match(TokenKind::T_RPAREN)) return false;
+  if (!match(TokenKind::T_RPAREN, ast->rparenLoc)) {
+    if (!parse_expression_list(ast->expressionList)) return false;
+
+    if (!match(TokenKind::T_RPAREN, ast->rparenLoc)) return false;
   }
 
   return true;
@@ -3220,21 +3238,43 @@ bool Parser::parse_named_type_specifier_helper(SpecifierAST*& yyast,
   if (parse_nested_name_specifier(nestedNameSpecifier)) {
     const auto after_nested_name_specifier = currentLocation();
 
+    SourceLocation templateLoc;
     NameAST* name = nullptr;
 
-    if (match(TokenKind::T_TEMPLATE) && parse_simple_template_id(name)) {
+    if (match(TokenKind::T_TEMPLATE, templateLoc) &&
+        parse_simple_template_id(name)) {
+      auto qualifiedId = new (pool) QualifiedNameAST();
+      qualifiedId->nestedNameSpecifier = nestedNameSpecifier;
+      qualifiedId->templateLoc = templateLoc;
+      qualifiedId->name = name;
+
+      auto ast = new (pool) NamedTypeSpecifierAST();
+      yyast = ast;
+
+      ast->name = name;
+
       return true;
     }
 
     rewind(after_nested_name_specifier);
 
     if (parse_type_name(name)) {
+      auto ast = new (pool) NamedTypeSpecifierAST();
+      yyast = ast;
+
+      ast->name = name;
+
       return true;
     }
 
     rewind(after_nested_name_specifier);
 
     if (parse_template_name(name)) {
+      auto ast = new (pool) NamedTypeSpecifierAST();
+      yyast = ast;
+
+      ast->name = name;
+
       return true;
     }
   }
@@ -3243,11 +3283,24 @@ bool Parser::parse_named_type_specifier_helper(SpecifierAST*& yyast,
 
   NameAST* name = nullptr;
 
-  if (parse_type_name(name)) return true;
+  if (parse_type_name(name)) {
+    auto ast = new (pool) NamedTypeSpecifierAST();
+    yyast = ast;
+
+    ast->name = name;
+    return true;
+  }
 
   rewind(start);
 
-  if (parse_template_name(name)) return true;
+  if (parse_template_name(name)) {
+    auto ast = new (pool) NamedTypeSpecifierAST();
+    yyast = ast;
+
+    ast->name = name;
+
+    return true;
+  }
 
   return false;
 }
