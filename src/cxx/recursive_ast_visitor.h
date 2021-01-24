@@ -28,6 +28,50 @@ namespace cxx {
 struct RecursiveASTVisitor : ASTVisitor {
   void accept(AST* ast);
 
+  virtual void specifier(SpecifierAST* ast) { return accept(ast); }
+
+  virtual void declarator(DeclaratorAST* ast) { return accept(ast); }
+
+  virtual void nestedNameSpecifier(NestedNameSpecifierAST* ast) {
+    return accept(ast);
+  }
+
+  virtual void name(NameAST* ast) { return accept(ast); }
+
+  virtual void exceptionDeclaration(ExceptionDeclarationAST* ast) {
+    return accept(ast);
+  }
+
+  virtual void statement(StatementAST* ast) { return accept(ast); }
+
+  virtual void attribute(AttributeAST* ast) { return accept(ast); }
+
+  virtual void expression(ExpressionAST* ast) { return accept(ast); }
+
+  virtual void ptrOperator(PtrOperatorAST* ast) { return accept(ast); }
+
+  virtual void coreDeclarator(CoreDeclaratorAST* ast) { return accept(ast); }
+
+  virtual void declaratorModifier(DeclaratorModifierAST* ast) {
+    return accept(ast);
+  }
+
+  virtual void declaration(DeclarationAST* ast) { return accept(ast); }
+
+  virtual void handler(HandlerAST* ast) { return accept(ast); }
+
+  virtual void typeId(TypeIdAST* ast) { return accept(ast); }
+
+  virtual void enumBase(EnumBaseAST* ast) { return accept(ast); }
+
+  virtual void usingDeclarator(UsingDeclaratorAST* ast) { return accept(ast); }
+
+  virtual void templateArgument(TemplateArgumentAST* ast) {
+    return accept(ast);
+  }
+
+  virtual void enumerator(EnumeratorAST* ast) { return accept(ast); }
+
   virtual bool preVisit(AST*) { return true; }
   virtual void postVisit(AST*) {}
 
