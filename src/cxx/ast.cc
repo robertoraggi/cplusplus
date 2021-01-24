@@ -1239,4 +1239,22 @@ SourceLocation ArrayDeclaratorAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation ConditionalExpressionAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(condition)) return loc;
+  if (auto loc = cxx::firstSourceLocation(questionLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(iftrueExpression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(iffalseExpression)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ConditionalExpressionAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(iffalseExpression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(iftrueExpression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(questionLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(condition)) return loc;
+  return SourceLocation();
+}
+
 }  // namespace cxx

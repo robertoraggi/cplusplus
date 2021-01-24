@@ -1850,21 +1850,25 @@ bool Parser::parse_conditional_expression(ExpressionAST*& yyast,
                                           bool templArg) {
   if (!parse_logical_or_expression(yyast, templArg)) return false;
 
-  if (match(TokenKind::T_QUESTION)) {
-    ExpressionAST* iftrue_expression = nullptr;
+  SourceLocation questionLoc;
 
-    if (!parse_expression(iftrue_expression))
+  if (match(TokenKind::T_QUESTION, questionLoc)) {
+    auto ast = new (pool) ConditionalExpressionAST();
+    ast->condition = yyast;
+    ast->questionLoc = questionLoc;
+
+    yyast = ast;
+
+    if (!parse_expression(ast->iftrueExpression))
       parse_error("expected an expression");
 
-    expect(TokenKind::T_COLON);
-
-    ExpressionAST* iffalse_expression = nullptr;
+    expect(TokenKind::T_COLON, ast->colonLoc);
 
     if (templArg) {
-      if (!parse_conditional_expression(iffalse_expression, templArg)) {
+      if (!parse_conditional_expression(ast->iffalseExpression, templArg)) {
         parse_error("expected an expression");
       }
-    } else if (!parse_assignment_expression(iffalse_expression)) {
+    } else if (!parse_assignment_expression(ast->iffalseExpression)) {
       parse_error("expected an expression");
     }
   }

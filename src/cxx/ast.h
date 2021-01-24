@@ -362,6 +362,19 @@ struct MemberExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
+struct ConditionalExpressionAST final : ExpressionAST {
+  ExpressionAST* condition = nullptr;
+  SourceLocation questionLoc;
+  ExpressionAST* iftrueExpression = nullptr;
+  SourceLocation colonLoc;
+  ExpressionAST* iffalseExpression = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 struct LabeledStatementAST final : StatementAST {
   SourceLocation identifierLoc;
   SourceLocation colonLoc;

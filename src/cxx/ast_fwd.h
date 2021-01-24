@@ -74,6 +74,7 @@ struct AssignmentExpressionAST;
 struct CallExpressionAST;
 struct SubscriptExpressionAST;
 struct MemberExpressionAST;
+struct ConditionalExpressionAST;
 
 // StatementAST
 struct LabeledStatementAST;

@@ -131,6 +131,12 @@ void RecursiveASTVisitor::visit(MemberExpressionAST* ast) {
   name(ast->name);
 }
 
+void RecursiveASTVisitor::visit(ConditionalExpressionAST* ast) {
+  expression(ast->condition);
+  expression(ast->iftrueExpression);
+  expression(ast->iffalseExpression);
+}
+
 void RecursiveASTVisitor::visit(LabeledStatementAST* ast) {
   statement(ast->statement);
 }
