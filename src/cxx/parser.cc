@@ -2618,7 +2618,22 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
 
   parse_attribute_specifier_seq(attributes);
 
-  if (match(TokenKind::T_SEMICOLON)) return true;
+  SourceLocation semicolonLoc;
+
+  if (match(TokenKind::T_SEMICOLON, semicolonLoc)) {
+    if (attributes) {
+      auto ast = new (pool) AttributeDeclarationAST();
+      yyast = ast;
+      ast->attributeList = attributes;
+      ast->semicolonLoc = semicolonLoc;
+      return true;
+    }
+
+    auto ast = new (pool) EmptyDeclarationAST();
+    yyast = ast;
+    ast->semicolonLoc = semicolonLoc;
+    return true;
+  }
 
   const auto after_attributes = currentLocation();
 
@@ -2695,8 +2710,6 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
 
   const auto after_declarator = currentLocation();
 
-  if (match(TokenKind::T_SEMICOLON)) return true;
-
   if (fundef && getFunctionDeclarator(declarator)) {
     StatementAST* functionBody = nullptr;
 
@@ -2716,13 +2729,28 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
 
   if (!parse_declarator_initializer()) rewind(after_declarator);
 
+  List<DeclaratorAST*>* declaratorList = nullptr;
+
+  auto declIt = &declaratorList;
+
+  *declIt = new (pool) List(declarator);
+  declIt = &(*declIt)->next;
+
   while (match(TokenKind::T_COMMA)) {
     DeclaratorAST* declarator = nullptr;
 
     if (!parse_init_declarator(declarator)) return false;
+
+    *declIt = new (pool) List(declarator);
+    declIt = &(*declIt)->next;
   }
 
   if (!match(TokenKind::T_SEMICOLON)) return false;
+
+  auto ast = new (pool) SimpleDeclarationAST();
+  ast->declSpecifierList = declSpecifierList;
+  ast->declaratorList = declaratorList;
+  yyast = ast;
 
   return true;
 }
@@ -2822,9 +2850,12 @@ bool Parser::parse_decl_specifier(SpecifierAST*& yyast, DeclSpecs& specs) {
     case TokenKind::T_CONSTINIT:
     case TokenKind::T_INLINE:
     case TokenKind::T___INLINE:
-    case TokenKind::T___INLINE__:
-      consumeToken();
+    case TokenKind::T___INLINE__: {
+      auto ast = new (pool) SimpleSpecifierAST();
+      yyast = ast;
+      ast->specifierLoc = consumeToken();
       return true;
+    }
 
     default:
       if (parse_storage_class_specifier(yyast)) return true;
@@ -2840,6 +2871,8 @@ bool Parser::parse_decl_specifier(SpecifierAST*& yyast, DeclSpecs& specs) {
 
 bool Parser::parse_decl_specifier_seq(List<SpecifierAST*>*& yyast,
                                       DeclSpecs& specs) {
+  auto it = &yyast;
+
   specs.no_typespecs = false;
 
   SpecifierAST* specifier = nullptr;
@@ -2850,12 +2883,18 @@ bool Parser::parse_decl_specifier_seq(List<SpecifierAST*>*& yyast,
 
   parse_attribute_specifier_seq(attributes);
 
+  *it = new (pool) List(specifier);
+  it = &(*it)->next;
+
   specifier = nullptr;
 
   while (parse_decl_specifier(specifier, specs)) {
     List<AttributeAST*>* attributes = nullptr;
 
     parse_attribute_specifier_seq(attributes);
+
+    *it = new (pool) List(specifier);
+    it = &(*it)->next;
 
     specifier = nullptr;
   }
@@ -2865,6 +2904,8 @@ bool Parser::parse_decl_specifier_seq(List<SpecifierAST*>*& yyast,
 
 bool Parser::parse_decl_specifier_seq_no_typespecs(List<SpecifierAST*>*& yyast,
                                                    DeclSpecs& specs) {
+  auto it = &yyast;
+
   specs.no_typespecs = true;
 
   SpecifierAST* specifier = nullptr;
@@ -2875,12 +2916,18 @@ bool Parser::parse_decl_specifier_seq_no_typespecs(List<SpecifierAST*>*& yyast,
 
   parse_attribute_specifier_seq(attributes);
 
+  *it = new (pool) List(specifier);
+  it = &(*it)->next;
+
   specifier = nullptr;
 
   while (parse_decl_specifier(specifier, specs)) {
     List<AttributeAST*>* attributes = nullptr;
 
     parse_attribute_specifier_seq(attributes);
+
+    *it = new (pool) List(specifier);
+    it = &(*it)->next;
 
     specifier = nullptr;
   }
@@ -2960,6 +3007,8 @@ bool Parser::parse_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs) {
 }
 
 bool Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast) {
+  auto it = &yyast;
+
   DeclSpecs specs;
 
   specs.no_class_or_enum_specs = true;
@@ -2971,6 +3020,9 @@ bool Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast) {
   List<AttributeAST*>* attributes = nullptr;
 
   parse_attribute_specifier_seq(attributes);
+
+  *it = new (pool) List(typeSpecifier);
+  it = &(*it)->next;
 
   typeSpecifier = nullptr;
 
@@ -2987,6 +3039,9 @@ bool Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast) {
     List<AttributeAST*>* attributes = nullptr;
 
     parse_attribute_specifier_seq(attributes);
+
+    *it = new (pool) List(typeSpecifier);
+    it = &(*it)->next;
   }
 
   return true;
