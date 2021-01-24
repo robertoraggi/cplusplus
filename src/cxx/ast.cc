@@ -653,10 +653,12 @@ SourceLocation SimpleDeclarationAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(attributes)) return loc;
   if (auto loc = cxx::firstSourceLocation(declSpecifierList)) return loc;
   if (auto loc = cxx::firstSourceLocation(declaratorList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
   return SourceLocation();
 }
 
 SourceLocation SimpleDeclarationAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(declaratorList)) return loc;
   if (auto loc = cxx::lastSourceLocation(declSpecifierList)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributes)) return loc;

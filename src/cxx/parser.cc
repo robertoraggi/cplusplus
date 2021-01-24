@@ -2688,7 +2688,15 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
 
   after_decl_specs = currentLocation();
 
-  if (match(TokenKind::T_SEMICOLON)) return specs.has_complex_typespec;
+  if (specs.has_complex_typespec &&
+      match(TokenKind::T_SEMICOLON, semicolonLoc)) {
+    auto ast = new (pool) SimpleDeclarationAST();
+    yyast = ast;
+
+    ast->declSpecifierList = declSpecifierList;
+    ast->semicolonLoc = semicolonLoc;
+    return true;
+  }
 
   if (!specs.has_typespec()) return false;
 
@@ -2748,9 +2756,11 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
   if (!match(TokenKind::T_SEMICOLON)) return false;
 
   auto ast = new (pool) SimpleDeclarationAST();
+  yyast = ast;
+
   ast->declSpecifierList = declSpecifierList;
   ast->declaratorList = declaratorList;
-  yyast = ast;
+  ast->semicolonLoc = semicolonLoc;
 
   return true;
 }

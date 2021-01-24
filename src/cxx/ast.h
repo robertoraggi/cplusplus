@@ -593,6 +593,7 @@ struct SimpleDeclarationAST final : DeclarationAST {
   List<AttributeAST*>* attributes = nullptr;
   List<SpecifierAST*>* declSpecifierList = nullptr;
   List<DeclaratorAST*>* declaratorList = nullptr;
+  SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
