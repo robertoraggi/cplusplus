@@ -106,6 +106,9 @@ struct TypeIdAST final : AST {
 };
 
 struct NestedNameSpecifierAST final : AST {
+  SourceLocation scopeLoc;
+  List<NameAST*>* nameList = nullptr;
+
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
   SourceLocation firstSourceLocation() override;

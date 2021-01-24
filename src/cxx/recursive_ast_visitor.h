@@ -32,11 +32,11 @@ struct RecursiveASTVisitor : ASTVisitor {
 
   virtual void declarator(DeclaratorAST* ast) { return accept(ast); }
 
+  virtual void name(NameAST* ast) { return accept(ast); }
+
   virtual void nestedNameSpecifier(NestedNameSpecifierAST* ast) {
     return accept(ast);
   }
-
-  virtual void name(NameAST* ast) { return accept(ast); }
 
   virtual void exceptionDeclaration(ExceptionDeclarationAST* ast) {
     return accept(ast);

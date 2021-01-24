@@ -38,10 +38,14 @@ SourceLocation TypeIdAST::lastSourceLocation() {
 }
 
 SourceLocation NestedNameSpecifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(scopeLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(nameList)) return loc;
   return SourceLocation();
 }
 
 SourceLocation NestedNameSpecifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(nameList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(scopeLoc)) return loc;
   return SourceLocation();
 }
 

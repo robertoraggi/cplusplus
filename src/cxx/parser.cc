@@ -632,14 +632,24 @@ bool Parser::parse_qualified_id(NameAST*& yyast) {
 
   if (!parse_nested_name_specifier(nestedNameSpecifier)) return false;
 
-  const auto has_template = match(TokenKind::T_TEMPLATE);
+  SourceLocation templateLoc;
 
-  NameAST* unqualifiedId = nullptr;
+  const auto has_template = match(TokenKind::T_TEMPLATE, templateLoc);
 
-  if (parse_unqualified_id(unqualifiedId)) return true;
+  NameAST* name = nullptr;
 
-  if (has_template) {
-    parse_error("expected a template name");
+  const auto hasName = parse_unqualified_id(name);
+
+  if (hasName || templateLoc) {
+    auto ast = new (pool) QualifiedNameAST();
+    yyast = ast;
+
+    ast->nestedNameSpecifier = nestedNameSpecifier;
+    ast->templateLoc = templateLoc;
+    ast->name = name;
+
+    if (!hasName) parse_error("expected a template name");
+
     return true;
   }
 
@@ -678,21 +688,23 @@ bool Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast) {
   auto it = nested_name_specifiers_.find(start);
 
   if (it != nested_name_specifiers_.end()) {
-    auto [cursor, parsed] = it->second;
+    auto [cursor, ast, parsed] = it->second;
     rewind(cursor);
+    yyast = ast;
     return parsed;
   }
 
   struct Context {
     Parser* p;
     SourceLocation start;
+    NestedNameSpecifierAST* ast = nullptr;
     bool parsed = false;
 
     Context(Parser* p) : p(p), start(p->currentLocation()) {}
 
     ~Context() {
       p->nested_name_specifiers_.emplace(
-          start, std::make_tuple(p->currentLocation(), parsed));
+          start, std::make_tuple(p->currentLocation(), ast, parsed));
     }
   };
 
@@ -703,20 +715,35 @@ bool Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast) {
 
   if (!parse_start_of_nested_name_specifier(name, scopeLoc)) return false;
 
+  auto ast = new (pool) NestedNameSpecifierAST();
+  context.ast = ast;
+  yyast = ast;
+
+  auto nameIt = &ast->nameList;
+
+  if (!name)
+    ast->scopeLoc = scopeLoc;
+  else {
+    *nameIt = new (pool) List(name);
+    nameIt = &(*nameIt)->next;
+  }
+
   while (true) {
     const auto saved = currentLocation();
 
     NameAST* name = nullptr;
 
     if (parse_name_id(name) && match(TokenKind::T_COLON_COLON)) {
-      //
+      *nameIt = new (pool) List(name);
+      nameIt = &(*nameIt)->next;
     } else {
       rewind(saved);
 
       const auto has_template = match(TokenKind::T_TEMPLATE);
 
       if (parse_simple_template_id(name) && match(TokenKind::T_COLON_COLON)) {
-        //
+        *nameIt = new (pool) List(name);
+        nameIt = &(*nameIt)->next;
       } else {
         rewind(saved);
         break;
@@ -4965,6 +4992,14 @@ bool Parser::parse_private_module_fragment() {
 bool Parser::parse_class_specifier(SpecifierAST*& yyast) {
   const auto start = currentLocation();
 
+  SourceLocation classKey;
+
+  const auto maybeClassSpecifier = parse_class_key(classKey);
+
+  rewind(start);
+
+  if (!maybeClassSpecifier) return false;
+
   auto it = class_specifiers_.find(start);
 
   if (it != class_specifiers_.end()) {
@@ -5478,6 +5513,8 @@ bool Parser::parse_class_or_decltype(NameAST*& yyast) {
 
     if (parse_type_name(name)) {
       auto ast = new (pool) QualifiedNameAST();
+      yyast = ast;
+
       ast->nestedNameSpecifier = nestedNameSpecifier;
       ast->name = name;
 
@@ -5491,8 +5528,9 @@ bool Parser::parse_class_or_decltype(NameAST*& yyast) {
 
   if (parse_decltype_specifier(decltypeSpecifier)) {
     auto ast = new (pool) DecltypeNameAST();
-    ast->decltypeSpecifier = decltypeSpecifier;
     yyast = ast;
+
+    ast->decltypeSpecifier = decltypeSpecifier;
 
     return true;
   }

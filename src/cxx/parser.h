@@ -433,7 +433,8 @@ class Parser {
   std::unordered_map<SourceLocation, std::tuple<SourceLocation, bool>>
       template_arguments_;
 
-  std::unordered_map<SourceLocation, std::tuple<SourceLocation, bool>>
+  std::unordered_map<SourceLocation,
+                     std::tuple<SourceLocation, NestedNameSpecifierAST*, bool>>
       nested_name_specifiers_;
 
   bool module_unit = false;

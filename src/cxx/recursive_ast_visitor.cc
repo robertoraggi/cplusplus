@@ -36,7 +36,9 @@ void RecursiveASTVisitor::visit(TypeIdAST* ast) {
   declarator(ast->declarator);
 }
 
-void RecursiveASTVisitor::visit(NestedNameSpecifierAST* ast) {}
+void RecursiveASTVisitor::visit(NestedNameSpecifierAST* ast) {
+  for (auto it = ast->nameList; it; it = it->next) name(it->value);
+}
 
 void RecursiveASTVisitor::visit(UsingDeclaratorAST* ast) {
   nestedNameSpecifier(ast->nestedNameSpecifier);
