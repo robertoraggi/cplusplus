@@ -1,3 +1,4 @@
+
 // Copyright (c) 2021 Roberto Raggi <roberto.raggi@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -32,7 +33,10 @@ void RecursiveASTVisitor::visit(TypeIdAST* ast) {
   postVisit(ast);
 }
 
-void RecursiveASTVisitor::visit(NestedNameSpecifierAST* ast) { postVisit(ast); }
+void RecursiveASTVisitor::visit(NestedNameSpecifierAST* ast) {
+  preVisit(ast);
+  postVisit(ast);
+}
 
 void RecursiveASTVisitor::visit(UsingDeclaratorAST* ast) {
   if (preVisit(ast)) {
@@ -50,7 +54,10 @@ void RecursiveASTVisitor::visit(HandlerAST* ast) {
   postVisit(ast);
 }
 
-void RecursiveASTVisitor::visit(TemplateArgumentAST* ast) { postVisit(ast); }
+void RecursiveASTVisitor::visit(TemplateArgumentAST* ast) {
+  preVisit(ast);
+  postVisit(ast);
+}
 
 void RecursiveASTVisitor::visit(EnumBaseAST* ast) {
   if (preVisit(ast)) {
@@ -82,8 +89,7 @@ void RecursiveASTVisitor::visit(DeclaratorAST* ast) {
 }
 
 void RecursiveASTVisitor::visit(EllipsisExceptionDeclarationAST* ast) {
-  if (preVisit(ast)) {
-  }
+  preVisit(ast);
   postVisit(ast);
 }
 
@@ -106,53 +112,48 @@ void RecursiveASTVisitor::visit(TranslationUnitAST* ast) {
   postVisit(ast);
 }
 
-void RecursiveASTVisitor::visit(ModuleUnitAST* ast) { postVisit(ast); }
+void RecursiveASTVisitor::visit(ModuleUnitAST* ast) {
+  preVisit(ast);
+  postVisit(ast);
+}
 
 void RecursiveASTVisitor::visit(ThisExpressionAST* ast) {
-  if (preVisit(ast)) {
-  }
+  preVisit(ast);
   postVisit(ast);
 }
 
 void RecursiveASTVisitor::visit(CharLiteralExpressionAST* ast) {
-  if (preVisit(ast)) {
-  }
+  preVisit(ast);
   postVisit(ast);
 }
 
 void RecursiveASTVisitor::visit(BoolLiteralExpressionAST* ast) {
-  if (preVisit(ast)) {
-  }
+  preVisit(ast);
   postVisit(ast);
 }
 
 void RecursiveASTVisitor::visit(IntLiteralExpressionAST* ast) {
-  if (preVisit(ast)) {
-  }
+  preVisit(ast);
   postVisit(ast);
 }
 
 void RecursiveASTVisitor::visit(FloatLiteralExpressionAST* ast) {
-  if (preVisit(ast)) {
-  }
+  preVisit(ast);
   postVisit(ast);
 }
 
 void RecursiveASTVisitor::visit(NullptrLiteralExpressionAST* ast) {
-  if (preVisit(ast)) {
-  }
+  preVisit(ast);
   postVisit(ast);
 }
 
 void RecursiveASTVisitor::visit(StringLiteralExpressionAST* ast) {
-  if (preVisit(ast)) {
-  }
+  preVisit(ast);
   postVisit(ast);
 }
 
 void RecursiveASTVisitor::visit(UserDefinedStringLiteralExpressionAST* ast) {
-  if (preVisit(ast)) {
-  }
+  preVisit(ast);
   postVisit(ast);
 }
 
@@ -279,14 +280,12 @@ void RecursiveASTVisitor::visit(ForStatementAST* ast) {
 }
 
 void RecursiveASTVisitor::visit(BreakStatementAST* ast) {
-  if (preVisit(ast)) {
-  }
+  preVisit(ast);
   postVisit(ast);
 }
 
 void RecursiveASTVisitor::visit(ContinueStatementAST* ast) {
-  if (preVisit(ast)) {
-  }
+  preVisit(ast);
   postVisit(ast);
 }
 
@@ -298,8 +297,7 @@ void RecursiveASTVisitor::visit(ReturnStatementAST* ast) {
 }
 
 void RecursiveASTVisitor::visit(GotoStatementAST* ast) {
-  if (preVisit(ast)) {
-  }
+  preVisit(ast);
   postVisit(ast);
 }
 
@@ -344,7 +342,10 @@ void RecursiveASTVisitor::visit(ConceptDefinitionAST* ast) {
   postVisit(ast);
 }
 
-void RecursiveASTVisitor::visit(ForRangeDeclarationAST* ast) { postVisit(ast); }
+void RecursiveASTVisitor::visit(ForRangeDeclarationAST* ast) {
+  preVisit(ast);
+  postVisit(ast);
+}
 
 void RecursiveASTVisitor::visit(AliasDeclarationAST* ast) {
   if (preVisit(ast)) {
@@ -375,8 +376,7 @@ void RecursiveASTVisitor::visit(StaticAssertDeclarationAST* ast) {
 }
 
 void RecursiveASTVisitor::visit(EmptyDeclarationAST* ast) {
-  if (preVisit(ast)) {
-  }
+  preVisit(ast);
   postVisit(ast);
 }
 
@@ -400,6 +400,7 @@ void RecursiveASTVisitor::visit(OpaqueEnumDeclarationAST* ast) {
 }
 
 void RecursiveASTVisitor::visit(UsingEnumDeclarationAST* ast) {
+  preVisit(ast);
   postVisit(ast);
 }
 
@@ -425,7 +426,10 @@ void RecursiveASTVisitor::visit(NamespaceAliasDefinitionAST* ast) {
   postVisit(ast);
 }
 
-void RecursiveASTVisitor::visit(UsingDirectiveAST* ast) { postVisit(ast); }
+void RecursiveASTVisitor::visit(UsingDirectiveAST* ast) {
+  preVisit(ast);
+  postVisit(ast);
+}
 
 void RecursiveASTVisitor::visit(UsingDeclarationAST* ast) {
   if (preVisit(ast)) {
@@ -444,12 +448,17 @@ void RecursiveASTVisitor::visit(AsmDeclarationAST* ast) {
 }
 
 void RecursiveASTVisitor::visit(LinkageSpecificationAST* ast) {
+  preVisit(ast);
   postVisit(ast);
 }
 
-void RecursiveASTVisitor::visit(ExportDeclarationAST* ast) { postVisit(ast); }
+void RecursiveASTVisitor::visit(ExportDeclarationAST* ast) {
+  preVisit(ast);
+  postVisit(ast);
+}
 
 void RecursiveASTVisitor::visit(ModuleImportDeclarationAST* ast) {
+  preVisit(ast);
   postVisit(ast);
 }
 
@@ -462,7 +471,10 @@ void RecursiveASTVisitor::visit(TemplateDeclarationAST* ast) {
   postVisit(ast);
 }
 
-void RecursiveASTVisitor::visit(DeductionGuideAST* ast) { postVisit(ast); }
+void RecursiveASTVisitor::visit(DeductionGuideAST* ast) {
+  preVisit(ast);
+  postVisit(ast);
+}
 
 void RecursiveASTVisitor::visit(ExplicitInstantiationAST* ast) {
   if (preVisit(ast)) {
@@ -472,8 +484,7 @@ void RecursiveASTVisitor::visit(ExplicitInstantiationAST* ast) {
 }
 
 void RecursiveASTVisitor::visit(SimpleNameAST* ast) {
-  if (preVisit(ast)) {
-  }
+  preVisit(ast);
   postVisit(ast);
 }
 
@@ -491,7 +502,10 @@ void RecursiveASTVisitor::visit(DecltypeNameAST* ast) {
   postVisit(ast);
 }
 
-void RecursiveASTVisitor::visit(OperatorNameAST* ast) { postVisit(ast); }
+void RecursiveASTVisitor::visit(OperatorNameAST* ast) {
+  preVisit(ast);
+  postVisit(ast);
+}
 
 void RecursiveASTVisitor::visit(TemplateNameAST* ast) {
   if (preVisit(ast)) {
@@ -502,39 +516,58 @@ void RecursiveASTVisitor::visit(TemplateNameAST* ast) {
   postVisit(ast);
 }
 
-void RecursiveASTVisitor::visit(SimpleSpecifierAST* ast) { postVisit(ast); }
+void RecursiveASTVisitor::visit(SimpleSpecifierAST* ast) {
+  preVisit(ast);
+  postVisit(ast);
+}
 
-void RecursiveASTVisitor::visit(ExplicitSpecifierAST* ast) { postVisit(ast); }
+void RecursiveASTVisitor::visit(ExplicitSpecifierAST* ast) {
+  preVisit(ast);
+  postVisit(ast);
+}
 
-void RecursiveASTVisitor::visit(NamedTypeSpecifierAST* ast) { postVisit(ast); }
+void RecursiveASTVisitor::visit(NamedTypeSpecifierAST* ast) {
+  preVisit(ast);
+  postVisit(ast);
+}
 
 void RecursiveASTVisitor::visit(PlaceholderTypeSpecifierHelperAST* ast) {
+  preVisit(ast);
   postVisit(ast);
 }
 
 void RecursiveASTVisitor::visit(DecltypeSpecifierTypeSpecifierAST* ast) {
+  preVisit(ast);
   postVisit(ast);
 }
 
 void RecursiveASTVisitor::visit(UnderlyingTypeSpecifierAST* ast) {
+  preVisit(ast);
   postVisit(ast);
 }
 
-void RecursiveASTVisitor::visit(AtomicTypeSpecifierAST* ast) { postVisit(ast); }
+void RecursiveASTVisitor::visit(AtomicTypeSpecifierAST* ast) {
+  preVisit(ast);
+  postVisit(ast);
+}
 
 void RecursiveASTVisitor::visit(ElaboratedTypeSpecifierAST* ast) {
+  preVisit(ast);
   postVisit(ast);
 }
 
-void RecursiveASTVisitor::visit(DecltypeSpecifierAST* ast) { postVisit(ast); }
+void RecursiveASTVisitor::visit(DecltypeSpecifierAST* ast) {
+  preVisit(ast);
+  postVisit(ast);
+}
 
 void RecursiveASTVisitor::visit(PlaceholderTypeSpecifierAST* ast) {
+  preVisit(ast);
   postVisit(ast);
 }
 
 void RecursiveASTVisitor::visit(CvQualifierAST* ast) {
-  if (preVisit(ast)) {
-  }
+  preVisit(ast);
   postVisit(ast);
 }
 
@@ -562,7 +595,10 @@ void RecursiveASTVisitor::visit(ClassSpecifierAST* ast) {
   postVisit(ast);
 }
 
-void RecursiveASTVisitor::visit(TypenameSpecifierAST* ast) { postVisit(ast); }
+void RecursiveASTVisitor::visit(TypenameSpecifierAST* ast) {
+  preVisit(ast);
+  postVisit(ast);
+}
 
 void RecursiveASTVisitor::visit(IdDeclaratorAST* ast) {
   if (preVisit(ast)) {
@@ -609,7 +645,10 @@ void RecursiveASTVisitor::visit(PtrToMemberOperatorAST* ast) {
   postVisit(ast);
 }
 
-void RecursiveASTVisitor::visit(FunctionDeclaratorAST* ast) { postVisit(ast); }
+void RecursiveASTVisitor::visit(FunctionDeclaratorAST* ast) {
+  preVisit(ast);
+  postVisit(ast);
+}
 
 void RecursiveASTVisitor::visit(ArrayDeclaratorAST* ast) {
   if (preVisit(ast)) {
