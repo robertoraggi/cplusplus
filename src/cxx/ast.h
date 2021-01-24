@@ -398,6 +398,21 @@ struct ConditionalExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
+struct CppCastExpressionAST final : ExpressionAST {
+  SourceLocation castLoc;
+  SourceLocation lessLoc;
+  TypeIdAST* typeId = nullptr;
+  SourceLocation greaterLoc;
+  SourceLocation lparenLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 struct LabeledStatementAST final : StatementAST {
   SourceLocation identifierLoc;
   SourceLocation colonLoc;

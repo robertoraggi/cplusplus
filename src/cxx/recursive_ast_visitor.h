@@ -112,6 +112,7 @@ struct RecursiveASTVisitor : ASTVisitor {
   void visit(SubscriptExpressionAST* ast) override;
   void visit(MemberExpressionAST* ast) override;
   void visit(ConditionalExpressionAST* ast) override;
+  void visit(CppCastExpressionAST* ast) override;
 
   void visit(LabeledStatementAST* ast) override;
   void visit(CaseStatementAST* ast) override;

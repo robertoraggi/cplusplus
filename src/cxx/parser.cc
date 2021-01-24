@@ -1258,13 +1258,13 @@ bool Parser::parse_postincr_expression(ExpressionAST*& yyast) {
   return true;
 }
 
-bool Parser::parse_cpp_cast_head() {
+bool Parser::parse_cpp_cast_head(SourceLocation& castLoc) {
   switch (TokenKind(LA())) {
     case TokenKind::T_CONST_CAST:
     case TokenKind::T_DYNAMIC_CAST:
     case TokenKind::T_REINTERPRET_CAST:
     case TokenKind::T_STATIC_CAST:
-      consumeToken();
+      castLoc = consumeToken();
       return true;
 
     default:
@@ -1273,22 +1273,26 @@ bool Parser::parse_cpp_cast_head() {
 }
 
 bool Parser::parse_cpp_cast_expression(ExpressionAST*& yyast) {
-  if (!parse_cpp_cast_head()) return false;
+  SourceLocation castLoc;
 
-  expect(TokenKind::T_LESS);
+  if (!parse_cpp_cast_head(castLoc)) return false;
 
-  TypeIdAST* typeId = nullptr;
+  auto ast = new (pool) CppCastExpressionAST();
+  yyast = ast;
 
-  if (!parse_type_id(typeId)) parse_error("expected a type id");
+  ast->castLoc = castLoc;
 
-  expect(TokenKind::T_GREATER);
-  expect(TokenKind::T_LPAREN);
+  expect(TokenKind::T_LESS, ast->lessLoc);
 
-  ExpressionAST* expression = nullptr;
+  if (!parse_type_id(ast->typeId)) parse_error("expected a type id");
 
-  if (!parse_expression(expression)) parse_error("expected an expression");
+  expect(TokenKind::T_GREATER, ast->greaterLoc);
 
-  expect(TokenKind::T_RPAREN);
+  expect(TokenKind::T_LPAREN, ast->lparenLoc);
+
+  if (!parse_expression(ast->expression)) parse_error("expected an expression");
+
+  expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   return true;
 }

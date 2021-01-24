@@ -136,7 +136,7 @@ class Parser {
   bool parse_subscript_expression(ExpressionAST*& yyast);
   bool parse_call_expression(ExpressionAST*& yyast);
   bool parse_postincr_expression(ExpressionAST*& yyast);
-  bool parse_cpp_cast_head();
+  bool parse_cpp_cast_head(SourceLocation& loc);
   bool parse_cpp_cast_expression(ExpressionAST*& yyast);
   bool parse_cpp_type_cast_expression(ExpressionAST*& yyast);
   bool parse_typeid_expression(ExpressionAST*& yyast);

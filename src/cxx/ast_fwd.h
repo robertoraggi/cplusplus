@@ -77,6 +77,7 @@ struct CallExpressionAST;
 struct SubscriptExpressionAST;
 struct MemberExpressionAST;
 struct ConditionalExpressionAST;
+struct CppCastExpressionAST;
 
 // StatementAST
 struct LabeledStatementAST;

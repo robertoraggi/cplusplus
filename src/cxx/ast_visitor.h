@@ -65,6 +65,7 @@ struct ASTVisitor {
   virtual void visit(SubscriptExpressionAST* ast) = 0;
   virtual void visit(MemberExpressionAST* ast) = 0;
   virtual void visit(ConditionalExpressionAST* ast) = 0;
+  virtual void visit(CppCastExpressionAST* ast) = 0;
 
   // StatementAST
   virtual void visit(LabeledStatementAST* ast) = 0;
