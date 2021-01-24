@@ -2183,6 +2183,7 @@ bool Parser::parse_if_statement(StatementAST*& yyast) {
   if (!match(TokenKind::T_IF, ifLoc)) return false;
 
   auto ast = new (pool) IfStatementAST();
+  yyast = ast;
 
   const auto has_constexpr = match(TokenKind::T_CONSTEXPR, ast->constexprLoc);
 
@@ -2298,6 +2299,8 @@ bool Parser::parse_for_range_statement(StatementAST*& yyast) {
   if (!match(TokenKind::T_COLON, colonLoc)) return false;
 
   auto ast = new (pool) ForRangeStatementAST();
+  yyast = ast;
+
   ast->forLoc = forLoc;
   ast->lparenLoc = lparenLoc;
   ast->initializer = initializer;
