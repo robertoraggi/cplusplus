@@ -89,6 +89,11 @@ void RecursiveASTVisitor::visit(BracedInitListAST* ast) {
   for (auto it = ast->expressionList; it; it = it->next) expression(it->value);
 }
 
+void RecursiveASTVisitor::visit(ParameterDeclarationClauseAST* ast) {
+  for (auto it = ast->templateParameterList; it; it = it->next)
+    parameterDeclaration(it->value);
+}
+
 void RecursiveASTVisitor::visit(NewParenInitializerAST* ast) {
   for (auto it = ast->expressionList; it; it = it->next) expression(it->value);
 }
@@ -344,6 +349,14 @@ void RecursiveASTVisitor::visit(DeductionGuideAST* ast) {}
 
 void RecursiveASTVisitor::visit(ExplicitInstantiationAST* ast) {
   declaration(ast->declaration);
+}
+
+void RecursiveASTVisitor::visit(ParameterDeclarationAST* ast) {
+  for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
+  for (auto it = ast->typeSpecifierList; it; it = it->next)
+    specifier(it->value);
+  declarator(ast->declarator);
+  expression(ast->expression);
 }
 
 void RecursiveASTVisitor::visit(SimpleNameAST* ast) {}

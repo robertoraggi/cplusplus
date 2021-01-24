@@ -760,7 +760,9 @@ bool Parser::parse_lambda_expression(ExpressionAST*& yyast) {
   if (!parse_lambda_introducer()) return false;
 
   if (match(TokenKind::T_LESS)) {
-    if (!parse_template_parameter_list())
+    List<DeclarationAST*>* templateParameterList = nullptr;
+
+    if (!parse_template_parameter_list(templateParameterList))
       parse_error("expected a template paramter");
 
     expect(TokenKind::T_GREATER);
@@ -792,7 +794,9 @@ bool Parser::parse_lambda_declarator() {
   if (!match(TokenKind::T_LPAREN)) return false;
 
   if (!match(TokenKind::T_RPAREN)) {
-    if (!parse_parameter_declaration_clause())
+    ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
+
+    if (!parse_parameter_declaration_clause(parameterDeclarationClause))
       parse_error("expected a parameter declaration clause");
 
     expect(TokenKind::T_RPAREN);
@@ -1031,8 +1035,11 @@ bool Parser::parse_requirement_parameter_list() {
   if (!match(TokenKind::T_LPAREN)) return false;
 
   if (!match(TokenKind::T_RPAREN)) {
-    if (!parse_parameter_declaration_clause())
+    ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
+
+    if (!parse_parameter_declaration_clause(parameterDeclarationClause))
       parse_error("expected a parmater declaration");
+
     expect(TokenKind::T_RPAREN);
   }
 
@@ -3711,7 +3718,10 @@ bool Parser::parse_parameters_and_qualifiers() {
   if (!match(TokenKind::T_LPAREN)) return false;
 
   if (!match(TokenKind::T_RPAREN)) {
-    if (!parse_parameter_declaration_clause()) return false;
+    ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
+
+    if (!parse_parameter_declaration_clause(parameterDeclarationClause))
+      return false;
 
     if (!match(TokenKind::T_RPAREN)) return false;
   }
@@ -4007,60 +4017,82 @@ bool Parser::parse_noptr_abstract_pack_declarator() {
   return true;
 }
 
-bool Parser::parse_parameter_declaration_clause() {
-  if (match(TokenKind::T_DOT_DOT_DOT)) return true;
+bool Parser::parse_parameter_declaration_clause(
+    ParameterDeclarationClauseAST*& yyast) {
+  SourceLocation ellipsisLoc;
 
-  if (!parse_parameter_declaration_list()) return false;
+  if (match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) {
+    auto ast = new (pool) ParameterDeclarationClauseAST();
+    yyast = ast;
 
-  match(TokenKind::T_COMMA);
+    ast->ellipsisLoc = ellipsisLoc;
 
-  match(TokenKind::T_DOT_DOT_DOT);
+    return true;
+  }
+
+  auto ast = new (pool) ParameterDeclarationClauseAST();
+  yyast = ast;
+
+  if (!parse_parameter_declaration_list(ast->templateParameterList))
+    return false;
+
+  match(TokenKind::T_COMMA, ast->commaLoc);
+
+  match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
 
   return true;
 }
 
-bool Parser::parse_parameter_declaration_list() {
-  if (!parse_parameter_declaration()) return false;
+bool Parser::parse_parameter_declaration_list(
+    List<ParameterDeclarationAST*>*& yyast) {
+  auto it = &yyast;
+
+  ParameterDeclarationAST* declaration = nullptr;
+
+  if (!parse_parameter_declaration(declaration)) return false;
+
+  *it = new (pool) List(declaration);
+  it = &(*it)->next;
 
   SourceLocation commaLoc;
 
   while (match(TokenKind::T_COMMA, commaLoc)) {
-    if (!parse_parameter_declaration()) {
+    ParameterDeclarationAST* declaration = nullptr;
+
+    if (!parse_parameter_declaration(declaration)) {
       rewind(commaLoc);
       break;
     }
+
+    *it = new (pool) List(declaration);
+    it = &(*it)->next;
   }
 
   return true;
 }
 
-bool Parser::parse_parameter_declaration() {
-  List<AttributeAST*>* attributes = nullptr;
+bool Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast) {
+  auto ast = new (pool) ParameterDeclarationAST();
+  yyast = ast;
 
-  parse_attribute_specifier_seq(attributes);
+  parse_attribute_specifier_seq(ast->attributeList);
 
   DeclSpecs specs;
 
   specs.no_class_or_enum_specs = true;
 
-  List<SpecifierAST*>* specifierList = nullptr;
-
-  if (!parse_decl_specifier_seq(specifierList, specs)) return false;
+  if (!parse_decl_specifier_seq(ast->typeSpecifierList, specs)) return false;
 
   const auto before_declarator = currentLocation();
 
-  DeclaratorAST* declarator = nullptr;
-
-  if (!parse_declarator(declarator)) {
+  if (!parse_declarator(ast->declarator)) {
     rewind(before_declarator);
 
-    if (!parse_abstract_declarator(declarator)) rewind(before_declarator);
+    if (!parse_abstract_declarator(ast->declarator)) rewind(before_declarator);
   }
 
-  if (match(TokenKind::T_EQUAL)) {
-    ExpressionAST* expression = nullptr;
-
-    if (!parse_initializer_clause(expression))
+  if (match(TokenKind::T_EQUAL, ast->equalLoc)) {
+    if (!parse_initializer_clause(ast->expression))
       parse_error("expected an initializer");
   }
 
@@ -5854,7 +5886,9 @@ bool Parser::parse_template_head(SourceLocation& templateLoc,
   if (!match(TokenKind::T_LESS, lessLoc)) return false;
 
   if (!match(TokenKind::T_GREATER, greaterLoc)) {
-    if (!parse_template_parameter_list())
+    List<DeclarationAST*>* templateParameterList = nullptr;
+
+    if (!parse_template_parameter_list(templateParameterList))
       parse_error("expected a template parameter");
 
     expect(TokenKind::T_GREATER, greaterLoc);
@@ -5865,12 +5899,24 @@ bool Parser::parse_template_head(SourceLocation& templateLoc,
   return true;
 }
 
-bool Parser::parse_template_parameter_list() {
-  if (!parse_template_parameter()) return false;
+bool Parser::parse_template_parameter_list(List<DeclarationAST*>*& yyast) {
+  auto it = &yyast;
+
+  DeclarationAST* declaration = nullptr;
+
+  if (!parse_template_parameter(declaration)) return false;
+
+  *it = new (pool) List(declaration);
+  it = &(*it)->next;
 
   while (match(TokenKind::T_COMMA)) {
-    if (!parse_template_parameter())
+    DeclarationAST* declaration = nullptr;
+
+    if (!parse_template_parameter(declaration))
       parse_error("expected a template parameter");
+
+    *it = new (pool) List(declaration);
+    it = &(*it)->next;
   }
 
   return true;
@@ -5912,7 +5958,7 @@ bool Parser::parse_constraint_logical_and_expression(ExpressionAST*& yyast) {
   return true;
 }
 
-bool Parser::parse_template_parameter() {
+bool Parser::parse_template_parameter(DeclarationAST*& yyast) {
   const auto start = currentLocation();
 
   if (parse_type_parameter() &&
@@ -5921,7 +5967,14 @@ bool Parser::parse_template_parameter() {
 
   rewind(start);
 
-  return parse_parameter_declaration();
+  ParameterDeclarationAST* parameter = nullptr;
+
+  if (parse_parameter_declaration(parameter)) {
+    yyast = parameter;
+    return true;
+  }
+
+  return false;
 }
 
 bool Parser::parse_type_parameter() {
@@ -6228,7 +6281,9 @@ bool Parser::parse_deduction_guide(DeclarationAST*& yyast) {
   if (!match(TokenKind::T_LPAREN)) return false;
 
   if (!match(TokenKind::T_RPAREN)) {
-    if (!parse_parameter_declaration_clause())
+    ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
+
+    if (!parse_parameter_declaration_clause(parameterDeclarationClause))
       parse_error("expected a parameter declaration");
 
     expect(TokenKind::T_RPAREN);

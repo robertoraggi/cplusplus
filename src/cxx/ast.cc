@@ -165,6 +165,22 @@ SourceLocation NewTypeIdAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation BracedInitListAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(lbraceLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expressionList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(commaLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rbraceLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation BracedInitListAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(rbraceLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(commaLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(expressionList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lbraceLoc)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation NewParenInitializerAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expressionList)) return loc;
@@ -176,20 +192,6 @@ SourceLocation NewParenInitializerAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expressionList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
-  return SourceLocation();
-}
-
-SourceLocation BracedInitListAST::firstSourceLocation() {
-  if (auto loc = cxx::firstSourceLocation(lbraceLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(expressionList)) return loc;
-  if (auto loc = cxx::firstSourceLocation(rbraceLoc)) return loc;
-  return SourceLocation();
-}
-
-SourceLocation BracedInitListAST::lastSourceLocation() {
-  if (auto loc = cxx::lastSourceLocation(rbraceLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(expressionList)) return loc;
-  if (auto loc = cxx::lastSourceLocation(lbraceLoc)) return loc;
   return SourceLocation();
 }
 
@@ -1068,6 +1070,38 @@ SourceLocation ExplicitInstantiationAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(declaration)) return loc;
   if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(externLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ParameterDeclarationAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(typeSpecifierList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(declarator)) return loc;
+  if (auto loc = cxx::firstSourceLocation(equalLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ParameterDeclarationAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(equalLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(declarator)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeSpecifierList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ParameterDeclarationClauseAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(templateParameterList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(commaLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ParameterDeclarationClauseAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(commaLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(templateParameterList)) return loc;
   return SourceLocation();
 }
 

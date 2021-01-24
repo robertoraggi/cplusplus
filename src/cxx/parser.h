@@ -260,9 +260,10 @@ class Parser {
   bool parse_noptr_abstract_declarator();
   bool parse_abstract_pack_declarator();
   bool parse_noptr_abstract_pack_declarator();
-  bool parse_parameter_declaration_clause();
-  bool parse_parameter_declaration_list();
-  bool parse_parameter_declaration();
+  bool parse_parameter_declaration_clause(
+      ParameterDeclarationClauseAST*& yyast);
+  bool parse_parameter_declaration_list(List<ParameterDeclarationAST*>*& yyast);
+  bool parse_parameter_declaration(ParameterDeclarationAST*& yyast);
   bool parse_initializer();
   bool parse_brace_or_equal_initializer();
   bool parse_initializer_clause(ExpressionAST*& yyast);
@@ -357,11 +358,11 @@ class Parser {
   bool parse_template_head(SourceLocation& templateLoc, SourceLocation& lessLoc,
                            List<DeclarationAST*>* templateParameterList,
                            SourceLocation& greaterLoc);
-  bool parse_template_parameter_list();
+  bool parse_template_parameter_list(List<DeclarationAST*>*& yyast);
   bool parse_requires_clause();
   bool parse_constraint_logical_or_expression(ExpressionAST*& yyast);
   bool parse_constraint_logical_and_expression(ExpressionAST*& yyast);
-  bool parse_template_parameter();
+  bool parse_template_parameter(DeclarationAST*& yyast);
   bool parse_type_parameter();
   bool parse_typename_type_parameter();
   bool parse_template_type_parameter();

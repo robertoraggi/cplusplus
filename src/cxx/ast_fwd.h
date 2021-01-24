@@ -54,6 +54,7 @@ struct BaseSpecifierAST;
 struct BaseClauseAST;
 struct NewTypeIdAST;
 struct BracedInitListAST;
+struct ParameterDeclarationClauseAST;
 
 // NewInitializerAST
 struct NewParenInitializerAST;
@@ -129,6 +130,7 @@ struct ModuleImportDeclarationAST;
 struct TemplateDeclarationAST;
 struct DeductionGuideAST;
 struct ExplicitInstantiationAST;
+struct ParameterDeclarationAST;
 
 // NameAST
 struct SimpleNameAST;

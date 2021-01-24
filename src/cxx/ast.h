@@ -221,6 +221,17 @@ struct BracedInitListAST final : AST {
   SourceLocation lastSourceLocation() override;
 };
 
+struct ParameterDeclarationClauseAST final : AST {
+  List<ParameterDeclarationAST*>* templateParameterList = nullptr;
+  SourceLocation commaLoc;
+  SourceLocation ellipsisLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 struct NewParenInitializerAST final : NewInitializerAST {
   SourceLocation lparenLoc;
   List<ExpressionAST*>* expressionList = nullptr;
@@ -906,6 +917,19 @@ struct ExplicitInstantiationAST final : DeclarationAST {
   SourceLocation externLoc;
   SourceLocation templateLoc;
   DeclarationAST* declaration = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct ParameterDeclarationAST final : DeclarationAST {
+  List<AttributeAST*>* attributeList = nullptr;
+  List<SpecifierAST*>* typeSpecifierList = nullptr;
+  DeclaratorAST* declarator = nullptr;
+  SourceLocation equalLoc;
+  ExpressionAST* expression = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

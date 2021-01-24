@@ -41,6 +41,7 @@ struct ASTVisitor {
   virtual void visit(BaseClauseAST* ast) = 0;
   virtual void visit(NewTypeIdAST* ast) = 0;
   virtual void visit(BracedInitListAST* ast) = 0;
+  virtual void visit(ParameterDeclarationClauseAST* ast) = 0;
 
   // NewInitializerAST
   virtual void visit(NewParenInitializerAST* ast) = 0;
@@ -116,6 +117,7 @@ struct ASTVisitor {
   virtual void visit(TemplateDeclarationAST* ast) = 0;
   virtual void visit(DeductionGuideAST* ast) = 0;
   virtual void visit(ExplicitInstantiationAST* ast) = 0;
+  virtual void visit(ParameterDeclarationAST* ast) = 0;
 
   // NameAST
   virtual void visit(SimpleNameAST* ast) = 0;
