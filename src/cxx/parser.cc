@@ -1304,7 +1304,9 @@ bool Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast) {
 
   if (!parse_simple_type_specifier(typeSpecifier, specs)) return false;
 
-  if (parse_braced_init_list()) return true;
+  BracedInitListAST* bracedInitList = nullptr;
+
+  if (parse_braced_init_list(bracedInitList)) return true;
 
   if (!match(TokenKind::T_LPAREN)) return false;
 
@@ -1348,7 +1350,9 @@ bool Parser::parse_typename_expression(ExpressionAST*& yyast) {
 
   if (!parse_typename_specifier(typenameSpecifier)) return false;
 
-  if (parse_braced_init_list()) return true;
+  BracedInitListAST* bracedInitList = nullptr;
+
+  if (parse_braced_init_list(bracedInitList)) return true;
 
   if (!match(TokenKind::T_LPAREN)) return false;
 
@@ -1700,7 +1704,9 @@ bool Parser::parse_noptr_new_declarator() {
 }
 
 bool Parser::parse_new_initializer(NewInitializerAST*& yyast) {
-  if (parse_braced_init_list()) return true;
+  BracedInitListAST* bracedInitList = nullptr;
+
+  if (parse_braced_init_list(bracedInitList)) return true;
 
   SourceLocation lparenLoc;
 
@@ -1929,7 +1935,10 @@ bool Parser::parse_yield_expression(ExpressionAST*& yyast) {
   if (!match(TokenKind::T_CO_YIELD)) return false;
 
   if (LA().is(TokenKind::T_LBRACE)) {
-    if (!parse_braced_init_list()) parse_error("expected a braced initializer");
+    BracedInitListAST* bracedInitList = nullptr;
+
+    if (!parse_braced_init_list(bracedInitList))
+      parse_error("expected a braced initializer");
   } else {
     ExpressionAST* expression = nullptr;
 
@@ -4076,7 +4085,10 @@ bool Parser::parse_initializer() {
 }
 
 bool Parser::parse_brace_or_equal_initializer() {
-  if (LA().is(TokenKind::T_LBRACE)) return parse_braced_init_list();
+  BracedInitListAST* bracedInitList = nullptr;
+
+  if (LA().is(TokenKind::T_LBRACE))
+    return parse_braced_init_list(bracedInitList);
 
   if (!match(TokenKind::T_EQUAL)) return false;
 
@@ -4089,13 +4101,20 @@ bool Parser::parse_brace_or_equal_initializer() {
 }
 
 bool Parser::parse_initializer_clause(ExpressionAST*& yyast) {
-  if (LA().is(TokenKind::T_LBRACE)) return parse_braced_init_list();
+  BracedInitListAST* bracedInitList = nullptr;
+
+  if (LA().is(TokenKind::T_LBRACE))
+    return parse_braced_init_list(bracedInitList);
 
   return parse_assignment_expression(yyast);
 }
 
-bool Parser::parse_braced_init_list() {
-  if (!match(TokenKind::T_LBRACE)) return false;
+bool Parser::parse_braced_init_list(BracedInitListAST*& yyast) {
+  SourceLocation lbraceLoc;
+  SourceLocation commaLoc;
+  SourceLocation rbraceLoc;
+
+  if (!match(TokenKind::T_LBRACE, lbraceLoc)) return false;
 
   if (LA().is(TokenKind::T_DOT)) {
     if (!parse_designated_initializer_clause())
@@ -4107,16 +4126,40 @@ bool Parser::parse_braced_init_list() {
       if (!parse_designated_initializer_clause())
         parse_error("expected designated initializer clause");
     }
-  } else if (match(TokenKind::T_COMMA)) {
-    // nothing to do
-  } else if (LA().isNot(TokenKind::T_RBRACE)) {
-    List<ExpressionAST*>* expressionList = nullptr;
 
-    if (!parse_initializer_list(expressionList))
-      parse_error("expected initializer list");
+    expect(TokenKind::T_RBRACE, rbraceLoc);
+
+    return true;
   }
 
-  expect(TokenKind::T_RBRACE);
+  if (match(TokenKind::T_COMMA, commaLoc)) {
+    expect(TokenKind::T_RBRACE, rbraceLoc);
+
+    auto ast = new (pool) BracedInitListAST();
+    yyast = ast;
+
+    ast->lbraceLoc = lbraceLoc;
+    ast->commaLoc = commaLoc;
+    ast->rbraceLoc = rbraceLoc;
+
+    return true;
+  }
+
+  List<ExpressionAST*>* expressionList = nullptr;
+
+  if (!match(TokenKind::T_RBRACE, rbraceLoc)) {
+    if (!parse_initializer_list(expressionList))
+      parse_error("expected initializer list");
+
+    expect(TokenKind::T_RBRACE, rbraceLoc);
+  }
+
+  auto ast = new (pool) BracedInitListAST();
+  yyast = ast;
+
+  ast->lbraceLoc = lbraceLoc;
+  ast->expressionList = expressionList;
+  ast->rbraceLoc = rbraceLoc;
 
   return true;
 }
@@ -4173,7 +4216,11 @@ bool Parser::parse_designator() {
 }
 
 bool Parser::parse_expr_or_braced_init_list(ExpressionAST*& yyast) {
-  if (LA().is(TokenKind::T_LBRACE)) return parse_braced_init_list();
+  if (LA().is(TokenKind::T_LBRACE)) {
+    BracedInitListAST* bracedInitList = nullptr;
+
+    return parse_braced_init_list(bracedInitList);
+  }
 
   if (!parse_expression(yyast)) parse_error("expected an expression");
 
@@ -5635,7 +5682,10 @@ bool Parser::parse_mem_initializer() {
   if (!parse_mem_initializer_id()) parse_error("expected an member id");
 
   if (LA().is(TokenKind::T_LBRACE)) {
-    if (!parse_braced_init_list()) parse_error("expected an initializer");
+    BracedInitListAST* bracedInitList = nullptr;
+
+    if (!parse_braced_init_list(bracedInitList))
+      parse_error("expected an initializer");
   } else {
     expect(TokenKind::T_LPAREN);
 

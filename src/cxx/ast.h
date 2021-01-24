@@ -209,10 +209,31 @@ struct NewTypeIdAST final : AST {
   SourceLocation lastSourceLocation() override;
 };
 
+struct BracedInitListAST final : AST {
+  SourceLocation lbraceLoc;
+  List<ExpressionAST*>* expressionList = nullptr;
+  SourceLocation commaLoc;
+  SourceLocation rbraceLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 struct NewParenInitializerAST final : NewInitializerAST {
   SourceLocation lparenLoc;
   List<ExpressionAST*>* expressionList = nullptr;
   SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct NewBracedInitializerAST final : NewInitializerAST {
+  BracedInitListAST* bracedInit = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

@@ -53,9 +53,11 @@ struct DeclaratorAST;
 struct BaseSpecifierAST;
 struct BaseClauseAST;
 struct NewTypeIdAST;
+struct BracedInitListAST;
 
 // NewInitializerAST
 struct NewParenInitializerAST;
+struct NewBracedInitializerAST;
 
 // ExceptionDeclarationAST
 struct EllipsisExceptionDeclarationAST;

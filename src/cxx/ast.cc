@@ -179,6 +179,30 @@ SourceLocation NewParenInitializerAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation BracedInitListAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(lbraceLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expressionList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rbraceLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation BracedInitListAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(rbraceLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(expressionList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lbraceLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation NewBracedInitializerAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(bracedInit)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation NewBracedInitializerAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(bracedInit)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation EllipsisExceptionDeclarationAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
   return SourceLocation();

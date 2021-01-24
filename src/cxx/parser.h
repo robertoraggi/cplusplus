@@ -266,7 +266,7 @@ class Parser {
   bool parse_initializer();
   bool parse_brace_or_equal_initializer();
   bool parse_initializer_clause(ExpressionAST*& yyast);
-  bool parse_braced_init_list();
+  bool parse_braced_init_list(BracedInitListAST*& yyast);
   bool parse_initializer_list(List<ExpressionAST*>*& yyast);
   bool parse_designated_initializer_clause();
   bool parse_designator();

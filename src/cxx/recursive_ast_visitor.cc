@@ -85,8 +85,16 @@ void RecursiveASTVisitor::visit(NewTypeIdAST* ast) {
     specifier(it->value);
 }
 
+void RecursiveASTVisitor::visit(BracedInitListAST* ast) {
+  for (auto it = ast->expressionList; it; it = it->next) expression(it->value);
+}
+
 void RecursiveASTVisitor::visit(NewParenInitializerAST* ast) {
   for (auto it = ast->expressionList; it; it = it->next) expression(it->value);
+}
+
+void RecursiveASTVisitor::visit(NewBracedInitializerAST* ast) {
+  bracedInitList(ast->bracedInit);
 }
 
 void RecursiveASTVisitor::visit(EllipsisExceptionDeclarationAST* ast) {}

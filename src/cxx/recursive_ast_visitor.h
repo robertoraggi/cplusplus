@@ -58,6 +58,8 @@ struct RecursiveASTVisitor : ASTVisitor {
 
   virtual void baseSpecifier(BaseSpecifierAST* ast) { return accept(ast); }
 
+  virtual void bracedInitList(BracedInitListAST* ast) { return accept(ast); }
+
   virtual void declaration(DeclarationAST* ast) { return accept(ast); }
 
   virtual void typeId(TypeIdAST* ast) { return accept(ast); }
@@ -94,8 +96,10 @@ struct RecursiveASTVisitor : ASTVisitor {
   void visit(BaseSpecifierAST* ast) override;
   void visit(BaseClauseAST* ast) override;
   void visit(NewTypeIdAST* ast) override;
+  void visit(BracedInitListAST* ast) override;
 
   void visit(NewParenInitializerAST* ast) override;
+  void visit(NewBracedInitializerAST* ast) override;
 
   void visit(EllipsisExceptionDeclarationAST* ast) override;
   void visit(TypeExceptionDeclarationAST* ast) override;
