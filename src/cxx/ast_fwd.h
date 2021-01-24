@@ -1,3 +1,4 @@
+
 // Copyright (c) 2021 Roberto Raggi <roberto.raggi@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -26,121 +27,127 @@ template <typename T>
 struct List;
 
 struct AST;
-struct UnitAST;
-struct DeclarationAST;
-struct StatementAST;
-struct ExpressionAST;
-struct SpecifierAST;
-struct DeclaratorAST;
-struct NameAST;
-struct AttributeAST;
-struct TypeIdAST;
-struct PtrOperatorAST;
-struct CoreDeclaratorAST;
-struct DeclaratorModifierAST;
-struct NestedNameSpecifierAST;
-struct EnumeratorAST;
-struct EnumBaseAST;
-struct UsingDeclaratorAST;
-struct TemplateArgumentAST;
-struct HandlerAST;
-struct ExceptionDeclarationAST;
 
-// exceptions declarations
+struct AttributeAST;
+struct CoreDeclaratorAST;
+struct DeclarationAST;
+struct DeclaratorModifierAST;
+struct ExceptionDeclarationAST;
+struct ExpressionAST;
+struct NameAST;
+struct PtrOperatorAST;
+struct SpecifierAST;
+struct StatementAST;
+struct UnitAST;
+
+// AST
+struct TypeIdAST;
+struct NestedNameSpecifierAST;
+struct UsingDeclaratorAST;
+struct HandlerAST;
+struct TemplateArgumentAST;
+struct EnumBaseAST;
+struct EnumeratorAST;
+struct DeclaratorAST;
+
+// ExceptionDeclarationAST
 struct EllipsisExceptionDeclarationAST;
 struct TypeExceptionDeclarationAST;
 
-// expressions
+// UnitAST
+struct TranslationUnitAST;
+struct ModuleUnitAST;
+
+// ExpressionAST
 struct ThisExpressionAST;
-struct NestedExpressionAST;
-struct StringLiteralExpressionAST;
-struct UserDefinedStringLiteralExpressionAST;
 struct CharLiteralExpressionAST;
 struct BoolLiteralExpressionAST;
 struct IntLiteralExpressionAST;
 struct FloatLiteralExpressionAST;
 struct NullptrLiteralExpressionAST;
+struct StringLiteralExpressionAST;
+struct UserDefinedStringLiteralExpressionAST;
 struct IdExpressionAST;
+struct NestedExpressionAST;
 struct BinaryExpressionAST;
 struct AssignmentExpressionAST;
 
-// statements
-struct BreakStatementAST;
-struct CaseStatementAST;
-struct CompoundStatementAST;
-struct ContinueStatementAST;
-struct CoroutineReturnStatementAST;
-struct DeclarationStatementAST;
-struct DefaultStatementAST;
-struct DoStatementAST;
-struct ExpressionStatementAST;
-struct ForRangeStatementAST;
-struct ForStatementAST;
-struct GotoStatementAST;
-struct IfStatementAST;
+// StatementAST
 struct LabeledStatementAST;
-struct ReturnStatementAST;
+struct CaseStatementAST;
+struct DefaultStatementAST;
+struct ExpressionStatementAST;
+struct CompoundStatementAST;
+struct IfStatementAST;
 struct SwitchStatementAST;
 struct WhileStatementAST;
+struct DoStatementAST;
+struct ForRangeStatementAST;
+struct ForStatementAST;
+struct BreakStatementAST;
+struct ContinueStatementAST;
+struct ReturnStatementAST;
+struct GotoStatementAST;
+struct CoroutineReturnStatementAST;
+struct DeclarationStatementAST;
 struct TryBlockStatementAST;
 
-// declarations
-struct AliasDeclarationAST;
-struct AsmDeclarationAST;
-struct AttributeDeclarationAST;
-struct ConceptDefinitionAST;
-struct DeductionGuideAST;
-struct EmptyDeclarationAST;
-struct ExplicitInstantiationAST;
-struct ExportDeclarationAST;
-struct ForRangeDeclarationAST;
+// DeclarationAST
 struct FunctionDefinitionAST;
-struct LinkageSpecificationAST;
-struct ModuleImportDeclarationAST;
-struct NamespaceAliasDefinitionAST;
-struct NamespaceDefinitionAST;
-struct OpaqueEnumDeclarationAST;
+struct ConceptDefinitionAST;
+struct ForRangeDeclarationAST;
+struct AliasDeclarationAST;
 struct SimpleDeclarationAST;
 struct StaticAssertDeclarationAST;
-struct TemplateDeclarationAST;
-struct UsingDeclarationAST;
-struct UsingDirectiveAST;
+struct EmptyDeclarationAST;
+struct AttributeDeclarationAST;
+struct OpaqueEnumDeclarationAST;
 struct UsingEnumDeclarationAST;
+struct NamespaceDefinitionAST;
+struct NamespaceAliasDefinitionAST;
+struct UsingDirectiveAST;
+struct UsingDeclarationAST;
+struct AsmDeclarationAST;
+struct LinkageSpecificationAST;
+struct ExportDeclarationAST;
+struct ModuleImportDeclarationAST;
+struct TemplateDeclarationAST;
+struct DeductionGuideAST;
+struct ExplicitInstantiationAST;
 
-// units
-struct TranslationUnitAST;
-struct ModuleUnitAST;
-
-// names
+// NameAST
 struct SimpleNameAST;
 struct DestructorNameAST;
-struct TemplateNameAST;
-struct OperatorNameAST;
 struct DecltypeNameAST;
+struct OperatorNameAST;
+struct TemplateNameAST;
 
-// specifiers
-struct AtomicTypeSpecifierAST;
-struct ClassSpecifierAST;
-struct CvQualifierAST;
-struct DecltypeSpecifierAST;
-struct DecltypeSpecifierTypeSpecifierAST;
-struct ElaboratedTypeSpecifierAST;
-struct EnumSpecifierAST;
+// SpecifierAST
+struct SimpleSpecifierAST;
 struct ExplicitSpecifierAST;
 struct NamedTypeSpecifierAST;
-struct PlaceholderTypeSpecifierAST;
 struct PlaceholderTypeSpecifierHelperAST;
-struct SimpleSpecifierAST;
-struct TypenameSpecifierAST;
+struct DecltypeSpecifierTypeSpecifierAST;
 struct UnderlyingTypeSpecifierAST;
+struct AtomicTypeSpecifierAST;
+struct ElaboratedTypeSpecifierAST;
+struct DecltypeSpecifierAST;
+struct PlaceholderTypeSpecifierAST;
+struct CvQualifierAST;
+struct EnumSpecifierAST;
+struct ClassSpecifierAST;
+struct TypenameSpecifierAST;
 
-// declarators
+// CoreDeclaratorAST
 struct IdDeclaratorAST;
 struct NestedDeclaratorAST;
 
+// PtrOperatorAST
 struct PointerOperatorAST;
 struct ReferenceOperatorAST;
 struct PtrToMemberOperatorAST;
+
+// DeclaratorModifierAST
 struct FunctionDeclaratorAST;
 struct ArrayDeclaratorAST;
 

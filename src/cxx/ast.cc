@@ -77,6 +77,56 @@ SourceLocation HandlerAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation TemplateArgumentAST::firstSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation TemplateArgumentAST::lastSourceLocation() {
+  return SourceLocation();
+}
+
+SourceLocation EnumBaseAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(typeSpecifierList)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation EnumBaseAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(typeSpecifierList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation EnumeratorAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(equalLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation EnumeratorAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(equalLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation DeclaratorAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(ptrOpList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(coreDeclarator)) return loc;
+  if (auto loc = cxx::firstSourceLocation(modifiers)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation DeclaratorAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(modifiers)) return loc;
+  if (auto loc = cxx::lastSourceLocation(coreDeclarator)) return loc;
+  if (auto loc = cxx::lastSourceLocation(ptrOpList)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation EllipsisExceptionDeclarationAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
   return SourceLocation();
@@ -872,18 +922,12 @@ SourceLocation DecltypeNameAST::lastSourceLocation() {
 }
 
 SourceLocation OperatorNameAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(opLoc)) return loc;
   return SourceLocation();
 }
 
 SourceLocation OperatorNameAST::lastSourceLocation() {
-  return SourceLocation();
-}
-
-SourceLocation TemplateArgumentAST::firstSourceLocation() {
-  return SourceLocation();
-}
-
-SourceLocation TemplateArgumentAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(opLoc)) return loc;
   return SourceLocation();
 }
 
@@ -904,10 +948,12 @@ SourceLocation TemplateNameAST::lastSourceLocation() {
 }
 
 SourceLocation SimpleSpecifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(specifierLoc)) return loc;
   return SourceLocation();
 }
 
 SourceLocation SimpleSpecifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(specifierLoc)) return loc;
   return SourceLocation();
 }
 
@@ -993,34 +1039,6 @@ SourceLocation CvQualifierAST::lastSourceLocation() {
   return SourceLocation();
 }
 
-SourceLocation EnumBaseAST::firstSourceLocation() {
-  if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(typeSpecifierList)) return loc;
-  return SourceLocation();
-}
-
-SourceLocation EnumBaseAST::lastSourceLocation() {
-  if (auto loc = cxx::lastSourceLocation(typeSpecifierList)) return loc;
-  if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
-  return SourceLocation();
-}
-
-SourceLocation EnumeratorAST::firstSourceLocation() {
-  if (auto loc = cxx::firstSourceLocation(name)) return loc;
-  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
-  if (auto loc = cxx::firstSourceLocation(equalLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
-  return SourceLocation();
-}
-
-SourceLocation EnumeratorAST::lastSourceLocation() {
-  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
-  if (auto loc = cxx::lastSourceLocation(equalLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
-  if (auto loc = cxx::lastSourceLocation(name)) return loc;
-  return SourceLocation();
-}
-
 SourceLocation EnumSpecifierAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(enumLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(classLoc)) return loc;
@@ -1074,20 +1092,6 @@ SourceLocation TypenameSpecifierAST::firstSourceLocation() {
 }
 
 SourceLocation TypenameSpecifierAST::lastSourceLocation() {
-  return SourceLocation();
-}
-
-SourceLocation DeclaratorAST::firstSourceLocation() {
-  if (auto loc = cxx::firstSourceLocation(ptrOpList)) return loc;
-  if (auto loc = cxx::firstSourceLocation(coreDeclarator)) return loc;
-  if (auto loc = cxx::firstSourceLocation(modifiers)) return loc;
-  return SourceLocation();
-}
-
-SourceLocation DeclaratorAST::lastSourceLocation() {
-  if (auto loc = cxx::lastSourceLocation(modifiers)) return loc;
-  if (auto loc = cxx::lastSourceLocation(coreDeclarator)) return loc;
-  if (auto loc = cxx::lastSourceLocation(ptrOpList)) return loc;
   return SourceLocation();
 }
 

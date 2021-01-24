@@ -1879,7 +1879,6 @@ bool Parser::parse_assignment_expression(ExpressionAST*& yyast) {
     auto ast = new (pool) AssignmentExpressionAST();
     ast->leftExpression = yyast;
     ast->opLoc = opLoc;
-    ast->op = op;
     ast->rightExpression = expression;
 
     yyast = ast;
@@ -2895,7 +2894,7 @@ bool Parser::parse_storage_class_specifier(SpecifierAST*& yyast) {
     case TokenKind::T___THREAD: {
       auto ast = new (pool) SimpleSpecifierAST();
       yyast = ast;
-      ast->loc = consumeToken();
+      ast->specifierLoc = consumeToken();
       return true;
     }
 
@@ -2909,7 +2908,7 @@ bool Parser::parse_function_specifier(SpecifierAST*& yyast) {
   if (match(TokenKind::T_VIRTUAL)) {
     auto ast = new (pool) SimpleSpecifierAST();
     yyast = ast;
-    ast->loc = virtualLoc;
+    ast->specifierLoc = virtualLoc;
 
     return true;
   }
@@ -2927,7 +2926,7 @@ bool Parser::parse_explicit_specifier(SpecifierAST*& yyast) {
   if (!match(TokenKind::T_LPAREN, lparenLoc)) {
     auto ast = new (pool) SimpleSpecifierAST();
     yyast = ast;
-    ast->loc = explicitLoc;
+    ast->specifierLoc = explicitLoc;
 
     return true;
   }
@@ -3199,7 +3198,7 @@ bool Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
     case TokenKind::T___COMPLEX__: {
       auto ast = new (pool) SimpleSpecifierAST();
       yyast = ast;
-      ast->loc = consumeToken();
+      ast->specifierLoc = consumeToken();
       specs.has_simple_typespec = true;
 
       return true;

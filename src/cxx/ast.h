@@ -1,3 +1,4 @@
+
 // Copyright (c) 2021 Roberto Raggi <roberto.raggi@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -82,29 +83,17 @@ inline SourceLocation lastSourceLocation(List<T>* nodes) {
   return SourceLocation();
 }
 
-struct UnitAST : AST {};
-
-struct DeclarationAST : AST {};
-
-struct StatementAST : AST {};
-
-struct ExpressionAST : AST {};
-
-struct SpecifierAST : AST {};
-
-struct NameAST : AST {};
-
 struct AttributeAST : AST {};
-
-struct PtrOperatorAST : AST {};
-
 struct CoreDeclaratorAST : AST {};
-
+struct DeclarationAST : AST {};
 struct DeclaratorModifierAST : AST {};
-
 struct ExceptionDeclarationAST : AST {};
-
-// misc
+struct ExpressionAST : AST {};
+struct NameAST : AST {};
+struct PtrOperatorAST : AST {};
+struct SpecifierAST : AST {};
+struct StatementAST : AST {};
+struct UnitAST : AST {};
 
 struct TypeIdAST final : AST {
   List<SpecifierAST*>* typeSpecifierList = nullptr;
@@ -147,7 +136,45 @@ struct HandlerAST final : AST {
   SourceLocation lastSourceLocation() override;
 };
 
-// exception declarations
+struct TemplateArgumentAST final : AST {
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct EnumBaseAST final : AST {
+  SourceLocation colonLoc;
+  List<SpecifierAST*>* typeSpecifierList = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct EnumeratorAST final : AST {
+  NameAST* name = nullptr;
+  List<AttributeAST*>* attributeList = nullptr;
+  SourceLocation equalLoc;
+  ExpressionAST* expression = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct DeclaratorAST final : AST {
+  List<PtrOperatorAST*>* ptrOpList = nullptr;
+  CoreDeclaratorAST* coreDeclarator = nullptr;
+  List<DeclaratorModifierAST*>* modifiers = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
 
 struct EllipsisExceptionDeclarationAST final : ExceptionDeclarationAST {
   SourceLocation ellipsisLoc;
@@ -169,8 +196,6 @@ struct TypeExceptionDeclarationAST final : ExceptionDeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-// units
-
 struct TranslationUnitAST final : UnitAST {
   List<DeclarationAST*>* declarationList = nullptr;
 
@@ -186,8 +211,6 @@ struct ModuleUnitAST final : UnitAST {
   SourceLocation firstSourceLocation() override;
   SourceLocation lastSourceLocation() override;
 };
-
-// expressions
 
 struct ThisExpressionAST final : ExpressionAST {
   SourceLocation thisLoc;
@@ -284,7 +307,6 @@ struct NestedExpressionAST final : ExpressionAST {
 struct BinaryExpressionAST final : ExpressionAST {
   ExpressionAST* leftExpression = nullptr;
   SourceLocation opLoc;
-  TokenKind op = TokenKind::T_EOF_SYMBOL;
   ExpressionAST* rightExpression = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -296,7 +318,6 @@ struct BinaryExpressionAST final : ExpressionAST {
 struct AssignmentExpressionAST final : ExpressionAST {
   ExpressionAST* leftExpression = nullptr;
   SourceLocation opLoc;
-  TokenKind op = TokenKind::T_EOF_SYMBOL;
   ExpressionAST* rightExpression = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -304,8 +325,6 @@ struct AssignmentExpressionAST final : ExpressionAST {
   SourceLocation firstSourceLocation() override;
   SourceLocation lastSourceLocation() override;
 };
-
-// statements
 
 struct LabeledStatementAST final : StatementAST {
   SourceLocation identifierLoc;
@@ -525,8 +544,6 @@ struct TryBlockStatementAST final : StatementAST {
   SourceLocation lastSourceLocation() override;
 };
 
-// declarations
-
 struct FunctionDefinitionAST final : DeclarationAST {
   List<SpecifierAST*>* declSpecifierList = nullptr;
   DeclaratorAST* declarator = nullptr;
@@ -576,7 +593,6 @@ struct SimpleDeclarationAST final : DeclarationAST {
   List<AttributeAST*>* attributes = nullptr;
   List<SpecifierAST*>* declSpecifierList = nullptr;
   List<DeclaratorAST*>* declaratorList = nullptr;
-  SourceLocation semicolonToken;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -755,8 +771,6 @@ struct ExplicitInstantiationAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-// names
-
 struct SimpleNameAST final : NameAST {
   SourceLocation identifierLoc;
 
@@ -786,15 +800,8 @@ struct DecltypeNameAST final : NameAST {
 };
 
 struct OperatorNameAST final : NameAST {
-  SourceLocation loc;
+  SourceLocation opLoc;
 
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
-};
-
-struct TemplateArgumentAST final : AST {
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
   SourceLocation firstSourceLocation() override;
@@ -813,10 +820,8 @@ struct TemplateNameAST final : NameAST {
   SourceLocation lastSourceLocation() override;
 };
 
-// specifiers
-
 struct SimpleSpecifierAST final : SpecifierAST {
-  SourceLocation loc;
+  SourceLocation specifierLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -896,28 +901,6 @@ struct CvQualifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct EnumBaseAST final : AST {
-  SourceLocation colonLoc;
-  List<SpecifierAST*>* typeSpecifierList = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
-};
-
-struct EnumeratorAST final : AST {
-  NameAST* name = nullptr;
-  List<AttributeAST*>* attributeList = nullptr;
-  SourceLocation equalLoc;
-  ExpressionAST* expression = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
-};
-
 struct EnumSpecifierAST final : SpecifierAST {
   SourceLocation enumLoc;
   SourceLocation classLoc;
@@ -951,19 +934,6 @@ struct ClassSpecifierAST final : SpecifierAST {
 };
 
 struct TypenameSpecifierAST final : SpecifierAST {
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
-};
-
-// declarators
-
-struct DeclaratorAST final : AST {
-  List<PtrOperatorAST*>* ptrOpList = nullptr;
-  CoreDeclaratorAST* coreDeclarator = nullptr;
-  List<DeclaratorModifierAST*>* modifiers = nullptr;
-
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
   SourceLocation firstSourceLocation() override;

@@ -24,639 +24,341 @@
 
 namespace cxx {
 
-void RecursiveASTVisitor::visit(TypeIdAST* ast) {
-  if (preVisit(ast)) {
-    for (auto it = ast->typeSpecifierList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-    if (ast->declarator) ast->declarator->accept(this);
-  }
+void RecursiveASTVisitor::accept(AST* ast) {
+  if (!ast) return;
+  if (preVisit(ast)) ast->accept(this);
   postVisit(ast);
 }
 
-void RecursiveASTVisitor::visit(NestedNameSpecifierAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
+void RecursiveASTVisitor::visit(TypeIdAST* ast) {
+  for (auto it = ast->typeSpecifierList; it; it = it->next) accept(it->value);
+  accept(ast->declarator);
 }
+
+void RecursiveASTVisitor::visit(NestedNameSpecifierAST* ast) {}
 
 void RecursiveASTVisitor::visit(UsingDeclaratorAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->nestedNameSpecifier) ast->nestedNameSpecifier->accept(this);
-    if (ast->name) ast->name->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->nestedNameSpecifier);
+  accept(ast->name);
 }
 
 void RecursiveASTVisitor::visit(HandlerAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->exceptionDeclaration) ast->exceptionDeclaration->accept(this);
-    if (ast->statement) ast->statement->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->exceptionDeclaration);
+  accept(ast->statement);
 }
 
-void RecursiveASTVisitor::visit(TemplateArgumentAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(TemplateArgumentAST* ast) {}
 
 void RecursiveASTVisitor::visit(EnumBaseAST* ast) {
-  if (preVisit(ast)) {
-    for (auto it = ast->typeSpecifierList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-  }
-  postVisit(ast);
+  for (auto it = ast->typeSpecifierList; it; it = it->next) accept(it->value);
 }
 
 void RecursiveASTVisitor::visit(EnumeratorAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->name) ast->name->accept(this);
-    for (auto it = ast->attributeList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-    if (ast->expression) ast->expression->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->name);
+  for (auto it = ast->attributeList; it; it = it->next) accept(it->value);
+  accept(ast->expression);
 }
 
 void RecursiveASTVisitor::visit(DeclaratorAST* ast) {
-  if (preVisit(ast)) {
-    for (auto it = ast->ptrOpList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-    if (ast->coreDeclarator) ast->coreDeclarator->accept(this);
-    for (auto it = ast->modifiers; it; it = it->next)
-      if (it->value) it->value->accept(this);
-  }
-  postVisit(ast);
+  for (auto it = ast->ptrOpList; it; it = it->next) accept(it->value);
+  accept(ast->coreDeclarator);
+  for (auto it = ast->modifiers; it; it = it->next) accept(it->value);
 }
 
-void RecursiveASTVisitor::visit(EllipsisExceptionDeclarationAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(EllipsisExceptionDeclarationAST* ast) {}
 
 void RecursiveASTVisitor::visit(TypeExceptionDeclarationAST* ast) {
-  if (preVisit(ast)) {
-    for (auto it = ast->attributeList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-    for (auto it = ast->typeSpecifierList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-    if (ast->declarator) ast->declarator->accept(this);
-  }
-  postVisit(ast);
+  for (auto it = ast->attributeList; it; it = it->next) accept(it->value);
+  for (auto it = ast->typeSpecifierList; it; it = it->next) accept(it->value);
+  accept(ast->declarator);
 }
 
 void RecursiveASTVisitor::visit(TranslationUnitAST* ast) {
-  if (preVisit(ast)) {
-    for (auto it = ast->declarationList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-  }
-  postVisit(ast);
+  for (auto it = ast->declarationList; it; it = it->next) accept(it->value);
 }
 
-void RecursiveASTVisitor::visit(ModuleUnitAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(ModuleUnitAST* ast) {}
 
-void RecursiveASTVisitor::visit(ThisExpressionAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(ThisExpressionAST* ast) {}
 
-void RecursiveASTVisitor::visit(CharLiteralExpressionAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(CharLiteralExpressionAST* ast) {}
 
-void RecursiveASTVisitor::visit(BoolLiteralExpressionAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(BoolLiteralExpressionAST* ast) {}
 
-void RecursiveASTVisitor::visit(IntLiteralExpressionAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(IntLiteralExpressionAST* ast) {}
 
-void RecursiveASTVisitor::visit(FloatLiteralExpressionAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(FloatLiteralExpressionAST* ast) {}
 
-void RecursiveASTVisitor::visit(NullptrLiteralExpressionAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(NullptrLiteralExpressionAST* ast) {}
 
-void RecursiveASTVisitor::visit(StringLiteralExpressionAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(StringLiteralExpressionAST* ast) {}
 
-void RecursiveASTVisitor::visit(UserDefinedStringLiteralExpressionAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(UserDefinedStringLiteralExpressionAST* ast) {}
 
-void RecursiveASTVisitor::visit(IdExpressionAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->name) ast->name->accept(this);
-  }
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(IdExpressionAST* ast) { accept(ast->name); }
 
 void RecursiveASTVisitor::visit(NestedExpressionAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->expression) ast->expression->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->expression);
 }
 
 void RecursiveASTVisitor::visit(BinaryExpressionAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->leftExpression) ast->leftExpression->accept(this);
-    if (ast->rightExpression) ast->rightExpression->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->leftExpression);
+  accept(ast->rightExpression);
 }
 
 void RecursiveASTVisitor::visit(AssignmentExpressionAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->leftExpression) ast->leftExpression->accept(this);
-    if (ast->rightExpression) ast->rightExpression->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->leftExpression);
+  accept(ast->rightExpression);
 }
 
 void RecursiveASTVisitor::visit(LabeledStatementAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->statement) ast->statement->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->statement);
 }
 
 void RecursiveASTVisitor::visit(CaseStatementAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->expression) ast->expression->accept(this);
-    if (ast->statement) ast->statement->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->expression);
+  accept(ast->statement);
 }
 
 void RecursiveASTVisitor::visit(DefaultStatementAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->statement) ast->statement->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->statement);
 }
 
 void RecursiveASTVisitor::visit(ExpressionStatementAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->expression) ast->expression->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->expression);
 }
 
 void RecursiveASTVisitor::visit(CompoundStatementAST* ast) {
-  if (preVisit(ast)) {
-    for (auto it = ast->statementList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-  }
-  postVisit(ast);
+  for (auto it = ast->statementList; it; it = it->next) accept(it->value);
 }
 
 void RecursiveASTVisitor::visit(IfStatementAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->initializer) ast->initializer->accept(this);
-    if (ast->condition) ast->condition->accept(this);
-    if (ast->statement) ast->statement->accept(this);
-    if (ast->elseStatement) ast->elseStatement->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->initializer);
+  accept(ast->condition);
+  accept(ast->statement);
+  accept(ast->elseStatement);
 }
 
 void RecursiveASTVisitor::visit(SwitchStatementAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->initializer) ast->initializer->accept(this);
-    if (ast->condition) ast->condition->accept(this);
-    if (ast->statement) ast->statement->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->initializer);
+  accept(ast->condition);
+  accept(ast->statement);
 }
 
 void RecursiveASTVisitor::visit(WhileStatementAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->condition) ast->condition->accept(this);
-    if (ast->statement) ast->statement->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->condition);
+  accept(ast->statement);
 }
 
 void RecursiveASTVisitor::visit(DoStatementAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->statement) ast->statement->accept(this);
-    if (ast->expression) ast->expression->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->statement);
+  accept(ast->expression);
 }
 
 void RecursiveASTVisitor::visit(ForRangeStatementAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->initializer) ast->initializer->accept(this);
-    if (ast->rangeDeclaration) ast->rangeDeclaration->accept(this);
-    if (ast->rangeInitializer) ast->rangeInitializer->accept(this);
-    if (ast->statement) ast->statement->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->initializer);
+  accept(ast->rangeDeclaration);
+  accept(ast->rangeInitializer);
+  accept(ast->statement);
 }
 
 void RecursiveASTVisitor::visit(ForStatementAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->initializer) ast->initializer->accept(this);
-    if (ast->condition) ast->condition->accept(this);
-    if (ast->expression) ast->expression->accept(this);
-    if (ast->statement) ast->statement->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->initializer);
+  accept(ast->condition);
+  accept(ast->expression);
+  accept(ast->statement);
 }
 
-void RecursiveASTVisitor::visit(BreakStatementAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(BreakStatementAST* ast) {}
 
-void RecursiveASTVisitor::visit(ContinueStatementAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(ContinueStatementAST* ast) {}
 
 void RecursiveASTVisitor::visit(ReturnStatementAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->expression) ast->expression->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->expression);
 }
 
-void RecursiveASTVisitor::visit(GotoStatementAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(GotoStatementAST* ast) {}
 
 void RecursiveASTVisitor::visit(CoroutineReturnStatementAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->expression) ast->expression->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->expression);
 }
 
 void RecursiveASTVisitor::visit(DeclarationStatementAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->declaration) ast->declaration->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->declaration);
 }
 
 void RecursiveASTVisitor::visit(TryBlockStatementAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->statement) ast->statement->accept(this);
-    for (auto it = ast->handlerList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->statement);
+  for (auto it = ast->handlerList; it; it = it->next) accept(it->value);
 }
 
 void RecursiveASTVisitor::visit(FunctionDefinitionAST* ast) {
-  if (preVisit(ast)) {
-    for (auto it = ast->declSpecifierList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-    if (ast->declarator) ast->declarator->accept(this);
-    if (ast->functionBody) ast->functionBody->accept(this);
-  }
-  postVisit(ast);
+  for (auto it = ast->declSpecifierList; it; it = it->next) accept(it->value);
+  accept(ast->declarator);
+  accept(ast->functionBody);
 }
 
 void RecursiveASTVisitor::visit(ConceptDefinitionAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->name) ast->name->accept(this);
-    if (ast->expression) ast->expression->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->name);
+  accept(ast->expression);
 }
 
-void RecursiveASTVisitor::visit(ForRangeDeclarationAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(ForRangeDeclarationAST* ast) {}
 
 void RecursiveASTVisitor::visit(AliasDeclarationAST* ast) {
-  if (preVisit(ast)) {
-    for (auto it = ast->attributeList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-    if (ast->typeId) ast->typeId->accept(this);
-  }
-  postVisit(ast);
+  for (auto it = ast->attributeList; it; it = it->next) accept(it->value);
+  accept(ast->typeId);
 }
 
 void RecursiveASTVisitor::visit(SimpleDeclarationAST* ast) {
-  if (preVisit(ast)) {
-    for (auto it = ast->attributes; it; it = it->next)
-      if (it->value) it->value->accept(this);
-    for (auto it = ast->declSpecifierList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-    for (auto it = ast->declaratorList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-  }
-  postVisit(ast);
+  for (auto it = ast->attributes; it; it = it->next) accept(it->value);
+  for (auto it = ast->declSpecifierList; it; it = it->next) accept(it->value);
+  for (auto it = ast->declaratorList; it; it = it->next) accept(it->value);
 }
 
 void RecursiveASTVisitor::visit(StaticAssertDeclarationAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->expression) ast->expression->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->expression);
 }
 
-void RecursiveASTVisitor::visit(EmptyDeclarationAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(EmptyDeclarationAST* ast) {}
 
 void RecursiveASTVisitor::visit(AttributeDeclarationAST* ast) {
-  if (preVisit(ast)) {
-    for (auto it = ast->attributeList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-  }
-  postVisit(ast);
+  for (auto it = ast->attributeList; it; it = it->next) accept(it->value);
 }
 
 void RecursiveASTVisitor::visit(OpaqueEnumDeclarationAST* ast) {
-  if (preVisit(ast)) {
-    for (auto it = ast->attributeList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-    if (ast->nestedNameSpecifier) ast->nestedNameSpecifier->accept(this);
-    if (ast->name) ast->name->accept(this);
-    if (ast->enumBase) ast->enumBase->accept(this);
-  }
-  postVisit(ast);
+  for (auto it = ast->attributeList; it; it = it->next) accept(it->value);
+  accept(ast->nestedNameSpecifier);
+  accept(ast->name);
+  accept(ast->enumBase);
 }
 
-void RecursiveASTVisitor::visit(UsingEnumDeclarationAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(UsingEnumDeclarationAST* ast) {}
 
 void RecursiveASTVisitor::visit(NamespaceDefinitionAST* ast) {
-  if (preVisit(ast)) {
-    for (auto it = ast->attributeList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-    if (ast->nestedNameSpecifier) ast->nestedNameSpecifier->accept(this);
-    if (ast->name) ast->name->accept(this);
-    for (auto it = ast->extraAttributeList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-    for (auto it = ast->declarationList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-  }
-  postVisit(ast);
+  for (auto it = ast->attributeList; it; it = it->next) accept(it->value);
+  accept(ast->nestedNameSpecifier);
+  accept(ast->name);
+  for (auto it = ast->extraAttributeList; it; it = it->next) accept(it->value);
+  for (auto it = ast->declarationList; it; it = it->next) accept(it->value);
 }
 
 void RecursiveASTVisitor::visit(NamespaceAliasDefinitionAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->nestedNameSpecifier) ast->nestedNameSpecifier->accept(this);
-    if (ast->name) ast->name->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->nestedNameSpecifier);
+  accept(ast->name);
 }
 
-void RecursiveASTVisitor::visit(UsingDirectiveAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(UsingDirectiveAST* ast) {}
 
 void RecursiveASTVisitor::visit(UsingDeclarationAST* ast) {
-  if (preVisit(ast)) {
-    for (auto it = ast->usingDeclaratorList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-  }
-  postVisit(ast);
+  for (auto it = ast->usingDeclaratorList; it; it = it->next) accept(it->value);
 }
 
 void RecursiveASTVisitor::visit(AsmDeclarationAST* ast) {
-  if (preVisit(ast)) {
-    for (auto it = ast->attributeList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-  }
-  postVisit(ast);
+  for (auto it = ast->attributeList; it; it = it->next) accept(it->value);
 }
 
-void RecursiveASTVisitor::visit(LinkageSpecificationAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(LinkageSpecificationAST* ast) {}
 
-void RecursiveASTVisitor::visit(ExportDeclarationAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(ExportDeclarationAST* ast) {}
 
-void RecursiveASTVisitor::visit(ModuleImportDeclarationAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(ModuleImportDeclarationAST* ast) {}
 
 void RecursiveASTVisitor::visit(TemplateDeclarationAST* ast) {
-  if (preVisit(ast)) {
-    for (auto it = ast->templateParameterList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-    if (ast->declaration) ast->declaration->accept(this);
-  }
-  postVisit(ast);
+  for (auto it = ast->templateParameterList; it; it = it->next)
+    accept(it->value);
+  accept(ast->declaration);
 }
 
-void RecursiveASTVisitor::visit(DeductionGuideAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(DeductionGuideAST* ast) {}
 
 void RecursiveASTVisitor::visit(ExplicitInstantiationAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->declaration) ast->declaration->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->declaration);
 }
 
-void RecursiveASTVisitor::visit(SimpleNameAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(SimpleNameAST* ast) {}
 
-void RecursiveASTVisitor::visit(DestructorNameAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->name) ast->name->accept(this);
-  }
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(DestructorNameAST* ast) { accept(ast->name); }
 
 void RecursiveASTVisitor::visit(DecltypeNameAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->decltypeSpecifier) ast->decltypeSpecifier->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->decltypeSpecifier);
 }
 
-void RecursiveASTVisitor::visit(OperatorNameAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(OperatorNameAST* ast) {}
 
 void RecursiveASTVisitor::visit(TemplateNameAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->name) ast->name->accept(this);
-    for (auto it = ast->templateArgumentList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->name);
+  for (auto it = ast->templateArgumentList; it; it = it->next)
+    accept(it->value);
 }
 
-void RecursiveASTVisitor::visit(SimpleSpecifierAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(SimpleSpecifierAST* ast) {}
 
-void RecursiveASTVisitor::visit(ExplicitSpecifierAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(ExplicitSpecifierAST* ast) {}
 
-void RecursiveASTVisitor::visit(NamedTypeSpecifierAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(NamedTypeSpecifierAST* ast) {}
 
-void RecursiveASTVisitor::visit(PlaceholderTypeSpecifierHelperAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(PlaceholderTypeSpecifierHelperAST* ast) {}
 
-void RecursiveASTVisitor::visit(DecltypeSpecifierTypeSpecifierAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(DecltypeSpecifierTypeSpecifierAST* ast) {}
 
-void RecursiveASTVisitor::visit(UnderlyingTypeSpecifierAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(UnderlyingTypeSpecifierAST* ast) {}
 
-void RecursiveASTVisitor::visit(AtomicTypeSpecifierAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(AtomicTypeSpecifierAST* ast) {}
 
-void RecursiveASTVisitor::visit(ElaboratedTypeSpecifierAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(ElaboratedTypeSpecifierAST* ast) {}
 
-void RecursiveASTVisitor::visit(DecltypeSpecifierAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(DecltypeSpecifierAST* ast) {}
 
-void RecursiveASTVisitor::visit(PlaceholderTypeSpecifierAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(PlaceholderTypeSpecifierAST* ast) {}
 
-void RecursiveASTVisitor::visit(CvQualifierAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(CvQualifierAST* ast) {}
 
 void RecursiveASTVisitor::visit(EnumSpecifierAST* ast) {
-  if (preVisit(ast)) {
-    for (auto it = ast->attributeList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-    if (ast->nestedNameSpecifier) ast->nestedNameSpecifier->accept(this);
-    if (ast->name) ast->name->accept(this);
-    if (ast->enumBase) ast->enumBase->accept(this);
-    for (auto it = ast->enumeratorList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-  }
-  postVisit(ast);
+  for (auto it = ast->attributeList; it; it = it->next) accept(it->value);
+  accept(ast->nestedNameSpecifier);
+  accept(ast->name);
+  accept(ast->enumBase);
+  for (auto it = ast->enumeratorList; it; it = it->next) accept(it->value);
 }
 
 void RecursiveASTVisitor::visit(ClassSpecifierAST* ast) {
-  if (preVisit(ast)) {
-    for (auto it = ast->attributeList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-    if (ast->name) ast->name->accept(this);
-    for (auto it = ast->declarationList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-  }
-  postVisit(ast);
+  for (auto it = ast->attributeList; it; it = it->next) accept(it->value);
+  accept(ast->name);
+  for (auto it = ast->declarationList; it; it = it->next) accept(it->value);
 }
 
-void RecursiveASTVisitor::visit(TypenameSpecifierAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(TypenameSpecifierAST* ast) {}
 
 void RecursiveASTVisitor::visit(IdDeclaratorAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->name) ast->name->accept(this);
-    for (auto it = ast->attributeList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->name);
+  for (auto it = ast->attributeList; it; it = it->next) accept(it->value);
 }
 
 void RecursiveASTVisitor::visit(NestedDeclaratorAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->declarator) ast->declarator->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->declarator);
 }
 
 void RecursiveASTVisitor::visit(PointerOperatorAST* ast) {
-  if (preVisit(ast)) {
-    for (auto it = ast->attributeList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-    for (auto it = ast->cvQualifierList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-  }
-  postVisit(ast);
+  for (auto it = ast->attributeList; it; it = it->next) accept(it->value);
+  for (auto it = ast->cvQualifierList; it; it = it->next) accept(it->value);
 }
 
 void RecursiveASTVisitor::visit(ReferenceOperatorAST* ast) {
-  if (preVisit(ast)) {
-    for (auto it = ast->attributeList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-  }
-  postVisit(ast);
+  for (auto it = ast->attributeList; it; it = it->next) accept(it->value);
 }
 
 void RecursiveASTVisitor::visit(PtrToMemberOperatorAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->nestedNameSpecifier) ast->nestedNameSpecifier->accept(this);
-    for (auto it = ast->attributeList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-    for (auto it = ast->cvQualifierList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->nestedNameSpecifier);
+  for (auto it = ast->attributeList; it; it = it->next) accept(it->value);
+  for (auto it = ast->cvQualifierList; it; it = it->next) accept(it->value);
 }
 
-void RecursiveASTVisitor::visit(FunctionDeclaratorAST* ast) {
-  preVisit(ast);
-  postVisit(ast);
-}
+void RecursiveASTVisitor::visit(FunctionDeclaratorAST* ast) {}
 
 void RecursiveASTVisitor::visit(ArrayDeclaratorAST* ast) {
-  if (preVisit(ast)) {
-    if (ast->expression) ast->expression->accept(this);
-    for (auto it = ast->attributeList; it; it = it->next)
-      if (it->value) it->value->accept(this);
-  }
-  postVisit(ast);
+  accept(ast->expression);
+  for (auto it = ast->attributeList; it; it = it->next) accept(it->value);
 }
 
 }  // namespace cxx
