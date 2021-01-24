@@ -56,6 +56,8 @@ struct RecursiveASTVisitor : ASTVisitor {
     return accept(ast);
   }
 
+  virtual void baseSpecifier(BaseSpecifierAST* ast) { return accept(ast); }
+
   virtual void declaration(DeclarationAST* ast) { return accept(ast); }
 
   virtual void handler(HandlerAST* ast) { return accept(ast); }
@@ -72,6 +74,8 @@ struct RecursiveASTVisitor : ASTVisitor {
 
   virtual void enumerator(EnumeratorAST* ast) { return accept(ast); }
 
+  virtual void baseClause(BaseClauseAST* ast) { return accept(ast); }
+
   virtual bool preVisit(AST*) { return true; }
   virtual void postVisit(AST*) {}
 
@@ -83,6 +87,8 @@ struct RecursiveASTVisitor : ASTVisitor {
   void visit(EnumBaseAST* ast) override;
   void visit(EnumeratorAST* ast) override;
   void visit(DeclaratorAST* ast) override;
+  void visit(BaseSpecifierAST* ast) override;
+  void visit(BaseClauseAST* ast) override;
 
   void visit(EllipsisExceptionDeclarationAST* ast) override;
   void visit(TypeExceptionDeclarationAST* ast) override;
@@ -153,6 +159,7 @@ struct RecursiveASTVisitor : ASTVisitor {
   void visit(DecltypeNameAST* ast) override;
   void visit(OperatorNameAST* ast) override;
   void visit(TemplateNameAST* ast) override;
+  void visit(QualifiedNameAST* ast) override;
 
   void visit(SimpleSpecifierAST* ast) override;
   void visit(ExplicitSpecifierAST* ast) override;

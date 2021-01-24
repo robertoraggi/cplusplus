@@ -176,6 +176,26 @@ struct DeclaratorAST final : AST {
   SourceLocation lastSourceLocation() override;
 };
 
+struct BaseSpecifierAST final : AST {
+  List<AttributeAST*>* attributeList = nullptr;
+  NameAST* name = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct BaseClauseAST final : AST {
+  SourceLocation colonLoc;
+  List<BaseSpecifierAST*>* baseSpecifierList = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 struct EllipsisExceptionDeclarationAST final : ExceptionDeclarationAST {
   SourceLocation ellipsisLoc;
 
@@ -870,6 +890,17 @@ struct TemplateNameAST final : NameAST {
   SourceLocation lastSourceLocation() override;
 };
 
+struct QualifiedNameAST final : NameAST {
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  SourceLocation templateLoc;
+  NameAST* name = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 struct SimpleSpecifierAST final : SpecifierAST {
   SourceLocation specifierLoc;
 
@@ -973,6 +1004,7 @@ struct ClassSpecifierAST final : SpecifierAST {
   SourceLocation classLoc;
   List<AttributeAST*>* attributeList = nullptr;
   NameAST* name = nullptr;
+  BaseClauseAST* baseClause = nullptr;
   SourceLocation lbraceLoc;
   List<DeclarationAST*>* declarationList = nullptr;
   SourceLocation rbraceLoc;

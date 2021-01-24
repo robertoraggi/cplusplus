@@ -127,6 +127,30 @@ SourceLocation DeclaratorAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation BaseSpecifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation BaseSpecifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation BaseClauseAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(baseSpecifierList)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation BaseClauseAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(baseSpecifierList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation EllipsisExceptionDeclarationAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
   return SourceLocation();
@@ -342,6 +366,24 @@ SourceLocation MemberExpressionAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(accessLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(baseExpression)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ConditionalExpressionAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(condition)) return loc;
+  if (auto loc = cxx::firstSourceLocation(questionLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(iftrueExpression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(iffalseExpression)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ConditionalExpressionAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(iffalseExpression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(iftrueExpression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(questionLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(condition)) return loc;
   return SourceLocation();
 }
 
@@ -997,6 +1039,20 @@ SourceLocation TemplateNameAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation QualifiedNameAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(templateLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation QualifiedNameAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation SimpleSpecifierAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(specifierLoc)) return loc;
   return SourceLocation();
@@ -1121,6 +1177,7 @@ SourceLocation ClassSpecifierAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(classLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(baseClause)) return loc;
   if (auto loc = cxx::firstSourceLocation(lbraceLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(declarationList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rbraceLoc)) return loc;
@@ -1131,6 +1188,7 @@ SourceLocation ClassSpecifierAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(rbraceLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(declarationList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lbraceLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(baseClause)) return loc;
   if (auto loc = cxx::lastSourceLocation(name)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(classLoc)) return loc;
@@ -1236,24 +1294,6 @@ SourceLocation ArrayDeclaratorAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(rbracketLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(lbracketLoc)) return loc;
-  return SourceLocation();
-}
-
-SourceLocation ConditionalExpressionAST::firstSourceLocation() {
-  if (auto loc = cxx::firstSourceLocation(condition)) return loc;
-  if (auto loc = cxx::firstSourceLocation(questionLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(iftrueExpression)) return loc;
-  if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(iffalseExpression)) return loc;
-  return SourceLocation();
-}
-
-SourceLocation ConditionalExpressionAST::lastSourceLocation() {
-  if (auto loc = cxx::lastSourceLocation(iffalseExpression)) return loc;
-  if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(iftrueExpression)) return loc;
-  if (auto loc = cxx::lastSourceLocation(questionLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(condition)) return loc;
   return SourceLocation();
 }
 

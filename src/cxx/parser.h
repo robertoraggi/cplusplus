@@ -323,7 +323,8 @@ class Parser {
   bool parse_reject_class_specifier(SourceLocation start);
   bool parse_class_body(List<DeclarationAST*>*& yyast);
   bool parse_class_head(SourceLocation& classLoc,
-                        List<AttributeAST*>*& attributeList, NameAST*& name);
+                        List<AttributeAST*>*& attributeList, NameAST*& name,
+                        BaseClauseAST*& baseClause);
   bool parse_class_head_name(NameAST*& yyast);
   bool parse_class_virt_specifier();
   bool parse_class_key(SourceLocation& classLoc);
@@ -340,10 +341,10 @@ class Parser {
   bool parse_conversion_function_id(NameAST*& yyast);
   bool parse_conversion_type_id();
   bool parse_conversion_declarator();
-  bool parse_base_clause();
-  bool parse_base_specifier_list();
-  bool parse_base_specifier();
-  bool parse_class_or_decltype();
+  bool parse_base_clause(BaseClauseAST*& yyast);
+  bool parse_base_specifier_list(List<BaseSpecifierAST*>*& yyast);
+  bool parse_base_specifier(BaseSpecifierAST*& yyast);
+  bool parse_class_or_decltype(NameAST*& yyast);
   bool parse_access_specifier();
   bool parse_ctor_initializer();
   bool parse_mem_initializer_list();

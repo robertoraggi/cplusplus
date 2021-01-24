@@ -37,6 +37,8 @@ struct ASTVisitor {
   virtual void visit(EnumBaseAST* ast) = 0;
   virtual void visit(EnumeratorAST* ast) = 0;
   virtual void visit(DeclaratorAST* ast) = 0;
+  virtual void visit(BaseSpecifierAST* ast) = 0;
+  virtual void visit(BaseClauseAST* ast) = 0;
 
   // ExceptionDeclarationAST
   virtual void visit(EllipsisExceptionDeclarationAST* ast) = 0;
@@ -113,6 +115,7 @@ struct ASTVisitor {
   virtual void visit(DecltypeNameAST* ast) = 0;
   virtual void visit(OperatorNameAST* ast) = 0;
   virtual void visit(TemplateNameAST* ast) = 0;
+  virtual void visit(QualifiedNameAST* ast) = 0;
 
   // SpecifierAST
   virtual void visit(SimpleSpecifierAST* ast) = 0;

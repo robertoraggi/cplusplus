@@ -49,6 +49,8 @@ struct TemplateArgumentAST;
 struct EnumBaseAST;
 struct EnumeratorAST;
 struct DeclaratorAST;
+struct BaseSpecifierAST;
+struct BaseClauseAST;
 
 // ExceptionDeclarationAST
 struct EllipsisExceptionDeclarationAST;
@@ -125,6 +127,7 @@ struct DestructorNameAST;
 struct DecltypeNameAST;
 struct OperatorNameAST;
 struct TemplateNameAST;
+struct QualifiedNameAST;
 
 // SpecifierAST
 struct SimpleSpecifierAST;

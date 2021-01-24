@@ -4976,8 +4976,9 @@ bool Parser::parse_class_specifier(SpecifierAST*& yyast) {
   SourceLocation classLoc;
   List<AttributeAST*>* attributeList = nullptr;
   NameAST* className = nullptr;
+  BaseClauseAST* baseClause = nullptr;
 
-  if (!parse_class_head(classLoc, attributeList, className)) {
+  if (!parse_class_head(classLoc, attributeList, className, baseClause)) {
     parse_reject_class_specifier(start);
     return false;
   }
@@ -4995,6 +4996,7 @@ bool Parser::parse_class_specifier(SpecifierAST*& yyast) {
   ast->classLoc = classLoc;
   ast->attributeList = attributeList;
   ast->name = className;
+  ast->baseClause = baseClause;
   ast->lbraceLoc = lbraceLoc;
 
   if (!match(TokenKind::T_RBRACE, ast->rbraceLoc)) {
@@ -5051,7 +5053,7 @@ bool Parser::parse_class_body(List<DeclarationAST*>*& yyast) {
 
 bool Parser::parse_class_head(SourceLocation& classLoc,
                               List<AttributeAST*>*& attributeList,
-                              NameAST*& name) {
+                              NameAST*& name, BaseClauseAST*& baseClause) {
   if (!parse_class_key(classLoc)) return false;
 
   parse_attribute_specifier_seq(attributeList);
@@ -5060,7 +5062,7 @@ bool Parser::parse_class_head(SourceLocation& classLoc,
     parse_class_virt_specifier();
   }
 
-  parse_base_clause();
+  parse_base_clause(baseClause);
 
   return true;
 }
@@ -5385,33 +5387,54 @@ bool Parser::parse_conversion_declarator() {
   return parse_ptr_operator_seq(ptrOpList);
 }
 
-bool Parser::parse_base_clause() {
-  if (!match(TokenKind::T_COLON)) return false;
+bool Parser::parse_base_clause(BaseClauseAST*& yyast) {
+  SourceLocation colonLoc;
 
-  if (!parse_base_specifier_list())
+  if (!match(TokenKind::T_COLON, colonLoc)) return false;
+
+  auto ast = new (pool) BaseClauseAST();
+  yyast = ast;
+
+  ast->colonLoc = colonLoc;
+
+  if (!parse_base_specifier_list(ast->baseSpecifierList))
     parse_error("expected a base class specifier");
 
   return true;
 }
 
-bool Parser::parse_base_specifier_list() {
-  if (!parse_base_specifier()) return false;
+bool Parser::parse_base_specifier_list(List<BaseSpecifierAST*>*& yyast) {
+  auto it = &yyast;
+
+  BaseSpecifierAST* baseSpecifier = nullptr;
+
+  if (!parse_base_specifier(baseSpecifier)) return false;
 
   const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
 
+  *it = new (pool) List(baseSpecifier);
+  it = &(*it)->next;
+
   while (match(TokenKind::T_COMMA)) {
-    if (!parse_base_specifier()) parse_error("expected a base class specifier");
+    BaseSpecifierAST* baseSpecifier = nullptr;
+
+    if (!parse_base_specifier(baseSpecifier))
+      parse_error("expected a base class specifier");
 
     const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+
+    *it = new (pool) List(baseSpecifier);
+    it = &(*it)->next;
   }
 
   return true;
 }
 
-bool Parser::parse_base_specifier() {
-  List<AttributeAST*>* attributes = nullptr;
+bool Parser::parse_base_specifier(BaseSpecifierAST*& yyast) {
+  auto ast = new (pool) BaseSpecifierAST();
+  yyast = ast;
 
-  parse_attribute_specifier_seq(attributes);
+  parse_attribute_specifier_seq(ast->attributeList);
 
   bool has_virtual = match(TokenKind::T_VIRTUAL);
 
@@ -5424,12 +5447,12 @@ bool Parser::parse_base_specifier() {
     has_access_specifier = true;
   }
 
-  if (!parse_class_or_decltype()) return false;
+  if (!parse_class_or_decltype(ast->name)) return false;
 
   return true;
 }
 
-bool Parser::parse_class_or_decltype() {
+bool Parser::parse_class_or_decltype(NameAST*& yyast) {
   const auto start = currentLocation();
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
@@ -5439,21 +5462,42 @@ bool Parser::parse_class_or_decltype() {
 
     NameAST* name = nullptr;
 
-    if (match(TokenKind::T_TEMPLATE) && parse_simple_template_id(name))
-      return true;
+    SourceLocation templateLoc;
 
-    if (parse_type_name(name)) return true;
+    if (match(TokenKind::T_TEMPLATE, templateLoc) &&
+        parse_simple_template_id(name)) {
+      auto ast = new (pool) QualifiedNameAST();
+      yyast = ast;
+
+      ast->nestedNameSpecifier = nestedNameSpecifier;
+      ast->templateLoc = templateLoc;
+      ast->name = name;
+
+      return true;
+    }
+
+    if (parse_type_name(name)) {
+      auto ast = new (pool) QualifiedNameAST();
+      ast->nestedNameSpecifier = nestedNameSpecifier;
+      ast->name = name;
+
+      return true;
+    }
   }
 
   rewind(start);
 
   SpecifierAST* decltypeSpecifier = nullptr;
 
-  if (parse_decltype_specifier(decltypeSpecifier)) return true;
+  if (parse_decltype_specifier(decltypeSpecifier)) {
+    auto ast = new (pool) DecltypeNameAST();
+    ast->decltypeSpecifier = decltypeSpecifier;
+    yyast = ast;
 
-  NameAST* name = nullptr;
+    return true;
+  }
 
-  return parse_type_name(name);
+  return parse_type_name(yyast);
 }
 
 bool Parser::parse_access_specifier() {
@@ -5516,7 +5560,9 @@ bool Parser::parse_mem_initializer() {
 bool Parser::parse_mem_initializer_id() {
   const auto start = currentLocation();
 
-  if (parse_class_or_decltype()) return true;
+  NameAST* name = nullptr;
+
+  if (parse_class_or_decltype(name)) return true;
 
   rewind(start);
 

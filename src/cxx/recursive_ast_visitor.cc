@@ -68,6 +68,16 @@ void RecursiveASTVisitor::visit(DeclaratorAST* ast) {
     declaratorModifier(it->value);
 }
 
+void RecursiveASTVisitor::visit(BaseSpecifierAST* ast) {
+  for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
+  name(ast->name);
+}
+
+void RecursiveASTVisitor::visit(BaseClauseAST* ast) {
+  for (auto it = ast->baseSpecifierList; it; it = it->next)
+    baseSpecifier(it->value);
+}
+
 void RecursiveASTVisitor::visit(EllipsisExceptionDeclarationAST* ast) {}
 
 void RecursiveASTVisitor::visit(TypeExceptionDeclarationAST* ast) {
@@ -323,6 +333,11 @@ void RecursiveASTVisitor::visit(TemplateNameAST* ast) {
     templateArgument(it->value);
 }
 
+void RecursiveASTVisitor::visit(QualifiedNameAST* ast) {
+  nestedNameSpecifier(ast->nestedNameSpecifier);
+  name(ast->name);
+}
+
 void RecursiveASTVisitor::visit(SimpleSpecifierAST* ast) {}
 
 void RecursiveASTVisitor::visit(ExplicitSpecifierAST* ast) {}
@@ -356,6 +371,7 @@ void RecursiveASTVisitor::visit(EnumSpecifierAST* ast) {
 void RecursiveASTVisitor::visit(ClassSpecifierAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
   name(ast->name);
+  baseClause(ast->baseClause);
   for (auto it = ast->declarationList; it; it = it->next)
     declaration(it->value);
 }
