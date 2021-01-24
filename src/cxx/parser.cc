@@ -1830,6 +1830,13 @@ bool Parser::parse_binary_expression_helper(ExpressionAST*& yyast, Prec minPrec,
         break;
       }
     }
+
+    auto ast = new (pool) BinaryExpressionAST();
+    ast->leftExpression = yyast;
+    ast->opLoc = opLoc;
+    ast->rightExpression = rhs;
+
+    yyast = ast;
   }
 
   return parsed;
