@@ -1165,38 +1165,60 @@ bool Parser::parse_start_of_postfix_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_member_expression(ExpressionAST*& yyast) {
-  if (!match(TokenKind::T_DOT) && !match(TokenKind::T_MINUS_GREATER))
+  SourceLocation accessLoc;
+
+  if (!match(TokenKind::T_DOT, accessLoc) &&
+      !match(TokenKind::T_MINUS_GREATER, accessLoc))
     return false;
 
-  const auto has_template = match(TokenKind::T_TEMPLATE);
+  auto ast = new (pool) MemberExpressionAST();
+  ast->baseExpression = yyast;
+  ast->accessLoc = accessLoc;
 
-  NameAST* name = nullptr;
+  yyast = ast;
 
-  if (!parse_id_expression(name)) parse_error("expected a member name");
+  match(TokenKind::T_TEMPLATE, ast->templateLoc);
+
+  if (!parse_id_expression(ast->name)) parse_error("expected a member name");
 
   return true;
 }
 
 bool Parser::parse_subscript_expression(ExpressionAST*& yyast) {
-  if (!match(TokenKind::T_LBRACKET)) return false;
+  SourceLocation lbracketLoc;
 
-  ExpressionAST* expression = nullptr;
+  if (!match(TokenKind::T_LBRACKET, lbracketLoc)) return false;
 
-  if (!parse_expr_or_braced_init_list(expression))
+  auto ast = new (pool) SubscriptExpressionAST();
+  ast->baseExpression = yyast;
+  ast->lbracketLoc = lbracketLoc;
+
+  yyast = ast;
+
+  if (!parse_expr_or_braced_init_list(ast->indexExpression))
     parse_error("expected an expression");
 
-  expect(TokenKind::T_RBRACKET);
+  expect(TokenKind::T_RBRACKET, ast->rbracketLoc);
 
   return true;
 }
 
 bool Parser::parse_call_expression(ExpressionAST*& yyast) {
-  if (!match(TokenKind::T_LPAREN)) return false;
+  SourceLocation lparenLoc;
 
-  if (!match(TokenKind::T_RPAREN)) {
-    if (!parse_expression_list()) parse_error("expected an expression");
+  if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
 
-    expect(TokenKind::T_RPAREN);
+  auto ast = new (pool) CallExpressionAST();
+  ast->baseExpression = yyast;
+  ast->lparenLoc = lparenLoc;
+
+  yyast = ast;
+
+  if (!match(TokenKind::T_RPAREN, ast->rparenLoc)) {
+    if (!parse_expression_list(ast->expressionList))
+      parse_error("expected an expression");
+
+    expect(TokenKind::T_RPAREN, ast->rparenLoc);
   }
 
   return true;
@@ -1256,7 +1278,9 @@ bool Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast) {
   if (!match(TokenKind::T_LPAREN)) return false;
 
   if (!match(TokenKind::T_RPAREN)) {
-    if (!parse_expression_list()) return false;
+    List<ExpressionAST*>* expressionList = nullptr;
+
+    if (!parse_expression_list(expressionList)) return false;
 
     if (!match(TokenKind::T_RPAREN)) return false;
   }
@@ -1298,7 +1322,9 @@ bool Parser::parse_typename_expression(ExpressionAST*& yyast) {
   if (!match(TokenKind::T_LPAREN)) return false;
 
   if (!match(TokenKind::T_RPAREN)) {
-    if (!parse_expression_list()) return false;
+    List<ExpressionAST*>* expressionList = nullptr;
+
+    if (!parse_expression_list(expressionList)) return false;
 
     if (!match(TokenKind::T_RPAREN)) return false;
   }
@@ -1383,7 +1409,9 @@ bool Parser::parse_builtin_call_expression(ExpressionAST*& yyast) {
   return true;
 }
 
-bool Parser::parse_expression_list() { return parse_initializer_list(); }
+bool Parser::parse_expression_list(List<ExpressionAST*>*& yyast) {
+  return parse_initializer_list(yyast);
+}
 
 bool Parser::parse_unary_expression(ExpressionAST*& yyast) {
   if (parse_unop_expression(yyast)) return true;
@@ -1557,7 +1585,9 @@ bool Parser::parse_new_expression(ExpressionAST*& yyast) {
 bool Parser::parse_new_placement() {
   if (!match(TokenKind::T_LPAREN)) return false;
 
-  if (!parse_expression_list()) return false;
+  List<ExpressionAST*>* expressionList = nullptr;
+
+  if (!parse_expression_list(expressionList)) return false;
 
   if (!match(TokenKind::T_RPAREN)) return false;
 
@@ -1629,7 +1659,9 @@ bool Parser::parse_new_initializer() {
   if (!match(TokenKind::T_LPAREN)) return false;
 
   if (!match(TokenKind::T_RPAREN)) {
-    if (!parse_expression_list()) return false;
+    List<ExpressionAST*>* expressionList = nullptr;
+
+    if (!parse_expression_list(expressionList)) return false;
 
     if (!match(TokenKind::T_RPAREN)) return false;
   }
@@ -3935,7 +3967,10 @@ bool Parser::parse_initializer() {
   if (match(TokenKind::T_LPAREN)) {
     if (LA().is(TokenKind::T_RPAREN)) return false;
 
-    if (!parse_expression_list()) parse_error("expected an expression");
+    List<ExpressionAST*>* expressionList = nullptr;
+
+    if (!parse_expression_list(expressionList))
+      parse_error("expected an expression");
 
     expect(TokenKind::T_RPAREN);
 
@@ -3980,7 +4015,10 @@ bool Parser::parse_braced_init_list() {
   } else if (match(TokenKind::T_COMMA)) {
     // nothing to do
   } else if (LA().isNot(TokenKind::T_RBRACE)) {
-    if (!parse_initializer_list()) parse_error("expected initializer list");
+    List<ExpressionAST*>* expressionList = nullptr;
+
+    if (!parse_initializer_list(expressionList))
+      parse_error("expected initializer list");
   }
 
   expect(TokenKind::T_RBRACE);
@@ -3988,15 +4026,20 @@ bool Parser::parse_braced_init_list() {
   return true;
 }
 
-bool Parser::parse_initializer_list() {
-  ExpressionAST* e = nullptr;
+bool Parser::parse_initializer_list(List<ExpressionAST*>*& yyast) {
+  auto it = &yyast;
 
-  if (!parse_initializer_clause(e)) return false;
+  ExpressionAST* expression = nullptr;
+
+  if (!parse_initializer_clause(expression)) return false;
 
   bool has_triple_dot = false;
   if (match(TokenKind::T_DOT_DOT_DOT)) {
     has_triple_dot = true;
   }
+
+  *it = new (pool) List(expression);
+  it = &(*it)->next;
 
   while (match(TokenKind::T_COMMA)) {
     if (LA().is(TokenKind::T_RBRACE)) break;
@@ -4009,6 +4052,9 @@ bool Parser::parse_initializer_list() {
     if (match(TokenKind::T_DOT_DOT_DOT)) {
       has_triple_dot = true;
     }
+
+    *it = new (pool) List(expression);
+    it = &(*it)->next;
   }
 
   return true;
@@ -5444,7 +5490,10 @@ bool Parser::parse_mem_initializer() {
     expect(TokenKind::T_LPAREN);
 
     if (!match(TokenKind::T_RPAREN)) {
-      if (!parse_expression_list()) parse_error("expected an expression");
+      List<ExpressionAST*>* expressionList = nullptr;
+
+      if (!parse_expression_list(expressionList))
+        parse_error("expected an expression");
 
       expect(TokenKind::T_RPAREN);
     }

@@ -144,7 +144,7 @@ class Parser {
   bool parse_builtin_function_1();
   bool parse_builtin_function_2();
   bool parse_builtin_call_expression(ExpressionAST*& yyast);
-  bool parse_expression_list();
+  bool parse_expression_list(List<ExpressionAST*>*& yyast);
   bool parse_unary_expression(ExpressionAST*& yyast);
   bool parse_unop_expression(ExpressionAST*& yyast);
   bool parse_complex_expression(ExpressionAST*& yyast);
@@ -267,7 +267,7 @@ class Parser {
   bool parse_brace_or_equal_initializer();
   bool parse_initializer_clause(ExpressionAST*& yyast);
   bool parse_braced_init_list();
-  bool parse_initializer_list();
+  bool parse_initializer_list(List<ExpressionAST*>*& yyast);
   bool parse_designated_initializer_clause();
   bool parse_designator();
   bool parse_expr_or_braced_init_list(ExpressionAST*& yyast);

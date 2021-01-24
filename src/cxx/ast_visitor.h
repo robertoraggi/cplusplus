@@ -59,6 +59,9 @@ struct ASTVisitor {
   virtual void visit(NestedExpressionAST* ast) = 0;
   virtual void visit(BinaryExpressionAST* ast) = 0;
   virtual void visit(AssignmentExpressionAST* ast) = 0;
+  virtual void visit(CallExpressionAST* ast) = 0;
+  virtual void visit(SubscriptExpressionAST* ast) = 0;
+  virtual void visit(MemberExpressionAST* ast) = 0;
 
   // StatementAST
   virtual void visit(LabeledStatementAST* ast) = 0;

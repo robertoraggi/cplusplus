@@ -102,6 +102,9 @@ struct RecursiveASTVisitor : ASTVisitor {
   void visit(NestedExpressionAST* ast) override;
   void visit(BinaryExpressionAST* ast) override;
   void visit(AssignmentExpressionAST* ast) override;
+  void visit(CallExpressionAST* ast) override;
+  void visit(SubscriptExpressionAST* ast) override;
+  void visit(MemberExpressionAST* ast) override;
 
   void visit(LabeledStatementAST* ast) override;
   void visit(CaseStatementAST* ast) override;

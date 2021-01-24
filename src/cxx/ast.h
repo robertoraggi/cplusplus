@@ -326,6 +326,42 @@ struct AssignmentExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
+struct CallExpressionAST final : ExpressionAST {
+  ExpressionAST* baseExpression = nullptr;
+  SourceLocation lparenLoc;
+  List<ExpressionAST*>* expressionList = nullptr;
+  SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct SubscriptExpressionAST final : ExpressionAST {
+  ExpressionAST* baseExpression = nullptr;
+  SourceLocation lbracketLoc;
+  ExpressionAST* indexExpression = nullptr;
+  SourceLocation rbracketLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct MemberExpressionAST final : ExpressionAST {
+  ExpressionAST* baseExpression = nullptr;
+  SourceLocation accessLoc;
+  SourceLocation templateLoc;
+  NameAST* name = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 struct LabeledStatementAST final : StatementAST {
   SourceLocation identifierLoc;
   SourceLocation colonLoc;

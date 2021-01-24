@@ -116,6 +116,21 @@ void RecursiveASTVisitor::visit(AssignmentExpressionAST* ast) {
   expression(ast->rightExpression);
 }
 
+void RecursiveASTVisitor::visit(CallExpressionAST* ast) {
+  expression(ast->baseExpression);
+  for (auto it = ast->expressionList; it; it = it->next) expression(it->value);
+}
+
+void RecursiveASTVisitor::visit(SubscriptExpressionAST* ast) {
+  expression(ast->baseExpression);
+  expression(ast->indexExpression);
+}
+
+void RecursiveASTVisitor::visit(MemberExpressionAST* ast) {
+  expression(ast->baseExpression);
+  name(ast->name);
+}
+
 void RecursiveASTVisitor::visit(LabeledStatementAST* ast) {
   statement(ast->statement);
 }

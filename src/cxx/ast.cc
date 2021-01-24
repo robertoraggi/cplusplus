@@ -297,6 +297,54 @@ SourceLocation AssignmentExpressionAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation CallExpressionAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(baseExpression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expressionList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation CallExpressionAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(expressionList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(baseExpression)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation SubscriptExpressionAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(baseExpression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lbracketLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(indexExpression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rbracketLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation SubscriptExpressionAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(rbracketLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(indexExpression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lbracketLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(baseExpression)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation MemberExpressionAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(baseExpression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(accessLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(templateLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation MemberExpressionAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(accessLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(baseExpression)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation LabeledStatementAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;

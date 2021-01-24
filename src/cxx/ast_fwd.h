@@ -71,6 +71,9 @@ struct IdExpressionAST;
 struct NestedExpressionAST;
 struct BinaryExpressionAST;
 struct AssignmentExpressionAST;
+struct CallExpressionAST;
+struct SubscriptExpressionAST;
+struct MemberExpressionAST;
 
 // StatementAST
 struct LabeledStatementAST;
