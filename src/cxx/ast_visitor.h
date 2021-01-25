@@ -42,6 +42,7 @@ struct ASTVisitor {
   virtual void visit(NewTypeIdAST* ast) = 0;
   virtual void visit(BracedInitListAST* ast) = 0;
   virtual void visit(ParameterDeclarationClauseAST* ast) = 0;
+  virtual void visit(ParametersAndQualifiersAST* ast) = 0;
 
   // NewInitializerAST
   virtual void visit(NewParenInitializerAST* ast) = 0;

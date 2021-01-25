@@ -94,6 +94,12 @@ void RecursiveASTVisitor::visit(ParameterDeclarationClauseAST* ast) {
     parameterDeclaration(it->value);
 }
 
+void RecursiveASTVisitor::visit(ParametersAndQualifiersAST* ast) {
+  parameterDeclarationClause(ast->parameterDeclarationClause);
+  for (auto it = ast->cvQualifierList; it; it = it->next) specifier(it->value);
+  for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
+}
+
 void RecursiveASTVisitor::visit(NewParenInitializerAST* ast) {
   for (auto it = ast->expressionList; it; it = it->next) expression(it->value);
 }
@@ -447,7 +453,9 @@ void RecursiveASTVisitor::visit(PtrToMemberOperatorAST* ast) {
   for (auto it = ast->cvQualifierList; it; it = it->next) specifier(it->value);
 }
 
-void RecursiveASTVisitor::visit(FunctionDeclaratorAST* ast) {}
+void RecursiveASTVisitor::visit(FunctionDeclaratorAST* ast) {
+  parametersAndQualifiers(ast->parametersAndQualifiers);
+}
 
 void RecursiveASTVisitor::visit(ArrayDeclaratorAST* ast) {
   expression(ast->expression);

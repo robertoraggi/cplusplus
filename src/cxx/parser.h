@@ -246,7 +246,7 @@ class Parser {
   bool parse_core_declarator(CoreDeclaratorAST*& yyast);
   bool parse_noptr_declarator(DeclaratorAST*& yyast,
                               List<PtrOperatorAST*>* ptrOpLst);
-  bool parse_parameters_and_qualifiers();
+  bool parse_parameters_and_qualifiers(ParametersAndQualifiersAST*& yyast);
   bool parse_cv_qualifier_seq(List<SpecifierAST*>*& yyast);
   bool parse_trailing_return_type();
   bool parse_ptr_operator(PtrOperatorAST*& yyast);

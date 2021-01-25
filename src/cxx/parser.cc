@@ -2757,7 +2757,9 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
   IdDeclaratorAST* declaratorId = nullptr;
 
   if (parse_declarator_id(declaratorId)) {
-    if (parse_parameters_and_qualifiers()) {
+    ParametersAndQualifiersAST* parametersAndQualifiers = nullptr;
+
+    if (parse_parameters_and_qualifiers(parametersAndQualifiers)) {
       if (match(TokenKind::T_SEMICOLON)) return true;
 
       StatementAST* functionBody = nullptr;
@@ -2767,6 +2769,7 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
         declarator->coreDeclarator = declaratorId;
 
         auto functionDeclarator = new (pool) FunctionDeclaratorAST();
+        functionDeclarator->parametersAndQualifiers = parametersAndQualifiers;
 
         declarator->modifiers =
             new (pool) List<DeclaratorModifierAST*>(functionDeclarator);
@@ -3662,6 +3665,8 @@ bool Parser::parse_noptr_declarator(DeclaratorAST*& yyast,
 
   auto it = &yyast->modifiers;
 
+  ParametersAndQualifiersAST* parametersAndQualifiers = nullptr;
+
   while (true) {
     const auto saved = currentLocation();
 
@@ -3697,14 +3702,18 @@ bool Parser::parse_noptr_declarator(DeclaratorAST*& yyast,
 
       it = &(*it)->next;
 
-    } else if (parse_parameters_and_qualifiers()) {
+    } else if (parse_parameters_and_qualifiers(parametersAndQualifiers)) {
       parse_trailing_return_type();
 
       auto modifier = new (pool) FunctionDeclaratorAST();
 
+      modifier->parametersAndQualifiers = parametersAndQualifiers;
+
       *it = new (pool) List<DeclaratorModifierAST*>(modifier);
 
       it = &(*it)->next;
+
+      parametersAndQualifiers = nullptr;
     } else {
       rewind(saved);
       break;
@@ -3714,31 +3723,37 @@ bool Parser::parse_noptr_declarator(DeclaratorAST*& yyast,
   return true;
 }
 
-bool Parser::parse_parameters_and_qualifiers() {
-  if (!match(TokenKind::T_LPAREN)) return false;
+bool Parser::parse_parameters_and_qualifiers(
+    ParametersAndQualifiersAST*& yyast) {
+  SourceLocation lparenLoc;
 
-  if (!match(TokenKind::T_RPAREN)) {
-    ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
+  if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
 
+  SourceLocation rparenLoc;
+
+  ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
+
+  if (!match(TokenKind::T_RPAREN, rparenLoc)) {
     if (!parse_parameter_declaration_clause(parameterDeclarationClause))
       return false;
 
-    if (!match(TokenKind::T_RPAREN)) return false;
+    if (!match(TokenKind::T_RPAREN, rparenLoc)) return false;
   }
 
-  List<SpecifierAST*>* cvQualifierList = nullptr;
+  auto ast = new (pool) ParametersAndQualifiersAST();
+  yyast = ast;
 
-  parse_cv_qualifier_seq(cvQualifierList);
+  ast->lparenLoc = lparenLoc;
+  ast->parameterDeclarationClause = parameterDeclarationClause;
+  ast->rparenLoc = rparenLoc;
 
-  SourceLocation refLoc;
+  parse_cv_qualifier_seq(ast->cvQualifierList);
 
-  parse_ref_qualifier(refLoc);
+  parse_ref_qualifier(ast->refLoc);
 
   parse_noexcept_specifier();
 
-  List<AttributeAST*>* attributes = nullptr;
-
-  parse_attribute_specifier_seq(attributes);
+  parse_attribute_specifier_seq(ast->attributeList);
 
   return true;
 }
@@ -3920,7 +3935,10 @@ bool Parser::parse_abstract_declarator(DeclaratorAST*& yyast) {
 
   const auto saved = currentLocation();
 
-  if (parse_parameters_and_qualifiers() && parse_trailing_return_type())
+  ParametersAndQualifiersAST* parametersAndQualifiers = nullptr;
+
+  if (parse_parameters_and_qualifiers(parametersAndQualifiers) &&
+      parse_trailing_return_type())
     return true;
 
   rewind(saved);
@@ -3929,7 +3947,8 @@ bool Parser::parse_abstract_declarator(DeclaratorAST*& yyast) {
 
   const auto after_noptr_declarator = currentLocation();
 
-  if (parse_parameters_and_qualifiers() && parse_trailing_return_type()) {
+  if (parse_parameters_and_qualifiers(parametersAndQualifiers) &&
+      parse_trailing_return_type()) {
     //
   } else {
     rewind(after_noptr_declarator);
@@ -3965,7 +3984,10 @@ bool Parser::parse_noptr_abstract_declarator() {
   const auto after_nested_declarator = currentLocation();
 
   if (LA().is(TokenKind::T_LPAREN)) {
-    if (!parse_parameters_and_qualifiers()) rewind(after_nested_declarator);
+    ParametersAndQualifiersAST* parametersAndQualifiers = nullptr;
+
+    if (!parse_parameters_and_qualifiers(parametersAndQualifiers))
+      rewind(after_nested_declarator);
   }
 
   if (LA().is(TokenKind::T_LBRACKET)) {
@@ -3997,7 +4019,9 @@ bool Parser::parse_abstract_pack_declarator() {
 bool Parser::parse_noptr_abstract_pack_declarator() {
   if (!match(TokenKind::T_DOT_DOT_DOT)) return false;
 
-  if (parse_parameters_and_qualifiers()) return true;
+  ParametersAndQualifiersAST* parametersAndQualifiers = nullptr;
+
+  if (parse_parameters_and_qualifiers(parametersAndQualifiers)) return true;
 
   while (match(TokenKind::T_LBRACKET)) {
     if (!match(TokenKind::T_RBRACKET)) {
@@ -5377,7 +5401,9 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
 
     parse_attribute_specifier_seq(attributes);
 
-    if (parse_parameters_and_qualifiers()) {
+    ParametersAndQualifiersAST* parametersAndQualifiers = nullptr;
+
+    if (parse_parameters_and_qualifiers(parametersAndQualifiers)) {
       const auto after_parameters = currentLocation();
 
       StatementAST* functionBody = nullptr;
@@ -5387,6 +5413,8 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
         declarator->coreDeclarator = declaratorId;
 
         auto functionDeclarator = new (pool) FunctionDeclaratorAST();
+
+        functionDeclarator->parametersAndQualifiers = parametersAndQualifiers;
 
         declarator->modifiers =
             new (pool) List<DeclaratorModifierAST*>(functionDeclarator);

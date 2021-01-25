@@ -62,6 +62,10 @@ struct RecursiveASTVisitor : ASTVisitor {
     return accept(ast);
   }
 
+  virtual void parameterDeclarationClause(ParameterDeclarationClauseAST* ast) {
+    return accept(ast);
+  }
+
   virtual void bracedInitList(BracedInitListAST* ast) { return accept(ast); }
 
   virtual void declaration(DeclarationAST* ast) { return accept(ast); }
@@ -86,6 +90,10 @@ struct RecursiveASTVisitor : ASTVisitor {
 
   virtual void baseClause(BaseClauseAST* ast) { return accept(ast); }
 
+  virtual void parametersAndQualifiers(ParametersAndQualifiersAST* ast) {
+    return accept(ast);
+  }
+
   virtual bool preVisit(AST*) { return true; }
   virtual void postVisit(AST*) {}
 
@@ -102,6 +110,7 @@ struct RecursiveASTVisitor : ASTVisitor {
   void visit(NewTypeIdAST* ast) override;
   void visit(BracedInitListAST* ast) override;
   void visit(ParameterDeclarationClauseAST* ast) override;
+  void visit(ParametersAndQualifiersAST* ast) override;
 
   void visit(NewParenInitializerAST* ast) override;
   void visit(NewBracedInitializerAST* ast) override;

@@ -195,6 +195,28 @@ SourceLocation ParameterDeclarationClauseAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation ParametersAndQualifiersAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(parameterDeclarationClause))
+    return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(cvQualifierList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(refLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ParametersAndQualifiersAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(refLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(cvQualifierList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(parameterDeclarationClause))
+    return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation NewParenInitializerAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expressionList)) return loc;
@@ -1410,10 +1432,12 @@ SourceLocation PtrToMemberOperatorAST::lastSourceLocation() {
 }
 
 SourceLocation FunctionDeclaratorAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(parametersAndQualifiers)) return loc;
   return SourceLocation();
 }
 
 SourceLocation FunctionDeclaratorAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(parametersAndQualifiers)) return loc;
   return SourceLocation();
 }
 

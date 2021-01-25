@@ -55,6 +55,7 @@ struct BaseClauseAST;
 struct NewTypeIdAST;
 struct BracedInitListAST;
 struct ParameterDeclarationClauseAST;
+struct ParametersAndQualifiersAST;
 
 // NewInitializerAST
 struct NewParenInitializerAST;

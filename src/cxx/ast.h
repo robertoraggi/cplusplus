@@ -232,6 +232,20 @@ struct ParameterDeclarationClauseAST final : AST {
   SourceLocation lastSourceLocation() override;
 };
 
+struct ParametersAndQualifiersAST final : AST {
+  SourceLocation lparenLoc;
+  ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
+  SourceLocation rparenLoc;
+  List<SpecifierAST*>* cvQualifierList = nullptr;
+  SourceLocation refLoc;
+  List<AttributeAST*>* attributeList = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 struct NewParenInitializerAST final : NewInitializerAST {
   SourceLocation lparenLoc;
   List<ExpressionAST*>* expressionList = nullptr;
@@ -1182,6 +1196,8 @@ struct PtrToMemberOperatorAST final : PtrOperatorAST {
 };
 
 struct FunctionDeclaratorAST final : DeclaratorModifierAST {
+  ParametersAndQualifiersAST* parametersAndQualifiers = nullptr;
+
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
   SourceLocation firstSourceLocation() override;
