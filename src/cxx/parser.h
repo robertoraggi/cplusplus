@@ -256,8 +256,8 @@ class Parser {
   bool parse_type_id(TypeIdAST*& yyast);
   bool parse_defining_type_id(TypeIdAST*& yyast);
   bool parse_abstract_declarator(DeclaratorAST*& yyast);
-  bool parse_ptr_abstract_declarator();
-  bool parse_noptr_abstract_declarator();
+  bool parse_ptr_abstract_declarator(DeclaratorAST*& yyast);
+  bool parse_noptr_abstract_declarator(DeclaratorAST*& yyast);
   bool parse_abstract_pack_declarator();
   bool parse_noptr_abstract_pack_declarator();
   bool parse_parameter_declaration_clause(

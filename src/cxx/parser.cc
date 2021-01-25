@@ -3945,25 +3945,42 @@ bool Parser::parse_defining_type_id(TypeIdAST*& yyast) {
 bool Parser::parse_abstract_declarator(DeclaratorAST*& yyast) {
   if (parse_abstract_pack_declarator()) return true;
 
-  if (parse_ptr_abstract_declarator()) return true;
+  if (parse_ptr_abstract_declarator(yyast)) return true;
 
   const auto saved = currentLocation();
 
   ParametersAndQualifiersAST* parametersAndQualifiers = nullptr;
 
   if (parse_parameters_and_qualifiers(parametersAndQualifiers) &&
-      parse_trailing_return_type())
+      parse_trailing_return_type()) {
+    auto functionDeclarator = new (pool) FunctionDeclaratorAST();
+    functionDeclarator->parametersAndQualifiers = parametersAndQualifiers;
+
+    auto ast = new (pool) DeclaratorAST();
+    yyast = ast;
+
+    ast->modifiers =
+        new (pool) List<DeclaratorModifierAST*>(functionDeclarator);
+
     return true;
+  }
 
   rewind(saved);
 
-  if (!parse_noptr_abstract_declarator()) return false;
+  if (!parse_noptr_abstract_declarator(yyast)) return false;
 
   const auto after_noptr_declarator = currentLocation();
 
+  auto ast = new (pool) DeclaratorAST();
+  yyast = ast;
+
   if (parse_parameters_and_qualifiers(parametersAndQualifiers) &&
       parse_trailing_return_type()) {
-    //
+    auto functionDeclarator = new (pool) FunctionDeclaratorAST();
+    functionDeclarator->parametersAndQualifiers = parametersAndQualifiers;
+
+    ast->modifiers =
+        new (pool) List<DeclaratorModifierAST*>(functionDeclarator);
   } else {
     rewind(after_noptr_declarator);
   }
@@ -3971,48 +3988,78 @@ bool Parser::parse_abstract_declarator(DeclaratorAST*& yyast) {
   return true;
 }
 
-bool Parser::parse_ptr_abstract_declarator() {
+bool Parser::parse_ptr_abstract_declarator(DeclaratorAST*& yyast) {
   List<PtrOperatorAST*>* ptrOpList = nullptr;
 
   if (!parse_ptr_operator_seq(ptrOpList)) return false;
 
+  auto ast = new (pool) DeclaratorAST();
+  yyast = ast;
+
+  ast->ptrOpList = ptrOpList;
+
   const auto saved = currentLocation();
 
-  if (!parse_noptr_abstract_declarator()) rewind(saved);
+  if (!parse_noptr_abstract_declarator(yyast)) rewind(saved);
 
   return true;
 }
 
-bool Parser::parse_noptr_abstract_declarator() {
+bool Parser::parse_noptr_abstract_declarator(DeclaratorAST*& yyast) {
+  if (!yyast) yyast = new (pool) DeclaratorAST();
+
   const auto start = currentLocation();
 
-  auto has_nested_declarator = false;
+  DeclaratorAST* declarator = nullptr;
 
-  if (match(TokenKind::T_LPAREN) && parse_ptr_abstract_declarator() &&
+  if (match(TokenKind::T_LPAREN) && parse_ptr_abstract_declarator(declarator) &&
       match(TokenKind::T_RPAREN)) {
-    has_nested_declarator = true;
+    auto nestedDeclarator = new (pool) NestedDeclaratorAST();
+
+    nestedDeclarator->declarator = declarator;
+
+    yyast->coreDeclarator = nestedDeclarator;
   } else {
     rewind(start);
   }
 
   const auto after_nested_declarator = currentLocation();
 
-  if (LA().is(TokenKind::T_LPAREN)) {
-    ParametersAndQualifiersAST* parametersAndQualifiers = nullptr;
+  ParametersAndQualifiersAST* parametersAndQualifiers = nullptr;
 
-    if (!parse_parameters_and_qualifiers(parametersAndQualifiers))
+  auto it = &yyast->modifiers;
+
+  if (LA().is(TokenKind::T_LPAREN)) {
+    if (parse_parameters_and_qualifiers(parametersAndQualifiers)) {
+      auto functionDeclarator = new (pool) FunctionDeclaratorAST();
+
+      functionDeclarator->parametersAndQualifiers = parametersAndQualifiers;
+
+      *it = new (pool) List<DeclaratorModifierAST*>(functionDeclarator);
+      it = &(*it)->next;
+
+    } else {
       rewind(after_nested_declarator);
+    }
   }
 
   if (LA().is(TokenKind::T_LBRACKET)) {
-    while (match(TokenKind::T_LBRACKET)) {
-      if (!match(TokenKind::T_RBRACKET)) {
-        ExpressionAST* expression = nullptr;
+    SourceLocation lbracketLoc;
 
-        if (!parse_constant_expression(expression))
+    while (match(TokenKind::T_LBRACKET, lbracketLoc)) {
+      SourceLocation rbracketLoc;
+
+      auto arrayDeclarator = new (pool) ArrayDeclaratorAST();
+      arrayDeclarator->lbracketLoc = lbracketLoc;
+
+      *it = new (pool) List<DeclaratorModifierAST*>(arrayDeclarator);
+      it = &(*it)->next;
+
+      if (!match(TokenKind::T_RBRACKET, arrayDeclarator->rbracketLoc)) {
+        if (!parse_constant_expression(arrayDeclarator->expression))
           parse_error("expected an expression");
 
-        expect(TokenKind::T_RBRACKET);
+        expect(TokenKind::T_RBRACKET, arrayDeclarator->rbracketLoc);
       }
     }
   }
@@ -4021,11 +4068,16 @@ bool Parser::parse_noptr_abstract_declarator() {
 }
 
 bool Parser::parse_abstract_pack_declarator() {
+  auto start = currentLocation();
+
   List<PtrOperatorAST*>* ptrOpList = nullptr;
 
   parse_ptr_operator_seq(ptrOpList);
 
-  if (!parse_noptr_abstract_pack_declarator()) return false;
+  if (!parse_noptr_abstract_pack_declarator()) {
+    rewind(start);
+    return false;
+  }
 
   return true;
 }
