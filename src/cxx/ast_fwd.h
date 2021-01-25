@@ -34,6 +34,7 @@ struct DeclarationAST;
 struct DeclaratorModifierAST;
 struct ExceptionDeclarationAST;
 struct ExpressionAST;
+struct InitializerAST;
 struct NameAST;
 struct NewInitializerAST;
 struct PtrOperatorAST;
@@ -53,9 +54,13 @@ struct DeclaratorAST;
 struct BaseSpecifierAST;
 struct BaseClauseAST;
 struct NewTypeIdAST;
-struct BracedInitListAST;
 struct ParameterDeclarationClauseAST;
 struct ParametersAndQualifiersAST;
+
+// InitializerAST
+struct EqualInitializerAST;
+struct BracedInitListAST;
+struct ParenInitializerAST;
 
 // NewInitializerAST
 struct NewParenInitializerAST;

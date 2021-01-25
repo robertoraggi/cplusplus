@@ -108,9 +108,12 @@ struct RecursiveASTVisitor : ASTVisitor {
   void visit(BaseSpecifierAST* ast) override;
   void visit(BaseClauseAST* ast) override;
   void visit(NewTypeIdAST* ast) override;
-  void visit(BracedInitListAST* ast) override;
   void visit(ParameterDeclarationClauseAST* ast) override;
   void visit(ParametersAndQualifiersAST* ast) override;
+
+  void visit(EqualInitializerAST* ast) override;
+  void visit(BracedInitListAST* ast) override;
+  void visit(ParenInitializerAST* ast) override;
 
   void visit(NewParenInitializerAST* ast) override;
   void visit(NewBracedInitializerAST* ast) override;

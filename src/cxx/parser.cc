@@ -889,8 +889,13 @@ bool Parser::parse_simple_capture() {
 bool Parser::parse_init_capture() {
   if (match(TokenKind::T_AMP)) {
     const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+
     if (!match(TokenKind::T_IDENTIFIER)) return false;
-    if (!parse_initializer()) return false;
+
+    InitializerAST* initializer = nullptr;
+
+    if (!parse_initializer(initializer)) return false;
+
     return true;
   }
 
@@ -898,7 +903,9 @@ bool Parser::parse_init_capture() {
 
   if (!match(TokenKind::T_IDENTIFIER)) return false;
 
-  if (!parse_initializer()) return false;
+  InitializerAST* initializer = nullptr;
+
+  if (!parse_initializer(initializer)) return false;
 
   return true;
 }
@@ -2135,7 +2142,9 @@ bool Parser::parse_condition(ExpressionAST*& yyast) {
     DeclaratorAST* declarator = nullptr;
 
     if (parse_declarator(declarator)) {
-      if (parse_brace_or_equal_initializer()) return true;
+      InitializerAST* initializer = nullptr;
+
+      if (parse_brace_or_equal_initializer(initializer)) return true;
     }
   }
 
@@ -2817,7 +2826,10 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
 
   if (match(TokenKind::T_LBRACKET)) {
     if (parse_identifier_list() && match(TokenKind::T_RBRACKET)) {
-      if (parse_initializer() && match(TokenKind::T_SEMICOLON)) return true;
+      InitializerAST* initializer = nullptr;
+
+      if (parse_initializer(initializer) && match(TokenKind::T_SEMICOLON))
+        return true;
     }
   }
 
@@ -3581,7 +3593,9 @@ bool Parser::parse_init_declarator(DeclaratorAST*& yyast) {
 bool Parser::parse_declarator_initializer() {
   if (parse_requires_clause()) return true;
 
-  return parse_initializer();
+  InitializerAST* initializer = nullptr;
+
+  return parse_initializer(initializer);
 }
 
 bool Parser::parse_declarator(DeclaratorAST*& yyast) {
@@ -4123,34 +4137,44 @@ bool Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast) {
   return true;
 }
 
-bool Parser::parse_initializer() {
-  if (match(TokenKind::T_LPAREN)) {
+bool Parser::parse_initializer(InitializerAST*& yyast) {
+  SourceLocation lparenLoc;
+
+  if (match(TokenKind::T_LPAREN, lparenLoc)) {
     if (LA().is(TokenKind::T_RPAREN)) return false;
 
-    List<ExpressionAST*>* expressionList = nullptr;
+    auto ast = new (pool) ParenInitializerAST();
+    yyast = ast;
 
-    if (!parse_expression_list(expressionList))
+    ast->lparenLoc = lparenLoc;
+
+    if (!parse_expression_list(ast->expressionList))
       parse_error("expected an expression");
 
-    expect(TokenKind::T_RPAREN);
+    expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
     return true;
   }
 
-  return parse_brace_or_equal_initializer();
+  return parse_brace_or_equal_initializer(yyast);
 }
 
-bool Parser::parse_brace_or_equal_initializer() {
+bool Parser::parse_brace_or_equal_initializer(InitializerAST*& yyast) {
   BracedInitListAST* bracedInitList = nullptr;
 
   if (LA().is(TokenKind::T_LBRACE))
     return parse_braced_init_list(bracedInitList);
 
-  if (!match(TokenKind::T_EQUAL)) return false;
+  SourceLocation equalLoc;
 
-  ExpressionAST* expression = nullptr;
+  if (!match(TokenKind::T_EQUAL, equalLoc)) return false;
 
-  if (!parse_initializer_clause(expression))
+  auto ast = new (pool) EqualInitializerAST();
+  yyast = ast;
+
+  ast->equalLoc = equalLoc;
+
+  if (!parse_initializer_clause(ast->expression))
     parse_error("expected an intializer");
 
   return true;
@@ -4257,7 +4281,9 @@ bool Parser::parse_initializer_list(List<ExpressionAST*>*& yyast) {
 bool Parser::parse_designated_initializer_clause() {
   if (!parse_designator()) return false;
 
-  if (!parse_brace_or_equal_initializer())
+  InitializerAST* initializer = nullptr;
+
+  if (!parse_brace_or_equal_initializer(initializer))
     parse_error("expected an initializer");
 
   return true;
@@ -5498,8 +5524,11 @@ bool Parser::parse_member_function_definition_body(StatementAST*& yyast) {
 bool Parser::parse_member_declarator_modifier() {
   if (parse_requires_clause()) return true;
 
-  if (LA().is(TokenKind::T_LBRACE) || LA().is(TokenKind::T_EQUAL))
-    return parse_brace_or_equal_initializer();
+  if (LA().is(TokenKind::T_LBRACE) || LA().is(TokenKind::T_EQUAL)) {
+    InitializerAST* initializer = nullptr;
+
+    return parse_brace_or_equal_initializer(initializer);
+  }
 
   parse_virt_specifier_seq();
 
@@ -5546,7 +5575,9 @@ bool Parser::parse_member_declarator(DeclaratorAST*& yyast) {
     if (!parse_constant_expression(expression))
       parse_error("expected an expression");
 
-    parse_brace_or_equal_initializer();
+    InitializerAST* initializer = nullptr;
+
+    parse_brace_or_equal_initializer(initializer);
 
     return true;
   }

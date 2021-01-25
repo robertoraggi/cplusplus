@@ -89,6 +89,7 @@ struct DeclarationAST : AST {};
 struct DeclaratorModifierAST : AST {};
 struct ExceptionDeclarationAST : AST {};
 struct ExpressionAST : AST {};
+struct InitializerAST : AST {};
 struct NameAST : AST {};
 struct NewInitializerAST : AST {};
 struct PtrOperatorAST : AST {};
@@ -209,18 +210,6 @@ struct NewTypeIdAST final : AST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct BracedInitListAST final : AST {
-  SourceLocation lbraceLoc;
-  List<ExpressionAST*>* expressionList = nullptr;
-  SourceLocation commaLoc;
-  SourceLocation rbraceLoc;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
-};
-
 struct ParameterDeclarationClauseAST final : AST {
   List<ParameterDeclarationAST*>* templateParameterList = nullptr;
   SourceLocation commaLoc;
@@ -239,6 +228,39 @@ struct ParametersAndQualifiersAST final : AST {
   List<SpecifierAST*>* cvQualifierList = nullptr;
   SourceLocation refLoc;
   List<AttributeAST*>* attributeList = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct EqualInitializerAST final : InitializerAST {
+  SourceLocation equalLoc;
+  ExpressionAST* expression = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct BracedInitListAST final : InitializerAST {
+  SourceLocation lbraceLoc;
+  List<ExpressionAST*>* expressionList = nullptr;
+  SourceLocation commaLoc;
+  SourceLocation rbraceLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct ParenInitializerAST final : InitializerAST {
+  SourceLocation lparenLoc;
+  List<ExpressionAST*>* expressionList = nullptr;
+  SourceLocation rparenLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

@@ -40,9 +40,13 @@ struct ASTVisitor {
   virtual void visit(BaseSpecifierAST* ast) = 0;
   virtual void visit(BaseClauseAST* ast) = 0;
   virtual void visit(NewTypeIdAST* ast) = 0;
-  virtual void visit(BracedInitListAST* ast) = 0;
   virtual void visit(ParameterDeclarationClauseAST* ast) = 0;
   virtual void visit(ParametersAndQualifiersAST* ast) = 0;
+
+  // InitializerAST
+  virtual void visit(EqualInitializerAST* ast) = 0;
+  virtual void visit(BracedInitListAST* ast) = 0;
+  virtual void visit(ParenInitializerAST* ast) = 0;
 
   // NewInitializerAST
   virtual void visit(NewParenInitializerAST* ast) = 0;
