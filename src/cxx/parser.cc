@@ -4262,8 +4262,9 @@ bool Parser::parse_initializer_list(List<ExpressionAST*>*& yyast) {
   while (match(TokenKind::T_COMMA)) {
     if (LA().is(TokenKind::T_RBRACE)) break;
 
-    ExpressionAST* e = nullptr;
-    if (!parse_initializer_clause(e))
+    ExpressionAST* expression = nullptr;
+
+    if (!parse_initializer_clause(expression))
       parse_error("expected initializer clause");
 
     bool has_triple_dot = false;
