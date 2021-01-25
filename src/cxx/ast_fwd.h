@@ -124,13 +124,13 @@ struct NamespaceAliasDefinitionAST;
 struct UsingDirectiveAST;
 struct UsingDeclarationAST;
 struct AsmDeclarationAST;
-struct LinkageSpecificationAST;
 struct ExportDeclarationAST;
 struct ModuleImportDeclarationAST;
 struct TemplateDeclarationAST;
 struct DeductionGuideAST;
 struct ExplicitInstantiationAST;
 struct ParameterDeclarationAST;
+struct LinkageSpecificationAST;
 
 // NameAST
 struct SimpleNameAST;

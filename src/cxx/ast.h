@@ -872,13 +872,6 @@ struct AsmDeclarationAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct LinkageSpecificationAST final : DeclarationAST {
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
-};
-
 struct ExportDeclarationAST final : DeclarationAST {
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -930,6 +923,19 @@ struct ParameterDeclarationAST final : DeclarationAST {
   DeclaratorAST* declarator = nullptr;
   SourceLocation equalLoc;
   ExpressionAST* expression = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct LinkageSpecificationAST final : DeclarationAST {
+  SourceLocation externLoc;
+  SourceLocation stringliteralLoc;
+  SourceLocation lbraceLoc;
+  List<DeclarationAST*>* declarationList = nullptr;
+  SourceLocation rbraceLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

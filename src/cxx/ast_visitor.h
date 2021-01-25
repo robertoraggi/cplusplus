@@ -111,13 +111,13 @@ struct ASTVisitor {
   virtual void visit(UsingDirectiveAST* ast) = 0;
   virtual void visit(UsingDeclarationAST* ast) = 0;
   virtual void visit(AsmDeclarationAST* ast) = 0;
-  virtual void visit(LinkageSpecificationAST* ast) = 0;
   virtual void visit(ExportDeclarationAST* ast) = 0;
   virtual void visit(ModuleImportDeclarationAST* ast) = 0;
   virtual void visit(TemplateDeclarationAST* ast) = 0;
   virtual void visit(DeductionGuideAST* ast) = 0;
   virtual void visit(ExplicitInstantiationAST* ast) = 0;
   virtual void visit(ParameterDeclarationAST* ast) = 0;
+  virtual void visit(LinkageSpecificationAST* ast) = 0;
 
   // NameAST
   virtual void visit(SimpleNameAST* ast) = 0;

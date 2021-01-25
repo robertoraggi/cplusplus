@@ -58,6 +58,10 @@ struct RecursiveASTVisitor : ASTVisitor {
 
   virtual void baseSpecifier(BaseSpecifierAST* ast) { return accept(ast); }
 
+  virtual void parameterDeclaration(ParameterDeclarationAST* ast) {
+    return accept(ast);
+  }
+
   virtual void bracedInitList(BracedInitListAST* ast) { return accept(ast); }
 
   virtual void declaration(DeclarationAST* ast) { return accept(ast); }
@@ -73,10 +77,6 @@ struct RecursiveASTVisitor : ASTVisitor {
   virtual void enumBase(EnumBaseAST* ast) { return accept(ast); }
 
   virtual void usingDeclarator(UsingDeclaratorAST* ast) { return accept(ast); }
-
-  virtual void parameterDeclaration(ParameterDeclarationAST* ast) {
-    return accept(ast);
-  }
 
   virtual void templateArgument(TemplateArgumentAST* ast) {
     return accept(ast);
@@ -165,13 +165,13 @@ struct RecursiveASTVisitor : ASTVisitor {
   void visit(UsingDirectiveAST* ast) override;
   void visit(UsingDeclarationAST* ast) override;
   void visit(AsmDeclarationAST* ast) override;
-  void visit(LinkageSpecificationAST* ast) override;
   void visit(ExportDeclarationAST* ast) override;
   void visit(ModuleImportDeclarationAST* ast) override;
   void visit(TemplateDeclarationAST* ast) override;
   void visit(DeductionGuideAST* ast) override;
   void visit(ExplicitInstantiationAST* ast) override;
   void visit(ParameterDeclarationAST* ast) override;
+  void visit(LinkageSpecificationAST* ast) override;
 
   void visit(SimpleNameAST* ast) override;
   void visit(DestructorNameAST* ast) override;

@@ -4766,18 +4766,31 @@ bool Parser::parse_asm_declaration(DeclarationAST*& yyast) {
 }
 
 bool Parser::parse_linkage_specification(DeclarationAST*& yyast) {
-  if (!match(TokenKind::T_EXTERN)) return false;
+  SourceLocation externLoc;
 
-  if (!match(TokenKind::T_STRING_LITERAL)) return false;
+  if (!match(TokenKind::T_EXTERN, externLoc)) return false;
 
-  if (match(TokenKind::T_LBRACE)) {
-    if (!match(TokenKind::T_RBRACE)) {
-      List<DeclarationAST*>* declarationList = nullptr;
+  SourceLocation stringLiteralLoc;
 
-      if (!parse_declaration_seq(declarationList))
+  if (!match(TokenKind::T_STRING_LITERAL, stringLiteralLoc)) return false;
+
+  SourceLocation lbraceLoc;
+
+  if (match(TokenKind::T_LBRACE, lbraceLoc)) {
+    SourceLocation rbraceLoc;
+
+    auto ast = new (pool) LinkageSpecificationAST();
+    yyast = ast;
+
+    ast->externLoc = externLoc;
+    ast->stringliteralLoc = stringLiteralLoc;
+    ast->lbraceLoc = lbraceLoc;
+
+    if (!match(TokenKind::T_RBRACE, ast->rbraceLoc)) {
+      if (!parse_declaration_seq(ast->declarationList))
         parse_error("expected a declaration");
 
-      expect(TokenKind::T_RBRACE);
+      expect(TokenKind::T_RBRACE, ast->rbraceLoc);
     }
 
     return true;
@@ -4786,6 +4799,13 @@ bool Parser::parse_linkage_specification(DeclarationAST*& yyast) {
   DeclarationAST* declaration = nullptr;
 
   if (!parse_declaration(declaration)) return false;
+
+  auto ast = new (pool) LinkageSpecificationAST();
+  yyast = ast;
+
+  ast->externLoc = externLoc;
+  ast->stringliteralLoc = stringLiteralLoc;
+  ast->declarationList = new (pool) List(declaration);
 
   return true;
 }

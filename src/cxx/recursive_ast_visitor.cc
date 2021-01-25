@@ -333,8 +333,6 @@ void RecursiveASTVisitor::visit(AsmDeclarationAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
 }
 
-void RecursiveASTVisitor::visit(LinkageSpecificationAST* ast) {}
-
 void RecursiveASTVisitor::visit(ExportDeclarationAST* ast) {}
 
 void RecursiveASTVisitor::visit(ModuleImportDeclarationAST* ast) {}
@@ -357,6 +355,11 @@ void RecursiveASTVisitor::visit(ParameterDeclarationAST* ast) {
     specifier(it->value);
   declarator(ast->declarator);
   expression(ast->expression);
+}
+
+void RecursiveASTVisitor::visit(LinkageSpecificationAST* ast) {
+  for (auto it = ast->declarationList; it; it = it->next)
+    declaration(it->value);
 }
 
 void RecursiveASTVisitor::visit(SimpleNameAST* ast) {}
