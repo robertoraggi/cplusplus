@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "copy": "copyfiles -V -s -f ../../build.em/cxx-js.* dist",
+    "copy": "copyfiles -V -f ../../build.em/cxx-js.* dist",
     "build": "tsc",
     "watch": "tsc -w"
   },
