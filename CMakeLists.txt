@@ -28,24 +28,35 @@ find_package(fmt 7.1.3 CONFIG QUIET)
 set(CMAKE_CXX_STANDARD 20)
 
 if(NOT fmt_FOUND)
-    message(STATUS "fetching fmt")
+FetchContent_Declare(
+    fmt
+    GIT_REPOSITORY https://github.com/fmtlib/fmt
+    GIT_TAG        7.1.3
+    GIT_SHALLOW     1
+)
 
-    FetchContent_Declare(
-        fmt
-        GIT_REPOSITORY https://github.com/fmtlib/fmt
-        GIT_TAG        7.1.3
-    )
-
-    FetchContent_MakeAvailable(fmt)
+FetchContent_MakeAvailable(fmt)
 endif()
 
 FetchContent_Declare(
     utfcpp
-    GIT_REPOSITORY https://github.com/nemtrif/utfcpp
-    GIT_TAG        v3.1.2
+    GIT_REPOSITORY  https://github.com/nemtrif/utfcpp
+    GIT_TAG         v3.1.2
+    GIT_SHALLOW     1
 )
 
 FetchContent_MakeAvailable(utfcpp)
+
+set(JSON_BuildTests OFF CACHE INTERNAL "")  # Forces the value
+
+FetchContent_Declare(
+    nlohmann_json
+    GIT_REPOSITORY  https://github.com/nlohmann/json
+    GIT_TAG         v3.9.1
+    GIT_SHALLOW     1
+)
+
+FetchContent_MakeAvailable(nlohmann_json)
 
 add_subdirectory(tools/kwgen)
 
@@ -67,6 +78,7 @@ add_custom_command(OUTPUT keywords-priv.h
 
 add_executable(cxx-frontend src/frontend/frontend.cc)
 target_link_libraries(cxx-frontend CPlusPlus)
+target_link_libraries(cxx-frontend nlohmann_json::nlohmann_json)
 
 if(EMSCRIPTEN)
     target_link_options(cxx-frontend PUBLIC
