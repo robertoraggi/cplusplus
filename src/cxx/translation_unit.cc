@@ -97,7 +97,7 @@ void TranslationUnit::getTokenStartPosition(SourceLocation loc, unsigned* line,
 void TranslationUnit::getTokenEndPosition(SourceLocation loc, unsigned* line,
                                           unsigned* column) const {
   const auto& tk = tokenAt(loc);
-  auto offset = tk.offset();
+  auto offset = tk.offset() + tk.length();
   getTokenPosition(offset, line, column);
 }
 

@@ -70,6 +70,7 @@ add_library(CPlusPlus ${SOURCES}
 target_include_directories(CPlusPlus PUBLIC src)
 target_include_directories(CPlusPlus PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 target_link_libraries(CPlusPlus fmt::fmt-header-only utf8::cpp)
+target_link_libraries(CPlusPlus nlohmann_json::nlohmann_json)
 
 add_custom_command(OUTPUT keywords-priv.h
     COMMAND kwgen < ${CMAKE_CURRENT_SOURCE_DIR}/src/cxx/keywords.kwgen > keywords-priv.h
@@ -78,7 +79,6 @@ add_custom_command(OUTPUT keywords-priv.h
 
 add_executable(cxx-frontend src/frontend/frontend.cc)
 target_link_libraries(cxx-frontend CPlusPlus)
-target_link_libraries(cxx-frontend nlohmann_json::nlohmann_json)
 
 if(EMSCRIPTEN)
     target_link_options(cxx-frontend PUBLIC
