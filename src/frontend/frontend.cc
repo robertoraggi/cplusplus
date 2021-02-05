@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+// cxx
 #include <cxx/ast.h>
 #include <cxx/ast_printer.h>
 #include <cxx/ast_visitor.h>
@@ -25,9 +26,14 @@
 #include <cxx/lexer.h>
 #include <cxx/recursive_ast_visitor.h>
 #include <cxx/translation_unit.h>
+
+// fmt
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 
+#include <cxxopts.hpp>
+
+// std
 #include <cassert>
 #include <fstream>
 #include <iomanip>
@@ -65,66 +71,69 @@ bool parseFile(const std::string& fileName, bool printAST) {
   return result;
 }
 
+void dumpTokens(const std::string& fileName) {
+  const auto source = readAll(fileName);
+  Lexer lexer(source);
+  lexer.setPreprocessing(true);
+
+  do {
+    lexer.next();
+
+    std::string flags;
+
+    if (lexer.tokenStartOfLine()) {
+      flags += " [start-of-line]";
+    }
+
+    if (lexer.tokenLeadingSpace()) {
+      flags += " [leading-space]";
+    }
+
+    fmt::print("{} '{}'{}\n", Token::name(lexer.tokenKind()), lexer.tokenText(),
+               flags);
+  } while (lexer.tokenKind() != TokenKind::T_EOF_SYMBOL);
+}
+
 }  // namespace cxx
 
 int main(int argc, char* argv[]) {
   using namespace cxx;
 
-  std::vector<std::string> inputFiles;
-  bool dumpTokens = false;
-  bool dumpAST = false;
+  cxxopts::Options options("cxx-frontend", "cxx-frontend tool\n");
 
-  int index = 1;
-  while (index < argc) {
-    std::string arg{argv[index++]};
-    if (arg == "--help") {
-      std::cerr << "Usage: cplusplus [options] files..." << std::endl
-                << " The options are:" << std::endl
-                << "  --help            display this output" << std::endl
-                << "  -dump-tokens      dump tokens" << std::endl
-                << "  -dump-ast         dump AST" << std::endl;
-      exit(EXIT_SUCCESS);
-    } else if (arg == "--dump-tokens") {
-      dumpTokens = true;
-    } else if (arg == "--dump-ast") {
-      dumpAST = true;
-    } else {
-      inputFiles.push_back(std::move(arg));
-    }
+  // clang-format off
+  options.add_options()
+      ("h,help", "Display this information")
+      ("input", "Input Files", cxxopts::value<std::vector<std::string>>())
+      ("dump-tokens", "Dump the tokens")
+      ("dump-ast", "Dump the AST");
+  // clang-format on
+
+  options.positional_help("file...");
+  options.parse_positional("input");
+
+  auto result = options.parse(argc, argv);
+
+  if (result.count("help")) {
+    fmt::print("{}\n", options.help());
+    return 0;
   }
 
+  const auto& inputFiles = result["input"].as<std::vector<std::string>>();
+  const auto shouldDumpTokens = result["dump-tokens"].as<bool>();
+  const auto shouldDumpAST = result["dump-ast"].as<bool>();
+
   if (inputFiles.empty()) {
-    std::cerr << "cplusplus: no input files" << std::endl
-              << "Usage: cplusplus [options] files..." << std::endl;
+    std::cerr << "cxx-frontend: no input files" << std::endl
+              << "Usage: cxx-frontend [OPTION...] file..." << std::endl;
     return EXIT_FAILURE;
   }
 
   for (const auto& fileName : inputFiles) {
-    if (dumpTokens) {
-      const auto source = readAll(fileName);
-      Lexer lexer(source);
-      lexer.setPreprocessing(true);
-
-      do {
-        lexer.next();
-
-        std::string flags;
-
-        if (lexer.tokenStartOfLine()) {
-          flags += " [start-of-line]";
-        }
-
-        if (lexer.tokenLeadingSpace()) {
-          flags += " [leading-space]";
-        }
-
-        fmt::print("{} '{}'{}\n", Token::name(lexer.tokenKind()),
-                   lexer.tokenText(), flags);
-      } while (lexer.tokenKind() != TokenKind::T_EOF_SYMBOL);
-      continue;
-    }
-
-    parseFile(fileName, dumpAST);
+    if (shouldDumpTokens)
+      dumpTokens(fileName);
+    else
+      parseFile(fileName, shouldDumpAST);
   }
 
   return EXIT_SUCCESS;

@@ -47,7 +47,7 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(utfcpp)
 
-set(JSON_BuildTests OFF CACHE INTERNAL "")  # Forces the value
+set(JSON_BuildTests OFF CACHE INTERNAL "")
 
 FetchContent_Declare(
     nlohmann_json
@@ -57,6 +57,18 @@ FetchContent_Declare(
 )
 
 FetchContent_MakeAvailable(nlohmann_json)
+
+set(CXXOPTS_BUILD_EXAMPLES OFF CACHE INTERNAL "")
+set(CXXOPTS_BUILD_TESTS OFF CACHE INTERNAL "")
+
+FetchContent_Declare(
+    cxxopts
+    GIT_REPOSITORY  https://github.com/jarro2783/cxxopts
+    GIT_TAG         v2.2.1
+    GIT_SHALLOW     1
+)
+
+FetchContent_MakeAvailable(cxxopts)
 
 add_subdirectory(tools/kwgen)
 
@@ -79,6 +91,7 @@ add_custom_command(OUTPUT keywords-priv.h
 
 add_executable(cxx-frontend src/frontend/frontend.cc)
 target_link_libraries(cxx-frontend CPlusPlus)
+target_link_libraries(cxx-frontend cxxopts)
 
 if(EMSCRIPTEN)
     target_link_options(cxx-frontend PUBLIC
