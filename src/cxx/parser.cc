@@ -1165,8 +1165,6 @@ bool Parser::parse_nested_requirement() {
 }
 
 bool Parser::parse_postfix_expression(ExpressionAST*& yyast) {
-  ExpressionAST* e1 = nullptr;
-
   if (!parse_start_of_postfix_expression(yyast)) return false;
 
   while (true) {
@@ -1312,11 +1310,20 @@ bool Parser::parse_cpp_cast_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast) {
+  const auto start = currentLocation();
+
   SpecifierAST* typeSpecifier = nullptr;
 
   DeclSpecs specs;
 
   if (!parse_simple_type_specifier(typeSpecifier, specs)) return false;
+
+  // ### prefer function calls to cpp-cast expressions for now.
+  if (LA().is(TokenKind::T_LPAREN) &&
+      dynamic_cast<NamedTypeSpecifierAST*>(typeSpecifier)) {
+    rewind(start);
+    return false;
+  }
 
   BracedInitListAST* bracedInitList = nullptr;
 
