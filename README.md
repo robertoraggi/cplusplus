@@ -5,21 +5,44 @@ A parser for C++20.
 # Usage
 
 ```js
-const fs = require("fs");
-const process = require("process");
+const { Parser, RecursiveASTVisitor } = require("cxx-frontend");
 
-const { Parser } = require("cxx-frontend");
+const source = `
+int fact(int n) {
+    if (n < 2) return 1;
+    return n * fact(n - 1);
+}
 
-const path = process.argv[2];
-const source = fs.readFileSync(path).toString();
+int main() {
+    return fact(3);
+}
+`;
 
-const parser = new Parser({ path, source });
+const parser = new Parser({ source, path: "fact.cc" });
 
 parser.parse();
 
-console.log("diagnostics", parser.getDiagnostics());
+const diagnostics = parser.getDiagnostics();
 
-console.log("ast", parser.getAST());
+if (diagnostics.length > 0) {
+  console.log("diagnostics", parser.getDiagnostics());
+}
+
+class DumpAST extends RecursiveASTVisitor {
+  depth = 0;
+
+  accept(ast) {
+    if (ast) {
+        const name = ast.constructor.name;
+        console.log(`${" ".repeat(this.depth * 2)}${name}`);
+        ++this.depth;
+        super.accept(ast);
+        --this.depth;
+    }
+  }
+}
+
+parser.getAST().accept(new DumpAST());
 
 parser.dispose();
 ```
