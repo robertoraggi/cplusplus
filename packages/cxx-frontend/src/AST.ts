@@ -28,7 +28,7 @@ export abstract class AST {
         return this.handle;
     }
 
-    abstract accept<T, C>(visitor: ASTVisitor, context: C): T;
+    abstract accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result;
 
     static from<T extends AST = AST>(handle: number): T | undefined {
         if (handle) {
@@ -55,10 +55,10 @@ export abstract class StatementAST extends AST { }
 export abstract class UnitAST extends AST { }
 
 export class TypeIdAST extends AST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitTypeId(this, context);
     }
-    *getTypeSpecifierList(): Generator<SpecifierAST> | undefined {
+    *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
         for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
             yield AST.from<SpecifierAST>(cxx.getListValue(it));
         }
@@ -69,18 +69,18 @@ export class TypeIdAST extends AST {
 }
 
 export class NestedNameSpecifierAST extends AST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitNestedNameSpecifier(this, context);
     }
-    *getNameList(): Generator<NameAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getNameList(): Generator<NameAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
             yield AST.from<NameAST>(cxx.getListValue(it));
         }
     }
 }
 
 export class UsingDeclaratorAST extends AST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitUsingDeclarator(this, context);
     }
     getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
@@ -92,7 +92,7 @@ export class UsingDeclaratorAST extends AST {
 }
 
 export class HandlerAST extends AST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitHandler(this, context);
     }
     getExceptionDeclaration(): ExceptionDeclarationAST | undefined {
@@ -104,31 +104,31 @@ export class HandlerAST extends AST {
 }
 
 export class TemplateArgumentAST extends AST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitTemplateArgument(this, context);
     }
 }
 
 export class EnumBaseAST extends AST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitEnumBase(this, context);
     }
-    *getTypeSpecifierList(): Generator<SpecifierAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
             yield AST.from<SpecifierAST>(cxx.getListValue(it));
         }
     }
 }
 
 export class EnumeratorAST extends AST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitEnumerator(this, context);
     }
     getName(): NameAST | undefined {
         return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 0));
     }
-    *getAttributeList(): Generator<AttributeAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getAttributeList(): Generator<AttributeAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
             yield AST.from<AttributeAST>(cxx.getListValue(it));
         }
     }
@@ -138,10 +138,10 @@ export class EnumeratorAST extends AST {
 }
 
 export class DeclaratorAST extends AST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitDeclarator(this, context);
     }
-    *getPtrOpList(): Generator<PtrOperatorAST> | undefined {
+    *getPtrOpList(): Generator<PtrOperatorAST | undefined> {
         for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
             yield AST.from<PtrOperatorAST>(cxx.getListValue(it));
         }
@@ -149,18 +149,18 @@ export class DeclaratorAST extends AST {
     getCoreDeclarator(): CoreDeclaratorAST | undefined {
         return AST.from<CoreDeclaratorAST>(cxx.getASTSlot(this.getHandle(), 1));
     }
-    *getModifiers(): Generator<DeclaratorModifierAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getModifiers(): Generator<DeclaratorModifierAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
             yield AST.from<DeclaratorModifierAST>(cxx.getListValue(it));
         }
     }
 }
 
 export class BaseSpecifierAST extends AST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitBaseSpecifier(this, context);
     }
-    *getAttributeList(): Generator<AttributeAST> | undefined {
+    *getAttributeList(): Generator<AttributeAST | undefined> {
         for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
             yield AST.from<AttributeAST>(cxx.getListValue(it));
         }
@@ -171,21 +171,21 @@ export class BaseSpecifierAST extends AST {
 }
 
 export class BaseClauseAST extends AST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitBaseClause(this, context);
     }
-    *getBaseSpecifierList(): Generator<BaseSpecifierAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getBaseSpecifierList(): Generator<BaseSpecifierAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
             yield AST.from<BaseSpecifierAST>(cxx.getListValue(it));
         }
     }
 }
 
 export class NewTypeIdAST extends AST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitNewTypeId(this, context);
     }
-    *getTypeSpecifierList(): Generator<SpecifierAST> | undefined {
+    *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
         for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
             yield AST.from<SpecifierAST>(cxx.getListValue(it));
         }
@@ -193,10 +193,10 @@ export class NewTypeIdAST extends AST {
 }
 
 export class ParameterDeclarationClauseAST extends AST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitParameterDeclarationClause(this, context);
     }
-    *getTemplateParameterList(): Generator<ParameterDeclarationAST> | undefined {
+    *getTemplateParameterList(): Generator<ParameterDeclarationAST | undefined> {
         for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
             yield AST.from<ParameterDeclarationAST>(cxx.getListValue(it));
         }
@@ -204,26 +204,26 @@ export class ParameterDeclarationClauseAST extends AST {
 }
 
 export class ParametersAndQualifiersAST extends AST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitParametersAndQualifiers(this, context);
     }
     getParameterDeclarationClause(): ParameterDeclarationClauseAST | undefined {
         return AST.from<ParameterDeclarationClauseAST>(cxx.getASTSlot(this.getHandle(), 1));
     }
-    *getCvQualifierList(): Generator<SpecifierAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getCvQualifierList(): Generator<SpecifierAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 3); it; it = cxx.getListNext(it)) {
             yield AST.from<SpecifierAST>(cxx.getListValue(it));
         }
     }
-    *getAttributeList(): Generator<AttributeAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getAttributeList(): Generator<AttributeAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 5); it; it = cxx.getListNext(it)) {
             yield AST.from<AttributeAST>(cxx.getListValue(it));
         }
     }
 }
 
 export class EqualInitializerAST extends InitializerAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitEqualInitializer(this, context);
     }
     getExpression(): ExpressionAST | undefined {
@@ -232,40 +232,40 @@ export class EqualInitializerAST extends InitializerAST {
 }
 
 export class BracedInitListAST extends InitializerAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitBracedInitList(this, context);
     }
-    *getExpressionList(): Generator<ExpressionAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getExpressionList(): Generator<ExpressionAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
             yield AST.from<ExpressionAST>(cxx.getListValue(it));
         }
     }
 }
 
 export class ParenInitializerAST extends InitializerAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitParenInitializer(this, context);
     }
-    *getExpressionList(): Generator<ExpressionAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getExpressionList(): Generator<ExpressionAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
             yield AST.from<ExpressionAST>(cxx.getListValue(it));
         }
     }
 }
 
 export class NewParenInitializerAST extends NewInitializerAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitNewParenInitializer(this, context);
     }
-    *getExpressionList(): Generator<ExpressionAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getExpressionList(): Generator<ExpressionAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
             yield AST.from<ExpressionAST>(cxx.getListValue(it));
         }
     }
 }
 
 export class NewBracedInitializerAST extends NewInitializerAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitNewBracedInitializer(this, context);
     }
     getBracedInit(): BracedInitListAST | undefined {
@@ -274,22 +274,22 @@ export class NewBracedInitializerAST extends NewInitializerAST {
 }
 
 export class EllipsisExceptionDeclarationAST extends ExceptionDeclarationAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitEllipsisExceptionDeclaration(this, context);
     }
 }
 
 export class TypeExceptionDeclarationAST extends ExceptionDeclarationAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitTypeExceptionDeclaration(this, context);
     }
-    *getAttributeList(): Generator<AttributeAST> | undefined {
+    *getAttributeList(): Generator<AttributeAST | undefined> {
         for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
             yield AST.from<AttributeAST>(cxx.getListValue(it));
         }
     }
-    *getTypeSpecifierList(): Generator<SpecifierAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
             yield AST.from<SpecifierAST>(cxx.getListValue(it));
         }
     }
@@ -299,10 +299,10 @@ export class TypeExceptionDeclarationAST extends ExceptionDeclarationAST {
 }
 
 export class TranslationUnitAST extends UnitAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitTranslationUnit(this, context);
     }
-    *getDeclarationList(): Generator<DeclarationAST> | undefined {
+    *getDeclarationList(): Generator<DeclarationAST | undefined> {
         for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
             yield AST.from<DeclarationAST>(cxx.getListValue(it));
         }
@@ -310,61 +310,61 @@ export class TranslationUnitAST extends UnitAST {
 }
 
 export class ModuleUnitAST extends UnitAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitModuleUnit(this, context);
     }
 }
 
 export class ThisExpressionAST extends ExpressionAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitThisExpression(this, context);
     }
 }
 
 export class CharLiteralExpressionAST extends ExpressionAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitCharLiteralExpression(this, context);
     }
 }
 
 export class BoolLiteralExpressionAST extends ExpressionAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitBoolLiteralExpression(this, context);
     }
 }
 
 export class IntLiteralExpressionAST extends ExpressionAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitIntLiteralExpression(this, context);
     }
 }
 
 export class FloatLiteralExpressionAST extends ExpressionAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitFloatLiteralExpression(this, context);
     }
 }
 
 export class NullptrLiteralExpressionAST extends ExpressionAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitNullptrLiteralExpression(this, context);
     }
 }
 
 export class StringLiteralExpressionAST extends ExpressionAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitStringLiteralExpression(this, context);
     }
 }
 
 export class UserDefinedStringLiteralExpressionAST extends ExpressionAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitUserDefinedStringLiteralExpression(this, context);
     }
 }
 
 export class IdExpressionAST extends ExpressionAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitIdExpression(this, context);
     }
     getName(): NameAST | undefined {
@@ -373,7 +373,7 @@ export class IdExpressionAST extends ExpressionAST {
 }
 
 export class NestedExpressionAST extends ExpressionAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitNestedExpression(this, context);
     }
     getExpression(): ExpressionAST | undefined {
@@ -382,7 +382,7 @@ export class NestedExpressionAST extends ExpressionAST {
 }
 
 export class BinaryExpressionAST extends ExpressionAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitBinaryExpression(this, context);
     }
     getLeftExpression(): ExpressionAST | undefined {
@@ -394,7 +394,7 @@ export class BinaryExpressionAST extends ExpressionAST {
 }
 
 export class AssignmentExpressionAST extends ExpressionAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitAssignmentExpression(this, context);
     }
     getLeftExpression(): ExpressionAST | undefined {
@@ -406,21 +406,21 @@ export class AssignmentExpressionAST extends ExpressionAST {
 }
 
 export class CallExpressionAST extends ExpressionAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitCallExpression(this, context);
     }
     getBaseExpression(): ExpressionAST | undefined {
         return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 0));
     }
-    *getExpressionList(): Generator<ExpressionAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getExpressionList(): Generator<ExpressionAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
             yield AST.from<ExpressionAST>(cxx.getListValue(it));
         }
     }
 }
 
 export class SubscriptExpressionAST extends ExpressionAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitSubscriptExpression(this, context);
     }
     getBaseExpression(): ExpressionAST | undefined {
@@ -432,7 +432,7 @@ export class SubscriptExpressionAST extends ExpressionAST {
 }
 
 export class MemberExpressionAST extends ExpressionAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitMemberExpression(this, context);
     }
     getBaseExpression(): ExpressionAST | undefined {
@@ -444,7 +444,7 @@ export class MemberExpressionAST extends ExpressionAST {
 }
 
 export class ConditionalExpressionAST extends ExpressionAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitConditionalExpression(this, context);
     }
     getCondition(): ExpressionAST | undefined {
@@ -459,7 +459,7 @@ export class ConditionalExpressionAST extends ExpressionAST {
 }
 
 export class CppCastExpressionAST extends ExpressionAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitCppCastExpression(this, context);
     }
     getTypeId(): TypeIdAST | undefined {
@@ -471,7 +471,7 @@ export class CppCastExpressionAST extends ExpressionAST {
 }
 
 export class NewExpressionAST extends ExpressionAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitNewExpression(this, context);
     }
     getTypeId(): NewTypeIdAST | undefined {
@@ -483,7 +483,7 @@ export class NewExpressionAST extends ExpressionAST {
 }
 
 export class LabeledStatementAST extends StatementAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitLabeledStatement(this, context);
     }
     getStatement(): StatementAST | undefined {
@@ -492,7 +492,7 @@ export class LabeledStatementAST extends StatementAST {
 }
 
 export class CaseStatementAST extends StatementAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitCaseStatement(this, context);
     }
     getExpression(): ExpressionAST | undefined {
@@ -504,7 +504,7 @@ export class CaseStatementAST extends StatementAST {
 }
 
 export class DefaultStatementAST extends StatementAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitDefaultStatement(this, context);
     }
     getStatement(): StatementAST | undefined {
@@ -513,7 +513,7 @@ export class DefaultStatementAST extends StatementAST {
 }
 
 export class ExpressionStatementAST extends StatementAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitExpressionStatement(this, context);
     }
     getExpression(): ExpressionAST | undefined {
@@ -522,18 +522,18 @@ export class ExpressionStatementAST extends StatementAST {
 }
 
 export class CompoundStatementAST extends StatementAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitCompoundStatement(this, context);
     }
-    *getStatementList(): Generator<StatementAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getStatementList(): Generator<StatementAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
             yield AST.from<StatementAST>(cxx.getListValue(it));
         }
     }
 }
 
 export class IfStatementAST extends StatementAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitIfStatement(this, context);
     }
     getInitializer(): StatementAST | undefined {
@@ -551,7 +551,7 @@ export class IfStatementAST extends StatementAST {
 }
 
 export class SwitchStatementAST extends StatementAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitSwitchStatement(this, context);
     }
     getInitializer(): StatementAST | undefined {
@@ -566,7 +566,7 @@ export class SwitchStatementAST extends StatementAST {
 }
 
 export class WhileStatementAST extends StatementAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitWhileStatement(this, context);
     }
     getCondition(): ExpressionAST | undefined {
@@ -578,7 +578,7 @@ export class WhileStatementAST extends StatementAST {
 }
 
 export class DoStatementAST extends StatementAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitDoStatement(this, context);
     }
     getStatement(): StatementAST | undefined {
@@ -590,7 +590,7 @@ export class DoStatementAST extends StatementAST {
 }
 
 export class ForRangeStatementAST extends StatementAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitForRangeStatement(this, context);
     }
     getInitializer(): StatementAST | undefined {
@@ -608,7 +608,7 @@ export class ForRangeStatementAST extends StatementAST {
 }
 
 export class ForStatementAST extends StatementAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitForStatement(this, context);
     }
     getInitializer(): StatementAST | undefined {
@@ -626,19 +626,19 @@ export class ForStatementAST extends StatementAST {
 }
 
 export class BreakStatementAST extends StatementAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitBreakStatement(this, context);
     }
 }
 
 export class ContinueStatementAST extends StatementAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitContinueStatement(this, context);
     }
 }
 
 export class ReturnStatementAST extends StatementAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitReturnStatement(this, context);
     }
     getExpression(): ExpressionAST | undefined {
@@ -647,13 +647,13 @@ export class ReturnStatementAST extends StatementAST {
 }
 
 export class GotoStatementAST extends StatementAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitGotoStatement(this, context);
     }
 }
 
 export class CoroutineReturnStatementAST extends StatementAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitCoroutineReturnStatement(this, context);
     }
     getExpression(): ExpressionAST | undefined {
@@ -662,7 +662,7 @@ export class CoroutineReturnStatementAST extends StatementAST {
 }
 
 export class DeclarationStatementAST extends StatementAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitDeclarationStatement(this, context);
     }
     getDeclaration(): DeclarationAST | undefined {
@@ -671,24 +671,24 @@ export class DeclarationStatementAST extends StatementAST {
 }
 
 export class TryBlockStatementAST extends StatementAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitTryBlockStatement(this, context);
     }
     getStatement(): StatementAST | undefined {
         return AST.from<StatementAST>(cxx.getASTSlot(this.getHandle(), 1));
     }
-    *getHandlerList(): Generator<HandlerAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getHandlerList(): Generator<HandlerAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
             yield AST.from<HandlerAST>(cxx.getListValue(it));
         }
     }
 }
 
 export class FunctionDefinitionAST extends DeclarationAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitFunctionDefinition(this, context);
     }
-    *getDeclSpecifierList(): Generator<SpecifierAST> | undefined {
+    *getDeclSpecifierList(): Generator<SpecifierAST | undefined> {
         for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
             yield AST.from<SpecifierAST>(cxx.getListValue(it));
         }
@@ -702,7 +702,7 @@ export class FunctionDefinitionAST extends DeclarationAST {
 }
 
 export class ConceptDefinitionAST extends DeclarationAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitConceptDefinition(this, context);
     }
     getName(): NameAST | undefined {
@@ -714,17 +714,17 @@ export class ConceptDefinitionAST extends DeclarationAST {
 }
 
 export class ForRangeDeclarationAST extends DeclarationAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitForRangeDeclaration(this, context);
     }
 }
 
 export class AliasDeclarationAST extends DeclarationAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitAliasDeclaration(this, context);
     }
-    *getAttributeList(): Generator<AttributeAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getAttributeList(): Generator<AttributeAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
             yield AST.from<AttributeAST>(cxx.getListValue(it));
         }
     }
@@ -734,28 +734,28 @@ export class AliasDeclarationAST extends DeclarationAST {
 }
 
 export class SimpleDeclarationAST extends DeclarationAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitSimpleDeclaration(this, context);
     }
-    *getAttributes(): Generator<AttributeAST> | undefined {
+    *getAttributes(): Generator<AttributeAST | undefined> {
         for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
             yield AST.from<AttributeAST>(cxx.getListValue(it));
         }
     }
-    *getDeclSpecifierList(): Generator<SpecifierAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getDeclSpecifierList(): Generator<SpecifierAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
             yield AST.from<SpecifierAST>(cxx.getListValue(it));
         }
     }
-    *getDeclaratorList(): Generator<DeclaratorAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getDeclaratorList(): Generator<DeclaratorAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
             yield AST.from<DeclaratorAST>(cxx.getListValue(it));
         }
     }
 }
 
 export class StaticAssertDeclarationAST extends DeclarationAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitStaticAssertDeclaration(this, context);
     }
     getExpression(): ExpressionAST | undefined {
@@ -764,16 +764,16 @@ export class StaticAssertDeclarationAST extends DeclarationAST {
 }
 
 export class EmptyDeclarationAST extends DeclarationAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitEmptyDeclaration(this, context);
     }
 }
 
 export class AttributeDeclarationAST extends DeclarationAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitAttributeDeclaration(this, context);
     }
-    *getAttributeList(): Generator<AttributeAST> | undefined {
+    *getAttributeList(): Generator<AttributeAST | undefined> {
         for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
             yield AST.from<AttributeAST>(cxx.getListValue(it));
         }
@@ -781,11 +781,11 @@ export class AttributeDeclarationAST extends DeclarationAST {
 }
 
 export class OpaqueEnumDeclarationAST extends DeclarationAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitOpaqueEnumDeclaration(this, context);
     }
-    *getAttributeList(): Generator<AttributeAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getAttributeList(): Generator<AttributeAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
             yield AST.from<AttributeAST>(cxx.getListValue(it));
         }
     }
@@ -801,17 +801,17 @@ export class OpaqueEnumDeclarationAST extends DeclarationAST {
 }
 
 export class UsingEnumDeclarationAST extends DeclarationAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitUsingEnumDeclaration(this, context);
     }
 }
 
 export class NamespaceDefinitionAST extends DeclarationAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitNamespaceDefinition(this, context);
     }
-    *getAttributeList(): Generator<AttributeAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getAttributeList(): Generator<AttributeAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
             yield AST.from<AttributeAST>(cxx.getListValue(it));
         }
     }
@@ -821,20 +821,20 @@ export class NamespaceDefinitionAST extends DeclarationAST {
     getName(): NameAST | undefined {
         return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 4));
     }
-    *getExtraAttributeList(): Generator<AttributeAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getExtraAttributeList(): Generator<AttributeAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 5); it; it = cxx.getListNext(it)) {
             yield AST.from<AttributeAST>(cxx.getListValue(it));
         }
     }
-    *getDeclarationList(): Generator<DeclarationAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getDeclarationList(): Generator<DeclarationAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 7); it; it = cxx.getListNext(it)) {
             yield AST.from<DeclarationAST>(cxx.getListValue(it));
         }
     }
 }
 
 export class NamespaceAliasDefinitionAST extends DeclarationAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitNamespaceAliasDefinition(this, context);
     }
     getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
@@ -846,27 +846,27 @@ export class NamespaceAliasDefinitionAST extends DeclarationAST {
 }
 
 export class UsingDirectiveAST extends DeclarationAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitUsingDirective(this, context);
     }
 }
 
 export class UsingDeclarationAST extends DeclarationAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitUsingDeclaration(this, context);
     }
-    *getUsingDeclaratorList(): Generator<UsingDeclaratorAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getUsingDeclaratorList(): Generator<UsingDeclaratorAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
             yield AST.from<UsingDeclaratorAST>(cxx.getListValue(it));
         }
     }
 }
 
 export class AsmDeclarationAST extends DeclarationAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitAsmDeclaration(this, context);
     }
-    *getAttributeList(): Generator<AttributeAST> | undefined {
+    *getAttributeList(): Generator<AttributeAST | undefined> {
         for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
             yield AST.from<AttributeAST>(cxx.getListValue(it));
         }
@@ -874,23 +874,23 @@ export class AsmDeclarationAST extends DeclarationAST {
 }
 
 export class ExportDeclarationAST extends DeclarationAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitExportDeclaration(this, context);
     }
 }
 
 export class ModuleImportDeclarationAST extends DeclarationAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitModuleImportDeclaration(this, context);
     }
 }
 
 export class TemplateDeclarationAST extends DeclarationAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitTemplateDeclaration(this, context);
     }
-    *getTemplateParameterList(): Generator<DeclarationAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getTemplateParameterList(): Generator<DeclarationAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
             yield AST.from<DeclarationAST>(cxx.getListValue(it));
         }
     }
@@ -900,13 +900,13 @@ export class TemplateDeclarationAST extends DeclarationAST {
 }
 
 export class DeductionGuideAST extends DeclarationAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitDeductionGuide(this, context);
     }
 }
 
 export class ExplicitInstantiationAST extends DeclarationAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitExplicitInstantiation(this, context);
     }
     getDeclaration(): DeclarationAST | undefined {
@@ -915,16 +915,16 @@ export class ExplicitInstantiationAST extends DeclarationAST {
 }
 
 export class ParameterDeclarationAST extends DeclarationAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitParameterDeclaration(this, context);
     }
-    *getAttributeList(): Generator<AttributeAST> | undefined {
+    *getAttributeList(): Generator<AttributeAST | undefined> {
         for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
             yield AST.from<AttributeAST>(cxx.getListValue(it));
         }
     }
-    *getTypeSpecifierList(): Generator<SpecifierAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
             yield AST.from<SpecifierAST>(cxx.getListValue(it));
         }
     }
@@ -937,24 +937,24 @@ export class ParameterDeclarationAST extends DeclarationAST {
 }
 
 export class LinkageSpecificationAST extends DeclarationAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitLinkageSpecification(this, context);
     }
-    *getDeclarationList(): Generator<DeclarationAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getDeclarationList(): Generator<DeclarationAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 3); it; it = cxx.getListNext(it)) {
             yield AST.from<DeclarationAST>(cxx.getListValue(it));
         }
     }
 }
 
 export class SimpleNameAST extends NameAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitSimpleName(this, context);
     }
 }
 
 export class DestructorNameAST extends NameAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitDestructorName(this, context);
     }
     getName(): NameAST | undefined {
@@ -963,7 +963,7 @@ export class DestructorNameAST extends NameAST {
 }
 
 export class DecltypeNameAST extends NameAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitDecltypeName(this, context);
     }
     getDecltypeSpecifier(): SpecifierAST | undefined {
@@ -972,27 +972,27 @@ export class DecltypeNameAST extends NameAST {
 }
 
 export class OperatorNameAST extends NameAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitOperatorName(this, context);
     }
 }
 
 export class TemplateNameAST extends NameAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitTemplateName(this, context);
     }
     getName(): NameAST | undefined {
         return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 0));
     }
-    *getTemplateArgumentList(): Generator<TemplateArgumentAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getTemplateArgumentList(): Generator<TemplateArgumentAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
             yield AST.from<TemplateArgumentAST>(cxx.getListValue(it));
         }
     }
 }
 
 export class QualifiedNameAST extends NameAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitQualifiedName(this, context);
     }
     getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
@@ -1004,19 +1004,19 @@ export class QualifiedNameAST extends NameAST {
 }
 
 export class SimpleSpecifierAST extends SpecifierAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitSimpleSpecifier(this, context);
     }
 }
 
 export class ExplicitSpecifierAST extends SpecifierAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitExplicitSpecifier(this, context);
     }
 }
 
 export class NamedTypeSpecifierAST extends SpecifierAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitNamedTypeSpecifier(this, context);
     }
     getName(): NameAST | undefined {
@@ -1025,59 +1025,59 @@ export class NamedTypeSpecifierAST extends SpecifierAST {
 }
 
 export class PlaceholderTypeSpecifierHelperAST extends SpecifierAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitPlaceholderTypeSpecifierHelper(this, context);
     }
 }
 
 export class DecltypeSpecifierTypeSpecifierAST extends SpecifierAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitDecltypeSpecifierTypeSpecifier(this, context);
     }
 }
 
 export class UnderlyingTypeSpecifierAST extends SpecifierAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitUnderlyingTypeSpecifier(this, context);
     }
 }
 
 export class AtomicTypeSpecifierAST extends SpecifierAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitAtomicTypeSpecifier(this, context);
     }
 }
 
 export class ElaboratedTypeSpecifierAST extends SpecifierAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitElaboratedTypeSpecifier(this, context);
     }
 }
 
 export class DecltypeSpecifierAST extends SpecifierAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitDecltypeSpecifier(this, context);
     }
 }
 
 export class PlaceholderTypeSpecifierAST extends SpecifierAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitPlaceholderTypeSpecifier(this, context);
     }
 }
 
 export class CvQualifierAST extends SpecifierAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitCvQualifier(this, context);
     }
 }
 
 export class EnumSpecifierAST extends SpecifierAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitEnumSpecifier(this, context);
     }
-    *getAttributeList(): Generator<AttributeAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getAttributeList(): Generator<AttributeAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
             yield AST.from<AttributeAST>(cxx.getListValue(it));
         }
     }
@@ -1090,19 +1090,19 @@ export class EnumSpecifierAST extends SpecifierAST {
     getEnumBase(): EnumBaseAST | undefined {
         return AST.from<EnumBaseAST>(cxx.getASTSlot(this.getHandle(), 5));
     }
-    *getEnumeratorList(): Generator<EnumeratorAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getEnumeratorList(): Generator<EnumeratorAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 8); it; it = cxx.getListNext(it)) {
             yield AST.from<EnumeratorAST>(cxx.getListValue(it));
         }
     }
 }
 
 export class ClassSpecifierAST extends SpecifierAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitClassSpecifier(this, context);
     }
-    *getAttributeList(): Generator<AttributeAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getAttributeList(): Generator<AttributeAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
             yield AST.from<AttributeAST>(cxx.getListValue(it));
         }
     }
@@ -1112,35 +1112,35 @@ export class ClassSpecifierAST extends SpecifierAST {
     getBaseClause(): BaseClauseAST | undefined {
         return AST.from<BaseClauseAST>(cxx.getASTSlot(this.getHandle(), 3));
     }
-    *getDeclarationList(): Generator<DeclarationAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getDeclarationList(): Generator<DeclarationAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 5); it; it = cxx.getListNext(it)) {
             yield AST.from<DeclarationAST>(cxx.getListValue(it));
         }
     }
 }
 
 export class TypenameSpecifierAST extends SpecifierAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitTypenameSpecifier(this, context);
     }
 }
 
 export class IdDeclaratorAST extends CoreDeclaratorAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitIdDeclarator(this, context);
     }
     getName(): NameAST | undefined {
         return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 1));
     }
-    *getAttributeList(): Generator<AttributeAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getAttributeList(): Generator<AttributeAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
             yield AST.from<AttributeAST>(cxx.getListValue(it));
         }
     }
 }
 
 export class NestedDeclaratorAST extends CoreDeclaratorAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitNestedDeclarator(this, context);
     }
     getDeclarator(): DeclaratorAST | undefined {
@@ -1149,53 +1149,53 @@ export class NestedDeclaratorAST extends CoreDeclaratorAST {
 }
 
 export class PointerOperatorAST extends PtrOperatorAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitPointerOperator(this, context);
     }
-    *getAttributeList(): Generator<AttributeAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getAttributeList(): Generator<AttributeAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
             yield AST.from<AttributeAST>(cxx.getListValue(it));
         }
     }
-    *getCvQualifierList(): Generator<SpecifierAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getCvQualifierList(): Generator<SpecifierAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
             yield AST.from<SpecifierAST>(cxx.getListValue(it));
         }
     }
 }
 
 export class ReferenceOperatorAST extends PtrOperatorAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitReferenceOperator(this, context);
     }
-    *getAttributeList(): Generator<AttributeAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getAttributeList(): Generator<AttributeAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
             yield AST.from<AttributeAST>(cxx.getListValue(it));
         }
     }
 }
 
 export class PtrToMemberOperatorAST extends PtrOperatorAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitPtrToMemberOperator(this, context);
     }
     getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
         return AST.from<NestedNameSpecifierAST>(cxx.getASTSlot(this.getHandle(), 0));
     }
-    *getAttributeList(): Generator<AttributeAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getAttributeList(): Generator<AttributeAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
             yield AST.from<AttributeAST>(cxx.getListValue(it));
         }
     }
-    *getCvQualifierList(): Generator<SpecifierAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getCvQualifierList(): Generator<SpecifierAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 3); it; it = cxx.getListNext(it)) {
             yield AST.from<SpecifierAST>(cxx.getListValue(it));
         }
     }
 }
 
 export class FunctionDeclaratorAST extends DeclaratorModifierAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitFunctionDeclarator(this, context);
     }
     getParametersAndQualifiers(): ParametersAndQualifiersAST | undefined {
@@ -1204,14 +1204,14 @@ export class FunctionDeclaratorAST extends DeclaratorModifierAST {
 }
 
 export class ArrayDeclaratorAST extends DeclaratorModifierAST {
-    accept<T, C>(visitor: ASTVisitor, context: C): T {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitArrayDeclarator(this, context);
     }
     getExpression(): ExpressionAST | undefined {
         return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 1));
     }
-    *getAttributeList(): Generator<AttributeAST> | undefined {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+    *getAttributeList(): Generator<AttributeAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 3); it; it = cxx.getListNext(it)) {
             yield AST.from<AttributeAST>(cxx.getListValue(it));
         }
     }

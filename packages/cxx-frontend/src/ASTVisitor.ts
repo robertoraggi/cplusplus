@@ -21,115 +21,115 @@
 import * as ast from "./AST";
 
 
-export abstract class ASTVisitor {
+export abstract class ASTVisitor<Context, Result> {
     constructor() { }
 
-    abstract visitTypeId<T, C>(node: ast.TypeIdAST, context: C): T
-    abstract visitNestedNameSpecifier<T, C>(node: ast.NestedNameSpecifierAST, context: C): T
-    abstract visitUsingDeclarator<T, C>(node: ast.UsingDeclaratorAST, context: C): T
-    abstract visitHandler<T, C>(node: ast.HandlerAST, context: C): T
-    abstract visitTemplateArgument<T, C>(node: ast.TemplateArgumentAST, context: C): T
-    abstract visitEnumBase<T, C>(node: ast.EnumBaseAST, context: C): T
-    abstract visitEnumerator<T, C>(node: ast.EnumeratorAST, context: C): T
-    abstract visitDeclarator<T, C>(node: ast.DeclaratorAST, context: C): T
-    abstract visitBaseSpecifier<T, C>(node: ast.BaseSpecifierAST, context: C): T
-    abstract visitBaseClause<T, C>(node: ast.BaseClauseAST, context: C): T
-    abstract visitNewTypeId<T, C>(node: ast.NewTypeIdAST, context: C): T
-    abstract visitParameterDeclarationClause<T, C>(node: ast.ParameterDeclarationClauseAST, context: C): T
-    abstract visitParametersAndQualifiers<T, C>(node: ast.ParametersAndQualifiersAST, context: C): T
-    abstract visitEqualInitializer<T, C>(node: ast.EqualInitializerAST, context: C): T
-    abstract visitBracedInitList<T, C>(node: ast.BracedInitListAST, context: C): T
-    abstract visitParenInitializer<T, C>(node: ast.ParenInitializerAST, context: C): T
-    abstract visitNewParenInitializer<T, C>(node: ast.NewParenInitializerAST, context: C): T
-    abstract visitNewBracedInitializer<T, C>(node: ast.NewBracedInitializerAST, context: C): T
-    abstract visitEllipsisExceptionDeclaration<T, C>(node: ast.EllipsisExceptionDeclarationAST, context: C): T
-    abstract visitTypeExceptionDeclaration<T, C>(node: ast.TypeExceptionDeclarationAST, context: C): T
-    abstract visitTranslationUnit<T, C>(node: ast.TranslationUnitAST, context: C): T
-    abstract visitModuleUnit<T, C>(node: ast.ModuleUnitAST, context: C): T
-    abstract visitThisExpression<T, C>(node: ast.ThisExpressionAST, context: C): T
-    abstract visitCharLiteralExpression<T, C>(node: ast.CharLiteralExpressionAST, context: C): T
-    abstract visitBoolLiteralExpression<T, C>(node: ast.BoolLiteralExpressionAST, context: C): T
-    abstract visitIntLiteralExpression<T, C>(node: ast.IntLiteralExpressionAST, context: C): T
-    abstract visitFloatLiteralExpression<T, C>(node: ast.FloatLiteralExpressionAST, context: C): T
-    abstract visitNullptrLiteralExpression<T, C>(node: ast.NullptrLiteralExpressionAST, context: C): T
-    abstract visitStringLiteralExpression<T, C>(node: ast.StringLiteralExpressionAST, context: C): T
-    abstract visitUserDefinedStringLiteralExpression<T, C>(node: ast.UserDefinedStringLiteralExpressionAST, context: C): T
-    abstract visitIdExpression<T, C>(node: ast.IdExpressionAST, context: C): T
-    abstract visitNestedExpression<T, C>(node: ast.NestedExpressionAST, context: C): T
-    abstract visitBinaryExpression<T, C>(node: ast.BinaryExpressionAST, context: C): T
-    abstract visitAssignmentExpression<T, C>(node: ast.AssignmentExpressionAST, context: C): T
-    abstract visitCallExpression<T, C>(node: ast.CallExpressionAST, context: C): T
-    abstract visitSubscriptExpression<T, C>(node: ast.SubscriptExpressionAST, context: C): T
-    abstract visitMemberExpression<T, C>(node: ast.MemberExpressionAST, context: C): T
-    abstract visitConditionalExpression<T, C>(node: ast.ConditionalExpressionAST, context: C): T
-    abstract visitCppCastExpression<T, C>(node: ast.CppCastExpressionAST, context: C): T
-    abstract visitNewExpression<T, C>(node: ast.NewExpressionAST, context: C): T
-    abstract visitLabeledStatement<T, C>(node: ast.LabeledStatementAST, context: C): T
-    abstract visitCaseStatement<T, C>(node: ast.CaseStatementAST, context: C): T
-    abstract visitDefaultStatement<T, C>(node: ast.DefaultStatementAST, context: C): T
-    abstract visitExpressionStatement<T, C>(node: ast.ExpressionStatementAST, context: C): T
-    abstract visitCompoundStatement<T, C>(node: ast.CompoundStatementAST, context: C): T
-    abstract visitIfStatement<T, C>(node: ast.IfStatementAST, context: C): T
-    abstract visitSwitchStatement<T, C>(node: ast.SwitchStatementAST, context: C): T
-    abstract visitWhileStatement<T, C>(node: ast.WhileStatementAST, context: C): T
-    abstract visitDoStatement<T, C>(node: ast.DoStatementAST, context: C): T
-    abstract visitForRangeStatement<T, C>(node: ast.ForRangeStatementAST, context: C): T
-    abstract visitForStatement<T, C>(node: ast.ForStatementAST, context: C): T
-    abstract visitBreakStatement<T, C>(node: ast.BreakStatementAST, context: C): T
-    abstract visitContinueStatement<T, C>(node: ast.ContinueStatementAST, context: C): T
-    abstract visitReturnStatement<T, C>(node: ast.ReturnStatementAST, context: C): T
-    abstract visitGotoStatement<T, C>(node: ast.GotoStatementAST, context: C): T
-    abstract visitCoroutineReturnStatement<T, C>(node: ast.CoroutineReturnStatementAST, context: C): T
-    abstract visitDeclarationStatement<T, C>(node: ast.DeclarationStatementAST, context: C): T
-    abstract visitTryBlockStatement<T, C>(node: ast.TryBlockStatementAST, context: C): T
-    abstract visitFunctionDefinition<T, C>(node: ast.FunctionDefinitionAST, context: C): T
-    abstract visitConceptDefinition<T, C>(node: ast.ConceptDefinitionAST, context: C): T
-    abstract visitForRangeDeclaration<T, C>(node: ast.ForRangeDeclarationAST, context: C): T
-    abstract visitAliasDeclaration<T, C>(node: ast.AliasDeclarationAST, context: C): T
-    abstract visitSimpleDeclaration<T, C>(node: ast.SimpleDeclarationAST, context: C): T
-    abstract visitStaticAssertDeclaration<T, C>(node: ast.StaticAssertDeclarationAST, context: C): T
-    abstract visitEmptyDeclaration<T, C>(node: ast.EmptyDeclarationAST, context: C): T
-    abstract visitAttributeDeclaration<T, C>(node: ast.AttributeDeclarationAST, context: C): T
-    abstract visitOpaqueEnumDeclaration<T, C>(node: ast.OpaqueEnumDeclarationAST, context: C): T
-    abstract visitUsingEnumDeclaration<T, C>(node: ast.UsingEnumDeclarationAST, context: C): T
-    abstract visitNamespaceDefinition<T, C>(node: ast.NamespaceDefinitionAST, context: C): T
-    abstract visitNamespaceAliasDefinition<T, C>(node: ast.NamespaceAliasDefinitionAST, context: C): T
-    abstract visitUsingDirective<T, C>(node: ast.UsingDirectiveAST, context: C): T
-    abstract visitUsingDeclaration<T, C>(node: ast.UsingDeclarationAST, context: C): T
-    abstract visitAsmDeclaration<T, C>(node: ast.AsmDeclarationAST, context: C): T
-    abstract visitExportDeclaration<T, C>(node: ast.ExportDeclarationAST, context: C): T
-    abstract visitModuleImportDeclaration<T, C>(node: ast.ModuleImportDeclarationAST, context: C): T
-    abstract visitTemplateDeclaration<T, C>(node: ast.TemplateDeclarationAST, context: C): T
-    abstract visitDeductionGuide<T, C>(node: ast.DeductionGuideAST, context: C): T
-    abstract visitExplicitInstantiation<T, C>(node: ast.ExplicitInstantiationAST, context: C): T
-    abstract visitParameterDeclaration<T, C>(node: ast.ParameterDeclarationAST, context: C): T
-    abstract visitLinkageSpecification<T, C>(node: ast.LinkageSpecificationAST, context: C): T
-    abstract visitSimpleName<T, C>(node: ast.SimpleNameAST, context: C): T
-    abstract visitDestructorName<T, C>(node: ast.DestructorNameAST, context: C): T
-    abstract visitDecltypeName<T, C>(node: ast.DecltypeNameAST, context: C): T
-    abstract visitOperatorName<T, C>(node: ast.OperatorNameAST, context: C): T
-    abstract visitTemplateName<T, C>(node: ast.TemplateNameAST, context: C): T
-    abstract visitQualifiedName<T, C>(node: ast.QualifiedNameAST, context: C): T
-    abstract visitSimpleSpecifier<T, C>(node: ast.SimpleSpecifierAST, context: C): T
-    abstract visitExplicitSpecifier<T, C>(node: ast.ExplicitSpecifierAST, context: C): T
-    abstract visitNamedTypeSpecifier<T, C>(node: ast.NamedTypeSpecifierAST, context: C): T
-    abstract visitPlaceholderTypeSpecifierHelper<T, C>(node: ast.PlaceholderTypeSpecifierHelperAST, context: C): T
-    abstract visitDecltypeSpecifierTypeSpecifier<T, C>(node: ast.DecltypeSpecifierTypeSpecifierAST, context: C): T
-    abstract visitUnderlyingTypeSpecifier<T, C>(node: ast.UnderlyingTypeSpecifierAST, context: C): T
-    abstract visitAtomicTypeSpecifier<T, C>(node: ast.AtomicTypeSpecifierAST, context: C): T
-    abstract visitElaboratedTypeSpecifier<T, C>(node: ast.ElaboratedTypeSpecifierAST, context: C): T
-    abstract visitDecltypeSpecifier<T, C>(node: ast.DecltypeSpecifierAST, context: C): T
-    abstract visitPlaceholderTypeSpecifier<T, C>(node: ast.PlaceholderTypeSpecifierAST, context: C): T
-    abstract visitCvQualifier<T, C>(node: ast.CvQualifierAST, context: C): T
-    abstract visitEnumSpecifier<T, C>(node: ast.EnumSpecifierAST, context: C): T
-    abstract visitClassSpecifier<T, C>(node: ast.ClassSpecifierAST, context: C): T
-    abstract visitTypenameSpecifier<T, C>(node: ast.TypenameSpecifierAST, context: C): T
-    abstract visitIdDeclarator<T, C>(node: ast.IdDeclaratorAST, context: C): T
-    abstract visitNestedDeclarator<T, C>(node: ast.NestedDeclaratorAST, context: C): T
-    abstract visitPointerOperator<T, C>(node: ast.PointerOperatorAST, context: C): T
-    abstract visitReferenceOperator<T, C>(node: ast.ReferenceOperatorAST, context: C): T
-    abstract visitPtrToMemberOperator<T, C>(node: ast.PtrToMemberOperatorAST, context: C): T
-    abstract visitFunctionDeclarator<T, C>(node: ast.FunctionDeclaratorAST, context: C): T
-    abstract visitArrayDeclarator<T, C>(node: ast.ArrayDeclaratorAST, context: C): T
+    abstract visitTypeId(node: ast.TypeIdAST, context: Context): Result;
+    abstract visitNestedNameSpecifier(node: ast.NestedNameSpecifierAST, context: Context): Result;
+    abstract visitUsingDeclarator(node: ast.UsingDeclaratorAST, context: Context): Result;
+    abstract visitHandler(node: ast.HandlerAST, context: Context): Result;
+    abstract visitTemplateArgument(node: ast.TemplateArgumentAST, context: Context): Result;
+    abstract visitEnumBase(node: ast.EnumBaseAST, context: Context): Result;
+    abstract visitEnumerator(node: ast.EnumeratorAST, context: Context): Result;
+    abstract visitDeclarator(node: ast.DeclaratorAST, context: Context): Result;
+    abstract visitBaseSpecifier(node: ast.BaseSpecifierAST, context: Context): Result;
+    abstract visitBaseClause(node: ast.BaseClauseAST, context: Context): Result;
+    abstract visitNewTypeId(node: ast.NewTypeIdAST, context: Context): Result;
+    abstract visitParameterDeclarationClause(node: ast.ParameterDeclarationClauseAST, context: Context): Result;
+    abstract visitParametersAndQualifiers(node: ast.ParametersAndQualifiersAST, context: Context): Result;
+    abstract visitEqualInitializer(node: ast.EqualInitializerAST, context: Context): Result;
+    abstract visitBracedInitList(node: ast.BracedInitListAST, context: Context): Result;
+    abstract visitParenInitializer(node: ast.ParenInitializerAST, context: Context): Result;
+    abstract visitNewParenInitializer(node: ast.NewParenInitializerAST, context: Context): Result;
+    abstract visitNewBracedInitializer(node: ast.NewBracedInitializerAST, context: Context): Result;
+    abstract visitEllipsisExceptionDeclaration(node: ast.EllipsisExceptionDeclarationAST, context: Context): Result;
+    abstract visitTypeExceptionDeclaration(node: ast.TypeExceptionDeclarationAST, context: Context): Result;
+    abstract visitTranslationUnit(node: ast.TranslationUnitAST, context: Context): Result;
+    abstract visitModuleUnit(node: ast.ModuleUnitAST, context: Context): Result;
+    abstract visitThisExpression(node: ast.ThisExpressionAST, context: Context): Result;
+    abstract visitCharLiteralExpression(node: ast.CharLiteralExpressionAST, context: Context): Result;
+    abstract visitBoolLiteralExpression(node: ast.BoolLiteralExpressionAST, context: Context): Result;
+    abstract visitIntLiteralExpression(node: ast.IntLiteralExpressionAST, context: Context): Result;
+    abstract visitFloatLiteralExpression(node: ast.FloatLiteralExpressionAST, context: Context): Result;
+    abstract visitNullptrLiteralExpression(node: ast.NullptrLiteralExpressionAST, context: Context): Result;
+    abstract visitStringLiteralExpression(node: ast.StringLiteralExpressionAST, context: Context): Result;
+    abstract visitUserDefinedStringLiteralExpression(node: ast.UserDefinedStringLiteralExpressionAST, context: Context): Result;
+    abstract visitIdExpression(node: ast.IdExpressionAST, context: Context): Result;
+    abstract visitNestedExpression(node: ast.NestedExpressionAST, context: Context): Result;
+    abstract visitBinaryExpression(node: ast.BinaryExpressionAST, context: Context): Result;
+    abstract visitAssignmentExpression(node: ast.AssignmentExpressionAST, context: Context): Result;
+    abstract visitCallExpression(node: ast.CallExpressionAST, context: Context): Result;
+    abstract visitSubscriptExpression(node: ast.SubscriptExpressionAST, context: Context): Result;
+    abstract visitMemberExpression(node: ast.MemberExpressionAST, context: Context): Result;
+    abstract visitConditionalExpression(node: ast.ConditionalExpressionAST, context: Context): Result;
+    abstract visitCppCastExpression(node: ast.CppCastExpressionAST, context: Context): Result;
+    abstract visitNewExpression(node: ast.NewExpressionAST, context: Context): Result;
+    abstract visitLabeledStatement(node: ast.LabeledStatementAST, context: Context): Result;
+    abstract visitCaseStatement(node: ast.CaseStatementAST, context: Context): Result;
+    abstract visitDefaultStatement(node: ast.DefaultStatementAST, context: Context): Result;
+    abstract visitExpressionStatement(node: ast.ExpressionStatementAST, context: Context): Result;
+    abstract visitCompoundStatement(node: ast.CompoundStatementAST, context: Context): Result;
+    abstract visitIfStatement(node: ast.IfStatementAST, context: Context): Result;
+    abstract visitSwitchStatement(node: ast.SwitchStatementAST, context: Context): Result;
+    abstract visitWhileStatement(node: ast.WhileStatementAST, context: Context): Result;
+    abstract visitDoStatement(node: ast.DoStatementAST, context: Context): Result;
+    abstract visitForRangeStatement(node: ast.ForRangeStatementAST, context: Context): Result;
+    abstract visitForStatement(node: ast.ForStatementAST, context: Context): Result;
+    abstract visitBreakStatement(node: ast.BreakStatementAST, context: Context): Result;
+    abstract visitContinueStatement(node: ast.ContinueStatementAST, context: Context): Result;
+    abstract visitReturnStatement(node: ast.ReturnStatementAST, context: Context): Result;
+    abstract visitGotoStatement(node: ast.GotoStatementAST, context: Context): Result;
+    abstract visitCoroutineReturnStatement(node: ast.CoroutineReturnStatementAST, context: Context): Result;
+    abstract visitDeclarationStatement(node: ast.DeclarationStatementAST, context: Context): Result;
+    abstract visitTryBlockStatement(node: ast.TryBlockStatementAST, context: Context): Result;
+    abstract visitFunctionDefinition(node: ast.FunctionDefinitionAST, context: Context): Result;
+    abstract visitConceptDefinition(node: ast.ConceptDefinitionAST, context: Context): Result;
+    abstract visitForRangeDeclaration(node: ast.ForRangeDeclarationAST, context: Context): Result;
+    abstract visitAliasDeclaration(node: ast.AliasDeclarationAST, context: Context): Result;
+    abstract visitSimpleDeclaration(node: ast.SimpleDeclarationAST, context: Context): Result;
+    abstract visitStaticAssertDeclaration(node: ast.StaticAssertDeclarationAST, context: Context): Result;
+    abstract visitEmptyDeclaration(node: ast.EmptyDeclarationAST, context: Context): Result;
+    abstract visitAttributeDeclaration(node: ast.AttributeDeclarationAST, context: Context): Result;
+    abstract visitOpaqueEnumDeclaration(node: ast.OpaqueEnumDeclarationAST, context: Context): Result;
+    abstract visitUsingEnumDeclaration(node: ast.UsingEnumDeclarationAST, context: Context): Result;
+    abstract visitNamespaceDefinition(node: ast.NamespaceDefinitionAST, context: Context): Result;
+    abstract visitNamespaceAliasDefinition(node: ast.NamespaceAliasDefinitionAST, context: Context): Result;
+    abstract visitUsingDirective(node: ast.UsingDirectiveAST, context: Context): Result;
+    abstract visitUsingDeclaration(node: ast.UsingDeclarationAST, context: Context): Result;
+    abstract visitAsmDeclaration(node: ast.AsmDeclarationAST, context: Context): Result;
+    abstract visitExportDeclaration(node: ast.ExportDeclarationAST, context: Context): Result;
+    abstract visitModuleImportDeclaration(node: ast.ModuleImportDeclarationAST, context: Context): Result;
+    abstract visitTemplateDeclaration(node: ast.TemplateDeclarationAST, context: Context): Result;
+    abstract visitDeductionGuide(node: ast.DeductionGuideAST, context: Context): Result;
+    abstract visitExplicitInstantiation(node: ast.ExplicitInstantiationAST, context: Context): Result;
+    abstract visitParameterDeclaration(node: ast.ParameterDeclarationAST, context: Context): Result;
+    abstract visitLinkageSpecification(node: ast.LinkageSpecificationAST, context: Context): Result;
+    abstract visitSimpleName(node: ast.SimpleNameAST, context: Context): Result;
+    abstract visitDestructorName(node: ast.DestructorNameAST, context: Context): Result;
+    abstract visitDecltypeName(node: ast.DecltypeNameAST, context: Context): Result;
+    abstract visitOperatorName(node: ast.OperatorNameAST, context: Context): Result;
+    abstract visitTemplateName(node: ast.TemplateNameAST, context: Context): Result;
+    abstract visitQualifiedName(node: ast.QualifiedNameAST, context: Context): Result;
+    abstract visitSimpleSpecifier(node: ast.SimpleSpecifierAST, context: Context): Result;
+    abstract visitExplicitSpecifier(node: ast.ExplicitSpecifierAST, context: Context): Result;
+    abstract visitNamedTypeSpecifier(node: ast.NamedTypeSpecifierAST, context: Context): Result;
+    abstract visitPlaceholderTypeSpecifierHelper(node: ast.PlaceholderTypeSpecifierHelperAST, context: Context): Result;
+    abstract visitDecltypeSpecifierTypeSpecifier(node: ast.DecltypeSpecifierTypeSpecifierAST, context: Context): Result;
+    abstract visitUnderlyingTypeSpecifier(node: ast.UnderlyingTypeSpecifierAST, context: Context): Result;
+    abstract visitAtomicTypeSpecifier(node: ast.AtomicTypeSpecifierAST, context: Context): Result;
+    abstract visitElaboratedTypeSpecifier(node: ast.ElaboratedTypeSpecifierAST, context: Context): Result;
+    abstract visitDecltypeSpecifier(node: ast.DecltypeSpecifierAST, context: Context): Result;
+    abstract visitPlaceholderTypeSpecifier(node: ast.PlaceholderTypeSpecifierAST, context: Context): Result;
+    abstract visitCvQualifier(node: ast.CvQualifierAST, context: Context): Result;
+    abstract visitEnumSpecifier(node: ast.EnumSpecifierAST, context: Context): Result;
+    abstract visitClassSpecifier(node: ast.ClassSpecifierAST, context: Context): Result;
+    abstract visitTypenameSpecifier(node: ast.TypenameSpecifierAST, context: Context): Result;
+    abstract visitIdDeclarator(node: ast.IdDeclaratorAST, context: Context): Result;
+    abstract visitNestedDeclarator(node: ast.NestedDeclaratorAST, context: Context): Result;
+    abstract visitPointerOperator(node: ast.PointerOperatorAST, context: Context): Result;
+    abstract visitReferenceOperator(node: ast.ReferenceOperatorAST, context: Context): Result;
+    abstract visitPtrToMemberOperator(node: ast.PtrToMemberOperatorAST, context: Context): Result;
+    abstract visitFunctionDeclarator(node: ast.FunctionDeclaratorAST, context: Context): Result;
+    abstract visitArrayDeclarator(node: ast.ArrayDeclaratorAST, context: Context): Result;
 }
 

@@ -22,6 +22,7 @@
 #include <cxx/ast_slot.h>
 
 #include <algorithm>
+#include <stdexcept>
 
 namespace cxx {
 

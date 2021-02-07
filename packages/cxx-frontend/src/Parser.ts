@@ -18,7 +18,57 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-export * from "./AST";
-export * from "./ASTVisitor";
-export * from "./RecursiveASTVisitor";
-export * from "./Parser";
+import { cxx, Unit } from "./cxx";
+import { AST } from "./AST";
+
+interface ParseParams {
+    /**
+     * Path to the file to parse.
+     */
+    path: string;
+
+    /**
+     * Source code to parse.
+     */
+    source: string;
+}
+
+export class Parser {
+    private unit: Unit | undefined;
+    private m_ast: AST | undefined;
+
+    constructor(private options: ParseParams) {
+    }
+
+    parse() {
+        const { path, source } = this.options;
+
+        if (typeof path !== "string") {
+            throw new TypeError("expected parameter 'path' of type 'string'");
+        }
+
+        if (typeof source !== "string") {
+            throw new TypeError("expected parameter 'source' of type 'string'");
+        }
+
+        const unit = cxx.parse(source, path);
+
+        this.unit = unit;
+
+        this.m_ast = AST.from(this.unit.getHandle());
+    }
+
+    dispose() {
+        this.unit?.delete();
+        this.unit = undefined;
+        this.m_ast = undefined;
+    }
+
+    getAST(): AST | undefined {
+        return this.m_ast;
+    }
+
+    getDiagnostics() {
+        return this.unit?.getDiagnostics() ?? [];
+    }
+}
