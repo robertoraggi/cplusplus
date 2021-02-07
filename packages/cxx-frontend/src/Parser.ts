@@ -55,13 +55,17 @@ export class Parser {
 
         this.unit = unit;
 
-        this.m_ast = AST.from(this.unit.getHandle());
+        this.m_ast = AST.from(this.unit.getHandle(), this);
     }
 
     dispose() {
         this.unit?.delete();
         this.unit = undefined;
         this.m_ast = undefined;
+    }
+
+    getUnitHandle(): number {
+        return this.unit?.getUnitHandle() ?? 0;
     }
 
     getAST(): AST | undefined {

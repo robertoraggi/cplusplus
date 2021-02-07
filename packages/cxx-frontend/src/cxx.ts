@@ -28,9 +28,17 @@ export interface Diagnostic {
     message: string;
 }
 
+export interface SourceLocation {
+    startLine: number
+    startColumn: number
+    endLine: number
+    endColumn: number
+}
+
 export interface Unit {
     delete(): void;
     getHandle(): number;
+    getUnitHandle(): number;
     getDiagnostics(): Diagnostic[];
 }
 
@@ -40,6 +48,8 @@ export interface CXX {
     getASTSlot(handle: number, slot: number): number;
     getListValue(handle: number): number;
     getListNext(handle: number): number;
+    getTokenText(handle: number, unitHandle: number): string;
+    getTokenLocation(handle: number, unitHandle: number): SourceLocation;
 }
 
 export const cxx: CXX = makeCxx();

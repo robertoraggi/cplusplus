@@ -21,6 +21,7 @@
 #include <cxx/ast.h>
 #include <cxx/ast_slot.h>
 #include <cxx/control.h>
+#include <cxx/source_location.h>
 #include <cxx/translation_unit.h>
 #include <emscripten.h>
 #include <emscripten/bind.h>
@@ -51,9 +52,41 @@ struct WrappedUnit {
 
   WrappedUnit() { unit.setDiagnosticClient(&diagnosticClient); }
 
+  intptr_t getUnitHandle() const { return (intptr_t)&unit; }
+
   intptr_t getHandle() const { return (intptr_t)unit.ast(); }
+
   val getDiagnostics() const { return messages; }
 };
+
+static std::string getTokenText(intptr_t handle, intptr_t unitHandle) {
+  auto unit = reinterpret_cast<cxx::TranslationUnit*>(unitHandle);
+  auto text = std::string(unit->tokenText(cxx::SourceLocation(handle)));
+  return text;
+}
+
+static val getTokenLocation(intptr_t handle, intptr_t unitHandle) {
+  auto unit = reinterpret_cast<cxx::TranslationUnit*>(unitHandle);
+
+  cxx::SourceLocation loc(handle);
+
+  unsigned startLine = 0, startColumn = 0;
+
+  unit->getTokenStartPosition(loc, &startLine, &startColumn);
+
+  unsigned endLine = 0, endColumn = 0;
+
+  unit->getTokenEndPosition(loc, &startLine, &startColumn);
+
+  val result = val::object();
+
+  result.set("startLine", startLine);
+  result.set("startColumn", startColumn);
+  result.set("endLine", endLine);
+  result.set("endColumn", endColumn);
+
+  return result;
+}
 
 static int getASTKind(intptr_t handle) {
   return static_cast<int>(((cxx::AST*)handle)->kind());
@@ -96,6 +129,7 @@ static WrappedUnit* parse(std::string source, std::string filename) {
 EMSCRIPTEN_BINDINGS(my_module) {
   class_<WrappedUnit>("Unit")
       .function("getHandle", &WrappedUnit::getHandle)
+      .function("getUnitHandle", &WrappedUnit::getUnitHandle)
       .function("getDiagnostics", &WrappedUnit::getDiagnostics);
 
   function("parse", &parse, allow_raw_pointers());
@@ -103,4 +137,6 @@ EMSCRIPTEN_BINDINGS(my_module) {
   function("getListValue", &getListValue);
   function("getListNext", &getListNext);
   function("getASTSlot", &getASTSlot);
+  function("getTokenText", &getTokenText);
+  function("getTokenLocation", &getTokenLocation);
 }
