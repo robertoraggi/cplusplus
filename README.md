@@ -25,7 +25,7 @@ parser.parse();
 const diagnostics = parser.getDiagnostics();
 
 if (diagnostics.length > 0) {
-  console.log("diagnostics", parser.getDiagnostics());
+  console.log("diagnostics", diagnostics);
 }
 
 class DumpAST extends RecursiveASTVisitor {

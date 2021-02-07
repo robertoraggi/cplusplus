@@ -90,9 +90,6 @@ static WrappedUnit* parse(std::string source, std::string filename) {
 
   const auto parsed = wrapped->unit.parse();
 
-  // val result = val::object();
-  // result.set("diagnostics", messages);
-
   return wrapped;
 }
 
