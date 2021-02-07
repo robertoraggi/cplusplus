@@ -18,58 +18,28 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { cxx, Unit } from "./cxx";
+//@ts-ignore
+import * as makeCxx from "./cxx-js";
 
-import { AST } from "./AST";
-
-interface ParseParams {
-    /**
-     * Path to the file to parse.
-     */
-    path: string;
-
-    /**
-     * Source code to parse.
-     */
-    source: string;
+export interface Diagnostic {
+    fileName: string;
+    line: number;
+    column: number;
+    message: string;
 }
 
-export class Parser {
-    private unit: Unit | undefined;
-    private m_ast: AST | undefined;
-
-    constructor(private options: ParseParams) {
-    }
-
-    parse() {
-        const { path, source } = this.options;
-
-        if (typeof path !== "string") {
-            throw new TypeError("expected parameter 'path' of type 'string'");
-        }
-
-        if (typeof source !== "string") {
-            throw new TypeError("expected parameter 'source' of type 'string'");
-        }
-
-        const unit = cxx.parse(source, path);
-
-        this.unit = unit;
-
-        this.m_ast = AST.from(this.unit.getHandle());
-    }
-
-    dispose() {
-        this.unit?.delete();
-        this.unit = undefined;
-        this.m_ast = undefined;
-    }
-
-    getAST(): AST | undefined {
-        return this.m_ast;
-    }
-
-    getDiagnostics() {
-        return this.unit?.getDiagnostics() ?? [];
-    }
+export interface Unit {
+    delete(): void;
+    getHandle(): number;
+    getDiagnostics(): Diagnostic[];
 }
+
+export interface CXX {
+    parse(source: string, path: string): Unit;
+    getASTKind(handle: number): number;
+    getASTSlot(handle: number, slot: number): number;
+    getListValue(handle: number): number;
+    getListNext(handle: number): number;
+}
+
+export const cxx: CXX = makeCxx();

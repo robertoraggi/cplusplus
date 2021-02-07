@@ -5,19 +5,23 @@ A parser for C++20.
 # Usage
 
 ```js
-const { parse } = require("cxx-frontend");
+const fs = require("fs");
+const process = require("process");
 
-const path = "main.cc";
+const { Parser } = require("cxx-frontend");
 
-const source = `
-int main() {
-    if (x = 0 return 1;
-}
-`;
+const path = process.argv[2];
+const source = fs.readFileSync(path).toString();
 
-const result = parse({ path, source });
+const parser = new Parser({ path, source });
 
-console.log(result);
+parser.parse();
+
+console.log("diagnostics", parser.getDiagnostics());
+
+console.log("ast", parser.getAST());
+
+parser.dispose();
 ```
 
 # Build the library

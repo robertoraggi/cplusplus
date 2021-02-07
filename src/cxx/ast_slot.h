@@ -22,23 +22,15 @@
 
 #include <cxx/ast_visitor.h>
 
-#include <nlohmann/json.hpp>
+#include <cstdint>
 
 namespace cxx {
 
-class TranslationUnit;
-
-class ASTPrinter : ASTVisitor {
-  TranslationUnit* unit_;
-  nlohmann::json json_;
-
-  nlohmann::json accept(AST* ast);
-
+class ASTSlot final : ASTVisitor {
  public:
-  explicit ASTPrinter(TranslationUnit* unit) : unit_(unit) {}
+  std::intptr_t operator()(AST* ast, int slot);
 
-  nlohmann::json operator()(AST* ast) { return accept(ast); }
-
+ private:
   void visit(TypeIdAST* ast) override;
   void visit(NestedNameSpecifierAST* ast) override;
   void visit(UsingDeclaratorAST* ast) override;
@@ -158,6 +150,10 @@ class ASTPrinter : ASTVisitor {
 
   void visit(FunctionDeclaratorAST* ast) override;
   void visit(ArrayDeclaratorAST* ast) override;
+
+ private:
+  std::intptr_t value_ = 0;
+  int slot_ = 0;
 };
 
 }  // namespace cxx

@@ -1,4 +1,3 @@
-
 // Copyright (c) 2021 Roberto Raggi <roberto.raggi@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy

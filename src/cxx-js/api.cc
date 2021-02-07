@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/ast.h>
+#include <cxx/ast_slot.h>
 #include <cxx/control.h>
 #include <cxx/translation_unit.h>
 #include <emscripten.h>
@@ -41,22 +43,67 @@ struct DiagnosticClient : cxx::DiagnosticClient {
   }
 };
 
-static val parse(std::string source, std::string filename) {
-  val messages = val::array();
-
+struct WrappedUnit {
   cxx::Control control;
-  DiagnosticClient diagnosticClient(messages);
-  cxx::TranslationUnit unit(&control);
-  unit.setDiagnosticClient(&diagnosticClient);
-  unit.setFileName(std::move(filename));
-  unit.setSource(std::move(source));
+  cxx::TranslationUnit unit{&control};
+  val messages = val::array();
+  DiagnosticClient diagnosticClient{messages};
 
-  const auto parsed = unit.parse();
+  WrappedUnit() { unit.setDiagnosticClient(&diagnosticClient); }
 
-  val result = val::object();
-  result.set("diagnostics", messages);
+  intptr_t getHandle() const { return (intptr_t)unit.ast(); }
+  val getDiagnostics() const { return messages; }
+};
 
-  return result;
+static int getASTKind(intptr_t handle) {
+  return static_cast<int>(((cxx::AST*)handle)->kind());
 }
 
-EMSCRIPTEN_BINDINGS(my_module) { function("parse", &parse); }
+static int getListValue(intptr_t handle) {
+  auto list = reinterpret_cast<cxx::List<cxx::AST*>*>(handle);
+  return intptr_t(list->value);
+}
+
+static intptr_t getListNext(intptr_t handle) {
+  auto list = reinterpret_cast<cxx::List<cxx::AST*>*>(handle);
+  return intptr_t(list->next);
+}
+
+namespace {
+cxx::ASTSlot getSlot;
+}
+
+static intptr_t getASTSlot(intptr_t handle, int slot) {
+  auto ast = reinterpret_cast<cxx::AST*>(handle);
+  auto value = getSlot(ast, slot);
+  return value;
+}
+
+static WrappedUnit* parse(std::string source, std::string filename) {
+  val messages = val::array();
+
+  auto wrapped = new WrappedUnit();
+
+  DiagnosticClient diagnosticClient(messages);
+  wrapped->unit.setFileName(std::move(filename));
+  wrapped->unit.setSource(std::move(source));
+
+  const auto parsed = wrapped->unit.parse();
+
+  // val result = val::object();
+  // result.set("diagnostics", messages);
+
+  return wrapped;
+}
+
+EMSCRIPTEN_BINDINGS(my_module) {
+  class_<WrappedUnit>("Unit")
+      .function("getHandle", &WrappedUnit::getHandle)
+      .function("getDiagnostics", &WrappedUnit::getDiagnostics);
+
+  function("parse", &parse, allow_raw_pointers());
+  function("getASTKind", &getASTKind);
+  function("getListValue", &getListValue);
+  function("getListNext", &getListNext);
+  function("getASTSlot", &getASTSlot);
+}
