@@ -100,7 +100,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     }
 
     visitParameterDeclarationClause(node: ast.ParameterDeclarationClauseAST, context: Context): void {
-        for (const element of node.getTemplateParameterList()) {
+        for (const element of node.getParameterDeclarationList()) {
              this.accept(element, context);
         }
     }

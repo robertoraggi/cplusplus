@@ -172,7 +172,7 @@ void ASTSlot::visit(NewTypeIdAST* ast) {
 void ASTSlot::visit(ParameterDeclarationClauseAST* ast) {
   switch (slot_) {
     case 0:
-      value_ = reinterpret_cast<std::intptr_t>(ast->templateParameterList);
+      value_ = reinterpret_cast<std::intptr_t>(ast->parameterDeclarationList);
       break;
     case 1:
       value_ = ast->commaLoc.index();

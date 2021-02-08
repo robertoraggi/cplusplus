@@ -22,7 +22,6 @@ import { cxx, SourceLocation } from "./cxx";
 import { ASTVisitor } from "./ASTVisitor";
 import { Parser } from "./Parser";
 
-
 export class Token {
     constructor(private handle: number, private parser: Parser) {
     }
@@ -244,7 +243,7 @@ export class ParameterDeclarationClauseAST extends AST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitParameterDeclarationClause(this, context);
     }
-    *getTemplateParameterList(): Generator<ParameterDeclarationAST | undefined> {
+    *getParameterDeclarationList(): Generator<ParameterDeclarationAST | undefined> {
         for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
             yield AST.from<ParameterDeclarationAST>(cxx.getListValue(it), this.parser);
         }

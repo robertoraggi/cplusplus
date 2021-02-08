@@ -85,7 +85,7 @@ void RecursiveASTVisitor::visit(NewTypeIdAST* ast) {
 }
 
 void RecursiveASTVisitor::visit(ParameterDeclarationClauseAST* ast) {
-  for (auto it = ast->templateParameterList; it; it = it->next)
+  for (auto it = ast->parameterDeclarationList; it; it = it->next)
     parameterDeclaration(it->value);
 }
 

@@ -279,7 +279,7 @@ struct NewTypeIdAST final : AST {
 struct ParameterDeclarationClauseAST final : AST {
   ParameterDeclarationClauseAST() : AST(ASTKind::ParameterDeclarationClause) {}
 
-  List<ParameterDeclarationAST*>* templateParameterList = nullptr;
+  List<ParameterDeclarationAST*>* parameterDeclarationList = nullptr;
   SourceLocation commaLoc;
   SourceLocation ellipsisLoc;
 

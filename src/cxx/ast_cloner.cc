@@ -204,8 +204,8 @@ void ASTCloner::visit(ParameterDeclarationClauseAST* ast) {
   auto copy = new (arena_) ParameterDeclarationClauseAST();
   copy_ = copy;
 
-  if (auto it = ast->templateParameterList) {
-    auto out = &copy->templateParameterList;
+  if (auto it = ast->parameterDeclarationList) {
+    auto out = &copy->parameterDeclarationList;
 
     for (; it; it = it->next) {
       *out = new (arena_) List(accept(it->value));

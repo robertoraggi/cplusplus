@@ -165,7 +165,7 @@ SourceLocation NewTypeIdAST::lastSourceLocation() {
 }
 
 SourceLocation ParameterDeclarationClauseAST::firstSourceLocation() {
-  if (auto loc = cxx::firstSourceLocation(templateParameterList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(parameterDeclarationList)) return loc;
   if (auto loc = cxx::firstSourceLocation(commaLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
   return SourceLocation();
@@ -174,7 +174,7 @@ SourceLocation ParameterDeclarationClauseAST::firstSourceLocation() {
 SourceLocation ParameterDeclarationClauseAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(commaLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(templateParameterList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(parameterDeclarationList)) return loc;
   return SourceLocation();
 }
 

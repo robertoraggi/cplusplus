@@ -4130,7 +4130,7 @@ bool Parser::parse_parameter_declaration_clause(
   auto ast = new (pool) ParameterDeclarationClauseAST();
   yyast = ast;
 
-  if (!parse_parameter_declaration_list(ast->templateParameterList))
+  if (!parse_parameter_declaration_list(ast->parameterDeclarationList))
     return false;
 
   match(TokenKind::T_COMMA, ast->commaLoc);

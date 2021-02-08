@@ -508,12 +508,12 @@ void ASTPrinter::visit(ParameterDeclarationClauseAST* ast) {
     json_["$range"] = range;
   }
 
-  if (ast->templateParameterList) {
+  if (ast->parameterDeclarationList) {
     auto elements = nlohmann::json::array();
-    for (auto it = ast->templateParameterList; it; it = it->next) {
+    for (auto it = ast->parameterDeclarationList; it; it = it->next) {
       elements.push_back(accept(it->value));
     }
-    json_["templateParameterList"] = elements;
+    json_["parameterDeclarationList"] = elements;
   }
 }
 
