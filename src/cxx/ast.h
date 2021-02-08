@@ -587,6 +587,18 @@ struct LambdaExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
+struct UnaryExpressionAST final : ExpressionAST {
+  UnaryExpressionAST() : ExpressionAST(ASTKind::UnaryExpression) {}
+
+  SourceLocation opLoc;
+  ExpressionAST* expression = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 struct BinaryExpressionAST final : ExpressionAST {
   BinaryExpressionAST() : ExpressionAST(ASTKind::BinaryExpression) {}
 

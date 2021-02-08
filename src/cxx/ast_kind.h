@@ -71,6 +71,7 @@ enum struct ASTKind {
   IdExpression,
   NestedExpression,
   LambdaExpression,
+  UnaryExpression,
   BinaryExpression,
   AssignmentExpression,
   CallExpression,

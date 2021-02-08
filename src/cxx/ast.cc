@@ -474,6 +474,18 @@ SourceLocation LambdaExpressionAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation UnaryExpressionAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(opLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation UnaryExpressionAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(opLoc)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation BinaryExpressionAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(leftExpression)) return loc;
   if (auto loc = cxx::firstSourceLocation(opLoc)) return loc;

@@ -222,6 +222,10 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         this.accept(node.getStatement(), context);
     }
 
+    visitUnaryExpression(node: ast.UnaryExpressionAST, context: Context): void {
+        this.accept(node.getExpression(), context);
+    }
+
     visitBinaryExpression(node: ast.BinaryExpressionAST, context: Context): void {
         this.accept(node.getLeftExpression(), context);
         this.accept(node.getRightExpression(), context);

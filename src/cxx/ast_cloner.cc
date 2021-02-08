@@ -526,6 +526,15 @@ void ASTCloner::visit(LambdaExpressionAST* ast) {
   copy->statement = accept(ast->statement);
 }
 
+void ASTCloner::visit(UnaryExpressionAST* ast) {
+  auto copy = new (arena_) UnaryExpressionAST();
+  copy_ = copy;
+
+  copy->opLoc = ast->opLoc;
+
+  copy->expression = accept(ast->expression);
+}
+
 void ASTCloner::visit(BinaryExpressionAST* ast) {
   auto copy = new (arena_) BinaryExpressionAST();
   copy_ = copy;

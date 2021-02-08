@@ -175,6 +175,10 @@ void RecursiveASTVisitor::visit(LambdaExpressionAST* ast) {
   statement(ast->statement);
 }
 
+void RecursiveASTVisitor::visit(UnaryExpressionAST* ast) {
+  expression(ast->expression);
+}
+
 void RecursiveASTVisitor::visit(BinaryExpressionAST* ast) {
   expression(ast->leftExpression);
   expression(ast->rightExpression);

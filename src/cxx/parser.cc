@@ -1509,13 +1509,17 @@ bool Parser::parse_unary_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_unop_expression(ExpressionAST*& yyast) {
-  if (!parse_unary_operator() && !match(TokenKind::T_PLUS_PLUS) &&
-      !match(TokenKind::T_MINUS_MINUS))
-    return false;
+  SourceLocation opLoc;
 
-  ExpressionAST* expression = nullptr;
+  if (!parse_unary_operator(opLoc)) return false;
 
-  if (!parse_cast_expression(expression)) parse_error("expected an expression");
+  auto ast = new (pool) UnaryExpressionAST();
+  yyast = ast;
+
+  ast->opLoc = opLoc;
+
+  if (!parse_cast_expression(ast->expression))
+    parse_error("expected an expression");
 
   return true;
 }
@@ -1575,7 +1579,7 @@ bool Parser::parse_alignof_expression(ExpressionAST*& yyast) {
   return true;
 }
 
-bool Parser::parse_unary_operator() {
+bool Parser::parse_unary_operator(SourceLocation& opLoc) {
   switch (TokenKind(LA())) {
     case TokenKind::T_STAR:
     case TokenKind::T_AMP:
@@ -1583,7 +1587,9 @@ bool Parser::parse_unary_operator() {
     case TokenKind::T_MINUS:
     case TokenKind::T_EXCLAIM:
     case TokenKind::T_TILDE:
-      consumeToken();
+    case TokenKind::T_MINUS_MINUS:
+    case TokenKind::T_PLUS_PLUS:
+      opLoc = consumeToken();
       return true;
 
     default:

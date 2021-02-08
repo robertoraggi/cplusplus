@@ -150,7 +150,7 @@ class Parser {
   bool parse_complex_expression(ExpressionAST*& yyast);
   bool parse_sizeof_expression(ExpressionAST*& yyast);
   bool parse_alignof_expression(ExpressionAST*& yyast);
-  bool parse_unary_operator();
+  bool parse_unary_operator(SourceLocation& opLoc);
   bool parse_await_expression(ExpressionAST*& yyast);
   bool parse_noexcept_expression(ExpressionAST*& yyast);
   bool parse_new_expression(ExpressionAST*& yyast);

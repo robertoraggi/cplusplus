@@ -575,6 +575,18 @@ export class LambdaExpressionAST extends ExpressionAST {
     }
 }
 
+export class UnaryExpressionAST extends ExpressionAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitUnaryExpression(this, context);
+    }
+    getOpToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getExpression(): ExpressionAST | undefined {
+        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+}
+
 export class BinaryExpressionAST extends ExpressionAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitBinaryExpression(this, context);
@@ -1850,6 +1862,7 @@ const AST_CONSTRUCTORS: Array<new (handle: number, parser: Parser) => AST> = [
     IdExpressionAST,
     NestedExpressionAST,
     LambdaExpressionAST,
+    UnaryExpressionAST,
     BinaryExpressionAST,
     AssignmentExpressionAST,
     CallExpressionAST,

@@ -458,6 +458,17 @@ void ASTSlot::visit(LambdaExpressionAST* ast) {
   }  // switch
 }
 
+void ASTSlot::visit(UnaryExpressionAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->opLoc.index();
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
+      break;
+  }  // switch
+}
+
 void ASTSlot::visit(BinaryExpressionAST* ast) {
   switch (slot_) {
     case 0:
