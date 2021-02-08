@@ -2041,11 +2041,20 @@ bool Parser::parse_assignment_operator(SourceLocation& loc, TokenKind& op) {
 bool Parser::parse_expression(ExpressionAST*& yyast) {
   if (!parse_assignment_expression(yyast)) return false;
 
-  while (match(TokenKind::T_COMMA)) {
+  SourceLocation commaLoc;
+
+  while (match(TokenKind::T_COMMA, commaLoc)) {
     ExpressionAST* expression = nullptr;
 
     if (!parse_assignment_expression(expression))
       parse_error("expected an expression");
+    else {
+      auto ast = new (pool) BinaryExpressionAST();
+      ast->leftExpression = yyast;
+      ast->opLoc = commaLoc;
+      ast->rightExpression = expression;
+      yyast = ast;
+    }
   }
 
   return true;
