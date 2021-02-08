@@ -44,6 +44,7 @@ struct ASTCloner : ASTVisitor {
   void visit(ParametersAndQualifiersAST* ast) override;
   void visit(LambdaIntroducerAST* ast) override;
   void visit(LambdaDeclaratorAST* ast) override;
+  void visit(TrailingReturnTypeAST* ast) override;
 
   void visit(EqualInitializerAST* ast) override;
   void visit(BracedInitListAST* ast) override;

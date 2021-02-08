@@ -833,7 +833,7 @@ bool Parser::parse_lambda_declarator(LambdaDeclaratorAST*& yyast) {
 
   parse_attribute_specifier_seq(ast->attributeList);
 
-  parse_trailing_return_type();
+  parse_trailing_return_type(ast->trailingReturnType);
 
   parse_requires_clause();
 
@@ -3752,11 +3752,11 @@ bool Parser::parse_noptr_declarator(DeclaratorAST*& yyast,
       it = &(*it)->next;
 
     } else if (parse_parameters_and_qualifiers(parametersAndQualifiers)) {
-      parse_trailing_return_type();
-
       auto modifier = new (pool) FunctionDeclaratorAST();
 
       modifier->parametersAndQualifiers = parametersAndQualifiers;
+
+      parse_trailing_return_type(modifier->trailingReturnType);
 
       *it = new (pool) List<DeclaratorModifierAST*>(modifier);
 
@@ -3829,12 +3829,17 @@ bool Parser::parse_cv_qualifier_seq(List<SpecifierAST*>*& yyast) {
   return true;
 }
 
-bool Parser::parse_trailing_return_type() {
-  if (!match(TokenKind::T_MINUS_GREATER)) return false;
+bool Parser::parse_trailing_return_type(TrailingReturnTypeAST*& yyast) {
+  SourceLocation minusGreaterLoc;
 
-  TypeIdAST* typeId = nullptr;
+  if (!match(TokenKind::T_MINUS_GREATER, minusGreaterLoc)) return false;
 
-  if (!parse_type_id(typeId)) parse_error("expected a type id");
+  auto ast = new (pool) TrailingReturnTypeAST();
+  yyast = ast;
+
+  ast->minusGreaterLoc = minusGreaterLoc;
+
+  if (!parse_type_id(ast->typeId)) parse_error("expected a type id");
 
   return true;
 }
@@ -3985,11 +3990,13 @@ bool Parser::parse_abstract_declarator(DeclaratorAST*& yyast) {
   const auto saved = currentLocation();
 
   ParametersAndQualifiersAST* parametersAndQualifiers = nullptr;
+  TrailingReturnTypeAST* trailingReturnType = nullptr;
 
   if (parse_parameters_and_qualifiers(parametersAndQualifiers) &&
-      parse_trailing_return_type()) {
+      parse_trailing_return_type(trailingReturnType)) {
     auto functionDeclarator = new (pool) FunctionDeclaratorAST();
     functionDeclarator->parametersAndQualifiers = parametersAndQualifiers;
+    functionDeclarator->trailingReturnType = trailingReturnType;
 
     auto ast = new (pool) DeclaratorAST();
     yyast = ast;
@@ -4009,10 +4016,14 @@ bool Parser::parse_abstract_declarator(DeclaratorAST*& yyast) {
   auto ast = new (pool) DeclaratorAST();
   yyast = ast;
 
+  parametersAndQualifiers = nullptr;
+  trailingReturnType = nullptr;
+
   if (parse_parameters_and_qualifiers(parametersAndQualifiers) &&
-      parse_trailing_return_type()) {
+      parse_trailing_return_type(trailingReturnType)) {
     auto functionDeclarator = new (pool) FunctionDeclaratorAST();
     functionDeclarator->parametersAndQualifiers = parametersAndQualifiers;
+    functionDeclarator->trailingReturnType = trailingReturnType;
 
     ast->modifiers =
         new (pool) List<DeclaratorModifierAST*>(functionDeclarator);

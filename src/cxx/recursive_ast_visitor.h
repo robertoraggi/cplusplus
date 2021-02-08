@@ -65,6 +65,12 @@ struct RecursiveASTVisitor : ASTVisitor {
     return accept(ast);
   }
 
+  virtual void trailingReturnType(TrailingReturnTypeAST* ast) {
+    return accept(ast);
+  }
+
+  virtual void typeId(TypeIdAST* ast) { return accept(ast); }
+
   virtual void bracedInitList(BracedInitListAST* ast) { return accept(ast); }
 
   virtual void declaration(DeclarationAST* ast) { return accept(ast); }
@@ -76,8 +82,6 @@ struct RecursiveASTVisitor : ASTVisitor {
   virtual void lambdaDeclarator(LambdaDeclaratorAST* ast) {
     return accept(ast);
   }
-
-  virtual void typeId(TypeIdAST* ast) { return accept(ast); }
 
   virtual void newTypeId(NewTypeIdAST* ast) { return accept(ast); }
 
@@ -119,6 +123,7 @@ struct RecursiveASTVisitor : ASTVisitor {
   void visit(ParametersAndQualifiersAST* ast) override;
   void visit(LambdaIntroducerAST* ast) override;
   void visit(LambdaDeclaratorAST* ast) override;
+  void visit(TrailingReturnTypeAST* ast) override;
 
   void visit(EqualInitializerAST* ast) override;
   void visit(BracedInitListAST* ast) override;

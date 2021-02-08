@@ -40,6 +40,7 @@ enum struct ASTKind {
   ParametersAndQualifiers,
   LambdaIntroducer,
   LambdaDeclarator,
+  TrailingReturnType,
 
   // InitializerAST
   EqualInitializer,

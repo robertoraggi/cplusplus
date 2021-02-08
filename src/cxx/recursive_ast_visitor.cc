@@ -102,6 +102,11 @@ void RecursiveASTVisitor::visit(LambdaDeclaratorAST* ast) {
   for (auto it = ast->declSpecifierList; it; it = it->next)
     specifier(it->value);
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
+  trailingReturnType(ast->trailingReturnType);
+}
+
+void RecursiveASTVisitor::visit(TrailingReturnTypeAST* ast) {
+  typeId(ast->typeId);
 }
 
 void RecursiveASTVisitor::visit(EqualInitializerAST* ast) {
@@ -479,6 +484,7 @@ void RecursiveASTVisitor::visit(PtrToMemberOperatorAST* ast) {
 
 void RecursiveASTVisitor::visit(FunctionDeclaratorAST* ast) {
   parametersAndQualifiers(ast->parametersAndQualifiers);
+  trailingReturnType(ast->trailingReturnType);
 }
 
 void RecursiveASTVisitor::visit(ArrayDeclaratorAST* ast) {

@@ -325,6 +325,19 @@ struct LambdaDeclaratorAST final : AST {
   SourceLocation rparenLoc;
   List<SpecifierAST*>* declSpecifierList = nullptr;
   List<AttributeAST*>* attributeList = nullptr;
+  TrailingReturnTypeAST* trailingReturnType = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct TrailingReturnTypeAST final : AST {
+  TrailingReturnTypeAST() : AST(ASTKind::TrailingReturnType) {}
+
+  SourceLocation minusGreaterLoc;
+  TypeIdAST* typeId = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1535,6 +1548,7 @@ struct FunctionDeclaratorAST final : DeclaratorModifierAST {
       : DeclaratorModifierAST(ASTKind::FunctionDeclarator) {}
 
   ParametersAndQualifiersAST* parametersAndQualifiers = nullptr;
+  TrailingReturnTypeAST* trailingReturnType = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

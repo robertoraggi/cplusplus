@@ -248,7 +248,7 @@ class Parser {
                               List<PtrOperatorAST*>* ptrOpLst);
   bool parse_parameters_and_qualifiers(ParametersAndQualifiersAST*& yyast);
   bool parse_cv_qualifier_seq(List<SpecifierAST*>*& yyast);
-  bool parse_trailing_return_type();
+  bool parse_trailing_return_type(TrailingReturnTypeAST*& yyast);
   bool parse_ptr_operator(PtrOperatorAST*& yyast);
   bool parse_cv_qualifier(SpecifierAST*& yyast);
   bool parse_ref_qualifier(SourceLocation& refLoc);

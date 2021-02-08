@@ -126,6 +126,11 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         for (const element of node.getAttributeList()) {
              this.accept(element, context);
         }
+        this.accept(node.getTrailingReturnType(), context);
+    }
+
+    visitTrailingReturnType(node: ast.TrailingReturnTypeAST, context: Context): void {
+        this.accept(node.getTypeId(), context);
     }
 
     visitEqualInitializer(node: ast.EqualInitializerAST, context: Context): void {
@@ -603,6 +608,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitFunctionDeclarator(node: ast.FunctionDeclaratorAST, context: Context): void {
         this.accept(node.getParametersAndQualifiers(), context);
+        this.accept(node.getTrailingReturnType(), context);
     }
 
     visitArrayDeclarator(node: ast.ArrayDeclaratorAST, context: Context): void {

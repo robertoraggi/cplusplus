@@ -39,6 +39,7 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitParametersAndQualifiers(node: ast.ParametersAndQualifiersAST, context: Context): Result;
     abstract visitLambdaIntroducer(node: ast.LambdaIntroducerAST, context: Context): Result;
     abstract visitLambdaDeclarator(node: ast.LambdaDeclaratorAST, context: Context): Result;
+    abstract visitTrailingReturnType(node: ast.TrailingReturnTypeAST, context: Context): Result;
     abstract visitEqualInitializer(node: ast.EqualInitializerAST, context: Context): Result;
     abstract visitBracedInitList(node: ast.BracedInitListAST, context: Context): Result;
     abstract visitParenInitializer(node: ast.ParenInitializerAST, context: Context): Result;

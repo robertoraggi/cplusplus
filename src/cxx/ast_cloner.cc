@@ -285,6 +285,17 @@ void ASTCloner::visit(LambdaDeclaratorAST* ast) {
       out = &(*out)->next;
     }
   }
+
+  copy->trailingReturnType = accept(ast->trailingReturnType);
+}
+
+void ASTCloner::visit(TrailingReturnTypeAST* ast) {
+  auto copy = new (arena_) TrailingReturnTypeAST();
+  copy_ = copy;
+
+  copy->minusGreaterLoc = ast->minusGreaterLoc;
+
+  copy->typeId = accept(ast->typeId);
 }
 
 void ASTCloner::visit(EqualInitializerAST* ast) {
@@ -1573,6 +1584,8 @@ void ASTCloner::visit(FunctionDeclaratorAST* ast) {
   copy_ = copy;
 
   copy->parametersAndQualifiers = accept(ast->parametersAndQualifiers);
+
+  copy->trailingReturnType = accept(ast->trailingReturnType);
 }
 
 void ASTCloner::visit(ArrayDeclaratorAST* ast) {

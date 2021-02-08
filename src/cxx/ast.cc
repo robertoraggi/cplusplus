@@ -219,16 +219,30 @@ SourceLocation LambdaDeclaratorAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(declSpecifierList)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(trailingReturnType)) return loc;
   return SourceLocation();
 }
 
 SourceLocation LambdaDeclaratorAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(trailingReturnType)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(declSpecifierList)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(parameterDeclarationClause))
     return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation TrailingReturnTypeAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(minusGreaterLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation TrailingReturnTypeAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(minusGreaterLoc)) return loc;
   return SourceLocation();
 }
 
@@ -1510,10 +1524,12 @@ SourceLocation PtrToMemberOperatorAST::lastSourceLocation() {
 
 SourceLocation FunctionDeclaratorAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(parametersAndQualifiers)) return loc;
+  if (auto loc = cxx::firstSourceLocation(trailingReturnType)) return loc;
   return SourceLocation();
 }
 
 SourceLocation FunctionDeclaratorAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(trailingReturnType)) return loc;
   if (auto loc = cxx::lastSourceLocation(parametersAndQualifiers)) return loc;
   return SourceLocation();
 }

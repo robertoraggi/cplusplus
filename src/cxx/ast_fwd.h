@@ -57,6 +57,7 @@ struct ParameterDeclarationClauseAST;
 struct ParametersAndQualifiersAST;
 struct LambdaIntroducerAST;
 struct LambdaDeclaratorAST;
+struct TrailingReturnTypeAST;
 
 // InitializerAST
 struct EqualInitializerAST;

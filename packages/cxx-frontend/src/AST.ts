@@ -319,6 +319,21 @@ export class LambdaDeclaratorAST extends AST {
             yield AST.from<AttributeAST>(cxx.getListValue(it), this.parser);
         }
     }
+    getTrailingReturnType(): TrailingReturnTypeAST | undefined {
+        return AST.from<TrailingReturnTypeAST>(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+    }
+}
+
+export class TrailingReturnTypeAST extends AST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitTrailingReturnType(this, context);
+    }
+    getMinusGreaterToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getTypeId(): TypeIdAST | undefined {
+        return AST.from<TypeIdAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
 }
 
 export class EqualInitializerAST extends InitializerAST {
@@ -1755,6 +1770,9 @@ export class FunctionDeclaratorAST extends DeclaratorModifierAST {
     getParametersAndQualifiers(): ParametersAndQualifiersAST | undefined {
         return AST.from<ParametersAndQualifiersAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
     }
+    getTrailingReturnType(): TrailingReturnTypeAST | undefined {
+        return AST.from<TrailingReturnTypeAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
 }
 
 export class ArrayDeclaratorAST extends DeclaratorModifierAST {
@@ -1793,6 +1811,7 @@ const AST_CONSTRUCTORS: Array<new (handle: number, parser: Parser) => AST> = [
     ParametersAndQualifiersAST,
     LambdaIntroducerAST,
     LambdaDeclaratorAST,
+    TrailingReturnTypeAST,
     EqualInitializerAST,
     BracedInitListAST,
     ParenInitializerAST,

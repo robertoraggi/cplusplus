@@ -43,6 +43,7 @@ struct ASTVisitor {
   virtual void visit(ParametersAndQualifiersAST* ast) = 0;
   virtual void visit(LambdaIntroducerAST* ast) = 0;
   virtual void visit(LambdaDeclaratorAST* ast) = 0;
+  virtual void visit(TrailingReturnTypeAST* ast) = 0;
 
   // InitializerAST
   virtual void visit(EqualInitializerAST* ast) = 0;

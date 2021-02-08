@@ -234,6 +234,20 @@ void ASTSlot::visit(LambdaDeclaratorAST* ast) {
     case 4:
       value_ = reinterpret_cast<std::intptr_t>(ast->attributeList);
       break;
+    case 5:
+      value_ = reinterpret_cast<std::intptr_t>(ast->trailingReturnType);
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(TrailingReturnTypeAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->minusGreaterLoc.index();
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->typeId);
+      break;
   }  // switch
 }
 
@@ -1494,6 +1508,9 @@ void ASTSlot::visit(FunctionDeclaratorAST* ast) {
   switch (slot_) {
     case 0:
       value_ = reinterpret_cast<std::intptr_t>(ast->parametersAndQualifiers);
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->trailingReturnType);
       break;
   }  // switch
 }
