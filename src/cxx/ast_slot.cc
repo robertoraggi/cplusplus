@@ -1333,14 +1333,6 @@ void ASTSlot::visit(NamedTypeSpecifierAST* ast) {
   }  // switch
 }
 
-void ASTSlot::visit(PlaceholderTypeSpecifierHelperAST* ast) {
-  switch (slot_) {}  // switch
-}
-
-void ASTSlot::visit(DecltypeSpecifierTypeSpecifierAST* ast) {
-  switch (slot_) {}  // switch
-}
-
 void ASTSlot::visit(UnderlyingTypeSpecifierAST* ast) {
   switch (slot_) {}  // switch
 }
@@ -1353,8 +1345,38 @@ void ASTSlot::visit(ElaboratedTypeSpecifierAST* ast) {
   switch (slot_) {}  // switch
 }
 
+void ASTSlot::visit(DecltypeAutoSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->decltypeLoc.index();
+      break;
+    case 1:
+      value_ = ast->lparenLoc.index();
+      break;
+    case 2:
+      value_ = ast->autoLoc.index();
+      break;
+    case 3:
+      value_ = ast->rparenLoc.index();
+      break;
+  }  // switch
+}
+
 void ASTSlot::visit(DecltypeSpecifierAST* ast) {
-  switch (slot_) {}  // switch
+  switch (slot_) {
+    case 0:
+      value_ = ast->decltypeLoc.index();
+      break;
+    case 1:
+      value_ = ast->lparenLoc.index();
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
+      break;
+    case 3:
+      value_ = ast->rparenLoc.index();
+      break;
+  }  // switch
 }
 
 void ASTSlot::visit(PlaceholderTypeSpecifierAST* ast) {

@@ -117,11 +117,10 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitSimpleSpecifier(node: ast.SimpleSpecifierAST, context: Context): Result;
     abstract visitExplicitSpecifier(node: ast.ExplicitSpecifierAST, context: Context): Result;
     abstract visitNamedTypeSpecifier(node: ast.NamedTypeSpecifierAST, context: Context): Result;
-    abstract visitPlaceholderTypeSpecifierHelper(node: ast.PlaceholderTypeSpecifierHelperAST, context: Context): Result;
-    abstract visitDecltypeSpecifierTypeSpecifier(node: ast.DecltypeSpecifierTypeSpecifierAST, context: Context): Result;
     abstract visitUnderlyingTypeSpecifier(node: ast.UnderlyingTypeSpecifierAST, context: Context): Result;
     abstract visitAtomicTypeSpecifier(node: ast.AtomicTypeSpecifierAST, context: Context): Result;
     abstract visitElaboratedTypeSpecifier(node: ast.ElaboratedTypeSpecifierAST, context: Context): Result;
+    abstract visitDecltypeAutoSpecifier(node: ast.DecltypeAutoSpecifierAST, context: Context): Result;
     abstract visitDecltypeSpecifier(node: ast.DecltypeSpecifierAST, context: Context): Result;
     abstract visitPlaceholderTypeSpecifier(node: ast.PlaceholderTypeSpecifierAST, context: Context): Result;
     abstract visitCvQualifier(node: ast.CvQualifierAST, context: Context): Result;

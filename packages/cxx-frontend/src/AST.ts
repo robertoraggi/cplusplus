@@ -1548,18 +1548,6 @@ export class NamedTypeSpecifierAST extends SpecifierAST {
     }
 }
 
-export class PlaceholderTypeSpecifierHelperAST extends SpecifierAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitPlaceholderTypeSpecifierHelper(this, context);
-    }
-}
-
-export class DecltypeSpecifierTypeSpecifierAST extends SpecifierAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitDecltypeSpecifierTypeSpecifier(this, context);
-    }
-}
-
 export class UnderlyingTypeSpecifierAST extends SpecifierAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitUnderlyingTypeSpecifier(this, context);
@@ -1578,9 +1566,39 @@ export class ElaboratedTypeSpecifierAST extends SpecifierAST {
     }
 }
 
+export class DecltypeAutoSpecifierAST extends SpecifierAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitDecltypeAutoSpecifier(this, context);
+    }
+    getDecltypeToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getLparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getAutoToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getRparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+}
+
 export class DecltypeSpecifierAST extends SpecifierAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitDecltypeSpecifier(this, context);
+    }
+    getDecltypeToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getLparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getExpression(): ExpressionAST | undefined {
+        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getRparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
     }
 }
 
@@ -1889,11 +1907,10 @@ const AST_CONSTRUCTORS: Array<new (handle: number, parser: Parser) => AST> = [
     SimpleSpecifierAST,
     ExplicitSpecifierAST,
     NamedTypeSpecifierAST,
-    PlaceholderTypeSpecifierHelperAST,
-    DecltypeSpecifierTypeSpecifierAST,
     UnderlyingTypeSpecifierAST,
     AtomicTypeSpecifierAST,
     ElaboratedTypeSpecifierAST,
+    DecltypeAutoSpecifierAST,
     DecltypeSpecifierAST,
     PlaceholderTypeSpecifierAST,
     CvQualifierAST,

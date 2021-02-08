@@ -139,11 +139,10 @@ struct ASTVisitor {
   virtual void visit(SimpleSpecifierAST* ast) = 0;
   virtual void visit(ExplicitSpecifierAST* ast) = 0;
   virtual void visit(NamedTypeSpecifierAST* ast) = 0;
-  virtual void visit(PlaceholderTypeSpecifierHelperAST* ast) = 0;
-  virtual void visit(DecltypeSpecifierTypeSpecifierAST* ast) = 0;
   virtual void visit(UnderlyingTypeSpecifierAST* ast) = 0;
   virtual void visit(AtomicTypeSpecifierAST* ast) = 0;
   virtual void visit(ElaboratedTypeSpecifierAST* ast) = 0;
+  virtual void visit(DecltypeAutoSpecifierAST* ast) = 0;
   virtual void visit(DecltypeSpecifierAST* ast) = 0;
   virtual void visit(PlaceholderTypeSpecifierAST* ast) = 0;
   virtual void visit(CvQualifierAST* ast) = 0;

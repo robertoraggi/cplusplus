@@ -141,11 +141,10 @@ class ASTPrinter : ASTVisitor {
   void visit(SimpleSpecifierAST* ast) override;
   void visit(ExplicitSpecifierAST* ast) override;
   void visit(NamedTypeSpecifierAST* ast) override;
-  void visit(PlaceholderTypeSpecifierHelperAST* ast) override;
-  void visit(DecltypeSpecifierTypeSpecifierAST* ast) override;
   void visit(UnderlyingTypeSpecifierAST* ast) override;
   void visit(AtomicTypeSpecifierAST* ast) override;
   void visit(ElaboratedTypeSpecifierAST* ast) override;
+  void visit(DecltypeAutoSpecifierAST* ast) override;
   void visit(DecltypeSpecifierAST* ast) override;
   void visit(PlaceholderTypeSpecifierAST* ast) override;
   void visit(CvQualifierAST* ast) override;

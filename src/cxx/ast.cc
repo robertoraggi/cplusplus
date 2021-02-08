@@ -1328,22 +1328,6 @@ SourceLocation NamedTypeSpecifierAST::lastSourceLocation() {
   return SourceLocation();
 }
 
-SourceLocation PlaceholderTypeSpecifierHelperAST::firstSourceLocation() {
-  return SourceLocation();
-}
-
-SourceLocation PlaceholderTypeSpecifierHelperAST::lastSourceLocation() {
-  return SourceLocation();
-}
-
-SourceLocation DecltypeSpecifierTypeSpecifierAST::firstSourceLocation() {
-  return SourceLocation();
-}
-
-SourceLocation DecltypeSpecifierTypeSpecifierAST::lastSourceLocation() {
-  return SourceLocation();
-}
-
 SourceLocation UnderlyingTypeSpecifierAST::firstSourceLocation() {
   return SourceLocation();
 }
@@ -1368,11 +1352,35 @@ SourceLocation ElaboratedTypeSpecifierAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation DecltypeAutoSpecifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(decltypeLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(autoLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation DecltypeAutoSpecifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(autoLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(decltypeLoc)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation DecltypeSpecifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(decltypeLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   return SourceLocation();
 }
 
 SourceLocation DecltypeSpecifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(decltypeLoc)) return loc;
   return SourceLocation();
 }
 

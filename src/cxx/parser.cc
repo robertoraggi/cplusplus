@@ -3375,9 +3375,7 @@ bool Parser::parse_placeholder_type_specifier_helper(SpecifierAST*& yyast,
                                                      DeclSpecs& specs) {
   if (specs.has_typespec()) return false;
 
-  SpecifierAST* typeSpecifier = nullptr;
-
-  if (!parse_placeholder_type_specifier(typeSpecifier)) return false;
+  if (!parse_placeholder_type_specifier(yyast)) return false;
 
   specs.has_placeholder_typespec = true;
 
@@ -3567,17 +3565,27 @@ bool Parser::parse_decl_specifier_seq_no_typespecs(
 }
 
 bool Parser::parse_decltype_specifier(SpecifierAST*& yyast) {
-  if (match(TokenKind::T_DECLTYPE) || match(TokenKind::T___DECLTYPE) ||
-      match(TokenKind::T___DECLTYPE__)) {
-    if (!match(TokenKind::T_LPAREN)) return false;
+  SourceLocation decltypeLoc;
+
+  if (match(TokenKind::T_DECLTYPE, decltypeLoc) ||
+      match(TokenKind::T___DECLTYPE, decltypeLoc) ||
+      match(TokenKind::T___DECLTYPE__, decltypeLoc)) {
+    SourceLocation lparenLoc;
+
+    if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
 
     if (LA().is(TokenKind::T_AUTO)) return false;  // placeholder type specifier
 
-    ExpressionAST* expression = nullptr;
+    auto ast = new (pool) DecltypeSpecifierAST();
+    yyast = ast;
 
-    if (!parse_expression(expression)) parse_error("expected an expression");
+    ast->decltypeLoc = decltypeLoc;
+    ast->lparenLoc = lparenLoc;
 
-    expect(TokenKind::T_RPAREN);
+    if (!parse_expression(ast->expression))
+      parse_error("expected an expression");
+
+    expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
     return true;
   }
@@ -3600,14 +3608,36 @@ bool Parser::parse_decltype_specifier(SpecifierAST*& yyast) {
 bool Parser::parse_placeholder_type_specifier(SpecifierAST*& yyast) {
   parse_type_constraint();
 
-  if (match(TokenKind::T_AUTO)) return true;
+  SourceLocation autoLoc;
 
-  if (match(TokenKind::T_DECLTYPE)) {
-    if (!match(TokenKind::T_LPAREN)) return false;
+  if (match(TokenKind::T_AUTO, autoLoc)) {
+    auto ast = new (pool) SimpleSpecifierAST();
+    yyast = ast;
 
-    if (!match(TokenKind::T_AUTO)) return false;
+    ast->specifierLoc = autoLoc;
 
-    if (!match(TokenKind::T_RPAREN)) return false;
+    return true;
+  }
+
+  SourceLocation decltypeLoc;
+
+  if (match(TokenKind::T_DECLTYPE, decltypeLoc)) {
+    SourceLocation lparenLoc;
+
+    if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
+
+    SourceLocation autoLoc;
+
+    if (!match(TokenKind::T_AUTO, autoLoc)) return false;
+
+    auto ast = new (pool) DecltypeAutoSpecifierAST();
+    yyast = ast;
+
+    ast->decltypeLoc = decltypeLoc;
+    ast->lparenLoc = lparenLoc;
+    ast->autoLoc = autoLoc;
+
+    expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
     return true;
   }

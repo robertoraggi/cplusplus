@@ -520,12 +520,6 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         this.accept(node.getName(), context);
     }
 
-    visitPlaceholderTypeSpecifierHelper(node: ast.PlaceholderTypeSpecifierHelperAST, context: Context): void {
-    }
-
-    visitDecltypeSpecifierTypeSpecifier(node: ast.DecltypeSpecifierTypeSpecifierAST, context: Context): void {
-    }
-
     visitUnderlyingTypeSpecifier(node: ast.UnderlyingTypeSpecifierAST, context: Context): void {
     }
 
@@ -535,7 +529,11 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     visitElaboratedTypeSpecifier(node: ast.ElaboratedTypeSpecifierAST, context: Context): void {
     }
 
+    visitDecltypeAutoSpecifier(node: ast.DecltypeAutoSpecifierAST, context: Context): void {
+    }
+
     visitDecltypeSpecifier(node: ast.DecltypeSpecifierAST, context: Context): void {
+        this.accept(node.getExpression(), context);
     }
 
     visitPlaceholderTypeSpecifier(node: ast.PlaceholderTypeSpecifierAST, context: Context): void {

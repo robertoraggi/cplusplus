@@ -1353,26 +1353,6 @@ struct NamedTypeSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct PlaceholderTypeSpecifierHelperAST final : SpecifierAST {
-  PlaceholderTypeSpecifierHelperAST()
-      : SpecifierAST(ASTKind::PlaceholderTypeSpecifierHelper) {}
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
-};
-
-struct DecltypeSpecifierTypeSpecifierAST final : SpecifierAST {
-  DecltypeSpecifierTypeSpecifierAST()
-      : SpecifierAST(ASTKind::DecltypeSpecifierTypeSpecifier) {}
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
-};
-
 struct UnderlyingTypeSpecifierAST final : SpecifierAST {
   UnderlyingTypeSpecifierAST()
       : SpecifierAST(ASTKind::UnderlyingTypeSpecifier) {}
@@ -1402,8 +1382,27 @@ struct ElaboratedTypeSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
+struct DecltypeAutoSpecifierAST final : SpecifierAST {
+  DecltypeAutoSpecifierAST() : SpecifierAST(ASTKind::DecltypeAutoSpecifier) {}
+
+  SourceLocation decltypeLoc;
+  SourceLocation lparenLoc;
+  SourceLocation autoLoc;
+  SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 struct DecltypeSpecifierAST final : SpecifierAST {
   DecltypeSpecifierAST() : SpecifierAST(ASTKind::DecltypeSpecifier) {}
+
+  SourceLocation decltypeLoc;
+  SourceLocation lparenLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation rparenLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
