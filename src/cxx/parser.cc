@@ -2899,7 +2899,9 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
     rewind(after_declarator);
   }
 
-  if (!parse_declarator_initializer()) rewind(after_declarator);
+  InitializerAST* initializer = nullptr;
+
+  if (!parse_declarator_initializer(initializer)) rewind(after_declarator);
 
   List<DeclaratorAST*>* declaratorList = nullptr;
 
@@ -3656,17 +3658,17 @@ bool Parser::parse_init_declarator(DeclaratorAST*& yyast) {
 
   const auto saved = currentLocation();
 
-  if (!parse_declarator_initializer()) rewind(saved);
+  InitializerAST* initializer = nullptr;
+
+  if (!parse_declarator_initializer(initializer)) rewind(saved);
 
   return true;
 }
 
-bool Parser::parse_declarator_initializer() {
+bool Parser::parse_declarator_initializer(InitializerAST*& yyast) {
   if (parse_requires_clause()) return true;
 
-  InitializerAST* initializer = nullptr;
-
-  return parse_initializer(initializer);
+  return parse_initializer(yyast);
 }
 
 bool Parser::parse_declarator(DeclaratorAST*& yyast) {
