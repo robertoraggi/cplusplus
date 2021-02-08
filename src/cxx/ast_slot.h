@@ -44,6 +44,8 @@ class ASTSlot final : ASTVisitor {
   void visit(NewTypeIdAST* ast) override;
   void visit(ParameterDeclarationClauseAST* ast) override;
   void visit(ParametersAndQualifiersAST* ast) override;
+  void visit(LambdaIntroducerAST* ast) override;
+  void visit(LambdaDeclaratorAST* ast) override;
 
   void visit(EqualInitializerAST* ast) override;
   void visit(BracedInitListAST* ast) override;
@@ -68,6 +70,7 @@ class ASTSlot final : ASTVisitor {
   void visit(UserDefinedStringLiteralExpressionAST* ast) override;
   void visit(IdExpressionAST* ast) override;
   void visit(NestedExpressionAST* ast) override;
+  void visit(LambdaExpressionAST* ast) override;
   void visit(BinaryExpressionAST* ast) override;
   void visit(AssignmentExpressionAST* ast) override;
   void visit(CallExpressionAST* ast) override;

@@ -69,6 +69,14 @@ struct RecursiveASTVisitor : ASTVisitor {
 
   virtual void declaration(DeclarationAST* ast) { return accept(ast); }
 
+  virtual void lambdaIntroducer(LambdaIntroducerAST* ast) {
+    return accept(ast);
+  }
+
+  virtual void lambdaDeclarator(LambdaDeclaratorAST* ast) {
+    return accept(ast);
+  }
+
   virtual void typeId(TypeIdAST* ast) { return accept(ast); }
 
   virtual void newTypeId(NewTypeIdAST* ast) { return accept(ast); }
@@ -109,6 +117,8 @@ struct RecursiveASTVisitor : ASTVisitor {
   void visit(NewTypeIdAST* ast) override;
   void visit(ParameterDeclarationClauseAST* ast) override;
   void visit(ParametersAndQualifiersAST* ast) override;
+  void visit(LambdaIntroducerAST* ast) override;
+  void visit(LambdaDeclaratorAST* ast) override;
 
   void visit(EqualInitializerAST* ast) override;
   void visit(BracedInitListAST* ast) override;
@@ -133,6 +143,7 @@ struct RecursiveASTVisitor : ASTVisitor {
   void visit(UserDefinedStringLiteralExpressionAST* ast) override;
   void visit(IdExpressionAST* ast) override;
   void visit(NestedExpressionAST* ast) override;
+  void visit(LambdaExpressionAST* ast) override;
   void visit(BinaryExpressionAST* ast) override;
   void visit(AssignmentExpressionAST* ast) override;
   void visit(CallExpressionAST* ast) override;

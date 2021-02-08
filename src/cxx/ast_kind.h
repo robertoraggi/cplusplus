@@ -38,6 +38,8 @@ enum struct ASTKind {
   NewTypeId,
   ParameterDeclarationClause,
   ParametersAndQualifiers,
+  LambdaIntroducer,
+  LambdaDeclarator,
 
   // InitializerAST
   EqualInitializer,
@@ -67,6 +69,7 @@ enum struct ASTKind {
   UserDefinedStringLiteralExpression,
   IdExpression,
   NestedExpression,
+  LambdaExpression,
   BinaryExpression,
   AssignmentExpression,
   CallExpression,

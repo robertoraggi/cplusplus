@@ -305,6 +305,33 @@ struct ParametersAndQualifiersAST final : AST {
   SourceLocation lastSourceLocation() override;
 };
 
+struct LambdaIntroducerAST final : AST {
+  LambdaIntroducerAST() : AST(ASTKind::LambdaIntroducer) {}
+
+  SourceLocation lbracketLoc;
+  SourceLocation rbracketLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct LambdaDeclaratorAST final : AST {
+  LambdaDeclaratorAST() : AST(ASTKind::LambdaDeclarator) {}
+
+  SourceLocation lparenLoc;
+  ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
+  SourceLocation rparenLoc;
+  List<SpecifierAST*>* declSpecifierList = nullptr;
+  List<AttributeAST*>* attributeList = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 struct EqualInitializerAST final : InitializerAST {
   EqualInitializerAST() : InitializerAST(ASTKind::EqualInitializer) {}
 
@@ -524,6 +551,22 @@ struct NestedExpressionAST final : ExpressionAST {
   SourceLocation lparenLoc;
   ExpressionAST* expression = nullptr;
   SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct LambdaExpressionAST final : ExpressionAST {
+  LambdaExpressionAST() : ExpressionAST(ASTKind::LambdaExpression) {}
+
+  LambdaIntroducerAST* lambdaIntroducer = nullptr;
+  SourceLocation lessLoc;
+  List<DeclarationAST*>* templateParameterList = nullptr;
+  SourceLocation greaterLoc;
+  LambdaDeclaratorAST* lambdaDeclarator = nullptr;
+  StatementAST* statement = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

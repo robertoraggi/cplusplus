@@ -41,6 +41,8 @@ struct ASTVisitor {
   virtual void visit(NewTypeIdAST* ast) = 0;
   virtual void visit(ParameterDeclarationClauseAST* ast) = 0;
   virtual void visit(ParametersAndQualifiersAST* ast) = 0;
+  virtual void visit(LambdaIntroducerAST* ast) = 0;
+  virtual void visit(LambdaDeclaratorAST* ast) = 0;
 
   // InitializerAST
   virtual void visit(EqualInitializerAST* ast) = 0;
@@ -70,6 +72,7 @@ struct ASTVisitor {
   virtual void visit(UserDefinedStringLiteralExpressionAST* ast) = 0;
   virtual void visit(IdExpressionAST* ast) = 0;
   virtual void visit(NestedExpressionAST* ast) = 0;
+  virtual void visit(LambdaExpressionAST* ast) = 0;
   virtual void visit(BinaryExpressionAST* ast) = 0;
   virtual void visit(AssignmentExpressionAST* ast) = 0;
   virtual void visit(CallExpressionAST* ast) = 0;

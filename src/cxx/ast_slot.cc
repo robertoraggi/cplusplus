@@ -206,6 +206,37 @@ void ASTSlot::visit(ParametersAndQualifiersAST* ast) {
   }  // switch
 }
 
+void ASTSlot::visit(LambdaIntroducerAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->lbracketLoc.index();
+      break;
+    case 1:
+      value_ = ast->rbracketLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(LambdaDeclaratorAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->lparenLoc.index();
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->parameterDeclarationClause);
+      break;
+    case 2:
+      value_ = ast->rparenLoc.index();
+      break;
+    case 3:
+      value_ = reinterpret_cast<std::intptr_t>(ast->declSpecifierList);
+      break;
+    case 4:
+      value_ = reinterpret_cast<std::intptr_t>(ast->attributeList);
+      break;
+  }  // switch
+}
+
 void ASTSlot::visit(EqualInitializerAST* ast) {
   switch (slot_) {
     case 0:
@@ -386,6 +417,29 @@ void ASTSlot::visit(NestedExpressionAST* ast) {
       break;
     case 2:
       value_ = ast->rparenLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(LambdaExpressionAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = reinterpret_cast<std::intptr_t>(ast->lambdaIntroducer);
+      break;
+    case 1:
+      value_ = ast->lessLoc.index();
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->templateParameterList);
+      break;
+    case 3:
+      value_ = ast->greaterLoc.index();
+      break;
+    case 4:
+      value_ = reinterpret_cast<std::intptr_t>(ast->lambdaDeclarator);
+      break;
+    case 5:
+      value_ = reinterpret_cast<std::intptr_t>(ast->statement);
       break;
   }  // switch
 }

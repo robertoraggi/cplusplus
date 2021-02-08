@@ -568,6 +568,87 @@ void ASTPrinter::visit(ParametersAndQualifiersAST* ast) {
   }
 }
 
+void ASTPrinter::visit(LambdaIntroducerAST* ast) {
+  json_ = nlohmann::json::object();
+
+#ifdef WITH_CXXABI
+  char name[1024];
+  std::size_t nameSize = sizeof(name);
+  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
+  json_["$id"] = name;
+#else
+  json_["$id"] = typeid(*ast).name();
+#endif
+
+  auto [startLoc, endLoc] = ast->sourceLocationRange();
+  if (startLoc && endLoc) {
+    unsigned startLine = 0, startColumn = 0;
+    unsigned endLine = 0, endColumn = 0;
+
+    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+
+    auto range = nlohmann::json::object();
+    range["startLine"] = startLine;
+    range["startColumn"] = startColumn;
+    range["endLine"] = endLine;
+    range["endColumn"] = endColumn;
+
+    json_["$range"] = range;
+  }
+}
+
+void ASTPrinter::visit(LambdaDeclaratorAST* ast) {
+  json_ = nlohmann::json::object();
+
+#ifdef WITH_CXXABI
+  char name[1024];
+  std::size_t nameSize = sizeof(name);
+  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
+  json_["$id"] = name;
+#else
+  json_["$id"] = typeid(*ast).name();
+#endif
+
+  auto [startLoc, endLoc] = ast->sourceLocationRange();
+  if (startLoc && endLoc) {
+    unsigned startLine = 0, startColumn = 0;
+    unsigned endLine = 0, endColumn = 0;
+
+    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+
+    auto range = nlohmann::json::object();
+    range["startLine"] = startLine;
+    range["startColumn"] = startColumn;
+    range["endLine"] = endLine;
+    range["endColumn"] = endColumn;
+
+    json_["$range"] = range;
+  }
+
+  if (ast->parameterDeclarationClause) {
+    json_["parameterDeclarationClause"] =
+        accept(ast->parameterDeclarationClause);
+  }
+
+  if (ast->declSpecifierList) {
+    auto elements = nlohmann::json::array();
+    for (auto it = ast->declSpecifierList; it; it = it->next) {
+      elements.push_back(accept(it->value));
+    }
+    json_["declSpecifierList"] = elements;
+  }
+
+  if (ast->attributeList) {
+    auto elements = nlohmann::json::array();
+    for (auto it = ast->attributeList; it; it = it->next) {
+      elements.push_back(accept(it->value));
+    }
+    json_["attributeList"] = elements;
+  }
+}
+
 void ASTPrinter::visit(EqualInitializerAST* ast) {
   json_ = nlohmann::json::object();
 
@@ -1203,6 +1284,56 @@ void ASTPrinter::visit(NestedExpressionAST* ast) {
 
   if (ast->expression) {
     json_["expression"] = accept(ast->expression);
+  }
+}
+
+void ASTPrinter::visit(LambdaExpressionAST* ast) {
+  json_ = nlohmann::json::object();
+
+#ifdef WITH_CXXABI
+  char name[1024];
+  std::size_t nameSize = sizeof(name);
+  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
+  json_["$id"] = name;
+#else
+  json_["$id"] = typeid(*ast).name();
+#endif
+
+  auto [startLoc, endLoc] = ast->sourceLocationRange();
+  if (startLoc && endLoc) {
+    unsigned startLine = 0, startColumn = 0;
+    unsigned endLine = 0, endColumn = 0;
+
+    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+
+    auto range = nlohmann::json::object();
+    range["startLine"] = startLine;
+    range["startColumn"] = startColumn;
+    range["endLine"] = endLine;
+    range["endColumn"] = endColumn;
+
+    json_["$range"] = range;
+  }
+
+  if (ast->lambdaIntroducer) {
+    json_["lambdaIntroducer"] = accept(ast->lambdaIntroducer);
+  }
+
+  if (ast->templateParameterList) {
+    auto elements = nlohmann::json::array();
+    for (auto it = ast->templateParameterList; it; it = it->next) {
+      elements.push_back(accept(it->value));
+    }
+    json_["templateParameterList"] = elements;
+  }
+
+  if (ast->lambdaDeclarator) {
+    json_["lambdaDeclarator"] = accept(ast->lambdaDeclarator);
+  }
+
+  if (ast->statement) {
+    json_["statement"] = accept(ast->statement);
   }
 }
 

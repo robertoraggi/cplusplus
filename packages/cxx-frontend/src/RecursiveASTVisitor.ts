@@ -115,6 +115,19 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         }
     }
 
+    visitLambdaIntroducer(node: ast.LambdaIntroducerAST, context: Context): void {
+    }
+
+    visitLambdaDeclarator(node: ast.LambdaDeclaratorAST, context: Context): void {
+        this.accept(node.getParameterDeclarationClause(), context);
+        for (const element of node.getDeclSpecifierList()) {
+             this.accept(element, context);
+        }
+        for (const element of node.getAttributeList()) {
+             this.accept(element, context);
+        }
+    }
+
     visitEqualInitializer(node: ast.EqualInitializerAST, context: Context): void {
         this.accept(node.getExpression(), context);
     }
@@ -193,6 +206,15 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitNestedExpression(node: ast.NestedExpressionAST, context: Context): void {
         this.accept(node.getExpression(), context);
+    }
+
+    visitLambdaExpression(node: ast.LambdaExpressionAST, context: Context): void {
+        this.accept(node.getLambdaIntroducer(), context);
+        for (const element of node.getTemplateParameterList()) {
+             this.accept(element, context);
+        }
+        this.accept(node.getLambdaDeclarator(), context);
+        this.accept(node.getStatement(), context);
     }
 
     visitBinaryExpression(node: ast.BinaryExpressionAST, context: Context): void {

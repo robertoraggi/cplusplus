@@ -55,6 +55,8 @@ struct BaseClauseAST;
 struct NewTypeIdAST;
 struct ParameterDeclarationClauseAST;
 struct ParametersAndQualifiersAST;
+struct LambdaIntroducerAST;
+struct LambdaDeclaratorAST;
 
 // InitializerAST
 struct EqualInitializerAST;
@@ -84,6 +86,7 @@ struct StringLiteralExpressionAST;
 struct UserDefinedStringLiteralExpressionAST;
 struct IdExpressionAST;
 struct NestedExpressionAST;
+struct LambdaExpressionAST;
 struct BinaryExpressionAST;
 struct AssignmentExpressionAST;
 struct CallExpressionAST;

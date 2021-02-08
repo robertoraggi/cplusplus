@@ -95,6 +95,15 @@ void RecursiveASTVisitor::visit(ParametersAndQualifiersAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
 }
 
+void RecursiveASTVisitor::visit(LambdaIntroducerAST* ast) {}
+
+void RecursiveASTVisitor::visit(LambdaDeclaratorAST* ast) {
+  parameterDeclarationClause(ast->parameterDeclarationClause);
+  for (auto it = ast->declSpecifierList; it; it = it->next)
+    specifier(it->value);
+  for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
+}
+
 void RecursiveASTVisitor::visit(EqualInitializerAST* ast) {
   expression(ast->expression);
 }
@@ -151,6 +160,14 @@ void RecursiveASTVisitor::visit(IdExpressionAST* ast) { name(ast->name); }
 
 void RecursiveASTVisitor::visit(NestedExpressionAST* ast) {
   expression(ast->expression);
+}
+
+void RecursiveASTVisitor::visit(LambdaExpressionAST* ast) {
+  lambdaIntroducer(ast->lambdaIntroducer);
+  for (auto it = ast->templateParameterList; it; it = it->next)
+    declaration(it->value);
+  lambdaDeclarator(ast->lambdaDeclarator);
+  statement(ast->statement);
 }
 
 void RecursiveASTVisitor::visit(BinaryExpressionAST* ast) {

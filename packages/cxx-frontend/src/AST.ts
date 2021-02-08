@@ -284,6 +284,43 @@ export class ParametersAndQualifiersAST extends AST {
     }
 }
 
+export class LambdaIntroducerAST extends AST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitLambdaIntroducer(this, context);
+    }
+    getLbracketToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getRbracketToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+}
+
+export class LambdaDeclaratorAST extends AST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitLambdaDeclarator(this, context);
+    }
+    getLparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getParameterDeclarationClause(): ParameterDeclarationClauseAST | undefined {
+        return AST.from<ParameterDeclarationClauseAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getRparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    *getDeclSpecifierList(): Generator<SpecifierAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 3); it; it = cxx.getListNext(it)) {
+            yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+    *getAttributeList(): Generator<AttributeAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 4); it; it = cxx.getListNext(it)) {
+            yield AST.from<AttributeAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+}
+
 export class EqualInitializerAST extends InitializerAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitEqualInitializer(this, context);
@@ -494,6 +531,32 @@ export class NestedExpressionAST extends ExpressionAST {
     }
     getRparenToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+}
+
+export class LambdaExpressionAST extends ExpressionAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitLambdaExpression(this, context);
+    }
+    getLambdaIntroducer(): LambdaIntroducerAST | undefined {
+        return AST.from<LambdaIntroducerAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getLessToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    *getTemplateParameterList(): Generator<DeclarationAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
+            yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+    getGreaterToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+    getLambdaDeclarator(): LambdaDeclaratorAST | undefined {
+        return AST.from<LambdaDeclaratorAST>(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+    }
+    getStatement(): StatementAST | undefined {
+        return AST.from<StatementAST>(cxx.getASTSlot(this.getHandle(), 5), this.parser);
     }
 }
 
@@ -1728,6 +1791,8 @@ const AST_CONSTRUCTORS: Array<new (handle: number, parser: Parser) => AST> = [
     NewTypeIdAST,
     ParameterDeclarationClauseAST,
     ParametersAndQualifiersAST,
+    LambdaIntroducerAST,
+    LambdaDeclaratorAST,
     EqualInitializerAST,
     BracedInitListAST,
     ParenInitializerAST,
@@ -1747,6 +1812,7 @@ const AST_CONSTRUCTORS: Array<new (handle: number, parser: Parser) => AST> = [
     UserDefinedStringLiteralExpressionAST,
     IdExpressionAST,
     NestedExpressionAST,
+    LambdaExpressionAST,
     BinaryExpressionAST,
     AssignmentExpressionAST,
     CallExpressionAST,

@@ -37,6 +37,8 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitNewTypeId(node: ast.NewTypeIdAST, context: Context): Result;
     abstract visitParameterDeclarationClause(node: ast.ParameterDeclarationClauseAST, context: Context): Result;
     abstract visitParametersAndQualifiers(node: ast.ParametersAndQualifiersAST, context: Context): Result;
+    abstract visitLambdaIntroducer(node: ast.LambdaIntroducerAST, context: Context): Result;
+    abstract visitLambdaDeclarator(node: ast.LambdaDeclaratorAST, context: Context): Result;
     abstract visitEqualInitializer(node: ast.EqualInitializerAST, context: Context): Result;
     abstract visitBracedInitList(node: ast.BracedInitListAST, context: Context): Result;
     abstract visitParenInitializer(node: ast.ParenInitializerAST, context: Context): Result;
@@ -56,6 +58,7 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitUserDefinedStringLiteralExpression(node: ast.UserDefinedStringLiteralExpressionAST, context: Context): Result;
     abstract visitIdExpression(node: ast.IdExpressionAST, context: Context): Result;
     abstract visitNestedExpression(node: ast.NestedExpressionAST, context: Context): Result;
+    abstract visitLambdaExpression(node: ast.LambdaExpressionAST, context: Context): Result;
     abstract visitBinaryExpression(node: ast.BinaryExpressionAST, context: Context): Result;
     abstract visitAssignmentExpression(node: ast.AssignmentExpressionAST, context: Context): Result;
     abstract visitCallExpression(node: ast.CallExpressionAST, context: Context): Result;

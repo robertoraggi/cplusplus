@@ -110,8 +110,8 @@ class Parser {
   bool parse_start_of_nested_name_specifier(NameAST*& yyast,
                                             SourceLocation& scopeLoc);
   bool parse_lambda_expression(ExpressionAST*& yyast);
-  bool parse_lambda_introducer();
-  bool parse_lambda_declarator();
+  bool parse_lambda_introducer(LambdaIntroducerAST*& yyast);
+  bool parse_lambda_declarator(LambdaDeclaratorAST*& yyast);
   bool parse_lambda_capture();
   bool parse_capture_default();
   bool parse_capture_list();

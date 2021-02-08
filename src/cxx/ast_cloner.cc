@@ -249,6 +249,44 @@ void ASTCloner::visit(ParametersAndQualifiersAST* ast) {
   }
 }
 
+void ASTCloner::visit(LambdaIntroducerAST* ast) {
+  auto copy = new (arena_) LambdaIntroducerAST();
+  copy_ = copy;
+
+  copy->lbracketLoc = ast->lbracketLoc;
+
+  copy->rbracketLoc = ast->rbracketLoc;
+}
+
+void ASTCloner::visit(LambdaDeclaratorAST* ast) {
+  auto copy = new (arena_) LambdaDeclaratorAST();
+  copy_ = copy;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->parameterDeclarationClause = accept(ast->parameterDeclarationClause);
+
+  copy->rparenLoc = ast->rparenLoc;
+
+  if (auto it = ast->declSpecifierList) {
+    auto out = &copy->declSpecifierList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  if (auto it = ast->attributeList) {
+    auto out = &copy->attributeList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+}
+
 void ASTCloner::visit(EqualInitializerAST* ast) {
   auto copy = new (arena_) EqualInitializerAST();
   copy_ = copy;
@@ -451,6 +489,30 @@ void ASTCloner::visit(NestedExpressionAST* ast) {
   copy->expression = accept(ast->expression);
 
   copy->rparenLoc = ast->rparenLoc;
+}
+
+void ASTCloner::visit(LambdaExpressionAST* ast) {
+  auto copy = new (arena_) LambdaExpressionAST();
+  copy_ = copy;
+
+  copy->lambdaIntroducer = accept(ast->lambdaIntroducer);
+
+  copy->lessLoc = ast->lessLoc;
+
+  if (auto it = ast->templateParameterList) {
+    auto out = &copy->templateParameterList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->greaterLoc = ast->greaterLoc;
+
+  copy->lambdaDeclarator = accept(ast->lambdaDeclarator);
+
+  copy->statement = accept(ast->statement);
 }
 
 void ASTCloner::visit(BinaryExpressionAST* ast) {
