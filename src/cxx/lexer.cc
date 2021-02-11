@@ -61,8 +61,8 @@ inline bool is_idcont(int ch) {
   return ch == '_' || std::isalnum((unsigned char)ch);
 }
 
-Lexer::Lexer(const std::string_view& text)
-    : text_(text), pos_(cbegin(text_)), end_(cend(text_)) {
+Lexer::Lexer(const std::string_view& source)
+    : source_(source), pos_(cbegin(source_)), end_(cend(source_)) {
   currentChar_ = pos_ < end_ ? utf8::peek_next(pos_, end_) : 0;
 }
 
@@ -85,7 +85,7 @@ uint32_t Lexer::LA(int n) const {
 TokenKind Lexer::readToken() {
   const auto hasMoreChars = skipSpaces();
 
-  tokenPos_ = pos_ - cbegin(text_);
+  tokenPos_ = pos_ - cbegin(source_);
 
   if (!hasMoreChars) return TokenKind::T_EOF_SYMBOL;
 
@@ -124,8 +124,8 @@ TokenKind Lexer::readToken() {
       consume();
     } while (pos_ != end_ && is_idcont(LA()));
 
-    const auto n = (pos_ - cbegin(text_)) - tokenPos_;
-    const auto id = text_.substr(tokenPos_, n);
+    const auto n = (pos_ - cbegin(source_)) - tokenPos_;
+    const auto id = source_.substr(tokenPos_, n);
 
     bool isStringOrCharacterLiteral = false;
 
@@ -161,8 +161,8 @@ TokenKind Lexer::readToken() {
         if (ch == '(' || ch == '"' || ch == '\\' || ch == '\n') break;
       }
       endDelimiter = pos_;
-      delimiter = text_.substr(startDelimiter - cbegin(text_),
-                               endDelimiter - startDelimiter);
+      delimiter = source_.substr(startDelimiter - cbegin(source_),
+                                 endDelimiter - startDelimiter);
     }
 
     while (pos_ != end_) {

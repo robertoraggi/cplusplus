@@ -57,11 +57,13 @@ struct WrappedUnit {
   intptr_t getHandle() const { return (intptr_t)unit.ast(); }
 
   val getDiagnostics() const { return messages; }
+
+  bool parse() { return unit.parse(); }
 };
 
 static std::string getTokenText(intptr_t handle, intptr_t unitHandle) {
   auto unit = reinterpret_cast<cxx::TranslationUnit*>(unitHandle);
-  auto text = std::string(unit->tokenText(cxx::SourceLocation(handle)));
+  auto text = unit->tokenText(cxx::SourceLocation(handle));
   return text;
 }
 
@@ -112,7 +114,7 @@ static intptr_t getASTSlot(intptr_t handle, int slot) {
   return value;
 }
 
-static WrappedUnit* parse(std::string source, std::string filename) {
+static WrappedUnit* createUnit(std::string source, std::string filename) {
   val messages = val::array();
 
   auto wrapped = new WrappedUnit();
@@ -121,18 +123,17 @@ static WrappedUnit* parse(std::string source, std::string filename) {
   wrapped->unit.setFileName(std::move(filename));
   wrapped->unit.setSource(std::move(source));
 
-  const auto parsed = wrapped->unit.parse();
-
   return wrapped;
 }
 
 EMSCRIPTEN_BINDINGS(my_module) {
   class_<WrappedUnit>("Unit")
+      .function("parse", &WrappedUnit::parse)
       .function("getHandle", &WrappedUnit::getHandle)
       .function("getUnitHandle", &WrappedUnit::getUnitHandle)
       .function("getDiagnostics", &WrappedUnit::getDiagnostics);
 
-  function("parse", &parse, allow_raw_pointers());
+  function("createUnit", &createUnit, allow_raw_pointers());
   function("getASTKind", &getASTKind);
   function("getListValue", &getListValue);
   function("getListNext", &getListNext);

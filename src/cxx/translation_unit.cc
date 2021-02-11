@@ -61,7 +61,7 @@ const Identifier* TranslationUnit::identifier(SourceLocation loc) const {
   return tk.value().idValue;
 }
 
-std::string_view TranslationUnit::tokenText(SourceLocation loc) const {
+const std::string& TranslationUnit::tokenText(SourceLocation loc) const {
   const auto& tk = tokenAt(loc);
   switch (tk.kind()) {
     case TokenKind::T_IDENTIFIER:

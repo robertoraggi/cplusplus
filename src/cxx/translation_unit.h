@@ -163,7 +163,7 @@ class TranslationUnit {
 
   int tokenLength(SourceLocation loc) const;
 
-  std::string_view tokenText(SourceLocation loc) const;
+  const std::string& tokenText(SourceLocation loc) const;
 
   void getTokenStartPosition(SourceLocation loc, unsigned* line,
                              unsigned* column) const;

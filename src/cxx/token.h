@@ -23,7 +23,7 @@
 #include <cxx/cxx_fwd.h>
 
 #include <cstdint>
-#include <string_view>
+#include <string>
 
 #define FOR_EACH_TOKEN(V)                                             \
   V(EOF_SYMBOL, "eof")                                                \
@@ -271,11 +271,11 @@ class Token {
   inline bool startOfLine() const { return startOfLine_; }
   inline bool leadingSpace() const { return leadingSpace_; }
 
-  static std::string_view spell(TokenKind kind);
-  std::string_view spell() const;
+  static const std::string& spell(TokenKind kind);
+  const std::string& spell() const;
 
-  static std::string_view name(TokenKind kind);
-  std::string_view name() const;
+  static const std::string& name(TokenKind kind);
+  const std::string& name() const;
 
   explicit operator bool() const { return kind_ != TokenKind::T_EOF_SYMBOL; }
 

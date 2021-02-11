@@ -22,22 +22,27 @@
 
 namespace cxx {
 
-const char* token_spell[] = {
+namespace {
+
+std::string token_spell[] = {
 #define TOKEN_SPELL(_, s) s,
     FOR_EACH_TOKEN(TOKEN_SPELL)};
 #undef TOKEN_SPELL
 
-const char* token_name[] = {
+std::string token_name[] = {
 #define TOKEN_SPELL(s, _) #s,
     FOR_EACH_TOKEN(TOKEN_SPELL)};
 #undef TOKEN_SPELL
+}  // namespace
 
-std::string_view Token::spell(TokenKind kind) { return token_spell[(int)kind]; }
+const std::string& Token::spell(TokenKind kind) {
+  return token_spell[(int)kind];
+}
 
-std::string_view Token::spell() const { return spell(kind_); }
+const std::string& Token::spell() const { return spell(kind_); }
 
-std::string_view Token::name(TokenKind kind) { return token_name[(int)kind]; }
+const std::string& Token::name(TokenKind kind) { return token_name[(int)kind]; }
 
-std::string_view Token::name() const { return name(kind_); }
+const std::string& Token::name() const { return name(kind_); }
 
 }  // namespace cxx

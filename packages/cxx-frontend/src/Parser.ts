@@ -38,9 +38,6 @@ export class Parser {
     private m_ast: AST | undefined;
 
     constructor(private options: ParseParams) {
-    }
-
-    parse() {
         const { path, source } = this.options;
 
         if (typeof path !== "string") {
@@ -51,10 +48,14 @@ export class Parser {
             throw new TypeError("expected parameter 'source' of type 'string'");
         }
 
-        const unit = cxx.parse(source, path);
+        this.unit = cxx.createUnit(source, path);
+    }
 
-        this.unit = unit;
-
+    parse() {
+        if (!this.unit) {
+            return;
+        }
+        this.unit.parse();
         this.m_ast = AST.from(this.unit.getHandle(), this);
     }
 

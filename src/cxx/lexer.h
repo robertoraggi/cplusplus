@@ -27,7 +27,7 @@
 namespace cxx {
 
 class Lexer {
-  const std::string_view text_;
+  const std::string_view source_;
   std::string_view::const_iterator pos_;
   std::string_view::const_iterator end_;
   bool leadingSpace_ = false;
@@ -50,7 +50,7 @@ class Lexer {
   uint32_t LA(int n) const;
 
  public:
-  explicit Lexer(const std::string_view& text);
+  explicit Lexer(const std::string_view& source);
 
   bool preprocessing() const { return preprocessing_; }
   void setPreprocessing(bool preprocessing) { preprocessing_ = preprocessing; }
@@ -70,10 +70,10 @@ class Lexer {
 
   int tokenPos() const { return tokenPos_; }
 
-  int tokenLength() const { return (pos_ - cbegin(text_)) - tokenPos_; }
+  int tokenLength() const { return (pos_ - cbegin(source_)) - tokenPos_; }
 
   std::string_view tokenText() const {
-    return text_.substr(tokenPos_, tokenLength());
+    return source_.substr(tokenPos_, tokenLength());
   }
 
   TokenValue tokenValue() const { return tokenValue_; }

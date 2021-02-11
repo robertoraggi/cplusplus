@@ -65,7 +65,7 @@ class OperatorId : public std::tuple<TokenKind> {
 
   TokenKind op() const { return std::get<0>(*this); }
 
-  std::string toString() const { return std::string(Token::spell(op())); }
+  std::string toString() const { return Token::spell(op()); }
 
   size_t hashCode() const { return hashCode_; }
 };

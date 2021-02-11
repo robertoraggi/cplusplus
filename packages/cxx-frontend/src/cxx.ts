@@ -37,13 +37,14 @@ export interface SourceLocation {
 
 export interface Unit {
     delete(): void;
+    parse(): boolean;
     getHandle(): number;
     getUnitHandle(): number;
     getDiagnostics(): Diagnostic[];
 }
 
 export interface CXX {
-    parse(source: string, path: string): Unit;
+    createUnit(source: string, path: string): Unit;
     getASTKind(handle: number): number;
     getASTSlot(handle: number, slot: number): number;
     getListValue(handle: number): number;
