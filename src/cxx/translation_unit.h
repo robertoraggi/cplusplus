@@ -50,9 +50,9 @@ class TranslationUnit {
   Arena* arena_;
   std::vector<Token> tokens_;
   std::vector<int> lines_;
-  std::string yyfilename;
-  std::string yytext;
-  std::string yycode;
+  std::string fileName_;
+  std::string text_;
+  std::string code_;
   UnitAST* ast_ = nullptr;
   const char* yyptr = nullptr;
   bool fatalErrors_ = false;
@@ -78,19 +78,14 @@ class TranslationUnit {
 
   UnitAST* ast() const { return ast_; }
 
-  const std::string& fileName() const { return yyfilename; }
+  const std::string& fileName() const { return fileName_; }
+  void setFileName(std::string fileName) { fileName_ = std::move(fileName); }
 
-  template <typename T>
-  void setFileName(T&& fileName) {
-    yyfilename = std::forward<T>(fileName);
-  }
+  const std::string& source() const { return code_; }
 
-  const std::string& source() const { return yycode; }
-
-  template <typename T>
-  void setSource(T&& source) {
-    yycode = std::forward<T>(source);
-    yyptr = yycode.c_str();
+  void setSource(std::string source) {
+    code_ = std::move(source);
+    yyptr = code_.c_str();
 
     initializeLineMap();
   }
@@ -115,7 +110,7 @@ class TranslationUnit {
       unsigned line = 0, column = 0;
       getTokenStartPosition(loc, &line, &column);
       diagnosticClient_->report(
-          Diagnostic(kind, yyfilename, line, column,
+          Diagnostic(kind, fileName_, line, column,
                      fmt::vformat(format, fmt::make_format_args(args...))));
       return;
     }
@@ -137,15 +132,15 @@ class TranslationUnit {
         break;
     }  // switch
 
-    fmt::print(stderr, "{}:{}:{}: {}: ", yyfilename, line, column, Severity);
+    fmt::print(stderr, "{}:{}:{}: {}: ", fileName_, line, column, Severity);
     fmt::vprint(stderr, format, fmt::make_format_args(args...));
     fmt::print(stderr, "\n");
 
     const auto start = lines_.at(line - 1) + 1;
-    const auto end = line < lines_.size() ? lines_.at(line) : yycode.size();
+    const auto end = line < lines_.size() ? lines_.at(line) : code_.size();
     std::string cursor(column - 1, ' ');
     cursor += "^";
-    fmt::print(stderr, "{}\n{}\n", yycode.substr(start, end - start), cursor);
+    fmt::print(stderr, "{}\n{}\n", code_.substr(start, end - start), cursor);
 
     if (kind == Severity::Fatal || (kind == Severity::Error && fatalErrors_))
       exit(EXIT_FAILURE);

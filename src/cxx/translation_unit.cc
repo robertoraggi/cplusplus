@@ -39,7 +39,7 @@ void TranslationUnit::initializeLineMap() {
   // ### remove
   lines_.clear();
   lines_.push_back(-1);
-  const auto start = yycode.c_str();
+  const auto start = code_.c_str();
   for (auto ptr = start; *ptr; ++ptr) {
     if (*ptr == '\n') {
       lines_.push_back(int(ptr - start));
@@ -102,7 +102,7 @@ void TranslationUnit::getTokenEndPosition(SourceLocation loc, unsigned* line,
 }
 
 void TranslationUnit::tokenize() {
-  Lexer lexer(yycode);
+  Lexer lexer(code_);
   TokenKind kind;
   tokens_.emplace_back(TokenKind::T_ERROR);
   do {
