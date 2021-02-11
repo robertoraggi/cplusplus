@@ -2053,6 +2053,7 @@ bool Parser::parse_assignment_operator(SourceLocation& loc, TokenKind& op) {
     }
 
     case TokenKind::T_GREATER: {
+      loc = currentLocation();
       if (!parse_greater_greater_equal()) return false;
       op = TokenKind::T_GREATER_GREATER_EQUAL;
       return true;

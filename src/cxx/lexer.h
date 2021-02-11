@@ -34,6 +34,7 @@ class Lexer {
   bool startOfLine_ = true;
 
   TokenKind tokenKind_ = TokenKind::T_EOF_SYMBOL;
+  TokenValue tokenValue_{};
   bool tokenLeadingSpace_ = false;
   bool tokenStartOfLine_ = true;
   int tokenPos_ = 0;
@@ -74,6 +75,8 @@ class Lexer {
   std::string_view tokenText() const {
     return text_.substr(tokenPos_, tokenLength());
   }
+
+  TokenValue tokenValue() const { return tokenValue_; }
 
   struct State {
     std::string_view::const_iterator pos_;

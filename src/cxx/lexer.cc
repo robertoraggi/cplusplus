@@ -400,7 +400,14 @@ TokenKind Lexer::readToken() {
           }
           return TokenKind::T_GREATER_GREATER;
         }
+      } else if (LA() == '>') {
+        TokenKind k = TokenKind::T_GREATER_GREATER;
+
+        if (LA(1) == '=') k = TokenKind::T_GREATER_GREATER_EQUAL;
+
+        tokenValue_.tokenKindValue = k;
       }
+
       return TokenKind::T_GREATER;
 
     case '/':

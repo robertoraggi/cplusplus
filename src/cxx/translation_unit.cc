@@ -50,7 +50,7 @@ void TranslationUnit::initializeLineMap() {
 int TranslationUnit::tokenLength(SourceLocation loc) const {
   const auto& tk = tokenAt(loc);
   if (tk.kind() == TokenKind::T_IDENTIFIER) {
-    const std::string* id = reinterpret_cast<const std::string*>(tk.priv_);
+    const std::string* id = tk.value().stringValue;
     return int(id->size());
   }
   return int(Token::spell(tk.kind()).size());
@@ -58,7 +58,7 @@ int TranslationUnit::tokenLength(SourceLocation loc) const {
 
 const Identifier* TranslationUnit::identifier(SourceLocation loc) const {
   const auto& tk = tokenAt(loc);
-  return reinterpret_cast<const Identifier*>(tk.priv_);
+  return tk.value().idValue;
 }
 
 std::string_view TranslationUnit::tokenText(SourceLocation loc) const {
@@ -68,7 +68,7 @@ std::string_view TranslationUnit::tokenText(SourceLocation loc) const {
     case TokenKind::T_STRING_LITERAL:
     case TokenKind::T_CHARACTER_LITERAL:
     case TokenKind::T_INTEGER_LITERAL: {
-      const Identifier* id = reinterpret_cast<const Identifier*>(tk.priv_);
+      const Identifier* id = tk.value().idValue;
       return id->toString();
     }
     default:
@@ -104,17 +104,20 @@ void TranslationUnit::getTokenEndPosition(SourceLocation loc, unsigned* line,
 void TranslationUnit::tokenize() {
   Lexer lexer(yycode);
   TokenKind kind;
-  tokens_.emplace_back(TokenKind::T_ERROR, 0, 0, nullptr);
+  tokens_.emplace_back(TokenKind::T_ERROR);
   do {
     kind = lexer.next();
-    const void* value = nullptr;
+    TokenValue value;
     switch (kind) {
       case TokenKind::T_IDENTIFIER:
       case TokenKind::T_STRING_LITERAL:
       case TokenKind::T_CHARACTER_LITERAL:
       case TokenKind::T_INTEGER_LITERAL:
       case TokenKind::T_FLOATING_POINT_LITERAL:
-        value = control_->getIdentifier(lexer.tokenText());
+        value.idValue = control_->getIdentifier(lexer.tokenText());
+        break;
+      case TokenKind::T_GREATER:
+        value = lexer.tokenValue();
         break;
       default:
         break;

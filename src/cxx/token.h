@@ -222,9 +222,19 @@
 
 namespace cxx {
 
+class Identifier;
+
 #define TOKEN_ENUM(tk, _) T_##tk,
 enum struct TokenKind : uint16_t { FOR_EACH_TOKEN(TOKEN_ENUM) };
 #undef TOKEN_ENUM
+
+union TokenValue {
+  const void* ptrValue;
+  std::string* stringValue;
+  const Identifier* idValue;
+  TokenKind tokenKindValue;
+  int intValue;
+};
 
 class Token {
   friend class TranslationUnit;
@@ -234,7 +244,7 @@ class Token {
   uint16_t leadingSpace_ : 1;
   unsigned offset_;
   unsigned length_;
-  const void* priv_;
+  TokenValue value_;
 
  public:
   Token(const Token&) = default;
@@ -243,15 +253,17 @@ class Token {
   Token(Token&&) = default;
   Token& operator=(Token&&) = default;
 
-  Token(TokenKind kind = TokenKind::T_EOF_SYMBOL, unsigned offset = 0,
-        unsigned length = 0, const void* priv = nullptr) noexcept
-      : kind_(kind), offset_(offset), length_(length), priv_(priv) {
+  explicit Token(TokenKind kind = TokenKind::T_EOF_SYMBOL, unsigned offset = 0,
+                 unsigned length = 0, TokenValue value = {}) noexcept
+      : kind_(kind), offset_(offset), length_(length), value_(value) {
     startOfLine_ = 0;
     leadingSpace_ = 0;
   }
 
   inline TokenKind kind() const { return kind_; }
   inline void setKind(TokenKind kind) { kind_ = kind; }
+
+  inline TokenValue value() const { return value_; }
 
   inline unsigned offset() const { return offset_; }
   inline unsigned length() const { return length_; }
