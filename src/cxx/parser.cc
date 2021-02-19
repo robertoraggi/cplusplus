@@ -2524,8 +2524,9 @@ bool Parser::parse_for_range_declaration(DeclarationAST*& yyast) {
 
   const auto& tk = LA();
 
-  if (tk.is(TokenKind::T_AMP) || tk.is(TokenKind::T_AMP_AMP) ||
-      tk.is(TokenKind::T_LBRACKET)) {
+  if (tk.is(TokenKind::T_LBRACKET) ||
+      ((tk.is(TokenKind::T_AMP) || tk.is(TokenKind::T_AMP_AMP)) &&
+       LA(1).is(TokenKind::T_LBRACKET))) {
     SourceLocation refLoc;
 
     parse_ref_qualifier(refLoc);
