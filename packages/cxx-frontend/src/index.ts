@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 export * from "./AST";
+export * from "./ASTKind";
 export * from "./ASTVisitor";
 export * from "./RecursiveASTVisitor";
 export * from "./Parser";

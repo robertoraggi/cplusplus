@@ -5,7 +5,7 @@ A parser for C++20.
 # Usage
 
 ```js
-const { Parser, RecursiveASTVisitor } = require("cxx-frontend");
+const { Parser, RecursiveASTVisitor, ASTKind } = require("cxx-frontend");
 
 const source = `
 int fact(int n) {
@@ -33,7 +33,7 @@ class DumpAST extends RecursiveASTVisitor {
 
   accept(ast) {
     if (ast) {
-        const name = ast.constructor.name;
+        const name = ASTKind[ast.getKind()];
         console.log(`${" ".repeat(this.depth * 2)}${name}`);
         ++this.depth;
         super.accept(ast);

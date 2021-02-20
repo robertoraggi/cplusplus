@@ -24,6 +24,7 @@ import * as ast from "./AST";
 export abstract class ASTVisitor<Context, Result> {
     constructor() { }
 
+    // AST
     abstract visitTypeId(node: ast.TypeIdAST, context: Context): Result;
     abstract visitNestedNameSpecifier(node: ast.NestedNameSpecifierAST, context: Context): Result;
     abstract visitUsingDeclarator(node: ast.UsingDeclaratorAST, context: Context): Result;
@@ -40,15 +41,25 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitLambdaIntroducer(node: ast.LambdaIntroducerAST, context: Context): Result;
     abstract visitLambdaDeclarator(node: ast.LambdaDeclaratorAST, context: Context): Result;
     abstract visitTrailingReturnType(node: ast.TrailingReturnTypeAST, context: Context): Result;
+
+    // InitializerAST
     abstract visitEqualInitializer(node: ast.EqualInitializerAST, context: Context): Result;
     abstract visitBracedInitList(node: ast.BracedInitListAST, context: Context): Result;
     abstract visitParenInitializer(node: ast.ParenInitializerAST, context: Context): Result;
+
+    // NewInitializerAST
     abstract visitNewParenInitializer(node: ast.NewParenInitializerAST, context: Context): Result;
     abstract visitNewBracedInitializer(node: ast.NewBracedInitializerAST, context: Context): Result;
+
+    // ExceptionDeclarationAST
     abstract visitEllipsisExceptionDeclaration(node: ast.EllipsisExceptionDeclarationAST, context: Context): Result;
     abstract visitTypeExceptionDeclaration(node: ast.TypeExceptionDeclarationAST, context: Context): Result;
+
+    // UnitAST
     abstract visitTranslationUnit(node: ast.TranslationUnitAST, context: Context): Result;
     abstract visitModuleUnit(node: ast.ModuleUnitAST, context: Context): Result;
+
+    // ExpressionAST
     abstract visitThisExpression(node: ast.ThisExpressionAST, context: Context): Result;
     abstract visitCharLiteralExpression(node: ast.CharLiteralExpressionAST, context: Context): Result;
     abstract visitBoolLiteralExpression(node: ast.BoolLiteralExpressionAST, context: Context): Result;
@@ -69,6 +80,8 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitConditionalExpression(node: ast.ConditionalExpressionAST, context: Context): Result;
     abstract visitCppCastExpression(node: ast.CppCastExpressionAST, context: Context): Result;
     abstract visitNewExpression(node: ast.NewExpressionAST, context: Context): Result;
+
+    // StatementAST
     abstract visitLabeledStatement(node: ast.LabeledStatementAST, context: Context): Result;
     abstract visitCaseStatement(node: ast.CaseStatementAST, context: Context): Result;
     abstract visitDefaultStatement(node: ast.DefaultStatementAST, context: Context): Result;
@@ -87,6 +100,8 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitCoroutineReturnStatement(node: ast.CoroutineReturnStatementAST, context: Context): Result;
     abstract visitDeclarationStatement(node: ast.DeclarationStatementAST, context: Context): Result;
     abstract visitTryBlockStatement(node: ast.TryBlockStatementAST, context: Context): Result;
+
+    // DeclarationAST
     abstract visitFunctionDefinition(node: ast.FunctionDefinitionAST, context: Context): Result;
     abstract visitConceptDefinition(node: ast.ConceptDefinitionAST, context: Context): Result;
     abstract visitForRangeDeclaration(node: ast.ForRangeDeclarationAST, context: Context): Result;
@@ -109,12 +124,16 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitExplicitInstantiation(node: ast.ExplicitInstantiationAST, context: Context): Result;
     abstract visitParameterDeclaration(node: ast.ParameterDeclarationAST, context: Context): Result;
     abstract visitLinkageSpecification(node: ast.LinkageSpecificationAST, context: Context): Result;
+
+    // NameAST
     abstract visitSimpleName(node: ast.SimpleNameAST, context: Context): Result;
     abstract visitDestructorName(node: ast.DestructorNameAST, context: Context): Result;
     abstract visitDecltypeName(node: ast.DecltypeNameAST, context: Context): Result;
     abstract visitOperatorName(node: ast.OperatorNameAST, context: Context): Result;
     abstract visitTemplateName(node: ast.TemplateNameAST, context: Context): Result;
     abstract visitQualifiedName(node: ast.QualifiedNameAST, context: Context): Result;
+
+    // SpecifierAST
     abstract visitTypedefSpecifier(node: ast.TypedefSpecifierAST, context: Context): Result;
     abstract visitFriendSpecifier(node: ast.FriendSpecifierAST, context: Context): Result;
     abstract visitConstevalSpecifier(node: ast.ConstevalSpecifierAST, context: Context): Result;
@@ -145,11 +164,17 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitEnumSpecifier(node: ast.EnumSpecifierAST, context: Context): Result;
     abstract visitClassSpecifier(node: ast.ClassSpecifierAST, context: Context): Result;
     abstract visitTypenameSpecifier(node: ast.TypenameSpecifierAST, context: Context): Result;
+
+    // CoreDeclaratorAST
     abstract visitIdDeclarator(node: ast.IdDeclaratorAST, context: Context): Result;
     abstract visitNestedDeclarator(node: ast.NestedDeclaratorAST, context: Context): Result;
+
+    // PtrOperatorAST
     abstract visitPointerOperator(node: ast.PointerOperatorAST, context: Context): Result;
     abstract visitReferenceOperator(node: ast.ReferenceOperatorAST, context: Context): Result;
     abstract visitPtrToMemberOperator(node: ast.PtrToMemberOperatorAST, context: Context): Result;
+
+    // DeclaratorModifierAST
     abstract visitFunctionDeclarator(node: ast.FunctionDeclaratorAST, context: Context): Result;
     abstract visitArrayDeclarator(node: ast.ArrayDeclaratorAST, context: Context): Result;
 }

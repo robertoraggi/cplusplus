@@ -20,10 +20,11 @@
 
 import { cxx, SourceLocation } from "./cxx";
 import { ASTVisitor } from "./ASTVisitor";
+import { ASTKind } from "./ASTKind";
 import { Parser } from "./Parser";
 
 export class Token {
-    constructor(private handle: number, private parser: Parser) {
+    constructor(private readonly handle: number, private readonly parser: Parser) {
     }
 
     getHandle() {
@@ -44,7 +45,21 @@ export class Token {
 }
 
 export abstract class AST {
-    constructor(private handle: number, protected parser: Parser) {
+    constructor(private readonly handle: number,
+                private readonly kind: ASTKind,
+                protected readonly parser: Parser) {
+    }
+
+    getKind(): ASTKind {
+        return this.kind;
+    }
+
+    is(kind: ASTKind): boolean {
+        return this.kind === kind;
+    }
+
+    isNot(kind: ASTKind): boolean {
+        return this.kind !== kind;
     }
 
     getHandle() {
@@ -55,8 +70,8 @@ export abstract class AST {
 
     static from<T extends AST = AST>(handle: number, parser: Parser): T | undefined {
         if (handle) {
-            const kind = cxx.getASTKind(handle);
-            const ast = new AST_CONSTRUCTORS[kind](handle, parser) as T;
+            const kind = cxx.getASTKind(handle) as ASTKind;
+            const ast = new AST_CONSTRUCTORS[kind](handle, kind, parser) as T;
             return ast;
         }
         return;
@@ -2011,7 +2026,7 @@ export class ArrayDeclaratorAST extends DeclaratorModifierAST {
     }
 }
 
-const AST_CONSTRUCTORS: Array<new (handle: number, parser: Parser) => AST> = [
+const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser) => AST> = [
     TypeIdAST,
     NestedNameSpecifierAST,
     UsingDeclaratorAST,
