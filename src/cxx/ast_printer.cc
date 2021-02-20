@@ -3841,6 +3841,10 @@ void ASTPrinter::visit(ExplicitSpecifierAST* ast) {
 
     json_["$range"] = range;
   }
+
+  if (ast->expression) {
+    json_["expression"] = accept(ast->expression);
+  }
 }
 
 void ASTPrinter::visit(AutoTypeSpecifierAST* ast) {

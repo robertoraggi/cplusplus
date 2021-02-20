@@ -3194,22 +3194,17 @@ bool Parser::parse_explicit_specifier(SpecifierAST*& yyast) {
 
   if (!match(TokenKind::T_EXPLICIT, explicitLoc)) return false;
 
-  SourceLocation lparenLoc;
+  auto ast = new (pool) ExplicitSpecifierAST();
+  yyast = ast;
 
-  if (!match(TokenKind::T_LPAREN, lparenLoc)) {
-    auto ast = new (pool) SimpleSpecifierAST();
-    yyast = ast;
-    ast->specifierLoc = explicitLoc;
+  ast->explicitLoc = explicitLoc;
 
-    return true;
+  if (match(TokenKind::T_LPAREN, ast->lparenLoc)) {
+    if (!parse_constant_expression(ast->expression))
+      parse_error("expected a expression");
+
+    expect(TokenKind::T_RPAREN, ast->rparenLoc);
   }
-
-  ExpressionAST* expression = nullptr;
-
-  if (!parse_constant_expression(expression))
-    parse_error("expected a expression");
-
-  expect(TokenKind::T_RPAREN);
 
   return true;
 }

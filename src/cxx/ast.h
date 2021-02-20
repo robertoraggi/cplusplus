@@ -1469,6 +1469,11 @@ struct SimpleSpecifierAST final : SpecifierAST {
 struct ExplicitSpecifierAST final : SpecifierAST {
   ExplicitSpecifierAST() : SpecifierAST(ASTKind::ExplicitSpecifier) {}
 
+  SourceLocation explicitLoc;
+  SourceLocation lparenLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation rparenLoc;
+
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
   SourceLocation firstSourceLocation() override;

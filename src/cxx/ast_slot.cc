@@ -1421,7 +1421,20 @@ void ASTSlot::visit(SimpleSpecifierAST* ast) {
 }
 
 void ASTSlot::visit(ExplicitSpecifierAST* ast) {
-  switch (slot_) {}  // switch
+  switch (slot_) {
+    case 0:
+      value_ = ast->explicitLoc.index();
+      break;
+    case 1:
+      value_ = ast->lparenLoc.index();
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
+      break;
+    case 3:
+      value_ = ast->rparenLoc.index();
+      break;
+  }  // switch
 }
 
 void ASTSlot::visit(AutoTypeSpecifierAST* ast) {

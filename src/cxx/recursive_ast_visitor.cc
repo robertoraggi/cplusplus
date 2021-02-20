@@ -446,7 +446,9 @@ void RecursiveASTVisitor::visit(MutableSpecifierAST* ast) {}
 
 void RecursiveASTVisitor::visit(SimpleSpecifierAST* ast) {}
 
-void RecursiveASTVisitor::visit(ExplicitSpecifierAST* ast) {}
+void RecursiveASTVisitor::visit(ExplicitSpecifierAST* ast) {
+  expression(ast->expression);
+}
 
 void RecursiveASTVisitor::visit(AutoTypeSpecifierAST* ast) {}
 

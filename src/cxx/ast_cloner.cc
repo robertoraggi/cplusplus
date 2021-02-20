@@ -1440,6 +1440,14 @@ void ASTCloner::visit(SimpleSpecifierAST* ast) {
 void ASTCloner::visit(ExplicitSpecifierAST* ast) {
   auto copy = new (arena_) ExplicitSpecifierAST();
   copy_ = copy;
+
+  copy->explicitLoc = ast->explicitLoc;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->expression = accept(ast->expression);
+
+  copy->rparenLoc = ast->rparenLoc;
 }
 
 void ASTCloner::visit(AutoTypeSpecifierAST* ast) {
