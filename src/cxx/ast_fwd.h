@@ -174,6 +174,7 @@ struct UnderlyingTypeSpecifierAST;
 struct ElaboratedTypeSpecifierAST;
 struct DecltypeAutoSpecifierAST;
 struct DecltypeSpecifierAST;
+struct TypeofSpecifierAST;
 struct PlaceholderTypeSpecifierAST;
 struct CvQualifierAST;
 struct EnumSpecifierAST;

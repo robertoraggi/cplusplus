@@ -160,6 +160,7 @@ struct ASTVisitor {
   virtual void visit(ElaboratedTypeSpecifierAST* ast) = 0;
   virtual void visit(DecltypeAutoSpecifierAST* ast) = 0;
   virtual void visit(DecltypeSpecifierAST* ast) = 0;
+  virtual void visit(TypeofSpecifierAST* ast) = 0;
   virtual void visit(PlaceholderTypeSpecifierAST* ast) = 0;
   virtual void visit(CvQualifierAST* ast) = 0;
   virtual void visit(EnumSpecifierAST* ast) = 0;

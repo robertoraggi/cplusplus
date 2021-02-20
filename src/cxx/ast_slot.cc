@@ -1523,6 +1523,23 @@ void ASTSlot::visit(DecltypeSpecifierAST* ast) {
   }  // switch
 }
 
+void ASTSlot::visit(TypeofSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->typeofLoc.index();
+      break;
+    case 1:
+      value_ = ast->lparenLoc.index();
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
+      break;
+    case 3:
+      value_ = ast->rparenLoc.index();
+      break;
+  }  // switch
+}
+
 void ASTSlot::visit(PlaceholderTypeSpecifierAST* ast) {
   switch (slot_) {}  // switch
 }

@@ -472,6 +472,10 @@ void RecursiveASTVisitor::visit(DecltypeSpecifierAST* ast) {
   expression(ast->expression);
 }
 
+void RecursiveASTVisitor::visit(TypeofSpecifierAST* ast) {
+  expression(ast->expression);
+}
+
 void RecursiveASTVisitor::visit(PlaceholderTypeSpecifierAST* ast) {}
 
 void RecursiveASTVisitor::visit(CvQualifierAST* ast) {}

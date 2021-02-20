@@ -1526,6 +1526,19 @@ void ASTCloner::visit(DecltypeSpecifierAST* ast) {
   copy->rparenLoc = ast->rparenLoc;
 }
 
+void ASTCloner::visit(TypeofSpecifierAST* ast) {
+  auto copy = new (arena_) TypeofSpecifierAST();
+  copy_ = copy;
+
+  copy->typeofLoc = ast->typeofLoc;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->expression = accept(ast->expression);
+
+  copy->rparenLoc = ast->rparenLoc;
+}
+
 void ASTCloner::visit(PlaceholderTypeSpecifierAST* ast) {
   auto copy = new (arena_) PlaceholderTypeSpecifierAST();
   copy_ = copy;

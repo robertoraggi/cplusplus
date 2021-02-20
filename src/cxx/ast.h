@@ -1593,6 +1593,20 @@ struct DecltypeSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
+struct TypeofSpecifierAST final : SpecifierAST {
+  TypeofSpecifierAST() : SpecifierAST(ASTKind::TypeofSpecifier) {}
+
+  SourceLocation typeofLoc;
+  SourceLocation lparenLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 struct PlaceholderTypeSpecifierAST final : SpecifierAST {
   PlaceholderTypeSpecifierAST()
       : SpecifierAST(ASTKind::PlaceholderTypeSpecifier) {}

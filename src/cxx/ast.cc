@@ -1554,6 +1554,22 @@ SourceLocation DecltypeSpecifierAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation TypeofSpecifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(typeofLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation TypeofSpecifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeofLoc)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation PlaceholderTypeSpecifierAST::firstSourceLocation() {
   return SourceLocation();
 }

@@ -157,6 +157,7 @@ enum struct ASTKind {
   ElaboratedTypeSpecifier,
   DecltypeAutoSpecifier,
   DecltypeSpecifier,
+  TypeofSpecifier,
   PlaceholderTypeSpecifier,
   CvQualifier,
   EnumSpecifier,

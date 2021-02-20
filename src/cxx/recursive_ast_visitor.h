@@ -231,6 +231,7 @@ struct RecursiveASTVisitor : ASTVisitor {
   void visit(ElaboratedTypeSpecifierAST* ast) override;
   void visit(DecltypeAutoSpecifierAST* ast) override;
   void visit(DecltypeSpecifierAST* ast) override;
+  void visit(TypeofSpecifierAST* ast) override;
   void visit(PlaceholderTypeSpecifierAST* ast) override;
   void visit(CvQualifierAST* ast) override;
   void visit(EnumSpecifierAST* ast) override;

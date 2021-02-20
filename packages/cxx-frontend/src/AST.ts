@@ -1761,6 +1761,24 @@ export class DecltypeSpecifierAST extends SpecifierAST {
     }
 }
 
+export class TypeofSpecifierAST extends SpecifierAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitTypeofSpecifier(this, context);
+    }
+    getTypeofToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getLparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getExpression(): ExpressionAST | undefined {
+        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getRparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+}
+
 export class PlaceholderTypeSpecifierAST extends SpecifierAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitPlaceholderTypeSpecifier(this, context);
@@ -2087,6 +2105,7 @@ const AST_CONSTRUCTORS: Array<new (handle: number, parser: Parser) => AST> = [
     ElaboratedTypeSpecifierAST,
     DecltypeAutoSpecifierAST,
     DecltypeSpecifierAST,
+    TypeofSpecifierAST,
     PlaceholderTypeSpecifierAST,
     CvQualifierAST,
     EnumSpecifierAST,

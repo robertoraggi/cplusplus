@@ -3668,14 +3668,21 @@ bool Parser::parse_decltype_specifier(SpecifierAST*& yyast) {
     return true;
   }
 
-  if (match(TokenKind::T___TYPEOF) || match(TokenKind::T___TYPEOF__)) {
-    expect(TokenKind::T_LPAREN);
+  SourceLocation typeofLoc;
 
-    ExpressionAST* expression = nullptr;
+  if (match(TokenKind::T___TYPEOF, typeofLoc) ||
+      match(TokenKind::T___TYPEOF__, typeofLoc)) {
+    auto ast = new (pool) TypeofSpecifierAST();
+    yyast = ast;
 
-    if (!parse_expression(expression)) parse_error("expected an expression");
+    ast->typeofLoc = typeofLoc;
 
-    expect(TokenKind::T_RPAREN);
+    expect(TokenKind::T_LPAREN, ast->lparenLoc);
+
+    if (!parse_expression(ast->expression))
+      parse_error("expected an expression");
+
+    expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
     return true;
   }
