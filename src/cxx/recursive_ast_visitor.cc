@@ -482,7 +482,11 @@ void RecursiveASTVisitor::visit(TypeofSpecifierAST* ast) {
 
 void RecursiveASTVisitor::visit(PlaceholderTypeSpecifierAST* ast) {}
 
-void RecursiveASTVisitor::visit(CvQualifierAST* ast) {}
+void RecursiveASTVisitor::visit(ConstQualifierAST* ast) {}
+
+void RecursiveASTVisitor::visit(VolatileQualifierAST* ast) {}
+
+void RecursiveASTVisitor::visit(RestrictQualifierAST* ast) {}
 
 void RecursiveASTVisitor::visit(EnumSpecifierAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);

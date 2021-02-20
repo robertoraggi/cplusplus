@@ -157,7 +157,9 @@ class ASTSlot final : ASTVisitor {
   void visit(DecltypeSpecifierAST* ast) override;
   void visit(TypeofSpecifierAST* ast) override;
   void visit(PlaceholderTypeSpecifierAST* ast) override;
-  void visit(CvQualifierAST* ast) override;
+  void visit(ConstQualifierAST* ast) override;
+  void visit(VolatileQualifierAST* ast) override;
+  void visit(RestrictQualifierAST* ast) override;
   void visit(EnumSpecifierAST* ast) override;
   void visit(ClassSpecifierAST* ast) override;
   void visit(TypenameSpecifierAST* ast) override;

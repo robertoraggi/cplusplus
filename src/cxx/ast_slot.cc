@@ -1565,10 +1565,26 @@ void ASTSlot::visit(PlaceholderTypeSpecifierAST* ast) {
   switch (slot_) {}  // switch
 }
 
-void ASTSlot::visit(CvQualifierAST* ast) {
+void ASTSlot::visit(ConstQualifierAST* ast) {
   switch (slot_) {
     case 0:
-      value_ = ast->qualifierLoc.index();
+      value_ = ast->constLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(VolatileQualifierAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->volatileLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(RestrictQualifierAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->restrictLoc.index();
       break;
   }  // switch
 }

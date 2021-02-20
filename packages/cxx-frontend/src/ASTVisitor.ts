@@ -160,7 +160,9 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitDecltypeSpecifier(node: ast.DecltypeSpecifierAST, context: Context): Result;
     abstract visitTypeofSpecifier(node: ast.TypeofSpecifierAST, context: Context): Result;
     abstract visitPlaceholderTypeSpecifier(node: ast.PlaceholderTypeSpecifierAST, context: Context): Result;
-    abstract visitCvQualifier(node: ast.CvQualifierAST, context: Context): Result;
+    abstract visitConstQualifier(node: ast.ConstQualifierAST, context: Context): Result;
+    abstract visitVolatileQualifier(node: ast.VolatileQualifierAST, context: Context): Result;
+    abstract visitRestrictQualifier(node: ast.RestrictQualifierAST, context: Context): Result;
     abstract visitEnumSpecifier(node: ast.EnumSpecifierAST, context: Context): Result;
     abstract visitClassSpecifier(node: ast.ClassSpecifierAST, context: Context): Result;
     abstract visitTypenameSpecifier(node: ast.TypenameSpecifierAST, context: Context): Result;

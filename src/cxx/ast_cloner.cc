@@ -1559,11 +1559,25 @@ void ASTCloner::visit(PlaceholderTypeSpecifierAST* ast) {
   copy_ = copy;
 }
 
-void ASTCloner::visit(CvQualifierAST* ast) {
-  auto copy = new (arena_) CvQualifierAST();
+void ASTCloner::visit(ConstQualifierAST* ast) {
+  auto copy = new (arena_) ConstQualifierAST();
   copy_ = copy;
 
-  copy->qualifierLoc = ast->qualifierLoc;
+  copy->constLoc = ast->constLoc;
+}
+
+void ASTCloner::visit(VolatileQualifierAST* ast) {
+  auto copy = new (arena_) VolatileQualifierAST();
+  copy_ = copy;
+
+  copy->volatileLoc = ast->volatileLoc;
+}
+
+void ASTCloner::visit(RestrictQualifierAST* ast) {
+  auto copy = new (arena_) RestrictQualifierAST();
+  copy_ = copy;
+
+  copy->restrictLoc = ast->restrictLoc;
 }
 
 void ASTCloner::visit(EnumSpecifierAST* ast) {

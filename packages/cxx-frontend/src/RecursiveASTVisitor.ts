@@ -597,7 +597,13 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     visitPlaceholderTypeSpecifier(node: ast.PlaceholderTypeSpecifierAST, context: Context): void {
     }
 
-    visitCvQualifier(node: ast.CvQualifierAST, context: Context): void {
+    visitConstQualifier(node: ast.ConstQualifierAST, context: Context): void {
+    }
+
+    visitVolatileQualifier(node: ast.VolatileQualifierAST, context: Context): void {
+    }
+
+    visitRestrictQualifier(node: ast.RestrictQualifierAST, context: Context): void {
     }
 
     visitEnumSpecifier(node: ast.EnumSpecifierAST, context: Context): void {

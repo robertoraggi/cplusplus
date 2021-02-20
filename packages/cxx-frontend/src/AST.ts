@@ -1821,11 +1821,29 @@ export class PlaceholderTypeSpecifierAST extends SpecifierAST {
     }
 }
 
-export class CvQualifierAST extends SpecifierAST {
+export class ConstQualifierAST extends SpecifierAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitCvQualifier(this, context);
+        return visitor.visitConstQualifier(this, context);
     }
-    getQualifierToken(): Token | undefined {
+    getConstToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+}
+
+export class VolatileQualifierAST extends SpecifierAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitVolatileQualifier(this, context);
+    }
+    getVolatileToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+}
+
+export class RestrictQualifierAST extends SpecifierAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitRestrictQualifier(this, context);
+    }
+    getRestrictToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
     }
 }
@@ -2144,7 +2162,9 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     DecltypeSpecifierAST,
     TypeofSpecifierAST,
     PlaceholderTypeSpecifierAST,
-    CvQualifierAST,
+    ConstQualifierAST,
+    VolatileQualifierAST,
+    RestrictQualifierAST,
     EnumSpecifierAST,
     ClassSpecifierAST,
     TypenameSpecifierAST,

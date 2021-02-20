@@ -1633,10 +1633,32 @@ struct PlaceholderTypeSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct CvQualifierAST final : SpecifierAST {
-  CvQualifierAST() : SpecifierAST(ASTKind::CvQualifier) {}
+struct ConstQualifierAST final : SpecifierAST {
+  ConstQualifierAST() : SpecifierAST(ASTKind::ConstQualifier) {}
 
-  SourceLocation qualifierLoc;
+  SourceLocation constLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct VolatileQualifierAST final : SpecifierAST {
+  VolatileQualifierAST() : SpecifierAST(ASTKind::VolatileQualifier) {}
+
+  SourceLocation volatileLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct RestrictQualifierAST final : SpecifierAST {
+  RestrictQualifierAST() : SpecifierAST(ASTKind::RestrictQualifier) {}
+
+  SourceLocation restrictLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

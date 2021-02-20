@@ -1596,13 +1596,33 @@ SourceLocation PlaceholderTypeSpecifierAST::lastSourceLocation() {
   return SourceLocation();
 }
 
-SourceLocation CvQualifierAST::firstSourceLocation() {
-  if (auto loc = cxx::firstSourceLocation(qualifierLoc)) return loc;
+SourceLocation ConstQualifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(constLoc)) return loc;
   return SourceLocation();
 }
 
-SourceLocation CvQualifierAST::lastSourceLocation() {
-  if (auto loc = cxx::lastSourceLocation(qualifierLoc)) return loc;
+SourceLocation ConstQualifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(constLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation VolatileQualifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(volatileLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation VolatileQualifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(volatileLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation RestrictQualifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(restrictLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation RestrictQualifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(restrictLoc)) return loc;
   return SourceLocation();
 }
 

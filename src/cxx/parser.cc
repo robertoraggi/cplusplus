@@ -4009,22 +4009,26 @@ bool Parser::parse_ptr_operator(PtrOperatorAST*& yyast) {
 }
 
 bool Parser::parse_cv_qualifier(SpecifierAST*& yyast) {
-  switch (TokenKind(LA())) {
-    case TokenKind::T_CONST:
-    case TokenKind::T_VOLATILE:
-    case TokenKind::T___RESTRICT:
-    case TokenKind::T___RESTRICT__: {
-      auto ast = new (pool) CvQualifierAST();
-      yyast = ast;
+  SourceLocation loc;
 
-      ast->qualifierLoc = consumeToken();
-
-      return true;
-    }
-
-    default:
-      return false;
-  }  // switch
+  if (match(TokenKind::T_CONST, loc)) {
+    auto ast = new (pool) ConstQualifierAST();
+    yyast = ast;
+    ast->constLoc = loc;
+    return true;
+  } else if (match(TokenKind::T_VOLATILE, loc)) {
+    auto ast = new (pool) VolatileQualifierAST();
+    yyast = ast;
+    ast->volatileLoc = loc;
+    return true;
+  } else if (match(TokenKind::T___RESTRICT, loc) ||
+             match(TokenKind::T___RESTRICT__, loc)) {
+    auto ast = new (pool) RestrictQualifierAST();
+    yyast = ast;
+    ast->restrictLoc = loc;
+    return true;
+  }
+  return false;
 }
 
 bool Parser::parse_ref_qualifier(SourceLocation& refLoc) {
