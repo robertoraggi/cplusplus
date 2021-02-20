@@ -1424,6 +1424,38 @@ void ASTSlot::visit(ExplicitSpecifierAST* ast) {
   switch (slot_) {}  // switch
 }
 
+void ASTSlot::visit(VoidTypeSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->voidLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(IntegralTypeSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->specifierLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(FloatingPointTypeSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->specifierLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(ComplexTypeSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->complexLoc.index();
+      break;
+  }  // switch
+}
+
 void ASTSlot::visit(NamedTypeSpecifierAST* ast) {
   switch (slot_) {
     case 0:
@@ -1432,11 +1464,24 @@ void ASTSlot::visit(NamedTypeSpecifierAST* ast) {
   }  // switch
 }
 
-void ASTSlot::visit(UnderlyingTypeSpecifierAST* ast) {
-  switch (slot_) {}  // switch
+void ASTSlot::visit(AtomicTypeSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->atomicLoc.index();
+      break;
+    case 1:
+      value_ = ast->lparenLoc.index();
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->typeId);
+      break;
+    case 3:
+      value_ = ast->rparenLoc.index();
+      break;
+  }  // switch
 }
 
-void ASTSlot::visit(AtomicTypeSpecifierAST* ast) {
+void ASTSlot::visit(UnderlyingTypeSpecifierAST* ast) {
   switch (slot_) {}  // switch
 }
 

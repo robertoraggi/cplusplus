@@ -1442,6 +1442,34 @@ void ASTCloner::visit(ExplicitSpecifierAST* ast) {
   copy_ = copy;
 }
 
+void ASTCloner::visit(VoidTypeSpecifierAST* ast) {
+  auto copy = new (arena_) VoidTypeSpecifierAST();
+  copy_ = copy;
+
+  copy->voidLoc = ast->voidLoc;
+}
+
+void ASTCloner::visit(IntegralTypeSpecifierAST* ast) {
+  auto copy = new (arena_) IntegralTypeSpecifierAST();
+  copy_ = copy;
+
+  copy->specifierLoc = ast->specifierLoc;
+}
+
+void ASTCloner::visit(FloatingPointTypeSpecifierAST* ast) {
+  auto copy = new (arena_) FloatingPointTypeSpecifierAST();
+  copy_ = copy;
+
+  copy->specifierLoc = ast->specifierLoc;
+}
+
+void ASTCloner::visit(ComplexTypeSpecifierAST* ast) {
+  auto copy = new (arena_) ComplexTypeSpecifierAST();
+  copy_ = copy;
+
+  copy->complexLoc = ast->complexLoc;
+}
+
 void ASTCloner::visit(NamedTypeSpecifierAST* ast) {
   auto copy = new (arena_) NamedTypeSpecifierAST();
   copy_ = copy;
@@ -1449,13 +1477,21 @@ void ASTCloner::visit(NamedTypeSpecifierAST* ast) {
   copy->name = accept(ast->name);
 }
 
-void ASTCloner::visit(UnderlyingTypeSpecifierAST* ast) {
-  auto copy = new (arena_) UnderlyingTypeSpecifierAST();
-  copy_ = copy;
-}
-
 void ASTCloner::visit(AtomicTypeSpecifierAST* ast) {
   auto copy = new (arena_) AtomicTypeSpecifierAST();
+  copy_ = copy;
+
+  copy->atomicLoc = ast->atomicLoc;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->typeId = accept(ast->typeId);
+
+  copy->rparenLoc = ast->rparenLoc;
+}
+
+void ASTCloner::visit(UnderlyingTypeSpecifierAST* ast) {
+  auto copy = new (arena_) UnderlyingTypeSpecifierAST();
   copy_ = copy;
 }
 

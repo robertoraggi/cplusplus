@@ -553,14 +553,27 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     visitExplicitSpecifier(node: ast.ExplicitSpecifierAST, context: Context): void {
     }
 
+    visitVoidTypeSpecifier(node: ast.VoidTypeSpecifierAST, context: Context): void {
+    }
+
+    visitIntegralTypeSpecifier(node: ast.IntegralTypeSpecifierAST, context: Context): void {
+    }
+
+    visitFloatingPointTypeSpecifier(node: ast.FloatingPointTypeSpecifierAST, context: Context): void {
+    }
+
+    visitComplexTypeSpecifier(node: ast.ComplexTypeSpecifierAST, context: Context): void {
+    }
+
     visitNamedTypeSpecifier(node: ast.NamedTypeSpecifierAST, context: Context): void {
         this.accept(node.getName(), context);
     }
 
-    visitUnderlyingTypeSpecifier(node: ast.UnderlyingTypeSpecifierAST, context: Context): void {
+    visitAtomicTypeSpecifier(node: ast.AtomicTypeSpecifierAST, context: Context): void {
+        this.accept(node.getTypeId(), context);
     }
 
-    visitAtomicTypeSpecifier(node: ast.AtomicTypeSpecifierAST, context: Context): void {
+    visitUnderlyingTypeSpecifier(node: ast.UnderlyingTypeSpecifierAST, context: Context): void {
     }
 
     visitElaboratedTypeSpecifier(node: ast.ElaboratedTypeSpecifierAST, context: Context): void {

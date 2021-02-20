@@ -448,11 +448,21 @@ void RecursiveASTVisitor::visit(SimpleSpecifierAST* ast) {}
 
 void RecursiveASTVisitor::visit(ExplicitSpecifierAST* ast) {}
 
+void RecursiveASTVisitor::visit(VoidTypeSpecifierAST* ast) {}
+
+void RecursiveASTVisitor::visit(IntegralTypeSpecifierAST* ast) {}
+
+void RecursiveASTVisitor::visit(FloatingPointTypeSpecifierAST* ast) {}
+
+void RecursiveASTVisitor::visit(ComplexTypeSpecifierAST* ast) {}
+
 void RecursiveASTVisitor::visit(NamedTypeSpecifierAST* ast) { name(ast->name); }
 
-void RecursiveASTVisitor::visit(UnderlyingTypeSpecifierAST* ast) {}
+void RecursiveASTVisitor::visit(AtomicTypeSpecifierAST* ast) {
+  typeId(ast->typeId);
+}
 
-void RecursiveASTVisitor::visit(AtomicTypeSpecifierAST* ast) {}
+void RecursiveASTVisitor::visit(UnderlyingTypeSpecifierAST* ast) {}
 
 void RecursiveASTVisitor::visit(ElaboratedTypeSpecifierAST* ast) {}
 

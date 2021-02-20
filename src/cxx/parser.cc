@@ -3471,15 +3471,18 @@ bool Parser::parse_atomic_type_specifier(SpecifierAST*& yyast,
                                          DeclSpecs& specs) {
   if (!specs.accepts_simple_typespec()) return false;
 
-  if (!match(TokenKind::T__ATOMIC)) return false;
+  SourceLocation atomicLoc;
 
-  expect(TokenKind::T_LPAREN);
+  if (!match(TokenKind::T__ATOMIC, atomicLoc)) return false;
 
-  TypeIdAST* typeId = nullptr;
+  auto ast = new (pool) AtomicTypeSpecifierAST();
+  yyast = ast;
 
-  if (!parse_type_id(typeId)) parse_error("expected type id");
+  expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
-  expect(TokenKind::T_RPAREN);
+  if (!parse_type_id(ast->typeId)) parse_error("expected type id");
+
+  expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   specs.has_simple_typespec = true;
 
@@ -3499,22 +3502,42 @@ bool Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
     case TokenKind::T_BOOL:
     case TokenKind::T_SHORT:
     case TokenKind::T_INT:
-    case TokenKind::T_LONG:
-    case TokenKind::T_SIGNED:
-    case TokenKind::T_UNSIGNED:
-    case TokenKind::T_FLOAT:
-    case TokenKind::T_DOUBLE:
-    case TokenKind::T_VOID:
     case TokenKind::T___INT64:
     case TokenKind::T___INT128:
-    case TokenKind::T___FLOAT80:
-    case TokenKind::T___FLOAT128:
-    case TokenKind::T___COMPLEX__: {
-      auto ast = new (pool) SimpleSpecifierAST();
+    case TokenKind::T_LONG:
+    case TokenKind::T_SIGNED:
+    case TokenKind::T_UNSIGNED: {
+      auto ast = new (pool) IntegralTypeSpecifierAST();
       yyast = ast;
       ast->specifierLoc = consumeToken();
       specs.has_simple_typespec = true;
+      return true;
+    }
 
+    case TokenKind::T_FLOAT:
+    case TokenKind::T_DOUBLE:
+    case TokenKind::T___FLOAT80:
+    case TokenKind::T___FLOAT128: {
+      auto ast = new (pool) FloatingPointTypeSpecifierAST();
+      yyast = ast;
+      ast->specifierLoc = consumeToken();
+      specs.has_simple_typespec = true;
+      return true;
+    }
+
+    case TokenKind::T_VOID: {
+      auto ast = new (pool) VoidTypeSpecifierAST();
+      yyast = ast;
+      ast->voidLoc = consumeToken();
+      specs.has_simple_typespec = true;
+      return true;
+    }
+
+    case TokenKind::T___COMPLEX__: {
+      auto ast = new (pool) ComplexTypeSpecifierAST();
+      yyast = ast;
+      ast->complexLoc = consumeToken();
+      specs.has_simple_typespec = true;
       return true;
     }
 

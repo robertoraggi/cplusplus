@@ -1475,6 +1475,51 @@ struct ExplicitSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
+struct VoidTypeSpecifierAST final : SpecifierAST {
+  VoidTypeSpecifierAST() : SpecifierAST(ASTKind::VoidTypeSpecifier) {}
+
+  SourceLocation voidLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct IntegralTypeSpecifierAST final : SpecifierAST {
+  IntegralTypeSpecifierAST() : SpecifierAST(ASTKind::IntegralTypeSpecifier) {}
+
+  SourceLocation specifierLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct FloatingPointTypeSpecifierAST final : SpecifierAST {
+  FloatingPointTypeSpecifierAST()
+      : SpecifierAST(ASTKind::FloatingPointTypeSpecifier) {}
+
+  SourceLocation specifierLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct ComplexTypeSpecifierAST final : SpecifierAST {
+  ComplexTypeSpecifierAST() : SpecifierAST(ASTKind::ComplexTypeSpecifier) {}
+
+  SourceLocation complexLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 struct NamedTypeSpecifierAST final : SpecifierAST {
   NamedTypeSpecifierAST() : SpecifierAST(ASTKind::NamedTypeSpecifier) {}
 
@@ -1486,9 +1531,13 @@ struct NamedTypeSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct UnderlyingTypeSpecifierAST final : SpecifierAST {
-  UnderlyingTypeSpecifierAST()
-      : SpecifierAST(ASTKind::UnderlyingTypeSpecifier) {}
+struct AtomicTypeSpecifierAST final : SpecifierAST {
+  AtomicTypeSpecifierAST() : SpecifierAST(ASTKind::AtomicTypeSpecifier) {}
+
+  SourceLocation atomicLoc;
+  SourceLocation lparenLoc;
+  TypeIdAST* typeId = nullptr;
+  SourceLocation rparenLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1496,8 +1545,9 @@ struct UnderlyingTypeSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct AtomicTypeSpecifierAST final : SpecifierAST {
-  AtomicTypeSpecifierAST() : SpecifierAST(ASTKind::AtomicTypeSpecifier) {}
+struct UnderlyingTypeSpecifierAST final : SpecifierAST {
+  UnderlyingTypeSpecifierAST()
+      : SpecifierAST(ASTKind::UnderlyingTypeSpecifier) {}
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

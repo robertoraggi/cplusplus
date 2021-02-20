@@ -1650,6 +1650,42 @@ export class ExplicitSpecifierAST extends SpecifierAST {
     }
 }
 
+export class VoidTypeSpecifierAST extends SpecifierAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitVoidTypeSpecifier(this, context);
+    }
+    getVoidToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+}
+
+export class IntegralTypeSpecifierAST extends SpecifierAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitIntegralTypeSpecifier(this, context);
+    }
+    getSpecifierToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+}
+
+export class FloatingPointTypeSpecifierAST extends SpecifierAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitFloatingPointTypeSpecifier(this, context);
+    }
+    getSpecifierToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+}
+
+export class ComplexTypeSpecifierAST extends SpecifierAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitComplexTypeSpecifier(this, context);
+    }
+    getComplexToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+}
+
 export class NamedTypeSpecifierAST extends SpecifierAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitNamedTypeSpecifier(this, context);
@@ -1659,15 +1695,27 @@ export class NamedTypeSpecifierAST extends SpecifierAST {
     }
 }
 
-export class UnderlyingTypeSpecifierAST extends SpecifierAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitUnderlyingTypeSpecifier(this, context);
-    }
-}
-
 export class AtomicTypeSpecifierAST extends SpecifierAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitAtomicTypeSpecifier(this, context);
+    }
+    getAtomicToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getLparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getTypeId(): TypeIdAST | undefined {
+        return AST.from<TypeIdAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getRparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+}
+
+export class UnderlyingTypeSpecifierAST extends SpecifierAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitUnderlyingTypeSpecifier(this, context);
     }
 }
 
@@ -2029,9 +2077,13 @@ const AST_CONSTRUCTORS: Array<new (handle: number, parser: Parser) => AST> = [
     MutableSpecifierAST,
     SimpleSpecifierAST,
     ExplicitSpecifierAST,
+    VoidTypeSpecifierAST,
+    IntegralTypeSpecifierAST,
+    FloatingPointTypeSpecifierAST,
+    ComplexTypeSpecifierAST,
     NamedTypeSpecifierAST,
-    UnderlyingTypeSpecifierAST,
     AtomicTypeSpecifierAST,
+    UnderlyingTypeSpecifierAST,
     ElaboratedTypeSpecifierAST,
     DecltypeAutoSpecifierAST,
     DecltypeSpecifierAST,

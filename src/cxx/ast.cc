@@ -1440,6 +1440,46 @@ SourceLocation ExplicitSpecifierAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation VoidTypeSpecifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(voidLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation VoidTypeSpecifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(voidLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation IntegralTypeSpecifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(specifierLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation IntegralTypeSpecifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(specifierLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation FloatingPointTypeSpecifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(specifierLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation FloatingPointTypeSpecifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(specifierLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ComplexTypeSpecifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(complexLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ComplexTypeSpecifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(complexLoc)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation NamedTypeSpecifierAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(name)) return loc;
   return SourceLocation();
@@ -1450,19 +1490,27 @@ SourceLocation NamedTypeSpecifierAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation AtomicTypeSpecifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(atomicLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation AtomicTypeSpecifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(atomicLoc)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation UnderlyingTypeSpecifierAST::firstSourceLocation() {
   return SourceLocation();
 }
 
 SourceLocation UnderlyingTypeSpecifierAST::lastSourceLocation() {
-  return SourceLocation();
-}
-
-SourceLocation AtomicTypeSpecifierAST::firstSourceLocation() {
-  return SourceLocation();
-}
-
-SourceLocation AtomicTypeSpecifierAST::lastSourceLocation() {
   return SourceLocation();
 }
 
