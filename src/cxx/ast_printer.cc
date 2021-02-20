@@ -22,13 +22,6 @@
 #include <cxx/ast_printer.h>
 #include <cxx/translation_unit.h>
 
-#if defined(__has_include)
-#if __has_include(<cxxabi.h>)
-#include <cxxabi.h>
-#define WITH_CXXABI
-#endif
-#endif
-
 namespace cxx {
 
 nlohmann::json ASTPrinter::accept(AST* ast) {
@@ -44,30 +37,25 @@ nlohmann::json ASTPrinter::accept(AST* ast) {
 void ASTPrinter::visit(TypeIdAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "TypeId";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->typeSpecifierList) {
@@ -86,30 +74,25 @@ void ASTPrinter::visit(TypeIdAST* ast) {
 void ASTPrinter::visit(NestedNameSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "NestedNameSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->nameList) {
@@ -124,30 +107,25 @@ void ASTPrinter::visit(NestedNameSpecifierAST* ast) {
 void ASTPrinter::visit(UsingDeclaratorAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "UsingDeclarator";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->nestedNameSpecifier) {
@@ -162,30 +140,25 @@ void ASTPrinter::visit(UsingDeclaratorAST* ast) {
 void ASTPrinter::visit(HandlerAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "Handler";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->exceptionDeclaration) {
@@ -200,60 +173,50 @@ void ASTPrinter::visit(HandlerAST* ast) {
 void ASTPrinter::visit(TemplateArgumentAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "TemplateArgument";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(EnumBaseAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "EnumBase";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->typeSpecifierList) {
@@ -268,30 +231,25 @@ void ASTPrinter::visit(EnumBaseAST* ast) {
 void ASTPrinter::visit(EnumeratorAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "Enumerator";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->name) {
@@ -314,30 +272,25 @@ void ASTPrinter::visit(EnumeratorAST* ast) {
 void ASTPrinter::visit(DeclaratorAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "Declarator";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->ptrOpList) {
@@ -364,30 +317,25 @@ void ASTPrinter::visit(DeclaratorAST* ast) {
 void ASTPrinter::visit(BaseSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "BaseSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->attributeList) {
@@ -406,30 +354,25 @@ void ASTPrinter::visit(BaseSpecifierAST* ast) {
 void ASTPrinter::visit(BaseClauseAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "BaseClause";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->baseSpecifierList) {
@@ -444,30 +387,25 @@ void ASTPrinter::visit(BaseClauseAST* ast) {
 void ASTPrinter::visit(NewTypeIdAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "NewTypeId";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->typeSpecifierList) {
@@ -482,30 +420,25 @@ void ASTPrinter::visit(NewTypeIdAST* ast) {
 void ASTPrinter::visit(ParameterDeclarationClauseAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ParameterDeclarationClause";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->parameterDeclarationList) {
@@ -520,30 +453,25 @@ void ASTPrinter::visit(ParameterDeclarationClauseAST* ast) {
 void ASTPrinter::visit(ParametersAndQualifiersAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ParametersAndQualifiers";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->parameterDeclarationClause) {
@@ -571,60 +499,50 @@ void ASTPrinter::visit(ParametersAndQualifiersAST* ast) {
 void ASTPrinter::visit(LambdaIntroducerAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "LambdaIntroducer";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(LambdaDeclaratorAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "LambdaDeclarator";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->parameterDeclarationClause) {
@@ -656,30 +574,25 @@ void ASTPrinter::visit(LambdaDeclaratorAST* ast) {
 void ASTPrinter::visit(TrailingReturnTypeAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "TrailingReturnType";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->typeId) {
@@ -690,30 +603,25 @@ void ASTPrinter::visit(TrailingReturnTypeAST* ast) {
 void ASTPrinter::visit(EqualInitializerAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "EqualInitializer";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->expression) {
@@ -724,30 +632,25 @@ void ASTPrinter::visit(EqualInitializerAST* ast) {
 void ASTPrinter::visit(BracedInitListAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "BracedInitList";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->expressionList) {
@@ -762,30 +665,25 @@ void ASTPrinter::visit(BracedInitListAST* ast) {
 void ASTPrinter::visit(ParenInitializerAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ParenInitializer";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->expressionList) {
@@ -800,30 +698,25 @@ void ASTPrinter::visit(ParenInitializerAST* ast) {
 void ASTPrinter::visit(NewParenInitializerAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "NewParenInitializer";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->expressionList) {
@@ -838,30 +731,25 @@ void ASTPrinter::visit(NewParenInitializerAST* ast) {
 void ASTPrinter::visit(NewBracedInitializerAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "NewBracedInitializer";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->bracedInit) {
@@ -872,60 +760,50 @@ void ASTPrinter::visit(NewBracedInitializerAST* ast) {
 void ASTPrinter::visit(EllipsisExceptionDeclarationAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "EllipsisExceptionDeclaration";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(TypeExceptionDeclarationAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "TypeExceptionDeclaration";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->attributeList) {
@@ -952,30 +830,25 @@ void ASTPrinter::visit(TypeExceptionDeclarationAST* ast) {
 void ASTPrinter::visit(TranslationUnitAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "TranslationUnit";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->declarationList) {
@@ -990,300 +863,262 @@ void ASTPrinter::visit(TranslationUnitAST* ast) {
 void ASTPrinter::visit(ModuleUnitAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ModuleUnit";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(ThisExpressionAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ThisExpression";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(CharLiteralExpressionAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "CharLiteralExpression";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
+
+  json_["literal"] = unit_->tokenText(ast->literalLoc);
 }
 
 void ASTPrinter::visit(BoolLiteralExpressionAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "BoolLiteralExpression";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
+
+  json_["literal"] = unit_->tokenText(ast->literalLoc);
 }
 
 void ASTPrinter::visit(IntLiteralExpressionAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "IntLiteralExpression";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
+
+  json_["literal"] = unit_->tokenText(ast->literalLoc);
 }
 
 void ASTPrinter::visit(FloatLiteralExpressionAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "FloatLiteralExpression";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
+
+  json_["literal"] = unit_->tokenText(ast->literalLoc);
 }
 
 void ASTPrinter::visit(NullptrLiteralExpressionAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "NullptrLiteralExpression";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
+
+  json_["literal"] = unit_->tokenText(ast->literalLoc);
 }
 
 void ASTPrinter::visit(StringLiteralExpressionAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "StringLiteralExpression";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(UserDefinedStringLiteralExpressionAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "UserDefinedStringLiteralExpression";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
+
+  json_["literal"] = unit_->tokenText(ast->literalLoc);
 }
 
 void ASTPrinter::visit(IdExpressionAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "IdExpression";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->name) {
@@ -1294,30 +1129,25 @@ void ASTPrinter::visit(IdExpressionAST* ast) {
 void ASTPrinter::visit(NestedExpressionAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "NestedExpression";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->expression) {
@@ -1328,30 +1158,25 @@ void ASTPrinter::visit(NestedExpressionAST* ast) {
 void ASTPrinter::visit(LambdaExpressionAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "LambdaExpression";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->lambdaIntroducer) {
@@ -1378,31 +1203,28 @@ void ASTPrinter::visit(LambdaExpressionAST* ast) {
 void ASTPrinter::visit(UnaryExpressionAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "UnaryExpression";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
+
+  json_["op"] = unit_->tokenText(ast->opLoc);
 
   if (ast->expression) {
     json_["expression"] = accept(ast->expression);
@@ -1412,35 +1234,32 @@ void ASTPrinter::visit(UnaryExpressionAST* ast) {
 void ASTPrinter::visit(BinaryExpressionAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "BinaryExpression";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->leftExpression) {
     json_["leftExpression"] = accept(ast->leftExpression);
   }
+
+  json_["op"] = unit_->tokenText(ast->opLoc);
 
   if (ast->rightExpression) {
     json_["rightExpression"] = accept(ast->rightExpression);
@@ -1450,35 +1269,32 @@ void ASTPrinter::visit(BinaryExpressionAST* ast) {
 void ASTPrinter::visit(AssignmentExpressionAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "AssignmentExpression";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->leftExpression) {
     json_["leftExpression"] = accept(ast->leftExpression);
   }
+
+  json_["op"] = unit_->tokenText(ast->opLoc);
 
   if (ast->rightExpression) {
     json_["rightExpression"] = accept(ast->rightExpression);
@@ -1488,30 +1304,25 @@ void ASTPrinter::visit(AssignmentExpressionAST* ast) {
 void ASTPrinter::visit(CallExpressionAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "CallExpression";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->baseExpression) {
@@ -1530,30 +1341,25 @@ void ASTPrinter::visit(CallExpressionAST* ast) {
 void ASTPrinter::visit(SubscriptExpressionAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "SubscriptExpression";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->baseExpression) {
@@ -1568,30 +1374,25 @@ void ASTPrinter::visit(SubscriptExpressionAST* ast) {
 void ASTPrinter::visit(MemberExpressionAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "MemberExpression";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->baseExpression) {
@@ -1606,30 +1407,25 @@ void ASTPrinter::visit(MemberExpressionAST* ast) {
 void ASTPrinter::visit(ConditionalExpressionAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ConditionalExpression";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->condition) {
@@ -1648,30 +1444,25 @@ void ASTPrinter::visit(ConditionalExpressionAST* ast) {
 void ASTPrinter::visit(CppCastExpressionAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "CppCastExpression";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->typeId) {
@@ -1686,30 +1477,25 @@ void ASTPrinter::visit(CppCastExpressionAST* ast) {
 void ASTPrinter::visit(NewExpressionAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "NewExpression";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->typeId) {
@@ -1724,31 +1510,28 @@ void ASTPrinter::visit(NewExpressionAST* ast) {
 void ASTPrinter::visit(LabeledStatementAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "LabeledStatement";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
+
+  json_["identifier"] = unit_->tokenText(ast->identifierLoc);
 
   if (ast->statement) {
     json_["statement"] = accept(ast->statement);
@@ -1758,30 +1541,25 @@ void ASTPrinter::visit(LabeledStatementAST* ast) {
 void ASTPrinter::visit(CaseStatementAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "CaseStatement";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->expression) {
@@ -1796,30 +1574,25 @@ void ASTPrinter::visit(CaseStatementAST* ast) {
 void ASTPrinter::visit(DefaultStatementAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "DefaultStatement";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->statement) {
@@ -1830,30 +1603,25 @@ void ASTPrinter::visit(DefaultStatementAST* ast) {
 void ASTPrinter::visit(ExpressionStatementAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ExpressionStatement";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->expression) {
@@ -1864,30 +1632,25 @@ void ASTPrinter::visit(ExpressionStatementAST* ast) {
 void ASTPrinter::visit(CompoundStatementAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "CompoundStatement";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->statementList) {
@@ -1902,30 +1665,25 @@ void ASTPrinter::visit(CompoundStatementAST* ast) {
 void ASTPrinter::visit(IfStatementAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "IfStatement";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->initializer) {
@@ -1948,30 +1706,25 @@ void ASTPrinter::visit(IfStatementAST* ast) {
 void ASTPrinter::visit(SwitchStatementAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "SwitchStatement";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->initializer) {
@@ -1990,30 +1743,25 @@ void ASTPrinter::visit(SwitchStatementAST* ast) {
 void ASTPrinter::visit(WhileStatementAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "WhileStatement";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->condition) {
@@ -2028,30 +1776,25 @@ void ASTPrinter::visit(WhileStatementAST* ast) {
 void ASTPrinter::visit(DoStatementAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "DoStatement";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->statement) {
@@ -2066,30 +1809,25 @@ void ASTPrinter::visit(DoStatementAST* ast) {
 void ASTPrinter::visit(ForRangeStatementAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ForRangeStatement";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->initializer) {
@@ -2112,30 +1850,25 @@ void ASTPrinter::visit(ForRangeStatementAST* ast) {
 void ASTPrinter::visit(ForStatementAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ForStatement";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->initializer) {
@@ -2158,90 +1891,75 @@ void ASTPrinter::visit(ForStatementAST* ast) {
 void ASTPrinter::visit(BreakStatementAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "BreakStatement";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(ContinueStatementAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ContinueStatement";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(ReturnStatementAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ReturnStatement";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->expression) {
@@ -2252,60 +1970,52 @@ void ASTPrinter::visit(ReturnStatementAST* ast) {
 void ASTPrinter::visit(GotoStatementAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "GotoStatement";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
+
+  json_["identifier"] = unit_->tokenText(ast->identifierLoc);
 }
 
 void ASTPrinter::visit(CoroutineReturnStatementAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "CoroutineReturnStatement";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->expression) {
@@ -2316,30 +2026,25 @@ void ASTPrinter::visit(CoroutineReturnStatementAST* ast) {
 void ASTPrinter::visit(DeclarationStatementAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "DeclarationStatement";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->declaration) {
@@ -2350,30 +2055,25 @@ void ASTPrinter::visit(DeclarationStatementAST* ast) {
 void ASTPrinter::visit(TryBlockStatementAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "TryBlockStatement";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->statement) {
@@ -2392,30 +2092,25 @@ void ASTPrinter::visit(TryBlockStatementAST* ast) {
 void ASTPrinter::visit(FunctionDefinitionAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "FunctionDefinition";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->declSpecifierList) {
@@ -2438,30 +2133,25 @@ void ASTPrinter::visit(FunctionDefinitionAST* ast) {
 void ASTPrinter::visit(ConceptDefinitionAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ConceptDefinition";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->name) {
@@ -2476,61 +2166,53 @@ void ASTPrinter::visit(ConceptDefinitionAST* ast) {
 void ASTPrinter::visit(ForRangeDeclarationAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ForRangeDeclaration";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(AliasDeclarationAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "AliasDeclaration";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
+
+  json_["identifier"] = unit_->tokenText(ast->identifierLoc);
 
   if (ast->attributeList) {
     auto elements = nlohmann::json::array();
@@ -2548,30 +2230,25 @@ void ASTPrinter::visit(AliasDeclarationAST* ast) {
 void ASTPrinter::visit(SimpleDeclarationAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "SimpleDeclaration";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->attributes) {
@@ -2602,30 +2279,25 @@ void ASTPrinter::visit(SimpleDeclarationAST* ast) {
 void ASTPrinter::visit(StaticAssertDeclarationAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "StaticAssertDeclaration";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->expression) {
@@ -2636,60 +2308,50 @@ void ASTPrinter::visit(StaticAssertDeclarationAST* ast) {
 void ASTPrinter::visit(EmptyDeclarationAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "EmptyDeclaration";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(AttributeDeclarationAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "AttributeDeclaration";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->attributeList) {
@@ -2704,30 +2366,25 @@ void ASTPrinter::visit(AttributeDeclarationAST* ast) {
 void ASTPrinter::visit(OpaqueEnumDeclarationAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "OpaqueEnumDeclaration";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->attributeList) {
@@ -2754,60 +2411,50 @@ void ASTPrinter::visit(OpaqueEnumDeclarationAST* ast) {
 void ASTPrinter::visit(UsingEnumDeclarationAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "UsingEnumDeclaration";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(NamespaceDefinitionAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "NamespaceDefinition";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->attributeList) {
@@ -2846,31 +2493,28 @@ void ASTPrinter::visit(NamespaceDefinitionAST* ast) {
 void ASTPrinter::visit(NamespaceAliasDefinitionAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "NamespaceAliasDefinition";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
+
+  json_["identifier"] = unit_->tokenText(ast->identifierLoc);
 
   if (ast->nestedNameSpecifier) {
     json_["nestedNameSpecifier"] = accept(ast->nestedNameSpecifier);
@@ -2884,60 +2528,50 @@ void ASTPrinter::visit(NamespaceAliasDefinitionAST* ast) {
 void ASTPrinter::visit(UsingDirectiveAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "UsingDirective";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(UsingDeclarationAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "UsingDeclaration";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->usingDeclaratorList) {
@@ -2952,30 +2586,25 @@ void ASTPrinter::visit(UsingDeclarationAST* ast) {
 void ASTPrinter::visit(AsmDeclarationAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "AsmDeclaration";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->attributeList) {
@@ -2990,90 +2619,75 @@ void ASTPrinter::visit(AsmDeclarationAST* ast) {
 void ASTPrinter::visit(ExportDeclarationAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ExportDeclaration";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(ModuleImportDeclarationAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ModuleImportDeclaration";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(TemplateDeclarationAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "TemplateDeclaration";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->templateParameterList) {
@@ -3092,60 +2706,50 @@ void ASTPrinter::visit(TemplateDeclarationAST* ast) {
 void ASTPrinter::visit(DeductionGuideAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "DeductionGuide";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(ExplicitInstantiationAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ExplicitInstantiation";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->declaration) {
@@ -3156,30 +2760,25 @@ void ASTPrinter::visit(ExplicitInstantiationAST* ast) {
 void ASTPrinter::visit(ParameterDeclarationAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ParameterDeclaration";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->attributeList) {
@@ -3210,30 +2809,25 @@ void ASTPrinter::visit(ParameterDeclarationAST* ast) {
 void ASTPrinter::visit(LinkageSpecificationAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "LinkageSpecification";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->declarationList) {
@@ -3248,60 +2842,52 @@ void ASTPrinter::visit(LinkageSpecificationAST* ast) {
 void ASTPrinter::visit(SimpleNameAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "SimpleName";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
+
+  json_["identifier"] = unit_->tokenText(ast->identifierLoc);
 }
 
 void ASTPrinter::visit(DestructorNameAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "DestructorName";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->name) {
@@ -3312,30 +2898,25 @@ void ASTPrinter::visit(DestructorNameAST* ast) {
 void ASTPrinter::visit(DecltypeNameAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "DecltypeName";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->decltypeSpecifier) {
@@ -3346,60 +2927,52 @@ void ASTPrinter::visit(DecltypeNameAST* ast) {
 void ASTPrinter::visit(OperatorNameAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "OperatorName";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
+
+  json_["op"] = unit_->tokenText(ast->opLoc);
 }
 
 void ASTPrinter::visit(TemplateNameAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "TemplateName";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->name) {
@@ -3418,30 +2991,25 @@ void ASTPrinter::visit(TemplateNameAST* ast) {
 void ASTPrinter::visit(QualifiedNameAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "QualifiedName";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->nestedNameSpecifier) {
@@ -3456,390 +3024,325 @@ void ASTPrinter::visit(QualifiedNameAST* ast) {
 void ASTPrinter::visit(TypedefSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "TypedefSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(FriendSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "FriendSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(ConstevalSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ConstevalSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(ConstinitSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ConstinitSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(ConstexprSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ConstexprSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(InlineSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "InlineSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(StaticSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "StaticSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(ExternSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ExternSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(ThreadLocalSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ThreadLocalSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(ThreadSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ThreadSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(MutableSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "MutableSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(VirtualSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "VirtualSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(ExplicitSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ExplicitSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->expression) {
@@ -3850,180 +3353,154 @@ void ASTPrinter::visit(ExplicitSpecifierAST* ast) {
 void ASTPrinter::visit(AutoTypeSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "AutoTypeSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(VoidTypeSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "VoidTypeSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(IntegralTypeSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "IntegralTypeSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
+
+  json_["specifier"] = unit_->tokenText(ast->specifierLoc);
 }
 
 void ASTPrinter::visit(FloatingPointTypeSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "FloatingPointTypeSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
+
+  json_["specifier"] = unit_->tokenText(ast->specifierLoc);
 }
 
 void ASTPrinter::visit(ComplexTypeSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ComplexTypeSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(NamedTypeSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "NamedTypeSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->name) {
@@ -4034,30 +3511,25 @@ void ASTPrinter::visit(NamedTypeSpecifierAST* ast) {
 void ASTPrinter::visit(AtomicTypeSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "AtomicTypeSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->typeId) {
@@ -4068,120 +3540,100 @@ void ASTPrinter::visit(AtomicTypeSpecifierAST* ast) {
 void ASTPrinter::visit(UnderlyingTypeSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "UnderlyingTypeSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(ElaboratedTypeSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ElaboratedTypeSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(DecltypeAutoSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "DecltypeAutoSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(DecltypeSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "DecltypeSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->expression) {
@@ -4192,30 +3644,25 @@ void ASTPrinter::visit(DecltypeSpecifierAST* ast) {
 void ASTPrinter::visit(TypeofSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "TypeofSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->expression) {
@@ -4226,150 +3673,125 @@ void ASTPrinter::visit(TypeofSpecifierAST* ast) {
 void ASTPrinter::visit(PlaceholderTypeSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "PlaceholderTypeSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(ConstQualifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ConstQualifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(VolatileQualifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "VolatileQualifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(RestrictQualifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "RestrictQualifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(EnumSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "EnumSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->attributeList) {
@@ -4404,30 +3826,25 @@ void ASTPrinter::visit(EnumSpecifierAST* ast) {
 void ASTPrinter::visit(ClassSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ClassSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->attributeList) {
@@ -4458,60 +3875,50 @@ void ASTPrinter::visit(ClassSpecifierAST* ast) {
 void ASTPrinter::visit(TypenameSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "TypenameSpecifier";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 }
 
 void ASTPrinter::visit(IdDeclaratorAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "IdDeclarator";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->name) {
@@ -4530,30 +3937,25 @@ void ASTPrinter::visit(IdDeclaratorAST* ast) {
 void ASTPrinter::visit(NestedDeclaratorAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "NestedDeclarator";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->declarator) {
@@ -4564,30 +3966,25 @@ void ASTPrinter::visit(NestedDeclaratorAST* ast) {
 void ASTPrinter::visit(PointerOperatorAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "PointerOperator";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->attributeList) {
@@ -4610,30 +4007,25 @@ void ASTPrinter::visit(PointerOperatorAST* ast) {
 void ASTPrinter::visit(ReferenceOperatorAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ReferenceOperator";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->attributeList) {
@@ -4648,30 +4040,25 @@ void ASTPrinter::visit(ReferenceOperatorAST* ast) {
 void ASTPrinter::visit(PtrToMemberOperatorAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "PtrToMemberOperator";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->nestedNameSpecifier) {
@@ -4698,30 +4085,25 @@ void ASTPrinter::visit(PtrToMemberOperatorAST* ast) {
 void ASTPrinter::visit(FunctionDeclaratorAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "FunctionDeclarator";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->parametersAndQualifiers) {
@@ -4736,30 +4118,25 @@ void ASTPrinter::visit(FunctionDeclaratorAST* ast) {
 void ASTPrinter::visit(ArrayDeclaratorAST* ast) {
   json_ = nlohmann::json::object();
 
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
+  json_["$id"] = "ArrayDeclarator";
 
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
 
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
 
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
 
-    json_["$range"] = range;
+      json_["$range"] = range;
+    }
   }
 
   if (ast->expression) {

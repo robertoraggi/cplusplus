@@ -31,13 +31,19 @@ class TranslationUnit;
 class ASTPrinter : ASTVisitor {
   TranslationUnit* unit_;
   nlohmann::json json_;
+  bool printLocations_ = false;
 
   nlohmann::json accept(AST* ast);
 
  public:
   explicit ASTPrinter(TranslationUnit* unit) : unit_(unit) {}
 
-  nlohmann::json operator()(AST* ast) { return accept(ast); }
+  nlohmann::json operator()(AST* ast, bool printLocations = false) {
+    std::swap(printLocations_, printLocations);
+    auto result = accept(ast);
+    std::swap(printLocations_, printLocations);
+    return result;
+  }
 
   void visit(TypeIdAST* ast) override;
   void visit(NestedNameSpecifierAST* ast) override;
