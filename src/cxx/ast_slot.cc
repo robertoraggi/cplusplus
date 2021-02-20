@@ -1424,6 +1424,14 @@ void ASTSlot::visit(ExplicitSpecifierAST* ast) {
   switch (slot_) {}  // switch
 }
 
+void ASTSlot::visit(AutoTypeSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->autoLoc.index();
+      break;
+  }  // switch
+}
+
 void ASTSlot::visit(VoidTypeSpecifierAST* ast) {
   switch (slot_) {
     case 0:

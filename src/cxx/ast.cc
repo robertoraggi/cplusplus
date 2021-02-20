@@ -1440,6 +1440,16 @@ SourceLocation ExplicitSpecifierAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation AutoTypeSpecifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(autoLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation AutoTypeSpecifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(autoLoc)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation VoidTypeSpecifierAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(voidLoc)) return loc;
   return SourceLocation();

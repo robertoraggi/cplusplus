@@ -1475,6 +1475,17 @@ struct ExplicitSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
+struct AutoTypeSpecifierAST final : SpecifierAST {
+  AutoTypeSpecifierAST() : SpecifierAST(ASTKind::AutoTypeSpecifier) {}
+
+  SourceLocation autoLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 struct VoidTypeSpecifierAST final : SpecifierAST {
   VoidTypeSpecifierAST() : SpecifierAST(ASTKind::VoidTypeSpecifier) {}
 

@@ -3696,10 +3696,10 @@ bool Parser::parse_placeholder_type_specifier(SpecifierAST*& yyast) {
   SourceLocation autoLoc;
 
   if (match(TokenKind::T_AUTO, autoLoc)) {
-    auto ast = new (pool) SimpleSpecifierAST();
+    auto ast = new (pool) AutoTypeSpecifierAST();
     yyast = ast;
 
-    ast->specifierLoc = autoLoc;
+    ast->autoLoc = autoLoc;
 
     return true;
   }

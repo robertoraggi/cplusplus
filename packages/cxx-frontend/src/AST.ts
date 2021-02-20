@@ -1650,6 +1650,15 @@ export class ExplicitSpecifierAST extends SpecifierAST {
     }
 }
 
+export class AutoTypeSpecifierAST extends SpecifierAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitAutoTypeSpecifier(this, context);
+    }
+    getAutoToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+}
+
 export class VoidTypeSpecifierAST extends SpecifierAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitVoidTypeSpecifier(this, context);
@@ -2095,6 +2104,7 @@ const AST_CONSTRUCTORS: Array<new (handle: number, parser: Parser) => AST> = [
     MutableSpecifierAST,
     SimpleSpecifierAST,
     ExplicitSpecifierAST,
+    AutoTypeSpecifierAST,
     VoidTypeSpecifierAST,
     IntegralTypeSpecifierAST,
     FloatingPointTypeSpecifierAST,

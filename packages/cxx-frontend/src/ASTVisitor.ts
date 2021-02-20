@@ -128,6 +128,7 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitMutableSpecifier(node: ast.MutableSpecifierAST, context: Context): Result;
     abstract visitSimpleSpecifier(node: ast.SimpleSpecifierAST, context: Context): Result;
     abstract visitExplicitSpecifier(node: ast.ExplicitSpecifierAST, context: Context): Result;
+    abstract visitAutoTypeSpecifier(node: ast.AutoTypeSpecifierAST, context: Context): Result;
     abstract visitVoidTypeSpecifier(node: ast.VoidTypeSpecifierAST, context: Context): Result;
     abstract visitIntegralTypeSpecifier(node: ast.IntegralTypeSpecifierAST, context: Context): Result;
     abstract visitFloatingPointTypeSpecifier(node: ast.FloatingPointTypeSpecifierAST, context: Context): Result;

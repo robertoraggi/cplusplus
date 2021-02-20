@@ -1442,6 +1442,13 @@ void ASTCloner::visit(ExplicitSpecifierAST* ast) {
   copy_ = copy;
 }
 
+void ASTCloner::visit(AutoTypeSpecifierAST* ast) {
+  auto copy = new (arena_) AutoTypeSpecifierAST();
+  copy_ = copy;
+
+  copy->autoLoc = ast->autoLoc;
+}
+
 void ASTCloner::visit(VoidTypeSpecifierAST* ast) {
   auto copy = new (arena_) VoidTypeSpecifierAST();
   copy_ = copy;

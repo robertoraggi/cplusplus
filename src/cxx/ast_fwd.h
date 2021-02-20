@@ -164,6 +164,7 @@ struct ThreadSpecifierAST;
 struct MutableSpecifierAST;
 struct SimpleSpecifierAST;
 struct ExplicitSpecifierAST;
+struct AutoTypeSpecifierAST;
 struct VoidTypeSpecifierAST;
 struct IntegralTypeSpecifierAST;
 struct FloatingPointTypeSpecifierAST;

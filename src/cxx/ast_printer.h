@@ -152,6 +152,7 @@ class ASTPrinter : ASTVisitor {
   void visit(MutableSpecifierAST* ast) override;
   void visit(SimpleSpecifierAST* ast) override;
   void visit(ExplicitSpecifierAST* ast) override;
+  void visit(AutoTypeSpecifierAST* ast) override;
   void visit(VoidTypeSpecifierAST* ast) override;
   void visit(IntegralTypeSpecifierAST* ast) override;
   void visit(FloatingPointTypeSpecifierAST* ast) override;
