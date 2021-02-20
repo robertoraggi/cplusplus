@@ -1536,6 +1536,105 @@ export class QualifiedNameAST extends NameAST {
     }
 }
 
+export class TypedefSpecifierAST extends SpecifierAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitTypedefSpecifier(this, context);
+    }
+    getTypedefToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+}
+
+export class FriendSpecifierAST extends SpecifierAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitFriendSpecifier(this, context);
+    }
+    getFriendToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+}
+
+export class ConstevalSpecifierAST extends SpecifierAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitConstevalSpecifier(this, context);
+    }
+    getConstevalToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+}
+
+export class ConstinitSpecifierAST extends SpecifierAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitConstinitSpecifier(this, context);
+    }
+    getConstinitToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+}
+
+export class ConstexprSpecifierAST extends SpecifierAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitConstexprSpecifier(this, context);
+    }
+    getConstexprToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+}
+
+export class InlineSpecifierAST extends SpecifierAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitInlineSpecifier(this, context);
+    }
+    getInlineToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+}
+
+export class StaticSpecifierAST extends SpecifierAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitStaticSpecifier(this, context);
+    }
+    getStaticToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+}
+
+export class ExternSpecifierAST extends SpecifierAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitExternSpecifier(this, context);
+    }
+    getExternToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+}
+
+export class ThreadLocalSpecifierAST extends SpecifierAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitThreadLocalSpecifier(this, context);
+    }
+    getThreadLocalToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+}
+
+export class ThreadSpecifierAST extends SpecifierAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitThreadSpecifier(this, context);
+    }
+    getThreadToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+}
+
+export class MutableSpecifierAST extends SpecifierAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitMutableSpecifier(this, context);
+    }
+    getMutableToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+}
+
 export class SimpleSpecifierAST extends SpecifierAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitSimpleSpecifier(this, context);
@@ -1917,6 +2016,17 @@ const AST_CONSTRUCTORS: Array<new (handle: number, parser: Parser) => AST> = [
     OperatorNameAST,
     TemplateNameAST,
     QualifiedNameAST,
+    TypedefSpecifierAST,
+    FriendSpecifierAST,
+    ConstevalSpecifierAST,
+    ConstinitSpecifierAST,
+    ConstexprSpecifierAST,
+    InlineSpecifierAST,
+    StaticSpecifierAST,
+    ExternSpecifierAST,
+    ThreadLocalSpecifierAST,
+    ThreadSpecifierAST,
+    MutableSpecifierAST,
     SimpleSpecifierAST,
     ExplicitSpecifierAST,
     NamedTypeSpecifierAST,

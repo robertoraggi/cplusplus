@@ -137,6 +137,17 @@ struct ASTVisitor {
   virtual void visit(QualifiedNameAST* ast) = 0;
 
   // SpecifierAST
+  virtual void visit(TypedefSpecifierAST* ast) = 0;
+  virtual void visit(FriendSpecifierAST* ast) = 0;
+  virtual void visit(ConstevalSpecifierAST* ast) = 0;
+  virtual void visit(ConstinitSpecifierAST* ast) = 0;
+  virtual void visit(ConstexprSpecifierAST* ast) = 0;
+  virtual void visit(InlineSpecifierAST* ast) = 0;
+  virtual void visit(StaticSpecifierAST* ast) = 0;
+  virtual void visit(ExternSpecifierAST* ast) = 0;
+  virtual void visit(ThreadLocalSpecifierAST* ast) = 0;
+  virtual void visit(ThreadSpecifierAST* ast) = 0;
+  virtual void visit(MutableSpecifierAST* ast) = 0;
   virtual void visit(SimpleSpecifierAST* ast) = 0;
   virtual void visit(ExplicitSpecifierAST* ast) = 0;
   virtual void visit(NamedTypeSpecifierAST* ast) = 0;

@@ -1324,6 +1324,94 @@ void ASTSlot::visit(QualifiedNameAST* ast) {
   }  // switch
 }
 
+void ASTSlot::visit(TypedefSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->typedefLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(FriendSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->friendLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(ConstevalSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->constevalLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(ConstinitSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->constinitLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(ConstexprSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->constexprLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(InlineSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->inlineLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(StaticSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->staticLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(ExternSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->externLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(ThreadLocalSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->threadLocalLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(ThreadSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->threadLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(MutableSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->mutableLoc.index();
+      break;
+  }  // switch
+}
+
 void ASTSlot::visit(SimpleSpecifierAST* ast) {
   switch (slot_) {
     case 0:

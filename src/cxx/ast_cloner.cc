@@ -1353,6 +1353,83 @@ void ASTCloner::visit(QualifiedNameAST* ast) {
   copy->name = accept(ast->name);
 }
 
+void ASTCloner::visit(TypedefSpecifierAST* ast) {
+  auto copy = new (arena_) TypedefSpecifierAST();
+  copy_ = copy;
+
+  copy->typedefLoc = ast->typedefLoc;
+}
+
+void ASTCloner::visit(FriendSpecifierAST* ast) {
+  auto copy = new (arena_) FriendSpecifierAST();
+  copy_ = copy;
+
+  copy->friendLoc = ast->friendLoc;
+}
+
+void ASTCloner::visit(ConstevalSpecifierAST* ast) {
+  auto copy = new (arena_) ConstevalSpecifierAST();
+  copy_ = copy;
+
+  copy->constevalLoc = ast->constevalLoc;
+}
+
+void ASTCloner::visit(ConstinitSpecifierAST* ast) {
+  auto copy = new (arena_) ConstinitSpecifierAST();
+  copy_ = copy;
+
+  copy->constinitLoc = ast->constinitLoc;
+}
+
+void ASTCloner::visit(ConstexprSpecifierAST* ast) {
+  auto copy = new (arena_) ConstexprSpecifierAST();
+  copy_ = copy;
+
+  copy->constexprLoc = ast->constexprLoc;
+}
+
+void ASTCloner::visit(InlineSpecifierAST* ast) {
+  auto copy = new (arena_) InlineSpecifierAST();
+  copy_ = copy;
+
+  copy->inlineLoc = ast->inlineLoc;
+}
+
+void ASTCloner::visit(StaticSpecifierAST* ast) {
+  auto copy = new (arena_) StaticSpecifierAST();
+  copy_ = copy;
+
+  copy->staticLoc = ast->staticLoc;
+}
+
+void ASTCloner::visit(ExternSpecifierAST* ast) {
+  auto copy = new (arena_) ExternSpecifierAST();
+  copy_ = copy;
+
+  copy->externLoc = ast->externLoc;
+}
+
+void ASTCloner::visit(ThreadLocalSpecifierAST* ast) {
+  auto copy = new (arena_) ThreadLocalSpecifierAST();
+  copy_ = copy;
+
+  copy->threadLocalLoc = ast->threadLocalLoc;
+}
+
+void ASTCloner::visit(ThreadSpecifierAST* ast) {
+  auto copy = new (arena_) ThreadSpecifierAST();
+  copy_ = copy;
+
+  copy->threadLoc = ast->threadLoc;
+}
+
+void ASTCloner::visit(MutableSpecifierAST* ast) {
+  auto copy = new (arena_) MutableSpecifierAST();
+  copy_ = copy;
+
+  copy->mutableLoc = ast->mutableLoc;
+}
+
 void ASTCloner::visit(SimpleSpecifierAST* ast) {
   auto copy = new (arena_) SimpleSpecifierAST();
   copy_ = copy;

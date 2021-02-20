@@ -422,6 +422,28 @@ void RecursiveASTVisitor::visit(QualifiedNameAST* ast) {
   name(ast->name);
 }
 
+void RecursiveASTVisitor::visit(TypedefSpecifierAST* ast) {}
+
+void RecursiveASTVisitor::visit(FriendSpecifierAST* ast) {}
+
+void RecursiveASTVisitor::visit(ConstevalSpecifierAST* ast) {}
+
+void RecursiveASTVisitor::visit(ConstinitSpecifierAST* ast) {}
+
+void RecursiveASTVisitor::visit(ConstexprSpecifierAST* ast) {}
+
+void RecursiveASTVisitor::visit(InlineSpecifierAST* ast) {}
+
+void RecursiveASTVisitor::visit(StaticSpecifierAST* ast) {}
+
+void RecursiveASTVisitor::visit(ExternSpecifierAST* ast) {}
+
+void RecursiveASTVisitor::visit(ThreadLocalSpecifierAST* ast) {}
+
+void RecursiveASTVisitor::visit(ThreadSpecifierAST* ast) {}
+
+void RecursiveASTVisitor::visit(MutableSpecifierAST* ast) {}
+
 void RecursiveASTVisitor::visit(SimpleSpecifierAST* ast) {}
 
 void RecursiveASTVisitor::visit(ExplicitSpecifierAST* ast) {}

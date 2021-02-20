@@ -514,6 +514,39 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         this.accept(node.getName(), context);
     }
 
+    visitTypedefSpecifier(node: ast.TypedefSpecifierAST, context: Context): void {
+    }
+
+    visitFriendSpecifier(node: ast.FriendSpecifierAST, context: Context): void {
+    }
+
+    visitConstevalSpecifier(node: ast.ConstevalSpecifierAST, context: Context): void {
+    }
+
+    visitConstinitSpecifier(node: ast.ConstinitSpecifierAST, context: Context): void {
+    }
+
+    visitConstexprSpecifier(node: ast.ConstexprSpecifierAST, context: Context): void {
+    }
+
+    visitInlineSpecifier(node: ast.InlineSpecifierAST, context: Context): void {
+    }
+
+    visitStaticSpecifier(node: ast.StaticSpecifierAST, context: Context): void {
+    }
+
+    visitExternSpecifier(node: ast.ExternSpecifierAST, context: Context): void {
+    }
+
+    visitThreadLocalSpecifier(node: ast.ThreadLocalSpecifierAST, context: Context): void {
+    }
+
+    visitThreadSpecifier(node: ast.ThreadSpecifierAST, context: Context): void {
+    }
+
+    visitMutableSpecifier(node: ast.MutableSpecifierAST, context: Context): void {
+    }
+
     visitSimpleSpecifier(node: ast.SimpleSpecifierAST, context: Context): void {
     }
 

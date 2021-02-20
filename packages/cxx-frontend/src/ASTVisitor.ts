@@ -115,6 +115,17 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitOperatorName(node: ast.OperatorNameAST, context: Context): Result;
     abstract visitTemplateName(node: ast.TemplateNameAST, context: Context): Result;
     abstract visitQualifiedName(node: ast.QualifiedNameAST, context: Context): Result;
+    abstract visitTypedefSpecifier(node: ast.TypedefSpecifierAST, context: Context): Result;
+    abstract visitFriendSpecifier(node: ast.FriendSpecifierAST, context: Context): Result;
+    abstract visitConstevalSpecifier(node: ast.ConstevalSpecifierAST, context: Context): Result;
+    abstract visitConstinitSpecifier(node: ast.ConstinitSpecifierAST, context: Context): Result;
+    abstract visitConstexprSpecifier(node: ast.ConstexprSpecifierAST, context: Context): Result;
+    abstract visitInlineSpecifier(node: ast.InlineSpecifierAST, context: Context): Result;
+    abstract visitStaticSpecifier(node: ast.StaticSpecifierAST, context: Context): Result;
+    abstract visitExternSpecifier(node: ast.ExternSpecifierAST, context: Context): Result;
+    abstract visitThreadLocalSpecifier(node: ast.ThreadLocalSpecifierAST, context: Context): Result;
+    abstract visitThreadSpecifier(node: ast.ThreadSpecifierAST, context: Context): Result;
+    abstract visitMutableSpecifier(node: ast.MutableSpecifierAST, context: Context): Result;
     abstract visitSimpleSpecifier(node: ast.SimpleSpecifierAST, context: Context): Result;
     abstract visitExplicitSpecifier(node: ast.ExplicitSpecifierAST, context: Context): Result;
     abstract visitNamedTypeSpecifier(node: ast.NamedTypeSpecifierAST, context: Context): Result;

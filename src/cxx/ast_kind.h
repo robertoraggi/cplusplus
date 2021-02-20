@@ -134,6 +134,17 @@ enum struct ASTKind {
   QualifiedName,
 
   // SpecifierAST
+  TypedefSpecifier,
+  FriendSpecifier,
+  ConstevalSpecifier,
+  ConstinitSpecifier,
+  ConstexprSpecifier,
+  InlineSpecifier,
+  StaticSpecifier,
+  ExternSpecifier,
+  ThreadLocalSpecifier,
+  ThreadSpecifier,
+  MutableSpecifier,
   SimpleSpecifier,
   ExplicitSpecifier,
   NamedTypeSpecifier,

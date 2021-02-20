@@ -129,6 +129,17 @@ struct ASTCloner : ASTVisitor {
   void visit(TemplateNameAST* ast) override;
   void visit(QualifiedNameAST* ast) override;
 
+  void visit(TypedefSpecifierAST* ast) override;
+  void visit(FriendSpecifierAST* ast) override;
+  void visit(ConstevalSpecifierAST* ast) override;
+  void visit(ConstinitSpecifierAST* ast) override;
+  void visit(ConstexprSpecifierAST* ast) override;
+  void visit(InlineSpecifierAST* ast) override;
+  void visit(StaticSpecifierAST* ast) override;
+  void visit(ExternSpecifierAST* ast) override;
+  void visit(ThreadLocalSpecifierAST* ast) override;
+  void visit(ThreadSpecifierAST* ast) override;
+  void visit(MutableSpecifierAST* ast) override;
   void visit(SimpleSpecifierAST* ast) override;
   void visit(ExplicitSpecifierAST* ast) override;
   void visit(NamedTypeSpecifierAST* ast) override;

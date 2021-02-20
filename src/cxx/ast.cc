@@ -1312,6 +1312,116 @@ SourceLocation QualifiedNameAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation TypedefSpecifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(typedefLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation TypedefSpecifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(typedefLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation FriendSpecifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(friendLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation FriendSpecifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(friendLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ConstevalSpecifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(constevalLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ConstevalSpecifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(constevalLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ConstinitSpecifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(constinitLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ConstinitSpecifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(constinitLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ConstexprSpecifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(constexprLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ConstexprSpecifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(constexprLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation InlineSpecifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(inlineLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation InlineSpecifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(inlineLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation StaticSpecifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(staticLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation StaticSpecifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(staticLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ExternSpecifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(externLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ExternSpecifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(externLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ThreadLocalSpecifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(threadLocalLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ThreadLocalSpecifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(threadLocalLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ThreadSpecifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(threadLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ThreadSpecifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(threadLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation MutableSpecifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(mutableLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation MutableSpecifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(mutableLoc)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation SimpleSpecifierAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(specifierLoc)) return loc;
   return SourceLocation();

@@ -3021,17 +3021,47 @@ bool Parser::parse_attribute_declaration(DeclarationAST*& yyast) {
 
 bool Parser::parse_decl_specifier(SpecifierAST*& yyast, DeclSpecs& specs) {
   switch (TokenKind(LA())) {
-    case TokenKind::T_FRIEND:
-    case TokenKind::T_TYPEDEF:
-    case TokenKind::T_CONSTEXPR:
-    case TokenKind::T_CONSTEVAL:
-    case TokenKind::T_CONSTINIT:
+    case TokenKind::T_TYPEDEF: {
+      auto ast = new (pool) TypedefSpecifierAST();
+      yyast = ast;
+      ast->typedefLoc = consumeToken();
+      return true;
+    }
+
+    case TokenKind::T_FRIEND: {
+      auto ast = new (pool) FriendSpecifierAST();
+      yyast = ast;
+      ast->friendLoc = consumeToken();
+      return true;
+    }
+
+    case TokenKind::T_CONSTEXPR: {
+      auto ast = new (pool) ConstexprSpecifierAST();
+      yyast = ast;
+      ast->constexprLoc = consumeToken();
+      return true;
+    }
+
+    case TokenKind::T_CONSTEVAL: {
+      auto ast = new (pool) ConstevalSpecifierAST();
+      yyast = ast;
+      ast->constevalLoc = consumeToken();
+      return true;
+    }
+
+    case TokenKind::T_CONSTINIT: {
+      auto ast = new (pool) ConstinitSpecifierAST();
+      yyast = ast;
+      ast->constinitLoc = consumeToken();
+      return true;
+    }
+
     case TokenKind::T_INLINE:
     case TokenKind::T___INLINE:
     case TokenKind::T___INLINE__: {
-      auto ast = new (pool) SimpleSpecifierAST();
+      auto ast = new (pool) InlineSpecifierAST();
       yyast = ast;
-      ast->specifierLoc = consumeToken();
+      ast->inlineLoc = consumeToken();
       return true;
     }
 
@@ -3114,21 +3144,36 @@ bool Parser::parse_decl_specifier_seq_no_typespecs(List<SpecifierAST*>*& yyast,
 }
 
 bool Parser::parse_storage_class_specifier(SpecifierAST*& yyast) {
-  switch (TokenKind(LA())) {
-    case TokenKind::T_STATIC:
-    case TokenKind::T_THREAD_LOCAL:
-    case TokenKind::T_EXTERN:
-    case TokenKind::T_MUTABLE:
-    case TokenKind::T___THREAD: {
-      auto ast = new (pool) SimpleSpecifierAST();
-      yyast = ast;
-      ast->specifierLoc = consumeToken();
-      return true;
-    }
+  SourceLocation loc;
 
-    default:
-      return false;
-  }  // switch
+  if (match(TokenKind::T_STATIC)) {
+    auto ast = new (pool) StaticSpecifierAST();
+    yyast = ast;
+    ast->staticLoc = loc;
+    return true;
+  } else if (match(TokenKind::T_THREAD_LOCAL)) {
+    auto ast = new (pool) ThreadLocalSpecifierAST();
+    yyast = ast;
+    ast->threadLocalLoc = loc;
+    return true;
+  } else if (match(TokenKind::T_EXTERN)) {
+    auto ast = new (pool) ExternSpecifierAST();
+    yyast = ast;
+    ast->externLoc = loc;
+    return true;
+  } else if (match(TokenKind::T_MUTABLE)) {
+    auto ast = new (pool) MutableSpecifierAST();
+    yyast = ast;
+    ast->mutableLoc = loc;
+    return true;
+  } else if (match(TokenKind::T___THREAD)) {
+    auto ast = new (pool) ThreadSpecifierAST();
+    yyast = ast;
+    ast->threadLoc = consumeToken();
+    return true;
+  }
+
+  return false;
 }
 
 bool Parser::parse_function_specifier(SpecifierAST*& yyast) {

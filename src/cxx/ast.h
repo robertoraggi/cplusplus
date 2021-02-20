@@ -1334,6 +1334,127 @@ struct QualifiedNameAST final : NameAST {
   SourceLocation lastSourceLocation() override;
 };
 
+struct TypedefSpecifierAST final : SpecifierAST {
+  TypedefSpecifierAST() : SpecifierAST(ASTKind::TypedefSpecifier) {}
+
+  SourceLocation typedefLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct FriendSpecifierAST final : SpecifierAST {
+  FriendSpecifierAST() : SpecifierAST(ASTKind::FriendSpecifier) {}
+
+  SourceLocation friendLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct ConstevalSpecifierAST final : SpecifierAST {
+  ConstevalSpecifierAST() : SpecifierAST(ASTKind::ConstevalSpecifier) {}
+
+  SourceLocation constevalLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct ConstinitSpecifierAST final : SpecifierAST {
+  ConstinitSpecifierAST() : SpecifierAST(ASTKind::ConstinitSpecifier) {}
+
+  SourceLocation constinitLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct ConstexprSpecifierAST final : SpecifierAST {
+  ConstexprSpecifierAST() : SpecifierAST(ASTKind::ConstexprSpecifier) {}
+
+  SourceLocation constexprLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct InlineSpecifierAST final : SpecifierAST {
+  InlineSpecifierAST() : SpecifierAST(ASTKind::InlineSpecifier) {}
+
+  SourceLocation inlineLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct StaticSpecifierAST final : SpecifierAST {
+  StaticSpecifierAST() : SpecifierAST(ASTKind::StaticSpecifier) {}
+
+  SourceLocation staticLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct ExternSpecifierAST final : SpecifierAST {
+  ExternSpecifierAST() : SpecifierAST(ASTKind::ExternSpecifier) {}
+
+  SourceLocation externLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct ThreadLocalSpecifierAST final : SpecifierAST {
+  ThreadLocalSpecifierAST() : SpecifierAST(ASTKind::ThreadLocalSpecifier) {}
+
+  SourceLocation threadLocalLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct ThreadSpecifierAST final : SpecifierAST {
+  ThreadSpecifierAST() : SpecifierAST(ASTKind::ThreadSpecifier) {}
+
+  SourceLocation threadLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct MutableSpecifierAST final : SpecifierAST {
+  MutableSpecifierAST() : SpecifierAST(ASTKind::MutableSpecifier) {}
+
+  SourceLocation mutableLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 struct SimpleSpecifierAST final : SpecifierAST {
   SimpleSpecifierAST() : SpecifierAST(ASTKind::SimpleSpecifier) {}
 

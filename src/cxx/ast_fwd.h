@@ -151,6 +151,17 @@ struct TemplateNameAST;
 struct QualifiedNameAST;
 
 // SpecifierAST
+struct TypedefSpecifierAST;
+struct FriendSpecifierAST;
+struct ConstevalSpecifierAST;
+struct ConstinitSpecifierAST;
+struct ConstexprSpecifierAST;
+struct InlineSpecifierAST;
+struct StaticSpecifierAST;
+struct ExternSpecifierAST;
+struct ThreadLocalSpecifierAST;
+struct ThreadSpecifierAST;
+struct MutableSpecifierAST;
 struct SimpleSpecifierAST;
 struct ExplicitSpecifierAST;
 struct NamedTypeSpecifierAST;
