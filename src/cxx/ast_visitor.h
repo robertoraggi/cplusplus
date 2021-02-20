@@ -148,6 +148,7 @@ struct ASTVisitor {
   virtual void visit(ThreadLocalSpecifierAST* ast) = 0;
   virtual void visit(ThreadSpecifierAST* ast) = 0;
   virtual void visit(MutableSpecifierAST* ast) = 0;
+  virtual void visit(VirtualSpecifierAST* ast) = 0;
   virtual void visit(SimpleSpecifierAST* ast) = 0;
   virtual void visit(ExplicitSpecifierAST* ast) = 0;
   virtual void visit(AutoTypeSpecifierAST* ast) = 0;

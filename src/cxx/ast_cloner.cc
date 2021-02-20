@@ -1430,6 +1430,13 @@ void ASTCloner::visit(MutableSpecifierAST* ast) {
   copy->mutableLoc = ast->mutableLoc;
 }
 
+void ASTCloner::visit(VirtualSpecifierAST* ast) {
+  auto copy = new (arena_) VirtualSpecifierAST();
+  copy_ = copy;
+
+  copy->virtualLoc = ast->virtualLoc;
+}
+
 void ASTCloner::visit(SimpleSpecifierAST* ast) {
   auto copy = new (arena_) SimpleSpecifierAST();
   copy_ = copy;

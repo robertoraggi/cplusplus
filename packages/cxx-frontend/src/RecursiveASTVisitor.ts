@@ -547,6 +547,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     visitMutableSpecifier(node: ast.MutableSpecifierAST, context: Context): void {
     }
 
+    visitVirtualSpecifier(node: ast.VirtualSpecifierAST, context: Context): void {
+    }
+
     visitSimpleSpecifier(node: ast.SimpleSpecifierAST, context: Context): void {
     }
 

@@ -3146,27 +3146,27 @@ bool Parser::parse_decl_specifier_seq_no_typespecs(List<SpecifierAST*>*& yyast,
 bool Parser::parse_storage_class_specifier(SpecifierAST*& yyast) {
   SourceLocation loc;
 
-  if (match(TokenKind::T_STATIC)) {
+  if (match(TokenKind::T_STATIC, loc)) {
     auto ast = new (pool) StaticSpecifierAST();
     yyast = ast;
     ast->staticLoc = loc;
     return true;
-  } else if (match(TokenKind::T_THREAD_LOCAL)) {
+  } else if (match(TokenKind::T_THREAD_LOCAL, loc)) {
     auto ast = new (pool) ThreadLocalSpecifierAST();
     yyast = ast;
     ast->threadLocalLoc = loc;
     return true;
-  } else if (match(TokenKind::T_EXTERN)) {
+  } else if (match(TokenKind::T_EXTERN, loc)) {
     auto ast = new (pool) ExternSpecifierAST();
     yyast = ast;
     ast->externLoc = loc;
     return true;
-  } else if (match(TokenKind::T_MUTABLE)) {
+  } else if (match(TokenKind::T_MUTABLE, loc)) {
     auto ast = new (pool) MutableSpecifierAST();
     yyast = ast;
     ast->mutableLoc = loc;
     return true;
-  } else if (match(TokenKind::T___THREAD)) {
+  } else if (match(TokenKind::T___THREAD, loc)) {
     auto ast = new (pool) ThreadSpecifierAST();
     yyast = ast;
     ast->threadLoc = consumeToken();
@@ -3178,11 +3178,11 @@ bool Parser::parse_storage_class_specifier(SpecifierAST*& yyast) {
 
 bool Parser::parse_function_specifier(SpecifierAST*& yyast) {
   SourceLocation virtualLoc;
-  if (match(TokenKind::T_VIRTUAL)) {
-    auto ast = new (pool) SimpleSpecifierAST();
-    yyast = ast;
-    ast->specifierLoc = virtualLoc;
 
+  if (match(TokenKind::T_VIRTUAL, virtualLoc)) {
+    auto ast = new (pool) VirtualSpecifierAST();
+    yyast = ast;
+    ast->virtualLoc = virtualLoc;
     return true;
   }
 

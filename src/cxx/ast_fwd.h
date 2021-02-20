@@ -162,6 +162,7 @@ struct ExternSpecifierAST;
 struct ThreadLocalSpecifierAST;
 struct ThreadSpecifierAST;
 struct MutableSpecifierAST;
+struct VirtualSpecifierAST;
 struct SimpleSpecifierAST;
 struct ExplicitSpecifierAST;
 struct AutoTypeSpecifierAST;

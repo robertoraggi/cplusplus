@@ -150,6 +150,7 @@ class ASTPrinter : ASTVisitor {
   void visit(ThreadLocalSpecifierAST* ast) override;
   void visit(ThreadSpecifierAST* ast) override;
   void visit(MutableSpecifierAST* ast) override;
+  void visit(VirtualSpecifierAST* ast) override;
   void visit(SimpleSpecifierAST* ast) override;
   void visit(ExplicitSpecifierAST* ast) override;
   void visit(AutoTypeSpecifierAST* ast) override;
