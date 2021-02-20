@@ -34,6 +34,8 @@
   V(INTEGER_LITERAL, "integer_literal")                               \
   V(STRING_LITERAL, "string_literal")                                 \
   V(USER_DEFINED_STRING_LITERAL, "user_defined_string_literal")       \
+  V(HASH, "#")                                                        \
+  V(HASH_HASH, "##")                                                  \
   V(EXCLAIM, "!")                                                     \
   V(EXCLAIM_EQUAL, "!=")                                              \
   V(PERCENT, "%")                                                     \

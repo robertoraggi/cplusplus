@@ -46,10 +46,26 @@ class DiagnosticClient {
 };
 
 class TranslationUnit {
+  struct LineDirective {
+    int offset;
+    Token line;
+    Token file;
+
+    explicit LineDirective(int offset = 0) noexcept : offset(offset) {}
+
+    LineDirective(int offset, const Token& line, const Token& file)
+        : offset(offset), line(line), file(file) {}
+
+    bool operator<(const LineDirective& other) const {
+      return offset < other.offset;
+    }
+  };
+
   Control* control_;
   Arena* arena_;
   std::vector<Token> tokens_;
   std::vector<int> lines_;
+  std::vector<LineDirective> lineDirectives_;
   std::string fileName_;
   std::string text_;
   std::string code_;
@@ -166,17 +182,17 @@ class TranslationUnit {
   const std::string& tokenText(SourceLocation loc) const;
 
   void getTokenStartPosition(SourceLocation loc, unsigned* line,
-                             unsigned* column) const;
+                             unsigned* column = nullptr) const;
 
   void getTokenEndPosition(SourceLocation loc, unsigned* line,
-                           unsigned* column) const;
+                           unsigned* column = nullptr) const;
 
   void getTokenPosition(unsigned offset, unsigned* line,
-                        unsigned* column) const;
+                        unsigned* column = nullptr) const;
 
   const Identifier* identifier(SourceLocation loc) const;
 
-  void tokenize();
+  void tokenize(bool preprocessing = false);
 
   bool parse();
 

@@ -80,12 +80,19 @@ void TranslationUnit::getTokenPosition(unsigned offset, unsigned* line,
                                        unsigned* column) const {
   auto it = std::lower_bound(lines_.cbegin(), lines_.cend(), int(offset));
   assert(it != cbegin(lines_));
+
   --it;
+
   assert(*it <= int(offset));
-  *line = int(std::distance(cbegin(lines_), it) + 1);
-  auto start = cbegin(source()) + *it;
-  auto end = cbegin(source()) + offset;
-  *column = utf8::distance(start, end);
+
+  if (line) *line = int(std::distance(cbegin(lines_), it) + 1);
+
+  if (column) {
+    const auto start = cbegin(source()) + *it;
+    const auto end = cbegin(source()) + offset;
+
+    *column = utf8::distance(start, end);
+  }
 }
 
 void TranslationUnit::getTokenStartPosition(SourceLocation loc, unsigned* line,
@@ -101,13 +108,52 @@ void TranslationUnit::getTokenEndPosition(SourceLocation loc, unsigned* line,
   getTokenPosition(offset, line, column);
 }
 
-void TranslationUnit::tokenize() {
+void TranslationUnit::tokenize(bool preprocessing) {
   Lexer lexer(code_);
+
+  lexer.setPreprocessing(preprocessing);
+
+  std::vector<Token> directiveTokens;
+
   TokenKind kind;
+
   tokens_.emplace_back(TokenKind::T_ERROR);
+
   do {
-    kind = lexer.next();
+    lexer.next();
+
+    while (lexer.tokenStartOfLine() && lexer.tokenKind() == TokenKind::T_HASH) {
+      const auto directiveOffset = lexer.tokenPos();
+
+      lexer.next();
+
+      directiveTokens.clear();
+
+      while (!lexer.tokenStartOfLine() &&
+             lexer.tokenKind() != TokenKind::T_EOF_SYMBOL) {
+        directiveTokens.emplace_back(lexer.tokenKind(), lexer.tokenPos(),
+                                     lexer.tokenLength());
+        lexer.next();
+      }
+
+      directiveTokens.emplace_back(TokenKind::T_EOF_SYMBOL, lexer.tokenPos());
+
+      if (directiveTokens[0].is(TokenKind::T_INTEGER_LITERAL) &&
+          directiveTokens[1].is(TokenKind::T_STRING_LITERAL)) {
+        const auto& line = directiveTokens[0];
+        const auto& file = directiveTokens[1];
+
+        unsigned currentLine = 0;
+        getTokenPosition(directiveOffset, &currentLine);
+
+        lineDirectives_.emplace_back(directiveOffset, line, file);
+      }
+    }
+
+    kind = lexer.tokenKind();
+
     TokenValue value;
+
     switch (kind) {
       case TokenKind::T_IDENTIFIER:
       case TokenKind::T_STRING_LITERAL:

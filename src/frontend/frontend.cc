@@ -72,26 +72,33 @@ bool parseFile(const std::string& fileName, bool printAST) {
 }
 
 void dumpTokens(const std::string& fileName) {
-  const auto source = readAll(fileName);
-  Lexer lexer(source);
-  lexer.setPreprocessing(true);
+  Control control;
 
-  do {
-    lexer.next();
+  TranslationUnit unit(&control);
 
-    std::string flags;
+  unit.setSource(readAll(fileName));
+  unit.setFileName(std::move(fileName));
+  unit.tokenize(/*preprocessing=*/true);
 
-    if (lexer.tokenStartOfLine()) {
+  std::string flags;
+
+  for (SourceLocation loc(1);; loc = loc.next()) {
+    const auto& tk = unit.tokenAt(loc);
+
+    flags.clear();
+
+    if (tk.startOfLine()) {
       flags += " [start-of-line]";
     }
 
-    if (lexer.tokenLeadingSpace()) {
+    if (tk.leadingSpace()) {
       flags += " [leading-space]";
     }
 
-    fmt::print("{} '{}'{}\n", Token::name(lexer.tokenKind()), lexer.tokenText(),
-               flags);
-  } while (lexer.tokenKind() != TokenKind::T_EOF_SYMBOL);
+    fmt::print("{} '{}'{}\n", tk.name(), tk.spell(), flags);
+
+    if (tk.is(TokenKind::T_EOF_SYMBOL)) break;
+  }
 }
 
 }  // namespace cxx

@@ -239,6 +239,13 @@ TokenKind Lexer::readToken() {
   consume();
 
   switch (ch) {
+    case '#':
+      if (pos_ != end_ && LA() == '#') {
+        consume();
+        return TokenKind::T_HASH_HASH;
+      }
+      return TokenKind::T_HASH;
+
     case '=':
       if (pos_ != end_ && LA() == '=') {
         consume();
