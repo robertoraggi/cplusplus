@@ -80,6 +80,11 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         }
     }
 
+    visitInitDeclarator(node: ast.InitDeclaratorAST, context: Context): void {
+        this.accept(node.getDeclarator(), context);
+        this.accept(node.getInitializer(), context);
+    }
+
     visitBaseSpecifier(node: ast.BaseSpecifierAST, context: Context): void {
         for (const element of node.getAttributeList()) {
              this.accept(element, context);
@@ -387,7 +392,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         for (const element of node.getDeclSpecifierList()) {
              this.accept(element, context);
         }
-        for (const element of node.getDeclaratorList()) {
+        for (const element of node.getInitDeclaratorList()) {
              this.accept(element, context);
         }
     }

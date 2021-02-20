@@ -33,6 +33,7 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitEnumBase(node: ast.EnumBaseAST, context: Context): Result;
     abstract visitEnumerator(node: ast.EnumeratorAST, context: Context): Result;
     abstract visitDeclarator(node: ast.DeclaratorAST, context: Context): Result;
+    abstract visitInitDeclarator(node: ast.InitDeclaratorAST, context: Context): Result;
     abstract visitBaseSpecifier(node: ast.BaseSpecifierAST, context: Context): Result;
     abstract visitBaseClause(node: ast.BaseClauseAST, context: Context): Result;
     abstract visitNewTypeId(node: ast.NewTypeIdAST, context: Context): Result;

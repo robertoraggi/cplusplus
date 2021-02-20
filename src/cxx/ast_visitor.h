@@ -36,6 +36,7 @@ struct ASTVisitor {
   virtual void visit(EnumBaseAST* ast) = 0;
   virtual void visit(EnumeratorAST* ast) = 0;
   virtual void visit(DeclaratorAST* ast) = 0;
+  virtual void visit(InitDeclaratorAST* ast) = 0;
   virtual void visit(BaseSpecifierAST* ast) = 0;
   virtual void visit(BaseClauseAST* ast) = 0;
   virtual void visit(NewTypeIdAST* ast) = 0;

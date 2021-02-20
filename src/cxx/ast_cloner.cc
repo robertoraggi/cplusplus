@@ -154,6 +154,15 @@ void ASTCloner::visit(DeclaratorAST* ast) {
   }
 }
 
+void ASTCloner::visit(InitDeclaratorAST* ast) {
+  auto copy = new (arena_) InitDeclaratorAST();
+  copy_ = copy;
+
+  copy->declarator = accept(ast->declarator);
+
+  copy->initializer = accept(ast->initializer);
+}
+
 void ASTCloner::visit(BaseSpecifierAST* ast) {
   auto copy = new (arena_) BaseSpecifierAST();
   copy_ = copy;
@@ -986,8 +995,8 @@ void ASTCloner::visit(SimpleDeclarationAST* ast) {
     }
   }
 
-  if (auto it = ast->declaratorList) {
-    auto out = &copy->declaratorList;
+  if (auto it = ast->initDeclaratorList) {
+    auto out = &copy->initDeclaratorList;
 
     for (; it; it = it->next) {
       *out = new (arena_) List(accept(it->value));

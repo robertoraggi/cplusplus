@@ -241,6 +241,18 @@ struct DeclaratorAST final : AST {
   SourceLocation lastSourceLocation() override;
 };
 
+struct InitDeclaratorAST final : AST {
+  InitDeclaratorAST() : AST(ASTKind::InitDeclarator) {}
+
+  DeclaratorAST* declarator = nullptr;
+  InitializerAST* initializer = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 struct BaseSpecifierAST final : AST {
   BaseSpecifierAST() : AST(ASTKind::BaseSpecifier) {}
 
@@ -1026,7 +1038,7 @@ struct SimpleDeclarationAST final : DeclarationAST {
 
   List<AttributeAST*>* attributes = nullptr;
   List<SpecifierAST*>* declSpecifierList = nullptr;
-  List<DeclaratorAST*>* declaratorList = nullptr;
+  List<InitDeclaratorAST*>* initDeclaratorList = nullptr;
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }

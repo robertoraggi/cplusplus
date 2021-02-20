@@ -215,6 +215,18 @@ export class DeclaratorAST extends AST {
     }
 }
 
+export class InitDeclaratorAST extends AST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitInitDeclarator(this, context);
+    }
+    getDeclarator(): DeclaratorAST | undefined {
+        return AST.from<DeclaratorAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getInitializer(): InitializerAST | undefined {
+        return AST.from<InitializerAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+}
+
 export class BaseSpecifierAST extends AST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitBaseSpecifier(this, context);
@@ -1172,9 +1184,9 @@ export class SimpleDeclarationAST extends DeclarationAST {
             yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
         }
     }
-    *getDeclaratorList(): Generator<DeclaratorAST | undefined> {
+    *getInitDeclaratorList(): Generator<InitDeclaratorAST | undefined> {
         for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
-            yield AST.from<DeclaratorAST>(cxx.getListValue(it), this.parser);
+            yield AST.from<InitDeclaratorAST>(cxx.getListValue(it), this.parser);
         }
     }
     getSemicolonToken(): Token | undefined {
@@ -2053,6 +2065,7 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     EnumBaseAST,
     EnumeratorAST,
     DeclaratorAST,
+    InitDeclaratorAST,
     BaseSpecifierAST,
     BaseClauseAST,
     NewTypeIdAST,

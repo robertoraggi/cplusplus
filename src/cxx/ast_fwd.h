@@ -50,6 +50,7 @@ struct TemplateArgumentAST;
 struct EnumBaseAST;
 struct EnumeratorAST;
 struct DeclaratorAST;
+struct InitDeclaratorAST;
 struct BaseSpecifierAST;
 struct BaseClauseAST;
 struct NewTypeIdAST;

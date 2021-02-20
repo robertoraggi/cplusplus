@@ -130,6 +130,18 @@ SourceLocation DeclaratorAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation InitDeclaratorAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(declarator)) return loc;
+  if (auto loc = cxx::firstSourceLocation(initializer)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation InitDeclaratorAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(initializer)) return loc;
+  if (auto loc = cxx::lastSourceLocation(declarator)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation BaseSpecifierAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(name)) return loc;
@@ -973,14 +985,14 @@ SourceLocation AliasDeclarationAST::lastSourceLocation() {
 SourceLocation SimpleDeclarationAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(attributes)) return loc;
   if (auto loc = cxx::firstSourceLocation(declSpecifierList)) return loc;
-  if (auto loc = cxx::firstSourceLocation(declaratorList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(initDeclaratorList)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
   return SourceLocation();
 }
 
 SourceLocation SimpleDeclarationAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(declaratorList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(initDeclaratorList)) return loc;
   if (auto loc = cxx::lastSourceLocation(declSpecifierList)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributes)) return loc;
   return SourceLocation();

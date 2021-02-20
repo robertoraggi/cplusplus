@@ -314,6 +314,39 @@ void ASTPrinter::visit(DeclaratorAST* ast) {
   }
 }
 
+void ASTPrinter::visit(InitDeclaratorAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "InitDeclarator";
+
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
+
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
+
+      json_["$range"] = range;
+    }
+  }
+
+  if (ast->declarator) {
+    json_["declarator"] = accept(ast->declarator);
+  }
+
+  if (ast->initializer) {
+    json_["initializer"] = accept(ast->initializer);
+  }
+}
+
 void ASTPrinter::visit(BaseSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
@@ -2267,12 +2300,12 @@ void ASTPrinter::visit(SimpleDeclarationAST* ast) {
     json_["declSpecifierList"] = elements;
   }
 
-  if (ast->declaratorList) {
+  if (ast->initDeclaratorList) {
     auto elements = nlohmann::json::array();
-    for (auto it = ast->declaratorList; it; it = it->next) {
+    for (auto it = ast->initDeclaratorList; it; it = it->next) {
       elements.push_back(accept(it->value));
     }
-    json_["declaratorList"] = elements;
+    json_["initDeclaratorList"] = elements;
   }
 }
 

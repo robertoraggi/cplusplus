@@ -139,6 +139,17 @@ void ASTSlot::visit(DeclaratorAST* ast) {
   }  // switch
 }
 
+void ASTSlot::visit(InitDeclaratorAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = reinterpret_cast<std::intptr_t>(ast->declarator);
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->initializer);
+      break;
+  }  // switch
+}
+
 void ASTSlot::visit(BaseSpecifierAST* ast) {
   switch (slot_) {
     case 0:
@@ -993,7 +1004,7 @@ void ASTSlot::visit(SimpleDeclarationAST* ast) {
       value_ = reinterpret_cast<std::intptr_t>(ast->declSpecifierList);
       break;
     case 2:
-      value_ = reinterpret_cast<std::intptr_t>(ast->declaratorList);
+      value_ = reinterpret_cast<std::intptr_t>(ast->initDeclaratorList);
       break;
     case 3:
       value_ = ast->semicolonLoc.index();

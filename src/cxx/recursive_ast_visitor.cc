@@ -69,6 +69,11 @@ void RecursiveASTVisitor::visit(DeclaratorAST* ast) {
     declaratorModifier(it->value);
 }
 
+void RecursiveASTVisitor::visit(InitDeclaratorAST* ast) {
+  declarator(ast->declarator);
+  initializer(ast->initializer);
+}
+
 void RecursiveASTVisitor::visit(BaseSpecifierAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
   name(ast->name);
@@ -324,7 +329,8 @@ void RecursiveASTVisitor::visit(SimpleDeclarationAST* ast) {
   for (auto it = ast->attributes; it; it = it->next) attribute(it->value);
   for (auto it = ast->declSpecifierList; it; it = it->next)
     specifier(it->value);
-  for (auto it = ast->declaratorList; it; it = it->next) declarator(it->value);
+  for (auto it = ast->initDeclaratorList; it; it = it->next)
+    initDeclarator(it->value);
 }
 
 void RecursiveASTVisitor::visit(StaticAssertDeclarationAST* ast) {

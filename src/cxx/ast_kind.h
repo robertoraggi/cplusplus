@@ -33,6 +33,7 @@ enum struct ASTKind {
   EnumBase,
   Enumerator,
   Declarator,
+  InitDeclarator,
   BaseSpecifier,
   BaseClause,
   NewTypeId,

@@ -239,7 +239,7 @@ class Parser {
   bool parse_elaborated_enum_specifier(SpecifierAST*& yyast);
   bool parse_decltype_specifier(SpecifierAST*& yyast);
   bool parse_placeholder_type_specifier(SpecifierAST*& yyast);
-  bool parse_init_declarator(DeclaratorAST*& yyast);
+  bool parse_init_declarator(InitDeclaratorAST*& yyast);
   bool parse_declarator_initializer(InitializerAST*& yyast);
   bool parse_declarator(DeclaratorAST*& yyastl);
   bool parse_ptr_operator_seq(List<PtrOperatorAST*>*& yyast);

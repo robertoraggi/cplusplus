@@ -2901,23 +2901,26 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
     rewind(after_declarator);
   }
 
-  InitializerAST* initializer = nullptr;
+  InitDeclaratorAST* initDeclarator = new (pool) InitDeclaratorAST();
 
-  if (!parse_declarator_initializer(initializer)) rewind(after_declarator);
+  initDeclarator->declarator = declarator;
 
-  List<DeclaratorAST*>* declaratorList = nullptr;
+  if (!parse_declarator_initializer(initDeclarator->initializer))
+    rewind(after_declarator);
 
-  auto declIt = &declaratorList;
+  List<InitDeclaratorAST*>* initDeclaratorList = nullptr;
 
-  *declIt = new (pool) List(declarator);
+  auto declIt = &initDeclaratorList;
+
+  *declIt = new (pool) List(initDeclarator);
   declIt = &(*declIt)->next;
 
   while (match(TokenKind::T_COMMA)) {
-    DeclaratorAST* declarator = nullptr;
+    InitDeclaratorAST* initDeclarator = nullptr;
 
-    if (!parse_init_declarator(declarator)) return false;
+    if (!parse_init_declarator(initDeclarator)) return false;
 
-    *declIt = new (pool) List(declarator);
+    *declIt = new (pool) List(initDeclarator);
     declIt = &(*declIt)->next;
   }
 
@@ -2927,7 +2930,7 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
   yyast = ast;
 
   ast->declSpecifierList = declSpecifierList;
-  ast->declaratorList = declaratorList;
+  ast->initDeclaratorList = initDeclaratorList;
   ast->semicolonLoc = semicolonLoc;
 
   return true;
@@ -3725,14 +3728,22 @@ bool Parser::parse_placeholder_type_specifier(SpecifierAST*& yyast) {
   return false;
 }
 
-bool Parser::parse_init_declarator(DeclaratorAST*& yyast) {
-  if (!parse_declarator(yyast)) return false;
+bool Parser::parse_init_declarator(InitDeclaratorAST*& yyast) {
+  DeclaratorAST* declarator = nullptr;
+
+  if (!parse_declarator(declarator)) return false;
 
   const auto saved = currentLocation();
 
   InitializerAST* initializer = nullptr;
 
   if (!parse_declarator_initializer(initializer)) rewind(saved);
+
+  auto ast = new (pool) InitDeclaratorAST();
+  yyast = ast;
+
+  ast->declarator = declarator;
+  ast->initializer = initializer;
 
   return true;
 }

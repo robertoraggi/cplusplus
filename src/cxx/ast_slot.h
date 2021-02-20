@@ -39,6 +39,7 @@ class ASTSlot final : ASTVisitor {
   void visit(EnumBaseAST* ast) override;
   void visit(EnumeratorAST* ast) override;
   void visit(DeclaratorAST* ast) override;
+  void visit(InitDeclaratorAST* ast) override;
   void visit(BaseSpecifierAST* ast) override;
   void visit(BaseClauseAST* ast) override;
   void visit(NewTypeIdAST* ast) override;
