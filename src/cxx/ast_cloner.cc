@@ -1437,13 +1437,6 @@ void ASTCloner::visit(VirtualSpecifierAST* ast) {
   copy->virtualLoc = ast->virtualLoc;
 }
 
-void ASTCloner::visit(SimpleSpecifierAST* ast) {
-  auto copy = new (arena_) SimpleSpecifierAST();
-  copy_ = copy;
-
-  copy->specifierLoc = ast->specifierLoc;
-}
-
 void ASTCloner::visit(ExplicitSpecifierAST* ast) {
   auto copy = new (arena_) ExplicitSpecifierAST();
   copy_ = copy;

@@ -1644,15 +1644,6 @@ export class VirtualSpecifierAST extends SpecifierAST {
     }
 }
 
-export class SimpleSpecifierAST extends SpecifierAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitSimpleSpecifier(this, context);
-    }
-    getSpecifierToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-}
-
 export class ExplicitSpecifierAST extends SpecifierAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitExplicitSpecifier(this, context);
@@ -2124,7 +2115,6 @@ const AST_CONSTRUCTORS: Array<new (handle: number, parser: Parser) => AST> = [
     ThreadSpecifierAST,
     MutableSpecifierAST,
     VirtualSpecifierAST,
-    SimpleSpecifierAST,
     ExplicitSpecifierAST,
     AutoTypeSpecifierAST,
     VoidTypeSpecifierAST,

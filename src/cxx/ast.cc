@@ -1432,16 +1432,6 @@ SourceLocation VirtualSpecifierAST::lastSourceLocation() {
   return SourceLocation();
 }
 
-SourceLocation SimpleSpecifierAST::firstSourceLocation() {
-  if (auto loc = cxx::firstSourceLocation(specifierLoc)) return loc;
-  return SourceLocation();
-}
-
-SourceLocation SimpleSpecifierAST::lastSourceLocation() {
-  if (auto loc = cxx::lastSourceLocation(specifierLoc)) return loc;
-  return SourceLocation();
-}
-
 SourceLocation ExplicitSpecifierAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(explicitLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;

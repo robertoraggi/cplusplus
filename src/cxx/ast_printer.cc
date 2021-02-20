@@ -3813,36 +3813,6 @@ void ASTPrinter::visit(VirtualSpecifierAST* ast) {
   }
 }
 
-void ASTPrinter::visit(SimpleSpecifierAST* ast) {
-  json_ = nlohmann::json::object();
-
-#ifdef WITH_CXXABI
-  char name[1024];
-  std::size_t nameSize = sizeof(name);
-  abi::__cxa_demangle(typeid(*ast).name(), name, &nameSize, nullptr);
-  json_["$id"] = name;
-#else
-  json_["$id"] = typeid(*ast).name();
-#endif
-
-  auto [startLoc, endLoc] = ast->sourceLocationRange();
-  if (startLoc && endLoc) {
-    unsigned startLine = 0, startColumn = 0;
-    unsigned endLine = 0, endColumn = 0;
-
-    unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
-    unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
-
-    auto range = nlohmann::json::object();
-    range["startLine"] = startLine;
-    range["startColumn"] = startColumn;
-    range["endLine"] = endLine;
-    range["endColumn"] = endColumn;
-
-    json_["$range"] = range;
-  }
-}
-
 void ASTPrinter::visit(ExplicitSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 

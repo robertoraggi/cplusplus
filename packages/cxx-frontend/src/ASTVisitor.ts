@@ -127,7 +127,6 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitThreadSpecifier(node: ast.ThreadSpecifierAST, context: Context): Result;
     abstract visitMutableSpecifier(node: ast.MutableSpecifierAST, context: Context): Result;
     abstract visitVirtualSpecifier(node: ast.VirtualSpecifierAST, context: Context): Result;
-    abstract visitSimpleSpecifier(node: ast.SimpleSpecifierAST, context: Context): Result;
     abstract visitExplicitSpecifier(node: ast.ExplicitSpecifierAST, context: Context): Result;
     abstract visitAutoTypeSpecifier(node: ast.AutoTypeSpecifierAST, context: Context): Result;
     abstract visitVoidTypeSpecifier(node: ast.VoidTypeSpecifierAST, context: Context): Result;

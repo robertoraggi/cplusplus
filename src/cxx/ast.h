@@ -1466,17 +1466,6 @@ struct VirtualSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct SimpleSpecifierAST final : SpecifierAST {
-  SimpleSpecifierAST() : SpecifierAST(ASTKind::SimpleSpecifier) {}
-
-  SourceLocation specifierLoc;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
-};
-
 struct ExplicitSpecifierAST final : SpecifierAST {
   ExplicitSpecifierAST() : SpecifierAST(ASTKind::ExplicitSpecifier) {}
 

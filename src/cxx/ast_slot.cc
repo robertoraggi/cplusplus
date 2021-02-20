@@ -1420,14 +1420,6 @@ void ASTSlot::visit(VirtualSpecifierAST* ast) {
   }  // switch
 }
 
-void ASTSlot::visit(SimpleSpecifierAST* ast) {
-  switch (slot_) {
-    case 0:
-      value_ = ast->specifierLoc.index();
-      break;
-  }  // switch
-}
-
 void ASTSlot::visit(ExplicitSpecifierAST* ast) {
   switch (slot_) {
     case 0:

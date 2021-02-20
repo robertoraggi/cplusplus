@@ -146,7 +146,6 @@ enum struct ASTKind {
   ThreadSpecifier,
   MutableSpecifier,
   VirtualSpecifier,
-  SimpleSpecifier,
   ExplicitSpecifier,
   AutoTypeSpecifier,
   VoidTypeSpecifier,

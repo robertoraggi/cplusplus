@@ -550,9 +550,6 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     visitVirtualSpecifier(node: ast.VirtualSpecifierAST, context: Context): void {
     }
 
-    visitSimpleSpecifier(node: ast.SimpleSpecifierAST, context: Context): void {
-    }
-
     visitExplicitSpecifier(node: ast.ExplicitSpecifierAST, context: Context): void {
         this.accept(node.getExpression(), context);
     }
