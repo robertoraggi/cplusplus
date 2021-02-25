@@ -30,6 +30,7 @@ class Lexer {
   const std::string_view source_;
   std::string_view::const_iterator pos_;
   std::string_view::const_iterator end_;
+  std::string text_;
   bool leadingSpace_ = false;
   bool startOfLine_ = true;
 

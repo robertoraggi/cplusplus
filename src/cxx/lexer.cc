@@ -55,37 +55,59 @@ const std::unordered_map<std::string_view, EncodingPrefix>
         {"U", EncodingPrefix::kUtf32},
     };
 
-}  // namespace
-
 inline bool is_idcont(int ch) {
   return ch == '_' || std::isalnum((unsigned char)ch);
 }
 
+template <typename It>
+inline uint32_t peekNext(It it, It end) {
+  while (it + 1 < end && *it == '\\' && it[1] == '\n') it += 2;
+  return it < end ? utf8::peek_next(it, end) : 0;
+}
+
+template <typename It>
+inline void readNext(It& it, It end) {
+  while (it + 1 < end && *it == '\\' && it[1] == '\n') it += 2;
+  if (it < end) utf8::next(it, end);
+}
+
+template <typename It>
+inline void advance(It& it, int n, It end) {
+  if (n > 0) {
+    while (it < end && n--) readNext(it, end);
+  } else {
+    throw std::runtime_error("offset not valid");
+  }
+}
+
+}  // namespace
+
 Lexer::Lexer(const std::string_view& source)
     : source_(source), pos_(cbegin(source_)), end_(cend(source_)) {
-  currentChar_ = pos_ < end_ ? utf8::peek_next(pos_, end_) : 0;
+  currentChar_ = pos_ < end_ ? peekNext(pos_, end_) : 0;
 }
 
 void Lexer::consume() {
-  utf8::next(pos_, end_);
-  currentChar_ = pos_ < end_ ? utf8::peek_next(pos_, end_) : 0;
+  readNext(pos_, end_);
+  currentChar_ = pos_ < end_ ? peekNext(pos_, end_) : 0;
 }
 
 void Lexer::consume(int n) {
-  utf8::advance(pos_, n, end_);
-  currentChar_ = pos_ < end_ ? utf8::peek_next(pos_, end_) : 0;
+  advance(pos_, n, end_);
+  currentChar_ = pos_ < end_ ? peekNext(pos_, end_) : 0;
 }
 
 uint32_t Lexer::LA(int n) const {
   auto it = pos_;
-  utf8::advance(it, n, end_);
-  return it < end_ ? utf8::peek_next(it, end_) : 0;
+  advance(it, n, end_);
+  return it < end_ ? peekNext(it, end_) : 0;
 }
 
 TokenKind Lexer::readToken() {
   const auto hasMoreChars = skipSpaces();
 
   tokenPos_ = pos_ - cbegin(source_);
+  text_.clear();
 
   if (!hasMoreChars) return TokenKind::T_EOF_SYMBOL;
 
@@ -121,16 +143,14 @@ TokenKind Lexer::readToken() {
 
   if (std::isalpha(ch) || ch == '_') {
     do {
+      text_ += (char)LA();
       consume();
     } while (pos_ != end_ && is_idcont(LA()));
-
-    const auto n = (pos_ - cbegin(source_)) - tokenPos_;
-    const auto id = source_.substr(tokenPos_, n);
 
     bool isStringOrCharacterLiteral = false;
 
     if (pos_ != end_ && LA() == '"') {
-      auto it = kStringLiteralPrefixes.find(id);
+      auto it = kStringLiteralPrefixes.find(text_);
       if (it != kStringLiteralPrefixes.end()) {
         auto [enc, raw] = it->second;
         encodingPrefix = enc;
@@ -138,14 +158,15 @@ TokenKind Lexer::readToken() {
         isStringOrCharacterLiteral = true;
       }
     } else if (pos_ != end_ && LA() == '\'') {
-      auto it = kCharacterLiteralPrefixes.find(id);
+      auto it = kCharacterLiteralPrefixes.find(text_);
       if (it != kCharacterLiteralPrefixes.end()) {
         encodingPrefix = it->second;
         isStringOrCharacterLiteral = true;
       }
     }
 
-    if (!isStringOrCharacterLiteral) return classify(id.data(), int(id.size()));
+    if (!isStringOrCharacterLiteral)
+      return classify(text_.c_str(), int(text_.length()));
   }
 
   if (LA() == '"') {

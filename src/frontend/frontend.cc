@@ -24,6 +24,7 @@
 #include <cxx/ast_visitor.h>
 #include <cxx/control.h>
 #include <cxx/lexer.h>
+#include <cxx/preprocessor.h>
 #include <cxx/recursive_ast_visitor.h>
 #include <cxx/translation_unit.h>
 
@@ -38,6 +39,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <string>
 
 namespace cxx {
@@ -112,6 +114,9 @@ int main(int argc, char* argv[]) {
   options.add_options()
       ("h,help", "Display this information")
       ("input", "Input Files", cxxopts::value<std::vector<std::string>>())
+      ("preprocess", "Preprocess")
+      ("preprocess-only", "Preprocess only")
+      ("dump-macros", "Dump the macros")
       ("dump-tokens", "Dump the tokens")
       ("dump-ast", "Dump the AST");
   // clang-format on
@@ -129,6 +134,8 @@ int main(int argc, char* argv[]) {
   const auto& inputFiles = result["input"].as<std::vector<std::string>>();
   const auto shouldDumpTokens = result["dump-tokens"].as<bool>();
   const auto shouldDumpAST = result["dump-ast"].as<bool>();
+  const auto shouldPreprocess =
+      result["preprocess"].as<bool>() || result["preprocess-only"].as<bool>();
 
   if (inputFiles.empty()) {
     std::cerr << "cxx-frontend: no input files" << std::endl
@@ -137,7 +144,23 @@ int main(int argc, char* argv[]) {
   }
 
   for (const auto& fileName : inputFiles) {
-    if (shouldDumpTokens)
+    if (shouldPreprocess) {
+      Preprocessor preprocess;
+
+      preprocess.addSystemIncludePaths();
+      preprocess.addPredefinedMacros();
+
+      const auto source = readAll(fileName);
+
+      std::ostringstream out;
+      preprocess(source, fileName, out);
+
+      if (result["dump-macros"].as<bool>()) {
+        preprocess.printMacros(std::cout);
+      } else if (!result["preprocess-only"].as<bool>()) {
+        fmt::print("{}\n", out.str());
+      }
+    } else if (shouldDumpTokens)
       dumpTokens(fileName);
     else
       parseFile(fileName, shouldDumpAST);
