@@ -166,7 +166,8 @@ TokenKind Lexer::readToken() {
     }
 
     if (!isStringOrCharacterLiteral)
-      return classify(text_.c_str(), int(text_.length()));
+      return !preprocessing_ ? classify(text_.c_str(), int(text_.length()))
+                             : TokenKind::T_IDENTIFIER;
   }
 
   if (LA() == '"') {

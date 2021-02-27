@@ -114,7 +114,7 @@ int main(int argc, char* argv[]) {
   options.add_options()
       ("h,help", "Display this information")
       ("input", "Input Files", cxxopts::value<std::vector<std::string>>())
-      ("preprocess", "Preprocess")
+      ("E,preprocess", "Preprocess")
       ("preprocess-only", "Preprocess only")
       ("dump-macros", "Dump the macros")
       ("dump-tokens", "Dump the tokens")

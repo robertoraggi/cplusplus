@@ -156,26 +156,32 @@ struct Preprocessor::Private {
   std::vector<bool> skipping_;
   Arena pool_;
 
-  std::tuple<bool, bool> state() const {
-    return std::tuple(skipping_.back(), evaluating_.back());
-  }
-
-  void setState(std::tuple<bool, bool> state) {
-    auto [skipping, evaluating] = state;
-    skipping_.push_back(skipping);
-    evaluating_.push_back(evaluating);
-  }
-
-  void popState() {
-    skipping_.pop_back();
-    evaluating_.pop_back();
-  }
-
   Private() {
     currentPath_ = fs::current_path();
 
     skipping_.push_back(false);
     evaluating_.push_back(true);
+  }
+
+  std::tuple<bool, bool> state() const {
+    return std::tuple(skipping_.back(), evaluating_.back());
+  }
+
+  void pushState(std::tuple<bool, bool> state) {
+    auto [skipping, evaluating] = state;
+    skipping_.push_back(skipping);
+    evaluating_.push_back(evaluating);
+  }
+
+  void setState(std::tuple<bool, bool> state) {
+    auto [skipping, evaluating] = state;
+    skipping_.back() = skipping;
+    evaluating_.back() = evaluating;
+  }
+
+  void popState() {
+    skipping_.pop_back();
+    evaluating_.pop_back();
   }
 
   bool match(const TokList *&ts, TokenKind k) const {
@@ -186,17 +192,12 @@ struct Preprocessor::Private {
     return false;
   }
 
-  bool match(const TokList *&ts, const std::string_view &s) const {
-    if (ts && ts->head->text == s) {
+  bool matchId(const TokList *&ts, const std::string_view &s) const {
+    if (ts && ts->head->is(TokenKind::T_IDENTIFIER) && ts->head->text == s) {
       ts = ts->tail;
       return true;
     }
     return false;
-  }
-
-  void expect(const TokList *&ts, const std::string_view &s) const {
-    if (!match(ts, s))
-      throw std::runtime_error(fmt::format("expected '{}'", s));
   }
 
   void expect(const TokList *&ts, TokenKind k) const {
@@ -205,8 +206,7 @@ struct Preprocessor::Private {
   }
 
   std::string_view expectId(const TokList *&ts) const {
-    auto ch = ts->head->text[0];
-    if (std::isalpha(ch) || ch == '_') {
+    if (ts && ts->head->is(TokenKind::T_IDENTIFIER)) {
       auto id = ts->head->text;
       ts = ts->tail;
       return id;
@@ -301,6 +301,8 @@ struct Preprocessor::Private {
 
   const TokList *expand(const TokList *ts);
 
+  const TokList *expandOne(const TokList *ts, TokList **&out);
+
   const TokList *substitude(const TokList *ts, const Macro *macro,
                             const std::vector<const TokList *> &actuals,
                             const Hideset *hideset, const TokList *os);
@@ -313,10 +315,19 @@ struct Preprocessor::Private {
 
   const TokList *instantiate(const TokList *ts, const Hideset *hideset);
 
-  const Macro *lookupMacro(const Tok *tk) const;
+  bool lookupMacro(const Tok *tk, const Macro *&macro) const;
 
   bool lookupFormal(const Macro *macro, const Tok *tk,
                     std::size_t &index) const;
+
+  const TokList *copyLine(const TokList *ts);
+
+  long constantExpression(const TokList *ts);
+  long conditionalExpression(const TokList *&ts);
+  long binaryExpression(const TokList *&ts);
+  long binaryExpressionHelper(const TokList *&ts, long lhs, int minPrec);
+  long unaryExpression(const TokList *&ts);
+  long primaryExpression(const TokList *&ts);
 
   std::tuple<std::vector<const TokList *>, const TokList *, const Hideset *>
   readArguments(const TokList *ts);
@@ -365,21 +376,16 @@ const TokList *Preprocessor::Private::expand(const TokList *ts) {
     const auto tk = ts->head;
     const auto start = ts;
 
+    const auto [skipping, evaluating] = state();
+
     if (tk->bol && match(ts, TokenKind::T_HASH)) {
-      if (match(ts, "define")) {
-        TokList *def = nullptr;
-        auto it = &def;
-        for (; ts && !ts->head->bol; ts = ts->tail) {
-          *it = new (&pool_) TokList(ts->head);
-          it = const_cast<TokList **>(&(*it)->tail);
-        }
-        defineMacro(def);
-      } else if (match(ts, "undef")) {
+      if (!skipping && matchId(ts, "define")) {
+        defineMacro(copyLine(ts));
+      } else if (!skipping && matchId(ts, "undef")) {
         auto name = expectId(ts);
         auto it = macros_.find(name);
         if (it != macros_.end()) macros_.erase(it);
-      } else if (match(ts, "include")) {
-        // ###
+      } else if (!skipping && matchId(ts, "include")) {
         std::optional<fs::path> path;
         std::string file;
         if (ts->head->text[0] == '"') {
@@ -408,87 +414,100 @@ const TokList *Preprocessor::Private::expand(const TokList *ts) {
           }
         }
         ts = tokens;
-      } else if (match(ts, "include_next")) {
+      } else if (!skipping && matchId(ts, "include_next")) {
         // ###
         std::ostringstream out;
         printLine(start, out);
         throw std::runtime_error(out.str());
-      } else if (match(ts, "ifdef")) {
+      } else if (matchId(ts, "ifdef")) {
+        const Macro *macro = nullptr;
+        const auto value = lookupMacro(ts->head, macro);
+        if (value)
+          pushState(std::tuple(skipping, false));
+        else
+          pushState(std::tuple(true, !skipping));
+      } else if (matchId(ts, "ifndef")) {
+        const Macro *macro = nullptr;
+        const auto value = !lookupMacro(ts->head, macro);
+        if (value)
+          pushState(std::tuple(skipping, false));
+        else
+          pushState(std::tuple(true, !skipping));
+      } else if (matchId(ts, "if")) {
+        const auto value = constantExpression(ts);
+        if (value)
+          pushState(std::tuple(skipping, false));
+        else
+          pushState(std::tuple(true, !skipping));
+      } else if (matchId(ts, "elif")) {
+        const auto value = constantExpression(ts);
+        if (value)
+          setState(std::tuple(!evaluating, false));
+        else
+          setState(std::tuple(true, evaluating));
+      } else if (matchId(ts, "else")) {
+        setState(std::tuple(!evaluating, false));
+      } else if (matchId(ts, "endif")) {
+        popState();
+      } else if (matchId(ts, "line")) {
         // ###
         std::ostringstream out;
         printLine(start, out);
         throw std::runtime_error(out.str());
-      } else if (match(ts, "ifndef")) {
+      } else if (matchId(ts, "pragma")) {
         // ###
         std::ostringstream out;
         printLine(start, out);
         throw std::runtime_error(out.str());
-      } else if (match(ts, "if")) {
+      } else if (!skipping && matchId(ts, "error")) {
         // ###
         std::ostringstream out;
         printLine(start, out);
         throw std::runtime_error(out.str());
-      } else if (match(ts, "elif")) {
-        // ###
-        std::ostringstream out;
-        printLine(start, out);
-        throw std::runtime_error(out.str());
-      } else if (match(ts, "else")) {
-        // ###
-        std::ostringstream out;
-        printLine(start, out);
-        throw std::runtime_error(out.str());
-      } else if (match(ts, "endif")) {
-        // ###
-        std::ostringstream out;
-        printLine(start, out);
-        throw std::runtime_error(out.str());
-      } else if (match(ts, "line")) {
-        // ###
-      } else if (match(ts, "pragma")) {
-        // ###
-        std::ostringstream out;
-        printLine(start, out);
-        throw std::runtime_error(out.str());
-      } else if (match(ts, "error")) {
-        // ###
-        std::ostringstream out;
-        printLine(start, out);
-        throw std::runtime_error(out.str());
-      } else if (match(ts, "warning")) {
+      } else if (!skipping && matchId(ts, "warning")) {
         // ###
         std::ostringstream out;
         printLine(start, out);
         throw std::runtime_error(out.str());
       }
       ts = skipLine(ts);
-    } else if (auto macro = lookupMacro(tk)) {
-      if (macro->objLike) {
-        auto expanded = substitude(macro->body, macro, {},
-                                   makeUnion(tk->hideset, tk->text), nullptr);
-        ts = concat(&pool_, expanded, ts->tail);
-      } else if (!macro->objLike && ts->tail &&
-                 ts->tail->head->is(TokenKind::T_LPAREN)) {
-        auto [args, p, hideset] = readArguments(ts);
-
-        auto hs = makeUnion(makeIntersection(tk->hideset, hideset), tk->text);
-
-        auto expanded = substitude(macro->body, macro, args, hs, nullptr);
-
-        ts = concat(&pool_, expanded, p);
-      } else {
-        *out = new (&pool_) TokList(ts->head);
-        out = const_cast<TokList **>(&(*out)->tail);
-        ts = ts->tail;
-      }
+    } else if (skipping) {
+      ts = skipLine(ts->tail);
     } else {
-      *out = new (&pool_) TokList(ts->head);
-      out = const_cast<TokList **>(&(*out)->tail);
-      ts = ts->tail;
+      ts = expandOne(ts, out);
     }
   }
 
   return tokens;
+}
+
+const TokList *Preprocessor::Private::expandOne(const TokList *ts,
+                                                TokList **&out) {
+  if (!ts) return nullptr;
+
+  const Macro *macro = nullptr;
+
+  if (lookupMacro(ts->head, macro)) {
+    const auto tk = ts->head;
+
+    if (macro->objLike) {
+      const auto hideset = makeUnion(tk->hideset, tk->text);
+      auto expanded = substitude(macro->body, macro, {}, hideset, nullptr);
+      return concat(&pool_, expanded, ts->tail);
+    }
+
+    if (!macro->objLike && ts->tail &&
+        ts->tail->head->is(TokenKind::T_LPAREN)) {
+      auto [args, p, hideset] = readArguments(ts);
+      auto hs = makeUnion(makeIntersection(tk->hideset, hideset), tk->text);
+      auto expanded = substitude(macro->body, macro, args, hs, nullptr);
+      return concat(&pool_, expanded, p);
+    }
+  }
+
+  *out = new (&pool_) TokList(ts->head);
+  out = const_cast<TokList **>(&(*out)->tail);
+  return ts->tail;
 }
 
 const TokList *Preprocessor::Private::substitude(
@@ -526,6 +545,192 @@ const TokList *Preprocessor::Private::substitude(
   }
 
   return instantiate(os, hideset);
+}
+
+const TokList *Preprocessor::Private::copyLine(const TokList *ts) {
+  TokList *line = nullptr;
+  auto it = &line;
+  for (; ts && !ts->head->bol; ts = ts->tail) {
+    *it = new (&pool_) TokList(ts->head);
+    it = const_cast<TokList **>(&(*it)->tail);
+  }
+  return line;
+}
+
+long Preprocessor::Private::constantExpression(const TokList *ts) {
+  auto e = expand(copyLine(ts));
+  return conditionalExpression(e);
+}
+
+long Preprocessor::Private::conditionalExpression(const TokList *&ts) {
+  const auto value = binaryExpression(ts);
+  if (!match(ts, TokenKind::T_QUESTION)) return value;
+  const auto iftrue = conditionalExpression(ts);
+  expect(ts, TokenKind::T_COLON);
+  const auto iffalse = conditionalExpression(ts);
+  return value ? iftrue : iffalse;
+}
+
+static int prec(const TokList *ts) {
+  enum Prec {
+    kLogicalOr,
+    kLogicalAnd,
+    kInclusiveOr,
+    kExclusiveOr,
+    kAnd,
+    kEquality,
+    kRelational,
+    kShift,
+    kAdditive,
+    kMultiplicative,
+  };
+
+  if (!ts) return -1;
+
+  switch (ts->head->kind) {
+    case TokenKind::T_STAR:
+    case TokenKind::T_SLASH:
+    case TokenKind::T_PERCENT:
+      return Prec::kMultiplicative;
+
+    case TokenKind::T_PLUS:
+    case TokenKind::T_MINUS:
+      return Prec::kAdditive;
+
+    case TokenKind::T_LESS_LESS:
+    case TokenKind::T_GREATER_GREATER:
+      return Prec::kShift;
+
+    case TokenKind::T_LESS_EQUAL:
+    case TokenKind::T_GREATER_EQUAL:
+    case TokenKind::T_LESS:
+    case TokenKind::T_GREATER:
+      return Prec::kRelational;
+
+    case TokenKind::T_EQUAL_EQUAL:
+    case TokenKind::T_EXCLAIM_EQUAL:
+      return Prec::kEquality;
+
+    case TokenKind::T_AMP:
+      return Prec::kAnd;
+
+    case TokenKind::T_CARET:
+      return Prec::kExclusiveOr;
+
+    case TokenKind::T_BAR:
+      return Prec::kInclusiveOr;
+
+    case TokenKind::T_AMP_AMP:
+      return Prec::kLogicalAnd;
+
+    case TokenKind::T_BAR_BAR:
+      return Prec::kLogicalOr;
+
+    default:
+      return -1;
+  }  // switch
+}
+
+long Preprocessor::Private::binaryExpression(const TokList *&ts) {
+  auto e = unaryExpression(ts);
+  return binaryExpressionHelper(ts, e, 0);
+}
+
+long Preprocessor::Private::binaryExpressionHelper(const TokList *&ts, long lhs,
+                                                   int minPrec) {
+  while (prec(ts) >= minPrec) {
+    const auto p = prec(ts);
+    const auto op = ts->head->kind;
+    ts = ts->tail;
+    auto rhs = unaryExpression(ts);
+    while (prec(ts) > p) {
+      rhs = binaryExpressionHelper(ts, rhs, prec(ts));
+    }
+    switch (op) {
+      case TokenKind::T_STAR:
+        lhs = lhs * rhs;
+        break;
+      case TokenKind::T_SLASH:
+        lhs = rhs != 0 ? lhs / rhs : 0;
+        break;
+      case TokenKind::T_PERCENT:
+        lhs = rhs != 0 ? lhs % rhs : 0;
+        break;
+      case TokenKind::T_PLUS:
+        lhs = lhs + rhs;
+        break;
+      case TokenKind::T_MINUS:
+        lhs = lhs - rhs;
+        break;
+      case TokenKind::T_LESS_LESS:
+        lhs = lhs << rhs;
+        break;
+      case TokenKind::T_GREATER_GREATER:
+        lhs = lhs >> rhs;
+        break;
+      case TokenKind::T_LESS_EQUAL:
+        lhs = lhs <= rhs;
+        break;
+      case TokenKind::T_GREATER_EQUAL:
+        lhs = lhs >= rhs;
+        break;
+      case TokenKind::T_LESS:
+        lhs = lhs < rhs;
+        break;
+      case TokenKind::T_GREATER:
+        lhs = lhs > rhs;
+        break;
+      case TokenKind::T_EQUAL_EQUAL:
+        lhs = lhs == rhs;
+        break;
+      case TokenKind::T_EXCLAIM_EQUAL:
+        lhs = lhs != rhs;
+        break;
+      case TokenKind::T_AMP:
+        lhs = lhs & rhs;
+        break;
+      case TokenKind::T_CARET:
+        lhs = lhs ^ rhs;
+        break;
+      case TokenKind::T_BAR:
+        lhs = lhs | rhs;
+        break;
+      case TokenKind::T_AMP_AMP:
+        lhs = lhs && rhs;
+        break;
+      case TokenKind::T_BAR_BAR:
+        lhs = lhs || rhs;
+        break;
+      default:
+        throw std::runtime_error(
+            fmt::format("invalid operator '{}'", Token::spell(op)));
+    }  // switch
+  }
+  return lhs;
+}
+
+long Preprocessor::Private::unaryExpression(const TokList *&ts) {
+  if (match(ts, TokenKind::T_MINUS)) {
+    return -unaryExpression(ts);
+  } else if (match(ts, TokenKind::T_PLUS)) {
+    return unaryExpression(ts);
+  } else if (match(ts, TokenKind::T_EXCLAIM)) {
+    return !unaryExpression(ts);
+  } else {
+    return primaryExpression(ts);
+  }
+}
+
+long Preprocessor::Private::primaryExpression(const TokList *&ts) {
+  const auto tk = ts->head;
+  if (match(ts, TokenKind::T_INTEGER_LITERAL)) {
+    return std::strtol(tk->text.data(), nullptr, 0);
+  } else if (match(ts, TokenKind::T_LPAREN)) {
+    auto result = conditionalExpression(ts);
+    expect(ts, TokenKind::T_RPAREN);
+    return result;
+  }
+  return 0;
 }
 
 bool Preprocessor::Private::lookupFormal(const Macro *macro, const Tok *tk,
@@ -673,15 +878,19 @@ const TokList *Preprocessor::Private::skipLine(const TokList *ts) {
   return ts;
 }
 
-const Macro *Preprocessor::Private::lookupMacro(const Tok *tk) const {
+bool Preprocessor::Private::lookupMacro(const Tok *tk,
+                                        const Macro *&macro) const {
   if (std::isalpha(tk->text[0]) || tk->text[0] == '_') {
     auto it = macros_.find(tk->text);
     if (it != macros_.end()) {
       const auto disabled = tk->hideset && tk->hideset->contains(tk->text);
-      if (!disabled) return &it->second;
+      if (!disabled) {
+        macro = &it->second;
+        return true;
+      }
     }
   }
-  return nullptr;
+  return false;
 }
 
 void Preprocessor::Private::print(const TokList *ts, std::ostream &out) const {
