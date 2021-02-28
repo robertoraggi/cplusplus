@@ -406,10 +406,12 @@ const TokList *Preprocessor::Private::expand(const TokList *ts,
         if (it != macros_.end()) macros_.erase(it);
       } else if (!skipping &&
                  (matchId(ts, "include") || matchId(ts, "include_next"))) {
+        if (ts->head->is(TokenKind::T_IDENTIFIER))
+          ts = expand(copyLine(ts), /*directives=*/false);
         const bool next = directive->head->text == "include_next";
         std::optional<fs::path> path;
         std::string file;
-        if (ts->head->text[0] == '"') {
+        if (ts->head->is(TokenKind::T_STRING_LITERAL)) {
           file = ts->head->text.substr(1, ts->head->text.length() - 2);
           path = resolve(QuoteInclude(file), next);
         } else if (match(ts, TokenKind::T_LESS)) {
@@ -422,19 +424,26 @@ const TokList *Preprocessor::Private::expand(const TokList *ts,
         }
         if (!path)
           throw std::runtime_error(fmt::format("file '{}' not found", file));
+#if 0
+        fmt::print("*** include: {}\n", *path);
+#endif
         auto dirpath = *path;
         dirpath.remove_filename();
         std::swap(currentPath_, dirpath);
         auto source = string(readFile(*path));
         auto tokens = tokenize(source, true);
         std::swap(currentPath_, dirpath);
-        for (auto t = tokens; t; t = t->tail) {
-          if (!t->tail) {
-            const_cast<TokList *>(t)->tail = skipLine(ts);
-            break;
+        if (tokens) {
+          for (auto t = tokens; t; t = t->tail) {
+            if (!t->tail) {
+              const_cast<TokList *>(t)->tail = skipLine(directive);
+              break;
+            }
           }
+          ts = tokens;
+        } else {
+          ts = skipLine(directive);
         }
-        ts = tokens;
       } else if (matchId(ts, "ifdef")) {
         const Macro *macro = nullptr;
         const auto value = lookupMacro(ts->head, macro);
