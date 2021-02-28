@@ -60,7 +60,7 @@ class Hideset {
 
   const std::unordered_set<std::string_view> &names() const { return names_; };
 
-  bool operator==(const Hideset &other) const { return false; }
+  bool operator==(const Hideset &other) const { return names_ == other.names_; }
 
  private:
   std::unordered_set<std::string_view> names_;
@@ -318,6 +318,8 @@ struct Preprocessor::Private {
 
   const TokList *expand(const TokList *ts, bool evaluateDirectives);
 
+  void expand(const TokList *ts, bool evaluateDirectives, TokList **&out);
+
   const TokList *expandOne(const TokList *ts, TokList **&out);
 
   const TokList *substitude(const TokList *ts, const Macro *macro,
@@ -389,7 +391,12 @@ const TokList *Preprocessor::Private::expand(const TokList *ts,
                                              bool evaluateDirectives) {
   TokList *tokens = nullptr;
   auto out = &tokens;
+  expand(ts, evaluateDirectives, out);
+  return tokens;
+}
 
+void Preprocessor::Private::expand(const TokList *ts, bool evaluateDirectives,
+                                   TokList **&out) {
   while (ts) {
     const auto tk = ts->head;
     const auto start = ts;
@@ -398,6 +405,13 @@ const TokList *Preprocessor::Private::expand(const TokList *ts,
 
     if (evaluateDirectives && tk->bol && match(ts, TokenKind::T_HASH)) {
       auto directive = ts;
+
+#if 0
+      fmt::print("*** ({}) ", currentPath_);
+      printLine(directive, std::cerr);
+      fmt::print(std::cerr, "\n");
+#endif
+
       if (!skipping && matchId(ts, "define")) {
         defineMacro(copyLine(ts));
       } else if (!skipping && matchId(ts, "undef")) {
@@ -406,8 +420,9 @@ const TokList *Preprocessor::Private::expand(const TokList *ts,
         if (it != macros_.end()) macros_.erase(it);
       } else if (!skipping &&
                  (matchId(ts, "include") || matchId(ts, "include_next"))) {
-        if (ts->head->is(TokenKind::T_IDENTIFIER))
+        if (ts->head->is(TokenKind::T_IDENTIFIER)) {
           ts = expand(copyLine(ts), /*directives=*/false);
+        }
         const bool next = directive->head->text == "include_next";
         std::optional<fs::path> path;
         std::string file;
@@ -432,18 +447,9 @@ const TokList *Preprocessor::Private::expand(const TokList *ts,
         std::swap(currentPath_, dirpath);
         auto source = string(readFile(*path));
         auto tokens = tokenize(source, true);
+        expand(tokens, /*directives=*/true, out);
         std::swap(currentPath_, dirpath);
-        if (tokens) {
-          for (auto t = tokens; t; t = t->tail) {
-            if (!t->tail) {
-              const_cast<TokList *>(t)->tail = skipLine(directive);
-              break;
-            }
-          }
-          ts = tokens;
-        } else {
-          ts = skipLine(directive);
-        }
+        ts = skipLine(directive);
       } else if (matchId(ts, "ifdef")) {
         const Macro *macro = nullptr;
         const auto value = lookupMacro(ts->head, macro);
@@ -521,12 +527,44 @@ const TokList *Preprocessor::Private::expand(const TokList *ts,
       t->space = true;
       *out = new (&pool_) TokList(t);
       out = const_cast<TokList **>(&(*out)->tail);
+    } else if (!evaluateDirectives && matchId(ts, "__has_include")) {
+      std::string fn;
+      expect(ts, TokenKind::T_LPAREN);
+      auto literal = ts;
+      Include include;
+      if (match(ts, TokenKind::T_STRING_LITERAL)) {
+        fn = literal->head->text.substr(1, literal->head->text.length() - 2);
+        include = QuoteInclude(fn);
+      } else {
+        expect(ts, TokenKind::T_LESS);
+        for (; ts && !ts->head->is(TokenKind::T_GREATER); ts = ts->tail) {
+          fn += ts->head->text;
+        }
+        expect(ts, TokenKind::T_GREATER);
+        include = SystemInclude(fn);
+      }
+      expect(ts, TokenKind::T_RPAREN);
+      const auto value = resolve(include, /*next*/ false);
+      auto t = new (&pool_) Tok();
+      t->kind = TokenKind::T_INTEGER_LITERAL;
+      t->text = string(value ? "1" : "0");
+      t->space = true;
+      *out = new (&pool_) TokList(t);
+      out = const_cast<TokList **>(&(*out)->tail);
+    } else if (!evaluateDirectives && matchId(ts, "__has_feature")) {
+      expect(ts, TokenKind::T_LPAREN);
+      auto id = expectId(ts);
+      expect(ts, TokenKind::T_RPAREN);
+      auto t = new (&pool_) Tok();
+      t->kind = TokenKind::T_INTEGER_LITERAL;
+      t->text = string("1");
+      t->space = true;
+      *out = new (&pool_) TokList(t);
+      out = const_cast<TokList **>(&(*out)->tail);
     } else {
       ts = expandOne(ts, out);
     }
   }
-
-  return tokens;
 }
 
 const TokList *Preprocessor::Private::expandOne(const TokList *ts,
@@ -791,10 +829,10 @@ long Preprocessor::Private::primaryExpression(const TokList *&ts) {
     auto result = conditionalExpression(ts);
     expect(ts, TokenKind::T_RPAREN);
     return result;
-  } else if (match(ts, TokenKind::T_IDENTIFIER)) {
-    return false;
+  } else {
+    ts = ts->tail;
+    return 0;
   }
-  return 0;
 }
 
 bool Preprocessor::Private::lookupFormal(const Macro *macro, const Tok *tk,
