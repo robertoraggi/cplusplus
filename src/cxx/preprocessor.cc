@@ -152,6 +152,8 @@ struct Preprocessor::Private {
   std::unordered_map<std::string_view, Macro> macros_;
   std::unordered_set<Hideset> hidesets;
   std::forward_list<std::string> scratchBuffer_;
+  std::unordered_set<std::string> pragmaOnceProtected_;
+  std::unordered_map<std::string, std::string> ifndefProtectedFiles_;
   fs::path currentPath_;
   std::vector<bool> evaluating_;
   std::vector<bool> skipping_;
@@ -184,6 +186,8 @@ struct Preprocessor::Private {
     skipping_.pop_back();
     evaluating_.pop_back();
   }
+
+  bool bol(const TokList *ts) const { return ts && ts->head->bol; }
 
   bool match(const TokList *&ts, TokenKind k) const {
     if (ts && ts->head->is(k)) {
@@ -258,6 +262,10 @@ struct Preprocessor::Private {
     out << in.rdbuf();
     return out.str();
   }
+
+  const TokList *checkHeaderProtection(const TokList *ts) const;
+
+  bool checkPragmaOnceProtected(const TokList *ts) const;
 
   std::optional<fs::path> resolve(const Include &include, bool next) const {
     struct Resolve {
@@ -438,17 +446,52 @@ void Preprocessor::Private::expand(const TokList *ts, bool evaluateDirectives,
           }
           path = resolve(SystemInclude(file), next);
         }
+
         if (!path)
           throw std::runtime_error(fmt::format("file '{}' not found", file));
+
+        const auto fn = path->string();
 #if 0
-        fmt::print("*** include: {}\n", *path);
+        fmt::print("*** include: {}\n", fn);
 #endif
+
+        if (pragmaOnceProtected_.find(fn) != pragmaOnceProtected_.end()) {
+#if 0
+          fmt::print("skip pragma protected header '{}'\n", fn);
+#endif
+
+          ts = skipLine(directive);
+          continue;
+        }
+
+        auto it = ifndefProtectedFiles_.find(fn);
+
+        if (it != ifndefProtectedFiles_.end()) {
+          if (macros_.find(it->second) != macros_.end()) {
+#if 0
+            fmt::print("skip protected header '{}'\n", fn);
+#endif
+            ts = skipLine(directive);
+            continue;
+          }
+        }
+
         auto dirpath = *path;
         dirpath.remove_filename();
         std::swap(currentPath_, dirpath);
         auto source = string(readFile(*path));
         auto tokens = tokenize(source, true);
+        if (checkPragmaOnceProtected(tokens)) {
+          pragmaOnceProtected_.insert(fn);
+        }
+        auto prot = checkHeaderProtection(tokens);
+        if (prot) ifndefProtectedFiles_.emplace(fn, prot->head->text);
         expand(tokens, /*directives=*/true, out);
+        if (prot && macros_.find(prot->head->text) == macros_.end()) {
+          auto it = ifndefProtectedFiles_.find(std::string(prot->head->text));
+          if (it != ifndefProtectedFiles_.end())
+            ifndefProtectedFiles_.erase(it);
+        }
         std::swap(currentPath_, dirpath);
         ts = skipLine(directive);
       } else if (matchId(ts, "ifdef")) {
@@ -631,6 +674,27 @@ const TokList *Preprocessor::Private::substitude(
   }
 
   return instantiate(os, hideset);
+}
+
+bool Preprocessor::Private::checkPragmaOnceProtected(const TokList *ts) const {
+  if (!ts) return false;
+  if (!match(ts, TokenKind::T_HASH)) return false;
+  if (bol(ts) || !matchId(ts, "pragma")) return false;
+  if (bol(ts) || !matchId(ts, "once")) return false;
+  return true;
+}
+
+const TokList *Preprocessor::Private::checkHeaderProtection(
+    const TokList *ts) const {
+  if (!ts) return nullptr;
+  if (!match(ts, TokenKind::T_HASH)) return nullptr;
+  if (bol(ts) || !matchId(ts, "ifndef")) return nullptr;
+  const TokList *prot = ts;
+  if (bol(ts) || !match(ts, TokenKind::T_IDENTIFIER)) return nullptr;
+  if (!bol(ts) || !match(ts, TokenKind::T_HASH)) return nullptr;
+  if (bol(ts) || !matchId(ts, "define")) return nullptr;
+  if (bol(ts) || !matchId(ts, prot->head->text)) return nullptr;
+  return prot;
 }
 
 const TokList *Preprocessor::Private::copyLine(const TokList *ts) {
@@ -1086,6 +1150,7 @@ void Preprocessor::preprocess(const std::string_view &source,
   std::swap(d->currentPath_, path);
 
   const auto ts = d->tokenize(source, true);
+
   const auto os = d->expand(ts, /*directives*/ true);
 
   std::swap(d->currentPath_, path);
