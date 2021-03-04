@@ -1104,7 +1104,7 @@ void Preprocessor::defineMacro(const std::string &name,
 void Preprocessor::printMacros(std::ostream &out) const {
   for (const auto &[name, macro] : d->macros_) {
     fmt::print(out, "#define {}", name);
-w    if (!macro.objLike) {
+    if (!macro.objLike) {
       fmt::print(out, "(");
       for (std::size_t i = 0; i < macro.formals.size(); ++i) {
         if (i > 0) fmt::print(",");
