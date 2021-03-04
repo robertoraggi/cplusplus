@@ -622,6 +622,26 @@ void ASTSlot::visit(NewExpressionAST* ast) {
   }  // switch
 }
 
+void ASTSlot::visit(DeleteExpressionAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->scopeLoc.index();
+      break;
+    case 1:
+      value_ = ast->deleteLoc.index();
+      break;
+    case 2:
+      value_ = ast->lbracketLoc.index();
+      break;
+    case 3:
+      value_ = ast->rbracketLoc.index();
+      break;
+    case 4:
+      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
+      break;
+  }  // switch
+}
+
 void ASTSlot::visit(LabeledStatementAST* ast) {
   switch (slot_) {
     case 0:

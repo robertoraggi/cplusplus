@@ -274,6 +274,10 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         this.accept(node.getNewInitalizer(), context);
     }
 
+    visitDeleteExpression(node: ast.DeleteExpressionAST, context: Context): void {
+        this.accept(node.getExpression(), context);
+    }
+
     visitLabeledStatement(node: ast.LabeledStatementAST, context: Context): void {
         this.accept(node.getStatement(), context);
     }

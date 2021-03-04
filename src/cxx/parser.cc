@@ -1773,20 +1773,28 @@ bool Parser::parse_new_initializer(NewInitializerAST*& yyast) {
 bool Parser::parse_delete_expression(ExpressionAST*& yyast) {
   const auto start = currentLocation();
 
-  const auto has_scope_op = match(TokenKind::T_COLON_COLON);
+SourceLocation scopeLoc;
 
-  if (!match(TokenKind::T_DELETE)) {
+  const auto has_scope_op = match(TokenKind::T_COLON_COLON, scopeLoc);
+
+  SourceLocation deleteLoc;
+
+  if (!match(TokenKind::T_DELETE, deleteLoc)) {
     rewind(start);
     return false;
   }
 
-  if (match(TokenKind::T_LBRACKET)) {
-    expect(TokenKind::T_RBRACKET);
+  auto ast = new (pool) DeleteExpressionAST();
+  yyast = ast;
+
+  ast->scopeLoc = scopeLoc;
+  ast->deleteLoc = deleteLoc;
+
+  if (match(TokenKind::T_LBRACKET, ast->lbracketLoc)) {
+    expect(TokenKind::T_RBRACKET, ast->rbracketLoc);
   }
 
-  ExpressionAST* expression = nullptr;
-
-  if (!parse_cast_expression(expression)) parse_error("expected an expression");
+  if (!parse_cast_expression(ast->expression)) parse_error("expected an expression");
 
   return true;
 }

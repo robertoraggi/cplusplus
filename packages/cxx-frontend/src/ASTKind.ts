@@ -77,6 +77,7 @@ export enum ASTKind {
     ConditionalExpression,
     CppCastExpression,
     NewExpression,
+    DeleteExpression,
 
     // StatementAST
     LabeledStatement,

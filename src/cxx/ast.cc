@@ -630,6 +630,24 @@ SourceLocation NewExpressionAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation DeleteExpressionAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(scopeLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(deleteLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lbracketLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rbracketLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation DeleteExpressionAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(rbracketLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lbracketLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(deleteLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(scopeLoc)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation LabeledStatementAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;

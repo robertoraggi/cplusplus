@@ -225,6 +225,10 @@ void RecursiveASTVisitor::visit(NewExpressionAST* ast) {
   newInitializer(ast->newInitalizer);
 }
 
+void RecursiveASTVisitor::visit(DeleteExpressionAST* ast) {
+  expression(ast->expression);
+}
+
 void RecursiveASTVisitor::visit(LabeledStatementAST* ast) {
   statement(ast->statement);
 }

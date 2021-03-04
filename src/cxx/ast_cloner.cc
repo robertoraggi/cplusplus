@@ -659,6 +659,21 @@ void ASTCloner::visit(NewExpressionAST* ast) {
   copy->newInitalizer = accept(ast->newInitalizer);
 }
 
+void ASTCloner::visit(DeleteExpressionAST* ast) {
+  auto copy = new (arena_) DeleteExpressionAST();
+  copy_ = copy;
+
+  copy->scopeLoc = ast->scopeLoc;
+
+  copy->deleteLoc = ast->deleteLoc;
+
+  copy->lbracketLoc = ast->lbracketLoc;
+
+  copy->rbracketLoc = ast->rbracketLoc;
+
+  copy->expression = accept(ast->expression);
+}
+
 void ASTCloner::visit(LabeledStatementAST* ast) {
   auto copy = new (arena_) LabeledStatementAST();
   copy_ = copy;

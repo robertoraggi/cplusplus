@@ -766,6 +766,27 @@ export class NewExpressionAST extends ExpressionAST {
     }
 }
 
+export class DeleteExpressionAST extends ExpressionAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitDeleteExpression(this, context);
+    }
+    getScopeToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getDeleteToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getLbracketToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getRbracketToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+    getExpression(): ExpressionAST | undefined {
+        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+    }
+}
+
 export class LabeledStatementAST extends StatementAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitLabeledStatement(this, context);
@@ -2103,6 +2124,7 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     ConditionalExpressionAST,
     CppCastExpressionAST,
     NewExpressionAST,
+    DeleteExpressionAST,
     LabeledStatementAST,
     CaseStatementAST,
     DefaultStatementAST,

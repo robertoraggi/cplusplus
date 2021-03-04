@@ -84,6 +84,7 @@ struct ASTVisitor {
   virtual void visit(ConditionalExpressionAST* ast) = 0;
   virtual void visit(CppCastExpressionAST* ast) = 0;
   virtual void visit(NewExpressionAST* ast) = 0;
+  virtual void visit(DeleteExpressionAST* ast) = 0;
 
   // StatementAST
   virtual void visit(LabeledStatementAST* ast) = 0;

@@ -81,6 +81,7 @@ enum struct ASTKind {
   ConditionalExpression,
   CppCastExpression,
   NewExpression,
+  DeleteExpression,
 
   // StatementAST
   LabeledStatement,
