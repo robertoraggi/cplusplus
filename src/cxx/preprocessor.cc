@@ -336,8 +336,9 @@ struct Preprocessor::Private {
 
   bool lookupMacro(const Tok *tk, const Macro *&macro) const;
 
-  bool lookupFormal(const Macro *macro, const Tok *tk,
-                    std::size_t &index) const;
+  bool lookupMacroArgument(const Macro *macro,
+                           const std::vector<const TokList *> &actuals,
+                           const Tok *tk, const TokList *&actual) const;
 
   const TokList *copyLine(const TokList *ts);
 
@@ -349,7 +350,7 @@ struct Preprocessor::Private {
   long primaryExpression(const TokList *&ts);
 
   std::tuple<std::vector<const TokList *>, const TokList *, const Hideset *>
-  readArguments(const TokList *ts);
+  readArguments(const TokList *ts, const Macro *macro);
 
   std::string_view string(std::string s);
 
@@ -584,7 +585,7 @@ const TokList *Preprocessor::Private::expandOne(const TokList *ts,
 
     if (!macro->objLike && ts->tail &&
         ts->tail->head->is(TokenKind::T_LPAREN)) {
-      auto [args, p, hideset] = readArguments(ts);
+      auto [args, p, hideset] = readArguments(ts, macro);
       auto hs = makeUnion(makeIntersection(tk->hideset, hideset), tk->text);
       auto expanded = substitude(macro->body, macro, args, hs, nullptr);
       return concat(&pool_, expanded, p);
@@ -602,28 +603,26 @@ const TokList *Preprocessor::Private::substitude(
     const TokList *os) {
   while (ts) {
     auto tk = ts->head;
-    std::size_t index = 0;
+    const TokList *actual = nullptr;
 
     if (ts->tail && tk->is(TokenKind::T_HASH) &&
-        lookupFormal(macro, ts->tail->head, index)) {
-      auto s = stringize(expand(actuals[index], /*directives=*/false));
+        lookupMacroArgument(macro, actuals, ts->tail->head, actual)) {
+      auto s = stringize(actual);
       os = concat(&pool_, os, s);
       ts = ts->tail->tail;
     } else if (ts->tail && tk->is(TokenKind::T_HASH_HASH) &&
-               lookupFormal(macro, ts->tail->head, index)) {
-      auto actual = actuals[index];
+               lookupMacroArgument(macro, actuals, ts->tail->head, actual)) {
       os = actual ? glue(os, actual) : os;
       ts = ts->tail->tail;
     } else if (ts->tail && tk->is(TokenKind::T_HASH_HASH)) {
       os = glue(os, new (&pool_) TokList(ts->tail->head));
       ts = ts->tail->tail;
-    } else if (ts->tail && lookupFormal(macro, tk, index) &&
+    } else if (ts->tail && lookupMacroArgument(macro, actuals, tk, actual) &&
                ts->tail->head->is(TokenKind::T_HASH_HASH)) {
-      auto actual = actuals[index];
       os = concat(&pool_, os, actual);
       ts = ts->tail;
-    } else if (lookupFormal(macro, tk, index)) {
-      os = concat(&pool_, os, actuals[index]);
+    } else if (lookupMacroArgument(macro, actuals, tk, actual)) {
+      os = concat(&pool_, os, expand(actual, /*directives=*/false));
       ts = ts->tail;
     } else {
       os = concat(&pool_, os, tk);
@@ -835,12 +834,18 @@ long Preprocessor::Private::primaryExpression(const TokList *&ts) {
   }
 }
 
-bool Preprocessor::Private::lookupFormal(const Macro *macro, const Tok *tk,
-                                         std::size_t &index) const {
+bool Preprocessor::Private::lookupMacroArgument(
+    const Macro *macro, const std::vector<const TokList *> &actuals,
+    const Tok *tk, const TokList *&actual) const {
   if (!tk) return false;
+  if (macro->variadic && tk->text == "__VA_ARGS__") {
+    actual = !actuals.empty() ? actuals.back() : nullptr;
+    return true;
+  }
+
   for (std::size_t i = 0; i < macro->formals.size(); ++i) {
     if (macro->formals[i] == tk->text) {
-      index = i;
+      actual = i < actuals.size() ? actuals[i] : nullptr;
       return true;
     }
   }
@@ -856,11 +861,14 @@ const TokList *Preprocessor::Private::instantiate(const TokList *ts,
 }
 
 std::tuple<std::vector<const TokList *>, const TokList *, const Hideset *>
-Preprocessor::Private::readArguments(const TokList *ts) {
+Preprocessor::Private::readArguments(const TokList *ts, const Macro *macro) {
   auto it = ts->tail->tail;
   int depth = 1;
   int argc = 0;
   std::vector<const TokList *> args;
+
+  const auto formalCount = macro->formals.size();
+
   const Tok *rp = nullptr;
   if (it->head->isNot(TokenKind::T_RPAREN)) {
     TokList *arg = nullptr;
@@ -868,7 +876,8 @@ Preprocessor::Private::readArguments(const TokList *ts) {
     while (it) {
       auto tk = it->head;
       it = it->tail;
-      if (depth == 1 && tk->is(TokenKind::T_COMMA)) {
+      if (depth == 1 && tk->is(TokenKind::T_COMMA) &&
+          args.size() < formalCount) {
         args.push_back(arg);
         arg = nullptr;
         argIt = &arg;
@@ -899,8 +908,8 @@ Preprocessor::Private::readArguments(const TokList *ts) {
 const Tok *Preprocessor::Private::stringize(const TokList *ts) {
   std::string s;
   for (; ts; ts = ts->tail) {
+    if (!s.empty() && (ts->head->space || ts->head->bol)) s += ' ';
     s += ts->head->text;
-    if (ts->tail) s += ' ';
   }
   std::string o;
   o += '"';
@@ -1031,26 +1040,30 @@ static bool needSpace(const Tok *prev, const Tok *current) {
 }
 
 void Preprocessor::Private::print(const TokList *ts, std::ostream &out) const {
+  bool first = true;
   for (const Tok *prevTk = nullptr; ts; ts = ts->tail) {
     auto tk = ts->head;
     if (tk->text.empty()) continue;
     if (tk->bol)
       fmt::print(out, "\n");
-    else if (needSpace(prevTk, tk))
+    else if (!first && needSpace(prevTk, tk))
       fmt::print(out, " ");
     fmt::print(out, "{}", tk->text);
     prevTk = tk;
+    first = false;
   }
 }
 
 void Preprocessor::Private::printLine(const TokList *ts,
                                       std::ostream &out) const {
+  bool first = true;
   for (const Tok *prevTk = nullptr; ts; ts = ts->tail) {
     auto tk = ts->head;
     if (tk->text.empty()) continue;
-    if (needSpace(prevTk, tk)) fmt::print(out, " ");
+    if (!first && needSpace(prevTk, tk)) fmt::print(out, " ");
     fmt::print(out, "{}", tk->text);
     prevTk = tk;
+    first = false;
     if (ts->tail && ts->tail->head->bol) break;
   }
   fmt::print(out, "\n");
@@ -1091,7 +1104,7 @@ void Preprocessor::defineMacro(const std::string &name,
 void Preprocessor::printMacros(std::ostream &out) const {
   for (const auto &[name, macro] : d->macros_) {
     fmt::print(out, "#define {}", name);
-    if (!macro.objLike) {
+w    if (!macro.objLike) {
       fmt::print(out, "(");
       for (std::size_t i = 0; i < macro.formals.size(); ++i) {
         if (i > 0) fmt::print(",");
@@ -1099,6 +1112,7 @@ void Preprocessor::printMacros(std::ostream &out) const {
       }
       fmt::print(out, ")");
     }
+    if (macro.body) fmt::print(out, " ");
     d->print(macro.body, out);
     fmt::print(out, "\n");
   }
