@@ -20,7 +20,13 @@
 
 #pragma once
 
+#include <cxx/cxx_fwd.h>
+
+#include <cstdint>
+
 namespace cxx {
+
+class FullySpecifiedType;
 
 class TypeVisitor;
 class Type;
@@ -46,5 +52,43 @@ class NamespaceType;
 class ClassType;
 class TemplateType;
 class TemplateArgumentType;
+
+enum class Qualifiers : std::uint8_t {
+  kNone = 0,
+  kConst = 1,
+  kVolatile = 2,
+  kRestrict = 4,
+};
+
+constexpr Qualifiers operator&(Qualifiers lhs, Qualifiers rhs) noexcept {
+  return static_cast<Qualifiers>(static_cast<std::uint8_t>(lhs) &
+                                 static_cast<std::uint8_t>(rhs));
+}
+
+constexpr Qualifiers operator|(Qualifiers lhs, Qualifiers rhs) noexcept {
+  return static_cast<Qualifiers>(static_cast<std::uint8_t>(lhs) |
+                                 static_cast<std::uint8_t>(rhs));
+}
+
+constexpr Qualifiers operator^(Qualifiers lhs, Qualifiers rhs) noexcept {
+  return static_cast<Qualifiers>(static_cast<std::uint8_t>(lhs) ^
+                                 static_cast<std::uint8_t>(rhs));
+}
+
+constexpr Qualifiers operator~(Qualifiers lhs) noexcept {
+  return static_cast<Qualifiers>(~static_cast<std::uint8_t>(lhs));
+}
+
+inline Qualifiers& operator&=(Qualifiers& lhs, Qualifiers rhs) noexcept {
+  return lhs = lhs & rhs;
+}
+
+inline Qualifiers& operator|=(Qualifiers& lhs, Qualifiers rhs) noexcept {
+  return lhs = lhs | rhs;
+}
+
+inline Qualifiers& operator^=(Qualifiers& lhs, Qualifiers rhs) noexcept {
+  return lhs = lhs ^ rhs;
+}
 
 }  // namespace cxx

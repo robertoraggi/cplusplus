@@ -22,6 +22,8 @@
 
 #include <cxx/type_fwd.h>
 
+#include <cstdint>
+
 namespace cxx {
 
 class Type {
@@ -29,6 +31,24 @@ class Type {
   virtual ~Type();
 
   virtual void accept(TypeVisitor* visitor) const = 0;
+};
+
+class FullySpecifiedType {
+ public:
+  explicit FullySpecifiedType(
+      const Type* type = nullptr,
+      Qualifiers qualifiers = Qualifiers::kNone) noexcept
+      : type_(type), qualifiers_(qualifiers) {}
+
+  const Type* type() const { return type_; }
+  void setType(const Type* type) { type_ = type; }
+
+  Qualifiers qualifiers() const { return qualifiers_; }
+  void setQualifiers(Qualifiers qualifiers) { qualifiers_ = qualifiers; }
+
+ private:
+  const Type* type_;
+  Qualifiers qualifiers_;
 };
 
 }  // namespace cxx
