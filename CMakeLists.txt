@@ -90,7 +90,9 @@ add_custom_command(OUTPUT keywords-priv.h
     DEPENDS kwgen src/cxx/keywords.kwgen
     COMMENT "Generate keywords-priv.h")
 
-add_executable(cxx-frontend src/frontend/frontend.cc)
+aux_source_directory(src/frontend FRONTEND_SOURCES)
+
+add_executable(cxx-frontend ${FRONTEND_SOURCES})
 target_link_libraries(cxx-frontend CPlusPlus)
 target_link_libraries(cxx-frontend cxxopts)
 
