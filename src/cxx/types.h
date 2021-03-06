@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include <cxx/types_fwd.h>
+#include <cxx/fully_specified_type.h>
 
 #include <tuple>
 #include <vector>
@@ -34,39 +34,6 @@ class Type {
   virtual void accept(TypeVisitor* visitor) const = 0;
 };
 
-class FullySpecifiedType {
- public:
-  explicit FullySpecifiedType(
-      const Type* type = nullptr,
-      Qualifiers qualifiers = Qualifiers::kNone) noexcept
-      : type_(type), qualifiers_(qualifiers) {}
-
-  explicit operator bool() const noexcept { return type_ != nullptr; }
-
-  const Type* operator->() const noexcept { return type_; }
-
-  const Type* type() const { return type_; }
-  void setType(const Type* type) { type_ = type; }
-
-  Qualifiers qualifiers() const { return qualifiers_; }
-  void setQualifiers(Qualifiers qualifiers) { qualifiers_ = qualifiers; }
-
-  bool isConst() const {
-    return (qualifiers_ & Qualifiers::kConst) != Qualifiers::kNone;
-  }
-
-  bool isVolatile() const {
-    return (qualifiers_ & Qualifiers::kVolatile) != Qualifiers::kNone;
-  }
-
-  bool isRestrict() const {
-    return (qualifiers_ & Qualifiers::kRestrict) != Qualifiers::kNone;
-  }
-
- private:
-  const Type* type_;
-  Qualifiers qualifiers_;
-};
 class UnresolvedType final : public Type {
  public:
   void accept(TypeVisitor* visitor) const override;
