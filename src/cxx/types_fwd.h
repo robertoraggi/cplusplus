@@ -39,7 +39,7 @@ class CharacterType;
 class IntegerType;
 class FloatingPointType;
 class EnumType;
-class EnumClassType;
+class ScopedEnumType;
 class PointerType;
 class PointerToMemberType;
 class ReferenceType;
@@ -52,6 +52,27 @@ class NamespaceType;
 class ClassType;
 class TemplateType;
 class TemplateArgumentType;
+
+enum class CharacterKind {
+  kChar,
+  kChar8T,
+  kChar16T,
+  kChar32T,
+  kWCharT,
+};
+
+enum class IntegerKind {
+  kShort,
+  kInt,
+  kLong,
+  kLongLong,
+};
+
+enum class FloatingPointKind {
+  kFloat,
+  kDouble,
+  kLongDouble,
+};
 
 enum class Qualifiers : std::uint8_t {
   kNone = 0,

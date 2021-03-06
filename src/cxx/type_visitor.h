@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include <cxx/type_fwd.h>
+#include <cxx/types_fwd.h>
 
 namespace cxx {
 
@@ -36,7 +36,7 @@ class TypeVisitor {
   virtual void visit(const IntegerType*) = 0;
   virtual void visit(const FloatingPointType*) = 0;
   virtual void visit(const EnumType*) = 0;
-  virtual void visit(const EnumClassType*) = 0;
+  virtual void visit(const ScopedEnumType*) = 0;
   virtual void visit(const PointerType*) = 0;
   virtual void visit(const PointerToMemberType*) = 0;
   virtual void visit(const ReferenceType*) = 0;

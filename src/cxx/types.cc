@@ -23,6 +23,8 @@
 
 namespace cxx {
 
+Type::~Type() {}
+
 void UnresolvedType::accept(TypeVisitor* visitor) const {
   visitor->visit(this);
 }
@@ -43,7 +45,9 @@ void FloatingPointType::accept(TypeVisitor* visitor) const {
 
 void EnumType::accept(TypeVisitor* visitor) const { visitor->visit(this); }
 
-void EnumClassType::accept(TypeVisitor* visitor) const { visitor->visit(this); }
+void ScopedEnumType::accept(TypeVisitor* visitor) const {
+  visitor->visit(this);
+}
 
 void PointerType::accept(TypeVisitor* visitor) const { visitor->visit(this); }
 
