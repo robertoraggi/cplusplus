@@ -53,6 +53,14 @@ class FullySpecifiedType {
     return (qualifiers_ & Qualifiers::kRestrict) != Qualifiers::kNone;
   }
 
+  bool operator==(const FullySpecifiedType& other) const {
+    return type_ == other.type_ && qualifiers_ == other.qualifiers_;
+  }
+
+  bool operator!=(const FullySpecifiedType& other) const {
+    return !operator==(other);
+  }
+
  private:
   const Type* type_;
   Qualifiers qualifiers_;

@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/fully_specified_type.h>
+#include <cxx/symbols_fwd.h>
 
 #include <tuple>
 #include <vector>
@@ -85,13 +86,21 @@ class FloatingPointType final : public Type,
   void accept(TypeVisitor* visitor) const override;
 };
 
-class EnumType final : public Type {
+class EnumType final : public Type, public std::tuple<EnumSymbol*> {
  public:
+  explicit EnumType(EnumSymbol* symbol) noexcept : tuple(symbol) {}
+
+  EnumSymbol* symbol() const { return get<0>(*this); }
+
   void accept(TypeVisitor* visitor) const override;
 };
 
-class ScopedEnumType final : public Type {
+class ScopedEnumType final : public Type, public std::tuple<ScopedEnumSymbol*> {
  public:
+  explicit ScopedEnumType(ScopedEnumSymbol* symbol) noexcept : tuple(symbol) {}
+
+  ScopedEnumSymbol* symbol() const { return get<0>(*this); }
+
   void accept(TypeVisitor* visitor) const override;
 };
 
@@ -109,8 +118,21 @@ class PointerType final : public Type,
   void accept(TypeVisitor* visitor) const override;
 };
 
-class PointerToMemberType final : public Type {
+class PointerToMemberType final
+    : public Type,
+      public std::tuple<const ClassType*, FullySpecifiedType, Qualifiers> {
  public:
+  PointerToMemberType(const ClassType* classType,
+                      const FullySpecifiedType& elementType,
+                      Qualifiers qualifiers) noexcept
+      : tuple(classType, elementType, qualifiers) {}
+
+  const ClassType* classType() const { return get<0>(*this); }
+
+  const FullySpecifiedType& elementType() const { return get<1>(*this); }
+
+  Qualifiers qualifiers() const { return get<2>(*this); }
+
   void accept(TypeVisitor* visitor) const override;
 };
 
@@ -205,23 +227,41 @@ class MemberFunctionType final
   void accept(TypeVisitor* visitor) const override;
 };
 
-class NamespaceType final : public Type {
+class NamespaceType final : public Type, public std::tuple<NamespaceSymbol*> {
  public:
+  explicit NamespaceType(NamespaceSymbol* symbol) noexcept : tuple(symbol) {}
+
+  NamespaceSymbol* symbol() const { return get<0>(*this); }
+
   void accept(TypeVisitor* visitor) const override;
 };
 
-class ClassType final : public Type {
+class ClassType final : public Type, public std::tuple<ClassSymbol*> {
  public:
+  explicit ClassType(ClassSymbol* symbol) noexcept : tuple(symbol) {}
+
+  ClassSymbol* symbol() const { return get<0>(*this); }
+
   void accept(TypeVisitor* visitor) const override;
 };
 
-class TemplateType final : public Type {
+class TemplateType final : public Type, public std::tuple<TemplateSymbol*> {
  public:
+  explicit TemplateType(TemplateSymbol* symbol) noexcept : tuple(symbol) {}
+
+  TemplateSymbol* symbol() const { return get<0>(*this); }
+
   void accept(TypeVisitor* visitor) const override;
 };
 
-class TemplateArgumentType final : public Type {
+class TemplateArgumentType final : public Type,
+                                   public std::tuple<TemplateArgumentSymbol*> {
  public:
+  explicit TemplateArgumentType(TemplateArgumentSymbol* symbol) noexcept
+      : tuple(symbol) {}
+
+  TemplateArgumentSymbol* symbol() const { return get<0>(*this); }
+
   void accept(TypeVisitor* visitor) const override;
 };
 
