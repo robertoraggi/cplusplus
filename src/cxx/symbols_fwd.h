@@ -28,4 +28,11 @@ class SymbolVisitor;
 
 class Symbol;
 
+class NamespaceSymbol;
+class ClassSymbol;
+class EnumSymbol;
+class ScopedEnumSymbol;
+class TemplateSymbol;
+class TemplateArgumentSymbol;
+
 }  // namespace cxx
