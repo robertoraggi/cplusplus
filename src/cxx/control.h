@@ -24,6 +24,7 @@
 #include <cxx/names_fwd.h>
 
 #include <memory>
+#include <string>
 
 namespace cxx {
 
