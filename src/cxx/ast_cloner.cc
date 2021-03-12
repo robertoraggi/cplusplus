@@ -566,6 +566,8 @@ void ASTCloner::visit(UnaryExpressionAST* ast) {
   copy->opLoc = ast->opLoc;
 
   copy->expression = accept(ast->expression);
+
+  copy->op = ast->op;
 }
 
 void ASTCloner::visit(BinaryExpressionAST* ast) {
@@ -579,6 +581,8 @@ void ASTCloner::visit(BinaryExpressionAST* ast) {
   copy->opLoc = ast->opLoc;
 
   copy->rightExpression = accept(ast->rightExpression);
+
+  copy->op = ast->op;
 }
 
 void ASTCloner::visit(AssignmentExpressionAST* ast) {
@@ -1362,6 +1366,8 @@ void ASTCloner::visit(SimpleNameAST* ast) {
   auto copy = new (arena_) SimpleNameAST();
   copy_ = copy;
 
+  copy->name = ast->name;
+
   copy->identifierLoc = ast->identifierLoc;
 }
 
@@ -1369,14 +1375,18 @@ void ASTCloner::visit(DestructorNameAST* ast) {
   auto copy = new (arena_) DestructorNameAST();
   copy_ = copy;
 
+  copy->name = ast->name;
+
   copy->tildeLoc = ast->tildeLoc;
 
-  copy->name = accept(ast->name);
+  copy->id = accept(ast->id);
 }
 
 void ASTCloner::visit(DecltypeNameAST* ast) {
   auto copy = new (arena_) DecltypeNameAST();
   copy_ = copy;
+
+  copy->name = ast->name;
 
   copy->decltypeSpecifier = accept(ast->decltypeSpecifier);
 }
@@ -1385,14 +1395,26 @@ void ASTCloner::visit(OperatorNameAST* ast) {
   auto copy = new (arena_) OperatorNameAST();
   copy_ = copy;
 
+  copy->name = ast->name;
+
+  copy->operatorLoc = ast->operatorLoc;
+
   copy->opLoc = ast->opLoc;
+
+  copy->openLoc = ast->openLoc;
+
+  copy->closeLoc = ast->closeLoc;
+
+  copy->op = ast->op;
 }
 
 void ASTCloner::visit(TemplateNameAST* ast) {
   auto copy = new (arena_) TemplateNameAST();
   copy_ = copy;
 
-  copy->name = accept(ast->name);
+  copy->name = ast->name;
+
+  copy->id = accept(ast->id);
 
   copy->lessLoc = ast->lessLoc;
 
@@ -1412,11 +1434,13 @@ void ASTCloner::visit(QualifiedNameAST* ast) {
   auto copy = new (arena_) QualifiedNameAST();
   copy_ = copy;
 
+  copy->name = ast->name;
+
   copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
 
   copy->templateLoc = ast->templateLoc;
 
-  copy->name = accept(ast->name);
+  copy->id = accept(ast->id);
 }
 
 void ASTCloner::visit(TypedefSpecifierAST* ast) {

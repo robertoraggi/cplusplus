@@ -18,30 +18,33 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#pragma once
-
-#include <cxx/fully_specified_type.h>
-#include <cxx/names_fwd.h>
+#include <cxx/cxx_fwd.h>
 
 #include <string>
-#include <tuple>
-#include <vector>
 
 namespace cxx {
 
-class Name {
+class Literal {
  public:
-  virtual ~Name();
-};
+  explicit Literal(std::string value) : value_(std::move(value)) {}
+  virtual ~Literal();
 
-class Identifier final : public Name {
- public:
-  explicit Identifier(std::string_view name) : name_(std::move(name)) {}
-
-  const std::string& name() const { return name_; }
+  const std::string& value() const { return value_; }
 
  private:
-  std::string name_;
+  std::string value_;
+};
+
+class NumericLiteral final : public Literal {
+  using Literal::Literal;
+};
+
+class StringLiteral final : public Literal {
+  using Literal::Literal;
+};
+
+class CharLiteral final : public Literal {
+  using Literal::Literal;
 };
 
 }  // namespace cxx

@@ -20,28 +20,12 @@
 
 #pragma once
 
-#include <cxx/fully_specified_type.h>
-#include <cxx/names_fwd.h>
-
-#include <string>
-#include <tuple>
-#include <vector>
+#include <cxx/cxx_fwd.h>
 
 namespace cxx {
 
-class Name {
- public:
-  virtual ~Name();
-};
+class Name;
 
-class Identifier final : public Name {
- public:
-  explicit Identifier(std::string_view name) : name_(std::move(name)) {}
-
-  const std::string& name() const { return name_; }
-
- private:
-  std::string name_;
-};
+class Identifier;
 
 }  // namespace cxx

@@ -2952,8 +2952,8 @@ void ASTPrinter::visit(DestructorNameAST* ast) {
     }
   }
 
-  if (ast->name) {
-    json_["name"] = accept(ast->name);
+  if (ast->id) {
+    json_["id"] = accept(ast->id);
   }
 }
 
@@ -3037,8 +3037,8 @@ void ASTPrinter::visit(TemplateNameAST* ast) {
     }
   }
 
-  if (ast->name) {
-    json_["name"] = accept(ast->name);
+  if (ast->id) {
+    json_["id"] = accept(ast->id);
   }
 
   if (ast->templateArgumentList) {
@@ -3078,8 +3078,8 @@ void ASTPrinter::visit(QualifiedNameAST* ast) {
     json_["nestedNameSpecifier"] = accept(ast->nestedNameSpecifier);
   }
 
-  if (ast->name) {
-    json_["name"] = accept(ast->name);
+  if (ast->id) {
+    json_["id"] = accept(ast->id);
   }
 }
 

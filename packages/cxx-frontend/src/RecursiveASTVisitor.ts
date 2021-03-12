@@ -501,7 +501,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     }
 
     visitDestructorName(node: ast.DestructorNameAST, context: Context): void {
-        this.accept(node.getName(), context);
+        this.accept(node.getId(), context);
     }
 
     visitDecltypeName(node: ast.DecltypeNameAST, context: Context): void {
@@ -512,7 +512,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     }
 
     visitTemplateName(node: ast.TemplateNameAST, context: Context): void {
-        this.accept(node.getName(), context);
+        this.accept(node.getId(), context);
         for (const element of node.getTemplateArgumentList()) {
              this.accept(element, context);
         }
@@ -520,7 +520,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitQualifiedName(node: ast.QualifiedNameAST, context: Context): void {
         this.accept(node.getNestedNameSpecifier(), context);
-        this.accept(node.getName(), context);
+        this.accept(node.getId(), context);
     }
 
     visitTypedefSpecifier(node: ast.TypedefSpecifierAST, context: Context): void {

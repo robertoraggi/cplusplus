@@ -435,6 +435,8 @@ TokenKind Lexer::readToken() {
         if (LA(1) == '=') k = TokenKind::T_GREATER_GREATER_EQUAL;
 
         tokenValue_.tokenKindValue = k;
+      } else if (LA() == '=') {
+        tokenValue_.tokenKindValue = TokenKind::T_GREATER_EQUAL;
       }
 
       return TokenKind::T_GREATER;

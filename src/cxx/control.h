@@ -20,45 +20,27 @@
 
 #pragma once
 
-#include <cxx/names.h>
+#include <cxx/literals_fwd.h>
+#include <cxx/names_fwd.h>
 
-#include <set>
+#include <memory>
 
 namespace cxx {
 
 class Control {
  public:
-  Control(const Control& other) = delete;
-  Control& operator=(const Control& other) = delete;
-
   Control();
   ~Control();
 
-  template <typename T>
-  const Identifier* getIdentifier(T&& name) {
-    return &*identifiers_.emplace(std::forward<T>(name)).first;
-  }
+  const Identifier* identifier(std::string name);
 
-  template <typename T>
-  const DestructorId* getDestructorId(T&& name) {
-    return &*destructorIds_.emplace(std::forward<T>(name)).first;
-  }
-
-  template <typename T>
-  const OperatorId* getOperatorId(T&& name) {
-    return &*operatorIds_.emplace(std::forward<T>(name)).first;
-  }
-
-  template <typename... Args>
-  const TemplateId* getTemplateId(Args&&... args) {
-    return &*templateIds_.emplace(std::forward<Args>(args)...).first;
-  }
+  const NumericLiteral* numericLiteral(std::string value);
+  const StringLiteral* stringLiteral(std::string value);
+  const CharLiteral* charLiteral(std::string value);
 
  private:
-  std::set<Identifier> identifiers_;
-  std::set<DestructorId> destructorIds_;
-  std::set<OperatorId> operatorIds_;
-  std::set<TemplateId> templateIds_;
+  struct Private;
+  std::unique_ptr<Private> d;
 };
 
 }  // namespace cxx

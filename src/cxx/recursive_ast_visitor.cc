@@ -413,7 +413,7 @@ void RecursiveASTVisitor::visit(LinkageSpecificationAST* ast) {
 
 void RecursiveASTVisitor::visit(SimpleNameAST* ast) {}
 
-void RecursiveASTVisitor::visit(DestructorNameAST* ast) { name(ast->name); }
+void RecursiveASTVisitor::visit(DestructorNameAST* ast) { name(ast->id); }
 
 void RecursiveASTVisitor::visit(DecltypeNameAST* ast) {
   specifier(ast->decltypeSpecifier);
@@ -422,14 +422,14 @@ void RecursiveASTVisitor::visit(DecltypeNameAST* ast) {
 void RecursiveASTVisitor::visit(OperatorNameAST* ast) {}
 
 void RecursiveASTVisitor::visit(TemplateNameAST* ast) {
-  name(ast->name);
+  name(ast->id);
   for (auto it = ast->templateArgumentList; it; it = it->next)
     templateArgument(it->value);
 }
 
 void RecursiveASTVisitor::visit(QualifiedNameAST* ast) {
   nestedNameSpecifier(ast->nestedNameSpecifier);
-  name(ast->name);
+  name(ast->id);
 }
 
 void RecursiveASTVisitor::visit(TypedefSpecifierAST* ast) {}

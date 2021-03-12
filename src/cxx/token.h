@@ -21,6 +21,8 @@
 #pragma once
 
 #include <cxx/cxx_fwd.h>
+#include <cxx/literals_fwd.h>
+#include <cxx/names_fwd.h>
 
 #include <cstdint>
 #include <string>
@@ -224,8 +226,6 @@
 
 namespace cxx {
 
-class Identifier;
-
 #define TOKEN_ENUM(tk, _) T_##tk,
 enum struct TokenKind : uint16_t { FOR_EACH_TOKEN(TOKEN_ENUM) };
 #undef TOKEN_ENUM
@@ -234,6 +234,7 @@ union TokenValue {
   const void* ptrValue;
   std::string* stringValue;
   const Identifier* idValue;
+  const Literal* literalValue;
   TokenKind tokenKindValue;
   int intValue;
 };

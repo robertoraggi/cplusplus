@@ -1282,12 +1282,12 @@ SourceLocation SimpleNameAST::lastSourceLocation() {
 
 SourceLocation DestructorNameAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(tildeLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(id)) return loc;
   return SourceLocation();
 }
 
 SourceLocation DestructorNameAST::lastSourceLocation() {
-  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(id)) return loc;
   if (auto loc = cxx::lastSourceLocation(tildeLoc)) return loc;
   return SourceLocation();
 }
@@ -1303,17 +1303,23 @@ SourceLocation DecltypeNameAST::lastSourceLocation() {
 }
 
 SourceLocation OperatorNameAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(operatorLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(opLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(openLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(closeLoc)) return loc;
   return SourceLocation();
 }
 
 SourceLocation OperatorNameAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(closeLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(openLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(opLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(operatorLoc)) return loc;
   return SourceLocation();
 }
 
 SourceLocation TemplateNameAST::firstSourceLocation() {
-  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(id)) return loc;
   if (auto loc = cxx::firstSourceLocation(lessLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(templateArgumentList)) return loc;
   if (auto loc = cxx::firstSourceLocation(greaterLoc)) return loc;
@@ -1324,19 +1330,19 @@ SourceLocation TemplateNameAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(greaterLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(templateArgumentList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lessLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(id)) return loc;
   return SourceLocation();
 }
 
 SourceLocation QualifiedNameAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(templateLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(id)) return loc;
   return SourceLocation();
 }
 
 SourceLocation QualifiedNameAST::lastSourceLocation() {
-  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(id)) return loc;
   if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   return SourceLocation();

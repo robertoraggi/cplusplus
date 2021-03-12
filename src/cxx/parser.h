@@ -352,7 +352,8 @@ class Parser {
   bool parse_mem_initializer();
   bool parse_mem_initializer_id();
   bool parse_operator_function_id(NameAST*& yyast);
-  bool parse_operator();
+  bool parse_operator(TokenKind& op, SourceLocation& opLoc,
+                      SourceLocation& openLoc, SourceLocation& closeLoc);
   bool parse_literal_operator_id(NameAST*& yyast);
   bool parse_template_declaration(DeclarationAST*& yyast);
   bool parse_template_head(SourceLocation& templateLoc, SourceLocation& lessLoc,

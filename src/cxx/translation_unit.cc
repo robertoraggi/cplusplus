@@ -21,6 +21,8 @@
 #include <cxx/arena.h>
 #include <cxx/control.h>
 #include <cxx/lexer.h>
+#include <cxx/literals.h>
+#include <cxx/names.h>
 #include <cxx/parser.h>
 #include <cxx/translation_unit.h>
 #include <utf8.h>
@@ -65,15 +67,16 @@ const std::string& TranslationUnit::tokenText(SourceLocation loc) const {
   const auto& tk = tokenAt(loc);
   switch (tk.kind()) {
     case TokenKind::T_IDENTIFIER:
+      return tk.value().idValue->name();
+
     case TokenKind::T_STRING_LITERAL:
     case TokenKind::T_CHARACTER_LITERAL:
-    case TokenKind::T_INTEGER_LITERAL: {
-      const Identifier* id = tk.value().idValue;
-      return id->toString();
-    }
+    case TokenKind::T_INTEGER_LITERAL:
+      return tk.value().literalValue->value();
+
     default:
       return Token::spell(tk.kind());
-  }
+  }  // switch
 }
 
 void TranslationUnit::getTokenPosition(unsigned offset, unsigned* line,
@@ -156,15 +159,29 @@ void TranslationUnit::tokenize(bool preprocessing) {
 
     switch (kind) {
       case TokenKind::T_IDENTIFIER:
-      case TokenKind::T_STRING_LITERAL:
+        value.idValue = control_->identifier(std::string(lexer.tokenText()));
+        break;
+
       case TokenKind::T_CHARACTER_LITERAL:
+        value.literalValue =
+            control_->charLiteral(std::string(lexer.tokenText()));
+        break;
+
+      case TokenKind::T_STRING_LITERAL:
+        value.literalValue =
+            control_->stringLiteral(std::string(lexer.tokenText()));
+        break;
+
       case TokenKind::T_INTEGER_LITERAL:
       case TokenKind::T_FLOATING_POINT_LITERAL:
-        value.idValue = control_->getIdentifier(lexer.tokenText());
+        value.literalValue =
+            control_->numericLiteral(std::string(lexer.tokenText()));
         break;
+
       case TokenKind::T_GREATER:
         value = lexer.tokenValue();
         break;
+
       default:
         break;
     }

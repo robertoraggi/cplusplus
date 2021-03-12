@@ -19,11 +19,92 @@
 // SOFTWARE.
 
 #include <cxx/control.h>
+#include <cxx/literals.h>
+#include <cxx/names.h>
+
+#include <unordered_set>
 
 namespace cxx {
 
-Control::Control() {}
+namespace {
+
+struct NameHash {
+  std::hash<std::string> hash_value;
+
+  std::size_t operator()(const Identifier& id) const {
+    return hash_value(id.name());
+  }
+};
+
+struct NameEqualTo {
+  bool operator()(const Identifier& name, const Identifier& other) const {
+    return name.name() == other.name();
+  }
+};
+
+template <typename T>
+using NameSet = std::unordered_set<T, NameHash, NameEqualTo>;
+
+struct LiteralHash {
+  std::hash<std::string> hash_value;
+
+  std::size_t operator()(const StringLiteral& literal) const {
+    return hash_value(literal.value());
+  }
+
+  std::size_t operator()(const NumericLiteral& literal) const {
+    return hash_value(literal.value());
+  }
+
+  std::size_t operator()(const CharLiteral& literal) const {
+    return hash_value(literal.value());
+  }
+};
+
+struct LiteralEqualTo {
+  bool operator()(const NumericLiteral& literal,
+                  const NumericLiteral& other) const {
+    return literal.value() == other.value();
+  }
+
+  bool operator()(const StringLiteral& literal,
+                  const StringLiteral& other) const {
+    return literal.value() == other.value();
+  }
+
+  bool operator()(const CharLiteral& literal, const CharLiteral& other) const {
+    return literal.value() == other.value();
+  }
+};
+
+template <typename T>
+using LiteralMap = std::unordered_set<T, LiteralHash, LiteralEqualTo>;
+
+}  // namespace
+
+struct Control::Private {
+  LiteralMap<NumericLiteral> numericLiterals_;
+  LiteralMap<StringLiteral> stringLiterals_;
+  LiteralMap<CharLiteral> charLiterals_;
+  NameSet<Identifier> identifiers_;
+};
+
+Control::Control() : d(std::make_unique<Private>()) {}
 
 Control::~Control() {}
+
+const Identifier* Control::identifier(std::string name) {
+  return &*d->identifiers_.emplace(std::move(name)).first;
+}
+
+const NumericLiteral* Control::numericLiteral(std::string value) {
+  return &*d->numericLiterals_.emplace(std::move(value)).first;
+}
+const StringLiteral* Control::stringLiteral(std::string value) {
+  return &*d->stringLiterals_.emplace(std::move(value)).first;
+}
+const CharLiteral* Control::charLiteral(std::string value) {
+  return &*d->charLiterals_.emplace(std::move(value)).first;
+}
 
 }  // namespace cxx

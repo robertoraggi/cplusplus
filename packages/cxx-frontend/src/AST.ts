@@ -1526,7 +1526,7 @@ export class DestructorNameAST extends NameAST {
     getTildeToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
     }
-    getName(): NameAST | undefined {
+    getId(): NameAST | undefined {
         return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
     }
 }
@@ -1544,8 +1544,17 @@ export class OperatorNameAST extends NameAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitOperatorName(this, context);
     }
-    getOpToken(): Token | undefined {
+    getOperatorToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getOpToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getOpenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getCloseToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
     }
 }
 
@@ -1553,7 +1562,7 @@ export class TemplateNameAST extends NameAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitTemplateName(this, context);
     }
-    getName(): NameAST | undefined {
+    getId(): NameAST | undefined {
         return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
     }
     getLessToken(): Token | undefined {
@@ -1579,7 +1588,7 @@ export class QualifiedNameAST extends NameAST {
     getTemplateToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
     }
-    getName(): NameAST | undefined {
+    getId(): NameAST | undefined {
         return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
     }
 }

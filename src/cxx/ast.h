@@ -122,6 +122,7 @@ struct InitializerAST : AST {
 
 struct NameAST : AST {
   using AST::AST;
+  const Name* name = nullptr;
 };
 
 struct NewInitializerAST : AST {
@@ -607,6 +608,7 @@ struct UnaryExpressionAST final : ExpressionAST {
 
   SourceLocation opLoc;
   ExpressionAST* expression = nullptr;
+  TokenKind op = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -620,6 +622,7 @@ struct BinaryExpressionAST final : ExpressionAST {
   ExpressionAST* leftExpression = nullptr;
   SourceLocation opLoc;
   ExpressionAST* rightExpression = nullptr;
+  TokenKind op = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1307,7 +1310,7 @@ struct DestructorNameAST final : NameAST {
   DestructorNameAST() : NameAST(ASTKind::DestructorName) {}
 
   SourceLocation tildeLoc;
-  NameAST* name = nullptr;
+  NameAST* id = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1329,7 +1332,11 @@ struct DecltypeNameAST final : NameAST {
 struct OperatorNameAST final : NameAST {
   OperatorNameAST() : NameAST(ASTKind::OperatorName) {}
 
+  SourceLocation operatorLoc;
   SourceLocation opLoc;
+  SourceLocation openLoc;
+  SourceLocation closeLoc;
+  TokenKind op = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1340,7 +1347,7 @@ struct OperatorNameAST final : NameAST {
 struct TemplateNameAST final : NameAST {
   TemplateNameAST() : NameAST(ASTKind::TemplateName) {}
 
-  NameAST* name = nullptr;
+  NameAST* id = nullptr;
   SourceLocation lessLoc;
   List<TemplateArgumentAST*>* templateArgumentList = nullptr;
   SourceLocation greaterLoc;
@@ -1356,7 +1363,7 @@ struct QualifiedNameAST final : NameAST {
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   SourceLocation templateLoc;
-  NameAST* name = nullptr;
+  NameAST* id = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

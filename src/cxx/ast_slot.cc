@@ -1303,7 +1303,7 @@ void ASTSlot::visit(DestructorNameAST* ast) {
       value_ = ast->tildeLoc.index();
       break;
     case 1:
-      value_ = reinterpret_cast<std::intptr_t>(ast->name);
+      value_ = reinterpret_cast<std::intptr_t>(ast->id);
       break;
   }  // switch
 }
@@ -1319,7 +1319,16 @@ void ASTSlot::visit(DecltypeNameAST* ast) {
 void ASTSlot::visit(OperatorNameAST* ast) {
   switch (slot_) {
     case 0:
+      value_ = ast->operatorLoc.index();
+      break;
+    case 1:
       value_ = ast->opLoc.index();
+      break;
+    case 2:
+      value_ = ast->openLoc.index();
+      break;
+    case 3:
+      value_ = ast->closeLoc.index();
       break;
   }  // switch
 }
@@ -1327,7 +1336,7 @@ void ASTSlot::visit(OperatorNameAST* ast) {
 void ASTSlot::visit(TemplateNameAST* ast) {
   switch (slot_) {
     case 0:
-      value_ = reinterpret_cast<std::intptr_t>(ast->name);
+      value_ = reinterpret_cast<std::intptr_t>(ast->id);
       break;
     case 1:
       value_ = ast->lessLoc.index();
@@ -1350,7 +1359,7 @@ void ASTSlot::visit(QualifiedNameAST* ast) {
       value_ = ast->templateLoc.index();
       break;
     case 2:
-      value_ = reinterpret_cast<std::intptr_t>(ast->name);
+      value_ = reinterpret_cast<std::intptr_t>(ast->id);
       break;
   }  // switch
 }

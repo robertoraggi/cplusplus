@@ -159,10 +159,10 @@ bool Parser::parse(TranslationUnit* u, UnitAST*& ast) {
 
   pool = u->arena();
 
-  module_id = control->getIdentifier("module");
-  import_id = control->getIdentifier("import");
-  final_id = control->getIdentifier("final");
-  override_id = control->getIdentifier("override");
+  module_id = control->identifier("module");
+  import_id = control->identifier("import");
+  final_id = control->identifier("final");
+  override_id = control->identifier("override");
 
   auto parsed = parse_translation_unit(ast);
 
@@ -595,7 +595,7 @@ bool Parser::parse_unqualified_id(NameAST*& yyast) {
       auto ast = new (pool) DestructorNameAST();
       yyast = ast;
 
-      ast->name = decltypeName;
+      ast->id = decltypeName;
 
       return true;
     }
@@ -607,7 +607,7 @@ bool Parser::parse_unqualified_id(NameAST*& yyast) {
     auto ast = new (pool) DestructorNameAST();
     yyast = ast;
 
-    ast->name = name;
+    ast->id = name;
 
     return true;
   }
@@ -646,7 +646,7 @@ bool Parser::parse_qualified_id(NameAST*& yyast) {
 
     ast->nestedNameSpecifier = nestedNameSpecifier;
     ast->templateLoc = templateLoc;
-    ast->name = name;
+    ast->id = name;
 
     if (!hasName) parse_error("expected a template name");
 
@@ -1517,6 +1517,7 @@ bool Parser::parse_unop_expression(ExpressionAST*& yyast) {
   yyast = ast;
 
   ast->opLoc = opLoc;
+  ast->op = unit->tokenKind(opLoc);
 
   if (!parse_cast_expression(ast->expression))
     parse_error("expected an expression");
@@ -1945,6 +1946,7 @@ bool Parser::parse_binary_expression_helper(ExpressionAST*& yyast, Prec minPrec,
     ast->leftExpression = yyast;
     ast->opLoc = opLoc;
     ast->rightExpression = rhs;
+    ast->op = op;
 
     yyast = ast;
   }
@@ -3374,7 +3376,7 @@ bool Parser::parse_named_type_specifier_helper(SpecifierAST*& yyast,
       auto qualifiedId = new (pool) QualifiedNameAST();
       qualifiedId->nestedNameSpecifier = nestedNameSpecifier;
       qualifiedId->templateLoc = templateLoc;
-      qualifiedId->name = name;
+      qualifiedId->id = name;
 
       auto ast = new (pool) NamedTypeSpecifierAST();
       yyast = ast;
@@ -5954,7 +5956,7 @@ bool Parser::parse_class_or_decltype(NameAST*& yyast) {
 
       ast->nestedNameSpecifier = nestedNameSpecifier;
       ast->templateLoc = templateLoc;
-      ast->name = name;
+      ast->id = name;
 
       return true;
     }
@@ -5964,7 +5966,7 @@ bool Parser::parse_class_or_decltype(NameAST*& yyast) {
       yyast = ast;
 
       ast->nestedNameSpecifier = nestedNameSpecifier;
-      ast->name = name;
+      ast->id = name;
 
       return true;
     }
@@ -6061,44 +6063,70 @@ bool Parser::parse_mem_initializer_id() {
 }
 
 bool Parser::parse_operator_function_id(NameAST*& yyast) {
-  if (!match(TokenKind::T_OPERATOR)) return false;
+  SourceLocation operatorLoc;
 
-  if (!parse_operator()) return false;
+  if (!match(TokenKind::T_OPERATOR, operatorLoc)) return false;
+
+  TokenKind op = TokenKind::T_EOF_SYMBOL;
+  SourceLocation opLoc;
+  SourceLocation openLoc;
+  SourceLocation closeLoc;
+
+  if (!parse_operator(op, opLoc, openLoc, closeLoc)) return false;
+
+  auto ast = new (pool) OperatorNameAST();
+  yyast = ast;
+
+  ast->operatorLoc = operatorLoc;
+  ast->opLoc = opLoc;
+  ast->openLoc = openLoc;
+  ast->closeLoc = closeLoc;
+  ast->op = op;
 
   return true;
 }
 
-bool Parser::parse_operator() {
-  switch (TokenKind(LA())) {
+bool Parser::parse_operator(TokenKind& op, SourceLocation& opLoc,
+                            SourceLocation& openLoc, SourceLocation& closeLoc) {
+  op = TokenKind(LA());
+  switch (op) {
     case TokenKind::T_LPAREN:
-      consumeToken();
-      expect(TokenKind::T_RPAREN);
+      openLoc = consumeToken();
+      expect(TokenKind::T_RPAREN, closeLoc);
       return true;
 
     case TokenKind::T_LBRACKET:
-      consumeToken();
-      expect(TokenKind::T_RBRACKET);
+      openLoc = consumeToken();
+      expect(TokenKind::T_RBRACKET, closeLoc);
       return true;
 
     case TokenKind::T_GREATER: {
-      if (parse_greater_greater_equal()) return true;
-      if (parse_greater_greater()) return true;
-      if (parse_greater_equal()) return true;
+      opLoc = currentLocation();
+      if (parse_greater_greater_equal()) {
+        op = TokenKind::T_GREATER_GREATER_EQUAL;
+        return true;
+      } else if (parse_greater_greater()) {
+        op = TokenKind::T_GREATER_GREATER;
+        return true;
+      } else if (parse_greater_equal()) {
+        op = TokenKind::T_GREATER_EQUAL;
+        return true;
+      }
       consumeToken();
       return true;
     }
 
     case TokenKind::T_NEW:
-      consumeToken();
-      if (match(TokenKind::T_LBRACKET)) {
-        expect(TokenKind::T_RBRACKET);
+      opLoc = consumeToken();
+      if (match(TokenKind::T_LBRACKET, openLoc)) {
+        expect(TokenKind::T_RBRACKET, closeLoc);
       }
       return true;
 
     case TokenKind::T_DELETE:
-      consumeToken();
-      if (match(TokenKind::T_LBRACKET)) {
-        expect(TokenKind::T_RBRACKET);
+      opLoc = consumeToken();
+      if (match(TokenKind::T_LBRACKET, openLoc)) {
+        expect(TokenKind::T_RBRACKET, closeLoc);
       }
       return true;
 
@@ -6139,7 +6167,7 @@ bool Parser::parse_operator() {
     case TokenKind::T_PLUS_PLUS:
     case TokenKind::T_MINUS_MINUS:
     case TokenKind::T_COMMA:
-      consumeToken();
+      opLoc = consumeToken();
       return true;
 
     default:
@@ -6419,7 +6447,7 @@ bool Parser::parse_type_constraint() {
     expect(TokenKind::T_GREATER, greaterLoc);
 
     auto templateId = new (pool) TemplateNameAST();
-    templateId->name = name;
+    templateId->id = name;
     templateId->lessLoc = lessLoc;
     templateId->templateArgumentList = templateArgumentList;
     templateId->greaterLoc = greaterLoc;
@@ -6452,7 +6480,7 @@ bool Parser::parse_simple_template_id(NameAST*& yyast) {
   auto ast = new (pool) TemplateNameAST();
   yyast = ast;
 
-  ast->name = name;
+  ast->id = name;
   ast->lessLoc = lessLoc;
   ast->templateArgumentList = templateArgumentList;
   ast->greaterLoc = greaterLoc;
@@ -6491,7 +6519,7 @@ bool Parser::parse_template_id(NameAST*& yyast) {
     auto ast = new (pool) TemplateNameAST();
     yyast = ast;
 
-    ast->name = name;
+    ast->id = name;
     ast->lessLoc = lessLoc;
     ast->templateArgumentList = templateArgumentList;
     ast->greaterLoc = greaterLoc;

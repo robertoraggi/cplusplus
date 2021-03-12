@@ -19,3 +19,9 @@
 // SOFTWARE.
 
 #include <cxx/names.h>
+
+namespace cxx {
+
+Name::~Name() {}
+
+}  // namespace cxx
