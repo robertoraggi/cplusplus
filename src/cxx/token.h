@@ -144,6 +144,7 @@
   V(__TYPEOF, "__typeof")                                             \
   V(__UNDERLYING_TYPE, "__underlying_type")                           \
   V(_ATOMIC, "_Atomic")                                               \
+  V(_COMPLEX, "_Complex")                                             \
   V(ALIGNAS, "alignas")                                               \
   V(ALIGNOF, "alignof")                                               \
   V(ASM, "asm")                                                       \

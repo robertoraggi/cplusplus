@@ -3550,6 +3550,7 @@ bool Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
       return true;
     }
 
+    case TokenKind::T__COMPLEX:
     case TokenKind::T___COMPLEX__: {
       auto ast = new (pool) ComplexTypeSpecifierAST();
       yyast = ast;

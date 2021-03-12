@@ -99,7 +99,11 @@ void dumpTokens(const std::string& fileName, bool preprocessed) {
       flags += " [leading-space]";
     }
 
-    fmt::print("{} '{}'{}\n", tk.name(), tk.spell(), flags);
+    auto kind = tk.kind();
+    if (kind == TokenKind::T_IDENTIFIER)
+      kind = Lexer::classifyKeyword(tk.spell());
+
+    fmt::print("{} '{}'{}\n", Token::name(kind), tk.spell(), flags);
 
     if (tk.is(TokenKind::T_EOF_SYMBOL)) break;
   }

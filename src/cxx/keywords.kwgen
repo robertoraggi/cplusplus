@@ -56,6 +56,7 @@ __typeof
 __typeof__
 __underlying_type
 _Atomic
+_Complex
 
 alignas
 alignof
