@@ -1828,7 +1828,7 @@ bool Parser::parse_cast_expression_helper(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_binary_operator(SourceLocation& loc, TokenKind& tk,
-                                   bool templArg) {
+                                   const ExprContext& exprContext) {
   const auto start = currentLocation();
 
   loc = start;
@@ -1837,7 +1837,7 @@ bool Parser::parse_binary_operator(SourceLocation& loc, TokenKind& tk,
   switch (TokenKind(LA())) {
     case TokenKind::T_GREATER: {
       if (parse_greater_greater()) {
-        if (templArg && templArgDepth >= 2) {
+        if (exprContext.templArg && templArgDepth >= 2) {
           rewind(start);
           return false;
         }
@@ -1851,7 +1851,7 @@ bool Parser::parse_binary_operator(SourceLocation& loc, TokenKind& tk,
         return true;
       }
 
-      if (templArg) {
+      if (exprContext.templArg || exprContext.templParam) {
         rewind(start);
         return false;
       }
@@ -1888,22 +1888,23 @@ bool Parser::parse_binary_operator(SourceLocation& loc, TokenKind& tk,
   }  // switch
 }
 
-bool Parser::parse_binary_expression(ExpressionAST*& yyast, bool templArg) {
+bool Parser::parse_binary_expression(ExpressionAST*& yyast,
+                                     const ExprContext& exprContext) {
   if (!parse_cast_expression(yyast)) return false;
 
   const auto saved = currentLocation();
 
-  if (!parse_binary_expression_helper(yyast, Prec::kLogicalOr, templArg))
+  if (!parse_binary_expression_helper(yyast, Prec::kLogicalOr, exprContext))
     rewind(saved);
 
   return true;
 }
 
 bool Parser::parse_lookahead_binary_operator(SourceLocation& loc, TokenKind& tk,
-                                             bool templArg) {
+                                             const ExprContext& exprContext) {
   const auto saved = currentLocation();
 
-  const auto has_binop = parse_binary_operator(loc, tk, templArg);
+  const auto has_binop = parse_binary_operator(loc, tk, exprContext);
 
   rewind(saved);
 
@@ -1911,19 +1912,19 @@ bool Parser::parse_lookahead_binary_operator(SourceLocation& loc, TokenKind& tk,
 }
 
 bool Parser::parse_binary_expression_helper(ExpressionAST*& yyast, Prec minPrec,
-                                            bool templArg) {
+                                            const ExprContext& exprContext) {
   bool parsed = false;
 
   SourceLocation opLoc;
   TokenKind op = TokenKind::T_EOF_SYMBOL;
 
-  while (parse_lookahead_binary_operator(opLoc, op, templArg) &&
+  while (parse_lookahead_binary_operator(opLoc, op, exprContext) &&
          prec(op) >= minPrec) {
     const auto saved = currentLocation();
 
     ExpressionAST* rhs = nullptr;
 
-    parse_binary_operator(opLoc, op, templArg);
+    parse_binary_operator(opLoc, op, exprContext);
 
     if (!parse_cast_expression(rhs)) {
       rewind(saved);
@@ -1935,9 +1936,9 @@ bool Parser::parse_binary_expression_helper(ExpressionAST*& yyast, Prec minPrec,
     SourceLocation nextOpLoc;
     TokenKind nextOp = TokenKind::T_EOF_SYMBOL;
 
-    while (parse_lookahead_binary_operator(nextOpLoc, nextOp, templArg) &&
+    while (parse_lookahead_binary_operator(nextOpLoc, nextOp, exprContext) &&
            prec(nextOp) > prec(op)) {
-      if (!parse_binary_expression_helper(rhs, prec(op), templArg)) {
+      if (!parse_binary_expression_helper(rhs, prec(op), exprContext)) {
         break;
       }
     }
@@ -1954,13 +1955,14 @@ bool Parser::parse_binary_expression_helper(ExpressionAST*& yyast, Prec minPrec,
   return parsed;
 }
 
-bool Parser::parse_logical_or_expression(ExpressionAST*& yyast, bool templArg) {
-  return parse_binary_expression(yyast, templArg);
+bool Parser::parse_logical_or_expression(ExpressionAST*& yyast,
+                                         const ExprContext& exprContext) {
+  return parse_binary_expression(yyast, exprContext);
 }
 
 bool Parser::parse_conditional_expression(ExpressionAST*& yyast,
-                                          bool templArg) {
-  if (!parse_logical_or_expression(yyast, templArg)) return false;
+                                          const ExprContext& exprContext) {
+  if (!parse_logical_or_expression(yyast, exprContext)) return false;
 
   SourceLocation questionLoc;
 
@@ -1976,8 +1978,8 @@ bool Parser::parse_conditional_expression(ExpressionAST*& yyast,
 
     expect(TokenKind::T_COLON, ast->colonLoc);
 
-    if (templArg) {
-      if (!parse_conditional_expression(ast->iffalseExpression, templArg)) {
+    if (exprContext.templArg) {
+      if (!parse_conditional_expression(ast->iffalseExpression, exprContext)) {
         parse_error("expected an expression");
       }
     } else if (!parse_assignment_expression(ast->iffalseExpression)) {
@@ -2019,11 +2021,17 @@ bool Parser::parse_throw_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_assignment_expression(ExpressionAST*& yyast) {
+  ExprContext context;
+  return parse_assignment_expression(yyast, context);
+}
+
+bool Parser::parse_assignment_expression(ExpressionAST*& yyast,
+                                         const ExprContext& exprContext) {
   if (parse_yield_expression(yyast)) return true;
 
   if (parse_throw_expression(yyast)) return true;
 
-  if (!parse_conditional_expression(yyast, false)) return false;
+  if (!parse_conditional_expression(yyast, exprContext)) return false;
 
   SourceLocation opLoc;
   TokenKind op = TokenKind::T_EOF_SYMBOL;
@@ -2098,12 +2106,15 @@ bool Parser::parse_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_constant_expression(ExpressionAST*& yyast) {
-  return parse_conditional_expression(yyast, false);
+  ExprContext exprContext;
+  return parse_conditional_expression(yyast, exprContext);
 }
 
 bool Parser::parse_template_argument_constant_expression(
     ExpressionAST*& yyast) {
-  return parse_conditional_expression(yyast, true);
+  ExprContext exprContext;
+  exprContext.templArg = true;
+  return parse_conditional_expression(yyast, exprContext);
 }
 
 bool Parser::parse_statement(StatementAST*& yyast) {
@@ -4330,7 +4341,8 @@ bool Parser::parse_parameter_declaration_list(
 
   ParameterDeclarationAST* declaration = nullptr;
 
-  if (!parse_parameter_declaration(declaration)) return false;
+  if (!parse_parameter_declaration(declaration, /*templParam*/ false))
+    return false;
 
   *it = new (pool) List(declaration);
   it = &(*it)->next;
@@ -4340,7 +4352,7 @@ bool Parser::parse_parameter_declaration_list(
   while (match(TokenKind::T_COMMA, commaLoc)) {
     ParameterDeclarationAST* declaration = nullptr;
 
-    if (!parse_parameter_declaration(declaration)) {
+    if (!parse_parameter_declaration(declaration, /*templParam*/ false)) {
       rewind(commaLoc);
       break;
     }
@@ -4352,7 +4364,8 @@ bool Parser::parse_parameter_declaration_list(
   return true;
 }
 
-bool Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast) {
+bool Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast,
+                                         bool templParam) {
   auto ast = new (pool) ParameterDeclarationAST();
   yyast = ast;
 
@@ -4373,7 +4386,7 @@ bool Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast) {
   }
 
   if (match(TokenKind::T_EQUAL, ast->equalLoc)) {
-    if (!parse_initializer_clause(ast->expression))
+    if (!parse_initializer_clause(ast->expression, templParam))
       parse_error("expected an initializer");
   }
 
@@ -4423,13 +4436,16 @@ bool Parser::parse_brace_or_equal_initializer(InitializerAST*& yyast) {
   return true;
 }
 
-bool Parser::parse_initializer_clause(ExpressionAST*& yyast) {
+bool Parser::parse_initializer_clause(ExpressionAST*& yyast, bool templParam) {
   BracedInitListAST* bracedInitList = nullptr;
 
   if (LA().is(TokenKind::T_LBRACE))
     return parse_braced_init_list(bracedInitList);
 
-  return parse_assignment_expression(yyast);
+  ExprContext exprContext;
+  exprContext.templParam = templParam;
+
+  return parse_assignment_expression(yyast, exprContext);
 }
 
 bool Parser::parse_braced_init_list(BracedInitListAST*& yyast) {
@@ -6318,7 +6334,7 @@ bool Parser::parse_template_parameter(DeclarationAST*& yyast) {
 
   ParameterDeclarationAST* parameter = nullptr;
 
-  if (parse_parameter_declaration(parameter)) {
+  if (parse_parameter_declaration(parameter, /*templParam*/ true)) {
     yyast = parameter;
     return true;
   }
@@ -6615,7 +6631,8 @@ bool Parser::parse_template_argument(TemplateArgumentAST*& yyast) {
 }
 
 bool Parser::parse_constraint_expression(ExpressionAST*& yyast) {
-  return parse_logical_or_expression(yyast, false);
+  ExprContext exprContext;
+  return parse_logical_or_expression(yyast, exprContext);
 }
 
 bool Parser::parse_deduction_guide(DeclarationAST*& yyast) {

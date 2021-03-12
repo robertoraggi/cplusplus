@@ -60,6 +60,11 @@ class Parser {
   struct DeclSpecs;
   struct TemplArgContext;
 
+  struct ExprContext {
+    bool templParam = false;
+    bool templArg = false;
+  };
+
   template <typename... Args>
   bool parse_warn(const std::string_view& format, const Args&... args) {
     unit->report(SourceLocation(cursor_), Severity::Warning, format, args...);
@@ -162,17 +167,23 @@ class Parser {
   bool parse_delete_expression(ExpressionAST*& yyast);
   bool parse_cast_expression(ExpressionAST*& yyast);
   bool parse_cast_expression_helper(ExpressionAST*& yyast);
-  bool parse_binary_operator(SourceLocation& loc, TokenKind& tk, bool templArg);
-  bool parse_binary_expression(ExpressionAST*& yyast, bool templArg);
+  bool parse_binary_operator(SourceLocation& loc, TokenKind& tk,
+                             const ExprContext& exprContext);
+  bool parse_binary_expression(ExpressionAST*& yyast,
+                               const ExprContext& exprContext);
   bool parse_lookahead_binary_operator(SourceLocation& loc, TokenKind& tk,
-                                       bool templArg);
+                                       const ExprContext& exprContext);
   bool parse_binary_expression_helper(ExpressionAST*& yyast, Prec minPrec,
-                                      bool templArg);
-  bool parse_logical_or_expression(ExpressionAST*& yyast, bool templArg);
-  bool parse_conditional_expression(ExpressionAST*& yyast, bool templArg);
+                                      const ExprContext& exprContext);
+  bool parse_logical_or_expression(ExpressionAST*& yyast,
+                                   const ExprContext& exprContext);
+  bool parse_conditional_expression(ExpressionAST*& yyast,
+                                    const ExprContext& exprContext);
   bool parse_yield_expression(ExpressionAST*& yyast);
   bool parse_throw_expression(ExpressionAST*& yyast);
   bool parse_assignment_expression(ExpressionAST*& yyast);
+  bool parse_assignment_expression(ExpressionAST*& yyast,
+                                   const ExprContext& exprContext);
   bool parse_assignment_operator(SourceLocation& loc, TokenKind& op);
   bool parse_expression(ExpressionAST*& yyast);
   bool parse_constant_expression(ExpressionAST*& yyast);
@@ -263,10 +274,11 @@ class Parser {
   bool parse_parameter_declaration_clause(
       ParameterDeclarationClauseAST*& yyast);
   bool parse_parameter_declaration_list(List<ParameterDeclarationAST*>*& yyast);
-  bool parse_parameter_declaration(ParameterDeclarationAST*& yyast);
+  bool parse_parameter_declaration(ParameterDeclarationAST*& yyast,
+                                   bool templParam);
   bool parse_initializer(InitializerAST*& yyast);
   bool parse_brace_or_equal_initializer(InitializerAST*& yyast);
-  bool parse_initializer_clause(ExpressionAST*& yyast);
+  bool parse_initializer_clause(ExpressionAST*& yyast, bool templParam = false);
   bool parse_braced_init_list(BracedInitListAST*& yyast);
   bool parse_initializer_list(List<ExpressionAST*>*& yyast);
   bool parse_designated_initializer_clause();
