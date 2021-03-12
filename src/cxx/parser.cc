@@ -3194,7 +3194,7 @@ bool Parser::parse_storage_class_specifier(SpecifierAST*& yyast) {
   } else if (match(TokenKind::T___THREAD, loc)) {
     auto ast = new (pool) ThreadSpecifierAST();
     yyast = ast;
-    ast->threadLoc = consumeToken();
+    ast->threadLoc = loc;
     return true;
   }
 
