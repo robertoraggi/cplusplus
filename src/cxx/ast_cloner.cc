@@ -434,12 +434,16 @@ void ASTCloner::visit(ThisExpressionAST* ast) {
   auto copy = new (arena_) ThisExpressionAST();
   copy_ = copy;
 
+  copy->type = ast->type;
+
   copy->thisLoc = ast->thisLoc;
 }
 
 void ASTCloner::visit(CharLiteralExpressionAST* ast) {
   auto copy = new (arena_) CharLiteralExpressionAST();
   copy_ = copy;
+
+  copy->type = ast->type;
 
   copy->literalLoc = ast->literalLoc;
 }
@@ -448,12 +452,16 @@ void ASTCloner::visit(BoolLiteralExpressionAST* ast) {
   auto copy = new (arena_) BoolLiteralExpressionAST();
   copy_ = copy;
 
+  copy->type = ast->type;
+
   copy->literalLoc = ast->literalLoc;
 }
 
 void ASTCloner::visit(IntLiteralExpressionAST* ast) {
   auto copy = new (arena_) IntLiteralExpressionAST();
   copy_ = copy;
+
+  copy->type = ast->type;
 
   copy->literalLoc = ast->literalLoc;
 }
@@ -462,6 +470,8 @@ void ASTCloner::visit(FloatLiteralExpressionAST* ast) {
   auto copy = new (arena_) FloatLiteralExpressionAST();
   copy_ = copy;
 
+  copy->type = ast->type;
+
   copy->literalLoc = ast->literalLoc;
 }
 
@@ -469,12 +479,16 @@ void ASTCloner::visit(NullptrLiteralExpressionAST* ast) {
   auto copy = new (arena_) NullptrLiteralExpressionAST();
   copy_ = copy;
 
+  copy->type = ast->type;
+
   copy->literalLoc = ast->literalLoc;
 }
 
 void ASTCloner::visit(StringLiteralExpressionAST* ast) {
   auto copy = new (arena_) StringLiteralExpressionAST();
   copy_ = copy;
+
+  copy->type = ast->type;
 
   if (auto it = ast->stringLiteralList) {
     auto out = &copy->stringLiteralList;
@@ -490,6 +504,8 @@ void ASTCloner::visit(UserDefinedStringLiteralExpressionAST* ast) {
   auto copy = new (arena_) UserDefinedStringLiteralExpressionAST();
   copy_ = copy;
 
+  copy->type = ast->type;
+
   copy->literalLoc = ast->literalLoc;
 }
 
@@ -497,12 +513,16 @@ void ASTCloner::visit(IdExpressionAST* ast) {
   auto copy = new (arena_) IdExpressionAST();
   copy_ = copy;
 
+  copy->type = ast->type;
+
   copy->name = accept(ast->name);
 }
 
 void ASTCloner::visit(NestedExpressionAST* ast) {
   auto copy = new (arena_) NestedExpressionAST();
   copy_ = copy;
+
+  copy->type = ast->type;
 
   copy->lparenLoc = ast->lparenLoc;
 
@@ -514,6 +534,8 @@ void ASTCloner::visit(NestedExpressionAST* ast) {
 void ASTCloner::visit(LambdaExpressionAST* ast) {
   auto copy = new (arena_) LambdaExpressionAST();
   copy_ = copy;
+
+  copy->type = ast->type;
 
   copy->lambdaIntroducer = accept(ast->lambdaIntroducer);
 
@@ -539,6 +561,8 @@ void ASTCloner::visit(UnaryExpressionAST* ast) {
   auto copy = new (arena_) UnaryExpressionAST();
   copy_ = copy;
 
+  copy->type = ast->type;
+
   copy->opLoc = ast->opLoc;
 
   copy->expression = accept(ast->expression);
@@ -547,6 +571,8 @@ void ASTCloner::visit(UnaryExpressionAST* ast) {
 void ASTCloner::visit(BinaryExpressionAST* ast) {
   auto copy = new (arena_) BinaryExpressionAST();
   copy_ = copy;
+
+  copy->type = ast->type;
 
   copy->leftExpression = accept(ast->leftExpression);
 
@@ -559,6 +585,8 @@ void ASTCloner::visit(AssignmentExpressionAST* ast) {
   auto copy = new (arena_) AssignmentExpressionAST();
   copy_ = copy;
 
+  copy->type = ast->type;
+
   copy->leftExpression = accept(ast->leftExpression);
 
   copy->opLoc = ast->opLoc;
@@ -569,6 +597,8 @@ void ASTCloner::visit(AssignmentExpressionAST* ast) {
 void ASTCloner::visit(CallExpressionAST* ast) {
   auto copy = new (arena_) CallExpressionAST();
   copy_ = copy;
+
+  copy->type = ast->type;
 
   copy->baseExpression = accept(ast->baseExpression);
 
@@ -590,6 +620,8 @@ void ASTCloner::visit(SubscriptExpressionAST* ast) {
   auto copy = new (arena_) SubscriptExpressionAST();
   copy_ = copy;
 
+  copy->type = ast->type;
+
   copy->baseExpression = accept(ast->baseExpression);
 
   copy->lbracketLoc = ast->lbracketLoc;
@@ -603,6 +635,8 @@ void ASTCloner::visit(MemberExpressionAST* ast) {
   auto copy = new (arena_) MemberExpressionAST();
   copy_ = copy;
 
+  copy->type = ast->type;
+
   copy->baseExpression = accept(ast->baseExpression);
 
   copy->accessLoc = ast->accessLoc;
@@ -615,6 +649,8 @@ void ASTCloner::visit(MemberExpressionAST* ast) {
 void ASTCloner::visit(ConditionalExpressionAST* ast) {
   auto copy = new (arena_) ConditionalExpressionAST();
   copy_ = copy;
+
+  copy->type = ast->type;
 
   copy->condition = accept(ast->condition);
 
@@ -630,6 +666,8 @@ void ASTCloner::visit(ConditionalExpressionAST* ast) {
 void ASTCloner::visit(CppCastExpressionAST* ast) {
   auto copy = new (arena_) CppCastExpressionAST();
   copy_ = copy;
+
+  copy->type = ast->type;
 
   copy->castLoc = ast->castLoc;
 
@@ -650,6 +688,8 @@ void ASTCloner::visit(NewExpressionAST* ast) {
   auto copy = new (arena_) NewExpressionAST();
   copy_ = copy;
 
+  copy->type = ast->type;
+
   copy->scopeLoc = ast->scopeLoc;
 
   copy->newLoc = ast->newLoc;
@@ -662,6 +702,8 @@ void ASTCloner::visit(NewExpressionAST* ast) {
 void ASTCloner::visit(DeleteExpressionAST* ast) {
   auto copy = new (arena_) DeleteExpressionAST();
   copy_ = copy;
+
+  copy->type = ast->type;
 
   copy->scopeLoc = ast->scopeLoc;
 

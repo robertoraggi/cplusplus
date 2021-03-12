@@ -25,7 +25,9 @@
 #include <cxx/ast_kind.h>
 #include <cxx/ast_visitor.h>
 #include <cxx/source_location.h>
+#include <cxx/symbols_fwd.h>
 #include <cxx/token.h>
+#include <cxx/types_fwd.h>
 
 namespace cxx {
 
@@ -111,6 +113,7 @@ struct ExceptionDeclarationAST : AST {
 
 struct ExpressionAST : AST {
   using AST::AST;
+  const Type* type = nullptr;
 };
 
 struct InitializerAST : AST {

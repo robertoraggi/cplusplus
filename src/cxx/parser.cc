@@ -1773,7 +1773,7 @@ bool Parser::parse_new_initializer(NewInitializerAST*& yyast) {
 bool Parser::parse_delete_expression(ExpressionAST*& yyast) {
   const auto start = currentLocation();
 
-SourceLocation scopeLoc;
+  SourceLocation scopeLoc;
 
   const auto has_scope_op = match(TokenKind::T_COLON_COLON, scopeLoc);
 
@@ -1794,7 +1794,8 @@ SourceLocation scopeLoc;
     expect(TokenKind::T_RBRACKET, ast->rbracketLoc);
   }
 
-  if (!parse_cast_expression(ast->expression)) parse_error("expected an expression");
+  if (!parse_cast_expression(ast->expression))
+    parse_error("expected an expression");
 
   return true;
 }
