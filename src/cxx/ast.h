@@ -1539,6 +1539,17 @@ struct VoidTypeSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
+struct VaListTypeSpecifierAST final : SpecifierAST {
+  VaListTypeSpecifierAST() : SpecifierAST(ASTKind::VaListTypeSpecifier) {}
+
+  SourceLocation specifierLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 struct IntegralTypeSpecifierAST final : SpecifierAST {
   IntegralTypeSpecifierAST() : SpecifierAST(ASTKind::IntegralTypeSpecifier) {}
 

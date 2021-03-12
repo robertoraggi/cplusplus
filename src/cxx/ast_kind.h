@@ -151,6 +151,7 @@ enum struct ASTKind {
   ExplicitSpecifier,
   AutoTypeSpecifier,
   VoidTypeSpecifier,
+  VaListTypeSpecifier,
   IntegralTypeSpecifier,
   FloatingPointTypeSpecifier,
   ComplexTypeSpecifier,

@@ -1493,6 +1493,14 @@ void ASTSlot::visit(VoidTypeSpecifierAST* ast) {
   }  // switch
 }
 
+void ASTSlot::visit(VaListTypeSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->specifierLoc.index();
+      break;
+  }  // switch
+}
+
 void ASTSlot::visit(IntegralTypeSpecifierAST* ast) {
   switch (slot_) {
     case 0:

@@ -3503,6 +3503,14 @@ bool Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
   if (!specs.accepts_simple_typespec()) return false;
 
   switch (TokenKind(LA())) {
+    case TokenKind::T___BUILTIN_VA_LIST: {
+      auto ast = new (pool) VaListTypeSpecifierAST();
+      yyast = ast;
+      ast->specifierLoc = consumeToken();
+      specs.has_simple_typespec = true;
+      return true;
+    };
+
     case TokenKind::T_CHAR:
     case TokenKind::T_CHAR8_T:
     case TokenKind::T_CHAR16_T:

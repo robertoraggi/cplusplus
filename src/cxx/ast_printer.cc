@@ -1430,6 +1430,14 @@ void ASTPrinter::visit(VoidTypeSpecifierAST* ast) {
   json_["$id"] = "VoidTypeSpecifier";
 }
 
+void ASTPrinter::visit(VaListTypeSpecifierAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "VaListTypeSpecifier";
+
+  json_["specifier"] = unit_->tokenText(ast->specifierLoc);
+}
+
 void ASTPrinter::visit(IntegralTypeSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 

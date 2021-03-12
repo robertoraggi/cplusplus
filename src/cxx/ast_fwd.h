@@ -168,6 +168,7 @@ struct VirtualSpecifierAST;
 struct ExplicitSpecifierAST;
 struct AutoTypeSpecifierAST;
 struct VoidTypeSpecifierAST;
+struct VaListTypeSpecifierAST;
 struct IntegralTypeSpecifierAST;
 struct FloatingPointTypeSpecifierAST;
 struct ComplexTypeSpecifierAST;

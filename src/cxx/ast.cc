@@ -1504,6 +1504,16 @@ SourceLocation VoidTypeSpecifierAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation VaListTypeSpecifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(specifierLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation VaListTypeSpecifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(specifierLoc)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation IntegralTypeSpecifierAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(specifierLoc)) return loc;
   return SourceLocation();

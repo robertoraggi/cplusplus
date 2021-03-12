@@ -464,6 +464,8 @@ void RecursiveASTVisitor::visit(AutoTypeSpecifierAST* ast) {}
 
 void RecursiveASTVisitor::visit(VoidTypeSpecifierAST* ast) {}
 
+void RecursiveASTVisitor::visit(VaListTypeSpecifierAST* ast) {}
+
 void RecursiveASTVisitor::visit(IntegralTypeSpecifierAST* ast) {}
 
 void RecursiveASTVisitor::visit(FloatingPointTypeSpecifierAST* ast) {}

@@ -101,6 +101,7 @@
   V(__ASM, "__asm")                                                   \
   V(__ATTRIBUTE__, "__attribute__")                                   \
   V(__ATTRIBUTE, "__attribute")                                       \
+  V(__BUILTIN_VA_LIST, "__builtin_va_list")                           \
   V(__COMPLEX__, "__complex__")                                       \
   V(__DECLTYPE, "__decltype")                                         \
   V(__DECLTYPE__, "__decltype__")                                     \

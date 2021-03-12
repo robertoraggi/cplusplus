@@ -10,6 +10,7 @@ __asm
 __asm__
 __attribute
 __attribute__
+__builtin_va_list
 __complex__
 __decltype
 __decltype__

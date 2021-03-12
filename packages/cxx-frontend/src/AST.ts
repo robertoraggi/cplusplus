@@ -1737,6 +1737,15 @@ export class VoidTypeSpecifierAST extends SpecifierAST {
     }
 }
 
+export class VaListTypeSpecifierAST extends SpecifierAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitVaListTypeSpecifier(this, context);
+    }
+    getSpecifierToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+}
+
 export class IntegralTypeSpecifierAST extends SpecifierAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitIntegralTypeSpecifier(this, context);
@@ -2195,6 +2204,7 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     ExplicitSpecifierAST,
     AutoTypeSpecifierAST,
     VoidTypeSpecifierAST,
+    VaListTypeSpecifierAST,
     IntegralTypeSpecifierAST,
     FloatingPointTypeSpecifierAST,
     ComplexTypeSpecifierAST,
