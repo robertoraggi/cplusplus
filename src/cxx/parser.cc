@@ -2453,6 +2453,8 @@ bool Parser::parse_do_statement(StatementAST*& yyast) {
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
+  expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
+
   return true;
 }
 
