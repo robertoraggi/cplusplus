@@ -144,6 +144,18 @@ struct Parser::TemplArgContext {
   ~TemplArgContext() { --p->templArgDepth; }
 };
 
+struct Parser::ClassSpecifierContext {
+  ClassSpecifierContext(const ClassSpecifierContext&) = delete;
+  ClassSpecifierContext& operator=(const ClassSpecifierContext&) = delete;
+
+  Parser* p;
+
+  explicit ClassSpecifierContext(Parser* p) : p(p) { ++p->classDepth; }
+  ~ClassSpecifierContext() {
+    if (--p->classDepth == 0) p->completePendingFunctionDefinitions();
+  }
+};
+
 const Token& Parser::LA(int n) const {
   return unit->tokenAt(SourceLocation(cursor_ + n));
 }
@@ -2312,9 +2324,7 @@ bool Parser::parse_expression_statement(StatementAST*& yyast) {
   return true;
 }
 
-bool Parser::parse_compound_statement(StatementAST*& yyast) {
-  bool skipping = false;
-
+bool Parser::parse_compound_statement(StatementAST*& yyast, bool skip) {
   SourceLocation lbraceLoc;
 
   if (!match(TokenKind::T_LBRACE, lbraceLoc)) return false;
@@ -2323,6 +2333,36 @@ bool Parser::parse_compound_statement(StatementAST*& yyast) {
   yyast = ast;
 
   ast->lbraceLoc = lbraceLoc;
+
+  if (skip) {
+    int depth = 1;
+
+    while (const auto& tok = LA()) {
+      if (tok.is(TokenKind::T_LBRACE)) {
+        ++depth;
+      } else if (tok.is(TokenKind::T_RBRACE)) {
+        if (!--depth) {
+          break;
+        }
+      }
+
+      consumeToken();
+    }
+
+    expect(TokenKind::T_RBRACE, ast->rbraceLoc);
+
+    return true;
+  }
+
+  finish_compound_statement(ast);
+
+  if (!expect(TokenKind::T_RBRACE, ast->rbraceLoc)) return false;
+
+  return true;
+}
+
+void Parser::finish_compound_statement(CompoundStatementAST* ast) {
+  bool skipping = false;
 
   auto it = &ast->statementList;
 
@@ -2339,10 +2379,6 @@ bool Parser::parse_compound_statement(StatementAST*& yyast) {
       parse_skip_statement(skipping);
     }
   }
-
-  if (!expect(TokenKind::T_RBRACE, ast->rbraceLoc)) return false;
-
-  return true;
 }
 
 bool Parser::parse_skip_statement(bool& skipping) {
@@ -2857,6 +2893,8 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
         ast->declarator = declarator;
         ast->functionBody = functionBody;
 
+        if (classDepth) pendingFunctionDefinitions_.push_back(ast);
+
         return true;
       }
     }
@@ -2918,6 +2956,8 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
       ast->declSpecifierList = declSpecifierList;
       ast->declarator = declarator;
       ast->functionBody = functionBody;
+
+      if (classDepth) pendingFunctionDefinitions_.push_back(ast);
 
       return true;
     }
@@ -4604,28 +4644,10 @@ bool Parser::parse_function_body(StatementAST*& yyast) {
 
   if (LA().isNot(TokenKind::T_LBRACE)) return false;
 
-  if (skip_function_body) {
-    expect(TokenKind::T_LBRACE);
+  const bool skip = skip_function_body || classDepth > 0;
 
-    int depth = 1;
-
-    while (const auto& tok = LA()) {
-      if (tok.is(TokenKind::T_LBRACE)) {
-        ++depth;
-      } else if (tok.is(TokenKind::T_RBRACE)) {
-        if (!--depth) {
-          break;
-        }
-      }
-
-      consumeToken();
-    }
-
-    expect(TokenKind::T_RBRACE);
-  } else {
-    if (!parse_compound_statement(yyast))
-      parse_error("expected a compound statement");
-  }
+  if (!parse_compound_statement(yyast, skip))
+    parse_error("expected a compound statement");
 
   return true;
 }
@@ -5486,6 +5508,8 @@ bool Parser::parse_class_specifier(SpecifierAST*& yyast) {
     return false;
   }
 
+  ClassSpecifierContext classContext(this);
+
   SourceLocation lbraceLoc;
 
   if (!match(TokenKind::T_LBRACE, lbraceLoc)) {
@@ -5714,6 +5738,8 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
         ast->declarator = declarator;
         ast->functionBody = functionBody;
 
+        if (classDepth) pendingFunctionDefinitions_.push_back(ast);
+
         return true;
       }
 
@@ -5754,6 +5780,8 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
       ast->declSpecifierList = declSpecifierList;
       ast->declarator = declarator;
       ast->functionBody = functionBody;
+
+      if (classDepth) pendingFunctionDefinitions_.push_back(ast);
 
       return true;
     }
@@ -6915,6 +6943,34 @@ bool Parser::parse_identifier_list() {
   }
 
   return true;
+}
+
+void Parser::completePendingFunctionDefinitions() {
+  if (pendingFunctionDefinitions_.empty()) return;
+
+  std::vector<FunctionDefinitionAST*> functions;
+
+  std::swap(pendingFunctionDefinitions_, functions);
+
+  for (const auto& function : functions) {
+    completeFunctionDefinition(function);
+  }
+}
+
+void Parser::completeFunctionDefinition(FunctionDefinitionAST* ast) {
+  if (!ast->functionBody) return;
+
+  if (ast->functionBody->kind() == ASTKind::CompoundStatement) {
+    auto functionBody = static_cast<CompoundStatementAST*>(ast->functionBody);
+
+    const auto saved = currentLocation();
+
+    rewind(functionBody->lbraceLoc.next());
+
+    finish_compound_statement(functionBody);
+
+    rewind(saved);
+  }
 }
 
 }  // namespace cxx

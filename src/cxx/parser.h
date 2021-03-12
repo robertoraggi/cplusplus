@@ -59,6 +59,7 @@ class Parser {
 
   struct DeclSpecs;
   struct TemplArgContext;
+  struct ClassSpecifierContext;
 
   struct ExprContext {
     bool templParam = false;
@@ -195,7 +196,8 @@ class Parser {
   bool parse_case_statement(StatementAST*& yyast);
   bool parse_default_statement(StatementAST*& yyast);
   bool parse_expression_statement(StatementAST*& yyast);
-  bool parse_compound_statement(StatementAST*& yyast);
+  bool parse_compound_statement(StatementAST*& yyast, bool skip = false);
+  void finish_compound_statement(CompoundStatementAST* yyast);
   bool parse_skip_statement(bool& skipping);
   bool parse_if_statement(StatementAST*& yyast);
   bool parse_switch_statement(StatementAST*& yyast);
@@ -435,6 +437,9 @@ class Parser {
 
   void rewind(SourceLocation location) { cursor_ = location.index(); }
 
+  void completePendingFunctionDefinitions();
+  void completeFunctionDefinition(FunctionDefinitionAST* ast);
+
  private:
   TranslationUnit* unit = nullptr;
   Arena* pool = nullptr;
@@ -451,12 +456,15 @@ class Parser {
                      std::tuple<SourceLocation, NestedNameSpecifierAST*, bool>>
       nested_name_specifiers_;
 
+  std::vector<FunctionDefinitionAST*> pendingFunctionDefinitions_;
+
   bool module_unit = false;
   const Identifier* module_id = nullptr;
   const Identifier* import_id = nullptr;
   const Identifier* final_id = nullptr;
   const Identifier* override_id = nullptr;
   int templArgDepth = 0;
+  int classDepth = 0;
   uint32_t lastErrorCursor_ = 0;
   uint32_t cursor_ = 0;
 };
