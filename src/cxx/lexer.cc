@@ -495,4 +495,8 @@ bool Lexer::skipSpaces() {
   return pos_ != end_;
 }
 
+TokenKind Lexer::classifyKeyword(const std::string_view& text) {
+  return classify(text.data(), int(text.size()));
+}
+
 }  // namespace cxx

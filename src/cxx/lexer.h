@@ -95,6 +95,8 @@ class Lexer {
     startOfLine_ = state.startOfLine_;
   }
 
+  static TokenKind classifyKeyword(const std::string_view& text);
+
  private:
   TokenKind readToken();
 

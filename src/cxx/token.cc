@@ -20,6 +20,10 @@
 
 #include <cxx/token.h>
 
+// cxx
+#include <cxx/literals.h>
+#include <cxx/names.h>
+
 namespace cxx {
 
 namespace {
@@ -39,7 +43,20 @@ const std::string& Token::spell(TokenKind kind) {
   return token_spell[(int)kind];
 }
 
-const std::string& Token::spell() const { return spell(kind_); }
+const std::string& Token::spell() const {
+  switch (kind_) {
+    case TokenKind::T_IDENTIFIER:
+      return value_.idValue ? value_.idValue->name() : spell(kind_);
+
+    case TokenKind::T_STRING_LITERAL:
+    case TokenKind::T_CHARACTER_LITERAL:
+    case TokenKind::T_INTEGER_LITERAL:
+      return value_.literalValue ? value_.literalValue->value() : spell(kind_);
+
+    default:
+      return spell(kind_);
+  }  // switch
+}
 
 const std::string& Token::name(TokenKind kind) { return token_name[(int)kind]; }
 

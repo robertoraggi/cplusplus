@@ -73,6 +73,7 @@ class TranslationUnit {
   const char* yyptr = nullptr;
   bool fatalErrors_ = false;
   bool blockErrors_ = false;
+  bool preprocessed_ = true;
   DiagnosticClient* diagnosticClient_ = nullptr;
 
  public:
@@ -96,6 +97,9 @@ class TranslationUnit {
 
   const std::string& fileName() const { return fileName_; }
   void setFileName(std::string fileName) { fileName_ = std::move(fileName); }
+
+  bool preprocessed() const { return preprocessed_; }
+  void setPreprocessed(bool preprocessed) { preprocessed_ = preprocessed; }
 
   const std::string& source() const { return code_; }
 

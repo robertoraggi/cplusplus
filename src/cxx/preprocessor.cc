@@ -18,9 +18,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/arena.h>
-#include <cxx/lexer.h>
 #include <cxx/preprocessor.h>
+
+// cxx
+#include <cxx/arena.h>
+#include <cxx/control.h>
+#include <cxx/lexer.h>
+#include <cxx/literals.h>
 
 // fmt
 #include <fmt/format.h>
@@ -107,6 +111,9 @@ struct Tok final : Managed {
   std::string_view text;
   const Hideset *hideset = nullptr;
   TokenKind kind = TokenKind::T_EOF_SYMBOL;
+  unsigned offset_ = 0;
+  unsigned length_ = 0;
+
   bool bol = false;
   bool space = false;
 
@@ -147,6 +154,7 @@ struct Macro {
 };
 
 struct Preprocessor::Private {
+  Control *control_ = nullptr;
   std::vector<fs::path> systemIncludePaths_;
   std::vector<fs::path> quoteIncludePaths_;
   std::unordered_map<std::string_view, Macro> macros_;
@@ -388,6 +396,8 @@ const TokList *Preprocessor::Private::tokenize(const std::string_view &source,
     auto tk = new (&pool_) Tok();
     tk->kind = lex.tokenKind();
     tk->text = lex.tokenText();
+    tk->offset_ = lex.tokenPos();
+    tk->length_ = lex.tokenLength();
     tk->bol = lex.tokenStartOfLine();
     tk->space = lex.tokenLeadingSpace();
     *it = new (&pool_) TokList(tk);
@@ -1133,9 +1143,11 @@ void Preprocessor::Private::printLine(const TokList *ts,
   fmt::print(out, "\n");
 }
 
-Preprocessor::Preprocessor() : d(new Private()) {}
+Preprocessor::Preprocessor(Control *control) : d(std::make_unique<Private>()) {
+  d->control_ = control;
+}
 
-Preprocessor::~Preprocessor() { delete d; }
+Preprocessor::~Preprocessor() {}
 
 void Preprocessor::operator()(const std::string_view &source,
                               const std::string &fileName, std::ostream &out) {
@@ -1157,6 +1169,111 @@ void Preprocessor::preprocess(const std::string_view &source,
 
   d->print(os, out);
   fmt::print(out, "\n");
+}
+
+void Preprocessor::preprocess(const std::string_view &source,
+                              const std::string &fileName,
+                              std::vector<Token> &tokens) {
+  fs::path path(fileName);
+  path.remove_filename();
+
+  std::swap(d->currentPath_, path);
+
+  const auto ts = d->tokenize(source, true);
+
+  const auto os = d->expand(ts, /*directives*/ true);
+
+  std::swap(d->currentPath_, path);
+
+  tokens.emplace_back(TokenKind::T_ERROR);
+
+  for (auto it = os; it; it = it->tail) {
+    auto tk = it->head;
+    auto kind = tk->kind;
+
+    TokenValue value;
+
+    switch (tk->kind) {
+      case TokenKind::T_IDENTIFIER: {
+        kind = Lexer::classifyKeyword(tk->text);
+        if (kind == TokenKind::T_IDENTIFIER)
+          value.idValue = d->control_->identifier(std::string(tk->text));
+        break;
+      }
+
+      case TokenKind::T_CHARACTER_LITERAL:
+        value.literalValue = d->control_->charLiteral(std::string(tk->text));
+        break;
+
+      case TokenKind::T_STRING_LITERAL:
+        value.literalValue = d->control_->stringLiteral(std::string(tk->text));
+        break;
+
+      case TokenKind::T_INTEGER_LITERAL:
+      case TokenKind::T_FLOATING_POINT_LITERAL:
+        value.literalValue = d->control_->numericLiteral(std::string(tk->text));
+        break;
+
+      case TokenKind::T_GREATER:
+        // ### TODO:
+        // value = lexer.tokenValue();
+        break;
+
+      default:
+        break;
+    }
+
+    if (tk->kind == TokenKind::T_GREATER_EQUAL) {
+      value.tokenKindValue = tk->kind;
+
+      Token token(TokenKind::T_GREATER, tk->offset_, 1, value);
+      token.setLeadingSpace(tk->space);
+      token.setStartOfLine(tk->bol);
+      tokens.push_back(token);
+
+      token = Token(TokenKind::T_EQUAL, tk->offset_ + 1, 1);
+      token.setLeadingSpace(false);
+      token.setStartOfLine(false);
+      tokens.push_back(token);
+    } else if (tk->kind == TokenKind::T_GREATER_GREATER) {
+      value.tokenKindValue = tk->kind;
+
+      Token token(TokenKind::T_GREATER, tk->offset_, 1);
+      token.setLeadingSpace(tk->space);
+      token.setStartOfLine(tk->bol);
+      tokens.push_back(token);
+
+      token = Token(TokenKind::T_GREATER, tk->offset_ + 1, 1);
+      token.setLeadingSpace(false);
+      token.setStartOfLine(false);
+      tokens.push_back(token);
+    } else if (tk->kind == TokenKind::T_GREATER_GREATER_EQUAL) {
+      value.tokenKindValue = tk->kind;
+
+      Token token(TokenKind::T_GREATER, tk->offset_, 1);
+      token.setLeadingSpace(tk->space);
+      token.setStartOfLine(tk->bol);
+      tokens.push_back(token);
+
+      token = Token(TokenKind::T_GREATER, tk->offset_ + 1, 1);
+      token.setLeadingSpace(false);
+      token.setStartOfLine(false);
+      tokens.push_back(token);
+
+      token = Token(TokenKind::T_EQUAL, tk->offset_ + 2, 1);
+      token.setLeadingSpace(false);
+      token.setStartOfLine(false);
+      tokens.push_back(token);
+
+    } else {
+      Token token(kind, tk->offset_, tk->length_, value);
+      token.setLeadingSpace(tk->space);
+      token.setStartOfLine(tk->bol);
+      tokens.push_back(token);
+    }
+  }
+
+  tokens.emplace_back(TokenKind::T_EOF_SYMBOL);
 }
 
 void Preprocessor::defineMacro(const std::string &name,

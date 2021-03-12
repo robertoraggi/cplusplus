@@ -20,18 +20,21 @@
 
 #pragma once
 
+#include <cxx/cxx_fwd.h>
+
 #include <iosfwd>
+#include <memory>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace cxx {
 
+class Token;
+
 class Preprocessor {
  public:
-  Preprocessor(const Preprocessor &) = delete;
-  Preprocessor &operator=(const Preprocessor &) = delete;
-
-  Preprocessor();
+  explicit Preprocessor(Control *control);
   ~Preprocessor();
 
   void operator()(const std::string_view &source, const std::string &fileName,
@@ -39,6 +42,9 @@ class Preprocessor {
 
   void preprocess(const std::string_view &source, const std::string &fileName,
                   std::ostream &out);
+
+  void preprocess(const std::string_view &source, const std::string &fileName,
+                  std::vector<Token> &tokens);
 
   void addSystemIncludePaths();
 
@@ -50,8 +56,7 @@ class Preprocessor {
 
  private:
   struct Private;
-  friend struct Private;
-  struct Private *d;
+  std::unique_ptr<Private> d;
 };
 
 }  // namespace cxx

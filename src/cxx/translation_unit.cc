@@ -18,13 +18,16 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/translation_unit.h>
+
+// cxx
 #include <cxx/arena.h>
 #include <cxx/control.h>
 #include <cxx/lexer.h>
 #include <cxx/literals.h>
 #include <cxx/names.h>
 #include <cxx/parser.h>
-#include <cxx/translation_unit.h>
+#include <cxx/preprocessor.h>
 #include <utf8.h>
 
 #include <cassert>
@@ -112,6 +115,14 @@ void TranslationUnit::getTokenEndPosition(SourceLocation loc, unsigned* line,
 }
 
 void TranslationUnit::tokenize(bool preprocessing) {
+  if (!preprocessed_) {
+    Preprocessor pp(control_);
+    pp.addPredefinedMacros();
+    pp.addSystemIncludePaths();
+    pp.preprocess(code_, fileName_, tokens_);
+    return;
+  }
+
   Lexer lexer(code_);
 
   lexer.setPreprocessing(preprocessing);

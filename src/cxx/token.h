@@ -273,7 +273,12 @@ class Token {
   inline unsigned length() const { return length_; }
 
   inline bool startOfLine() const { return startOfLine_; }
+  inline void setStartOfLine(bool startOfLine) { startOfLine_ = startOfLine; }
+
   inline bool leadingSpace() const { return leadingSpace_; }
+  inline void setLeadingSpace(bool leadingSpace) {
+    leadingSpace_ = leadingSpace;
+  }
 
   static const std::string& spell(TokenKind kind);
   const std::string& spell() const;

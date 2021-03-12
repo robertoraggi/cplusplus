@@ -60,11 +60,12 @@ std::string readAll(const std::string& fileName) {
   return readAll(fileName, stream);
 }
 
-bool parseFile(const std::string& fileName, bool printAST) {
+bool parseFile(const std::string& fileName, bool preprocessed, bool printAST) {
   Control control;
   TranslationUnit unit(&control);
   unit.setFileName(fileName);
   unit.setSource(readAll(fileName));
+  unit.setPreprocessed(preprocessed);
   const auto result = unit.parse();
   if (printAST) {
     ASTPrinter print(&unit);
@@ -73,11 +74,12 @@ bool parseFile(const std::string& fileName, bool printAST) {
   return result;
 }
 
-void dumpTokens(const std::string& fileName) {
+void dumpTokens(const std::string& fileName, bool preprocessed) {
   Control control;
 
   TranslationUnit unit(&control);
 
+  unit.setPreprocessed(preprocessed);
   unit.setSource(readAll(fileName));
   unit.setFileName(std::move(fileName));
   unit.tokenize(/*preprocessing=*/true);
@@ -116,6 +118,7 @@ int main(int argc, char* argv[]) {
       ("input", "Input Files", cxxopts::value<std::vector<std::string>>())
       ("E,preprocess", "Preprocess")
       ("preprocess-only", "Preprocess only")
+      ("fpreprocessed", "Treat the input file as already preprocessed.", cxxopts::value<bool>()->default_value("true"))
       ("dump-macros", "Dump the macros")
       ("dump-tokens", "Dump the tokens")
       ("dump-ast", "Dump the AST");
@@ -136,6 +139,7 @@ int main(int argc, char* argv[]) {
   const auto shouldDumpAST = result["dump-ast"].as<bool>();
   const auto shouldPreprocess =
       result["preprocess"].as<bool>() || result["preprocess-only"].as<bool>();
+  const auto preprocessed = result["fpreprocessed"].as<bool>();
 
   if (inputFiles.empty()) {
     std::cerr << "cxx-frontend: no input files" << std::endl
@@ -145,7 +149,8 @@ int main(int argc, char* argv[]) {
 
   for (const auto& fileName : inputFiles) {
     if (shouldPreprocess) {
-      Preprocessor preprocess;
+      Control control;
+      Preprocessor preprocess(&control);
 
       preprocess.addSystemIncludePaths();
       preprocess.addPredefinedMacros();
@@ -161,9 +166,10 @@ int main(int argc, char* argv[]) {
         fmt::print("{}\n", out.str());
       }
     } else if (shouldDumpTokens)
-      dumpTokens(fileName);
-    else
-      parseFile(fileName, shouldDumpAST);
+      dumpTokens(fileName, preprocessed);
+    else {
+      parseFile(fileName, preprocessed, shouldDumpAST);
+    }
   }
 
   return EXIT_SUCCESS;
