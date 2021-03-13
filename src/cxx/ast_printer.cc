@@ -1490,6 +1490,22 @@ void ASTPrinter::visit(ElaboratedTypeSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
   json_["$id"] = "ElaboratedTypeSpecifier";
+
+  if (ast->attributeList) {
+    auto elements = nlohmann::json::array();
+    for (auto it = ast->attributeList; it; it = it->next) {
+      elements.push_back(accept(it->value));
+    }
+    json_["attributeList"] = elements;
+  }
+
+  if (ast->nestedNameSpecifier) {
+    json_["nestedNameSpecifier"] = accept(ast->nestedNameSpecifier);
+  }
+
+  if (ast->name) {
+    json_["name"] = accept(ast->name);
+  }
 }
 
 void ASTPrinter::visit(DecltypeAutoSpecifierAST* ast) {

@@ -1610,6 +1610,21 @@ void ASTCloner::visit(UnderlyingTypeSpecifierAST* ast) {
 void ASTCloner::visit(ElaboratedTypeSpecifierAST* ast) {
   auto copy = new (arena_) ElaboratedTypeSpecifierAST();
   copy_ = copy;
+
+  copy->classLoc = ast->classLoc;
+
+  if (auto it = ast->attributeList) {
+    auto out = &copy->attributeList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
+
+  copy->name = accept(ast->name);
 }
 
 void ASTCloner::visit(DecltypeAutoSpecifierAST* ast) {

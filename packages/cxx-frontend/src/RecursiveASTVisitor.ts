@@ -593,6 +593,11 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     }
 
     visitElaboratedTypeSpecifier(node: ast.ElaboratedTypeSpecifierAST, context: Context): void {
+        for (const element of node.getAttributeList()) {
+             this.accept(element, context);
+        }
+        this.accept(node.getNestedNameSpecifier(), context);
+        this.accept(node.getName(), context);
     }
 
     visitDecltypeAutoSpecifier(node: ast.DecltypeAutoSpecifierAST, context: Context): void {

@@ -3656,14 +3656,37 @@ bool Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
 
     if (parse_simple_template_id(name)) {
       specs.has_complex_typespec = true;
+
+      auto ast = new (pool) ElaboratedTypeSpecifierAST();
+      yyast = ast;
+
+      ast->classLoc = classLoc;
+      ast->attributeList = attributes;
+      ast->name = name;
+
       return true;
     }
 
     rewind(before_nested_name_specifier);
 
-    if (!match(TokenKind::T_IDENTIFIER)) return false;
+    SourceLocation identifierLoc;
+
+    if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
+
+    auto id = new (pool) SimpleNameAST();
+    name = id;
+
+    id->identifierLoc = identifierLoc;
 
     specs.has_complex_typespec = true;
+
+    auto ast = new (pool) ElaboratedTypeSpecifierAST();
+    yyast = ast;
+
+    ast->classLoc = classLoc;
+    ast->attributeList = attributes;
+    ast->name = name;
+
     return true;
   }
 
@@ -3675,12 +3698,30 @@ bool Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
 
   if (parse_simple_template_id(name)) {
     specs.has_complex_typespec = true;
+
+    auto ast = new (pool) ElaboratedTypeSpecifierAST();
+    yyast = ast;
+
+    ast->classLoc = classLoc;
+    ast->attributeList = attributes;
+    ast->nestedNameSpecifier = nestedNameSpecifier;
+    ast->name = name;
+
     return true;
   }
 
   if (has_template) {
     parse_error("expected a template-id");
     specs.has_complex_typespec = true;
+
+    auto ast = new (pool) ElaboratedTypeSpecifierAST();
+    yyast = ast;
+
+    ast->classLoc = classLoc;
+    ast->attributeList = attributes;
+    ast->nestedNameSpecifier = nestedNameSpecifier;
+    ast->name = nullptr;  // error
+
     return true;
   }
 
@@ -3689,6 +3730,14 @@ bool Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
   if (!parse_name_id(name)) return false;
 
   specs.has_complex_typespec = true;
+
+  auto ast = new (pool) ElaboratedTypeSpecifierAST();
+  yyast = ast;
+
+  ast->classLoc = classLoc;
+  ast->attributeList = attributes;
+  ast->nestedNameSpecifier = nestedNameSpecifier;
+  ast->name = name;
 
   return true;
 }
@@ -6724,7 +6773,9 @@ bool Parser::parse_concept_name(NameAST*& yyast) {
 }
 
 bool Parser::parse_typename_specifier(SpecifierAST*& yyast) {
-  if (!match(TokenKind::T_TYPENAME)) return false;
+  SourceLocation typenameLoc;
+
+  if (!match(TokenKind::T_TYPENAME, typenameLoc)) return false;
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
 
@@ -6736,11 +6787,27 @@ bool Parser::parse_typename_specifier(SpecifierAST*& yyast) {
 
   NameAST* name = nullptr;
 
-  if (parse_simple_template_id(name)) return true;
+  if (parse_simple_template_id(name)) {
+    auto ast = new (pool) TypenameSpecifierAST();
+    yyast = ast;
+
+    ast->typenameLoc = typenameLoc;
+    ast->nestedNameSpecifier = nestedNameSpecifier;
+    ast->name = name;
+
+    return true;
+  }
 
   rewind(after_nested_name_specifier);
 
   if (!parse_name_id(name)) return false;
+
+  auto ast = new (pool) TypenameSpecifierAST();
+  yyast = ast;
+
+  ast->typenameLoc = typenameLoc;
+  ast->nestedNameSpecifier = nestedNameSpecifier;
+  ast->name = name;
 
   return true;
 }

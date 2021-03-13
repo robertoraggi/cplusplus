@@ -1623,6 +1623,11 @@ struct ElaboratedTypeSpecifierAST final : SpecifierAST {
   ElaboratedTypeSpecifierAST()
       : SpecifierAST(ASTKind::ElaboratedTypeSpecifier) {}
 
+  SourceLocation classLoc;
+  List<AttributeAST*>* attributeList = nullptr;
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  NameAST* name = nullptr;
+
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
   SourceLocation firstSourceLocation() override;
@@ -1753,6 +1758,10 @@ struct ClassSpecifierAST final : SpecifierAST {
 
 struct TypenameSpecifierAST final : SpecifierAST {
   TypenameSpecifierAST() : SpecifierAST(ASTKind::TypenameSpecifier) {}
+
+  SourceLocation typenameLoc;
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  NameAST* name = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

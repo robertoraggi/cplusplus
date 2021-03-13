@@ -480,7 +480,11 @@ void RecursiveASTVisitor::visit(AtomicTypeSpecifierAST* ast) {
 
 void RecursiveASTVisitor::visit(UnderlyingTypeSpecifierAST* ast) {}
 
-void RecursiveASTVisitor::visit(ElaboratedTypeSpecifierAST* ast) {}
+void RecursiveASTVisitor::visit(ElaboratedTypeSpecifierAST* ast) {
+  for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
+  nestedNameSpecifier(ast->nestedNameSpecifier);
+  name(ast->name);
+}
 
 void RecursiveASTVisitor::visit(DecltypeAutoSpecifierAST* ast) {}
 

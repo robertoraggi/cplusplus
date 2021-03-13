@@ -1555,7 +1555,20 @@ void ASTSlot::visit(UnderlyingTypeSpecifierAST* ast) {
 }
 
 void ASTSlot::visit(ElaboratedTypeSpecifierAST* ast) {
-  switch (slot_) {}  // switch
+  switch (slot_) {
+    case 0:
+      value_ = ast->classLoc.index();
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->attributeList);
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->nestedNameSpecifier);
+      break;
+    case 3:
+      value_ = reinterpret_cast<std::intptr_t>(ast->name);
+      break;
+  }  // switch
 }
 
 void ASTSlot::visit(DecltypeAutoSpecifierAST* ast) {

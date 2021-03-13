@@ -1579,10 +1579,18 @@ SourceLocation UnderlyingTypeSpecifierAST::lastSourceLocation() {
 }
 
 SourceLocation ElaboratedTypeSpecifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(classLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(name)) return loc;
   return SourceLocation();
 }
 
 SourceLocation ElaboratedTypeSpecifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(classLoc)) return loc;
   return SourceLocation();
 }
 
