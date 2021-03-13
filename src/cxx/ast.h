@@ -603,6 +603,47 @@ struct LambdaExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
+struct SizeofExpressionAST final : ExpressionAST {
+  SizeofExpressionAST() : ExpressionAST(ASTKind::SizeofExpression) {}
+
+  SourceLocation sizeofLoc;
+  ExpressionAST* expression = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct SizeofTypeExpressionAST final : ExpressionAST {
+  SizeofTypeExpressionAST() : ExpressionAST(ASTKind::SizeofTypeExpression) {}
+
+  SourceLocation sizeofLoc;
+  SourceLocation lparenLoc;
+  TypeIdAST* typeId = nullptr;
+  SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct SizeofPackExpressionAST final : ExpressionAST {
+  SizeofPackExpressionAST() : ExpressionAST(ASTKind::SizeofPackExpression) {}
+
+  SourceLocation sizeofLoc;
+  SourceLocation ellipsisLoc;
+  SourceLocation lparenLoc;
+  SourceLocation identifierLoc;
+  SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 struct TypeidExpressionAST final : ExpressionAST {
   TypeidExpressionAST() : ExpressionAST(ASTKind::TypeidExpression) {}
 

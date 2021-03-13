@@ -469,6 +469,54 @@ void ASTSlot::visit(LambdaExpressionAST* ast) {
   }  // switch
 }
 
+void ASTSlot::visit(SizeofExpressionAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->sizeofLoc.index();
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(SizeofTypeExpressionAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->sizeofLoc.index();
+      break;
+    case 1:
+      value_ = ast->lparenLoc.index();
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->typeId);
+      break;
+    case 3:
+      value_ = ast->rparenLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(SizeofPackExpressionAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->sizeofLoc.index();
+      break;
+    case 1:
+      value_ = ast->ellipsisLoc.index();
+      break;
+    case 2:
+      value_ = ast->lparenLoc.index();
+      break;
+    case 3:
+      value_ = ast->identifierLoc.index();
+      break;
+    case 4:
+      value_ = ast->rparenLoc.index();
+      break;
+  }  // switch
+}
+
 void ASTSlot::visit(TypeidExpressionAST* ast) {
   switch (slot_) {
     case 0:

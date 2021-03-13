@@ -75,6 +75,9 @@ struct ASTVisitor {
   virtual void visit(IdExpressionAST* ast) = 0;
   virtual void visit(NestedExpressionAST* ast) = 0;
   virtual void visit(LambdaExpressionAST* ast) = 0;
+  virtual void visit(SizeofExpressionAST* ast) = 0;
+  virtual void visit(SizeofTypeExpressionAST* ast) = 0;
+  virtual void visit(SizeofPackExpressionAST* ast) = 0;
   virtual void visit(TypeidExpressionAST* ast) = 0;
   virtual void visit(TypeidOfTypeExpressionAST* ast) = 0;
   virtual void visit(UnaryExpressionAST* ast) = 0;

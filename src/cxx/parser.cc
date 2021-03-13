@@ -1607,29 +1607,53 @@ bool Parser::parse_complex_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_sizeof_expression(ExpressionAST*& yyast) {
-  if (!match(TokenKind::T_SIZEOF)) return false;
+  SourceLocation sizeofLoc;
 
-  if (match(TokenKind::T_DOT_DOT_DOT)) {
-    expect(TokenKind::T_LPAREN);
-    expect(TokenKind::T_IDENTIFIER);
-    expect(TokenKind::T_RPAREN);
+  if (!match(TokenKind::T_SIZEOF, sizeofLoc)) return false;
+
+  SourceLocation ellipsisLoc;
+
+  if (match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) {
+    auto ast = new (pool) SizeofPackExpressionAST();
+    yyast = ast;
+
+    ast->sizeofLoc = sizeofLoc;
+    ast->ellipsisLoc = ellipsisLoc;
+
+    expect(TokenKind::T_LPAREN, ast->lparenLoc);
+    expect(TokenKind::T_IDENTIFIER, ast->identifierLoc);
+    expect(TokenKind::T_RPAREN, ast->rparenLoc);
+
     return true;
   }
 
   const auto after_sizeof_op = currentLocation();
 
+  SourceLocation lparenLoc;
   TypeIdAST* typeId = nullptr;
+  SourceLocation rparenLoc;
 
-  if (match(TokenKind::T_LPAREN) && parse_type_id(typeId) &&
-      match(TokenKind::T_RPAREN)) {
+  if (match(TokenKind::T_LPAREN, lparenLoc) && parse_type_id(typeId) &&
+      match(TokenKind::T_RPAREN, rparenLoc)) {
+    auto ast = new (pool) SizeofTypeExpressionAST();
+    yyast = ast;
+
+    ast->sizeofLoc = sizeofLoc;
+    ast->lparenLoc = lparenLoc;
+    ast->typeId = typeId;
+    ast->rparenLoc = rparenLoc;
+
     return true;
   }
 
   rewind(after_sizeof_op);
 
-  ExpressionAST* expression = nullptr;
+  auto ast = new (pool) SizeofExpressionAST();
+  yyast = ast;
 
-  if (!parse_unary_expression(expression))
+  ast->sizeofLoc = sizeofLoc;
+
+  if (!parse_unary_expression(ast->expression))
     parse_error("expected an expression");
 
   return true;

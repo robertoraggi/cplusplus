@@ -550,6 +550,34 @@ void ASTPrinter::visit(LambdaExpressionAST* ast) {
   }
 }
 
+void ASTPrinter::visit(SizeofExpressionAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "SizeofExpression";
+
+  if (ast->expression) {
+    json_["expression"] = accept(ast->expression);
+  }
+}
+
+void ASTPrinter::visit(SizeofTypeExpressionAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "SizeofTypeExpression";
+
+  if (ast->typeId) {
+    json_["typeId"] = accept(ast->typeId);
+  }
+}
+
+void ASTPrinter::visit(SizeofPackExpressionAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "SizeofPackExpression";
+
+  json_["identifier"] = unit_->tokenText(ast->identifierLoc);
+}
+
 void ASTPrinter::visit(TypeidExpressionAST* ast) {
   json_ = nlohmann::json::object();
 

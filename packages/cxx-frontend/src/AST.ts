@@ -602,6 +602,57 @@ export class LambdaExpressionAST extends ExpressionAST {
     }
 }
 
+export class SizeofExpressionAST extends ExpressionAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitSizeofExpression(this, context);
+    }
+    getSizeofToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getExpression(): ExpressionAST | undefined {
+        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+}
+
+export class SizeofTypeExpressionAST extends ExpressionAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitSizeofTypeExpression(this, context);
+    }
+    getSizeofToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getLparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getTypeId(): TypeIdAST | undefined {
+        return AST.from<TypeIdAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getRparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+}
+
+export class SizeofPackExpressionAST extends ExpressionAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitSizeofPackExpression(this, context);
+    }
+    getSizeofToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getEllipsisToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getLparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getIdentifierToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+    getRparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+    }
+}
+
 export class TypeidExpressionAST extends ExpressionAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitTypeidExpression(this, context);
@@ -2254,6 +2305,9 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     IdExpressionAST,
     NestedExpressionAST,
     LambdaExpressionAST,
+    SizeofExpressionAST,
+    SizeofTypeExpressionAST,
+    SizeofPackExpressionAST,
     TypeidExpressionAST,
     TypeidOfTypeExpressionAST,
     UnaryExpressionAST,

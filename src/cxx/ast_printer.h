@@ -87,6 +87,9 @@ class ASTPrinter : ASTVisitor {
   void visit(IdExpressionAST* ast) override;
   void visit(NestedExpressionAST* ast) override;
   void visit(LambdaExpressionAST* ast) override;
+  void visit(SizeofExpressionAST* ast) override;
+  void visit(SizeofTypeExpressionAST* ast) override;
+  void visit(SizeofPackExpressionAST* ast) override;
   void visit(TypeidExpressionAST* ast) override;
   void visit(TypeidOfTypeExpressionAST* ast) override;
   void visit(UnaryExpressionAST* ast) override;

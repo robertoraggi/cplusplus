@@ -486,6 +486,52 @@ SourceLocation LambdaExpressionAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation SizeofExpressionAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(sizeofLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation SizeofExpressionAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(sizeofLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation SizeofTypeExpressionAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(sizeofLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation SizeofTypeExpressionAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(sizeofLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation SizeofPackExpressionAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(sizeofLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation SizeofPackExpressionAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(sizeofLoc)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation TypeidExpressionAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(typeidLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
