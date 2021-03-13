@@ -214,12 +214,16 @@ SourceLocation ParametersAndQualifiersAST::lastSourceLocation() {
 
 SourceLocation LambdaIntroducerAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(lbracketLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(captureDefaultLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(captureList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rbracketLoc)) return loc;
   return SourceLocation();
 }
 
 SourceLocation LambdaIntroducerAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(rbracketLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(captureList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(captureDefaultLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(lbracketLoc)) return loc;
   return SourceLocation();
 }
@@ -255,6 +259,84 @@ SourceLocation TrailingReturnTypeAST::firstSourceLocation() {
 SourceLocation TrailingReturnTypeAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
   if (auto loc = cxx::lastSourceLocation(minusGreaterLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ThisLambdaCaptureAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(thisLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ThisLambdaCaptureAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(thisLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation DerefThisLambdaCaptureAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(starLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(thisLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation DerefThisLambdaCaptureAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(thisLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(starLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation SimpleLambdaCaptureAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation SimpleLambdaCaptureAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation RefLambdaCaptureAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(ampLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation RefLambdaCaptureAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(ampLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation RefInitLambdaCaptureAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(ampLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(initializer)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation RefInitLambdaCaptureAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(initializer)) return loc;
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(ampLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation InitLambdaCaptureAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(initializer)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation InitLambdaCaptureAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(initializer)) return loc;
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
   return SourceLocation();
 }
 

@@ -804,9 +804,12 @@ bool Parser::parse_lambda_introducer(LambdaIntroducerAST*& yyast) {
   if (!match(TokenKind::T_LBRACKET, lbracketLoc)) return false;
 
   SourceLocation rbracketLoc;
+  SourceLocation defaultCaptureLoc;
+  List<LambdaCaptureAST*>* captureList = nullptr;
 
   if (!match(TokenKind::T_RBRACKET, rbracketLoc)) {
-    if (!parse_lambda_capture()) parse_error("expected a lambda capture");
+    if (!parse_lambda_capture(defaultCaptureLoc, captureList))
+      parse_error("expected a lambda capture");
 
     expect(TokenKind::T_RBRACKET, rbracketLoc);
   }
@@ -815,6 +818,8 @@ bool Parser::parse_lambda_introducer(LambdaIntroducerAST*& yyast) {
   yyast = ast;
 
   ast->lbracketLoc = lbracketLoc;
+  ast->captureDefaultLoc = defaultCaptureLoc;
+  ast->captureList = captureList;
   ast->rbracketLoc = rbracketLoc;
 
   return true;
@@ -852,18 +857,20 @@ bool Parser::parse_lambda_declarator(LambdaDeclaratorAST*& yyast) {
   return true;
 }
 
-bool Parser::parse_lambda_capture() {
-  if (parse_capture_default()) {
+bool Parser::parse_lambda_capture(SourceLocation& captureDefaultLoc,
+                                  List<LambdaCaptureAST*>*& captureList) {
+  if (parse_capture_default(captureDefaultLoc)) {
     if (match(TokenKind::T_COMMA)) {
-      if (!parse_capture_list()) parse_error("expected a capture");
+      if (!parse_capture_list(captureList)) parse_error("expected a capture");
     }
+
     return true;
   }
 
-  return parse_capture_list();
+  return parse_capture_list(captureList);
 }
 
-bool Parser::parse_capture_default() {
+bool Parser::parse_capture_default(SourceLocation& opLoc) {
   const auto start = currentLocation();
 
   if (!match(TokenKind::T_AMP) && !match(TokenKind::T_EQUAL)) return false;
@@ -873,70 +880,143 @@ bool Parser::parse_capture_default() {
     return false;
   }
 
+  opLoc = start;
+
   return true;
 }
 
-bool Parser::parse_capture_list() {
-  if (!parse_capture()) return false;
+bool Parser::parse_capture_list(List<LambdaCaptureAST*>*& yyast) {
+  auto it = &yyast;
+
+  LambdaCaptureAST* capture = nullptr;
+
+  if (!parse_capture(capture)) return false;
+
+  if (capture) {
+    *it = new (pool) List(capture);
+    it = &(*it)->next;
+  }
 
   while (match(TokenKind::T_COMMA)) {
-    if (!parse_capture()) parse_error("expected a capture");
+    LambdaCaptureAST* capture = nullptr;
+
+    if (!parse_capture(capture)) parse_error("expected a capture");
+
+    if (capture) {
+      *it = new (pool) List(capture);
+      it = &(*it)->next;
+    }
   }
 
   return true;
 }
 
-bool Parser::parse_capture() {
+bool Parser::parse_capture(LambdaCaptureAST*& yyast) {
   const auto start = currentLocation();
 
-  if (parse_init_capture()) return true;
+  if (parse_init_capture(yyast)) return true;
 
   rewind(start);
 
-  return parse_simple_capture();
+  return parse_simple_capture(yyast);
 }
 
-bool Parser::parse_simple_capture() {
-  if (match(TokenKind::T_THIS)) return true;
+bool Parser::parse_simple_capture(LambdaCaptureAST*& yyast) {
+  SourceLocation thisLoc;
 
-  if (match(TokenKind::T_IDENTIFIER)) {
-    const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+  if (match(TokenKind::T_THIS, thisLoc)) {
+    auto ast = new (pool) ThisLambdaCaptureAST();
+    yyast = ast;
+
+    ast->thisLoc = thisLoc;
+
     return true;
   }
 
-  if (match(TokenKind::T_STAR)) {
-    if (!match(TokenKind::T_THIS)) return false;
+  SourceLocation identifierLoc;
+
+  if (match(TokenKind::T_IDENTIFIER, identifierLoc)) {
+    auto ast = new (pool) SimpleLambdaCaptureAST();
+    yyast = ast;
+
+    ast->identifierLoc = identifierLoc;
+    match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
+
     return true;
   }
 
-  if (!match(TokenKind::T_AMP)) return false;
+  if (LA().is(TokenKind::T_STAR) && LA(1).is(TokenKind::T_THIS)) {
+    auto ast = new (pool) DerefThisLambdaCaptureAST();
+    yyast = ast;
 
-  if (!match(TokenKind::T_IDENTIFIER)) return false;
+    ast->starLoc = consumeToken();
+    ast->thisLoc = consumeToken();
 
-  const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+    return true;
+  }
+
+  SourceLocation ampLoc;
+
+  if (!match(TokenKind::T_AMP, ampLoc)) return false;
+
+  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
+
+  auto ast = new (pool) RefLambdaCaptureAST();
+  yyast = ast;
+
+  ast->ampLoc = ampLoc;
+  ast->identifierLoc = identifierLoc;
+
+  match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
+
   return true;
 }
 
-bool Parser::parse_init_capture() {
-  if (match(TokenKind::T_AMP)) {
-    const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+bool Parser::parse_init_capture(LambdaCaptureAST*& yyast) {
+  SourceLocation ampLoc;
 
-    if (!match(TokenKind::T_IDENTIFIER)) return false;
+  if (match(TokenKind::T_AMP, ampLoc)) {
+    SourceLocation ellipsisLoc;
+
+    match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
+
+    SourceLocation identifierLoc;
+
+    if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
 
     InitializerAST* initializer = nullptr;
 
     if (!parse_initializer(initializer)) return false;
 
+    auto ast = new (pool) RefInitLambdaCaptureAST();
+    yyast = ast;
+
+    ast->ampLoc = ampLoc;
+    ast->ellipsisLoc = ellipsisLoc;
+    ast->identifierLoc = identifierLoc;
+    ast->initializer = initializer;
+
     return true;
   }
 
-  const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+  SourceLocation ellipsisLoc;
 
-  if (!match(TokenKind::T_IDENTIFIER)) return false;
+  match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
+
+  SourceLocation identifierLoc;
+
+  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
 
   InitializerAST* initializer = nullptr;
 
   if (!parse_initializer(initializer)) return false;
+
+  auto ast = new (pool) InitLambdaCaptureAST();
+  yyast = ast;
+
+  ast->ellipsisLoc = ellipsisLoc;
+  ast->identifierLoc = identifierLoc;
+  ast->initializer = initializer;
 
   return true;
 }

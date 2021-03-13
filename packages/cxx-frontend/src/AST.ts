@@ -85,6 +85,7 @@ export abstract class DeclaratorModifierAST extends AST { }
 export abstract class ExceptionDeclarationAST extends AST { }
 export abstract class ExpressionAST extends AST { }
 export abstract class InitializerAST extends AST { }
+export abstract class LambdaCaptureAST extends AST { }
 export abstract class NameAST extends AST { }
 export abstract class NewInitializerAST extends AST { }
 export abstract class PtrOperatorAST extends AST { }
@@ -318,8 +319,16 @@ export class LambdaIntroducerAST extends AST {
     getLbracketToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
     }
-    getRbracketToken(): Token | undefined {
+    getCaptureDefaultToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    *getCaptureList(): Generator<LambdaCaptureAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
+            yield AST.from<LambdaCaptureAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+    getRbracketToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
     }
 }
 
@@ -360,6 +369,87 @@ export class TrailingReturnTypeAST extends AST {
     }
     getTypeId(): TypeIdAST | undefined {
         return AST.from<TypeIdAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+}
+
+export class ThisLambdaCaptureAST extends LambdaCaptureAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitThisLambdaCapture(this, context);
+    }
+    getThisToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+}
+
+export class DerefThisLambdaCaptureAST extends LambdaCaptureAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitDerefThisLambdaCapture(this, context);
+    }
+    getStarToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getThisToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+}
+
+export class SimpleLambdaCaptureAST extends LambdaCaptureAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitSimpleLambdaCapture(this, context);
+    }
+    getIdentifierToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getEllipsisToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+}
+
+export class RefLambdaCaptureAST extends LambdaCaptureAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitRefLambdaCapture(this, context);
+    }
+    getAmpToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getIdentifierToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getEllipsisToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+}
+
+export class RefInitLambdaCaptureAST extends LambdaCaptureAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitRefInitLambdaCapture(this, context);
+    }
+    getAmpToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getEllipsisToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getIdentifierToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getInitializer(): InitializerAST | undefined {
+        return AST.from<InitializerAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+}
+
+export class InitLambdaCaptureAST extends LambdaCaptureAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitInitLambdaCapture(this, context);
+    }
+    getEllipsisToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getIdentifierToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getInitializer(): InitializerAST | undefined {
+        return AST.from<InitializerAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
     }
 }
 
@@ -2484,6 +2574,12 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     LambdaIntroducerAST,
     LambdaDeclaratorAST,
     TrailingReturnTypeAST,
+    ThisLambdaCaptureAST,
+    DerefThisLambdaCaptureAST,
+    SimpleLambdaCaptureAST,
+    RefLambdaCaptureAST,
+    RefInitLambdaCaptureAST,
+    InitLambdaCaptureAST,
     EqualInitializerAST,
     BracedInitListAST,
     ParenInitializerAST,

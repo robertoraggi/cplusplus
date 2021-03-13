@@ -223,6 +223,12 @@ void ASTSlot::visit(LambdaIntroducerAST* ast) {
       value_ = ast->lbracketLoc.index();
       break;
     case 1:
+      value_ = ast->captureDefaultLoc.index();
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->captureList);
+      break;
+    case 3:
       value_ = ast->rbracketLoc.index();
       break;
   }  // switch
@@ -258,6 +264,81 @@ void ASTSlot::visit(TrailingReturnTypeAST* ast) {
       break;
     case 1:
       value_ = reinterpret_cast<std::intptr_t>(ast->typeId);
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(ThisLambdaCaptureAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->thisLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(DerefThisLambdaCaptureAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->starLoc.index();
+      break;
+    case 1:
+      value_ = ast->thisLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(SimpleLambdaCaptureAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->identifierLoc.index();
+      break;
+    case 1:
+      value_ = ast->ellipsisLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(RefLambdaCaptureAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->ampLoc.index();
+      break;
+    case 1:
+      value_ = ast->identifierLoc.index();
+      break;
+    case 2:
+      value_ = ast->ellipsisLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(RefInitLambdaCaptureAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->ampLoc.index();
+      break;
+    case 1:
+      value_ = ast->ellipsisLoc.index();
+      break;
+    case 2:
+      value_ = ast->identifierLoc.index();
+      break;
+    case 3:
+      value_ = reinterpret_cast<std::intptr_t>(ast->initializer);
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(InitLambdaCaptureAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->ellipsisLoc.index();
+      break;
+    case 1:
+      value_ = ast->identifierLoc.index();
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->initializer);
       break;
   }  // switch
 }

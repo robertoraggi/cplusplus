@@ -121,6 +121,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     }
 
     visitLambdaIntroducer(node: ast.LambdaIntroducerAST, context: Context): void {
+        for (const element of node.getCaptureList()) {
+             this.accept(element, context);
+        }
     }
 
     visitLambdaDeclarator(node: ast.LambdaDeclaratorAST, context: Context): void {
@@ -136,6 +139,26 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitTrailingReturnType(node: ast.TrailingReturnTypeAST, context: Context): void {
         this.accept(node.getTypeId(), context);
+    }
+
+    visitThisLambdaCapture(node: ast.ThisLambdaCaptureAST, context: Context): void {
+    }
+
+    visitDerefThisLambdaCapture(node: ast.DerefThisLambdaCaptureAST, context: Context): void {
+    }
+
+    visitSimpleLambdaCapture(node: ast.SimpleLambdaCaptureAST, context: Context): void {
+    }
+
+    visitRefLambdaCapture(node: ast.RefLambdaCaptureAST, context: Context): void {
+    }
+
+    visitRefInitLambdaCapture(node: ast.RefInitLambdaCaptureAST, context: Context): void {
+        this.accept(node.getInitializer(), context);
+    }
+
+    visitInitLambdaCapture(node: ast.InitLambdaCaptureAST, context: Context): void {
+        this.accept(node.getInitializer(), context);
     }
 
     visitEqualInitializer(node: ast.EqualInitializerAST, context: Context): void {

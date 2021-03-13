@@ -120,6 +120,10 @@ struct InitializerAST : AST {
   using AST::AST;
 };
 
+struct LambdaCaptureAST : AST {
+  using AST::AST;
+};
+
 struct NameAST : AST {
   using AST::AST;
   const Name* name = nullptr;
@@ -325,6 +329,8 @@ struct LambdaIntroducerAST final : AST {
   LambdaIntroducerAST() : AST(ASTKind::LambdaIntroducer) {}
 
   SourceLocation lbracketLoc;
+  SourceLocation captureDefaultLoc;
+  List<LambdaCaptureAST*>* captureList = nullptr;
   SourceLocation rbracketLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -354,6 +360,82 @@ struct TrailingReturnTypeAST final : AST {
 
   SourceLocation minusGreaterLoc;
   TypeIdAST* typeId = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct ThisLambdaCaptureAST final : LambdaCaptureAST {
+  ThisLambdaCaptureAST() : LambdaCaptureAST(ASTKind::ThisLambdaCapture) {}
+
+  SourceLocation thisLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct DerefThisLambdaCaptureAST final : LambdaCaptureAST {
+  DerefThisLambdaCaptureAST()
+      : LambdaCaptureAST(ASTKind::DerefThisLambdaCapture) {}
+
+  SourceLocation starLoc;
+  SourceLocation thisLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct SimpleLambdaCaptureAST final : LambdaCaptureAST {
+  SimpleLambdaCaptureAST() : LambdaCaptureAST(ASTKind::SimpleLambdaCapture) {}
+
+  SourceLocation identifierLoc;
+  SourceLocation ellipsisLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct RefLambdaCaptureAST final : LambdaCaptureAST {
+  RefLambdaCaptureAST() : LambdaCaptureAST(ASTKind::RefLambdaCapture) {}
+
+  SourceLocation ampLoc;
+  SourceLocation identifierLoc;
+  SourceLocation ellipsisLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct RefInitLambdaCaptureAST final : LambdaCaptureAST {
+  RefInitLambdaCaptureAST() : LambdaCaptureAST(ASTKind::RefInitLambdaCapture) {}
+
+  SourceLocation ampLoc;
+  SourceLocation ellipsisLoc;
+  SourceLocation identifierLoc;
+  InitializerAST* initializer = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct InitLambdaCaptureAST final : LambdaCaptureAST {
+  InitLambdaCaptureAST() : LambdaCaptureAST(ASTKind::InitLambdaCapture) {}
+
+  SourceLocation ellipsisLoc;
+  SourceLocation identifierLoc;
+  InitializerAST* initializer = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

@@ -46,6 +46,14 @@ struct ASTVisitor {
   virtual void visit(LambdaDeclaratorAST* ast) = 0;
   virtual void visit(TrailingReturnTypeAST* ast) = 0;
 
+  // LambdaCaptureAST
+  virtual void visit(ThisLambdaCaptureAST* ast) = 0;
+  virtual void visit(DerefThisLambdaCaptureAST* ast) = 0;
+  virtual void visit(SimpleLambdaCaptureAST* ast) = 0;
+  virtual void visit(RefLambdaCaptureAST* ast) = 0;
+  virtual void visit(RefInitLambdaCaptureAST* ast) = 0;
+  virtual void visit(InitLambdaCaptureAST* ast) = 0;
+
   // InitializerAST
   virtual void visit(EqualInitializerAST* ast) = 0;
   virtual void visit(BracedInitListAST* ast) = 0;

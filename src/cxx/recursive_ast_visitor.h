@@ -67,6 +67,8 @@ struct RecursiveASTVisitor : ASTVisitor {
     return accept(ast);
   }
 
+  virtual void lambdaCapture(LambdaCaptureAST* ast) { return accept(ast); }
+
   virtual void trailingReturnType(TrailingReturnTypeAST* ast) {
     return accept(ast);
   }
@@ -129,6 +131,13 @@ struct RecursiveASTVisitor : ASTVisitor {
   void visit(LambdaIntroducerAST* ast) override;
   void visit(LambdaDeclaratorAST* ast) override;
   void visit(TrailingReturnTypeAST* ast) override;
+
+  void visit(ThisLambdaCaptureAST* ast) override;
+  void visit(DerefThisLambdaCaptureAST* ast) override;
+  void visit(SimpleLambdaCaptureAST* ast) override;
+  void visit(RefLambdaCaptureAST* ast) override;
+  void visit(RefInitLambdaCaptureAST* ast) override;
+  void visit(InitLambdaCaptureAST* ast) override;
 
   void visit(EqualInitializerAST* ast) override;
   void visit(BracedInitListAST* ast) override;

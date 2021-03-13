@@ -100,7 +100,9 @@ void RecursiveASTVisitor::visit(ParametersAndQualifiersAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
 }
 
-void RecursiveASTVisitor::visit(LambdaIntroducerAST* ast) {}
+void RecursiveASTVisitor::visit(LambdaIntroducerAST* ast) {
+  for (auto it = ast->captureList; it; it = it->next) lambdaCapture(it->value);
+}
 
 void RecursiveASTVisitor::visit(LambdaDeclaratorAST* ast) {
   parameterDeclarationClause(ast->parameterDeclarationClause);
@@ -112,6 +114,22 @@ void RecursiveASTVisitor::visit(LambdaDeclaratorAST* ast) {
 
 void RecursiveASTVisitor::visit(TrailingReturnTypeAST* ast) {
   typeId(ast->typeId);
+}
+
+void RecursiveASTVisitor::visit(ThisLambdaCaptureAST* ast) {}
+
+void RecursiveASTVisitor::visit(DerefThisLambdaCaptureAST* ast) {}
+
+void RecursiveASTVisitor::visit(SimpleLambdaCaptureAST* ast) {}
+
+void RecursiveASTVisitor::visit(RefLambdaCaptureAST* ast) {}
+
+void RecursiveASTVisitor::visit(RefInitLambdaCaptureAST* ast) {
+  initializer(ast->initializer);
+}
+
+void RecursiveASTVisitor::visit(InitLambdaCaptureAST* ast) {
+  initializer(ast->initializer);
 }
 
 void RecursiveASTVisitor::visit(EqualInitializerAST* ast) {

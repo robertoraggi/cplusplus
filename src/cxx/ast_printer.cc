@@ -287,6 +287,14 @@ void ASTPrinter::visit(LambdaIntroducerAST* ast) {
   json_ = nlohmann::json::object();
 
   json_["$id"] = "LambdaIntroducer";
+
+  if (ast->captureList) {
+    auto elements = nlohmann::json::array();
+    for (auto it = ast->captureList; it; it = it->next) {
+      elements.push_back(accept(it->value));
+    }
+    json_["captureList"] = elements;
+  }
 }
 
 void ASTPrinter::visit(LambdaDeclaratorAST* ast) {
@@ -327,6 +335,58 @@ void ASTPrinter::visit(TrailingReturnTypeAST* ast) {
 
   if (ast->typeId) {
     json_["typeId"] = accept(ast->typeId);
+  }
+}
+
+void ASTPrinter::visit(ThisLambdaCaptureAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "ThisLambdaCapture";
+}
+
+void ASTPrinter::visit(DerefThisLambdaCaptureAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "DerefThisLambdaCapture";
+}
+
+void ASTPrinter::visit(SimpleLambdaCaptureAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "SimpleLambdaCapture";
+
+  json_["identifier"] = unit_->tokenText(ast->identifierLoc);
+}
+
+void ASTPrinter::visit(RefLambdaCaptureAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "RefLambdaCapture";
+
+  json_["identifier"] = unit_->tokenText(ast->identifierLoc);
+}
+
+void ASTPrinter::visit(RefInitLambdaCaptureAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "RefInitLambdaCapture";
+
+  json_["identifier"] = unit_->tokenText(ast->identifierLoc);
+
+  if (ast->initializer) {
+    json_["initializer"] = accept(ast->initializer);
+  }
+}
+
+void ASTPrinter::visit(InitLambdaCaptureAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "InitLambdaCapture";
+
+  json_["identifier"] = unit_->tokenText(ast->identifierLoc);
+
+  if (ast->initializer) {
+    json_["initializer"] = accept(ast->initializer);
   }
 }
 

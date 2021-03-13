@@ -264,6 +264,17 @@ void ASTCloner::visit(LambdaIntroducerAST* ast) {
 
   copy->lbracketLoc = ast->lbracketLoc;
 
+  copy->captureDefaultLoc = ast->captureDefaultLoc;
+
+  if (auto it = ast->captureList) {
+    auto out = &copy->captureList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
   copy->rbracketLoc = ast->rbracketLoc;
 }
 
@@ -305,6 +316,66 @@ void ASTCloner::visit(TrailingReturnTypeAST* ast) {
   copy->minusGreaterLoc = ast->minusGreaterLoc;
 
   copy->typeId = accept(ast->typeId);
+}
+
+void ASTCloner::visit(ThisLambdaCaptureAST* ast) {
+  auto copy = new (arena_) ThisLambdaCaptureAST();
+  copy_ = copy;
+
+  copy->thisLoc = ast->thisLoc;
+}
+
+void ASTCloner::visit(DerefThisLambdaCaptureAST* ast) {
+  auto copy = new (arena_) DerefThisLambdaCaptureAST();
+  copy_ = copy;
+
+  copy->starLoc = ast->starLoc;
+
+  copy->thisLoc = ast->thisLoc;
+}
+
+void ASTCloner::visit(SimpleLambdaCaptureAST* ast) {
+  auto copy = new (arena_) SimpleLambdaCaptureAST();
+  copy_ = copy;
+
+  copy->identifierLoc = ast->identifierLoc;
+
+  copy->ellipsisLoc = ast->ellipsisLoc;
+}
+
+void ASTCloner::visit(RefLambdaCaptureAST* ast) {
+  auto copy = new (arena_) RefLambdaCaptureAST();
+  copy_ = copy;
+
+  copy->ampLoc = ast->ampLoc;
+
+  copy->identifierLoc = ast->identifierLoc;
+
+  copy->ellipsisLoc = ast->ellipsisLoc;
+}
+
+void ASTCloner::visit(RefInitLambdaCaptureAST* ast) {
+  auto copy = new (arena_) RefInitLambdaCaptureAST();
+  copy_ = copy;
+
+  copy->ampLoc = ast->ampLoc;
+
+  copy->ellipsisLoc = ast->ellipsisLoc;
+
+  copy->identifierLoc = ast->identifierLoc;
+
+  copy->initializer = accept(ast->initializer);
+}
+
+void ASTCloner::visit(InitLambdaCaptureAST* ast) {
+  auto copy = new (arena_) InitLambdaCaptureAST();
+  copy_ = copy;
+
+  copy->ellipsisLoc = ast->ellipsisLoc;
+
+  copy->identifierLoc = ast->identifierLoc;
+
+  copy->initializer = accept(ast->initializer);
 }
 
 void ASTCloner::visit(EqualInitializerAST* ast) {

@@ -43,6 +43,14 @@ enum struct ASTKind {
   LambdaDeclarator,
   TrailingReturnType,
 
+  // LambdaCaptureAST
+  ThisLambdaCapture,
+  DerefThisLambdaCapture,
+  SimpleLambdaCapture,
+  RefLambdaCapture,
+  RefInitLambdaCapture,
+  InitLambdaCapture,
+
   // InitializerAST
   EqualInitializer,
   BracedInitList,

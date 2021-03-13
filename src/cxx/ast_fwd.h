@@ -34,6 +34,7 @@ struct DeclaratorModifierAST;
 struct ExceptionDeclarationAST;
 struct ExpressionAST;
 struct InitializerAST;
+struct LambdaCaptureAST;
 struct NameAST;
 struct NewInitializerAST;
 struct PtrOperatorAST;
@@ -59,6 +60,14 @@ struct ParametersAndQualifiersAST;
 struct LambdaIntroducerAST;
 struct LambdaDeclaratorAST;
 struct TrailingReturnTypeAST;
+
+// LambdaCaptureAST
+struct ThisLambdaCaptureAST;
+struct DerefThisLambdaCaptureAST;
+struct SimpleLambdaCaptureAST;
+struct RefLambdaCaptureAST;
+struct RefInitLambdaCaptureAST;
+struct InitLambdaCaptureAST;
 
 // InitializerAST
 struct EqualInitializerAST;

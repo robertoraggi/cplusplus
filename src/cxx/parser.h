@@ -133,12 +133,13 @@ class Parser {
   bool parse_lambda_expression(ExpressionAST*& yyast);
   bool parse_lambda_introducer(LambdaIntroducerAST*& yyast);
   bool parse_lambda_declarator(LambdaDeclaratorAST*& yyast);
-  bool parse_lambda_capture();
-  bool parse_capture_default();
-  bool parse_capture_list();
-  bool parse_capture();
-  bool parse_simple_capture();
-  bool parse_init_capture();
+  bool parse_lambda_capture(SourceLocation& captureDefaultLoc,
+                            List<LambdaCaptureAST*>*& yyast);
+  bool parse_capture_default(SourceLocation& opLoc);
+  bool parse_capture_list(List<LambdaCaptureAST*>*& yyast);
+  bool parse_capture(LambdaCaptureAST*& yyast);
+  bool parse_simple_capture(LambdaCaptureAST*& yyast);
+  bool parse_init_capture(LambdaCaptureAST*& yyast);
   bool parse_fold_expression(ExpressionAST*& yyast);
   bool parse_fold_operator(SourceLocation& loc, TokenKind& op);
   bool parse_requires_expression(ExpressionAST*& yyast);

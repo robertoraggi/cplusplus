@@ -43,6 +43,14 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitLambdaDeclarator(node: ast.LambdaDeclaratorAST, context: Context): Result;
     abstract visitTrailingReturnType(node: ast.TrailingReturnTypeAST, context: Context): Result;
 
+    // LambdaCaptureAST
+    abstract visitThisLambdaCapture(node: ast.ThisLambdaCaptureAST, context: Context): Result;
+    abstract visitDerefThisLambdaCapture(node: ast.DerefThisLambdaCaptureAST, context: Context): Result;
+    abstract visitSimpleLambdaCapture(node: ast.SimpleLambdaCaptureAST, context: Context): Result;
+    abstract visitRefLambdaCapture(node: ast.RefLambdaCaptureAST, context: Context): Result;
+    abstract visitRefInitLambdaCapture(node: ast.RefInitLambdaCaptureAST, context: Context): Result;
+    abstract visitInitLambdaCapture(node: ast.InitLambdaCaptureAST, context: Context): Result;
+
     // InitializerAST
     abstract visitEqualInitializer(node: ast.EqualInitializerAST, context: Context): Result;
     abstract visitBracedInitList(node: ast.BracedInitListAST, context: Context): Result;
