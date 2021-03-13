@@ -24,7 +24,8 @@
 
 namespace cxx {
 
-struct RecursiveASTVisitor : ASTVisitor {
+class RecursiveASTVisitor : public ASTVisitor {
+ public:
   void accept(AST* ast);
 
   virtual void specifier(SpecifierAST* ast) { return accept(ast); }

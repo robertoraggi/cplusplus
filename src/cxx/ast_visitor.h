@@ -24,7 +24,8 @@
 
 namespace cxx {
 
-struct ASTVisitor {
+class ASTVisitor {
+ public:
   virtual ~ASTVisitor() = default;
 
   // AST

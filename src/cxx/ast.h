@@ -32,7 +32,8 @@
 namespace cxx {
 
 template <typename T>
-struct List final : Managed {
+class List final : public Managed {
+ public:
   T value;
   List* next;
 
@@ -40,9 +41,10 @@ struct List final : Managed {
       : value(value), next(next) {}
 };
 
-struct AST : Managed {
+class AST : public Managed {
   ASTKind kind_;
 
+ public:
   explicit AST(ASTKind kind) : kind_(kind) {}
 
   virtual ~AST();
@@ -91,65 +93,80 @@ inline SourceLocation lastSourceLocation(List<T>* nodes) {
   return SourceLocation();
 }
 
-struct AttributeAST : AST {
+class AttributeAST : public AST {
+ public:
   using AST::AST;
 };
 
-struct CoreDeclaratorAST : AST {
+class CoreDeclaratorAST : public AST {
+ public:
   using AST::AST;
 };
 
-struct DeclarationAST : AST {
+class DeclarationAST : public AST {
+ public:
   using AST::AST;
 };
 
-struct DeclaratorModifierAST : AST {
+class DeclaratorModifierAST : public AST {
+ public:
   using AST::AST;
 };
 
-struct ExceptionDeclarationAST : AST {
+class ExceptionDeclarationAST : public AST {
+ public:
   using AST::AST;
 };
 
-struct ExpressionAST : AST {
+class ExpressionAST : public AST {
+ public:
   using AST::AST;
   const Type* type = nullptr;
 };
 
-struct InitializerAST : AST {
+class InitializerAST : public AST {
+ public:
   using AST::AST;
 };
 
-struct LambdaCaptureAST : AST {
+class LambdaCaptureAST : public AST {
+ public:
   using AST::AST;
 };
 
-struct NameAST : AST {
+class NameAST : public AST {
+ public:
   using AST::AST;
   const Name* name = nullptr;
 };
 
-struct NewInitializerAST : AST {
+class NewInitializerAST : public AST {
+ public:
   using AST::AST;
 };
 
-struct PtrOperatorAST : AST {
+class PtrOperatorAST : public AST {
+ public:
   using AST::AST;
 };
 
-struct SpecifierAST : AST {
+class SpecifierAST : public AST {
+ public:
   using AST::AST;
 };
 
-struct StatementAST : AST {
+class StatementAST : public AST {
+ public:
   using AST::AST;
 };
 
-struct UnitAST : AST {
+class UnitAST : public AST {
+ public:
   using AST::AST;
 };
 
-struct TypeIdAST final : AST {
+class TypeIdAST final : public AST {
+ public:
   TypeIdAST() : AST(ASTKind::TypeId) {}
 
   List<SpecifierAST*>* typeSpecifierList = nullptr;
@@ -161,7 +178,8 @@ struct TypeIdAST final : AST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct NestedNameSpecifierAST final : AST {
+class NestedNameSpecifierAST final : public AST {
+ public:
   NestedNameSpecifierAST() : AST(ASTKind::NestedNameSpecifier) {}
 
   SourceLocation scopeLoc;
@@ -173,7 +191,8 @@ struct NestedNameSpecifierAST final : AST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct UsingDeclaratorAST final : AST {
+class UsingDeclaratorAST final : public AST {
+ public:
   UsingDeclaratorAST() : AST(ASTKind::UsingDeclarator) {}
 
   SourceLocation typenameLoc;
@@ -186,7 +205,8 @@ struct UsingDeclaratorAST final : AST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct HandlerAST final : AST {
+class HandlerAST final : public AST {
+ public:
   HandlerAST() : AST(ASTKind::Handler) {}
 
   SourceLocation catchLoc;
@@ -201,7 +221,8 @@ struct HandlerAST final : AST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct TemplateArgumentAST final : AST {
+class TemplateArgumentAST final : public AST {
+ public:
   TemplateArgumentAST() : AST(ASTKind::TemplateArgument) {}
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -210,7 +231,8 @@ struct TemplateArgumentAST final : AST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct EnumBaseAST final : AST {
+class EnumBaseAST final : public AST {
+ public:
   EnumBaseAST() : AST(ASTKind::EnumBase) {}
 
   SourceLocation colonLoc;
@@ -222,7 +244,8 @@ struct EnumBaseAST final : AST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct EnumeratorAST final : AST {
+class EnumeratorAST final : public AST {
+ public:
   EnumeratorAST() : AST(ASTKind::Enumerator) {}
 
   NameAST* name = nullptr;
@@ -236,7 +259,8 @@ struct EnumeratorAST final : AST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct DeclaratorAST final : AST {
+class DeclaratorAST final : public AST {
+ public:
   DeclaratorAST() : AST(ASTKind::Declarator) {}
 
   List<PtrOperatorAST*>* ptrOpList = nullptr;
@@ -249,7 +273,8 @@ struct DeclaratorAST final : AST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct InitDeclaratorAST final : AST {
+class InitDeclaratorAST final : public AST {
+ public:
   InitDeclaratorAST() : AST(ASTKind::InitDeclarator) {}
 
   DeclaratorAST* declarator = nullptr;
@@ -261,7 +286,8 @@ struct InitDeclaratorAST final : AST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct BaseSpecifierAST final : AST {
+class BaseSpecifierAST final : public AST {
+ public:
   BaseSpecifierAST() : AST(ASTKind::BaseSpecifier) {}
 
   List<AttributeAST*>* attributeList = nullptr;
@@ -273,7 +299,8 @@ struct BaseSpecifierAST final : AST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct BaseClauseAST final : AST {
+class BaseClauseAST final : public AST {
+ public:
   BaseClauseAST() : AST(ASTKind::BaseClause) {}
 
   SourceLocation colonLoc;
@@ -285,7 +312,8 @@ struct BaseClauseAST final : AST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct NewTypeIdAST final : AST {
+class NewTypeIdAST final : public AST {
+ public:
   NewTypeIdAST() : AST(ASTKind::NewTypeId) {}
 
   List<SpecifierAST*>* typeSpecifierList = nullptr;
@@ -296,7 +324,8 @@ struct NewTypeIdAST final : AST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ParameterDeclarationClauseAST final : AST {
+class ParameterDeclarationClauseAST final : public AST {
+ public:
   ParameterDeclarationClauseAST() : AST(ASTKind::ParameterDeclarationClause) {}
 
   List<ParameterDeclarationAST*>* parameterDeclarationList = nullptr;
@@ -309,7 +338,8 @@ struct ParameterDeclarationClauseAST final : AST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ParametersAndQualifiersAST final : AST {
+class ParametersAndQualifiersAST final : public AST {
+ public:
   ParametersAndQualifiersAST() : AST(ASTKind::ParametersAndQualifiers) {}
 
   SourceLocation lparenLoc;
@@ -325,7 +355,8 @@ struct ParametersAndQualifiersAST final : AST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct LambdaIntroducerAST final : AST {
+class LambdaIntroducerAST final : public AST {
+ public:
   LambdaIntroducerAST() : AST(ASTKind::LambdaIntroducer) {}
 
   SourceLocation lbracketLoc;
@@ -339,7 +370,8 @@ struct LambdaIntroducerAST final : AST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct LambdaDeclaratorAST final : AST {
+class LambdaDeclaratorAST final : public AST {
+ public:
   LambdaDeclaratorAST() : AST(ASTKind::LambdaDeclarator) {}
 
   SourceLocation lparenLoc;
@@ -355,7 +387,8 @@ struct LambdaDeclaratorAST final : AST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct TrailingReturnTypeAST final : AST {
+class TrailingReturnTypeAST final : public AST {
+ public:
   TrailingReturnTypeAST() : AST(ASTKind::TrailingReturnType) {}
 
   SourceLocation minusGreaterLoc;
@@ -367,7 +400,8 @@ struct TrailingReturnTypeAST final : AST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ThisLambdaCaptureAST final : LambdaCaptureAST {
+class ThisLambdaCaptureAST final : public LambdaCaptureAST {
+ public:
   ThisLambdaCaptureAST() : LambdaCaptureAST(ASTKind::ThisLambdaCapture) {}
 
   SourceLocation thisLoc;
@@ -378,7 +412,8 @@ struct ThisLambdaCaptureAST final : LambdaCaptureAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct DerefThisLambdaCaptureAST final : LambdaCaptureAST {
+class DerefThisLambdaCaptureAST final : public LambdaCaptureAST {
+ public:
   DerefThisLambdaCaptureAST()
       : LambdaCaptureAST(ASTKind::DerefThisLambdaCapture) {}
 
@@ -391,7 +426,8 @@ struct DerefThisLambdaCaptureAST final : LambdaCaptureAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct SimpleLambdaCaptureAST final : LambdaCaptureAST {
+class SimpleLambdaCaptureAST final : public LambdaCaptureAST {
+ public:
   SimpleLambdaCaptureAST() : LambdaCaptureAST(ASTKind::SimpleLambdaCapture) {}
 
   SourceLocation identifierLoc;
@@ -403,7 +439,8 @@ struct SimpleLambdaCaptureAST final : LambdaCaptureAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct RefLambdaCaptureAST final : LambdaCaptureAST {
+class RefLambdaCaptureAST final : public LambdaCaptureAST {
+ public:
   RefLambdaCaptureAST() : LambdaCaptureAST(ASTKind::RefLambdaCapture) {}
 
   SourceLocation ampLoc;
@@ -416,7 +453,8 @@ struct RefLambdaCaptureAST final : LambdaCaptureAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct RefInitLambdaCaptureAST final : LambdaCaptureAST {
+class RefInitLambdaCaptureAST final : public LambdaCaptureAST {
+ public:
   RefInitLambdaCaptureAST() : LambdaCaptureAST(ASTKind::RefInitLambdaCapture) {}
 
   SourceLocation ampLoc;
@@ -430,7 +468,8 @@ struct RefInitLambdaCaptureAST final : LambdaCaptureAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct InitLambdaCaptureAST final : LambdaCaptureAST {
+class InitLambdaCaptureAST final : public LambdaCaptureAST {
+ public:
   InitLambdaCaptureAST() : LambdaCaptureAST(ASTKind::InitLambdaCapture) {}
 
   SourceLocation ellipsisLoc;
@@ -443,7 +482,8 @@ struct InitLambdaCaptureAST final : LambdaCaptureAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct EqualInitializerAST final : InitializerAST {
+class EqualInitializerAST final : public InitializerAST {
+ public:
   EqualInitializerAST() : InitializerAST(ASTKind::EqualInitializer) {}
 
   SourceLocation equalLoc;
@@ -455,7 +495,8 @@ struct EqualInitializerAST final : InitializerAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct BracedInitListAST final : InitializerAST {
+class BracedInitListAST final : public InitializerAST {
+ public:
   BracedInitListAST() : InitializerAST(ASTKind::BracedInitList) {}
 
   SourceLocation lbraceLoc;
@@ -469,7 +510,8 @@ struct BracedInitListAST final : InitializerAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ParenInitializerAST final : InitializerAST {
+class ParenInitializerAST final : public InitializerAST {
+ public:
   ParenInitializerAST() : InitializerAST(ASTKind::ParenInitializer) {}
 
   SourceLocation lparenLoc;
@@ -482,7 +524,8 @@ struct ParenInitializerAST final : InitializerAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct NewParenInitializerAST final : NewInitializerAST {
+class NewParenInitializerAST final : public NewInitializerAST {
+ public:
   NewParenInitializerAST() : NewInitializerAST(ASTKind::NewParenInitializer) {}
 
   SourceLocation lparenLoc;
@@ -495,7 +538,8 @@ struct NewParenInitializerAST final : NewInitializerAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct NewBracedInitializerAST final : NewInitializerAST {
+class NewBracedInitializerAST final : public NewInitializerAST {
+ public:
   NewBracedInitializerAST()
       : NewInitializerAST(ASTKind::NewBracedInitializer) {}
 
@@ -507,7 +551,8 @@ struct NewBracedInitializerAST final : NewInitializerAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct EllipsisExceptionDeclarationAST final : ExceptionDeclarationAST {
+class EllipsisExceptionDeclarationAST final : public ExceptionDeclarationAST {
+ public:
   EllipsisExceptionDeclarationAST()
       : ExceptionDeclarationAST(ASTKind::EllipsisExceptionDeclaration) {}
 
@@ -519,7 +564,8 @@ struct EllipsisExceptionDeclarationAST final : ExceptionDeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct TypeExceptionDeclarationAST final : ExceptionDeclarationAST {
+class TypeExceptionDeclarationAST final : public ExceptionDeclarationAST {
+ public:
   TypeExceptionDeclarationAST()
       : ExceptionDeclarationAST(ASTKind::TypeExceptionDeclaration) {}
 
@@ -533,7 +579,8 @@ struct TypeExceptionDeclarationAST final : ExceptionDeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct TranslationUnitAST final : UnitAST {
+class TranslationUnitAST final : public UnitAST {
+ public:
   TranslationUnitAST() : UnitAST(ASTKind::TranslationUnit) {}
 
   List<DeclarationAST*>* declarationList = nullptr;
@@ -544,7 +591,8 @@ struct TranslationUnitAST final : UnitAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ModuleUnitAST final : UnitAST {
+class ModuleUnitAST final : public UnitAST {
+ public:
   ModuleUnitAST() : UnitAST(ASTKind::ModuleUnit) {}
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -553,7 +601,8 @@ struct ModuleUnitAST final : UnitAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ThisExpressionAST final : ExpressionAST {
+class ThisExpressionAST final : public ExpressionAST {
+ public:
   ThisExpressionAST() : ExpressionAST(ASTKind::ThisExpression) {}
 
   SourceLocation thisLoc;
@@ -564,7 +613,8 @@ struct ThisExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct CharLiteralExpressionAST final : ExpressionAST {
+class CharLiteralExpressionAST final : public ExpressionAST {
+ public:
   CharLiteralExpressionAST() : ExpressionAST(ASTKind::CharLiteralExpression) {}
 
   SourceLocation literalLoc;
@@ -575,7 +625,8 @@ struct CharLiteralExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct BoolLiteralExpressionAST final : ExpressionAST {
+class BoolLiteralExpressionAST final : public ExpressionAST {
+ public:
   BoolLiteralExpressionAST() : ExpressionAST(ASTKind::BoolLiteralExpression) {}
 
   SourceLocation literalLoc;
@@ -586,7 +637,8 @@ struct BoolLiteralExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct IntLiteralExpressionAST final : ExpressionAST {
+class IntLiteralExpressionAST final : public ExpressionAST {
+ public:
   IntLiteralExpressionAST() : ExpressionAST(ASTKind::IntLiteralExpression) {}
 
   SourceLocation literalLoc;
@@ -597,7 +649,8 @@ struct IntLiteralExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct FloatLiteralExpressionAST final : ExpressionAST {
+class FloatLiteralExpressionAST final : public ExpressionAST {
+ public:
   FloatLiteralExpressionAST()
       : ExpressionAST(ASTKind::FloatLiteralExpression) {}
 
@@ -609,7 +662,8 @@ struct FloatLiteralExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct NullptrLiteralExpressionAST final : ExpressionAST {
+class NullptrLiteralExpressionAST final : public ExpressionAST {
+ public:
   NullptrLiteralExpressionAST()
       : ExpressionAST(ASTKind::NullptrLiteralExpression) {}
 
@@ -621,7 +675,8 @@ struct NullptrLiteralExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct StringLiteralExpressionAST final : ExpressionAST {
+class StringLiteralExpressionAST final : public ExpressionAST {
+ public:
   StringLiteralExpressionAST()
       : ExpressionAST(ASTKind::StringLiteralExpression) {}
 
@@ -633,7 +688,8 @@ struct StringLiteralExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct UserDefinedStringLiteralExpressionAST final : ExpressionAST {
+class UserDefinedStringLiteralExpressionAST final : public ExpressionAST {
+ public:
   UserDefinedStringLiteralExpressionAST()
       : ExpressionAST(ASTKind::UserDefinedStringLiteralExpression) {}
 
@@ -645,7 +701,8 @@ struct UserDefinedStringLiteralExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct IdExpressionAST final : ExpressionAST {
+class IdExpressionAST final : public ExpressionAST {
+ public:
   IdExpressionAST() : ExpressionAST(ASTKind::IdExpression) {}
 
   NameAST* name = nullptr;
@@ -656,7 +713,8 @@ struct IdExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct NestedExpressionAST final : ExpressionAST {
+class NestedExpressionAST final : public ExpressionAST {
+ public:
   NestedExpressionAST() : ExpressionAST(ASTKind::NestedExpression) {}
 
   SourceLocation lparenLoc;
@@ -669,7 +727,8 @@ struct NestedExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct RightFoldExpressionAST final : ExpressionAST {
+class RightFoldExpressionAST final : public ExpressionAST {
+ public:
   RightFoldExpressionAST() : ExpressionAST(ASTKind::RightFoldExpression) {}
 
   SourceLocation lparenLoc;
@@ -685,7 +744,8 @@ struct RightFoldExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct LeftFoldExpressionAST final : ExpressionAST {
+class LeftFoldExpressionAST final : public ExpressionAST {
+ public:
   LeftFoldExpressionAST() : ExpressionAST(ASTKind::LeftFoldExpression) {}
 
   SourceLocation lparenLoc;
@@ -701,7 +761,8 @@ struct LeftFoldExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct FoldExpressionAST final : ExpressionAST {
+class FoldExpressionAST final : public ExpressionAST {
+ public:
   FoldExpressionAST() : ExpressionAST(ASTKind::FoldExpression) {}
 
   SourceLocation lparenLoc;
@@ -720,7 +781,8 @@ struct FoldExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct LambdaExpressionAST final : ExpressionAST {
+class LambdaExpressionAST final : public ExpressionAST {
+ public:
   LambdaExpressionAST() : ExpressionAST(ASTKind::LambdaExpression) {}
 
   LambdaIntroducerAST* lambdaIntroducer = nullptr;
@@ -736,7 +798,8 @@ struct LambdaExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct SizeofExpressionAST final : ExpressionAST {
+class SizeofExpressionAST final : public ExpressionAST {
+ public:
   SizeofExpressionAST() : ExpressionAST(ASTKind::SizeofExpression) {}
 
   SourceLocation sizeofLoc;
@@ -748,7 +811,8 @@ struct SizeofExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct SizeofTypeExpressionAST final : ExpressionAST {
+class SizeofTypeExpressionAST final : public ExpressionAST {
+ public:
   SizeofTypeExpressionAST() : ExpressionAST(ASTKind::SizeofTypeExpression) {}
 
   SourceLocation sizeofLoc;
@@ -762,7 +826,8 @@ struct SizeofTypeExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct SizeofPackExpressionAST final : ExpressionAST {
+class SizeofPackExpressionAST final : public ExpressionAST {
+ public:
   SizeofPackExpressionAST() : ExpressionAST(ASTKind::SizeofPackExpression) {}
 
   SourceLocation sizeofLoc;
@@ -777,7 +842,8 @@ struct SizeofPackExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct TypeidExpressionAST final : ExpressionAST {
+class TypeidExpressionAST final : public ExpressionAST {
+ public:
   TypeidExpressionAST() : ExpressionAST(ASTKind::TypeidExpression) {}
 
   SourceLocation typeidLoc;
@@ -791,7 +857,8 @@ struct TypeidExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct TypeidOfTypeExpressionAST final : ExpressionAST {
+class TypeidOfTypeExpressionAST final : public ExpressionAST {
+ public:
   TypeidOfTypeExpressionAST()
       : ExpressionAST(ASTKind::TypeidOfTypeExpression) {}
 
@@ -806,7 +873,8 @@ struct TypeidOfTypeExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct AlignofExpressionAST final : ExpressionAST {
+class AlignofExpressionAST final : public ExpressionAST {
+ public:
   AlignofExpressionAST() : ExpressionAST(ASTKind::AlignofExpression) {}
 
   SourceLocation alignofLoc;
@@ -820,7 +888,8 @@ struct AlignofExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct UnaryExpressionAST final : ExpressionAST {
+class UnaryExpressionAST final : public ExpressionAST {
+ public:
   UnaryExpressionAST() : ExpressionAST(ASTKind::UnaryExpression) {}
 
   SourceLocation opLoc;
@@ -833,7 +902,8 @@ struct UnaryExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct BinaryExpressionAST final : ExpressionAST {
+class BinaryExpressionAST final : public ExpressionAST {
+ public:
   BinaryExpressionAST() : ExpressionAST(ASTKind::BinaryExpression) {}
 
   ExpressionAST* leftExpression = nullptr;
@@ -847,7 +917,8 @@ struct BinaryExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct AssignmentExpressionAST final : ExpressionAST {
+class AssignmentExpressionAST final : public ExpressionAST {
+ public:
   AssignmentExpressionAST() : ExpressionAST(ASTKind::AssignmentExpression) {}
 
   ExpressionAST* leftExpression = nullptr;
@@ -860,7 +931,8 @@ struct AssignmentExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct BracedTypeConstructionAST final : ExpressionAST {
+class BracedTypeConstructionAST final : public ExpressionAST {
+ public:
   BracedTypeConstructionAST()
       : ExpressionAST(ASTKind::BracedTypeConstruction) {}
 
@@ -873,7 +945,8 @@ struct BracedTypeConstructionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct TypeConstructionAST final : ExpressionAST {
+class TypeConstructionAST final : public ExpressionAST {
+ public:
   TypeConstructionAST() : ExpressionAST(ASTKind::TypeConstruction) {}
 
   SpecifierAST* typeSpecifier = nullptr;
@@ -887,7 +960,8 @@ struct TypeConstructionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct CallExpressionAST final : ExpressionAST {
+class CallExpressionAST final : public ExpressionAST {
+ public:
   CallExpressionAST() : ExpressionAST(ASTKind::CallExpression) {}
 
   ExpressionAST* baseExpression = nullptr;
@@ -901,7 +975,8 @@ struct CallExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct SubscriptExpressionAST final : ExpressionAST {
+class SubscriptExpressionAST final : public ExpressionAST {
+ public:
   SubscriptExpressionAST() : ExpressionAST(ASTKind::SubscriptExpression) {}
 
   ExpressionAST* baseExpression = nullptr;
@@ -915,7 +990,8 @@ struct SubscriptExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct MemberExpressionAST final : ExpressionAST {
+class MemberExpressionAST final : public ExpressionAST {
+ public:
   MemberExpressionAST() : ExpressionAST(ASTKind::MemberExpression) {}
 
   ExpressionAST* baseExpression = nullptr;
@@ -929,7 +1005,8 @@ struct MemberExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ConditionalExpressionAST final : ExpressionAST {
+class ConditionalExpressionAST final : public ExpressionAST {
+ public:
   ConditionalExpressionAST() : ExpressionAST(ASTKind::ConditionalExpression) {}
 
   ExpressionAST* condition = nullptr;
@@ -944,7 +1021,8 @@ struct ConditionalExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct CastExpressionAST final : ExpressionAST {
+class CastExpressionAST final : public ExpressionAST {
+ public:
   CastExpressionAST() : ExpressionAST(ASTKind::CastExpression) {}
 
   SourceLocation lparenLoc;
@@ -958,7 +1036,8 @@ struct CastExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct CppCastExpressionAST final : ExpressionAST {
+class CppCastExpressionAST final : public ExpressionAST {
+ public:
   CppCastExpressionAST() : ExpressionAST(ASTKind::CppCastExpression) {}
 
   SourceLocation castLoc;
@@ -975,7 +1054,8 @@ struct CppCastExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct NewExpressionAST final : ExpressionAST {
+class NewExpressionAST final : public ExpressionAST {
+ public:
   NewExpressionAST() : ExpressionAST(ASTKind::NewExpression) {}
 
   SourceLocation scopeLoc;
@@ -989,7 +1069,8 @@ struct NewExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct DeleteExpressionAST final : ExpressionAST {
+class DeleteExpressionAST final : public ExpressionAST {
+ public:
   DeleteExpressionAST() : ExpressionAST(ASTKind::DeleteExpression) {}
 
   SourceLocation scopeLoc;
@@ -1004,7 +1085,8 @@ struct DeleteExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ThrowExpressionAST final : ExpressionAST {
+class ThrowExpressionAST final : public ExpressionAST {
+ public:
   ThrowExpressionAST() : ExpressionAST(ASTKind::ThrowExpression) {}
 
   SourceLocation throwLoc;
@@ -1016,7 +1098,8 @@ struct ThrowExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct NoexceptExpressionAST final : ExpressionAST {
+class NoexceptExpressionAST final : public ExpressionAST {
+ public:
   NoexceptExpressionAST() : ExpressionAST(ASTKind::NoexceptExpression) {}
 
   SourceLocation noexceptLoc;
@@ -1030,7 +1113,8 @@ struct NoexceptExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct LabeledStatementAST final : StatementAST {
+class LabeledStatementAST final : public StatementAST {
+ public:
   LabeledStatementAST() : StatementAST(ASTKind::LabeledStatement) {}
 
   SourceLocation identifierLoc;
@@ -1043,7 +1127,8 @@ struct LabeledStatementAST final : StatementAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct CaseStatementAST final : StatementAST {
+class CaseStatementAST final : public StatementAST {
+ public:
   CaseStatementAST() : StatementAST(ASTKind::CaseStatement) {}
 
   SourceLocation caseLoc;
@@ -1057,7 +1142,8 @@ struct CaseStatementAST final : StatementAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct DefaultStatementAST final : StatementAST {
+class DefaultStatementAST final : public StatementAST {
+ public:
   DefaultStatementAST() : StatementAST(ASTKind::DefaultStatement) {}
 
   SourceLocation defaultLoc;
@@ -1070,7 +1156,8 @@ struct DefaultStatementAST final : StatementAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ExpressionStatementAST final : StatementAST {
+class ExpressionStatementAST final : public StatementAST {
+ public:
   ExpressionStatementAST() : StatementAST(ASTKind::ExpressionStatement) {}
 
   ExpressionAST* expression = nullptr;
@@ -1082,7 +1169,8 @@ struct ExpressionStatementAST final : StatementAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct CompoundStatementAST final : StatementAST {
+class CompoundStatementAST final : public StatementAST {
+ public:
   CompoundStatementAST() : StatementAST(ASTKind::CompoundStatement) {}
 
   SourceLocation lbraceLoc;
@@ -1095,7 +1183,8 @@ struct CompoundStatementAST final : StatementAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct IfStatementAST final : StatementAST {
+class IfStatementAST final : public StatementAST {
+ public:
   IfStatementAST() : StatementAST(ASTKind::IfStatement) {}
 
   SourceLocation ifLoc;
@@ -1113,7 +1202,8 @@ struct IfStatementAST final : StatementAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct SwitchStatementAST final : StatementAST {
+class SwitchStatementAST final : public StatementAST {
+ public:
   SwitchStatementAST() : StatementAST(ASTKind::SwitchStatement) {}
 
   SourceLocation switchLoc;
@@ -1129,7 +1219,8 @@ struct SwitchStatementAST final : StatementAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct WhileStatementAST final : StatementAST {
+class WhileStatementAST final : public StatementAST {
+ public:
   WhileStatementAST() : StatementAST(ASTKind::WhileStatement) {}
 
   SourceLocation whileLoc;
@@ -1144,7 +1235,8 @@ struct WhileStatementAST final : StatementAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct DoStatementAST final : StatementAST {
+class DoStatementAST final : public StatementAST {
+ public:
   DoStatementAST() : StatementAST(ASTKind::DoStatement) {}
 
   SourceLocation doLoc;
@@ -1161,7 +1253,8 @@ struct DoStatementAST final : StatementAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ForRangeStatementAST final : StatementAST {
+class ForRangeStatementAST final : public StatementAST {
+ public:
   ForRangeStatementAST() : StatementAST(ASTKind::ForRangeStatement) {}
 
   SourceLocation forLoc;
@@ -1179,7 +1272,8 @@ struct ForRangeStatementAST final : StatementAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ForStatementAST final : StatementAST {
+class ForStatementAST final : public StatementAST {
+ public:
   ForStatementAST() : StatementAST(ASTKind::ForStatement) {}
 
   SourceLocation forLoc;
@@ -1197,7 +1291,8 @@ struct ForStatementAST final : StatementAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct BreakStatementAST final : StatementAST {
+class BreakStatementAST final : public StatementAST {
+ public:
   BreakStatementAST() : StatementAST(ASTKind::BreakStatement) {}
 
   SourceLocation breakLoc;
@@ -1209,7 +1304,8 @@ struct BreakStatementAST final : StatementAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ContinueStatementAST final : StatementAST {
+class ContinueStatementAST final : public StatementAST {
+ public:
   ContinueStatementAST() : StatementAST(ASTKind::ContinueStatement) {}
 
   SourceLocation continueLoc;
@@ -1221,7 +1317,8 @@ struct ContinueStatementAST final : StatementAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ReturnStatementAST final : StatementAST {
+class ReturnStatementAST final : public StatementAST {
+ public:
   ReturnStatementAST() : StatementAST(ASTKind::ReturnStatement) {}
 
   SourceLocation returnLoc;
@@ -1234,7 +1331,8 @@ struct ReturnStatementAST final : StatementAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct GotoStatementAST final : StatementAST {
+class GotoStatementAST final : public StatementAST {
+ public:
   GotoStatementAST() : StatementAST(ASTKind::GotoStatement) {}
 
   SourceLocation gotoLoc;
@@ -1247,7 +1345,8 @@ struct GotoStatementAST final : StatementAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct CoroutineReturnStatementAST final : StatementAST {
+class CoroutineReturnStatementAST final : public StatementAST {
+ public:
   CoroutineReturnStatementAST()
       : StatementAST(ASTKind::CoroutineReturnStatement) {}
 
@@ -1261,7 +1360,8 @@ struct CoroutineReturnStatementAST final : StatementAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct DeclarationStatementAST final : StatementAST {
+class DeclarationStatementAST final : public StatementAST {
+ public:
   DeclarationStatementAST() : StatementAST(ASTKind::DeclarationStatement) {}
 
   DeclarationAST* declaration = nullptr;
@@ -1272,7 +1372,8 @@ struct DeclarationStatementAST final : StatementAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct TryBlockStatementAST final : StatementAST {
+class TryBlockStatementAST final : public StatementAST {
+ public:
   TryBlockStatementAST() : StatementAST(ASTKind::TryBlockStatement) {}
 
   SourceLocation tryLoc;
@@ -1285,7 +1386,8 @@ struct TryBlockStatementAST final : StatementAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct FunctionDefinitionAST final : DeclarationAST {
+class FunctionDefinitionAST final : public DeclarationAST {
+ public:
   FunctionDefinitionAST() : DeclarationAST(ASTKind::FunctionDefinition) {}
 
   List<SpecifierAST*>* declSpecifierList = nullptr;
@@ -1298,7 +1400,8 @@ struct FunctionDefinitionAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ConceptDefinitionAST final : DeclarationAST {
+class ConceptDefinitionAST final : public DeclarationAST {
+ public:
   ConceptDefinitionAST() : DeclarationAST(ASTKind::ConceptDefinition) {}
 
   SourceLocation conceptLoc;
@@ -1313,7 +1416,8 @@ struct ConceptDefinitionAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ForRangeDeclarationAST final : DeclarationAST {
+class ForRangeDeclarationAST final : public DeclarationAST {
+ public:
   ForRangeDeclarationAST() : DeclarationAST(ASTKind::ForRangeDeclaration) {}
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -1322,7 +1426,8 @@ struct ForRangeDeclarationAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct AliasDeclarationAST final : DeclarationAST {
+class AliasDeclarationAST final : public DeclarationAST {
+ public:
   AliasDeclarationAST() : DeclarationAST(ASTKind::AliasDeclaration) {}
 
   SourceLocation usingLoc;
@@ -1338,7 +1443,8 @@ struct AliasDeclarationAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct SimpleDeclarationAST final : DeclarationAST {
+class SimpleDeclarationAST final : public DeclarationAST {
+ public:
   SimpleDeclarationAST() : DeclarationAST(ASTKind::SimpleDeclaration) {}
 
   List<AttributeAST*>* attributes = nullptr;
@@ -1352,7 +1458,8 @@ struct SimpleDeclarationAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct StaticAssertDeclarationAST final : DeclarationAST {
+class StaticAssertDeclarationAST final : public DeclarationAST {
+ public:
   StaticAssertDeclarationAST()
       : DeclarationAST(ASTKind::StaticAssertDeclaration) {}
 
@@ -1370,7 +1477,8 @@ struct StaticAssertDeclarationAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct EmptyDeclarationAST final : DeclarationAST {
+class EmptyDeclarationAST final : public DeclarationAST {
+ public:
   EmptyDeclarationAST() : DeclarationAST(ASTKind::EmptyDeclaration) {}
 
   SourceLocation semicolonLoc;
@@ -1381,7 +1489,8 @@ struct EmptyDeclarationAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct AttributeDeclarationAST final : DeclarationAST {
+class AttributeDeclarationAST final : public DeclarationAST {
+ public:
   AttributeDeclarationAST() : DeclarationAST(ASTKind::AttributeDeclaration) {}
 
   List<AttributeAST*>* attributeList = nullptr;
@@ -1393,7 +1502,8 @@ struct AttributeDeclarationAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct OpaqueEnumDeclarationAST final : DeclarationAST {
+class OpaqueEnumDeclarationAST final : public DeclarationAST {
+ public:
   OpaqueEnumDeclarationAST() : DeclarationAST(ASTKind::OpaqueEnumDeclaration) {}
 
   SourceLocation enumLoc;
@@ -1410,7 +1520,8 @@ struct OpaqueEnumDeclarationAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct UsingEnumDeclarationAST final : DeclarationAST {
+class UsingEnumDeclarationAST final : public DeclarationAST {
+ public:
   UsingEnumDeclarationAST() : DeclarationAST(ASTKind::UsingEnumDeclaration) {}
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -1419,7 +1530,8 @@ struct UsingEnumDeclarationAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct NamespaceDefinitionAST final : DeclarationAST {
+class NamespaceDefinitionAST final : public DeclarationAST {
+ public:
   NamespaceDefinitionAST() : DeclarationAST(ASTKind::NamespaceDefinition) {}
 
   SourceLocation inlineLoc;
@@ -1438,7 +1550,8 @@ struct NamespaceDefinitionAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct NamespaceAliasDefinitionAST final : DeclarationAST {
+class NamespaceAliasDefinitionAST final : public DeclarationAST {
+ public:
   NamespaceAliasDefinitionAST()
       : DeclarationAST(ASTKind::NamespaceAliasDefinition) {}
 
@@ -1455,7 +1568,8 @@ struct NamespaceAliasDefinitionAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct UsingDirectiveAST final : DeclarationAST {
+class UsingDirectiveAST final : public DeclarationAST {
+ public:
   UsingDirectiveAST() : DeclarationAST(ASTKind::UsingDirective) {}
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -1464,7 +1578,8 @@ struct UsingDirectiveAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct UsingDeclarationAST final : DeclarationAST {
+class UsingDeclarationAST final : public DeclarationAST {
+ public:
   UsingDeclarationAST() : DeclarationAST(ASTKind::UsingDeclaration) {}
 
   SourceLocation usingLoc;
@@ -1477,7 +1592,8 @@ struct UsingDeclarationAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct AsmDeclarationAST final : DeclarationAST {
+class AsmDeclarationAST final : public DeclarationAST {
+ public:
   AsmDeclarationAST() : DeclarationAST(ASTKind::AsmDeclaration) {}
 
   List<AttributeAST*>* attributeList = nullptr;
@@ -1493,7 +1609,8 @@ struct AsmDeclarationAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ExportDeclarationAST final : DeclarationAST {
+class ExportDeclarationAST final : public DeclarationAST {
+ public:
   ExportDeclarationAST() : DeclarationAST(ASTKind::ExportDeclaration) {}
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -1502,7 +1619,8 @@ struct ExportDeclarationAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ModuleImportDeclarationAST final : DeclarationAST {
+class ModuleImportDeclarationAST final : public DeclarationAST {
+ public:
   ModuleImportDeclarationAST()
       : DeclarationAST(ASTKind::ModuleImportDeclaration) {}
 
@@ -1512,7 +1630,8 @@ struct ModuleImportDeclarationAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct TemplateDeclarationAST final : DeclarationAST {
+class TemplateDeclarationAST final : public DeclarationAST {
+ public:
   TemplateDeclarationAST() : DeclarationAST(ASTKind::TemplateDeclaration) {}
 
   SourceLocation templateLoc;
@@ -1527,7 +1646,8 @@ struct TemplateDeclarationAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct TypenameTypeParameterAST final : DeclarationAST {
+class TypenameTypeParameterAST final : public DeclarationAST {
+ public:
   TypenameTypeParameterAST() : DeclarationAST(ASTKind::TypenameTypeParameter) {}
 
   SourceLocation classKeyLoc;
@@ -1541,7 +1661,8 @@ struct TypenameTypeParameterAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct TypenamePackTypeParameterAST final : DeclarationAST {
+class TypenamePackTypeParameterAST final : public DeclarationAST {
+ public:
   TypenamePackTypeParameterAST()
       : DeclarationAST(ASTKind::TypenamePackTypeParameter) {}
 
@@ -1555,7 +1676,8 @@ struct TypenamePackTypeParameterAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct TemplateTypeParameterAST final : DeclarationAST {
+class TemplateTypeParameterAST final : public DeclarationAST {
+ public:
   TemplateTypeParameterAST() : DeclarationAST(ASTKind::TemplateTypeParameter) {}
 
   SourceLocation templateLoc;
@@ -1573,7 +1695,8 @@ struct TemplateTypeParameterAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct TemplatePackTypeParameterAST final : DeclarationAST {
+class TemplatePackTypeParameterAST final : public DeclarationAST {
+ public:
   TemplatePackTypeParameterAST()
       : DeclarationAST(ASTKind::TemplatePackTypeParameter) {}
 
@@ -1591,7 +1714,8 @@ struct TemplatePackTypeParameterAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct DeductionGuideAST final : DeclarationAST {
+class DeductionGuideAST final : public DeclarationAST {
+ public:
   DeductionGuideAST() : DeclarationAST(ASTKind::DeductionGuide) {}
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -1600,7 +1724,8 @@ struct DeductionGuideAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ExplicitInstantiationAST final : DeclarationAST {
+class ExplicitInstantiationAST final : public DeclarationAST {
+ public:
   ExplicitInstantiationAST() : DeclarationAST(ASTKind::ExplicitInstantiation) {}
 
   SourceLocation externLoc;
@@ -1613,7 +1738,8 @@ struct ExplicitInstantiationAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ParameterDeclarationAST final : DeclarationAST {
+class ParameterDeclarationAST final : public DeclarationAST {
+ public:
   ParameterDeclarationAST() : DeclarationAST(ASTKind::ParameterDeclaration) {}
 
   List<AttributeAST*>* attributeList = nullptr;
@@ -1628,7 +1754,8 @@ struct ParameterDeclarationAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct LinkageSpecificationAST final : DeclarationAST {
+class LinkageSpecificationAST final : public DeclarationAST {
+ public:
   LinkageSpecificationAST() : DeclarationAST(ASTKind::LinkageSpecification) {}
 
   SourceLocation externLoc;
@@ -1643,7 +1770,8 @@ struct LinkageSpecificationAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct SimpleNameAST final : NameAST {
+class SimpleNameAST final : public NameAST {
+ public:
   SimpleNameAST() : NameAST(ASTKind::SimpleName) {}
 
   SourceLocation identifierLoc;
@@ -1654,7 +1782,8 @@ struct SimpleNameAST final : NameAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct DestructorNameAST final : NameAST {
+class DestructorNameAST final : public NameAST {
+ public:
   DestructorNameAST() : NameAST(ASTKind::DestructorName) {}
 
   SourceLocation tildeLoc;
@@ -1666,7 +1795,8 @@ struct DestructorNameAST final : NameAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct DecltypeNameAST final : NameAST {
+class DecltypeNameAST final : public NameAST {
+ public:
   DecltypeNameAST() : NameAST(ASTKind::DecltypeName) {}
 
   SpecifierAST* decltypeSpecifier = nullptr;
@@ -1677,7 +1807,8 @@ struct DecltypeNameAST final : NameAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct OperatorNameAST final : NameAST {
+class OperatorNameAST final : public NameAST {
+ public:
   OperatorNameAST() : NameAST(ASTKind::OperatorName) {}
 
   SourceLocation operatorLoc;
@@ -1692,7 +1823,8 @@ struct OperatorNameAST final : NameAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct TemplateNameAST final : NameAST {
+class TemplateNameAST final : public NameAST {
+ public:
   TemplateNameAST() : NameAST(ASTKind::TemplateName) {}
 
   NameAST* id = nullptr;
@@ -1706,7 +1838,8 @@ struct TemplateNameAST final : NameAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct QualifiedNameAST final : NameAST {
+class QualifiedNameAST final : public NameAST {
+ public:
   QualifiedNameAST() : NameAST(ASTKind::QualifiedName) {}
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
@@ -1719,7 +1852,8 @@ struct QualifiedNameAST final : NameAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct TypedefSpecifierAST final : SpecifierAST {
+class TypedefSpecifierAST final : public SpecifierAST {
+ public:
   TypedefSpecifierAST() : SpecifierAST(ASTKind::TypedefSpecifier) {}
 
   SourceLocation typedefLoc;
@@ -1730,7 +1864,8 @@ struct TypedefSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct FriendSpecifierAST final : SpecifierAST {
+class FriendSpecifierAST final : public SpecifierAST {
+ public:
   FriendSpecifierAST() : SpecifierAST(ASTKind::FriendSpecifier) {}
 
   SourceLocation friendLoc;
@@ -1741,7 +1876,8 @@ struct FriendSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ConstevalSpecifierAST final : SpecifierAST {
+class ConstevalSpecifierAST final : public SpecifierAST {
+ public:
   ConstevalSpecifierAST() : SpecifierAST(ASTKind::ConstevalSpecifier) {}
 
   SourceLocation constevalLoc;
@@ -1752,7 +1888,8 @@ struct ConstevalSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ConstinitSpecifierAST final : SpecifierAST {
+class ConstinitSpecifierAST final : public SpecifierAST {
+ public:
   ConstinitSpecifierAST() : SpecifierAST(ASTKind::ConstinitSpecifier) {}
 
   SourceLocation constinitLoc;
@@ -1763,7 +1900,8 @@ struct ConstinitSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ConstexprSpecifierAST final : SpecifierAST {
+class ConstexprSpecifierAST final : public SpecifierAST {
+ public:
   ConstexprSpecifierAST() : SpecifierAST(ASTKind::ConstexprSpecifier) {}
 
   SourceLocation constexprLoc;
@@ -1774,7 +1912,8 @@ struct ConstexprSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct InlineSpecifierAST final : SpecifierAST {
+class InlineSpecifierAST final : public SpecifierAST {
+ public:
   InlineSpecifierAST() : SpecifierAST(ASTKind::InlineSpecifier) {}
 
   SourceLocation inlineLoc;
@@ -1785,7 +1924,8 @@ struct InlineSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct StaticSpecifierAST final : SpecifierAST {
+class StaticSpecifierAST final : public SpecifierAST {
+ public:
   StaticSpecifierAST() : SpecifierAST(ASTKind::StaticSpecifier) {}
 
   SourceLocation staticLoc;
@@ -1796,7 +1936,8 @@ struct StaticSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ExternSpecifierAST final : SpecifierAST {
+class ExternSpecifierAST final : public SpecifierAST {
+ public:
   ExternSpecifierAST() : SpecifierAST(ASTKind::ExternSpecifier) {}
 
   SourceLocation externLoc;
@@ -1807,7 +1948,8 @@ struct ExternSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ThreadLocalSpecifierAST final : SpecifierAST {
+class ThreadLocalSpecifierAST final : public SpecifierAST {
+ public:
   ThreadLocalSpecifierAST() : SpecifierAST(ASTKind::ThreadLocalSpecifier) {}
 
   SourceLocation threadLocalLoc;
@@ -1818,7 +1960,8 @@ struct ThreadLocalSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ThreadSpecifierAST final : SpecifierAST {
+class ThreadSpecifierAST final : public SpecifierAST {
+ public:
   ThreadSpecifierAST() : SpecifierAST(ASTKind::ThreadSpecifier) {}
 
   SourceLocation threadLoc;
@@ -1829,7 +1972,8 @@ struct ThreadSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct MutableSpecifierAST final : SpecifierAST {
+class MutableSpecifierAST final : public SpecifierAST {
+ public:
   MutableSpecifierAST() : SpecifierAST(ASTKind::MutableSpecifier) {}
 
   SourceLocation mutableLoc;
@@ -1840,7 +1984,8 @@ struct MutableSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct VirtualSpecifierAST final : SpecifierAST {
+class VirtualSpecifierAST final : public SpecifierAST {
+ public:
   VirtualSpecifierAST() : SpecifierAST(ASTKind::VirtualSpecifier) {}
 
   SourceLocation virtualLoc;
@@ -1851,7 +1996,8 @@ struct VirtualSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ExplicitSpecifierAST final : SpecifierAST {
+class ExplicitSpecifierAST final : public SpecifierAST {
+ public:
   ExplicitSpecifierAST() : SpecifierAST(ASTKind::ExplicitSpecifier) {}
 
   SourceLocation explicitLoc;
@@ -1865,7 +2011,8 @@ struct ExplicitSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct AutoTypeSpecifierAST final : SpecifierAST {
+class AutoTypeSpecifierAST final : public SpecifierAST {
+ public:
   AutoTypeSpecifierAST() : SpecifierAST(ASTKind::AutoTypeSpecifier) {}
 
   SourceLocation autoLoc;
@@ -1876,7 +2023,8 @@ struct AutoTypeSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct VoidTypeSpecifierAST final : SpecifierAST {
+class VoidTypeSpecifierAST final : public SpecifierAST {
+ public:
   VoidTypeSpecifierAST() : SpecifierAST(ASTKind::VoidTypeSpecifier) {}
 
   SourceLocation voidLoc;
@@ -1887,7 +2035,8 @@ struct VoidTypeSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct VaListTypeSpecifierAST final : SpecifierAST {
+class VaListTypeSpecifierAST final : public SpecifierAST {
+ public:
   VaListTypeSpecifierAST() : SpecifierAST(ASTKind::VaListTypeSpecifier) {}
 
   SourceLocation specifierLoc;
@@ -1898,7 +2047,8 @@ struct VaListTypeSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct IntegralTypeSpecifierAST final : SpecifierAST {
+class IntegralTypeSpecifierAST final : public SpecifierAST {
+ public:
   IntegralTypeSpecifierAST() : SpecifierAST(ASTKind::IntegralTypeSpecifier) {}
 
   SourceLocation specifierLoc;
@@ -1909,7 +2059,8 @@ struct IntegralTypeSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct FloatingPointTypeSpecifierAST final : SpecifierAST {
+class FloatingPointTypeSpecifierAST final : public SpecifierAST {
+ public:
   FloatingPointTypeSpecifierAST()
       : SpecifierAST(ASTKind::FloatingPointTypeSpecifier) {}
 
@@ -1921,7 +2072,8 @@ struct FloatingPointTypeSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ComplexTypeSpecifierAST final : SpecifierAST {
+class ComplexTypeSpecifierAST final : public SpecifierAST {
+ public:
   ComplexTypeSpecifierAST() : SpecifierAST(ASTKind::ComplexTypeSpecifier) {}
 
   SourceLocation complexLoc;
@@ -1932,7 +2084,8 @@ struct ComplexTypeSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct NamedTypeSpecifierAST final : SpecifierAST {
+class NamedTypeSpecifierAST final : public SpecifierAST {
+ public:
   NamedTypeSpecifierAST() : SpecifierAST(ASTKind::NamedTypeSpecifier) {}
 
   NameAST* name = nullptr;
@@ -1943,7 +2096,8 @@ struct NamedTypeSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct AtomicTypeSpecifierAST final : SpecifierAST {
+class AtomicTypeSpecifierAST final : public SpecifierAST {
+ public:
   AtomicTypeSpecifierAST() : SpecifierAST(ASTKind::AtomicTypeSpecifier) {}
 
   SourceLocation atomicLoc;
@@ -1957,7 +2111,8 @@ struct AtomicTypeSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct UnderlyingTypeSpecifierAST final : SpecifierAST {
+class UnderlyingTypeSpecifierAST final : public SpecifierAST {
+ public:
   UnderlyingTypeSpecifierAST()
       : SpecifierAST(ASTKind::UnderlyingTypeSpecifier) {}
 
@@ -1967,7 +2122,8 @@ struct UnderlyingTypeSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ElaboratedTypeSpecifierAST final : SpecifierAST {
+class ElaboratedTypeSpecifierAST final : public SpecifierAST {
+ public:
   ElaboratedTypeSpecifierAST()
       : SpecifierAST(ASTKind::ElaboratedTypeSpecifier) {}
 
@@ -1982,7 +2138,8 @@ struct ElaboratedTypeSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct DecltypeAutoSpecifierAST final : SpecifierAST {
+class DecltypeAutoSpecifierAST final : public SpecifierAST {
+ public:
   DecltypeAutoSpecifierAST() : SpecifierAST(ASTKind::DecltypeAutoSpecifier) {}
 
   SourceLocation decltypeLoc;
@@ -1996,7 +2153,8 @@ struct DecltypeAutoSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct DecltypeSpecifierAST final : SpecifierAST {
+class DecltypeSpecifierAST final : public SpecifierAST {
+ public:
   DecltypeSpecifierAST() : SpecifierAST(ASTKind::DecltypeSpecifier) {}
 
   SourceLocation decltypeLoc;
@@ -2010,7 +2168,8 @@ struct DecltypeSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct TypeofSpecifierAST final : SpecifierAST {
+class TypeofSpecifierAST final : public SpecifierAST {
+ public:
   TypeofSpecifierAST() : SpecifierAST(ASTKind::TypeofSpecifier) {}
 
   SourceLocation typeofLoc;
@@ -2024,7 +2183,8 @@ struct TypeofSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct PlaceholderTypeSpecifierAST final : SpecifierAST {
+class PlaceholderTypeSpecifierAST final : public SpecifierAST {
+ public:
   PlaceholderTypeSpecifierAST()
       : SpecifierAST(ASTKind::PlaceholderTypeSpecifier) {}
 
@@ -2034,7 +2194,8 @@ struct PlaceholderTypeSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ConstQualifierAST final : SpecifierAST {
+class ConstQualifierAST final : public SpecifierAST {
+ public:
   ConstQualifierAST() : SpecifierAST(ASTKind::ConstQualifier) {}
 
   SourceLocation constLoc;
@@ -2045,7 +2206,8 @@ struct ConstQualifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct VolatileQualifierAST final : SpecifierAST {
+class VolatileQualifierAST final : public SpecifierAST {
+ public:
   VolatileQualifierAST() : SpecifierAST(ASTKind::VolatileQualifier) {}
 
   SourceLocation volatileLoc;
@@ -2056,7 +2218,8 @@ struct VolatileQualifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct RestrictQualifierAST final : SpecifierAST {
+class RestrictQualifierAST final : public SpecifierAST {
+ public:
   RestrictQualifierAST() : SpecifierAST(ASTKind::RestrictQualifier) {}
 
   SourceLocation restrictLoc;
@@ -2067,7 +2230,8 @@ struct RestrictQualifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct EnumSpecifierAST final : SpecifierAST {
+class EnumSpecifierAST final : public SpecifierAST {
+ public:
   EnumSpecifierAST() : SpecifierAST(ASTKind::EnumSpecifier) {}
 
   SourceLocation enumLoc;
@@ -2087,7 +2251,8 @@ struct EnumSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ClassSpecifierAST final : SpecifierAST {
+class ClassSpecifierAST final : public SpecifierAST {
+ public:
   ClassSpecifierAST() : SpecifierAST(ASTKind::ClassSpecifier) {}
 
   SourceLocation classLoc;
@@ -2104,7 +2269,8 @@ struct ClassSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct TypenameSpecifierAST final : SpecifierAST {
+class TypenameSpecifierAST final : public SpecifierAST {
+ public:
   TypenameSpecifierAST() : SpecifierAST(ASTKind::TypenameSpecifier) {}
 
   SourceLocation typenameLoc;
@@ -2117,7 +2283,8 @@ struct TypenameSpecifierAST final : SpecifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct IdDeclaratorAST final : CoreDeclaratorAST {
+class IdDeclaratorAST final : public CoreDeclaratorAST {
+ public:
   IdDeclaratorAST() : CoreDeclaratorAST(ASTKind::IdDeclarator) {}
 
   SourceLocation ellipsisLoc;
@@ -2130,7 +2297,8 @@ struct IdDeclaratorAST final : CoreDeclaratorAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct NestedDeclaratorAST final : CoreDeclaratorAST {
+class NestedDeclaratorAST final : public CoreDeclaratorAST {
+ public:
   NestedDeclaratorAST() : CoreDeclaratorAST(ASTKind::NestedDeclarator) {}
 
   SourceLocation lparenLoc;
@@ -2143,7 +2311,8 @@ struct NestedDeclaratorAST final : CoreDeclaratorAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct PointerOperatorAST final : PtrOperatorAST {
+class PointerOperatorAST final : public PtrOperatorAST {
+ public:
   PointerOperatorAST() : PtrOperatorAST(ASTKind::PointerOperator) {}
 
   SourceLocation starLoc;
@@ -2156,7 +2325,8 @@ struct PointerOperatorAST final : PtrOperatorAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ReferenceOperatorAST final : PtrOperatorAST {
+class ReferenceOperatorAST final : public PtrOperatorAST {
+ public:
   ReferenceOperatorAST() : PtrOperatorAST(ASTKind::ReferenceOperator) {}
 
   SourceLocation refLoc;
@@ -2168,7 +2338,8 @@ struct ReferenceOperatorAST final : PtrOperatorAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct PtrToMemberOperatorAST final : PtrOperatorAST {
+class PtrToMemberOperatorAST final : public PtrOperatorAST {
+ public:
   PtrToMemberOperatorAST() : PtrOperatorAST(ASTKind::PtrToMemberOperator) {}
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
@@ -2182,7 +2353,8 @@ struct PtrToMemberOperatorAST final : PtrOperatorAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct FunctionDeclaratorAST final : DeclaratorModifierAST {
+class FunctionDeclaratorAST final : public DeclaratorModifierAST {
+ public:
   FunctionDeclaratorAST()
       : DeclaratorModifierAST(ASTKind::FunctionDeclarator) {}
 
@@ -2195,7 +2367,8 @@ struct FunctionDeclaratorAST final : DeclaratorModifierAST {
   SourceLocation lastSourceLocation() override;
 };
 
-struct ArrayDeclaratorAST final : DeclaratorModifierAST {
+class ArrayDeclaratorAST final : public DeclaratorModifierAST {
+ public:
   ArrayDeclaratorAST() : DeclaratorModifierAST(ASTKind::ArrayDeclarator) {}
 
   SourceLocation lbracketLoc;

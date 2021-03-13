@@ -26,7 +26,8 @@
 
 namespace cxx {
 
-struct ASTCloner : ASTVisitor {
+class ASTCloner : public ASTVisitor {
+ public:
   virtual AST* clone(AST* ast, Arena* arena);
 
   void visit(TypeIdAST* ast) override;
