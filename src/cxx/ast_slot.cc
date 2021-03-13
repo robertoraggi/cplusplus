@@ -446,6 +446,72 @@ void ASTSlot::visit(NestedExpressionAST* ast) {
   }  // switch
 }
 
+void ASTSlot::visit(RightFoldExpressionAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->lparenLoc.index();
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
+      break;
+    case 2:
+      value_ = ast->opLoc.index();
+      break;
+    case 3:
+      value_ = ast->ellipsisLoc.index();
+      break;
+    case 4:
+      value_ = ast->rparenLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(LeftFoldExpressionAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->lparenLoc.index();
+      break;
+    case 1:
+      value_ = ast->ellipsisLoc.index();
+      break;
+    case 2:
+      value_ = ast->opLoc.index();
+      break;
+    case 3:
+      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
+      break;
+    case 4:
+      value_ = ast->rparenLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(FoldExpressionAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->lparenLoc.index();
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->leftExpression);
+      break;
+    case 2:
+      value_ = ast->opLoc.index();
+      break;
+    case 3:
+      value_ = ast->ellipsisLoc.index();
+      break;
+    case 4:
+      value_ = ast->foldOpLoc.index();
+      break;
+    case 5:
+      value_ = reinterpret_cast<std::intptr_t>(ast->rightExpression);
+      break;
+    case 6:
+      value_ = ast->rparenLoc.index();
+      break;
+  }  // switch
+}
+
 void ASTSlot::visit(LambdaExpressionAST* ast) {
   switch (slot_) {
     case 0:

@@ -587,6 +587,57 @@ struct NestedExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
+struct RightFoldExpressionAST final : ExpressionAST {
+  RightFoldExpressionAST() : ExpressionAST(ASTKind::RightFoldExpression) {}
+
+  SourceLocation lparenLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation opLoc;
+  SourceLocation ellipsisLoc;
+  SourceLocation rparenLoc;
+  TokenKind op = TokenKind::T_EOF_SYMBOL;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct LeftFoldExpressionAST final : ExpressionAST {
+  LeftFoldExpressionAST() : ExpressionAST(ASTKind::LeftFoldExpression) {}
+
+  SourceLocation lparenLoc;
+  SourceLocation ellipsisLoc;
+  SourceLocation opLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation rparenLoc;
+  TokenKind op = TokenKind::T_EOF_SYMBOL;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct FoldExpressionAST final : ExpressionAST {
+  FoldExpressionAST() : ExpressionAST(ASTKind::FoldExpression) {}
+
+  SourceLocation lparenLoc;
+  ExpressionAST* leftExpression = nullptr;
+  SourceLocation opLoc;
+  SourceLocation ellipsisLoc;
+  SourceLocation foldOpLoc;
+  ExpressionAST* rightExpression = nullptr;
+  SourceLocation rparenLoc;
+  TokenKind op = TokenKind::T_EOF_SYMBOL;
+  TokenKind foldOp = TokenKind::T_EOF_SYMBOL;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 struct LambdaExpressionAST final : ExpressionAST {
   LambdaExpressionAST() : ExpressionAST(ASTKind::LambdaExpression) {}
 

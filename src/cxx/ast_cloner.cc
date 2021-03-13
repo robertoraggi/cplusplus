@@ -531,6 +531,69 @@ void ASTCloner::visit(NestedExpressionAST* ast) {
   copy->rparenLoc = ast->rparenLoc;
 }
 
+void ASTCloner::visit(RightFoldExpressionAST* ast) {
+  auto copy = new (arena_) RightFoldExpressionAST();
+  copy_ = copy;
+
+  copy->type = ast->type;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->expression = accept(ast->expression);
+
+  copy->opLoc = ast->opLoc;
+
+  copy->ellipsisLoc = ast->ellipsisLoc;
+
+  copy->rparenLoc = ast->rparenLoc;
+
+  copy->op = ast->op;
+}
+
+void ASTCloner::visit(LeftFoldExpressionAST* ast) {
+  auto copy = new (arena_) LeftFoldExpressionAST();
+  copy_ = copy;
+
+  copy->type = ast->type;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->ellipsisLoc = ast->ellipsisLoc;
+
+  copy->opLoc = ast->opLoc;
+
+  copy->expression = accept(ast->expression);
+
+  copy->rparenLoc = ast->rparenLoc;
+
+  copy->op = ast->op;
+}
+
+void ASTCloner::visit(FoldExpressionAST* ast) {
+  auto copy = new (arena_) FoldExpressionAST();
+  copy_ = copy;
+
+  copy->type = ast->type;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->leftExpression = accept(ast->leftExpression);
+
+  copy->opLoc = ast->opLoc;
+
+  copy->ellipsisLoc = ast->ellipsisLoc;
+
+  copy->foldOpLoc = ast->foldOpLoc;
+
+  copy->rightExpression = accept(ast->rightExpression);
+
+  copy->rparenLoc = ast->rparenLoc;
+
+  copy->op = ast->op;
+
+  copy->foldOp = ast->foldOp;
+}
+
 void ASTCloner::visit(LambdaExpressionAST* ast) {
   auto copy = new (arena_) LambdaExpressionAST();
   copy_ = copy;

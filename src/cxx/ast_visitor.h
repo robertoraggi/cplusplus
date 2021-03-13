@@ -74,6 +74,9 @@ struct ASTVisitor {
   virtual void visit(UserDefinedStringLiteralExpressionAST* ast) = 0;
   virtual void visit(IdExpressionAST* ast) = 0;
   virtual void visit(NestedExpressionAST* ast) = 0;
+  virtual void visit(RightFoldExpressionAST* ast) = 0;
+  virtual void visit(LeftFoldExpressionAST* ast) = 0;
+  virtual void visit(FoldExpressionAST* ast) = 0;
   virtual void visit(LambdaExpressionAST* ast) = 0;
   virtual void visit(SizeofExpressionAST* ast) = 0;
   virtual void visit(SizeofTypeExpressionAST* ast) = 0;

@@ -71,6 +71,9 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitUserDefinedStringLiteralExpression(node: ast.UserDefinedStringLiteralExpressionAST, context: Context): Result;
     abstract visitIdExpression(node: ast.IdExpressionAST, context: Context): Result;
     abstract visitNestedExpression(node: ast.NestedExpressionAST, context: Context): Result;
+    abstract visitRightFoldExpression(node: ast.RightFoldExpressionAST, context: Context): Result;
+    abstract visitLeftFoldExpression(node: ast.LeftFoldExpressionAST, context: Context): Result;
+    abstract visitFoldExpression(node: ast.FoldExpressionAST, context: Context): Result;
     abstract visitLambdaExpression(node: ast.LambdaExpressionAST, context: Context): Result;
     abstract visitSizeofExpression(node: ast.SizeofExpressionAST, context: Context): Result;
     abstract visitSizeofTypeExpression(node: ast.SizeofTypeExpressionAST, context: Context): Result;

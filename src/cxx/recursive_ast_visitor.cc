@@ -172,6 +172,19 @@ void RecursiveASTVisitor::visit(NestedExpressionAST* ast) {
   expression(ast->expression);
 }
 
+void RecursiveASTVisitor::visit(RightFoldExpressionAST* ast) {
+  expression(ast->expression);
+}
+
+void RecursiveASTVisitor::visit(LeftFoldExpressionAST* ast) {
+  expression(ast->expression);
+}
+
+void RecursiveASTVisitor::visit(FoldExpressionAST* ast) {
+  expression(ast->leftExpression);
+  expression(ast->rightExpression);
+}
+
 void RecursiveASTVisitor::visit(LambdaExpressionAST* ast) {
   lambdaIntroducer(ast->lambdaIntroducer);
   for (auto it = ast->templateParameterList; it; it = it->next)

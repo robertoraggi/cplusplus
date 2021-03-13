@@ -218,6 +218,19 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         this.accept(node.getExpression(), context);
     }
 
+    visitRightFoldExpression(node: ast.RightFoldExpressionAST, context: Context): void {
+        this.accept(node.getExpression(), context);
+    }
+
+    visitLeftFoldExpression(node: ast.LeftFoldExpressionAST, context: Context): void {
+        this.accept(node.getExpression(), context);
+    }
+
+    visitFoldExpression(node: ast.FoldExpressionAST, context: Context): void {
+        this.accept(node.getLeftExpression(), context);
+        this.accept(node.getRightExpression(), context);
+    }
+
     visitLambdaExpression(node: ast.LambdaExpressionAST, context: Context): void {
         this.accept(node.getLambdaIntroducer(), context);
         for (const element of node.getTemplateParameterList()) {

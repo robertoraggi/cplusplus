@@ -942,20 +942,26 @@ bool Parser::parse_init_capture() {
 }
 
 bool Parser::parse_fold_expression(ExpressionAST*& yyast) {
-  if (!match(TokenKind::T_LPAREN)) return false;
+  SourceLocation lparenLoc;
 
-  if (match(TokenKind::T_DOT_DOT_DOT)) {
-    SourceLocation opLoc;
-    TokenKind op = TokenKind::T_EOF_SYMBOL;
+  if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
 
-    if (!parse_fold_operator(opLoc, op)) parse_error("expected fold operator");
+  SourceLocation ellipsisLoc;
 
-    ExpressionAST* expression;
+  if (match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) {
+    auto ast = new (pool) LeftFoldExpressionAST();
+    yyast = ast;
 
-    if (!parse_cast_expression(expression))
+    ast->lparenLoc = lparenLoc;
+    ast->ellipsisLoc = ellipsisLoc;
+
+    if (!parse_fold_operator(ast->opLoc, ast->op))
+      parse_error("expected fold operator");
+
+    if (!parse_cast_expression(ast->expression))
       parse_error("expected an expression");
 
-    expect(TokenKind::T_RPAREN);
+    expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
     return true;
   }
@@ -969,30 +975,49 @@ bool Parser::parse_fold_expression(ExpressionAST*& yyast) {
 
   if (!parse_fold_operator(opLoc, op)) return false;
 
-  if (!match(TokenKind::T_DOT_DOT_DOT)) return false;
+  if (!match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) return false;
 
-  if (!match(TokenKind::T_RPAREN)) {
-    SourceLocation opLoc;
-    TokenKind op = TokenKind::T_EOF_SYMBOL;
+  SourceLocation rparenLoc;
 
-    if (!parse_fold_operator(opLoc, op))
-      parse_error("expected a fold operator");
+  if (match(TokenKind::T_RPAREN, rparenLoc)) {
+    auto ast = new (pool) RightFoldExpressionAST();
+    yyast = ast;
 
-    ExpressionAST* rhs = nullptr;
+    ast->lparenLoc = lparenLoc;
+    ast->expression = expression;
+    ast->opLoc = opLoc;
+    ast->op = op;
+    ast->ellipsisLoc = ellipsisLoc;
+    ast->rparenLoc = rparenLoc;
 
-    if (!parse_cast_expression(rhs)) parse_error("expected an expression");
-
-    expect(TokenKind::T_RPAREN);
+    return true;
   }
+
+  auto ast = new (pool) FoldExpressionAST();
+  yyast = ast;
+
+  ast->lparenLoc = lparenLoc;
+  ast->leftExpression = expression;
+  ast->opLoc = opLoc;
+  ast->op = op;
+  ast->ellipsisLoc = ellipsisLoc;
+
+  if (!parse_fold_operator(ast->foldOpLoc, ast->foldOp))
+    parse_error("expected a fold operator");
+
+  if (!parse_cast_expression(ast->rightExpression))
+    parse_error("expected an expression");
+
+  expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   return true;
 }
 
 bool Parser::parse_fold_operator(SourceLocation& loc, TokenKind& op) {
+  loc = currentLocation();
+
   switch (TokenKind(LA())) {
     case TokenKind::T_GREATER: {
-      loc = currentLocation();
-
       if (parse_greater_greater_equal()) {
         op = TokenKind::T_GREATER_GREATER_EQUAL;
         return true;

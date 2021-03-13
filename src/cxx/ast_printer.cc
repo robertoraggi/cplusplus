@@ -524,6 +524,46 @@ void ASTPrinter::visit(NestedExpressionAST* ast) {
   }
 }
 
+void ASTPrinter::visit(RightFoldExpressionAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "RightFoldExpression";
+
+  if (ast->expression) {
+    json_["expression"] = accept(ast->expression);
+  }
+
+  json_["op"] = unit_->tokenText(ast->opLoc);
+}
+
+void ASTPrinter::visit(LeftFoldExpressionAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "LeftFoldExpression";
+
+  json_["op"] = unit_->tokenText(ast->opLoc);
+
+  if (ast->expression) {
+    json_["expression"] = accept(ast->expression);
+  }
+}
+
+void ASTPrinter::visit(FoldExpressionAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "FoldExpression";
+
+  if (ast->leftExpression) {
+    json_["leftExpression"] = accept(ast->leftExpression);
+  }
+
+  json_["op"] = unit_->tokenText(ast->opLoc);
+
+  if (ast->rightExpression) {
+    json_["rightExpression"] = accept(ast->rightExpression);
+  }
+}
+
 void ASTPrinter::visit(LambdaExpressionAST* ast) {
   json_ = nlohmann::json::object();
 
