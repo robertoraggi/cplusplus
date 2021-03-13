@@ -97,6 +97,7 @@
   V(__FLOAT80, "__float80")                                           \
   V(__FLOAT128, "__float128")                                         \
   V(__ALIGNOF, "__alignof")                                           \
+  V(__ALIGNOF__, "__alignof__")                                       \
   V(__ASM__, "__asm__")                                               \
   V(__ASM, "__asm")                                                   \
   V(__ATTRIBUTE__, "__attribute__")                                   \

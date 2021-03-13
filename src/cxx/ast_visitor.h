@@ -134,6 +134,10 @@ struct ASTVisitor {
   virtual void visit(ExportDeclarationAST* ast) = 0;
   virtual void visit(ModuleImportDeclarationAST* ast) = 0;
   virtual void visit(TemplateDeclarationAST* ast) = 0;
+  virtual void visit(TypenameTypeParameterAST* ast) = 0;
+  virtual void visit(TypenamePackTypeParameterAST* ast) = 0;
+  virtual void visit(TemplateTypeParameterAST* ast) = 0;
+  virtual void visit(TemplatePackTypeParameterAST* ast) = 0;
   virtual void visit(DeductionGuideAST* ast) = 0;
   virtual void visit(ExplicitInstantiationAST* ast) = 0;
   virtual void visit(ParameterDeclarationAST* ast) = 0;

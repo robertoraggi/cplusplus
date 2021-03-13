@@ -128,6 +128,10 @@ struct ASTCloner : ASTVisitor {
   void visit(ExportDeclarationAST* ast) override;
   void visit(ModuleImportDeclarationAST* ast) override;
   void visit(TemplateDeclarationAST* ast) override;
+  void visit(TypenameTypeParameterAST* ast) override;
+  void visit(TypenamePackTypeParameterAST* ast) override;
+  void visit(TemplateTypeParameterAST* ast) override;
+  void visit(TemplatePackTypeParameterAST* ast) override;
   void visit(DeductionGuideAST* ast) override;
   void visit(ExplicitInstantiationAST* ast) override;
   void visit(ParameterDeclarationAST* ast) override;

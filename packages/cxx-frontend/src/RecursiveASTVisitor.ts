@@ -513,6 +513,26 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         this.accept(node.getDeclaration(), context);
     }
 
+    visitTypenameTypeParameter(node: ast.TypenameTypeParameterAST, context: Context): void {
+        this.accept(node.getTypeId(), context);
+    }
+
+    visitTypenamePackTypeParameter(node: ast.TypenamePackTypeParameterAST, context: Context): void {
+    }
+
+    visitTemplateTypeParameter(node: ast.TemplateTypeParameterAST, context: Context): void {
+        for (const element of node.getTemplateParameterList()) {
+             this.accept(element, context);
+        }
+        this.accept(node.getName(), context);
+    }
+
+    visitTemplatePackTypeParameter(node: ast.TemplatePackTypeParameterAST, context: Context): void {
+        for (const element of node.getTemplateParameterList()) {
+             this.accept(element, context);
+        }
+    }
+
     visitDeductionGuide(node: ast.DeductionGuideAST, context: Context): void {
     }
 

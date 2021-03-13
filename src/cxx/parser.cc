@@ -1660,7 +1660,8 @@ bool Parser::parse_sizeof_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_alignof_expression(ExpressionAST*& yyast) {
-  if (!match(TokenKind::T_ALIGNOF) && !match(TokenKind::T___ALIGNOF))
+  if (!match(TokenKind::T_ALIGNOF) && !match(TokenKind::T___ALIGNOF) &&
+      !match(TokenKind::T___ALIGNOF__))
     return false;
 
   expect(TokenKind::T_LPAREN);
@@ -6506,7 +6507,7 @@ bool Parser::parse_constraint_logical_and_expression(ExpressionAST*& yyast) {
 bool Parser::parse_template_parameter(DeclarationAST*& yyast) {
   const auto start = currentLocation();
 
-  if (parse_type_parameter() &&
+  if (parse_type_parameter(yyast) &&
       (LA().is(TokenKind::T_COMMA) || LA().is(TokenKind::T_GREATER)))
     return true;
 
@@ -6519,43 +6520,64 @@ bool Parser::parse_template_parameter(DeclarationAST*& yyast) {
     return true;
   }
 
+  rewind(start);
+
+  return parse_constraint_type_parameter(yyast);
+}
+
+bool Parser::parse_type_parameter(DeclarationAST*& yyast) {
+  if (parse_template_type_parameter(yyast)) return true;
+
+  if (parse_typename_type_parameter(yyast)) return true;
+
   return false;
 }
 
-bool Parser::parse_type_parameter() {
-  if (parse_template_type_parameter()) return true;
+bool Parser::parse_typename_type_parameter(DeclarationAST*& yyast) {
+  SourceLocation classKeyLoc;
 
-  if (parse_typename_type_parameter()) return true;
+  if (!parse_type_parameter_key(classKeyLoc)) return false;
 
-  return parse_constraint_type_parameter();
-}
+  SourceLocation ellipsisLoc;
 
-bool Parser::parse_typename_type_parameter() {
-  if (!parse_type_parameter_key()) return false;
+  if (match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) {
+    auto ast = new (pool) TypenamePackTypeParameterAST();
+    yyast = ast;
+    ast->classKeyLoc = classKeyLoc;
+    ast->ellipsisLoc = ellipsisLoc;
+    match(TokenKind::T_IDENTIFIER, ast->identifierLoc);
+    return true;
+  }
 
   const auto saved = currentLocation();
 
   if ((LA().is(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_EQUAL)) ||
       LA().is(TokenKind::T_EQUAL)) {
-    const auto has_identifier = match(TokenKind::T_IDENTIFIER);
+    auto ast = new (pool) TypenameTypeParameterAST();
+    yyast = ast;
 
-    expect(TokenKind::T_EQUAL);
+    ast->classKeyLoc = classKeyLoc;
 
-    TypeIdAST* typeId = nullptr;
+    match(TokenKind::T_IDENTIFIER, ast->identifierLoc);
 
-    if (!parse_type_id(typeId)) parse_error("expected a type id");
+    expect(TokenKind::T_EQUAL, ast->equalLoc);
+
+    if (!parse_type_id(ast->typeId)) parse_error("expected a type id");
 
     return true;
   }
 
-  const auto has_tripled_dot = match(TokenKind::T_DOT_DOT_DOT);
+  auto ast = new (pool) TypenameTypeParameterAST();
+  yyast = ast;
 
-  const auto has_identifier = match(TokenKind::T_IDENTIFIER);
+  ast->classKeyLoc = classKeyLoc;
+
+  match(TokenKind::T_IDENTIFIER, ast->identifierLoc);
 
   return true;
 }
 
-bool Parser::parse_template_type_parameter() {
+bool Parser::parse_template_type_parameter(DeclarationAST*& yyast) {
   const auto start = currentLocation();
 
   SourceLocation templateLoc;
@@ -6569,31 +6591,68 @@ bool Parser::parse_template_type_parameter() {
     return false;
   }
 
-  if (!parse_type_parameter_key()) parse_error("expected a type parameter");
+  SourceLocation classsKeyLoc;
+
+  if (!parse_type_parameter_key(classsKeyLoc))
+    parse_error("expected a type parameter");
 
   const auto saved = currentLocation();
 
   if ((LA().is(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_EQUAL)) ||
       LA().is(TokenKind::T_EQUAL)) {
-    const auto has_identifier = match(TokenKind::T_IDENTIFIER);
+    auto ast = new (pool) TemplateTypeParameterAST();
+    yyast = ast;
 
-    expect(TokenKind::T_EQUAL);
+    ast->templateLoc = templateLoc;
+    ast->lessLoc = lessLoc;
+    ast->templateParameterList = templateParameterList;
+    ast->greaterLoc = greaterLoc;
+    ast->classKeyLoc = classsKeyLoc;
 
-    NameAST* name = nullptr;
+    match(TokenKind::T_IDENTIFIER, ast->identifierLoc);
 
-    if (!parse_id_expression(name)) parse_error("expected an id-expression");
+    expect(TokenKind::T_EQUAL, ast->equalLoc);
+
+    if (!parse_id_expression(ast->name))
+      parse_error("expected an id-expression");
 
     return true;
   }
 
-  const auto has_tripled_dot = match(TokenKind::T_DOT_DOT_DOT);
+  SourceLocation ellipsisLoc;
 
-  const auto has_identifier = match(TokenKind::T_IDENTIFIER);
+  if (match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) {
+    SourceLocation identifierLoc;
+
+    match(TokenKind::T_IDENTIFIER, identifierLoc);
+
+    auto ast = new (pool) TemplatePackTypeParameterAST();
+    yyast = ast;
+
+    ast->templateLoc = templateLoc;
+    ast->lessLoc = lessLoc;
+    ast->templateParameterList = templateParameterList;
+    ast->greaterLoc = greaterLoc;
+    ast->classKeyLoc = classsKeyLoc;
+    ast->ellipsisLoc = ellipsisLoc;
+    ast->identifierLoc = identifierLoc;
+  }
+
+  auto ast = new (pool) TemplateTypeParameterAST();
+  yyast = ast;
+
+  ast->templateLoc = templateLoc;
+  ast->lessLoc = lessLoc;
+  ast->templateParameterList = templateParameterList;
+  ast->greaterLoc = greaterLoc;
+  ast->classKeyLoc = classsKeyLoc;
+
+  match(TokenKind::T_IDENTIFIER, ast->identifierLoc);
 
   return true;
 }
 
-bool Parser::parse_constraint_type_parameter() {
+bool Parser::parse_constraint_type_parameter(DeclarationAST*& yyast) {
   if (!parse_type_constraint()) return false;
 
   const auto saved = currentLocation();
@@ -6619,8 +6678,10 @@ bool Parser::parse_constraint_type_parameter() {
   return true;
 }
 
-bool Parser::parse_type_parameter_key() {
-  if (!match(TokenKind::T_CLASS) && !match(TokenKind::T_TYPENAME)) return false;
+bool Parser::parse_type_parameter_key(SourceLocation& classKeyLoc) {
+  if (!match(TokenKind::T_CLASS, classKeyLoc) &&
+      !match(TokenKind::T_TYPENAME, classKeyLoc))
+    return false;
 
   return true;
 }

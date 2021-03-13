@@ -131,6 +131,10 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitExportDeclaration(node: ast.ExportDeclarationAST, context: Context): Result;
     abstract visitModuleImportDeclaration(node: ast.ModuleImportDeclarationAST, context: Context): Result;
     abstract visitTemplateDeclaration(node: ast.TemplateDeclarationAST, context: Context): Result;
+    abstract visitTypenameTypeParameter(node: ast.TypenameTypeParameterAST, context: Context): Result;
+    abstract visitTypenamePackTypeParameter(node: ast.TypenamePackTypeParameterAST, context: Context): Result;
+    abstract visitTemplateTypeParameter(node: ast.TemplateTypeParameterAST, context: Context): Result;
+    abstract visitTemplatePackTypeParameter(node: ast.TemplatePackTypeParameterAST, context: Context): Result;
     abstract visitDeductionGuide(node: ast.DeductionGuideAST, context: Context): Result;
     abstract visitExplicitInstantiation(node: ast.ExplicitInstantiationAST, context: Context): Result;
     abstract visitParameterDeclaration(node: ast.ParameterDeclarationAST, context: Context): Result;

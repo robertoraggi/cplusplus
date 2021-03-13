@@ -393,11 +393,11 @@ class Parser {
   bool parse_constraint_logical_or_expression(ExpressionAST*& yyast);
   bool parse_constraint_logical_and_expression(ExpressionAST*& yyast);
   bool parse_template_parameter(DeclarationAST*& yyast);
-  bool parse_type_parameter();
-  bool parse_typename_type_parameter();
-  bool parse_template_type_parameter();
-  bool parse_constraint_type_parameter();
-  bool parse_type_parameter_key();
+  bool parse_type_parameter(DeclarationAST*& yyast);
+  bool parse_typename_type_parameter(DeclarationAST*& yyast);
+  bool parse_template_type_parameter(DeclarationAST*& yyast);
+  bool parse_constraint_type_parameter(DeclarationAST*& yyast);
+  bool parse_type_parameter_key(SourceLocation& classKeyLoc);
   bool parse_type_constraint();
   bool parse_simple_template_id(NameAST*& yyast);
   bool parse_template_id(NameAST*& yyast);

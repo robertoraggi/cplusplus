@@ -429,6 +429,23 @@ void RecursiveASTVisitor::visit(TemplateDeclarationAST* ast) {
   declaration(ast->declaration);
 }
 
+void RecursiveASTVisitor::visit(TypenameTypeParameterAST* ast) {
+  typeId(ast->typeId);
+}
+
+void RecursiveASTVisitor::visit(TypenamePackTypeParameterAST* ast) {}
+
+void RecursiveASTVisitor::visit(TemplateTypeParameterAST* ast) {
+  for (auto it = ast->templateParameterList; it; it = it->next)
+    declaration(it->value);
+  name(ast->name);
+}
+
+void RecursiveASTVisitor::visit(TemplatePackTypeParameterAST* ast) {
+  for (auto it = ast->templateParameterList; it; it = it->next)
+    declaration(it->value);
+}
+
 void RecursiveASTVisitor::visit(DeductionGuideAST* ast) {}
 
 void RecursiveASTVisitor::visit(ExplicitInstantiationAST* ast) {

@@ -1590,6 +1590,100 @@ export class TemplateDeclarationAST extends DeclarationAST {
     }
 }
 
+export class TypenameTypeParameterAST extends DeclarationAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitTypenameTypeParameter(this, context);
+    }
+    getClassKeyToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getIdentifierToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getEqualToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getTypeId(): TypeIdAST | undefined {
+        return AST.from<TypeIdAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+}
+
+export class TypenamePackTypeParameterAST extends DeclarationAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitTypenamePackTypeParameter(this, context);
+    }
+    getClassKeyToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getEllipsisToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getIdentifierToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+}
+
+export class TemplateTypeParameterAST extends DeclarationAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitTemplateTypeParameter(this, context);
+    }
+    getTemplateToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getLessToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    *getTemplateParameterList(): Generator<DeclarationAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
+            yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+    getGreaterToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+    getClassKeyToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+    }
+    getIdentifierToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+    }
+    getEqualToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+    }
+    getName(): NameAST | undefined {
+        return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 7), this.parser);
+    }
+}
+
+export class TemplatePackTypeParameterAST extends DeclarationAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitTemplatePackTypeParameter(this, context);
+    }
+    getTemplateToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getLessToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    *getTemplateParameterList(): Generator<DeclarationAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
+            yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+    getGreaterToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+    getClassKeyToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+    }
+    getEllipsisToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+    }
+    getIdentifierToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+    }
+}
+
 export class DeductionGuideAST extends DeclarationAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitDeductionGuide(this, context);
@@ -2360,6 +2454,10 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     ExportDeclarationAST,
     ModuleImportDeclarationAST,
     TemplateDeclarationAST,
+    TypenameTypeParameterAST,
+    TypenamePackTypeParameterAST,
+    TemplateTypeParameterAST,
+    TemplatePackTypeParameterAST,
     DeductionGuideAST,
     ExplicitInstantiationAST,
     ParameterDeclarationAST,

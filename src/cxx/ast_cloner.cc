@@ -1427,6 +1427,84 @@ void ASTCloner::visit(TemplateDeclarationAST* ast) {
   copy->declaration = accept(ast->declaration);
 }
 
+void ASTCloner::visit(TypenameTypeParameterAST* ast) {
+  auto copy = new (arena_) TypenameTypeParameterAST();
+  copy_ = copy;
+
+  copy->classKeyLoc = ast->classKeyLoc;
+
+  copy->identifierLoc = ast->identifierLoc;
+
+  copy->equalLoc = ast->equalLoc;
+
+  copy->typeId = accept(ast->typeId);
+}
+
+void ASTCloner::visit(TypenamePackTypeParameterAST* ast) {
+  auto copy = new (arena_) TypenamePackTypeParameterAST();
+  copy_ = copy;
+
+  copy->classKeyLoc = ast->classKeyLoc;
+
+  copy->ellipsisLoc = ast->ellipsisLoc;
+
+  copy->identifierLoc = ast->identifierLoc;
+}
+
+void ASTCloner::visit(TemplateTypeParameterAST* ast) {
+  auto copy = new (arena_) TemplateTypeParameterAST();
+  copy_ = copy;
+
+  copy->templateLoc = ast->templateLoc;
+
+  copy->lessLoc = ast->lessLoc;
+
+  if (auto it = ast->templateParameterList) {
+    auto out = &copy->templateParameterList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->greaterLoc = ast->greaterLoc;
+
+  copy->classKeyLoc = ast->classKeyLoc;
+
+  copy->identifierLoc = ast->identifierLoc;
+
+  copy->equalLoc = ast->equalLoc;
+
+  copy->name = accept(ast->name);
+}
+
+void ASTCloner::visit(TemplatePackTypeParameterAST* ast) {
+  auto copy = new (arena_) TemplatePackTypeParameterAST();
+  copy_ = copy;
+
+  copy->templateLoc = ast->templateLoc;
+
+  copy->lessLoc = ast->lessLoc;
+
+  if (auto it = ast->templateParameterList) {
+    auto out = &copy->templateParameterList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->greaterLoc = ast->greaterLoc;
+
+  copy->classKeyLoc = ast->classKeyLoc;
+
+  copy->ellipsisLoc = ast->ellipsisLoc;
+
+  copy->identifierLoc = ast->identifierLoc;
+}
+
 void ASTCloner::visit(DeductionGuideAST* ast) {
   auto copy = new (arena_) DeductionGuideAST();
   copy_ = copy;

@@ -1369,6 +1369,92 @@ void ASTSlot::visit(TemplateDeclarationAST* ast) {
   }  // switch
 }
 
+void ASTSlot::visit(TypenameTypeParameterAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->classKeyLoc.index();
+      break;
+    case 1:
+      value_ = ast->identifierLoc.index();
+      break;
+    case 2:
+      value_ = ast->equalLoc.index();
+      break;
+    case 3:
+      value_ = reinterpret_cast<std::intptr_t>(ast->typeId);
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(TypenamePackTypeParameterAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->classKeyLoc.index();
+      break;
+    case 1:
+      value_ = ast->ellipsisLoc.index();
+      break;
+    case 2:
+      value_ = ast->identifierLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(TemplateTypeParameterAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->templateLoc.index();
+      break;
+    case 1:
+      value_ = ast->lessLoc.index();
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->templateParameterList);
+      break;
+    case 3:
+      value_ = ast->greaterLoc.index();
+      break;
+    case 4:
+      value_ = ast->classKeyLoc.index();
+      break;
+    case 5:
+      value_ = ast->identifierLoc.index();
+      break;
+    case 6:
+      value_ = ast->equalLoc.index();
+      break;
+    case 7:
+      value_ = reinterpret_cast<std::intptr_t>(ast->name);
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(TemplatePackTypeParameterAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->templateLoc.index();
+      break;
+    case 1:
+      value_ = ast->lessLoc.index();
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->templateParameterList);
+      break;
+    case 3:
+      value_ = ast->greaterLoc.index();
+      break;
+    case 4:
+      value_ = ast->classKeyLoc.index();
+      break;
+    case 5:
+      value_ = ast->ellipsisLoc.index();
+      break;
+    case 6:
+      value_ = ast->identifierLoc.index();
+      break;
+  }  // switch
+}
+
 void ASTSlot::visit(DeductionGuideAST* ast) {
   switch (slot_) {}  // switch
 }

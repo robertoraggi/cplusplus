@@ -1366,6 +1366,70 @@ struct TemplateDeclarationAST final : DeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
+struct TypenameTypeParameterAST final : DeclarationAST {
+  TypenameTypeParameterAST() : DeclarationAST(ASTKind::TypenameTypeParameter) {}
+
+  SourceLocation classKeyLoc;
+  SourceLocation identifierLoc;
+  SourceLocation equalLoc;
+  TypeIdAST* typeId = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct TypenamePackTypeParameterAST final : DeclarationAST {
+  TypenamePackTypeParameterAST()
+      : DeclarationAST(ASTKind::TypenamePackTypeParameter) {}
+
+  SourceLocation classKeyLoc;
+  SourceLocation ellipsisLoc;
+  SourceLocation identifierLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct TemplateTypeParameterAST final : DeclarationAST {
+  TemplateTypeParameterAST() : DeclarationAST(ASTKind::TemplateTypeParameter) {}
+
+  SourceLocation templateLoc;
+  SourceLocation lessLoc;
+  List<DeclarationAST*>* templateParameterList = nullptr;
+  SourceLocation greaterLoc;
+  SourceLocation classKeyLoc;
+  SourceLocation identifierLoc;
+  SourceLocation equalLoc;
+  NameAST* name = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct TemplatePackTypeParameterAST final : DeclarationAST {
+  TemplatePackTypeParameterAST()
+      : DeclarationAST(ASTKind::TemplatePackTypeParameter) {}
+
+  SourceLocation templateLoc;
+  SourceLocation lessLoc;
+  List<DeclarationAST*>* templateParameterList = nullptr;
+  SourceLocation greaterLoc;
+  SourceLocation classKeyLoc;
+  SourceLocation ellipsisLoc;
+  SourceLocation identifierLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 struct DeductionGuideAST final : DeclarationAST {
   DeductionGuideAST() : DeclarationAST(ASTKind::DeductionGuide) {}
 

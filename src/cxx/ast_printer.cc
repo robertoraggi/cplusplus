@@ -1312,6 +1312,62 @@ void ASTPrinter::visit(TemplateDeclarationAST* ast) {
   }
 }
 
+void ASTPrinter::visit(TypenameTypeParameterAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "TypenameTypeParameter";
+
+  json_["identifier"] = unit_->tokenText(ast->identifierLoc);
+
+  if (ast->typeId) {
+    json_["typeId"] = accept(ast->typeId);
+  }
+}
+
+void ASTPrinter::visit(TypenamePackTypeParameterAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "TypenamePackTypeParameter";
+
+  json_["identifier"] = unit_->tokenText(ast->identifierLoc);
+}
+
+void ASTPrinter::visit(TemplateTypeParameterAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "TemplateTypeParameter";
+
+  if (ast->templateParameterList) {
+    auto elements = nlohmann::json::array();
+    for (auto it = ast->templateParameterList; it; it = it->next) {
+      elements.push_back(accept(it->value));
+    }
+    json_["templateParameterList"] = elements;
+  }
+
+  json_["identifier"] = unit_->tokenText(ast->identifierLoc);
+
+  if (ast->name) {
+    json_["name"] = accept(ast->name);
+  }
+}
+
+void ASTPrinter::visit(TemplatePackTypeParameterAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "TemplatePackTypeParameter";
+
+  if (ast->templateParameterList) {
+    auto elements = nlohmann::json::array();
+    for (auto it = ast->templateParameterList; it; it = it->next) {
+      elements.push_back(accept(it->value));
+    }
+    json_["templateParameterList"] = elements;
+  }
+
+  json_["identifier"] = unit_->tokenText(ast->identifierLoc);
+}
+
 void ASTPrinter::visit(DeductionGuideAST* ast) {
   json_ = nlohmann::json::object();
 
