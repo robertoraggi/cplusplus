@@ -630,6 +630,21 @@ void ASTCloner::visit(TypeidOfTypeExpressionAST* ast) {
   copy->rparenLoc = ast->rparenLoc;
 }
 
+void ASTCloner::visit(AlignofExpressionAST* ast) {
+  auto copy = new (arena_) AlignofExpressionAST();
+  copy_ = copy;
+
+  copy->type = ast->type;
+
+  copy->alignofLoc = ast->alignofLoc;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->typeId = accept(ast->typeId);
+
+  copy->rparenLoc = ast->rparenLoc;
+}
+
 void ASTCloner::visit(UnaryExpressionAST* ast) {
   auto copy = new (arena_) UnaryExpressionAST();
   copy_ = copy;

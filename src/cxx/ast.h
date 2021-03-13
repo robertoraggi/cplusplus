@@ -673,6 +673,20 @@ struct TypeidOfTypeExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
+struct AlignofExpressionAST final : ExpressionAST {
+  AlignofExpressionAST() : ExpressionAST(ASTKind::AlignofExpression) {}
+
+  SourceLocation alignofLoc;
+  SourceLocation lparenLoc;
+  TypeIdAST* typeId = nullptr;
+  SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 struct UnaryExpressionAST final : ExpressionAST {
   UnaryExpressionAST() : ExpressionAST(ASTKind::UnaryExpression) {}
 

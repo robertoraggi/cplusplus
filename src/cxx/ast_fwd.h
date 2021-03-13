@@ -94,6 +94,7 @@ struct SizeofTypeExpressionAST;
 struct SizeofPackExpressionAST;
 struct TypeidExpressionAST;
 struct TypeidOfTypeExpressionAST;
+struct AlignofExpressionAST;
 struct UnaryExpressionAST;
 struct BinaryExpressionAST;
 struct AssignmentExpressionAST;

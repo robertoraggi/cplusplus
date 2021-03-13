@@ -689,6 +689,24 @@ export class TypeidOfTypeExpressionAST extends ExpressionAST {
     }
 }
 
+export class AlignofExpressionAST extends ExpressionAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitAlignofExpression(this, context);
+    }
+    getAlignofToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getLparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getTypeId(): TypeIdAST | undefined {
+        return AST.from<TypeIdAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getRparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+}
+
 export class UnaryExpressionAST extends ExpressionAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitUnaryExpression(this, context);
@@ -2404,6 +2422,7 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     SizeofPackExpressionAST,
     TypeidExpressionAST,
     TypeidOfTypeExpressionAST,
+    AlignofExpressionAST,
     UnaryExpressionAST,
     BinaryExpressionAST,
     AssignmentExpressionAST,

@@ -1660,17 +1660,23 @@ bool Parser::parse_sizeof_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_alignof_expression(ExpressionAST*& yyast) {
-  if (!match(TokenKind::T_ALIGNOF) && !match(TokenKind::T___ALIGNOF) &&
-      !match(TokenKind::T___ALIGNOF__))
+  SourceLocation alignofLoc;
+
+  if (!match(TokenKind::T_ALIGNOF, alignofLoc) &&
+      !match(TokenKind::T___ALIGNOF, alignofLoc) &&
+      !match(TokenKind::T___ALIGNOF__, alignofLoc))
     return false;
 
-  expect(TokenKind::T_LPAREN);
+  auto ast = new (pool) AlignofExpressionAST();
+  yyast = ast;
 
-  TypeIdAST* typeId = nullptr;
+  ast->alignofLoc = alignofLoc;
 
-  if (!parse_type_id(typeId)) parse_error("expected a type id");
+  expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
-  expect(TokenKind::T_RPAREN);
+  if (!parse_type_id(ast->typeId)) parse_error("expected a type id");
+
+  expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   return true;
 }

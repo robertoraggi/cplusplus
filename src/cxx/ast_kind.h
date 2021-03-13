@@ -77,6 +77,7 @@ enum struct ASTKind {
   SizeofPackExpression,
   TypeidExpression,
   TypeidOfTypeExpression,
+  AlignofExpression,
   UnaryExpression,
   BinaryExpression,
   AssignmentExpression,

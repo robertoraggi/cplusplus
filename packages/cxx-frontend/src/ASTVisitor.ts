@@ -77,6 +77,7 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitSizeofPackExpression(node: ast.SizeofPackExpressionAST, context: Context): Result;
     abstract visitTypeidExpression(node: ast.TypeidExpressionAST, context: Context): Result;
     abstract visitTypeidOfTypeExpression(node: ast.TypeidOfTypeExpressionAST, context: Context): Result;
+    abstract visitAlignofExpression(node: ast.AlignofExpressionAST, context: Context): Result;
     abstract visitUnaryExpression(node: ast.UnaryExpressionAST, context: Context): Result;
     abstract visitBinaryExpression(node: ast.BinaryExpressionAST, context: Context): Result;
     abstract visitAssignmentExpression(node: ast.AssignmentExpressionAST, context: Context): Result;

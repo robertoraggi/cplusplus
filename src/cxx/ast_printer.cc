@@ -598,6 +598,16 @@ void ASTPrinter::visit(TypeidOfTypeExpressionAST* ast) {
   }
 }
 
+void ASTPrinter::visit(AlignofExpressionAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "AlignofExpression";
+
+  if (ast->typeId) {
+    json_["typeId"] = accept(ast->typeId);
+  }
+}
+
 void ASTPrinter::visit(UnaryExpressionAST* ast) {
   json_ = nlohmann::json::object();
 

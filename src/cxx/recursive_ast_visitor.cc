@@ -198,6 +198,10 @@ void RecursiveASTVisitor::visit(TypeidOfTypeExpressionAST* ast) {
   typeId(ast->typeId);
 }
 
+void RecursiveASTVisitor::visit(AlignofExpressionAST* ast) {
+  typeId(ast->typeId);
+}
+
 void RecursiveASTVisitor::visit(UnaryExpressionAST* ast) {
   expression(ast->expression);
 }
