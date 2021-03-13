@@ -592,6 +592,22 @@ SourceLocation ConditionalExpressionAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation CastExpressionAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation CastExpressionAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation CppCastExpressionAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(castLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lessLoc)) return loc;

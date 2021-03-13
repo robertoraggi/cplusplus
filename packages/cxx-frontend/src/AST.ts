@@ -721,6 +721,24 @@ export class ConditionalExpressionAST extends ExpressionAST {
     }
 }
 
+export class CastExpressionAST extends ExpressionAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitCastExpression(this, context);
+    }
+    getLparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getTypeId(): TypeIdAST | undefined {
+        return AST.from<TypeIdAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getRparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getExpression(): ExpressionAST | undefined {
+        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+}
+
 export class CppCastExpressionAST extends ExpressionAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitCppCastExpression(this, context);
@@ -2175,6 +2193,7 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     SubscriptExpressionAST,
     MemberExpressionAST,
     ConditionalExpressionAST,
+    CastExpressionAST,
     CppCastExpressionAST,
     NewExpressionAST,
     DeleteExpressionAST,

@@ -215,6 +215,11 @@ void RecursiveASTVisitor::visit(ConditionalExpressionAST* ast) {
   expression(ast->iffalseExpression);
 }
 
+void RecursiveASTVisitor::visit(CastExpressionAST* ast) {
+  typeId(ast->typeId);
+  expression(ast->expression);
+}
+
 void RecursiveASTVisitor::visit(CppCastExpressionAST* ast) {
   typeId(ast->typeId);
   expression(ast->expression);

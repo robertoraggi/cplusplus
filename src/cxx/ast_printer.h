@@ -94,6 +94,7 @@ class ASTPrinter : ASTVisitor {
   void visit(SubscriptExpressionAST* ast) override;
   void visit(MemberExpressionAST* ast) override;
   void visit(ConditionalExpressionAST* ast) override;
+  void visit(CastExpressionAST* ast) override;
   void visit(CppCastExpressionAST* ast) override;
   void visit(NewExpressionAST* ast) override;
   void visit(DeleteExpressionAST* ast) override;

@@ -1824,17 +1824,29 @@ bool Parser::parse_cast_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_cast_expression_helper(ExpressionAST*& yyast) {
-  if (!match(TokenKind::T_LPAREN)) return false;
+  SourceLocation lparenLoc;
+
+  if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
 
   TypeIdAST* typeId = nullptr;
 
   if (!parse_type_id(typeId)) return false;
 
-  if (!match(TokenKind::T_RPAREN)) return false;
+  SourceLocation rparenLoc;
+
+  if (!match(TokenKind::T_RPAREN, rparenLoc)) return false;
 
   ExpressionAST* expression = nullptr;
 
   if (!parse_cast_expression(expression)) return false;
+
+  auto ast = new (pool) CastExpressionAST();
+  yyast = ast;
+
+  ast->lparenLoc = lparenLoc;
+  ast->typeId = typeId;
+  ast->rparenLoc = rparenLoc;
+  ast->expression = expression;
 
   return true;
 }

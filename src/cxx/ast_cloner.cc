@@ -667,6 +667,21 @@ void ASTCloner::visit(ConditionalExpressionAST* ast) {
   copy->iffalseExpression = accept(ast->iffalseExpression);
 }
 
+void ASTCloner::visit(CastExpressionAST* ast) {
+  auto copy = new (arena_) CastExpressionAST();
+  copy_ = copy;
+
+  copy->type = ast->type;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->typeId = accept(ast->typeId);
+
+  copy->rparenLoc = ast->rparenLoc;
+
+  copy->expression = accept(ast->expression);
+}
+
 void ASTCloner::visit(CppCastExpressionAST* ast) {
   auto copy = new (arena_) CppCastExpressionAST();
   copy_ = copy;

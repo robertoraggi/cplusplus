@@ -79,6 +79,7 @@ enum struct ASTKind {
   SubscriptExpression,
   MemberExpression,
   ConditionalExpression,
+  CastExpression,
   CppCastExpression,
   NewExpression,
   DeleteExpression,

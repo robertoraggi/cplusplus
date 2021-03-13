@@ -579,6 +579,23 @@ void ASTSlot::visit(ConditionalExpressionAST* ast) {
   }  // switch
 }
 
+void ASTSlot::visit(CastExpressionAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->lparenLoc.index();
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->typeId);
+      break;
+    case 2:
+      value_ = ast->rparenLoc.index();
+      break;
+    case 3:
+      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
+      break;
+  }  // switch
+}
+
 void ASTSlot::visit(CppCastExpressionAST* ast) {
   switch (slot_) {
     case 0:

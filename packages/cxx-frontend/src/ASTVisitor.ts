@@ -79,6 +79,7 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitSubscriptExpression(node: ast.SubscriptExpressionAST, context: Context): Result;
     abstract visitMemberExpression(node: ast.MemberExpressionAST, context: Context): Result;
     abstract visitConditionalExpression(node: ast.ConditionalExpressionAST, context: Context): Result;
+    abstract visitCastExpression(node: ast.CastExpressionAST, context: Context): Result;
     abstract visitCppCastExpression(node: ast.CppCastExpressionAST, context: Context): Result;
     abstract visitNewExpression(node: ast.NewExpressionAST, context: Context): Result;
     abstract visitDeleteExpression(node: ast.DeleteExpressionAST, context: Context): Result;

@@ -700,6 +700,20 @@ struct ConditionalExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
+struct CastExpressionAST final : ExpressionAST {
+  CastExpressionAST() : ExpressionAST(ASTKind::CastExpression) {}
+
+  SourceLocation lparenLoc;
+  TypeIdAST* typeId = nullptr;
+  SourceLocation rparenLoc;
+  ExpressionAST* expression = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 struct CppCastExpressionAST final : ExpressionAST {
   CppCastExpressionAST() : ExpressionAST(ASTKind::CppCastExpression) {}
 

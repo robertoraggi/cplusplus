@@ -96,6 +96,7 @@ struct CallExpressionAST;
 struct SubscriptExpressionAST;
 struct MemberExpressionAST;
 struct ConditionalExpressionAST;
+struct CastExpressionAST;
 struct CppCastExpressionAST;
 struct NewExpressionAST;
 struct DeleteExpressionAST;

@@ -658,6 +658,20 @@ void ASTPrinter::visit(ConditionalExpressionAST* ast) {
   }
 }
 
+void ASTPrinter::visit(CastExpressionAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "CastExpression";
+
+  if (ast->typeId) {
+    json_["typeId"] = accept(ast->typeId);
+  }
+
+  if (ast->expression) {
+    json_["expression"] = accept(ast->expression);
+  }
+}
+
 void ASTPrinter::visit(CppCastExpressionAST* ast) {
   json_ = nlohmann::json::object();
 

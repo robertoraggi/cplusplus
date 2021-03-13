@@ -75,6 +75,7 @@ export enum ASTKind {
     SubscriptExpression,
     MemberExpression,
     ConditionalExpression,
+    CastExpression,
     CppCastExpression,
     NewExpression,
     DeleteExpression,
