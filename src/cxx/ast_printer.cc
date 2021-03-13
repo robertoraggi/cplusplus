@@ -614,6 +614,38 @@ void ASTPrinter::visit(AssignmentExpressionAST* ast) {
   }
 }
 
+void ASTPrinter::visit(BracedTypeConstructionAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "BracedTypeConstruction";
+
+  if (ast->typeSpecifier) {
+    json_["typeSpecifier"] = accept(ast->typeSpecifier);
+  }
+
+  if (ast->bracedInitList) {
+    json_["bracedInitList"] = accept(ast->bracedInitList);
+  }
+}
+
+void ASTPrinter::visit(TypeConstructionAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "TypeConstruction";
+
+  if (ast->typeSpecifier) {
+    json_["typeSpecifier"] = accept(ast->typeSpecifier);
+  }
+
+  if (ast->expressionList) {
+    auto elements = nlohmann::json::array();
+    for (auto it = ast->expressionList; it; it = it->next) {
+      elements.push_back(accept(it->value));
+    }
+    json_["expressionList"] = elements;
+  }
+}
+
 void ASTPrinter::visit(CallExpressionAST* ast) {
   json_ = nlohmann::json::object();
 

@@ -542,6 +542,34 @@ void ASTSlot::visit(AssignmentExpressionAST* ast) {
   }  // switch
 }
 
+void ASTSlot::visit(BracedTypeConstructionAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = reinterpret_cast<std::intptr_t>(ast->typeSpecifier);
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->bracedInitList);
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(TypeConstructionAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = reinterpret_cast<std::intptr_t>(ast->typeSpecifier);
+      break;
+    case 1:
+      value_ = ast->lparenLoc.index();
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->expressionList);
+      break;
+    case 3:
+      value_ = ast->rparenLoc.index();
+      break;
+  }  // switch
+}
+
 void ASTSlot::visit(CallExpressionAST* ast) {
   switch (slot_) {
     case 0:

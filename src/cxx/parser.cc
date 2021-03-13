@@ -1358,17 +1358,37 @@ bool Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast) {
 
   BracedInitListAST* bracedInitList = nullptr;
 
-  if (parse_braced_init_list(bracedInitList)) return true;
+  if (parse_braced_init_list(bracedInitList)) {
+    auto ast = new (pool) BracedTypeConstructionAST();
+    yyast = ast;
 
-  if (!match(TokenKind::T_LPAREN)) return false;
+    ast->typeSpecifier = typeSpecifier;
+    ast->bracedInitList = bracedInitList;
 
-  if (!match(TokenKind::T_RPAREN)) {
-    List<ExpressionAST*>* expressionList = nullptr;
+    return true;
+  }
 
+  SourceLocation lparenLoc;
+
+  if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
+
+  SourceLocation rparenLoc;
+
+  List<ExpressionAST*>* expressionList = nullptr;
+
+  if (!match(TokenKind::T_RPAREN, rparenLoc)) {
     if (!parse_expression_list(expressionList)) return false;
 
-    if (!match(TokenKind::T_RPAREN)) return false;
+    if (!match(TokenKind::T_RPAREN, rparenLoc)) return false;
   }
+
+  auto ast = new (pool) TypeConstructionAST();
+  yyast = ast;
+
+  ast->typeSpecifier = typeSpecifier;
+  ast->lparenLoc = lparenLoc;
+  ast->expressionList = expressionList;
+  ast->rparenLoc = rparenLoc;
 
   return true;
 }
@@ -1422,17 +1442,37 @@ bool Parser::parse_typename_expression(ExpressionAST*& yyast) {
 
   BracedInitListAST* bracedInitList = nullptr;
 
-  if (parse_braced_init_list(bracedInitList)) return true;
+  if (parse_braced_init_list(bracedInitList)) {
+    auto ast = new (pool) BracedTypeConstructionAST();
+    yyast = ast;
 
-  if (!match(TokenKind::T_LPAREN)) return false;
+    ast->typeSpecifier = typenameSpecifier;
+    ast->bracedInitList = bracedInitList;
 
-  if (!match(TokenKind::T_RPAREN)) {
-    List<ExpressionAST*>* expressionList = nullptr;
+    return true;
+  }
 
+  SourceLocation lparenLoc;
+
+  if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
+
+  SourceLocation rparenLoc;
+
+  List<ExpressionAST*>* expressionList = nullptr;
+
+  if (!match(TokenKind::T_RPAREN, rparenLoc)) {
     if (!parse_expression_list(expressionList)) return false;
 
-    if (!match(TokenKind::T_RPAREN)) return false;
+    if (!match(TokenKind::T_RPAREN, rparenLoc)) return false;
   }
+
+  auto ast = new (pool) TypeConstructionAST();
+  yyast = ast;
+
+  ast->typeSpecifier = typenameSpecifier;
+  ast->lparenLoc = lparenLoc;
+  ast->expressionList = expressionList;
+  ast->rparenLoc = rparenLoc;
 
   return true;
 }

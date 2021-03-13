@@ -249,6 +249,18 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         this.accept(node.getRightExpression(), context);
     }
 
+    visitBracedTypeConstruction(node: ast.BracedTypeConstructionAST, context: Context): void {
+        this.accept(node.getTypeSpecifier(), context);
+        this.accept(node.getBracedInitList(), context);
+    }
+
+    visitTypeConstruction(node: ast.TypeConstructionAST, context: Context): void {
+        this.accept(node.getTypeSpecifier(), context);
+        for (const element of node.getExpressionList()) {
+             this.accept(element, context);
+        }
+    }
+
     visitCallExpression(node: ast.CallExpressionAST, context: Context): void {
         this.accept(node.getBaseExpression(), context);
         for (const element of node.getExpressionList()) {

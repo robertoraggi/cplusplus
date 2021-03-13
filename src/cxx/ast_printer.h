@@ -92,6 +92,8 @@ class ASTPrinter : ASTVisitor {
   void visit(UnaryExpressionAST* ast) override;
   void visit(BinaryExpressionAST* ast) override;
   void visit(AssignmentExpressionAST* ast) override;
+  void visit(BracedTypeConstructionAST* ast) override;
+  void visit(TypeConstructionAST* ast) override;
   void visit(CallExpressionAST* ast) override;
   void visit(SubscriptExpressionAST* ast) override;
   void visit(MemberExpressionAST* ast) override;

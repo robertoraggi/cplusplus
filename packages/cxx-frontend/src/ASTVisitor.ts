@@ -77,6 +77,8 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitUnaryExpression(node: ast.UnaryExpressionAST, context: Context): Result;
     abstract visitBinaryExpression(node: ast.BinaryExpressionAST, context: Context): Result;
     abstract visitAssignmentExpression(node: ast.AssignmentExpressionAST, context: Context): Result;
+    abstract visitBracedTypeConstruction(node: ast.BracedTypeConstructionAST, context: Context): Result;
+    abstract visitTypeConstruction(node: ast.TypeConstructionAST, context: Context): Result;
     abstract visitCallExpression(node: ast.CallExpressionAST, context: Context): Result;
     abstract visitSubscriptExpression(node: ast.SubscriptExpressionAST, context: Context): Result;
     abstract visitMemberExpression(node: ast.MemberExpressionAST, context: Context): Result;

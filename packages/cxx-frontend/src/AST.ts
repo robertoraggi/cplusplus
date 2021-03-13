@@ -680,6 +680,38 @@ export class AssignmentExpressionAST extends ExpressionAST {
     }
 }
 
+export class BracedTypeConstructionAST extends ExpressionAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitBracedTypeConstruction(this, context);
+    }
+    getTypeSpecifier(): SpecifierAST | undefined {
+        return AST.from<SpecifierAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getBracedInitList(): BracedInitListAST | undefined {
+        return AST.from<BracedInitListAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+}
+
+export class TypeConstructionAST extends ExpressionAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitTypeConstruction(this, context);
+    }
+    getTypeSpecifier(): SpecifierAST | undefined {
+        return AST.from<SpecifierAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getLparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    *getExpressionList(): Generator<ExpressionAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
+            yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+    getRparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+}
+
 export class CallExpressionAST extends ExpressionAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitCallExpression(this, context);
@@ -2227,6 +2259,8 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     UnaryExpressionAST,
     BinaryExpressionAST,
     AssignmentExpressionAST,
+    BracedTypeConstructionAST,
+    TypeConstructionAST,
     CallExpressionAST,
     SubscriptExpressionAST,
     MemberExpressionAST,

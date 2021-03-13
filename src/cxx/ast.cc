@@ -558,6 +558,34 @@ SourceLocation AssignmentExpressionAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation BracedTypeConstructionAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(typeSpecifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(bracedInitList)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation BracedTypeConstructionAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(bracedInitList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeSpecifier)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation TypeConstructionAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(typeSpecifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expressionList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation TypeConstructionAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(expressionList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeSpecifier)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation CallExpressionAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(baseExpression)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;

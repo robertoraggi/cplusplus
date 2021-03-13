@@ -202,6 +202,16 @@ void RecursiveASTVisitor::visit(AssignmentExpressionAST* ast) {
   expression(ast->rightExpression);
 }
 
+void RecursiveASTVisitor::visit(BracedTypeConstructionAST* ast) {
+  specifier(ast->typeSpecifier);
+  bracedInitList(ast->bracedInitList);
+}
+
+void RecursiveASTVisitor::visit(TypeConstructionAST* ast) {
+  specifier(ast->typeSpecifier);
+  for (auto it = ast->expressionList; it; it = it->next) expression(it->value);
+}
+
 void RecursiveASTVisitor::visit(CallExpressionAST* ast) {
   expression(ast->baseExpression);
   for (auto it = ast->expressionList; it; it = it->next) expression(it->value);

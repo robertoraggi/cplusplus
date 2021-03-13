@@ -94,6 +94,8 @@ struct TypeidOfTypeExpressionAST;
 struct UnaryExpressionAST;
 struct BinaryExpressionAST;
 struct AssignmentExpressionAST;
+struct BracedTypeConstructionAST;
+struct TypeConstructionAST;
 struct CallExpressionAST;
 struct SubscriptExpressionAST;
 struct MemberExpressionAST;

@@ -73,6 +73,8 @@ export enum ASTKind {
     UnaryExpression,
     BinaryExpression,
     AssignmentExpression,
+    BracedTypeConstruction,
+    TypeConstruction,
     CallExpression,
     SubscriptExpression,
     MemberExpression,

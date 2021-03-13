@@ -672,6 +672,33 @@ struct AssignmentExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
+struct BracedTypeConstructionAST final : ExpressionAST {
+  BracedTypeConstructionAST()
+      : ExpressionAST(ASTKind::BracedTypeConstruction) {}
+
+  SpecifierAST* typeSpecifier = nullptr;
+  BracedInitListAST* bracedInitList = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+struct TypeConstructionAST final : ExpressionAST {
+  TypeConstructionAST() : ExpressionAST(ASTKind::TypeConstruction) {}
+
+  SpecifierAST* typeSpecifier = nullptr;
+  SourceLocation lparenLoc;
+  List<ExpressionAST*>* expressionList = nullptr;
+  SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 struct CallExpressionAST final : ExpressionAST {
   CallExpressionAST() : ExpressionAST(ASTKind::CallExpression) {}
 

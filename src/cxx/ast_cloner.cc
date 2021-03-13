@@ -628,6 +628,39 @@ void ASTCloner::visit(AssignmentExpressionAST* ast) {
   copy->rightExpression = accept(ast->rightExpression);
 }
 
+void ASTCloner::visit(BracedTypeConstructionAST* ast) {
+  auto copy = new (arena_) BracedTypeConstructionAST();
+  copy_ = copy;
+
+  copy->type = ast->type;
+
+  copy->typeSpecifier = accept(ast->typeSpecifier);
+
+  copy->bracedInitList = accept(ast->bracedInitList);
+}
+
+void ASTCloner::visit(TypeConstructionAST* ast) {
+  auto copy = new (arena_) TypeConstructionAST();
+  copy_ = copy;
+
+  copy->type = ast->type;
+
+  copy->typeSpecifier = accept(ast->typeSpecifier);
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  if (auto it = ast->expressionList) {
+    auto out = &copy->expressionList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->rparenLoc = ast->rparenLoc;
+}
+
 void ASTCloner::visit(CallExpressionAST* ast) {
   auto copy = new (arena_) CallExpressionAST();
   copy_ = copy;
