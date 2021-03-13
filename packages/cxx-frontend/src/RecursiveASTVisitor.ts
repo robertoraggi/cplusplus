@@ -227,6 +227,14 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         this.accept(node.getStatement(), context);
     }
 
+    visitTypeidExpression(node: ast.TypeidExpressionAST, context: Context): void {
+        this.accept(node.getExpression(), context);
+    }
+
+    visitTypeidOfTypeExpression(node: ast.TypeidOfTypeExpressionAST, context: Context): void {
+        this.accept(node.getTypeId(), context);
+    }
+
     visitUnaryExpression(node: ast.UnaryExpressionAST, context: Context): void {
         this.accept(node.getExpression(), context);
     }

@@ -68,6 +68,8 @@ export enum ASTKind {
     IdExpression,
     NestedExpression,
     LambdaExpression,
+    TypeidExpression,
+    TypeidOfTypeExpression,
     UnaryExpression,
     BinaryExpression,
     AssignmentExpression,

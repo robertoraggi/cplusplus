@@ -89,6 +89,8 @@ struct UserDefinedStringLiteralExpressionAST;
 struct IdExpressionAST;
 struct NestedExpressionAST;
 struct LambdaExpressionAST;
+struct TypeidExpressionAST;
+struct TypeidOfTypeExpressionAST;
 struct UnaryExpressionAST;
 struct BinaryExpressionAST;
 struct AssignmentExpressionAST;

@@ -1374,25 +1374,43 @@ bool Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_typeid_expression(ExpressionAST*& yyast) {
-  if (!match(TokenKind::T_TYPEID)) return false;
+  SourceLocation typeidLoc;
 
-  expect(TokenKind::T_LPAREN);
+  if (!match(TokenKind::T_TYPEID, typeidLoc)) return false;
+
+  SourceLocation lparenLoc;
+
+  expect(TokenKind::T_LPAREN, lparenLoc);
 
   const auto saved = currentLocation();
 
   TypeIdAST* typeId = nullptr;
 
-  if (parse_type_id(typeId) && match(TokenKind::T_RPAREN)) {
-    //
-  } else {
-    rewind(saved);
+  SourceLocation rparenLoc;
 
-    ExpressionAST* expression = nullptr;
+  if (parse_type_id(typeId) && match(TokenKind::T_RPAREN, rparenLoc)) {
+    auto ast = new (pool) TypeidOfTypeExpressionAST();
+    yyast = ast;
 
-    if (!parse_expression(expression)) parse_error("expected an expression");
+    ast->typeidLoc = typeidLoc;
+    ast->lparenLoc = lparenLoc;
+    ast->typeId = typeId;
+    ast->rparenLoc = rparenLoc;
 
-    expect(TokenKind::T_RPAREN);
+    return true;
   }
+
+  rewind(saved);
+
+  auto ast = new (pool) TypeidExpressionAST();
+  yyast = ast;
+
+  ast->typeidLoc = typeidLoc;
+  ast->lparenLoc = lparenLoc;
+
+  if (!parse_expression(ast->expression)) parse_error("expected an expression");
+
+  expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   return true;
 }

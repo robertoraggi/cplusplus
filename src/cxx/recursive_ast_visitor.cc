@@ -180,6 +180,14 @@ void RecursiveASTVisitor::visit(LambdaExpressionAST* ast) {
   statement(ast->statement);
 }
 
+void RecursiveASTVisitor::visit(TypeidExpressionAST* ast) {
+  expression(ast->expression);
+}
+
+void RecursiveASTVisitor::visit(TypeidOfTypeExpressionAST* ast) {
+  typeId(ast->typeId);
+}
+
 void RecursiveASTVisitor::visit(UnaryExpressionAST* ast) {
   expression(ast->expression);
 }

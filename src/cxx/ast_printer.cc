@@ -550,6 +550,26 @@ void ASTPrinter::visit(LambdaExpressionAST* ast) {
   }
 }
 
+void ASTPrinter::visit(TypeidExpressionAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "TypeidExpression";
+
+  if (ast->expression) {
+    json_["expression"] = accept(ast->expression);
+  }
+}
+
+void ASTPrinter::visit(TypeidOfTypeExpressionAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "TypeidOfTypeExpression";
+
+  if (ast->typeId) {
+    json_["typeId"] = accept(ast->typeId);
+  }
+}
+
 void ASTPrinter::visit(UnaryExpressionAST* ast) {
   json_ = nlohmann::json::object();
 

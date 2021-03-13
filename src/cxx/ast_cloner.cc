@@ -557,6 +557,36 @@ void ASTCloner::visit(LambdaExpressionAST* ast) {
   copy->statement = accept(ast->statement);
 }
 
+void ASTCloner::visit(TypeidExpressionAST* ast) {
+  auto copy = new (arena_) TypeidExpressionAST();
+  copy_ = copy;
+
+  copy->type = ast->type;
+
+  copy->typeidLoc = ast->typeidLoc;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->expression = accept(ast->expression);
+
+  copy->rparenLoc = ast->rparenLoc;
+}
+
+void ASTCloner::visit(TypeidOfTypeExpressionAST* ast) {
+  auto copy = new (arena_) TypeidOfTypeExpressionAST();
+  copy_ = copy;
+
+  copy->type = ast->type;
+
+  copy->typeidLoc = ast->typeidLoc;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->typeId = accept(ast->typeId);
+
+  copy->rparenLoc = ast->rparenLoc;
+}
+
 void ASTCloner::visit(UnaryExpressionAST* ast) {
   auto copy = new (arena_) UnaryExpressionAST();
   copy_ = copy;
