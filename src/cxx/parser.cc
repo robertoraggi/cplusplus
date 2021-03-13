@@ -2021,13 +2021,18 @@ bool Parser::parse_yield_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_throw_expression(ExpressionAST*& yyast) {
-  if (!match(TokenKind::T_THROW)) return false;
+  SourceLocation throwLoc;
 
-  ExpressionAST* expression = nullptr;
+  if (!match(TokenKind::T_THROW, throwLoc)) return false;
+
+  auto ast = new (pool) ThrowExpressionAST();
+  yyast = ast;
+
+  ast->throwLoc = throwLoc;
 
   const auto saved = currentLocation();
 
-  if (!parse_assignment_expression(expression)) rewind(saved);
+  if (!parse_assignment_expression(ast->expression)) rewind(saved);
 
   return true;
 }
@@ -2096,6 +2101,8 @@ bool Parser::parse_assignment_operator(SourceLocation& loc, TokenKind& op) {
 }
 
 bool Parser::parse_expression(ExpressionAST*& yyast) {
+  const auto start = currentLocation();
+
   if (!parse_assignment_expression(yyast)) return false;
 
   SourceLocation commaLoc;

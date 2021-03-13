@@ -696,6 +696,16 @@ void ASTPrinter::visit(DeleteExpressionAST* ast) {
   }
 }
 
+void ASTPrinter::visit(ThrowExpressionAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "ThrowExpression";
+
+  if (ast->expression) {
+    json_["expression"] = accept(ast->expression);
+  }
+}
+
 void ASTPrinter::visit(LabeledStatementAST* ast) {
   json_ = nlohmann::json::object();
 
@@ -1626,6 +1636,14 @@ void ASTPrinter::visit(TypenameSpecifierAST* ast) {
   json_ = nlohmann::json::object();
 
   json_["$id"] = "TypenameSpecifier";
+
+  if (ast->nestedNameSpecifier) {
+    json_["nestedNameSpecifier"] = accept(ast->nestedNameSpecifier);
+  }
+
+  if (ast->name) {
+    json_["name"] = accept(ast->name);
+  }
 }
 
 void ASTPrinter::visit(IdDeclaratorAST* ast) {

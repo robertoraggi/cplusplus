@@ -746,6 +746,18 @@ struct DeleteExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
+struct ThrowExpressionAST final : ExpressionAST {
+  ThrowExpressionAST() : ExpressionAST(ASTKind::ThrowExpression) {}
+
+  SourceLocation throwLoc;
+  ExpressionAST* expression = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 struct LabeledStatementAST final : StatementAST {
   LabeledStatementAST() : StatementAST(ASTKind::LabeledStatement) {}
 

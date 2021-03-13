@@ -99,6 +99,7 @@ struct ConditionalExpressionAST;
 struct CppCastExpressionAST;
 struct NewExpressionAST;
 struct DeleteExpressionAST;
+struct ThrowExpressionAST;
 
 // StatementAST
 struct LabeledStatementAST;

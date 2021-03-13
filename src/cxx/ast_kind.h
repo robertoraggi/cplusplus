@@ -82,6 +82,7 @@ enum struct ASTKind {
   CppCastExpression,
   NewExpression,
   DeleteExpression,
+  ThrowExpression,
 
   // StatementAST
   LabeledStatement,

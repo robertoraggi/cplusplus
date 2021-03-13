@@ -73,10 +73,25 @@ class Parser {
   }
 
   template <typename... Args>
+  bool parse_warn(SourceLocation loc, const std::string_view& format,
+                  const Args&... args) {
+    unit->report(loc, Severity::Warning, format, args...);
+    return true;
+  }
+
+  template <typename... Args>
   bool parse_error(const std::string_view& format, const Args&... args) {
     if (lastErrorCursor_ == cursor_) return true;
     lastErrorCursor_ = cursor_;
     unit->report(SourceLocation(cursor_), Severity::Error, format, args...);
+    // throw std::runtime_error("error");
+    return true;
+  }
+
+  template <typename... Args>
+  bool parse_error(SourceLocation loc, const std::string_view& format,
+                   const Args&... args) {
+    unit->report(loc, Severity::Error, format, args...);
     // throw std::runtime_error("error");
     return true;
   }

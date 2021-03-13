@@ -78,6 +78,7 @@ export enum ASTKind {
     CppCastExpression,
     NewExpression,
     DeleteExpression,
+    ThrowExpression,
 
     // StatementAST
     LabeledStatement,

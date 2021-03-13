@@ -642,6 +642,17 @@ void ASTSlot::visit(DeleteExpressionAST* ast) {
   }  // switch
 }
 
+void ASTSlot::visit(ThrowExpressionAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->throwLoc.index();
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
+      break;
+  }  // switch
+}
+
 void ASTSlot::visit(LabeledStatementAST* ast) {
   switch (slot_) {
     case 0:
@@ -1712,7 +1723,17 @@ void ASTSlot::visit(ClassSpecifierAST* ast) {
 }
 
 void ASTSlot::visit(TypenameSpecifierAST* ast) {
-  switch (slot_) {}  // switch
+  switch (slot_) {
+    case 0:
+      value_ = ast->typenameLoc.index();
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->nestedNameSpecifier);
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->name);
+      break;
+  }  // switch
 }
 
 void ASTSlot::visit(IdDeclaratorAST* ast) {

@@ -787,6 +787,18 @@ export class DeleteExpressionAST extends ExpressionAST {
     }
 }
 
+export class ThrowExpressionAST extends ExpressionAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitThrowExpression(this, context);
+    }
+    getThrowToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getExpression(): ExpressionAST | undefined {
+        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+}
+
 export class LabeledStatementAST extends StatementAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitLabeledStatement(this, context);
@@ -1988,6 +2000,15 @@ export class TypenameSpecifierAST extends SpecifierAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitTypenameSpecifier(this, context);
     }
+    getTypenameToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
+        return AST.from<NestedNameSpecifierAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getName(): NameAST | undefined {
+        return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
 }
 
 export class IdDeclaratorAST extends CoreDeclaratorAST {
@@ -2157,6 +2178,7 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     CppCastExpressionAST,
     NewExpressionAST,
     DeleteExpressionAST,
+    ThrowExpressionAST,
     LabeledStatementAST,
     CaseStatementAST,
     DefaultStatementAST,

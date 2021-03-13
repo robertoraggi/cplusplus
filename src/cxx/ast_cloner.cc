@@ -720,6 +720,17 @@ void ASTCloner::visit(DeleteExpressionAST* ast) {
   copy->expression = accept(ast->expression);
 }
 
+void ASTCloner::visit(ThrowExpressionAST* ast) {
+  auto copy = new (arena_) ThrowExpressionAST();
+  copy_ = copy;
+
+  copy->type = ast->type;
+
+  copy->throwLoc = ast->throwLoc;
+
+  copy->expression = accept(ast->expression);
+}
+
 void ASTCloner::visit(LabeledStatementAST* ast) {
   auto copy = new (arena_) LabeledStatementAST();
   copy_ = copy;
@@ -1767,6 +1778,12 @@ void ASTCloner::visit(ClassSpecifierAST* ast) {
 void ASTCloner::visit(TypenameSpecifierAST* ast) {
   auto copy = new (arena_) TypenameSpecifierAST();
   copy_ = copy;
+
+  copy->typenameLoc = ast->typenameLoc;
+
+  copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
+
+  copy->name = accept(ast->name);
 }
 
 void ASTCloner::visit(IdDeclaratorAST* ast) {

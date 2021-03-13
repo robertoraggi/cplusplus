@@ -229,6 +229,10 @@ void RecursiveASTVisitor::visit(DeleteExpressionAST* ast) {
   expression(ast->expression);
 }
 
+void RecursiveASTVisitor::visit(ThrowExpressionAST* ast) {
+  expression(ast->expression);
+}
+
 void RecursiveASTVisitor::visit(LabeledStatementAST* ast) {
   statement(ast->statement);
 }
@@ -520,7 +524,10 @@ void RecursiveASTVisitor::visit(ClassSpecifierAST* ast) {
     declaration(it->value);
 }
 
-void RecursiveASTVisitor::visit(TypenameSpecifierAST* ast) {}
+void RecursiveASTVisitor::visit(TypenameSpecifierAST* ast) {
+  nestedNameSpecifier(ast->nestedNameSpecifier);
+  name(ast->name);
+}
 
 void RecursiveASTVisitor::visit(IdDeclaratorAST* ast) {
   name(ast->name);

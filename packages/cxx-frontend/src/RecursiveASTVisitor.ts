@@ -278,6 +278,10 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         this.accept(node.getExpression(), context);
     }
 
+    visitThrowExpression(node: ast.ThrowExpressionAST, context: Context): void {
+        this.accept(node.getExpression(), context);
+    }
+
     visitLabeledStatement(node: ast.LabeledStatementAST, context: Context): void {
         this.accept(node.getStatement(), context);
     }
@@ -647,6 +651,8 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     }
 
     visitTypenameSpecifier(node: ast.TypenameSpecifierAST, context: Context): void {
+        this.accept(node.getNestedNameSpecifier(), context);
+        this.accept(node.getName(), context);
     }
 
     visitIdDeclarator(node: ast.IdDeclaratorAST, context: Context): void {

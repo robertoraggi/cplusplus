@@ -648,6 +648,18 @@ SourceLocation DeleteExpressionAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation ThrowExpressionAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(throwLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ThrowExpressionAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(throwLoc)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation LabeledStatementAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
@@ -1731,10 +1743,16 @@ SourceLocation ClassSpecifierAST::lastSourceLocation() {
 }
 
 SourceLocation TypenameSpecifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(typenameLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(name)) return loc;
   return SourceLocation();
 }
 
 SourceLocation TypenameSpecifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typenameLoc)) return loc;
   return SourceLocation();
 }
 

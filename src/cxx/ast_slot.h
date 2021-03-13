@@ -83,6 +83,7 @@ class ASTSlot final : ASTVisitor {
   void visit(CppCastExpressionAST* ast) override;
   void visit(NewExpressionAST* ast) override;
   void visit(DeleteExpressionAST* ast) override;
+  void visit(ThrowExpressionAST* ast) override;
 
   void visit(LabeledStatementAST* ast) override;
   void visit(CaseStatementAST* ast) override;

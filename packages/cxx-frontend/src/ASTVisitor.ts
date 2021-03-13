@@ -82,6 +82,7 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitCppCastExpression(node: ast.CppCastExpressionAST, context: Context): Result;
     abstract visitNewExpression(node: ast.NewExpressionAST, context: Context): Result;
     abstract visitDeleteExpression(node: ast.DeleteExpressionAST, context: Context): Result;
+    abstract visitThrowExpression(node: ast.ThrowExpressionAST, context: Context): Result;
 
     // StatementAST
     abstract visitLabeledStatement(node: ast.LabeledStatementAST, context: Context): Result;
