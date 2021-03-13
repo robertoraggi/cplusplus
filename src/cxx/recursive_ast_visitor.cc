@@ -283,6 +283,10 @@ void RecursiveASTVisitor::visit(ThrowExpressionAST* ast) {
   expression(ast->expression);
 }
 
+void RecursiveASTVisitor::visit(NoexceptExpressionAST* ast) {
+  expression(ast->expression);
+}
+
 void RecursiveASTVisitor::visit(LabeledStatementAST* ast) {
   statement(ast->statement);
 }

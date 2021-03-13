@@ -95,6 +95,7 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitNewExpression(node: ast.NewExpressionAST, context: Context): Result;
     abstract visitDeleteExpression(node: ast.DeleteExpressionAST, context: Context): Result;
     abstract visitThrowExpression(node: ast.ThrowExpressionAST, context: Context): Result;
+    abstract visitNoexceptExpression(node: ast.NoexceptExpressionAST, context: Context): Result;
 
     // StatementAST
     abstract visitLabeledStatement(node: ast.LabeledStatementAST, context: Context): Result;

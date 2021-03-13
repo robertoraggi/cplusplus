@@ -95,6 +95,7 @@ enum struct ASTKind {
   NewExpression,
   DeleteExpression,
   ThrowExpression,
+  NoexceptExpression,
 
   // StatementAST
   LabeledStatement,

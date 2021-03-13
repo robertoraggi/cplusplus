@@ -112,6 +112,7 @@ struct CppCastExpressionAST;
 struct NewExpressionAST;
 struct DeleteExpressionAST;
 struct ThrowExpressionAST;
+struct NoexceptExpressionAST;
 
 // StatementAST
 struct LabeledStatementAST;

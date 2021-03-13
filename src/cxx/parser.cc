@@ -1739,15 +1739,18 @@ bool Parser::parse_await_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_noexcept_expression(ExpressionAST*& yyast) {
-  if (!match(TokenKind::T_NOEXCEPT)) return false;
+  SourceLocation noexceptLoc;
 
-  expect(TokenKind::T_LPAREN);
+  if (!match(TokenKind::T_NOEXCEPT, noexceptLoc)) return false;
 
-  ExpressionAST* expression = nullptr;
+  auto ast = new (pool) NoexceptExpressionAST();
+  yyast = ast;
 
-  if (!parse_expression(expression)) parse_error("expected an expression");
+  expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
-  expect(TokenKind::T_RPAREN);
+  if (!parse_expression(ast->expression)) parse_error("expected an expression");
+
+  expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   return true;
 }

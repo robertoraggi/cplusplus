@@ -98,6 +98,7 @@ struct ASTVisitor {
   virtual void visit(NewExpressionAST* ast) = 0;
   virtual void visit(DeleteExpressionAST* ast) = 0;
   virtual void visit(ThrowExpressionAST* ast) = 0;
+  virtual void visit(NoexceptExpressionAST* ast) = 0;
 
   // StatementAST
   virtual void visit(LabeledStatementAST* ast) = 0;

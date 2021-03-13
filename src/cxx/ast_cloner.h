@@ -94,6 +94,7 @@ struct ASTCloner : ASTVisitor {
   void visit(NewExpressionAST* ast) override;
   void visit(DeleteExpressionAST* ast) override;
   void visit(ThrowExpressionAST* ast) override;
+  void visit(NoexceptExpressionAST* ast) override;
 
   void visit(LabeledStatementAST* ast) override;
   void visit(CaseStatementAST* ast) override;

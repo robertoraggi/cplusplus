@@ -91,6 +91,7 @@ export enum ASTKind {
     NewExpression,
     DeleteExpression,
     ThrowExpression,
+    NoexceptExpression,
 
     // StatementAST
     LabeledStatement,

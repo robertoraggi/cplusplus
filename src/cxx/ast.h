@@ -934,6 +934,20 @@ struct ThrowExpressionAST final : ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
+struct NoexceptExpressionAST final : ExpressionAST {
+  NoexceptExpressionAST() : ExpressionAST(ASTKind::NoexceptExpression) {}
+
+  SourceLocation noexceptLoc;
+  SourceLocation lparenLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 struct LabeledStatementAST final : StatementAST {
   LabeledStatementAST() : StatementAST(ASTKind::LabeledStatement) {}
 

@@ -863,6 +863,23 @@ void ASTSlot::visit(ThrowExpressionAST* ast) {
   }  // switch
 }
 
+void ASTSlot::visit(NoexceptExpressionAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->noexceptLoc.index();
+      break;
+    case 1:
+      value_ = ast->lparenLoc.index();
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
+      break;
+    case 3:
+      value_ = ast->rparenLoc.index();
+      break;
+  }  // switch
+}
+
 void ASTSlot::visit(LabeledStatementAST* ast) {
   switch (slot_) {
     case 0:

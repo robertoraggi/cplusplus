@@ -335,6 +335,10 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         this.accept(node.getExpression(), context);
     }
 
+    visitNoexceptExpression(node: ast.NoexceptExpressionAST, context: Context): void {
+        this.accept(node.getExpression(), context);
+    }
+
     visitLabeledStatement(node: ast.LabeledStatementAST, context: Context): void {
         this.accept(node.getStatement(), context);
     }

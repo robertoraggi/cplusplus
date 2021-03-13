@@ -850,6 +850,16 @@ void ASTPrinter::visit(ThrowExpressionAST* ast) {
   }
 }
 
+void ASTPrinter::visit(NoexceptExpressionAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "NoexceptExpression";
+
+  if (ast->expression) {
+    json_["expression"] = accept(ast->expression);
+  }
+}
+
 void ASTPrinter::visit(LabeledStatementAST* ast) {
   json_ = nlohmann::json::object();
 

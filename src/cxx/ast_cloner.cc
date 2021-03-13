@@ -930,6 +930,21 @@ void ASTCloner::visit(ThrowExpressionAST* ast) {
   copy->expression = accept(ast->expression);
 }
 
+void ASTCloner::visit(NoexceptExpressionAST* ast) {
+  auto copy = new (arena_) NoexceptExpressionAST();
+  copy_ = copy;
+
+  copy->type = ast->type;
+
+  copy->noexceptLoc = ast->noexceptLoc;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->expression = accept(ast->expression);
+
+  copy->rparenLoc = ast->rparenLoc;
+}
+
 void ASTCloner::visit(LabeledStatementAST* ast) {
   auto copy = new (arena_) LabeledStatementAST();
   copy_ = copy;

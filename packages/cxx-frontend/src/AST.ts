@@ -1023,6 +1023,24 @@ export class ThrowExpressionAST extends ExpressionAST {
     }
 }
 
+export class NoexceptExpressionAST extends ExpressionAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitNoexceptExpression(this, context);
+    }
+    getNoexceptToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getLparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getExpression(): ExpressionAST | undefined {
+        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getRparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+}
+
 export class LabeledStatementAST extends StatementAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitLabeledStatement(this, context);
@@ -2509,6 +2527,7 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     NewExpressionAST,
     DeleteExpressionAST,
     ThrowExpressionAST,
+    NoexceptExpressionAST,
     LabeledStatementAST,
     CaseStatementAST,
     DefaultStatementAST,
