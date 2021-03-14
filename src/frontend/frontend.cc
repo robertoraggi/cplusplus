@@ -161,12 +161,14 @@ int main(int argc, char* argv[]) {
 
       const auto source = readAll(fileName);
 
-      std::ostringstream out;
-      preprocess(source, fileName, out);
-
-      if (result["dump-macros"].as<bool>()) {
-        preprocess.printMacros(std::cout);
-      } else if (!result["preprocess-only"].as<bool>()) {
+      if (result["preprocess-only"].as<bool>() ||
+          result["dump-macros"].as<bool>()) {
+        std::vector<Token> tokens;
+        preprocess.preprocess(source, fileName, tokens);
+        if (result["dump-macros"].as<bool>()) preprocess.printMacros(std::cout);
+      } else {
+        std::ostringstream out;
+        preprocess(source, fileName, out);
         fmt::print("{}\n", out.str());
       }
     } else if (shouldDumpTokens)

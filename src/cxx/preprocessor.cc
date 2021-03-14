@@ -38,6 +38,7 @@
 #include <filesystem>
 #include <forward_list>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <list>
 #include <optional>
@@ -435,7 +436,11 @@ struct Preprocessor::Private {
 
   void expand(const TokList *ts, bool evaluateDirectives, TokList **&out);
 
-  const TokList *expandOne(const TokList *ts, TokList **&out);
+  void expand(const TokList *ts, bool evaluateDirectives,
+              const std::function<void(const Tok *)> &emitToken);
+
+  const TokList *expandOne(const TokList *ts,
+                           const std::function<void(const Tok *)> &emitToken);
 
   const TokList *substitude(const TokList *ts, const Macro *macro,
                             const std::vector<const TokList *> &actuals,
@@ -510,6 +515,15 @@ const TokList *Preprocessor::Private::expand(const TokList *ts,
 
 void Preprocessor::Private::expand(const TokList *ts, bool evaluateDirectives,
                                    TokList **&out) {
+  expand(ts, evaluateDirectives, [&](auto tok) {
+    *out = new (&pool_) TokList(tok);
+    out = const_cast<TokList **>(&(*out)->tail);
+  });
+}
+
+void Preprocessor::Private::expand(
+    const TokList *ts, bool evaluateDirectives,
+    const std::function<void(const Tok *)> &emitToken) {
   while (ts) {
     const auto tk = ts->head;
     const auto start = ts;
@@ -592,7 +606,7 @@ void Preprocessor::Private::expand(const TokList *ts, bool evaluateDirectives,
         }
         auto prot = checkHeaderProtection(tokens);
         if (prot) ifndefProtectedFiles_.emplace(fn, prot->head->text);
-        expand(tokens, /*directives=*/true, out);
+        expand(tokens, /*directives=*/true, emitToken);
         if (prot && macros_.find(prot->head->text) == macros_.end()) {
           auto it = ifndefProtectedFiles_.find(std::string(prot->head->text));
           if (it != ifndefProtectedFiles_.end())
@@ -673,8 +687,7 @@ void Preprocessor::Private::expand(const TokList *ts, bool evaluateDirectives,
       }
       auto t =
           Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, macro ? "1" : "0");
-      *out = new (&pool_) TokList(t);
-      out = const_cast<TokList **>(&(*out)->tail);
+      emitToken(t);
     } else if (!evaluateDirectives && matchId(ts, "__has_include")) {
       std::string fn;
       expect(ts, TokenKind::T_LPAREN);
@@ -695,23 +708,21 @@ void Preprocessor::Private::expand(const TokList *ts, bool evaluateDirectives,
       const auto value = resolve(include, /*next*/ false);
       auto t =
           Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, value ? "1" : "0");
-      *out = new (&pool_) TokList(t);
-      out = const_cast<TokList **>(&(*out)->tail);
+      emitToken(t);
     } else if (!evaluateDirectives && matchId(ts, "__has_feature")) {
       expect(ts, TokenKind::T_LPAREN);
       auto id = expectId(ts);
       expect(ts, TokenKind::T_RPAREN);
       auto t = Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, "1");
-      *out = new (&pool_) TokList(t);
-      out = const_cast<TokList **>(&(*out)->tail);
+      emitToken(t);
     } else {
-      ts = expandOne(ts, out);
+      ts = expandOne(ts, emitToken);
     }
   }
 }
 
-const TokList *Preprocessor::Private::expandOne(const TokList *ts,
-                                                TokList **&out) {
+const TokList *Preprocessor::Private::expandOne(
+    const TokList *ts, const std::function<void(const Tok *)> &emitToken) {
   if (!ts) return nullptr;
 
   const Macro *macro = nullptr;
@@ -734,8 +745,7 @@ const TokList *Preprocessor::Private::expandOne(const TokList *ts,
     }
   }
 
-  *out = new (&pool_) TokList(ts->head);
-  out = const_cast<TokList **>(&(*out)->tail);
+  emitToken(ts->head);
   return ts->tail;
 }
 
@@ -1275,14 +1285,9 @@ void Preprocessor::preprocess(const std::string_view &source,
 
   sourceFile.tokens = ts;
 
-  const auto os = d->expand(ts, /*directives*/ true);
-
-  std::swap(d->currentPath_, path);
-
   tokens.emplace_back(TokenKind::T_ERROR);
 
-  for (auto it = os; it; it = it->tail) {
-    auto tk = it->head;
+  d->expand(ts, /*directives*/ true, [&](auto tk) {
     auto kind = tk->kind;
 
     TokenValue value;
@@ -1365,9 +1370,11 @@ void Preprocessor::preprocess(const std::string_view &source,
       token.setStartOfLine(tk->bol);
       tokens.push_back(token);
     }
-  }
+  });
 
   tokens.emplace_back(TokenKind::T_EOF_SYMBOL);
+
+  std::swap(d->currentPath_, path);
 }
 
 void Preprocessor::defineMacro(const std::string &name,
