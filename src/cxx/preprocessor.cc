@@ -114,15 +114,18 @@ namespace cxx {
 
 namespace {
 
+struct SourceFile;
+
 struct Tok final : Managed {
   std::string_view text;
   const Hideset *hideset = nullptr;
+  SourceFile *sourceFile = nullptr;
   TokenKind kind = TokenKind::T_EOF_SYMBOL;
-  unsigned offset_ = 0;
-  unsigned length_ = 0;
-  bool bol = false;
-  bool space = false;
-  bool generated = false;
+  unsigned offset = 0;
+  unsigned length = 0;
+  std::uint32_t bol : 1 = false;
+  std::uint32_t space : 1 = false;
+  std::uint32_t generated : 1 = false;
 
   Tok(const Tok &other) = default;
   Tok &operator=(const Tok &other) = default;
@@ -138,12 +141,14 @@ struct Tok final : Managed {
     return new (pool) Tok(tok, hideset);
   }
 
-  static Tok *FromCurrentToken(Arena *pool, const Lexer &lex) {
+  static Tok *FromCurrentToken(Arena *pool, const Lexer &lex,
+                               SourceFile *sourceFile) {
     auto tk = new (pool) Tok();
+    tk->sourceFile = sourceFile;
     tk->kind = lex.tokenKind();
     tk->text = lex.tokenText();
-    tk->offset_ = lex.tokenPos();
-    tk->length_ = lex.tokenLength();
+    tk->offset = lex.tokenPos();
+    tk->length = lex.tokenLength();
     tk->bol = lex.tokenStartOfLine();
     tk->space = lex.tokenLeadingSpace();
     return tk;
@@ -191,7 +196,7 @@ struct SourceFile {
   std::string fileName;
   std::string source;
   std::vector<int> lines;
-  TokList *tokens = nullptr;
+  const TokList *tokens = nullptr;
 
   SourceFile() noexcept = default;
   SourceFile(const SourceFile &) noexcept = default;
@@ -421,7 +426,8 @@ struct Preprocessor::Private {
 
   void defineMacro(const TokList *ts);
 
-  const TokList *tokenize(const std::string_view &source, bool bol);
+  const TokList *tokenize(const std::string_view &source,
+                          SourceFile *sourceFile, bool bol);
 
   const TokList *skipLine(const TokList *ts);
 
@@ -480,13 +486,14 @@ static const TokList *concat(Arena *pool, const TokList *ts, const Tok *t) {
 }
 
 const TokList *Preprocessor::Private::tokenize(const std::string_view &source,
+                                               SourceFile *sourceFile,
                                                bool bol) {
   cxx::Lexer lex(source);
   lex.setPreprocessing(true);
   const TokList *ts = nullptr;
   auto it = &ts;
   while (lex() != cxx::TokenKind::T_EOF_SYMBOL) {
-    auto tk = Tok::FromCurrentToken(&pool_, lex);
+    auto tk = Tok::FromCurrentToken(&pool_, lex, sourceFile);
     *it = new (&pool_) TokList(tk);
     it = const_cast<const TokList **>(&(*it)->tail);
   }
@@ -578,7 +585,8 @@ void Preprocessor::Private::expand(const TokList *ts, bool evaluateDirectives,
         std::swap(currentPath_, dirpath);
         auto &sourceFile =
             sourceFiles_.emplace_back(path->string(), readFile(*path));
-        auto tokens = tokenize(sourceFile.source, true);
+        auto tokens = tokenize(sourceFile.source, &sourceFile, true);
+        sourceFile.tokens = tokens;
         if (checkPragmaOnceProtected(tokens)) {
           pragmaOnceProtected_.insert(fn);
         }
@@ -1234,12 +1242,15 @@ void Preprocessor::operator()(const std::string_view &source,
 
 void Preprocessor::preprocess(const std::string_view &source,
                               const std::string &fileName, std::ostream &out) {
+  auto &sourceFile =
+      d->sourceFiles_.emplace_back(SourceFile(fileName, std::string(source)));
+
   fs::path path(fileName);
   path.remove_filename();
 
   std::swap(d->currentPath_, path);
 
-  const auto ts = d->tokenize(source, true);
+  const auto ts = d->tokenize(sourceFile.source, &sourceFile, true);
 
   const auto os = d->expand(ts, /*directives*/ true);
 
@@ -1252,12 +1263,17 @@ void Preprocessor::preprocess(const std::string_view &source,
 void Preprocessor::preprocess(const std::string_view &source,
                               const std::string &fileName,
                               std::vector<Token> &tokens) {
+  auto &sourceFile =
+      d->sourceFiles_.emplace_back(SourceFile(fileName, std::string(source)));
+
   fs::path path(fileName);
   path.remove_filename();
 
   std::swap(d->currentPath_, path);
 
-  const auto ts = d->tokenize(source, true);
+  const auto ts = d->tokenize(sourceFile.source, &sourceFile, true);
+
+  sourceFile.tokens = ts;
 
   const auto os = d->expand(ts, /*directives*/ true);
 
@@ -1304,47 +1320,47 @@ void Preprocessor::preprocess(const std::string_view &source,
     if (tk->kind == TokenKind::T_GREATER_EQUAL) {
       value.tokenKindValue = tk->kind;
 
-      Token token(TokenKind::T_GREATER, tk->offset_, 1, value);
+      Token token(TokenKind::T_GREATER, tk->offset, 1, value);
       token.setLeadingSpace(tk->space);
       token.setStartOfLine(tk->bol);
       tokens.push_back(token);
 
-      token = Token(TokenKind::T_EQUAL, tk->offset_ + 1, 1);
+      token = Token(TokenKind::T_EQUAL, tk->offset + 1, 1);
       token.setLeadingSpace(false);
       token.setStartOfLine(false);
       tokens.push_back(token);
     } else if (tk->kind == TokenKind::T_GREATER_GREATER) {
       value.tokenKindValue = tk->kind;
 
-      Token token(TokenKind::T_GREATER, tk->offset_, 1);
+      Token token(TokenKind::T_GREATER, tk->offset, 1);
       token.setLeadingSpace(tk->space);
       token.setStartOfLine(tk->bol);
       tokens.push_back(token);
 
-      token = Token(TokenKind::T_GREATER, tk->offset_ + 1, 1);
+      token = Token(TokenKind::T_GREATER, tk->offset + 1, 1);
       token.setLeadingSpace(false);
       token.setStartOfLine(false);
       tokens.push_back(token);
     } else if (tk->kind == TokenKind::T_GREATER_GREATER_EQUAL) {
       value.tokenKindValue = tk->kind;
 
-      Token token(TokenKind::T_GREATER, tk->offset_, 1);
+      Token token(TokenKind::T_GREATER, tk->offset, 1);
       token.setLeadingSpace(tk->space);
       token.setStartOfLine(tk->bol);
       tokens.push_back(token);
 
-      token = Token(TokenKind::T_GREATER, tk->offset_ + 1, 1);
+      token = Token(TokenKind::T_GREATER, tk->offset + 1, 1);
       token.setLeadingSpace(false);
       token.setStartOfLine(false);
       tokens.push_back(token);
 
-      token = Token(TokenKind::T_EQUAL, tk->offset_ + 2, 1);
+      token = Token(TokenKind::T_EQUAL, tk->offset + 2, 1);
       token.setLeadingSpace(false);
       token.setStartOfLine(false);
       tokens.push_back(token);
 
     } else {
-      Token token(kind, tk->offset_, tk->length_, value);
+      Token token(kind, tk->offset, tk->length, value);
       token.setLeadingSpace(tk->space);
       token.setStartOfLine(tk->bol);
       tokens.push_back(token);
@@ -1357,7 +1373,7 @@ void Preprocessor::preprocess(const std::string_view &source,
 void Preprocessor::defineMacro(const std::string &name,
                                const std::string &body) {
   auto s = d->string(name + " " + body);
-  auto tokens = d->tokenize(s, false);
+  auto tokens = d->tokenize(s, /*sourceFile=*/nullptr, false);
   d->defineMacro(tokens);
 }
 
