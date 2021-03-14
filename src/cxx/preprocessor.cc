@@ -120,17 +120,48 @@ struct Tok final : Managed {
   TokenKind kind = TokenKind::T_EOF_SYMBOL;
   unsigned offset_ = 0;
   unsigned length_ = 0;
-
   bool bol = false;
   bool space = false;
-
-  Tok() = default;
+  bool generated = false;
 
   Tok(const Tok &other) = default;
   Tok &operator=(const Tok &other) = default;
 
   Tok(Tok &&other) = default;
   Tok &operator=(Tok &&other) = default;
+
+  bool is(TokenKind k) const { return kind == k; }
+
+  bool isNot(TokenKind k) const { return kind != k; }
+
+  static Tok *WithHideset(Arena *pool, const Tok *tok, const Hideset *hideset) {
+    return new (pool) Tok(tok, hideset);
+  }
+
+  static Tok *FromCurrentToken(Arena *pool, const Lexer &lex) {
+    auto tk = new (pool) Tok();
+    tk->kind = lex.tokenKind();
+    tk->text = lex.tokenText();
+    tk->offset_ = lex.tokenPos();
+    tk->length_ = lex.tokenLength();
+    tk->bol = lex.tokenStartOfLine();
+    tk->space = lex.tokenLeadingSpace();
+    return tk;
+  }
+
+  static Tok *Gen(Arena *pool, TokenKind kind, const std::string_view &text,
+                  const Hideset *hideset = nullptr) {
+    auto tk = new (pool) Tok();
+    tk->kind = kind;
+    tk->text = text;
+    tk->hideset = hideset;
+    tk->generated = true;
+    tk->space = true;
+    return tk;
+  }
+
+ private:
+  Tok() = default;
 
   Tok(const Tok *tok, const Hideset *hs) {
     kind = tok->kind;
@@ -139,10 +170,6 @@ struct Tok final : Managed {
     space = tok->space;
     hideset = hs;
   }
-
-  bool is(TokenKind k) const { return kind == k; }
-
-  bool isNot(TokenKind k) const { return kind != k; }
 };
 
 struct TokList final : Managed {
@@ -459,13 +486,7 @@ const TokList *Preprocessor::Private::tokenize(const std::string_view &source,
   const TokList *ts = nullptr;
   auto it = &ts;
   while (lex() != cxx::TokenKind::T_EOF_SYMBOL) {
-    auto tk = new (&pool_) Tok();
-    tk->kind = lex.tokenKind();
-    tk->text = lex.tokenText();
-    tk->offset_ = lex.tokenPos();
-    tk->length_ = lex.tokenLength();
-    tk->bol = lex.tokenStartOfLine();
-    tk->space = lex.tokenLeadingSpace();
+    auto tk = Tok::FromCurrentToken(&pool_, lex);
     *it = new (&pool_) TokList(tk);
     it = const_cast<const TokList **>(&(*it)->tail);
   }
@@ -642,10 +663,8 @@ void Preprocessor::Private::expand(const TokList *ts, bool evaluateDirectives,
         lookupMacro(ts->head, macro);
         ts = ts->tail;
       }
-      auto t = new (&pool_) Tok();
-      t->kind = TokenKind::T_INTEGER_LITERAL;
-      t->text = string(macro ? "1" : "0");
-      t->space = true;
+      auto t =
+          Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, macro ? "1" : "0");
       *out = new (&pool_) TokList(t);
       out = const_cast<TokList **>(&(*out)->tail);
     } else if (!evaluateDirectives && matchId(ts, "__has_include")) {
@@ -666,20 +685,15 @@ void Preprocessor::Private::expand(const TokList *ts, bool evaluateDirectives,
       }
       expect(ts, TokenKind::T_RPAREN);
       const auto value = resolve(include, /*next*/ false);
-      auto t = new (&pool_) Tok();
-      t->kind = TokenKind::T_INTEGER_LITERAL;
-      t->text = string(value ? "1" : "0");
-      t->space = true;
+      auto t =
+          Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, value ? "1" : "0");
       *out = new (&pool_) TokList(t);
       out = const_cast<TokList **>(&(*out)->tail);
     } else if (!evaluateDirectives && matchId(ts, "__has_feature")) {
       expect(ts, TokenKind::T_LPAREN);
       auto id = expectId(ts);
       expect(ts, TokenKind::T_RPAREN);
-      auto t = new (&pool_) Tok();
-      t->kind = TokenKind::T_INTEGER_LITERAL;
-      t->text = string("1");
-      t->space = true;
+      auto t = Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, "1");
       *out = new (&pool_) TokList(t);
       out = const_cast<TokList **>(&(*out)->tail);
     } else {
@@ -997,7 +1011,7 @@ const TokList *Preprocessor::Private::instantiate(const TokList *ts,
                                                   const Hideset *hideset) {
   if (!ts) return nullptr;
 
-  return new (&pool_) TokList(new (&pool_) Tok(ts->head, hideset),
+  return new (&pool_) TokList(Tok::WithHideset(&pool_, ts->head, hideset),
                               instantiate(ts->tail, hideset));
 }
 
@@ -1048,11 +1062,14 @@ Preprocessor::Private::readArguments(const TokList *ts, const Macro *macro) {
 
 const Tok *Preprocessor::Private::stringize(const TokList *ts) {
   std::string s;
+
   for (; ts; ts = ts->tail) {
     if (!s.empty() && (ts->head->space || ts->head->bol)) s += ' ';
     s += ts->head->text;
   }
+
   std::string o;
+
   o += '"';
   for (auto c : s) {
     if (c == '\\')
@@ -1063,11 +1080,10 @@ const Tok *Preprocessor::Private::stringize(const TokList *ts) {
       o += c;
   }
   o += '"';
-  Tok *r = new (&pool_) Tok();
-  r->kind = TokenKind::T_STRING_LITERAL;
-  r->text = string(o);
-  r->space = true;
-  return r;
+
+  auto tk = Tok::Gen(&pool_, TokenKind::T_STRING_LITERAL, string(o));
+
+  return tk;
 }
 
 std::string_view Preprocessor::Private::string(std::string s) {
@@ -1122,17 +1138,12 @@ void Preprocessor::Private::defineMacro(const TokList *ts) {
 const Tok *Preprocessor::Private::merge(const Tok *left, const Tok *right) {
   if (!left) return right;
   if (!right) return left;
-  std::string_view text =
-      string(std::string(left->text) + std::string(right->text));
+  const auto hideset = makeIntersection(left->hideset, right->hideset);
+  auto text = string(std::string(left->text) + std::string(right->text));
   Lexer lex(text);
   lex.setPreprocessing(true);
   lex.next();
-  Tok *tok = new (&pool_) Tok();
-  tok->kind = lex.tokenKind();
-  tok->text = lex.tokenText();
-  tok->bol = left->bol;
-  tok->space = true;
-  tok->hideset = makeIntersection(left->hideset, right->hideset);
+  auto tok = Tok::Gen(&pool_, lex.tokenKind(), lex.tokenText(), hideset);
   return tok;
 }
 
