@@ -172,6 +172,7 @@ struct Tok final : Managed {
   Tok(const Tok *tok, const Hideset *hs) {
     kind = tok->kind;
     text = tok->text;
+    sourceFile = tok->sourceFile;
     bol = tok->bol;
     space = tok->space;
     hideset = hs;
@@ -1266,7 +1267,38 @@ void Preprocessor::preprocess(const std::string_view &source,
 
   std::swap(d->currentPath_, path);
 
-  d->print(os, out);
+  SourceFile *outFile = nullptr;
+  int outLine = -1;
+
+  const Tok *prevTk = nullptr;
+
+  for (auto it = os; it; it = it->tail) {
+    auto tk = it->head;
+    auto file = tk->sourceFile;
+    if ((tk->bol || it == os) && file) {
+      std::string_view fileName;
+      unsigned line = 0;
+      file->getTokenStartPosition(tk->offset, &line, nullptr, &fileName);
+      if (outFile == file && line == outLine) {
+        ++outLine;
+        fmt::print("\n");
+      } else {
+        if (it != os) fmt::print("\n");
+        if (file == outFile)
+          fmt::print("#line {}\n", line);
+        else
+          fmt::print("#line {} \"{}\"\n", line, fileName);
+        outLine = line + 1;
+        outFile = file;
+      }
+    } else if (needSpace(prevTk, tk) || tk->space ||
+               tk->sourceFile == nullptr) {
+      fmt::print(" ");
+    }
+    fmt::print("{}", tk->text);
+    prevTk = tk;
+  }
+
   fmt::print(out, "\n");
 }
 
