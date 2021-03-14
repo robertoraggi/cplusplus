@@ -30,11 +30,16 @@
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 
+// utf8
+#include <utf8.h>
+
 // stl
+#include <cassert>
 #include <filesystem>
 #include <forward_list>
 #include <fstream>
 #include <iostream>
+#include <list>
 #include <optional>
 #include <sstream>
 #include <unordered_map>
@@ -107,6 +112,8 @@ struct std::hash<Hideset> {
 
 namespace cxx {
 
+namespace {
+
 struct Tok final : Managed {
   std::string_view text;
   const Hideset *hideset = nullptr;
@@ -153,6 +160,64 @@ struct Macro {
   bool variadic = false;
 };
 
+struct SourceFile {
+  std::string fileName;
+  std::string source;
+  std::vector<int> lines;
+  TokList *tokens = nullptr;
+
+  SourceFile() noexcept = default;
+  SourceFile(const SourceFile &) noexcept = default;
+  SourceFile &operator=(const SourceFile &) noexcept = default;
+  SourceFile(SourceFile &&) noexcept = default;
+  SourceFile &operator=(SourceFile &&) noexcept = default;
+
+  SourceFile(std::string fileName, std::string source) noexcept
+      : fileName(std::move(fileName)), source(std::move(source)) {
+    initLineMap();
+  }
+
+  void getTokenStartPosition(unsigned offset, unsigned *line, unsigned *column,
+                             std::string_view *fileName) const {
+    auto it = std::lower_bound(lines.cbegin(), lines.cend(), int(offset));
+    assert(it != cbegin(lines));
+
+    --it;
+
+    assert(*it <= int(offset));
+
+    if (line) *line = int(std::distance(cbegin(lines), it) + 1);
+
+    if (column) {
+      const auto start = cbegin(source) + *it;
+      const auto end = cbegin(source) + offset;
+
+      *column = utf8::distance(start, end);
+    }
+
+    if (fileName) *fileName = this->fileName;
+  }
+
+ private:
+  void initLineMap() {
+    std::size_t offset = 0;
+
+    lines.push_back(-1);
+
+    while (offset < source.length()) {
+      const auto index = source.find_first_of('\n', offset);
+
+      if (index == std::string::npos) break;
+
+      lines.push_back(int(index));
+
+      offset = index + 1;
+    }
+  }
+};
+
+}  // namespace
+
 struct Preprocessor::Private {
   Control *control_ = nullptr;
   std::vector<fs::path> systemIncludePaths_;
@@ -162,6 +227,7 @@ struct Preprocessor::Private {
   std::forward_list<std::string> scratchBuffer_;
   std::unordered_set<std::string> pragmaOnceProtected_;
   std::unordered_map<std::string, std::string> ifndefProtectedFiles_;
+  std::list<SourceFile> sourceFiles_;
   fs::path currentPath_;
   std::vector<bool> evaluating_;
   std::vector<bool> skipping_;
@@ -489,8 +555,9 @@ void Preprocessor::Private::expand(const TokList *ts, bool evaluateDirectives,
         auto dirpath = *path;
         dirpath.remove_filename();
         std::swap(currentPath_, dirpath);
-        auto source = string(readFile(*path));
-        auto tokens = tokenize(source, true);
+        auto &sourceFile =
+            sourceFiles_.emplace_back(path->string(), readFile(*path));
+        auto tokens = tokenize(sourceFile.source, true);
         if (checkPragmaOnceProtected(tokens)) {
           pragmaOnceProtected_.insert(fn);
         }
