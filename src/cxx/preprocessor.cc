@@ -1409,6 +1409,10 @@ void Preprocessor::preprocess(const std::string_view &source,
   std::swap(d->currentPath_, path);
 }
 
+void Preprocessor::addSystemIncludePath(const std::string &path) {
+  d->systemIncludePaths_.push_back(path);
+}
+
 void Preprocessor::defineMacro(const std::string &name,
                                const std::string &body) {
   auto s = d->string(name + " " + body);

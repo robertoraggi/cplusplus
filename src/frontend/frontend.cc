@@ -121,6 +121,8 @@ int main(int argc, char* argv[]) {
       ("h,help", "Display this information")
       ("input", "Input Files", cxxopts::value<std::vector<std::string>>())
       ("E,preprocess", "Preprocess")
+      ("I", "Add directory to include search path", cxxopts::value<std::vector<std::string>>())
+      ("D","Define <macro> to <value> (or 1 if <value> omitted)", cxxopts::value<std::vector<std::string>>())
       ("preprocess-only", "Preprocess only")
       ("fpreprocessed", "Treat the input file as already preprocessed.", cxxopts::value<bool>()->default_value("true"))
       ("dump-macros", "Dump the macros")
@@ -158,6 +160,23 @@ int main(int argc, char* argv[]) {
 
       preprocess.addSystemIncludePaths();
       preprocess.addPredefinedMacros();
+
+      if (result.count("I")) {
+        for (const auto& path : result["I"].as<std::vector<std::string>>()) {
+          preprocess.addSystemIncludePath(path);
+        }
+      }
+
+      if (result.count("D")) {
+        for (const auto& macro : result["D"].as<std::vector<std::string>>()) {
+          auto sep = macro.find_first_of("=");
+          if (sep == std::string::npos) {
+            preprocess.defineMacro(macro, "1");
+          } else {
+            preprocess.defineMacro(macro.substr(0, sep), macro.substr(sep + 1));
+          }
+        }
+      }
 
       const auto source = readAll(fileName);
 

@@ -50,6 +50,8 @@ class Preprocessor {
 
   void addPredefinedMacros();
 
+  void addSystemIncludePath(const std::string &path);
+
   void defineMacro(const std::string &name, const std::string &body);
 
   void printMacros(std::ostream &out) const;
