@@ -1410,7 +1410,7 @@ void Preprocessor::preprocess(const std::string_view &source,
 }
 
 void Preprocessor::addSystemIncludePath(const std::string &path) {
-  d->systemIncludePaths_.push_back(path);
+  d->systemIncludePaths_.push_back(fs::absolute(path));
 }
 
 void Preprocessor::defineMacro(const std::string &name,

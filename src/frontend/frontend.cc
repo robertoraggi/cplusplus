@@ -32,8 +32,6 @@
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 
-#include <cxxopts.hpp>
-
 // std
 #include <cassert>
 #include <fstream>
@@ -41,6 +39,8 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+
+#include "cli.h"
 
 namespace cxx {
 
@@ -114,42 +114,29 @@ void dumpTokens(const std::string& fileName, bool preprocessed) {
 int main(int argc, char* argv[]) {
   using namespace cxx;
 
-  cxxopts::Options options("cxx-frontend", "cxx-frontend tool\n");
+  CLI cli;
+  cli.parse(argc, argv);
 
-  // clang-format off
-  options.add_options()
-      ("h,help", "Display this information")
-      ("input", "Input Files", cxxopts::value<std::vector<std::string>>())
-      ("E,preprocess", "Preprocess")
-      ("I", "Add directory to include search path", cxxopts::value<std::vector<std::string>>())
-      ("D","Define <macro> to <value> (or 1 if <value> omitted)", cxxopts::value<std::vector<std::string>>())
-      ("preprocess-only", "Preprocess only")
-      ("fpreprocessed", "Treat the input file as already preprocessed.", cxxopts::value<bool>()->default_value("true"))
-      ("dump-macros", "Dump the macros")
-      ("dump-tokens", "Dump the tokens")
-      ("dump-ast", "Dump the AST");
-  // clang-format on
-
-  options.positional_help("file...");
-  options.parse_positional("input");
-
-  auto result = options.parse(argc, argv);
-
-  if (result.count("help")) {
-    fmt::print("{}\n", options.help());
-    return 0;
+  if (cli.count("--help")) {
+    cli.showHelp();
+    exit(0);
   }
 
-  const auto& inputFiles = result["input"].as<std::vector<std::string>>();
-  const auto shouldDumpTokens = result["dump-tokens"].as<bool>();
-  const auto shouldDumpAST = result["dump-ast"].as<bool>();
-  const auto shouldPreprocess =
-      result["preprocess"].as<bool>() || result["preprocess-only"].as<bool>();
-  const auto preprocessed = result["fpreprocessed"].as<bool>();
+  // for (const auto& opt : cli) {
+  //   fmt::print("  {}\n", to_string(opt));
+  // }
+
+  const auto& inputFiles = cli.positionals();
+  const auto shouldDumpTokens = cli.count("-dump-tokens");
+  const auto shouldDumpMacros = cli.count("-dM");
+  const auto shouldDumpAST = cli.count("-ast-dump");
+  const auto preprocessOnly = cli.count("-Eonly");
+  const auto shouldPreprocess = preprocessOnly || cli.count("-E");
+  const auto preprocessed = cli.count("-fpreprocessed");
 
   if (inputFiles.empty()) {
     std::cerr << "cxx-frontend: no input files" << std::endl
-              << "Usage: cxx-frontend [OPTION...] file..." << std::endl;
+              << "Usage: cxx-frontend [options] file..." << std::endl;
     return EXIT_FAILURE;
   }
 
@@ -161,30 +148,25 @@ int main(int argc, char* argv[]) {
       preprocess.addSystemIncludePaths();
       preprocess.addPredefinedMacros();
 
-      if (result.count("I")) {
-        for (const auto& path : result["I"].as<std::vector<std::string>>()) {
-          preprocess.addSystemIncludePath(path);
-        }
+      for (const auto& path : cli.get("-I")) {
+        preprocess.addSystemIncludePath(path);
       }
 
-      if (result.count("D")) {
-        for (const auto& macro : result["D"].as<std::vector<std::string>>()) {
-          auto sep = macro.find_first_of("=");
-          if (sep == std::string::npos) {
-            preprocess.defineMacro(macro, "1");
-          } else {
-            preprocess.defineMacro(macro.substr(0, sep), macro.substr(sep + 1));
-          }
+      for (const auto& macro : cli.get("-D")) {
+        auto sep = macro.find_first_of("=");
+        if (sep == std::string::npos) {
+          preprocess.defineMacro(macro, "1");
+        } else {
+          preprocess.defineMacro(macro.substr(0, sep), macro.substr(sep + 1));
         }
       }
 
       const auto source = readAll(fileName);
 
-      if (result["preprocess-only"].as<bool>() ||
-          result["dump-macros"].as<bool>()) {
+      if (preprocessOnly || shouldDumpMacros) {
         std::vector<Token> tokens;
         preprocess.preprocess(source, fileName, tokens);
-        if (result["dump-macros"].as<bool>()) preprocess.printMacros(std::cout);
+        if (shouldDumpMacros) preprocess.printMacros(std::cout);
       } else {
         std::ostringstream out;
         preprocess(source, fileName, out);
@@ -193,7 +175,7 @@ int main(int argc, char* argv[]) {
     } else if (shouldDumpTokens)
       dumpTokens(fileName, preprocessed);
     else {
-      parseFile(fileName, preprocessed, shouldDumpAST);
+      parseFile(fileName, /*preprocessed=*/true, shouldDumpAST);
     }
   }
 
