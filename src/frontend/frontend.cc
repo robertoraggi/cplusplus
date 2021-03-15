@@ -60,12 +60,40 @@ std::string readAll(const std::string& fileName) {
   return readAll(fileName, stream);
 }
 
-bool parseFile(const std::string& fileName, bool preprocessed, bool printAST) {
+bool parseFile(const CLI& cli, const std::string& fileName, bool preprocessed,
+               bool printAST) {
+  std::string source = readAll(fileName);
+
+  if (!preprocessed) {
+    Control control;
+    Preprocessor preprocess(&control);
+
+    preprocess.addSystemIncludePaths();
+    preprocess.addPredefinedMacros();
+
+    for (const auto& path : cli.get("-I")) {
+      preprocess.addSystemIncludePath(path);
+    }
+
+    for (const auto& macro : cli.get("-D")) {
+      auto sep = macro.find_first_of("=");
+      if (sep == std::string::npos) {
+        preprocess.defineMacro(macro, "1");
+      } else {
+        preprocess.defineMacro(macro.substr(0, sep), macro.substr(sep + 1));
+      }
+    }
+
+    std::ostringstream out;
+    preprocess(source, fileName, out);
+    source = out.str();
+  }
+
   Control control;
   TranslationUnit unit(&control);
   unit.setFileName(fileName);
-  unit.setSource(readAll(fileName));
-  unit.setPreprocessed(preprocessed);
+  unit.setSource(std::move(source));
+  unit.setPreprocessed(true);
   const auto result = unit.parse();
   if (printAST) {
     ASTPrinter print(&unit);
@@ -172,10 +200,10 @@ int main(int argc, char* argv[]) {
         preprocess(source, fileName, out);
         fmt::print("{}\n", out.str());
       }
-    } else if (shouldDumpTokens)
+    } else if (shouldDumpTokens) {
       dumpTokens(fileName, preprocessed);
-    else {
-      parseFile(fileName, /*preprocessed=*/true, shouldDumpAST);
+    } else {
+      parseFile(cli, fileName, preprocessed, shouldDumpAST);
     }
   }
 

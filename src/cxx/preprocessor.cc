@@ -1281,21 +1281,21 @@ void Preprocessor::preprocess(const std::string_view &source,
       file->getTokenStartPosition(tk->offset, &line, nullptr, &fileName);
       if (outFile == file && line == outLine) {
         ++outLine;
-        fmt::print("\n");
+        fmt::print(out, "\n");
       } else {
-        if (it != os) fmt::print("\n");
+        if (it != os) fmt::print(out, "\n");
         if (file == outFile)
-          fmt::print("#line {}\n", line);
+          fmt::print(out, "#line {}\n", line);
         else
-          fmt::print("#line {} \"{}\"\n", line, fileName);
+          fmt::print(out, "#line {} \"{}\"\n", line, fileName);
         outLine = line + 1;
         outFile = file;
       }
     } else if (needSpace(prevTk, tk) || tk->space ||
                tk->sourceFile == nullptr) {
-      fmt::print(" ");
+      fmt::print(out, " ");
     }
-    fmt::print("{}", tk->text);
+    fmt::print(out, "{}", tk->text);
     prevTk = tk;
   }
 
@@ -1451,6 +1451,7 @@ void Preprocessor::addSystemIncludePaths() {
 
 void Preprocessor::addPredefinedMacros() {
   // clang-format off
+  defineMacro("__extension__", "");
   defineMacro("__amd64", "1");
   defineMacro("__amd64__", "1");
   defineMacro("__ATOMIC_ACQ_REL", "4");
