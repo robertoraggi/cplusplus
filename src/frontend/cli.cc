@@ -133,7 +133,7 @@ std::vector<std::string> CLI::get(const std::string& opt) const {
   std::vector<std::string> result;
   for (const auto& match : result_) {
     if (auto p = std::get_if<CLIOption>(&match)) {
-      result.push_back(std::get<1>(*p));
+      if (std::get<0>(*p) == opt) result.push_back(std::get<1>(*p));
     }
   }
   return result;
