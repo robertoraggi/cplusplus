@@ -1273,6 +1273,17 @@ void ASTSlot::visit(TryBlockStatementAST* ast) {
   }  // switch
 }
 
+void ASTSlot::visit(AccessDeclarationAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->accessLoc.index();
+      break;
+    case 1:
+      value_ = ast->colonLoc.index();
+      break;
+  }  // switch
+}
+
 void ASTSlot::visit(FunctionDefinitionAST* ast) {
   switch (slot_) {
     case 0:

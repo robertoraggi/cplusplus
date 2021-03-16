@@ -126,6 +126,7 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitTryBlockStatement(node: ast.TryBlockStatementAST, context: Context): Result;
 
     // DeclarationAST
+    abstract visitAccessDeclaration(node: ast.AccessDeclarationAST, context: Context): Result;
     abstract visitFunctionDefinition(node: ast.FunctionDefinitionAST, context: Context): Result;
     abstract visitConceptDefinition(node: ast.ConceptDefinitionAST, context: Context): Result;
     abstract visitForRangeDeclaration(node: ast.ForRangeDeclarationAST, context: Context): Result;

@@ -123,6 +123,7 @@ class ASTCloner : public ASTVisitor {
   void visit(DeclarationStatementAST* ast) override;
   void visit(TryBlockStatementAST* ast) override;
 
+  void visit(AccessDeclarationAST* ast) override;
   void visit(FunctionDefinitionAST* ast) override;
   void visit(ConceptDefinitionAST* ast) override;
   void visit(ForRangeDeclarationAST* ast) override;

@@ -1246,6 +1246,18 @@ SourceLocation TryBlockStatementAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation AccessDeclarationAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(accessLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation AccessDeclarationAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(accessLoc)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation FunctionDefinitionAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(declSpecifierList)) return loc;
   if (auto loc = cxx::firstSourceLocation(declarator)) return loc;

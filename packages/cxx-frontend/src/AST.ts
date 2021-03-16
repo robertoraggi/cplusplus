@@ -1465,6 +1465,18 @@ export class TryBlockStatementAST extends StatementAST {
     }
 }
 
+export class AccessDeclarationAST extends DeclarationAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitAccessDeclaration(this, context);
+    }
+    getAccessToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getColonToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+}
+
 export class FunctionDefinitionAST extends DeclarationAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitFunctionDefinition(this, context);
@@ -2642,6 +2654,7 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     CoroutineReturnStatementAST,
     DeclarationStatementAST,
     TryBlockStatementAST,
+    AccessDeclarationAST,
     FunctionDefinitionAST,
     ConceptDefinitionAST,
     ForRangeDeclarationAST,

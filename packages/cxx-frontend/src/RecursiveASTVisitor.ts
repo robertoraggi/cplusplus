@@ -450,6 +450,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         }
     }
 
+    visitAccessDeclaration(node: ast.AccessDeclarationAST, context: Context): void {
+    }
+
     visitFunctionDefinition(node: ast.FunctionDefinitionAST, context: Context): void {
         for (const element of node.getDeclSpecifierList()) {
              this.accept(element, context);

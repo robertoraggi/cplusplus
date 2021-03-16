@@ -1386,6 +1386,19 @@ class TryBlockStatementAST final : public StatementAST {
   SourceLocation lastSourceLocation() override;
 };
 
+class AccessDeclarationAST final : public DeclarationAST {
+ public:
+  AccessDeclarationAST() : DeclarationAST(ASTKind::AccessDeclaration) {}
+
+  SourceLocation accessLoc;
+  SourceLocation colonLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 class FunctionDefinitionAST final : public DeclarationAST {
  public:
   FunctionDefinitionAST() : DeclarationAST(ASTKind::FunctionDefinition) {}

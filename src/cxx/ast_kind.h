@@ -126,6 +126,7 @@ enum struct ASTKind {
   TryBlockStatement,
 
   // DeclarationAST
+  AccessDeclaration,
   FunctionDefinition,
   ConceptDefinition,
   ForRangeDeclaration,

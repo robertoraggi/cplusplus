@@ -130,6 +130,7 @@ class ASTVisitor {
   virtual void visit(TryBlockStatementAST* ast) = 0;
 
   // DeclarationAST
+  virtual void visit(AccessDeclarationAST* ast) = 0;
   virtual void visit(FunctionDefinitionAST* ast) = 0;
   virtual void visit(ConceptDefinitionAST* ast) = 0;
   virtual void visit(ForRangeDeclarationAST* ast) = 0;

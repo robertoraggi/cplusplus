@@ -144,6 +144,7 @@ class DeclarationStatementAST;
 class TryBlockStatementAST;
 
 // DeclarationAST
+class AccessDeclarationAST;
 class FunctionDefinitionAST;
 class ConceptDefinitionAST;
 class ForRangeDeclarationAST;

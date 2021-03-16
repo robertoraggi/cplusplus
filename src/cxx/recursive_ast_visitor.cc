@@ -386,6 +386,8 @@ void RecursiveASTVisitor::visit(TryBlockStatementAST* ast) {
   for (auto it = ast->handlerList; it; it = it->next) handler(it->value);
 }
 
+void RecursiveASTVisitor::visit(AccessDeclarationAST* ast) {}
+
 void RecursiveASTVisitor::visit(FunctionDefinitionAST* ast) {
   for (auto it = ast->declSpecifierList; it; it = it->next)
     specifier(it->value);

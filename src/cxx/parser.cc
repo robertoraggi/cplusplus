@@ -5901,8 +5901,15 @@ bool Parser::parse_member_specification(DeclarationAST*& yyast) {
 bool Parser::parse_member_declaration(DeclarationAST*& yyast) {
   const auto start = currentLocation();
 
-  if (parse_access_specifier()) {
-    expect(TokenKind::T_COLON);
+  SourceLocation accessLoc;
+
+  if (parse_access_specifier(accessLoc)) {
+    auto ast = new (pool) AccessDeclarationAST();
+    yyast = ast;
+
+    ast->accessLoc = accessLoc;
+    expect(TokenKind::T_COLON, ast->colonLoc);
+
     return true;
   }
 
@@ -6241,16 +6248,13 @@ bool Parser::parse_base_specifier(BaseSpecifierAST*& yyast) {
 
   parse_attribute_specifier_seq(ast->attributeList);
 
-  bool has_virtual = match(TokenKind::T_VIRTUAL);
+  SourceLocation virtualLoc;
+  SourceLocation accessLoc;
 
-  bool has_access_specifier = false;
-
-  if (has_virtual)
-    has_access_specifier = parse_access_specifier();
-  else if (parse_access_specifier()) {
-    has_virtual = match(TokenKind::T_VIRTUAL);
-    has_access_specifier = true;
-  }
+  if (match(TokenKind::T_VIRTUAL, virtualLoc))
+    parse_access_specifier(accessLoc);
+  else if (parse_access_specifier(accessLoc))
+    match(TokenKind::T_VIRTUAL, virtualLoc);
 
   if (!parse_class_or_decltype(ast->name)) return false;
 
@@ -6308,12 +6312,12 @@ bool Parser::parse_class_or_decltype(NameAST*& yyast) {
   return parse_type_name(yyast);
 }
 
-bool Parser::parse_access_specifier() {
+bool Parser::parse_access_specifier(SourceLocation& loc) {
   switch (TokenKind(LA())) {
     case TokenKind::T_PRIVATE:
     case TokenKind::T_PROTECTED:
     case TokenKind::T_PUBLIC:
-      consumeToken();
+      loc = consumeToken();
       return true;
 
     default:

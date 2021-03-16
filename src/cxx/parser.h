@@ -376,7 +376,7 @@ class Parser {
   bool parse_base_specifier_list(List<BaseSpecifierAST*>*& yyast);
   bool parse_base_specifier(BaseSpecifierAST*& yyast);
   bool parse_class_or_decltype(NameAST*& yyast);
-  bool parse_access_specifier();
+  bool parse_access_specifier(SourceLocation& loc);
   bool parse_ctor_initializer();
   bool parse_mem_initializer_list();
   bool parse_mem_initializer();

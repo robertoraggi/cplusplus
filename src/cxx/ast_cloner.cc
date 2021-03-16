@@ -1268,6 +1268,15 @@ void ASTCloner::visit(TryBlockStatementAST* ast) {
   }
 }
 
+void ASTCloner::visit(AccessDeclarationAST* ast) {
+  auto copy = new (arena_) AccessDeclarationAST();
+  copy_ = copy;
+
+  copy->accessLoc = ast->accessLoc;
+
+  copy->colonLoc = ast->colonLoc;
+}
+
 void ASTCloner::visit(FunctionDefinitionAST* ast) {
   auto copy = new (arena_) FunctionDefinitionAST();
   copy_ = copy;

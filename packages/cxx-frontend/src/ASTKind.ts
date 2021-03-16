@@ -122,6 +122,7 @@ export enum ASTKind {
     TryBlockStatement,
 
     // DeclarationAST
+    AccessDeclaration,
     FunctionDefinition,
     ConceptDefinition,
     ForRangeDeclaration,
