@@ -84,6 +84,7 @@ export abstract class DeclarationAST extends AST { }
 export abstract class DeclaratorModifierAST extends AST { }
 export abstract class ExceptionDeclarationAST extends AST { }
 export abstract class ExpressionAST extends AST { }
+export abstract class FunctionBodyAST extends AST { }
 export abstract class InitializerAST extends AST { }
 export abstract class LambdaCaptureAST extends AST { }
 export abstract class MemInitializerAST extends AST { }
@@ -153,8 +154,8 @@ export class HandlerAST extends AST {
     getRparenToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
     }
-    getStatement(): StatementAST | undefined {
-        return AST.from<StatementAST>(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+    getStatement(): CompoundStatementAST | undefined {
+        return AST.from<CompoundStatementAST>(cxx.getASTSlot(this.getHandle(), 4), this.parser);
     }
 }
 
@@ -609,6 +610,68 @@ export class TypeExceptionDeclarationAST extends ExceptionDeclarationAST {
     }
 }
 
+export class DefaultFunctionBodyAST extends FunctionBodyAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitDefaultFunctionBody(this, context);
+    }
+    getEqualToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getDefaultToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getSemicolonToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+}
+
+export class CompoundStatementFunctionBodyAST extends FunctionBodyAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitCompoundStatementFunctionBody(this, context);
+    }
+    getCtorInitializer(): CtorInitializerAST | undefined {
+        return AST.from<CtorInitializerAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getStatement(): CompoundStatementAST | undefined {
+        return AST.from<CompoundStatementAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+}
+
+export class TryStatementFunctionBodyAST extends FunctionBodyAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitTryStatementFunctionBody(this, context);
+    }
+    getTryToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getCtorInitializer(): CtorInitializerAST | undefined {
+        return AST.from<CtorInitializerAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getStatement(): CompoundStatementAST | undefined {
+        return AST.from<CompoundStatementAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    *getHandlerList(): Generator<HandlerAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 3); it; it = cxx.getListNext(it)) {
+            yield AST.from<HandlerAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+}
+
+export class DeleteFunctionBodyAST extends FunctionBodyAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitDeleteFunctionBody(this, context);
+    }
+    getEqualToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getDeleteToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getSemicolonToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+}
+
 export class TranslationUnitAST extends UnitAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitTranslationUnit(this, context);
@@ -809,8 +872,8 @@ export class LambdaExpressionAST extends ExpressionAST {
     getLambdaDeclarator(): LambdaDeclaratorAST | undefined {
         return AST.from<LambdaDeclaratorAST>(cxx.getASTSlot(this.getHandle(), 4), this.parser);
     }
-    getStatement(): StatementAST | undefined {
-        return AST.from<StatementAST>(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+    getStatement(): CompoundStatementAST | undefined {
+        return AST.from<CompoundStatementAST>(cxx.getASTSlot(this.getHandle(), 5), this.parser);
     }
 }
 
@@ -1508,8 +1571,8 @@ export class TryBlockStatementAST extends StatementAST {
     getTryToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
     }
-    getStatement(): StatementAST | undefined {
-        return AST.from<StatementAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    getStatement(): CompoundStatementAST | undefined {
+        return AST.from<CompoundStatementAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
     }
     *getHandlerList(): Generator<HandlerAST | undefined> {
         for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
@@ -1542,8 +1605,8 @@ export class FunctionDefinitionAST extends DeclarationAST {
     getDeclarator(): DeclaratorAST | undefined {
         return AST.from<DeclaratorAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
     }
-    getFunctionBody(): StatementAST | undefined {
-        return AST.from<StatementAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    getFunctionBody(): FunctionBodyAST | undefined {
+        return AST.from<FunctionBodyAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
     }
 }
 
@@ -2655,6 +2718,10 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     NewBracedInitializerAST,
     EllipsisExceptionDeclarationAST,
     TypeExceptionDeclarationAST,
+    DefaultFunctionBodyAST,
+    CompoundStatementFunctionBodyAST,
+    TryStatementFunctionBodyAST,
+    DeleteFunctionBodyAST,
     TranslationUnitAST,
     ModuleUnitAST,
     ThisExpressionAST,

@@ -69,6 +69,12 @@ enum struct ASTKind {
   EllipsisExceptionDeclaration,
   TypeExceptionDeclaration,
 
+  // FunctionBodyAST
+  DefaultFunctionBody,
+  CompoundStatementFunctionBody,
+  TryStatementFunctionBody,
+  DeleteFunctionBody,
+
   // UnitAST
   TranslationUnit,
   ModuleUnit,

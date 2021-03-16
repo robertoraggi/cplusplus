@@ -33,6 +33,7 @@ class DeclarationAST;
 class DeclaratorModifierAST;
 class ExceptionDeclarationAST;
 class ExpressionAST;
+class FunctionBodyAST;
 class InitializerAST;
 class LambdaCaptureAST;
 class MemInitializerAST;
@@ -87,6 +88,12 @@ class NewBracedInitializerAST;
 // ExceptionDeclarationAST
 class EllipsisExceptionDeclarationAST;
 class TypeExceptionDeclarationAST;
+
+// FunctionBodyAST
+class DefaultFunctionBodyAST;
+class CompoundStatementFunctionBodyAST;
+class TryStatementFunctionBodyAST;
+class DeleteFunctionBodyAST;
 
 // UnitAST
 class TranslationUnitAST;

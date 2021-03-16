@@ -84,6 +84,11 @@ class ASTPrinter : ASTVisitor {
   void visit(EllipsisExceptionDeclarationAST* ast) override;
   void visit(TypeExceptionDeclarationAST* ast) override;
 
+  void visit(DefaultFunctionBodyAST* ast) override;
+  void visit(CompoundStatementFunctionBodyAST* ast) override;
+  void visit(TryStatementFunctionBodyAST* ast) override;
+  void visit(DeleteFunctionBodyAST* ast) override;
+
   void visit(TranslationUnitAST* ast) override;
   void visit(ModuleUnitAST* ast) override;
 

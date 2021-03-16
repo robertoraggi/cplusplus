@@ -73,6 +73,12 @@ class ASTVisitor {
   virtual void visit(EllipsisExceptionDeclarationAST* ast) = 0;
   virtual void visit(TypeExceptionDeclarationAST* ast) = 0;
 
+  // FunctionBodyAST
+  virtual void visit(DefaultFunctionBodyAST* ast) = 0;
+  virtual void visit(CompoundStatementFunctionBodyAST* ast) = 0;
+  virtual void visit(TryStatementFunctionBodyAST* ast) = 0;
+  virtual void visit(DeleteFunctionBodyAST* ast) = 0;
+
   // UnitAST
   virtual void visit(TranslationUnitAST* ast) = 0;
   virtual void visit(ModuleUnitAST* ast) = 0;

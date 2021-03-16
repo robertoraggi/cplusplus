@@ -1137,6 +1137,130 @@ void ASTPrinter::visit(TypeExceptionDeclarationAST* ast) {
   }
 }
 
+void ASTPrinter::visit(DefaultFunctionBodyAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "DefaultFunctionBody";
+
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
+
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
+
+      json_["$range"] = range;
+    }
+  }
+}
+
+void ASTPrinter::visit(CompoundStatementFunctionBodyAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "CompoundStatementFunctionBody";
+
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
+
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
+
+      json_["$range"] = range;
+    }
+  }
+
+  if (ast->ctorInitializer) {
+    json_["ctorInitializer"] = accept(ast->ctorInitializer);
+  }
+
+  if (ast->statement) {
+    json_["statement"] = accept(ast->statement);
+  }
+}
+
+void ASTPrinter::visit(TryStatementFunctionBodyAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "TryStatementFunctionBody";
+
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
+
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
+
+      json_["$range"] = range;
+    }
+  }
+
+  if (ast->ctorInitializer) {
+    json_["ctorInitializer"] = accept(ast->ctorInitializer);
+  }
+
+  if (ast->statement) {
+    json_["statement"] = accept(ast->statement);
+  }
+
+  if (ast->handlerList) {
+    auto elements = nlohmann::json::array();
+    for (auto it = ast->handlerList; it; it = it->next) {
+      elements.push_back(accept(it->value));
+    }
+    json_["handlerList"] = elements;
+  }
+}
+
+void ASTPrinter::visit(DeleteFunctionBodyAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "DeleteFunctionBody";
+
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
+
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
+
+      json_["$range"] = range;
+    }
+  }
+}
+
 void ASTPrinter::visit(TranslationUnitAST* ast) {
   json_ = nlohmann::json::object();
 

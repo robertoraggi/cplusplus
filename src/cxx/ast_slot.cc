@@ -474,6 +474,62 @@ void ASTSlot::visit(TypeExceptionDeclarationAST* ast) {
   }  // switch
 }
 
+void ASTSlot::visit(DefaultFunctionBodyAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->equalLoc.index();
+      break;
+    case 1:
+      value_ = ast->defaultLoc.index();
+      break;
+    case 2:
+      value_ = ast->semicolonLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(CompoundStatementFunctionBodyAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = reinterpret_cast<std::intptr_t>(ast->ctorInitializer);
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->statement);
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(TryStatementFunctionBodyAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->tryLoc.index();
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->ctorInitializer);
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->statement);
+      break;
+    case 3:
+      value_ = reinterpret_cast<std::intptr_t>(ast->handlerList);
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(DeleteFunctionBodyAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->equalLoc.index();
+      break;
+    case 1:
+      value_ = ast->deleteLoc.index();
+      break;
+    case 2:
+      value_ = ast->semicolonLoc.index();
+      break;
+  }  // switch
+}
+
 void ASTSlot::visit(TranslationUnitAST* ast) {
   switch (slot_) {
     case 0:

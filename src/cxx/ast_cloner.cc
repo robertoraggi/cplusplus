@@ -531,6 +531,57 @@ void ASTCloner::visit(TypeExceptionDeclarationAST* ast) {
   copy->declarator = accept(ast->declarator);
 }
 
+void ASTCloner::visit(DefaultFunctionBodyAST* ast) {
+  auto copy = new (arena_) DefaultFunctionBodyAST();
+  copy_ = copy;
+
+  copy->equalLoc = ast->equalLoc;
+
+  copy->defaultLoc = ast->defaultLoc;
+
+  copy->semicolonLoc = ast->semicolonLoc;
+}
+
+void ASTCloner::visit(CompoundStatementFunctionBodyAST* ast) {
+  auto copy = new (arena_) CompoundStatementFunctionBodyAST();
+  copy_ = copy;
+
+  copy->ctorInitializer = accept(ast->ctorInitializer);
+
+  copy->statement = accept(ast->statement);
+}
+
+void ASTCloner::visit(TryStatementFunctionBodyAST* ast) {
+  auto copy = new (arena_) TryStatementFunctionBodyAST();
+  copy_ = copy;
+
+  copy->tryLoc = ast->tryLoc;
+
+  copy->ctorInitializer = accept(ast->ctorInitializer);
+
+  copy->statement = accept(ast->statement);
+
+  if (auto it = ast->handlerList) {
+    auto out = &copy->handlerList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+}
+
+void ASTCloner::visit(DeleteFunctionBodyAST* ast) {
+  auto copy = new (arena_) DeleteFunctionBodyAST();
+  copy_ = copy;
+
+  copy->equalLoc = ast->equalLoc;
+
+  copy->deleteLoc = ast->deleteLoc;
+
+  copy->semicolonLoc = ast->semicolonLoc;
+}
+
 void ASTCloner::visit(TranslationUnitAST* ast) {
   auto copy = new (arena_) TranslationUnitAST();
   copy_ = copy;

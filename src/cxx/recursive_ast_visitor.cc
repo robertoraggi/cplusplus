@@ -46,7 +46,7 @@ void RecursiveASTVisitor::visit(UsingDeclaratorAST* ast) {
 
 void RecursiveASTVisitor::visit(HandlerAST* ast) {
   exceptionDeclaration(ast->exceptionDeclaration);
-  statement(ast->statement);
+  compoundStatement(ast->statement);
 }
 
 void RecursiveASTVisitor::visit(TemplateArgumentAST* ast) {}
@@ -176,6 +176,21 @@ void RecursiveASTVisitor::visit(TypeExceptionDeclarationAST* ast) {
   declarator(ast->declarator);
 }
 
+void RecursiveASTVisitor::visit(DefaultFunctionBodyAST* ast) {}
+
+void RecursiveASTVisitor::visit(CompoundStatementFunctionBodyAST* ast) {
+  ctorInitializer(ast->ctorInitializer);
+  compoundStatement(ast->statement);
+}
+
+void RecursiveASTVisitor::visit(TryStatementFunctionBodyAST* ast) {
+  ctorInitializer(ast->ctorInitializer);
+  compoundStatement(ast->statement);
+  for (auto it = ast->handlerList; it; it = it->next) handler(it->value);
+}
+
+void RecursiveASTVisitor::visit(DeleteFunctionBodyAST* ast) {}
+
 void RecursiveASTVisitor::visit(TranslationUnitAST* ast) {
   for (auto it = ast->declarationList; it; it = it->next)
     declaration(it->value);
@@ -223,7 +238,7 @@ void RecursiveASTVisitor::visit(LambdaExpressionAST* ast) {
   for (auto it = ast->templateParameterList; it; it = it->next)
     declaration(it->value);
   lambdaDeclarator(ast->lambdaDeclarator);
-  statement(ast->statement);
+  compoundStatement(ast->statement);
 }
 
 void RecursiveASTVisitor::visit(SizeofExpressionAST* ast) {
@@ -397,7 +412,7 @@ void RecursiveASTVisitor::visit(DeclarationStatementAST* ast) {
 }
 
 void RecursiveASTVisitor::visit(TryBlockStatementAST* ast) {
-  statement(ast->statement);
+  compoundStatement(ast->statement);
   for (auto it = ast->handlerList; it; it = it->next) handler(it->value);
 }
 
@@ -407,7 +422,7 @@ void RecursiveASTVisitor::visit(FunctionDefinitionAST* ast) {
   for (auto it = ast->declSpecifierList; it; it = it->next)
     specifier(it->value);
   declarator(ast->declarator);
-  statement(ast->functionBody);
+  functionBody(ast->functionBody);
 }
 
 void RecursiveASTVisitor::visit(ConceptDefinitionAST* ast) {

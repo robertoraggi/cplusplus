@@ -2384,8 +2384,14 @@ bool Parser::parse_statement(StatementAST*& yyast) {
       return parse_coroutine_return_statement(yyast);
     case TokenKind::T_TRY:
       return parse_try_block(yyast);
-    case TokenKind::T_LBRACE:
-      return parse_compound_statement(yyast);
+    case TokenKind::T_LBRACE: {
+      CompoundStatementAST* statement = nullptr;
+      if (parse_compound_statement(statement)) {
+        yyast = statement;
+        return true;
+      }
+      return false;
+    }
     default:
       if (LA().is(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_COLON)) {
         return parse_labeled_statement(yyast);
@@ -2540,7 +2546,7 @@ bool Parser::parse_expression_statement(StatementAST*& yyast) {
   return true;
 }
 
-bool Parser::parse_compound_statement(StatementAST*& yyast, bool skip) {
+bool Parser::parse_compound_statement(CompoundStatementAST*& yyast, bool skip) {
   SourceLocation lbraceLoc;
 
   if (!match(TokenKind::T_LBRACE, lbraceLoc)) return false;
@@ -3090,7 +3096,7 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
     if (parse_parameters_and_qualifiers(parametersAndQualifiers)) {
       if (match(TokenKind::T_SEMICOLON)) return true;
 
-      StatementAST* functionBody = nullptr;
+      FunctionBodyAST* functionBody = nullptr;
 
       if (fundef && parse_function_definition_body(functionBody)) {
         auto declarator = new (pool) DeclaratorAST();
@@ -3163,7 +3169,7 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
   const auto after_declarator = currentLocation();
 
   if (fundef && getFunctionDeclarator(declarator)) {
-    StatementAST* functionBody = nullptr;
+    FunctionBodyAST* functionBody = nullptr;
 
     if (parse_function_definition_body(functionBody)) {
       auto ast = new (pool) FunctionDefinitionAST();
@@ -3216,7 +3222,7 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
   return true;
 }
 
-bool Parser::parse_function_definition_body(StatementAST*& yyast) {
+bool Parser::parse_function_definition_body(FunctionBodyAST*& yyast) {
   if (parse_requires_clause()) {
     //
   } else {
@@ -4886,19 +4892,39 @@ bool Parser::parse_virt_specifier_seq() {
   return true;
 }
 
-bool Parser::parse_function_body(StatementAST*& yyast) {
+bool Parser::parse_function_body(FunctionBodyAST*& yyast) {
   if (LA().is(TokenKind::T_SEMICOLON)) return false;
 
   if (parse_function_try_block(yyast)) return true;
 
-  if (match(TokenKind::T_EQUAL)) {
-    if (match(TokenKind::T_DEFAULT)) {
-      expect(TokenKind::T_SEMICOLON);
+  SourceLocation equalLoc;
+
+  if (match(TokenKind::T_EQUAL, equalLoc)) {
+    SourceLocation defaultLoc;
+
+    if (match(TokenKind::T_DEFAULT, defaultLoc)) {
+      auto ast = new (pool) DefaultFunctionBodyAST();
+      yyast = ast;
+
+      ast->equalLoc = equalLoc;
+      ast->defaultLoc = defaultLoc;
+
+      expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
+
       return true;
     }
 
-    if (match(TokenKind::T_DELETE)) {
-      expect(TokenKind::T_SEMICOLON);
+    SourceLocation deleteLoc;
+
+    if (match(TokenKind::T_DELETE, deleteLoc)) {
+      auto ast = new (pool) DeleteFunctionBodyAST();
+      yyast = ast;
+
+      ast->equalLoc = equalLoc;
+      ast->deleteLoc = deleteLoc;
+
+      expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
+
       return true;
     }
 
@@ -4911,9 +4937,14 @@ bool Parser::parse_function_body(StatementAST*& yyast) {
 
   if (LA().isNot(TokenKind::T_LBRACE)) return false;
 
+  auto ast = new (pool) CompoundStatementFunctionBodyAST();
+  yyast = ast;
+
+  ast->ctorInitializer = ctorInitializer;
+
   const bool skip = skip_function_body || classDepth > 0;
 
-  if (!parse_compound_statement(yyast, skip))
+  if (!parse_compound_statement(ast->statement, skip))
     parse_error("expected a compound statement");
 
   return true;
@@ -5992,7 +6023,7 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
     if (parse_parameters_and_qualifiers(parametersAndQualifiers)) {
       const auto after_parameters = currentLocation();
 
-      StatementAST* functionBody = nullptr;
+      FunctionBodyAST* functionBody = nullptr;
 
       if (parse_member_function_definition_body(functionBody)) {
         DeclaratorAST* declarator = new (pool) DeclaratorAST();
@@ -6045,7 +6076,7 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
   DeclaratorAST* declarator = nullptr;
 
   if (parse_declarator(declarator) && getFunctionDeclarator(declarator)) {
-    StatementAST* functionBody = nullptr;
+    FunctionBodyAST* functionBody = nullptr;
 
     if (parse_member_function_definition_body(functionBody)) {
       auto ast = new (pool) FunctionDefinitionAST();
@@ -6073,7 +6104,7 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
   return true;
 }
 
-bool Parser::parse_member_function_definition_body(StatementAST*& yyast) {
+bool Parser::parse_member_function_definition_body(FunctionBodyAST*& yyast) {
   const auto has_requires_clause = parse_requires_clause();
 
   bool has_virt_specifier_seq = false;
@@ -7205,24 +7236,25 @@ bool Parser::parse_try_block(StatementAST*& yyast) {
   return true;
 }
 
-bool Parser::parse_function_try_block(StatementAST*& yyast) {
-  if (!match(TokenKind::T_TRY)) return false;
+bool Parser::parse_function_try_block(FunctionBodyAST*& yyast) {
+  SourceLocation tryLoc;
 
-  CtorInitializerAST* ctorInitializer = nullptr;
+  if (!match(TokenKind::T_TRY, tryLoc)) return false;
+
+  auto ast = new (pool) TryStatementFunctionBodyAST();
+  yyast = ast;
+
+  ast->tryLoc = tryLoc;
 
   if (LA().isNot(TokenKind::T_LBRACE)) {
-    if (!parse_ctor_initializer(ctorInitializer))
+    if (!parse_ctor_initializer(ast->ctorInitializer))
       parse_error("expected a ctor initializer");
   }
 
-  StatementAST* statement = nullptr;
-
-  if (!parse_compound_statement(statement))
+  if (!parse_compound_statement(ast->statement))
     parse_error("expected a compound statement");
 
-  List<HandlerAST*>* handlerList = nullptr;
-
-  if (!parse_handler_seq(handlerList))
+  if (!parse_handler_seq(ast->handlerList))
     parse_error("expected an exception handler");
 
   return true;
@@ -7344,13 +7376,14 @@ void Parser::completeFunctionDefinition(FunctionDefinitionAST* ast) {
   if (!ast->functionBody) return;
 
   if (ast->functionBody->kind() == ASTKind::CompoundStatement) {
-    auto functionBody = static_cast<CompoundStatementAST*>(ast->functionBody);
+    auto functionBody =
+        static_cast<CompoundStatementFunctionBodyAST*>(ast->functionBody);
 
     const auto saved = currentLocation();
 
-    rewind(functionBody->lbraceLoc.next());
+    rewind(functionBody->statement->lbraceLoc.next());
 
-    finish_compound_statement(functionBody);
+    finish_compound_statement(functionBody->statement);
 
     rewind(saved);
   }

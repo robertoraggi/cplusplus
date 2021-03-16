@@ -212,7 +212,8 @@ class Parser {
   bool parse_case_statement(StatementAST*& yyast);
   bool parse_default_statement(StatementAST*& yyast);
   bool parse_expression_statement(StatementAST*& yyast);
-  bool parse_compound_statement(StatementAST*& yyast, bool skip = false);
+  bool parse_compound_statement(CompoundStatementAST*& yyast,
+                                bool skip = false);
   void finish_compound_statement(CompoundStatementAST* yyast);
   bool parse_skip_statement(bool& skipping);
   bool parse_if_statement(StatementAST*& yyast);
@@ -234,7 +235,7 @@ class Parser {
   bool parse_block_declaration(DeclarationAST*& yyast, bool fundef);
   bool parse_alias_declaration(DeclarationAST*& yyast);
   bool parse_simple_declaration(DeclarationAST*& yyast, bool fundef);
-  bool parse_function_definition_body(StatementAST*& yyast);
+  bool parse_function_definition_body(FunctionBodyAST*& yyast);
   bool parse_static_assert_declaration(DeclarationAST*& yyast);
   bool parse_string_literal_seq(List<SourceLocation>*& yyast);
   bool parse_empty_declaration(DeclarationAST*& yyast);
@@ -303,7 +304,7 @@ class Parser {
   bool parse_designator();
   bool parse_expr_or_braced_init_list(ExpressionAST*& yyast);
   bool parse_virt_specifier_seq();
-  bool parse_function_body(StatementAST*& yyast);
+  bool parse_function_body(FunctionBodyAST*& yyast);
   bool parse_enum_specifier(SpecifierAST*& yyast);
   bool parse_enum_head_name(NestedNameSpecifierAST*& nestedNameSpecifier,
                             NameAST*& name);
@@ -363,7 +364,7 @@ class Parser {
   bool parse_member_declaration(DeclarationAST*& yyast);
   bool parse_maybe_template_member();
   bool parse_member_declaration_helper(DeclarationAST*& yyast);
-  bool parse_member_function_definition_body(StatementAST*& yyast);
+  bool parse_member_function_definition_body(FunctionBodyAST*& yyast);
   bool parse_member_declarator_modifier();
   bool parse_member_declarator_list(List<DeclaratorAST*>*& yyast);
   bool parse_member_declarator(DeclaratorAST*& yyast);
@@ -412,7 +413,7 @@ class Parser {
   bool parse_explicit_instantiation(DeclarationAST*& yyast);
   bool parse_explicit_specialization(DeclarationAST*& yyast);
   bool parse_try_block(StatementAST*& yyast);
-  bool parse_function_try_block(StatementAST*& yyast);
+  bool parse_function_try_block(FunctionBodyAST*& yyast);
   bool parse_handler(HandlerAST*& yyast);
   bool parse_handler_seq(List<HandlerAST*>*& yyast);
   bool parse_exception_declaration(ExceptionDeclarationAST*& yyast);

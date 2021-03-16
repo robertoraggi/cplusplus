@@ -124,6 +124,11 @@ class ExpressionAST : public AST {
   const Type* type = nullptr;
 };
 
+class FunctionBodyAST : public AST {
+ public:
+  using AST::AST;
+};
+
 class InitializerAST : public AST {
  public:
   using AST::AST;
@@ -218,7 +223,7 @@ class HandlerAST final : public AST {
   SourceLocation lparenLoc;
   ExceptionDeclarationAST* exceptionDeclaration = nullptr;
   SourceLocation rparenLoc;
-  StatementAST* statement = nullptr;
+  CompoundStatementAST* statement = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -628,6 +633,64 @@ class TypeExceptionDeclarationAST final : public ExceptionDeclarationAST {
   SourceLocation lastSourceLocation() override;
 };
 
+class DefaultFunctionBodyAST final : public FunctionBodyAST {
+ public:
+  DefaultFunctionBodyAST() : FunctionBodyAST(ASTKind::DefaultFunctionBody) {}
+
+  SourceLocation equalLoc;
+  SourceLocation defaultLoc;
+  SourceLocation semicolonLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+class CompoundStatementFunctionBodyAST final : public FunctionBodyAST {
+ public:
+  CompoundStatementFunctionBodyAST()
+      : FunctionBodyAST(ASTKind::CompoundStatementFunctionBody) {}
+
+  CtorInitializerAST* ctorInitializer = nullptr;
+  CompoundStatementAST* statement = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+class TryStatementFunctionBodyAST final : public FunctionBodyAST {
+ public:
+  TryStatementFunctionBodyAST()
+      : FunctionBodyAST(ASTKind::TryStatementFunctionBody) {}
+
+  SourceLocation tryLoc;
+  CtorInitializerAST* ctorInitializer = nullptr;
+  CompoundStatementAST* statement = nullptr;
+  List<HandlerAST*>* handlerList = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+class DeleteFunctionBodyAST final : public FunctionBodyAST {
+ public:
+  DeleteFunctionBodyAST() : FunctionBodyAST(ASTKind::DeleteFunctionBody) {}
+
+  SourceLocation equalLoc;
+  SourceLocation deleteLoc;
+  SourceLocation semicolonLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 class TranslationUnitAST final : public UnitAST {
  public:
   TranslationUnitAST() : UnitAST(ASTKind::TranslationUnit) {}
@@ -839,7 +902,7 @@ class LambdaExpressionAST final : public ExpressionAST {
   List<DeclarationAST*>* templateParameterList = nullptr;
   SourceLocation greaterLoc;
   LambdaDeclaratorAST* lambdaDeclarator = nullptr;
-  StatementAST* statement = nullptr;
+  CompoundStatementAST* statement = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1426,7 +1489,7 @@ class TryBlockStatementAST final : public StatementAST {
   TryBlockStatementAST() : StatementAST(ASTKind::TryBlockStatement) {}
 
   SourceLocation tryLoc;
-  StatementAST* statement = nullptr;
+  CompoundStatementAST* statement = nullptr;
   List<HandlerAST*>* handlerList = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -1454,7 +1517,7 @@ class FunctionDefinitionAST final : public DeclarationAST {
 
   List<SpecifierAST*>* declSpecifierList = nullptr;
   DeclaratorAST* declarator = nullptr;
-  StatementAST* functionBody = nullptr;
+  FunctionBodyAST* functionBody = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

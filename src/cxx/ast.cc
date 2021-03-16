@@ -474,6 +474,62 @@ SourceLocation TypeExceptionDeclarationAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation DefaultFunctionBodyAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(equalLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(defaultLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation DefaultFunctionBodyAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(defaultLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(equalLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation CompoundStatementFunctionBodyAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(ctorInitializer)) return loc;
+  if (auto loc = cxx::firstSourceLocation(statement)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation CompoundStatementFunctionBodyAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(statement)) return loc;
+  if (auto loc = cxx::lastSourceLocation(ctorInitializer)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation TryStatementFunctionBodyAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(tryLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(ctorInitializer)) return loc;
+  if (auto loc = cxx::firstSourceLocation(statement)) return loc;
+  if (auto loc = cxx::firstSourceLocation(handlerList)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation TryStatementFunctionBodyAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(handlerList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(statement)) return loc;
+  if (auto loc = cxx::lastSourceLocation(ctorInitializer)) return loc;
+  if (auto loc = cxx::lastSourceLocation(tryLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation DeleteFunctionBodyAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(equalLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(deleteLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation DeleteFunctionBodyAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(deleteLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(equalLoc)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation TranslationUnitAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(declarationList)) return loc;
   return SourceLocation();

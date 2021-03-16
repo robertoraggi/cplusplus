@@ -42,7 +42,9 @@ class RecursiveASTVisitor : public ASTVisitor {
     return accept(ast);
   }
 
-  virtual void statement(StatementAST* ast) { return accept(ast); }
+  virtual void compoundStatement(CompoundStatementAST* ast) {
+    return accept(ast);
+  }
 
   virtual void attribute(AttributeAST* ast) { return accept(ast); }
 
@@ -80,6 +82,10 @@ class RecursiveASTVisitor : public ASTVisitor {
 
   virtual void bracedInitList(BracedInitListAST* ast) { return accept(ast); }
 
+  virtual void ctorInitializer(CtorInitializerAST* ast) { return accept(ast); }
+
+  virtual void handler(HandlerAST* ast) { return accept(ast); }
+
   virtual void declaration(DeclarationAST* ast) { return accept(ast); }
 
   virtual void lambdaIntroducer(LambdaIntroducerAST* ast) {
@@ -94,7 +100,9 @@ class RecursiveASTVisitor : public ASTVisitor {
 
   virtual void newInitializer(NewInitializerAST* ast) { return accept(ast); }
 
-  virtual void handler(HandlerAST* ast) { return accept(ast); }
+  virtual void statement(StatementAST* ast) { return accept(ast); }
+
+  virtual void functionBody(FunctionBodyAST* ast) { return accept(ast); }
 
   virtual void initDeclarator(InitDeclaratorAST* ast) { return accept(ast); }
 
@@ -155,6 +163,11 @@ class RecursiveASTVisitor : public ASTVisitor {
 
   void visit(EllipsisExceptionDeclarationAST* ast) override;
   void visit(TypeExceptionDeclarationAST* ast) override;
+
+  void visit(DefaultFunctionBodyAST* ast) override;
+  void visit(CompoundStatementFunctionBodyAST* ast) override;
+  void visit(TryStatementFunctionBodyAST* ast) override;
+  void visit(DeleteFunctionBodyAST* ast) override;
 
   void visit(TranslationUnitAST* ast) override;
   void visit(ModuleUnitAST* ast) override;

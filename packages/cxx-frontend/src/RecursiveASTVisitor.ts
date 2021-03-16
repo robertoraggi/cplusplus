@@ -218,6 +218,25 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         this.accept(node.getDeclarator(), context);
     }
 
+    visitDefaultFunctionBody(node: ast.DefaultFunctionBodyAST, context: Context): void {
+    }
+
+    visitCompoundStatementFunctionBody(node: ast.CompoundStatementFunctionBodyAST, context: Context): void {
+        this.accept(node.getCtorInitializer(), context);
+        this.accept(node.getStatement(), context);
+    }
+
+    visitTryStatementFunctionBody(node: ast.TryStatementFunctionBodyAST, context: Context): void {
+        this.accept(node.getCtorInitializer(), context);
+        this.accept(node.getStatement(), context);
+        for (const element of node.getHandlerList()) {
+             this.accept(element, context);
+        }
+    }
+
+    visitDeleteFunctionBody(node: ast.DeleteFunctionBodyAST, context: Context): void {
+    }
+
     visitTranslationUnit(node: ast.TranslationUnitAST, context: Context): void {
         for (const element of node.getDeclarationList()) {
              this.accept(element, context);

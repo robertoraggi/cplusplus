@@ -69,6 +69,12 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitEllipsisExceptionDeclaration(node: ast.EllipsisExceptionDeclarationAST, context: Context): Result;
     abstract visitTypeExceptionDeclaration(node: ast.TypeExceptionDeclarationAST, context: Context): Result;
 
+    // FunctionBodyAST
+    abstract visitDefaultFunctionBody(node: ast.DefaultFunctionBodyAST, context: Context): Result;
+    abstract visitCompoundStatementFunctionBody(node: ast.CompoundStatementFunctionBodyAST, context: Context): Result;
+    abstract visitTryStatementFunctionBody(node: ast.TryStatementFunctionBodyAST, context: Context): Result;
+    abstract visitDeleteFunctionBody(node: ast.DeleteFunctionBodyAST, context: Context): Result;
+
     // UnitAST
     abstract visitTranslationUnit(node: ast.TranslationUnitAST, context: Context): Result;
     abstract visitModuleUnit(node: ast.ModuleUnitAST, context: Context): Result;
