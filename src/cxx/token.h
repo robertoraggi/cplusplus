@@ -230,7 +230,7 @@
 namespace cxx {
 
 #define TOKEN_ENUM(tk, _) T_##tk,
-enum struct TokenKind : uint16_t { FOR_EACH_TOKEN(TOKEN_ENUM) };
+enum struct TokenKind : uint8_t { FOR_EACH_TOKEN(TOKEN_ENUM) };
 #undef TOKEN_ENUM
 
 union TokenValue {
@@ -243,16 +243,6 @@ union TokenValue {
 };
 
 class Token {
-  friend class TranslationUnit;
-
-  TokenKind kind_ : 16;
-  uint16_t fileId_ : 14;
-  uint16_t startOfLine_ : 1;
-  uint16_t leadingSpace_ : 1;
-  unsigned offset_;
-  unsigned length_;
-  TokenValue value_;
-
  public:
   Token(const Token&) = default;
   Token& operator=(const Token&) = default;
@@ -260,46 +250,97 @@ class Token {
   Token(Token&&) = default;
   Token& operator=(Token&&) = default;
 
-  explicit Token(TokenKind kind = TokenKind::T_EOF_SYMBOL, unsigned offset = 0,
-                 unsigned length = 0, TokenValue value = {}) noexcept
-      : kind_(kind), offset_(offset), length_(length), value_(value) {
-    fileId_ = 0;
-    startOfLine_ = 0;
-    leadingSpace_ = 0;
-  }
+  Token() = default;
 
-  inline TokenKind kind() const { return kind_; }
-  inline void setKind(TokenKind kind) { kind_ = kind; }
+  explicit Token(TokenKind kind, unsigned offset = 0, unsigned length = 0,
+                 TokenValue value = {});
 
-  inline TokenValue value() const { return value_; }
+  inline TokenKind kind() const;
+  inline void setKind(TokenKind kind);
 
-  inline unsigned offset() const { return offset_; }
-  inline unsigned length() const { return length_; }
+  inline TokenValue value() const;
+  inline void setValue(TokenValue value);
 
-  inline unsigned fileId() const { return fileId_; }
-  inline void setFileId(unsigned fileId) { fileId_ = fileId; }
+  inline unsigned offset() const;
+  inline unsigned length() const;
 
-  inline bool startOfLine() const { return startOfLine_; }
-  inline void setStartOfLine(bool startOfLine) { startOfLine_ = startOfLine; }
+  inline unsigned fileId() const;
+  inline void setFileId(unsigned fileId);
 
-  inline bool leadingSpace() const { return leadingSpace_; }
-  inline void setLeadingSpace(bool leadingSpace) {
-    leadingSpace_ = leadingSpace;
-  }
+  inline bool startOfLine() const;
+  inline void setStartOfLine(bool startOfLine);
 
-  static const std::string& spell(TokenKind kind);
+  inline bool leadingSpace() const;
+  inline void setLeadingSpace(bool leadingSpace);
+
+  explicit operator bool() const;
+  explicit operator TokenKind() const;
+
+  bool is(TokenKind k) const;
+  bool isNot(TokenKind k) const;
+
   const std::string& spell() const;
-
-  static const std::string& name(TokenKind kind);
   const std::string& name() const;
 
-  explicit operator bool() const { return kind_ != TokenKind::T_EOF_SYMBOL; }
+  static const std::string& spell(TokenKind kind);
+  static const std::string& name(TokenKind kind);
 
-  explicit operator TokenKind() const { return kind_; }
-
-  bool is(TokenKind kind) const { return kind_ == kind; }
-
-  bool isNot(TokenKind kind) const { return kind_ != kind; }
+ private:
+  TokenKind kind_ : 8;
+  uint32_t startOfLine_ : 1;
+  uint32_t leadingSpace_ : 1;
+  uint32_t fileId_ : 10;
+  uint32_t length_ : 16;
+  uint32_t offset_ : 28;
+  TokenValue value_;
 };
+
+inline Token::Token(TokenKind kind, unsigned offset, unsigned length,
+                    TokenValue value)
+    : kind_(kind),
+      startOfLine_(0),
+      leadingSpace_(0),
+      fileId_(0),
+      length_(length),
+      offset_(offset),
+      value_(value) {}
+
+inline TokenKind Token::kind() const { return kind_; }
+
+inline void Token::setKind(TokenKind kind) { kind_ = kind; }
+
+inline TokenValue Token::value() const { return value_; }
+
+inline void Token::setValue(TokenValue value) { value_ = value; }
+
+inline unsigned Token::offset() const { return offset_; }
+
+inline unsigned Token::length() const { return length_; }
+
+inline unsigned Token::fileId() const { return fileId_; }
+
+inline void Token::setFileId(unsigned fileId) { fileId_ = fileId; }
+
+inline bool Token::startOfLine() const { return startOfLine_; }
+
+inline void Token::setStartOfLine(bool startOfLine) {
+  startOfLine_ = startOfLine;
+}
+
+inline bool Token::leadingSpace() const { return leadingSpace_; }
+
+inline void Token::setLeadingSpace(bool leadingSpace) {
+  leadingSpace_ = leadingSpace;
+}
+
+inline Token::operator bool() const {
+  return kind() != TokenKind::T_EOF_SYMBOL;
+}
+
+inline Token::operator TokenKind() const { return kind(); }
+
+inline bool Token::is(TokenKind k) const { return kind() == k; }
+
+inline bool Token::isNot(TokenKind k) const { return kind() != k; }
 
 }  // namespace cxx

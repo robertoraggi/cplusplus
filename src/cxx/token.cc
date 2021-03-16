@@ -44,22 +44,22 @@ const std::string& Token::spell(TokenKind kind) {
 }
 
 const std::string& Token::spell() const {
-  switch (kind_) {
+  switch (kind()) {
     case TokenKind::T_IDENTIFIER:
-      return value_.idValue ? value_.idValue->name() : spell(kind_);
+      return value_.idValue ? value_.idValue->name() : spell(kind());
 
     case TokenKind::T_STRING_LITERAL:
     case TokenKind::T_CHARACTER_LITERAL:
     case TokenKind::T_INTEGER_LITERAL:
-      return value_.literalValue ? value_.literalValue->value() : spell(kind_);
+      return value_.literalValue ? value_.literalValue->value() : spell(kind());
 
     default:
-      return spell(kind_);
+      return spell(kind());
   }  // switch
 }
 
 const std::string& Token::name(TokenKind kind) { return token_name[(int)kind]; }
 
-const std::string& Token::name() const { return name(kind_); }
+const std::string& Token::name() const { return name(kind()); }
 
 }  // namespace cxx

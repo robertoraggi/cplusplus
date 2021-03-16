@@ -119,13 +119,13 @@ struct SourceFile;
 struct Tok final : Managed {
   std::string_view text;
   const Hideset *hideset = nullptr;
-  SourceFile *sourceFile = nullptr;
+  uint32_t offset = 0;
+  uint32_t length = 0;
+  uint32_t sourceFile = 0;
   TokenKind kind = TokenKind::T_EOF_SYMBOL;
-  unsigned offset = 0;
-  unsigned length = 0;
-  std::uint32_t bol : 1 = false;
-  std::uint32_t space : 1 = false;
-  std::uint32_t generated : 1 = false;
+  uint16_t bol : 1 = false;
+  uint16_t space : 1 = false;
+  uint16_t generated : 1 = false;
 
   Tok(const Tok &other) = default;
   Tok &operator=(const Tok &other) = default;
@@ -141,8 +141,7 @@ struct Tok final : Managed {
     return new (pool) Tok(tok, hideset);
   }
 
-  static Tok *FromCurrentToken(Arena *pool, const Lexer &lex,
-                               SourceFile *sourceFile) {
+  static Tok *FromCurrentToken(Arena *pool, const Lexer &lex, int sourceFile) {
     auto tk = new (pool) Tok();
     tk->sourceFile = sourceFile;
     tk->kind = lex.tokenKind();
@@ -177,6 +176,8 @@ struct Tok final : Managed {
     hideset = hs;
   }
 };
+
+static_assert(sizeof(Tok) == 40);
 
 struct TokList final : Managed {
   const Tok *head = nullptr;
@@ -427,8 +428,8 @@ struct Preprocessor::Private {
 
   void defineMacro(const TokList *ts);
 
-  const TokList *tokenize(const std::string_view &source,
-                          SourceFile *sourceFile, bool bol);
+  const TokList *tokenize(const std::string_view &source, int sourceFile,
+                          bool bol);
 
   const TokList *skipLine(const TokList *ts);
 
@@ -491,8 +492,7 @@ static const TokList *concat(Arena *pool, const TokList *ts, const Tok *t) {
 }
 
 const TokList *Preprocessor::Private::tokenize(const std::string_view &source,
-                                               SourceFile *sourceFile,
-                                               bool bol) {
+                                               int sourceFile, bool bol) {
   cxx::Lexer lex(source);
   lex.setPreprocessing(true);
   const TokList *ts = nullptr;
@@ -597,9 +597,10 @@ void Preprocessor::Private::expand(
         auto dirpath = *path;
         dirpath.remove_filename();
         std::swap(currentPath_, dirpath);
+        const int sourceFileId = int(sourceFiles_.size() + 1);
         auto &sourceFile = *sourceFiles_.emplace_back(
             std::make_unique<SourceFile>(path->string(), readFile(*path)));
-        auto tokens = tokenize(sourceFile.source, &sourceFile, true);
+        auto tokens = tokenize(sourceFile.source, sourceFileId, true);
         sourceFile.tokens = tokens;
         if (checkPragmaOnceProtected(tokens)) {
           pragmaOnceProtected_.insert(fn);
@@ -1252,6 +1253,7 @@ void Preprocessor::operator()(const std::string_view &source,
 
 void Preprocessor::preprocess(const std::string_view &source,
                               const std::string &fileName, std::ostream &out) {
+  const int sourceFileId = int(d->sourceFiles_.size() + 1);
   auto &sourceFile = *d->sourceFiles_.emplace_back(
       std::make_unique<SourceFile>(fileName, std::string(source)));
 
@@ -1260,38 +1262,38 @@ void Preprocessor::preprocess(const std::string_view &source,
 
   std::swap(d->currentPath_, path);
 
-  const auto ts = d->tokenize(sourceFile.source, &sourceFile, true);
+  const auto ts = d->tokenize(sourceFile.source, sourceFileId, true);
 
   const auto os = d->expand(ts, /*directives*/ true);
 
   std::swap(d->currentPath_, path);
 
-  SourceFile *outFile = nullptr;
+  int outFile = 0;
   int outLine = -1;
 
   const Tok *prevTk = nullptr;
 
   for (auto it = os; it; it = it->tail) {
     auto tk = it->head;
-    auto file = tk->sourceFile;
+    auto file =
+        tk->sourceFile > 0 ? &*d->sourceFiles_[tk->sourceFile - 1] : nullptr;
     if ((tk->bol || it == os) && file) {
       std::string_view fileName;
       unsigned line = 0;
       file->getTokenStartPosition(tk->offset, &line, nullptr, &fileName);
-      if (outFile == file && line == outLine) {
+      if (outFile == tk->sourceFile && line == outLine) {
         ++outLine;
         fmt::print(out, "\n");
       } else {
         if (it != os) fmt::print(out, "\n");
-        if (file == outFile)
+        if (tk->sourceFile == outFile)
           fmt::print(out, "#line {}\n", line);
         else
           fmt::print(out, "#line {} \"{}\"\n", line, fileName);
         outLine = line + 1;
-        outFile = file;
+        outFile = tk->sourceFile;
       }
-    } else if (needSpace(prevTk, tk) || tk->space ||
-               tk->sourceFile == nullptr) {
+    } else if (needSpace(prevTk, tk) || tk->space || !tk->sourceFile) {
       fmt::print(out, " ");
     }
     fmt::print(out, "{}", tk->text);
@@ -1304,6 +1306,7 @@ void Preprocessor::preprocess(const std::string_view &source,
 void Preprocessor::preprocess(const std::string_view &source,
                               const std::string &fileName,
                               std::vector<Token> &tokens) {
+  const int sourceFileId = int(d->sourceFiles_.size() + 1);
   auto &sourceFile = *d->sourceFiles_.emplace_back(
       std::make_unique<SourceFile>(fileName, std::string(source)));
 
@@ -1312,7 +1315,7 @@ void Preprocessor::preprocess(const std::string_view &source,
 
   std::swap(d->currentPath_, path);
 
-  const auto ts = d->tokenize(sourceFile.source, &sourceFile, true);
+  const auto ts = d->tokenize(sourceFile.source, sourceFileId, true);
 
   sourceFile.tokens = ts;
 
@@ -1320,16 +1323,7 @@ void Preprocessor::preprocess(const std::string_view &source,
 
   d->expand(ts, /*directives*/ true, [&](const Tok *tk) {
     auto kind = tk->kind;
-
-    unsigned fileId = 0;
-
-    if (tk->sourceFile) {
-      for (size_t i = 0; i < d->sourceFiles_.size(); ++i) {
-        if (d->sourceFiles_[i].get() == tk->sourceFile) {
-          fileId = i + 1;
-        }
-      }
-    }
+    const auto fileId = tk->sourceFile;
 
     TokenValue value;
 
@@ -1419,6 +1413,8 @@ void Preprocessor::preprocess(const std::string_view &source,
   tokens.emplace_back(TokenKind::T_EOF_SYMBOL);
 
   std::swap(d->currentPath_, path);
+
+  d->pool_.reset();
 }
 
 void Preprocessor::addSystemIncludePath(const std::string &path) {
@@ -1428,7 +1424,7 @@ void Preprocessor::addSystemIncludePath(const std::string &path) {
 void Preprocessor::defineMacro(const std::string &name,
                                const std::string &body) {
   auto s = d->string(name + " " + body);
-  auto tokens = d->tokenize(s, /*sourceFile=*/nullptr, false);
+  auto tokens = d->tokenize(s, /*sourceFile=*/0, false);
   d->defineMacro(tokens);
 }
 
@@ -1447,6 +1443,47 @@ void Preprocessor::printMacros(std::ostream &out) const {
     d->print(macro.body, out);
     fmt::print(out, "\n");
   }
+}
+
+void Preprocessor::getTokenStartPosition(const Token &token, unsigned *line,
+                                         unsigned *column,
+                                         std::string_view *fileName) const {
+  if (token.fileId() == 0) {
+    *line = 0;
+    *column = 0;
+    *fileName = "??";
+    return;
+  }
+
+  auto &sourceFile = *d->sourceFiles_[token.fileId() - 1];
+  sourceFile.getTokenStartPosition(token.offset(), line, column, fileName);
+}
+
+void Preprocessor::getTokenEndPosition(const Token &token, unsigned *line,
+                                       unsigned *column,
+                                       std::string_view *fileName) const {
+  if (token.fileId() == 0) {
+    *line = 0;
+    *column = 0;
+    *fileName = "??";
+    return;
+  }
+
+  auto &sourceFile = *d->sourceFiles_[token.fileId() - 1];
+  sourceFile.getTokenStartPosition(token.offset() + token.length(), line,
+                                   column, fileName);
+}
+
+std::string_view Preprocessor::getTextLine(const Token &token) const {
+  if (token.fileId() == 0) return std::string_view();
+  const SourceFile *file = d->sourceFiles_[token.fileId() - 1].get();
+  unsigned line = 0;
+  getTokenStartPosition(token, &line, nullptr, nullptr);
+  std::string_view source = file->source;
+  const auto &lines = file->lines;
+  const auto start = lines.at(line - 1) + 1;
+  const auto end = line < lines.size() ? lines.at(line) : source.length();
+  return source.substr(start, end - start);
 }
 
 void Preprocessor::addSystemIncludePaths() {

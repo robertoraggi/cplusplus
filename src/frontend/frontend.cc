@@ -62,43 +62,43 @@ std::string readAll(const std::string& fileName) {
 
 bool parseFile(const CLI& cli, const std::string& fileName, bool preprocessed,
                bool printAST) {
-  std::string source = readAll(fileName);
+  Control control;
+  TranslationUnit unit(&control);
 
   if (!preprocessed) {
-    Control control;
-    Preprocessor preprocess(&control);
+    auto preprocesor = std::make_unique<Preprocessor>(&control);
 
-    preprocess.addSystemIncludePaths();
-    preprocess.addPredefinedMacros();
+    preprocesor->addSystemIncludePaths();
+    preprocesor->addPredefinedMacros();
 
     for (const auto& path : cli.get("-I")) {
-      preprocess.addSystemIncludePath(path);
+      preprocesor->addSystemIncludePath(path);
     }
 
     for (const auto& macro : cli.get("-D")) {
       auto sep = macro.find_first_of("=");
+
       if (sep == std::string::npos) {
-        preprocess.defineMacro(macro, "1");
+        preprocesor->defineMacro(macro, "1");
       } else {
-        preprocess.defineMacro(macro.substr(0, sep), macro.substr(sep + 1));
+        preprocesor->defineMacro(macro.substr(0, sep), macro.substr(sep + 1));
       }
     }
 
-    std::ostringstream out;
-    preprocess(source, fileName, out);
-    source = out.str();
+    unit.setPreprocessor(std::move(preprocesor));
   }
 
-  Control control;
-  TranslationUnit unit(&control);
   unit.setFileName(fileName);
-  unit.setSource(std::move(source));
-  unit.setPreprocessed(true);
+  unit.setSource(readAll(fileName));
+  unit.setPreprocessed(preprocessed);
+
   const auto result = unit.parse();
+
   if (printAST) {
     ASTPrinter print(&unit);
     std::cout << std::setw(4) << print(unit.ast());
   }
+
   return result;
 }
 

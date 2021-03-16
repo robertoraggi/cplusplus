@@ -22,21 +22,25 @@
 
 #include <cxx/ast_fwd.h>
 #include <cxx/diagnostic.h>
+#include <cxx/names_fwd.h>
 #include <cxx/source_location.h>
 #include <cxx/token.h>
+
+// fmt
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 
 #include <cstdio>
 #include <cstdlib>
 #include <functional>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
 
 namespace cxx {
 
-class Identifier;
+class Preprocessor;
 
 class DiagnosticClient {
  public:
@@ -46,36 +50,6 @@ class DiagnosticClient {
 };
 
 class TranslationUnit {
-  struct LineDirective {
-    int offset;
-    Token line;
-    Token file;
-
-    explicit LineDirective(int offset = 0) noexcept : offset(offset) {}
-
-    LineDirective(int offset, const Token& line, const Token& file)
-        : offset(offset), line(line), file(file) {}
-
-    bool operator<(const LineDirective& other) const {
-      return offset < other.offset;
-    }
-  };
-
-  Control* control_;
-  Arena* arena_;
-  std::vector<Token> tokens_;
-  std::vector<int> lines_;
-  std::vector<LineDirective> lineDirectives_;
-  std::string fileName_;
-  std::string text_;
-  std::string code_;
-  UnitAST* ast_ = nullptr;
-  const char* yyptr = nullptr;
-  bool fatalErrors_ = false;
-  bool blockErrors_ = false;
-  bool preprocessed_ = true;
-  DiagnosticClient* diagnosticClient_ = nullptr;
-
  public:
   TranslationUnit(const TranslationUnit&) = delete;
   TranslationUnit& operator=(const TranslationUnit&) = delete;
@@ -101,13 +75,13 @@ class TranslationUnit {
   bool preprocessed() const { return preprocessed_; }
   void setPreprocessed(bool preprocessed) { preprocessed_ = preprocessed; }
 
+  void setPreprocessor(std::unique_ptr<Preprocessor> preprocessor);
+
   const std::string& source() const { return code_; }
 
   void setSource(std::string source) {
     code_ = std::move(source);
     yyptr = code_.c_str();
-
-    initializeLineMap();
   }
 
   bool fatalErrors() const { return fatalErrors_; }
@@ -124,13 +98,12 @@ class TranslationUnit {
     if (blockErrors_) return;
 
     unsigned line = 0, column = 0;
-    getTokenStartPosition(loc, &line, &column);
+    std::string_view fileName;
+    getTokenStartPosition(loc, &line, &column, &fileName);
 
     if (diagnosticClient_) {
-      unsigned line = 0, column = 0;
-      getTokenStartPosition(loc, &line, &column);
       diagnosticClient_->report(
-          Diagnostic(kind, fileName_, line, column,
+          Diagnostic(kind, std::string(fileName), line, column,
                      fmt::vformat(format, fmt::make_format_args(args...))));
       return;
     }
@@ -152,16 +125,15 @@ class TranslationUnit {
         break;
     }  // switch
 
-    fmt::print(stderr, "{}:{}:{}: {}: ", fileName_, line, column, Severity);
+    fmt::print(stderr, "{}:{}:{}: {}: ", fileName, line, column, Severity);
     fmt::vprint(stderr, format, fmt::make_format_args(args...));
     fmt::print(stderr, "\n");
-
-    const auto start = lines_.at(line - 1) + 1;
-    const auto end = line < lines_.size() ? lines_.at(line) : code_.size();
+#if 0
     std::string cursor(column - 1, ' ');
     cursor += "^";
-    fmt::print(stderr, "{}\n{}\n", code_.substr(start, end - start), cursor);
-
+    fmt::print(stderr, "{}\n{}\n", preprocessor_->getTextLine(tokenAt(loc)),
+               cursor);
+#endif
     if (kind == Severity::Fatal || (kind == Severity::Error && fatalErrors_))
       exit(EXIT_FAILURE);
   }
@@ -186,13 +158,12 @@ class TranslationUnit {
   const std::string& tokenText(SourceLocation loc) const;
 
   void getTokenStartPosition(SourceLocation loc, unsigned* line,
-                             unsigned* column = nullptr) const;
+                             unsigned* column = nullptr,
+                             std::string_view* fileName = nullptr) const;
 
   void getTokenEndPosition(SourceLocation loc, unsigned* line,
-                           unsigned* column = nullptr) const;
-
-  void getTokenPosition(unsigned offset, unsigned* line,
-                        unsigned* column = nullptr) const;
+                           unsigned* column = nullptr,
+                           std::string_view* fileName = nullptr) const;
 
   const Identifier* identifier(SourceLocation loc) const;
 
@@ -201,7 +172,19 @@ class TranslationUnit {
   bool parse();
 
  private:
-  void initializeLineMap();
+  Control* control_;
+  Arena* arena_;
+  std::vector<Token> tokens_;
+  std::string fileName_;
+  std::string text_;
+  std::string code_;
+  UnitAST* ast_ = nullptr;
+  const char* yyptr = nullptr;
+  bool fatalErrors_ = false;
+  bool blockErrors_ = false;
+  bool preprocessed_ = true;
+  DiagnosticClient* diagnosticClient_ = nullptr;
+  std::unique_ptr<Preprocessor> preprocessor_;
 };
 
 }  // namespace cxx

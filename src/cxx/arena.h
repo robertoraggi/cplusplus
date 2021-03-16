@@ -43,8 +43,11 @@ class Arena {
   Arena(const Arena& other) = delete;
   Arena& operator=(const Arena& other) = delete;
   Arena() = default;
-  ~Arena() {
+  ~Arena() { reset(); }
+
+  void reset() {
     for (auto&& block : blocks) delete block;
+    blocks.clear();
   }
 
   void* allocate(std::size_t size) noexcept {

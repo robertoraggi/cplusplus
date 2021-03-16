@@ -34,6 +34,9 @@ class Token;
 
 class Preprocessor {
  public:
+  Preprocessor(Preprocessor &&) noexcept = default;
+  Preprocessor &operator=(Preprocessor &&) noexcept = default;
+
   explicit Preprocessor(Control *control);
   ~Preprocessor();
 
@@ -55,6 +58,15 @@ class Preprocessor {
   void defineMacro(const std::string &name, const std::string &body);
 
   void printMacros(std::ostream &out) const;
+
+  void getTokenStartPosition(const Token &token, unsigned *line,
+                             unsigned *column,
+                             std::string_view *fileName) const;
+
+  void getTokenEndPosition(const Token &token, unsigned *line, unsigned *column,
+                           std::string_view *fileName) const;
+
+  std::string_view getTextLine(const Token &token) const;
 
  private:
   struct Private;

@@ -36,20 +36,14 @@ namespace cxx {
 
 TranslationUnit::TranslationUnit(Control* control) : control_(control) {
   arena_ = new Arena();
+  preprocessor_ = std::make_unique<Preprocessor>(control_);
 }
 
 TranslationUnit::~TranslationUnit() { delete arena_; }
 
-void TranslationUnit::initializeLineMap() {
-  // ### remove
-  lines_.clear();
-  lines_.push_back(-1);
-  const auto start = code_.c_str();
-  for (auto ptr = start; *ptr; ++ptr) {
-    if (*ptr == '\n') {
-      lines_.push_back(int(ptr - start));
-    }
-  }
+void TranslationUnit::setPreprocessor(
+    std::unique_ptr<Preprocessor> preprocessor) {
+  preprocessor_ = std::move(preprocessor);
 }
 
 int TranslationUnit::tokenLength(SourceLocation loc) const {
@@ -82,125 +76,20 @@ const std::string& TranslationUnit::tokenText(SourceLocation loc) const {
   }  // switch
 }
 
-void TranslationUnit::getTokenPosition(unsigned offset, unsigned* line,
-                                       unsigned* column) const {
-  auto it = std::lower_bound(lines_.cbegin(), lines_.cend(), int(offset));
-  assert(it != cbegin(lines_));
-
-  --it;
-
-  assert(*it <= int(offset));
-
-  if (line) *line = int(std::distance(cbegin(lines_), it) + 1);
-
-  if (column) {
-    const auto start = cbegin(source()) + *it;
-    const auto end = cbegin(source()) + offset;
-
-    *column = utf8::distance(start, end);
-  }
-}
-
 void TranslationUnit::getTokenStartPosition(SourceLocation loc, unsigned* line,
-                                            unsigned* column) const {
-  auto offset = tokenAt(loc).offset();
-  getTokenPosition(offset, line, column);
+                                            unsigned* column,
+                                            std::string_view* fileName) const {
+  preprocessor_->getTokenStartPosition(tokenAt(loc), line, column, fileName);
 }
 
 void TranslationUnit::getTokenEndPosition(SourceLocation loc, unsigned* line,
-                                          unsigned* column) const {
-  const auto& tk = tokenAt(loc);
-  auto offset = tk.offset() + tk.length();
-  getTokenPosition(offset, line, column);
+                                          unsigned* column,
+                                          std::string_view* fileName) const {
+  preprocessor_->getTokenEndPosition(tokenAt(loc), line, column, fileName);
 }
 
 void TranslationUnit::tokenize(bool preprocessing) {
-  if (!preprocessed_) {
-    Preprocessor pp(control_);
-    pp.addPredefinedMacros();
-    pp.addSystemIncludePaths();
-    pp.preprocess(code_, fileName_, tokens_);
-    return;
-  }
-
-  Lexer lexer(code_);
-
-  lexer.setPreprocessing(preprocessing);
-
-  std::vector<Token> directiveTokens;
-
-  TokenKind kind;
-
-  tokens_.emplace_back(TokenKind::T_ERROR);
-
-  do {
-    lexer.next();
-
-    while (lexer.tokenStartOfLine() && lexer.tokenKind() == TokenKind::T_HASH) {
-      const auto directiveOffset = lexer.tokenPos();
-
-      lexer.next();
-
-      directiveTokens.clear();
-
-      while (!lexer.tokenStartOfLine() &&
-             lexer.tokenKind() != TokenKind::T_EOF_SYMBOL) {
-        directiveTokens.emplace_back(lexer.tokenKind(), lexer.tokenPos(),
-                                     lexer.tokenLength());
-        lexer.next();
-      }
-
-      directiveTokens.emplace_back(TokenKind::T_EOF_SYMBOL, lexer.tokenPos());
-
-      if (directiveTokens[0].is(TokenKind::T_INTEGER_LITERAL) &&
-          directiveTokens[1].is(TokenKind::T_STRING_LITERAL)) {
-        const auto& line = directiveTokens[0];
-        const auto& file = directiveTokens[1];
-
-        unsigned currentLine = 0;
-        getTokenPosition(directiveOffset, &currentLine);
-
-        lineDirectives_.emplace_back(directiveOffset, line, file);
-      }
-    }
-
-    kind = lexer.tokenKind();
-
-    TokenValue value;
-
-    switch (kind) {
-      case TokenKind::T_IDENTIFIER:
-        value.idValue = control_->identifier(std::string(lexer.tokenText()));
-        break;
-
-      case TokenKind::T_CHARACTER_LITERAL:
-        value.literalValue =
-            control_->charLiteral(std::string(lexer.tokenText()));
-        break;
-
-      case TokenKind::T_STRING_LITERAL:
-        value.literalValue =
-            control_->stringLiteral(std::string(lexer.tokenText()));
-        break;
-
-      case TokenKind::T_INTEGER_LITERAL:
-      case TokenKind::T_FLOATING_POINT_LITERAL:
-        value.literalValue =
-            control_->numericLiteral(std::string(lexer.tokenText()));
-        break;
-
-      case TokenKind::T_GREATER:
-        value = lexer.tokenValue();
-        break;
-
-      default:
-        break;
-    }
-    tokens_.emplace_back(kind, lexer.tokenPos(), lexer.tokenLength(), value);
-    auto& tok = tokens_.back();
-    tok.leadingSpace_ = lexer.tokenLeadingSpace();
-    tok.startOfLine_ = lexer.tokenStartOfLine();
-  } while (kind != TokenKind::T_EOF_SYMBOL);
+  preprocessor_->preprocess(code_, fileName_, tokens_);
 }
 
 bool TranslationUnit::parse() {
