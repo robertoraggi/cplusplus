@@ -246,6 +246,7 @@ class Token {
   friend class TranslationUnit;
 
   TokenKind kind_ : 16;
+  uint16_t fileId_ : 14;
   uint16_t startOfLine_ : 1;
   uint16_t leadingSpace_ : 1;
   unsigned offset_;
@@ -262,6 +263,7 @@ class Token {
   explicit Token(TokenKind kind = TokenKind::T_EOF_SYMBOL, unsigned offset = 0,
                  unsigned length = 0, TokenValue value = {}) noexcept
       : kind_(kind), offset_(offset), length_(length), value_(value) {
+    fileId_ = 0;
     startOfLine_ = 0;
     leadingSpace_ = 0;
   }
@@ -273,6 +275,9 @@ class Token {
 
   inline unsigned offset() const { return offset_; }
   inline unsigned length() const { return length_; }
+
+  inline unsigned fileId() const { return fileId_; }
+  inline void setFileId(unsigned fileId) { fileId_ = fileId; }
 
   inline bool startOfLine() const { return startOfLine_; }
   inline void setStartOfLine(bool startOfLine) { startOfLine_ = startOfLine; }

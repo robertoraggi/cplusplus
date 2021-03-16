@@ -40,7 +40,6 @@
 #include <fstream>
 #include <functional>
 #include <iostream>
-#include <list>
 #include <optional>
 #include <sstream>
 #include <unordered_map>
@@ -261,7 +260,7 @@ struct Preprocessor::Private {
   std::forward_list<std::string> scratchBuffer_;
   std::unordered_set<std::string> pragmaOnceProtected_;
   std::unordered_map<std::string, std::string> ifndefProtectedFiles_;
-  std::list<SourceFile> sourceFiles_;
+  std::vector<std::unique_ptr<SourceFile>> sourceFiles_;
   fs::path currentPath_;
   std::vector<bool> evaluating_;
   std::vector<bool> skipping_;
@@ -598,8 +597,8 @@ void Preprocessor::Private::expand(
         auto dirpath = *path;
         dirpath.remove_filename();
         std::swap(currentPath_, dirpath);
-        auto &sourceFile =
-            sourceFiles_.emplace_back(path->string(), readFile(*path));
+        auto &sourceFile = *sourceFiles_.emplace_back(
+            std::make_unique<SourceFile>(path->string(), readFile(*path)));
         auto tokens = tokenize(sourceFile.source, &sourceFile, true);
         sourceFile.tokens = tokens;
         if (checkPragmaOnceProtected(tokens)) {
@@ -1253,8 +1252,8 @@ void Preprocessor::operator()(const std::string_view &source,
 
 void Preprocessor::preprocess(const std::string_view &source,
                               const std::string &fileName, std::ostream &out) {
-  auto &sourceFile =
-      d->sourceFiles_.emplace_back(SourceFile(fileName, std::string(source)));
+  auto &sourceFile = *d->sourceFiles_.emplace_back(
+      std::make_unique<SourceFile>(fileName, std::string(source)));
 
   fs::path path(fileName);
   path.remove_filename();
@@ -1305,8 +1304,8 @@ void Preprocessor::preprocess(const std::string_view &source,
 void Preprocessor::preprocess(const std::string_view &source,
                               const std::string &fileName,
                               std::vector<Token> &tokens) {
-  auto &sourceFile =
-      d->sourceFiles_.emplace_back(SourceFile(fileName, std::string(source)));
+  auto &sourceFile = *d->sourceFiles_.emplace_back(
+      std::make_unique<SourceFile>(fileName, std::string(source)));
 
   fs::path path(fileName);
   path.remove_filename();
@@ -1319,8 +1318,18 @@ void Preprocessor::preprocess(const std::string_view &source,
 
   tokens.emplace_back(TokenKind::T_ERROR);
 
-  d->expand(ts, /*directives*/ true, [&](auto tk) {
+  d->expand(ts, /*directives*/ true, [&](const Tok *tk) {
     auto kind = tk->kind;
+
+    unsigned fileId = 0;
+
+    if (tk->sourceFile) {
+      for (size_t i = 0; i < d->sourceFiles_.size(); ++i) {
+        if (d->sourceFiles_[i].get() == tk->sourceFile) {
+          fileId = i + 1;
+        }
+      }
+    }
 
     TokenValue value;
 
@@ -1345,24 +1354,21 @@ void Preprocessor::preprocess(const std::string_view &source,
         value.literalValue = d->control_->numericLiteral(std::string(tk->text));
         break;
 
-      case TokenKind::T_GREATER:
-        // ### TODO:
-        // value = lexer.tokenValue();
-        break;
-
       default:
         break;
-    }
+    }  // switch
 
     if (tk->kind == TokenKind::T_GREATER_EQUAL) {
       value.tokenKindValue = tk->kind;
 
       Token token(TokenKind::T_GREATER, tk->offset, 1, value);
+      token.setFileId(fileId);
       token.setLeadingSpace(tk->space);
       token.setStartOfLine(tk->bol);
       tokens.push_back(token);
 
       token = Token(TokenKind::T_EQUAL, tk->offset + 1, 1);
+      token.setFileId(fileId);
       token.setLeadingSpace(false);
       token.setStartOfLine(false);
       tokens.push_back(token);
@@ -1370,11 +1376,13 @@ void Preprocessor::preprocess(const std::string_view &source,
       value.tokenKindValue = tk->kind;
 
       Token token(TokenKind::T_GREATER, tk->offset, 1);
+      token.setFileId(fileId);
       token.setLeadingSpace(tk->space);
       token.setStartOfLine(tk->bol);
       tokens.push_back(token);
 
       token = Token(TokenKind::T_GREATER, tk->offset + 1, 1);
+      token.setFileId(fileId);
       token.setLeadingSpace(false);
       token.setStartOfLine(false);
       tokens.push_back(token);
@@ -1382,22 +1390,26 @@ void Preprocessor::preprocess(const std::string_view &source,
       value.tokenKindValue = tk->kind;
 
       Token token(TokenKind::T_GREATER, tk->offset, 1);
+      token.setFileId(fileId);
       token.setLeadingSpace(tk->space);
       token.setStartOfLine(tk->bol);
       tokens.push_back(token);
 
       token = Token(TokenKind::T_GREATER, tk->offset + 1, 1);
+      token.setFileId(fileId);
       token.setLeadingSpace(false);
       token.setStartOfLine(false);
       tokens.push_back(token);
 
       token = Token(TokenKind::T_EQUAL, tk->offset + 2, 1);
+      token.setFileId(fileId);
       token.setLeadingSpace(false);
       token.setStartOfLine(false);
       tokens.push_back(token);
 
     } else {
       Token token(kind, tk->offset, tk->length, value);
+      token.setFileId(fileId);
       token.setLeadingSpace(tk->space);
       token.setStartOfLine(tk->bol);
       tokens.push_back(token);
