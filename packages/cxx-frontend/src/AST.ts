@@ -86,6 +86,7 @@ export abstract class ExceptionDeclarationAST extends AST { }
 export abstract class ExpressionAST extends AST { }
 export abstract class InitializerAST extends AST { }
 export abstract class LambdaCaptureAST extends AST { }
+export abstract class MemInitializerAST extends AST { }
 export abstract class NameAST extends AST { }
 export abstract class NewInitializerAST extends AST { }
 export abstract class PtrOperatorAST extends AST { }
@@ -369,6 +370,58 @@ export class TrailingReturnTypeAST extends AST {
     }
     getTypeId(): TypeIdAST | undefined {
         return AST.from<TypeIdAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+}
+
+export class CtorInitializerAST extends AST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitCtorInitializer(this, context);
+    }
+    getColonToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    *getMemInitializerList(): Generator<MemInitializerAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
+            yield AST.from<MemInitializerAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+}
+
+export class ParenMemInitializerAST extends MemInitializerAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitParenMemInitializer(this, context);
+    }
+    getName(): NameAST | undefined {
+        return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getLparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    *getExpressionList(): Generator<ExpressionAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
+            yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+    getRparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+    getEllipsisToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+    }
+}
+
+export class BracedMemInitializerAST extends MemInitializerAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitBracedMemInitializer(this, context);
+    }
+    getName(): NameAST | undefined {
+        return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getBracedInitList(): BracedInitListAST | undefined {
+        return AST.from<BracedInitListAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getEllipsisToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
     }
 }
 
@@ -2586,6 +2639,9 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     LambdaIntroducerAST,
     LambdaDeclaratorAST,
     TrailingReturnTypeAST,
+    CtorInitializerAST,
+    ParenMemInitializerAST,
+    BracedMemInitializerAST,
     ThisLambdaCaptureAST,
     DerefThisLambdaCaptureAST,
     SimpleLambdaCaptureAST,

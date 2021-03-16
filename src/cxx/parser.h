@@ -377,10 +377,10 @@ class Parser {
   bool parse_base_specifier(BaseSpecifierAST*& yyast);
   bool parse_class_or_decltype(NameAST*& yyast);
   bool parse_access_specifier(SourceLocation& loc);
-  bool parse_ctor_initializer();
-  bool parse_mem_initializer_list();
-  bool parse_mem_initializer();
-  bool parse_mem_initializer_id();
+  bool parse_ctor_initializer(CtorInitializerAST*& yyast);
+  bool parse_mem_initializer_list(List<MemInitializerAST*>*& yyast);
+  bool parse_mem_initializer(MemInitializerAST*& yyast);
+  bool parse_mem_initializer_id(NameAST*& yyast);
   bool parse_operator_function_id(NameAST*& yyast);
   bool parse_operator(TokenKind& op, SourceLocation& opLoc,
                       SourceLocation& openLoc, SourceLocation& closeLoc);

@@ -134,6 +134,11 @@ class LambdaCaptureAST : public AST {
   using AST::AST;
 };
 
+class MemInitializerAST : public AST {
+ public:
+  using AST::AST;
+};
+
 class NameAST : public AST {
  public:
   using AST::AST;
@@ -393,6 +398,50 @@ class TrailingReturnTypeAST final : public AST {
 
   SourceLocation minusGreaterLoc;
   TypeIdAST* typeId = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+class CtorInitializerAST final : public AST {
+ public:
+  CtorInitializerAST() : AST(ASTKind::CtorInitializer) {}
+
+  SourceLocation colonLoc;
+  List<MemInitializerAST*>* memInitializerList = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+class ParenMemInitializerAST final : public MemInitializerAST {
+ public:
+  ParenMemInitializerAST() : MemInitializerAST(ASTKind::ParenMemInitializer) {}
+
+  NameAST* name = nullptr;
+  SourceLocation lparenLoc;
+  List<ExpressionAST*>* expressionList = nullptr;
+  SourceLocation rparenLoc;
+  SourceLocation ellipsisLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+class BracedMemInitializerAST final : public MemInitializerAST {
+ public:
+  BracedMemInitializerAST()
+      : MemInitializerAST(ASTKind::BracedMemInitializer) {}
+
+  NameAST* name = nullptr;
+  BracedInitListAST* bracedInitList = nullptr;
+  SourceLocation ellipsisLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

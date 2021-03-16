@@ -641,6 +641,109 @@ void ASTPrinter::visit(TrailingReturnTypeAST* ast) {
   }
 }
 
+void ASTPrinter::visit(CtorInitializerAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "CtorInitializer";
+
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
+
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
+
+      json_["$range"] = range;
+    }
+  }
+
+  if (ast->memInitializerList) {
+    auto elements = nlohmann::json::array();
+    for (auto it = ast->memInitializerList; it; it = it->next) {
+      elements.push_back(accept(it->value));
+    }
+    json_["memInitializerList"] = elements;
+  }
+}
+
+void ASTPrinter::visit(ParenMemInitializerAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "ParenMemInitializer";
+
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
+
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
+
+      json_["$range"] = range;
+    }
+  }
+
+  if (ast->name) {
+    json_["name"] = accept(ast->name);
+  }
+
+  if (ast->expressionList) {
+    auto elements = nlohmann::json::array();
+    for (auto it = ast->expressionList; it; it = it->next) {
+      elements.push_back(accept(it->value));
+    }
+    json_["expressionList"] = elements;
+  }
+}
+
+void ASTPrinter::visit(BracedMemInitializerAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "BracedMemInitializer";
+
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
+
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
+
+      json_["$range"] = range;
+    }
+  }
+
+  if (ast->name) {
+    json_["name"] = accept(ast->name);
+  }
+
+  if (ast->bracedInitList) {
+    json_["bracedInitList"] = accept(ast->bracedInitList);
+  }
+}
+
 void ASTPrinter::visit(ThisLambdaCaptureAST* ast) {
   json_ = nlohmann::json::object();
 

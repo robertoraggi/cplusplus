@@ -48,6 +48,10 @@ class ASTSlot final : ASTVisitor {
   void visit(LambdaIntroducerAST* ast) override;
   void visit(LambdaDeclaratorAST* ast) override;
   void visit(TrailingReturnTypeAST* ast) override;
+  void visit(CtorInitializerAST* ast) override;
+
+  void visit(ParenMemInitializerAST* ast) override;
+  void visit(BracedMemInitializerAST* ast) override;
 
   void visit(ThisLambdaCaptureAST* ast) override;
   void visit(DerefThisLambdaCaptureAST* ast) override;

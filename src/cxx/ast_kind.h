@@ -42,6 +42,11 @@ enum struct ASTKind {
   LambdaIntroducer,
   LambdaDeclarator,
   TrailingReturnType,
+  CtorInitializer,
+
+  // MemInitializerAST
+  ParenMemInitializer,
+  BracedMemInitializer,
 
   // LambdaCaptureAST
   ThisLambdaCapture,

@@ -141,6 +141,24 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         this.accept(node.getTypeId(), context);
     }
 
+    visitCtorInitializer(node: ast.CtorInitializerAST, context: Context): void {
+        for (const element of node.getMemInitializerList()) {
+             this.accept(element, context);
+        }
+    }
+
+    visitParenMemInitializer(node: ast.ParenMemInitializerAST, context: Context): void {
+        this.accept(node.getName(), context);
+        for (const element of node.getExpressionList()) {
+             this.accept(element, context);
+        }
+    }
+
+    visitBracedMemInitializer(node: ast.BracedMemInitializerAST, context: Context): void {
+        this.accept(node.getName(), context);
+        this.accept(node.getBracedInitList(), context);
+    }
+
     visitThisLambdaCapture(node: ast.ThisLambdaCaptureAST, context: Context): void {
     }
 

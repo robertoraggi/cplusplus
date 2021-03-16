@@ -42,6 +42,11 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitLambdaIntroducer(node: ast.LambdaIntroducerAST, context: Context): Result;
     abstract visitLambdaDeclarator(node: ast.LambdaDeclaratorAST, context: Context): Result;
     abstract visitTrailingReturnType(node: ast.TrailingReturnTypeAST, context: Context): Result;
+    abstract visitCtorInitializer(node: ast.CtorInitializerAST, context: Context): Result;
+
+    // MemInitializerAST
+    abstract visitParenMemInitializer(node: ast.ParenMemInitializerAST, context: Context): Result;
+    abstract visitBracedMemInitializer(node: ast.BracedMemInitializerAST, context: Context): Result;
 
     // LambdaCaptureAST
     abstract visitThisLambdaCapture(node: ast.ThisLambdaCaptureAST, context: Context): Result;

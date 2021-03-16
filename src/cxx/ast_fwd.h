@@ -35,6 +35,7 @@ class ExceptionDeclarationAST;
 class ExpressionAST;
 class InitializerAST;
 class LambdaCaptureAST;
+class MemInitializerAST;
 class NameAST;
 class NewInitializerAST;
 class PtrOperatorAST;
@@ -60,6 +61,11 @@ class ParametersAndQualifiersAST;
 class LambdaIntroducerAST;
 class LambdaDeclaratorAST;
 class TrailingReturnTypeAST;
+class CtorInitializerAST;
+
+// MemInitializerAST
+class ParenMemInitializerAST;
+class BracedMemInitializerAST;
 
 // LambdaCaptureAST
 class ThisLambdaCaptureAST;

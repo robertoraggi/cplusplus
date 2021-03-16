@@ -116,6 +116,21 @@ void RecursiveASTVisitor::visit(TrailingReturnTypeAST* ast) {
   typeId(ast->typeId);
 }
 
+void RecursiveASTVisitor::visit(CtorInitializerAST* ast) {
+  for (auto it = ast->memInitializerList; it; it = it->next)
+    memInitializer(it->value);
+}
+
+void RecursiveASTVisitor::visit(ParenMemInitializerAST* ast) {
+  name(ast->name);
+  for (auto it = ast->expressionList; it; it = it->next) expression(it->value);
+}
+
+void RecursiveASTVisitor::visit(BracedMemInitializerAST* ast) {
+  name(ast->name);
+  bracedInitList(ast->bracedInitList);
+}
+
 void RecursiveASTVisitor::visit(ThisLambdaCaptureAST* ast) {}
 
 void RecursiveASTVisitor::visit(DerefThisLambdaCaptureAST* ast) {}

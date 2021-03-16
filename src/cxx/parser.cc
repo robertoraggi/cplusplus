@@ -4905,7 +4905,9 @@ bool Parser::parse_function_body(StatementAST*& yyast) {
     return false;
   }
 
-  parse_ctor_initializer();
+  CtorInitializerAST* ctorInitializer = nullptr;
+
+  parse_ctor_initializer(ctorInitializer);
 
   if (LA().isNot(TokenKind::T_LBRACE)) return false;
 
@@ -6325,54 +6327,85 @@ bool Parser::parse_access_specifier(SourceLocation& loc) {
   }  // switch
 }
 
-bool Parser::parse_ctor_initializer() {
-  if (!match(TokenKind::T_COLON)) return false;
+bool Parser::parse_ctor_initializer(CtorInitializerAST*& yyast) {
+  SourceLocation colonLoc;
 
-  if (!parse_mem_initializer_list())
+  if (!match(TokenKind::T_COLON, colonLoc)) return false;
+
+  auto ast = new (pool) CtorInitializerAST();
+  yyast = ast;
+
+  ast->colonLoc = colonLoc;
+
+  if (!parse_mem_initializer_list(ast->memInitializerList))
     parse_error("expected a member intializer");
 
   return true;
 }
 
-bool Parser::parse_mem_initializer_list() {
-  if (!parse_mem_initializer()) return false;
+bool Parser::parse_mem_initializer_list(List<MemInitializerAST*>*& yyast) {
+  auto it = &yyast;
 
-  match(TokenKind::T_DOT_DOT_DOT);
+  MemInitializerAST* mem_initializer = nullptr;
+
+  if (!parse_mem_initializer(mem_initializer)) return false;
+
+  *it = new (pool) List(mem_initializer);
+  it = &(*it)->next;
 
   while (match(TokenKind::T_COMMA)) {
-    if (!parse_mem_initializer()) parse_error("expected a member initializer");
+    MemInitializerAST* mem_initializer = nullptr;
 
-    match(TokenKind::T_DOT_DOT_DOT);
-  }
-
-  return true;
-}
-
-bool Parser::parse_mem_initializer() {
-  if (!parse_mem_initializer_id()) parse_error("expected an member id");
-
-  if (LA().is(TokenKind::T_LBRACE)) {
-    BracedInitListAST* bracedInitList = nullptr;
-
-    if (!parse_braced_init_list(bracedInitList))
-      parse_error("expected an initializer");
-  } else {
-    expect(TokenKind::T_LPAREN);
-
-    if (!match(TokenKind::T_RPAREN)) {
-      List<ExpressionAST*>* expressionList = nullptr;
-
-      if (!parse_expression_list(expressionList))
-        parse_error("expected an expression");
-
-      expect(TokenKind::T_RPAREN);
+    if (!parse_mem_initializer(mem_initializer))
+      parse_error("expected a member initializer");
+    else {
+      *it = new (pool) List(mem_initializer);
+      it = &(*it)->next;
     }
   }
 
   return true;
 }
 
-bool Parser::parse_mem_initializer_id() {
+bool Parser::parse_mem_initializer(MemInitializerAST*& yyast) {
+  NameAST* name = nullptr;
+
+  if (!parse_mem_initializer_id(name)) parse_error("expected an member id");
+
+  if (LA().is(TokenKind::T_LBRACE)) {
+    auto ast = new (pool) BracedMemInitializerAST();
+    yyast = ast;
+
+    ast->name = name;
+
+    if (!parse_braced_init_list(ast->bracedInitList))
+      parse_error("expected an initializer");
+
+    match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
+
+    return true;
+  }
+
+  auto ast = new (pool) ParenMemInitializerAST();
+  yyast = ast;
+
+  ast->name = name;
+
+  expect(TokenKind::T_LPAREN, ast->lparenLoc);
+
+  if (!match(TokenKind::T_RPAREN)) {
+    if (!parse_expression_list(ast->expressionList))
+      parse_error("expected an expression");
+
+    expect(TokenKind::T_RPAREN, ast->rparenLoc);
+  }
+
+  match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
+
+  return true;
+}
+
+bool Parser::parse_mem_initializer_id(NameAST*& yyast) {
   const auto start = currentLocation();
 
   NameAST* name = nullptr;
@@ -7175,8 +7208,11 @@ bool Parser::parse_try_block(StatementAST*& yyast) {
 bool Parser::parse_function_try_block(StatementAST*& yyast) {
   if (!match(TokenKind::T_TRY)) return false;
 
+  CtorInitializerAST* ctorInitializer = nullptr;
+
   if (LA().isNot(TokenKind::T_LBRACE)) {
-    if (!parse_ctor_initializer()) parse_error("expected a ctor initializer");
+    if (!parse_ctor_initializer(ctorInitializer))
+      parse_error("expected a ctor initializer");
   }
 
   StatementAST* statement = nullptr;

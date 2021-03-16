@@ -262,6 +262,50 @@ SourceLocation TrailingReturnTypeAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation CtorInitializerAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(memInitializerList)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation CtorInitializerAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(memInitializerList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ParenMemInitializerAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expressionList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ParenMemInitializerAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(expressionList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation BracedMemInitializerAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(bracedInitList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation BracedMemInitializerAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(bracedInitList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation ThisLambdaCaptureAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(thisLoc)) return loc;
   return SourceLocation();

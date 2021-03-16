@@ -268,6 +268,51 @@ void ASTSlot::visit(TrailingReturnTypeAST* ast) {
   }  // switch
 }
 
+void ASTSlot::visit(CtorInitializerAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->colonLoc.index();
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->memInitializerList);
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(ParenMemInitializerAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = reinterpret_cast<std::intptr_t>(ast->name);
+      break;
+    case 1:
+      value_ = ast->lparenLoc.index();
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->expressionList);
+      break;
+    case 3:
+      value_ = ast->rparenLoc.index();
+      break;
+    case 4:
+      value_ = ast->ellipsisLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(BracedMemInitializerAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = reinterpret_cast<std::intptr_t>(ast->name);
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->bracedInitList);
+      break;
+    case 2:
+      value_ = ast->ellipsisLoc.index();
+      break;
+  }  // switch
+}
+
 void ASTSlot::visit(ThisLambdaCaptureAST* ast) {
   switch (slot_) {
     case 0:

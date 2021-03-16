@@ -318,6 +318,55 @@ void ASTCloner::visit(TrailingReturnTypeAST* ast) {
   copy->typeId = accept(ast->typeId);
 }
 
+void ASTCloner::visit(CtorInitializerAST* ast) {
+  auto copy = new (arena_) CtorInitializerAST();
+  copy_ = copy;
+
+  copy->colonLoc = ast->colonLoc;
+
+  if (auto it = ast->memInitializerList) {
+    auto out = &copy->memInitializerList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+}
+
+void ASTCloner::visit(ParenMemInitializerAST* ast) {
+  auto copy = new (arena_) ParenMemInitializerAST();
+  copy_ = copy;
+
+  copy->name = accept(ast->name);
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  if (auto it = ast->expressionList) {
+    auto out = &copy->expressionList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->rparenLoc = ast->rparenLoc;
+
+  copy->ellipsisLoc = ast->ellipsisLoc;
+}
+
+void ASTCloner::visit(BracedMemInitializerAST* ast) {
+  auto copy = new (arena_) BracedMemInitializerAST();
+  copy_ = copy;
+
+  copy->name = accept(ast->name);
+
+  copy->bracedInitList = accept(ast->bracedInitList);
+
+  copy->ellipsisLoc = ast->ellipsisLoc;
+}
+
 void ASTCloner::visit(ThisLambdaCaptureAST* ast) {
   auto copy = new (arena_) ThisLambdaCaptureAST();
   copy_ = copy;
