@@ -177,8 +177,6 @@ struct Tok final : Managed {
   }
 };
 
-static_assert(sizeof(Tok) == 40);
-
 struct TokList final : Managed {
   const Tok *head = nullptr;
   const TokList *tail = nullptr;
