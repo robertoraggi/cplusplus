@@ -60,58 +60,7 @@ std::string readAll(const std::string& fileName) {
   return readAll(fileName, stream);
 }
 
-bool parseFile(const CLI& cli, const std::string& fileName, bool preprocessed,
-               bool printAST) {
-  Control control;
-  TranslationUnit unit(&control);
-
-  if (!preprocessed) {
-    auto preprocesor = std::make_unique<Preprocessor>(&control);
-
-    preprocesor->addSystemIncludePaths();
-    preprocesor->addPredefinedMacros();
-
-    for (const auto& path : cli.get("-I")) {
-      preprocesor->addSystemIncludePath(path);
-    }
-
-    for (const auto& macro : cli.get("-D")) {
-      auto sep = macro.find_first_of("=");
-
-      if (sep == std::string::npos) {
-        preprocesor->defineMacro(macro, "1");
-      } else {
-        preprocesor->defineMacro(macro.substr(0, sep), macro.substr(sep + 1));
-      }
-    }
-
-    unit.setPreprocessor(std::move(preprocesor));
-  }
-
-  unit.setFileName(fileName);
-  unit.setSource(readAll(fileName));
-  unit.setPreprocessed(preprocessed);
-
-  const auto result = unit.parse();
-
-  if (printAST) {
-    ASTPrinter print(&unit);
-    std::cout << std::setw(4) << print(unit.ast());
-  }
-
-  return result;
-}
-
-void dumpTokens(const std::string& fileName, bool preprocessed) {
-  Control control;
-
-  TranslationUnit unit(&control);
-
-  unit.setPreprocessed(preprocessed);
-  unit.setSource(readAll(fileName));
-  unit.setFileName(std::move(fileName));
-  unit.tokenize(/*preprocessing=*/true);
-
+void dumpTokens(const CLI& cli, TranslationUnit& unit) {
   std::string flags;
 
   for (SourceLocation loc(1);; loc = loc.next()) {
@@ -137,6 +86,62 @@ void dumpTokens(const std::string& fileName, bool preprocessed) {
   }
 }
 
+bool runOnFile(const CLI& cli, const std::string& fileName) {
+  Control control;
+  TranslationUnit unit(&control);
+
+  auto preprocesor = unit.preprocessor();
+
+  preprocesor->addSystemIncludePaths();
+  preprocesor->addPredefinedMacros();
+
+  for (const auto& path : cli.get("-I")) {
+    preprocesor->addSystemIncludePath(path);
+  }
+
+  for (const auto& macro : cli.get("-D")) {
+    auto sep = macro.find_first_of("=");
+
+    if (sep == std::string::npos) {
+      preprocesor->defineMacro(macro, "1");
+    } else {
+      preprocesor->defineMacro(macro.substr(0, sep), macro.substr(sep + 1));
+    }
+  }
+
+  if (cli.count("-E") && !cli.count("-dM")) {
+    preprocesor->preprocess(readAll(fileName), fileName, std::cout);
+    return true;
+  }
+
+  unit.setSource(readAll(fileName), fileName);
+
+  if (cli.count("-dM")) {
+    preprocesor->printMacros(std::cout);
+    return true;
+  }
+
+  if (cli.count("-dump-tokens")) {
+    dumpTokens(cli, unit);
+    return true;
+  }
+
+  if (cli.count("-Eonly")) {
+    return true;
+  }
+
+  preprocesor->squeeze();
+
+  const auto result = unit.parse();
+
+  if (cli.count("-ast-dump")) {
+    ASTPrinter print(&unit);
+    std::cout << std::setw(4) << print(unit.ast());
+  }
+
+  return result;
+}
+
 }  // namespace cxx
 
 int main(int argc, char* argv[]) {
@@ -155,12 +160,6 @@ int main(int argc, char* argv[]) {
   // }
 
   const auto& inputFiles = cli.positionals();
-  const auto shouldDumpTokens = cli.count("-dump-tokens");
-  const auto shouldDumpMacros = cli.count("-dM");
-  const auto shouldDumpAST = cli.count("-ast-dump");
-  const auto preprocessOnly = cli.count("-Eonly");
-  const auto shouldPreprocess = preprocessOnly || cli.count("-E");
-  const auto preprocessed = cli.count("-fpreprocessed");
 
   if (inputFiles.empty()) {
     std::cerr << "cxx-frontend: no input files" << std::endl
@@ -169,42 +168,7 @@ int main(int argc, char* argv[]) {
   }
 
   for (const auto& fileName : inputFiles) {
-    if (shouldPreprocess) {
-      Control control;
-      Preprocessor preprocess(&control);
-
-      preprocess.addSystemIncludePaths();
-      preprocess.addPredefinedMacros();
-
-      for (const auto& path : cli.get("-I")) {
-        preprocess.addSystemIncludePath(path);
-      }
-
-      for (const auto& macro : cli.get("-D")) {
-        auto sep = macro.find_first_of("=");
-        if (sep == std::string::npos) {
-          preprocess.defineMacro(macro, "1");
-        } else {
-          preprocess.defineMacro(macro.substr(0, sep), macro.substr(sep + 1));
-        }
-      }
-
-      const auto source = readAll(fileName);
-
-      if (preprocessOnly || shouldDumpMacros) {
-        std::vector<Token> tokens;
-        preprocess.preprocess(source, fileName, tokens);
-        if (shouldDumpMacros) preprocess.printMacros(std::cout);
-      } else {
-        std::ostringstream out;
-        preprocess(source, fileName, out);
-        fmt::print("{}\n", out.str());
-      }
-    } else if (shouldDumpTokens) {
-      dumpTokens(fileName, preprocessed);
-    } else {
-      parseFile(cli, fileName, preprocessed, shouldDumpAST);
-    }
+    runOnFile(cli, fileName);
   }
 
   return EXIT_SUCCESS;

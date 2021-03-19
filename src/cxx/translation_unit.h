@@ -70,19 +70,9 @@ class TranslationUnit {
   UnitAST* ast() const { return ast_; }
 
   const std::string& fileName() const { return fileName_; }
-  void setFileName(std::string fileName) { fileName_ = std::move(fileName); }
+  Preprocessor* preprocessor() const { return preprocessor_.get(); }
 
-  bool preprocessed() const { return preprocessed_; }
-  void setPreprocessed(bool preprocessed) { preprocessed_ = preprocessed; }
-
-  void setPreprocessor(std::unique_ptr<Preprocessor> preprocessor);
-
-  const std::string& source() const { return code_; }
-
-  void setSource(std::string source) {
-    code_ = std::move(source);
-    yyptr = code_.c_str();
-  }
+  void setSource(std::string source, std::string fileName);
 
   bool fatalErrors() const { return fatalErrors_; }
   void setFatalErrors(bool fatalErrors) { fatalErrors_ = fatalErrors; }
@@ -167,8 +157,6 @@ class TranslationUnit {
 
   const Identifier* identifier(SourceLocation loc) const;
 
-  void tokenize(bool preprocessing = false);
-
   bool parse();
 
  private:
@@ -176,13 +164,10 @@ class TranslationUnit {
   Arena* arena_;
   std::vector<Token> tokens_;
   std::string fileName_;
-  std::string text_;
-  std::string code_;
   UnitAST* ast_ = nullptr;
   const char* yyptr = nullptr;
   bool fatalErrors_ = false;
   bool blockErrors_ = false;
-  bool preprocessed_ = true;
   DiagnosticClient* diagnosticClient_ = nullptr;
   std::unique_ptr<Preprocessor> preprocessor_;
 };

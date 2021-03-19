@@ -384,7 +384,9 @@ struct Preprocessor::Private {
 
       std::optional<fs::path> operator()(const SystemInclude &include) const {
         bool hit = false;
-        for (const auto &p : d->systemIncludePaths_) {
+        for (auto it = rbegin(d->systemIncludePaths_);
+             it != rend(d->systemIncludePaths_); ++it) {
+          const auto &p = *it;
           auto path = p / include.fileName;
           if (exists(path)) {
             if (!next || hit) return path;
@@ -402,7 +404,9 @@ struct Preprocessor::Private {
           hit = true;
         }
 
-        for (const auto &p : d->quoteIncludePaths_) {
+        for (auto it = rbegin(d->quoteIncludePaths_);
+             it != rend(d->quoteIncludePaths_); ++it) {
+          const auto &p = *it;
           auto path = p / include.fileName;
           if (exists(path)) {
             if (!next || hit) return path;
@@ -410,7 +414,9 @@ struct Preprocessor::Private {
           }
         }
 
-        for (const auto &p : d->systemIncludePaths_) {
+        for (auto it = rbegin(d->systemIncludePaths_);
+             it != rend(d->systemIncludePaths_); ++it) {
+          const auto &p = *it;
           auto path = p / include.fileName;
           if (exists(path)) {
             if (!next || hit) return path;
@@ -1244,18 +1250,20 @@ Preprocessor::Preprocessor(Control *control) : d(std::make_unique<Private>()) {
 
 Preprocessor::~Preprocessor() {}
 
-void Preprocessor::operator()(const std::string_view &source,
-                              const std::string &fileName, std::ostream &out) {
-  preprocess(source, fileName, out);
+void Preprocessor::squeeze() { d->pool_.reset(); }
+
+void Preprocessor::operator()(std::string source, std::string fileName,
+                              std::ostream &out) {
+  preprocess(std::move(source), std::move(fileName), out);
 }
 
-void Preprocessor::preprocess(const std::string_view &source,
-                              const std::string &fileName, std::ostream &out) {
+void Preprocessor::preprocess(std::string source, std::string fileName,
+                              std::ostream &out) {
   const int sourceFileId = int(d->sourceFiles_.size() + 1);
   auto &sourceFile = *d->sourceFiles_.emplace_back(
-      std::make_unique<SourceFile>(fileName, std::string(source)));
+      std::make_unique<SourceFile>(std::move(fileName), std::move(source)));
 
-  fs::path path(fileName);
+  fs::path path(sourceFile.fileName);
   path.remove_filename();
 
   std::swap(d->currentPath_, path);
@@ -1301,14 +1309,13 @@ void Preprocessor::preprocess(const std::string_view &source,
   fmt::print(out, "\n");
 }
 
-void Preprocessor::preprocess(const std::string_view &source,
-                              const std::string &fileName,
+void Preprocessor::preprocess(std::string source, std::string fileName,
                               std::vector<Token> &tokens) {
   const int sourceFileId = int(d->sourceFiles_.size() + 1);
   auto &sourceFile = *d->sourceFiles_.emplace_back(
-      std::make_unique<SourceFile>(fileName, std::string(source)));
+      std::make_unique<SourceFile>(std::move(fileName), std::move(source)));
 
-  fs::path path(fileName);
+  fs::path path(sourceFile.fileName);
   path.remove_filename();
 
   std::swap(d->currentPath_, path);
@@ -1411,8 +1418,6 @@ void Preprocessor::preprocess(const std::string_view &source,
   tokens.emplace_back(TokenKind::T_EOF_SYMBOL);
 
   std::swap(d->currentPath_, path);
-
-  d->pool_.reset();
 }
 
 void Preprocessor::addSystemIncludePath(const std::string &path) {
@@ -1486,13 +1491,13 @@ std::string_view Preprocessor::getTextLine(const Token &token) const {
 
 void Preprocessor::addSystemIncludePaths() {
   // clang-format off
-  d->systemIncludePaths_.emplace_back("/usr/include/c++/9");
-  d->systemIncludePaths_.emplace_back("/usr/include/x86_64-linux-gnu/c++/9");
-  d->systemIncludePaths_.emplace_back("/usr/include/c++/9/backward");
-  d->systemIncludePaths_.emplace_back("/usr/lib/gcc/x86_64-linux-gnu/9/include");
-  d->systemIncludePaths_.emplace_back("/usr/local/include");
-  d->systemIncludePaths_.emplace_back("/usr/include/x86_64-linux-gnu");
   d->systemIncludePaths_.emplace_back("/usr/include");
+  d->systemIncludePaths_.emplace_back("/usr/include/x86_64-linux-gnu");
+  d->systemIncludePaths_.emplace_back("/usr/local/include");
+  d->systemIncludePaths_.emplace_back("/usr/lib/gcc/x86_64-linux-gnu/9/include");
+  d->systemIncludePaths_.emplace_back("/usr/include/c++/9/backward");
+  d->systemIncludePaths_.emplace_back("/usr/include/x86_64-linux-gnu/c++/9");
+  d->systemIncludePaths_.emplace_back("/usr/include/c++/9");
   // clang-format on
 }
 

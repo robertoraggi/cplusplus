@@ -40,13 +40,11 @@ class Preprocessor {
   explicit Preprocessor(Control *control);
   ~Preprocessor();
 
-  void operator()(const std::string_view &source, const std::string &fileName,
-                  std::ostream &out);
+  void operator()(std::string source, std::string fileName, std::ostream &out);
 
-  void preprocess(const std::string_view &source, const std::string &fileName,
-                  std::ostream &out);
+  void preprocess(std::string source, std::string fileName, std::ostream &out);
 
-  void preprocess(const std::string_view &source, const std::string &fileName,
+  void preprocess(std::string source, std::string fileName,
                   std::vector<Token> &tokens);
 
   void addSystemIncludePaths();
@@ -67,6 +65,8 @@ class Preprocessor {
                            std::string_view *fileName) const;
 
   std::string_view getTextLine(const Token &token) const;
+
+  void squeeze();
 
  private:
   struct Private;

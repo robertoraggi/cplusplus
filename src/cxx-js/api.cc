@@ -120,8 +120,7 @@ static WrappedUnit* createUnit(std::string source, std::string filename) {
   auto wrapped = new WrappedUnit();
 
   DiagnosticClient diagnosticClient(messages);
-  wrapped->unit.setFileName(std::move(filename));
-  wrapped->unit.setSource(std::move(source));
+  wrapped->unit.setSource(std::move(source), filename);
 
   return wrapped;
 }

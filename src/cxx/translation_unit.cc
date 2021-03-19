@@ -41,9 +41,9 @@ TranslationUnit::TranslationUnit(Control* control) : control_(control) {
 
 TranslationUnit::~TranslationUnit() { delete arena_; }
 
-void TranslationUnit::setPreprocessor(
-    std::unique_ptr<Preprocessor> preprocessor) {
-  preprocessor_ = std::move(preprocessor);
+void TranslationUnit::setSource(std::string source, std::string fileName) {
+  fileName_ = std::move(fileName);
+  preprocessor_->preprocess(std::move(source), fileName_, tokens_);
 }
 
 int TranslationUnit::tokenLength(SourceLocation loc) const {
@@ -88,12 +88,7 @@ void TranslationUnit::getTokenEndPosition(SourceLocation loc, unsigned* line,
   preprocessor_->getTokenEndPosition(tokenAt(loc), line, column, fileName);
 }
 
-void TranslationUnit::tokenize(bool preprocessing) {
-  preprocessor_->preprocess(code_, fileName_, tokens_);
-}
-
 bool TranslationUnit::parse() {
-  if (tokens_.empty()) tokenize();
   Parser parse;
   return parse(this, ast_);
 }
