@@ -21,6 +21,8 @@
 #pragma once
 
 #include <cxx/ast_visitor.h>
+#include <cxx/fully_specified_type.h>
+#include <cxx/names_fwd.h>
 
 namespace cxx {
 
@@ -35,7 +37,7 @@ class Semantics final : ASTVisitor {
 
   void specifier(SpecifierAST* ast);
   void declarator(DeclaratorAST* ast);
-  void name(NameAST* ast);
+  const Name* name(NameAST* ast);
   void nestedNameSpecifier(NestedNameSpecifierAST* ast);
   void exceptionDeclaration(ExceptionDeclarationAST* ast);
   void compoundStatement(CompoundStatementAST* ast);
@@ -253,6 +255,7 @@ class Semantics final : ASTVisitor {
 
  private:
   TranslationUnit* unit_ = nullptr;
+  const Name* name_ = nullptr;
 };
 
 }  // namespace cxx

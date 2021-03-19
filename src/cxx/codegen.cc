@@ -30,92 +30,84 @@ void Codegen::operator()(TranslationUnit* unit) {
   std::swap(unit_, unit);
 }
 
-void Codegen::specifier(SpecifierAST* ast) { return accept(ast); }
+void Codegen::specifier(SpecifierAST* ast) { accept(ast); }
 
-void Codegen::declarator(DeclaratorAST* ast) { return accept(ast); }
+void Codegen::declarator(DeclaratorAST* ast) { accept(ast); }
 
-void Codegen::name(NameAST* ast) { return accept(ast); }
+void Codegen::name(NameAST* ast) { accept(ast); }
 
-void Codegen::nestedNameSpecifier(NestedNameSpecifierAST* ast) {
-  return accept(ast);
-}
+void Codegen::nestedNameSpecifier(NestedNameSpecifierAST* ast) { accept(ast); }
 
 void Codegen::exceptionDeclaration(ExceptionDeclarationAST* ast) {
-  return accept(ast);
+  accept(ast);
 }
 
-void Codegen::compoundStatement(CompoundStatementAST* ast) {
-  return accept(ast);
-}
+void Codegen::compoundStatement(CompoundStatementAST* ast) { accept(ast); }
 
-void Codegen::attribute(AttributeAST* ast) { return accept(ast); }
+void Codegen::attribute(AttributeAST* ast) { accept(ast); }
 
-void Codegen::expression(ExpressionAST* ast) { return accept(ast); }
+void Codegen::expression(ExpressionAST* ast) { accept(ast); }
 
-void Codegen::ptrOperator(PtrOperatorAST* ast) { return accept(ast); }
+void Codegen::ptrOperator(PtrOperatorAST* ast) { accept(ast); }
 
-void Codegen::coreDeclarator(CoreDeclaratorAST* ast) { return accept(ast); }
+void Codegen::coreDeclarator(CoreDeclaratorAST* ast) { accept(ast); }
 
-void Codegen::declaratorModifier(DeclaratorModifierAST* ast) {
-  return accept(ast);
-}
+void Codegen::declaratorModifier(DeclaratorModifierAST* ast) { accept(ast); }
 
-void Codegen::initializer(InitializerAST* ast) { return accept(ast); }
+void Codegen::initializer(InitializerAST* ast) { accept(ast); }
 
-void Codegen::baseSpecifier(BaseSpecifierAST* ast) { return accept(ast); }
+void Codegen::baseSpecifier(BaseSpecifierAST* ast) { accept(ast); }
 
 void Codegen::parameterDeclaration(ParameterDeclarationAST* ast) {
-  return accept(ast);
+  accept(ast);
 }
 
 void Codegen::parameterDeclarationClause(ParameterDeclarationClauseAST* ast) {
-  return accept(ast);
+  accept(ast);
 }
 
-void Codegen::lambdaCapture(LambdaCaptureAST* ast) { return accept(ast); }
+void Codegen::lambdaCapture(LambdaCaptureAST* ast) { accept(ast); }
 
-void Codegen::trailingReturnType(TrailingReturnTypeAST* ast) {
-  return accept(ast);
-}
+void Codegen::trailingReturnType(TrailingReturnTypeAST* ast) { accept(ast); }
 
-void Codegen::typeId(TypeIdAST* ast) { return accept(ast); }
+void Codegen::typeId(TypeIdAST* ast) { accept(ast); }
 
-void Codegen::memInitializer(MemInitializerAST* ast) { return accept(ast); }
+void Codegen::memInitializer(MemInitializerAST* ast) { accept(ast); }
 
-void Codegen::bracedInitList(BracedInitListAST* ast) { return accept(ast); }
+void Codegen::bracedInitList(BracedInitListAST* ast) { accept(ast); }
 
-void Codegen::ctorInitializer(CtorInitializerAST* ast) { return accept(ast); }
+void Codegen::ctorInitializer(CtorInitializerAST* ast) { accept(ast); }
 
-void Codegen::handler(HandlerAST* ast) { return accept(ast); }
+void Codegen::handler(HandlerAST* ast) { accept(ast); }
 
-void Codegen::declaration(DeclarationAST* ast) { return accept(ast); }
+void Codegen::declaration(DeclarationAST* ast) { accept(ast); }
 
-void Codegen::lambdaIntroducer(LambdaIntroducerAST* ast) { return accept(ast); }
+void Codegen::lambdaIntroducer(LambdaIntroducerAST* ast) { accept(ast); }
 
-void Codegen::lambdaDeclarator(LambdaDeclaratorAST* ast) { return accept(ast); }
+void Codegen::lambdaDeclarator(LambdaDeclaratorAST* ast) { accept(ast); }
 
-void Codegen::newTypeId(NewTypeIdAST* ast) { return accept(ast); }
+void Codegen::newTypeId(NewTypeIdAST* ast) { accept(ast); }
 
-void Codegen::newInitializer(NewInitializerAST* ast) { return accept(ast); }
+void Codegen::newInitializer(NewInitializerAST* ast) { accept(ast); }
 
-void Codegen::statement(StatementAST* ast) { return accept(ast); }
+void Codegen::statement(StatementAST* ast) { accept(ast); }
 
-void Codegen::functionBody(FunctionBodyAST* ast) { return accept(ast); }
+void Codegen::functionBody(FunctionBodyAST* ast) { accept(ast); }
 
-void Codegen::initDeclarator(InitDeclaratorAST* ast) { return accept(ast); }
+void Codegen::initDeclarator(InitDeclaratorAST* ast) { accept(ast); }
 
-void Codegen::enumBase(EnumBaseAST* ast) { return accept(ast); }
+void Codegen::enumBase(EnumBaseAST* ast) { accept(ast); }
 
-void Codegen::usingDeclarator(UsingDeclaratorAST* ast) { return accept(ast); }
+void Codegen::usingDeclarator(UsingDeclaratorAST* ast) { accept(ast); }
 
-void Codegen::templateArgument(TemplateArgumentAST* ast) { return accept(ast); }
+void Codegen::templateArgument(TemplateArgumentAST* ast) { accept(ast); }
 
-void Codegen::enumerator(EnumeratorAST* ast) { return accept(ast); }
+void Codegen::enumerator(EnumeratorAST* ast) { accept(ast); }
 
-void Codegen::baseClause(BaseClauseAST* ast) { return accept(ast); }
+void Codegen::baseClause(BaseClauseAST* ast) { accept(ast); }
 
 void Codegen::parametersAndQualifiers(ParametersAndQualifiersAST* ast) {
-  return accept(ast);
+  accept(ast);
 }
 
 void Codegen::accept(AST* ast) {

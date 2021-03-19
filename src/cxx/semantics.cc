@@ -19,8 +19,10 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
+#include <cxx/names.h>
 #include <cxx/semantics.h>
 #include <cxx/translation_unit.h>
+#include <cxx/types.h>
 
 namespace cxx {
 
@@ -30,98 +32,92 @@ void Semantics::operator()(TranslationUnit* unit) {
   std::swap(unit_, unit);
 }
 
-void Semantics::specifier(SpecifierAST* ast) { return accept(ast); }
+void Semantics::specifier(SpecifierAST* ast) { accept(ast); }
 
-void Semantics::declarator(DeclaratorAST* ast) { return accept(ast); }
+void Semantics::declarator(DeclaratorAST* ast) { accept(ast); }
 
-void Semantics::name(NameAST* ast) { return accept(ast); }
+const Name* Semantics::name(NameAST* ast) {
+  const Name* name = nullptr;
+  std::swap(name_, name);
+  accept(ast);
+  std::swap(name_, name);
+  return name;
+}
 
 void Semantics::nestedNameSpecifier(NestedNameSpecifierAST* ast) {
-  return accept(ast);
+  accept(ast);
 }
 
 void Semantics::exceptionDeclaration(ExceptionDeclarationAST* ast) {
-  return accept(ast);
+  accept(ast);
 }
 
-void Semantics::compoundStatement(CompoundStatementAST* ast) {
-  return accept(ast);
-}
+void Semantics::compoundStatement(CompoundStatementAST* ast) { accept(ast); }
 
-void Semantics::attribute(AttributeAST* ast) { return accept(ast); }
+void Semantics::attribute(AttributeAST* ast) { accept(ast); }
 
-void Semantics::expression(ExpressionAST* ast) { return accept(ast); }
+void Semantics::expression(ExpressionAST* ast) { accept(ast); }
 
-void Semantics::ptrOperator(PtrOperatorAST* ast) { return accept(ast); }
+void Semantics::ptrOperator(PtrOperatorAST* ast) { accept(ast); }
 
-void Semantics::coreDeclarator(CoreDeclaratorAST* ast) { return accept(ast); }
+void Semantics::coreDeclarator(CoreDeclaratorAST* ast) { accept(ast); }
 
-void Semantics::declaratorModifier(DeclaratorModifierAST* ast) {
-  return accept(ast);
-}
+void Semantics::declaratorModifier(DeclaratorModifierAST* ast) { accept(ast); }
 
-void Semantics::initializer(InitializerAST* ast) { return accept(ast); }
+void Semantics::initializer(InitializerAST* ast) { accept(ast); }
 
-void Semantics::baseSpecifier(BaseSpecifierAST* ast) { return accept(ast); }
+void Semantics::baseSpecifier(BaseSpecifierAST* ast) { accept(ast); }
 
 void Semantics::parameterDeclaration(ParameterDeclarationAST* ast) {
-  return accept(ast);
+  accept(ast);
 }
 
 void Semantics::parameterDeclarationClause(ParameterDeclarationClauseAST* ast) {
-  return accept(ast);
+  accept(ast);
 }
 
-void Semantics::lambdaCapture(LambdaCaptureAST* ast) { return accept(ast); }
+void Semantics::lambdaCapture(LambdaCaptureAST* ast) { accept(ast); }
 
-void Semantics::trailingReturnType(TrailingReturnTypeAST* ast) {
-  return accept(ast);
-}
+void Semantics::trailingReturnType(TrailingReturnTypeAST* ast) { accept(ast); }
 
-void Semantics::typeId(TypeIdAST* ast) { return accept(ast); }
+void Semantics::typeId(TypeIdAST* ast) { accept(ast); }
 
-void Semantics::memInitializer(MemInitializerAST* ast) { return accept(ast); }
+void Semantics::memInitializer(MemInitializerAST* ast) { accept(ast); }
 
-void Semantics::bracedInitList(BracedInitListAST* ast) { return accept(ast); }
+void Semantics::bracedInitList(BracedInitListAST* ast) { accept(ast); }
 
-void Semantics::ctorInitializer(CtorInitializerAST* ast) { return accept(ast); }
+void Semantics::ctorInitializer(CtorInitializerAST* ast) { accept(ast); }
 
-void Semantics::handler(HandlerAST* ast) { return accept(ast); }
+void Semantics::handler(HandlerAST* ast) { accept(ast); }
 
-void Semantics::declaration(DeclarationAST* ast) { return accept(ast); }
+void Semantics::declaration(DeclarationAST* ast) { accept(ast); }
 
-void Semantics::lambdaIntroducer(LambdaIntroducerAST* ast) {
-  return accept(ast);
-}
+void Semantics::lambdaIntroducer(LambdaIntroducerAST* ast) { accept(ast); }
 
-void Semantics::lambdaDeclarator(LambdaDeclaratorAST* ast) {
-  return accept(ast);
-}
+void Semantics::lambdaDeclarator(LambdaDeclaratorAST* ast) { accept(ast); }
 
-void Semantics::newTypeId(NewTypeIdAST* ast) { return accept(ast); }
+void Semantics::newTypeId(NewTypeIdAST* ast) { accept(ast); }
 
-void Semantics::newInitializer(NewInitializerAST* ast) { return accept(ast); }
+void Semantics::newInitializer(NewInitializerAST* ast) { accept(ast); }
 
-void Semantics::statement(StatementAST* ast) { return accept(ast); }
+void Semantics::statement(StatementAST* ast) { accept(ast); }
 
-void Semantics::functionBody(FunctionBodyAST* ast) { return accept(ast); }
+void Semantics::functionBody(FunctionBodyAST* ast) { accept(ast); }
 
-void Semantics::initDeclarator(InitDeclaratorAST* ast) { return accept(ast); }
+void Semantics::initDeclarator(InitDeclaratorAST* ast) { accept(ast); }
 
-void Semantics::enumBase(EnumBaseAST* ast) { return accept(ast); }
+void Semantics::enumBase(EnumBaseAST* ast) { accept(ast); }
 
-void Semantics::usingDeclarator(UsingDeclaratorAST* ast) { return accept(ast); }
+void Semantics::usingDeclarator(UsingDeclaratorAST* ast) { accept(ast); }
 
-void Semantics::templateArgument(TemplateArgumentAST* ast) {
-  return accept(ast);
-}
+void Semantics::templateArgument(TemplateArgumentAST* ast) { accept(ast); }
 
-void Semantics::enumerator(EnumeratorAST* ast) { return accept(ast); }
+void Semantics::enumerator(EnumeratorAST* ast) { accept(ast); }
 
-void Semantics::baseClause(BaseClauseAST* ast) { return accept(ast); }
+void Semantics::baseClause(BaseClauseAST* ast) { accept(ast); }
 
 void Semantics::parametersAndQualifiers(ParametersAndQualifiersAST* ast) {
-  return accept(ast);
+  accept(ast);
 }
 
 void Semantics::accept(AST* ast) {
@@ -605,7 +601,10 @@ void Semantics::visit(LinkageSpecificationAST* ast) {
     declaration(it->value);
 }
 
-void Semantics::visit(SimpleNameAST* ast) {}
+void Semantics::visit(SimpleNameAST* ast) {
+  auto id = unit_->identifier(ast->identifierLoc);
+  name_ = id;
+}
 
 void Semantics::visit(DestructorNameAST* ast) { name(ast->id); }
 
