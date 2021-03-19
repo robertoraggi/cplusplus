@@ -35,14 +35,43 @@ class Semantics final : ASTVisitor {
  private:
   void accept(AST* ast);
 
-  void specifier(SpecifierAST* ast);
-  void declarator(DeclaratorAST* ast);
-  const Name* name(NameAST* ast);
+  struct Specifiers {
+    FullySpecifiedType type;
+  };
+
+  struct Declarator {
+    Specifiers specifiers;
+    const Type* type = nullptr;
+    const Name* name = nullptr;
+
+    Declarator() = default;
+
+    explicit Declarator(Specifiers specifiers) noexcept
+        : specifiers(std::move(specifiers)) {}
+  };
+
+  struct Expression {
+    const Type* type = nullptr;
+  };
+
+  [[nodiscard]] Specifiers specifiers(List<SpecifierAST*>* ast);
+
+  [[nodiscard]] Specifiers specifiers(SpecifierAST* ast);
+
+  [[nodiscard]] Declarator declarator(DeclaratorAST* ast,
+                                      const Specifiers& specifiers);
+
+  [[nodiscard]] Declarator initDeclarator(InitDeclaratorAST* ast,
+                                          const Specifiers& specifiers);
+
+  [[nodiscard]] const Name* name(NameAST* ast);
+
+  [[nodiscard]] Expression expression(ExpressionAST* ast);
+
   void nestedNameSpecifier(NestedNameSpecifierAST* ast);
   void exceptionDeclaration(ExceptionDeclarationAST* ast);
   void compoundStatement(CompoundStatementAST* ast);
   void attribute(AttributeAST* ast);
-  void expression(ExpressionAST* ast);
   void ptrOperator(PtrOperatorAST* ast);
   void coreDeclarator(CoreDeclaratorAST* ast);
   void declaratorModifier(DeclaratorModifierAST* ast);
@@ -64,7 +93,6 @@ class Semantics final : ASTVisitor {
   void newInitializer(NewInitializerAST* ast);
   void statement(StatementAST* ast);
   void functionBody(FunctionBodyAST* ast);
-  void initDeclarator(InitDeclaratorAST* ast);
   void enumBase(EnumBaseAST* ast);
   void usingDeclarator(UsingDeclaratorAST* ast);
   void templateArgument(TemplateArgumentAST* ast);
@@ -256,6 +284,9 @@ class Semantics final : ASTVisitor {
  private:
   TranslationUnit* unit_ = nullptr;
   const Name* name_ = nullptr;
+  Specifiers specifiers_;
+  Declarator declarator_;
+  Expression expression_;
 };
 
 }  // namespace cxx
