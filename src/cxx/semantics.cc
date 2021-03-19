@@ -85,9 +85,15 @@ void Semantics::attribute(AttributeAST* ast) { accept(ast); }
 
 Semantics::Expression Semantics::expression(ExpressionAST* ast) {
   Expression expression;
-  std::swap(expression_, expression);
-  accept(ast);
-  std::swap(expression_, expression);
+  if (ast) {
+    if (ast->type) {
+      expression.type = ast->type;
+      return expression;
+    }
+    std::swap(expression_, expression);
+    accept(ast);
+    std::swap(expression_, expression);
+  }
   return expression;
 }
 
@@ -145,10 +151,8 @@ void Semantics::functionBody(FunctionBodyAST* ast) { accept(ast); }
 
 Semantics::Declarator Semantics::initDeclarator(InitDeclaratorAST* ast,
                                                 const Specifiers& specifiers) {
-  Declarator declarator{specifiers};
-  std::swap(declarator_, declarator);
-  accept(ast);
-  std::swap(declarator_, declarator);
+  Declarator declarator = this->declarator(ast->declarator, specifiers);
+  initializer(ast->initializer);
   return declarator;
 }
 
@@ -209,8 +213,7 @@ void Semantics::visit(DeclaratorAST* ast) {
 }
 
 void Semantics::visit(InitDeclaratorAST* ast) {
-  auto declarator = this->declarator(ast->declarator, declarator_.specifiers);
-  initializer(ast->initializer);
+  throw std::runtime_error("unreachable");
 }
 
 void Semantics::visit(BaseSpecifierAST* ast) {
@@ -759,6 +762,7 @@ void Semantics::visit(IntegralTypeSpecifierAST* ast) {
     case TokenKind::T_INT:
       specifiers_.type.setType(
           types_->integerType(IntegerKind::kInt, specifiers_.isUnsigned));
+      break;
 
     case TokenKind::T___INT64:
       specifiers_.type.setType(
@@ -896,17 +900,27 @@ void Semantics::visit(TypenameSpecifierAST* ast) {
 void Semantics::visit(IdDeclaratorAST* ast) {
   auto name = this->name(ast->name);
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
+  declarator_.name = name;
 }
 
 void Semantics::visit(NestedDeclaratorAST* ast) { accept(ast->declarator); }
 
 void Semantics::visit(PointerOperatorAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
-  auto specifiers = this->specifiers(ast->cvQualifierList);
+
+  auto qualifiers = this->specifiers(ast->cvQualifierList).type.qualifiers();
+
+  FullySpecifiedType ptrTy(types_->pointerType(declarator_.type, qualifiers));
+
+  declarator_.type = ptrTy;
 }
 
 void Semantics::visit(ReferenceOperatorAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
+
+  FullySpecifiedType ptrTy(types_->referenceType(declarator_.type));
+
+  declarator_.type = ptrTy;
 }
 
 void Semantics::visit(PtrToMemberOperatorAST* ast) {
@@ -916,12 +930,41 @@ void Semantics::visit(PtrToMemberOperatorAST* ast) {
 }
 
 void Semantics::visit(FunctionDeclaratorAST* ast) {
-  parametersAndQualifiers(ast->parametersAndQualifiers);
+  std::vector<FullySpecifiedType> argumentTypes;
+  bool isVariadic = false;
+
+  if (ast->parametersAndQualifiers &&
+      ast->parametersAndQualifiers->parameterDeclarationClause) {
+    auto params = ast->parametersAndQualifiers->parameterDeclarationClause;
+
+    for (auto it = params->parameterDeclarationList; it; it = it->next) {
+      auto param = it->value;
+      auto specifiers = this->specifiers(param->typeSpecifierList);
+      auto declarator = this->declarator(param->declarator, specifiers);
+      auto expression = this->expression(param->expression);
+      argumentTypes.push_back(declarator.type);
+    }
+
+    isVariadic = bool(params->ellipsisLoc);
+  }
+
   trailingReturnType(ast->trailingReturnType);
+
+  FullySpecifiedType returnTy(declarator_.type);
+
+  FullySpecifiedType funTy(
+      types_->functionType(returnTy, std::move(argumentTypes), isVariadic));
+
+  declarator_.type = funTy;
 }
 
 void Semantics::visit(ArrayDeclaratorAST* ast) {
-  auto expression = this->expression(ast->expression);
+  if (!ast->expression) {
+    FullySpecifiedType arrayType(types_->unboundArrayType(declarator_.type));
+    declarator_.type = arrayType;
+  } else {
+    auto expression = this->expression(ast->expression);
+  }
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
 }
 

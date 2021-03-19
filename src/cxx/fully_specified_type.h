@@ -22,6 +22,8 @@
 
 #include <cxx/types_fwd.h>
 
+#include <iosfwd>
+
 namespace cxx {
 
 class FullySpecifiedType {
@@ -65,5 +67,7 @@ class FullySpecifiedType {
   const Type* type_;
   Qualifiers qualifiers_;
 };
+
+std::ostream& operator<<(std::ostream& out, const FullySpecifiedType& type);
 
 }  // namespace cxx

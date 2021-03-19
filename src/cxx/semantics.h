@@ -47,17 +47,19 @@ class Semantics final : ASTVisitor {
 
   struct Declarator {
     Specifiers specifiers;
-    const Type* type = nullptr;
+    FullySpecifiedType type;
     const Name* name = nullptr;
 
     Declarator() = default;
 
     explicit Declarator(Specifiers specifiers) noexcept
-        : specifiers(std::move(specifiers)) {}
+        : specifiers(std::move(specifiers)) {
+      type = this->specifiers.type;
+    }
   };
 
   struct Expression {
-    const Type* type = nullptr;
+    FullySpecifiedType type;
   };
 
   [[nodiscard]] Specifiers specifiers(List<SpecifierAST*>* ast);
