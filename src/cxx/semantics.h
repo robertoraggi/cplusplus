@@ -80,6 +80,7 @@ class Semantics final : ASTVisitor {
   void attribute(AttributeAST* ast);
   void ptrOperator(PtrOperatorAST* ast);
   void coreDeclarator(CoreDeclaratorAST* ast);
+  void declaratorModifiers(List<DeclaratorModifierAST*>* ast);
   void declaratorModifier(DeclaratorModifierAST* ast);
   void initializer(InitializerAST* ast);
   void baseSpecifier(BaseSpecifierAST* ast);

@@ -97,6 +97,12 @@ void Semantics::coreDeclarator(CoreDeclaratorAST* ast) { accept(ast); }
 
 void Semantics::declaratorModifier(DeclaratorModifierAST* ast) { accept(ast); }
 
+void Semantics::declaratorModifiers(List<DeclaratorModifierAST*>* ast) {
+  if (!ast) return;
+  declaratorModifiers(ast->next);
+  declaratorModifier(ast->value);
+}
+
 void Semantics::initializer(InitializerAST* ast) { accept(ast); }
 
 void Semantics::baseSpecifier(BaseSpecifierAST* ast) { accept(ast); }
@@ -198,9 +204,8 @@ void Semantics::visit(EnumeratorAST* ast) {
 
 void Semantics::visit(DeclaratorAST* ast) {
   for (auto it = ast->ptrOpList; it; it = it->next) ptrOperator(it->value);
+  declaratorModifiers(ast->modifiers);
   coreDeclarator(ast->coreDeclarator);
-  for (auto it = ast->modifiers; it; it = it->next)
-    declaratorModifier(it->value);
 }
 
 void Semantics::visit(InitDeclaratorAST* ast) {
