@@ -27,16 +27,22 @@
 namespace cxx {
 
 class TranslationUnit;
+class Control;
+class TypeEnvironment;
 
 class Semantics final : ASTVisitor {
  public:
-  void operator()(TranslationUnit* unit);
+  Semantics(TranslationUnit* unit);
+  ~Semantics();
+
+  void unit(UnitAST* unit);
 
  private:
   void accept(AST* ast);
 
   struct Specifiers {
     FullySpecifiedType type;
+    bool isUnsigned = false;
   };
 
   struct Declarator {
@@ -283,6 +289,8 @@ class Semantics final : ASTVisitor {
 
  private:
   TranslationUnit* unit_ = nullptr;
+  Control* control_ = nullptr;
+  TypeEnvironment* types_ = nullptr;
   const Name* name_ = nullptr;
   Specifiers specifiers_;
   Declarator declarator_;

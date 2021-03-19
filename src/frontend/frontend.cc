@@ -144,8 +144,8 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
   }
 
   if (cli.opt_S) {
-    Semantics sem;
-    sem(&unit);
+    Semantics sem(&unit);
+    sem.unit(unit.ast());
 
     Codegen cg;
     cg(&unit);

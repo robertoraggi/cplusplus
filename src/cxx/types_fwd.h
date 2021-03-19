@@ -54,7 +54,6 @@ class TemplateType;
 class TemplateArgumentType;
 
 enum class CharacterKind {
-  kChar,
   kChar8T,
   kChar16T,
   kChar32T,
@@ -62,14 +61,18 @@ enum class CharacterKind {
 };
 
 enum class IntegerKind {
+  kChar,
   kShort,
   kInt,
+  kInt64,
+  kInt128,
   kLong,
   kLongLong,
 };
 
 enum class FloatingPointKind {
   kFloat,
+  kFloat128,
   kDouble,
   kLongDouble,
 };

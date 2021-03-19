@@ -19,18 +19,21 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
+#include <cxx/control.h>
 #include <cxx/names.h>
 #include <cxx/semantics.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_environment.h>
 #include <cxx/types.h>
 
 namespace cxx {
 
-void Semantics::operator()(TranslationUnit* unit) {
-  std::swap(unit_, unit);
-  accept(unit_->ast());
-  std::swap(unit_, unit);
-}
+Semantics::Semantics(TranslationUnit* unit)
+    : unit_(unit), control_(unit_->control()), types_(control_->types()) {}
+
+Semantics::~Semantics() {}
+
+void Semantics::unit(UnitAST* ast) { accept(ast); }
 
 Semantics::Specifiers Semantics::specifiers(List<SpecifierAST*>* ast) {
   Specifiers specifiers;
@@ -710,13 +713,125 @@ void Semantics::visit(ExplicitSpecifierAST* ast) {
 
 void Semantics::visit(AutoTypeSpecifierAST* ast) {}
 
-void Semantics::visit(VoidTypeSpecifierAST* ast) {}
+void Semantics::visit(VoidTypeSpecifierAST* ast) {
+  specifiers_.type.setType(types_->voidType());
+}
 
 void Semantics::visit(VaListTypeSpecifierAST* ast) {}
 
-void Semantics::visit(IntegralTypeSpecifierAST* ast) {}
+void Semantics::visit(IntegralTypeSpecifierAST* ast) {
+  switch (unit_->tokenKind(ast->specifierLoc)) {
+    case TokenKind::T_CHAR8_T:
+      specifiers_.type.setType(types_->characterType(CharacterKind::kChar8T));
+      break;
 
-void Semantics::visit(FloatingPointTypeSpecifierAST* ast) {}
+    case TokenKind::T_CHAR16_T:
+      specifiers_.type.setType(types_->characterType(CharacterKind::kChar16T));
+      break;
+
+    case TokenKind::T_CHAR32_T:
+      specifiers_.type.setType(types_->characterType(CharacterKind::kChar32T));
+      break;
+
+    case TokenKind::T_WCHAR_T:
+      specifiers_.type.setType(types_->characterType(CharacterKind::kWCharT));
+      break;
+
+    case TokenKind::T_BOOL:
+      specifiers_.type.setType(types_->booleanType());
+      break;
+
+    case TokenKind::T_CHAR:
+      specifiers_.type.setType(
+          types_->integerType(IntegerKind::kChar, specifiers_.isUnsigned));
+      break;
+
+    case TokenKind::T_SHORT:
+      specifiers_.type.setType(
+          types_->integerType(IntegerKind::kShort, specifiers_.isUnsigned));
+      break;
+
+    case TokenKind::T_INT:
+      specifiers_.type.setType(
+          types_->integerType(IntegerKind::kInt, specifiers_.isUnsigned));
+
+    case TokenKind::T___INT64:
+      specifiers_.type.setType(
+          types_->integerType(IntegerKind::kInt64, specifiers_.isUnsigned));
+      break;
+
+    case TokenKind::T___INT128:
+      specifiers_.type.setType(
+          types_->integerType(IntegerKind::kInt128, specifiers_.isUnsigned));
+      break;
+
+    case TokenKind::T_LONG: {
+      auto ty = dynamic_cast<const IntegerType*>(specifiers_.type.type());
+
+      if (ty && ty->kind() == IntegerKind::kLong) {
+        specifiers_.type.setType(types_->integerType(IntegerKind::kLongLong,
+                                                     specifiers_.isUnsigned));
+      } else {
+        specifiers_.type.setType(
+            types_->integerType(IntegerKind::kLong, specifiers_.isUnsigned));
+      }
+
+      break;
+    }
+
+    case TokenKind::T_SIGNED:
+      specifiers_.isUnsigned = false;
+
+      if (!specifiers_.type)
+        specifiers_.type.setType(
+            types_->integerType(IntegerKind::kInt, specifiers_.isUnsigned));
+      break;
+
+    case TokenKind::T_UNSIGNED:
+      specifiers_.isUnsigned = true;
+
+      if (!specifiers_.type)
+        specifiers_.type.setType(
+            types_->integerType(IntegerKind::kInt, specifiers_.isUnsigned));
+      break;
+
+    default:
+      throw std::runtime_error(fmt::format(
+          "invalid integral type: '{}'", unit_->tokenText(ast->specifierLoc)));
+  }  // switch
+}
+
+void Semantics::visit(FloatingPointTypeSpecifierAST* ast) {
+  switch (unit_->tokenKind(ast->specifierLoc)) {
+    case TokenKind::T_FLOAT:
+      specifiers_.type.setType(
+          types_->floatingPointType(FloatingPointKind::kFloat));
+      break;
+
+    case TokenKind::T_DOUBLE: {
+      auto ty = dynamic_cast<const IntegerType*>(specifiers_.type.type());
+
+      if (ty && ty->kind() == IntegerKind::kLong) {
+        specifiers_.type.setType(
+            types_->floatingPointType(FloatingPointKind::kLongDouble));
+      } else {
+        specifiers_.type.setType(
+            types_->floatingPointType(FloatingPointKind::kDouble));
+      }
+      break;
+    }
+
+    case TokenKind::T___FLOAT128:
+      specifiers_.type.setType(
+          types_->floatingPointType(FloatingPointKind::kFloat));
+      break;
+
+    default:
+      throw std::runtime_error(
+          fmt::format("invalid floating point type: '{}'",
+                      unit_->tokenText(ast->specifierLoc)));
+  }  // switch
+}
 
 void Semantics::visit(ComplexTypeSpecifierAST* ast) {}
 

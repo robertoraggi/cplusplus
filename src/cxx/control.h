@@ -28,6 +28,8 @@
 
 namespace cxx {
 
+class TypeEnvironment;
+
 class Control {
  public:
   Control();
@@ -38,6 +40,8 @@ class Control {
   const NumericLiteral* numericLiteral(std::string value);
   const StringLiteral* stringLiteral(std::string value);
   const CharLiteral* charLiteral(std::string value);
+
+  TypeEnvironment* types();
 
  private:
   struct Private;

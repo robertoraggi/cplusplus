@@ -21,6 +21,7 @@
 #include <cxx/control.h>
 #include <cxx/literals.h>
 #include <cxx/names.h>
+#include <cxx/type_environment.h>
 
 #include <unordered_set>
 
@@ -83,6 +84,7 @@ using LiteralMap = std::unordered_set<T, LiteralHash, LiteralEqualTo>;
 }  // namespace
 
 struct Control::Private {
+  TypeEnvironment typeEnvironment_;
   LiteralMap<NumericLiteral> numericLiterals_;
   LiteralMap<StringLiteral> stringLiterals_;
   LiteralMap<CharLiteral> charLiterals_;
@@ -100,11 +102,15 @@ const Identifier* Control::identifier(std::string name) {
 const NumericLiteral* Control::numericLiteral(std::string value) {
   return &*d->numericLiterals_.emplace(std::move(value)).first;
 }
+
 const StringLiteral* Control::stringLiteral(std::string value) {
   return &*d->stringLiterals_.emplace(std::move(value)).first;
 }
+
 const CharLiteral* Control::charLiteral(std::string value) {
   return &*d->charLiterals_.emplace(std::move(value)).first;
 }
+
+TypeEnvironment* Control::types() { return &d->typeEnvironment_; }
 
 }  // namespace cxx
