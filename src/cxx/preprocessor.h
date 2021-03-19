@@ -48,6 +48,7 @@ class Preprocessor {
                   std::vector<Token> &tokens);
 
   void addSystemIncludePaths();
+  void addSystemCppIncludePaths();
 
   void addPredefinedMacros();
 

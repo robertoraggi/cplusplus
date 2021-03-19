@@ -1490,15 +1490,17 @@ std::string_view Preprocessor::getTextLine(const Token &token) const {
 }
 
 void Preprocessor::addSystemIncludePaths() {
-  // clang-format off
   d->systemIncludePaths_.emplace_back("/usr/include");
   d->systemIncludePaths_.emplace_back("/usr/include/x86_64-linux-gnu");
   d->systemIncludePaths_.emplace_back("/usr/local/include");
-  d->systemIncludePaths_.emplace_back("/usr/lib/gcc/x86_64-linux-gnu/9/include");
+  d->systemIncludePaths_.emplace_back(
+      "/usr/lib/gcc/x86_64-linux-gnu/9/include");
+}
+
+void Preprocessor::addSystemCppIncludePaths() {
   d->systemIncludePaths_.emplace_back("/usr/include/c++/9/backward");
   d->systemIncludePaths_.emplace_back("/usr/include/x86_64-linux-gnu/c++/9");
   d->systemIncludePaths_.emplace_back("/usr/include/c++/9");
-  // clang-format on
 }
 
 void Preprocessor::addPredefinedMacros() {

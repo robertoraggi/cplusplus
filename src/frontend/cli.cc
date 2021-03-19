@@ -113,6 +113,12 @@ std::vector<CLIOptionDescr> options{
     {"-fpreprocessed",
      "Indicate to the preprocessor that the input file has already been "
      "preprocessed."},
+
+    {"-nostdinc",
+     "Disable standard #include directories for the C standard library"},
+
+    {"-nostdinc++",
+     "Disable standard #include directories for the C++ standard library"},
 };
 
 }  // namespace

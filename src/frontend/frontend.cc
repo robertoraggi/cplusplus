@@ -92,7 +92,8 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
 
   auto preprocesor = unit.preprocessor();
 
-  preprocesor->addSystemIncludePaths();
+  if (!cli.count("-nostdinc")) preprocesor->addSystemIncludePaths();
+  if (!cli.count("-nostdinc++")) preprocesor->addSystemCppIncludePaths();
   preprocesor->addPredefinedMacros();
 
   for (const auto& path : cli.get("-I")) {
