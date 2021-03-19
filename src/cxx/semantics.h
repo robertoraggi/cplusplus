@@ -26,7 +26,7 @@ namespace cxx {
 
 class TranslationUnit;
 
-class Codegen final : ASTVisitor {
+class Semantics final : ASTVisitor {
  public:
   void operator()(TranslationUnit* unit);
 

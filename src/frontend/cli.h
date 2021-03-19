@@ -58,6 +58,7 @@ class CLI {
   bool opt_help = false;
   bool opt_nostdinc = false;
   bool opt_nostdincpp = false;
+  bool opt_S = false;
 
   void parse(int& argc, char**& argv);
 

@@ -108,6 +108,8 @@ std::vector<CLIOptionDescr> options{
     {"-dM", "Print macro definitions in -E mode instead of normal output",
      &CLI::opt_dM},
 
+    {"-S", "Only run preprocess and compilation steps", &CLI::opt_S},
+
     {"-c", "Compile and assemble, but do not link."},
 
     {"-o", "<file>", "Place output into <file>.",

@@ -22,10 +22,12 @@
 #include <cxx/ast.h>
 #include <cxx/ast_printer.h>
 #include <cxx/ast_visitor.h>
+#include <cxx/codegen.h>
 #include <cxx/control.h>
 #include <cxx/lexer.h>
 #include <cxx/preprocessor.h>
 #include <cxx/recursive_ast_visitor.h>
+#include <cxx/semantics.h>
 #include <cxx/translation_unit.h>
 
 // fmt
@@ -138,6 +140,15 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
   if (cli.opt_ast_dump) {
     ASTPrinter print(&unit);
     std::cout << std::setw(4) << print(unit.ast());
+    return result;
+  }
+
+  if (cli.opt_S) {
+    Semantics sem;
+    sem(&unit);
+
+    Codegen cg;
+    cg(&unit);
   }
 
   return result;
