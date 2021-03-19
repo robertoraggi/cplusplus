@@ -50,6 +50,15 @@ class CLI {
  public:
   CLI();
 
+  bool opt_ast_dump = false;
+  bool opt_dM = false;
+  bool opt_dump_tokens = false;
+  bool opt_E = false;
+  bool opt_Eonly = false;
+  bool opt_help = false;
+  bool opt_nostdinc = false;
+  bool opt_nostdincpp = false;
+
   void parse(int& argc, char**& argv);
 
   int count(const std::string& flag) const;

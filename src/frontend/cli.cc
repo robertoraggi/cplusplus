@@ -58,6 +58,7 @@ struct CLIOptionDescr {
   std::string arg;
   std::string help;
   CLIOptionDescrKind kind;
+  bool CLI::*flag = nullptr;
 
   CLIOptionDescr(const std::string& option, const std::string& arg,
                  const std::string& help, CLIOptionDescrKind kind)
@@ -66,10 +67,17 @@ struct CLIOptionDescr {
   CLIOptionDescr(const std::string& option, const std::string& help,
                  CLIOptionDescrKind kind = CLIOptionDescrKind::kFlag)
       : option(option), help(help), kind(kind) {}
+
+  CLIOptionDescr(const std::string& option, const std::string& help,
+                 bool CLI::*flag)
+      : option(option),
+        help(help),
+        kind(CLIOptionDescrKind::kFlag),
+        flag(flag) {}
 };
 
 std::vector<CLIOptionDescr> options{
-    {"--help", "Display this information."},
+    {"--help", "Display this information.", &CLI::opt_help},
 
     {"-D", "<macro>[=<val>]",
      "Define a <macro> with <val> as its value.  If just <macro> is given, "
@@ -92,11 +100,13 @@ std::vector<CLIOptionDescr> options{
      "Use <directory> as the root directory for headers and libraries.",
      CLIOptionDescrKind::kJoined},
 
-    {"-E", "Preprocess only; do not compile, assemble or link."},
+    {"-E", "Preprocess only; do not compile, assemble or link.", &CLI::opt_E},
 
-    {"-Eonly", "Just run preprocessor, no output (for timings)"},
+    {"-Eonly", "Just run preprocessor, no output (for timings)",
+     &CLI::opt_Eonly},
 
-    {"-dM", "Print macro definitions in -E mode instead of normal output"},
+    {"-dM", "Print macro definitions in -E mode instead of normal output",
+     &CLI::opt_dM},
 
     {"-c", "Compile and assemble, but do not link."},
 
@@ -106,19 +116,18 @@ std::vector<CLIOptionDescr> options{
     {"-x", "specify the language from the compiler driver",
      CLIOptionDescrKind::kSeparated},
 
-    {"-ast-dump", "Build ASTs and then debug dump them"},
+    {"-ast-dump", "Build ASTs and then debug dump them", &CLI::opt_ast_dump},
 
-    {"-dump-tokens", "Run preprocessor, dump internal rep of tokens"},
-
-    {"-fpreprocessed",
-     "Indicate to the preprocessor that the input file has already been "
-     "preprocessed."},
+    {"-dump-tokens", "Run preprocessor, dump internal rep of tokens",
+     &CLI::opt_dump_tokens},
 
     {"-nostdinc",
-     "Disable standard #include directories for the C standard library"},
+     "Disable standard #include directories for the C standard library",
+     &CLI::opt_nostdinc},
 
     {"-nostdinc++",
-     "Disable standard #include directories for the C++ standard library"},
+     "Disable standard #include directories for the C++ standard library",
+     &CLI::opt_nostdincpp},
 };
 
 }  // namespace
@@ -187,6 +196,7 @@ void CLI::parse(int& argc, char**& argv) {
 
     if (it != options.end()) {
       if (it->kind == CLIOptionDescrKind::kFlag) {
+        if (auto flag = it->flag) this->*flag = true;
         result_.push_back(CLIFlag(arg));
         continue;
       }

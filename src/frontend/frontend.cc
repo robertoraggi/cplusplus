@@ -92,8 +92,8 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
 
   auto preprocesor = unit.preprocessor();
 
-  if (!cli.count("-nostdinc")) preprocesor->addSystemIncludePaths();
-  if (!cli.count("-nostdinc++")) preprocesor->addSystemCppIncludePaths();
+  if (!cli.opt_nostdinc) preprocesor->addSystemIncludePaths();
+  if (!cli.opt_nostdincpp) preprocesor->addSystemCppIncludePaths();
   preprocesor->addPredefinedMacros();
 
   for (const auto& path : cli.get("-I")) {
@@ -110,24 +110,24 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
     }
   }
 
-  if (cli.count("-E") && !cli.count("-dM")) {
+  if (cli.opt_E && !cli.opt_dM) {
     preprocesor->preprocess(readAll(fileName), fileName, std::cout);
     return true;
   }
 
   unit.setSource(readAll(fileName), fileName);
 
-  if (cli.count("-dM")) {
+  if (cli.opt_dM) {
     preprocesor->printMacros(std::cout);
     return true;
   }
 
-  if (cli.count("-dump-tokens")) {
+  if (cli.opt_dump_tokens) {
     dumpTokens(cli, unit);
     return true;
   }
 
-  if (cli.count("-Eonly")) {
+  if (cli.opt_Eonly) {
     return true;
   }
 
@@ -135,7 +135,7 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
 
   const auto result = unit.parse();
 
-  if (cli.count("-ast-dump")) {
+  if (cli.opt_ast_dump) {
     ASTPrinter print(&unit);
     std::cout << std::setw(4) << print(unit.ast());
   }
@@ -151,7 +151,7 @@ int main(int argc, char* argv[]) {
   CLI cli;
   cli.parse(argc, argv);
 
-  if (cli.count("--help")) {
+  if (cli.opt_help) {
     cli.showHelp();
     exit(0);
   }
