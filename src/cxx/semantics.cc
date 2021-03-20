@@ -22,14 +22,34 @@
 #include <cxx/control.h>
 #include <cxx/names.h>
 #include <cxx/semantics.h>
+#include <cxx/symbol_factory.h>
+#include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_environment.h>
 #include <cxx/types.h>
 
 namespace cxx {
 
+struct Semantics::ScopeContext {
+  Semantics* sem;
+  Scope* savedScope;
+
+  ScopeContext(const ScopeContext&) = delete;
+  ScopeContext& operator=(const ScopeContext&) = delete;
+
+  explicit ScopeContext(Semantics* sem, Scope* scope)
+      : sem(sem), savedScope(sem->scope_) {
+    sem->scope_ = scope;
+  }
+
+  ~ScopeContext() { sem->scope_ = savedScope; }
+};
+
 Semantics::Semantics(TranslationUnit* unit)
-    : unit_(unit), control_(unit_->control()), types_(control_->types()) {}
+    : unit_(unit),
+      control_(unit_->control()),
+      types_(control_->types()),
+      symbols_(control_->symbols()) {}
 
 Semantics::~Semantics() {}
 

@@ -20,7 +20,11 @@
 
 #include <cxx/control.h>
 #include <cxx/parser.h>
+#include <cxx/scope.h>
+#include <cxx/semantics.h>
+#include <cxx/symbols.h>
 #include <cxx/token.h>
+#include <cxx/types.h>
 
 #include <algorithm>
 #include <cassert>
@@ -62,6 +66,22 @@ std::pair<FunctionDeclaratorAST*, bool> getFunctionDeclaratorHelper(
 FunctionDeclaratorAST* getFunctionDeclarator(DeclaratorAST* declarator) {
   return get<0>(getFunctionDeclaratorHelper(declarator));
 }
+
+Parser::Parser(TranslationUnit* unit) : unit(unit) {
+  control = unit->control();
+  cursor_ = 1;
+
+  pool = unit->arena();
+
+  sem = std::make_unique<Semantics>(unit);
+
+  module_id = control->identifier("module");
+  import_id = control->identifier("import");
+  final_id = control->identifier("final");
+  override_id = control->identifier("override");
+}
+
+Parser::~Parser() {}
 
 Parser::Prec Parser::prec(TokenKind tk) {
   switch (tk) {
@@ -160,22 +180,9 @@ const Token& Parser::LA(int n) const {
   return unit->tokenAt(SourceLocation(cursor_ + n));
 }
 
-bool Parser::operator()(TranslationUnit* unit, UnitAST*& ast) {
-  return parse(unit, ast);
-}
+bool Parser::operator()(UnitAST*& ast) { return parse(ast); }
 
-bool Parser::parse(TranslationUnit* u, UnitAST*& ast) {
-  unit = u;
-  control = unit->control();
-  cursor_ = 1;
-
-  pool = u->arena();
-
-  module_id = control->identifier("module");
-  import_id = control->identifier("import");
-  final_id = control->identifier("final");
-  override_id = control->identifier("override");
-
+bool Parser::parse(UnitAST*& ast) {
   auto parsed = parse_translation_unit(ast);
 
   return parsed;

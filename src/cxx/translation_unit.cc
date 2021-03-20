@@ -89,8 +89,8 @@ void TranslationUnit::getTokenEndPosition(SourceLocation loc, unsigned* line,
 }
 
 bool TranslationUnit::parse() {
-  Parser parse;
-  return parse(this, ast_);
+  Parser parse(this);
+  return parse(ast_);
 }
 
 }  // namespace cxx

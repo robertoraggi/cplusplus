@@ -27,7 +27,6 @@
 #include <cxx/lexer.h>
 #include <cxx/preprocessor.h>
 #include <cxx/recursive_ast_visitor.h>
-#include <cxx/semantics.h>
 #include <cxx/translation_unit.h>
 
 // fmt
@@ -144,9 +143,6 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
   }
 
   if (cli.opt_S) {
-    Semantics sem(&unit);
-    sem.unit(unit.ast());
-
     Codegen cg;
     cg(&unit);
   }

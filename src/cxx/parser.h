@@ -33,12 +33,19 @@
 namespace cxx {
 
 class TranslationUnit;
+class Semantics;
 
-class Parser {
+class Parser final {
  public:
-  bool operator()(TranslationUnit* unit, UnitAST*& ast);
+  Parser(const Parser&) = delete;
+  Parser& operator=(const Parser&) = delete;
 
-  bool parse(TranslationUnit* unit, UnitAST*& ast);
+  Parser(TranslationUnit* unit);
+  ~Parser();
+
+  bool operator()(UnitAST*& ast);
+
+  bool parse(UnitAST*& ast);
 
   enum struct Prec {
     kLogicalOr,
@@ -461,6 +468,7 @@ class Parser {
   TranslationUnit* unit = nullptr;
   Arena* pool = nullptr;
   Control* control = nullptr;
+  std::unique_ptr<Semantics> sem;
   bool skip_function_body = false;
 
   std::unordered_map<SourceLocation, std::tuple<SourceLocation, bool>>

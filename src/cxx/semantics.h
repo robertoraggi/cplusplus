@@ -38,6 +38,8 @@ class Semantics final : ASTVisitor {
   void unit(UnitAST* unit);
 
  private:
+  struct ScopeContext;
+
   void accept(AST* ast);
 
   struct Specifiers {
@@ -294,6 +296,8 @@ class Semantics final : ASTVisitor {
   TranslationUnit* unit_ = nullptr;
   Control* control_ = nullptr;
   TypeEnvironment* types_ = nullptr;
+  SymbolFactory* symbols_ = nullptr;
+  Scope* scope_ = nullptr;
   const Name* name_ = nullptr;
   Specifiers specifiers_;
   Declarator declarator_;
