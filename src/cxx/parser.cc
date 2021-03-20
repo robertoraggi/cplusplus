@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/control.h>
+#include <cxx/names.h>
 #include <cxx/parser.h>
 #include <cxx/scope.h>
 #include <cxx/semantics.h>
@@ -142,7 +143,7 @@ struct Parser::DeclSpecs {
   bool has_placeholder_typespec = false;
   bool no_typespecs = false;
   bool no_class_or_enum_specs = false;
-  Semantics::SpecifiersSem specs;
+  Semantics::SpecifiersSem specifiers;
 
   bool accepts_simple_typespec() const {
     return !(has_complex_typespec || has_named_typespec ||
@@ -3177,6 +3178,10 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
 
   if (!parse_declarator(declarator)) return false;
 
+  Semantics::DeclaratorSem decl{specs.specifiers};
+
+  sem->declarator(declarator, specs.specifiers, &decl);
+
   const auto after_declarator = currentLocation();
 
   if (fundef && getFunctionDeclarator(declarator)) {
@@ -3215,7 +3220,7 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
   while (match(TokenKind::T_COMMA)) {
     InitDeclaratorAST* initDeclarator = nullptr;
 
-    if (!parse_init_declarator(initDeclarator)) return false;
+    if (!parse_init_declarator(initDeclarator, specs)) return false;
 
     *declIt = new (pool) List(initDeclarator);
     declIt = &(*declIt)->next;
@@ -3391,6 +3396,8 @@ bool Parser::parse_decl_specifier_seq(List<SpecifierAST*>*& yyast,
 
   parse_attribute_specifier_seq(attributes);
 
+  sem->specifiers(specifier, &specs.specifiers);
+
   *it = new (pool) List(specifier);
   it = &(*it)->next;
 
@@ -3400,6 +3407,8 @@ bool Parser::parse_decl_specifier_seq(List<SpecifierAST*>*& yyast,
     List<AttributeAST*>* attributes = nullptr;
 
     parse_attribute_specifier_seq(attributes);
+
+    sem->specifiers(specifier, &specs.specifiers);
 
     *it = new (pool) List(specifier);
     it = &(*it)->next;
@@ -3424,6 +3433,8 @@ bool Parser::parse_decl_specifier_seq_no_typespecs(List<SpecifierAST*>*& yyast,
 
   parse_attribute_specifier_seq(attributes);
 
+  sem->specifiers(specifier, &specs.specifiers);
+
   *it = new (pool) List(specifier);
   it = &(*it)->next;
 
@@ -3433,6 +3444,8 @@ bool Parser::parse_decl_specifier_seq_no_typespecs(List<SpecifierAST*>*& yyast,
     List<AttributeAST*>* attributes = nullptr;
 
     parse_attribute_specifier_seq(attributes);
+
+    sem->specifiers(specifier, &specs.specifiers);
 
     *it = new (pool) List(specifier);
     it = &(*it)->next;
@@ -3539,6 +3552,8 @@ bool Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast) {
 
   parse_attribute_specifier_seq(attributes);
 
+  sem->specifiers(typeSpecifier, &specs.specifiers);
+
   *it = new (pool) List(typeSpecifier);
   it = &(*it)->next;
 
@@ -3557,6 +3572,8 @@ bool Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast) {
     List<AttributeAST*>* attributes = nullptr;
 
     parse_attribute_specifier_seq(attributes);
+
+    sem->specifiers(typeSpecifier, &specs.specifiers);
 
     *it = new (pool) List(typeSpecifier);
     it = &(*it)->next;
@@ -3595,6 +3612,8 @@ bool Parser::parse_defining_type_specifier_seq(List<SpecifierAST*>*& yyast,
 
   parse_attribute_specifier_seq(attributes);
 
+  sem->specifiers(typeSpecifier, &specs.specifiers);
+
   while (LA()) {
     const auto before_type_specifier = currentLocation();
 
@@ -3608,6 +3627,8 @@ bool Parser::parse_defining_type_specifier_seq(List<SpecifierAST*>*& yyast,
     List<AttributeAST*>* attributes = nullptr;
 
     parse_attribute_specifier_seq(attributes);
+
+    sem->specifiers(typeSpecifier, &specs.specifiers);
   }
 
   return true;
@@ -4083,10 +4104,15 @@ bool Parser::parse_placeholder_type_specifier(SpecifierAST*& yyast) {
   return false;
 }
 
-bool Parser::parse_init_declarator(InitDeclaratorAST*& yyast) {
+bool Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
+                                   const DeclSpecs& specs) {
   DeclaratorAST* declarator = nullptr;
 
   if (!parse_declarator(declarator)) return false;
+
+  Semantics::DeclaratorSem decl{specs.specifiers};
+
+  sem->declarator(declarator, specs.specifiers, &decl);
 
   const auto saved = currentLocation();
 
