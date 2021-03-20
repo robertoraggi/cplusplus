@@ -22,6 +22,7 @@
 
 #include <cxx/literals_fwd.h>
 #include <cxx/names_fwd.h>
+#include <cxx/symbols_fwd.h>
 
 #include <memory>
 #include <string>
@@ -42,6 +43,7 @@ class Control {
   const CharLiteral* charLiteral(std::string value);
 
   TypeEnvironment* types();
+  SymbolFactory* symbols();
 
  private:
   struct Private;

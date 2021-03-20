@@ -28,6 +28,7 @@ namespace cxx {
 
 class FullySpecifiedType;
 
+class TypeEnvironment;
 class TypeVisitor;
 class Type;
 

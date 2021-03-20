@@ -27,6 +27,18 @@ namespace cxx {
 class SymbolVisitor {
  public:
   virtual ~SymbolVisitor();
+
+  virtual void visit(NamespaceSymbol* symbol) = 0;
+  virtual void visit(ClassSymbol* symbol) = 0;
+  virtual void visit(TypedefSymbol* symbol) = 0;
+  virtual void visit(EnumSymbol* symbol) = 0;
+  virtual void visit(ScopedEnumSymbol* symbol) = 0;
+  virtual void visit(TemplateSymbol* symbol) = 0;
+  virtual void visit(TemplateArgumentSymbol* symbol) = 0;
+  virtual void visit(VariableSymbol* symbol) = 0;
+  virtual void visit(FunctionSymbol* symbol) = 0;
+  virtual void visit(ArgumentSymbol* symbol) = 0;
+  virtual void visit(BlockSymbol* symbol) = 0;
 };
 
 }  // namespace cxx

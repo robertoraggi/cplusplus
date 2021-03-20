@@ -20,26 +20,45 @@
 
 #pragma once
 
-#include <cxx/cxx_fwd.h>
+#include <cxx/names_fwd.h>
+#include <cxx/symbols_fwd.h>
+
+#include <memory>
 
 namespace cxx {
 
-class SymbolVisitor;
-class SymbolFactory;
+class SymbolFactory final {
+ public:
+  SymbolFactory();
+  ~SymbolFactory();
 
-class Symbol;
-class Scope;
+  NamespaceSymbol* newNamespaceSymbol(Scope* enclosingScope, const Name* name);
 
-class NamespaceSymbol;
-class ClassSymbol;
-class TypedefSymbol;
-class EnumSymbol;
-class ScopedEnumSymbol;
-class TemplateSymbol;
-class TemplateArgumentSymbol;
-class VariableSymbol;
-class FunctionSymbol;
-class ArgumentSymbol;
-class BlockSymbol;
+  ClassSymbol* newClassSymbol(Scope* enclosingScope, const Name* name);
+
+  TypedefSymbol* newTypedefSymbol(Scope* enclosingScope, const Name* name);
+
+  EnumSymbol* newEnumSymbol(Scope* enclosingScope, const Name* name);
+
+  ScopedEnumSymbol* newScopedEnumSymbol(Scope* enclosingScope,
+                                        const Name* name);
+
+  TemplateSymbol* newTemplateSymbol(Scope* enclosingScope, const Name* name);
+
+  TemplateArgumentSymbol* newTemplateArgumentSymbol(Scope* enclosingScope,
+                                                    const Name* name);
+
+  VariableSymbol* newVariableSymbol(Scope* enclosingScope, const Name* name);
+
+  FunctionSymbol* newFunctionSymbol(Scope* enclosingScope, const Name* name);
+
+  ArgumentSymbol* newArgumentSymbol(Scope* enclosingScope, const Name* name);
+
+  BlockSymbol* newBlockSymbol(Scope* enclosingScope, const Name* name);
+
+ private:
+  struct Private;
+  std::unique_ptr<Private> d;
+};
 
 }  // namespace cxx

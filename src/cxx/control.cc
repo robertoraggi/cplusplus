@@ -21,6 +21,7 @@
 #include <cxx/control.h>
 #include <cxx/literals.h>
 #include <cxx/names.h>
+#include <cxx/symbol_factory.h>
 #include <cxx/type_environment.h>
 
 #include <unordered_set>
@@ -85,6 +86,7 @@ using LiteralMap = std::unordered_set<T, LiteralHash, LiteralEqualTo>;
 
 struct Control::Private {
   TypeEnvironment typeEnvironment_;
+  SymbolFactory symbols_;
   LiteralMap<NumericLiteral> numericLiterals_;
   LiteralMap<StringLiteral> stringLiterals_;
   LiteralMap<CharLiteral> charLiterals_;
@@ -112,5 +114,7 @@ const CharLiteral* Control::charLiteral(std::string value) {
 }
 
 TypeEnvironment* Control::types() { return &d->typeEnvironment_; }
+
+SymbolFactory* Control::symbols() { return &d->symbols_; }
 
 }  // namespace cxx

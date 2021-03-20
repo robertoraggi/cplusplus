@@ -20,26 +20,49 @@
 
 #pragma once
 
-#include <cxx/cxx_fwd.h>
+#include <cxx/names_fwd.h>
+#include <cxx/symbols_fwd.h>
+
+#include <functional>
+#include <regex>
+#include <vector>
 
 namespace cxx {
 
-class SymbolVisitor;
-class SymbolFactory;
+class LookupResult final : public std::vector<Symbol*> {
+ public:
+  using vector::vector;
+};
 
-class Symbol;
-class Scope;
+enum class LookupOptions {
+  kNone,
+};
 
-class NamespaceSymbol;
-class ClassSymbol;
-class TypedefSymbol;
-class EnumSymbol;
-class ScopedEnumSymbol;
-class TemplateSymbol;
-class TemplateArgumentSymbol;
-class VariableSymbol;
-class FunctionSymbol;
-class ArgumentSymbol;
-class BlockSymbol;
+class Scope {
+ public:
+  virtual ~Scope();
+
+  Symbol* owner() const;
+  void setOwner(Symbol* owner);
+
+  virtual void add(Symbol* symbol);
+
+  LookupResult find(const Name* name,
+                    LookupOptions options = LookupOptions::kNone) const;
+
+  using iterator = std::vector<Symbol*>::const_iterator;
+
+  bool empty() const { return members_.empty(); }
+
+  auto begin() const { return members_.begin(); }
+  auto end() const { return members_.end(); }
+
+  auto rbegin() const { return members_.rbegin(); }
+  auto rend() const { return members_.rend(); }
+
+ private:
+  Symbol* owner_ = nullptr;
+  std::vector<Symbol*> members_;
+};
 
 }  // namespace cxx

@@ -18,28 +18,26 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#pragma once
-
-#include <cxx/cxx_fwd.h>
+#include <cxx/scope.h>
+#include <cxx/symbols.h>
 
 namespace cxx {
 
-class SymbolVisitor;
-class SymbolFactory;
+Scope::~Scope() {}
 
-class Symbol;
-class Scope;
+Symbol* Scope::owner() const { return owner_; }
 
-class NamespaceSymbol;
-class ClassSymbol;
-class TypedefSymbol;
-class EnumSymbol;
-class ScopedEnumSymbol;
-class TemplateSymbol;
-class TemplateArgumentSymbol;
-class VariableSymbol;
-class FunctionSymbol;
-class ArgumentSymbol;
-class BlockSymbol;
+void Scope::setOwner(Symbol* owner) { owner_ = owner; }
+
+void Scope::add(Symbol* symbol) { members_.push_back(symbol); }
+
+LookupResult Scope::find(const Name* name, LookupOptions options) const {
+  LookupResult result;
+  for (auto it = rbegin(); it != rend(); ++it) {
+    auto symbol = *it;
+    if (symbol->name() == name) result.push_back(symbol);
+  }
+  return result;
+}
 
 }  // namespace cxx
