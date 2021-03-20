@@ -30,21 +30,6 @@
 
 namespace cxx {
 
-struct Semantics::ScopeContext {
-  Semantics* sem;
-  Scope* savedScope;
-
-  ScopeContext(const ScopeContext&) = delete;
-  ScopeContext& operator=(const ScopeContext&) = delete;
-
-  explicit ScopeContext(Semantics* sem, Scope* scope)
-      : sem(sem), savedScope(sem->scope_) {
-    sem->scope_ = scope;
-  }
-
-  ~ScopeContext() { sem->scope_ = savedScope; }
-};
-
 Semantics::Semantics(TranslationUnit* unit)
     : unit_(unit),
       control_(unit_->control()),
@@ -55,40 +40,40 @@ Semantics::~Semantics() {}
 
 void Semantics::unit(UnitAST* ast) { accept(ast); }
 
-Semantics::Specifiers Semantics::specifiers(List<SpecifierAST*>* ast) {
-  Specifiers specifiers;
+void Semantics::specifiers(List<SpecifierAST*>* ast,
+                           SpecifiersSem* specifiers) {
+  if (!ast) return;
   std::swap(specifiers_, specifiers);
   for (auto it = ast; it; it = it->next) accept(it->value);
   std::swap(specifiers_, specifiers);
-  return specifiers;
 }
 
-Semantics::Specifiers Semantics::specifiers(SpecifierAST* ast) {
-  Specifiers specifiers;
+void Semantics::specifiers(SpecifierAST* ast, SpecifiersSem* specifiers) {
+  if (!ast) return;
   std::swap(specifiers_, specifiers);
   accept(ast);
   std::swap(specifiers_, specifiers);
-  return specifiers;
 }
 
-Semantics::Declarator Semantics::declarator(DeclaratorAST* ast,
-                                            const Specifiers& specifiers) {
-  Declarator declarator{specifiers};
+void Semantics::declarator(DeclaratorAST* ast, const SpecifiersSem& specifiers,
+                           DeclaratorSem* declarator) {
   std::swap(declarator_, declarator);
   accept(ast);
   std::swap(declarator_, declarator);
-  return declarator;
 }
 
-const Name* Semantics::name(NameAST* ast) {
-  if (!ast) return nullptr;
-  if (ast->name) return ast->name;
-  const Name* name = nullptr;
+void Semantics::initDeclarator(InitDeclaratorAST* ast,
+                               const SpecifiersSem& specifiers,
+                               DeclaratorSem* declarator) {
+  this->declarator(ast->declarator, specifiers, declarator);
+  initializer(ast->initializer);
+}
+
+void Semantics::name(NameAST* ast, NameSem* name) {
+  if (!ast) return;
   std::swap(name_, name);
   accept(ast);
   std::swap(name_, name);
-  ast->name = name;
-  return name;
 }
 
 void Semantics::nestedNameSpecifier(NestedNameSpecifierAST* ast) {
@@ -103,18 +88,11 @@ void Semantics::compoundStatement(CompoundStatementAST* ast) { accept(ast); }
 
 void Semantics::attribute(AttributeAST* ast) { accept(ast); }
 
-Semantics::Expression Semantics::expression(ExpressionAST* ast) {
-  Expression expression;
-  if (ast) {
-    if (ast->type) {
-      expression.type = ast->type;
-      return expression;
-    }
-    std::swap(expression_, expression);
-    accept(ast);
-    std::swap(expression_, expression);
-  }
-  return expression;
+void Semantics::expression(ExpressionAST* ast, ExpressionSem* expression) {
+  if (!ast) return;
+  std::swap(expression_, expression);
+  accept(ast);
+  std::swap(expression_, expression);
 }
 
 void Semantics::ptrOperator(PtrOperatorAST* ast) { accept(ast); }
@@ -169,13 +147,6 @@ void Semantics::statement(StatementAST* ast) { accept(ast); }
 
 void Semantics::functionBody(FunctionBodyAST* ast) { accept(ast); }
 
-Semantics::Declarator Semantics::initDeclarator(InitDeclaratorAST* ast,
-                                                const Specifiers& specifiers) {
-  Declarator declarator = this->declarator(ast->declarator, specifiers);
-  initializer(ast->initializer);
-  return declarator;
-}
-
 void Semantics::enumBase(EnumBaseAST* ast) { accept(ast); }
 
 void Semantics::usingDeclarator(UsingDeclaratorAST* ast) { accept(ast); }
@@ -195,18 +166,23 @@ void Semantics::accept(AST* ast) {
 }
 
 void Semantics::visit(TypeIdAST* ast) {
-  auto specifiers = this->specifiers(ast->typeSpecifierList);
-  auto declarator = this->declarator(ast->declarator, specifiers);
+  SpecifiersSem specifiers;
+  this->specifiers(ast->typeSpecifierList, &specifiers);
+  DeclaratorSem declarator{specifiers};
+  this->declarator(ast->declarator, specifiers, &declarator);
 }
 
 void Semantics::visit(NestedNameSpecifierAST* ast) {
-  for (auto it = ast->nameList; it; it = it->next)
-    auto name = this->name(it->value);
+  for (auto it = ast->nameList; it; it = it->next) {
+    NameSem name;
+    this->name(it->value, &name);
+  }
 }
 
 void Semantics::visit(UsingDeclaratorAST* ast) {
   nestedNameSpecifier(ast->nestedNameSpecifier);
-  auto name = this->name(ast->name);
+  NameSem name;
+  this->name(ast->name, &name);
 }
 
 void Semantics::visit(HandlerAST* ast) {
@@ -217,13 +193,16 @@ void Semantics::visit(HandlerAST* ast) {
 void Semantics::visit(TemplateArgumentAST* ast) {}
 
 void Semantics::visit(EnumBaseAST* ast) {
-  auto specifiers = this->specifiers(ast->typeSpecifierList);
+  SpecifiersSem specifiers;
+  this->specifiers(ast->typeSpecifierList, &specifiers);
 }
 
 void Semantics::visit(EnumeratorAST* ast) {
-  auto name = this->name(ast->name);
+  NameSem name;
+  this->name(ast->name, &name);
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
-  auto expression = this->expression(ast->expression);
+  ExpressionSem expression;
+  this->expression(ast->expression, &expression);
 }
 
 void Semantics::visit(DeclaratorAST* ast) {
@@ -238,7 +217,8 @@ void Semantics::visit(InitDeclaratorAST* ast) {
 
 void Semantics::visit(BaseSpecifierAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
-  auto name = this->name(ast->name);
+  NameSem name;
+  this->name(ast->name, &name);
 }
 
 void Semantics::visit(BaseClauseAST* ast) {
@@ -247,7 +227,8 @@ void Semantics::visit(BaseClauseAST* ast) {
 }
 
 void Semantics::visit(NewTypeIdAST* ast) {
-  auto specifiers = this->specifiers(ast->typeSpecifierList);
+  SpecifiersSem specifiers;
+  this->specifiers(ast->typeSpecifierList, &specifiers);
 }
 
 void Semantics::visit(ParameterDeclarationClauseAST* ast) {
@@ -257,7 +238,8 @@ void Semantics::visit(ParameterDeclarationClauseAST* ast) {
 
 void Semantics::visit(ParametersAndQualifiersAST* ast) {
   parameterDeclarationClause(ast->parameterDeclarationClause);
-  auto specifiers = this->specifiers(ast->cvQualifierList);
+  SpecifiersSem specifiers;
+  this->specifiers(ast->cvQualifierList, &specifiers);
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
 }
 
@@ -267,7 +249,8 @@ void Semantics::visit(LambdaIntroducerAST* ast) {
 
 void Semantics::visit(LambdaDeclaratorAST* ast) {
   parameterDeclarationClause(ast->parameterDeclarationClause);
-  auto specifiers = this->specifiers(ast->declSpecifierList);
+  SpecifiersSem specifiers;
+  this->specifiers(ast->declSpecifierList, &specifiers);
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
   trailingReturnType(ast->trailingReturnType);
 }
@@ -280,13 +263,17 @@ void Semantics::visit(CtorInitializerAST* ast) {
 }
 
 void Semantics::visit(ParenMemInitializerAST* ast) {
-  auto name = this->name(ast->name);
-  for (auto it = ast->expressionList; it; it = it->next)
-    auto expression = this->expression(it->value);
+  NameSem name;
+  this->name(ast->name, &name);
+  for (auto it = ast->expressionList; it; it = it->next) {
+    ExpressionSem expression;
+    this->expression(it->value, &expression);
+  }
 }
 
 void Semantics::visit(BracedMemInitializerAST* ast) {
-  auto name = this->name(ast->name);
+  NameSem name;
+  this->name(ast->name, &name);
   bracedInitList(ast->bracedInitList);
 }
 
@@ -307,22 +294,29 @@ void Semantics::visit(InitLambdaCaptureAST* ast) {
 }
 
 void Semantics::visit(EqualInitializerAST* ast) {
-  auto expression = this->expression(ast->expression);
+  ExpressionSem expression;
+  this->expression(ast->expression, &expression);
 }
 
 void Semantics::visit(BracedInitListAST* ast) {
-  for (auto it = ast->expressionList; it; it = it->next)
-    auto expression = this->expression(it->value);
+  for (auto it = ast->expressionList; it; it = it->next) {
+    ExpressionSem expression;
+    this->expression(it->value, &expression);
+  }
 }
 
 void Semantics::visit(ParenInitializerAST* ast) {
-  for (auto it = ast->expressionList; it; it = it->next)
-    auto expression = this->expression(it->value);
+  for (auto it = ast->expressionList; it; it = it->next) {
+    ExpressionSem expression;
+    this->expression(it->value, &expression);
+  }
 }
 
 void Semantics::visit(NewParenInitializerAST* ast) {
-  for (auto it = ast->expressionList; it; it = it->next)
-    auto expression = this->expression(it->value);
+  for (auto it = ast->expressionList; it; it = it->next) {
+    ExpressionSem expression;
+    this->expression(it->value, &expression);
+  }
 }
 
 void Semantics::visit(NewBracedInitializerAST* ast) {
@@ -333,8 +327,10 @@ void Semantics::visit(EllipsisExceptionDeclarationAST* ast) {}
 
 void Semantics::visit(TypeExceptionDeclarationAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
-  auto specifiers = this->specifiers(ast->typeSpecifierList);
-  auto declarator = this->declarator(ast->declarator, specifiers);
+  SpecifiersSem specifiers;
+  this->specifiers(ast->typeSpecifierList, &specifiers);
+  DeclaratorSem declarator{specifiers};
+  this->declarator(ast->declarator, specifiers, &declarator);
 }
 
 void Semantics::visit(DefaultFunctionBodyAST* ast) {}
@@ -376,22 +372,27 @@ void Semantics::visit(StringLiteralExpressionAST* ast) {}
 void Semantics::visit(UserDefinedStringLiteralExpressionAST* ast) {}
 
 void Semantics::visit(IdExpressionAST* ast) {
-  auto name = this->name(ast->name);
+  NameSem name;
+  this->name(ast->name, &name);
 }
 
 void Semantics::visit(NestedExpressionAST* ast) { accept(ast->expression); }
 
 void Semantics::visit(RightFoldExpressionAST* ast) {
-  auto expression = this->expression(ast->expression);
+  ExpressionSem expression;
+  this->expression(ast->expression, &expression);
 }
 
 void Semantics::visit(LeftFoldExpressionAST* ast) {
-  auto expression = this->expression(ast->expression);
+  ExpressionSem expression;
+  this->expression(ast->expression, &expression);
 }
 
 void Semantics::visit(FoldExpressionAST* ast) {
-  auto leftExpression = this->expression(ast->leftExpression);
-  auto rightExpression = this->expression(ast->rightExpression);
+  ExpressionSem leftExpression;
+  this->expression(ast->leftExpression, &leftExpression);
+  ExpressionSem rightExpression;
+  this->expression(ast->rightExpression, &rightExpression);
 }
 
 void Semantics::visit(LambdaExpressionAST* ast) {
@@ -403,7 +404,8 @@ void Semantics::visit(LambdaExpressionAST* ast) {
 }
 
 void Semantics::visit(SizeofExpressionAST* ast) {
-  auto expression = this->expression(ast->expression);
+  ExpressionSem expression;
+  this->expression(ast->expression, &expression);
 }
 
 void Semantics::visit(SizeofTypeExpressionAST* ast) { typeId(ast->typeId); }
@@ -411,7 +413,8 @@ void Semantics::visit(SizeofTypeExpressionAST* ast) { typeId(ast->typeId); }
 void Semantics::visit(SizeofPackExpressionAST* ast) {}
 
 void Semantics::visit(TypeidExpressionAST* ast) {
-  auto expression = this->expression(ast->expression);
+  ExpressionSem expression;
+  this->expression(ast->expression, &expression);
 }
 
 void Semantics::visit(TypeidOfTypeExpressionAST* ast) { typeId(ast->typeId); }
@@ -419,60 +422,81 @@ void Semantics::visit(TypeidOfTypeExpressionAST* ast) { typeId(ast->typeId); }
 void Semantics::visit(AlignofExpressionAST* ast) { typeId(ast->typeId); }
 
 void Semantics::visit(UnaryExpressionAST* ast) {
-  auto expression = this->expression(ast->expression);
+  ExpressionSem expression;
+  this->expression(ast->expression, &expression);
 }
 
 void Semantics::visit(BinaryExpressionAST* ast) {
-  auto leftExpression = this->expression(ast->leftExpression);
-  auto rightExpression = this->expression(ast->rightExpression);
+  ExpressionSem leftExpression;
+  this->expression(ast->leftExpression, &leftExpression);
+  ExpressionSem rightExpression;
+  this->expression(ast->rightExpression, &rightExpression);
 }
 
 void Semantics::visit(AssignmentExpressionAST* ast) {
-  auto leftExpression = this->expression(ast->leftExpression);
-  auto rightExpression = this->expression(ast->rightExpression);
+  ExpressionSem leftExpression;
+  this->expression(ast->leftExpression, &leftExpression);
+  ExpressionSem rightExpression;
+  this->expression(ast->rightExpression, &rightExpression);
 }
 
 void Semantics::visit(BracedTypeConstructionAST* ast) {
-  auto specifiers = this->specifiers(ast->typeSpecifier);
+  SpecifiersSem specifiers;
+  this->specifiers(ast->typeSpecifier, &specifiers);
   bracedInitList(ast->bracedInitList);
 }
 
 void Semantics::visit(TypeConstructionAST* ast) {
-  auto specifiers = this->specifiers(ast->typeSpecifier);
-  for (auto it = ast->expressionList; it; it = it->next)
-    auto expression = this->expression(it->value);
+  SpecifiersSem specifiers;
+  this->specifiers(ast->typeSpecifier, &specifiers);
+  for (auto it = ast->expressionList; it; it = it->next) {
+    ExpressionSem expression;
+    this->expression(it->value, &expression);
+  }
 }
 
 void Semantics::visit(CallExpressionAST* ast) {
-  auto expression = this->expression(ast->baseExpression);
-  for (auto it = ast->expressionList; it; it = it->next)
-    auto expression = this->expression(it->value);
+  ExpressionSem expression;
+  this->expression(ast->baseExpression, &expression);
+  for (auto it = ast->expressionList; it; it = it->next) {
+    ExpressionSem expression;
+    this->expression(it->value, &expression);
+  }
 }
 
 void Semantics::visit(SubscriptExpressionAST* ast) {
-  auto baseExpression = this->expression(ast->baseExpression);
-  auto indexExpression = this->expression(ast->indexExpression);
+  ExpressionSem baseExpression;
+  this->expression(ast->baseExpression, &baseExpression);
+  ExpressionSem indexExpression;
+  this->expression(ast->indexExpression, &indexExpression);
 }
 
 void Semantics::visit(MemberExpressionAST* ast) {
-  auto expression = this->expression(ast->baseExpression);
-  auto name = this->name(ast->name);
+  ExpressionSem baseExpression;
+  this->expression(ast->baseExpression, &baseExpression);
+  NameSem name;
+  this->name(ast->name, &name);
 }
 
 void Semantics::visit(ConditionalExpressionAST* ast) {
-  auto condition = this->expression(ast->condition);
-  auto iftrueExpression = this->expression(ast->iftrueExpression);
-  auto iffalseExpression = this->expression(ast->iffalseExpression);
+  ExpressionSem condition;
+  this->expression(ast->condition, &condition);
+  ExpressionSem iftrueExpression;
+  this->expression(ast->iftrueExpression, &iftrueExpression);
+  ExpressionSem iffalseExpression;
+  this->expression(ast->iffalseExpression, &iffalseExpression);
 }
 
 void Semantics::visit(CastExpressionAST* ast) {
   typeId(ast->typeId);
-  auto expression = this->expression(ast->expression);
+  ExpressionSem expression;
+  this->expression(ast->expression, &expression);
 }
 
 void Semantics::visit(CppCastExpressionAST* ast) {
   typeId(ast->typeId);
-  auto expression = this->expression(ast->expression);
+  ExpressionSem expression;
+  this->expression(ast->expression, &expression);
 }
 
 void Semantics::visit(NewExpressionAST* ast) {
@@ -481,28 +505,33 @@ void Semantics::visit(NewExpressionAST* ast) {
 }
 
 void Semantics::visit(DeleteExpressionAST* ast) {
-  auto expression = this->expression(ast->expression);
+  ExpressionSem expression;
+  this->expression(ast->expression, &expression);
 }
 
 void Semantics::visit(ThrowExpressionAST* ast) {
-  auto expression = this->expression(ast->expression);
+  ExpressionSem expression;
+  this->expression(ast->expression, &expression);
 }
 
 void Semantics::visit(NoexceptExpressionAST* ast) {
-  auto expression = this->expression(ast->expression);
+  ExpressionSem expression;
+  this->expression(ast->expression, &expression);
 }
 
 void Semantics::visit(LabeledStatementAST* ast) { statement(ast->statement); }
 
 void Semantics::visit(CaseStatementAST* ast) {
-  auto expression = this->expression(ast->expression);
+  ExpressionSem expression;
+  this->expression(ast->expression, &expression);
   statement(ast->statement);
 }
 
 void Semantics::visit(DefaultStatementAST* ast) { statement(ast->statement); }
 
 void Semantics::visit(ExpressionStatementAST* ast) {
-  auto expression = this->expression(ast->expression);
+  ExpressionSem expression;
+  this->expression(ast->expression, &expression);
 }
 
 void Semantics::visit(CompoundStatementAST* ast) {
@@ -511,38 +540,45 @@ void Semantics::visit(CompoundStatementAST* ast) {
 
 void Semantics::visit(IfStatementAST* ast) {
   statement(ast->initializer);
-  auto expression = this->expression(ast->condition);
+  ExpressionSem condition;
+  this->expression(ast->condition, &condition);
   statement(ast->statement);
   statement(ast->elseStatement);
 }
 
 void Semantics::visit(SwitchStatementAST* ast) {
   statement(ast->initializer);
-  auto expression = this->expression(ast->condition);
+  ExpressionSem condition;
+  this->expression(ast->condition, &condition);
   statement(ast->statement);
 }
 
 void Semantics::visit(WhileStatementAST* ast) {
-  auto expression = this->expression(ast->condition);
+  ExpressionSem condition;
+  this->expression(ast->condition, &condition);
   statement(ast->statement);
 }
 
 void Semantics::visit(DoStatementAST* ast) {
   statement(ast->statement);
-  auto expression = this->expression(ast->expression);
+  ExpressionSem expression;
+  this->expression(ast->expression, &expression);
 }
 
 void Semantics::visit(ForRangeStatementAST* ast) {
   statement(ast->initializer);
   declaration(ast->rangeDeclaration);
-  auto expression = this->expression(ast->rangeInitializer);
+  ExpressionSem rangeInitializer;
+  this->expression(ast->rangeInitializer, &rangeInitializer);
   statement(ast->statement);
 }
 
 void Semantics::visit(ForStatementAST* ast) {
   statement(ast->initializer);
-  auto condition = this->expression(ast->condition);
-  auto expression = this->expression(ast->expression);
+  ExpressionSem condition;
+  this->expression(ast->condition, &condition);
+  ExpressionSem expression;
+  this->expression(ast->expression, &expression);
   statement(ast->statement);
 }
 
@@ -551,13 +587,15 @@ void Semantics::visit(BreakStatementAST* ast) {}
 void Semantics::visit(ContinueStatementAST* ast) {}
 
 void Semantics::visit(ReturnStatementAST* ast) {
-  auto expression = this->expression(ast->expression);
+  ExpressionSem expression;
+  this->expression(ast->expression, &expression);
 }
 
 void Semantics::visit(GotoStatementAST* ast) {}
 
 void Semantics::visit(CoroutineReturnStatementAST* ast) {
-  auto expression = this->expression(ast->expression);
+  ExpressionSem expression;
+  this->expression(ast->expression, &expression);
 }
 
 void Semantics::visit(DeclarationStatementAST* ast) {
@@ -572,14 +610,18 @@ void Semantics::visit(TryBlockStatementAST* ast) {
 void Semantics::visit(AccessDeclarationAST* ast) {}
 
 void Semantics::visit(FunctionDefinitionAST* ast) {
-  auto specifiers = this->specifiers(ast->declSpecifierList);
-  auto declarator = this->declarator(ast->declarator, specifiers);
+  SpecifiersSem specifiers;
+  this->specifiers(ast->declSpecifierList, &specifiers);
+  DeclaratorSem declarator{specifiers};
+  this->declarator(ast->declarator, specifiers, &declarator);
   functionBody(ast->functionBody);
 }
 
 void Semantics::visit(ConceptDefinitionAST* ast) {
-  auto name = this->name(ast->name);
-  auto expression = this->expression(ast->expression);
+  NameSem name;
+  this->name(ast->name, &name);
+  ExpressionSem expression;
+  this->expression(ast->expression, &expression);
 }
 
 void Semantics::visit(ForRangeDeclarationAST* ast) {}
@@ -591,14 +633,17 @@ void Semantics::visit(AliasDeclarationAST* ast) {
 
 void Semantics::visit(SimpleDeclarationAST* ast) {
   for (auto it = ast->attributes; it; it = it->next) attribute(it->value);
-  auto specifiers = this->specifiers(ast->declSpecifierList);
+  SpecifiersSem specifiers;
+  this->specifiers(ast->declSpecifierList, &specifiers);
   for (auto it = ast->initDeclaratorList; it; it = it->next) {
-    auto declarator = this->initDeclarator(it->value, specifiers);
+    DeclaratorSem declarator{specifiers};
+    this->initDeclarator(it->value, specifiers, &declarator);
   }
 }
 
 void Semantics::visit(StaticAssertDeclarationAST* ast) {
-  auto expression = this->expression(ast->expression);
+  ExpressionSem expression;
+  this->expression(ast->expression, &expression);
 }
 
 void Semantics::visit(EmptyDeclarationAST* ast) {}
@@ -610,7 +655,8 @@ void Semantics::visit(AttributeDeclarationAST* ast) {
 void Semantics::visit(OpaqueEnumDeclarationAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
   nestedNameSpecifier(ast->nestedNameSpecifier);
-  auto name = this->name(ast->name);
+  NameSem name;
+  this->name(ast->name, &name);
   enumBase(ast->enumBase);
 }
 
@@ -619,7 +665,8 @@ void Semantics::visit(UsingEnumDeclarationAST* ast) {}
 void Semantics::visit(NamespaceDefinitionAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
   nestedNameSpecifier(ast->nestedNameSpecifier);
-  auto name = this->name(ast->name);
+  NameSem name;
+  this->name(ast->name, &name);
   for (auto it = ast->extraAttributeList; it; it = it->next)
     attribute(it->value);
   for (auto it = ast->declarationList; it; it = it->next)
@@ -628,7 +675,8 @@ void Semantics::visit(NamespaceDefinitionAST* ast) {
 
 void Semantics::visit(NamespaceAliasDefinitionAST* ast) {
   nestedNameSpecifier(ast->nestedNameSpecifier);
-  auto name = this->name(ast->name);
+  NameSem name;
+  this->name(ast->name, &name);
 }
 
 void Semantics::visit(UsingDirectiveAST* ast) {}
@@ -659,7 +707,8 @@ void Semantics::visit(TypenamePackTypeParameterAST* ast) {}
 void Semantics::visit(TemplateTypeParameterAST* ast) {
   for (auto it = ast->templateParameterList; it; it = it->next)
     declaration(it->value);
-  auto name = this->name(ast->name);
+  NameSem name;
+  this->name(ast->name, &name);
 }
 
 void Semantics::visit(TemplatePackTypeParameterAST* ast) {
@@ -675,9 +724,12 @@ void Semantics::visit(ExplicitInstantiationAST* ast) {
 
 void Semantics::visit(ParameterDeclarationAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
-  auto specifiers = this->specifiers(ast->typeSpecifierList);
-  auto declarator = this->declarator(ast->declarator, specifiers);
-  auto expression = this->expression(ast->expression);
+  SpecifiersSem specifiers;
+  this->specifiers(ast->typeSpecifierList, &specifiers);
+  DeclaratorSem declarator{specifiers};
+  this->declarator(ast->declarator, specifiers, &declarator);
+  ExpressionSem expression;
+  this->expression(ast->expression, &expression);
 }
 
 void Semantics::visit(LinkageSpecificationAST* ast) {
@@ -687,45 +739,53 @@ void Semantics::visit(LinkageSpecificationAST* ast) {
 
 void Semantics::visit(SimpleNameAST* ast) {
   auto id = unit_->identifier(ast->identifierLoc);
-  name_ = id;
+  name_->name = id;
 }
 
 void Semantics::visit(DestructorNameAST* ast) {
-  auto name = this->name(ast->id);
+  NameSem name;
+  this->name(ast->id, &name);
 }
 
 void Semantics::visit(DecltypeNameAST* ast) {
-  auto specifiers = this->specifiers(ast->decltypeSpecifier);
+  SpecifiersSem specifiers;
+  this->specifiers(ast->decltypeSpecifier, &specifiers);
 }
 
 void Semantics::visit(OperatorNameAST* ast) {}
 
 void Semantics::visit(TemplateNameAST* ast) {
-  auto name = this->name(ast->id);
+  NameSem name;
+  this->name(ast->id, &name);
   for (auto it = ast->templateArgumentList; it; it = it->next)
     templateArgument(it->value);
 }
 
 void Semantics::visit(QualifiedNameAST* ast) {
   nestedNameSpecifier(ast->nestedNameSpecifier);
-  auto name = this->name(ast->id);
+  NameSem name;
+  this->name(ast->id, &name);
 }
 
-void Semantics::visit(TypedefSpecifierAST* ast) {}
+void Semantics::visit(TypedefSpecifierAST* ast) {
+  specifiers_->isTypedef = true;
+}
 
-void Semantics::visit(FriendSpecifierAST* ast) {}
+void Semantics::visit(FriendSpecifierAST* ast) { specifiers_->isFriend = true; }
 
 void Semantics::visit(ConstevalSpecifierAST* ast) {}
 
 void Semantics::visit(ConstinitSpecifierAST* ast) {}
 
-void Semantics::visit(ConstexprSpecifierAST* ast) {}
+void Semantics::visit(ConstexprSpecifierAST* ast) {
+  specifiers_->isConstexpr = true;
+}
 
 void Semantics::visit(InlineSpecifierAST* ast) {}
 
-void Semantics::visit(StaticSpecifierAST* ast) {}
+void Semantics::visit(StaticSpecifierAST* ast) { specifiers_->isStatic = true; }
 
-void Semantics::visit(ExternSpecifierAST* ast) {}
+void Semantics::visit(ExternSpecifierAST* ast) { specifiers_->isExtern = true; }
 
 void Semantics::visit(ThreadLocalSpecifierAST* ast) {}
 
@@ -736,13 +796,14 @@ void Semantics::visit(MutableSpecifierAST* ast) {}
 void Semantics::visit(VirtualSpecifierAST* ast) {}
 
 void Semantics::visit(ExplicitSpecifierAST* ast) {
-  auto expression = this->expression(ast->expression);
+  ExpressionSem expression;
+  this->expression(ast->expression, &expression);
 }
 
 void Semantics::visit(AutoTypeSpecifierAST* ast) {}
 
 void Semantics::visit(VoidTypeSpecifierAST* ast) {
-  specifiers_.type.setType(types_->voidType());
+  specifiers_->type.setType(types_->voidType());
 }
 
 void Semantics::visit(VaListTypeSpecifierAST* ast) {}
@@ -750,78 +811,78 @@ void Semantics::visit(VaListTypeSpecifierAST* ast) {}
 void Semantics::visit(IntegralTypeSpecifierAST* ast) {
   switch (unit_->tokenKind(ast->specifierLoc)) {
     case TokenKind::T_CHAR8_T:
-      specifiers_.type.setType(types_->characterType(CharacterKind::kChar8T));
+      specifiers_->type.setType(types_->characterType(CharacterKind::kChar8T));
       break;
 
     case TokenKind::T_CHAR16_T:
-      specifiers_.type.setType(types_->characterType(CharacterKind::kChar16T));
+      specifiers_->type.setType(types_->characterType(CharacterKind::kChar16T));
       break;
 
     case TokenKind::T_CHAR32_T:
-      specifiers_.type.setType(types_->characterType(CharacterKind::kChar32T));
+      specifiers_->type.setType(types_->characterType(CharacterKind::kChar32T));
       break;
 
     case TokenKind::T_WCHAR_T:
-      specifiers_.type.setType(types_->characterType(CharacterKind::kWCharT));
+      specifiers_->type.setType(types_->characterType(CharacterKind::kWCharT));
       break;
 
     case TokenKind::T_BOOL:
-      specifiers_.type.setType(types_->booleanType());
+      specifiers_->type.setType(types_->booleanType());
       break;
 
     case TokenKind::T_CHAR:
-      specifiers_.type.setType(
-          types_->integerType(IntegerKind::kChar, specifiers_.isUnsigned));
+      specifiers_->type.setType(
+          types_->integerType(IntegerKind::kChar, specifiers_->isUnsigned));
       break;
 
     case TokenKind::T_SHORT:
-      specifiers_.type.setType(
-          types_->integerType(IntegerKind::kShort, specifiers_.isUnsigned));
+      specifiers_->type.setType(
+          types_->integerType(IntegerKind::kShort, specifiers_->isUnsigned));
       break;
 
     case TokenKind::T_INT:
-      specifiers_.type.setType(
-          types_->integerType(IntegerKind::kInt, specifiers_.isUnsigned));
+      specifiers_->type.setType(
+          types_->integerType(IntegerKind::kInt, specifiers_->isUnsigned));
       break;
 
     case TokenKind::T___INT64:
-      specifiers_.type.setType(
-          types_->integerType(IntegerKind::kInt64, specifiers_.isUnsigned));
+      specifiers_->type.setType(
+          types_->integerType(IntegerKind::kInt64, specifiers_->isUnsigned));
       break;
 
     case TokenKind::T___INT128:
-      specifiers_.type.setType(
-          types_->integerType(IntegerKind::kInt128, specifiers_.isUnsigned));
+      specifiers_->type.setType(
+          types_->integerType(IntegerKind::kInt128, specifiers_->isUnsigned));
       break;
 
     case TokenKind::T_LONG: {
-      auto ty = dynamic_cast<const IntegerType*>(specifiers_.type.type());
+      auto ty = dynamic_cast<const IntegerType*>(specifiers_->type.type());
 
       if (ty && ty->kind() == IntegerKind::kLong) {
-        specifiers_.type.setType(types_->integerType(IntegerKind::kLongLong,
-                                                     specifiers_.isUnsigned));
+        specifiers_->type.setType(types_->integerType(IntegerKind::kLongLong,
+                                                      specifiers_->isUnsigned));
       } else {
-        specifiers_.type.setType(
-            types_->integerType(IntegerKind::kLong, specifiers_.isUnsigned));
+        specifiers_->type.setType(
+            types_->integerType(IntegerKind::kLong, specifiers_->isUnsigned));
       }
 
       break;
     }
 
     case TokenKind::T_SIGNED:
-      specifiers_.isUnsigned = false;
+      specifiers_->isUnsigned = false;
 
-      if (!specifiers_.type)
-        specifiers_.type.setType(
-            types_->integerType(IntegerKind::kInt, specifiers_.isUnsigned));
+      if (!specifiers_->type)
+        specifiers_->type.setType(
+            types_->integerType(IntegerKind::kInt, specifiers_->isUnsigned));
       break;
 
     case TokenKind::T_UNSIGNED:
-      specifiers_.isUnsigned = true;
+      specifiers_->isUnsigned = true;
 
-      if (!specifiers_.type)
-        specifiers_.type.setType(
-            types_->integerType(IntegerKind::kInt, specifiers_.isUnsigned));
+      if (!specifiers_->type)
+        specifiers_->type.setType(
+            types_->integerType(IntegerKind::kInt, specifiers_->isUnsigned));
       break;
 
     default:
@@ -833,25 +894,25 @@ void Semantics::visit(IntegralTypeSpecifierAST* ast) {
 void Semantics::visit(FloatingPointTypeSpecifierAST* ast) {
   switch (unit_->tokenKind(ast->specifierLoc)) {
     case TokenKind::T_FLOAT:
-      specifiers_.type.setType(
+      specifiers_->type.setType(
           types_->floatingPointType(FloatingPointKind::kFloat));
       break;
 
     case TokenKind::T_DOUBLE: {
-      auto ty = dynamic_cast<const IntegerType*>(specifiers_.type.type());
+      auto ty = dynamic_cast<const IntegerType*>(specifiers_->type.type());
 
       if (ty && ty->kind() == IntegerKind::kLong) {
-        specifiers_.type.setType(
+        specifiers_->type.setType(
             types_->floatingPointType(FloatingPointKind::kLongDouble));
       } else {
-        specifiers_.type.setType(
+        specifiers_->type.setType(
             types_->floatingPointType(FloatingPointKind::kDouble));
       }
       break;
     }
 
     case TokenKind::T___FLOAT128:
-      specifiers_.type.setType(
+      specifiers_->type.setType(
           types_->floatingPointType(FloatingPointKind::kFloat));
       break;
 
@@ -865,7 +926,8 @@ void Semantics::visit(FloatingPointTypeSpecifierAST* ast) {
 void Semantics::visit(ComplexTypeSpecifierAST* ast) {}
 
 void Semantics::visit(NamedTypeSpecifierAST* ast) {
-  auto name = this->name(ast->name);
+  NameSem name;
+  this->name(ast->name, &name);
 }
 
 void Semantics::visit(AtomicTypeSpecifierAST* ast) { typeId(ast->typeId); }
@@ -875,17 +937,20 @@ void Semantics::visit(UnderlyingTypeSpecifierAST* ast) {}
 void Semantics::visit(ElaboratedTypeSpecifierAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
   nestedNameSpecifier(ast->nestedNameSpecifier);
-  auto name = this->name(ast->name);
+  NameSem name;
+  this->name(ast->name, &name);
 }
 
 void Semantics::visit(DecltypeAutoSpecifierAST* ast) {}
 
 void Semantics::visit(DecltypeSpecifierAST* ast) {
-  auto expression = this->expression(ast->expression);
+  ExpressionSem expression;
+  this->expression(ast->expression, &expression);
 }
 
 void Semantics::visit(TypeofSpecifierAST* ast) {
-  auto expression = this->expression(ast->expression);
+  ExpressionSem expression;
+  this->expression(ast->expression, &expression);
 }
 
 void Semantics::visit(PlaceholderTypeSpecifierAST* ast) {}
@@ -899,14 +964,16 @@ void Semantics::visit(RestrictQualifierAST* ast) {}
 void Semantics::visit(EnumSpecifierAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
   nestedNameSpecifier(ast->nestedNameSpecifier);
-  auto name = this->name(ast->name);
+  NameSem name;
+  this->name(ast->name, &name);
   enumBase(ast->enumBase);
   for (auto it = ast->enumeratorList; it; it = it->next) enumerator(it->value);
 }
 
 void Semantics::visit(ClassSpecifierAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
-  auto name = this->name(ast->name);
+  NameSem name;
+  this->name(ast->name, &name);
   baseClause(ast->baseClause);
   for (auto it = ast->declarationList; it; it = it->next)
     declaration(it->value);
@@ -914,13 +981,15 @@ void Semantics::visit(ClassSpecifierAST* ast) {
 
 void Semantics::visit(TypenameSpecifierAST* ast) {
   nestedNameSpecifier(ast->nestedNameSpecifier);
-  auto name = this->name(ast->name);
+  NameSem name;
+  this->name(ast->name, &name);
 }
 
 void Semantics::visit(IdDeclaratorAST* ast) {
-  auto name = this->name(ast->name);
+  NameSem name;
+  this->name(ast->name, &name);
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
-  declarator_.name = name;
+  declarator_->name = name.name;
 }
 
 void Semantics::visit(NestedDeclaratorAST* ast) { accept(ast->declarator); }
@@ -928,25 +997,28 @@ void Semantics::visit(NestedDeclaratorAST* ast) { accept(ast->declarator); }
 void Semantics::visit(PointerOperatorAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
 
-  auto qualifiers = this->specifiers(ast->cvQualifierList).type.qualifiers();
+  SpecifiersSem specifiers;
+  this->specifiers(ast->cvQualifierList, &specifiers);
+  auto qualifiers = specifiers.type.qualifiers();
 
-  FullySpecifiedType ptrTy(types_->pointerType(declarator_.type, qualifiers));
+  FullySpecifiedType ptrTy(types_->pointerType(declarator_->type, qualifiers));
 
-  declarator_.type = ptrTy;
+  declarator_->type = ptrTy;
 }
 
 void Semantics::visit(ReferenceOperatorAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
 
-  FullySpecifiedType ptrTy(types_->referenceType(declarator_.type));
+  FullySpecifiedType ptrTy(types_->referenceType(declarator_->type));
 
-  declarator_.type = ptrTy;
+  declarator_->type = ptrTy;
 }
 
 void Semantics::visit(PtrToMemberOperatorAST* ast) {
   nestedNameSpecifier(ast->nestedNameSpecifier);
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
-  auto specifiers = this->specifiers(ast->cvQualifierList);
+  SpecifiersSem specifiers;
+  this->specifiers(ast->cvQualifierList, &specifiers);
 }
 
 void Semantics::visit(FunctionDeclaratorAST* ast) {
@@ -959,9 +1031,12 @@ void Semantics::visit(FunctionDeclaratorAST* ast) {
 
     for (auto it = params->parameterDeclarationList; it; it = it->next) {
       auto param = it->value;
-      auto specifiers = this->specifiers(param->typeSpecifierList);
-      auto declarator = this->declarator(param->declarator, specifiers);
-      auto expression = this->expression(param->expression);
+      SpecifiersSem specifiers;
+      this->specifiers(param->typeSpecifierList, &specifiers);
+      DeclaratorSem declarator{specifiers};
+      this->declarator(param->declarator, specifiers, &declarator);
+      ExpressionSem expression;
+      this->expression(param->expression, &expression);
       argumentTypes.push_back(declarator.type);
     }
 
@@ -970,20 +1045,21 @@ void Semantics::visit(FunctionDeclaratorAST* ast) {
 
   trailingReturnType(ast->trailingReturnType);
 
-  FullySpecifiedType returnTy(declarator_.type);
+  FullySpecifiedType returnTy(declarator_->type);
 
   FullySpecifiedType funTy(
       types_->functionType(returnTy, std::move(argumentTypes), isVariadic));
 
-  declarator_.type = funTy;
+  declarator_->type = funTy;
 }
 
 void Semantics::visit(ArrayDeclaratorAST* ast) {
   if (!ast->expression) {
-    FullySpecifiedType arrayType(types_->unboundArrayType(declarator_.type));
-    declarator_.type = arrayType;
+    FullySpecifiedType arrayType(types_->unboundArrayType(declarator_->type));
+    declarator_->type = arrayType;
   } else {
-    auto expression = this->expression(ast->expression);
+    ExpressionSem expression;
+    this->expression(ast->expression, &expression);
   }
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
 }

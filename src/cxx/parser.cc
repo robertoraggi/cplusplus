@@ -142,6 +142,7 @@ struct Parser::DeclSpecs {
   bool has_placeholder_typespec = false;
   bool no_typespecs = false;
   bool no_class_or_enum_specs = false;
+  Semantics::SpecifiersSem specs;
 
   bool accepts_simple_typespec() const {
     return !(has_complex_typespec || has_named_typespec ||
@@ -180,7 +181,10 @@ const Token& Parser::LA(int n) const {
   return unit->tokenAt(SourceLocation(cursor_ + n));
 }
 
-bool Parser::operator()(UnitAST*& ast) { return parse(ast); }
+bool Parser::operator()(UnitAST*& ast) {
+  auto result = parse(ast);
+  return result;
+}
 
 bool Parser::parse(UnitAST*& ast) {
   auto parsed = parse_translation_unit(ast);

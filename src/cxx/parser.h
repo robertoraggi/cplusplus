@@ -103,8 +103,6 @@ class Parser final {
     return true;
   }
 
-  bool parse_error();
-  bool parse_warn();
   bool parse_id(const Identifier* id);
   bool parse_nospace();
   bool parse_greater_greater();

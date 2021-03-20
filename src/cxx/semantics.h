@@ -23,6 +23,7 @@
 #include <cxx/ast_visitor.h>
 #include <cxx/fully_specified_type.h>
 #include <cxx/names_fwd.h>
+#include <cxx/translation_unit.h>
 
 namespace cxx {
 
@@ -35,48 +36,87 @@ class Semantics final : ASTVisitor {
   Semantics(TranslationUnit* unit);
   ~Semantics();
 
-  void unit(UnitAST* unit);
+  template <typename... Args>
+  void error(SourceLocation loc, const std::string_view& format,
+             const Args&... args) {
+    unit_->report(loc, Severity::Error, format, args...);
+  }
 
- private:
-  struct ScopeContext;
+  template <typename... Args>
+  void warning(SourceLocation loc, const std::string_view& format,
+               const Args&... args) {
+    unit_->report(loc, Severity::Warning, format, args...);
+  }
 
-  void accept(AST* ast);
+  struct ScopeContext {
+    Semantics* sem = nullptr;
+    Scope* savedScope = nullptr;
 
-  struct Specifiers {
-    FullySpecifiedType type;
-    bool isUnsigned = false;
+    ScopeContext(const ScopeContext&) = delete;
+    ScopeContext& operator=(const ScopeContext&) = delete;
+
+    explicit ScopeContext(Semantics* sem, Scope* scope)
+        : sem(sem), savedScope(sem->scope_) {
+      sem->scope_ = scope;
+    }
+
+    ~ScopeContext() { sem->scope_ = savedScope; }
   };
 
-  struct Declarator {
-    Specifiers specifiers;
+  struct SpecifiersSem {
+    FullySpecifiedType type;
+    bool isConstexpr : 1 = false;
+    bool isExtern : 1 = false;
+    bool isFriend : 1 = false;
+    bool isStatic : 1 = false;
+    bool isTypedef : 1 = false;
+    bool isUnsigned : 1 = false;
+  };
+
+  struct DeclaratorSem {
+    SpecifiersSem specifiers;
     FullySpecifiedType type;
     const Name* name = nullptr;
 
-    Declarator() = default;
+    DeclaratorSem() = default;
 
-    explicit Declarator(Specifiers specifiers) noexcept
+    explicit DeclaratorSem(SpecifiersSem specifiers) noexcept
         : specifiers(std::move(specifiers)) {
       type = this->specifiers.type;
     }
   };
 
-  struct Expression {
+  struct ExpressionSem {
     FullySpecifiedType type;
   };
 
-  [[nodiscard]] Specifiers specifiers(List<SpecifierAST*>* ast);
+  struct NameSem {
+    const Name* name = nullptr;
+  };
 
-  [[nodiscard]] Specifiers specifiers(SpecifierAST* ast);
+  Scope* changeScope(Scope* scope) {
+    std::swap(scope_, scope);
+    return scope;
+  }
 
-  [[nodiscard]] Declarator declarator(DeclaratorAST* ast,
-                                      const Specifiers& specifiers);
+  void unit(UnitAST* unit);
 
-  [[nodiscard]] Declarator initDeclarator(InitDeclaratorAST* ast,
-                                          const Specifiers& specifiers);
+  void specifiers(List<SpecifierAST*>* ast, SpecifiersSem* specifiers);
 
-  [[nodiscard]] const Name* name(NameAST* ast);
+  void specifiers(SpecifierAST* ast, SpecifiersSem* specifiers);
 
-  [[nodiscard]] Expression expression(ExpressionAST* ast);
+  void declarator(DeclaratorAST* ast, const SpecifiersSem& specifiers,
+                  DeclaratorSem* declarator);
+
+  void initDeclarator(InitDeclaratorAST* ast, const SpecifiersSem& specifiers,
+                      DeclaratorSem* declarator);
+
+  void name(NameAST* ast, NameSem* name);
+
+  void expression(ExpressionAST* ast, ExpressionSem* expression);
+
+ private:
+  void accept(AST* ast);
 
   void nestedNameSpecifier(NestedNameSpecifierAST* ast);
   void exceptionDeclaration(ExceptionDeclarationAST* ast);
@@ -298,10 +338,10 @@ class Semantics final : ASTVisitor {
   TypeEnvironment* types_ = nullptr;
   SymbolFactory* symbols_ = nullptr;
   Scope* scope_ = nullptr;
-  const Name* name_ = nullptr;
-  Specifiers specifiers_;
-  Declarator declarator_;
-  Expression expression_;
+  NameSem* name_ = nullptr;
+  SpecifiersSem* specifiers_ = nullptr;
+  DeclaratorSem* declarator_ = nullptr;
+  ExpressionSem* expression_ = nullptr;
 };
 
 }  // namespace cxx
