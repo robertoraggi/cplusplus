@@ -29,6 +29,7 @@ class NameVisitor {
   virtual ~NameVisitor();
 
   virtual void visit(const Identifier*) = 0;
+  virtual void visit(const OperatorNameId*) = 0;
 };
 
 }  // namespace cxx

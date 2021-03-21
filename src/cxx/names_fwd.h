@@ -28,5 +28,6 @@ class NameVisitor;
 class Name;
 
 class Identifier;
+class OperatorNameId;
 
 }  // namespace cxx

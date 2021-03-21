@@ -23,6 +23,7 @@
 #include <cxx/literals_fwd.h>
 #include <cxx/names_fwd.h>
 #include <cxx/symbols_fwd.h>
+#include <cxx/token.h>
 
 #include <memory>
 #include <string>
@@ -37,6 +38,7 @@ class Control {
   ~Control();
 
   const Identifier* identifier(std::string name);
+  const OperatorNameId* operatorNameId(TokenKind op);
 
   const NumericLiteral* numericLiteral(std::string value);
   const StringLiteral* stringLiteral(std::string value);

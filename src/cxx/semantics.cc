@@ -750,7 +750,9 @@ void Semantics::visit(DecltypeNameAST* ast) {
   this->specifiers(ast->decltypeSpecifier, &specifiers);
 }
 
-void Semantics::visit(OperatorNameAST* ast) {}
+void Semantics::visit(OperatorNameAST* ast) {
+  name_->name = control_->operatorNameId(ast->op);
+}
 
 void Semantics::visit(TemplateNameAST* ast) {
   NameSem name;

@@ -42,4 +42,8 @@ void PrintName::visit(const Identifier* name) {
   fmt::print(*out_, "{}", name->name());
 }
 
+void PrintName::visit(const OperatorNameId* name) {
+  fmt::print(*out_, "operator {}", Token::spell(name->op()));
+}
+
 }  // namespace cxx

@@ -23,10 +23,10 @@
 #include <cxx/fully_specified_type.h>
 #include <cxx/name_visitor.h>
 #include <cxx/names_fwd.h>
+#include <cxx/token.h>
 
+#include <iosfwd>
 #include <string>
-#include <tuple>
-#include <vector>
 
 namespace cxx {
 
@@ -39,7 +39,7 @@ class Name {
 
 class Identifier final : public Name {
  public:
-  explicit Identifier(std::string_view name) : name_(std::move(name)) {}
+  explicit Identifier(std::string name) : name_(std::move(name)) {}
 
   const std::string& name() const { return name_; }
 
@@ -47,6 +47,18 @@ class Identifier final : public Name {
 
  private:
   std::string name_;
+};
+
+class OperatorNameId final : public Name {
+ public:
+  explicit OperatorNameId(TokenKind op) : op_(op) {}
+
+  TokenKind op() const { return op_; }
+
+  void accept(NameVisitor* visitor) const override { visitor->visit(this); }
+
+ private:
+  TokenKind op_;
 };
 
 std::ostream& operator<<(std::ostream& out, const Name& name);

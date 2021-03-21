@@ -6566,6 +6566,7 @@ bool Parser::parse_operator(TokenKind& op, SourceLocation& opLoc,
       opLoc = consumeToken();
       if (match(TokenKind::T_LBRACKET, openLoc)) {
         expect(TokenKind::T_RBRACKET, closeLoc);
+        op = TokenKind::T_NEW_ARRAY;
       }
       return true;
 
@@ -6573,6 +6574,7 @@ bool Parser::parse_operator(TokenKind& op, SourceLocation& opLoc,
       opLoc = consumeToken();
       if (match(TokenKind::T_LBRACKET, openLoc)) {
         expect(TokenKind::T_RBRACKET, closeLoc);
+        op = TokenKind::T_DELETE_ARRAY;
       }
       return true;
 
