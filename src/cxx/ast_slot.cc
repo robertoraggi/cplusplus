@@ -1850,6 +1850,17 @@ void ASTSlot::visit(OperatorNameAST* ast) {
   }  // switch
 }
 
+void ASTSlot::visit(ConversionNameAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->operatorLoc.index();
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->typeId);
+      break;
+  }  // switch
+}
+
 void ASTSlot::visit(TemplateNameAST* ast) {
   switch (slot_) {
     case 0:

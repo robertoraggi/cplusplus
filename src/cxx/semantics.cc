@@ -754,6 +754,17 @@ void Semantics::visit(OperatorNameAST* ast) {
   name_->name = control_->operatorNameId(ast->op);
 }
 
+void Semantics::visit(ConversionNameAST* ast) {
+  // typeId(ast->typeId);
+  if (!ast->typeId) return;
+  SpecifiersSem specifiers;
+  this->specifiers(ast->typeId->typeSpecifierList, &specifiers);
+  DeclaratorSem decl{specifiers};
+  this->declarator(ast->typeId->declarator, &decl);
+  FullySpecifiedType type = decl.type;
+  name_->name = control_->conversionNameId(type);
+}
+
 void Semantics::visit(TemplateNameAST* ast) {
   NameSem name;
   this->name(ast->id, &name);

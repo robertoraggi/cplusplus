@@ -174,6 +174,7 @@ class ASTVisitor {
   virtual void visit(DestructorNameAST* ast) = 0;
   virtual void visit(DecltypeNameAST* ast) = 0;
   virtual void visit(OperatorNameAST* ast) = 0;
+  virtual void visit(ConversionNameAST* ast) = 0;
   virtual void visit(TemplateNameAST* ast) = 0;
   virtual void visit(QualifiedNameAST* ast) = 0;
 

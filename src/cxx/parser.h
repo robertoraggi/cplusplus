@@ -371,13 +371,12 @@ class Parser final {
   bool parse_member_declaration_helper(DeclarationAST*& yyast);
   bool parse_member_function_definition_body(FunctionBodyAST*& yyast);
   bool parse_member_declarator_modifier();
-  bool parse_member_declarator_list(List<DeclaratorAST*>*& yyast, const DeclSpecs& specs);
+  bool parse_member_declarator_list(List<DeclaratorAST*>*& yyast,
+                                    const DeclSpecs& specs);
   bool parse_member_declarator(DeclaratorAST*& yyast);
   bool parse_virt_specifier();
   bool parse_pure_specifier();
   bool parse_conversion_function_id(NameAST*& yyast);
-  bool parse_conversion_type_id();
-  bool parse_conversion_declarator();
   bool parse_base_clause(BaseClauseAST*& yyast);
   bool parse_base_specifier_list(List<BaseSpecifierAST*>*& yyast);
   bool parse_base_specifier(BaseSpecifierAST*& yyast);

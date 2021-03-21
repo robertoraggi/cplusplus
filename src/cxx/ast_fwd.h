@@ -190,6 +190,7 @@ class SimpleNameAST;
 class DestructorNameAST;
 class DecltypeNameAST;
 class OperatorNameAST;
+class ConversionNameAST;
 class TemplateNameAST;
 class QualifiedNameAST;
 

@@ -1949,6 +1949,19 @@ class OperatorNameAST final : public NameAST {
   SourceLocation lastSourceLocation() override;
 };
 
+class ConversionNameAST final : public NameAST {
+ public:
+  ConversionNameAST() : NameAST(ASTKind::ConversionName) {}
+
+  SourceLocation operatorLoc;
+  TypeIdAST* typeId = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 class TemplateNameAST final : public NameAST {
  public:
   TemplateNameAST() : NameAST(ASTKind::TemplateName) {}

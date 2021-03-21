@@ -281,6 +281,7 @@ class Semantics final : ASTVisitor {
   void visit(DestructorNameAST* ast) override;
   void visit(DecltypeNameAST* ast) override;
   void visit(OperatorNameAST* ast) override;
+  void visit(ConversionNameAST* ast) override;
   void visit(TemplateNameAST* ast) override;
   void visit(QualifiedNameAST* ast) override;
 

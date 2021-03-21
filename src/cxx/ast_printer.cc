@@ -4001,6 +4001,35 @@ void ASTPrinter::visit(OperatorNameAST* ast) {
   json_["op"] = unit_->tokenText(ast->opLoc);
 }
 
+void ASTPrinter::visit(ConversionNameAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "ConversionName";
+
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
+
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
+
+      json_["$range"] = range;
+    }
+  }
+
+  if (ast->typeId) {
+    json_["typeId"] = accept(ast->typeId);
+  }
+}
+
 void ASTPrinter::visit(TemplateNameAST* ast) {
   json_ = nlohmann::json::object();
 

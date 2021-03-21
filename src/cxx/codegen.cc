@@ -595,6 +595,8 @@ void Codegen::visit(DecltypeNameAST* ast) { specifier(ast->decltypeSpecifier); }
 
 void Codegen::visit(OperatorNameAST* ast) {}
 
+void Codegen::visit(ConversionNameAST* ast) { typeId(ast->typeId); }
+
 void Codegen::visit(TemplateNameAST* ast) {
   name(ast->id);
   for (auto it = ast->templateArgumentList; it; it = it->next)

@@ -29,5 +29,6 @@ class Name;
 
 class Identifier;
 class OperatorNameId;
+class ConversionNameId;
 
 }  // namespace cxx

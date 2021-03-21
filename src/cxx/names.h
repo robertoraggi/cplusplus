@@ -61,6 +61,18 @@ class OperatorNameId final : public Name {
   TokenKind op_;
 };
 
+class ConversionNameId final : public Name {
+ public:
+  explicit ConversionNameId(const FullySpecifiedType& type) : type_(type) {}
+
+  const FullySpecifiedType& type() const { return type_; }
+
+  void accept(NameVisitor* visitor) const override { visitor->visit(this); }
+
+ private:
+  FullySpecifiedType type_;
+};
+
 std::ostream& operator<<(std::ostream& out, const Name& name);
 
 }  // namespace cxx

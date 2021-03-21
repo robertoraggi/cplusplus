@@ -40,6 +40,10 @@ struct NameHash {
   std::size_t operator()(const OperatorNameId& name) const {
     return std::hash<uint32_t>()(static_cast<uint32_t>(name.op()));
   }
+
+  std::size_t operator()(const ConversionNameId& name) const {
+    return std::hash<const void*>()(name.type().type());
+  }
 };
 
 struct NameEqualTo {
@@ -50,6 +54,11 @@ struct NameEqualTo {
   bool operator()(const OperatorNameId& name,
                   const OperatorNameId& other) const {
     return name.op() == other.op();
+  }
+
+  bool operator()(const ConversionNameId& name,
+                  const ConversionNameId& other) const {
+    return name.type() == other.type();
   }
 };
 
@@ -101,6 +110,7 @@ struct Control::Private {
   LiteralMap<CharLiteral> charLiterals_;
   NameSet<Identifier> identifiers_;
   NameSet<OperatorNameId> operatorNameIds_;
+  NameSet<ConversionNameId> conversionNameIds_;
 };
 
 Control::Control() : d(std::make_unique<Private>()) {}
@@ -113,6 +123,11 @@ const Identifier* Control::identifier(std::string name) {
 
 const OperatorNameId* Control::operatorNameId(TokenKind op) {
   return &*d->operatorNameIds_.emplace(op).first;
+}
+
+const ConversionNameId* Control::conversionNameId(
+    const FullySpecifiedType& type) {
+  return &*d->conversionNameIds_.emplace(type).first;
 }
 
 const NumericLiteral* Control::numericLiteral(std::string value) {

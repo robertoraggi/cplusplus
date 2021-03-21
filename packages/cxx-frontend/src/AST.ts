@@ -2124,6 +2124,18 @@ export class OperatorNameAST extends NameAST {
     }
 }
 
+export class ConversionNameAST extends NameAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitConversionName(this, context);
+    }
+    getOperatorToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getTypeId(): TypeIdAST | undefined {
+        return AST.from<TypeIdAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+}
+
 export class TemplateNameAST extends NameAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitTemplateName(this, context);
@@ -2808,6 +2820,7 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     DestructorNameAST,
     DecltypeNameAST,
     OperatorNameAST,
+    ConversionNameAST,
     TemplateNameAST,
     QualifiedNameAST,
     TypedefSpecifierAST,

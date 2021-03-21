@@ -166,6 +166,7 @@ export enum ASTKind {
     DestructorName,
     DecltypeName,
     OperatorName,
+    ConversionName,
     TemplateName,
     QualifiedName,
 

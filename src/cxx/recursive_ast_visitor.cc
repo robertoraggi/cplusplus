@@ -546,6 +546,8 @@ void RecursiveASTVisitor::visit(DecltypeNameAST* ast) {
 
 void RecursiveASTVisitor::visit(OperatorNameAST* ast) {}
 
+void RecursiveASTVisitor::visit(ConversionNameAST* ast) { typeId(ast->typeId); }
+
 void RecursiveASTVisitor::visit(TemplateNameAST* ast) {
   name(ast->id);
   for (auto it = ast->templateArgumentList; it; it = it->next)

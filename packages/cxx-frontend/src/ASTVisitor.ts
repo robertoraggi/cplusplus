@@ -170,6 +170,7 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitDestructorName(node: ast.DestructorNameAST, context: Context): Result;
     abstract visitDecltypeName(node: ast.DecltypeNameAST, context: Context): Result;
     abstract visitOperatorName(node: ast.OperatorNameAST, context: Context): Result;
+    abstract visitConversionName(node: ast.ConversionNameAST, context: Context): Result;
     abstract visitTemplateName(node: ast.TemplateNameAST, context: Context): Result;
     abstract visitQualifiedName(node: ast.QualifiedNameAST, context: Context): Result;
 

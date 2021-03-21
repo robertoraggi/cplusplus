@@ -1812,6 +1812,18 @@ SourceLocation OperatorNameAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation ConversionNameAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(operatorLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ConversionNameAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(operatorLoc)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation TemplateNameAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(id)) return loc;
   if (auto loc = cxx::firstSourceLocation(lessLoc)) return loc;

@@ -46,4 +46,8 @@ void PrintName::visit(const OperatorNameId* name) {
   fmt::print(*out_, "operator {}", Token::spell(name->op()));
 }
 
+void PrintName::visit(const ConversionNameId* name) {
+  fmt::print(*out_, "operator {}", name->type());
+}
+
 }  // namespace cxx

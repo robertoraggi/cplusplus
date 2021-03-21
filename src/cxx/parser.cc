@@ -6267,27 +6267,29 @@ bool Parser::parse_pure_specifier() {
 }
 
 bool Parser::parse_conversion_function_id(NameAST*& yyast) {
-  if (!match(TokenKind::T_OPERATOR)) return false;
+  SourceLocation operatorLoc;
 
-  if (!parse_conversion_type_id()) return false;
+  if (!match(TokenKind::T_OPERATOR, operatorLoc)) return false;
 
-  return true;
-}
-
-bool Parser::parse_conversion_type_id() {
   List<SpecifierAST*>* typeSpecifierList = nullptr;
 
   if (!parse_type_specifier_seq(typeSpecifierList)) return false;
 
-  parse_conversion_declarator();
+  auto declarator = new (pool) DeclaratorAST();
+
+  parse_ptr_operator_seq(declarator->ptrOpList);
+
+  auto typeId = new (pool) TypeIdAST();
+  typeId->typeSpecifierList = typeSpecifierList;
+  typeId->declarator = declarator;
+
+  auto ast = new (pool) ConversionNameAST();
+  yyast = ast;
+
+  ast->operatorLoc = operatorLoc;
+  ast->typeId = typeId;
 
   return true;
-}
-
-bool Parser::parse_conversion_declarator() {
-  List<PtrOperatorAST*>* ptrOpList = nullptr;
-
-  return parse_ptr_operator_seq(ptrOpList);
 }
 
 bool Parser::parse_base_clause(BaseClauseAST*& yyast) {

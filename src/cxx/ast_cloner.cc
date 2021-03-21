@@ -1891,6 +1891,17 @@ void ASTCloner::visit(OperatorNameAST* ast) {
   copy->op = ast->op;
 }
 
+void ASTCloner::visit(ConversionNameAST* ast) {
+  auto copy = new (arena_) ConversionNameAST();
+  copy_ = copy;
+
+  copy->name = ast->name;
+
+  copy->operatorLoc = ast->operatorLoc;
+
+  copy->typeId = accept(ast->typeId);
+}
+
 void ASTCloner::visit(TemplateNameAST* ast) {
   auto copy = new (arena_) TemplateNameAST();
   copy_ = copy;

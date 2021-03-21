@@ -35,6 +35,7 @@ class PrintName final : NameVisitor {
 
   void visit(const Identifier* name) override;
   void visit(const OperatorNameId* name) override;
+  void visit(const ConversionNameId* name) override;
 
  private:
   std::ostream* out_ = nullptr;
