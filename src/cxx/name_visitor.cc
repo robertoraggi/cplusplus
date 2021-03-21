@@ -18,15 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#pragma once
-
-#include <cxx/cxx_fwd.h>
+#include <cxx/name_visitor.h>
 
 namespace cxx {
 
-class NameVisitor;
-class Name;
-
-class Identifier;
+NameVisitor::~NameVisitor() {}
 
 }  // namespace cxx

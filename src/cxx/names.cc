@@ -19,9 +19,19 @@
 // SOFTWARE.
 
 #include <cxx/names.h>
+#include <cxx/print_name.h>
 
 namespace cxx {
 
+namespace {
+PrintName printName;
+}
+
 Name::~Name() {}
+
+std::ostream& operator<<(std::ostream& out, const Name& name) {
+  printName(&name, out);
+  return out;
+}
 
 }  // namespace cxx

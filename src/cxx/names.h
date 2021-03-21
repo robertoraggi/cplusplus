@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/fully_specified_type.h>
+#include <cxx/name_visitor.h>
 #include <cxx/names_fwd.h>
 
 #include <string>
@@ -32,6 +33,8 @@ namespace cxx {
 class Name {
  public:
   virtual ~Name();
+
+  virtual void accept(NameVisitor* visitor) const = 0;
 };
 
 class Identifier final : public Name {
@@ -40,8 +43,12 @@ class Identifier final : public Name {
 
   const std::string& name() const { return name_; }
 
+  void accept(NameVisitor* visitor) const override { visitor->visit(this); }
+
  private:
   std::string name_;
 };
+
+std::ostream& operator<<(std::ostream& out, const Name& name);
 
 }  // namespace cxx

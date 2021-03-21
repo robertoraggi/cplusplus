@@ -18,15 +18,28 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#pragma once
-
-#include <cxx/cxx_fwd.h>
+#include <cxx/names.h>
+#include <cxx/print_name.h>
+#include <fmt/format.h>
+#include <fmt/ostream.h>
 
 namespace cxx {
 
-class NameVisitor;
-class Name;
+void PrintName::operator()(const Name* name, std::ostream& out) {
+  if (!name) return;
+  auto o = &out;
+  std::swap(out_, o);
+  accept(name);
+  std::swap(out_, o);
+}
 
-class Identifier;
+void PrintName::accept(const Name* name) {
+  if (!name) return;
+  name->accept(this);
+}
+
+void PrintName::visit(const Identifier* name) {
+  fmt::print(*out_, "{}", name->name());
+}
 
 }  // namespace cxx

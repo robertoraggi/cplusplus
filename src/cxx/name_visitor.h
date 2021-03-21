@@ -20,13 +20,15 @@
 
 #pragma once
 
-#include <cxx/cxx_fwd.h>
+#include <cxx/names_fwd.h>
 
 namespace cxx {
 
-class NameVisitor;
-class Name;
+class NameVisitor {
+ public:
+  virtual ~NameVisitor();
 
-class Identifier;
+  virtual void visit(const Identifier*) = 0;
+};
 
 }  // namespace cxx

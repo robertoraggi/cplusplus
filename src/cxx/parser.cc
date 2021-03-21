@@ -4735,6 +4735,10 @@ bool Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast,
     if (!parse_abstract_declarator(ast->declarator)) rewind(before_declarator);
   }
 
+  Semantics::DeclaratorSem declaratorSem{specs.specifiers};
+
+  sem->declarator(ast->declarator, specs.specifiers, &declaratorSem);
+
   if (match(TokenKind::T_EQUAL, ast->equalLoc)) {
     if (!parse_initializer_clause(ast->expression, templParam))
       parse_error("expected an initializer");

@@ -20,13 +20,23 @@
 
 #pragma once
 
-#include <cxx/cxx_fwd.h>
+#include <cxx/name_visitor.h>
+
+#include <iosfwd>
 
 namespace cxx {
 
-class NameVisitor;
-class Name;
+class PrintName final : NameVisitor {
+ public:
+  void operator()(const Name* name, std::ostream& out);
 
-class Identifier;
+ private:
+  void accept(const Name* name);
+
+  void visit(const Identifier* name) override;
+
+ private:
+  std::ostream* out_ = nullptr;
+};
 
 }  // namespace cxx
