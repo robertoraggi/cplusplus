@@ -3180,7 +3180,7 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
 
   Semantics::DeclaratorSem decl{specs.specifiers};
 
-  sem->declarator(declarator, specs.specifiers, &decl);
+  sem->declarator(declarator, &decl);
 
   const auto after_declarator = currentLocation();
 
@@ -4112,7 +4112,7 @@ bool Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
 
   Semantics::DeclaratorSem decl{specs.specifiers};
 
-  sem->declarator(declarator, specs.specifiers, &decl);
+  sem->declarator(declarator, &decl);
 
   const auto saved = currentLocation();
 
@@ -4735,9 +4735,9 @@ bool Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast,
     if (!parse_abstract_declarator(ast->declarator)) rewind(before_declarator);
   }
 
-  Semantics::DeclaratorSem declaratorSem{specs.specifiers};
+  Semantics::DeclaratorSem decl{specs.specifiers};
 
-  sem->declarator(ast->declarator, specs.specifiers, &declaratorSem);
+  sem->declarator(ast->declarator, &decl);
 
   if (match(TokenKind::T_EQUAL, ast->equalLoc)) {
     if (!parse_initializer_clause(ast->expression, templParam))
@@ -6077,6 +6077,10 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
         declarator->modifiers =
             new (pool) List<DeclaratorModifierAST*>(functionDeclarator);
 
+        Semantics::DeclaratorSem decl{specs.specifiers};
+
+        sem->declarator(declarator, &decl);
+
         auto ast = new (pool) FunctionDefinitionAST();
         yyast = ast;
 
@@ -6119,6 +6123,10 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
   if (parse_declarator(declarator) && getFunctionDeclarator(declarator)) {
     FunctionBodyAST* functionBody = nullptr;
 
+    Semantics::DeclaratorSem decl{specs.specifiers};
+
+    sem->declarator(declarator, &decl);
+
     if (parse_member_function_definition_body(functionBody)) {
       auto ast = new (pool) FunctionDefinitionAST();
       yyast = ast;
@@ -6137,7 +6145,7 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
 
   List<DeclaratorAST*>* declaratorList = nullptr;
 
-  if (!parse_member_declarator_list(declaratorList))
+  if (!parse_member_declarator_list(declaratorList, specs))
     parse_error("expected a declarator");
 
   expect(TokenKind::T_SEMICOLON);
@@ -6173,12 +6181,17 @@ bool Parser::parse_member_declarator_modifier() {
   return true;
 }
 
-bool Parser::parse_member_declarator_list(List<DeclaratorAST*>*& yyast) {
+bool Parser::parse_member_declarator_list(List<DeclaratorAST*>*& yyast,
+                                          const DeclSpecs& specs) {
   auto it = &yyast;
 
   DeclaratorAST* declarator = nullptr;
 
   if (!parse_member_declarator(declarator)) return false;
+
+  Semantics::DeclaratorSem decl{specs.specifiers};
+
+  sem->declarator(declarator, &decl);
 
   *it = new (pool) List(declarator);
   it = &(*it)->next;
@@ -6190,6 +6203,10 @@ bool Parser::parse_member_declarator_list(List<DeclaratorAST*>*& yyast) {
       parse_error("expected a declarator");
 
     if (declarator) {
+      Semantics::DeclaratorSem decl{specs.specifiers};
+
+      sem->declarator(declarator, &decl);
+
       *it = new (pool) List(declarator);
       it = &(*it)->next;
     }

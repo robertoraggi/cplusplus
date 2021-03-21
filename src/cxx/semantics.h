@@ -78,8 +78,6 @@ class Semantics final : ASTVisitor {
     FullySpecifiedType type;
     const Name* name = nullptr;
 
-    DeclaratorSem() = default;
-
     explicit DeclaratorSem(SpecifiersSem specifiers) noexcept
         : specifiers(std::move(specifiers)) {
       type = this->specifiers.type;
@@ -105,11 +103,9 @@ class Semantics final : ASTVisitor {
 
   void specifiers(SpecifierAST* ast, SpecifiersSem* specifiers);
 
-  void declarator(DeclaratorAST* ast, const SpecifiersSem& specifiers,
-                  DeclaratorSem* declarator);
+  void declarator(DeclaratorAST* ast, DeclaratorSem* declarator);
 
-  void initDeclarator(InitDeclaratorAST* ast, const SpecifiersSem& specifiers,
-                      DeclaratorSem* declarator);
+  void initDeclarator(InitDeclaratorAST* ast, DeclaratorSem* declarator);
 
   void name(NameAST* ast, NameSem* name);
 

@@ -55,17 +55,15 @@ void Semantics::specifiers(SpecifierAST* ast, SpecifiersSem* specifiers) {
   std::swap(specifiers_, specifiers);
 }
 
-void Semantics::declarator(DeclaratorAST* ast, const SpecifiersSem& specifiers,
-                           DeclaratorSem* declarator) {
+void Semantics::declarator(DeclaratorAST* ast, DeclaratorSem* declarator) {
   std::swap(declarator_, declarator);
   accept(ast);
   std::swap(declarator_, declarator);
 }
 
 void Semantics::initDeclarator(InitDeclaratorAST* ast,
-                               const SpecifiersSem& specifiers,
                                DeclaratorSem* declarator) {
-  this->declarator(ast->declarator, specifiers, declarator);
+  this->declarator(ast->declarator, declarator);
   initializer(ast->initializer);
 }
 
@@ -169,7 +167,7 @@ void Semantics::visit(TypeIdAST* ast) {
   SpecifiersSem specifiers;
   this->specifiers(ast->typeSpecifierList, &specifiers);
   DeclaratorSem declarator{specifiers};
-  this->declarator(ast->declarator, specifiers, &declarator);
+  this->declarator(ast->declarator, &declarator);
 }
 
 void Semantics::visit(NestedNameSpecifierAST* ast) {
@@ -330,7 +328,7 @@ void Semantics::visit(TypeExceptionDeclarationAST* ast) {
   SpecifiersSem specifiers;
   this->specifiers(ast->typeSpecifierList, &specifiers);
   DeclaratorSem declarator{specifiers};
-  this->declarator(ast->declarator, specifiers, &declarator);
+  this->declarator(ast->declarator, &declarator);
 }
 
 void Semantics::visit(DefaultFunctionBodyAST* ast) {}
@@ -613,7 +611,7 @@ void Semantics::visit(FunctionDefinitionAST* ast) {
   SpecifiersSem specifiers;
   this->specifiers(ast->declSpecifierList, &specifiers);
   DeclaratorSem declarator{specifiers};
-  this->declarator(ast->declarator, specifiers, &declarator);
+  this->declarator(ast->declarator, &declarator);
   functionBody(ast->functionBody);
 }
 
@@ -637,7 +635,7 @@ void Semantics::visit(SimpleDeclarationAST* ast) {
   this->specifiers(ast->declSpecifierList, &specifiers);
   for (auto it = ast->initDeclaratorList; it; it = it->next) {
     DeclaratorSem declarator{specifiers};
-    this->initDeclarator(it->value, specifiers, &declarator);
+    this->initDeclarator(it->value, &declarator);
   }
 }
 
@@ -727,7 +725,7 @@ void Semantics::visit(ParameterDeclarationAST* ast) {
   SpecifiersSem specifiers;
   this->specifiers(ast->typeSpecifierList, &specifiers);
   DeclaratorSem declarator{specifiers};
-  this->declarator(ast->declarator, specifiers, &declarator);
+  this->declarator(ast->declarator, &declarator);
   ExpressionSem expression;
   this->expression(ast->expression, &expression);
 }
@@ -1034,7 +1032,7 @@ void Semantics::visit(FunctionDeclaratorAST* ast) {
       SpecifiersSem specifiers;
       this->specifiers(param->typeSpecifierList, &specifiers);
       DeclaratorSem declarator{specifiers};
-      this->declarator(param->declarator, specifiers, &declarator);
+      this->declarator(param->declarator, &declarator);
       ExpressionSem expression;
       this->expression(param->expression, &expression);
       argumentTypes.push_back(declarator.type);
