@@ -25,6 +25,13 @@ namespace cxx {
 
 Type::~Type() {}
 
+const UndefinedType* UndefinedType::get() {
+  static UndefinedType type;
+  return &type;
+}
+
+void UndefinedType::accept(TypeVisitor* visitor) const { visitor->visit(this); }
+
 void UnresolvedType::accept(TypeVisitor* visitor) const {
   visitor->visit(this);
 }

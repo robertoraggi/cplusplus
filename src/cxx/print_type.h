@@ -33,6 +33,7 @@ class PrintType final : TypeVisitor {
  private:
   void accept(const FullySpecifiedType& type);
 
+  void visit(const UndefinedType* type) override;
   void visit(const UnresolvedType* type) override;
   void visit(const VoidType* type) override;
   void visit(const NullptrType* type) override;

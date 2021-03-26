@@ -30,15 +30,14 @@ class FullySpecifiedType {
  public:
   explicit FullySpecifiedType(
       const Type* type = nullptr,
-      Qualifiers qualifiers = Qualifiers::kNone) noexcept
-      : type_(type), qualifiers_(qualifiers) {}
+      Qualifiers qualifiers = Qualifiers::kNone) noexcept;
 
-  explicit operator bool() const noexcept { return type_ != nullptr; }
+  explicit operator bool() const noexcept;
 
   const Type* operator->() const noexcept { return type_; }
 
   const Type* type() const { return type_; }
-  void setType(const Type* type) { type_ = type; }
+  void setType(const Type* type);
 
   Qualifiers qualifiers() const { return qualifiers_; }
   void setQualifiers(Qualifiers qualifiers) { qualifiers_ = qualifiers; }
@@ -47,7 +46,7 @@ class FullySpecifiedType {
 
   void mergeWith(const FullySpecifiedType& other) {
     qualifiers_ |= other.qualifiers();
-    if (other.type()) setType(other.type());
+    if (other) setType(other.type());
   }
 
   bool isConst() const {

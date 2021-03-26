@@ -35,6 +35,15 @@ class Type {
   virtual void accept(TypeVisitor* visitor) const = 0;
 };
 
+class UndefinedType final : public Type {
+  UndefinedType() = default;
+
+ public:
+  static const UndefinedType* get();
+
+  void accept(TypeVisitor* visitor) const override;
+};
+
 class UnresolvedType final : public Type {
  public:
   void accept(TypeVisitor* visitor) const override;

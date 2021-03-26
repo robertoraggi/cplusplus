@@ -69,6 +69,8 @@ struct Hash {
     return hash_combine(value.type(), value.qualifiers());
   }
 
+  std::size_t operator()(const UndefinedType& type) const { return 0; }
+
   std::size_t operator()(const UnresolvedType& type) const { return 0; }
 
   std::size_t operator()(const VoidType& type) const { return 0; }
@@ -161,6 +163,10 @@ struct Hash {
 };
 
 struct EqualTo {
+  bool operator()(const UndefinedType& type, const UndefinedType& other) const {
+    return true;
+  }
+
   bool operator()(const UnresolvedType& type,
                   const UnresolvedType& other) const {
     return true;
@@ -301,6 +307,10 @@ struct TypeEnvironment::Private {
 TypeEnvironment::TypeEnvironment() : d(std::make_unique<Private>()) {}
 
 TypeEnvironment::~TypeEnvironment() {}
+
+const UndefinedType* TypeEnvironment::undefinedType() {
+  return UndefinedType::get();
+}
 
 const UnresolvedType* TypeEnvironment::unresolvedType() {
   return &d->unresolvedType;

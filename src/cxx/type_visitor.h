@@ -28,6 +28,7 @@ class TypeVisitor {
  public:
   virtual ~TypeVisitor();
 
+  virtual void visit(const UndefinedType*) = 0;
   virtual void visit(const UnresolvedType*) = 0;
   virtual void visit(const VoidType*) = 0;
   virtual void visit(const NullptrType*) = 0;

@@ -32,6 +32,7 @@ class TypeEnvironment;
 class TypeVisitor;
 class Type;
 
+class UndefinedType;
 class UnresolvedType;
 class VoidType;
 class NullptrType;

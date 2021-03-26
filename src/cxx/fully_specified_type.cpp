@@ -20,6 +20,7 @@
 
 #include <cxx/fully_specified_type.h>
 #include <cxx/print_type.h>
+#include <cxx/types.h>
 
 namespace cxx {
 
@@ -30,6 +31,19 @@ PrintType printType;
 std::ostream& operator<<(std::ostream& out, const FullySpecifiedType& type) {
   printType(type, out);
   return out;
+}
+
+FullySpecifiedType::FullySpecifiedType(const Type* type,
+                                       Qualifiers qualifiers) noexcept
+    : type_(type), qualifiers_(qualifiers) {
+  if (!type_) type_ = UndefinedType::get();
+}
+
+FullySpecifiedType::operator bool() const noexcept { return type_ != nullptr; }
+
+void FullySpecifiedType::setType(const Type* type) {
+  type_ = type;
+  if (!type_) type_ = UndefinedType::get();
 }
 
 }  // namespace cxx

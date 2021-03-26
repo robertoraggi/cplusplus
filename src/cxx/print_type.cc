@@ -39,6 +39,10 @@ void PrintType::accept(const FullySpecifiedType& type) {
   type->accept(this);
 }
 
+void PrintType::visit(const UndefinedType* type) {
+  throw std::runtime_error("todo");
+}
+
 void PrintType::visit(const UnresolvedType* type) {
   throw std::runtime_error("todo");
 }
