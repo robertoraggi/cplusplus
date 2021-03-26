@@ -21,8 +21,8 @@
 #pragma once
 
 #include <cxx/ast_visitor.h>
-#include <cxx/fully_specified_type.h>
 #include <cxx/names_fwd.h>
+#include <cxx/qualified_type.h>
 #include <cxx/translation_unit.h>
 
 namespace cxx {
@@ -64,7 +64,7 @@ class Semantics final : ASTVisitor {
   };
 
   struct SpecifiersSem {
-    FullySpecifiedType type;
+    QualifiedType type;
     bool isConstexpr : 1 = false;
     bool isExtern : 1 = false;
     bool isFriend : 1 = false;
@@ -75,7 +75,7 @@ class Semantics final : ASTVisitor {
 
   struct DeclaratorSem {
     SpecifiersSem specifiers;
-    FullySpecifiedType type;
+    QualifiedType type;
     const Name* name = nullptr;
 
     explicit DeclaratorSem(SpecifiersSem specifiers) noexcept
@@ -85,7 +85,7 @@ class Semantics final : ASTVisitor {
   };
 
   struct ExpressionSem {
-    FullySpecifiedType type;
+    QualifiedType type;
   };
 
   struct NameSem {

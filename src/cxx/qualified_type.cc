@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/fully_specified_type.h>
 #include <cxx/print_type.h>
+#include <cxx/qualified_type.h>
 #include <cxx/types.h>
 
 namespace cxx {
@@ -28,20 +28,19 @@ namespace {
 PrintType printType;
 }
 
-std::ostream& operator<<(std::ostream& out, const FullySpecifiedType& type) {
+std::ostream& operator<<(std::ostream& out, const QualifiedType& type) {
   printType(type, out);
   return out;
 }
 
-FullySpecifiedType::FullySpecifiedType(const Type* type,
-                                       Qualifiers qualifiers) noexcept
+QualifiedType::QualifiedType(const Type* type, Qualifiers qualifiers) noexcept
     : type_(type), qualifiers_(qualifiers) {
   if (!type_) type_ = UndefinedType::get();
 }
 
-FullySpecifiedType::operator bool() const noexcept { return type_ != nullptr; }
+QualifiedType::operator bool() const noexcept { return type_ != nullptr; }
 
-void FullySpecifiedType::setType(const Type* type) {
+void QualifiedType::setType(const Type* type) {
   type_ = type;
   if (!type_) type_ = UndefinedType::get();
 }

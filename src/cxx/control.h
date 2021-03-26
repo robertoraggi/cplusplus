@@ -40,7 +40,7 @@ class Control {
 
   const Identifier* identifier(std::string name);
   const OperatorNameId* operatorNameId(TokenKind op);
-  const ConversionNameId* conversionNameId(const FullySpecifiedType& type);
+  const ConversionNameId* conversionNameId(const QualifiedType& type);
 
   const NumericLiteral* numericLiteral(std::string value);
   const StringLiteral* stringLiteral(std::string value);

@@ -18,15 +18,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/fully_specified_type.h>
 #include <cxx/print_type.h>
+#include <cxx/qualified_type.h>
 #include <cxx/types.h>
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 
 namespace cxx {
 
-void PrintType::operator()(const FullySpecifiedType& type, std::ostream& out) {
+void PrintType::operator()(const QualifiedType& type, std::ostream& out) {
   if (!type) return;
   auto o = &out;
   std::swap(out_, o);
@@ -34,7 +34,7 @@ void PrintType::operator()(const FullySpecifiedType& type, std::ostream& out) {
   std::swap(out_, o);
 }
 
-void PrintType::accept(const FullySpecifiedType& type) {
+void PrintType::accept(const QualifiedType& type) {
   if (!type) return;
   type->accept(this);
 }

@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/fully_specified_type.h>
+#include <cxx/qualified_type.h>
 #include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/types.h>
@@ -68,9 +68,9 @@ BlockSymbol* Symbol::enclosingBlock() const {
   return nullptr;
 }
 
-const FullySpecifiedType& Symbol::type() const { return type_; }
+const QualifiedType& Symbol::type() const { return type_; }
 
-void Symbol::setType(const FullySpecifiedType& type) { type_ = type; }
+void Symbol::setType(const QualifiedType& type) { type_ = type; }
 
 NamespaceSymbol::NamespaceSymbol(Scope* enclosingScope, const Name* name)
     : Symbol(enclosingScope, name), scope_(std::make_unique<Scope>()) {

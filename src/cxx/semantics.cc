@@ -766,7 +766,7 @@ void Semantics::visit(ConversionNameAST* ast) {
   this->specifiers(ast->typeId->typeSpecifierList, &specifiers);
   DeclaratorSem decl{specifiers};
   this->declarator(ast->typeId->declarator, &decl);
-  FullySpecifiedType type = decl.type;
+  QualifiedType type = decl.type;
   name_->name = control_->conversionNameId(type);
 }
 
@@ -1017,7 +1017,7 @@ void Semantics::visit(PointerOperatorAST* ast) {
   this->specifiers(ast->cvQualifierList, &specifiers);
   auto qualifiers = specifiers.type.qualifiers();
 
-  FullySpecifiedType ptrTy(types_->pointerType(declarator_->type, qualifiers));
+  QualifiedType ptrTy(types_->pointerType(declarator_->type, qualifiers));
 
   declarator_->type = ptrTy;
 }
@@ -1025,7 +1025,7 @@ void Semantics::visit(PointerOperatorAST* ast) {
 void Semantics::visit(ReferenceOperatorAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
 
-  FullySpecifiedType ptrTy(types_->referenceType(declarator_->type));
+  QualifiedType ptrTy(types_->referenceType(declarator_->type));
 
   declarator_->type = ptrTy;
 }
@@ -1038,7 +1038,7 @@ void Semantics::visit(PtrToMemberOperatorAST* ast) {
 }
 
 void Semantics::visit(FunctionDeclaratorAST* ast) {
-  std::vector<FullySpecifiedType> argumentTypes;
+  std::vector<QualifiedType> argumentTypes;
   bool isVariadic = false;
 
   if (ast->parametersAndQualifiers &&
@@ -1061,9 +1061,9 @@ void Semantics::visit(FunctionDeclaratorAST* ast) {
 
   trailingReturnType(ast->trailingReturnType);
 
-  FullySpecifiedType returnTy(declarator_->type);
+  QualifiedType returnTy(declarator_->type);
 
-  FullySpecifiedType funTy(
+  QualifiedType funTy(
       types_->functionType(returnTy, std::move(argumentTypes), isVariadic));
 
   declarator_->type = funTy;
@@ -1071,7 +1071,7 @@ void Semantics::visit(FunctionDeclaratorAST* ast) {
 
 void Semantics::visit(ArrayDeclaratorAST* ast) {
   if (!ast->expression) {
-    FullySpecifiedType arrayType(types_->unboundArrayType(declarator_->type));
+    QualifiedType arrayType(types_->unboundArrayType(declarator_->type));
     declarator_->type = arrayType;
   } else {
     ExpressionSem expression;

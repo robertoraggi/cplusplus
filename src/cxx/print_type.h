@@ -28,10 +28,10 @@ namespace cxx {
 
 class PrintType final : TypeVisitor {
  public:
-  void operator()(const FullySpecifiedType& type, std::ostream& out);
+  void operator()(const QualifiedType& type, std::ostream& out);
 
  private:
-  void accept(const FullySpecifiedType& type);
+  void accept(const QualifiedType& type);
 
   void visit(const UndefinedType* type) override;
   void visit(const UnresolvedType* type) override;

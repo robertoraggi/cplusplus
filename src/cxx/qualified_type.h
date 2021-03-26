@@ -26,11 +26,10 @@
 
 namespace cxx {
 
-class FullySpecifiedType {
+class QualifiedType {
  public:
-  explicit FullySpecifiedType(
-      const Type* type = nullptr,
-      Qualifiers qualifiers = Qualifiers::kNone) noexcept;
+  explicit QualifiedType(const Type* type = nullptr,
+                         Qualifiers qualifiers = Qualifiers::kNone) noexcept;
 
   explicit operator bool() const noexcept;
 
@@ -42,9 +41,9 @@ class FullySpecifiedType {
   Qualifiers qualifiers() const { return qualifiers_; }
   void setQualifiers(Qualifiers qualifiers) { qualifiers_ = qualifiers; }
 
-  FullySpecifiedType unqualified() { return FullySpecifiedType(type()); }
+  QualifiedType unqualified() { return QualifiedType(type()); }
 
-  void mergeWith(const FullySpecifiedType& other) {
+  void mergeWith(const QualifiedType& other) {
     qualifiers_ |= other.qualifiers();
     if (other) setType(other.type());
   }
@@ -61,11 +60,11 @@ class FullySpecifiedType {
     return (qualifiers_ & Qualifiers::kRestrict) != Qualifiers::kNone;
   }
 
-  bool operator==(const FullySpecifiedType& other) const {
+  bool operator==(const QualifiedType& other) const {
     return type_ == other.type_ && qualifiers_ == other.qualifiers_;
   }
 
-  bool operator!=(const FullySpecifiedType& other) const {
+  bool operator!=(const QualifiedType& other) const {
     return !operator==(other);
   }
 
@@ -74,6 +73,6 @@ class FullySpecifiedType {
   Qualifiers qualifiers_;
 };
 
-std::ostream& operator<<(std::ostream& out, const FullySpecifiedType& type);
+std::ostream& operator<<(std::ostream& out, const QualifiedType& type);
 
 }  // namespace cxx

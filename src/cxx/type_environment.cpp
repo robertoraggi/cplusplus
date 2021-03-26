@@ -65,7 +65,7 @@ struct Hash {
     return seed;
   }
 
-  std::size_t hash_value(const FullySpecifiedType& value) const {
+  std::size_t hash_value(const QualifiedType& value) const {
     return hash_combine(value.type(), value.qualifiers());
   }
 
@@ -346,48 +346,48 @@ const ScopedEnumType* TypeEnvironment::scopedEnumType(
 }
 
 const PointerType* TypeEnvironment::pointerType(
-    const FullySpecifiedType& elementType, Qualifiers qualifiers) {
+    const QualifiedType& elementType, Qualifiers qualifiers) {
   return &*d->pointerTypes.emplace(elementType, qualifiers).first;
 }
 
 const PointerToMemberType* TypeEnvironment::pointerToMemberType(
-    const ClassType* classType, const FullySpecifiedType& elementType,
+    const ClassType* classType, const QualifiedType& elementType,
     Qualifiers qualifiers) {
   return &*d->pointerToMemberTypes.emplace(classType, elementType, qualifiers)
                .first;
 }
 
 const ReferenceType* TypeEnvironment::referenceType(
-    const FullySpecifiedType& elementType) {
+    const QualifiedType& elementType) {
   return &*d->referenceTypes.emplace(elementType).first;
 }
 
 const RValueReferenceType* TypeEnvironment::rvalueReferenceType(
-    const FullySpecifiedType& elementType) {
+    const QualifiedType& elementType) {
   return &*d->rvalueReferenceTypes.emplace(elementType).first;
 }
 
 const ArrayType* TypeEnvironment::arrayType(
-    const FullySpecifiedType& elementType, std::size_t dimension) {
+    const QualifiedType& elementType, std::size_t dimension) {
   return &*d->arrayTypes.emplace(elementType, dimension).first;
 }
 
 const UnboundArrayType* TypeEnvironment::unboundArrayType(
-    const FullySpecifiedType& elementType) {
+    const QualifiedType& elementType) {
   return &*d->unboundArrayTypes.emplace(elementType).first;
 }
 
 const FunctionType* TypeEnvironment::functionType(
-    const FullySpecifiedType& returnType,
-    std::vector<FullySpecifiedType> argumentTypes, bool isVariadic) {
+    const QualifiedType& returnType,
+    std::vector<QualifiedType> argumentTypes, bool isVariadic) {
   return &*d->functionTypes
                .emplace(returnType, std::move(argumentTypes), isVariadic)
                .first;
 }
 
 const MemberFunctionType* TypeEnvironment::memberFunctionType(
-    const ClassType* classType, const FullySpecifiedType& returnType,
-    std::vector<FullySpecifiedType> argumentTypes, bool isVariadic) {
+    const ClassType* classType, const QualifiedType& returnType,
+    std::vector<QualifiedType> argumentTypes, bool isVariadic) {
   return &*d->memberFunctionTypes
                .emplace(classType, returnType, std::move(argumentTypes),
                         isVariadic)

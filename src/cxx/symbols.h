@@ -20,8 +20,8 @@
 
 #pragma once
 
-#include <cxx/fully_specified_type.h>
 #include <cxx/names_fwd.h>
+#include <cxx/qualified_type.h>
 #include <cxx/symbol_visitor.h>
 #include <cxx/symbols_fwd.h>
 
@@ -48,8 +48,8 @@ class Symbol {
   FunctionSymbol* enclosingFunction() const;
   BlockSymbol* enclosingBlock() const;
 
-  const FullySpecifiedType& type() const;
-  void setType(const FullySpecifiedType& type);
+  const QualifiedType& type() const;
+  void setType(const QualifiedType& type);
 
   virtual Scope* scope() const { return nullptr; }
 
@@ -58,7 +58,7 @@ class Symbol {
  private:
   const Name* name_ = nullptr;
   Scope* enclosingScope_ = nullptr;
-  FullySpecifiedType type_;
+  QualifiedType type_;
 };
 
 class ConceptSymbol final : public Symbol {

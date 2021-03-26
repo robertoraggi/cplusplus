@@ -125,8 +125,7 @@ const OperatorNameId* Control::operatorNameId(TokenKind op) {
   return &*d->operatorNameIds_.emplace(op).first;
 }
 
-const ConversionNameId* Control::conversionNameId(
-    const FullySpecifiedType& type) {
+const ConversionNameId* Control::conversionNameId(const QualifiedType& type) {
   return &*d->conversionNameIds_.emplace(type).first;
 }
 

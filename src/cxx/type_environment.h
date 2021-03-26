@@ -53,31 +53,30 @@ class TypeEnvironment {
 
   const ScopedEnumType* scopedEnumType(ScopedEnumSymbol* symbol);
 
-  const PointerType* pointerType(const FullySpecifiedType& elementType,
+  const PointerType* pointerType(const QualifiedType& elementType,
                                  Qualifiers qualifiers);
 
   const PointerToMemberType* pointerToMemberType(
-      const ClassType* classType, const FullySpecifiedType& elementType,
+      const ClassType* classType, const QualifiedType& elementType,
       Qualifiers qualifiers);
 
-  const ReferenceType* referenceType(const FullySpecifiedType& elementType);
+  const ReferenceType* referenceType(const QualifiedType& elementType);
 
   const RValueReferenceType* rvalueReferenceType(
-      const FullySpecifiedType& elementType);
+      const QualifiedType& elementType);
 
-  const ArrayType* arrayType(const FullySpecifiedType& elementType,
+  const ArrayType* arrayType(const QualifiedType& elementType,
                              std::size_t dimension);
 
-  const UnboundArrayType* unboundArrayType(
-      const FullySpecifiedType& elementType);
+  const UnboundArrayType* unboundArrayType(const QualifiedType& elementType);
 
-  const FunctionType* functionType(
-      const FullySpecifiedType& returnType,
-      std::vector<FullySpecifiedType> argumentTypes, bool isVariadic);
+  const FunctionType* functionType(const QualifiedType& returnType,
+                                   std::vector<QualifiedType> argumentTypes,
+                                   bool isVariadic);
 
   const MemberFunctionType* memberFunctionType(
-      const ClassType* classType, const FullySpecifiedType& returnType,
-      std::vector<FullySpecifiedType> argumentTypes, bool isVariadic);
+      const ClassType* classType, const QualifiedType& returnType,
+      std::vector<QualifiedType> argumentTypes, bool isVariadic);
 
   const NamespaceType* namespaceType(NamespaceSymbol* symbol);
 

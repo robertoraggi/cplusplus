@@ -24,7 +24,7 @@
 #include <cxx/ast_fwd.h>
 #include <cxx/ast_kind.h>
 #include <cxx/ast_visitor.h>
-#include <cxx/fully_specified_type.h>
+#include <cxx/qualified_type.h>
 #include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/token.h>
@@ -122,7 +122,7 @@ class ExceptionDeclarationAST : public AST {
 class ExpressionAST : public AST {
  public:
   using AST::AST;
-  FullySpecifiedType type;
+  QualifiedType type;
 };
 
 class FunctionBodyAST : public AST {

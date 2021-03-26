@@ -20,9 +20,9 @@
 
 #pragma once
 
-#include <cxx/fully_specified_type.h>
 #include <cxx/name_visitor.h>
 #include <cxx/names_fwd.h>
+#include <cxx/qualified_type.h>
 #include <cxx/token.h>
 
 #include <iosfwd>
@@ -63,14 +63,14 @@ class OperatorNameId final : public Name {
 
 class ConversionNameId final : public Name {
  public:
-  explicit ConversionNameId(const FullySpecifiedType& type) : type_(type) {}
+  explicit ConversionNameId(const QualifiedType& type) : type_(type) {}
 
-  const FullySpecifiedType& type() const { return type_; }
+  const QualifiedType& type() const { return type_; }
 
   void accept(NameVisitor* visitor) const override { visitor->visit(this); }
 
  private:
-  FullySpecifiedType type_;
+  QualifiedType type_;
 };
 
 std::ostream& operator<<(std::ostream& out, const Name& name);

@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include <cxx/fully_specified_type.h>
+#include <cxx/qualified_type.h>
 #include <cxx/symbols_fwd.h>
 
 #include <tuple>
@@ -114,13 +114,12 @@ class ScopedEnumType final : public Type, public std::tuple<ScopedEnumSymbol*> {
 };
 
 class PointerType final : public Type,
-                          public std::tuple<FullySpecifiedType, Qualifiers> {
+                          public std::tuple<QualifiedType, Qualifiers> {
  public:
-  PointerType(const FullySpecifiedType& elementType,
-              Qualifiers qualifiers) noexcept
+  PointerType(const QualifiedType& elementType, Qualifiers qualifiers) noexcept
       : tuple(elementType, qualifiers) {}
 
-  const FullySpecifiedType& elementType() const { return get<0>(*this); }
+  const QualifiedType& elementType() const { return get<0>(*this); }
 
   Qualifiers qualifiers() const { return get<1>(*this); }
 
@@ -129,81 +128,78 @@ class PointerType final : public Type,
 
 class PointerToMemberType final
     : public Type,
-      public std::tuple<const ClassType*, FullySpecifiedType, Qualifiers> {
+      public std::tuple<const ClassType*, QualifiedType, Qualifiers> {
  public:
   PointerToMemberType(const ClassType* classType,
-                      const FullySpecifiedType& elementType,
+                      const QualifiedType& elementType,
                       Qualifiers qualifiers) noexcept
       : tuple(classType, elementType, qualifiers) {}
 
   const ClassType* classType() const { return get<0>(*this); }
 
-  const FullySpecifiedType& elementType() const { return get<1>(*this); }
+  const QualifiedType& elementType() const { return get<1>(*this); }
 
   Qualifiers qualifiers() const { return get<2>(*this); }
 
   void accept(TypeVisitor* visitor) const override;
 };
 
-class ReferenceType final : public Type, public std::tuple<FullySpecifiedType> {
+class ReferenceType final : public Type, public std::tuple<QualifiedType> {
  public:
-  explicit ReferenceType(const FullySpecifiedType& elementType) noexcept
+  explicit ReferenceType(const QualifiedType& elementType) noexcept
       : tuple(elementType) {}
 
-  const FullySpecifiedType& elementType() const { return get<0>(*this); }
+  const QualifiedType& elementType() const { return get<0>(*this); }
 
   void accept(TypeVisitor* visitor) const override;
 };
 
 class RValueReferenceType final : public Type,
-                                  public std::tuple<FullySpecifiedType> {
+                                  public std::tuple<QualifiedType> {
  public:
-  explicit RValueReferenceType(const FullySpecifiedType& elementType) noexcept
+  explicit RValueReferenceType(const QualifiedType& elementType) noexcept
       : tuple(elementType) {}
 
-  const FullySpecifiedType& elementType() const { return get<0>(*this); }
+  const QualifiedType& elementType() const { return get<0>(*this); }
 
   void accept(TypeVisitor* visitor) const override;
 };
 
 class ArrayType final : public Type,
-                        public std::tuple<FullySpecifiedType, std::size_t> {
+                        public std::tuple<QualifiedType, std::size_t> {
  public:
-  ArrayType(const FullySpecifiedType& elementType,
-            std::size_t dimension) noexcept
+  ArrayType(const QualifiedType& elementType, std::size_t dimension) noexcept
       : tuple(elementType, dimension) {}
 
-  const FullySpecifiedType& elementType() const { return get<0>(*this); }
+  const QualifiedType& elementType() const { return get<0>(*this); }
 
   std::size_t dimension() const { return get<1>(*this); }
 
   void accept(TypeVisitor* visitor) const override;
 };
 
-class UnboundArrayType final : public Type,
-                               public std::tuple<FullySpecifiedType> {
+class UnboundArrayType final : public Type, public std::tuple<QualifiedType> {
  public:
-  explicit UnboundArrayType(const FullySpecifiedType& elementType) noexcept
+  explicit UnboundArrayType(const QualifiedType& elementType) noexcept
       : tuple(elementType) {}
 
-  const FullySpecifiedType& elementType() const { return get<0>(*this); }
+  const QualifiedType& elementType() const { return get<0>(*this); }
 
   void accept(TypeVisitor* visitor) const override;
 };
 
 class FunctionType final
     : public Type,
-      public std::tuple<FullySpecifiedType, std::vector<FullySpecifiedType>,
-                        bool> {
+      public std::tuple<QualifiedType, std::vector<QualifiedType>, bool> {
  public:
-  explicit FunctionType(const FullySpecifiedType& returnType,
-                        std::vector<FullySpecifiedType> argumentTypes,
+  explicit FunctionType(const QualifiedType& returnType,
+                        std::vector<QualifiedType> argumentTypes,
                         bool isVariadic) noexcept
       : tuple(returnType, std::move(argumentTypes), isVariadic) {}
 
-  const FullySpecifiedType& returnType() const { return get<0>(*this); }
+  const QualifiedType& returnType() const { return get<0>(*this); }
 
-  const std::vector<FullySpecifiedType>& argumentTypes() const {
+  const std::vector<QualifiedType>& argumentTypes() const {
     return get<1>(*this);
   }
 
@@ -214,20 +210,20 @@ class FunctionType final
 
 class MemberFunctionType final
     : public Type,
-      public std::tuple<const ClassType*, FullySpecifiedType,
-                        std::vector<FullySpecifiedType>, bool> {
+      public std::tuple<const ClassType*, QualifiedType,
+                        std::vector<QualifiedType>, bool> {
  public:
   explicit MemberFunctionType(const ClassType* classType,
-                              const FullySpecifiedType& returnType,
-                              std::vector<FullySpecifiedType> argumentTypes,
+                              const QualifiedType& returnType,
+                              std::vector<QualifiedType> argumentTypes,
                               bool isVariadic) noexcept
       : tuple(classType, returnType, std::move(argumentTypes), isVariadic) {}
 
   const ClassType* classType() const { return get<0>(*this); }
 
-  const FullySpecifiedType& returnType() const { return get<1>(*this); }
+  const QualifiedType& returnType() const { return get<1>(*this); }
 
-  const std::vector<FullySpecifiedType>& argumentTypes() const {
+  const std::vector<QualifiedType>& argumentTypes() const {
     return get<2>(*this);
   }
 
