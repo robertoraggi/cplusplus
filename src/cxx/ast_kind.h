@@ -29,7 +29,6 @@ enum struct ASTKind {
   NestedNameSpecifier,
   UsingDeclarator,
   Handler,
-  TemplateArgument,
   EnumBase,
   Enumerator,
   Declarator,
@@ -43,6 +42,10 @@ enum struct ASTKind {
   LambdaDeclarator,
   TrailingReturnType,
   CtorInitializer,
+
+  // TemplateArgumentAST
+  TypeTemplateArgument,
+  ExpressionTemplateArgument,
 
   // MemInitializerAST
   ParenMemInitializer,

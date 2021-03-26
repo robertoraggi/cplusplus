@@ -33,7 +33,6 @@ class ASTVisitor {
   virtual void visit(NestedNameSpecifierAST* ast) = 0;
   virtual void visit(UsingDeclaratorAST* ast) = 0;
   virtual void visit(HandlerAST* ast) = 0;
-  virtual void visit(TemplateArgumentAST* ast) = 0;
   virtual void visit(EnumBaseAST* ast) = 0;
   virtual void visit(EnumeratorAST* ast) = 0;
   virtual void visit(DeclaratorAST* ast) = 0;
@@ -47,6 +46,10 @@ class ASTVisitor {
   virtual void visit(LambdaDeclaratorAST* ast) = 0;
   virtual void visit(TrailingReturnTypeAST* ast) = 0;
   virtual void visit(CtorInitializerAST* ast) = 0;
+
+  // TemplateArgumentAST
+  virtual void visit(TypeTemplateArgumentAST* ast) = 0;
+  virtual void visit(ExpressionTemplateArgumentAST* ast) = 0;
 
   // MemInitializerAST
   virtual void visit(ParenMemInitializerAST* ast) = 0;

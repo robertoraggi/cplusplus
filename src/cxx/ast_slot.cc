@@ -93,10 +93,6 @@ void ASTSlot::visit(HandlerAST* ast) {
   }  // switch
 }
 
-void ASTSlot::visit(TemplateArgumentAST* ast) {
-  switch (slot_) {}  // switch
-}
-
 void ASTSlot::visit(EnumBaseAST* ast) {
   switch (slot_) {
     case 0:
@@ -275,6 +271,22 @@ void ASTSlot::visit(CtorInitializerAST* ast) {
       break;
     case 1:
       value_ = reinterpret_cast<std::intptr_t>(ast->memInitializerList);
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(TypeTemplateArgumentAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = reinterpret_cast<std::intptr_t>(ast->typeId);
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(ExpressionTemplateArgumentAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
       break;
   }  // switch
 }

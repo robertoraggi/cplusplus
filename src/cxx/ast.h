@@ -171,6 +171,11 @@ class StatementAST : public AST {
   using AST::AST;
 };
 
+class TemplateArgumentAST : public AST {
+ public:
+  using AST::AST;
+};
+
 class UnitAST : public AST {
  public:
   using AST::AST;
@@ -225,16 +230,6 @@ class HandlerAST final : public AST {
   ExceptionDeclarationAST* exceptionDeclaration = nullptr;
   SourceLocation rparenLoc;
   CompoundStatementAST* statement = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
-};
-
-class TemplateArgumentAST final : public AST {
- public:
-  TemplateArgumentAST() : AST(ASTKind::TemplateArgument) {}
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -417,6 +412,32 @@ class CtorInitializerAST final : public AST {
 
   SourceLocation colonLoc;
   List<MemInitializerAST*>* memInitializerList = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+class TypeTemplateArgumentAST final : public TemplateArgumentAST {
+ public:
+  TypeTemplateArgumentAST()
+      : TemplateArgumentAST(ASTKind::TypeTemplateArgument) {}
+
+  TypeIdAST* typeId = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+class ExpressionTemplateArgumentAST final : public TemplateArgumentAST {
+ public:
+  ExpressionTemplateArgumentAST()
+      : TemplateArgumentAST(ASTKind::ExpressionTemplateArgument) {}
+
+  ExpressionAST* expression = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

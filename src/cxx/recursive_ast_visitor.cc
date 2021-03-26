@@ -49,8 +49,6 @@ void RecursiveASTVisitor::visit(HandlerAST* ast) {
   compoundStatement(ast->statement);
 }
 
-void RecursiveASTVisitor::visit(TemplateArgumentAST* ast) {}
-
 void RecursiveASTVisitor::visit(EnumBaseAST* ast) {
   for (auto it = ast->typeSpecifierList; it; it = it->next)
     specifier(it->value);
@@ -119,6 +117,14 @@ void RecursiveASTVisitor::visit(TrailingReturnTypeAST* ast) {
 void RecursiveASTVisitor::visit(CtorInitializerAST* ast) {
   for (auto it = ast->memInitializerList; it; it = it->next)
     memInitializer(it->value);
+}
+
+void RecursiveASTVisitor::visit(TypeTemplateArgumentAST* ast) {
+  typeId(ast->typeId);
+}
+
+void RecursiveASTVisitor::visit(ExpressionTemplateArgumentAST* ast) {
+  expression(ast->expression);
 }
 
 void RecursiveASTVisitor::visit(ParenMemInitializerAST* ast) {

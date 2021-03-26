@@ -42,10 +42,6 @@ void DefaultASTVisitor::visit(HandlerAST* ast) {
   throw std::runtime_error("visit(HandlerAST): not implemented");
 }
 
-void DefaultASTVisitor::visit(TemplateArgumentAST* ast) {
-  throw std::runtime_error("visit(TemplateArgumentAST): not implemented");
-}
-
 void DefaultASTVisitor::visit(EnumBaseAST* ast) {
   throw std::runtime_error("visit(EnumBaseAST): not implemented");
 }
@@ -98,6 +94,16 @@ void DefaultASTVisitor::visit(TrailingReturnTypeAST* ast) {
 
 void DefaultASTVisitor::visit(CtorInitializerAST* ast) {
   throw std::runtime_error("visit(CtorInitializerAST): not implemented");
+}
+
+// TemplateArgumentAST
+void DefaultASTVisitor::visit(TypeTemplateArgumentAST* ast) {
+  throw std::runtime_error("visit(TypeTemplateArgumentAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(ExpressionTemplateArgumentAST* ast) {
+  throw std::runtime_error(
+      "visit(ExpressionTemplateArgumentAST): not implemented");
 }
 
 // MemInitializerAST

@@ -188,7 +188,12 @@ void Semantics::visit(HandlerAST* ast) {
   compoundStatement(ast->statement);
 }
 
-void Semantics::visit(TemplateArgumentAST* ast) {}
+void Semantics::visit(TypeTemplateArgumentAST* ast) { typeId(ast->typeId); }
+
+void Semantics::visit(ExpressionTemplateArgumentAST* ast) {
+  ExpressionSem expression;
+  this->expression(ast->expression, &expression);
+}
 
 void Semantics::visit(EnumBaseAST* ast) {
   SpecifiersSem specifiers;

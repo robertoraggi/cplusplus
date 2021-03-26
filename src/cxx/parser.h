@@ -472,7 +472,8 @@ class Parser final {
                      std::tuple<SourceLocation, ClassSpecifierAST*, bool>>
       class_specifiers_;
 
-  std::unordered_map<SourceLocation, std::tuple<SourceLocation, bool>>
+  std::unordered_map<SourceLocation,
+                     std::tuple<SourceLocation, TemplateArgumentAST*, bool>>
       template_arguments_;
 
   std::unordered_map<SourceLocation,

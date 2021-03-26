@@ -7087,8 +7087,10 @@ bool Parser::parse_template_argument(TemplateArgumentAST*& yyast) {
   auto it = template_arguments_.find(start);
 
   if (it != template_arguments_.end()) {
-    rewind(get<0>(it->second));
-    return get<1>(it->second);
+    auto [loc, ast, parsed] = it->second;
+    rewind(loc);
+    yyast = ast;
+    return parsed;
   }
 
   auto check = [&]() -> bool {
@@ -7103,8 +7105,14 @@ bool Parser::parse_template_argument(TemplateArgumentAST*& yyast) {
   TypeIdAST* typeId = nullptr;
 
   if (parse_type_id(typeId) && check()) {
-    template_arguments_.emplace(start,
-                                std::make_tuple(currentLocation(), true));
+    auto ast = new (pool) TypeTemplateArgumentAST();
+    yyast = ast;
+
+    ast->typeId = typeId;
+
+    template_arguments_.emplace(
+        start, std::make_tuple(currentLocation(), yyast, true));
+
     return true;
   }
 
@@ -7115,12 +7123,19 @@ bool Parser::parse_template_argument(TemplateArgumentAST*& yyast) {
   const auto parsed = parse_template_argument_constant_expression(expression);
 
   if (parsed && check()) {
-    template_arguments_.emplace(start,
-                                std::make_tuple(currentLocation(), true));
+    auto ast = new (pool) ExpressionTemplateArgumentAST();
+    yyast = ast;
+
+    ast->expression = expression;
+
+    template_arguments_.emplace(
+        start, std::make_tuple(currentLocation(), yyast, true));
+
     return true;
   }
 
-  template_arguments_.emplace(start, std::make_tuple(currentLocation(), false));
+  template_arguments_.emplace(
+      start, std::make_tuple(currentLocation(), nullptr, false));
 
   return false;
 }

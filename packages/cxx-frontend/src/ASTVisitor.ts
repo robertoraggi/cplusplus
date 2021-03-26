@@ -29,7 +29,6 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitNestedNameSpecifier(node: ast.NestedNameSpecifierAST, context: Context): Result;
     abstract visitUsingDeclarator(node: ast.UsingDeclaratorAST, context: Context): Result;
     abstract visitHandler(node: ast.HandlerAST, context: Context): Result;
-    abstract visitTemplateArgument(node: ast.TemplateArgumentAST, context: Context): Result;
     abstract visitEnumBase(node: ast.EnumBaseAST, context: Context): Result;
     abstract visitEnumerator(node: ast.EnumeratorAST, context: Context): Result;
     abstract visitDeclarator(node: ast.DeclaratorAST, context: Context): Result;
@@ -43,6 +42,10 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitLambdaDeclarator(node: ast.LambdaDeclaratorAST, context: Context): Result;
     abstract visitTrailingReturnType(node: ast.TrailingReturnTypeAST, context: Context): Result;
     abstract visitCtorInitializer(node: ast.CtorInitializerAST, context: Context): Result;
+
+    // TemplateArgumentAST
+    abstract visitTypeTemplateArgument(node: ast.TypeTemplateArgumentAST, context: Context): Result;
+    abstract visitExpressionTemplateArgument(node: ast.ExpressionTemplateArgumentAST, context: Context): Result;
 
     // MemInitializerAST
     abstract visitParenMemInitializer(node: ast.ParenMemInitializerAST, context: Context): Result;

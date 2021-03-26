@@ -134,7 +134,11 @@ void Codegen::visit(HandlerAST* ast) {
   compoundStatement(ast->statement);
 }
 
-void Codegen::visit(TemplateArgumentAST* ast) {}
+void Codegen::visit(TypeTemplateArgumentAST* ast) { typeId(ast->typeId); }
+
+void Codegen::visit(ExpressionTemplateArgumentAST* ast) {
+  expression(ast->expression);
+}
 
 void Codegen::visit(EnumBaseAST* ast) {
   for (auto it = ast->typeSpecifierList; it; it = it->next)

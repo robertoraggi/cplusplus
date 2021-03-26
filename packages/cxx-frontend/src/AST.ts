@@ -93,6 +93,7 @@ export abstract class NewInitializerAST extends AST { }
 export abstract class PtrOperatorAST extends AST { }
 export abstract class SpecifierAST extends AST { }
 export abstract class StatementAST extends AST { }
+export abstract class TemplateArgumentAST extends AST { }
 export abstract class UnitAST extends AST { }
 
 export class TypeIdAST extends AST {
@@ -156,12 +157,6 @@ export class HandlerAST extends AST {
     }
     getStatement(): CompoundStatementAST | undefined {
         return AST.from<CompoundStatementAST>(cxx.getASTSlot(this.getHandle(), 4), this.parser);
-    }
-}
-
-export class TemplateArgumentAST extends AST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitTemplateArgument(this, context);
     }
 }
 
@@ -385,6 +380,24 @@ export class CtorInitializerAST extends AST {
         for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
             yield AST.from<MemInitializerAST>(cxx.getListValue(it), this.parser);
         }
+    }
+}
+
+export class TypeTemplateArgumentAST extends TemplateArgumentAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitTypeTemplateArgument(this, context);
+    }
+    getTypeId(): TypeIdAST | undefined {
+        return AST.from<TypeIdAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+}
+
+export class ExpressionTemplateArgumentAST extends TemplateArgumentAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitExpressionTemplateArgument(this, context);
+    }
+    getExpression(): ExpressionAST | undefined {
+        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
     }
 }
 
@@ -2701,7 +2714,6 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     NestedNameSpecifierAST,
     UsingDeclaratorAST,
     HandlerAST,
-    TemplateArgumentAST,
     EnumBaseAST,
     EnumeratorAST,
     DeclaratorAST,
@@ -2715,6 +2727,8 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     LambdaDeclaratorAST,
     TrailingReturnTypeAST,
     CtorInitializerAST,
+    TypeTemplateArgumentAST,
+    ExpressionTemplateArgumentAST,
     ParenMemInitializerAST,
     BracedMemInitializerAST,
     ThisLambdaCaptureAST,

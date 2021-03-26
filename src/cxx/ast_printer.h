@@ -49,7 +49,6 @@ class ASTPrinter : ASTVisitor {
   void visit(NestedNameSpecifierAST* ast) override;
   void visit(UsingDeclaratorAST* ast) override;
   void visit(HandlerAST* ast) override;
-  void visit(TemplateArgumentAST* ast) override;
   void visit(EnumBaseAST* ast) override;
   void visit(EnumeratorAST* ast) override;
   void visit(DeclaratorAST* ast) override;
@@ -63,6 +62,9 @@ class ASTPrinter : ASTVisitor {
   void visit(LambdaDeclaratorAST* ast) override;
   void visit(TrailingReturnTypeAST* ast) override;
   void visit(CtorInitializerAST* ast) override;
+
+  void visit(TypeTemplateArgumentAST* ast) override;
+  void visit(ExpressionTemplateArgumentAST* ast) override;
 
   void visit(ParenMemInitializerAST* ast) override;
   void visit(BracedMemInitializerAST* ast) override;

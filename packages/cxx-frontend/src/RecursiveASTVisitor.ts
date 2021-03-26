@@ -53,9 +53,6 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         this.accept(node.getStatement(), context);
     }
 
-    visitTemplateArgument(node: ast.TemplateArgumentAST, context: Context): void {
-    }
-
     visitEnumBase(node: ast.EnumBaseAST, context: Context): void {
         for (const element of node.getTypeSpecifierList()) {
              this.accept(element, context);
@@ -145,6 +142,14 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         for (const element of node.getMemInitializerList()) {
              this.accept(element, context);
         }
+    }
+
+    visitTypeTemplateArgument(node: ast.TypeTemplateArgumentAST, context: Context): void {
+        this.accept(node.getTypeId(), context);
+    }
+
+    visitExpressionTemplateArgument(node: ast.ExpressionTemplateArgumentAST, context: Context): void {
+        this.accept(node.getExpression(), context);
     }
 
     visitParenMemInitializer(node: ast.ParenMemInitializerAST, context: Context): void {

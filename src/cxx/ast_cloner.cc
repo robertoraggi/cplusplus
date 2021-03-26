@@ -88,11 +88,6 @@ void ASTCloner::visit(HandlerAST* ast) {
   copy->statement = accept(ast->statement);
 }
 
-void ASTCloner::visit(TemplateArgumentAST* ast) {
-  auto copy = new (arena_) TemplateArgumentAST();
-  copy_ = copy;
-}
-
 void ASTCloner::visit(EnumBaseAST* ast) {
   auto copy = new (arena_) EnumBaseAST();
   copy_ = copy;
@@ -332,6 +327,20 @@ void ASTCloner::visit(CtorInitializerAST* ast) {
       out = &(*out)->next;
     }
   }
+}
+
+void ASTCloner::visit(TypeTemplateArgumentAST* ast) {
+  auto copy = new (arena_) TypeTemplateArgumentAST();
+  copy_ = copy;
+
+  copy->typeId = accept(ast->typeId);
+}
+
+void ASTCloner::visit(ExpressionTemplateArgumentAST* ast) {
+  auto copy = new (arena_) ExpressionTemplateArgumentAST();
+  copy_ = copy;
+
+  copy->expression = accept(ast->expression);
 }
 
 void ASTCloner::visit(ParenMemInitializerAST* ast) {

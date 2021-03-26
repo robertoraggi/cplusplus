@@ -80,14 +80,6 @@ SourceLocation HandlerAST::lastSourceLocation() {
   return SourceLocation();
 }
 
-SourceLocation TemplateArgumentAST::firstSourceLocation() {
-  return SourceLocation();
-}
-
-SourceLocation TemplateArgumentAST::lastSourceLocation() {
-  return SourceLocation();
-}
-
 SourceLocation EnumBaseAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeSpecifierList)) return loc;
@@ -271,6 +263,26 @@ SourceLocation CtorInitializerAST::firstSourceLocation() {
 SourceLocation CtorInitializerAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(memInitializerList)) return loc;
   if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation TypeTemplateArgumentAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation TypeTemplateArgumentAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ExpressionTemplateArgumentAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ExpressionTemplateArgumentAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   return SourceLocation();
 }
 

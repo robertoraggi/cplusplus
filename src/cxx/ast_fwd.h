@@ -42,6 +42,7 @@ class NewInitializerAST;
 class PtrOperatorAST;
 class SpecifierAST;
 class StatementAST;
+class TemplateArgumentAST;
 class UnitAST;
 
 // AST
@@ -49,7 +50,6 @@ class TypeIdAST;
 class NestedNameSpecifierAST;
 class UsingDeclaratorAST;
 class HandlerAST;
-class TemplateArgumentAST;
 class EnumBaseAST;
 class EnumeratorAST;
 class DeclaratorAST;
@@ -63,6 +63,10 @@ class LambdaIntroducerAST;
 class LambdaDeclaratorAST;
 class TrailingReturnTypeAST;
 class CtorInitializerAST;
+
+// TemplateArgumentAST
+class TypeTemplateArgumentAST;
+class ExpressionTemplateArgumentAST;
 
 // MemInitializerAST
 class ParenMemInitializerAST;
