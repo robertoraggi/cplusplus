@@ -634,17 +634,25 @@ void Preprocessor::Private::expand(
         else
           pushState(std::tuple(true, !skipping));
       } else if (matchId(ts, "if")) {
-        const auto value = constantExpression(ts);
-        if (value)
-          pushState(std::tuple(skipping, false));
-        else
-          pushState(std::tuple(true, !skipping));
+        if (skipping)
+          pushState(std::tuple(true, false));
+        else {
+          const auto value = constantExpression(ts);
+          if (value)
+            pushState(std::tuple(skipping, false));
+          else
+            pushState(std::tuple(true, !skipping));
+        }
       } else if (matchId(ts, "elif")) {
-        const auto value = constantExpression(ts);
-        if (value)
-          setState(std::tuple(!evaluating, false));
-        else
-          setState(std::tuple(true, evaluating));
+        if (!evaluating)
+          setState(std::tuple(true, false));
+        else {
+          const auto value = constantExpression(ts);
+          if (value)
+            setState(std::tuple(!evaluating, false));
+          else
+            setState(std::tuple(true, evaluating));
+        }
       } else if (matchId(ts, "else")) {
         setState(std::tuple(!evaluating, false));
       } else if (matchId(ts, "endif")) {
