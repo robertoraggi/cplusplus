@@ -49,8 +49,8 @@ class Scope {
 
   virtual void add(Symbol* symbol);
 
-  LookupResult find(const Name* name,
-                    LookupOptions options = LookupOptions::kNone) const;
+  LookupResult lookup(const Name* name,
+                      LookupOptions options = LookupOptions::kNone) const;
 
   using iterator = std::vector<Symbol*>::const_iterator;
 

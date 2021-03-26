@@ -1038,6 +1038,7 @@ class AssignmentExpressionAST final : public ExpressionAST {
   ExpressionAST* leftExpression = nullptr;
   SourceLocation opLoc;
   ExpressionAST* rightExpression = nullptr;
+  TokenKind op = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

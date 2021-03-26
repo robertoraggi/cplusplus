@@ -356,8 +356,6 @@ class Parser final {
   bool parse_global_module_fragment();
   bool parse_private_module_fragment();
   bool parse_class_specifier(SpecifierAST*& yyast);
-  bool parse_leave_class_specifier(SourceLocation start);
-  bool parse_reject_class_specifier(SourceLocation start);
   bool parse_class_body(List<DeclarationAST*>*& yyast);
   bool parse_class_head(SourceLocation& classLoc,
                         List<AttributeAST*>*& attributeList, NameAST*& name,
@@ -465,10 +463,13 @@ class Parser final {
   TranslationUnit* unit = nullptr;
   Arena* pool = nullptr;
   Control* control = nullptr;
+  SymbolFactory* symbols = nullptr;
+  TypeEnvironment* types = nullptr;
   std::unique_ptr<Semantics> sem;
   bool skip_function_body = false;
 
-  std::unordered_map<SourceLocation, std::tuple<SourceLocation, bool>>
+  std::unordered_map<SourceLocation,
+                     std::tuple<SourceLocation, ClassSpecifierAST*, bool>>
       class_specifiers_;
 
   std::unordered_map<SourceLocation, std::tuple<SourceLocation, bool>>
@@ -479,6 +480,8 @@ class Parser final {
       nested_name_specifiers_;
 
   std::vector<FunctionDefinitionAST*> pendingFunctionDefinitions_;
+
+  NamespaceSymbol* globalNamespace_ = nullptr;
 
   bool module_unit = false;
   const Identifier* module_id = nullptr;

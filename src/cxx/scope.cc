@@ -35,7 +35,7 @@ void Scope::setOwner(Symbol* owner) { owner_ = owner; }
 
 void Scope::add(Symbol* symbol) { members_.push_back(symbol); }
 
-LookupResult Scope::find(const Name* name, LookupOptions options) const {
+LookupResult Scope::lookup(const Name* name, LookupOptions options) const {
   LookupResult result;
   for (auto it = rbegin(); it != rend(); ++it) {
     auto symbol = *it;

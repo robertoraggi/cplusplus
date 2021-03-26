@@ -23,6 +23,7 @@
 #include <cxx/parser.h>
 #include <cxx/scope.h>
 #include <cxx/semantics.h>
+#include <cxx/symbol_factory.h>
 #include <cxx/symbols.h>
 #include <cxx/token.h>
 #include <cxx/types.h>
@@ -70,6 +71,8 @@ FunctionDeclaratorAST* getFunctionDeclarator(DeclaratorAST* declarator) {
 
 Parser::Parser(TranslationUnit* unit) : unit(unit) {
   control = unit->control();
+  symbols = control->symbols();
+  types = control->types();
   cursor_ = 1;
 
   pool = unit->arena();
@@ -421,6 +424,10 @@ bool Parser::parse_module_unit(UnitAST*& yyast) {
 }
 
 bool Parser::parse_top_level_declaration_seq(UnitAST*& yyast) {
+  globalNamespace_ = symbols->newNamespaceSymbol(nullptr, nullptr);
+
+  Semantics::ScopeContext scopeContext(sem.get(), globalNamespace_->scope());
+
   auto ast = new (pool) TranslationUnitAST();
   yyast = ast;
 
@@ -2284,6 +2291,7 @@ bool Parser::parse_assignment_expression(ExpressionAST*& yyast,
     ast->leftExpression = yyast;
     ast->opLoc = opLoc;
     ast->rightExpression = expression;
+    ast->op = op;
 
     yyast = ast;
   }
@@ -3102,24 +3110,28 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
 
   IdDeclaratorAST* declaratorId = nullptr;
 
-  if (parse_declarator_id(declaratorId)) {
+  if (fundef && parse_declarator_id(declaratorId)) {
     ParametersAndQualifiersAST* parametersAndQualifiers = nullptr;
 
     if (parse_parameters_and_qualifiers(parametersAndQualifiers)) {
       if (match(TokenKind::T_SEMICOLON)) return true;
 
+      auto declarator = new (pool) DeclaratorAST();
+      declarator->coreDeclarator = declaratorId;
+
+      auto functionDeclarator = new (pool) FunctionDeclaratorAST();
+      functionDeclarator->parametersAndQualifiers = parametersAndQualifiers;
+
+      declarator->modifiers =
+          new (pool) List<DeclaratorModifierAST*>(functionDeclarator);
+
+      Semantics::DeclaratorSem decl{specs.specifiers};
+
+      sem->declarator(declarator, &decl);
+
       FunctionBodyAST* functionBody = nullptr;
 
-      if (fundef && parse_function_definition_body(functionBody)) {
-        auto declarator = new (pool) DeclaratorAST();
-        declarator->coreDeclarator = declaratorId;
-
-        auto functionDeclarator = new (pool) FunctionDeclaratorAST();
-        functionDeclarator->parametersAndQualifiers = parametersAndQualifiers;
-
-        declarator->modifiers =
-            new (pool) List<DeclaratorModifierAST*>(functionDeclarator);
-
+      if (parse_function_definition_body(functionBody)) {
         auto ast = new (pool) FunctionDefinitionAST();
         yyast = ast;
 
@@ -5832,8 +5844,9 @@ bool Parser::parse_class_specifier(SpecifierAST*& yyast) {
   auto it = class_specifiers_.find(start);
 
   if (it != class_specifiers_.end()) {
-    auto [cursor, parsed] = it->second;
+    auto [cursor, ast, parsed] = it->second;
     rewind(cursor);
+    yyast = ast;
     return parsed;
   }
 
@@ -5843,7 +5856,10 @@ bool Parser::parse_class_specifier(SpecifierAST*& yyast) {
   BaseClauseAST* baseClause = nullptr;
 
   if (!parse_class_head(classLoc, attributeList, className, baseClause)) {
-    parse_reject_class_specifier(start);
+    class_specifiers_.emplace(
+        start,
+        std::make_tuple(currentLocation(),
+                        static_cast<ClassSpecifierAST*>(nullptr), false));
     return false;
   }
 
@@ -5852,7 +5868,10 @@ bool Parser::parse_class_specifier(SpecifierAST*& yyast) {
   SourceLocation lbraceLoc;
 
   if (!match(TokenKind::T_LBRACE, lbraceLoc)) {
-    parse_reject_class_specifier(start);
+    class_specifiers_.emplace(
+        start,
+        std::make_tuple(currentLocation(),
+                        static_cast<ClassSpecifierAST*>(nullptr), false));
     return false;
   }
 
@@ -5872,18 +5891,9 @@ bool Parser::parse_class_specifier(SpecifierAST*& yyast) {
     expect(TokenKind::T_RBRACE, ast->rbraceLoc);
   }
 
-  parse_leave_class_specifier(start);
+  class_specifiers_.emplace(start,
+                            std::make_tuple(currentLocation(), ast, true));
 
-  return true;
-}
-
-bool Parser::parse_leave_class_specifier(SourceLocation start) {
-  class_specifiers_.emplace(start, std::make_tuple(currentLocation(), true));
-  return true;
-}
-
-bool Parser::parse_reject_class_specifier(SourceLocation start) {
-  class_specifiers_.emplace(start, std::make_tuple(currentLocation(), false));
   return true;
 }
 
@@ -6064,23 +6074,23 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
     if (parse_parameters_and_qualifiers(parametersAndQualifiers)) {
       const auto after_parameters = currentLocation();
 
+      DeclaratorAST* declarator = new (pool) DeclaratorAST();
+      declarator->coreDeclarator = declaratorId;
+
+      auto functionDeclarator = new (pool) FunctionDeclaratorAST();
+
+      functionDeclarator->parametersAndQualifiers = parametersAndQualifiers;
+
+      declarator->modifiers =
+          new (pool) List<DeclaratorModifierAST*>(functionDeclarator);
+
+      Semantics::DeclaratorSem decl{specs.specifiers};
+
+      sem->declarator(declarator, &decl);
+
       FunctionBodyAST* functionBody = nullptr;
 
       if (parse_member_function_definition_body(functionBody)) {
-        DeclaratorAST* declarator = new (pool) DeclaratorAST();
-        declarator->coreDeclarator = declaratorId;
-
-        auto functionDeclarator = new (pool) FunctionDeclaratorAST();
-
-        functionDeclarator->parametersAndQualifiers = parametersAndQualifiers;
-
-        declarator->modifiers =
-            new (pool) List<DeclaratorModifierAST*>(functionDeclarator);
-
-        Semantics::DeclaratorSem decl{specs.specifiers};
-
-        sem->declarator(declarator, &decl);
-
         auto ast = new (pool) FunctionDefinitionAST();
         yyast = ast;
 

@@ -920,6 +920,8 @@ void ASTCloner::visit(AssignmentExpressionAST* ast) {
   copy->opLoc = ast->opLoc;
 
   copy->rightExpression = accept(ast->rightExpression);
+
+  copy->op = ast->op;
 }
 
 void ASTCloner::visit(BracedTypeConstructionAST* ast) {
