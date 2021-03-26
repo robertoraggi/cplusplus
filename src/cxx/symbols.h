@@ -43,6 +43,11 @@ class Symbol {
   Scope* enclosingScope() const;
   void setEnclosingScope(Scope* enclosingScope);
 
+  NamespaceSymbol* enclosingNamespace() const;
+  ClassSymbol* enclosingClass() const;
+  FunctionSymbol* enclosingFunction() const;
+  BlockSymbol* enclosingBlock() const;
+
   const FullySpecifiedType& type() const;
   void setType(const FullySpecifiedType& type);
 

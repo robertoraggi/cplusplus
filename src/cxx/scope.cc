@@ -25,6 +25,10 @@ namespace cxx {
 
 Scope::~Scope() {}
 
+Scope* Scope::enclosingScope() const {
+  return owner_ ? owner_->scope() : nullptr;
+}
+
 Symbol* Scope::owner() const { return owner_; }
 
 void Scope::setOwner(Symbol* owner) { owner_ = owner; }

@@ -42,6 +42,8 @@ class Scope {
  public:
   virtual ~Scope();
 
+  Scope* enclosingScope() const;
+
   Symbol* owner() const;
   void setOwner(Symbol* owner);
 

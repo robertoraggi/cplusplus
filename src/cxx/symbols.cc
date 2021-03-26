@@ -40,6 +40,34 @@ void Symbol::setEnclosingScope(Scope* enclosingScope) {
   enclosingScope_ = enclosingScope;
 }
 
+NamespaceSymbol* Symbol::enclosingNamespace() const {
+  for (auto scope = enclosingScope_; scope; scope = scope->enclosingScope()) {
+    if (auto sym = dynamic_cast<NamespaceSymbol*>(scope->owner())) return sym;
+  }
+  return nullptr;
+}
+
+ClassSymbol* Symbol::enclosingClass() const {
+  for (auto scope = enclosingScope_; scope; scope = scope->enclosingScope()) {
+    if (auto sym = dynamic_cast<ClassSymbol*>(scope->owner())) return sym;
+  }
+  return nullptr;
+}
+
+FunctionSymbol* Symbol::enclosingFunction() const {
+  for (auto scope = enclosingScope_; scope; scope = scope->enclosingScope()) {
+    if (auto sym = dynamic_cast<FunctionSymbol*>(scope->owner())) return sym;
+  }
+  return nullptr;
+}
+
+BlockSymbol* Symbol::enclosingBlock() const {
+  for (auto scope = enclosingScope_; scope; scope = scope->enclosingScope()) {
+    if (auto sym = dynamic_cast<BlockSymbol*>(scope->owner())) return sym;
+  }
+  return nullptr;
+}
+
 const FullySpecifiedType& Symbol::type() const { return type_; }
 
 void Symbol::setType(const FullySpecifiedType& type) { type_ = type; }
