@@ -79,6 +79,10 @@ NamespaceSymbol::NamespaceSymbol(Scope* enclosingScope, const Name* name)
 
 NamespaceSymbol::~NamespaceSymbol() {}
 
+void NamespaceSymbol::addUsingNamespace(NamespaceSymbol* symbol) {
+  usings_.push_back(symbol);
+}
+
 ClassSymbol::ClassSymbol(Scope* enclosingScope, const Name* name)
     : Symbol(enclosingScope, name), scope_(std::make_unique<Scope>()) {
   scope_->setOwner(this);

@@ -26,6 +26,7 @@
 #include <cxx/symbols_fwd.h>
 
 #include <memory>
+#include <vector>
 
 namespace cxx {
 
@@ -77,8 +78,16 @@ class NamespaceSymbol final : public Symbol {
 
   Scope* scope() const override { return scope_.get(); }
 
+  bool isInline() const { return isInline_; }
+  void setInline(bool isInline) { isInline_ = isInline; }
+
+  const std::vector<NamespaceSymbol*>& usings() const { return usings_; }
+  void addUsingNamespace(NamespaceSymbol* symbol);
+
  private:
   std::unique_ptr<Scope> scope_;
+  std::vector<NamespaceSymbol*> usings_;
+  bool isInline_ = false;
 };
 
 class ClassSymbol final : public Symbol {

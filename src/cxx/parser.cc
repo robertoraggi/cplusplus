@@ -5346,6 +5346,8 @@ bool Parser::parse_namespace_definition(DeclarationAST*& yyast) {
     return false;
   }
 
+  NamespaceSymbol* namespaceSymbol = nullptr;
+
   auto ast = new (pool) NamespaceDefinitionAST();
   yyast = ast;
 
@@ -5354,6 +5356,8 @@ bool Parser::parse_namespace_definition(DeclarationAST*& yyast) {
 
   parse_attribute_specifier_seq(ast->attributeList);
 
+  const Name* namespaceName = nullptr;
+
   if (LA().is(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_COLON_COLON)) {
     consumeToken();
 
@@ -5361,16 +5365,25 @@ bool Parser::parse_namespace_definition(DeclarationAST*& yyast) {
       match(TokenKind::T_INLINE);
       expect(TokenKind::T_IDENTIFIER);
     }
-  } else {
-    SourceLocation identifierLoc;
+  } else if (parse_name_id(ast->name)) {
+    Semantics::NameSem nameSem;
 
-    if (match(TokenKind::T_IDENTIFIER, identifierLoc)) {
-      auto name = new (pool) SimpleNameAST();
-      name->identifierLoc = identifierLoc;
+    sem->name(ast->name, &nameSem);
 
-      ast->name = name;
-    }
+    namespaceName = nameSem.name;
+
+    namespaceSymbol = dynamic_cast<NamespaceSymbol*>(
+        sem->scope()->lookup(namespaceName).single());
   }
+
+  if (!namespaceSymbol) {
+    namespaceSymbol = symbols->newNamespaceSymbol(sem->scope(), namespaceName);
+    if (ast->inlineLoc) namespaceSymbol->setInline(true);
+
+    sem->scope()->add(namespaceSymbol);
+  }
+
+  Semantics::ScopeContext scopeContext(sem.get(), namespaceSymbol->scope());
 
   parse_attribute_specifier_seq(ast->extraAttributeList);
 

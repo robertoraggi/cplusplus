@@ -33,11 +33,11 @@ class DumpAST extends RecursiveASTVisitor {
 
   accept(ast) {
     if (ast) {
-        const name = ASTKind[ast.getKind()];
-        console.log(`${" ".repeat(this.depth * 2)}${name}`);
-        ++this.depth;
-        super.accept(ast);
-        --this.depth;
+      const name = ASTKind[ast.getKind()];
+      console.log(`${" ".repeat(this.depth * 2)}${name}`);
+      ++this.depth;
+      super.accept(ast);
+      --this.depth;
     }
   }
 }
@@ -56,6 +56,7 @@ mkdir -p build.em
 emcmake cmake -Bbuild.em \
     -DCMAKE_EXPORT_COMPILE_COMMANDS=1 \
     -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=1 \
     -DCMAKE_CROSSCOMPILING_EMULATOR=$(which node) \
     .
 

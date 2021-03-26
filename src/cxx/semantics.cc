@@ -67,11 +67,16 @@ void Semantics::initDeclarator(InitDeclaratorAST* ast,
   initializer(ast->initializer);
 }
 
-void Semantics::name(NameAST* ast, NameSem* name) {
+void Semantics::name(NameAST* ast, NameSem* nameSem) {
   if (!ast) return;
-  std::swap(name_, name);
+  if (ast->name) {
+    nameSem->name = ast->name;
+    return;
+  }
+  std::swap(nameSem_, nameSem);
   accept(ast);
-  std::swap(name_, name);
+  std::swap(nameSem_, nameSem);
+  ast->name = nameSem->name;
 }
 
 void Semantics::nestedNameSpecifier(NestedNameSpecifierAST* ast) {
@@ -748,7 +753,7 @@ void Semantics::visit(LinkageSpecificationAST* ast) {
 
 void Semantics::visit(SimpleNameAST* ast) {
   auto id = unit_->identifier(ast->identifierLoc);
-  name_->name = id;
+  nameSem_->name = id;
 }
 
 void Semantics::visit(DestructorNameAST* ast) {
@@ -762,7 +767,7 @@ void Semantics::visit(DecltypeNameAST* ast) {
 }
 
 void Semantics::visit(OperatorNameAST* ast) {
-  name_->name = control_->operatorNameId(ast->op);
+  nameSem_->name = control_->operatorNameId(ast->op);
 }
 
 void Semantics::visit(ConversionNameAST* ast) {
@@ -773,7 +778,7 @@ void Semantics::visit(ConversionNameAST* ast) {
   DeclaratorSem decl{specifiers};
   this->declarator(ast->typeId->declarator, &decl);
   QualifiedType type = decl.type;
-  name_->name = control_->conversionNameId(type);
+  nameSem_->name = control_->conversionNameId(type);
 }
 
 void Semantics::visit(TemplateNameAST* ast) {

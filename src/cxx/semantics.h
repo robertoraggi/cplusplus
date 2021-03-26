@@ -338,7 +338,7 @@ class Semantics final : ASTVisitor {
   TypeEnvironment* types_ = nullptr;
   SymbolFactory* symbols_ = nullptr;
   Scope* scope_ = nullptr;
-  NameSem* name_ = nullptr;
+  NameSem* nameSem_ = nullptr;
   SpecifiersSem* specifiers_ = nullptr;
   DeclaratorSem* declarator_ = nullptr;
   ExpressionSem* expression_ = nullptr;

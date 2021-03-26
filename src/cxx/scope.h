@@ -32,6 +32,8 @@ namespace cxx {
 class LookupResult final : public std::vector<Symbol*> {
  public:
   using vector::vector;
+
+  Symbol* single() const { return size() == 1 ? front() : nullptr; }
 };
 
 enum class LookupOptions {
