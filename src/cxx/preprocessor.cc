@@ -1423,7 +1423,8 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
     }
   });
 
-  tokens.emplace_back(TokenKind::T_EOF_SYMBOL);
+  tokens.emplace_back(TokenKind::T_EOF_SYMBOL, sourceFile.source.size(), 0);
+  tokens.back().setFileId(sourceFileId);
 
   std::swap(d->currentPath_, path);
 }

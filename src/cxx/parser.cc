@@ -5211,6 +5211,12 @@ bool Parser::parse_using_enum_declaration(DeclarationAST*& yyast) {
 }
 
 bool Parser::parse_namespace_definition(DeclarationAST*& yyast) {
+  if (LA().is(TokenKind::T_NAMESPACE) && LA(1).is(TokenKind::T_IDENTIFIER) &&
+      LA(2).is(TokenKind::T_EQUAL)) {
+    // skip namespace alias definitons
+    return false;
+  }
+
   const auto start = currentLocation();
 
   SourceLocation inlineLoc;
