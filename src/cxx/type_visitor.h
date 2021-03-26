@@ -49,6 +49,7 @@ class TypeVisitor {
   virtual void visit(const ClassType*) = 0;
   virtual void visit(const TemplateType*) = 0;
   virtual void visit(const TemplateArgumentType*) = 0;
+  virtual void visit(const ConceptType*) = 0;
 };
 
 }  // namespace cxx

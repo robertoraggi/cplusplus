@@ -265,4 +265,13 @@ class TemplateArgumentType final : public Type,
   void accept(TypeVisitor* visitor) const override;
 };
 
+class ConceptType final : public Type, public std::tuple<ConceptSymbol*> {
+ public:
+  explicit ConceptType(ConceptSymbol* symbol) noexcept : tuple(symbol) {}
+
+  ConceptSymbol* symbol() const { return get<0>(*this); }
+
+  void accept(TypeVisitor* visitor) const override;
+};
+
 }  // namespace cxx

@@ -83,4 +83,6 @@ void TemplateArgumentType::accept(TypeVisitor* visitor) const {
   visitor->visit(this);
 }
 
+void ConceptType::accept(TypeVisitor* visitor) const { visitor->visit(this); }
+
 }  // namespace cxx

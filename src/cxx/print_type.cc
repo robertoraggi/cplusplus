@@ -181,4 +181,8 @@ void PrintType::visit(const TemplateArgumentType* type) {
   throw std::runtime_error("todo");
 }
 
+void PrintType::visit(const ConceptType* type) {
+  throw std::runtime_error("todo");
+}
+
 }  // namespace cxx

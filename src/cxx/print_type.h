@@ -54,6 +54,7 @@ class PrintType final : TypeVisitor {
   void visit(const ClassType* type) override;
   void visit(const TemplateType* type) override;
   void visit(const TemplateArgumentType* type) override;
+  void visit(const ConceptType* type) override;
 
  private:
   std::ostream* out_ = nullptr;

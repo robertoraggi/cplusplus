@@ -154,6 +154,10 @@ struct Hash {
   std::size_t operator()(const TemplateArgumentType& type) const {
     return hash_value(type.symbol());
   }
+
+  std::size_t operator()(const ConceptType& type) const {
+    return hash_value(type.symbol());
+  }
 };
 
 struct EqualTo {
@@ -258,6 +262,10 @@ struct EqualTo {
                   const TemplateArgumentType& other) const {
     return type.symbol() == other.symbol();
   }
+
+  bool operator()(const ConceptType& type, const ConceptType& other) const {
+    return type.symbol() == other.symbol();
+  }
 };
 
 template <typename T>
@@ -287,6 +295,7 @@ struct TypeEnvironment::Private {
   TypeSet<ClassType> classTypes;
   TypeSet<TemplateType> templateTypes;
   TypeSet<TemplateArgumentType> templateArgumentTypes;
+  TypeSet<ConceptType> conceptTypes;
 };
 
 TypeEnvironment::TypeEnvironment() : d(std::make_unique<Private>()) {}
@@ -390,6 +399,10 @@ const TemplateType* TypeEnvironment::templateType(TemplateSymbol* symbol) {
 const TemplateArgumentType* TypeEnvironment::templateArgumentType(
     TemplateArgumentSymbol* symbol) {
   return &*d->templateArgumentTypes.emplace(symbol).first;
+}
+
+const ConceptType* TypeEnvironment::conceptType(ConceptSymbol* symbol) {
+  return &*d->conceptTypes.emplace(symbol).first;
 }
 
 }  // namespace cxx

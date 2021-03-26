@@ -53,6 +53,7 @@ class NamespaceType;
 class ClassType;
 class TemplateType;
 class TemplateArgumentType;
+class ConceptType;
 
 enum class CharacterKind {
   kChar8T,

@@ -86,6 +86,8 @@ class TypeEnvironment {
   const TemplateArgumentType* templateArgumentType(
       TemplateArgumentSymbol* symbol);
 
+  const ConceptType* conceptType(ConceptSymbol* symbol);
+
  private:
   struct Private;
   std::unique_ptr<Private> d;
