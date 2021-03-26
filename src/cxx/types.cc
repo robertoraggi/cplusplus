@@ -30,7 +30,14 @@ const UndefinedType* UndefinedType::get() {
   return &type;
 }
 
+const ErrorType* ErrorType::get() {
+  static ErrorType type;
+  return &type;
+}
+
 void UndefinedType::accept(TypeVisitor* visitor) const { visitor->visit(this); }
+
+void ErrorType::accept(TypeVisitor* visitor) const { visitor->visit(this); }
 
 void UnresolvedType::accept(TypeVisitor* visitor) const {
   visitor->visit(this);

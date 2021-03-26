@@ -34,6 +34,7 @@ class PrintType final : TypeVisitor {
   void accept(const QualifiedType& type);
 
   void visit(const UndefinedType* type) override;
+  void visit(const ErrorType* type) override;
   void visit(const UnresolvedType* type) override;
   void visit(const VoidType* type) override;
   void visit(const NullptrType* type) override;

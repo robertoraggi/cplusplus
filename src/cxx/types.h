@@ -44,6 +44,15 @@ class UndefinedType final : public Type {
   void accept(TypeVisitor* visitor) const override;
 };
 
+class ErrorType final : public Type {
+  ErrorType() = default;
+
+ public:
+  static const ErrorType* get();
+
+  void accept(TypeVisitor* visitor) const override;
+};
+
 class UnresolvedType final : public Type {
  public:
   void accept(TypeVisitor* visitor) const override;

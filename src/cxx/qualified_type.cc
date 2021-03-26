@@ -38,7 +38,9 @@ QualifiedType::QualifiedType(const Type* type, Qualifiers qualifiers) noexcept
   if (!type_) type_ = UndefinedType::get();
 }
 
-QualifiedType::operator bool() const noexcept { return type_ != nullptr; }
+QualifiedType::operator bool() const noexcept {
+  return type_ != UndefinedType::get();
+}
 
 void QualifiedType::setType(const Type* type) {
   type_ = type;

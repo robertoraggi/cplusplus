@@ -35,6 +35,8 @@ class TypeEnvironment {
 
   const UndefinedType* undefinedType();
 
+  const ErrorType* errorType();
+
   const UnresolvedType* unresolvedType();
 
   const VoidType* voidType();

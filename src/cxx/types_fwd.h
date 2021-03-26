@@ -33,6 +33,7 @@ class TypeVisitor;
 class Type;
 
 class UndefinedType;
+class ErrorType;
 class UnresolvedType;
 class VoidType;
 class NullptrType;

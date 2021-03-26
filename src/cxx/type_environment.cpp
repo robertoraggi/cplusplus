@@ -312,6 +312,8 @@ const UndefinedType* TypeEnvironment::undefinedType() {
   return UndefinedType::get();
 }
 
+const ErrorType* TypeEnvironment::errorType() { return ErrorType::get(); }
+
 const UnresolvedType* TypeEnvironment::unresolvedType() {
   return &d->unresolvedType;
 }
@@ -367,8 +369,8 @@ const RValueReferenceType* TypeEnvironment::rvalueReferenceType(
   return &*d->rvalueReferenceTypes.emplace(elementType).first;
 }
 
-const ArrayType* TypeEnvironment::arrayType(
-    const QualifiedType& elementType, std::size_t dimension) {
+const ArrayType* TypeEnvironment::arrayType(const QualifiedType& elementType,
+                                            std::size_t dimension) {
   return &*d->arrayTypes.emplace(elementType, dimension).first;
 }
 
@@ -378,8 +380,8 @@ const UnboundArrayType* TypeEnvironment::unboundArrayType(
 }
 
 const FunctionType* TypeEnvironment::functionType(
-    const QualifiedType& returnType,
-    std::vector<QualifiedType> argumentTypes, bool isVariadic) {
+    const QualifiedType& returnType, std::vector<QualifiedType> argumentTypes,
+    bool isVariadic) {
   return &*d->functionTypes
                .emplace(returnType, std::move(argumentTypes), isVariadic)
                .first;

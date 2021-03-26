@@ -88,9 +88,15 @@ void Semantics::attribute(AttributeAST* ast) { accept(ast); }
 
 void Semantics::expression(ExpressionAST* ast, ExpressionSem* expression) {
   if (!ast) return;
+  if (ast->type) {
+    expression->type = ast->type;
+    return;
+  }
+  expression->type = QualifiedType(types_->errorType());
   std::swap(expression_, expression);
   accept(ast);
   std::swap(expression_, expression);
+  ast->type = expression->type;
 }
 
 void Semantics::ptrOperator(PtrOperatorAST* ast) { accept(ast); }

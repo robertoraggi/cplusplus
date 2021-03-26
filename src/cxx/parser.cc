@@ -1252,7 +1252,12 @@ bool Parser::parse_requirement() {
 
 bool Parser::parse_simple_requirement() {
   ExpressionAST* expression = nullptr;
+
   if (!parse_expression(expression)) return false;
+
+  Semantics::ExpressionSem expr;
+
+  sem->expression(expression, &expr);
 
   if (!match(TokenKind::T_SEMICOLON)) return false;
 
@@ -1283,6 +1288,10 @@ bool Parser::parse_compound_requirement() {
   ExpressionAST* expression = nullptr;
 
   if (!parse_expression(expression)) return false;
+
+  Semantics::ExpressionSem expr;
+
+  sem->expression(expression, &expr);
 
   if (!match(TokenKind::T_RBRACE)) return false;
 
@@ -1459,6 +1468,10 @@ bool Parser::parse_cpp_cast_expression(ExpressionAST*& yyast) {
 
   if (!parse_expression(ast->expression)) parse_error("expected an expression");
 
+  Semantics::ExpressionSem expr;
+
+  sem->expression(ast->expression, &expr);
+
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   return true;
@@ -1553,6 +1566,10 @@ bool Parser::parse_typeid_expression(ExpressionAST*& yyast) {
   ast->lparenLoc = lparenLoc;
 
   if (!parse_expression(ast->expression)) parse_error("expected an expression");
+
+  Semantics::ExpressionSem expr;
+
+  sem->expression(ast->expression, &expr);
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
@@ -1849,6 +1866,10 @@ bool Parser::parse_noexcept_expression(ExpressionAST*& yyast) {
 
   if (!parse_expression(ast->expression)) parse_error("expected an expression");
 
+  Semantics::ExpressionSem expr;
+
+  sem->expression(ast->expression, &expr);
+
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   return true;
@@ -1953,6 +1974,10 @@ bool Parser::parse_noptr_new_declarator() {
 
     if (!parse_expression(expression)) parse_error("expected an expression");
 
+    Semantics::ExpressionSem expr;
+
+    sem->expression(expression, &expr);
+
     expect(TokenKind::T_RBRACKET);
   }
 
@@ -1966,6 +1991,10 @@ bool Parser::parse_noptr_new_declarator() {
 
       if (!parse_constant_expression(expression))
         parse_error("expected an expression");
+
+      Semantics::ExpressionSem expr;
+
+      sem->expression(expression, &expr);
 
       expect(TokenKind::T_RBRACKET);
     }
@@ -2216,15 +2245,22 @@ bool Parser::parse_conditional_expression(ExpressionAST*& yyast,
     if (!parse_expression(ast->iftrueExpression))
       parse_error("expected an expression");
 
+    Semantics::ExpressionSem expr;
+
+    sem->expression(ast->iftrueExpression, &expr);
+
     expect(TokenKind::T_COLON, ast->colonLoc);
 
     if (exprContext.templArg) {
-      if (!parse_conditional_expression(ast->iffalseExpression, exprContext)) {
+      if (!parse_conditional_expression(ast->iffalseExpression, exprContext))
         parse_error("expected an expression");
-      }
     } else if (!parse_assignment_expression(ast->iffalseExpression)) {
       parse_error("expected an expression");
     }
+
+    Semantics::ExpressionSem iffalseExpr;
+
+    sem->expression(ast->iffalseExpression, &iffalseExpr);
   }
 
   return true;
@@ -2243,6 +2279,10 @@ bool Parser::parse_yield_expression(ExpressionAST*& yyast) {
 
     if (!parse_assignment_expression(expression))
       parse_error("expected an expression");
+
+    Semantics::ExpressionSem expr;
+
+    sem->expression(expression, &expr);
   }
 
   return true;
@@ -2262,6 +2302,10 @@ bool Parser::parse_throw_expression(ExpressionAST*& yyast) {
 
   if (!parse_assignment_expression(ast->expression)) rewind(saved);
 
+  Semantics::ExpressionSem expr;
+
+  sem->expression(ast->expression, &expr);
+
   return true;
 }
 
@@ -2277,6 +2321,10 @@ bool Parser::parse_assignment_expression(ExpressionAST*& yyast,
   if (parse_throw_expression(yyast)) return true;
 
   if (!parse_conditional_expression(yyast, exprContext)) return false;
+
+  Semantics::ExpressionSem expr;
+
+  sem->expression(yyast, &expr);
 
   SourceLocation opLoc;
   TokenKind op = TokenKind::T_EOF_SYMBOL;
@@ -2440,6 +2488,10 @@ bool Parser::parse_init_statement(StatementAST*& yyast) {
 
   if (!parse_expression(expression)) return false;
 
+  Semantics::ExpressionSem expr;
+
+  sem->expression(expression, &expr);
+
   if (!match(TokenKind::T_SEMICOLON)) return false;
 
   return true;
@@ -2468,7 +2520,13 @@ bool Parser::parse_condition(ExpressionAST*& yyast) {
 
   rewind(start);
 
-  return parse_expression(yyast);
+  if (!parse_expression(yyast)) return false;
+
+  Semantics::ExpressionSem expr;
+
+  sem->expression(yyast, &expr);
+
+  return true;
 }
 
 bool Parser::parse_labeled_statement(StatementAST*& yyast) {
@@ -2503,6 +2561,10 @@ bool Parser::parse_case_statement(StatementAST*& yyast) {
 
   if (!parse_constant_expression(expression))
     parse_error("expected an expression");
+
+  Semantics::ExpressionSem expr;
+
+  sem->expression(expression, &expr);
 
   SourceLocation colonLoc;
 
@@ -2553,6 +2615,10 @@ bool Parser::parse_expression_statement(StatementAST*& yyast) {
 
   if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) {
     if (!parse_expression(expression)) return false;
+
+    Semantics::ExpressionSem expr;
+
+    sem->expression(expression, &expr);
 
     expect(TokenKind::T_SEMICOLON, semicolonLoc);
   }
@@ -2729,6 +2795,10 @@ bool Parser::parse_do_statement(StatementAST*& yyast) {
 
   if (!parse_expression(ast->expression)) parse_error("expected an expression");
 
+  Semantics::ExpressionSem expr;
+
+  sem->expression(ast->expression, &expr);
+
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
@@ -2804,6 +2874,10 @@ bool Parser::parse_for_statement(StatementAST*& yyast) {
   if (!match(TokenKind::T_RPAREN, ast->rparenLoc)) {
     if (!parse_expression(ast->expression))
       parse_error("expected an expression");
+
+    Semantics::ExpressionSem expr;
+
+    sem->expression(ast->expression, &expr);
 
     expect(TokenKind::T_RPAREN, ast->rparenLoc);
   }
@@ -3275,6 +3349,10 @@ bool Parser::parse_static_assert_declaration(DeclarationAST*& yyast) {
   if (!parse_constant_expression(ast->expression))
     parse_error("expected an expression");
 
+  Semantics::ExpressionSem expr;
+
+  sem->expression(ast->expression, &expr);
+
   if (match(TokenKind::T_COMMA, ast->commaLoc)) {
     if (!parse_string_literal_seq(ast->stringLiteralList))
       parse_error("expected a string literal");
@@ -3527,6 +3605,10 @@ bool Parser::parse_explicit_specifier(SpecifierAST*& yyast) {
   if (match(TokenKind::T_LPAREN, ast->lparenLoc)) {
     if (!parse_constant_expression(ast->expression))
       parse_error("expected a expression");
+
+    Semantics::ExpressionSem expr;
+
+    sem->expression(ast->expression, &expr);
 
     expect(TokenKind::T_RPAREN, ast->rparenLoc);
   }
@@ -4049,6 +4131,10 @@ bool Parser::parse_decltype_specifier(SpecifierAST*& yyast) {
     if (!parse_expression(ast->expression))
       parse_error("expected an expression");
 
+    Semantics::ExpressionSem expr;
+
+    sem->expression(ast->expression, &expr);
+
     expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
     return true;
@@ -4067,6 +4153,10 @@ bool Parser::parse_decltype_specifier(SpecifierAST*& yyast) {
 
     if (!parse_expression(ast->expression))
       parse_error("expected an expression");
+
+    Semantics::ExpressionSem expr;
+
+    sem->expression(ast->expression, &expr);
 
     expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
@@ -4249,6 +4339,10 @@ bool Parser::parse_noptr_declarator(DeclaratorAST*& yyast,
           rewind(saved);
           break;
         }
+
+        Semantics::ExpressionSem expr;
+
+        sem->expression(expression, &expr);
       }
 
       List<AttributeAST*>* attributes = nullptr;
@@ -4623,6 +4717,10 @@ bool Parser::parse_noptr_abstract_declarator(DeclaratorAST*& yyast) {
         if (!parse_constant_expression(arrayDeclarator->expression))
           parse_error("expected an expression");
 
+        Semantics::ExpressionSem expr;
+
+        sem->expression(arrayDeclarator->expression, &expr);
+
         expect(TokenKind::T_RBRACKET, arrayDeclarator->rbracketLoc);
       }
     }
@@ -4659,6 +4757,10 @@ bool Parser::parse_noptr_abstract_pack_declarator() {
 
       if (!parse_constant_expression(expression))
         parse_error("expected a constant expression");
+
+      Semantics::ExpressionSem expr;
+
+      sem->expression(expression, &expr);
 
       expect(TokenKind::T_RBRACKET);
 
@@ -4811,7 +4913,13 @@ bool Parser::parse_initializer_clause(ExpressionAST*& yyast, bool templParam) {
   ExprContext exprContext;
   exprContext.templParam = templParam;
 
-  return parse_assignment_expression(yyast, exprContext);
+  if (!parse_assignment_expression(yyast, exprContext)) return false;
+
+  Semantics::ExpressionSem expr;
+
+  sem->expression(yyast, &expr);
+
+  return true;
 }
 
 bool Parser::parse_braced_init_list(BracedInitListAST*& yyast) {
@@ -4931,6 +5039,10 @@ bool Parser::parse_expr_or_braced_init_list(ExpressionAST*& yyast) {
   }
 
   if (!parse_expression(yyast)) parse_error("expected an expression");
+
+  Semantics::ExpressionSem expr;
+
+  sem->expression(yyast, &expr);
 
   return true;
 }
@@ -5176,6 +5288,10 @@ bool Parser::parse_enumerator_definition(EnumeratorAST*& yyast) {
 
   if (!parse_constant_expression(yyast->expression))
     parse_error("expected an expression");
+
+  Semantics::ExpressionSem expr;
+
+  sem->expression(yyast->expression, &expr);
 
   return true;
 }
@@ -5608,6 +5724,10 @@ bool Parser::parse_alignment_specifier() {
 
   if (!parse_constant_expression(expression))
     parse_error("expected an expression");
+
+  Semantics::ExpressionSem expr;
+
+  sem->expression(expression, &expr);
 
   const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
 
@@ -6243,6 +6363,10 @@ bool Parser::parse_member_declarator(DeclaratorAST*& yyast) {
 
     if (!parse_constant_expression(expression))
       parse_error("expected an expression");
+
+    Semantics::ExpressionSem expr;
+
+    sem->expression(expression, &expr);
 
     InitializerAST* initializer = nullptr;
 
@@ -7129,6 +7253,10 @@ bool Parser::parse_template_argument(TemplateArgumentAST*& yyast) {
   const auto parsed = parse_template_argument_constant_expression(expression);
 
   if (parsed && check()) {
+    Semantics::ExpressionSem expr;
+
+    sem->expression(expression, &expr);
+
     auto ast = new (pool) ExpressionTemplateArgumentAST();
     yyast = ast;
 
@@ -7436,6 +7564,10 @@ bool Parser::parse_noexcept_specifier() {
 
     if (!parse_constant_expression(expression))
       parse_error("expected a declaration");
+
+    Semantics::ExpressionSem expr;
+
+    sem->expression(expression, &expr);
 
     expect(TokenKind::T_RPAREN);
   }
