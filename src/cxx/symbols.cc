@@ -86,10 +86,16 @@ ClassSymbol::ClassSymbol(Scope* enclosingScope, const Name* name)
 
 ClassSymbol::~ClassSymbol() {}
 
+ConceptSymbol::ConceptSymbol(Scope* enclosingScope, const Name* name)
+    : Symbol(enclosingScope, name) {}
+
 TypedefSymbol::TypedefSymbol(Scope* enclosingScope, const Name* name)
     : Symbol(enclosingScope, name) {}
 
 EnumSymbol::EnumSymbol(Scope* enclosingScope, const Name* name)
+    : Symbol(enclosingScope, name) {}
+
+EnumeratorSymbol::EnumeratorSymbol(Scope* enclosingScope, const Name* name)
     : Symbol(enclosingScope, name) {}
 
 ScopedEnumSymbol::ScopedEnumSymbol(Scope* enclosingScope, const Name* name)

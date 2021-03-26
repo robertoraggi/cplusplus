@@ -61,6 +61,13 @@ class Symbol {
   FullySpecifiedType type_;
 };
 
+class ConceptSymbol final : public Symbol {
+ public:
+  explicit ConceptSymbol(Scope* enclosingScope, const Name* name = nullptr);
+
+  void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
+};
+
 class NamespaceSymbol final : public Symbol {
  public:
   explicit NamespaceSymbol(Scope* enclosingScope, const Name* name = nullptr);
@@ -97,6 +104,13 @@ class TypedefSymbol final : public Symbol {
 class EnumSymbol final : public Symbol {
  public:
   explicit EnumSymbol(Scope* enclosingScope, const Name* name = nullptr);
+
+  void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
+};
+
+class EnumeratorSymbol final : public Symbol {
+ public:
+  explicit EnumeratorSymbol(Scope* enclosingScope, const Name* name = nullptr);
 
   void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
 };

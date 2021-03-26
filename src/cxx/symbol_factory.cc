@@ -28,8 +28,10 @@ namespace cxx {
 struct SymbolFactory::Private {
   std::forward_list<NamespaceSymbol> namespaceSymbols;
   std::forward_list<ClassSymbol> classSymbols;
+  std::forward_list<ConceptSymbol> conceptSymbols;
   std::forward_list<TypedefSymbol> typedefSymbols;
   std::forward_list<EnumSymbol> enumSymbols;
+  std::forward_list<EnumeratorSymbol> enumeratorSymbols;
   std::forward_list<ScopedEnumSymbol> scopedEnumSymbols;
   std::forward_list<TemplateSymbol> templateSymbols;
   std::forward_list<TemplateArgumentSymbol> templateArgumentSymbols;
@@ -55,6 +57,12 @@ ClassSymbol* SymbolFactory::newClassSymbol(Scope* enclosingScope,
   return symbol;
 }
 
+ConceptSymbol* SymbolFactory::newConceptSymbol(Scope* enclosingScope,
+                                               const Name* name) {
+  auto symbol = &d->conceptSymbols.emplace_front(enclosingScope, name);
+  return symbol;
+}
+
 TypedefSymbol* SymbolFactory::newTypedefSymbol(Scope* enclosingScope,
                                                const Name* name) {
   auto symbol = &d->typedefSymbols.emplace_front(enclosingScope, name);
@@ -64,6 +72,12 @@ TypedefSymbol* SymbolFactory::newTypedefSymbol(Scope* enclosingScope,
 EnumSymbol* SymbolFactory::newEnumSymbol(Scope* enclosingScope,
                                          const Name* name) {
   auto symbol = &d->enumSymbols.emplace_front(enclosingScope, name);
+  return symbol;
+}
+
+EnumeratorSymbol* SymbolFactory::newEnumeratorSymbol(Scope* enclosingScope,
+                                                     const Name* name) {
+  auto symbol = &d->enumeratorSymbols.emplace_front(enclosingScope, name);
   return symbol;
 }
 

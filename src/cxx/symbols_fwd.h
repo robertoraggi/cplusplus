@@ -30,10 +30,12 @@ class SymbolFactory;
 class Symbol;
 class Scope;
 
+class ConceptSymbol;
 class NamespaceSymbol;
 class ClassSymbol;
 class TypedefSymbol;
 class EnumSymbol;
+class EnumeratorSymbol;
 class ScopedEnumSymbol;
 class TemplateSymbol;
 class TemplateArgumentSymbol;

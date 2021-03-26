@@ -38,7 +38,12 @@ class SymbolFactory final {
 
   TypedefSymbol* newTypedefSymbol(Scope* enclosingScope, const Name* name);
 
+  ConceptSymbol* newConceptSymbol(Scope* enclosingScope, const Name* name);
+
   EnumSymbol* newEnumSymbol(Scope* enclosingScope, const Name* name);
+
+  EnumeratorSymbol* newEnumeratorSymbol(Scope* enclosingScope,
+                                        const Name* name);
 
   ScopedEnumSymbol* newScopedEnumSymbol(Scope* enclosingScope,
                                         const Name* name);
