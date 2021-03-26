@@ -43,6 +43,13 @@ class FullySpecifiedType {
   Qualifiers qualifiers() const { return qualifiers_; }
   void setQualifiers(Qualifiers qualifiers) { qualifiers_ = qualifiers; }
 
+  FullySpecifiedType unqualified() { return FullySpecifiedType(type()); }
+
+  void mergeWith(const FullySpecifiedType& other) {
+    qualifiers_ |= other.qualifiers();
+    if (other.type()) setType(other.type());
+  }
+
   bool isConst() const {
     return (qualifiers_ & Qualifiers::kConst) != Qualifiers::kNone;
   }
