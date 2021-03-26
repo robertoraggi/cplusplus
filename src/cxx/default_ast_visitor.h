@@ -21,134 +21,12 @@
 #pragma once
 
 #include <cxx/ast_visitor.h>
-#include <cxx/fully_specified_type.h>
-#include <cxx/names_fwd.h>
-#include <cxx/translation_unit.h>
 
 namespace cxx {
 
-class TranslationUnit;
-class Control;
-class TypeEnvironment;
-
-class Semantics final : ASTVisitor {
+class DefaultASTVisitor : public ASTVisitor {
  public:
-  Semantics(TranslationUnit* unit);
-  ~Semantics();
-
-  template <typename... Args>
-  void error(SourceLocation loc, const std::string_view& format,
-             const Args&... args) {
-    unit_->report(loc, Severity::Error, format, args...);
-  }
-
-  template <typename... Args>
-  void warning(SourceLocation loc, const std::string_view& format,
-               const Args&... args) {
-    unit_->report(loc, Severity::Warning, format, args...);
-  }
-
-  struct ScopeContext {
-    Semantics* sem = nullptr;
-    Scope* savedScope = nullptr;
-
-    ScopeContext(const ScopeContext&) = delete;
-    ScopeContext& operator=(const ScopeContext&) = delete;
-
-    explicit ScopeContext(Semantics* sem, Scope* scope)
-        : sem(sem), savedScope(sem->scope_) {
-      sem->scope_ = scope;
-    }
-
-    ~ScopeContext() { sem->scope_ = savedScope; }
-  };
-
-  struct SpecifiersSem {
-    FullySpecifiedType type;
-    bool isConstexpr : 1 = false;
-    bool isExtern : 1 = false;
-    bool isFriend : 1 = false;
-    bool isStatic : 1 = false;
-    bool isTypedef : 1 = false;
-    bool isUnsigned : 1 = false;
-  };
-
-  struct DeclaratorSem {
-    SpecifiersSem specifiers;
-    FullySpecifiedType type;
-    const Name* name = nullptr;
-
-    explicit DeclaratorSem(SpecifiersSem specifiers) noexcept
-        : specifiers(std::move(specifiers)) {
-      type = this->specifiers.type;
-    }
-  };
-
-  struct ExpressionSem {
-    FullySpecifiedType type;
-  };
-
-  struct NameSem {
-    const Name* name = nullptr;
-  };
-
-  Scope* changeScope(Scope* scope) {
-    std::swap(scope_, scope);
-    return scope;
-  }
-
-  Scope* scope() const { return scope_; }
-
-  void unit(UnitAST* unit);
-
-  void specifiers(List<SpecifierAST*>* ast, SpecifiersSem* specifiers);
-
-  void specifiers(SpecifierAST* ast, SpecifiersSem* specifiers);
-
-  void declarator(DeclaratorAST* ast, DeclaratorSem* declarator);
-
-  void initDeclarator(InitDeclaratorAST* ast, DeclaratorSem* declarator);
-
-  void name(NameAST* ast, NameSem* name);
-
-  void expression(ExpressionAST* ast, ExpressionSem* expression);
-
- private:
-  void accept(AST* ast);
-
-  void nestedNameSpecifier(NestedNameSpecifierAST* ast);
-  void exceptionDeclaration(ExceptionDeclarationAST* ast);
-  void compoundStatement(CompoundStatementAST* ast);
-  void attribute(AttributeAST* ast);
-  void ptrOperator(PtrOperatorAST* ast);
-  void coreDeclarator(CoreDeclaratorAST* ast);
-  void declaratorModifiers(List<DeclaratorModifierAST*>* ast);
-  void declaratorModifier(DeclaratorModifierAST* ast);
-  void initializer(InitializerAST* ast);
-  void baseSpecifier(BaseSpecifierAST* ast);
-  void parameterDeclaration(ParameterDeclarationAST* ast);
-  void parameterDeclarationClause(ParameterDeclarationClauseAST* ast);
-  void lambdaCapture(LambdaCaptureAST* ast);
-  void trailingReturnType(TrailingReturnTypeAST* ast);
-  void typeId(TypeIdAST* ast);
-  void memInitializer(MemInitializerAST* ast);
-  void bracedInitList(BracedInitListAST* ast);
-  void ctorInitializer(CtorInitializerAST* ast);
-  void handler(HandlerAST* ast);
-  void declaration(DeclarationAST* ast);
-  void lambdaIntroducer(LambdaIntroducerAST* ast);
-  void lambdaDeclarator(LambdaDeclaratorAST* ast);
-  void newTypeId(NewTypeIdAST* ast);
-  void newInitializer(NewInitializerAST* ast);
-  void statement(StatementAST* ast);
-  void functionBody(FunctionBodyAST* ast);
-  void enumBase(EnumBaseAST* ast);
-  void usingDeclarator(UsingDeclaratorAST* ast);
-  void templateArgument(TemplateArgumentAST* ast);
-  void enumerator(EnumeratorAST* ast);
-  void baseClause(BaseClauseAST* ast);
-  void parametersAndQualifiers(ParametersAndQualifiersAST* ast);
-
+  // AST
   void visit(TypeIdAST* ast) override;
   void visit(NestedNameSpecifierAST* ast) override;
   void visit(UsingDeclaratorAST* ast) override;
@@ -168,9 +46,11 @@ class Semantics final : ASTVisitor {
   void visit(TrailingReturnTypeAST* ast) override;
   void visit(CtorInitializerAST* ast) override;
 
+  // MemInitializerAST
   void visit(ParenMemInitializerAST* ast) override;
   void visit(BracedMemInitializerAST* ast) override;
 
+  // LambdaCaptureAST
   void visit(ThisLambdaCaptureAST* ast) override;
   void visit(DerefThisLambdaCaptureAST* ast) override;
   void visit(SimpleLambdaCaptureAST* ast) override;
@@ -178,24 +58,30 @@ class Semantics final : ASTVisitor {
   void visit(RefInitLambdaCaptureAST* ast) override;
   void visit(InitLambdaCaptureAST* ast) override;
 
+  // InitializerAST
   void visit(EqualInitializerAST* ast) override;
   void visit(BracedInitListAST* ast) override;
   void visit(ParenInitializerAST* ast) override;
 
+  // NewInitializerAST
   void visit(NewParenInitializerAST* ast) override;
   void visit(NewBracedInitializerAST* ast) override;
 
+  // ExceptionDeclarationAST
   void visit(EllipsisExceptionDeclarationAST* ast) override;
   void visit(TypeExceptionDeclarationAST* ast) override;
 
+  // FunctionBodyAST
   void visit(DefaultFunctionBodyAST* ast) override;
   void visit(CompoundStatementFunctionBodyAST* ast) override;
   void visit(TryStatementFunctionBodyAST* ast) override;
   void visit(DeleteFunctionBodyAST* ast) override;
 
+  // UnitAST
   void visit(TranslationUnitAST* ast) override;
   void visit(ModuleUnitAST* ast) override;
 
+  // ExpressionAST
   void visit(ThisExpressionAST* ast) override;
   void visit(CharLiteralExpressionAST* ast) override;
   void visit(BoolLiteralExpressionAST* ast) override;
@@ -232,6 +118,7 @@ class Semantics final : ASTVisitor {
   void visit(ThrowExpressionAST* ast) override;
   void visit(NoexceptExpressionAST* ast) override;
 
+  // StatementAST
   void visit(LabeledStatementAST* ast) override;
   void visit(CaseStatementAST* ast) override;
   void visit(DefaultStatementAST* ast) override;
@@ -251,6 +138,7 @@ class Semantics final : ASTVisitor {
   void visit(DeclarationStatementAST* ast) override;
   void visit(TryBlockStatementAST* ast) override;
 
+  // DeclarationAST
   void visit(AccessDeclarationAST* ast) override;
   void visit(FunctionDefinitionAST* ast) override;
   void visit(ConceptDefinitionAST* ast) override;
@@ -279,6 +167,7 @@ class Semantics final : ASTVisitor {
   void visit(ParameterDeclarationAST* ast) override;
   void visit(LinkageSpecificationAST* ast) override;
 
+  // NameAST
   void visit(SimpleNameAST* ast) override;
   void visit(DestructorNameAST* ast) override;
   void visit(DecltypeNameAST* ast) override;
@@ -287,6 +176,7 @@ class Semantics final : ASTVisitor {
   void visit(TemplateNameAST* ast) override;
   void visit(QualifiedNameAST* ast) override;
 
+  // SpecifierAST
   void visit(TypedefSpecifierAST* ast) override;
   void visit(FriendSpecifierAST* ast) override;
   void visit(ConstevalSpecifierAST* ast) override;
@@ -321,26 +211,18 @@ class Semantics final : ASTVisitor {
   void visit(ClassSpecifierAST* ast) override;
   void visit(TypenameSpecifierAST* ast) override;
 
+  // CoreDeclaratorAST
   void visit(IdDeclaratorAST* ast) override;
   void visit(NestedDeclaratorAST* ast) override;
 
+  // PtrOperatorAST
   void visit(PointerOperatorAST* ast) override;
   void visit(ReferenceOperatorAST* ast) override;
   void visit(PtrToMemberOperatorAST* ast) override;
 
+  // DeclaratorModifierAST
   void visit(FunctionDeclaratorAST* ast) override;
   void visit(ArrayDeclaratorAST* ast) override;
-
- private:
-  TranslationUnit* unit_ = nullptr;
-  Control* control_ = nullptr;
-  TypeEnvironment* types_ = nullptr;
-  SymbolFactory* symbols_ = nullptr;
-  Scope* scope_ = nullptr;
-  NameSem* name_ = nullptr;
-  SpecifiersSem* specifiers_ = nullptr;
-  DeclaratorSem* declarator_ = nullptr;
-  ExpressionSem* expression_ = nullptr;
 };
 
 }  // namespace cxx

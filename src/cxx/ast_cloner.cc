@@ -687,6 +687,8 @@ void ASTCloner::visit(IdExpressionAST* ast) {
   copy->type = ast->type;
 
   copy->name = accept(ast->name);
+
+  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(NestedExpressionAST* ast) {

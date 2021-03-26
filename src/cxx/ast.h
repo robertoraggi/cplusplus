@@ -819,6 +819,7 @@ class IdExpressionAST final : public ExpressionAST {
   IdExpressionAST() : ExpressionAST(ASTKind::IdExpression) {}
 
   NameAST* name = nullptr;
+  Symbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
