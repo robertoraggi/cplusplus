@@ -2236,6 +2236,8 @@ void ASTCloner::visit(EnumSpecifierAST* ast) {
   }
 
   copy->rbraceLoc = ast->rbraceLoc;
+
+  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(ClassSpecifierAST* ast) {

@@ -129,20 +129,39 @@ class TypedefSymbol final : public TypeSymbol {
 class EnumSymbol final : public TypeSymbol {
  public:
   explicit EnumSymbol(Scope* enclosingScope, const Name* name = nullptr);
+  ~EnumSymbol() override;
 
   void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
-};
 
-class EnumeratorSymbol final : public Symbol {
- public:
-  explicit EnumeratorSymbol(Scope* enclosingScope, const Name* name = nullptr);
+  Scope* scope() const override { return scope_.get(); }
 
-  void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
+ private:
+  std::unique_ptr<Scope> scope_;
 };
 
 class ScopedEnumSymbol final : public TypeSymbol {
  public:
   explicit ScopedEnumSymbol(Scope* enclosingScope, const Name* name = nullptr);
+  ~ScopedEnumSymbol() override;
+
+  void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
+
+  Scope* scope() const override { return scope_.get(); }
+
+  QualifiedType underlyingType() const { return underlyingType_; }
+
+  void setUnderlyingType(const QualifiedType& underlyingType) {
+    underlyingType_ = underlyingType;
+  }
+
+ private:
+  std::unique_ptr<Scope> scope_;
+  QualifiedType underlyingType_;
+};
+
+class EnumeratorSymbol final : public Symbol {
+ public:
+  explicit EnumeratorSymbol(Scope* enclosingScope, const Name* name = nullptr);
 
   void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
 };

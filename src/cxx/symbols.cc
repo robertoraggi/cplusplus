@@ -108,13 +108,21 @@ TypedefSymbol::TypedefSymbol(Scope* enclosingScope, const Name* name)
     : TypeSymbol(enclosingScope, name) {}
 
 EnumSymbol::EnumSymbol(Scope* enclosingScope, const Name* name)
-    : TypeSymbol(enclosingScope, name) {}
+    : TypeSymbol(enclosingScope, name), scope_(std::make_unique<Scope>()) {
+  scope_->setOwner(this);
+}
+
+EnumSymbol::~EnumSymbol() {}
+
+ScopedEnumSymbol::ScopedEnumSymbol(Scope* enclosingScope, const Name* name)
+    : TypeSymbol(enclosingScope, name), scope_(std::make_unique<Scope>()) {
+  scope_->setOwner(this);
+}
+
+ScopedEnumSymbol::~ScopedEnumSymbol() {}
 
 EnumeratorSymbol::EnumeratorSymbol(Scope* enclosingScope, const Name* name)
     : Symbol(enclosingScope, name) {}
-
-ScopedEnumSymbol::ScopedEnumSymbol(Scope* enclosingScope, const Name* name)
-    : TypeSymbol(enclosingScope, name) {}
 
 TemplateClassSymbol::TemplateClassSymbol(Scope* enclosingScope,
                                          const Name* name)

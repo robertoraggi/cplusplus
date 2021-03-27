@@ -5143,6 +5143,36 @@ bool Parser::parse_enum_specifier(SpecifierAST*& yyast) {
 
   if (!match(TokenKind::T_LBRACE, lbraceLoc)) return false;
 
+  const Name* enumName = name ? name->name : nullptr;
+  Scope* enumScope = nullptr;
+
+  if (classLoc) {
+    auto* scopedEnumSymbol =
+        symbols->newScopedEnumSymbol(sem->scope(), enumName);
+
+    sem->scope()->add(scopedEnumSymbol);
+
+    enumScope = scopedEnumSymbol->scope();
+
+    QualifiedType underlyingType;
+
+    if (enumBase) {
+      Semantics::SpecifiersSem specifiers;
+
+      sem->specifiers(enumBase->typeSpecifierList, &specifiers);
+
+      scopedEnumSymbol->setUnderlyingType(specifiers.type);
+    }
+  } else {
+    auto* enumSymbol = symbols->newEnumSymbol(sem->scope(), enumName);
+
+    sem->scope()->add(enumSymbol);
+
+    enumScope = enumSymbol->scope();
+  }
+
+  Semantics::ScopeContext scopeContext(sem.get(), enumScope);
+
   auto ast = new (pool) EnumSpecifierAST();
   yyast = ast;
 
@@ -5153,6 +5183,7 @@ bool Parser::parse_enum_specifier(SpecifierAST*& yyast) {
   ast->name = name;
   ast->enumBase = enumBase;
   ast->lbraceLoc = lbraceLoc;
+  ast->symbol = enumScope->owner();
 
   if (!match(TokenKind::T_RBRACE, ast->rbraceLoc)) {
     parse_enumerator_list(ast->enumeratorList);
@@ -5179,6 +5210,10 @@ bool Parser::parse_enum_head_name(NestedNameSpecifierAST*& nestedNameSpecifier,
   id->identifierLoc = identifierLoc;
 
   name = id;
+
+  Semantics::NameSem nameSem;
+
+  sem->name(name, &nameSem);
 
   return true;
 }

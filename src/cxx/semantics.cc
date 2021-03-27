@@ -867,10 +867,21 @@ void Semantics::visit(IntegralTypeSpecifierAST* ast) {
           types_->integerType(IntegerKind::kShort, specifiers_->isUnsigned));
       break;
 
-    case TokenKind::T_INT:
+    case TokenKind::T_INT: {
+      auto kind = IntegerKind::kInt;
+
+      if (auto intTy = specifiers_->type->asIntegerType()) {
+        using U = std::underlying_type<IntegerKind>::type;
+
+        if (static_cast<U>(intTy->kind()) > static_cast<U>(IntegerKind::kInt))
+          kind = intTy->kind();
+      }
+
       specifiers_->type.setType(
-          types_->integerType(IntegerKind::kInt, specifiers_->isUnsigned));
+          types_->integerType(kind, specifiers_->isUnsigned));
+
       break;
+    }
 
     case TokenKind::T___INT64:
       specifiers_->type.setType(
@@ -995,6 +1006,10 @@ void Semantics::visit(EnumSpecifierAST* ast) {
   this->name(ast->name, &name);
   enumBase(ast->enumBase);
   for (auto it = ast->enumeratorList; it; it = it->next) enumerator(it->value);
+  if (auto enumSymbol = dynamic_cast<EnumSymbol*>(ast->symbol))
+    specifiers_->type.setType(types_->enumType(enumSymbol));
+  else if (auto scopedEnumSymbol = dynamic_cast<ScopedEnumSymbol*>(ast->symbol))
+    specifiers_->type.setType(types_->scopedEnumType(scopedEnumSymbol));
 }
 
 void Semantics::visit(ClassSpecifierAST* ast) {

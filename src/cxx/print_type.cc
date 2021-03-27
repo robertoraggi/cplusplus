@@ -18,8 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/names.h>
 #include <cxx/print_type.h>
 #include <cxx/qualified_type.h>
+#include <cxx/symbols.h>
 #include <cxx/types.h>
 #include <fmt/format.h>
 #include <fmt/ostream.h>
@@ -75,6 +77,7 @@ void PrintType::visit(const CharacterType* type) {
 }
 
 void PrintType::visit(const IntegerType* type) {
+  if (type->isUnsigned()) fmt::print(*out_, "unsigned ");
   switch (type->kind()) {
     case IntegerKind::kChar:
       fmt::print(*out_, "char");
@@ -118,11 +121,18 @@ void PrintType::visit(const FloatingPointType* type) {
 }
 
 void PrintType::visit(const EnumType* type) {
-  throw std::runtime_error("todo");
+  if (auto name = type->symbol()->name())
+    fmt::print(*out_, "enum({})", *name);
+  else
+    fmt::print(*out_, "enum()");
 }
 
 void PrintType::visit(const ScopedEnumType* type) {
-  throw std::runtime_error("todo");
+  auto underlyingType = type->symbol()->underlyingType();
+  if (auto name = type->symbol()->name())
+    fmt::print(*out_, "enum({}, {})", *name, underlyingType);
+  else
+    fmt::print(*out_, "enum({})", underlyingType);
 }
 
 void PrintType::visit(const PointerType* type) {

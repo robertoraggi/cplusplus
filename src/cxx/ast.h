@@ -2406,6 +2406,7 @@ class EnumSpecifierAST final : public SpecifierAST {
   SourceLocation commaLoc;
   List<EnumeratorAST*>* enumeratorList = nullptr;
   SourceLocation rbraceLoc;
+  Symbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
