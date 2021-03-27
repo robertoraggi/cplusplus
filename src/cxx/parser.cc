@@ -3289,6 +3289,8 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
     rewind(after_declarator);
   }
 
+  const bool isTypedef = decl.specifiers.isTypedef;
+
   InitDeclaratorAST* initDeclarator = new (pool) InitDeclaratorAST();
 
   initDeclarator->declarator = declarator;
@@ -3302,6 +3304,12 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
 
   *declIt = new (pool) List(initDeclarator);
   declIt = &(*declIt)->next;
+
+  if (isTypedef) {
+    auto typedefSymbol = symbols->newTypedefSymbol(sem->scope(), decl.name);
+    typedefSymbol->setType(decl.type);
+    sem->scope()->add(typedefSymbol);
+  }
 
   while (match(TokenKind::T_COMMA)) {
     InitDeclaratorAST* initDeclarator = nullptr;
@@ -4227,6 +4235,12 @@ bool Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
 
   ast->declarator = declarator;
   ast->initializer = initializer;
+
+  if (decl.specifiers.isTypedef) {
+    auto typedefSymbol = symbols->newTypedefSymbol(sem->scope(), decl.name);
+    typedefSymbol->setType(decl.type);
+    sem->scope()->add(typedefSymbol);
+  }
 
   return true;
 }
