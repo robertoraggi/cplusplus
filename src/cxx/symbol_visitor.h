@@ -35,7 +35,8 @@ class SymbolVisitor {
   virtual void visit(EnumSymbol* symbol) = 0;
   virtual void visit(EnumeratorSymbol* symbol) = 0;
   virtual void visit(ScopedEnumSymbol* symbol) = 0;
-  virtual void visit(TemplateSymbol* symbol) = 0;
+  virtual void visit(TemplateClassSymbol* symbol) = 0;
+  virtual void visit(TemplateFunctionSymbol* symbol) = 0;
   virtual void visit(TemplateArgumentSymbol* symbol) = 0;
   virtual void visit(VariableSymbol* symbol) = 0;
   virtual void visit(FunctionSymbol* symbol) = 0;

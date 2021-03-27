@@ -52,6 +52,8 @@ class Symbol {
   const QualifiedType& type() const;
   void setType(const QualifiedType& type);
 
+  virtual bool isTypeSymbol() const;
+
   virtual Scope* scope() const { return nullptr; }
 
   virtual void accept(SymbolVisitor* visitor) = 0;
@@ -62,7 +64,14 @@ class Symbol {
   QualifiedType type_;
 };
 
-class ConceptSymbol final : public Symbol {
+class TypeSymbol : public Symbol {
+ public:
+  explicit TypeSymbol(Scope* enclosingScope, const Name* name);
+
+  bool isTypeSymbol() const override;
+};
+
+class ConceptSymbol final : public TypeSymbol {
  public:
   explicit ConceptSymbol(Scope* enclosingScope, const Name* name = nullptr);
 
@@ -81,16 +90,19 @@ class NamespaceSymbol final : public Symbol {
   bool isInline() const { return isInline_; }
   void setInline(bool isInline) { isInline_ = isInline; }
 
-  const std::vector<NamespaceSymbol*>& usings() const { return usings_; }
+  const std::vector<NamespaceSymbol*>& usingNamespaces() const {
+    return usingNamespaces_;
+  }
+
   void addUsingNamespace(NamespaceSymbol* symbol);
 
  private:
   std::unique_ptr<Scope> scope_;
-  std::vector<NamespaceSymbol*> usings_;
+  std::vector<NamespaceSymbol*> usingNamespaces_;
   bool isInline_ = false;
 };
 
-class ClassSymbol final : public Symbol {
+class ClassSymbol final : public TypeSymbol {
  public:
   explicit ClassSymbol(Scope* enclosingScope, const Name* name = nullptr);
   ~ClassSymbol() override;
@@ -103,14 +115,14 @@ class ClassSymbol final : public Symbol {
   std::unique_ptr<Scope> scope_;
 };
 
-class TypedefSymbol final : public Symbol {
+class TypedefSymbol final : public TypeSymbol {
  public:
   explicit TypedefSymbol(Scope* enclosingScope, const Name* name = nullptr);
 
   void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
 };
 
-class EnumSymbol final : public Symbol {
+class EnumSymbol final : public TypeSymbol {
  public:
   explicit EnumSymbol(Scope* enclosingScope, const Name* name = nullptr);
 
@@ -124,21 +136,30 @@ class EnumeratorSymbol final : public Symbol {
   void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
 };
 
-class ScopedEnumSymbol final : public Symbol {
+class ScopedEnumSymbol final : public TypeSymbol {
  public:
   explicit ScopedEnumSymbol(Scope* enclosingScope, const Name* name = nullptr);
 
   void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
 };
 
-class TemplateSymbol final : public Symbol {
+class TemplateClassSymbol final : public TypeSymbol {
  public:
-  explicit TemplateSymbol(Scope* enclosingScope, const Name* name = nullptr);
+  explicit TemplateClassSymbol(Scope* enclosingScope,
+                               const Name* name = nullptr);
 
   void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
 };
 
-class TemplateArgumentSymbol final : public Symbol {
+class TemplateFunctionSymbol final : public Symbol {
+ public:
+  explicit TemplateFunctionSymbol(Scope* enclosingScope,
+                                  const Name* name = nullptr);
+
+  void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
+};
+
+class TemplateArgumentSymbol final : public TypeSymbol {
  public:
   explicit TemplateArgumentSymbol(Scope* enclosingScope,
                                   const Name* name = nullptr);

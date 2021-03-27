@@ -40,6 +40,13 @@ void Symbol::setEnclosingScope(Scope* enclosingScope) {
   enclosingScope_ = enclosingScope;
 }
 
+bool Symbol::isTypeSymbol() const { return false; }
+
+TypeSymbol::TypeSymbol(Scope* enclosingScope, const Name* name)
+    : Symbol(enclosingScope, name) {}
+
+bool TypeSymbol::isTypeSymbol() const { return true; }
+
 NamespaceSymbol* Symbol::enclosingNamespace() const {
   for (auto scope = enclosingScope_; scope; scope = scope->enclosingScope()) {
     if (auto sym = dynamic_cast<NamespaceSymbol*>(scope->owner())) return sym;
@@ -80,37 +87,42 @@ NamespaceSymbol::NamespaceSymbol(Scope* enclosingScope, const Name* name)
 NamespaceSymbol::~NamespaceSymbol() {}
 
 void NamespaceSymbol::addUsingNamespace(NamespaceSymbol* symbol) {
-  usings_.push_back(symbol);
+  usingNamespaces_.push_back(symbol);
 }
 
 ClassSymbol::ClassSymbol(Scope* enclosingScope, const Name* name)
-    : Symbol(enclosingScope, name), scope_(std::make_unique<Scope>()) {
+    : TypeSymbol(enclosingScope, name), scope_(std::make_unique<Scope>()) {
   scope_->setOwner(this);
 }
 
 ClassSymbol::~ClassSymbol() {}
 
 ConceptSymbol::ConceptSymbol(Scope* enclosingScope, const Name* name)
-    : Symbol(enclosingScope, name) {}
+    : TypeSymbol(enclosingScope, name) {}
 
 TypedefSymbol::TypedefSymbol(Scope* enclosingScope, const Name* name)
-    : Symbol(enclosingScope, name) {}
+    : TypeSymbol(enclosingScope, name) {}
 
 EnumSymbol::EnumSymbol(Scope* enclosingScope, const Name* name)
-    : Symbol(enclosingScope, name) {}
+    : TypeSymbol(enclosingScope, name) {}
 
 EnumeratorSymbol::EnumeratorSymbol(Scope* enclosingScope, const Name* name)
     : Symbol(enclosingScope, name) {}
 
 ScopedEnumSymbol::ScopedEnumSymbol(Scope* enclosingScope, const Name* name)
-    : Symbol(enclosingScope, name) {}
+    : TypeSymbol(enclosingScope, name) {}
 
-TemplateSymbol::TemplateSymbol(Scope* enclosingScope, const Name* name)
+TemplateClassSymbol::TemplateClassSymbol(Scope* enclosingScope,
+                                         const Name* name)
+    : TypeSymbol(enclosingScope, name) {}
+
+TemplateFunctionSymbol::TemplateFunctionSymbol(Scope* enclosingScope,
+                                               const Name* name)
     : Symbol(enclosingScope, name) {}
 
 TemplateArgumentSymbol::TemplateArgumentSymbol(Scope* enclosingScope,
                                                const Name* name)
-    : Symbol(enclosingScope, name) {}
+    : TypeSymbol(enclosingScope, name) {}
 
 VariableSymbol::VariableSymbol(Scope* enclosingScope, const Name* name)
     : Symbol(enclosingScope, name) {}
