@@ -23,6 +23,16 @@
 
 namespace cxx {
 
+namespace {
+
+inline bool is_set(LookupOptions options, LookupOptions flags) {
+  return (options & flags) == flags;
+}
+
+}  // namespace
+
+Scope::Scope() {}
+
 Scope::~Scope() {}
 
 Scope* Scope::enclosingScope() const {
@@ -35,13 +45,61 @@ void Scope::setOwner(Symbol* owner) { owner_ = owner; }
 
 void Scope::add(Symbol* symbol) { members_.push_back(symbol); }
 
-LookupResult Scope::lookup(const Name* name, LookupOptions options) const {
+LookupResult Scope::find(const Name* name, LookupOptions lookupOptions) const {
   LookupResult result;
+  find(name, lookupOptions, result);
+  return result;
+}
+
+LookupResult Scope::lookup(const Name* name,
+                           LookupOptions lookupOptions) const {
+  LookupResult result;
+  std::vector<const Scope*> processed;
+  processed.reserve(8);
+  lookup(name, lookupOptions, processed, result);
+  return result;
+}
+
+void Scope::find(const Name* name, LookupOptions lookupOptions,
+                 LookupResult& result) const {
   for (auto it = rbegin(); it != rend(); ++it) {
     auto symbol = *it;
-    if (symbol->name() == name) result.push_back(symbol);
+
+    if (symbol->name() == name && match(symbol, lookupOptions))
+      result.push_back(symbol);
   }
-  return result;
+}
+
+void Scope::lookup(const Name* name, LookupOptions lookupOptions,
+                   std::vector<const Scope*>& processed,
+                   LookupResult& result) const {
+  if (std::find(processed.begin(), processed.end(), this) != processed.end())
+    return;
+
+  processed.push_back(this);
+
+  find(name, lookupOptions, result);
+
+  if (auto ns = dynamic_cast<NamespaceSymbol*>(owner())) {
+    for (const auto& u : ns->usingNamespaces())
+      u->scope()->lookup(name, lookupOptions, processed, result);
+  } else if (auto classSymbol = dynamic_cast<ClassSymbol*>(owner())) {
+    for (const auto& base : classSymbol->baseClasses())
+      base->scope()->lookup(name, lookupOptions, processed, result);
+  }
+}
+
+bool Scope::match(Symbol* symbol, LookupOptions options) const {
+  if (options == LookupOptions::kDefault) return true;
+
+  if (is_set(options, LookupOptions::kNamespace) &&
+      dynamic_cast<NamespaceSymbol*>(symbol) != nullptr)
+    return true;
+
+  if (is_set(options, LookupOptions::kType) && symbol->isTypeSymbol())
+    return true;
+
+  return false;
 }
 
 }  // namespace cxx

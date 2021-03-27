@@ -97,6 +97,10 @@ ClassSymbol::ClassSymbol(Scope* enclosingScope, const Name* name)
 
 ClassSymbol::~ClassSymbol() {}
 
+void ClassSymbol::addBaseClass(ClassSymbol* baseClass) {
+  baseClasses_.push_back(baseClass);
+}
+
 ConceptSymbol::ConceptSymbol(Scope* enclosingScope, const Name* name)
     : TypeSymbol(enclosingScope, name) {}
 

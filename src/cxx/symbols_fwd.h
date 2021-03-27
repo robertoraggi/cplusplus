@@ -22,6 +22,8 @@
 
 #include <cxx/cxx_fwd.h>
 
+#include <type_traits>
+
 namespace cxx {
 
 class SymbolVisitor;
@@ -44,5 +46,24 @@ class VariableSymbol;
 class FunctionSymbol;
 class ArgumentSymbol;
 class BlockSymbol;
+
+enum class LookupOptions {
+  kDefault = 0,
+  kType = 1 << 0,
+  kNamespace = 1 << 1,
+  kTypeOrNamespace = kType | kNamespace,
+};
+
+constexpr LookupOptions operator&(LookupOptions lhs,
+                                  LookupOptions rhs) noexcept {
+  using U = std::underlying_type<LookupOptions>::type;
+  return static_cast<LookupOptions>(static_cast<U>(lhs) & static_cast<U>(rhs));
+}
+
+constexpr LookupOptions operator|(LookupOptions lhs,
+                                  LookupOptions rhs) noexcept {
+  using U = std::underlying_type<LookupOptions>::type;
+  return static_cast<LookupOptions>(static_cast<U>(lhs) | static_cast<U>(rhs));
+}
 
 }  // namespace cxx

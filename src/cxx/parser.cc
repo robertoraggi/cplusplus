@@ -5337,7 +5337,7 @@ bool Parser::parse_namespace_definition(DeclarationAST*& yyast) {
 
   SourceLocation inlineLoc;
 
-  const auto hasInline = match(TokenKind::T_INLINE, inlineLoc);
+  match(TokenKind::T_INLINE, inlineLoc);
 
   SourceLocation namespaceLoc;
 
@@ -5359,11 +5359,42 @@ bool Parser::parse_namespace_definition(DeclarationAST*& yyast) {
   const Name* namespaceName = nullptr;
 
   if (LA().is(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_COLON_COLON)) {
-    consumeToken();
+    SourceLocation identifierLoc = consumeToken();
+
+    auto id = unit->identifier(identifierLoc);
+
+    namespaceSymbol = dynamic_cast<NamespaceSymbol*>(
+        sem->scope()->find(id, LookupOptions::kNamespace).single());
+
+    if (!namespaceSymbol) {
+      namespaceSymbol = symbols->newNamespaceSymbol(sem->scope(), id);
+      sem->scope()->add(namespaceSymbol);
+    }
 
     while (match(TokenKind::T_COLON_COLON)) {
-      match(TokenKind::T_INLINE);
-      expect(TokenKind::T_IDENTIFIER);
+      SourceLocation inlineLoc;
+      match(TokenKind::T_INLINE, inlineLoc);
+
+      SourceLocation identifierLoc;
+      expect(TokenKind::T_IDENTIFIER, identifierLoc);
+
+      auto id = unit->identifier(identifierLoc);
+
+      if (!id) continue;
+
+      auto ns = dynamic_cast<NamespaceSymbol*>(
+          namespaceSymbol->scope()
+              ->find(id, LookupOptions::kNamespace)
+              .single());
+
+      if (!ns) {
+        ns = symbols->newNamespaceSymbol(namespaceSymbol->scope(), id);
+        if (inlineLoc) ns->setInline(true);
+
+        namespaceSymbol->scope()->add(ns);
+      }
+
+      namespaceSymbol = ns;
     }
   } else if (parse_name_id(ast->name)) {
     Semantics::NameSem nameSem;
@@ -5373,7 +5404,7 @@ bool Parser::parse_namespace_definition(DeclarationAST*& yyast) {
     namespaceName = nameSem.name;
 
     namespaceSymbol = dynamic_cast<NamespaceSymbol*>(
-        sem->scope()->lookup(namespaceName).single());
+        sem->scope()->find(namespaceName, LookupOptions::kNamespace).single());
   }
 
   if (!namespaceSymbol) {

@@ -23,8 +23,6 @@
 #include <cxx/names_fwd.h>
 #include <cxx/symbols_fwd.h>
 
-#include <functional>
-#include <regex>
 #include <vector>
 
 namespace cxx {
@@ -36,23 +34,26 @@ class LookupResult final : public std::vector<Symbol*> {
   Symbol* single() const { return size() == 1 ? front() : nullptr; }
 };
 
-enum class LookupOptions {
-  kNone,
-};
-
-class Scope {
+class Scope final {
  public:
-  virtual ~Scope();
+  Scope(const Scope& other) = delete;
+  Scope& operator=(const Scope& other) = delete;
+
+  Scope();
+  ~Scope();
 
   Scope* enclosingScope() const;
 
   Symbol* owner() const;
   void setOwner(Symbol* owner);
 
-  virtual void add(Symbol* symbol);
+  void add(Symbol* symbol);
 
-  LookupResult lookup(const Name* name,
-                      LookupOptions options = LookupOptions::kNone) const;
+  LookupResult find(const Name* name, LookupOptions lookupOptions =
+                                          LookupOptions::kDefault) const;
+
+  LookupResult lookup(const Name* name, LookupOptions lookupOptions =
+                                            LookupOptions::kDefault) const;
 
   using iterator = std::vector<Symbol*>::const_iterator;
 
@@ -63,6 +64,15 @@ class Scope {
 
   auto rbegin() const { return members_.rbegin(); }
   auto rend() const { return members_.rend(); }
+
+ private:
+  void find(const Name* name, LookupOptions lookupOptions,
+            LookupResult& result) const;
+
+  void lookup(const Name* name, LookupOptions lookupOptions,
+              std::vector<const Scope*>& processed, LookupResult& result) const;
+
+  bool match(Symbol* symbol, LookupOptions options) const;
 
  private:
   Symbol* owner_ = nullptr;

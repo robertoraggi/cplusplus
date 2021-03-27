@@ -111,8 +111,12 @@ class ClassSymbol final : public TypeSymbol {
 
   Scope* scope() const override { return scope_.get(); }
 
+  const std::vector<ClassSymbol*>& baseClasses() const { return baseClasses_; }
+  void addBaseClass(ClassSymbol* baseClass);
+
  private:
   std::unique_ptr<Scope> scope_;
+  std::vector<ClassSymbol*> baseClasses_;
 };
 
 class TypedefSymbol final : public TypeSymbol {
