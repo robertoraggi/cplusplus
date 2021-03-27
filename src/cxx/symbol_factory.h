@@ -54,8 +54,8 @@ class SymbolFactory final {
   TemplateFunctionSymbol* newTemplateFunctionSymbol(Scope* enclosingScope,
                                                     const Name* name);
 
-  TemplateArgumentSymbol* newTemplateArgumentSymbol(Scope* enclosingScope,
-                                                    const Name* name);
+  TemplateTypeParameterSymbol* newTemplateTypeParameterSymbol(
+      Scope* enclosingScope, const Name* name);
 
   VariableSymbol* newVariableSymbol(Scope* enclosingScope, const Name* name);
 

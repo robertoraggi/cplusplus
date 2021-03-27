@@ -41,7 +41,7 @@ class EnumeratorSymbol;
 class ScopedEnumSymbol;
 class TemplateClassSymbol;
 class TemplateFunctionSymbol;
-class TemplateArgumentSymbol;
+class TemplateTypeParameterSymbol;
 class VariableSymbol;
 class FunctionSymbol;
 class ArgumentSymbol;

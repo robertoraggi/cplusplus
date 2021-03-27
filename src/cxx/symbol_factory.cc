@@ -35,7 +35,7 @@ struct SymbolFactory::Private {
   std::forward_list<ScopedEnumSymbol> scopedEnumSymbols;
   std::forward_list<TemplateClassSymbol> templateClassSymbols;
   std::forward_list<TemplateFunctionSymbol> templateFunctionSymbols;
-  std::forward_list<TemplateArgumentSymbol> templateArgumentSymbols;
+  std::forward_list<TemplateTypeParameterSymbol> templateTypeParameterSymbols;
   std::forward_list<VariableSymbol> variableSymbols;
   std::forward_list<FunctionSymbol> functionSymbols;
   std::forward_list<ArgumentSymbol> argumentSymbols;
@@ -100,9 +100,10 @@ TemplateFunctionSymbol* SymbolFactory::newTemplateFunctionSymbol(
   return symbol;
 }
 
-TemplateArgumentSymbol* SymbolFactory::newTemplateArgumentSymbol(
+TemplateTypeParameterSymbol* SymbolFactory::newTemplateTypeParameterSymbol(
     Scope* enclosingScope, const Name* name) {
-  auto symbol = &d->templateArgumentSymbols.emplace_front(enclosingScope, name);
+  auto symbol =
+      &d->templateTypeParameterSymbols.emplace_front(enclosingScope, name);
   return symbol;
 }
 

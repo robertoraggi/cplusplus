@@ -87,7 +87,7 @@ class TypeEnvironment {
   const TemplateType* templateType(TemplateClassSymbol* symbol);
 
   const TemplateArgumentType* templateArgumentType(
-      TemplateArgumentSymbol* symbol);
+      TemplateTypeParameterSymbol* symbol);
 
   const ConceptType* conceptType(ConceptSymbol* symbol);
 

@@ -124,8 +124,8 @@ TemplateFunctionSymbol::TemplateFunctionSymbol(Scope* enclosingScope,
                                                const Name* name)
     : Symbol(enclosingScope, name) {}
 
-TemplateArgumentSymbol::TemplateArgumentSymbol(Scope* enclosingScope,
-                                               const Name* name)
+TemplateTypeParameterSymbol::TemplateTypeParameterSymbol(Scope* enclosingScope,
+                                                         const Name* name)
     : TypeSymbol(enclosingScope, name) {}
 
 VariableSymbol::VariableSymbol(Scope* enclosingScope, const Name* name)

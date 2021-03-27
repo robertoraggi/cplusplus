@@ -163,10 +163,10 @@ class TemplateFunctionSymbol final : public Symbol {
   void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
 };
 
-class TemplateArgumentSymbol final : public TypeSymbol {
+class TemplateTypeParameterSymbol final : public TypeSymbol {
  public:
-  explicit TemplateArgumentSymbol(Scope* enclosingScope,
-                                  const Name* name = nullptr);
+  explicit TemplateTypeParameterSymbol(Scope* enclosingScope,
+                                       const Name* name = nullptr);
 
   void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
 };

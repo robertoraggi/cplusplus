@@ -409,7 +409,7 @@ const TemplateType* TypeEnvironment::templateType(TemplateClassSymbol* symbol) {
 }
 
 const TemplateArgumentType* TypeEnvironment::templateArgumentType(
-    TemplateArgumentSymbol* symbol) {
+    TemplateTypeParameterSymbol* symbol) {
   return &*d->templateArgumentTypes.emplace(symbol).first;
 }
 

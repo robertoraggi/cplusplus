@@ -293,13 +293,14 @@ class TemplateType final : public Type,
   void accept(TypeVisitor* visitor) const override;
 };
 
-class TemplateArgumentType final : public Type,
-                                   public std::tuple<TemplateArgumentSymbol*> {
+class TemplateArgumentType final
+    : public Type,
+      public std::tuple<TemplateTypeParameterSymbol*> {
  public:
-  explicit TemplateArgumentType(TemplateArgumentSymbol* symbol) noexcept
+  explicit TemplateArgumentType(TemplateTypeParameterSymbol* symbol) noexcept
       : tuple(symbol) {}
 
-  TemplateArgumentSymbol* symbol() const { return get<0>(*this); }
+  TemplateTypeParameterSymbol* symbol() const { return get<0>(*this); }
 
   void accept(TypeVisitor* visitor) const override;
 };
