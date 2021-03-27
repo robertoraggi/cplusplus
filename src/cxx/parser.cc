@@ -746,17 +746,20 @@ bool Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast) {
   }
 
   while (true) {
-    const auto saved = currentLocation();
+    if (LA().is(TokenKind::T_IDENTIFIER) &&
+        LA(1).is(TokenKind::T_COLON_COLON)) {
+      NameAST* name = nullptr;
+      parse_name_id(name);
+      expect(TokenKind::T_COLON_COLON);
 
-    NameAST* name = nullptr;
-
-    if (parse_name_id(name) && match(TokenKind::T_COLON_COLON)) {
       *nameIt = new (pool) List(name);
       nameIt = &(*nameIt)->next;
     } else {
-      rewind(saved);
+      const auto saved = currentLocation();
 
       const auto has_template = match(TokenKind::T_TEMPLATE);
+
+      NameAST* name = nullptr;
 
       if (parse_simple_template_id(name) && match(TokenKind::T_COLON_COLON)) {
         *nameIt = new (pool) List(name);

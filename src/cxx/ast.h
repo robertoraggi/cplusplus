@@ -200,6 +200,7 @@ class NestedNameSpecifierAST final : public AST {
 
   SourceLocation scopeLoc;
   List<NameAST*>* nameList = nullptr;
+  Symbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

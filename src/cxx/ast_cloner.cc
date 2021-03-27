@@ -60,6 +60,8 @@ void ASTCloner::visit(NestedNameSpecifierAST* ast) {
       out = &(*out)->next;
     }
   }
+
+  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(UsingDeclaratorAST* ast) {
