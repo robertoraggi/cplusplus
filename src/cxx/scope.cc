@@ -36,7 +36,7 @@ Scope::Scope() {}
 Scope::~Scope() {}
 
 Scope* Scope::enclosingScope() const {
-  return owner_ ? owner_->scope() : nullptr;
+  return owner_ ? owner_->enclosingScope() : nullptr;
 }
 
 Symbol* Scope::owner() const { return owner_; }
@@ -57,6 +57,26 @@ LookupResult Scope::lookup(const Name* name,
   std::vector<const Scope*> processed;
   processed.reserve(8);
   lookup(name, lookupOptions, processed, result);
+  return result;
+}
+
+LookupResult Scope::unqualifiedLookup(const Name* name,
+                                      LookupOptions lookupOptions) const {
+  LookupResult result;
+
+  std::vector<const Scope*> processed;
+  processed.reserve(8);
+
+  auto scope = this;
+
+  while (scope) {
+    lookup(name, lookupOptions, processed, result);
+
+    if (!result.empty()) break;
+
+    scope = scope->enclosingScope();
+  }
+
   return result;
 }
 

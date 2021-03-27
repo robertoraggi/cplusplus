@@ -55,6 +55,10 @@ class Scope final {
   LookupResult lookup(const Name* name, LookupOptions lookupOptions =
                                             LookupOptions::kDefault) const;
 
+  LookupResult unqualifiedLookup(
+      const Name* name,
+      LookupOptions lookupOptions = LookupOptions::kDefault) const;
+
   using iterator = std::vector<Symbol*>::const_iterator;
 
   bool empty() const { return members_.empty(); }

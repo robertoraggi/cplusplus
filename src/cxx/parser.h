@@ -114,10 +114,8 @@ class Parser final {
   bool parse_module_keyword();
   bool parse_final();
   bool parse_override();
-  bool parse_typedef_name(NameAST*& yyast);
   bool parse_class_name(NameAST*& yyast);
   bool parse_name_id(NameAST*& yyast);
-  bool parse_enum_name(NameAST*& yyast);
   bool parse_template_name(NameAST*& yyast);
   bool parse_literal(ExpressionAST*& yyast);
   bool parse_translation_unit(UnitAST*& yyast);

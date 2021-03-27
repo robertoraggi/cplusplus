@@ -26,6 +26,7 @@
 #include <cxx/symbol_factory.h>
 #include <cxx/symbols.h>
 #include <cxx/token.h>
+#include <cxx/type_environment.h>
 #include <cxx/types.h>
 
 #include <algorithm>
@@ -269,16 +270,6 @@ bool Parser::parse_final() { return parse_id(final_id); }
 
 bool Parser::parse_override() { return parse_id(override_id); }
 
-bool Parser::parse_typedef_name(NameAST*& yyast) {
-  const auto start = currentLocation();
-
-  if (parse_simple_template_id(yyast)) return true;
-
-  rewind(start);
-
-  return parse_name_id(yyast);
-}
-
 bool Parser::parse_class_name(NameAST*& yyast) {
   const auto start = currentLocation();
 
@@ -299,11 +290,6 @@ bool Parser::parse_name_id(NameAST*& yyast) {
 
   ast->identifierLoc = identifierLoc;
 
-  return true;
-}
-
-bool Parser::parse_enum_name(NameAST*& yyast) {
-  if (!match(TokenKind::T_IDENTIFIER)) return false;
   return true;
 }
 
@@ -3976,15 +3962,18 @@ bool Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
 bool Parser::parse_type_name(NameAST*& yyast) {
   const auto start = currentLocation();
 
-  if (parse_class_name(yyast)) return true;
+#if 0
+  SourceLocation identifierLoc;
 
-  rewind(start);
+  if (LA().is(TokenKind::T_IDENTIFIER) && LA(1).isNot(TokenKind::T_LESS)) {
+    auto identifierLoc = consumeToken();
+    auto id = unit->identifier(identifierLoc);
+    // ### TODO resolve typedef and enum types.
+    rewind(start);
+  }
+#endif
 
-  if (parse_enum_name(yyast)) return true;
-
-  rewind(start);
-
-  return parse_typedef_name(yyast);
+  return parse_class_name(yyast);
 }
 
 bool Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
@@ -5164,6 +5153,9 @@ bool Parser::parse_enum_specifier(SpecifierAST*& yyast) {
     auto* scopedEnumSymbol =
         symbols->newScopedEnumSymbol(sem->scope(), enumName);
 
+    scopedEnumSymbol->setType(
+        QualifiedType(types->scopedEnumType(scopedEnumSymbol)));
+
     sem->scope()->add(scopedEnumSymbol);
 
     enumScope = scopedEnumSymbol->scope();
@@ -5179,6 +5171,8 @@ bool Parser::parse_enum_specifier(SpecifierAST*& yyast) {
     }
   } else {
     auto* enumSymbol = symbols->newEnumSymbol(sem->scope(), enumName);
+
+    enumSymbol->setType(QualifiedType(types->enumType(enumSymbol)));
 
     sem->scope()->add(enumSymbol);
 
