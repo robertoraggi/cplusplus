@@ -543,6 +543,10 @@ bool Parser::parse_primary_expression(ExpressionAST*& yyast) {
 
   ast->name = name;
 
+  Semantics::NameSem nameSem;
+
+  sem->name(ast->name, &nameSem);
+
   return true;
 }
 
@@ -555,7 +559,9 @@ bool Parser::parse_id_expression(NameAST*& yyast) {
 
   yyast = nullptr;
 
-  return parse_unqualified_id(yyast);
+  if (!parse_unqualified_id(yyast)) return false;
+
+  return true;
 }
 
 bool Parser::parse_maybe_template_id(NameAST*& yyast) {
@@ -5356,6 +5362,23 @@ bool Parser::parse_enumerator(EnumeratorAST*& yyast) {
   ast->name = name;
 
   parse_attribute_specifier_seq(ast->attributeList);
+
+  Semantics::NameSem nameSem;
+
+  sem->name(ast->name, &nameSem);
+
+  auto symbol = symbols->newEnumeratorSymbol(sem->scope(), ast->name->name);
+  symbol->setType(sem->scope()->owner()->type());
+  sem->scope()->add(symbol);
+
+  if (auto enumSymbol = dynamic_cast<EnumSymbol*>(sem->scope()->owner())) {
+    auto enclosingNamespace = enumSymbol->enclosingNamespace();
+
+    auto symbol = symbols->newEnumeratorSymbol(enclosingNamespace->scope(),
+                                               ast->name->name);
+    symbol->setType(enumSymbol->type());
+    enclosingNamespace->scope()->add(symbol);
+  }
 
   return true;
 }
