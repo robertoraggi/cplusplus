@@ -30,16 +30,6 @@ Symbol::Symbol(Scope* enclosingScope, const Name* name)
 
 Symbol::~Symbol() {}
 
-const Name* Symbol::name() const { return name_; }
-
-void Symbol::setName(const Name* name) { name_ = name; }
-
-Scope* Symbol::enclosingScope() const { return enclosingScope_; }
-
-void Symbol::setEnclosingScope(Scope* enclosingScope) {
-  enclosingScope_ = enclosingScope;
-}
-
 bool Symbol::isTypeSymbol() const { return false; }
 
 TypeSymbol::TypeSymbol(Scope* enclosingScope, const Name* name)

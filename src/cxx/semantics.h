@@ -55,7 +55,9 @@ class Semantics final : ASTVisitor {
     ScopeContext(const ScopeContext&) = delete;
     ScopeContext& operator=(const ScopeContext&) = delete;
 
-    explicit ScopeContext(Semantics* sem, Scope* scope)
+    explicit ScopeContext(Semantics* sem) : sem(sem), savedScope(sem->scope_) {}
+
+    ScopeContext(Semantics* sem, Scope* scope)
         : sem(sem), savedScope(sem->scope_) {
       sem->scope_ = scope;
     }

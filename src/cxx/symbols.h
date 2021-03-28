@@ -38,11 +38,16 @@ class Symbol {
   Symbol(Scope* enclosingScope, const Name* name);
   virtual ~Symbol();
 
-  const Name* name() const;
-  void setName(const Name* name);
+  const Name* name() const { return name_; }
+  void setName(const Name* name) { name_ = name; }
 
-  Scope* enclosingScope() const;
-  void setEnclosingScope(Scope* enclosingScope);
+  Symbol* next() const { return next_; }
+  void setNext(Symbol* next) { next_ = next; }
+
+  Scope* enclosingScope() const { return enclosingScope_; }
+  void setEnclosingScope(Scope* enclosingScope) {
+    enclosingScope_ = enclosingScope;
+  }
 
   NamespaceSymbol* enclosingNamespace() const;
   ClassSymbol* enclosingClass() const;
@@ -61,6 +66,7 @@ class Symbol {
  private:
   const Name* name_ = nullptr;
   Scope* enclosingScope_ = nullptr;
+  Symbol* next_ = nullptr;
   QualifiedType type_;
 };
 

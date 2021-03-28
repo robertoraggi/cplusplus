@@ -23,16 +23,10 @@
 #include <cxx/names_fwd.h>
 #include <cxx/symbols_fwd.h>
 
+#include <variant>
 #include <vector>
 
 namespace cxx {
-
-class LookupResult final : public std::vector<Symbol*> {
- public:
-  using vector::vector;
-
-  Symbol* single() const { return size() == 1 ? front() : nullptr; }
-};
 
 class Scope final {
  public:
@@ -49,13 +43,13 @@ class Scope final {
 
   void add(Symbol* symbol);
 
-  LookupResult find(const Name* name, LookupOptions lookupOptions =
-                                          LookupOptions::kDefault) const;
+  Symbol* find(const Name* name,
+               LookupOptions lookupOptions = LookupOptions::kDefault) const;
 
-  LookupResult lookup(const Name* name, LookupOptions lookupOptions =
-                                            LookupOptions::kDefault) const;
+  Symbol* lookup(const Name* name,
+                 LookupOptions lookupOptions = LookupOptions::kDefault) const;
 
-  LookupResult unqualifiedLookup(
+  Symbol* unqualifiedLookup(
       const Name* name,
       LookupOptions lookupOptions = LookupOptions::kDefault) const;
 
@@ -70,17 +64,17 @@ class Scope final {
   auto rend() const { return members_.rend(); }
 
  private:
-  void find(const Name* name, LookupOptions lookupOptions,
-            LookupResult& result) const;
+  void rehash();
 
-  void lookup(const Name* name, LookupOptions lookupOptions,
-              std::vector<const Scope*>& processed, LookupResult& result) const;
+  Symbol* lookup(const Name* name, LookupOptions lookupOptions,
+                 std::vector<const Scope*>& processed) const;
 
   bool match(Symbol* symbol, LookupOptions options) const;
 
  private:
   Symbol* owner_ = nullptr;
   std::vector<Symbol*> members_;
+  std::vector<Symbol*> buckets_;
 };
 
 }  // namespace cxx

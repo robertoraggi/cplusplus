@@ -5410,7 +5410,7 @@ bool Parser::parse_namespace_definition(DeclarationAST*& yyast) {
     auto id = unit->identifier(identifierLoc);
 
     namespaceSymbol = dynamic_cast<NamespaceSymbol*>(
-        sem->scope()->find(id, LookupOptions::kNamespace).single());
+        sem->scope()->find(id, LookupOptions::kNamespace));
 
     if (!namespaceSymbol) {
       namespaceSymbol = symbols->newNamespaceSymbol(sem->scope(), id);
@@ -5429,9 +5429,7 @@ bool Parser::parse_namespace_definition(DeclarationAST*& yyast) {
       if (!id) continue;
 
       auto ns = dynamic_cast<NamespaceSymbol*>(
-          namespaceSymbol->scope()
-              ->find(id, LookupOptions::kNamespace)
-              .single());
+          namespaceSymbol->scope()->find(id, LookupOptions::kNamespace));
 
       if (!ns) {
         ns = symbols->newNamespaceSymbol(namespaceSymbol->scope(), id);
@@ -5450,7 +5448,7 @@ bool Parser::parse_namespace_definition(DeclarationAST*& yyast) {
     namespaceName = nameSem.name;
 
     namespaceSymbol = dynamic_cast<NamespaceSymbol*>(
-        sem->scope()->find(namespaceName, LookupOptions::kNamespace).single());
+        sem->scope()->find(namespaceName, LookupOptions::kNamespace));
   }
 
   if (!namespaceSymbol) {
