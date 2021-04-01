@@ -112,8 +112,9 @@ void Semantics::declaratorModifier(DeclaratorModifierAST* ast) { accept(ast); }
 
 void Semantics::declaratorModifiers(List<DeclaratorModifierAST*>* ast) {
   if (!ast) return;
-  declaratorModifiers(ast->next);
-  declaratorModifier(ast->value);
+  for (auto it = ast; it; it = it->next) {
+    declaratorModifier(ast->value);
+  }
 }
 
 void Semantics::initializer(InitializerAST* ast) { accept(ast); }

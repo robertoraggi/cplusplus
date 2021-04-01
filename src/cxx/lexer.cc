@@ -106,6 +106,7 @@ uint32_t Lexer::LA(int n) const {
 TokenKind Lexer::readToken() {
   const auto hasMoreChars = skipSpaces();
 
+  tokenIsClean_ = true;
   tokenPos_ = pos_ - cbegin(source_);
   text_.clear();
 
@@ -165,9 +166,12 @@ TokenKind Lexer::readToken() {
       }
     }
 
-    if (!isStringOrCharacterLiteral)
+    if (!isStringOrCharacterLiteral) {
+      tokenIsClean_ = text_.length() == tokenLength();
+
       return !preprocessing_ ? classify(text_.c_str(), int(text_.length()))
                              : TokenKind::T_IDENTIFIER;
+    }
   }
 
   if (LA() == '"') {

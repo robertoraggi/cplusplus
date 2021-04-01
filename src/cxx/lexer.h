@@ -38,6 +38,7 @@ class Lexer {
   TokenValue tokenValue_{};
   bool tokenLeadingSpace_ = false;
   bool tokenStartOfLine_ = true;
+  bool tokenIsClean_ = true;
   int tokenPos_ = 0;
   uint32_t currentChar_ = 0;
 
@@ -73,8 +74,11 @@ class Lexer {
 
   int tokenLength() const { return (pos_ - cbegin(source_)) - tokenPos_; }
 
+  bool tokenIsClean() const { return tokenIsClean_; }
+
   std::string_view tokenText() const {
-    return source_.substr(tokenPos_, tokenLength());
+    if (tokenIsClean_) return source_.substr(tokenPos_, tokenLength());
+    return text_;
   }
 
   TokenValue tokenValue() const { return tokenValue_; }
@@ -94,6 +98,9 @@ class Lexer {
     leadingSpace_ = state.leadingSpace_;
     startOfLine_ = state.startOfLine_;
   }
+
+  std::string& text() { return text_; }
+  const std::string& text() const { return text_; }
 
   static TokenKind classifyKeyword(const std::string_view& text);
 

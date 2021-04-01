@@ -5684,13 +5684,25 @@ bool Parser::parse_asm_declaration(DeclarationAST*& yyast) {
 }
 
 bool Parser::parse_linkage_specification(DeclarationAST*& yyast) {
+  const auto start = currentLocation();
+
   SourceLocation externLoc;
 
-  if (!match(TokenKind::T_EXTERN, externLoc)) return false;
+  List<AttributeAST*>* attributes = nullptr;
+
+  parse_attribute_specifier_seq(attributes);
+
+  if (!match(TokenKind::T_EXTERN, externLoc)) {
+    rewind(start);
+    return false;
+  }
 
   SourceLocation stringLiteralLoc;
 
-  if (!match(TokenKind::T_STRING_LITERAL, stringLiteralLoc)) return false;
+  if (!match(TokenKind::T_STRING_LITERAL, stringLiteralLoc)) {
+    rewind(start);
+    return false;
+  }
 
   SourceLocation lbraceLoc;
 

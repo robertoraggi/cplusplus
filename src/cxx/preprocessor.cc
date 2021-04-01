@@ -503,6 +503,7 @@ const TokList *Preprocessor::Private::tokenize(const std::string_view &source,
   auto it = &ts;
   while (lex() != cxx::TokenKind::T_EOF_SYMBOL) {
     auto tk = Tok::FromCurrentToken(&pool_, lex, sourceFile);
+    if (!lex.tokenIsClean()) tk->text = string(std::move(lex.text()));
     *it = new (&pool_) TokList(tk);
     it = const_cast<const TokList **>(&(*it)->tail);
   }
@@ -1515,6 +1516,7 @@ void Preprocessor::addSystemCppIncludePaths() {
 void Preprocessor::addPredefinedMacros() {
   // clang-format off
   defineMacro("__extension__", "");
+  defineMacro("_Pragma(x)", "");
   defineMacro("__amd64", "1");
   defineMacro("__amd64__", "1");
   defineMacro("__ATOMIC_ACQ_REL", "4");
