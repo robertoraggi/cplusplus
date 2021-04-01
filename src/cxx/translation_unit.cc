@@ -88,6 +88,31 @@ void TranslationUnit::getTokenEndPosition(SourceLocation loc, unsigned* line,
   preprocessor_->getTokenEndPosition(tokenAt(loc), line, column, fileName);
 }
 
+void TranslationUnit::printDiagnostic(const Diagnostic& diag) const {
+  std::string_view Severity;
+
+  switch (diag.severity()) {
+    case Severity::Message:
+      Severity = "message";
+      break;
+    case Severity::Warning:
+      Severity = "warning";
+      break;
+    case Severity::Error:
+      Severity = "error";
+      break;
+    case Severity::Fatal:
+      Severity = "fatal";
+      break;
+  }  // switch
+
+  fmt::print(stderr, "{}:{}:{}: {}\n", diag.fileName(), diag.line(),
+             diag.column(), diag.message());
+  fmt::print(stderr, "{}\n{:>{}}\n",
+             preprocessor_->getTextLine(tokenAt(diag.location())), "^",
+             diag.column());
+}
+
 bool TranslationUnit::parse() {
   Parser parse(this);
   return parse(ast_);

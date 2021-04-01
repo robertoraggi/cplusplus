@@ -91,42 +91,21 @@ class TranslationUnit {
     std::string_view fileName;
     getTokenStartPosition(loc, &line, &column, &fileName);
 
+    Diagnostic diag(this, kind, loc,
+                    fmt::vformat(format, fmt::make_format_args(args...)));
+
     if (diagnosticClient_) {
-      diagnosticClient_->report(
-          Diagnostic(kind, std::string(fileName), line, column,
-                     fmt::vformat(format, fmt::make_format_args(args...))));
-      return;
+      diagnosticClient_->report(diag);
+    } else {
+      printDiagnostic(diag);
     }
 
-    std::string_view Severity;
-
-    switch (kind) {
-      case Severity::Message:
-        Severity = "message";
-        break;
-      case Severity::Warning:
-        Severity = "warning";
-        break;
-      case Severity::Error:
-        Severity = "error";
-        break;
-      case Severity::Fatal:
-        Severity = "fatal";
-        break;
-    }  // switch
-
-    fmt::print(stderr, "{}:{}:{}: {}: ", fileName, line, column, Severity);
-    fmt::vprint(stderr, format, fmt::make_format_args(args...));
-    fmt::print(stderr, "\n");
-#if 0
-    std::string cursor(column - 1, ' ');
-    cursor += "^";
-    fmt::print(stderr, "{}\n{}\n", preprocessor_->getTextLine(tokenAt(loc)),
-               cursor);
-#endif
-    if (kind == Severity::Fatal || (kind == Severity::Error && fatalErrors_))
+    if (diag.severity() == Severity::Fatal ||
+        (diag.severity() == Severity::Error && fatalErrors_))
       exit(EXIT_FAILURE);
   }
+
+  void printDiagnostic(const Diagnostic& diag) const;
 
   // tokens
   inline unsigned tokenCount() const { return unsigned(tokens_.size()); }

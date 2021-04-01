@@ -18,50 +18,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#pragma once
-
-#include <cxx/source_location.h>
-
-#include <string>
+#include <cxx/diagnostic.h>
+#include <cxx/preprocessor.h>
+#include <cxx/translation_unit.h>
 
 namespace cxx {
 
-class TranslationUnit;
-
-enum struct Severity { Message, Warning, Error, Fatal };
-
-class Diagnostic {
-  TranslationUnit* unit_;
-  std::string message_;
-  std::string fileName_;
-  SourceLocation location_;
-  Severity severity_ = Severity::Message;
-  unsigned line_ = 0;
-  unsigned column_ = 0;
-
- public:
-  Diagnostic() = default;
-
-  Diagnostic(const Diagnostic&) = default;
-  Diagnostic& operator=(const Diagnostic&) = default;
-
-  Diagnostic(Diagnostic&&) = default;
-  Diagnostic& operator=(Diagnostic&&) = default;
-
-  Diagnostic(TranslationUnit* unit, Severity severity,
-             const SourceLocation& location, std::string message);
-
-  Severity severity() const { return severity_; }
-
-  const std::string& fileName() const { return fileName_; }
-
-  const std::string& message() const { return message_; }
-
-  unsigned line() const { return line_; }
-
-  unsigned column() const { return column_; }
-
-  const SourceLocation& location() const { return location_; }
-};
+Diagnostic::Diagnostic(TranslationUnit* unit, Severity severity,
+                       const SourceLocation& location, std::string message)
+    : unit_(unit),
+      severity_(severity),
+      location_(location),
+      message_(std::move(message)) {
+  std::string_view fileName;
+  unit_->getTokenStartPosition(location, &line_, &column_, &fileName);
+  fileName_ = std::string(fileName);
+}
 
 }  // namespace cxx
