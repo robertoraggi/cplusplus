@@ -238,6 +238,9 @@ class Parser final {
   bool parse_block_declaration(DeclarationAST*& yyast, bool fundef);
   bool parse_alias_declaration(DeclarationAST*& yyast);
   bool parse_simple_declaration(DeclarationAST*& yyast, bool fundef);
+  bool parse_notypespec_function_definition(
+      DeclarationAST*& yyast, List<SpecifierAST*>* declSpecifierList,
+      const DeclSpecs& specs);
   bool parse_function_definition_body(FunctionBodyAST*& yyast);
   bool parse_static_assert_declaration(DeclarationAST*& yyast);
   bool parse_string_literal_seq(List<SourceLocation>*& yyast);

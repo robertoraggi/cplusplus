@@ -3177,43 +3177,9 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
 
   auto after_decl_specs = currentLocation();
 
-  IdDeclaratorAST* declaratorId = nullptr;
-
-  if (fundef && parse_declarator_id(declaratorId)) {
-    ParametersAndQualifiersAST* parametersAndQualifiers = nullptr;
-
-    if (parse_parameters_and_qualifiers(parametersAndQualifiers)) {
-      if (match(TokenKind::T_SEMICOLON)) return true;
-
-      auto declarator = new (pool) DeclaratorAST();
-      declarator->coreDeclarator = declaratorId;
-
-      auto functionDeclarator = new (pool) FunctionDeclaratorAST();
-      functionDeclarator->parametersAndQualifiers = parametersAndQualifiers;
-
-      declarator->modifiers =
-          new (pool) List<DeclaratorModifierAST*>(functionDeclarator);
-
-      Semantics::DeclaratorSem decl{specs.specifiers};
-
-      sem->declarator(declarator, &decl);
-
-      FunctionBodyAST* functionBody = nullptr;
-
-      if (parse_function_definition_body(functionBody)) {
-        auto ast = new (pool) FunctionDefinitionAST();
-        yyast = ast;
-
-        ast->declSpecifierList = declSpecifierList;
-        ast->declarator = declarator;
-        ast->functionBody = functionBody;
-
-        if (classDepth) pendingFunctionDefinitions_.push_back(ast);
-
-        return true;
-      }
-    }
-  }
+  if (fundef &&
+      parse_notypespec_function_definition(yyast, declSpecifierList, specs))
+    return true;
 
   rewind(after_decl_specs);
 
@@ -3323,6 +3289,61 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
   ast->declSpecifierList = declSpecifierList;
   ast->initDeclaratorList = initDeclaratorList;
   ast->semicolonLoc = semicolonLoc;
+
+  return true;
+}
+
+bool Parser::parse_notypespec_function_definition(
+    DeclarationAST*& yyast, List<SpecifierAST*>* declSpecifierList,
+    const DeclSpecs& specs) {
+  IdDeclaratorAST* declaratorId = nullptr;
+
+  if (!parse_declarator_id(declaratorId)) return false;
+
+  ParametersAndQualifiersAST* parametersAndQualifiers = nullptr;
+
+  if (!parse_parameters_and_qualifiers(parametersAndQualifiers)) return false;
+
+  auto declarator = new (pool) DeclaratorAST();
+  declarator->coreDeclarator = declaratorId;
+
+  auto functionDeclarator = new (pool) FunctionDeclaratorAST();
+  functionDeclarator->parametersAndQualifiers = parametersAndQualifiers;
+
+  declarator->modifiers =
+      new (pool) List<DeclaratorModifierAST*>(functionDeclarator);
+
+  Semantics::DeclaratorSem decl{specs.specifiers};
+
+  sem->declarator(declarator, &decl);
+
+  SourceLocation semicolonLoc;
+
+  if (match(TokenKind::T_SEMICOLON, semicolonLoc)) {
+    auto initDeclarator = new (pool) InitDeclaratorAST();
+    initDeclarator->declarator = declarator;
+
+    auto ast = new (pool) SimpleDeclarationAST();
+    yyast = ast;
+    ast->declSpecifierList = declSpecifierList;
+    ast->initDeclaratorList = new (pool) List(initDeclarator);
+    ast->semicolonLoc = semicolonLoc;
+
+    return true;
+  }
+
+  FunctionBodyAST* functionBody = nullptr;
+
+  if (!parse_function_definition_body(functionBody)) return false;
+
+  auto ast = new (pool) FunctionDefinitionAST();
+  yyast = ast;
+
+  ast->declSpecifierList = declSpecifierList;
+  ast->declarator = declarator;
+  ast->functionBody = functionBody;
+
+  if (classDepth) pendingFunctionDefinitions_.push_back(ast);
 
   return true;
 }
