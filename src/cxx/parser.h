@@ -241,7 +241,6 @@ class Parser final {
   bool parse_notypespec_function_definition(
       DeclarationAST*& yyast, List<SpecifierAST*>* declSpecifierList,
       const DeclSpecs& specs);
-  bool parse_function_definition_body(FunctionBodyAST*& yyast);
   bool parse_static_assert_declaration(DeclarationAST*& yyast);
   bool parse_string_literal_seq(List<SourceLocation>*& yyast);
   bool parse_empty_declaration(DeclarationAST*& yyast);
@@ -368,7 +367,6 @@ class Parser final {
   bool parse_member_declaration(DeclarationAST*& yyast);
   bool parse_maybe_template_member();
   bool parse_member_declaration_helper(DeclarationAST*& yyast);
-  bool parse_member_function_definition_body(FunctionBodyAST*& yyast);
   bool parse_member_declarator_modifier();
   bool parse_member_declarator_list(List<DeclaratorAST*>*& yyast,
                                     const DeclSpecs& specs);

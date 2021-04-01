@@ -3234,7 +3234,7 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
   if (fundef && getFunctionDeclarator(declarator)) {
     FunctionBodyAST* functionBody = nullptr;
 
-    if (parse_function_definition_body(functionBody)) {
+    if (parse_function_body(functionBody)) {
       auto ast = new (pool) FunctionDefinitionAST();
       yyast = ast;
 
@@ -3317,6 +3317,12 @@ bool Parser::parse_notypespec_function_definition(
 
   sem->declarator(declarator, &decl);
 
+  const auto has_requires_clause = parse_requires_clause();
+
+  bool has_virt_specifier_seq = false;
+
+  if (!has_requires_clause) has_virt_specifier_seq = parse_virt_specifier_seq();
+
   SourceLocation semicolonLoc;
 
   if (match(TokenKind::T_SEMICOLON, semicolonLoc)) {
@@ -3334,7 +3340,7 @@ bool Parser::parse_notypespec_function_definition(
 
   FunctionBodyAST* functionBody = nullptr;
 
-  if (!parse_function_definition_body(functionBody)) return false;
+  if (!parse_function_body(functionBody)) return false;
 
   auto ast = new (pool) FunctionDefinitionAST();
   yyast = ast;
@@ -3346,16 +3352,6 @@ bool Parser::parse_notypespec_function_definition(
   if (classDepth) pendingFunctionDefinitions_.push_back(ast);
 
   return true;
-}
-
-bool Parser::parse_function_definition_body(FunctionBodyAST*& yyast) {
-  if (parse_requires_clause()) {
-    //
-  } else {
-    parse_virt_specifier_seq();
-  }
-
-  return parse_function_body(yyast);
 }
 
 bool Parser::parse_static_assert_declaration(DeclarationAST*& yyast) {
@@ -6343,54 +6339,8 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
 
   after_decl_specs = currentLocation();
 
-  IdDeclaratorAST* declaratorId = nullptr;
-
-  if (parse_declarator_id(declaratorId)) {
-    List<AttributeAST*>* attributes = nullptr;
-
-    parse_attribute_specifier_seq(attributes);
-
-    ParametersAndQualifiersAST* parametersAndQualifiers = nullptr;
-
-    if (parse_parameters_and_qualifiers(parametersAndQualifiers)) {
-      const auto after_parameters = currentLocation();
-
-      DeclaratorAST* declarator = new (pool) DeclaratorAST();
-      declarator->coreDeclarator = declaratorId;
-
-      auto functionDeclarator = new (pool) FunctionDeclaratorAST();
-
-      functionDeclarator->parametersAndQualifiers = parametersAndQualifiers;
-
-      declarator->modifiers =
-          new (pool) List<DeclaratorModifierAST*>(functionDeclarator);
-
-      Semantics::DeclaratorSem decl{specs.specifiers};
-
-      sem->declarator(declarator, &decl);
-
-      FunctionBodyAST* functionBody = nullptr;
-
-      if (parse_member_function_definition_body(functionBody)) {
-        auto ast = new (pool) FunctionDefinitionAST();
-        yyast = ast;
-
-        ast->declSpecifierList = declSpecifierList;
-        ast->declarator = declarator;
-        ast->functionBody = functionBody;
-
-        if (classDepth) pendingFunctionDefinitions_.push_back(ast);
-
-        return true;
-      }
-
-      rewind(after_parameters);
-
-      if (parse_member_declarator_modifier() && match(TokenKind::T_SEMICOLON)) {
-        return true;
-      }
-    }
-  }
+  if (parse_notypespec_function_definition(yyast, declSpecifierList, specs))
+    return true;
 
   rewind(after_decl_specs);
 
@@ -6418,7 +6368,14 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
 
     sem->declarator(declarator, &decl);
 
-    if (parse_member_function_definition_body(functionBody)) {
+    const auto has_requires_clause = parse_requires_clause();
+
+    bool has_virt_specifier_seq = false;
+
+    if (!has_requires_clause)
+      has_virt_specifier_seq = parse_virt_specifier_seq();
+
+    if (parse_function_body(functionBody)) {
       auto ast = new (pool) FunctionDefinitionAST();
       yyast = ast;
 
@@ -6440,18 +6397,6 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
     parse_error("expected a declarator");
 
   expect(TokenKind::T_SEMICOLON);
-
-  return true;
-}
-
-bool Parser::parse_member_function_definition_body(FunctionBodyAST*& yyast) {
-  const auto has_requires_clause = parse_requires_clause();
-
-  bool has_virt_specifier_seq = false;
-
-  if (!has_requires_clause) has_virt_specifier_seq = parse_virt_specifier_seq();
-
-  if (!parse_function_body(yyast)) return false;
 
   return true;
 }
