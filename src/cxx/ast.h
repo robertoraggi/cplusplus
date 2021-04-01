@@ -2426,6 +2426,7 @@ class ClassSpecifierAST final : public SpecifierAST {
   SourceLocation lbraceLoc;
   List<DeclarationAST*>* declarationList = nullptr;
   SourceLocation rbraceLoc;
+  ClassSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

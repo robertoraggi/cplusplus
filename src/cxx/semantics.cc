@@ -1014,6 +1014,7 @@ void Semantics::visit(EnumSpecifierAST* ast) {
 }
 
 void Semantics::visit(ClassSpecifierAST* ast) {
+  specifiers_->type.setType(types_->classType(ast->symbol));
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
   NameSem name;
   this->name(ast->name, &name);

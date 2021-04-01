@@ -6145,6 +6145,16 @@ bool Parser::parse_class_specifier(SpecifierAST*& yyast) {
     return false;
   }
 
+  Semantics::NameSem nameSem;
+
+  sem->name(className, &nameSem);
+
+  ClassSymbol* classSymbol = nullptr;
+
+  classSymbol = symbols->newClassSymbol(sem->scope(), nameSem.name);
+  classSymbol->setType(QualifiedType(types->classType(classSymbol)));
+  sem->scope()->add(classSymbol);
+
   auto ast = new (pool) ClassSpecifierAST();
   yyast = ast;
 
@@ -6153,6 +6163,7 @@ bool Parser::parse_class_specifier(SpecifierAST*& yyast) {
   ast->name = className;
   ast->baseClause = baseClause;
   ast->lbraceLoc = lbraceLoc;
+  ast->symbol = classSymbol;
 
   if (!match(TokenKind::T_RBRACE, ast->rbraceLoc)) {
     if (!parse_class_body(ast->declarationList))
