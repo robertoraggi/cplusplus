@@ -747,6 +747,10 @@ const TokList *Preprocessor::Private::expandOne(
     if (macro->objLike) {
       const auto hideset = makeUnion(tk->hideset, tk->text);
       auto expanded = substitude(macro->body, macro, {}, hideset, nullptr);
+      if (expanded) {
+        const_cast<Tok *>(expanded->head)->space = tk->space;
+        const_cast<Tok *>(expanded->head)->bol = tk->bol;
+      }
       return concat(&pool_, expanded, ts->tail);
     }
 
@@ -755,6 +759,10 @@ const TokList *Preprocessor::Private::expandOne(
       auto [args, p, hideset] = readArguments(ts, macro);
       auto hs = makeUnion(makeIntersection(tk->hideset, hideset), tk->text);
       auto expanded = substitude(macro->body, macro, args, hs, nullptr);
+      if (expanded) {
+        const_cast<Tok *>(expanded->head)->space = tk->space;
+        const_cast<Tok *>(expanded->head)->bol = tk->bol;
+      }
       return concat(&pool_, expanded, p);
     }
   }
