@@ -112,9 +112,8 @@ void Semantics::declaratorModifier(DeclaratorModifierAST* ast) { accept(ast); }
 
 void Semantics::declaratorModifiers(List<DeclaratorModifierAST*>* ast) {
   if (!ast) return;
-  for (auto it = ast; it; it = it->next) {
-    declaratorModifier(ast->value);
-  }
+  if (ast->next) declaratorModifiers(ast->next);
+  declaratorModifier(ast->value);
 }
 
 void Semantics::initializer(InitializerAST* ast) { accept(ast); }
@@ -1053,9 +1052,13 @@ void Semantics::visit(PointerOperatorAST* ast) {
 void Semantics::visit(ReferenceOperatorAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
 
-  QualifiedType ptrTy(types_->referenceType(declarator_->type));
-
-  declarator_->type = ptrTy;
+  if (unit_->tokenKind(ast->refLoc) == TokenKind::T_AMP) {
+    QualifiedType refTy(types_->referenceType(declarator_->type));
+    declarator_->type = refTy;
+  } else {
+    QualifiedType refTy(types_->rvalueReferenceType(declarator_->type));
+    declarator_->type = refTy;
+  }
 }
 
 void Semantics::visit(PtrToMemberOperatorAST* ast) {
@@ -1104,6 +1107,13 @@ void Semantics::visit(ArrayDeclaratorAST* ast) {
   } else {
     ExpressionSem expression;
     this->expression(ast->expression, &expression);
+
+    if (auto literal =
+            dynamic_cast<IntLiteralExpressionAST*>(ast->expression)) {
+      auto dim = std::stoi(unit_->tokenText(literal->literalLoc));
+      QualifiedType arrayType(types_->arrayType(declarator_->type, dim));
+      declarator_->type = arrayType;
+    }
   }
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
 }

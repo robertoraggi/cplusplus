@@ -18,14 +18,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/print_type.h>
 #include <cxx/qualified_type.h>
+#include <cxx/type_printer.h>
 #include <cxx/types.h>
 
 namespace cxx {
 
 namespace {
-PrintType printType;
+TypePrinter printType;
 }
 
 std::ostream& operator<<(std::ostream& out, const QualifiedType& type) {

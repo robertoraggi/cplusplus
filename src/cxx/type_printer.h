@@ -23,12 +23,16 @@
 #include <cxx/type_visitor.h>
 
 #include <iosfwd>
+#include <string>
+#include <tuple>
 
 namespace cxx {
 
-class PrintType final : TypeVisitor {
+class TypePrinter final : TypeVisitor {
  public:
   void operator()(const QualifiedType& type, std::ostream& out);
+
+  std::string toString(const QualifiedType& type);
 
  private:
   void accept(const QualifiedType& type);
@@ -59,7 +63,9 @@ class PrintType final : TypeVisitor {
   void visit(const ConceptType* type) override;
 
  private:
-  std::ostream* out_ = nullptr;
+  std::string specifiers_;
+  std::string declarator_;
+  bool ptrOps_ = false;
 };
 
 }  // namespace cxx

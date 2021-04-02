@@ -3718,6 +3718,8 @@ bool Parser::parse_defining_type_specifier(SpecifierAST*& yyast,
 
 bool Parser::parse_defining_type_specifier_seq(List<SpecifierAST*>*& yyast,
                                                DeclSpecs& specs) {
+  auto it = &yyast;
+
   SpecifierAST* typeSpecifier = nullptr;
 
   if (!parse_defining_type_specifier(typeSpecifier, specs)) return false;
@@ -3727,6 +3729,9 @@ bool Parser::parse_defining_type_specifier_seq(List<SpecifierAST*>*& yyast,
   parse_attribute_specifier_seq(attributes);
 
   sem->specifiers(typeSpecifier, &specs.specifiers);
+
+  *it = new (pool) List(typeSpecifier);
+  it = &(*it)->next;
 
   while (LA()) {
     const auto before_type_specifier = currentLocation();
@@ -3743,6 +3748,9 @@ bool Parser::parse_defining_type_specifier_seq(List<SpecifierAST*>*& yyast,
     parse_attribute_specifier_seq(attributes);
 
     sem->specifiers(typeSpecifier, &specs.specifiers);
+
+    *it = new (pool) List(typeSpecifier);
+    it = &(*it)->next;
   }
 
   return true;
@@ -4620,6 +4628,16 @@ bool Parser::parse_defining_type_id(TypeIdAST*& yyast) {
 
   if (!parse_abstract_declarator(declarator)) rewind(before_declarator);
 
+  Semantics::DeclaratorSem decl{specs.specifiers};
+
+  sem->declarator(declarator, &decl);
+
+  auto ast = new (pool) TypeIdAST();
+  yyast = ast;
+
+  ast->typeSpecifierList = typeSpecifierList;
+  ast->declarator = declarator;
+
   return true;
 }
 
@@ -4652,10 +4670,8 @@ bool Parser::parse_abstract_declarator(DeclaratorAST*& yyast) {
 
   if (!parse_noptr_abstract_declarator(yyast)) return false;
 
+#if 0
   const auto after_noptr_declarator = currentLocation();
-
-  auto ast = new (pool) DeclaratorAST();
-  yyast = ast;
 
   parametersAndQualifiers = nullptr;
   trailingReturnType = nullptr;
@@ -4671,6 +4687,7 @@ bool Parser::parse_abstract_declarator(DeclaratorAST*& yyast) {
   } else {
     rewind(after_noptr_declarator);
   }
+#endif
 
   return true;
 }
@@ -4724,7 +4741,6 @@ bool Parser::parse_noptr_abstract_declarator(DeclaratorAST*& yyast) {
 
       *it = new (pool) List<DeclaratorModifierAST*>(functionDeclarator);
       it = &(*it)->next;
-
     } else {
       rewind(after_nested_declarator);
     }
