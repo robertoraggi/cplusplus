@@ -126,7 +126,7 @@ void TypePrinter::visit(const FloatingPointType* type) {
       specifiers_ += "long double";
       break;
     case FloatingPointKind::kFloat128:
-      specifiers_ += "__128";
+      specifiers_ += "__float128";
       break;
   }  // switch
 }
