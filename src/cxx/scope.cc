@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/names.h>
 #include <cxx/scope.h>
 #include <cxx/symbols.h>
 
@@ -90,7 +91,8 @@ Symbol* Scope::unqualifiedLookup(const Name* name,
   auto scope = this;
 
   while (scope) {
-    if (auto symbol = lookup(name, lookupOptions, processed)) return symbol;
+    if (auto symbol = scope->lookup(name, lookupOptions, processed))
+      return symbol;
 
     scope = scope->enclosingScope();
   }

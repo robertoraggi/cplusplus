@@ -2632,6 +2632,11 @@ bool Parser::parse_compound_statement(CompoundStatementAST*& yyast, bool skip) {
 
   if (!match(TokenKind::T_LBRACE, lbraceLoc)) return false;
 
+  auto blockSymbol = symbols->newBlockSymbol(sem->scope(), nullptr);
+  sem->scope()->add(blockSymbol);
+
+  Semantics::ScopeContext scopeContext(sem.get(), blockSymbol->scope());
+
   auto ast = new (pool) CompoundStatementAST();
   yyast = ast;
 
