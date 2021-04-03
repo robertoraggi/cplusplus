@@ -3064,6 +3064,14 @@ void ASTPrinter::visit(FunctionDefinitionAST* ast) {
     }
   }
 
+  if (ast->attributeList) {
+    auto elements = nlohmann::json::array();
+    for (auto it = ast->attributeList; it; it = it->next) {
+      elements.push_back(accept(it->value));
+    }
+    json_["attributeList"] = elements;
+  }
+
   if (ast->declSpecifierList) {
     auto elements = nlohmann::json::array();
     for (auto it = ast->declSpecifierList; it; it = it->next) {

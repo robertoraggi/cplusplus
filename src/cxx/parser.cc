@@ -3142,7 +3142,8 @@ bool Parser::parse_alias_declaration(DeclarationAST*& yyast) {
   return true;
 }
 
-bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
+bool Parser::parse_simple_declaration(DeclarationAST*& yyast,
+                                      bool acceptFunctionDefinition) {
   const bool has_extension = match(TokenKind::T___EXTENSION__);
 
   List<AttributeAST*>* attributes = nullptr;
@@ -3177,7 +3178,7 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
 
   auto after_decl_specs = currentLocation();
 
-  if (fundef &&
+  if (acceptFunctionDefinition &&
       parse_notypespec_function_definition(yyast, declSpecifierList, specs))
     return true;
 
@@ -3231,23 +3232,50 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast, bool fundef) {
 
   const auto after_declarator = currentLocation();
 
-  if (fundef && getFunctionDeclarator(declarator)) {
+  auto functionDeclarator = getFunctionDeclarator(declarator);
+
+  if (acceptFunctionDefinition && functionDeclarator &&
+      lookat_function_body()) {
+    FunctionSymbol* functionSymbol = nullptr;
+
+    functionSymbol = symbols->newFunctionSymbol(sem->scope(), decl.name);
+    functionSymbol->setType(decl.type);
+    sem->scope()->add(functionSymbol);
+
     FunctionBodyAST* functionBody = nullptr;
 
-    if (parse_function_body(functionBody)) {
-      auto ast = new (pool) FunctionDefinitionAST();
-      yyast = ast;
+    Semantics::ScopeContext scopeContext(sem.get(), functionSymbol->scope());
 
-      ast->declSpecifierList = declSpecifierList;
-      ast->declarator = declarator;
-      ast->functionBody = functionBody;
-
-      if (classDepth) pendingFunctionDefinitions_.push_back(ast);
-
-      return true;
+    if (auto params = functionDeclarator->parametersAndQualifiers) {
+      if (auto paramDeclarations = params->parameterDeclarationClause) {
+        for (auto it = paramDeclarations->parameterDeclarationList; it;
+             it = it->next) {
+          Semantics::SpecifiersSem specifiers;
+          sem->specifiers(it->value->typeSpecifierList, &specifiers);
+          Semantics::DeclaratorSem decl{specifiers};
+          sem->declarator(it->value->declarator, &decl);
+          auto param = symbols->newArgumentSymbol(sem->scope(), decl.name);
+          param->setType(decl.type);
+          sem->scope()->add(param);
+        }
+      }
     }
 
-    rewind(after_declarator);
+    if (!parse_function_body(functionBody))
+      parse_error("expected function body");
+
+    auto ast = new (pool) FunctionDefinitionAST();
+    yyast = ast;
+
+    ast->attributeList = attributes;
+    ast->declSpecifierList = declSpecifierList;
+    ast->declarator = declarator;
+    ast->functionBody = functionBody;
+    ast->symbol = functionSymbol;
+
+    if (classDepth) pendingFunctionDefinitions_.push_back(ast);
+
+    return true;
   }
 
   const bool isTypedef = decl.specifiers.isTypedef;
@@ -3338,9 +3366,11 @@ bool Parser::parse_notypespec_function_definition(
     return true;
   }
 
+  if (!lookat_function_body()) return false;
+
   FunctionBodyAST* functionBody = nullptr;
 
-  if (!parse_function_body(functionBody)) return false;
+  if (!parse_function_body(functionBody)) parse_error("expected function body");
 
   auto ast = new (pool) FunctionDefinitionAST();
   yyast = ast;
@@ -5102,6 +5132,25 @@ bool Parser::parse_virt_specifier_seq() {
   return true;
 }
 
+bool Parser::lookat_function_body() {
+  switch (TokenKind(LA())) {
+    case TokenKind::T_TRY:
+      // function-try-block
+      return true;
+    case TokenKind::T_LBRACE:
+      // compound statement
+      return true;
+    case TokenKind::T_COLON:
+      // ctor-initializer
+      return true;
+    case TokenKind::T_EQUAL:
+      // default/delete functions
+      return LA(1).isNot(TokenKind::T_INTEGER_LITERAL);
+    default:
+      return false;
+  }  // swtich
+}
+
 bool Parser::parse_function_body(FunctionBodyAST*& yyast) {
   if (LA().is(TokenKind::T_SEMICOLON)) return false;
 
@@ -6391,7 +6440,10 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
     if (!has_requires_clause)
       has_virt_specifier_seq = parse_virt_specifier_seq();
 
-    if (parse_function_body(functionBody)) {
+    if (lookat_function_body()) {
+      if (!parse_function_body(functionBody))
+        parse_error("expected function body");
+
       auto ast = new (pool) FunctionDefinitionAST();
       yyast = ast;
 

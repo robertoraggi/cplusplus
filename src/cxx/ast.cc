@@ -1371,6 +1371,7 @@ SourceLocation AccessDeclarationAST::lastSourceLocation() {
 }
 
 SourceLocation FunctionDefinitionAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(declSpecifierList)) return loc;
   if (auto loc = cxx::firstSourceLocation(declarator)) return loc;
   if (auto loc = cxx::firstSourceLocation(functionBody)) return loc;
@@ -1381,6 +1382,7 @@ SourceLocation FunctionDefinitionAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(functionBody)) return loc;
   if (auto loc = cxx::lastSourceLocation(declarator)) return loc;
   if (auto loc = cxx::lastSourceLocation(declSpecifierList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   return SourceLocation();
 }
 

@@ -64,8 +64,8 @@ class TypePrinter final : TypeVisitor {
 
  private:
   std::string specifiers_;
+  std::string ptrOps_;
   std::string declarator_;
-  bool ptrOps_ = false;
 };
 
 }  // namespace cxx

@@ -1400,12 +1400,15 @@ void ASTSlot::visit(AccessDeclarationAST* ast) {
 void ASTSlot::visit(FunctionDefinitionAST* ast) {
   switch (slot_) {
     case 0:
-      value_ = reinterpret_cast<std::intptr_t>(ast->declSpecifierList);
+      value_ = reinterpret_cast<std::intptr_t>(ast->attributeList);
       break;
     case 1:
-      value_ = reinterpret_cast<std::intptr_t>(ast->declarator);
+      value_ = reinterpret_cast<std::intptr_t>(ast->declSpecifierList);
       break;
     case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->declarator);
+      break;
+    case 3:
       value_ = reinterpret_cast<std::intptr_t>(ast->functionBody);
       break;
   }  // switch

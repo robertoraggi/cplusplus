@@ -1396,6 +1396,15 @@ void ASTCloner::visit(FunctionDefinitionAST* ast) {
   auto copy = new (arena_) FunctionDefinitionAST();
   copy_ = copy;
 
+  if (auto it = ast->attributeList) {
+    auto out = &copy->attributeList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
   if (auto it = ast->declSpecifierList) {
     auto out = &copy->declSpecifierList;
 
@@ -1408,6 +1417,8 @@ void ASTCloner::visit(FunctionDefinitionAST* ast) {
   copy->declarator = accept(ast->declarator);
 
   copy->functionBody = accept(ast->functionBody);
+
+  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(ConceptDefinitionAST* ast) {

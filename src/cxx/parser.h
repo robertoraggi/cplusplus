@@ -309,6 +309,7 @@ class Parser final {
   bool parse_designator();
   bool parse_expr_or_braced_init_list(ExpressionAST*& yyast);
   bool parse_virt_specifier_seq();
+  bool lookat_function_body();
   bool parse_function_body(FunctionBodyAST*& yyast);
   bool parse_enum_specifier(SpecifierAST*& yyast);
   bool parse_enum_head_name(NestedNameSpecifierAST*& nestedNameSpecifier,

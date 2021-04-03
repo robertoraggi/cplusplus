@@ -1610,16 +1610,21 @@ export class FunctionDefinitionAST extends DeclarationAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitFunctionDefinition(this, context);
     }
-    *getDeclSpecifierList(): Generator<SpecifierAST | undefined> {
+    *getAttributeList(): Generator<AttributeAST | undefined> {
         for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+            yield AST.from<AttributeAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+    *getDeclSpecifierList(): Generator<SpecifierAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
             yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
         }
     }
     getDeclarator(): DeclaratorAST | undefined {
-        return AST.from<DeclaratorAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+        return AST.from<DeclaratorAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
     }
     getFunctionBody(): FunctionBodyAST | undefined {
-        return AST.from<FunctionBodyAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+        return AST.from<FunctionBodyAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
     }
 }
 

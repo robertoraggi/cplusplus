@@ -1540,9 +1540,11 @@ class FunctionDefinitionAST final : public DeclarationAST {
  public:
   FunctionDefinitionAST() : DeclarationAST(ASTKind::FunctionDefinition) {}
 
+  List<AttributeAST*>* attributeList = nullptr;
   List<SpecifierAST*>* declSpecifierList = nullptr;
   DeclaratorAST* declarator = nullptr;
   FunctionBodyAST* functionBody = nullptr;
+  FunctionSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

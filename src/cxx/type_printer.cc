@@ -35,13 +35,17 @@ void TypePrinter::operator()(const QualifiedType& type, std::ostream& out) {
 std::string TypePrinter::toString(const QualifiedType& type) {
   if (!type) return {};
   std::string specifiers;
+  std::string ptrOps;
   std::string declarator;
   std::swap(specifiers_, specifiers);
+  std::swap(ptrOps_, ptrOps);
   std::swap(declarator_, declarator);
   accept(type);
   std::swap(declarator_, declarator);
+  std::swap(ptrOps_, ptrOps);
   std::swap(specifiers_, specifiers);
-  return declarator.empty() ? specifiers : specifiers + " " + declarator;
+  if (ptrOps.empty() && declarator.empty()) return specifiers;
+  return fmt::format("{} {}{}", specifiers, ptrOps, declarator);
 }
 
 void TypePrinter::accept(const QualifiedType& type) {
@@ -146,32 +150,29 @@ void TypePrinter::visit(const ScopedEnumType* type) {
 }
 
 void TypePrinter::visit(const PointerType* type) {
-  ptrOps_ = true;
-  declarator_ += "*";
+  ptrOps_ += "*";
   accept(type->elementType());
 }
 
 void TypePrinter::visit(const PointerToMemberType* type) {
-  ptrOps_ = true;
   throw std::runtime_error("todo");
 }
 
 void TypePrinter::visit(const ReferenceType* type) {
-  ptrOps_ = true;
-  declarator_ += "&";
+  ptrOps_ += "&";
   accept(type->elementType());
 }
 
 void TypePrinter::visit(const RValueReferenceType* type) {
-  ptrOps_ = true;
-  declarator_ += "&&";
+  ptrOps_ += "&&";
   accept(type->elementType());
 }
 
 void TypePrinter::visit(const ArrayType* type) {
-  if (ptrOps_) {
-    ptrOps_ = false;
-    declarator_ = fmt::format("({}[{}])", declarator_, type->dimension());
+  if (!ptrOps_.empty()) {
+    declarator_ =
+        fmt::format("({}{}[{}])", ptrOps_, declarator_, type->dimension());
+    ptrOps_.clear();
   } else {
     declarator_ += fmt::format("[{}]", type->dimension());
   }
@@ -179,9 +180,9 @@ void TypePrinter::visit(const ArrayType* type) {
 }
 
 void TypePrinter::visit(const UnboundArrayType* type) {
-  if (ptrOps_) {
-    ptrOps_ = false;
-    declarator_ = fmt::format("({}[])", declarator_);
+  if (!ptrOps_.empty()) {
+    declarator_ = fmt::format("({}{}[])", ptrOps_, declarator_);
+    ptrOps_.clear();
   } else {
     declarator_ += fmt::format("[]");
   }
@@ -197,9 +198,9 @@ void TypePrinter::visit(const FunctionType* type) {
   }
   if (type->isVariadic()) params += "...";
   params += ")";
-  if (ptrOps_) {
-    ptrOps_ = false;
-    declarator_ = fmt::format("({}){}", declarator_, params);
+  if (!ptrOps_.empty()) {
+    declarator_ = fmt::format("({}{}){}", ptrOps_, declarator_, params);
+    ptrOps_.clear();
   } else {
     declarator_ += params;
   }
