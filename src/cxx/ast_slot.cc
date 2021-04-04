@@ -1464,7 +1464,7 @@ void ASTSlot::visit(AliasDeclarationAST* ast) {
 void ASTSlot::visit(SimpleDeclarationAST* ast) {
   switch (slot_) {
     case 0:
-      value_ = reinterpret_cast<std::intptr_t>(ast->attributes);
+      value_ = reinterpret_cast<std::intptr_t>(ast->attributeList);
       break;
     case 1:
       value_ = reinterpret_cast<std::intptr_t>(ast->declSpecifierList);

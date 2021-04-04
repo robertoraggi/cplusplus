@@ -3210,12 +3210,12 @@ void ASTPrinter::visit(SimpleDeclarationAST* ast) {
     }
   }
 
-  if (ast->attributes) {
+  if (ast->attributeList) {
     auto elements = nlohmann::json::array();
-    for (auto it = ast->attributes; it; it = it->next) {
+    for (auto it = ast->attributeList; it; it = it->next) {
       elements.push_back(accept(it->value));
     }
-    json_["attributes"] = elements;
+    json_["attributeList"] = elements;
   }
 
   if (ast->declSpecifierList) {

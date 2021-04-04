@@ -646,7 +646,7 @@ void Semantics::visit(AliasDeclarationAST* ast) {
 }
 
 void Semantics::visit(SimpleDeclarationAST* ast) {
-  for (auto it = ast->attributes; it; it = it->next) attribute(it->value);
+  for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
   SpecifiersSem specifiers;
   this->specifiers(ast->declSpecifierList, &specifiers);
   for (auto it = ast->initDeclaratorList; it; it = it->next) {

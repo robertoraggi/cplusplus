@@ -1599,7 +1599,7 @@ class SimpleDeclarationAST final : public DeclarationAST {
  public:
   SimpleDeclarationAST() : DeclarationAST(ASTKind::SimpleDeclaration) {}
 
-  List<AttributeAST*>* attributes = nullptr;
+  List<AttributeAST*>* attributeList = nullptr;
   List<SpecifierAST*>* declSpecifierList = nullptr;
   List<InitDeclaratorAST*>* initDeclaratorList = nullptr;
   SourceLocation semicolonLoc;

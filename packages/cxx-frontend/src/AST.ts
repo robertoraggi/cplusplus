@@ -1685,7 +1685,7 @@ export class SimpleDeclarationAST extends DeclarationAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitSimpleDeclaration(this, context);
     }
-    *getAttributes(): Generator<AttributeAST | undefined> {
+    *getAttributeList(): Generator<AttributeAST | undefined> {
         for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
             yield AST.from<AttributeAST>(cxx.getListValue(it), this.parser);
         }

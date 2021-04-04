@@ -1433,7 +1433,7 @@ SourceLocation AliasDeclarationAST::lastSourceLocation() {
 }
 
 SourceLocation SimpleDeclarationAST::firstSourceLocation() {
-  if (auto loc = cxx::firstSourceLocation(attributes)) return loc;
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(declSpecifierList)) return loc;
   if (auto loc = cxx::firstSourceLocation(initDeclaratorList)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
@@ -1444,7 +1444,7 @@ SourceLocation SimpleDeclarationAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(initDeclaratorList)) return loc;
   if (auto loc = cxx::lastSourceLocation(declSpecifierList)) return loc;
-  if (auto loc = cxx::lastSourceLocation(attributes)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   return SourceLocation();
 }
 

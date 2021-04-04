@@ -1469,8 +1469,8 @@ void ASTCloner::visit(SimpleDeclarationAST* ast) {
   auto copy = new (arena_) SimpleDeclarationAST();
   copy_ = copy;
 
-  if (auto it = ast->attributes) {
-    auto out = &copy->attributes;
+  if (auto it = ast->attributeList) {
+    auto out = &copy->attributeList;
 
     for (; it; it = it->next) {
       *out = new (arena_) List(accept(it->value));

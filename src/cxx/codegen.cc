@@ -495,7 +495,7 @@ void Codegen::visit(AliasDeclarationAST* ast) {
 }
 
 void Codegen::visit(SimpleDeclarationAST* ast) {
-  for (auto it = ast->attributes; it; it = it->next) attribute(it->value);
+  for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
   for (auto it = ast->declSpecifierList; it; it = it->next)
     specifier(it->value);
   for (auto it = ast->initDeclaratorList; it; it = it->next)

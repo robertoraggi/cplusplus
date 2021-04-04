@@ -3303,6 +3303,16 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast,
     auto typedefSymbol = symbols->newTypedefSymbol(sem->scope(), decl.name);
     typedefSymbol->setType(decl.type);
     sem->scope()->add(typedefSymbol);
+  } else if (functionDeclarator) {
+    FunctionSymbol* functionSymbol = nullptr;
+    functionSymbol = symbols->newFunctionSymbol(sem->scope(), decl.name);
+    functionSymbol->setType(decl.type);
+    sem->scope()->add(functionSymbol);
+  } else {
+    VariableSymbol* varSymbol = nullptr;
+    varSymbol = symbols->newVariableSymbol(sem->scope(), decl.name);
+    varSymbol->setType(decl.type);
+    sem->scope()->add(varSymbol);
   }
 
   while (match(TokenKind::T_COMMA)) {
@@ -3319,6 +3329,7 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast,
   auto ast = new (pool) SimpleDeclarationAST();
   yyast = ast;
 
+  ast->attributeList = attributes;
   ast->declSpecifierList = declSpecifierList;
   ast->initDeclaratorList = initDeclaratorList;
   ast->semicolonLoc = semicolonLoc;
@@ -4298,6 +4309,16 @@ bool Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
     auto typedefSymbol = symbols->newTypedefSymbol(sem->scope(), decl.name);
     typedefSymbol->setType(decl.type);
     sem->scope()->add(typedefSymbol);
+  } else if (auto functionDeclarator = getFunctionDeclarator(declarator)) {
+    FunctionSymbol* functionSymbol = nullptr;
+    functionSymbol = symbols->newFunctionSymbol(sem->scope(), decl.name);
+    functionSymbol->setType(decl.type);
+    sem->scope()->add(functionSymbol);
+  } else {
+    VariableSymbol* varSymbol = nullptr;
+    varSymbol = symbols->newVariableSymbol(sem->scope(), decl.name);
+    varSymbol->setType(decl.type);
+    sem->scope()->add(varSymbol);
   }
 
   return true;
