@@ -113,8 +113,9 @@ void TranslationUnit::printDiagnostic(const Diagnostic& diag) const {
              diag.column());
 }
 
-bool TranslationUnit::parse() {
+bool TranslationUnit::parse(bool checkTypes) {
   Parser parse(this);
+  parse.setCheckTypes(checkTypes);
   return parse(ast_);
 }
 

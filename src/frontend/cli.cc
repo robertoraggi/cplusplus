@@ -110,7 +110,7 @@ std::vector<CLIOptionDescr> options{
 
     {"-S", "Only run preprocess and compilation steps", &CLI::opt_S},
 
-    {"-c", "Compile and assemble, but do not link."},
+    {"-c", "Compile and assemble, but do not link.", &CLI::opt_c},
 
     {"-o", "<file>", "Place output into <file>.",
      CLIOptionDescrKind::kSeparated},

@@ -136,7 +136,7 @@ class TranslationUnit {
 
   const Identifier* identifier(SourceLocation loc) const;
 
-  bool parse();
+  bool parse(bool checkTypes = false);
 
  private:
   Control* control_;

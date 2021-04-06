@@ -43,6 +43,9 @@ class Parser final {
   Parser(TranslationUnit* unit);
   ~Parser();
 
+  bool checkTypes() const;
+  void setCheckTypes(bool checkTypes);
+
   bool operator()(UnitAST*& ast);
 
   bool parse(UnitAST*& ast);
@@ -114,9 +117,7 @@ class Parser final {
   bool parse_module_keyword();
   bool parse_final();
   bool parse_override();
-  bool parse_class_name(NameAST*& yyast);
   bool parse_name_id(NameAST*& yyast);
-  bool parse_template_name(NameAST*& yyast);
   bool parse_literal(ExpressionAST*& yyast);
   bool parse_translation_unit(UnitAST*& yyast);
   bool parse_module_head();
@@ -271,7 +272,9 @@ class Parser final {
   bool parse_primitive_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs);
   bool parse_type_name(NameAST*& yyast);
   bool parse_elaborated_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs);
-  bool parse_elaborated_enum_specifier(SpecifierAST*& yyast);
+  bool parse_elaborated_type_specifier_helper(
+      ElaboratedTypeSpecifierAST*& yyast, DeclSpecs& specs);
+  bool parse_elaborated_enum_specifier(ElaboratedTypeSpecifierAST*& yyast);
   bool parse_decltype_specifier(SpecifierAST*& yyast);
   bool parse_placeholder_type_specifier(SpecifierAST*& yyast);
   bool parse_init_declarator(InitDeclaratorAST*& yyast, const DeclSpecs& specs);
@@ -466,11 +469,17 @@ class Parser final {
   SymbolFactory* symbols = nullptr;
   TypeEnvironment* types = nullptr;
   std::unique_ptr<Semantics> sem;
-  bool skip_function_body = false;
+  bool skipFunctionBody_ = false;
+  bool checkTypes_ = false;
 
   std::unordered_map<SourceLocation,
                      std::tuple<SourceLocation, ClassSpecifierAST*, bool>>
       class_specifiers_;
+
+  std::unordered_map<
+      SourceLocation,
+      std::tuple<SourceLocation, ElaboratedTypeSpecifierAST*, bool>>
+      elaborated_type_specifiers_;
 
   std::unordered_map<SourceLocation,
                      std::tuple<SourceLocation, TemplateArgumentAST*, bool>>

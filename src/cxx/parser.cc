@@ -88,6 +88,10 @@ Parser::Parser(TranslationUnit* unit) : unit(unit) {
 
 Parser::~Parser() {}
 
+bool Parser::checkTypes() const { return checkTypes_; }
+
+void Parser::setCheckTypes(bool checkTypes) { checkTypes_ = checkTypes; }
+
 Parser::Prec Parser::prec(TokenKind tk) {
   switch (tk) {
     default:
@@ -177,6 +181,7 @@ struct Parser::ClassSpecifierContext {
   Parser* p;
 
   explicit ClassSpecifierContext(Parser* p) : p(p) { ++p->classDepth; }
+
   ~ClassSpecifierContext() {
     if (--p->classDepth == 0) p->completePendingFunctionDefinitions();
   }
@@ -270,7 +275,7 @@ bool Parser::parse_final() { return parse_id(final_id); }
 
 bool Parser::parse_override() { return parse_id(override_id); }
 
-bool Parser::parse_class_name(NameAST*& yyast) {
+bool Parser::parse_type_name(NameAST*& yyast) {
   const auto start = currentLocation();
 
   if (parse_simple_template_id(yyast)) return true;
@@ -289,12 +294,6 @@ bool Parser::parse_name_id(NameAST*& yyast) {
   yyast = ast;
 
   ast->identifierLoc = identifierLoc;
-
-  return true;
-}
-
-bool Parser::parse_template_name(NameAST*& yyast) {
-  if (!parse_name_id(yyast)) return false;
 
   return true;
 }
@@ -546,6 +545,21 @@ bool Parser::parse_primary_expression(ExpressionAST*& yyast) {
   Semantics::NameSem nameSem;
 
   sem->name(ast->name, &nameSem);
+
+  if (checkTypes_ && nameSem.name) {
+    ast->symbol = sem->scope()->unqualifiedLookup(nameSem.name);
+
+    if (!ast->symbol)
+      parse_warn(ast->name->firstSourceLocation(), "undefined symbol '{}'",
+                 *nameSem.name);
+    else {
+#if 0
+      parse_warn(ast->name->firstSourceLocation(),
+                 "'{}' resolved to '{}' with type '{}'", *nameSem.name,
+                 typeid(*ast->symbol).name(), ast->symbol->type());
+#endif
+    }
+  }
 
   return true;
 }
@@ -3200,6 +3214,30 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast,
 
   after_decl_specs = currentLocation();
 
+  for (auto it = declSpecifierList; it; it = it->next) {
+    if (auto elaboratedTypeSpec =
+            dynamic_cast<ElaboratedTypeSpecifierAST*>(it->value)) {
+      if (!elaboratedTypeSpec->symbol) {
+        auto classKey = unit->tokenKind(elaboratedTypeSpec->classLoc);
+
+        Semantics::NameSem nameSem;
+        sem->name(elaboratedTypeSpec->name, &nameSem);
+
+        if (classKey == TokenKind::T_ENUM) {
+          auto enumSymbol = symbols->newEnumSymbol(sem->scope(), nameSem.name);
+          enumSymbol->setType(QualifiedType(types->enumType(enumSymbol)));
+          sem->scope()->add(enumSymbol);
+        } else {
+          auto classSymbol =
+              symbols->newClassSymbol(sem->scope(), nameSem.name);
+          classSymbol->setType(QualifiedType(types->classType(classSymbol)));
+          sem->scope()->add(classSymbol);
+        }
+      }
+      break;
+    }
+  }
+
   if (specs.has_complex_typespec &&
       match(TokenKind::T_SEMICOLON, semicolonLoc)) {
     auto ast = new (pool) SimpleDeclarationAST();
@@ -3846,35 +3884,14 @@ bool Parser::parse_named_type_specifier_helper(SpecifierAST*& yyast,
     SourceLocation templateLoc;
     NameAST* name = nullptr;
 
-    if (match(TokenKind::T_TEMPLATE, templateLoc) &&
-        parse_simple_template_id(name)) {
+    match(TokenKind::T_TEMPLATE, templateLoc);
+
+    if (parse_type_name(name)) {
       auto qualifiedId = new (pool) QualifiedNameAST();
       qualifiedId->nestedNameSpecifier = nestedNameSpecifier;
       qualifiedId->templateLoc = templateLoc;
       qualifiedId->id = name;
 
-      auto ast = new (pool) NamedTypeSpecifierAST();
-      yyast = ast;
-
-      ast->name = name;
-
-      return true;
-    }
-
-    rewind(after_nested_name_specifier);
-
-    if (parse_type_name(name)) {
-      auto ast = new (pool) NamedTypeSpecifierAST();
-      yyast = ast;
-
-      ast->name = name;
-
-      return true;
-    }
-
-    rewind(after_nested_name_specifier);
-
-    if (parse_template_name(name)) {
       auto ast = new (pool) NamedTypeSpecifierAST();
       yyast = ast;
 
@@ -3888,26 +3905,28 @@ bool Parser::parse_named_type_specifier_helper(SpecifierAST*& yyast,
 
   NameAST* name = nullptr;
 
-  if (parse_type_name(name)) {
-    auto ast = new (pool) NamedTypeSpecifierAST();
-    yyast = ast;
+  if (!parse_type_name(name)) return false;
 
-    ast->name = name;
-    return true;
+  Semantics::NameSem nameSem;
+
+  sem->name(name, &nameSem);
+
+  Symbol* typeSymbol = nullptr;
+
+  if (checkTypes_) {
+    typeSymbol =
+        sem->scope()->unqualifiedLookup(nameSem.name, LookupOptions::kType);
+
+    if (!typeSymbol) return false;
   }
 
-  rewind(start);
+  auto ast = new (pool) NamedTypeSpecifierAST();
+  yyast = ast;
 
-  if (parse_template_name(name)) {
-    auto ast = new (pool) NamedTypeSpecifierAST();
-    yyast = ast;
+  ast->name = name;
+  ast->symbol = typeSymbol;
 
-    ast->name = name;
-
-    return true;
-  }
-
-  return false;
+  return true;
 }
 
 bool Parser::parse_placeholder_type_specifier_helper(SpecifierAST*& yyast,
@@ -4039,25 +4058,53 @@ bool Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
   }  // switch
 }
 
-bool Parser::parse_type_name(NameAST*& yyast) {
-  const auto start = currentLocation();
-
-#if 0
-  SourceLocation identifierLoc;
-
-  if (LA().is(TokenKind::T_IDENTIFIER) && LA(1).isNot(TokenKind::T_LESS)) {
-    auto identifierLoc = consumeToken();
-    auto id = unit->identifier(identifierLoc);
-    // ### TODO resolve typedef and enum types.
-    rewind(start);
-  }
-#endif
-
-  return parse_class_name(yyast);
-}
-
 bool Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
                                              DeclSpecs& specs) {
+  switch (TokenKind(LA())) {
+    case TokenKind::T_ENUM:
+    case TokenKind::T_CLASS:
+    case TokenKind::T_STRUCT:
+    case TokenKind::T_UNION:
+      break;
+    default:
+      return false;
+  }  // switch
+
+  const auto start = currentLocation();
+
+  auto it = elaborated_type_specifiers_.find(start);
+
+  if (it != elaborated_type_specifiers_.end()) {
+    auto [cursor, ast, parsed] = it->second;
+    rewind(cursor);
+    yyast = ast;
+    if (parsed) specs.has_complex_typespec = true;
+    return parsed;
+  }
+
+  ElaboratedTypeSpecifierAST* ast = nullptr;
+
+  const auto parsed = parse_elaborated_type_specifier_helper(ast, specs);
+
+  yyast = ast;
+
+  if (checkTypes_ && parsed && !ast->nestedNameSpecifier) {
+    Semantics::NameSem nameSem;
+
+    sem->name(ast->name, &nameSem);
+
+    ast->symbol =
+        sem->scope()->unqualifiedLookup(nameSem.name, LookupOptions::kType);
+  }
+
+  elaborated_type_specifiers_.emplace(
+      start, std::tuple(currentLocation(), ast, parsed));
+
+  return parsed;
+}
+
+bool Parser::parse_elaborated_type_specifier_helper(
+    ElaboratedTypeSpecifierAST*& yyast, DeclSpecs& specs) {
   // ### cleanup
 
   if (LA().is(TokenKind::T_ENUM)) return parse_elaborated_enum_specifier(yyast);
@@ -4167,8 +4214,11 @@ bool Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
   return true;
 }
 
-bool Parser::parse_elaborated_enum_specifier(SpecifierAST*& yyast) {
-  if (!match(TokenKind::T_ENUM)) return false;
+bool Parser::parse_elaborated_enum_specifier(
+    ElaboratedTypeSpecifierAST*& yyast) {
+  SourceLocation enumLoc;
+
+  if (!match(TokenKind::T_ENUM, enumLoc)) return false;
 
   const auto saved = currentLocation();
 
@@ -4176,7 +4226,16 @@ bool Parser::parse_elaborated_enum_specifier(SpecifierAST*& yyast) {
 
   if (!parse_nested_name_specifier(nestedNameSpecifier)) rewind(saved);
 
-  if (!match(TokenKind::T_IDENTIFIER)) return false;
+  NameAST* name = nullptr;
+
+  if (!parse_name_id(name)) return false;
+
+  auto ast = new (pool) ElaboratedTypeSpecifierAST();
+  yyast = ast;
+
+  ast->classLoc = enumLoc;
+  ast->nestedNameSpecifier = nestedNameSpecifier;
+  ast->name = name;
 
   return true;
 }
@@ -5227,7 +5286,7 @@ bool Parser::parse_function_body(FunctionBodyAST*& yyast) {
 
   ast->ctorInitializer = ctorInitializer;
 
-  const bool skip = skip_function_body || classDepth > 0;
+  const bool skip = skipFunctionBody_ || classDepth > 0;
 
   if (!parse_compound_statement(ast->statement, skip))
     parse_error("expected a compound statement");
@@ -5494,7 +5553,7 @@ bool Parser::parse_enumerator(EnumeratorAST*& yyast) {
 bool Parser::parse_using_enum_declaration(DeclarationAST*& yyast) {
   if (!match(TokenKind::T_USING)) return false;
 
-  SpecifierAST* enumSpecifier = nullptr;
+  ElaboratedTypeSpecifierAST* enumSpecifier = nullptr;
 
   if (!parse_elaborated_enum_specifier(enumSpecifier)) return false;
 
@@ -6238,9 +6297,21 @@ bool Parser::parse_class_specifier(SpecifierAST*& yyast) {
 
   ClassSymbol* classSymbol = nullptr;
 
-  classSymbol = symbols->newClassSymbol(sem->scope(), nameSem.name);
-  classSymbol->setType(QualifiedType(types->classType(classSymbol)));
-  sem->scope()->add(classSymbol);
+  for (auto s = sem->scope()->find(nameSem.name); s; s = s->next()) {
+    if (s->name() != nameSem.name) continue;
+    if (auto symbol = dynamic_cast<ClassSymbol*>(s)) {
+      if (!symbol->isDefined()) classSymbol = symbol;
+      break;
+    }
+  }
+
+  if (!classSymbol) {
+    classSymbol = symbols->newClassSymbol(sem->scope(), nameSem.name);
+    classSymbol->setType(QualifiedType(types->classType(classSymbol)));
+    sem->scope()->add(classSymbol);
+  }
+
+  classSymbol->setDefined(true);
 
   auto ast = new (pool) ClassSpecifierAST();
   yyast = ast;
@@ -6320,7 +6391,7 @@ bool Parser::parse_class_head_name(NameAST*& yyast) {
 
   NameAST* name = nullptr;
 
-  if (!parse_class_name(name)) return false;
+  if (!parse_type_name(name)) return false;
 
   if (!nestedNameSpecifier) yyast = name;
 
@@ -7278,6 +7349,20 @@ bool Parser::parse_type_constraint() {
     return false;
   }
 
+  if (checkTypes_) {
+    Semantics::NameSem nameSem;
+
+    sem->name(name, &nameSem);
+
+    auto conceptSymbol = dynamic_cast<ConceptSymbol*>(
+        sem->scope()->unqualifiedLookup(nameSem.name, LookupOptions::kType));
+
+    if (!conceptSymbol) {
+      rewind(start);
+      return false;
+    }
+  }
+
   SourceLocation lessLoc;
 
   if (match(TokenKind::T_LESS, lessLoc)) {
@@ -7303,9 +7388,12 @@ bool Parser::parse_type_constraint() {
 }
 
 bool Parser::parse_simple_template_id(NameAST*& yyast) {
+  if (LA().isNot(TokenKind::T_IDENTIFIER) || LA(1).isNot(TokenKind::T_LESS))
+    return false;
+
   NameAST* name = nullptr;
 
-  if (!parse_template_name(name)) return false;
+  if (!parse_name_id(name)) return false;
 
   SourceLocation lessLoc;
 
@@ -7480,7 +7568,7 @@ bool Parser::parse_deduction_guide(DeclarationAST*& yyast) {
 
   NameAST* name = nullptr;
 
-  if (!parse_template_name(name)) return false;
+  if (!parse_name_id(name)) return false;
 
   if (!match(TokenKind::T_LPAREN)) return false;
 
@@ -7516,6 +7604,16 @@ bool Parser::parse_concept_definition(DeclarationAST*& yyast) {
   ast->conceptLoc = conceptLoc;
 
   if (!parse_concept_name(ast->name)) parse_error("expected a concept name");
+
+  Semantics::NameSem nameSem;
+
+  sem->name(ast->name, &nameSem);
+
+  ConceptSymbol* conceptSymbol = nullptr;
+
+  conceptSymbol = symbols->newConceptSymbol(sem->scope(), nameSem.name);
+  conceptSymbol->setType(QualifiedType(types->conceptType(conceptSymbol)));
+  sem->scope()->add(conceptSymbol);
 
   expect(TokenKind::T_EQUAL, ast->equalLoc);
 

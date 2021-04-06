@@ -2254,6 +2254,7 @@ class NamedTypeSpecifierAST final : public SpecifierAST {
   NamedTypeSpecifierAST() : SpecifierAST(ASTKind::NamedTypeSpecifier) {}
 
   NameAST* name = nullptr;
+  Symbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2296,6 +2297,7 @@ class ElaboratedTypeSpecifierAST final : public SpecifierAST {
   List<AttributeAST*>* attributeList = nullptr;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   NameAST* name = nullptr;
+  Symbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

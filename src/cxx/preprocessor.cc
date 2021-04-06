@@ -1524,6 +1524,7 @@ void Preprocessor::addSystemCppIncludePaths() {
 void Preprocessor::addPredefinedMacros() {
   // clang-format off
   defineMacro("__extension__", "");
+  defineMacro("__null", "nullptr");
   defineMacro("__signed__", "signed");
   defineMacro("_Pragma(x)", "");
   defineMacro("__amd64", "1");

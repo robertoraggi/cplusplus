@@ -2107,6 +2107,8 @@ void ASTCloner::visit(NamedTypeSpecifierAST* ast) {
   copy_ = copy;
 
   copy->name = accept(ast->name);
+
+  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(AtomicTypeSpecifierAST* ast) {
@@ -2145,6 +2147,8 @@ void ASTCloner::visit(ElaboratedTypeSpecifierAST* ast) {
   copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
 
   copy->name = accept(ast->name);
+
+  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(DecltypeAutoSpecifierAST* ast) {

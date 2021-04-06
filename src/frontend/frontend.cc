@@ -134,7 +134,7 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
 
   preprocesor->squeeze();
 
-  const auto result = unit.parse();
+  const auto result = unit.parse(cli.checkTypes());
 
   if (cli.opt_ast_dump) {
     ASTPrinter print(&unit);

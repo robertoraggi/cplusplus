@@ -48,7 +48,7 @@ void Scope::setOwner(Symbol* owner) { owner_ = owner; }
 
 void Scope::add(Symbol* symbol) {
   members_.push_back(symbol);
-  if (2 * members_.size() > 3 * buckets_.size()) {
+  if (3 * members_.size() > 2 * buckets_.size()) {
     rehash();
   } else {
     const auto h = hashName(symbol->name()) % buckets_.size();
@@ -68,7 +68,7 @@ void Scope::rehash() {
 }
 
 Symbol* Scope::find(const Name* name, LookupOptions lookupOptions) const {
-  if (members_.size()) {
+  if (name && members_.size()) {
     const auto h = hashName(name) % buckets_.size();
 
     for (auto symbol = buckets_[h]; symbol; symbol = symbol->next()) {

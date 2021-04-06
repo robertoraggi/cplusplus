@@ -966,6 +966,9 @@ void Semantics::visit(ComplexTypeSpecifierAST* ast) {}
 void Semantics::visit(NamedTypeSpecifierAST* ast) {
   NameSem name;
   this->name(ast->name, &name);
+  if (ast->symbol) {
+    specifiers_->type.mergeWith(ast->symbol->type());
+  }
 }
 
 void Semantics::visit(AtomicTypeSpecifierAST* ast) { typeId(ast->typeId); }
@@ -977,6 +980,11 @@ void Semantics::visit(ElaboratedTypeSpecifierAST* ast) {
   nestedNameSpecifier(ast->nestedNameSpecifier);
   NameSem name;
   this->name(ast->name, &name);
+  if (auto classSymbol = dynamic_cast<ClassSymbol*>(ast->symbol)) {
+    specifiers_->type.setType(types_->classType(classSymbol));
+  } else if (auto enumSymbol = dynamic_cast<EnumSymbol*>(ast->symbol)) {
+    specifiers_->type.setType(types_->enumType(enumSymbol));
+  }
 }
 
 void Semantics::visit(DecltypeAutoSpecifierAST* ast) {}

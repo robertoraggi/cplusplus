@@ -120,9 +120,13 @@ class ClassSymbol final : public TypeSymbol {
   const std::vector<ClassSymbol*>& baseClasses() const { return baseClasses_; }
   void addBaseClass(ClassSymbol* baseClass);
 
+  bool isDefined() const { return isDefined_; }
+  void setDefined(bool isDefined) { isDefined_ = isDefined; }
+
  private:
   std::unique_ptr<Scope> scope_;
   std::vector<ClassSymbol*> baseClasses_;
+  bool isDefined_ = false;
 };
 
 class TypedefSymbol final : public TypeSymbol {

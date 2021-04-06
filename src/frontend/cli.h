@@ -59,6 +59,9 @@ class CLI {
   bool opt_nostdinc = false;
   bool opt_nostdincpp = false;
   bool opt_S = false;
+  bool opt_c = false;
+
+  bool checkTypes() const { return opt_S || opt_c; }
 
   void parse(int& argc, char**& argv);
 
