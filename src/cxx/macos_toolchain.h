@@ -20,53 +20,19 @@
 
 #pragma once
 
-#include <cxx/cxx_fwd.h>
+#include <cxx/toolchain.h>
 
-#include <iosfwd>
-#include <memory>
 #include <string>
-#include <string_view>
-#include <vector>
 
 namespace cxx {
 
-class Token;
-
-class Preprocessor {
+class MacOSToolchain final : public Toolchain {
  public:
-  Preprocessor(Preprocessor &&) noexcept = default;
-  Preprocessor &operator=(Preprocessor &&) noexcept = default;
+  using Toolchain::Toolchain;
 
-  explicit Preprocessor(Control *control);
-  ~Preprocessor();
-
-  void operator()(std::string source, std::string fileName, std::ostream &out);
-
-  void preprocess(std::string source, std::string fileName, std::ostream &out);
-
-  void preprocess(std::string source, std::string fileName,
-                  std::vector<Token> &tokens);
-
-  void addSystemIncludePath(const std::string &path);
-
-  void defineMacro(const std::string &name, const std::string &body);
-
-  void printMacros(std::ostream &out) const;
-
-  void getTokenStartPosition(const Token &token, unsigned *line,
-                             unsigned *column,
-                             std::string_view *fileName) const;
-
-  void getTokenEndPosition(const Token &token, unsigned *line, unsigned *column,
-                           std::string_view *fileName) const;
-
-  std::string_view getTextLine(const Token &token) const;
-
-  void squeeze();
-
- private:
-  struct Private;
-  std::unique_ptr<Private> d;
+  void addSystemIncludePaths() override;
+  void addSystemCppIncludePaths() override;
+  void addPredefinedMacros() override;
 };
 
 }  // namespace cxx

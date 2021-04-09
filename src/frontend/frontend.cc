@@ -24,7 +24,9 @@
 #include <cxx/ast_visitor.h>
 #include <cxx/codegen.h>
 #include <cxx/control.h>
+#include <cxx/gcc_linux_toolchain.h>
 #include <cxx/lexer.h>
+#include <cxx/macos_toolchain.h>
 #include <cxx/preprocessor.h>
 #include <cxx/recursive_ast_visitor.h>
 #include <cxx/translation_unit.h>
@@ -93,9 +95,21 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
 
   auto preprocesor = unit.preprocessor();
 
-  if (!cli.opt_nostdinc) preprocesor->addSystemIncludePaths();
-  if (!cli.opt_nostdincpp) preprocesor->addSystemCppIncludePaths();
-  preprocesor->addPredefinedMacros();
+  std::unique_ptr<Toolchain> toolchain;
+
+#if defined(__APPLE__)
+  toolchain = std::make_unique<MacOSToolchain>(preprocesor);
+#elif defined(__linux__)
+  toolchain = std::make_unique<GCCLinuxToolchain>(preprocesor);
+#endif
+
+  if (toolchain) {
+    if (!cli.opt_nostdinc) toolchain->addSystemIncludePaths();
+
+    if (!cli.opt_nostdincpp) toolchain->addSystemCppIncludePaths();
+
+    toolchain->addPredefinedMacros();
+  }
 
   for (const auto& path : cli.get("-I")) {
     preprocesor->addSystemIncludePath(path);
