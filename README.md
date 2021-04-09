@@ -1,8 +1,65 @@
-# cxx-frontend
+# A Compiler Frontend for C++
 
-A parser for C++20.
+This repository contains a _work in progress_ compiler frontend for C++ 20.
 
-# Usage
+## Build
+
+On Linux, macOS and Windows:
+
+```sh
+# configure cxx-frontend
+cmake . \
+ -G Ninja \
+ -B build \
+ -DCMAKE_BUILD_TYPE=Release \
+ -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=1
+
+# build cxx-frontend
+cmake --build build
+```
+
+## Dump the AST
+
+Use `-ast-dump` to dump the AST of a C++ program.
+
+```sh
+echo 'int main() { auto f = []{ return 1; }; return f(); }' |
+  ./build/cxx-frontend  -ast-dump -
+```
+
+## Build the JavaScript library using emscripten
+
+```sh
+# configure cxx-frontend
+emcmake cmake . \
+  -B build.em \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=1 \
+  -DCMAKE_CROSSCOMPILING_EMULATOR=$(which node)
+
+# build cxx-frontend
+cmake --build build.em
+```
+
+## Build the npm package
+
+```sh
+cd packages/cxx-frontend
+
+# install the npm dependencies
+npm install
+
+# copy the cxx-js WASM library to the dist folder.
+npm run copy
+
+# compile the source code.
+npm run build
+
+# build the package.
+npm pack
+```
+
+## Use the JavaScript API
 
 ```js
 const { Parser, RecursiveASTVisitor, ASTKind } = require("cxx-frontend");
@@ -45,39 +102,4 @@ class DumpAST extends RecursiveASTVisitor {
 parser.getAST().accept(new DumpAST());
 
 parser.dispose();
-```
-
-# Build the library
-
-```sh
-mkdir -p build.em
-
-# configure the project
-emcmake cmake -Bbuild.em \
-    -DCMAKE_EXPORT_COMPILE_COMMANDS=1 \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=1 \
-    -DCMAKE_CROSSCOMPILING_EMULATOR=$(which node) \
-    .
-
-# build
-cmake --build build.em
-```
-
-# Build the npm package
-
-```sh
-cd packages/cxx-frontend
-
-# install the npm dependencies
-npm install
-
-# copy the cxx-js WASM library to the dist folder.
-npm run copy
-
-# compile the source code.
-npm run build
-
-# build the package.
-npm pack
 ```
