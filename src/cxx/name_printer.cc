@@ -18,14 +18,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/name_printer.h>
 #include <cxx/names.h>
-#include <cxx/print_name.h>
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 
 namespace cxx {
 
-void PrintName::operator()(const Name* name, std::ostream& out) {
+void NamePrinter::operator()(const Name* name, std::ostream& out) {
   if (!name) return;
   auto o = &out;
   std::swap(out_, o);
@@ -33,20 +33,20 @@ void PrintName::operator()(const Name* name, std::ostream& out) {
   std::swap(out_, o);
 }
 
-void PrintName::accept(const Name* name) {
+void NamePrinter::accept(const Name* name) {
   if (!name) return;
   name->accept(this);
 }
 
-void PrintName::visit(const Identifier* name) {
+void NamePrinter::visit(const Identifier* name) {
   fmt::print(*out_, "{}", name->name());
 }
 
-void PrintName::visit(const OperatorNameId* name) {
+void NamePrinter::visit(const OperatorNameId* name) {
   fmt::print(*out_, "operator {}", Token::spell(name->op()));
 }
 
-void PrintName::visit(const ConversionNameId* name) {
+void NamePrinter::visit(const ConversionNameId* name) {
   fmt::print(*out_, "operator {}", name->type());
 }
 

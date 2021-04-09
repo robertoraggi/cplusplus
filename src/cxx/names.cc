@@ -18,13 +18,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/name_printer.h>
 #include <cxx/names.h>
-#include <cxx/print_name.h>
 
 namespace cxx {
 
 namespace {
-PrintName printName;
+NamePrinter printName;
 }
 
 Name::~Name() {}
