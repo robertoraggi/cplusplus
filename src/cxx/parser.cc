@@ -592,24 +592,28 @@ bool Parser::parse_maybe_template_id(NameAST*& yyast) {
   if (!template_id) return false;
   switch (TokenKind(tk)) {
     case TokenKind::T_COMMA:
-    case TokenKind::T_GREATER:
     case TokenKind::T_LPAREN:
     case TokenKind::T_RPAREN:
-    case TokenKind::T_STAR:
-    case TokenKind::T_AMP:
-    case TokenKind::T_AMP_AMP:
-    case TokenKind::T_BAR_BAR:
     case TokenKind::T_COLON_COLON:
     case TokenKind::T_DOT_DOT_DOT:
     case TokenKind::T_QUESTION:
     case TokenKind::T_LBRACE:
     case TokenKind::T_RBRACE:
+    case TokenKind::T_LBRACKET:
+    case TokenKind::T_RBRACKET:
     case TokenKind::T_SEMICOLON:
       return true;
 
-    default:
+    default: {
+      SourceLocation loc;
+      TokenKind tk = TokenKind::T_EOF_SYMBOL;
+      ExprContext ctx;
+      if (parse_lookahead_binary_operator(loc, tk, ctx)) {
+        return true;
+      }
       yyast = nullptr;
       return false;
+    }
   }  // switch
 }
 
