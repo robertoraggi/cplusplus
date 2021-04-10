@@ -1,0 +1,424 @@
+// Copyright (c) 2021 Roberto Raggi <roberto.raggi@gmail.com>
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+#pragma once
+
+#include <cxx/ir_fwd.h>
+#include <cxx/symbols_fwd.h>
+
+#include <list>
+#include <string>
+#include <vector>
+
+namespace cxx::ir {
+
+class Module final {
+ public:
+  Module() = default;
+
+  std::list<Global*>& globals() { return globals_; }
+  const std::list<Global*>& globals() const { return globals_; }
+
+  std::list<Function*>& functions() { return functions_; }
+  const std::list<Function*>& functions() const { return functions_; }
+
+ private:
+  std::list<Global*> globals_;
+  std::list<Function*> functions_;
+};
+
+class Global final {
+ public:
+  explicit Global(Module* module) : module_(module) {}
+
+  Module* module() const { return module_; }
+
+ private:
+  Module* module_;
+};
+
+class Function final {
+ public:
+  explicit Function(Module* module) : module_(module) {}
+
+  Module* module() const { return module_; }
+
+  std::list<Block*>& blocks() { return blocks_; }
+  const std::list<Block*>& blocks() const { return blocks_; }
+
+ private:
+  Module* module_;
+  std::list<Block*> blocks_;
+};
+
+class Block final {
+ public:
+  Block() = default;
+
+  std::list<Stmt*>& code() { return code_; }
+  const std::list<Stmt*>& code() const { return code_; }
+
+ private:
+  std::list<Stmt*> code_;
+};
+
+class Stmt {
+ public:
+  Stmt() = default;
+  virtual ~Stmt() = default;
+};
+
+class Expr : public Stmt {
+ public:
+  Expr() = default;
+};
+
+class Jump final : public Stmt {
+ public:
+  explicit Jump(Block* target) : target_(target) {}
+
+  Block* target() const { return target_; }
+
+ private:
+  Block* target_ = nullptr;
+};
+
+class CondJump final : public Stmt {
+ public:
+  CondJump(Expr* condition, Block* iftrue, Block* iffalse)
+      : condition_(condition), iftrue_(iftrue), iffalse_(iffalse) {}
+
+  Expr* condition() const { return condition_; }
+  Block* iftrue() const { return iftrue_; }
+  Block* iffalse() const { return iffalse_; }
+
+ private:
+  Expr* condition_;
+  Block* iftrue_;
+  Block* iffalse_;
+};
+
+class Ret final : public Stmt {
+ public:
+  explicit Ret(Expr* result) : result_(result) {}
+
+  Expr* result() const { return result_; }
+
+ private:
+  Expr* result_;
+};
+
+class RetVoid final : public Stmt {
+ public:
+  RetVoid() = default;
+};
+
+class This final : public Expr {
+ public:
+  explicit This(Expr* type) : type_(type) {}
+
+  Expr* type() const { return type_; }
+
+ private:
+  Expr* type_;
+};
+
+class BoolLiteral final : public Expr {
+ public:
+  explicit BoolLiteral(bool value) : value_(value) {}
+
+  bool value() const { return value_; }
+
+ private:
+  bool value_;
+};
+
+class IntegerLiteral final : public Expr {
+ public:
+  explicit IntegerLiteral(const IntegerValue& value) : value_(value) {}
+
+  IntegerValue value() { return value_; }
+
+ private:
+  IntegerValue value_;
+};
+
+class FloatLiteral final : public Expr {
+ public:
+  explicit FloatLiteral(const FloatValue& value) : value_(value) {}
+
+  FloatValue value() const { return value_; }
+
+ private:
+  FloatValue value_;
+};
+
+class NullptrLiteral final : public Expr {
+ public:
+  NullptrLiteral() {}
+};
+
+class StringLiteral final : public Expr {
+ public:
+  explicit StringLiteral(std::string value) : value_(std::move(value)) {}
+
+  const std::string& value() const { return value_; }
+
+ private:
+  std::string value_;
+};
+
+class UserDefinedStringLiteral final : public Expr {
+ public:
+  explicit UserDefinedStringLiteral(std::string value)
+      : value_(std::move(value)) {}
+
+  const std::string& value() const { return value_; }
+
+ private:
+  std::string value_;
+};
+
+class Id final : public Expr {
+ public:
+  explicit Id(Symbol* symbol) : symbol_(symbol) {}
+
+  Symbol* symbol() const { return symbol_; }
+
+ private:
+  Symbol* symbol_;
+};
+
+class ExternalId final : public Expr {
+ public:
+  explicit ExternalId(std::string name) : name_(std::move(name)) {}
+
+  const std::string& name() const { return name_; }
+
+ private:
+  std::string name_;
+};
+
+class Sizeof final : public Expr {
+ public:
+  explicit Sizeof(Expr* expr) : expr_(expr) {}
+
+  Expr* expr() const { return expr_; }
+
+ private:
+  Expr* expr_;
+};
+
+class Typeid final : public Expr {
+ public:
+  explicit Typeid(Expr* expr) : expr_(expr) {}
+
+  Expr* expr() const { return expr_; }
+
+ private:
+  Expr* expr_;
+};
+
+class Alignof final : public Expr {
+ public:
+  explicit Alignof(Expr* expr) : expr_(expr) {}
+
+  Expr* expr() const { return expr_; }
+
+ private:
+  Expr* expr_;
+};
+
+class Unary final : public Expr {
+ public:
+  Unary(UnaryOp op, Expr* expr) : op_(op), expr_(expr) {}
+
+  UnaryOp op() const { return op_; }
+  Expr* expr() const { return expr_; }
+
+ private:
+  UnaryOp op_;
+  Expr* expr_;
+};
+
+class Binary final : public Expr {
+ public:
+  Binary(BinaryOp op, Expr* left, Expr* right)
+      : op_(op), left_(left), right_(right) {}
+
+  BinaryOp op() const { return op_; }
+  Expr* left() const { return left_; }
+  Expr* right() const { return right_; }
+
+ private:
+  BinaryOp op_;
+  Expr* left_;
+  Expr* right_;
+};
+
+class Assignment final : public Expr {
+ public:
+  Assignment(BinaryOp op, Expr* left, Expr* right)
+      : op_(op), left_(left), right_(right) {}
+
+  BinaryOp op() const { return op_; }
+  Expr* left() const { return left_; }
+  Expr* right() const { return right_; }
+
+ private:
+  BinaryOp op_;
+  Expr* left_;
+  Expr* right_;
+};
+
+class Call final : public Expr {
+ public:
+  Call(Expr* base, std::vector<Expr*> args)
+      : base_(base), args_(std::move(args)) {}
+
+  Expr* base() const { return base_; }
+  const std::vector<Expr*>& args() const { return args_; }
+
+ private:
+  Expr* base_;
+  std::vector<Expr*> args_;
+};
+
+class Subscript final : public Expr {
+ public:
+  Subscript(Expr* base, Expr* index) : base_(base), index_(index) {}
+
+  Expr* base() const { return base_; }
+  Expr* index() const { return index_; }
+
+ private:
+  Expr* base_;
+  Expr* index_;
+};
+
+class Access final : public Expr {
+ public:
+  Access(Expr* base, Expr* member) : base_(base), member_(member) {}
+
+  Expr* base() const { return base_; }
+  Expr* member() const { return member_; }
+
+ private:
+  Expr* base_;
+  Expr* member_;
+};
+
+class Cast final : public Expr {
+ public:
+  Cast(Expr* type, Expr* expr) : type_(type), expr_(expr) {}
+
+  Expr* type() const { return type_; }
+  Expr* expr() const { return expr_; }
+
+ private:
+  Expr* type_;
+  Expr* expr_;
+};
+
+class StaticCast final : public Expr {
+ public:
+  StaticCast(Expr* type, Expr* expr) : type_(type), expr_(expr) {}
+
+  Expr* type() const { return type_; }
+  Expr* expr() const { return expr_; }
+
+ private:
+  Expr* type_;
+  Expr* expr_;
+};
+
+class DynamicCast final : public Expr {
+ public:
+  DynamicCast(Expr* type, Expr* expr) : type_(type), expr_(expr) {}
+
+  Expr* type() const { return type_; }
+  Expr* expr() const { return expr_; }
+
+ private:
+  Expr* type_;
+  Expr* expr_;
+};
+
+class ReinterpretCast final : public Expr {
+ public:
+  ReinterpretCast(Expr* type, Expr* expr) : type_(type), expr_(expr) {}
+
+  Expr* type() const { return type_; }
+  Expr* expr() const { return expr_; }
+
+ private:
+  Expr* type_;
+  Expr* expr_;
+};
+
+class New final : public Expr {
+ public:
+  New(Expr* type, std::vector<Expr*> args)
+      : type_(type), args_(std::move(args)) {}
+
+  Expr* type() const { return type_; }
+  const std::vector<Expr*>& args() const { return args_; }
+
+ private:
+  Expr* type_;
+  std::vector<Expr*> args_;
+};
+
+class NewArray final : public Expr {
+ public:
+  NewArray(Expr* type, Expr* size, std::vector<Expr*> args)
+      : type_(type), size_(size), args_(std::move(args)) {}
+
+  Expr* type() const { return type_; }
+  Expr* size() const { return size_; }
+  const std::vector<Expr*>& args() const { return args_; }
+
+ private:
+  Expr* type_;
+  Expr* size_;
+  std::vector<Expr*> args_;
+};
+
+class Delete final : public Expr {
+ public:
+  explicit Delete(Expr* expr) : expr_(expr) {}
+
+  Expr* expr() const { return expr_; }
+
+ private:
+  Expr* expr_;
+};
+
+class Throw final : public Expr {
+ public:
+  explicit Throw(Expr* expr) : expr_(expr) {}
+
+  Expr* expr() const { return expr_; }
+
+ private:
+  Expr* expr_;
+};
+
+}  // namespace cxx::ir
