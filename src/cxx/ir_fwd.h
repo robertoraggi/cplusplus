@@ -20,8 +20,6 @@
 
 #pragma once
 
-#include <cxx/ast_fwd.h>
-
 #include <cstdint>
 #include <variant>
 
@@ -33,6 +31,8 @@ class Function;
 class Block;
 class Stmt;
 class Expr;
+
+class IRVisitor;
 
 // statements
 class Jump;
@@ -66,6 +66,7 @@ class ReinterpretCast;
 class New;
 class NewArray;
 class Delete;
+class DeleteArray;
 class Throw;
 
 using IntegerValue =
@@ -74,10 +75,50 @@ using IntegerValue =
 
 using FloatValue = std::variant<float, double, long double>;
 
-enum class UnaryOp {};
+enum class UnaryOp {
+  kStar,
+  kAmp,
+  kPlus,
+  kMinus,
+  kExclaim,
+  kTilde,
+  kPlusPlus,
+  kMinusMinus,
+  kPostPlusPlus,
+  kPostMinusMinus,
+};
 
-enum class BinaryOp {};
+enum class BinaryOp {
+  kStar,
+  kSlash,
+  kPercent,
+  kPlus,
+  kMinus,
+  kGreaterGreater,
+  kLessLess,
+  kGreater,
+  kLess,
+  kGreaterEqual,
+  kLessEqual,
+  kEqualEqual,
+  kExclaimEqual,
+  kAmp,
+  kCaret,
+  kBar
+};
 
-enum class AssignmentOp {};
+enum class AssignmentOp {
+  kEqual,
+  kStarEqual,
+  kSlashEqual,
+  kPercentEqual,
+  kPlusEqual,
+  kMinusEqual,
+  kGreaterGreaterEqual,
+  kLessLessEqual,
+  kAmpEqual,
+  kCaretEqual,
+  kBarEqual,
+};
 
 }  // namespace cxx::ir

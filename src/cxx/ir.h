@@ -46,36 +46,47 @@ class Module final {
 
 class Global final {
  public:
-  explicit Global(Module* module) : module_(module) {}
+  explicit Global(Module* module, Symbol* symbol)
+      : module_(module), symbol_(symbol) {}
 
   Module* module() const { return module_; }
+  Symbol* symbol() const { return symbol_; }
 
  private:
   Module* module_;
+  Symbol* symbol_;
 };
 
 class Function final {
  public:
-  explicit Function(Module* module) : module_(module) {}
+  Function(Module* module, FunctionSymbol* symbol)
+      : module_(module), symbol_(symbol) {}
 
   Module* module() const { return module_; }
+  FunctionSymbol* symbol() const { return symbol_; }
 
   std::list<Block*>& blocks() { return blocks_; }
   const std::list<Block*>& blocks() const { return blocks_; }
 
  private:
   Module* module_;
+  FunctionSymbol* symbol_;
   std::list<Block*> blocks_;
 };
 
 class Block final {
  public:
-  Block() = default;
+  explicit Block(Function* function) : function_(function) {}
+
+  Function* function() const { return function_; }
 
   std::list<Stmt*>& code() { return code_; }
   const std::list<Stmt*>& code() const { return code_; }
 
+  int id() const;
+
  private:
+  Function* function_;
   std::list<Stmt*> code_;
 };
 
@@ -83,6 +94,8 @@ class Stmt {
  public:
   Stmt() = default;
   virtual ~Stmt() = default;
+
+  virtual void accept(IRVisitor* visitor) = 0;
 };
 
 class Expr : public Stmt {
@@ -95,6 +108,8 @@ class Jump final : public Stmt {
   explicit Jump(Block* target) : target_(target) {}
 
   Block* target() const { return target_; }
+
+  void accept(IRVisitor* visitor) override;
 
  private:
   Block* target_ = nullptr;
@@ -109,6 +124,8 @@ class CondJump final : public Stmt {
   Block* iftrue() const { return iftrue_; }
   Block* iffalse() const { return iffalse_; }
 
+  void accept(IRVisitor* visitor) override;
+
  private:
   Expr* condition_;
   Block* iftrue_;
@@ -121,6 +138,8 @@ class Ret final : public Stmt {
 
   Expr* result() const { return result_; }
 
+  void accept(IRVisitor* visitor) override;
+
  private:
   Expr* result_;
 };
@@ -128,6 +147,8 @@ class Ret final : public Stmt {
 class RetVoid final : public Stmt {
  public:
   RetVoid() = default;
+
+  void accept(IRVisitor* visitor) override;
 };
 
 class This final : public Expr {
@@ -135,6 +156,8 @@ class This final : public Expr {
   explicit This(Expr* type) : type_(type) {}
 
   Expr* type() const { return type_; }
+
+  void accept(IRVisitor* visitor) override;
 
  private:
   Expr* type_;
@@ -146,6 +169,8 @@ class BoolLiteral final : public Expr {
 
   bool value() const { return value_; }
 
+  void accept(IRVisitor* visitor) override;
+
  private:
   bool value_;
 };
@@ -155,6 +180,8 @@ class IntegerLiteral final : public Expr {
   explicit IntegerLiteral(const IntegerValue& value) : value_(value) {}
 
   IntegerValue value() { return value_; }
+
+  void accept(IRVisitor* visitor) override;
 
  private:
   IntegerValue value_;
@@ -166,6 +193,8 @@ class FloatLiteral final : public Expr {
 
   FloatValue value() const { return value_; }
 
+  void accept(IRVisitor* visitor) override;
+
  private:
   FloatValue value_;
 };
@@ -173,6 +202,8 @@ class FloatLiteral final : public Expr {
 class NullptrLiteral final : public Expr {
  public:
   NullptrLiteral() {}
+
+  void accept(IRVisitor* visitor) override;
 };
 
 class StringLiteral final : public Expr {
@@ -180,6 +211,8 @@ class StringLiteral final : public Expr {
   explicit StringLiteral(std::string value) : value_(std::move(value)) {}
 
   const std::string& value() const { return value_; }
+
+  void accept(IRVisitor* visitor) override;
 
  private:
   std::string value_;
@@ -192,6 +225,8 @@ class UserDefinedStringLiteral final : public Expr {
 
   const std::string& value() const { return value_; }
 
+  void accept(IRVisitor* visitor) override;
+
  private:
   std::string value_;
 };
@@ -201,6 +236,8 @@ class Id final : public Expr {
   explicit Id(Symbol* symbol) : symbol_(symbol) {}
 
   Symbol* symbol() const { return symbol_; }
+
+  void accept(IRVisitor* visitor) override;
 
  private:
   Symbol* symbol_;
@@ -212,6 +249,8 @@ class ExternalId final : public Expr {
 
   const std::string& name() const { return name_; }
 
+  void accept(IRVisitor* visitor) override;
+
  private:
   std::string name_;
 };
@@ -221,6 +260,8 @@ class Sizeof final : public Expr {
   explicit Sizeof(Expr* expr) : expr_(expr) {}
 
   Expr* expr() const { return expr_; }
+
+  void accept(IRVisitor* visitor) override;
 
  private:
   Expr* expr_;
@@ -232,6 +273,8 @@ class Typeid final : public Expr {
 
   Expr* expr() const { return expr_; }
 
+  void accept(IRVisitor* visitor) override;
+
  private:
   Expr* expr_;
 };
@@ -241,6 +284,8 @@ class Alignof final : public Expr {
   explicit Alignof(Expr* expr) : expr_(expr) {}
 
   Expr* expr() const { return expr_; }
+
+  void accept(IRVisitor* visitor) override;
 
  private:
   Expr* expr_;
@@ -252,6 +297,8 @@ class Unary final : public Expr {
 
   UnaryOp op() const { return op_; }
   Expr* expr() const { return expr_; }
+
+  void accept(IRVisitor* visitor) override;
 
  private:
   UnaryOp op_;
@@ -266,6 +313,8 @@ class Binary final : public Expr {
   BinaryOp op() const { return op_; }
   Expr* left() const { return left_; }
   Expr* right() const { return right_; }
+
+  void accept(IRVisitor* visitor) override;
 
  private:
   BinaryOp op_;
@@ -282,6 +331,8 @@ class Assignment final : public Expr {
   Expr* left() const { return left_; }
   Expr* right() const { return right_; }
 
+  void accept(IRVisitor* visitor) override;
+
  private:
   BinaryOp op_;
   Expr* left_;
@@ -296,6 +347,8 @@ class Call final : public Expr {
   Expr* base() const { return base_; }
   const std::vector<Expr*>& args() const { return args_; }
 
+  void accept(IRVisitor* visitor) override;
+
  private:
   Expr* base_;
   std::vector<Expr*> args_;
@@ -307,6 +360,8 @@ class Subscript final : public Expr {
 
   Expr* base() const { return base_; }
   Expr* index() const { return index_; }
+
+  void accept(IRVisitor* visitor) override;
 
  private:
   Expr* base_;
@@ -320,6 +375,8 @@ class Access final : public Expr {
   Expr* base() const { return base_; }
   Expr* member() const { return member_; }
 
+  void accept(IRVisitor* visitor) override;
+
  private:
   Expr* base_;
   Expr* member_;
@@ -331,6 +388,8 @@ class Cast final : public Expr {
 
   Expr* type() const { return type_; }
   Expr* expr() const { return expr_; }
+
+  void accept(IRVisitor* visitor) override;
 
  private:
   Expr* type_;
@@ -344,6 +403,8 @@ class StaticCast final : public Expr {
   Expr* type() const { return type_; }
   Expr* expr() const { return expr_; }
 
+  void accept(IRVisitor* visitor) override;
+
  private:
   Expr* type_;
   Expr* expr_;
@@ -356,6 +417,8 @@ class DynamicCast final : public Expr {
   Expr* type() const { return type_; }
   Expr* expr() const { return expr_; }
 
+  void accept(IRVisitor* visitor) override;
+
  private:
   Expr* type_;
   Expr* expr_;
@@ -367,6 +430,8 @@ class ReinterpretCast final : public Expr {
 
   Expr* type() const { return type_; }
   Expr* expr() const { return expr_; }
+
+  void accept(IRVisitor* visitor) override;
 
  private:
   Expr* type_;
@@ -381,6 +446,8 @@ class New final : public Expr {
   Expr* type() const { return type_; }
   const std::vector<Expr*>& args() const { return args_; }
 
+  void accept(IRVisitor* visitor) override;
+
  private:
   Expr* type_;
   std::vector<Expr*> args_;
@@ -388,17 +455,16 @@ class New final : public Expr {
 
 class NewArray final : public Expr {
  public:
-  NewArray(Expr* type, Expr* size, std::vector<Expr*> args)
-      : type_(type), size_(size), args_(std::move(args)) {}
+  NewArray(Expr* type, Expr* size) : type_(type), size_(size) {}
 
   Expr* type() const { return type_; }
   Expr* size() const { return size_; }
-  const std::vector<Expr*>& args() const { return args_; }
+
+  void accept(IRVisitor* visitor) override;
 
  private:
   Expr* type_;
   Expr* size_;
-  std::vector<Expr*> args_;
 };
 
 class Delete final : public Expr {
@@ -406,6 +472,20 @@ class Delete final : public Expr {
   explicit Delete(Expr* expr) : expr_(expr) {}
 
   Expr* expr() const { return expr_; }
+
+  void accept(IRVisitor* visitor) override;
+
+ private:
+  Expr* expr_;
+};
+
+class DeleteArray final : public Expr {
+ public:
+  explicit DeleteArray(Expr* expr) : expr_(expr) {}
+
+  Expr* expr() const { return expr_; }
+
+  void accept(IRVisitor* visitor) override;
 
  private:
   Expr* expr_;
@@ -416,6 +496,8 @@ class Throw final : public Expr {
   explicit Throw(Expr* expr) : expr_(expr) {}
 
   Expr* expr() const { return expr_; }
+
+  void accept(IRVisitor* visitor) override;
 
  private:
   Expr* expr_;
