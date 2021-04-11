@@ -1001,11 +1001,20 @@ void Semantics::visit(TypeofSpecifierAST* ast) {
 
 void Semantics::visit(PlaceholderTypeSpecifierAST* ast) {}
 
-void Semantics::visit(ConstQualifierAST* ast) {}
+void Semantics::visit(ConstQualifierAST* ast) {
+  specifiers_->type.setQualifiers(specifiers_->type.qualifiers() |
+                                  Qualifiers::kConst);
+}
 
-void Semantics::visit(VolatileQualifierAST* ast) {}
+void Semantics::visit(VolatileQualifierAST* ast) {
+  specifiers_->type.setQualifiers(specifiers_->type.qualifiers() |
+                                  Qualifiers::kVolatile);
+}
 
-void Semantics::visit(RestrictQualifierAST* ast) {}
+void Semantics::visit(RestrictQualifierAST* ast) {
+  specifiers_->type.setQualifiers(specifiers_->type.qualifiers() |
+                                  Qualifiers::kRestrict);
+}
 
 void Semantics::visit(EnumSpecifierAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);

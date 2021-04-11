@@ -37,6 +37,8 @@ class TypePrinter final : TypeVisitor {
                        std::string id = std::string());
 
  private:
+  void addQualifiers(std::string& out, const QualifiedType& type);
+
   void accept(const QualifiedType& type);
 
   void visit(const UndefinedType* type) override;
