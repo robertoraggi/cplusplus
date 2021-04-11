@@ -19,15 +19,44 @@
 // SOFTWARE.
 
 #include <cxx/ir.h>
+#include <cxx/ir_factory.h>
 #include <cxx/ir_visitor.h>
 
 namespace cxx::ir {
+
+struct Module::Private {
+  std::list<Global*> globals_;
+  std::list<Function*> functions_;
+  IRFactory irFactory_;
+};
+
+Module::Module() : d(std::make_unique<Private>()) {
+  d->irFactory_.setModule(this);
+}
+
+Module::~Module() {}
+
+IRFactory* Module::irFactory() { return &d->irFactory_; }
+
+const std::list<Global*>& Module::globals() const { return d->globals_; }
+
+void Module::addGlobal(Global* global) { d->globals_.push_back(global); }
+
+const std::list<Function*>& Module::functions() const { return d->functions_; }
+
+void Module::addFunction(Function* function) {
+  d->functions_.push_back(function);
+}
 
 int Block::id() const {
   auto it = find(begin(function_->blocks()), end(function_->blocks()), this);
   if (it != end(function_->blocks()))
     return std::distance(begin(function_->blocks()), it) + 1;
   return 0;
+}
+
+bool Block::hasTerminator() const {
+  return !code_.empty() && code_.back()->isTerminator();
 }
 
 void Jump::accept(IRVisitor* visitor) { visitor->visit(this); }
@@ -58,11 +87,7 @@ void Id::accept(IRVisitor* visitor) { visitor->visit(this); }
 
 void ExternalId::accept(IRVisitor* visitor) { visitor->visit(this); }
 
-void Sizeof::accept(IRVisitor* visitor) { visitor->visit(this); }
-
 void Typeid::accept(IRVisitor* visitor) { visitor->visit(this); }
-
-void Alignof::accept(IRVisitor* visitor) { visitor->visit(this); }
 
 void Unary::accept(IRVisitor* visitor) { visitor->visit(this); }
 

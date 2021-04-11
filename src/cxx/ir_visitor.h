@@ -42,9 +42,7 @@ class IRVisitor {
   virtual void visit(UserDefinedStringLiteral*) = 0;
   virtual void visit(Id*) = 0;
   virtual void visit(ExternalId*) = 0;
-  virtual void visit(Sizeof*) = 0;
   virtual void visit(Typeid*) = 0;
-  virtual void visit(Alignof*) = 0;
   virtual void visit(Unary*) = 0;
   virtual void visit(Binary*) = 0;
   virtual void visit(Assignment*) = 0;

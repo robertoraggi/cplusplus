@@ -27,12 +27,19 @@
 
 namespace cxx::ir {
 
+void IRPrinter::print(Module* module, std::ostream& out) {
+  for (auto function : module->functions()) {
+    fmt::print(out, "\n");
+    print(function, out);
+  }
+}
+
 void IRPrinter::print(Function* function, std::ostream& out) {
-  fmt::print(out, "function {} {\n", *function->symbol()->name());
+  fmt::print(out, "function {} {{\n", *function->symbol()->name());
   for (auto block : function->blocks()) {
     print(block, out);
   }
-  fmt::print(out, "}\n");
+  fmt::print(out, "}}\n");
 }
 
 void IRPrinter::print(Block* block, std::ostream& out) {
@@ -249,20 +256,21 @@ void IRPrinter::visit(Id* expr) {
 
 void IRPrinter::visit(ExternalId* expr) { text_ = expr->name(); }
 
-void IRPrinter::visit(Sizeof* expr) {
-  text_ = fmt::format("sizeof({})", toString(expr->expr()));
-}
-
 void IRPrinter::visit(Typeid* expr) {
   text_ = fmt::format("typeid({})", toString(expr->expr()));
 }
 
-void IRPrinter::visit(Alignof* expr) {
-  text_ = fmt::format("alignof({})", toString(expr->expr()));
-}
-
 void IRPrinter::visit(Unary* expr) {
-  text_ = fmt::format("({} {})", toString(expr->op()), toString(expr->expr()));
+  switch (expr->op()) {
+    case UnaryOp::kPostMinusMinus:
+    case UnaryOp::kPostPlusPlus:
+      text_ =
+          fmt::format("({} {})", toString(expr->expr()), toString(expr->op()));
+      break;
+    default:
+      text_ =
+          fmt::format("({} {})", toString(expr->op()), toString(expr->expr()));
+  }  // switch
 }
 
 void IRPrinter::visit(Binary* expr) {

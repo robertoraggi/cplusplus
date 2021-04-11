@@ -26,7 +26,6 @@ include(FetchContent)
 find_package(fmt 7.1.3 CONFIG QUIET)
 
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
 
 if(NOT fmt_FOUND)
 FetchContent_Declare(

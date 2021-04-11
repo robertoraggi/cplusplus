@@ -29,6 +29,7 @@ namespace cxx::ir {
 
 class IRPrinter final : IRVisitor {
  public:
+  void print(Module* module, std::ostream& out);
   void print(Function* function, std::ostream& out);
   void print(Block* block, std::ostream& out);
   void print(Stmt* stmt, std::ostream& out);
@@ -58,9 +59,7 @@ class IRPrinter final : IRVisitor {
   void visit(UserDefinedStringLiteral*) override;
   void visit(Id*) override;
   void visit(ExternalId*) override;
-  void visit(Sizeof*) override;
   void visit(Typeid*) override;
-  void visit(Alignof*) override;
   void visit(Unary*) override;
   void visit(Binary*) override;
   void visit(Assignment*) override;

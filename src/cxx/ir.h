@@ -24,6 +24,7 @@
 #include <cxx/symbols_fwd.h>
 
 #include <list>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -31,17 +32,23 @@ namespace cxx::ir {
 
 class Module final {
  public:
-  Module() = default;
+  Module(const Module&) = delete;
+  Module& operator=(const Module&) = delete;
 
-  std::list<Global*>& globals() { return globals_; }
-  const std::list<Global*>& globals() const { return globals_; }
+  Module();
+  ~Module();
 
-  std::list<Function*>& functions() { return functions_; }
-  const std::list<Function*>& functions() const { return functions_; }
+  const std::list<Function*>& functions() const;
+  void addFunction(Function* function);
+
+  const std::list<Global*>& globals() const;
+  void addGlobal(Global* global);
+
+  IRFactory* irFactory();
 
  private:
-  std::list<Global*> globals_;
-  std::list<Function*> functions_;
+  struct Private;
+  std::unique_ptr<Private> d;
 };
 
 class Global final {
@@ -65,8 +72,9 @@ class Function final {
   Module* module() const { return module_; }
   FunctionSymbol* symbol() const { return symbol_; }
 
-  std::list<Block*>& blocks() { return blocks_; }
   const std::list<Block*>& blocks() const { return blocks_; }
+
+  void addBlock(Block* block) { blocks_.push_back(block); }
 
  private:
   Module* module_;
@@ -85,6 +93,8 @@ class Block final {
 
   int id() const;
 
+  bool hasTerminator() const;
+
  private:
   Function* function_;
   std::list<Stmt*> code_;
@@ -96,6 +106,8 @@ class Stmt {
   virtual ~Stmt() = default;
 
   virtual void accept(IRVisitor* visitor) = 0;
+
+  virtual bool isTerminator() const { return false; }
 };
 
 class Expr : public Stmt {
@@ -108,6 +120,8 @@ class Jump final : public Stmt {
   explicit Jump(Block* target) : target_(target) {}
 
   Block* target() const { return target_; }
+
+  bool isTerminator() const override { return true; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -124,6 +138,8 @@ class CondJump final : public Stmt {
   Block* iftrue() const { return iftrue_; }
   Block* iffalse() const { return iffalse_; }
 
+  bool isTerminator() const override { return true; }
+
   void accept(IRVisitor* visitor) override;
 
  private:
@@ -138,6 +154,8 @@ class Ret final : public Stmt {
 
   Expr* result() const { return result_; }
 
+  bool isTerminator() const override { return true; }
+
   void accept(IRVisitor* visitor) override;
 
  private:
@@ -147,6 +165,8 @@ class Ret final : public Stmt {
 class RetVoid final : public Stmt {
  public:
   RetVoid() = default;
+
+  bool isTerminator() const override { return true; }
 
   void accept(IRVisitor* visitor) override;
 };
@@ -255,33 +275,9 @@ class ExternalId final : public Expr {
   std::string name_;
 };
 
-class Sizeof final : public Expr {
- public:
-  explicit Sizeof(Expr* expr) : expr_(expr) {}
-
-  Expr* expr() const { return expr_; }
-
-  void accept(IRVisitor* visitor) override;
-
- private:
-  Expr* expr_;
-};
-
 class Typeid final : public Expr {
  public:
   explicit Typeid(Expr* expr) : expr_(expr) {}
-
-  Expr* expr() const { return expr_; }
-
-  void accept(IRVisitor* visitor) override;
-
- private:
-  Expr* expr_;
-};
-
-class Alignof final : public Expr {
- public:
-  explicit Alignof(Expr* expr) : expr_(expr) {}
 
   Expr* expr() const { return expr_; }
 
@@ -324,17 +320,17 @@ class Binary final : public Expr {
 
 class Assignment final : public Expr {
  public:
-  Assignment(BinaryOp op, Expr* left, Expr* right)
+  Assignment(AssignmentOp op, Expr* left, Expr* right)
       : op_(op), left_(left), right_(right) {}
 
-  BinaryOp op() const { return op_; }
+  AssignmentOp op() const { return op_; }
   Expr* left() const { return left_; }
   Expr* right() const { return right_; }
 
   void accept(IRVisitor* visitor) override;
 
  private:
-  BinaryOp op_;
+  AssignmentOp op_;
   Expr* left_;
   Expr* right_;
 };

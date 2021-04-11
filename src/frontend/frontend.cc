@@ -25,6 +25,8 @@
 #include <cxx/codegen.h>
 #include <cxx/control.h>
 #include <cxx/gcc_linux_toolchain.h>
+#include <cxx/ir.h>
+#include <cxx/ir_printer.h>
 #include <cxx/lexer.h>
 #include <cxx/macos_toolchain.h>
 #include <cxx/preprocessor.h>
@@ -158,7 +160,12 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
 
   if (cli.opt_S) {
     Codegen cg;
-    cg(&unit);
+
+    auto module = cg(&unit);
+
+    ir::IRPrinter printer;
+
+    printer.print(module.get(), std::cout);
   }
 
   return result;

@@ -21,6 +21,9 @@
 #pragma once
 
 #include <cxx/ast_visitor.h>
+#include <cxx/ir_fwd.h>
+
+#include <memory>
 
 namespace cxx {
 
@@ -28,9 +31,17 @@ class TranslationUnit;
 
 class Codegen final : ASTVisitor {
  public:
-  void operator()(TranslationUnit* unit);
+  Codegen();
+  ~Codegen();
+
+  std::unique_ptr<ir::Module> operator()(TranslationUnit* unit);
 
  private:
+  ir::IRFactory* irFactory();
+
+  void place(ir::Block* block);
+  void emit(ir::Stmt* stmt);
+
   void accept(AST* ast);
 
   void specifier(SpecifierAST* ast);
@@ -255,6 +266,11 @@ class Codegen final : ASTVisitor {
 
  private:
   TranslationUnit* unit_ = nullptr;
+  std::unique_ptr<ir::Module> module_;
+  ir::Function* function_ = nullptr;
+  ir::Block* entryBlock_ = nullptr;
+  ir::Block* exitBlock_ = nullptr;
+  ir::Block* block_ = nullptr;
 };
 
 }  // namespace cxx

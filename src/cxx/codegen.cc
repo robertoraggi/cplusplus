@@ -20,15 +20,35 @@
 
 #include <cxx/ast.h>
 #include <cxx/codegen.h>
+#include <cxx/ir.h>
+#include <cxx/ir_factory.h>
 #include <cxx/translation_unit.h>
 
 namespace cxx {
 
-void Codegen::operator()(TranslationUnit* unit) {
+Codegen::Codegen() {}
+
+Codegen::~Codegen() {}
+
+std::unique_ptr<ir::Module> Codegen::operator()(TranslationUnit* unit) {
+  auto module = std::make_unique<ir::Module>();
+  std::swap(module_, module);
   std::swap(unit_, unit);
   accept(unit_->ast());
   std::swap(unit_, unit);
+  std::swap(module_, module);
+  return module;
 }
+
+ir::IRFactory* Codegen::irFactory() { return module_->irFactory(); }
+
+void Codegen::place(ir::Block* block) {
+  if (block_ && !block_->hasTerminator()) emit(irFactory()->createJump(block));
+  function_->addBlock(block);
+  block_ = block;
+}
+
+void Codegen::emit(ir::Stmt* stmt) { block_->code().push_back(stmt); }
 
 void Codegen::specifier(SpecifierAST* ast) { accept(ast); }
 
@@ -476,10 +496,30 @@ void Codegen::visit(TryBlockStatementAST* ast) {
 void Codegen::visit(AccessDeclarationAST* ast) {}
 
 void Codegen::visit(FunctionDefinitionAST* ast) {
-  for (auto it = ast->declSpecifierList; it; it = it->next)
-    specifier(it->value);
-  declarator(ast->declarator);
+  ir::Function* function = irFactory()->createFunction(ast->symbol);
+
+  module_->addFunction(function);
+
+  ir::Block* entryBlock = irFactory()->createBlock(function);
+  ir::Block* exitBlock = irFactory()->createBlock(function);
+  ir::Block* block = nullptr;
+
+  std::swap(function_, function);
+  std::swap(entryBlock_, entryBlock);
+  std::swap(exitBlock_, exitBlock);
+  std::swap(block_, block);
+
+  place(entryBlock_);
+
   functionBody(ast->functionBody);
+
+  place(exitBlock_);
+  emit(irFactory()->createRetVoid());
+
+  std::swap(function_, function);
+  std::swap(entryBlock_, entryBlock);
+  std::swap(exitBlock_, exitBlock);
+  std::swap(block_, block);
 }
 
 void Codegen::visit(ConceptDefinitionAST* ast) {

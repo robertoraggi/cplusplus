@@ -33,6 +33,7 @@ class Stmt;
 class Expr;
 
 class IRVisitor;
+class IRFactory;
 
 // statements
 class Jump;
@@ -50,9 +51,7 @@ class StringLiteral;
 class UserDefinedStringLiteral;
 class Id;
 class ExternalId;
-class Sizeof;
 class Typeid;
-class Alignof;
 class Unary;
 class Binary;
 class Assignment;
