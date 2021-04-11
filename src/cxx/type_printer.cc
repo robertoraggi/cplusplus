@@ -28,15 +28,16 @@
 
 namespace cxx {
 
-void TypePrinter::operator()(const QualifiedType& type, std::ostream& out) {
-  out << toString(type);
+void TypePrinter::operator()(std::ostream& out, const QualifiedType& type,
+                             std::string declarator) {
+  out << toString(type, std::move(declarator));
 }
 
-std::string TypePrinter::toString(const QualifiedType& type) {
+std::string TypePrinter::toString(const QualifiedType& type,
+                                  std::string declarator) {
   if (!type) return {};
   std::string specifiers;
   std::string ptrOps;
-  std::string declarator;
   std::swap(specifiers_, specifiers);
   std::swap(ptrOps_, ptrOps);
   std::swap(declarator_, declarator);

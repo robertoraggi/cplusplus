@@ -28,7 +28,7 @@ namespace cxx {
 
 class NamePrinter final : NameVisitor {
  public:
-  void operator()(const Name* name, std::ostream& out);
+  void operator()(std::ostream& out, const Name* name);
 
  private:
   void accept(const Name* name);

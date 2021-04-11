@@ -29,7 +29,7 @@ TypePrinter printType;
 }
 
 std::ostream& operator<<(std::ostream& out, const QualifiedType& type) {
-  printType(type, out);
+  printType(out, type);
   return out;
 }
 

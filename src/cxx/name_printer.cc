@@ -25,7 +25,7 @@
 
 namespace cxx {
 
-void NamePrinter::operator()(const Name* name, std::ostream& out) {
+void NamePrinter::operator()(std::ostream& out, const Name* name) {
   if (!name) return;
   auto o = &out;
   std::swap(out_, o);

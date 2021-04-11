@@ -30,9 +30,11 @@ namespace cxx {
 
 class TypePrinter final : TypeVisitor {
  public:
-  void operator()(const QualifiedType& type, std::ostream& out);
+  void operator()(std::ostream& out, const QualifiedType& type,
+                  std::string id = std::string());
 
-  std::string toString(const QualifiedType& type);
+  std::string toString(const QualifiedType& type,
+                       std::string id = std::string());
 
  private:
   void accept(const QualifiedType& type);

@@ -20,12 +20,21 @@
 
 #include <cxx/ir.h>
 #include <cxx/ir_printer.h>
+#include <cxx/name_printer.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
+#include <cxx/type_printer.h>
+#include <cxx/types.h>
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 
 namespace cxx::ir {
+
+namespace {
+
+TypePrinter typePrinter;
+
+}  // namespace
 
 void IRPrinter::print(Module* module, std::ostream& out) {
   for (auto function : module->functions()) {
@@ -35,10 +44,15 @@ void IRPrinter::print(Module* module, std::ostream& out) {
 }
 
 void IRPrinter::print(Function* function, std::ostream& out) {
-  fmt::print(out, "function {} {{\n", *function->symbol()->name());
+  auto symbol = function->symbol();
+  auto name = fmt::format("{}", *symbol->name());
+
+  fmt::print(out, "{} {{\n", typePrinter.toString(symbol->type(), name));
+
   for (auto block : function->blocks()) {
     print(block, out);
   }
+
   fmt::print(out, "}}\n");
 }
 

@@ -30,7 +30,7 @@ NamePrinter printName;
 Name::~Name() {}
 
 std::ostream& operator<<(std::ostream& out, const Name& name) {
-  printName(&name, out);
+  printName(out, &name);
   return out;
 }
 
