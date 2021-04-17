@@ -59,6 +59,8 @@ bool Block::hasTerminator() const {
   return !code_.empty() && code_.back()->isTerminator();
 }
 
+void Store::accept(IRVisitor* visitor) { visitor->visit(this); }
+
 void Jump::accept(IRVisitor* visitor) { visitor->visit(this); }
 
 void CondJump::accept(IRVisitor* visitor) { visitor->visit(this); }
@@ -83,6 +85,8 @@ void UserDefinedStringLiteral::accept(IRVisitor* visitor) {
   visitor->visit(this);
 }
 
+void Load::accept(IRVisitor* visitor) { visitor->visit(this); }
+
 void Id::accept(IRVisitor* visitor) { visitor->visit(this); }
 
 void ExternalId::accept(IRVisitor* visitor) { visitor->visit(this); }
@@ -92,8 +96,6 @@ void Typeid::accept(IRVisitor* visitor) { visitor->visit(this); }
 void Unary::accept(IRVisitor* visitor) { visitor->visit(this); }
 
 void Binary::accept(IRVisitor* visitor) { visitor->visit(this); }
-
-void Assignment::accept(IRVisitor* visitor) { visitor->visit(this); }
 
 void Call::accept(IRVisitor* visitor) { visitor->visit(this); }
 

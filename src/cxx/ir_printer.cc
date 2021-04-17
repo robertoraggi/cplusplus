@@ -49,6 +49,13 @@ void IRPrinter::print(Function* function, std::ostream& out) {
 
   fmt::print(out, "{} {{\n", typePrinter.toString(symbol->type(), name));
 
+  int tempIndex = 0;
+
+  for (const auto& local : function->locals()) {
+    std::string t = fmt::format("t{}", tempIndex++);
+    fmt::print(out, "\t{};\n", typePrinter.toString(local.type(), t));
+  }
+
   for (auto block : function->blocks()) {
     print(block, out);
   }
@@ -148,35 +155,6 @@ std::string_view IRPrinter::toString(BinaryOp op) const {
   }  // switch
 }
 
-std::string_view IRPrinter::toString(AssignmentOp op) const {
-  switch (op) {
-    case AssignmentOp::kEqual:
-      return "=";
-    case AssignmentOp::kStarEqual:
-      return "*=";
-    case AssignmentOp::kSlashEqual:
-      return "/=";
-    case AssignmentOp::kPercentEqual:
-      return "%=";
-    case AssignmentOp::kPlusEqual:
-      return "+=";
-    case AssignmentOp::kMinusEqual:
-      return "-=";
-    case AssignmentOp::kGreaterGreaterEqual:
-      return ">>=";
-    case AssignmentOp::kLessLessEqual:
-      return "<<=";
-    case AssignmentOp::kAmpEqual:
-      return "&=";
-    case AssignmentOp::kCaretEqual:
-      return "^=";
-    case AssignmentOp::kBarEqual:
-      return "|=";
-    default:
-      throw std::runtime_error("invalid operator");
-  }  // switch
-}
-
 std::string IRPrinter::quote(const std::string& s) const {
   std::string result;
   for (auto c : s) {
@@ -184,6 +162,11 @@ std::string IRPrinter::quote(const std::string& s) const {
     result += c;
   }
   return result;
+}
+
+void IRPrinter::visit(Store* expr) {
+  text_ = fmt::format("({} = {})", toString(expr->target()),
+                      toString(expr->source()));
 }
 
 void IRPrinter::visit(Jump* stmt) {
@@ -264,6 +247,10 @@ void IRPrinter::visit(UserDefinedStringLiteral* expr) {
   text_ = fmt::format("\"{}\"", quote(expr->value()));
 }
 
+void IRPrinter::visit(Load* expr) {
+  text_ = fmt::format("t{}", expr->local()->index());
+}
+
 void IRPrinter::visit(Id* expr) {
   text_ = fmt::format("{}", *expr->symbol()->name());
 }
@@ -288,11 +275,6 @@ void IRPrinter::visit(Unary* expr) {
 }
 
 void IRPrinter::visit(Binary* expr) {
-  text_ = fmt::format("({} {} {})", toString(expr->left()),
-                      toString(expr->op()), toString(expr->right()));
-}
-
-void IRPrinter::visit(Assignment* expr) {
   text_ = fmt::format("({} {} {})", toString(expr->left()),
                       toString(expr->op()), toString(expr->right()));
 }

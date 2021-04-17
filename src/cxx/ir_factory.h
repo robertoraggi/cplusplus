@@ -39,6 +39,7 @@ class IRFactory {
   Global* createGlobal(Symbol* symbol);
   Function* createFunction(FunctionSymbol* symbol);
   Block* createBlock(Function* function);
+  Store* createStore(Expr* target, Expr* source);
   Jump* createJump(Block* target);
   CondJump* createCondJump(Expr* condition, Block* iftrue, Block* iffalse);
   Ret* createRet(Expr* result);
@@ -50,12 +51,12 @@ class IRFactory {
   NullptrLiteral* createNullptrLiteral();
   StringLiteral* createStringLiteral(std::string value);
   UserDefinedStringLiteral* createUserDefinedStringLiteral(std::string value);
+  Load* createLoad(Local* local);
   Id* createId(Symbol* symbol);
   ExternalId* createExternalId(std::string name);
   Typeid* createTypeid(Expr* expr);
   Unary* createUnary(UnaryOp op, Expr* expr);
   Binary* createBinary(BinaryOp op, Expr* left, Expr* right);
-  Assignment* createAssignment(AssignmentOp op, Expr* left, Expr* right);
   Call* createCall(Expr* base, std::vector<Expr*> args);
   Subscript* createSubscript(Expr* base, Expr* index);
   Access* createAccess(Expr* base, Expr* member);

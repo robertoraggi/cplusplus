@@ -20,9 +20,13 @@
 
 #include <cxx/ast.h>
 #include <cxx/codegen.h>
+#include <cxx/control.h>
 #include <cxx/ir.h>
 #include <cxx/ir_factory.h>
+#include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_environment.h>
+#include <cxx/types.h>
 
 namespace cxx {
 
@@ -504,6 +508,16 @@ void Codegen::visit(FunctionDefinitionAST* ast) {
   ir::Block* exitBlock = irFactory()->createBlock(function);
   ir::Block* block = nullptr;
 
+  auto types = unit_->control()->types();
+
+  auto functionType = ast->symbol->type()->asFunctionType();
+
+  ir::Local* result = nullptr;
+
+  if (!functionType->returnType()->asVoidType()) {
+    result = function->addLocal(functionType->returnType());
+  }
+
   std::swap(function_, function);
   std::swap(entryBlock_, entryBlock);
   std::swap(exitBlock_, exitBlock);
@@ -514,7 +528,12 @@ void Codegen::visit(FunctionDefinitionAST* ast) {
   functionBody(ast->functionBody);
 
   place(exitBlock_);
-  emit(irFactory()->createRetVoid());
+
+  if (result) {
+    emit(irFactory()->createRet(irFactory()->createLoad(result)));
+  } else {
+    emit(irFactory()->createRetVoid());
+  }
 
   std::swap(function_, function);
   std::swap(entryBlock_, entryBlock);

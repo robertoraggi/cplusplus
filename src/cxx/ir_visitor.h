@@ -32,6 +32,7 @@ class IRVisitor {
   virtual void visit(CondJump*) = 0;
   virtual void visit(Ret*) = 0;
   virtual void visit(RetVoid*) = 0;
+  virtual void visit(Store*) = 0;
 
   virtual void visit(This*) = 0;
   virtual void visit(BoolLiteral*) = 0;
@@ -40,12 +41,12 @@ class IRVisitor {
   virtual void visit(NullptrLiteral*) = 0;
   virtual void visit(StringLiteral*) = 0;
   virtual void visit(UserDefinedStringLiteral*) = 0;
+  virtual void visit(Load*) = 0;
   virtual void visit(Id*) = 0;
   virtual void visit(ExternalId*) = 0;
   virtual void visit(Typeid*) = 0;
   virtual void visit(Unary*) = 0;
   virtual void visit(Binary*) = 0;
-  virtual void visit(Assignment*) = 0;
   virtual void visit(Call*) = 0;
   virtual void visit(Subscript*) = 0;
   virtual void visit(Access*) = 0;

@@ -30,6 +30,7 @@ struct IRFactory::Private {
   std::forward_list<Global> globals_;
   std::forward_list<Function> functions_;
   std::forward_list<Block> blocks_;
+  std::forward_list<Store> stores_;
   std::forward_list<Jump> jumps_;
   std::forward_list<CondJump> condJumps_;
   std::forward_list<Ret> rets_;
@@ -41,12 +42,12 @@ struct IRFactory::Private {
   std::forward_list<NullptrLiteral> nullptrLiterals_;
   std::forward_list<StringLiteral> stringLiterals_;
   std::forward_list<UserDefinedStringLiteral> userDefinedStringLiterals_;
+  std::forward_list<Load> loads_;
   std::forward_list<Id> ids_;
   std::forward_list<ExternalId> externalIds_;
   std::forward_list<Typeid> typeids_;
   std::forward_list<Unary> unarys_;
   std::forward_list<Binary> binarys_;
-  std::forward_list<Assignment> assignments_;
   std::forward_list<Call> calls_;
   std::forward_list<Subscript> subscripts_;
   std::forward_list<Access> accesss_;
@@ -79,6 +80,10 @@ Function* IRFactory::createFunction(FunctionSymbol* symbol) {
 
 Block* IRFactory::createBlock(Function* function) {
   return &d->blocks_.emplace_front(function);
+}
+
+Store* IRFactory::createStore(Expr* target, Expr* source) {
+  return &d->stores_.emplace_front(target, source);
 }
 
 Jump* IRFactory::createJump(Block* target) {
@@ -125,6 +130,10 @@ UserDefinedStringLiteral* IRFactory::createUserDefinedStringLiteral(
   return &d->userDefinedStringLiterals_.emplace_front(std::move(value));
 }
 
+Load* IRFactory::createLoad(Local* local) {
+  return &d->loads_.emplace_front(local);
+}
+
 Id* IRFactory::createId(Symbol* symbol) {
   return &d->ids_.emplace_front(symbol);
 }
@@ -143,11 +152,6 @@ Unary* IRFactory::createUnary(UnaryOp op, Expr* expr) {
 
 Binary* IRFactory::createBinary(BinaryOp op, Expr* left, Expr* right) {
   return &d->binarys_.emplace_front(op, left, right);
-}
-
-Assignment* IRFactory::createAssignment(AssignmentOp op, Expr* left,
-                                        Expr* right) {
-  return &d->assignments_.emplace_front(op, left, right);
 }
 
 Call* IRFactory::createCall(Expr* base, std::vector<Expr*> args) {

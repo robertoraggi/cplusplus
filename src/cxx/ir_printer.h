@@ -39,7 +39,6 @@ class IRPrinter final : IRVisitor {
   std::string toString(Block* block) const;
   std::string_view toString(UnaryOp op) const;
   std::string_view toString(BinaryOp op) const;
-  std::string_view toString(AssignmentOp op) const;
 
   std::string quote(const std::string& s) const;
 
@@ -49,6 +48,7 @@ class IRPrinter final : IRVisitor {
   void visit(CondJump*) override;
   void visit(Ret*) override;
   void visit(RetVoid*) override;
+  void visit(Store*) override;
 
   void visit(This*) override;
   void visit(BoolLiteral*) override;
@@ -57,12 +57,12 @@ class IRPrinter final : IRVisitor {
   void visit(NullptrLiteral*) override;
   void visit(StringLiteral*) override;
   void visit(UserDefinedStringLiteral*) override;
+  void visit(Load*) override;
   void visit(Id*) override;
   void visit(ExternalId*) override;
   void visit(Typeid*) override;
   void visit(Unary*) override;
   void visit(Binary*) override;
-  void visit(Assignment*) override;
   void visit(Call*) override;
   void visit(Subscript*) override;
   void visit(Access*) override;

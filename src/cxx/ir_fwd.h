@@ -27,6 +27,7 @@ namespace cxx::ir {
 
 class Module;
 class Global;
+class Local;
 class Function;
 class Block;
 class Stmt;
@@ -40,6 +41,7 @@ class Jump;
 class CondJump;
 class Ret;
 class RetVoid;
+class Store;
 
 // expressions
 class This;
@@ -49,12 +51,12 @@ class FloatLiteral;
 class NullptrLiteral;
 class StringLiteral;
 class UserDefinedStringLiteral;
+class Load;
 class Id;
 class ExternalId;
 class Typeid;
 class Unary;
 class Binary;
-class Assignment;
 class Call;
 class Subscript;
 class Access;
@@ -104,20 +106,6 @@ enum class BinaryOp {
   kAmp,
   kCaret,
   kBar
-};
-
-enum class AssignmentOp {
-  kEqual,
-  kStarEqual,
-  kSlashEqual,
-  kPercentEqual,
-  kPlusEqual,
-  kMinusEqual,
-  kGreaterGreaterEqual,
-  kLessLessEqual,
-  kAmpEqual,
-  kCaretEqual,
-  kBarEqual,
 };
 
 }  // namespace cxx::ir

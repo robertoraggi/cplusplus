@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/ir_fwd.h>
+#include <cxx/qualified_type.h>
 #include <cxx/symbols_fwd.h>
 
 #include <list>
@@ -64,6 +65,18 @@ class Global final {
   Symbol* symbol_;
 };
 
+class Local final {
+ public:
+  Local(const QualifiedType& type, int index) : type_(type), index_(index) {}
+
+  const QualifiedType& type() const { return type_; }
+  int index() const { return index_; }
+
+ private:
+  QualifiedType type_;
+  int index_;
+};
+
 class Function final {
  public:
   Function(Module* module, FunctionSymbol* symbol)
@@ -76,10 +89,18 @@ class Function final {
 
   void addBlock(Block* block) { blocks_.push_back(block); }
 
+  const std::list<Local>& locals() const { return locals_; }
+
+  Local* addLocal(const QualifiedType& type) {
+    int index = int(locals_.size());
+    return &locals_.emplace_back(type, index);
+  }
+
  private:
   Module* module_;
   FunctionSymbol* symbol_;
   std::list<Block*> blocks_;
+  std::list<Local> locals_;
 };
 
 class Block final {
@@ -113,6 +134,20 @@ class Stmt {
 class Expr : public Stmt {
  public:
   Expr() = default;
+};
+
+class Store final : public Stmt {
+ public:
+  Store(Expr* target, Expr* source) : target_(target), source_(source) {}
+
+  Expr* target() const { return target_; }
+  Expr* source() const { return source_; }
+
+  void accept(IRVisitor* visitor) override;
+
+ private:
+  Expr* target_;
+  Expr* source_;
 };
 
 class Jump final : public Stmt {
@@ -251,6 +286,18 @@ class UserDefinedStringLiteral final : public Expr {
   std::string value_;
 };
 
+class Load final : public Expr {
+ public:
+  explicit Load(Local* local) : local_(local) {}
+
+  Local* local() const { return local_; }
+
+  void accept(IRVisitor* visitor) override;
+
+ private:
+  Local* local_;
+};
+
 class Id final : public Expr {
  public:
   explicit Id(Symbol* symbol) : symbol_(symbol) {}
@@ -314,23 +361,6 @@ class Binary final : public Expr {
 
  private:
   BinaryOp op_;
-  Expr* left_;
-  Expr* right_;
-};
-
-class Assignment final : public Expr {
- public:
-  Assignment(AssignmentOp op, Expr* left, Expr* right)
-      : op_(op), left_(left), right_(right) {}
-
-  AssignmentOp op() const { return op_; }
-  Expr* left() const { return left_; }
-  Expr* right() const { return right_; }
-
-  void accept(IRVisitor* visitor) override;
-
- private:
-  AssignmentOp op_;
   Expr* left_;
   Expr* right_;
 };
