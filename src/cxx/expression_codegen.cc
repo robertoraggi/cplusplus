@@ -95,7 +95,7 @@ void ExpressionCodegen::visit(BoolLiteralExpressionAST* ast) {
 
 void ExpressionCodegen::visit(IntLiteralExpressionAST* ast) {
   auto value = cg->unit()->tokenText(ast->literalLoc);
-  auto literal = std::stol(value);
+  std::int64_t literal = std::int64_t(std::stol(value));
   expr_ = cg->createIntegerLiteral(literal);
 }
 
