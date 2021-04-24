@@ -63,7 +63,7 @@ ir::Block* Codegen::createBlock() {
 }
 
 void Codegen::place(ir::Block* block) {
-  if (this->block() && !blockHasTerminator()) emitJump(block);
+  if (!blockHasTerminator()) emitJump(block);
   function_->addBlock(block);
   setInsertionPoint(block);
 }
@@ -88,6 +88,7 @@ void Codegen::visit(FunctionDefinitionAST* ast) {
     result = function_->addLocal(functionType->returnType());
   }
 
+  std::swap(result_, result);
   std::swap(entryBlock_, entryBlock);
   std::swap(exitBlock_, exitBlock);
 
@@ -97,8 +98,8 @@ void Codegen::visit(FunctionDefinitionAST* ast) {
 
   place(exitBlock_);
 
-  if (result) {
-    emitRet(createLoad(result));
+  if (result_) {
+    emitRet(createLoad(result_));
   } else {
     emitRetVoid();
   }
@@ -106,6 +107,7 @@ void Codegen::visit(FunctionDefinitionAST* ast) {
   std::swap(entryBlock_, entryBlock);
   std::swap(exitBlock_, exitBlock);
   std::swap(function_, function);
+  std::swap(result_, result);
 }
 
 void Codegen::visit(CompoundStatementFunctionBodyAST* ast) {

@@ -21,23 +21,27 @@
 #pragma once
 
 #include <cxx/default_ast_visitor.h>
+#include <cxx/expression_codegen.h>
 #include <cxx/ir_fwd.h>
 
 namespace cxx {
 
 class Codegen;
 
-class ConditionCodegen : private DefaultASTVisitor {
+class ConditionCodegen : private ExpressionCodegen {
  public:
   explicit ConditionCodegen(Codegen* cg);
 
   void gen(ExpressionAST* ast, ir::Block* iftrue, ir::Block* iffalse);
 
  private:
-  using DefaultASTVisitor::visit;
+  using ExpressionCodegen::gen;
+  using ExpressionCodegen::visit;
+
+  void visit(IntLiteralExpressionAST* ast) override;
+  void visit(BinaryExpressionAST* ast) override;
 
  private:
-  Codegen* cg;
   ir::Block* iftrue_ = nullptr;
   ir::Block* iffalse_ = nullptr;
 };

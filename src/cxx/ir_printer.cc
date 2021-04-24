@@ -165,7 +165,7 @@ std::string IRPrinter::quote(const std::string& s) const {
 }
 
 void IRPrinter::visit(Move* expr) {
-  text_ = fmt::format("({} = {})", toString(expr->target()),
+  text_ = fmt::format("{} = {}", toString(expr->target()),
                       toString(expr->source()));
 }
 
@@ -175,7 +175,7 @@ void IRPrinter::visit(Jump* stmt) {
 
 void IRPrinter::visit(CondJump* stmt) {
   text_ =
-      fmt::format("if () goto {}; else goto {}", toString(stmt->condition()),
+      fmt::format("if ({}) goto {}; else goto {}", toString(stmt->condition()),
                   toString(stmt->iftrue()), toString(stmt->iffalse()));
 }
 
@@ -275,8 +275,8 @@ void IRPrinter::visit(Unary* expr) {
 }
 
 void IRPrinter::visit(Binary* expr) {
-  text_ = fmt::format("({} {} {})", toString(expr->left()),
-                      toString(expr->op()), toString(expr->right()));
+  text_ = fmt::format("{} {} {}", toString(expr->left()), toString(expr->op()),
+                      toString(expr->right()));
 }
 
 void IRPrinter::visit(Call* expr) {

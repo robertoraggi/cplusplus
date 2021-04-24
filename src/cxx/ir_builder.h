@@ -33,7 +33,7 @@ class IRBuilder {
   ~IRBuilder();
 
   Module* module() { return module_; }
-  void setModule(Module* module) { module_ = module; }
+  void setModule(Module* module);
 
   void setInsertionPoint(Block* block, const std::list<Stmt*>::iterator& ip);
   void setInsertionPoint(Block* block);
@@ -43,9 +43,10 @@ class IRBuilder {
   Block* block() const { return block_; }
 
   bool blockHasTerminator() const {
-    return block_ && !block_->code().empty()
-               ? block_->code().back()->isTerminator()
-               : false;
+    if (!block_) return true;
+
+    return !block_->code().empty() ? block_->code().back()->isTerminator()
+                                   : false;
   }
 
   Move* emitMove(Expr* target, Expr* source);

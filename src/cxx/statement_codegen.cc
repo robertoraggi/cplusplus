@@ -107,7 +107,12 @@ void StatementCodegen::visit(ContinueStatementAST* ast) {
 }
 
 void StatementCodegen::visit(ReturnStatementAST* ast) {
-  throw std::runtime_error("visit(ReturnStatementAST): not implemented");
+  if (ast->expression) {
+    auto value = cg->expression(ast->expression);
+    cg->emitMove(cg->createLoad(cg->result()), value);
+  }
+
+  cg->emitJump(cg->exitBlock());
 }
 
 void StatementCodegen::visit(GotoStatementAST* ast) {

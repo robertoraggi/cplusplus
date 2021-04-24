@@ -27,14 +27,16 @@ namespace cxx {
 
 class Codegen;
 
-class ExpressionCodegen : private DefaultASTVisitor {
+class ExpressionCodegen : protected DefaultASTVisitor {
  public:
   explicit ExpressionCodegen(Codegen* cg);
 
   ir::Expr* gen(ExpressionAST* ast);
 
- private:
+ protected:
   using DefaultASTVisitor::visit;
+
+  ir::BinaryOp convertBinaryOp(TokenKind tk) const;
 
   void visit(ThisExpressionAST* ast) override;
   void visit(CharLiteralExpressionAST* ast) override;
@@ -72,7 +74,7 @@ class ExpressionCodegen : private DefaultASTVisitor {
   void visit(ThrowExpressionAST* ast) override;
   void visit(NoexceptExpressionAST* ast) override;
 
- private:
+ protected:
   Codegen* cg = nullptr;
   ir::Expr* expr_ = nullptr;
 };

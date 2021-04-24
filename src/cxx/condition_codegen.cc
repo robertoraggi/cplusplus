@@ -21,20 +21,52 @@
 #include <cxx/ast.h>
 #include <cxx/codegen.h>
 #include <cxx/condition_codegen.h>
+#include <cxx/literals.h>
+#include <cxx/translation_unit.h>
 
 #include <stdexcept>
 
 namespace cxx {
 
-ConditionCodegen::ConditionCodegen(Codegen* cg) : cg(cg) {}
+ConditionCodegen::ConditionCodegen(Codegen* cg) : ExpressionCodegen(cg) {}
 
 void ConditionCodegen::gen(ExpressionAST* ast, ir::Block* iftrue,
                            ir::Block* iffalse) {
   std::swap(iftrue_, iftrue);
   std::swap(iffalse_, iffalse);
-  ast->accept(this);
+  if (auto expr = gen(ast)) {
+    cg->emitCondJump(cg->createBinary(ir::BinaryOp::kExclaimEqual, expr,
+                                      cg->createIntegerLiteral(0)),
+                     iftrue_, iffalse_);
+  }
   std::swap(iftrue_, iftrue);
   std::swap(iffalse_, iffalse);
+}
+
+void ConditionCodegen::visit(IntLiteralExpressionAST* ast) {
+  auto value = cg->unit()->tokenText(ast->literalLoc);
+  auto literal = std::stol(value);
+  cg->emitJump(literal ? iftrue_ : iffalse_);
+}
+
+void ConditionCodegen::visit(BinaryExpressionAST* ast) {
+  if (ast->op == TokenKind::T_AMP_AMP) {
+    auto block = cg->createBlock();
+    cg->condition(ast->leftExpression, block, iffalse_);
+    cg->place(block);
+    cg->condition(ast->rightExpression, iftrue_, iffalse_);
+    return;
+  }
+
+  if (ast->op == TokenKind::T_BAR_BAR) {
+    auto block = cg->createBlock();
+    cg->condition(ast->leftExpression, iftrue_, block);
+    cg->place(block);
+    cg->condition(ast->rightExpression, iftrue_, iffalse_);
+    return;
+  }
+
+  ExpressionCodegen::visit(ast);
 }
 
 }  // namespace cxx

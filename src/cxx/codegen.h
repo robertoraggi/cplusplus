@@ -58,6 +58,7 @@ class Codegen final : public ir::IRBuilder, RecursiveASTVisitor {
   ir::Function* function() const { return function_; }
   ir::Block* entryBlock() const { return entryBlock_; }
   ir::Block* exitBlock() const { return exitBlock_; }
+  ir::Local* result() const { return result_; }
 
  private:
   using RecursiveASTVisitor::visit;
@@ -75,6 +76,7 @@ class Codegen final : public ir::IRBuilder, RecursiveASTVisitor {
   ir::Function* function_ = nullptr;
   ir::Block* entryBlock_ = nullptr;
   ir::Block* exitBlock_ = nullptr;
+  ir::Local* result_ = nullptr;
 };
 
 }  // namespace cxx

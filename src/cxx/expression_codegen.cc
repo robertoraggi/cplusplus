@@ -20,13 +20,18 @@
 
 #include <cxx/ast.h>
 #include <cxx/codegen.h>
+#include <cxx/control.h>
 #include <cxx/expression_codegen.h>
+#include <cxx/literals.h>
+#include <cxx/translation_unit.h>
+#include <cxx/type_environment.h>
+#include <cxx/types.h>
 
 #include <stdexcept>
 
 namespace cxx {
 
-ExpressionCodegen::ExpressionCodegen(Codegen* codegen) {}
+ExpressionCodegen::ExpressionCodegen(Codegen* cg) : cg(cg) {}
 
 ir::Expr* ExpressionCodegen::gen(ExpressionAST* ast) {
   ir::Expr* expr = nullptr;
@@ -34,6 +39,45 @@ ir::Expr* ExpressionCodegen::gen(ExpressionAST* ast) {
   ast->accept(this);
   std::swap(expr_, expr);
   return expr;
+}
+
+ir::BinaryOp ExpressionCodegen::convertBinaryOp(TokenKind tk) const {
+  switch (tk) {
+    case TokenKind::T_STAR:
+      return ir::BinaryOp::kStar;
+    case TokenKind::T_SLASH:
+      return ir::BinaryOp::kSlash;
+    case TokenKind::T_PERCENT:
+      return ir::BinaryOp::kPercent;
+    case TokenKind::T_PLUS:
+      return ir::BinaryOp::kPlus;
+    case TokenKind::T_MINUS:
+      return ir::BinaryOp::kMinus;
+    case TokenKind::T_GREATER_GREATER:
+      return ir::BinaryOp::kGreaterGreater;
+    case TokenKind::T_LESS_LESS:
+      return ir::BinaryOp::kLessLess;
+    case TokenKind::T_GREATER:
+      return ir::BinaryOp::kGreater;
+    case TokenKind::T_LESS:
+      return ir::BinaryOp::kLess;
+    case TokenKind::T_GREATER_EQUAL:
+      return ir::BinaryOp::kGreaterEqual;
+    case TokenKind::T_LESS_EQUAL:
+      return ir::BinaryOp::kLessEqual;
+    case TokenKind::T_EQUAL_EQUAL:
+      return ir::BinaryOp::kEqualEqual;
+    case TokenKind::T_EXCLAIM_EQUAL:
+      return ir::BinaryOp::kExclaimEqual;
+    case TokenKind::T_AMP:
+      return ir::BinaryOp::kAmp;
+    case TokenKind::T_CARET:
+      return ir::BinaryOp::kCaret;
+    case TokenKind::T_BAR:
+      return ir::BinaryOp::kBar;
+    default:
+      throw std::runtime_error("invalid binary op");
+  }
 }
 
 void ExpressionCodegen::visit(ThisExpressionAST* ast) {
@@ -45,11 +89,14 @@ void ExpressionCodegen::visit(CharLiteralExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(BoolLiteralExpressionAST* ast) {
-  throw std::runtime_error("visit(BoolLiteralExpressionAST): not implemented");
+  auto value = cg->unit()->tokenKind(ast->literalLoc) == TokenKind::T_TRUE;
+  expr_ = cg->createIntegerLiteral(value);
 }
 
 void ExpressionCodegen::visit(IntLiteralExpressionAST* ast) {
-  throw std::runtime_error("visit(IntLiteralExpressionAST): not implemented");
+  auto value = cg->unit()->tokenText(ast->literalLoc);
+  auto literal = std::stol(value);
+  expr_ = cg->createIntegerLiteral(literal);
 }
 
 void ExpressionCodegen::visit(FloatLiteralExpressionAST* ast) {
@@ -76,7 +123,7 @@ void ExpressionCodegen::visit(IdExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(NestedExpressionAST* ast) {
-  throw std::runtime_error("visit(NestedExpressionAST): not implemented");
+  ast->expression->accept(this);
 }
 
 void ExpressionCodegen::visit(RightFoldExpressionAST* ast) {
@@ -124,7 +171,21 @@ void ExpressionCodegen::visit(UnaryExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(BinaryExpressionAST* ast) {
-  throw std::runtime_error("visit(BinaryExpressionAST): not implemented");
+  auto left = cg->expression(ast->leftExpression);
+  auto right = cg->expression(ast->rightExpression);
+  auto op = convertBinaryOp(ast->op);
+
+  auto e = cg->createBinary(op, left, right);
+  auto control = cg->unit()->control();
+  auto types = control->types();
+
+  QualifiedType ty{types->integerType(IntegerKind::kInt, false)};
+
+  auto local = cg->function()->addLocal(ty);
+
+  cg->emitMove(cg->createLoad(local), e);
+
+  expr_ = cg->createLoad(local);
 }
 
 void ExpressionCodegen::visit(AssignmentExpressionAST* ast) {

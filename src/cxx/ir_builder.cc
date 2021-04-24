@@ -28,6 +28,11 @@ IRBuilder::IRBuilder(Module* module) : module_(module) {
 
 IRBuilder::~IRBuilder() {}
 
+void IRBuilder::setModule(Module* module) {
+  module_ = module;
+  factory_ = module_ ? module_->irFactory() : nullptr;
+}
+
 void IRBuilder::setInsertionPoint(Block* block,
                                   const std::list<Stmt*>::iterator& ip) {
   block_ = block;
@@ -44,19 +49,25 @@ Move* IRBuilder::emitMove(Expr* target, Expr* source) {
 }
 
 Jump* IRBuilder::emitJump(Block* target) {
+  if (blockHasTerminator()) return nullptr;
   return insert(factory_->createJump(target));
 }
 
 CondJump* IRBuilder::emitCondJump(Expr* condition, Block* iftrue,
                                   Block* iffalse) {
+  if (blockHasTerminator()) return nullptr;
   return insert(factory_->createCondJump(condition, iftrue, iffalse));
 }
 
 Ret* IRBuilder::emitRet(Expr* result) {
+  if (blockHasTerminator()) return nullptr;
   return insert(factory_->createRet(result));
 }
 
-RetVoid* IRBuilder::emitRetVoid() { return insert(factory_->createRetVoid()); }
+RetVoid* IRBuilder::emitRetVoid() {
+  if (blockHasTerminator()) return nullptr;
+  return insert(factory_->createRetVoid());
+}
 
 This* IRBuilder::createThis(Expr* type) {
   return insert(factory_->createThis(type));
