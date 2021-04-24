@@ -35,6 +35,7 @@ class Expr;
 
 class IRVisitor;
 class IRFactory;
+class IRBuilder;
 
 // statements
 class Jump;

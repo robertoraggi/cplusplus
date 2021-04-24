@@ -18,61 +18,23 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#pragma once
-
+#include <cxx/ast.h>
+#include <cxx/codegen.h>
 #include <cxx/condition_codegen.h>
-#include <cxx/expression_codegen.h>
-#include <cxx/ir_builder.h>
-#include <cxx/ir_fwd.h>
-#include <cxx/recursive_ast_visitor.h>
-#include <cxx/statement_codegen.h>
-
-#include <memory>
 
 namespace cxx {
 
-class TranslationUnit;
+ConditionCodegen::ConditionCodegen(Codegen* cg) : cg(cg) {}
 
-class Codegen final : RecursiveASTVisitor {
- public:
-  Codegen(const Codegen&) = delete;
-  Codegen& operator=(const Codegen&) = delete;
+void ConditionCodegen::gen(ExpressionAST* ast, ir::Block* iftrue,
+                           ir::Block* iffalse) {
+  std::swap(iftrue_, iftrue);
+  std::swap(iffalse_, iffalse);
+  ast->accept(this);
+  std::swap(iftrue_, iftrue);
+  std::swap(iffalse_, iffalse);
+}
 
-  Codegen();
-  ~Codegen();
-
-  std::unique_ptr<ir::Module> operator()(TranslationUnit* unit);
-
-  ir::Expr* expression(ExpressionAST* ast);
-
-  void condition(ExpressionAST* ast, ir::Block* iftrue, ir::Block* iffalse);
-
-  void statement(StatementAST* ast);
-
-  ir::IRFactory* irFactory();
-
-  ir::Block* createBlock();
-
-  void place(ir::Block* block);
-
-  ir::IRBuilder& ir() { return ir_; }
-
- private:
-  using RecursiveASTVisitor::visit;
-
-  void visit(FunctionDefinitionAST* ast) override;
-
- private:
-  ExpressionCodegen expression_{this};
-  ConditionCodegen condition_{this};
-  StatementCodegen statement_{this};
-
-  TranslationUnit* unit_ = nullptr;
-  std::unique_ptr<ir::Module> module_;
-  ir::IRBuilder ir_;
-  ir::Function* function_ = nullptr;
-  ir::Block* entryBlock_ = nullptr;
-  ir::Block* exitBlock_ = nullptr;
-};
+ir::IRBuilder& ConditionCodegen::ir() { return cg->ir(); }
 
 }  // namespace cxx

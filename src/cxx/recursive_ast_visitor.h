@@ -28,100 +28,43 @@ class RecursiveASTVisitor : public ASTVisitor {
  public:
   void accept(AST* ast);
 
-  virtual void specifier(SpecifierAST* ast) { return accept(ast); }
-
-  virtual void declarator(DeclaratorAST* ast) { return accept(ast); }
-
-  virtual void name(NameAST* ast) { return accept(ast); }
-
-  virtual void nestedNameSpecifier(NestedNameSpecifierAST* ast) {
-    return accept(ast);
-  }
-
-  virtual void exceptionDeclaration(ExceptionDeclarationAST* ast) {
-    return accept(ast);
-  }
-
-  virtual void compoundStatement(CompoundStatementAST* ast) {
-    return accept(ast);
-  }
-
-  virtual void attribute(AttributeAST* ast) { return accept(ast); }
-
-  virtual void expression(ExpressionAST* ast) { return accept(ast); }
-
-  virtual void ptrOperator(PtrOperatorAST* ast) { return accept(ast); }
-
-  virtual void coreDeclarator(CoreDeclaratorAST* ast) { return accept(ast); }
-
-  virtual void declaratorModifier(DeclaratorModifierAST* ast) {
-    return accept(ast);
-  }
-
-  virtual void initializer(InitializerAST* ast) { return accept(ast); }
-
-  virtual void baseSpecifier(BaseSpecifierAST* ast) { return accept(ast); }
-
-  virtual void parameterDeclaration(ParameterDeclarationAST* ast) {
-    return accept(ast);
-  }
-
-  virtual void parameterDeclarationClause(ParameterDeclarationClauseAST* ast) {
-    return accept(ast);
-  }
-
-  virtual void lambdaCapture(LambdaCaptureAST* ast) { return accept(ast); }
-
-  virtual void trailingReturnType(TrailingReturnTypeAST* ast) {
-    return accept(ast);
-  }
-
-  virtual void typeId(TypeIdAST* ast) { return accept(ast); }
-
-  virtual void memInitializer(MemInitializerAST* ast) { return accept(ast); }
-
-  virtual void bracedInitList(BracedInitListAST* ast) { return accept(ast); }
-
-  virtual void ctorInitializer(CtorInitializerAST* ast) { return accept(ast); }
-
-  virtual void handler(HandlerAST* ast) { return accept(ast); }
-
-  virtual void declaration(DeclarationAST* ast) { return accept(ast); }
-
-  virtual void lambdaIntroducer(LambdaIntroducerAST* ast) {
-    return accept(ast);
-  }
-
-  virtual void lambdaDeclarator(LambdaDeclaratorAST* ast) {
-    return accept(ast);
-  }
-
-  virtual void newTypeId(NewTypeIdAST* ast) { return accept(ast); }
-
-  virtual void newInitializer(NewInitializerAST* ast) { return accept(ast); }
-
-  virtual void statement(StatementAST* ast) { return accept(ast); }
-
-  virtual void functionBody(FunctionBodyAST* ast) { return accept(ast); }
-
-  virtual void initDeclarator(InitDeclaratorAST* ast) { return accept(ast); }
-
-  virtual void enumBase(EnumBaseAST* ast) { return accept(ast); }
-
-  virtual void usingDeclarator(UsingDeclaratorAST* ast) { return accept(ast); }
-
-  virtual void templateArgument(TemplateArgumentAST* ast) {
-    return accept(ast);
-  }
-
-  virtual void enumerator(EnumeratorAST* ast) { return accept(ast); }
-
-  virtual void baseClause(BaseClauseAST* ast) { return accept(ast); }
-
-  virtual void parametersAndQualifiers(ParametersAndQualifiersAST* ast) {
-    return accept(ast);
-  }
-
+  virtual void acceptSpecifier(SpecifierAST* ast);
+  virtual void acceptDeclarator(DeclaratorAST* ast);
+  virtual void acceptName(NameAST* ast);
+  virtual void acceptNestedNameSpecifier(NestedNameSpecifierAST* ast);
+  virtual void acceptExceptionDeclaration(ExceptionDeclarationAST* ast);
+  virtual void acceptCompoundStatement(CompoundStatementAST* ast);
+  virtual void acceptAttribute(AttributeAST* ast);
+  virtual void acceptExpression(ExpressionAST* ast);
+  virtual void acceptPtrOperator(PtrOperatorAST* ast);
+  virtual void acceptCoreDeclarator(CoreDeclaratorAST* ast);
+  virtual void acceptDeclaratorModifier(DeclaratorModifierAST* ast);
+  virtual void acceptInitializer(InitializerAST* ast);
+  virtual void acceptBaseSpecifier(BaseSpecifierAST* ast);
+  virtual void acceptParameterDeclaration(ParameterDeclarationAST* ast);
+  virtual void acceptParameterDeclarationClause(
+      ParameterDeclarationClauseAST* ast);
+  virtual void acceptLambdaCapture(LambdaCaptureAST* ast);
+  virtual void acceptTrailingReturnType(TrailingReturnTypeAST* ast);
+  virtual void acceptTypeId(TypeIdAST* ast);
+  virtual void acceptMemInitializer(MemInitializerAST* ast);
+  virtual void acceptBracedInitList(BracedInitListAST* ast);
+  virtual void acceptCtorInitializer(CtorInitializerAST* ast);
+  virtual void acceptHandler(HandlerAST* ast);
+  virtual void acceptDeclaration(DeclarationAST* ast);
+  virtual void acceptLambdaIntroducer(LambdaIntroducerAST* ast);
+  virtual void acceptLambdaDeclarator(LambdaDeclaratorAST* ast);
+  virtual void acceptNewTypeId(NewTypeIdAST* ast);
+  virtual void acceptNewInitializer(NewInitializerAST* ast);
+  virtual void acceptStatement(StatementAST* ast);
+  virtual void acceptFunctionBody(FunctionBodyAST* ast);
+  virtual void acceptInitDeclarator(InitDeclaratorAST* ast);
+  virtual void acceptEnumBase(EnumBaseAST* ast);
+  virtual void acceptUsingDeclarator(UsingDeclaratorAST* ast);
+  virtual void acceptTemplateArgument(TemplateArgumentAST* ast);
+  virtual void acceptEnumerator(EnumeratorAST* ast);
+  virtual void acceptBaseClause(BaseClauseAST* ast);
+  virtual void acceptParametersAndQualifiers(ParametersAndQualifiersAST* ast);
   virtual bool preVisit(AST*) { return true; }
   virtual void postVisit(AST*) {}
 
