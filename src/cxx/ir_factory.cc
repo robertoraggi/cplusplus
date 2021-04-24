@@ -30,7 +30,7 @@ struct IRFactory::Private {
   std::forward_list<Global> globals_;
   std::forward_list<Function> functions_;
   std::forward_list<Block> blocks_;
-  std::forward_list<Store> stores_;
+  std::forward_list<Move> moves_;
   std::forward_list<Jump> jumps_;
   std::forward_list<CondJump> condJumps_;
   std::forward_list<Ret> rets_;
@@ -82,8 +82,8 @@ Block* IRFactory::createBlock(Function* function) {
   return &d->blocks_.emplace_front(function);
 }
 
-Store* IRFactory::createStore(Expr* target, Expr* source) {
-  return &d->stores_.emplace_front(target, source);
+Move* IRFactory::createMove(Expr* target, Expr* source) {
+  return &d->moves_.emplace_front(target, source);
 }
 
 Jump* IRFactory::createJump(Block* target) {

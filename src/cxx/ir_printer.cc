@@ -164,7 +164,7 @@ std::string IRPrinter::quote(const std::string& s) const {
   return result;
 }
 
-void IRPrinter::visit(Store* expr) {
+void IRPrinter::visit(Move* expr) {
   text_ = fmt::format("({} = {})", toString(expr->target()),
                       toString(expr->source()));
 }

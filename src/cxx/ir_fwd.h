@@ -41,7 +41,7 @@ class Jump;
 class CondJump;
 class Ret;
 class RetVoid;
-class Store;
+class Move;
 
 // expressions
 class This;

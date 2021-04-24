@@ -59,7 +59,7 @@ bool Block::hasTerminator() const {
   return !code_.empty() && code_.back()->isTerminator();
 }
 
-void Store::accept(IRVisitor* visitor) { visitor->visit(this); }
+void Move::accept(IRVisitor* visitor) { visitor->visit(this); }
 
 void Jump::accept(IRVisitor* visitor) { visitor->visit(this); }
 

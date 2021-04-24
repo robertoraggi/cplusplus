@@ -20,30 +20,37 @@
 
 #pragma once
 
-#include <cxx/ir_fwd.h>
-#include <cxx/symbols_fwd.h>
+#include <cxx/ir.h>
+#include <cxx/ir_factory.h>
 
-#include <memory>
-#include <vector>
+#include <list>
 
 namespace cxx::ir {
 
-class IRFactory {
+class IRBuilder {
  public:
-  IRFactory();
-  ~IRFactory();
+  explicit IRBuilder(Module* module = nullptr);
+  ~IRBuilder();
 
-  Module* module() const;
-  void setModule(Module* module);
+  void set(Block* block, const std::list<Stmt*>::iterator& ip);
+  void set(Block* block);
 
-  Global* createGlobal(Symbol* symbol);
-  Function* createFunction(FunctionSymbol* symbol);
-  Block* createBlock(Function* function);
-  Move* createMove(Expr* target, Expr* source);
-  Jump* createJump(Block* target);
-  CondJump* createCondJump(Expr* condition, Block* iftrue, Block* iffalse);
-  Ret* createRet(Expr* result);
-  RetVoid* createRetVoid();
+  explicit operator bool() const { return module_ && block_; }
+
+  Block* block() const { return block_; }
+
+  bool blockHasTerminator() const {
+    return block_ && !block_->code().empty()
+               ? block_->code().back()->isTerminator()
+               : false;
+  }
+
+  Move* emitMove(Expr* target, Expr* source);
+  Jump* emitJump(Block* target);
+  CondJump* emitCondJump(Expr* condition, Block* iftrue, Block* iffalse);
+  Ret* emitRet(Expr* result);
+  RetVoid* emitRetVoid();
+
   This* createThis(Expr* type);
   BoolLiteral* createBoolLiteral(bool value);
   IntegerLiteral* createIntegerLiteral(const IntegerValue& value);
@@ -71,8 +78,18 @@ class IRFactory {
   Throw* createThrow(Expr* expr);
 
  private:
-  struct Private;
-  std::unique_ptr<Private> d;
+  template <typename T>
+  T* insert(T* stmt) {
+    auto it = block_->code().insert(ip_, stmt);
+    ip_ = ++it;
+    return stmt;
+  }
+
+ private:
+  Module* module_ = nullptr;
+  IRFactory* factory_ = nullptr;
+  Block* block_ = nullptr;
+  std::list<Stmt*>::iterator ip_;
 };
 
 }  // namespace cxx::ir

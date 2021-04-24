@@ -136,9 +136,9 @@ class Expr : public Stmt {
   Expr() = default;
 };
 
-class Store final : public Stmt {
+class Move final : public Stmt {
  public:
-  Store(Expr* target, Expr* source) : target_(target), source_(source) {}
+  Move(Expr* target, Expr* source) : target_(target), source_(source) {}
 
   Expr* target() const { return target_; }
   Expr* source() const { return source_; }

@@ -36,6 +36,7 @@ Codegen::~Codegen() {}
 
 std::unique_ptr<ir::Module> Codegen::operator()(TranslationUnit* unit) {
   auto module = std::make_unique<ir::Module>();
+  ir_ = ir::IRBuilder(module.get());
   std::swap(module_, module);
   std::swap(unit_, unit);
   accept(unit_->ast());
@@ -46,13 +47,15 @@ std::unique_ptr<ir::Module> Codegen::operator()(TranslationUnit* unit) {
 
 ir::IRFactory* Codegen::irFactory() { return module_->irFactory(); }
 
-void Codegen::place(ir::Block* block) {
-  if (block_ && !block_->hasTerminator()) emit(irFactory()->createJump(block));
-  function_->addBlock(block);
-  block_ = block;
+ir::Block* Codegen::createBlock() {
+  return irFactory()->createBlock(function_);
 }
 
-void Codegen::emit(ir::Stmt* stmt) { block_->code().push_back(stmt); }
+void Codegen::place(ir::Block* block) {
+  if (ir_ && !ir_.blockHasTerminator()) ir_.emitJump(block);
+  function_->addBlock(block);
+  ir_.set(block);
+}
 
 void Codegen::specifier(SpecifierAST* ast) { accept(ast); }
 
@@ -504,9 +507,10 @@ void Codegen::visit(FunctionDefinitionAST* ast) {
 
   module_->addFunction(function);
 
-  ir::Block* entryBlock = irFactory()->createBlock(function);
-  ir::Block* exitBlock = irFactory()->createBlock(function);
-  ir::Block* block = nullptr;
+  std::swap(function_, function);
+
+  ir::Block* entryBlock = createBlock();
+  ir::Block* exitBlock = createBlock();
 
   auto types = unit_->control()->types();
 
@@ -515,13 +519,11 @@ void Codegen::visit(FunctionDefinitionAST* ast) {
   ir::Local* result = nullptr;
 
   if (!functionType->returnType()->asVoidType()) {
-    result = function->addLocal(functionType->returnType());
+    result = function_->addLocal(functionType->returnType());
   }
 
-  std::swap(function_, function);
   std::swap(entryBlock_, entryBlock);
   std::swap(exitBlock_, exitBlock);
-  std::swap(block_, block);
 
   place(entryBlock_);
 
@@ -530,15 +532,14 @@ void Codegen::visit(FunctionDefinitionAST* ast) {
   place(exitBlock_);
 
   if (result) {
-    emit(irFactory()->createRet(irFactory()->createLoad(result)));
+    ir_.emitRet(ir_.createLoad(result));
   } else {
-    emit(irFactory()->createRetVoid());
+    ir_.emitRetVoid();
   }
 
-  std::swap(function_, function);
   std::swap(entryBlock_, entryBlock);
   std::swap(exitBlock_, exitBlock);
-  std::swap(block_, block);
+  std::swap(function_, function);
 }
 
 void Codegen::visit(ConceptDefinitionAST* ast) {
