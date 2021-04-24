@@ -23,7 +23,6 @@
 #include <cxx/condition_codegen.h>
 #include <cxx/expression_codegen.h>
 #include <cxx/ir_builder.h>
-#include <cxx/ir_fwd.h>
 #include <cxx/recursive_ast_visitor.h>
 #include <cxx/statement_codegen.h>
 
@@ -33,7 +32,7 @@ namespace cxx {
 
 class TranslationUnit;
 
-class Codegen final : RecursiveASTVisitor {
+class Codegen final : public ir::IRBuilder, RecursiveASTVisitor {
  public:
   Codegen(const Codegen&) = delete;
   Codegen& operator=(const Codegen&) = delete;
@@ -55,12 +54,16 @@ class Codegen final : RecursiveASTVisitor {
 
   void place(ir::Block* block);
 
-  ir::IRBuilder& ir() { return ir_; }
+  TranslationUnit* unit() const { return unit_; }
+  ir::Function* function() const { return function_; }
+  ir::Block* entryBlock() const { return entryBlock_; }
+  ir::Block* exitBlock() const { return exitBlock_; }
 
  private:
   using RecursiveASTVisitor::visit;
 
   void visit(FunctionDefinitionAST* ast) override;
+  void visit(CompoundStatementFunctionBodyAST* ast) override;
 
  private:
   ExpressionCodegen expression_{this};
@@ -69,7 +72,6 @@ class Codegen final : RecursiveASTVisitor {
 
   TranslationUnit* unit_ = nullptr;
   std::unique_ptr<ir::Module> module_;
-  ir::IRBuilder ir_;
   ir::Function* function_ = nullptr;
   ir::Block* entryBlock_ = nullptr;
   ir::Block* exitBlock_ = nullptr;

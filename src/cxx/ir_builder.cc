@@ -28,13 +28,15 @@ IRBuilder::IRBuilder(Module* module) : module_(module) {
 
 IRBuilder::~IRBuilder() {}
 
-void IRBuilder::set(Block* block, const std::list<Stmt*>::iterator& ip) {
+void IRBuilder::setInsertionPoint(Block* block,
+                                  const std::list<Stmt*>::iterator& ip) {
   block_ = block;
   ip_ = ip;
 }
 
-void IRBuilder::set(Block* block) {
-  set(block, block ? block->code().end() : std::list<Stmt*>::iterator());
+void IRBuilder::setInsertionPoint(Block* block) {
+  setInsertionPoint(block,
+                    block ? block->code().end() : std::list<Stmt*>::iterator());
 }
 
 Move* IRBuilder::emitMove(Expr* target, Expr* source) {

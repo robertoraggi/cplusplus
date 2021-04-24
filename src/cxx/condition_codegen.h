@@ -34,8 +34,6 @@ class ConditionCodegen : private DefaultASTVisitor {
   void gen(ExpressionAST* ast, ir::Block* iftrue, ir::Block* iffalse);
 
  private:
-  ir::IRBuilder& ir();
-
   using DefaultASTVisitor::visit;
 
  private:

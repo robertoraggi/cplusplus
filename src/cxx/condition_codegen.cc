@@ -22,6 +22,8 @@
 #include <cxx/codegen.h>
 #include <cxx/condition_codegen.h>
 
+#include <stdexcept>
+
 namespace cxx {
 
 ConditionCodegen::ConditionCodegen(Codegen* cg) : cg(cg) {}
@@ -34,7 +36,5 @@ void ConditionCodegen::gen(ExpressionAST* ast, ir::Block* iftrue,
   std::swap(iftrue_, iftrue);
   std::swap(iffalse_, iffalse);
 }
-
-ir::IRBuilder& ConditionCodegen::ir() { return cg->ir(); }
 
 }  // namespace cxx

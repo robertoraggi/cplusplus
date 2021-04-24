@@ -22,6 +22,8 @@
 #include <cxx/codegen.h>
 #include <cxx/expression_codegen.h>
 
+#include <stdexcept>
+
 namespace cxx {
 
 ExpressionCodegen::ExpressionCodegen(Codegen* codegen) {}
@@ -34,9 +36,6 @@ ir::Expr* ExpressionCodegen::gen(ExpressionAST* ast) {
   return expr;
 }
 
-ir::IRBuilder& ExpressionCodegen::ir() { return cg->ir(); }
-
-// ExpressionAST
 void ExpressionCodegen::visit(ThisExpressionAST* ast) {
   throw std::runtime_error("visit(ThisExpressionAST): not implemented");
 }

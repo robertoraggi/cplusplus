@@ -32,8 +32,11 @@ class IRBuilder {
   explicit IRBuilder(Module* module = nullptr);
   ~IRBuilder();
 
-  void set(Block* block, const std::list<Stmt*>::iterator& ip);
-  void set(Block* block);
+  Module* module() { return module_; }
+  void setModule(Module* module) { module_ = module; }
+
+  void setInsertionPoint(Block* block, const std::list<Stmt*>::iterator& ip);
+  void setInsertionPoint(Block* block);
 
   explicit operator bool() const { return module_ && block_; }
 

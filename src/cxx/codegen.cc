@@ -36,7 +36,7 @@ Codegen::~Codegen() {}
 
 std::unique_ptr<ir::Module> Codegen::operator()(TranslationUnit* unit) {
   auto module = std::make_unique<ir::Module>();
-  ir_ = ir::IRBuilder(module.get());
+  setModule(module.get());
   std::swap(module_, module);
   std::swap(unit_, unit);
   accept(unit_->ast());
@@ -63,9 +63,9 @@ ir::Block* Codegen::createBlock() {
 }
 
 void Codegen::place(ir::Block* block) {
-  if (ir_ && !ir_.blockHasTerminator()) ir_.emitJump(block);
+  if (this->block() && !blockHasTerminator()) emitJump(block);
   function_->addBlock(block);
-  ir_.set(block);
+  setInsertionPoint(block);
 }
 
 void Codegen::visit(FunctionDefinitionAST* ast) {
@@ -98,14 +98,18 @@ void Codegen::visit(FunctionDefinitionAST* ast) {
   place(exitBlock_);
 
   if (result) {
-    ir_.emitRet(ir_.createLoad(result));
+    emitRet(createLoad(result));
   } else {
-    ir_.emitRetVoid();
+    emitRetVoid();
   }
 
   std::swap(entryBlock_, entryBlock);
   std::swap(exitBlock_, exitBlock);
   std::swap(function_, function);
+}
+
+void Codegen::visit(CompoundStatementFunctionBodyAST* ast) {
+  statement(ast->statement);
 }
 
 }  // namespace cxx

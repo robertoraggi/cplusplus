@@ -22,13 +22,15 @@
 #include <cxx/codegen.h>
 #include <cxx/statement_codegen.h>
 
+#include <stdexcept>
+
 namespace cxx {
 
 StatementCodegen::StatementCodegen(Codegen* cg) : cg(cg) {}
 
-void StatementCodegen::gen(StatementAST* ast) {}
-
-ir::IRBuilder& StatementCodegen::ir() { return cg->ir(); }
+void StatementCodegen::gen(StatementAST* ast) {
+  if (ast) ast->accept(this);
+}
 
 // StatementAST
 void StatementCodegen::visit(LabeledStatementAST* ast) {
@@ -48,11 +50,32 @@ void StatementCodegen::visit(ExpressionStatementAST* ast) {
 }
 
 void StatementCodegen::visit(CompoundStatementAST* ast) {
-  throw std::runtime_error("visit(CompoundStatementAST): not implemented");
+  for (auto it = ast->statementList; it; it = it->next) {
+    cg->statement(it->value);
+  }
 }
 
 void StatementCodegen::visit(IfStatementAST* ast) {
-  throw std::runtime_error("visit(IfStatementAST): not implemented");
+  if (ast->elseStatement) {
+    auto iftrue = cg->createBlock();
+    auto iffalse = cg->createBlock();
+    auto endif = cg->createBlock();
+    cg->condition(ast->condition, iftrue, iffalse);
+    cg->place(iftrue);
+    cg->statement(ast->statement);
+    cg->emitJump(endif);
+    cg->place(iffalse);
+    cg->statement(ast->elseStatement);
+    cg->place(endif);
+    return;
+  }
+
+  auto iftrue = cg->createBlock();
+  auto endif = cg->createBlock();
+  cg->condition(ast->condition, iftrue, endif);
+  cg->place(iftrue);
+  cg->statement(ast->statement);
+  cg->place(endif);
 }
 
 void StatementCodegen::visit(SwitchStatementAST* ast) {

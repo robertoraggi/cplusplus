@@ -34,8 +34,6 @@ class ExpressionCodegen : private DefaultASTVisitor {
   ir::Expr* gen(ExpressionAST* ast);
 
  private:
-  ir::IRBuilder& ir();
-
   using DefaultASTVisitor::visit;
 
   void visit(ThisExpressionAST* ast) override;
