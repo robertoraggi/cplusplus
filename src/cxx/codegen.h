@@ -27,6 +27,7 @@
 #include <cxx/statement_codegen.h>
 
 #include <memory>
+#include <unordered_map>
 
 namespace cxx {
 
