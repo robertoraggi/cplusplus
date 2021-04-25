@@ -66,7 +66,33 @@ void ConditionCodegen::visit(BinaryExpressionAST* ast) {
     return;
   }
 
+  const auto op = convertBinaryOp(ast->op);
+
+  if (isRelOp(op)) {
+    auto left = cg->expression(ast->leftExpression);
+    auto right = cg->expression(ast->rightExpression);
+    auto cond = cg->createBinary(convertBinaryOp(ast->op), left, right);
+    cg->emitCondJump(cond, iftrue_, iffalse_);
+    return;
+  }
+
   ExpressionCodegen::visit(ast);
+}
+
+bool ConditionCodegen::isRelOp(ir::BinaryOp op) const {
+  switch (op) {
+    case ir::BinaryOp::kGreaterGreater:
+    case ir::BinaryOp::kLessLess:
+    case ir::BinaryOp::kGreater:
+    case ir::BinaryOp::kLess:
+    case ir::BinaryOp::kGreaterEqual:
+    case ir::BinaryOp::kLessEqual:
+    case ir::BinaryOp::kEqualEqual:
+    case ir::BinaryOp::kExclaimEqual:
+      return true;
+    default:
+      return false;
+  }  // switch
 }
 
 }  // namespace cxx

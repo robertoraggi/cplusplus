@@ -51,7 +51,7 @@ class IRFactory {
   NullptrLiteral* createNullptrLiteral();
   StringLiteral* createStringLiteral(std::string value);
   UserDefinedStringLiteral* createUserDefinedStringLiteral(std::string value);
-  Load* createLoad(Local* local);
+  Temp* createTemp(Local* local);
   Id* createId(Symbol* symbol);
   ExternalId* createExternalId(std::string name);
   Typeid* createTypeid(Expr* expr);

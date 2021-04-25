@@ -52,7 +52,7 @@ class FloatLiteral;
 class NullptrLiteral;
 class StringLiteral;
 class UserDefinedStringLiteral;
-class Load;
+class Temp;
 class Id;
 class ExternalId;
 class Typeid;

@@ -247,7 +247,7 @@ void IRPrinter::visit(UserDefinedStringLiteral* expr) {
   text_ = fmt::format("\"{}\"", quote(expr->value()));
 }
 
-void IRPrinter::visit(Load* expr) {
+void IRPrinter::visit(Temp* expr) {
   text_ = fmt::format("t{}", expr->local()->index());
 }
 

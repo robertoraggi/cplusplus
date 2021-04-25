@@ -57,7 +57,7 @@ class IRPrinter final : IRVisitor {
   void visit(NullptrLiteral*) override;
   void visit(StringLiteral*) override;
   void visit(UserDefinedStringLiteral*) override;
-  void visit(Load*) override;
+  void visit(Temp*) override;
   void visit(Id*) override;
   void visit(ExternalId*) override;
   void visit(Typeid*) override;

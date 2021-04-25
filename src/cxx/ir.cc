@@ -85,7 +85,7 @@ void UserDefinedStringLiteral::accept(IRVisitor* visitor) {
   visitor->visit(this);
 }
 
-void Load::accept(IRVisitor* visitor) { visitor->visit(this); }
+void Temp::accept(IRVisitor* visitor) { visitor->visit(this); }
 
 void Id::accept(IRVisitor* visitor) { visitor->visit(this); }
 

@@ -42,7 +42,7 @@ struct IRFactory::Private {
   std::forward_list<NullptrLiteral> nullptrLiterals_;
   std::forward_list<StringLiteral> stringLiterals_;
   std::forward_list<UserDefinedStringLiteral> userDefinedStringLiterals_;
-  std::forward_list<Load> loads_;
+  std::forward_list<Temp> temps_;
   std::forward_list<Id> ids_;
   std::forward_list<ExternalId> externalIds_;
   std::forward_list<Typeid> typeids_;
@@ -130,8 +130,8 @@ UserDefinedStringLiteral* IRFactory::createUserDefinedStringLiteral(
   return &d->userDefinedStringLiterals_.emplace_front(std::move(value));
 }
 
-Load* IRFactory::createLoad(Local* local) {
-  return &d->loads_.emplace_front(local);
+Temp* IRFactory::createTemp(Local* local) {
+  return &d->temps_.emplace_front(local);
 }
 
 Id* IRFactory::createId(Symbol* symbol) {

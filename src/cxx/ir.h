@@ -286,9 +286,9 @@ class UserDefinedStringLiteral final : public Expr {
   std::string value_;
 };
 
-class Load final : public Expr {
+class Temp final : public Expr {
  public:
-  explicit Load(Local* local) : local_(local) {}
+  explicit Temp(Local* local) : local_(local) {}
 
   Local* local() const { return local_; }
 

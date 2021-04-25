@@ -98,8 +98,8 @@ UserDefinedStringLiteral* IRBuilder::createUserDefinedStringLiteral(
   return factory_->createUserDefinedStringLiteral(std::move(value));
 }
 
-Load* IRBuilder::createLoad(Local* local) {
-  return factory_->createLoad(local);
+Temp* IRBuilder::createTemp(Local* local) {
+  return factory_->createTemp(local);
 }
 
 Id* IRBuilder::createId(Symbol* symbol) { return factory_->createId(symbol); }

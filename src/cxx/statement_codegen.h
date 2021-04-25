@@ -36,6 +36,8 @@ class StatementCodegen final : public DefaultASTVisitor {
  private:
   ir::IRBuilder& ir();
 
+  ir::Expr* accept(InitializerAST* ast);
+
   using DefaultASTVisitor::visit;
 
   void visit(LabeledStatementAST* ast) override;
@@ -56,6 +58,12 @@ class StatementCodegen final : public DefaultASTVisitor {
   void visit(CoroutineReturnStatementAST* ast) override;
   void visit(DeclarationStatementAST* ast) override;
   void visit(TryBlockStatementAST* ast) override;
+
+  void visit(SimpleDeclarationAST* ast) override;
+
+  // initializers
+  void visit(EqualInitializerAST* ast) override;
+  void visit(BracedInitListAST* ast) override;
 
  private:
   Codegen* cg;

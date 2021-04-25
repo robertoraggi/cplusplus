@@ -46,7 +46,9 @@ void StatementCodegen::visit(DefaultStatementAST* ast) {
 }
 
 void StatementCodegen::visit(ExpressionStatementAST* ast) {
-  throw std::runtime_error("visit(ExpressionStatementAST): not implemented");
+  if (ast->expression) {
+    auto expr = cg->expression(ast->expression);
+  }
 }
 
 void StatementCodegen::visit(CompoundStatementAST* ast) {
@@ -83,11 +85,41 @@ void StatementCodegen::visit(SwitchStatementAST* ast) {
 }
 
 void StatementCodegen::visit(WhileStatementAST* ast) {
-  throw std::runtime_error("visit(WhileStatementAST): not implemented");
+  auto topLoop = cg->createBlock();
+  auto bodyLoop = cg->createBlock();
+  auto endLoop = cg->createBlock();
+
+  auto previousBreakBlock = cg->changeBreakBlock(endLoop);
+  auto previousContinueblock = cg->changeContinueBlock(topLoop);
+
+  cg->place(topLoop);
+  cg->condition(ast->condition, bodyLoop, endLoop);
+  cg->place(bodyLoop);
+  cg->statement(ast->statement);
+  cg->emitJump(topLoop);
+  cg->place(endLoop);
+
+  cg->changeBreakBlock(previousBreakBlock);
+  cg->changeContinueBlock(previousContinueblock);
 }
 
 void StatementCodegen::visit(DoStatementAST* ast) {
-  throw std::runtime_error("visit(DoStatementAST): not implemented");
+  auto topLoop = cg->createBlock();
+  auto bodyLoop = cg->createBlock();
+  auto continueLoop = cg->createBlock();
+  auto endLoop = cg->createBlock();
+
+  auto previousBreakBlock = cg->changeBreakBlock(endLoop);
+  auto previousContinueblock = cg->changeContinueBlock(continueLoop);
+
+  cg->place(topLoop);
+  cg->statement(ast->statement);
+  cg->place(continueLoop);
+  cg->condition(ast->expression, topLoop, endLoop);
+  cg->place(endLoop);
+
+  cg->changeBreakBlock(previousBreakBlock);
+  cg->changeContinueBlock(previousContinueblock);
 }
 
 void StatementCodegen::visit(ForRangeStatementAST* ast) {
@@ -95,21 +127,40 @@ void StatementCodegen::visit(ForRangeStatementAST* ast) {
 }
 
 void StatementCodegen::visit(ForStatementAST* ast) {
-  throw std::runtime_error("visit(ForStatementAST): not implemented");
+  auto topLoop = cg->createBlock();
+  auto bodyLoop = cg->createBlock();
+  auto continueLoop = cg->createBlock();
+  auto endLoop = cg->createBlock();
+
+  auto previousBreakBlock = cg->changeBreakBlock(endLoop);
+  auto previousContinueBlock = cg->changeContinueBlock(continueLoop);
+
+  cg->statement(ast->initializer);
+  cg->place(topLoop);
+  cg->condition(ast->condition, bodyLoop, endLoop);
+  cg->place(bodyLoop);
+  cg->statement(ast->statement);
+  cg->place(continueLoop);
+  cg->expression(ast->expression);
+  cg->emitJump(topLoop);
+  cg->place(endLoop);
+
+  cg->changeBreakBlock(previousBreakBlock);
+  cg->changeContinueBlock(previousContinueBlock);
 }
 
 void StatementCodegen::visit(BreakStatementAST* ast) {
-  throw std::runtime_error("visit(BreakStatementAST): not implemented");
+  cg->emitJump(cg->breakBlock());
 }
 
 void StatementCodegen::visit(ContinueStatementAST* ast) {
-  throw std::runtime_error("visit(ContinueStatementAST): not implemented");
+  cg->emitJump(cg->continueBlock());
 }
 
 void StatementCodegen::visit(ReturnStatementAST* ast) {
   if (ast->expression) {
     auto value = cg->expression(ast->expression);
-    cg->emitMove(cg->createLoad(cg->result()), value);
+    cg->emitMove(cg->createTemp(cg->result()), value);
   }
 
   cg->emitJump(cg->exitBlock());
@@ -125,10 +176,32 @@ void StatementCodegen::visit(CoroutineReturnStatementAST* ast) {
 }
 
 void StatementCodegen::visit(DeclarationStatementAST* ast) {
-  throw std::runtime_error("visit(DeclarationStatementAST): not implemented");
+  if (auto simpleDecl = dynamic_cast<SimpleDeclarationAST*>(ast->declaration)) {
+    simpleDecl->accept(this);
+  }
 }
 
 void StatementCodegen::visit(TryBlockStatementAST* ast) {
+  throw std::runtime_error("visit(TryBlockStatementAST): not implemented");
+}
+
+void StatementCodegen::visit(SimpleDeclarationAST* ast) {
+  for (auto it = ast->initDeclaratorList; it; it = it->next) {
+    auto initDeclarator = it->value;
+    auto initializer = accept(initDeclarator->initializer);
+  }
+}
+
+ir::Expr* StatementCodegen::accept(InitializerAST* ast) {
+  if (ast) ast->accept(this);
+  return nullptr;
+}
+
+void StatementCodegen::visit(EqualInitializerAST* ast) {
+  throw std::runtime_error("visit(TryBlockStatementAST): not implemented");
+}
+
+void StatementCodegen::visit(BracedInitListAST* ast) {
   throw std::runtime_error("visit(TryBlockStatementAST): not implemented");
 }
 

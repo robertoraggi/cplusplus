@@ -23,6 +23,8 @@
 #include <cxx/control.h>
 #include <cxx/expression_codegen.h>
 #include <cxx/literals.h>
+#include <cxx/scope.h>
+#include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_environment.h>
 #include <cxx/types.h>
@@ -119,7 +121,12 @@ void ExpressionCodegen::visit(UserDefinedStringLiteralExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(IdExpressionAST* ast) {
-  throw std::runtime_error("visit(IdExpressionAST): not implemented");
+  if (ast->symbol->enclosingBlock() == ast->symbol->enclosingScope()->owner()) {
+    expr_ = cg->createTemp(cg->getLocal(ast->symbol));
+    return;
+  }
+
+  expr_ = cg->createId(ast->symbol);
 }
 
 void ExpressionCodegen::visit(NestedExpressionAST* ast) {
@@ -183,12 +190,20 @@ void ExpressionCodegen::visit(BinaryExpressionAST* ast) {
 
   auto local = cg->function()->addLocal(ty);
 
-  cg->emitMove(cg->createLoad(local), e);
+  cg->emitMove(cg->createTemp(local), e);
 
-  expr_ = cg->createLoad(local);
+  expr_ = cg->createTemp(local);
 }
 
 void ExpressionCodegen::visit(AssignmentExpressionAST* ast) {
+  if (ast->op == TokenKind::T_EQUAL) {
+    auto left = gen(ast->leftExpression);
+    auto right = gen(ast->rightExpression);
+    cg->emitMove(left, right);
+    expr_ = left;
+    return;
+  }
+
   throw std::runtime_error("visit(AssignmentExpressionAST): not implemented");
 }
 
@@ -205,7 +220,9 @@ void ExpressionCodegen::visit(CallExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(SubscriptExpressionAST* ast) {
-  throw std::runtime_error("visit(SubscriptExpressionAST): not implemented");
+  auto base = gen(ast->baseExpression);
+  auto index = gen(ast->indexExpression);
+  expr_ = cg->createSubscript(base, index);
 }
 
 void ExpressionCodegen::visit(MemberExpressionAST* ast) {

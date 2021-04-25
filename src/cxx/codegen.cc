@@ -68,12 +68,22 @@ void Codegen::place(ir::Block* block) {
   setInsertionPoint(block);
 }
 
+ir::Local* Codegen::getLocal(Symbol* symbol) {
+  auto it = locals_.find(symbol);
+  if (it != locals_.end()) return it->second;
+  auto local = function_->addLocal(symbol->type());
+  locals_.emplace(symbol, local);
+  return local;
+}
+
 void Codegen::visit(FunctionDefinitionAST* ast) {
   ir::Function* function = irFactory()->createFunction(ast->symbol);
+  std::unordered_map<Symbol*, ir::Local*> locals;
 
   module_->addFunction(function);
 
   std::swap(function_, function);
+  std::swap(locals_, locals);
 
   ir::Block* entryBlock = createBlock();
   ir::Block* exitBlock = createBlock();
@@ -99,7 +109,7 @@ void Codegen::visit(FunctionDefinitionAST* ast) {
   place(exitBlock_);
 
   if (result_) {
-    emitRet(createLoad(result_));
+    emitRet(createTemp(result_));
   } else {
     emitRetVoid();
   }
@@ -108,6 +118,7 @@ void Codegen::visit(FunctionDefinitionAST* ast) {
   std::swap(exitBlock_, exitBlock);
   std::swap(function_, function);
   std::swap(result_, result);
+  std::swap(locals_, locals);
 }
 
 void Codegen::visit(CompoundStatementFunctionBodyAST* ast) {
