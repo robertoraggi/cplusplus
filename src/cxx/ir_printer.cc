@@ -300,27 +300,30 @@ void IRPrinter::visit(Access* expr) {
 }
 
 void IRPrinter::visit(Cast* expr) {
-  text_ = fmt::format("({}){}", toString(expr->type()), toString(expr->expr()));
+  text_ = fmt::format("({}){}", typePrinter.toString(expr->type()),
+                      toString(expr->expr()));
 }
 
 void IRPrinter::visit(StaticCast* expr) {
-  text_ = fmt::format("static_cast<{}>({})", toString(expr->type()),
+  text_ = fmt::format("static_cast<{}>({})", typePrinter.toString(expr->type()),
                       toString(expr->expr()));
 }
 
 void IRPrinter::visit(DynamicCast* expr) {
-  text_ = fmt::format("dynamic_cast<{}>({})", toString(expr->type()),
-                      toString(expr->expr()));
+  text_ =
+      fmt::format("dynamic_cast<{}>({})", typePrinter.toString(expr->type()),
+                  toString(expr->expr()));
 }
 
 void IRPrinter::visit(ReinterpretCast* expr) {
-  text_ = fmt::format("reinterpret_cast<{}>({})", toString(expr->type()),
-                      toString(expr->expr()));
+  text_ =
+      fmt::format("reinterpret_cast<{}>({})",
+                  typePrinter.toString(expr->type()), toString(expr->expr()));
 }
 
 void IRPrinter::visit(New* expr) {
   text_ = "new ";
-  text_ += toString(expr->type());
+  text_ += typePrinter.toString(expr->type());
   text_ += '(';
   for (size_t i = 0; i < expr->args().size(); ++i) {
     if (i) text_ += ", ";
@@ -330,8 +333,8 @@ void IRPrinter::visit(New* expr) {
 }
 
 void IRPrinter::visit(NewArray* expr) {
-  text_ =
-      fmt::format("new {}[{}]", toString(expr->type()), toString(expr->size()));
+  text_ = fmt::format("new {}[{}]", typePrinter.toString(expr->type()),
+                      toString(expr->size()));
 }
 
 void IRPrinter::visit(Delete* expr) {

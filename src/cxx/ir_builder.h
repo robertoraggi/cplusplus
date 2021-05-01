@@ -55,7 +55,7 @@ class IRBuilder {
   Ret* emitRet(Expr* result);
   RetVoid* emitRetVoid();
 
-  This* createThis(Expr* type);
+  This* createThis(const QualifiedType& type);
   BoolLiteral* createBoolLiteral(bool value);
   IntegerLiteral* createIntegerLiteral(const IntegerValue& value);
   FloatLiteral* createFloatLiteral(const FloatValue& value);
@@ -71,12 +71,12 @@ class IRBuilder {
   Call* createCall(Expr* base, std::vector<Expr*> args);
   Subscript* createSubscript(Expr* base, Expr* index);
   Access* createAccess(Expr* base, Expr* member);
-  Cast* createCast(Expr* type, Expr* expr);
-  StaticCast* createStaticCast(Expr* type, Expr* expr);
-  DynamicCast* createDynamicCast(Expr* type, Expr* expr);
-  ReinterpretCast* createReinterpretCast(Expr* type, Expr* expr);
-  New* createNew(Expr* type, std::vector<Expr*> args);
-  NewArray* createNewArray(Expr* type, Expr* size);
+  Cast* createCast(const QualifiedType& type, Expr* expr);
+  StaticCast* createStaticCast(const QualifiedType& type, Expr* expr);
+  DynamicCast* createDynamicCast(const QualifiedType& type, Expr* expr);
+  ReinterpretCast* createReinterpretCast(const QualifiedType& type, Expr* expr);
+  New* createNew(const QualifiedType& type, std::vector<Expr*> args);
+  NewArray* createNewArray(const QualifiedType& type, Expr* size);
   Delete* createDelete(Expr* expr);
   DeleteArray* createDeleteArray(Expr* expr);
   Throw* createThrow(Expr* expr);

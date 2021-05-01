@@ -69,7 +69,7 @@ RetVoid* IRBuilder::emitRetVoid() {
   return insert(factory_->createRetVoid());
 }
 
-This* IRBuilder::createThis(Expr* type) {
+This* IRBuilder::createThis(const QualifiedType& type) {
   return insert(factory_->createThis(type));
 }
 
@@ -132,27 +132,29 @@ Access* IRBuilder::createAccess(Expr* base, Expr* member) {
   return factory_->createAccess(base, member);
 }
 
-Cast* IRBuilder::createCast(Expr* type, Expr* expr) {
+Cast* IRBuilder::createCast(const QualifiedType& type, Expr* expr) {
   return factory_->createCast(type, expr);
 }
 
-StaticCast* IRBuilder::createStaticCast(Expr* type, Expr* expr) {
+StaticCast* IRBuilder::createStaticCast(const QualifiedType& type, Expr* expr) {
   return factory_->createStaticCast(type, expr);
 }
 
-DynamicCast* IRBuilder::createDynamicCast(Expr* type, Expr* expr) {
+DynamicCast* IRBuilder::createDynamicCast(const QualifiedType& type,
+                                          Expr* expr) {
   return factory_->createDynamicCast(type, expr);
 }
 
-ReinterpretCast* IRBuilder::createReinterpretCast(Expr* type, Expr* expr) {
+ReinterpretCast* IRBuilder::createReinterpretCast(const QualifiedType& type,
+                                                  Expr* expr) {
   return factory_->createReinterpretCast(type, expr);
 }
 
-New* IRBuilder::createNew(Expr* type, std::vector<Expr*> args) {
+New* IRBuilder::createNew(const QualifiedType& type, std::vector<Expr*> args) {
   return factory_->createNew(type, std::move(args));
 }
 
-NewArray* IRBuilder::createNewArray(Expr* type, Expr* size) {
+NewArray* IRBuilder::createNewArray(const QualifiedType& type, Expr* size) {
   return factory_->createNewArray(type, size);
 }
 

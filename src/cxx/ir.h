@@ -208,14 +208,14 @@ class RetVoid final : public Stmt {
 
 class This final : public Expr {
  public:
-  explicit This(Expr* type) : type_(type) {}
+  explicit This(const QualifiedType& type) : type_(type) {}
 
-  Expr* type() const { return type_; }
+  const QualifiedType& type() const { return type_; }
 
   void accept(IRVisitor* visitor) override;
 
  private:
-  Expr* type_;
+  QualifiedType type_;
 };
 
 class BoolLiteral final : public Expr {
@@ -410,86 +410,89 @@ class Access final : public Expr {
 
 class Cast final : public Expr {
  public:
-  Cast(Expr* type, Expr* expr) : type_(type), expr_(expr) {}
+  Cast(const QualifiedType& type, Expr* expr) : type_(type), expr_(expr) {}
 
-  Expr* type() const { return type_; }
+  const QualifiedType& type() const { return type_; }
   Expr* expr() const { return expr_; }
 
   void accept(IRVisitor* visitor) override;
 
  private:
-  Expr* type_;
+  QualifiedType type_;
   Expr* expr_;
 };
 
 class StaticCast final : public Expr {
  public:
-  StaticCast(Expr* type, Expr* expr) : type_(type), expr_(expr) {}
+  StaticCast(const QualifiedType& type, Expr* expr)
+      : type_(type), expr_(expr) {}
 
-  Expr* type() const { return type_; }
+  const QualifiedType& type() const { return type_; }
   Expr* expr() const { return expr_; }
 
   void accept(IRVisitor* visitor) override;
 
  private:
-  Expr* type_;
+  QualifiedType type_;
   Expr* expr_;
 };
 
 class DynamicCast final : public Expr {
  public:
-  DynamicCast(Expr* type, Expr* expr) : type_(type), expr_(expr) {}
+  DynamicCast(const QualifiedType& type, Expr* expr)
+      : type_(type), expr_(expr) {}
 
-  Expr* type() const { return type_; }
+  const QualifiedType& type() const { return type_; }
   Expr* expr() const { return expr_; }
 
   void accept(IRVisitor* visitor) override;
 
  private:
-  Expr* type_;
+  QualifiedType type_;
   Expr* expr_;
 };
 
 class ReinterpretCast final : public Expr {
  public:
-  ReinterpretCast(Expr* type, Expr* expr) : type_(type), expr_(expr) {}
+  ReinterpretCast(const QualifiedType& type, Expr* expr)
+      : type_(type), expr_(expr) {}
 
-  Expr* type() const { return type_; }
+  const QualifiedType& type() const { return type_; }
   Expr* expr() const { return expr_; }
 
   void accept(IRVisitor* visitor) override;
 
  private:
-  Expr* type_;
+  QualifiedType type_;
   Expr* expr_;
 };
 
 class New final : public Expr {
  public:
-  New(Expr* type, std::vector<Expr*> args)
+  New(const QualifiedType& type, std::vector<Expr*> args)
       : type_(type), args_(std::move(args)) {}
 
-  Expr* type() const { return type_; }
+  const QualifiedType& type() const { return type_; }
   const std::vector<Expr*>& args() const { return args_; }
 
   void accept(IRVisitor* visitor) override;
 
  private:
-  Expr* type_;
+  QualifiedType type_;
   std::vector<Expr*> args_;
 };
 
 class NewArray final : public Expr {
  public:
-  NewArray(Expr* type, Expr* size) : type_(type), size_(size) {}
+  NewArray(const QualifiedType& type, Expr* size) : type_(type), size_(size) {}
 
-  Expr* type() const { return type_; }
+  const QualifiedType& type() const { return type_; }
   Expr* size() const { return size_; }
 
   void accept(IRVisitor* visitor) override;
 
  private:
-  Expr* type_;
+  QualifiedType type_;
   Expr* size_;
 };
 

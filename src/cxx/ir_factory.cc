@@ -101,7 +101,7 @@ Ret* IRFactory::createRet(Expr* result) {
 
 RetVoid* IRFactory::createRetVoid() { return &d->retVoids_.emplace_front(); }
 
-This* IRFactory::createThis(Expr* type) {
+This* IRFactory::createThis(const QualifiedType& type) {
   return &d->this_.emplace_front(type);
 }
 
@@ -166,27 +166,29 @@ Access* IRFactory::createAccess(Expr* base, Expr* member) {
   return &d->accesss_.emplace_front(base, member);
 }
 
-Cast* IRFactory::createCast(Expr* type, Expr* expr) {
+Cast* IRFactory::createCast(const QualifiedType& type, Expr* expr) {
   return &d->casts_.emplace_front(type, expr);
 }
 
-StaticCast* IRFactory::createStaticCast(Expr* type, Expr* expr) {
+StaticCast* IRFactory::createStaticCast(const QualifiedType& type, Expr* expr) {
   return &d->staticCasts_.emplace_front(type, expr);
 }
 
-DynamicCast* IRFactory::createDynamicCast(Expr* type, Expr* expr) {
+DynamicCast* IRFactory::createDynamicCast(const QualifiedType& type,
+                                          Expr* expr) {
   return &d->dynamicCasts_.emplace_front(type, expr);
 }
 
-ReinterpretCast* IRFactory::createReinterpretCast(Expr* type, Expr* expr) {
+ReinterpretCast* IRFactory::createReinterpretCast(const QualifiedType& type,
+                                                  Expr* expr) {
   return &d->reinterpretCasts_.emplace_front(type, expr);
 }
 
-New* IRFactory::createNew(Expr* type, std::vector<Expr*> args) {
+New* IRFactory::createNew(const QualifiedType& type, std::vector<Expr*> args) {
   return &d->news_.emplace_front(type, std::move(args));
 }
 
-NewArray* IRFactory::createNewArray(Expr* type, Expr* size) {
+NewArray* IRFactory::createNewArray(const QualifiedType& type, Expr* size) {
   return &d->newArrays_.emplace_front(type, size);
 }
 
