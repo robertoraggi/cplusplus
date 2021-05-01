@@ -32,6 +32,7 @@ class StatementCodegen final : public DefaultASTVisitor {
   explicit StatementCodegen(Codegen* cg);
 
   void gen(StatementAST* ast);
+  void gen(ExpressionAST* ast);
 
  private:
   ir::IRBuilder& ir();

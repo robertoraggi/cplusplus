@@ -48,6 +48,7 @@ class Codegen final : public ir::IRBuilder, RecursiveASTVisitor {
   void condition(ExpressionAST* ast, ir::Block* iftrue, ir::Block* iffalse);
 
   void statement(StatementAST* ast);
+  void statement(ExpressionAST* ast);
 
   ir::IRFactory* irFactory();
 

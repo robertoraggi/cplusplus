@@ -178,6 +178,12 @@ void ExpressionCodegen::visit(UnaryExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(BinaryExpressionAST* ast) {
+  if (ast->op == TokenKind::T_COMMA) {
+    cg->statement(ast->leftExpression);
+    expr_ = gen(ast->rightExpression);
+    return;
+  }
+
   auto left = cg->expression(ast->leftExpression);
   auto right = cg->expression(ast->rightExpression);
   auto op = convertBinaryOp(ast->op);
@@ -230,7 +236,18 @@ void ExpressionCodegen::visit(MemberExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(ConditionalExpressionAST* ast) {
-  throw std::runtime_error("visit(ConditionalExpressionAST): not implemented");
+  auto iftrue = cg->createBlock();
+  auto iffalse = cg->createBlock();
+  auto endif = cg->createBlock();
+  cg->condition(ast->condition, iftrue, iffalse);
+  auto local = cg->function()->addLocal(ast->type);
+  cg->place(iftrue);
+  cg->emitMove(cg->createTemp(local), cg->expression(ast->iftrueExpression));
+  cg->emitJump(endif);
+  cg->place(iffalse);
+  cg->emitMove(cg->createTemp(local), cg->expression(ast->iffalseExpression));
+  cg->place(endif);
+  expr_ = cg->createTemp(local);
 }
 
 void ExpressionCodegen::visit(CastExpressionAST* ast) {

@@ -32,6 +32,8 @@ void StatementCodegen::gen(StatementAST* ast) {
   if (ast) ast->accept(this);
 }
 
+void StatementCodegen::gen(ExpressionAST* ast) { cg->expression(ast); }
+
 // StatementAST
 void StatementCodegen::visit(LabeledStatementAST* ast) {
   throw std::runtime_error("visit(LabeledStatementAST): not implemented");

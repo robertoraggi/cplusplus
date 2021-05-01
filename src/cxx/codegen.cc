@@ -56,6 +56,8 @@ void Codegen::condition(ExpressionAST* ast, ir::Block* iftrue,
 
 void Codegen::statement(StatementAST* ast) { statement_.gen(ast); }
 
+void Codegen::statement(ExpressionAST* ast) { statement_.gen(ast); }
+
 ir::IRFactory* Codegen::irFactory() { return module_->irFactory(); }
 
 ir::Block* Codegen::createBlock() {
