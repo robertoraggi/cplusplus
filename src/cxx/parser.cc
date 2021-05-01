@@ -5051,8 +5051,11 @@ bool Parser::parse_initializer(InitializerAST*& yyast) {
 bool Parser::parse_brace_or_equal_initializer(InitializerAST*& yyast) {
   BracedInitListAST* bracedInitList = nullptr;
 
-  if (LA().is(TokenKind::T_LBRACE))
-    return parse_braced_init_list(bracedInitList);
+  if (LA().is(TokenKind::T_LBRACE)) {
+    if (!parse_braced_init_list(bracedInitList)) return false;
+    yyast = bracedInitList;
+    return true;
+  }
 
   SourceLocation equalLoc;
 
@@ -6561,59 +6564,47 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
 
   rewind(after_decl_specs);
 
-  List<DeclaratorAST*>* declaratorList = nullptr;
+  auto ast = new (pool) SimpleDeclarationAST();
+  yyast = ast;
 
-  if (!parse_member_declarator_list(declaratorList, specs))
+  ast->attributeList = attributes;
+  ast->declSpecifierList = declSpecifierList;
+
+  if (!parse_member_declarator_list(ast->initDeclaratorList, specs))
     parse_error("expected a declarator");
 
-  expect(TokenKind::T_SEMICOLON);
+  expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
 
   return true;
 }
 
-bool Parser::parse_member_declarator_modifier() {
-  if (parse_requires_clause()) return true;
-
-  if (LA().is(TokenKind::T_LBRACE) || LA().is(TokenKind::T_EQUAL)) {
-    InitializerAST* initializer = nullptr;
-
-    return parse_brace_or_equal_initializer(initializer);
-  }
-
-  parse_virt_specifier_seq();
-
-  parse_pure_specifier();
-
-  return true;
-}
-
-bool Parser::parse_member_declarator_list(List<DeclaratorAST*>*& yyast,
+bool Parser::parse_member_declarator_list(List<InitDeclaratorAST*>*& yyast,
                                           const DeclSpecs& specs) {
   auto it = &yyast;
 
-  DeclaratorAST* declarator = nullptr;
+  InitDeclaratorAST* initDeclarator = nullptr;
 
-  if (!parse_member_declarator(declarator)) return false;
+  if (!parse_member_declarator(initDeclarator)) return false;
 
   Semantics::DeclaratorSem decl{specs.specifiers};
 
-  sem->declarator(declarator, &decl);
+  if (initDeclarator) sem->declarator(initDeclarator->declarator, &decl);
 
-  *it = new (pool) List(declarator);
+  *it = new (pool) List(initDeclarator);
   it = &(*it)->next;
 
   while (match(TokenKind::T_COMMA)) {
-    DeclaratorAST* declarator = nullptr;
+    InitDeclaratorAST* initDeclarator = nullptr;
 
-    if (!parse_member_declarator(declarator))
+    if (!parse_member_declarator(initDeclarator))
       parse_error("expected a declarator");
 
-    if (declarator) {
+    if (initDeclarator) {
       Semantics::DeclaratorSem decl{specs.specifiers};
 
-      sem->declarator(declarator, &decl);
+      sem->declarator(initDeclarator->declarator, &decl);
 
-      *it = new (pool) List(declarator);
+      *it = new (pool) List(initDeclarator);
       it = &(*it)->next;
     }
   }
@@ -6621,14 +6612,27 @@ bool Parser::parse_member_declarator_list(List<DeclaratorAST*>*& yyast,
   return true;
 }
 
-bool Parser::parse_member_declarator(DeclaratorAST*& yyast) {
+bool Parser::parse_member_declarator(InitDeclaratorAST*& yyast) {
   const auto start = currentLocation();
 
-  const auto has_identifier = match(TokenKind::T_IDENTIFIER);
+  SourceLocation identifierLoc;
+
+  match(TokenKind::T_IDENTIFIER, identifierLoc);
 
   parse_attribute_specifier();
 
   if (match(TokenKind::T_COLON)) {
+    // ### TODO bit field declarators
+
+    auto name = new (pool) SimpleNameAST();
+    name->identifierLoc = identifierLoc;
+
+    auto coreDeclarator = new (pool) IdDeclaratorAST();
+    coreDeclarator->name = name;
+
+    auto declarator = new (pool) DeclaratorAST();
+    declarator->coreDeclarator = coreDeclarator;
+
     ExpressionAST* expression = nullptr;
 
     if (!parse_constant_expression(expression))
@@ -6642,14 +6646,36 @@ bool Parser::parse_member_declarator(DeclaratorAST*& yyast) {
 
     parse_brace_or_equal_initializer(initializer);
 
+    auto ast = new (pool) InitDeclaratorAST();
+    yyast = ast;
+
+    ast->declarator = declarator;
+    ast->initializer = initializer;
+
     return true;
   }
 
   rewind(start);
 
-  if (!parse_declarator(yyast)) return false;
+  DeclaratorAST* declarator = nullptr;
 
-  if (!parse_member_declarator_modifier()) return false;
+  if (!parse_declarator(declarator)) return false;
+
+  auto ast = new (pool) InitDeclaratorAST();
+  yyast = ast;
+
+  ast->declarator = declarator;
+
+  if (parse_requires_clause()) {
+    // TODO
+  } else {
+    if (auto functionDeclarator = getFunctionDeclarator(declarator)) {
+      parse_virt_specifier_seq();
+      parse_pure_specifier();
+    } else {
+      parse_brace_or_equal_initializer(ast->initializer);
+    }
+  }
 
   return true;
 }
