@@ -40,11 +40,22 @@ void StatementCodegen::visit(LabeledStatementAST* ast) {
 }
 
 void StatementCodegen::visit(CaseStatementAST* ast) {
-  throw std::runtime_error("visit(CaseStatementAST): not implemented");
+  if (!cg->currentSwitch())
+    throw std::runtime_error("case label without switch");
+  auto condition = cg->expression(ast->expression);
+  auto target = cg->createBlock();
+  cg->currentSwitch()->addCase(ir::Switch::Case(condition, target));
+  cg->place(target);
+  cg->statement(ast->statement);
 }
 
 void StatementCodegen::visit(DefaultStatementAST* ast) {
-  throw std::runtime_error("visit(DefaultStatementAST): not implemented");
+  if (!cg->currentSwitch())
+    throw std::runtime_error("default label without switch");
+  auto target = cg->createBlock();
+  cg->currentSwitch()->setDefaultBlock(target);
+  cg->place(target);
+  cg->statement(ast->statement);
 }
 
 void StatementCodegen::visit(ExpressionStatementAST* ast) {
@@ -83,7 +94,15 @@ void StatementCodegen::visit(IfStatementAST* ast) {
 }
 
 void StatementCodegen::visit(SwitchStatementAST* ast) {
-  throw std::runtime_error("visit(SwitchStatementAST): not implemented");
+  auto condition = cg->expression(ast->condition);
+  auto endSwitch = cg->createBlock();
+  auto switchStmt = cg->emitSwitch(condition);
+  auto previousSwitchStmt = cg->changeCurrentSwitch(switchStmt);
+  auto previousBreakBlock = cg->changeBreakBlock(endSwitch);
+  cg->statement(ast->statement);
+  if (!switchStmt->defaultBlock()) switchStmt->setDefaultBlock(endSwitch);
+  (void)cg->changeCurrentSwitch(previousSwitchStmt);
+  cg->place(endSwitch);
 }
 
 void StatementCodegen::visit(WhileStatementAST* ast) {

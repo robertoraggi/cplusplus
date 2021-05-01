@@ -183,6 +183,30 @@ class CondJump final : public Stmt {
   Block* iffalse_;
 };
 
+class Switch final : public Stmt {
+ public:
+  using Case = std::tuple<Expr*, Block*>;
+
+  explicit Switch(Expr* condition) : condition_(condition) {}
+
+  Expr* condition() const { return condition_; }
+
+  Block* defaultBlock() { return defaultBlock_; }
+  void setDefaultBlock(Block* defaultBlock) { defaultBlock_ = defaultBlock; }
+
+  const std::vector<Case>& cases() const { return cases_; }
+  void addCase(const Case& caseStmt) { cases_.push_back(caseStmt); }
+
+  bool isTerminator() const override { return true; }
+
+  void accept(IRVisitor* visitor) override;
+
+ private:
+  Expr* condition_;
+  Block* defaultBlock_ = nullptr;
+  std::vector<Case> cases_;
+};
+
 class Ret final : public Stmt {
  public:
   explicit Ret(Expr* result) : result_(result) {}

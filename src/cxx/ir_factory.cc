@@ -33,6 +33,7 @@ struct IRFactory::Private {
   std::forward_list<Move> moves_;
   std::forward_list<Jump> jumps_;
   std::forward_list<CondJump> condJumps_;
+  std::forward_list<Switch> switchs_;
   std::forward_list<Ret> rets_;
   std::forward_list<RetVoid> retVoids_;
   std::forward_list<This> this_;
@@ -93,6 +94,10 @@ Jump* IRFactory::createJump(Block* target) {
 CondJump* IRFactory::createCondJump(Expr* condition, Block* iftrue,
                                     Block* iffalse) {
   return &d->condJumps_.emplace_front(condition, iftrue, iffalse);
+}
+
+Switch* IRFactory::createSwitch(Expr* condition) {
+  return &d->switchs_.emplace_front(condition);
 }
 
 Ret* IRFactory::createRet(Expr* result) {

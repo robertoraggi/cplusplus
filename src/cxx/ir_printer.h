@@ -46,6 +46,7 @@ class IRPrinter final : IRVisitor {
 
   void visit(Jump*) override;
   void visit(CondJump*) override;
+  void visit(Switch*) override;
   void visit(Ret*) override;
   void visit(RetVoid*) override;
   void visit(Move*) override;

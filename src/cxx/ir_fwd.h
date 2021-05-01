@@ -40,6 +40,7 @@ class IRBuilder;
 // statements
 class Jump;
 class CondJump;
+class Switch;
 class Ret;
 class RetVoid;
 class Move;

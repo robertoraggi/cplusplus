@@ -30,6 +30,7 @@ class IRVisitor {
 
   virtual void visit(Jump*) = 0;
   virtual void visit(CondJump*) = 0;
+  virtual void visit(Switch*) = 0;
   virtual void visit(Ret*) = 0;
   virtual void visit(RetVoid*) = 0;
   virtual void visit(Move*) = 0;

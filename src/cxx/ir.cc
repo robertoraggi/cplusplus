@@ -65,6 +65,8 @@ void Jump::accept(IRVisitor* visitor) { visitor->visit(this); }
 
 void CondJump::accept(IRVisitor* visitor) { visitor->visit(this); }
 
+void Switch::accept(IRVisitor* visitor) { visitor->visit(this); }
+
 void Ret::accept(IRVisitor* visitor) { visitor->visit(this); }
 
 void RetVoid::accept(IRVisitor* visitor) { visitor->visit(this); }

@@ -63,6 +63,7 @@ class Codegen final : public ir::IRBuilder, RecursiveASTVisitor {
   ir::Block* breakBlock() const { return breakBlock_; }
   ir::Block* continueBlock() const { return continueBlock_; }
   ir::Local* result() const { return result_; }
+  ir::Switch* currentSwitch() const { return switch_; }
 
   ir::Block* changeBreakBlock(ir::Block* breakBlock) {
     std::swap(breakBlock_, breakBlock);
@@ -72,6 +73,11 @@ class Codegen final : public ir::IRBuilder, RecursiveASTVisitor {
   ir::Block* changeContinueBlock(ir::Block* continueBlock) {
     std::swap(continueBlock_, continueBlock);
     return continueBlock;
+  }
+
+  ir::Switch* changeCurrentSwitch(ir::Switch* stmt) {
+    std::swap(switch_, stmt);
+    return stmt;
   }
 
   ir::Local* getLocal(Symbol* symbol);
@@ -95,6 +101,7 @@ class Codegen final : public ir::IRBuilder, RecursiveASTVisitor {
   ir::Block* breakBlock_ = nullptr;
   ir::Block* continueBlock_ = nullptr;
   ir::Local* result_ = nullptr;
+  ir::Switch* switch_ = nullptr;
   std::unordered_map<Symbol*, ir::Local*> locals_;
 };
 

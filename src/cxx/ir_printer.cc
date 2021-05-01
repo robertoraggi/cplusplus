@@ -179,6 +179,22 @@ void IRPrinter::visit(CondJump* stmt) {
                   toString(stmt->iftrue()), toString(stmt->iffalse()));
 }
 
+void IRPrinter::visit(Switch* stmt) {
+  text_ = fmt::format("switch ({}) {{\n", toString(stmt->condition()));
+
+  for (const auto& [expr, target] : stmt->cases()) {
+    text_ +=
+        fmt::format("\tcase {}: goto {};\n", toString(expr), toString(target));
+  }
+
+  if (stmt->defaultBlock()) {
+    text_ +=
+        fmt::format("\tdefault: goto {};\n", toString(stmt->defaultBlock()));
+  }
+
+  text_ += "\t}";
+}
+
 void IRPrinter::visit(Ret* stmt) {
   text_ = fmt::format("return {}", toString(stmt->result()));
 }

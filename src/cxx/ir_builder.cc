@@ -59,6 +59,11 @@ CondJump* IRBuilder::emitCondJump(Expr* condition, Block* iftrue,
   return insert(factory_->createCondJump(condition, iftrue, iffalse));
 }
 
+Switch* IRBuilder::emitSwitch(Expr* condition) {
+  if (blockHasTerminator()) return nullptr;
+  return insert(factory_->createSwitch(condition));
+}
+
 Ret* IRBuilder::emitRet(Expr* result) {
   if (blockHasTerminator()) return nullptr;
   return insert(factory_->createRet(result));

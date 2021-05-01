@@ -42,6 +42,7 @@ class IRFactory {
   Move* createMove(Expr* target, Expr* source);
   Jump* createJump(Block* target);
   CondJump* createCondJump(Expr* condition, Block* iftrue, Block* iffalse);
+  Switch* createSwitch(Expr* condition);
   Ret* createRet(Expr* result);
   RetVoid* createRetVoid();
   This* createThis(const QualifiedType& type);
