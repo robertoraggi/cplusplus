@@ -2406,6 +2406,7 @@ bool Parser::parse_expression(ExpressionAST*& yyast) {
       auto ast = new (pool) BinaryExpressionAST();
       ast->leftExpression = yyast;
       ast->opLoc = commaLoc;
+      ast->op = TokenKind::T_COMMA;
       ast->rightExpression = expression;
       yyast = ast;
     }
