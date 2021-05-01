@@ -198,11 +198,11 @@ ir::Expr* StatementCodegen::accept(InitializerAST* ast) {
 }
 
 void StatementCodegen::visit(EqualInitializerAST* ast) {
-  throw std::runtime_error("visit(TryBlockStatementAST): not implemented");
+  throw std::runtime_error("visit(EqualInitializerAST): not implemented");
 }
 
 void StatementCodegen::visit(BracedInitListAST* ast) {
-  throw std::runtime_error("visit(TryBlockStatementAST): not implemented");
+  throw std::runtime_error("visit(BracedInitListAST): not implemented");
 }
 
 }  // namespace cxx
