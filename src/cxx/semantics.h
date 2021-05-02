@@ -115,6 +115,8 @@ class Semantics final : ASTVisitor {
 
   void expression(ExpressionAST* ast, ExpressionSem* expression);
 
+  void typeId(TypeIdAST* ast);
+
  private:
   void accept(AST* ast);
 
@@ -132,7 +134,6 @@ class Semantics final : ASTVisitor {
   void parameterDeclarationClause(ParameterDeclarationClauseAST* ast);
   void lambdaCapture(LambdaCaptureAST* ast);
   void trailingReturnType(TrailingReturnTypeAST* ast);
-  void typeId(TypeIdAST* ast);
   void memInitializer(MemInitializerAST* ast);
   void bracedInitList(BracedInitListAST* ast);
   void ctorInitializer(CtorInitializerAST* ast);

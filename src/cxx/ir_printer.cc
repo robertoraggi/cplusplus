@@ -317,7 +317,7 @@ void IRPrinter::visit(Access* expr) {
 }
 
 void IRPrinter::visit(Cast* expr) {
-  text_ = fmt::format("({}){}", typePrinter.toString(expr->type()),
+  text_ = fmt::format("({}) {}", typePrinter.toString(expr->type()),
                       toString(expr->expr()));
 }
 

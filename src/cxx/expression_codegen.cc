@@ -258,7 +258,8 @@ void ExpressionCodegen::visit(ConditionalExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(CastExpressionAST* ast) {
-  throw std::runtime_error("visit(CastExpressionAST): not implemented");
+  auto expr = cg->expression(ast->expression);
+  expr_ = cg->createCast(ast->typeId->type, expr);
 }
 
 void ExpressionCodegen::visit(CppCastExpressionAST* ast) {

@@ -187,6 +187,7 @@ class TypeIdAST final : public AST {
 
   List<SpecifierAST*>* typeSpecifierList = nullptr;
   DeclaratorAST* declarator = nullptr;
+  QualifiedType type;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

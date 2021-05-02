@@ -44,6 +44,8 @@ void ASTCloner::visit(TypeIdAST* ast) {
   }
 
   copy->declarator = accept(ast->declarator);
+
+  copy->type = ast->type;
 }
 
 void ASTCloner::visit(NestedNameSpecifierAST* ast) {

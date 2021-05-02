@@ -132,7 +132,14 @@ void Semantics::lambdaCapture(LambdaCaptureAST* ast) { accept(ast); }
 
 void Semantics::trailingReturnType(TrailingReturnTypeAST* ast) { accept(ast); }
 
-void Semantics::typeId(TypeIdAST* ast) { accept(ast); }
+void Semantics::typeId(TypeIdAST* ast) {
+  if (ast->type) return;
+  SpecifiersSem specs;
+  this->specifiers(ast->typeSpecifierList, &specs);
+  DeclaratorSem decl{specs};
+  this->declarator(ast->declarator, &decl);
+  ast->type = decl.type;
+}
 
 void Semantics::memInitializer(MemInitializerAST* ast) { accept(ast); }
 
