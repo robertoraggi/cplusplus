@@ -235,6 +235,10 @@ void ExpressionCodegen::visit(MemberExpressionAST* ast) {
   throw std::runtime_error("visit(MemberExpressionAST): not implemented");
 }
 
+void ExpressionCodegen::visit(PostIncrExpressionAST* ast) {
+  throw std::runtime_error("visit(PostIncrExpressionAST): not implemented");
+}
+
 void ExpressionCodegen::visit(ConditionalExpressionAST* ast) {
   auto iftrue = cg->createBlock();
   auto iffalse = cg->createBlock();

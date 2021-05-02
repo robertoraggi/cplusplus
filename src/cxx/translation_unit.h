@@ -105,6 +105,18 @@ class TranslationUnit {
       exit(EXIT_FAILURE);
   }
 
+  template <typename... Args>
+  void error(SourceLocation loc, const std::string_view& format,
+             const Args&... args) {
+    report(loc, Severity::Error, format, args...);
+  }
+
+  template <typename... Args>
+  void warning(SourceLocation loc, const std::string_view& format,
+               const Args&... args) {
+    report(loc, Severity::Warning, format, args...);
+  }
+
   void printDiagnostic(const Diagnostic& diag) const;
 
   // tokens

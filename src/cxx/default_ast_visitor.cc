@@ -317,6 +317,10 @@ void DefaultASTVisitor::visit(MemberExpressionAST* ast) {
   throw std::runtime_error("visit(MemberExpressionAST): not implemented");
 }
 
+void DefaultASTVisitor::visit(PostIncrExpressionAST* ast) {
+  throw std::runtime_error("visit(PostIncrExpressionAST): not implemented");
+}
+
 void DefaultASTVisitor::visit(ConditionalExpressionAST* ast) {
   throw std::runtime_error("visit(ConditionalExpressionAST): not implemented");
 }

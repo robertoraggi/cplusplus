@@ -492,6 +492,11 @@ void Semantics::visit(MemberExpressionAST* ast) {
   this->name(ast->name, &name);
 }
 
+void Semantics::visit(PostIncrExpressionAST* ast) {
+  ExpressionSem baseExpression;
+  this->expression(ast->baseExpression, &baseExpression);
+}
+
 void Semantics::visit(ConditionalExpressionAST* ast) {
   ExpressionSem condition;
   this->expression(ast->condition, &condition);

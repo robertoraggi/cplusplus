@@ -2210,6 +2210,37 @@ void ASTPrinter::visit(MemberExpressionAST* ast) {
   }
 }
 
+void ASTPrinter::visit(PostIncrExpressionAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "PostIncrExpression";
+
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
+
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
+
+      json_["$range"] = range;
+    }
+  }
+
+  if (ast->baseExpression) {
+    json_["baseExpression"] = accept(ast->baseExpression);
+  }
+
+  json_["op"] = unit_->tokenText(ast->opLoc);
+}
+
 void ASTPrinter::visit(ConditionalExpressionAST* ast) {
   json_ = nlohmann::json::object();
 

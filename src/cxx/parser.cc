@@ -1441,8 +1441,16 @@ bool Parser::parse_call_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_postincr_expression(ExpressionAST*& yyast) {
-  if (!match(TokenKind::T_MINUS_MINUS) && !match(TokenKind::T_PLUS_PLUS))
+  SourceLocation opLoc;
+
+  if (!match(TokenKind::T_MINUS_MINUS, opLoc) &&
+      !match(TokenKind::T_PLUS_PLUS, opLoc))
     return false;
+
+  auto ast = new (pool) PostIncrExpressionAST();
+  ast->baseExpression = yyast;
+  ast->opLoc = opLoc;
+  yyast = ast;
 
   return true;
 }

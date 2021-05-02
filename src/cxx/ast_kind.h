@@ -111,6 +111,7 @@ enum struct ASTKind {
   CallExpression,
   SubscriptExpression,
   MemberExpression,
+  PostIncrExpression,
   ConditionalExpression,
   CastExpression,
   CppCastExpression,

@@ -946,6 +946,17 @@ void ASTSlot::visit(MemberExpressionAST* ast) {
   }  // switch
 }
 
+void ASTSlot::visit(PostIncrExpressionAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = reinterpret_cast<std::intptr_t>(ast->baseExpression);
+      break;
+    case 1:
+      value_ = ast->opLoc.index();
+      break;
+  }  // switch
+}
+
 void ASTSlot::visit(ConditionalExpressionAST* ast) {
   switch (slot_) {
     case 0:

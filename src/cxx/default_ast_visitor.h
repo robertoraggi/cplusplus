@@ -113,6 +113,7 @@ class DefaultASTVisitor : public ASTVisitor {
   void visit(CallExpressionAST* ast) override;
   void visit(SubscriptExpressionAST* ast) override;
   void visit(MemberExpressionAST* ast) override;
+  void visit(PostIncrExpressionAST* ast) override;
   void visit(ConditionalExpressionAST* ast) override;
   void visit(CastExpressionAST* ast) override;
   void visit(CppCastExpressionAST* ast) override;

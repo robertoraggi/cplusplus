@@ -62,9 +62,7 @@ void StatementCodegen::visit(DefaultStatementAST* ast) {
 }
 
 void StatementCodegen::visit(ExpressionStatementAST* ast) {
-  if (ast->expression) {
-    auto expr = cg->expression(ast->expression);
-  }
+  cg->statement(ast->expression);
 }
 
 void StatementCodegen::visit(CompoundStatementAST* ast) {

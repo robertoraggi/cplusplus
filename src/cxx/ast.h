@@ -1142,6 +1142,19 @@ class MemberExpressionAST final : public ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
+class PostIncrExpressionAST final : public ExpressionAST {
+ public:
+  PostIncrExpressionAST() : ExpressionAST(ASTKind::PostIncrExpression) {}
+
+  ExpressionAST* baseExpression = nullptr;
+  SourceLocation opLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 class ConditionalExpressionAST final : public ExpressionAST {
  public:
   ConditionalExpressionAST() : ExpressionAST(ASTKind::ConditionalExpression) {}

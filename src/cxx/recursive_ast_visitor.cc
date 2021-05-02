@@ -447,6 +447,10 @@ void RecursiveASTVisitor::visit(MemberExpressionAST* ast) {
   acceptName(ast->name);
 }
 
+void RecursiveASTVisitor::visit(PostIncrExpressionAST* ast) {
+  acceptExpression(ast->baseExpression);
+}
+
 void RecursiveASTVisitor::visit(ConditionalExpressionAST* ast) {
   acceptExpression(ast->condition);
   acceptExpression(ast->iftrueExpression);

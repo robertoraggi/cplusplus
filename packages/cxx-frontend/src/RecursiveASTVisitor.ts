@@ -371,6 +371,10 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         this.accept(node.getName(), context);
     }
 
+    visitPostIncrExpression(node: ast.PostIncrExpressionAST, context: Context): void {
+        this.accept(node.getBaseExpression(), context);
+    }
+
     visitConditionalExpression(node: ast.ConditionalExpressionAST, context: Context): void {
         this.accept(node.getCondition(), context);
         this.accept(node.getIftrueExpression(), context);

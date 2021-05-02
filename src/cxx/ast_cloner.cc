@@ -1020,6 +1020,17 @@ void ASTCloner::visit(MemberExpressionAST* ast) {
   copy->name = accept(ast->name);
 }
 
+void ASTCloner::visit(PostIncrExpressionAST* ast) {
+  auto copy = new (arena_) PostIncrExpressionAST();
+  copy_ = copy;
+
+  copy->type = ast->type;
+
+  copy->baseExpression = accept(ast->baseExpression);
+
+  copy->opLoc = ast->opLoc;
+}
+
 void ASTCloner::visit(ConditionalExpressionAST* ast) {
   auto copy = new (arena_) ConditionalExpressionAST();
   copy_ = copy;

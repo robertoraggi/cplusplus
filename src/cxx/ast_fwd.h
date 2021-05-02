@@ -132,6 +132,7 @@ class TypeConstructionAST;
 class CallExpressionAST;
 class SubscriptExpressionAST;
 class MemberExpressionAST;
+class PostIncrExpressionAST;
 class ConditionalExpressionAST;
 class CastExpressionAST;
 class CppCastExpressionAST;

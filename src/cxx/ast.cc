@@ -948,6 +948,18 @@ SourceLocation MemberExpressionAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation PostIncrExpressionAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(baseExpression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(opLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation PostIncrExpressionAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(opLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(baseExpression)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation ConditionalExpressionAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(condition)) return loc;
   if (auto loc = cxx::firstSourceLocation(questionLoc)) return loc;
