@@ -32,6 +32,7 @@ class ExpressionCodegen : protected DefaultASTVisitor {
   explicit ExpressionCodegen(Codegen* cg);
 
   ir::Expr* gen(ExpressionAST* ast);
+  ir::Expr* reduce(ExpressionAST* ast);
 
  protected:
   using DefaultASTVisitor::visit;

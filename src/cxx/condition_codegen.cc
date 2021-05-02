@@ -69,8 +69,8 @@ void ConditionCodegen::visit(BinaryExpressionAST* ast) {
   const auto op = convertBinaryOp(ast->op);
 
   if (isRelOp(op)) {
-    auto left = cg->expression(ast->leftExpression);
-    auto right = cg->expression(ast->rightExpression);
+    auto left = cg->reduce(ast->leftExpression);
+    auto right = cg->reduce(ast->rightExpression);
     auto cond = cg->createBinary(convertBinaryOp(ast->op), left, right);
     cg->emitCondJump(cond, iftrue_, iffalse_);
     return;

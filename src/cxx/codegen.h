@@ -44,6 +44,7 @@ class Codegen final : public ir::IRBuilder, RecursiveASTVisitor {
   std::unique_ptr<ir::Module> operator()(TranslationUnit* unit);
 
   ir::Expr* expression(ExpressionAST* ast);
+  ir::Expr* reduce(ExpressionAST* ast);
 
   void condition(ExpressionAST* ast, ir::Block* iftrue, ir::Block* iffalse);
 

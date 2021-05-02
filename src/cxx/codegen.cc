@@ -49,6 +49,10 @@ ir::Expr* Codegen::expression(ExpressionAST* ast) {
   return expression_.gen(ast);
 }
 
+ir::Expr* Codegen::reduce(ExpressionAST* ast) {
+  return expression_.reduce(ast);
+}
+
 void Codegen::condition(ExpressionAST* ast, ir::Block* iftrue,
                         ir::Block* iffalse) {
   condition_.gen(ast, iftrue, iffalse);

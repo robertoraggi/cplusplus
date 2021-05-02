@@ -43,6 +43,15 @@ ir::Expr* ExpressionCodegen::gen(ExpressionAST* ast) {
   return expr;
 }
 
+ir::Expr* ExpressionCodegen::reduce(ExpressionAST* ast) {
+  auto expr = gen(ast);
+  if (dynamic_cast<ir::Temp*>(expr)) return expr;
+  auto local = cg->function()->addLocal(ast->type);
+  cg->emitMove(cg->createTemp(local), expr);
+  expr = cg->createTemp(local);
+  return expr;
+}
+
 ir::BinaryOp ExpressionCodegen::convertBinaryOp(TokenKind tk) const {
   switch (tk) {
     case TokenKind::T_STAR:
@@ -187,27 +196,16 @@ void ExpressionCodegen::visit(BinaryExpressionAST* ast) {
     return;
   }
 
-  auto left = cg->expression(ast->leftExpression);
-  auto right = cg->expression(ast->rightExpression);
+  auto left = cg->reduce(ast->leftExpression);
+  auto right = cg->reduce(ast->rightExpression);
   auto op = convertBinaryOp(ast->op);
-
-  auto e = cg->createBinary(op, left, right);
-  auto control = cg->unit()->control();
-  auto types = control->types();
-
-  QualifiedType ty{types->integerType(IntegerKind::kInt, false)};
-
-  auto local = cg->function()->addLocal(ty);
-
-  cg->emitMove(cg->createTemp(local), e);
-
-  expr_ = cg->createTemp(local);
+  expr_ = cg->createBinary(op, left, right);
 }
 
 void ExpressionCodegen::visit(AssignmentExpressionAST* ast) {
   if (ast->op == TokenKind::T_EQUAL) {
     auto left = gen(ast->leftExpression);
-    auto right = gen(ast->rightExpression);
+    auto right = reduce(ast->rightExpression);
     cg->emitMove(left, right);
     expr_ = left;
     return;
@@ -225,12 +223,17 @@ void ExpressionCodegen::visit(TypeConstructionAST* ast) {
 }
 
 void ExpressionCodegen::visit(CallExpressionAST* ast) {
-  throw std::runtime_error("visit(CallExpressionAST): not implemented");
+  auto base = gen(ast->baseExpression);
+  std::vector<ir::Expr*> args;
+  for (auto it = ast->expressionList; it; it = it->next) {
+    args.push_back(reduce(it->value));
+  }
+  expr_ = cg->createCall(base, std::move(args));
 }
 
 void ExpressionCodegen::visit(SubscriptExpressionAST* ast) {
   auto base = gen(ast->baseExpression);
-  auto index = gen(ast->indexExpression);
+  auto index = reduce(ast->indexExpression);
   expr_ = cg->createSubscript(base, index);
 }
 
@@ -239,6 +242,7 @@ void ExpressionCodegen::visit(MemberExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(PostIncrExpressionAST* ast) {
+  auto expr = cg->expression(ast->baseExpression);
   throw std::runtime_error("visit(PostIncrExpressionAST): not implemented");
 }
 

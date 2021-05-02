@@ -33,7 +33,9 @@ void StatementCodegen::gen(StatementAST* ast) {
   if (ast) ast->accept(this);
 }
 
-void StatementCodegen::gen(ExpressionAST* ast) { cg->expression(ast); }
+void StatementCodegen::gen(ExpressionAST* ast) {
+  if (ast) cg->expression(ast);
+}
 
 void StatementCodegen::visit(LabeledStatementAST* ast) {
   auto name = cg->unit()->identifier(ast->identifierLoc);
