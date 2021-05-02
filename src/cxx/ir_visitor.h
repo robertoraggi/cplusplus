@@ -37,6 +37,7 @@ class IRVisitor {
 
   virtual void visit(This*) = 0;
   virtual void visit(BoolLiteral*) = 0;
+  virtual void visit(CharLiteral*) = 0;
   virtual void visit(IntegerLiteral*) = 0;
   virtual void visit(FloatLiteral*) = 0;
   virtual void visit(NullptrLiteral*) = 0;

@@ -82,6 +82,10 @@ BoolLiteral* IRBuilder::createBoolLiteral(bool value) {
   return factory_->createBoolLiteral(value);
 }
 
+CharLiteral* IRBuilder::createCharLiteral(const cxx::CharLiteral* value) {
+  return factory_->createCharLiteral(value);
+}
+
 IntegerLiteral* IRBuilder::createIntegerLiteral(const IntegerValue& value) {
   return factory_->createIntegerLiteral(value);
 }
@@ -94,8 +98,8 @@ NullptrLiteral* IRBuilder::createNullptrLiteral() {
   return factory_->createNullptrLiteral();
 }
 
-StringLiteral* IRBuilder::createStringLiteral(std::string value) {
-  return factory_->createStringLiteral(std::move(value));
+StringLiteral* IRBuilder::createStringLiteral(const cxx::StringLiteral* value) {
+  return factory_->createStringLiteral(value);
 }
 
 UserDefinedStringLiteral* IRBuilder::createUserDefinedStringLiteral(

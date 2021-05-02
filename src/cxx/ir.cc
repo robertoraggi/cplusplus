@@ -75,6 +75,8 @@ void This::accept(IRVisitor* visitor) { visitor->visit(this); }
 
 void BoolLiteral::accept(IRVisitor* visitor) { visitor->visit(this); }
 
+void CharLiteral::accept(IRVisitor* visitor) { visitor->visit(this); }
+
 void IntegerLiteral::accept(IRVisitor* visitor) { visitor->visit(this); }
 
 void FloatLiteral::accept(IRVisitor* visitor) { visitor->visit(this); }

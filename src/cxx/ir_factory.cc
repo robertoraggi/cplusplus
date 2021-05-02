@@ -38,6 +38,7 @@ struct IRFactory::Private {
   std::forward_list<RetVoid> retVoids_;
   std::forward_list<This> this_;
   std::forward_list<BoolLiteral> boolLiterals_;
+  std::forward_list<CharLiteral> charLiterals_;
   std::forward_list<IntegerLiteral> integerLiterals_;
   std::forward_list<FloatLiteral> floatLiterals_;
   std::forward_list<NullptrLiteral> nullptrLiterals_;
@@ -114,6 +115,10 @@ BoolLiteral* IRFactory::createBoolLiteral(bool value) {
   return &d->boolLiterals_.emplace_front(value);
 }
 
+CharLiteral* IRFactory::createCharLiteral(const cxx::CharLiteral* value) {
+  return &d->charLiterals_.emplace_front(value);
+}
+
 IntegerLiteral* IRFactory::createIntegerLiteral(const IntegerValue& value) {
   return &d->integerLiterals_.emplace_front(value);
 }
@@ -126,8 +131,8 @@ NullptrLiteral* IRFactory::createNullptrLiteral() {
   return &d->nullptrLiterals_.emplace_front();
 }
 
-StringLiteral* IRFactory::createStringLiteral(std::string value) {
-  return &d->stringLiterals_.emplace_front(std::move(value));
+StringLiteral* IRFactory::createStringLiteral(const cxx::StringLiteral* value) {
+  return &d->stringLiterals_.emplace_front(value);
 }
 
 UserDefinedStringLiteral* IRFactory::createUserDefinedStringLiteral(

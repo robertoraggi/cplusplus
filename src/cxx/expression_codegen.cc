@@ -87,7 +87,9 @@ void ExpressionCodegen::visit(ThisExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(CharLiteralExpressionAST* ast) {
-  throw std::runtime_error("visit(CharLiteralExpressionAST): not implemented");
+  auto value = static_cast<const cxx::CharLiteral*>(
+      cg->unit()->literal(ast->literalLoc));
+  expr_ = cg->createCharLiteral(value);
 }
 
 void ExpressionCodegen::visit(BoolLiteralExpressionAST* ast) {
@@ -111,8 +113,9 @@ void ExpressionCodegen::visit(NullptrLiteralExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(StringLiteralExpressionAST* ast) {
-  throw std::runtime_error(
-      "visit(StringLiteralExpressionAST): not implemented");
+  auto value = static_cast<const cxx::StringLiteral*>(
+      cg->unit()->literal(ast->firstSourceLocation()));
+  expr_ = cg->createStringLiteral(value);
 }
 
 void ExpressionCodegen::visit(UserDefinedStringLiteralExpressionAST* ast) {

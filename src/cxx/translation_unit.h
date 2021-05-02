@@ -22,6 +22,7 @@
 
 #include <cxx/ast_fwd.h>
 #include <cxx/diagnostic.h>
+#include <cxx/literals_fwd.h>
 #include <cxx/names_fwd.h>
 #include <cxx/source_location.h>
 #include <cxx/token.h>
@@ -147,6 +148,8 @@ class TranslationUnit {
                            std::string_view* fileName = nullptr) const;
 
   const Identifier* identifier(SourceLocation loc) const;
+
+  const Literal* literal(SourceLocation loc) const;
 
   bool parse(bool checkTypes = false);
 

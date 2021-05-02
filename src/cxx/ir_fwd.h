@@ -48,6 +48,7 @@ class Move;
 // expressions
 class This;
 class BoolLiteral;
+class CharLiteral;
 class IntegerLiteral;
 class FloatLiteral;
 class NullptrLiteral;

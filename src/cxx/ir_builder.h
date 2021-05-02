@@ -58,10 +58,11 @@ class IRBuilder {
 
   This* createThis(const QualifiedType& type);
   BoolLiteral* createBoolLiteral(bool value);
+  CharLiteral* createCharLiteral(const cxx::CharLiteral* value);
   IntegerLiteral* createIntegerLiteral(const IntegerValue& value);
   FloatLiteral* createFloatLiteral(const FloatValue& value);
   NullptrLiteral* createNullptrLiteral();
-  StringLiteral* createStringLiteral(std::string value);
+  StringLiteral* createStringLiteral(const cxx::StringLiteral* value);
   UserDefinedStringLiteral* createUserDefinedStringLiteral(std::string value);
   Temp* createTemp(Local* local);
   Id* createId(Symbol* symbol);

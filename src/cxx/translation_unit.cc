@@ -60,6 +60,11 @@ const Identifier* TranslationUnit::identifier(SourceLocation loc) const {
   return tk.value().idValue;
 }
 
+const Literal* TranslationUnit::literal(SourceLocation loc) const {
+  const auto& tk = tokenAt(loc);
+  return tk.value().literalValue;
+}
+
 const std::string& TranslationUnit::tokenText(SourceLocation loc) const {
   const auto& tk = tokenAt(loc);
   switch (tk.kind()) {

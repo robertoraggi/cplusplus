@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/ir_fwd.h>
+#include <cxx/literals_fwd.h>
 #include <cxx/qualified_type.h>
 #include <cxx/symbols_fwd.h>
 
@@ -254,6 +255,18 @@ class BoolLiteral final : public Expr {
   bool value_;
 };
 
+class CharLiteral final : public Expr {
+ public:
+  explicit CharLiteral(const cxx::CharLiteral* value) : value_(value) {}
+
+  const cxx::CharLiteral* value() const { return value_; }
+
+  void accept(IRVisitor* visitor) override;
+
+ private:
+  const cxx::CharLiteral* value_;
+};
+
 class IntegerLiteral final : public Expr {
  public:
   explicit IntegerLiteral(const IntegerValue& value) : value_(value) {}
@@ -287,14 +300,15 @@ class NullptrLiteral final : public Expr {
 
 class StringLiteral final : public Expr {
  public:
-  explicit StringLiteral(std::string value) : value_(std::move(value)) {}
+  explicit StringLiteral(const cxx::StringLiteral* value)
+      : value_(std::move(value)) {}
 
-  const std::string& value() const { return value_; }
+  const cxx::StringLiteral* value() const { return value_; }
 
   void accept(IRVisitor* visitor) override;
 
  private:
-  std::string value_;
+  const cxx::StringLiteral* value_;
 };
 
 class UserDefinedStringLiteral final : public Expr {

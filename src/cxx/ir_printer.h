@@ -53,6 +53,7 @@ class IRPrinter final : IRVisitor {
 
   void visit(This*) override;
   void visit(BoolLiteral*) override;
+  void visit(CharLiteral*) override;
   void visit(IntegerLiteral*) override;
   void visit(FloatLiteral*) override;
   void visit(NullptrLiteral*) override;

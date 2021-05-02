@@ -20,6 +20,7 @@
 
 #include <cxx/ir.h>
 #include <cxx/ir_printer.h>
+#include <cxx/literals.h>
 #include <cxx/name_printer.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
@@ -207,6 +208,8 @@ void IRPrinter::visit(BoolLiteral* expr) {
   text_ = expr->value() ? "true" : "false";
 }
 
+void IRPrinter::visit(CharLiteral* expr) { text_ = expr->value()->value(); }
+
 void IRPrinter::visit(IntegerLiteral* expr) {
   struct Print {
     std::string operator()(std::int8_t v) const { return fmt::format("{}", v); }
@@ -255,9 +258,7 @@ void IRPrinter::visit(FloatLiteral* expr) {
 
 void IRPrinter::visit(NullptrLiteral*) { text_ = "nullptr"; }
 
-void IRPrinter::visit(StringLiteral* expr) {
-  text_ = fmt::format("\"{}\"", quote(expr->value()));
-}
+void IRPrinter::visit(StringLiteral* expr) { text_ = expr->value()->value(); }
 
 void IRPrinter::visit(UserDefinedStringLiteral* expr) {
   text_ = fmt::format("\"{}\"", quote(expr->value()));
