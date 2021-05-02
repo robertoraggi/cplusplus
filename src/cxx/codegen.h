@@ -82,6 +82,8 @@ class Codegen final : public ir::IRBuilder, RecursiveASTVisitor {
 
   ir::Local* getLocal(Symbol* symbol);
 
+  ir::Block* findOrCreateTargetBlock(const Identifier* id);
+
  private:
   using RecursiveASTVisitor::visit;
 
@@ -103,6 +105,7 @@ class Codegen final : public ir::IRBuilder, RecursiveASTVisitor {
   ir::Local* result_ = nullptr;
   ir::Switch* switch_ = nullptr;
   std::unordered_map<Symbol*, ir::Local*> locals_;
+  std::unordered_map<const Identifier*, ir::Block*> labels_;
 };
 
 }  // namespace cxx

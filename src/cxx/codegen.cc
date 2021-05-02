@@ -78,14 +78,21 @@ ir::Local* Codegen::getLocal(Symbol* symbol) {
   return local;
 }
 
+ir::Block* Codegen::findOrCreateTargetBlock(const Identifier* id) {
+  if (auto it = labels_.find(id); it != labels_.end()) return it->second;
+  return labels_.emplace(id, createBlock()).first->second;
+}
+
 void Codegen::visit(FunctionDefinitionAST* ast) {
   ir::Function* function = irFactory()->createFunction(ast->symbol);
   std::unordered_map<Symbol*, ir::Local*> locals;
+  std::unordered_map<const Identifier*, ir::Block*> labels;
 
   module_->addFunction(function);
 
   std::swap(function_, function);
   std::swap(locals_, locals);
+  std::swap(labels_, labels);
 
   ir::Block* entryBlock = createBlock();
   ir::Block* exitBlock = createBlock();
@@ -121,6 +128,7 @@ void Codegen::visit(FunctionDefinitionAST* ast) {
   std::swap(function_, function);
   std::swap(result_, result);
   std::swap(locals_, locals);
+  std::swap(labels_, labels);
 }
 
 void Codegen::visit(CompoundStatementFunctionBodyAST* ast) {

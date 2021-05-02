@@ -21,6 +21,7 @@
 #include <cxx/ast.h>
 #include <cxx/codegen.h>
 #include <cxx/statement_codegen.h>
+#include <cxx/translation_unit.h>
 
 #include <stdexcept>
 
@@ -34,9 +35,11 @@ void StatementCodegen::gen(StatementAST* ast) {
 
 void StatementCodegen::gen(ExpressionAST* ast) { cg->expression(ast); }
 
-// StatementAST
 void StatementCodegen::visit(LabeledStatementAST* ast) {
-  throw std::runtime_error("visit(LabeledStatementAST): not implemented");
+  auto name = cg->unit()->identifier(ast->identifierLoc);
+  auto target = cg->findOrCreateTargetBlock(name);
+  cg->place(target);
+  cg->statement(ast->statement);
 }
 
 void StatementCodegen::visit(CaseStatementAST* ast) {
@@ -188,7 +191,9 @@ void StatementCodegen::visit(ReturnStatementAST* ast) {
 }
 
 void StatementCodegen::visit(GotoStatementAST* ast) {
-  throw std::runtime_error("visit(GotoStatementAST): not implemented");
+  auto name = cg->unit()->identifier(ast->identifierLoc);
+  auto target = cg->findOrCreateTargetBlock(name);
+  cg->emitJump(target);
 }
 
 void StatementCodegen::visit(CoroutineReturnStatementAST* ast) {
