@@ -34,7 +34,10 @@ void StatementCodegen::gen(StatementAST* ast) {
 }
 
 void StatementCodegen::gen(ExpressionAST* ast) {
-  if (ast) cg->expression(ast);
+  if (ast) {
+    auto expr = cg->expression(ast);
+    if (dynamic_cast<ir::Call*>(expr)) cg->emitExpr(expr);
+  }
 }
 
 void StatementCodegen::visit(LabeledStatementAST* ast) {

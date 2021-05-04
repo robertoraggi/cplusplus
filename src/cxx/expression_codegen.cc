@@ -206,6 +206,9 @@ void ExpressionCodegen::visit(AssignmentExpressionAST* ast) {
   if (ast->op == TokenKind::T_EQUAL) {
     auto left = gen(ast->leftExpression);
     auto right = reduce(ast->rightExpression);
+    if (ast->leftExpression->type != ast->rightExpression->type) {
+      right = cg->createCast(ast->leftExpression->type, right);
+    }
     cg->emitMove(left, right);
     expr_ = left;
     return;

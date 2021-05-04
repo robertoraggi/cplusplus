@@ -61,6 +61,8 @@ class Symbol {
 
   virtual Scope* scope() const { return nullptr; }
 
+  int index() const;
+
   virtual void accept(SymbolVisitor* visitor) = 0;
 
  private:
@@ -117,6 +119,9 @@ class ClassSymbol final : public TypeSymbol {
 
   Scope* scope() const override { return scope_.get(); }
 
+  ClassKey classKey() const { return classKey_; }
+  void setClassKey(ClassKey classKey) { classKey_ = classKey; }
+
   const std::vector<ClassSymbol*>& baseClasses() const { return baseClasses_; }
   void addBaseClass(ClassSymbol* baseClass);
 
@@ -126,6 +131,7 @@ class ClassSymbol final : public TypeSymbol {
  private:
   std::unique_ptr<Scope> scope_;
   std::vector<ClassSymbol*> baseClasses_;
+  ClassKey classKey_ = ClassKey::kClass;
   bool isDefined_ = false;
 };
 

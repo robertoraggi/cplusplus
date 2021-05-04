@@ -382,7 +382,12 @@ void Semantics::visit(CharLiteralExpressionAST* ast) {}
 
 void Semantics::visit(BoolLiteralExpressionAST* ast) {}
 
-void Semantics::visit(IntLiteralExpressionAST* ast) {}
+void Semantics::visit(IntLiteralExpressionAST* ast) {
+  auto kind = IntegerKind::kInt;
+  bool isUnsigned = false;
+  QualifiedType intTy{types_->integerType(kind, isUnsigned)};
+  expression_->type = intTy;
+}
 
 void Semantics::visit(FloatLiteralExpressionAST* ast) {}
 
@@ -395,6 +400,8 @@ void Semantics::visit(UserDefinedStringLiteralExpressionAST* ast) {}
 void Semantics::visit(IdExpressionAST* ast) {
   NameSem name;
   this->name(ast->name, &name);
+
+  if (ast->symbol) expression_->type = ast->symbol->type();
 }
 
 void Semantics::visit(NestedExpressionAST* ast) { accept(ast->expression); }
@@ -450,8 +457,58 @@ void Semantics::visit(UnaryExpressionAST* ast) {
 void Semantics::visit(BinaryExpressionAST* ast) {
   ExpressionSem leftExpression;
   this->expression(ast->leftExpression, &leftExpression);
+
   ExpressionSem rightExpression;
   this->expression(ast->rightExpression, &rightExpression);
+
+  if (ast->op == TokenKind::T_PLUS) {
+    if (leftExpression.type->asPointerType() &&
+        rightExpression.type->asIntegerType()) {
+      expression_->type = leftExpression.type;
+      return;
+    }
+
+    if (rightExpression.type->asPointerType() &&
+        leftExpression.type->asIntegerType()) {
+      expression_->type = rightExpression.type;
+      return;
+    }
+  }
+
+  if (ast->op == TokenKind::T_MINUS && leftExpression.type->asPointerType()) {
+    if (rightExpression.type->asIntegerType()) {
+      expression_->type = leftExpression.type;
+      return;
+    }
+
+    if (leftExpression.type == rightExpression.type) {
+      expression_->type =
+          QualifiedType{types_->integerType(IntegerKind::kLong, false)};
+      return;
+    }
+  }
+
+  auto leftIntTy = leftExpression.type->asIntegerType();
+
+  auto rightIntTy = rightExpression.type->asIntegerType();
+
+  if (leftIntTy && rightIntTy && !leftIntTy->isUnsigned() &&
+      !rightIntTy->isUnsigned()) {
+    const auto maxIntKind = static_cast<IntegerKind>(
+        std::max(static_cast<int>(leftIntTy->kind()),
+                 static_cast<int>(rightIntTy->kind())));
+
+    if (maxIntKind <= IntegerKind::kInt) {
+      expression_->type =
+          QualifiedType{types_->integerType(IntegerKind::kInt, false)};
+    } else if (maxIntKind <= IntegerKind::kLong) {
+      expression_->type =
+          QualifiedType{types_->integerType(IntegerKind::kLong, false)};
+    } else {
+      expression_->type =
+          QualifiedType{types_->integerType(IntegerKind::kLongLong, false)};
+    }
+  }
 }
 
 void Semantics::visit(AssignmentExpressionAST* ast) {
@@ -477,12 +534,14 @@ void Semantics::visit(TypeConstructionAST* ast) {
 }
 
 void Semantics::visit(CallExpressionAST* ast) {
-  ExpressionSem expression;
-  this->expression(ast->baseExpression, &expression);
+  ExpressionSem baseExpression;
+  this->expression(ast->baseExpression, &baseExpression);
   for (auto it = ast->expressionList; it; it = it->next) {
     ExpressionSem expression;
     this->expression(it->value, &expression);
   }
+  if (auto funTy = baseExpression.type->asFunctionType())
+    expression_->type = funTy->returnType();
 }
 
 void Semantics::visit(SubscriptExpressionAST* ast) {
@@ -490,6 +549,12 @@ void Semantics::visit(SubscriptExpressionAST* ast) {
   this->expression(ast->baseExpression, &baseExpression);
   ExpressionSem indexExpression;
   this->expression(ast->indexExpression, &indexExpression);
+  if (auto arrayTy = baseExpression.type->asArrayType())
+    expression_->type = arrayTy->elementType();
+  else if (auto vlaTy = baseExpression.type->asUnboundArrayType())
+    expression_->type = vlaTy->elementType();
+  else if (auto ptrTy = baseExpression.type->asPointerType())
+    expression_->type = ptrTy->elementType();
 }
 
 void Semantics::visit(MemberExpressionAST* ast) {
@@ -517,6 +582,7 @@ void Semantics::visit(CastExpressionAST* ast) {
   typeId(ast->typeId);
   ExpressionSem expression;
   this->expression(ast->expression, &expression);
+  expression_->type = ast->typeId->type;
 }
 
 void Semantics::visit(CppCastExpressionAST* ast) {

@@ -49,6 +49,7 @@ class IRBuilder {
                                    : false;
   }
 
+  Expr* emitExpr(Expr* target);
   Move* emitMove(Expr* target, Expr* source);
   Jump* emitJump(Block* target);
   CondJump* emitCondJump(Expr* condition, Block* iftrue, Block* iffalse);

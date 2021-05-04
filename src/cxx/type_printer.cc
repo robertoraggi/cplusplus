@@ -49,6 +49,14 @@ std::string TypePrinter::toString(const QualifiedType& type,
   return fmt::format("{} {}{}", specifiers, ptrOps, declarator);
 }
 
+std::string TypePrinter::toString(const QualifiedType& type, std::string id,
+                                  bool addFormals) {
+  std::swap(addFormals_, addFormals);
+  auto text = toString(type, std::move(id));
+  std::swap(addFormals_, addFormals);
+  return text;
+}
+
 void TypePrinter::accept(const QualifiedType& type) {
   if (!type) return;
   addQualifiers(specifiers_, type);
@@ -200,7 +208,8 @@ void TypePrinter::visit(const FunctionType* type) {
   std::string params = "(";
   for (size_t i = 0; i < args.size(); ++i) {
     if (i) params += ", ";
-    params += toString(args[i]);
+    std::string formal = addFormals_ ? fmt::format("arg{}", i) : "";
+    params += toString(args[i], std::move(formal));
   }
   if (type->isVariadic()) params += "...";
   params += ")";
@@ -222,10 +231,12 @@ void TypePrinter::visit(const NamespaceType* type) {
 }
 
 void TypePrinter::visit(const ClassType* type) {
+  const std::string_view classKey =
+      type->symbol()->classKey() == ClassKey::kUnion ? "union" : "struct";
   if (auto name = type->symbol()->name())
-    specifiers_ += fmt::format("class {}", *name);
+    specifiers_ += fmt::format("{} {}", classKey, *name);
   else
-    specifiers_ += "class __anon__";
+    specifiers_ += fmt::format("{} __anon__", classKey);
 }
 
 void TypePrinter::visit(const TemplateType* type) {

@@ -36,6 +36,9 @@ class TypePrinter final : TypeVisitor {
   std::string toString(const QualifiedType& type,
                        std::string id = std::string());
 
+  std::string toString(const QualifiedType& type, std::string id,
+                       bool addFormals);
+
  private:
   void addQualifiers(std::string& out, const QualifiedType& type);
 
@@ -70,6 +73,7 @@ class TypePrinter final : TypeVisitor {
   std::string specifiers_;
   std::string ptrOps_;
   std::string declarator_;
+  bool addFormals_ = false;
 };
 
 }  // namespace cxx

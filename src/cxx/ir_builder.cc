@@ -44,6 +44,8 @@ void IRBuilder::setInsertionPoint(Block* block) {
                     block ? block->code().end() : std::list<Stmt*>::iterator());
 }
 
+Expr* IRBuilder::emitExpr(Expr* target) { return insert(target); }
+
 Move* IRBuilder::emitMove(Expr* target, Expr* source) {
   return insert(factory_->createMove(target, source));
 }

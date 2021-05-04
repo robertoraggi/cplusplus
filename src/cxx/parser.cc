@@ -39,7 +39,20 @@
 
 namespace cxx {
 
-std::pair<FunctionDeclaratorAST*, bool> getFunctionDeclaratorHelper(
+static ClassKey getClassKey(TokenKind kind) {
+  switch (kind) {
+    case TokenKind::T_CLASS:
+      return ClassKey::kClass;
+    case TokenKind::T_STRUCT:
+      return ClassKey::kStruct;
+    case TokenKind::T_UNION:
+      return ClassKey::kUnion;
+    default:
+      throw std::runtime_error("invalid class key");
+  }  // switch
+}
+
+static std::pair<FunctionDeclaratorAST*, bool> getFunctionDeclaratorHelper(
     DeclaratorAST* declarator) {
   if (!declarator) return std::make_pair(nullptr, false);
 
@@ -66,7 +79,7 @@ std::pair<FunctionDeclaratorAST*, bool> getFunctionDeclaratorHelper(
   return std::make_pair(nullptr, false);
 }
 
-FunctionDeclaratorAST* getFunctionDeclarator(DeclaratorAST* declarator) {
+static FunctionDeclaratorAST* getFunctionDeclarator(DeclaratorAST* declarator) {
   return get<0>(getFunctionDeclaratorHelper(declarator));
 }
 
@@ -3243,6 +3256,7 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast,
         } else {
           auto classSymbol =
               symbols->newClassSymbol(sem->scope(), nameSem.name);
+          classSymbol->setClassKey(getClassKey(classKey));
           classSymbol->setType(QualifiedType(types->classType(classSymbol)));
           sem->scope()->add(classSymbol);
         }
@@ -6323,6 +6337,7 @@ bool Parser::parse_class_specifier(SpecifierAST*& yyast) {
 
   if (!classSymbol) {
     classSymbol = symbols->newClassSymbol(sem->scope(), nameSem.name);
+    classSymbol->setClassKey(getClassKey(unit->tokenKind(classLoc)));
     classSymbol->setType(QualifiedType(types->classType(classSymbol)));
     sem->scope()->add(classSymbol);
   }

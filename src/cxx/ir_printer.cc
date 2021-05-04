@@ -48,7 +48,7 @@ void IRPrinter::print(Function* function, std::ostream& out) {
   auto symbol = function->symbol();
   auto name = fmt::format("{}", *symbol->name());
 
-  fmt::print(out, "{} {{\n", typePrinter.toString(symbol->type(), name));
+  fmt::print(out, "{} {{\n", typePrinter.toString(symbol->type(), name, true));
 
   int tempIndex = 0;
 
@@ -269,7 +269,10 @@ void IRPrinter::visit(Temp* expr) {
 }
 
 void IRPrinter::visit(Id* expr) {
-  text_ = fmt::format("{}", *expr->symbol()->name());
+  if (dynamic_cast<ArgumentSymbol*>(expr->symbol()))
+    text_ = fmt::format("arg{}", expr->symbol()->index());
+  else
+    text_ = fmt::format("{}", *expr->symbol()->name());
 }
 
 void IRPrinter::visit(ExternalId* expr) { text_ = expr->name(); }

@@ -32,6 +32,16 @@ Symbol::~Symbol() {}
 
 bool Symbol::isTypeSymbol() const { return false; }
 
+int Symbol::index() const {
+  if (!enclosingScope_) return -1;
+
+  auto it = std::find(enclosingScope_->begin(), enclosingScope_->end(), this);
+
+  return it != enclosingScope_->end()
+             ? int(std::distance(enclosingScope_->begin(), it))
+             : -1;
+}
+
 TypeSymbol::TypeSymbol(Scope* enclosingScope, const Name* name)
     : Symbol(enclosingScope, name) {}
 

@@ -47,6 +47,12 @@ class FunctionSymbol;
 class ArgumentSymbol;
 class BlockSymbol;
 
+enum class ClassKey {
+  kClass,
+  kStruct,
+  kUnion,
+};
+
 enum class LookupOptions {
   kDefault = 0,
   kType = 1 << 0,
