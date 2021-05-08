@@ -217,17 +217,24 @@ void StatementCodegen::visit(TryBlockStatementAST* ast) {
 void StatementCodegen::visit(SimpleDeclarationAST* ast) {
   for (auto it = ast->initDeclaratorList; it; it = it->next) {
     auto initDeclarator = it->value;
-    auto initializer = accept(initDeclarator->initializer);
+    if (initDeclarator->initializer) {
+      auto initializer = accept(initDeclarator->initializer);
+      cg->emitMove(cg->createId(initDeclarator->symbol), initializer);
+    }
   }
 }
 
 ir::Expr* StatementCodegen::accept(InitializerAST* ast) {
-  if (ast) ast->accept(this);
-  return nullptr;
+  if (!ast) return nullptr;
+  ir::Expr* initializer = nullptr;
+  std::swap(initializer_, initializer);
+  ast->accept(this);
+  std::swap(initializer_, initializer);
+  return initializer;
 }
 
 void StatementCodegen::visit(EqualInitializerAST* ast) {
-  throw std::runtime_error("visit(EqualInitializerAST): not implemented");
+  initializer_ = cg->expression(ast->expression);
 }
 
 void StatementCodegen::visit(BracedInitListAST* ast) {

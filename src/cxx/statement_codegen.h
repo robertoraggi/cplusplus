@@ -68,6 +68,7 @@ class StatementCodegen final : public DefaultASTVisitor {
 
  private:
   Codegen* cg;
+  ir::Expr* initializer_ = nullptr;
 };
 
 }  // namespace cxx
