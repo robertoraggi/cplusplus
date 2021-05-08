@@ -219,7 +219,8 @@ void StatementCodegen::visit(SimpleDeclarationAST* ast) {
     auto initDeclarator = it->value;
     if (initDeclarator->initializer) {
       auto initializer = accept(initDeclarator->initializer);
-      cg->emitMove(cg->createId(initDeclarator->symbol), initializer);
+      auto local = cg->getLocal(initDeclarator->symbol);
+      cg->emitMove(cg->createTemp(local), initializer);
     }
   }
 }
