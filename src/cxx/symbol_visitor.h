@@ -39,6 +39,7 @@ class SymbolVisitor {
   virtual void visit(TemplateFunctionSymbol* symbol) = 0;
   virtual void visit(TemplateTypeParameterSymbol* symbol) = 0;
   virtual void visit(VariableSymbol* symbol) = 0;
+  virtual void visit(FieldSymbol* symbol) = 0;
   virtual void visit(FunctionSymbol* symbol) = 0;
   virtual void visit(ArgumentSymbol* symbol) = 0;
   virtual void visit(BlockSymbol* symbol) = 0;

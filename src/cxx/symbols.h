@@ -213,6 +213,13 @@ class VariableSymbol final : public Symbol {
   void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
 };
 
+class FieldSymbol final : public Symbol {
+ public:
+  explicit FieldSymbol(Scope* enclosingScope, const Name* name = nullptr);
+
+  void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
+};
+
 class FunctionSymbol final : public Symbol {
  public:
   explicit FunctionSymbol(Scope* enclosingScope, const Name* name = nullptr);

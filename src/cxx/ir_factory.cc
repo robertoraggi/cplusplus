@@ -172,7 +172,7 @@ Subscript* IRFactory::createSubscript(Expr* base, Expr* index) {
   return &d->subscripts_.emplace_front(base, index);
 }
 
-Access* IRFactory::createAccess(Expr* base, Expr* member) {
+Access* IRFactory::createAccess(Expr* base, Symbol* member) {
   return &d->accesss_.emplace_front(base, member);
 }
 

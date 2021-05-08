@@ -434,16 +434,16 @@ class Subscript final : public Expr {
 
 class Access final : public Expr {
  public:
-  Access(Expr* base, Expr* member) : base_(base), member_(member) {}
+  Access(Expr* base, Symbol* member) : base_(base), member_(member) {}
 
   Expr* base() const { return base_; }
-  Expr* member() const { return member_; }
+  Symbol* member() const { return member_; }
 
   void accept(IRVisitor* visitor) override;
 
  private:
   Expr* base_;
-  Expr* member_;
+  Symbol* member_;
 };
 
 class Cast final : public Expr {

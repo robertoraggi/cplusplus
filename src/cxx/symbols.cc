@@ -139,6 +139,9 @@ TemplateTypeParameterSymbol::TemplateTypeParameterSymbol(Scope* enclosingScope,
 VariableSymbol::VariableSymbol(Scope* enclosingScope, const Name* name)
     : Symbol(enclosingScope, name) {}
 
+FieldSymbol::FieldSymbol(Scope* enclosingScope, const Name* name)
+    : Symbol(enclosingScope, name) {}
+
 FunctionSymbol::FunctionSymbol(Scope* enclosingScope, const Name* name)
     : Symbol(enclosingScope, name), scope_(std::make_unique<Scope>()) {
   scope_->setOwner(this);

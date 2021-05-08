@@ -59,6 +59,8 @@ class SymbolFactory final {
 
   VariableSymbol* newVariableSymbol(Scope* enclosingScope, const Name* name);
 
+  FieldSymbol* newFieldSymbol(Scope* enclosingScope, const Name* name);
+
   FunctionSymbol* newFunctionSymbol(Scope* enclosingScope, const Name* name);
 
   ArgumentSymbol* newArgumentSymbol(Scope* enclosingScope, const Name* name);

@@ -43,6 +43,7 @@ class TemplateClassSymbol;
 class TemplateFunctionSymbol;
 class TemplateTypeParameterSymbol;
 class VariableSymbol;
+class FieldSymbol;
 class FunctionSymbol;
 class ArgumentSymbol;
 class BlockSymbol;

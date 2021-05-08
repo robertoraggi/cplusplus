@@ -37,6 +37,7 @@ struct SymbolFactory::Private {
   std::forward_list<TemplateFunctionSymbol> templateFunctionSymbols;
   std::forward_list<TemplateTypeParameterSymbol> templateTypeParameterSymbols;
   std::forward_list<VariableSymbol> variableSymbols;
+  std::forward_list<FieldSymbol> fieldSymbols;
   std::forward_list<FunctionSymbol> functionSymbols;
   std::forward_list<ArgumentSymbol> argumentSymbols;
   std::forward_list<BlockSymbol> blockSymbols;
@@ -110,6 +111,12 @@ TemplateTypeParameterSymbol* SymbolFactory::newTemplateTypeParameterSymbol(
 VariableSymbol* SymbolFactory::newVariableSymbol(Scope* enclosingScope,
                                                  const Name* name) {
   auto symbol = &d->variableSymbols.emplace_front(enclosingScope, name);
+  return symbol;
+}
+
+FieldSymbol* SymbolFactory::newFieldSymbol(Scope* enclosingScope,
+                                           const Name* name) {
+  auto symbol = &d->fieldSymbols.emplace_front(enclosingScope, name);
   return symbol;
 }
 

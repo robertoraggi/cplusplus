@@ -73,7 +73,7 @@ class IRBuilder {
   Binary* createBinary(BinaryOp op, Expr* left, Expr* right);
   Call* createCall(Expr* base, std::vector<Expr*> args);
   Subscript* createSubscript(Expr* base, Expr* index);
-  Access* createAccess(Expr* base, Expr* member);
+  Access* createAccess(Expr* base, Symbol* member);
   Cast* createCast(const QualifiedType& type, Expr* expr);
   StaticCast* createStaticCast(const QualifiedType& type, Expr* expr);
   DynamicCast* createDynamicCast(const QualifiedType& type, Expr* expr);

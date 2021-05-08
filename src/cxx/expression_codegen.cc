@@ -241,7 +241,10 @@ void ExpressionCodegen::visit(SubscriptExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(MemberExpressionAST* ast) {
-  throw std::runtime_error("visit(MemberExpressionAST): not implemented");
+  auto base = gen(ast->baseExpression);
+  if (cg->unit()->tokenKind(ast->accessLoc) == TokenKind::T_MINUS_GREATER)
+    base = cg->createUnary(ir::UnaryOp::kStar, base);
+  expr_ = cg->createAccess(base, ast->symbol);
 }
 
 void ExpressionCodegen::visit(PostIncrExpressionAST* ast) {

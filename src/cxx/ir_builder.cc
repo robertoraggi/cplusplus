@@ -139,7 +139,7 @@ Subscript* IRBuilder::createSubscript(Expr* base, Expr* index) {
   return factory_->createSubscript(base, index);
 }
 
-Access* IRBuilder::createAccess(Expr* base, Expr* member) {
+Access* IRBuilder::createAccess(Expr* base, Symbol* member) {
   return factory_->createAccess(base, member);
 }
 

@@ -21,6 +21,7 @@
 #include <cxx/ast.h>
 #include <cxx/control.h>
 #include <cxx/names.h>
+#include <cxx/scope.h>
 #include <cxx/semantics.h>
 #include <cxx/symbol_factory.h>
 #include <cxx/symbols.h>
@@ -133,7 +134,7 @@ void Semantics::lambdaCapture(LambdaCaptureAST* ast) { accept(ast); }
 void Semantics::trailingReturnType(TrailingReturnTypeAST* ast) { accept(ast); }
 
 void Semantics::typeId(TypeIdAST* ast) {
-  if (ast->type) return;
+  if (!ast || ast->type) return;
   SpecifiersSem specs;
   this->specifiers(ast->typeSpecifierList, &specs);
   DeclaratorSem decl{specs};
@@ -560,8 +561,34 @@ void Semantics::visit(SubscriptExpressionAST* ast) {
 void Semantics::visit(MemberExpressionAST* ast) {
   ExpressionSem baseExpression;
   this->expression(ast->baseExpression, &baseExpression);
+
   NameSem name;
   this->name(ast->name, &name);
+
+  auto baseTy = baseExpression.type;
+
+  const auto op = unit_->tokenKind(ast->accessLoc);
+
+  if (auto ptrTy = baseTy->asPointerType();
+      ptrTy && op == TokenKind::T_MINUS_GREATER) {
+    baseTy = ptrTy->elementType();
+  }
+
+  if (auto classTy = baseTy->asClassType()) {
+    auto memberName = name.name;
+
+    auto classSymbol = classTy->symbol();
+
+    auto member = classSymbol->scope()->find(name.name);
+
+    if (member) {
+      ast->symbol = member;
+      expression_->type = ast->symbol->type();
+    } else {
+      unit_->error(ast->name->firstSourceLocation(), "undefined member '{}'",
+                   *name.name);
+    }
+  }
 }
 
 void Semantics::visit(PostIncrExpressionAST* ast) {

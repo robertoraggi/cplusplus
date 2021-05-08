@@ -6355,6 +6355,8 @@ bool Parser::parse_class_specifier(SpecifierAST*& yyast) {
   ast->symbol = classSymbol;
 
   if (!match(TokenKind::T_RBRACE, ast->rbraceLoc)) {
+    Semantics::ScopeContext classScope(sem.get(), classSymbol->scope());
+
     if (!parse_class_body(ast->declarationList))
       parse_error("expected class body");
 
@@ -6515,7 +6517,9 @@ bool Parser::parse_maybe_template_member() {
 }
 
 bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
-  const auto has_extension = match(TokenKind::T___EXTENSION__);
+  SourceLocation extensionLoc;
+
+  match(TokenKind::T___EXTENSION__, extensionLoc);
 
   List<AttributeAST*>* attributes = nullptr;
 
@@ -6603,6 +6607,31 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
 
 bool Parser::parse_member_declarator_list(List<InitDeclaratorAST*>*& yyast,
                                           const DeclSpecs& specs) {
+  auto declare = [this](InitDeclaratorAST* initDeclarator,
+                        const Semantics::DeclaratorSem& decl) {
+    if (decl.specifiers.isFriend) {
+      if (checkTypes_) {
+        parse_error(initDeclarator->firstSourceLocation(),
+                    "skip friend declaration");
+      }
+    } else if (decl.specifiers.isTypedef) {
+      auto typedefSymbol = symbols->newTypedefSymbol(sem->scope(), decl.name);
+      typedefSymbol->setType(decl.type);
+      sem->scope()->add(typedefSymbol);
+      initDeclarator->symbol = typedefSymbol;
+    } else if (auto funTy = decl.type->asFunctionType()) {
+      if (checkTypes_) {
+        parse_error(initDeclarator->firstSourceLocation(),
+                    "skip function declaration");
+      }
+    } else {
+      auto fieldSymbol = symbols->newFieldSymbol(sem->scope(), decl.name);
+      fieldSymbol->setType(decl.type);
+      sem->scope()->add(fieldSymbol);
+      initDeclarator->symbol = fieldSymbol;
+    }
+  };
+
   auto it = &yyast;
 
   InitDeclaratorAST* initDeclarator = nullptr;
@@ -6612,6 +6641,8 @@ bool Parser::parse_member_declarator_list(List<InitDeclaratorAST*>*& yyast,
   Semantics::DeclaratorSem decl{specs.specifiers};
 
   if (initDeclarator) sem->declarator(initDeclarator->declarator, &decl);
+
+  declare(initDeclarator, decl);
 
   *it = new (pool) List(initDeclarator);
   it = &(*it)->next;
@@ -6626,6 +6657,8 @@ bool Parser::parse_member_declarator_list(List<InitDeclaratorAST*>*& yyast,
       Semantics::DeclaratorSem decl{specs.specifiers};
 
       sem->declarator(initDeclarator->declarator, &decl);
+
+      declare(initDeclarator, decl);
 
       *it = new (pool) List(initDeclarator);
       it = &(*it)->next;

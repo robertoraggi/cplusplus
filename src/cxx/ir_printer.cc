@@ -315,8 +315,7 @@ void IRPrinter::visit(Subscript* expr) {
 }
 
 void IRPrinter::visit(Access* expr) {
-  text_ =
-      fmt::format("{}.{}", toString(expr->base()), toString(expr->member()));
+  text_ = fmt::format("{}.{}", toString(expr->base()), *expr->member()->name());
 }
 
 void IRPrinter::visit(Cast* expr) {

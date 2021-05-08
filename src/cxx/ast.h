@@ -287,6 +287,7 @@ class InitDeclaratorAST final : public AST {
 
   DeclaratorAST* declarator = nullptr;
   InitializerAST* initializer = nullptr;
+  Symbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1136,6 +1137,7 @@ class MemberExpressionAST final : public ExpressionAST {
   SourceLocation accessLoc;
   SourceLocation templateLoc;
   NameAST* name = nullptr;
+  Symbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

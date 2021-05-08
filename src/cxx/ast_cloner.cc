@@ -160,6 +160,8 @@ void ASTCloner::visit(InitDeclaratorAST* ast) {
   copy->declarator = accept(ast->declarator);
 
   copy->initializer = accept(ast->initializer);
+
+  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(BaseSpecifierAST* ast) {
@@ -1020,6 +1022,8 @@ void ASTCloner::visit(MemberExpressionAST* ast) {
   copy->templateLoc = ast->templateLoc;
 
   copy->name = accept(ast->name);
+
+  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(PostIncrExpressionAST* ast) {
