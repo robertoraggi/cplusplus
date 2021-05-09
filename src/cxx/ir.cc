@@ -21,6 +21,8 @@
 #include <cxx/ir.h>
 #include <cxx/ir_factory.h>
 #include <cxx/ir_visitor.h>
+#include <cxx/qualified_type.h>
+#include <cxx/types.h>
 
 namespace cxx::ir {
 
@@ -46,6 +48,11 @@ const std::list<Function*>& Module::functions() const { return d->functions_; }
 
 void Module::addFunction(Function* function) {
   d->functions_.push_back(function);
+}
+
+Local* Function::addLocal(const QualifiedType& type) {
+  int index = int(locals_.size());
+  return &locals_.emplace_back(type, index);
 }
 
 int Block::id() const {

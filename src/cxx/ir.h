@@ -92,10 +92,7 @@ class Function final {
 
   const std::list<Local>& locals() const { return locals_; }
 
-  Local* addLocal(const QualifiedType& type) {
-    int index = int(locals_.size());
-    return &locals_.emplace_back(type, index);
-  }
+  Local* addLocal(const QualifiedType& type);
 
  private:
   Module* module_;

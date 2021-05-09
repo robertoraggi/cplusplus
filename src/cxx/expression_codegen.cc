@@ -23,15 +23,170 @@
 #include <cxx/control.h>
 #include <cxx/expression_codegen.h>
 #include <cxx/literals.h>
+#include <cxx/names.h>
 #include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_environment.h>
+#include <cxx/type_visitor.h>
 #include <cxx/types.h>
 
 #include <stdexcept>
 
 namespace cxx {
+
+namespace {
+
+constexpr std::uint64_t AlignTo(std::uint64_t n, std::uint64_t align) {
+  return (n + align - 1) / align * align;
+}
+
+class SizeofType final : TypeVisitor {
+ public:
+  std::tuple<std::uint64_t, std::uint64_t> operator()(
+      const QualifiedType& type) {
+    std::uint64_t size = 0;
+    std::uint64_t alignment = 0;
+    std::swap(size_, size);
+    std::swap(alignment_, alignment);
+    type->accept(this);
+    std::swap(size_, size);
+    std::swap(alignment_, alignment);
+    return std::tuple(size, alignment);
+  }
+
+ private:
+  void visit(const UndefinedType*) override {
+    throw std::runtime_error("unreachable");
+  }
+
+  void visit(const ErrorType*) override {
+    throw std::runtime_error("unreachable");
+  }
+
+  void visit(const UnresolvedType*) override {
+    throw std::runtime_error("unreachable");
+  }
+
+  void visit(const VoidType*) override {
+    throw std::runtime_error("unreachable");
+  }
+
+  void visit(const NullptrType*) override {
+    throw std::runtime_error("unreachable");
+  }
+
+  void visit(const BooleanType*) override {
+    throw std::runtime_error("unreachable");
+  }
+
+  void visit(const CharacterType*) override {
+    throw std::runtime_error("unreachable");
+  }
+
+  void visit(const IntegerType* type) override {
+    switch (type->kind()) {
+      case IntegerKind::kChar:
+        size_ = alignment_ = 1;
+        break;
+      case IntegerKind::kShort:
+        size_ = alignment_ = 2;
+        break;
+      case IntegerKind::kInt:
+        size_ = alignment_ = 4;
+        break;
+      case IntegerKind::kLong:
+        size_ = alignment_ = 8;
+        break;
+      case IntegerKind::kLongLong:
+        size_ = alignment_ = 8;
+        break;
+      default:
+        throw std::runtime_error("unrecognized integer kind");
+    }  // switch
+  }
+
+  void visit(const FloatingPointType*) override {
+    throw std::runtime_error("unreachable");
+  }
+
+  void visit(const EnumType*) override {
+    throw std::runtime_error("unreachable");
+  }
+
+  void visit(const ScopedEnumType*) override {
+    throw std::runtime_error("unreachable");
+  }
+
+  void visit(const PointerType*) override { size_ = alignment_ = 8; }
+
+  void visit(const PointerToMemberType*) override {
+    throw std::runtime_error("unreachable");
+  }
+
+  void visit(const ReferenceType*) override {
+    throw std::runtime_error("unreachable");
+  }
+
+  void visit(const RValueReferenceType*) override {
+    throw std::runtime_error("unreachable");
+  }
+
+  void visit(const ArrayType*) override {
+    throw std::runtime_error("unreachable");
+  }
+
+  void visit(const UnboundArrayType*) override {
+    throw std::runtime_error("unreachable");
+  }
+
+  void visit(const FunctionType*) override {
+    throw std::runtime_error("unreachable");
+  }
+
+  void visit(const MemberFunctionType*) override {
+    throw std::runtime_error("unreachable");
+  }
+
+  void visit(const NamespaceType*) override {
+    throw std::runtime_error("unreachable");
+  }
+
+  void visit(const ClassType* type) override {
+    auto symbol = type->symbol();
+    for (auto member : *symbol->scope()) {
+      auto field = dynamic_cast<FieldSymbol*>(member);
+      if (!field) continue;
+      auto [memberSize, memberAlignment] = operator()(member->type());
+      size_ = AlignTo(size_, memberAlignment) + memberSize;
+      alignment_ = std::max(alignment_, memberAlignment);
+    }
+    if (size_)
+      size_ = AlignTo(size_, alignment_);
+    else
+      size_ = alignment_ = 1;
+  }
+
+  void visit(const TemplateType*) override {
+    throw std::runtime_error("unreachable");
+  }
+
+  void visit(const TemplateArgumentType*) override {
+    throw std::runtime_error("unreachable");
+  }
+
+  void visit(const ConceptType*) override {
+    throw std::runtime_error("unreachable");
+  }
+
+ private:
+  std::uint64_t size_ = 0;
+  std::uint64_t alignment_ = 0;
+};
+
+SizeofType sizeOfType;
+
+}  // namespace
 
 ExpressionCodegen::ExpressionCodegen(Codegen* cg) : cg(cg) {}
 
@@ -45,7 +200,11 @@ ir::Expr* ExpressionCodegen::gen(ExpressionAST* ast) {
 
 ir::Expr* ExpressionCodegen::reduce(ExpressionAST* ast) {
   auto expr = gen(ast);
-  if (dynamic_cast<ir::Temp*>(expr)) return expr;
+  if (dynamic_cast<ir::Temp*>(expr) ||
+      dynamic_cast<ir::IntegerLiteral*>(expr) ||
+      dynamic_cast<ir::FloatLiteral*>(expr) ||
+      dynamic_cast<ir::CharLiteral*>(expr))
+    return expr;
   auto local = cg->function()->addLocal(ast->type);
   cg->emitMove(cg->createTemp(local), expr);
   expr = cg->createTemp(local);
@@ -112,6 +271,34 @@ ir::BinaryOp ExpressionCodegen::convertBinaryOp(TokenKind tk) const {
   }
 }
 
+ir::BinaryOp ExpressionCodegen::convertAssignmentOp(TokenKind tk) const {
+  switch (tk) {
+    case TokenKind::T_STAR_EQUAL:
+      return ir::BinaryOp::kStar;
+    case TokenKind::T_SLASH_EQUAL:
+      return ir::BinaryOp::kSlash;
+    case TokenKind::T_PERCENT_EQUAL:
+      return ir::BinaryOp::kPercent;
+    case TokenKind::T_PLUS_EQUAL:
+      return ir::BinaryOp::kPlus;
+    case TokenKind::T_MINUS_EQUAL:
+      return ir::BinaryOp::kMinus;
+    case TokenKind::T_GREATER_GREATER_EQUAL:
+      return ir::BinaryOp::kGreaterGreater;
+    case TokenKind::T_LESS_LESS_EQUAL:
+      return ir::BinaryOp::kLessLess;
+    case TokenKind::T_AMP_EQUAL:
+      return ir::BinaryOp::kAmp;
+    case TokenKind::T_CARET_EQUAL:
+      return ir::BinaryOp::kCaret;
+    case TokenKind::T_BAR_EQUAL:
+      return ir::BinaryOp::kBar;
+    default:
+      throw std::runtime_error(
+          fmt::format("invalid binary op '{}'", Token::spell(tk)));
+  }
+}
+
 void ExpressionCodegen::visit(ThisExpressionAST* ast) {
   throw std::runtime_error("visit(ThisExpressionAST): not implemented");
 }
@@ -129,8 +316,20 @@ void ExpressionCodegen::visit(BoolLiteralExpressionAST* ast) {
 
 void ExpressionCodegen::visit(IntLiteralExpressionAST* ast) {
   auto value = cg->unit()->tokenText(ast->literalLoc);
-  std::int64_t literal = std::int64_t(std::stol(value));
-  expr_ = cg->createIntegerLiteral(literal);
+  if (value.starts_with("0x") || value.starts_with("0X")) {
+    std::int64_t literal =
+        std::int64_t(std::stol(value.substr(2), nullptr, 16));
+    expr_ = cg->createIntegerLiteral(literal);
+  } else if (value.starts_with("0b") || value.starts_with("0B")) {
+    std::int64_t literal = std::int64_t(std::stol(value.substr(2), nullptr, 2));
+    expr_ = cg->createIntegerLiteral(literal);
+  } else if (value.starts_with("0")) {
+    std::int64_t literal = std::int64_t(std::stol(value, nullptr, 8));
+    expr_ = cg->createIntegerLiteral(literal);
+  } else {
+    std::int64_t literal = std::int64_t(std::stol(value));
+    expr_ = cg->createIntegerLiteral(literal);
+  }
 }
 
 void ExpressionCodegen::visit(FloatLiteralExpressionAST* ast) {
@@ -138,8 +337,8 @@ void ExpressionCodegen::visit(FloatLiteralExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(NullptrLiteralExpressionAST* ast) {
-  throw std::runtime_error(
-      "visit(NullptrLiteralExpressionAST): not implemented");
+  std::int64_t v = 0;
+  expr_ = cg->createIntegerLiteral(v);
 }
 
 void ExpressionCodegen::visit(StringLiteralExpressionAST* ast) {
@@ -154,6 +353,11 @@ void ExpressionCodegen::visit(UserDefinedStringLiteralExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(IdExpressionAST* ast) {
+  if (!ast->symbol) {
+    expr_ = cg->createExternalId(fmt::format("{}", *ast->name->name));
+    return;
+  }
+
   if (ast->symbol->enclosingBlock() == ast->symbol->enclosingScope()->owner()) {
     expr_ = cg->createTemp(cg->getLocal(ast->symbol));
     return;
@@ -187,7 +391,8 @@ void ExpressionCodegen::visit(SizeofExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(SizeofTypeExpressionAST* ast) {
-  throw std::runtime_error("visit(SizeofTypeExpressionAST): not implemented");
+  auto [size, alignment] = sizeOfType(ast->typeId->type);
+  expr_ = cg->createIntegerLiteral(size);
 }
 
 void ExpressionCodegen::visit(SizeofPackExpressionAST* ast) {
@@ -246,6 +451,27 @@ void ExpressionCodegen::visit(UnaryExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(BinaryExpressionAST* ast) {
+  if (ast->op == TokenKind::T_AMP_AMP) {
+    auto control = cg->unit()->control();
+    auto types = control->types();
+    QualifiedType intTy{types->integerType(IntegerKind::kInt, false)};
+    auto local = cg->function()->addLocal(intTy);
+    auto iftrue = cg->createBlock();
+    auto iffalse = cg->createBlock();
+    auto endif = cg->createBlock();
+    cg->condition(ast, iftrue, iffalse);
+    cg->place(iftrue);
+    cg->emitMove(cg->createTemp(local),
+                 cg->createIntegerLiteral(std::int32_t(1)));
+    cg->emitJump(endif);
+    cg->place(iffalse);
+    cg->emitMove(cg->createTemp(local),
+                 cg->createIntegerLiteral(std::int32_t(0)));
+    cg->place(endif);
+    expr_ = cg->createTemp(local);
+    return;
+  }
+
   if (ast->op == TokenKind::T_COMMA) {
     cg->statement(ast->leftExpression);
     expr_ = gen(ast->rightExpression);
@@ -259,18 +485,16 @@ void ExpressionCodegen::visit(BinaryExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(AssignmentExpressionAST* ast) {
-  if (ast->op == TokenKind::T_EQUAL) {
-    auto left = gen(ast->leftExpression);
-    auto right = reduce(ast->rightExpression);
-    if (ast->leftExpression->type != ast->rightExpression->type) {
-      right = cg->createCast(ast->leftExpression->type, right);
-    }
+  auto left = gen(ast->leftExpression);
+  auto right = reduce(ast->rightExpression);
+  if (ast->leftExpression->type != ast->rightExpression->type)
+    right = cg->createCast(ast->leftExpression->type, right);
+  if (ast->op == TokenKind::T_EQUAL)
     cg->emitMove(left, right);
-    expr_ = left;
-    return;
-  }
-
-  throw std::runtime_error("visit(AssignmentExpressionAST): not implemented");
+  else
+    cg->emitMove(left,
+                 cg->createBinary(convertAssignmentOp(ast->op), left, right));
+  expr_ = left;
 }
 
 void ExpressionCodegen::visit(BracedTypeConstructionAST* ast) {

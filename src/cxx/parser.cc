@@ -2515,7 +2515,14 @@ bool Parser::parse_init_statement(StatementAST*& yyast) {
 
   DeclarationAST* declaration = nullptr;
 
-  if (parse_simple_declaration(declaration, false)) return true;
+  if (parse_simple_declaration(declaration, false)) {
+    auto ast = new (pool) DeclarationStatementAST();
+    yyast = ast;
+
+    ast->declaration = declaration;
+
+    return true;
+  }
 
   rewind(saved);
 
@@ -2527,7 +2534,15 @@ bool Parser::parse_init_statement(StatementAST*& yyast) {
 
   sem->expression(expression, &expr);
 
-  if (!match(TokenKind::T_SEMICOLON)) return false;
+  SourceLocation semicolonLoc;
+
+  if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return false;
+
+  auto ast = new (pool) ExpressionStatementAST();
+  yyast = ast;
+
+  ast->expression = expression;
+  ast->semicolonLoc = semicolonLoc;
 
   return true;
 }
@@ -2747,6 +2762,9 @@ bool Parser::parse_if_statement(StatementAST*& yyast) {
 
   if (!match(TokenKind::T_IF, ifLoc)) return false;
 
+  auto block = symbols->newBlockSymbol(sem->scope(), nullptr);
+  Semantics::ScopeContext blockContext(sem.get(), block->scope());
+
   auto ast = new (pool) IfStatementAST();
   yyast = ast;
 
@@ -2776,6 +2794,9 @@ bool Parser::parse_switch_statement(StatementAST*& yyast) {
 
   if (!match(TokenKind::T_SWITCH, switchLoc)) return false;
 
+  auto block = symbols->newBlockSymbol(sem->scope(), nullptr);
+  Semantics::ScopeContext blockContext(sem.get(), block->scope());
+
   auto ast = new (pool) SwitchStatementAST();
   yyast = ast;
 
@@ -2800,6 +2821,9 @@ bool Parser::parse_while_statement(StatementAST*& yyast) {
   SourceLocation whileLoc;
 
   if (!match(TokenKind::T_WHILE, whileLoc)) return false;
+
+  auto block = symbols->newBlockSymbol(sem->scope(), nullptr);
+  Semantics::ScopeContext blockContext(sem.get(), block->scope());
 
   auto ast = new (pool) WhileStatementAST();
   yyast = ast;
@@ -2899,6 +2923,9 @@ bool Parser::parse_for_statement(StatementAST*& yyast) {
 
   auto ast = new (pool) ForStatementAST();
   yyast = ast;
+
+  auto block = symbols->newBlockSymbol(sem->scope(), nullptr);
+  Semantics::ScopeContext blockContext(sem.get(), block->scope());
 
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
@@ -5579,7 +5606,9 @@ bool Parser::parse_enumerator(EnumeratorAST*& yyast) {
 
     auto symbol = symbols->newEnumeratorSymbol(enclosingNamespace->scope(),
                                                ast->name->name);
-    symbol->setType(enumSymbol->type());
+    // symbol->setType(enumSymbol->type());
+    symbol->setType(
+        QualifiedType{types->integerType(IntegerKind::kInt, false)});
     enclosingNamespace->scope()->add(symbol);
   }
 

@@ -413,7 +413,11 @@ void Semantics::visit(IdExpressionAST* ast) {
   if (ast->symbol) expression_->type = ast->symbol->type();
 }
 
-void Semantics::visit(NestedExpressionAST* ast) { accept(ast->expression); }
+void Semantics::visit(NestedExpressionAST* ast) {
+  ExpressionSem expr;
+  expression(ast->expression, &expr);
+  expression_->type = expr.type;
+}
 
 void Semantics::visit(RightFoldExpressionAST* ast) {
   ExpressionSem expression;
@@ -445,7 +449,12 @@ void Semantics::visit(SizeofExpressionAST* ast) {
   this->expression(ast->expression, &expression);
 }
 
-void Semantics::visit(SizeofTypeExpressionAST* ast) { typeId(ast->typeId); }
+void Semantics::visit(SizeofTypeExpressionAST* ast) {
+  typeId(ast->typeId);
+
+  expression_->type =
+      QualifiedType{types_->integerType(IntegerKind::kLong, false)};
+}
 
 void Semantics::visit(SizeofPackExpressionAST* ast) {}
 
@@ -475,6 +484,7 @@ void Semantics::visit(UnaryExpressionAST* ast) {
     }
     default: {
       // TODO
+      expression_->type = expression.type;
     }
   }  // switch
 }
@@ -541,6 +551,7 @@ void Semantics::visit(AssignmentExpressionAST* ast) {
   this->expression(ast->leftExpression, &leftExpression);
   ExpressionSem rightExpression;
   this->expression(ast->rightExpression, &rightExpression);
+  expression_->type = leftExpression.type;
 }
 
 void Semantics::visit(BracedTypeConstructionAST* ast) {
@@ -1226,6 +1237,7 @@ void Semantics::visit(FunctionDeclaratorAST* ast) {
       auto param = it->value;
       SpecifiersSem specifiers;
       this->specifiers(param->typeSpecifierList, &specifiers);
+      if (!it->next && specifiers.type->asVoidType()) break;
       DeclaratorSem declarator{specifiers};
       this->declarator(param->declarator, &declarator);
       ExpressionSem expression;
@@ -1258,6 +1270,9 @@ void Semantics::visit(ArrayDeclaratorAST* ast) {
             dynamic_cast<IntLiteralExpressionAST*>(ast->expression)) {
       auto dim = std::stoi(unit_->tokenText(literal->literalLoc));
       QualifiedType arrayType(types_->arrayType(declarator_->type, dim));
+      declarator_->type = arrayType;
+    } else {
+      QualifiedType arrayType(types_->unboundArrayType(declarator_->type));
       declarator_->type = arrayType;
     }
   }

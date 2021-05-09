@@ -156,7 +156,7 @@ void TypePrinter::visit(const EnumType* type) {
   if (auto name = type->symbol()->name())
     specifiers_ += fmt::format("enum {}", *name);
   else
-    specifiers_ += "enum __anon__";
+    specifiers_ += "int";
 }
 
 void TypePrinter::visit(const ScopedEnumType* type) {

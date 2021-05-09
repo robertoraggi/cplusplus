@@ -81,6 +81,7 @@ void StatementCodegen::visit(IfStatementAST* ast) {
     auto iftrue = cg->createBlock();
     auto iffalse = cg->createBlock();
     auto endif = cg->createBlock();
+    cg->statement(ast->initializer);
     cg->condition(ast->condition, iftrue, iffalse);
     cg->place(iftrue);
     cg->statement(ast->statement);
@@ -93,6 +94,7 @@ void StatementCodegen::visit(IfStatementAST* ast) {
 
   auto iftrue = cg->createBlock();
   auto endif = cg->createBlock();
+  cg->statement(ast->initializer);
   cg->condition(ast->condition, iftrue, endif);
   cg->place(iftrue);
   cg->statement(ast->statement);
@@ -100,6 +102,7 @@ void StatementCodegen::visit(IfStatementAST* ast) {
 }
 
 void StatementCodegen::visit(SwitchStatementAST* ast) {
+  cg->statement(ast->initializer);
   auto condition = cg->expression(ast->condition);
   auto endSwitch = cg->createBlock();
   auto switchStmt = cg->emitSwitch(condition);

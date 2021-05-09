@@ -39,6 +39,7 @@ class ExpressionCodegen : protected DefaultASTVisitor {
 
   ir::UnaryOp convertUnaryOp(TokenKind tk) const;
   ir::BinaryOp convertBinaryOp(TokenKind tk) const;
+  ir::BinaryOp convertAssignmentOp(TokenKind tk) const;
 
   void visit(ThisExpressionAST* ast) override;
   void visit(CharLiteralExpressionAST* ast) override;
