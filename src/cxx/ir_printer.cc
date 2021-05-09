@@ -104,14 +104,6 @@ std::string_view IRPrinter::toString(UnaryOp op) const {
       return "!";
     case UnaryOp::kTilde:
       return "~";
-    case UnaryOp::kPlusPlus:
-      return "++";
-    case UnaryOp::kMinusMinus:
-      return "--";
-    case UnaryOp::kPostPlusPlus:
-      return "++";
-    case UnaryOp::kPostMinusMinus:
-      return "++";
     default:
       throw std::runtime_error("invalid operator");
   }  // switch
@@ -282,16 +274,7 @@ void IRPrinter::visit(Typeid* expr) {
 }
 
 void IRPrinter::visit(Unary* expr) {
-  switch (expr->op()) {
-    case UnaryOp::kPostMinusMinus:
-    case UnaryOp::kPostPlusPlus:
-      text_ =
-          fmt::format("({} {})", toString(expr->expr()), toString(expr->op()));
-      break;
-    default:
-      text_ =
-          fmt::format("({} {})", toString(expr->op()), toString(expr->expr()));
-  }  // switch
+  text_ = fmt::format("({} {})", toString(expr->op()), toString(expr->expr()));
 }
 
 void IRPrinter::visit(Binary* expr) {

@@ -379,7 +379,10 @@ void Semantics::visit(ModuleUnitAST* ast) {}
 
 void Semantics::visit(ThisExpressionAST* ast) {}
 
-void Semantics::visit(CharLiteralExpressionAST* ast) {}
+void Semantics::visit(CharLiteralExpressionAST* ast) {
+  expression_->type =
+      QualifiedType{types_->integerType(IntegerKind::kChar, false)};
+}
 
 void Semantics::visit(BoolLiteralExpressionAST* ast) {}
 
@@ -394,7 +397,12 @@ void Semantics::visit(FloatLiteralExpressionAST* ast) {}
 
 void Semantics::visit(NullptrLiteralExpressionAST* ast) {}
 
-void Semantics::visit(StringLiteralExpressionAST* ast) {}
+void Semantics::visit(StringLiteralExpressionAST* ast) {
+  QualifiedType charTy{types_->integerType(IntegerKind::kChar, false)};
+  charTy.setQualifiers(Qualifiers::kConst);
+  QualifiedType charPtrTy{types_->pointerType(charTy, Qualifiers::kNone)};
+  expression_->type = charPtrTy;
+}
 
 void Semantics::visit(UserDefinedStringLiteralExpressionAST* ast) {}
 
@@ -453,6 +461,22 @@ void Semantics::visit(AlignofExpressionAST* ast) { typeId(ast->typeId); }
 void Semantics::visit(UnaryExpressionAST* ast) {
   ExpressionSem expression;
   this->expression(ast->expression, &expression);
+
+  switch (ast->op) {
+    case TokenKind::T_STAR: {
+      if (auto ptrTy = expression.type->asPointerType())
+        expression_->type = ptrTy->elementType();
+      break;
+    }
+    case TokenKind::T_AMP: {
+      expression_->type = QualifiedType(
+          types_->pointerType(expression.type, Qualifiers::kNone));
+      break;
+    }
+    default: {
+      // TODO
+    }
+  }  // switch
 }
 
 void Semantics::visit(BinaryExpressionAST* ast) {

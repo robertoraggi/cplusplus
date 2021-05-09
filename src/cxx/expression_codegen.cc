@@ -52,6 +52,26 @@ ir::Expr* ExpressionCodegen::reduce(ExpressionAST* ast) {
   return expr;
 }
 
+ir::UnaryOp ExpressionCodegen::convertUnaryOp(TokenKind tk) const {
+  switch (tk) {
+    case TokenKind::T_STAR:
+      return ir::UnaryOp::kStar;
+    case TokenKind::T_AMP:
+      return ir::UnaryOp::kAmp;
+    case TokenKind::T_PLUS:
+      return ir::UnaryOp::kPlus;
+    case TokenKind::T_MINUS:
+      return ir::UnaryOp::kMinus;
+    case TokenKind::T_EXCLAIM:
+      return ir::UnaryOp::kExclaim;
+    case TokenKind::T_TILDE:
+      return ir::UnaryOp::kTilde;
+    default:
+      throw std::runtime_error(
+          fmt::format("invalid unary op '{}'", Token::spell(tk)));
+  }  // switch
+}
+
 ir::BinaryOp ExpressionCodegen::convertBinaryOp(TokenKind tk) const {
   switch (tk) {
     case TokenKind::T_STAR:
@@ -87,7 +107,8 @@ ir::BinaryOp ExpressionCodegen::convertBinaryOp(TokenKind tk) const {
     case TokenKind::T_BAR:
       return ir::BinaryOp::kBar;
     default:
-      throw std::runtime_error("invalid binary op");
+      throw std::runtime_error(
+          fmt::format("invalid binary op '{}'", Token::spell(tk)));
   }
 }
 
@@ -186,7 +207,42 @@ void ExpressionCodegen::visit(AlignofExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(UnaryExpressionAST* ast) {
-  throw std::runtime_error("visit(UnaryExpressionAST): not implemented");
+  switch (ast->op) {
+    case TokenKind::T_PLUS_PLUS:
+    case TokenKind::T_MINUS_MINUS: {
+      auto expr = cg->expression(ast->expression);
+
+      auto local = cg->function()->addLocal(ast->expression->type);
+
+      const int i = 1;
+
+      const auto op = ast->op == TokenKind::T_PLUS_PLUS ? ir::BinaryOp::kPlus
+                                                        : ir::BinaryOp::kMinus;
+
+      cg->emitMove(cg->createTemp(local),
+                   cg->createBinary(op, expr, cg->createIntegerLiteral(i)));
+
+      cg->emitMove(expr, cg->createTemp(local));
+
+      expr_ = expr;
+
+      break;
+    }
+
+    case TokenKind::T_AMP:
+    case TokenKind::T_STAR: {
+      auto expr = cg->expression(ast->expression);
+      auto op = convertUnaryOp(ast->op);
+      expr_ = cg->createUnary(op, expr);
+      break;
+    }
+
+    default: {
+      auto expr = cg->reduce(ast->expression);
+      auto op = convertUnaryOp(ast->op);
+      expr_ = cg->createUnary(op, expr);
+    }
+  }  // switch
 }
 
 void ExpressionCodegen::visit(BinaryExpressionAST* ast) {
@@ -249,7 +305,14 @@ void ExpressionCodegen::visit(MemberExpressionAST* ast) {
 
 void ExpressionCodegen::visit(PostIncrExpressionAST* ast) {
   auto expr = cg->expression(ast->baseExpression);
-  throw std::runtime_error("visit(PostIncrExpressionAST): not implemented");
+  auto local = cg->function()->addLocal(ast->baseExpression->type);
+  cg->emitMove(cg->createTemp(local), expr);
+  const auto op = cg->unit()->tokenKind(ast->opLoc) == TokenKind::T_PLUS_PLUS
+                      ? ir::BinaryOp::kPlus
+                      : ir::BinaryOp::kMinus;
+  const int i = 1;
+  cg->emitMove(expr, cg->createBinary(op, expr, cg->createIntegerLiteral(i)));
+  expr_ = cg->createTemp(local);
 }
 
 void ExpressionCodegen::visit(ConditionalExpressionAST* ast) {

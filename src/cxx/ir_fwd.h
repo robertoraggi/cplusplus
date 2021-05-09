@@ -87,9 +87,7 @@ enum class UnaryOp {
   kExclaim,
   kTilde,
   kPlusPlus,
-  kMinusMinus,
-  kPostPlusPlus,
-  kPostMinusMinus,
+  kMinusMinus
 };
 
 enum class BinaryOp {

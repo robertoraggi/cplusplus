@@ -40,7 +40,7 @@ class TypePrinter final : TypeVisitor {
                        bool addFormals);
 
  private:
-  void addQualifiers(std::string& out, const QualifiedType& type);
+  void addQualifiers(std::string& out, Qualifiers qualifiers);
 
   void accept(const QualifiedType& type);
 

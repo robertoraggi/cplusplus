@@ -59,14 +59,18 @@ std::string TypePrinter::toString(const QualifiedType& type, std::string id,
 
 void TypePrinter::accept(const QualifiedType& type) {
   if (!type) return;
-  addQualifiers(specifiers_, type);
+  addQualifiers(specifiers_, type.qualifiers());
   type->accept(this);
 }
 
-void TypePrinter::addQualifiers(std::string& out, const QualifiedType& type) {
-  if (type.isConst()) out += "const ";
-  if (type.isVolatile()) out += "volatile ";
-  if (type.isRestrict()) out += "restrict ";
+void TypePrinter::addQualifiers(std::string& out, Qualifiers qualifiers) {
+  if ((qualifiers & Qualifiers::kConst) != Qualifiers::kNone) out += "const ";
+
+  if ((qualifiers & Qualifiers::kVolatile) != Qualifiers::kNone)
+    out += "volatile ";
+
+  if ((qualifiers & Qualifiers::kRestrict) != Qualifiers::kNone)
+    out += "restrict ";
 }
 
 void TypePrinter::visit(const UndefinedType* type) {
@@ -164,7 +168,7 @@ void TypePrinter::visit(const ScopedEnumType* type) {
 
 void TypePrinter::visit(const PointerType* type) {
   ptrOps_ += "*";
-  addQualifiers(ptrOps_, type->elementType());
+  addQualifiers(ptrOps_, type->qualifiers());
   accept(type->elementType());
 }
 
