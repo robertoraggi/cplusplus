@@ -111,6 +111,7 @@ void StatementCodegen::visit(SwitchStatementAST* ast) {
   cg->statement(ast->statement);
   if (!switchStmt->defaultBlock()) switchStmt->setDefaultBlock(endSwitch);
   (void)cg->changeCurrentSwitch(previousSwitchStmt);
+  (void)cg->changeBreakBlock(previousBreakBlock);
   cg->place(endSwitch);
 }
 
