@@ -4745,7 +4745,7 @@ bool Parser::parse_ref_qualifier(SourceLocation& refLoc) {
   switch (TokenKind(LA())) {
     case TokenKind::T_AMP:
     case TokenKind::T_AMP_AMP:
-      consumeToken();
+      refLoc = consumeToken();
       return true;
 
     default:
