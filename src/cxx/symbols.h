@@ -26,6 +26,7 @@
 #include <cxx/symbols_fwd.h>
 
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace cxx {
