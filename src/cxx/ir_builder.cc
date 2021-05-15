@@ -77,7 +77,7 @@ RetVoid* IRBuilder::emitRetVoid() {
 }
 
 This* IRBuilder::createThis(const QualifiedType& type) {
-  return insert(factory_->createThis(type));
+  return factory_->createThis(type);
 }
 
 BoolLiteral* IRBuilder::createBoolLiteral(bool value) {

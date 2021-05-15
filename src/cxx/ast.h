@@ -1329,6 +1329,7 @@ class CompoundStatementAST final : public StatementAST {
   SourceLocation lbraceLoc;
   List<StatementAST*>* statementList = nullptr;
   SourceLocation rbraceLoc;
+  BlockSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

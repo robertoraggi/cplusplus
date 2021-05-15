@@ -103,7 +103,10 @@ Parser::~Parser() {}
 
 bool Parser::checkTypes() const { return checkTypes_; }
 
-void Parser::setCheckTypes(bool checkTypes) { checkTypes_ = checkTypes; }
+void Parser::setCheckTypes(bool checkTypes) {
+  checkTypes_ = checkTypes;
+  sem->setCheckTypes(checkTypes);
+}
 
 Parser::Prec Parser::prec(TokenKind tk) {
   switch (tk) {
@@ -510,6 +513,12 @@ bool Parser::parse_primary_expression(ExpressionAST*& yyast) {
     auto ast = new (pool) ThisExpressionAST();
     yyast = ast;
     ast->thisLoc = thisLoc;
+
+    if (auto classSymbol = sem->scope()->owner()->enclosingClass()) {
+      ast->type = QualifiedType{
+          types->pointerType(classSymbol->type(), Qualifiers::kNone)};
+    }
+
     return true;
   }
 
@@ -2690,12 +2699,11 @@ bool Parser::parse_compound_statement(CompoundStatementAST*& yyast, bool skip) {
   auto blockSymbol = symbols->newBlockSymbol(sem->scope(), nullptr);
   sem->scope()->add(blockSymbol);
 
-  Semantics::ScopeContext scopeContext(sem.get(), blockSymbol->scope());
-
   auto ast = new (pool) CompoundStatementAST();
   yyast = ast;
 
   ast->lbraceLoc = lbraceLoc;
+  ast->symbol = blockSymbol;
 
   if (skip) {
     int depth = 1;
@@ -2728,6 +2736,8 @@ void Parser::finish_compound_statement(CompoundStatementAST* ast) {
   bool skipping = false;
 
   auto it = &ast->statementList;
+
+  Semantics::ScopeContext scopeContext(sem.get(), ast->symbol->scope());
 
   while (const auto& tk = LA()) {
     if (LA().is(TokenKind::T_RBRACE)) break;
@@ -3214,6 +3224,27 @@ bool Parser::parse_alias_declaration(DeclarationAST*& yyast) {
   return true;
 }
 
+void Parser::enterFunctionScope(FunctionSymbol* functionSymbol,
+                                FunctionDeclaratorAST* functionDeclarator) {
+  auto params = functionDeclarator->parametersAndQualifiers;
+  if (!params) return;
+
+  auto paramDeclarations = params->parameterDeclarationClause;
+
+  if (!paramDeclarations) return;
+
+  for (auto it = paramDeclarations->parameterDeclarationList; it;
+       it = it->next) {
+    Semantics::SpecifiersSem specifiers;
+    sem->specifiers(it->value->typeSpecifierList, &specifiers);
+    Semantics::DeclaratorSem decl{specifiers};
+    sem->declarator(it->value->declarator, &decl);
+    auto param = symbols->newArgumentSymbol(sem->scope(), decl.name);
+    param->setType(decl.type);
+    sem->scope()->add(param);
+  }
+}
+
 bool Parser::parse_simple_declaration(DeclarationAST*& yyast,
                                       bool acceptFunctionDefinition) {
   const bool has_extension = match(TokenKind::T___EXTENSION__);
@@ -3339,24 +3370,11 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast,
     functionSymbol->setType(decl.type);
     sem->scope()->add(functionSymbol);
 
-    FunctionBodyAST* functionBody = nullptr;
-
     Semantics::ScopeContext scopeContext(sem.get(), functionSymbol->scope());
 
-    if (auto params = functionDeclarator->parametersAndQualifiers) {
-      if (auto paramDeclarations = params->parameterDeclarationClause) {
-        for (auto it = paramDeclarations->parameterDeclarationList; it;
-             it = it->next) {
-          Semantics::SpecifiersSem specifiers;
-          sem->specifiers(it->value->typeSpecifierList, &specifiers);
-          Semantics::DeclaratorSem decl{specifiers};
-          sem->declarator(it->value->declarator, &decl);
-          auto param = symbols->newArgumentSymbol(sem->scope(), decl.name);
-          param->setType(decl.type);
-          sem->scope()->add(param);
-        }
-      }
-    }
+    enterFunctionScope(functionSymbol, functionDeclarator);
+
+    FunctionBodyAST* functionBody = nullptr;
 
     if (!parse_function_body(functionBody))
       parse_error("expected function body");
@@ -3479,6 +3497,16 @@ bool Parser::parse_notypespec_function_definition(
 
   if (!lookat_function_body()) return false;
 
+  FunctionSymbol* functionSymbol = nullptr;
+
+  functionSymbol = symbols->newFunctionSymbol(sem->scope(), decl.name);
+  functionSymbol->setType(decl.type);
+  sem->scope()->add(functionSymbol);
+
+  Semantics::ScopeContext scopeContext(sem.get(), functionSymbol->scope());
+
+  enterFunctionScope(functionSymbol, functionDeclarator);
+
   FunctionBodyAST* functionBody = nullptr;
 
   if (!parse_function_body(functionBody)) parse_error("expected function body");
@@ -3489,6 +3517,7 @@ bool Parser::parse_notypespec_function_definition(
   ast->declSpecifierList = declSpecifierList;
   ast->declarator = declarator;
   ast->functionBody = functionBody;
+  ast->symbol = functionSymbol;
 
   if (classDepth) pendingFunctionDefinitions_.push_back(ast);
 
@@ -6589,7 +6618,16 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
 
   if (!specs.has_typespec()) return false;
 
-  if (match(TokenKind::T_SEMICOLON)) return true;  // ### complex typespec
+  SourceLocation semicolonLoc;
+
+  if (match(TokenKind::T_SEMICOLON, semicolonLoc)) {
+    auto ast = new (pool) SimpleDeclarationAST();
+    ast->attributeList = attributes;
+    ast->declSpecifierList = declSpecifierList;
+    ast->semicolonLoc;
+    yyast = ast;
+    return true;  // ### complex typespec
+  }
 
   DeclaratorAST* declarator = nullptr;
 
@@ -6608,6 +6646,18 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
       has_virt_specifier_seq = parse_virt_specifier_seq();
 
     if (lookat_function_body()) {
+      FunctionSymbol* functionSymbol = nullptr;
+
+      functionSymbol = symbols->newFunctionSymbol(sem->scope(), decl.name);
+      functionSymbol->setType(decl.type);
+      sem->scope()->add(functionSymbol);
+
+      FunctionBodyAST* functionBody = nullptr;
+
+      Semantics::ScopeContext scopeContext(sem.get(), functionSymbol->scope());
+
+      enterFunctionScope(functionSymbol, getFunctionDeclarator(declarator));
+
       if (!parse_function_body(functionBody))
         parse_error("expected function body");
 
@@ -6617,6 +6667,7 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
       ast->declSpecifierList = declSpecifierList;
       ast->declarator = declarator;
       ast->functionBody = functionBody;
+      ast->symbol = functionSymbol;
 
       if (classDepth) pendingFunctionDefinitions_.push_back(ast);
 
@@ -8014,18 +8065,22 @@ void Parser::completePendingFunctionDefinitions() {
 void Parser::completeFunctionDefinition(FunctionDefinitionAST* ast) {
   if (!ast->functionBody) return;
 
-  if (ast->functionBody->kind() == ASTKind::CompoundStatement) {
-    auto functionBody =
-        static_cast<CompoundStatementFunctionBodyAST*>(ast->functionBody);
+  auto functionBody =
+      dynamic_cast<CompoundStatementFunctionBodyAST*>(ast->functionBody);
 
-    const auto saved = currentLocation();
+  if (!functionBody) return;
 
-    rewind(functionBody->statement->lbraceLoc.next());
+  auto functionSymbol = ast->symbol;
 
-    finish_compound_statement(functionBody->statement);
+  Semantics::ScopeContext scopeContext(sem.get(), functionSymbol->scope());
 
-    rewind(saved);
-  }
+  const auto saved = currentLocation();
+
+  rewind(functionBody->statement->lbraceLoc.next());
+
+  finish_compound_statement(functionBody->statement);
+
+  rewind(saved);
 }
 
 }  // namespace cxx

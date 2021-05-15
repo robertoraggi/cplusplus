@@ -1208,6 +1208,8 @@ void ASTCloner::visit(CompoundStatementAST* ast) {
   }
 
   copy->rbraceLoc = ast->rbraceLoc;
+
+  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(IfStatementAST* ast) {

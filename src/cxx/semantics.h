@@ -33,8 +33,10 @@ class TypeEnvironment;
 
 class Semantics final : ASTVisitor {
  public:
-  Semantics(TranslationUnit* unit);
+  explicit Semantics(TranslationUnit* unit);
   ~Semantics();
+
+  void setCheckTypes(bool checkTypes) { checkTypes_ = checkTypes; }
 
   template <typename... Args>
   void error(SourceLocation loc, const std::string_view& format,
@@ -346,6 +348,7 @@ class Semantics final : ASTVisitor {
   SpecifiersSem* specifiers_ = nullptr;
   DeclaratorSem* declarator_ = nullptr;
   ExpressionSem* expression_ = nullptr;
+  bool checkTypes_ = false;
 };
 
 }  // namespace cxx

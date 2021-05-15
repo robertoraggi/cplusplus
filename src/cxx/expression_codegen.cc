@@ -132,8 +132,12 @@ class SizeofType final : TypeVisitor {
     throw std::runtime_error("unreachable");
   }
 
-  void visit(const ArrayType*) override {
-    throw std::runtime_error("unreachable");
+  void visit(const ArrayType* type) override {
+    auto [arrayElementSize, arrayElementAlignment] = operator()(
+        type->elementType());
+    size_ = AlignTo(size_, arrayElementAlignment) +
+            type->dimension() * arrayElementSize;
+    alignment_ = arrayElementAlignment;
   }
 
   void visit(const UnboundArrayType*) override {
@@ -300,7 +304,7 @@ ir::BinaryOp ExpressionCodegen::convertAssignmentOp(TokenKind tk) const {
 }
 
 void ExpressionCodegen::visit(ThisExpressionAST* ast) {
-  throw std::runtime_error("visit(ThisExpressionAST): not implemented");
+  expr_ = cg->createThis(ast->type);
 }
 
 void ExpressionCodegen::visit(CharLiteralExpressionAST* ast) {

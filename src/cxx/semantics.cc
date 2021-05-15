@@ -619,7 +619,7 @@ void Semantics::visit(MemberExpressionAST* ast) {
     if (member) {
       ast->symbol = member;
       expression_->type = ast->symbol->type();
-    } else {
+    } else if (checkTypes_) {
       unit_->error(ast->name->firstSourceLocation(), "undefined member '{}'",
                    *name.name);
     }

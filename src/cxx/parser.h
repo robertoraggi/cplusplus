@@ -461,6 +461,9 @@ class Parser final {
   void completePendingFunctionDefinitions();
   void completeFunctionDefinition(FunctionDefinitionAST* ast);
 
+  void enterFunctionScope(FunctionSymbol* functionSymbol,
+                          FunctionDeclaratorAST* functionDeclarator);
+
  private:
   TranslationUnit* unit = nullptr;
   Arena* pool = nullptr;

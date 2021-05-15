@@ -38,6 +38,9 @@ class Symbol {
   Symbol(Scope* enclosingScope, const Name* name);
   virtual ~Symbol();
 
+  std::string unqualifiedId() const;
+  std::string qualifiedId() const;
+
   const Name* name() const { return name_; }
   void setName(const Name* name) { name_ = name; }
 

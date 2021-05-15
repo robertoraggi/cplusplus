@@ -18,10 +18,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/names.h>
 #include <cxx/qualified_type.h>
 #include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/types.h>
+#include <fmt/format.h>
+#include <fmt/ostream.h>
+
+#include <list>
 
 namespace cxx {
 
@@ -29,6 +34,24 @@ Symbol::Symbol(Scope* enclosingScope, const Name* name)
     : enclosingScope_(enclosingScope), name_(name) {}
 
 Symbol::~Symbol() {}
+
+std::string Symbol::unqualifiedId() const {
+  if (name()) return fmt::format("{}", *name());
+  return "__anon__";
+}
+
+std::string Symbol::qualifiedId() const {
+  if (enclosingScope_) {
+    auto parent = enclosingScope_->owner();
+
+    if (!enclosingScope_->enclosingScope() && !parent->name())
+      return unqualifiedId();
+
+    return parent->qualifiedId() + "::" + unqualifiedId();
+  }
+
+  return unqualifiedId();
+}
 
 bool Symbol::isTypeSymbol() const { return false; }
 

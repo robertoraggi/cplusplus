@@ -46,7 +46,7 @@ void IRPrinter::print(Module* module, std::ostream& out) {
 
 void IRPrinter::print(Function* function, std::ostream& out) {
   auto symbol = function->symbol();
-  auto name = fmt::format("{}", *symbol->name());
+  auto name = symbol->qualifiedId();
 
   fmt::print(out, "{} {{\n", typePrinter.toString(symbol->type(), name, true));
 
@@ -264,7 +264,7 @@ void IRPrinter::visit(Id* expr) {
   if (dynamic_cast<ArgumentSymbol*>(expr->symbol()))
     text_ = fmt::format("arg{}", expr->symbol()->index());
   else
-    text_ = fmt::format("{}", *expr->symbol()->name());
+    text_ = expr->symbol()->qualifiedId();
 }
 
 void IRPrinter::visit(ExternalId* expr) { text_ = expr->name(); }
@@ -298,7 +298,8 @@ void IRPrinter::visit(Subscript* expr) {
 }
 
 void IRPrinter::visit(Access* expr) {
-  text_ = fmt::format("{}.{}", toString(expr->base()), *expr->member()->name());
+  text_ = fmt::format("{}.{}", toString(expr->base()),
+                      expr->member()->qualifiedId());
 }
 
 void IRPrinter::visit(Cast* expr) {
