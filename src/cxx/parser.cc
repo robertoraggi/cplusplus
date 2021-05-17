@@ -6706,10 +6706,10 @@ bool Parser::parse_member_declarator_list(List<InitDeclaratorAST*>*& yyast,
       sem->scope()->add(typedefSymbol);
       initDeclarator->symbol = typedefSymbol;
     } else if (auto funTy = decl.type->asFunctionType()) {
-      if (checkTypes_) {
-        parse_error(initDeclarator->firstSourceLocation(),
-                    "skip function declaration");
-      }
+      auto functionSymbol = symbols->newFunctionSymbol(sem->scope(), decl.name);
+      functionSymbol->setType(decl.type);
+      sem->scope()->add(functionSymbol);
+      initDeclarator->symbol = functionSymbol;
     } else {
       auto fieldSymbol = symbols->newFieldSymbol(sem->scope(), decl.name);
       fieldSymbol->setType(decl.type);
