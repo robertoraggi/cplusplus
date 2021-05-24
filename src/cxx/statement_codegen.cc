@@ -41,8 +41,7 @@ void StatementCodegen::gen(ExpressionAST* ast) {
 }
 
 void StatementCodegen::visit(LabeledStatementAST* ast) {
-  auto name = cg->unit()->identifier(ast->identifierLoc);
-  auto target = cg->findOrCreateTargetBlock(name);
+  auto target = cg->findOrCreateTargetBlock(ast->identifier);
   cg->place(target);
   cg->statement(ast->statement);
 }
@@ -198,8 +197,7 @@ void StatementCodegen::visit(ReturnStatementAST* ast) {
 }
 
 void StatementCodegen::visit(GotoStatementAST* ast) {
-  auto name = cg->unit()->identifier(ast->identifierLoc);
-  auto target = cg->findOrCreateTargetBlock(name);
+  auto target = cg->findOrCreateTargetBlock(ast->identifier);
   cg->emitJump(target);
 }
 

@@ -20,6 +20,8 @@
 
 #include <cxx/ast.h>
 #include <cxx/ast_printer.h>
+#include <cxx/literals.h>
+#include <cxx/names.h>
 #include <cxx/translation_unit.h>
 
 namespace cxx {
@@ -851,7 +853,7 @@ void ASTPrinter::visit(SimpleLambdaCaptureAST* ast) {
     }
   }
 
-  json_["identifier"] = unit_->tokenText(ast->identifierLoc);
+  if (ast->identifier) json_["identifier"] = ast->identifier->name();
 }
 
 void ASTPrinter::visit(RefLambdaCaptureAST* ast) {
@@ -878,7 +880,7 @@ void ASTPrinter::visit(RefLambdaCaptureAST* ast) {
     }
   }
 
-  json_["identifier"] = unit_->tokenText(ast->identifierLoc);
+  if (ast->identifier) json_["identifier"] = ast->identifier->name();
 }
 
 void ASTPrinter::visit(RefInitLambdaCaptureAST* ast) {
@@ -905,11 +907,11 @@ void ASTPrinter::visit(RefInitLambdaCaptureAST* ast) {
     }
   }
 
-  json_["identifier"] = unit_->tokenText(ast->identifierLoc);
-
   if (ast->initializer) {
     json_["initializer"] = accept(ast->initializer);
   }
+
+  if (ast->identifier) json_["identifier"] = ast->identifier->name();
 }
 
 void ASTPrinter::visit(InitLambdaCaptureAST* ast) {
@@ -936,11 +938,11 @@ void ASTPrinter::visit(InitLambdaCaptureAST* ast) {
     }
   }
 
-  json_["identifier"] = unit_->tokenText(ast->identifierLoc);
-
   if (ast->initializer) {
     json_["initializer"] = accept(ast->initializer);
   }
+
+  if (ast->identifier) json_["identifier"] = ast->identifier->name();
 }
 
 void ASTPrinter::visit(EqualInitializerAST* ast) {
@@ -1401,7 +1403,7 @@ void ASTPrinter::visit(CharLiteralExpressionAST* ast) {
     }
   }
 
-  json_["literal"] = unit_->tokenText(ast->literalLoc);
+  if (ast->literal) json_["literal"] = ast->literal->value();
 }
 
 void ASTPrinter::visit(BoolLiteralExpressionAST* ast) {
@@ -1428,7 +1430,7 @@ void ASTPrinter::visit(BoolLiteralExpressionAST* ast) {
     }
   }
 
-  json_["literal"] = unit_->tokenText(ast->literalLoc);
+  json_["literal"] = Token::spell(ast->literal);
 }
 
 void ASTPrinter::visit(IntLiteralExpressionAST* ast) {
@@ -1455,7 +1457,7 @@ void ASTPrinter::visit(IntLiteralExpressionAST* ast) {
     }
   }
 
-  json_["literal"] = unit_->tokenText(ast->literalLoc);
+  if (ast->literal) json_["literal"] = ast->literal->value();
 }
 
 void ASTPrinter::visit(FloatLiteralExpressionAST* ast) {
@@ -1482,7 +1484,7 @@ void ASTPrinter::visit(FloatLiteralExpressionAST* ast) {
     }
   }
 
-  json_["literal"] = unit_->tokenText(ast->literalLoc);
+  if (ast->literal) json_["literal"] = ast->literal->value();
 }
 
 void ASTPrinter::visit(NullptrLiteralExpressionAST* ast) {
@@ -1509,7 +1511,7 @@ void ASTPrinter::visit(NullptrLiteralExpressionAST* ast) {
     }
   }
 
-  json_["literal"] = unit_->tokenText(ast->literalLoc);
+  json_["literal"] = Token::spell(ast->literal);
 }
 
 void ASTPrinter::visit(StringLiteralExpressionAST* ast) {
@@ -1535,6 +1537,8 @@ void ASTPrinter::visit(StringLiteralExpressionAST* ast) {
       json_["$range"] = range;
     }
   }
+
+  if (ast->literal) json_["literal"] = ast->literal->value();
 }
 
 void ASTPrinter::visit(UserDefinedStringLiteralExpressionAST* ast) {
@@ -1561,7 +1565,7 @@ void ASTPrinter::visit(UserDefinedStringLiteralExpressionAST* ast) {
     }
   }
 
-  json_["literal"] = unit_->tokenText(ast->literalLoc);
+  if (ast->literal) json_["literal"] = ast->literal->value();
 }
 
 void ASTPrinter::visit(IdExpressionAST* ast) {
@@ -1848,7 +1852,7 @@ void ASTPrinter::visit(SizeofPackExpressionAST* ast) {
     }
   }
 
-  json_["identifier"] = unit_->tokenText(ast->identifierLoc);
+  if (ast->identifier) json_["identifier"] = ast->identifier->name();
 }
 
 void ASTPrinter::visit(TypeidExpressionAST* ast) {
@@ -2210,6 +2214,8 @@ void ASTPrinter::visit(MemberExpressionAST* ast) {
   if (ast->name) {
     json_["name"] = accept(ast->name);
   }
+
+  json_["accessOp"] = Token::spell(ast->accessOp);
 }
 
 void ASTPrinter::visit(PostIncrExpressionAST* ast) {
@@ -2240,7 +2246,7 @@ void ASTPrinter::visit(PostIncrExpressionAST* ast) {
     json_["baseExpression"] = accept(ast->baseExpression);
   }
 
-  json_["op"] = unit_->tokenText(ast->opLoc);
+  json_["op"] = Token::spell(ast->op);
 }
 
 void ASTPrinter::visit(ConditionalExpressionAST* ast) {
@@ -2490,11 +2496,11 @@ void ASTPrinter::visit(LabeledStatementAST* ast) {
     }
   }
 
-  json_["identifier"] = unit_->tokenText(ast->identifierLoc);
-
   if (ast->statement) {
     json_["statement"] = accept(ast->statement);
   }
+
+  if (ast->identifier) json_["identifier"] = ast->identifier->name();
 }
 
 void ASTPrinter::visit(CaseStatementAST* ast) {
@@ -2950,7 +2956,7 @@ void ASTPrinter::visit(GotoStatementAST* ast) {
     }
   }
 
-  json_["identifier"] = unit_->tokenText(ast->identifierLoc);
+  if (ast->identifier) json_["identifier"] = ast->identifier->name();
 }
 
 void ASTPrinter::visit(CoroutineReturnStatementAST* ast) {
@@ -3204,8 +3210,6 @@ void ASTPrinter::visit(AliasDeclarationAST* ast) {
     }
   }
 
-  json_["identifier"] = unit_->tokenText(ast->identifierLoc);
-
   if (ast->attributeList) {
     auto elements = nlohmann::json::array();
     for (auto it = ast->attributeList; it; it = it->next) {
@@ -3217,6 +3221,8 @@ void ASTPrinter::visit(AliasDeclarationAST* ast) {
   if (ast->typeId) {
     json_["typeId"] = accept(ast->typeId);
   }
+
+  if (ast->identifier) json_["identifier"] = ast->identifier->name();
 }
 
 void ASTPrinter::visit(SimpleDeclarationAST* ast) {
@@ -3506,8 +3512,6 @@ void ASTPrinter::visit(NamespaceAliasDefinitionAST* ast) {
     }
   }
 
-  json_["identifier"] = unit_->tokenText(ast->identifierLoc);
-
   if (ast->nestedNameSpecifier) {
     json_["nestedNameSpecifier"] = accept(ast->nestedNameSpecifier);
   }
@@ -3515,6 +3519,8 @@ void ASTPrinter::visit(NamespaceAliasDefinitionAST* ast) {
   if (ast->name) {
     json_["name"] = accept(ast->name);
   }
+
+  if (ast->identifier) json_["identifier"] = ast->identifier->name();
 }
 
 void ASTPrinter::visit(UsingDirectiveAST* ast) {
@@ -3719,11 +3725,11 @@ void ASTPrinter::visit(TypenameTypeParameterAST* ast) {
     }
   }
 
-  json_["identifier"] = unit_->tokenText(ast->identifierLoc);
-
   if (ast->typeId) {
     json_["typeId"] = accept(ast->typeId);
   }
+
+  if (ast->identifier) json_["identifier"] = ast->identifier->name();
 }
 
 void ASTPrinter::visit(TypenamePackTypeParameterAST* ast) {
@@ -3750,7 +3756,7 @@ void ASTPrinter::visit(TypenamePackTypeParameterAST* ast) {
     }
   }
 
-  json_["identifier"] = unit_->tokenText(ast->identifierLoc);
+  if (ast->identifier) json_["identifier"] = ast->identifier->name();
 }
 
 void ASTPrinter::visit(TemplateTypeParameterAST* ast) {
@@ -3785,11 +3791,11 @@ void ASTPrinter::visit(TemplateTypeParameterAST* ast) {
     json_["templateParameterList"] = elements;
   }
 
-  json_["identifier"] = unit_->tokenText(ast->identifierLoc);
-
   if (ast->name) {
     json_["name"] = accept(ast->name);
   }
+
+  if (ast->identifier) json_["identifier"] = ast->identifier->name();
 }
 
 void ASTPrinter::visit(TemplatePackTypeParameterAST* ast) {
@@ -3824,7 +3830,7 @@ void ASTPrinter::visit(TemplatePackTypeParameterAST* ast) {
     json_["templateParameterList"] = elements;
   }
 
-  json_["identifier"] = unit_->tokenText(ast->identifierLoc);
+  if (ast->identifier) json_["identifier"] = ast->identifier->name();
 }
 
 void ASTPrinter::visit(DeductionGuideAST* ast) {
@@ -3961,6 +3967,8 @@ void ASTPrinter::visit(LinkageSpecificationAST* ast) {
     }
     json_["declarationList"] = elements;
   }
+
+  if (ast->stringLiteral) json_["stringLiteral"] = ast->stringLiteral->value();
 }
 
 void ASTPrinter::visit(SimpleNameAST* ast) {
@@ -3987,7 +3995,7 @@ void ASTPrinter::visit(SimpleNameAST* ast) {
     }
   }
 
-  json_["identifier"] = unit_->tokenText(ast->identifierLoc);
+  if (ast->identifier) json_["identifier"] = ast->identifier->name();
 }
 
 void ASTPrinter::visit(DestructorNameAST* ast) {
@@ -4577,7 +4585,7 @@ void ASTPrinter::visit(VaListTypeSpecifierAST* ast) {
     }
   }
 
-  json_["specifier"] = unit_->tokenText(ast->specifierLoc);
+  json_["specifier"] = Token::spell(ast->specifier);
 }
 
 void ASTPrinter::visit(IntegralTypeSpecifierAST* ast) {
@@ -4604,9 +4612,7 @@ void ASTPrinter::visit(IntegralTypeSpecifierAST* ast) {
     }
   }
 
-  json_["specifier"] = unit_->tokenText(ast->specifierLoc);
-
-  json_["specifierKind"] = Token::spell(ast->specifierKind);
+  json_["specifier"] = Token::spell(ast->specifier);
 }
 
 void ASTPrinter::visit(FloatingPointTypeSpecifierAST* ast) {
@@ -4633,7 +4639,7 @@ void ASTPrinter::visit(FloatingPointTypeSpecifierAST* ast) {
     }
   }
 
-  json_["specifier"] = unit_->tokenText(ast->specifierLoc);
+  json_["specifier"] = Token::spell(ast->specifier);
 }
 
 void ASTPrinter::visit(ComplexTypeSpecifierAST* ast) {
@@ -5241,6 +5247,8 @@ void ASTPrinter::visit(ReferenceOperatorAST* ast) {
     }
     json_["attributeList"] = elements;
   }
+
+  json_["refOp"] = Token::spell(ast->refOp);
 }
 
 void ASTPrinter::visit(PtrToMemberOperatorAST* ast) {

@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/control.h>
+#include <cxx/literals.h>
 #include <cxx/names.h>
 #include <cxx/parser.h>
 #include <cxx/scope.h>
@@ -310,6 +311,7 @@ bool Parser::parse_name_id(NameAST*& yyast) {
   yyast = ast;
 
   ast->identifierLoc = identifierLoc;
+  ast->identifier = unit->identifier(ast->identifierLoc);
 
   return true;
 }
@@ -321,6 +323,8 @@ bool Parser::parse_literal(ExpressionAST*& yyast) {
       yyast = ast;
 
       ast->literalLoc = consumeToken();
+      ast->literal =
+          static_cast<const CharLiteral*>(unit->literal(ast->literalLoc));
 
       return true;
     }
@@ -331,6 +335,7 @@ bool Parser::parse_literal(ExpressionAST*& yyast) {
       yyast = ast;
 
       ast->literalLoc = consumeToken();
+      ast->literal = unit->tokenKind(ast->literalLoc);
 
       return true;
     }
@@ -340,6 +345,8 @@ bool Parser::parse_literal(ExpressionAST*& yyast) {
       yyast = ast;
 
       ast->literalLoc = consumeToken();
+      ast->literal =
+          static_cast<const NumericLiteral*>(unit->literal(ast->literalLoc));
 
       return true;
     }
@@ -349,6 +356,8 @@ bool Parser::parse_literal(ExpressionAST*& yyast) {
       yyast = ast;
 
       ast->literalLoc = consumeToken();
+      ast->literal =
+          static_cast<const NumericLiteral*>(unit->literal(ast->literalLoc));
 
       return true;
     }
@@ -358,6 +367,7 @@ bool Parser::parse_literal(ExpressionAST*& yyast) {
       yyast = ast;
 
       ast->literalLoc = consumeToken();
+      ast->literal = unit->tokenKind(ast->literalLoc);
 
       return true;
     }
@@ -367,6 +377,8 @@ bool Parser::parse_literal(ExpressionAST*& yyast) {
       yyast = ast;
 
       ast->literalLoc = consumeToken();
+      ast->literal =
+          static_cast<const StringLiteral*>(unit->literal(ast->literalLoc));
 
       return true;
     }
@@ -380,6 +392,11 @@ bool Parser::parse_literal(ExpressionAST*& yyast) {
       yyast = ast;
 
       ast->stringLiteralList = stringLiterals;
+
+      if (ast->stringLiteralList) {
+        ast->literal = static_cast<const StringLiteral*>(
+            unit->literal(ast->stringLiteralList->value));
+      }
 
       return true;
     }
@@ -994,6 +1011,7 @@ bool Parser::parse_simple_capture(LambdaCaptureAST*& yyast) {
     yyast = ast;
 
     ast->identifierLoc = identifierLoc;
+    ast->identifier = unit->identifier(ast->identifierLoc);
     match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
 
     return true;
@@ -1020,6 +1038,7 @@ bool Parser::parse_simple_capture(LambdaCaptureAST*& yyast) {
 
   ast->ampLoc = ampLoc;
   ast->identifierLoc = identifierLoc;
+  ast->identifier = unit->identifier(ast->identifierLoc);
 
   match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
 
@@ -1048,6 +1067,7 @@ bool Parser::parse_init_capture(LambdaCaptureAST*& yyast) {
     ast->ampLoc = ampLoc;
     ast->ellipsisLoc = ellipsisLoc;
     ast->identifierLoc = identifierLoc;
+    ast->identifier = unit->identifier(ast->identifierLoc);
     ast->initializer = initializer;
 
     return true;
@@ -1070,6 +1090,7 @@ bool Parser::parse_init_capture(LambdaCaptureAST*& yyast) {
 
   ast->ellipsisLoc = ellipsisLoc;
   ast->identifierLoc = identifierLoc;
+  ast->identifier = unit->identifier(ast->identifierLoc);
   ast->initializer = initializer;
 
   return true;
@@ -1412,6 +1433,7 @@ bool Parser::parse_member_expression(ExpressionAST*& yyast) {
   auto ast = new (pool) MemberExpressionAST();
   ast->baseExpression = yyast;
   ast->accessLoc = accessLoc;
+  ast->accessOp = unit->tokenKind(accessLoc);
 
   yyast = ast;
 
@@ -1472,6 +1494,7 @@ bool Parser::parse_postincr_expression(ExpressionAST*& yyast) {
   auto ast = new (pool) PostIncrExpressionAST();
   ast->baseExpression = yyast;
   ast->opLoc = opLoc;
+  ast->op = unit->tokenKind(ast->opLoc);
   yyast = ast;
 
   return true;
@@ -1805,7 +1828,10 @@ bool Parser::parse_sizeof_expression(ExpressionAST*& yyast) {
     ast->ellipsisLoc = ellipsisLoc;
 
     expect(TokenKind::T_LPAREN, ast->lparenLoc);
+
     expect(TokenKind::T_IDENTIFIER, ast->identifierLoc);
+    ast->identifier = unit->identifier(ast->identifierLoc);
+
     expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
     return true;
@@ -2605,6 +2631,7 @@ bool Parser::parse_labeled_statement(StatementAST*& yyast) {
   yyast = ast;
 
   ast->identifierLoc = identifierLoc;
+  ast->identifier = unit->identifier(ast->identifierLoc);
   ast->colonLoc = colonLoc;
   ast->statement = statement;
 
@@ -3066,6 +3093,8 @@ bool Parser::parse_goto_statement(StatementAST*& yyast) {
 
   expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
 
+  ast->identifier = unit->identifier(ast->identifierLoc);
+
   return true;
 }
 
@@ -3216,6 +3245,7 @@ bool Parser::parse_alias_declaration(DeclarationAST*& yyast) {
 
   ast->usingLoc = usingLoc;
   ast->identifierLoc = identifierLoc;
+  ast->identifier = unit->identifier(ast->identifierLoc);
   ast->attributeList = attributes;
   ast->equalLoc = equalLoc;
   ast->typeId = typeId;
@@ -4096,6 +4126,7 @@ bool Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
       auto ast = new (pool) VaListTypeSpecifierAST();
       yyast = ast;
       ast->specifierLoc = consumeToken();
+      ast->specifier = unit->tokenKind(ast->specifierLoc);
       specs.has_simple_typespec = true;
       return true;
     };
@@ -4115,8 +4146,8 @@ bool Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
     case TokenKind::T_UNSIGNED: {
       auto ast = new (pool) IntegralTypeSpecifierAST();
       yyast = ast;
-      ast->specifierKind = tk.kind();
       ast->specifierLoc = consumeToken();
+      ast->specifier = unit->tokenKind(ast->specifierLoc);
       specs.has_simple_typespec = true;
       return true;
     }
@@ -4128,6 +4159,7 @@ bool Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
       auto ast = new (pool) FloatingPointTypeSpecifierAST();
       yyast = ast;
       ast->specifierLoc = consumeToken();
+      ast->specifier = unit->tokenKind(ast->specifierLoc);
       specs.has_simple_typespec = true;
       return true;
     }
@@ -4245,6 +4277,7 @@ bool Parser::parse_elaborated_type_specifier_helper(
     name = id;
 
     id->identifierLoc = identifierLoc;
+    id->identifier = unit->identifier(id->identifierLoc);
 
     specs.has_complex_typespec = true;
 
@@ -4726,6 +4759,7 @@ bool Parser::parse_ptr_operator(PtrOperatorAST*& yyast) {
     yyast = ast;
 
     ast->refLoc = refLoc;
+    ast->refOp = unit->tokenKind(refLoc);
 
     parse_attribute_specifier_seq(ast->attributeList);
 
@@ -5494,6 +5528,7 @@ bool Parser::parse_enum_head_name(NestedNameSpecifierAST*& nestedNameSpecifier,
 
   auto id = new (pool) SimpleNameAST();
   id->identifierLoc = identifierLoc;
+  id->identifier = unit->identifier(id->identifierLoc);
 
   name = id;
 
@@ -5624,6 +5659,7 @@ bool Parser::parse_enumerator(EnumeratorAST*& yyast) {
 
   auto name = new (pool) SimpleNameAST();
   name->identifierLoc = identifierLoc;
+  name->identifier = unit->identifier(name->identifierLoc);
 
   auto ast = new (pool) EnumeratorAST();
   yyast = ast;
@@ -5813,6 +5849,8 @@ bool Parser::parse_namespace_alias_definition(DeclarationAST*& yyast) {
 
   expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
 
+  ast->identifier = unit->identifier(ast->identifierLoc);
+
   return true;
 }
 
@@ -5828,6 +5866,7 @@ bool Parser::parse_qualified_namespace_specifier(
 
   auto id = new (pool) SimpleNameAST();
   id->identifierLoc = identifierLoc;
+  id->identifier = unit->identifier(id->identifierLoc);
 
   name = id;
 
@@ -5985,6 +6024,8 @@ bool Parser::parse_linkage_specification(DeclarationAST*& yyast) {
 
     ast->externLoc = externLoc;
     ast->stringliteralLoc = stringLiteralLoc;
+    ast->stringLiteral =
+        static_cast<const StringLiteral*>(unit->literal(ast->stringliteralLoc));
     ast->lbraceLoc = lbraceLoc;
 
     if (!match(TokenKind::T_RBRACE, ast->rbraceLoc)) {
@@ -6006,6 +6047,8 @@ bool Parser::parse_linkage_specification(DeclarationAST*& yyast) {
 
   ast->externLoc = externLoc;
   ast->stringliteralLoc = stringLiteralLoc;
+  ast->stringLiteral =
+      static_cast<const StringLiteral*>(unit->literal(ast->stringliteralLoc));
   ast->declarationList = new (pool) List(declaration);
 
   return true;
@@ -6778,6 +6821,7 @@ bool Parser::parse_member_declarator(InitDeclaratorAST*& yyast) {
 
     auto name = new (pool) SimpleNameAST();
     name->identifierLoc = identifierLoc;
+    name->identifier = unit->identifier(name->identifierLoc);
 
     auto coreDeclarator = new (pool) IdDeclaratorAST();
     coreDeclarator->name = name;
@@ -7378,6 +7422,8 @@ bool Parser::parse_typename_type_parameter(DeclarationAST*& yyast) {
     ast->classKeyLoc = classKeyLoc;
     ast->ellipsisLoc = ellipsisLoc;
     match(TokenKind::T_IDENTIFIER, ast->identifierLoc);
+    ast->identifier = unit->identifier(ast->identifierLoc);
+
     return true;
   }
 
@@ -7395,6 +7441,8 @@ bool Parser::parse_typename_type_parameter(DeclarationAST*& yyast) {
     expect(TokenKind::T_EQUAL, ast->equalLoc);
 
     if (!parse_type_id(ast->typeId)) parse_error("expected a type id");
+
+    ast->identifier = unit->identifier(ast->identifierLoc);
 
     return true;
   }
@@ -7443,6 +7491,8 @@ bool Parser::parse_template_type_parameter(DeclarationAST*& yyast) {
 
     match(TokenKind::T_IDENTIFIER, ast->identifierLoc);
 
+    ast->identifier = unit->identifier(ast->identifierLoc);
+
     expect(TokenKind::T_EQUAL, ast->equalLoc);
 
     if (!parse_id_expression(ast->name))
@@ -7468,6 +7518,7 @@ bool Parser::parse_template_type_parameter(DeclarationAST*& yyast) {
     ast->classKeyLoc = classsKeyLoc;
     ast->ellipsisLoc = ellipsisLoc;
     ast->identifierLoc = identifierLoc;
+    ast->identifier = unit->identifier(ast->identifierLoc);
   }
 
   auto ast = new (pool) TemplateTypeParameterAST();

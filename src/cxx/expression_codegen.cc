@@ -308,18 +308,16 @@ void ExpressionCodegen::visit(ThisExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(CharLiteralExpressionAST* ast) {
-  auto value = static_cast<const cxx::CharLiteral*>(
-      cg->unit()->literal(ast->literalLoc));
-  expr_ = cg->createCharLiteral(value);
+  expr_ = cg->createCharLiteral(ast->literal);
 }
 
 void ExpressionCodegen::visit(BoolLiteralExpressionAST* ast) {
-  auto value = cg->unit()->tokenKind(ast->literalLoc) == TokenKind::T_TRUE;
+  const auto value = ast->literal == TokenKind::T_TRUE;
   expr_ = cg->createIntegerLiteral(value);
 }
 
 void ExpressionCodegen::visit(IntLiteralExpressionAST* ast) {
-  auto value = cg->unit()->tokenText(ast->literalLoc);
+  const auto& value = ast->literal->value();
   if (value.starts_with("0x") || value.starts_with("0X")) {
     std::int64_t literal =
         std::int64_t(std::stol(value.substr(2), nullptr, 16));
@@ -346,9 +344,7 @@ void ExpressionCodegen::visit(NullptrLiteralExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(StringLiteralExpressionAST* ast) {
-  auto value = static_cast<const cxx::StringLiteral*>(
-      cg->unit()->literal(ast->firstSourceLocation()));
-  expr_ = cg->createStringLiteral(value);
+  expr_ = cg->createStringLiteral(ast->literal);
 }
 
 void ExpressionCodegen::visit(UserDefinedStringLiteralExpressionAST* ast) {
@@ -540,7 +536,7 @@ void ExpressionCodegen::visit(SubscriptExpressionAST* ast) {
 
 void ExpressionCodegen::visit(MemberExpressionAST* ast) {
   auto base = gen(ast->baseExpression);
-  if (cg->unit()->tokenKind(ast->accessLoc) == TokenKind::T_MINUS_GREATER)
+  if (ast->accessOp == TokenKind::T_MINUS_GREATER)
     base = cg->createUnary(ir::UnaryOp::kStar, base);
   expr_ = cg->createAccess(base, ast->symbol);
 }
@@ -549,9 +545,8 @@ void ExpressionCodegen::visit(PostIncrExpressionAST* ast) {
   auto expr = cg->expression(ast->baseExpression);
   auto local = cg->function()->addLocal(ast->baseExpression->type);
   cg->emitMove(cg->createTemp(local), expr);
-  const auto op = cg->unit()->tokenKind(ast->opLoc) == TokenKind::T_PLUS_PLUS
-                      ? ir::BinaryOp::kPlus
-                      : ir::BinaryOp::kMinus;
+  const auto op = ast->op == TokenKind::T_PLUS_PLUS ? ir::BinaryOp::kPlus
+                                                    : ir::BinaryOp::kMinus;
   const int i = 1;
   cg->emitMove(expr, cg->createBinary(op, expr, cg->createIntegerLiteral(i)));
   expr_ = cg->createTemp(local);

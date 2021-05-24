@@ -20,6 +20,7 @@
 
 #include <cxx/ast.h>
 #include <cxx/control.h>
+#include <cxx/literals.h>
 #include <cxx/names.h>
 #include <cxx/scope.h>
 #include <cxx/semantics.h>
@@ -619,10 +620,8 @@ void Semantics::visit(MemberExpressionAST* ast) {
 
   auto baseTy = baseExpression.type;
 
-  const auto op = unit_->tokenKind(ast->accessLoc);
-
   if (auto ptrTy = baseTy->asPointerType();
-      ptrTy && op == TokenKind::T_MINUS_GREATER) {
+      ptrTy && ast->accessOp == TokenKind::T_MINUS_GREATER) {
     baseTy = ptrTy->elementType();
   }
 
@@ -911,10 +910,7 @@ void Semantics::visit(LinkageSpecificationAST* ast) {
     declaration(it->value);
 }
 
-void Semantics::visit(SimpleNameAST* ast) {
-  auto id = unit_->identifier(ast->identifierLoc);
-  nameSem_->name = id;
-}
+void Semantics::visit(SimpleNameAST* ast) { nameSem_->name = ast->identifier; }
 
 void Semantics::visit(DestructorNameAST* ast) {
   NameSem name;
@@ -998,7 +994,7 @@ void Semantics::visit(VoidTypeSpecifierAST* ast) {
 void Semantics::visit(VaListTypeSpecifierAST* ast) {}
 
 void Semantics::visit(IntegralTypeSpecifierAST* ast) {
-  switch (ast->specifierKind) {
+  switch (ast->specifier) {
     case TokenKind::T_CHAR8_T:
       specifiers_->type.setType(types_->characterType(CharacterKind::kChar8T));
       break;
@@ -1086,13 +1082,13 @@ void Semantics::visit(IntegralTypeSpecifierAST* ast) {
       break;
 
     default:
-      throw std::runtime_error(fmt::format(
-          "invalid integral type: '{}'", unit_->tokenText(ast->specifierLoc)));
+      throw std::runtime_error(fmt::format("invalid integral type: '{}'",
+                                           Token::spell(ast->specifier)));
   }  // switch
 }
 
 void Semantics::visit(FloatingPointTypeSpecifierAST* ast) {
-  switch (unit_->tokenKind(ast->specifierLoc)) {
+  switch (ast->specifier) {
     case TokenKind::T_FLOAT:
       specifiers_->type.setType(
           types_->floatingPointType(FloatingPointKind::kFloat));
@@ -1117,9 +1113,8 @@ void Semantics::visit(FloatingPointTypeSpecifierAST* ast) {
       break;
 
     default:
-      throw std::runtime_error(
-          fmt::format("invalid floating point type: '{}'",
-                      unit_->tokenText(ast->specifierLoc)));
+      throw std::runtime_error(fmt::format("invalid floating point type: '{}'",
+                                           Token::spell(ast->specifier)));
   }  // switch
 }
 
@@ -1237,7 +1232,7 @@ void Semantics::visit(PointerOperatorAST* ast) {
 void Semantics::visit(ReferenceOperatorAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
 
-  if (unit_->tokenKind(ast->refLoc) == TokenKind::T_AMP) {
+  if (ast->refOp == TokenKind::T_AMP) {
     QualifiedType refTy(types_->referenceType(declarator_->type));
     declarator_->type = refTy;
   } else {
@@ -1295,9 +1290,8 @@ void Semantics::visit(ArrayDeclaratorAST* ast) {
     ExpressionSem expression;
     this->expression(ast->expression, &expression);
 
-    if (auto literal =
-            dynamic_cast<IntLiteralExpressionAST*>(ast->expression)) {
-      auto dim = std::stoi(unit_->tokenText(literal->literalLoc));
+    if (auto cst = dynamic_cast<IntLiteralExpressionAST*>(ast->expression)) {
+      auto dim = std::stoul(cst->literal->value());
       QualifiedType arrayType(types_->arrayType(declarator_->type, dim));
       declarator_->type = arrayType;
     } else {

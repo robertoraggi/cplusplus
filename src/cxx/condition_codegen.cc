@@ -44,8 +44,7 @@ void ConditionCodegen::gen(ExpressionAST* ast, ir::Block* iftrue,
 }
 
 void ConditionCodegen::visit(IntLiteralExpressionAST* ast) {
-  auto value = cg->unit()->tokenText(ast->literalLoc);
-  auto literal = std::stol(value);
+  auto literal = std::stoul(ast->literal->value());
   cg->emitJump(literal ? iftrue_ : iffalse_);
 }
 

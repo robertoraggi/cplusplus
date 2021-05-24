@@ -405,6 +405,8 @@ void ASTCloner::visit(SimpleLambdaCaptureAST* ast) {
   copy->identifierLoc = ast->identifierLoc;
 
   copy->ellipsisLoc = ast->ellipsisLoc;
+
+  copy->identifier = ast->identifier;
 }
 
 void ASTCloner::visit(RefLambdaCaptureAST* ast) {
@@ -416,6 +418,8 @@ void ASTCloner::visit(RefLambdaCaptureAST* ast) {
   copy->identifierLoc = ast->identifierLoc;
 
   copy->ellipsisLoc = ast->ellipsisLoc;
+
+  copy->identifier = ast->identifier;
 }
 
 void ASTCloner::visit(RefInitLambdaCaptureAST* ast) {
@@ -429,6 +433,8 @@ void ASTCloner::visit(RefInitLambdaCaptureAST* ast) {
   copy->identifierLoc = ast->identifierLoc;
 
   copy->initializer = accept(ast->initializer);
+
+  copy->identifier = ast->identifier;
 }
 
 void ASTCloner::visit(InitLambdaCaptureAST* ast) {
@@ -440,6 +446,8 @@ void ASTCloner::visit(InitLambdaCaptureAST* ast) {
   copy->identifierLoc = ast->identifierLoc;
 
   copy->initializer = accept(ast->initializer);
+
+  copy->identifier = ast->identifier;
 }
 
 void ASTCloner::visit(EqualInitializerAST* ast) {
@@ -632,6 +640,8 @@ void ASTCloner::visit(CharLiteralExpressionAST* ast) {
   copy->type = ast->type;
 
   copy->literalLoc = ast->literalLoc;
+
+  copy->literal = ast->literal;
 }
 
 void ASTCloner::visit(BoolLiteralExpressionAST* ast) {
@@ -641,6 +651,8 @@ void ASTCloner::visit(BoolLiteralExpressionAST* ast) {
   copy->type = ast->type;
 
   copy->literalLoc = ast->literalLoc;
+
+  copy->literal = ast->literal;
 }
 
 void ASTCloner::visit(IntLiteralExpressionAST* ast) {
@@ -650,6 +662,8 @@ void ASTCloner::visit(IntLiteralExpressionAST* ast) {
   copy->type = ast->type;
 
   copy->literalLoc = ast->literalLoc;
+
+  copy->literal = ast->literal;
 }
 
 void ASTCloner::visit(FloatLiteralExpressionAST* ast) {
@@ -659,6 +673,8 @@ void ASTCloner::visit(FloatLiteralExpressionAST* ast) {
   copy->type = ast->type;
 
   copy->literalLoc = ast->literalLoc;
+
+  copy->literal = ast->literal;
 }
 
 void ASTCloner::visit(NullptrLiteralExpressionAST* ast) {
@@ -668,6 +684,8 @@ void ASTCloner::visit(NullptrLiteralExpressionAST* ast) {
   copy->type = ast->type;
 
   copy->literalLoc = ast->literalLoc;
+
+  copy->literal = ast->literal;
 }
 
 void ASTCloner::visit(StringLiteralExpressionAST* ast) {
@@ -684,6 +702,8 @@ void ASTCloner::visit(StringLiteralExpressionAST* ast) {
       out = &(*out)->next;
     }
   }
+
+  copy->literal = ast->literal;
 }
 
 void ASTCloner::visit(UserDefinedStringLiteralExpressionAST* ast) {
@@ -693,6 +713,8 @@ void ASTCloner::visit(UserDefinedStringLiteralExpressionAST* ast) {
   copy->type = ast->type;
 
   copy->literalLoc = ast->literalLoc;
+
+  copy->literal = ast->literal;
 }
 
 void ASTCloner::visit(IdExpressionAST* ast) {
@@ -849,6 +871,8 @@ void ASTCloner::visit(SizeofPackExpressionAST* ast) {
   copy->identifierLoc = ast->identifierLoc;
 
   copy->rparenLoc = ast->rparenLoc;
+
+  copy->identifier = ast->identifier;
 }
 
 void ASTCloner::visit(TypeidExpressionAST* ast) {
@@ -1024,6 +1048,8 @@ void ASTCloner::visit(MemberExpressionAST* ast) {
   copy->name = accept(ast->name);
 
   copy->symbol = ast->symbol;
+
+  copy->accessOp = ast->accessOp;
 }
 
 void ASTCloner::visit(PostIncrExpressionAST* ast) {
@@ -1035,6 +1061,8 @@ void ASTCloner::visit(PostIncrExpressionAST* ast) {
   copy->baseExpression = accept(ast->baseExpression);
 
   copy->opLoc = ast->opLoc;
+
+  copy->op = ast->op;
 }
 
 void ASTCloner::visit(ConditionalExpressionAST* ast) {
@@ -1157,6 +1185,8 @@ void ASTCloner::visit(LabeledStatementAST* ast) {
   copy->colonLoc = ast->colonLoc;
 
   copy->statement = accept(ast->statement);
+
+  copy->identifier = ast->identifier;
 }
 
 void ASTCloner::visit(CaseStatementAST* ast) {
@@ -1364,6 +1394,8 @@ void ASTCloner::visit(GotoStatementAST* ast) {
   copy->identifierLoc = ast->identifierLoc;
 
   copy->semicolonLoc = ast->semicolonLoc;
+
+  copy->identifier = ast->identifier;
 }
 
 void ASTCloner::visit(CoroutineReturnStatementAST* ast) {
@@ -1482,6 +1514,8 @@ void ASTCloner::visit(AliasDeclarationAST* ast) {
   copy->typeId = accept(ast->typeId);
 
   copy->semicolonLoc = ast->semicolonLoc;
+
+  copy->identifier = ast->identifier;
 }
 
 void ASTCloner::visit(SimpleDeclarationAST* ast) {
@@ -1657,6 +1691,8 @@ void ASTCloner::visit(NamespaceAliasDefinitionAST* ast) {
   copy->name = accept(ast->name);
 
   copy->semicolonLoc = ast->semicolonLoc;
+
+  copy->identifier = ast->identifier;
 }
 
 void ASTCloner::visit(UsingDirectiveAST* ast) {
@@ -1756,6 +1792,8 @@ void ASTCloner::visit(TypenameTypeParameterAST* ast) {
   copy->equalLoc = ast->equalLoc;
 
   copy->typeId = accept(ast->typeId);
+
+  copy->identifier = ast->identifier;
 }
 
 void ASTCloner::visit(TypenamePackTypeParameterAST* ast) {
@@ -1767,6 +1805,8 @@ void ASTCloner::visit(TypenamePackTypeParameterAST* ast) {
   copy->ellipsisLoc = ast->ellipsisLoc;
 
   copy->identifierLoc = ast->identifierLoc;
+
+  copy->identifier = ast->identifier;
 }
 
 void ASTCloner::visit(TemplateTypeParameterAST* ast) {
@@ -1795,6 +1835,8 @@ void ASTCloner::visit(TemplateTypeParameterAST* ast) {
   copy->equalLoc = ast->equalLoc;
 
   copy->name = accept(ast->name);
+
+  copy->identifier = ast->identifier;
 }
 
 void ASTCloner::visit(TemplatePackTypeParameterAST* ast) {
@@ -1821,6 +1863,8 @@ void ASTCloner::visit(TemplatePackTypeParameterAST* ast) {
   copy->ellipsisLoc = ast->ellipsisLoc;
 
   copy->identifierLoc = ast->identifierLoc;
+
+  copy->identifier = ast->identifier;
 }
 
 void ASTCloner::visit(DeductionGuideAST* ast) {
@@ -1888,6 +1932,8 @@ void ASTCloner::visit(LinkageSpecificationAST* ast) {
   }
 
   copy->rbraceLoc = ast->rbraceLoc;
+
+  copy->stringLiteral = ast->stringLiteral;
 }
 
 void ASTCloner::visit(SimpleNameAST* ast) {
@@ -1897,6 +1943,8 @@ void ASTCloner::visit(SimpleNameAST* ast) {
   copy->name = ast->name;
 
   copy->identifierLoc = ast->identifierLoc;
+
+  copy->identifier = ast->identifier;
 }
 
 void ASTCloner::visit(DestructorNameAST* ast) {
@@ -2098,6 +2146,8 @@ void ASTCloner::visit(VaListTypeSpecifierAST* ast) {
   copy_ = copy;
 
   copy->specifierLoc = ast->specifierLoc;
+
+  copy->specifier = ast->specifier;
 }
 
 void ASTCloner::visit(IntegralTypeSpecifierAST* ast) {
@@ -2106,7 +2156,7 @@ void ASTCloner::visit(IntegralTypeSpecifierAST* ast) {
 
   copy->specifierLoc = ast->specifierLoc;
 
-  copy->specifierKind = ast->specifierKind;
+  copy->specifier = ast->specifier;
 }
 
 void ASTCloner::visit(FloatingPointTypeSpecifierAST* ast) {
@@ -2114,6 +2164,8 @@ void ASTCloner::visit(FloatingPointTypeSpecifierAST* ast) {
   copy_ = copy;
 
   copy->specifierLoc = ast->specifierLoc;
+
+  copy->specifier = ast->specifier;
 }
 
 void ASTCloner::visit(ComplexTypeSpecifierAST* ast) {
@@ -2392,6 +2444,8 @@ void ASTCloner::visit(ReferenceOperatorAST* ast) {
       out = &(*out)->next;
     }
   }
+
+  copy->refOp = ast->refOp;
 }
 
 void ASTCloner::visit(PtrToMemberOperatorAST* ast) {

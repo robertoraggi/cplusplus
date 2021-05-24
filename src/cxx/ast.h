@@ -511,6 +511,7 @@ class SimpleLambdaCaptureAST final : public LambdaCaptureAST {
 
   SourceLocation identifierLoc;
   SourceLocation ellipsisLoc;
+  const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -525,6 +526,7 @@ class RefLambdaCaptureAST final : public LambdaCaptureAST {
   SourceLocation ampLoc;
   SourceLocation identifierLoc;
   SourceLocation ellipsisLoc;
+  const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -540,6 +542,7 @@ class RefInitLambdaCaptureAST final : public LambdaCaptureAST {
   SourceLocation ellipsisLoc;
   SourceLocation identifierLoc;
   InitializerAST* initializer = nullptr;
+  const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -554,6 +557,7 @@ class InitLambdaCaptureAST final : public LambdaCaptureAST {
   SourceLocation ellipsisLoc;
   SourceLocation identifierLoc;
   InitializerAST* initializer = nullptr;
+  const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -755,6 +759,7 @@ class CharLiteralExpressionAST final : public ExpressionAST {
   CharLiteralExpressionAST() : ExpressionAST(ASTKind::CharLiteralExpression) {}
 
   SourceLocation literalLoc;
+  const CharLiteral* literal = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -767,6 +772,7 @@ class BoolLiteralExpressionAST final : public ExpressionAST {
   BoolLiteralExpressionAST() : ExpressionAST(ASTKind::BoolLiteralExpression) {}
 
   SourceLocation literalLoc;
+  TokenKind literal = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -779,6 +785,7 @@ class IntLiteralExpressionAST final : public ExpressionAST {
   IntLiteralExpressionAST() : ExpressionAST(ASTKind::IntLiteralExpression) {}
 
   SourceLocation literalLoc;
+  const NumericLiteral* literal = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -792,6 +799,7 @@ class FloatLiteralExpressionAST final : public ExpressionAST {
       : ExpressionAST(ASTKind::FloatLiteralExpression) {}
 
   SourceLocation literalLoc;
+  const NumericLiteral* literal = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -805,6 +813,7 @@ class NullptrLiteralExpressionAST final : public ExpressionAST {
       : ExpressionAST(ASTKind::NullptrLiteralExpression) {}
 
   SourceLocation literalLoc;
+  TokenKind literal = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -818,6 +827,7 @@ class StringLiteralExpressionAST final : public ExpressionAST {
       : ExpressionAST(ASTKind::StringLiteralExpression) {}
 
   List<SourceLocation>* stringLiteralList = nullptr;
+  const StringLiteral* literal = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -831,6 +841,7 @@ class UserDefinedStringLiteralExpressionAST final : public ExpressionAST {
       : ExpressionAST(ASTKind::UserDefinedStringLiteralExpression) {}
 
   SourceLocation literalLoc;
+  const StringLiteral* literal = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -973,6 +984,7 @@ class SizeofPackExpressionAST final : public ExpressionAST {
   SourceLocation lparenLoc;
   SourceLocation identifierLoc;
   SourceLocation rparenLoc;
+  const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1138,6 +1150,7 @@ class MemberExpressionAST final : public ExpressionAST {
   SourceLocation templateLoc;
   NameAST* name = nullptr;
   Symbol* symbol = nullptr;
+  TokenKind accessOp = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1151,6 +1164,7 @@ class PostIncrExpressionAST final : public ExpressionAST {
 
   ExpressionAST* baseExpression = nullptr;
   SourceLocation opLoc;
+  TokenKind op = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1273,6 +1287,7 @@ class LabeledStatementAST final : public StatementAST {
   SourceLocation identifierLoc;
   SourceLocation colonLoc;
   StatementAST* statement = nullptr;
+  const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1492,6 +1507,7 @@ class GotoStatementAST final : public StatementAST {
   SourceLocation gotoLoc;
   SourceLocation identifierLoc;
   SourceLocation semicolonLoc;
+  const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1605,6 +1621,7 @@ class AliasDeclarationAST final : public DeclarationAST {
   SourceLocation equalLoc;
   TypeIdAST* typeId = nullptr;
   SourceLocation semicolonLoc;
+  const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1730,6 +1747,7 @@ class NamespaceAliasDefinitionAST final : public DeclarationAST {
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   NameAST* name = nullptr;
   SourceLocation semicolonLoc;
+  const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1823,6 +1841,7 @@ class TypenameTypeParameterAST final : public DeclarationAST {
   SourceLocation identifierLoc;
   SourceLocation equalLoc;
   TypeIdAST* typeId = nullptr;
+  const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1838,6 +1857,7 @@ class TypenamePackTypeParameterAST final : public DeclarationAST {
   SourceLocation classKeyLoc;
   SourceLocation ellipsisLoc;
   SourceLocation identifierLoc;
+  const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1857,6 +1877,7 @@ class TemplateTypeParameterAST final : public DeclarationAST {
   SourceLocation identifierLoc;
   SourceLocation equalLoc;
   NameAST* name = nullptr;
+  const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1876,6 +1897,7 @@ class TemplatePackTypeParameterAST final : public DeclarationAST {
   SourceLocation classKeyLoc;
   SourceLocation ellipsisLoc;
   SourceLocation identifierLoc;
+  const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1932,6 +1954,7 @@ class LinkageSpecificationAST final : public DeclarationAST {
   SourceLocation lbraceLoc;
   List<DeclarationAST*>* declarationList = nullptr;
   SourceLocation rbraceLoc;
+  const StringLiteral* stringLiteral = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1944,6 +1967,7 @@ class SimpleNameAST final : public NameAST {
   SimpleNameAST() : NameAST(ASTKind::SimpleName) {}
 
   SourceLocation identifierLoc;
+  const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2222,6 +2246,7 @@ class VaListTypeSpecifierAST final : public SpecifierAST {
   VaListTypeSpecifierAST() : SpecifierAST(ASTKind::VaListTypeSpecifier) {}
 
   SourceLocation specifierLoc;
+  TokenKind specifier = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2234,7 +2259,7 @@ class IntegralTypeSpecifierAST final : public SpecifierAST {
   IntegralTypeSpecifierAST() : SpecifierAST(ASTKind::IntegralTypeSpecifier) {}
 
   SourceLocation specifierLoc;
-  TokenKind specifierKind = TokenKind::T_EOF_SYMBOL;
+  TokenKind specifier = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2248,6 +2273,7 @@ class FloatingPointTypeSpecifierAST final : public SpecifierAST {
       : SpecifierAST(ASTKind::FloatingPointTypeSpecifier) {}
 
   SourceLocation specifierLoc;
+  TokenKind specifier = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2518,6 +2544,7 @@ class ReferenceOperatorAST final : public PtrOperatorAST {
 
   SourceLocation refLoc;
   List<AttributeAST*>* attributeList = nullptr;
+  TokenKind refOp = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
