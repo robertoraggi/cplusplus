@@ -80,8 +80,11 @@ void Semantics::name(NameAST* ast, NameSem* nameSem) {
   ast->name = nameSem->name;
 }
 
-void Semantics::nestedNameSpecifier(NestedNameSpecifierAST* ast) {
+void Semantics::nestedNameSpecifier(
+    NestedNameSpecifierAST* ast, NestedNameSpecifierSem* nestedNameSpecifier) {
+  std::swap(nestedNameSpecifier_, nestedNameSpecifier);
   accept(ast);
+  std::swap(nestedNameSpecifier_, nestedNameSpecifier);
 }
 
 void Semantics::exceptionDeclaration(ExceptionDeclarationAST* ast) {
@@ -190,14 +193,28 @@ void Semantics::visit(TypeIdAST* ast) {
 }
 
 void Semantics::visit(NestedNameSpecifierAST* ast) {
+  Scope* scope = scope_;
+  bool unqualifiedLookup = true;
   for (auto it = ast->nameList; it; it = it->next) {
     NameSem name;
     this->name(it->value, &name);
+    if (checkTypes_ && scope) {
+      Symbol* sym = nullptr;
+      if (unqualifiedLookup) {
+        sym = scope->lookup(name.name, LookupOptions::kTypeOrNamespace);
+        unqualifiedLookup = false;
+      } else {
+        sym = scope->find(name.name, LookupOptions::kTypeOrNamespace);
+      }
+      scope = sym ? sym->scope() : nullptr;
+    }
   }
+  if (scope) ast->symbol = scope->owner();
 }
 
 void Semantics::visit(UsingDeclaratorAST* ast) {
-  nestedNameSpecifier(ast->nestedNameSpecifier);
+  NestedNameSpecifierSem nestedNameSpecifierSem;
+  nestedNameSpecifier(ast->nestedNameSpecifier, &nestedNameSpecifierSem);
   NameSem name;
   this->name(ast->name, &name);
 }
@@ -808,7 +825,8 @@ void Semantics::visit(AttributeDeclarationAST* ast) {
 
 void Semantics::visit(OpaqueEnumDeclarationAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
-  nestedNameSpecifier(ast->nestedNameSpecifier);
+  NestedNameSpecifierSem nestedNameSpecifierSem;
+  nestedNameSpecifier(ast->nestedNameSpecifier, &nestedNameSpecifierSem);
   NameSem name;
   this->name(ast->name, &name);
   enumBase(ast->enumBase);
@@ -818,7 +836,8 @@ void Semantics::visit(UsingEnumDeclarationAST* ast) {}
 
 void Semantics::visit(NamespaceDefinitionAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
-  nestedNameSpecifier(ast->nestedNameSpecifier);
+  NestedNameSpecifierSem nestedNameSpecifierSem;
+  nestedNameSpecifier(ast->nestedNameSpecifier, &nestedNameSpecifierSem);
   NameSem name;
   this->name(ast->name, &name);
   for (auto it = ast->extraAttributeList; it; it = it->next)
@@ -828,7 +847,8 @@ void Semantics::visit(NamespaceDefinitionAST* ast) {
 }
 
 void Semantics::visit(NamespaceAliasDefinitionAST* ast) {
-  nestedNameSpecifier(ast->nestedNameSpecifier);
+  NestedNameSpecifierSem nestedNameSpecifierSem;
+  nestedNameSpecifier(ast->nestedNameSpecifier, &nestedNameSpecifierSem);
   NameSem name;
   this->name(ast->name, &name);
 }
@@ -929,9 +949,11 @@ void Semantics::visit(TemplateNameAST* ast) {
 }
 
 void Semantics::visit(QualifiedNameAST* ast) {
-  nestedNameSpecifier(ast->nestedNameSpecifier);
+  NestedNameSpecifierSem nestedNameSpecifierSem;
+  nestedNameSpecifier(ast->nestedNameSpecifier, &nestedNameSpecifierSem);
   NameSem name;
   this->name(ast->id, &name);
+  nameSem_->name = name.name;
 }
 
 void Semantics::visit(TypedefSpecifierAST* ast) {
@@ -976,7 +998,7 @@ void Semantics::visit(VoidTypeSpecifierAST* ast) {
 void Semantics::visit(VaListTypeSpecifierAST* ast) {}
 
 void Semantics::visit(IntegralTypeSpecifierAST* ast) {
-  switch (unit_->tokenKind(ast->specifierLoc)) {
+  switch (ast->specifierKind) {
     case TokenKind::T_CHAR8_T:
       specifiers_->type.setType(types_->characterType(CharacterKind::kChar8T));
       break;
@@ -1117,7 +1139,8 @@ void Semantics::visit(UnderlyingTypeSpecifierAST* ast) {}
 
 void Semantics::visit(ElaboratedTypeSpecifierAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
-  nestedNameSpecifier(ast->nestedNameSpecifier);
+  NestedNameSpecifierSem nestedNameSpecifierSem;
+  nestedNameSpecifier(ast->nestedNameSpecifier, &nestedNameSpecifierSem);
   NameSem name;
   this->name(ast->name, &name);
   if (auto classSymbol = dynamic_cast<ClassSymbol*>(ast->symbol)) {
@@ -1158,7 +1181,8 @@ void Semantics::visit(RestrictQualifierAST* ast) {
 
 void Semantics::visit(EnumSpecifierAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
-  nestedNameSpecifier(ast->nestedNameSpecifier);
+  NestedNameSpecifierSem nestedNameSpecifierSem;
+  nestedNameSpecifier(ast->nestedNameSpecifier, &nestedNameSpecifierSem);
   NameSem name;
   this->name(ast->name, &name);
   enumBase(ast->enumBase);
@@ -1180,7 +1204,8 @@ void Semantics::visit(ClassSpecifierAST* ast) {
 }
 
 void Semantics::visit(TypenameSpecifierAST* ast) {
-  nestedNameSpecifier(ast->nestedNameSpecifier);
+  NestedNameSpecifierSem nestedNameSpecifierSem;
+  nestedNameSpecifier(ast->nestedNameSpecifier, &nestedNameSpecifierSem);
   NameSem name;
   this->name(ast->name, &name);
 }
@@ -1190,6 +1215,9 @@ void Semantics::visit(IdDeclaratorAST* ast) {
   this->name(ast->name, &name);
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
   declarator_->name = name.name;
+  if (auto q = dynamic_cast<QualifiedNameAST*>(ast->name)) {
+    declarator_->typeOrNamespaceSymbol = q->nestedNameSpecifier->symbol;
+  }
 }
 
 void Semantics::visit(NestedDeclaratorAST* ast) { accept(ast->declarator); }
@@ -1219,7 +1247,8 @@ void Semantics::visit(ReferenceOperatorAST* ast) {
 }
 
 void Semantics::visit(PtrToMemberOperatorAST* ast) {
-  nestedNameSpecifier(ast->nestedNameSpecifier);
+  NestedNameSpecifierSem nestedNameSpecifierSem;
+  nestedNameSpecifier(ast->nestedNameSpecifier, &nestedNameSpecifierSem);
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
   SpecifiersSem specifiers;
   this->specifiers(ast->cvQualifierList, &specifiers);

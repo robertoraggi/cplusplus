@@ -2234,6 +2234,7 @@ class IntegralTypeSpecifierAST final : public SpecifierAST {
   IntegralTypeSpecifierAST() : SpecifierAST(ASTKind::IntegralTypeSpecifier) {}
 
   SourceLocation specifierLoc;
+  TokenKind specifierKind = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

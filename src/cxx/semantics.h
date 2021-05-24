@@ -80,6 +80,7 @@ class Semantics final : ASTVisitor {
   struct DeclaratorSem {
     SpecifiersSem specifiers;
     QualifiedType type;
+    Symbol* typeOrNamespaceSymbol = nullptr;
     const Name* name = nullptr;
 
     explicit DeclaratorSem(SpecifiersSem specifiers) noexcept
@@ -94,6 +95,11 @@ class Semantics final : ASTVisitor {
 
   struct NameSem {
     const Name* name = nullptr;
+    Symbol* typeOrNamespaceSymbol = nullptr;
+  };
+
+  struct NestedNameSpecifierSem {
+    Symbol* symbol = nullptr;
   };
 
   Scope* changeScope(Scope* scope) {
@@ -104,6 +110,8 @@ class Semantics final : ASTVisitor {
   Scope* scope() const { return scope_; }
 
   void unit(UnitAST* unit);
+
+  void declaration(DeclarationAST* ast);
 
   void specifiers(List<SpecifierAST*>* ast, SpecifiersSem* specifiers);
 
@@ -122,7 +130,8 @@ class Semantics final : ASTVisitor {
  private:
   void accept(AST* ast);
 
-  void nestedNameSpecifier(NestedNameSpecifierAST* ast);
+  void nestedNameSpecifier(NestedNameSpecifierAST* ast,
+                           NestedNameSpecifierSem* nestedNameSpecifier);
   void exceptionDeclaration(ExceptionDeclarationAST* ast);
   void compoundStatement(CompoundStatementAST* ast);
   void attribute(AttributeAST* ast);
@@ -140,7 +149,6 @@ class Semantics final : ASTVisitor {
   void bracedInitList(BracedInitListAST* ast);
   void ctorInitializer(CtorInitializerAST* ast);
   void handler(HandlerAST* ast);
-  void declaration(DeclarationAST* ast);
   void lambdaIntroducer(LambdaIntroducerAST* ast);
   void lambdaDeclarator(LambdaDeclaratorAST* ast);
   void newTypeId(NewTypeIdAST* ast);
@@ -348,6 +356,7 @@ class Semantics final : ASTVisitor {
   SpecifiersSem* specifiers_ = nullptr;
   DeclaratorSem* declarator_ = nullptr;
   ExpressionSem* expression_ = nullptr;
+  NestedNameSpecifierSem* nestedNameSpecifier_ = nullptr;
   bool checkTypes_ = false;
 };
 

@@ -367,6 +367,20 @@ void ExpressionCodegen::visit(IdExpressionAST* ast) {
     return;
   }
 
+  if (auto field = dynamic_cast<FieldSymbol*>(ast->symbol)) {
+    expr_ = cg->createAccess(
+        cg->createUnary(ir::UnaryOp::kStar, cg->createThis(QualifiedType())),
+        ast->symbol);
+    return;
+  }
+
+  if (ast->symbol->enclosingScope()->owner() == ast->symbol->enclosingClass()) {
+    expr_ = cg->createAccess(
+        cg->createUnary(ir::UnaryOp::kStar, cg->createThis(QualifiedType())),
+        ast->symbol);
+    return;
+  }
+
   expr_ = cg->createId(ast->symbol);
 }
 

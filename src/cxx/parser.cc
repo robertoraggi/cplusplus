@@ -3366,9 +3366,18 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast,
       lookat_function_body()) {
     FunctionSymbol* functionSymbol = nullptr;
 
-    functionSymbol = symbols->newFunctionSymbol(sem->scope(), decl.name);
-    functionSymbol->setType(decl.type);
-    sem->scope()->add(functionSymbol);
+    if (decl.typeOrNamespaceSymbol) {
+      auto sym = decl.typeOrNamespaceSymbol->scope()->find(
+          decl.name, LookupOptions::kDefault);
+
+      functionSymbol = dynamic_cast<FunctionSymbol*>(sym);
+    }
+
+    if (!functionSymbol) {
+      functionSymbol = symbols->newFunctionSymbol(sem->scope(), decl.name);
+      functionSymbol->setType(decl.type);
+      sem->scope()->add(functionSymbol);
+    }
 
     Semantics::ScopeContext scopeContext(sem.get(), functionSymbol->scope());
 
@@ -4082,7 +4091,7 @@ bool Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
                                             DeclSpecs& specs) {
   if (!specs.accepts_simple_typespec()) return false;
 
-  switch (TokenKind(LA())) {
+  switch (auto tk = LA(); tk.kind()) {
     case TokenKind::T___BUILTIN_VA_LIST: {
       auto ast = new (pool) VaListTypeSpecifierAST();
       yyast = ast;
@@ -4106,6 +4115,7 @@ bool Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
     case TokenKind::T_UNSIGNED: {
       auto ast = new (pool) IntegralTypeSpecifierAST();
       yyast = ast;
+      ast->specifierKind = tk.kind();
       ast->specifierLoc = consumeToken();
       specs.has_simple_typespec = true;
       return true;

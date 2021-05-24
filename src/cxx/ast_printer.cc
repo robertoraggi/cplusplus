@@ -1650,7 +1650,7 @@ void ASTPrinter::visit(RightFoldExpressionAST* ast) {
     json_["expression"] = accept(ast->expression);
   }
 
-  json_["op"] = unit_->tokenText(ast->opLoc);
+  json_["op"] = Token::spell(ast->op);
 }
 
 void ASTPrinter::visit(LeftFoldExpressionAST* ast) {
@@ -1677,11 +1677,11 @@ void ASTPrinter::visit(LeftFoldExpressionAST* ast) {
     }
   }
 
-  json_["op"] = unit_->tokenText(ast->opLoc);
-
   if (ast->expression) {
     json_["expression"] = accept(ast->expression);
   }
+
+  json_["op"] = Token::spell(ast->op);
 }
 
 void ASTPrinter::visit(FoldExpressionAST* ast) {
@@ -1712,11 +1712,13 @@ void ASTPrinter::visit(FoldExpressionAST* ast) {
     json_["leftExpression"] = accept(ast->leftExpression);
   }
 
-  json_["op"] = unit_->tokenText(ast->opLoc);
-
   if (ast->rightExpression) {
     json_["rightExpression"] = accept(ast->rightExpression);
   }
+
+  json_["op"] = Token::spell(ast->op);
+
+  json_["foldOp"] = Token::spell(ast->foldOp);
 }
 
 void ASTPrinter::visit(LambdaExpressionAST* ast) {
@@ -1960,11 +1962,11 @@ void ASTPrinter::visit(UnaryExpressionAST* ast) {
     }
   }
 
-  json_["op"] = unit_->tokenText(ast->opLoc);
-
   if (ast->expression) {
     json_["expression"] = accept(ast->expression);
   }
+
+  json_["op"] = Token::spell(ast->op);
 }
 
 void ASTPrinter::visit(BinaryExpressionAST* ast) {
@@ -1995,11 +1997,11 @@ void ASTPrinter::visit(BinaryExpressionAST* ast) {
     json_["leftExpression"] = accept(ast->leftExpression);
   }
 
-  json_["op"] = unit_->tokenText(ast->opLoc);
-
   if (ast->rightExpression) {
     json_["rightExpression"] = accept(ast->rightExpression);
   }
+
+  json_["op"] = Token::spell(ast->op);
 }
 
 void ASTPrinter::visit(AssignmentExpressionAST* ast) {
@@ -2030,11 +2032,11 @@ void ASTPrinter::visit(AssignmentExpressionAST* ast) {
     json_["leftExpression"] = accept(ast->leftExpression);
   }
 
-  json_["op"] = unit_->tokenText(ast->opLoc);
-
   if (ast->rightExpression) {
     json_["rightExpression"] = accept(ast->rightExpression);
   }
+
+  json_["op"] = Token::spell(ast->op);
 }
 
 void ASTPrinter::visit(BracedTypeConstructionAST* ast) {
@@ -4070,7 +4072,7 @@ void ASTPrinter::visit(OperatorNameAST* ast) {
     }
   }
 
-  json_["op"] = unit_->tokenText(ast->opLoc);
+  json_["op"] = Token::spell(ast->op);
 }
 
 void ASTPrinter::visit(ConversionNameAST* ast) {
@@ -4603,6 +4605,8 @@ void ASTPrinter::visit(IntegralTypeSpecifierAST* ast) {
   }
 
   json_["specifier"] = unit_->tokenText(ast->specifierLoc);
+
+  json_["specifierKind"] = Token::spell(ast->specifierKind);
 }
 
 void ASTPrinter::visit(FloatingPointTypeSpecifierAST* ast) {

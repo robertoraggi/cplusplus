@@ -2105,6 +2105,8 @@ void ASTCloner::visit(IntegralTypeSpecifierAST* ast) {
   copy_ = copy;
 
   copy->specifierLoc = ast->specifierLoc;
+
+  copy->specifierKind = ast->specifierKind;
 }
 
 void ASTCloner::visit(FloatingPointTypeSpecifierAST* ast) {
