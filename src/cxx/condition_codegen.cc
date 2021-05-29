@@ -32,6 +32,7 @@ ConditionCodegen::ConditionCodegen(Codegen* cg) : ExpressionCodegen(cg) {}
 
 void ConditionCodegen::gen(ExpressionAST* ast, ir::Block* iftrue,
                            ir::Block* iffalse) {
+  if (!ast) return;
   std::swap(iftrue_, iftrue);
   std::swap(iffalse_, iffalse);
   if (auto expr = gen(ast)) {

@@ -23,11 +23,21 @@ project(cplusplus)
 
 include(FetchContent)
 
-find_package(fmt 7.1.3 CONFIG QUIET)
+## binaryen
+set(BUILD_STATIC_LIB OFF CACHE INTERNAL "")
+set(ENABLE_WERROR OFF CACHE INTERNAL "")
+
+FetchContent_Declare(
+    binaryen
+    GIT_REPOSITORY  https://github.com/WebAssembly/binaryen
+    GIT_TAG         version_101
+    GIT_SHALLOW     1
+)
+
+FetchContent_MakeAvailable(binaryen)
 
 set(CMAKE_CXX_STANDARD 20)
 
-if(NOT fmt_FOUND)
 FetchContent_Declare(
     fmt
     GIT_REPOSITORY https://github.com/fmtlib/fmt
@@ -36,7 +46,6 @@ FetchContent_Declare(
 )
 
 FetchContent_MakeAvailable(fmt)
-endif()
 
 FetchContent_Declare(
     utfcpp
@@ -47,6 +56,7 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(utfcpp)
 
+## json
 set(JSON_BuildTests OFF CACHE INTERNAL "")
 
 FetchContent_Declare(
@@ -57,6 +67,8 @@ FetchContent_Declare(
 )
 
 FetchContent_MakeAvailable(nlohmann_json)
+
+find_package(Threads)
 
 add_subdirectory(tools/kwgen)
 
@@ -71,6 +83,12 @@ target_include_directories(CPlusPlus PUBLIC src)
 target_include_directories(CPlusPlus PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 target_link_libraries(CPlusPlus fmt::fmt-header-only utf8::cpp)
 target_link_libraries(CPlusPlus nlohmann_json::nlohmann_json)
+
+aux_source_directory(src/cxx/target/wasm TARGET_WASM_SOURCES)
+
+target_sources(CPlusPlus PUBLIC ${TARGET_WASM_SOURCES})
+target_include_directories(CPlusPlus PUBLIC ${binaryen_SOURCE_DIR}/src)
+target_link_libraries(CPlusPlus binaryen Threads::Threads)
 
 add_custom_command(OUTPUT keywords-priv.h
     COMMAND kwgen < ${CMAKE_CURRENT_SOURCE_DIR}/src/cxx/keywords.kwgen > keywords-priv.h
