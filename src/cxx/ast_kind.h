@@ -113,6 +113,7 @@ enum struct ASTKind {
   MemberExpression,
   PostIncrExpression,
   ConditionalExpression,
+  ImplicitCastExpression,
   CastExpression,
   CppCastExpression,
   NewExpression,

@@ -117,6 +117,7 @@ class ASTVisitor {
   virtual void visit(MemberExpressionAST* ast) = 0;
   virtual void visit(PostIncrExpressionAST* ast) = 0;
   virtual void visit(ConditionalExpressionAST* ast) = 0;
+  virtual void visit(ImplicitCastExpressionAST* ast) = 0;
   virtual void visit(CastExpressionAST* ast) = 0;
   virtual void visit(CppCastExpressionAST* ast) = 0;
   virtual void visit(NewExpressionAST* ast) = 0;

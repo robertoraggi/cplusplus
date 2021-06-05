@@ -977,6 +977,14 @@ void ASTSlot::visit(ConditionalExpressionAST* ast) {
   }  // switch
 }
 
+void ASTSlot::visit(ImplicitCastExpressionAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
+      break;
+  }  // switch
+}
+
 void ASTSlot::visit(CastExpressionAST* ast) {
   switch (slot_) {
     case 0:

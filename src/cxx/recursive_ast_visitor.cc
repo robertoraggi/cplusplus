@@ -457,6 +457,10 @@ void RecursiveASTVisitor::visit(ConditionalExpressionAST* ast) {
   acceptExpression(ast->iffalseExpression);
 }
 
+void RecursiveASTVisitor::visit(ImplicitCastExpressionAST* ast) {
+  acceptExpression(ast->expression);
+}
+
 void RecursiveASTVisitor::visit(CastExpressionAST* ast) {
   acceptTypeId(ast->typeId);
   acceptExpression(ast->expression);

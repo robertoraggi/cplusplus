@@ -1188,6 +1188,20 @@ class ConditionalExpressionAST final : public ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
+class ImplicitCastExpressionAST final : public ExpressionAST {
+ public:
+  ImplicitCastExpressionAST()
+      : ExpressionAST(ASTKind::ImplicitCastExpression) {}
+
+  ExpressionAST* expression = nullptr;
+  ImplicitCastKind castKind = ImplicitCastKind::kIdentity;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 class CastExpressionAST final : public ExpressionAST {
  public:
   CastExpressionAST() : ExpressionAST(ASTKind::CastExpression) {}

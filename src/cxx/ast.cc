@@ -978,6 +978,16 @@ SourceLocation ConditionalExpressionAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation ImplicitCastExpressionAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ImplicitCastExpressionAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation CastExpressionAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeId)) return loc;

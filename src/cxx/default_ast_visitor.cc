@@ -325,6 +325,10 @@ void DefaultASTVisitor::visit(ConditionalExpressionAST* ast) {
   throw std::runtime_error("visit(ConditionalExpressionAST): not implemented");
 }
 
+void DefaultASTVisitor::visit(ImplicitCastExpressionAST* ast) {
+  throw std::runtime_error("visit(ImplicitCastExpressionAST): not implemented");
+}
+
 void DefaultASTVisitor::visit(CastExpressionAST* ast) {
   throw std::runtime_error("visit(CastExpressionAST): not implemented");
 }

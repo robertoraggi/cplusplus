@@ -2286,6 +2286,35 @@ void ASTPrinter::visit(ConditionalExpressionAST* ast) {
   }
 }
 
+void ASTPrinter::visit(ImplicitCastExpressionAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "ImplicitCastExpression";
+
+  if (printLocations_) {
+    auto [startLoc, endLoc] = ast->sourceLocationRange();
+    if (startLoc && endLoc) {
+      unsigned startLine = 0, startColumn = 0;
+      unsigned endLine = 0, endColumn = 0;
+
+      unit_->getTokenStartPosition(startLoc, &startLine, &startColumn);
+      unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn);
+
+      auto range = nlohmann::json::object();
+      range["startLine"] = startLine;
+      range["startColumn"] = startColumn;
+      range["endLine"] = endLine;
+      range["endColumn"] = endColumn;
+
+      json_["$range"] = range;
+    }
+  }
+
+  if (ast->expression) {
+    json_["expression"] = accept(ast->expression);
+  }
+}
+
 void ASTPrinter::visit(CastExpressionAST* ast) {
   json_ = nlohmann::json::object();
 

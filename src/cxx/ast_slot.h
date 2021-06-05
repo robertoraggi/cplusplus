@@ -110,6 +110,7 @@ class ASTSlot final : ASTVisitor {
   void visit(MemberExpressionAST* ast) override;
   void visit(PostIncrExpressionAST* ast) override;
   void visit(ConditionalExpressionAST* ast) override;
+  void visit(ImplicitCastExpressionAST* ast) override;
   void visit(CastExpressionAST* ast) override;
   void visit(CppCastExpressionAST* ast) override;
   void visit(NewExpressionAST* ast) override;

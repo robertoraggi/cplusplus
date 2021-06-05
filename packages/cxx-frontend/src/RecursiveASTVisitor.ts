@@ -381,6 +381,10 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         this.accept(node.getIffalseExpression(), context);
     }
 
+    visitImplicitCastExpression(node: ast.ImplicitCastExpressionAST, context: Context): void {
+        this.accept(node.getExpression(), context);
+    }
+
     visitCastExpression(node: ast.CastExpressionAST, context: Context): void {
         this.accept(node.getTypeId(), context);
         this.accept(node.getExpression(), context);

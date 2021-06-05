@@ -656,6 +656,11 @@ void Semantics::visit(ConditionalExpressionAST* ast) {
   this->expression(ast->iffalseExpression, &iffalseExpression);
 }
 
+void Semantics::visit(ImplicitCastExpressionAST* ast) {
+  ExpressionSem expression;
+  this->expression(ast->expression, &expression);
+}
+
 void Semantics::visit(CastExpressionAST* ast) {
   typeId(ast->typeId);
   ExpressionSem expression;

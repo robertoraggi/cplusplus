@@ -27,6 +27,24 @@ class List;
 
 class AST;
 
+enum class ImplicitCastKind {
+  kIdentity,
+  kLValueToRValueConversion,
+  kArrayToPointerConversion,
+  kFunctionToPointerConversion,
+  kIntegralPromotion,
+  kFloatingPointPromotion,
+  kIntegralConversion,
+  kFloatingPointConversion,
+  kFloatingIntegralConversion,
+  kPointerConversion,
+  kPointerToMemberConversion,
+  kBooleanConversion,
+  kFunctionPointerConversion,
+  kQualificationConversion,
+  kUserDefinedConversion,
+};
+
 class AttributeAST;
 class CoreDeclaratorAST;
 class DeclarationAST;
@@ -134,6 +152,7 @@ class SubscriptExpressionAST;
 class MemberExpressionAST;
 class PostIncrExpressionAST;
 class ConditionalExpressionAST;
+class ImplicitCastExpressionAST;
 class CastExpressionAST;
 class CppCastExpressionAST;
 class NewExpressionAST;
