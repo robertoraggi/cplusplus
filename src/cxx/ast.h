@@ -123,6 +123,7 @@ class ExpressionAST : public AST {
  public:
   using AST::AST;
   QualifiedType type;
+  ValueCategory valueCategory = ValueCategory::kNone;
 };
 
 class FunctionBodyAST : public AST {

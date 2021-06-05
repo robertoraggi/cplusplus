@@ -630,6 +630,8 @@ void ASTCloner::visit(ThisExpressionAST* ast) {
 
   copy->type = ast->type;
 
+  copy->valueCategory = ast->valueCategory;
+
   copy->thisLoc = ast->thisLoc;
 }
 
@@ -638,6 +640,8 @@ void ASTCloner::visit(CharLiteralExpressionAST* ast) {
   copy_ = copy;
 
   copy->type = ast->type;
+
+  copy->valueCategory = ast->valueCategory;
 
   copy->literalLoc = ast->literalLoc;
 
@@ -650,6 +654,8 @@ void ASTCloner::visit(BoolLiteralExpressionAST* ast) {
 
   copy->type = ast->type;
 
+  copy->valueCategory = ast->valueCategory;
+
   copy->literalLoc = ast->literalLoc;
 
   copy->literal = ast->literal;
@@ -660,6 +666,8 @@ void ASTCloner::visit(IntLiteralExpressionAST* ast) {
   copy_ = copy;
 
   copy->type = ast->type;
+
+  copy->valueCategory = ast->valueCategory;
 
   copy->literalLoc = ast->literalLoc;
 
@@ -672,6 +680,8 @@ void ASTCloner::visit(FloatLiteralExpressionAST* ast) {
 
   copy->type = ast->type;
 
+  copy->valueCategory = ast->valueCategory;
+
   copy->literalLoc = ast->literalLoc;
 
   copy->literal = ast->literal;
@@ -683,6 +693,8 @@ void ASTCloner::visit(NullptrLiteralExpressionAST* ast) {
 
   copy->type = ast->type;
 
+  copy->valueCategory = ast->valueCategory;
+
   copy->literalLoc = ast->literalLoc;
 
   copy->literal = ast->literal;
@@ -693,6 +705,8 @@ void ASTCloner::visit(StringLiteralExpressionAST* ast) {
   copy_ = copy;
 
   copy->type = ast->type;
+
+  copy->valueCategory = ast->valueCategory;
 
   if (auto it = ast->stringLiteralList) {
     auto out = &copy->stringLiteralList;
@@ -712,6 +726,8 @@ void ASTCloner::visit(UserDefinedStringLiteralExpressionAST* ast) {
 
   copy->type = ast->type;
 
+  copy->valueCategory = ast->valueCategory;
+
   copy->literalLoc = ast->literalLoc;
 
   copy->literal = ast->literal;
@@ -723,6 +739,8 @@ void ASTCloner::visit(IdExpressionAST* ast) {
 
   copy->type = ast->type;
 
+  copy->valueCategory = ast->valueCategory;
+
   copy->name = accept(ast->name);
 
   copy->symbol = ast->symbol;
@@ -733,6 +751,8 @@ void ASTCloner::visit(NestedExpressionAST* ast) {
   copy_ = copy;
 
   copy->type = ast->type;
+
+  copy->valueCategory = ast->valueCategory;
 
   copy->lparenLoc = ast->lparenLoc;
 
@@ -746,6 +766,8 @@ void ASTCloner::visit(RightFoldExpressionAST* ast) {
   copy_ = copy;
 
   copy->type = ast->type;
+
+  copy->valueCategory = ast->valueCategory;
 
   copy->lparenLoc = ast->lparenLoc;
 
@@ -766,6 +788,8 @@ void ASTCloner::visit(LeftFoldExpressionAST* ast) {
 
   copy->type = ast->type;
 
+  copy->valueCategory = ast->valueCategory;
+
   copy->lparenLoc = ast->lparenLoc;
 
   copy->ellipsisLoc = ast->ellipsisLoc;
@@ -784,6 +808,8 @@ void ASTCloner::visit(FoldExpressionAST* ast) {
   copy_ = copy;
 
   copy->type = ast->type;
+
+  copy->valueCategory = ast->valueCategory;
 
   copy->lparenLoc = ast->lparenLoc;
 
@@ -809,6 +835,8 @@ void ASTCloner::visit(LambdaExpressionAST* ast) {
   copy_ = copy;
 
   copy->type = ast->type;
+
+  copy->valueCategory = ast->valueCategory;
 
   copy->lambdaIntroducer = accept(ast->lambdaIntroducer);
 
@@ -836,6 +864,8 @@ void ASTCloner::visit(SizeofExpressionAST* ast) {
 
   copy->type = ast->type;
 
+  copy->valueCategory = ast->valueCategory;
+
   copy->sizeofLoc = ast->sizeofLoc;
 
   copy->expression = accept(ast->expression);
@@ -846,6 +876,8 @@ void ASTCloner::visit(SizeofTypeExpressionAST* ast) {
   copy_ = copy;
 
   copy->type = ast->type;
+
+  copy->valueCategory = ast->valueCategory;
 
   copy->sizeofLoc = ast->sizeofLoc;
 
@@ -861,6 +893,8 @@ void ASTCloner::visit(SizeofPackExpressionAST* ast) {
   copy_ = copy;
 
   copy->type = ast->type;
+
+  copy->valueCategory = ast->valueCategory;
 
   copy->sizeofLoc = ast->sizeofLoc;
 
@@ -881,6 +915,8 @@ void ASTCloner::visit(TypeidExpressionAST* ast) {
 
   copy->type = ast->type;
 
+  copy->valueCategory = ast->valueCategory;
+
   copy->typeidLoc = ast->typeidLoc;
 
   copy->lparenLoc = ast->lparenLoc;
@@ -895,6 +931,8 @@ void ASTCloner::visit(TypeidOfTypeExpressionAST* ast) {
   copy_ = copy;
 
   copy->type = ast->type;
+
+  copy->valueCategory = ast->valueCategory;
 
   copy->typeidLoc = ast->typeidLoc;
 
@@ -911,6 +949,8 @@ void ASTCloner::visit(AlignofExpressionAST* ast) {
 
   copy->type = ast->type;
 
+  copy->valueCategory = ast->valueCategory;
+
   copy->alignofLoc = ast->alignofLoc;
 
   copy->lparenLoc = ast->lparenLoc;
@@ -926,6 +966,8 @@ void ASTCloner::visit(UnaryExpressionAST* ast) {
 
   copy->type = ast->type;
 
+  copy->valueCategory = ast->valueCategory;
+
   copy->opLoc = ast->opLoc;
 
   copy->expression = accept(ast->expression);
@@ -938,6 +980,8 @@ void ASTCloner::visit(BinaryExpressionAST* ast) {
   copy_ = copy;
 
   copy->type = ast->type;
+
+  copy->valueCategory = ast->valueCategory;
 
   copy->leftExpression = accept(ast->leftExpression);
 
@@ -954,6 +998,8 @@ void ASTCloner::visit(AssignmentExpressionAST* ast) {
 
   copy->type = ast->type;
 
+  copy->valueCategory = ast->valueCategory;
+
   copy->leftExpression = accept(ast->leftExpression);
 
   copy->opLoc = ast->opLoc;
@@ -969,6 +1015,8 @@ void ASTCloner::visit(BracedTypeConstructionAST* ast) {
 
   copy->type = ast->type;
 
+  copy->valueCategory = ast->valueCategory;
+
   copy->typeSpecifier = accept(ast->typeSpecifier);
 
   copy->bracedInitList = accept(ast->bracedInitList);
@@ -979,6 +1027,8 @@ void ASTCloner::visit(TypeConstructionAST* ast) {
   copy_ = copy;
 
   copy->type = ast->type;
+
+  copy->valueCategory = ast->valueCategory;
 
   copy->typeSpecifier = accept(ast->typeSpecifier);
 
@@ -1002,6 +1052,8 @@ void ASTCloner::visit(CallExpressionAST* ast) {
 
   copy->type = ast->type;
 
+  copy->valueCategory = ast->valueCategory;
+
   copy->baseExpression = accept(ast->baseExpression);
 
   copy->lparenLoc = ast->lparenLoc;
@@ -1024,6 +1076,8 @@ void ASTCloner::visit(SubscriptExpressionAST* ast) {
 
   copy->type = ast->type;
 
+  copy->valueCategory = ast->valueCategory;
+
   copy->baseExpression = accept(ast->baseExpression);
 
   copy->lbracketLoc = ast->lbracketLoc;
@@ -1038,6 +1092,8 @@ void ASTCloner::visit(MemberExpressionAST* ast) {
   copy_ = copy;
 
   copy->type = ast->type;
+
+  copy->valueCategory = ast->valueCategory;
 
   copy->baseExpression = accept(ast->baseExpression);
 
@@ -1058,6 +1114,8 @@ void ASTCloner::visit(PostIncrExpressionAST* ast) {
 
   copy->type = ast->type;
 
+  copy->valueCategory = ast->valueCategory;
+
   copy->baseExpression = accept(ast->baseExpression);
 
   copy->opLoc = ast->opLoc;
@@ -1070,6 +1128,8 @@ void ASTCloner::visit(ConditionalExpressionAST* ast) {
   copy_ = copy;
 
   copy->type = ast->type;
+
+  copy->valueCategory = ast->valueCategory;
 
   copy->condition = accept(ast->condition);
 
@@ -1088,6 +1148,8 @@ void ASTCloner::visit(ImplicitCastExpressionAST* ast) {
 
   copy->type = ast->type;
 
+  copy->valueCategory = ast->valueCategory;
+
   copy->expression = accept(ast->expression);
 
   copy->castKind = ast->castKind;
@@ -1098,6 +1160,8 @@ void ASTCloner::visit(CastExpressionAST* ast) {
   copy_ = copy;
 
   copy->type = ast->type;
+
+  copy->valueCategory = ast->valueCategory;
 
   copy->lparenLoc = ast->lparenLoc;
 
@@ -1113,6 +1177,8 @@ void ASTCloner::visit(CppCastExpressionAST* ast) {
   copy_ = copy;
 
   copy->type = ast->type;
+
+  copy->valueCategory = ast->valueCategory;
 
   copy->castLoc = ast->castLoc;
 
@@ -1135,6 +1201,8 @@ void ASTCloner::visit(NewExpressionAST* ast) {
 
   copy->type = ast->type;
 
+  copy->valueCategory = ast->valueCategory;
+
   copy->scopeLoc = ast->scopeLoc;
 
   copy->newLoc = ast->newLoc;
@@ -1149,6 +1217,8 @@ void ASTCloner::visit(DeleteExpressionAST* ast) {
   copy_ = copy;
 
   copy->type = ast->type;
+
+  copy->valueCategory = ast->valueCategory;
 
   copy->scopeLoc = ast->scopeLoc;
 
@@ -1167,6 +1237,8 @@ void ASTCloner::visit(ThrowExpressionAST* ast) {
 
   copy->type = ast->type;
 
+  copy->valueCategory = ast->valueCategory;
+
   copy->throwLoc = ast->throwLoc;
 
   copy->expression = accept(ast->expression);
@@ -1177,6 +1249,8 @@ void ASTCloner::visit(NoexceptExpressionAST* ast) {
   copy_ = copy;
 
   copy->type = ast->type;
+
+  copy->valueCategory = ast->valueCategory;
 
   copy->noexceptLoc = ast->noexceptLoc;
 

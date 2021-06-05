@@ -27,6 +27,13 @@ class List;
 
 class AST;
 
+enum ValueCategory {
+  kNone,
+  kLValue,
+  kXValue,
+  kPrValue,
+};
+
 enum class ImplicitCastKind {
   kIdentity,
   kLValueToRValueConversion,
