@@ -27,7 +27,7 @@ class List;
 
 class AST;
 
-enum ValueCategory {
+enum class ValueCategory {
   kNone,
   kLValue,
   kXValue,
