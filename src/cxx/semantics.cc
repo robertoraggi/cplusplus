@@ -1307,4 +1307,62 @@ void Semantics::visit(ArrayDeclaratorAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
 }
 
+QualifiedType Semantics::commonType(ExpressionAST* ast, ExpressionAST* other) {
+  return QualifiedType();
+}
+
+void Semantics::implicitConversion(ExpressionAST* ast,
+                                   const QualifiedType& type) {
+  standardConversion(ast, type);
+}
+
+void Semantics::standardConversion(ExpressionAST* ast,
+                                   const QualifiedType& type) {
+  // tier 1
+  if (lvalueToRvalueConversion(ast, type) ||
+      arrayToPointerConversion(ast, type) ||
+      functionToPointerConversion(ast, type)) {
+    // tier 1
+  }
+
+  if (numericPromotion(ast, type) || numericConversion(ast, type)) {
+    // tier 2
+  }
+
+  functionPointerConversion(ast, type);
+
+  qualificationConversion(ast, type);
+}
+
+bool Semantics::lvalueToRvalueConversion(ExpressionAST* ast,
+                                         const QualifiedType& type) {
+  return false;
+}
+
+bool Semantics::arrayToPointerConversion(ExpressionAST* ast,
+                                         const QualifiedType& type) {
+  return false;
+}
+
+bool Semantics::functionToPointerConversion(ExpressionAST* ast,
+                                            const QualifiedType& type) {
+  return false;
+}
+
+bool Semantics::numericPromotion(ExpressionAST* ast,
+                                 const QualifiedType& type) {
+  return false;
+}
+
+bool Semantics::numericConversion(ExpressionAST* ast,
+                                  const QualifiedType& type) {
+  return false;
+}
+
+void Semantics::functionPointerConversion(ExpressionAST* ast,
+                                          const QualifiedType& type) {}
+
+void Semantics::qualificationConversion(ExpressionAST* ast,
+                                        const QualifiedType& type) {}
+
 }  // namespace cxx

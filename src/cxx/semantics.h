@@ -128,6 +128,21 @@ class Semantics final : ASTVisitor {
   void typeId(TypeIdAST* ast);
 
  private:
+  void implicitConversion(ExpressionAST* ast, const QualifiedType& type);
+
+  void standardConversion(ExpressionAST* ast, const QualifiedType& type);
+
+  bool lvalueToRvalueConversion(ExpressionAST* ast, const QualifiedType& type);
+  bool arrayToPointerConversion(ExpressionAST* ast, const QualifiedType& type);
+  bool functionToPointerConversion(ExpressionAST* ast,
+                                   const QualifiedType& type);
+  bool numericPromotion(ExpressionAST* ast, const QualifiedType& type);
+  bool numericConversion(ExpressionAST* ast, const QualifiedType& type);
+  void functionPointerConversion(ExpressionAST* ast, const QualifiedType& type);
+  void qualificationConversion(ExpressionAST* ast, const QualifiedType& type);
+
+  QualifiedType commonType(ExpressionAST* ast, ExpressionAST* other);
+
   void accept(AST* ast);
 
   void nestedNameSpecifier(NestedNameSpecifierAST* ast,
