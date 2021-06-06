@@ -171,7 +171,7 @@ void StatementCodegen::visit(ForStatementAST* ast) {
   cg->place(bodyLoop);
   cg->statement(ast->statement);
   cg->place(continueLoop);
-  cg->expression(ast->expression);
+  cg->statement(ast->expression);
   cg->emitJump(topLoop);
   cg->place(endLoop);
 

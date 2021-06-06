@@ -31,6 +31,7 @@
 #include <cxx/macos_toolchain.h>
 #include <cxx/preprocessor.h>
 #include <cxx/recursive_ast_visitor.h>
+#include <cxx/target/wasm/wasm_codegen.h>
 #include <cxx/translation_unit.h>
 
 // fmt
@@ -158,14 +159,24 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
     return result;
   }
 
-  if (cli.opt_S) {
+  if (cli.opt_S || cli.opt_c || cli.opt_dump_ir) {
     Codegen cg;
 
     auto module = cg(&unit);
 
-    ir::IRPrinter printer;
+    if (cli.opt_dump_ir) {
+      ir::IRPrinter printer;
+      printer.print(module.get(), std::cout);
+    }
 
-    printer.print(module.get(), std::cout);
+    if (cli.opt_c || cli.opt_S) {
+      cxx::target::wasm::Codegen compile;
+
+      if (auto code = compile(module.get())) {
+        BinaryenModulePrint(code);
+        BinaryenModuleDispose(code);
+      }
+    }
   }
 
   return result;

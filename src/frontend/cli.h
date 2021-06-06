@@ -53,6 +53,7 @@ class CLI {
   bool opt_ast_dump = false;
   bool opt_dM = false;
   bool opt_dump_tokens = false;
+  bool opt_dump_ir = false;
   bool opt_E = false;
   bool opt_Eonly = false;
   bool opt_help = false;
@@ -60,8 +61,11 @@ class CLI {
   bool opt_nostdincpp = false;
   bool opt_S = false;
   bool opt_c = false;
+  bool opt_fsyntax_only = false;
 
-  bool checkTypes() const { return opt_S || opt_c; }
+  bool checkTypes() const {
+    return opt_S || opt_c || opt_dump_ir || opt_fsyntax_only;
+  }
 
   void parse(int& argc, char**& argv);
 

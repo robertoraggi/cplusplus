@@ -34,6 +34,7 @@ namespace cxx {
 
 Semantics::Semantics(TranslationUnit* unit)
     : unit_(unit),
+      arena_(unit_->arena()),
       control_(unit_->control()),
       types_(control_->types()),
       symbols_(control_->symbols()) {}

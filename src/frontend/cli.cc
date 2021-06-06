@@ -118,10 +118,15 @@ std::vector<CLIOptionDescr> options{
     {"-x", "specify the language from the compiler driver",
      CLIOptionDescrKind::kSeparated},
 
+    {"-fsyntax-only", "Check for syntax errors, then stop.",
+     &CLI::opt_fsyntax_only},
+
     {"-ast-dump", "Build ASTs and then debug dump them", &CLI::opt_ast_dump},
 
     {"-dump-tokens", "Run preprocessor, dump internal rep of tokens",
      &CLI::opt_dump_tokens},
+
+    {"-dump-ir", "Compile the code code and dump the IR", &CLI::opt_dump_ir},
 
     {"-nostdinc",
      "Disable standard #include directories for the C standard library",

@@ -27,8 +27,9 @@
 
 namespace cxx {
 
-class TranslationUnit;
+class Arena;
 class Control;
+class TranslationUnit;
 class TypeEnvironment;
 
 class Semantics final : ASTVisitor {
@@ -364,6 +365,7 @@ class Semantics final : ASTVisitor {
 
  private:
   TranslationUnit* unit_ = nullptr;
+  Arena* arena_ = nullptr;
   Control* control_ = nullptr;
   TypeEnvironment* types_ = nullptr;
   SymbolFactory* symbols_ = nullptr;
