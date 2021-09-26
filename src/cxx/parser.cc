@@ -641,6 +641,7 @@ bool Parser::parse_maybe_template_id(NameAST*& yyast) {
     case TokenKind::T_LBRACKET:
     case TokenKind::T_RBRACKET:
     case TokenKind::T_SEMICOLON:
+    case TokenKind::T_EQUAL:
       return true;
 
     default: {
