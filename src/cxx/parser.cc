@@ -4236,7 +4236,8 @@ bool Parser::parse_elaborated_type_specifier_helper(
     ElaboratedTypeSpecifierAST*& yyast, DeclSpecs& specs) {
   // ### cleanup
 
-  if (LA().is(TokenKind::T_ENUM)) return parse_elaborated_enum_specifier(yyast);
+  if (LA().is(TokenKind::T_ENUM))
+    return parse_elaborated_enum_specifier(yyast, specs);
 
   SourceLocation classLoc;
 
@@ -4344,8 +4345,8 @@ bool Parser::parse_elaborated_type_specifier_helper(
   return true;
 }
 
-bool Parser::parse_elaborated_enum_specifier(
-    ElaboratedTypeSpecifierAST*& yyast) {
+bool Parser::parse_elaborated_enum_specifier(ElaboratedTypeSpecifierAST*& yyast,
+                                             DeclSpecs& specs) {
   SourceLocation enumLoc;
 
   if (!match(TokenKind::T_ENUM, enumLoc)) return false;
@@ -4359,6 +4360,8 @@ bool Parser::parse_elaborated_enum_specifier(
   NameAST* name = nullptr;
 
   if (!parse_name_id(name)) return false;
+
+  specs.has_complex_typespec = true;
 
   auto ast = new (pool) ElaboratedTypeSpecifierAST();
   yyast = ast;
@@ -5691,12 +5694,14 @@ bool Parser::parse_enumerator(EnumeratorAST*& yyast) {
   return true;
 }
 
-bool Parser::parse_using_enum_declaration(DeclarationAST*& yyast) {
+bool Parser::parse_using_enum_declaration(DeclarationAST*& yyasts) {
   if (!match(TokenKind::T_USING)) return false;
 
   ElaboratedTypeSpecifierAST* enumSpecifier = nullptr;
 
-  if (!parse_elaborated_enum_specifier(enumSpecifier)) return false;
+  DeclSpecs specs;
+
+  if (!parse_elaborated_enum_specifier(enumSpecifier, specs)) return false;
 
   if (!match(TokenKind::T_SEMICOLON)) return false;
 

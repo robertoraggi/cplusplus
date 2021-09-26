@@ -274,7 +274,8 @@ class Parser final {
   bool parse_elaborated_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs);
   bool parse_elaborated_type_specifier_helper(
       ElaboratedTypeSpecifierAST*& yyast, DeclSpecs& specs);
-  bool parse_elaborated_enum_specifier(ElaboratedTypeSpecifierAST*& yyast);
+  bool parse_elaborated_enum_specifier(ElaboratedTypeSpecifierAST*& yyast,
+                                       DeclSpecs& specs);
   bool parse_decltype_specifier(SpecifierAST*& yyast);
   bool parse_placeholder_type_specifier(SpecifierAST*& yyast);
   bool parse_init_declarator(InitDeclaratorAST*& yyast, const DeclSpecs& specs);
