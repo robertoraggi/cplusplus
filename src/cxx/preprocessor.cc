@@ -173,6 +173,9 @@ struct Tok final : Managed {
     sourceFile = tok->sourceFile;
     bol = tok->bol;
     space = tok->space;
+    generated = tok->generated;
+    offset = tok->offset;
+    length = tok->length;
     hideset = hs;
   }
 };
@@ -1103,6 +1106,8 @@ Preprocessor::Private::readArguments(const TokList *ts, const Macro *macro) {
 const Tok *Preprocessor::Private::stringize(const TokList *ts) {
   std::string s;
 
+  const auto start = ts;
+
   for (; ts; ts = ts->tail) {
     if (!s.empty() && (ts->head->space || ts->head->bol)) s += ' ';
     s += ts->head->text;
@@ -1122,6 +1127,10 @@ const Tok *Preprocessor::Private::stringize(const TokList *ts) {
   o += '"';
 
   auto tk = Tok::Gen(&pool_, TokenKind::T_STRING_LITERAL, string(o));
+  if (start) {
+    tk->sourceFile = start->head->sourceFile;
+    tk->offset = start->head->offset;
+  }
 
   return tk;
 }
@@ -1184,6 +1193,8 @@ const Tok *Preprocessor::Private::merge(const Tok *left, const Tok *right) {
   lex.setPreprocessing(true);
   lex.next();
   auto tok = Tok::Gen(&pool_, lex.tokenKind(), lex.tokenText(), hideset);
+  tok->sourceFile = left->sourceFile;
+  tok->offset = left->offset;
   return tok;
 }
 
