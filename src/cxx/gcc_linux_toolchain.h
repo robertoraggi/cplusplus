@@ -22,17 +22,23 @@
 
 #include <cxx/toolchain.h>
 
+#include <optional>
 #include <string>
 
 namespace cxx {
 
 class GCCLinuxToolchain final : public Toolchain {
  public:
-  using Toolchain::Toolchain;
+  GCCLinuxToolchain(Preprocessor* preprocessor);
+
+  std::optional<int> version() const { return version_; }
 
   void addSystemIncludePaths() override;
   void addSystemCppIncludePaths() override;
   void addPredefinedMacros() override;
+
+ private:
+  std::optional<int> version_;
 };
 
 }  // namespace cxx
