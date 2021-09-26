@@ -2276,7 +2276,8 @@ bool Parser::parse_binary_expression_helper(ExpressionAST*& yyast, Prec minPrec,
 
     while (parse_lookahead_binary_operator(nextOpLoc, nextOp, exprContext) &&
            prec(nextOp) > prec(op)) {
-      if (!parse_binary_expression_helper(rhs, prec(op), exprContext)) {
+      if (!parse_binary_expression_helper(
+              rhs, static_cast<Prec>(int(prec(op)) + 1), exprContext)) {
         break;
       }
     }
