@@ -1750,11 +1750,11 @@ bool Parser::parse_builtin_call_expression(ExpressionAST*& yyast) {
 
   if (!parse_type_id(typeId)) parse_error("expected a type id");
 
-  expect(TokenKind::T_COMMA);
+  while (match(TokenKind::T_COMMA)) {
+    TypeIdAST* typeId = nullptr;
 
-  TypeIdAST* secondTypeId = nullptr;
-
-  if (!parse_type_id(secondTypeId)) parse_error("expected a type id");
+    if (!parse_type_id(typeId)) parse_error("expected a type id");
+  }
 
   expect(TokenKind::T_RPAREN);
 
