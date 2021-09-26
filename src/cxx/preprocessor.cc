@@ -41,6 +41,7 @@
 #include <functional>
 #include <iostream>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <unordered_map>
 #include <unordered_set>
@@ -60,19 +61,19 @@ class Hideset {
 
   Hideset() = default;
 
-  explicit Hideset(std::unordered_set<std::string_view> names)
+  explicit Hideset(std::set<std::string_view> names)
       : names_(std::move(names)) {}
 
   bool contains(const std::string_view &name) const {
     return names_.contains(name);
   }
 
-  const std::unordered_set<std::string_view> &names() const { return names_; };
+  const std::set<std::string_view> &names() const { return names_; };
 
   bool operator==(const Hideset &other) const { return names_ == other.names_; }
 
  private:
-  std::unordered_set<std::string_view> names_;
+  std::set<std::string_view> names_;
 };
 
 struct SystemInclude {
@@ -329,7 +330,7 @@ struct Preprocessor::Private {
   }
 
   const Hideset *makeUnion(const Hideset *hs, const std::string_view &name) {
-    if (!hs) return get(std::unordered_set<std::string_view>{name});
+    if (!hs) return get(std::set<std::string_view>{name});
     auto names = hs->names();
     names.insert(name);
     return get(std::move(names));
@@ -339,7 +340,7 @@ struct Preprocessor::Private {
     if (!other) return hs;
     if (!hs) return other;
 
-    std::unordered_set<std::string_view> names;
+    std::set<std::string_view> names;
 
     std::set_union(begin(hs->names()), end(hs->names()), begin(other->names()),
                    end(other->names()), std::inserter(names, names.begin()));
@@ -351,7 +352,7 @@ struct Preprocessor::Private {
     if (!other) return hs;
     if (!hs) return other;
 
-    std::unordered_set<std::string_view> names;
+    std::set<std::string_view> names;
 
     std::set_intersection(begin(hs->names()), end(hs->names()),
                           begin(other->names()), end(other->names()),
@@ -360,7 +361,7 @@ struct Preprocessor::Private {
     return get(std::move(names));
   }
 
-  const Hideset *get(std::unordered_set<std::string_view> name) {
+  const Hideset *get(std::set<std::string_view> name) {
     if (name.empty()) return nullptr;
     return &*hidesets.emplace(name).first;
   }
