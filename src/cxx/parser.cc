@@ -6683,7 +6683,7 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
     auto ast = new (pool) SimpleDeclarationAST();
     ast->attributeList = attributes;
     ast->declSpecifierList = declSpecifierList;
-    ast->semicolonLoc;
+    ast->semicolonLoc = semicolonLoc;
     yyast = ast;
     return true;  // ### complex typespec
   }
