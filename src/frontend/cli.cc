@@ -84,9 +84,7 @@ std::vector<CLIOptionDescr> options{
      "<val> is taken to be 1.",
      CLIOptionDescrKind::kSeparated},
 
-    {"-I",
-     "<dir>"
-     "Add <dir> to the end of the main include path.",
+    {"-I", "<dir>", "Add <dir> to the end of the main include path.",
      CLIOptionDescrKind::kSeparated},
 
     {"-L", "This option lacks documentation.", CLIOptionDescrKind::kSeparated},
