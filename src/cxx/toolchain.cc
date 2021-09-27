@@ -23,7 +23,7 @@
 
 namespace cxx {
 
-Toolchain::Toolchain(Preprocessor *preprocessor)
+Toolchain::Toolchain(Preprocessor* preprocessor)
     : preprocessor_(preprocessor) {}
 
 Toolchain::~Toolchain() {}
@@ -32,8 +32,8 @@ void Toolchain::defineMacro(std::string name, std::string definition) {
   preprocessor_->defineMacro(std::move(name), std::move(definition));
 }
 
-void Toolchain::addSystemIncludePath(std::string path) {
-  preprocessor_->addSystemIncludePath(std::move(path));
+void Toolchain::addSystemIncludePath(const std::filesystem::path& path) {
+  preprocessor_->addSystemIncludePath(path.string());
 }
 
 }  // namespace cxx
