@@ -60,14 +60,27 @@ inline bool is_idcont(int ch) {
 }
 
 template <typename It>
+inline It skipSlash(It it, It end) {
+  while (it < end && *it == '\\') {
+    if (it + 1 < end && it[1] == '\n')
+      it += 2;
+    else if (it + 2 < end && it[1] == '\r' && it[2] == '\n')
+      it += 3;
+    else
+      break;
+  }
+  return it;
+}
+
+template <typename It>
 inline uint32_t peekNext(It it, It end) {
-  while (it + 1 < end && *it == '\\' && it[1] == '\n') it += 2;
+  it = skipSlash(it, end);
   return it < end ? utf8::peek_next(it, end) : 0;
 }
 
 template <typename It>
 inline void readNext(It& it, It end) {
-  while (it + 1 < end && *it == '\\' && it[1] == '\n') it += 2;
+  it = skipSlash(it, end);
   if (it < end) utf8::next(it, end);
 }
 
