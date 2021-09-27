@@ -65,7 +65,7 @@ std::string readAll(const std::string& fileName) {
   return readAll(fileName, stream);
 }
 
-void dumpTokens(const CLI& cli, TranslationUnit& unit) {
+void dumpTokens(const CLI& cli, TranslationUnit& unit, std::ostream& output) {
   std::string flags;
 
   for (SourceLocation loc(1);; loc = loc.next()) {
@@ -85,7 +85,7 @@ void dumpTokens(const CLI& cli, TranslationUnit& unit) {
     if (kind == TokenKind::T_IDENTIFIER)
       kind = Lexer::classifyKeyword(tk.spell());
 
-    fmt::print("{} '{}'{}\n", Token::name(kind), tk.spell(), flags);
+    fmt::print(output, "{} '{}'{}\n", Token::name(kind), tk.spell(), flags);
 
     if (tk.is(TokenKind::T_EOF_SYMBOL)) break;
   }
@@ -127,20 +127,27 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
     }
   }
 
+  auto outputs = cli.get("-o");
+
+  auto outfile = !outputs.empty() ? std::optional{std::ofstream{outputs.back()}}
+                                  : std::nullopt;
+
+  auto& output = outfile ? *outfile : std::cout;
+
   if (cli.opt_E && !cli.opt_dM) {
-    preprocesor->preprocess(readAll(fileName), fileName, std::cout);
+    preprocesor->preprocess(readAll(fileName), fileName, output);
     return true;
   }
 
   unit.setSource(readAll(fileName), fileName);
 
   if (cli.opt_dM) {
-    preprocesor->printMacros(std::cout);
+    preprocesor->printMacros(output);
     return true;
   }
 
   if (cli.opt_dump_tokens) {
-    dumpTokens(cli, unit);
+    dumpTokens(cli, unit, output);
     return true;
   }
 
@@ -165,7 +172,7 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
 
     ir::IRPrinter printer;
 
-    printer.print(module.get(), std::cout);
+    printer.print(module.get(), output);
   }
 
   return result;

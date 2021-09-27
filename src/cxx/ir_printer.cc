@@ -65,7 +65,7 @@ void IRPrinter::print(Function* function, std::ostream& out) {
 }
 
 void IRPrinter::print(Block* block, std::ostream& out) {
-  fmt::print("{}:", toString(block));
+  fmt::print(out, "{}:", toString(block));
   for (auto stmt : block->code()) {
     print(stmt, out);
   }
