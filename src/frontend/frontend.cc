@@ -32,6 +32,7 @@
 #include <cxx/preprocessor.h>
 #include <cxx/recursive_ast_visitor.h>
 #include <cxx/translation_unit.h>
+#include <cxx/windows_toolchain.h>
 
 // fmt
 #include <fmt/format.h>
@@ -103,6 +104,19 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
   toolchain = std::make_unique<MacOSToolchain>(preprocesor);
 #elif defined(__linux__)
   toolchain = std::make_unique<GCCLinuxToolchain>(preprocesor);
+#elif defined(_MSC_VER)
+  auto windowsToolchain = std::make_unique<WindowsToolchain>(preprocesor);
+
+  if (auto paths = cli.get("-vctoolsdir"); !paths.empty())
+    windowsToolchain->setVctoolsdir(paths.back());
+
+  if (auto paths = cli.get("-winsdkdir"); !paths.empty())
+    windowsToolchain->setWinsdkdir(paths.back());
+
+  if (auto versions = cli.get("-winsdkversion"); !versions.empty())
+    windowsToolchain->setWinsdkversion(versions.back());
+
+  toolchain = std::move(windowsToolchain);
 #endif
 
   if (toolchain) {

@@ -130,6 +130,15 @@ std::vector<CLIOptionDescr> options{
     {"-nostdinc++",
      "Disable standard #include directories for the C++ standard library",
      &CLI::opt_nostdincpp},
+
+    {"-winsdkdir", "<dir>", "Path to the the Windows SDK",
+     CLIOptionDescrKind::kSeparated},
+
+    {"-vctoolsdir", "<dir>", "Path to the Visual Studio Tools",
+     CLIOptionDescrKind::kSeparated},
+
+    {"-winsdkversion", "<version>", "Version of the Windows SDK",
+     CLIOptionDescrKind::kSeparated},
 };
 
 }  // namespace
