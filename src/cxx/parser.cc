@@ -5162,8 +5162,11 @@ bool Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast,
   sem->declarator(ast->declarator, &decl);
 
   if (match(TokenKind::T_EQUAL, ast->equalLoc)) {
-    if (!parse_initializer_clause(ast->expression, templParam))
+    if (!parse_initializer_clause(ast->expression, templParam)) {
+      if (templParam) return false;
+
       parse_error("expected an initializer");
+    }
   }
 
   return true;
