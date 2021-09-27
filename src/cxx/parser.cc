@@ -523,7 +523,8 @@ bool Parser::parse_skip_declaration(bool& skipping) {
   return true;
 }
 
-bool Parser::parse_primary_expression(ExpressionAST*& yyast) {
+bool Parser::parse_primary_expression(ExpressionAST*& yyast,
+                                      bool inRequiresClause) {
   SourceLocation thisLoc;
 
   if (match(TokenKind::T_THIS, thisLoc)) {
@@ -574,7 +575,7 @@ bool Parser::parse_primary_expression(ExpressionAST*& yyast) {
 
   NameAST* name = nullptr;
 
-  if (!parse_id_expression(name)) return false;
+  if (!parse_id_expression(name, inRequiresClause)) return false;
 
   auto ast = new (pool) IdExpressionAST();
   yyast = ast;
@@ -603,21 +604,21 @@ bool Parser::parse_primary_expression(ExpressionAST*& yyast) {
   return true;
 }
 
-bool Parser::parse_id_expression(NameAST*& yyast) {
+bool Parser::parse_id_expression(NameAST*& yyast, bool inRequiresClause) {
   const auto start = currentLocation();
 
-  if (parse_qualified_id(yyast)) return true;
+  if (parse_qualified_id(yyast, inRequiresClause)) return true;
 
   rewind(start);
 
   yyast = nullptr;
 
-  if (!parse_unqualified_id(yyast)) return false;
+  if (!parse_unqualified_id(yyast, inRequiresClause)) return false;
 
   return true;
 }
 
-bool Parser::parse_maybe_template_id(NameAST*& yyast) {
+bool Parser::parse_maybe_template_id(NameAST*& yyast, bool inRequiresClause) {
   const auto start = currentLocation();
 
   const auto blockErrors = unit->blockErrors(true);
@@ -629,6 +630,9 @@ bool Parser::parse_maybe_template_id(NameAST*& yyast) {
   unit->blockErrors(blockErrors);
 
   if (!template_id) return false;
+
+  if (inRequiresClause) return true;
+
   switch (TokenKind(tk)) {
     case TokenKind::T_COMMA:
     case TokenKind::T_LPAREN:
@@ -642,6 +646,10 @@ bool Parser::parse_maybe_template_id(NameAST*& yyast) {
     case TokenKind::T_RBRACKET:
     case TokenKind::T_SEMICOLON:
     case TokenKind::T_EQUAL:
+    case TokenKind::T_DOT:
+    case TokenKind::T_MINUS_GREATER:
+    case TokenKind::T_AMP_AMP:
+    case TokenKind::T_BAR_BAR:
       return true;
 
     default: {
@@ -657,10 +665,10 @@ bool Parser::parse_maybe_template_id(NameAST*& yyast) {
   }  // switch
 }
 
-bool Parser::parse_unqualified_id(NameAST*& yyast) {
+bool Parser::parse_unqualified_id(NameAST*& yyast, bool inRequiresClause) {
   const auto start = currentLocation();
 
-  if (parse_maybe_template_id(yyast)) return true;
+  if (parse_maybe_template_id(yyast, inRequiresClause)) return true;
 
   rewind(start);
 
@@ -708,7 +716,7 @@ bool Parser::parse_unqualified_id(NameAST*& yyast) {
   return parse_name_id(yyast);
 }
 
-bool Parser::parse_qualified_id(NameAST*& yyast) {
+bool Parser::parse_qualified_id(NameAST*& yyast, bool inRequiresClause) {
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
 
   if (!parse_nested_name_specifier(nestedNameSpecifier)) return false;
@@ -719,7 +727,7 @@ bool Parser::parse_qualified_id(NameAST*& yyast) {
 
   NameAST* name = nullptr;
 
-  const auto hasName = parse_unqualified_id(name);
+  const auto hasName = parse_unqualified_id(name, inRequiresClause);
 
   if (hasName || templateLoc) {
     auto ast = new (pool) QualifiedNameAST();
@@ -3393,6 +3401,8 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast,
   const auto after_declarator = currentLocation();
 
   auto functionDeclarator = getFunctionDeclarator(declarator);
+
+  const auto hasRequiresClause = parse_requires_clause();
 
   if (acceptFunctionDefinition && functionDeclarator &&
       lookat_function_body()) {
@@ -7375,12 +7385,12 @@ bool Parser::parse_constraint_logical_or_expression(ExpressionAST*& yyast) {
 }
 
 bool Parser::parse_constraint_logical_and_expression(ExpressionAST*& yyast) {
-  if (!parse_primary_expression(yyast)) return false;
+  if (!parse_primary_expression(yyast, /*inRequiresClause*/ true)) return false;
 
   while (match(TokenKind::T_AMP_AMP)) {
     ExpressionAST* expression = nullptr;
 
-    if (!parse_primary_expression(expression))
+    if (!parse_primary_expression(expression, /*inRequiresClause*/ true))
       parse_error("expected an expression");
   }
 

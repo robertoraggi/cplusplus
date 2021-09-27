@@ -126,11 +126,12 @@ class Parser final {
   bool parse_skip_top_level_declaration(bool& skipping);
   bool parse_declaration_seq(List<DeclarationAST*>*& yyast);
   bool parse_skip_declaration(bool& skipping);
-  bool parse_primary_expression(ExpressionAST*& yyast);
-  bool parse_id_expression(NameAST*& yyast);
-  bool parse_maybe_template_id(NameAST*& yyast);
-  bool parse_unqualified_id(NameAST*& yyast);
-  bool parse_qualified_id(NameAST*& yyast);
+  bool parse_primary_expression(ExpressionAST*& yyast,
+                                bool inRequiresClause = false);
+  bool parse_id_expression(NameAST*& yyast, bool inRequiresClause = false);
+  bool parse_maybe_template_id(NameAST*& yyast, bool inRequiresClause = false);
+  bool parse_unqualified_id(NameAST*& yyast, bool inRequiresClause = false);
+  bool parse_qualified_id(NameAST*& yyast, bool inRequiresClause = false);
   bool parse_nested_name_specifier(NestedNameSpecifierAST*& yyast);
   bool parse_start_of_nested_name_specifier(NameAST*& yyast,
                                             SourceLocation& scopeLoc);
