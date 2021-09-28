@@ -26,6 +26,10 @@
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 
+#if defined(_MSVC_LANG) && !defined(__PRETTY_FUNCTION__)
+#define __PRETTY_FUNCTION__ __FUNCSIG__
+#endif
+
 namespace cxx {
 
 X64InstructionSelection::X64InstructionSelection() {}

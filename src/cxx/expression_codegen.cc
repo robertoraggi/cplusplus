@@ -23,6 +23,7 @@
 #include <cxx/control.h>
 #include <cxx/expression_codegen.h>
 #include <cxx/literals.h>
+#include <cxx/memory_layout.h>
 #include <cxx/names.h>
 #include <cxx/scope.h>
 #include <cxx/symbols.h>
@@ -34,163 +35,6 @@
 #include <stdexcept>
 
 namespace cxx {
-
-namespace {
-
-constexpr std::uint64_t AlignTo(std::uint64_t n, std::uint64_t align) {
-  return (n + align - 1) / align * align;
-}
-
-class SizeofType final : TypeVisitor {
- public:
-  std::tuple<std::uint64_t, std::uint64_t> operator()(
-      const QualifiedType& type) {
-    std::uint64_t size = 0;
-    std::uint64_t alignment = 0;
-    std::swap(size_, size);
-    std::swap(alignment_, alignment);
-    type->accept(this);
-    std::swap(size_, size);
-    std::swap(alignment_, alignment);
-    return std::tuple(size, alignment);
-  }
-
- private:
-  void visit(const UndefinedType*) override {
-    throw std::runtime_error("unreachable");
-  }
-
-  void visit(const ErrorType*) override {
-    throw std::runtime_error("unreachable");
-  }
-
-  void visit(const UnresolvedType*) override {
-    throw std::runtime_error("unreachable");
-  }
-
-  void visit(const VoidType*) override {
-    throw std::runtime_error("unreachable");
-  }
-
-  void visit(const NullptrType*) override {
-    throw std::runtime_error("unreachable");
-  }
-
-  void visit(const BooleanType*) override {
-    throw std::runtime_error("unreachable");
-  }
-
-  void visit(const CharacterType*) override {
-    throw std::runtime_error("unreachable");
-  }
-
-  void visit(const IntegerType* type) override {
-    switch (type->kind()) {
-      case IntegerKind::kChar:
-        size_ = alignment_ = 1;
-        break;
-      case IntegerKind::kShort:
-        size_ = alignment_ = 2;
-        break;
-      case IntegerKind::kInt:
-        size_ = alignment_ = 4;
-        break;
-      case IntegerKind::kLong:
-        size_ = alignment_ = 8;
-        break;
-      case IntegerKind::kLongLong:
-        size_ = alignment_ = 8;
-        break;
-      default:
-        throw std::runtime_error("unrecognized integer kind");
-    }  // switch
-  }
-
-  void visit(const FloatingPointType*) override {
-    throw std::runtime_error("unreachable");
-  }
-
-  void visit(const EnumType*) override {
-    throw std::runtime_error("unreachable");
-  }
-
-  void visit(const ScopedEnumType*) override {
-    throw std::runtime_error("unreachable");
-  }
-
-  void visit(const PointerType*) override { size_ = alignment_ = 8; }
-
-  void visit(const PointerToMemberType*) override {
-    throw std::runtime_error("unreachable");
-  }
-
-  void visit(const ReferenceType*) override {
-    throw std::runtime_error("unreachable");
-  }
-
-  void visit(const RValueReferenceType*) override {
-    throw std::runtime_error("unreachable");
-  }
-
-  void visit(const ArrayType* type) override {
-    auto [arrayElementSize, arrayElementAlignment] = operator()(
-        type->elementType());
-    size_ = AlignTo(size_, arrayElementAlignment) +
-            type->dimension() * arrayElementSize;
-    alignment_ = arrayElementAlignment;
-  }
-
-  void visit(const UnboundArrayType*) override {
-    throw std::runtime_error("unreachable");
-  }
-
-  void visit(const FunctionType*) override {
-    throw std::runtime_error("unreachable");
-  }
-
-  void visit(const MemberFunctionType*) override {
-    throw std::runtime_error("unreachable");
-  }
-
-  void visit(const NamespaceType*) override {
-    throw std::runtime_error("unreachable");
-  }
-
-  void visit(const ClassType* type) override {
-    auto symbol = type->symbol();
-    for (auto member : *symbol->scope()) {
-      auto field = dynamic_cast<FieldSymbol*>(member);
-      if (!field) continue;
-      auto [memberSize, memberAlignment] = operator()(member->type());
-      size_ = AlignTo(size_, memberAlignment) + memberSize;
-      alignment_ = std::max(alignment_, memberAlignment);
-    }
-    if (size_)
-      size_ = AlignTo(size_, alignment_);
-    else
-      size_ = alignment_ = 1;
-  }
-
-  void visit(const TemplateType*) override {
-    throw std::runtime_error("unreachable");
-  }
-
-  void visit(const TemplateArgumentType*) override {
-    throw std::runtime_error("unreachable");
-  }
-
-  void visit(const ConceptType*) override {
-    throw std::runtime_error("unreachable");
-  }
-
- private:
-  std::uint64_t size_ = 0;
-  std::uint64_t alignment_ = 0;
-};
-
-SizeofType sizeOfType;
-
-}  // namespace
 
 ExpressionCodegen::ExpressionCodegen(Codegen* cg) : cg(cg) {}
 
@@ -405,7 +249,7 @@ void ExpressionCodegen::visit(SizeofExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(SizeofTypeExpressionAST* ast) {
-  auto [size, alignment] = sizeOfType(ast->typeId->type);
+  auto [size, alignment] = MemoryLayout::ofType(ast->typeId->type);
   expr_ = cg->createIntegerLiteral(size);
 }
 
