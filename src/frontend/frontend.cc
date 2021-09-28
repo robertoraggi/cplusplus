@@ -33,6 +33,7 @@
 #include <cxx/recursive_ast_visitor.h>
 #include <cxx/translation_unit.h>
 #include <cxx/windows_toolchain.h>
+#include <cxx/x64_instruction_selection.h>
 
 // fmt
 #include <fmt/format.h>
@@ -147,8 +148,9 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
 
   auto outputs = cli.get("-o");
 
-  auto outfile = !outputs.empty() ? std::optional{std::ofstream{outputs.back()}}
-                                  : std::nullopt;
+  auto outfile = !outputs.empty() && outputs.back() != "-"
+                     ? std::optional{std::ofstream{outputs.back()}}
+                     : std::nullopt;
 
   auto& output = outfile ? *outfile : std::cout;
 
@@ -183,14 +185,18 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
     return result;
   }
 
-  if (cli.opt_S) {
+  if (cli.opt_S || cli.opt_ir_dump || cli.opt_c) {
     Codegen cg;
 
     auto module = cg(&unit);
 
-    ir::IRPrinter printer;
-
-    printer.print(module.get(), output);
+    if (cli.opt_S || cli.opt_c) {
+      X64InstructionSelection isel;
+      isel(module.get(), output);
+    } else if (cli.opt_ir_dump) {
+      ir::IRPrinter printer;
+      printer.print(module.get(), output);
+    }
   }
 
   return result;

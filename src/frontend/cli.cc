@@ -118,6 +118,8 @@ std::vector<CLIOptionDescr> options{
 
     {"-ast-dump", "Build ASTs and then debug dump them", &CLI::opt_ast_dump},
 
+    {"-ir-dump", "Dump the IR", &CLI::opt_ir_dump},
+
     {"-dump-tokens", "Run preprocessor, dump internal rep of tokens",
      &CLI::opt_dump_tokens},
 
