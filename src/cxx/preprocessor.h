@@ -51,6 +51,8 @@ class Preprocessor {
 
   void defineMacro(const std::string &name, const std::string &body);
 
+  void undefMacro(const std::string &name);
+
   void printMacros(std::ostream &out) const;
 
   void getTokenStartPosition(const Token &token, unsigned *line,

@@ -141,6 +141,10 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
     }
   }
 
+  for (const auto& macro : cli.get("-U")) {
+    preprocesor->undefMacro(macro);
+  }
+
   auto outputs = cli.get("-o");
 
   auto outfile = !outputs.empty() ? std::optional{std::ofstream{outputs.back()}}

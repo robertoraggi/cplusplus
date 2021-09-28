@@ -1461,6 +1461,11 @@ void Preprocessor::defineMacro(const std::string &name,
   d->defineMacro(tokens);
 }
 
+void Preprocessor::undefMacro(const std::string &name) {
+  auto it = d->macros_.find(name);
+  if (it != d->macros_.end()) d->macros_.erase(it);
+}
+
 void Preprocessor::printMacros(std::ostream &out) const {
   for (const auto &[name, macro] : d->macros_) {
     fmt::print(out, "#define {}", name);
