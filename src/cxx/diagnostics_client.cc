@@ -18,13 +18,46 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/diagnostic.h>
-#include <cxx/token.h>
+#include <cxx/diagnostics_client.h>
+
+// cxx
+#include <cxx/preprocessor.h>
+
+#include <iostream>
 
 namespace cxx {
 
-Diagnostic::Diagnostic(Severity severity, const Token& token,
-                       std::string message)
-    : severity_(severity), token_(token), message_(std::move(message)) {}
+DiagnosticsClient::~DiagnosticsClient() {}
+
+void DiagnosticsClient::report(const Diagnostic& diag) {
+  std::string_view Severity;
+
+  switch (diag.severity()) {
+    case Severity::Message:
+      Severity = "message";
+      break;
+    case Severity::Warning:
+      Severity = "warning";
+      break;
+    case Severity::Error:
+      Severity = "error";
+      break;
+    case Severity::Fatal:
+      Severity = "fatal";
+      break;
+  }  // switch
+
+  std::string_view fileName;
+  uint32_t line = 0;
+  uint32_t column = 0;
+
+  preprocessor_->getTokenStartPosition(diag.token(), &line, &column, &fileName);
+
+  fmt::print(std::cerr, "{}:{}:{}: {}\n", fileName, line, column,
+             diag.message());
+
+  fmt::print(std::cerr, "{}\n{:>{}}\n",
+             preprocessor_->getTextLine(diag.token()), "^", column);
+}
 
 }  // namespace cxx

@@ -95,7 +95,8 @@ void dumpTokens(const CLI& cli, TranslationUnit& unit, std::ostream& output) {
 
 bool runOnFile(const CLI& cli, const std::string& fileName) {
   Control control;
-  TranslationUnit unit(&control);
+  DiagnosticsClient diagnosticsClient;
+  TranslationUnit unit(&control, &diagnosticsClient);
 
   auto preprocesor = unit.preprocessor();
 

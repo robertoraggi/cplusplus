@@ -21,6 +21,7 @@
 #include <cxx/ast.h>
 #include <cxx/ast_slot.h>
 #include <cxx/control.h>
+#include <cxx/preprocessor.h>
 #include <cxx/source_location.h>
 #include <cxx/translation_unit.h>
 #include <emscripten.h>
@@ -29,28 +30,36 @@
 
 using namespace emscripten;
 
-struct DiagnosticClient : cxx::DiagnosticClient {
+struct DiagnosticsClient : cxx::DiagnosticsClient {
   val& messages;
 
-  explicit DiagnosticClient(val& messages) : messages(messages) {}
+  explicit DiagnosticsClient(val& messages) : messages(messages) {}
 
   void report(const cxx::Diagnostic& diag) override {
+    std::string_view fileName;
+    uint32_t line = 0;
+    uint32_t column = 0;
+
+    preprocessor()->getTokenStartPosition(diag.token(), &line, &column,
+                                          &fileName);
+
     val d = val::object();
-    d.set("fileName", val(diag.fileName()));
-    d.set("line", val(diag.line()));
-    d.set("column", val(diag.column()));
+    d.set("fileName", val(std::string(fileName)));
+    d.set("line", val(line));
+    d.set("column", val(column));
     d.set("message", val(diag.message()));
     messages.call<void>("push", d);
   }
 };
 
 struct WrappedUnit {
-  cxx::Control control;
-  cxx::TranslationUnit unit{&control};
   val messages = val::array();
-  DiagnosticClient diagnosticClient{messages};
+  DiagnosticsClient diagnosticsClient{messages};
 
-  WrappedUnit() { unit.setDiagnosticClient(&diagnosticClient); }
+  cxx::Control control;
+  cxx::TranslationUnit unit{&control, &diagnosticsClient};
+
+  WrappedUnit() = default;
 
   intptr_t getUnitHandle() const { return (intptr_t)&unit; }
 
@@ -119,7 +128,7 @@ static WrappedUnit* createUnit(std::string source, std::string filename) {
 
   auto wrapped = new WrappedUnit();
 
-  DiagnosticClient diagnosticClient(messages);
+  DiagnosticsClient diagnosticsClient(messages);
   wrapped->unit.setSource(std::move(source), filename);
 
   return wrapped;

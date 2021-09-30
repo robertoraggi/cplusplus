@@ -23,6 +23,7 @@
 // cxx
 #include <cxx/arena.h>
 #include <cxx/control.h>
+#include <cxx/diagnostics_client.h>
 #include <cxx/lexer.h>
 #include <cxx/literals.h>
 
@@ -165,6 +166,14 @@ struct Tok final : Managed {
     return tk;
   }
 
+  Token token() const {
+    Token token(kind, offset, length);
+    token.setFileId(sourceFile);
+    token.setLeadingSpace(space);
+    token.setStartOfLine(bol);
+    return token;
+  }
+
  private:
   Tok() = default;
 
@@ -201,6 +210,7 @@ struct SourceFile {
   std::string source;
   std::vector<int> lines;
   const TokList *tokens = nullptr;
+  int id;
 
   SourceFile() noexcept = default;
   SourceFile(const SourceFile &) noexcept = default;
@@ -208,8 +218,8 @@ struct SourceFile {
   SourceFile(SourceFile &&) noexcept = default;
   SourceFile &operator=(SourceFile &&) noexcept = default;
 
-  SourceFile(std::string fileName, std::string source) noexcept
-      : fileName(std::move(fileName)), source(std::move(source)) {
+  SourceFile(std::string fileName, std::string source, uint32_t id) noexcept
+      : fileName(std::move(fileName)), source(std::move(source)), id(id) {
     initLineMap();
   }
 
@@ -256,6 +266,7 @@ struct SourceFile {
 
 struct Preprocessor::Private {
   Control *control_ = nullptr;
+  DiagnosticsClient *diagnosticsClient_ = nullptr;
   std::vector<fs::path> systemIncludePaths_;
   std::vector<fs::path> quoteIncludePaths_;
   std::unordered_map<std::string_view, Macro> macros_;
@@ -274,6 +285,18 @@ struct Preprocessor::Private {
 
     skipping_.push_back(false);
     evaluating_.push_back(true);
+  }
+
+  template <typename... Args>
+  void error(const Token &token, const std::string_view &format,
+             const Args &...args) const {
+    diagnosticsClient_->report(token, Severity::Error, format, args...);
+  }
+
+  template <typename... Args>
+  void warning(const Token &token, const std::string_view &format,
+               const Args &...args) const {
+    diagnosticsClient_->report(token, Severity::Warning, format, args...);
   }
 
   std::tuple<bool, bool> state() const {
@@ -317,7 +340,7 @@ struct Preprocessor::Private {
 
   void expect(const TokList *&ts, TokenKind k) const {
     if (!match(ts, k))
-      throw std::runtime_error(fmt::format("expected '{}'", Token::spell(k)));
+      error(ts->head->token(), "expected '{}'", Token::spell(k));
   }
 
   std::string_view expectId(const TokList *&ts) const {
@@ -326,7 +349,9 @@ struct Preprocessor::Private {
       ts = ts->tail;
       return id;
     }
-    throw std::runtime_error("expected an identifier");
+    assert(ts);
+    error(ts->head->token(), "expected an identifier");
+    return std::string_view();
   }
 
   const Hideset *makeUnion(const Hideset *hs, const std::string_view &name) {
@@ -505,12 +530,13 @@ const TokList *Preprocessor::Private::tokenize(const std::string_view &source,
   lex.setPreprocessing(true);
   const TokList *ts = nullptr;
   auto it = &ts;
-  while (lex() != cxx::TokenKind::T_EOF_SYMBOL) {
+  do {
+    lex();
     auto tk = Tok::FromCurrentToken(&pool_, lex, sourceFile);
     if (!lex.tokenIsClean()) tk->text = string(std::move(lex.text()));
     *it = new (&pool_) TokList(tk);
     it = const_cast<const TokList **>(&(*it)->tail);
-  }
+  } while (lex.tokenKind() != cxx::TokenKind::T_EOF_SYMBOL);
   return ts;
 }
 
@@ -533,7 +559,7 @@ void Preprocessor::Private::expand(const TokList *ts, bool evaluateDirectives,
 void Preprocessor::Private::expand(
     const TokList *ts, bool evaluateDirectives,
     const std::function<void(const Tok *)> &emitToken) {
-  while (ts) {
+  while (ts && ts->head->isNot(TokenKind::T_EOF_SYMBOL)) {
     const auto tk = ts->head;
     const auto start = ts;
 
@@ -551,14 +577,22 @@ void Preprocessor::Private::expand(
       if (!skipping && matchId(ts, "define")) {
         defineMacro(copyLine(ts));
       } else if (!skipping && matchId(ts, "undef")) {
-        auto name = expectId(ts);
-        auto it = macros_.find(name);
-        if (it != macros_.end()) macros_.erase(it);
+        auto line = copyLine(ts);
+        auto name = expectId(line);
+        if (!name.empty()) {
+          // warning(ts->head->token(), "undef '{}'", name);
+          auto it = macros_.find(name);
+          if (it != macros_.end()) macros_.erase(it);
+        }
       } else if (!skipping &&
                  (matchId(ts, "include") || matchId(ts, "include_next"))) {
         if (ts->head->is(TokenKind::T_IDENTIFIER)) {
           ts = expand(copyLine(ts), /*directives=*/false);
         }
+
+        auto loc = ts;
+        if (loc->head->is(TokenKind::T_EOF_SYMBOL)) loc = directive;
+
         const bool next = directive->head->text == "include_next";
         std::optional<fs::path> path;
         std::string file;
@@ -566,7 +600,8 @@ void Preprocessor::Private::expand(
           file = ts->head->text.substr(1, ts->head->text.length() - 2);
           path = resolve(QuoteInclude(file), next);
         } else if (match(ts, TokenKind::T_LESS)) {
-          while (ts && !ts->head->bol) {
+          while (ts && ts->head->isNot(TokenKind::T_EOF_SYMBOL) &&
+                 !ts->head->bol) {
             if (match(ts, TokenKind::T_GREATER)) break;
             file += ts->head->text;
             ts = ts->tail;
@@ -574,19 +609,15 @@ void Preprocessor::Private::expand(
           path = resolve(SystemInclude(file), next);
         }
 
-        if (!path)
-          throw std::runtime_error(fmt::format("file '{}' not found", file));
+        if (!path) {
+          error(loc->head->token(), "file '{}' not found", file);
+          ts = skipLine(directive);
+          continue;
+        }
 
         const auto fn = path->string();
-#if 0
-        fmt::print("*** include: {}\n", fn);
-#endif
 
         if (pragmaOnceProtected_.find(fn) != pragmaOnceProtected_.end()) {
-#if 0
-          fmt::print("skip pragma protected header '{}'\n", fn);
-#endif
-
           ts = skipLine(directive);
           continue;
         }
@@ -595,9 +626,6 @@ void Preprocessor::Private::expand(
 
         if (it != ifndefProtectedFiles_.end()) {
           if (macros_.find(it->second) != macros_.end()) {
-#if 0
-            fmt::print("skip protected header '{}'\n", fn);
-#endif
             ts = skipLine(directive);
             continue;
           }
@@ -607,8 +635,9 @@ void Preprocessor::Private::expand(
         dirpath.remove_filename();
         std::swap(currentPath_, dirpath);
         const int sourceFileId = int(sourceFiles_.size() + 1);
-        auto &sourceFile = *sourceFiles_.emplace_back(
-            std::make_unique<SourceFile>(path->string(), readFile(*path)));
+        auto &sourceFile =
+            *sourceFiles_.emplace_back(std::make_unique<SourceFile>(
+                path->string(), readFile(*path), sourceFileId));
         auto tokens = tokenize(sourceFile.source, sourceFileId, true);
         sourceFile.tokens = tokens;
         if (checkPragmaOnceProtected(tokens)) {
@@ -662,13 +691,14 @@ void Preprocessor::Private::expand(
         setState(std::tuple(!evaluating, false));
       } else if (matchId(ts, "endif")) {
         popState();
-        if (evaluating_.empty())
-          throw std::runtime_error("unexpected '#endif'");
+        if (evaluating_.empty()) {
+          error(directive->head->token(), "unexpected '#endif'");
+        }
       } else if (matchId(ts, "line")) {
         // ###
         std::ostringstream out;
         printLine(start, out);
-        throw std::runtime_error(out.str());
+        warning(directive->head->token(), "skipped #line directive");
       } else if (matchId(ts, "pragma")) {
         // ###
 #if 0
@@ -680,15 +710,13 @@ void Preprocessor::Private::expand(
         // throw std::runtime_error(out.str());
 #endif
       } else if (!skipping && matchId(ts, "error")) {
-        // ###
         std::ostringstream out;
         printLine(start, out);
-        throw std::runtime_error(out.str());
+        error(directive->head->token(), "{}", out.str());
       } else if (!skipping && matchId(ts, "warning")) {
-        // ###
         std::ostringstream out;
         printLine(start, out);
-        throw std::runtime_error(out.str());
+        warning(directive->head->token(), "{}", out.str());
       }
       ts = skipLine(ts);
     } else if (evaluateDirectives && skipping) {
@@ -729,6 +757,7 @@ void Preprocessor::Private::expand(
       emitToken(t);
     } else if (!evaluateDirectives && matchId(ts, "__has_feature")) {
       expect(ts, TokenKind::T_LPAREN);
+      auto idLoc = ts;
       auto id = expectId(ts);
       expect(ts, TokenKind::T_RPAREN);
       auto t = Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, "1");
@@ -741,7 +770,7 @@ void Preprocessor::Private::expand(
 
 const TokList *Preprocessor::Private::expandOne(
     const TokList *ts, const std::function<void(const Tok *)> &emitToken) {
-  if (!ts) return nullptr;
+  if (ts->head->is(TokenKind::T_EOF_SYMBOL)) return ts;
 
   const Macro *macro = nullptr;
 
@@ -779,7 +808,7 @@ const TokList *Preprocessor::Private::substitude(
     const TokList *ts, const Macro *macro,
     const std::vector<const TokList *> &actuals, const Hideset *hideset,
     const TokList *os) {
-  while (ts) {
+  while (ts && ts->head->isNot(TokenKind::T_EOF_SYMBOL)) {
     auto tk = ts->head;
     const TokList *actual = nullptr;
 
@@ -833,12 +862,20 @@ const TokList *Preprocessor::Private::checkHeaderProtection(
 }
 
 const TokList *Preprocessor::Private::copyLine(const TokList *ts) {
+  assert(ts);
   TokList *line = nullptr;
   auto it = &line;
-  for (; ts && !ts->head->bol; ts = ts->tail) {
+  auto lastTok = ts->head;
+  for (; ts && ts->head->isNot(TokenKind::T_EOF_SYMBOL) && !ts->head->bol;
+       ts = ts->tail) {
     *it = new (&pool_) TokList(ts->head);
+    lastTok = ts->head;
     it = const_cast<TokList **>(&(*it)->tail);
   }
+  auto eol = Tok::Gen(&pool_, TokenKind::T_EOF_SYMBOL, std::string_view());
+  eol->sourceFile = lastTok->sourceFile;
+  eol->offset = lastTok->offset + lastTok->length;
+  *it = new (&pool_) TokList(eol);
   return line;
 }
 
@@ -1072,7 +1109,7 @@ Preprocessor::Private::readArguments(const TokList *ts, const Macro *macro) {
   if (it->head->isNot(TokenKind::T_RPAREN)) {
     TokList *arg = nullptr;
     auto argIt = &arg;
-    while (it) {
+    while (it && it->head->isNot(TokenKind::T_EOF_SYMBOL)) {
       auto tk = it->head;
       it = it->tail;
       if (depth == 1 && tk->is(TokenKind::T_COMMA) &&
@@ -1159,11 +1196,13 @@ void Preprocessor::Private::defineMacro(const TokList *ts) {
     if (!match(ts, TokenKind::T_RPAREN)) {
       variadic = match(ts, TokenKind::T_DOT_DOT_DOT);
       if (!variadic) {
-        formals.push_back(expectId(ts));
+        auto formal = expectId(ts);
+        if (!formal.empty()) formals.push_back(formal);
         while (match(ts, TokenKind::T_COMMA)) {
           variadic = match(ts, TokenKind::T_DOT_DOT_DOT);
           if (variadic) break;
-          formals.push_back(expectId(ts));
+          auto formal = expectId(ts);
+          if (!formal.empty()) formals.push_back(formal);
         }
         if (!variadic) variadic = match(ts, TokenKind::T_DOT_DOT_DOT);
       }
@@ -1207,7 +1246,8 @@ const TokList *Preprocessor::Private::glue(const TokList *ls,
 }
 
 const TokList *Preprocessor::Private::skipLine(const TokList *ts) {
-  while (ts && !ts->head->bol) ts = ts->tail;
+  while (ts && ts->head->isNot(TokenKind::T_EOF_SYMBOL) && !ts->head->bol)
+    ts = ts->tail;
   return ts;
 }
 
@@ -1273,11 +1313,18 @@ void Preprocessor::Private::printLine(const TokList *ts,
   fmt::print(out, "\n");
 }
 
-Preprocessor::Preprocessor(Control *control) : d(std::make_unique<Private>()) {
+Preprocessor::Preprocessor(Control *control,
+                           DiagnosticsClient *diagnosticsClient)
+    : d(std::make_unique<Private>()) {
   d->control_ = control;
+  d->diagnosticsClient_ = diagnosticsClient;
 }
 
 Preprocessor::~Preprocessor() {}
+
+DiagnosticsClient *Preprocessor::diagnosticsClient() const {
+  return d->diagnosticsClient_;
+}
 
 void Preprocessor::squeeze() { d->pool_.reset(); }
 
@@ -1289,8 +1336,8 @@ void Preprocessor::operator()(std::string source, std::string fileName,
 void Preprocessor::preprocess(std::string source, std::string fileName,
                               std::ostream &out) {
   const int sourceFileId = int(d->sourceFiles_.size() + 1);
-  auto &sourceFile = *d->sourceFiles_.emplace_back(
-      std::make_unique<SourceFile>(std::move(fileName), std::move(source)));
+  auto &sourceFile = *d->sourceFiles_.emplace_back(std::make_unique<SourceFile>(
+      std::move(fileName), std::move(source), sourceFileId));
 
   fs::path path(sourceFile.fileName);
   path.remove_filename();
@@ -1341,8 +1388,8 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
 void Preprocessor::preprocess(std::string source, std::string fileName,
                               std::vector<Token> &tokens) {
   const int sourceFileId = int(d->sourceFiles_.size() + 1);
-  auto &sourceFile = *d->sourceFiles_.emplace_back(
-      std::make_unique<SourceFile>(std::move(fileName), std::move(source)));
+  auto &sourceFile = *d->sourceFiles_.emplace_back(std::make_unique<SourceFile>(
+      std::move(fileName), std::move(source), sourceFileId));
 
   fs::path path(sourceFile.fileName);
   path.remove_filename();

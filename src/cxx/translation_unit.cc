@@ -30,16 +30,19 @@
 #include <cxx/preprocessor.h>
 #include <utf8.h>
 
-#include <cassert>
-
 namespace cxx {
 
-TranslationUnit::TranslationUnit(Control* control) : control_(control) {
-  arena_ = new Arena();
-  preprocessor_ = std::make_unique<Preprocessor>(control_);
+TranslationUnit::TranslationUnit(Control* control,
+                                 DiagnosticsClient* diagnosticsClient)
+    : control_(control), diagnosticsClient_(diagnosticsClient) {
+  arena_ = std::make_unique<Arena>();
+
+  preprocessor_ = std::make_unique<Preprocessor>(control_, diagnosticsClient_);
+
+  diagnosticsClient_->setPreprocessor(preprocessor_.get());
 }
 
-TranslationUnit::~TranslationUnit() { delete arena_; }
+TranslationUnit::~TranslationUnit() {}
 
 void TranslationUnit::setSource(std::string source, std::string fileName) {
   fileName_ = std::move(fileName);
@@ -91,31 +94,6 @@ void TranslationUnit::getTokenEndPosition(SourceLocation loc, unsigned* line,
                                           unsigned* column,
                                           std::string_view* fileName) const {
   preprocessor_->getTokenEndPosition(tokenAt(loc), line, column, fileName);
-}
-
-void TranslationUnit::printDiagnostic(const Diagnostic& diag) const {
-  std::string_view Severity;
-
-  switch (diag.severity()) {
-    case Severity::Message:
-      Severity = "message";
-      break;
-    case Severity::Warning:
-      Severity = "warning";
-      break;
-    case Severity::Error:
-      Severity = "error";
-      break;
-    case Severity::Fatal:
-      Severity = "fatal";
-      break;
-  }  // switch
-
-  fmt::print(stderr, "{}:{}:{}: {}\n", diag.fileName(), diag.line(),
-             diag.column(), diag.message());
-  fmt::print(stderr, "{}\n{:>{}}\n",
-             preprocessor_->getTextLine(tokenAt(diag.location())), "^",
-             diag.column());
 }
 
 bool TranslationUnit::parse(bool checkTypes) {

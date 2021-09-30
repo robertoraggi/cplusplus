@@ -20,24 +20,18 @@
 
 #pragma once
 
-#include <cxx/source_location.h>
+#include <cxx/token.h>
 
 #include <string>
 
 namespace cxx {
 
-class TranslationUnit;
-
 enum struct Severity { Message, Warning, Error, Fatal };
 
 class Diagnostic {
-  TranslationUnit* unit_;
   std::string message_;
-  std::string fileName_;
-  SourceLocation location_;
+  Token token_;
   Severity severity_ = Severity::Message;
-  unsigned line_ = 0;
-  unsigned column_ = 0;
 
  public:
   Diagnostic() = default;
@@ -48,20 +42,13 @@ class Diagnostic {
   Diagnostic(Diagnostic&&) = default;
   Diagnostic& operator=(Diagnostic&&) = default;
 
-  Diagnostic(TranslationUnit* unit, Severity severity,
-             const SourceLocation& location, std::string message);
+  Diagnostic(Severity severity, const Token& token, std::string message);
 
   Severity severity() const { return severity_; }
 
-  const std::string& fileName() const { return fileName_; }
+  const Token& token() const { return token_; }
 
   const std::string& message() const { return message_; }
-
-  unsigned line() const { return line_; }
-
-  unsigned column() const { return column_; }
-
-  const SourceLocation& location() const { return location_; }
 };
 
 }  // namespace cxx

@@ -41,13 +41,13 @@ class Semantics final : ASTVisitor {
   template <typename... Args>
   void error(SourceLocation loc, const std::string_view& format,
              const Args&... args) {
-    unit_->report(loc, Severity::Error, format, args...);
+    unit_->error(loc, format, args...);
   }
 
   template <typename... Args>
   void warning(SourceLocation loc, const std::string_view& format,
                const Args&... args) {
-    unit_->report(loc, Severity::Warning, format, args...);
+    unit_->warning(loc, format, args...);
   }
 
   struct ScopeContext {

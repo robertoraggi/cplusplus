@@ -31,14 +31,17 @@
 namespace cxx {
 
 class Token;
+class DiagnosticsClient;
 
 class Preprocessor {
  public:
   Preprocessor(Preprocessor &&) noexcept = default;
   Preprocessor &operator=(Preprocessor &&) noexcept = default;
 
-  explicit Preprocessor(Control *control);
+  explicit Preprocessor(Control *control, DiagnosticsClient *diagnosticsClient);
   ~Preprocessor();
+
+  DiagnosticsClient *diagnosticsClient() const;
 
   void operator()(std::string source, std::string fileName, std::ostream &out);
 
