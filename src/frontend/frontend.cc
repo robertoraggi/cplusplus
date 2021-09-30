@@ -102,24 +102,36 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
 
   std::unique_ptr<Toolchain> toolchain;
 
+  auto toolchainId = cli.getSingle("-toolchain");
+
+  if (!toolchainId) {
 #if defined(__APPLE__)
-  toolchain = std::make_unique<MacOSToolchain>(preprocesor);
+    toolchainId = "darwin";
 #elif defined(__linux__)
-  toolchain = std::make_unique<GCCLinuxToolchain>(preprocesor);
+    toolchainId = "linux";
 #elif defined(_MSC_VER)
-  auto windowsToolchain = std::make_unique<WindowsToolchain>(preprocesor);
-
-  if (auto paths = cli.get("-vctoolsdir"); !paths.empty())
-    windowsToolchain->setVctoolsdir(paths.back());
-
-  if (auto paths = cli.get("-winsdkdir"); !paths.empty())
-    windowsToolchain->setWinsdkdir(paths.back());
-
-  if (auto versions = cli.get("-winsdkversion"); !versions.empty())
-    windowsToolchain->setWinsdkversion(versions.back());
-
-  toolchain = std::move(windowsToolchain);
+    toolchainId = "windows";
 #endif
+  }
+
+  if (toolchainId == "darwin")
+    toolchain = std::make_unique<MacOSToolchain>(preprocesor);
+  else if (toolchainId == "linux")
+    toolchain = std::make_unique<GCCLinuxToolchain>(preprocesor);
+  else if (toolchainId == "windows") {
+    auto windowsToolchain = std::make_unique<WindowsToolchain>(preprocesor);
+
+    if (auto paths = cli.get("-vctoolsdir"); !paths.empty())
+      windowsToolchain->setVctoolsdir(paths.back());
+
+    if (auto paths = cli.get("-winsdkdir"); !paths.empty())
+      windowsToolchain->setWinsdkdir(paths.back());
+
+    if (auto versions = cli.get("-winsdkversion"); !versions.empty())
+      windowsToolchain->setWinsdkversion(versions.back());
+
+    toolchain = std::move(windowsToolchain);
+  }
 
   if (toolchain) {
     if (!cli.opt_nostdinc) toolchain->addSystemIncludePaths();
@@ -131,6 +143,15 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
 
   for (const auto& path : cli.get("-I")) {
     preprocesor->addSystemIncludePath(path);
+  }
+
+  if (cli.opt_v) {
+    fmt::print(std::cerr, "#include <...> search starts here:\n");
+    const auto& paths = preprocesor->systemIncludePaths();
+    for (auto it = rbegin(paths); it != rend(paths); ++it) {
+      fmt::print(std::cerr, " {}\n", it->string());
+    }
+    fmt::print(std::cerr, "End of search list.\n");
   }
 
   for (const auto& macro : cli.get("-D")) {

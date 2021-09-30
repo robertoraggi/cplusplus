@@ -22,6 +22,7 @@
 
 #include <cxx/cxx_fwd.h>
 
+#include <filesystem>
 #include <iosfwd>
 #include <memory>
 #include <string>
@@ -49,6 +50,8 @@ class Preprocessor {
 
   void preprocess(std::string source, std::string fileName,
                   std::vector<Token> &tokens);
+
+  const std::vector<std::filesystem::path> &systemIncludePaths() const;
 
   void addSystemIncludePath(const std::string &path);
 

@@ -88,8 +88,8 @@ template <typename It>
 inline void advance(It& it, int n, It end) {
   if (n > 0) {
     while (it < end && n--) readNext(it, end);
-  } else {
-    throw std::runtime_error("offset not valid");
+  } else if (n < 0) {
+    while (n++) utf8::prior(it, end);
   }
 }
 
@@ -112,7 +112,7 @@ void Lexer::consume(int n) {
 
 uint32_t Lexer::LA(int n) const {
   auto it = pos_;
-  advance(it, n, end_);
+  advance(it, n, n >= 0 ? end_ : source_.begin());
   return it < end_ ? peekNext(it, end_) : 0;
 }
 

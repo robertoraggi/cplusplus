@@ -77,28 +77,29 @@ struct CLIOptionDescr {
 };
 
 std::vector<CLIOptionDescr> options{
-    {"--help", "Display this information.", &CLI::opt_help},
+    {"--help", "Display this information", &CLI::opt_help},
 
     {"-D", "<macro>[=<val>]",
-     "Define a <macro> with <val> as its value.  If just <macro> is given, "
-     "<val> is taken to be 1.",
+     "Define a <macro> with <val> as its value. If just <macro> is given, "
+     "<val> is taken to be 1",
      CLIOptionDescrKind::kSeparated},
 
-    {"-I", "<dir>", "Add <dir> to the end of the main include path.",
+    {"-I", "<dir>", "Add <dir> to the end of the main include path",
      CLIOptionDescrKind::kSeparated},
 
-    {"-L", "This option lacks documentation.", CLIOptionDescrKind::kSeparated},
+    {"-L", "<dir>", "Add <dir> to the end of the library path",
+     CLIOptionDescrKind::kSeparated},
 
-    {"-U", "<macro>", "Undefine <macro>.", CLIOptionDescrKind::kSeparated},
+    {"-U", "<macro>", "Undefine <macro>", CLIOptionDescrKind::kSeparated},
 
-    {"-std", "<standard>", "Assume that the input sources are for <standard>.",
+    {"-std", "<standard>", "Assume that the input sources are for <standard>",
      CLIOptionDescrKind::kJoined},
 
     {"--sysroot", "<directory>",
-     "Use <directory> as the root directory for headers and libraries.",
+     "Use <directory> as the root directory for headers and libraries",
      CLIOptionDescrKind::kJoined},
 
-    {"-E", "Preprocess only; do not compile, assemble or link.", &CLI::opt_E},
+    {"-E", "Preprocess only; do not compile, assemble or link", &CLI::opt_E},
 
     {"-Eonly", "Just run preprocessor, no output (for timings)",
      &CLI::opt_Eonly},
@@ -108,12 +109,12 @@ std::vector<CLIOptionDescr> options{
 
     {"-S", "Only run preprocess and compilation steps", &CLI::opt_S},
 
-    {"-c", "Compile and assemble, but do not link.", &CLI::opt_c},
+    {"-c", "Compile and assemble, but do not link", &CLI::opt_c},
 
-    {"-o", "<file>", "Place output into <file>.",
+    {"-o", "<file>", "Place output into <file>",
      CLIOptionDescrKind::kSeparated},
 
-    {"-x", "specify the language from the compiler driver",
+    {"-x", "Specify the language from the compiler driver",
      CLIOptionDescrKind::kSeparated},
 
     {"-ast-dump", "Build ASTs and then debug dump them", &CLI::opt_ast_dump},
@@ -139,6 +140,13 @@ std::vector<CLIOptionDescr> options{
 
     {"-winsdkversion", "<version>", "Version of the Windows SDK",
      CLIOptionDescrKind::kSeparated},
+
+    {"-toolchain", "<id>",
+     "Set the toolchain to 'linux', 'darwin' or 'windows'",
+     CLIOptionDescrKind::kSeparated},
+
+    {"-v", "Show commands to run and use verbose output", &CLI::opt_v},
+
 };
 
 }  // namespace
@@ -153,6 +161,11 @@ int CLI::count(const std::string& flag) const {
     }
   }
   return n;
+}
+
+std::optional<std::string> CLI::getSingle(const std::string& opt) const {
+  auto value = get(opt);
+  return !value.empty() ? std::optional{value.back()} : std::nullopt;
 }
 
 std::vector<std::string> CLI::get(const std::string& opt) const {

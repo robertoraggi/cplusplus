@@ -1499,6 +1499,11 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
   std::swap(d->currentPath_, path);
 }
 
+const std::vector<std::filesystem::path> &Preprocessor::systemIncludePaths()
+    const {
+  return d->systemIncludePaths_;
+}
+
 void Preprocessor::addSystemIncludePath(const std::string &path) {
   d->systemIncludePaths_.push_back(fs::absolute(path));
 }

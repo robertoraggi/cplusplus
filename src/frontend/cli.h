@@ -61,12 +61,14 @@ class CLI {
   bool opt_nostdincpp = false;
   bool opt_S = false;
   bool opt_c = false;
+  bool opt_v = false;
 
   bool checkTypes() const { return opt_ir_dump || opt_S || opt_c; }
 
   void parse(int& argc, char**& argv);
 
   int count(const std::string& flag) const;
+  std::optional<std::string> getSingle(const std::string& opt) const;
   std::vector<std::string> get(const std::string& opt) const;
   std::vector<std::string> positionals() const;
 

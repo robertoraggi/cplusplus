@@ -76,6 +76,11 @@ void WindowsToolchain::addPredefinedMacros() {
   defineMacro("_WCHAR_T_DEFINED", "1");
   defineMacro("__BOOL_DEFINED", "1");
 
+  defineMacro("__int8", "char");
+  defineMacro("__int16", "short");
+  defineMacro("__int32", "int");
+  defineMacro("__int64", "long long");
+
   defineMacro("__pragma(a)", "");
   defineMacro("__declspec(a)", "");
   defineMacro("__cdecl", "");
