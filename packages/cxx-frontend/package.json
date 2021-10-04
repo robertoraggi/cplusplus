@@ -1,11 +1,15 @@
 {
-  "name": "cxx-frontend",
+  "name": "@robertoraggi/cxx",
   "version": "0.1.0",
   "description": "Frontend for C++ 20",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "copy": "copyfiles -V -f ../../build.em/cxx-js.* dist",
+    "docker": "docker run --rm -v $PWD/../../:/src:Z emscripten/emsdk",
+    "configure:wasm": "npm run docker -- emcmake cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=1 -Bbuild.em .",
+    "build:wasm": "npm run docker -- cmake --build build.em -- -j",
+    "copy:wasm": "copyfiles -V -f ../../build.em/cxx-js.* dist",
+    "prepare": "npm run configure:wasm && npm run build:wasm && npm run copy:wasm && npm run build",
     "build": "tsc",
     "watch": "tsc -w"
   },

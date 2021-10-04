@@ -49,28 +49,17 @@ jobs:
         with:
           submodules: true
 
-      - name: Setup emsdk
-        uses: mymindstorm/setup-emsdk@master
-        with:
-          actions-cache-folder: "emsdk-cache"
-
       - name: Build
         run: |
-          mkdir -p build.em
-          emcmake cmake -Bbuild.em -DCMAKE_BUILD_TYPE=Release -DCMAKE_CROSSCOMPILING_EMULATOR=$(which node) .
-          cmake --build build.em
-
           cd packages/cxx-frontend
-          npm install
-          npm run copy
-          npm run build
+          npm ci
           npm pack
 
       - name: upload artifact
         uses: actions/upload-artifact@v2
         with:
           name: cxx-frontend
-          path: packages/cxx-frontend/cxx-frontend-*.tgz
+          path: packages/cxx-frontend/robertoraggi-cxx-*.tgz
 
   build-macos:
     runs-on: macos-latest

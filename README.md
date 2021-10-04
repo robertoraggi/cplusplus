@@ -27,33 +27,13 @@ echo 'int main() { auto f = []{ return 1; }; return f(); }' |
   ./build/cxx-frontend  -ast-dump -
 ```
 
-## Build the JavaScript library using emscripten
-
-```sh
-# configure cxx-frontend
-emcmake cmake . \
-  -B build.em \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=1 \
-  -DCMAKE_CROSSCOMPILING_EMULATOR=$(which node)
-
-# build cxx-frontend
-cmake --build build.em
-```
-
 ## Build the npm package
 
 ```sh
 cd packages/cxx-frontend
 
-# install the npm dependencies
-npm install
-
-# copy the cxx-js WASM library to the dist folder.
-npm run copy
-
-# compile the source code.
-npm run build
+# prepare the package
+npm ci
 
 # build the package.
 npm pack
@@ -62,7 +42,7 @@ npm pack
 ## Use the JavaScript API
 
 ```js
-const { Parser, RecursiveASTVisitor, ASTKind } = require("cxx-frontend");
+const { Parser, RecursiveASTVisitor, ASTKind } = require("@robertoraggi/cxx");
 
 const source = `
 int fact(int n) {
