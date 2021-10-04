@@ -66,6 +66,14 @@ export abstract class AST {
         return this.handle;
     }
 
+    getStartLocation(): SourceLocation {
+        return cxx.getStartLocation(this.handle, this.parser.getUnitHandle());
+    }
+
+    getEndLocation(): SourceLocation {
+        return cxx.getEndLocation(this.handle, this.parser.getUnitHandle());
+    }
+
     abstract accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result;
 
     static from<T extends AST = AST>(handle: number, parser: Parser): T | undefined {

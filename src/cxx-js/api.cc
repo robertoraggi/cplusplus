@@ -96,7 +96,7 @@ static val getTokenLocation(intptr_t handle, intptr_t unitHandle) {
 
   unsigned endLine = 0, endColumn = 0;
 
-  unit->getTokenEndPosition(loc, &startLine, &startColumn);
+  unit->getTokenEndPosition(loc, &endLine, &endColumn);
 
   val result = val::object();
 
@@ -106,6 +106,16 @@ static val getTokenLocation(intptr_t handle, intptr_t unitHandle) {
   result.set("endColumn", endColumn);
 
   return result;
+}
+
+static val getStartLocation(intptr_t handle, intptr_t unitHandle) {
+  auto ast = (cxx::AST*)handle;
+  return getTokenLocation(ast->firstSourceLocation().index(), unitHandle);
+}
+
+static val getEndLocation(intptr_t handle, intptr_t unitHandle) {
+  auto ast = (cxx::AST*)handle;
+  return getTokenLocation(ast->lastSourceLocation().index(), unitHandle);
 }
 
 static int getASTKind(intptr_t handle) {
@@ -152,4 +162,6 @@ EMSCRIPTEN_BINDINGS(my_module) {
   function("getASTSlot", &getASTSlot);
   function("getTokenText", &getTokenText);
   function("getTokenLocation", &getTokenLocation);
+  function("getStartLocation", &getStartLocation);
+  function("getEndLocation", &getEndLocation);
 }

@@ -53,6 +53,8 @@ export interface CXX {
     getListNext(handle: number): number;
     getTokenText(handle: number, unitHandle: number): string;
     getTokenLocation(handle: number, unitHandle: number): SourceLocation;
+    getStartLocation(handle: number, unitHandle: number): SourceLocation;
+    getEndLocation(handle: number, unitHandle: number): SourceLocation;
 }
 
 export const cxx: CXX = makeCxx();
