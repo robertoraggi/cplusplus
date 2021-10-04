@@ -30,10 +30,8 @@
 
 using namespace emscripten;
 
-struct DiagnosticsClient : cxx::DiagnosticsClient {
-  val& messages;
-
-  explicit DiagnosticsClient(val& messages) : messages(messages) {}
+struct DiagnosticsClient final : cxx::DiagnosticsClient {
+  val messages = val::array();
 
   void report(const cxx::Diagnostic& diag) override {
     std::string_view fileName;
@@ -43,31 +41,42 @@ struct DiagnosticsClient : cxx::DiagnosticsClient {
     preprocessor()->getTokenStartPosition(diag.token(), &line, &column,
                                           &fileName);
 
+    uint32_t endLine = 0;
+    uint32_t endColumn = 0;
+
+    preprocessor()->getTokenEndPosition(diag.token(), &endLine, &endColumn,
+                                        nullptr);
+
     val d = val::object();
     d.set("fileName", val(std::string(fileName)));
-    d.set("line", val(line));
-    d.set("column", val(column));
+    d.set("startLine", val(line));
+    d.set("startColumn", val(column));
+    d.set("endLine", val(endLine));
+    d.set("endColumn", val(endColumn));
     d.set("message", val(diag.message()));
     messages.call<void>("push", d);
   }
 };
 
 struct WrappedUnit {
-  val messages = val::array();
-  DiagnosticsClient diagnosticsClient{messages};
-
   cxx::Control control;
-  cxx::TranslationUnit unit{&control, &diagnosticsClient};
+  std::unique_ptr<DiagnosticsClient> diagnosticsClient;
+  std::unique_ptr<cxx::TranslationUnit> unit;
 
-  WrappedUnit() = default;
+  WrappedUnit(std::string source, std::string filename) {
+    diagnosticsClient = std::make_unique<DiagnosticsClient>();
+    unit = std::make_unique<cxx::TranslationUnit>(&control,
+                                                  diagnosticsClient.get());
+    unit->setSource(std::move(source), std::move(filename));
+  }
 
-  intptr_t getUnitHandle() const { return (intptr_t)&unit; }
+  intptr_t getUnitHandle() const { return (intptr_t)unit.get(); }
 
-  intptr_t getHandle() const { return (intptr_t)unit.ast(); }
+  intptr_t getHandle() const { return (intptr_t)unit->ast(); }
 
-  val getDiagnostics() const { return messages; }
+  val getDiagnostics() const { return diagnosticsClient->messages; }
 
-  bool parse() { return unit.parse(); }
+  bool parse() { return unit->parse(); }
 };
 
 static std::string getTokenText(intptr_t handle, intptr_t unitHandle) {
@@ -124,12 +133,7 @@ static intptr_t getASTSlot(intptr_t handle, int slot) {
 }
 
 static WrappedUnit* createUnit(std::string source, std::string filename) {
-  val messages = val::array();
-
-  auto wrapped = new WrappedUnit();
-
-  DiagnosticsClient diagnosticsClient(messages);
-  wrapped->unit.setSource(std::move(source), filename);
+  auto wrapped = new WrappedUnit(std::move(source), std::move(filename));
 
   return wrapped;
 }

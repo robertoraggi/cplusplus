@@ -23,8 +23,10 @@ import * as makeCxx from "./cxx-js";
 
 export interface Diagnostic {
     fileName: string;
-    line: number;
-    column: number;
+    startLine: number;
+    startColumn: number;
+    endLine: number;
+    endColumn: number;
     message: string;
 }
 

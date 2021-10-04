@@ -226,9 +226,7 @@ struct SourceFile {
   void getTokenStartPosition(unsigned offset, unsigned *line, unsigned *column,
                              std::string_view *fileName) const {
     auto it = std::lower_bound(lines.cbegin(), lines.cend(), int(offset));
-    assert(it != cbegin(lines));
-
-    --it;
+    if (*it != offset) --it;
 
     assert(*it <= int(offset));
 
@@ -238,7 +236,7 @@ struct SourceFile {
       const auto start = cbegin(source) + *it;
       const auto end = cbegin(source) + offset;
 
-      *column = utf8::distance(start, end);
+      *column = utf8::distance(start, end) + 1;
     }
 
     if (fileName) *fileName = this->fileName;
@@ -248,16 +246,16 @@ struct SourceFile {
   void initLineMap() {
     std::size_t offset = 0;
 
-    lines.push_back(-1);
+    lines.push_back(0);
 
     while (offset < source.length()) {
       const auto index = source.find_first_of('\n', offset);
 
       if (index == std::string::npos) break;
 
-      lines.push_back(int(index));
-
       offset = index + 1;
+
+      lines.push_back(int(offset));
     }
   }
 };
@@ -1573,7 +1571,7 @@ std::string_view Preprocessor::getTextLine(const Token &token) const {
   getTokenStartPosition(token, &line, nullptr, nullptr);
   std::string_view source = file->source;
   const auto &lines = file->lines;
-  const auto start = lines.at(line - 1) + 1;
+  const auto start = lines.at(line - 1);
   const auto end = line < lines.size() ? lines.at(line) : source.length();
   return source.substr(start, end - start);
 }

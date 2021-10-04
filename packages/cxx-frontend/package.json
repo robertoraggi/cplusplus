@@ -5,7 +5,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "docker": "docker run --rm -v $PWD/../../:/src:Z emscripten/emsdk",
+    "docker": "docker run $DOCKER_EXTRA_OPTS --rm -v $PWD/../../:/src:Z --user `id -u` emscripten/emsdk",
+    "docker:shell": "DOCKER_EXTRA_OPTS=-it npm run docker",
     "configure:wasm": "npm run docker -- emcmake cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=1 -Bbuild.em .",
     "build:wasm": "npm run docker -- cmake --build build.em -- -j",
     "copy:wasm": "copyfiles -V -f ../../build.em/cxx-js.* dist",
