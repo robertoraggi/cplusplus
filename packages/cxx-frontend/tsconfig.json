@@ -1,7 +1,7 @@
 {
     "compilerOptions": {
-        "module": "commonjs",
-        "target": "ES2017",
+        "module": "ESNext",
+        "target": "ESNext",
         "outDir": "dist",
         "declaration": true,
         "strict": true,
@@ -9,6 +9,6 @@
     },
     "exclude": [
         "node_modules",
-        "dist"
+        "dist",
     ]
 }

@@ -98,10 +98,12 @@ if(EMSCRIPTEN)
 
     target_link_options(cxx-js PUBLIC
         "SHELL:--bind"
-        "SHELL:-s WASM_ASYNC_COMPILATION=0"
+        "SHELL:-s ENVIRONMENT=web"
+        "SHELL:-s WASM_ASYNC_COMPILATION=1"
         "SHELL:-s MODULARIZE=1"
         "SHELL:-s MALLOC=emmalloc"
         "SHELL:-s ALLOW_MEMORY_GROWTH=1"
+        "SHELL:--extern-post-js ${CMAKE_CURRENT_SOURCE_DIR}/src/cxx-js/suffix.js"
     )
 
 endif()

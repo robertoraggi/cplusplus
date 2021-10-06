@@ -42,7 +42,27 @@ npm pack
 ## Use the JavaScript API
 
 ```js
-const { Parser, RecursiveASTVisitor, ASTKind } = require("@robertoraggi/cxx");
+import { Parser, RecursiveASTVisitor, ASTKind } from "@robertoraggi/cxx";
+import { readFile } from "fs/promises";
+import { fileURLToPath } from "url";
+
+class DumpAST extends RecursiveASTVisitor {
+  depth = 0;
+
+  accept(ast) {
+    if (ast) {
+      const name = ASTKind[ast.getKind()];
+
+      console.log(`${" ".repeat(this.depth * 2)}${name}`);
+
+      ++this.depth;
+
+      super.accept(ast);
+
+      --this.depth;
+    }
+  }
+}
 
 const source = `
 int fact(int n) {
@@ -55,31 +75,28 @@ int main() {
 }
 `;
 
-const parser = new Parser({ source, path: "fact.cc" });
+async function main() {
+  const wasmBinaryFile = fileURLToPath(Parser.DEFAULT_WASM_BINARY_URL);
 
-parser.parse();
+  const wasmBinary = await readFile(wasmBinaryFile);
 
-const diagnostics = parser.getDiagnostics();
+  // initialize the parser
+  await Parser.init({ wasmBinary });
 
-if (diagnostics.length > 0) {
-  console.log("diagnostics", diagnostics);
-}
+  const parser = new Parser({ source, path: "fact.cc" });
 
-class DumpAST extends RecursiveASTVisitor {
-  depth = 0;
+  parser.parse();
 
-  accept(ast) {
-    if (ast) {
-      const name = ASTKind[ast.getKind()];
-      console.log(`${" ".repeat(this.depth * 2)}${name}`);
-      ++this.depth;
-      super.accept(ast);
-      --this.depth;
-    }
+  const diagnostics = parser.getDiagnostics();
+
+  if (diagnostics.length > 0) {
+    console.log("diagnostics", diagnostics);
   }
+
+  new DumpAST().accept(parser.getAST());
+
+  parser.dispose();
 }
 
-parser.getAST().accept(new DumpAST());
-
-parser.dispose();
+main().catch(console.error);
 ```

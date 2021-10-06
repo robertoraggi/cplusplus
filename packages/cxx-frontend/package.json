@@ -4,6 +4,7 @@
   "description": "Frontend for C++ 20",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "type": "module",
   "scripts": {
     "docker": "docker run $DOCKER_EXTRA_OPTS --rm -v $PWD/../../:/src:Z --user `id -u` emscripten/emsdk",
     "docker:shell": "DOCKER_EXTRA_OPTS=-it npm run docker",
@@ -11,6 +12,7 @@
     "build:wasm": "npm run docker -- cmake --build build.em -- -j",
     "copy:wasm": "copyfiles -V -f ../../build.em/cxx-js.* dist",
     "prepare": "npm run configure:wasm && npm run build:wasm && npm run copy:wasm && npm run build",
+    "prepack": "copyfiles -V -f ../../README.md .",
     "build": "tsc",
     "watch": "tsc -w"
   },

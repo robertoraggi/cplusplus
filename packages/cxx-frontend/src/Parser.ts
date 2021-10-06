@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { cxx, Unit } from "./cxx";
-import { AST } from "./AST";
+import initCxx, { cxx, Unit } from "./cxx.js";
+import { AST } from "./AST.js";
 
 interface ParseParams {
     /**
@@ -36,6 +36,12 @@ interface ParseParams {
 export class Parser {
     private unit: Unit | undefined;
     private m_ast: AST | undefined;
+
+    static DEFAULT_WASM_BINARY_URL = new URL("./cxx-js.wasm", import.meta.url);
+
+    static async init({ wasmBinary }: { wasmBinary: Uint8Array }) {
+        return await initCxx({ wasmBinary });
+    }
 
     constructor(private options: ParseParams) {
         const { path, source } = this.options;

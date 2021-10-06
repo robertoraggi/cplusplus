@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 //@ts-ignore
-import * as makeCxx from "./cxx-js";
+import makeCxx from "./cxx-js.js";
 
 export interface Diagnostic {
     fileName: string;
@@ -57,4 +57,9 @@ export interface CXX {
     getEndLocation(handle: number, unitHandle: number): SourceLocation;
 }
 
-export const cxx: CXX = makeCxx();
+export let cxx!: CXX
+
+export default async ({ wasmBinary }: { wasmBinary: Uint8Array }) => {
+    cxx = await makeCxx({ wasmBinary });
+    return cxx;
+}

@@ -18,10 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { cxx, SourceLocation } from "./cxx";
-import { ASTVisitor } from "./ASTVisitor";
-import { ASTKind } from "./ASTKind";
-import { Parser } from "./Parser";
+import { cxx, SourceLocation } from "./cxx.js";
+import { ASTVisitor } from "./ASTVisitor.js";
+import { ASTKind } from "./ASTKind.js";
+import { Parser } from "./Parser.js";
 
 export class Token {
     constructor(private readonly handle: number, private readonly parser: Parser) {
@@ -46,8 +46,8 @@ export class Token {
 
 export abstract class AST {
     constructor(private readonly handle: number,
-                private readonly kind: ASTKind,
-                protected readonly parser: Parser) {
+        private readonly kind: ASTKind,
+        protected readonly parser: Parser) {
     }
 
     getKind(): ASTKind {

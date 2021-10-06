@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-export * from "./AST";
-export * from "./ASTKind";
-export * from "./ASTVisitor";
-export * from "./RecursiveASTVisitor";
-export * from "./Parser";
+export * from "./AST.js";
+export * from "./ASTKind.js";
+export * from "./ASTVisitor.js";
+export * from "./RecursiveASTVisitor.js";
+export * from "./Parser.js";
