@@ -354,6 +354,7 @@ struct Preprocessor::Private {
 
   const Hideset *makeUnion(const Hideset *hs, const std::string_view &name) {
     if (!hs) return get(std::set<std::string_view>{name});
+    if (hs->names().contains(name)) return hs;
     auto names = hs->names();
     names.insert(name);
     return get(std::move(names));
@@ -362,6 +363,7 @@ struct Preprocessor::Private {
   const Hideset *makeUnion(const Hideset *hs, const Hideset *other) {
     if (!other) return hs;
     if (!hs) return other;
+    if (other == hs) return hs;
 
     std::set<std::string_view> names;
 
@@ -372,8 +374,8 @@ struct Preprocessor::Private {
   }
 
   const Hideset *makeIntersection(const Hideset *hs, const Hideset *other) {
-    if (!other) return hs;
-    if (!hs) return other;
+    if (!other || !hs) return nullptr;
+    if (other == hs) return hs;
 
     std::set<std::string_view> names;
 
