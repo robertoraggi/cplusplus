@@ -634,23 +634,46 @@ void Preprocessor::Private::expand(
         auto dirpath = *path;
         dirpath.remove_filename();
         std::swap(currentPath_, dirpath);
-        const int sourceFileId = int(sourceFiles_.size() + 1);
-        auto &sourceFile =
-            *sourceFiles_.emplace_back(std::make_unique<SourceFile>(
-                path->string(), readFile(*path), sourceFileId));
-        auto tokens = tokenize(sourceFile.source, sourceFileId, true);
-        sourceFile.tokens = tokens;
-        if (checkPragmaOnceProtected(tokens)) {
-          pragmaOnceProtected_.insert(fn);
+
+        SourceFile *sourceFile = nullptr;
+
+        auto fileName = path->string();
+
+        for (const auto &source : sourceFiles_) {
+          if (source->fileName == fileName) {
+            sourceFile = source.get();
+            break;
+          }
         }
-        auto prot = checkHeaderProtection(tokens);
+
+        if (!sourceFile) {
+          const int sourceFileId = int(sourceFiles_.size() + 1);
+
+          sourceFile = sourceFiles_
+                           .emplace_back(std::make_unique<SourceFile>(
+                               path->string(), readFile(*path), sourceFileId))
+                           .get();
+
+          sourceFile->tokens =
+              tokenize(sourceFile->source, sourceFile->id, true);
+
+          if (checkPragmaOnceProtected(sourceFile->tokens)) {
+            pragmaOnceProtected_.insert(fn);
+          }
+        }
+
+        const auto prot = checkHeaderProtection(sourceFile->tokens);
+
         if (prot) ifndefProtectedFiles_.emplace(fn, prot->head->text);
-        expand(tokens, /*directives=*/true, emitToken);
+
+        expand(sourceFile->tokens, /*directives=*/true, emitToken);
+
         if (prot && macros_.find(prot->head->text) == macros_.end()) {
           auto it = ifndefProtectedFiles_.find(std::string(prot->head->text));
           if (it != ifndefProtectedFiles_.end())
             ifndefProtectedFiles_.erase(it);
         }
+
         std::swap(currentPath_, dirpath);
         ts = skipLine(directive);
       } else if (matchId(ts, "ifdef")) {
