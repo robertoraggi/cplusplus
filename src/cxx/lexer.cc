@@ -492,6 +492,7 @@ bool Lexer::skipSpaces() {
         }
       }
     } else if (pos_ + 1 < end_ && ch == '/' && LA(1) == '*') {
+      consume(2);
       while (pos_ != end_) {
         if (pos_ + 1 < end_ && LA() == '*' && LA(1) == '/') {
           consume(2);
