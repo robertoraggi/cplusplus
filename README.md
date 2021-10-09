@@ -35,7 +35,10 @@ cd packages/cxx-frontend
 # prepare the package
 npm ci
 
-# build the package.
+# compile WASM and TypeScript code
+npm run build
+
+# build the package
 npm pack
 ```
 

@@ -53,6 +53,7 @@ jobs:
         run: |
           cd packages/cxx-frontend
           npm ci
+          npm run build
           npm pack
 
       - name: upload artifact

@@ -6,15 +6,16 @@
   "types": "dist/dts/index.d.ts",
   "type": "module",
   "scripts": {
+    "build": "npm run configure:wasm && npm run build:wasm && npm run copy:wasm && npm run build:ts",
+    "build:ts": "rollup -c",
+    "watch:ts": "rollup -c --watch",
+    "prepack": "npm run copy:readme",
     "docker": "docker run $DOCKER_EXTRA_OPTS --rm -v $PWD/../../:/src:Z --user `id -u` emscripten/emsdk",
     "docker:shell": "DOCKER_EXTRA_OPTS=-it npm run docker",
     "configure:wasm": "npm run docker -- emcmake cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=1 -Bbuild.em .",
     "build:wasm": "npm run docker -- cmake --build build.em -- -j",
     "copy:wasm": "copyfiles -V -f ../../build.em/cxx-js.js src && copyfiles -V -f ../../build.em/cxx-js.wasm dist",
-    "prepare": "npm run configure:wasm && npm run build:wasm && npm run copy:wasm && npm run build",
-    "prepack": "copyfiles -V -f ../../README.md .",
-    "build": "rollup -c",
-    "watch": "rollup -c --watch"
+    "copy:readme": "copyfiles -V -f ../../README.md ."
   },
   "keywords": [],
   "author": "Roberto Raggi",
