@@ -11,4 +11,14 @@ jobs:
         with:
           release-type: simple
           package-name: cplusplus
-          
+
+  release-please-node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: GoogleCloudPlatform/release-please-action@v2
+        with:
+          release-type: node
+          package-name: cxx-frontend-node
+          path: packages/cxx-frontend
+          pull-request-title-pattern: "chore${scope}: release${component} node bindings ${version}"
+          monorepo-tags: true
