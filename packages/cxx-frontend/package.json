@@ -1,7 +1,7 @@
 {
   "name": "cxx-frontend",
   "version": "1.0.0",
-  "description": "Frontend for C++ 20",
+  "description": "A compiler front end for the C++ language",
   "main": "dist/cxx-frontend.js",
   "types": "dist/dts/index.d.ts",
   "type": "module",
@@ -17,12 +17,23 @@
     "copy:wasm": "copyfiles -V -f ../../build.em/cxx-js.js src && copyfiles -V -f ../../build.em/cxx-js.wasm dist",
     "copy:readme": "copyfiles -V -f ../../README.md ."
   },
-  "keywords": [],
-  "author": "Roberto Raggi",
+  "keywords": [
+    "c++",
+    "compiler",
+    "parser",
+    "syntax"
+  ],
+  "author": {
+    "name": "Roberto Raggi",
+    "email": "roberto.raggi@gmail.com"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/robertoraggi/cplusplus"
+  },
+  "bugs": {
+    "url": "https://github.com/robertoraggi/cplusplus/issues"
   },
   "devDependencies": {
     "@rollup/plugin-typescript": "^8.2.5",
