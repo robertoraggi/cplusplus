@@ -2,13 +2,14 @@
     "compilerOptions": {
         "module": "ESNext",
         "target": "ESNext",
-        "outDir": "dist",
+        "outDir": "dist/esm",
+        "declarationDir": "dts",
         "declaration": true,
         "strict": true,
         "sourceMap": true
     },
     "exclude": [
         "node_modules",
-        "dist",
+        "dist"
     ]
 }

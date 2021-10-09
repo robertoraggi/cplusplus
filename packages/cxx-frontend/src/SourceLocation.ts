@@ -18,26 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//@ts-ignore
-import makeCxx from "./cxx-js";
-import { SourceLocation } from "./SourceLocation";
-import { Unit } from "./Unit";
-
-export interface CXX {
-    createUnit(source: string, path: string): Unit;
-    getASTKind(handle: number): number;
-    getASTSlot(handle: number, slot: number): number;
-    getListValue(handle: number): number;
-    getListNext(handle: number): number;
-    getTokenText(handle: number, unitHandle: number): string;
-    getTokenLocation(handle: number, unitHandle: number): SourceLocation;
-    getStartLocation(handle: number, unitHandle: number): SourceLocation;
-    getEndLocation(handle: number, unitHandle: number): SourceLocation;
-}
-
-export let cxx!: CXX
-
-export default async ({ wasmBinary }: { wasmBinary: Uint8Array }) => {
-    cxx = await makeCxx({ wasmBinary });
-    return cxx;
+export interface SourceLocation {
+    startLine: number;
+    startColumn: number;
+    endLine: number;
+    endColumn: number;
 }

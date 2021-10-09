@@ -103,6 +103,7 @@ if(EMSCRIPTEN)
         "SHELL:-s MODULARIZE=1"
         "SHELL:-s MALLOC=emmalloc"
         "SHELL:-s ALLOW_MEMORY_GROWTH=1"
+        "SHELL:-s FILESYSTEM=0"
         "SHELL:--extern-post-js ${CMAKE_CURRENT_SOURCE_DIR}/src/cxx-js/suffix.js"
     )
 

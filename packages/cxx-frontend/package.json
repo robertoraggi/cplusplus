@@ -1,20 +1,20 @@
 {
-  "name": "@robertoraggi/cxx",
+  "name": "cxx-frontend",
   "version": "0.1.0",
   "description": "Frontend for C++ 20",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/cxx-frontend.js",
+  "types": "dist/dts/index.d.ts",
   "type": "module",
   "scripts": {
     "docker": "docker run $DOCKER_EXTRA_OPTS --rm -v $PWD/../../:/src:Z --user `id -u` emscripten/emsdk",
     "docker:shell": "DOCKER_EXTRA_OPTS=-it npm run docker",
     "configure:wasm": "npm run docker -- emcmake cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=1 -Bbuild.em .",
     "build:wasm": "npm run docker -- cmake --build build.em -- -j",
-    "copy:wasm": "copyfiles -V -f ../../build.em/cxx-js.* dist",
+    "copy:wasm": "copyfiles -V -f ../../build.em/cxx-js.js src && copyfiles -V -f ../../build.em/cxx-js.wasm dist",
     "prepare": "npm run configure:wasm && npm run build:wasm && npm run copy:wasm && npm run build",
     "prepack": "copyfiles -V -f ../../README.md .",
-    "build": "tsc",
-    "watch": "tsc -w"
+    "build": "rollup -c",
+    "watch": "rollup -c --watch"
   },
   "keywords": [],
   "author": "Roberto Raggi",
@@ -24,8 +24,12 @@
     "url": "https://github.com/robertoraggi/cplusplus"
   },
   "devDependencies": {
+    "@rollup/plugin-typescript": "^8.2.5",
     "@types/node": "^16.10.1",
     "copyfiles": "^2.4.1",
+    "rollup": "^2.58.0",
+    "rollup-plugin-terser": "^7.0.2",
+    "tslib": "^2.3.1",
     "typescript": "^4.4.3"
   }
 }

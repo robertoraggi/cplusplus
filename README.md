@@ -42,7 +42,7 @@ npm pack
 ## Use the JavaScript API
 
 ```js
-import { Parser, RecursiveASTVisitor, ASTKind } from "@robertoraggi/cxx";
+import { Parser, RecursiveASTVisitor, ASTKind } from "cxx-frontend";
 import { readFile } from "fs/promises";
 import { fileURLToPath } from "url";
 

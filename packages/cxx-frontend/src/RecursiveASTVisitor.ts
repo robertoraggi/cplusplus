@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import * as ast from "./AST.js";
-import { ASTVisitor } from "./ASTVisitor.js";
+import * as ast from "./AST";
+import { ASTVisitor } from "./ASTVisitor";
 
 export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     constructor() {
@@ -32,14 +32,14 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitTypeId(node: ast.TypeIdAST, context: Context): void {
         for (const element of node.getTypeSpecifierList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
         this.accept(node.getDeclarator(), context);
     }
 
     visitNestedNameSpecifier(node: ast.NestedNameSpecifierAST, context: Context): void {
         for (const element of node.getNameList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
@@ -55,25 +55,25 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitEnumBase(node: ast.EnumBaseAST, context: Context): void {
         for (const element of node.getTypeSpecifierList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
     visitEnumerator(node: ast.EnumeratorAST, context: Context): void {
         this.accept(node.getName(), context);
         for (const element of node.getAttributeList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
         this.accept(node.getExpression(), context);
     }
 
     visitDeclarator(node: ast.DeclaratorAST, context: Context): void {
         for (const element of node.getPtrOpList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
         this.accept(node.getCoreDeclarator(), context);
         for (const element of node.getModifiers()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
@@ -84,52 +84,52 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitBaseSpecifier(node: ast.BaseSpecifierAST, context: Context): void {
         for (const element of node.getAttributeList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
         this.accept(node.getName(), context);
     }
 
     visitBaseClause(node: ast.BaseClauseAST, context: Context): void {
         for (const element of node.getBaseSpecifierList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
     visitNewTypeId(node: ast.NewTypeIdAST, context: Context): void {
         for (const element of node.getTypeSpecifierList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
     visitParameterDeclarationClause(node: ast.ParameterDeclarationClauseAST, context: Context): void {
         for (const element of node.getParameterDeclarationList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
     visitParametersAndQualifiers(node: ast.ParametersAndQualifiersAST, context: Context): void {
         this.accept(node.getParameterDeclarationClause(), context);
         for (const element of node.getCvQualifierList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
         for (const element of node.getAttributeList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
     visitLambdaIntroducer(node: ast.LambdaIntroducerAST, context: Context): void {
         for (const element of node.getCaptureList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
     visitLambdaDeclarator(node: ast.LambdaDeclaratorAST, context: Context): void {
         this.accept(node.getParameterDeclarationClause(), context);
         for (const element of node.getDeclSpecifierList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
         for (const element of node.getAttributeList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
         this.accept(node.getTrailingReturnType(), context);
     }
@@ -140,7 +140,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitCtorInitializer(node: ast.CtorInitializerAST, context: Context): void {
         for (const element of node.getMemInitializerList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
@@ -155,7 +155,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     visitParenMemInitializer(node: ast.ParenMemInitializerAST, context: Context): void {
         this.accept(node.getName(), context);
         for (const element of node.getExpressionList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
@@ -190,19 +190,19 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitBracedInitList(node: ast.BracedInitListAST, context: Context): void {
         for (const element of node.getExpressionList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
     visitParenInitializer(node: ast.ParenInitializerAST, context: Context): void {
         for (const element of node.getExpressionList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
     visitNewParenInitializer(node: ast.NewParenInitializerAST, context: Context): void {
         for (const element of node.getExpressionList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
@@ -215,10 +215,10 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitTypeExceptionDeclaration(node: ast.TypeExceptionDeclarationAST, context: Context): void {
         for (const element of node.getAttributeList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
         for (const element of node.getTypeSpecifierList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
         this.accept(node.getDeclarator(), context);
     }
@@ -235,7 +235,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         this.accept(node.getCtorInitializer(), context);
         this.accept(node.getStatement(), context);
         for (const element of node.getHandlerList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
@@ -244,7 +244,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitTranslationUnit(node: ast.TranslationUnitAST, context: Context): void {
         for (const element of node.getDeclarationList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
@@ -299,7 +299,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     visitLambdaExpression(node: ast.LambdaExpressionAST, context: Context): void {
         this.accept(node.getLambdaIntroducer(), context);
         for (const element of node.getTemplateParameterList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
         this.accept(node.getLambdaDeclarator(), context);
         this.accept(node.getStatement(), context);
@@ -350,14 +350,14 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     visitTypeConstruction(node: ast.TypeConstructionAST, context: Context): void {
         this.accept(node.getTypeSpecifier(), context);
         for (const element of node.getExpressionList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
     visitCallExpression(node: ast.CallExpressionAST, context: Context): void {
         this.accept(node.getBaseExpression(), context);
         for (const element of node.getExpressionList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
@@ -431,7 +431,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitCompoundStatement(node: ast.CompoundStatementAST, context: Context): void {
         for (const element of node.getStatementList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
@@ -496,7 +496,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     visitTryBlockStatement(node: ast.TryBlockStatementAST, context: Context): void {
         this.accept(node.getStatement(), context);
         for (const element of node.getHandlerList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
@@ -505,10 +505,10 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitFunctionDefinition(node: ast.FunctionDefinitionAST, context: Context): void {
         for (const element of node.getAttributeList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
         for (const element of node.getDeclSpecifierList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
         this.accept(node.getDeclarator(), context);
         this.accept(node.getFunctionBody(), context);
@@ -524,20 +524,20 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitAliasDeclaration(node: ast.AliasDeclarationAST, context: Context): void {
         for (const element of node.getAttributeList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
         this.accept(node.getTypeId(), context);
     }
 
     visitSimpleDeclaration(node: ast.SimpleDeclarationAST, context: Context): void {
         for (const element of node.getAttributeList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
         for (const element of node.getDeclSpecifierList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
         for (const element of node.getInitDeclaratorList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
@@ -550,13 +550,13 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitAttributeDeclaration(node: ast.AttributeDeclarationAST, context: Context): void {
         for (const element of node.getAttributeList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
     visitOpaqueEnumDeclaration(node: ast.OpaqueEnumDeclarationAST, context: Context): void {
         for (const element of node.getAttributeList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
         this.accept(node.getNestedNameSpecifier(), context);
         this.accept(node.getName(), context);
@@ -568,15 +568,15 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitNamespaceDefinition(node: ast.NamespaceDefinitionAST, context: Context): void {
         for (const element of node.getAttributeList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
         this.accept(node.getNestedNameSpecifier(), context);
         this.accept(node.getName(), context);
         for (const element of node.getExtraAttributeList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
         for (const element of node.getDeclarationList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
@@ -590,13 +590,13 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitUsingDeclaration(node: ast.UsingDeclarationAST, context: Context): void {
         for (const element of node.getUsingDeclaratorList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
     visitAsmDeclaration(node: ast.AsmDeclarationAST, context: Context): void {
         for (const element of node.getAttributeList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
@@ -608,7 +608,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitTemplateDeclaration(node: ast.TemplateDeclarationAST, context: Context): void {
         for (const element of node.getTemplateParameterList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
         this.accept(node.getDeclaration(), context);
     }
@@ -622,14 +622,14 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitTemplateTypeParameter(node: ast.TemplateTypeParameterAST, context: Context): void {
         for (const element of node.getTemplateParameterList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
         this.accept(node.getName(), context);
     }
 
     visitTemplatePackTypeParameter(node: ast.TemplatePackTypeParameterAST, context: Context): void {
         for (const element of node.getTemplateParameterList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
@@ -642,10 +642,10 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitParameterDeclaration(node: ast.ParameterDeclarationAST, context: Context): void {
         for (const element of node.getAttributeList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
         for (const element of node.getTypeSpecifierList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
         this.accept(node.getDeclarator(), context);
         this.accept(node.getExpression(), context);
@@ -653,7 +653,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitLinkageSpecification(node: ast.LinkageSpecificationAST, context: Context): void {
         for (const element of node.getDeclarationList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
@@ -678,7 +678,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     visitTemplateName(node: ast.TemplateNameAST, context: Context): void {
         this.accept(node.getId(), context);
         for (const element of node.getTemplateArgumentList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
@@ -758,7 +758,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitElaboratedTypeSpecifier(node: ast.ElaboratedTypeSpecifierAST, context: Context): void {
         for (const element of node.getAttributeList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
         this.accept(node.getNestedNameSpecifier(), context);
         this.accept(node.getName(), context);
@@ -789,24 +789,24 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitEnumSpecifier(node: ast.EnumSpecifierAST, context: Context): void {
         for (const element of node.getAttributeList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
         this.accept(node.getNestedNameSpecifier(), context);
         this.accept(node.getName(), context);
         this.accept(node.getEnumBase(), context);
         for (const element of node.getEnumeratorList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
     visitClassSpecifier(node: ast.ClassSpecifierAST, context: Context): void {
         for (const element of node.getAttributeList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
         this.accept(node.getName(), context);
         this.accept(node.getBaseClause(), context);
         for (const element of node.getDeclarationList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
@@ -818,7 +818,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     visitIdDeclarator(node: ast.IdDeclaratorAST, context: Context): void {
         this.accept(node.getName(), context);
         for (const element of node.getAttributeList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
@@ -828,26 +828,26 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitPointerOperator(node: ast.PointerOperatorAST, context: Context): void {
         for (const element of node.getAttributeList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
         for (const element of node.getCvQualifierList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
     visitReferenceOperator(node: ast.ReferenceOperatorAST, context: Context): void {
         for (const element of node.getAttributeList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
     visitPtrToMemberOperator(node: ast.PtrToMemberOperatorAST, context: Context): void {
         this.accept(node.getNestedNameSpecifier(), context);
         for (const element of node.getAttributeList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
         for (const element of node.getCvQualifierList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 
@@ -859,7 +859,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     visitArrayDeclarator(node: ast.ArrayDeclaratorAST, context: Context): void {
         this.accept(node.getExpression(), context);
         for (const element of node.getAttributeList()) {
-             this.accept(element, context);
+            this.accept(element, context);
         }
     }
 }

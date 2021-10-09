@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import * as ast from "./AST.js";
+import * as ast from "./AST";
 
 
 export abstract class ASTVisitor<Context, Result> {
