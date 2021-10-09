@@ -42,25 +42,35 @@ npm pack
 ## Use the JavaScript API
 
 ```js
+//
+// fact.mjs
+//
+
 import { Parser, RecursiveASTVisitor, ASTKind } from "cxx-frontend";
 import { readFile } from "fs/promises";
 import { fileURLToPath } from "url";
 
 class DumpAST extends RecursiveASTVisitor {
-  depth = 0;
+  #stack = [];
 
-  accept(ast) {
-    if (ast) {
-      const name = ASTKind[ast.getKind()];
+  accept(node) {
+    if (!node) return;
 
-      console.log(`${" ".repeat(this.depth * 2)}${name}`);
+    const nodeKind = ASTKind[node.getKind()];
 
-      ++this.depth;
+    const entry = [nodeKind];
 
-      super.accept(ast);
+    const parentNode = this.#stack.slice(-1)[0];
 
-      --this.depth;
-    }
+    parentNode?.push(entry);
+
+    this.#stack.push(entry);
+
+    super.accept(node);
+
+    this.#stack.pop();
+
+    return entry;
   }
 }
 
@@ -93,9 +103,13 @@ async function main() {
     console.log("diagnostics", diagnostics);
   }
 
-  new DumpAST().accept(parser.getAST());
+  const ast = parser.getAST();
+
+  const tree = new DumpAST().accept(ast);
 
   parser.dispose();
+
+  console.log(tree);
 }
 
 main().catch(console.error);
