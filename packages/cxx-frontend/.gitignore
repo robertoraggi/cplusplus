@@ -3,3 +3,4 @@ out
 node_modules
 *.tgz
 README.md
+src/cxx-js.js
