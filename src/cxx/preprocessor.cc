@@ -99,16 +99,84 @@ using Include = std::variant<std::monostate, SystemInclude, QuoteInclude>;
 }  // namespace
 
 template <>
+struct std::less<Hideset> {
+  using is_transparent = void;
+
+  bool operator()(const Hideset &hideset, const Hideset &other) const {
+    return hideset.names() < other.names();
+  }
+
+  bool operator()(const Hideset &hideset,
+                  const std::set<std::string_view> &names) const {
+    return hideset.names() < names;
+  }
+
+  bool operator()(const std::set<std::string_view> &names,
+                  const Hideset &hideset) const {
+    return hideset.names() < names;
+  }
+
+  bool operator()(const Hideset &hideset, const std::string_view &name) const {
+    return std::lexicographical_compare(begin(hideset.names()),
+                                        end(hideset.names()), &name, &name + 1);
+  }
+
+  bool operator()(const std::string_view &name, const Hideset &hideset) const {
+    return std::lexicographical_compare(
+        &name, &name + 1, begin(hideset.names()), end(hideset.names()));
+  }
+};
+
+template <>
 struct std::hash<Hideset> {
+  using is_transparent = void;
+
   template <typename T>
   void hash_combine(std::size_t &seed, const T &val) const {
     seed ^= std::hash<T>()(val) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
   }
 
   std::size_t operator()(const Hideset &hideset) const {
+    return operator()(hideset.names());
+  }
+
+  std::size_t operator()(const std::set<std::string_view> &names) const {
     std::size_t seed = 0;
-    for (const auto &name : hideset.names()) hash_combine(seed, name);
+    for (const auto &name : names) hash_combine(seed, name);
     return seed;
+  }
+
+  std::size_t operator()(const std::string_view &name) const {
+    std::size_t seed = 0;
+    hash_combine(seed, name);
+    return seed;
+  }
+};
+
+template <>
+struct std::equal_to<Hideset> {
+  using is_transparent = void;
+
+  bool operator()(const Hideset &hideset, const Hideset &other) const {
+    return hideset.names() == other.names();
+  }
+
+  bool operator()(const Hideset &hideset,
+                  const std::set<std::string_view> &names) const {
+    return hideset.names() == names;
+  }
+
+  bool operator()(const std::set<std::string_view> &names,
+                  const Hideset &hideset) const {
+    return hideset.names() == names;
+  }
+
+  bool operator()(const Hideset &hideset, const std::string_view &name) const {
+    return hideset.names().size() == 1 && *hideset.names().begin() == name;
+  }
+
+  bool operator()(const std::string_view &name, const Hideset &hideset) const {
+    return hideset.names().size() == 1 && *hideset.names().begin() == name;
   }
 };
 
@@ -268,7 +336,7 @@ struct Preprocessor::Private {
   std::vector<fs::path> systemIncludePaths_;
   std::vector<fs::path> quoteIncludePaths_;
   std::unordered_map<std::string_view, Macro> macros_;
-  std::unordered_set<Hideset> hidesets;
+  std::set<Hideset> hidesets;
   std::forward_list<std::string> scratchBuffer_;
   std::unordered_set<std::string> pragmaOnceProtected_;
   std::unordered_map<std::string, std::string> ifndefProtectedFiles_;
@@ -353,7 +421,7 @@ struct Preprocessor::Private {
   }
 
   const Hideset *makeUnion(const Hideset *hs, const std::string_view &name) {
-    if (!hs) return get(std::set<std::string_view>{name});
+    if (!hs) return get(name);
     if (hs->names().contains(name)) return hs;
     auto names = hs->names();
     names.insert(name);
@@ -373,9 +441,15 @@ struct Preprocessor::Private {
     return get(std::move(names));
   }
 
-  const Hideset *get(std::set<std::string_view> name) {
-    if (name.empty()) return nullptr;
-    return &*hidesets.emplace(name).first;
+  const Hideset *get(std::set<std::string_view> names) {
+    if (names.empty()) return nullptr;
+    if (auto it = hidesets.find(names); it != hidesets.end()) return &*it;
+    return &*hidesets.emplace(std::move(names)).first;
+  }
+
+  const Hideset *get(const std::string_view &name) {
+    if (auto it = hidesets.find(name); it != hidesets.end()) return &*it;
+    return &*hidesets.emplace(std::set{name}).first;
   }
 
   std::string readFile(const fs::path &file) const {
