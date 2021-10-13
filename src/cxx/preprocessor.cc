@@ -360,19 +360,6 @@ struct Preprocessor::Private {
     return get(std::move(names));
   }
 
-  const Hideset *makeUnion(const Hideset *hs, const Hideset *other) {
-    if (!other) return hs;
-    if (!hs) return other;
-    if (other == hs) return hs;
-
-    std::set<std::string_view> names;
-
-    std::set_union(begin(hs->names()), end(hs->names()), begin(other->names()),
-                   end(other->names()), std::inserter(names, names.begin()));
-
-    return get(std::move(names));
-  }
-
   const Hideset *makeIntersection(const Hideset *hs, const Hideset *other) {
     if (!other || !hs) return nullptr;
     if (other == hs) return hs;
@@ -480,8 +467,6 @@ struct Preprocessor::Private {
                             const std::vector<const TokList *> &actuals,
                             const Hideset *hideset, const TokList *os);
 
-  const TokList *glue(const TokList *ls, const TokList *rs);
-
   const Tok *merge(const Tok *left, const Tok *right);
 
   const Tok *stringize(const TokList *ts);
@@ -513,15 +498,14 @@ struct Preprocessor::Private {
   void printLine(const TokList *ts, std::ostream &out) const;
 };
 
-static const TokList *concat(Arena *pool, const TokList *ls,
-                             const TokList *rs) {
-  if (!ls) return rs;
-  if (!rs) return ls;
-  return new (pool) TokList(ls->head, concat(pool, ls->tail, rs));
+static const TokList *clone(Arena *pool, const TokList *ts) {
+  if (!ts) return nullptr;
+  return new (pool) TokList(ts->head, clone(pool, ts->tail));
 }
 
-static const TokList *concat(Arena *pool, const TokList *ts, const Tok *t) {
-  return concat(pool, ts, new (pool) TokList(t));
+static int depth(const TokList *ts) {
+  if (!ts) return 0;
+  return depth(ts->tail) + 1;
 }
 
 const TokList *Preprocessor::Private::tokenize(const std::string_view &source,
@@ -807,11 +791,12 @@ const TokList *Preprocessor::Private::expandOne(
         const_cast<Tok *>(expanded->head)->space = tk->space;
         const_cast<Tok *>(expanded->head)->bol = tk->bol;
       }
-      return concat(&pool_, expanded, ts->tail);
-    }
-
-    if (!macro->objLike && ts->tail &&
-        ts->tail->head->is(TokenKind::T_LPAREN)) {
+      if (!expanded) return ts->tail;
+      auto it = expanded;
+      while (it->tail) it = it->tail;
+      const_cast<TokList *>(it)->tail = ts->tail;
+      return expanded;
+    } else if (ts->tail && ts->tail->head->is(TokenKind::T_LPAREN)) {
       auto [args, p, hideset] = readArguments(ts, macro);
       auto hs = makeUnion(makeIntersection(tk->hideset, hideset), tk->text);
       auto expanded = substitude(macro->body, macro, args, hs, nullptr);
@@ -819,7 +804,11 @@ const TokList *Preprocessor::Private::expandOne(
         const_cast<Tok *>(expanded->head)->space = tk->space;
         const_cast<Tok *>(expanded->head)->bol = tk->bol;
       }
-      return concat(&pool_, expanded, p);
+      if (!expanded) return p;
+      auto it = expanded;
+      while (it->tail) it = it->tail;
+      const_cast<TokList *>(it)->tail = p;
+      return expanded;
     }
   }
 
@@ -831,31 +820,47 @@ const TokList *Preprocessor::Private::substitude(
     const TokList *ts, const Macro *macro,
     const std::vector<const TokList *> &actuals, const Hideset *hideset,
     const TokList *os) {
+  TokList **ip = const_cast<TokList **>(&os);
+
+  auto appendTokens = [&](const TokList *rs) {
+    if (!*ip)
+      *ip = const_cast<TokList *>(rs);
+    else
+      (*ip)->tail = const_cast<TokList *>(rs);
+    while ((*ip)->tail) ip = const_cast<TokList **>(&(*ip)->tail);
+  };
+
+  auto appendToken = [&](const Tok *tk) {
+    appendTokens(new (&pool_) TokList(tk));
+  };
+
   while (ts && ts->head->isNot(TokenKind::T_EOF_SYMBOL)) {
     auto tk = ts->head;
     const TokList *actual = nullptr;
 
     if (ts->tail && tk->is(TokenKind::T_HASH) &&
         lookupMacroArgument(macro, actuals, ts->tail->head, actual)) {
-      auto s = stringize(actual);
-      os = concat(&pool_, os, s);
+      appendToken(stringize(actual));
       ts = ts->tail->tail;
     } else if (ts->tail && tk->is(TokenKind::T_HASH_HASH) &&
                lookupMacroArgument(macro, actuals, ts->tail->head, actual)) {
-      os = actual ? glue(os, actual) : os;
+      if (actual) {
+        (*ip)->head = merge((*ip)->head, actual->head);
+        appendTokens(clone(&pool_, actual->tail));
+      }
       ts = ts->tail->tail;
     } else if (ts->tail && tk->is(TokenKind::T_HASH_HASH)) {
-      os = glue(os, new (&pool_) TokList(ts->tail->head));
+      (*ip)->head = merge((*ip)->head, ts->tail->head);
       ts = ts->tail->tail;
     } else if (ts->tail && lookupMacroArgument(macro, actuals, tk, actual) &&
                ts->tail->head->is(TokenKind::T_HASH_HASH)) {
-      os = concat(&pool_, os, actual);
+      appendTokens(clone(&pool_, actual));
       ts = ts->tail;
     } else if (lookupMacroArgument(macro, actuals, tk, actual)) {
-      os = concat(&pool_, os, expand(actual, /*directives=*/false));
+      appendTokens(expand(actual, /*directives=*/false));
       ts = ts->tail;
     } else {
-      os = concat(&pool_, os, tk);
+      appendToken(tk);
       ts = ts->tail;
     }
   }
@@ -1113,10 +1118,13 @@ bool Preprocessor::Private::lookupMacroArgument(
 
 const TokList *Preprocessor::Private::instantiate(const TokList *ts,
                                                   const Hideset *hideset) {
-  if (!ts) return nullptr;
-
-  return new (&pool_) TokList(Tok::WithHideset(&pool_, ts->head, hideset),
-                              instantiate(ts->tail, hideset));
+  for (auto ip = ts; ip; ip = ip->tail) {
+    if (ip->head->hideset != hideset) {
+      const_cast<TokList *>(ip)->head =
+          Tok::WithHideset(&pool_, ip->head, hideset);
+    }
+  }
+  return ts;
 }
 
 std::tuple<std::vector<const TokList *>, const TokList *, const Hideset *>
@@ -1259,13 +1267,6 @@ const Tok *Preprocessor::Private::merge(const Tok *left, const Tok *right) {
   tok->sourceFile = left->sourceFile;
   tok->offset = left->offset;
   return tok;
-}
-
-const TokList *Preprocessor::Private::glue(const TokList *ls,
-                                           const TokList *rs) {
-  if (!ls->tail && rs)
-    return new (&pool_) TokList(merge(ls->head, rs->head), rs->tail);
-  return new (&pool_) TokList(ls->head, glue(ls->tail, rs));
 }
 
 const TokList *Preprocessor::Private::skipLine(const TokList *ts) {
