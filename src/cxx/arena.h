@@ -31,12 +31,21 @@ namespace cxx {
 
 class Arena {
   struct Block {
-    static const std::size_t SIZE = 16 * 1024 - sizeof(char*);
-    char data[SIZE];
-    char* ptr{data};
-    Block() = default;
+    static const std::size_t SIZE = 16 * 1024;
+
+    char* data;
+    char* ptr;
+
+    Block(const Block&) = delete;
+    Block& operator=(const Block&) = delete;
+
+    Block() { ptr = data = (char*)std::malloc(SIZE); }
+
+    ~Block() {
+      if (data) std::free(data);
+    }
   };
-  static_assert(sizeof(Block) == 16 * 1024, "not cool");
+
   std::vector<Block*> blocks;
 
  public:
