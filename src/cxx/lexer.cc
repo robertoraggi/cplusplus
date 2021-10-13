@@ -75,13 +75,13 @@ inline It skipSlash(It it, It end) {
 template <typename It>
 inline uint32_t peekNext(It it, It end) {
   it = skipSlash(it, end);
-  return it < end ? utf8::peek_next(it, end) : 0;
+  return it < end ? utf8::unchecked::peek_next(it) : 0;
 }
 
 template <typename It>
 inline void readNext(It& it, It end) {
   it = skipSlash(it, end);
-  if (it < end) utf8::next(it, end);
+  if (it < end) utf8::unchecked::next(it);
 }
 
 template <typename It>
@@ -89,7 +89,7 @@ inline void advance(It& it, int n, It end) {
   if (n > 0) {
     while (it < end && n--) readNext(it, end);
   } else if (n < 0) {
-    while (n++) utf8::prior(it, end);
+    while (n++) utf8::unchecked::prior(it);
   }
 }
 
