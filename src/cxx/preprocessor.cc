@@ -113,7 +113,7 @@ struct std::less<Hideset> {
 
   bool operator()(const std::set<std::string_view> &names,
                   const Hideset &hideset) const {
-    return hideset.names() < names;
+    return names < hideset.names();
   }
 
   bool operator()(const Hideset &hideset, const std::string_view &name) const {
