@@ -66,6 +66,7 @@ void Semantics::declarator(DeclaratorAST* ast, DeclaratorSem* declarator) {
 void Semantics::initDeclarator(InitDeclaratorAST* ast,
                                DeclaratorSem* declarator) {
   this->declarator(ast->declarator, declarator);
+  this->requiresClause(ast->requiresClause);
   initializer(ast->initializer);
 }
 
@@ -132,6 +133,8 @@ void Semantics::parameterDeclaration(ParameterDeclarationAST* ast) {
 void Semantics::parameterDeclarationClause(ParameterDeclarationClauseAST* ast) {
   accept(ast);
 }
+
+void Semantics::requiresClause(RequiresClauseAST* ast) { accept(ast); }
 
 void Semantics::lambdaCapture(LambdaCaptureAST* ast) { accept(ast); }
 
@@ -271,6 +274,11 @@ void Semantics::visit(NewTypeIdAST* ast) {
   this->specifiers(ast->typeSpecifierList, &specifiers);
 }
 
+void Semantics::visit(RequiresClauseAST* ast) {
+  ExpressionSem expr;
+  this->expression(ast->expression, &expr);
+}
+
 void Semantics::visit(ParameterDeclarationClauseAST* ast) {
   for (auto it = ast->parameterDeclarationList; it; it = it->next)
     parameterDeclaration(it->value);
@@ -293,6 +301,7 @@ void Semantics::visit(LambdaDeclaratorAST* ast) {
   this->specifiers(ast->declSpecifierList, &specifiers);
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
   trailingReturnType(ast->trailingReturnType);
+  requiresClause(ast->requiresClause);
 }
 
 void Semantics::visit(TrailingReturnTypeAST* ast) { typeId(ast->typeId); }
@@ -458,6 +467,7 @@ void Semantics::visit(LambdaExpressionAST* ast) {
   lambdaIntroducer(ast->lambdaIntroducer);
   for (auto it = ast->templateParameterList; it; it = it->next)
     declaration(it->value);
+  requiresClause(ast->requiresClause);
   lambdaDeclarator(ast->lambdaDeclarator);
   compoundStatement(ast->statement);
 }
@@ -789,6 +799,7 @@ void Semantics::visit(FunctionDefinitionAST* ast) {
   this->specifiers(ast->declSpecifierList, &specifiers);
   DeclaratorSem declarator{specifiers};
   this->declarator(ast->declarator, &declarator);
+  this->requiresClause(ast->requiresClause);
   functionBody(ast->functionBody);
 }
 
@@ -810,10 +821,12 @@ void Semantics::visit(SimpleDeclarationAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
   SpecifiersSem specifiers;
   this->specifiers(ast->declSpecifierList, &specifiers);
+  this->requiresClause(ast->requiresClause);
   for (auto it = ast->initDeclaratorList; it; it = it->next) {
     DeclaratorSem declarator{specifiers};
     this->initDeclarator(it->value, &declarator);
   }
+  this->requiresClause(ast->requiresClause);
 }
 
 void Semantics::visit(StaticAssertDeclarationAST* ast) {
@@ -875,6 +888,7 @@ void Semantics::visit(ModuleImportDeclarationAST* ast) {}
 void Semantics::visit(TemplateDeclarationAST* ast) {
   for (auto it = ast->templateParameterList; it; it = it->next)
     declaration(it->value);
+  requiresClause(ast->requiresClause);
   declaration(ast->declaration);
 }
 
@@ -885,6 +899,7 @@ void Semantics::visit(TypenamePackTypeParameterAST* ast) {}
 void Semantics::visit(TemplateTypeParameterAST* ast) {
   for (auto it = ast->templateParameterList; it; it = it->next)
     declaration(it->value);
+  this->requiresClause(ast->requiresClause);
   NameSem name;
   this->name(ast->name, &name);
 }

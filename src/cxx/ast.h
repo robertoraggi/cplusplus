@@ -287,6 +287,7 @@ class InitDeclaratorAST final : public AST {
   InitDeclaratorAST() : AST(ASTKind::InitDeclarator) {}
 
   DeclaratorAST* declarator = nullptr;
+  RequiresClauseAST* requiresClause = nullptr;
   InitializerAST* initializer = nullptr;
   Symbol* symbol = nullptr;
 
@@ -327,6 +328,19 @@ class NewTypeIdAST final : public AST {
   NewTypeIdAST() : AST(ASTKind::NewTypeId) {}
 
   List<SpecifierAST*>* typeSpecifierList = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+class RequiresClauseAST final : public AST {
+ public:
+  RequiresClauseAST() : AST(ASTKind::RequiresClause) {}
+
+  SourceLocation requiresLoc;
+  ExpressionAST* expression = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -390,6 +404,7 @@ class LambdaDeclaratorAST final : public AST {
   List<SpecifierAST*>* declSpecifierList = nullptr;
   List<AttributeAST*>* attributeList = nullptr;
   TrailingReturnTypeAST* trailingReturnType = nullptr;
+  RequiresClauseAST* requiresClause = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -939,6 +954,7 @@ class LambdaExpressionAST final : public ExpressionAST {
   SourceLocation lessLoc;
   List<DeclarationAST*>* templateParameterList = nullptr;
   SourceLocation greaterLoc;
+  RequiresClauseAST* requiresClause = nullptr;
   LambdaDeclaratorAST* lambdaDeclarator = nullptr;
   CompoundStatementAST* statement = nullptr;
 
@@ -1591,6 +1607,7 @@ class FunctionDefinitionAST final : public DeclarationAST {
   List<AttributeAST*>* attributeList = nullptr;
   List<SpecifierAST*>* declSpecifierList = nullptr;
   DeclaratorAST* declarator = nullptr;
+  RequiresClauseAST* requiresClause = nullptr;
   FunctionBodyAST* functionBody = nullptr;
   FunctionSymbol* symbol = nullptr;
 
@@ -1651,6 +1668,7 @@ class SimpleDeclarationAST final : public DeclarationAST {
   List<AttributeAST*>* attributeList = nullptr;
   List<SpecifierAST*>* declSpecifierList = nullptr;
   List<InitDeclaratorAST*>* initDeclaratorList = nullptr;
+  RequiresClauseAST* requiresClause = nullptr;
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -1840,6 +1858,7 @@ class TemplateDeclarationAST final : public DeclarationAST {
   SourceLocation lessLoc;
   List<DeclarationAST*>* templateParameterList = nullptr;
   SourceLocation greaterLoc;
+  RequiresClauseAST* requiresClause = nullptr;
   DeclarationAST* declaration = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -1888,6 +1907,7 @@ class TemplateTypeParameterAST final : public DeclarationAST {
   SourceLocation lessLoc;
   List<DeclarationAST*>* templateParameterList = nullptr;
   SourceLocation greaterLoc;
+  RequiresClauseAST* requiresClause = nullptr;
   SourceLocation classKeyLoc;
   SourceLocation identifierLoc;
   SourceLocation equalLoc;

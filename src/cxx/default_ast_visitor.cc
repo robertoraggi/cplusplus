@@ -70,6 +70,10 @@ void DefaultASTVisitor::visit(NewTypeIdAST* ast) {
   throw std::runtime_error("visit(NewTypeIdAST): not implemented");
 }
 
+void DefaultASTVisitor::visit(RequiresClauseAST* ast) {
+  throw std::runtime_error("visit(RequiresClauseAST): not implemented");
+}
+
 void DefaultASTVisitor::visit(ParameterDeclarationClauseAST* ast) {
   throw std::runtime_error(
       "visit(ParameterDeclarationClauseAST): not implemented");

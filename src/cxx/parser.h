@@ -280,7 +280,8 @@ class Parser final {
   bool parse_decltype_specifier(SpecifierAST*& yyast);
   bool parse_placeholder_type_specifier(SpecifierAST*& yyast);
   bool parse_init_declarator(InitDeclaratorAST*& yyast, const DeclSpecs& specs);
-  bool parse_declarator_initializer(InitializerAST*& yyast);
+  bool parse_declarator_initializer(RequiresClauseAST*& requiresClause,
+                                    InitializerAST*& yyast);
   bool parse_declarator(DeclaratorAST*& yyastl);
   bool parse_ptr_operator_seq(List<PtrOperatorAST*>*& yyast);
   bool parse_core_declarator(CoreDeclaratorAST*& yyast);
@@ -395,9 +396,10 @@ class Parser final {
   bool parse_template_declaration(DeclarationAST*& yyast);
   bool parse_template_head(SourceLocation& templateLoc, SourceLocation& lessLoc,
                            List<DeclarationAST*>*& templateParameterList,
-                           SourceLocation& greaterLoc);
+                           SourceLocation& greaterLoc,
+                           RequiresClauseAST*& requiresClause);
   bool parse_template_parameter_list(List<DeclarationAST*>*& yyast);
-  bool parse_requires_clause();
+  bool parse_requires_clause(RequiresClauseAST*& yyast);
   bool parse_constraint_logical_or_expression(ExpressionAST*& yyast);
   bool parse_constraint_logical_and_expression(ExpressionAST*& yyast);
   bool parse_template_parameter(DeclarationAST*& yyast);

@@ -38,6 +38,7 @@ class DefaultASTVisitor : public ASTVisitor {
   void visit(BaseSpecifierAST* ast) override;
   void visit(BaseClauseAST* ast) override;
   void visit(NewTypeIdAST* ast) override;
+  void visit(RequiresClauseAST* ast) override;
   void visit(ParameterDeclarationClauseAST* ast) override;
   void visit(ParametersAndQualifiersAST* ast) override;
   void visit(LambdaIntroducerAST* ast) override;

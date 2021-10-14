@@ -65,6 +65,10 @@ void RecursiveASTVisitor::acceptDeclaratorModifier(DeclaratorModifierAST* ast) {
   accept(ast);
 }
 
+void RecursiveASTVisitor::acceptRequiresClause(RequiresClauseAST* ast) {
+  accept(ast);
+}
+
 void RecursiveASTVisitor::acceptInitializer(InitializerAST* ast) {
   accept(ast);
 }
@@ -196,6 +200,7 @@ void RecursiveASTVisitor::visit(DeclaratorAST* ast) {
 
 void RecursiveASTVisitor::visit(InitDeclaratorAST* ast) {
   acceptDeclarator(ast->declarator);
+  acceptRequiresClause(ast->requiresClause);
   acceptInitializer(ast->initializer);
 }
 
@@ -213,6 +218,10 @@ void RecursiveASTVisitor::visit(BaseClauseAST* ast) {
 void RecursiveASTVisitor::visit(NewTypeIdAST* ast) {
   for (auto it = ast->typeSpecifierList; it; it = it->next)
     acceptSpecifier(it->value);
+}
+
+void RecursiveASTVisitor::visit(RequiresClauseAST* ast) {
+  acceptExpression(ast->expression);
 }
 
 void RecursiveASTVisitor::visit(ParameterDeclarationClauseAST* ast) {
@@ -240,6 +249,7 @@ void RecursiveASTVisitor::visit(LambdaDeclaratorAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next)
     acceptAttribute(it->value);
   acceptTrailingReturnType(ast->trailingReturnType);
+  acceptRequiresClause(ast->requiresClause);
 }
 
 void RecursiveASTVisitor::visit(TrailingReturnTypeAST* ast) {
@@ -380,6 +390,7 @@ void RecursiveASTVisitor::visit(LambdaExpressionAST* ast) {
   acceptLambdaIntroducer(ast->lambdaIntroducer);
   for (auto it = ast->templateParameterList; it; it = it->next)
     acceptDeclaration(it->value);
+  acceptRequiresClause(ast->requiresClause);
   acceptLambdaDeclarator(ast->lambdaDeclarator);
   acceptCompoundStatement(ast->statement);
 }
@@ -578,6 +589,7 @@ void RecursiveASTVisitor::visit(FunctionDefinitionAST* ast) {
   for (auto it = ast->declSpecifierList; it; it = it->next)
     acceptSpecifier(it->value);
   acceptDeclarator(ast->declarator);
+  acceptRequiresClause(ast->requiresClause);
   acceptFunctionBody(ast->functionBody);
 }
 
@@ -601,6 +613,7 @@ void RecursiveASTVisitor::visit(SimpleDeclarationAST* ast) {
     acceptSpecifier(it->value);
   for (auto it = ast->initDeclaratorList; it; it = it->next)
     acceptInitDeclarator(it->value);
+  acceptRequiresClause(ast->requiresClause);
 }
 
 void RecursiveASTVisitor::visit(StaticAssertDeclarationAST* ast) {
@@ -659,6 +672,7 @@ void RecursiveASTVisitor::visit(ModuleImportDeclarationAST* ast) {}
 void RecursiveASTVisitor::visit(TemplateDeclarationAST* ast) {
   for (auto it = ast->templateParameterList; it; it = it->next)
     acceptDeclaration(it->value);
+  acceptRequiresClause(ast->requiresClause);
   acceptDeclaration(ast->declaration);
 }
 
@@ -671,6 +685,7 @@ void RecursiveASTVisitor::visit(TypenamePackTypeParameterAST* ast) {}
 void RecursiveASTVisitor::visit(TemplateTypeParameterAST* ast) {
   for (auto it = ast->templateParameterList; it; it = it->next)
     acceptDeclaration(it->value);
+  acceptRequiresClause(ast->requiresClause);
   acceptName(ast->name);
 }
 

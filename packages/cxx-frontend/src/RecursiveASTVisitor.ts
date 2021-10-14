@@ -79,6 +79,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitInitDeclarator(node: ast.InitDeclaratorAST, context: Context): void {
         this.accept(node.getDeclarator(), context);
+        this.accept(node.getRequiresClause(), context);
         this.accept(node.getInitializer(), context);
     }
 
@@ -99,6 +100,10 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         for (const element of node.getTypeSpecifierList()) {
             this.accept(element, context);
         }
+    }
+
+    visitRequiresClause(node: ast.RequiresClauseAST, context: Context): void {
+        this.accept(node.getExpression(), context);
     }
 
     visitParameterDeclarationClause(node: ast.ParameterDeclarationClauseAST, context: Context): void {
@@ -132,6 +137,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
             this.accept(element, context);
         }
         this.accept(node.getTrailingReturnType(), context);
+        this.accept(node.getRequiresClause(), context);
     }
 
     visitTrailingReturnType(node: ast.TrailingReturnTypeAST, context: Context): void {
@@ -301,6 +307,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         for (const element of node.getTemplateParameterList()) {
             this.accept(element, context);
         }
+        this.accept(node.getRequiresClause(), context);
         this.accept(node.getLambdaDeclarator(), context);
         this.accept(node.getStatement(), context);
     }
@@ -511,6 +518,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
             this.accept(element, context);
         }
         this.accept(node.getDeclarator(), context);
+        this.accept(node.getRequiresClause(), context);
         this.accept(node.getFunctionBody(), context);
     }
 
@@ -539,6 +547,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         for (const element of node.getInitDeclaratorList()) {
             this.accept(element, context);
         }
+        this.accept(node.getRequiresClause(), context);
     }
 
     visitStaticAssertDeclaration(node: ast.StaticAssertDeclarationAST, context: Context): void {
@@ -610,6 +619,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         for (const element of node.getTemplateParameterList()) {
             this.accept(element, context);
         }
+        this.accept(node.getRequiresClause(), context);
         this.accept(node.getDeclaration(), context);
     }
 
@@ -624,6 +634,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         for (const element of node.getTemplateParameterList()) {
             this.accept(element, context);
         }
+        this.accept(node.getRequiresClause(), context);
         this.accept(node.getName(), context);
     }
 

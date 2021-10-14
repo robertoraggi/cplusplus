@@ -229,8 +229,11 @@ export class InitDeclaratorAST extends AST {
     getDeclarator(): DeclaratorAST | undefined {
         return AST.from<DeclaratorAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
     }
+    getRequiresClause(): RequiresClauseAST | undefined {
+        return AST.from<RequiresClauseAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
     getInitializer(): InitializerAST | undefined {
-        return AST.from<InitializerAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+        return AST.from<InitializerAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
     }
 }
 
@@ -270,6 +273,18 @@ export class NewTypeIdAST extends AST {
         for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
             yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
         }
+    }
+}
+
+export class RequiresClauseAST extends AST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitRequiresClause(this, context);
+    }
+    getRequiresToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getExpression(): ExpressionAST | undefined {
+        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
     }
 }
 
@@ -363,6 +378,9 @@ export class LambdaDeclaratorAST extends AST {
     }
     getTrailingReturnType(): TrailingReturnTypeAST | undefined {
         return AST.from<TrailingReturnTypeAST>(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+    }
+    getRequiresClause(): RequiresClauseAST | undefined {
+        return AST.from<RequiresClauseAST>(cxx.getASTSlot(this.getHandle(), 6), this.parser);
     }
 }
 
@@ -891,11 +909,14 @@ export class LambdaExpressionAST extends ExpressionAST {
     getGreaterToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
     }
+    getRequiresClause(): RequiresClauseAST | undefined {
+        return AST.from<RequiresClauseAST>(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+    }
     getLambdaDeclarator(): LambdaDeclaratorAST | undefined {
-        return AST.from<LambdaDeclaratorAST>(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+        return AST.from<LambdaDeclaratorAST>(cxx.getASTSlot(this.getHandle(), 5), this.parser);
     }
     getStatement(): CompoundStatementAST | undefined {
-        return AST.from<CompoundStatementAST>(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+        return AST.from<CompoundStatementAST>(cxx.getASTSlot(this.getHandle(), 6), this.parser);
     }
 }
 
@@ -1653,8 +1674,11 @@ export class FunctionDefinitionAST extends DeclarationAST {
     getDeclarator(): DeclaratorAST | undefined {
         return AST.from<DeclaratorAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
     }
+    getRequiresClause(): RequiresClauseAST | undefined {
+        return AST.from<RequiresClauseAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
     getFunctionBody(): FunctionBodyAST | undefined {
-        return AST.from<FunctionBodyAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+        return AST.from<FunctionBodyAST>(cxx.getASTSlot(this.getHandle(), 4), this.parser);
     }
 }
 
@@ -1730,8 +1754,11 @@ export class SimpleDeclarationAST extends DeclarationAST {
             yield AST.from<InitDeclaratorAST>(cxx.getListValue(it), this.parser);
         }
     }
+    getRequiresClause(): RequiresClauseAST | undefined {
+        return AST.from<RequiresClauseAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
     getSemicolonToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+        return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
     }
 }
 
@@ -1956,8 +1983,11 @@ export class TemplateDeclarationAST extends DeclarationAST {
     getGreaterToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
     }
+    getRequiresClause(): RequiresClauseAST | undefined {
+        return AST.from<RequiresClauseAST>(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+    }
     getDeclaration(): DeclarationAST | undefined {
-        return AST.from<DeclarationAST>(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+        return AST.from<DeclarationAST>(cxx.getASTSlot(this.getHandle(), 5), this.parser);
     }
 }
 
@@ -2012,17 +2042,20 @@ export class TemplateTypeParameterAST extends DeclarationAST {
     getGreaterToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
     }
-    getClassKeyToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+    getRequiresClause(): RequiresClauseAST | undefined {
+        return AST.from<RequiresClauseAST>(cxx.getASTSlot(this.getHandle(), 4), this.parser);
     }
-    getIdentifierToken(): Token | undefined {
+    getClassKeyToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
     }
-    getEqualToken(): Token | undefined {
+    getIdentifierToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
     }
+    getEqualToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
+    }
     getName(): NameAST | undefined {
-        return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 7), this.parser);
+        return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 8), this.parser);
     }
 }
 
@@ -2756,6 +2789,7 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     BaseSpecifierAST,
     BaseClauseAST,
     NewTypeIdAST,
+    RequiresClauseAST,
     ParameterDeclarationClauseAST,
     ParametersAndQualifiersAST,
     LambdaIntroducerAST,

@@ -159,6 +159,8 @@ void ASTCloner::visit(InitDeclaratorAST* ast) {
 
   copy->declarator = accept(ast->declarator);
 
+  copy->requiresClause = accept(ast->requiresClause);
+
   copy->initializer = accept(ast->initializer);
 
   copy->symbol = ast->symbol;
@@ -208,6 +210,15 @@ void ASTCloner::visit(NewTypeIdAST* ast) {
       out = &(*out)->next;
     }
   }
+}
+
+void ASTCloner::visit(RequiresClauseAST* ast) {
+  auto copy = new (arena_) RequiresClauseAST();
+  copy_ = copy;
+
+  copy->requiresLoc = ast->requiresLoc;
+
+  copy->expression = accept(ast->expression);
 }
 
 void ASTCloner::visit(ParameterDeclarationClauseAST* ast) {
@@ -308,6 +319,8 @@ void ASTCloner::visit(LambdaDeclaratorAST* ast) {
   }
 
   copy->trailingReturnType = accept(ast->trailingReturnType);
+
+  copy->requiresClause = accept(ast->requiresClause);
 }
 
 void ASTCloner::visit(TrailingReturnTypeAST* ast) {
@@ -852,6 +865,8 @@ void ASTCloner::visit(LambdaExpressionAST* ast) {
   }
 
   copy->greaterLoc = ast->greaterLoc;
+
+  copy->requiresClause = accept(ast->requiresClause);
 
   copy->lambdaDeclarator = accept(ast->lambdaDeclarator);
 
@@ -1552,6 +1567,8 @@ void ASTCloner::visit(FunctionDefinitionAST* ast) {
 
   copy->declarator = accept(ast->declarator);
 
+  copy->requiresClause = accept(ast->requiresClause);
+
   copy->functionBody = accept(ast->functionBody);
 
   copy->symbol = ast->symbol;
@@ -1633,6 +1650,8 @@ void ASTCloner::visit(SimpleDeclarationAST* ast) {
       out = &(*out)->next;
     }
   }
+
+  copy->requiresClause = accept(ast->requiresClause);
 
   copy->semicolonLoc = ast->semicolonLoc;
 }
@@ -1863,6 +1882,8 @@ void ASTCloner::visit(TemplateDeclarationAST* ast) {
 
   copy->greaterLoc = ast->greaterLoc;
 
+  copy->requiresClause = accept(ast->requiresClause);
+
   copy->declaration = accept(ast->declaration);
 }
 
@@ -1912,6 +1933,8 @@ void ASTCloner::visit(TemplateTypeParameterAST* ast) {
   }
 
   copy->greaterLoc = ast->greaterLoc;
+
+  copy->requiresClause = accept(ast->requiresClause);
 
   copy->classKeyLoc = ast->classKeyLoc;
 

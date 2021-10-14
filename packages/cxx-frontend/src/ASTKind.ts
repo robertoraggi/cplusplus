@@ -32,6 +32,7 @@ export enum ASTKind {
     BaseSpecifier,
     BaseClause,
     NewTypeId,
+    RequiresClause,
     ParameterDeclarationClause,
     ParametersAndQualifiers,
     LambdaIntroducer,

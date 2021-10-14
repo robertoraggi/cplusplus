@@ -176,6 +176,7 @@ class Semantics final : ASTVisitor {
   void enumerator(EnumeratorAST* ast);
   void baseClause(BaseClauseAST* ast);
   void parametersAndQualifiers(ParametersAndQualifiersAST* ast);
+  void requiresClause(RequiresClauseAST* ast);
 
   void visit(TypeIdAST* ast) override;
   void visit(NestedNameSpecifierAST* ast) override;
@@ -190,6 +191,7 @@ class Semantics final : ASTVisitor {
   void visit(BaseSpecifierAST* ast) override;
   void visit(BaseClauseAST* ast) override;
   void visit(NewTypeIdAST* ast) override;
+  void visit(RequiresClauseAST* ast) override;
   void visit(ParameterDeclarationClauseAST* ast) override;
   void visit(ParametersAndQualifiersAST* ast) override;
   void visit(LambdaIntroducerAST* ast) override;

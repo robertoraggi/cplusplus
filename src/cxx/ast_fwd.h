@@ -82,6 +82,7 @@ class InitDeclaratorAST;
 class BaseSpecifierAST;
 class BaseClauseAST;
 class NewTypeIdAST;
+class RequiresClauseAST;
 class ParameterDeclarationClauseAST;
 class ParametersAndQualifiersAST;
 class LambdaIntroducerAST;

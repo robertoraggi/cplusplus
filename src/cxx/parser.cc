@@ -864,7 +864,7 @@ bool Parser::parse_lambda_expression(ExpressionAST*& yyast) {
 
     expect(TokenKind::T_GREATER, ast->greaterLoc);
 
-    parse_requires_clause();
+    parse_requires_clause(ast->requiresClause);
   }
 
   if (LA().isNot(TokenKind::T_LBRACE)) {
@@ -932,7 +932,7 @@ bool Parser::parse_lambda_declarator(LambdaDeclaratorAST*& yyast) {
 
   parse_trailing_return_type(ast->trailingReturnType);
 
-  parse_requires_clause();
+  parse_requires_clause(ast->requiresClause);
 
   return true;
 }
@@ -3402,7 +3402,9 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast,
 
   auto functionDeclarator = getFunctionDeclarator(declarator);
 
-  const auto hasRequiresClause = parse_requires_clause();
+  RequiresClauseAST* requiresClause = nullptr;
+
+  const auto hasRequiresClause = parse_requires_clause(requiresClause);
 
   if (acceptFunctionDefinition && functionDeclarator &&
       lookat_function_body()) {
@@ -3436,6 +3438,7 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast,
     ast->attributeList = attributes;
     ast->declSpecifierList = declSpecifierList;
     ast->declarator = declarator;
+    ast->requiresClause = requiresClause;
     ast->functionBody = functionBody;
     ast->symbol = functionSymbol;
 
@@ -3444,13 +3447,18 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast,
     return true;
   }
 
+  rewind(after_declarator);
+
   const bool isTypedef = decl.specifiers.isTypedef;
 
   InitDeclaratorAST* initDeclarator = new (pool) InitDeclaratorAST();
 
   initDeclarator->declarator = declarator;
 
-  if (!parse_declarator_initializer(initDeclarator->initializer))
+  requiresClause = nullptr;
+
+  if (!parse_declarator_initializer(initDeclarator->requiresClause,
+                                    initDeclarator->initializer))
     rewind(after_declarator);
 
   List<InitDeclaratorAST*>* initDeclaratorList = nullptr;
@@ -3525,7 +3533,9 @@ bool Parser::parse_notypespec_function_definition(
 
   sem->declarator(declarator, &decl);
 
-  const auto has_requires_clause = parse_requires_clause();
+  RequiresClauseAST* requiresClause = nullptr;
+
+  const auto has_requires_clause = parse_requires_clause(requiresClause);
 
   bool has_virt_specifier_seq = false;
 
@@ -3541,6 +3551,7 @@ bool Parser::parse_notypespec_function_definition(
     yyast = ast;
     ast->declSpecifierList = declSpecifierList;
     ast->initDeclaratorList = new (pool) List(initDeclarator);
+    ast->requiresClause = requiresClause;
     ast->semicolonLoc = semicolonLoc;
 
     return true;
@@ -4498,14 +4509,16 @@ bool Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
 
   const auto saved = currentLocation();
 
+  RequiresClauseAST* requiresClause = nullptr;
   InitializerAST* initializer = nullptr;
 
-  if (!parse_declarator_initializer(initializer)) rewind(saved);
+  if (!parse_declarator_initializer(requiresClause, initializer)) rewind(saved);
 
   auto ast = new (pool) InitDeclaratorAST();
   yyast = ast;
 
   ast->declarator = declarator;
+  ast->requiresClause = requiresClause;
   ast->initializer = initializer;
 
   if (decl.specifiers.isTypedef) {
@@ -4530,8 +4543,9 @@ bool Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
   return true;
 }
 
-bool Parser::parse_declarator_initializer(InitializerAST*& yyast) {
-  if (parse_requires_clause()) return true;
+bool Parser::parse_declarator_initializer(RequiresClauseAST*& requiresClause,
+                                          InitializerAST*& yyast) {
+  if (parse_requires_clause(requiresClause)) return true;
 
   return parse_initializer(yyast);
 }
@@ -6711,7 +6725,9 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
 
     sem->declarator(declarator, &decl);
 
-    const auto has_requires_clause = parse_requires_clause();
+    RequiresClauseAST* requiresClause = nullptr;
+
+    const auto has_requires_clause = parse_requires_clause(requiresClause);
 
     bool has_virt_specifier_seq = false;
 
@@ -6739,6 +6755,7 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
 
       ast->declSpecifierList = declSpecifierList;
       ast->declarator = declarator;
+      ast->requiresClause = requiresClause;
       ast->functionBody = functionBody;
       ast->symbol = functionSymbol;
 
@@ -6882,8 +6899,10 @@ bool Parser::parse_member_declarator(InitDeclaratorAST*& yyast) {
 
   ast->declarator = declarator;
 
-  if (parse_requires_clause()) {
-    // TODO
+  RequiresClauseAST* requiresClause = nullptr;
+
+  if (parse_requires_clause(requiresClause)) {
+    ast->requiresClause = requiresClause;
   } else {
     if (auto functionDeclarator = getFunctionDeclarator(declarator)) {
       parse_virt_specifier_seq();
@@ -7296,9 +7315,10 @@ bool Parser::parse_template_declaration(DeclarationAST*& yyast) {
   SourceLocation lessLoc;
   List<DeclarationAST*>* templateParameterList = nullptr;
   SourceLocation greaterLoc;
+  RequiresClauseAST* requiresClause = nullptr;
 
   if (!parse_template_head(templateLoc, lessLoc, templateParameterList,
-                           greaterLoc))
+                           greaterLoc, requiresClause))
     return false;
 
   DeclarationAST* declaration = nullptr;
@@ -7314,6 +7334,7 @@ bool Parser::parse_template_declaration(DeclarationAST*& yyast) {
   ast->lessLoc = lessLoc;
   ast->templateParameterList = templateParameterList;
   ast->greaterLoc = greaterLoc;
+  ast->requiresClause = requiresClause;
   ast->declaration = declaration;
 
   return true;
@@ -7322,7 +7343,8 @@ bool Parser::parse_template_declaration(DeclarationAST*& yyast) {
 bool Parser::parse_template_head(SourceLocation& templateLoc,
                                  SourceLocation& lessLoc,
                                  List<DeclarationAST*>*& templateParameterList,
-                                 SourceLocation& greaterLoc) {
+                                 SourceLocation& greaterLoc,
+                                 RequiresClauseAST*& requiresClause) {
   if (!match(TokenKind::T_TEMPLATE, templateLoc)) return false;
 
   if (!match(TokenKind::T_LESS, lessLoc)) return false;
@@ -7334,7 +7356,7 @@ bool Parser::parse_template_head(SourceLocation& templateLoc,
     expect(TokenKind::T_GREATER, greaterLoc);
   }
 
-  parse_requires_clause();
+  parse_requires_clause(requiresClause);
 
   return true;
 }
@@ -7362,12 +7384,16 @@ bool Parser::parse_template_parameter_list(List<DeclarationAST*>*& yyast) {
   return true;
 }
 
-bool Parser::parse_requires_clause() {
-  if (!match(TokenKind::T_REQUIRES)) return false;
+bool Parser::parse_requires_clause(RequiresClauseAST*& yyast) {
+  SourceLocation requiresLoc;
 
-  ExpressionAST* expression = nullptr;
+  if (!match(TokenKind::T_REQUIRES, requiresLoc)) return false;
 
-  if (!parse_constraint_logical_or_expression(expression)) return false;
+  yyast = new (pool) RequiresClauseAST();
+
+  yyast->requiresLoc = requiresLoc;
+
+  if (!parse_constraint_logical_or_expression(yyast->expression)) return false;
 
   return true;
 }
@@ -7375,11 +7401,20 @@ bool Parser::parse_requires_clause() {
 bool Parser::parse_constraint_logical_or_expression(ExpressionAST*& yyast) {
   if (!parse_constraint_logical_and_expression(yyast)) return false;
 
-  while (match(TokenKind::T_BAR_BAR)) {
+  SourceLocation opLoc;
+
+  while (match(TokenKind::T_BAR_BAR, opLoc)) {
     ExpressionAST* expression = nullptr;
 
     if (!parse_constraint_logical_and_expression(expression))
       parse_error("expected a requirement expression");
+
+    auto ast = new (pool) BinaryExpressionAST();
+    ast->leftExpression = yyast;
+    ast->opLoc = opLoc;
+    ast->op = TokenKind::T_BAR_BAR;
+    ast->rightExpression = expression;
+    yyast = ast;
   }
 
   return true;
@@ -7388,11 +7423,20 @@ bool Parser::parse_constraint_logical_or_expression(ExpressionAST*& yyast) {
 bool Parser::parse_constraint_logical_and_expression(ExpressionAST*& yyast) {
   if (!parse_primary_expression(yyast, /*inRequiresClause*/ true)) return false;
 
-  while (match(TokenKind::T_AMP_AMP)) {
+  SourceLocation opLoc;
+
+  while (match(TokenKind::T_AMP_AMP, opLoc)) {
     ExpressionAST* expression = nullptr;
 
     if (!parse_primary_expression(expression, /*inRequiresClause*/ true))
       parse_error("expected an expression");
+
+    auto ast = new (pool) BinaryExpressionAST();
+    ast->leftExpression = yyast;
+    ast->opLoc = opLoc;
+    ast->op = TokenKind::T_AMP_AMP;
+    ast->rightExpression = expression;
+    yyast = ast;
   }
 
   return true;
@@ -7482,9 +7526,10 @@ bool Parser::parse_template_type_parameter(DeclarationAST*& yyast) {
   SourceLocation lessLoc;
   List<DeclarationAST*>* templateParameterList = nullptr;
   SourceLocation greaterLoc;
+  RequiresClauseAST* requiresClause = nullptr;
 
   if (!parse_template_head(templateLoc, lessLoc, templateParameterList,
-                           greaterLoc)) {
+                           greaterLoc, requiresClause)) {
     rewind(start);
     return false;
   }
@@ -7505,6 +7550,7 @@ bool Parser::parse_template_type_parameter(DeclarationAST*& yyast) {
     ast->lessLoc = lessLoc;
     ast->templateParameterList = templateParameterList;
     ast->greaterLoc = greaterLoc;
+    ast->requiresClause = requiresClause;
     ast->classKeyLoc = classsKeyLoc;
 
     match(TokenKind::T_IDENTIFIER, ast->identifierLoc);

@@ -141,6 +141,9 @@ void ASTSlot::visit(InitDeclaratorAST* ast) {
       value_ = reinterpret_cast<std::intptr_t>(ast->declarator);
       break;
     case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->requiresClause);
+      break;
+    case 2:
       value_ = reinterpret_cast<std::intptr_t>(ast->initializer);
       break;
   }  // switch
@@ -172,6 +175,17 @@ void ASTSlot::visit(NewTypeIdAST* ast) {
   switch (slot_) {
     case 0:
       value_ = reinterpret_cast<std::intptr_t>(ast->typeSpecifierList);
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(RequiresClauseAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->requiresLoc.index();
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
       break;
   }  // switch
 }
@@ -249,6 +263,9 @@ void ASTSlot::visit(LambdaDeclaratorAST* ast) {
       break;
     case 5:
       value_ = reinterpret_cast<std::intptr_t>(ast->trailingReturnType);
+      break;
+    case 6:
+      value_ = reinterpret_cast<std::intptr_t>(ast->requiresClause);
       break;
   }  // switch
 }
@@ -721,9 +738,12 @@ void ASTSlot::visit(LambdaExpressionAST* ast) {
       value_ = ast->greaterLoc.index();
       break;
     case 4:
-      value_ = reinterpret_cast<std::intptr_t>(ast->lambdaDeclarator);
+      value_ = reinterpret_cast<std::intptr_t>(ast->requiresClause);
       break;
     case 5:
+      value_ = reinterpret_cast<std::intptr_t>(ast->lambdaDeclarator);
+      break;
+    case 6:
       value_ = reinterpret_cast<std::intptr_t>(ast->statement);
       break;
   }  // switch
@@ -1428,6 +1448,9 @@ void ASTSlot::visit(FunctionDefinitionAST* ast) {
       value_ = reinterpret_cast<std::intptr_t>(ast->declarator);
       break;
     case 3:
+      value_ = reinterpret_cast<std::intptr_t>(ast->requiresClause);
+      break;
+    case 4:
       value_ = reinterpret_cast<std::intptr_t>(ast->functionBody);
       break;
   }  // switch
@@ -1492,6 +1515,9 @@ void ASTSlot::visit(SimpleDeclarationAST* ast) {
       value_ = reinterpret_cast<std::intptr_t>(ast->initDeclaratorList);
       break;
     case 3:
+      value_ = reinterpret_cast<std::intptr_t>(ast->requiresClause);
+      break;
+    case 4:
       value_ = ast->semicolonLoc.index();
       break;
   }  // switch
@@ -1691,6 +1717,9 @@ void ASTSlot::visit(TemplateDeclarationAST* ast) {
       value_ = ast->greaterLoc.index();
       break;
     case 4:
+      value_ = reinterpret_cast<std::intptr_t>(ast->requiresClause);
+      break;
+    case 5:
       value_ = reinterpret_cast<std::intptr_t>(ast->declaration);
       break;
   }  // switch
@@ -1742,15 +1771,18 @@ void ASTSlot::visit(TemplateTypeParameterAST* ast) {
       value_ = ast->greaterLoc.index();
       break;
     case 4:
-      value_ = ast->classKeyLoc.index();
+      value_ = reinterpret_cast<std::intptr_t>(ast->requiresClause);
       break;
     case 5:
-      value_ = ast->identifierLoc.index();
+      value_ = ast->classKeyLoc.index();
       break;
     case 6:
-      value_ = ast->equalLoc.index();
+      value_ = ast->identifierLoc.index();
       break;
     case 7:
+      value_ = ast->equalLoc.index();
+      break;
+    case 8:
       value_ = reinterpret_cast<std::intptr_t>(ast->name);
       break;
   }  // switch

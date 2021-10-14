@@ -190,6 +190,10 @@ void ASTPrinter::visit(InitDeclaratorAST* ast) {
     json_["declarator"] = accept(ast->declarator);
   }
 
+  if (ast->requiresClause) {
+    json_["requiresClause"] = accept(ast->requiresClause);
+  }
+
   if (ast->initializer) {
     json_["initializer"] = accept(ast->initializer);
   }
@@ -238,6 +242,16 @@ void ASTPrinter::visit(NewTypeIdAST* ast) {
       elements.push_back(accept(it->value));
     }
     json_["typeSpecifierList"] = elements;
+  }
+}
+
+void ASTPrinter::visit(RequiresClauseAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "RequiresClause";
+
+  if (ast->expression) {
+    json_["expression"] = accept(ast->expression);
   }
 }
 
@@ -324,6 +338,10 @@ void ASTPrinter::visit(LambdaDeclaratorAST* ast) {
 
   if (ast->trailingReturnType) {
     json_["trailingReturnType"] = accept(ast->trailingReturnType);
+  }
+
+  if (ast->requiresClause) {
+    json_["requiresClause"] = accept(ast->requiresClause);
   }
 }
 
@@ -756,6 +774,10 @@ void ASTPrinter::visit(LambdaExpressionAST* ast) {
       elements.push_back(accept(it->value));
     }
     json_["templateParameterList"] = elements;
+  }
+
+  if (ast->requiresClause) {
+    json_["requiresClause"] = accept(ast->requiresClause);
   }
 
   if (ast->lambdaDeclarator) {
@@ -1332,6 +1354,10 @@ void ASTPrinter::visit(FunctionDefinitionAST* ast) {
     json_["declarator"] = accept(ast->declarator);
   }
 
+  if (ast->requiresClause) {
+    json_["requiresClause"] = accept(ast->requiresClause);
+  }
+
   if (ast->functionBody) {
     json_["functionBody"] = accept(ast->functionBody);
   }
@@ -1404,6 +1430,10 @@ void ASTPrinter::visit(SimpleDeclarationAST* ast) {
       elements.push_back(accept(it->value));
     }
     json_["initDeclaratorList"] = elements;
+  }
+
+  if (ast->requiresClause) {
+    json_["requiresClause"] = accept(ast->requiresClause);
   }
 }
 
@@ -1582,6 +1612,10 @@ void ASTPrinter::visit(TemplateDeclarationAST* ast) {
     json_["templateParameterList"] = elements;
   }
 
+  if (ast->requiresClause) {
+    json_["requiresClause"] = accept(ast->requiresClause);
+  }
+
   if (ast->declaration) {
     json_["declaration"] = accept(ast->declaration);
   }
@@ -1618,6 +1652,10 @@ void ASTPrinter::visit(TemplateTypeParameterAST* ast) {
       elements.push_back(accept(it->value));
     }
     json_["templateParameterList"] = elements;
+  }
+
+  if (ast->requiresClause) {
+    json_["requiresClause"] = accept(ast->requiresClause);
   }
 
   if (ast->name) {
