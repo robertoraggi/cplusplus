@@ -148,15 +148,19 @@ class Parser final {
   bool parse_fold_expression(ExpressionAST*& yyast);
   bool parse_fold_operator(SourceLocation& loc, TokenKind& op);
   bool parse_requires_expression(ExpressionAST*& yyast);
-  bool parse_requirement_parameter_list();
-  bool parse_requirement_body();
-  bool parse_requirement_seq();
-  bool parse_requirement();
-  bool parse_simple_requirement();
-  bool parse_type_requirement();
-  bool parse_compound_requirement();
-  bool parse_return_type_requirement();
-  bool parse_nested_requirement();
+  bool parse_requirement_parameter_list(
+      SourceLocation& lparenLoc,
+      ParameterDeclarationClauseAST*& parameterDeclarationClause,
+      SourceLocation& rparenLoc);
+  bool parse_requirement_body(RequirementBodyAST*& yyast);
+  bool parse_requirement_seq(List<RequirementAST*>*& yyast);
+  bool parse_requirement(RequirementAST*& yyast);
+  bool parse_simple_requirement(RequirementAST*& yyast);
+  bool parse_type_requirement(RequirementAST*& yyast);
+  bool parse_compound_requirement(RequirementAST*& yyast);
+  bool parse_return_type_requirement(SourceLocation& minusGreaterLoc,
+                                     TypeConstraintAST*& typeConstraint);
+  bool parse_nested_requirement(RequirementAST*& yyast);
   bool parse_postfix_expression(ExpressionAST*& yyast);
   bool parse_start_of_postfix_expression(ExpressionAST*& yyast);
   bool parse_member_expression(ExpressionAST*& yyast);
@@ -408,7 +412,7 @@ class Parser final {
   bool parse_template_type_parameter(DeclarationAST*& yyast);
   bool parse_constraint_type_parameter(DeclarationAST*& yyast);
   bool parse_type_parameter_key(SourceLocation& classKeyLoc);
-  bool parse_type_constraint();
+  bool parse_type_constraint(TypeConstraintAST*& yyast);
   bool parse_simple_template_id(NameAST*& yyast);
   bool parse_template_id(NameAST*& yyast);
   bool parse_template_argument_list(List<TemplateArgumentAST*>*& yyast);

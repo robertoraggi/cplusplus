@@ -162,6 +162,11 @@ class PtrOperatorAST : public AST {
   using AST::AST;
 };
 
+class RequirementAST : public AST {
+ public:
+  using AST::AST;
+};
+
 class SpecifierAST : public AST {
  public:
   using AST::AST;
@@ -431,6 +436,93 @@ class CtorInitializerAST final : public AST {
 
   SourceLocation colonLoc;
   List<MemInitializerAST*>* memInitializerList = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+class RequirementBodyAST final : public AST {
+ public:
+  RequirementBodyAST() : AST(ASTKind::RequirementBody) {}
+
+  SourceLocation lbraceLoc;
+  List<RequirementAST*>* requirementList = nullptr;
+  SourceLocation rbraceLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+class TypeConstraintAST final : public AST {
+ public:
+  TypeConstraintAST() : AST(ASTKind::TypeConstraint) {}
+
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  NameAST* name = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+class SimpleRequirementAST final : public RequirementAST {
+ public:
+  SimpleRequirementAST() : RequirementAST(ASTKind::SimpleRequirement) {}
+
+  ExpressionAST* expression = nullptr;
+  SourceLocation semicolonLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+class CompoundRequirementAST final : public RequirementAST {
+ public:
+  CompoundRequirementAST() : RequirementAST(ASTKind::CompoundRequirement) {}
+
+  SourceLocation lbraceLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation rbraceLoc;
+  SourceLocation noexceptLoc;
+  SourceLocation minusGreaterLoc;
+  TypeConstraintAST* typeConstraint = nullptr;
+  SourceLocation semicolonLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+class TypeRequirementAST final : public RequirementAST {
+ public:
+  TypeRequirementAST() : RequirementAST(ASTKind::TypeRequirement) {}
+
+  SourceLocation typenameLoc;
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  NameAST* name = nullptr;
+  SourceLocation semicolonLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+class NestedRequirementAST final : public RequirementAST {
+ public:
+  NestedRequirementAST() : RequirementAST(ASTKind::NestedRequirement) {}
+
+  SourceLocation requiresLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -871,6 +963,22 @@ class IdExpressionAST final : public ExpressionAST {
 
   NameAST* name = nullptr;
   Symbol* symbol = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+class RequiresExpressionAST final : public ExpressionAST {
+ public:
+  RequiresExpressionAST() : ExpressionAST(ASTKind::RequiresExpression) {}
+
+  SourceLocation requiresLoc;
+  SourceLocation lparenLoc;
+  ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
+  SourceLocation rparenLoc;
+  RequirementBodyAST* requirementBody = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

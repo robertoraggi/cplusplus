@@ -47,6 +47,14 @@ class ASTVisitor {
   virtual void visit(LambdaDeclaratorAST* ast) = 0;
   virtual void visit(TrailingReturnTypeAST* ast) = 0;
   virtual void visit(CtorInitializerAST* ast) = 0;
+  virtual void visit(RequirementBodyAST* ast) = 0;
+  virtual void visit(TypeConstraintAST* ast) = 0;
+
+  // RequirementAST
+  virtual void visit(SimpleRequirementAST* ast) = 0;
+  virtual void visit(CompoundRequirementAST* ast) = 0;
+  virtual void visit(TypeRequirementAST* ast) = 0;
+  virtual void visit(NestedRequirementAST* ast) = 0;
 
   // TemplateArgumentAST
   virtual void visit(TypeTemplateArgumentAST* ast) = 0;
@@ -97,6 +105,7 @@ class ASTVisitor {
   virtual void visit(StringLiteralExpressionAST* ast) = 0;
   virtual void visit(UserDefinedStringLiteralExpressionAST* ast) = 0;
   virtual void visit(IdExpressionAST* ast) = 0;
+  virtual void visit(RequiresExpressionAST* ast) = 0;
   virtual void visit(NestedExpressionAST* ast) = 0;
   virtual void visit(RightFoldExpressionAST* ast) = 0;
   virtual void visit(LeftFoldExpressionAST* ast) = 0;

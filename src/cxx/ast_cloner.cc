@@ -348,6 +348,85 @@ void ASTCloner::visit(CtorInitializerAST* ast) {
   }
 }
 
+void ASTCloner::visit(RequirementBodyAST* ast) {
+  auto copy = new (arena_) RequirementBodyAST();
+  copy_ = copy;
+
+  copy->lbraceLoc = ast->lbraceLoc;
+
+  if (auto it = ast->requirementList) {
+    auto out = &copy->requirementList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->rbraceLoc = ast->rbraceLoc;
+}
+
+void ASTCloner::visit(TypeConstraintAST* ast) {
+  auto copy = new (arena_) TypeConstraintAST();
+  copy_ = copy;
+
+  copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
+
+  copy->name = accept(ast->name);
+}
+
+void ASTCloner::visit(SimpleRequirementAST* ast) {
+  auto copy = new (arena_) SimpleRequirementAST();
+  copy_ = copy;
+
+  copy->expression = accept(ast->expression);
+
+  copy->semicolonLoc = ast->semicolonLoc;
+}
+
+void ASTCloner::visit(CompoundRequirementAST* ast) {
+  auto copy = new (arena_) CompoundRequirementAST();
+  copy_ = copy;
+
+  copy->lbraceLoc = ast->lbraceLoc;
+
+  copy->expression = accept(ast->expression);
+
+  copy->rbraceLoc = ast->rbraceLoc;
+
+  copy->noexceptLoc = ast->noexceptLoc;
+
+  copy->minusGreaterLoc = ast->minusGreaterLoc;
+
+  copy->typeConstraint = accept(ast->typeConstraint);
+
+  copy->semicolonLoc = ast->semicolonLoc;
+}
+
+void ASTCloner::visit(TypeRequirementAST* ast) {
+  auto copy = new (arena_) TypeRequirementAST();
+  copy_ = copy;
+
+  copy->typenameLoc = ast->typenameLoc;
+
+  copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
+
+  copy->name = accept(ast->name);
+
+  copy->semicolonLoc = ast->semicolonLoc;
+}
+
+void ASTCloner::visit(NestedRequirementAST* ast) {
+  auto copy = new (arena_) NestedRequirementAST();
+  copy_ = copy;
+
+  copy->requiresLoc = ast->requiresLoc;
+
+  copy->expression = accept(ast->expression);
+
+  copy->semicolonLoc = ast->semicolonLoc;
+}
+
 void ASTCloner::visit(TypeTemplateArgumentAST* ast) {
   auto copy = new (arena_) TypeTemplateArgumentAST();
   copy_ = copy;
@@ -757,6 +836,25 @@ void ASTCloner::visit(IdExpressionAST* ast) {
   copy->name = accept(ast->name);
 
   copy->symbol = ast->symbol;
+}
+
+void ASTCloner::visit(RequiresExpressionAST* ast) {
+  auto copy = new (arena_) RequiresExpressionAST();
+  copy_ = copy;
+
+  copy->type = ast->type;
+
+  copy->valueCategory = ast->valueCategory;
+
+  copy->requiresLoc = ast->requiresLoc;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->parameterDeclarationClause = accept(ast->parameterDeclarationClause);
+
+  copy->rparenLoc = ast->rparenLoc;
+
+  copy->requirementBody = accept(ast->requirementBody);
 }
 
 void ASTCloner::visit(NestedExpressionAST* ast) {

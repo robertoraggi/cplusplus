@@ -45,6 +45,14 @@ class DefaultASTVisitor : public ASTVisitor {
   void visit(LambdaDeclaratorAST* ast) override;
   void visit(TrailingReturnTypeAST* ast) override;
   void visit(CtorInitializerAST* ast) override;
+  void visit(RequirementBodyAST* ast) override;
+  void visit(TypeConstraintAST* ast) override;
+
+  // RequirementAST
+  void visit(SimpleRequirementAST* ast) override;
+  void visit(CompoundRequirementAST* ast) override;
+  void visit(TypeRequirementAST* ast) override;
+  void visit(NestedRequirementAST* ast) override;
 
   // TemplateArgumentAST
   void visit(TypeTemplateArgumentAST* ast) override;
@@ -95,6 +103,7 @@ class DefaultASTVisitor : public ASTVisitor {
   void visit(StringLiteralExpressionAST* ast) override;
   void visit(UserDefinedStringLiteralExpressionAST* ast) override;
   void visit(IdExpressionAST* ast) override;
+  void visit(RequiresExpressionAST* ast) override;
   void visit(NestedExpressionAST* ast) override;
   void visit(RightFoldExpressionAST* ast) override;
   void visit(LeftFoldExpressionAST* ast) override;

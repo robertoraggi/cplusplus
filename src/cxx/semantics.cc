@@ -185,8 +185,41 @@ void Semantics::parametersAndQualifiers(ParametersAndQualifiersAST* ast) {
   accept(ast);
 }
 
+void Semantics::typeConstraint(TypeConstraintAST* ast) { accept(ast); }
+
+void Semantics::requirement(RequirementAST* ast) { accept(ast); }
+
+void Semantics::requirementBody(RequirementBodyAST* ast) {
+  for (auto it = ast->requirementList; it; it = it->next) {
+    requirement(it->value);
+  }
+}
+
 void Semantics::accept(AST* ast) {
   if (ast) ast->accept(this);
+}
+
+void Semantics::visit(SimpleRequirementAST* ast) {
+  ExpressionSem expr;
+  expression(ast->expression, &expr);
+}
+
+void Semantics::visit(CompoundRequirementAST* ast) {
+  ExpressionSem expr;
+  expression(ast->expression, &expr);
+  typeConstraint(ast->typeConstraint);
+}
+
+void Semantics::visit(TypeRequirementAST* ast) {
+  NestedNameSpecifierSem nestedNameSpecifierSem;
+  nestedNameSpecifier(ast->nestedNameSpecifier, &nestedNameSpecifierSem);
+  NameSem nameSem;
+  name(ast->name, &nameSem);
+}
+
+void Semantics::visit(NestedRequirementAST* ast) {
+  ExpressionSem expr;
+  expression(ast->expression, &expr);
 }
 
 void Semantics::visit(TypeIdAST* ast) {
@@ -309,6 +342,14 @@ void Semantics::visit(TrailingReturnTypeAST* ast) { typeId(ast->typeId); }
 void Semantics::visit(CtorInitializerAST* ast) {
   for (auto it = ast->memInitializerList; it; it = it->next)
     memInitializer(it->value);
+}
+
+void Semantics::visit(RequirementBodyAST* ast) {
+  throw std::runtime_error("unreachable");
+}
+
+void Semantics::visit(TypeConstraintAST* ast) {
+  throw std::runtime_error("unreachable");
 }
 
 void Semantics::visit(ParenMemInitializerAST* ast) {
@@ -439,6 +480,8 @@ void Semantics::visit(IdExpressionAST* ast) {
 
   if (ast->symbol) expression_->type = ast->symbol->type();
 }
+
+void Semantics::visit(RequiresExpressionAST* ast) {}
 
 void Semantics::visit(NestedExpressionAST* ast) {
   ExpressionSem expr;

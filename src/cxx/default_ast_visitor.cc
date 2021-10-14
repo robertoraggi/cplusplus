@@ -100,6 +100,31 @@ void DefaultASTVisitor::visit(CtorInitializerAST* ast) {
   throw std::runtime_error("visit(CtorInitializerAST): not implemented");
 }
 
+void DefaultASTVisitor::visit(RequirementBodyAST* ast) {
+  throw std::runtime_error("visit(RequirementBodyAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(TypeConstraintAST* ast) {
+  throw std::runtime_error("visit(TypeConstraintAST): not implemented");
+}
+
+// RequirementAST
+void DefaultASTVisitor::visit(SimpleRequirementAST* ast) {
+  throw std::runtime_error("visit(SimpleRequirementAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(CompoundRequirementAST* ast) {
+  throw std::runtime_error("visit(CompoundRequirementAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(TypeRequirementAST* ast) {
+  throw std::runtime_error("visit(TypeRequirementAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(NestedRequirementAST* ast) {
+  throw std::runtime_error("visit(NestedRequirementAST): not implemented");
+}
+
 // TemplateArgumentAST
 void DefaultASTVisitor::visit(TypeTemplateArgumentAST* ast) {
   throw std::runtime_error("visit(TypeTemplateArgumentAST): not implemented");
@@ -243,6 +268,10 @@ void DefaultASTVisitor::visit(UserDefinedStringLiteralExpressionAST* ast) {
 
 void DefaultASTVisitor::visit(IdExpressionAST* ast) {
   throw std::runtime_error("visit(IdExpressionAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(RequiresExpressionAST* ast) {
+  throw std::runtime_error("visit(RequiresExpressionAST): not implemented");
 }
 
 void DefaultASTVisitor::visit(NestedExpressionAST* ast) {

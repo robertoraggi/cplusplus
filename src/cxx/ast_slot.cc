@@ -292,6 +292,99 @@ void ASTSlot::visit(CtorInitializerAST* ast) {
   }  // switch
 }
 
+void ASTSlot::visit(RequirementBodyAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->lbraceLoc.index();
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->requirementList);
+      break;
+    case 2:
+      value_ = ast->rbraceLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(TypeConstraintAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = reinterpret_cast<std::intptr_t>(ast->nestedNameSpecifier);
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->name);
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(SimpleRequirementAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
+      break;
+    case 1:
+      value_ = ast->semicolonLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(CompoundRequirementAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->lbraceLoc.index();
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
+      break;
+    case 2:
+      value_ = ast->rbraceLoc.index();
+      break;
+    case 3:
+      value_ = ast->noexceptLoc.index();
+      break;
+    case 4:
+      value_ = ast->minusGreaterLoc.index();
+      break;
+    case 5:
+      value_ = reinterpret_cast<std::intptr_t>(ast->typeConstraint);
+      break;
+    case 6:
+      value_ = ast->semicolonLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(TypeRequirementAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->typenameLoc.index();
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->nestedNameSpecifier);
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->name);
+      break;
+    case 3:
+      value_ = ast->semicolonLoc.index();
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(NestedRequirementAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->requiresLoc.index();
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
+      break;
+    case 2:
+      value_ = ast->semicolonLoc.index();
+      break;
+  }  // switch
+}
+
 void ASTSlot::visit(TypeTemplateArgumentAST* ast) {
   switch (slot_) {
     case 0:
@@ -639,6 +732,26 @@ void ASTSlot::visit(IdExpressionAST* ast) {
   switch (slot_) {
     case 0:
       value_ = reinterpret_cast<std::intptr_t>(ast->name);
+      break;
+  }  // switch
+}
+
+void ASTSlot::visit(RequiresExpressionAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->requiresLoc.index();
+      break;
+    case 1:
+      value_ = ast->lparenLoc.index();
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->parameterDeclarationClause);
+      break;
+    case 3:
+      value_ = ast->rparenLoc.index();
+      break;
+    case 4:
+      value_ = reinterpret_cast<std::intptr_t>(ast->requirementBody);
       break;
   }  // switch
 }

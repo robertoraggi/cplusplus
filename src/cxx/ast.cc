@@ -282,6 +282,96 @@ SourceLocation CtorInitializerAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation RequirementBodyAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(lbraceLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(requirementList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rbraceLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation RequirementBodyAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(rbraceLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(requirementList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lbraceLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation TypeConstraintAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation TypeConstraintAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation SimpleRequirementAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation SimpleRequirementAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation CompoundRequirementAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(lbraceLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rbraceLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(noexceptLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(minusGreaterLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(typeConstraint)) return loc;
+  if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation CompoundRequirementAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeConstraint)) return loc;
+  if (auto loc = cxx::lastSourceLocation(minusGreaterLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(noexceptLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(rbraceLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lbraceLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation TypeRequirementAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(typenameLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation TypeRequirementAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typenameLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation NestedRequirementAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(requiresLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation NestedRequirementAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(requiresLoc)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation TypeTemplateArgumentAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
   return SourceLocation();
@@ -659,6 +749,26 @@ SourceLocation IdExpressionAST::firstSourceLocation() {
 
 SourceLocation IdExpressionAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation RequiresExpressionAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(requiresLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(parameterDeclarationClause))
+    return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(requirementBody)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation RequiresExpressionAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(requirementBody)) return loc;
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(parameterDeclarationClause))
+    return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(requiresLoc)) return loc;
   return SourceLocation();
 }
 

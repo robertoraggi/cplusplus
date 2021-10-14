@@ -43,6 +43,14 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitLambdaDeclarator(node: ast.LambdaDeclaratorAST, context: Context): Result;
     abstract visitTrailingReturnType(node: ast.TrailingReturnTypeAST, context: Context): Result;
     abstract visitCtorInitializer(node: ast.CtorInitializerAST, context: Context): Result;
+    abstract visitRequirementBody(node: ast.RequirementBodyAST, context: Context): Result;
+    abstract visitTypeConstraint(node: ast.TypeConstraintAST, context: Context): Result;
+
+    // RequirementAST
+    abstract visitSimpleRequirement(node: ast.SimpleRequirementAST, context: Context): Result;
+    abstract visitCompoundRequirement(node: ast.CompoundRequirementAST, context: Context): Result;
+    abstract visitTypeRequirement(node: ast.TypeRequirementAST, context: Context): Result;
+    abstract visitNestedRequirement(node: ast.NestedRequirementAST, context: Context): Result;
 
     // TemplateArgumentAST
     abstract visitTypeTemplateArgument(node: ast.TypeTemplateArgumentAST, context: Context): Result;
@@ -93,6 +101,7 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitStringLiteralExpression(node: ast.StringLiteralExpressionAST, context: Context): Result;
     abstract visitUserDefinedStringLiteralExpression(node: ast.UserDefinedStringLiteralExpressionAST, context: Context): Result;
     abstract visitIdExpression(node: ast.IdExpressionAST, context: Context): Result;
+    abstract visitRequiresExpression(node: ast.RequiresExpressionAST, context: Context): Result;
     abstract visitNestedExpression(node: ast.NestedExpressionAST, context: Context): Result;
     abstract visitRightFoldExpression(node: ast.RightFoldExpressionAST, context: Context): Result;
     abstract visitLeftFoldExpression(node: ast.LeftFoldExpressionAST, context: Context): Result;

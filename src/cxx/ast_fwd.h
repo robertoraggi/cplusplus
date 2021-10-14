@@ -65,6 +65,7 @@ class MemInitializerAST;
 class NameAST;
 class NewInitializerAST;
 class PtrOperatorAST;
+class RequirementAST;
 class SpecifierAST;
 class StatementAST;
 class TemplateArgumentAST;
@@ -89,6 +90,14 @@ class LambdaIntroducerAST;
 class LambdaDeclaratorAST;
 class TrailingReturnTypeAST;
 class CtorInitializerAST;
+class RequirementBodyAST;
+class TypeConstraintAST;
+
+// RequirementAST
+class SimpleRequirementAST;
+class CompoundRequirementAST;
+class TypeRequirementAST;
+class NestedRequirementAST;
 
 // TemplateArgumentAST
 class TypeTemplateArgumentAST;
@@ -139,6 +148,7 @@ class NullptrLiteralExpressionAST;
 class StringLiteralExpressionAST;
 class UserDefinedStringLiteralExpressionAST;
 class IdExpressionAST;
+class RequiresExpressionAST;
 class NestedExpressionAST;
 class RightFoldExpressionAST;
 class LeftFoldExpressionAST;

@@ -101,6 +101,14 @@ void RecursiveASTVisitor::acceptMemInitializer(MemInitializerAST* ast) {
   accept(ast);
 }
 
+void RecursiveASTVisitor::acceptRequirement(RequirementAST* ast) {
+  accept(ast);
+}
+
+void RecursiveASTVisitor::acceptTypeConstraint(TypeConstraintAST* ast) {
+  accept(ast);
+}
+
 void RecursiveASTVisitor::acceptBracedInitList(BracedInitListAST* ast) {
   accept(ast);
 }
@@ -112,6 +120,10 @@ void RecursiveASTVisitor::acceptCtorInitializer(CtorInitializerAST* ast) {
 void RecursiveASTVisitor::acceptHandler(HandlerAST* ast) { accept(ast); }
 
 void RecursiveASTVisitor::acceptDeclaration(DeclarationAST* ast) {
+  accept(ast);
+}
+
+void RecursiveASTVisitor::acceptRequirementBody(RequirementBodyAST* ast) {
   accept(ast);
 }
 
@@ -261,6 +273,34 @@ void RecursiveASTVisitor::visit(CtorInitializerAST* ast) {
     acceptMemInitializer(it->value);
 }
 
+void RecursiveASTVisitor::visit(RequirementBodyAST* ast) {
+  for (auto it = ast->requirementList; it; it = it->next)
+    acceptRequirement(it->value);
+}
+
+void RecursiveASTVisitor::visit(TypeConstraintAST* ast) {
+  acceptNestedNameSpecifier(ast->nestedNameSpecifier);
+  acceptName(ast->name);
+}
+
+void RecursiveASTVisitor::visit(SimpleRequirementAST* ast) {
+  acceptExpression(ast->expression);
+}
+
+void RecursiveASTVisitor::visit(CompoundRequirementAST* ast) {
+  acceptExpression(ast->expression);
+  acceptTypeConstraint(ast->typeConstraint);
+}
+
+void RecursiveASTVisitor::visit(TypeRequirementAST* ast) {
+  acceptNestedNameSpecifier(ast->nestedNameSpecifier);
+  acceptName(ast->name);
+}
+
+void RecursiveASTVisitor::visit(NestedRequirementAST* ast) {
+  acceptExpression(ast->expression);
+}
+
 void RecursiveASTVisitor::visit(TypeTemplateArgumentAST* ast) {
   acceptTypeId(ast->typeId);
 }
@@ -368,6 +408,11 @@ void RecursiveASTVisitor::visit(StringLiteralExpressionAST* ast) {}
 void RecursiveASTVisitor::visit(UserDefinedStringLiteralExpressionAST* ast) {}
 
 void RecursiveASTVisitor::visit(IdExpressionAST* ast) { acceptName(ast->name); }
+
+void RecursiveASTVisitor::visit(RequiresExpressionAST* ast) {
+  acceptParameterDeclarationClause(ast->parameterDeclarationClause);
+  acceptRequirementBody(ast->requirementBody);
+}
 
 void RecursiveASTVisitor::visit(NestedExpressionAST* ast) {
   acceptExpression(ast->expression);

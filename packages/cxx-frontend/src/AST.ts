@@ -100,6 +100,7 @@ export abstract class MemInitializerAST extends AST { }
 export abstract class NameAST extends AST { }
 export abstract class NewInitializerAST extends AST { }
 export abstract class PtrOperatorAST extends AST { }
+export abstract class RequirementAST extends AST { }
 export abstract class SpecifierAST extends AST { }
 export abstract class StatementAST extends AST { }
 export abstract class TemplateArgumentAST extends AST { }
@@ -407,6 +408,107 @@ export class CtorInitializerAST extends AST {
         for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
             yield AST.from<MemInitializerAST>(cxx.getListValue(it), this.parser);
         }
+    }
+}
+
+export class RequirementBodyAST extends AST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitRequirementBody(this, context);
+    }
+    getLbraceToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    *getRequirementList(): Generator<RequirementAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
+            yield AST.from<RequirementAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+    getRbraceToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+}
+
+export class TypeConstraintAST extends AST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitTypeConstraint(this, context);
+    }
+    getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
+        return AST.from<NestedNameSpecifierAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getName(): NameAST | undefined {
+        return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+}
+
+export class SimpleRequirementAST extends RequirementAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitSimpleRequirement(this, context);
+    }
+    getExpression(): ExpressionAST | undefined {
+        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getSemicolonToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+}
+
+export class CompoundRequirementAST extends RequirementAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitCompoundRequirement(this, context);
+    }
+    getLbraceToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getExpression(): ExpressionAST | undefined {
+        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getRbraceToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getNoexceptToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+    getMinusGreaterToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+    }
+    getTypeConstraint(): TypeConstraintAST | undefined {
+        return AST.from<TypeConstraintAST>(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+    }
+    getSemicolonToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+    }
+}
+
+export class TypeRequirementAST extends RequirementAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitTypeRequirement(this, context);
+    }
+    getTypenameToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
+        return AST.from<NestedNameSpecifierAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getName(): NameAST | undefined {
+        return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getSemicolonToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+}
+
+export class NestedRequirementAST extends RequirementAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitNestedRequirement(this, context);
+    }
+    getRequiresToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getExpression(): ExpressionAST | undefined {
+        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getSemicolonToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
     }
 }
 
@@ -804,6 +906,27 @@ export class IdExpressionAST extends ExpressionAST {
     }
     getName(): NameAST | undefined {
         return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+}
+
+export class RequiresExpressionAST extends ExpressionAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitRequiresExpression(this, context);
+    }
+    getRequiresToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getLparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getParameterDeclarationClause(): ParameterDeclarationClauseAST | undefined {
+        return AST.from<ParameterDeclarationClauseAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getRparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+    getRequirementBody(): RequirementBodyAST | undefined {
+        return AST.from<RequirementBodyAST>(cxx.getASTSlot(this.getHandle(), 4), this.parser);
     }
 }
 
@@ -2796,6 +2919,12 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     LambdaDeclaratorAST,
     TrailingReturnTypeAST,
     CtorInitializerAST,
+    RequirementBodyAST,
+    TypeConstraintAST,
+    SimpleRequirementAST,
+    CompoundRequirementAST,
+    TypeRequirementAST,
+    NestedRequirementAST,
     TypeTemplateArgumentAST,
     ExpressionTemplateArgumentAST,
     ParenMemInitializerAST,
@@ -2828,6 +2957,7 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     StringLiteralExpressionAST,
     UserDefinedStringLiteralExpressionAST,
     IdExpressionAST,
+    RequiresExpressionAST,
     NestedExpressionAST,
     RightFoldExpressionAST,
     LeftFoldExpressionAST,

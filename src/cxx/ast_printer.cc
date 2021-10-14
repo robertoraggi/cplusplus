@@ -369,6 +369,82 @@ void ASTPrinter::visit(CtorInitializerAST* ast) {
   }
 }
 
+void ASTPrinter::visit(RequirementBodyAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "RequirementBody";
+
+  if (ast->requirementList) {
+    auto elements = nlohmann::json::array();
+    for (auto it = ast->requirementList; it; it = it->next) {
+      elements.push_back(accept(it->value));
+    }
+    json_["requirementList"] = elements;
+  }
+}
+
+void ASTPrinter::visit(TypeConstraintAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "TypeConstraint";
+
+  if (ast->nestedNameSpecifier) {
+    json_["nestedNameSpecifier"] = accept(ast->nestedNameSpecifier);
+  }
+
+  if (ast->name) {
+    json_["name"] = accept(ast->name);
+  }
+}
+
+void ASTPrinter::visit(SimpleRequirementAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "SimpleRequirement";
+
+  if (ast->expression) {
+    json_["expression"] = accept(ast->expression);
+  }
+}
+
+void ASTPrinter::visit(CompoundRequirementAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "CompoundRequirement";
+
+  if (ast->expression) {
+    json_["expression"] = accept(ast->expression);
+  }
+
+  if (ast->typeConstraint) {
+    json_["typeConstraint"] = accept(ast->typeConstraint);
+  }
+}
+
+void ASTPrinter::visit(TypeRequirementAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "TypeRequirement";
+
+  if (ast->nestedNameSpecifier) {
+    json_["nestedNameSpecifier"] = accept(ast->nestedNameSpecifier);
+  }
+
+  if (ast->name) {
+    json_["name"] = accept(ast->name);
+  }
+}
+
+void ASTPrinter::visit(NestedRequirementAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "NestedRequirement";
+
+  if (ast->expression) {
+    json_["expression"] = accept(ast->expression);
+  }
+}
+
 void ASTPrinter::visit(TypeTemplateArgumentAST* ast) {
   json_ = nlohmann::json::object();
 
@@ -704,6 +780,21 @@ void ASTPrinter::visit(IdExpressionAST* ast) {
 
   if (ast->name) {
     json_["name"] = accept(ast->name);
+  }
+}
+
+void ASTPrinter::visit(RequiresExpressionAST* ast) {
+  json_ = nlohmann::json::object();
+
+  json_["$id"] = "RequiresExpression";
+
+  if (ast->parameterDeclarationClause) {
+    json_["parameterDeclarationClause"] =
+        accept(ast->parameterDeclarationClause);
+  }
+
+  if (ast->requirementBody) {
+    json_["requirementBody"] = accept(ast->requirementBody);
   }
 }
 

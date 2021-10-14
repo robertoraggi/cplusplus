@@ -43,6 +43,14 @@ enum struct ASTKind {
   LambdaDeclarator,
   TrailingReturnType,
   CtorInitializer,
+  RequirementBody,
+  TypeConstraint,
+
+  // RequirementAST
+  SimpleRequirement,
+  CompoundRequirement,
+  TypeRequirement,
+  NestedRequirement,
 
   // TemplateArgumentAST
   TypeTemplateArgument,
@@ -93,6 +101,7 @@ enum struct ASTKind {
   StringLiteralExpression,
   UserDefinedStringLiteralExpression,
   IdExpression,
+  RequiresExpression,
   NestedExpression,
   RightFoldExpression,
   LeftFoldExpression,

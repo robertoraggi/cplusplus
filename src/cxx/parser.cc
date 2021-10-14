@@ -1246,55 +1246,83 @@ bool Parser::parse_fold_operator(SourceLocation& loc, TokenKind& op) {
 }
 
 bool Parser::parse_requires_expression(ExpressionAST*& yyast) {
-  if (!match(TokenKind::T_REQUIRES)) return false;
+  SourceLocation requiresLoc;
+
+  if (!match(TokenKind::T_REQUIRES, requiresLoc)) return false;
+
+  auto ast = new (pool) RequiresExpressionAST();
+  yyast = ast;
+
+  ast->requiresLoc = requiresLoc;
 
   if (LA().isNot(TokenKind::T_LBRACE)) {
-    if (!parse_requirement_parameter_list())
+    if (!parse_requirement_parameter_list(
+            ast->lparenLoc, ast->parameterDeclarationClause, ast->rparenLoc))
       parse_error("expected a requirement parameter");
   }
 
-  if (!parse_requirement_body()) parse_error("expected a requirement body");
+  if (!parse_requirement_body(ast->requirementBody))
+    parse_error("expected a requirement body");
 
   return true;
 }
 
-bool Parser::parse_requirement_parameter_list() {
-  if (!match(TokenKind::T_LPAREN)) return false;
+bool Parser::parse_requirement_parameter_list(
+    SourceLocation& lparenLoc,
+    ParameterDeclarationClauseAST*& parameterDeclarationClause,
+    SourceLocation& rparenLoc) {
+  if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
 
-  if (!match(TokenKind::T_RPAREN)) {
-    ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
-
+  if (!match(TokenKind::T_RPAREN, rparenLoc)) {
     if (!parse_parameter_declaration_clause(parameterDeclarationClause))
       parse_error("expected a parmater declaration");
 
-    expect(TokenKind::T_RPAREN);
+    expect(TokenKind::T_RPAREN, rparenLoc);
   }
 
   return true;
 }
 
-bool Parser::parse_requirement_body() {
-  if (!match(TokenKind::T_LBRACE)) return false;
+bool Parser::parse_requirement_body(RequirementBodyAST*& yyast) {
+  SourceLocation lbraceLoc;
 
-  if (!parse_requirement_seq()) parse_error("expected a requirement");
+  if (!match(TokenKind::T_LBRACE, lbraceLoc)) return false;
 
-  expect(TokenKind::T_RBRACE);
+  yyast = new (pool) RequirementBodyAST();
+  yyast->lbraceLoc = lbraceLoc;
+
+  if (!parse_requirement_seq(yyast->requirementList))
+    parse_error("expected a requirement");
+
+  expect(TokenKind::T_RBRACE, yyast->rbraceLoc);
 
   return true;
 }
 
-bool Parser::parse_requirement_seq() {
+bool Parser::parse_requirement_seq(List<RequirementAST*>*& yyast) {
+  auto it = &yyast;
+
   bool skipping = false;
 
-  if (!parse_requirement()) return false;
+  RequirementAST* requirement = nullptr;
+
+  if (!parse_requirement(requirement)) return false;
+
+  *it = new (pool) List(requirement);
+  it = &(*it)->next;
 
   while (LA()) {
     if (LA().is(TokenKind::T_RBRACE)) break;
 
     const auto before_requirement = currentLocation();
 
-    if (parse_requirement()) {
+    RequirementAST* requirement = nullptr;
+
+    if (parse_requirement(requirement)) {
       skipping = false;
+
+      *it = new (pool) List(requirement);
+      it = &(*it)->next;
     } else {
       if (!skipping) parse_error("expected a requirement");
       skipping = true;
@@ -1305,50 +1333,62 @@ bool Parser::parse_requirement_seq() {
   return true;
 }
 
-bool Parser::parse_requirement() {
-  if (parse_nested_requirement()) return true;
+bool Parser::parse_requirement(RequirementAST*& yyast) {
+  if (parse_nested_requirement(yyast)) return true;
 
-  if (parse_compound_requirement()) return true;
+  if (parse_compound_requirement(yyast)) return true;
 
-  if (parse_type_requirement()) return true;
+  if (parse_type_requirement(yyast)) return true;
 
-  return parse_simple_requirement();
+  return parse_simple_requirement(yyast);
 }
 
-bool Parser::parse_simple_requirement() {
+bool Parser::parse_simple_requirement(RequirementAST*& yyast) {
   ExpressionAST* expression = nullptr;
 
   if (!parse_expression(expression)) return false;
+
+  SourceLocation semicolonLoc;
+
+  if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return false;
 
   Semantics::ExpressionSem expr;
 
   sem->expression(expression, &expr);
 
-  if (!match(TokenKind::T_SEMICOLON)) return false;
+  auto ast = new (pool) SimpleRequirementAST();
+  yyast = ast;
+
+  ast->expression = expression;
+  ast->semicolonLoc = semicolonLoc;
 
   return true;
 }
 
-bool Parser::parse_type_requirement() {
-  if (!match(TokenKind::T_TYPENAME)) return false;
+bool Parser::parse_type_requirement(RequirementAST*& yyast) {
+  SourceLocation typenameLoc;
+
+  if (!match(TokenKind::T_TYPENAME, typenameLoc)) return false;
+
+  auto ast = new (pool) TypeRequirementAST();
+  yyast = ast;
 
   const auto after_typename = currentLocation();
 
-  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  if (!parse_nested_name_specifier(ast->nestedNameSpecifier))
+    rewind(after_typename);
 
-  if (!parse_nested_name_specifier(nestedNameSpecifier)) rewind(after_typename);
+  if (!parse_type_name(ast->name)) parse_error("expected a type name");
 
-  NameAST* name = nullptr;
-
-  if (!parse_type_name(name)) parse_error("expected a type name");
-
-  expect(TokenKind::T_SEMICOLON);
+  expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
 
   return true;
 }
 
-bool Parser::parse_compound_requirement() {
-  if (!match(TokenKind::T_LBRACE)) return false;
+bool Parser::parse_compound_requirement(RequirementAST*& yyast) {
+  SourceLocation lbraceLoc;
+
+  if (!match(TokenKind::T_LBRACE, lbraceLoc)) return false;
 
   ExpressionAST* expression = nullptr;
 
@@ -1358,37 +1398,54 @@ bool Parser::parse_compound_requirement() {
 
   sem->expression(expression, &expr);
 
-  if (!match(TokenKind::T_RBRACE)) return false;
+  SourceLocation rbraceLoc;
 
-  const auto has_noexcept = match(TokenKind::T_NOEXCEPT);
+  if (!match(TokenKind::T_RBRACE, rbraceLoc)) return false;
 
-  if (!match(TokenKind::T_SEMICOLON)) {
-    if (!parse_return_type_requirement())
+  auto ast = new (pool) CompoundRequirementAST();
+  yyast = ast;
+
+  ast->lbraceLoc = lbraceLoc;
+  ast->expression = expression;
+  ast->rbraceLoc = rbraceLoc;
+
+  const auto has_noexcept = match(TokenKind::T_NOEXCEPT, ast->noexceptLoc);
+
+  if (!match(TokenKind::T_SEMICOLON, ast->semicolonLoc)) {
+    if (!parse_return_type_requirement(ast->minusGreaterLoc,
+                                       ast->typeConstraint))
       parse_error("expected return type requirement");
 
-    expect(TokenKind::T_SEMICOLON);
+    expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
   }
 
   return true;
 }
 
-bool Parser::parse_return_type_requirement() {
-  if (!match(TokenKind::T_MINUS_GREATER)) return false;
+bool Parser::parse_return_type_requirement(SourceLocation& minusGreaterLoc,
+                                           TypeConstraintAST*& typeConstraint) {
+  if (!match(TokenKind::T_MINUS_GREATER, minusGreaterLoc)) return false;
 
-  if (!parse_type_constraint()) parse_error("expected type constraint");
+  if (!parse_type_constraint(typeConstraint))
+    parse_error("expected type constraint");
 
   return true;
 }
 
-bool Parser::parse_nested_requirement() {
-  if (!match(TokenKind::T_REQUIRES)) return false;
+bool Parser::parse_nested_requirement(RequirementAST*& yyast) {
+  SourceLocation requiresLoc;
 
-  ExpressionAST* expression = nullptr;
+  if (!match(TokenKind::T_REQUIRES, requiresLoc)) return false;
 
-  if (!parse_constraint_expression(expression))
+  auto ast = new (pool) NestedRequirementAST();
+  yyast = ast;
+
+  ast->requiresLoc = requiresLoc;
+
+  if (!parse_constraint_expression(ast->expression))
     parse_error("expected an expression");
 
-  expect(TokenKind::T_SEMICOLON);
+  expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
 
   return true;
 }
@@ -4458,7 +4515,9 @@ bool Parser::parse_decltype_specifier(SpecifierAST*& yyast) {
 }
 
 bool Parser::parse_placeholder_type_specifier(SpecifierAST*& yyast) {
-  parse_type_constraint();
+  TypeConstraintAST* typeConstraint = nullptr;
+
+  parse_type_constraint(typeConstraint);
 
   SourceLocation autoLoc;
 
@@ -7600,7 +7659,9 @@ bool Parser::parse_template_type_parameter(DeclarationAST*& yyast) {
 }
 
 bool Parser::parse_constraint_type_parameter(DeclarationAST*& yyast) {
-  if (!parse_type_constraint()) return false;
+  TypeConstraintAST* typeConstraint = nullptr;
+
+  if (!parse_type_constraint(typeConstraint)) return false;
 
   const auto saved = currentLocation();
 
@@ -7633,7 +7694,7 @@ bool Parser::parse_type_parameter_key(SourceLocation& classKeyLoc) {
   return true;
 }
 
-bool Parser::parse_type_constraint() {
+bool Parser::parse_type_constraint(TypeConstraintAST*& yyast) {
   const auto start = currentLocation();
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
@@ -7661,6 +7722,12 @@ bool Parser::parse_type_constraint() {
     }
   }
 
+  auto ast = new (pool) TypeConstraintAST();
+  yyast = ast;
+
+  ast->nestedNameSpecifier = nestedNameSpecifier;
+  ast->name = name;
+
   SourceLocation lessLoc;
 
   if (match(TokenKind::T_LESS, lessLoc)) {
@@ -7679,7 +7746,7 @@ bool Parser::parse_type_constraint() {
     templateId->templateArgumentList = templateArgumentList;
     templateId->greaterLoc = greaterLoc;
 
-    name = templateId;
+    ast->name = templateId;
   }
 
   return true;

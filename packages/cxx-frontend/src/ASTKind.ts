@@ -39,6 +39,14 @@ export enum ASTKind {
     LambdaDeclarator,
     TrailingReturnType,
     CtorInitializer,
+    RequirementBody,
+    TypeConstraint,
+
+    // RequirementAST
+    SimpleRequirement,
+    CompoundRequirement,
+    TypeRequirement,
+    NestedRequirement,
 
     // TemplateArgumentAST
     TypeTemplateArgument,
@@ -89,6 +97,7 @@ export enum ASTKind {
     StringLiteralExpression,
     UserDefinedStringLiteralExpression,
     IdExpression,
+    RequiresExpression,
     NestedExpression,
     RightFoldExpression,
     LeftFoldExpression,

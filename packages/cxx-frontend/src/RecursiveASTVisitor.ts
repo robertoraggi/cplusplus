@@ -150,6 +150,35 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         }
     }
 
+    visitRequirementBody(node: ast.RequirementBodyAST, context: Context): void {
+        for (const element of node.getRequirementList()) {
+            this.accept(element, context);
+        }
+    }
+
+    visitTypeConstraint(node: ast.TypeConstraintAST, context: Context): void {
+        this.accept(node.getNestedNameSpecifier(), context);
+        this.accept(node.getName(), context);
+    }
+
+    visitSimpleRequirement(node: ast.SimpleRequirementAST, context: Context): void {
+        this.accept(node.getExpression(), context);
+    }
+
+    visitCompoundRequirement(node: ast.CompoundRequirementAST, context: Context): void {
+        this.accept(node.getExpression(), context);
+        this.accept(node.getTypeConstraint(), context);
+    }
+
+    visitTypeRequirement(node: ast.TypeRequirementAST, context: Context): void {
+        this.accept(node.getNestedNameSpecifier(), context);
+        this.accept(node.getName(), context);
+    }
+
+    visitNestedRequirement(node: ast.NestedRequirementAST, context: Context): void {
+        this.accept(node.getExpression(), context);
+    }
+
     visitTypeTemplateArgument(node: ast.TypeTemplateArgumentAST, context: Context): void {
         this.accept(node.getTypeId(), context);
     }
@@ -283,6 +312,11 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitIdExpression(node: ast.IdExpressionAST, context: Context): void {
         this.accept(node.getName(), context);
+    }
+
+    visitRequiresExpression(node: ast.RequiresExpressionAST, context: Context): void {
+        this.accept(node.getParameterDeclarationClause(), context);
+        this.accept(node.getRequirementBody(), context);
     }
 
     visitNestedExpression(node: ast.NestedExpressionAST, context: Context): void {
