@@ -394,7 +394,7 @@ class Parser final {
   bool parse_literal_operator_id(NameAST*& yyast);
   bool parse_template_declaration(DeclarationAST*& yyast);
   bool parse_template_head(SourceLocation& templateLoc, SourceLocation& lessLoc,
-                           List<DeclarationAST*>* templateParameterList,
+                           List<DeclarationAST*>*& templateParameterList,
                            SourceLocation& greaterLoc);
   bool parse_template_parameter_list(List<DeclarationAST*>*& yyast);
   bool parse_requires_clause();

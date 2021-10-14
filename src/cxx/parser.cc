@@ -7321,15 +7321,13 @@ bool Parser::parse_template_declaration(DeclarationAST*& yyast) {
 
 bool Parser::parse_template_head(SourceLocation& templateLoc,
                                  SourceLocation& lessLoc,
-                                 List<DeclarationAST*>* templateParameterList,
+                                 List<DeclarationAST*>*& templateParameterList,
                                  SourceLocation& greaterLoc) {
   if (!match(TokenKind::T_TEMPLATE, templateLoc)) return false;
 
   if (!match(TokenKind::T_LESS, lessLoc)) return false;
 
   if (!match(TokenKind::T_GREATER, greaterLoc)) {
-    List<DeclarationAST*>* templateParameterList = nullptr;
-
     if (!parse_template_parameter_list(templateParameterList))
       parse_error("expected a template parameter");
 
