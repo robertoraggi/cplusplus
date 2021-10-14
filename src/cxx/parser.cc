@@ -2387,7 +2387,7 @@ bool Parser::parse_conditional_expression(ExpressionAST*& yyast,
 
     expect(TokenKind::T_COLON, ast->colonLoc);
 
-    if (exprContext.templArg) {
+    if (exprContext.templArg || exprContext.templParam) {
       if (!parse_conditional_expression(ast->iffalseExpression, exprContext))
         parse_error("expected an expression");
     } else if (!parse_assignment_expression(ast->iffalseExpression)) {
