@@ -23,6 +23,7 @@
 // cxx
 #include <cxx/preprocessor.h>
 
+#include <cctype>
 #include <iostream>
 
 namespace cxx {
@@ -56,8 +57,17 @@ void DiagnosticsClient::report(const Diagnostic& diag) {
   fmt::print(std::cerr, "{}:{}:{}: {}\n", fileName, line, column,
              diag.message());
 
-  fmt::print(std::cerr, "{}\n{:>{}}\n",
-             preprocessor_->getTextLine(diag.token()), "^", column);
+  const auto textLine = preprocessor_->getTextLine(diag.token());
+
+  const auto end = std::max(0, int(column) - 1);
+
+  std::string indent{textLine.substr(0, end)};
+
+  for (auto& ch : indent) {
+    if (!std::isspace(ch)) ch = ' ';
+  }
+
+  fmt::print(std::cerr, "{0}\n{1}^\n", textLine, indent);
 }
 
 }  // namespace cxx

@@ -1673,7 +1673,13 @@ std::string_view Preprocessor::getTextLine(const Token &token) const {
   const auto &lines = file->lines;
   const auto start = lines.at(line - 1);
   const auto end = line < lines.size() ? lines.at(line) : source.length();
-  return source.substr(start, end - start);
+  auto textLine = source.substr(start, end - start);
+  while (!textLine.empty()) {
+    auto ch = textLine.back();
+    if (!std::isspace(ch)) break;
+    textLine.remove_suffix(1);
+  }
+  return textLine;
 }
 
 }  // namespace cxx
