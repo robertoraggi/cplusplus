@@ -470,7 +470,11 @@ void Semantics::visit(IntLiteralExpressionAST* ast) {
   ast->constValue = ast->literal->integerValue();
 }
 
-void Semantics::visit(FloatLiteralExpressionAST* ast) {}
+void Semantics::visit(FloatLiteralExpressionAST* ast) {
+  QualifiedType floatTy{types_->floatingPointType(FloatingPointKind::kDouble)};
+  expression_->type = floatTy;
+  ast->constValue = ast->literal->floatValue();
+}
 
 void Semantics::visit(NullptrLiteralExpressionAST* ast) {}
 

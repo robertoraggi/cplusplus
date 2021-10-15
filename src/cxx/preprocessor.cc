@@ -1523,8 +1523,11 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
         break;
 
       case TokenKind::T_INTEGER_LITERAL:
-      case TokenKind::T_FLOATING_POINT_LITERAL:
         value.literalValue = d->control_->integerLiteral(tk->text);
+        break;
+
+      case TokenKind::T_FLOATING_POINT_LITERAL:
+        value.literalValue = d->control_->floatLiteral(tk->text);
         break;
 
       default:

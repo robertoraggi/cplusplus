@@ -74,12 +74,14 @@ class IntegerLiteral final : public Literal {
 
 class FloatLiteral final : public Literal {
  public:
-  explicit FloatLiteral(std::string value) : Literal(std::move(value)) {}
+  explicit FloatLiteral(std::string text) : Literal(std::move(text)) {
+    floatValue_ = std::stod(value());
+  }
 
-  double floatValue() const { return integerValue_; }
+  double floatValue() const { return floatValue_; }
 
  private:
-  std::uint64_t integerValue_ = 0;
+  double floatValue_ = 0;
 };
 
 class StringLiteral final : public Literal {
