@@ -3671,6 +3671,8 @@ bool Parser::parse_static_assert_declaration(DeclarationAST*& yyast) {
 
   expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
 
+  sem->declaration(ast);
+
   return true;
 }
 

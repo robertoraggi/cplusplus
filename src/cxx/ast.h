@@ -24,11 +24,14 @@
 #include <cxx/ast_fwd.h>
 #include <cxx/ast_kind.h>
 #include <cxx/ast_visitor.h>
+#include <cxx/const_value.h>
 #include <cxx/qualified_type.h>
 #include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/token.h>
 #include <cxx/types_fwd.h>
+
+#include <optional>
 
 namespace cxx {
 
@@ -124,6 +127,7 @@ class ExpressionAST : public AST {
   using AST::AST;
   QualifiedType type;
   ValueCategory valueCategory = ValueCategory::kNone;
+  std::optional<ConstValue> constValue;
 };
 
 class FunctionBodyAST : public AST {

@@ -127,6 +127,8 @@ class Semantics final : ASTVisitor {
 
   void typeId(TypeIdAST* ast);
 
+  std::optional<bool> toBool(ExpressionAST* ast);
+
  private:
   void implicitConversion(ExpressionAST* ast, const QualifiedType& type);
 

@@ -97,6 +97,11 @@ void Semantics::compoundStatement(CompoundStatementAST* ast) { accept(ast); }
 
 void Semantics::attribute(AttributeAST* ast) { accept(ast); }
 
+std::optional<bool> Semantics::toBool(ExpressionAST* ast) {
+  if (!ast || !ast->constValue) return std::nullopt;
+  return const_value_cast<bool>(*ast->constValue);
+}
+
 void Semantics::expression(ExpressionAST* ast, ExpressionSem* expression) {
   if (!ast) return;
   if (ast->type) {
@@ -452,7 +457,10 @@ void Semantics::visit(CharLiteralExpressionAST* ast) {
       QualifiedType{types_->integerType(IntegerKind::kChar, false)};
 }
 
-void Semantics::visit(BoolLiteralExpressionAST* ast) {}
+void Semantics::visit(BoolLiteralExpressionAST* ast) {
+  const auto value = ast->literal == TokenKind::T_TRUE;
+  ast->constValue = std::uint64_t(value);
+}
 
 void Semantics::visit(IntLiteralExpressionAST* ast) {
   auto kind = IntegerKind::kInt;
@@ -487,6 +495,9 @@ void Semantics::visit(NestedExpressionAST* ast) {
   ExpressionSem expr;
   expression(ast->expression, &expr);
   expression_->type = expr.type;
+  ast->type = ast->expression->type;
+  ast->constValue = ast->expression->constValue;
+  ast->valueCategory = ast->expression->valueCategory;
 }
 
 void Semantics::visit(RightFoldExpressionAST* ast) {
@@ -875,6 +886,35 @@ void Semantics::visit(SimpleDeclarationAST* ast) {
 void Semantics::visit(StaticAssertDeclarationAST* ast) {
   ExpressionSem expression;
   this->expression(ast->expression, &expression);
+
+  if (checkTypes_) {
+    const auto constValue = toBool(ast->expression);
+
+    if (!constValue.has_value()) {
+      const auto errorLoc = ast->expression
+                                ? ast->expression->firstSourceLocation()
+                                : ast->staticAssertLoc;
+
+      error(errorLoc, "non-constant condition for static assertion");
+    } else if (!constValue.value()) {
+      const auto errorLoc =
+          ast->stringLiteralList ? ast->stringLiteralList->value
+          : ast->expression      ? ast->expression->firstSourceLocation()
+                                 : ast->staticAssertLoc;
+
+      if (ast->stringLiteralList) {
+        std::string message;
+
+        for (auto it = ast->stringLiteralList; it; it = it->next) {
+          message += unit_->tokenText(it->value);
+        }
+
+        error(errorLoc, "static_assert failed: {}", message);
+      } else {
+        error(errorLoc, "static_assert failed");
+      }
+    }
+  }
 }
 
 void Semantics::visit(EmptyDeclarationAST* ast) {}
