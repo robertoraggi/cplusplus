@@ -38,13 +38,14 @@ class Control {
   Control();
   ~Control();
 
-  const Identifier* identifier(std::string name);
+  const Identifier* identifier(const std::string_view& name);
   const OperatorNameId* operatorNameId(TokenKind op);
   const ConversionNameId* conversionNameId(const QualifiedType& type);
 
-  const NumericLiteral* numericLiteral(std::string value);
-  const StringLiteral* stringLiteral(std::string value);
-  const CharLiteral* charLiteral(std::string value);
+  const IntegerLiteral* integerLiteral(const std::string_view& value);
+  const FloatLiteral* floatLiteral(const std::string_view& value);
+  const StringLiteral* stringLiteral(const std::string_view& value);
+  const CharLiteral* charLiteral(const std::string_view& value);
 
   TypeEnvironment* types();
   SymbolFactory* symbols();

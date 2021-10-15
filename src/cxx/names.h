@@ -76,3 +76,23 @@ class ConversionNameId final : public Name {
 std::ostream& operator<<(std::ostream& out, const Name& name);
 
 }  // namespace cxx
+
+template <>
+struct std::less<cxx::Identifier> {
+  using is_transparent = void;
+
+  bool operator()(const cxx::Identifier& id,
+                  const cxx::Identifier& other) const {
+    return id.name() < other.name();
+  }
+
+  bool operator()(const cxx::Identifier& id,
+                  const std::string_view& name) const {
+    return id.name() < name;
+  }
+
+  bool operator()(const std::string_view& name,
+                  const cxx::Identifier& id) const {
+    return name < id.name();
+  }
+};

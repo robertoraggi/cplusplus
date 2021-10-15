@@ -1510,21 +1510,21 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
       case TokenKind::T_IDENTIFIER: {
         kind = Lexer::classifyKeyword(tk->text);
         if (kind == TokenKind::T_IDENTIFIER)
-          value.idValue = d->control_->identifier(std::string(tk->text));
+          value.idValue = d->control_->identifier(tk->text);
         break;
       }
 
       case TokenKind::T_CHARACTER_LITERAL:
-        value.literalValue = d->control_->charLiteral(std::string(tk->text));
+        value.literalValue = d->control_->charLiteral(tk->text);
         break;
 
       case TokenKind::T_STRING_LITERAL:
-        value.literalValue = d->control_->stringLiteral(std::string(tk->text));
+        value.literalValue = d->control_->stringLiteral(tk->text);
         break;
 
       case TokenKind::T_INTEGER_LITERAL:
       case TokenKind::T_FLOATING_POINT_LITERAL:
-        value.literalValue = d->control_->numericLiteral(std::string(tk->text));
+        value.literalValue = d->control_->integerLiteral(tk->text);
         break;
 
       default:

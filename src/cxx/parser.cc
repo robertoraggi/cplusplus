@@ -346,7 +346,7 @@ bool Parser::parse_literal(ExpressionAST*& yyast) {
 
       ast->literalLoc = consumeToken();
       ast->literal =
-          static_cast<const NumericLiteral*>(unit->literal(ast->literalLoc));
+          static_cast<const IntegerLiteral*>(unit->literal(ast->literalLoc));
 
       return true;
     }
@@ -357,7 +357,7 @@ bool Parser::parse_literal(ExpressionAST*& yyast) {
 
       ast->literalLoc = consumeToken();
       ast->literal =
-          static_cast<const NumericLiteral*>(unit->literal(ast->literalLoc));
+          static_cast<const FloatLiteral*>(unit->literal(ast->literalLoc));
 
       return true;
     }

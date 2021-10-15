@@ -467,6 +467,7 @@ void Semantics::visit(IntLiteralExpressionAST* ast) {
   bool isUnsigned = false;
   QualifiedType intTy{types_->integerType(kind, isUnsigned)};
   expression_->type = intTy;
+  ast->constValue = ast->literal->integerValue();
 }
 
 void Semantics::visit(FloatLiteralExpressionAST* ast) {}
@@ -1394,8 +1395,9 @@ void Semantics::visit(ArrayDeclaratorAST* ast) {
     this->expression(ast->expression, &expression);
 
     if (auto cst = dynamic_cast<IntLiteralExpressionAST*>(ast->expression)) {
-      auto dim = std::stoul(cst->literal->value());
-      QualifiedType arrayType(types_->arrayType(declarator_->type, dim));
+      auto dim = cst->literal->integerValue();
+      QualifiedType arrayType(
+          types_->arrayType(declarator_->type, std::size_t(dim)));
       declarator_->type = arrayType;
     } else {
       QualifiedType arrayType(types_->unboundArrayType(declarator_->type));

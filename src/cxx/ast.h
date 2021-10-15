@@ -897,7 +897,7 @@ class IntLiteralExpressionAST final : public ExpressionAST {
   IntLiteralExpressionAST() : ExpressionAST(ASTKind::IntLiteralExpression) {}
 
   SourceLocation literalLoc;
-  const NumericLiteral* literal = nullptr;
+  const IntegerLiteral* literal = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -911,7 +911,7 @@ class FloatLiteralExpressionAST final : public ExpressionAST {
       : ExpressionAST(ASTKind::FloatLiteralExpression) {}
 
   SourceLocation literalLoc;
-  const NumericLiteral* literal = nullptr;
+  const FloatLiteral* literal = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

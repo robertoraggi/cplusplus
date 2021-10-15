@@ -24,6 +24,7 @@
 #include <cxx/symbol_factory.h>
 #include <cxx/type_environment.h>
 
+#include <set>
 #include <unordered_set>
 
 namespace cxx {
@@ -65,50 +66,36 @@ struct NameEqualTo {
 template <typename T>
 using NameSet = std::unordered_set<T, NameHash, NameEqualTo>;
 
-struct LiteralHash {
-  std::hash<std::string> hash_value;
+template <typename T>
+struct LiteralLess {
+  using is_transparent = void;
 
-  std::size_t operator()(const StringLiteral& literal) const {
-    return hash_value(literal.value());
+  bool operator()(const T& literal, const T& other) const {
+    return literal.value() < other.value();
   }
 
-  std::size_t operator()(const NumericLiteral& literal) const {
-    return hash_value(literal.value());
+  bool operator()(const T& literal, const std::string_view& value) const {
+    return literal.value() < value;
   }
 
-  std::size_t operator()(const CharLiteral& literal) const {
-    return hash_value(literal.value());
-  }
-};
-
-struct LiteralEqualTo {
-  bool operator()(const NumericLiteral& literal,
-                  const NumericLiteral& other) const {
-    return literal.value() == other.value();
-  }
-
-  bool operator()(const StringLiteral& literal,
-                  const StringLiteral& other) const {
-    return literal.value() == other.value();
-  }
-
-  bool operator()(const CharLiteral& literal, const CharLiteral& other) const {
-    return literal.value() == other.value();
+  bool operator()(const std::string_view& value, const T& literal) const {
+    return value < literal.value();
   }
 };
 
 template <typename T>
-using LiteralMap = std::unordered_set<T, LiteralHash, LiteralEqualTo>;
+using LiteralSet = std::set<T, LiteralLess<T>>;
 
 }  // namespace
 
 struct Control::Private {
   TypeEnvironment typeEnvironment_;
   SymbolFactory symbols_;
-  LiteralMap<NumericLiteral> numericLiterals_;
-  LiteralMap<StringLiteral> stringLiterals_;
-  LiteralMap<CharLiteral> charLiterals_;
-  NameSet<Identifier> identifiers_;
+  LiteralSet<IntegerLiteral> integerLiterals_;
+  LiteralSet<FloatLiteral> floatLiterals_;
+  LiteralSet<StringLiteral> stringLiterals_;
+  LiteralSet<CharLiteral> charLiterals_;
+  std::set<Identifier> identifiers_;
   NameSet<OperatorNameId> operatorNameIds_;
   NameSet<ConversionNameId> conversionNameIds_;
 };
@@ -117,8 +104,11 @@ Control::Control() : d(std::make_unique<Private>()) {}
 
 Control::~Control() {}
 
-const Identifier* Control::identifier(std::string name) {
-  return &*d->identifiers_.emplace(std::move(name)).first;
+const Identifier* Control::identifier(const std::string_view& name) {
+  if (auto it = d->identifiers_.find(name); it != d->identifiers_.end())
+    return &*it;
+
+  return &*d->identifiers_.emplace(std::string{name}).first;
 }
 
 const OperatorNameId* Control::operatorNameId(TokenKind op) {
@@ -129,16 +119,33 @@ const ConversionNameId* Control::conversionNameId(const QualifiedType& type) {
   return &*d->conversionNameIds_.emplace(type).first;
 }
 
-const NumericLiteral* Control::numericLiteral(std::string value) {
-  return &*d->numericLiterals_.emplace(std::move(value)).first;
+const IntegerLiteral* Control::integerLiteral(const std::string_view& value) {
+  if (auto it = d->integerLiterals_.find(value);
+      it != d->integerLiterals_.end())
+    return &*it;
+
+  return &*d->integerLiterals_.emplace(std::string{value}).first;
 }
 
-const StringLiteral* Control::stringLiteral(std::string value) {
-  return &*d->stringLiterals_.emplace(std::move(value)).first;
+const FloatLiteral* Control::floatLiteral(const std::string_view& value) {
+  if (auto it = d->floatLiterals_.find(value); it != d->floatLiterals_.end())
+    return &*it;
+
+  return &*d->floatLiterals_.emplace(std::string{value}).first;
 }
 
-const CharLiteral* Control::charLiteral(std::string value) {
-  return &*d->charLiterals_.emplace(std::move(value)).first;
+const StringLiteral* Control::stringLiteral(const std::string_view& value) {
+  if (auto it = d->stringLiterals_.find(value); it != d->stringLiterals_.end())
+    return &*it;
+
+  return &*d->stringLiterals_.emplace(std::string{value}).first;
+}
+
+const CharLiteral* Control::charLiteral(const std::string_view& value) {
+  if (auto it = d->charLiterals_.find(value); it != d->charLiterals_.end())
+    return &*it;
+
+  return &*d->charLiterals_.emplace(std::string{value}).first;
 }
 
 TypeEnvironment* Control::types() { return &d->typeEnvironment_; }

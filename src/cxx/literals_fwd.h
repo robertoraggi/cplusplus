@@ -24,7 +24,8 @@ namespace cxx {
 
 class Literal;
 
-class NumericLiteral;
+class IntegerLiteral;
+class FloatLiteral;
 class StringLiteral;
 class CharLiteral;
 
