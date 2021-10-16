@@ -23,7 +23,7 @@ project(cplusplus)
 
 include(FetchContent)
 
-find_package(fmt 7.1.3 CONFIG QUIET)
+find_package(fmt 8.0.1 CONFIG QUIET)
 
 set(CMAKE_CXX_STANDARD 20)
 
@@ -41,7 +41,7 @@ endif()
 FetchContent_Declare(
     utfcpp
     GIT_REPOSITORY  https://github.com/nemtrif/utfcpp
-    GIT_TAG         v3.1.2
+    GIT_TAG         v3.2.1
     GIT_SHALLOW     1
 )
 
@@ -52,7 +52,7 @@ set(JSON_BuildTests OFF CACHE INTERNAL "")
 FetchContent_Declare(
     nlohmann_json
     GIT_REPOSITORY  https://github.com/nlohmann/json
-    GIT_TAG         v3.9.1
+    GIT_TAG         v3.10.4
     GIT_SHALLOW     1
 )
 

@@ -203,7 +203,7 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
 
   if (cli.opt_ast_dump) {
     ASTPrinter print(&unit);
-    std::cout << std::setw(4) << print(unit.ast());
+    output << print(unit.ast(), /*print locations*/ true);
     return result;
   }
 

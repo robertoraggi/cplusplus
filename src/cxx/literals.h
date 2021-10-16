@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/cxx_fwd.h>
+#include <fmt/format.h>
 
 #include <cstdlib>
 #include <string>
@@ -75,7 +76,7 @@ class IntegerLiteral final : public Literal {
 class FloatLiteral final : public Literal {
  public:
   explicit FloatLiteral(std::string text) : Literal(std::move(text)) {
-    floatValue_ = std::stod(value());
+    floatValue_ = (double)std::strtold(value().c_str(), nullptr);
   }
 
   double floatValue() const { return floatValue_; }

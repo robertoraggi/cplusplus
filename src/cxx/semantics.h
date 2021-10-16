@@ -25,6 +25,8 @@
 #include <cxx/qualified_type.h>
 #include <cxx/translation_unit.h>
 
+#include <optional>
+
 namespace cxx {
 
 class TranslationUnit;

@@ -30,6 +30,7 @@ class TranslationUnit;
 
 class ASTPrinter : ASTVisitor {
   TranslationUnit* unit_;
+  std::vector<std::string_view> fileNames_;
   nlohmann::json json_;
   bool printLocations_ = false;
 
@@ -39,9 +40,14 @@ class ASTPrinter : ASTVisitor {
   explicit ASTPrinter(TranslationUnit* unit) : unit_(unit) {}
 
   nlohmann::json operator()(AST* ast, bool printLocations = false) {
+    std::vector<std::string_view> fileNames;
+    std::swap(fileNames_, fileNames);
     std::swap(printLocations_, printLocations);
     auto result = accept(ast);
     std::swap(printLocations_, printLocations);
+    std::swap(fileNames_, fileNames);
+    result.push_back(
+        std::vector<nlohmann::json>{"$files", std::move(fileNames)});
     return result;
   }
 

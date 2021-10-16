@@ -54,20 +54,24 @@ void DiagnosticsClient::report(const Diagnostic& diag) {
 
   preprocessor_->getTokenStartPosition(diag.token(), &line, &column, &fileName);
 
-  fmt::print(std::cerr, "{}:{}:{}: {}\n", fileName, line, column,
-             diag.message());
+  if (!fileName.empty()) {
+    fmt::print(std::cerr, "{}:{}:{}: {}\n", fileName, line, column,
+               diag.message());
 
-  const auto textLine = preprocessor_->getTextLine(diag.token());
+    const auto textLine = preprocessor_->getTextLine(diag.token());
 
-  const auto end = std::max(0, int(column) - 1);
+    const auto end = std::max(0, int(column) - 1);
 
-  std::string indent{textLine.substr(0, end)};
+    std::string indent{textLine.substr(0, end)};
 
-  for (auto& ch : indent) {
-    if (!std::isspace(ch)) ch = ' ';
+    for (auto& ch : indent) {
+      if (!std::isspace(ch)) ch = ' ';
+    }
+
+    fmt::print(std::cerr, "{0}\n{1}^\n", textLine, indent);
+  } else {
+    fmt::print(std::cerr, "{}\n", diag.message());
   }
-
-  fmt::print(std::cerr, "{0}\n{1}^\n", textLine, indent);
 }
 
 }  // namespace cxx

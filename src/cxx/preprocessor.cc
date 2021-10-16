@@ -1642,9 +1642,9 @@ void Preprocessor::getTokenStartPosition(const Token &token, unsigned *line,
                                          unsigned *column,
                                          std::string_view *fileName) const {
   if (token.fileId() == 0) {
-    *line = 0;
-    *column = 0;
-    *fileName = "??";
+    if (line) *line = 0;
+    if (column) *column = 0;
+    if (fileName) *fileName = std::string_view();
     return;
   }
 
@@ -1656,9 +1656,9 @@ void Preprocessor::getTokenEndPosition(const Token &token, unsigned *line,
                                        unsigned *column,
                                        std::string_view *fileName) const {
   if (token.fileId() == 0) {
-    *line = 0;
-    *column = 0;
-    *fileName = "??";
+    if (line) *line = 0;
+    if (column) *column = 0;
+    if (fileName) *fileName = std::string_view();
     return;
   }
 
