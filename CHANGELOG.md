@@ -1,1 +1,23 @@
 # Changelog
+
+## 1.0.0 (2021-10-23)
+
+
+### Features
+
+* **json:** Improved support to convert the AST to JSON ([d15d466](https://www.github.com/robertoraggi/cplusplus/commit/d15d4669629a7cc0347ea7ed60697b55cbd44523))
+* **js:** Use rollup to build the JavaScript bindings. ([b99eb55](https://www.github.com/robertoraggi/cplusplus/commit/b99eb5570c2551302a1488d8b85e26ba29bb4bfc))
+
+
+### Bug Fixes
+
+* **docs:** Update the example code in the README.md file ([459e837](https://www.github.com/robertoraggi/cplusplus/commit/459e83795b3bee552f192792e5126c7efa74a9c2))
+* **js:** Build with NO_DYNAMIC_EXECUTION to allow using the library in trusted browser environments ([97eb589](https://www.github.com/robertoraggi/cplusplus/commit/97eb5899d93e582a9c0b42e70a58fc87af45142e))
+* **lexer:** Scan the characters using the UTF-8 unchecked API ([654e227](https://www.github.com/robertoraggi/cplusplus/commit/654e2275cec722517fc9bd72324bd3f7c45baf51))
+* **parser:** Create the AST for concept requirements ([5600bb4](https://www.github.com/robertoraggi/cplusplus/commit/5600bb4ec47b8e3a3f6a28ebc4d9474c85ebc849))
+* **parser:** Create the AST for requires-clause ([23aa6a3](https://www.github.com/robertoraggi/cplusplus/commit/23aa6a3cf0f6b0dcee81a714b085a1f340ee6b43))
+* **parser:** Fix parsing of parameters in template declarations ([1dc66ce](https://www.github.com/robertoraggi/cplusplus/commit/1dc66cea50922c637870555fca6e71b47b3f33e0))
+* **parser:** Store the AST of the template parameters ([f0da7a0](https://www.github.com/robertoraggi/cplusplus/commit/f0da7a0146f69aabff04635a5c8c0edcd4ce4e5b))
+* **preproc:** Access the hidesets using transparent comparisons ([96b484d](https://www.github.com/robertoraggi/cplusplus/commit/96b484d578f21be9b930ce765cfb7368beb3cb39))
+* **preproc:** Reduced the number of the temporary tokens ([d092959](https://www.github.com/robertoraggi/cplusplus/commit/d092959ab9964b72aff8ace8da8b7e456369498d))
+* **preproc:** Trim space characters at the end of the text lines ([03e2518](https://www.github.com/robertoraggi/cplusplus/commit/03e25183ebdb8c10958fff1a7426ec717084762a))
