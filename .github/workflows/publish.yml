@@ -1,0 +1,27 @@
+name: Node.js Package
+
+on:
+  workflow_dispatch:
+
+  release:
+    types: [created]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: "16.x"
+      - run: cd packages/cxx-frontend
+      - run: sed -i 's,"cxx-frontend","@robertoraggi/cxx",' package.json
+      - run: sed -i 's,"cxx-frontend","@robertoraggi/cxx",' ../../README.md
+      - run: npm ci
+      - run: npm run build
+      - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
