@@ -104,6 +104,7 @@ if(EMSCRIPTEN)
         "SHELL:-s MALLOC=emmalloc"
         "SHELL:-s ALLOW_MEMORY_GROWTH=1"
         "SHELL:-s FILESYSTEM=0"
+        "SHELL:-s NO_DYNAMIC_EXECUTION=1"
         "SHELL:--extern-post-js ${CMAKE_CURRENT_SOURCE_DIR}/src/cxx-js/suffix.js"
     )
 
