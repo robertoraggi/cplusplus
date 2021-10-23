@@ -19,11 +19,17 @@ jobs:
           node-version: "16.x"
           registry-url: "https://npm.pkg.github.com"
           scope: "@robertoraggi"
-      - run: cd packages/cxx-frontend
-      - run: sed -i 's,"cxx-frontend","@robertoraggi/cxx",' package.json
-      - run: sed -i 's,"cxx-frontend","@robertoraggi/cxx",' ../../README.md
-      - run: npm ci
-      - run: npm run build
-      - run: npm publish
+
+      - name: Build
+        working-directory: packages/cxx-frontend
+        run: |
+          sed -i 's,"cxx-frontend","@robertoraggi/cxx",' package.json
+          sed -i 's,"cxx-frontend","@robertoraggi/cxx",' ../../README.md
+          npm ci
+          npm run build
+
+      - name: Publish
+        working-directory: packages/cxx-frontend
+        run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
