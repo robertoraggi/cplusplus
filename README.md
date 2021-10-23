@@ -1,6 +1,6 @@
-# A Compiler Frontend for C++
+# A compiler front end for the C++ language"
 
-This repository contains a _work in progress_ compiler frontend for C++ 20.
+This repository contains a _work in progress_ compiler front end for C++ 20.
 
 ## Build
 
