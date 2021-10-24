@@ -2872,6 +2872,8 @@ bool Parser::parse_if_statement(StatementAST*& yyast) {
   auto ast = new (pool) IfStatementAST();
   yyast = ast;
 
+  ast->ifLoc = ifLoc;
+
   const auto has_constexpr = match(TokenKind::T_CONSTEXPR, ast->constexprLoc);
 
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
