@@ -49,7 +49,10 @@ class SourceLocation {
 
   SourceLocation next() const { return SourceLocation(index_ + 1); }
 
-  SourceLocation previous() const { return SourceLocation(index_ - 1); }
+  SourceLocation previous() const {
+    if (!index_) return *this;
+    return SourceLocation(index_ - 1);
+  }
 
   bool operator==(const SourceLocation& other) const {
     return index_ == other.index_;
