@@ -1,5 +1,14 @@
 # Changelog
 
+### [1.0.1](https://www.github.com/robertoraggi/cplusplus/compare/v1.0.0...v1.0.1) (2021-10-24)
+
+
+### Bug Fixes
+
+* **js:** Made AST.getEndLocation() inclusive ([5849ef3](https://www.github.com/robertoraggi/cplusplus/commit/5849ef39579ea2adea6b3bd3bdc76f6574768d74))
+* **parser:** Store the location of the if-token in the AST ([050a877](https://www.github.com/robertoraggi/cplusplus/commit/050a87794c6954946132fe4d7bd0ae2bdd0b4d1e))
+* **parser:** Test for invalid source locations ([878a4aa](https://www.github.com/robertoraggi/cplusplus/commit/878a4aaedc68e74d2b2bd4f92f018a32e314489c))
+
 ## 1.0.0 (2021-10-23)
 
 
