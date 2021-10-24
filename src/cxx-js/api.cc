@@ -115,7 +115,8 @@ static val getStartLocation(intptr_t handle, intptr_t unitHandle) {
 
 static val getEndLocation(intptr_t handle, intptr_t unitHandle) {
   auto ast = (cxx::AST*)handle;
-  return getTokenLocation(ast->lastSourceLocation().index(), unitHandle);
+  return getTokenLocation(ast->lastSourceLocation().previous().index(),
+                          unitHandle);
 }
 
 static int getASTKind(intptr_t handle) {
