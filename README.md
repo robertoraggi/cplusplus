@@ -1,6 +1,14 @@
-# A compiler front end for the C++ language"
+# A compiler front end for the C++ language
 
 This repository contains a _work in progress_ compiler front end for C++ 20.
+
+## Install
+
+For the latest stable version:
+
+```
+npm install -g cxx-frontend
+```
 
 ## Build
 
@@ -46,45 +54,25 @@ npm pack
 
 ```js
 //
-// fact.mjs
+// example.mjs
 //
 
-import { Parser, RecursiveASTVisitor, ASTKind } from "cxx-frontend";
+import { Parser, AST, ASTKind } from "cxx-frontend";
 import { readFile } from "fs/promises";
 import { fileURLToPath } from "url";
 
-class DumpAST extends RecursiveASTVisitor {
-  #stack = [];
-
-  accept(node) {
-    if (!node) return;
-
-    const nodeKind = ASTKind[node.getKind()];
-
-    const entry = [nodeKind];
-
-    const parentNode = this.#stack.slice(-1)[0];
-
-    parentNode?.push(entry);
-
-    this.#stack.push(entry);
-
-    super.accept(node);
-
-    this.#stack.pop();
-
-    return entry;
-  }
-}
-
 const source = `
-int fact(int n) {
-    if (n < 2) return 1;
-    return n * fact(n - 1);
+template <typename T>
+concept CanAdd = requires(T n) {
+  n + n;
+};
+
+auto twice(CanAdd auto n) {
+  return n + n;
 }
 
 int main() {
-    return fact(3);
+  return twice(2);
 }
 `;
 
@@ -96,7 +84,7 @@ async function main() {
   // initialize the parser
   await Parser.init({ wasmBinary });
 
-  const parser = new Parser({ source, path: "fact.cc" });
+  const parser = new Parser({ source, path: "source.cc" });
 
   parser.parse();
 
@@ -108,11 +96,17 @@ async function main() {
 
   const ast = parser.getAST();
 
-  const tree = new DumpAST().accept(ast);
+  if (ast) {
+    ast.walk().preVisit((node, depth) => {
+      if (node instanceof AST) {
+        const ind = " ".repeat(depth * 2);
+        const kind = ASTKind[node.getKind()];
+        console.log(`${ind}${kind}`);
+      }
+    });
+  }
 
   parser.dispose();
-
-  console.log(tree);
 }
 
 main().catch(console.error);

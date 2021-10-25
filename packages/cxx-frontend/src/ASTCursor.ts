@@ -18,7 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { AST, Token } from "./AST.js";
+import { AST } from "./AST.js";
+import { Token } from "./Token";
 import { ASTSlotKind, cxx } from "./cxx.js";
 import { Parser } from "./Parser.js";
 

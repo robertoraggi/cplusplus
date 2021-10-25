@@ -18,13 +18,40 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-export * from "./AST.js";
-export * from "./ASTKind.js";
-export * from "./ASTVisitor.js";
-export * from "./ASTCursor.js";
-export * from "./RecursiveASTVisitor.js";
-export * from "./Parser.js";
-export * from "./Diagnostic.js";
-export * from "./Unit.js";
-export * from "./SourceLocation.js";
-export * from "./TokenKind.js";
+import { cxx } from "./cxx.js";
+import { SourceLocation } from "./SourceLocation.js";
+import { Parser } from "./Parser.js";
+import { TokenKind } from "./TokenKind.js";
+
+export class Token {
+    constructor(private readonly handle: number, private readonly parser: Parser) {
+    }
+
+    getHandle() {
+        return this.handle;
+    }
+
+    getKind(): TokenKind {
+        return cxx.getTokenKind(this.handle, this.parser.getUnitHandle());
+    }
+
+    is(kind: TokenKind) {
+        return this.getKind() === kind;
+    }
+
+    isNot(kind: TokenKind) {
+        return this.getKind() !== kind;
+    }
+
+    getText(): string {
+        return cxx.getTokenText(this.handle, this.parser.getUnitHandle());
+    }
+
+    getLocation(): SourceLocation {
+        return cxx.getTokenLocation(this.handle, this.parser.getUnitHandle());
+    }
+
+    static from(handle: number, parser: Parser): Token | undefined {
+        return handle ? new Token(handle, parser) : undefined;
+    }
+}

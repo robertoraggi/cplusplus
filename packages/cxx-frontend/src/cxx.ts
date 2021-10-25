@@ -21,6 +21,7 @@
 //@ts-ignore
 import makeCxx from "./cxx-js.js";
 import { SourceLocation } from "./SourceLocation.js";
+import { TokenKind } from "./TokenKind.js";
 import { Unit } from "./Unit.js";
 
 export enum ASTSlotKind {
@@ -40,6 +41,7 @@ export interface CXX {
     getListValue(handle: number): number;
     getListNext(handle: number): number;
     getTokenText(handle: number, unitHandle: number): string;
+    getTokenKind(handle: number, unitHandle: number): TokenKind;
     getTokenLocation(handle: number, unitHandle: number): SourceLocation;
     getStartLocation(handle: number, unitHandle: number): SourceLocation;
     getEndLocation(handle: number, unitHandle: number): SourceLocation;

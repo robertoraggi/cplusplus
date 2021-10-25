@@ -85,6 +85,12 @@ static std::string getTokenText(intptr_t handle, intptr_t unitHandle) {
   return text;
 }
 
+static int getTokenKind(intptr_t handle, intptr_t unitHandle) {
+  auto unit = reinterpret_cast<cxx::TranslationUnit*>(unitHandle);
+  auto kind = unit->tokenKind(cxx::SourceLocation(handle));
+  return static_cast<int>(kind);
+}
+
 static val getTokenLocation(intptr_t handle, intptr_t unitHandle) {
   auto unit = reinterpret_cast<cxx::TranslationUnit*>(unitHandle);
 
@@ -175,6 +181,7 @@ EMSCRIPTEN_BINDINGS(my_module) {
   function("getASTSlot", &getASTSlot);
   function("getASTSlotKind", &getASTSlotKind);
   function("getASTSlotCount", &getASTSlotCount);
+  function("getTokenKind", &getTokenKind);
   function("getTokenText", &getTokenText);
   function("getTokenLocation", &getTokenLocation);
   function("getStartLocation", &getStartLocation);

@@ -24,27 +24,7 @@ import { ASTCursor } from "./ASTCursor.js";
 import { ASTVisitor } from "./ASTVisitor.js";
 import { ASTKind } from "./ASTKind.js";
 import { Parser } from "./Parser.js";
-
-export class Token {
-    constructor(private readonly handle: number, private readonly parser: Parser) {
-    }
-
-    getHandle() {
-        return this.handle;
-    }
-
-    getText(): string {
-        return cxx.getTokenText(this.handle, this.parser.getUnitHandle());
-    }
-
-    getLocation(): SourceLocation {
-        return cxx.getTokenLocation(this.handle, this.parser.getUnitHandle());
-    }
-
-    static from(handle: number, parser: Parser): Token | undefined {
-        return handle ? new Token(handle, parser) : undefined;
-    }
-}
+import { Token } from "./Token.js";
 
 export abstract class AST {
     constructor(private readonly handle: number,
