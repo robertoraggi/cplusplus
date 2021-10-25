@@ -23,10 +23,20 @@ import makeCxx from "./cxx-js";
 import { SourceLocation } from "./SourceLocation";
 import { Unit } from "./Unit";
 
+export enum ASTSlotKind {
+    Invalid,
+    Token,
+    Node,
+    TokenList,
+    NodeList,
+};
+
 export interface CXX {
     createUnit(source: string, path: string): Unit;
     getASTKind(handle: number): number;
     getASTSlot(handle: number, slot: number): number;
+    getASTSlotKind(handle: number, slot: number): ASTSlotKind;
+    getASTSlotCount(handle: number, slot: number): number;
     getListValue(handle: number): number;
     getListNext(handle: number): number;
     getTokenText(handle: number, unitHandle: number): string;

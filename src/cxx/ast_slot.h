@@ -23,12 +23,21 @@
 #include <cxx/ast_visitor.h>
 
 #include <cstdint>
+#include <tuple>
 
 namespace cxx {
 
+enum ASTSlotKind {
+  kInvalid,
+  kToken,
+  kNode,
+  kTokenList,
+  kNodeList,
+};
+
 class ASTSlot final : ASTVisitor {
  public:
-  std::intptr_t operator()(AST* ast, int slot);
+  std::tuple<std::intptr_t, ASTSlotKind, int> operator()(AST* ast, int slot);
 
  private:
   void visit(TypeIdAST* ast) override;
@@ -229,6 +238,8 @@ class ASTSlot final : ASTVisitor {
  private:
   std::intptr_t value_ = 0;
   int slot_ = 0;
+  ASTSlotKind slotKind_ = ASTSlotKind::kInvalid;
+  int slotCount_ = 0;
 };
 
 }  // namespace cxx

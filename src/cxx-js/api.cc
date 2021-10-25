@@ -139,8 +139,20 @@ cxx::ASTSlot getSlot;
 
 static intptr_t getASTSlot(intptr_t handle, int slot) {
   auto ast = reinterpret_cast<cxx::AST*>(handle);
-  auto value = getSlot(ast, slot);
+  auto [value, slotKind, slotCount] = getSlot(ast, slot);
   return value;
+}
+
+static int getASTSlotKind(intptr_t handle, int slot) {
+  auto ast = reinterpret_cast<cxx::AST*>(handle);
+  auto [value, slotKind, slotCount] = getSlot(ast, slot);
+  return static_cast<int>(slotKind);
+}
+
+static int getASTSlotCount(intptr_t handle, int slot) {
+  auto ast = reinterpret_cast<cxx::AST*>(handle);
+  auto [value, slotKind, slotCount] = getSlot(ast, slot);
+  return static_cast<int>(slotCount);
 }
 
 static WrappedUnit* createUnit(std::string source, std::string filename) {
@@ -161,6 +173,8 @@ EMSCRIPTEN_BINDINGS(my_module) {
   function("getListValue", &getListValue);
   function("getListNext", &getListNext);
   function("getASTSlot", &getASTSlot);
+  function("getASTSlotKind", &getASTSlotKind);
+  function("getASTSlotCount", &getASTSlotCount);
   function("getTokenText", &getTokenText);
   function("getTokenLocation", &getTokenLocation);
   function("getStartLocation", &getStartLocation);
