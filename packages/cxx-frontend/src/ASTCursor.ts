@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 import { AST } from "./AST.js";
-import { Token } from "./Token";
+import { Token } from "./Token.js";
 import { ASTSlotKind, cxx } from "./cxx.js";
 import { Parser } from "./Parser.js";
 
