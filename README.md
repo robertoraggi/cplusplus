@@ -50,7 +50,7 @@ npm run build
 npm pack
 ```
 
-## Use the JavaScript API
+## Use the JavaScript API with Node.JS
 
 ```js
 //
@@ -110,4 +110,60 @@ async function main() {
 }
 
 main().catch(console.error);
+```
+
+## Use the JavaScript API in a web browser
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>C++ Playground</title>
+  </head>
+  <body>
+    <script type="module">
+      import {
+        Parser,
+        AST,
+        ASTKind,
+      } from "https://unpkg.com/cxx-frontend@latest/dist/index.js";
+
+      const response = await fetch(Parser.DEFAULT_WASM_BINARY_URL);
+
+      const wasmBinary = new Uint8Array(await response.arrayBuffer());
+
+      await Parser.init({ wasmBinary });
+
+      const source = `int main()\n{\n  return 0;\n}\n`;
+
+      const parser = new Parser({
+        path: "source.cc",
+        source,
+      });
+
+      parser.parse();
+
+      const rows = [];
+
+      const ast = parser.getAST();
+
+      ast?.walk().preVisit((node, depth) => {
+        if (node instanceof AST)
+          rows.push("  ".repeat(depth) + ASTKind[node.getKind()]);
+      });
+
+      parser.dispose();
+
+      const sourceOutput = document.createElement("pre");
+      sourceOutput.style.borderStyle = "solid";
+      sourceOutput.innerText = source;
+      document.body.appendChild(sourceOutput);
+
+      const astOutput = document.createElement("pre");
+      astOutput.style.borderStyle = "solid";
+      astOutput.innerText = rows.join("\n");
+      document.body.appendChild(astOutput);
+    </script>
+  </body>
+</html>
 ```
