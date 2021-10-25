@@ -1,5 +1,13 @@
 # Changelog
 
+### [1.1.1](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.0...v1.1.1) (2021-10-25)
+
+
+### Bug Fixes
+
+* **docs:** Add example to README.md ([255ba0b](https://www.github.com/robertoraggi/cplusplus/commit/255ba0b87eb209d93957b6b852ce3bb595a85e4e))
+* **js:** Add missing .js extension in import directive ([9a48ade](https://www.github.com/robertoraggi/cplusplus/commit/9a48adeefa374084ecc34e9c1d7f070c38504ddc))
+
 ## [1.1.0](https://www.github.com/robertoraggi/cplusplus/compare/v1.0.0...v1.1.0) (2021-10-25)
 
 
