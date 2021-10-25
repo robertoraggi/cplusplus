@@ -20,6 +20,7 @@
 
 import { cxx } from "./cxx.js";
 import { SourceLocation } from "./SourceLocation.js";
+import { ASTCursor } from "./ASTCursor.js";
 import { ASTVisitor } from "./ASTVisitor.js";
 import { ASTKind } from "./ASTKind.js";
 import { Parser } from "./Parser.js";
@@ -49,6 +50,10 @@ export abstract class AST {
     constructor(private readonly handle: number,
         private readonly kind: ASTKind,
         protected readonly parser: Parser) {
+    }
+
+    walk(): ASTCursor {
+        return new ASTCursor(this, this.parser);
     }
 
     getKind(): ASTKind {

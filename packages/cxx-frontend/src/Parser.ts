@@ -35,8 +35,8 @@ interface ParseParams {
 }
 
 export class Parser {
-    private unit: Unit | undefined;
-    private m_ast: AST | undefined;
+    #unit: Unit | undefined;
+    #ast: AST | undefined;
 
     static DEFAULT_WASM_BINARY_URL = new URL("./cxx-js.wasm", import.meta.url);
 
@@ -44,8 +44,8 @@ export class Parser {
         return await initCxx({ wasmBinary });
     }
 
-    constructor(private options: ParseParams) {
-        const { path, source } = this.options;
+    constructor(options: ParseParams) {
+        const { path, source } = options;
 
         if (typeof path !== "string") {
             throw new TypeError("expected parameter 'path' of type 'string'");
@@ -55,32 +55,32 @@ export class Parser {
             throw new TypeError("expected parameter 'source' of type 'string'");
         }
 
-        this.unit = cxx.createUnit(source, path);
+        this.#unit = cxx.createUnit(source, path);
     }
 
     parse() {
-        if (!this.unit) {
+        if (!this.#unit) {
             return;
         }
-        this.unit.parse();
-        this.m_ast = AST.from(this.unit.getHandle(), this);
+        this.#unit.parse();
+        this.#ast = AST.from(this.#unit.getHandle(), this);
     }
 
     dispose() {
-        this.unit?.delete();
-        this.unit = undefined;
-        this.m_ast = undefined;
+        this.#unit?.delete();
+        this.#unit = undefined;
+        this.#ast = undefined;
     }
 
     getUnitHandle(): number {
-        return this.unit?.getUnitHandle() ?? 0;
+        return this.#unit?.getUnitHandle() ?? 0;
     }
 
     getAST(): AST | undefined {
-        return this.m_ast;
+        return this.#ast;
     }
 
     getDiagnostics() {
-        return this.unit?.getDiagnostics() ?? [];
+        return this.#unit?.getDiagnostics() ?? [];
     }
 }
