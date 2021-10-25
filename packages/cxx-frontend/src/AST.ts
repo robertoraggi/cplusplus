@@ -18,11 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { cxx } from "./cxx";
-import { SourceLocation } from "./SourceLocation";
-import { ASTVisitor } from "./ASTVisitor";
-import { ASTKind } from "./ASTKind";
-import { Parser } from "./Parser";
+import { cxx } from "./cxx.js";
+import { SourceLocation } from "./SourceLocation.js";
+import { ASTVisitor } from "./ASTVisitor.js";
+import { ASTKind } from "./ASTKind.js";
+import { Parser } from "./Parser.js";
 
 export class Token {
     constructor(private readonly handle: number, private readonly parser: Parser) {

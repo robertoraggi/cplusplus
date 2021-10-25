@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { Diagnostic } from "./Diagnostic";
+import { Diagnostic } from "./Diagnostic.js";
 
 export interface Unit {
     delete(): void;

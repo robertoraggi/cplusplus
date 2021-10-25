@@ -19,9 +19,9 @@
 // SOFTWARE.
 
 //@ts-ignore
-import makeCxx from "./cxx-js";
-import { SourceLocation } from "./SourceLocation";
-import { Unit } from "./Unit";
+import makeCxx from "./cxx-js.js";
+import { SourceLocation } from "./SourceLocation.js";
+import { Unit } from "./Unit.js";
 
 export enum ASTSlotKind {
     Invalid,

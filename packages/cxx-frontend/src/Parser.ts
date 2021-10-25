@@ -18,9 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import initCxx, { cxx } from "./cxx";
-import { Unit } from "./Unit";
-import { AST } from "./AST";
+import initCxx, { cxx } from "./cxx.js";
+import { Unit } from "./Unit.js";
+import { AST } from "./AST.js";
 
 interface ParseParams {
     /**
