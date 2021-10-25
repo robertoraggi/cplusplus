@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.1.0](https://www.github.com/robertoraggi/cplusplus/compare/v1.0.0...v1.1.0) (2021-10-25)
+
+
+### Features
+
+* **js:** Add TokenKind and Token.getKind() ([f1f11a8](https://www.github.com/robertoraggi/cplusplus/commit/f1f11a8d442e8f489a826f5540ccdeeac96567f4))
+* **js:** Added ASTCursor ([146b166](https://www.github.com/robertoraggi/cplusplus/commit/146b166aa886e0b5468e4314bee75f3541d1272a))
+
+
+### Bug Fixes
+
+* **js:** Extend ASTSlot to return the kind and number of slots ([4d3f313](https://www.github.com/robertoraggi/cplusplus/commit/4d3f3134b795dc44d72efedc8cb2a4105b40f2a6))
+* **js:** Made AST.getEndLocation() inclusive ([5849ef3](https://www.github.com/robertoraggi/cplusplus/commit/5849ef39579ea2adea6b3bd3bdc76f6574768d74))
+* **parser:** Store the location of the if-token in the AST ([050a877](https://www.github.com/robertoraggi/cplusplus/commit/050a87794c6954946132fe4d7bd0ae2bdd0b4d1e))
+* **parser:** Test for invalid source locations ([878a4aa](https://www.github.com/robertoraggi/cplusplus/commit/878a4aaedc68e74d2b2bd4f92f018a32e314489c))
+
 ## 1.0.0 (2021-10-23)
 
 
