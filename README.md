@@ -7,7 +7,7 @@ This repository contains a _work in progress_ compiler front end for C++ 20.
 For the latest stable version:
 
 ```
-npm install -g cxx-frontend
+npm install cxx-frontend
 ```
 
 ## Build
