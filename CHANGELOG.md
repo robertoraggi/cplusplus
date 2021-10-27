@@ -1,5 +1,14 @@
 # Changelog
 
+### [1.1.2](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.1...v1.1.2) (2021-10-27)
+
+
+### Bug Fixes
+
+* **parser:** Create AST for modules ([ce61309](https://www.github.com/robertoraggi/cplusplus/commit/ce6130902314e36773cd67007b9e284929235a9d))
+* **parser:** Create AST for qualified type names ([cd6c437](https://www.github.com/robertoraggi/cplusplus/commit/cd6c4373eea614c85747b8200f495a0171a9fed4))
+* **parser:** Store the location of the export token of compound export declarations ([81a4bfd](https://www.github.com/robertoraggi/cplusplus/commit/81a4bfd11ef69e43d397ba580fc6b5f26778f0a1))
+
 ### [1.1.1](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.0...v1.1.1) (2021-10-25)
 
 
