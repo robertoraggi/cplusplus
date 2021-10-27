@@ -4120,7 +4120,7 @@ bool Parser::parse_named_type_specifier_helper(SpecifierAST*& yyast,
       auto ast = new (pool) NamedTypeSpecifierAST();
       yyast = ast;
 
-      ast->name = name;
+      ast->name = qualifiedId;
 
       return true;
     }
