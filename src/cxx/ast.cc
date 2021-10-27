@@ -308,6 +308,94 @@ SourceLocation TypeConstraintAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation GlobalModuleFragmentAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(moduleLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(declarationList)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation GlobalModuleFragmentAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(declarationList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(moduleLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation PrivateModuleFragmentAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(moduleLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(privateLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(declarationList)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation PrivateModuleFragmentAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(declarationList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(privateLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(moduleLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ModuleDeclarationAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(exportLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(moduleLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(moduleName)) return loc;
+  if (auto loc = cxx::firstSourceLocation(modulePartition)) return loc;
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ModuleDeclarationAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(modulePartition)) return loc;
+  if (auto loc = cxx::lastSourceLocation(moduleName)) return loc;
+  if (auto loc = cxx::lastSourceLocation(moduleLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(exportLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ModuleNameAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(identifierList)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ModuleNameAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(identifierList)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ImportNameAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(headerLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(modulePartition)) return loc;
+  if (auto loc = cxx::firstSourceLocation(moduleName)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ImportNameAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(moduleName)) return loc;
+  if (auto loc = cxx::lastSourceLocation(modulePartition)) return loc;
+  if (auto loc = cxx::lastSourceLocation(headerLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ModulePartitionAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(moduleName)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ModulePartitionAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(moduleName)) return loc;
+  if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation SimpleRequirementAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
@@ -658,9 +746,21 @@ SourceLocation TranslationUnitAST::lastSourceLocation() {
   return SourceLocation();
 }
 
-SourceLocation ModuleUnitAST::firstSourceLocation() { return SourceLocation(); }
+SourceLocation ModuleUnitAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(globalModuleFragment)) return loc;
+  if (auto loc = cxx::firstSourceLocation(moduleDeclaration)) return loc;
+  if (auto loc = cxx::firstSourceLocation(declarationList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(privateModuleFragmentAST)) return loc;
+  return SourceLocation();
+}
 
-SourceLocation ModuleUnitAST::lastSourceLocation() { return SourceLocation(); }
+SourceLocation ModuleUnitAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(privateModuleFragmentAST)) return loc;
+  if (auto loc = cxx::lastSourceLocation(declarationList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(moduleDeclaration)) return loc;
+  if (auto loc = cxx::lastSourceLocation(globalModuleFragment)) return loc;
+  return SourceLocation();
+}
 
 SourceLocation ThisExpressionAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(thisLoc)) return loc;
@@ -1765,18 +1865,46 @@ SourceLocation AsmDeclarationAST::lastSourceLocation() {
 }
 
 SourceLocation ExportDeclarationAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(exportLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(declaration)) return loc;
   return SourceLocation();
 }
 
 SourceLocation ExportDeclarationAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(declaration)) return loc;
+  if (auto loc = cxx::lastSourceLocation(exportLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ExportCompoundDeclarationAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(exportLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lbraceLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(declarationList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rbraceLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation ExportCompoundDeclarationAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(rbraceLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(declarationList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lbraceLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(exportLoc)) return loc;
   return SourceLocation();
 }
 
 SourceLocation ModuleImportDeclarationAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(importLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(importName)) return loc;
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
   return SourceLocation();
 }
 
 SourceLocation ModuleImportDeclarationAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(importName)) return loc;
+  if (auto loc = cxx::lastSourceLocation(importLoc)) return loc;
   return SourceLocation();
 }
 

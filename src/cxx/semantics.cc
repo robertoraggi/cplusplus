@@ -227,6 +227,35 @@ void Semantics::visit(NestedRequirementAST* ast) {
   expression(ast->expression, &expr);
 }
 
+void Semantics::visit(GlobalModuleFragmentAST* ast) {
+  for (auto it = ast->declarationList; it; it = it->next) {
+    declaration(it->value);
+  }
+}
+
+void Semantics::visit(PrivateModuleFragmentAST* ast) {
+  for (auto it = ast->declarationList; it; it = it->next) {
+    declaration(it->value);
+  }
+}
+
+void Semantics::visit(ModuleDeclarationAST* ast) {
+  accept(ast->moduleName);
+
+  accept(ast->modulePartition);
+
+  for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
+}
+
+void Semantics::visit(ModuleNameAST* ast) {}
+
+void Semantics::visit(ImportNameAST* ast) {
+  accept(ast->modulePartition);
+  accept(ast->moduleName);
+}
+
+void Semantics::visit(ModulePartitionAST* ast) { accept(ast->moduleName); }
+
 void Semantics::visit(TypeIdAST* ast) {
   SpecifiersSem specifiers;
   this->specifiers(ast->typeSpecifierList, &specifiers);
@@ -448,7 +477,13 @@ void Semantics::visit(TranslationUnitAST* ast) {
     declaration(it->value);
 }
 
-void Semantics::visit(ModuleUnitAST* ast) {}
+void Semantics::visit(ModuleUnitAST* ast) {
+  accept(ast->globalModuleFragment);
+  accept(ast->moduleDeclaration);
+  for (auto it = ast->declarationList; it; it = it->next)
+    declaration(it->value);
+  accept(ast->privateModuleFragmentAST);
+}
 
 void Semantics::visit(ThisExpressionAST* ast) {}
 
@@ -969,9 +1004,19 @@ void Semantics::visit(AsmDeclarationAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
 }
 
-void Semantics::visit(ExportDeclarationAST* ast) {}
+void Semantics::visit(ExportDeclarationAST* ast) {
+  declaration(ast->declaration);
+}
 
-void Semantics::visit(ModuleImportDeclarationAST* ast) {}
+void Semantics::visit(ExportCompoundDeclarationAST* ast) {
+  for (auto it = ast->declarationList; it; it = it->next)
+    declaration(it->value);
+}
+
+void Semantics::visit(ModuleImportDeclarationAST* ast) {
+  accept(ast->importName);
+  for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
+}
 
 void Semantics::visit(TemplateDeclarationAST* ast) {
   for (auto it = ast->templateParameterList; it; it = it->next)

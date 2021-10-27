@@ -108,6 +108,30 @@ void DefaultASTVisitor::visit(TypeConstraintAST* ast) {
   throw std::runtime_error("visit(TypeConstraintAST): not implemented");
 }
 
+void DefaultASTVisitor::visit(GlobalModuleFragmentAST* ast) {
+  throw std::runtime_error("visit(GlobalModuleFragmentAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(PrivateModuleFragmentAST* ast) {
+  throw std::runtime_error("visit(PrivateModuleFragmentAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(ModuleDeclarationAST* ast) {
+  throw std::runtime_error("visit(ModuleDeclarationAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(ModuleNameAST* ast) {
+  throw std::runtime_error("visit(ModuleNameAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(ImportNameAST* ast) {
+  throw std::runtime_error("visit(ImportNameAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(ModulePartitionAST* ast) {
+  throw std::runtime_error("visit(ModulePartitionAST): not implemented");
+}
+
 // RequirementAST
 void DefaultASTVisitor::visit(SimpleRequirementAST* ast) {
   throw std::runtime_error("visit(SimpleRequirementAST): not implemented");
@@ -529,6 +553,11 @@ void DefaultASTVisitor::visit(AsmDeclarationAST* ast) {
 
 void DefaultASTVisitor::visit(ExportDeclarationAST* ast) {
   throw std::runtime_error("visit(ExportDeclarationAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(ExportCompoundDeclarationAST* ast) {
+  throw std::runtime_error(
+      "visit(ExportCompoundDeclarationAST): not implemented");
 }
 
 void DefaultASTVisitor::visit(ModuleImportDeclarationAST* ast) {

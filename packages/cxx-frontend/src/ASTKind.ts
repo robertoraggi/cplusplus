@@ -41,6 +41,12 @@ export enum ASTKind {
     CtorInitializer,
     RequirementBody,
     TypeConstraint,
+    GlobalModuleFragment,
+    PrivateModuleFragment,
+    ModuleDeclaration,
+    ModuleName,
+    ImportName,
+    ModulePartition,
 
     // RequirementAST
     SimpleRequirement,
@@ -165,6 +171,7 @@ export enum ASTKind {
     UsingDeclaration,
     AsmDeclaration,
     ExportDeclaration,
+    ExportCompoundDeclaration,
     ModuleImportDeclaration,
     TemplateDeclaration,
     TypenameTypeParameter,

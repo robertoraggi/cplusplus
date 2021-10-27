@@ -425,6 +425,105 @@ export class TypeConstraintAST extends AST {
     }
 }
 
+export class GlobalModuleFragmentAST extends AST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitGlobalModuleFragment(this, context);
+    }
+    getModuleToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getSemicolonToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    *getDeclarationList(): Generator<DeclarationAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
+            yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+}
+
+export class PrivateModuleFragmentAST extends AST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitPrivateModuleFragment(this, context);
+    }
+    getModuleToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getColonToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getPrivateToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getSemicolonToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+    *getDeclarationList(): Generator<DeclarationAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 4); it; it = cxx.getListNext(it)) {
+            yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+}
+
+export class ModuleDeclarationAST extends AST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitModuleDeclaration(this, context);
+    }
+    getExportToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getModuleToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getModuleName(): ModuleNameAST | undefined {
+        return AST.from<ModuleNameAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getModulePartition(): ModulePartitionAST | undefined {
+        return AST.from<ModulePartitionAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+    *getAttributeList(): Generator<AttributeAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 4); it; it = cxx.getListNext(it)) {
+            yield AST.from<AttributeAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+    getSemicolonToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+    }
+}
+
+export class ModuleNameAST extends AST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitModuleName(this, context);
+    }
+}
+
+export class ImportNameAST extends AST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitImportName(this, context);
+    }
+    getHeaderToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getModulePartition(): ModulePartitionAST | undefined {
+        return AST.from<ModulePartitionAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getModuleName(): ModuleNameAST | undefined {
+        return AST.from<ModuleNameAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+}
+
+export class ModulePartitionAST extends AST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitModulePartition(this, context);
+    }
+    getColonToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getModuleName(): ModuleNameAST | undefined {
+        return AST.from<ModuleNameAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+}
+
 export class SimpleRequirementAST extends RequirementAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitSimpleRequirement(this, context);
@@ -813,6 +912,20 @@ export class TranslationUnitAST extends UnitAST {
 export class ModuleUnitAST extends UnitAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitModuleUnit(this, context);
+    }
+    getGlobalModuleFragment(): GlobalModuleFragmentAST | undefined {
+        return AST.from<GlobalModuleFragmentAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getModuleDeclaration(): ModuleDeclarationAST | undefined {
+        return AST.from<ModuleDeclarationAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    *getDeclarationList(): Generator<DeclarationAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
+            yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+    getPrivateModuleFragmentAST(): PrivateModuleFragmentAST | undefined {
+        return AST.from<PrivateModuleFragmentAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
     }
 }
 
@@ -2065,11 +2178,51 @@ export class ExportDeclarationAST extends DeclarationAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitExportDeclaration(this, context);
     }
+    getExportToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getDeclaration(): DeclarationAST | undefined {
+        return AST.from<DeclarationAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+}
+
+export class ExportCompoundDeclarationAST extends DeclarationAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitExportCompoundDeclaration(this, context);
+    }
+    getExportToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getLbraceToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    *getDeclarationList(): Generator<DeclarationAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
+            yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+    getRbraceToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
 }
 
 export class ModuleImportDeclarationAST extends DeclarationAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitModuleImportDeclaration(this, context);
+    }
+    getImportToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getImportName(): ImportNameAST | undefined {
+        return AST.from<ImportNameAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    *getAttributeList(): Generator<AttributeAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
+            yield AST.from<AttributeAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+    getSemicolonToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
     }
 }
 
@@ -2906,6 +3059,12 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     CtorInitializerAST,
     RequirementBodyAST,
     TypeConstraintAST,
+    GlobalModuleFragmentAST,
+    PrivateModuleFragmentAST,
+    ModuleDeclarationAST,
+    ModuleNameAST,
+    ImportNameAST,
+    ModulePartitionAST,
     SimpleRequirementAST,
     CompoundRequirementAST,
     TypeRequirementAST,
@@ -3006,6 +3165,7 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     UsingDeclarationAST,
     AsmDeclarationAST,
     ExportDeclarationAST,
+    ExportCompoundDeclarationAST,
     ModuleImportDeclarationAST,
     TemplateDeclarationAST,
     TypenameTypeParameterAST,

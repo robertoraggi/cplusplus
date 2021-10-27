@@ -161,6 +161,38 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         this.accept(node.getName(), context);
     }
 
+    visitGlobalModuleFragment(node: ast.GlobalModuleFragmentAST, context: Context): void {
+        for (const element of node.getDeclarationList()) {
+            this.accept(element, context);
+        }
+    }
+
+    visitPrivateModuleFragment(node: ast.PrivateModuleFragmentAST, context: Context): void {
+        for (const element of node.getDeclarationList()) {
+            this.accept(element, context);
+        }
+    }
+
+    visitModuleDeclaration(node: ast.ModuleDeclarationAST, context: Context): void {
+        this.accept(node.getModuleName(), context);
+        this.accept(node.getModulePartition(), context);
+        for (const element of node.getAttributeList()) {
+            this.accept(element, context);
+        }
+    }
+
+    visitModuleName(node: ast.ModuleNameAST, context: Context): void {
+    }
+
+    visitImportName(node: ast.ImportNameAST, context: Context): void {
+        this.accept(node.getModulePartition(), context);
+        this.accept(node.getModuleName(), context);
+    }
+
+    visitModulePartition(node: ast.ModulePartitionAST, context: Context): void {
+        this.accept(node.getModuleName(), context);
+    }
+
     visitSimpleRequirement(node: ast.SimpleRequirementAST, context: Context): void {
         this.accept(node.getExpression(), context);
     }
@@ -284,6 +316,12 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     }
 
     visitModuleUnit(node: ast.ModuleUnitAST, context: Context): void {
+        this.accept(node.getGlobalModuleFragment(), context);
+        this.accept(node.getModuleDeclaration(), context);
+        for (const element of node.getDeclarationList()) {
+            this.accept(element, context);
+        }
+        this.accept(node.getPrivateModuleFragmentAST(), context);
     }
 
     visitThisExpression(node: ast.ThisExpressionAST, context: Context): void {
@@ -644,9 +682,20 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     }
 
     visitExportDeclaration(node: ast.ExportDeclarationAST, context: Context): void {
+        this.accept(node.getDeclaration(), context);
+    }
+
+    visitExportCompoundDeclaration(node: ast.ExportCompoundDeclarationAST, context: Context): void {
+        for (const element of node.getDeclarationList()) {
+            this.accept(element, context);
+        }
     }
 
     visitModuleImportDeclaration(node: ast.ModuleImportDeclarationAST, context: Context): void {
+        this.accept(node.getImportName(), context);
+        for (const element of node.getAttributeList()) {
+            this.accept(element, context);
+        }
     }
 
     visitTemplateDeclaration(node: ast.TemplateDeclarationAST, context: Context): void {

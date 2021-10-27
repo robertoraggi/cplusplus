@@ -45,6 +45,12 @@ enum struct ASTKind {
   CtorInitializer,
   RequirementBody,
   TypeConstraint,
+  GlobalModuleFragment,
+  PrivateModuleFragment,
+  ModuleDeclaration,
+  ModuleName,
+  ImportName,
+  ModulePartition,
 
   // RequirementAST
   SimpleRequirement,
@@ -169,6 +175,7 @@ enum struct ASTKind {
   UsingDeclaration,
   AsmDeclaration,
   ExportDeclaration,
+  ExportCompoundDeclaration,
   ModuleImportDeclaration,
   TemplateDeclaration,
   TypenameTypeParameter,

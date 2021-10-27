@@ -50,11 +50,16 @@ class RecursiveASTVisitor : public ASTVisitor {
   virtual void acceptTypeId(TypeIdAST* ast);
   virtual void acceptMemInitializer(MemInitializerAST* ast);
   virtual void acceptRequirement(RequirementAST* ast);
+  virtual void acceptDeclaration(DeclarationAST* ast);
+  virtual void acceptModuleName(ModuleNameAST* ast);
+  virtual void acceptModulePartition(ModulePartitionAST* ast);
   virtual void acceptTypeConstraint(TypeConstraintAST* ast);
   virtual void acceptBracedInitList(BracedInitListAST* ast);
   virtual void acceptCtorInitializer(CtorInitializerAST* ast);
   virtual void acceptHandler(HandlerAST* ast);
-  virtual void acceptDeclaration(DeclarationAST* ast);
+  virtual void acceptGlobalModuleFragment(GlobalModuleFragmentAST* ast);
+  virtual void acceptModuleDeclaration(ModuleDeclarationAST* ast);
+  virtual void acceptPrivateModuleFragment(PrivateModuleFragmentAST* ast);
   virtual void acceptRequirementBody(RequirementBodyAST* ast);
   virtual void acceptLambdaIntroducer(LambdaIntroducerAST* ast);
   virtual void acceptLambdaDeclarator(LambdaDeclaratorAST* ast);
@@ -65,6 +70,7 @@ class RecursiveASTVisitor : public ASTVisitor {
   virtual void acceptInitDeclarator(InitDeclaratorAST* ast);
   virtual void acceptEnumBase(EnumBaseAST* ast);
   virtual void acceptUsingDeclarator(UsingDeclaratorAST* ast);
+  virtual void acceptImportName(ImportNameAST* ast);
   virtual void acceptTemplateArgument(TemplateArgumentAST* ast);
   virtual void acceptEnumerator(EnumeratorAST* ast);
   virtual void acceptBaseClause(BaseClauseAST* ast);
@@ -92,6 +98,12 @@ class RecursiveASTVisitor : public ASTVisitor {
   void visit(CtorInitializerAST* ast) override;
   void visit(RequirementBodyAST* ast) override;
   void visit(TypeConstraintAST* ast) override;
+  void visit(GlobalModuleFragmentAST* ast) override;
+  void visit(PrivateModuleFragmentAST* ast) override;
+  void visit(ModuleDeclarationAST* ast) override;
+  void visit(ModuleNameAST* ast) override;
+  void visit(ImportNameAST* ast) override;
+  void visit(ModulePartitionAST* ast) override;
 
   void visit(SimpleRequirementAST* ast) override;
   void visit(CompoundRequirementAST* ast) override;
@@ -204,6 +216,7 @@ class RecursiveASTVisitor : public ASTVisitor {
   void visit(UsingDeclarationAST* ast) override;
   void visit(AsmDeclarationAST* ast) override;
   void visit(ExportDeclarationAST* ast) override;
+  void visit(ExportCompoundDeclarationAST* ast) override;
   void visit(ModuleImportDeclarationAST* ast) override;
   void visit(TemplateDeclarationAST* ast) override;
   void visit(TypenameTypeParameterAST* ast) override;

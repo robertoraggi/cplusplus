@@ -71,6 +71,12 @@ class ASTPrinter : ASTVisitor {
   void visit(CtorInitializerAST* ast) override;
   void visit(RequirementBodyAST* ast) override;
   void visit(TypeConstraintAST* ast) override;
+  void visit(GlobalModuleFragmentAST* ast) override;
+  void visit(PrivateModuleFragmentAST* ast) override;
+  void visit(ModuleDeclarationAST* ast) override;
+  void visit(ModuleNameAST* ast) override;
+  void visit(ImportNameAST* ast) override;
+  void visit(ModulePartitionAST* ast) override;
 
   void visit(SimpleRequirementAST* ast) override;
   void visit(CompoundRequirementAST* ast) override;
@@ -183,6 +189,7 @@ class ASTPrinter : ASTVisitor {
   void visit(UsingDeclarationAST* ast) override;
   void visit(AsmDeclarationAST* ast) override;
   void visit(ExportDeclarationAST* ast) override;
+  void visit(ExportCompoundDeclarationAST* ast) override;
   void visit(ModuleImportDeclarationAST* ast) override;
   void visit(TemplateDeclarationAST* ast) override;
   void visit(TypenameTypeParameterAST* ast) override;

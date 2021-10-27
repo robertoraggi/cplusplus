@@ -49,6 +49,12 @@ class ASTVisitor {
   virtual void visit(CtorInitializerAST* ast) = 0;
   virtual void visit(RequirementBodyAST* ast) = 0;
   virtual void visit(TypeConstraintAST* ast) = 0;
+  virtual void visit(GlobalModuleFragmentAST* ast) = 0;
+  virtual void visit(PrivateModuleFragmentAST* ast) = 0;
+  virtual void visit(ModuleDeclarationAST* ast) = 0;
+  virtual void visit(ModuleNameAST* ast) = 0;
+  virtual void visit(ImportNameAST* ast) = 0;
+  virtual void visit(ModulePartitionAST* ast) = 0;
 
   // RequirementAST
   virtual void visit(SimpleRequirementAST* ast) = 0;
@@ -173,6 +179,7 @@ class ASTVisitor {
   virtual void visit(UsingDeclarationAST* ast) = 0;
   virtual void visit(AsmDeclarationAST* ast) = 0;
   virtual void visit(ExportDeclarationAST* ast) = 0;
+  virtual void visit(ExportCompoundDeclarationAST* ast) = 0;
   virtual void visit(ModuleImportDeclarationAST* ast) = 0;
   virtual void visit(TemplateDeclarationAST* ast) = 0;
   virtual void visit(TypenameTypeParameterAST* ast) = 0;

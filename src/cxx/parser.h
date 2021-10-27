@@ -107,14 +107,15 @@ class Parser final {
   }
 
   bool parse_id(const Identifier* id);
+  bool parse_id(const Identifier* id, SourceLocation& loc);
   bool parse_nospace();
   bool parse_greater_greater();
   bool parse_greater_greater_equal();
   bool parse_greater_equal();
-  bool parse_header_name();
-  bool parse_export_keyword();
-  bool parse_import_keyword();
-  bool parse_module_keyword();
+  bool parse_header_name(SourceLocation& loc);
+  bool parse_export_keyword(SourceLocation& loc);
+  bool parse_import_keyword(SourceLocation& loc);
+  bool parse_module_keyword(SourceLocation& loc);
   bool parse_final();
   bool parse_override();
   bool parse_name_id(NameAST*& yyast);
@@ -356,16 +357,15 @@ class Parser final {
   bool parse_attribute_scoped_token();
   bool parse_attribute_namespace();
   bool parse_attribute_argument_clause();
-  bool parse_module_declaration();
-  bool parse_module_name();
-  bool parse_module_partition();
-  bool parse_module_name_qualifier();
+  bool parse_module_declaration(ModuleDeclarationAST*& yyast);
+  bool parse_module_name(ModuleNameAST*& yyast);
+  bool parse_module_partition(ModulePartitionAST*& yyast);
   bool parse_export_declaration(DeclarationAST*& yyast);
   bool parse_maybe_import();
   bool parse_module_import_declaration(DeclarationAST*& yyast);
-  bool parse_import_name();
-  bool parse_global_module_fragment();
-  bool parse_private_module_fragment();
+  bool parse_import_name(ImportNameAST*& yyast);
+  bool parse_global_module_fragment(GlobalModuleFragmentAST*& yyast);
+  bool parse_private_module_fragment(PrivateModuleFragmentAST*& yyast);
   bool parse_class_specifier(SpecifierAST*& yyast);
   bool parse_class_body(List<DeclarationAST*>*& yyast);
   bool parse_class_head(SourceLocation& classLoc,

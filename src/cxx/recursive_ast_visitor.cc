@@ -105,6 +105,16 @@ void RecursiveASTVisitor::acceptRequirement(RequirementAST* ast) {
   accept(ast);
 }
 
+void RecursiveASTVisitor::acceptDeclaration(DeclarationAST* ast) {
+  accept(ast);
+}
+
+void RecursiveASTVisitor::acceptModuleName(ModuleNameAST* ast) { accept(ast); }
+
+void RecursiveASTVisitor::acceptModulePartition(ModulePartitionAST* ast) {
+  accept(ast);
+}
+
 void RecursiveASTVisitor::acceptTypeConstraint(TypeConstraintAST* ast) {
   accept(ast);
 }
@@ -119,7 +129,17 @@ void RecursiveASTVisitor::acceptCtorInitializer(CtorInitializerAST* ast) {
 
 void RecursiveASTVisitor::acceptHandler(HandlerAST* ast) { accept(ast); }
 
-void RecursiveASTVisitor::acceptDeclaration(DeclarationAST* ast) {
+void RecursiveASTVisitor::acceptGlobalModuleFragment(
+    GlobalModuleFragmentAST* ast) {
+  accept(ast);
+}
+
+void RecursiveASTVisitor::acceptModuleDeclaration(ModuleDeclarationAST* ast) {
+  accept(ast);
+}
+
+void RecursiveASTVisitor::acceptPrivateModuleFragment(
+    PrivateModuleFragmentAST* ast) {
   accept(ast);
 }
 
@@ -156,6 +176,8 @@ void RecursiveASTVisitor::acceptEnumBase(EnumBaseAST* ast) { accept(ast); }
 void RecursiveASTVisitor::acceptUsingDeclarator(UsingDeclaratorAST* ast) {
   accept(ast);
 }
+
+void RecursiveASTVisitor::acceptImportName(ImportNameAST* ast) { accept(ast); }
 
 void RecursiveASTVisitor::acceptTemplateArgument(TemplateArgumentAST* ast) {
   accept(ast);
@@ -283,6 +305,34 @@ void RecursiveASTVisitor::visit(TypeConstraintAST* ast) {
   acceptName(ast->name);
 }
 
+void RecursiveASTVisitor::visit(GlobalModuleFragmentAST* ast) {
+  for (auto it = ast->declarationList; it; it = it->next)
+    acceptDeclaration(it->value);
+}
+
+void RecursiveASTVisitor::visit(PrivateModuleFragmentAST* ast) {
+  for (auto it = ast->declarationList; it; it = it->next)
+    acceptDeclaration(it->value);
+}
+
+void RecursiveASTVisitor::visit(ModuleDeclarationAST* ast) {
+  acceptModuleName(ast->moduleName);
+  acceptModulePartition(ast->modulePartition);
+  for (auto it = ast->attributeList; it; it = it->next)
+    acceptAttribute(it->value);
+}
+
+void RecursiveASTVisitor::visit(ModuleNameAST* ast) {}
+
+void RecursiveASTVisitor::visit(ImportNameAST* ast) {
+  acceptModulePartition(ast->modulePartition);
+  acceptModuleName(ast->moduleName);
+}
+
+void RecursiveASTVisitor::visit(ModulePartitionAST* ast) {
+  acceptModuleName(ast->moduleName);
+}
+
 void RecursiveASTVisitor::visit(SimpleRequirementAST* ast) {
   acceptExpression(ast->expression);
 }
@@ -389,7 +439,13 @@ void RecursiveASTVisitor::visit(TranslationUnitAST* ast) {
     acceptDeclaration(it->value);
 }
 
-void RecursiveASTVisitor::visit(ModuleUnitAST* ast) {}
+void RecursiveASTVisitor::visit(ModuleUnitAST* ast) {
+  acceptGlobalModuleFragment(ast->globalModuleFragment);
+  acceptModuleDeclaration(ast->moduleDeclaration);
+  for (auto it = ast->declarationList; it; it = it->next)
+    acceptDeclaration(it->value);
+  acceptPrivateModuleFragment(ast->privateModuleFragmentAST);
+}
 
 void RecursiveASTVisitor::visit(ThisExpressionAST* ast) {}
 
@@ -710,9 +766,20 @@ void RecursiveASTVisitor::visit(AsmDeclarationAST* ast) {
     acceptAttribute(it->value);
 }
 
-void RecursiveASTVisitor::visit(ExportDeclarationAST* ast) {}
+void RecursiveASTVisitor::visit(ExportDeclarationAST* ast) {
+  acceptDeclaration(ast->declaration);
+}
 
-void RecursiveASTVisitor::visit(ModuleImportDeclarationAST* ast) {}
+void RecursiveASTVisitor::visit(ExportCompoundDeclarationAST* ast) {
+  for (auto it = ast->declarationList; it; it = it->next)
+    acceptDeclaration(it->value);
+}
+
+void RecursiveASTVisitor::visit(ModuleImportDeclarationAST* ast) {
+  acceptImportName(ast->importName);
+  for (auto it = ast->attributeList; it; it = it->next)
+    acceptAttribute(it->value);
+}
 
 void RecursiveASTVisitor::visit(TemplateDeclarationAST* ast) {
   for (auto it = ast->templateParameterList; it; it = it->next)

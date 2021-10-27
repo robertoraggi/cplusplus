@@ -474,6 +474,92 @@ class TypeConstraintAST final : public AST {
   SourceLocation lastSourceLocation() override;
 };
 
+class GlobalModuleFragmentAST final : public AST {
+ public:
+  GlobalModuleFragmentAST() : AST(ASTKind::GlobalModuleFragment) {}
+
+  SourceLocation moduleLoc;
+  SourceLocation semicolonLoc;
+  List<DeclarationAST*>* declarationList = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+class PrivateModuleFragmentAST final : public AST {
+ public:
+  PrivateModuleFragmentAST() : AST(ASTKind::PrivateModuleFragment) {}
+
+  SourceLocation moduleLoc;
+  SourceLocation colonLoc;
+  SourceLocation privateLoc;
+  SourceLocation semicolonLoc;
+  List<DeclarationAST*>* declarationList = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+class ModuleDeclarationAST final : public AST {
+ public:
+  ModuleDeclarationAST() : AST(ASTKind::ModuleDeclaration) {}
+
+  SourceLocation exportLoc;
+  SourceLocation moduleLoc;
+  ModuleNameAST* moduleName = nullptr;
+  ModulePartitionAST* modulePartition = nullptr;
+  List<AttributeAST*>* attributeList = nullptr;
+  SourceLocation semicolonLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+class ModuleNameAST final : public AST {
+ public:
+  ModuleNameAST() : AST(ASTKind::ModuleName) {}
+
+  List<SourceLocation>* identifierList = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+class ImportNameAST final : public AST {
+ public:
+  ImportNameAST() : AST(ASTKind::ImportName) {}
+
+  SourceLocation headerLoc;
+  ModulePartitionAST* modulePartition = nullptr;
+  ModuleNameAST* moduleName = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+class ModulePartitionAST final : public AST {
+ public:
+  ModulePartitionAST() : AST(ASTKind::ModulePartition) {}
+
+  SourceLocation colonLoc;
+  ModuleNameAST* moduleName = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 class SimpleRequirementAST final : public RequirementAST {
  public:
   SimpleRequirementAST() : RequirementAST(ASTKind::SimpleRequirement) {}
@@ -847,6 +933,11 @@ class TranslationUnitAST final : public UnitAST {
 class ModuleUnitAST final : public UnitAST {
  public:
   ModuleUnitAST() : UnitAST(ASTKind::ModuleUnit) {}
+
+  GlobalModuleFragmentAST* globalModuleFragment = nullptr;
+  ModuleDeclarationAST* moduleDeclaration = nullptr;
+  List<DeclarationAST*>* declarationList = nullptr;
+  PrivateModuleFragmentAST* privateModuleFragmentAST = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1945,6 +2036,25 @@ class ExportDeclarationAST final : public DeclarationAST {
  public:
   ExportDeclarationAST() : DeclarationAST(ASTKind::ExportDeclaration) {}
 
+  SourceLocation exportLoc;
+  DeclarationAST* declaration = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+class ExportCompoundDeclarationAST final : public DeclarationAST {
+ public:
+  ExportCompoundDeclarationAST()
+      : DeclarationAST(ASTKind::ExportCompoundDeclaration) {}
+
+  SourceLocation exportLoc;
+  SourceLocation lbraceLoc;
+  List<DeclarationAST*>* declarationList = nullptr;
+  SourceLocation rbraceLoc;
+
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
   SourceLocation firstSourceLocation() override;
@@ -1955,6 +2065,11 @@ class ModuleImportDeclarationAST final : public DeclarationAST {
  public:
   ModuleImportDeclarationAST()
       : DeclarationAST(ASTKind::ModuleImportDeclaration) {}
+
+  SourceLocation importLoc;
+  ImportNameAST* importName = nullptr;
+  List<AttributeAST*>* attributeList = nullptr;
+  SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

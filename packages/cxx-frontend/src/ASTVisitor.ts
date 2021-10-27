@@ -45,6 +45,12 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitCtorInitializer(node: ast.CtorInitializerAST, context: Context): Result;
     abstract visitRequirementBody(node: ast.RequirementBodyAST, context: Context): Result;
     abstract visitTypeConstraint(node: ast.TypeConstraintAST, context: Context): Result;
+    abstract visitGlobalModuleFragment(node: ast.GlobalModuleFragmentAST, context: Context): Result;
+    abstract visitPrivateModuleFragment(node: ast.PrivateModuleFragmentAST, context: Context): Result;
+    abstract visitModuleDeclaration(node: ast.ModuleDeclarationAST, context: Context): Result;
+    abstract visitModuleName(node: ast.ModuleNameAST, context: Context): Result;
+    abstract visitImportName(node: ast.ImportNameAST, context: Context): Result;
+    abstract visitModulePartition(node: ast.ModulePartitionAST, context: Context): Result;
 
     // RequirementAST
     abstract visitSimpleRequirement(node: ast.SimpleRequirementAST, context: Context): Result;
@@ -169,6 +175,7 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitUsingDeclaration(node: ast.UsingDeclarationAST, context: Context): Result;
     abstract visitAsmDeclaration(node: ast.AsmDeclarationAST, context: Context): Result;
     abstract visitExportDeclaration(node: ast.ExportDeclarationAST, context: Context): Result;
+    abstract visitExportCompoundDeclaration(node: ast.ExportCompoundDeclarationAST, context: Context): Result;
     abstract visitModuleImportDeclaration(node: ast.ModuleImportDeclarationAST, context: Context): Result;
     abstract visitTemplateDeclaration(node: ast.TemplateDeclarationAST, context: Context): Result;
     abstract visitTypenameTypeParameter(node: ast.TypenameTypeParameterAST, context: Context): Result;

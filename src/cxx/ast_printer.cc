@@ -544,6 +544,116 @@ void ASTPrinter::visit(TypeConstraintAST* ast) {
   }
 }
 
+void ASTPrinter::visit(GlobalModuleFragmentAST* ast) {
+  json_ = nlohmann::json::array();
+
+  json_.push_back("ast:GlobalModuleFragment");
+
+  if (ast->declarationList) {
+    auto elements = nlohmann::json::array();
+    elements.push_back("array");
+    for (auto it = ast->declarationList; it; it = it->next) {
+      if (auto childNode = accept(it->value); !childNode.is_null()) {
+        elements.push_back(std::move(childNode));
+      }
+    }
+    if (elements.size() > 1)
+      json_.push_back(
+          std::vector<nlohmann::json>{"attr:declarationList", elements});
+  }
+}
+
+void ASTPrinter::visit(PrivateModuleFragmentAST* ast) {
+  json_ = nlohmann::json::array();
+
+  json_.push_back("ast:PrivateModuleFragment");
+
+  if (ast->declarationList) {
+    auto elements = nlohmann::json::array();
+    elements.push_back("array");
+    for (auto it = ast->declarationList; it; it = it->next) {
+      if (auto childNode = accept(it->value); !childNode.is_null()) {
+        elements.push_back(std::move(childNode));
+      }
+    }
+    if (elements.size() > 1)
+      json_.push_back(
+          std::vector<nlohmann::json>{"attr:declarationList", elements});
+  }
+}
+
+void ASTPrinter::visit(ModuleDeclarationAST* ast) {
+  json_ = nlohmann::json::array();
+
+  json_.push_back("ast:ModuleDeclaration");
+
+  if (ast->moduleName) {
+    if (auto childNode = accept(ast->moduleName); !childNode.is_null()) {
+      json_.push_back(
+          std::vector<nlohmann::json>{"attr:moduleName", std::move(childNode)});
+    }
+  }
+
+  if (ast->modulePartition) {
+    if (auto childNode = accept(ast->modulePartition); !childNode.is_null()) {
+      json_.push_back(std::vector<nlohmann::json>{"attr:modulePartition",
+                                                  std::move(childNode)});
+    }
+  }
+
+  if (ast->attributeList) {
+    auto elements = nlohmann::json::array();
+    elements.push_back("array");
+    for (auto it = ast->attributeList; it; it = it->next) {
+      if (auto childNode = accept(it->value); !childNode.is_null()) {
+        elements.push_back(std::move(childNode));
+      }
+    }
+    if (elements.size() > 1)
+      json_.push_back(
+          std::vector<nlohmann::json>{"attr:attributeList", elements});
+  }
+}
+
+void ASTPrinter::visit(ModuleNameAST* ast) {
+  json_ = nlohmann::json::array();
+
+  json_.push_back("ast:ModuleName");
+}
+
+void ASTPrinter::visit(ImportNameAST* ast) {
+  json_ = nlohmann::json::array();
+
+  json_.push_back("ast:ImportName");
+
+  if (ast->modulePartition) {
+    if (auto childNode = accept(ast->modulePartition); !childNode.is_null()) {
+      json_.push_back(std::vector<nlohmann::json>{"attr:modulePartition",
+                                                  std::move(childNode)});
+    }
+  }
+
+  if (ast->moduleName) {
+    if (auto childNode = accept(ast->moduleName); !childNode.is_null()) {
+      json_.push_back(
+          std::vector<nlohmann::json>{"attr:moduleName", std::move(childNode)});
+    }
+  }
+}
+
+void ASTPrinter::visit(ModulePartitionAST* ast) {
+  json_ = nlohmann::json::array();
+
+  json_.push_back("ast:ModulePartition");
+
+  if (ast->moduleName) {
+    if (auto childNode = accept(ast->moduleName); !childNode.is_null()) {
+      json_.push_back(
+          std::vector<nlohmann::json>{"attr:moduleName", std::move(childNode)});
+    }
+  }
+}
+
 void ASTPrinter::visit(SimpleRequirementAST* ast) {
   json_ = nlohmann::json::array();
 
@@ -969,6 +1079,42 @@ void ASTPrinter::visit(ModuleUnitAST* ast) {
   json_ = nlohmann::json::array();
 
   json_.push_back("ast:ModuleUnit");
+
+  if (ast->globalModuleFragment) {
+    if (auto childNode = accept(ast->globalModuleFragment);
+        !childNode.is_null()) {
+      json_.push_back(std::vector<nlohmann::json>{"attr:globalModuleFragment",
+                                                  std::move(childNode)});
+    }
+  }
+
+  if (ast->moduleDeclaration) {
+    if (auto childNode = accept(ast->moduleDeclaration); !childNode.is_null()) {
+      json_.push_back(std::vector<nlohmann::json>{"attr:moduleDeclaration",
+                                                  std::move(childNode)});
+    }
+  }
+
+  if (ast->declarationList) {
+    auto elements = nlohmann::json::array();
+    elements.push_back("array");
+    for (auto it = ast->declarationList; it; it = it->next) {
+      if (auto childNode = accept(it->value); !childNode.is_null()) {
+        elements.push_back(std::move(childNode));
+      }
+    }
+    if (elements.size() > 1)
+      json_.push_back(
+          std::vector<nlohmann::json>{"attr:declarationList", elements});
+  }
+
+  if (ast->privateModuleFragmentAST) {
+    if (auto childNode = accept(ast->privateModuleFragmentAST);
+        !childNode.is_null()) {
+      json_.push_back(std::vector<nlohmann::json>{
+          "attr:privateModuleFragmentAST", std::move(childNode)});
+    }
+  }
 }
 
 void ASTPrinter::visit(ThisExpressionAST* ast) {
@@ -2370,12 +2516,58 @@ void ASTPrinter::visit(ExportDeclarationAST* ast) {
   json_ = nlohmann::json::array();
 
   json_.push_back("ast:ExportDeclaration");
+
+  if (ast->declaration) {
+    if (auto childNode = accept(ast->declaration); !childNode.is_null()) {
+      json_.push_back(std::vector<nlohmann::json>{"attr:declaration",
+                                                  std::move(childNode)});
+    }
+  }
+}
+
+void ASTPrinter::visit(ExportCompoundDeclarationAST* ast) {
+  json_ = nlohmann::json::array();
+
+  json_.push_back("ast:ExportCompoundDeclaration");
+
+  if (ast->declarationList) {
+    auto elements = nlohmann::json::array();
+    elements.push_back("array");
+    for (auto it = ast->declarationList; it; it = it->next) {
+      if (auto childNode = accept(it->value); !childNode.is_null()) {
+        elements.push_back(std::move(childNode));
+      }
+    }
+    if (elements.size() > 1)
+      json_.push_back(
+          std::vector<nlohmann::json>{"attr:declarationList", elements});
+  }
 }
 
 void ASTPrinter::visit(ModuleImportDeclarationAST* ast) {
   json_ = nlohmann::json::array();
 
   json_.push_back("ast:ModuleImportDeclaration");
+
+  if (ast->importName) {
+    if (auto childNode = accept(ast->importName); !childNode.is_null()) {
+      json_.push_back(
+          std::vector<nlohmann::json>{"attr:importName", std::move(childNode)});
+    }
+  }
+
+  if (ast->attributeList) {
+    auto elements = nlohmann::json::array();
+    elements.push_back("array");
+    for (auto it = ast->attributeList; it; it = it->next) {
+      if (auto childNode = accept(it->value); !childNode.is_null()) {
+        elements.push_back(std::move(childNode));
+      }
+    }
+    if (elements.size() > 1)
+      json_.push_back(
+          std::vector<nlohmann::json>{"attr:attributeList", elements});
+  }
 }
 
 void ASTPrinter::visit(TemplateDeclarationAST* ast) {

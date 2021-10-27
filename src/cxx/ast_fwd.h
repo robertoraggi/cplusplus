@@ -92,6 +92,12 @@ class TrailingReturnTypeAST;
 class CtorInitializerAST;
 class RequirementBodyAST;
 class TypeConstraintAST;
+class GlobalModuleFragmentAST;
+class PrivateModuleFragmentAST;
+class ModuleDeclarationAST;
+class ModuleNameAST;
+class ImportNameAST;
+class ModulePartitionAST;
 
 // RequirementAST
 class SimpleRequirementAST;
@@ -216,6 +222,7 @@ class UsingDirectiveAST;
 class UsingDeclarationAST;
 class AsmDeclarationAST;
 class ExportDeclarationAST;
+class ExportCompoundDeclarationAST;
 class ModuleImportDeclarationAST;
 class TemplateDeclarationAST;
 class TypenameTypeParameterAST;

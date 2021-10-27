@@ -425,6 +425,128 @@ void ASTSlot::visit(TypeConstraintAST* ast) {
   slotCount_ = 2;
 }
 
+void ASTSlot::visit(GlobalModuleFragmentAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->moduleLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:
+      value_ = ast->semicolonLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->declarationList);
+      slotKind_ = ASTSlotKind::kNodeList;
+      break;
+  }  // switch
+
+  slotCount_ = 3;
+}
+
+void ASTSlot::visit(PrivateModuleFragmentAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->moduleLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:
+      value_ = ast->colonLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 2:
+      value_ = ast->privateLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 3:
+      value_ = ast->semicolonLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 4:
+      value_ = reinterpret_cast<std::intptr_t>(ast->declarationList);
+      slotKind_ = ASTSlotKind::kNodeList;
+      break;
+  }  // switch
+
+  slotCount_ = 5;
+}
+
+void ASTSlot::visit(ModuleDeclarationAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->exportLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:
+      value_ = ast->moduleLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->moduleName);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 3:
+      value_ = reinterpret_cast<std::intptr_t>(ast->modulePartition);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 4:
+      value_ = reinterpret_cast<std::intptr_t>(ast->attributeList);
+      slotKind_ = ASTSlotKind::kNodeList;
+      break;
+    case 5:
+      value_ = ast->semicolonLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
+
+  slotCount_ = 6;
+}
+
+void ASTSlot::visit(ModuleNameAST* ast) {
+  switch (slot_) {
+    case 0:
+      throw std::runtime_error("not implemented yet");
+      slotKind_ = ASTSlotKind::kTokenList;
+      break;
+  }  // switch
+
+  slotCount_ = 1;
+}
+
+void ASTSlot::visit(ImportNameAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->headerLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->modulePartition);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->moduleName);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+  }  // switch
+
+  slotCount_ = 3;
+}
+
+void ASTSlot::visit(ModulePartitionAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->colonLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->moduleName);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+  }  // switch
+
+  slotCount_ = 2;
+}
+
 void ASTSlot::visit(SimpleRequirementAST* ast) {
   switch (slot_) {
     case 0:
@@ -892,9 +1014,26 @@ void ASTSlot::visit(TranslationUnitAST* ast) {
 }
 
 void ASTSlot::visit(ModuleUnitAST* ast) {
-  switch (slot_) {}  // switch
+  switch (slot_) {
+    case 0:
+      value_ = reinterpret_cast<std::intptr_t>(ast->globalModuleFragment);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->moduleDeclaration);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->declarationList);
+      slotKind_ = ASTSlotKind::kNodeList;
+      break;
+    case 3:
+      value_ = reinterpret_cast<std::intptr_t>(ast->privateModuleFragmentAST);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+  }  // switch
 
-  slotCount_ = 0;
+  slotCount_ = 4;
 }
 
 void ASTSlot::visit(ThisExpressionAST* ast) {
@@ -2447,15 +2586,64 @@ void ASTSlot::visit(AsmDeclarationAST* ast) {
 }
 
 void ASTSlot::visit(ExportDeclarationAST* ast) {
-  switch (slot_) {}  // switch
+  switch (slot_) {
+    case 0:
+      value_ = ast->exportLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->declaration);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+  }  // switch
 
-  slotCount_ = 0;
+  slotCount_ = 2;
+}
+
+void ASTSlot::visit(ExportCompoundDeclarationAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->exportLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:
+      value_ = ast->lbraceLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->declarationList);
+      slotKind_ = ASTSlotKind::kNodeList;
+      break;
+    case 3:
+      value_ = ast->rbraceLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
+
+  slotCount_ = 4;
 }
 
 void ASTSlot::visit(ModuleImportDeclarationAST* ast) {
-  switch (slot_) {}  // switch
+  switch (slot_) {
+    case 0:
+      value_ = ast->importLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->importName);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->attributeList);
+      slotKind_ = ASTSlotKind::kNodeList;
+      break;
+    case 3:
+      value_ = ast->semicolonLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
 
-  slotCount_ = 0;
+  slotCount_ = 4;
 }
 
 void ASTSlot::visit(TemplateDeclarationAST* ast) {

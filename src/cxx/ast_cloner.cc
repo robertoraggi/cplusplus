@@ -375,6 +375,104 @@ void ASTCloner::visit(TypeConstraintAST* ast) {
   copy->name = accept(ast->name);
 }
 
+void ASTCloner::visit(GlobalModuleFragmentAST* ast) {
+  auto copy = new (arena_) GlobalModuleFragmentAST();
+  copy_ = copy;
+
+  copy->moduleLoc = ast->moduleLoc;
+
+  copy->semicolonLoc = ast->semicolonLoc;
+
+  if (auto it = ast->declarationList) {
+    auto out = &copy->declarationList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+}
+
+void ASTCloner::visit(PrivateModuleFragmentAST* ast) {
+  auto copy = new (arena_) PrivateModuleFragmentAST();
+  copy_ = copy;
+
+  copy->moduleLoc = ast->moduleLoc;
+
+  copy->colonLoc = ast->colonLoc;
+
+  copy->privateLoc = ast->privateLoc;
+
+  copy->semicolonLoc = ast->semicolonLoc;
+
+  if (auto it = ast->declarationList) {
+    auto out = &copy->declarationList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+}
+
+void ASTCloner::visit(ModuleDeclarationAST* ast) {
+  auto copy = new (arena_) ModuleDeclarationAST();
+  copy_ = copy;
+
+  copy->exportLoc = ast->exportLoc;
+
+  copy->moduleLoc = ast->moduleLoc;
+
+  copy->moduleName = accept(ast->moduleName);
+
+  copy->modulePartition = accept(ast->modulePartition);
+
+  if (auto it = ast->attributeList) {
+    auto out = &copy->attributeList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->semicolonLoc = ast->semicolonLoc;
+}
+
+void ASTCloner::visit(ModuleNameAST* ast) {
+  auto copy = new (arena_) ModuleNameAST();
+  copy_ = copy;
+
+  if (auto it = ast->identifierList) {
+    auto out = &copy->identifierList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(it->value);
+      out = &(*out)->next;
+    }
+  }
+}
+
+void ASTCloner::visit(ImportNameAST* ast) {
+  auto copy = new (arena_) ImportNameAST();
+  copy_ = copy;
+
+  copy->headerLoc = ast->headerLoc;
+
+  copy->modulePartition = accept(ast->modulePartition);
+
+  copy->moduleName = accept(ast->moduleName);
+}
+
+void ASTCloner::visit(ModulePartitionAST* ast) {
+  auto copy = new (arena_) ModulePartitionAST();
+  copy_ = copy;
+
+  copy->colonLoc = ast->colonLoc;
+
+  copy->moduleName = accept(ast->moduleName);
+}
+
 void ASTCloner::visit(SimpleRequirementAST* ast) {
   auto copy = new (arena_) SimpleRequirementAST();
   copy_ = copy;
@@ -714,6 +812,21 @@ void ASTCloner::visit(TranslationUnitAST* ast) {
 void ASTCloner::visit(ModuleUnitAST* ast) {
   auto copy = new (arena_) ModuleUnitAST();
   copy_ = copy;
+
+  copy->globalModuleFragment = accept(ast->globalModuleFragment);
+
+  copy->moduleDeclaration = accept(ast->moduleDeclaration);
+
+  if (auto it = ast->declarationList) {
+    auto out = &copy->declarationList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->privateModuleFragmentAST = accept(ast->privateModuleFragmentAST);
 }
 
 void ASTCloner::visit(ThisExpressionAST* ast) {
@@ -2030,11 +2143,50 @@ void ASTCloner::visit(AsmDeclarationAST* ast) {
 void ASTCloner::visit(ExportDeclarationAST* ast) {
   auto copy = new (arena_) ExportDeclarationAST();
   copy_ = copy;
+
+  copy->exportLoc = ast->exportLoc;
+
+  copy->declaration = accept(ast->declaration);
+}
+
+void ASTCloner::visit(ExportCompoundDeclarationAST* ast) {
+  auto copy = new (arena_) ExportCompoundDeclarationAST();
+  copy_ = copy;
+
+  copy->exportLoc = ast->exportLoc;
+
+  copy->lbraceLoc = ast->lbraceLoc;
+
+  if (auto it = ast->declarationList) {
+    auto out = &copy->declarationList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->rbraceLoc = ast->rbraceLoc;
 }
 
 void ASTCloner::visit(ModuleImportDeclarationAST* ast) {
   auto copy = new (arena_) ModuleImportDeclarationAST();
   copy_ = copy;
+
+  copy->importLoc = ast->importLoc;
+
+  copy->importName = accept(ast->importName);
+
+  if (auto it = ast->attributeList) {
+    auto out = &copy->attributeList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->semicolonLoc = ast->semicolonLoc;
 }
 
 void ASTCloner::visit(TemplateDeclarationAST* ast) {

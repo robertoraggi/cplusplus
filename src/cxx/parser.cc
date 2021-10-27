@@ -220,9 +220,16 @@ bool Parser::parse(UnitAST*& ast) {
 }
 
 bool Parser::parse_id(const Identifier* id) {
+  SourceLocation identifierLoc;
+  return parse_id(id, identifierLoc);
+}
+
+bool Parser::parse_id(const Identifier* id, SourceLocation& loc) {
   SourceLocation location;
   if (!match(TokenKind::T_IDENTIFIER, location)) return false;
-  return unit->identifier(location) == id;
+  if (unit->identifier(location) != id) return false;
+  loc = location;
+  return true;
 }
 
 bool Parser::parse_nospace() {
@@ -258,33 +265,34 @@ bool Parser::parse_greater_equal() {
   return false;
 }
 
-bool Parser::parse_header_name() {
+bool Parser::parse_header_name(SourceLocation& loc) {
+  if (match(TokenKind::T_STRING_LITERAL, loc)) return true;
+
   // ### TODO
   return false;
 }
 
-bool Parser::parse_export_keyword() {
+bool Parser::parse_export_keyword(SourceLocation& loc) {
   if (!module_unit) return false;
-  if (!match(TokenKind::T_EXPORT)) return false;
+  return match(TokenKind::T_EXPORT, loc);
+}
+
+bool Parser::parse_import_keyword(SourceLocation& loc) {
+  if (!module_unit) return false;
+  if (match(TokenKind::T_IMPORT, loc)) return true;
+  if (!parse_id(import_id, loc)) return false;
+  unit->setTokenKind(loc, TokenKind::T_IMPORT);
   return true;
 }
 
-bool Parser::parse_import_keyword() {
-  if (!module_unit) return false;
-  if (match(TokenKind::T_IMPORT)) return true;
-  if (!parse_id(import_id)) return false;
-  unit->setTokenKind(SourceLocation(cursor_ - 1), TokenKind::T_IMPORT);
-  return true;
-}
-
-bool Parser::parse_module_keyword() {
+bool Parser::parse_module_keyword(SourceLocation& loc) {
   if (!module_unit) return false;
 
-  if (match(TokenKind::T_MODULE)) return true;
+  if (match(TokenKind::T_MODULE, loc)) return true;
 
-  if (!parse_id(module_id)) return false;
+  if (!parse_id(module_id, loc)) return false;
 
-  unit->setTokenKind(SourceLocation(cursor_ - 1), TokenKind::T_MODULE);
+  unit->setTokenKind(loc, TokenKind::T_MODULE);
   return true;
 }
 
@@ -426,15 +434,21 @@ bool Parser::parse_module_unit(UnitAST*& yyast) {
 
   if (!parse_module_head()) return false;
 
-  parse_global_module_fragment();
+  globalNamespace_ = symbols->newNamespaceSymbol(nullptr, nullptr);
 
-  if (!parse_module_declaration()) return false;
+  Semantics::ScopeContext scopeContext(sem.get(), globalNamespace_->scope());
 
-  List<DeclarationAST*>* declarationList = nullptr;
+  auto ast = new (pool) ModuleUnitAST();
+  yyast = ast;
 
-  parse_declaration_seq(declarationList);
+  parse_global_module_fragment(ast->globalModuleFragment);
 
-  parse_private_module_fragment();
+  if (!parse_module_declaration(ast->moduleDeclaration))
+    parse_error("expected a module declaration");
+
+  parse_declaration_seq(ast->declarationList);
+
+  parse_private_module_fragment(ast->privateModuleFragmentAST);
 
   expect(TokenKind::T_EOF_SYMBOL);
 
@@ -3207,7 +3221,9 @@ bool Parser::parse_maybe_module() {
 
   match(TokenKind::T_EXPORT);
 
-  const auto is_module = parse_module_keyword();
+  SourceLocation moduleLoc;
+
+  const auto is_module = parse_module_keyword(moduleLoc);
 
   rewind(start);
 
@@ -6341,89 +6357,117 @@ bool Parser::parse_attribute_argument_clause() {
   return true;
 }
 
-bool Parser::parse_module_declaration() {
-  const auto has_export = parse_export_keyword();
-
-  if (!parse_module_keyword()) return false;
-
-  if (!parse_module_name()) parse_error("expected a module name");
-
-  if (LA().is(TokenKind::T_COLON)) {
-    parse_module_partition();
-  }
-
-  List<AttributeAST*>* attributes = nullptr;
-
-  parse_attribute_specifier_seq(attributes);
-
-  expect(TokenKind::T_SEMICOLON);
-
-  return true;
-}
-
-bool Parser::parse_module_name() {
+bool Parser::parse_module_declaration(ModuleDeclarationAST*& yyast) {
   const auto start = currentLocation();
 
-  if (!parse_module_name_qualifier()) rewind(start);
+  SourceLocation exportLoc;
 
-  expect(TokenKind::T_IDENTIFIER);
+  parse_export_keyword(exportLoc);
+
+  SourceLocation moduleLoc;
+
+  if (!parse_module_keyword(moduleLoc)) {
+    rewind(start);
+    return false;
+  }
+
+  yyast = new (pool) ModuleDeclarationAST();
+
+  yyast->exportLoc = exportLoc;
+  yyast->moduleLoc = moduleLoc;
+
+  if (!parse_module_name(yyast->moduleName))
+    parse_error("expected a module name");
+
+  if (LA().is(TokenKind::T_COLON)) {
+    parse_module_partition(yyast->modulePartition);
+  }
+
+  parse_attribute_specifier_seq(yyast->attributeList);
+
+  expect(TokenKind::T_SEMICOLON, yyast->semicolonLoc);
 
   return true;
 }
 
-bool Parser::parse_module_partition() {
-  if (!match(TokenKind::T_COLON)) return false;
+bool Parser::parse_module_name(ModuleNameAST*& yyast) {
+  SourceLocation identifierLoc;
 
-  const auto saved = currentLocation();
+  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
 
-  if (!parse_module_name_qualifier()) rewind(saved);
+  yyast = new (pool) ModuleNameAST();
 
-  expect(TokenKind::T_IDENTIFIER);
+  auto it = &yyast->identifierList;
+
+  *it = new (pool) List(identifierLoc);
+  it = &(*it)->next;
+
+  while (match(TokenKind::T_DOT)) {
+    SourceLocation identifierLoc;
+
+    expect(TokenKind::T_IDENTIFIER, identifierLoc);
+
+    if (!identifierLoc) break;
+
+    *it = new (pool) List(consumeToken());
+    it = &(*it)->next;
+  }
 
   return true;
 }
 
-bool Parser::parse_module_name_qualifier() {
-  if (LA().isNot(TokenKind::T_IDENTIFIER)) return false;
+bool Parser::parse_module_partition(ModulePartitionAST*& yyast) {
+  SourceLocation colonLoc;
 
-  if (LA(1).isNot(TokenKind::T_DOT)) return false;
+  if (!match(TokenKind::T_COLON, colonLoc)) return false;
 
-  do {
-    consumeToken();
-    consumeToken();
-  } while (LA().is(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_DOT));
+  yyast = new (pool) ModulePartitionAST();
+
+  yyast->colonLoc = colonLoc;
+
+  if (!parse_module_name(yyast->moduleName))
+    parse_error("expected module name");
 
   return true;
 }
 
 bool Parser::parse_export_declaration(DeclarationAST*& yyast) {
-  if (!match(TokenKind::T_EXPORT)) return false;
+  SourceLocation exportLoc;
 
-  if (match(TokenKind::T_LBRACE)) {
-    if (!match(TokenKind::T_RBRACE)) {
-      List<DeclarationAST*>* declarationList = nullptr;
+  if (!match(TokenKind::T_EXPORT, exportLoc)) return false;
 
-      if (!parse_declaration_seq(declarationList))
+  SourceLocation lbraceLoc;
+
+  if (match(TokenKind::T_LBRACE, lbraceLoc)) {
+    auto ast = new (pool) ExportCompoundDeclarationAST();
+    yyast = ast;
+
+    ast->lbraceLoc = lbraceLoc;
+
+    if (!match(TokenKind::T_RBRACE, ast->rbraceLoc)) {
+      if (!parse_declaration_seq(ast->declarationList))
         parse_error("expected a declaration");
 
-      expect(TokenKind::T_RBRACE);
+      expect(TokenKind::T_RBRACE, ast->rbraceLoc);
     }
 
     return true;
   }
 
-  if (parse_maybe_import()) {
-    DeclarationAST* declaration = nullptr;
+  auto ast = new (pool) ExportDeclarationAST();
+  yyast = ast;
 
-    if (!parse_module_import_declaration(declaration))
+  ast->exportLoc = exportLoc;
+
+  if (parse_maybe_import()) {
+    if (!parse_module_import_declaration(ast->declaration))
       parse_error("expected a module import declaration");
 
     return true;
   }
 
-  DeclarationAST* declaration = nullptr;
-
-  if (!parse_declaration(declaration)) parse_error("expected a declaration");
+  if (!parse_declaration(ast->declaration))
+    parse_error("expected a declaration");
 
   return true;
 }
@@ -6433,7 +6477,9 @@ bool Parser::parse_maybe_import() {
 
   const auto start = currentLocation();
 
-  const auto import = parse_import_keyword();
+  SourceLocation importLoc;
+
+  const auto import = parse_import_keyword(importLoc);
 
   rewind(start);
 
@@ -6441,51 +6487,99 @@ bool Parser::parse_maybe_import() {
 }
 
 bool Parser::parse_module_import_declaration(DeclarationAST*& yyast) {
-  if (!parse_import_keyword()) return false;
+  SourceLocation importLoc;
 
-  if (!parse_import_name()) parse_error("expected a module");
+  if (!parse_import_keyword(importLoc)) return false;
 
-  List<AttributeAST*>* attributes = nullptr;
+  auto ast = new (pool) ModuleImportDeclarationAST();
+  yyast = ast;
 
-  parse_attribute_specifier_seq(attributes);
+  ast->importLoc = importLoc;
 
-  expect(TokenKind::T_SEMICOLON);
+  if (!parse_import_name(ast->importName))
+    parse_error("expected a module name");
 
-  return true;
-}
+  parse_attribute_specifier_seq(ast->attributeList);
 
-bool Parser::parse_import_name() {
-  if (parse_header_name()) return true;
-
-  if (parse_module_partition()) return true;
-
-  return parse_module_name();
-}
-
-bool Parser::parse_global_module_fragment() {
-  if (!parse_module_keyword()) return false;
-
-  if (!match(TokenKind::T_SEMICOLON)) return false;
-
-  List<DeclarationAST*>* declarationList = nullptr;
-
-  parse_declaration_seq(declarationList);
+  expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
 
   return true;
 }
 
-bool Parser::parse_private_module_fragment() {
-  if (!parse_module_keyword()) return false;
+bool Parser::parse_import_name(ImportNameAST*& yyast) {
+  SourceLocation headerLoc;
 
-  if (!match(TokenKind::T_COLON)) return false;
+  if (parse_header_name(headerLoc)) return true;
 
-  if (!match(TokenKind::T_PRIVATE)) return false;
+  yyast = new (pool) ImportNameAST();
 
-  expect(TokenKind::T_SEMICOLON);
+  yyast->headerLoc = headerLoc;
 
-  List<DeclarationAST*>* declarationList = nullptr;
+  if (parse_module_partition(yyast->modulePartition)) return true;
 
-  parse_declaration_seq(declarationList);
+  if (!parse_module_name(yyast->moduleName))
+    parse_error("expected module name");
+
+  return true;
+}
+
+bool Parser::parse_global_module_fragment(GlobalModuleFragmentAST*& yyast) {
+  const auto start = currentLocation();
+
+  SourceLocation moduleLoc;
+
+  if (!parse_module_keyword(moduleLoc)) {
+    rewind(start);
+    return false;
+  }
+
+  SourceLocation semicolonLoc;
+
+  if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) {
+    rewind(start);
+    return false;
+  }
+
+  yyast = new (pool) GlobalModuleFragmentAST();
+  yyast->moduleLoc = moduleLoc;
+  yyast->semicolonLoc = semicolonLoc;
+
+  // ### must be from preprocessor inclusion
+  parse_declaration_seq(yyast->declarationList);
+
+  return true;
+}
+
+bool Parser::parse_private_module_fragment(PrivateModuleFragmentAST*& yyast) {
+  const auto start = currentLocation();
+
+  SourceLocation moduleLoc;
+
+  if (!parse_module_keyword(moduleLoc)) return false;
+
+  SourceLocation colonLoc;
+
+  if (!match(TokenKind::T_COLON, colonLoc)) {
+    rewind(start);
+    return false;
+  }
+
+  SourceLocation privateLoc;
+
+  if (!match(TokenKind::T_PRIVATE, privateLoc)) {
+    rewind(start);
+    return false;
+  }
+
+  yyast = new (pool) PrivateModuleFragmentAST();
+
+  yyast->moduleLoc = moduleLoc;
+  yyast->colonLoc = colonLoc;
+  yyast->privateLoc = privateLoc;
+
+  expect(TokenKind::T_SEMICOLON, yyast->semicolonLoc);
+
+  parse_declaration_seq(yyast->declarationList);
 
   return true;
 }
