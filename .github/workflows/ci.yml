@@ -56,12 +56,6 @@ jobs:
           npm run build
           npm pack
 
-      - name: upload artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: cxx-frontend
-          path: packages/cxx-frontend/robertoraggi-cxx-*.tgz
-
   build-macos:
     runs-on: macos-latest
 
