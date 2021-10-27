@@ -355,13 +355,13 @@ struct Preprocessor::Private {
 
   template <typename... Args>
   void error(const Token &token, const std::string_view &format,
-             const Args &...args) const {
+             const Args &... args) const {
     diagnosticsClient_->report(token, Severity::Error, format, args...);
   }
 
   template <typename... Args>
   void warning(const Token &token, const std::string_view &format,
-               const Args &...args) const {
+               const Args &... args) const {
     diagnosticsClient_->report(token, Severity::Warning, format, args...);
   }
 

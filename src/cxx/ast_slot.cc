@@ -3347,9 +3347,18 @@ void ASTSlot::visit(TypeofSpecifierAST* ast) {
 }
 
 void ASTSlot::visit(PlaceholderTypeSpecifierAST* ast) {
-  switch (slot_) {}  // switch
+  switch (slot_) {
+    case 0:
+      value_ = reinterpret_cast<std::intptr_t>(ast->typeConstraint);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->specifier);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+  }  // switch
 
-  slotCount_ = 0;
+  slotCount_ = 2;
 }
 
 void ASTSlot::visit(ConstQualifierAST* ast) {

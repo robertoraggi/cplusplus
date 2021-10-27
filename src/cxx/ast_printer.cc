@@ -3133,6 +3133,20 @@ void ASTPrinter::visit(PlaceholderTypeSpecifierAST* ast) {
   json_ = nlohmann::json::array();
 
   json_.push_back("ast:PlaceholderTypeSpecifier");
+
+  if (ast->typeConstraint) {
+    if (auto childNode = accept(ast->typeConstraint); !childNode.is_null()) {
+      json_.push_back(std::vector<nlohmann::json>{"attr:typeConstraint",
+                                                  std::move(childNode)});
+    }
+  }
+
+  if (ast->specifier) {
+    if (auto childNode = accept(ast->specifier); !childNode.is_null()) {
+      json_.push_back(
+          std::vector<nlohmann::json>{"attr:specifier", std::move(childNode)});
+    }
+  }
 }
 
 void ASTPrinter::visit(ConstQualifierAST* ast) {

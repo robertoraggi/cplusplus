@@ -2449,10 +2449,14 @@ SourceLocation TypeofSpecifierAST::lastSourceLocation() {
 }
 
 SourceLocation PlaceholderTypeSpecifierAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(typeConstraint)) return loc;
+  if (auto loc = cxx::firstSourceLocation(specifier)) return loc;
   return SourceLocation();
 }
 
 SourceLocation PlaceholderTypeSpecifierAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(specifier)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeConstraint)) return loc;
   return SourceLocation();
 }
 

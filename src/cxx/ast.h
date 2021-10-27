@@ -2661,6 +2661,9 @@ class PlaceholderTypeSpecifierAST final : public SpecifierAST {
   PlaceholderTypeSpecifierAST()
       : SpecifierAST(ASTKind::PlaceholderTypeSpecifier) {}
 
+  TypeConstraintAST* typeConstraint = nullptr;
+  SpecifierAST* specifier = nullptr;
+
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
   SourceLocation firstSourceLocation() override;

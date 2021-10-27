@@ -870,6 +870,8 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     }
 
     visitPlaceholderTypeSpecifier(node: ast.PlaceholderTypeSpecifierAST, context: Context): void {
+        this.accept(node.getTypeConstraint(), context);
+        this.accept(node.getSpecifier(), context);
     }
 
     visitConstQualifier(node: ast.ConstQualifierAST, context: Context): void {

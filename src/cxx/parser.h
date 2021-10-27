@@ -412,7 +412,8 @@ class Parser final {
   bool parse_template_type_parameter(DeclarationAST*& yyast);
   bool parse_constraint_type_parameter(DeclarationAST*& yyast);
   bool parse_type_parameter_key(SourceLocation& classKeyLoc);
-  bool parse_type_constraint(TypeConstraintAST*& yyast);
+  bool parse_type_constraint(TypeConstraintAST*& yyast,
+                             bool parsingPlaceholderTypeSpec);
   bool parse_simple_template_id(NameAST*& yyast);
   bool parse_template_id(NameAST*& yyast);
   bool parse_template_argument_list(List<TemplateArgumentAST*>*& yyast);

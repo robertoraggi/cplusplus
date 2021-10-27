@@ -1440,7 +1440,7 @@ bool Parser::parse_return_type_requirement(SourceLocation& minusGreaterLoc,
                                            TypeConstraintAST*& typeConstraint) {
   if (!match(TokenKind::T_MINUS_GREATER, minusGreaterLoc)) return false;
 
-  if (!parse_type_constraint(typeConstraint))
+  if (!parse_type_constraint(typeConstraint, /*parsing placeholder=*/false))
     parse_error("expected type constraint");
 
   return true;
@@ -4069,11 +4069,11 @@ bool Parser::parse_simple_type_specifier(SpecifierAST*& yyast,
                                          DeclSpecs& specs) {
   const auto start = currentLocation();
 
-  if (parse_named_type_specifier(yyast, specs)) return true;
+  if (parse_placeholder_type_specifier_helper(yyast, specs)) return true;
 
   rewind(start);
 
-  if (parse_placeholder_type_specifier_helper(yyast, specs)) return true;
+  if (parse_named_type_specifier(yyast, specs)) return true;
 
   rewind(start);
 
@@ -4537,15 +4537,21 @@ bool Parser::parse_decltype_specifier(SpecifierAST*& yyast) {
 bool Parser::parse_placeholder_type_specifier(SpecifierAST*& yyast) {
   TypeConstraintAST* typeConstraint = nullptr;
 
-  parse_type_constraint(typeConstraint);
+  parse_type_constraint(typeConstraint, /*parsing placeholder=*/true);
 
   SourceLocation autoLoc;
 
   if (match(TokenKind::T_AUTO, autoLoc)) {
     auto ast = new (pool) AutoTypeSpecifierAST();
     yyast = ast;
-
     ast->autoLoc = autoLoc;
+
+    if (typeConstraint) {
+      auto ast = new (pool) PlaceholderTypeSpecifierAST();
+      ast->typeConstraint = typeConstraint;
+      ast->specifier = yyast;
+      yyast = ast;
+    }
 
     return true;
   }
@@ -4569,6 +4575,13 @@ bool Parser::parse_placeholder_type_specifier(SpecifierAST*& yyast) {
     ast->autoLoc = autoLoc;
 
     expect(TokenKind::T_RPAREN, ast->rparenLoc);
+
+    if (typeConstraint) {
+      auto ast = new (pool) PlaceholderTypeSpecifierAST();
+      ast->typeConstraint = typeConstraint;
+      ast->specifier = yyast;
+      yyast = ast;
+    }
 
     return true;
   }
@@ -7760,7 +7773,8 @@ bool Parser::parse_template_type_parameter(DeclarationAST*& yyast) {
 bool Parser::parse_constraint_type_parameter(DeclarationAST*& yyast) {
   TypeConstraintAST* typeConstraint = nullptr;
 
-  if (!parse_type_constraint(typeConstraint)) return false;
+  if (!parse_type_constraint(typeConstraint, /*parsing placeholder=*/false))
+    return false;
 
   const auto saved = currentLocation();
 
@@ -7793,7 +7807,8 @@ bool Parser::parse_type_parameter_key(SourceLocation& classKeyLoc) {
   return true;
 }
 
-bool Parser::parse_type_constraint(TypeConstraintAST*& yyast) {
+bool Parser::parse_type_constraint(TypeConstraintAST*& yyast,
+                                   bool parsingPlaceholderTypeSpec) {
   const auto start = currentLocation();
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
@@ -7834,8 +7849,10 @@ bool Parser::parse_type_constraint(TypeConstraintAST*& yyast) {
 
     List<TemplateArgumentAST*>* templateArgumentList = nullptr;
 
-    if (!parse_template_argument_list(templateArgumentList))
+    if (!parse_template_argument_list(templateArgumentList)) {
+      if (parsingPlaceholderTypeSpec) return false;
       parse_error("expected a template argument");
+    }
 
     expect(TokenKind::T_GREATER, greaterLoc);
 

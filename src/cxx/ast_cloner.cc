@@ -2700,6 +2700,10 @@ void ASTCloner::visit(TypeofSpecifierAST* ast) {
 void ASTCloner::visit(PlaceholderTypeSpecifierAST* ast) {
   auto copy = new (arena_) PlaceholderTypeSpecifierAST();
   copy_ = copy;
+
+  copy->typeConstraint = accept(ast->typeConstraint);
+
+  copy->specifier = accept(ast->specifier);
 }
 
 void ASTCloner::visit(ConstQualifierAST* ast) {

@@ -2804,6 +2804,12 @@ export class PlaceholderTypeSpecifierAST extends SpecifierAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitPlaceholderTypeSpecifier(this, context);
     }
+    getTypeConstraint(): TypeConstraintAST | undefined {
+        return AST.from<TypeConstraintAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getSpecifier(): SpecifierAST | undefined {
+        return AST.from<SpecifierAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
 }
 
 export class ConstQualifierAST extends SpecifierAST {

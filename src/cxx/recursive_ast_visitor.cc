@@ -918,7 +918,10 @@ void RecursiveASTVisitor::visit(TypeofSpecifierAST* ast) {
   acceptExpression(ast->expression);
 }
 
-void RecursiveASTVisitor::visit(PlaceholderTypeSpecifierAST* ast) {}
+void RecursiveASTVisitor::visit(PlaceholderTypeSpecifierAST* ast) {
+  acceptTypeConstraint(ast->typeConstraint);
+  acceptSpecifier(ast->specifier);
+}
 
 void RecursiveASTVisitor::visit(ConstQualifierAST* ast) {}
 
