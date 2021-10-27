@@ -6442,6 +6442,7 @@ bool Parser::parse_export_declaration(DeclarationAST*& yyast) {
     auto ast = new (pool) ExportCompoundDeclarationAST();
     yyast = ast;
 
+    ast->exportLoc = exportLoc;
     ast->lbraceLoc = lbraceLoc;
 
     if (!match(TokenKind::T_RBRACE, ast->rbraceLoc)) {
