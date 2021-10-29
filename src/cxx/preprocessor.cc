@@ -331,8 +331,10 @@ struct SourceFile {
 }  // namespace
 
 struct Preprocessor::Private {
+  Preprocessor *preprocessor_ = nullptr;
   Control *control_ = nullptr;
   DiagnosticsClient *diagnosticsClient_ = nullptr;
+  CommentHandler *commentHandler_ = nullptr;
   std::vector<fs::path> systemIncludePaths_;
   std::vector<fs::path> quoteIncludePaths_;
   std::unordered_map<std::string_view, Macro> macros_;
@@ -585,11 +587,37 @@ static int depth(const TokList *ts) {
 const TokList *Preprocessor::Private::tokenize(const std::string_view &source,
                                                int sourceFile, bool bol) {
   cxx::Lexer lex(source);
+  lex.setKeepComments(true);
   lex.setPreprocessing(true);
   const TokList *ts = nullptr;
   auto it = &ts;
   do {
     lex();
+
+    if (lex.tokenKind() == TokenKind::T_COMMENT) {
+      if (commentHandler_) {
+        TokenValue tokenValue;
+
+        if (sourceFile) {
+          const SourceFile *file = sourceFiles_[sourceFile - 1].get();
+
+          std::string_view source = file->source;
+
+          auto tokenText =
+              file->source.substr(lex.tokenPos(), lex.tokenLength());
+
+          tokenValue.literalValue = control_->commentLiteral(tokenText);
+        }
+
+        Token token(lex.tokenKind(), lex.tokenPos(), lex.tokenLength(),
+                    tokenValue);
+        token.setFileId(sourceFile);
+        token.setLeadingSpace(lex.tokenLeadingSpace());
+        token.setStartOfLine(lex.tokenStartOfLine());
+        commentHandler_->handleComment(preprocessor_, token);
+      }
+      continue;
+    }
     auto tk = Tok::FromCurrentToken(&pool_, lex, sourceFile);
     if (!lex.tokenIsClean()) tk->text = string(std::move(lex.text()));
     *it = new (&pool_) TokList(tk);
@@ -1414,6 +1442,7 @@ void Preprocessor::Private::printLine(const TokList *ts,
 Preprocessor::Preprocessor(Control *control,
                            DiagnosticsClient *diagnosticsClient)
     : d(std::make_unique<Private>()) {
+  d->preprocessor_ = this;
   d->control_ = control;
   d->diagnosticsClient_ = diagnosticsClient;
 }
@@ -1422,6 +1451,14 @@ Preprocessor::~Preprocessor() {}
 
 DiagnosticsClient *Preprocessor::diagnosticsClient() const {
   return d->diagnosticsClient_;
+}
+
+CommentHandler *Preprocessor::commentHandler() const {
+  return d->commentHandler_;
+}
+
+void Preprocessor::setCommentHandler(CommentHandler *commentHandler) {
+  d->commentHandler_ = commentHandler;
 }
 
 void Preprocessor::squeeze() { d->pool_.reset(); }

@@ -51,6 +51,7 @@ const std::string& Token::spell() const {
     case TokenKind::T_STRING_LITERAL:
     case TokenKind::T_CHARACTER_LITERAL:
     case TokenKind::T_INTEGER_LITERAL:
+    case TokenKind::T_COMMENT:
       return value_.literalValue ? value_.literalValue->value() : spell(kind());
 
     default:

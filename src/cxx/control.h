@@ -46,6 +46,7 @@ class Control {
   const FloatLiteral* floatLiteral(const std::string_view& value);
   const StringLiteral* stringLiteral(const std::string_view& value);
   const CharLiteral* charLiteral(const std::string_view& value);
+  const CommentLiteral* commentLiteral(const std::string_view& value);
 
   TypeEnvironment* types();
   SymbolFactory* symbols();

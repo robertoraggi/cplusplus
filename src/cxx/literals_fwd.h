@@ -28,5 +28,6 @@ class IntegerLiteral;
 class FloatLiteral;
 class StringLiteral;
 class CharLiteral;
+class CommentLiteral;
 
 }  // namespace cxx

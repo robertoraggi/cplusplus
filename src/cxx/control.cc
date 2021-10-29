@@ -24,6 +24,7 @@
 #include <cxx/symbol_factory.h>
 #include <cxx/type_environment.h>
 
+#include <forward_list>
 #include <set>
 #include <unordered_set>
 
@@ -95,6 +96,7 @@ struct Control::Private {
   LiteralSet<FloatLiteral> floatLiterals_;
   LiteralSet<StringLiteral> stringLiterals_;
   LiteralSet<CharLiteral> charLiterals_;
+  std::forward_list<CommentLiteral> commentLiterals_;
   std::set<Identifier> identifiers_;
   NameSet<OperatorNameId> operatorNameIds_;
   NameSet<ConversionNameId> conversionNameIds_;
@@ -146,6 +148,10 @@ const CharLiteral* Control::charLiteral(const std::string_view& value) {
     return &*it;
 
   return &*d->charLiterals_.emplace(std::string{value}).first;
+}
+
+const CommentLiteral* Control::commentLiteral(const std::string_view& value) {
+  return &d->commentLiterals_.emplace_front(std::string{value});
 }
 
 TypeEnvironment* Control::types() { return &d->typeEnvironment_; }

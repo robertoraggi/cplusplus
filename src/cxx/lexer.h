@@ -33,6 +33,7 @@ class Lexer {
   std::string text_;
   bool leadingSpace_ = false;
   bool startOfLine_ = true;
+  bool keepComments_ = false;
 
   TokenKind tokenKind_ = TokenKind::T_EOF_SYMBOL;
   TokenValue tokenValue_{};
@@ -56,6 +57,9 @@ class Lexer {
 
   bool preprocessing() const { return preprocessing_; }
   void setPreprocessing(bool preprocessing) { preprocessing_ = preprocessing; }
+
+  bool keepComments() const { return keepComments_; }
+  void setKeepComments(bool keepComments) { keepComments_ = keepComments; }
 
   TokenKind operator()() { return next(); }
 

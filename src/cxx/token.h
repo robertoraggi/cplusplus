@@ -30,6 +30,7 @@
 #define FOR_EACH_TOKEN(V)                                             \
   V(EOF_SYMBOL, "eof")                                                \
   V(ERROR, "error")                                                   \
+  V(COMMENT, "comment")                                               \
   V(IDENTIFIER, "identifier")                                         \
   V(CHARACTER_LITERAL, "character_literal")                           \
   V(FLOATING_POINT_LITERAL, "floating_point_literal")                 \

@@ -458,12 +458,33 @@ TokenKind Lexer::readToken() {
 
       return TokenKind::T_GREATER;
 
-    case '/':
-      if (pos_ != end_ && LA() == '=') {
+    case '/': {
+      if (keepComments_ && LA() == '/') {
+        consume();
+        for (; pos_ != end_; consume()) {
+          if (pos_ != end_ && LA() == '\n') {
+            break;
+          }
+        }
+        return TokenKind::T_COMMENT;
+      } else if (keepComments_ && LA() == '*') {
+        consume();
+        while (pos_ != end_) {
+          if (pos_ + 1 < end_ && LA() == '*' && LA(1) == '/') {
+            consume(2);
+            break;
+          } else {
+            consume();
+          }
+        }
+        leadingSpace_ = tokenLeadingSpace_;
+        return TokenKind::T_COMMENT;
+      } else if (pos_ != end_ && LA() == '=') {
         consume();
         return TokenKind::T_SLASH_EQUAL;
       }
       return TokenKind::T_SLASH;
+    }
   }
 
   return TokenKind::T_ERROR;
@@ -484,14 +505,14 @@ bool Lexer::skipSpaces() {
         tokenLeadingSpace_ = true;
       }
       consume();
-    } else if (pos_ + 1 < end_ && ch == '/' && LA(1) == '/') {
+    } else if (!keepComments_ && pos_ + 1 < end_ && ch == '/' && LA(1) == '/') {
       consume(2);
       for (; pos_ != end_; consume()) {
         if (pos_ != end_ && LA() == '\n') {
           break;
         }
       }
-    } else if (pos_ + 1 < end_ && ch == '/' && LA(1) == '*') {
+    } else if (!keepComments_ && pos_ + 1 < end_ && ch == '/' && LA(1) == '*') {
       consume(2);
       while (pos_ != end_) {
         if (pos_ + 1 < end_ && LA() == '*' && LA(1) == '/') {

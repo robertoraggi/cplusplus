@@ -95,4 +95,9 @@ class CharLiteral final : public Literal {
   using Literal::Literal;
 };
 
+class CommentLiteral final : public Literal {
+ public:
+  using Literal::Literal;
+};
+
 }  // namespace cxx

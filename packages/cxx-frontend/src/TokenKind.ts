@@ -21,6 +21,7 @@
 export enum TokenKind {
     EOF_SYMBOL,
     ERROR,
+    COMMENT,
     IDENTIFIER,
     CHARACTER_LITERAL,
     FLOATING_POINT_LITERAL,

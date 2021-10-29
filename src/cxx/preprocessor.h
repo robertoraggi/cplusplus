@@ -33,6 +33,16 @@ namespace cxx {
 
 class Token;
 class DiagnosticsClient;
+class CommentHandler;
+class Preprocessor;
+
+class CommentHandler {
+ public:
+  virtual ~CommentHandler() = default;
+
+  virtual void handleComment(Preprocessor *preprocessor,
+                             const Token &token) = 0;
+};
 
 class Preprocessor {
  public:
@@ -43,6 +53,9 @@ class Preprocessor {
   ~Preprocessor();
 
   DiagnosticsClient *diagnosticsClient() const;
+
+  CommentHandler *commentHandler() const;
+  void setCommentHandler(CommentHandler *commentHandler);
 
   void operator()(std::string source, std::string fileName, std::ostream &out);
 
