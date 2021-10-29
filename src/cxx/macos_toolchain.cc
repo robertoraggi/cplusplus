@@ -37,7 +37,7 @@ void MacOSToolchain::addSystemIncludePaths() {
 
   addSystemIncludePath(
       "/Applications/Xcode.app/Contents/Developer/Toolchains/"
-      "XcodeDefault.xctoolchain/usr/lib/clang/12.0.0/include");
+      "XcodeDefault.xctoolchain/usr/lib/clang/13.0.0/include");
 }
 
 void MacOSToolchain::addSystemCppIncludePaths() {
