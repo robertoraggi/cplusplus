@@ -1,5 +1,13 @@
 # Changelog
 
+### [1.1.3](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.2...v1.1.3) (2021-10-29)
+
+
+### Bug Fixes
+
+* **parser:** Fix parsing of placeholder type specifiers ([3b3f273](https://www.github.com/robertoraggi/cplusplus/commit/3b3f273108faf7e463390e13f1460fe83e0d1f6f))
+* **parser:** Update the system search paths of the mocOS toolchain ([85d9226](https://www.github.com/robertoraggi/cplusplus/commit/85d92268b02e92d1016fa37d44713bee7677cfef))
+
 ### [1.1.2](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.1...v1.1.2) (2021-10-27)
 
 
