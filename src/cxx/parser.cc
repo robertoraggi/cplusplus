@@ -3502,7 +3502,7 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast,
   const auto hasRequiresClause = parse_requires_clause(requiresClause);
 
   if (acceptFunctionDefinition && functionDeclarator &&
-      lookat_function_body()) {
+      decl.type->asFunctionType() && lookat_function_body()) {
     FunctionSymbol* functionSymbol = nullptr;
 
     if (decl.typeOrNamespaceSymbol) {
@@ -6909,12 +6909,15 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
 
   DeclaratorAST* declarator = nullptr;
 
-  if (parse_declarator(declarator) && getFunctionDeclarator(declarator)) {
+  const auto hasDeclarator = parse_declarator(declarator);
+
+  Semantics::DeclaratorSem decl{specs.specifiers};
+
+  if (hasDeclarator) sem->declarator(declarator, &decl);
+
+  if (hasDeclarator && decl.type->asFunctionType() &&
+      getFunctionDeclarator(declarator)) {
     FunctionBodyAST* functionBody = nullptr;
-
-    Semantics::DeclaratorSem decl{specs.specifiers};
-
-    sem->declarator(declarator, &decl);
 
     RequiresClauseAST* requiresClause = nullptr;
 
@@ -7003,7 +7006,7 @@ bool Parser::parse_member_declarator_list(List<InitDeclaratorAST*>*& yyast,
 
   InitDeclaratorAST* initDeclarator = nullptr;
 
-  if (!parse_member_declarator(initDeclarator)) return false;
+  if (!parse_member_declarator(initDeclarator, specs)) return false;
 
   Semantics::DeclaratorSem decl{specs.specifiers};
 
@@ -7017,7 +7020,7 @@ bool Parser::parse_member_declarator_list(List<InitDeclaratorAST*>*& yyast,
   while (match(TokenKind::T_COMMA)) {
     InitDeclaratorAST* initDeclarator = nullptr;
 
-    if (!parse_member_declarator(initDeclarator))
+    if (!parse_member_declarator(initDeclarator, specs))
       parse_error("expected a declarator");
 
     if (initDeclarator) {
@@ -7035,7 +7038,8 @@ bool Parser::parse_member_declarator_list(List<InitDeclaratorAST*>*& yyast,
   return true;
 }
 
-bool Parser::parse_member_declarator(InitDeclaratorAST*& yyast) {
+bool Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
+                                     const DeclSpecs& specs) {
   const auto start = currentLocation();
 
   SourceLocation identifierLoc;
@@ -7085,23 +7089,29 @@ bool Parser::parse_member_declarator(InitDeclaratorAST*& yyast) {
 
   if (!parse_declarator(declarator)) return false;
 
+  Semantics::DeclaratorSem decl{specs.specifiers};
+
+  sem->declarator(declarator, &decl);
+
   auto ast = new (pool) InitDeclaratorAST();
   yyast = ast;
 
   ast->declarator = declarator;
 
-  RequiresClauseAST* requiresClause = nullptr;
+  if (decl.type->asFunctionType()) {
+    RequiresClauseAST* requiresClause = nullptr;
 
-  if (parse_requires_clause(requiresClause)) {
-    ast->requiresClause = requiresClause;
-  } else {
-    if (auto functionDeclarator = getFunctionDeclarator(declarator)) {
+    if (parse_requires_clause(requiresClause)) {
+      ast->requiresClause = requiresClause;
+    } else {
       parse_virt_specifier_seq();
       parse_pure_specifier();
-    } else {
-      parse_brace_or_equal_initializer(ast->initializer);
     }
+
+    return true;
   }
+
+  parse_brace_or_equal_initializer(ast->initializer);
 
   return true;
 }

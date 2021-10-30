@@ -380,7 +380,8 @@ class Parser final {
   bool parse_member_declaration_helper(DeclarationAST*& yyast);
   bool parse_member_declarator_list(List<InitDeclaratorAST*>*& yyast,
                                     const DeclSpecs& specs);
-  bool parse_member_declarator(InitDeclaratorAST*& yyast);
+  bool parse_member_declarator(InitDeclaratorAST*& yyast,
+                               const DeclSpecs& specs);
   bool parse_virt_specifier();
   bool parse_pure_specifier();
   bool parse_conversion_function_id(NameAST*& yyast);
