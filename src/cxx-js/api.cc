@@ -67,6 +67,10 @@ struct WrappedUnit {
     diagnosticsClient = std::make_unique<DiagnosticsClient>();
     unit = std::make_unique<cxx::TranslationUnit>(&control,
                                                   diagnosticsClient.get());
+    if (auto preprocessor = unit->preprocessor()) {
+      preprocessor->setCanResolveFiles(false);
+    }
+
     unit->setSource(std::move(source), std::move(filename));
   }
 

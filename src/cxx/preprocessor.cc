@@ -335,6 +335,7 @@ struct Preprocessor::Private {
   Control *control_ = nullptr;
   DiagnosticsClient *diagnosticsClient_ = nullptr;
   CommentHandler *commentHandler_ = nullptr;
+  bool canResolveFiles_ = true;
   std::vector<fs::path> systemIncludePaths_;
   std::vector<fs::path> quoteIncludePaths_;
   std::unordered_map<std::string_view, Macro> macros_;
@@ -357,13 +358,13 @@ struct Preprocessor::Private {
 
   template <typename... Args>
   void error(const Token &token, const std::string_view &format,
-             const Args &... args) const {
+             const Args &...args) const {
     diagnosticsClient_->report(token, Severity::Error, format, args...);
   }
 
   template <typename... Args>
   void warning(const Token &token, const std::string_view &format,
-               const Args &... args) const {
+               const Args &...args) const {
     diagnosticsClient_->report(token, Severity::Warning, format, args...);
   }
 
@@ -466,6 +467,8 @@ struct Preprocessor::Private {
   bool checkPragmaOnceProtected(const TokList *ts) const;
 
   std::optional<fs::path> resolve(const Include &include, bool next) const {
+    if (!canResolveFiles_) return std::nullopt;
+
     struct Resolve {
       const Private *d;
       bool next;
@@ -1459,6 +1462,12 @@ CommentHandler *Preprocessor::commentHandler() const {
 
 void Preprocessor::setCommentHandler(CommentHandler *commentHandler) {
   d->commentHandler_ = commentHandler;
+}
+
+bool Preprocessor::canResolveFiles() const { return d->canResolveFiles_; }
+
+void Preprocessor::setCanResolveFiles(bool canResolveFiles) {
+  d->canResolveFiles_ = canResolveFiles;
 }
 
 void Preprocessor::squeeze() { d->pool_.reset(); }

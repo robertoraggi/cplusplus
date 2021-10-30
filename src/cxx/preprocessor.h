@@ -57,6 +57,9 @@ class Preprocessor {
   CommentHandler *commentHandler() const;
   void setCommentHandler(CommentHandler *commentHandler);
 
+  bool canResolveFiles() const;
+  void setCanResolveFiles(bool canResolveFiles);
+
   void operator()(std::string source, std::string fileName, std::ostream &out);
 
   void preprocess(std::string source, std::string fileName, std::ostream &out);
