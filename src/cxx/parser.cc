@@ -3075,9 +3075,9 @@ bool Parser::parse_for_statement(StatementAST*& yyast) {
 }
 
 bool Parser::parse_for_range_declaration(DeclarationAST*& yyast) {
-  List<AttributeAST*>* attributes = nullptr;
+  List<AttributeAST*>* attributeList = nullptr;
 
-  parse_attribute_specifier_seq(attributes);
+  parse_attribute_specifier_seq(attributeList);
 
   List<SpecifierAST*>* declSpecifierList = nullptr;
 
@@ -3103,6 +3103,26 @@ bool Parser::parse_for_range_declaration(DeclarationAST*& yyast) {
     DeclaratorAST* declarator = nullptr;
 
     if (!parse_declarator(declarator)) return false;
+
+    Semantics::DeclaratorSem decl{specs.specifiers};
+
+    sem->declarator(declarator, &decl);
+
+    auto initDeclarator = new (pool) InitDeclaratorAST();
+    initDeclarator->declarator = declarator;
+
+    VariableSymbol* varSymbol = nullptr;
+    varSymbol = symbols->newVariableSymbol(sem->scope(), decl.name);
+    varSymbol->setType(decl.type);
+    sem->scope()->add(varSymbol);
+    initDeclarator->symbol = varSymbol;
+
+    auto ast = new (pool) SimpleDeclarationAST();
+    yyast = ast;
+
+    ast->attributeList = attributeList;
+    ast->declSpecifierList = declSpecifierList;
+    ast->initDeclaratorList = new (pool) List(initDeclarator);
   }
 
   return true;
