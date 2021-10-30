@@ -1,5 +1,14 @@
 # Changelog
 
+### [1.1.4](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.3...v1.1.4) (2021-10-30)
+
+
+### Bug Fixes
+
+* **parser:** Create AST for simple for-range declarations ([3e51ae7](https://www.github.com/robertoraggi/cplusplus/commit/3e51ae74215bc7a39bfa07c0f7ca9043578acad1))
+* **preproc:** Add support for comment handlers. ([95c5f08](https://www.github.com/robertoraggi/cplusplus/commit/95c5f086bfab9b127be4ae1937c0264891a0dbff))
+* **preproc:** Avoid resolving files when access to the fs is not allowed ([d5d74b7](https://www.github.com/robertoraggi/cplusplus/commit/d5d74b71bf33604113214e809ae9a52b94c2dae5))
+
 ### [1.1.3](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.2...v1.1.3) (2021-10-29)
 
 
