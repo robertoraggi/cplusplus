@@ -145,6 +145,8 @@ std::vector<CLIOptionDescr> options{
      "Set the toolchain to 'linux', 'darwin' or 'windows'",
      CLIOptionDescrKind::kSeparated},
 
+    {"-verify", "Verify the diagnostic messages", &CLI::opt_verify},
+
     {"-v", "Show commands to run and use verbose output", &CLI::opt_v},
 
 };
