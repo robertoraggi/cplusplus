@@ -121,3 +121,5 @@ add_custom_target(unit.tokens
 )
 
 enable_testing()
+
+add_subdirectory(tests)
