@@ -15,6 +15,10 @@ jobs:
         with:
           submodules: true
 
+      - name: Install unit tests requirements
+        run: |
+          pip install -r tests/unit_tests/requirements.txt
+
       - name: Build
         run: |
           mkdir -p build
