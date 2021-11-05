@@ -44,12 +44,108 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <list>
+#include <regex>
 #include <sstream>
 #include <string>
 
 #include "cli.h"
 
 namespace cxx {
+
+struct ExpectedDiagnostic {
+  Severity severity = Severity::Error;
+  std::string_view fileName;
+  unsigned line = 0;
+  std::string message;
+};
+
+struct VerifyCommentHandler : CommentHandler {
+  std::regex rx{
+      "^//\\s*expected-(error|warning)(?:@([+-]?\\d+))?\\s*\\{\\{(.+)\\}\\}"};
+  std::list<ExpectedDiagnostic> expectedDiagnostics;
+
+  void handleComment(Preprocessor* preprocessor, const Token& token) override {
+    const std::string text{preprocessor->getTokenText(token)};
+
+    std::smatch match;
+
+    if (std::regex_match(text, match, rx)) {
+      std::string_view fileName;
+      unsigned line = 0;
+      unsigned column = 0;
+
+      preprocessor->getTokenStartPosition(token, &line, &column, &fileName);
+
+      Severity severity = Severity::Error;
+
+      if (match[1] == "warning") severity = Severity::Warning;
+
+      std::string offset = match[2];
+
+      if (!offset.empty()) line += std::stoi(offset);
+
+      const auto& message = match[3];
+
+      expectedDiagnostics.push_back({severity, fileName, line, message});
+    }
+  }
+};
+
+struct VerifyDiagnostics : DiagnosticsClient {
+  std::list<Diagnostic> reportedDiagnostics;
+  bool verify = false;
+
+  void report(const Diagnostic& diagnostic) override {
+    if (!verify) {
+      DiagnosticsClient::report(diagnostic);
+      return;
+    }
+
+    reportedDiagnostics.push_back(diagnostic);
+  }
+
+  void verifyExpectedDiagnostics(
+      const std::list<ExpectedDiagnostic>& expectedDiagnostics) {
+    if (!verify) return;
+
+    for (const auto& expected : expectedDiagnostics) {
+      if (auto it = findDiagnostic(expected); it != cend(reportedDiagnostics)) {
+        reportedDiagnostics.erase(it);
+      }
+    }
+
+    for (const auto& diag : reportedDiagnostics) {
+      DiagnosticsClient::report(diag);
+    }
+  }
+
+ private:
+  std::list<Diagnostic>::const_iterator findDiagnostic(
+      const ExpectedDiagnostic& expected) const {
+    return std::find_if(reportedDiagnostics.begin(), reportedDiagnostics.end(),
+                        [&](const Diagnostic& d) {
+                          if (d.severity() != expected.severity) {
+                            return false;
+                          }
+
+                          unsigned line = 0;
+                          unsigned column = 0;
+                          std::string_view fileName;
+
+                          preprocessor()->getTokenStartPosition(
+                              d.token(), &line, &column, &fileName);
+
+                          if (line != expected.line) return false;
+
+                          if (fileName != expected.fileName) return false;
+
+                          if (d.message() != expected.message) return false;
+
+                          return true;
+                        });
+  }
+};
 
 std::string readAll(const std::string& fileName, std::istream& in) {
   std::string code;
@@ -95,12 +191,20 @@ void dumpTokens(const CLI& cli, TranslationUnit& unit, std::ostream& output) {
 
 bool runOnFile(const CLI& cli, const std::string& fileName) {
   Control control;
-  DiagnosticsClient diagnosticsClient;
+  VerifyDiagnostics diagnosticsClient;
   TranslationUnit unit(&control, &diagnosticsClient);
 
   auto preprocesor = unit.preprocessor();
 
   std::unique_ptr<Toolchain> toolchain;
+
+  VerifyCommentHandler verifyCommentHandler;
+
+  diagnosticsClient.verify = cli.opt_verify;
+
+  if (cli.opt_verify) {
+    preprocesor->setCommentHandler(&verifyCommentHandler);
+  }
 
   auto toolchainId = cli.getSingle("-toolchain");
 
@@ -176,24 +280,29 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
 
   auto& output = outfile ? *outfile : std::cout;
 
+  bool shouldExit = false;
+
   if (cli.opt_E && !cli.opt_dM) {
     preprocesor->preprocess(readAll(fileName), fileName, output);
-    return true;
+    shouldExit = true;
+  } else {
+    unit.setSource(readAll(fileName), fileName);
+
+    if (cli.opt_dM) {
+      preprocesor->printMacros(output);
+      shouldExit = true;
+    } else if (cli.opt_dump_tokens) {
+      dumpTokens(cli, unit, output);
+      shouldExit = true;
+    } else if (cli.opt_Eonly) {
+      shouldExit = true;
+    }
   }
 
-  unit.setSource(readAll(fileName), fileName);
+  if (shouldExit) {
+    diagnosticsClient.verifyExpectedDiagnostics(
+        verifyCommentHandler.expectedDiagnostics);
 
-  if (cli.opt_dM) {
-    preprocesor->printMacros(output);
-    return true;
-  }
-
-  if (cli.opt_dump_tokens) {
-    dumpTokens(cli, unit, output);
-    return true;
-  }
-
-  if (cli.opt_Eonly) {
     return true;
   }
 
@@ -204,10 +313,7 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
   if (cli.opt_ast_dump) {
     ASTPrinter print(&unit);
     output << print(unit.ast(), /*print locations*/ true);
-    return result;
-  }
-
-  if (cli.opt_S || cli.opt_ir_dump || cli.opt_c) {
+  } else if (cli.opt_S || cli.opt_ir_dump || cli.opt_c) {
     Codegen cg;
 
     auto module = cg(&unit);
@@ -220,6 +326,9 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
       printer.print(module.get(), output);
     }
   }
+
+  diagnosticsClient.verifyExpectedDiagnostics(
+      verifyCommentHandler.expectedDiagnostics);
 
   return result;
 }

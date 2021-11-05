@@ -86,6 +86,8 @@ class Preprocessor {
 
   std::string_view getTextLine(const Token &token) const;
 
+  std::string_view getTokenText(const Token &token) const;
+
   void squeeze();
 
  private:

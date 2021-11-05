@@ -1731,4 +1731,11 @@ std::string_view Preprocessor::getTextLine(const Token &token) const {
   return textLine;
 }
 
+std::string_view Preprocessor::getTokenText(const Token &token) const {
+  if (token.fileId() == 0) return std::string_view();
+  const SourceFile *file = d->sourceFiles_[token.fileId() - 1].get();
+  std::string_view source = file->source;
+  return source.substr(token.offset(), token.length());
+}
+
 }  // namespace cxx
