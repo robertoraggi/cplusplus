@@ -18,4 +18,4 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 add_test(NAME preprocessor
-    COMMAND lit::tool -v ${CMAKE_CURRENT_BINARY_DIR})
+    COMMAND lit::tool --config-prefix $<CONFIG>.lit -v ${CMAKE_CURRENT_BINARY_DIR})

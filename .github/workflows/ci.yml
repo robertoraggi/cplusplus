@@ -26,8 +26,9 @@ jobs:
           cmake --build build
 
       - name: Test
+        working-directory: build
         run: |
-          cmake --build build --target test
+          ctest -v
 
   build-windows:
     runs-on: windows-latest
@@ -43,11 +44,20 @@ jobs:
           path: ~\AppData\Local\vcpkg\archives
           key: vcpkg-cache
 
+      - name: Install unit tests requirements
+        run: |
+          pip install -r tests\unit_tests\requirements.txt
+
       - name: Build
         run: |
           mkdir build
           cmake -Bbuild -DCMAKE_TOOLCHAIN_FILE=C:\Vcpkg\scripts\buildsystems\vcpkg.cmake .
-          cmake --build build
+          cmake --build build --config Release
+
+      - name: Test
+        working-directory: build
+        run: |
+          ctest -v -C Release
 
   build-emscripten:
     runs-on: ubuntu-20.04
