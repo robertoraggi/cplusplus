@@ -28,7 +28,7 @@ jobs:
       - name: Test
         working-directory: build
         run: |
-          ctest -v
+          ctest --verbose
 
   build-windows:
     runs-on: windows-latest
@@ -57,7 +57,7 @@ jobs:
       - name: Test
         working-directory: build
         run: |
-          ctest -v -C Release
+          ctest --verbose -C Release
 
   build-emscripten:
     runs-on: ubuntu-20.04
