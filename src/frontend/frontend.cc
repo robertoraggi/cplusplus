@@ -96,6 +96,17 @@ struct VerifyDiagnostics : DiagnosticsClient {
   std::list<Diagnostic> reportedDiagnostics;
   bool verify = false;
 
+  bool hasErrors() const {
+    if (verify) return !reportedDiagnostics.empty();
+
+    for (const auto& d : reportedDiagnostics) {
+      if (d.severity() == Severity::Error || d.severity() == Severity::Fatal)
+        return true;
+    }
+
+    return false;
+  }
+
   void report(const Diagnostic& diagnostic) override {
     if (!verify) {
       DiagnosticsClient::report(diagnostic);
@@ -303,7 +314,7 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
     diagnosticsClient.verifyExpectedDiagnostics(
         verifyCommentHandler.expectedDiagnostics);
 
-    return true;
+    return !diagnosticsClient.hasErrors();
   }
 
   preprocesor->squeeze();
@@ -330,7 +341,7 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
   diagnosticsClient.verifyExpectedDiagnostics(
       verifyCommentHandler.expectedDiagnostics);
 
-  return result;
+  return !diagnosticsClient.hasErrors();
 }
 
 }  // namespace cxx
@@ -358,9 +369,13 @@ int main(int argc, char* argv[]) {
     return EXIT_FAILURE;
   }
 
+  int existStatus = EXIT_SUCCESS;
+
   for (const auto& fileName : inputFiles) {
-    runOnFile(cli, fileName);
+    if (!runOnFile(cli, fileName)) {
+      existStatus = EXIT_FAILURE;
+    }
   }
 
-  return EXIT_SUCCESS;
+  return existStatus;
 }

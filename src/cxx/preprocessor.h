@@ -35,6 +35,7 @@ class Token;
 class DiagnosticsClient;
 class CommentHandler;
 class Preprocessor;
+class PreprocessorDelegate;
 
 class CommentHandler {
  public:
@@ -42,6 +43,11 @@ class CommentHandler {
 
   virtual void handleComment(Preprocessor *preprocessor,
                              const Token &token) = 0;
+};
+
+class PreprocessorDelegate {
+ public:
+  virtual ~PreprocessorDelegate() = default;
 };
 
 class Preprocessor {
@@ -56,6 +62,9 @@ class Preprocessor {
 
   CommentHandler *commentHandler() const;
   void setCommentHandler(CommentHandler *commentHandler);
+
+  PreprocessorDelegate *delegate() const;
+  void setDelegate(PreprocessorDelegate *delegate);
 
   bool canResolveFiles() const;
   void setCanResolveFiles(bool canResolveFiles);

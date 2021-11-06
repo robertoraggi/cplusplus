@@ -335,6 +335,7 @@ struct Preprocessor::Private {
   Control *control_ = nullptr;
   DiagnosticsClient *diagnosticsClient_ = nullptr;
   CommentHandler *commentHandler_ = nullptr;
+  PreprocessorDelegate *delegate_ = nullptr;
   bool canResolveFiles_ = true;
   std::vector<fs::path> systemIncludePaths_;
   std::vector<fs::path> quoteIncludePaths_;
@@ -1322,6 +1323,11 @@ void Preprocessor::Private::defineMacro(const TokList *ts) {
 
   auto name = ts->head->text;
 
+  if (auto it = macros_.find(name); it != macros_.end()) {
+    warning(ts->head->token(), "'{}' macro redefined", name);
+    macros_.erase(it);
+  }
+
   if (ts->tail && !ts->tail->head->space &&
       ts->tail->head->is(TokenKind::T_LPAREN)) {
     ts = ts->tail->tail;  // skip macro name and '('
@@ -1462,6 +1468,12 @@ CommentHandler *Preprocessor::commentHandler() const {
 
 void Preprocessor::setCommentHandler(CommentHandler *commentHandler) {
   d->commentHandler_ = commentHandler;
+}
+
+PreprocessorDelegate *Preprocessor::delegate() const { return d->delegate_; }
+
+void Preprocessor::setDelegate(PreprocessorDelegate *delegate) {
+  d->delegate_ = delegate;
 }
 
 bool Preprocessor::canResolveFiles() const { return d->canResolveFiles_; }
