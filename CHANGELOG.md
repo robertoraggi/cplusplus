@@ -1,5 +1,15 @@
 # Changelog
 
+### [1.1.5](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.4...v1.1.5) (2021-11-06)
+
+
+### Bug Fixes
+
+* **ci:** Add support for multi-config cmake projects ([4ae48c3](https://www.github.com/robertoraggi/cplusplus/commit/4ae48c3dbb07f6388685ebe9711a0e1e29db716d))
+* **parser:** Parse initialized function pointers ([00fb809](https://www.github.com/robertoraggi/cplusplus/commit/00fb809d2fb6d830da505789225e727a38de2df8))
+* **parser:** Validate the reported diagnostic messages ([950f1d1](https://www.github.com/robertoraggi/cplusplus/commit/950f1d1ded9b460d6907ffb4e4c3549b4a999c0b)), closes [#38](https://www.github.com/robertoraggi/cplusplus/issues/38)
+* **preproc:** Fix macro redefinition ([9d5b07f](https://www.github.com/robertoraggi/cplusplus/commit/9d5b07f6f0384e467bfa8c21510d860abec4aede))
+
 ### [1.1.4](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.3...v1.1.4) (2021-10-30)
 
 
