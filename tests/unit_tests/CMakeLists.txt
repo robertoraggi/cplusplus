@@ -48,7 +48,7 @@ file(READ lit.site.cfg.py.in lit_cfg_in)
 string(CONFIGURE "${lit_cfg_in}" lit_cfg @ONLY)
 
 file(GENERATE
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lit.site.cfg.py
+    OUTPUT $<CONFIG>.lit.site.cfg.py
     CONTENT "${lit_cfg}")
 
 add_subdirectory(preprocessor)
