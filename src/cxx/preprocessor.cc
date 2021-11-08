@@ -894,7 +894,16 @@ const TokList *Preprocessor::Private::expandOne(
   const Macro *macro = nullptr;
 
   if (ts->head->text == "__FILE__") {
-    auto tk = Tok::Gen(&pool_, TokenKind::T_STRING_LITERAL, string(fmt::format("\"{}\"", currentFileName_)));
+    auto tk = Tok::Gen(&pool_, TokenKind::T_STRING_LITERAL,
+                       string(fmt::format("\"{}\"", currentFileName_)));
+    emitToken(tk);
+    return ts->tail;
+  } else if (ts->head->text == "__LINE__") {
+    unsigned line = 0;
+    preprocessor_->getTokenStartPosition(ts->head->token(), &line, nullptr,
+                                         nullptr);
+    auto tk = Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL,
+                       string(std::to_string(line)));
     emitToken(tk);
     return ts->tail;
   } else if (lookupMacro(ts->head, macro)) {
