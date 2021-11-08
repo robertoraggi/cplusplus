@@ -346,6 +346,7 @@ struct Preprocessor::Private {
   std::unordered_map<std::string, std::string> ifndefProtectedFiles_;
   std::vector<std::unique_ptr<SourceFile>> sourceFiles_;
   fs::path currentPath_;
+  std::string currentFileName_;
   std::vector<bool> evaluating_;
   std::vector<bool> skipping_;
   Arena pool_;
@@ -721,9 +722,13 @@ void Preprocessor::Private::expand(
           }
         }
 
+        std::string currentFileName = path->string();
+
         auto dirpath = *path;
         dirpath.remove_filename();
+
         std::swap(currentPath_, dirpath);
+        std::swap(currentFileName_, currentFileName);
 
         SourceFile *sourceFile = nullptr;
 
@@ -765,6 +770,7 @@ void Preprocessor::Private::expand(
         }
 
         std::swap(currentPath_, dirpath);
+        std::swap(currentFileName_, currentFileName);
         ts = skipLine(directive);
       } else if (matchId(ts, "ifdef")) {
         const Macro *macro = nullptr;
@@ -887,7 +893,11 @@ const TokList *Preprocessor::Private::expandOne(
 
   const Macro *macro = nullptr;
 
-  if (lookupMacro(ts->head, macro)) {
+  if (ts->head->text == "__FILE__") {
+    auto tk = Tok::Gen(&pool_, TokenKind::T_STRING_LITERAL, string(fmt::format("\"{}\"", currentFileName_)));
+    emitToken(tk);
+    return ts->tail;
+  } else if (lookupMacro(ts->head, macro)) {
     const auto tk = ts->head;
 
     if (macro->objLike) {
@@ -1495,15 +1505,19 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
   auto &sourceFile = *d->sourceFiles_.emplace_back(std::make_unique<SourceFile>(
       std::move(fileName), std::move(source), sourceFileId));
 
+  std::string currentFileName = sourceFile.fileName;
+
   fs::path path(sourceFile.fileName);
   path.remove_filename();
 
   std::swap(d->currentPath_, path);
+  std::swap(d->currentFileName_, currentFileName);
 
   const auto ts = d->tokenize(sourceFile.source, sourceFileId, true);
 
   const auto os = d->expand(ts, /*directives*/ true);
 
+  std::swap(d->currentFileName_, currentFileName);
   std::swap(d->currentPath_, path);
 
   int outFile = 0;
@@ -1547,10 +1561,13 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
   auto &sourceFile = *d->sourceFiles_.emplace_back(std::make_unique<SourceFile>(
       std::move(fileName), std::move(source), sourceFileId));
 
+  std::string currentFileName = sourceFile.fileName;
+
   fs::path path(sourceFile.fileName);
   path.remove_filename();
 
   std::swap(d->currentPath_, path);
+  std::swap(d->currentFileName_, currentFileName);
 
   const auto ts = d->tokenize(sourceFile.source, sourceFileId, true);
 
@@ -1656,6 +1673,7 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
   tokens.back().setFileId(sourceFileId);
 
   std::swap(d->currentPath_, path);
+  std::swap(d->currentFileName_, currentFileName);
 }
 
 const std::vector<std::filesystem::path> &Preprocessor::systemIncludePaths()
