@@ -349,6 +349,8 @@ struct Preprocessor::Private {
   std::string currentFileName_;
   std::vector<bool> evaluating_;
   std::vector<bool> skipping_;
+  std::string_view date_;
+  std::string_view time_;
   int counter_ = 0;
   Arena pool_;
 
@@ -357,6 +359,17 @@ struct Preprocessor::Private {
 
     skipping_.push_back(false);
     evaluating_.push_back(true);
+
+    time_t t;
+    time(&t);
+
+    char buffer[32];
+
+    strftime(buffer, sizeof(buffer), "\"%b %e %Y\"", localtime(&t));
+    date_ = string(buffer);
+
+    strftime(buffer, sizeof(buffer), "\"%T\"", localtime(&t));
+    time_ = string(buffer);
   }
 
   template <typename... Args>
@@ -907,6 +920,20 @@ const TokList *Preprocessor::Private::expandOne(
                                          nullptr);
     auto tk = Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL,
                        string(std::to_string(line)));
+    tk->bol = ts->head->bol;
+    tk->space = ts->head->space;
+    tk->sourceFile = ts->head->sourceFile;
+    emitToken(tk);
+    return ts->tail;
+  } else if (ts->head->text == "__DATE__") {
+    auto tk = Tok::Gen(&pool_, TokenKind::T_STRING_LITERAL, date_);
+    tk->bol = ts->head->bol;
+    tk->space = ts->head->space;
+    tk->sourceFile = ts->head->sourceFile;
+    emitToken(tk);
+    return ts->tail;
+  } else if (ts->head->text == "__TIME__") {
+    auto tk = Tok::Gen(&pool_, TokenKind::T_STRING_LITERAL, time_);
     tk->bol = ts->head->bol;
     tk->space = ts->head->space;
     tk->sourceFile = ts->head->sourceFile;
