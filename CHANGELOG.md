@@ -1,5 +1,15 @@
 # Changelog
 
+### [1.1.6](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.5...v1.1.6) (2021-11-09)
+
+
+### Bug Fixes
+
+* **preproc:** Add support for the __COUNTER__ built-in macro ([ecf2be8](https://www.github.com/robertoraggi/cplusplus/commit/ecf2be861146a48c02d6e4be68a984053756ef2c))
+* **preproc:** Add support for the __DATE__ and __TIME__ built-in macros ([a0015a7](https://www.github.com/robertoraggi/cplusplus/commit/a0015a7dc146b2d4abe935031881f26ebc619e08))
+* **preproc:** Add support for the __FILE__ built-in macro ([23be3a2](https://www.github.com/robertoraggi/cplusplus/commit/23be3a2b85b2f69f4de6a85da64e1e7658ac4250))
+* **preproc:** Add support for the __LINE__ built-in macro ([ac7abf9](https://www.github.com/robertoraggi/cplusplus/commit/ac7abf9b0eab60c9c393f6d150b246db96840538))
+
 ### [1.1.5](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.4...v1.1.5) (2021-11-06)
 
 
