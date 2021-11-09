@@ -47,16 +47,16 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(utfcpp)
 
-set(JSON_BuildTests OFF CACHE INTERNAL "")
-
 FetchContent_Declare(
     nlohmann_json
-    GIT_REPOSITORY  https://github.com/nlohmann/json
-    GIT_TAG         v3.10.4
-    GIT_SHALLOW     1
+    URL             https://github.com/nlohmann/json/releases/download/v3.10.4/include.zip
+    URL_HASH        SHA256=62c585468054e2d8e7c2759c0d990fd339d13be988577699366fe195162d16cb
 )
 
 FetchContent_MakeAvailable(nlohmann_json)
+
+add_library(nlohmann_json::nlohmann_json INTERFACE IMPORTED)
+set_target_properties(nlohmann_json::nlohmann_json PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${nlohmann_json_SOURCE_DIR}/single_include")
 
 add_subdirectory(tools/kwgen)
 
