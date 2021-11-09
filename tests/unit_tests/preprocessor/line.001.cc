@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -E %s -o - | filecheck %s
+// RUN: %cxx -verify -E %s -o - | %filecheck %s
 
 const bool line_3 = __LINE__ == 3;
 

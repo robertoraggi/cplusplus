@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -E %s -o - | filecheck %s
+// RUN: %cxx -verify -E %s -o - | %filecheck %s
 
 #define FOR_EACH(V) \
   V(aa)             \

@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -E %s -o - | filecheck %s
+// RUN: %cxx -verify -E %s -o - | %filecheck %s
 
 #define CONCAT_HELPER(a, b) a ## b
 

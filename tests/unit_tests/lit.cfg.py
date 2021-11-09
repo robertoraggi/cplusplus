@@ -31,3 +31,4 @@ config.suffixes = [".cc"]
 config.test_source_root = os.path.dirname(__file__)
 
 config.substitutions.append(("%cxx", config.cxx))
+config.substitutions.append(("%filecheck", config.filecheck))
