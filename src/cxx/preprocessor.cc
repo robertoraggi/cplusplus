@@ -349,6 +349,7 @@ struct Preprocessor::Private {
   std::string currentFileName_;
   std::vector<bool> evaluating_;
   std::vector<bool> skipping_;
+  int counter_ = 0;
   Arena pool_;
 
   Private() {
@@ -896,6 +897,8 @@ const TokList *Preprocessor::Private::expandOne(
   if (ts->head->text == "__FILE__") {
     auto tk = Tok::Gen(&pool_, TokenKind::T_STRING_LITERAL,
                        string(fmt::format("\"{}\"", currentFileName_)));
+    tk->bol = ts->head->bol;
+    tk->space = ts->head->space;
     emitToken(tk);
     return ts->tail;
   } else if (ts->head->text == "__LINE__") {
@@ -904,6 +907,17 @@ const TokList *Preprocessor::Private::expandOne(
                                          nullptr);
     auto tk = Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL,
                        string(std::to_string(line)));
+    tk->bol = ts->head->bol;
+    tk->space = ts->head->space;
+    tk->sourceFile = ts->head->sourceFile;
+    emitToken(tk);
+    return ts->tail;
+  } else if (ts->head->text == "__COUNTER__") {
+    auto tk = Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL,
+                       string(std::to_string(counter_++)));
+    tk->bol = ts->head->bol;
+    tk->space = ts->head->space;
+    tk->sourceFile = ts->head->sourceFile;
     emitToken(tk);
     return ts->tail;
   } else if (lookupMacro(ts->head, macro)) {
