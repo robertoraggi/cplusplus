@@ -228,11 +228,31 @@
   V(WCHAR_T, "wchar_t")                                               \
   V(WHILE, "while")
 
+#define FOR_EACH_TOKEN_ALIAS(V) \
+  V(AND, AMP_AMP)               \
+  V(AND_EQ, AMP_EQUAL)          \
+  V(BITAND, AMP)                \
+  V(BITOR, BAR)                 \
+  V(COMPL, TILDE)               \
+  V(NOT, EXCLAIM)               \
+  V(NOT_EQ, EXCLAIM_EQUAL)      \
+  V(OR, BAR_BAR)                \
+  V(OR_EQ, BAR_EQUAL)           \
+  V(XOR, CARET)                 \
+  V(XOR_EQ, CARET_EQUAL)
+
 namespace cxx {
 
+// clang-format off
 #define TOKEN_ENUM(tk, _) T_##tk,
-enum struct TokenKind : uint8_t { FOR_EACH_TOKEN(TOKEN_ENUM) };
+#define TOKEN_ALIAS_ENUM(tk, other) T_##tk = T_##other,
+enum struct TokenKind : uint8_t {
+  FOR_EACH_TOKEN(TOKEN_ENUM)
+  FOR_EACH_TOKEN_ALIAS(TOKEN_ALIAS_ENUM)
+};
 #undef TOKEN_ENUM
+#undef TOKEN_ALIAS_ENUM
+// clang-format on
 
 union TokenValue {
   const void* ptrValue;
