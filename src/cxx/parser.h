@@ -76,33 +76,25 @@ class Parser final {
     bool templArg = false;
   };
 
-  template <typename... Args>
-  bool parse_warn(const std::string_view& format, const Args&... args) {
-    unit->warning(SourceLocation(cursor_), format, args...);
+  bool parse_warn(std::string message) {
+    unit->warning(SourceLocation(cursor_), std::move(message));
     return true;
   }
 
-  template <typename... Args>
-  bool parse_warn(SourceLocation loc, const std::string_view& format,
-                  const Args&... args) {
-    unit->warning(loc, format, args...);
+  bool parse_warn(SourceLocation loc, std::string message) {
+    unit->warning(loc, std::move(message));
     return true;
   }
 
-  template <typename... Args>
-  bool parse_error(const std::string_view& format, const Args&... args) {
+  bool parse_error(std::string message) {
     if (lastErrorCursor_ == cursor_) return true;
     lastErrorCursor_ = cursor_;
-    unit->error(SourceLocation(cursor_), format, args...);
-    // throw std::runtime_error("error");
+    unit->error(SourceLocation(cursor_), std::move(message));
     return true;
   }
 
-  template <typename... Args>
-  bool parse_error(SourceLocation loc, const std::string_view& format,
-                   const Args&... args) {
-    unit->error(loc, format, args...);
-    // throw std::runtime_error("error");
+  bool parse_error(SourceLocation loc, std::string message) {
+    unit->error(loc, std::move(message));
     return true;
   }
 
@@ -437,30 +429,11 @@ class Parser final {
  private:
   const Token& LA(int n = 0) const;
 
-  bool match(TokenKind tk) {
-    if (LA().isNot(tk)) return false;
-    (void)consumeToken();
-    return true;
-  }
+  bool match(TokenKind tk);
+  bool match(TokenKind tk, SourceLocation& location);
 
-  bool expect(TokenKind tk) {
-    if (match(tk)) return true;
-    parse_error("expected '{}'", Token::spell(tk));
-    return false;
-  }
-
-  bool match(TokenKind tk, SourceLocation& location) {
-    if (LA().isNot(tk)) return false;
-    const auto loc = consumeToken();
-    location = loc;
-    return true;
-  }
-
-  bool expect(TokenKind tk, SourceLocation& location) {
-    if (match(tk, location)) return true;
-    parse_error("expected '{}'", Token::spell(tk));
-    return false;
-  }
+  bool expect(TokenKind tk);
+  bool expect(TokenKind tk, SourceLocation& location);
 
   SourceLocation consumeToken() { return SourceLocation(cursor_++); }
 

@@ -19,7 +19,6 @@
 // SOFTWARE.
 
 #include <cxx/cxx_fwd.h>
-#include <fmt/format.h>
 
 #include <cstdlib>
 #include <string>

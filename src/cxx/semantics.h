@@ -40,16 +40,12 @@ class Semantics final : ASTVisitor {
 
   void setCheckTypes(bool checkTypes) { checkTypes_ = checkTypes; }
 
-  template <typename... Args>
-  void error(SourceLocation loc, const std::string_view& format,
-             const Args&... args) {
-    unit_->error(loc, format, args...);
+  void error(SourceLocation loc, std::string message) {
+    unit_->error(loc, std::move(message));
   }
 
-  template <typename... Args>
-  void warning(SourceLocation loc, const std::string_view& format,
-               const Args&... args) {
-    unit_->warning(loc, format, args...);
+  void warning(SourceLocation loc, std::string message) {
+    unit_->warning(loc, std::move(message));
   }
 
   struct ScopeContext {

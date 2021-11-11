@@ -29,6 +29,8 @@
 #include <cxx/translation_unit.h>
 #include <cxx/type_environment.h>
 #include <cxx/types.h>
+#include <fmt/format.h>
+#include <fmt/ostream.h>
 
 namespace cxx {
 
@@ -740,8 +742,8 @@ void Semantics::visit(MemberExpressionAST* ast) {
       ast->symbol = member;
       expression_->type = ast->symbol->type();
     } else if (checkTypes_) {
-      unit_->error(ast->name->firstSourceLocation(), "undefined member '{}'",
-                   *name.name);
+      unit_->error(ast->name->firstSourceLocation(),
+                   fmt::format("undefined member '{}'", *name.name));
     }
   }
 }
@@ -950,7 +952,7 @@ void Semantics::visit(StaticAssertDeclarationAST* ast) {
           message += unit_->tokenText(it->value);
         }
 
-        error(errorLoc, "static_assert failed: {}", message);
+        error(errorLoc, fmt::format("static_assert failed: {}", message));
       } else {
         error(errorLoc, "static_assert failed");
       }

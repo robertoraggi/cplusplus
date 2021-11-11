@@ -29,6 +29,8 @@
 #include <cxx/token.h>
 #include <cxx/type_environment.h>
 #include <cxx/types.h>
+#include <fmt/format.h>
+#include <fmt/ostream.h>
 
 #include <algorithm>
 #include <cassert>
@@ -206,6 +208,31 @@ struct Parser::ClassSpecifierContext {
 
 const Token& Parser::LA(int n) const {
   return unit->tokenAt(SourceLocation(cursor_ + n));
+}
+
+bool Parser::match(TokenKind tk) {
+  if (LA().isNot(tk)) return false;
+  (void)consumeToken();
+  return true;
+}
+
+bool Parser::match(TokenKind tk, SourceLocation& location) {
+  if (LA().isNot(tk)) return false;
+  const auto loc = consumeToken();
+  location = loc;
+  return true;
+}
+
+bool Parser::expect(TokenKind tk) {
+  if (match(tk)) return true;
+  parse_error(fmt::format("expected '{}'", Token::spell(tk)));
+  return false;
+}
+
+bool Parser::expect(TokenKind tk, SourceLocation& location) {
+  if (match(tk, location)) return true;
+  parse_error(fmt::format("expected '{}'", Token::spell(tk)));
+  return false;
 }
 
 bool Parser::operator()(UnitAST*& ast) {
@@ -604,13 +631,13 @@ bool Parser::parse_primary_expression(ExpressionAST*& yyast,
     ast->symbol = sem->scope()->unqualifiedLookup(nameSem.name);
 
     if (!ast->symbol)
-      parse_warn(ast->name->firstSourceLocation(), "undefined symbol '{}'",
-                 *nameSem.name);
+      parse_warn(ast->name->firstSourceLocation(),
+                 fmt::format("undefined symbol '{}'", *nameSem.name));
     else {
 #if 0
       parse_warn(ast->name->firstSourceLocation(),
-                 "'{}' resolved to '{}' with type '{}'", *nameSem.name,
-                 typeid(*ast->symbol).name(), ast->symbol->type());
+                 fmt::format("'{}' resolved to '{}' with type '{}'", *nameSem.name,
+                 typeid(*ast->symbol).name(), ast->symbol->type()));
 #endif
     }
   }

@@ -20,7 +20,6 @@
 
 // cxx
 #include <cxx/ast.h>
-#include <cxx/ast_printer.h>
 #include <cxx/ast_visitor.h>
 #include <cxx/codegen.h>
 #include <cxx/control.h>
@@ -34,6 +33,8 @@
 #include <cxx/translation_unit.h>
 #include <cxx/windows_toolchain.h>
 #include <cxx/x64_instruction_selection.h>
+
+#include "ast_printer.h"
 
 // fmt
 #include <fmt/format.h>

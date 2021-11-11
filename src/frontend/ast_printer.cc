@@ -18,13 +18,25 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include "ast_printer.h"
+
 #include <cxx/ast.h>
-#include <cxx/ast_printer.h>
 #include <cxx/literals.h>
 #include <cxx/names.h>
 #include <cxx/translation_unit.h>
 
 namespace cxx {
+
+nlohmann::json ASTPrinter::operator()(AST* ast, bool printLocations) {
+  std::vector<std::string_view> fileNames;
+  std::swap(fileNames_, fileNames);
+  std::swap(printLocations_, printLocations);
+  auto result = accept(ast);
+  std::swap(printLocations_, printLocations);
+  std::swap(fileNames_, fileNames);
+  result.push_back(std::vector<nlohmann::json>{"$files", std::move(fileNames)});
+  return result;
+}
 
 nlohmann::json ASTPrinter::accept(AST* ast) {
   nlohmann::json json;
