@@ -271,6 +271,23 @@ struct Macro {
   const TokList *body = nullptr;
   bool objLike = true;
   bool variadic = false;
+
+  bool operator!=(const Macro &other) const { return !operator==(other); }
+
+  bool operator==(const Macro &other) const {
+    if (formals != other.formals) return false;
+    if (objLike != other.objLike) return false;
+    if (variadic != other.variadic) return false;
+    return isSame(body, other.body);
+  }
+
+  bool isSame(const TokList *ls, const TokList *rs) const {
+    if (ls == rs) return true;
+    if (!ls || !rs) return false;
+    if (ls->head->kind != rs->head->kind) return false;
+    if (ls->head->text != rs->head->text) return false;
+    return isSame(ls->tail, rs->tail);
+  }
 };
 
 struct SourceFile {
@@ -1379,10 +1396,7 @@ void Preprocessor::Private::defineMacro(const TokList *ts) {
 
   auto name = ts->head->text;
 
-  if (auto it = macros_.find(name); it != macros_.end()) {
-    warning(ts->head->token(), fmt::format("'{}' macro redefined", name));
-    macros_.erase(it);
-  }
+  Macro m;
 
   if (ts->tail && !ts->tail->head->space &&
       ts->tail->head->is(TokenKind::T_LPAREN)) {
@@ -1407,18 +1421,23 @@ void Preprocessor::Private::defineMacro(const TokList *ts) {
       expect(ts, TokenKind::T_RPAREN);
     }
 
-    Macro m;
     m.objLike = false;
     m.body = ts;
     m.formals = std::move(formals);
     m.variadic = variadic;
-    macros_.emplace(name, std::move(m));
-    return;
+  } else {
+    m.objLike = true;
+    m.body = ts->tail;
   }
 
-  Macro m;
-  m.objLike = true;
-  m.body = ts->tail;
+  if (auto it = macros_.find(name); it != macros_.end()) {
+    if (it->second != m) {
+      warning(ts->head->token(), fmt::format("'{}' macro redefined", name));
+    }
+
+    macros_.erase(it);
+  }
+
   macros_.emplace(name, std::move(m));
 }
 
