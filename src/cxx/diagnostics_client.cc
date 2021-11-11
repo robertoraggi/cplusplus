@@ -22,8 +22,11 @@
 
 // cxx
 #include <cxx/preprocessor.h>
+#include <fmt/format.h>
+#include <fmt/ostream.h>
 
 #include <cctype>
+#include <cstdlib>
 #include <iostream>
 
 namespace cxx {
@@ -72,6 +75,10 @@ void DiagnosticsClient::report(const Diagnostic& diag) {
   } else {
     fmt::print(std::cerr, "{}\n", diag.message());
   }
+
+  if (diag.severity() == Severity::Fatal ||
+      (diag.severity() == Severity::Error && fatalErrors_))
+    exit(EXIT_FAILURE);
 }
 
 }  // namespace cxx

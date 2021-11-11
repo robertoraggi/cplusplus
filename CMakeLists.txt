@@ -22,16 +22,20 @@ cmake_minimum_required(VERSION 3.16)
 project(cplusplus)
 
 include(FetchContent)
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 
-find_package(fmt 8.0.1 CONFIG QUIET)
+find_package(fmt 7.1.3 CONFIG QUIET)
+
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/version.txt" version)
 
 set(CMAKE_CXX_STANDARD 20)
 
 if(NOT fmt_FOUND)
 FetchContent_Declare(
     fmt
-    GIT_REPOSITORY https://github.com/fmtlib/fmt
-    GIT_TAG        7.1.3
+    GIT_REPOSITORY  https://github.com/fmtlib/fmt
+    GIT_TAG         7.1.3
     GIT_SHALLOW     1
 )
 
@@ -62,15 +66,21 @@ add_subdirectory(tools/kwgen)
 
 aux_source_directory(src/cxx SOURCES)
 
-add_library(CPlusPlus ${SOURCES}
+add_library(cxx ${SOURCES}
     # generated files
     keywords-priv.h
 )
 
-target_include_directories(CPlusPlus PUBLIC src)
-target_include_directories(CPlusPlus PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
-target_link_libraries(CPlusPlus fmt::fmt-header-only utf8::cpp)
-target_link_libraries(CPlusPlus nlohmann_json::nlohmann_json)
+target_include_directories(cxx
+    PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
+    PUBLIC  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
+
+target_link_libraries(cxx
+    PUBLIC  $<BUILD_INTERFACE:fmt::fmt-header-only>
+            $<BUILD_INTERFACE:utf8::cpp>
+)
 
 add_custom_command(OUTPUT keywords-priv.h
     COMMAND kwgen < ${CMAKE_CURRENT_SOURCE_DIR}/src/cxx/keywords.kwgen > keywords-priv.h
@@ -80,7 +90,7 @@ add_custom_command(OUTPUT keywords-priv.h
 aux_source_directory(src/frontend FRONTEND_SOURCES)
 
 add_executable(cxx-frontend ${FRONTEND_SOURCES})
-target_link_libraries(cxx-frontend CPlusPlus)
+target_link_libraries(cxx-frontend cxx nlohmann_json::nlohmann_json)
 
 if(EMSCRIPTEN)
     target_link_options(cxx-frontend PUBLIC
@@ -94,7 +104,7 @@ if(EMSCRIPTEN)
 
     add_executable(cxx-js src/cxx-js/api.cc)
 
-    target_link_libraries(cxx-js CPlusPlus)
+    target_link_libraries(cxx-js cxx)
 
     target_link_options(cxx-js PUBLIC
         "SHELL:--bind"
@@ -110,16 +120,47 @@ if(EMSCRIPTEN)
 
 endif()
 
-add_custom_target(unit
-    DEPENDS tests/unit/source.cc
-    COMMAND clang++ -E -stdlib=libc++ -xc++ -std=c++20 ${CMAKE_CURRENT_SOURCE_DIR}/tests/unit/source.cc | grep -v ^\# > unit.cc
-)
-
-add_custom_target(unit.tokens
-    DEPENDS unit cxx-frontend
-    COMMAND cxx-frontend --dump-tokens unit.cc > unit.tokens
-)
-
 enable_testing()
 
 add_subdirectory(tests)
+
+file(GLOB CXX_INCLUDE_HEADER_FILES src/cxx/*.h)
+
+configure_package_config_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/Config.cmake.in
+    "${CMAKE_CURRENT_BINARY_DIR}/cxxConfig.cmake"
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/cxx
+)
+
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/cxxConfigVersion.cmake"
+    VERSION "${version}"
+    COMPATIBILITY AnyNewerVersion
+)
+
+install(
+    TARGETS cxx
+    EXPORT cxxTargets
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+install(
+    EXPORT cxxTargets
+    FILE cxxTargets.cmake
+    NAMESPACE cxx::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/cxx
+)
+
+install(
+    FILES ${CXX_INCLUDE_HEADER_FILES}
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cxx
+)
+
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/cxxConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/cxxConfigVersion.cmake"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/cxx
+)

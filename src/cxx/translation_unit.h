@@ -65,17 +65,14 @@ class TranslationUnit {
     return diagnosticsClient_->blockErrors(blockErrors);
   }
 
-  template <typename... Args>
-  void error(SourceLocation loc, const std::string_view& format,
-             const Args&... args) const {
-    diagnosticsClient_->report(tokenAt(loc), Severity::Error, format, args...);
+  void error(SourceLocation loc, std::string message) const {
+    diagnosticsClient_->report(tokenAt(loc), Severity::Error,
+                               std::move(message));
   }
 
-  template <typename... Args>
-  void warning(SourceLocation loc, const std::string_view& format,
-               const Args&... args) const {
-    diagnosticsClient_->report(tokenAt(loc), Severity::Warning, format,
-                               args...);
+  void warning(SourceLocation loc, std::string message) const {
+    diagnosticsClient_->report(tokenAt(loc), Severity::Warning,
+                               std::move(message));
   }
 
   // tokens

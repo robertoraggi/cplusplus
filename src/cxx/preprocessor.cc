@@ -372,16 +372,12 @@ struct Preprocessor::Private {
     time_ = string(buffer);
   }
 
-  template <typename... Args>
-  void error(const Token &token, const std::string_view &format,
-             const Args &...args) const {
-    diagnosticsClient_->report(token, Severity::Error, format, args...);
+  void error(const Token &token, std::string message) const {
+    diagnosticsClient_->report(token, Severity::Error, std::move(message));
   }
 
-  template <typename... Args>
-  void warning(const Token &token, const std::string_view &format,
-               const Args &...args) const {
-    diagnosticsClient_->report(token, Severity::Warning, format, args...);
+  void warning(const Token &token, std::string message) const {
+    diagnosticsClient_->report(token, Severity::Warning, std::move(message));
   }
 
   std::tuple<bool, bool> state() const {
@@ -425,7 +421,7 @@ struct Preprocessor::Private {
 
   void expect(const TokList *&ts, TokenKind k) const {
     if (!match(ts, k))
-      error(ts->head->token(), "expected '{}'", Token::spell(k));
+      error(ts->head->token(), fmt::format("expected '{}'", Token::spell(k)));
   }
 
   std::string_view expectId(const TokList *&ts) const {
@@ -715,7 +711,7 @@ void Preprocessor::Private::expand(
         }
 
         if (!path) {
-          error(loc->head->token(), "file '{}' not found", file);
+          error(loc->head->token(), fmt::format("file '{}' not found", file));
           ts = skipLine(directive);
           continue;
         }
@@ -845,11 +841,11 @@ void Preprocessor::Private::expand(
       } else if (!skipping && matchId(ts, "error")) {
         std::ostringstream out;
         printLine(start, out);
-        error(directive->head->token(), "{}", out.str());
+        error(directive->head->token(), fmt::format("{}", out.str()));
       } else if (!skipping && matchId(ts, "warning")) {
         std::ostringstream out;
         printLine(start, out);
-        warning(directive->head->token(), "{}", out.str());
+        warning(directive->head->token(), fmt::format("{}", out.str()));
       }
       ts = skipLine(ts);
     } else if (evaluateDirectives && skipping) {
@@ -1384,7 +1380,7 @@ void Preprocessor::Private::defineMacro(const TokList *ts) {
   auto name = ts->head->text;
 
   if (auto it = macros_.find(name); it != macros_.end()) {
-    warning(ts->head->token(), "'{}' macro redefined", name);
+    warning(ts->head->token(), fmt::format("'{}' macro redefined", name));
     macros_.erase(it);
   }
 

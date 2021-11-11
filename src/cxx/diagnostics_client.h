@@ -22,12 +22,6 @@
 
 #include <cxx/diagnostic.h>
 
-// fmt
-#include <fmt/format.h>
-#include <fmt/ostream.h>
-
-#include <cstdlib>
-
 namespace cxx {
 
 class Preprocessor;
@@ -57,19 +51,12 @@ class DiagnosticsClient {
     return blockErrors;
   }
 
-  template <typename... Args>
-  void report(const Token& token, Severity kind, const std::string_view& format,
-              const Args&... args) {
+  void report(const Token& token, Severity severity, std::string message) {
     if (blockErrors_) return;
 
-    Diagnostic diag(kind, token,
-                    fmt::vformat(format, fmt::make_format_args(args...)));
+    Diagnostic diag{severity, token, std::move(message)};
 
     report(diag);
-
-    if (diag.severity() == Severity::Fatal ||
-        (diag.severity() == Severity::Error && fatalErrors_))
-      exit(EXIT_FAILURE);
   }
 
  private:

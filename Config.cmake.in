@@ -1,4 +1,4 @@
-# Copyright (c) 2020 Roberto Raggi <roberto.raggi@gmail.com>
+# Copyright (c) 2014-2020 Roberto Raggi <roberto.raggi@gmail.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of
 # this software and associated documentation files (the "Software"), to deal in
@@ -17,19 +17,8 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-cmake_minimum_required(VERSION 3.16)
+@PACKAGE_INIT@
 
-project(kwgen)
+include("${CMAKE_CURRENT_LIST_DIR}/cxxTargets.cmake")
 
-set(CMAKE_CXX_STANDARD 20)
-
-aux_source_directory(. SOURCES)
-add_executable(kwgen ${SOURCES})
-
-if(EMSCRIPTEN)
-    target_link_options(kwgen PUBLIC
-        "SHELL:-s EXIT_RUNTIME=1"
-        "SHELL:-s NODERAWFS=1"
-        "SHELL:-s ALLOW_MEMORY_GROWTH=1"
-    )
-endif()
+check_required_components(cxx)

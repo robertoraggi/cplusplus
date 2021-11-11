@@ -31,6 +31,8 @@
 #include <cxx/type_environment.h>
 #include <cxx/type_visitor.h>
 #include <cxx/types.h>
+#include <fmt/format.h>
+#include <fmt/ostream.h>
 
 #include <stdexcept>
 
