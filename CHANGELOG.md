@@ -1,5 +1,13 @@
 # Changelog
 
+### [1.1.7](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.6...v1.1.7) (2021-11-11)
+
+
+### Bug Fixes
+
+* **cmake:** Add cmake install targets ([b1e0853](https://www.github.com/robertoraggi/cplusplus/commit/b1e08535a013b0c16d6cc062a5f9dcbc33339701))
+* **preproc:** Allow multiple definitions of the same macro ([2927a6e](https://www.github.com/robertoraggi/cplusplus/commit/2927a6e4dea375eed5bc841b4783ef245ace7996))
+
 ### [1.1.6](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.5...v1.1.6) (2021-11-09)
 
 
