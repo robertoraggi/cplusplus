@@ -146,33 +146,27 @@ class ScopedEnumType final : public Type, public std::tuple<ScopedEnumSymbol*> {
   void accept(TypeVisitor* visitor) const override;
 };
 
-class PointerType final : public Type,
-                          public std::tuple<QualifiedType, Qualifiers> {
+class PointerType final : public Type, public std::tuple<QualifiedType> {
  public:
-  PointerType(const QualifiedType& elementType, Qualifiers qualifiers) noexcept
-      : tuple(elementType, qualifiers) {}
+  explicit PointerType(const QualifiedType& elementType) noexcept
+      : tuple(elementType) {}
 
   const QualifiedType& elementType() const { return get<0>(*this); }
-
-  Qualifiers qualifiers() const { return get<1>(*this); }
 
   void accept(TypeVisitor* visitor) const override;
 };
 
 class PointerToMemberType final
     : public Type,
-      public std::tuple<const ClassType*, QualifiedType, Qualifiers> {
+      public std::tuple<const ClassType*, QualifiedType> {
  public:
   PointerToMemberType(const ClassType* classType,
-                      const QualifiedType& elementType,
-                      Qualifiers qualifiers) noexcept
-      : tuple(classType, elementType, qualifiers) {}
+                      const QualifiedType& elementType) noexcept
+      : tuple(classType, elementType) {}
 
   const ClassType* classType() const { return get<0>(*this); }
 
   const QualifiedType& elementType() const { return get<1>(*this); }
-
-  Qualifiers qualifiers() const { return get<2>(*this); }
 
   void accept(TypeVisitor* visitor) const override;
 };

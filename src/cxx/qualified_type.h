@@ -41,7 +41,7 @@ class QualifiedType {
   Qualifiers qualifiers() const { return qualifiers_; }
   void setQualifiers(Qualifiers qualifiers) { qualifiers_ = qualifiers; }
 
-  QualifiedType unqualified() { return QualifiedType(type()); }
+  QualifiedType unqualified() const { return QualifiedType(type()); }
 
   void mergeWith(const QualifiedType& other) {
     qualifiers_ |= other.qualifiers();

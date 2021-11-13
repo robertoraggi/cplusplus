@@ -168,8 +168,8 @@ void TypePrinter::visit(const ScopedEnumType* type) {
 
 void TypePrinter::visit(const PointerType* type) {
   ptrOps_ += "*";
-  addQualifiers(ptrOps_, type->qualifiers());
-  accept(type->elementType());
+  addQualifiers(ptrOps_, type->elementType().qualifiers());
+  accept(type->elementType().unqualified());
 }
 
 void TypePrinter::visit(const PointerToMemberType* type) {

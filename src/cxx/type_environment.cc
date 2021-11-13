@@ -100,12 +100,11 @@ struct Hash {
   }
 
   std::size_t operator()(const PointerType& type) const {
-    return hash_combine(type.elementType(), type.qualifiers());
+    return hash_value(type.elementType());
   }
 
   std::size_t operator()(const PointerToMemberType& type) const {
-    return hash_combine(type.classType(), type.elementType(),
-                        type.qualifiers());
+    return hash_combine(type.classType(), type.elementType());
   }
 
   std::size_t operator()(const ReferenceType& type) const {
@@ -208,15 +207,13 @@ struct EqualTo {
   }
 
   bool operator()(const PointerType& type, const PointerType& other) const {
-    return type.elementType() == other.elementType() &&
-           type.qualifiers() == other.qualifiers();
+    return type.elementType() == other.elementType();
   }
 
   bool operator()(const PointerToMemberType& type,
                   const PointerToMemberType& other) const {
     return type.classType() == other.classType() &&
-           type.elementType() == other.elementType() &&
-           type.qualifiers() == other.qualifiers();
+           type.elementType() == other.elementType();
   }
 
   bool operator()(const ReferenceType& type, const ReferenceType& other) const {
@@ -348,15 +345,13 @@ const ScopedEnumType* TypeEnvironment::scopedEnumType(
 }
 
 const PointerType* TypeEnvironment::pointerType(
-    const QualifiedType& elementType, Qualifiers qualifiers) {
-  return &*d->pointerTypes.emplace(elementType, qualifiers).first;
+    const QualifiedType& elementType) {
+  return &*d->pointerTypes.emplace(elementType).first;
 }
 
 const PointerToMemberType* TypeEnvironment::pointerToMemberType(
-    const ClassType* classType, const QualifiedType& elementType,
-    Qualifiers qualifiers) {
-  return &*d->pointerToMemberTypes.emplace(classType, elementType, qualifiers)
-               .first;
+    const ClassType* classType, const QualifiedType& elementType) {
+  return &*d->pointerToMemberTypes.emplace(classType, elementType).first;
 }
 
 const ReferenceType* TypeEnvironment::referenceType(

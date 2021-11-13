@@ -518,7 +518,7 @@ void Semantics::visit(NullptrLiteralExpressionAST* ast) {}
 void Semantics::visit(StringLiteralExpressionAST* ast) {
   QualifiedType charTy{types_->integerType(IntegerKind::kChar, false)};
   charTy.setQualifiers(Qualifiers::kConst);
-  QualifiedType charPtrTy{types_->pointerType(charTy, Qualifiers::kNone)};
+  QualifiedType charPtrTy{types_->pointerType(charTy)};
   expression_->type = charPtrTy;
 }
 
@@ -602,8 +602,7 @@ void Semantics::visit(UnaryExpressionAST* ast) {
       break;
     }
     case TokenKind::T_AMP: {
-      expression_->type = QualifiedType(
-          types_->pointerType(expression.type, Qualifiers::kNone));
+      expression_->type = QualifiedType(types_->pointerType(expression.type));
       break;
     }
     default: {
@@ -939,11 +938,10 @@ void Semantics::visit(StaticAssertDeclarationAST* ast) {
 
       error(errorLoc, "non-constant condition for static assertion");
     } else if (!constValue.value()) {
-      const auto errorLoc = ast->stringLiteralList
-                                ? ast->stringLiteralList->value
-                                : ast->expression
-                                      ? ast->expression->firstSourceLocation()
-                                      : ast->staticAssertLoc;
+      const auto errorLoc =
+          ast->stringLiteralList ? ast->stringLiteralList->value
+          : ast->expression      ? ast->expression->firstSourceLocation()
+                                 : ast->staticAssertLoc;
 
       if (ast->stringLiteralList) {
         std::string message;
@@ -1380,7 +1378,8 @@ void Semantics::visit(PointerOperatorAST* ast) {
   this->specifiers(ast->cvQualifierList, &specifiers);
   auto qualifiers = specifiers.type.qualifiers();
 
-  QualifiedType ptrTy(types_->pointerType(declarator_->type, qualifiers));
+  QualifiedType ptrTy(types_->pointerType(declarator_->type));
+  ptrTy.setQualifiers(qualifiers);
 
   declarator_->type = ptrTy;
 }
