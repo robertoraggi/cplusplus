@@ -597,7 +597,7 @@ void Semantics::visit(UnaryExpressionAST* ast) {
 
   switch (ast->op) {
     case TokenKind::T_STAR: {
-      if (auto ptrTy = expression.type->asPointerType())
+      if (auto ptrTy = Type::cast<PointerType>(expression.type))
         expression_->type = ptrTy->elementType();
       break;
     }
@@ -620,21 +620,22 @@ void Semantics::visit(BinaryExpressionAST* ast) {
   this->expression(ast->rightExpression, &rightExpression);
 
   if (ast->op == TokenKind::T_PLUS) {
-    if (leftExpression.type->asPointerType() &&
-        rightExpression.type->asIntegerType()) {
+    if (Type::is<PointerType>(leftExpression.type) &&
+        Type::is<IntegerType>(rightExpression.type)) {
       expression_->type = leftExpression.type;
       return;
     }
 
-    if (rightExpression.type->asPointerType() &&
-        leftExpression.type->asIntegerType()) {
+    if (Type::is<PointerType>(rightExpression.type) &&
+        Type::is<IntegerType>(leftExpression.type)) {
       expression_->type = rightExpression.type;
       return;
     }
   }
 
-  if (ast->op == TokenKind::T_MINUS && leftExpression.type->asPointerType()) {
-    if (rightExpression.type->asIntegerType()) {
+  if (ast->op == TokenKind::T_MINUS &&
+      Type::is<PointerType>(leftExpression.type)) {
+    if (Type::is<IntegerType>(rightExpression.type)) {
       expression_->type = leftExpression.type;
       return;
     }
@@ -646,9 +647,9 @@ void Semantics::visit(BinaryExpressionAST* ast) {
     }
   }
 
-  auto leftIntTy = leftExpression.type->asIntegerType();
+  auto leftIntTy = Type::cast<IntegerType>(leftExpression.type);
 
-  auto rightIntTy = rightExpression.type->asIntegerType();
+  auto rightIntTy = Type::cast<IntegerType>(rightExpression.type);
 
   if (leftIntTy && rightIntTy && !leftIntTy->isUnsigned() &&
       !rightIntTy->isUnsigned()) {
@@ -699,7 +700,7 @@ void Semantics::visit(CallExpressionAST* ast) {
     ExpressionSem expression;
     this->expression(it->value, &expression);
   }
-  if (auto funTy = baseExpression.type->asFunctionType())
+  if (auto funTy = Type::cast<FunctionType>(baseExpression.type))
     expression_->type = funTy->returnType();
 }
 
@@ -708,11 +709,11 @@ void Semantics::visit(SubscriptExpressionAST* ast) {
   this->expression(ast->baseExpression, &baseExpression);
   ExpressionSem indexExpression;
   this->expression(ast->indexExpression, &indexExpression);
-  if (auto arrayTy = baseExpression.type->asArrayType())
+  if (auto arrayTy = Type::cast<ArrayType>(baseExpression.type))
     expression_->type = arrayTy->elementType();
-  else if (auto vlaTy = baseExpression.type->asUnboundArrayType())
+  else if (auto vlaTy = Type::cast<UnboundArrayType>(baseExpression.type))
     expression_->type = vlaTy->elementType();
-  else if (auto ptrTy = baseExpression.type->asPointerType())
+  else if (auto ptrTy = Type::cast<PointerType>(baseExpression.type))
     expression_->type = ptrTy->elementType();
 }
 
@@ -725,12 +726,12 @@ void Semantics::visit(MemberExpressionAST* ast) {
 
   auto baseTy = baseExpression.type;
 
-  if (auto ptrTy = baseTy->asPointerType();
+  if (auto ptrTy = Type::cast<PointerType>(baseTy);
       ptrTy && ast->accessOp == TokenKind::T_MINUS_GREATER) {
     baseTy = ptrTy->elementType();
   }
 
-  if (auto classTy = baseTy->asClassType()) {
+  if (auto classTy = Type::cast<ClassType>(baseTy)) {
     auto memberName = name.name;
 
     auto classSymbol = classTy->symbol();
@@ -1182,7 +1183,7 @@ void Semantics::visit(IntegralTypeSpecifierAST* ast) {
     case TokenKind::T_INT: {
       auto kind = IntegerKind::kInt;
 
-      if (auto intTy = specifiers_->type->asIntegerType()) {
+      if (auto intTy = Type::cast<IntegerType>(specifiers_->type)) {
         using U = std::underlying_type<IntegerKind>::type;
 
         if (static_cast<U>(intTy->kind()) > static_cast<U>(IntegerKind::kInt))
@@ -1416,7 +1417,7 @@ void Semantics::visit(FunctionDeclaratorAST* ast) {
       auto param = it->value;
       SpecifiersSem specifiers;
       this->specifiers(param->typeSpecifierList, &specifiers);
-      if (!it->next && specifiers.type->asVoidType()) break;
+      if (!it->next && Type::is<VoidType>(specifiers.type)) break;
       DeclaratorSem declarator{specifiers};
       this->declarator(param->declarator, &declarator);
       ExpressionSem expression;

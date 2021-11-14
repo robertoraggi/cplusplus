@@ -34,29 +34,25 @@ class Type {
 
   virtual void accept(TypeVisitor* visitor) const = 0;
 
-  const ErrorType* asErrorType() const;
-  const UnresolvedType* asUnresolvedType() const;
-  const VoidType* asVoidType() const;
-  const NullptrType* asNullptrType() const;
-  const BooleanType* asBooleanType() const;
-  const CharacterType* asCharacterType() const;
-  const IntegerType* asIntegerType() const;
-  const FloatingPointType* asFloatingPointType() const;
-  const EnumType* asEnumType() const;
-  const ScopedEnumType* asScopedEnumType() const;
-  const PointerType* asPointerType() const;
-  const PointerToMemberType* asPointerToMemberType() const;
-  const ReferenceType* asReferenceType() const;
-  const RValueReferenceType* asRValueReferenceType() const;
-  const ArrayType* asArrayType() const;
-  const UnboundArrayType* asUnboundArrayType() const;
-  const FunctionType* asFunctionType() const;
-  const MemberFunctionType* asMemberFunctionType() const;
-  const NamespaceType* asNamespaceType() const;
-  const ClassType* asClassType() const;
-  const TemplateType* asTemplateType() const;
-  const TemplateArgumentType* asTemplateArgumentType() const;
-  const ConceptType* asConceptType() const;
+  template <typename T>
+  static const T* cast(const QualifiedType& qualType) {
+    return dynamic_cast<const T*>(qualType.type());
+  }
+
+  template <typename T>
+  static const T* cast(const Type* type) {
+    return dynamic_cast<const T*>(type);
+  }
+
+  template <typename T>
+  static bool is(const QualifiedType& qualType) {
+    return cast<T>(qualType) != nullptr;
+  }
+
+  template <typename T>
+  static bool is(const Type* type) {
+    return cast<T>(type) != nullptr;
+  }
 };
 
 class UndefinedType final : public Type {

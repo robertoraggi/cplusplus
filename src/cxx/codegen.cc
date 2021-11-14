@@ -103,11 +103,11 @@ void Codegen::visit(FunctionDefinitionAST* ast) {
 
   auto types = unit_->control()->types();
 
-  auto functionType = ast->symbol->type()->asFunctionType();
+  auto functionType = Type::cast<FunctionType>(ast->symbol->type());
 
   ir::Local* result = nullptr;
 
-  if (!functionType->returnType()->asVoidType()) {
+  if (!Type::is<VoidType>(functionType->returnType())) {
     result = function_->addLocal(functionType->returnType());
   }
 

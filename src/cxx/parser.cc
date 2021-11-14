@@ -3528,7 +3528,7 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast,
   const auto hasRequiresClause = parse_requires_clause(requiresClause);
 
   if (acceptFunctionDefinition && functionDeclarator &&
-      decl.type->asFunctionType() && lookat_function_body()) {
+      Type::is<FunctionType>(decl.type) && lookat_function_body()) {
     FunctionSymbol* functionSymbol = nullptr;
 
     if (decl.typeOrNamespaceSymbol) {
@@ -6941,7 +6941,7 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
 
   if (hasDeclarator) sem->declarator(declarator, &decl);
 
-  if (hasDeclarator && decl.type->asFunctionType() &&
+  if (hasDeclarator && Type::is<FunctionType>(decl.type) &&
       getFunctionDeclarator(declarator)) {
     FunctionBodyAST* functionBody = nullptr;
 
@@ -7015,7 +7015,7 @@ bool Parser::parse_member_declarator_list(List<InitDeclaratorAST*>*& yyast,
       typedefSymbol->setType(decl.type);
       sem->scope()->add(typedefSymbol);
       initDeclarator->symbol = typedefSymbol;
-    } else if (auto funTy = decl.type->asFunctionType()) {
+    } else if (auto funTy = Type::cast<FunctionType>(decl.type)) {
       auto functionSymbol = symbols->newFunctionSymbol(sem->scope(), decl.name);
       functionSymbol->setType(decl.type);
       sem->scope()->add(functionSymbol);
@@ -7124,7 +7124,7 @@ bool Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
 
   ast->declarator = declarator;
 
-  if (decl.type->asFunctionType()) {
+  if (Type::is<FunctionType>(decl.type)) {
     RequiresClauseAST* requiresClause = nullptr;
 
     if (parse_requires_clause(requiresClause)) {
