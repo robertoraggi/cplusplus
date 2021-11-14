@@ -81,8 +81,10 @@ void TypePrinter::visit(const ErrorType* type) {
   specifiers_ += "__error_type__";
 }
 
-void TypePrinter::visit(const UnresolvedType* type) {
-  specifiers_ += "__unresolved_type__";
+void TypePrinter::visit(const AutoType*) { specifiers_ += "auto"; }
+
+void TypePrinter::visit(const DecltypeAutoType*) {
+  specifiers_ += "decltype(auto)";
 }
 
 void TypePrinter::visit(const VoidType*) { specifiers_ += "void"; }

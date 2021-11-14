@@ -1140,7 +1140,9 @@ void Semantics::visit(ExplicitSpecifierAST* ast) {
   this->expression(ast->expression, &expression);
 }
 
-void Semantics::visit(AutoTypeSpecifierAST* ast) {}
+void Semantics::visit(AutoTypeSpecifierAST* ast) {
+  specifiers_->type.setType(types_->autoType());
+}
 
 void Semantics::visit(VoidTypeSpecifierAST* ast) {
   specifiers_->type.setType(types_->voidType());
@@ -1300,7 +1302,9 @@ void Semantics::visit(ElaboratedTypeSpecifierAST* ast) {
   }
 }
 
-void Semantics::visit(DecltypeAutoSpecifierAST* ast) {}
+void Semantics::visit(DecltypeAutoSpecifierAST* ast) {
+  specifiers_->type.setType(types_->decltypeAuto());
+}
 
 void Semantics::visit(DecltypeSpecifierAST* ast) {
   ExpressionSem expression;

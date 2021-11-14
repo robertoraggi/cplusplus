@@ -73,23 +73,38 @@ class ErrorType final : public Type {
   void accept(TypeVisitor* visitor) const override;
 };
 
-class UnresolvedType final : public Type {
+class AutoType final : public Type {
  public:
+  static const AutoType* get();
+
+  void accept(TypeVisitor* visitor) const override;
+};
+
+class DecltypeAutoType final : public Type {
+ public:
+  static const DecltypeAutoType* get();
+
   void accept(TypeVisitor* visitor) const override;
 };
 
 class VoidType final : public Type {
  public:
+  static const VoidType* get();
+
   void accept(TypeVisitor* visitor) const override;
 };
 
 class NullptrType final : public Type {
  public:
+  static const NullptrType* get();
+
   void accept(TypeVisitor* visitor) const override;
 };
 
 class BooleanType final : public Type {
  public:
+  static const BooleanType* get();
+
   void accept(TypeVisitor* visitor) const override;
 };
 

@@ -71,8 +71,6 @@ struct Hash {
 
   std::size_t operator()(const UndefinedType& type) const { return 0; }
 
-  std::size_t operator()(const UnresolvedType& type) const { return 0; }
-
   std::size_t operator()(const VoidType& type) const { return 0; }
 
   std::size_t operator()(const NullptrType& type) const { return 0; }
@@ -163,11 +161,6 @@ struct Hash {
 
 struct EqualTo {
   bool operator()(const UndefinedType& type, const UndefinedType& other) const {
-    return true;
-  }
-
-  bool operator()(const UnresolvedType& type,
-                  const UnresolvedType& other) const {
     return true;
   }
 
@@ -277,10 +270,6 @@ using TypeSet = std::unordered_set<T, Hash, EqualTo>;
 }  // namespace
 
 struct TypeEnvironment::Private {
-  UnresolvedType unresolvedType;
-  VoidType voidType;
-  NullptrType nullptrType;
-  BooleanType booleanType;
   TypeSet<CharacterType> characterTypes;
   TypeSet<IntegerType> integerTypes;
   TypeSet<FloatingPointType> floatingPointTypes;
@@ -311,15 +300,17 @@ const UndefinedType* TypeEnvironment::undefinedType() {
 
 const ErrorType* TypeEnvironment::errorType() { return ErrorType::get(); }
 
-const UnresolvedType* TypeEnvironment::unresolvedType() {
-  return &d->unresolvedType;
+const AutoType* TypeEnvironment::autoType() { return AutoType::get(); }
+
+const DecltypeAutoType* TypeEnvironment::decltypeAuto() {
+  return DecltypeAutoType::get();
 }
 
-const VoidType* TypeEnvironment::voidType() { return &d->voidType; }
+const VoidType* TypeEnvironment::voidType() { return VoidType::get(); }
 
-const NullptrType* TypeEnvironment::nullptrType() { return &d->nullptrType; }
+const NullptrType* TypeEnvironment::nullptrType() { return NullptrType::get(); }
 
-const BooleanType* TypeEnvironment::booleanType() { return &d->booleanType; }
+const BooleanType* TypeEnvironment::booleanType() { return BooleanType::get(); }
 
 const CharacterType* TypeEnvironment::characterType(CharacterKind kind) {
   return &*d->characterTypes.emplace(kind).first;

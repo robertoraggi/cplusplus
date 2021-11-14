@@ -34,7 +34,8 @@ class Type;
 
 class UndefinedType;
 class ErrorType;
-class UnresolvedType;
+class AutoType;
+class DecltypeAutoType;
 class VoidType;
 class NullptrType;
 class BooleanType;

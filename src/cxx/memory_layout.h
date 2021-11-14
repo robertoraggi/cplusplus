@@ -40,7 +40,8 @@ class MemoryLayout final : TypeVisitor {
  private:
   void visit(const UndefinedType*) override;
   void visit(const ErrorType*) override;
-  void visit(const UnresolvedType*) override;
+  void visit(const AutoType*) override;
+  void visit(const DecltypeAutoType*) override;
   void visit(const VoidType*) override;
   void visit(const NullptrType*) override;
   void visit(const BooleanType*) override;

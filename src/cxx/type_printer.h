@@ -46,7 +46,8 @@ class TypePrinter final : TypeVisitor {
 
   void visit(const UndefinedType* type) override;
   void visit(const ErrorType* type) override;
-  void visit(const UnresolvedType* type) override;
+  void visit(const AutoType* type) override;
+  void visit(const DecltypeAutoType* type) override;
   void visit(const VoidType* type) override;
   void visit(const NullptrType* type) override;
   void visit(const BooleanType* type) override;

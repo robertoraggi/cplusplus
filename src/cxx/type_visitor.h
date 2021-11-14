@@ -30,7 +30,8 @@ class TypeVisitor {
 
   virtual void visit(const UndefinedType*) = 0;
   virtual void visit(const ErrorType*) = 0;
-  virtual void visit(const UnresolvedType*) = 0;
+  virtual void visit(const AutoType*) = 0;
+  virtual void visit(const DecltypeAutoType*) = 0;
   virtual void visit(const VoidType*) = 0;
   virtual void visit(const NullptrType*) = 0;
   virtual void visit(const BooleanType*) = 0;

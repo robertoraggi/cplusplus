@@ -37,7 +37,9 @@ class TypeEnvironment {
 
   const ErrorType* errorType();
 
-  const UnresolvedType* unresolvedType();
+  const AutoType* autoType();
+
+  const DecltypeAutoType* decltypeAuto();
 
   const VoidType* voidType();
 

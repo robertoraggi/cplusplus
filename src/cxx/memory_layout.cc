@@ -58,7 +58,11 @@ void MemoryLayout::visit(const ErrorType*) {
   throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
-void MemoryLayout::visit(const UnresolvedType*) {
+void MemoryLayout::visit(const AutoType*) {
+  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+}
+
+void MemoryLayout::visit(const DecltypeAutoType*) {
   throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 

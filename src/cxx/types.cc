@@ -35,11 +35,38 @@ const ErrorType* ErrorType::get() {
   return &type;
 }
 
+const AutoType* AutoType::get() {
+  static AutoType type;
+  return &type;
+}
+
+const DecltypeAutoType* DecltypeAutoType::get() {
+  static DecltypeAutoType type;
+  return &type;
+}
+
+const VoidType* VoidType::get() {
+  static VoidType type;
+  return &type;
+}
+
+const NullptrType* NullptrType::get() {
+  static NullptrType type;
+  return &type;
+}
+
+const BooleanType* BooleanType::get() {
+  static BooleanType type;
+  return &type;
+}
+
 void UndefinedType::accept(TypeVisitor* visitor) const { visitor->visit(this); }
 
 void ErrorType::accept(TypeVisitor* visitor) const { visitor->visit(this); }
 
-void UnresolvedType::accept(TypeVisitor* visitor) const {
+void AutoType::accept(TypeVisitor* visitor) const { visitor->visit(this); }
+
+void DecltypeAutoType::accept(TypeVisitor* visitor) const {
   visitor->visit(this);
 }
 
