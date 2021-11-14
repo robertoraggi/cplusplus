@@ -89,6 +89,26 @@ class StringLiteral final : public Literal {
   using Literal::Literal;
 };
 
+class WideStringLiteral final : public Literal {
+ public:
+  using Literal::Literal;
+};
+
+class Utf8StringLiteral final : public Literal {
+ public:
+  using Literal::Literal;
+};
+
+class Utf16StringLiteral final : public Literal {
+ public:
+  using Literal::Literal;
+};
+
+class Utf32StringLiteral final : public Literal {
+ public:
+  using Literal::Literal;
+};
+
 class CharLiteral final : public Literal {
  public:
   using Literal::Literal;

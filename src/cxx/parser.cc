@@ -418,6 +418,10 @@ bool Parser::parse_literal(ExpressionAST*& yyast) {
       return true;
     }
 
+    case TokenKind::T_WIDE_STRING_LITERAL:
+    case TokenKind::T_UTF8_STRING_LITERAL:
+    case TokenKind::T_UTF16_STRING_LITERAL:
+    case TokenKind::T_UTF32_STRING_LITERAL:
     case TokenKind::T_STRING_LITERAL: {
       List<SourceLocation>* stringLiterals = nullptr;
 
@@ -3741,17 +3745,31 @@ bool Parser::parse_static_assert_declaration(DeclarationAST*& yyast) {
   return true;
 }
 
+bool Parser::match_string_literal(SourceLocation& loc) {
+  switch (TokenKind(LA())) {
+    case TokenKind::T_WIDE_STRING_LITERAL:
+    case TokenKind::T_UTF8_STRING_LITERAL:
+    case TokenKind::T_UTF16_STRING_LITERAL:
+    case TokenKind::T_UTF32_STRING_LITERAL:
+    case TokenKind::T_STRING_LITERAL:
+      loc = consumeToken();
+      return true;
+    default:
+      return false;
+  }  // switch
+}
+
 bool Parser::parse_string_literal_seq(List<SourceLocation>*& yyast) {
   auto it = &yyast;
 
   SourceLocation loc;
 
-  if (!match(TokenKind::T_STRING_LITERAL, loc)) return false;
+  if (!match_string_literal(loc)) return false;
 
   *it = new (pool) List(loc);
   it = &(*it)->next;
 
-  while (match(TokenKind::T_STRING_LITERAL, loc)) {
+  while (match_string_literal(loc)) {
     *it = new (pool) List(loc);
     it = &(*it)->next;
   }

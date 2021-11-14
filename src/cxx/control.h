@@ -44,9 +44,14 @@ class Control {
 
   const IntegerLiteral* integerLiteral(const std::string_view& value);
   const FloatLiteral* floatLiteral(const std::string_view& value);
-  const StringLiteral* stringLiteral(const std::string_view& value);
   const CharLiteral* charLiteral(const std::string_view& value);
   const CommentLiteral* commentLiteral(const std::string_view& value);
+
+  const StringLiteral* stringLiteral(const std::string_view& value);
+  const WideStringLiteral* wideStringLiteral(const std::string_view& value);
+  const Utf8StringLiteral* utf8StringLiteral(const std::string_view& value);
+  const Utf16StringLiteral* utf16StringLiteral(const std::string_view& value);
+  const Utf32StringLiteral* utf32StringLiteral(const std::string_view& value);
 
   TypeEnvironment* types();
   SymbolFactory* symbols();

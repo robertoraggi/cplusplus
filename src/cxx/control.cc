@@ -95,6 +95,10 @@ struct Control::Private {
   LiteralSet<IntegerLiteral> integerLiterals_;
   LiteralSet<FloatLiteral> floatLiterals_;
   LiteralSet<StringLiteral> stringLiterals_;
+  LiteralSet<WideStringLiteral> wideStringLiterals_;
+  LiteralSet<Utf8StringLiteral> utf8StringLiterals_;
+  LiteralSet<Utf16StringLiteral> utf16StringLiterals_;
+  LiteralSet<Utf32StringLiteral> utf32StringLiterals_;
   LiteralSet<CharLiteral> charLiterals_;
   std::forward_list<CommentLiteral> commentLiterals_;
   std::set<Identifier> identifiers_;
@@ -141,6 +145,42 @@ const StringLiteral* Control::stringLiteral(const std::string_view& value) {
     return &*it;
 
   return &*d->stringLiterals_.emplace(std::string{value}).first;
+}
+
+const WideStringLiteral* Control::wideStringLiteral(
+    const std::string_view& value) {
+  if (auto it = d->wideStringLiterals_.find(value);
+      it != d->wideStringLiterals_.end())
+    return &*it;
+
+  return &*d->wideStringLiterals_.emplace(std::string{value}).first;
+}
+
+const Utf8StringLiteral* Control::utf8StringLiteral(
+    const std::string_view& value) {
+  if (auto it = d->utf8StringLiterals_.find(value);
+      it != d->utf8StringLiterals_.end())
+    return &*it;
+
+  return &*d->utf8StringLiterals_.emplace(std::string{value}).first;
+}
+
+const Utf16StringLiteral* Control::utf16StringLiteral(
+    const std::string_view& value) {
+  if (auto it = d->utf16StringLiterals_.find(value);
+      it != d->utf16StringLiterals_.end())
+    return &*it;
+
+  return &*d->utf16StringLiterals_.emplace(std::string{value}).first;
+}
+
+const Utf32StringLiteral* Control::utf32StringLiteral(
+    const std::string_view& value) {
+  if (auto it = d->utf32StringLiterals_.find(value);
+      it != d->utf32StringLiterals_.end())
+    return &*it;
+
+  return &*d->utf32StringLiterals_.emplace(std::string{value}).first;
 }
 
 const CharLiteral* Control::charLiteral(const std::string_view& value) {

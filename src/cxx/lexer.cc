@@ -236,8 +236,22 @@ TokenKind Lexer::readToken() {
         consume();
       } while (pos_ != end_ && is_idcont(LA()));
     }
-    return !ud ? TokenKind::T_STRING_LITERAL
-               : TokenKind::T_USER_DEFINED_STRING_LITERAL;
+
+    if (ud) return TokenKind::T_USER_DEFINED_STRING_LITERAL;
+
+    switch (encodingPrefix) {
+      case EncodingPrefix::kWide:
+        return TokenKind::T_WIDE_STRING_LITERAL;
+      case EncodingPrefix::kUtf8:
+        return TokenKind::T_UTF8_STRING_LITERAL;
+      case EncodingPrefix::kUtf16:
+        return TokenKind::T_UTF16_STRING_LITERAL;
+      case EncodingPrefix::kUtf32:
+        return TokenKind::T_UTF32_STRING_LITERAL;
+        // case TokenKind::kNone:
+      default:
+        return TokenKind::T_STRING_LITERAL;
+    }  // switch
   }
 
   if (LA() == '\'') {

@@ -241,6 +241,7 @@ class Parser final {
       DeclarationAST*& yyast, List<SpecifierAST*>* declSpecifierList,
       const DeclSpecs& specs);
   bool parse_static_assert_declaration(DeclarationAST*& yyast);
+  bool match_string_literal(SourceLocation& loc);
   bool parse_string_literal_seq(List<SourceLocation>*& yyast);
   bool parse_empty_declaration(DeclarationAST*& yyast);
   bool parse_attribute_declaration(DeclarationAST*& yyast);

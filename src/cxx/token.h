@@ -36,6 +36,10 @@
   V(FLOATING_POINT_LITERAL, "floating_point_literal")                 \
   V(INTEGER_LITERAL, "integer_literal")                               \
   V(STRING_LITERAL, "string_literal")                                 \
+  V(WIDE_STRING_LITERAL, "wide_string_literal")                       \
+  V(UTF8_STRING_LITERAL, "utf8_string_literal")                       \
+  V(UTF16_STRING_LITERAL, "utf16_string_literal")                     \
+  V(UTF32_STRING_LITERAL, "utf32_string_literal")                     \
   V(USER_DEFINED_STRING_LITERAL, "user_defined_string_literal")       \
   V(HASH, "#")                                                        \
   V(HASH_HASH, "##")                                                  \

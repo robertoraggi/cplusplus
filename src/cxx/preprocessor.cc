@@ -1482,6 +1482,11 @@ static bool wantSpace(TokenKind kind) {
     case TokenKind::T_FLOATING_POINT_LITERAL:
     case TokenKind::T_CHARACTER_LITERAL:
     case TokenKind::T_STRING_LITERAL:
+    case TokenKind::T_WIDE_STRING_LITERAL:
+    case TokenKind::T_UTF8_STRING_LITERAL:
+    case TokenKind::T_UTF16_STRING_LITERAL:
+    case TokenKind::T_UTF32_STRING_LITERAL:
+    case TokenKind::T_USER_DEFINED_STRING_LITERAL:
       return true;
     default:
       return false;
@@ -1658,7 +1663,24 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
         value.literalValue = d->control_->charLiteral(tk->text);
         break;
 
+      case TokenKind::T_WIDE_STRING_LITERAL:
+        value.literalValue = d->control_->wideStringLiteral(tk->text);
+        break;
+
+      case TokenKind::T_UTF8_STRING_LITERAL:
+        value.literalValue = d->control_->utf8StringLiteral(tk->text);
+        break;
+
+      case TokenKind::T_UTF16_STRING_LITERAL:
+        value.literalValue = d->control_->utf16StringLiteral(tk->text);
+        break;
+
+      case TokenKind::T_UTF32_STRING_LITERAL:
+        value.literalValue = d->control_->utf32StringLiteral(tk->text);
+        break;
+
       case TokenKind::T_STRING_LITERAL:
+      case TokenKind::T_USER_DEFINED_STRING_LITERAL:
         value.literalValue = d->control_->stringLiteral(tk->text);
         break;
 

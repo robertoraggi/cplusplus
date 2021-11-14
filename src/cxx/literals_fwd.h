@@ -27,6 +27,10 @@ class Literal;
 class IntegerLiteral;
 class FloatLiteral;
 class StringLiteral;
+class WideStringLiteral;
+class Utf8StringLiteral;
+class Utf16StringLiteral;
+class Utf32StringLiteral;
 class CharLiteral;
 class CommentLiteral;
 
