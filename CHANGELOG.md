@@ -1,5 +1,17 @@
 # Changelog
 
+### [1.1.8](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.7...v1.1.8) (2021-11-14)
+
+
+### Bug Fixes
+
+* **parser:** Add classes to represent the utf string literals ([ec3575e](https://www.github.com/robertoraggi/cplusplus/commit/ec3575e082598d6c739a9ffe94e33c5f06253d26))
+* **parser:** Add placeholder types ([da8de74](https://www.github.com/robertoraggi/cplusplus/commit/da8de7437a38a706f911babe24c0e791cf61b924))
+* **parser:** Add symbol printer ([f65b25c](https://www.github.com/robertoraggi/cplusplus/commit/f65b25ccfc5000f135b3cee2cb37af4783ed121d))
+* **parser:** Clean up Type ([feed0ae](https://www.github.com/robertoraggi/cplusplus/commit/feed0ae3dda1b333cfe4b168d08c89377b2c2a4f))
+* **parser:** Remove qualifiers from pointer type ([e5f56c2](https://www.github.com/robertoraggi/cplusplus/commit/e5f56c28ab97b4e834d6cd0cb969c41d90a77655))
+* **parser:** Support alternative operator spelling ([eab8b86](https://www.github.com/robertoraggi/cplusplus/commit/eab8b86189d2274ff168e66a513dc563e4030557))
+
 ### [1.1.7](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.6...v1.1.7) (2021-11-11)
 
 
