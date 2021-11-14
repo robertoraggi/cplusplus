@@ -189,6 +189,7 @@ class TemplateArgumentAST : public AST {
 class UnitAST : public AST {
  public:
   using AST::AST;
+  Symbol* symbol = nullptr;
 };
 
 class TypeIdAST final : public AST {

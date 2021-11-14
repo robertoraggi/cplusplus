@@ -30,6 +30,9 @@
 #include <cxx/macos_toolchain.h>
 #include <cxx/preprocessor.h>
 #include <cxx/recursive_ast_visitor.h>
+#include <cxx/scope.h>
+#include <cxx/symbol_printer.h>
+#include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/windows_toolchain.h>
 #include <cxx/x64_instruction_selection.h>
@@ -322,10 +325,17 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
 
   const auto result = unit.parse(cli.checkTypes());
 
+  if (cli.opt_dump_symbols) {
+    SymbolPrinter printSymbol(std::cout);
+    printSymbol(unit.ast()->symbol);
+  }
+
   if (cli.opt_ast_dump) {
     ASTPrinter print(&unit);
     output << print(unit.ast(), /*print locations*/ true);
-  } else if (cli.opt_S || cli.opt_ir_dump || cli.opt_c) {
+  }
+
+  if (cli.opt_S || cli.opt_ir_dump || cli.opt_c) {
     Codegen cg;
 
     auto module = cg(&unit);

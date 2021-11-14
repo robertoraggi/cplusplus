@@ -799,6 +799,8 @@ void ASTCloner::visit(TranslationUnitAST* ast) {
   auto copy = new (arena_) TranslationUnitAST();
   copy_ = copy;
 
+  copy->symbol = ast->symbol;
+
   if (auto it = ast->declarationList) {
     auto out = &copy->declarationList;
 
@@ -812,6 +814,8 @@ void ASTCloner::visit(TranslationUnitAST* ast) {
 void ASTCloner::visit(ModuleUnitAST* ast) {
   auto copy = new (arena_) ModuleUnitAST();
   copy_ = copy;
+
+  copy->symbol = ast->symbol;
 
   copy->globalModuleFragment = accept(ast->globalModuleFragment);
 

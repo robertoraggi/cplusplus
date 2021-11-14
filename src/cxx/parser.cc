@@ -494,6 +494,8 @@ bool Parser::parse_top_level_declaration_seq(UnitAST*& yyast) {
   auto ast = new (pool) TranslationUnitAST();
   yyast = ast;
 
+  ast->symbol = globalNamespace_;
+
   module_unit = false;
 
   bool skipping = false;

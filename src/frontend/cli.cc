@@ -121,6 +121,8 @@ std::vector<CLIOptionDescr> options{
 
     {"-ir-dump", "Dump the IR", &CLI::opt_ir_dump},
 
+    {"-dump-symbols", "Dump the symbol tables", &CLI::opt_dump_symbols},
+
     {"-dump-tokens", "Run preprocessor, dump internal rep of tokens",
      &CLI::opt_dump_tokens},
 
