@@ -4,11 +4,15 @@ This repository contains a _work in progress_ compiler front end for C++ 20.
 
 ## Install
 
-For the latest stable version:
+For the latest stable version of the JavaScript bindings:
 
 ```
 npm install cxx-frontend
 ```
+
+## JS Fiddle Playgrounds
+
+- [Dump the Abstract Syntax Tree](https://jsfiddle.net/4x9yvw6s)
 
 ## Build
 
@@ -35,7 +39,7 @@ echo 'int main() { auto f = []{ return 1; }; return f(); }' |
   ./build/cxx-frontend  -ast-dump -
 ```
 
-## Build the npm package
+## Build the npm package using docker
 
 ```sh
 cd packages/cxx-frontend
@@ -167,3 +171,13 @@ main().catch(console.error);
   </body>
 </html>
 ```
+
+## Release Notes
+
+[Changelog](CHANGELOG.md)
+
+## License
+
+Copyright (c) 2021 Roberto Raggi roberto.raggi@gmail.com
+
+Licensed under the [MIT](LICENSE) license.
