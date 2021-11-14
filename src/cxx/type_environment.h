@@ -57,10 +57,12 @@ class TypeEnvironment {
 
   const ScopedEnumType* scopedEnumType(ScopedEnumSymbol* symbol);
 
-  const PointerType* pointerType(const QualifiedType& elementType);
+  const PointerType* pointerType(const QualifiedType& elementType,
+                                 Qualifiers qualifiers);
 
   const PointerToMemberType* pointerToMemberType(
-      const ClassType* classType, const QualifiedType& elementType);
+      const ClassType* classType, const QualifiedType& elementType,
+      Qualifiers qualifiers);
 
   const ReferenceType* referenceType(const QualifiedType& elementType);
 

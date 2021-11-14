@@ -574,7 +574,8 @@ bool Parser::parse_primary_expression(ExpressionAST*& yyast,
     ast->thisLoc = thisLoc;
 
     if (auto classSymbol = sem->scope()->owner()->enclosingClass()) {
-      ast->type = QualifiedType{types->pointerType(classSymbol->type())};
+      ast->type = QualifiedType{
+          types->pointerType(classSymbol->type(), Qualifiers::kNone)};
     }
 
     return true;
