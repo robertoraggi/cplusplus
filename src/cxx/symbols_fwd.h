@@ -22,6 +22,7 @@
 
 #include <cxx/cxx_fwd.h>
 
+#include <string_view>
 #include <type_traits>
 
 namespace cxx {
@@ -53,6 +54,19 @@ enum class ClassKey {
   kStruct,
   kUnion,
 };
+
+inline std::string_view to_string_view(ClassKey classKey) {
+  switch (classKey) {
+    case ClassKey::kClass:
+      return "class";
+    case ClassKey::kStruct:
+      return "struct";
+    case ClassKey::kUnion:
+      return "union";
+    default:
+      return std::string_view();
+  }  // switch
+}
 
 enum class LookupOptions {
   kDefault = 0,

@@ -82,7 +82,8 @@ void SymbolPrinter::visit(NamespaceSymbol* symbol) {
 }
 
 void SymbolPrinter::visit(ClassSymbol* symbol) {
-  printSymbolHead("class:", symbol->name());
+  printSymbolHead(fmt::format("{}:", to_string_view(symbol->classKey())),
+                  symbol->name());
   newline();
   indent();
   printScope(symbol->scope());

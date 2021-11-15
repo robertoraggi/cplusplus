@@ -4203,12 +4203,9 @@ bool Parser::parse_named_type_specifier_helper(SpecifierAST*& yyast,
 
   sem->name(name, &nameSem);
 
-  Symbol* typeSymbol = nullptr;
+  auto typeSymbol = sem->scope()->unqualifiedLookup(nameSem.name, LookupOptions::kType);
 
   if (checkTypes_) {
-    typeSymbol =
-        sem->scope()->unqualifiedLookup(nameSem.name, LookupOptions::kType);
-
     if (!typeSymbol) return false;
   }
 
