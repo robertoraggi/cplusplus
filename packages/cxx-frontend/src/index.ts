@@ -28,3 +28,4 @@ export * from "./Diagnostic.js";
 export * from "./Unit.js";
 export * from "./SourceLocation.js";
 export * from "./TokenKind.js";
+export * from "./Token.js";
