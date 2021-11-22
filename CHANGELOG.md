@@ -1,5 +1,18 @@
 # Changelog
 
+### [1.1.9](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.8...v1.1.9) (2021-11-22)
+
+
+### Bug Fixes
+
+* **ci:** Enable release-please action ([95245b0](https://www.github.com/robertoraggi/cplusplus/commit/95245b057cc3399b09cc21ef3c18aa83b5956aef))
+* **cli:** Add `-fsyntax-only` to the cli ([50332b2](https://www.github.com/robertoraggi/cplusplus/commit/50332b2f90d32b19bfe1ecc421cc628c51be839e))
+* **cli:** Tag the code generation options as experimental ([33439bc](https://www.github.com/robertoraggi/cplusplus/commit/33439bc3b67e1323feb7ac4d61ac67cf58afbb16))
+* **ir:** Generate code for the logical_or expressions ([c1c0131](https://www.github.com/robertoraggi/cplusplus/commit/c1c013185a08e01c849e7201efc922b00a15773c))
+* **js:** Add an example showing how to check the syntax of a C++ document ([3568e92](https://www.github.com/robertoraggi/cplusplus/commit/3568e92b1097de24a79604ac3d58b8c1768d5eae))
+* **js:** Export the symbols defined in Token.js ([7d68898](https://www.github.com/robertoraggi/cplusplus/commit/7d68898984e846949b65bf813d9e914c2a3c1597))
+* **parser:** Resolve type names ([798f475](https://www.github.com/robertoraggi/cplusplus/commit/798f475a91d0c54cebabb052851357505f09b223))
+
 ### [1.1.8](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.7...v1.1.8) (2021-11-14)
 
 
