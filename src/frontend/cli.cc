@@ -117,6 +117,8 @@ std::vector<CLIOptionDescr> options{
     {"-x", "Specify the language from the compiler driver",
      CLIOptionDescrKind::kSeparated},
 
+    {"-fsyntax-only", "Check only the syntax", &CLI::opt_fsyntax_only},
+
     {"-ast-dump", "Build ASTs and then debug dump them", &CLI::opt_ast_dump},
 
     {"-ir-dump", "Dump the IR", &CLI::opt_ir_dump},

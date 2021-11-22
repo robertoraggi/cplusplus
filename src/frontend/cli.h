@@ -62,10 +62,13 @@ class CLI {
   bool opt_nostdincpp = false;
   bool opt_S = false;
   bool opt_c = false;
+  bool opt_fsyntax_only = false;
   bool opt_verify = false;
   bool opt_v = false;
 
-  bool checkTypes() const { return opt_ir_dump || opt_S || opt_c; }
+  bool checkTypes() const {
+    return opt_ir_dump || opt_S || opt_c || opt_fsyntax_only;
+  }
 
   void parse(int& argc, char**& argv);
 
