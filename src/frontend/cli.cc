@@ -53,27 +53,41 @@ enum struct CLIOptionDescrKind {
   kSeparated,
 };
 
+enum struct CLIOptionVisibility : bool {
+  kDefault,
+  kExperimental,
+};
+
 struct CLIOptionDescr {
   std::string option;
   std::string arg;
   std::string help;
   CLIOptionDescrKind kind;
   bool CLI::*flag = nullptr;
+  CLIOptionVisibility visibility{CLIOptionVisibility::kDefault};
 
   CLIOptionDescr(const std::string& option, const std::string& arg,
-                 const std::string& help, CLIOptionDescrKind kind)
-      : option(option), arg(arg), help(help), kind(kind) {}
+                 const std::string& help, CLIOptionDescrKind kind,
+                 CLIOptionVisibility visibility = CLIOptionVisibility::kDefault)
+      : option(option),
+        arg(arg),
+        help(help),
+        kind(kind),
+        visibility(visibility) {}
 
   CLIOptionDescr(const std::string& option, const std::string& help,
-                 CLIOptionDescrKind kind = CLIOptionDescrKind::kFlag)
-      : option(option), help(help), kind(kind) {}
+                 CLIOptionDescrKind kind = CLIOptionDescrKind::kFlag,
+                 CLIOptionVisibility visibility = CLIOptionVisibility::kDefault)
+      : option(option), help(help), kind(kind), visibility(visibility) {}
 
   CLIOptionDescr(const std::string& option, const std::string& help,
-                 bool CLI::*flag)
+                 bool CLI::*flag,
+                 CLIOptionVisibility visibility = CLIOptionVisibility::kDefault)
       : option(option),
         help(help),
         kind(CLIOptionDescrKind::kFlag),
-        flag(flag) {}
+        flag(flag),
+        visibility(visibility) {}
 };
 
 std::vector<CLIOptionDescr> options{
@@ -107,9 +121,11 @@ std::vector<CLIOptionDescr> options{
     {"-dM", "Print macro definitions in -E mode instead of normal output",
      &CLI::opt_dM},
 
-    {"-S", "Only run preprocess and compilation steps", &CLI::opt_S},
+    {"-S", "Only run preprocess and compilation steps", &CLI::opt_S,
+     CLIOptionVisibility::kExperimental},
 
-    {"-c", "Compile and assemble, but do not link", &CLI::opt_c},
+    {"-c", "Compile and assemble, but do not link", &CLI::opt_c,
+     CLIOptionVisibility::kExperimental},
 
     {"-o", "<file>", "Place output into <file>",
      CLIOptionDescrKind::kSeparated},
@@ -261,6 +277,10 @@ void CLI::showHelp() {
   fmt::print(stderr, "Usage: cxx-frontend [options] file...\n");
   fmt::print(stderr, "Options:\n");
   for (const auto& opt : options) {
+    if (opt.visibility == CLIOptionVisibility::kExperimental) {
+      continue;
+    }
+
     std::string info;
     switch (opt.kind) {
       case CLIOptionDescrKind::kSeparated: {
