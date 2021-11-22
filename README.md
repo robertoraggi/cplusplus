@@ -14,6 +14,8 @@ npm install cxx-frontend
 
 - [Dump the Abstract Syntax Tree](https://jsfiddle.net/4x9yvw6s)
 
+- [Check Syntax](https://jsfiddle.net/dfeLvy4a)
+
 ## Build
 
 On Linux, macOS and Windows:
