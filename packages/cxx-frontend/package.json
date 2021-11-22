@@ -1,6 +1,6 @@
 {
   "name": "cxx-frontend",
-  "version": "1.1.8",
+  "version": "1.1.9",
   "description": "A compiler front end for the C++ language",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -13,7 +13,7 @@
     "docker": "docker run $DOCKER_EXTRA_OPTS --rm -v $PWD/../../:/src:Z --user `id -u` emscripten/emsdk",
     "docker:shell": "DOCKER_EXTRA_OPTS=-it npm run docker",
     "configure:wasm": "npm run docker -- emcmake cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=1 -Bbuild.em .",
-    "build:wasm": "npm run docker -- cmake --build build.em -- -j",
+    "build:wasm": "npm run docker -- cmake --build build.em -- -j4",
     "copy:wasm": "copyfiles -V -f ../../build.em/cxx-js.* dist",
     "copy:readme": "copyfiles -V -f ../../README.md ../../CHANGELOG.md ."
   },
@@ -36,8 +36,8 @@
     "url": "https://github.com/robertoraggi/cplusplus/issues"
   },
   "devDependencies": {
-    "@types/node": "^16.11.5",
+    "@types/node": "^16.11.9",
     "copyfiles": "^2.4.1",
-    "typescript": "^4.4.4"
+    "typescript": "^4.5.2"
   }
 }
