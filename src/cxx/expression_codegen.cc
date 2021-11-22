@@ -311,7 +311,7 @@ void ExpressionCodegen::visit(UnaryExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(BinaryExpressionAST* ast) {
-  if (ast->op == TokenKind::T_AMP_AMP) {
+  if (ast->op == TokenKind::T_AMP_AMP || ast->op == TokenKind::T_BAR_BAR) {
     auto control = cg->unit()->control();
     auto types = control->types();
     QualifiedType intTy{types->integerType(IntegerKind::kInt, false)};
