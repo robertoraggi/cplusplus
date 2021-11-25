@@ -162,6 +162,7 @@ class RecursiveASTVisitor : public ASTVisitor {
   void visit(TypeidExpressionAST* ast) override;
   void visit(TypeidOfTypeExpressionAST* ast) override;
   void visit(AlignofExpressionAST* ast) override;
+  void visit(IsSameAsExpressionAST* ast) override;
   void visit(UnaryExpressionAST* ast) override;
   void visit(BinaryExpressionAST* ast) override;
   void visit(AssignmentExpressionAST* ast) override;

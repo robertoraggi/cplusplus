@@ -41,6 +41,7 @@ __is_nothrow_constructible
 __is_pod
 __is_polymorphic
 __is_same
+__is_same_as
 __is_standard_layout
 __is_trivial
 __is_trivially_assignable

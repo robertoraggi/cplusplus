@@ -115,6 +115,7 @@ export enum ASTKind {
     TypeidExpression,
     TypeidOfTypeExpression,
     AlignofExpression,
+    IsSameAsExpression,
     UnaryExpression,
     BinaryExpression,
     AssignmentExpression,

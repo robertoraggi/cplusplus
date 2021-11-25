@@ -591,6 +591,11 @@ void Semantics::visit(TypeidOfTypeExpressionAST* ast) { typeId(ast->typeId); }
 
 void Semantics::visit(AlignofExpressionAST* ast) { typeId(ast->typeId); }
 
+void Semantics::visit(IsSameAsExpressionAST* ast) {
+  typeId(ast->typeId);
+  typeId(ast->otherTypeId);
+}
+
 void Semantics::visit(UnaryExpressionAST* ast) {
   ExpressionSem expression;
   this->expression(ast->expression, &expression);

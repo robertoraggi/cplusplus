@@ -1232,6 +1232,29 @@ void ASTCloner::visit(AlignofExpressionAST* ast) {
   copy->rparenLoc = ast->rparenLoc;
 }
 
+void ASTCloner::visit(IsSameAsExpressionAST* ast) {
+  auto copy = new (arena_) IsSameAsExpressionAST();
+  copy_ = copy;
+
+  copy->type = ast->type;
+
+  copy->valueCategory = ast->valueCategory;
+
+  copy->constValue = ast->constValue;
+
+  copy->isSameAsLoc = ast->isSameAsLoc;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->typeId = accept(ast->typeId);
+
+  copy->commaLoc = ast->commaLoc;
+
+  copy->otherTypeId = accept(ast->otherTypeId);
+
+  copy->rparenLoc = ast->rparenLoc;
+}
+
 void ASTCloner::visit(UnaryExpressionAST* ast) {
   auto copy = new (arena_) UnaryExpressionAST();
   copy_ = copy;

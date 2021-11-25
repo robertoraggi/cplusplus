@@ -1259,6 +1259,23 @@ class AlignofExpressionAST final : public ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
+class IsSameAsExpressionAST final : public ExpressionAST {
+ public:
+  IsSameAsExpressionAST() : ExpressionAST(ASTKind::IsSameAsExpression) {}
+
+  SourceLocation isSameAsLoc;
+  SourceLocation lparenLoc;
+  TypeIdAST* typeId = nullptr;
+  SourceLocation commaLoc;
+  TypeIdAST* otherTypeId = nullptr;
+  SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
 class UnaryExpressionAST final : public ExpressionAST {
  public:
   UnaryExpressionAST() : ExpressionAST(ASTKind::UnaryExpression) {}

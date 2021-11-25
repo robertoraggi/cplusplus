@@ -1454,6 +1454,26 @@ void ASTPrinter::visit(AlignofExpressionAST* ast) {
   }
 }
 
+void ASTPrinter::visit(IsSameAsExpressionAST* ast) {
+  json_ = nlohmann::json::array();
+
+  json_.push_back("ast:IsSameAsExpression");
+
+  if (ast->typeId) {
+    if (auto childNode = accept(ast->typeId); !childNode.is_null()) {
+      json_.push_back(
+          std::vector<nlohmann::json>{"attr:typeId", std::move(childNode)});
+    }
+  }
+
+  if (ast->otherTypeId) {
+    if (auto childNode = accept(ast->otherTypeId); !childNode.is_null()) {
+      json_.push_back(std::vector<nlohmann::json>{"attr:otherTypeId",
+                                                  std::move(childNode)});
+    }
+  }
+}
+
 void ASTPrinter::visit(UnaryExpressionAST* ast) {
   json_ = nlohmann::json::array();
 

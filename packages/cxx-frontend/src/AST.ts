@@ -1246,6 +1246,30 @@ export class AlignofExpressionAST extends ExpressionAST {
     }
 }
 
+export class IsSameAsExpressionAST extends ExpressionAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitIsSameAsExpression(this, context);
+    }
+    getIsSameAsToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getLparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getTypeId(): TypeIdAST | undefined {
+        return AST.from<TypeIdAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getCommaToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+    getOtherTypeId(): TypeIdAST | undefined {
+        return AST.from<TypeIdAST>(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+    }
+    getRparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+    }
+}
+
 export class UnaryExpressionAST extends ExpressionAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitUnaryExpression(this, context);
@@ -3119,6 +3143,7 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     TypeidExpressionAST,
     TypeidOfTypeExpressionAST,
     AlignofExpressionAST,
+    IsSameAsExpressionAST,
     UnaryExpressionAST,
     BinaryExpressionAST,
     AssignmentExpressionAST,

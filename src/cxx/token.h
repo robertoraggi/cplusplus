@@ -133,7 +133,7 @@
   V(__IS_NOTHROW_CONSTRUCTIBLE, "__is_nothrow_constructible")         \
   V(__IS_POD, "__is_pod")                                             \
   V(__IS_POLYMORPHIC, "__is_polymorphic")                             \
-  V(__IS_SAME, "__is_same")                                           \
+  V(__IS_SAME_AS, "__is_same_as")                                     \
   V(__IS_STANDARD_LAYOUT, "__is_standard_layout")                     \
   V(__IS_TRIVIAL, "__is_trivial")                                     \
   V(__IS_TRIVIALLY_ASSIGNABLE, "__is_trivially_assignable")           \
@@ -243,7 +243,8 @@
   V(OR, BAR_BAR)                \
   V(OR_EQ, BAR_EQUAL)           \
   V(XOR, CARET)                 \
-  V(XOR_EQ, CARET_EQUAL)
+  V(XOR_EQ, CARET_EQUAL)        \
+  V(__IS_SAME, __IS_SAME_AS)
 
 namespace cxx {
 

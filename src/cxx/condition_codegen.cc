@@ -34,7 +34,9 @@ void ConditionCodegen::gen(ExpressionAST* ast, ir::Block* iftrue,
                            ir::Block* iffalse) {
   std::swap(iftrue_, iftrue);
   std::swap(iffalse_, iffalse);
-  if (auto expr = gen(ast)) {
+  if (ast && ast->constValue) {
+    cg->emitJump(const_value_cast<bool>(*ast->constValue) ? iftrue_ : iffalse_);
+  } else if (auto expr = gen(ast)) {
     cg->emitCondJump(cg->createBinary(ir::BinaryOp::kExclaimEqual, expr,
                                       cg->createIntegerLiteral(0)),
                      iftrue_, iffalse_);

@@ -271,6 +271,10 @@ void ExpressionCodegen::visit(AlignofExpressionAST* ast) {
   throw std::runtime_error("visit(AlignofExpressionAST): not implemented");
 }
 
+void ExpressionCodegen::visit(IsSameAsExpressionAST* ast) {
+  expr_ = cg->createIntegerLiteral(std::get<std::uint64_t>(*ast->constValue));
+}
+
 void ExpressionCodegen::visit(UnaryExpressionAST* ast) {
   switch (ast->op) {
     case TokenKind::T_PLUS_PLUS:

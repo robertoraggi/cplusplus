@@ -166,6 +166,7 @@ class SizeofPackExpressionAST;
 class TypeidExpressionAST;
 class TypeidOfTypeExpressionAST;
 class AlignofExpressionAST;
+class IsSameAsExpressionAST;
 class UnaryExpressionAST;
 class BinaryExpressionAST;
 class AssignmentExpressionAST;

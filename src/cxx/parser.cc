@@ -1830,7 +1830,7 @@ bool Parser::parse_builtin_function_2() {
     case TokenKind::T___IS_CONVERTIBLE_TO:
     case TokenKind::T___IS_NOTHROW_ASSIGNABLE:
     case TokenKind::T___IS_NOTHROW_CONSTRUCTIBLE:
-    case TokenKind::T___IS_SAME:
+    case TokenKind::T___IS_SAME_AS:
     case TokenKind::T___IS_TRIVIALLY_ASSIGNABLE:
     case TokenKind::T___IS_TRIVIALLY_CONSTRUCTIBLE:
     case TokenKind::T___REFERENCE_BINDS_TO_TEMPORARY:
@@ -1851,6 +1851,38 @@ bool Parser::parse_builtin_call_expression(ExpressionAST*& yyast) {
     if (!parse_type_id(typeId)) parse_error("expected a type id");
 
     expect(TokenKind::T_RPAREN);
+
+    return true;
+  }
+
+  SourceLocation loc;
+
+  if (match(TokenKind::T___IS_SAME_AS, loc)) {
+    auto ast = new (pool) IsSameAsExpressionAST();
+    yyast = ast;
+
+    ast->isSameAsLoc = loc;
+
+    expect(TokenKind::T_LPAREN, ast->lparenLoc);
+
+    if (!parse_type_id(ast->typeId)) parse_error("expected a type id");
+
+    sem->typeId(ast->typeId);
+
+    expect(TokenKind::T_COMMA, ast->lparenLoc);
+
+    if (!parse_type_id(ast->otherTypeId)) parse_error("expected a type id");
+
+    sem->typeId(ast->otherTypeId);
+
+    expect(TokenKind::T_RPAREN, ast->rparenLoc);
+
+    if (ast->typeId && ast->otherTypeId) {
+      const auto isSame = ast->typeId->type == ast->otherTypeId->type;
+      ast->constValue = std::uint64_t(isSame);
+    } else {
+      ast->constValue = std::uint64_t(0);
+    }
 
     return true;
   }
@@ -4203,7 +4235,8 @@ bool Parser::parse_named_type_specifier_helper(SpecifierAST*& yyast,
 
   sem->name(name, &nameSem);
 
-  auto typeSymbol = sem->scope()->unqualifiedLookup(nameSem.name, LookupOptions::kType);
+  auto typeSymbol =
+      sem->scope()->unqualifiedLookup(nameSem.name, LookupOptions::kType);
 
   if (checkTypes_) {
     if (!typeSymbol) return false;

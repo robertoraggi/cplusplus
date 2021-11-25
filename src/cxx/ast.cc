@@ -1060,6 +1060,26 @@ SourceLocation AlignofExpressionAST::lastSourceLocation() {
   return SourceLocation();
 }
 
+SourceLocation IsSameAsExpressionAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(isSameAsLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::firstSourceLocation(commaLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(otherTypeId)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  return SourceLocation();
+}
+
+SourceLocation IsSameAsExpressionAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(otherTypeId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(commaLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(isSameAsLoc)) return loc;
+  return SourceLocation();
+}
+
 SourceLocation UnaryExpressionAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(opLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;

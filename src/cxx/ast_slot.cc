@@ -1439,6 +1439,37 @@ void ASTSlot::visit(AlignofExpressionAST* ast) {
   slotCount_ = 4;
 }
 
+void ASTSlot::visit(IsSameAsExpressionAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->isSameAsLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:
+      value_ = ast->lparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->typeId);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 3:
+      value_ = ast->commaLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 4:
+      value_ = reinterpret_cast<std::intptr_t>(ast->otherTypeId);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 5:
+      value_ = ast->rparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
+
+  slotCount_ = 6;
+}
+
 void ASTSlot::visit(UnaryExpressionAST* ast) {
   switch (slot_) {
     case 0:
