@@ -625,6 +625,11 @@ void Semantics::visit(BinaryExpressionAST* ast) {
   ExpressionSem rightExpression;
   this->expression(ast->rightExpression, &rightExpression);
 
+  if (ast->op == TokenKind::T_BAR_BAR || ast->op == TokenKind::T_AMP_AMP) {
+    expression_->type = QualifiedType{types_->booleanType()};
+    return;
+  }
+
   if (ast->op == TokenKind::T_PLUS) {
     if (Type::is<PointerType>(leftExpression.type) &&
         Type::is<IntegerType>(rightExpression.type)) {
