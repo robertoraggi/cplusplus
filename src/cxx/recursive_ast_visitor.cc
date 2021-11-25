@@ -759,7 +759,12 @@ void RecursiveASTVisitor::visit(NamespaceAliasDefinitionAST* ast) {
   acceptName(ast->name);
 }
 
-void RecursiveASTVisitor::visit(UsingDirectiveAST* ast) {}
+void RecursiveASTVisitor::visit(UsingDirectiveAST* ast) {
+  for (auto it = ast->attributeList; it; it = it->next)
+    acceptAttribute(it->value);
+  acceptNestedNameSpecifier(ast->nestedNameSpecifier);
+  acceptName(ast->name);
+}
 
 void RecursiveASTVisitor::visit(UsingDeclarationAST* ast) {
   for (auto it = ast->usingDeclaratorList; it; it = it->next)

@@ -672,6 +672,11 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     }
 
     visitUsingDirective(node: ast.UsingDirectiveAST, context: Context): void {
+        for (const element of node.getAttributeList()) {
+            this.accept(element, context);
+        }
+        this.accept(node.getNestedNameSpecifier(), context);
+        this.accept(node.getName(), context);
     }
 
     visitUsingDeclaration(node: ast.UsingDeclarationAST, context: Context): void {

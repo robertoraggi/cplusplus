@@ -2504,6 +2504,34 @@ void ASTPrinter::visit(UsingDirectiveAST* ast) {
   json_ = nlohmann::json::array();
 
   json_.push_back("ast:UsingDirective");
+
+  if (ast->attributeList) {
+    auto elements = nlohmann::json::array();
+    elements.push_back("array");
+    for (auto it = ast->attributeList; it; it = it->next) {
+      if (auto childNode = accept(it->value); !childNode.is_null()) {
+        elements.push_back(std::move(childNode));
+      }
+    }
+    if (elements.size() > 1)
+      json_.push_back(
+          std::vector<nlohmann::json>{"attr:attributeList", elements});
+  }
+
+  if (ast->nestedNameSpecifier) {
+    if (auto childNode = accept(ast->nestedNameSpecifier);
+        !childNode.is_null()) {
+      json_.push_back(std::vector<nlohmann::json>{"attr:nestedNameSpecifier",
+                                                  std::move(childNode)});
+    }
+  }
+
+  if (ast->name) {
+    if (auto childNode = accept(ast->name); !childNode.is_null()) {
+      json_.push_back(
+          std::vector<nlohmann::json>{"attr:name", std::move(childNode)});
+    }
+  }
 }
 
 void ASTPrinter::visit(UsingDeclarationAST* ast) {

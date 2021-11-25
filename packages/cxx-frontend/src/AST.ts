@@ -2156,6 +2156,26 @@ export class UsingDirectiveAST extends DeclarationAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitUsingDirective(this, context);
     }
+    *getAttributeList(): Generator<AttributeAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+            yield AST.from<AttributeAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+    getUsingToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getNamespaceToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
+        return AST.from<NestedNameSpecifierAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+    getName(): NameAST | undefined {
+        return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+    }
+    getSemicolonToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+    }
 }
 
 export class UsingDeclarationAST extends DeclarationAST {

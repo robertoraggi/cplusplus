@@ -1001,7 +1001,13 @@ void Semantics::visit(NamespaceAliasDefinitionAST* ast) {
   this->name(ast->name, &name);
 }
 
-void Semantics::visit(UsingDirectiveAST* ast) {}
+void Semantics::visit(UsingDirectiveAST* ast) {
+  for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
+  NestedNameSpecifierSem nestedNameSpecifierSem;
+  nestedNameSpecifier(ast->nestedNameSpecifier, &nestedNameSpecifierSem);
+  NameSem name;
+  this->name(ast->name, &name);
+}
 
 void Semantics::visit(UsingDeclarationAST* ast) {
   for (auto it = ast->usingDeclaratorList; it; it = it->next)

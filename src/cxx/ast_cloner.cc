@@ -2116,6 +2116,25 @@ void ASTCloner::visit(NamespaceAliasDefinitionAST* ast) {
 void ASTCloner::visit(UsingDirectiveAST* ast) {
   auto copy = new (arena_) UsingDirectiveAST();
   copy_ = copy;
+
+  if (auto it = ast->attributeList) {
+    auto out = &copy->attributeList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->usingLoc = ast->usingLoc;
+
+  copy->namespaceLoc = ast->namespaceLoc;
+
+  copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
+
+  copy->name = accept(ast->name);
+
+  copy->semicolonLoc = ast->semicolonLoc;
 }
 
 void ASTCloner::visit(UsingDeclarationAST* ast) {

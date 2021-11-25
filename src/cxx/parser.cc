@@ -6109,15 +6109,19 @@ bool Parser::parse_using_directive(DeclarationAST*& yyast) {
 
   if (!match(TokenKind::T_NAMESPACE, namespaceLoc)) return false;
 
+  auto ast = new (pool) UsingDirectiveAST;
+  yyast = ast;
+
+  ast->usingLoc = usingLoc;
+  ast->namespaceLoc = namespaceLoc;
+
   const auto saved = currentLocation();
 
-  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  if (!parse_nested_name_specifier(ast->nestedNameSpecifier)) rewind(saved);
 
-  if (!parse_nested_name_specifier(nestedNameSpecifier)) rewind(saved);
+  if (!parse_name_id(ast->name)) parse_error("expected a namespace name");
 
-  if (!match(TokenKind::T_IDENTIFIER)) parse_error("expected a namespace name");
-
-  expect(TokenKind::T_SEMICOLON);
+  expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
 
   return true;
 }

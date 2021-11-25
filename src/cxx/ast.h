@@ -2013,6 +2013,13 @@ class UsingDirectiveAST final : public DeclarationAST {
  public:
   UsingDirectiveAST() : DeclarationAST(ASTKind::UsingDirective) {}
 
+  List<AttributeAST*>* attributeList = nullptr;
+  SourceLocation usingLoc;
+  SourceLocation namespaceLoc;
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  NameAST* name = nullptr;
+  SourceLocation semicolonLoc;
+
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
   SourceLocation firstSourceLocation() override;

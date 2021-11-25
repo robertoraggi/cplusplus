@@ -2561,9 +2561,34 @@ void ASTSlot::visit(NamespaceAliasDefinitionAST* ast) {
 }
 
 void ASTSlot::visit(UsingDirectiveAST* ast) {
-  switch (slot_) {}  // switch
+  switch (slot_) {
+    case 0:
+      value_ = reinterpret_cast<std::intptr_t>(ast->attributeList);
+      slotKind_ = ASTSlotKind::kNodeList;
+      break;
+    case 1:
+      value_ = ast->usingLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 2:
+      value_ = ast->namespaceLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 3:
+      value_ = reinterpret_cast<std::intptr_t>(ast->nestedNameSpecifier);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 4:
+      value_ = reinterpret_cast<std::intptr_t>(ast->name);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 5:
+      value_ = ast->semicolonLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
 
-  slotCount_ = 0;
+  slotCount_ = 6;
 }
 
 void ASTSlot::visit(UsingDeclarationAST* ast) {

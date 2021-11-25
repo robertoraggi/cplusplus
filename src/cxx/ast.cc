@@ -1843,10 +1843,22 @@ SourceLocation NamespaceAliasDefinitionAST::lastSourceLocation() {
 }
 
 SourceLocation UsingDirectiveAST::firstSourceLocation() {
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(usingLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(namespaceLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
   return SourceLocation();
 }
 
 SourceLocation UsingDirectiveAST::lastSourceLocation() {
+  if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
+  if (auto loc = cxx::lastSourceLocation(namespaceLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(usingLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   return SourceLocation();
 }
 
