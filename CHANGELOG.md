@@ -1,5 +1,18 @@
 # Changelog
 
+### [1.1.10](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.9...v1.1.10) (2021-11-25)
+
+
+### Bug Fixes
+
+* **parser:** Add support for the `__is_same_as` built-in function ([f80aa30](https://www.github.com/robertoraggi/cplusplus/commit/f80aa30db5cdbfbe6d5949e3d9c13218bb78e55a))
+* **parser:** Add support for type aliases ([6934355](https://www.github.com/robertoraggi/cplusplus/commit/69343553df13ebcfb9a30743841ff0ea5a91d719))
+* **parser:** Create the AST of using directives ([d43c447](https://www.github.com/robertoraggi/cplusplus/commit/d43c44731eb85898fefd1065afaefeb918a1716d))
+* **parser:** Fix the type of logical expressions ([c9258dc](https://www.github.com/robertoraggi/cplusplus/commit/c9258dc82dcb88ef0f5d0002f0b75e48b8223f5e))
+* **parser:** Initial support for `sizeof` and `alignof` expressions ([bd6a255](https://www.github.com/robertoraggi/cplusplus/commit/bd6a255ea7d93a535ad2a0fbe19710b2624b7fd7))
+* **parser:** Initial support for the `decltype` specifier ([a24978c](https://www.github.com/robertoraggi/cplusplus/commit/a24978c4c62eef88bfe557383f4e26de3464b324))
+* **parser:** Set type of conditional expressions ([bcf8776](https://www.github.com/robertoraggi/cplusplus/commit/bcf877687a087bf68cda4a26f787d4a07bc22bcf))
+
 ### [1.1.9](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.8...v1.1.9) (2021-11-22)
 
 
