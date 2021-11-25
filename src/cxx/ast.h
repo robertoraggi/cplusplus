@@ -1875,6 +1875,7 @@ class AliasDeclarationAST final : public DeclarationAST {
   TypeIdAST* typeId = nullptr;
   SourceLocation semicolonLoc;
   const Identifier* identifier = nullptr;
+  TypedefSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

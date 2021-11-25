@@ -59,3 +59,16 @@ void test_1() {
   static_assert(__is_same_as(decltype(str.c_str()), const char*));
   static_assert(__is_same_as(decltype(str.c_str()), char*)); // expected-error{{static_assert failed}}
 }
+
+using uint16_t = unsigned short;
+
+static_assert(__is_same_as(uint16_t, unsigned short));
+
+static_assert(__is_same_as(uint16_t, short)); // expected-error{{static_assert failed}}
+
+using ptr_uint16_t = uint16_t*;
+
+static_assert(__is_same_as(ptr_uint16_t, uint16_t*));
+
+static_assert(__is_same_as(ptr_uint16_t, const uint16_t*)); // expected-error{{static_assert failed}}
+

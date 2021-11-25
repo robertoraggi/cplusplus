@@ -1932,6 +1932,8 @@ void ASTCloner::visit(AliasDeclarationAST* ast) {
   copy->semicolonLoc = ast->semicolonLoc;
 
   copy->identifier = ast->identifier;
+
+  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(SimpleDeclarationAST* ast) {

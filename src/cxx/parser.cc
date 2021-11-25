@@ -3406,6 +3406,8 @@ bool Parser::parse_alias_declaration(DeclarationAST*& yyast) {
 
   if (!parse_defining_type_id(typeId)) parse_error("expected a type id");
 
+  sem->typeId(typeId);
+
   SourceLocation semicolonLoc;
 
   expect(TokenKind::T_SEMICOLON, semicolonLoc);
@@ -3420,6 +3422,16 @@ bool Parser::parse_alias_declaration(DeclarationAST*& yyast) {
   ast->equalLoc = equalLoc;
   ast->typeId = typeId;
   ast->semicolonLoc = semicolonLoc;
+
+  if (ast->identifier && ast->typeId) {
+    auto typedefSymbol =
+        symbols->newTypedefSymbol(sem->scope(), ast->identifier);
+
+    typedefSymbol->setType(ast->typeId->type);
+    sem->scope()->add(typedefSymbol);
+
+    ast->symbol = typedefSymbol;
+  }
 
   return true;
 }
