@@ -175,10 +175,10 @@ void MemoryLayout::visit(const ClassType* type) {
       return;
     }
 
-    auto [memberSize, memberAlignment] = *layout;
+    const auto [memberSize, memberAlignment] = *layout;
 
     size = AlignTo(size, memberAlignment) + memberSize;
-    alignment = std::max(alignment, memberAlignment);
+    alignment = std::max(alignment, std::size_t(memberAlignment));
   }
 
   if (size) {
