@@ -1315,6 +1315,7 @@ void Semantics::visit(DecltypeAutoSpecifierAST* ast) {
 void Semantics::visit(DecltypeSpecifierAST* ast) {
   ExpressionSem expression;
   this->expression(ast->expression, &expression);
+  specifiers_->type.mergeWith(expression.type);
 }
 
 void Semantics::visit(TypeofSpecifierAST* ast) {

@@ -38,3 +38,24 @@ static_assert(__is_same_as(const int, volatile int)); // expected-error{{static_
 static_assert(__is_same_as(volatile int, volatile int)); // expected-error{{static_assert failed}}
 
 static_assert(__is_same_as(const volatile int, volatile const int));
+
+struct vec2i {
+  int x;
+  int y;
+};
+
+struct string {
+  const char* c_str();
+};
+
+void test_1() {
+  vec2i v;
+  static_assert(__is_same_as(decltype(v), vec2i));
+  static_assert(__is_same_as(decltype(v.x), int));
+  static_assert(__is_same_as(decltype(v.x), unsigned int)); // expected-error{{static_assert failed}}
+  static_assert(__is_same_as(decltype(v.y), int));
+
+  string str;
+  static_assert(__is_same_as(decltype(str.c_str()), const char*));
+  static_assert(__is_same_as(decltype(str.c_str()), char*)); // expected-error{{static_assert failed}}
+}
