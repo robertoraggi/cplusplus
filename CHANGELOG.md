@@ -1,5 +1,12 @@
 # Changelog
 
+### [1.1.11](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.10...v1.1.11) (2021-11-25)
+
+
+### Bug Fixes
+
+* **js:** Build the npm package using emsdk 2.0.34 ([10e384e](https://www.github.com/robertoraggi/cplusplus/commit/10e384e2c2bf32a18711602a427abaa9f3c6a2d0))
+
 ### [1.1.10](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.9...v1.1.10) (2021-11-25)
 
 
