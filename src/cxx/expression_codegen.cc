@@ -247,12 +247,19 @@ void ExpressionCodegen::visit(LambdaExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(SizeofExpressionAST* ast) {
-  throw std::runtime_error("visit(SizeofExpressionAST): not implemented");
+  if (!ast->constValue) return;
+
+  auto value = const_value_cast<std::uint64_t>(*ast->constValue);
+
+  expr_ = cg->createIntegerLiteral(value);
 }
 
 void ExpressionCodegen::visit(SizeofTypeExpressionAST* ast) {
-  auto [size, alignment] = MemoryLayout::ofType(ast->typeId->type);
-  expr_ = cg->createIntegerLiteral(size);
+  if (!ast->constValue) return;
+
+  auto value = const_value_cast<std::uint64_t>(*ast->constValue);
+
+  expr_ = cg->createIntegerLiteral(value);
 }
 
 void ExpressionCodegen::visit(SizeofPackExpressionAST* ast) {
@@ -268,7 +275,11 @@ void ExpressionCodegen::visit(TypeidOfTypeExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(AlignofExpressionAST* ast) {
-  throw std::runtime_error("visit(AlignofExpressionAST): not implemented");
+  if (!ast->constValue) return;
+
+  auto value = const_value_cast<std::uint64_t>(*ast->constValue);
+
+  expr_ = cg->createIntegerLiteral(value);
 }
 
 void ExpressionCodegen::visit(IsSameAsExpressionAST* ast) {

@@ -32,14 +32,14 @@
 
 namespace cxx {
 
-std::tuple<std::uint64_t, std::uint64_t> MemoryLayout::ofType(
+std::optional<std::tuple<std::uint64_t, std::uint64_t>> MemoryLayout::ofType(
     const QualifiedType& type) {
   static MemoryLayout memoryLayout;
   return memoryLayout(type);
 }
 
-std::tuple<std::uint64_t, std::uint64_t> MemoryLayout::operator()(
-    const QualifiedType& type) {
+std::optional<std::tuple<std::uint64_t, std::uint64_t>>
+MemoryLayout::operator()(const QualifiedType& type) {
   std::uint64_t size = 0;
   std::uint64_t alignment = 0;
   std::swap(size_, size);
@@ -47,39 +47,42 @@ std::tuple<std::uint64_t, std::uint64_t> MemoryLayout::operator()(
   type->accept(this);
   std::swap(size_, size);
   std::swap(alignment_, alignment);
+  if (!size) return std::nullopt;
   return std::tuple(size, alignment);
 }
 
-void MemoryLayout::visit(const UndefinedType*) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
-}
+void MemoryLayout::visit(const UndefinedType*) {}
 
-void MemoryLayout::visit(const ErrorType*) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
-}
+void MemoryLayout::visit(const ErrorType*) {}
 
-void MemoryLayout::visit(const AutoType*) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
-}
+void MemoryLayout::visit(const AutoType*) {}
 
-void MemoryLayout::visit(const DecltypeAutoType*) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
-}
+void MemoryLayout::visit(const DecltypeAutoType*) {}
 
-void MemoryLayout::visit(const VoidType*) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
-}
+void MemoryLayout::visit(const VoidType*) {}
 
-void MemoryLayout::visit(const NullptrType*) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
-}
+void MemoryLayout::visit(const NullptrType*) {}
 
-void MemoryLayout::visit(const BooleanType*) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
-}
+void MemoryLayout::visit(const BooleanType*) {}
 
-void MemoryLayout::visit(const CharacterType*) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+void MemoryLayout::visit(const CharacterType* ty) {
+  switch (ty->kind()) {
+    case CharacterKind::kChar8T:
+      alignment_ = size_ = 1;
+      break;
+    case CharacterKind::kChar16T:
+      alignment_ = size_ = 2;
+      break;
+    case CharacterKind::kChar32T:
+      alignment_ = size_ = 4;
+      break;
+    case CharacterKind::kWCharT:
+      alignment_ = size_ = 4;
+      break;
+    default:
+      throw std::runtime_error(
+          fmt::format("invalid character type: {}", __PRETTY_FUNCTION__));
+  }  // switch
 }
 
 void MemoryLayout::visit(const IntegerType* type) {
@@ -104,81 +107,92 @@ void MemoryLayout::visit(const IntegerType* type) {
   }  // switch
 }
 
-void MemoryLayout::visit(const FloatingPointType*) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+void MemoryLayout::visit(const FloatingPointType* ty) {
+  switch (ty->kind()) {
+    case FloatingPointKind::kFloat:
+      size_ = alignment_ = 4;
+      break;
+    case FloatingPointKind::kFloat128:
+      size_ = alignment_ = 16;
+      break;
+    case FloatingPointKind::kDouble:
+      size_ = alignment_ = 8;
+      break;
+    case FloatingPointKind::kLongDouble:
+      size_ = alignment_ = 16;
+      break;
+    default:
+      throw std::runtime_error("unrecognized integer kind");
+  }
 }
 
-void MemoryLayout::visit(const EnumType*) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
-}
+void MemoryLayout::visit(const EnumType*) { size_ = alignment_ = 4; }
 
-void MemoryLayout::visit(const ScopedEnumType*) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
-}
+void MemoryLayout::visit(const ScopedEnumType*) {}
 
 void MemoryLayout::visit(const PointerType*) { size_ = alignment_ = 8; }
 
-void MemoryLayout::MemoryLayout::visit(const PointerToMemberType*) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
-}
+void MemoryLayout::MemoryLayout::visit(const PointerToMemberType*) {}
 
-void MemoryLayout::MemoryLayout::visit(const ReferenceType*) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
-}
+void MemoryLayout::MemoryLayout::visit(const ReferenceType*) {}
 
-void MemoryLayout::visit(const RValueReferenceType*) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
-}
-
+void MemoryLayout::visit(const RValueReferenceType*) {}
 void MemoryLayout::visit(const ArrayType* type) {
-  auto [arrayElementSize, arrayElementAlignment] = operator()(
-      type->elementType());
+  auto element = operator()(type->elementType());
+
+  if (!element) return;
+
+  auto [arrayElementSize, arrayElementAlignment] = *element;
+
   size_ = AlignTo(size_, arrayElementAlignment) +
           type->dimension() * arrayElementSize;
+
   alignment_ = arrayElementAlignment;
 }
 
-void MemoryLayout::visit(const UnboundArrayType*) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
-}
+void MemoryLayout::visit(const UnboundArrayType*) {}
 
-void MemoryLayout::visit(const FunctionType*) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
-}
+void MemoryLayout::visit(const FunctionType*) {}
 
-void MemoryLayout::visit(const MemberFunctionType*) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
-}
+void MemoryLayout::visit(const MemberFunctionType*) {}
 
-void MemoryLayout::visit(const NamespaceType*) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
-}
+void MemoryLayout::visit(const NamespaceType*) {}
 
 void MemoryLayout::visit(const ClassType* type) {
   auto symbol = type->symbol();
+
+  std::size_t size = 0;
+  std::size_t alignment = 0;
+
   for (auto member : *symbol->scope()) {
     auto field = dynamic_cast<FieldSymbol*>(member);
     if (!field) continue;
-    auto [memberSize, memberAlignment] = operator()(member->type());
-    size_ = AlignTo(size_, memberAlignment) + memberSize;
-    alignment_ = std::max(alignment_, memberAlignment);
+
+    auto layout = operator()(member->type());
+
+    if (!layout) {
+      // cannot compute the type of this class.
+      return;
+    }
+
+    auto [memberSize, memberAlignment] = *layout;
+
+    size = AlignTo(size, memberAlignment) + memberSize;
+    alignment = std::max(alignment, memberAlignment);
   }
-  if (size_)
-    size_ = AlignTo(size_, alignment_);
-  else
+
+  if (size) {
+    alignment_ = alignment;
+    size_ = AlignTo(size, alignment_);
+  } else {
     size_ = alignment_ = 1;
+  }
 }
 
-void MemoryLayout::visit(const TemplateType*) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
-}
+void MemoryLayout::visit(const TemplateType*) {}
 
-void MemoryLayout::visit(const TemplateArgumentType*) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
-}
+void MemoryLayout::visit(const TemplateArgumentType*) {}
 
-void MemoryLayout::visit(const ConceptType*) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
-}
+void MemoryLayout::visit(const ConceptType*) {}
 
 }  // namespace cxx

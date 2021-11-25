@@ -89,6 +89,7 @@ class Semantics final : ASTVisitor {
 
   struct ExpressionSem {
     QualifiedType type;
+    std::optional<ConstValue> constValue;
   };
 
   struct NameSem {

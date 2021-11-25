@@ -21,6 +21,7 @@
 #include <cxx/type_visitor.h>
 #include <cxx/types.h>
 
+#include <optional>
 #include <stdexcept>
 
 namespace cxx {
@@ -31,10 +32,10 @@ constexpr std::uint64_t AlignTo(std::uint64_t n, std::uint64_t align) {
 
 class MemoryLayout final : TypeVisitor {
  public:
-  static std::tuple<std::uint64_t, std::uint64_t> ofType(
+  static std::optional<std::tuple<std::uint64_t, std::uint64_t>> ofType(
       const QualifiedType& type);
 
-  std::tuple<std::uint64_t, std::uint64_t> operator()(
+  std::optional<std::tuple<std::uint64_t, std::uint64_t>> operator()(
       const QualifiedType& type);
 
  private:

@@ -21,6 +21,7 @@
 #include <cxx/ast.h>
 #include <cxx/control.h>
 #include <cxx/literals.h>
+#include <cxx/memory_layout.h>
 #include <cxx/names.h>
 #include <cxx/scope.h>
 #include <cxx/semantics.h>
@@ -108,6 +109,7 @@ void Semantics::expression(ExpressionAST* ast, ExpressionSem* expression) {
   if (!ast) return;
   if (ast->type) {
     expression->type = ast->type;
+    expression->constValue = ast->constValue;
     return;
   }
   expression->type = QualifiedType(types_->errorType());
@@ -115,6 +117,7 @@ void Semantics::expression(ExpressionAST* ast, ExpressionSem* expression) {
   accept(ast);
   std::swap(expression_, expression);
   ast->type = expression->type;
+  expression->constValue = ast->constValue;
 }
 
 void Semantics::ptrOperator(PtrOperatorAST* ast) { accept(ast); }
@@ -572,13 +575,34 @@ void Semantics::visit(LambdaExpressionAST* ast) {
 void Semantics::visit(SizeofExpressionAST* ast) {
   ExpressionSem expression;
   this->expression(ast->expression, &expression);
+
+  const auto typeLayout = MemoryLayout::ofType(expression.type);
+
+  if (!typeLayout) return;
+
+  const auto [size, align] = *typeLayout;
+
+  ast->constValue = std::uint64_t(size);
+
+  expression_->type =
+      QualifiedType{types_->integerType(IntegerKind::kLongLong, true)};
 }
 
 void Semantics::visit(SizeofTypeExpressionAST* ast) {
+  if (!ast->typeId) return;
+
   typeId(ast->typeId);
 
+  const auto typeLayout = MemoryLayout::ofType(ast->typeId->type);
+
+  if (!typeLayout) return;
+
+  const auto [size, align] = *typeLayout;
+
+  ast->constValue = std::uint64_t(size);
+
   expression_->type =
-      QualifiedType{types_->integerType(IntegerKind::kLong, false)};
+      QualifiedType{types_->integerType(IntegerKind::kLongLong, false)};
 }
 
 void Semantics::visit(SizeofPackExpressionAST* ast) {}
@@ -590,7 +614,22 @@ void Semantics::visit(TypeidExpressionAST* ast) {
 
 void Semantics::visit(TypeidOfTypeExpressionAST* ast) { typeId(ast->typeId); }
 
-void Semantics::visit(AlignofExpressionAST* ast) { typeId(ast->typeId); }
+void Semantics::visit(AlignofExpressionAST* ast) {
+  if (!ast->typeId) return;
+
+  typeId(ast->typeId);
+
+  auto typeLayout = MemoryLayout::ofType(ast->typeId->type);
+
+  if (!typeLayout) return;
+
+  const auto [size, align] = *typeLayout;
+
+  ast->constValue = std::uint64_t(align);
+
+  expression_->type =
+      QualifiedType{types_->integerType(IntegerKind::kLongLong, true)};
+}
 
 void Semantics::visit(IsSameAsExpressionAST* ast) {
   typeId(ast->typeId);
@@ -629,6 +668,29 @@ void Semantics::visit(BinaryExpressionAST* ast) {
   if (ast->op == TokenKind::T_BAR_BAR || ast->op == TokenKind::T_AMP_AMP) {
     expression_->type = QualifiedType{types_->booleanType()};
     return;
+  }
+
+  if (leftExpression.constValue && rightExpression.constValue) {
+    const auto lhs =
+        const_value_cast<std::uint64_t>(*leftExpression.constValue);
+
+    const auto rhs =
+        const_value_cast<std::uint64_t>(*rightExpression.constValue);
+
+    switch (ast->op) {
+      case TokenKind::T_EQUAL_EQUAL:
+        ast->constValue = std::uint64_t(lhs == rhs);
+        expression_->type = QualifiedType{types_->booleanType()};
+        return;
+
+      case TokenKind::T_EXCLAIM_EQUAL:
+        ast->constValue = std::uint64_t(lhs != rhs);
+        expression_->type = QualifiedType{types_->booleanType()};
+        return;
+
+      default:
+        break;
+    }
   }
 
   if (ast->op == TokenKind::T_PLUS) {
@@ -1286,7 +1348,7 @@ void Semantics::visit(FloatingPointTypeSpecifierAST* ast) {
 
     case TokenKind::T___FLOAT128:
       specifiers_->type.setType(
-          types_->floatingPointType(FloatingPointKind::kFloat));
+          types_->floatingPointType(FloatingPointKind::kFloat128));
       break;
 
     default:
@@ -1335,6 +1397,7 @@ void Semantics::visit(DecltypeSpecifierAST* ast) {
 void Semantics::visit(TypeofSpecifierAST* ast) {
   ExpressionSem expression;
   this->expression(ast->expression, &expression);
+  specifiers_->type.mergeWith(expression.type);
 }
 
 void Semantics::visit(PlaceholderTypeSpecifierAST* ast) {}
