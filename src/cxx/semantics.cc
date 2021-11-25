@@ -497,6 +497,7 @@ void Semantics::visit(CharLiteralExpressionAST* ast) {
 void Semantics::visit(BoolLiteralExpressionAST* ast) {
   const auto value = ast->literal == TokenKind::T_TRUE;
   ast->constValue = std::uint64_t(value);
+  expression_->type = QualifiedType{types_->booleanType()};
 }
 
 void Semantics::visit(IntLiteralExpressionAST* ast) {
@@ -762,6 +763,7 @@ void Semantics::visit(MemberExpressionAST* ast) {
 void Semantics::visit(PostIncrExpressionAST* ast) {
   ExpressionSem baseExpression;
   this->expression(ast->baseExpression, &baseExpression);
+  expression_->type = baseExpression.type;
 }
 
 void Semantics::visit(ConditionalExpressionAST* ast) {
@@ -771,6 +773,7 @@ void Semantics::visit(ConditionalExpressionAST* ast) {
   this->expression(ast->iftrueExpression, &iftrueExpression);
   ExpressionSem iffalseExpression;
   this->expression(ast->iffalseExpression, &iffalseExpression);
+  expression_->type = commonType(ast->iftrueExpression, ast->iffalseExpression);
 }
 
 void Semantics::visit(ImplicitCastExpressionAST* ast) {
@@ -1481,6 +1484,9 @@ void Semantics::visit(ArrayDeclaratorAST* ast) {
 }
 
 QualifiedType Semantics::commonType(ExpressionAST* ast, ExpressionAST* other) {
+  if (!ast || !other) return QualifiedType();
+  // identity
+  if (ast->type == other->type) return ast->type;
   return QualifiedType();
 }
 
