@@ -62,3 +62,7 @@ static_assert(sizeof(s) == sizeof(S));
 enum E { none };
 
 static_assert(sizeof(E) == 4);
+
+static_assert(sizeof(nullptr) == 8);
+
+static_assert(sizeof(decltype(nullptr)) == 8);

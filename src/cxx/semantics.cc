@@ -517,7 +517,10 @@ void Semantics::visit(FloatLiteralExpressionAST* ast) {
   ast->constValue = ast->literal->floatValue();
 }
 
-void Semantics::visit(NullptrLiteralExpressionAST* ast) {}
+void Semantics::visit(NullptrLiteralExpressionAST* ast) {
+  expression_->type = QualifiedType{types_->nullptrType()};
+  ast->constValue = std::uint64_t(0);
+}
 
 void Semantics::visit(StringLiteralExpressionAST* ast) {
   QualifiedType charTy{types_->integerType(IntegerKind::kChar, false)};

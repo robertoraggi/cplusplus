@@ -61,7 +61,7 @@ void MemoryLayout::visit(const DecltypeAutoType*) {}
 
 void MemoryLayout::visit(const VoidType*) {}
 
-void MemoryLayout::visit(const NullptrType*) {}
+void MemoryLayout::visit(const NullptrType*) { alignment_ = size_ = 8; }
 
 void MemoryLayout::visit(const BooleanType*) { alignment_ = size_ = 1; }
 
