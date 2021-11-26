@@ -63,7 +63,7 @@ void MemoryLayout::visit(const VoidType*) {}
 
 void MemoryLayout::visit(const NullptrType*) {}
 
-void MemoryLayout::visit(const BooleanType*) {}
+void MemoryLayout::visit(const BooleanType*) { alignment_ = size_ = 1; }
 
 void MemoryLayout::visit(const CharacterType* ty) {
   switch (ty->kind()) {

@@ -1,5 +1,8 @@
 // RUN: %cxx -verify -fsyntax-only %s -o -
 
+static_assert(sizeof(bool) == 1);
+static_assert(alignof(bool) == 1);
+
 static_assert(sizeof(char) == 1);
 static_assert(sizeof(char signed) == 1);
 static_assert(sizeof(char unsigned) == 1);
