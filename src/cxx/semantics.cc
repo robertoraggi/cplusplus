@@ -635,6 +635,8 @@ void Semantics::visit(AlignofExpressionAST* ast) {
 }
 
 void Semantics::visit(TypeTraitsExpressionAST* ast) {
+  expression_->type = QualifiedType{types_->booleanType()};
+
   for (auto it = ast->typeIdList; it; it = it->next) {
     typeId(it->value);
   }
@@ -642,6 +644,12 @@ void Semantics::visit(TypeTraitsExpressionAST* ast) {
   if (!ast->typeIdList) return;
 
   switch (ast->typeTraits) {
+    case TokenKind::T___IS_VOID: {
+      ast->constValue =
+          std::uint64_t(Type::is<VoidType>(ast->typeIdList->value->type));
+      break;
+    }
+
     case TokenKind::T___IS_SAME: {
       if (!ast->typeIdList->next) return;
 
@@ -650,6 +658,7 @@ void Semantics::visit(TypeTraitsExpressionAST* ast) {
 
       const auto isSame = typeId->type == otherTypeId->type;
       ast->constValue = std::uint64_t(isSame);
+      break;
     }
 
     default:
