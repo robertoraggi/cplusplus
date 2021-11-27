@@ -106,6 +106,8 @@ static_assert(__is_unsigned(long));   // expected-error{{static_assert failed}}
 static_assert(
     __is_unsigned(long long));  // expected-error{{static_assert failed}}
 
+// __is_enum and __is_scoped_enum
+
 enum ee {};
 
 static_assert(__is_enum(ee));
@@ -115,3 +117,25 @@ enum class sc {};
 static_assert(__is_enum(sc));
 
 static_assert(__is_scoped_enum(sc));
+
+// __is_class and __is_union
+
+struct F;
+struct S {};
+class C {};
+
+union V;
+union U {};
+
+static_assert(__is_class(F) == true);
+static_assert(__is_class(S) == true);
+static_assert(__is_class(C) == true);
+static_assert(__is_class(V) == false);
+static_assert(__is_class(U) == false);
+
+static_assert(__is_union(S) == false);
+static_assert(__is_union(C) == false);
+static_assert(__is_union(U) == true);
+static_assert(__is_union(V) == true);
+
+static_assert(__is_class(void) == false);

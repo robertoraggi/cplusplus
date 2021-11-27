@@ -689,6 +689,22 @@ void Semantics::visit(TypeTraitsExpressionAST* ast) {
       break;
     }
 
+    case TokenKind::T___IS_CLASS: {
+      auto ty = ast->typeIdList->value->type;
+      auto classTy = Type::cast<ClassType>(ty);
+      ast->constValue = std::uint64_t(
+          classTy && classTy->symbol()->classKey() != ClassKey::kUnion);
+      break;
+    }
+
+    case TokenKind::T___IS_UNION: {
+      auto ty = ast->typeIdList->value->type;
+      auto classTy = Type::cast<ClassType>(ty);
+      ast->constValue = std::uint64_t(
+          classTy && classTy->symbol()->classKey() == ClassKey::kUnion);
+      break;
+    }
+
     case TokenKind::T___IS_POINTER: {
       ast->constValue =
           std::uint64_t(Type::is<PointerType>(ast->typeIdList->value->type));
