@@ -688,6 +688,22 @@ void Semantics::visit(TypeTraitsExpressionAST* ast) {
       break;
     }
 
+    case TokenKind::T___IS_SIGNED: {
+      if (auto intTy = Type::cast<IntegerType>(ast->typeIdList->value->type)) {
+        const auto isSigned = !intTy->isUnsigned();
+        ast->constValue = std::uint64_t(isSigned);
+      }
+      break;
+    }
+
+    case TokenKind::T___IS_UNSIGNED: {
+      if (auto intTy = Type::cast<IntegerType>(ast->typeIdList->value->type)) {
+        const auto isUnsigned = intTy->isUnsigned();
+        ast->constValue = std::uint64_t(isUnsigned);
+      }
+      break;
+    }
+
     case TokenKind::T___IS_SAME: {
       if (!ast->typeIdList->next) return;
 

@@ -66,3 +66,42 @@ static_assert(__is_null_pointer(
 using nullptr_t = decltype(nullptr);
 
 static_assert(__is_null_pointer(nullptr_t));
+
+// __is_signed
+
+static_assert(__is_signed(char));
+static_assert(__is_signed(short));
+static_assert(__is_signed(int));
+static_assert(__is_signed(long));
+static_assert(__is_signed(long long));
+
+static_assert(
+    __is_signed(unsigned char));  // expected-error{{static_assert failed}}
+
+static_assert(
+    __is_signed(unsigned short));  // expected-error{{static_assert failed}}
+
+static_assert(
+    __is_signed(unsigned int));  // expected-error{{static_assert failed}}
+
+static_assert(
+    __is_signed(unsigned long));  // expected-error{{static_assert failed}}
+
+static_assert(
+    __is_signed(unsigned long long));  // expected-error{{static_assert failed}}
+
+// __is_unsigned
+
+static_assert(__is_unsigned(unsigned char));
+static_assert(__is_unsigned(unsigned short));
+static_assert(__is_unsigned(unsigned int));
+static_assert(__is_unsigned(unsigned long));
+static_assert(__is_unsigned(unsigned long long));
+
+static_assert(__is_unsigned(char));   // expected-error{{static_assert failed}}
+static_assert(__is_unsigned(short));  // expected-error{{static_assert failed}}
+static_assert(__is_unsigned(int));    // expected-error{{static_assert failed}}
+static_assert(__is_unsigned(long));   // expected-error{{static_assert failed}}
+
+static_assert(
+    __is_unsigned(long long));  // expected-error{{static_assert failed}}
