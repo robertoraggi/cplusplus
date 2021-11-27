@@ -1246,11 +1246,29 @@ export class AlignofExpressionAST extends ExpressionAST {
     }
 }
 
-export class IsSameAsExpressionAST extends ExpressionAST {
+export class UnaryTypeTraitsExpressionAST extends ExpressionAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitIsSameAsExpression(this, context);
+        return visitor.visitUnaryTypeTraitsExpression(this, context);
     }
-    getIsSameAsToken(): Token | undefined {
+    getTypeTraitsToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getLparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getTypeId(): TypeIdAST | undefined {
+        return AST.from<TypeIdAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getRparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+}
+
+export class BinaryTypeTraitsExpressionAST extends ExpressionAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitBinaryTypeTraitsExpression(this, context);
+    }
+    getTypeTraitsToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
     }
     getLparenToken(): Token | undefined {
@@ -3163,7 +3181,8 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     TypeidExpressionAST,
     TypeidOfTypeExpressionAST,
     AlignofExpressionAST,
-    IsSameAsExpressionAST,
+    UnaryTypeTraitsExpressionAST,
+    BinaryTypeTraitsExpressionAST,
     UnaryExpressionAST,
     BinaryExpressionAST,
     AssignmentExpressionAST,

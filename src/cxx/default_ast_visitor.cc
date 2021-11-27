@@ -342,8 +342,14 @@ void DefaultASTVisitor::visit(AlignofExpressionAST* ast) {
   throw std::runtime_error("visit(AlignofExpressionAST): not implemented");
 }
 
-void DefaultASTVisitor::visit(IsSameAsExpressionAST* ast) {
-  throw std::runtime_error("visit(IsSameAsExpressionAST): not implemented");
+void DefaultASTVisitor::visit(UnaryTypeTraitsExpressionAST* ast) {
+  throw std::runtime_error(
+      "visit(UnaryTypeTraitsExpressionAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(BinaryTypeTraitsExpressionAST* ast) {
+  throw std::runtime_error(
+      "visit(BinaryTypeTraitsExpressionAST): not implemented");
 }
 
 void DefaultASTVisitor::visit(UnaryExpressionAST* ast) {

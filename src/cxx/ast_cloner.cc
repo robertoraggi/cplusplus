@@ -1232,8 +1232,8 @@ void ASTCloner::visit(AlignofExpressionAST* ast) {
   copy->rparenLoc = ast->rparenLoc;
 }
 
-void ASTCloner::visit(IsSameAsExpressionAST* ast) {
-  auto copy = new (arena_) IsSameAsExpressionAST();
+void ASTCloner::visit(UnaryTypeTraitsExpressionAST* ast) {
+  auto copy = new (arena_) UnaryTypeTraitsExpressionAST();
   copy_ = copy;
 
   copy->type = ast->type;
@@ -1242,7 +1242,28 @@ void ASTCloner::visit(IsSameAsExpressionAST* ast) {
 
   copy->constValue = ast->constValue;
 
-  copy->isSameAsLoc = ast->isSameAsLoc;
+  copy->typeTraitsLoc = ast->typeTraitsLoc;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->typeId = accept(ast->typeId);
+
+  copy->rparenLoc = ast->rparenLoc;
+
+  copy->typeTraits = ast->typeTraits;
+}
+
+void ASTCloner::visit(BinaryTypeTraitsExpressionAST* ast) {
+  auto copy = new (arena_) BinaryTypeTraitsExpressionAST();
+  copy_ = copy;
+
+  copy->type = ast->type;
+
+  copy->valueCategory = ast->valueCategory;
+
+  copy->constValue = ast->constValue;
+
+  copy->typeTraitsLoc = ast->typeTraitsLoc;
 
   copy->lparenLoc = ast->lparenLoc;
 
@@ -1253,6 +1274,8 @@ void ASTCloner::visit(IsSameAsExpressionAST* ast) {
   copy->otherTypeId = accept(ast->otherTypeId);
 
   copy->rparenLoc = ast->rparenLoc;
+
+  copy->typeTraits = ast->typeTraits;
 }
 
 void ASTCloner::visit(UnaryExpressionAST* ast) {

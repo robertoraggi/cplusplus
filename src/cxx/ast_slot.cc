@@ -1439,10 +1439,33 @@ void ASTSlot::visit(AlignofExpressionAST* ast) {
   slotCount_ = 4;
 }
 
-void ASTSlot::visit(IsSameAsExpressionAST* ast) {
+void ASTSlot::visit(UnaryTypeTraitsExpressionAST* ast) {
   switch (slot_) {
     case 0:
-      value_ = ast->isSameAsLoc.index();
+      value_ = ast->typeTraitsLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:
+      value_ = ast->lparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->typeId);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 3:
+      value_ = ast->rparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
+
+  slotCount_ = 4;
+}
+
+void ASTSlot::visit(BinaryTypeTraitsExpressionAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->typeTraitsLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       break;
     case 1:

@@ -282,7 +282,13 @@ void ExpressionCodegen::visit(AlignofExpressionAST* ast) {
   expr_ = cg->createIntegerLiteral(value);
 }
 
-void ExpressionCodegen::visit(IsSameAsExpressionAST* ast) {
+void ExpressionCodegen::visit(UnaryTypeTraitsExpressionAST* ast) {
+  if (!ast->constValue) return;
+  expr_ = cg->createIntegerLiteral(std::get<std::uint64_t>(*ast->constValue));
+}
+
+void ExpressionCodegen::visit(BinaryTypeTraitsExpressionAST* ast) {
+  if (!ast->constValue) return;
   expr_ = cg->createIntegerLiteral(std::get<std::uint64_t>(*ast->constValue));
 }
 

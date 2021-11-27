@@ -1259,16 +1259,35 @@ class AlignofExpressionAST final : public ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-class IsSameAsExpressionAST final : public ExpressionAST {
+class UnaryTypeTraitsExpressionAST final : public ExpressionAST {
  public:
-  IsSameAsExpressionAST() : ExpressionAST(ASTKind::IsSameAsExpression) {}
+  UnaryTypeTraitsExpressionAST()
+      : ExpressionAST(ASTKind::UnaryTypeTraitsExpression) {}
 
-  SourceLocation isSameAsLoc;
+  SourceLocation typeTraitsLoc;
+  SourceLocation lparenLoc;
+  TypeIdAST* typeId = nullptr;
+  SourceLocation rparenLoc;
+  TokenKind typeTraits = TokenKind::T_EOF_SYMBOL;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  SourceLocation firstSourceLocation() override;
+  SourceLocation lastSourceLocation() override;
+};
+
+class BinaryTypeTraitsExpressionAST final : public ExpressionAST {
+ public:
+  BinaryTypeTraitsExpressionAST()
+      : ExpressionAST(ASTKind::BinaryTypeTraitsExpression) {}
+
+  SourceLocation typeTraitsLoc;
   SourceLocation lparenLoc;
   TypeIdAST* typeId = nullptr;
   SourceLocation commaLoc;
   TypeIdAST* otherTypeId = nullptr;
   SourceLocation rparenLoc;
+  TokenKind typeTraits = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

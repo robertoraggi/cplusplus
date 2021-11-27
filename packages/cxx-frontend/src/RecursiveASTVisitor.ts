@@ -407,7 +407,11 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         this.accept(node.getTypeId(), context);
     }
 
-    visitIsSameAsExpression(node: ast.IsSameAsExpressionAST, context: Context): void {
+    visitUnaryTypeTraitsExpression(node: ast.UnaryTypeTraitsExpressionAST, context: Context): void {
+        this.accept(node.getTypeId(), context);
+    }
+
+    visitBinaryTypeTraitsExpression(node: ast.BinaryTypeTraitsExpressionAST, context: Context): void {
         this.accept(node.getTypeId(), context);
         this.accept(node.getOtherTypeId(), context);
     }

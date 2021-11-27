@@ -1855,34 +1855,24 @@ bool Parser::parse_builtin_call_expression(ExpressionAST*& yyast) {
     return true;
   }
 
-  SourceLocation loc;
+  SourceLocation typeTraitsLoc;
 
-  if (match(TokenKind::T___IS_SAME_AS, loc)) {
-    auto ast = new (pool) IsSameAsExpressionAST();
+  if (match(TokenKind::T___IS_SAME_AS, typeTraitsLoc)) {
+    auto ast = new (pool) BinaryTypeTraitsExpressionAST();
     yyast = ast;
 
-    ast->isSameAsLoc = loc;
+    ast->typeTraitsLoc = typeTraitsLoc;
+    ast->typeTraits = unit->tokenKind(typeTraitsLoc);
 
     expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
     if (!parse_type_id(ast->typeId)) parse_error("expected a type id");
 
-    sem->typeId(ast->typeId);
-
     expect(TokenKind::T_COMMA, ast->lparenLoc);
 
     if (!parse_type_id(ast->otherTypeId)) parse_error("expected a type id");
 
-    sem->typeId(ast->otherTypeId);
-
     expect(TokenKind::T_RPAREN, ast->rparenLoc);
-
-    if (ast->typeId && ast->otherTypeId) {
-      const auto isSame = ast->typeId->type == ast->otherTypeId->type;
-      ast->constValue = std::uint64_t(isSame);
-    } else {
-      ast->constValue = std::uint64_t(0);
-    }
 
     return true;
   }

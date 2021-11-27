@@ -518,7 +518,11 @@ void RecursiveASTVisitor::visit(AlignofExpressionAST* ast) {
   acceptTypeId(ast->typeId);
 }
 
-void RecursiveASTVisitor::visit(IsSameAsExpressionAST* ast) {
+void RecursiveASTVisitor::visit(UnaryTypeTraitsExpressionAST* ast) {
+  acceptTypeId(ast->typeId);
+}
+
+void RecursiveASTVisitor::visit(BinaryTypeTraitsExpressionAST* ast) {
   acceptTypeId(ast->typeId);
   acceptTypeId(ast->otherTypeId);
 }

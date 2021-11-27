@@ -634,9 +634,26 @@ void Semantics::visit(AlignofExpressionAST* ast) {
       QualifiedType{types_->integerType(IntegerKind::kLongLong, true)};
 }
 
-void Semantics::visit(IsSameAsExpressionAST* ast) {
+void Semantics::visit(UnaryTypeTraitsExpressionAST* ast) {
+  typeId(ast->typeId);
+}
+
+void Semantics::visit(BinaryTypeTraitsExpressionAST* ast) {
   typeId(ast->typeId);
   typeId(ast->otherTypeId);
+
+  if (!ast->typeId || !ast->otherTypeId) return;
+
+  switch (ast->typeTraits) {
+    case TokenKind::T___IS_SAME_AS: {
+      const auto isSame = ast->typeId->type == ast->otherTypeId->type;
+
+      ast->constValue = std::uint64_t(isSame);
+    }
+
+    default:
+      break;
+  }  // switch
 }
 
 void Semantics::visit(UnaryExpressionAST* ast) {

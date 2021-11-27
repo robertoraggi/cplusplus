@@ -1454,10 +1454,29 @@ void ASTPrinter::visit(AlignofExpressionAST* ast) {
   }
 }
 
-void ASTPrinter::visit(IsSameAsExpressionAST* ast) {
+void ASTPrinter::visit(UnaryTypeTraitsExpressionAST* ast) {
   json_ = nlohmann::json::array();
 
-  json_.push_back("ast:IsSameAsExpression");
+  json_.push_back("ast:UnaryTypeTraitsExpression");
+
+  if (ast->typeId) {
+    if (auto childNode = accept(ast->typeId); !childNode.is_null()) {
+      json_.push_back(
+          std::vector<nlohmann::json>{"attr:typeId", std::move(childNode)});
+    }
+  }
+
+  if (ast->typeTraits != TokenKind::T_EOF_SYMBOL) {
+    json_.push_back(std::vector<nlohmann::json>{
+        "attr:typeTraits",
+        std::vector<nlohmann::json>{"token", Token::spell(ast->typeTraits)}});
+  }
+}
+
+void ASTPrinter::visit(BinaryTypeTraitsExpressionAST* ast) {
+  json_ = nlohmann::json::array();
+
+  json_.push_back("ast:BinaryTypeTraitsExpression");
 
   if (ast->typeId) {
     if (auto childNode = accept(ast->typeId); !childNode.is_null()) {
@@ -1471,6 +1490,12 @@ void ASTPrinter::visit(IsSameAsExpressionAST* ast) {
       json_.push_back(std::vector<nlohmann::json>{"attr:otherTypeId",
                                                   std::move(childNode)});
     }
+  }
+
+  if (ast->typeTraits != TokenKind::T_EOF_SYMBOL) {
+    json_.push_back(std::vector<nlohmann::json>{
+        "attr:typeTraits",
+        std::vector<nlohmann::json>{"token", Token::spell(ast->typeTraits)}});
   }
 }
 
