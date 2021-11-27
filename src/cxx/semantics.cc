@@ -644,6 +644,32 @@ void Semantics::visit(TypeTraitsExpressionAST* ast) {
   if (!ast->typeIdList) return;
 
   switch (ast->typeTraits) {
+    case TokenKind::T___IS_CONST: {
+      const auto ty = ast->typeIdList->value->type;
+      bool isConst = false;
+      if (ty.isConst())
+        isConst = true;
+      else if (auto ptrTy = Type::cast<PointerType>(ty)) {
+        if ((ptrTy->qualifiers() & Qualifiers::kConst) != Qualifiers::kNone)
+          isConst = true;
+      }
+      ast->constValue = std::uint64_t(isConst);
+      break;
+    }
+
+    case TokenKind::T___IS_VOLATILE: {
+      const auto ty = ast->typeIdList->value->type;
+      bool isVolatile = false;
+      if (ty.isVolatile())
+        isVolatile = true;
+      else if (auto ptrTy = Type::cast<PointerType>(ty)) {
+        if ((ptrTy->qualifiers() & Qualifiers::kVolatile) != Qualifiers::kNone)
+          isVolatile = true;
+      }
+      ast->constValue = std::uint64_t(isVolatile);
+      break;
+    }
+
     case TokenKind::T___IS_VOID: {
       ast->constValue =
           std::uint64_t(Type::is<VoidType>(ast->typeIdList->value->type));
