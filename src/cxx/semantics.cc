@@ -676,6 +676,19 @@ void Semantics::visit(TypeTraitsExpressionAST* ast) {
       break;
     }
 
+    case TokenKind::T___IS_ENUM: {
+      auto ty = ast->typeIdList->value->type;
+      ast->constValue =
+          std::uint64_t(Type::is<EnumType>(ty) || Type::is<ScopedEnumType>(ty));
+      break;
+    }
+
+    case TokenKind::T___IS_SCOPED_ENUM: {
+      auto ty = ast->typeIdList->value->type;
+      ast->constValue = std::uint64_t(Type::is<ScopedEnumType>(ty));
+      break;
+    }
+
     case TokenKind::T___IS_POINTER: {
       ast->constValue =
           std::uint64_t(Type::is<PointerType>(ast->typeIdList->value->type));

@@ -105,3 +105,13 @@ static_assert(__is_unsigned(long));   // expected-error{{static_assert failed}}
 
 static_assert(
     __is_unsigned(long long));  // expected-error{{static_assert failed}}
+
+enum ee {};
+
+static_assert(__is_enum(ee));
+
+enum class sc {};
+
+static_assert(__is_enum(sc));
+
+static_assert(__is_scoped_enum(sc));
