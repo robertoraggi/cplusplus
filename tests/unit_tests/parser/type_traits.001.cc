@@ -53,3 +53,16 @@ static_assert(__is_const(decltype(vv)));
 int* volatile pv = nullptr;
 
 static_assert(__is_volatile(decltype(pv)));
+
+// __is_null_pointer
+
+static_assert(__is_null_pointer(decltype(nullptr)));
+
+void* ptr = nullptr;
+
+static_assert(__is_null_pointer(
+    decltype(ptr)));  // expected-error@-1{{static_assert failed}}
+
+using nullptr_t = decltype(nullptr);
+
+static_assert(__is_null_pointer(nullptr_t));

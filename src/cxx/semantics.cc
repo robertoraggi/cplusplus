@@ -682,6 +682,12 @@ void Semantics::visit(TypeTraitsExpressionAST* ast) {
       break;
     }
 
+    case TokenKind::T___IS_NULL_POINTER: {
+      ast->constValue =
+          std::uint64_t(Type::is<NullptrType>(ast->typeIdList->value->type));
+      break;
+    }
+
     case TokenKind::T___IS_SAME: {
       if (!ast->typeIdList->next) return;
 
