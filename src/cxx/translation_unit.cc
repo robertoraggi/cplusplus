@@ -102,4 +102,20 @@ bool TranslationUnit::parse(bool checkTypes) {
   return parse(ast_);
 }
 
+void TranslationUnit::replaceWithIdentifier(SourceLocation keywordLoc) {
+  const auto kind = tokenKind(keywordLoc);
+
+  TokenValue value;
+  value.idValue = control_->identifier(Token::spell(kind));
+
+  for (size_t i = keywordLoc.index(); i < tokens_.size(); ++i) {
+    auto& tk = tokens_[i];
+
+    if (tk.is(kind)) {
+      tk.setKind(TokenKind::T_IDENTIFIER);
+      tk.setValue(value);
+    }
+  }
+}
+
 }  // namespace cxx

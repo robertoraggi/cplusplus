@@ -518,13 +518,8 @@ void RecursiveASTVisitor::visit(AlignofExpressionAST* ast) {
   acceptTypeId(ast->typeId);
 }
 
-void RecursiveASTVisitor::visit(UnaryTypeTraitsExpressionAST* ast) {
-  acceptTypeId(ast->typeId);
-}
-
-void RecursiveASTVisitor::visit(BinaryTypeTraitsExpressionAST* ast) {
-  acceptTypeId(ast->typeId);
-  acceptTypeId(ast->otherTypeId);
+void RecursiveASTVisitor::visit(TypeTraitsExpressionAST* ast) {
+  for (auto it = ast->typeIdList; it; it = it->next) acceptTypeId(it->value);
 }
 
 void RecursiveASTVisitor::visit(UnaryExpressionAST* ast) {
@@ -925,10 +920,6 @@ void RecursiveASTVisitor::visit(ElaboratedTypeSpecifierAST* ast) {
 void RecursiveASTVisitor::visit(DecltypeAutoSpecifierAST* ast) {}
 
 void RecursiveASTVisitor::visit(DecltypeSpecifierAST* ast) {
-  acceptExpression(ast->expression);
-}
-
-void RecursiveASTVisitor::visit(TypeofSpecifierAST* ast) {
   acceptExpression(ast->expression);
 }
 

@@ -1797,101 +1797,130 @@ bool Parser::parse_typename_expression(ExpressionAST*& yyast) {
   return true;
 }
 
-bool Parser::parse_builtin_function_1() {
+bool Parser::parse_type_traits_op(SourceLocation& loc) {
   switch (TokenKind(LA())) {
     case TokenKind::T___HAS_UNIQUE_OBJECT_REPRESENTATIONS:
     case TokenKind::T___HAS_VIRTUAL_DESTRUCTOR:
     case TokenKind::T___IS_ABSTRACT:
     case TokenKind::T___IS_AGGREGATE:
+    case TokenKind::T___IS_ARITHMETIC:
+    case TokenKind::T___IS_ARRAY:
+    case TokenKind::T___IS_ASSIGNABLE:
+    case TokenKind::T___IS_BASE_OF:
+    case TokenKind::T___IS_BOUNDED_ARRAY:
     case TokenKind::T___IS_CLASS:
+    case TokenKind::T___IS_COMPOUND:
+    case TokenKind::T___IS_CONST:
+    case TokenKind::T___IS_CONSTRUCTIBLE:
+    case TokenKind::T___IS_CONVERTIBLE:
+    case TokenKind::T___IS_COPY_ASSIGNABLE:
+    case TokenKind::T___IS_COPY_CONSTRUCTIBLE:
+    case TokenKind::T___IS_DEFAULT_CONSTRUCTIBLE:
+    case TokenKind::T___IS_DESTRUCTIBLE:
     case TokenKind::T___IS_EMPTY:
     case TokenKind::T___IS_ENUM:
     case TokenKind::T___IS_FINAL:
+    case TokenKind::T___IS_FLOATING_POINT:
     case TokenKind::T___IS_FUNCTION:
-    case TokenKind::T___IS_POD:
-    case TokenKind::T___IS_POLYMORPHIC:
-    case TokenKind::T___IS_STANDARD_LAYOUT:
-    case TokenKind::T___IS_TRIVIAL:
-    case TokenKind::T___IS_TRIVIALLY_COPYABLE:
-    case TokenKind::T___IS_TRIVIALLY_DESTRUCTIBLE:
-    case TokenKind::T___IS_UNION:
-      consumeToken();
-      return true;
-
-    default:
-      return false;
-  }  // switch
-}
-
-bool Parser::parse_builtin_function_2() {
-  switch (TokenKind(LA())) {
-    case TokenKind::T___IS_BASE_OF:
-    case TokenKind::T___IS_CONSTRUCTIBLE:
-    case TokenKind::T___IS_CONVERTIBLE_TO:
+    case TokenKind::T___IS_FUNDAMENTAL:
+    case TokenKind::T___IS_INTEGRAL:
+    case TokenKind::T___IS_INVOCABLE:
+    case TokenKind::T___IS_INVOCABLE_R:
+    case TokenKind::T___IS_LAYOUT_COMPATIBLE:
+    case TokenKind::T___IS_LITERAL_TYPE:
+    case TokenKind::T___IS_LVALUE_REFERENCE:
+    case TokenKind::T___IS_MEMBER_FUNCTION_POINTER:
+    case TokenKind::T___IS_MEMBER_OBJECT_POINTER:
+    case TokenKind::T___IS_MEMBER_POINTER:
+    case TokenKind::T___IS_MOVE_ASSIGNABLE:
+    case TokenKind::T___IS_MOVE_CONSTRUCTIBLE:
     case TokenKind::T___IS_NOTHROW_ASSIGNABLE:
     case TokenKind::T___IS_NOTHROW_CONSTRUCTIBLE:
-    case TokenKind::T___IS_SAME_AS:
+    case TokenKind::T___IS_NOTHROW_CONVERTIBLE:
+    case TokenKind::T___IS_NOTHROW_COPY_ASSIGNABLE:
+    case TokenKind::T___IS_NOTHROW_COPY_CONSTRUCTIBLE:
+    case TokenKind::T___IS_NOTHROW_DEFAULT_CONSTRUCTIBLE:
+    case TokenKind::T___IS_NOTHROW_DESTRUCTIBLE:
+    case TokenKind::T___IS_NOTHROW_INVOCABLE:
+    case TokenKind::T___IS_NOTHROW_INVOCABLE_R:
+    case TokenKind::T___IS_NOTHROW_MOVE_ASSIGNABLE:
+    case TokenKind::T___IS_NOTHROW_MOVE_CONSTRUCTIBLE:
+    case TokenKind::T___IS_NOTHROW_SWAPPABLE:
+    case TokenKind::T___IS_NOTHROW_SWAPPABLE_WITH:
+    case TokenKind::T___IS_NULL_POINTER:
+    case TokenKind::T___IS_OBJECT:
+    case TokenKind::T___IS_POD:
+    case TokenKind::T___IS_POINTER:
+    case TokenKind::T___IS_POINTER_INTERCONVERTIBLE_BASE_OF:
+    case TokenKind::T___IS_POLYMORPHIC:
+    case TokenKind::T___IS_REFERENCE:
+    case TokenKind::T___IS_RVALUE_REFERENCE:
+    case TokenKind::T___IS_SAME:
+    case TokenKind::T___IS_SCALAR:
+    case TokenKind::T___IS_SCOPED_ENUM:
+    case TokenKind::T___IS_SIGNED:
+    case TokenKind::T___IS_STANDARD_LAYOUT:
+    case TokenKind::T___IS_SWAPPABLE:
+    case TokenKind::T___IS_SWAPPABLE_WITH:
+    case TokenKind::T___IS_TRIVIAL:
     case TokenKind::T___IS_TRIVIALLY_ASSIGNABLE:
     case TokenKind::T___IS_TRIVIALLY_CONSTRUCTIBLE:
+    case TokenKind::T___IS_TRIVIALLY_COPY_ASSIGNABLE:
+    case TokenKind::T___IS_TRIVIALLY_COPY_CONSTRUCTIBLE:
+    case TokenKind::T___IS_TRIVIALLY_COPYABLE:
+    case TokenKind::T___IS_TRIVIALLY_DEFAULT_CONSTRUCTIBLE:
+    case TokenKind::T___IS_TRIVIALLY_DESTRUCTIBLE:
+    case TokenKind::T___IS_TRIVIALLY_MOVE_ASSIGNABLE:
+    case TokenKind::T___IS_TRIVIALLY_MOVE_CONSTRUCTIBLE:
+    case TokenKind::T___IS_UNBOUNDED_ARRAY:
+    case TokenKind::T___IS_UNION:
+    case TokenKind::T___IS_UNSIGNED:
+    case TokenKind::T___IS_VOID:
+    case TokenKind::T___IS_VOLATILE:
     case TokenKind::T___REFERENCE_BINDS_TO_TEMPORARY:
-      consumeToken();
+      loc = consumeToken();
       return true;
-
     default:
       return false;
   }  // switch
 }
 
 bool Parser::parse_builtin_call_expression(ExpressionAST*& yyast) {
-  if (parse_builtin_function_1()) {
-    expect(TokenKind::T_LPAREN);
-
-    TypeIdAST* typeId = nullptr;
-
-    if (!parse_type_id(typeId)) parse_error("expected a type id");
-
-    expect(TokenKind::T_RPAREN);
-
-    return true;
-  }
-
   SourceLocation typeTraitsLoc;
 
-  if (match(TokenKind::T___IS_SAME_AS, typeTraitsLoc)) {
-    auto ast = new (pool) BinaryTypeTraitsExpressionAST();
-    yyast = ast;
+  if (!parse_type_traits_op(typeTraitsLoc)) return false;
 
-    ast->typeTraitsLoc = typeTraitsLoc;
-    ast->typeTraits = unit->tokenKind(typeTraitsLoc);
+  auto ast = new (pool) TypeTraitsExpressionAST();
+  yyast = ast;
 
-    expect(TokenKind::T_LPAREN, ast->lparenLoc);
+  ast->typeTraitsLoc = typeTraitsLoc;
+  ast->typeTraits = unit->tokenKind(typeTraitsLoc);
 
-    if (!parse_type_id(ast->typeId)) parse_error("expected a type id");
+  expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
-    expect(TokenKind::T_COMMA, ast->lparenLoc);
-
-    if (!parse_type_id(ast->otherTypeId)) parse_error("expected a type id");
-
-    expect(TokenKind::T_RPAREN, ast->rparenLoc);
-
-    return true;
-  }
-
-  if (!parse_builtin_function_2()) return false;
-
-  expect(TokenKind::T_LPAREN);
+  auto it = &ast->typeIdList;
 
   TypeIdAST* typeId = nullptr;
 
-  if (!parse_type_id(typeId)) parse_error("expected a type id");
+  if (!parse_type_id(typeId))
+    parse_error("expected a type id");
+  else {
+    *it = new (pool) List(typeId);
+    it = &(*it)->next;
+  }
 
   while (match(TokenKind::T_COMMA)) {
     TypeIdAST* typeId = nullptr;
 
-    if (!parse_type_id(typeId)) parse_error("expected a type id");
+    if (!parse_type_id(typeId))
+      parse_error("expected a type id");
+    else {
+      *it = new (pool) List(typeId);
+      it = &(*it)->next;
+    }
   }
 
-  expect(TokenKind::T_RPAREN);
+  expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   return true;
 }
@@ -2007,10 +2036,7 @@ bool Parser::parse_sizeof_expression(ExpressionAST*& yyast) {
 bool Parser::parse_alignof_expression(ExpressionAST*& yyast) {
   SourceLocation alignofLoc;
 
-  if (!match(TokenKind::T_ALIGNOF, alignofLoc) &&
-      !match(TokenKind::T___ALIGNOF, alignofLoc) &&
-      !match(TokenKind::T___ALIGNOF__, alignofLoc))
-    return false;
+  if (!match(TokenKind::T_ALIGNOF, alignofLoc)) return false;
 
   auto ast = new (pool) AlignofExpressionAST();
   yyast = ast;
@@ -3881,9 +3907,7 @@ bool Parser::parse_decl_specifier(SpecifierAST*& yyast, DeclSpecs& specs) {
       return true;
     }
 
-    case TokenKind::T_INLINE:
-    case TokenKind::T___INLINE:
-    case TokenKind::T___INLINE__: {
+    case TokenKind::T_INLINE: {
       auto ast = new (pool) InlineSpecifierAST();
       yyast = ast;
       ast->inlineLoc = consumeToken();
@@ -4430,6 +4454,24 @@ bool Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
   return parsed;
 }
 
+void Parser::check_type_traits() {
+  SourceLocation typeTraitsLoc;
+
+  if (!parse_type_traits_op(typeTraitsLoc)) return;
+
+#if 0
+  parse_warn(
+      typeTraitsLoc,
+      fmt::format("keyword '{}' will be made available as an identifier for "
+                  "the remainder of the translation unit",
+                  Token::spell(unit->tokenKind(typeTraitsLoc))));
+#endif
+
+  unit->replaceWithIdentifier(typeTraitsLoc);
+
+  rewind(typeTraitsLoc);
+}
+
 bool Parser::parse_elaborated_type_specifier_helper(
     ElaboratedTypeSpecifierAST*& yyast, DeclSpecs& specs) {
   // ### cleanup
@@ -4468,6 +4510,8 @@ bool Parser::parse_elaborated_type_specifier_helper(
     }
 
     rewind(before_nested_name_specifier);
+
+    check_type_traits();
 
     SourceLocation identifierLoc;
 
@@ -4580,9 +4624,7 @@ bool Parser::parse_decl_specifier_seq_no_typespecs(
 bool Parser::parse_decltype_specifier(SpecifierAST*& yyast) {
   SourceLocation decltypeLoc;
 
-  if (match(TokenKind::T_DECLTYPE, decltypeLoc) ||
-      match(TokenKind::T___DECLTYPE, decltypeLoc) ||
-      match(TokenKind::T___DECLTYPE__, decltypeLoc)) {
+  if (match(TokenKind::T_DECLTYPE, decltypeLoc)) {
     SourceLocation lparenLoc;
 
     if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
@@ -4594,29 +4636,6 @@ bool Parser::parse_decltype_specifier(SpecifierAST*& yyast) {
 
     ast->decltypeLoc = decltypeLoc;
     ast->lparenLoc = lparenLoc;
-
-    if (!parse_expression(ast->expression))
-      parse_error("expected an expression");
-
-    Semantics::ExpressionSem expr;
-
-    sem->expression(ast->expression, &expr);
-
-    expect(TokenKind::T_RPAREN, ast->rparenLoc);
-
-    return true;
-  }
-
-  SourceLocation typeofLoc;
-
-  if (match(TokenKind::T___TYPEOF, typeofLoc) ||
-      match(TokenKind::T___TYPEOF__, typeofLoc)) {
-    auto ast = new (pool) TypeofSpecifierAST();
-    yyast = ast;
-
-    ast->typeofLoc = typeofLoc;
-
-    expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
     if (!parse_expression(ast->expression))
       parse_error("expected an expression");
@@ -5024,8 +5043,7 @@ bool Parser::parse_cv_qualifier(SpecifierAST*& yyast) {
     yyast = ast;
     ast->volatileLoc = loc;
     return true;
-  } else if (match(TokenKind::T___RESTRICT, loc) ||
-             match(TokenKind::T___RESTRICT__, loc)) {
+  } else if (match(TokenKind::T___RESTRICT__, loc)) {
     auto ast = new (pool) RestrictQualifierAST();
     yyast = ast;
     ast->restrictLoc = loc;
@@ -5050,6 +5068,8 @@ bool Parser::parse_declarator_id(IdDeclaratorAST*& yyast) {
   SourceLocation ellipsisLoc;
 
   match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
+
+  check_type_traits();
 
   NameAST* name = nullptr;
 
@@ -6314,7 +6334,7 @@ bool Parser::parse_attribute_specifier() {
 }
 
 bool Parser::parse_asm_specifier() {
-  if (!match(TokenKind::T___ASM__) && !match(TokenKind::T___ASM)) return false;
+  if (!match(TokenKind::T_ASM)) return false;
 
   expect(TokenKind::T_LPAREN);
 
@@ -6329,8 +6349,7 @@ bool Parser::parse_asm_specifier() {
 }
 
 bool Parser::parse_gcc_attribute() {
-  if (!match(TokenKind::T___ATTRIBUTE) && !match(TokenKind::T___ATTRIBUTE__))
-    return false;
+  if (!match(TokenKind::T___ATTRIBUTE__)) return false;
 
   expect(TokenKind::T_LPAREN);
 
@@ -6846,6 +6865,8 @@ bool Parser::parse_class_head_name(NameAST*& yyast) {
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
 
   if (!parse_nested_name_specifier(nestedNameSpecifier)) rewind(start);
+
+  check_type_traits();
 
   NameAST* name = nullptr;
 

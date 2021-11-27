@@ -1232,8 +1232,8 @@ void ASTCloner::visit(AlignofExpressionAST* ast) {
   copy->rparenLoc = ast->rparenLoc;
 }
 
-void ASTCloner::visit(UnaryTypeTraitsExpressionAST* ast) {
-  auto copy = new (arena_) UnaryTypeTraitsExpressionAST();
+void ASTCloner::visit(TypeTraitsExpressionAST* ast) {
+  auto copy = new (arena_) TypeTraitsExpressionAST();
   copy_ = copy;
 
   copy->type = ast->type;
@@ -1246,32 +1246,14 @@ void ASTCloner::visit(UnaryTypeTraitsExpressionAST* ast) {
 
   copy->lparenLoc = ast->lparenLoc;
 
-  copy->typeId = accept(ast->typeId);
+  if (auto it = ast->typeIdList) {
+    auto out = &copy->typeIdList;
 
-  copy->rparenLoc = ast->rparenLoc;
-
-  copy->typeTraits = ast->typeTraits;
-}
-
-void ASTCloner::visit(BinaryTypeTraitsExpressionAST* ast) {
-  auto copy = new (arena_) BinaryTypeTraitsExpressionAST();
-  copy_ = copy;
-
-  copy->type = ast->type;
-
-  copy->valueCategory = ast->valueCategory;
-
-  copy->constValue = ast->constValue;
-
-  copy->typeTraitsLoc = ast->typeTraitsLoc;
-
-  copy->lparenLoc = ast->lparenLoc;
-
-  copy->typeId = accept(ast->typeId);
-
-  copy->commaLoc = ast->commaLoc;
-
-  copy->otherTypeId = accept(ast->otherTypeId);
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
 
   copy->rparenLoc = ast->rparenLoc;
 
@@ -2747,19 +2729,6 @@ void ASTCloner::visit(DecltypeSpecifierAST* ast) {
   copy_ = copy;
 
   copy->decltypeLoc = ast->decltypeLoc;
-
-  copy->lparenLoc = ast->lparenLoc;
-
-  copy->expression = accept(ast->expression);
-
-  copy->rparenLoc = ast->rparenLoc;
-}
-
-void ASTCloner::visit(TypeofSpecifierAST* ast) {
-  auto copy = new (arena_) TypeofSpecifierAST();
-  copy_ = copy;
-
-  copy->typeofLoc = ast->typeofLoc;
 
   copy->lparenLoc = ast->lparenLoc;
 

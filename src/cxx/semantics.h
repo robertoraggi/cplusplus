@@ -266,8 +266,7 @@ class Semantics final : ASTVisitor {
   void visit(TypeidExpressionAST* ast) override;
   void visit(TypeidOfTypeExpressionAST* ast) override;
   void visit(AlignofExpressionAST* ast) override;
-  void visit(UnaryTypeTraitsExpressionAST* ast) override;
-  void visit(BinaryTypeTraitsExpressionAST* ast) override;
+  void visit(TypeTraitsExpressionAST* ast) override;
   void visit(UnaryExpressionAST* ast) override;
   void visit(BinaryExpressionAST* ast) override;
   void visit(AssignmentExpressionAST* ast) override;
@@ -367,7 +366,6 @@ class Semantics final : ASTVisitor {
   void visit(ElaboratedTypeSpecifierAST* ast) override;
   void visit(DecltypeAutoSpecifierAST* ast) override;
   void visit(DecltypeSpecifierAST* ast) override;
-  void visit(TypeofSpecifierAST* ast) override;
   void visit(PlaceholderTypeSpecifierAST* ast) override;
   void visit(ConstQualifierAST* ast) override;
   void visit(VolatileQualifierAST* ast) override;

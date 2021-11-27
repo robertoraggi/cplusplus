@@ -634,20 +634,21 @@ void Semantics::visit(AlignofExpressionAST* ast) {
       QualifiedType{types_->integerType(IntegerKind::kLongLong, true)};
 }
 
-void Semantics::visit(UnaryTypeTraitsExpressionAST* ast) {
-  typeId(ast->typeId);
-}
+void Semantics::visit(TypeTraitsExpressionAST* ast) {
+  for (auto it = ast->typeIdList; it; it = it->next) {
+    typeId(it->value);
+  }
 
-void Semantics::visit(BinaryTypeTraitsExpressionAST* ast) {
-  typeId(ast->typeId);
-  typeId(ast->otherTypeId);
-
-  if (!ast->typeId || !ast->otherTypeId) return;
+  if (!ast->typeIdList) return;
 
   switch (ast->typeTraits) {
-    case TokenKind::T___IS_SAME_AS: {
-      const auto isSame = ast->typeId->type == ast->otherTypeId->type;
+    case TokenKind::T___IS_SAME: {
+      if (!ast->typeIdList->next) return;
 
+      auto typeId = ast->typeIdList->value;
+      auto otherTypeId = ast->typeIdList->next->value;
+
+      const auto isSame = typeId->type == otherTypeId->type;
       ast->constValue = std::uint64_t(isSame);
     }
 
@@ -1409,12 +1410,6 @@ void Semantics::visit(DecltypeAutoSpecifierAST* ast) {
 }
 
 void Semantics::visit(DecltypeSpecifierAST* ast) {
-  ExpressionSem expression;
-  this->expression(ast->expression, &expression);
-  specifiers_->type.mergeWith(expression.type);
-}
-
-void Semantics::visit(TypeofSpecifierAST* ast) {
   ExpressionSem expression;
   this->expression(ast->expression, &expression);
   specifiers_->type.mergeWith(expression.type);

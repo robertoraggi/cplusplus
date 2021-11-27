@@ -1246,9 +1246,9 @@ export class AlignofExpressionAST extends ExpressionAST {
     }
 }
 
-export class UnaryTypeTraitsExpressionAST extends ExpressionAST {
+export class TypeTraitsExpressionAST extends ExpressionAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitUnaryTypeTraitsExpression(this, context);
+        return visitor.visitTypeTraitsExpression(this, context);
     }
     getTypeTraitsToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
@@ -1256,35 +1256,13 @@ export class UnaryTypeTraitsExpressionAST extends ExpressionAST {
     getLparenToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
     }
-    getTypeId(): TypeIdAST | undefined {
-        return AST.from<TypeIdAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    *getTypeIdList(): Generator<TypeIdAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
+            yield AST.from<TypeIdAST>(cxx.getListValue(it), this.parser);
+        }
     }
     getRparenToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-    }
-}
-
-export class BinaryTypeTraitsExpressionAST extends ExpressionAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitBinaryTypeTraitsExpression(this, context);
-    }
-    getTypeTraitsToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-    getLparenToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-    }
-    getTypeId(): TypeIdAST | undefined {
-        return AST.from<TypeIdAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-    }
-    getCommaToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-    }
-    getOtherTypeId(): TypeIdAST | undefined {
-        return AST.from<TypeIdAST>(cxx.getASTSlot(this.getHandle(), 4), this.parser);
-    }
-    getRparenToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
     }
 }
 
@@ -2844,24 +2822,6 @@ export class DecltypeSpecifierAST extends SpecifierAST {
     }
 }
 
-export class TypeofSpecifierAST extends SpecifierAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitTypeofSpecifier(this, context);
-    }
-    getTypeofToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-    getLparenToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-    }
-    getExpression(): ExpressionAST | undefined {
-        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-    }
-    getRparenToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-    }
-}
-
 export class PlaceholderTypeSpecifierAST extends SpecifierAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitPlaceholderTypeSpecifier(this, context);
@@ -3181,8 +3141,7 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     TypeidExpressionAST,
     TypeidOfTypeExpressionAST,
     AlignofExpressionAST,
-    UnaryTypeTraitsExpressionAST,
-    BinaryTypeTraitsExpressionAST,
+    TypeTraitsExpressionAST,
     UnaryExpressionAST,
     BinaryExpressionAST,
     AssignmentExpressionAST,
@@ -3278,7 +3237,6 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     ElaboratedTypeSpecifierAST,
     DecltypeAutoSpecifierAST,
     DecltypeSpecifierAST,
-    TypeofSpecifierAST,
     PlaceholderTypeSpecifierAST,
     ConstQualifierAST,
     VolatileQualifierAST,

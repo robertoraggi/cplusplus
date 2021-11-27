@@ -1454,42 +1454,21 @@ void ASTPrinter::visit(AlignofExpressionAST* ast) {
   }
 }
 
-void ASTPrinter::visit(UnaryTypeTraitsExpressionAST* ast) {
+void ASTPrinter::visit(TypeTraitsExpressionAST* ast) {
   json_ = nlohmann::json::array();
 
-  json_.push_back("ast:UnaryTypeTraitsExpression");
+  json_.push_back("ast:TypeTraitsExpression");
 
-  if (ast->typeId) {
-    if (auto childNode = accept(ast->typeId); !childNode.is_null()) {
-      json_.push_back(
-          std::vector<nlohmann::json>{"attr:typeId", std::move(childNode)});
+  if (ast->typeIdList) {
+    auto elements = nlohmann::json::array();
+    elements.push_back("array");
+    for (auto it = ast->typeIdList; it; it = it->next) {
+      if (auto childNode = accept(it->value); !childNode.is_null()) {
+        elements.push_back(std::move(childNode));
+      }
     }
-  }
-
-  if (ast->typeTraits != TokenKind::T_EOF_SYMBOL) {
-    json_.push_back(std::vector<nlohmann::json>{
-        "attr:typeTraits",
-        std::vector<nlohmann::json>{"token", Token::spell(ast->typeTraits)}});
-  }
-}
-
-void ASTPrinter::visit(BinaryTypeTraitsExpressionAST* ast) {
-  json_ = nlohmann::json::array();
-
-  json_.push_back("ast:BinaryTypeTraitsExpression");
-
-  if (ast->typeId) {
-    if (auto childNode = accept(ast->typeId); !childNode.is_null()) {
-      json_.push_back(
-          std::vector<nlohmann::json>{"attr:typeId", std::move(childNode)});
-    }
-  }
-
-  if (ast->otherTypeId) {
-    if (auto childNode = accept(ast->otherTypeId); !childNode.is_null()) {
-      json_.push_back(std::vector<nlohmann::json>{"attr:otherTypeId",
-                                                  std::move(childNode)});
-    }
+    if (elements.size() > 1)
+      json_.push_back(std::vector<nlohmann::json>{"attr:typeIdList", elements});
   }
 
   if (ast->typeTraits != TokenKind::T_EOF_SYMBOL) {
@@ -3192,19 +3171,6 @@ void ASTPrinter::visit(DecltypeSpecifierAST* ast) {
   json_ = nlohmann::json::array();
 
   json_.push_back("ast:DecltypeSpecifier");
-
-  if (ast->expression) {
-    if (auto childNode = accept(ast->expression); !childNode.is_null()) {
-      json_.push_back(
-          std::vector<nlohmann::json>{"attr:expression", std::move(childNode)});
-    }
-  }
-}
-
-void ASTPrinter::visit(TypeofSpecifierAST* ast) {
-  json_ = nlohmann::json::array();
-
-  json_.push_back("ast:TypeofSpecifier");
 
   if (ast->expression) {
     if (auto childNode = accept(ast->expression); !childNode.is_null()) {

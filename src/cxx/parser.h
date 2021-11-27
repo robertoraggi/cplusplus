@@ -165,8 +165,7 @@ class Parser final {
   bool parse_cpp_type_cast_expression(ExpressionAST*& yyast);
   bool parse_typeid_expression(ExpressionAST*& yyast);
   bool parse_typename_expression(ExpressionAST*& yyast);
-  bool parse_builtin_function_1();
-  bool parse_builtin_function_2();
+  bool parse_type_traits_op(SourceLocation& loc);
   bool parse_builtin_call_expression(ExpressionAST*& yyast);
   bool parse_expression_list(List<ExpressionAST*>*& yyast);
   bool parse_unary_expression(ExpressionAST*& yyast);
@@ -447,6 +446,8 @@ class Parser final {
 
   void enterFunctionScope(FunctionSymbol* functionSymbol,
                           FunctionDeclaratorAST* functionDeclarator);
+
+  void check_type_traits();
 
  private:
   TranslationUnit* unit = nullptr;

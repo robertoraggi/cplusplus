@@ -119,8 +119,7 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitTypeidExpression(node: ast.TypeidExpressionAST, context: Context): Result;
     abstract visitTypeidOfTypeExpression(node: ast.TypeidOfTypeExpressionAST, context: Context): Result;
     abstract visitAlignofExpression(node: ast.AlignofExpressionAST, context: Context): Result;
-    abstract visitUnaryTypeTraitsExpression(node: ast.UnaryTypeTraitsExpressionAST, context: Context): Result;
-    abstract visitBinaryTypeTraitsExpression(node: ast.BinaryTypeTraitsExpressionAST, context: Context): Result;
+    abstract visitTypeTraitsExpression(node: ast.TypeTraitsExpressionAST, context: Context): Result;
     abstract visitUnaryExpression(node: ast.UnaryExpressionAST, context: Context): Result;
     abstract visitBinaryExpression(node: ast.BinaryExpressionAST, context: Context): Result;
     abstract visitAssignmentExpression(node: ast.AssignmentExpressionAST, context: Context): Result;
@@ -224,7 +223,6 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitElaboratedTypeSpecifier(node: ast.ElaboratedTypeSpecifierAST, context: Context): Result;
     abstract visitDecltypeAutoSpecifier(node: ast.DecltypeAutoSpecifierAST, context: Context): Result;
     abstract visitDecltypeSpecifier(node: ast.DecltypeSpecifierAST, context: Context): Result;
-    abstract visitTypeofSpecifier(node: ast.TypeofSpecifierAST, context: Context): Result;
     abstract visitPlaceholderTypeSpecifier(node: ast.PlaceholderTypeSpecifierAST, context: Context): Result;
     abstract visitConstQualifier(node: ast.ConstQualifierAST, context: Context): Result;
     abstract visitVolatileQualifier(node: ast.VolatileQualifierAST, context: Context): Result;

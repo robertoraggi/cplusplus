@@ -90,6 +90,10 @@ class TranslationUnit {
     return tokenAt(loc).kind();
   }
 
+  void setTokenValue(SourceLocation loc, TokenValue value) {
+    tokens_[loc.index()].setValue(value);
+  }
+
   int tokenLength(SourceLocation loc) const;
 
   const std::string& tokenText(SourceLocation loc) const;
@@ -107,6 +111,8 @@ class TranslationUnit {
   const Literal* literal(SourceLocation loc) const;
 
   bool parse(bool checkTypes = false);
+
+  void replaceWithIdentifier(SourceLocation loc);
 
  private:
   Control* control_;

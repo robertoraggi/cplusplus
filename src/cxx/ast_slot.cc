@@ -1439,7 +1439,7 @@ void ASTSlot::visit(AlignofExpressionAST* ast) {
   slotCount_ = 4;
 }
 
-void ASTSlot::visit(UnaryTypeTraitsExpressionAST* ast) {
+void ASTSlot::visit(TypeTraitsExpressionAST* ast) {
   switch (slot_) {
     case 0:
       value_ = ast->typeTraitsLoc.index();
@@ -1450,8 +1450,8 @@ void ASTSlot::visit(UnaryTypeTraitsExpressionAST* ast) {
       slotKind_ = ASTSlotKind::kToken;
       break;
     case 2:
-      value_ = reinterpret_cast<std::intptr_t>(ast->typeId);
-      slotKind_ = ASTSlotKind::kNode;
+      value_ = reinterpret_cast<std::intptr_t>(ast->typeIdList);
+      slotKind_ = ASTSlotKind::kNodeList;
       break;
     case 3:
       value_ = ast->rparenLoc.index();
@@ -1460,37 +1460,6 @@ void ASTSlot::visit(UnaryTypeTraitsExpressionAST* ast) {
   }  // switch
 
   slotCount_ = 4;
-}
-
-void ASTSlot::visit(BinaryTypeTraitsExpressionAST* ast) {
-  switch (slot_) {
-    case 0:
-      value_ = ast->typeTraitsLoc.index();
-      slotKind_ = ASTSlotKind::kToken;
-      break;
-    case 1:
-      value_ = ast->lparenLoc.index();
-      slotKind_ = ASTSlotKind::kToken;
-      break;
-    case 2:
-      value_ = reinterpret_cast<std::intptr_t>(ast->typeId);
-      slotKind_ = ASTSlotKind::kNode;
-      break;
-    case 3:
-      value_ = ast->commaLoc.index();
-      slotKind_ = ASTSlotKind::kToken;
-      break;
-    case 4:
-      value_ = reinterpret_cast<std::intptr_t>(ast->otherTypeId);
-      slotKind_ = ASTSlotKind::kNode;
-      break;
-    case 5:
-      value_ = ast->rparenLoc.index();
-      slotKind_ = ASTSlotKind::kToken;
-      break;
-  }  // switch
-
-  slotCount_ = 6;
 }
 
 void ASTSlot::visit(UnaryExpressionAST* ast) {
@@ -3383,29 +3352,6 @@ void ASTSlot::visit(DecltypeSpecifierAST* ast) {
   switch (slot_) {
     case 0:
       value_ = ast->decltypeLoc.index();
-      slotKind_ = ASTSlotKind::kToken;
-      break;
-    case 1:
-      value_ = ast->lparenLoc.index();
-      slotKind_ = ASTSlotKind::kToken;
-      break;
-    case 2:
-      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
-      slotKind_ = ASTSlotKind::kNode;
-      break;
-    case 3:
-      value_ = ast->rparenLoc.index();
-      slotKind_ = ASTSlotKind::kToken;
-      break;
-  }  // switch
-
-  slotCount_ = 4;
-}
-
-void ASTSlot::visit(TypeofSpecifierAST* ast) {
-  switch (slot_) {
-    case 0:
-      value_ = ast->typeofLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       break;
     case 1:

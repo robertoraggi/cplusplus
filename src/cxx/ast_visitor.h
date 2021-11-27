@@ -123,8 +123,7 @@ class ASTVisitor {
   virtual void visit(TypeidExpressionAST* ast) = 0;
   virtual void visit(TypeidOfTypeExpressionAST* ast) = 0;
   virtual void visit(AlignofExpressionAST* ast) = 0;
-  virtual void visit(UnaryTypeTraitsExpressionAST* ast) = 0;
-  virtual void visit(BinaryTypeTraitsExpressionAST* ast) = 0;
+  virtual void visit(TypeTraitsExpressionAST* ast) = 0;
   virtual void visit(UnaryExpressionAST* ast) = 0;
   virtual void visit(BinaryExpressionAST* ast) = 0;
   virtual void visit(AssignmentExpressionAST* ast) = 0;
@@ -228,7 +227,6 @@ class ASTVisitor {
   virtual void visit(ElaboratedTypeSpecifierAST* ast) = 0;
   virtual void visit(DecltypeAutoSpecifierAST* ast) = 0;
   virtual void visit(DecltypeSpecifierAST* ast) = 0;
-  virtual void visit(TypeofSpecifierAST* ast) = 0;
   virtual void visit(PlaceholderTypeSpecifierAST* ast) = 0;
   virtual void visit(ConstQualifierAST* ast) = 0;
   virtual void visit(VolatileQualifierAST* ast) = 0;

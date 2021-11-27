@@ -268,6 +268,8 @@ int main(int argc, char *argv[]) {
         std::find_if(textline.rbegin(), textline.rend(), not_whitespace_p)
             .base());
 
+    if (textline.starts_with("//") || textline.starts_with("#")) continue;
+
     if (!readKeywords) {
       if (textline.size() >= 2 && textline[0] == '%') {
         if (textline[1] == '%') {

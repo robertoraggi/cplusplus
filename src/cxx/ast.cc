@@ -1060,37 +1060,17 @@ SourceLocation AlignofExpressionAST::lastSourceLocation() {
   return SourceLocation();
 }
 
-SourceLocation UnaryTypeTraitsExpressionAST::firstSourceLocation() {
+SourceLocation TypeTraitsExpressionAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(typeTraitsLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::firstSourceLocation(typeIdList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   return SourceLocation();
 }
 
-SourceLocation UnaryTypeTraitsExpressionAST::lastSourceLocation() {
+SourceLocation TypeTraitsExpressionAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
-  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(typeTraitsLoc)) return loc;
-  return SourceLocation();
-}
-
-SourceLocation BinaryTypeTraitsExpressionAST::firstSourceLocation() {
-  if (auto loc = cxx::firstSourceLocation(typeTraitsLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
-  if (auto loc = cxx::firstSourceLocation(commaLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(otherTypeId)) return loc;
-  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
-  return SourceLocation();
-}
-
-SourceLocation BinaryTypeTraitsExpressionAST::lastSourceLocation() {
-  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(otherTypeId)) return loc;
-  if (auto loc = cxx::lastSourceLocation(commaLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeIdList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeTraitsLoc)) return loc;
   return SourceLocation();
@@ -2477,22 +2457,6 @@ SourceLocation DecltypeSpecifierAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(decltypeLoc)) return loc;
-  return SourceLocation();
-}
-
-SourceLocation TypeofSpecifierAST::firstSourceLocation() {
-  if (auto loc = cxx::firstSourceLocation(typeofLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
-  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
-  return SourceLocation();
-}
-
-SourceLocation TypeofSpecifierAST::lastSourceLocation() {
-  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
-  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(typeofLoc)) return loc;
   return SourceLocation();
 }
 

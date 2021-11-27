@@ -1259,33 +1259,13 @@ class AlignofExpressionAST final : public ExpressionAST {
   SourceLocation lastSourceLocation() override;
 };
 
-class UnaryTypeTraitsExpressionAST final : public ExpressionAST {
+class TypeTraitsExpressionAST final : public ExpressionAST {
  public:
-  UnaryTypeTraitsExpressionAST()
-      : ExpressionAST(ASTKind::UnaryTypeTraitsExpression) {}
+  TypeTraitsExpressionAST() : ExpressionAST(ASTKind::TypeTraitsExpression) {}
 
   SourceLocation typeTraitsLoc;
   SourceLocation lparenLoc;
-  TypeIdAST* typeId = nullptr;
-  SourceLocation rparenLoc;
-  TokenKind typeTraits = TokenKind::T_EOF_SYMBOL;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
-};
-
-class BinaryTypeTraitsExpressionAST final : public ExpressionAST {
- public:
-  BinaryTypeTraitsExpressionAST()
-      : ExpressionAST(ASTKind::BinaryTypeTraitsExpression) {}
-
-  SourceLocation typeTraitsLoc;
-  SourceLocation lparenLoc;
-  TypeIdAST* typeId = nullptr;
-  SourceLocation commaLoc;
-  TypeIdAST* otherTypeId = nullptr;
+  List<TypeIdAST*>* typeIdList = nullptr;
   SourceLocation rparenLoc;
   TokenKind typeTraits = TokenKind::T_EOF_SYMBOL;
 
@@ -2676,21 +2656,6 @@ class DecltypeSpecifierAST final : public SpecifierAST {
   DecltypeSpecifierAST() : SpecifierAST(ASTKind::DecltypeSpecifier) {}
 
   SourceLocation decltypeLoc;
-  SourceLocation lparenLoc;
-  ExpressionAST* expression = nullptr;
-  SourceLocation rparenLoc;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
-};
-
-class TypeofSpecifierAST final : public SpecifierAST {
- public:
-  TypeofSpecifierAST() : SpecifierAST(ASTKind::TypeofSpecifier) {}
-
-  SourceLocation typeofLoc;
   SourceLocation lparenLoc;
   ExpressionAST* expression = nullptr;
   SourceLocation rparenLoc;

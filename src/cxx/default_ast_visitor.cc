@@ -342,14 +342,8 @@ void DefaultASTVisitor::visit(AlignofExpressionAST* ast) {
   throw std::runtime_error("visit(AlignofExpressionAST): not implemented");
 }
 
-void DefaultASTVisitor::visit(UnaryTypeTraitsExpressionAST* ast) {
-  throw std::runtime_error(
-      "visit(UnaryTypeTraitsExpressionAST): not implemented");
-}
-
-void DefaultASTVisitor::visit(BinaryTypeTraitsExpressionAST* ast) {
-  throw std::runtime_error(
-      "visit(BinaryTypeTraitsExpressionAST): not implemented");
+void DefaultASTVisitor::visit(TypeTraitsExpressionAST* ast) {
+  throw std::runtime_error("visit(TypeTraitsExpressionAST): not implemented");
 }
 
 void DefaultASTVisitor::visit(UnaryExpressionAST* ast) {
@@ -744,10 +738,6 @@ void DefaultASTVisitor::visit(DecltypeAutoSpecifierAST* ast) {
 
 void DefaultASTVisitor::visit(DecltypeSpecifierAST* ast) {
   throw std::runtime_error("visit(DecltypeSpecifierAST): not implemented");
-}
-
-void DefaultASTVisitor::visit(TypeofSpecifierAST* ast) {
-  throw std::runtime_error("visit(TypeofSpecifierAST): not implemented");
 }
 
 void DefaultASTVisitor::visit(PlaceholderTypeSpecifierAST* ast) {

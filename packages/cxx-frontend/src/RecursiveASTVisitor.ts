@@ -407,13 +407,10 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         this.accept(node.getTypeId(), context);
     }
 
-    visitUnaryTypeTraitsExpression(node: ast.UnaryTypeTraitsExpressionAST, context: Context): void {
-        this.accept(node.getTypeId(), context);
-    }
-
-    visitBinaryTypeTraitsExpression(node: ast.BinaryTypeTraitsExpressionAST, context: Context): void {
-        this.accept(node.getTypeId(), context);
-        this.accept(node.getOtherTypeId(), context);
+    visitTypeTraitsExpression(node: ast.TypeTraitsExpressionAST, context: Context): void {
+        for (const element of node.getTypeIdList()) {
+            this.accept(element, context);
+        }
     }
 
     visitUnaryExpression(node: ast.UnaryExpressionAST, context: Context): void {
@@ -876,10 +873,6 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     }
 
     visitDecltypeSpecifier(node: ast.DecltypeSpecifierAST, context: Context): void {
-        this.accept(node.getExpression(), context);
-    }
-
-    visitTypeofSpecifier(node: ast.TypeofSpecifierAST, context: Context): void {
         this.accept(node.getExpression(), context);
     }
 
