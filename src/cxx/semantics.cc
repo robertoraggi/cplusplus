@@ -87,6 +87,11 @@ void Semantics::name(NameAST* ast, NameSem* nameSem) {
 
 void Semantics::nestedNameSpecifier(
     NestedNameSpecifierAST* ast, NestedNameSpecifierSem* nestedNameSpecifier) {
+  if (!ast) return;
+  if (ast->symbol) {
+    nestedNameSpecifier->symbol = ast->symbol;
+    return;
+  }
   std::swap(nestedNameSpecifier_, nestedNameSpecifier);
   accept(ast);
   std::swap(nestedNameSpecifier_, nestedNameSpecifier);
@@ -274,18 +279,20 @@ void Semantics::visit(NestedNameSpecifierAST* ast) {
   for (auto it = ast->nameList; it; it = it->next) {
     NameSem name;
     this->name(it->value, &name);
-    if (checkTypes_ && scope) {
-      Symbol* sym = nullptr;
-      if (unqualifiedLookup) {
-        sym = scope->lookup(name.name, LookupOptions::kTypeOrNamespace);
-        unqualifiedLookup = false;
-      } else {
-        sym = scope->find(name.name, LookupOptions::kTypeOrNamespace);
-      }
-      scope = sym ? sym->scope() : nullptr;
+    if (!scope) continue;
+    Symbol* sym = nullptr;
+    if (unqualifiedLookup) {
+      sym = scope->lookup(name.name, LookupOptions::kTypeOrNamespace);
+      unqualifiedLookup = false;
+    } else {
+      sym = scope->find(name.name, LookupOptions::kTypeOrNamespace);
     }
+    scope = sym ? sym->scope() : nullptr;
   }
+
   if (scope) ast->symbol = scope->owner();
+
+  nestedNameSpecifier_->symbol = ast->symbol;
 }
 
 void Semantics::visit(UsingDeclaratorAST* ast) {
@@ -739,6 +746,20 @@ void Semantics::visit(TypeTraitsExpressionAST* ast) {
     case TokenKind::T___IS_FUNCTION: {
       const auto ty = ast->typeIdList->value->type;
       ast->constValue = std::uint64_t(Type::is<FunctionType>(ty));
+      break;
+    }
+
+    case TokenKind::T___IS_MEMBER_OBJECT_POINTER: {
+      bool isMemberObjectPointer = false;
+
+      const auto ty = ast->typeIdList->value->type;
+
+      if (auto ptrTy = Type::cast<PointerToMemberType>(ty);
+          ptrTy && !Type::is<FunctionType>(ptrTy->elementType())) {
+        isMemberObjectPointer = true;
+      }
+
+      ast->constValue = std::uint64_t(isMemberObjectPointer);
       break;
     }
 
@@ -1619,9 +1640,26 @@ void Semantics::visit(ReferenceOperatorAST* ast) {
 void Semantics::visit(PtrToMemberOperatorAST* ast) {
   NestedNameSpecifierSem nestedNameSpecifierSem;
   nestedNameSpecifier(ast->nestedNameSpecifier, &nestedNameSpecifierSem);
+
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
+
   SpecifiersSem specifiers;
   this->specifiers(ast->cvQualifierList, &specifiers);
+
+  auto qualifiers = specifiers.type.qualifiers();
+
+  auto classSymbol = dynamic_cast<ClassSymbol*>(nestedNameSpecifierSem.symbol);
+
+  if (!classSymbol) {
+    return;
+  }
+
+  const auto classTy = types_->classType(classSymbol);
+
+  QualifiedType ptrTy(
+      types_->pointerToMemberType(classTy, declarator_->type, qualifiers));
+
+  declarator_->type = ptrTy;
 }
 
 void Semantics::visit(FunctionDeclaratorAST* ast) {

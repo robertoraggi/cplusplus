@@ -151,3 +151,29 @@ static_assert(__is_function(decltype(foo)) == true);
 static_assert(__is_function(void) == false);
 static_assert(__is_function(int()) == true);
 static_assert(__is_function(int (*)()) == false);
+
+// __is_member_object_pointer
+
+struct Class {
+  int i;
+};
+
+using IntFieldT = int(Class::*);
+
+int(Class::*intField) = nullptr;
+
+static_assert(__is_member_object_pointer(decltype(intField)) == true);
+static_assert(__is_member_object_pointer(IntFieldT) == true);
+static_assert(__is_member_object_pointer(int(Class::*)) == true);
+
+static_assert(__is_member_object_pointer(int (Class::*)()) == false);
+
+namespace ns {
+struct list {
+  struct iterator {
+    int p;
+  };
+};
+}  // namespace ns
+
+static_assert(__is_member_object_pointer(int(ns::list::iterator::*)) == true);
