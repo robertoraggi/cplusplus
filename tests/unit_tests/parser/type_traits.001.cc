@@ -139,3 +139,24 @@ static_assert(__is_union(U) == true);
 static_assert(__is_union(V) == true);
 
 static_assert(__is_class(void) == false);
+
+// __is_lvalue_reference
+
+static_assert(__is_lvalue_reference(int&) == true);
+static_assert(__is_lvalue_reference(int&&) == false);
+static_assert(__is_lvalue_reference(int*&) == true);
+static_assert(__is_lvalue_reference(int) == false);
+
+// __is_rvalue_reference
+
+static_assert(__is_rvalue_reference(int&) == false);
+static_assert(__is_rvalue_reference(int&&) == true);
+static_assert(__is_rvalue_reference(int*&) == false);
+static_assert(__is_rvalue_reference(int) == false);
+
+// __is_reference
+
+static_assert(__is_reference(int&) == true);
+static_assert(__is_reference(int&&) == true);
+static_assert(__is_reference(int*&) == true);
+static_assert(__is_reference(int) == false);
