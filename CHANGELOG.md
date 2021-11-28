@@ -1,5 +1,26 @@
 # Changelog
 
+### [1.1.12](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.11...v1.1.12) (2021-11-28)
+
+
+### Bug Fixes
+
+* **parser:** Add AST nodes for unary and binary type traits ([3c76fa3](https://www.github.com/robertoraggi/cplusplus/commit/3c76fa328fa40dbc454bb169892371d94708b1f3))
+* **parser:** Create AST node for built-in type traits ([5b7b0e3](https://www.github.com/robertoraggi/cplusplus/commit/5b7b0e39e6fe2c2a7317664910b9db731e8b43d4))
+* **parser:** Fix `sizeof` of bool type ([46041b8](https://www.github.com/robertoraggi/cplusplus/commit/46041b860c9d81d0c6e6b4da8787d8cb0b570181))
+* **parser:** Fix type of `nullptr` literals ([3e8b8be](https://www.github.com/robertoraggi/cplusplus/commit/3e8b8bedcd579dcb0129b778ed9b4d784ded7520))
+* **parser:** Implemented `__is_function__` ([4d3e5da](https://www.github.com/robertoraggi/cplusplus/commit/4d3e5dab37563fa66b948f057757d28d54a077e4))
+* **parser:** Implemented `__is_lvalue_reference`, `__is_rvalue_reference` and `__is_reference` ([d148471](https://www.github.com/robertoraggi/cplusplus/commit/d1484710aa049178b525d5af3b3a3c26eafc4bb3))
+* **parser:** Implemented `__is_member_object_pointer` ([eeeece2](https://www.github.com/robertoraggi/cplusplus/commit/eeeece243072abf804290657edacc639b1e1c378))
+* **parser:** Implemented `is_const` and `is_volatile` type traits ([918a680](https://www.github.com/robertoraggi/cplusplus/commit/918a680e6b94fce7d5e423b24a8162370be7c135))
+* **parser:** Implemented the `__is_class` and the `__is_union` type traits ([bae22f3](https://www.github.com/robertoraggi/cplusplus/commit/bae22f39047f76a931ce79e7dffc92af8e65465b))
+* **parser:** Implemented the `__is_enum` and the `__is_scoped_enum` type traits ([f9a05f2](https://www.github.com/robertoraggi/cplusplus/commit/f9a05f26b9df8441486451acf49fd816d55673f5))
+* **parser:** Implemented the `__is_null_pointer` type traits ([1a4837f](https://www.github.com/robertoraggi/cplusplus/commit/1a4837f70a22e46f00a3bb689df5fa4cd043a987))
+* **parser:** Implemented the `__is_pointer` type traits ([5f62b9a](https://www.github.com/robertoraggi/cplusplus/commit/5f62b9ab92eee196b777591bc9b58d9365c4ce32))
+* **parser:** Implemented the `__is_signed` and the `__is_unsigned` type traits ([1f23b9f](https://www.github.com/robertoraggi/cplusplus/commit/1f23b9fece1d8b623e390bc792589fd68f95927e))
+* **parser:** Implemented the `__is_void` type traits ([951b03a](https://www.github.com/robertoraggi/cplusplus/commit/951b03a7cbcfc8a8b55aa595835c037fe24c0a62))
+* **preproc:** Remove newline from the diagnostic message raised from `#warning` directives ([a708e3c](https://www.github.com/robertoraggi/cplusplus/commit/a708e3c41a07a402112ba92e1cbcd8b68ea2f387))
+
 ### [1.1.11](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.10...v1.1.11) (2021-11-25)
 
 
