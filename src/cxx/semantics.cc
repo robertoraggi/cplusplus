@@ -736,6 +736,12 @@ void Semantics::visit(TypeTraitsExpressionAST* ast) {
       break;
     }
 
+    case TokenKind::T___IS_FUNCTION: {
+      const auto ty = ast->typeIdList->value->type;
+      ast->constValue = std::uint64_t(Type::is<FunctionType>(ty));
+      break;
+    }
+
     case TokenKind::T___IS_SIGNED: {
       if (auto intTy = Type::cast<IntegerType>(ast->typeIdList->value->type)) {
         const auto isSigned = !intTy->isUnsigned();

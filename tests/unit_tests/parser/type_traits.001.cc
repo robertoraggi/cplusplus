@@ -160,3 +160,10 @@ static_assert(__is_reference(int&) == true);
 static_assert(__is_reference(int&&) == true);
 static_assert(__is_reference(int*&) == true);
 static_assert(__is_reference(int) == false);
+
+// __is_function
+
+static_assert(__is_function(decltype(foo)) == true);
+static_assert(__is_function(void) == false);
+static_assert(__is_function(int()) == true);
+static_assert(__is_function(int (*)()) == false);
