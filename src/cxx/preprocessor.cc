@@ -603,7 +603,7 @@ struct Preprocessor::Private {
 
   void print(const TokList *ts, std::ostream &out) const;
 
-  void printLine(const TokList *ts, std::ostream &out) const;
+  void printLine(const TokList *ts, std::ostream &out, bool nl = true) const;
 };
 
 static const TokList *clone(Arena *pool, const TokList *ts) {
@@ -857,11 +857,11 @@ void Preprocessor::Private::expand(
 #endif
       } else if (!skipping && matchId(ts, "error")) {
         std::ostringstream out;
-        printLine(start, out);
+        printLine(start, out, /*nl=*/false);
         error(directive->head->token(), fmt::format("{}", out.str()));
       } else if (!skipping && matchId(ts, "warning")) {
         std::ostringstream out;
-        printLine(start, out);
+        printLine(start, out, /*nl=*/false);
         warning(directive->head->token(), fmt::format("{}", out.str()));
       }
       ts = skipLine(ts);
@@ -1513,8 +1513,8 @@ void Preprocessor::Private::print(const TokList *ts, std::ostream &out) const {
   }
 }
 
-void Preprocessor::Private::printLine(const TokList *ts,
-                                      std::ostream &out) const {
+void Preprocessor::Private::printLine(const TokList *ts, std::ostream &out,
+                                      bool nl) const {
   bool first = true;
   for (const Tok *prevTk = nullptr; ts; ts = ts->tail) {
     auto tk = ts->head;
@@ -1525,7 +1525,7 @@ void Preprocessor::Private::printLine(const TokList *ts,
     first = false;
     if (ts->tail && ts->tail->head->bol) break;
   }
-  fmt::print(out, "\n");
+  if (nl) fmt::print(out, "\n");
 }
 
 Preprocessor::Preprocessor(Control *control,
