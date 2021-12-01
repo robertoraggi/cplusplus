@@ -37,6 +37,7 @@ class Type {
   bool isIntegral() const;
   bool isArithmetic() const;
   bool isScalar() const;
+  bool isFundamental() const;
 
   template <typename T>
   static const T* cast(const QualifiedType& qualType) {

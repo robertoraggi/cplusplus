@@ -233,3 +233,13 @@ static_assert(__is_scalar(float) == true);
 static_assert(__is_scalar(void) == false);
 static_assert(__is_scalar(void) == false);
 static_assert(__is_scalar(decltype(foo)) == false);
+
+// __is_fundamental
+
+static_assert(__is_fundamental(const void*) == false);
+static_assert(__is_fundamental(decltype(intField)) == false);
+
+static_assert(__is_fundamental(void) == true);
+static_assert(__is_fundamental(char) == true);
+static_assert(__is_fundamental(float) == true);
+static_assert(__is_fundamental(nullptr_t) == true);

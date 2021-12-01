@@ -40,6 +40,11 @@ bool Type::isScalar() const {
          Type::is<PointerToMemberType>(this) || Type::is<NullptrType>(this);
 }
 
+bool Type::isFundamental() const {
+  return isArithmetic() || Type::is<VoidType>(this) ||
+         Type::is<NullptrType>(this);
+}
+
 const UndefinedType* UndefinedType::get() {
   static UndefinedType type;
   return &type;
