@@ -713,6 +713,12 @@ void Semantics::visit(TypeTraitsExpressionAST* ast) {
       break;
     }
 
+    case TokenKind::T___IS_OBJECT: {
+      auto ty = ast->typeIdList->value->type;
+      ast->constValue = std::uint64_t(ty->isObject());
+      break;
+    }
+
     case TokenKind::T___IS_ENUM: {
       auto ty = ast->typeIdList->value->type;
       ast->constValue =

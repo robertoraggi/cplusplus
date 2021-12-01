@@ -243,3 +243,12 @@ static_assert(__is_fundamental(void) == true);
 static_assert(__is_fundamental(char) == true);
 static_assert(__is_fundamental(float) == true);
 static_assert(__is_fundamental(nullptr_t) == true);
+
+// __is_object
+
+static_assert(__is_object(C) == true);
+static_assert(__is_object(U) == true);
+static_assert(__is_object(void*) == true);
+static_assert(__is_object(int[]) == true);
+
+static_assert(__is_object(void) == false);

@@ -45,6 +45,11 @@ bool Type::isFundamental() const {
          Type::is<NullptrType>(this);
 }
 
+bool Type::isObject() const {
+  return isScalar() || Type::is<ArrayType>(this) ||
+         Type::is<UnboundArrayType>(this) || Type::is<ClassType>(this);
+}
+
 const UndefinedType* UndefinedType::get() {
   static UndefinedType type;
   return &type;
