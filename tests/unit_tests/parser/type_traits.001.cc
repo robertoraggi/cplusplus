@@ -12,6 +12,27 @@ static_assert(__is_void(const volatile void) == true);
 static_assert(__is_same(decltype(__is_void(void)), bool) == true);
 static_assert(__is_same(decltype(__is_void(void)), int) == false);
 
+// __is_integral
+
+static_assert(__is_integral(bool) == true);
+static_assert(__is_integral(char8_t) == true);
+static_assert(__is_integral(char16_t) == true);
+static_assert(__is_integral(char32_t) == true);
+static_assert(__is_integral(char) == true);
+static_assert(__is_integral(short) == true);
+static_assert(__is_integral(int) == true);
+static_assert(__is_integral(long) == true);
+static_assert(__is_integral(long long) == true);
+static_assert(__is_integral(unsigned char) == true);
+static_assert(__is_integral(unsigned short) == true);
+static_assert(__is_integral(unsigned int) == true);
+static_assert(__is_integral(unsigned long) == true);
+static_assert(__is_integral(unsigned long long) == true);
+static_assert(__is_integral(float) == false);
+static_assert(__is_integral(double) == false);
+static_assert(__is_integral(long double) == false);
+static_assert(__is_integral(void*) == false);
+
 // __is_floating_point
 
 static_assert(__is_floating_point(float) == true);
