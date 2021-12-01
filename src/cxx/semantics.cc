@@ -683,6 +683,12 @@ void Semantics::visit(TypeTraitsExpressionAST* ast) {
       break;
     }
 
+    case TokenKind::T___IS_FLOATING_POINT: {
+      ast->constValue = std::uint64_t(
+          Type::is<FloatingPointType>(ast->typeIdList->value->type));
+      break;
+    }
+
     case TokenKind::T___IS_ENUM: {
       auto ty = ast->typeIdList->value->type;
       ast->constValue =
@@ -1450,11 +1456,15 @@ void Semantics::visit(IntegralTypeSpecifierAST* ast) {
       break;
 
     case TokenKind::T_LONG: {
-      auto ty = dynamic_cast<const IntegerType*>(specifiers_->type.type());
+      auto ty = Type::cast<IntegerType>(specifiers_->type);
 
       if (ty && ty->kind() == IntegerKind::kLong) {
         specifiers_->type.setType(types_->integerType(IntegerKind::kLongLong,
                                                       specifiers_->isUnsigned));
+      } else if (auto floatTy =
+                     Type::cast<FloatingPointType>(specifiers_->type)) {
+        specifiers_->type.setType(
+            types_->floatingPointType(FloatingPointKind::kLongDouble));
       } else {
         specifiers_->type.setType(
             types_->integerType(IntegerKind::kLong, specifiers_->isUnsigned));

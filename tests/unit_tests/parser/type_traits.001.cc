@@ -1,5 +1,7 @@
 // RUN: %cxx -verify -fsyntax-only %s -o -
 
+// __is_void
+
 static_assert(__is_void(int) == false);
 static_assert(__is_void(void) == true);
 static_assert(__is_void(void*) == false);
@@ -8,8 +10,21 @@ static_assert(__is_void(volatile void) == true);
 static_assert(__is_void(const volatile void) == true);
 
 static_assert(__is_same(decltype(__is_void(void)), bool) == true);
-
 static_assert(__is_same(decltype(__is_void(void)), int) == false);
+
+// __is_floating_point
+
+static_assert(__is_floating_point(float) == true);
+static_assert(__is_floating_point(double) == true);
+static_assert(__is_floating_point(long double) == true);
+static_assert(__is_floating_point(double long) == true);
+static_assert(__is_floating_point(const float) == true);
+static_assert(__is_floating_point(const double) == true);
+static_assert(__is_floating_point(const long double) == true);
+static_assert(__is_floating_point(float*) == false);
+static_assert(__is_floating_point(float&) == false);
+
+// __is_pointer
 
 static_assert(__is_pointer(void*) == true);
 
@@ -166,7 +181,7 @@ static_assert(__is_member_object_pointer(decltype(intField)) == true);
 static_assert(__is_member_object_pointer(IntFieldT) == true);
 static_assert(__is_member_object_pointer(int(Class::*)) == true);
 
-static_assert(__is_member_object_pointer(int (Class::*)()) == false);
+static_assert(__is_member_object_pointer(int(Class::*)()) == false);
 
 namespace ns {
 struct list {
