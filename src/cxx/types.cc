@@ -34,6 +34,12 @@ bool Type::isArithmetic() const {
   return isIntegral() || Type::is<FloatingPointType>(this);
 }
 
+bool Type::isScalar() const {
+  return isArithmetic() || Type::is<EnumType>(this) ||
+         Type::is<ScopedEnumType>(this) || Type::is<PointerType>(this) ||
+         Type::is<PointerToMemberType>(this) || Type::is<NullptrType>(this);
+}
+
 const UndefinedType* UndefinedType::get() {
   static UndefinedType type;
   return &type;

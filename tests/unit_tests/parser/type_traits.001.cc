@@ -1,5 +1,7 @@
 // RUN: %cxx -verify -fsyntax-only %s -o -
 
+using nullptr_t = decltype(nullptr);
+
 enum ee {};
 enum class sc {};
 
@@ -9,6 +11,33 @@ class C {};
 
 union V;
 union U {};
+
+struct Class {
+  int i;
+};
+
+using IntFieldT = int(Class::*);
+
+int(Class::*intField) = nullptr;
+
+namespace ns {
+struct list {
+  struct iterator {
+    int p;
+  };
+};
+}  // namespace ns
+
+void foo() {}
+
+int* p;
+
+const int v = 0;
+
+const int volatile vv = 0;
+
+int* volatile pv = nullptr;
+void* ptr = nullptr;
 
 // __is_void
 
@@ -61,19 +90,13 @@ static_assert(__is_floating_point(float&) == false);
 
 static_assert(__is_pointer(void*) == true);
 
-int* p;
-
 static_assert(__is_pointer(decltype(p)) == true);
 
 static_assert(__is_pointer(int) == false);
 
-void foo() {}
-
 static_assert(__is_pointer(decltype(foo)) == false);
 
 // __is_const
-
-const int v = 0;
 
 static_assert(__is_const(decltype(v)) == true);
 
@@ -89,13 +112,9 @@ static_assert(__is_const(decltype(0)) == false);
 
 // __is_volatile
 
-const int volatile vv = 0;
-
 static_assert(__is_volatile(decltype(vv)));
 
 static_assert(__is_const(decltype(vv)));
-
-int* volatile pv = nullptr;
 
 static_assert(__is_volatile(decltype(pv)));
 
@@ -103,11 +122,7 @@ static_assert(__is_volatile(decltype(pv)));
 
 static_assert(__is_null_pointer(decltype(nullptr)) == true);
 
-void* ptr = nullptr;
-
 static_assert(__is_null_pointer(decltype(ptr)) == false);
-
-using nullptr_t = decltype(nullptr);
 
 static_assert(__is_null_pointer(nullptr_t) == true);
 
@@ -192,27 +207,11 @@ static_assert(__is_function(int (*)()) == false);
 
 // __is_member_object_pointer
 
-struct Class {
-  int i;
-};
-
-using IntFieldT = int(Class::*);
-
-int(Class::*intField) = nullptr;
-
 static_assert(__is_member_object_pointer(decltype(intField)) == true);
 static_assert(__is_member_object_pointer(IntFieldT) == true);
 static_assert(__is_member_object_pointer(int(Class::*)) == true);
 
 static_assert(__is_member_object_pointer(int(Class::*)()) == false);
-
-namespace ns {
-struct list {
-  struct iterator {
-    int p;
-  };
-};
-}  // namespace ns
 
 static_assert(__is_member_object_pointer(int(ns::list::iterator::*)) == true);
 
@@ -223,3 +222,14 @@ static_assert(__is_arithmetic(int) == true);
 static_assert(__is_arithmetic(float) == true);
 static_assert(__is_arithmetic(double) == true);
 static_assert(__is_arithmetic(int*) == false);
+
+// __is_scalar
+
+static_assert(__is_scalar(const void*) == true);
+static_assert(__is_scalar(decltype(intField)) == true);
+static_assert(__is_scalar(char) == true);
+static_assert(__is_scalar(float) == true);
+
+static_assert(__is_scalar(void) == false);
+static_assert(__is_scalar(void) == false);
+static_assert(__is_scalar(decltype(foo)) == false);
