@@ -244,6 +244,15 @@ static_assert(__is_fundamental(char) == true);
 static_assert(__is_fundamental(float) == true);
 static_assert(__is_fundamental(nullptr_t) == true);
 
+// __is_compound
+
+static_assert(__is_compound(const void*) == true);
+static_assert(__is_compound(decltype(intField)) == true);
+static_assert(__is_compound(void) == false);
+static_assert(__is_compound(char) == false);
+static_assert(__is_compound(float) == false);
+static_assert(__is_compound(nullptr_t) == false);
+
 // __is_object
 
 static_assert(__is_object(C) == true);

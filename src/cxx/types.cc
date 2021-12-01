@@ -45,6 +45,8 @@ bool Type::isFundamental() const {
          Type::is<NullptrType>(this);
 }
 
+bool Type::isCompound() const { return !isFundamental(); }
+
 bool Type::isObject() const {
   return isScalar() || Type::is<ArrayType>(this) ||
          Type::is<UnboundArrayType>(this) || Type::is<ClassType>(this);
