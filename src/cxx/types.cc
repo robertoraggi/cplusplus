@@ -25,6 +25,15 @@ namespace cxx {
 
 Type::~Type() {}
 
+bool Type::isIntegral() const {
+  return Type::is<BooleanType>(this) || Type::is<CharacterType>(this) ||
+         Type::is<IntegerType>(this);
+}
+
+bool Type::isArithmetic() const {
+  return isIntegral() || Type::is<FloatingPointType>(this);
+}
+
 const UndefinedType* UndefinedType::get() {
   static UndefinedType type;
   return &type;

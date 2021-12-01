@@ -34,6 +34,9 @@ class Type {
 
   virtual void accept(TypeVisitor* visitor) const = 0;
 
+  bool isIntegral() const;
+  bool isArithmetic() const;
+
   template <typename T>
   static const T* cast(const QualifiedType& qualType) {
     return dynamic_cast<const T*>(qualType.type());

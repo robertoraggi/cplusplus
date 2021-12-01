@@ -691,10 +691,13 @@ void Semantics::visit(TypeTraitsExpressionAST* ast) {
 
     case TokenKind::T___IS_INTEGRAL: {
       auto ty = ast->typeIdList->value->type;
+      ast->constValue = std::uint64_t(ty->isIntegral());
+      break;
+    }
 
-      ast->constValue = std::uint64_t(Type::is<BooleanType>(ty) ||
-                                      Type::is<CharacterType>(ty) ||
-                                      Type::is<IntegerType>(ty));
+    case TokenKind::T___IS_ARITHMETIC: {
+      auto ty = ast->typeIdList->value->type;
+      ast->constValue = std::uint64_t(ty->isArithmetic());
       break;
     }
 

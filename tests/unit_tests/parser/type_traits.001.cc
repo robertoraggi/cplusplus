@@ -1,5 +1,15 @@
 // RUN: %cxx -verify -fsyntax-only %s -o -
 
+enum ee {};
+enum class sc {};
+
+struct F;
+struct S {};
+class C {};
+
+union V;
+union U {};
+
 // __is_void
 
 static_assert(__is_void(int) == false);
@@ -32,6 +42,8 @@ static_assert(__is_integral(float) == false);
 static_assert(__is_integral(double) == false);
 static_assert(__is_integral(long double) == false);
 static_assert(__is_integral(void*) == false);
+static_assert(__is_integral(ee) == false);
+static_assert(__is_integral(sc) == false);
 
 // __is_floating_point
 
@@ -129,9 +141,6 @@ static_assert(__is_unsigned(long long) == false);
 
 // __is_enum and __is_scoped_enum
 
-enum ee {};
-enum class sc {};
-
 static_assert(__is_enum(ee) == true);
 static_assert(__is_enum(sc) == true);
 
@@ -139,13 +148,6 @@ static_assert(__is_scoped_enum(sc) == true);
 static_assert(__is_scoped_enum(ee) == false);
 
 // __is_class and __is_union
-
-struct F;
-struct S {};
-class C {};
-
-union V;
-union U {};
 
 static_assert(__is_class(F) == true);
 static_assert(__is_class(S) == true);
@@ -213,3 +215,11 @@ struct list {
 }  // namespace ns
 
 static_assert(__is_member_object_pointer(int(ns::list::iterator::*)) == true);
+
+// __is_artithmetic
+
+static_assert(__is_arithmetic(bool) == true);
+static_assert(__is_arithmetic(int) == true);
+static_assert(__is_arithmetic(float) == true);
+static_assert(__is_arithmetic(double) == true);
+static_assert(__is_arithmetic(int*) == false);
