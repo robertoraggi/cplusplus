@@ -1,5 +1,19 @@
 # Changelog
 
+### [1.1.13](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.12...v1.1.13) (2021-12-02)
+
+
+### Bug Fixes
+
+* **parser:** Add checked/setChecked to the AST nodes ([52501b5](https://www.github.com/robertoraggi/cplusplus/commit/52501b548d1d7eeba1381007ce4eb43d7eef6025))
+* **parser:** Implemented `__is_arithmetic` ([3e0c377](https://www.github.com/robertoraggi/cplusplus/commit/3e0c377ac3ef3c90fbf022c32fc4cac868a851ff))
+* **parser:** Implemented `__is_compound` ([37b90ee](https://www.github.com/robertoraggi/cplusplus/commit/37b90ee794c336070ebbb5927f9897c11e2f701a))
+* **parser:** Implemented `__is_floating_point` ([a165026](https://www.github.com/robertoraggi/cplusplus/commit/a1650269ee89d31faaf4b3be8c1712b3008a3004))
+* **parser:** Implemented `__is_fundamental` ([4ef0374](https://www.github.com/robertoraggi/cplusplus/commit/4ef03745022e51ed51eded17e79667af38d215a3))
+* **parser:** Implemented `__is_integral` ([1891675](https://www.github.com/robertoraggi/cplusplus/commit/1891675a8b3cbd29948a1b8094313adb18ecb67a))
+* **parser:** Implemented `__is_object` ([b60f382](https://www.github.com/robertoraggi/cplusplus/commit/b60f382d4d484a02247ed71885eed551cecbe19d))
+* **parser:** Implemented `__is_scalar` ([52d64d3](https://www.github.com/robertoraggi/cplusplus/commit/52d64d36572eea0d5c117c7561ee302dbf90ade7))
+
 ### [1.1.12](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.11...v1.1.12) (2021-11-28)
 
 
