@@ -47,6 +47,7 @@ class List final : public Managed {
 
 class AST : public Managed {
   ASTKind kind_;
+  bool checked_ = false;
 
  public:
   explicit AST(ASTKind kind) : kind_(kind) {}
@@ -54,6 +55,9 @@ class AST : public Managed {
   virtual ~AST();
 
   ASTKind kind() const { return kind_; }
+
+  bool checked() const { return checked_; }
+  void setChecked(bool checked) { checked_ = checked; }
 
   virtual void accept(ASTVisitor* visitor) = 0;
 
