@@ -72,10 +72,7 @@ std::uint64_t IntegerLiteral::interpretText(std::string_view text) {
 }
 
 FloatLiteral::FloatLiteral(std::string text) : Literal(std::move(text)) {
-  std::string_view str(value());
-  auto first = str.data();
-  auto last = first + str.size();
-  std::from_chars(first, last, floatValue_);
+  floatValue_ = std::strtod(value().c_str(), nullptr);
 }
 
 }  // namespace cxx
