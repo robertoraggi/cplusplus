@@ -4229,6 +4229,10 @@ bool Parser::parse_named_type_specifier_helper(SpecifierAST*& yyast,
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
 
   if (parse_nested_name_specifier(nestedNameSpecifier)) {
+    Semantics::NestedNameSpecifierSem nestedNameSpecifierSem;
+
+    sem->nestedNameSpecifier(nestedNameSpecifier, &nestedNameSpecifierSem);
+
     const auto after_nested_name_specifier = currentLocation();
 
     SourceLocation templateLoc;
@@ -4237,6 +4241,17 @@ bool Parser::parse_named_type_specifier_helper(SpecifierAST*& yyast,
     match(TokenKind::T_TEMPLATE, templateLoc);
 
     if (parse_type_name(name)) {
+      Semantics::NameSem nameSem;
+      sem->name(name, &nameSem);
+
+      Symbol* symbol = nullptr;
+
+      if (nestedNameSpecifier->symbol) {
+        if (auto scope = nestedNameSpecifier->symbol->scope()) {
+          symbol = scope->lookup(nameSem.name, LookupOptions::kType);
+        }
+      }
+
       auto qualifiedId = new (pool) QualifiedNameAST();
       qualifiedId->nestedNameSpecifier = nestedNameSpecifier;
       qualifiedId->templateLoc = templateLoc;
@@ -4246,6 +4261,7 @@ bool Parser::parse_named_type_specifier_helper(SpecifierAST*& yyast,
       yyast = ast;
 
       ast->name = qualifiedId;
+      ast->symbol = symbol;
 
       return true;
     }

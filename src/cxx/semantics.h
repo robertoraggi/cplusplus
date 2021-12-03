@@ -122,6 +122,9 @@ class Semantics final : ASTVisitor {
 
   void name(NameAST* ast, NameSem* name);
 
+  void nestedNameSpecifier(NestedNameSpecifierAST* ast,
+                           NestedNameSpecifierSem* nestedNameSpecifier);
+
   void expression(ExpressionAST* ast, ExpressionSem* expression);
 
   void typeId(TypeIdAST* ast);
@@ -146,8 +149,6 @@ class Semantics final : ASTVisitor {
 
   void accept(AST* ast);
 
-  void nestedNameSpecifier(NestedNameSpecifierAST* ast,
-                           NestedNameSpecifierSem* nestedNameSpecifier);
   void exceptionDeclaration(ExceptionDeclarationAST* ast);
   void compoundStatement(CompoundStatementAST* ast);
   void attribute(AttributeAST* ast);

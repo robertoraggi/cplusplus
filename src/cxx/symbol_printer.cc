@@ -129,7 +129,8 @@ void SymbolPrinter::visit(TemplateTypeParameterSymbol* symbol) {
 }
 
 void SymbolPrinter::visit(VariableSymbol* symbol) {
-  printSymbolHead("variable:", symbol->name());
+  printSymbolHead("variable: ");
+  printType(out, symbol->type(), symbolName(symbol));
   newline();
 }
 
