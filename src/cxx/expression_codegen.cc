@@ -325,11 +325,11 @@ void ExpressionCodegen::visit(BinaryExpressionAST* ast) {
     cg->condition(ast, iftrue, iffalse);
     cg->place(iftrue);
     cg->emitMove(cg->createTemp(local),
-                 cg->createIntegerLiteral(std::int32_t(1)));
+                 cg->createIntegerLiteral(std::uint64_t(1)));
     cg->emitJump(endif);
     cg->place(iffalse);
     cg->emitMove(cg->createTemp(local),
-                 cg->createIntegerLiteral(std::int32_t(0)));
+                 cg->createIntegerLiteral(std::uint64_t(0)));
     cg->place(endif);
     expr_ = cg->createTemp(local);
     return;
