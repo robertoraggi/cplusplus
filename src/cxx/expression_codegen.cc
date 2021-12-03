@@ -163,25 +163,12 @@ void ExpressionCodegen::visit(BoolLiteralExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(IntLiteralExpressionAST* ast) {
-  const auto& value = ast->literal->value();
-  if (value.starts_with("0x") || value.starts_with("0X")) {
-    std::int64_t literal =
-        std::int64_t(std::stol(value.substr(2), nullptr, 16));
-    expr_ = cg->createIntegerLiteral(literal);
-  } else if (value.starts_with("0b") || value.starts_with("0B")) {
-    std::int64_t literal = std::int64_t(std::stol(value.substr(2), nullptr, 2));
-    expr_ = cg->createIntegerLiteral(literal);
-  } else if (value.starts_with("0")) {
-    std::int64_t literal = std::int64_t(std::stol(value, nullptr, 8));
-    expr_ = cg->createIntegerLiteral(literal);
-  } else {
-    std::int64_t literal = std::int64_t(std::stol(value));
-    expr_ = cg->createIntegerLiteral(literal);
-  }
+  auto value = ast->literal->integerValue();
+  expr_ = cg->createIntegerLiteral(value);
 }
 
 void ExpressionCodegen::visit(FloatLiteralExpressionAST* ast) {
-  throw std::runtime_error("visit(FloatLiteralExpressionAST): not implemented");
+  expr_ = cg->createFloatLiteral(ast->literal->floatValue());
 }
 
 void ExpressionCodegen::visit(NullptrLiteralExpressionAST* ast) {

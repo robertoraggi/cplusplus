@@ -20,8 +20,58 @@
 
 #include <cxx/literals.h>
 
+#include <charconv>
+
 namespace cxx {
 
 Literal::~Literal() {}
+
+IntegerLiteral::IntegerLiteral(std::string text) : Literal(std::move(text)) {
+  if (value().find('\'') == std::string_view::npos) {
+    integerValue_ = interpretText(value());
+    return;
+  }
+
+  std::string s;
+  s.reserve(value().size());
+
+  for (auto ch : value()) {
+    if (ch != '\'') s += ch;
+  }
+
+  integerValue_ = interpretText(s);
+}
+
+std::uint64_t IntegerLiteral::interpretText(std::string_view text) {
+  while (text.ends_with('l') || text.ends_with('L')  //
+         || text.ends_with('u') || text.ends_with('U')) {
+    text = text.substr(0, text.length() - 1);
+  }
+
+  int base = 10;
+
+  if (text.starts_with('0')) {
+    text = text.substr(1);
+
+    if (text.starts_with('x') || text.starts_with('X')) {
+      text = text.substr(1);
+      base = 16;
+    } else if (text.starts_with('b') || text.starts_with('B')) {
+      text = text.substr(1);
+      base = 2;
+    } else {
+      base = 8;
+    }
+  }
+
+  std::uint64_t value = 0;
+  auto result = std::from_chars(begin(text), end(text), value, base);
+  return value;
+}
+
+FloatLiteral::FloatLiteral(std::string text) : Literal(std::move(text)) {
+  std::string_view str(value());
+  std::from_chars(begin(str), end(str), floatValue_);
+}
 
 }  // namespace cxx

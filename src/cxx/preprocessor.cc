@@ -1266,7 +1266,7 @@ long Preprocessor::Private::unaryExpression(const TokList *&ts) {
 long Preprocessor::Private::primaryExpression(const TokList *&ts) {
   const auto tk = ts->head;
   if (match(ts, TokenKind::T_INTEGER_LITERAL)) {
-    return std::strtol(tk->text.data(), nullptr, 0);
+    return IntegerLiteral::interpretText(tk->text.data());
   } else if (match(ts, TokenKind::T_LPAREN)) {
     auto result = conditionalExpression(ts);
     expect(ts, TokenKind::T_RPAREN);

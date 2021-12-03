@@ -20,8 +20,8 @@
 
 #include <cxx/cxx_fwd.h>
 
-#include <cstdlib>
 #include <string>
+#include <string_view>
 
 namespace cxx {
 
@@ -38,45 +38,19 @@ class Literal {
 
 class IntegerLiteral final : public Literal {
  public:
-  explicit IntegerLiteral(std::string text) : Literal(std::move(text)) {
-    if (value().find('\'') == std::string_view::npos)
-      integerValue_ = interpretText(value());
-    else {
-      std::string s;
-      s.reserve(value().size());
-      for (auto ch : value())
-        if (ch != '\'') s += ch;
-      integerValue_ = interpretText(s);
-    }
-  }
+  explicit IntegerLiteral(std::string text);
 
   std::uint64_t integerValue() const { return integerValue_; }
 
- private:
-  static std::uint64_t interpretText(const std::string& s) {
-    int base = 10;
-    const char* str = s.c_str();
-    if (s.starts_with("0x") || s.starts_with("0X")) {
-      base = 16;
-      str += 2;
-    } else if (s.starts_with("0b") || s.starts_with("0B")) {
-      base = 2;
-      str += 2;
-    } else if (s.starts_with('0')) {
-      base = 8;
-      ++str;
-    }
-    return (std::uint64_t)std::strtoull(str, nullptr, base);
-  }
+  static std::uint64_t interpretText(std::string_view text);
 
+ private:
   std::uint64_t integerValue_ = 0;
 };
 
 class FloatLiteral final : public Literal {
  public:
-  explicit FloatLiteral(std::string text) : Literal(std::move(text)) {
-    floatValue_ = (double)std::strtold(value().c_str(), nullptr);
-  }
+  explicit FloatLiteral(std::string text);
 
   double floatValue() const { return floatValue_; }
 

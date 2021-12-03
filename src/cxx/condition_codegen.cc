@@ -46,8 +46,8 @@ void ConditionCodegen::gen(ExpressionAST* ast, ir::Block* iftrue,
 }
 
 void ConditionCodegen::visit(IntLiteralExpressionAST* ast) {
-  auto literal = std::stoul(ast->literal->value());
-  cg->emitJump(literal ? iftrue_ : iffalse_);
+  auto value = ast->literal->integerValue();
+  cg->emitJump(value ? iftrue_ : iffalse_);
 }
 
 void ConditionCodegen::visit(BinaryExpressionAST* ast) {
