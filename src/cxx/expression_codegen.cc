@@ -158,7 +158,7 @@ void ExpressionCodegen::visit(CharLiteralExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(BoolLiteralExpressionAST* ast) {
-  const auto value = ast->literal == TokenKind::T_TRUE;
+  const auto value = std::uint64_t(ast->literal == TokenKind::T_TRUE);
   expr_ = cg->createIntegerLiteral(value);
 }
 
@@ -172,7 +172,7 @@ void ExpressionCodegen::visit(FloatLiteralExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(NullptrLiteralExpressionAST* ast) {
-  std::int64_t v = 0;
+  std::uint64_t v = 0;
   expr_ = cg->createIntegerLiteral(v);
 }
 
