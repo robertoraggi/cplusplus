@@ -204,33 +204,11 @@ void IRPrinter::visit(CharLiteral* expr) { text_ = expr->value()->value(); }
 
 void IRPrinter::visit(IntegerLiteral* expr) {
   struct Print {
-    std::string operator()(std::int8_t v) const { return fmt::format("{}", v); }
-
-    std::string operator()(std::int16_t v) const {
-      return fmt::format("{}", v);
-    }
-
-    std::string operator()(std::int32_t v) const {
+    std::string operator()(std::uint64_t v) const {
       return fmt::format("{}", v);
     }
 
     std::string operator()(std::int64_t v) const {
-      return fmt::format("{}", v);
-    }
-
-    std::string operator()(std::uint8_t v) const {
-      return fmt::format("{}", v);
-    }
-
-    std::string operator()(std::uint16_t v) const {
-      return fmt::format("{}", v);
-    }
-
-    std::string operator()(std::uint32_t v) const {
-      return fmt::format("{}", v);
-    }
-
-    std::string operator()(std::uint64_t v) const {
       return fmt::format("{}", v);
     }
   };
