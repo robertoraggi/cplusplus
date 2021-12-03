@@ -64,14 +64,18 @@ std::uint64_t IntegerLiteral::interpretText(std::string_view text) {
     }
   }
 
+  auto first = text.data();
+  auto last = first + text.size();
   std::uint64_t value = 0;
-  auto result = std::from_chars(begin(text), end(text), value, base);
+  auto result = std::from_chars(first, last, value, base);
   return value;
 }
 
 FloatLiteral::FloatLiteral(std::string text) : Literal(std::move(text)) {
   std::string_view str(value());
-  std::from_chars(begin(str), end(str), floatValue_);
+  auto first = str.data();
+  auto last = first + str.size();
+  std::from_chars(first, last, floatValue_);
 }
 
 }  // namespace cxx
