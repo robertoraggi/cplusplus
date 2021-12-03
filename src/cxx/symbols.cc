@@ -102,6 +102,14 @@ const QualifiedType& Symbol::type() const { return type_; }
 
 void Symbol::setType(const QualifiedType& type) { type_ = type; }
 
+Linkage Symbol::linkage() const { return linkage_; }
+
+void Symbol::setLinkage(Linkage linkage) { linkage_ = linkage; }
+
+Visibility Symbol::visibility() const { return visibility_; }
+
+void Symbol::setVisibility(Visibility visibility) { visibility_ = visibility; }
+
 NamespaceSymbol::NamespaceSymbol(Scope* enclosingScope, const Name* name)
     : Symbol(enclosingScope, name), scope_(std::make_unique<Scope>()) {
   scope_->setOwner(this);

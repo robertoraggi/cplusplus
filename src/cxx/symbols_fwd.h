@@ -49,7 +49,18 @@ class FunctionSymbol;
 class ArgumentSymbol;
 class BlockSymbol;
 
-enum class ClassKey {
+enum class Linkage {
+  kCxx,
+  kC,
+};
+
+enum class Visibility : std::uint8_t {
+  kPublic,
+  kProtected,
+  kPrivate,
+};
+
+enum class ClassKey : std::uint8_t {
   kClass,
   kStruct,
   kUnion,

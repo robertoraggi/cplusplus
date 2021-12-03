@@ -61,6 +61,12 @@ class Symbol {
   const QualifiedType& type() const;
   void setType(const QualifiedType& type);
 
+  Linkage linkage() const;
+  void setLinkage(Linkage linkage);
+
+  Visibility visibility() const;
+  void setVisibility(Visibility visibility);
+
   virtual bool isTypeSymbol() const;
 
   virtual Scope* scope() const { return nullptr; }
@@ -74,6 +80,8 @@ class Symbol {
   Scope* enclosingScope_ = nullptr;
   Symbol* next_ = nullptr;
   QualifiedType type_;
+  Linkage linkage_ = Linkage::kCxx;
+  Visibility visibility_ = Visibility::kPublic;
 };
 
 class TypeSymbol : public Symbol {

@@ -282,7 +282,7 @@ void ExpressionCodegen::visit(UnaryExpressionAST* ast) {
 
       auto local = cg->function()->addLocal(ast->expression->type);
 
-      const int i = 1;
+      const std::uint64_t i = 1;
 
       const auto op = ast->op == TokenKind::T_PLUS_PLUS ? ir::BinaryOp::kPlus
                                                         : ir::BinaryOp::kMinus;
@@ -396,7 +396,7 @@ void ExpressionCodegen::visit(PostIncrExpressionAST* ast) {
   cg->emitMove(cg->createTemp(local), expr);
   const auto op = ast->op == TokenKind::T_PLUS_PLUS ? ir::BinaryOp::kPlus
                                                     : ir::BinaryOp::kMinus;
-  const int i = 1;
+  const std::uint64_t i = 1;
   cg->emitMove(expr, cg->createBinary(op, expr, cg->createIntegerLiteral(i)));
   expr_ = cg->createTemp(local);
 }
