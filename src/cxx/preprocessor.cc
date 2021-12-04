@@ -628,7 +628,7 @@ const TokList *Preprocessor::Private::tokenize(const std::string_view &source,
 
     if (lex.tokenKind() == TokenKind::T_COMMENT) {
       if (commentHandler_) {
-        TokenValue tokenValue;
+        TokenValue tokenValue{};
 
         if (sourceFile) {
           const SourceFile *file = sourceFiles_[sourceFile - 1].get();
@@ -1649,7 +1649,7 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
     auto kind = tk->kind;
     const auto fileId = tk->sourceFile;
 
-    TokenValue value;
+    TokenValue value{};
 
     switch (tk->kind) {
       case TokenKind::T_IDENTIFIER: {
