@@ -21,6 +21,9 @@ npm install cxx-frontend
 On Linux, macOS and Windows:
 
 ```sh
+# install the python packages required to run the unit tests
+pip install -r tests/unit_tests/requirements.txt
+
 # configure cxx-frontend
 cmake . \
  -G Ninja \
@@ -30,6 +33,10 @@ cmake . \
 
 # build cxx-frontend
 cmake --build build
+
+# run the unit tests
+cd build
+ctest --progress
 ```
 
 ## Dump the AST

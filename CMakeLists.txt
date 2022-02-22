@@ -25,22 +25,18 @@ include(FetchContent)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
-find_package(fmt 7.1.3 CONFIG QUIET)
-
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/version.txt" version)
 
 set(CMAKE_CXX_STANDARD 20)
 
-if(NOT fmt_FOUND)
 FetchContent_Declare(
     fmt
     GIT_REPOSITORY  https://github.com/fmtlib/fmt
-    GIT_TAG         7.1.3
+    GIT_TAG         8.1.1
     GIT_SHALLOW     1
 )
 
 FetchContent_MakeAvailable(fmt)
-endif()
 
 FetchContent_Declare(
     utfcpp
@@ -53,7 +49,7 @@ FetchContent_MakeAvailable(utfcpp)
 
 FetchContent_Declare(
     nlohmann_json
-    URL             https://github.com/nlohmann/json/releases/download/v3.10.4/include.zip
+    URL             https://github.com/nlohmann/json/releases/download/v3.10.5/include.zip
     URL_HASH        SHA256=62c585468054e2d8e7c2759c0d990fd339d13be988577699366fe195162d16cb
 )
 
