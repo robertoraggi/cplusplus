@@ -1,5 +1,14 @@
 # Changelog
 
+### [1.1.14](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.13...v1.1.14) (2022-02-26)
+
+
+### Bug Fixes
+
+* Build with emscripten 3.1.4 ([4751aa7](https://www.github.com/robertoraggi/cplusplus/commit/4751aa7cd056dede1246835a433bcf7edbc9dc2e))
+* **parser:** Create symbols for the template declarations ([0da8b46](https://www.github.com/robertoraggi/cplusplus/commit/0da8b461c4b0dd8ef8b5a9c7a43be9388a051ee0))
+* Restructured the code base ([9e405a7](https://www.github.com/robertoraggi/cplusplus/commit/9e405a7a9e742566ac3e3695ebe092b37ff8252c))
+
 ### [1.1.13](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.12...v1.1.13) (2021-12-02)
 
 
