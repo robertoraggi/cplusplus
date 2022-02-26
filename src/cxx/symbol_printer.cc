@@ -113,14 +113,12 @@ void SymbolPrinter::visit(ScopedEnumSymbol* symbol) {
   deindent();
 }
 
-void SymbolPrinter::visit(TemplateClassSymbol* symbol) {
-  printSymbolHead("template class:", symbol->name());
+void SymbolPrinter::visit(TemplateSymbol* symbol) {
+  printSymbolHead("template:", symbol->name());
   newline();
-}
-
-void SymbolPrinter::visit(TemplateFunctionSymbol* symbol) {
-  printSymbolHead("template function:", symbol->name());
-  newline();
+  indent();
+  printScope(symbol->scope());
+  deindent();
 }
 
 void SymbolPrinter::visit(TemplateTypeParameterSymbol* symbol) {

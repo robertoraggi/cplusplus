@@ -70,6 +70,14 @@ TypeSymbol::TypeSymbol(Scope* enclosingScope, const Name* name)
 
 bool TypeSymbol::isTypeSymbol() const { return true; }
 
+Symbol* Symbol::enclosingClassOrNamespace() const {
+  for (auto scope = enclosingScope_; scope; scope = scope->enclosingScope()) {
+    if (auto sym = dynamic_cast<NamespaceSymbol*>(scope->owner())) return sym;
+    if (auto sym = dynamic_cast<ClassSymbol*>(scope->owner())) return sym;
+  }
+  return nullptr;
+}
+
 NamespaceSymbol* Symbol::enclosingNamespace() const {
   for (auto scope = enclosingScope_; scope; scope = scope->enclosingScope()) {
     if (auto sym = dynamic_cast<NamespaceSymbol*>(scope->owner())) return sym;
@@ -155,13 +163,12 @@ ScopedEnumSymbol::~ScopedEnumSymbol() {}
 EnumeratorSymbol::EnumeratorSymbol(Scope* enclosingScope, const Name* name)
     : Symbol(enclosingScope, name) {}
 
-TemplateClassSymbol::TemplateClassSymbol(Scope* enclosingScope,
-                                         const Name* name)
-    : TypeSymbol(enclosingScope, name) {}
+TemplateSymbol::TemplateSymbol(Scope* enclosingScope, const Name* name)
+    : TypeSymbol(enclosingScope, name), scope_(std::make_unique<Scope>()) {
+  scope_->setOwner(this);
+}
 
-TemplateFunctionSymbol::TemplateFunctionSymbol(Scope* enclosingScope,
-                                               const Name* name)
-    : Symbol(enclosingScope, name) {}
+TemplateSymbol::~TemplateSymbol() {}
 
 TemplateTypeParameterSymbol::TemplateTypeParameterSymbol(Scope* enclosingScope,
                                                          const Name* name)

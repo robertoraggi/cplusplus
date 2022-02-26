@@ -5936,7 +5936,7 @@ bool Parser::parse_enumerator(EnumeratorAST*& yyast) {
   sem->scope()->add(symbol);
 
   if (auto enumSymbol = dynamic_cast<EnumSymbol*>(sem->scope()->owner())) {
-    auto enclosingNamespace = enumSymbol->enclosingNamespace();
+    auto enclosingNamespace = enumSymbol->enclosingClassOrNamespace();
 
     auto symbol = symbols->newEnumeratorSymbol(enclosingNamespace->scope(),
                                                ast->name->name);
@@ -7642,6 +7642,11 @@ bool Parser::parse_template_declaration(DeclarationAST*& yyast) {
                            greaterLoc, requiresClause))
     return false;
 
+  auto templSymbol = symbols->newTemplateSymbol(sem->scope(), nullptr);
+  sem->scope()->add(templSymbol);
+
+  Semantics::ScopeContext context(sem.get(), templSymbol->scope());
+
   DeclarationAST* declaration = nullptr;
 
   if (!parse_concept_definition(declaration)) {
@@ -7651,6 +7656,7 @@ bool Parser::parse_template_declaration(DeclarationAST*& yyast) {
   auto ast = new (pool) TemplateDeclarationAST();
   yyast = ast;
 
+  ast->symbol = templSymbol;
   ast->templateLoc = templateLoc;
   ast->lessLoc = lessLoc;
   ast->templateParameterList = templateParameterList;

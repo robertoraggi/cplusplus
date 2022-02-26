@@ -55,8 +55,7 @@ class SymbolPrinter final : SymbolVisitor {
   void visit(EnumSymbol* symbol) override;
   void visit(EnumeratorSymbol* symbol) override;
   void visit(ScopedEnumSymbol* symbol) override;
-  void visit(TemplateClassSymbol* symbol) override;
-  void visit(TemplateFunctionSymbol* symbol) override;
+  void visit(TemplateSymbol* symbol) override;
   void visit(TemplateTypeParameterSymbol* symbol) override;
   void visit(VariableSymbol* symbol) override;
   void visit(FieldSymbol* symbol) override;

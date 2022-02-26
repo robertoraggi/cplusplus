@@ -86,7 +86,7 @@ class TypeEnvironment {
 
   const ClassType* classType(ClassSymbol* symbol);
 
-  const TemplateType* templateType(TemplateClassSymbol* symbol);
+  const TemplateType* templateType(TemplateSymbol* symbol);
 
   const TemplateArgumentType* templateArgumentType(
       TemplateTypeParameterSymbol* symbol);

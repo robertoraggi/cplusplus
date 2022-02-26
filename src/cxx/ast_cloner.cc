@@ -2524,6 +2524,8 @@ void ASTCloner::visit(TemplateDeclarationAST* ast) {
   copy->requiresClause = accept(ast->requiresClause);
 
   copy->declaration = accept(ast->declaration);
+
+  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(TypenameTypeParameterAST* ast) {

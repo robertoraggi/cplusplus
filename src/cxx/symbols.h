@@ -53,6 +53,7 @@ class Symbol {
     enclosingScope_ = enclosingScope;
   }
 
+  Symbol* enclosingClassOrNamespace() const;
   NamespaceSymbol* enclosingNamespace() const;
   ClassSymbol* enclosingClass() const;
   FunctionSymbol* enclosingFunction() const;
@@ -194,20 +195,17 @@ class EnumeratorSymbol final : public Symbol {
   void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
 };
 
-class TemplateClassSymbol final : public TypeSymbol {
+class TemplateSymbol final : public TypeSymbol {
  public:
-  explicit TemplateClassSymbol(Scope* enclosingScope,
-                               const Name* name = nullptr);
+  explicit TemplateSymbol(Scope* enclosingScope, const Name* name = nullptr);
+  ~TemplateSymbol() override;
 
   void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
-};
 
-class TemplateFunctionSymbol final : public Symbol {
- public:
-  explicit TemplateFunctionSymbol(Scope* enclosingScope,
-                                  const Name* name = nullptr);
+  Scope* scope() const override { return scope_.get(); }
 
-  void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
+ private:
+  std::unique_ptr<Scope> scope_;
 };
 
 class TemplateTypeParameterSymbol final : public TypeSymbol {
