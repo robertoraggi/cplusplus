@@ -18,9 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/ir.h>
-#include <cxx/ir_factory.h>
-#include <cxx/ir_visitor.h>
+#include <cxx/ir/ir.h>
+#include <cxx/ir/ir_factory.h>
+#include <cxx/ir/ir_visitor.h>
 #include <cxx/qualified_type.h>
 #include <cxx/types.h>
 

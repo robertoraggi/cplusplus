@@ -19,13 +19,13 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
-#include <cxx/codegen.h>
-#include <cxx/statement_codegen.h>
+#include <cxx/ir/codegen.h>
+#include <cxx/ir/statement_codegen.h>
 #include <cxx/translation_unit.h>
 
 #include <stdexcept>
 
-namespace cxx {
+namespace cxx::ir {
 
 StatementCodegen::StatementCodegen(Codegen* cg) : cg(cg) {}
 
@@ -244,4 +244,4 @@ void StatementCodegen::visit(BracedInitListAST* ast) {
   throw std::runtime_error("visit(BracedInitListAST): not implemented");
 }
 
-}  // namespace cxx
+}  // namespace cxx::ir

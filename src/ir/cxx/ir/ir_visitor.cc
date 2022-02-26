@@ -18,34 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#pragma once
+#include <cxx/ir/ir.h>
+#include <cxx/ir/ir_visitor.h>
 
-#include <cxx/default_ast_visitor.h>
-#include <cxx/expression_codegen.h>
-#include <cxx/ir_fwd.h>
+namespace cxx::ir {
 
-namespace cxx {
+IRVisitor::~IRVisitor() {}
 
-class Codegen;
-
-class ConditionCodegen : private ExpressionCodegen {
- public:
-  explicit ConditionCodegen(Codegen* cg);
-
-  void gen(ExpressionAST* ast, ir::Block* iftrue, ir::Block* iffalse);
-
- private:
-  using ExpressionCodegen::gen;
-  using ExpressionCodegen::visit;
-
-  void visit(IntLiteralExpressionAST* ast) override;
-  void visit(BinaryExpressionAST* ast) override;
-
-  bool isRelOp(ir::BinaryOp op) const;
-
- private:
-  ir::Block* iftrue_ = nullptr;
-  ir::Block* iffalse_ = nullptr;
-};
-
-}  // namespace cxx
+}  // namespace cxx::ir

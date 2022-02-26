@@ -18,10 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/x64_instruction_selection.h>
+#include <cxx/ir/x64_instruction_selection.h>
 
 // cxx
-#include <cxx/ir.h>
+#include <cxx/ir/ir.h>
 #include <cxx/name_printer.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
@@ -30,7 +30,7 @@
 #define __PRETTY_FUNCTION__ __FUNCSIG__
 #endif
 
-namespace cxx {
+namespace cxx::ir {
 
 X64InstructionSelection::X64InstructionSelection() {}
 
@@ -218,4 +218,4 @@ void X64InstructionSelection::visit(ir::Throw* expr) {
   throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
-}  // namespace cxx
+}  // namespace cxx::ir

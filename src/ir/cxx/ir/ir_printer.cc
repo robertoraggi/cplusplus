@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/ir.h>
-#include <cxx/ir_printer.h>
+#include <cxx/ir/ir.h>
+#include <cxx/ir/ir_printer.h>
 #include <cxx/literals.h>
 #include <cxx/name_printer.h>
 #include <cxx/names.h>

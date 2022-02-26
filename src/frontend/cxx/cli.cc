@@ -274,7 +274,7 @@ void CLI::parse(int& argc, char**& argv) {
 }
 
 void CLI::showHelp() {
-  fmt::print(stderr, "Usage: cxx-frontend [options] file...\n");
+  fmt::print(stderr, "Usage: cxx [options] file...\n");
   fmt::print(stderr, "Options:\n");
   for (const auto& opt : options) {
     if (opt.visibility == CLIOptionVisibility::kExperimental) {

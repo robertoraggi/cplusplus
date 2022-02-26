@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include <cxx/ir_fwd.h>
+#include <cxx/ir/ir_fwd.h>
 #include <cxx/literals_fwd.h>
 #include <cxx/qualified_type.h>
 #include <cxx/symbols_fwd.h>

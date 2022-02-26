@@ -9,9 +9,24 @@ on:
 jobs:
   build-linux:
     runs-on: ubuntu-latest
+    container: ubuntu:22.04
 
     steps:
       - uses: actions/checkout@v2
+
+      - name: Install required ubuntu packages
+        env:
+          DEBIAN_FRONTEND: noninteractive
+
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends \
+            cmake \
+            build-essential \
+            llvm-dev \
+            python3 \
+            python3-pip \
+            ninja-build \
+            git
 
       - name: Install unit tests requirements
         run: |
@@ -19,7 +34,11 @@ jobs:
 
       - name: Build
         run: |
-          cmake -Bbuild -DCMAKE_BUILD_TYPE=Release .
+          cmake . \
+            -G Ninja \
+            -Bbuild \
+            -DCMAKE_BUILD_TYPE=Release
+
           cmake --build build
 
       - name: Test
@@ -28,16 +47,10 @@ jobs:
           ctest --verbose
 
   build-windows:
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     steps:
       - uses: actions/checkout@v2
-
-      - uses: actions/cache@v2
-        id: vcpkg-cache
-        with:
-          path: ~\AppData\Local\vcpkg\archives
-          key: vcpkg-cache
 
       - name: Install unit tests requirements
         run: |
@@ -45,7 +58,8 @@ jobs:
 
       - name: Build
         run: |
-          cmake -Bbuild -DCMAKE_TOOLCHAIN_FILE=C:\Vcpkg\scripts\buildsystems\vcpkg.cmake .
+          cmake . -Bbuild
+
           cmake --build build --config Release
 
       - name: Test
@@ -86,7 +100,12 @@ jobs:
       - name: Build
         run: |
           . .env/bin/activate
-          cmake -Bbuild -DCMAKE_BUILD_TYPE=Release .
+
+          cmake . \
+            -Bbuild \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLLVM_ROOT=$(brew --prefix llvm)
+
           cmake --build build
 
       - name: Test

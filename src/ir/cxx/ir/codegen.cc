@@ -19,16 +19,16 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
-#include <cxx/codegen.h>
 #include <cxx/control.h>
-#include <cxx/ir.h>
-#include <cxx/ir_factory.h>
+#include <cxx/ir/codegen.h>
+#include <cxx/ir/ir.h>
+#include <cxx/ir/ir_factory.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_environment.h>
 #include <cxx/types.h>
 
-namespace cxx {
+namespace cxx::ir {
 
 Codegen::Codegen() {}
 
@@ -139,4 +139,4 @@ void Codegen::visit(CompoundStatementFunctionBodyAST* ast) {
   statement(ast->statement);
 }
 
-}  // namespace cxx
+}  // namespace cxx::ir

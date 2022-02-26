@@ -19,9 +19,9 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
-#include <cxx/codegen.h>
 #include <cxx/control.h>
-#include <cxx/expression_codegen.h>
+#include <cxx/ir/codegen.h>
+#include <cxx/ir/expression_codegen.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
 #include <cxx/names.h>
@@ -36,7 +36,7 @@
 
 #include <stdexcept>
 
-namespace cxx {
+namespace cxx::ir {
 
 ExpressionCodegen::ExpressionCodegen(Codegen* cg) : cg(cg) {}
 
@@ -441,4 +441,4 @@ void ExpressionCodegen::visit(NoexceptExpressionAST* ast) {
   throw std::runtime_error("visit(NoexceptExpressionAST): not implemented");
 }
 
-}  // namespace cxx
+}  // namespace cxx::ir

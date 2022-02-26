@@ -20,8 +20,8 @@
 
 #pragma once
 
-#include <cxx/ir.h>
-#include <cxx/ir_factory.h>
+#include <cxx/ir/ir.h>
+#include <cxx/ir/ir_factory.h>
 
 #include <list>
 

@@ -20,13 +20,13 @@
 
 #pragma once
 
-#include <cxx/ir_visitor.h>
+#include <cxx/ir/ir_visitor.h>
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 
 #include <map>
 
-namespace cxx {
+namespace cxx::ir {
 
 class X64InstructionSelection : ir::IRVisitor {
  public:
@@ -89,4 +89,4 @@ class X64InstructionSelection : ir::IRVisitor {
   uint32_t labelCount_ = 0;
 };
 
-}  // namespace cxx
+}  // namespace cxx::ir
