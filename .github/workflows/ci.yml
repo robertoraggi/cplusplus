@@ -12,8 +12,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-        with:
-          submodules: true
 
       - name: Install unit tests requirements
         run: |
@@ -21,8 +19,7 @@ jobs:
 
       - name: Build
         run: |
-          mkdir -p build
-          cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=1 .
+          cmake -Bbuild -DCMAKE_BUILD_TYPE=Release .
           cmake --build build
 
       - name: Test
@@ -35,8 +32,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-        with:
-          submodules: true
 
       - uses: actions/cache@v2
         id: vcpkg-cache
@@ -50,7 +45,6 @@ jobs:
 
       - name: Build
         run: |
-          mkdir build
           cmake -Bbuild -DCMAKE_TOOLCHAIN_FILE=C:\Vcpkg\scripts\buildsystems\vcpkg.cmake .
           cmake --build build --config Release
 
@@ -60,33 +54,42 @@ jobs:
           ctest --verbose -C Release
 
   build-emscripten:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v2
-        with:
-          submodules: true
 
       - name: Build
+        working-directory: packages/cxx-frontend
         run: |
-          cd packages/cxx-frontend
           npm ci
           npm run build
           npm pack
+
+      - name: Test
+        working-directory: packages/cxx-frontend/examples
+        run: |
+          node dump.mjs
 
   build-macos:
     runs-on: macos-latest
 
     steps:
       - uses: actions/checkout@v2
-        with:
-          submodules: true
 
-      - name: Install dependencies
-        run: brew install fmt gflags ninja
+      - name: Install unit tests requirements
+        run: |
+          python3 -m venv .env
+          . .env/bin/activate
+          pip install -r tests/unit_tests/requirements.txt
 
       - name: Build
         run: |
-          mkdir -p build
-          cmake -Bbuild -G Ninja -DCMAKE_BUILD_TYPE=Release .
+          . .env/bin/activate
+          cmake -Bbuild -DCMAKE_BUILD_TYPE=Release .
           cmake --build build
+
+      - name: Test
+        working-directory: build
+        run: |
+          ctest --verbose
