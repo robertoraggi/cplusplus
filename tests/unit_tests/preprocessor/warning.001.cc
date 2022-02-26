@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -E %s -o - | filecheck %s
+// RUN: %cxx -verify -E %s -o - | %filecheck %s
 
 #ifndef PLATFORM
 #warning "undefined platform" // expected-warning {{#warning "undefined platform"}}
