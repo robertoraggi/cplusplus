@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include <cxx/ir_visitor.h>
+#include <cxx/ir/ir_visitor.h>
 
 #include <iosfwd>
 #include <string>

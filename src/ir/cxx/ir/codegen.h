@@ -20,18 +20,20 @@
 
 #pragma once
 
-#include <cxx/condition_codegen.h>
-#include <cxx/expression_codegen.h>
-#include <cxx/ir_builder.h>
+#include <cxx/ir/condition_codegen.h>
+#include <cxx/ir/expression_codegen.h>
+#include <cxx/ir/ir_builder.h>
+#include <cxx/ir/statement_codegen.h>
 #include <cxx/recursive_ast_visitor.h>
-#include <cxx/statement_codegen.h>
 
 #include <memory>
 #include <unordered_map>
 
-namespace cxx {
-
+namespace ir {
 class TranslationUnit;
+}
+
+namespace cxx::ir {
 
 class Codegen final : public ir::IRBuilder, RecursiveASTVisitor {
  public:
@@ -109,4 +111,4 @@ class Codegen final : public ir::IRBuilder, RecursiveASTVisitor {
   std::unordered_map<const Identifier*, ir::Block*> labels_;
 };
 
-}  // namespace cxx
+}  // namespace cxx::ir

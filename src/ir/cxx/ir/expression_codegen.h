@@ -21,9 +21,9 @@
 #pragma once
 
 #include <cxx/default_ast_visitor.h>
-#include <cxx/ir_fwd.h>
+#include <cxx/ir/ir_fwd.h>
 
-namespace cxx {
+namespace cxx::ir {
 
 class Codegen;
 
@@ -84,4 +84,4 @@ class ExpressionCodegen : protected DefaultASTVisitor {
   ir::Expr* expr_ = nullptr;
 };
 
-}  // namespace cxx
+}  // namespace cxx::ir

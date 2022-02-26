@@ -17,40 +17,37 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-find_program(LIT_EXECUTABLE lit)
+file(GLOB CXX_INCLUDE_HEADER_FILES cxx/*.h)
 
-find_program(FILECHECK_EXECUTABLE filecheck)
+aux_source_directory(cxx SOURCES)
 
-if(NOT LIT_EXECUTABLE)
-    message(STATUS "lit not found: skip unit tests")
-    return()
-endif()
+add_library(cxx-parser ${SOURCES}
+    # generated files
+    keywords-priv.h
+)
 
-message(STATUS "Using lit: ${LIT_EXECUTABLE}")
+target_include_directories(cxx-parser
+    PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
+    PUBLIC  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
 
-if(NOT FILECHECK_EXECUTABLE)
-    message(STATUS "filecheck not found: skip unit tests")
-    return()
-endif()
+target_link_libraries(cxx-parser
+    PUBLIC  $<BUILD_INTERFACE:fmt::fmt-header-only>
+            $<BUILD_INTERFACE:utf8::cpp>
+)
 
-message(STATUS "Using filecheck: ${FILECHECK_EXECUTABLE}")
+add_custom_command(OUTPUT keywords-priv.h
+    COMMAND kwgen < ${CMAKE_CURRENT_SOURCE_DIR}/cxx/keywords.kwgen > keywords-priv.h
+    DEPENDS kwgen cxx/keywords.kwgen
+    COMMENT "Generate keywords-priv.h")
 
-add_executable(lit::tool IMPORTED)
-set_target_properties(lit::tool PROPERTIES IMPORTED_LOCATION ${LIT_EXECUTABLE})
+install(
+    FILES ${CXX_INCLUDE_HEADER_FILES}
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cxx
+)
 
-add_executable(filecheck::tool IMPORTED)
-set_target_properties(filecheck::tool PROPERTIES IMPORTED_LOCATION ${FILECHECK_EXECUTABLE})
-
-set(CXX_FRONTEND_TARGET_FILE $<TARGET_FILE:cxx>)
-
-file(READ lit.site.cfg.py.in lit_cfg_in)
-
-string(CONFIGURE "${lit_cfg_in}" lit_cfg @ONLY)
-
-file(GENERATE
-    OUTPUT $<CONFIG>.lit.site.cfg.py
-    CONTENT "${lit_cfg}")
-
-add_subdirectory(tokens)
-add_subdirectory(preprocessor)
-add_subdirectory(parser)
+install(
+    TARGETS cxx-parser
+    EXPORT cxxTargets
+)

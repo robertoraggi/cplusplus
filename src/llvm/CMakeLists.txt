@@ -17,40 +17,34 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-find_program(LIT_EXECUTABLE lit)
-
-find_program(FILECHECK_EXECUTABLE filecheck)
-
-if(NOT LIT_EXECUTABLE)
-    message(STATUS "lit not found: skip unit tests")
+if(NOT LLVM_FOUND)
     return()
 endif()
 
-message(STATUS "Using lit: ${LIT_EXECUTABLE}")
+file(GLOB CXX_INCLUDE_HEADER_FILES cxx/llvm/*.h)
 
-if(NOT FILECHECK_EXECUTABLE)
-    message(STATUS "filecheck not found: skip unit tests")
-    return()
-endif()
+aux_source_directory(cxx/llvm SOURCES)
 
-message(STATUS "Using filecheck: ${FILECHECK_EXECUTABLE}")
+add_library(cxx-llvm ${SOURCES})
 
-add_executable(lit::tool IMPORTED)
-set_target_properties(lit::tool PROPERTIES IMPORTED_LOCATION ${LIT_EXECUTABLE})
+target_link_libraries(cxx-llvm PUBLIC cxx-parser)
 
-add_executable(filecheck::tool IMPORTED)
-set_target_properties(filecheck::tool PROPERTIES IMPORTED_LOCATION ${FILECHECK_EXECUTABLE})
+target_include_directories(cxx-llvm
+    PUBLIC  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
 
-set(CXX_FRONTEND_TARGET_FILE $<TARGET_FILE:cxx>)
+target_include_directories(cxx-llvm PUBLIC ${LLVM_INCLUDE_DIRS})
+target_compile_definitions(cxx-llvm PUBLIC CXX_WITH_LLVM ${LLVM_DEFINITIONS})
+target_link_directories(cxx-llvm PUBLIC ${LLVM_LIBRARY_DIRS})
+target_link_libraries(cxx-llvm PUBLIC LLVM)
 
-file(READ lit.site.cfg.py.in lit_cfg_in)
+install(
+    FILES ${CXX_INCLUDE_HEADER_FILES}
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cxx/llvm
+)
 
-string(CONFIGURE "${lit_cfg_in}" lit_cfg @ONLY)
-
-file(GENERATE
-    OUTPUT $<CONFIG>.lit.site.cfg.py
-    CONTENT "${lit_cfg}")
-
-add_subdirectory(tokens)
-add_subdirectory(preprocessor)
-add_subdirectory(parser)
+install(
+    TARGETS cxx-llvm
+    EXPORT cxxTargets
+)

@@ -17,40 +17,29 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-find_program(LIT_EXECUTABLE lit)
+aux_source_directory(cxx SOURCES)
 
-find_program(FILECHECK_EXECUTABLE filecheck)
+add_executable(cxx ${SOURCES})
 
-if(NOT LIT_EXECUTABLE)
-    message(STATUS "lit not found: skip unit tests")
-    return()
+target_link_libraries(cxx
+    cxx-parser
+    cxx-ir
+    nlohmann_json::nlohmann_json
+)
+
+if (LLVM_FOUND)
+    target_link_libraries(cxx cxx-llvm)
 endif()
 
-message(STATUS "Using lit: ${LIT_EXECUTABLE}")
-
-if(NOT FILECHECK_EXECUTABLE)
-    message(STATUS "filecheck not found: skip unit tests")
-    return()
+if(EMSCRIPTEN)
+    target_link_options(cxx PUBLIC
+        "SHELL:-s EXIT_RUNTIME=1"
+        "SHELL:-s NODERAWFS=1"
+        "SHELL:-s ALLOW_MEMORY_GROWTH=1"
+    )
 endif()
 
-message(STATUS "Using filecheck: ${FILECHECK_EXECUTABLE}")
-
-add_executable(lit::tool IMPORTED)
-set_target_properties(lit::tool PROPERTIES IMPORTED_LOCATION ${LIT_EXECUTABLE})
-
-add_executable(filecheck::tool IMPORTED)
-set_target_properties(filecheck::tool PROPERTIES IMPORTED_LOCATION ${FILECHECK_EXECUTABLE})
-
-set(CXX_FRONTEND_TARGET_FILE $<TARGET_FILE:cxx>)
-
-file(READ lit.site.cfg.py.in lit_cfg_in)
-
-string(CONFIGURE "${lit_cfg_in}" lit_cfg @ONLY)
-
-file(GENERATE
-    OUTPUT $<CONFIG>.lit.site.cfg.py
-    CONTENT "${lit_cfg}")
-
-add_subdirectory(tokens)
-add_subdirectory(preprocessor)
-add_subdirectory(parser)
+install(
+    TARGETS cxx
+    EXPORT cxxTargets
+)

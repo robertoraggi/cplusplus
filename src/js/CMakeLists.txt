@@ -17,40 +17,25 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-find_program(LIT_EXECUTABLE lit)
-
-find_program(FILECHECK_EXECUTABLE filecheck)
-
-if(NOT LIT_EXECUTABLE)
-    message(STATUS "lit not found: skip unit tests")
+if (NOT EMSCRIPTEN)
     return()
 endif()
 
-message(STATUS "Using lit: ${LIT_EXECUTABLE}")
+aux_source_directory(cxx SOURCES)
 
-if(NOT FILECHECK_EXECUTABLE)
-    message(STATUS "filecheck not found: skip unit tests")
-    return()
-endif()
+add_executable(cxx-js ${SOURCES})
 
-message(STATUS "Using filecheck: ${FILECHECK_EXECUTABLE}")
+target_link_libraries(cxx-js cxx-parser)
 
-add_executable(lit::tool IMPORTED)
-set_target_properties(lit::tool PROPERTIES IMPORTED_LOCATION ${LIT_EXECUTABLE})
+target_link_options(cxx-js PUBLIC
+    "SHELL:--bind"
+    "SHELL:-s ENVIRONMENT=web"
+    "SHELL:-s WASM_ASYNC_COMPILATION=1"
+    "SHELL:-s MODULARIZE=1"
+    "SHELL:-s MALLOC=emmalloc"
+    "SHELL:-s ALLOW_MEMORY_GROWTH=1"
+    "SHELL:-s FILESYSTEM=1"
+    "SHELL:-s NO_DYNAMIC_EXECUTION=1"
+    "SHELL:--extern-post-js ${CMAKE_CURRENT_SOURCE_DIR}/cxx/suffix.js"
+)
 
-add_executable(filecheck::tool IMPORTED)
-set_target_properties(filecheck::tool PROPERTIES IMPORTED_LOCATION ${FILECHECK_EXECUTABLE})
-
-set(CXX_FRONTEND_TARGET_FILE $<TARGET_FILE:cxx>)
-
-file(READ lit.site.cfg.py.in lit_cfg_in)
-
-string(CONFIGURE "${lit_cfg_in}" lit_cfg @ONLY)
-
-file(GENERATE
-    OUTPUT $<CONFIG>.lit.site.cfg.py
-    CONTENT "${lit_cfg}")
-
-add_subdirectory(tokens)
-add_subdirectory(preprocessor)
-add_subdirectory(parser)

@@ -29,6 +29,8 @@ file(READ "${CMAKE_CURRENT_SOURCE_DIR}/version.txt" version)
 
 set(CMAKE_CXX_STANDARD 20)
 
+find_package(LLVM 13 CONFIG QUIET)
+
 FetchContent_Declare(
     fmt
     GIT_REPOSITORY  https://github.com/fmtlib/fmt
@@ -58,69 +60,15 @@ FetchContent_MakeAvailable(nlohmann_json)
 add_library(nlohmann_json::nlohmann_json INTERFACE IMPORTED)
 set_target_properties(nlohmann_json::nlohmann_json PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${nlohmann_json_SOURCE_DIR}/single_include")
 
-add_subdirectory(tools/kwgen)
-
-aux_source_directory(src/cxx SOURCES)
-
-add_library(cxx ${SOURCES}
-    # generated files
-    keywords-priv.h
-)
-
-target_include_directories(cxx
-    PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
-    PUBLIC  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-)
-
-target_link_libraries(cxx
-    PUBLIC  $<BUILD_INTERFACE:fmt::fmt-header-only>
-            $<BUILD_INTERFACE:utf8::cpp>
-)
-
-add_custom_command(OUTPUT keywords-priv.h
-    COMMAND kwgen < ${CMAKE_CURRENT_SOURCE_DIR}/src/cxx/keywords.kwgen > keywords-priv.h
-    DEPENDS kwgen src/cxx/keywords.kwgen
-    COMMENT "Generate keywords-priv.h")
-
-aux_source_directory(src/frontend FRONTEND_SOURCES)
-
-add_executable(cxx-frontend ${FRONTEND_SOURCES})
-target_link_libraries(cxx-frontend cxx nlohmann_json::nlohmann_json)
-
-if(EMSCRIPTEN)
-    target_link_options(cxx-frontend PUBLIC
-    "SHELL:-s EXIT_RUNTIME=1"
-    "SHELL:-s NODERAWFS=1"
-    "SHELL:-s ALLOW_MEMORY_GROWTH=1"
-    )
-endif()
-
-if(EMSCRIPTEN)
-
-    add_executable(cxx-js src/cxx-js/api.cc)
-
-    target_link_libraries(cxx-js cxx)
-
-    target_link_options(cxx-js PUBLIC
-        "SHELL:--bind"
-        "SHELL:-s ENVIRONMENT=web"
-        "SHELL:-s WASM_ASYNC_COMPILATION=1"
-        "SHELL:-s MODULARIZE=1"
-        "SHELL:-s MALLOC=emmalloc"
-        "SHELL:-s ALLOW_MEMORY_GROWTH=1"
-        "SHELL:-s FILESYSTEM=1"
-        "SHELL:-s NO_DYNAMIC_EXECUTION=1"
-        "SHELL:--extern-post-js ${CMAKE_CURRENT_SOURCE_DIR}/src/cxx-js/suffix.js"
-    )
-
-endif()
-
 enable_testing()
 
+add_subdirectory(tools/kwgen)
+add_subdirectory(src/parser)
+add_subdirectory(src/ir)
+add_subdirectory(src/llvm)
+add_subdirectory(src/js)
+add_subdirectory(src/frontend)
 add_subdirectory(tests)
-
-file(GLOB CXX_INCLUDE_HEADER_FILES src/cxx/*.h)
 
 configure_package_config_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/Config.cmake.in
@@ -135,24 +83,10 @@ write_basic_package_version_file(
 )
 
 install(
-    TARGETS cxx
-    EXPORT cxxTargets
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-)
-
-install(
     EXPORT cxxTargets
     FILE cxxTargets.cmake
     NAMESPACE cxx::
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/cxx
-)
-
-install(
-    FILES ${CXX_INCLUDE_HEADER_FILES}
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cxx
 )
 
 install(FILES

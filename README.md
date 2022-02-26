@@ -24,14 +24,14 @@ On Linux, macOS and Windows:
 # install the python packages required to run the unit tests
 pip install -r tests/unit_tests/requirements.txt
 
-# configure cxx-frontend
+# configure the source code
 cmake . \
  -G Ninja \
  -B build \
  -DCMAKE_BUILD_TYPE=Release \
  -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=1
 
-# build cxx-frontend
+# build
 cmake --build build
 
 # run the unit tests
@@ -45,7 +45,7 @@ Use `-ast-dump` to dump the AST of a C++ program.
 
 ```sh
 echo 'int main() { auto f = []{ return 1; }; return f(); }' |
-  ./build/cxx-frontend  -ast-dump -
+  ./build/src/frontend/cxx -ast-dump -
 ```
 
 ## Build the npm package using docker

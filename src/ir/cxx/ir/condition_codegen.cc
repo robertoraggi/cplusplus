@@ -19,14 +19,14 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
-#include <cxx/codegen.h>
-#include <cxx/condition_codegen.h>
+#include <cxx/ir/codegen.h>
+#include <cxx/ir/condition_codegen.h>
 #include <cxx/literals.h>
 #include <cxx/translation_unit.h>
 
 #include <stdexcept>
 
-namespace cxx {
+namespace cxx::ir {
 
 ConditionCodegen::ConditionCodegen(Codegen* cg) : ExpressionCodegen(cg) {}
 
@@ -97,4 +97,4 @@ bool ConditionCodegen::isRelOp(ir::BinaryOp op) const {
   }  // switch
 }
 
-}  // namespace cxx
+}  // namespace cxx::ir

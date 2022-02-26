@@ -21,11 +21,12 @@
 // cxx
 #include <cxx/ast.h>
 #include <cxx/ast_visitor.h>
-#include <cxx/codegen.h>
 #include <cxx/control.h>
 #include <cxx/gcc_linux_toolchain.h>
-#include <cxx/ir.h>
-#include <cxx/ir_printer.h>
+#include <cxx/ir/codegen.h>
+#include <cxx/ir/ir.h>
+#include <cxx/ir/ir_printer.h>
+#include <cxx/ir/x64_instruction_selection.h>
 #include <cxx/lexer.h>
 #include <cxx/macos_toolchain.h>
 #include <cxx/preprocessor.h>
@@ -35,7 +36,6 @@
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/windows_toolchain.h>
-#include <cxx/x64_instruction_selection.h>
 
 #include "ast_printer.h"
 
@@ -336,12 +336,12 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
   }
 
   if (cli.opt_S || cli.opt_ir_dump || cli.opt_c) {
-    Codegen cg;
+    ir::Codegen cg;
 
     auto module = cg(&unit);
 
     if (cli.opt_S || cli.opt_c) {
-      X64InstructionSelection isel;
+      ir::X64InstructionSelection isel;
       isel(module.get(), output);
     } else if (cli.opt_ir_dump) {
       ir::IRPrinter printer;
@@ -375,8 +375,8 @@ int main(int argc, char* argv[]) {
   const auto& inputFiles = cli.positionals();
 
   if (inputFiles.empty()) {
-    std::cerr << "cxx-frontend: no input files" << std::endl
-              << "Usage: cxx-frontend [options] file..." << std::endl;
+    std::cerr << "cxx: no input files" << std::endl
+              << "Usage: cxx [options] file..." << std::endl;
     return EXIT_FAILURE;
   }
 
