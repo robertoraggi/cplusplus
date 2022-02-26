@@ -22,6 +22,8 @@
 #include <cxx/scope.h>
 #include <cxx/symbols.h>
 
+#include <algorithm>
+
 namespace cxx {
 
 namespace {

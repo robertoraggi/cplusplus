@@ -24,6 +24,8 @@
 #include <cxx/qualified_type.h>
 #include <cxx/types.h>
 
+#include <algorithm>
+
 namespace cxx::ir {
 
 struct Module::Private {

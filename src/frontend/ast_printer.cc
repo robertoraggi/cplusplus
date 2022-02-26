@@ -25,6 +25,8 @@
 #include <cxx/names.h>
 #include <cxx/translation_unit.h>
 
+#include <algorithm>
+
 namespace cxx {
 
 nlohmann::json ASTPrinter::operator()(AST* ast, bool printLocations) {

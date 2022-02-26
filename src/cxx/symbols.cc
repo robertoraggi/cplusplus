@@ -26,6 +26,7 @@
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 
+#include <algorithm>
 #include <list>
 
 namespace cxx {
