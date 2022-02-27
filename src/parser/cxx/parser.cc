@@ -7602,26 +7602,43 @@ bool Parser::parse_literal_operator_id(NameAST*& yyast) {
 }
 
 bool Parser::parse_template_declaration(DeclarationAST*& yyast) {
-  SourceLocation templateLoc;
-  SourceLocation lessLoc;
-  List<DeclarationAST*>* templateParameterList = nullptr;
-  SourceLocation greaterLoc;
-  RequiresClauseAST* requiresClause = nullptr;
+  const auto start = currentLocation();
 
-  if (!parse_template_head(templateLoc, lessLoc, templateParameterList,
-                           greaterLoc, requiresClause))
+  SourceLocation templateLoc;
+
+  if (!match(TokenKind::T_TEMPLATE, templateLoc)) return false;
+
+  SourceLocation lessLoc;
+
+  if (!match(TokenKind::T_LESS, lessLoc)) {
+    rewind(start);
     return false;
+  }
 
   auto templSymbol = symbols->newTemplateSymbol(sem->scope(), nullptr);
-  sem->scope()->add(templSymbol);
 
   Semantics::ScopeContext context(sem.get(), templSymbol->scope());
+
+  SourceLocation greaterLoc;
+  List<DeclarationAST*>* templateParameterList = nullptr;
+
+  if (!match(TokenKind::T_GREATER, greaterLoc)) {
+    if (!parse_template_parameter_list(templateParameterList))
+      parse_error("expected a template parameter");
+
+    expect(TokenKind::T_GREATER, greaterLoc);
+  }
+
+  RequiresClauseAST* requiresClause = nullptr;
+  parse_requires_clause(requiresClause);
 
   DeclarationAST* declaration = nullptr;
 
   if (!parse_concept_definition(declaration)) {
     if (!parse_declaration(declaration)) parse_error("expected a declaration");
   }
+
+  templSymbol->enclosingScope()->add(templSymbol);
 
   auto ast = new (pool) TemplateDeclarationAST();
   yyast = ast;
@@ -7633,27 +7650,6 @@ bool Parser::parse_template_declaration(DeclarationAST*& yyast) {
   ast->greaterLoc = greaterLoc;
   ast->requiresClause = requiresClause;
   ast->declaration = declaration;
-
-  return true;
-}
-
-bool Parser::parse_template_head(SourceLocation& templateLoc,
-                                 SourceLocation& lessLoc,
-                                 List<DeclarationAST*>*& templateParameterList,
-                                 SourceLocation& greaterLoc,
-                                 RequiresClauseAST*& requiresClause) {
-  if (!match(TokenKind::T_TEMPLATE, templateLoc)) return false;
-
-  if (!match(TokenKind::T_LESS, lessLoc)) return false;
-
-  if (!match(TokenKind::T_GREATER, greaterLoc)) {
-    if (!parse_template_parameter_list(templateParameterList))
-      parse_error("expected a template parameter");
-
-    expect(TokenKind::T_GREATER, greaterLoc);
-  }
-
-  parse_requires_clause(requiresClause);
 
   return true;
 }
@@ -7742,9 +7738,7 @@ bool Parser::parse_constraint_logical_and_expression(ExpressionAST*& yyast) {
 bool Parser::parse_template_parameter(DeclarationAST*& yyast) {
   const auto start = currentLocation();
 
-  if (parse_type_parameter(yyast) &&
-      (LA().is(TokenKind::T_COMMA) || LA().is(TokenKind::T_GREATER)))
-    return true;
+  if (parse_type_parameter(yyast)) return true;
 
   rewind(start);
 
@@ -7769,6 +7763,20 @@ bool Parser::parse_type_parameter(DeclarationAST*& yyast) {
 }
 
 bool Parser::parse_typename_type_parameter(DeclarationAST*& yyast) {
+  auto maybe_elaborated_type_spec = [this]() {
+    if (!match(TokenKind::T_TYPENAME)) return false;
+    if (!match(TokenKind::T_IDENTIFIER)) return false;
+    if (match(TokenKind::T_COLON_COLON) || match(TokenKind::T_LESS))
+      return true;
+    return false;
+  };
+
+  const auto start = currentLocation();
+  const auto is_type_spec = maybe_elaborated_type_spec();
+  rewind(start);
+
+  if (is_type_spec) return false;
+
   SourceLocation classKeyLoc;
 
   if (!parse_type_parameter_key(classKeyLoc)) return false;
@@ -7811,6 +7819,8 @@ bool Parser::parse_typename_type_parameter(DeclarationAST*& yyast) {
 
   match(TokenKind::T_IDENTIFIER, ast->identifierLoc);
 
+  ast->identifier = unit->identifier(ast->identifierLoc);
+
   return true;
 }
 
@@ -7818,16 +7828,28 @@ bool Parser::parse_template_type_parameter(DeclarationAST*& yyast) {
   const auto start = currentLocation();
 
   SourceLocation templateLoc;
-  SourceLocation lessLoc;
-  List<DeclarationAST*>* templateParameterList = nullptr;
-  SourceLocation greaterLoc;
-  RequiresClauseAST* requiresClause = nullptr;
 
-  if (!parse_template_head(templateLoc, lessLoc, templateParameterList,
-                           greaterLoc, requiresClause)) {
+  if (!match(TokenKind::T_TEMPLATE, templateLoc)) return false;
+
+  SourceLocation lessLoc;
+
+  if (!match(TokenKind::T_LESS, lessLoc)) {
     rewind(start);
     return false;
   }
+
+  SourceLocation greaterLoc;
+  List<DeclarationAST*>* templateParameterList = nullptr;
+
+  if (!match(TokenKind::T_GREATER, greaterLoc)) {
+    if (!parse_template_parameter_list(templateParameterList))
+      parse_error("expected a template parameter");
+
+    expect(TokenKind::T_GREATER, greaterLoc);
+  }
+
+  RequiresClauseAST* requiresClause = nullptr;
+  parse_requires_clause(requiresClause);
 
   SourceLocation classsKeyLoc;
 
