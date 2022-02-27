@@ -29,7 +29,13 @@ file(READ "${CMAKE_CURRENT_SOURCE_DIR}/version.txt" version)
 
 set(CMAKE_CXX_STANDARD 20)
 
-find_package(LLVM 13 CONFIG QUIET)
+find_package(LLVM 13 CONFIG)
+
+if(LLVM_FOUND)
+    message(STATUS "LLVM Version: ${LLVM_VERSION}")
+
+    list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
+endif()
 
 FetchContent_Declare(
     fmt

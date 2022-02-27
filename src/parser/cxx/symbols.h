@@ -77,8 +77,8 @@ class Symbol {
   virtual void accept(SymbolVisitor* visitor) = 0;
 
  private:
-  const Name* name_ = nullptr;
   Scope* enclosingScope_ = nullptr;
+  const Name* name_ = nullptr;
   Symbol* next_ = nullptr;
   QualifiedType type_;
   Linkage linkage_ = Linkage::kCxx;

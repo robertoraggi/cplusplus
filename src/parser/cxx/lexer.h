@@ -76,7 +76,7 @@ class Lexer {
 
   int tokenPos() const { return tokenPos_; }
 
-  int tokenLength() const { return (pos_ - cbegin(source_)) - tokenPos_; }
+  uint32_t tokenLength() const { return (pos_ - cbegin(source_)) - tokenPos_; }
 
   bool tokenIsClean() const { return tokenIsClean_; }
 

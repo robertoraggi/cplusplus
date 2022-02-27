@@ -18,13 +18,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/diagnostic.h>
-#include <cxx/token.h>
+#include <cxx/llvm/llvm_codegen.h>
+#include <cxx/translation_unit.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Module.h>
 
 namespace cxx {
 
-Diagnostic::Diagnostic(Severity severity, const Token& token,
-                       std::string message)
-    :  message_(std::move(message)), token_(token), severity_(severity) {}
+std::unique_ptr<llvm::Module> LLVMCodegen::operator()(
+    TranslationUnit* unit, llvm::LLVMContext& context) {
+  auto module = std::make_unique<llvm::Module>(unit->fileName(), context);
+  return module;
+}
 
 }  // namespace cxx

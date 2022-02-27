@@ -101,8 +101,6 @@ void Codegen::visit(FunctionDefinitionAST* ast) {
   ir::Block* entryBlock = createBlock();
   ir::Block* exitBlock = createBlock();
 
-  auto types = unit_->control()->types();
-
   auto functionType = Type::cast<FunctionType>(ast->symbol->type());
 
   ir::Local* result = nullptr;

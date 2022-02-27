@@ -323,7 +323,7 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
 
   preprocesor->squeeze();
 
-  const auto result = unit.parse(cli.checkTypes());
+  unit.parse(cli.checkTypes());
 
   if (cli.opt_dump_symbols) {
     SymbolPrinter printSymbol(std::cout);

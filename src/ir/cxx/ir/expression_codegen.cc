@@ -199,7 +199,7 @@ void ExpressionCodegen::visit(IdExpressionAST* ast) {
   if (auto field = dynamic_cast<FieldSymbol*>(ast->symbol)) {
     expr_ = cg->createAccess(
         cg->createUnary(ir::UnaryOp::kStar, cg->createThis(QualifiedType())),
-        ast->symbol);
+        field);
     return;
   }
 

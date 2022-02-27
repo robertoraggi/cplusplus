@@ -68,6 +68,7 @@ std::uint64_t IntegerLiteral::interpretText(std::string_view text) {
   auto last = first + text.size();
   std::uint64_t value = 0;
   auto result = std::from_chars(first, last, value, base);
+  (void)result;
   return value;
 }
 

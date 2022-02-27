@@ -311,7 +311,7 @@ struct SourceFile {
   void getTokenStartPosition(unsigned offset, unsigned *line, unsigned *column,
                              std::string_view *fileName) const {
     auto it = std::lower_bound(lines.cbegin(), lines.cend(), int(offset));
-    if (*it != offset) --it;
+    if (*it != int(offset)) --it;
 
     assert(*it <= int(offset));
 
@@ -633,8 +633,6 @@ const TokList *Preprocessor::Private::tokenize(const std::string_view &source,
         if (sourceFile) {
           const SourceFile *file = sourceFiles_[sourceFile - 1].get();
 
-          std::string_view source = file->source;
-
           auto tokenText =
               file->source.substr(lex.tokenPos(), lex.tokenLength());
 
@@ -903,8 +901,8 @@ void Preprocessor::Private::expand(
       emitToken(t);
     } else if (!evaluateDirectives && matchId(ts, "__has_feature")) {
       expect(ts, TokenKind::T_LPAREN);
-      auto idLoc = ts;
       auto id = expectId(ts);
+      (void)id;
       expect(ts, TokenKind::T_RPAREN);
       auto t = Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, "1");
       emitToken(t);
@@ -1590,8 +1588,8 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
   std::swap(d->currentFileName_, currentFileName);
   std::swap(d->currentPath_, path);
 
-  int outFile = 0;
-  int outLine = -1;
+  uint32_t outFile = 0;
+  uint32_t outLine = -1;
 
   const Tok *prevTk = nullptr;
 
@@ -1601,7 +1599,7 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
         tk->sourceFile > 0 ? &*d->sourceFiles_[tk->sourceFile - 1] : nullptr;
     if ((tk->bol || it == os) && file) {
       std::string_view fileName;
-      unsigned line = 0;
+      uint32_t line = 0;
       file->getTokenStartPosition(tk->offset, &line, nullptr, &fileName);
       if (outFile == tk->sourceFile && line == outLine) {
         ++outLine;

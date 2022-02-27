@@ -21,6 +21,8 @@ if(NOT LLVM_FOUND)
     return()
 endif()
 
+llvm_map_components_to_libnames(llvm_libs Support Core)
+
 file(GLOB CXX_INCLUDE_HEADER_FILES cxx/llvm/*.h)
 
 aux_source_directory(cxx/llvm SOURCES)
@@ -37,7 +39,7 @@ target_include_directories(cxx-llvm
 target_include_directories(cxx-llvm PUBLIC ${LLVM_INCLUDE_DIRS})
 target_compile_definitions(cxx-llvm PUBLIC CXX_WITH_LLVM ${LLVM_DEFINITIONS})
 target_link_directories(cxx-llvm PUBLIC ${LLVM_LIBRARY_DIRS})
-target_link_libraries(cxx-llvm PUBLIC LLVM)
+target_link_libraries(cxx-llvm PUBLIC ${llvm_libs})
 
 install(
     FILES ${CXX_INCLUDE_HEADER_FILES}
