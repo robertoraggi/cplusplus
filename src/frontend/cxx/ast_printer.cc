@@ -2687,17 +2687,6 @@ void ASTPrinter::visit(TypenameTypeParameterAST* ast) {
         std::vector<nlohmann::json>{"identifier", ast->identifier->name()}});
 }
 
-void ASTPrinter::visit(TypenamePackTypeParameterAST* ast) {
-  json_ = nlohmann::json::array();
-
-  json_.push_back("ast:TypenamePackTypeParameter");
-
-  if (ast->identifier)
-    json_.push_back(std::vector<nlohmann::json>{
-        "attr:identifier",
-        std::vector<nlohmann::json>{"identifier", ast->identifier->name()}});
-}
-
 void ASTPrinter::visit(TemplateTypeParameterAST* ast) {
   json_ = nlohmann::json::array();
 

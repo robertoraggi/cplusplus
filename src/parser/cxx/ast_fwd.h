@@ -227,7 +227,6 @@ class ExportCompoundDeclarationAST;
 class ModuleImportDeclarationAST;
 class TemplateDeclarationAST;
 class TypenameTypeParameterAST;
-class TypenamePackTypeParameterAST;
 class TemplateTypeParameterAST;
 class TemplatePackTypeParameterAST;
 class DeductionGuideAST;

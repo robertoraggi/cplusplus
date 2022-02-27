@@ -1310,8 +1310,6 @@ void Semantics::visit(TemplateDeclarationAST* ast) {
 
 void Semantics::visit(TypenameTypeParameterAST* ast) { typeId(ast->typeId); }
 
-void Semantics::visit(TypenamePackTypeParameterAST* ast) {}
-
 void Semantics::visit(TemplateTypeParameterAST* ast) {
   for (auto it = ast->templateParameterList; it; it = it->next)
     declaration(it->value);

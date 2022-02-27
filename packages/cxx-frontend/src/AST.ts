@@ -2299,29 +2299,17 @@ export class TypenameTypeParameterAST extends DeclarationAST {
     getClassKeyToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
     }
-    getIdentifierToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-    }
-    getEqualToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-    }
-    getTypeId(): TypeIdAST | undefined {
-        return AST.from<TypeIdAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-    }
-}
-
-export class TypenamePackTypeParameterAST extends DeclarationAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitTypenamePackTypeParameter(this, context);
-    }
-    getClassKeyToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
     getEllipsisToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
     }
     getIdentifierToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getEqualToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+    getTypeId(): TypeIdAST | undefined {
+        return AST.from<TypeIdAST>(cxx.getASTSlot(this.getHandle(), 4), this.parser);
     }
 }
 
@@ -3198,7 +3186,6 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     ModuleImportDeclarationAST,
     TemplateDeclarationAST,
     TypenameTypeParameterAST,
-    TypenamePackTypeParameterAST,
     TemplateTypeParameterAST,
     TemplatePackTypeParameterAST,
     DeductionGuideAST,

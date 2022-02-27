@@ -1958,6 +1958,7 @@ SourceLocation TemplateDeclarationAST::lastSourceLocation() {
 
 SourceLocation TypenameTypeParameterAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(classKeyLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(equalLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
@@ -1967,19 +1968,6 @@ SourceLocation TypenameTypeParameterAST::firstSourceLocation() {
 SourceLocation TypenameTypeParameterAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
   if (auto loc = cxx::lastSourceLocation(equalLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(classKeyLoc)) return loc;
-  return SourceLocation();
-}
-
-SourceLocation TypenamePackTypeParameterAST::firstSourceLocation() {
-  if (auto loc = cxx::firstSourceLocation(classKeyLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
-  return SourceLocation();
-}
-
-SourceLocation TypenamePackTypeParameterAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(classKeyLoc)) return loc;

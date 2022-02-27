@@ -577,11 +577,6 @@ void DefaultASTVisitor::visit(TypenameTypeParameterAST* ast) {
   throw std::runtime_error("visit(TypenameTypeParameterAST): not implemented");
 }
 
-void DefaultASTVisitor::visit(TypenamePackTypeParameterAST* ast) {
-  throw std::runtime_error(
-      "visit(TypenamePackTypeParameterAST): not implemented");
-}
-
 void DefaultASTVisitor::visit(TemplateTypeParameterAST* ast) {
   throw std::runtime_error("visit(TemplateTypeParameterAST): not implemented");
 }

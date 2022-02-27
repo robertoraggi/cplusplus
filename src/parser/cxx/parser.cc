@@ -7781,45 +7781,20 @@ bool Parser::parse_typename_type_parameter(DeclarationAST*& yyast) {
 
   if (!parse_type_parameter_key(classKeyLoc)) return false;
 
-  SourceLocation ellipsisLoc;
-
-  if (match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) {
-    auto ast = new (pool) TypenamePackTypeParameterAST();
-    yyast = ast;
-    ast->classKeyLoc = classKeyLoc;
-    ast->ellipsisLoc = ellipsisLoc;
-    match(TokenKind::T_IDENTIFIER, ast->identifierLoc);
-    ast->identifier = unit->identifier(ast->identifierLoc);
-
-    return true;
-  }
-
-  if ((LA().is(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_EQUAL)) ||
-      LA().is(TokenKind::T_EQUAL)) {
-    auto ast = new (pool) TypenameTypeParameterAST();
-    yyast = ast;
-
-    ast->classKeyLoc = classKeyLoc;
-
-    match(TokenKind::T_IDENTIFIER, ast->identifierLoc);
-
-    expect(TokenKind::T_EQUAL, ast->equalLoc);
-
-    if (!parse_type_id(ast->typeId)) parse_error("expected a type id");
-
-    ast->identifier = unit->identifier(ast->identifierLoc);
-
-    return true;
-  }
-
   auto ast = new (pool) TypenameTypeParameterAST();
   yyast = ast;
 
   ast->classKeyLoc = classKeyLoc;
 
+  match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
+
   match(TokenKind::T_IDENTIFIER, ast->identifierLoc);
 
   ast->identifier = unit->identifier(ast->identifierLoc);
+
+  if (match(TokenKind::T_EQUAL, ast->equalLoc)) {
+    if (!parse_type_id(ast->typeId)) parse_error("expected a type id");
+  }
 
   return true;
 }

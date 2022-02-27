@@ -801,8 +801,6 @@ void RecursiveASTVisitor::visit(TypenameTypeParameterAST* ast) {
   acceptTypeId(ast->typeId);
 }
 
-void RecursiveASTVisitor::visit(TypenamePackTypeParameterAST* ast) {}
-
 void RecursiveASTVisitor::visit(TemplateTypeParameterAST* ast) {
   for (auto it = ast->templateParameterList; it; it = it->next)
     acceptDeclaration(it->value);

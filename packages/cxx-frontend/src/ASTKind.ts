@@ -176,7 +176,6 @@ export enum ASTKind {
     ModuleImportDeclaration,
     TemplateDeclaration,
     TypenameTypeParameter,
-    TypenamePackTypeParameter,
     TemplateTypeParameter,
     TemplatePackTypeParameter,
     DeductionGuide,

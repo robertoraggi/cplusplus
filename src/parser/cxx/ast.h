@@ -2129,25 +2129,10 @@ class TypenameTypeParameterAST final : public DeclarationAST {
   TypenameTypeParameterAST() : DeclarationAST(ASTKind::TypenameTypeParameter) {}
 
   SourceLocation classKeyLoc;
+  SourceLocation ellipsisLoc;
   SourceLocation identifierLoc;
   SourceLocation equalLoc;
   TypeIdAST* typeId = nullptr;
-  const Identifier* identifier = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
-};
-
-class TypenamePackTypeParameterAST final : public DeclarationAST {
- public:
-  TypenamePackTypeParameterAST()
-      : DeclarationAST(ASTKind::TypenamePackTypeParameter) {}
-
-  SourceLocation classKeyLoc;
-  SourceLocation ellipsisLoc;
-  SourceLocation identifierLoc;
   const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }

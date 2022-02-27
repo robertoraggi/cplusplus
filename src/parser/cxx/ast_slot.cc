@@ -2732,29 +2732,6 @@ void ASTSlot::visit(TypenameTypeParameterAST* ast) {
       slotKind_ = ASTSlotKind::kToken;
       break;
     case 1:
-      value_ = ast->identifierLoc.index();
-      slotKind_ = ASTSlotKind::kToken;
-      break;
-    case 2:
-      value_ = ast->equalLoc.index();
-      slotKind_ = ASTSlotKind::kToken;
-      break;
-    case 3:
-      value_ = reinterpret_cast<std::intptr_t>(ast->typeId);
-      slotKind_ = ASTSlotKind::kNode;
-      break;
-  }  // switch
-
-  slotCount_ = 4;
-}
-
-void ASTSlot::visit(TypenamePackTypeParameterAST* ast) {
-  switch (slot_) {
-    case 0:
-      value_ = ast->classKeyLoc.index();
-      slotKind_ = ASTSlotKind::kToken;
-      break;
-    case 1:
       value_ = ast->ellipsisLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       break;
@@ -2762,9 +2739,17 @@ void ASTSlot::visit(TypenamePackTypeParameterAST* ast) {
       value_ = ast->identifierLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       break;
+    case 3:
+      value_ = ast->equalLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 4:
+      value_ = reinterpret_cast<std::intptr_t>(ast->typeId);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
   }  // switch
 
-  slotCount_ = 3;
+  slotCount_ = 5;
 }
 
 void ASTSlot::visit(TemplateTypeParameterAST* ast) {

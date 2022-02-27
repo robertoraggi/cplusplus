@@ -2536,26 +2536,13 @@ void ASTCloner::visit(TypenameTypeParameterAST* ast) {
 
   copy->classKeyLoc = ast->classKeyLoc;
 
+  copy->ellipsisLoc = ast->ellipsisLoc;
+
   copy->identifierLoc = ast->identifierLoc;
 
   copy->equalLoc = ast->equalLoc;
 
   copy->typeId = accept(ast->typeId);
-
-  copy->identifier = ast->identifier;
-}
-
-void ASTCloner::visit(TypenamePackTypeParameterAST* ast) {
-  auto copy = new (arena_) TypenamePackTypeParameterAST();
-  copy_ = copy;
-
-  copy->setChecked(ast->checked());
-
-  copy->classKeyLoc = ast->classKeyLoc;
-
-  copy->ellipsisLoc = ast->ellipsisLoc;
-
-  copy->identifierLoc = ast->identifierLoc;
 
   copy->identifier = ast->identifier;
 }
