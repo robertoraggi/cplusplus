@@ -25,6 +25,6 @@ namespace cxx {
 
 Diagnostic::Diagnostic(Severity severity, const Token& token,
                        std::string message)
-    :  message_(std::move(message)), token_(token), severity_(severity) {}
+    : message_(std::move(message)), token_(token), severity_(severity) {}
 
 }  // namespace cxx

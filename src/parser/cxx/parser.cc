@@ -7018,8 +7018,7 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
 
     const auto has_requires_clause = parse_requires_clause(requiresClause);
 
-    if (!has_requires_clause)
-      parse_virt_specifier_seq();
+    if (!has_requires_clause) parse_virt_specifier_seq();
 
     if (lookat_function_body()) {
       FunctionSymbol* functionSymbol = nullptr;
