@@ -114,7 +114,7 @@ void Parser::setCheckTypes(bool checkTypes) {
 Parser::Prec Parser::prec(TokenKind tk) {
   switch (tk) {
     default:
-      std::runtime_error("expected a binary operator");
+      throw std::runtime_error("expected a binary operator");
 
     case TokenKind::T_DOT_STAR:
     case TokenKind::T_MINUS_GREATER_STAR:
@@ -454,7 +454,7 @@ bool Parser::parse_translation_unit(UnitAST*& yyast) {
 
 bool Parser::parse_module_head() {
   const auto start = currentLocation();
-  const auto has_export = match(TokenKind::T_EXPORT);
+  match(TokenKind::T_EXPORT);
   const auto is_module = parse_id(module_id);
   rewind(start);
   return is_module;
@@ -666,8 +666,6 @@ bool Parser::parse_id_expression(NameAST*& yyast, bool inRequiresClause) {
 }
 
 bool Parser::parse_maybe_template_id(NameAST*& yyast, bool inRequiresClause) {
-  const auto start = currentLocation();
-
   const auto blockErrors = unit->blockErrors(true);
 
   auto template_id = parse_template_id(yyast);
@@ -770,7 +768,7 @@ bool Parser::parse_qualified_id(NameAST*& yyast, bool inRequiresClause) {
 
   SourceLocation templateLoc;
 
-  const auto has_template = match(TokenKind::T_TEMPLATE, templateLoc);
+  match(TokenKind::T_TEMPLATE, templateLoc);
 
   NameAST* name = nullptr;
 
@@ -876,7 +874,7 @@ bool Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast) {
     } else {
       const auto saved = currentLocation();
 
-      const auto has_template = match(TokenKind::T_TEMPLATE);
+      match(TokenKind::T_TEMPLATE);
 
       NameAST* name = nullptr;
 
@@ -1456,7 +1454,7 @@ bool Parser::parse_compound_requirement(RequirementAST*& yyast) {
   ast->expression = expression;
   ast->rbraceLoc = rbraceLoc;
 
-  const auto has_noexcept = match(TokenKind::T_NOEXCEPT, ast->noexceptLoc);
+  match(TokenKind::T_NOEXCEPT, ast->noexceptLoc);
 
   if (!match(TokenKind::T_SEMICOLON, ast->semicolonLoc)) {
     if (!parse_return_type_requirement(ast->minusGreaterLoc,
@@ -2263,7 +2261,7 @@ bool Parser::parse_delete_expression(ExpressionAST*& yyast) {
 
   SourceLocation scopeLoc;
 
-  const auto has_scope_op = match(TokenKind::T_COLON_COLON, scopeLoc);
+  match(TokenKind::T_COLON_COLON, scopeLoc);
 
   SourceLocation deleteLoc;
 
@@ -2609,8 +2607,6 @@ bool Parser::parse_assignment_operator(SourceLocation& loc, TokenKind& op) {
 }
 
 bool Parser::parse_expression(ExpressionAST*& yyast) {
-  const auto start = currentLocation();
-
   if (!parse_assignment_expression(yyast)) return false;
 
   SourceLocation commaLoc;
@@ -2646,12 +2642,10 @@ bool Parser::parse_template_argument_constant_expression(
 }
 
 bool Parser::parse_statement(StatementAST*& yyast) {
-  const bool has_extension = match(TokenKind::T___EXTENSION__);
+  match(TokenKind::T___EXTENSION__);
 
   List<AttributeAST*>* attributes = nullptr;
-
-  const bool has_attribute_specifiers =
-      parse_attribute_specifier_seq(attributes);
+  parse_attribute_specifier_seq(attributes);
 
   const auto start = currentLocation();
 
@@ -2928,7 +2922,7 @@ void Parser::finish_compound_statement(CompoundStatementAST* ast) {
 
   Semantics::ScopeContext scopeContext(sem.get(), ast->symbol->scope());
 
-  while (const auto& tk = LA()) {
+  while (LA()) {
     if (LA().is(TokenKind::T_RBRACE)) break;
 
     StatementAST* statement = nullptr;
@@ -2969,7 +2963,7 @@ bool Parser::parse_if_statement(StatementAST*& yyast) {
 
   ast->ifLoc = ifLoc;
 
-  const auto has_constexpr = match(TokenKind::T_CONSTEXPR, ast->constexprLoc);
+  match(TokenKind::T_CONSTEXPR, ast->constexprLoc);
 
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
@@ -3113,11 +3107,6 @@ bool Parser::parse_for_range_statement(StatementAST*& yyast) {
 }
 
 bool Parser::parse_for_statement(StatementAST*& yyast) {
-  StatementAST* s1 = nullptr;
-  StatementAST* s2 = nullptr;
-  ExpressionAST* e1 = nullptr;
-  ExpressionAST* e2 = nullptr;
-
   SourceLocation forLoc;
 
   if (!match(TokenKind::T_FOR, forLoc)) return false;
@@ -3372,8 +3361,6 @@ bool Parser::parse_declaration(DeclarationAST*& yyast) {
 bool Parser::parse_block_declaration(DeclarationAST*& yyast, bool fundef) {
   const auto start = currentLocation();
 
-  const auto& tk = LA();
-
   if (parse_asm_declaration(yyast)) return true;
 
   rewind(start);
@@ -3475,7 +3462,7 @@ void Parser::enterFunctionScope(FunctionSymbol* functionSymbol,
 
 bool Parser::parse_simple_declaration(DeclarationAST*& yyast,
                                       bool acceptFunctionDefinition) {
-  const bool has_extension = match(TokenKind::T___EXTENSION__);
+  match(TokenKind::T___EXTENSION__);
 
   List<AttributeAST*>* attributes = nullptr;
 
@@ -3592,7 +3579,7 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast,
 
   RequiresClauseAST* requiresClause = nullptr;
 
-  const auto hasRequiresClause = parse_requires_clause(requiresClause);
+  parse_requires_clause(requiresClause);
 
   if (acceptFunctionDefinition && functionDeclarator &&
       Type::is<FunctionType>(decl.type) && lookat_function_body()) {
@@ -3725,9 +3712,7 @@ bool Parser::parse_notypespec_function_definition(
 
   const auto has_requires_clause = parse_requires_clause(requiresClause);
 
-  bool has_virt_specifier_seq = false;
-
-  if (!has_requires_clause) has_virt_specifier_seq = parse_virt_specifier_seq();
+  if (!has_requires_clause) parse_virt_specifier_seq();
 
   SourceLocation semicolonLoc;
 
@@ -4232,8 +4217,6 @@ bool Parser::parse_named_type_specifier_helper(SpecifierAST*& yyast,
     Semantics::NestedNameSpecifierSem nestedNameSpecifierSem;
 
     sem->nestedNameSpecifier(nestedNameSpecifier, &nestedNameSpecifierSem);
-
-    const auto after_nested_name_specifier = currentLocation();
 
     SourceLocation templateLoc;
     NameAST* name = nullptr;
@@ -4752,7 +4735,7 @@ bool Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
     typedefSymbol->setType(decl.type);
     sem->scope()->add(typedefSymbol);
     ast->symbol = typedefSymbol;
-  } else if (auto functionDeclarator = getFunctionDeclarator(declarator)) {
+  } else if (getFunctionDeclarator(declarator)) {
     FunctionSymbol* functionSymbol = nullptr;
     functionSymbol = symbols->newFunctionSymbol(sem->scope(), decl.name);
     functionSymbol->setType(decl.type);
@@ -5539,10 +5522,7 @@ bool Parser::parse_initializer_list(List<ExpressionAST*>*& yyast) {
 
   if (!parse_initializer_clause(expression)) return false;
 
-  bool has_triple_dot = false;
-  if (match(TokenKind::T_DOT_DOT_DOT)) {
-    has_triple_dot = true;
-  }
+  match(TokenKind::T_DOT_DOT_DOT);
 
   *it = new (pool) List(expression);
   it = &(*it)->next;
@@ -5555,10 +5535,7 @@ bool Parser::parse_initializer_list(List<ExpressionAST*>*& yyast) {
     if (!parse_initializer_clause(expression))
       parse_error("expected initializer clause");
 
-    bool has_triple_dot = false;
-    if (match(TokenKind::T_DOT_DOT_DOT)) {
-      has_triple_dot = true;
-    }
+    match(TokenKind::T_DOT_DOT_DOT);
 
     *it = new (pool) List(expression);
     it = &(*it)->next;
@@ -6189,7 +6166,7 @@ bool Parser::parse_using_declarator_list(List<UsingDeclaratorAST*>*& yyast) {
 
   if (!parse_using_declarator(declarator)) return false;
 
-  const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+  match(TokenKind::T_DOT_DOT_DOT);
 
   *it = new (pool) List(declarator);
   it = &(*it)->next;
@@ -6200,7 +6177,7 @@ bool Parser::parse_using_declarator_list(List<UsingDeclaratorAST*>*& yyast) {
     if (!parse_using_declarator(declarator))
       parse_error("expected a using declarator");
 
-    const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+    match(TokenKind::T_DOT_DOT_DOT);
 
     *it = new (pool) List(declarator);
     it = &(*it)->next;
@@ -6412,7 +6389,7 @@ bool Parser::parse_alignment_specifier() {
   TypeIdAST* typeId = nullptr;
 
   if (parse_type_id(typeId)) {
-    const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+    match(TokenKind::T_DOT_DOT_DOT);
 
     if (match(TokenKind::T_RPAREN)) {
       return true;
@@ -6430,7 +6407,7 @@ bool Parser::parse_alignment_specifier() {
 
   sem->expression(expression, &expr);
 
-  const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+  match(TokenKind::T_DOT_DOT_DOT);
 
   expect(TokenKind::T_RPAREN);
 
@@ -6451,12 +6428,12 @@ bool Parser::parse_attribute_using_prefix() {
 bool Parser::parse_attribute_list() {
   parse_attribute();
 
-  const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+  match(TokenKind::T_DOT_DOT_DOT);
 
   while (match(TokenKind::T_COMMA)) {
     parse_attribute();
 
-    const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+    match(TokenKind::T_DOT_DOT_DOT);
   }
 
   return true;
@@ -7037,16 +7014,12 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
 
   if (hasDeclarator && Type::is<FunctionType>(decl.type) &&
       getFunctionDeclarator(declarator)) {
-    FunctionBodyAST* functionBody = nullptr;
-
     RequiresClauseAST* requiresClause = nullptr;
 
     const auto has_requires_clause = parse_requires_clause(requiresClause);
 
-    bool has_virt_specifier_seq = false;
-
     if (!has_requires_clause)
-      has_virt_specifier_seq = parse_virt_specifier_seq();
+      parse_virt_specifier_seq();
 
     if (lookat_function_body()) {
       FunctionSymbol* functionSymbol = nullptr;
@@ -7109,7 +7082,7 @@ bool Parser::parse_member_declarator_list(List<InitDeclaratorAST*>*& yyast,
       typedefSymbol->setType(decl.type);
       sem->scope()->add(typedefSymbol);
       initDeclarator->symbol = typedefSymbol;
-    } else if (auto funTy = Type::cast<FunctionType>(decl.type)) {
+    } else if (Type::is<FunctionType>(decl.type)) {
       auto functionSymbol = symbols->newFunctionSymbol(sem->scope(), decl.name);
       functionSymbol->setType(decl.type);
       sem->scope()->add(functionSymbol);
@@ -7307,7 +7280,7 @@ bool Parser::parse_base_specifier_list(List<BaseSpecifierAST*>*& yyast) {
 
   if (!parse_base_specifier(baseSpecifier)) return false;
 
-  const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+  match(TokenKind::T_DOT_DOT_DOT);
 
   *it = new (pool) List(baseSpecifier);
   it = &(*it)->next;
@@ -7318,7 +7291,7 @@ bool Parser::parse_base_specifier_list(List<BaseSpecifierAST*>*& yyast) {
     if (!parse_base_specifier(baseSpecifier))
       parse_error("expected a base class specifier");
 
-    const auto has_triple_dot = match(TokenKind::T_DOT_DOT_DOT);
+    match(TokenKind::T_DOT_DOT_DOT);
 
     *it = new (pool) List(baseSpecifier);
     it = &(*it)->next;
@@ -7352,8 +7325,6 @@ bool Parser::parse_class_or_decltype(NameAST*& yyast) {
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
 
   if (parse_nested_name_specifier(nestedNameSpecifier)) {
-    const auto saved = currentLocation();
-
     NameAST* name = nullptr;
 
     SourceLocation templateLoc;
@@ -7816,8 +7787,6 @@ bool Parser::parse_typename_type_parameter(DeclarationAST*& yyast) {
     return true;
   }
 
-  const auto saved = currentLocation();
-
   if ((LA().is(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_EQUAL)) ||
       LA().is(TokenKind::T_EQUAL)) {
     auto ast = new (pool) TypenameTypeParameterAST();
@@ -7865,8 +7834,6 @@ bool Parser::parse_template_type_parameter(DeclarationAST*& yyast) {
 
   if (!parse_type_parameter_key(classsKeyLoc))
     parse_error("expected a type parameter");
-
-  const auto saved = currentLocation();
 
   if ((LA().is(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_EQUAL)) ||
       LA().is(TokenKind::T_EQUAL)) {
@@ -7932,11 +7899,9 @@ bool Parser::parse_constraint_type_parameter(DeclarationAST*& yyast) {
   if (!parse_type_constraint(typeConstraint, /*parsing placeholder=*/false))
     return false;
 
-  const auto saved = currentLocation();
-
   if ((LA().is(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_EQUAL)) ||
       LA().is(TokenKind::T_EQUAL)) {
-    const auto has_identifier = match(TokenKind::T_IDENTIFIER);
+    match(TokenKind::T_IDENTIFIER);
 
     expect(TokenKind::T_EQUAL);
 
@@ -7948,9 +7913,9 @@ bool Parser::parse_constraint_type_parameter(DeclarationAST*& yyast) {
     return true;
   }
 
-  const auto has_tripled_dot = match(TokenKind::T_DOT_DOT_DOT);
+  match(TokenKind::T_DOT_DOT_DOT);
 
-  const auto has_identifier = match(TokenKind::T_IDENTIFIER);
+  match(TokenKind::T_IDENTIFIER);
 
   return true;
 }
@@ -8201,7 +8166,7 @@ bool Parser::parse_constraint_expression(ExpressionAST*& yyast) {
 bool Parser::parse_deduction_guide(DeclarationAST*& yyast) {
   SpecifierAST* explicitSpecifier = nullptr;
 
-  const auto has_explicit_spec = parse_explicit_specifier(explicitSpecifier);
+  parse_explicit_specifier(explicitSpecifier);
 
   NameAST* name = nullptr;
 
@@ -8277,7 +8242,7 @@ bool Parser::parse_typename_specifier(SpecifierAST*& yyast) {
 
   const auto after_nested_name_specifier = currentLocation();
 
-  const auto has_template = match(TokenKind::T_TEMPLATE);
+  match(TokenKind::T_TEMPLATE);
 
   NameAST* name = nullptr;
 

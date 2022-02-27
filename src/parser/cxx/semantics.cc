@@ -1007,8 +1007,6 @@ void Semantics::visit(MemberExpressionAST* ast) {
   }
 
   if (auto classTy = Type::cast<ClassType>(baseTy)) {
-    auto memberName = name.name;
-
     auto classSymbol = classTy->symbol();
 
     auto member = classSymbol->scope()->find(name.name);
@@ -1497,8 +1495,7 @@ void Semantics::visit(IntegralTypeSpecifierAST* ast) {
       if (ty && ty->kind() == IntegerKind::kLong) {
         specifiers_->type.setType(types_->integerType(IntegerKind::kLongLong,
                                                       specifiers_->isUnsigned));
-      } else if (auto floatTy =
-                     Type::cast<FloatingPointType>(specifiers_->type)) {
+      } else if (Type::is<FloatingPointType>(specifiers_->type)) {
         specifiers_->type.setType(
             types_->floatingPointType(FloatingPointKind::kLongDouble));
       } else {

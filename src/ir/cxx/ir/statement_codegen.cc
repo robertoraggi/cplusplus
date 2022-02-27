@@ -135,7 +135,6 @@ void StatementCodegen::visit(WhileStatementAST* ast) {
 
 void StatementCodegen::visit(DoStatementAST* ast) {
   auto topLoop = cg->createBlock();
-  auto bodyLoop = cg->createBlock();
   auto continueLoop = cg->createBlock();
   auto endLoop = cg->createBlock();
 

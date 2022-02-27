@@ -58,10 +58,6 @@ void X64InstructionSelection::operator()(ir::Module* module,
 
     for (auto block : function->blocks()) {
       emit("{}:\n", blockId(block));
-
-      for (auto stmt : block->code()) {
-        // statement(stmt);
-      }
     }
 
     emit("\tleave\n");

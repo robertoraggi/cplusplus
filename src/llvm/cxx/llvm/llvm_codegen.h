@@ -18,13 +18,25 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/diagnostic.h>
-#include <cxx/token.h>
+#pragma once
+
+#include <memory>
+
+namespace llvm {
+class LLVMContext;
+class Module;
+}  // namespace llvm
+
+namespace cxx {
+class TranslationUnit;
+}
 
 namespace cxx {
 
-Diagnostic::Diagnostic(Severity severity, const Token& token,
-                       std::string message)
-    :  message_(std::move(message)), token_(token), severity_(severity) {}
+class LLVMCodegen {
+ public:
+  std::unique_ptr<llvm::Module> operator()(TranslationUnit* unit,
+                                           llvm::LLVMContext& context);
+};
 
 }  // namespace cxx
