@@ -204,8 +204,20 @@ class TemplateSymbol final : public TypeSymbol {
 
   Scope* scope() const override { return scope_.get(); }
 
+  Symbol* declaration() const { return declaration_; }
+
+  void setDeclaration(Symbol* declaration) { declaration_ = declaration; }
+
+  bool needsDeclaration() const { return needsDeclaration_; }
+
+  void setNeedsDeclaration(bool needsDeclaration) {
+    needsDeclaration_ = needsDeclaration;
+  }
+
  private:
   std::unique_ptr<Scope> scope_;
+  Symbol* declaration_ = nullptr;
+  bool needsDeclaration_ = false;
 };
 
 class TemplateTypeParameterSymbol final : public TypeSymbol {
@@ -214,6 +226,20 @@ class TemplateTypeParameterSymbol final : public TypeSymbol {
                                        const Name* name = nullptr);
 
   void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
+
+  QualifiedType defaultType() const { return defaultType_; }
+
+  void setDefaultType(const QualifiedType& defaultType) {
+    defaultType_ = defaultType;
+  }
+
+  bool isParameterPack() const { return parameterPack_; }
+
+  void setParameterPack(bool parameterPack) { parameterPack_ = parameterPack; }
+
+ private:
+  QualifiedType defaultType_;
+  bool parameterPack_ = false;
 };
 
 class VariableSymbol final : public Symbol {

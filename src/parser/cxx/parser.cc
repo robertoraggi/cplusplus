@@ -7632,6 +7632,8 @@ bool Parser::parse_template_declaration(DeclarationAST*& yyast) {
   RequiresClauseAST* requiresClause = nullptr;
   parse_requires_clause(requiresClause);
 
+  templSymbol->setNeedsDeclaration(true);
+
   DeclarationAST* declaration = nullptr;
 
   if (!parse_concept_definition(declaration)) {
@@ -7792,8 +7794,25 @@ bool Parser::parse_typename_type_parameter(DeclarationAST*& yyast) {
 
   ast->identifier = unit->identifier(ast->identifierLoc);
 
-  if (match(TokenKind::T_EQUAL, ast->equalLoc)) {
-    if (!parse_type_id(ast->typeId)) parse_error("expected a type id");
+  if (dynamic_cast<TemplateSymbol*>(sem->scope()->owner())) {
+    auto symbol =
+        symbols->newTemplateTypeParameterSymbol(sem->scope(), ast->identifier);
+
+    ast->symbol = symbol;
+
+    if (ast->ellipsisLoc) symbol->setParameterPack(true);
+
+    sem->scope()->add(symbol);
+  }
+
+  if (!match(TokenKind::T_EQUAL, ast->equalLoc)) return true;
+
+  if (!parse_type_id(ast->typeId)) parse_error("expected a type id");
+
+  if (ast->typeId) {
+    sem->typeId(ast->typeId);
+
+    if (ast->symbol) ast->symbol->setDefaultType(ast->typeId->type);
   }
 
   return true;

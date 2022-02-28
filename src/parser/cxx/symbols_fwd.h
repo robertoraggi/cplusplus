@@ -82,6 +82,7 @@ enum class LookupOptions {
   kDefault = 0,
   kType = 1 << 0,
   kNamespace = 1 << 1,
+  kTemplate = 1 << 2,
   kTypeOrNamespace = kType | kNamespace,
 };
 

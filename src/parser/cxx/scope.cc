@@ -49,6 +49,16 @@ Symbol* Scope::owner() const { return owner_; }
 void Scope::setOwner(Symbol* owner) { owner_ = owner; }
 
 void Scope::add(Symbol* symbol) {
+  if (auto name = symbol->name()) {
+    if (auto templ = dynamic_cast<TemplateSymbol*>(owner_);
+        templ && templ->needsDeclaration()) {
+      templ->setName(name);
+      templ->setDeclaration(symbol);
+      templ->setNeedsDeclaration(false);
+      return;
+    }
+  }
+
   members_.push_back(symbol);
   if (3 * members_.size() > 2 * buckets_.size()) {
     rehash();
@@ -133,6 +143,10 @@ bool Scope::match(Symbol* symbol, LookupOptions options) const {
     return true;
 
   if (is_set(options, LookupOptions::kType) && symbol->isTypeSymbol())
+    return true;
+
+  if (is_set(options, LookupOptions::kTemplate) &&
+      dynamic_cast<TemplateSymbol*>(symbol) != nullptr)
     return true;
 
   return false;

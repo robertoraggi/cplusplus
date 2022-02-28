@@ -118,11 +118,20 @@ void SymbolPrinter::visit(TemplateSymbol* symbol) {
   newline();
   indent();
   printScope(symbol->scope());
+  if (auto decl = symbol->declaration()) decl->accept(this);
   deindent();
 }
 
 void SymbolPrinter::visit(TemplateTypeParameterSymbol* symbol) {
-  printSymbolHead("template type parameter:", symbol->name());
+  printSymbolHead(
+      symbol->isParameterPack() ? "type parameter pack:" : "type parameter:",
+      symbol->name());
+
+  if (symbol->defaultType()) {
+    out << " = ";
+    printType(out, symbol->defaultType());
+  }
+
   newline();
 }
 

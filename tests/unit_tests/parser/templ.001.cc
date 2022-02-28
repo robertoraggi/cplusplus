@@ -6,7 +6,8 @@ struct is_void {
 };
 
 // CHECK-NEXT: - namespace:{{$}}
-// CHECK-NEXT: - template:{{$}}
+// CHECK-NEXT: - template: is_void{{$}}
+// CHECK-NEXT: - type parameter: T{{$}}
 // CHECK-NEXT: - struct: is_void{{$}}
 // CHECK-NEXT: - enum:{{$}}
 // CHECK-NEXT: - enumerator: value{{$}}

@@ -2545,6 +2545,8 @@ void ASTCloner::visit(TypenameTypeParameterAST* ast) {
   copy->typeId = accept(ast->typeId);
 
   copy->identifier = ast->identifier;
+
+  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(TemplateTypeParameterAST* ast) {

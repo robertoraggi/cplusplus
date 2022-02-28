@@ -2134,6 +2134,7 @@ class TypenameTypeParameterAST final : public DeclarationAST {
   SourceLocation equalLoc;
   TypeIdAST* typeId = nullptr;
   const Identifier* identifier = nullptr;
+  TemplateTypeParameterSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
