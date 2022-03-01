@@ -71,6 +71,9 @@ void SymbolPrinter::printScope(Scope* scope) {
 void SymbolPrinter::visit(ConceptSymbol* symbol) {
   printSymbolHead("concept:", symbol->name());
   newline();
+  indent();
+  if (auto params = symbol->templateParameterList()) params->accept(this);
+  deindent();
 }
 
 void SymbolPrinter::visit(NamespaceSymbol* symbol) {
@@ -82,17 +85,22 @@ void SymbolPrinter::visit(NamespaceSymbol* symbol) {
 }
 
 void SymbolPrinter::visit(ClassSymbol* symbol) {
-  printSymbolHead(fmt::format("{}:", to_string_view(symbol->classKey())),
-                  symbol->name());
+  std::string_view templ = symbol->templateParameterList() ? "template " : "";
+  auto classKey = to_string_view(symbol->classKey());
+  printSymbolHead(fmt::format("{}{}:", templ, classKey), symbol->name());
   newline();
   indent();
+  if (auto params = symbol->templateParameterList()) params->accept(this);
   printScope(symbol->scope());
   deindent();
 }
 
 void SymbolPrinter::visit(TypedefSymbol* symbol) {
-  printSymbolHead("typedef:", symbol->name());
+  printSymbolHead("type alias:", symbol->name());
   newline();
+  indent();
+  if (auto params = symbol->templateParameterList()) params->accept(this);
+  deindent();
 }
 
 void SymbolPrinter::visit(EnumSymbol* symbol) {
@@ -113,12 +121,11 @@ void SymbolPrinter::visit(ScopedEnumSymbol* symbol) {
   deindent();
 }
 
-void SymbolPrinter::visit(TemplateSymbol* symbol) {
-  printSymbolHead("template:", symbol->name());
+void SymbolPrinter::visit(TemplateParameterList* symbol) {
+  printSymbolHead("template parameters:", symbol->name());
   newline();
   indent();
   printScope(symbol->scope());
-  if (auto decl = symbol->declaration()) decl->accept(this);
   deindent();
 }
 
@@ -148,9 +155,13 @@ void SymbolPrinter::visit(FieldSymbol* symbol) {
 }
 
 void SymbolPrinter::visit(FunctionSymbol* symbol) {
-  printSymbolHead("function: ");
+  printSymbolHead(symbol->templateParameterList() ? "template function: "
+                                                  : "function: ");
   printType(out, symbol->type(), symbolName(symbol));
   newline();
+  indent();
+  if (auto params = symbol->templateParameterList()) params->accept(this);
+  deindent();
 }
 
 void SymbolPrinter::visit(ArgumentSymbol* symbol) {

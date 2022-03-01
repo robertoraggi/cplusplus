@@ -40,7 +40,7 @@ class TypedefSymbol;
 class EnumSymbol;
 class EnumeratorSymbol;
 class ScopedEnumSymbol;
-class TemplateSymbol;
+class TemplateParameterList;
 class TemplateTypeParameterSymbol;
 class VariableSymbol;
 class FieldSymbol;

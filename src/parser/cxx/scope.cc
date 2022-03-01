@@ -44,21 +44,36 @@ Scope* Scope::enclosingScope() const {
   return owner_ ? owner_->enclosingScope() : nullptr;
 }
 
+Scope* Scope::skipTemplateScope() const {
+  auto scope = const_cast<Scope*>(this);
+  while (scope && scope->isTemplateScope()) scope = scope->enclosingScope();
+  return scope;
+}
+
 Symbol* Scope::owner() const { return owner_; }
 
 void Scope::setOwner(Symbol* owner) { owner_ = owner; }
 
-void Scope::add(Symbol* symbol) {
-  if (auto name = symbol->name()) {
-    if (auto templ = dynamic_cast<TemplateSymbol*>(owner_);
-        templ && templ->needsDeclaration()) {
-      templ->setName(name);
-      templ->setDeclaration(symbol);
-      templ->setNeedsDeclaration(false);
-      return;
-    }
-  }
+bool Scope::isTemplateScope() const {
+  return dynamic_cast<TemplateParameterList*>(owner_);
+}
 
+void Scope::add(Symbol* symbol) {
+  if (dynamic_cast<TemplateParameterList*>(symbol) ||
+      dynamic_cast<TemplateTypeParameterSymbol*>(symbol)) {
+    if (isTemplateScope()) addHelper(symbol);
+  } else if (auto templateParameterList =
+                 dynamic_cast<TemplateParameterList*>(owner_)) {
+    symbol->setTemplateParameterList(templateParameterList);
+
+    auto declarationScope = skipTemplateScope();
+    declarationScope->addHelper(symbol);
+  } else {
+    addHelper(symbol);
+  }
+}
+
+void Scope::addHelper(Symbol* symbol) {
   members_.push_back(symbol);
   if (3 * members_.size() > 2 * buckets_.size()) {
     rehash();
@@ -146,7 +161,7 @@ bool Scope::match(Symbol* symbol, LookupOptions options) const {
     return true;
 
   if (is_set(options, LookupOptions::kTemplate) &&
-      dynamic_cast<TemplateSymbol*>(symbol) != nullptr)
+      dynamic_cast<TemplateParameterList*>(symbol) != nullptr)
     return true;
 
   return false;

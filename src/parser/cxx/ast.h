@@ -2116,7 +2116,7 @@ class TemplateDeclarationAST final : public DeclarationAST {
   SourceLocation greaterLoc;
   RequiresClauseAST* requiresClause = nullptr;
   DeclarationAST* declaration = nullptr;
-  TemplateSymbol* symbol = nullptr;
+  TemplateParameterList* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

@@ -35,7 +35,7 @@ class SymbolVisitor {
   virtual void visit(EnumSymbol* symbol) = 0;
   virtual void visit(EnumeratorSymbol* symbol) = 0;
   virtual void visit(ScopedEnumSymbol* symbol) = 0;
-  virtual void visit(TemplateSymbol* symbol) = 0;
+  virtual void visit(TemplateParameterList* symbol) = 0;
   virtual void visit(TemplateTypeParameterSymbol* symbol) = 0;
   virtual void visit(VariableSymbol* symbol) = 0;
   virtual void visit(FieldSymbol* symbol) = 0;

@@ -36,6 +36,8 @@ Symbol::Symbol(Scope* enclosingScope, const Name* name)
 
 Symbol::~Symbol() {}
 
+void Symbol::addToEnclosingScope() { enclosingScope_->add(this); }
+
 std::string Symbol::unqualifiedId() const {
   if (name()) return fmt::format("{}", *name());
   return "__anon__";
@@ -119,6 +121,15 @@ Visibility Symbol::visibility() const { return visibility_; }
 
 void Symbol::setVisibility(Visibility visibility) { visibility_ = visibility; }
 
+TemplateParameterList* Symbol::templateParameterList() const {
+  return templateParameterList_;
+}
+
+void Symbol::setTemplateParameterList(
+    TemplateParameterList* templateParameterList) {
+  templateParameterList_ = templateParameterList;
+}
+
 NamespaceSymbol::NamespaceSymbol(Scope* enclosingScope, const Name* name)
     : Symbol(enclosingScope, name), scope_(std::make_unique<Scope>()) {
   scope_->setOwner(this);
@@ -164,12 +175,12 @@ ScopedEnumSymbol::~ScopedEnumSymbol() {}
 EnumeratorSymbol::EnumeratorSymbol(Scope* enclosingScope, const Name* name)
     : Symbol(enclosingScope, name) {}
 
-TemplateSymbol::TemplateSymbol(Scope* enclosingScope, const Name* name)
-    : TypeSymbol(enclosingScope, name), scope_(std::make_unique<Scope>()) {
+TemplateParameterList::TemplateParameterList(Scope* enclosingScope)
+    : Symbol(enclosingScope, nullptr), scope_(std::make_unique<Scope>()) {
   scope_->setOwner(this);
 }
 
-TemplateSymbol::~TemplateSymbol() {}
+TemplateParameterList::~TemplateParameterList() {}
 
 TemplateTypeParameterSymbol::TemplateTypeParameterSymbol(Scope* enclosingScope,
                                                          const Name* name)

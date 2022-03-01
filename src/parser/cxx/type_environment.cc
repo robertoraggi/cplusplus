@@ -395,7 +395,8 @@ const ClassType* TypeEnvironment::classType(ClassSymbol* symbol) {
   return &*d->classTypes.emplace(symbol).first;
 }
 
-const TemplateType* TypeEnvironment::templateType(TemplateSymbol* symbol) {
+const TemplateType* TypeEnvironment::templateType(
+    TemplateParameterList* symbol) {
   return &*d->templateTypes.emplace(symbol).first;
 }
 

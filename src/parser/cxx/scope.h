@@ -37,6 +37,9 @@ class Scope final {
   ~Scope();
 
   Scope* enclosingScope() const;
+  Scope* skipTemplateScope() const;
+
+  bool isTemplateScope() const;
 
   Symbol* owner() const;
   void setOwner(Symbol* owner);
@@ -65,6 +68,8 @@ class Scope final {
 
  private:
   void rehash();
+
+  void addHelper(Symbol* symbol);
 
   Symbol* lookup(const Name* name, LookupOptions lookupOptions,
                  std::vector<const Scope*>& processed) const;

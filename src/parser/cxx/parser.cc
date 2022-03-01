@@ -2880,7 +2880,7 @@ bool Parser::parse_compound_statement(CompoundStatementAST*& yyast, bool skip) {
   if (!match(TokenKind::T_LBRACE, lbraceLoc)) return false;
 
   auto blockSymbol = symbols->newBlockSymbol(sem->scope(), nullptr);
-  sem->scope()->add(blockSymbol);
+  blockSymbol->addToEnclosingScope();
 
   auto ast = new (pool) CompoundStatementAST();
   yyast = ast;
@@ -3184,7 +3184,7 @@ bool Parser::parse_for_range_declaration(DeclarationAST*& yyast) {
     VariableSymbol* varSymbol = nullptr;
     varSymbol = symbols->newVariableSymbol(sem->scope(), decl.name);
     varSymbol->setType(decl.type);
-    sem->scope()->add(varSymbol);
+    varSymbol->addToEnclosingScope();
     initDeclarator->symbol = varSymbol;
 
     auto ast = new (pool) SimpleDeclarationAST();
@@ -3431,7 +3431,7 @@ bool Parser::parse_alias_declaration(DeclarationAST*& yyast) {
         symbols->newTypedefSymbol(sem->scope(), ast->identifier);
 
     typedefSymbol->setType(ast->typeId->type);
-    sem->scope()->add(typedefSymbol);
+    typedefSymbol->addToEnclosingScope();
 
     ast->symbol = typedefSymbol;
   }
@@ -3456,7 +3456,7 @@ void Parser::enterFunctionScope(FunctionSymbol* functionSymbol,
     sem->declarator(it->value->declarator, &decl);
     auto param = symbols->newArgumentSymbol(sem->scope(), decl.name);
     param->setType(decl.type);
-    sem->scope()->add(param);
+    param->addToEnclosingScope();
   }
 }
 
@@ -3525,13 +3525,13 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast,
         if (classKey == TokenKind::T_ENUM) {
           auto enumSymbol = symbols->newEnumSymbol(sem->scope(), nameSem.name);
           enumSymbol->setType(QualifiedType(types->enumType(enumSymbol)));
-          sem->scope()->add(enumSymbol);
+          enumSymbol->addToEnclosingScope();
         } else {
           auto classSymbol =
               symbols->newClassSymbol(sem->scope(), nameSem.name);
           classSymbol->setClassKey(getClassKey(classKey));
           classSymbol->setType(QualifiedType(types->classType(classSymbol)));
-          sem->scope()->add(classSymbol);
+          classSymbol->addToEnclosingScope();
         }
       }
       break;
@@ -3595,7 +3595,7 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast,
     if (!functionSymbol) {
       functionSymbol = symbols->newFunctionSymbol(sem->scope(), decl.name);
       functionSymbol->setType(decl.type);
-      sem->scope()->add(functionSymbol);
+      functionSymbol->addToEnclosingScope();
     }
 
     Semantics::ScopeContext scopeContext(sem.get(), functionSymbol->scope());
@@ -3646,19 +3646,19 @@ bool Parser::parse_simple_declaration(DeclarationAST*& yyast,
   if (isTypedef) {
     auto typedefSymbol = symbols->newTypedefSymbol(sem->scope(), decl.name);
     typedefSymbol->setType(decl.type);
-    sem->scope()->add(typedefSymbol);
+    typedefSymbol->addToEnclosingScope();
     initDeclarator->symbol = typedefSymbol;
   } else if (functionDeclarator) {
     FunctionSymbol* functionSymbol = nullptr;
     functionSymbol = symbols->newFunctionSymbol(sem->scope(), decl.name);
     functionSymbol->setType(decl.type);
-    sem->scope()->add(functionSymbol);
+    functionSymbol->addToEnclosingScope();
     initDeclarator->symbol = functionSymbol;
   } else {
     VariableSymbol* varSymbol = nullptr;
     varSymbol = symbols->newVariableSymbol(sem->scope(), decl.name);
     varSymbol->setType(decl.type);
-    sem->scope()->add(varSymbol);
+    varSymbol->addToEnclosingScope();
     initDeclarator->symbol = varSymbol;
   }
 
@@ -3736,7 +3736,7 @@ bool Parser::parse_notypespec_function_definition(
 
   functionSymbol = symbols->newFunctionSymbol(sem->scope(), decl.name);
   functionSymbol->setType(decl.type);
-  sem->scope()->add(functionSymbol);
+  functionSymbol->addToEnclosingScope();
 
   Semantics::ScopeContext scopeContext(sem.get(), functionSymbol->scope());
 
@@ -4733,19 +4733,19 @@ bool Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
   if (decl.specifiers.isTypedef) {
     auto typedefSymbol = symbols->newTypedefSymbol(sem->scope(), decl.name);
     typedefSymbol->setType(decl.type);
-    sem->scope()->add(typedefSymbol);
+    typedefSymbol->addToEnclosingScope();
     ast->symbol = typedefSymbol;
   } else if (getFunctionDeclarator(declarator)) {
     FunctionSymbol* functionSymbol = nullptr;
     functionSymbol = symbols->newFunctionSymbol(sem->scope(), decl.name);
     functionSymbol->setType(decl.type);
-    sem->scope()->add(functionSymbol);
+    functionSymbol->addToEnclosingScope();
     ast->symbol = functionSymbol;
   } else {
     VariableSymbol* varSymbol = nullptr;
     varSymbol = symbols->newVariableSymbol(sem->scope(), decl.name);
     varSymbol->setType(decl.type);
-    sem->scope()->add(varSymbol);
+    varSymbol->addToEnclosingScope();
     ast->symbol = varSymbol;
   }
 
@@ -5704,7 +5704,7 @@ bool Parser::parse_enum_specifier(SpecifierAST*& yyast) {
     scopedEnumSymbol->setType(
         QualifiedType(types->scopedEnumType(scopedEnumSymbol)));
 
-    sem->scope()->add(scopedEnumSymbol);
+    scopedEnumSymbol->addToEnclosingScope();
 
     enumScope = scopedEnumSymbol->scope();
 
@@ -5722,7 +5722,7 @@ bool Parser::parse_enum_specifier(SpecifierAST*& yyast) {
 
     enumSymbol->setType(QualifiedType(types->enumType(enumSymbol)));
 
-    sem->scope()->add(enumSymbol);
+    enumSymbol->addToEnclosingScope();
 
     enumScope = enumSymbol->scope();
   }
@@ -5910,7 +5910,7 @@ bool Parser::parse_enumerator(EnumeratorAST*& yyast) {
 
   auto symbol = symbols->newEnumeratorSymbol(sem->scope(), ast->name->name);
   symbol->setType(sem->scope()->owner()->type());
-  sem->scope()->add(symbol);
+  symbol->addToEnclosingScope();
 
   if (auto enumSymbol = dynamic_cast<EnumSymbol*>(sem->scope()->owner())) {
     auto enclosingNamespace = enumSymbol->enclosingClassOrNamespace();
@@ -5920,7 +5920,7 @@ bool Parser::parse_enumerator(EnumeratorAST*& yyast) {
     // symbol->setType(enumSymbol->type());
     symbol->setType(
         QualifiedType{types->integerType(IntegerKind::kInt, false)});
-    enclosingNamespace->scope()->add(symbol);
+    symbol->addToEnclosingScope();
   }
 
   return true;
@@ -5982,7 +5982,7 @@ bool Parser::parse_namespace_definition(DeclarationAST*& yyast) {
 
     if (!namespaceSymbol) {
       namespaceSymbol = symbols->newNamespaceSymbol(sem->scope(), id);
-      sem->scope()->add(namespaceSymbol);
+      namespaceSymbol->addToEnclosingScope();
     }
 
     while (match(TokenKind::T_COLON_COLON)) {
@@ -6003,7 +6003,7 @@ bool Parser::parse_namespace_definition(DeclarationAST*& yyast) {
         ns = symbols->newNamespaceSymbol(namespaceSymbol->scope(), id);
         if (inlineLoc) ns->setInline(true);
 
-        namespaceSymbol->scope()->add(ns);
+        ns->addToEnclosingScope();
       }
 
       namespaceSymbol = ns;
@@ -6023,7 +6023,7 @@ bool Parser::parse_namespace_definition(DeclarationAST*& yyast) {
     namespaceSymbol = symbols->newNamespaceSymbol(sem->scope(), namespaceName);
     if (ast->inlineLoc) namespaceSymbol->setInline(true);
 
-    sem->scope()->add(namespaceSymbol);
+    namespaceSymbol->addToEnclosingScope();
   }
 
   Semantics::ScopeContext scopeContext(sem.get(), namespaceSymbol->scope());
@@ -6776,7 +6776,7 @@ bool Parser::parse_class_specifier(SpecifierAST*& yyast) {
     classSymbol = symbols->newClassSymbol(sem->scope(), nameSem.name);
     classSymbol->setClassKey(getClassKey(unit->tokenKind(classLoc)));
     classSymbol->setType(QualifiedType(types->classType(classSymbol)));
-    sem->scope()->add(classSymbol);
+    classSymbol->addToEnclosingScope();
   }
 
   classSymbol->setDefined(true);
@@ -7025,7 +7025,7 @@ bool Parser::parse_member_declaration_helper(DeclarationAST*& yyast) {
 
       functionSymbol = symbols->newFunctionSymbol(sem->scope(), decl.name);
       functionSymbol->setType(decl.type);
-      sem->scope()->add(functionSymbol);
+      functionSymbol->addToEnclosingScope();
 
       FunctionBodyAST* functionBody = nullptr;
 
@@ -7079,17 +7079,17 @@ bool Parser::parse_member_declarator_list(List<InitDeclaratorAST*>*& yyast,
     } else if (decl.specifiers.isTypedef) {
       auto typedefSymbol = symbols->newTypedefSymbol(sem->scope(), decl.name);
       typedefSymbol->setType(decl.type);
-      sem->scope()->add(typedefSymbol);
+      typedefSymbol->addToEnclosingScope();
       initDeclarator->symbol = typedefSymbol;
     } else if (Type::is<FunctionType>(decl.type)) {
       auto functionSymbol = symbols->newFunctionSymbol(sem->scope(), decl.name);
       functionSymbol->setType(decl.type);
-      sem->scope()->add(functionSymbol);
+      functionSymbol->addToEnclosingScope();
       initDeclarator->symbol = functionSymbol;
     } else {
       auto fieldSymbol = symbols->newFieldSymbol(sem->scope(), decl.name);
       fieldSymbol->setType(decl.type);
-      sem->scope()->add(fieldSymbol);
+      fieldSymbol->addToEnclosingScope();
       initDeclarator->symbol = fieldSymbol;
     }
   };
@@ -7615,7 +7615,7 @@ bool Parser::parse_template_declaration(DeclarationAST*& yyast) {
     return false;
   }
 
-  auto templSymbol = symbols->newTemplateSymbol(sem->scope(), nullptr);
+  auto templSymbol = symbols->newTemplateParameterList(sem->scope());
 
   Semantics::ScopeContext context(sem.get(), templSymbol->scope());
 
@@ -7632,15 +7632,13 @@ bool Parser::parse_template_declaration(DeclarationAST*& yyast) {
   RequiresClauseAST* requiresClause = nullptr;
   parse_requires_clause(requiresClause);
 
-  templSymbol->setNeedsDeclaration(true);
-
   DeclarationAST* declaration = nullptr;
 
   if (!parse_concept_definition(declaration)) {
     if (!parse_declaration(declaration)) parse_error("expected a declaration");
   }
 
-  templSymbol->enclosingScope()->add(templSymbol);
+  templSymbol->addToEnclosingScope();
 
   auto ast = new (pool) TemplateDeclarationAST();
   yyast = ast;
@@ -7794,7 +7792,7 @@ bool Parser::parse_typename_type_parameter(DeclarationAST*& yyast) {
 
   ast->identifier = unit->identifier(ast->identifierLoc);
 
-  if (dynamic_cast<TemplateSymbol*>(sem->scope()->owner())) {
+  if (dynamic_cast<TemplateParameterList*>(sem->scope()->owner())) {
     auto symbol =
         symbols->newTemplateTypeParameterSymbol(sem->scope(), ast->identifier);
 
@@ -7802,7 +7800,7 @@ bool Parser::parse_typename_type_parameter(DeclarationAST*& yyast) {
 
     if (ast->ellipsisLoc) symbol->setParameterPack(true);
 
-    sem->scope()->add(symbol);
+    symbol->addToEnclosingScope();
   }
 
   if (!match(TokenKind::T_EQUAL, ast->equalLoc)) return true;
@@ -8230,7 +8228,7 @@ bool Parser::parse_concept_definition(DeclarationAST*& yyast) {
 
   conceptSymbol = symbols->newConceptSymbol(sem->scope(), nameSem.name);
   conceptSymbol->setType(QualifiedType(types->conceptType(conceptSymbol)));
-  sem->scope()->add(conceptSymbol);
+  conceptSymbol->addToEnclosingScope();
 
   expect(TokenKind::T_EQUAL, ast->equalLoc);
 

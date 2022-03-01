@@ -68,9 +68,14 @@ class Symbol {
   Visibility visibility() const;
   void setVisibility(Visibility visibility);
 
+  TemplateParameterList* templateParameterList() const;
+  void setTemplateParameterList(TemplateParameterList* templateParameterList);
+
   virtual bool isTypeSymbol() const;
 
   virtual Scope* scope() const { return nullptr; }
+
+  void addToEnclosingScope();
 
   int index() const;
 
@@ -80,6 +85,7 @@ class Symbol {
   Scope* enclosingScope_ = nullptr;
   const Name* name_ = nullptr;
   Symbol* next_ = nullptr;
+  TemplateParameterList* templateParameterList_ = nullptr;
   QualifiedType type_;
   Linkage linkage_ = Linkage::kCxx;
   Visibility visibility_ = Visibility::kPublic;
@@ -195,29 +201,17 @@ class EnumeratorSymbol final : public Symbol {
   void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
 };
 
-class TemplateSymbol final : public TypeSymbol {
+class TemplateParameterList final : public Symbol {
  public:
-  explicit TemplateSymbol(Scope* enclosingScope, const Name* name = nullptr);
-  ~TemplateSymbol() override;
+  explicit TemplateParameterList(Scope* enclosingScope);
+  ~TemplateParameterList() override;
 
   void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
 
   Scope* scope() const override { return scope_.get(); }
 
-  Symbol* declaration() const { return declaration_; }
-
-  void setDeclaration(Symbol* declaration) { declaration_ = declaration; }
-
-  bool needsDeclaration() const { return needsDeclaration_; }
-
-  void setNeedsDeclaration(bool needsDeclaration) {
-    needsDeclaration_ = needsDeclaration;
-  }
-
  private:
   std::unique_ptr<Scope> scope_;
-  Symbol* declaration_ = nullptr;
-  bool needsDeclaration_ = false;
 };
 
 class TemplateTypeParameterSymbol final : public TypeSymbol {

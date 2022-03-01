@@ -48,7 +48,7 @@ class SymbolFactory final {
   ScopedEnumSymbol* newScopedEnumSymbol(Scope* enclosingScope,
                                         const Name* name);
 
-  TemplateSymbol* newTemplateSymbol(Scope* enclosingScope, const Name* name);
+  TemplateParameterList* newTemplateParameterList(Scope* enclosingScope);
 
   TemplateTypeParameterSymbol* newTemplateTypeParameterSymbol(
       Scope* enclosingScope, const Name* name);
