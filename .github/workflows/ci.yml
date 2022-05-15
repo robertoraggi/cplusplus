@@ -8,8 +8,7 @@ on:
 
 jobs:
   build-linux:
-    runs-on: ubuntu-latest
-    container: ubuntu:22.04
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v2
@@ -17,17 +16,6 @@ jobs:
       - name: Install required ubuntu packages
         env:
           DEBIAN_FRONTEND: noninteractive
-
-        run: |
-          apt-get update && apt-get install -y --no-install-recommends \
-            cmake \
-            build-essential \
-            libz-dev \
-            llvm-dev \
-            python3 \
-            python3-pip \
-            ninja-build \
-            git
 
       - name: Install unit tests requirements
         run: |
@@ -48,7 +36,7 @@ jobs:
           ctest --verbose
 
   build-windows:
-    runs-on: windows-2022
+    runs-on: windows-latest
 
     steps:
       - uses: actions/checkout@v2
@@ -87,7 +75,7 @@ jobs:
           node dump.mjs
 
   build-macos:
-    runs-on: macos-latest
+    runs-on: macos-12
 
     steps:
       - uses: actions/checkout@v2
