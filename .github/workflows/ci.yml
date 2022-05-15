@@ -13,10 +13,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Install required ubuntu packages
-        env:
-          DEBIAN_FRONTEND: noninteractive
-
       - name: Install unit tests requirements
         run: |
           pip install -r tests/unit_tests/requirements.txt
