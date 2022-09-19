@@ -1004,7 +1004,7 @@ const TokList *Preprocessor::Private::substitude(
       *ip = const_cast<TokList *>(rs);
     else
       (*ip)->tail = const_cast<TokList *>(rs);
-    while ((*ip)->tail) ip = const_cast<TokList **>(&(*ip)->tail);
+    while (*ip && (*ip)->tail) ip = const_cast<TokList **>(&(*ip)->tail);
   };
 
   auto appendToken = [&](const Tok *tk) {
