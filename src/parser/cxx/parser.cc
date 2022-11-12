@@ -22,6 +22,7 @@
 #include <cxx/literals.h>
 #include <cxx/names.h>
 #include <cxx/parser.h>
+#include <cxx/private/format.h>
 #include <cxx/scope.h>
 #include <cxx/semantics.h>
 #include <cxx/symbol_factory.h>
@@ -29,8 +30,6 @@
 #include <cxx/token.h>
 #include <cxx/type_environment.h>
 #include <cxx/types.h>
-#include <fmt/format.h>
-#include <fmt/ostream.h>
 
 #include <algorithm>
 #include <cassert>

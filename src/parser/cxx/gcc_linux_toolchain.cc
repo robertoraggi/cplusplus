@@ -20,7 +20,7 @@
 
 #include <cxx/gcc_linux_toolchain.h>
 #include <cxx/preprocessor.h>
-#include <fmt/format.h>
+#include <cxx/private/format.h>
 
 #include <filesystem>
 

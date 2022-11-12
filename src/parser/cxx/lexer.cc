@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/lexer.h>
-#include <fmt/format.h>
+#include <cxx/private/format.h>
 #include <utf8.h>
 
 #include <cassert>

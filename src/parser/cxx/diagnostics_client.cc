@@ -22,8 +22,7 @@
 
 // cxx
 #include <cxx/preprocessor.h>
-#include <fmt/format.h>
-#include <fmt/ostream.h>
+#include <cxx/private/format.h>
 
 #include <cctype>
 #include <cstdlib>
