@@ -28,8 +28,7 @@
 #include <cxx/literals.h>
 
 // fmt
-#include <fmt/format.h>
-#include <fmt/ostream.h>
+#include <cxx/private/format.h>
 
 // utf8
 #include <utf8.h>

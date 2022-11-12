@@ -18,35 +18,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/name_printer.h>
+#pragma once
+
 #include <cxx/names.h>
-#include <cxx/private/format.h>
+#include <cxx/types.h>
+#include <fmt/format.h>
+#include <fmt/ostream.h>
 
-namespace cxx {
+template <>
+struct fmt::formatter<cxx::Name> : fmt::ostream_formatter {};
 
-void NamePrinter::operator()(std::ostream& out, const Name* name) {
-  if (!name) return;
-  auto o = &out;
-  std::swap(out_, o);
-  accept(name);
-  std::swap(out_, o);
-}
-
-void NamePrinter::accept(const Name* name) {
-  if (!name) return;
-  name->accept(this);
-}
-
-void NamePrinter::visit(const Identifier* name) {
-  fmt::print(*out_, "{}", name->name());
-}
-
-void NamePrinter::visit(const OperatorNameId* name) {
-  fmt::print(*out_, "operator {}", Token::spell(name->op()));
-}
-
-void NamePrinter::visit(const ConversionNameId* name) {
-  fmt::print(*out_, "operator {}", name->type());
-}
-
-}  // namespace cxx
+template <>
+struct fmt::formatter<cxx::QualifiedType> : fmt::ostream_formatter {};

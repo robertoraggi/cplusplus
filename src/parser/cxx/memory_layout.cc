@@ -19,10 +19,10 @@
 // SOFTWARE.
 
 #include <cxx/memory_layout.h>
+#include <cxx/private/format.h>
 #include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/types.h>
-#include <fmt/format.h>
 
 #include <stdexcept>
 

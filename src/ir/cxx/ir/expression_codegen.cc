@@ -25,14 +25,13 @@
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
 #include <cxx/names.h>
+#include <cxx/private/format.h>
 #include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_environment.h>
 #include <cxx/type_visitor.h>
 #include <cxx/types.h>
-#include <fmt/format.h>
-#include <fmt/ostream.h>
 
 #include <stdexcept>
 

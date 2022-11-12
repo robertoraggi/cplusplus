@@ -23,11 +23,10 @@
 #include <cxx/literals.h>
 #include <cxx/name_printer.h>
 #include <cxx/names.h>
+#include <cxx/private/format.h>
 #include <cxx/symbols.h>
 #include <cxx/type_printer.h>
 #include <cxx/types.h>
-#include <fmt/format.h>
-#include <fmt/ostream.h>
 
 namespace cxx::ir {
 

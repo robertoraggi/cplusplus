@@ -21,8 +21,7 @@
 #pragma once
 
 #include <cxx/ir/ir_visitor.h>
-#include <fmt/format.h>
-#include <fmt/ostream.h>
+#include <cxx/private/format.h>
 
 #include <map>
 
@@ -38,8 +37,7 @@ class X64InstructionSelection : ir::IRVisitor {
  private:
   template <typename... Args>
   void emit(const std::string_view& format, const Args&... args) {
-    fmt::vprint(*out_, fmt::to_string_view(format),
-                fmt::make_format_args(args...));
+    fmt::vprint(*out_, format, fmt::make_format_args(args...));
   }
 
   void statement(ir::Stmt* stmt);

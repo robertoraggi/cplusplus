@@ -30,18 +30,16 @@
 #include <cxx/lexer.h>
 #include <cxx/macos_toolchain.h>
 #include <cxx/preprocessor.h>
+#include <cxx/private/format.h>
 #include <cxx/recursive_ast_visitor.h>
 #include <cxx/scope.h>
 #include <cxx/symbol_printer.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/windows_toolchain.h>
+#include <fmt/format.h>
 
 #include "ast_printer.h"
-
-// fmt
-#include <fmt/format.h>
-#include <fmt/ostream.h>
 
 // std
 #include <cassert>

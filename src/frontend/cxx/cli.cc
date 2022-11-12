@@ -20,8 +20,7 @@
 
 #include "cli.h"
 
-#include <fmt/format.h>
-#include <fmt/ostream.h>
+#include <cxx/private/format.h>
 
 #include <array>
 #include <vector>

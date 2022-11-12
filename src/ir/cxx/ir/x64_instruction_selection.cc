@@ -24,6 +24,7 @@
 #include <cxx/ir/ir.h>
 #include <cxx/name_printer.h>
 #include <cxx/names.h>
+#include <cxx/private/format.h>
 #include <cxx/symbols.h>
 
 #if defined(_MSVC_LANG) && !defined(__PRETTY_FUNCTION__)

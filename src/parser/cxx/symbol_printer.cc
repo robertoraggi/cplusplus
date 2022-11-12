@@ -19,12 +19,11 @@
 // SOFTWARE.
 
 #include <cxx/names.h>
+#include <cxx/private/format.h>
 #include <cxx/scope.h>
 #include <cxx/symbol_printer.h>
 #include <cxx/symbols.h>
 #include <cxx/types.h>
-#include <fmt/format.h>
-#include <fmt/ostream.h>
 
 namespace cxx {
 

@@ -40,7 +40,7 @@ endif()
 FetchContent_Declare(
     fmt
     GIT_REPOSITORY  https://github.com/fmtlib/fmt
-    GIT_TAG         8.1.1
+    GIT_TAG         9.1.0
     GIT_SHALLOW     1
 )
 
@@ -49,7 +49,7 @@ FetchContent_MakeAvailable(fmt)
 FetchContent_Declare(
     utfcpp
     GIT_REPOSITORY  https://github.com/nemtrif/utfcpp
-    GIT_TAG         v3.2.1
+    GIT_TAG         v3.2.2
     GIT_SHALLOW     1
 )
 
@@ -57,8 +57,8 @@ FetchContent_MakeAvailable(utfcpp)
 
 FetchContent_Declare(
     nlohmann_json
-    URL             https://github.com/nlohmann/json/releases/download/v3.10.5/include.zip
-    URL_HASH        SHA256=b94997df68856753b72f0d7a3703b7d484d4745c567f3584ef97c96c25a5798e
+    URL             https://github.com/nlohmann/json/releases/download/v3.11.2/include.zip
+    URL_HASH        SHA256=e5c7a9f49a16814be27e4ed0ee900ecd0092bfb7dbfca65b5a421b774dccaaed
 )
 
 FetchContent_MakeAvailable(nlohmann_json)

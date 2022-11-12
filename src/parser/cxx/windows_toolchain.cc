@@ -22,7 +22,7 @@
 
 // cxx
 #include <cxx/preprocessor.h>
-#include <fmt/format.h>
+#include <cxx/private/format.h>
 
 namespace cxx {
 
