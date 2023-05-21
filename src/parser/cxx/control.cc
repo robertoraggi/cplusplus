@@ -35,31 +35,32 @@ namespace {
 struct NameHash {
   std::hash<std::string> hash_value;
 
-  std::size_t operator()(const Identifier& id) const {
+  auto operator()(const Identifier& id) const -> std::size_t {
     return hash_value(id.name());
   }
 
-  std::size_t operator()(const OperatorNameId& name) const {
+  auto operator()(const OperatorNameId& name) const -> std::size_t {
     return std::hash<uint32_t>()(static_cast<uint32_t>(name.op()));
   }
 
-  std::size_t operator()(const ConversionNameId& name) const {
+  auto operator()(const ConversionNameId& name) const -> std::size_t {
     return std::hash<const void*>()(name.type().type());
   }
 };
 
 struct NameEqualTo {
-  bool operator()(const Identifier& name, const Identifier& other) const {
+  auto operator()(const Identifier& name, const Identifier& other) const
+      -> bool {
     return name.name() == other.name();
   }
 
-  bool operator()(const OperatorNameId& name,
-                  const OperatorNameId& other) const {
+  auto operator()(const OperatorNameId& name, const OperatorNameId& other) const
+      -> bool {
     return name.op() == other.op();
   }
 
-  bool operator()(const ConversionNameId& name,
-                  const ConversionNameId& other) const {
+  auto operator()(const ConversionNameId& name,
+                  const ConversionNameId& other) const -> bool {
     return name.type() == other.type();
   }
 };
@@ -71,15 +72,17 @@ template <typename T>
 struct LiteralLess {
   using is_transparent = void;
 
-  bool operator()(const T& literal, const T& other) const {
+  auto operator()(const T& literal, const T& other) const -> bool {
     return literal.value() < other.value();
   }
 
-  bool operator()(const T& literal, const std::string_view& value) const {
+  auto operator()(const T& literal, const std::string_view& value) const
+      -> bool {
     return literal.value() < value;
   }
 
-  bool operator()(const std::string_view& value, const T& literal) const {
+  auto operator()(const std::string_view& value, const T& literal) const
+      -> bool {
     return value < literal.value();
   }
 };
@@ -108,94 +111,109 @@ struct Control::Private {
 
 Control::Control() : d(std::make_unique<Private>()) {}
 
-Control::~Control() {}
+Control::~Control() = default;
 
-const Identifier* Control::identifier(const std::string_view& name) {
-  if (auto it = d->identifiers_.find(name); it != d->identifiers_.end())
+auto Control::identifier(const std::string_view& name) -> const Identifier* {
+  if (auto it = d->identifiers_.find(name); it != d->identifiers_.end()) {
     return &*it;
+  }
 
   return &*d->identifiers_.emplace(std::string{name}).first;
 }
 
-const OperatorNameId* Control::operatorNameId(TokenKind op) {
+auto Control::operatorNameId(TokenKind op) -> const OperatorNameId* {
   return &*d->operatorNameIds_.emplace(op).first;
 }
 
-const ConversionNameId* Control::conversionNameId(const QualifiedType& type) {
+auto Control::conversionNameId(const QualifiedType& type)
+    -> const ConversionNameId* {
   return &*d->conversionNameIds_.emplace(type).first;
 }
 
-const IntegerLiteral* Control::integerLiteral(const std::string_view& value) {
+auto Control::integerLiteral(const std::string_view& value)
+    -> const IntegerLiteral* {
   if (auto it = d->integerLiterals_.find(value);
-      it != d->integerLiterals_.end())
+      it != d->integerLiterals_.end()) {
     return &*it;
+  }
 
   return &*d->integerLiterals_.emplace(std::string{value}).first;
 }
 
-const FloatLiteral* Control::floatLiteral(const std::string_view& value) {
-  if (auto it = d->floatLiterals_.find(value); it != d->floatLiterals_.end())
+auto Control::floatLiteral(const std::string_view& value)
+    -> const FloatLiteral* {
+  if (auto it = d->floatLiterals_.find(value); it != d->floatLiterals_.end()) {
     return &*it;
+  }
 
   return &*d->floatLiterals_.emplace(std::string{value}).first;
 }
 
-const StringLiteral* Control::stringLiteral(const std::string_view& value) {
-  if (auto it = d->stringLiterals_.find(value); it != d->stringLiterals_.end())
+auto Control::stringLiteral(const std::string_view& value)
+    -> const StringLiteral* {
+  if (auto it = d->stringLiterals_.find(value);
+      it != d->stringLiterals_.end()) {
     return &*it;
+  }
 
   return &*d->stringLiterals_.emplace(std::string{value}).first;
 }
 
-const WideStringLiteral* Control::wideStringLiteral(
-    const std::string_view& value) {
+auto Control::wideStringLiteral(const std::string_view& value)
+    -> const WideStringLiteral* {
   if (auto it = d->wideStringLiterals_.find(value);
-      it != d->wideStringLiterals_.end())
+      it != d->wideStringLiterals_.end()) {
     return &*it;
+  }
 
   return &*d->wideStringLiterals_.emplace(std::string{value}).first;
 }
 
-const Utf8StringLiteral* Control::utf8StringLiteral(
-    const std::string_view& value) {
+auto Control::utf8StringLiteral(const std::string_view& value)
+    -> const Utf8StringLiteral* {
   if (auto it = d->utf8StringLiterals_.find(value);
-      it != d->utf8StringLiterals_.end())
+      it != d->utf8StringLiterals_.end()) {
     return &*it;
+  }
 
   return &*d->utf8StringLiterals_.emplace(std::string{value}).first;
 }
 
-const Utf16StringLiteral* Control::utf16StringLiteral(
-    const std::string_view& value) {
+auto Control::utf16StringLiteral(const std::string_view& value)
+    -> const Utf16StringLiteral* {
   if (auto it = d->utf16StringLiterals_.find(value);
-      it != d->utf16StringLiterals_.end())
+      it != d->utf16StringLiterals_.end()) {
     return &*it;
+  }
 
   return &*d->utf16StringLiterals_.emplace(std::string{value}).first;
 }
 
-const Utf32StringLiteral* Control::utf32StringLiteral(
-    const std::string_view& value) {
+auto Control::utf32StringLiteral(const std::string_view& value)
+    -> const Utf32StringLiteral* {
   if (auto it = d->utf32StringLiterals_.find(value);
-      it != d->utf32StringLiterals_.end())
+      it != d->utf32StringLiterals_.end()) {
     return &*it;
+  }
 
   return &*d->utf32StringLiterals_.emplace(std::string{value}).first;
 }
 
-const CharLiteral* Control::charLiteral(const std::string_view& value) {
-  if (auto it = d->charLiterals_.find(value); it != d->charLiterals_.end())
+auto Control::charLiteral(const std::string_view& value) -> const CharLiteral* {
+  if (auto it = d->charLiterals_.find(value); it != d->charLiterals_.end()) {
     return &*it;
+  }
 
   return &*d->charLiterals_.emplace(std::string{value}).first;
 }
 
-const CommentLiteral* Control::commentLiteral(const std::string_view& value) {
+auto Control::commentLiteral(const std::string_view& value)
+    -> const CommentLiteral* {
   return &d->commentLiterals_.emplace_front(std::string{value});
 }
 
-TypeEnvironment* Control::types() { return &d->typeEnvironment_; }
+auto Control::types() -> TypeEnvironment* { return &d->typeEnvironment_; }
 
-SymbolFactory* Control::symbols() { return &d->symbols_; }
+auto Control::symbols() -> SymbolFactory* { return &d->symbols_; }
 
 }  // namespace cxx

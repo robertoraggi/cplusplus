@@ -20,13 +20,13 @@
 
 #include <cxx/ir/ir_builder.h>
 
+#include <utility>
+
 namespace cxx::ir {
 
 IRBuilder::IRBuilder(Module* module) : module_(module) {
   factory_ = module_ ? module_->irFactory() : nullptr;
 }
-
-IRBuilder::~IRBuilder() {}
 
 void IRBuilder::setModule(Module* module) {
   module_ = module;
@@ -44,140 +44,148 @@ void IRBuilder::setInsertionPoint(Block* block) {
                     block ? block->code().end() : std::list<Stmt*>::iterator());
 }
 
-Expr* IRBuilder::emitExpr(Expr* target) { return insert(target); }
+auto IRBuilder::emitExpr(Expr* target) -> Expr* { return insert(target); }
 
-Move* IRBuilder::emitMove(Expr* target, Expr* source) {
+auto IRBuilder::emitMove(Expr* target, Expr* source) -> Move* {
   return insert(factory_->createMove(target, source));
 }
 
-Jump* IRBuilder::emitJump(Block* target) {
+auto IRBuilder::emitJump(Block* target) -> Jump* {
   if (blockHasTerminator()) return nullptr;
   return insert(factory_->createJump(target));
 }
 
-CondJump* IRBuilder::emitCondJump(Expr* condition, Block* iftrue,
-                                  Block* iffalse) {
+auto IRBuilder::emitCondJump(Expr* condition, Block* iftrue, Block* iffalse)
+    -> CondJump* {
   if (blockHasTerminator()) return nullptr;
   return insert(factory_->createCondJump(condition, iftrue, iffalse));
 }
 
-Switch* IRBuilder::emitSwitch(Expr* condition) {
+auto IRBuilder::emitSwitch(Expr* condition) -> Switch* {
   if (blockHasTerminator()) return nullptr;
   return insert(factory_->createSwitch(condition));
 }
 
-Ret* IRBuilder::emitRet(Expr* result) {
+auto IRBuilder::emitRet(Expr* result) -> Ret* {
   if (blockHasTerminator()) return nullptr;
   return insert(factory_->createRet(result));
 }
 
-RetVoid* IRBuilder::emitRetVoid() {
+auto IRBuilder::emitRetVoid() -> RetVoid* {
   if (blockHasTerminator()) return nullptr;
   return insert(factory_->createRetVoid());
 }
 
-This* IRBuilder::createThis(const QualifiedType& type) {
+auto IRBuilder::createThis(const QualifiedType& type) -> This* {
   return factory_->createThis(type);
 }
 
-BoolLiteral* IRBuilder::createBoolLiteral(bool value) {
+auto IRBuilder::createBoolLiteral(bool value) -> BoolLiteral* {
   return factory_->createBoolLiteral(value);
 }
 
-CharLiteral* IRBuilder::createCharLiteral(const cxx::CharLiteral* value) {
+auto IRBuilder::createCharLiteral(const cxx::CharLiteral* value)
+    -> CharLiteral* {
   return factory_->createCharLiteral(value);
 }
 
-IntegerLiteral* IRBuilder::createIntegerLiteral(const IntegerValue& value) {
+auto IRBuilder::createIntegerLiteral(const IntegerValue& value)
+    -> IntegerLiteral* {
   return factory_->createIntegerLiteral(value);
 }
 
-FloatLiteral* IRBuilder::createFloatLiteral(const FloatValue& value) {
+auto IRBuilder::createFloatLiteral(const FloatValue& value) -> FloatLiteral* {
   return factory_->createFloatLiteral(value);
 }
 
-NullptrLiteral* IRBuilder::createNullptrLiteral() {
+auto IRBuilder::createNullptrLiteral() -> NullptrLiteral* {
   return factory_->createNullptrLiteral();
 }
 
-StringLiteral* IRBuilder::createStringLiteral(const cxx::StringLiteral* value) {
+auto IRBuilder::createStringLiteral(const cxx::StringLiteral* value)
+    -> StringLiteral* {
   return factory_->createStringLiteral(value);
 }
 
-UserDefinedStringLiteral* IRBuilder::createUserDefinedStringLiteral(
-    std::string value) {
+auto IRBuilder::createUserDefinedStringLiteral(std::string value)
+    -> UserDefinedStringLiteral* {
   return factory_->createUserDefinedStringLiteral(std::move(value));
 }
 
-Temp* IRBuilder::createTemp(Local* local) {
+auto IRBuilder::createTemp(Local* local) -> Temp* {
   return factory_->createTemp(local);
 }
 
-Id* IRBuilder::createId(Symbol* symbol) { return factory_->createId(symbol); }
+auto IRBuilder::createId(Symbol* symbol) -> Id* {
+  return factory_->createId(symbol);
+}
 
-ExternalId* IRBuilder::createExternalId(std::string name) {
+auto IRBuilder::createExternalId(std::string name) -> ExternalId* {
   return factory_->createExternalId(std::move(name));
 }
 
-Typeid* IRBuilder::createTypeid(Expr* expr) {
+auto IRBuilder::createTypeid(Expr* expr) -> Typeid* {
   return factory_->createTypeid(expr);
 }
 
-Unary* IRBuilder::createUnary(UnaryOp op, Expr* expr) {
+auto IRBuilder::createUnary(UnaryOp op, Expr* expr) -> Unary* {
   return factory_->createUnary(op, expr);
 }
 
-Binary* IRBuilder::createBinary(BinaryOp op, Expr* left, Expr* right) {
+auto IRBuilder::createBinary(BinaryOp op, Expr* left, Expr* right) -> Binary* {
   return factory_->createBinary(op, left, right);
 }
 
-Call* IRBuilder::createCall(Expr* base, std::vector<Expr*> args) {
-  return factory_->createCall(base, args);
+auto IRBuilder::createCall(Expr* base, std::vector<Expr*> args) -> Call* {
+  return factory_->createCall(base, std::move(args));
 }
 
-Subscript* IRBuilder::createSubscript(Expr* base, Expr* index) {
+auto IRBuilder::createSubscript(Expr* base, Expr* index) -> Subscript* {
   return factory_->createSubscript(base, index);
 }
 
-Access* IRBuilder::createAccess(Expr* base, Symbol* member) {
+auto IRBuilder::createAccess(Expr* base, Symbol* member) -> Access* {
   return factory_->createAccess(base, member);
 }
 
-Cast* IRBuilder::createCast(const QualifiedType& type, Expr* expr) {
+auto IRBuilder::createCast(const QualifiedType& type, Expr* expr) -> Cast* {
   return factory_->createCast(type, expr);
 }
 
-StaticCast* IRBuilder::createStaticCast(const QualifiedType& type, Expr* expr) {
+auto IRBuilder::createStaticCast(const QualifiedType& type, Expr* expr)
+    -> StaticCast* {
   return factory_->createStaticCast(type, expr);
 }
 
-DynamicCast* IRBuilder::createDynamicCast(const QualifiedType& type,
-                                          Expr* expr) {
+auto IRBuilder::createDynamicCast(const QualifiedType& type, Expr* expr)
+    -> DynamicCast* {
   return factory_->createDynamicCast(type, expr);
 }
 
-ReinterpretCast* IRBuilder::createReinterpretCast(const QualifiedType& type,
-                                                  Expr* expr) {
+auto IRBuilder::createReinterpretCast(const QualifiedType& type, Expr* expr)
+    -> ReinterpretCast* {
   return factory_->createReinterpretCast(type, expr);
 }
 
-New* IRBuilder::createNew(const QualifiedType& type, std::vector<Expr*> args) {
+auto IRBuilder::createNew(const QualifiedType& type, std::vector<Expr*> args)
+    -> New* {
   return factory_->createNew(type, std::move(args));
 }
 
-NewArray* IRBuilder::createNewArray(const QualifiedType& type, Expr* size) {
+auto IRBuilder::createNewArray(const QualifiedType& type, Expr* size)
+    -> NewArray* {
   return factory_->createNewArray(type, size);
 }
 
-Delete* IRBuilder::createDelete(Expr* expr) {
+auto IRBuilder::createDelete(Expr* expr) -> Delete* {
   return factory_->createDelete(expr);
 }
 
-DeleteArray* IRBuilder::createDeleteArray(Expr* expr) {
+auto IRBuilder::createDeleteArray(Expr* expr) -> DeleteArray* {
   return factory_->createDeleteArray(expr);
 }
 
-Throw* IRBuilder::createThrow(Expr* expr) {
+auto IRBuilder::createThrow(Expr* expr) -> Throw* {
   return factory_->createThrow(expr);
 }
 

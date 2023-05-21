@@ -40,7 +40,7 @@ Semantics::Semantics(TranslationUnit* unit)
       types_(control_->types()),
       symbols_(control_->symbols()) {}
 
-Semantics::~Semantics() {}
+Semantics::~Semantics() = default;
 
 void Semantics::unit(UnitAST* ast) { accept(ast); }
 
@@ -104,7 +104,7 @@ void Semantics::compoundStatement(CompoundStatementAST* ast) { accept(ast); }
 
 void Semantics::attribute(AttributeAST* ast) { accept(ast); }
 
-std::optional<bool> Semantics::toBool(ExpressionAST* ast) {
+auto Semantics::toBool(ExpressionAST* ast) -> std::optional<bool> {
   if (!ast || !ast->constValue) return std::nullopt;
   return const_value_cast<bool>(*ast->constValue);
 }
@@ -343,8 +343,9 @@ void Semantics::visit(BaseSpecifierAST* ast) {
 }
 
 void Semantics::visit(BaseClauseAST* ast) {
-  for (auto it = ast->baseSpecifierList; it; it = it->next)
+  for (auto it = ast->baseSpecifierList; it; it = it->next) {
     baseSpecifier(it->value);
+  }
 }
 
 void Semantics::visit(NewTypeIdAST* ast) {
@@ -358,8 +359,9 @@ void Semantics::visit(RequiresClauseAST* ast) {
 }
 
 void Semantics::visit(ParameterDeclarationClauseAST* ast) {
-  for (auto it = ast->parameterDeclarationList; it; it = it->next)
+  for (auto it = ast->parameterDeclarationList; it; it = it->next) {
     parameterDeclaration(it->value);
+  }
 }
 
 void Semantics::visit(ParametersAndQualifiersAST* ast) {
@@ -385,8 +387,9 @@ void Semantics::visit(LambdaDeclaratorAST* ast) {
 void Semantics::visit(TrailingReturnTypeAST* ast) { typeId(ast->typeId); }
 
 void Semantics::visit(CtorInitializerAST* ast) {
-  for (auto it = ast->memInitializerList; it; it = it->next)
+  for (auto it = ast->memInitializerList; it; it = it->next) {
     memInitializer(it->value);
+  }
 }
 
 void Semantics::visit(RequirementBodyAST* ast) {
@@ -484,15 +487,17 @@ void Semantics::visit(TryStatementFunctionBodyAST* ast) {
 void Semantics::visit(DeleteFunctionBodyAST* ast) {}
 
 void Semantics::visit(TranslationUnitAST* ast) {
-  for (auto it = ast->declarationList; it; it = it->next)
+  for (auto it = ast->declarationList; it; it = it->next) {
     declaration(it->value);
+  }
 }
 
 void Semantics::visit(ModuleUnitAST* ast) {
   accept(ast->globalModuleFragment);
   accept(ast->moduleDeclaration);
-  for (auto it = ast->declarationList; it; it = it->next)
+  for (auto it = ast->declarationList; it; it = it->next) {
     declaration(it->value);
+  }
   accept(ast->privateModuleFragmentAST);
 }
 
@@ -505,7 +510,7 @@ void Semantics::visit(CharLiteralExpressionAST* ast) {
 
 void Semantics::visit(BoolLiteralExpressionAST* ast) {
   const auto value = ast->literal == TokenKind::T_TRUE;
-  ast->constValue = std::uint64_t(value);
+  ast->constValue = static_cast<std::uint64_t>(value);
   expression_->type = QualifiedType{types_->booleanType()};
 }
 
@@ -525,7 +530,7 @@ void Semantics::visit(FloatLiteralExpressionAST* ast) {
 
 void Semantics::visit(NullptrLiteralExpressionAST* ast) {
   expression_->type = QualifiedType{types_->nullptrType()};
-  ast->constValue = std::uint64_t(0);
+  ast->constValue = static_cast<std::uint64_t>(0);
 }
 
 void Semantics::visit(StringLiteralExpressionAST* ast) {
@@ -574,8 +579,9 @@ void Semantics::visit(FoldExpressionAST* ast) {
 
 void Semantics::visit(LambdaExpressionAST* ast) {
   lambdaIntroducer(ast->lambdaIntroducer);
-  for (auto it = ast->templateParameterList; it; it = it->next)
+  for (auto it = ast->templateParameterList; it; it = it->next) {
     declaration(it->value);
+  }
   requiresClause(ast->requiresClause);
   lambdaDeclarator(ast->lambdaDeclarator);
   compoundStatement(ast->statement);
@@ -591,7 +597,7 @@ void Semantics::visit(SizeofExpressionAST* ast) {
 
   const auto [size, align] = *typeLayout;
 
-  ast->constValue = std::uint64_t(size);
+  ast->constValue = static_cast<std::uint64_t>(size);
 
   expression_->type =
       QualifiedType{types_->integerType(IntegerKind::kLongLong, true)};
@@ -608,7 +614,7 @@ void Semantics::visit(SizeofTypeExpressionAST* ast) {
 
   const auto [size, align] = *typeLayout;
 
-  ast->constValue = std::uint64_t(size);
+  ast->constValue = static_cast<std::uint64_t>(size);
 
   expression_->type =
       QualifiedType{types_->integerType(IntegerKind::kLongLong, false)};
@@ -634,7 +640,7 @@ void Semantics::visit(AlignofExpressionAST* ast) {
 
   const auto [size, align] = *typeLayout;
 
-  ast->constValue = std::uint64_t(align);
+  ast->constValue = static_cast<std::uint64_t>(align);
 
   expression_->type =
       QualifiedType{types_->integerType(IntegerKind::kLongLong, true)};
@@ -653,94 +659,98 @@ void Semantics::visit(TypeTraitsExpressionAST* ast) {
     case TokenKind::T___IS_CONST: {
       const auto ty = ast->typeIdList->value->type;
       bool isConst = false;
-      if (ty.isConst())
+      if (ty.isConst()) {
         isConst = true;
-      else if (auto ptrTy = Type::cast<PointerType>(ty)) {
-        if ((ptrTy->qualifiers() & Qualifiers::kConst) != Qualifiers::kNone)
+      } else if (auto ptrTy = Type::cast<PointerType>(ty)) {
+        if ((ptrTy->qualifiers() & Qualifiers::kConst) != Qualifiers::kNone) {
           isConst = true;
+        }
       }
-      ast->constValue = std::uint64_t(isConst);
+      ast->constValue = static_cast<std::uint64_t>(isConst);
       break;
     }
 
     case TokenKind::T___IS_VOLATILE: {
       const auto ty = ast->typeIdList->value->type;
       bool isVolatile = false;
-      if (ty.isVolatile())
+      if (ty.isVolatile()) {
         isVolatile = true;
-      else if (auto ptrTy = Type::cast<PointerType>(ty)) {
-        if ((ptrTy->qualifiers() & Qualifiers::kVolatile) != Qualifiers::kNone)
+      } else if (auto ptrTy = Type::cast<PointerType>(ty)) {
+        if ((ptrTy->qualifiers() & Qualifiers::kVolatile) !=
+            Qualifiers::kNone) {
           isVolatile = true;
+        }
       }
-      ast->constValue = std::uint64_t(isVolatile);
+      ast->constValue = static_cast<std::uint64_t>(isVolatile);
       break;
     }
 
     case TokenKind::T___IS_VOID: {
-      ast->constValue =
-          std::uint64_t(Type::is<VoidType>(ast->typeIdList->value->type));
+      ast->constValue = static_cast<std::uint64_t>(
+          Type::is<VoidType>(ast->typeIdList->value->type));
       break;
     }
 
     case TokenKind::T___IS_FLOATING_POINT: {
-      ast->constValue = std::uint64_t(
+      ast->constValue = static_cast<std::uint64_t>(
           Type::is<FloatingPointType>(ast->typeIdList->value->type));
       break;
     }
 
     case TokenKind::T___IS_INTEGRAL: {
       auto ty = ast->typeIdList->value->type;
-      ast->constValue = std::uint64_t(ty->isIntegral());
+      ast->constValue = static_cast<std::uint64_t>(ty->isIntegral());
       break;
     }
 
     case TokenKind::T___IS_ARITHMETIC: {
       auto ty = ast->typeIdList->value->type;
-      ast->constValue = std::uint64_t(ty->isArithmetic());
+      ast->constValue = static_cast<std::uint64_t>(ty->isArithmetic());
       break;
     }
 
     case TokenKind::T___IS_SCALAR: {
       auto ty = ast->typeIdList->value->type;
-      ast->constValue = std::uint64_t(ty->isScalar());
+      ast->constValue = static_cast<std::uint64_t>(ty->isScalar());
       break;
     }
 
     case TokenKind::T___IS_FUNDAMENTAL: {
       auto ty = ast->typeIdList->value->type;
-      ast->constValue = std::uint64_t(ty->isFundamental());
+      ast->constValue = static_cast<std::uint64_t>(ty->isFundamental());
       break;
     }
 
     case TokenKind::T___IS_COMPOUND: {
       auto ty = ast->typeIdList->value->type;
-      ast->constValue = std::uint64_t(ty->isCompound());
+      ast->constValue = static_cast<std::uint64_t>(ty->isCompound());
       break;
     }
 
     case TokenKind::T___IS_OBJECT: {
       auto ty = ast->typeIdList->value->type;
-      ast->constValue = std::uint64_t(ty->isObject());
+      ast->constValue = static_cast<std::uint64_t>(ty->isObject());
       break;
     }
 
     case TokenKind::T___IS_ENUM: {
       auto ty = ast->typeIdList->value->type;
-      ast->constValue =
-          std::uint64_t(Type::is<EnumType>(ty) || Type::is<ScopedEnumType>(ty));
+      ast->constValue = static_cast<std::uint64_t>(
+          Type::is<EnumType>(ty) || Type::is<ScopedEnumType>(ty));
       break;
     }
 
     case TokenKind::T___IS_SCOPED_ENUM: {
       auto ty = ast->typeIdList->value->type;
-      ast->constValue = std::uint64_t(Type::is<ScopedEnumType>(ty));
+      ast->constValue =
+          static_cast<std::uint64_t>(Type::is<ScopedEnumType>(ty));
       break;
     }
 
     case TokenKind::T___IS_CLASS: {
       auto ty = ast->typeIdList->value->type;
       auto classTy = Type::cast<ClassType>(ty);
-      ast->constValue = std::uint64_t(
+      ast->constValue = static_cast<std::uint64_t>(
           classTy && classTy->symbol()->classKey() != ClassKey::kUnion);
       break;
     }
@@ -748,45 +758,45 @@ void Semantics::visit(TypeTraitsExpressionAST* ast) {
     case TokenKind::T___IS_UNION: {
       auto ty = ast->typeIdList->value->type;
       auto classTy = Type::cast<ClassType>(ty);
-      ast->constValue = std::uint64_t(
+      ast->constValue = static_cast<std::uint64_t>(
           classTy && classTy->symbol()->classKey() == ClassKey::kUnion);
       break;
     }
 
     case TokenKind::T___IS_POINTER: {
-      ast->constValue =
-          std::uint64_t(Type::is<PointerType>(ast->typeIdList->value->type));
+      ast->constValue = static_cast<std::uint64_t>(
+          Type::is<PointerType>(ast->typeIdList->value->type));
       break;
     }
 
     case TokenKind::T___IS_NULL_POINTER: {
-      ast->constValue =
-          std::uint64_t(Type::is<NullptrType>(ast->typeIdList->value->type));
+      ast->constValue = static_cast<std::uint64_t>(
+          Type::is<NullptrType>(ast->typeIdList->value->type));
       break;
     }
 
     case TokenKind::T___IS_LVALUE_REFERENCE: {
-      ast->constValue =
-          std::uint64_t(Type::is<ReferenceType>(ast->typeIdList->value->type));
+      ast->constValue = static_cast<std::uint64_t>(
+          Type::is<ReferenceType>(ast->typeIdList->value->type));
       break;
     }
 
     case TokenKind::T___IS_RVALUE_REFERENCE: {
-      ast->constValue = std::uint64_t(
+      ast->constValue = static_cast<std::uint64_t>(
           Type::is<RValueReferenceType>(ast->typeIdList->value->type));
       break;
     }
 
     case TokenKind::T___IS_REFERENCE: {
       const auto ty = ast->typeIdList->value->type;
-      ast->constValue = std::uint64_t(Type::is<ReferenceType>(ty) ||
-                                      Type::is<RValueReferenceType>(ty));
+      ast->constValue = static_cast<std::uint64_t>(
+          Type::is<ReferenceType>(ty) || Type::is<RValueReferenceType>(ty));
       break;
     }
 
     case TokenKind::T___IS_FUNCTION: {
       const auto ty = ast->typeIdList->value->type;
-      ast->constValue = std::uint64_t(Type::is<FunctionType>(ty));
+      ast->constValue = static_cast<std::uint64_t>(Type::is<FunctionType>(ty));
       break;
     }
 
@@ -800,14 +810,14 @@ void Semantics::visit(TypeTraitsExpressionAST* ast) {
         isMemberObjectPointer = true;
       }
 
-      ast->constValue = std::uint64_t(isMemberObjectPointer);
+      ast->constValue = static_cast<std::uint64_t>(isMemberObjectPointer);
       break;
     }
 
     case TokenKind::T___IS_SIGNED: {
       if (auto intTy = Type::cast<IntegerType>(ast->typeIdList->value->type)) {
         const auto isSigned = !intTy->isUnsigned();
-        ast->constValue = std::uint64_t(isSigned);
+        ast->constValue = static_cast<std::uint64_t>(isSigned);
       }
       break;
     }
@@ -815,7 +825,7 @@ void Semantics::visit(TypeTraitsExpressionAST* ast) {
     case TokenKind::T___IS_UNSIGNED: {
       if (auto intTy = Type::cast<IntegerType>(ast->typeIdList->value->type)) {
         const auto isUnsigned = intTy->isUnsigned();
-        ast->constValue = std::uint64_t(isUnsigned);
+        ast->constValue = static_cast<std::uint64_t>(isUnsigned);
       }
       break;
     }
@@ -827,7 +837,7 @@ void Semantics::visit(TypeTraitsExpressionAST* ast) {
       auto otherTypeId = ast->typeIdList->next->value;
 
       const auto isSame = typeId->type == otherTypeId->type;
-      ast->constValue = std::uint64_t(isSame);
+      ast->constValue = static_cast<std::uint64_t>(isSame);
       break;
     }
 
@@ -842,8 +852,9 @@ void Semantics::visit(UnaryExpressionAST* ast) {
 
   switch (ast->op) {
     case TokenKind::T_STAR: {
-      if (auto ptrTy = Type::cast<PointerType>(expression.type))
+      if (auto ptrTy = Type::cast<PointerType>(expression.type)) {
         expression_->type = ptrTy->elementType();
+      }
       break;
     }
     case TokenKind::T_AMP: {
@@ -852,7 +863,7 @@ void Semantics::visit(UnaryExpressionAST* ast) {
       break;
     }
     default: {
-      // TODO
+      // TODO(roberto):
       expression_->type = expression.type;
     }
   }  // switch
@@ -879,12 +890,12 @@ void Semantics::visit(BinaryExpressionAST* ast) {
 
     switch (ast->op) {
       case TokenKind::T_EQUAL_EQUAL:
-        ast->constValue = std::uint64_t(lhs == rhs);
+        ast->constValue = static_cast<std::uint64_t>(lhs == rhs);
         expression_->type = QualifiedType{types_->booleanType()};
         return;
 
       case TokenKind::T_EXCLAIM_EQUAL:
-        ast->constValue = std::uint64_t(lhs != rhs);
+        ast->constValue = static_cast<std::uint64_t>(lhs != rhs);
         expression_->type = QualifiedType{types_->booleanType()};
         return;
 
@@ -974,8 +985,9 @@ void Semantics::visit(CallExpressionAST* ast) {
     ExpressionSem expression;
     this->expression(it->value, &expression);
   }
-  if (auto funTy = Type::cast<FunctionType>(baseExpression.type))
+  if (auto funTy = Type::cast<FunctionType>(baseExpression.type)) {
     expression_->type = funTy->returnType();
+  }
 }
 
 void Semantics::visit(SubscriptExpressionAST* ast) {
@@ -983,12 +995,13 @@ void Semantics::visit(SubscriptExpressionAST* ast) {
   this->expression(ast->baseExpression, &baseExpression);
   ExpressionSem indexExpression;
   this->expression(ast->indexExpression, &indexExpression);
-  if (auto arrayTy = Type::cast<ArrayType>(baseExpression.type))
+  if (auto arrayTy = Type::cast<ArrayType>(baseExpression.type)) {
     expression_->type = arrayTy->elementType();
-  else if (auto vlaTy = Type::cast<UnboundArrayType>(baseExpression.type))
+  } else if (auto vlaTy = Type::cast<UnboundArrayType>(baseExpression.type)) {
     expression_->type = vlaTy->elementType();
-  else if (auto ptrTy = Type::cast<PointerType>(baseExpression.type))
+  } else if (auto ptrTy = Type::cast<PointerType>(baseExpression.type)) {
     expression_->type = ptrTy->elementType();
+  }
 }
 
 void Semantics::visit(MemberExpressionAST* ast) {
@@ -1256,10 +1269,12 @@ void Semantics::visit(NamespaceDefinitionAST* ast) {
   nestedNameSpecifier(ast->nestedNameSpecifier, &nestedNameSpecifierSem);
   NameSem name;
   this->name(ast->name, &name);
-  for (auto it = ast->extraAttributeList; it; it = it->next)
+  for (auto it = ast->extraAttributeList; it; it = it->next) {
     attribute(it->value);
-  for (auto it = ast->declarationList; it; it = it->next)
+  }
+  for (auto it = ast->declarationList; it; it = it->next) {
     declaration(it->value);
+  }
 }
 
 void Semantics::visit(NamespaceAliasDefinitionAST* ast) {
@@ -1278,8 +1293,9 @@ void Semantics::visit(UsingDirectiveAST* ast) {
 }
 
 void Semantics::visit(UsingDeclarationAST* ast) {
-  for (auto it = ast->usingDeclaratorList; it; it = it->next)
+  for (auto it = ast->usingDeclaratorList; it; it = it->next) {
     usingDeclarator(it->value);
+  }
 }
 
 void Semantics::visit(AsmDeclarationAST* ast) {
@@ -1291,8 +1307,9 @@ void Semantics::visit(ExportDeclarationAST* ast) {
 }
 
 void Semantics::visit(ExportCompoundDeclarationAST* ast) {
-  for (auto it = ast->declarationList; it; it = it->next)
+  for (auto it = ast->declarationList; it; it = it->next) {
     declaration(it->value);
+  }
 }
 
 void Semantics::visit(ModuleImportDeclarationAST* ast) {
@@ -1301,8 +1318,9 @@ void Semantics::visit(ModuleImportDeclarationAST* ast) {
 }
 
 void Semantics::visit(TemplateDeclarationAST* ast) {
-  for (auto it = ast->templateParameterList; it; it = it->next)
+  for (auto it = ast->templateParameterList; it; it = it->next) {
     declaration(it->value);
+  }
   requiresClause(ast->requiresClause);
   declaration(ast->declaration);
 }
@@ -1310,16 +1328,18 @@ void Semantics::visit(TemplateDeclarationAST* ast) {
 void Semantics::visit(TypenameTypeParameterAST* ast) { typeId(ast->typeId); }
 
 void Semantics::visit(TemplateTypeParameterAST* ast) {
-  for (auto it = ast->templateParameterList; it; it = it->next)
+  for (auto it = ast->templateParameterList; it; it = it->next) {
     declaration(it->value);
+  }
   this->requiresClause(ast->requiresClause);
   NameSem name;
   this->name(ast->name, &name);
 }
 
 void Semantics::visit(TemplatePackTypeParameterAST* ast) {
-  for (auto it = ast->templateParameterList; it; it = it->next)
+  for (auto it = ast->templateParameterList; it; it = it->next) {
     declaration(it->value);
+  }
 }
 
 void Semantics::visit(DeductionGuideAST* ast) {}
@@ -1339,8 +1359,9 @@ void Semantics::visit(ParameterDeclarationAST* ast) {
 }
 
 void Semantics::visit(LinkageSpecificationAST* ast) {
-  for (auto it = ast->declarationList; it; it = it->next)
+  for (auto it = ast->declarationList; it; it = it->next) {
     declaration(it->value);
+  }
 }
 
 void Semantics::visit(SimpleNameAST* ast) { nameSem_->name = ast->identifier; }
@@ -1373,8 +1394,9 @@ void Semantics::visit(ConversionNameAST* ast) {
 void Semantics::visit(TemplateNameAST* ast) {
   NameSem name;
   this->name(ast->id, &name);
-  for (auto it = ast->templateArgumentList; it; it = it->next)
+  for (auto it = ast->templateArgumentList; it; it = it->next) {
     templateArgument(it->value);
+  }
 }
 
 void Semantics::visit(QualifiedNameAST* ast) {
@@ -1466,8 +1488,9 @@ void Semantics::visit(IntegralTypeSpecifierAST* ast) {
       if (auto intTy = Type::cast<IntegerType>(specifiers_->type)) {
         using U = std::underlying_type<IntegerKind>::type;
 
-        if (static_cast<U>(intTy->kind()) > static_cast<U>(IntegerKind::kInt))
+        if (static_cast<U>(intTy->kind()) > static_cast<U>(IntegerKind::kInt)) {
           kind = intTy->kind();
+        }
       }
 
       specifiers_->type.setType(
@@ -1506,22 +1529,24 @@ void Semantics::visit(IntegralTypeSpecifierAST* ast) {
     case TokenKind::T_SIGNED:
       specifiers_->isUnsigned = false;
 
-      if (!specifiers_->type)
+      if (!specifiers_->type) {
         specifiers_->type.setType(
             types_->integerType(IntegerKind::kInt, specifiers_->isUnsigned));
+      }
       break;
 
     case TokenKind::T_UNSIGNED:
       specifiers_->isUnsigned = true;
 
-      if (!specifiers_->type)
+      if (!specifiers_->type) {
         specifiers_->type.setType(
             types_->integerType(IntegerKind::kInt, specifiers_->isUnsigned));
+      }
       break;
 
     default:
       cxx_runtime_error(fmt::format("invalid integral type: '{}'",
-                                           Token::spell(ast->specifier)));
+                                    Token::spell(ast->specifier)));
   }  // switch
 }
 
@@ -1552,7 +1577,7 @@ void Semantics::visit(FloatingPointTypeSpecifierAST* ast) {
 
     default:
       cxx_runtime_error(fmt::format("invalid floating point type: '{}'",
-                                           Token::spell(ast->specifier)));
+                                    Token::spell(ast->specifier)));
   }  // switch
 }
 
@@ -1618,10 +1643,12 @@ void Semantics::visit(EnumSpecifierAST* ast) {
   this->name(ast->name, &name);
   enumBase(ast->enumBase);
   for (auto it = ast->enumeratorList; it; it = it->next) enumerator(it->value);
-  if (auto enumSymbol = dynamic_cast<EnumSymbol*>(ast->symbol))
+  if (auto enumSymbol = dynamic_cast<EnumSymbol*>(ast->symbol)) {
     specifiers_->type.setType(types_->enumType(enumSymbol));
-  else if (auto scopedEnumSymbol = dynamic_cast<ScopedEnumSymbol*>(ast->symbol))
+  } else if (auto scopedEnumSymbol =
+                 dynamic_cast<ScopedEnumSymbol*>(ast->symbol)) {
     specifiers_->type.setType(types_->scopedEnumType(scopedEnumSymbol));
+  }
 }
 
 void Semantics::visit(ClassSpecifierAST* ast) {
@@ -1630,8 +1657,9 @@ void Semantics::visit(ClassSpecifierAST* ast) {
   NameSem name;
   this->name(ast->name, &name);
   baseClause(ast->baseClause);
-  for (auto it = ast->declarationList; it; it = it->next)
+  for (auto it = ast->declarationList; it; it = it->next) {
     declaration(it->value);
+  }
 }
 
 void Semantics::visit(TypenameSpecifierAST* ast) {
@@ -1746,7 +1774,7 @@ void Semantics::visit(ArrayDeclaratorAST* ast) {
     if (auto cst = dynamic_cast<IntLiteralExpressionAST*>(ast->expression)) {
       auto dim = cst->literal->integerValue();
       QualifiedType arrayType(
-          types_->arrayType(declarator_->type, std::size_t(dim)));
+          types_->arrayType(declarator_->type, static_cast<std::size_t>(dim)));
       declarator_->type = arrayType;
     } else {
       QualifiedType arrayType(types_->unboundArrayType(declarator_->type));
@@ -1756,7 +1784,8 @@ void Semantics::visit(ArrayDeclaratorAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) attribute(it->value);
 }
 
-QualifiedType Semantics::commonType(ExpressionAST* ast, ExpressionAST* other) {
+auto Semantics::commonType(ExpressionAST* ast, ExpressionAST* other)
+    -> QualifiedType {
   if (!ast || !other) return QualifiedType();
   // identity
   if (ast->type == other->type) return ast->type;
@@ -1786,28 +1815,28 @@ void Semantics::standardConversion(ExpressionAST* ast,
   qualificationConversion(ast, type);
 }
 
-bool Semantics::lvalueToRvalueConversion(ExpressionAST* ast,
-                                         const QualifiedType& type) {
+auto Semantics::lvalueToRvalueConversion(ExpressionAST* ast,
+                                         const QualifiedType& type) -> bool {
   return false;
 }
 
-bool Semantics::arrayToPointerConversion(ExpressionAST* ast,
-                                         const QualifiedType& type) {
+auto Semantics::arrayToPointerConversion(ExpressionAST* ast,
+                                         const QualifiedType& type) -> bool {
   return false;
 }
 
-bool Semantics::functionToPointerConversion(ExpressionAST* ast,
-                                            const QualifiedType& type) {
+auto Semantics::functionToPointerConversion(ExpressionAST* ast,
+                                            const QualifiedType& type) -> bool {
   return false;
 }
 
-bool Semantics::numericPromotion(ExpressionAST* ast,
-                                 const QualifiedType& type) {
+auto Semantics::numericPromotion(ExpressionAST* ast, const QualifiedType& type)
+    -> bool {
   return false;
 }
 
-bool Semantics::numericConversion(ExpressionAST* ast,
-                                  const QualifiedType& type) {
+auto Semantics::numericConversion(ExpressionAST* ast, const QualifiedType& type)
+    -> bool {
   return false;
 }
 

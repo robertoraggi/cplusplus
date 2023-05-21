@@ -42,33 +42,35 @@ TranslationUnit::TranslationUnit(Control* control,
   diagnosticsClient_->setPreprocessor(preprocessor_.get());
 }
 
-TranslationUnit::~TranslationUnit() {}
+TranslationUnit::~TranslationUnit() = default;
 
 void TranslationUnit::setSource(std::string source, std::string fileName) {
   fileName_ = std::move(fileName);
   preprocessor_->preprocess(std::move(source), fileName_, tokens_);
 }
 
-int TranslationUnit::tokenLength(SourceLocation loc) const {
+auto TranslationUnit::tokenLength(SourceLocation loc) const -> int {
   const auto& tk = tokenAt(loc);
   if (tk.kind() == TokenKind::T_IDENTIFIER) {
     const std::string* id = tk.value().stringValue;
-    return int(id->size());
+    return static_cast<int>(id->size());
   }
-  return int(Token::spell(tk.kind()).size());
+  return static_cast<int>(Token::spell(tk.kind()).size());
 }
 
-const Identifier* TranslationUnit::identifier(SourceLocation loc) const {
+auto TranslationUnit::identifier(SourceLocation loc) const
+    -> const Identifier* {
   const auto& tk = tokenAt(loc);
   return tk.value().idValue;
 }
 
-const Literal* TranslationUnit::literal(SourceLocation loc) const {
+auto TranslationUnit::literal(SourceLocation loc) const -> const Literal* {
   const auto& tk = tokenAt(loc);
   return tk.value().literalValue;
 }
 
-const std::string& TranslationUnit::tokenText(SourceLocation loc) const {
+auto TranslationUnit::tokenText(SourceLocation loc) const
+    -> const std::string& {
   const auto& tk = tokenAt(loc);
   switch (tk.kind()) {
     case TokenKind::T_IDENTIFIER:
@@ -96,7 +98,7 @@ void TranslationUnit::getTokenEndPosition(SourceLocation loc, unsigned* line,
   preprocessor_->getTokenEndPosition(tokenAt(loc), line, column, fileName);
 }
 
-bool TranslationUnit::parse(bool checkTypes) {
+auto TranslationUnit::parse(bool checkTypes) -> bool {
   Parser parse(this);
   parse.setCheckTypes(checkTypes);
   return parse(ast_);

@@ -29,26 +29,26 @@ namespace {
 
 struct Hash {
   template <typename T>
-  std::size_t hash_value(const T& value) const {
+  [[nodiscard]] auto hash_value(const T& value) const -> std::size_t {
     return std::hash<T>()(value);
   }
 
-  std::size_t hash_value(CharacterKind kind) const {
+  [[nodiscard]] auto hash_value(CharacterKind kind) const -> std::size_t {
     using I = std::underlying_type<CharacterKind>::type;
     return std::hash<I>()(static_cast<I>(kind));
   }
 
-  std::size_t hash_value(IntegerKind kind) const {
+  [[nodiscard]] auto hash_value(IntegerKind kind) const -> std::size_t {
     using I = std::underlying_type<IntegerKind>::type;
     return std::hash<I>()(static_cast<I>(kind));
   }
 
-  std::size_t hash_value(FloatingPointKind kind) const {
+  [[nodiscard]] auto hash_value(FloatingPointKind kind) const -> std::size_t {
     using I = std::underlying_type<FloatingPointKind>::type;
     return std::hash<I>()(static_cast<I>(kind));
   }
 
-  std::size_t hash_value(Qualifiers qualifiers) const {
+  [[nodiscard]] auto hash_value(Qualifiers qualifiers) const -> std::size_t {
     using I = std::underlying_type<Qualifiers>::type;
     return std::hash<I>()(static_cast<I>(qualifiers));
   }
@@ -59,210 +59,222 @@ struct Hash {
   }
 
   template <typename... Types>
-  std::size_t hash_combine(const Types&... args) const {
+  [[nodiscard]] auto hash_combine(const Types&... args) const -> std::size_t {
     std::size_t seed = 0;
     (_hash_combine(seed, args), ...);
     return seed;
   }
 
-  std::size_t hash_value(const QualifiedType& value) const {
+  [[nodiscard]] auto hash_value(const QualifiedType& value) const
+      -> std::size_t {
     return hash_combine(value.type(), value.qualifiers());
   }
 
-  std::size_t operator()(const UndefinedType& type) const { return 0; }
+  auto operator()(const UndefinedType& type) const -> std::size_t { return 0; }
 
-  std::size_t operator()(const VoidType& type) const { return 0; }
+  auto operator()(const VoidType& type) const -> std::size_t { return 0; }
 
-  std::size_t operator()(const NullptrType& type) const { return 0; }
+  auto operator()(const NullptrType& type) const -> std::size_t { return 0; }
 
-  std::size_t operator()(const BooleanType& type) const { return 0; }
+  auto operator()(const BooleanType& type) const -> std::size_t { return 0; }
 
-  std::size_t operator()(const CharacterType& type) const {
+  auto operator()(const CharacterType& type) const -> std::size_t {
     return hash_value(type.kind());
   }
 
-  std::size_t operator()(const IntegerType& type) const {
+  auto operator()(const IntegerType& type) const -> std::size_t {
     return hash_combine(type.kind(), type.isUnsigned());
   }
 
-  std::size_t operator()(const FloatingPointType& type) const {
+  auto operator()(const FloatingPointType& type) const -> std::size_t {
     return hash_value(type.kind());
   }
 
-  std::size_t operator()(const EnumType& type) const {
+  auto operator()(const EnumType& type) const -> std::size_t {
     return hash_value(type.symbol());
   }
 
-  std::size_t operator()(const ScopedEnumType& type) const {
+  auto operator()(const ScopedEnumType& type) const -> std::size_t {
     return hash_value(type.symbol());
   }
 
-  std::size_t operator()(const PointerType& type) const {
+  auto operator()(const PointerType& type) const -> std::size_t {
     return hash_combine(type.elementType(), type.qualifiers());
   }
 
-  std::size_t operator()(const PointerToMemberType& type) const {
+  auto operator()(const PointerToMemberType& type) const -> std::size_t {
     return hash_combine(type.classType(), type.elementType(),
                         type.qualifiers());
   }
 
-  std::size_t operator()(const ReferenceType& type) const {
+  auto operator()(const ReferenceType& type) const -> std::size_t {
     return hash_value(type.elementType());
   }
 
-  std::size_t operator()(const RValueReferenceType& type) const {
+  auto operator()(const RValueReferenceType& type) const -> std::size_t {
     return hash_value(type.elementType());
   }
 
-  std::size_t operator()(const ArrayType& type) const {
+  auto operator()(const ArrayType& type) const -> std::size_t {
     return hash_combine(type.elementType(), type.dimension());
   }
 
-  std::size_t operator()(const UnboundArrayType& type) const {
+  auto operator()(const UnboundArrayType& type) const -> std::size_t {
     return hash_value(type.elementType());
   }
 
-  std::size_t operator()(const FunctionType& type) const {
+  auto operator()(const FunctionType& type) const -> std::size_t {
     std::size_t h = 0;
-    hash_combine(h, type.returnType());
-    for (const auto& argTy : type.argumentTypes()) hash_combine(h, argTy);
-    hash_combine(h, type.isVariadic());
+    h = hash_combine(h, type.returnType());
+    for (const auto& argTy : type.argumentTypes()) h = hash_combine(h, argTy);
+    h = hash_combine(h, type.isVariadic());
     return h;
   }
 
-  std::size_t operator()(const MemberFunctionType& type) const {
+  auto operator()(const MemberFunctionType& type) const -> std::size_t {
     std::size_t h = 0;
-    hash_combine(h, type.classType());
-    hash_combine(h, type.returnType());
-    for (const auto& argTy : type.argumentTypes()) hash_combine(h, argTy);
-    hash_combine(h, type.isVariadic());
+    h = hash_combine(h, type.classType());
+    h = hash_combine(h, type.returnType());
+    for (const auto& argTy : type.argumentTypes()) h = hash_combine(h, argTy);
+    h = hash_combine(h, type.isVariadic());
     return h;
   }
 
-  std::size_t operator()(const NamespaceType& type) const {
+  auto operator()(const NamespaceType& type) const -> std::size_t {
     return hash_value(type.symbol());
   }
 
-  std::size_t operator()(const ClassType& type) const {
+  auto operator()(const ClassType& type) const -> std::size_t {
     return hash_value(type.symbol());
   }
 
-  std::size_t operator()(const TemplateType& type) const {
+  auto operator()(const TemplateType& type) const -> std::size_t {
     return hash_value(type.symbol());
   }
 
-  std::size_t operator()(const TemplateArgumentType& type) const {
+  auto operator()(const TemplateArgumentType& type) const -> std::size_t {
     return hash_value(type.symbol());
   }
 
-  std::size_t operator()(const ConceptType& type) const {
+  auto operator()(const ConceptType& type) const -> std::size_t {
     return hash_value(type.symbol());
   }
 };
 
 struct EqualTo {
-  bool operator()(const UndefinedType& type, const UndefinedType& other) const {
+  auto operator()(const UndefinedType& type, const UndefinedType& other) const
+      -> bool {
     return true;
   }
 
-  bool operator()(const VoidType& type, const VoidType& other) const {
+  auto operator()(const VoidType& type, const VoidType& other) const -> bool {
     return true;
   }
 
-  bool operator()(const NullptrType& type, const NullptrType& other) const {
+  auto operator()(const NullptrType& type, const NullptrType& other) const
+      -> bool {
     return true;
   }
 
-  bool operator()(const BooleanType& type, const BooleanType& other) const {
+  auto operator()(const BooleanType& type, const BooleanType& other) const
+      -> bool {
     return true;
   }
 
-  bool operator()(const CharacterType& type, const CharacterType& other) const {
+  auto operator()(const CharacterType& type, const CharacterType& other) const
+      -> bool {
     return type.kind() == other.kind();
   }
 
-  bool operator()(const IntegerType& type, const IntegerType& other) const {
+  auto operator()(const IntegerType& type, const IntegerType& other) const
+      -> bool {
     return type.kind() == other.kind() &&
            type.isUnsigned() == other.isUnsigned();
   }
 
-  bool operator()(const FloatingPointType& type,
-                  const FloatingPointType& other) const {
+  auto operator()(const FloatingPointType& type,
+                  const FloatingPointType& other) const -> bool {
     return type.kind() == other.kind();
   }
 
-  bool operator()(const EnumType& type, const EnumType& other) const {
+  auto operator()(const EnumType& type, const EnumType& other) const -> bool {
     return type.symbol() == other.symbol();
   }
 
-  bool operator()(const ScopedEnumType& type,
-                  const ScopedEnumType& other) const {
+  auto operator()(const ScopedEnumType& type, const ScopedEnumType& other) const
+      -> bool {
     return type.symbol() == other.symbol();
   }
 
-  bool operator()(const PointerType& type, const PointerType& other) const {
+  auto operator()(const PointerType& type, const PointerType& other) const
+      -> bool {
     return type.elementType() == other.elementType() &&
            type.qualifiers() == other.qualifiers();
   }
 
-  bool operator()(const PointerToMemberType& type,
-                  const PointerToMemberType& other) const {
+  auto operator()(const PointerToMemberType& type,
+                  const PointerToMemberType& other) const -> bool {
     return type.classType() == other.classType() &&
            type.elementType() == other.elementType() &&
            type.qualifiers() == other.qualifiers();
   }
 
-  bool operator()(const ReferenceType& type, const ReferenceType& other) const {
+  auto operator()(const ReferenceType& type, const ReferenceType& other) const
+      -> bool {
     return type.elementType() == other.elementType();
   }
 
-  bool operator()(const RValueReferenceType& type,
-                  const RValueReferenceType& other) const {
+  auto operator()(const RValueReferenceType& type,
+                  const RValueReferenceType& other) const -> bool {
     return type.elementType() == other.elementType();
   }
 
-  bool operator()(const ArrayType& type, const ArrayType& other) const {
+  auto operator()(const ArrayType& type, const ArrayType& other) const -> bool {
     return type.elementType() == other.elementType() &&
            type.dimension() == other.dimension();
   }
 
-  bool operator()(const UnboundArrayType& type,
-                  const UnboundArrayType& other) const {
+  auto operator()(const UnboundArrayType& type,
+                  const UnboundArrayType& other) const -> bool {
     return type.elementType() == other.elementType();
   }
 
-  bool operator()(const FunctionType& type, const FunctionType& other) const {
+  auto operator()(const FunctionType& type, const FunctionType& other) const
+      -> bool {
     return type.returnType() == other.returnType() &&
            type.argumentTypes() == other.argumentTypes() &&
            type.isVariadic() == other.isVariadic();
   }
 
-  bool operator()(const MemberFunctionType& type,
-                  const MemberFunctionType& other) const {
+  auto operator()(const MemberFunctionType& type,
+                  const MemberFunctionType& other) const -> bool {
     return type.classType() == other.classType() &&
            type.returnType() == other.returnType() &&
            type.argumentTypes() == other.argumentTypes() &&
            type.isVariadic() == other.isVariadic();
   }
 
-  bool operator()(const NamespaceType& type, const NamespaceType& other) const {
+  auto operator()(const NamespaceType& type, const NamespaceType& other) const
+      -> bool {
     return type.symbol() == other.symbol();
   }
 
-  bool operator()(const ClassType& type, const ClassType& other) const {
+  auto operator()(const ClassType& type, const ClassType& other) const -> bool {
     return type.symbol() == other.symbol();
   }
 
-  bool operator()(const TemplateType& type, const TemplateType& other) const {
+  auto operator()(const TemplateType& type, const TemplateType& other) const
+      -> bool {
     return type.symbol() == other.symbol();
   }
 
-  bool operator()(const TemplateArgumentType& type,
-                  const TemplateArgumentType& other) const {
+  auto operator()(const TemplateArgumentType& type,
+                  const TemplateArgumentType& other) const -> bool {
     return type.symbol() == other.symbol();
   }
 
-  bool operator()(const ConceptType& type, const ConceptType& other) const {
+  auto operator()(const ConceptType& type, const ConceptType& other) const
+      -> bool {
     return type.symbol() == other.symbol();
   }
 };
@@ -295,117 +307,127 @@ struct TypeEnvironment::Private {
 
 TypeEnvironment::TypeEnvironment() : d(std::make_unique<Private>()) {}
 
-TypeEnvironment::~TypeEnvironment() {}
+TypeEnvironment::~TypeEnvironment() = default;
 
-const UndefinedType* TypeEnvironment::undefinedType() {
+auto TypeEnvironment::undefinedType() -> const UndefinedType* {
   return UndefinedType::get();
 }
 
-const ErrorType* TypeEnvironment::errorType() { return ErrorType::get(); }
+auto TypeEnvironment::errorType() -> const ErrorType* {
+  return ErrorType::get();
+}
 
-const AutoType* TypeEnvironment::autoType() { return AutoType::get(); }
+auto TypeEnvironment::autoType() -> const AutoType* { return AutoType::get(); }
 
-const DecltypeAutoType* TypeEnvironment::decltypeAuto() {
+auto TypeEnvironment::decltypeAuto() -> const DecltypeAutoType* {
   return DecltypeAutoType::get();
 }
 
-const VoidType* TypeEnvironment::voidType() { return VoidType::get(); }
+auto TypeEnvironment::voidType() -> const VoidType* { return VoidType::get(); }
 
-const NullptrType* TypeEnvironment::nullptrType() { return NullptrType::get(); }
+auto TypeEnvironment::nullptrType() -> const NullptrType* {
+  return NullptrType::get();
+}
 
-const BooleanType* TypeEnvironment::booleanType() { return BooleanType::get(); }
+auto TypeEnvironment::booleanType() -> const BooleanType* {
+  return BooleanType::get();
+}
 
-const CharacterType* TypeEnvironment::characterType(CharacterKind kind) {
+auto TypeEnvironment::characterType(CharacterKind kind)
+    -> const CharacterType* {
   return &*d->characterTypes.emplace(kind).first;
 }
 
-const IntegerType* TypeEnvironment::integerType(IntegerKind kind,
-                                                bool isUnsigned) {
+auto TypeEnvironment::integerType(IntegerKind kind, bool isUnsigned)
+    -> const IntegerType* {
   return &*d->integerTypes.emplace(kind, isUnsigned).first;
 }
 
-const FloatingPointType* TypeEnvironment::floatingPointType(
-    FloatingPointKind kind) {
+auto TypeEnvironment::floatingPointType(FloatingPointKind kind)
+    -> const FloatingPointType* {
   return &*d->floatingPointTypes.emplace(kind).first;
 }
 
-const EnumType* TypeEnvironment::enumType(EnumSymbol* symbol) {
+auto TypeEnvironment::enumType(EnumSymbol* symbol) -> const EnumType* {
   return &*d->enumTypes.emplace(symbol).first;
 }
 
-const ScopedEnumType* TypeEnvironment::scopedEnumType(
-    ScopedEnumSymbol* symbol) {
+auto TypeEnvironment::scopedEnumType(ScopedEnumSymbol* symbol)
+    -> const ScopedEnumType* {
   return &*d->scopedEnumTypes.emplace(symbol).first;
 }
 
-const PointerType* TypeEnvironment::pointerType(
-    const QualifiedType& elementType, Qualifiers qualifiers) {
+auto TypeEnvironment::pointerType(const QualifiedType& elementType,
+                                  Qualifiers qualifiers) -> const PointerType* {
   return &*d->pointerTypes.emplace(elementType, qualifiers).first;
 }
 
-const PointerToMemberType* TypeEnvironment::pointerToMemberType(
-    const ClassType* classType, const QualifiedType& elementType,
-    Qualifiers qualifiers) {
+auto TypeEnvironment::pointerToMemberType(const ClassType* classType,
+                                          const QualifiedType& elementType,
+                                          Qualifiers qualifiers)
+    -> const PointerToMemberType* {
   return &*d->pointerToMemberTypes.emplace(classType, elementType, qualifiers)
                .first;
 }
 
-const ReferenceType* TypeEnvironment::referenceType(
-    const QualifiedType& elementType) {
+auto TypeEnvironment::referenceType(const QualifiedType& elementType)
+    -> const ReferenceType* {
   return &*d->referenceTypes.emplace(elementType).first;
 }
 
-const RValueReferenceType* TypeEnvironment::rvalueReferenceType(
-    const QualifiedType& elementType) {
+auto TypeEnvironment::rvalueReferenceType(const QualifiedType& elementType)
+    -> const RValueReferenceType* {
   return &*d->rvalueReferenceTypes.emplace(elementType).first;
 }
 
-const ArrayType* TypeEnvironment::arrayType(const QualifiedType& elementType,
-                                            std::size_t dimension) {
+auto TypeEnvironment::arrayType(const QualifiedType& elementType,
+                                std::size_t dimension) -> const ArrayType* {
   return &*d->arrayTypes.emplace(elementType, dimension).first;
 }
 
-const UnboundArrayType* TypeEnvironment::unboundArrayType(
-    const QualifiedType& elementType) {
+auto TypeEnvironment::unboundArrayType(const QualifiedType& elementType)
+    -> const UnboundArrayType* {
   return &*d->unboundArrayTypes.emplace(elementType).first;
 }
 
-const FunctionType* TypeEnvironment::functionType(
-    const QualifiedType& returnType, std::vector<QualifiedType> argumentTypes,
-    bool isVariadic) {
+auto TypeEnvironment::functionType(const QualifiedType& returnType,
+                                   std::vector<QualifiedType> argumentTypes,
+                                   bool isVariadic) -> const FunctionType* {
   return &*d->functionTypes
                .emplace(returnType, std::move(argumentTypes), isVariadic)
                .first;
 }
 
-const MemberFunctionType* TypeEnvironment::memberFunctionType(
+auto TypeEnvironment::memberFunctionType(
     const ClassType* classType, const QualifiedType& returnType,
-    std::vector<QualifiedType> argumentTypes, bool isVariadic) {
+    std::vector<QualifiedType> argumentTypes, bool isVariadic)
+    -> const MemberFunctionType* {
   return &*d->memberFunctionTypes
                .emplace(classType, returnType, std::move(argumentTypes),
                         isVariadic)
                .first;
 }
 
-const NamespaceType* TypeEnvironment::namespaceType(NamespaceSymbol* symbol) {
+auto TypeEnvironment::namespaceType(NamespaceSymbol* symbol)
+    -> const NamespaceType* {
   return &*d->namespaceTypes.emplace(symbol).first;
 }
 
-const ClassType* TypeEnvironment::classType(ClassSymbol* symbol) {
+auto TypeEnvironment::classType(ClassSymbol* symbol) -> const ClassType* {
   return &*d->classTypes.emplace(symbol).first;
 }
 
-const TemplateType* TypeEnvironment::templateType(
-    TemplateParameterList* symbol) {
+auto TypeEnvironment::templateType(TemplateParameterList* symbol)
+    -> const TemplateType* {
   return &*d->templateTypes.emplace(symbol).first;
 }
 
-const TemplateArgumentType* TypeEnvironment::templateArgumentType(
-    TemplateTypeParameterSymbol* symbol) {
+auto TypeEnvironment::templateArgumentType(TemplateTypeParameterSymbol* symbol)
+    -> const TemplateArgumentType* {
   return &*d->templateArgumentTypes.emplace(symbol).first;
 }
 
-const ConceptType* TypeEnvironment::conceptType(ConceptSymbol* symbol) {
+auto TypeEnvironment::conceptType(ConceptSymbol* symbol) -> const ConceptType* {
   return &*d->conceptTypes.emplace(symbol).first;
 }
 

@@ -49,8 +49,8 @@ void SymbolPrinter::deindent() {
   indent_ = std::string(depth_ * 2, ' ');
 }
 
-std::string SymbolPrinter::symbolName(Symbol* symbol) {
-  if (!symbol->name()) return std::string();
+auto SymbolPrinter::symbolName(Symbol* symbol) -> std::string {
+  if (!symbol->name()) return {};
   return fmt::format("{}", *symbol->name());
 }
 

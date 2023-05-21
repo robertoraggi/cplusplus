@@ -33,65 +33,67 @@ class TypeEnvironment {
   TypeEnvironment();
   ~TypeEnvironment();
 
-  const UndefinedType* undefinedType();
+  auto undefinedType() -> const UndefinedType*;
 
-  const ErrorType* errorType();
+  auto errorType() -> const ErrorType*;
 
-  const AutoType* autoType();
+  auto autoType() -> const AutoType*;
 
-  const DecltypeAutoType* decltypeAuto();
+  auto decltypeAuto() -> const DecltypeAutoType*;
 
-  const VoidType* voidType();
+  auto voidType() -> const VoidType*;
 
-  const NullptrType* nullptrType();
+  auto nullptrType() -> const NullptrType*;
 
-  const BooleanType* booleanType();
+  auto booleanType() -> const BooleanType*;
 
-  const CharacterType* characterType(CharacterKind kind);
+  auto characterType(CharacterKind kind) -> const CharacterType*;
 
-  const IntegerType* integerType(IntegerKind kind, bool isUnsigned);
+  auto integerType(IntegerKind kind, bool isUnsigned) -> const IntegerType*;
 
-  const FloatingPointType* floatingPointType(FloatingPointKind kind);
+  auto floatingPointType(FloatingPointKind kind) -> const FloatingPointType*;
 
-  const EnumType* enumType(EnumSymbol* symbol);
+  auto enumType(EnumSymbol* symbol) -> const EnumType*;
 
-  const ScopedEnumType* scopedEnumType(ScopedEnumSymbol* symbol);
+  auto scopedEnumType(ScopedEnumSymbol* symbol) -> const ScopedEnumType*;
 
-  const PointerType* pointerType(const QualifiedType& elementType,
-                                 Qualifiers qualifiers);
+  auto pointerType(const QualifiedType& elementType, Qualifiers qualifiers)
+      -> const PointerType*;
 
-  const PointerToMemberType* pointerToMemberType(
-      const ClassType* classType, const QualifiedType& elementType,
-      Qualifiers qualifiers);
+  auto pointerToMemberType(const ClassType* classType,
+                           const QualifiedType& elementType,
+                           Qualifiers qualifiers) -> const PointerToMemberType*;
 
-  const ReferenceType* referenceType(const QualifiedType& elementType);
+  auto referenceType(const QualifiedType& elementType) -> const ReferenceType*;
 
-  const RValueReferenceType* rvalueReferenceType(
-      const QualifiedType& elementType);
+  auto rvalueReferenceType(const QualifiedType& elementType)
+      -> const RValueReferenceType*;
 
-  const ArrayType* arrayType(const QualifiedType& elementType,
-                             std::size_t dimension);
+  auto arrayType(const QualifiedType& elementType, std::size_t dimension)
+      -> const ArrayType*;
 
-  const UnboundArrayType* unboundArrayType(const QualifiedType& elementType);
+  auto unboundArrayType(const QualifiedType& elementType)
+      -> const UnboundArrayType*;
 
-  const FunctionType* functionType(const QualifiedType& returnType,
-                                   std::vector<QualifiedType> argumentTypes,
-                                   bool isVariadic);
+  auto functionType(const QualifiedType& returnType,
+                    std::vector<QualifiedType> argumentTypes, bool isVariadic)
+      -> const FunctionType*;
 
-  const MemberFunctionType* memberFunctionType(
-      const ClassType* classType, const QualifiedType& returnType,
-      std::vector<QualifiedType> argumentTypes, bool isVariadic);
+  auto memberFunctionType(const ClassType* classType,
+                          const QualifiedType& returnType,
+                          std::vector<QualifiedType> argumentTypes,
+                          bool isVariadic) -> const MemberFunctionType*;
 
-  const NamespaceType* namespaceType(NamespaceSymbol* symbol);
+  auto namespaceType(NamespaceSymbol* symbol) -> const NamespaceType*;
 
-  const ClassType* classType(ClassSymbol* symbol);
+  auto classType(ClassSymbol* symbol) -> const ClassType*;
 
-  const TemplateType* templateType(TemplateParameterList* symbol);
+  auto templateType(TemplateParameterList* symbol) -> const TemplateType*;
 
-  const TemplateArgumentType* templateArgumentType(
-      TemplateTypeParameterSymbol* symbol);
+  auto templateArgumentType(TemplateTypeParameterSymbol* symbol)
+      -> const TemplateArgumentType*;
 
-  const ConceptType* conceptType(ConceptSymbol* symbol);
+  auto conceptType(ConceptSymbol* symbol) -> const ConceptType*;
 
  private:
   struct Private;

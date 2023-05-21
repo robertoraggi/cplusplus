@@ -27,9 +27,9 @@ namespace {
 NamePrinter printName;
 }
 
-Name::~Name() {}
+Name::~Name() = default;
 
-std::ostream& operator<<(std::ostream& out, const Name& name) {
+auto operator<<(std::ostream& out, const Name& name) -> std::ostream& {
   printName(out, &name);
   return out;
 }

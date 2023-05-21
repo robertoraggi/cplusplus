@@ -36,7 +36,7 @@ class TypeEnvironment;
 class Semantics final : ASTVisitor {
  public:
   explicit Semantics(TranslationUnit* unit);
-  ~Semantics();
+  ~Semantics() override;
 
   void setCheckTypes(bool checkTypes) { checkTypes_ = checkTypes; }
 
@@ -53,7 +53,7 @@ class Semantics final : ASTVisitor {
     Scope* savedScope = nullptr;
 
     ScopeContext(const ScopeContext&) = delete;
-    ScopeContext& operator=(const ScopeContext&) = delete;
+    auto operator=(const ScopeContext&) -> ScopeContext& = delete;
 
     explicit ScopeContext(Semantics* sem) : sem(sem), savedScope(sem->scope_) {}
 
@@ -82,7 +82,7 @@ class Semantics final : ASTVisitor {
     const Name* name = nullptr;
 
     explicit DeclaratorSem(SpecifiersSem specifiers) noexcept
-        : specifiers(std::move(specifiers)) {
+        : specifiers(specifiers) {
       type = this->specifiers.type;
     }
   };
@@ -101,12 +101,12 @@ class Semantics final : ASTVisitor {
     Symbol* symbol = nullptr;
   };
 
-  Scope* changeScope(Scope* scope) {
+  auto changeScope(Scope* scope) -> Scope* {
     std::swap(scope_, scope);
     return scope;
   }
 
-  Scope* scope() const { return scope_; }
+  [[nodiscard]] auto scope() const -> Scope* { return scope_; }
 
   void unit(UnitAST* unit);
 
@@ -129,23 +129,25 @@ class Semantics final : ASTVisitor {
 
   void typeId(TypeIdAST* ast);
 
-  std::optional<bool> toBool(ExpressionAST* ast);
+  auto toBool(ExpressionAST* ast) -> std::optional<bool>;
 
  private:
   void implicitConversion(ExpressionAST* ast, const QualifiedType& type);
 
   void standardConversion(ExpressionAST* ast, const QualifiedType& type);
 
-  bool lvalueToRvalueConversion(ExpressionAST* ast, const QualifiedType& type);
-  bool arrayToPointerConversion(ExpressionAST* ast, const QualifiedType& type);
-  bool functionToPointerConversion(ExpressionAST* ast,
-                                   const QualifiedType& type);
-  bool numericPromotion(ExpressionAST* ast, const QualifiedType& type);
-  bool numericConversion(ExpressionAST* ast, const QualifiedType& type);
+  auto lvalueToRvalueConversion(ExpressionAST* ast, const QualifiedType& type)
+      -> bool;
+  auto arrayToPointerConversion(ExpressionAST* ast, const QualifiedType& type)
+      -> bool;
+  auto functionToPointerConversion(ExpressionAST* ast,
+                                   const QualifiedType& type) -> bool;
+  auto numericPromotion(ExpressionAST* ast, const QualifiedType& type) -> bool;
+  auto numericConversion(ExpressionAST* ast, const QualifiedType& type) -> bool;
   void functionPointerConversion(ExpressionAST* ast, const QualifiedType& type);
   void qualificationConversion(ExpressionAST* ast, const QualifiedType& type);
 
-  QualifiedType commonType(ExpressionAST* ast, ExpressionAST* other);
+  auto commonType(ExpressionAST* ast, ExpressionAST* other) -> QualifiedType;
 
   void accept(AST* ast);
 

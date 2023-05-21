@@ -29,7 +29,7 @@ class Preprocessor;
 class DiagnosticsClient {
  public:
   DiagnosticsClient(const DiagnosticsClient&) = delete;
-  DiagnosticsClient& operator=(const DiagnosticsClient&) = delete;
+  auto operator=(const DiagnosticsClient&) -> DiagnosticsClient& = delete;
 
   DiagnosticsClient() = default;
 
@@ -37,16 +37,18 @@ class DiagnosticsClient {
 
   virtual void report(const Diagnostic& diagnostic);
 
-  Preprocessor* preprocessor() const { return preprocessor_; }
+  [[nodiscard]] auto preprocessor() const -> Preprocessor* {
+    return preprocessor_;
+  }
 
   void setPreprocessor(Preprocessor* preprocessor) {
     preprocessor_ = preprocessor;
   }
 
-  bool fatalErrors() const { return fatalErrors_; }
+  [[nodiscard]] auto fatalErrors() const -> bool { return fatalErrors_; }
   void setFatalErrors(bool fatalErrors) { fatalErrors_ = fatalErrors; }
 
-  bool blockErrors(bool blockErrors = true) {
+  auto blockErrors(bool blockErrors = true) -> bool {
     std::swap(blockErrors_, blockErrors);
     return blockErrors;
   }

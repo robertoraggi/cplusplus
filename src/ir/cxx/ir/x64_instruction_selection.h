@@ -30,7 +30,7 @@ namespace cxx::ir {
 class X64InstructionSelection : ir::IRVisitor {
  public:
   X64InstructionSelection();
-  virtual ~X64InstructionSelection();
+  ~X64InstructionSelection() override;
 
   void operator()(ir::Module* module, std::ostream& out);
 
@@ -44,7 +44,7 @@ class X64InstructionSelection : ir::IRVisitor {
 
   void expression(ir::Expr* expr, std::string target);
 
-  const std::string& blockId(ir::Block* block);
+  auto blockId(ir::Block* block) -> const std::string&;
 
   void visit(ir::Jump*) override;
   void visit(ir::CondJump*) override;

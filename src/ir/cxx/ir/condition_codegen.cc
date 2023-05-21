@@ -81,7 +81,7 @@ void ConditionCodegen::visit(BinaryExpressionAST* ast) {
   ExpressionCodegen::visit(ast);
 }
 
-bool ConditionCodegen::isRelOp(ir::BinaryOp op) const {
+auto ConditionCodegen::isRelOp(ir::BinaryOp op) const -> bool {
   switch (op) {
     case ir::BinaryOp::kGreaterGreater:
     case ir::BinaryOp::kLessLess:

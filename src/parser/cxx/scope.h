@@ -31,50 +31,52 @@ namespace cxx {
 class Scope final {
  public:
   Scope(const Scope& other) = delete;
-  Scope& operator=(const Scope& other) = delete;
+  auto operator=(const Scope& other) -> Scope& = delete;
 
   Scope();
   ~Scope();
 
-  Scope* enclosingScope() const;
-  Scope* skipTemplateScope() const;
+  [[nodiscard]] auto enclosingScope() const -> Scope*;
+  [[nodiscard]] auto skipTemplateScope() const -> Scope*;
 
-  bool isTemplateScope() const;
+  [[nodiscard]] auto isTemplateScope() const -> bool;
 
-  Symbol* owner() const;
+  [[nodiscard]] auto owner() const -> Symbol*;
   void setOwner(Symbol* owner);
 
   void add(Symbol* symbol);
 
-  Symbol* find(const Name* name,
-               LookupOptions lookupOptions = LookupOptions::kDefault) const;
+  auto find(const Name* name,
+            LookupOptions lookupOptions = LookupOptions::kDefault) const
+      -> Symbol*;
 
-  Symbol* lookup(const Name* name,
-                 LookupOptions lookupOptions = LookupOptions::kDefault) const;
+  auto lookup(const Name* name,
+              LookupOptions lookupOptions = LookupOptions::kDefault) const
+      -> Symbol*;
 
-  Symbol* unqualifiedLookup(
-      const Name* name,
-      LookupOptions lookupOptions = LookupOptions::kDefault) const;
+  auto unqualifiedLookup(const Name* name, LookupOptions lookupOptions =
+                                               LookupOptions::kDefault) const
+      -> Symbol*;
 
   using iterator = std::vector<Symbol*>::const_iterator;
 
-  bool empty() const { return members_.empty(); }
+  [[nodiscard]] auto empty() const -> bool { return members_.empty(); }
 
-  auto begin() const { return members_.begin(); }
-  auto end() const { return members_.end(); }
+  [[nodiscard]] auto begin() const { return members_.begin(); }
+  [[nodiscard]] auto end() const { return members_.end(); }
 
-  auto rbegin() const { return members_.rbegin(); }
-  auto rend() const { return members_.rend(); }
+  [[nodiscard]] auto rbegin() const { return members_.rbegin(); }
+  [[nodiscard]] auto rend() const { return members_.rend(); }
 
  private:
   void rehash();
 
   void addHelper(Symbol* symbol);
 
-  Symbol* lookup(const Name* name, LookupOptions lookupOptions,
-                 std::vector<const Scope*>& processed) const;
+  auto lookup(const Name* name, LookupOptions lookupOptions,
+              std::vector<const Scope*>& processed) const -> Symbol*;
 
-  bool match(Symbol* symbol, LookupOptions options) const;
+  auto match(Symbol* symbol, LookupOptions options) const -> bool;
 
  private:
   Symbol* owner_ = nullptr;

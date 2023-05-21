@@ -34,50 +34,52 @@ namespace cxx {
 class Symbol {
  public:
   Symbol(const Symbol& other) = delete;
-  Symbol& operator=(const Symbol& other) = delete;
+  auto operator=(const Symbol& other) -> Symbol& = delete;
 
   Symbol(Scope* enclosingScope, const Name* name);
   virtual ~Symbol();
 
-  std::string unqualifiedId() const;
-  std::string qualifiedId() const;
+  [[nodiscard]] auto unqualifiedId() const -> std::string;
+  [[nodiscard]] auto qualifiedId() const -> std::string;
 
-  const Name* name() const { return name_; }
+  [[nodiscard]] auto name() const -> const Name* { return name_; }
   void setName(const Name* name) { name_ = name; }
 
-  Symbol* next() const { return next_; }
+  [[nodiscard]] auto next() const -> Symbol* { return next_; }
   void setNext(Symbol* next) { next_ = next; }
 
-  Scope* enclosingScope() const { return enclosingScope_; }
+  [[nodiscard]] auto enclosingScope() const -> Scope* {
+    return enclosingScope_;
+  }
   void setEnclosingScope(Scope* enclosingScope) {
     enclosingScope_ = enclosingScope;
   }
 
-  Symbol* enclosingClassOrNamespace() const;
-  NamespaceSymbol* enclosingNamespace() const;
-  ClassSymbol* enclosingClass() const;
-  FunctionSymbol* enclosingFunction() const;
-  BlockSymbol* enclosingBlock() const;
+  [[nodiscard]] auto enclosingClassOrNamespace() const -> Symbol*;
+  [[nodiscard]] auto enclosingNamespace() const -> NamespaceSymbol*;
+  [[nodiscard]] auto enclosingClass() const -> ClassSymbol*;
+  [[nodiscard]] auto enclosingFunction() const -> FunctionSymbol*;
+  [[nodiscard]] auto enclosingBlock() const -> BlockSymbol*;
 
-  const QualifiedType& type() const;
+  [[nodiscard]] auto type() const -> const QualifiedType&;
   void setType(const QualifiedType& type);
 
-  Linkage linkage() const;
+  [[nodiscard]] auto linkage() const -> Linkage;
   void setLinkage(Linkage linkage);
 
-  Visibility visibility() const;
+  [[nodiscard]] auto visibility() const -> Visibility;
   void setVisibility(Visibility visibility);
 
-  TemplateParameterList* templateParameterList() const;
+  [[nodiscard]] auto templateParameterList() const -> TemplateParameterList*;
   void setTemplateParameterList(TemplateParameterList* templateParameterList);
 
-  virtual bool isTypeSymbol() const;
+  [[nodiscard]] virtual auto isTypeSymbol() const -> bool;
 
-  virtual Scope* scope() const { return nullptr; }
+  [[nodiscard]] virtual auto scope() const -> Scope* { return nullptr; }
 
   void addToEnclosingScope();
 
-  int index() const;
+  [[nodiscard]] auto index() const -> int;
 
   virtual void accept(SymbolVisitor* visitor) = 0;
 
@@ -95,7 +97,7 @@ class TypeSymbol : public Symbol {
  public:
   explicit TypeSymbol(Scope* enclosingScope, const Name* name);
 
-  bool isTypeSymbol() const override;
+  [[nodiscard]] auto isTypeSymbol() const -> bool override;
 };
 
 class ConceptSymbol final : public TypeSymbol {
@@ -112,12 +114,13 @@ class NamespaceSymbol final : public Symbol {
 
   void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
 
-  Scope* scope() const override { return scope_.get(); }
+  [[nodiscard]] auto scope() const -> Scope* override { return scope_.get(); }
 
-  bool isInline() const { return isInline_; }
+  [[nodiscard]] auto isInline() const -> bool { return isInline_; }
   void setInline(bool isInline) { isInline_ = isInline; }
 
-  const std::vector<NamespaceSymbol*>& usingNamespaces() const {
+  [[nodiscard]] auto usingNamespaces() const
+      -> const std::vector<NamespaceSymbol*>& {
     return usingNamespaces_;
   }
 
@@ -136,15 +139,17 @@ class ClassSymbol final : public TypeSymbol {
 
   void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
 
-  Scope* scope() const override { return scope_.get(); }
+  [[nodiscard]] auto scope() const -> Scope* override { return scope_.get(); }
 
-  ClassKey classKey() const { return classKey_; }
+  [[nodiscard]] auto classKey() const -> ClassKey { return classKey_; }
   void setClassKey(ClassKey classKey) { classKey_ = classKey; }
 
-  const std::vector<ClassSymbol*>& baseClasses() const { return baseClasses_; }
+  [[nodiscard]] auto baseClasses() const -> const std::vector<ClassSymbol*>& {
+    return baseClasses_;
+  }
   void addBaseClass(ClassSymbol* baseClass);
 
-  bool isDefined() const { return isDefined_; }
+  [[nodiscard]] auto isDefined() const -> bool { return isDefined_; }
   void setDefined(bool isDefined) { isDefined_ = isDefined; }
 
  private:
@@ -168,7 +173,7 @@ class EnumSymbol final : public TypeSymbol {
 
   void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
 
-  Scope* scope() const override { return scope_.get(); }
+  [[nodiscard]] auto scope() const -> Scope* override { return scope_.get(); }
 
  private:
   std::unique_ptr<Scope> scope_;
@@ -181,9 +186,11 @@ class ScopedEnumSymbol final : public TypeSymbol {
 
   void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
 
-  Scope* scope() const override { return scope_.get(); }
+  [[nodiscard]] auto scope() const -> Scope* override { return scope_.get(); }
 
-  QualifiedType underlyingType() const { return underlyingType_; }
+  [[nodiscard]] auto underlyingType() const -> QualifiedType {
+    return underlyingType_;
+  }
 
   void setUnderlyingType(const QualifiedType& underlyingType) {
     underlyingType_ = underlyingType;
@@ -208,7 +215,7 @@ class TemplateParameterList final : public Symbol {
 
   void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
 
-  Scope* scope() const override { return scope_.get(); }
+  [[nodiscard]] auto scope() const -> Scope* override { return scope_.get(); }
 
  private:
   std::unique_ptr<Scope> scope_;
@@ -221,13 +228,15 @@ class TemplateTypeParameterSymbol final : public TypeSymbol {
 
   void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
 
-  QualifiedType defaultType() const { return defaultType_; }
+  [[nodiscard]] auto defaultType() const -> QualifiedType {
+    return defaultType_;
+  }
 
   void setDefaultType(const QualifiedType& defaultType) {
     defaultType_ = defaultType;
   }
 
-  bool isParameterPack() const { return parameterPack_; }
+  [[nodiscard]] auto isParameterPack() const -> bool { return parameterPack_; }
 
   void setParameterPack(bool parameterPack) { parameterPack_ = parameterPack; }
 
@@ -257,9 +266,9 @@ class FunctionSymbol final : public Symbol {
 
   void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
 
-  Scope* scope() const override { return scope_.get(); }
+  [[nodiscard]] auto scope() const -> Scope* override { return scope_.get(); }
 
-  BlockSymbol* block() const;
+  [[nodiscard]] auto block() const -> BlockSymbol*;
   void setBlock(BlockSymbol* block);
 
  private:
@@ -281,7 +290,7 @@ class BlockSymbol final : public Symbol {
 
   void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
 
-  Scope* scope() const override { return scope_.get(); }
+  [[nodiscard]] auto scope() const -> Scope* override { return scope_.get(); }
 
  private:
   std::unique_ptr<Scope> scope_;

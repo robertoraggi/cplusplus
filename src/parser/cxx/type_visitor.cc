@@ -22,6 +22,6 @@
 
 namespace cxx {
 
-TypeVisitor::~TypeVisitor() {}
+TypeVisitor::~TypeVisitor() = default;
 
 }  // namespace cxx

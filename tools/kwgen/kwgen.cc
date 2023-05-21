@@ -32,31 +32,33 @@
 class State;
 class DottedItem;
 
-typedef std::list<std::string> RuleList;
-typedef RuleList::iterator RulePtr;
-typedef std::list<State> StateList;
-typedef StateList::iterator StatePtr;
-typedef std::string::iterator Dot;
-typedef std::vector<DottedItem>::iterator DottedItemPtr;
+using RuleList = std::list<std::string>;
+using RulePtr = RuleList::iterator;
+using StateList = std::list<State>;
+using StatePtr = StateList::iterator;
+using Dot = std::string::iterator;
+using DottedItemPtr = std::vector<DottedItem>::iterator;
 
 class DottedItem {
  public:
   RulePtr rule;
   Dot dot;
 
-  DottedItem() {}
+  DottedItem() = default;
 
   DottedItem(RulePtr rule, Dot dot) : rule(rule), dot(dot) {}
 
-  bool operator==(const DottedItem &other) const {
+  auto operator==(const DottedItem &other) const -> bool {
     return rule == other.rule && dot == other.dot;
   }
 
-  bool operator!=(const DottedItem &other) const { return !operator==(other); }
+  auto operator!=(const DottedItem &other) const -> bool {
+    return !operator==(other);
+  }
 
-  bool terminal() const { return dot == rule->end(); }
+  [[nodiscard]] auto terminal() const -> bool { return dot == rule->end(); }
 
-  DottedItem next() const {
+  [[nodiscard]] auto next() const -> DottedItem {
     DottedItem item;
     item.rule = rule;
     item.dot = dot;
@@ -67,58 +69,63 @@ class DottedItem {
 
 class State {
  public:
-  State() {}
+  State() = default;
 
   template <typename _ForwardIterator>
   State(_ForwardIterator first, _ForwardIterator last) {
     _items.insert(_items.end(), first, last);
   }
 
-  static State &intern(const State &state) {
-    StatePtr ptr = std::find(first_state(), last_state(), state);
+  static auto intern(const State &state) -> State & {
+    auto ptr = std::find(first_state(), last_state(), state);
     if (ptr == last_state()) ptr = states().insert(last_state(), state);
     return *ptr;
   }
 
-  State &next(char ch) {
+  auto next(char ch) -> State & {
     std::vector<DottedItem> n;
-    for (DottedItemPtr it = first_item(); it != last_item(); ++it) {
+    for (auto it = first_item(); it != last_item(); ++it) {
       if (!it->terminal() && *it->dot == ch) n.push_back(it->next());
     }
     return intern(State(n.begin(), n.end()));
   }
 
-  std::set<char> firsts() {
+  auto firsts() -> std::set<char> {
     std::set<char> s;
-    for (DottedItemPtr it = first_item(); it != last_item(); ++it) {
+    for (auto it = first_item(); it != last_item(); ++it) {
       if (!it->terminal()) s.insert(*it->dot);
     }
     return s;
   }
 
-  size_t item_count() const { return _items.size(); }
+  [[nodiscard]] auto item_count() const -> size_t { return _items.size(); }
 
-  DottedItemPtr first_item() { return _items.begin(); }
-  DottedItemPtr last_item() { return _items.end(); }
+  auto first_item() -> DottedItemPtr { return _items.begin(); }
+  auto last_item() -> DottedItemPtr { return _items.end(); }
 
-  static StatePtr first_state() { return states().begin(); }
-  static StatePtr last_state() { return states().end(); }
+  static auto first_state() -> StatePtr { return states().begin(); }
+  static auto last_state() -> StatePtr { return states().end(); }
 
-  bool operator==(const State &other) const { return _items == other._items; }
-  bool operator!=(const State &other) const { return _items != other._items; }
+  auto operator==(const State &other) const -> bool {
+    return _items == other._items;
+  }
+  auto operator!=(const State &other) const -> bool {
+    return _items != other._items;
+  }
 
   template <typename _Iterator>
-  static State &start(_Iterator first, _Iterator last) {
+  static auto start(_Iterator first, _Iterator last) -> State & {
     std::vector<DottedItem> items;
-    for (; first != last; ++first)
+    for (; first != last; ++first) {
       items.push_back(DottedItem(first, first->begin()));
+    }
     return intern(State(items.begin(), items.end()));
   }
 
   static void reset() { states().clear(); }
 
  private:
-  static StateList &states() {
+  static auto states() -> StateList & {
     static StateList _states;
     return _states;
   }
@@ -135,19 +142,19 @@ static std::string option_char_type = "char";
 static std::string option_token_type = "int";
 static std::string option_unicode_function = "";
 
-std::string token_id(const std::string &id) {
+auto token_id(const std::string &id) -> std::string {
   std::string token = option_token_prefix;
 
-  if (!option_toupper)
+  if (!option_toupper) {
     token += id;
-  else {
-    for (size_t i = 0; i < id.size(); ++i) token += toupper(id[i]);
+  } else {
+    for (char i : id) token += toupper(i);
   }
 
   return token;
 }
 
-bool starts_with(const std::string &line, const std::string &text) {
+auto starts_with(const std::string &line, const std::string &text) -> bool {
   if (text.length() < line.length()) {
     return std::equal(line.begin(), line.begin() + text.size(), text.begin());
   }
@@ -162,7 +169,7 @@ void doit(State &state) {
   std::string indent(depth * 2, ' ');
 
   std::set<char> firsts = state.firsts();
-  for (std::set<char>::iterator it = firsts.begin(); it != firsts.end(); ++it) {
+  for (auto it = firsts.begin(); it != firsts.end(); ++it) {
     std::string _else = it == firsts.begin() ? "" : "else ";
     std::cout << indent << _else << "if (s[" << (depth - 1) << "]"
               << option_unicode_function << " == '" << *it << "') {"
@@ -170,8 +177,8 @@ void doit(State &state) {
     State &next_state = state.next(*it);
 
     bool found = false;
-    for (DottedItemPtr item = next_state.first_item();
-         item != next_state.last_item(); ++item) {
+    for (auto item = next_state.first_item(); item != next_state.last_item();
+         ++item) {
       if (item->terminal()) {
         if (found) {
           std::cerr << "*** Error. Too many accepting states" << std::endl;
@@ -206,7 +213,7 @@ void gen_classify(const std::multimap<size_t, std::string> &keywords) {
             << "classify(const " << option_char_type << " *s, int n) {"
             << std::endl
             << "  switch (n) {" << std::endl;
-  std::multimap<size_t, std::string>::const_iterator it = keywords.begin();
+  auto it = keywords.begin();
   while (it != keywords.end()) {
     size_t size = it->first;
     std::cout << "    case " << size << ": return classify" << size << "(s);"
@@ -224,7 +231,7 @@ void gen_classify(const std::multimap<size_t, std::string> &keywords) {
 
 void gen_enums(const std::multimap<size_t, std::string> &keywords) {
   std::cout << "enum {" << std::endl;
-  std::multimap<size_t, std::string>::const_iterator it = keywords.begin();
+  auto it = keywords.begin();
   for (; it != keywords.end(); ++it) {
     std::cout << "  " << token_id(it->second) << "," << std::endl;
   }
@@ -233,16 +240,16 @@ void gen_enums(const std::multimap<size_t, std::string> &keywords) {
             << std::endl;
 }
 
-inline bool not_whitespace_p(char ch) { return !std::isspace(ch); }
+inline auto not_whitespace_p(char ch) -> bool { return !std::isspace(ch); }
 
-int main(int argc, char *argv[]) {
+auto main(int argc, char *argv[]) -> int {
   const std::string ns = "--namespace=";
 
   for (int i = 0; i < argc; ++i) {
     const std::string arg(argv[i]);
-    if (arg == "--no-enums")
+    if (arg == "--no-enums") {
       option_no_enums = true;
-    else if (starts_with(arg, ns)) {
+    } else if (starts_with(arg, ns)) {
       option_namespace_name.assign(arg.begin() + ns.size(), arg.end());
       option_namespace_name += "::";
     }
@@ -306,8 +313,9 @@ int main(int argc, char *argv[]) {
       while (start != textline.end() && std::isspace(*start)) ++start;
 
       std::string::iterator stop = start;
-      while (stop != textline.end() && (std::isalnum(*stop) || *stop == '_'))
+      while (stop != textline.end() && (std::isalnum(*stop) || *stop == '_')) {
         ++stop;
+      }
 
       if (start != stop) {
         std::string keyword(start, stop);
@@ -323,7 +331,7 @@ int main(int argc, char *argv[]) {
 
   if (!option_no_enums) gen_enums(keywords);
 
-  std::multimap<size_t, std::string>::iterator it = keywords.begin();
+  auto it = keywords.begin();
   while (it != keywords.end()) {
     size_t size = it->first;
     RuleList rules;
@@ -331,7 +339,8 @@ int main(int argc, char *argv[]) {
       rules.push_back(it->second);
       ++it;
     } while (it != keywords.end() && it->first == size);
-    gen_classify_n(State::start(rules.begin(), rules.end()), int(size));
+    gen_classify_n(State::start(rules.begin(), rules.end()),
+                   static_cast<int>(size));
     State::reset();
   }
 

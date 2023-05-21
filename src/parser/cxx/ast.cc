@@ -22,393 +22,397 @@
 
 namespace cxx {
 
-AST::~AST() {}
+AST::~AST() = default;
 
-SourceLocation TypeIdAST::firstSourceLocation() {
+auto TypeIdAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(typeSpecifierList)) return loc;
   if (auto loc = cxx::firstSourceLocation(declarator)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TypeIdAST::lastSourceLocation() {
+auto TypeIdAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(declarator)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeSpecifierList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation NestedNameSpecifierAST::firstSourceLocation() {
+auto NestedNameSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(scopeLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(nameList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation NestedNameSpecifierAST::lastSourceLocation() {
+auto NestedNameSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(nameList)) return loc;
   if (auto loc = cxx::lastSourceLocation(scopeLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation UsingDeclaratorAST::firstSourceLocation() {
+auto UsingDeclaratorAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(typenameLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(name)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation UsingDeclaratorAST::lastSourceLocation() {
+auto UsingDeclaratorAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(name)) return loc;
   if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::lastSourceLocation(typenameLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation HandlerAST::firstSourceLocation() {
+auto HandlerAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(catchLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(exceptionDeclaration)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(statement)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation HandlerAST::lastSourceLocation() {
+auto HandlerAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(statement)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(exceptionDeclaration)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(catchLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation EnumBaseAST::firstSourceLocation() {
+auto EnumBaseAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeSpecifierList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation EnumBaseAST::lastSourceLocation() {
+auto EnumBaseAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(typeSpecifierList)) return loc;
   if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation EnumeratorAST::firstSourceLocation() {
+auto EnumeratorAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(name)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(equalLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation EnumeratorAST::lastSourceLocation() {
+auto EnumeratorAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(equalLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(name)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation DeclaratorAST::firstSourceLocation() {
+auto DeclaratorAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(ptrOpList)) return loc;
   if (auto loc = cxx::firstSourceLocation(coreDeclarator)) return loc;
   if (auto loc = cxx::firstSourceLocation(modifiers)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation DeclaratorAST::lastSourceLocation() {
+auto DeclaratorAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(modifiers)) return loc;
   if (auto loc = cxx::lastSourceLocation(coreDeclarator)) return loc;
   if (auto loc = cxx::lastSourceLocation(ptrOpList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation InitDeclaratorAST::firstSourceLocation() {
+auto InitDeclaratorAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(declarator)) return loc;
   if (auto loc = cxx::firstSourceLocation(requiresClause)) return loc;
   if (auto loc = cxx::firstSourceLocation(initializer)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation InitDeclaratorAST::lastSourceLocation() {
+auto InitDeclaratorAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(initializer)) return loc;
   if (auto loc = cxx::lastSourceLocation(requiresClause)) return loc;
   if (auto loc = cxx::lastSourceLocation(declarator)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation BaseSpecifierAST::firstSourceLocation() {
+auto BaseSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(name)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation BaseSpecifierAST::lastSourceLocation() {
+auto BaseSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(name)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation BaseClauseAST::firstSourceLocation() {
+auto BaseClauseAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(baseSpecifierList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation BaseClauseAST::lastSourceLocation() {
+auto BaseClauseAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(baseSpecifierList)) return loc;
   if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation NewTypeIdAST::firstSourceLocation() {
+auto NewTypeIdAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(typeSpecifierList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation NewTypeIdAST::lastSourceLocation() {
+auto NewTypeIdAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(typeSpecifierList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation RequiresClauseAST::firstSourceLocation() {
+auto RequiresClauseAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(requiresLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation RequiresClauseAST::lastSourceLocation() {
+auto RequiresClauseAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(requiresLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ParameterDeclarationClauseAST::firstSourceLocation() {
+auto ParameterDeclarationClauseAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(parameterDeclarationList)) return loc;
   if (auto loc = cxx::firstSourceLocation(commaLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ParameterDeclarationClauseAST::lastSourceLocation() {
+auto ParameterDeclarationClauseAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(commaLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(parameterDeclarationList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ParametersAndQualifiersAST::firstSourceLocation() {
+auto ParametersAndQualifiersAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(parameterDeclarationClause))
+  if (auto loc = cxx::firstSourceLocation(parameterDeclarationClause)) {
     return loc;
+  }
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(cvQualifierList)) return loc;
   if (auto loc = cxx::firstSourceLocation(refLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ParametersAndQualifiersAST::lastSourceLocation() {
+auto ParametersAndQualifiersAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(refLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(cvQualifierList)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(parameterDeclarationClause))
+  if (auto loc = cxx::lastSourceLocation(parameterDeclarationClause)) {
     return loc;
+  }
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation LambdaIntroducerAST::firstSourceLocation() {
+auto LambdaIntroducerAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lbracketLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(captureDefaultLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(captureList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rbracketLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation LambdaIntroducerAST::lastSourceLocation() {
+auto LambdaIntroducerAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rbracketLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(captureList)) return loc;
   if (auto loc = cxx::lastSourceLocation(captureDefaultLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(lbracketLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation LambdaDeclaratorAST::firstSourceLocation() {
+auto LambdaDeclaratorAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(parameterDeclarationClause))
+  if (auto loc = cxx::firstSourceLocation(parameterDeclarationClause)) {
     return loc;
+  }
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(declSpecifierList)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(trailingReturnType)) return loc;
   if (auto loc = cxx::firstSourceLocation(requiresClause)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation LambdaDeclaratorAST::lastSourceLocation() {
+auto LambdaDeclaratorAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(requiresClause)) return loc;
   if (auto loc = cxx::lastSourceLocation(trailingReturnType)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(declSpecifierList)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(parameterDeclarationClause))
+  if (auto loc = cxx::lastSourceLocation(parameterDeclarationClause)) {
     return loc;
+  }
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TrailingReturnTypeAST::firstSourceLocation() {
+auto TrailingReturnTypeAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(minusGreaterLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TrailingReturnTypeAST::lastSourceLocation() {
+auto TrailingReturnTypeAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
   if (auto loc = cxx::lastSourceLocation(minusGreaterLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation CtorInitializerAST::firstSourceLocation() {
+auto CtorInitializerAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(memInitializerList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation CtorInitializerAST::lastSourceLocation() {
+auto CtorInitializerAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(memInitializerList)) return loc;
   if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation RequirementBodyAST::firstSourceLocation() {
+auto RequirementBodyAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lbraceLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(requirementList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rbraceLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation RequirementBodyAST::lastSourceLocation() {
+auto RequirementBodyAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rbraceLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(requirementList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lbraceLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TypeConstraintAST::firstSourceLocation() {
+auto TypeConstraintAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(name)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TypeConstraintAST::lastSourceLocation() {
+auto TypeConstraintAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(name)) return loc;
   if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation GlobalModuleFragmentAST::firstSourceLocation() {
+auto GlobalModuleFragmentAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(moduleLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(declarationList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation GlobalModuleFragmentAST::lastSourceLocation() {
+auto GlobalModuleFragmentAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(declarationList)) return loc;
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(moduleLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation PrivateModuleFragmentAST::firstSourceLocation() {
+auto PrivateModuleFragmentAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(moduleLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(privateLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(declarationList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation PrivateModuleFragmentAST::lastSourceLocation() {
+auto PrivateModuleFragmentAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(declarationList)) return loc;
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(privateLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(moduleLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ModuleDeclarationAST::firstSourceLocation() {
+auto ModuleDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(exportLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(moduleLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(moduleName)) return loc;
   if (auto loc = cxx::firstSourceLocation(modulePartition)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ModuleDeclarationAST::lastSourceLocation() {
+auto ModuleDeclarationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(modulePartition)) return loc;
   if (auto loc = cxx::lastSourceLocation(moduleName)) return loc;
   if (auto loc = cxx::lastSourceLocation(moduleLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(exportLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ModuleNameAST::firstSourceLocation() {
+auto ModuleNameAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(identifierList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ModuleNameAST::lastSourceLocation() {
+auto ModuleNameAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(identifierList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ImportNameAST::firstSourceLocation() {
+auto ImportNameAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(headerLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(modulePartition)) return loc;
   if (auto loc = cxx::firstSourceLocation(moduleName)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ImportNameAST::lastSourceLocation() {
+auto ImportNameAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(moduleName)) return loc;
   if (auto loc = cxx::lastSourceLocation(modulePartition)) return loc;
   if (auto loc = cxx::lastSourceLocation(headerLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ModulePartitionAST::firstSourceLocation() {
+auto ModulePartitionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(moduleName)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ModulePartitionAST::lastSourceLocation() {
+auto ModulePartitionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(moduleName)) return loc;
   if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation SimpleRequirementAST::firstSourceLocation() {
+auto SimpleRequirementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation SimpleRequirementAST::lastSourceLocation() {
+auto SimpleRequirementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation CompoundRequirementAST::firstSourceLocation() {
+auto CompoundRequirementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lbraceLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(rbraceLoc)) return loc;
@@ -416,10 +420,10 @@ SourceLocation CompoundRequirementAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(minusGreaterLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeConstraint)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation CompoundRequirementAST::lastSourceLocation() {
+auto CompoundRequirementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeConstraint)) return loc;
   if (auto loc = cxx::lastSourceLocation(minusGreaterLoc)) return loc;
@@ -427,502 +431,506 @@ SourceLocation CompoundRequirementAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(rbraceLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(lbraceLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TypeRequirementAST::firstSourceLocation() {
+auto TypeRequirementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(typenameLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(name)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TypeRequirementAST::lastSourceLocation() {
+auto TypeRequirementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(name)) return loc;
   if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::lastSourceLocation(typenameLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation NestedRequirementAST::firstSourceLocation() {
+auto NestedRequirementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(requiresLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation NestedRequirementAST::lastSourceLocation() {
+auto NestedRequirementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(requiresLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TypeTemplateArgumentAST::firstSourceLocation() {
+auto TypeTemplateArgumentAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TypeTemplateArgumentAST::lastSourceLocation() {
+auto TypeTemplateArgumentAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ExpressionTemplateArgumentAST::firstSourceLocation() {
+auto ExpressionTemplateArgumentAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ExpressionTemplateArgumentAST::lastSourceLocation() {
+auto ExpressionTemplateArgumentAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ParenMemInitializerAST::firstSourceLocation() {
+auto ParenMemInitializerAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(name)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expressionList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ParenMemInitializerAST::lastSourceLocation() {
+auto ParenMemInitializerAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expressionList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(name)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation BracedMemInitializerAST::firstSourceLocation() {
+auto BracedMemInitializerAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(name)) return loc;
   if (auto loc = cxx::firstSourceLocation(bracedInitList)) return loc;
   if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation BracedMemInitializerAST::lastSourceLocation() {
+auto BracedMemInitializerAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(bracedInitList)) return loc;
   if (auto loc = cxx::lastSourceLocation(name)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ThisLambdaCaptureAST::firstSourceLocation() {
+auto ThisLambdaCaptureAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(thisLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ThisLambdaCaptureAST::lastSourceLocation() {
+auto ThisLambdaCaptureAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(thisLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation DerefThisLambdaCaptureAST::firstSourceLocation() {
+auto DerefThisLambdaCaptureAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(starLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(thisLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation DerefThisLambdaCaptureAST::lastSourceLocation() {
+auto DerefThisLambdaCaptureAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(thisLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(starLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation SimpleLambdaCaptureAST::firstSourceLocation() {
+auto SimpleLambdaCaptureAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation SimpleLambdaCaptureAST::lastSourceLocation() {
+auto SimpleLambdaCaptureAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation RefLambdaCaptureAST::firstSourceLocation() {
+auto RefLambdaCaptureAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(ampLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation RefLambdaCaptureAST::lastSourceLocation() {
+auto RefLambdaCaptureAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(ampLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation RefInitLambdaCaptureAST::firstSourceLocation() {
+auto RefInitLambdaCaptureAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(ampLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(initializer)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation RefInitLambdaCaptureAST::lastSourceLocation() {
+auto RefInitLambdaCaptureAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(initializer)) return loc;
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(ampLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation InitLambdaCaptureAST::firstSourceLocation() {
+auto InitLambdaCaptureAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(initializer)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation InitLambdaCaptureAST::lastSourceLocation() {
+auto InitLambdaCaptureAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(initializer)) return loc;
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation EqualInitializerAST::firstSourceLocation() {
+auto EqualInitializerAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(equalLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation EqualInitializerAST::lastSourceLocation() {
+auto EqualInitializerAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(equalLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation BracedInitListAST::firstSourceLocation() {
+auto BracedInitListAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lbraceLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expressionList)) return loc;
   if (auto loc = cxx::firstSourceLocation(commaLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(rbraceLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation BracedInitListAST::lastSourceLocation() {
+auto BracedInitListAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rbraceLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(commaLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expressionList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lbraceLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ParenInitializerAST::firstSourceLocation() {
+auto ParenInitializerAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expressionList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ParenInitializerAST::lastSourceLocation() {
+auto ParenInitializerAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expressionList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation NewParenInitializerAST::firstSourceLocation() {
+auto NewParenInitializerAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expressionList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation NewParenInitializerAST::lastSourceLocation() {
+auto NewParenInitializerAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expressionList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation NewBracedInitializerAST::firstSourceLocation() {
+auto NewBracedInitializerAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(bracedInit)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation NewBracedInitializerAST::lastSourceLocation() {
+auto NewBracedInitializerAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(bracedInit)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation EllipsisExceptionDeclarationAST::firstSourceLocation() {
+auto EllipsisExceptionDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation EllipsisExceptionDeclarationAST::lastSourceLocation() {
+auto EllipsisExceptionDeclarationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TypeExceptionDeclarationAST::firstSourceLocation() {
+auto TypeExceptionDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeSpecifierList)) return loc;
   if (auto loc = cxx::firstSourceLocation(declarator)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TypeExceptionDeclarationAST::lastSourceLocation() {
+auto TypeExceptionDeclarationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(declarator)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeSpecifierList)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation DefaultFunctionBodyAST::firstSourceLocation() {
+auto DefaultFunctionBodyAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(equalLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(defaultLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation DefaultFunctionBodyAST::lastSourceLocation() {
+auto DefaultFunctionBodyAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(defaultLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(equalLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation CompoundStatementFunctionBodyAST::firstSourceLocation() {
+auto CompoundStatementFunctionBodyAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(ctorInitializer)) return loc;
   if (auto loc = cxx::firstSourceLocation(statement)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation CompoundStatementFunctionBodyAST::lastSourceLocation() {
+auto CompoundStatementFunctionBodyAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(statement)) return loc;
   if (auto loc = cxx::lastSourceLocation(ctorInitializer)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TryStatementFunctionBodyAST::firstSourceLocation() {
+auto TryStatementFunctionBodyAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(tryLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(ctorInitializer)) return loc;
   if (auto loc = cxx::firstSourceLocation(statement)) return loc;
   if (auto loc = cxx::firstSourceLocation(handlerList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TryStatementFunctionBodyAST::lastSourceLocation() {
+auto TryStatementFunctionBodyAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(handlerList)) return loc;
   if (auto loc = cxx::lastSourceLocation(statement)) return loc;
   if (auto loc = cxx::lastSourceLocation(ctorInitializer)) return loc;
   if (auto loc = cxx::lastSourceLocation(tryLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation DeleteFunctionBodyAST::firstSourceLocation() {
+auto DeleteFunctionBodyAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(equalLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(deleteLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation DeleteFunctionBodyAST::lastSourceLocation() {
+auto DeleteFunctionBodyAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(deleteLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(equalLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TranslationUnitAST::firstSourceLocation() {
+auto TranslationUnitAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(declarationList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TranslationUnitAST::lastSourceLocation() {
+auto TranslationUnitAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(declarationList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ModuleUnitAST::firstSourceLocation() {
+auto ModuleUnitAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(globalModuleFragment)) return loc;
   if (auto loc = cxx::firstSourceLocation(moduleDeclaration)) return loc;
   if (auto loc = cxx::firstSourceLocation(declarationList)) return loc;
   if (auto loc = cxx::firstSourceLocation(privateModuleFragmentAST)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ModuleUnitAST::lastSourceLocation() {
+auto ModuleUnitAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(privateModuleFragmentAST)) return loc;
   if (auto loc = cxx::lastSourceLocation(declarationList)) return loc;
   if (auto loc = cxx::lastSourceLocation(moduleDeclaration)) return loc;
   if (auto loc = cxx::lastSourceLocation(globalModuleFragment)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ThisExpressionAST::firstSourceLocation() {
+auto ThisExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(thisLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ThisExpressionAST::lastSourceLocation() {
+auto ThisExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(thisLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation CharLiteralExpressionAST::firstSourceLocation() {
+auto CharLiteralExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(literalLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation CharLiteralExpressionAST::lastSourceLocation() {
+auto CharLiteralExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(literalLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation BoolLiteralExpressionAST::firstSourceLocation() {
+auto BoolLiteralExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(literalLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation BoolLiteralExpressionAST::lastSourceLocation() {
+auto BoolLiteralExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(literalLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation IntLiteralExpressionAST::firstSourceLocation() {
+auto IntLiteralExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(literalLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation IntLiteralExpressionAST::lastSourceLocation() {
+auto IntLiteralExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(literalLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation FloatLiteralExpressionAST::firstSourceLocation() {
+auto FloatLiteralExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(literalLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation FloatLiteralExpressionAST::lastSourceLocation() {
+auto FloatLiteralExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(literalLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation NullptrLiteralExpressionAST::firstSourceLocation() {
+auto NullptrLiteralExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(literalLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation NullptrLiteralExpressionAST::lastSourceLocation() {
+auto NullptrLiteralExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(literalLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation StringLiteralExpressionAST::firstSourceLocation() {
+auto StringLiteralExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(stringLiteralList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation StringLiteralExpressionAST::lastSourceLocation() {
+auto StringLiteralExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(stringLiteralList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation UserDefinedStringLiteralExpressionAST::firstSourceLocation() {
+auto UserDefinedStringLiteralExpressionAST::firstSourceLocation()
+    -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(literalLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation UserDefinedStringLiteralExpressionAST::lastSourceLocation() {
+auto UserDefinedStringLiteralExpressionAST::lastSourceLocation()
+    -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(literalLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation IdExpressionAST::firstSourceLocation() {
+auto IdExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(name)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation IdExpressionAST::lastSourceLocation() {
+auto IdExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(name)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation RequiresExpressionAST::firstSourceLocation() {
+auto RequiresExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(requiresLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(parameterDeclarationClause))
+  if (auto loc = cxx::firstSourceLocation(parameterDeclarationClause)) {
     return loc;
+  }
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(requirementBody)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation RequiresExpressionAST::lastSourceLocation() {
+auto RequiresExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(requirementBody)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(parameterDeclarationClause))
+  if (auto loc = cxx::lastSourceLocation(parameterDeclarationClause)) {
     return loc;
+  }
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(requiresLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation NestedExpressionAST::firstSourceLocation() {
+auto NestedExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation NestedExpressionAST::lastSourceLocation() {
+auto NestedExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation RightFoldExpressionAST::firstSourceLocation() {
+auto RightFoldExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(opLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation RightFoldExpressionAST::lastSourceLocation() {
+auto RightFoldExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(opLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation LeftFoldExpressionAST::firstSourceLocation() {
+auto LeftFoldExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(opLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation LeftFoldExpressionAST::lastSourceLocation() {
+auto LeftFoldExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(opLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation FoldExpressionAST::firstSourceLocation() {
+auto FoldExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(leftExpression)) return loc;
   if (auto loc = cxx::firstSourceLocation(opLoc)) return loc;
@@ -930,10 +938,10 @@ SourceLocation FoldExpressionAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(foldOpLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(rightExpression)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation FoldExpressionAST::lastSourceLocation() {
+auto FoldExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(rightExpression)) return loc;
   if (auto loc = cxx::lastSourceLocation(foldOpLoc)) return loc;
@@ -941,10 +949,10 @@ SourceLocation FoldExpressionAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(opLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(leftExpression)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation LambdaExpressionAST::firstSourceLocation() {
+auto LambdaExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lambdaIntroducer)) return loc;
   if (auto loc = cxx::firstSourceLocation(lessLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(templateParameterList)) return loc;
@@ -952,10 +960,10 @@ SourceLocation LambdaExpressionAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(requiresClause)) return loc;
   if (auto loc = cxx::firstSourceLocation(lambdaDeclarator)) return loc;
   if (auto loc = cxx::firstSourceLocation(statement)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation LambdaExpressionAST::lastSourceLocation() {
+auto LambdaExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(statement)) return loc;
   if (auto loc = cxx::lastSourceLocation(lambdaDeclarator)) return loc;
   if (auto loc = cxx::lastSourceLocation(requiresClause)) return loc;
@@ -963,292 +971,292 @@ SourceLocation LambdaExpressionAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(templateParameterList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lessLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(lambdaIntroducer)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation SizeofExpressionAST::firstSourceLocation() {
+auto SizeofExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(sizeofLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation SizeofExpressionAST::lastSourceLocation() {
+auto SizeofExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(sizeofLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation SizeofTypeExpressionAST::firstSourceLocation() {
+auto SizeofTypeExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(sizeofLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation SizeofTypeExpressionAST::lastSourceLocation() {
+auto SizeofTypeExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(sizeofLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation SizeofPackExpressionAST::firstSourceLocation() {
+auto SizeofPackExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(sizeofLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation SizeofPackExpressionAST::lastSourceLocation() {
+auto SizeofPackExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(sizeofLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TypeidExpressionAST::firstSourceLocation() {
+auto TypeidExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(typeidLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TypeidExpressionAST::lastSourceLocation() {
+auto TypeidExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeidLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TypeidOfTypeExpressionAST::firstSourceLocation() {
+auto TypeidOfTypeExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(typeidLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TypeidOfTypeExpressionAST::lastSourceLocation() {
+auto TypeidOfTypeExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeidLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation AlignofExpressionAST::firstSourceLocation() {
+auto AlignofExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(alignofLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation AlignofExpressionAST::lastSourceLocation() {
+auto AlignofExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(alignofLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TypeTraitsExpressionAST::firstSourceLocation() {
+auto TypeTraitsExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(typeTraitsLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeIdList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TypeTraitsExpressionAST::lastSourceLocation() {
+auto TypeTraitsExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeIdList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeTraitsLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation UnaryExpressionAST::firstSourceLocation() {
+auto UnaryExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(opLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation UnaryExpressionAST::lastSourceLocation() {
+auto UnaryExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(opLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation BinaryExpressionAST::firstSourceLocation() {
+auto BinaryExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(leftExpression)) return loc;
   if (auto loc = cxx::firstSourceLocation(opLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(rightExpression)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation BinaryExpressionAST::lastSourceLocation() {
+auto BinaryExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rightExpression)) return loc;
   if (auto loc = cxx::lastSourceLocation(opLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(leftExpression)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation AssignmentExpressionAST::firstSourceLocation() {
+auto AssignmentExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(leftExpression)) return loc;
   if (auto loc = cxx::firstSourceLocation(opLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(rightExpression)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation AssignmentExpressionAST::lastSourceLocation() {
+auto AssignmentExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rightExpression)) return loc;
   if (auto loc = cxx::lastSourceLocation(opLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(leftExpression)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation BracedTypeConstructionAST::firstSourceLocation() {
+auto BracedTypeConstructionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(typeSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(bracedInitList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation BracedTypeConstructionAST::lastSourceLocation() {
+auto BracedTypeConstructionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(bracedInitList)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeSpecifier)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TypeConstructionAST::firstSourceLocation() {
+auto TypeConstructionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(typeSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expressionList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TypeConstructionAST::lastSourceLocation() {
+auto TypeConstructionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expressionList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeSpecifier)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation CallExpressionAST::firstSourceLocation() {
+auto CallExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(baseExpression)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expressionList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation CallExpressionAST::lastSourceLocation() {
+auto CallExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expressionList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(baseExpression)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation SubscriptExpressionAST::firstSourceLocation() {
+auto SubscriptExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(baseExpression)) return loc;
   if (auto loc = cxx::firstSourceLocation(lbracketLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(indexExpression)) return loc;
   if (auto loc = cxx::firstSourceLocation(rbracketLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation SubscriptExpressionAST::lastSourceLocation() {
+auto SubscriptExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rbracketLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(indexExpression)) return loc;
   if (auto loc = cxx::lastSourceLocation(lbracketLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(baseExpression)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation MemberExpressionAST::firstSourceLocation() {
+auto MemberExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(baseExpression)) return loc;
   if (auto loc = cxx::firstSourceLocation(accessLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(templateLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(name)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation MemberExpressionAST::lastSourceLocation() {
+auto MemberExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(name)) return loc;
   if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(accessLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(baseExpression)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation PostIncrExpressionAST::firstSourceLocation() {
+auto PostIncrExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(baseExpression)) return loc;
   if (auto loc = cxx::firstSourceLocation(opLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation PostIncrExpressionAST::lastSourceLocation() {
+auto PostIncrExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(opLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(baseExpression)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ConditionalExpressionAST::firstSourceLocation() {
+auto ConditionalExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(condition)) return loc;
   if (auto loc = cxx::firstSourceLocation(questionLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(iftrueExpression)) return loc;
   if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(iffalseExpression)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ConditionalExpressionAST::lastSourceLocation() {
+auto ConditionalExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(iffalseExpression)) return loc;
   if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(iftrueExpression)) return loc;
   if (auto loc = cxx::lastSourceLocation(questionLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(condition)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ImplicitCastExpressionAST::firstSourceLocation() {
+auto ImplicitCastExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ImplicitCastExpressionAST::lastSourceLocation() {
+auto ImplicitCastExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation CastExpressionAST::firstSourceLocation() {
+auto CastExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation CastExpressionAST::lastSourceLocation() {
+auto CastExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation CppCastExpressionAST::firstSourceLocation() {
+auto CppCastExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(castLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lessLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
@@ -1256,10 +1264,10 @@ SourceLocation CppCastExpressionAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation CppCastExpressionAST::lastSourceLocation() {
+auto CppCastExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
@@ -1267,142 +1275,142 @@ SourceLocation CppCastExpressionAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
   if (auto loc = cxx::lastSourceLocation(lessLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(castLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation NewExpressionAST::firstSourceLocation() {
+auto NewExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(scopeLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(newLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
   if (auto loc = cxx::firstSourceLocation(newInitalizer)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation NewExpressionAST::lastSourceLocation() {
+auto NewExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(newInitalizer)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
   if (auto loc = cxx::lastSourceLocation(newLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(scopeLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation DeleteExpressionAST::firstSourceLocation() {
+auto DeleteExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(scopeLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(deleteLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lbracketLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(rbracketLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation DeleteExpressionAST::lastSourceLocation() {
+auto DeleteExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(rbracketLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(lbracketLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(deleteLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(scopeLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ThrowExpressionAST::firstSourceLocation() {
+auto ThrowExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(throwLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ThrowExpressionAST::lastSourceLocation() {
+auto ThrowExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(throwLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation NoexceptExpressionAST::firstSourceLocation() {
+auto NoexceptExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(noexceptLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation NoexceptExpressionAST::lastSourceLocation() {
+auto NoexceptExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(noexceptLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation LabeledStatementAST::firstSourceLocation() {
+auto LabeledStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(statement)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation LabeledStatementAST::lastSourceLocation() {
+auto LabeledStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(statement)) return loc;
   if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation CaseStatementAST::firstSourceLocation() {
+auto CaseStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(caseLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(statement)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation CaseStatementAST::lastSourceLocation() {
+auto CaseStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(statement)) return loc;
   if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(caseLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation DefaultStatementAST::firstSourceLocation() {
+auto DefaultStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(defaultLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(statement)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation DefaultStatementAST::lastSourceLocation() {
+auto DefaultStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(statement)) return loc;
   if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(defaultLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ExpressionStatementAST::firstSourceLocation() {
+auto ExpressionStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ExpressionStatementAST::lastSourceLocation() {
+auto ExpressionStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation CompoundStatementAST::firstSourceLocation() {
+auto CompoundStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lbraceLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(statementList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rbraceLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation CompoundStatementAST::lastSourceLocation() {
+auto CompoundStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rbraceLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(statementList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lbraceLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation IfStatementAST::firstSourceLocation() {
+auto IfStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(ifLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(constexprLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
@@ -1411,10 +1419,10 @@ SourceLocation IfStatementAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(statement)) return loc;
   if (auto loc = cxx::firstSourceLocation(elseStatement)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation IfStatementAST::lastSourceLocation() {
+auto IfStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(elseStatement)) return loc;
   if (auto loc = cxx::lastSourceLocation(statement)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
@@ -1423,48 +1431,48 @@ SourceLocation IfStatementAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(constexprLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(ifLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation SwitchStatementAST::firstSourceLocation() {
+auto SwitchStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(switchLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(initializer)) return loc;
   if (auto loc = cxx::firstSourceLocation(condition)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(statement)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation SwitchStatementAST::lastSourceLocation() {
+auto SwitchStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(statement)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(condition)) return loc;
   if (auto loc = cxx::lastSourceLocation(initializer)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(switchLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation WhileStatementAST::firstSourceLocation() {
+auto WhileStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(whileLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(condition)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(statement)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation WhileStatementAST::lastSourceLocation() {
+auto WhileStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(statement)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(condition)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(whileLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation DoStatementAST::firstSourceLocation() {
+auto DoStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(doLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(statement)) return loc;
   if (auto loc = cxx::firstSourceLocation(whileLoc)) return loc;
@@ -1472,10 +1480,10 @@ SourceLocation DoStatementAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation DoStatementAST::lastSourceLocation() {
+auto DoStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
@@ -1483,10 +1491,10 @@ SourceLocation DoStatementAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(whileLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(statement)) return loc;
   if (auto loc = cxx::lastSourceLocation(doLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ForRangeStatementAST::firstSourceLocation() {
+auto ForRangeStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(forLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(initializer)) return loc;
@@ -1495,10 +1503,10 @@ SourceLocation ForRangeStatementAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(rangeInitializer)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(statement)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ForRangeStatementAST::lastSourceLocation() {
+auto ForRangeStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(statement)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(rangeInitializer)) return loc;
@@ -1507,10 +1515,10 @@ SourceLocation ForRangeStatementAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(initializer)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(forLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ForStatementAST::firstSourceLocation() {
+auto ForStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(forLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(initializer)) return loc;
@@ -1519,10 +1527,10 @@ SourceLocation ForStatementAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(statement)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ForStatementAST::lastSourceLocation() {
+auto ForStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(statement)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
@@ -1531,194 +1539,194 @@ SourceLocation ForStatementAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(initializer)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(forLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation BreakStatementAST::firstSourceLocation() {
+auto BreakStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(breakLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation BreakStatementAST::lastSourceLocation() {
+auto BreakStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(breakLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ContinueStatementAST::firstSourceLocation() {
+auto ContinueStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(continueLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ContinueStatementAST::lastSourceLocation() {
+auto ContinueStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(continueLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ReturnStatementAST::firstSourceLocation() {
+auto ReturnStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(returnLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ReturnStatementAST::lastSourceLocation() {
+auto ReturnStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(returnLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation GotoStatementAST::firstSourceLocation() {
+auto GotoStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(gotoLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation GotoStatementAST::lastSourceLocation() {
+auto GotoStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(gotoLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation CoroutineReturnStatementAST::firstSourceLocation() {
+auto CoroutineReturnStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(coreturnLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation CoroutineReturnStatementAST::lastSourceLocation() {
+auto CoroutineReturnStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(coreturnLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation DeclarationStatementAST::firstSourceLocation() {
+auto DeclarationStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(declaration)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation DeclarationStatementAST::lastSourceLocation() {
+auto DeclarationStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(declaration)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TryBlockStatementAST::firstSourceLocation() {
+auto TryBlockStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(tryLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(statement)) return loc;
   if (auto loc = cxx::firstSourceLocation(handlerList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TryBlockStatementAST::lastSourceLocation() {
+auto TryBlockStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(handlerList)) return loc;
   if (auto loc = cxx::lastSourceLocation(statement)) return loc;
   if (auto loc = cxx::lastSourceLocation(tryLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation AccessDeclarationAST::firstSourceLocation() {
+auto AccessDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(accessLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation AccessDeclarationAST::lastSourceLocation() {
+auto AccessDeclarationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(accessLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation FunctionDefinitionAST::firstSourceLocation() {
+auto FunctionDefinitionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(declSpecifierList)) return loc;
   if (auto loc = cxx::firstSourceLocation(declarator)) return loc;
   if (auto loc = cxx::firstSourceLocation(requiresClause)) return loc;
   if (auto loc = cxx::firstSourceLocation(functionBody)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation FunctionDefinitionAST::lastSourceLocation() {
+auto FunctionDefinitionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(functionBody)) return loc;
   if (auto loc = cxx::lastSourceLocation(requiresClause)) return loc;
   if (auto loc = cxx::lastSourceLocation(declarator)) return loc;
   if (auto loc = cxx::lastSourceLocation(declSpecifierList)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ConceptDefinitionAST::firstSourceLocation() {
+auto ConceptDefinitionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(conceptLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(name)) return loc;
   if (auto loc = cxx::firstSourceLocation(equalLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ConceptDefinitionAST::lastSourceLocation() {
+auto ConceptDefinitionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(equalLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(name)) return loc;
   if (auto loc = cxx::lastSourceLocation(conceptLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ForRangeDeclarationAST::firstSourceLocation() {
-  return SourceLocation();
+auto ForRangeDeclarationAST::firstSourceLocation() -> SourceLocation {
+  return {};
 }
 
-SourceLocation ForRangeDeclarationAST::lastSourceLocation() {
-  return SourceLocation();
+auto ForRangeDeclarationAST::lastSourceLocation() -> SourceLocation {
+  return {};
 }
 
-SourceLocation AliasDeclarationAST::firstSourceLocation() {
+auto AliasDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(usingLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(equalLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation AliasDeclarationAST::lastSourceLocation() {
+auto AliasDeclarationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
   if (auto loc = cxx::lastSourceLocation(equalLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(usingLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation SimpleDeclarationAST::firstSourceLocation() {
+auto SimpleDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(declSpecifierList)) return loc;
   if (auto loc = cxx::firstSourceLocation(initDeclaratorList)) return loc;
   if (auto loc = cxx::firstSourceLocation(requiresClause)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation SimpleDeclarationAST::lastSourceLocation() {
+auto SimpleDeclarationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(requiresClause)) return loc;
   if (auto loc = cxx::lastSourceLocation(initDeclaratorList)) return loc;
   if (auto loc = cxx::lastSourceLocation(declSpecifierList)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation StaticAssertDeclarationAST::firstSourceLocation() {
+auto StaticAssertDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(staticAssertLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
@@ -1726,10 +1734,10 @@ SourceLocation StaticAssertDeclarationAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(stringLiteralList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation StaticAssertDeclarationAST::lastSourceLocation() {
+auto StaticAssertDeclarationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(stringLiteralList)) return loc;
@@ -1737,32 +1745,32 @@ SourceLocation StaticAssertDeclarationAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(staticAssertLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation EmptyDeclarationAST::firstSourceLocation() {
+auto EmptyDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation EmptyDeclarationAST::lastSourceLocation() {
+auto EmptyDeclarationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation AttributeDeclarationAST::firstSourceLocation() {
+auto AttributeDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation AttributeDeclarationAST::lastSourceLocation() {
+auto AttributeDeclarationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation OpaqueEnumDeclarationAST::firstSourceLocation() {
+auto OpaqueEnumDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(enumLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(classLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
@@ -1770,10 +1778,10 @@ SourceLocation OpaqueEnumDeclarationAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(name)) return loc;
   if (auto loc = cxx::firstSourceLocation(enumBase)) return loc;
   if (auto loc = cxx::firstSourceLocation(emicolonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation OpaqueEnumDeclarationAST::lastSourceLocation() {
+auto OpaqueEnumDeclarationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(emicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(enumBase)) return loc;
   if (auto loc = cxx::lastSourceLocation(name)) return loc;
@@ -1781,18 +1789,18 @@ SourceLocation OpaqueEnumDeclarationAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(classLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(enumLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation UsingEnumDeclarationAST::firstSourceLocation() {
-  return SourceLocation();
+auto UsingEnumDeclarationAST::firstSourceLocation() -> SourceLocation {
+  return {};
 }
 
-SourceLocation UsingEnumDeclarationAST::lastSourceLocation() {
-  return SourceLocation();
+auto UsingEnumDeclarationAST::lastSourceLocation() -> SourceLocation {
+  return {};
 }
 
-SourceLocation NamespaceDefinitionAST::firstSourceLocation() {
+auto NamespaceDefinitionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(inlineLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(namespaceLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
@@ -1802,10 +1810,10 @@ SourceLocation NamespaceDefinitionAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(lbraceLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(declarationList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rbraceLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation NamespaceDefinitionAST::lastSourceLocation() {
+auto NamespaceDefinitionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rbraceLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(declarationList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lbraceLoc)) return loc;
@@ -1815,166 +1823,166 @@ SourceLocation NamespaceDefinitionAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(namespaceLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(inlineLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation NamespaceAliasDefinitionAST::firstSourceLocation() {
+auto NamespaceAliasDefinitionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(namespaceLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(equalLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(name)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation NamespaceAliasDefinitionAST::lastSourceLocation() {
+auto NamespaceAliasDefinitionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(name)) return loc;
   if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::lastSourceLocation(equalLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(namespaceLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation UsingDirectiveAST::firstSourceLocation() {
+auto UsingDirectiveAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(usingLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(namespaceLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(name)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation UsingDirectiveAST::lastSourceLocation() {
+auto UsingDirectiveAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(name)) return loc;
   if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::lastSourceLocation(namespaceLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(usingLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation UsingDeclarationAST::firstSourceLocation() {
+auto UsingDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(usingLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(usingDeclaratorList)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation UsingDeclarationAST::lastSourceLocation() {
+auto UsingDeclarationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(usingDeclaratorList)) return loc;
   if (auto loc = cxx::lastSourceLocation(usingLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation AsmDeclarationAST::firstSourceLocation() {
+auto AsmDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(asmLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(stringLiteralList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation AsmDeclarationAST::lastSourceLocation() {
+auto AsmDeclarationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(stringLiteralList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(asmLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ExportDeclarationAST::firstSourceLocation() {
+auto ExportDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(exportLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(declaration)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ExportDeclarationAST::lastSourceLocation() {
+auto ExportDeclarationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(declaration)) return loc;
   if (auto loc = cxx::lastSourceLocation(exportLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ExportCompoundDeclarationAST::firstSourceLocation() {
+auto ExportCompoundDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(exportLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lbraceLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(declarationList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rbraceLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ExportCompoundDeclarationAST::lastSourceLocation() {
+auto ExportCompoundDeclarationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rbraceLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(declarationList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lbraceLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(exportLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ModuleImportDeclarationAST::firstSourceLocation() {
+auto ModuleImportDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(importLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(importName)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ModuleImportDeclarationAST::lastSourceLocation() {
+auto ModuleImportDeclarationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(importName)) return loc;
   if (auto loc = cxx::lastSourceLocation(importLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TemplateDeclarationAST::firstSourceLocation() {
+auto TemplateDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(templateLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lessLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(templateParameterList)) return loc;
   if (auto loc = cxx::firstSourceLocation(greaterLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(requiresClause)) return loc;
   if (auto loc = cxx::firstSourceLocation(declaration)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TemplateDeclarationAST::lastSourceLocation() {
+auto TemplateDeclarationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(declaration)) return loc;
   if (auto loc = cxx::lastSourceLocation(requiresClause)) return loc;
   if (auto loc = cxx::lastSourceLocation(greaterLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(templateParameterList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lessLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TypenameTypeParameterAST::firstSourceLocation() {
+auto TypenameTypeParameterAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(classKeyLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(equalLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TypenameTypeParameterAST::lastSourceLocation() {
+auto TypenameTypeParameterAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
   if (auto loc = cxx::lastSourceLocation(equalLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(classKeyLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TemplateTypeParameterAST::firstSourceLocation() {
+auto TemplateTypeParameterAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(templateLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lessLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(templateParameterList)) return loc;
@@ -1984,10 +1992,10 @@ SourceLocation TemplateTypeParameterAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(equalLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(name)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TemplateTypeParameterAST::lastSourceLocation() {
+auto TemplateTypeParameterAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(name)) return loc;
   if (auto loc = cxx::lastSourceLocation(equalLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
@@ -1997,10 +2005,10 @@ SourceLocation TemplateTypeParameterAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(templateParameterList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lessLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TemplatePackTypeParameterAST::firstSourceLocation() {
+auto TemplatePackTypeParameterAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(templateLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lessLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(templateParameterList)) return loc;
@@ -2008,10 +2016,10 @@ SourceLocation TemplatePackTypeParameterAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(classKeyLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TemplatePackTypeParameterAST::lastSourceLocation() {
+auto TemplatePackTypeParameterAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(classKeyLoc)) return loc;
@@ -2019,478 +2027,474 @@ SourceLocation TemplatePackTypeParameterAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(templateParameterList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lessLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation DeductionGuideAST::firstSourceLocation() {
-  return SourceLocation();
-}
+auto DeductionGuideAST::firstSourceLocation() -> SourceLocation { return {}; }
 
-SourceLocation DeductionGuideAST::lastSourceLocation() {
-  return SourceLocation();
-}
+auto DeductionGuideAST::lastSourceLocation() -> SourceLocation { return {}; }
 
-SourceLocation ExplicitInstantiationAST::firstSourceLocation() {
+auto ExplicitInstantiationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(externLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(templateLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(declaration)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ExplicitInstantiationAST::lastSourceLocation() {
+auto ExplicitInstantiationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(declaration)) return loc;
   if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(externLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ParameterDeclarationAST::firstSourceLocation() {
+auto ParameterDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeSpecifierList)) return loc;
   if (auto loc = cxx::firstSourceLocation(declarator)) return loc;
   if (auto loc = cxx::firstSourceLocation(equalLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ParameterDeclarationAST::lastSourceLocation() {
+auto ParameterDeclarationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(equalLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(declarator)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeSpecifierList)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation LinkageSpecificationAST::firstSourceLocation() {
+auto LinkageSpecificationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(externLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(stringliteralLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lbraceLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(declarationList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rbraceLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation LinkageSpecificationAST::lastSourceLocation() {
+auto LinkageSpecificationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rbraceLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(declarationList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lbraceLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(stringliteralLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(externLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation SimpleNameAST::firstSourceLocation() {
+auto SimpleNameAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation SimpleNameAST::lastSourceLocation() {
+auto SimpleNameAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation DestructorNameAST::firstSourceLocation() {
+auto DestructorNameAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(tildeLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(id)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation DestructorNameAST::lastSourceLocation() {
+auto DestructorNameAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(id)) return loc;
   if (auto loc = cxx::lastSourceLocation(tildeLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation DecltypeNameAST::firstSourceLocation() {
+auto DecltypeNameAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(decltypeSpecifier)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation DecltypeNameAST::lastSourceLocation() {
+auto DecltypeNameAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(decltypeSpecifier)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation OperatorNameAST::firstSourceLocation() {
+auto OperatorNameAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(operatorLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(opLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(openLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(closeLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation OperatorNameAST::lastSourceLocation() {
+auto OperatorNameAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(closeLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(openLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(opLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(operatorLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ConversionNameAST::firstSourceLocation() {
+auto ConversionNameAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(operatorLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ConversionNameAST::lastSourceLocation() {
+auto ConversionNameAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
   if (auto loc = cxx::lastSourceLocation(operatorLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TemplateNameAST::firstSourceLocation() {
+auto TemplateNameAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(id)) return loc;
   if (auto loc = cxx::firstSourceLocation(lessLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(templateArgumentList)) return loc;
   if (auto loc = cxx::firstSourceLocation(greaterLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TemplateNameAST::lastSourceLocation() {
+auto TemplateNameAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(greaterLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(templateArgumentList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lessLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(id)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation QualifiedNameAST::firstSourceLocation() {
+auto QualifiedNameAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(templateLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(id)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation QualifiedNameAST::lastSourceLocation() {
+auto QualifiedNameAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(id)) return loc;
   if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TypedefSpecifierAST::firstSourceLocation() {
+auto TypedefSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(typedefLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TypedefSpecifierAST::lastSourceLocation() {
+auto TypedefSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(typedefLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation FriendSpecifierAST::firstSourceLocation() {
+auto FriendSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(friendLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation FriendSpecifierAST::lastSourceLocation() {
+auto FriendSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(friendLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ConstevalSpecifierAST::firstSourceLocation() {
+auto ConstevalSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(constevalLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ConstevalSpecifierAST::lastSourceLocation() {
+auto ConstevalSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(constevalLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ConstinitSpecifierAST::firstSourceLocation() {
+auto ConstinitSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(constinitLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ConstinitSpecifierAST::lastSourceLocation() {
+auto ConstinitSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(constinitLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ConstexprSpecifierAST::firstSourceLocation() {
+auto ConstexprSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(constexprLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ConstexprSpecifierAST::lastSourceLocation() {
+auto ConstexprSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(constexprLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation InlineSpecifierAST::firstSourceLocation() {
+auto InlineSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(inlineLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation InlineSpecifierAST::lastSourceLocation() {
+auto InlineSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(inlineLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation StaticSpecifierAST::firstSourceLocation() {
+auto StaticSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(staticLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation StaticSpecifierAST::lastSourceLocation() {
+auto StaticSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(staticLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ExternSpecifierAST::firstSourceLocation() {
+auto ExternSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(externLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ExternSpecifierAST::lastSourceLocation() {
+auto ExternSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(externLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ThreadLocalSpecifierAST::firstSourceLocation() {
+auto ThreadLocalSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(threadLocalLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ThreadLocalSpecifierAST::lastSourceLocation() {
+auto ThreadLocalSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(threadLocalLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ThreadSpecifierAST::firstSourceLocation() {
+auto ThreadSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(threadLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ThreadSpecifierAST::lastSourceLocation() {
+auto ThreadSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(threadLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation MutableSpecifierAST::firstSourceLocation() {
+auto MutableSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(mutableLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation MutableSpecifierAST::lastSourceLocation() {
+auto MutableSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(mutableLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation VirtualSpecifierAST::firstSourceLocation() {
+auto VirtualSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(virtualLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation VirtualSpecifierAST::lastSourceLocation() {
+auto VirtualSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(virtualLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ExplicitSpecifierAST::firstSourceLocation() {
+auto ExplicitSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(explicitLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ExplicitSpecifierAST::lastSourceLocation() {
+auto ExplicitSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(explicitLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation AutoTypeSpecifierAST::firstSourceLocation() {
+auto AutoTypeSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(autoLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation AutoTypeSpecifierAST::lastSourceLocation() {
+auto AutoTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(autoLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation VoidTypeSpecifierAST::firstSourceLocation() {
+auto VoidTypeSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(voidLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation VoidTypeSpecifierAST::lastSourceLocation() {
+auto VoidTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(voidLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation VaListTypeSpecifierAST::firstSourceLocation() {
+auto VaListTypeSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(specifierLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation VaListTypeSpecifierAST::lastSourceLocation() {
+auto VaListTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(specifierLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation IntegralTypeSpecifierAST::firstSourceLocation() {
+auto IntegralTypeSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(specifierLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation IntegralTypeSpecifierAST::lastSourceLocation() {
+auto IntegralTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(specifierLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation FloatingPointTypeSpecifierAST::firstSourceLocation() {
+auto FloatingPointTypeSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(specifierLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation FloatingPointTypeSpecifierAST::lastSourceLocation() {
+auto FloatingPointTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(specifierLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ComplexTypeSpecifierAST::firstSourceLocation() {
+auto ComplexTypeSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(complexLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ComplexTypeSpecifierAST::lastSourceLocation() {
+auto ComplexTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(complexLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation NamedTypeSpecifierAST::firstSourceLocation() {
+auto NamedTypeSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(name)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation NamedTypeSpecifierAST::lastSourceLocation() {
+auto NamedTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(name)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation AtomicTypeSpecifierAST::firstSourceLocation() {
+auto AtomicTypeSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(atomicLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation AtomicTypeSpecifierAST::lastSourceLocation() {
+auto AtomicTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(atomicLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation UnderlyingTypeSpecifierAST::firstSourceLocation() {
-  return SourceLocation();
+auto UnderlyingTypeSpecifierAST::firstSourceLocation() -> SourceLocation {
+  return {};
 }
 
-SourceLocation UnderlyingTypeSpecifierAST::lastSourceLocation() {
-  return SourceLocation();
+auto UnderlyingTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
+  return {};
 }
 
-SourceLocation ElaboratedTypeSpecifierAST::firstSourceLocation() {
+auto ElaboratedTypeSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(classLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(name)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ElaboratedTypeSpecifierAST::lastSourceLocation() {
+auto ElaboratedTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(name)) return loc;
   if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(classLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation DecltypeAutoSpecifierAST::firstSourceLocation() {
+auto DecltypeAutoSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(decltypeLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(autoLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation DecltypeAutoSpecifierAST::lastSourceLocation() {
+auto DecltypeAutoSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(autoLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(decltypeLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation DecltypeSpecifierAST::firstSourceLocation() {
+auto DecltypeSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(decltypeLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation DecltypeSpecifierAST::lastSourceLocation() {
+auto DecltypeSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(decltypeLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation PlaceholderTypeSpecifierAST::firstSourceLocation() {
+auto PlaceholderTypeSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(typeConstraint)) return loc;
   if (auto loc = cxx::firstSourceLocation(specifier)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation PlaceholderTypeSpecifierAST::lastSourceLocation() {
+auto PlaceholderTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(specifier)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeConstraint)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ConstQualifierAST::firstSourceLocation() {
+auto ConstQualifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(constLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ConstQualifierAST::lastSourceLocation() {
+auto ConstQualifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(constLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation VolatileQualifierAST::firstSourceLocation() {
+auto VolatileQualifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(volatileLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation VolatileQualifierAST::lastSourceLocation() {
+auto VolatileQualifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(volatileLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation RestrictQualifierAST::firstSourceLocation() {
+auto RestrictQualifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(restrictLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation RestrictQualifierAST::lastSourceLocation() {
+auto RestrictQualifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(restrictLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation EnumSpecifierAST::firstSourceLocation() {
+auto EnumSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(enumLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(classLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
@@ -2501,10 +2505,10 @@ SourceLocation EnumSpecifierAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(commaLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(enumeratorList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rbraceLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation EnumSpecifierAST::lastSourceLocation() {
+auto EnumSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rbraceLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(enumeratorList)) return loc;
   if (auto loc = cxx::lastSourceLocation(commaLoc)) return loc;
@@ -2515,10 +2519,10 @@ SourceLocation EnumSpecifierAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(classLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(enumLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ClassSpecifierAST::firstSourceLocation() {
+auto ClassSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(classLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(name)) return loc;
@@ -2526,10 +2530,10 @@ SourceLocation ClassSpecifierAST::firstSourceLocation() {
   if (auto loc = cxx::firstSourceLocation(lbraceLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(declarationList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rbraceLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ClassSpecifierAST::lastSourceLocation() {
+auto ClassSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rbraceLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(declarationList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lbraceLoc)) return loc;
@@ -2537,119 +2541,119 @@ SourceLocation ClassSpecifierAST::lastSourceLocation() {
   if (auto loc = cxx::lastSourceLocation(name)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(classLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TypenameSpecifierAST::firstSourceLocation() {
+auto TypenameSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(typenameLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(name)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation TypenameSpecifierAST::lastSourceLocation() {
+auto TypenameSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(name)) return loc;
   if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::lastSourceLocation(typenameLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation IdDeclaratorAST::firstSourceLocation() {
+auto IdDeclaratorAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(name)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation IdDeclaratorAST::lastSourceLocation() {
+auto IdDeclaratorAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(name)) return loc;
   if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation NestedDeclaratorAST::firstSourceLocation() {
+auto NestedDeclaratorAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(declarator)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation NestedDeclaratorAST::lastSourceLocation() {
+auto NestedDeclaratorAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(declarator)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation PointerOperatorAST::firstSourceLocation() {
+auto PointerOperatorAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(starLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(cvQualifierList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation PointerOperatorAST::lastSourceLocation() {
+auto PointerOperatorAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(cvQualifierList)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(starLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ReferenceOperatorAST::firstSourceLocation() {
+auto ReferenceOperatorAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(refLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ReferenceOperatorAST::lastSourceLocation() {
+auto ReferenceOperatorAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(refLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation PtrToMemberOperatorAST::firstSourceLocation() {
+auto PtrToMemberOperatorAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(starLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(cvQualifierList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation PtrToMemberOperatorAST::lastSourceLocation() {
+auto PtrToMemberOperatorAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(cvQualifierList)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(starLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation FunctionDeclaratorAST::firstSourceLocation() {
+auto FunctionDeclaratorAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(parametersAndQualifiers)) return loc;
   if (auto loc = cxx::firstSourceLocation(trailingReturnType)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation FunctionDeclaratorAST::lastSourceLocation() {
+auto FunctionDeclaratorAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(trailingReturnType)) return loc;
   if (auto loc = cxx::lastSourceLocation(parametersAndQualifiers)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ArrayDeclaratorAST::firstSourceLocation() {
+auto ArrayDeclaratorAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lbracketLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(rbracketLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
-  return SourceLocation();
+  return {};
 }
 
-SourceLocation ArrayDeclaratorAST::lastSourceLocation() {
+auto ArrayDeclaratorAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(rbracketLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(lbracketLoc)) return loc;
-  return SourceLocation();
+  return {};
 }
 
 }  // namespace cxx

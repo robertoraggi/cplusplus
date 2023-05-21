@@ -42,26 +42,34 @@ class TranslationUnit {
 
   ~TranslationUnit();
 
-  Control* control() const { return control_; }
+  [[nodiscard]] auto control() const -> Control* { return control_; }
 
-  Arena* arena() const { return arena_.get(); }
+  [[nodiscard]] auto arena() const -> Arena* { return arena_.get(); }
 
-  DiagnosticsClient* diagnosticsClient() const { return diagnosticsClient_; }
+  [[nodiscard]] auto diagnosticsClient() const -> DiagnosticsClient* {
+    return diagnosticsClient_;
+  }
 
-  UnitAST* ast() const { return ast_; }
+  [[nodiscard]] auto ast() const -> UnitAST* { return ast_; }
 
-  const std::string& fileName() const { return fileName_; }
-  Preprocessor* preprocessor() const { return preprocessor_.get(); }
+  [[nodiscard]] auto fileName() const -> const std::string& {
+    return fileName_;
+  }
+  [[nodiscard]] auto preprocessor() const -> Preprocessor* {
+    return preprocessor_.get();
+  }
 
   void setSource(std::string source, std::string fileName);
 
-  bool fatalErrors() const { return diagnosticsClient_->fatalErrors(); }
+  [[nodiscard]] auto fatalErrors() const -> bool {
+    return diagnosticsClient_->fatalErrors();
+  }
 
   void setFatalErrors(bool fatalErrors) {
     diagnosticsClient_->setFatalErrors(fatalErrors);
   }
 
-  bool blockErrors(bool blockErrors = true) {
+  auto blockErrors(bool blockErrors = true) -> bool {
     return diagnosticsClient_->blockErrors(blockErrors);
   }
 
@@ -76,9 +84,11 @@ class TranslationUnit {
   }
 
   // tokens
-  inline unsigned tokenCount() const { return unsigned(tokens_.size()); }
+  [[nodiscard]] inline auto tokenCount() const -> unsigned {
+    return static_cast<unsigned>(tokens_.size());
+  }
 
-  inline const Token& tokenAt(SourceLocation loc) const {
+  [[nodiscard]] inline auto tokenAt(SourceLocation loc) const -> const Token& {
     return tokens_[loc.index()];
   }
 
@@ -86,7 +96,7 @@ class TranslationUnit {
     tokens_[loc.index()].setKind(kind);
   }
 
-  inline TokenKind tokenKind(SourceLocation loc) const {
+  [[nodiscard]] inline auto tokenKind(SourceLocation loc) const -> TokenKind {
     return tokenAt(loc).kind();
   }
 
@@ -94,9 +104,9 @@ class TranslationUnit {
     tokens_[loc.index()].setValue(value);
   }
 
-  int tokenLength(SourceLocation loc) const;
+  [[nodiscard]] auto tokenLength(SourceLocation loc) const -> int;
 
-  const std::string& tokenText(SourceLocation loc) const;
+  [[nodiscard]] auto tokenText(SourceLocation loc) const -> const std::string&;
 
   void getTokenStartPosition(SourceLocation loc, unsigned* line,
                              unsigned* column = nullptr,
@@ -106,11 +116,11 @@ class TranslationUnit {
                            unsigned* column = nullptr,
                            std::string_view* fileName = nullptr) const;
 
-  const Identifier* identifier(SourceLocation loc) const;
+  [[nodiscard]] auto identifier(SourceLocation loc) const -> const Identifier*;
 
-  const Literal* literal(SourceLocation loc) const;
+  [[nodiscard]] auto literal(SourceLocation loc) const -> const Literal*;
 
-  bool parse(bool checkTypes = false);
+  auto parse(bool checkTypes = false) -> bool;
 
   void replaceWithIdentifier(SourceLocation loc);
 

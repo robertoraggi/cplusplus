@@ -41,7 +41,7 @@ class ConditionCodegen : private ExpressionCodegen {
   void visit(IntLiteralExpressionAST* ast) override;
   void visit(BinaryExpressionAST* ast) override;
 
-  bool isRelOp(ir::BinaryOp op) const;
+  [[nodiscard]] auto isRelOp(ir::BinaryOp op) const -> bool;
 
  private:
   ir::Block* iftrue_ = nullptr;

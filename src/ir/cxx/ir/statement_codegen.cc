@@ -47,8 +47,7 @@ void StatementCodegen::visit(LabeledStatementAST* ast) {
 }
 
 void StatementCodegen::visit(CaseStatementAST* ast) {
-  if (!cg->currentSwitch())
-    cxx_runtime_error("case label without switch");
+  if (!cg->currentSwitch()) cxx_runtime_error("case label without switch");
   auto condition = cg->expression(ast->expression);
   auto target = cg->createBlock();
   cg->currentSwitch()->addCase(ir::Switch::Case(condition, target));
@@ -57,8 +56,7 @@ void StatementCodegen::visit(CaseStatementAST* ast) {
 }
 
 void StatementCodegen::visit(DefaultStatementAST* ast) {
-  if (!cg->currentSwitch())
-    cxx_runtime_error("default label without switch");
+  if (!cg->currentSwitch()) cxx_runtime_error("default label without switch");
   auto target = cg->createBlock();
   cg->currentSwitch()->setDefaultBlock(target);
   cg->place(target);
@@ -201,8 +199,7 @@ void StatementCodegen::visit(GotoStatementAST* ast) {
 }
 
 void StatementCodegen::visit(CoroutineReturnStatementAST* ast) {
-  cxx_runtime_error(
-      "visit(CoroutineReturnStatementAST): not implemented");
+  cxx_runtime_error("visit(CoroutineReturnStatementAST): not implemented");
 }
 
 void StatementCodegen::visit(DeclarationStatementAST* ast) {
@@ -226,7 +223,7 @@ void StatementCodegen::visit(SimpleDeclarationAST* ast) {
   }
 }
 
-ir::Expr* StatementCodegen::accept(InitializerAST* ast) {
+auto StatementCodegen::accept(InitializerAST* ast) -> ir::Expr* {
   if (!ast) return nullptr;
   ir::Expr* initializer = nullptr;
   std::swap(initializer_, initializer);

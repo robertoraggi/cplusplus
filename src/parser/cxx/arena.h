@@ -37,9 +37,9 @@ class Arena {
     char* ptr;
 
     Block(const Block&) = delete;
-    Block& operator=(const Block&) = delete;
+    auto operator=(const Block&) -> Block& = delete;
 
-    Block() { ptr = data = (char*)std::malloc(SIZE); }
+    Block() { ptr = data = static_cast<char*>(std::malloc(SIZE)); }
 
     ~Block() {
       if (data) std::free(data);
@@ -50,7 +50,7 @@ class Arena {
 
  public:
   Arena(const Arena& other) = delete;
-  Arena& operator=(const Arena& other) = delete;
+  auto operator=(const Arena& other) -> Arena& = delete;
   Arena() = default;
   ~Arena() { reset(); }
 
@@ -59,7 +59,7 @@ class Arena {
     blocks.clear();
   }
 
-  void* allocate(std::size_t size) noexcept {
+  auto allocate(std::size_t size) noexcept -> void* {
     if (!blocks.empty()) {
       auto block = blocks.back();
       block->ptr = (char*)((intptr_t(block->ptr) + 7) & ~7);
@@ -73,7 +73,7 @@ class Arena {
 };
 
 struct Managed {
-  void* operator new(std::size_t size, Arena* arena) noexcept {
+  auto operator new(std::size_t size, Arena* arena) noexcept -> void* {
     return arena->allocate(size);
   }
   void operator delete(void* ptr, std::size_t) {}

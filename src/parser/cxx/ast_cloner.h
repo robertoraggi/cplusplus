@@ -28,7 +28,7 @@ namespace cxx {
 
 class ASTCloner : public ASTVisitor {
  public:
-  virtual AST* clone(AST* ast, Arena* arena);
+  virtual auto clone(AST* ast, Arena* arena) -> AST*;
 
   void visit(TypeIdAST* ast) override;
   void visit(NestedNameSpecifierAST* ast) override;
@@ -233,7 +233,7 @@ class ASTCloner : public ASTVisitor {
 
  protected:
   template <typename T>
-  T accept(T ast) {
+  auto accept(T ast) -> T {
     if (!ast) return nullptr;
     AST* copy = nullptr;
     std::swap(copy_, copy);

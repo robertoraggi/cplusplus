@@ -65,7 +65,7 @@ enum class ClassKey : std::uint8_t {
   kUnion,
 };
 
-inline std::string_view to_string_view(ClassKey classKey) {
+inline auto to_string_view(ClassKey classKey) -> std::string_view {
   switch (classKey) {
     case ClassKey::kClass:
       return "class";
@@ -74,7 +74,7 @@ inline std::string_view to_string_view(ClassKey classKey) {
     case ClassKey::kUnion:
       return "union";
     default:
-      return std::string_view();
+      return {};
   }  // switch
 }
 
@@ -86,14 +86,14 @@ enum class LookupOptions {
   kTypeOrNamespace = kType | kNamespace,
 };
 
-constexpr LookupOptions operator&(LookupOptions lhs,
-                                  LookupOptions rhs) noexcept {
+constexpr auto operator&(LookupOptions lhs, LookupOptions rhs) noexcept
+    -> LookupOptions {
   using U = std::underlying_type<LookupOptions>::type;
   return static_cast<LookupOptions>(static_cast<U>(lhs) & static_cast<U>(rhs));
 }
 
-constexpr LookupOptions operator|(LookupOptions lhs,
-                                  LookupOptions rhs) noexcept {
+constexpr auto operator|(LookupOptions lhs, LookupOptions rhs) noexcept
+    -> LookupOptions {
   using U = std::underlying_type<LookupOptions>::type;
   return static_cast<LookupOptions>(static_cast<U>(lhs) | static_cast<U>(rhs));
 }

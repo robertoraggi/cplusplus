@@ -44,89 +44,90 @@ struct SymbolFactory::Private {
 
 SymbolFactory::SymbolFactory() : d(std::make_unique<Private>()) {}
 
-SymbolFactory::~SymbolFactory() {}
+SymbolFactory::~SymbolFactory() = default;
 
-NamespaceSymbol* SymbolFactory::newNamespaceSymbol(Scope* enclosingScope,
-                                                   const Name* name) {
+auto SymbolFactory::newNamespaceSymbol(Scope* enclosingScope, const Name* name)
+    -> NamespaceSymbol* {
   auto symbol = &d->namespaceSymbols.emplace_front(enclosingScope, name);
   return symbol;
 }
 
-ClassSymbol* SymbolFactory::newClassSymbol(Scope* enclosingScope,
-                                           const Name* name) {
+auto SymbolFactory::newClassSymbol(Scope* enclosingScope, const Name* name)
+    -> ClassSymbol* {
   auto symbol = &d->classSymbols.emplace_front(enclosingScope, name);
   return symbol;
 }
 
-ConceptSymbol* SymbolFactory::newConceptSymbol(Scope* enclosingScope,
-                                               const Name* name) {
+auto SymbolFactory::newConceptSymbol(Scope* enclosingScope, const Name* name)
+    -> ConceptSymbol* {
   auto symbol = &d->conceptSymbols.emplace_front(enclosingScope, name);
   return symbol;
 }
 
-TypedefSymbol* SymbolFactory::newTypedefSymbol(Scope* enclosingScope,
-                                               const Name* name) {
+auto SymbolFactory::newTypedefSymbol(Scope* enclosingScope, const Name* name)
+    -> TypedefSymbol* {
   auto symbol = &d->typedefSymbols.emplace_front(enclosingScope, name);
   return symbol;
 }
 
-EnumSymbol* SymbolFactory::newEnumSymbol(Scope* enclosingScope,
-                                         const Name* name) {
+auto SymbolFactory::newEnumSymbol(Scope* enclosingScope, const Name* name)
+    -> EnumSymbol* {
   auto symbol = &d->enumSymbols.emplace_front(enclosingScope, name);
   return symbol;
 }
 
-EnumeratorSymbol* SymbolFactory::newEnumeratorSymbol(Scope* enclosingScope,
-                                                     const Name* name) {
+auto SymbolFactory::newEnumeratorSymbol(Scope* enclosingScope, const Name* name)
+    -> EnumeratorSymbol* {
   auto symbol = &d->enumeratorSymbols.emplace_front(enclosingScope, name);
   return symbol;
 }
 
-ScopedEnumSymbol* SymbolFactory::newScopedEnumSymbol(Scope* enclosingScope,
-                                                     const Name* name) {
+auto SymbolFactory::newScopedEnumSymbol(Scope* enclosingScope, const Name* name)
+    -> ScopedEnumSymbol* {
   auto symbol = &d->scopedEnumSymbols.emplace_front(enclosingScope, name);
   return symbol;
 }
 
-TemplateParameterList* SymbolFactory::newTemplateParameterList(
-    Scope* enclosingScope) {
+auto SymbolFactory::newTemplateParameterList(Scope* enclosingScope)
+    -> TemplateParameterList* {
   auto symbol = &d->templateParameterLists.emplace_front(enclosingScope);
   return symbol;
 }
 
-TemplateTypeParameterSymbol* SymbolFactory::newTemplateTypeParameterSymbol(
-    Scope* enclosingScope, const Name* name) {
+auto SymbolFactory::newTemplateTypeParameterSymbol(Scope* enclosingScope,
+                                                   const Name* name)
+    -> TemplateTypeParameterSymbol* {
   auto symbol =
       &d->templateTypeParameterSymbols.emplace_front(enclosingScope, name);
   return symbol;
 }
 
-VariableSymbol* SymbolFactory::newVariableSymbol(Scope* enclosingScope,
-                                                 const Name* name) {
+auto SymbolFactory::newVariableSymbol(Scope* enclosingScope, const Name* name)
+    -> VariableSymbol* {
   auto symbol = &d->variableSymbols.emplace_front(enclosingScope, name);
   return symbol;
 }
 
-FieldSymbol* SymbolFactory::newFieldSymbol(Scope* enclosingScope,
-                                           const Name* name) {
+auto SymbolFactory::newFieldSymbol(Scope* enclosingScope, const Name* name)
+    -> FieldSymbol* {
   auto symbol = &d->fieldSymbols.emplace_front(enclosingScope, name);
   return symbol;
 }
 
-FunctionSymbol* SymbolFactory::newFunctionSymbol(Scope* enclosingScope,
-                                                 const Name* name) {
+auto SymbolFactory::newFunctionSymbol(Scope* enclosingScope, const Name* name)
+    -> FunctionSymbol* {
   auto symbol = &d->functionSymbols.emplace_front(enclosingScope, name);
   return symbol;
 }
 
-ArgumentSymbol* SymbolFactory::newArgumentSymbol(Scope* enclosingScope,
-                                                 const Name* name) {
+auto SymbolFactory::newArgumentSymbol(Scope* enclosingScope, const Name* name)
+    -> ArgumentSymbol* {
   auto symbol = &d->argumentSymbols.emplace_front(enclosingScope, name);
   return symbol;
 }
 
-BlockSymbol* SymbolFactory::newBlockSymbol(Scope* enclosingScope,
-                                           const Name* name) {
+auto SymbolFactory::newBlockSymbol(Scope* enclosingScope, const Name* name)
+    -> BlockSymbol* {
   auto symbol = &d->blockSymbols.emplace_front(enclosingScope, name);
   return symbol;
 }

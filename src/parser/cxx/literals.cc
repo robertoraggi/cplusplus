@@ -24,7 +24,7 @@
 
 namespace cxx {
 
-Literal::~Literal() {}
+Literal::~Literal() = default;
 
 IntegerLiteral::IntegerLiteral(std::string text) : Literal(std::move(text)) {
   if (value().find('\'') == std::string_view::npos) {
@@ -42,7 +42,7 @@ IntegerLiteral::IntegerLiteral(std::string text) : Literal(std::move(text)) {
   integerValue_ = interpretText(s);
 }
 
-std::uint64_t IntegerLiteral::interpretText(std::string_view text) {
+auto IntegerLiteral::interpretText(std::string_view text) -> std::uint64_t {
   while (text.ends_with('l') || text.ends_with('L')  //
          || text.ends_with('u') || text.ends_with('U')) {
     text = text.substr(0, text.length() - 1);

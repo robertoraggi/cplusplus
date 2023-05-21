@@ -33,11 +33,11 @@ class TypePrinter final : TypeVisitor {
   void operator()(std::ostream& out, const QualifiedType& type,
                   std::string id = std::string());
 
-  std::string toString(const QualifiedType& type,
-                       std::string id = std::string());
+  auto toString(const QualifiedType& type, std::string id = std::string())
+      -> std::string;
 
-  std::string toString(const QualifiedType& type, std::string id,
-                       bool addFormals);
+  auto toString(const QualifiedType& type, std::string id, bool addFormals)
+      -> std::string;
 
  private:
   void addQualifiers(std::string& out, Qualifiers qualifiers);

@@ -34,44 +34,47 @@ class IRFactory {
   IRFactory();
   ~IRFactory();
 
-  Module* module() const;
+  [[nodiscard]] auto module() const -> Module*;
   void setModule(Module* module);
 
-  Global* createGlobal(Symbol* symbol);
-  Function* createFunction(FunctionSymbol* symbol);
-  Block* createBlock(Function* function);
-  Move* createMove(Expr* target, Expr* source);
-  Jump* createJump(Block* target);
-  CondJump* createCondJump(Expr* condition, Block* iftrue, Block* iffalse);
-  Switch* createSwitch(Expr* condition);
-  Ret* createRet(Expr* result);
-  RetVoid* createRetVoid();
-  This* createThis(const QualifiedType& type);
-  BoolLiteral* createBoolLiteral(bool value);
-  CharLiteral* createCharLiteral(const cxx::CharLiteral* value);
-  IntegerLiteral* createIntegerLiteral(const IntegerValue& value);
-  FloatLiteral* createFloatLiteral(const FloatValue& value);
-  NullptrLiteral* createNullptrLiteral();
-  StringLiteral* createStringLiteral(const cxx::StringLiteral* value);
-  UserDefinedStringLiteral* createUserDefinedStringLiteral(std::string value);
-  Temp* createTemp(Local* local);
-  Id* createId(Symbol* symbol);
-  ExternalId* createExternalId(std::string name);
-  Typeid* createTypeid(Expr* expr);
-  Unary* createUnary(UnaryOp op, Expr* expr);
-  Binary* createBinary(BinaryOp op, Expr* left, Expr* right);
-  Call* createCall(Expr* base, std::vector<Expr*> args);
-  Subscript* createSubscript(Expr* base, Expr* index);
-  Access* createAccess(Expr* base, Symbol* member);
-  Cast* createCast(const QualifiedType& type, Expr* expr);
-  StaticCast* createStaticCast(const QualifiedType& type, Expr* expr);
-  DynamicCast* createDynamicCast(const QualifiedType& type, Expr* expr);
-  ReinterpretCast* createReinterpretCast(const QualifiedType& type, Expr* expr);
-  New* createNew(const QualifiedType& type, std::vector<Expr*> args);
-  NewArray* createNewArray(const QualifiedType& type, Expr* size);
-  Delete* createDelete(Expr* expr);
-  DeleteArray* createDeleteArray(Expr* expr);
-  Throw* createThrow(Expr* expr);
+  auto createGlobal(Symbol* symbol) -> Global*;
+  auto createFunction(FunctionSymbol* symbol) -> Function*;
+  auto createBlock(Function* function) -> Block*;
+  auto createMove(Expr* target, Expr* source) -> Move*;
+  auto createJump(Block* target) -> Jump*;
+  auto createCondJump(Expr* condition, Block* iftrue, Block* iffalse)
+      -> CondJump*;
+  auto createSwitch(Expr* condition) -> Switch*;
+  auto createRet(Expr* result) -> Ret*;
+  auto createRetVoid() -> RetVoid*;
+  auto createThis(const QualifiedType& type) -> This*;
+  auto createBoolLiteral(bool value) -> BoolLiteral*;
+  auto createCharLiteral(const cxx::CharLiteral* value) -> CharLiteral*;
+  auto createIntegerLiteral(const IntegerValue& value) -> IntegerLiteral*;
+  auto createFloatLiteral(const FloatValue& value) -> FloatLiteral*;
+  auto createNullptrLiteral() -> NullptrLiteral*;
+  auto createStringLiteral(const cxx::StringLiteral* value) -> StringLiteral*;
+  auto createUserDefinedStringLiteral(std::string value)
+      -> UserDefinedStringLiteral*;
+  auto createTemp(Local* local) -> Temp*;
+  auto createId(Symbol* symbol) -> Id*;
+  auto createExternalId(std::string name) -> ExternalId*;
+  auto createTypeid(Expr* expr) -> Typeid*;
+  auto createUnary(UnaryOp op, Expr* expr) -> Unary*;
+  auto createBinary(BinaryOp op, Expr* left, Expr* right) -> Binary*;
+  auto createCall(Expr* base, std::vector<Expr*> args) -> Call*;
+  auto createSubscript(Expr* base, Expr* index) -> Subscript*;
+  auto createAccess(Expr* base, Symbol* member) -> Access*;
+  auto createCast(const QualifiedType& type, Expr* expr) -> Cast*;
+  auto createStaticCast(const QualifiedType& type, Expr* expr) -> StaticCast*;
+  auto createDynamicCast(const QualifiedType& type, Expr* expr) -> DynamicCast*;
+  auto createReinterpretCast(const QualifiedType& type, Expr* expr)
+      -> ReinterpretCast*;
+  auto createNew(const QualifiedType& type, std::vector<Expr*> args) -> New*;
+  auto createNewArray(const QualifiedType& type, Expr* size) -> NewArray*;
+  auto createDelete(Expr* expr) -> Delete*;
+  auto createDeleteArray(Expr* expr) -> DeleteArray*;
+  auto createThrow(Expr* expr) -> Throw*;
 
  private:
   struct Private;

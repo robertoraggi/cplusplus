@@ -46,7 +46,7 @@ class SymbolPrinter final : SymbolVisitor {
   void indent();
   void deindent();
 
-  std::string symbolName(Symbol* symbol);
+  auto symbolName(Symbol* symbol) -> std::string;
 
   void visit(ConceptSymbol* symbol) override;
   void visit(NamespaceSymbol* symbol) override;

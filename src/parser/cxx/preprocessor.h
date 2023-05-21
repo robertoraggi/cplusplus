@@ -52,23 +52,23 @@ class PreprocessorDelegate {
 class Preprocessor {
  public:
   Preprocessor(Preprocessor &&) noexcept = default;
-  Preprocessor &operator=(Preprocessor &&) noexcept = default;
+  auto operator=(Preprocessor &&) noexcept -> Preprocessor & = default;
 
   explicit Preprocessor(Control *control, DiagnosticsClient *diagnosticsClient);
   ~Preprocessor();
 
-  DiagnosticsClient *diagnosticsClient() const;
+  [[nodiscard]] auto diagnosticsClient() const -> DiagnosticsClient *;
 
-  CommentHandler *commentHandler() const;
+  [[nodiscard]] auto commentHandler() const -> CommentHandler *;
   void setCommentHandler(CommentHandler *commentHandler);
 
-  PreprocessorDelegate *delegate() const;
+  [[nodiscard]] auto delegate() const -> PreprocessorDelegate *;
   void setDelegate(PreprocessorDelegate *delegate);
 
-  bool canResolveFiles() const;
+  [[nodiscard]] auto canResolveFiles() const -> bool;
   void setCanResolveFiles(bool canResolveFiles);
 
-  std::string currentPath() const;
+  [[nodiscard]] auto currentPath() const -> std::string;
   void setCurrentPath(std::string currentPath);
 
   void operator()(std::string source, std::string fileName, std::ostream &out);
@@ -78,7 +78,8 @@ class Preprocessor {
   void preprocess(std::string source, std::string fileName,
                   std::vector<Token> &tokens);
 
-  const std::vector<std::string> &systemIncludePaths() const;
+  [[nodiscard]] auto systemIncludePaths() const
+      -> const std::vector<std::string> &;
 
   void addSystemIncludePath(std::string path);
 
@@ -95,9 +96,9 @@ class Preprocessor {
   void getTokenEndPosition(const Token &token, unsigned *line, unsigned *column,
                            std::string_view *fileName) const;
 
-  std::string_view getTextLine(const Token &token) const;
+  [[nodiscard]] auto getTextLine(const Token &token) const -> std::string_view;
 
-  std::string_view getTokenText(const Token &token) const;
+  [[nodiscard]] auto getTokenText(const Token &token) const -> std::string_view;
 
   void squeeze();
 

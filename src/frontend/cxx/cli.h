@@ -42,7 +42,7 @@ struct CLIFlag : std::tuple<std::string> {
 
 using CLIMatch = std::variant<CLIFlag, CLIOption, CLIPositional>;
 
-std::string to_string(const CLIMatch& match);
+auto to_string(const CLIMatch& match) -> std::string;
 
 class CLI {
   std::vector<CLIMatch> result_;
@@ -66,21 +66,23 @@ class CLI {
   bool opt_verify = false;
   bool opt_v = false;
 
-  bool checkTypes() const {
+  [[nodiscard]] auto checkTypes() const -> bool {
     return opt_ir_dump || opt_S || opt_c || opt_fsyntax_only;
   }
 
   void parse(int& argc, char**& argv);
 
-  int count(const std::string& flag) const;
-  std::optional<std::string> getSingle(const std::string& opt) const;
-  std::vector<std::string> get(const std::string& opt) const;
-  std::vector<std::string> positionals() const;
+  [[nodiscard]] auto count(const std::string& flag) const -> int;
+  [[nodiscard]] auto getSingle(const std::string& opt) const
+      -> std::optional<std::string>;
+  [[nodiscard]] auto get(const std::string& opt) const
+      -> std::vector<std::string>;
+  [[nodiscard]] auto positionals() const -> std::vector<std::string>;
 
   void showHelp();
 
-  auto begin() const { return result_.begin(); }
-  auto end() const { return result_.end(); }
+  [[nodiscard]] auto begin() const { return result_.begin(); }
+  [[nodiscard]] auto end() const { return result_.end(); }
 };
 
 }  // namespace cxx

@@ -34,30 +34,30 @@ class Type {
 
   virtual void accept(TypeVisitor* visitor) const = 0;
 
-  bool isIntegral() const;
-  bool isArithmetic() const;
-  bool isScalar() const;
-  bool isFundamental() const;
-  bool isCompound() const;
-  bool isObject() const;
+  [[nodiscard]] auto isIntegral() const -> bool;
+  [[nodiscard]] auto isArithmetic() const -> bool;
+  [[nodiscard]] auto isScalar() const -> bool;
+  [[nodiscard]] auto isFundamental() const -> bool;
+  [[nodiscard]] auto isCompound() const -> bool;
+  [[nodiscard]] auto isObject() const -> bool;
 
   template <typename T>
-  static const T* cast(const QualifiedType& qualType) {
+  static auto cast(const QualifiedType& qualType) -> const T* {
     return dynamic_cast<const T*>(qualType.type());
   }
 
   template <typename T>
-  static const T* cast(const Type* type) {
+  static auto cast(const Type* type) -> const T* {
     return dynamic_cast<const T*>(type);
   }
 
   template <typename T>
-  static bool is(const QualifiedType& qualType) {
+  static auto is(const QualifiedType& qualType) -> bool {
     return cast<T>(qualType) != nullptr;
   }
 
   template <typename T>
-  static bool is(const Type* type) {
+  static auto is(const Type* type) -> bool {
     return cast<T>(type) != nullptr;
   }
 };
@@ -66,7 +66,7 @@ class UndefinedType final : public Type {
   UndefinedType() = default;
 
  public:
-  static const UndefinedType* get();
+  static auto get() -> const UndefinedType*;
 
   void accept(TypeVisitor* visitor) const override;
 };
@@ -75,42 +75,42 @@ class ErrorType final : public Type {
   ErrorType() = default;
 
  public:
-  static const ErrorType* get();
+  static auto get() -> const ErrorType*;
 
   void accept(TypeVisitor* visitor) const override;
 };
 
 class AutoType final : public Type {
  public:
-  static const AutoType* get();
+  static auto get() -> const AutoType*;
 
   void accept(TypeVisitor* visitor) const override;
 };
 
 class DecltypeAutoType final : public Type {
  public:
-  static const DecltypeAutoType* get();
+  static auto get() -> const DecltypeAutoType*;
 
   void accept(TypeVisitor* visitor) const override;
 };
 
 class VoidType final : public Type {
  public:
-  static const VoidType* get();
+  static auto get() -> const VoidType*;
 
   void accept(TypeVisitor* visitor) const override;
 };
 
 class NullptrType final : public Type {
  public:
-  static const NullptrType* get();
+  static auto get() -> const NullptrType*;
 
   void accept(TypeVisitor* visitor) const override;
 };
 
 class BooleanType final : public Type {
  public:
-  static const BooleanType* get();
+  static auto get() -> const BooleanType*;
 
   void accept(TypeVisitor* visitor) const override;
 };
@@ -119,7 +119,7 @@ class CharacterType final : public Type, public std::tuple<CharacterKind> {
  public:
   explicit CharacterType(CharacterKind kind) noexcept : tuple(kind) {}
 
-  CharacterKind kind() const { return get<0>(*this); }
+  [[nodiscard]] auto kind() const -> CharacterKind { return get<0>(*this); }
 
   void accept(TypeVisitor* visitor) const override;
 };
@@ -129,9 +129,9 @@ class IntegerType final : public Type, public std::tuple<IntegerKind, bool> {
   IntegerType(IntegerKind kind, bool isUnsigned) noexcept
       : tuple(kind, isUnsigned) {}
 
-  IntegerKind kind() const { return get<0>(*this); }
+  [[nodiscard]] auto kind() const -> IntegerKind { return get<0>(*this); }
 
-  bool isUnsigned() const { return get<1>(*this); }
+  [[nodiscard]] auto isUnsigned() const -> bool { return get<1>(*this); }
 
   void accept(TypeVisitor* visitor) const override;
 };
@@ -141,7 +141,7 @@ class FloatingPointType final : public Type,
  public:
   explicit FloatingPointType(FloatingPointKind kind) noexcept : tuple(kind) {}
 
-  FloatingPointKind kind() const { return get<0>(*this); }
+  [[nodiscard]] auto kind() const -> FloatingPointKind { return get<0>(*this); }
 
   void accept(TypeVisitor* visitor) const override;
 };
@@ -150,7 +150,7 @@ class EnumType final : public Type, public std::tuple<EnumSymbol*> {
  public:
   explicit EnumType(EnumSymbol* symbol) noexcept : tuple(symbol) {}
 
-  EnumSymbol* symbol() const { return get<0>(*this); }
+  [[nodiscard]] auto symbol() const -> EnumSymbol* { return get<0>(*this); }
 
   void accept(TypeVisitor* visitor) const override;
 };
@@ -159,7 +159,9 @@ class ScopedEnumType final : public Type, public std::tuple<ScopedEnumSymbol*> {
  public:
   explicit ScopedEnumType(ScopedEnumSymbol* symbol) noexcept : tuple(symbol) {}
 
-  ScopedEnumSymbol* symbol() const { return get<0>(*this); }
+  [[nodiscard]] auto symbol() const -> ScopedEnumSymbol* {
+    return get<0>(*this);
+  }
 
   void accept(TypeVisitor* visitor) const override;
 };
@@ -170,9 +172,11 @@ class PointerType final : public Type,
   PointerType(const QualifiedType& elementType, Qualifiers qualifiers) noexcept
       : tuple(elementType, qualifiers) {}
 
-  const QualifiedType& elementType() const { return get<0>(*this); }
+  [[nodiscard]] auto elementType() const -> const QualifiedType& {
+    return get<0>(*this);
+  }
 
-  Qualifiers qualifiers() const { return get<1>(*this); }
+  [[nodiscard]] auto qualifiers() const -> Qualifiers { return get<1>(*this); }
 
   void accept(TypeVisitor* visitor) const override;
 };
@@ -186,11 +190,15 @@ class PointerToMemberType final
                       Qualifiers qualifiers) noexcept
       : tuple(classType, elementType, qualifiers) {}
 
-  const ClassType* classType() const { return get<0>(*this); }
+  [[nodiscard]] auto classType() const -> const ClassType* {
+    return get<0>(*this);
+  }
 
-  const QualifiedType& elementType() const { return get<1>(*this); }
+  [[nodiscard]] auto elementType() const -> const QualifiedType& {
+    return get<1>(*this);
+  }
 
-  Qualifiers qualifiers() const { return get<2>(*this); }
+  [[nodiscard]] auto qualifiers() const -> Qualifiers { return get<2>(*this); }
 
   void accept(TypeVisitor* visitor) const override;
 };
@@ -200,7 +208,9 @@ class ReferenceType final : public Type, public std::tuple<QualifiedType> {
   explicit ReferenceType(const QualifiedType& elementType) noexcept
       : tuple(elementType) {}
 
-  const QualifiedType& elementType() const { return get<0>(*this); }
+  [[nodiscard]] auto elementType() const -> const QualifiedType& {
+    return get<0>(*this);
+  }
 
   void accept(TypeVisitor* visitor) const override;
 };
@@ -211,7 +221,9 @@ class RValueReferenceType final : public Type,
   explicit RValueReferenceType(const QualifiedType& elementType) noexcept
       : tuple(elementType) {}
 
-  const QualifiedType& elementType() const { return get<0>(*this); }
+  [[nodiscard]] auto elementType() const -> const QualifiedType& {
+    return get<0>(*this);
+  }
 
   void accept(TypeVisitor* visitor) const override;
 };
@@ -222,9 +234,11 @@ class ArrayType final : public Type,
   ArrayType(const QualifiedType& elementType, std::size_t dimension) noexcept
       : tuple(elementType, dimension) {}
 
-  const QualifiedType& elementType() const { return get<0>(*this); }
+  [[nodiscard]] auto elementType() const -> const QualifiedType& {
+    return get<0>(*this);
+  }
 
-  std::size_t dimension() const { return get<1>(*this); }
+  [[nodiscard]] auto dimension() const -> std::size_t { return get<1>(*this); }
 
   void accept(TypeVisitor* visitor) const override;
 };
@@ -234,7 +248,9 @@ class UnboundArrayType final : public Type, public std::tuple<QualifiedType> {
   explicit UnboundArrayType(const QualifiedType& elementType) noexcept
       : tuple(elementType) {}
 
-  const QualifiedType& elementType() const { return get<0>(*this); }
+  [[nodiscard]] auto elementType() const -> const QualifiedType& {
+    return get<0>(*this);
+  }
 
   void accept(TypeVisitor* visitor) const override;
 };
@@ -248,13 +264,16 @@ class FunctionType final
                         bool isVariadic) noexcept
       : tuple(returnType, std::move(argumentTypes), isVariadic) {}
 
-  const QualifiedType& returnType() const { return get<0>(*this); }
+  [[nodiscard]] auto returnType() const -> const QualifiedType& {
+    return get<0>(*this);
+  }
 
-  const std::vector<QualifiedType>& argumentTypes() const {
+  [[nodiscard]] auto argumentTypes() const
+      -> const std::vector<QualifiedType>& {
     return get<1>(*this);
   }
 
-  bool isVariadic() const { return get<2>(*this); }
+  [[nodiscard]] auto isVariadic() const -> bool { return get<2>(*this); }
 
   void accept(TypeVisitor* visitor) const override;
 };
@@ -270,15 +289,20 @@ class MemberFunctionType final
                               bool isVariadic) noexcept
       : tuple(classType, returnType, std::move(argumentTypes), isVariadic) {}
 
-  const ClassType* classType() const { return get<0>(*this); }
+  [[nodiscard]] auto classType() const -> const ClassType* {
+    return get<0>(*this);
+  }
 
-  const QualifiedType& returnType() const { return get<1>(*this); }
+  [[nodiscard]] auto returnType() const -> const QualifiedType& {
+    return get<1>(*this);
+  }
 
-  const std::vector<QualifiedType>& argumentTypes() const {
+  [[nodiscard]] auto argumentTypes() const
+      -> const std::vector<QualifiedType>& {
     return get<2>(*this);
   }
 
-  bool isVariadic() const { return get<3>(*this); }
+  [[nodiscard]] auto isVariadic() const -> bool { return get<3>(*this); }
 
   void accept(TypeVisitor* visitor) const override;
 };
@@ -287,7 +311,9 @@ class NamespaceType final : public Type, public std::tuple<NamespaceSymbol*> {
  public:
   explicit NamespaceType(NamespaceSymbol* symbol) noexcept : tuple(symbol) {}
 
-  NamespaceSymbol* symbol() const { return get<0>(*this); }
+  [[nodiscard]] auto symbol() const -> NamespaceSymbol* {
+    return get<0>(*this);
+  }
 
   void accept(TypeVisitor* visitor) const override;
 };
@@ -296,7 +322,7 @@ class ClassType final : public Type, public std::tuple<ClassSymbol*> {
  public:
   explicit ClassType(ClassSymbol* symbol) noexcept : tuple(symbol) {}
 
-  ClassSymbol* symbol() const { return get<0>(*this); }
+  [[nodiscard]] auto symbol() const -> ClassSymbol* { return get<0>(*this); }
 
   void accept(TypeVisitor* visitor) const override;
 };
@@ -307,7 +333,9 @@ class TemplateType final : public Type,
   explicit TemplateType(TemplateParameterList* symbol) noexcept
       : tuple(symbol) {}
 
-  TemplateParameterList* symbol() const { return get<0>(*this); }
+  [[nodiscard]] auto symbol() const -> TemplateParameterList* {
+    return get<0>(*this);
+  }
 
   void accept(TypeVisitor* visitor) const override;
 };
@@ -319,7 +347,9 @@ class TemplateArgumentType final
   explicit TemplateArgumentType(TemplateTypeParameterSymbol* symbol) noexcept
       : tuple(symbol) {}
 
-  TemplateTypeParameterSymbol* symbol() const { return get<0>(*this); }
+  [[nodiscard]] auto symbol() const -> TemplateTypeParameterSymbol* {
+    return get<0>(*this);
+  }
 
   void accept(TypeVisitor* visitor) const override;
 };
@@ -328,7 +358,7 @@ class ConceptType final : public Type, public std::tuple<ConceptSymbol*> {
  public:
   explicit ConceptType(ConceptSymbol* symbol) noexcept : tuple(symbol) {}
 
-  ConceptSymbol* symbol() const { return get<0>(*this); }
+  [[nodiscard]] auto symbol() const -> ConceptSymbol* { return get<0>(*this); }
 
   void accept(TypeVisitor* visitor) const override;
 };

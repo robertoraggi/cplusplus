@@ -26,7 +26,7 @@
 
 namespace cxx {
 
-[[noreturn]] void cxx_runtime_error(std::string msg) {
+[[noreturn]] void cxx_runtime_error(const std::string& msg) {
 #if __cpp_exceptions
   throw std::runtime_error(msg);
 #else

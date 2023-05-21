@@ -35,9 +35,9 @@ class StatementCodegen final : public DefaultASTVisitor {
   void gen(ExpressionAST* ast);
 
  private:
-  ir::IRBuilder& ir();
+  auto ir() -> ir::IRBuilder&;
 
-  ir::Expr* accept(InitializerAST* ast);
+  auto accept(InitializerAST* ast) -> ir::Expr*;
 
   using DefaultASTVisitor::visit;
 

@@ -35,18 +35,18 @@ namespace cxx::ir {
 class Module final {
  public:
   Module(const Module&) = delete;
-  Module& operator=(const Module&) = delete;
+  auto operator=(const Module&) -> Module& = delete;
 
   Module();
   ~Module();
 
-  const std::list<Function*>& functions() const;
+  [[nodiscard]] auto functions() const -> const std::list<Function*>&;
   void addFunction(Function* function);
 
-  const std::list<Global*>& globals() const;
+  [[nodiscard]] auto globals() const -> const std::list<Global*>&;
   void addGlobal(Global* global);
 
-  IRFactory* irFactory();
+  auto irFactory() -> IRFactory*;
 
  private:
   struct Private;
@@ -58,8 +58,8 @@ class Global final {
   explicit Global(Module* module, Symbol* symbol)
       : module_(module), symbol_(symbol) {}
 
-  Module* module() const { return module_; }
-  Symbol* symbol() const { return symbol_; }
+  [[nodiscard]] auto module() const -> Module* { return module_; }
+  [[nodiscard]] auto symbol() const -> Symbol* { return symbol_; }
 
  private:
   Module* module_;
@@ -70,8 +70,8 @@ class Local final {
  public:
   Local(const QualifiedType& type, int index) : type_(type), index_(index) {}
 
-  const QualifiedType& type() const { return type_; }
-  int index() const { return index_; }
+  [[nodiscard]] auto type() const -> const QualifiedType& { return type_; }
+  [[nodiscard]] auto index() const -> int { return index_; }
 
  private:
   QualifiedType type_;
@@ -83,16 +83,20 @@ class Function final {
   Function(Module* module, FunctionSymbol* symbol)
       : module_(module), symbol_(symbol) {}
 
-  Module* module() const { return module_; }
-  FunctionSymbol* symbol() const { return symbol_; }
+  [[nodiscard]] auto module() const -> Module* { return module_; }
+  [[nodiscard]] auto symbol() const -> FunctionSymbol* { return symbol_; }
 
-  const std::list<Block*>& blocks() const { return blocks_; }
+  [[nodiscard]] auto blocks() const -> const std::list<Block*>& {
+    return blocks_;
+  }
 
   void addBlock(Block* block) { blocks_.push_back(block); }
 
-  const std::list<Local>& locals() const { return locals_; }
+  [[nodiscard]] auto locals() const -> const std::list<Local>& {
+    return locals_;
+  }
 
-  Local* addLocal(const QualifiedType& type);
+  auto addLocal(const QualifiedType& type) -> Local*;
 
  private:
   Module* module_;
@@ -105,14 +109,14 @@ class Block final {
  public:
   explicit Block(Function* function) : function_(function) {}
 
-  Function* function() const { return function_; }
+  [[nodiscard]] auto function() const -> Function* { return function_; }
 
-  std::list<Stmt*>& code() { return code_; }
-  const std::list<Stmt*>& code() const { return code_; }
+  auto code() -> std::list<Stmt*>& { return code_; }
+  [[nodiscard]] auto code() const -> const std::list<Stmt*>& { return code_; }
 
-  int id() const;
+  [[nodiscard]] auto id() const -> int;
 
-  bool hasTerminator() const;
+  [[nodiscard]] auto hasTerminator() const -> bool;
 
  private:
   Function* function_;
@@ -126,7 +130,7 @@ class Stmt {
 
   virtual void accept(IRVisitor* visitor) = 0;
 
-  virtual bool isTerminator() const { return false; }
+  [[nodiscard]] virtual auto isTerminator() const -> bool { return false; }
 };
 
 class Expr : public Stmt {
@@ -138,8 +142,8 @@ class Move final : public Stmt {
  public:
   Move(Expr* target, Expr* source) : target_(target), source_(source) {}
 
-  Expr* target() const { return target_; }
-  Expr* source() const { return source_; }
+  [[nodiscard]] auto target() const -> Expr* { return target_; }
+  [[nodiscard]] auto source() const -> Expr* { return source_; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -152,9 +156,9 @@ class Jump final : public Stmt {
  public:
   explicit Jump(Block* target) : target_(target) {}
 
-  Block* target() const { return target_; }
+  [[nodiscard]] auto target() const -> Block* { return target_; }
 
-  bool isTerminator() const override { return true; }
+  [[nodiscard]] auto isTerminator() const -> bool override { return true; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -167,11 +171,11 @@ class CondJump final : public Stmt {
   CondJump(Expr* condition, Block* iftrue, Block* iffalse)
       : condition_(condition), iftrue_(iftrue), iffalse_(iffalse) {}
 
-  Expr* condition() const { return condition_; }
-  Block* iftrue() const { return iftrue_; }
-  Block* iffalse() const { return iffalse_; }
+  [[nodiscard]] auto condition() const -> Expr* { return condition_; }
+  [[nodiscard]] auto iftrue() const -> Block* { return iftrue_; }
+  [[nodiscard]] auto iffalse() const -> Block* { return iffalse_; }
 
-  bool isTerminator() const override { return true; }
+  [[nodiscard]] auto isTerminator() const -> bool override { return true; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -187,15 +191,17 @@ class Switch final : public Stmt {
 
   explicit Switch(Expr* condition) : condition_(condition) {}
 
-  Expr* condition() const { return condition_; }
+  [[nodiscard]] auto condition() const -> Expr* { return condition_; }
 
-  Block* defaultBlock() { return defaultBlock_; }
+  auto defaultBlock() -> Block* { return defaultBlock_; }
   void setDefaultBlock(Block* defaultBlock) { defaultBlock_ = defaultBlock; }
 
-  const std::vector<Case>& cases() const { return cases_; }
+  [[nodiscard]] auto cases() const -> const std::vector<Case>& {
+    return cases_;
+  }
   void addCase(const Case& caseStmt) { cases_.push_back(caseStmt); }
 
-  bool isTerminator() const override { return true; }
+  [[nodiscard]] auto isTerminator() const -> bool override { return true; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -209,9 +215,9 @@ class Ret final : public Stmt {
  public:
   explicit Ret(Expr* result) : result_(result) {}
 
-  Expr* result() const { return result_; }
+  [[nodiscard]] auto result() const -> Expr* { return result_; }
 
-  bool isTerminator() const override { return true; }
+  [[nodiscard]] auto isTerminator() const -> bool override { return true; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -223,7 +229,7 @@ class RetVoid final : public Stmt {
  public:
   RetVoid() = default;
 
-  bool isTerminator() const override { return true; }
+  [[nodiscard]] auto isTerminator() const -> bool override { return true; }
 
   void accept(IRVisitor* visitor) override;
 };
@@ -232,7 +238,7 @@ class This final : public Expr {
  public:
   explicit This(const QualifiedType& type) : type_(type) {}
 
-  const QualifiedType& type() const { return type_; }
+  [[nodiscard]] auto type() const -> const QualifiedType& { return type_; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -244,7 +250,7 @@ class BoolLiteral final : public Expr {
  public:
   explicit BoolLiteral(bool value) : value_(value) {}
 
-  bool value() const { return value_; }
+  [[nodiscard]] auto value() const -> bool { return value_; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -256,7 +262,7 @@ class CharLiteral final : public Expr {
  public:
   explicit CharLiteral(const cxx::CharLiteral* value) : value_(value) {}
 
-  const cxx::CharLiteral* value() const { return value_; }
+  [[nodiscard]] auto value() const -> const cxx::CharLiteral* { return value_; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -268,7 +274,7 @@ class IntegerLiteral final : public Expr {
  public:
   explicit IntegerLiteral(const IntegerValue& value) : value_(value) {}
 
-  IntegerValue value() { return value_; }
+  auto value() -> IntegerValue { return value_; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -280,7 +286,7 @@ class FloatLiteral final : public Expr {
  public:
   explicit FloatLiteral(const FloatValue& value) : value_(value) {}
 
-  FloatValue value() const { return value_; }
+  [[nodiscard]] auto value() const -> FloatValue { return value_; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -290,17 +296,18 @@ class FloatLiteral final : public Expr {
 
 class NullptrLiteral final : public Expr {
  public:
-  NullptrLiteral() {}
+  NullptrLiteral() = default;
 
   void accept(IRVisitor* visitor) override;
 };
 
 class StringLiteral final : public Expr {
  public:
-  explicit StringLiteral(const cxx::StringLiteral* value)
-      : value_(std::move(value)) {}
+  explicit StringLiteral(const cxx::StringLiteral* value) : value_(value) {}
 
-  const cxx::StringLiteral* value() const { return value_; }
+  [[nodiscard]] auto value() const -> const cxx::StringLiteral* {
+    return value_;
+  }
 
   void accept(IRVisitor* visitor) override;
 
@@ -313,7 +320,7 @@ class UserDefinedStringLiteral final : public Expr {
   explicit UserDefinedStringLiteral(std::string value)
       : value_(std::move(value)) {}
 
-  const std::string& value() const { return value_; }
+  [[nodiscard]] auto value() const -> const std::string& { return value_; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -325,7 +332,7 @@ class Temp final : public Expr {
  public:
   explicit Temp(Local* local) : local_(local) {}
 
-  Local* local() const { return local_; }
+  [[nodiscard]] auto local() const -> Local* { return local_; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -337,7 +344,7 @@ class Id final : public Expr {
  public:
   explicit Id(Symbol* symbol) : symbol_(symbol) {}
 
-  Symbol* symbol() const { return symbol_; }
+  [[nodiscard]] auto symbol() const -> Symbol* { return symbol_; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -349,7 +356,7 @@ class ExternalId final : public Expr {
  public:
   explicit ExternalId(std::string name) : name_(std::move(name)) {}
 
-  const std::string& name() const { return name_; }
+  [[nodiscard]] auto name() const -> const std::string& { return name_; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -361,7 +368,7 @@ class Typeid final : public Expr {
  public:
   explicit Typeid(Expr* expr) : expr_(expr) {}
 
-  Expr* expr() const { return expr_; }
+  [[nodiscard]] auto expr() const -> Expr* { return expr_; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -373,8 +380,8 @@ class Unary final : public Expr {
  public:
   Unary(UnaryOp op, Expr* expr) : op_(op), expr_(expr) {}
 
-  UnaryOp op() const { return op_; }
-  Expr* expr() const { return expr_; }
+  [[nodiscard]] auto op() const -> UnaryOp { return op_; }
+  [[nodiscard]] auto expr() const -> Expr* { return expr_; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -388,9 +395,9 @@ class Binary final : public Expr {
   Binary(BinaryOp op, Expr* left, Expr* right)
       : op_(op), left_(left), right_(right) {}
 
-  BinaryOp op() const { return op_; }
-  Expr* left() const { return left_; }
-  Expr* right() const { return right_; }
+  [[nodiscard]] auto op() const -> BinaryOp { return op_; }
+  [[nodiscard]] auto left() const -> Expr* { return left_; }
+  [[nodiscard]] auto right() const -> Expr* { return right_; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -405,8 +412,8 @@ class Call final : public Expr {
   Call(Expr* base, std::vector<Expr*> args)
       : base_(base), args_(std::move(args)) {}
 
-  Expr* base() const { return base_; }
-  const std::vector<Expr*>& args() const { return args_; }
+  [[nodiscard]] auto base() const -> Expr* { return base_; }
+  [[nodiscard]] auto args() const -> const std::vector<Expr*>& { return args_; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -419,8 +426,8 @@ class Subscript final : public Expr {
  public:
   Subscript(Expr* base, Expr* index) : base_(base), index_(index) {}
 
-  Expr* base() const { return base_; }
-  Expr* index() const { return index_; }
+  [[nodiscard]] auto base() const -> Expr* { return base_; }
+  [[nodiscard]] auto index() const -> Expr* { return index_; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -433,8 +440,8 @@ class Access final : public Expr {
  public:
   Access(Expr* base, Symbol* member) : base_(base), member_(member) {}
 
-  Expr* base() const { return base_; }
-  Symbol* member() const { return member_; }
+  [[nodiscard]] auto base() const -> Expr* { return base_; }
+  [[nodiscard]] auto member() const -> Symbol* { return member_; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -447,8 +454,8 @@ class Cast final : public Expr {
  public:
   Cast(const QualifiedType& type, Expr* expr) : type_(type), expr_(expr) {}
 
-  const QualifiedType& type() const { return type_; }
-  Expr* expr() const { return expr_; }
+  [[nodiscard]] auto type() const -> const QualifiedType& { return type_; }
+  [[nodiscard]] auto expr() const -> Expr* { return expr_; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -462,8 +469,8 @@ class StaticCast final : public Expr {
   StaticCast(const QualifiedType& type, Expr* expr)
       : type_(type), expr_(expr) {}
 
-  const QualifiedType& type() const { return type_; }
-  Expr* expr() const { return expr_; }
+  [[nodiscard]] auto type() const -> const QualifiedType& { return type_; }
+  [[nodiscard]] auto expr() const -> Expr* { return expr_; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -477,8 +484,8 @@ class DynamicCast final : public Expr {
   DynamicCast(const QualifiedType& type, Expr* expr)
       : type_(type), expr_(expr) {}
 
-  const QualifiedType& type() const { return type_; }
-  Expr* expr() const { return expr_; }
+  [[nodiscard]] auto type() const -> const QualifiedType& { return type_; }
+  [[nodiscard]] auto expr() const -> Expr* { return expr_; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -492,8 +499,8 @@ class ReinterpretCast final : public Expr {
   ReinterpretCast(const QualifiedType& type, Expr* expr)
       : type_(type), expr_(expr) {}
 
-  const QualifiedType& type() const { return type_; }
-  Expr* expr() const { return expr_; }
+  [[nodiscard]] auto type() const -> const QualifiedType& { return type_; }
+  [[nodiscard]] auto expr() const -> Expr* { return expr_; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -507,8 +514,8 @@ class New final : public Expr {
   New(const QualifiedType& type, std::vector<Expr*> args)
       : type_(type), args_(std::move(args)) {}
 
-  const QualifiedType& type() const { return type_; }
-  const std::vector<Expr*>& args() const { return args_; }
+  [[nodiscard]] auto type() const -> const QualifiedType& { return type_; }
+  [[nodiscard]] auto args() const -> const std::vector<Expr*>& { return args_; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -521,8 +528,8 @@ class NewArray final : public Expr {
  public:
   NewArray(const QualifiedType& type, Expr* size) : type_(type), size_(size) {}
 
-  const QualifiedType& type() const { return type_; }
-  Expr* size() const { return size_; }
+  [[nodiscard]] auto type() const -> const QualifiedType& { return type_; }
+  [[nodiscard]] auto size() const -> Expr* { return size_; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -535,7 +542,7 @@ class Delete final : public Expr {
  public:
   explicit Delete(Expr* expr) : expr_(expr) {}
 
-  Expr* expr() const { return expr_; }
+  [[nodiscard]] auto expr() const -> Expr* { return expr_; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -547,7 +554,7 @@ class DeleteArray final : public Expr {
  public:
   explicit DeleteArray(Expr* expr) : expr_(expr) {}
 
-  Expr* expr() const { return expr_; }
+  [[nodiscard]] auto expr() const -> Expr* { return expr_; }
 
   void accept(IRVisitor* visitor) override;
 
@@ -559,7 +566,7 @@ class Throw final : public Expr {
  public:
   explicit Throw(Expr* expr) : expr_(expr) {}
 
-  Expr* expr() const { return expr_; }
+  [[nodiscard]] auto expr() const -> Expr* { return expr_; }
 
   void accept(IRVisitor* visitor) override;
 

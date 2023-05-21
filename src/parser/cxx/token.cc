@@ -39,11 +39,11 @@ std::string token_name[] = {
 #undef TOKEN_SPELL
 }  // namespace
 
-const std::string& Token::spell(TokenKind kind) {
-  return token_spell[(int)kind];
+auto Token::spell(TokenKind kind) -> const std::string& {
+  return token_spell[static_cast<int>(kind)];
 }
 
-const std::string& Token::spell() const {
+auto Token::spell() const -> const std::string& {
   switch (kind()) {
     case TokenKind::T_IDENTIFIER:
       return value_.idValue ? value_.idValue->name() : spell(kind());
@@ -64,8 +64,10 @@ const std::string& Token::spell() const {
   }  // switch
 }
 
-const std::string& Token::name(TokenKind kind) { return token_name[(int)kind]; }
+auto Token::name(TokenKind kind) -> const std::string& {
+  return token_name[static_cast<int>(kind)];
+}
 
-const std::string& Token::name() const { return name(kind()); }
+auto Token::name() const -> const std::string& { return name(kind()); }
 
 }  // namespace cxx

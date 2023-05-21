@@ -38,54 +38,56 @@ namespace cxx::ir {
 class Codegen final : public ir::IRBuilder, RecursiveASTVisitor {
  public:
   Codegen(const Codegen&) = delete;
-  Codegen& operator=(const Codegen&) = delete;
+  auto operator=(const Codegen&) -> Codegen& = delete;
 
   Codegen();
-  ~Codegen();
+  ~Codegen() override;
 
-  std::unique_ptr<ir::Module> operator()(TranslationUnit* unit);
+  auto operator()(TranslationUnit* unit) -> std::unique_ptr<ir::Module>;
 
-  ir::Expr* expression(ExpressionAST* ast);
-  ir::Expr* reduce(ExpressionAST* ast);
+  auto expression(ExpressionAST* ast) -> ir::Expr*;
+  auto reduce(ExpressionAST* ast) -> ir::Expr*;
 
   void condition(ExpressionAST* ast, ir::Block* iftrue, ir::Block* iffalse);
 
   void statement(StatementAST* ast);
   void statement(ExpressionAST* ast);
 
-  ir::IRFactory* irFactory();
+  auto irFactory() -> ir::IRFactory*;
 
-  ir::Block* createBlock();
+  auto createBlock() -> ir::Block*;
 
   void place(ir::Block* block);
 
-  TranslationUnit* unit() const { return unit_; }
-  ir::Function* function() const { return function_; }
-  ir::Block* entryBlock() const { return entryBlock_; }
-  ir::Block* exitBlock() const { return exitBlock_; }
-  ir::Block* breakBlock() const { return breakBlock_; }
-  ir::Block* continueBlock() const { return continueBlock_; }
-  ir::Local* result() const { return result_; }
-  ir::Switch* currentSwitch() const { return switch_; }
+  [[nodiscard]] auto unit() const -> TranslationUnit* { return unit_; }
+  [[nodiscard]] auto function() const -> ir::Function* { return function_; }
+  [[nodiscard]] auto entryBlock() const -> ir::Block* { return entryBlock_; }
+  [[nodiscard]] auto exitBlock() const -> ir::Block* { return exitBlock_; }
+  [[nodiscard]] auto breakBlock() const -> ir::Block* { return breakBlock_; }
+  [[nodiscard]] auto continueBlock() const -> ir::Block* {
+    return continueBlock_;
+  }
+  [[nodiscard]] auto result() const -> ir::Local* { return result_; }
+  [[nodiscard]] auto currentSwitch() const -> ir::Switch* { return switch_; }
 
-  ir::Block* changeBreakBlock(ir::Block* breakBlock) {
+  auto changeBreakBlock(ir::Block* breakBlock) -> ir::Block* {
     std::swap(breakBlock_, breakBlock);
     return breakBlock;
   }
 
-  ir::Block* changeContinueBlock(ir::Block* continueBlock) {
+  auto changeContinueBlock(ir::Block* continueBlock) -> ir::Block* {
     std::swap(continueBlock_, continueBlock);
     return continueBlock;
   }
 
-  ir::Switch* changeCurrentSwitch(ir::Switch* stmt) {
+  auto changeCurrentSwitch(ir::Switch* stmt) -> ir::Switch* {
     std::swap(switch_, stmt);
     return stmt;
   }
 
-  ir::Local* getLocal(Symbol* symbol);
+  auto getLocal(Symbol* symbol) -> ir::Local*;
 
-  ir::Block* findOrCreateTargetBlock(const Identifier* id);
+  auto findOrCreateTargetBlock(const Identifier* id) -> ir::Block*;
 
  private:
   using RecursiveASTVisitor::visit;

@@ -30,31 +30,31 @@ namespace {
 
 std::hash<const Name*> hashName;
 
-inline bool is_set(LookupOptions options, LookupOptions flags) {
+inline auto is_set(LookupOptions options, LookupOptions flags) -> bool {
   return (options & flags) == flags;
 }
 
 }  // namespace
 
-Scope::Scope() {}
+Scope::Scope() = default;
 
-Scope::~Scope() {}
+Scope::~Scope() = default;
 
-Scope* Scope::enclosingScope() const {
+auto Scope::enclosingScope() const -> Scope* {
   return owner_ ? owner_->enclosingScope() : nullptr;
 }
 
-Scope* Scope::skipTemplateScope() const {
+auto Scope::skipTemplateScope() const -> Scope* {
   auto scope = const_cast<Scope*>(this);
   while (scope && scope->isTemplateScope()) scope = scope->enclosingScope();
   return scope;
 }
 
-Symbol* Scope::owner() const { return owner_; }
+auto Scope::owner() const -> Symbol* { return owner_; }
 
 void Scope::setOwner(Symbol* owner) { owner_ = owner; }
 
-bool Scope::isTemplateScope() const {
+auto Scope::isTemplateScope() const -> bool {
   return dynamic_cast<TemplateParameterList*>(owner_);
 }
 
@@ -85,7 +85,8 @@ void Scope::addHelper(Symbol* symbol) {
 }
 
 void Scope::rehash() {
-  const auto bucketCount = std::max(buckets_.size() * 2, std::size_t(8));
+  const auto bucketCount =
+      std::max(buckets_.size() * 2, static_cast<std::size_t>(8));
   buckets_ = std::vector<Symbol*>(bucketCount, nullptr);
   for (auto member : members_) {
     const auto h = hashName(member->name()) % bucketCount;
@@ -94,7 +95,8 @@ void Scope::rehash() {
   }
 }
 
-Symbol* Scope::find(const Name* name, LookupOptions lookupOptions) const {
+auto Scope::find(const Name* name, LookupOptions lookupOptions) const
+    -> Symbol* {
   if (name && members_.size()) {
     const auto h = hashName(name) % buckets_.size();
 
@@ -106,20 +108,22 @@ Symbol* Scope::find(const Name* name, LookupOptions lookupOptions) const {
   return nullptr;
 }
 
-Symbol* Scope::lookup(const Name* name, LookupOptions lookupOptions) const {
+auto Scope::lookup(const Name* name, LookupOptions lookupOptions) const
+    -> Symbol* {
   std::vector<const Scope*> processed;
   return lookup(name, lookupOptions, processed);
 }
 
-Symbol* Scope::unqualifiedLookup(const Name* name,
-                                 LookupOptions lookupOptions) const {
+auto Scope::unqualifiedLookup(const Name* name,
+                              LookupOptions lookupOptions) const -> Symbol* {
   std::vector<const Scope*> processed;
 
   auto scope = this;
 
   while (scope) {
-    if (auto symbol = scope->lookup(name, lookupOptions, processed))
+    if (auto symbol = scope->lookup(name, lookupOptions, processed)) {
       return symbol;
+    }
 
     scope = scope->enclosingScope();
   }
@@ -127,8 +131,8 @@ Symbol* Scope::unqualifiedLookup(const Name* name,
   return nullptr;
 }
 
-Symbol* Scope::lookup(const Name* name, LookupOptions lookupOptions,
-                      std::vector<const Scope*>& processed) const {
+auto Scope::lookup(const Name* name, LookupOptions lookupOptions,
+                   std::vector<const Scope*>& processed) const -> Symbol* {
   if (std::find(processed.begin(), processed.end(), this) == processed.end()) {
     processed.push_back(this);
 
@@ -136,13 +140,16 @@ Symbol* Scope::lookup(const Name* name, LookupOptions lookupOptions,
 
     if (auto ns = dynamic_cast<NamespaceSymbol*>(owner())) {
       for (const auto& u : ns->usingNamespaces()) {
-        if (auto symbol = u->scope()->lookup(name, lookupOptions, processed))
+        if (auto symbol = u->scope()->lookup(name, lookupOptions, processed)) {
           return symbol;
+        }
       }
     } else if (auto classSymbol = dynamic_cast<ClassSymbol*>(owner())) {
       for (const auto& base : classSymbol->baseClasses()) {
-        if (auto symbol = base->scope()->lookup(name, lookupOptions, processed))
+        if (auto symbol =
+                base->scope()->lookup(name, lookupOptions, processed)) {
           return symbol;
+        }
       }
     }
   }
@@ -150,19 +157,22 @@ Symbol* Scope::lookup(const Name* name, LookupOptions lookupOptions,
   return nullptr;
 }
 
-bool Scope::match(Symbol* symbol, LookupOptions options) const {
+auto Scope::match(Symbol* symbol, LookupOptions options) const -> bool {
   if (options == LookupOptions::kDefault) return true;
 
   if (is_set(options, LookupOptions::kNamespace) &&
-      dynamic_cast<NamespaceSymbol*>(symbol) != nullptr)
+      dynamic_cast<NamespaceSymbol*>(symbol) != nullptr) {
     return true;
+  }
 
-  if (is_set(options, LookupOptions::kType) && symbol->isTypeSymbol())
+  if (is_set(options, LookupOptions::kType) && symbol->isTypeSymbol()) {
     return true;
+  }
 
   if (is_set(options, LookupOptions::kTemplate) &&
-      dynamic_cast<TemplateParameterList*>(symbol) != nullptr)
+      dynamic_cast<TemplateParameterList*>(symbol) != nullptr) {
     return true;
+  }
 
   return false;
 }

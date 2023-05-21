@@ -33,38 +33,38 @@ class QualifiedType {
 
   explicit operator bool() const noexcept;
 
-  const Type* operator->() const noexcept { return type_; }
+  auto operator->() const noexcept -> const Type* { return type_; }
 
-  const Type* type() const { return type_; }
+  [[nodiscard]] auto type() const -> const Type* { return type_; }
   void setType(const Type* type);
 
-  Qualifiers qualifiers() const { return qualifiers_; }
+  [[nodiscard]] auto qualifiers() const -> Qualifiers { return qualifiers_; }
   void setQualifiers(Qualifiers qualifiers) { qualifiers_ = qualifiers; }
 
-  QualifiedType unqualified() { return QualifiedType(type()); }
+  auto unqualified() -> QualifiedType { return QualifiedType(type()); }
 
   void mergeWith(const QualifiedType& other) {
     qualifiers_ |= other.qualifiers();
     if (other) setType(other.type());
   }
 
-  bool isConst() const {
+  [[nodiscard]] auto isConst() const -> bool {
     return (qualifiers_ & Qualifiers::kConst) != Qualifiers::kNone;
   }
 
-  bool isVolatile() const {
+  [[nodiscard]] auto isVolatile() const -> bool {
     return (qualifiers_ & Qualifiers::kVolatile) != Qualifiers::kNone;
   }
 
-  bool isRestrict() const {
+  [[nodiscard]] auto isRestrict() const -> bool {
     return (qualifiers_ & Qualifiers::kRestrict) != Qualifiers::kNone;
   }
 
-  bool operator==(const QualifiedType& other) const {
+  auto operator==(const QualifiedType& other) const -> bool {
     return type_ == other.type_ && qualifiers_ == other.qualifiers_;
   }
 
-  bool operator!=(const QualifiedType& other) const {
+  auto operator!=(const QualifiedType& other) const -> bool {
     return !operator==(other);
   }
 
@@ -73,6 +73,6 @@ class QualifiedType {
   Qualifiers qualifiers_;
 };
 
-std::ostream& operator<<(std::ostream& out, const QualifiedType& type);
+auto operator<<(std::ostream& out, const QualifiedType& type) -> std::ostream&;
 
 }  // namespace cxx

@@ -31,7 +31,7 @@ class Preprocessor;
 class Toolchain {
  public:
   Toolchain(const Toolchain &) = delete;
-  Toolchain &operator=(const Toolchain &) = delete;
+  auto operator=(const Toolchain &) -> Toolchain & = delete;
 
   explicit Toolchain(Preprocessor *preprocessor);
   virtual ~Toolchain();
@@ -40,9 +40,11 @@ class Toolchain {
   virtual void addSystemCppIncludePaths() = 0;
   virtual void addPredefinedMacros() = 0;
 
-  Preprocessor *preprocessor() const { return preprocessor_; }
+  [[nodiscard]] auto preprocessor() const -> Preprocessor * {
+    return preprocessor_;
+  }
 
-  void defineMacro(std::string name, std::string definition);
+  void defineMacro(const std::string &name, const std::string &definition);
 
   void addSystemIncludePath(std::string path);
 

@@ -30,6 +30,6 @@ class Arena;
 class Control;
 class TranslationUnit;
 
-[[noreturn]] void cxx_runtime_error(std::string msg);
+[[noreturn]] void cxx_runtime_error(const std::string& msg);
 
 }  // namespace cxx

@@ -326,45 +326,45 @@ union TokenValue {
 class Token {
  public:
   Token(const Token&) = default;
-  Token& operator=(const Token&) = default;
+  auto operator=(const Token&) -> Token& = default;
 
   Token(Token&&) = default;
-  Token& operator=(Token&&) = default;
+  auto operator=(Token&&) -> Token& = default;
 
   Token() = default;
 
   explicit Token(TokenKind kind, unsigned offset = 0, unsigned length = 0,
                  TokenValue value = {});
 
-  inline TokenKind kind() const;
+  [[nodiscard]] inline auto kind() const -> TokenKind;
   inline void setKind(TokenKind kind);
 
-  inline TokenValue value() const;
+  [[nodiscard]] inline auto value() const -> TokenValue;
   inline void setValue(TokenValue value);
 
-  inline unsigned offset() const;
-  inline unsigned length() const;
+  [[nodiscard]] inline auto offset() const -> unsigned;
+  [[nodiscard]] inline auto length() const -> unsigned;
 
-  inline unsigned fileId() const;
+  [[nodiscard]] inline auto fileId() const -> unsigned;
   inline void setFileId(unsigned fileId);
 
-  inline bool startOfLine() const;
+  [[nodiscard]] inline auto startOfLine() const -> bool;
   inline void setStartOfLine(bool startOfLine);
 
-  inline bool leadingSpace() const;
+  [[nodiscard]] inline auto leadingSpace() const -> bool;
   inline void setLeadingSpace(bool leadingSpace);
 
   explicit operator bool() const;
   explicit operator TokenKind() const;
 
-  bool is(TokenKind k) const;
-  bool isNot(TokenKind k) const;
+  [[nodiscard]] auto is(TokenKind k) const -> bool;
+  [[nodiscard]] auto isNot(TokenKind k) const -> bool;
 
-  const std::string& spell() const;
-  const std::string& name() const;
+  [[nodiscard]] auto spell() const -> const std::string&;
+  [[nodiscard]] auto name() const -> const std::string&;
 
-  static const std::string& spell(TokenKind kind);
-  static const std::string& name(TokenKind kind);
+  static auto spell(TokenKind kind) -> const std::string&;
+  static auto name(TokenKind kind) -> const std::string&;
 
  private:
   TokenKind kind_ : 8;
@@ -386,29 +386,29 @@ inline Token::Token(TokenKind kind, unsigned offset, unsigned length,
       offset_(offset),
       value_(value) {}
 
-inline TokenKind Token::kind() const { return kind_; }
+inline auto Token::kind() const -> TokenKind { return kind_; }
 
 inline void Token::setKind(TokenKind kind) { kind_ = kind; }
 
-inline TokenValue Token::value() const { return value_; }
+inline auto Token::value() const -> TokenValue { return value_; }
 
 inline void Token::setValue(TokenValue value) { value_ = value; }
 
-inline unsigned Token::offset() const { return offset_; }
+inline auto Token::offset() const -> unsigned { return offset_; }
 
-inline unsigned Token::length() const { return length_; }
+inline auto Token::length() const -> unsigned { return length_; }
 
-inline unsigned Token::fileId() const { return fileId_; }
+inline auto Token::fileId() const -> unsigned { return fileId_; }
 
 inline void Token::setFileId(unsigned fileId) { fileId_ = fileId; }
 
-inline bool Token::startOfLine() const { return startOfLine_; }
+inline auto Token::startOfLine() const -> bool { return startOfLine_; }
 
 inline void Token::setStartOfLine(bool startOfLine) {
   startOfLine_ = startOfLine;
 }
 
-inline bool Token::leadingSpace() const { return leadingSpace_; }
+inline auto Token::leadingSpace() const -> bool { return leadingSpace_; }
 
 inline void Token::setLeadingSpace(bool leadingSpace) {
   leadingSpace_ = leadingSpace;
@@ -420,8 +420,8 @@ inline Token::operator bool() const {
 
 inline Token::operator TokenKind() const { return kind(); }
 
-inline bool Token::is(TokenKind k) const { return kind() == k; }
+inline auto Token::is(TokenKind k) const -> bool { return kind() == k; }
 
-inline bool Token::isNot(TokenKind k) const { return kind() != k; }
+inline auto Token::isNot(TokenKind k) const -> bool { return kind() != k; }
 
 }  // namespace cxx

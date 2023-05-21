@@ -35,12 +35,12 @@ class IRPrinter final : IRVisitor {
   void print(Stmt* stmt, std::ostream& out);
 
  private:
-  std::string toString(Stmt* stmt);
-  std::string toString(Block* block) const;
-  std::string_view toString(UnaryOp op) const;
-  std::string_view toString(BinaryOp op) const;
+  auto toString(Stmt* stmt) -> std::string;
+  auto toString(Block* block) const -> std::string;
+  [[nodiscard]] auto toString(UnaryOp op) const -> std::string_view;
+  [[nodiscard]] auto toString(BinaryOp op) const -> std::string_view;
 
-  std::string quote(const std::string& s) const;
+  [[nodiscard]] auto quote(const std::string& s) const -> std::string;
 
   void accept(Stmt* stmt);
 

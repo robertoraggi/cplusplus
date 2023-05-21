@@ -75,7 +75,7 @@ class RecursiveASTVisitor : public ASTVisitor {
   virtual void acceptEnumerator(EnumeratorAST* ast);
   virtual void acceptBaseClause(BaseClauseAST* ast);
   virtual void acceptParametersAndQualifiers(ParametersAndQualifiersAST* ast);
-  virtual bool preVisit(AST*) { return true; }
+  virtual auto preVisit(AST*) -> bool { return true; }
   virtual void postVisit(AST*) {}
 
   void visit(TypeIdAST* ast) override;

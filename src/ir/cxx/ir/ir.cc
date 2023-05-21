@@ -38,33 +38,38 @@ Module::Module() : d(std::make_unique<Private>()) {
   d->irFactory_.setModule(this);
 }
 
-Module::~Module() {}
+Module::~Module() = default;
 
-IRFactory* Module::irFactory() { return &d->irFactory_; }
+auto Module::irFactory() -> IRFactory* { return &d->irFactory_; }
 
-const std::list<Global*>& Module::globals() const { return d->globals_; }
+auto Module::globals() const -> const std::list<Global*>& {
+  return d->globals_;
+}
 
 void Module::addGlobal(Global* global) { d->globals_.push_back(global); }
 
-const std::list<Function*>& Module::functions() const { return d->functions_; }
+auto Module::functions() const -> const std::list<Function*>& {
+  return d->functions_;
+}
 
 void Module::addFunction(Function* function) {
   d->functions_.push_back(function);
 }
 
-Local* Function::addLocal(const QualifiedType& type) {
-  int index = int(locals_.size());
+auto Function::addLocal(const QualifiedType& type) -> Local* {
+  int index = static_cast<int>(locals_.size());
   return &locals_.emplace_back(type, index);
 }
 
-int Block::id() const {
+auto Block::id() const -> int {
   auto it = find(begin(function_->blocks()), end(function_->blocks()), this);
-  if (it != end(function_->blocks()))
+  if (it != end(function_->blocks())) {
     return std::distance(begin(function_->blocks()), it) + 1;
+  }
   return 0;
 }
 
-bool Block::hasTerminator() const {
+auto Block::hasTerminator() const -> bool {
   return !code_.empty() && code_.back()->isTerminator();
 }
 
