@@ -108,3 +108,9 @@ jobs:
           docker build -t cxx-wasi -f Dockerfile.wasi .
           mkdir -p out
           docker run --rm -v $PWD/out:/out cxx-wasi cp /app/build.wasi/src/frontend/cxx /out/cxx.wasm
+
+      - name: Test
+        run: |
+          curl https://wasmtime.dev/install.sh -sSf | bash
+
+          ~/.wasmtime/bin/wasmtime out/cxx.wasm -- --help
