@@ -107,7 +107,7 @@ jobs:
         run: |
           docker build -t cxx-wasi -f Dockerfile.wasi .
           mkdir -p out
-          docker run --rm -v $PWD/out:/out cxx-wasi cp /app/build.wasi/src/frontend/cxx /out/cxx.wasm
+          docker run --rm -v $PWD/out:/out cxx-wasi cp /app/build.wasi/src/frontend/cxx.wasm /out/cxx.wasm
 
       - name: Test
         run: |
