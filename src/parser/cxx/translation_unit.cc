@@ -28,7 +28,7 @@
 #include <cxx/names.h>
 #include <cxx/parser.h>
 #include <cxx/preprocessor.h>
-#include <utf8.h>
+#include <utf8/unchecked.h>
 
 namespace cxx {
 

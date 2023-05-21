@@ -31,7 +31,7 @@
 #include <cxx/private/format.h>
 
 // utf8
-#include <utf8.h>
+#include <utf8/unchecked.h>
 
 // stl
 #include <cassert>
@@ -318,7 +318,7 @@ struct SourceFile {
       const auto start = cbegin(source) + *it;
       const auto end = cbegin(source) + offset;
 
-      *column = utf8::distance(start, end) + 1;
+      *column = utf8::unchecked::distance(start, end) + 1;
     }
 
     if (fileName) *fileName = this->fileName;

@@ -20,7 +20,7 @@
 
 #include <cxx/lexer.h>
 #include <cxx/private/format.h>
-#include <utf8.h>
+#include <utf8/unchecked.h>
 
 #include <cassert>
 #include <cctype>
