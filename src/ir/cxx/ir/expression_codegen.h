@@ -31,15 +31,15 @@ class ExpressionCodegen : protected DefaultASTVisitor {
  public:
   explicit ExpressionCodegen(Codegen* cg);
 
-  ir::Expr* gen(ExpressionAST* ast);
-  ir::Expr* reduce(ExpressionAST* ast);
+  auto gen(ExpressionAST* ast) -> ir::Expr*;
+  auto reduce(ExpressionAST* ast) -> ir::Expr*;
 
  protected:
   using DefaultASTVisitor::visit;
 
-  ir::UnaryOp convertUnaryOp(TokenKind tk) const;
-  ir::BinaryOp convertBinaryOp(TokenKind tk) const;
-  ir::BinaryOp convertAssignmentOp(TokenKind tk) const;
+  [[nodiscard]] auto convertUnaryOp(TokenKind tk) const -> ir::UnaryOp;
+  [[nodiscard]] auto convertBinaryOp(TokenKind tk) const -> ir::BinaryOp;
+  [[nodiscard]] auto convertAssignmentOp(TokenKind tk) const -> ir::BinaryOp;
 
   void visit(ThisExpressionAST* ast) override;
   void visit(CharLiteralExpressionAST* ast) override;

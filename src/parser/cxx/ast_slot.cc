@@ -26,8 +26,8 @@
 
 namespace cxx {
 
-std::tuple<std::intptr_t, ASTSlotKind, int> ASTSlot::operator()(AST* ast,
-                                                                int slot) {
+auto ASTSlot::operator()(AST* ast, int slot)
+    -> std::tuple<std::intptr_t, ASTSlotKind, int> {
   std::intptr_t value = 0;
   ASTSlotKind slotKind = ASTSlotKind::kInvalid;
   int slotCount = 0;

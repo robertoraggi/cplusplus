@@ -22,6 +22,6 @@
 
 namespace cxx {
 
-SymbolVisitor::~SymbolVisitor() {}
+SymbolVisitor::~SymbolVisitor() = default;
 
 }  // namespace cxx

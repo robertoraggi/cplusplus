@@ -32,14 +32,14 @@
 
 namespace cxx {
 
-std::optional<std::tuple<std::uint64_t, std::uint64_t>> MemoryLayout::ofType(
-    const QualifiedType& type) {
+auto MemoryLayout::ofType(const QualifiedType& type)
+    -> std::optional<std::tuple<std::uint64_t, std::uint64_t>> {
   static MemoryLayout memoryLayout;
   return memoryLayout(type);
 }
 
-std::optional<std::tuple<std::uint64_t, std::uint64_t>>
-MemoryLayout::operator()(const QualifiedType& type) {
+auto MemoryLayout::operator()(const QualifiedType& type)
+    -> std::optional<std::tuple<std::uint64_t, std::uint64_t>> {
   std::uint64_t size = 0;
   std::uint64_t alignment = 0;
   std::swap(size_, size);
@@ -178,7 +178,7 @@ void MemoryLayout::visit(const ClassType* type) {
     const auto [memberSize, memberAlignment] = *layout;
 
     size = AlignTo(size, memberAlignment) + memberSize;
-    alignment = std::max(alignment, std::size_t(memberAlignment));
+    alignment = std::max(alignment, static_cast<std::size_t>(memberAlignment));
   }
 
   if (size) {

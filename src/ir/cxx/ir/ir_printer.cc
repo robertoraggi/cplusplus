@@ -75,7 +75,7 @@ void IRPrinter::print(Stmt* stmt, std::ostream& out) {
   fmt::print(out, "\t{};\n", toString(stmt));
 }
 
-std::string IRPrinter::toString(Stmt* stmt) {
+auto IRPrinter::toString(Stmt* stmt) -> std::string {
   std::string text;
   if (stmt) {
     std::swap(text_, text);
@@ -85,11 +85,11 @@ std::string IRPrinter::toString(Stmt* stmt) {
   return text;
 }
 
-std::string IRPrinter::toString(Block* block) const {
+auto IRPrinter::toString(Block* block) const -> std::string {
   return fmt::format("L{}", block->id());
 }
 
-std::string_view IRPrinter::toString(UnaryOp op) const {
+auto IRPrinter::toString(UnaryOp op) const -> std::string_view {
   switch (op) {
     case UnaryOp::kStar:
       return "*";
@@ -108,7 +108,7 @@ std::string_view IRPrinter::toString(UnaryOp op) const {
   }  // switch
 }
 
-std::string_view IRPrinter::toString(BinaryOp op) const {
+auto IRPrinter::toString(BinaryOp op) const -> std::string_view {
   switch (op) {
     case BinaryOp::kStar:
       return "*";
@@ -147,7 +147,7 @@ std::string_view IRPrinter::toString(BinaryOp op) const {
   }  // switch
 }
 
-std::string IRPrinter::quote(const std::string& s) const {
+auto IRPrinter::quote(const std::string& s) const -> std::string {
   std::string result;
   for (auto c : s) {
     if (c == '"' || c == '\\') result += '\\';
@@ -203,11 +203,11 @@ void IRPrinter::visit(CharLiteral* expr) { text_ = expr->value()->value(); }
 
 void IRPrinter::visit(IntegerLiteral* expr) {
   struct Print {
-    std::string operator()(std::uint64_t v) const {
+    auto operator()(std::uint64_t v) const -> std::string {
       return fmt::format("{}", v);
     }
 
-    std::string operator()(std::int64_t v) const {
+    auto operator()(std::int64_t v) const -> std::string {
       return fmt::format("{}", v);
     }
   };
@@ -217,9 +217,15 @@ void IRPrinter::visit(IntegerLiteral* expr) {
 
 void IRPrinter::visit(FloatLiteral* expr) {
   struct Print {
-    std::string operator()(float v) const { return fmt::format("{}", v); }
-    std::string operator()(double v) const { return fmt::format("{}", v); }
-    std::string operator()(long double v) const { return fmt::format("{}", v); }
+    auto operator()(float v) const -> std::string {
+      return fmt::format("{}", v);
+    }
+    auto operator()(double v) const -> std::string {
+      return fmt::format("{}", v);
+    }
+    auto operator()(long double v) const -> std::string {
+      return fmt::format("{}", v);
+    }
   };
 
   text_ = std::visit(Print(), expr->value());
@@ -238,10 +244,11 @@ void IRPrinter::visit(Temp* expr) {
 }
 
 void IRPrinter::visit(Id* expr) {
-  if (dynamic_cast<ArgumentSymbol*>(expr->symbol()))
+  if (dynamic_cast<ArgumentSymbol*>(expr->symbol())) {
     text_ = fmt::format("arg{}", expr->symbol()->index());
-  else
+  } else {
     text_ = expr->symbol()->qualifiedId();
+  }
 }
 
 void IRPrinter::visit(ExternalId* expr) { text_ = expr->name(); }

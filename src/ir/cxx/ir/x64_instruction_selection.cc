@@ -33,9 +33,9 @@
 
 namespace cxx::ir {
 
-X64InstructionSelection::X64InstructionSelection() {}
+X64InstructionSelection::X64InstructionSelection() = default;
 
-X64InstructionSelection::~X64InstructionSelection() {}
+X64InstructionSelection::~X64InstructionSelection() = default;
 
 void X64InstructionSelection::operator()(ir::Module* module,
                                          std::ostream& out) {
@@ -70,11 +70,12 @@ void X64InstructionSelection::operator()(ir::Module* module,
   std::swap(labels_, labels);
 }
 
-const std::string& X64InstructionSelection::blockId(ir::Block* block) {
+auto X64InstructionSelection::blockId(ir::Block* block) -> const std::string& {
   auto it = labels_.find(block);
 
-  if (it == labels_.end())
+  if (it == labels_.end()) {
     it = labels_.emplace(block, fmt::format(".L{}", labelCount_++)).first;
+  }
 
   return it->second;
 }

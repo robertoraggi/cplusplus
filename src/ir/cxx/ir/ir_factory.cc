@@ -66,151 +66,159 @@ struct IRFactory::Private {
 
 IRFactory::IRFactory() : d(std::make_unique<Private>()) {}
 
-IRFactory::~IRFactory() {}
+IRFactory::~IRFactory() = default;
 
-Module* IRFactory::module() const { return d->module_; }
+auto IRFactory::module() const -> Module* { return d->module_; }
 
 void IRFactory::setModule(Module* module) { d->module_ = module; }
 
-Global* IRFactory::createGlobal(Symbol* symbol) {
+auto IRFactory::createGlobal(Symbol* symbol) -> Global* {
   return &d->globals_.emplace_front(d->module_, symbol);
 }
 
-Function* IRFactory::createFunction(FunctionSymbol* symbol) {
+auto IRFactory::createFunction(FunctionSymbol* symbol) -> Function* {
   return &d->functions_.emplace_front(d->module_, symbol);
 }
 
-Block* IRFactory::createBlock(Function* function) {
+auto IRFactory::createBlock(Function* function) -> Block* {
   return &d->blocks_.emplace_front(function);
 }
 
-Move* IRFactory::createMove(Expr* target, Expr* source) {
+auto IRFactory::createMove(Expr* target, Expr* source) -> Move* {
   return &d->moves_.emplace_front(target, source);
 }
 
-Jump* IRFactory::createJump(Block* target) {
+auto IRFactory::createJump(Block* target) -> Jump* {
   return &d->jumps_.emplace_front(target);
 }
 
-CondJump* IRFactory::createCondJump(Expr* condition, Block* iftrue,
-                                    Block* iffalse) {
+auto IRFactory::createCondJump(Expr* condition, Block* iftrue, Block* iffalse)
+    -> CondJump* {
   return &d->condJumps_.emplace_front(condition, iftrue, iffalse);
 }
 
-Switch* IRFactory::createSwitch(Expr* condition) {
+auto IRFactory::createSwitch(Expr* condition) -> Switch* {
   return &d->switchs_.emplace_front(condition);
 }
 
-Ret* IRFactory::createRet(Expr* result) {
+auto IRFactory::createRet(Expr* result) -> Ret* {
   return &d->rets_.emplace_front(result);
 }
 
-RetVoid* IRFactory::createRetVoid() { return &d->retVoids_.emplace_front(); }
+auto IRFactory::createRetVoid() -> RetVoid* {
+  return &d->retVoids_.emplace_front();
+}
 
-This* IRFactory::createThis(const QualifiedType& type) {
+auto IRFactory::createThis(const QualifiedType& type) -> This* {
   return &d->this_.emplace_front(type);
 }
 
-BoolLiteral* IRFactory::createBoolLiteral(bool value) {
+auto IRFactory::createBoolLiteral(bool value) -> BoolLiteral* {
   return &d->boolLiterals_.emplace_front(value);
 }
 
-CharLiteral* IRFactory::createCharLiteral(const cxx::CharLiteral* value) {
+auto IRFactory::createCharLiteral(const cxx::CharLiteral* value)
+    -> CharLiteral* {
   return &d->charLiterals_.emplace_front(value);
 }
 
-IntegerLiteral* IRFactory::createIntegerLiteral(const IntegerValue& value) {
+auto IRFactory::createIntegerLiteral(const IntegerValue& value)
+    -> IntegerLiteral* {
   return &d->integerLiterals_.emplace_front(value);
 }
 
-FloatLiteral* IRFactory::createFloatLiteral(const FloatValue& value) {
+auto IRFactory::createFloatLiteral(const FloatValue& value) -> FloatLiteral* {
   return &d->floatLiterals_.emplace_front(value);
 }
 
-NullptrLiteral* IRFactory::createNullptrLiteral() {
+auto IRFactory::createNullptrLiteral() -> NullptrLiteral* {
   return &d->nullptrLiterals_.emplace_front();
 }
 
-StringLiteral* IRFactory::createStringLiteral(const cxx::StringLiteral* value) {
+auto IRFactory::createStringLiteral(const cxx::StringLiteral* value)
+    -> StringLiteral* {
   return &d->stringLiterals_.emplace_front(value);
 }
 
-UserDefinedStringLiteral* IRFactory::createUserDefinedStringLiteral(
-    std::string value) {
+auto IRFactory::createUserDefinedStringLiteral(std::string value)
+    -> UserDefinedStringLiteral* {
   return &d->userDefinedStringLiterals_.emplace_front(std::move(value));
 }
 
-Temp* IRFactory::createTemp(Local* local) {
+auto IRFactory::createTemp(Local* local) -> Temp* {
   return &d->temps_.emplace_front(local);
 }
 
-Id* IRFactory::createId(Symbol* symbol) {
+auto IRFactory::createId(Symbol* symbol) -> Id* {
   return &d->ids_.emplace_front(symbol);
 }
 
-ExternalId* IRFactory::createExternalId(std::string name) {
+auto IRFactory::createExternalId(std::string name) -> ExternalId* {
   return &d->externalIds_.emplace_front(std::move(name));
 }
 
-Typeid* IRFactory::createTypeid(Expr* expr) {
+auto IRFactory::createTypeid(Expr* expr) -> Typeid* {
   return &d->typeids_.emplace_front(expr);
 }
 
-Unary* IRFactory::createUnary(UnaryOp op, Expr* expr) {
+auto IRFactory::createUnary(UnaryOp op, Expr* expr) -> Unary* {
   return &d->unarys_.emplace_front(op, expr);
 }
 
-Binary* IRFactory::createBinary(BinaryOp op, Expr* left, Expr* right) {
+auto IRFactory::createBinary(BinaryOp op, Expr* left, Expr* right) -> Binary* {
   return &d->binarys_.emplace_front(op, left, right);
 }
 
-Call* IRFactory::createCall(Expr* base, std::vector<Expr*> args) {
+auto IRFactory::createCall(Expr* base, std::vector<Expr*> args) -> Call* {
   return &d->calls_.emplace_front(base, std::move(args));
 }
 
-Subscript* IRFactory::createSubscript(Expr* base, Expr* index) {
+auto IRFactory::createSubscript(Expr* base, Expr* index) -> Subscript* {
   return &d->subscripts_.emplace_front(base, index);
 }
 
-Access* IRFactory::createAccess(Expr* base, Symbol* member) {
+auto IRFactory::createAccess(Expr* base, Symbol* member) -> Access* {
   return &d->accesss_.emplace_front(base, member);
 }
 
-Cast* IRFactory::createCast(const QualifiedType& type, Expr* expr) {
+auto IRFactory::createCast(const QualifiedType& type, Expr* expr) -> Cast* {
   return &d->casts_.emplace_front(type, expr);
 }
 
-StaticCast* IRFactory::createStaticCast(const QualifiedType& type, Expr* expr) {
+auto IRFactory::createStaticCast(const QualifiedType& type, Expr* expr)
+    -> StaticCast* {
   return &d->staticCasts_.emplace_front(type, expr);
 }
 
-DynamicCast* IRFactory::createDynamicCast(const QualifiedType& type,
-                                          Expr* expr) {
+auto IRFactory::createDynamicCast(const QualifiedType& type, Expr* expr)
+    -> DynamicCast* {
   return &d->dynamicCasts_.emplace_front(type, expr);
 }
 
-ReinterpretCast* IRFactory::createReinterpretCast(const QualifiedType& type,
-                                                  Expr* expr) {
+auto IRFactory::createReinterpretCast(const QualifiedType& type, Expr* expr)
+    -> ReinterpretCast* {
   return &d->reinterpretCasts_.emplace_front(type, expr);
 }
 
-New* IRFactory::createNew(const QualifiedType& type, std::vector<Expr*> args) {
+auto IRFactory::createNew(const QualifiedType& type, std::vector<Expr*> args)
+    -> New* {
   return &d->news_.emplace_front(type, std::move(args));
 }
 
-NewArray* IRFactory::createNewArray(const QualifiedType& type, Expr* size) {
+auto IRFactory::createNewArray(const QualifiedType& type, Expr* size)
+    -> NewArray* {
   return &d->newArrays_.emplace_front(type, size);
 }
 
-Delete* IRFactory::createDelete(Expr* expr) {
+auto IRFactory::createDelete(Expr* expr) -> Delete* {
   return &d->deletes_.emplace_front(expr);
 }
 
-DeleteArray* IRFactory::createDeleteArray(Expr* expr) {
+auto IRFactory::createDeleteArray(Expr* expr) -> DeleteArray* {
   return &d->deleteArrays_.emplace_front(expr);
 }
 
-Throw* IRFactory::createThrow(Expr* expr) {
+auto IRFactory::createThrow(Expr* expr) -> Throw* {
   return &d->throws_.emplace_front(expr);
 }
 

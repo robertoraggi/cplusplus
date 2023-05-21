@@ -22,7 +22,7 @@
 
 namespace cxx {
 
-AST* ASTCloner::clone(AST* ast, Arena* arena) {
+auto ASTCloner::clone(AST* ast, Arena* arena) -> AST* {
   if (!ast) return nullptr;
   std::swap(arena_, arena);
   auto copy = accept(ast);

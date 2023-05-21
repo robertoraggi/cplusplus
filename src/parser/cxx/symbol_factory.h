@@ -32,36 +32,43 @@ class SymbolFactory final {
   SymbolFactory();
   ~SymbolFactory();
 
-  NamespaceSymbol* newNamespaceSymbol(Scope* enclosingScope, const Name* name);
+  auto newNamespaceSymbol(Scope* enclosingScope, const Name* name)
+      -> NamespaceSymbol*;
 
-  ClassSymbol* newClassSymbol(Scope* enclosingScope, const Name* name);
+  auto newClassSymbol(Scope* enclosingScope, const Name* name) -> ClassSymbol*;
 
-  TypedefSymbol* newTypedefSymbol(Scope* enclosingScope, const Name* name);
+  auto newTypedefSymbol(Scope* enclosingScope, const Name* name)
+      -> TypedefSymbol*;
 
-  ConceptSymbol* newConceptSymbol(Scope* enclosingScope, const Name* name);
+  auto newConceptSymbol(Scope* enclosingScope, const Name* name)
+      -> ConceptSymbol*;
 
-  EnumSymbol* newEnumSymbol(Scope* enclosingScope, const Name* name);
+  auto newEnumSymbol(Scope* enclosingScope, const Name* name) -> EnumSymbol*;
 
-  EnumeratorSymbol* newEnumeratorSymbol(Scope* enclosingScope,
-                                        const Name* name);
+  auto newEnumeratorSymbol(Scope* enclosingScope, const Name* name)
+      -> EnumeratorSymbol*;
 
-  ScopedEnumSymbol* newScopedEnumSymbol(Scope* enclosingScope,
-                                        const Name* name);
+  auto newScopedEnumSymbol(Scope* enclosingScope, const Name* name)
+      -> ScopedEnumSymbol*;
 
-  TemplateParameterList* newTemplateParameterList(Scope* enclosingScope);
+  auto newTemplateParameterList(Scope* enclosingScope)
+      -> TemplateParameterList*;
 
-  TemplateTypeParameterSymbol* newTemplateTypeParameterSymbol(
-      Scope* enclosingScope, const Name* name);
+  auto newTemplateTypeParameterSymbol(Scope* enclosingScope, const Name* name)
+      -> TemplateTypeParameterSymbol*;
 
-  VariableSymbol* newVariableSymbol(Scope* enclosingScope, const Name* name);
+  auto newVariableSymbol(Scope* enclosingScope, const Name* name)
+      -> VariableSymbol*;
 
-  FieldSymbol* newFieldSymbol(Scope* enclosingScope, const Name* name);
+  auto newFieldSymbol(Scope* enclosingScope, const Name* name) -> FieldSymbol*;
 
-  FunctionSymbol* newFunctionSymbol(Scope* enclosingScope, const Name* name);
+  auto newFunctionSymbol(Scope* enclosingScope, const Name* name)
+      -> FunctionSymbol*;
 
-  ArgumentSymbol* newArgumentSymbol(Scope* enclosingScope, const Name* name);
+  auto newArgumentSymbol(Scope* enclosingScope, const Name* name)
+      -> ArgumentSymbol*;
 
-  BlockSymbol* newBlockSymbol(Scope* enclosingScope, const Name* name);
+  auto newBlockSymbol(Scope* enclosingScope, const Name* name) -> BlockSymbol*;
 
  private:
   struct Private;

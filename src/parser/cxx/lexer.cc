@@ -55,25 +55,26 @@ const std::unordered_map<std::string_view, EncodingPrefix>
         {"U", EncodingPrefix::kUtf32},
     };
 
-inline bool is_idcont(int ch) {
-  return ch == '_' || std::isalnum((unsigned char)ch);
+inline auto is_idcont(int ch) -> bool {
+  return ch == '_' || std::isalnum(static_cast<unsigned char>(ch));
 }
 
 template <typename It>
-inline It skipSlash(It it, It end) {
+inline auto skipSlash(It it, It end) -> It {
   while (it < end && *it == '\\') {
-    if (it + 1 < end && it[1] == '\n')
+    if (it + 1 < end && it[1] == '\n') {
       it += 2;
-    else if (it + 2 < end && it[1] == '\r' && it[2] == '\n')
+    } else if (it + 2 < end && it[1] == '\r' && it[2] == '\n') {
       it += 3;
-    else
+    } else {
       break;
+    }
   }
   return it;
 }
 
 template <typename It>
-inline uint32_t peekNext(It it, It end) {
+inline auto peekNext(It it, It end) -> uint32_t {
   it = skipSlash(it, end);
   return it < end ? utf8::unchecked::peek_next(it) : 0;
 }
@@ -110,13 +111,13 @@ void Lexer::consume(int n) {
   currentChar_ = pos_ < end_ ? peekNext(pos_, end_) : 0;
 }
 
-uint32_t Lexer::LA(int n) const {
+auto Lexer::LA(int n) const -> uint32_t {
   auto it = pos_;
   advance(it, n, n >= 0 ? end_ : source_.begin());
   return it < end_ ? peekNext(it, end_) : 0;
 }
 
-TokenKind Lexer::readToken() {
+auto Lexer::readToken() -> TokenKind {
   const auto hasMoreChars = skipSpaces();
 
   tokenIsClean_ = true;
@@ -157,7 +158,7 @@ TokenKind Lexer::readToken() {
 
   if (std::isalpha(ch) || ch == '_') {
     do {
-      text_ += (char)LA();
+      text_ += static_cast<char>(LA());
       consume();
     } while (pos_ != end_ && is_idcont(LA()));
 
@@ -182,8 +183,9 @@ TokenKind Lexer::readToken() {
     if (!isStringOrCharacterLiteral) {
       tokenIsClean_ = text_.length() == tokenLength();
 
-      return !preprocessing_ ? classify(text_.c_str(), int(text_.length()))
-                             : TokenKind::T_IDENTIFIER;
+      return !preprocessing_
+                 ? classify(text_.c_str(), static_cast<int>(text_.length()))
+                 : TokenKind::T_IDENTIFIER;
     }
   }
 
@@ -423,9 +425,8 @@ TokenKind Lexer::readToken() {
         if (pos_ != end_ && LA() == '*') {
           consume();
           return TokenKind::T_MINUS_GREATER_STAR;
-        } else {
-          return TokenKind::T_MINUS_GREATER;
         }
+        return TokenKind::T_MINUS_GREATER;
       }
       return TokenKind::T_MINUS;
 
@@ -452,7 +453,8 @@ TokenKind Lexer::readToken() {
         if (pos_ != end_ && LA() == '=') {
           consume();
           return TokenKind::T_GREATER_EQUAL;
-        } else if (pos_ != end_ && LA() == '>') {
+        }
+        if (pos_ != end_ && LA() == '>') {
           consume();
           if (pos_ != end_ && LA() == '=') {
             consume();
@@ -481,19 +483,20 @@ TokenKind Lexer::readToken() {
           }
         }
         return TokenKind::T_COMMENT;
-      } else if (keepComments_ && LA() == '*') {
+      }
+      if (keepComments_ && LA() == '*') {
         consume();
         while (pos_ != end_) {
           if (pos_ + 1 < end_ && LA() == '*' && LA(1) == '/') {
             consume(2);
             break;
-          } else {
-            consume();
           }
+          consume();
         }
         leadingSpace_ = tokenLeadingSpace_;
         return TokenKind::T_COMMENT;
-      } else if (pos_ != end_ && LA() == '=') {
+      }
+      if (pos_ != end_ && LA() == '=') {
         consume();
         return TokenKind::T_SLASH_EQUAL;
       }
@@ -504,7 +507,7 @@ TokenKind Lexer::readToken() {
   return TokenKind::T_ERROR;
 }  // namespace cxx
 
-bool Lexer::skipSpaces() {
+auto Lexer::skipSpaces() -> bool {
   tokenLeadingSpace_ = leadingSpace_;
   tokenStartOfLine_ = startOfLine_;
 
@@ -532,9 +535,8 @@ bool Lexer::skipSpaces() {
         if (pos_ + 1 < end_ && LA() == '*' && LA(1) == '/') {
           consume(2);
           break;
-        } else {
-          consume();
         }
+        consume();
       }
       // unexpected eof
     } else {
@@ -548,8 +550,8 @@ bool Lexer::skipSpaces() {
   return pos_ != end_;
 }
 
-TokenKind Lexer::classifyKeyword(const std::string_view& text) {
-  return classify(text.data(), int(text.size()));
+auto Lexer::classifyKeyword(const std::string_view& text) -> TokenKind {
+  return classify(text.data(), static_cast<int>(text.size()));
 }
 
 }  // namespace cxx

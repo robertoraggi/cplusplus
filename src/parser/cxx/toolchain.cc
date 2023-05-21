@@ -26,10 +26,11 @@ namespace cxx {
 Toolchain::Toolchain(Preprocessor* preprocessor)
     : preprocessor_(preprocessor) {}
 
-Toolchain::~Toolchain() {}
+Toolchain::~Toolchain() = default;
 
-void Toolchain::defineMacro(std::string name, std::string definition) {
-  preprocessor_->defineMacro(std::move(name), std::move(definition));
+void Toolchain::defineMacro(const std::string& name,
+                            const std::string& definition) {
+  preprocessor_->defineMacro(name, definition);
 }
 
 void Toolchain::addSystemIncludePath(std::string path) {

@@ -23,21 +23,22 @@
 #include <cxx/private/format.h>
 
 #include <array>
+#include <utility>
 #include <vector>
 
 namespace cxx {
 
-std::string to_string(const CLIMatch& match) {
+auto to_string(const CLIMatch& match) -> std::string {
   struct Process {
-    std::string operator()(const CLIFlag& o) const {
+    auto operator()(const CLIFlag& o) const -> std::string {
       return fmt::format("{}=true", std::get<0>(o));
     }
 
-    std::string operator()(const CLIOption& o) const {
+    auto operator()(const CLIOption& o) const -> std::string {
       return fmt::format("{}={}", std::get<0>(o), std::get<1>(o));
     }
 
-    std::string operator()(const CLIPositional& o) const {
+    auto operator()(const CLIPositional& o) const -> std::string {
       return fmt::format("{}", std::get<0>(o));
     }
   };
@@ -65,25 +66,27 @@ struct CLIOptionDescr {
   bool CLI::*flag = nullptr;
   CLIOptionVisibility visibility{CLIOptionVisibility::kDefault};
 
-  CLIOptionDescr(const std::string& option, const std::string& arg,
-                 const std::string& help, CLIOptionDescrKind kind,
+  CLIOptionDescr(std::string option, std::string arg, std::string help,
+                 CLIOptionDescrKind kind,
                  CLIOptionVisibility visibility = CLIOptionVisibility::kDefault)
-      : option(option),
-        arg(arg),
-        help(help),
+      : option(std::move(option)),
+        arg(std::move(arg)),
+        help(std::move(help)),
         kind(kind),
         visibility(visibility) {}
 
-  CLIOptionDescr(const std::string& option, const std::string& help,
+  CLIOptionDescr(std::string option, std::string help,
                  CLIOptionDescrKind kind = CLIOptionDescrKind::kFlag,
                  CLIOptionVisibility visibility = CLIOptionVisibility::kDefault)
-      : option(option), help(help), kind(kind), visibility(visibility) {}
+      : option(std::move(option)),
+        help(std::move(help)),
+        kind(kind),
+        visibility(visibility) {}
 
-  CLIOptionDescr(const std::string& option, const std::string& help,
-                 bool CLI::*flag,
+  CLIOptionDescr(std::string option, std::string help, bool CLI::*flag,
                  CLIOptionVisibility visibility = CLIOptionVisibility::kDefault)
-      : option(option),
-        help(help),
+      : option(std::move(option)),
+        help(std::move(help)),
         kind(CLIOptionDescrKind::kFlag),
         flag(flag),
         visibility(visibility) {}
@@ -172,9 +175,9 @@ std::vector<CLIOptionDescr> options{
 
 }  // namespace
 
-CLI::CLI() {}
+CLI::CLI() = default;
 
-int CLI::count(const std::string& flag) const {
+auto CLI::count(const std::string& flag) const -> int {
   int n = 0;
   for (const auto& match : result_) {
     if (auto opt = std::get_if<CLIFlag>(&match)) {
@@ -184,12 +187,13 @@ int CLI::count(const std::string& flag) const {
   return n;
 }
 
-std::optional<std::string> CLI::getSingle(const std::string& opt) const {
+auto CLI::getSingle(const std::string& opt) const
+    -> std::optional<std::string> {
   auto value = get(opt);
   return !value.empty() ? std::optional{value.back()} : std::nullopt;
 }
 
-std::vector<std::string> CLI::get(const std::string& opt) const {
+auto CLI::get(const std::string& opt) const -> std::vector<std::string> {
   std::vector<std::string> result;
   for (const auto& match : result_) {
     if (auto p = std::get_if<CLIOption>(&match)) {
@@ -199,7 +203,7 @@ std::vector<std::string> CLI::get(const std::string& opt) const {
   return result;
 }
 
-std::vector<std::string> CLI::positionals() const {
+auto CLI::positionals() const -> std::vector<std::string> {
   std::vector<std::string> result;
   for (const auto& match : result_) {
     if (auto p = std::get_if<CLIPositional>(&match)) {
@@ -214,7 +218,7 @@ void CLI::parse(int& argc, char**& argv) {
     const std::string arg(argv[i++]);
 
     if (!arg.starts_with("-") || arg == "-") {
-      result_.push_back(CLIPositional(arg));
+      result_.emplace_back(CLIPositional(arg));
       continue;
     }
 
@@ -230,7 +234,7 @@ void CLI::parse(int& argc, char**& argv) {
           });
 
       if (it != options.end()) {
-        result_.push_back(CLIOption(name, value));
+        result_.emplace_back(CLIOption(name, value));
         continue;
       }
     }
@@ -242,13 +246,13 @@ void CLI::parse(int& argc, char**& argv) {
     if (it != options.end()) {
       if (it->kind == CLIOptionDescrKind::kFlag) {
         if (auto flag = it->flag) this->*flag = true;
-        result_.push_back(CLIFlag(arg));
+        result_.emplace_back(CLIFlag(arg));
         continue;
       }
 
       if (it->kind == CLIOptionDescrKind::kSeparated) {
         if (i < argc) {
-          result_.push_back(CLIOption(arg, argv[i++]));
+          result_.emplace_back(CLIOption(arg, argv[i++]));
           continue;
         }
 
@@ -264,7 +268,7 @@ void CLI::parse(int& argc, char**& argv) {
         });
 
     if (it != options.end()) {
-      result_.push_back(CLIOption(it->option, arg.substr(2)));
+      result_.emplace_back(CLIOption(it->option, arg.substr(2)));
       continue;
     }
 
@@ -283,10 +287,11 @@ void CLI::showHelp() {
     std::string info;
     switch (opt.kind) {
       case CLIOptionDescrKind::kSeparated: {
-        if (opt.arg.empty())
+        if (opt.arg.empty()) {
           info = opt.option;
-        else
+        } else {
           info = fmt::format("{} {}", opt.option, opt.arg);
+        }
         break;
       }
       case CLIOptionDescrKind::kJoined: {

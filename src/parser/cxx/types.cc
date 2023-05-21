@@ -23,66 +23,66 @@
 
 namespace cxx {
 
-Type::~Type() {}
+Type::~Type() = default;
 
-bool Type::isIntegral() const {
+auto Type::isIntegral() const -> bool {
   return Type::is<BooleanType>(this) || Type::is<CharacterType>(this) ||
          Type::is<IntegerType>(this);
 }
 
-bool Type::isArithmetic() const {
+auto Type::isArithmetic() const -> bool {
   return isIntegral() || Type::is<FloatingPointType>(this);
 }
 
-bool Type::isScalar() const {
+auto Type::isScalar() const -> bool {
   return isArithmetic() || Type::is<EnumType>(this) ||
          Type::is<ScopedEnumType>(this) || Type::is<PointerType>(this) ||
          Type::is<PointerToMemberType>(this) || Type::is<NullptrType>(this);
 }
 
-bool Type::isFundamental() const {
+auto Type::isFundamental() const -> bool {
   return isArithmetic() || Type::is<VoidType>(this) ||
          Type::is<NullptrType>(this);
 }
 
-bool Type::isCompound() const { return !isFundamental(); }
+auto Type::isCompound() const -> bool { return !isFundamental(); }
 
-bool Type::isObject() const {
+auto Type::isObject() const -> bool {
   return isScalar() || Type::is<ArrayType>(this) ||
          Type::is<UnboundArrayType>(this) || Type::is<ClassType>(this);
 }
 
-const UndefinedType* UndefinedType::get() {
+auto UndefinedType::get() -> const UndefinedType* {
   static UndefinedType type;
   return &type;
 }
 
-const ErrorType* ErrorType::get() {
+auto ErrorType::get() -> const ErrorType* {
   static ErrorType type;
   return &type;
 }
 
-const AutoType* AutoType::get() {
+auto AutoType::get() -> const AutoType* {
   static AutoType type;
   return &type;
 }
 
-const DecltypeAutoType* DecltypeAutoType::get() {
+auto DecltypeAutoType::get() -> const DecltypeAutoType* {
   static DecltypeAutoType type;
   return &type;
 }
 
-const VoidType* VoidType::get() {
+auto VoidType::get() -> const VoidType* {
   static VoidType type;
   return &type;
 }
 
-const NullptrType* NullptrType::get() {
+auto NullptrType::get() -> const NullptrType* {
   static NullptrType type;
   return &type;
 }
 
-const BooleanType* BooleanType::get() {
+auto BooleanType::get() -> const BooleanType* {
   static BooleanType type;
   return &type;
 }

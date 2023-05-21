@@ -29,7 +29,7 @@
 
 namespace cxx {
 
-nlohmann::json ASTPrinter::operator()(AST* ast, bool printLocations) {
+auto ASTPrinter::operator()(AST* ast, bool printLocations) -> nlohmann::json {
   std::vector<std::string_view> fileNames;
   std::swap(fileNames_, fileNames);
   std::swap(printLocations_, printLocations);
@@ -40,7 +40,7 @@ nlohmann::json ASTPrinter::operator()(AST* ast, bool printLocations) {
   return result;
 }
 
-nlohmann::json ASTPrinter::accept(AST* ast) {
+auto ASTPrinter::accept(AST* ast) -> nlohmann::json {
   nlohmann::json json;
 
   if (ast) {
@@ -87,9 +87,10 @@ void ASTPrinter::visit(TypeIdAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:typeSpecifierList", elements});
+    }
   }
 
   if (ast->declarator) {
@@ -113,8 +114,9 @@ void ASTPrinter::visit(NestedNameSpecifierAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(std::vector<nlohmann::json>{"attr:nameList", elements});
+    }
   }
 }
 
@@ -173,9 +175,10 @@ void ASTPrinter::visit(EnumBaseAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:typeSpecifierList", elements});
+    }
   }
 }
 
@@ -199,9 +202,10 @@ void ASTPrinter::visit(EnumeratorAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:attributeList", elements});
+    }
   }
 
   if (ast->expression) {
@@ -225,8 +229,9 @@ void ASTPrinter::visit(DeclaratorAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(std::vector<nlohmann::json>{"attr:ptrOpList", elements});
+    }
   }
 
   if (ast->coreDeclarator) {
@@ -244,8 +249,9 @@ void ASTPrinter::visit(DeclaratorAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(std::vector<nlohmann::json>{"attr:modifiers", elements});
+    }
   }
 }
 
@@ -289,9 +295,10 @@ void ASTPrinter::visit(BaseSpecifierAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:attributeList", elements});
+    }
   }
 
   if (ast->name) {
@@ -315,9 +322,10 @@ void ASTPrinter::visit(BaseClauseAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:baseSpecifierList", elements});
+    }
   }
 }
 
@@ -334,9 +342,10 @@ void ASTPrinter::visit(NewTypeIdAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:typeSpecifierList", elements});
+    }
   }
 }
 
@@ -366,9 +375,10 @@ void ASTPrinter::visit(ParameterDeclarationClauseAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(std::vector<nlohmann::json>{
           "attr:parameterDeclarationList", elements});
+    }
   }
 }
 
@@ -393,9 +403,10 @@ void ASTPrinter::visit(ParametersAndQualifiersAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:cvQualifierList", elements});
+    }
   }
 
   if (ast->attributeList) {
@@ -406,9 +417,10 @@ void ASTPrinter::visit(ParametersAndQualifiersAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:attributeList", elements});
+    }
   }
 }
 
@@ -425,9 +437,10 @@ void ASTPrinter::visit(LambdaIntroducerAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:captureList", elements});
+    }
   }
 }
 
@@ -452,9 +465,10 @@ void ASTPrinter::visit(LambdaDeclaratorAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:declSpecifierList", elements});
+    }
   }
 
   if (ast->attributeList) {
@@ -465,9 +479,10 @@ void ASTPrinter::visit(LambdaDeclaratorAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:attributeList", elements});
+    }
   }
 
   if (ast->trailingReturnType) {
@@ -512,9 +527,10 @@ void ASTPrinter::visit(CtorInitializerAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:memInitializerList", elements});
+    }
   }
 }
 
@@ -531,9 +547,10 @@ void ASTPrinter::visit(RequirementBodyAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:requirementList", elements});
+    }
   }
 }
 
@@ -571,9 +588,10 @@ void ASTPrinter::visit(GlobalModuleFragmentAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:declarationList", elements});
+    }
   }
 }
 
@@ -590,9 +608,10 @@ void ASTPrinter::visit(PrivateModuleFragmentAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:declarationList", elements});
+    }
   }
 }
 
@@ -623,9 +642,10 @@ void ASTPrinter::visit(ModuleDeclarationAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:attributeList", elements});
+    }
   }
 }
 
@@ -781,9 +801,10 @@ void ASTPrinter::visit(ParenMemInitializerAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:expressionList", elements});
+    }
   }
 }
 
@@ -824,10 +845,11 @@ void ASTPrinter::visit(SimpleLambdaCaptureAST* ast) {
 
   json_.push_back("ast:SimpleLambdaCapture");
 
-  if (ast->identifier)
+  if (ast->identifier) {
     json_.push_back(std::vector<nlohmann::json>{
         "attr:identifier",
         std::vector<nlohmann::json>{"identifier", ast->identifier->name()}});
+  }
 }
 
 void ASTPrinter::visit(RefLambdaCaptureAST* ast) {
@@ -835,10 +857,11 @@ void ASTPrinter::visit(RefLambdaCaptureAST* ast) {
 
   json_.push_back("ast:RefLambdaCapture");
 
-  if (ast->identifier)
+  if (ast->identifier) {
     json_.push_back(std::vector<nlohmann::json>{
         "attr:identifier",
         std::vector<nlohmann::json>{"identifier", ast->identifier->name()}});
+  }
 }
 
 void ASTPrinter::visit(RefInitLambdaCaptureAST* ast) {
@@ -853,10 +876,11 @@ void ASTPrinter::visit(RefInitLambdaCaptureAST* ast) {
     }
   }
 
-  if (ast->identifier)
+  if (ast->identifier) {
     json_.push_back(std::vector<nlohmann::json>{
         "attr:identifier",
         std::vector<nlohmann::json>{"identifier", ast->identifier->name()}});
+  }
 }
 
 void ASTPrinter::visit(InitLambdaCaptureAST* ast) {
@@ -871,10 +895,11 @@ void ASTPrinter::visit(InitLambdaCaptureAST* ast) {
     }
   }
 
-  if (ast->identifier)
+  if (ast->identifier) {
     json_.push_back(std::vector<nlohmann::json>{
         "attr:identifier",
         std::vector<nlohmann::json>{"identifier", ast->identifier->name()}});
+  }
 }
 
 void ASTPrinter::visit(EqualInitializerAST* ast) {
@@ -903,9 +928,10 @@ void ASTPrinter::visit(BracedInitListAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:expressionList", elements});
+    }
   }
 }
 
@@ -922,9 +948,10 @@ void ASTPrinter::visit(ParenInitializerAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:expressionList", elements});
+    }
   }
 }
 
@@ -941,9 +968,10 @@ void ASTPrinter::visit(NewParenInitializerAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:expressionList", elements});
+    }
   }
 }
 
@@ -979,9 +1007,10 @@ void ASTPrinter::visit(TypeExceptionDeclarationAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:attributeList", elements});
+    }
   }
 
   if (ast->typeSpecifierList) {
@@ -992,9 +1021,10 @@ void ASTPrinter::visit(TypeExceptionDeclarationAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:typeSpecifierList", elements});
+    }
   }
 
   if (ast->declarator) {
@@ -1058,9 +1088,10 @@ void ASTPrinter::visit(TryStatementFunctionBodyAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:handlerList", elements});
+    }
   }
 }
 
@@ -1083,9 +1114,10 @@ void ASTPrinter::visit(TranslationUnitAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:declarationList", elements});
+    }
   }
 }
 
@@ -1117,9 +1149,10 @@ void ASTPrinter::visit(ModuleUnitAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:declarationList", elements});
+    }
   }
 
   if (ast->privateModuleFragmentAST) {
@@ -1142,10 +1175,11 @@ void ASTPrinter::visit(CharLiteralExpressionAST* ast) {
 
   json_.push_back("ast:CharLiteralExpression");
 
-  if (ast->literal)
+  if (ast->literal) {
     json_.push_back(std::vector<nlohmann::json>{
         "attr:literal",
         std::vector<nlohmann::json>{"literal", ast->literal->value()}});
+  }
 }
 
 void ASTPrinter::visit(BoolLiteralExpressionAST* ast) {
@@ -1165,10 +1199,11 @@ void ASTPrinter::visit(IntLiteralExpressionAST* ast) {
 
   json_.push_back("ast:IntLiteralExpression");
 
-  if (ast->literal)
+  if (ast->literal) {
     json_.push_back(std::vector<nlohmann::json>{
         "attr:literal",
         std::vector<nlohmann::json>{"literal", ast->literal->value()}});
+  }
 }
 
 void ASTPrinter::visit(FloatLiteralExpressionAST* ast) {
@@ -1176,10 +1211,11 @@ void ASTPrinter::visit(FloatLiteralExpressionAST* ast) {
 
   json_.push_back("ast:FloatLiteralExpression");
 
-  if (ast->literal)
+  if (ast->literal) {
     json_.push_back(std::vector<nlohmann::json>{
         "attr:literal",
         std::vector<nlohmann::json>{"literal", ast->literal->value()}});
+  }
 }
 
 void ASTPrinter::visit(NullptrLiteralExpressionAST* ast) {
@@ -1199,10 +1235,11 @@ void ASTPrinter::visit(StringLiteralExpressionAST* ast) {
 
   json_.push_back("ast:StringLiteralExpression");
 
-  if (ast->literal)
+  if (ast->literal) {
     json_.push_back(std::vector<nlohmann::json>{
         "attr:literal",
         std::vector<nlohmann::json>{"literal", ast->literal->value()}});
+  }
 }
 
 void ASTPrinter::visit(UserDefinedStringLiteralExpressionAST* ast) {
@@ -1210,10 +1247,11 @@ void ASTPrinter::visit(UserDefinedStringLiteralExpressionAST* ast) {
 
   json_.push_back("ast:UserDefinedStringLiteralExpression");
 
-  if (ast->literal)
+  if (ast->literal) {
     json_.push_back(std::vector<nlohmann::json>{
         "attr:literal",
         std::vector<nlohmann::json>{"literal", ast->literal->value()}});
+  }
 }
 
 void ASTPrinter::visit(IdExpressionAST* ast) {
@@ -1353,9 +1391,10 @@ void ASTPrinter::visit(LambdaExpressionAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:templateParameterList", elements});
+    }
   }
 
   if (ast->requiresClause) {
@@ -1411,10 +1450,11 @@ void ASTPrinter::visit(SizeofPackExpressionAST* ast) {
 
   json_.push_back("ast:SizeofPackExpression");
 
-  if (ast->identifier)
+  if (ast->identifier) {
     json_.push_back(std::vector<nlohmann::json>{
         "attr:identifier",
         std::vector<nlohmann::json>{"identifier", ast->identifier->name()}});
+  }
 }
 
 void ASTPrinter::visit(TypeidExpressionAST* ast) {
@@ -1469,8 +1509,9 @@ void ASTPrinter::visit(TypeTraitsExpressionAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(std::vector<nlohmann::json>{"attr:typeIdList", elements});
+    }
   }
 
   if (ast->typeTraits != TokenKind::T_EOF_SYMBOL) {
@@ -1591,9 +1632,10 @@ void ASTPrinter::visit(TypeConstructionAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:expressionList", elements});
+    }
   }
 }
 
@@ -1617,9 +1659,10 @@ void ASTPrinter::visit(CallExpressionAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:expressionList", elements});
+    }
   }
 }
 
@@ -1839,10 +1882,11 @@ void ASTPrinter::visit(LabeledStatementAST* ast) {
     }
   }
 
-  if (ast->identifier)
+  if (ast->identifier) {
     json_.push_back(std::vector<nlohmann::json>{
         "attr:identifier",
         std::vector<nlohmann::json>{"identifier", ast->identifier->name()}});
+  }
 }
 
 void ASTPrinter::visit(CaseStatementAST* ast) {
@@ -1904,9 +1948,10 @@ void ASTPrinter::visit(CompoundStatementAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:statementList", elements});
+    }
   }
 }
 
@@ -2109,10 +2154,11 @@ void ASTPrinter::visit(GotoStatementAST* ast) {
 
   json_.push_back("ast:GotoStatement");
 
-  if (ast->identifier)
+  if (ast->identifier) {
     json_.push_back(std::vector<nlohmann::json>{
         "attr:identifier",
         std::vector<nlohmann::json>{"identifier", ast->identifier->name()}});
+  }
 }
 
 void ASTPrinter::visit(CoroutineReturnStatementAST* ast) {
@@ -2161,9 +2207,10 @@ void ASTPrinter::visit(TryBlockStatementAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:handlerList", elements});
+    }
   }
 }
 
@@ -2186,9 +2233,10 @@ void ASTPrinter::visit(FunctionDefinitionAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:attributeList", elements});
+    }
   }
 
   if (ast->declSpecifierList) {
@@ -2199,9 +2247,10 @@ void ASTPrinter::visit(FunctionDefinitionAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:declSpecifierList", elements});
+    }
   }
 
   if (ast->declarator) {
@@ -2265,9 +2314,10 @@ void ASTPrinter::visit(AliasDeclarationAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:attributeList", elements});
+    }
   }
 
   if (ast->typeId) {
@@ -2277,10 +2327,11 @@ void ASTPrinter::visit(AliasDeclarationAST* ast) {
     }
   }
 
-  if (ast->identifier)
+  if (ast->identifier) {
     json_.push_back(std::vector<nlohmann::json>{
         "attr:identifier",
         std::vector<nlohmann::json>{"identifier", ast->identifier->name()}});
+  }
 }
 
 void ASTPrinter::visit(SimpleDeclarationAST* ast) {
@@ -2296,9 +2347,10 @@ void ASTPrinter::visit(SimpleDeclarationAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:attributeList", elements});
+    }
   }
 
   if (ast->declSpecifierList) {
@@ -2309,9 +2361,10 @@ void ASTPrinter::visit(SimpleDeclarationAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:declSpecifierList", elements});
+    }
   }
 
   if (ast->initDeclaratorList) {
@@ -2322,9 +2375,10 @@ void ASTPrinter::visit(SimpleDeclarationAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:initDeclaratorList", elements});
+    }
   }
 
   if (ast->requiresClause) {
@@ -2367,9 +2421,10 @@ void ASTPrinter::visit(AttributeDeclarationAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:attributeList", elements});
+    }
   }
 }
 
@@ -2386,9 +2441,10 @@ void ASTPrinter::visit(OpaqueEnumDeclarationAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:attributeList", elements});
+    }
   }
 
   if (ast->nestedNameSpecifier) {
@@ -2433,9 +2489,10 @@ void ASTPrinter::visit(NamespaceDefinitionAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:attributeList", elements});
+    }
   }
 
   if (ast->nestedNameSpecifier) {
@@ -2461,9 +2518,10 @@ void ASTPrinter::visit(NamespaceDefinitionAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:extraAttributeList", elements});
+    }
   }
 
   if (ast->declarationList) {
@@ -2474,9 +2532,10 @@ void ASTPrinter::visit(NamespaceDefinitionAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:declarationList", elements});
+    }
   }
 }
 
@@ -2500,10 +2559,11 @@ void ASTPrinter::visit(NamespaceAliasDefinitionAST* ast) {
     }
   }
 
-  if (ast->identifier)
+  if (ast->identifier) {
     json_.push_back(std::vector<nlohmann::json>{
         "attr:identifier",
         std::vector<nlohmann::json>{"identifier", ast->identifier->name()}});
+  }
 }
 
 void ASTPrinter::visit(UsingDirectiveAST* ast) {
@@ -2519,9 +2579,10 @@ void ASTPrinter::visit(UsingDirectiveAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:attributeList", elements});
+    }
   }
 
   if (ast->nestedNameSpecifier) {
@@ -2553,9 +2614,10 @@ void ASTPrinter::visit(UsingDeclarationAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:usingDeclaratorList", elements});
+    }
   }
 }
 
@@ -2572,9 +2634,10 @@ void ASTPrinter::visit(AsmDeclarationAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:attributeList", elements});
+    }
   }
 }
 
@@ -2604,9 +2667,10 @@ void ASTPrinter::visit(ExportCompoundDeclarationAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:declarationList", elements});
+    }
   }
 }
 
@@ -2630,9 +2694,10 @@ void ASTPrinter::visit(ModuleImportDeclarationAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:attributeList", elements});
+    }
   }
 }
 
@@ -2649,9 +2714,10 @@ void ASTPrinter::visit(TemplateDeclarationAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:templateParameterList", elements});
+    }
   }
 
   if (ast->requiresClause) {
@@ -2681,10 +2747,11 @@ void ASTPrinter::visit(TypenameTypeParameterAST* ast) {
     }
   }
 
-  if (ast->identifier)
+  if (ast->identifier) {
     json_.push_back(std::vector<nlohmann::json>{
         "attr:identifier",
         std::vector<nlohmann::json>{"identifier", ast->identifier->name()}});
+  }
 }
 
 void ASTPrinter::visit(TemplateTypeParameterAST* ast) {
@@ -2700,9 +2767,10 @@ void ASTPrinter::visit(TemplateTypeParameterAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:templateParameterList", elements});
+    }
   }
 
   if (ast->requiresClause) {
@@ -2719,10 +2787,11 @@ void ASTPrinter::visit(TemplateTypeParameterAST* ast) {
     }
   }
 
-  if (ast->identifier)
+  if (ast->identifier) {
     json_.push_back(std::vector<nlohmann::json>{
         "attr:identifier",
         std::vector<nlohmann::json>{"identifier", ast->identifier->name()}});
+  }
 }
 
 void ASTPrinter::visit(TemplatePackTypeParameterAST* ast) {
@@ -2738,15 +2807,17 @@ void ASTPrinter::visit(TemplatePackTypeParameterAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:templateParameterList", elements});
+    }
   }
 
-  if (ast->identifier)
+  if (ast->identifier) {
     json_.push_back(std::vector<nlohmann::json>{
         "attr:identifier",
         std::vector<nlohmann::json>{"identifier", ast->identifier->name()}});
+  }
 }
 
 void ASTPrinter::visit(DeductionGuideAST* ast) {
@@ -2781,9 +2852,10 @@ void ASTPrinter::visit(ParameterDeclarationAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:attributeList", elements});
+    }
   }
 
   if (ast->typeSpecifierList) {
@@ -2794,9 +2866,10 @@ void ASTPrinter::visit(ParameterDeclarationAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:typeSpecifierList", elements});
+    }
   }
 
   if (ast->declarator) {
@@ -2827,15 +2900,17 @@ void ASTPrinter::visit(LinkageSpecificationAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:declarationList", elements});
+    }
   }
 
-  if (ast->stringLiteral)
+  if (ast->stringLiteral) {
     json_.push_back(std::vector<nlohmann::json>{
         "attr:stringLiteral",
         std::vector<nlohmann::json>{"literal", ast->stringLiteral->value()}});
+  }
 }
 
 void ASTPrinter::visit(SimpleNameAST* ast) {
@@ -2843,10 +2918,11 @@ void ASTPrinter::visit(SimpleNameAST* ast) {
 
   json_.push_back("ast:SimpleName");
 
-  if (ast->identifier)
+  if (ast->identifier) {
     json_.push_back(std::vector<nlohmann::json>{
         "attr:identifier",
         std::vector<nlohmann::json>{"identifier", ast->identifier->name()}});
+  }
 }
 
 void ASTPrinter::visit(DestructorNameAST* ast) {
@@ -2920,9 +2996,10 @@ void ASTPrinter::visit(TemplateNameAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:templateArgumentList", elements});
+    }
   }
 }
 
@@ -3131,9 +3208,10 @@ void ASTPrinter::visit(ElaboratedTypeSpecifierAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:attributeList", elements});
+    }
   }
 
   if (ast->nestedNameSpecifier) {
@@ -3222,9 +3300,10 @@ void ASTPrinter::visit(EnumSpecifierAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:attributeList", elements});
+    }
   }
 
   if (ast->nestedNameSpecifier) {
@@ -3257,9 +3336,10 @@ void ASTPrinter::visit(EnumSpecifierAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:enumeratorList", elements});
+    }
   }
 }
 
@@ -3276,9 +3356,10 @@ void ASTPrinter::visit(ClassSpecifierAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:attributeList", elements});
+    }
   }
 
   if (ast->name) {
@@ -3303,9 +3384,10 @@ void ASTPrinter::visit(ClassSpecifierAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:declarationList", elements});
+    }
   }
 }
 
@@ -3350,9 +3432,10 @@ void ASTPrinter::visit(IdDeclaratorAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:attributeList", elements});
+    }
   }
 }
 
@@ -3382,9 +3465,10 @@ void ASTPrinter::visit(PointerOperatorAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:attributeList", elements});
+    }
   }
 
   if (ast->cvQualifierList) {
@@ -3395,9 +3479,10 @@ void ASTPrinter::visit(PointerOperatorAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:cvQualifierList", elements});
+    }
   }
 }
 
@@ -3414,9 +3499,10 @@ void ASTPrinter::visit(ReferenceOperatorAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:attributeList", elements});
+    }
   }
 
   if (ast->refOp != TokenKind::T_EOF_SYMBOL) {
@@ -3447,9 +3533,10 @@ void ASTPrinter::visit(PtrToMemberOperatorAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:attributeList", elements});
+    }
   }
 
   if (ast->cvQualifierList) {
@@ -3460,9 +3547,10 @@ void ASTPrinter::visit(PtrToMemberOperatorAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:cvQualifierList", elements});
+    }
   }
 }
 
@@ -3508,9 +3596,10 @@ void ASTPrinter::visit(ArrayDeclaratorAST* ast) {
         elements.push_back(std::move(childNode));
       }
     }
-    if (elements.size() > 1)
+    if (elements.size() > 1) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:attributeList", elements});
+    }
   }
 }
 

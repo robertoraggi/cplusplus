@@ -34,12 +34,12 @@ class ASTPrinter : ASTVisitor {
   nlohmann::json json_;
   bool printLocations_ = false;
 
-  nlohmann::json accept(AST* ast);
+  auto accept(AST* ast) -> nlohmann::json;
 
  public:
   explicit ASTPrinter(TranslationUnit* unit) : unit_(unit) {}
 
-  nlohmann::json operator()(AST* ast, bool printLocations = false);
+  auto operator()(AST* ast, bool printLocations = false) -> nlohmann::json;
 
   void visit(TypeIdAST* ast) override;
   void visit(NestedNameSpecifierAST* ast) override;

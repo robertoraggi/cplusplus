@@ -37,18 +37,18 @@ class Diagnostic {
   Diagnostic() = default;
 
   Diagnostic(const Diagnostic&) = default;
-  Diagnostic& operator=(const Diagnostic&) = default;
+  auto operator=(const Diagnostic&) -> Diagnostic& = default;
 
   Diagnostic(Diagnostic&&) = default;
-  Diagnostic& operator=(Diagnostic&&) = default;
+  auto operator=(Diagnostic&&) -> Diagnostic& = default;
 
   Diagnostic(Severity severity, const Token& token, std::string message);
 
-  Severity severity() const { return severity_; }
+  [[nodiscard]] auto severity() const -> Severity { return severity_; }
 
-  const Token& token() const { return token_; }
+  [[nodiscard]] auto token() const -> const Token& { return token_; }
 
-  const std::string& message() const { return message_; }
+  [[nodiscard]] auto message() const -> const std::string& { return message_; }
 };
 
 }  // namespace cxx

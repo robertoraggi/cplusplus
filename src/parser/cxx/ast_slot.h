@@ -37,7 +37,8 @@ enum ASTSlotKind {
 
 class ASTSlot final : ASTVisitor {
  public:
-  std::tuple<std::intptr_t, ASTSlotKind, int> operator()(AST* ast, int slot);
+  auto operator()(AST* ast, int slot)
+      -> std::tuple<std::intptr_t, ASTSlotKind, int>;
 
  private:
   void visit(TypeIdAST* ast) override;

@@ -33,21 +33,22 @@ namespace cxx {
 Symbol::Symbol(Scope* enclosingScope, const Name* name)
     : enclosingScope_(enclosingScope), name_(name) {}
 
-Symbol::~Symbol() {}
+Symbol::~Symbol() = default;
 
 void Symbol::addToEnclosingScope() { enclosingScope_->add(this); }
 
-std::string Symbol::unqualifiedId() const {
+auto Symbol::unqualifiedId() const -> std::string {
   if (name()) return fmt::format("{}", *name());
   return "__anon__";
 }
 
-std::string Symbol::qualifiedId() const {
+auto Symbol::qualifiedId() const -> std::string {
   if (enclosingScope_) {
     auto parent = enclosingScope_->owner();
 
-    if (!enclosingScope_->enclosingScope() && !parent->name())
+    if (!enclosingScope_->enclosingScope() && !parent->name()) {
       return unqualifiedId();
+    }
 
     return parent->qualifiedId() + "::" + unqualifiedId();
   }
@@ -55,9 +56,9 @@ std::string Symbol::qualifiedId() const {
   return unqualifiedId();
 }
 
-bool Symbol::isTypeSymbol() const { return false; }
+auto Symbol::isTypeSymbol() const -> bool { return false; }
 
-int Symbol::index() const {
+auto Symbol::index() const -> int {
   if (!enclosingScope_) return -1;
 
   auto it = std::find(enclosingScope_->begin(), enclosingScope_->end(), this);
@@ -70,9 +71,9 @@ int Symbol::index() const {
 TypeSymbol::TypeSymbol(Scope* enclosingScope, const Name* name)
     : Symbol(enclosingScope, name) {}
 
-bool TypeSymbol::isTypeSymbol() const { return true; }
+auto TypeSymbol::isTypeSymbol() const -> bool { return true; }
 
-Symbol* Symbol::enclosingClassOrNamespace() const {
+auto Symbol::enclosingClassOrNamespace() const -> Symbol* {
   for (auto scope = enclosingScope_; scope; scope = scope->enclosingScope()) {
     if (auto sym = dynamic_cast<NamespaceSymbol*>(scope->owner())) return sym;
     if (auto sym = dynamic_cast<ClassSymbol*>(scope->owner())) return sym;
@@ -80,47 +81,47 @@ Symbol* Symbol::enclosingClassOrNamespace() const {
   return nullptr;
 }
 
-NamespaceSymbol* Symbol::enclosingNamespace() const {
+auto Symbol::enclosingNamespace() const -> NamespaceSymbol* {
   for (auto scope = enclosingScope_; scope; scope = scope->enclosingScope()) {
     if (auto sym = dynamic_cast<NamespaceSymbol*>(scope->owner())) return sym;
   }
   return nullptr;
 }
 
-ClassSymbol* Symbol::enclosingClass() const {
+auto Symbol::enclosingClass() const -> ClassSymbol* {
   for (auto scope = enclosingScope_; scope; scope = scope->enclosingScope()) {
     if (auto sym = dynamic_cast<ClassSymbol*>(scope->owner())) return sym;
   }
   return nullptr;
 }
 
-FunctionSymbol* Symbol::enclosingFunction() const {
+auto Symbol::enclosingFunction() const -> FunctionSymbol* {
   for (auto scope = enclosingScope_; scope; scope = scope->enclosingScope()) {
     if (auto sym = dynamic_cast<FunctionSymbol*>(scope->owner())) return sym;
   }
   return nullptr;
 }
 
-BlockSymbol* Symbol::enclosingBlock() const {
+auto Symbol::enclosingBlock() const -> BlockSymbol* {
   for (auto scope = enclosingScope_; scope; scope = scope->enclosingScope()) {
     if (auto sym = dynamic_cast<BlockSymbol*>(scope->owner())) return sym;
   }
   return nullptr;
 }
 
-const QualifiedType& Symbol::type() const { return type_; }
+auto Symbol::type() const -> const QualifiedType& { return type_; }
 
 void Symbol::setType(const QualifiedType& type) { type_ = type; }
 
-Linkage Symbol::linkage() const { return linkage_; }
+auto Symbol::linkage() const -> Linkage { return linkage_; }
 
 void Symbol::setLinkage(Linkage linkage) { linkage_ = linkage; }
 
-Visibility Symbol::visibility() const { return visibility_; }
+auto Symbol::visibility() const -> Visibility { return visibility_; }
 
 void Symbol::setVisibility(Visibility visibility) { visibility_ = visibility; }
 
-TemplateParameterList* Symbol::templateParameterList() const {
+auto Symbol::templateParameterList() const -> TemplateParameterList* {
   return templateParameterList_;
 }
 
@@ -134,7 +135,7 @@ NamespaceSymbol::NamespaceSymbol(Scope* enclosingScope, const Name* name)
   scope_->setOwner(this);
 }
 
-NamespaceSymbol::~NamespaceSymbol() {}
+NamespaceSymbol::~NamespaceSymbol() = default;
 
 void NamespaceSymbol::addUsingNamespace(NamespaceSymbol* symbol) {
   usingNamespaces_.push_back(symbol);
@@ -145,7 +146,7 @@ ClassSymbol::ClassSymbol(Scope* enclosingScope, const Name* name)
   scope_->setOwner(this);
 }
 
-ClassSymbol::~ClassSymbol() {}
+ClassSymbol::~ClassSymbol() = default;
 
 void ClassSymbol::addBaseClass(ClassSymbol* baseClass) {
   baseClasses_.push_back(baseClass);
@@ -162,14 +163,14 @@ EnumSymbol::EnumSymbol(Scope* enclosingScope, const Name* name)
   scope_->setOwner(this);
 }
 
-EnumSymbol::~EnumSymbol() {}
+EnumSymbol::~EnumSymbol() = default;
 
 ScopedEnumSymbol::ScopedEnumSymbol(Scope* enclosingScope, const Name* name)
     : TypeSymbol(enclosingScope, name), scope_(std::make_unique<Scope>()) {
   scope_->setOwner(this);
 }
 
-ScopedEnumSymbol::~ScopedEnumSymbol() {}
+ScopedEnumSymbol::~ScopedEnumSymbol() = default;
 
 EnumeratorSymbol::EnumeratorSymbol(Scope* enclosingScope, const Name* name)
     : Symbol(enclosingScope, name) {}
@@ -179,7 +180,7 @@ TemplateParameterList::TemplateParameterList(Scope* enclosingScope)
   scope_->setOwner(this);
 }
 
-TemplateParameterList::~TemplateParameterList() {}
+TemplateParameterList::~TemplateParameterList() = default;
 
 TemplateTypeParameterSymbol::TemplateTypeParameterSymbol(Scope* enclosingScope,
                                                          const Name* name)
@@ -196,9 +197,9 @@ FunctionSymbol::FunctionSymbol(Scope* enclosingScope, const Name* name)
   scope_->setOwner(this);
 }
 
-FunctionSymbol::~FunctionSymbol() {}
+FunctionSymbol::~FunctionSymbol() = default;
 
-BlockSymbol* FunctionSymbol::block() const { return block_; }
+auto FunctionSymbol::block() const -> BlockSymbol* { return block_; }
 
 void FunctionSymbol::setBlock(BlockSymbol* block) { block_ = block; }
 
@@ -210,6 +211,6 @@ BlockSymbol::BlockSymbol(Scope* enclosingScope, const Name* name)
   scope_->setOwner(this);
 }
 
-BlockSymbol::~BlockSymbol() {}
+BlockSymbol::~BlockSymbol() = default;
 
 }  // namespace cxx

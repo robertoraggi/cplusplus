@@ -30,11 +30,11 @@
 
 namespace cxx::ir {
 
-Codegen::Codegen() {}
+Codegen::Codegen() = default;
 
-Codegen::~Codegen() {}
+Codegen::~Codegen() = default;
 
-std::unique_ptr<ir::Module> Codegen::operator()(TranslationUnit* unit) {
+auto Codegen::operator()(TranslationUnit* unit) -> std::unique_ptr<ir::Module> {
   auto module = std::make_unique<ir::Module>();
   setModule(module.get());
   std::swap(module_, module);
@@ -45,11 +45,11 @@ std::unique_ptr<ir::Module> Codegen::operator()(TranslationUnit* unit) {
   return module;
 }
 
-ir::Expr* Codegen::expression(ExpressionAST* ast) {
+auto Codegen::expression(ExpressionAST* ast) -> ir::Expr* {
   return expression_.gen(ast);
 }
 
-ir::Expr* Codegen::reduce(ExpressionAST* ast) {
+auto Codegen::reduce(ExpressionAST* ast) -> ir::Expr* {
   return expression_.reduce(ast);
 }
 
@@ -62,9 +62,9 @@ void Codegen::statement(StatementAST* ast) { statement_.gen(ast); }
 
 void Codegen::statement(ExpressionAST* ast) { statement_.gen(ast); }
 
-ir::IRFactory* Codegen::irFactory() { return module_->irFactory(); }
+auto Codegen::irFactory() -> ir::IRFactory* { return module_->irFactory(); }
 
-ir::Block* Codegen::createBlock() {
+auto Codegen::createBlock() -> ir::Block* {
   return irFactory()->createBlock(function_);
 }
 
@@ -74,7 +74,7 @@ void Codegen::place(ir::Block* block) {
   setInsertionPoint(block);
 }
 
-ir::Local* Codegen::getLocal(Symbol* symbol) {
+auto Codegen::getLocal(Symbol* symbol) -> ir::Local* {
   auto it = locals_.find(symbol);
   if (it != locals_.end()) return it->second;
   auto local = function_->addLocal(symbol->type());
@@ -82,7 +82,7 @@ ir::Local* Codegen::getLocal(Symbol* symbol) {
   return local;
 }
 
-ir::Block* Codegen::findOrCreateTargetBlock(const Identifier* id) {
+auto Codegen::findOrCreateTargetBlock(const Identifier* id) -> ir::Block* {
   if (auto it = labels_.find(id); it != labels_.end()) return it->second;
   return labels_.emplace(id, createBlock()).first->second;
 }

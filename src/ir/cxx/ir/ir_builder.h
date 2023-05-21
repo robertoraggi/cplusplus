@@ -30,9 +30,9 @@ namespace cxx::ir {
 class IRBuilder {
  public:
   explicit IRBuilder(Module* module = nullptr);
-  ~IRBuilder();
+  ~IRBuilder() = default;
 
-  Module* module() { return module_; }
+  auto module() -> Module* { return module_; }
   void setModule(Module* module);
 
   void setInsertionPoint(Block* block, const std::list<Stmt*>::iterator& ip);
@@ -40,53 +40,56 @@ class IRBuilder {
 
   explicit operator bool() const { return module_ && block_; }
 
-  Block* block() const { return block_; }
+  [[nodiscard]] auto block() const -> Block* { return block_; }
 
-  bool blockHasTerminator() const {
+  [[nodiscard]] auto blockHasTerminator() const -> bool {
     if (!block_) return true;
 
     return !block_->code().empty() ? block_->code().back()->isTerminator()
                                    : false;
   }
 
-  Expr* emitExpr(Expr* target);
-  Move* emitMove(Expr* target, Expr* source);
-  Jump* emitJump(Block* target);
-  CondJump* emitCondJump(Expr* condition, Block* iftrue, Block* iffalse);
-  Switch* emitSwitch(Expr* condition);
-  Ret* emitRet(Expr* result);
-  RetVoid* emitRetVoid();
+  auto emitExpr(Expr* target) -> Expr*;
+  auto emitMove(Expr* target, Expr* source) -> Move*;
+  auto emitJump(Block* target) -> Jump*;
+  auto emitCondJump(Expr* condition, Block* iftrue, Block* iffalse)
+      -> CondJump*;
+  auto emitSwitch(Expr* condition) -> Switch*;
+  auto emitRet(Expr* result) -> Ret*;
+  auto emitRetVoid() -> RetVoid*;
 
-  This* createThis(const QualifiedType& type);
-  BoolLiteral* createBoolLiteral(bool value);
-  CharLiteral* createCharLiteral(const cxx::CharLiteral* value);
-  IntegerLiteral* createIntegerLiteral(const IntegerValue& value);
-  FloatLiteral* createFloatLiteral(const FloatValue& value);
-  NullptrLiteral* createNullptrLiteral();
-  StringLiteral* createStringLiteral(const cxx::StringLiteral* value);
-  UserDefinedStringLiteral* createUserDefinedStringLiteral(std::string value);
-  Temp* createTemp(Local* local);
-  Id* createId(Symbol* symbol);
-  ExternalId* createExternalId(std::string name);
-  Typeid* createTypeid(Expr* expr);
-  Unary* createUnary(UnaryOp op, Expr* expr);
-  Binary* createBinary(BinaryOp op, Expr* left, Expr* right);
-  Call* createCall(Expr* base, std::vector<Expr*> args);
-  Subscript* createSubscript(Expr* base, Expr* index);
-  Access* createAccess(Expr* base, Symbol* member);
-  Cast* createCast(const QualifiedType& type, Expr* expr);
-  StaticCast* createStaticCast(const QualifiedType& type, Expr* expr);
-  DynamicCast* createDynamicCast(const QualifiedType& type, Expr* expr);
-  ReinterpretCast* createReinterpretCast(const QualifiedType& type, Expr* expr);
-  New* createNew(const QualifiedType& type, std::vector<Expr*> args);
-  NewArray* createNewArray(const QualifiedType& type, Expr* size);
-  Delete* createDelete(Expr* expr);
-  DeleteArray* createDeleteArray(Expr* expr);
-  Throw* createThrow(Expr* expr);
+  auto createThis(const QualifiedType& type) -> This*;
+  auto createBoolLiteral(bool value) -> BoolLiteral*;
+  auto createCharLiteral(const cxx::CharLiteral* value) -> CharLiteral*;
+  auto createIntegerLiteral(const IntegerValue& value) -> IntegerLiteral*;
+  auto createFloatLiteral(const FloatValue& value) -> FloatLiteral*;
+  auto createNullptrLiteral() -> NullptrLiteral*;
+  auto createStringLiteral(const cxx::StringLiteral* value) -> StringLiteral*;
+  auto createUserDefinedStringLiteral(std::string value)
+      -> UserDefinedStringLiteral*;
+  auto createTemp(Local* local) -> Temp*;
+  auto createId(Symbol* symbol) -> Id*;
+  auto createExternalId(std::string name) -> ExternalId*;
+  auto createTypeid(Expr* expr) -> Typeid*;
+  auto createUnary(UnaryOp op, Expr* expr) -> Unary*;
+  auto createBinary(BinaryOp op, Expr* left, Expr* right) -> Binary*;
+  auto createCall(Expr* base, std::vector<Expr*> args) -> Call*;
+  auto createSubscript(Expr* base, Expr* index) -> Subscript*;
+  auto createAccess(Expr* base, Symbol* member) -> Access*;
+  auto createCast(const QualifiedType& type, Expr* expr) -> Cast*;
+  auto createStaticCast(const QualifiedType& type, Expr* expr) -> StaticCast*;
+  auto createDynamicCast(const QualifiedType& type, Expr* expr) -> DynamicCast*;
+  auto createReinterpretCast(const QualifiedType& type, Expr* expr)
+      -> ReinterpretCast*;
+  auto createNew(const QualifiedType& type, std::vector<Expr*> args) -> New*;
+  auto createNewArray(const QualifiedType& type, Expr* size) -> NewArray*;
+  auto createDelete(Expr* expr) -> Delete*;
+  auto createDeleteArray(Expr* expr) -> DeleteArray*;
+  auto createThrow(Expr* expr) -> Throw*;
 
  private:
   template <typename T>
-  T* insert(T* stmt) {
+  auto insert(T* stmt) -> T* {
     auto it = block_->code().insert(ip_, stmt);
     ip_ = ++it;
     return stmt;

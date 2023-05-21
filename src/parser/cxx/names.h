@@ -41,7 +41,7 @@ class Identifier final : public Name {
  public:
   explicit Identifier(std::string name) : name_(std::move(name)) {}
 
-  const std::string& name() const { return name_; }
+  [[nodiscard]] auto name() const -> const std::string& { return name_; }
 
   void accept(NameVisitor* visitor) const override { visitor->visit(this); }
 
@@ -53,7 +53,7 @@ class OperatorNameId final : public Name {
  public:
   explicit OperatorNameId(TokenKind op) : op_(op) {}
 
-  TokenKind op() const { return op_; }
+  [[nodiscard]] auto op() const -> TokenKind { return op_; }
 
   void accept(NameVisitor* visitor) const override { visitor->visit(this); }
 
@@ -65,7 +65,7 @@ class ConversionNameId final : public Name {
  public:
   explicit ConversionNameId(const QualifiedType& type) : type_(type) {}
 
-  const QualifiedType& type() const { return type_; }
+  [[nodiscard]] auto type() const -> const QualifiedType& { return type_; }
 
   void accept(NameVisitor* visitor) const override { visitor->visit(this); }
 
@@ -73,7 +73,7 @@ class ConversionNameId final : public Name {
   QualifiedType type_;
 };
 
-std::ostream& operator<<(std::ostream& out, const Name& name);
+auto operator<<(std::ostream& out, const Name& name) -> std::ostream&;
 
 }  // namespace cxx
 
@@ -81,18 +81,18 @@ template <>
 struct std::less<cxx::Identifier> {
   using is_transparent = void;
 
-  bool operator()(const cxx::Identifier& id,
-                  const cxx::Identifier& other) const {
+  auto operator()(const cxx::Identifier& id, const cxx::Identifier& other) const
+      -> bool {
     return id.name() < other.name();
   }
 
-  bool operator()(const cxx::Identifier& id,
-                  const std::string_view& name) const {
+  auto operator()(const cxx::Identifier& id, const std::string_view& name) const
+      -> bool {
     return id.name() < name;
   }
 
-  bool operator()(const std::string_view& name,
-                  const cxx::Identifier& id) const {
+  auto operator()(const std::string_view& name, const cxx::Identifier& id) const
+      -> bool {
     return name < id.name();
   }
 };

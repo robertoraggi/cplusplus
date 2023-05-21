@@ -38,23 +38,27 @@ class Control {
   Control();
   ~Control();
 
-  const Identifier* identifier(const std::string_view& name);
-  const OperatorNameId* operatorNameId(TokenKind op);
-  const ConversionNameId* conversionNameId(const QualifiedType& type);
+  auto identifier(const std::string_view& name) -> const Identifier*;
+  auto operatorNameId(TokenKind op) -> const OperatorNameId*;
+  auto conversionNameId(const QualifiedType& type) -> const ConversionNameId*;
 
-  const IntegerLiteral* integerLiteral(const std::string_view& value);
-  const FloatLiteral* floatLiteral(const std::string_view& value);
-  const CharLiteral* charLiteral(const std::string_view& value);
-  const CommentLiteral* commentLiteral(const std::string_view& value);
+  auto integerLiteral(const std::string_view& value) -> const IntegerLiteral*;
+  auto floatLiteral(const std::string_view& value) -> const FloatLiteral*;
+  auto charLiteral(const std::string_view& value) -> const CharLiteral*;
+  auto commentLiteral(const std::string_view& value) -> const CommentLiteral*;
 
-  const StringLiteral* stringLiteral(const std::string_view& value);
-  const WideStringLiteral* wideStringLiteral(const std::string_view& value);
-  const Utf8StringLiteral* utf8StringLiteral(const std::string_view& value);
-  const Utf16StringLiteral* utf16StringLiteral(const std::string_view& value);
-  const Utf32StringLiteral* utf32StringLiteral(const std::string_view& value);
+  auto stringLiteral(const std::string_view& value) -> const StringLiteral*;
+  auto wideStringLiteral(const std::string_view& value)
+      -> const WideStringLiteral*;
+  auto utf8StringLiteral(const std::string_view& value)
+      -> const Utf8StringLiteral*;
+  auto utf16StringLiteral(const std::string_view& value)
+      -> const Utf16StringLiteral*;
+  auto utf32StringLiteral(const std::string_view& value)
+      -> const Utf32StringLiteral*;
 
-  TypeEnvironment* types();
-  SymbolFactory* symbols();
+  auto types() -> TypeEnvironment*;
+  auto symbols() -> SymbolFactory*;
 
  private:
   struct Private;

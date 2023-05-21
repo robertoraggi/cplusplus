@@ -54,51 +54,53 @@ class AST : public Managed {
 
   virtual ~AST();
 
-  ASTKind kind() const { return kind_; }
+  [[nodiscard]] auto kind() const -> ASTKind { return kind_; }
 
-  bool checked() const { return checked_; }
+  [[nodiscard]] auto checked() const -> bool { return checked_; }
   void setChecked(bool checked) { checked_ = checked; }
 
   virtual void accept(ASTVisitor* visitor) = 0;
 
-  virtual SourceLocation firstSourceLocation() = 0;
-  virtual SourceLocation lastSourceLocation() = 0;
+  virtual auto firstSourceLocation() -> SourceLocation = 0;
+  virtual auto lastSourceLocation() -> SourceLocation = 0;
 
-  SourceLocationRange sourceLocationRange() {
+  auto sourceLocationRange() -> SourceLocationRange {
     return SourceLocationRange(firstSourceLocation(), lastSourceLocation());
   }
 };
 
-inline SourceLocation firstSourceLocation(SourceLocation loc) { return loc; }
+inline auto firstSourceLocation(SourceLocation loc) -> SourceLocation {
+  return loc;
+}
 
 template <typename T>
-inline SourceLocation firstSourceLocation(T* node) {
+inline auto firstSourceLocation(T* node) -> SourceLocation {
   return node ? node->firstSourceLocation() : SourceLocation();
 }
 
 template <typename T>
-inline SourceLocation firstSourceLocation(List<T>* nodes) {
+inline auto firstSourceLocation(List<T>* nodes) -> SourceLocation {
   for (auto it = nodes; it; it = it->next) {
     if (auto loc = firstSourceLocation(it->value)) return loc;
   }
-  return SourceLocation();
+  return {};
 }
 
-inline SourceLocation lastSourceLocation(SourceLocation loc) {
+inline auto lastSourceLocation(SourceLocation loc) -> SourceLocation {
   return loc ? loc.next() : SourceLocation();
 }
 
 template <typename T>
-inline SourceLocation lastSourceLocation(T* node) {
+inline auto lastSourceLocation(T* node) -> SourceLocation {
   return node ? node->lastSourceLocation() : SourceLocation();
 }
 
 template <typename T>
-inline SourceLocation lastSourceLocation(List<T>* nodes) {
-  if (!nodes) return SourceLocation();
+inline auto lastSourceLocation(List<T>* nodes) -> SourceLocation {
+  if (!nodes) return {};
   if (auto loc = lastSourceLocation(nodes->next)) return loc;
   if (auto loc = lastSourceLocation(nodes->value)) return loc;
-  return SourceLocation();
+  return {};
 }
 
 class AttributeAST : public AST {
@@ -206,8 +208,8 @@ class TypeIdAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class NestedNameSpecifierAST final : public AST {
@@ -220,8 +222,8 @@ class NestedNameSpecifierAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class UsingDeclaratorAST final : public AST {
@@ -234,8 +236,8 @@ class UsingDeclaratorAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class HandlerAST final : public AST {
@@ -250,8 +252,8 @@ class HandlerAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class EnumBaseAST final : public AST {
@@ -263,8 +265,8 @@ class EnumBaseAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class EnumeratorAST final : public AST {
@@ -278,8 +280,8 @@ class EnumeratorAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class DeclaratorAST final : public AST {
@@ -292,8 +294,8 @@ class DeclaratorAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class InitDeclaratorAST final : public AST {
@@ -307,8 +309,8 @@ class InitDeclaratorAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class BaseSpecifierAST final : public AST {
@@ -320,8 +322,8 @@ class BaseSpecifierAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class BaseClauseAST final : public AST {
@@ -333,8 +335,8 @@ class BaseClauseAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class NewTypeIdAST final : public AST {
@@ -345,8 +347,8 @@ class NewTypeIdAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class RequiresClauseAST final : public AST {
@@ -358,8 +360,8 @@ class RequiresClauseAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ParameterDeclarationClauseAST final : public AST {
@@ -372,8 +374,8 @@ class ParameterDeclarationClauseAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ParametersAndQualifiersAST final : public AST {
@@ -389,8 +391,8 @@ class ParametersAndQualifiersAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class LambdaIntroducerAST final : public AST {
@@ -404,8 +406,8 @@ class LambdaIntroducerAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class LambdaDeclaratorAST final : public AST {
@@ -422,8 +424,8 @@ class LambdaDeclaratorAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class TrailingReturnTypeAST final : public AST {
@@ -435,8 +437,8 @@ class TrailingReturnTypeAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class CtorInitializerAST final : public AST {
@@ -448,8 +450,8 @@ class CtorInitializerAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class RequirementBodyAST final : public AST {
@@ -462,8 +464,8 @@ class RequirementBodyAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class TypeConstraintAST final : public AST {
@@ -475,8 +477,8 @@ class TypeConstraintAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class GlobalModuleFragmentAST final : public AST {
@@ -489,8 +491,8 @@ class GlobalModuleFragmentAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class PrivateModuleFragmentAST final : public AST {
@@ -505,8 +507,8 @@ class PrivateModuleFragmentAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ModuleDeclarationAST final : public AST {
@@ -522,8 +524,8 @@ class ModuleDeclarationAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ModuleNameAST final : public AST {
@@ -534,8 +536,8 @@ class ModuleNameAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ImportNameAST final : public AST {
@@ -548,8 +550,8 @@ class ImportNameAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ModulePartitionAST final : public AST {
@@ -561,8 +563,8 @@ class ModulePartitionAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class SimpleRequirementAST final : public RequirementAST {
@@ -574,8 +576,8 @@ class SimpleRequirementAST final : public RequirementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class CompoundRequirementAST final : public RequirementAST {
@@ -592,8 +594,8 @@ class CompoundRequirementAST final : public RequirementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class TypeRequirementAST final : public RequirementAST {
@@ -607,8 +609,8 @@ class TypeRequirementAST final : public RequirementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class NestedRequirementAST final : public RequirementAST {
@@ -621,8 +623,8 @@ class NestedRequirementAST final : public RequirementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class TypeTemplateArgumentAST final : public TemplateArgumentAST {
@@ -634,8 +636,8 @@ class TypeTemplateArgumentAST final : public TemplateArgumentAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ExpressionTemplateArgumentAST final : public TemplateArgumentAST {
@@ -647,8 +649,8 @@ class ExpressionTemplateArgumentAST final : public TemplateArgumentAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ParenMemInitializerAST final : public MemInitializerAST {
@@ -663,8 +665,8 @@ class ParenMemInitializerAST final : public MemInitializerAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class BracedMemInitializerAST final : public MemInitializerAST {
@@ -678,8 +680,8 @@ class BracedMemInitializerAST final : public MemInitializerAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ThisLambdaCaptureAST final : public LambdaCaptureAST {
@@ -690,8 +692,8 @@ class ThisLambdaCaptureAST final : public LambdaCaptureAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class DerefThisLambdaCaptureAST final : public LambdaCaptureAST {
@@ -704,8 +706,8 @@ class DerefThisLambdaCaptureAST final : public LambdaCaptureAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class SimpleLambdaCaptureAST final : public LambdaCaptureAST {
@@ -718,8 +720,8 @@ class SimpleLambdaCaptureAST final : public LambdaCaptureAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class RefLambdaCaptureAST final : public LambdaCaptureAST {
@@ -733,8 +735,8 @@ class RefLambdaCaptureAST final : public LambdaCaptureAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class RefInitLambdaCaptureAST final : public LambdaCaptureAST {
@@ -749,8 +751,8 @@ class RefInitLambdaCaptureAST final : public LambdaCaptureAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class InitLambdaCaptureAST final : public LambdaCaptureAST {
@@ -764,8 +766,8 @@ class InitLambdaCaptureAST final : public LambdaCaptureAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class EqualInitializerAST final : public InitializerAST {
@@ -777,8 +779,8 @@ class EqualInitializerAST final : public InitializerAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class BracedInitListAST final : public InitializerAST {
@@ -792,8 +794,8 @@ class BracedInitListAST final : public InitializerAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ParenInitializerAST final : public InitializerAST {
@@ -806,8 +808,8 @@ class ParenInitializerAST final : public InitializerAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class NewParenInitializerAST final : public NewInitializerAST {
@@ -820,8 +822,8 @@ class NewParenInitializerAST final : public NewInitializerAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class NewBracedInitializerAST final : public NewInitializerAST {
@@ -833,8 +835,8 @@ class NewBracedInitializerAST final : public NewInitializerAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class EllipsisExceptionDeclarationAST final : public ExceptionDeclarationAST {
@@ -846,8 +848,8 @@ class EllipsisExceptionDeclarationAST final : public ExceptionDeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class TypeExceptionDeclarationAST final : public ExceptionDeclarationAST {
@@ -861,8 +863,8 @@ class TypeExceptionDeclarationAST final : public ExceptionDeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class DefaultFunctionBodyAST final : public FunctionBodyAST {
@@ -875,8 +877,8 @@ class DefaultFunctionBodyAST final : public FunctionBodyAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class CompoundStatementFunctionBodyAST final : public FunctionBodyAST {
@@ -889,8 +891,8 @@ class CompoundStatementFunctionBodyAST final : public FunctionBodyAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class TryStatementFunctionBodyAST final : public FunctionBodyAST {
@@ -905,8 +907,8 @@ class TryStatementFunctionBodyAST final : public FunctionBodyAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class DeleteFunctionBodyAST final : public FunctionBodyAST {
@@ -919,8 +921,8 @@ class DeleteFunctionBodyAST final : public FunctionBodyAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class TranslationUnitAST final : public UnitAST {
@@ -931,8 +933,8 @@ class TranslationUnitAST final : public UnitAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ModuleUnitAST final : public UnitAST {
@@ -946,8 +948,8 @@ class ModuleUnitAST final : public UnitAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ThisExpressionAST final : public ExpressionAST {
@@ -958,8 +960,8 @@ class ThisExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class CharLiteralExpressionAST final : public ExpressionAST {
@@ -971,8 +973,8 @@ class CharLiteralExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class BoolLiteralExpressionAST final : public ExpressionAST {
@@ -984,8 +986,8 @@ class BoolLiteralExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class IntLiteralExpressionAST final : public ExpressionAST {
@@ -997,8 +999,8 @@ class IntLiteralExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class FloatLiteralExpressionAST final : public ExpressionAST {
@@ -1011,8 +1013,8 @@ class FloatLiteralExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class NullptrLiteralExpressionAST final : public ExpressionAST {
@@ -1025,8 +1027,8 @@ class NullptrLiteralExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class StringLiteralExpressionAST final : public ExpressionAST {
@@ -1039,8 +1041,8 @@ class StringLiteralExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class UserDefinedStringLiteralExpressionAST final : public ExpressionAST {
@@ -1053,8 +1055,8 @@ class UserDefinedStringLiteralExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class IdExpressionAST final : public ExpressionAST {
@@ -1066,8 +1068,8 @@ class IdExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class RequiresExpressionAST final : public ExpressionAST {
@@ -1082,8 +1084,8 @@ class RequiresExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class NestedExpressionAST final : public ExpressionAST {
@@ -1096,8 +1098,8 @@ class NestedExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class RightFoldExpressionAST final : public ExpressionAST {
@@ -1113,8 +1115,8 @@ class RightFoldExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class LeftFoldExpressionAST final : public ExpressionAST {
@@ -1130,8 +1132,8 @@ class LeftFoldExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class FoldExpressionAST final : public ExpressionAST {
@@ -1150,8 +1152,8 @@ class FoldExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class LambdaExpressionAST final : public ExpressionAST {
@@ -1168,8 +1170,8 @@ class LambdaExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class SizeofExpressionAST final : public ExpressionAST {
@@ -1181,8 +1183,8 @@ class SizeofExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class SizeofTypeExpressionAST final : public ExpressionAST {
@@ -1196,8 +1198,8 @@ class SizeofTypeExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class SizeofPackExpressionAST final : public ExpressionAST {
@@ -1213,8 +1215,8 @@ class SizeofPackExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class TypeidExpressionAST final : public ExpressionAST {
@@ -1228,8 +1230,8 @@ class TypeidExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class TypeidOfTypeExpressionAST final : public ExpressionAST {
@@ -1244,8 +1246,8 @@ class TypeidOfTypeExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class AlignofExpressionAST final : public ExpressionAST {
@@ -1259,8 +1261,8 @@ class AlignofExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class TypeTraitsExpressionAST final : public ExpressionAST {
@@ -1275,8 +1277,8 @@ class TypeTraitsExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class UnaryExpressionAST final : public ExpressionAST {
@@ -1289,8 +1291,8 @@ class UnaryExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class BinaryExpressionAST final : public ExpressionAST {
@@ -1304,8 +1306,8 @@ class BinaryExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class AssignmentExpressionAST final : public ExpressionAST {
@@ -1319,8 +1321,8 @@ class AssignmentExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class BracedTypeConstructionAST final : public ExpressionAST {
@@ -1333,8 +1335,8 @@ class BracedTypeConstructionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class TypeConstructionAST final : public ExpressionAST {
@@ -1348,8 +1350,8 @@ class TypeConstructionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class CallExpressionAST final : public ExpressionAST {
@@ -1363,8 +1365,8 @@ class CallExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class SubscriptExpressionAST final : public ExpressionAST {
@@ -1378,8 +1380,8 @@ class SubscriptExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class MemberExpressionAST final : public ExpressionAST {
@@ -1395,8 +1397,8 @@ class MemberExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class PostIncrExpressionAST final : public ExpressionAST {
@@ -1409,8 +1411,8 @@ class PostIncrExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ConditionalExpressionAST final : public ExpressionAST {
@@ -1425,8 +1427,8 @@ class ConditionalExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ImplicitCastExpressionAST final : public ExpressionAST {
@@ -1439,8 +1441,8 @@ class ImplicitCastExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class CastExpressionAST final : public ExpressionAST {
@@ -1454,8 +1456,8 @@ class CastExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class CppCastExpressionAST final : public ExpressionAST {
@@ -1472,8 +1474,8 @@ class CppCastExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class NewExpressionAST final : public ExpressionAST {
@@ -1487,8 +1489,8 @@ class NewExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class DeleteExpressionAST final : public ExpressionAST {
@@ -1503,8 +1505,8 @@ class DeleteExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ThrowExpressionAST final : public ExpressionAST {
@@ -1516,8 +1518,8 @@ class ThrowExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class NoexceptExpressionAST final : public ExpressionAST {
@@ -1531,8 +1533,8 @@ class NoexceptExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class LabeledStatementAST final : public StatementAST {
@@ -1546,8 +1548,8 @@ class LabeledStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class CaseStatementAST final : public StatementAST {
@@ -1561,8 +1563,8 @@ class CaseStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class DefaultStatementAST final : public StatementAST {
@@ -1575,8 +1577,8 @@ class DefaultStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ExpressionStatementAST final : public StatementAST {
@@ -1588,8 +1590,8 @@ class ExpressionStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class CompoundStatementAST final : public StatementAST {
@@ -1603,8 +1605,8 @@ class CompoundStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class IfStatementAST final : public StatementAST {
@@ -1622,8 +1624,8 @@ class IfStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class SwitchStatementAST final : public StatementAST {
@@ -1639,8 +1641,8 @@ class SwitchStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class WhileStatementAST final : public StatementAST {
@@ -1655,8 +1657,8 @@ class WhileStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class DoStatementAST final : public StatementAST {
@@ -1673,8 +1675,8 @@ class DoStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ForRangeStatementAST final : public StatementAST {
@@ -1692,8 +1694,8 @@ class ForRangeStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ForStatementAST final : public StatementAST {
@@ -1711,8 +1713,8 @@ class ForStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class BreakStatementAST final : public StatementAST {
@@ -1724,8 +1726,8 @@ class BreakStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ContinueStatementAST final : public StatementAST {
@@ -1737,8 +1739,8 @@ class ContinueStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ReturnStatementAST final : public StatementAST {
@@ -1751,8 +1753,8 @@ class ReturnStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class GotoStatementAST final : public StatementAST {
@@ -1766,8 +1768,8 @@ class GotoStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class CoroutineReturnStatementAST final : public StatementAST {
@@ -1781,8 +1783,8 @@ class CoroutineReturnStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class DeclarationStatementAST final : public StatementAST {
@@ -1793,8 +1795,8 @@ class DeclarationStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class TryBlockStatementAST final : public StatementAST {
@@ -1807,8 +1809,8 @@ class TryBlockStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class AccessDeclarationAST final : public DeclarationAST {
@@ -1820,8 +1822,8 @@ class AccessDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class FunctionDefinitionAST final : public DeclarationAST {
@@ -1837,8 +1839,8 @@ class FunctionDefinitionAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ConceptDefinitionAST final : public DeclarationAST {
@@ -1853,8 +1855,8 @@ class ConceptDefinitionAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ForRangeDeclarationAST final : public DeclarationAST {
@@ -1863,8 +1865,8 @@ class ForRangeDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class AliasDeclarationAST final : public DeclarationAST {
@@ -1882,8 +1884,8 @@ class AliasDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class SimpleDeclarationAST final : public DeclarationAST {
@@ -1898,8 +1900,8 @@ class SimpleDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class StaticAssertDeclarationAST final : public DeclarationAST {
@@ -1917,8 +1919,8 @@ class StaticAssertDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class EmptyDeclarationAST final : public DeclarationAST {
@@ -1929,8 +1931,8 @@ class EmptyDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class AttributeDeclarationAST final : public DeclarationAST {
@@ -1942,8 +1944,8 @@ class AttributeDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class OpaqueEnumDeclarationAST final : public DeclarationAST {
@@ -1960,8 +1962,8 @@ class OpaqueEnumDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class UsingEnumDeclarationAST final : public DeclarationAST {
@@ -1970,8 +1972,8 @@ class UsingEnumDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class NamespaceDefinitionAST final : public DeclarationAST {
@@ -1990,8 +1992,8 @@ class NamespaceDefinitionAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class NamespaceAliasDefinitionAST final : public DeclarationAST {
@@ -2009,8 +2011,8 @@ class NamespaceAliasDefinitionAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class UsingDirectiveAST final : public DeclarationAST {
@@ -2026,8 +2028,8 @@ class UsingDirectiveAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class UsingDeclarationAST final : public DeclarationAST {
@@ -2040,8 +2042,8 @@ class UsingDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class AsmDeclarationAST final : public DeclarationAST {
@@ -2057,8 +2059,8 @@ class AsmDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ExportDeclarationAST final : public DeclarationAST {
@@ -2070,8 +2072,8 @@ class ExportDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ExportCompoundDeclarationAST final : public DeclarationAST {
@@ -2086,8 +2088,8 @@ class ExportCompoundDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ModuleImportDeclarationAST final : public DeclarationAST {
@@ -2102,8 +2104,8 @@ class ModuleImportDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class TemplateDeclarationAST final : public DeclarationAST {
@@ -2120,8 +2122,8 @@ class TemplateDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class TypenameTypeParameterAST final : public DeclarationAST {
@@ -2138,8 +2140,8 @@ class TypenameTypeParameterAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class TemplateTypeParameterAST final : public DeclarationAST {
@@ -2159,8 +2161,8 @@ class TemplateTypeParameterAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class TemplatePackTypeParameterAST final : public DeclarationAST {
@@ -2179,8 +2181,8 @@ class TemplatePackTypeParameterAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class DeductionGuideAST final : public DeclarationAST {
@@ -2189,8 +2191,8 @@ class DeductionGuideAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ExplicitInstantiationAST final : public DeclarationAST {
@@ -2203,8 +2205,8 @@ class ExplicitInstantiationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ParameterDeclarationAST final : public DeclarationAST {
@@ -2219,8 +2221,8 @@ class ParameterDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class LinkageSpecificationAST final : public DeclarationAST {
@@ -2236,8 +2238,8 @@ class LinkageSpecificationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class SimpleNameAST final : public NameAST {
@@ -2249,8 +2251,8 @@ class SimpleNameAST final : public NameAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class DestructorNameAST final : public NameAST {
@@ -2262,8 +2264,8 @@ class DestructorNameAST final : public NameAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class DecltypeNameAST final : public NameAST {
@@ -2274,8 +2276,8 @@ class DecltypeNameAST final : public NameAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class OperatorNameAST final : public NameAST {
@@ -2290,8 +2292,8 @@ class OperatorNameAST final : public NameAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ConversionNameAST final : public NameAST {
@@ -2303,8 +2305,8 @@ class ConversionNameAST final : public NameAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class TemplateNameAST final : public NameAST {
@@ -2318,8 +2320,8 @@ class TemplateNameAST final : public NameAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class QualifiedNameAST final : public NameAST {
@@ -2332,8 +2334,8 @@ class QualifiedNameAST final : public NameAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class TypedefSpecifierAST final : public SpecifierAST {
@@ -2344,8 +2346,8 @@ class TypedefSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class FriendSpecifierAST final : public SpecifierAST {
@@ -2356,8 +2358,8 @@ class FriendSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ConstevalSpecifierAST final : public SpecifierAST {
@@ -2368,8 +2370,8 @@ class ConstevalSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ConstinitSpecifierAST final : public SpecifierAST {
@@ -2380,8 +2382,8 @@ class ConstinitSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ConstexprSpecifierAST final : public SpecifierAST {
@@ -2392,8 +2394,8 @@ class ConstexprSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class InlineSpecifierAST final : public SpecifierAST {
@@ -2404,8 +2406,8 @@ class InlineSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class StaticSpecifierAST final : public SpecifierAST {
@@ -2416,8 +2418,8 @@ class StaticSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ExternSpecifierAST final : public SpecifierAST {
@@ -2428,8 +2430,8 @@ class ExternSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ThreadLocalSpecifierAST final : public SpecifierAST {
@@ -2440,8 +2442,8 @@ class ThreadLocalSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ThreadSpecifierAST final : public SpecifierAST {
@@ -2452,8 +2454,8 @@ class ThreadSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class MutableSpecifierAST final : public SpecifierAST {
@@ -2464,8 +2466,8 @@ class MutableSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class VirtualSpecifierAST final : public SpecifierAST {
@@ -2476,8 +2478,8 @@ class VirtualSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ExplicitSpecifierAST final : public SpecifierAST {
@@ -2491,8 +2493,8 @@ class ExplicitSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class AutoTypeSpecifierAST final : public SpecifierAST {
@@ -2503,8 +2505,8 @@ class AutoTypeSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class VoidTypeSpecifierAST final : public SpecifierAST {
@@ -2515,8 +2517,8 @@ class VoidTypeSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class VaListTypeSpecifierAST final : public SpecifierAST {
@@ -2528,8 +2530,8 @@ class VaListTypeSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class IntegralTypeSpecifierAST final : public SpecifierAST {
@@ -2541,8 +2543,8 @@ class IntegralTypeSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class FloatingPointTypeSpecifierAST final : public SpecifierAST {
@@ -2555,8 +2557,8 @@ class FloatingPointTypeSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ComplexTypeSpecifierAST final : public SpecifierAST {
@@ -2567,8 +2569,8 @@ class ComplexTypeSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class NamedTypeSpecifierAST final : public SpecifierAST {
@@ -2580,8 +2582,8 @@ class NamedTypeSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class AtomicTypeSpecifierAST final : public SpecifierAST {
@@ -2595,8 +2597,8 @@ class AtomicTypeSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class UnderlyingTypeSpecifierAST final : public SpecifierAST {
@@ -2606,8 +2608,8 @@ class UnderlyingTypeSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ElaboratedTypeSpecifierAST final : public SpecifierAST {
@@ -2623,8 +2625,8 @@ class ElaboratedTypeSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class DecltypeAutoSpecifierAST final : public SpecifierAST {
@@ -2638,8 +2640,8 @@ class DecltypeAutoSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class DecltypeSpecifierAST final : public SpecifierAST {
@@ -2653,8 +2655,8 @@ class DecltypeSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class PlaceholderTypeSpecifierAST final : public SpecifierAST {
@@ -2667,8 +2669,8 @@ class PlaceholderTypeSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ConstQualifierAST final : public SpecifierAST {
@@ -2679,8 +2681,8 @@ class ConstQualifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class VolatileQualifierAST final : public SpecifierAST {
@@ -2691,8 +2693,8 @@ class VolatileQualifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class RestrictQualifierAST final : public SpecifierAST {
@@ -2703,8 +2705,8 @@ class RestrictQualifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class EnumSpecifierAST final : public SpecifierAST {
@@ -2725,8 +2727,8 @@ class EnumSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ClassSpecifierAST final : public SpecifierAST {
@@ -2744,8 +2746,8 @@ class ClassSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class TypenameSpecifierAST final : public SpecifierAST {
@@ -2758,8 +2760,8 @@ class TypenameSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class IdDeclaratorAST final : public CoreDeclaratorAST {
@@ -2772,8 +2774,8 @@ class IdDeclaratorAST final : public CoreDeclaratorAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class NestedDeclaratorAST final : public CoreDeclaratorAST {
@@ -2786,8 +2788,8 @@ class NestedDeclaratorAST final : public CoreDeclaratorAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class PointerOperatorAST final : public PtrOperatorAST {
@@ -2800,8 +2802,8 @@ class PointerOperatorAST final : public PtrOperatorAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ReferenceOperatorAST final : public PtrOperatorAST {
@@ -2814,8 +2816,8 @@ class ReferenceOperatorAST final : public PtrOperatorAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class PtrToMemberOperatorAST final : public PtrOperatorAST {
@@ -2829,8 +2831,8 @@ class PtrToMemberOperatorAST final : public PtrOperatorAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class FunctionDeclaratorAST final : public DeclaratorModifierAST {
@@ -2843,8 +2845,8 @@ class FunctionDeclaratorAST final : public DeclaratorModifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 class ArrayDeclaratorAST final : public DeclaratorModifierAST {
@@ -2858,8 +2860,8 @@ class ArrayDeclaratorAST final : public DeclaratorModifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  SourceLocation firstSourceLocation() override;
-  SourceLocation lastSourceLocation() override;
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
 };
 
 }  // namespace cxx

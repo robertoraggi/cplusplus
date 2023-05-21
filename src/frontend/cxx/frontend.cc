@@ -66,7 +66,7 @@ struct ExpectedDiagnostic {
 
 struct VerifyCommentHandler : CommentHandler {
   std::regex rx{
-      "^//\\s*expected-(error|warning)(?:@([+-]?\\d+))?\\s*\\{\\{(.+)\\}\\}"};
+      R"(^//\s*expected-(error|warning)(?:@([+-]?\d+))?\s*\{\{(.+)\}\})"};
   std::list<ExpectedDiagnostic> expectedDiagnostics;
 
   void handleComment(Preprocessor* preprocessor, const Token& token) override {
@@ -100,12 +100,13 @@ struct VerifyDiagnostics : DiagnosticsClient {
   std::list<Diagnostic> reportedDiagnostics;
   bool verify = false;
 
-  bool hasErrors() const {
+  [[nodiscard]] auto hasErrors() const -> bool {
     if (verify) return !reportedDiagnostics.empty();
 
     for (const auto& d : reportedDiagnostics) {
-      if (d.severity() == Severity::Error || d.severity() == Severity::Fatal)
+      if (d.severity() == Severity::Error || d.severity() == Severity::Fatal) {
         return true;
+      }
     }
 
     return false;
@@ -136,8 +137,8 @@ struct VerifyDiagnostics : DiagnosticsClient {
   }
 
  private:
-  std::list<Diagnostic>::const_iterator findDiagnostic(
-      const ExpectedDiagnostic& expected) const {
+  [[nodiscard]] auto findDiagnostic(const ExpectedDiagnostic& expected) const
+      -> std::list<Diagnostic>::const_iterator {
     return std::find_if(reportedDiagnostics.begin(), reportedDiagnostics.end(),
                         [&](const Diagnostic& d) {
                           if (d.severity() != expected.severity) {
@@ -162,7 +163,7 @@ struct VerifyDiagnostics : DiagnosticsClient {
   }
 };
 
-std::string readAll(const std::string& fileName, std::istream& in) {
+auto readAll(const std::string& fileName, std::istream& in) -> std::string {
   std::string code;
   char buffer[4 * 1024];
   do {
@@ -172,7 +173,7 @@ std::string readAll(const std::string& fileName, std::istream& in) {
   return code;
 }
 
-std::string readAll(const std::string& fileName) {
+auto readAll(const std::string& fileName) -> std::string {
   if (fileName == "-" || fileName.empty()) return readAll("<stdin>", std::cin);
   std::ifstream stream(fileName);
   return readAll(fileName, stream);
@@ -195,8 +196,9 @@ void dumpTokens(const CLI& cli, TranslationUnit& unit, std::ostream& output) {
     }
 
     auto kind = tk.kind();
-    if (kind == TokenKind::T_IDENTIFIER)
+    if (kind == TokenKind::T_IDENTIFIER) {
       kind = Lexer::classifyKeyword(tk.spell());
+    }
 
     fmt::print(output, "{} '{}'{}\n", Token::name(kind), tk.spell(), flags);
 
@@ -204,7 +206,7 @@ void dumpTokens(const CLI& cli, TranslationUnit& unit, std::ostream& output) {
   }
 }
 
-bool runOnFile(const CLI& cli, const std::string& fileName) {
+auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
   Control control;
   VerifyDiagnostics diagnosticsClient;
   TranslationUnit unit(&control, &diagnosticsClient);
@@ -233,21 +235,24 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
 #endif
   }
 
-  if (toolchainId == "darwin")
+  if (toolchainId == "darwin") {
     toolchain = std::make_unique<MacOSToolchain>(preprocesor);
-  else if (toolchainId == "linux")
+  } else if (toolchainId == "linux") {
     toolchain = std::make_unique<GCCLinuxToolchain>(preprocesor);
-  else if (toolchainId == "windows") {
+  } else if (toolchainId == "windows") {
     auto windowsToolchain = std::make_unique<WindowsToolchain>(preprocesor);
 
-    if (auto paths = cli.get("-vctoolsdir"); !paths.empty())
+    if (auto paths = cli.get("-vctoolsdir"); !paths.empty()) {
       windowsToolchain->setVctoolsdir(paths.back());
+    }
 
-    if (auto paths = cli.get("-winsdkdir"); !paths.empty())
+    if (auto paths = cli.get("-winsdkdir"); !paths.empty()) {
       windowsToolchain->setWinsdkdir(paths.back());
+    }
 
-    if (auto versions = cli.get("-winsdkversion"); !versions.empty())
+    if (auto versions = cli.get("-winsdkversion"); !versions.empty()) {
       windowsToolchain->setWinsdkversion(versions.back());
+    }
 
     toolchain = std::move(windowsToolchain);
   }
@@ -357,7 +362,7 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
 
 }  // namespace cxx
 
-int main(int argc, char* argv[]) {
+auto main(int argc, char* argv[]) -> int {
   using namespace cxx;
 
   CLI cli;

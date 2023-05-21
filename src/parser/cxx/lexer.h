@@ -48,44 +48,50 @@ class Lexer {
   void consume();
   void consume(int n);
 
-  inline uint32_t LA() const { return currentChar_; }
+  [[nodiscard]] inline auto LA() const -> uint32_t { return currentChar_; }
 
-  uint32_t LA(int n) const;
+  [[nodiscard]] auto LA(int n) const -> uint32_t;
 
  public:
   explicit Lexer(const std::string_view& source);
 
-  bool preprocessing() const { return preprocessing_; }
+  [[nodiscard]] auto preprocessing() const -> bool { return preprocessing_; }
   void setPreprocessing(bool preprocessing) { preprocessing_ = preprocessing; }
 
-  bool keepComments() const { return keepComments_; }
+  [[nodiscard]] auto keepComments() const -> bool { return keepComments_; }
   void setKeepComments(bool keepComments) { keepComments_ = keepComments; }
 
-  TokenKind operator()() { return next(); }
+  auto operator()() -> TokenKind { return next(); }
 
-  TokenKind next() {
+  auto next() -> TokenKind {
     tokenKind_ = readToken();
     return tokenKind_;
   }
 
-  TokenKind tokenKind() const { return tokenKind_; }
+  [[nodiscard]] auto tokenKind() const -> TokenKind { return tokenKind_; }
 
-  bool tokenLeadingSpace() const { return tokenLeadingSpace_; }
+  [[nodiscard]] auto tokenLeadingSpace() const -> bool {
+    return tokenLeadingSpace_;
+  }
 
-  bool tokenStartOfLine() const { return tokenStartOfLine_; }
+  [[nodiscard]] auto tokenStartOfLine() const -> bool {
+    return tokenStartOfLine_;
+  }
 
-  int tokenPos() const { return tokenPos_; }
+  [[nodiscard]] auto tokenPos() const -> int { return tokenPos_; }
 
-  uint32_t tokenLength() const { return (pos_ - cbegin(source_)) - tokenPos_; }
+  [[nodiscard]] auto tokenLength() const -> uint32_t {
+    return (pos_ - cbegin(source_)) - tokenPos_;
+  }
 
-  bool tokenIsClean() const { return tokenIsClean_; }
+  [[nodiscard]] auto tokenIsClean() const -> bool { return tokenIsClean_; }
 
-  std::string_view tokenText() const {
+  [[nodiscard]] auto tokenText() const -> std::string_view {
     if (tokenIsClean_) return source_.substr(tokenPos_, tokenLength());
     return text_;
   }
 
-  TokenValue tokenValue() const { return tokenValue_; }
+  [[nodiscard]] auto tokenValue() const -> TokenValue { return tokenValue_; }
 
   struct State {
     std::string_view::const_iterator pos_;
@@ -94,7 +100,9 @@ class Lexer {
     bool startOfLine_ = true;
   };
 
-  State save() { return {pos_, currentChar_, leadingSpace_, startOfLine_}; }
+  auto save() -> State {
+    return {pos_, currentChar_, leadingSpace_, startOfLine_};
+  }
 
   void restore(const State& state) {
     pos_ = state.pos_;
@@ -103,16 +111,16 @@ class Lexer {
     startOfLine_ = state.startOfLine_;
   }
 
-  std::string& text() { return text_; }
-  const std::string& text() const { return text_; }
+  auto text() -> std::string& { return text_; }
+  [[nodiscard]] auto text() const -> const std::string& { return text_; }
 
-  static TokenKind classifyKeyword(const std::string_view& text);
-
- private:
-  TokenKind readToken();
+  static auto classifyKeyword(const std::string_view& text) -> TokenKind;
 
  private:
-  bool skipSpaces();
+  auto readToken() -> TokenKind;
+
+ private:
+  auto skipSpaces() -> bool;
 };
 
 }  // namespace cxx

@@ -89,34 +89,40 @@ enum class Qualifiers : std::uint8_t {
   kRestrict = 4,
 };
 
-constexpr Qualifiers operator&(Qualifiers lhs, Qualifiers rhs) noexcept {
+constexpr auto operator&(Qualifiers lhs, Qualifiers rhs) noexcept
+    -> Qualifiers {
   return static_cast<Qualifiers>(static_cast<std::uint8_t>(lhs) &
                                  static_cast<std::uint8_t>(rhs));
 }
 
-constexpr Qualifiers operator|(Qualifiers lhs, Qualifiers rhs) noexcept {
+constexpr auto operator|(Qualifiers lhs, Qualifiers rhs) noexcept
+    -> Qualifiers {
   return static_cast<Qualifiers>(static_cast<std::uint8_t>(lhs) |
                                  static_cast<std::uint8_t>(rhs));
 }
 
-constexpr Qualifiers operator^(Qualifiers lhs, Qualifiers rhs) noexcept {
+constexpr auto operator^(Qualifiers lhs, Qualifiers rhs) noexcept
+    -> Qualifiers {
   return static_cast<Qualifiers>(static_cast<std::uint8_t>(lhs) ^
                                  static_cast<std::uint8_t>(rhs));
 }
 
-constexpr Qualifiers operator~(Qualifiers lhs) noexcept {
+constexpr auto operator~(Qualifiers lhs) noexcept -> Qualifiers {
   return static_cast<Qualifiers>(~static_cast<std::uint8_t>(lhs));
 }
 
-inline Qualifiers& operator&=(Qualifiers& lhs, Qualifiers rhs) noexcept {
+inline auto operator&=(Qualifiers& lhs, Qualifiers rhs) noexcept
+    -> Qualifiers& {
   return lhs = lhs & rhs;
 }
 
-inline Qualifiers& operator|=(Qualifiers& lhs, Qualifiers rhs) noexcept {
+inline auto operator|=(Qualifiers& lhs, Qualifiers rhs) noexcept
+    -> Qualifiers& {
   return lhs = lhs | rhs;
 }
 
-inline Qualifiers& operator^=(Qualifiers& lhs, Qualifiers rhs) noexcept {
+inline auto operator^=(Qualifiers& lhs, Qualifiers rhs) noexcept
+    -> Qualifiers& {
   return lhs = lhs ^ rhs;
 }
 

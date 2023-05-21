@@ -32,8 +32,8 @@ void TypePrinter::operator()(std::ostream& out, const QualifiedType& type,
   out << toString(type, std::move(declarator));
 }
 
-std::string TypePrinter::toString(const QualifiedType& type,
-                                  std::string declarator) {
+auto TypePrinter::toString(const QualifiedType& type, std::string declarator)
+    -> std::string {
   if (!type) return {};
   std::string specifiers;
   std::string ptrOps;
@@ -48,8 +48,8 @@ std::string TypePrinter::toString(const QualifiedType& type,
   return fmt::format("{} {}{}", specifiers, ptrOps, declarator);
 }
 
-std::string TypePrinter::toString(const QualifiedType& type, std::string id,
-                                  bool addFormals) {
+auto TypePrinter::toString(const QualifiedType& type, std::string id,
+                           bool addFormals) -> std::string {
   std::swap(addFormals_, addFormals);
   auto text = toString(type, std::move(id));
   std::swap(addFormals_, addFormals);
@@ -65,11 +65,13 @@ void TypePrinter::accept(const QualifiedType& type) {
 void TypePrinter::addQualifiers(std::string& out, Qualifiers qualifiers) {
   if ((qualifiers & Qualifiers::kConst) != Qualifiers::kNone) out += "const ";
 
-  if ((qualifiers & Qualifiers::kVolatile) != Qualifiers::kNone)
+  if ((qualifiers & Qualifiers::kVolatile) != Qualifiers::kNone) {
     out += "volatile ";
+  }
 
-  if ((qualifiers & Qualifiers::kRestrict) != Qualifiers::kNone)
+  if ((qualifiers & Qualifiers::kRestrict) != Qualifiers::kNone) {
     out += "restrict ";
+  }
 }
 
 void TypePrinter::visit(const UndefinedType* type) {
@@ -154,17 +156,19 @@ void TypePrinter::visit(const FloatingPointType* type) {
 }
 
 void TypePrinter::visit(const EnumType* type) {
-  if (auto name = type->symbol()->name())
+  if (auto name = type->symbol()->name()) {
     specifiers_ += fmt::format("enum {}", *name);
-  else
+  } else {
     specifiers_ += "int";
+  }
 }
 
 void TypePrinter::visit(const ScopedEnumType* type) {
-  if (auto name = type->symbol()->name())
+  if (auto name = type->symbol()->name()) {
     specifiers_ += fmt::format("enum class {}", *name);
-  else
+  } else {
     specifiers_ += "enum class __anon__";
+  }
 }
 
 void TypePrinter::visit(const PointerType* type) {
@@ -238,22 +242,19 @@ void TypePrinter::visit(const NamespaceType* type) {
 void TypePrinter::visit(const ClassType* type) {
   const std::string_view classKey =
       type->symbol()->classKey() == ClassKey::kUnion ? "union" : "struct";
-  if (auto name = type->symbol()->name())
+  if (auto name = type->symbol()->name()) {
     specifiers_ += fmt::format("{} {}", classKey, *name);
-  else
+  } else {
     specifiers_ += fmt::format("{} __anon__", classKey);
+  }
 }
 
-void TypePrinter::visit(const TemplateType* type) {
-  cxx_runtime_error("todo");
-}
+void TypePrinter::visit(const TemplateType* type) { cxx_runtime_error("todo"); }
 
 void TypePrinter::visit(const TemplateArgumentType* type) {
   cxx_runtime_error("todo");
 }
 
-void TypePrinter::visit(const ConceptType* type) {
-  cxx_runtime_error("todo");
-}
+void TypePrinter::visit(const ConceptType* type) { cxx_runtime_error("todo"); }
 
 }  // namespace cxx

@@ -25,6 +25,8 @@
 #include <cxx/private/format.h>
 #include <cxx/private/path.h>
 
+#include <utility>
+
 namespace cxx {
 
 void WindowsToolchain::setVctoolsdir(std::string path) {
@@ -36,7 +38,7 @@ void WindowsToolchain::setWinsdkdir(std::string path) {
 }
 
 void WindowsToolchain::setWinsdkversion(std::string version) {
-  winsdkversion_ = version;
+  winsdkversion_ = std::move(version);
 }
 
 void WindowsToolchain::addSystemIncludePaths() {

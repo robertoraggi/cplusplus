@@ -29,9 +29,9 @@ namespace cxx {
 
 class GCCLinuxToolchain final : public Toolchain {
  public:
-  GCCLinuxToolchain(Preprocessor* preprocessor);
+  explicit GCCLinuxToolchain(Preprocessor* preprocessor);
 
-  std::optional<int> version() const { return version_; }
+  [[nodiscard]] auto version() const -> std::optional<int> { return version_; }
 
   void addSystemIncludePaths() override;
   void addSystemCppIncludePaths() override;

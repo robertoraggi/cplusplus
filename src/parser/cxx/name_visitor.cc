@@ -22,6 +22,6 @@
 
 namespace cxx {
 
-NameVisitor::~NameVisitor() {}
+NameVisitor::~NameVisitor() = default;
 
 }  // namespace cxx

@@ -30,7 +30,7 @@
 
 namespace cxx {
 
-DiagnosticsClient::~DiagnosticsClient() {}
+DiagnosticsClient::~DiagnosticsClient() = default;
 
 void DiagnosticsClient::report(const Diagnostic& diag) {
   std::string_view Severity;
@@ -62,7 +62,7 @@ void DiagnosticsClient::report(const Diagnostic& diag) {
 
     const auto textLine = preprocessor_->getTextLine(diag.token());
 
-    const auto end = std::max(0, int(column) - 1);
+    const auto end = std::max(0, static_cast<int>(column) - 1);
 
     std::string indent{textLine.substr(0, end)};
 
@@ -76,8 +76,9 @@ void DiagnosticsClient::report(const Diagnostic& diag) {
   }
 
   if (diag.severity() == Severity::Fatal ||
-      (diag.severity() == Severity::Error && fatalErrors_))
+      (diag.severity() == Severity::Error && fatalErrors_)) {
     exit(EXIT_FAILURE);
+  }
 }
 
 }  // namespace cxx

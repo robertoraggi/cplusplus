@@ -26,17 +26,17 @@
 
 namespace cxx {
 
-constexpr std::uint64_t AlignTo(std::uint64_t n, std::uint64_t align) {
+constexpr auto AlignTo(std::uint64_t n, std::uint64_t align) -> std::uint64_t {
   return (n + align - 1) / align * align;
 }
 
 class MemoryLayout final : TypeVisitor {
  public:
-  static std::optional<std::tuple<std::uint64_t, std::uint64_t>> ofType(
-      const QualifiedType& type);
+  static auto ofType(const QualifiedType& type)
+      -> std::optional<std::tuple<std::uint64_t, std::uint64_t>>;
 
-  std::optional<std::tuple<std::uint64_t, std::uint64_t>> operator()(
-      const QualifiedType& type);
+  auto operator()(const QualifiedType& type)
+      -> std::optional<std::tuple<std::uint64_t, std::uint64_t>>;
 
  private:
   void visit(const UndefinedType*) override;

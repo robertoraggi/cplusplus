@@ -28,7 +28,7 @@ namespace {
 TypePrinter printType;
 }
 
-std::ostream& operator<<(std::ostream& out, const QualifiedType& type) {
+auto operator<<(std::ostream& out, const QualifiedType& type) -> std::ostream& {
   printType(out, type);
   return out;
 }

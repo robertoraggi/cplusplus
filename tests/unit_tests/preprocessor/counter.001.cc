@@ -1,6 +1,6 @@
 // RUN: %cxx -verify -E %s -o - | %filecheck %s
 
-#define CONCAT_HELPER(a, b) a ## b
+#define CONCAT_HELPER(a, b) a##b
 
 #define CONCAT(a, b) CONCAT_HELPER(a, b)
 

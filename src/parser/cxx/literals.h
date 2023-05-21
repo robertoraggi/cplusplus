@@ -30,7 +30,7 @@ class Literal {
   explicit Literal(std::string value) : value_(std::move(value)) {}
   virtual ~Literal();
 
-  const std::string& value() const { return value_; }
+  [[nodiscard]] auto value() const -> const std::string& { return value_; }
 
  private:
   std::string value_;
@@ -40,9 +40,11 @@ class IntegerLiteral final : public Literal {
  public:
   explicit IntegerLiteral(std::string text);
 
-  std::uint64_t integerValue() const { return integerValue_; }
+  [[nodiscard]] auto integerValue() const -> std::uint64_t {
+    return integerValue_;
+  }
 
-  static std::uint64_t interpretText(std::string_view text);
+  static auto interpretText(std::string_view text) -> std::uint64_t;
 
  private:
   std::uint64_t integerValue_ = 0;
@@ -52,7 +54,7 @@ class FloatLiteral final : public Literal {
  public:
   explicit FloatLiteral(std::string text);
 
-  double floatValue() const { return floatValue_; }
+  [[nodiscard]] auto floatValue() const -> double { return floatValue_; }
 
  private:
   double floatValue_ = 0;

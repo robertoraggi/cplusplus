@@ -34,7 +34,7 @@ namespace details {
 template <typename To>
 struct ConstValueCast {
   template <typename From>
-  To operator()(From value) const {
+  auto operator()(From value) const -> To {
     return static_cast<To>(value);
   }
 };
@@ -42,7 +42,7 @@ struct ConstValueCast {
 }  // namespace details
 
 template <typename T>
-T const_value_cast(const ConstValue& value) {
+auto const_value_cast(const ConstValue& value) -> T {
   return std::visit(details::ConstValueCast<T>(), value);
 }
 

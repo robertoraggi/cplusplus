@@ -37,7 +37,7 @@ class SourceLocation {
 
   SourceLocation(const SourceLocation&) = default;
 
-  SourceLocation& operator=(const SourceLocation&) = default;
+  auto operator=(const SourceLocation&) -> SourceLocation& = default;
 
   explicit SourceLocation(unsigned int index) : index_(index) {}
 
@@ -45,24 +45,26 @@ class SourceLocation {
 
   explicit operator unsigned int() const { return index_; }
 
-  unsigned int index() const { return index_; }
+  [[nodiscard]] auto index() const -> unsigned int { return index_; }
 
-  SourceLocation next() const { return SourceLocation(index_ + 1); }
+  [[nodiscard]] auto next() const -> SourceLocation {
+    return SourceLocation(index_ + 1);
+  }
 
-  SourceLocation previous() const {
+  [[nodiscard]] auto previous() const -> SourceLocation {
     if (!index_) return *this;
     return SourceLocation(index_ - 1);
   }
 
-  bool operator==(const SourceLocation& other) const {
+  auto operator==(const SourceLocation& other) const -> bool {
     return index_ == other.index_;
   }
 
-  bool operator!=(const SourceLocation& other) const {
+  auto operator!=(const SourceLocation& other) const -> bool {
     return index_ != other.index_;
   }
 
-  bool operator<(const SourceLocation& other) const {
+  auto operator<(const SourceLocation& other) const -> bool {
     return index_ < other.index_;
   }
 };
@@ -71,5 +73,7 @@ class SourceLocation {
 
 template <>
 struct std::hash<cxx::SourceLocation> {
-  size_t operator()(cxx::SourceLocation loc) const { return loc.index(); }
+  auto operator()(cxx::SourceLocation loc) const -> size_t {
+    return loc.index();
+  }
 };

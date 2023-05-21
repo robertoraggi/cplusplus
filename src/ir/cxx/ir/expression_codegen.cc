@@ -39,7 +39,7 @@ namespace cxx::ir {
 
 ExpressionCodegen::ExpressionCodegen(Codegen* cg) : cg(cg) {}
 
-ir::Expr* ExpressionCodegen::gen(ExpressionAST* ast) {
+auto ExpressionCodegen::gen(ExpressionAST* ast) -> ir::Expr* {
   ir::Expr* expr = nullptr;
   std::swap(expr_, expr);
   ast->accept(this);
@@ -47,20 +47,21 @@ ir::Expr* ExpressionCodegen::gen(ExpressionAST* ast) {
   return expr;
 }
 
-ir::Expr* ExpressionCodegen::reduce(ExpressionAST* ast) {
+auto ExpressionCodegen::reduce(ExpressionAST* ast) -> ir::Expr* {
   auto expr = gen(ast);
   if (dynamic_cast<ir::Temp*>(expr) ||
       dynamic_cast<ir::IntegerLiteral*>(expr) ||
       dynamic_cast<ir::FloatLiteral*>(expr) ||
-      dynamic_cast<ir::CharLiteral*>(expr))
+      dynamic_cast<ir::CharLiteral*>(expr)) {
     return expr;
+  }
   auto local = cg->function()->addLocal(ast->type);
   cg->emitMove(cg->createTemp(local), expr);
   expr = cg->createTemp(local);
   return expr;
 }
 
-ir::UnaryOp ExpressionCodegen::convertUnaryOp(TokenKind tk) const {
+auto ExpressionCodegen::convertUnaryOp(TokenKind tk) const -> ir::UnaryOp {
   switch (tk) {
     case TokenKind::T_STAR:
       return ir::UnaryOp::kStar;
@@ -75,12 +76,11 @@ ir::UnaryOp ExpressionCodegen::convertUnaryOp(TokenKind tk) const {
     case TokenKind::T_TILDE:
       return ir::UnaryOp::kTilde;
     default:
-      cxx_runtime_error(
-          fmt::format("invalid unary op '{}'", Token::spell(tk)));
+      cxx_runtime_error(fmt::format("invalid unary op '{}'", Token::spell(tk)));
   }  // switch
 }
 
-ir::BinaryOp ExpressionCodegen::convertBinaryOp(TokenKind tk) const {
+auto ExpressionCodegen::convertBinaryOp(TokenKind tk) const -> ir::BinaryOp {
   switch (tk) {
     case TokenKind::T_STAR:
       return ir::BinaryOp::kStar;
@@ -120,7 +120,8 @@ ir::BinaryOp ExpressionCodegen::convertBinaryOp(TokenKind tk) const {
   }
 }
 
-ir::BinaryOp ExpressionCodegen::convertAssignmentOp(TokenKind tk) const {
+auto ExpressionCodegen::convertAssignmentOp(TokenKind tk) const
+    -> ir::BinaryOp {
   switch (tk) {
     case TokenKind::T_STAR_EQUAL:
       return ir::BinaryOp::kStar;
@@ -157,7 +158,8 @@ void ExpressionCodegen::visit(CharLiteralExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(BoolLiteralExpressionAST* ast) {
-  const auto value = std::uint64_t(ast->literal == TokenKind::T_TRUE);
+  const auto value =
+      static_cast<std::uint64_t>(ast->literal == TokenKind::T_TRUE);
   expr_ = cg->createIntegerLiteral(value);
 }
 
@@ -324,11 +326,11 @@ void ExpressionCodegen::visit(BinaryExpressionAST* ast) {
     cg->condition(ast, iftrue, iffalse);
     cg->place(iftrue);
     cg->emitMove(cg->createTemp(local),
-                 cg->createIntegerLiteral(std::uint64_t(1)));
+                 cg->createIntegerLiteral(static_cast<std::uint64_t>(1)));
     cg->emitJump(endif);
     cg->place(iffalse);
     cg->emitMove(cg->createTemp(local),
-                 cg->createIntegerLiteral(std::uint64_t(0)));
+                 cg->createIntegerLiteral(static_cast<std::uint64_t>(0)));
     cg->place(endif);
     expr_ = cg->createTemp(local);
     return;
@@ -349,13 +351,15 @@ void ExpressionCodegen::visit(BinaryExpressionAST* ast) {
 void ExpressionCodegen::visit(AssignmentExpressionAST* ast) {
   auto left = gen(ast->leftExpression);
   auto right = reduce(ast->rightExpression);
-  if (ast->leftExpression->type != ast->rightExpression->type)
+  if (ast->leftExpression->type != ast->rightExpression->type) {
     right = cg->createCast(ast->leftExpression->type, right);
-  if (ast->op == TokenKind::T_EQUAL)
+  }
+  if (ast->op == TokenKind::T_EQUAL) {
     cg->emitMove(left, right);
-  else
+  } else {
     cg->emitMove(left,
                  cg->createBinary(convertAssignmentOp(ast->op), left, right));
+  }
   expr_ = left;
 }
 
@@ -384,8 +388,9 @@ void ExpressionCodegen::visit(SubscriptExpressionAST* ast) {
 
 void ExpressionCodegen::visit(MemberExpressionAST* ast) {
   auto base = gen(ast->baseExpression);
-  if (ast->accessOp == TokenKind::T_MINUS_GREATER)
+  if (ast->accessOp == TokenKind::T_MINUS_GREATER) {
     base = cg->createUnary(ir::UnaryOp::kStar, base);
+  }
   expr_ = cg->createAccess(base, ast->symbol);
 }
 

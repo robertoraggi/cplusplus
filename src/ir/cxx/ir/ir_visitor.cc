@@ -23,6 +23,6 @@
 
 namespace cxx::ir {
 
-IRVisitor::~IRVisitor() {}
+IRVisitor::~IRVisitor() = default;
 
 }  // namespace cxx::ir
