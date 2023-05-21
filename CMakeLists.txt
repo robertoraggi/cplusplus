@@ -29,6 +29,13 @@ file(READ "${CMAKE_CURRENT_SOURCE_DIR}/version.txt" version)
 
 set(CMAKE_CXX_STANDARD 20)
 
+# if CMAKE_SYSTEM_NAME is WASI disable the exceptions
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
+
+    set(FMT_OS OFF CACHE BOOL "" FORCE)
+endif()
+
 find_package(LLVM 13 CONFIG QUIET)
 
 if(LLVM_FOUND)
@@ -68,7 +75,11 @@ set_target_properties(nlohmann_json::nlohmann_json PROPERTIES INTERFACE_INCLUDE_
 
 enable_testing()
 
-add_subdirectory(tools/kwgen)
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+else()
+    add_subdirectory(tools/kwgen)
+endif()
+
 add_subdirectory(src/parser)
 add_subdirectory(src/ir)
 add_subdirectory(src/llvm)

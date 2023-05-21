@@ -174,7 +174,7 @@ void TypePrinter::visit(const PointerType* type) {
 }
 
 void TypePrinter::visit(const PointerToMemberType* type) {
-  throw std::runtime_error("todo");
+  cxx_runtime_error("todo");
 }
 
 void TypePrinter::visit(const ReferenceType* type) {
@@ -228,11 +228,11 @@ void TypePrinter::visit(const FunctionType* type) {
 }
 
 void TypePrinter::visit(const MemberFunctionType* type) {
-  throw std::runtime_error("todo");
+  cxx_runtime_error("todo");
 }
 
 void TypePrinter::visit(const NamespaceType* type) {
-  throw std::runtime_error("todo");
+  cxx_runtime_error("todo");
 }
 
 void TypePrinter::visit(const ClassType* type) {
@@ -245,15 +245,15 @@ void TypePrinter::visit(const ClassType* type) {
 }
 
 void TypePrinter::visit(const TemplateType* type) {
-  throw std::runtime_error("todo");
+  cxx_runtime_error("todo");
 }
 
 void TypePrinter::visit(const TemplateArgumentType* type) {
-  throw std::runtime_error("todo");
+  cxx_runtime_error("todo");
 }
 
 void TypePrinter::visit(const ConceptType* type) {
-  throw std::runtime_error("todo");
+  cxx_runtime_error("todo");
 }
 
 }  // namespace cxx

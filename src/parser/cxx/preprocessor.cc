@@ -853,7 +853,7 @@ void Preprocessor::Private::expand(
         fmt::print(std::cerr, "** todo pragma: ");
         printLine(ts, std::cerr);
         fmt::print(std::cerr, "\n");
-        // throw std::runtime_error(out.str());
+        // cxx_runtime_error(out.str());
 #endif
       } else if (!skipping && matchId(ts, "error")) {
         std::ostringstream out;
@@ -1242,7 +1242,7 @@ long Preprocessor::Private::binaryExpressionHelper(const TokList *&ts, long lhs,
         lhs = lhs || rhs;
         break;
       default:
-        throw std::runtime_error(
+        cxx_runtime_error(
             fmt::format("invalid operator '{}'", Token::spell(op)));
     }  // switch
   }

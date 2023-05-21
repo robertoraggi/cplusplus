@@ -104,7 +104,7 @@ std::string_view IRPrinter::toString(UnaryOp op) const {
     case UnaryOp::kTilde:
       return "~";
     default:
-      throw std::runtime_error("invalid operator");
+      cxx_runtime_error("invalid operator");
   }  // switch
 }
 
@@ -143,7 +143,7 @@ std::string_view IRPrinter::toString(BinaryOp op) const {
     case BinaryOp::kBar:
       return "|";
     default:
-      throw std::runtime_error("invalid operator");
+      cxx_runtime_error("invalid operator");
   }  // switch
 }
 

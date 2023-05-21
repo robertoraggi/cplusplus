@@ -505,7 +505,7 @@ void ASTSlot::visit(ModuleDeclarationAST* ast) {
 void ASTSlot::visit(ModuleNameAST* ast) {
   switch (slot_) {
     case 0:
-      throw std::runtime_error("not implemented yet");
+      cxx_runtime_error("not implemented yet");
       slotKind_ = ASTSlotKind::kTokenList;
       break;
   }  // switch
@@ -1105,7 +1105,7 @@ void ASTSlot::visit(NullptrLiteralExpressionAST* ast) {
 void ASTSlot::visit(StringLiteralExpressionAST* ast) {
   switch (slot_) {
     case 0:
-      throw std::runtime_error("not implemented yet");
+      cxx_runtime_error("not implemented yet");
       slotKind_ = ASTSlotKind::kTokenList;
       break;
   }  // switch
@@ -2395,7 +2395,7 @@ void ASTSlot::visit(StaticAssertDeclarationAST* ast) {
       slotKind_ = ASTSlotKind::kToken;
       break;
     case 4:
-      throw std::runtime_error("not implemented yet");
+      cxx_runtime_error("not implemented yet");
       slotKind_ = ASTSlotKind::kTokenList;
       break;
     case 5:
@@ -2617,7 +2617,7 @@ void ASTSlot::visit(AsmDeclarationAST* ast) {
       slotKind_ = ASTSlotKind::kToken;
       break;
     case 3:
-      throw std::runtime_error("not implemented yet");
+      cxx_runtime_error("not implemented yet");
       slotKind_ = ASTSlotKind::kTokenList;
       break;
     case 4:

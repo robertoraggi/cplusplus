@@ -88,131 +88,131 @@ void X64InstructionSelection::expression(ir::Expr* expr, std::string target) {
 }
 
 void X64InstructionSelection::visit(ir::Jump* stmt) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::CondJump* stmt) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::Switch* stmt) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::Ret* stmt) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::RetVoid* stmt) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::Move* stmt) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::This* expr) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::BoolLiteral* expr) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::CharLiteral* expr) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::IntegerLiteral* expr) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::FloatLiteral* expr) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::NullptrLiteral* expr) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::StringLiteral* expr) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::UserDefinedStringLiteral* expr) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::Temp* expr) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::Id* expr) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::ExternalId* expr) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::Typeid* expr) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::Unary* expr) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::Binary* expr) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::Call* expr) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::Subscript* expr) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::Access* expr) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::Cast* expr) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::StaticCast* expr) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::DynamicCast* expr) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::ReinterpretCast* expr) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::New* expr) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::NewArray* expr) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::Delete* expr) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::DeleteArray* expr) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 void X64InstructionSelection::visit(ir::Throw* expr) {
-  throw std::runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
+  cxx_runtime_error(fmt::format("TODO: {}", __PRETTY_FUNCTION__));
 }
 
 }  // namespace cxx::ir

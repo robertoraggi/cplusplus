@@ -48,7 +48,7 @@ void StatementCodegen::visit(LabeledStatementAST* ast) {
 
 void StatementCodegen::visit(CaseStatementAST* ast) {
   if (!cg->currentSwitch())
-    throw std::runtime_error("case label without switch");
+    cxx_runtime_error("case label without switch");
   auto condition = cg->expression(ast->expression);
   auto target = cg->createBlock();
   cg->currentSwitch()->addCase(ir::Switch::Case(condition, target));
@@ -58,7 +58,7 @@ void StatementCodegen::visit(CaseStatementAST* ast) {
 
 void StatementCodegen::visit(DefaultStatementAST* ast) {
   if (!cg->currentSwitch())
-    throw std::runtime_error("default label without switch");
+    cxx_runtime_error("default label without switch");
   auto target = cg->createBlock();
   cg->currentSwitch()->setDefaultBlock(target);
   cg->place(target);
@@ -152,7 +152,7 @@ void StatementCodegen::visit(DoStatementAST* ast) {
 }
 
 void StatementCodegen::visit(ForRangeStatementAST* ast) {
-  throw std::runtime_error("visit(ForRangeStatementAST): not implemented");
+  cxx_runtime_error("visit(ForRangeStatementAST): not implemented");
 }
 
 void StatementCodegen::visit(ForStatementAST* ast) {
@@ -201,7 +201,7 @@ void StatementCodegen::visit(GotoStatementAST* ast) {
 }
 
 void StatementCodegen::visit(CoroutineReturnStatementAST* ast) {
-  throw std::runtime_error(
+  cxx_runtime_error(
       "visit(CoroutineReturnStatementAST): not implemented");
 }
 
@@ -212,7 +212,7 @@ void StatementCodegen::visit(DeclarationStatementAST* ast) {
 }
 
 void StatementCodegen::visit(TryBlockStatementAST* ast) {
-  throw std::runtime_error("visit(TryBlockStatementAST): not implemented");
+  cxx_runtime_error("visit(TryBlockStatementAST): not implemented");
 }
 
 void StatementCodegen::visit(SimpleDeclarationAST* ast) {
@@ -240,7 +240,7 @@ void StatementCodegen::visit(EqualInitializerAST* ast) {
 }
 
 void StatementCodegen::visit(BracedInitListAST* ast) {
-  throw std::runtime_error("visit(BracedInitListAST): not implemented");
+  cxx_runtime_error("visit(BracedInitListAST): not implemented");
 }
 
 }  // namespace cxx::ir

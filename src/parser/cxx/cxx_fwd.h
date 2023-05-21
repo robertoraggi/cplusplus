@@ -20,12 +20,25 @@
 
 #pragma once
 
+#include <cassert>
 #include <cstdint>
+#include <cstdlib>
+#include <stdexcept>
+#include <string>
 
 namespace cxx {
 
 class Arena;
 class Control;
 class TranslationUnit;
+
+[[noreturn]] inline void cxx_runtime_error(std::string msg) {
+#if __has_feature(cxx_exceptions)
+  throw std::runtime_error(msg);
+#else
+  assert(!"cxx_runtime_error");
+  std::abort();
+#endif
+}
 
 }  // namespace cxx

@@ -80,7 +80,7 @@ void MemoryLayout::visit(const CharacterType* ty) {
       alignment_ = size_ = 4;
       break;
     default:
-      throw std::runtime_error(
+      cxx_runtime_error(
           fmt::format("invalid character type: {}", __PRETTY_FUNCTION__));
   }  // switch
 }
@@ -103,7 +103,7 @@ void MemoryLayout::visit(const IntegerType* type) {
       size_ = alignment_ = 8;
       break;
     default:
-      throw std::runtime_error("unrecognized integer kind");
+      cxx_runtime_error("unrecognized integer kind");
   }  // switch
 }
 
@@ -122,7 +122,7 @@ void MemoryLayout::visit(const FloatingPointType* ty) {
       size_ = alignment_ = 16;
       break;
     default:
-      throw std::runtime_error("unrecognized integer kind");
+      cxx_runtime_error("unrecognized integer kind");
   }
 }
 

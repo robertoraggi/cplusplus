@@ -50,7 +50,7 @@ static ClassKey getClassKey(TokenKind kind) {
     case TokenKind::T_UNION:
       return ClassKey::kUnion;
     default:
-      throw std::runtime_error("invalid class key");
+      cxx_runtime_error("invalid class key");
   }  // switch
 }
 
@@ -113,7 +113,7 @@ void Parser::setCheckTypes(bool checkTypes) {
 Parser::Prec Parser::prec(TokenKind tk) {
   switch (tk) {
     default:
-      throw std::runtime_error("expected a binary operator");
+      cxx_runtime_error("expected a binary operator");
 
     case TokenKind::T_DOT_STAR:
     case TokenKind::T_MINUS_GREATER_STAR:

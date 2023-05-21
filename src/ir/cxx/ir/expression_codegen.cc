@@ -75,7 +75,7 @@ ir::UnaryOp ExpressionCodegen::convertUnaryOp(TokenKind tk) const {
     case TokenKind::T_TILDE:
       return ir::UnaryOp::kTilde;
     default:
-      throw std::runtime_error(
+      cxx_runtime_error(
           fmt::format("invalid unary op '{}'", Token::spell(tk)));
   }  // switch
 }
@@ -115,7 +115,7 @@ ir::BinaryOp ExpressionCodegen::convertBinaryOp(TokenKind tk) const {
     case TokenKind::T_BAR:
       return ir::BinaryOp::kBar;
     default:
-      throw std::runtime_error(
+      cxx_runtime_error(
           fmt::format("invalid binary op '{}'", Token::spell(tk)));
   }
 }
@@ -143,7 +143,7 @@ ir::BinaryOp ExpressionCodegen::convertAssignmentOp(TokenKind tk) const {
     case TokenKind::T_BAR_EQUAL:
       return ir::BinaryOp::kBar;
     default:
-      throw std::runtime_error(
+      cxx_runtime_error(
           fmt::format("invalid binary op '{}'", Token::spell(tk)));
   }
 }
@@ -180,7 +180,7 @@ void ExpressionCodegen::visit(StringLiteralExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(UserDefinedStringLiteralExpressionAST* ast) {
-  throw std::runtime_error(
+  cxx_runtime_error(
       "visit(UserDefinedStringLiteralExpressionAST): not implemented");
 }
 
@@ -217,19 +217,19 @@ void ExpressionCodegen::visit(NestedExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(RightFoldExpressionAST* ast) {
-  throw std::runtime_error("visit(RightFoldExpressionAST): not implemented");
+  cxx_runtime_error("visit(RightFoldExpressionAST): not implemented");
 }
 
 void ExpressionCodegen::visit(LeftFoldExpressionAST* ast) {
-  throw std::runtime_error("visit(LeftFoldExpressionAST): not implemented");
+  cxx_runtime_error("visit(LeftFoldExpressionAST): not implemented");
 }
 
 void ExpressionCodegen::visit(FoldExpressionAST* ast) {
-  throw std::runtime_error("visit(FoldExpressionAST): not implemented");
+  cxx_runtime_error("visit(FoldExpressionAST): not implemented");
 }
 
 void ExpressionCodegen::visit(LambdaExpressionAST* ast) {
-  throw std::runtime_error("visit(LambdaExpressionAST): not implemented");
+  cxx_runtime_error("visit(LambdaExpressionAST): not implemented");
 }
 
 void ExpressionCodegen::visit(SizeofExpressionAST* ast) {
@@ -249,15 +249,15 @@ void ExpressionCodegen::visit(SizeofTypeExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(SizeofPackExpressionAST* ast) {
-  throw std::runtime_error("visit(SizeofPackExpressionAST): not implemented");
+  cxx_runtime_error("visit(SizeofPackExpressionAST): not implemented");
 }
 
 void ExpressionCodegen::visit(TypeidExpressionAST* ast) {
-  throw std::runtime_error("visit(TypeidExpressionAST): not implemented");
+  cxx_runtime_error("visit(TypeidExpressionAST): not implemented");
 }
 
 void ExpressionCodegen::visit(TypeidOfTypeExpressionAST* ast) {
-  throw std::runtime_error("visit(TypeidOfTypeExpressionAST): not implemented");
+  cxx_runtime_error("visit(TypeidOfTypeExpressionAST): not implemented");
 }
 
 void ExpressionCodegen::visit(AlignofExpressionAST* ast) {
@@ -360,11 +360,11 @@ void ExpressionCodegen::visit(AssignmentExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(BracedTypeConstructionAST* ast) {
-  throw std::runtime_error("visit(BracedTypeConstructionAST): not implemented");
+  cxx_runtime_error("visit(BracedTypeConstructionAST): not implemented");
 }
 
 void ExpressionCodegen::visit(TypeConstructionAST* ast) {
-  throw std::runtime_error("visit(TypeConstructionAST): not implemented");
+  cxx_runtime_error("visit(TypeConstructionAST): not implemented");
 }
 
 void ExpressionCodegen::visit(CallExpressionAST* ast) {
@@ -421,23 +421,23 @@ void ExpressionCodegen::visit(CastExpressionAST* ast) {
 }
 
 void ExpressionCodegen::visit(CppCastExpressionAST* ast) {
-  throw std::runtime_error("visit(CppCastExpressionAST): not implemented");
+  cxx_runtime_error("visit(CppCastExpressionAST): not implemented");
 }
 
 void ExpressionCodegen::visit(NewExpressionAST* ast) {
-  throw std::runtime_error("visit(NewExpressionAST): not implemented");
+  cxx_runtime_error("visit(NewExpressionAST): not implemented");
 }
 
 void ExpressionCodegen::visit(DeleteExpressionAST* ast) {
-  throw std::runtime_error("visit(DeleteExpressionAST): not implemented");
+  cxx_runtime_error("visit(DeleteExpressionAST): not implemented");
 }
 
 void ExpressionCodegen::visit(ThrowExpressionAST* ast) {
-  throw std::runtime_error("visit(ThrowExpressionAST): not implemented");
+  cxx_runtime_error("visit(ThrowExpressionAST): not implemented");
 }
 
 void ExpressionCodegen::visit(NoexceptExpressionAST* ast) {
-  throw std::runtime_error("visit(NoexceptExpressionAST): not implemented");
+  cxx_runtime_error("visit(NoexceptExpressionAST): not implemented");
 }
 
 }  // namespace cxx::ir

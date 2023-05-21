@@ -333,7 +333,7 @@ void Semantics::visit(DeclaratorAST* ast) {
 }
 
 void Semantics::visit(InitDeclaratorAST* ast) {
-  throw std::runtime_error("unreachable");
+  cxx_runtime_error("unreachable");
 }
 
 void Semantics::visit(BaseSpecifierAST* ast) {
@@ -390,11 +390,11 @@ void Semantics::visit(CtorInitializerAST* ast) {
 }
 
 void Semantics::visit(RequirementBodyAST* ast) {
-  throw std::runtime_error("unreachable");
+  cxx_runtime_error("unreachable");
 }
 
 void Semantics::visit(TypeConstraintAST* ast) {
-  throw std::runtime_error("unreachable");
+  cxx_runtime_error("unreachable");
 }
 
 void Semantics::visit(ParenMemInitializerAST* ast) {
@@ -1520,7 +1520,7 @@ void Semantics::visit(IntegralTypeSpecifierAST* ast) {
       break;
 
     default:
-      throw std::runtime_error(fmt::format("invalid integral type: '{}'",
+      cxx_runtime_error(fmt::format("invalid integral type: '{}'",
                                            Token::spell(ast->specifier)));
   }  // switch
 }
@@ -1551,7 +1551,7 @@ void Semantics::visit(FloatingPointTypeSpecifierAST* ast) {
       break;
 
     default:
-      throw std::runtime_error(fmt::format("invalid floating point type: '{}'",
+      cxx_runtime_error(fmt::format("invalid floating point type: '{}'",
                                            Token::spell(ast->specifier)));
   }  // switch
 }
