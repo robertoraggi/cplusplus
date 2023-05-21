@@ -209,6 +209,8 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
 
   auto preprocesor = unit.preprocessor();
 
+  preprocesor->setCurrentPath(std::filesystem::current_path());
+
   std::unique_ptr<Toolchain> toolchain;
 
   VerifyCommentHandler verifyCommentHandler;

@@ -68,6 +68,9 @@ class Preprocessor {
   bool canResolveFiles() const;
   void setCanResolveFiles(bool canResolveFiles);
 
+  std::string currentPath() const;
+  void setCurrentPath(std::string currentPath);
+
   void operator()(std::string source, std::string fileName, std::ostream &out);
 
   void preprocess(std::string source, std::string fileName, std::ostream &out);

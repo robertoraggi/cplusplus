@@ -47,6 +47,8 @@
 #include <unordered_set>
 #include <variant>
 
+#include "preprocessor.h"
+
 namespace {
 
 class Hideset {
@@ -369,8 +371,6 @@ struct Preprocessor::Private {
   Arena pool_;
 
   Private() {
-    currentPath_ = std::filesystem::current_path();
-
     skipping_.push_back(false);
     evaluating_.push_back(true);
 
@@ -1560,6 +1560,12 @@ bool Preprocessor::canResolveFiles() const { return d->canResolveFiles_; }
 
 void Preprocessor::setCanResolveFiles(bool canResolveFiles) {
   d->canResolveFiles_ = canResolveFiles;
+}
+
+std::string Preprocessor::currentPath() const { return d->currentPath_; }
+
+void Preprocessor::setCurrentPath(std::string currentPath) {
+  d->currentPath_ = std::move(currentPath);
 }
 
 void Preprocessor::squeeze() { d->pool_.reset(); }
