@@ -22,7 +22,6 @@
 
 #include <cxx/cxx_fwd.h>
 
-#include <filesystem>
 #include <iosfwd>
 #include <memory>
 #include <string>
@@ -76,9 +75,9 @@ class Preprocessor {
   void preprocess(std::string source, std::string fileName,
                   std::vector<Token> &tokens);
 
-  const std::vector<std::filesystem::path> &systemIncludePaths() const;
+  const std::vector<std::string> &systemIncludePaths() const;
 
-  void addSystemIncludePath(const std::string &path);
+  void addSystemIncludePath(std::string path);
 
   void defineMacro(const std::string &name, const std::string &body);
 

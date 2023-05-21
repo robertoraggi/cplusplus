@@ -266,7 +266,7 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
     fmt::print(std::cerr, "#include <...> search starts here:\n");
     const auto& paths = preprocesor->systemIncludePaths();
     for (auto it = rbegin(paths); it != rend(paths); ++it) {
-      fmt::print(std::cerr, " {}\n", it->string());
+      fmt::print(std::cerr, " {}\n", *it);
     }
     fmt::print(std::cerr, "End of search list.\n");
   }

@@ -22,7 +22,6 @@
 
 #include <cxx/cxx_fwd.h>
 
-#include <filesystem>
 #include <string>
 
 namespace cxx {
@@ -45,7 +44,7 @@ class Toolchain {
 
   void defineMacro(std::string name, std::string definition);
 
-  void addSystemIncludePath(const std::filesystem::path &path);
+  void addSystemIncludePath(std::string path);
 
  private:
   Preprocessor *preprocessor_;

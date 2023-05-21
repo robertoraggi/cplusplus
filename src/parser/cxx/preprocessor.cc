@@ -47,8 +47,6 @@
 #include <unordered_set>
 #include <variant>
 
-namespace fs = std::filesystem;
-
 namespace {
 
 class Hideset {
@@ -353,15 +351,15 @@ struct Preprocessor::Private {
   CommentHandler *commentHandler_ = nullptr;
   PreprocessorDelegate *delegate_ = nullptr;
   bool canResolveFiles_ = true;
-  std::vector<fs::path> systemIncludePaths_;
-  std::vector<fs::path> quoteIncludePaths_;
+  std::vector<std::string> systemIncludePaths_;
+  std::vector<std::string> quoteIncludePaths_;
   std::unordered_map<std::string_view, Macro> macros_;
   std::set<Hideset> hidesets;
   std::forward_list<std::string> scratchBuffer_;
   std::unordered_set<std::string> pragmaOnceProtected_;
   std::unordered_map<std::string, std::string> ifndefProtectedFiles_;
   std::vector<std::unique_ptr<SourceFile>> sourceFiles_;
-  fs::path currentPath_;
+  std::filesystem::path currentPath_;
   std::string currentFileName_;
   std::vector<bool> evaluating_;
   std::vector<bool> skipping_;
@@ -371,7 +369,7 @@ struct Preprocessor::Private {
   Arena pool_;
 
   Private() {
-    currentPath_ = fs::current_path();
+    currentPath_ = std::filesystem::current_path();
 
     skipping_.push_back(false);
     evaluating_.push_back(true);
@@ -483,7 +481,7 @@ struct Preprocessor::Private {
     return &*hidesets.emplace(std::set{name}).first;
   }
 
-  std::string readFile(const fs::path &file) const {
+  std::string readFile(const std::filesystem::path &file) const {
     std::ifstream in(file);
     std::ostringstream out;
     out << in.rdbuf();
@@ -494,7 +492,8 @@ struct Preprocessor::Private {
 
   bool checkPragmaOnceProtected(const TokList *ts) const;
 
-  std::optional<fs::path> resolve(const Include &include, bool next) const {
+  std::optional<std::filesystem::path> resolve(const Include &include,
+                                               bool next) const {
     if (!canResolveFiles_) return std::nullopt;
 
     struct Resolve {
@@ -503,13 +502,16 @@ struct Preprocessor::Private {
 
       explicit Resolve(const Private *d, bool next) : d(d), next(next) {}
 
-      std::optional<fs::path> operator()(std::monostate) const { return {}; }
+      std::optional<std::filesystem::path> operator()(std::monostate) const {
+        return {};
+      }
 
-      std::optional<fs::path> operator()(const SystemInclude &include) const {
+      std::optional<std::filesystem::path> operator()(
+          const SystemInclude &include) const {
         bool hit = false;
         for (auto it = rbegin(d->systemIncludePaths_);
              it != rend(d->systemIncludePaths_); ++it) {
-          const auto &p = *it;
+          const auto p = std::filesystem::path(*it);
           auto path = p / include.fileName;
           if (exists(path)) {
             if (!next || hit) return path;
@@ -519,7 +521,8 @@ struct Preprocessor::Private {
         return {};
       }
 
-      std::optional<fs::path> operator()(const QuoteInclude &include) const {
+      std::optional<std::filesystem::path> operator()(
+          const QuoteInclude &include) const {
         bool hit = false;
 
         if (exists(d->currentPath_ / include.fileName)) {
@@ -529,7 +532,7 @@ struct Preprocessor::Private {
 
         for (auto it = rbegin(d->quoteIncludePaths_);
              it != rend(d->quoteIncludePaths_); ++it) {
-          const auto &p = *it;
+          auto p = std::filesystem::path(*it);
           auto path = p / include.fileName;
           if (exists(path)) {
             if (!next || hit) return path;
@@ -539,7 +542,7 @@ struct Preprocessor::Private {
 
         for (auto it = rbegin(d->systemIncludePaths_);
              it != rend(d->systemIncludePaths_); ++it) {
-          const auto &p = *it;
+          auto p = std::filesystem::path(*it);
           auto path = p / include.fileName;
           if (exists(path)) {
             if (!next || hit) return path;
@@ -709,7 +712,7 @@ void Preprocessor::Private::expand(
         if (loc->head->is(TokenKind::T_EOF_SYMBOL)) loc = directive;
 
         const bool next = directive->head->text == "include_next";
-        std::optional<fs::path> path;
+        std::optional<std::filesystem::path> path;
         std::string file;
         if (ts->head->is(TokenKind::T_STRING_LITERAL)) {
           file = ts->head->text.substr(1, ts->head->text.length() - 2);
@@ -1574,7 +1577,7 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
 
   std::string currentFileName = sourceFile.fileName;
 
-  fs::path path(sourceFile.fileName);
+  std::filesystem::path path(sourceFile.fileName);
   path.remove_filename();
 
   std::swap(d->currentPath_, path);
@@ -1630,7 +1633,7 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
 
   std::string currentFileName = sourceFile.fileName;
 
-  fs::path path(sourceFile.fileName);
+  std::filesystem::path path(sourceFile.fileName);
   path.remove_filename();
 
   std::swap(d->currentPath_, path);
@@ -1760,13 +1763,12 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
   std::swap(d->currentFileName_, currentFileName);
 }
 
-const std::vector<std::filesystem::path> &Preprocessor::systemIncludePaths()
-    const {
+const std::vector<std::string> &Preprocessor::systemIncludePaths() const {
   return d->systemIncludePaths_;
 }
 
-void Preprocessor::addSystemIncludePath(const std::string &path) {
-  d->systemIncludePaths_.push_back(fs::absolute(path));
+void Preprocessor::addSystemIncludePath(std::string path) {
+  d->systemIncludePaths_.push_back(std::filesystem::absolute(std::move(path)));
 }
 
 void Preprocessor::defineMacro(const std::string &name,
