@@ -18,18 +18,41 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#pragma once
+#include <cxx/private/path.h>
 
-#include <cassert>
-#include <cstdint>
-#include <string>
+#ifndef CXX_NO_FILESYSTEM
 
-namespace cxx {
+namespace cxx::fs {}
 
-class Arena;
-class Control;
-class TranslationUnit;
+#else
 
-[[noreturn]] void cxx_runtime_error(std::string msg);
+#include <unistd.h>
 
-}  // namespace cxx
+namespace cxx::fs {
+
+path& path::remove_filename() {
+  auto pos = path_.find_last_of('/');
+  if (pos != std::string::npos) path_.resize(pos);
+  return *this;
+}
+
+bool exists(const path& p) {
+  const auto& fn = p.string();
+  return access(fn.c_str(), F_OK) == 0;
+}
+
+path operator/(path lhs, const path& rhs) {
+  auto sep = lhs.string().back() == '/' ? "" : "/";
+  return path(lhs.string() + "/" + rhs.string());
+}
+
+path operator/(path lhs, const std::string& rhs) {
+  if (lhs.string().ends_with('/')) return path(lhs.string() + rhs);
+  return path(lhs.string() + "/" + rhs);
+}
+
+path current_path() { return {}; }
+
+}  // namespace cxx::fs
+
+#endif

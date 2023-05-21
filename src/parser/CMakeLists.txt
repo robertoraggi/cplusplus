@@ -37,13 +37,14 @@ target_link_libraries(cxx-parser
             $<BUILD_INTERFACE:utf8::cpp>
 )
 
-
-if (NOT CMAKE_SYSTEM_NAME STREQUAL "WASI")
-    add_custom_command(OUTPUT keywords-priv.h
-        COMMAND kwgen < ${CMAKE_CURRENT_SOURCE_DIR}/cxx/keywords.kwgen > keywords-priv.h
-        DEPENDS kwgen cxx/keywords.kwgen
-        COMMENT "Generate keywords-priv.h")
+if (CMAKE_SYSTEM_NAME STREQUAL "WASI")
+    target_compile_definitions(cxx-parser PRIVATE CXX_NO_FILESYSTEM)
 endif()
+
+add_custom_command(OUTPUT keywords-priv.h
+    COMMAND kwgen < ${CMAKE_CURRENT_SOURCE_DIR}/cxx/keywords.kwgen > keywords-priv.h
+    DEPENDS cxx/keywords.kwgen
+    COMMENT "Generate keywords-priv.h")
 
 install(
     FILES ${CXX_INCLUDE_HEADER_FILES}

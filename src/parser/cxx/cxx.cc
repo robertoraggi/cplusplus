@@ -18,18 +18,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#pragma once
+#include <cxx/cxx_fwd.h>
 
 #include <cassert>
-#include <cstdint>
-#include <string>
+#include <cstdlib>
+#include <stdexcept>
 
 namespace cxx {
 
-class Arena;
-class Control;
-class TranslationUnit;
-
-[[noreturn]] void cxx_runtime_error(std::string msg);
+[[noreturn]] void cxx_runtime_error(std::string msg) {
+#if __cpp_exceptions
+  throw std::runtime_error(msg);
+#else
+  assert(!"cxx_runtime_error");
+  std::abort();
+#endif
+}
 
 }  // namespace cxx

@@ -37,9 +37,11 @@
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/windows_toolchain.h>
-#include <fmt/format.h>
 
 #include "ast_printer.h"
+
+// fmt
+#include <fmt/format.h>
 
 // std
 #include <cassert>
@@ -208,8 +210,6 @@ bool runOnFile(const CLI& cli, const std::string& fileName) {
   TranslationUnit unit(&control, &diagnosticsClient);
 
   auto preprocesor = unit.preprocessor();
-
-  preprocesor->setCurrentPath(std::filesystem::current_path());
 
   std::unique_ptr<Toolchain> toolchain;
 

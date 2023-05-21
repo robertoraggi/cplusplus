@@ -39,6 +39,10 @@ if(EMSCRIPTEN)
     )
 endif()
 
+if (CMAKE_SYSTEM_NAME STREQUAL "WASI")
+    target_compile_definitions(cxx PUBLIC JSON_HAS_FILESYSTEM=0)
+endif()
+
 install(
     TARGETS cxx
     EXPORT cxxTargets

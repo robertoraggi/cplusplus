@@ -22,7 +22,6 @@
 
 #include <cxx/toolchain.h>
 
-#include <filesystem>
 #include <string>
 
 namespace cxx {
@@ -31,8 +30,8 @@ class WindowsToolchain final : public Toolchain {
  public:
   using Toolchain::Toolchain;
 
-  void setVctoolsdir(std::filesystem::path path);
-  void setWinsdkdir(std::filesystem::path path);
+  void setVctoolsdir(std::string path);
+  void setWinsdkdir(std::string path);
 
   void setWinsdkversion(std::string version);
 
@@ -41,8 +40,8 @@ class WindowsToolchain final : public Toolchain {
   void addPredefinedMacros() override;
 
  private:
-  std::filesystem::path vctoolsdir_;
-  std::filesystem::path winsdkdir_;
+  std::string vctoolsdir_;
+  std::string winsdkdir_;
   std::string winsdkversion_;
 };
 

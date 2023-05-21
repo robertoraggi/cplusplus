@@ -20,16 +20,45 @@
 
 #pragma once
 
-#include <cassert>
-#include <cstdint>
+#include <cxx/cxx_fwd.h>
+
+#ifndef CXX_NO_FILESYSTEM
+#include <filesystem>
+
+namespace cxx::fs {
+
+using path = std::filesystem::path;
+
+using std::filesystem::current_path;
+
+}  // namespace cxx::fs
+
+#else
+
 #include <string>
+#include <tuple>
 
-namespace cxx {
+namespace cxx::fs {
 
-class Arena;
-class Control;
-class TranslationUnit;
+class path {
+  std::string path_;
 
-[[noreturn]] void cxx_runtime_error(std::string msg);
+ public:
+  path() = default;
+  path(std::string p) : path_(std::move(p)) {}
 
-}  // namespace cxx
+  const std::string& string() const { return path_; }
+  operator const std::string&() const { return path_; }
+
+  path& remove_filename();
+};
+
+bool exists(const path& path);
+path operator/(path lhs, const path& rhs);
+path operator/(path lhs, const std::string& rhs);
+path current_path();
+path absolute(const path& p);
+
+}  // namespace cxx::fs
+
+#endif

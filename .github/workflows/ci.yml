@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-linux:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v2
@@ -96,3 +96,15 @@ jobs:
         working-directory: build
         run: |
           ctest --verbose
+
+  build-wasi:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Build
+        run: |
+          docker build -t cxx-wasi -f Dockerfile.wasi .
+          mkdir -p out
+          docker run --rm -v $PWD/out:/out cxx-wasi cp /app/build.wasi/src/frontend/cxx /out/cxx.wasm

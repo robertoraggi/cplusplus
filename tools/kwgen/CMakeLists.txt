@@ -21,6 +21,13 @@ cmake_minimum_required(VERSION 3.16)
 
 project(kwgen)
 
+if (KWGEN_EXECUTABLE)
+    message(STATUS "Using KWGEN_EXECUTABLE: ${KWGEN_EXECUTABLE}")
+    add_executable(kwgen IMPORTED)
+    set_target_properties(kwgen PROPERTIES IMPORTED_LOCATION ${KWGEN_EXECUTABLE})
+    return()
+endif()
+
 set(CMAKE_CXX_STANDARD 20)
 
 aux_source_directory(. SOURCES)

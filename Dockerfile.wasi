@@ -1,0 +1,20 @@
+FROM ghcr.io/webassembly/wasi-sdk as wasi
+
+RUN apt-get update && apt-get install -y \
+    git
+
+WORKDIR /app
+
+COPY . .
+
+RUN clang++-16 -std=c++20 -o /usr/bin/kwgen tools/kwgen/kwgen.cc
+
+RUN cmake -G Ninja \
+    -S . \
+    -B build.wasi \
+    -DCMAKE_TOOLCHAIN_FILE=/usr/share/cmake/wasi-sdk.cmake \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=1 \
+    -DKWGEN_EXECUTABLE=/usr/bin/kwgen
+
+RUN cmake --build build.wasi

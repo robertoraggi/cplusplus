@@ -21,15 +21,14 @@
 #include <cxx/gcc_linux_toolchain.h>
 #include <cxx/preprocessor.h>
 #include <cxx/private/format.h>
-
-#include <filesystem>
+#include <cxx/private/path.h>
 
 namespace cxx {
 
 GCCLinuxToolchain::GCCLinuxToolchain(Preprocessor* preprocessor)
     : Toolchain(preprocessor) {
   for (int version : {12, 11, 10, 9}) {
-    const auto path = std::filesystem::path(
+    const auto path = fs::path(
         fmt::format("/usr/lib/gcc/x86_64-linux-gnu/{}/include", version));
 
     if (exists(path)) {

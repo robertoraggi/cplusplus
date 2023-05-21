@@ -75,11 +75,7 @@ set_target_properties(nlohmann_json::nlohmann_json PROPERTIES INTERFACE_INCLUDE_
 
 enable_testing()
 
-if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
-else()
-    add_subdirectory(tools/kwgen)
-endif()
-
+add_subdirectory(tools/kwgen)
 add_subdirectory(src/parser)
 add_subdirectory(src/ir)
 add_subdirectory(src/llvm)

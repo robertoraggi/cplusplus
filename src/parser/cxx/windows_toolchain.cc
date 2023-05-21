@@ -23,14 +23,15 @@
 // cxx
 #include <cxx/preprocessor.h>
 #include <cxx/private/format.h>
+#include <cxx/private/path.h>
 
 namespace cxx {
 
-void WindowsToolchain::setVctoolsdir(std::filesystem::path path) {
+void WindowsToolchain::setVctoolsdir(std::string path) {
   vctoolsdir_ = std::move(path);
 }
 
-void WindowsToolchain::setWinsdkdir(std::filesystem::path path) {
+void WindowsToolchain::setWinsdkdir(std::string path) {
   winsdkdir_ = std::move(path);
 }
 
@@ -39,21 +40,25 @@ void WindowsToolchain::setWinsdkversion(std::string version) {
 }
 
 void WindowsToolchain::addSystemIncludePaths() {
-  addSystemIncludePath(winsdkdir_ /
-                       fmt::format("Include/{}/winrt", winsdkversion_));
+  addSystemIncludePath(
+      (fs::path(winsdkdir_) / fmt::format("Include/{}/winrt", winsdkversion_))
+          .string());
 
-  addSystemIncludePath(winsdkdir_ /
-                       fmt::format("Include/{}/um", winsdkversion_));
+  addSystemIncludePath(
+      (fs::path(winsdkdir_) / fmt::format("Include/{}/um", winsdkversion_))
+          .string());
 
-  addSystemIncludePath(winsdkdir_ /
-                       fmt::format("Include/{}/shared", winsdkversion_));
+  addSystemIncludePath(
+      (fs::path(winsdkdir_) / fmt::format("Include/{}/shared", winsdkversion_))
+          .string());
 
-  addSystemIncludePath(winsdkdir_ /
-                       fmt::format("Include/{}/ucrt", winsdkversion_));
+  addSystemIncludePath(
+      (fs::path(winsdkdir_) / fmt::format("Include/{}/ucrt", winsdkversion_))
+          .string());
 
-  addSystemIncludePath(vctoolsdir_ / "atlmfc/include");
+  addSystemIncludePath((fs::path(vctoolsdir_) / "atlmfc/include").string());
 
-  addSystemIncludePath(vctoolsdir_ / "include");
+  addSystemIncludePath((fs::path(vctoolsdir_) / "include").string());
 }
 
 void WindowsToolchain::addSystemCppIncludePaths() {}
