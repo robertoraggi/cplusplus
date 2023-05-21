@@ -187,6 +187,6 @@ main().catch(console.error);
 
 ## License
 
-Copyright (c) 2022 Roberto Raggi roberto.raggi@gmail.com
+Copyright (c) 2023 Roberto Raggi roberto.raggi@gmail.com
 
 Licensed under the [MIT](LICENSE) license.
