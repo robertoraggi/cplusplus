@@ -28,6 +28,10 @@ include(CMakePackageConfigHelpers)
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/version.txt" version)
 
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# option to install tools
+option(CXX_INSTALL_TOOLS "Install tools" ON)
 
 # if CMAKE_SYSTEM_NAME is WASI disable the exceptions
 if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
@@ -49,6 +53,7 @@ FetchContent_Declare(
     GIT_REPOSITORY  https://github.com/fmtlib/fmt
     GIT_TAG         10.0.0
     GIT_SHALLOW     1
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 
 FetchContent_MakeAvailable(fmt)
@@ -58,6 +63,7 @@ FetchContent_Declare(
     GIT_REPOSITORY  https://github.com/nemtrif/utfcpp
     GIT_TAG         v3.2.2
     GIT_SHALLOW     1
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 
 FetchContent_MakeAvailable(utfcpp)
@@ -66,6 +72,7 @@ FetchContent_Declare(
     nlohmann_json
     URL             https://github.com/nlohmann/json/releases/download/v3.11.2/include.zip
     URL_HASH        SHA256=e5c7a9f49a16814be27e4ed0ee900ecd0092bfb7dbfca65b5a421b774dccaaed
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 
 FetchContent_MakeAvailable(nlohmann_json)
