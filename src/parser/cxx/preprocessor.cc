@@ -1665,11 +1665,7 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
         fmt::print(out, "\n");
       } else {
         if (it != os) fmt::print(out, "\n");
-        if (tk->sourceFile == outFile) {
-          fmt::print(out, "#line {}\n", line);
-        } else {
-          fmt::print(out, "#line {} \"{}\"\n", line, fileName);
-        }
+        fmt::print(out, "# {} \"{}\"\n", line, fileName);
         outLine = line + 1;
         outFile = tk->sourceFile;
       }
