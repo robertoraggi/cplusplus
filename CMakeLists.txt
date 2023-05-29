@@ -28,6 +28,10 @@ include(CMakePackageConfigHelpers)
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/version.txt" version)
 
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# option to install tools
+option(CXX_INSTALL_TOOLS "Install tools" ON)
 
 # if CMAKE_SYSTEM_NAME is WASI disable the exceptions
 if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
