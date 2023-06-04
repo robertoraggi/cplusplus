@@ -35,19 +35,52 @@ namespace cxx {
 class TranslationUnit;
 class Semantics;
 
+/**
+ * @brief Parser class.
+ *
+ * This class is responsible for parsing the source code.
+ */
 class Parser final {
  public:
   Parser(const Parser&) = delete;
   auto operator=(const Parser&) -> Parser& = delete;
 
+  /**
+   * @brief Constructs a parser instance.
+   *
+   * @param unit Translation unit.
+   */
   explicit Parser(TranslationUnit* unit);
+
+  /**
+   * @brief Destructs a parser instance.
+   */
   ~Parser();
 
+  /**
+   * @brief Returns the whether the parser should check types.
+   */
   [[nodiscard]] auto checkTypes() const -> bool;
+
+  /**
+   * @brief Sets the whether the parser should check types.
+   */
   void setCheckTypes(bool checkTypes);
 
+  /**
+   * @brief Parse the translation unit.
+   * @param ast The translation unit AST.
+   *
+   * @returns `true` if the parsing succeeded, `false` otherwise.
+   */
   auto operator()(UnitAST*& ast) -> bool;
 
+  /**
+   * @brief Parse the translation unit.
+   * @param ast The translation unit AST.
+   *
+   * @returns `true` if the parsing succeeded, `false` otherwise.
+   */
   auto parse(UnitAST*& ast) -> bool;
 
   enum struct Prec {
@@ -65,6 +98,9 @@ class Parser final {
     kPm,
   };
 
+  /**
+   * @brief Returns the precedence of the given token.
+   */
   static auto prec(TokenKind tk) -> Prec;
 
   struct DeclSpecs;
@@ -76,16 +112,32 @@ class Parser final {
     bool templArg = false;
   };
 
+  /**
+   * @brief Raise a parsing warning.
+   * @param message Warning message.
+   * @returns `true`.
+   */
   auto parse_warn(std::string message) -> bool {
     unit->warning(SourceLocation(cursor_), std::move(message));
     return true;
   }
 
+  /**
+   * @brief Raise a parsing warning.
+   * @param loc Source location.
+   * @param message Warning message.
+   * @returns `true`.
+   */
   auto parse_warn(SourceLocation loc, std::string message) -> bool {
     unit->warning(loc, std::move(message));
     return true;
   }
 
+  /**
+   * @brief Raise a parsing error.
+   * @param message Error message.
+   * @returns `true`.
+   */
   auto parse_error(std::string message) -> bool {
     if (lastErrorCursor_ == cursor_) return true;
     lastErrorCursor_ = cursor_;
@@ -93,6 +145,12 @@ class Parser final {
     return true;
   }
 
+  /**
+   * @brief Raise a parsing error.
+   * @param loc Source location.
+   * @param message Error message.
+   * @returns `true`.
+   */
   auto parse_error(SourceLocation loc, std::string message) -> bool {
     unit->error(loc, std::move(message));
     return true;
