@@ -1,5 +1,27 @@
 # Changelog
 
+### [1.1.15](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.14...v1.1.15) (2023-06-04)
+
+
+### Bug Fixes
+
+* Add APIs to set/get the current working directory ([d0e7328](https://www.github.com/robertoraggi/cplusplus/commit/d0e732875ace72ab0e8b6f46ab621f3be403a3f6))
+* Add support for Xcode 14 ([a8896dd](https://www.github.com/robertoraggi/cplusplus/commit/a8896dd2c6cba95cff5fa5b278fabde7d26ae50c))
+* Add TemplateParameterList ([6ee556c](https://www.github.com/robertoraggi/cplusplus/commit/6ee556cbde7bee380f5ba19bb4de2d81e2f34656))
+* Add wasm32-wasi toolchain definitions ([2656bc7](https://www.github.com/robertoraggi/cplusplus/commit/2656bc71aedb1523afb7505859fa97c9bf36d792))
+* Build using wasm-sdk ([1f9bb71](https://www.github.com/robertoraggi/cplusplus/commit/1f9bb712ab00b12582ff82cb6312a22687123700))
+* Build when C++ exceptions are not available ([8fb8cca](https://www.github.com/robertoraggi/cplusplus/commit/8fb8cca9f11edcb8ad1b16355b9806f8e6cd9f9b))
+* Clean up parsing of template declarations ([99a45ae](https://www.github.com/robertoraggi/cplusplus/commit/99a45ae55a2d70f2c6c491029ab8c1e9d67cee02))
+* Create symbols for the template type parameters ([9566308](https://www.github.com/robertoraggi/cplusplus/commit/9566308cdeb7df10be5e3939b9a2a8f411214ee1))
+* Link with the LLVM libraries ([0948526](https://www.github.com/robertoraggi/cplusplus/commit/0948526bfdc0dd22b44e7c342583dd72f56fce4b))
+* Modernize the code ([9ea5f41](https://www.github.com/robertoraggi/cplusplus/commit/9ea5f41eae3bd4620edc244592ac3968f1117c02))
+* Optimize the size of the wasi binary ([ac3dd33](https://www.github.com/robertoraggi/cplusplus/commit/ac3dd33e540bd13b49b4daa0118db2b7e54a9e60))
+* Path to macOS toolchain ([f5078d6](https://www.github.com/robertoraggi/cplusplus/commit/f5078d6a517cc8d5e73120b994a9aef0fe014046))
+* **preproc:** Output GNU stile output directives ([4a97d38](https://www.github.com/robertoraggi/cplusplus/commit/4a97d38c0fb2e8a846438116d9edcacae2c15708))
+* Remove filesystem from the public API ([cac00e3](https://www.github.com/robertoraggi/cplusplus/commit/cac00e30101fde6e962c21040f8e757c2472e0ed))
+* Removed TypenamePackTypeParameterAST ([2b7989a](https://www.github.com/robertoraggi/cplusplus/commit/2b7989a5db315d1d99f2a08e03c18376b2f332fe))
+* Use the utf8 unchecked api ([328ce98](https://www.github.com/robertoraggi/cplusplus/commit/328ce98fb6c7a7802168bb22d498acd71e21b1d7))
+
 ### [1.1.14](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.13...v1.1.14) (2022-02-26)
 
 
