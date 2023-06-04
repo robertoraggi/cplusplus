@@ -36,6 +36,7 @@
 #include <cxx/symbol_printer.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/wasm32_wasi_toolchain.h>
 #include <cxx/windows_toolchain.h>
 
 #include "ast_printer.h"
@@ -228,6 +229,8 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
   if (!toolchainId) {
 #if defined(__APPLE__)
     toolchainId = "darwin";
+#elif defined(__wasi__)
+    toolchainId = "wasm32";
 #elif defined(__linux__)
     toolchainId = "linux";
 #elif defined(_MSC_VER)
@@ -237,6 +240,8 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
 
   if (toolchainId == "darwin") {
     toolchain = std::make_unique<MacOSToolchain>(preprocesor);
+  } else if (toolchainId == "wasm32") {
+    toolchain = std::make_unique<Wasm32WasiToolchain>(preprocesor);
   } else if (toolchainId == "linux") {
     toolchain = std::make_unique<GCCLinuxToolchain>(preprocesor);
   } else if (toolchainId == "windows") {
