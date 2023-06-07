@@ -87,7 +87,7 @@ jobs:
 
           cmake . \
             -Bbuild \
-            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_BUILD_TYPE=MinSizeRel \
             -DLLVM_ROOT=$(brew --prefix llvm)
 
           cmake --build build
