@@ -12,7 +12,7 @@
     "prepack": "npm run copy:readme",
     "docker": "docker run $DOCKER_EXTRA_OPTS --rm -v $PWD/../../:/src:Z --user `id -u` emscripten/emsdk:3.1.39",
     "docker:shell": "DOCKER_EXTRA_OPTS=-it npm run docker",
-    "configure:wasm": "npm run docker -- emcmake cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=1 -Bbuild.em .",
+    "configure:wasm": "npm run docker -- emcmake cmake -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=1 -Bbuild.em .",
     "build:wasm": "npm run docker -- cmake --build build.em -- -j4",
     "copy:wasm": "copyfiles -V -f ../../build.em/src/js/cxx-js.* dist",
     "copy:readme": "copyfiles -V -f ../../README.md ../../CHANGELOG.md ."
