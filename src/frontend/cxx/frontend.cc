@@ -241,7 +241,13 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
   if (toolchainId == "darwin") {
     toolchain = std::make_unique<MacOSToolchain>(preprocesor);
   } else if (toolchainId == "wasm32") {
-    toolchain = std::make_unique<Wasm32WasiToolchain>(preprocesor);
+    auto wasmToolchain = std::make_unique<Wasm32WasiToolchain>(preprocesor);
+
+    if (auto paths = cli.get("--sysroot"); !paths.empty()) {
+      wasmToolchain->setSysroot(paths.back());
+    }
+
+    toolchain = std::move(wasmToolchain);
   } else if (toolchainId == "linux") {
     toolchain = std::make_unique<GCCLinuxToolchain>(preprocesor);
   } else if (toolchainId == "windows") {
