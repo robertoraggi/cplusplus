@@ -19,16 +19,47 @@
 // SOFTWARE.
 
 #include <cxx/preprocessor.h>
+#include <cxx/private/format.h>
+#include <cxx/private/path.h>
 #include <cxx/wasm32_wasi_toolchain.h>
 
 namespace cxx {
 
-void Wasm32WasiToolchain::addSystemIncludePaths() {}
+const std::string& Wasm32WasiToolchain::sysroot() const { return sysroot_; }
 
-void Wasm32WasiToolchain::addSystemCppIncludePaths() {}
+void Wasm32WasiToolchain::setSysroot(std::string sysroot) {
+  sysroot_ = std::move(sysroot);
+}
+
+void Wasm32WasiToolchain::addSystemIncludePaths() {
+  addSystemIncludePath(fmt::format("{}/include", sysroot_));
+  addSystemIncludePath("/usr/lib/clang/14.0.0/include");
+
+  for (int version : {17, 16, 15, 14}) {
+    const auto path = fs::path(
+        fmt::format("/usr/lib/gcc/x86_64-linux-gnu/{}/include", version));
+
+    if (exists(path)) {
+      version_ = version;
+      addSystemIncludePath(path.string());
+      break;
+    }
+  }
+}
+
+void Wasm32WasiToolchain::addSystemCppIncludePaths() {
+  addSystemIncludePath(fmt::format("{}/include/c++/v1", sysroot_));
+}
 
 void Wasm32WasiToolchain::addPredefinedMacros() {
   // clang-format off
+  defineMacro("_Pragma(x)", "");
+  defineMacro("__has_builtin(x)", "1");
+  defineMacro("__weak", "");
+  defineMacro("__strong", "");
+  defineMacro("__autoreleasing", "");
+  defineMacro("__unsafe_unretained", "");
+
   defineMacro("_GNU_SOURCE", "1");
   defineMacro("_ILP32", "1");
   defineMacro("__ATOMIC_ACQUIRE", "2");

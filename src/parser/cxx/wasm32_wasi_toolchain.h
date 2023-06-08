@@ -22,6 +22,7 @@
 
 #include <cxx/toolchain.h>
 
+#include <optional>
 #include <string>
 
 namespace cxx {
@@ -30,9 +31,16 @@ class Wasm32WasiToolchain final : public Toolchain {
  public:
   using Toolchain::Toolchain;
 
+  const std::string& sysroot() const;
+  void setSysroot(std::string sysroot);
+
   void addSystemIncludePaths() override;
   void addSystemCppIncludePaths() override;
   void addPredefinedMacros() override;
+
+ private:
+  std::string sysroot_;
+  std::optional<int> version_;
 };
 
 }  // namespace cxx
