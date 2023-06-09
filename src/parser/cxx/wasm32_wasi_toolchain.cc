@@ -33,11 +33,10 @@ void Wasm32WasiToolchain::setSysroot(std::string sysroot) {
 
 void Wasm32WasiToolchain::addSystemIncludePaths() {
   addSystemIncludePath(fmt::format("{}/include", sysroot_));
-  addSystemIncludePath("/usr/lib/clang/14.0.0/include");
 
-  for (int version : {17, 16, 15, 14}) {
-    const auto path = fs::path(
-        fmt::format("/usr/lib/gcc/x86_64-linux-gnu/{}/include", version));
+  for (int version : {17, 16, 15, 14, 13, 12, 11, 10}) {
+    const auto path =
+        fs::path(fmt::format("/usr/lib/clang/{}/include", version));
 
     if (exists(path)) {
       version_ = version;
