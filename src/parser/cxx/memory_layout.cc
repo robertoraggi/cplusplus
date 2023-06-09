@@ -97,10 +97,14 @@ void MemoryLayout::visit(const IntegerType* type) {
       size_ = alignment_ = 4;
       break;
     case IntegerKind::kLong:
+    case IntegerKind::kInt64:
       size_ = alignment_ = 8;
       break;
     case IntegerKind::kLongLong:
       size_ = alignment_ = 8;
+      break;
+    case IntegerKind::kInt128:
+      size_ = alignment_ = 16;
       break;
     default:
       cxx_runtime_error("unrecognized integer kind");
