@@ -19,3 +19,10 @@
 
 add_custom_target(link_cxx_include ALL
     COMMAND ${CMAKE_COMMAND} -E create_symlink ${CMAKE_CURRENT_SOURCE_DIR}/include include)
+
+file(GLOB_RECURSE HEADER_FILES "${CMAKE_CURRENT_SOURCE_DIR}/include/*")
+
+install(
+    FILES ${HEADER_FILES}
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cxx/include
+)

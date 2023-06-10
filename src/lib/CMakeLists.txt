@@ -21,3 +21,9 @@ add_custom_target(link_wasi_sysroot ALL
     COMMAND ${CMAKE_COMMAND} -E create_symlink ${wasi_sysroot_SOURCE_DIR} wasi-sysroot)
 
 add_subdirectory(cxx)
+
+if (CXX_INSTALL_WASI_SYSROOT)
+    install(
+        DIRECTORY ${wasi_sysroot_SOURCE_DIR}/
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasi-sysroot)
+endif()

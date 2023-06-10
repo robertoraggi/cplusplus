@@ -164,7 +164,8 @@ std::vector<CLIOptionDescr> options{
      CLIOptionDescrKind::kSeparated},
 
     {"-toolchain", "<id>",
-     "Set the toolchain to 'linux', 'darwin', 'wasm32', or 'windows'",
+     "Set the toolchain to 'linux', 'darwin', 'wasm32', or 'windows'. Defaults "
+     "to wasm32.",
      CLIOptionDescrKind::kSeparated},
 
     {"-verify", "Verify the diagnostic messages", &CLI::opt_verify},
