@@ -36,6 +36,7 @@ target_link_options(cxx-js PUBLIC
     "SHELL:-s ALLOW_MEMORY_GROWTH=1"
     "SHELL:-s FILESYSTEM=1"
     "SHELL:-s NO_DYNAMIC_EXECUTION=1"
+    "SHELL:-s WASM_BIGINT=1"
     "SHELL:--extern-post-js ${CMAKE_CURRENT_SOURCE_DIR}/cxx/suffix.js"
 )
 
