@@ -17,36 +17,5 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-aux_source_directory(cxx SOURCES)
-
-add_executable(cxx ${SOURCES})
-
-target_link_libraries(cxx
-    cxx-parser
-    cxx-ir
-    nlohmann_json::nlohmann_json
-)
-
-if (LLVM_FOUND)
-    target_link_libraries(cxx cxx-llvm)
-endif()
-
-if(EMSCRIPTEN)
-    target_link_options(cxx PUBLIC
-        "SHELL:-s EXIT_RUNTIME=1"
-        "SHELL:-s NODERAWFS=1"
-        "SHELL:-s ALLOW_MEMORY_GROWTH=1"
-    )
-endif()
-
-if (CMAKE_SYSTEM_NAME STREQUAL "WASI")
-    target_compile_definitions(cxx PRIVATE JSON_HAS_FILESYSTEM=0)
-    target_compile_definitions(cxx PRIVATE CXX_NO_FILESYSTEM)
-endif()
-
-if (CXX_INSTALL_TOOLS)
-    install(
-        TARGETS cxx
-        EXPORT cxxTargets
-    )
-endif()
+add_custom_target(link_cxx_include ALL
+    COMMAND ${CMAKE_COMMAND} -E create_symlink ${CMAKE_CURRENT_SOURCE_DIR}/include include)

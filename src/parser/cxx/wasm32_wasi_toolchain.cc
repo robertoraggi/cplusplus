@@ -25,6 +25,12 @@
 
 namespace cxx {
 
+const std::string& Wasm32WasiToolchain::appdir() const { return appdir_; }
+
+void Wasm32WasiToolchain::setAppdir(std::string appdir) {
+  appdir_ = std::move(appdir);
+}
+
 const std::string& Wasm32WasiToolchain::sysroot() const { return sysroot_; }
 
 void Wasm32WasiToolchain::setSysroot(std::string sysroot) {
@@ -34,16 +40,11 @@ void Wasm32WasiToolchain::setSysroot(std::string sysroot) {
 void Wasm32WasiToolchain::addSystemIncludePaths() {
   addSystemIncludePath(fmt::format("{}/include", sysroot_));
 
-  for (int version : {17, 16, 15, 14, 13, 12, 11, 10}) {
-    const auto path =
-        fs::path(fmt::format("/usr/lib/clang/{}/include", version));
-
-    if (exists(path)) {
-      version_ = version;
-      addSystemIncludePath(path.string());
-      break;
-    }
-  }
+#if __wasi__
+  addSystemIncludePath(fmt::format("/usr/lib/cxx/include", appdir_));
+#else
+  addSystemIncludePath(fmt::format("{}/../lib/cxx/include", appdir_));
+#endif
 }
 
 void Wasm32WasiToolchain::addSystemCppIncludePaths() {

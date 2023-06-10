@@ -31,6 +31,7 @@
 #include <cxx/macos_toolchain.h>
 #include <cxx/preprocessor.h>
 #include <cxx/private/format.h>
+#include <cxx/private/path.h>
 #include <cxx/recursive_ast_visitor.h>
 #include <cxx/scope.h>
 #include <cxx/symbol_printer.h>
@@ -245,6 +246,22 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
 
     if (auto paths = cli.get("--sysroot"); !paths.empty()) {
       wasmToolchain->setSysroot(paths.back());
+    } else {
+#if __wasi__
+      wasmToolchain->setSysroot("/wasi-sysroot");
+#elif __unix__
+      char* app_name = realpath(cli.app_name.c_str(), nullptr);
+
+      const fs::path app_dir = fs::path(app_name).remove_filename();
+      wasmToolchain->setAppdir(app_dir.string());
+
+      const auto sysroot_dir = app_dir / "../lib/wasi-sysroot";
+      wasmToolchain->setSysroot(sysroot_dir.string());
+
+      if (app_name) {
+        std::free(app_name);
+      }
+#endif
     }
 
     toolchain = std::move(wasmToolchain);

@@ -214,6 +214,8 @@ auto CLI::positionals() const -> std::vector<std::string> {
 }
 
 void CLI::parse(int& argc, char**& argv) {
+  app_name = argv[0];
+
   for (int i = 1; i < argc;) {
     const std::string arg(argv[i++]);
 
