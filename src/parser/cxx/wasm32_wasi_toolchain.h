@@ -31,6 +31,9 @@ class Wasm32WasiToolchain final : public Toolchain {
  public:
   using Toolchain::Toolchain;
 
+  const std::string& appdir() const;
+  void setAppdir(std::string appdir);
+
   const std::string& sysroot() const;
   void setSysroot(std::string sysroot);
 
@@ -39,6 +42,7 @@ class Wasm32WasiToolchain final : public Toolchain {
   void addPredefinedMacros() override;
 
  private:
+  std::string appdir_;
   std::string sysroot_;
   std::optional<int> version_;
 };

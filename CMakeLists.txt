@@ -89,11 +89,7 @@ set_target_properties(nlohmann_json::nlohmann_json PROPERTIES INTERFACE_INCLUDE_
 enable_testing()
 
 add_subdirectory(tools/kwgen)
-add_subdirectory(src/parser)
-add_subdirectory(src/ir)
-add_subdirectory(src/llvm)
-add_subdirectory(src/js)
-add_subdirectory(src/frontend)
+add_subdirectory(src)
 add_subdirectory(tests)
 
 configure_package_config_file(

@@ -50,6 +50,7 @@ class CLI {
  public:
   CLI();
 
+  std::string app_name;
   bool opt_ast_dump = false;
   bool opt_ir_dump = false;
   bool opt_dM = false;
