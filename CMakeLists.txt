@@ -32,6 +32,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # option to install tools
 option(CXX_INSTALL_TOOLS "Install tools" ON)
+option(CXX_INSTALL_WASI_SYSROOT "Install wasi sysroot" OFF)
 
 # if CMAKE_SYSTEM_NAME is WASI disable the exceptions
 if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
@@ -54,6 +55,9 @@ FetchContent_Declare(
     GIT_TAG         10.0.0
     GIT_SHALLOW     1
 )
+
+# set FMT_INSTALL to OFF to avoid installing fmt
+set(FMT_INSTALL OFF CACHE BOOL "" FORCE)
 
 FetchContent_MakeAvailable(fmt)
 

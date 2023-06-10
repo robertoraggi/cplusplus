@@ -228,15 +228,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
   auto toolchainId = cli.getSingle("-toolchain");
 
   if (!toolchainId) {
-#if defined(__APPLE__)
-    toolchainId = "darwin";
-#elif defined(__wasi__)
     toolchainId = "wasm32";
-#elif defined(__linux__)
-    toolchainId = "linux";
-#elif defined(_MSC_VER)
-    toolchainId = "windows";
-#endif
   }
 
   if (toolchainId == "darwin") {
@@ -244,24 +236,28 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
   } else if (toolchainId == "wasm32") {
     auto wasmToolchain = std::make_unique<Wasm32WasiToolchain>(preprocesor);
 
+    fs::path app_dir;
+
+#if __wasi__
+    app_dir = fs::path("/");
+#elif __unix__
+    char* app_name = realpath(cli.app_name.c_str(), nullptr);
+    app_dir = fs::path(app_name).remove_filename().string();
+    std::free(app_name);
+#endif
+
+    wasmToolchain->setAppdir(app_dir.string());
+
     if (auto paths = cli.get("--sysroot"); !paths.empty()) {
       wasmToolchain->setSysroot(paths.back());
     } else {
+      fs::path sysroot_dir;
 #if __wasi__
-      wasmToolchain->setSysroot("/wasi-sysroot");
+      sysroot_dir = fs::path("/wasi-sysroot");
 #elif __unix__
-      char* app_name = realpath(cli.app_name.c_str(), nullptr);
-
-      const fs::path app_dir = fs::path(app_name).remove_filename();
-      wasmToolchain->setAppdir(app_dir.string());
-
-      const auto sysroot_dir = app_dir / "../lib/wasi-sysroot";
-      wasmToolchain->setSysroot(sysroot_dir.string());
-
-      if (app_name) {
-        std::free(app_name);
-      }
+      sysroot_dir = app_dir / "../lib/wasi-sysroot";
 #endif
+      wasmToolchain->setSysroot(sysroot_dir.string());
     }
 
     toolchain = std::move(wasmToolchain);
