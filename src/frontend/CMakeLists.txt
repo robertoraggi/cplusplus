@@ -34,6 +34,7 @@ endif()
 if(EMSCRIPTEN)
     target_link_options(cxx PUBLIC
         "SHELL:-s EXIT_RUNTIME=1"
+        "SHELL:-s WASM_BIGINT=1"
         "SHELL:-s NODERAWFS=1"
         "SHELL:-s ALLOW_MEMORY_GROWTH=1"
     )
