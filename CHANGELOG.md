@@ -1,5 +1,19 @@
 # Changelog
 
+### [1.1.16](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.15...v1.1.16) (2023-06-10)
+
+
+### Bug Fixes
+
+* Add option to install the WASI sysroot ([301700a](https://www.github.com/robertoraggi/cplusplus/commit/301700a009c9a2bdeb299bc9472c06ce34385fa5))
+* Add option to specify the path to the wasi sysroot ([a642d6b](https://www.github.com/robertoraggi/cplusplus/commit/a642d6b5f61df676405a56bef8f03a690775f96a))
+* Build the emscripten bindings with WASM_BIGINT=1 ([4c4e4c9](https://www.github.com/robertoraggi/cplusplus/commit/4c4e4c99d799747593c7347b004db38600346c0e))
+* Classify int64 and int128 integer types ([c40a7fc](https://www.github.com/robertoraggi/cplusplus/commit/c40a7fcb5401c35214439910c240271b1ec27e6f))
+* Import wasi sysroot as an external dependency ([414e699](https://www.github.com/robertoraggi/cplusplus/commit/414e699afca324fcd7d9375d29d3ba6fcc5385dd))
+* Link the wasi sysroot in the build directory ([e82a63d](https://www.github.com/robertoraggi/cplusplus/commit/e82a63d3c975ef324b7986484ebb769a52471a5f))
+* Pretty print the JSON output AST ([70d8119](https://www.github.com/robertoraggi/cplusplus/commit/70d8119f6b6d2c14e796f8e89a0d612f07efdc81))
+* Reduce size of the emscriten wasm binary ([3122c4d](https://www.github.com/robertoraggi/cplusplus/commit/3122c4d69bffa8d06a8455b602b8efad80e76830))
+
 ### [1.1.15](https://www.github.com/robertoraggi/cplusplus/compare/v1.1.14...v1.1.15) (2023-06-04)
 
 
