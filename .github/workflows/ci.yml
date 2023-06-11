@@ -105,12 +105,39 @@ jobs:
 
       - name: Build
         run: |
-          docker build -t cxx-wasi -f Dockerfile.wasi .
-          mkdir -p out
-          docker run --rm -v $PWD/out:/out cxx-wasi cp /app/build.wasi/src/frontend/cxx.wasm /out/cxx.wasm
+          bash -x scripts/build-wasi.sh
+
+      - name: Install wasmtime
+        run: |
+          wget https://github.com/bytecodealliance/wasmtime/releases/download/v9.0.3/wasmtime-v9.0.3-x86_64-linux.tar.xz
+          tar Jxvf wasmtime-v9.0.3-x86_64-linux.tar.xz -C ~/
 
       - name: Test
         run: |
-          curl https://wasmtime.dev/install.sh -sSf | bash
+          ~/wasmtime-v9.0.3-x86_64-linux/wasmtime \
+            --mapdir=/::${{github.workspace}}/build.wasi/install \
+            --mapdir tests::tests \
+            ${{github.workspace}}/build.wasi/install/usr/bin/cxx.wasm -- -v tests/manual/source.cc
 
-          ~/.wasmtime/bin/wasmtime out/cxx.wasm -- --help
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: cxx-wasi
+          path: |
+            build.wasi/install/
+            !build.wasi/install/usr/lib/*.a
+            !build.wasi/install/usr/lib/cmake
+            !build.wasi/install/usr/lib/wasi-sysroot/lib
+            !build.wasi/install/usr/lib/wasi-sysroot/share
+            !build.wasi/install/usr/include
+          retention-days: 1
+
+  release-please:
+    runs-on: ubuntu-latest
+    if: github.repository == 'robertoraggi/cplusplus' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: GoogleCloudPlatform/release-please-action@v3
+        with:
+          token: ${{ secrets.RELEASE_TOKEN }}
+          release-type: simple
+          package-name: cplusplus

@@ -4,20 +4,7 @@ RUN apt-get update && apt-get install -y \
     git \
     binaryen
 
-WORKDIR /app
+COPY tools/kwgen/kwgen.cc /tmp/kwgen.cc
 
-COPY . .
+RUN clang++-16 -std=c++20 /tmp/kwgen.cc -o /usr/bin/kwgen
 
-RUN clang++-16 -std=c++20 -o /usr/bin/kwgen tools/kwgen/kwgen.cc
-
-RUN cmake -G Ninja \
-    -S . \
-    -B build.wasi \
-    -DCMAKE_TOOLCHAIN_FILE=/usr/share/cmake/wasi-sdk.cmake \
-    -DCMAKE_BUILD_TYPE=MinSizeRel \
-    -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=1 \
-    -DKWGEN_EXECUTABLE=/usr/bin/kwgen
-
-RUN cmake --build build.wasi
-
-RUN wasm-opt -O --strip-debug build.wasi/src/frontend/cxx -o build.wasi/src/frontend/cxx.wasm
