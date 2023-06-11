@@ -109,11 +109,12 @@ jobs:
 
       - name: Install wasmtime
         run: |
-          curl https://wasmtime.dev/install.sh -sSf | bash
+          wget https://github.com/bytecodealliance/wasmtime/releases/download/v9.0.3/wasmtime-v9.0.3-x86_64-linux.tar.xz
+          tar Jxvf wasmtime-v9.0.3-x86_64-linux.tar.xz -C ~/
 
       - name: Test
         run: |
-          ~/.wasmtime/bin/wasmtime \
+          ~/wasmtime-v9.0.3-x86_64-linux/wasmtime \
             --mapdir=/::${{github.workspace}}/build.wasi/install \
             --mapdir tests::tests \
             ${{github.workspace}}/build.wasi/install/usr/bin/cxx.wasm -- -v tests/manual/source.cc
