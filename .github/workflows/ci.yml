@@ -116,7 +116,7 @@ jobs:
           ~/.wasmtime/bin/wasmtime \
             --mapdir=/::${{github.workspace}}/build.wasi/install \
             --mapdir tests::tests \
-            ${{github.workspace}}/build.wasi/install/usr/bin/cxx -- -v tests/manual/source.cc
+            ${{github.workspace}}/build.wasi/install/usr/bin/cxx.wasm -- -v tests/manual/source.cc
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
