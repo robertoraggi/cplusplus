@@ -29,22 +29,25 @@ const std::string& Wasm32WasiToolchain::appdir() const { return appdir_; }
 
 void Wasm32WasiToolchain::setAppdir(std::string appdir) {
   appdir_ = std::move(appdir);
+
+  if (!appdir_.empty() && appdir_.back() == '/') {
+    appdir_.pop_back();
+  }
 }
 
 const std::string& Wasm32WasiToolchain::sysroot() const { return sysroot_; }
 
 void Wasm32WasiToolchain::setSysroot(std::string sysroot) {
   sysroot_ = std::move(sysroot);
+
+  if (!sysroot_.empty() && sysroot_.back() == '/') {
+    sysroot_.pop_back();
+  }
 }
 
 void Wasm32WasiToolchain::addSystemIncludePaths() {
   addSystemIncludePath(fmt::format("{}/include", sysroot_));
-
-#if __wasi__
-  addSystemIncludePath(fmt::format("/usr/lib/cxx/include", appdir_));
-#else
   addSystemIncludePath(fmt::format("{}/../lib/cxx/include", appdir_));
-#endif
 }
 
 void Wasm32WasiToolchain::addSystemCppIncludePaths() {

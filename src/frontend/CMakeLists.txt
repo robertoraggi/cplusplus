@@ -41,6 +41,8 @@ if(EMSCRIPTEN)
 endif()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "WASI")
+    set_target_properties(cxx PROPERTIES SUFFIX ".wasm")
+
     target_compile_definitions(cxx PRIVATE JSON_HAS_FILESYSTEM=0)
     target_compile_definitions(cxx PRIVATE CXX_NO_FILESYSTEM)
 endif()

@@ -105,15 +105,31 @@ jobs:
 
       - name: Build
         run: |
-          docker build -t cxx-wasi -f Dockerfile.wasi .
-          mkdir -p out
-          docker run --rm -v $PWD/out:/out cxx-wasi cp /app/build.wasi/src/frontend/cxx.wasm /out/cxx.wasm
+          bash -x scripts/build-wasi.sh
 
-      - name: Test
+      - name: Install wasmtime
         run: |
           curl https://wasmtime.dev/install.sh -sSf | bash
 
-          ~/.wasmtime/bin/wasmtime out/cxx.wasm -- --help
+      - name: Test
+        run: |
+          ~/.wasmtime/bin/wasmtime \
+            --mapdir=/::${{github.workspace}}/build.wasi/install \
+            --mapdir tests::tests \
+            ${{github.workspace}}/build.wasi/install/usr/bin/cxx -- -v tests/manual/source.cc
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: cxx-wasi
+          path: |
+            build.wasi/install/
+            !build.wasi/install/lib/*.a
+            !build.wasi/install/lib/cmake
+            !build.wasi/install/lib/wasi-sysroot/lib
+            !build.wasi/install/lib/wasi-sysroot/share
+            !build.wasi/install/usr/include
+          retention-days: 1
 
   release-please:
     runs-on: ubuntu-latest

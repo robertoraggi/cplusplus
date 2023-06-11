@@ -239,7 +239,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
     fs::path app_dir;
 
 #if __wasi__
-    app_dir = fs::path("/");
+    app_dir = fs::path("/usr/bin/");
 #elif __unix__
     char* app_name = realpath(cli.app_name.c_str(), nullptr);
     app_dir = fs::path(app_name).remove_filename().string();
@@ -251,12 +251,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
     if (auto paths = cli.get("--sysroot"); !paths.empty()) {
       wasmToolchain->setSysroot(paths.back());
     } else {
-      fs::path sysroot_dir;
-#if __wasi__
-      sysroot_dir = fs::path("/wasi-sysroot");
-#elif __unix__
-      sysroot_dir = app_dir / "../lib/wasi-sysroot";
-#endif
+      auto sysroot_dir = app_dir / "../lib/wasi-sysroot";
       wasmToolchain->setSysroot(sysroot_dir.string());
     }
 
