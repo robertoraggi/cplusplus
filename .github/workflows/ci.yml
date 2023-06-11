@@ -126,10 +126,10 @@ jobs:
           path: |
             build.wasi/install/
             !build.wasi/install/lib/*.a
-            !build.wasi/install/lib/cmake
-            !build.wasi/install/lib/wasi-sysroot/lib
-            !build.wasi/install/lib/wasi-sysroot/share
-            !build.wasi/install/usr/include
+            !build.wasi/install/lib/cmake/*
+            !build.wasi/install/lib/wasi-sysroot/lib/*
+            !build.wasi/install/lib/wasi-sysroot/share/*
+            !build.wasi/install/usr/include/*
           retention-days: 1
 
   release-please:
