@@ -198,9 +198,8 @@ auto ParameterDeclarationClauseAST::lastSourceLocation() -> SourceLocation {
 
 auto ParametersAndQualifiersAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(parameterDeclarationClause)) {
+  if (auto loc = cxx::firstSourceLocation(parameterDeclarationClause))
     return loc;
-  }
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(cvQualifierList)) return loc;
   if (auto loc = cxx::firstSourceLocation(refLoc)) return loc;
@@ -213,9 +212,8 @@ auto ParametersAndQualifiersAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(refLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(cvQualifierList)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(parameterDeclarationClause)) {
+  if (auto loc = cxx::lastSourceLocation(parameterDeclarationClause))
     return loc;
-  }
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   return {};
 }
@@ -238,9 +236,8 @@ auto LambdaIntroducerAST::lastSourceLocation() -> SourceLocation {
 
 auto LambdaDeclaratorAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(parameterDeclarationClause)) {
+  if (auto loc = cxx::firstSourceLocation(parameterDeclarationClause))
     return loc;
-  }
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(declSpecifierList)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
@@ -255,9 +252,8 @@ auto LambdaDeclaratorAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(declSpecifierList)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(parameterDeclarationClause)) {
+  if (auto loc = cxx::lastSourceLocation(parameterDeclarationClause))
     return loc;
-  }
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   return {};
 }
@@ -861,9 +857,8 @@ auto IdExpressionAST::lastSourceLocation() -> SourceLocation {
 auto RequiresExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(requiresLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(parameterDeclarationClause)) {
+  if (auto loc = cxx::firstSourceLocation(parameterDeclarationClause))
     return loc;
-  }
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(requirementBody)) return loc;
   return {};
@@ -872,9 +867,8 @@ auto RequiresExpressionAST::firstSourceLocation() -> SourceLocation {
 auto RequiresExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(requirementBody)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(parameterDeclarationClause)) {
+  if (auto loc = cxx::lastSourceLocation(parameterDeclarationClause))
     return loc;
-  }
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(requiresLoc)) return loc;
   return {};
