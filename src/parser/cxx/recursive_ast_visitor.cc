@@ -200,7 +200,9 @@ void RecursiveASTVisitor::visit(TypeIdAST* ast) {
 }
 
 void RecursiveASTVisitor::visit(NestedNameSpecifierAST* ast) {
-  for (auto it = ast->nameList; it; it = it->next) acceptName(it->value);
+  for (auto it = ast->nameList; it; it = it->next) {
+    acceptName(it->value);
+  }
 }
 
 void RecursiveASTVisitor::visit(UsingDeclaratorAST* ast) {
@@ -454,7 +456,9 @@ void RecursiveASTVisitor::visit(CompoundStatementFunctionBodyAST* ast) {
 void RecursiveASTVisitor::visit(TryStatementFunctionBodyAST* ast) {
   acceptCtorInitializer(ast->ctorInitializer);
   acceptCompoundStatement(ast->statement);
-  for (auto it = ast->handlerList; it; it = it->next) acceptHandler(it->value);
+  for (auto it = ast->handlerList; it; it = it->next) {
+    acceptHandler(it->value);
+  }
 }
 
 void RecursiveASTVisitor::visit(DeleteFunctionBodyAST* ast) {}
@@ -547,7 +551,9 @@ void RecursiveASTVisitor::visit(AlignofExpressionAST* ast) {
 }
 
 void RecursiveASTVisitor::visit(TypeTraitsExpressionAST* ast) {
-  for (auto it = ast->typeIdList; it; it = it->next) acceptTypeId(it->value);
+  for (auto it = ast->typeIdList; it; it = it->next) {
+    acceptTypeId(it->value);
+  }
 }
 
 void RecursiveASTVisitor::visit(UnaryExpressionAST* ast) {
@@ -714,7 +720,9 @@ void RecursiveASTVisitor::visit(DeclarationStatementAST* ast) {
 
 void RecursiveASTVisitor::visit(TryBlockStatementAST* ast) {
   acceptCompoundStatement(ast->statement);
-  for (auto it = ast->handlerList; it; it = it->next) acceptHandler(it->value);
+  for (auto it = ast->handlerList; it; it = it->next) {
+    acceptHandler(it->value);
+  }
 }
 
 void RecursiveASTVisitor::visit(AccessDeclarationAST* ast) {}
