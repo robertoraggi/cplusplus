@@ -8,7 +8,7 @@ project_root=$(cd "$me/.." && pwd)
 
 DOCKER_EXTRA_OPTS="--rm -t -v ${project_root}:/code -w /code -u $(id -u) cxx-wasi"
 
-docker build -t cxx-wasi -f Dockerfile.wasi ${project_root}
+docker build -t cxx-wasi -f ${project_root}/Dockerfile.wasi ${project_root}
 
 docker run ${DOCKER_EXTRA_OPTS} \
     cmake -G Ninja \
