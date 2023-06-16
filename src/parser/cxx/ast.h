@@ -944,7 +944,7 @@ class ModuleUnitAST final : public UnitAST {
   GlobalModuleFragmentAST* globalModuleFragment = nullptr;
   ModuleDeclarationAST* moduleDeclaration = nullptr;
   List<DeclarationAST*>* declarationList = nullptr;
-  PrivateModuleFragmentAST* privateModuleFragmentAST = nullptr;
+  PrivateModuleFragmentAST* privateModuleFragment = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

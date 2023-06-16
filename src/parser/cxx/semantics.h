@@ -67,12 +67,12 @@ class Semantics final : ASTVisitor {
 
   struct SpecifiersSem {
     QualifiedType type;
-    bool isConstexpr : 1 = false;
-    bool isExtern : 1 = false;
-    bool isFriend : 1 = false;
-    bool isStatic : 1 = false;
-    bool isTypedef : 1 = false;
-    bool isUnsigned : 1 = false;
+    bool isConstexpr = false;
+    bool isExtern = false;
+    bool isFriend = false;
+    bool isStatic = false;
+    bool isTypedef = false;
+    bool isUnsigned = false;
   };
 
   struct DeclaratorSem {

@@ -1155,11 +1155,11 @@ void ASTPrinter::visit(ModuleUnitAST* ast) {
     }
   }
 
-  if (ast->privateModuleFragmentAST) {
-    if (auto childNode = accept(ast->privateModuleFragmentAST);
+  if (ast->privateModuleFragment) {
+    if (auto childNode = accept(ast->privateModuleFragment);
         !childNode.is_null()) {
-      json_.push_back(std::vector<nlohmann::json>{
-          "attr:privateModuleFragmentAST", std::move(childNode)});
+      json_.push_back(std::vector<nlohmann::json>{"attr:privateModuleFragment",
+                                                  std::move(childNode)});
     }
   }
 }

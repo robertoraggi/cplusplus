@@ -17,7 +17,8 @@ docker run ${DOCKER_EXTRA_OPTS} \
     -DCMAKE_INSTALL_PREFIX=build.em/install/usr \
     -DCMAKE_BUILD_TYPE=MinSizeRel \
     -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=1 \
-    -DKWGEN_EXECUTABLE=/usr/bin/kwgen
+    -DKWGEN_EXECUTABLE=/usr/bin/kwgen \
+    -DFLATBUFFERS_FLATC_EXECUTABLE=/usr/bin/flatc
 
 docker run ${DOCKER_EXTRA_OPTS} \
     cmake --build build.em

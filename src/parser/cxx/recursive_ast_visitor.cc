@@ -475,7 +475,7 @@ void RecursiveASTVisitor::visit(ModuleUnitAST* ast) {
   for (auto it = ast->declarationList; it; it = it->next) {
     acceptDeclaration(it->value);
   }
-  acceptPrivateModuleFragment(ast->privateModuleFragmentAST);
+  acceptPrivateModuleFragment(ast->privateModuleFragment);
 }
 
 void RecursiveASTVisitor::visit(ThisExpressionAST* ast) {}

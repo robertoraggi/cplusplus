@@ -936,7 +936,7 @@ void ASTCloner::visit(ModuleUnitAST* ast) {
     }
   }
 
-  copy->privateModuleFragmentAST = accept(ast->privateModuleFragmentAST);
+  copy->privateModuleFragment = accept(ast->privateModuleFragment);
 }
 
 void ASTCloner::visit(ThisExpressionAST* ast) {

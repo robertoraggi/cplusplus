@@ -1028,7 +1028,7 @@ void ASTSlot::visit(ModuleUnitAST* ast) {
       slotKind_ = ASTSlotKind::kNodeList;
       break;
     case 3:
-      value_ = reinterpret_cast<std::intptr_t>(ast->privateModuleFragmentAST);
+      value_ = reinterpret_cast<std::intptr_t>(ast->privateModuleFragment);
       slotKind_ = ASTSlotKind::kNode;
       break;
   }  // switch

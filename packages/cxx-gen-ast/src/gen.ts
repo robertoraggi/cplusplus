@@ -45,6 +45,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as process from "process";
 import * as child_process from "child_process";
+import { gen_ast_fbs } from "./gen_ast_fbs.js";
 
 const outdir = process.cwd();
 
@@ -99,6 +100,11 @@ gen_ast_slot_h({ ast, output: path.join(outdir, "src/parser/cxx/ast_slot.h") });
 gen_ast_slot_cc({
   ast,
   output: path.join(outdir, "src/parser/cxx/ast_slot.cc"),
+});
+
+gen_ast_fbs({
+  ast,
+  output: path.join(outdir, "src/parser/cxx/ast.fbs"),
 });
 
 // js integration

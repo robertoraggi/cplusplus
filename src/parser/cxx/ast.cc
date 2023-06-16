@@ -750,12 +750,12 @@ auto ModuleUnitAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(globalModuleFragment)) return loc;
   if (auto loc = cxx::firstSourceLocation(moduleDeclaration)) return loc;
   if (auto loc = cxx::firstSourceLocation(declarationList)) return loc;
-  if (auto loc = cxx::firstSourceLocation(privateModuleFragmentAST)) return loc;
+  if (auto loc = cxx::firstSourceLocation(privateModuleFragment)) return loc;
   return {};
 }
 
 auto ModuleUnitAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(privateModuleFragmentAST)) return loc;
+  if (auto loc = cxx::lastSourceLocation(privateModuleFragment)) return loc;
   if (auto loc = cxx::lastSourceLocation(declarationList)) return loc;
   if (auto loc = cxx::lastSourceLocation(moduleDeclaration)) return loc;
   if (auto loc = cxx::lastSourceLocation(globalModuleFragment)) return loc;
