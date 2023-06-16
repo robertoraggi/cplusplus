@@ -18,7 +18,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 add_custom_target(link_wasi_sysroot ALL
-    COMMAND ${CMAKE_COMMAND} -E create_symlink ${wasi_sysroot_SOURCE_DIR} wasi-sysroot)
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${wasi_sysroot_SOURCE_DIR} wasi-sysroot)
 
 add_subdirectory(cxx)
 
