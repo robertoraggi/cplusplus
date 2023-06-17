@@ -498,7 +498,7 @@ void Semantics::visit(ModuleUnitAST* ast) {
   for (auto it = ast->declarationList; it; it = it->next) {
     declaration(it->value);
   }
-  accept(ast->privateModuleFragmentAST);
+  accept(ast->privateModuleFragment);
 }
 
 void Semantics::visit(ThisExpressionAST* ast) {}
