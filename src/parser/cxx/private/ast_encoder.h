@@ -22,22 +22,62 @@
 
 #include <cxx/ast_visitor.h>
 #include <flatbuffers/flatbuffer_builder.h>
+#include <tuple>
+#include <span>
+
 namespace cxx {
 
 class TranslationUnit;
 
 class ASTEncoder : ASTVisitor {
-  TranslationUnit* unit_;
-  flatbuffers::FlatBufferBuilder builder_;
+  TranslationUnit* unit_ = nullptr;
+  flatbuffers::FlatBufferBuilder fbb_;
+  flatbuffers::Offset<> offset_;
+  std::uint32_t type_ = 0;
 
-  void accept(AST* ast);
+public:
+  explicit ASTEncoder() {}
 
- public:
-  explicit ASTEncoder(TranslationUnit* unit) : unit_(unit) {}
+  auto operator()(TranslationUnit* unit) -> std::span<std::uint8_t>;
+private:
+  auto accept(AST* ast) -> flatbuffers::Offset<>;
 
-  void operator()(AST* ast);
+  auto acceptRequirement(RequirementAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
- private:
+  auto acceptTemplateArgument(TemplateArgumentAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
+  auto acceptMemInitializer(MemInitializerAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
+  auto acceptLambdaCapture(LambdaCaptureAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
+  auto acceptInitializer(InitializerAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
+  auto acceptNewInitializer(NewInitializerAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
+  auto acceptExceptionDeclaration(ExceptionDeclarationAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
+  auto acceptFunctionBody(FunctionBodyAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
+  auto acceptUnit(UnitAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
+  auto acceptExpression(ExpressionAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
+  auto acceptStatement(StatementAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
+  auto acceptDeclaration(DeclarationAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
+  auto acceptName(NameAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
+  auto acceptSpecifier(SpecifierAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
+  auto acceptCoreDeclarator(CoreDeclaratorAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
+  auto acceptPtrOperator(PtrOperatorAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
+  auto acceptDeclaratorModifier(DeclaratorModifierAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
+  auto acceptAttribute(AttributeAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
   void visit(TypeIdAST* ast) override;
   void visit(NestedNameSpecifierAST* ast) override;
   void visit(UsingDeclaratorAST* ast) override;
@@ -238,6 +278,7 @@ class ASTEncoder : ASTVisitor {
 
   void visit(FunctionDeclaratorAST* ast) override;
   void visit(ArrayDeclaratorAST* ast) override;
+
 };
 
-}  // namespace cxx
+} // namespace cxx

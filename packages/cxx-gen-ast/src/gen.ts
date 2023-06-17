@@ -111,7 +111,7 @@ gen_ast_fbs({
 
 gen_ast_encoder_h({
   ast,
-  output: path.join(outdir, "src/parser/cxx/ast_encoder.h"),
+  output: path.join(outdir, "src/parser/cxx/private/ast_encoder.h"),
 });
 
 gen_ast_encoder_cc({

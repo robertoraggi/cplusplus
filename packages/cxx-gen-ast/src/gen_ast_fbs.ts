@@ -130,7 +130,12 @@ table Token {
 }
 
 ${code.join("\n")}
-root_type TranslationUnit;
+
+table SerializedUnit {
+  unit: Unit;
+}
+
+root_type SerializedUnit;
 file_identifier "AST0";
 file_extension "ast";
 `;

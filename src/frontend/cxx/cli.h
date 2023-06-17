@@ -66,6 +66,7 @@ class CLI {
   bool opt_fsyntax_only = false;
   bool opt_verify = false;
   bool opt_v = false;
+  bool opt_fserialize_ast = false;
 
   [[nodiscard]] auto checkTypes() const -> bool {
     return opt_ir_dump || opt_S || opt_c || opt_fsyntax_only;

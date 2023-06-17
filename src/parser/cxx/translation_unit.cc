@@ -28,7 +28,10 @@
 #include <cxx/names.h>
 #include <cxx/parser.h>
 #include <cxx/preprocessor.h>
+#include <cxx/private/ast_encoder.h>
 #include <utf8/unchecked.h>
+
+#include <ostream>
 
 namespace cxx {
 
@@ -102,6 +105,13 @@ auto TranslationUnit::parse(bool checkTypes) -> bool {
   Parser parse(this);
   parse.setCheckTypes(checkTypes);
   return parse(ast_);
+}
+
+auto TranslationUnit::serialize(std::ostream& out) -> bool {
+  ASTEncoder encode;
+  auto data = encode(this);
+  out.write(reinterpret_cast<const char*>(data.data()), data.size());
+  return true;
 }
 
 void TranslationUnit::replaceWithIdentifier(SourceLocation keywordLoc) {

@@ -1419,6 +1419,11 @@ table ModuleUnit /* UnitAST */ {
   private_module_fragment: PrivateModuleFragment;
 }
 
-root_type TranslationUnit;
+
+table SerializedUnit {
+  unit: Unit;
+}
+
+root_type SerializedUnit;
 file_identifier "AST0";
 file_extension "ast";

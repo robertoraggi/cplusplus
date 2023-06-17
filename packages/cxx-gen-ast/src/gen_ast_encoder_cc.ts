@@ -34,18 +34,98 @@ export function gen_ast_encoder_cc({
   const emit = (line = "") => code.push(line);
 
   const by_base = groupNodesByBaseType(ast);
+  by_base.set("AttributeAST", []);
 
-  by_base.forEach((nodes) => {
+  const makeClassName = (name: string) =>
+    name != "AST" ? name.slice(0, -3) : name;
+
+  const toSnakeName = (name: string) =>
+    name.replace(/([A-Z])/g, "_$1").toLocaleLowerCase();
+
+  by_base.forEach((_nodes, base) => {
+    if (base === "AST") return;
+    const className = makeClassName(base);
+    emit();
+    emit(
+      `  auto ASTEncoder::accept${className}(${base}* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t> {`
+    );
+    emit(`    if (!ast) return {};`);
+    emit(`    flatbuffers::Offset<> offset;`);
+    emit(`    std::uint32_t type = 0;`);
+    emit(`    std::swap(offset, offset_);`);
+    emit(`    std::swap(type, type_);`);
+    emit(`    ast->accept(this);`);
+    emit(`    std::swap(offset, offset_);`);
+    emit(`    std::swap(type, type_);`);
+    emit(`    return {offset, type};`);
+    emit(`  }`);
+  });
+
+  by_base.forEach((nodes, base) => {
     nodes.forEach(({ name, members }) => {
+      const className = makeClassName(name);
+
       emit();
       emit(`void ASTEncoder::visit(${name}* ast) {`);
+      emit(`  io::${className}::Builder builder{fbb_};`);
       emit();
       members.forEach((m) => {
+        const fieldName = toSnakeName(m.name);
+
         emit();
-        if (m.kind === "node") {
-          // todo
-        } else if (m.kind === "node-list") {
-          // todo
+        if (m.kind === "node" && !by_base.has(m.type)) {
+          emit(`const auto ${m.name} = accept(ast->${m.name});`);
+          emit();
+          emit(`if (!${m.name}.IsNull()) {`);
+          emit(`  builder.add_${fieldName}(${m.name}.o);`);
+          emit(`}`);
+        } else if (m.kind === "node" && by_base.has(m.type)) {
+          const className = makeClassName(m.type);
+          emit(
+            `const auto [${m.name}, ${m.name}Type] = accept${className}(ast->${m.name});`
+          );
+          emit();
+          emit(`if (!${m.name}.IsNull()) {`);
+          emit(`  builder.add_${fieldName}(${m.name});`);
+          emit(
+            `  builder.add_${fieldName}_type(static_cast<io::${className}>(${m.name}Type));`
+          );
+          emit(`}`);
+        } else if (m.kind === "node-list" && !by_base.has(m.type)) {
+          const className = makeClassName(m.type);
+          emit(`  if (ast->${m.name}) {`);
+          emit(
+            `    std::vector<flatbuffers::Offset<io::${className}>> ${m.name}Offsets;`
+          );
+          emit(`    for (auto it = ast->${m.name}; it; it = it->next) {`);
+          emit(`     ${m.name}Offsets.emplace_back(accept(it->value).o);`);
+          emit(`    }`);
+          emit(
+            `    builder.add_${fieldName}(fbb_.CreateVector(${m.name}Offsets));`
+          );
+          emit(`  }`);
+        } else if (m.kind === "node-list" && by_base.has(m.type)) {
+          const className = makeClassName(m.type);
+          emit(`  if (ast->${m.name}) {`);
+          emit(`    std::vector<flatbuffers::Offset<>> ${m.name}Offsets;`);
+          emit(
+            `    std::vector<std::underlying_type_t<io::${className}>> ${m.name}Types;`
+          );
+          emit(`    for (auto it = ast->${m.name}; it; it = it->next) {`);
+          emit(
+            `     const auto [offset, type] = accept${className}(it->value);`
+          );
+          emit(`     ${m.name}Offsets.push_back(offset);`);
+          emit(`     ${m.name}Types.push_back(type);`);
+          emit(`    }`);
+
+          emit(
+            `    builder.add_${fieldName}(fbb_.CreateVector(${m.name}Offsets));`
+          );
+          emit(
+            `    builder.add_${fieldName}_type(fbb_.CreateVector(${m.name}Types));`
+          );
+          emit(`  }`);
         } else if (m.kind === "attribute" && m.type.endsWith("Literal")) {
           // todo
         } else if (m.kind === "attribute" && m.type === "Identifier") {
@@ -54,25 +134,50 @@ export function gen_ast_encoder_cc({
           // todo
         }
       });
+
+      emit();
+      emit(`  offset_ = builder.Finish().Union();`);
+      if (base != "AST") {
+        const baseClassName = makeClassName(base);
+        emit(`  type_ = io::${baseClassName}_${className};`);
+      }
       emit(`}`);
     });
   });
 
   const out = `${cpy_header}
-#include "ast_encoder.h"
+#include <cxx/private/ast_encoder.h>
 
+// cxx
+#include <cxx-ast-flatbuffers/ast_generated.h>
 #include <cxx/ast.h>
-#include <cxx/translation_unit.h>
-#include <cxx/names.h>
 #include <cxx/literals.h>
+#include <cxx/names.h>
+#include <cxx/translation_unit.h>
 
 #include <algorithm>
 
 namespace cxx {
 
-void ASTEncoder::accept(AST* ast) {
-  if (!ast) return;
+auto ASTEncoder::operator()(TranslationUnit* unit) -> std::span<std::uint8_t> {
+  if (!unit) return {};
+  std::swap(unit_, unit);
+  auto [unitOffset, unitType] = acceptUnit(unit_->ast());
+  io::SerializedUnitBuilder builder{fbb_};
+  builder.add_unit(unitOffset);
+  builder.add_unit_type(static_cast<io::Unit>(unitType));
+  std::swap(unit_, unit);
+  fbb_.Finish(builder.Finish(), io::SerializedUnitIdentifier());
+  return std::span{fbb_.GetBufferPointer(), fbb_.GetSize()};
+}
+
+auto ASTEncoder::accept(AST* ast) -> flatbuffers::Offset<> {
+  if (!ast) return {};
+  flatbuffers::Offset<> offset;
+  std::swap(offset_, offset);
   ast->accept(this);
+  std::swap(offset_, offset);
+  return offset;
 }
 
 ${code.join("\n")}

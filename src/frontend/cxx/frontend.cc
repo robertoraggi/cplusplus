@@ -354,6 +354,11 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
     printSymbol(unit.ast()->symbol);
   }
 
+  if (cli.opt_fserialize_ast) {
+    std::ofstream out("data.ast", std::ios::binary);
+    unit.serialize(out);
+  }
+
   if (cli.opt_ast_dump) {
     ASTPrinter toJSON(&unit);
     fmt::print(std::cout, "{}",

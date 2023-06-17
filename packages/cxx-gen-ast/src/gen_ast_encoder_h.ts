@@ -34,19 +34,33 @@ export function gen_ast_encoder_h({
   const emit = (line = "") => code.push(line);
 
   const by_base = groupNodesByBaseType(ast);
+  by_base.set("AttributeAST", []);
+
+  const makeClassName = (name: string) =>
+    name != "AST" ? name.slice(0, -3) : name;
 
   emit(`class ASTEncoder : ASTVisitor {`);
-  emit(`  TranslationUnit* unit_;`);
-  emit(`  flatbuffers::FlatBufferBuilder builder_;`);
-  emit();
-  emit(`  void accept(AST* ast);`);
+  emit(`  TranslationUnit* unit_ = nullptr;`);
+  emit(`  flatbuffers::FlatBufferBuilder fbb_;`);
+  emit(`  flatbuffers::Offset<> offset_;`);
+  emit(`  std::uint32_t type_ = 0;`);
   emit();
   emit(`public:`);
-  emit(`  explicit ASTEncoder(TranslationUnit* unit): unit_(unit) {}`);
+  emit(`  explicit ASTEncoder() {}`);
   emit();
-  emit(`  void operator()(AST* ast);`);
+  emit(`  auto operator()(TranslationUnit* unit) -> std::span<std::uint8_t>;`);
 
   emit(`private:`);
+  emit(`  auto accept(AST* ast) -> flatbuffers::Offset<>;`);
+  by_base.forEach((_nodes, base) => {
+    if (base === "AST") return;
+    const className = makeClassName(base);
+    emit();
+    emit(
+      `  auto accept${className}(${base}* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;`
+    );
+  });
+
   by_base.forEach((nodes) => {
     emit();
     nodes.forEach(({ name }) => {
@@ -61,6 +75,9 @@ export function gen_ast_encoder_h({
 
 #include <cxx/ast_visitor.h>
 #include <flatbuffers/flatbuffer_builder.h>
+#include <tuple>
+#include <span>
+
 namespace cxx {
 
 class TranslationUnit;

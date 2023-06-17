@@ -122,6 +122,8 @@ class TranslationUnit {
 
   auto parse(bool checkTypes = false) -> bool;
 
+  auto serialize(std::ostream& out) -> bool;
+
   void replaceWithIdentifier(SourceLocation loc);
 
  private:
