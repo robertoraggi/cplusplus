@@ -67,51 +67,53 @@ export function gen_ast_encoder_cc({
 
       emit();
       emit(`void ASTEncoder::visit(${name}* ast) {`);
-      emit(`  io::${className}::Builder builder{fbb_};`);
-      emit();
+      const finalizers: Array<() => void> = [];
+
       members.forEach((m) => {
         const fieldName = toSnakeName(m.name);
 
         emit();
         if (m.kind === "node" && !by_base.has(m.type)) {
           emit(`const auto ${m.name} = accept(ast->${m.name});`);
-          emit();
-          emit(`if (!${m.name}.IsNull()) {`);
-          emit(`  builder.add_${fieldName}(${m.name}.o);`);
-          emit(`}`);
+          finalizers.push(() => {
+            emit(`  builder.add_${fieldName}(${m.name}.o);`);
+          });
         } else if (m.kind === "node" && by_base.has(m.type)) {
           const className = makeClassName(m.type);
           emit(
             `const auto [${m.name}, ${m.name}Type] = accept${className}(ast->${m.name});`
           );
-          emit();
-          emit(`if (!${m.name}.IsNull()) {`);
-          emit(`  builder.add_${fieldName}(${m.name});`);
-          emit(
-            `  builder.add_${fieldName}_type(static_cast<io::${className}>(${m.name}Type));`
-          );
-          emit(`}`);
+          finalizers.push(() => {
+            emit(`  builder.add_${fieldName}(${m.name});`);
+            emit(
+              `  builder.add_${fieldName}_type(static_cast<io::${className}>(${m.name}Type));`
+            );
+          });
         } else if (m.kind === "node-list" && !by_base.has(m.type)) {
           const className = makeClassName(m.type);
-          emit(`  if (ast->${m.name}) {`);
           emit(
             `    std::vector<flatbuffers::Offset<io::${className}>> ${m.name}Offsets;`
           );
-          emit(`    for (auto it = ast->${m.name}; it; it = it->next) {`);
+          emit(`  for (auto it = ast->${m.name}; it; it = it->next) {`);
+          emit(`     if (!it->value) continue;`);
           emit(`     ${m.name}Offsets.emplace_back(accept(it->value).o);`);
-          emit(`    }`);
-          emit(
-            `    builder.add_${fieldName}(fbb_.CreateVector(${m.name}Offsets));`
-          );
           emit(`  }`);
+          emit();
+          emit(
+            `  auto ${m.name}OffsetsVector = fbb_.CreateVector(${m.name}Offsets);`
+          );
+          finalizers.push(() => {
+            emit(`    builder.add_${fieldName}(${m.name}OffsetsVector);`);
+          });
         } else if (m.kind === "node-list" && by_base.has(m.type)) {
           const className = makeClassName(m.type);
-          emit(`  if (ast->${m.name}) {`);
-          emit(`    std::vector<flatbuffers::Offset<>> ${m.name}Offsets;`);
+          emit(`  std::vector<flatbuffers::Offset<>> ${m.name}Offsets;`);
           emit(
-            `    std::vector<std::underlying_type_t<io::${className}>> ${m.name}Types;`
+            `  std::vector<std::underlying_type_t<io::${className}>> ${m.name}Types;`
           );
+          emit();
           emit(`    for (auto it = ast->${m.name}; it; it = it->next) {`);
+          emit(`     if (!it->value) continue;`);
           emit(
             `     const auto [offset, type] = accept${className}(it->value);`
           );
@@ -119,13 +121,18 @@ export function gen_ast_encoder_cc({
           emit(`     ${m.name}Types.push_back(type);`);
           emit(`    }`);
 
+          emit();
           emit(
-            `    builder.add_${fieldName}(fbb_.CreateVector(${m.name}Offsets));`
+            `  auto ${m.name}OffsetsVector = fbb_.CreateVector(${m.name}Offsets);`
           );
           emit(
-            `    builder.add_${fieldName}_type(fbb_.CreateVector(${m.name}Types));`
+            `  auto ${m.name}TypesVector = fbb_.CreateVector(${m.name}Types);`
           );
-          emit(`  }`);
+
+          finalizers.push(() => {
+            emit(`  builder.add_${fieldName}(${m.name}OffsetsVector);`);
+            emit(`  builder.add_${fieldName}_type(${m.name}TypesVector);`);
+          });
         } else if (m.kind === "attribute" && m.type.endsWith("Literal")) {
           // todo
         } else if (m.kind === "attribute" && m.type === "Identifier") {
@@ -135,6 +142,9 @@ export function gen_ast_encoder_cc({
         }
       });
 
+      emit();
+      emit(`  io::${className}::Builder builder{fbb_};`);
+      finalizers.forEach((f) => f());
       emit();
       emit(`  offset_ = builder.Finish().Union();`);
       if (base != "AST") {

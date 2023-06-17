@@ -355,8 +355,12 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
   }
 
   if (cli.opt_fserialize_ast) {
-    std::ofstream out("data.ast", std::ios::binary);
-    unit.serialize(out);
+    unit.serialize(output);
+
+    diagnosticsClient.verifyExpectedDiagnostics(
+        verifyCommentHandler.expectedDiagnostics);
+
+    return !diagnosticsClient.hasErrors();
   }
 
   if (cli.opt_ast_dump) {
