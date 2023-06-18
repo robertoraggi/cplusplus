@@ -42,6 +42,7 @@ class Identifier final : public Name {
   explicit Identifier(std::string name) : name_(std::move(name)) {}
 
   [[nodiscard]] auto name() const -> const std::string& { return name_; }
+  [[nodiscard]] auto value() const -> const std::string& { return name_; }
 
   void accept(NameVisitor* visitor) const override { visitor->visit(this); }
 

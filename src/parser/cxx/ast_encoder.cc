@@ -34,15 +34,37 @@ namespace cxx {
 auto ASTEncoder::operator()(TranslationUnit* unit)
     -> std::span<const std::uint8_t> {
   if (!unit) return {};
+  Table<Identifier> identifiers;
+  Table<CharLiteral> charLiterals;
+  Table<StringLiteral> stringLiterals;
+  Table<IntegerLiteral> integerLiterals;
+  Table<FloatLiteral> floatLiterals;
+
   std::swap(unit_, unit);
+  std::swap(identifiers_, identifiers);
+  std::swap(charLiterals_, charLiterals);
+  std::swap(stringLiterals_, stringLiterals);
+  std::swap(integerLiterals_, integerLiterals);
+  std::swap(floatLiterals_, floatLiterals);
+
   auto [unitOffset, unitType] = acceptUnit(unit_->ast());
+
   auto file_name = fbb_.CreateString(unit_->fileName());
+
   io::SerializedUnitBuilder builder{fbb_};
   builder.add_unit(unitOffset);
   builder.add_unit_type(static_cast<io::Unit>(unitType));
   builder.add_file_name(file_name);
+
   std::swap(unit_, unit);
+  std::swap(identifiers_, identifiers);
+  std::swap(charLiterals_, charLiterals);
+  std::swap(stringLiterals_, stringLiterals);
+  std::swap(integerLiterals_, integerLiterals);
+  std::swap(floatLiterals_, floatLiterals);
+
   fbb_.Finish(builder.Finish(), io::SerializedUnitIdentifier());
+
   return std::span{fbb_.GetBufferPointer(), fbb_.GetSize()};
 }
 
@@ -965,7 +987,7 @@ void ASTEncoder::visit(SimpleLambdaCaptureAST* ast) {
     if (identifiers_.contains(ast->identifier)) {
       identifier = identifiers_.at(ast->identifier);
     } else {
-      identifier = fbb_.CreateString(ast->identifier->name());
+      identifier = fbb_.CreateString(ast->identifier->value());
       identifiers_.emplace(ast->identifier, identifier);
     }
   }
@@ -985,7 +1007,7 @@ void ASTEncoder::visit(RefLambdaCaptureAST* ast) {
     if (identifiers_.contains(ast->identifier)) {
       identifier = identifiers_.at(ast->identifier);
     } else {
-      identifier = fbb_.CreateString(ast->identifier->name());
+      identifier = fbb_.CreateString(ast->identifier->value());
       identifiers_.emplace(ast->identifier, identifier);
     }
   }
@@ -1008,7 +1030,7 @@ void ASTEncoder::visit(RefInitLambdaCaptureAST* ast) {
     if (identifiers_.contains(ast->identifier)) {
       identifier = identifiers_.at(ast->identifier);
     } else {
-      identifier = fbb_.CreateString(ast->identifier->name());
+      identifier = fbb_.CreateString(ast->identifier->value());
       identifiers_.emplace(ast->identifier, identifier);
     }
   }
@@ -1033,7 +1055,7 @@ void ASTEncoder::visit(InitLambdaCaptureAST* ast) {
     if (identifiers_.contains(ast->identifier)) {
       identifier = identifiers_.at(ast->identifier);
     } else {
-      identifier = fbb_.CreateString(ast->identifier->name());
+      identifier = fbb_.CreateString(ast->identifier->value());
       identifiers_.emplace(ast->identifier, identifier);
     }
   }
@@ -1294,7 +1316,20 @@ void ASTEncoder::visit(ThisExpressionAST* ast) {
 }
 
 void ASTEncoder::visit(CharLiteralExpressionAST* ast) {
+  flatbuffers::Offset<flatbuffers::String> literal;
+  if (ast->literal) {
+    if (charLiterals_.contains(ast->literal)) {
+      literal = charLiterals_.at(ast->literal);
+    } else {
+      literal = fbb_.CreateString(ast->literal->value());
+      charLiterals_.emplace(ast->literal, literal);
+    }
+  }
+
   io::CharLiteralExpression::Builder builder{fbb_};
+  if (ast->literal) {
+    builder.add_literal(literal);
+  }
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_CharLiteralExpression;
@@ -1302,20 +1337,47 @@ void ASTEncoder::visit(CharLiteralExpressionAST* ast) {
 
 void ASTEncoder::visit(BoolLiteralExpressionAST* ast) {
   io::BoolLiteralExpression::Builder builder{fbb_};
+  builder.add_literal(static_cast<std::uint32_t>(ast->literal));
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_BoolLiteralExpression;
 }
 
 void ASTEncoder::visit(IntLiteralExpressionAST* ast) {
+  flatbuffers::Offset<flatbuffers::String> literal;
+  if (ast->literal) {
+    if (integerLiterals_.contains(ast->literal)) {
+      literal = integerLiterals_.at(ast->literal);
+    } else {
+      literal = fbb_.CreateString(ast->literal->value());
+      integerLiterals_.emplace(ast->literal, literal);
+    }
+  }
+
   io::IntLiteralExpression::Builder builder{fbb_};
+  if (ast->literal) {
+    builder.add_literal(literal);
+  }
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_IntLiteralExpression;
 }
 
 void ASTEncoder::visit(FloatLiteralExpressionAST* ast) {
+  flatbuffers::Offset<flatbuffers::String> literal;
+  if (ast->literal) {
+    if (floatLiterals_.contains(ast->literal)) {
+      literal = floatLiterals_.at(ast->literal);
+    } else {
+      literal = fbb_.CreateString(ast->literal->value());
+      floatLiterals_.emplace(ast->literal, literal);
+    }
+  }
+
   io::FloatLiteralExpression::Builder builder{fbb_};
+  if (ast->literal) {
+    builder.add_literal(literal);
+  }
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_FloatLiteralExpression;
@@ -1323,20 +1385,47 @@ void ASTEncoder::visit(FloatLiteralExpressionAST* ast) {
 
 void ASTEncoder::visit(NullptrLiteralExpressionAST* ast) {
   io::NullptrLiteralExpression::Builder builder{fbb_};
+  builder.add_literal(static_cast<std::uint32_t>(ast->literal));
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_NullptrLiteralExpression;
 }
 
 void ASTEncoder::visit(StringLiteralExpressionAST* ast) {
+  flatbuffers::Offset<flatbuffers::String> literal;
+  if (ast->literal) {
+    if (stringLiterals_.contains(ast->literal)) {
+      literal = stringLiterals_.at(ast->literal);
+    } else {
+      literal = fbb_.CreateString(ast->literal->value());
+      stringLiterals_.emplace(ast->literal, literal);
+    }
+  }
+
   io::StringLiteralExpression::Builder builder{fbb_};
+  if (ast->literal) {
+    builder.add_literal(literal);
+  }
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_StringLiteralExpression;
 }
 
 void ASTEncoder::visit(UserDefinedStringLiteralExpressionAST* ast) {
+  flatbuffers::Offset<flatbuffers::String> literal;
+  if (ast->literal) {
+    if (stringLiterals_.contains(ast->literal)) {
+      literal = stringLiterals_.at(ast->literal);
+    } else {
+      literal = fbb_.CreateString(ast->literal->value());
+      stringLiterals_.emplace(ast->literal, literal);
+    }
+  }
+
   io::UserDefinedStringLiteralExpression::Builder builder{fbb_};
+  if (ast->literal) {
+    builder.add_literal(literal);
+  }
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_UserDefinedStringLiteralExpression;
@@ -1384,6 +1473,7 @@ void ASTEncoder::visit(RightFoldExpressionAST* ast) {
   io::RightFoldExpression::Builder builder{fbb_};
   builder.add_expression(expression);
   builder.add_expression_type(static_cast<io::Expression>(expressionType));
+  builder.add_op(static_cast<std::uint32_t>(ast->op));
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_RightFoldExpression;
@@ -1395,6 +1485,7 @@ void ASTEncoder::visit(LeftFoldExpressionAST* ast) {
   io::LeftFoldExpression::Builder builder{fbb_};
   builder.add_expression(expression);
   builder.add_expression_type(static_cast<io::Expression>(expressionType));
+  builder.add_op(static_cast<std::uint32_t>(ast->op));
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_LeftFoldExpression;
@@ -1414,6 +1505,8 @@ void ASTEncoder::visit(FoldExpressionAST* ast) {
   builder.add_right_expression(rightExpression);
   builder.add_right_expression_type(
       static_cast<io::Expression>(rightExpressionType));
+  builder.add_op(static_cast<std::uint32_t>(ast->op));
+  builder.add_fold_op(static_cast<std::uint32_t>(ast->foldOp));
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_FoldExpression;
@@ -1483,7 +1576,7 @@ void ASTEncoder::visit(SizeofPackExpressionAST* ast) {
     if (identifiers_.contains(ast->identifier)) {
       identifier = identifiers_.at(ast->identifier);
     } else {
-      identifier = fbb_.CreateString(ast->identifier->name());
+      identifier = fbb_.CreateString(ast->identifier->value());
       identifiers_.emplace(ast->identifier, identifier);
     }
   }
@@ -1539,6 +1632,7 @@ void ASTEncoder::visit(TypeTraitsExpressionAST* ast) {
 
   io::TypeTraitsExpression::Builder builder{fbb_};
   builder.add_type_id_list(typeIdListOffsetsVector);
+  builder.add_type_traits(static_cast<std::uint32_t>(ast->typeTraits));
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_TypeTraitsExpression;
@@ -1550,6 +1644,7 @@ void ASTEncoder::visit(UnaryExpressionAST* ast) {
   io::UnaryExpression::Builder builder{fbb_};
   builder.add_expression(expression);
   builder.add_expression_type(static_cast<io::Expression>(expressionType));
+  builder.add_op(static_cast<std::uint32_t>(ast->op));
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_UnaryExpression;
@@ -1569,6 +1664,7 @@ void ASTEncoder::visit(BinaryExpressionAST* ast) {
   builder.add_right_expression(rightExpression);
   builder.add_right_expression_type(
       static_cast<io::Expression>(rightExpressionType));
+  builder.add_op(static_cast<std::uint32_t>(ast->op));
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_BinaryExpression;
@@ -1588,6 +1684,7 @@ void ASTEncoder::visit(AssignmentExpressionAST* ast) {
   builder.add_right_expression(rightExpression);
   builder.add_right_expression_type(
       static_cast<io::Expression>(rightExpressionType));
+  builder.add_op(static_cast<std::uint32_t>(ast->op));
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_AssignmentExpression;
@@ -1696,6 +1793,7 @@ void ASTEncoder::visit(MemberExpressionAST* ast) {
       static_cast<io::Expression>(baseExpressionType));
   builder.add_name(name);
   builder.add_name_type(static_cast<io::Name>(nameType));
+  builder.add_access_op(static_cast<std::uint32_t>(ast->accessOp));
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_MemberExpression;
@@ -1709,6 +1807,7 @@ void ASTEncoder::visit(PostIncrExpressionAST* ast) {
   builder.add_base_expression(baseExpression);
   builder.add_base_expression_type(
       static_cast<io::Expression>(baseExpressionType));
+  builder.add_op(static_cast<std::uint32_t>(ast->op));
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_PostIncrExpression;
@@ -1833,7 +1932,7 @@ void ASTEncoder::visit(LabeledStatementAST* ast) {
     if (identifiers_.contains(ast->identifier)) {
       identifier = identifiers_.at(ast->identifier);
     } else {
-      identifier = fbb_.CreateString(ast->identifier->name());
+      identifier = fbb_.CreateString(ast->identifier->value());
       identifiers_.emplace(ast->identifier, identifier);
     }
   }
@@ -2063,7 +2162,7 @@ void ASTEncoder::visit(GotoStatementAST* ast) {
     if (identifiers_.contains(ast->identifier)) {
       identifier = identifiers_.at(ast->identifier);
     } else {
-      identifier = fbb_.CreateString(ast->identifier->name());
+      identifier = fbb_.CreateString(ast->identifier->value());
       identifiers_.emplace(ast->identifier, identifier);
     }
   }
@@ -2219,7 +2318,7 @@ void ASTEncoder::visit(AliasDeclarationAST* ast) {
     if (identifiers_.contains(ast->identifier)) {
       identifier = identifiers_.at(ast->identifier);
     } else {
-      identifier = fbb_.CreateString(ast->identifier->name());
+      identifier = fbb_.CreateString(ast->identifier->value());
       identifiers_.emplace(ast->identifier, identifier);
     }
   }
@@ -2438,7 +2537,7 @@ void ASTEncoder::visit(NamespaceAliasDefinitionAST* ast) {
     if (identifiers_.contains(ast->identifier)) {
       identifier = identifiers_.at(ast->identifier);
     } else {
-      identifier = fbb_.CreateString(ast->identifier->name());
+      identifier = fbb_.CreateString(ast->identifier->value());
       identifiers_.emplace(ast->identifier, identifier);
     }
   }
@@ -2624,7 +2723,7 @@ void ASTEncoder::visit(TypenameTypeParameterAST* ast) {
     if (identifiers_.contains(ast->identifier)) {
       identifier = identifiers_.at(ast->identifier);
     } else {
-      identifier = fbb_.CreateString(ast->identifier->name());
+      identifier = fbb_.CreateString(ast->identifier->value());
       identifiers_.emplace(ast->identifier, identifier);
     }
   }
@@ -2665,7 +2764,7 @@ void ASTEncoder::visit(TemplateTypeParameterAST* ast) {
     if (identifiers_.contains(ast->identifier)) {
       identifier = identifiers_.at(ast->identifier);
     } else {
-      identifier = fbb_.CreateString(ast->identifier->name());
+      identifier = fbb_.CreateString(ast->identifier->value());
       identifiers_.emplace(ast->identifier, identifier);
     }
   }
@@ -2706,7 +2805,7 @@ void ASTEncoder::visit(TemplatePackTypeParameterAST* ast) {
     if (identifiers_.contains(ast->identifier)) {
       identifier = identifiers_.at(ast->identifier);
     } else {
-      identifier = fbb_.CreateString(ast->identifier->name());
+      identifier = fbb_.CreateString(ast->identifier->value());
       identifiers_.emplace(ast->identifier, identifier);
     }
   }
@@ -2800,9 +2899,22 @@ void ASTEncoder::visit(LinkageSpecificationAST* ast) {
   auto declarationListOffsetsVector = fbb_.CreateVector(declarationListOffsets);
   auto declarationListTypesVector = fbb_.CreateVector(declarationListTypes);
 
+  flatbuffers::Offset<flatbuffers::String> stringLiteral;
+  if (ast->stringLiteral) {
+    if (stringLiterals_.contains(ast->stringLiteral)) {
+      stringLiteral = stringLiterals_.at(ast->stringLiteral);
+    } else {
+      stringLiteral = fbb_.CreateString(ast->stringLiteral->value());
+      stringLiterals_.emplace(ast->stringLiteral, stringLiteral);
+    }
+  }
+
   io::LinkageSpecification::Builder builder{fbb_};
   builder.add_declaration_list(declarationListOffsetsVector);
   builder.add_declaration_list_type(declarationListTypesVector);
+  if (ast->stringLiteral) {
+    builder.add_string_literal(stringLiteral);
+  }
 
   offset_ = builder.Finish().Union();
   type_ = io::Declaration_LinkageSpecification;
@@ -2814,7 +2926,7 @@ void ASTEncoder::visit(SimpleNameAST* ast) {
     if (identifiers_.contains(ast->identifier)) {
       identifier = identifiers_.at(ast->identifier);
     } else {
-      identifier = fbb_.CreateString(ast->identifier->name());
+      identifier = fbb_.CreateString(ast->identifier->value());
       identifiers_.emplace(ast->identifier, identifier);
     }
   }
@@ -2854,6 +2966,7 @@ void ASTEncoder::visit(DecltypeNameAST* ast) {
 
 void ASTEncoder::visit(OperatorNameAST* ast) {
   io::OperatorName::Builder builder{fbb_};
+  builder.add_op(static_cast<std::uint32_t>(ast->op));
 
   offset_ = builder.Finish().Union();
   type_ = io::Name_OperatorName;
@@ -3023,6 +3136,7 @@ void ASTEncoder::visit(VoidTypeSpecifierAST* ast) {
 
 void ASTEncoder::visit(VaListTypeSpecifierAST* ast) {
   io::VaListTypeSpecifier::Builder builder{fbb_};
+  builder.add_specifier(static_cast<std::uint32_t>(ast->specifier));
 
   offset_ = builder.Finish().Union();
   type_ = io::Specifier_VaListTypeSpecifier;
@@ -3030,6 +3144,7 @@ void ASTEncoder::visit(VaListTypeSpecifierAST* ast) {
 
 void ASTEncoder::visit(IntegralTypeSpecifierAST* ast) {
   io::IntegralTypeSpecifier::Builder builder{fbb_};
+  builder.add_specifier(static_cast<std::uint32_t>(ast->specifier));
 
   offset_ = builder.Finish().Union();
   type_ = io::Specifier_IntegralTypeSpecifier;
@@ -3037,6 +3152,7 @@ void ASTEncoder::visit(IntegralTypeSpecifierAST* ast) {
 
 void ASTEncoder::visit(FloatingPointTypeSpecifierAST* ast) {
   io::FloatingPointTypeSpecifier::Builder builder{fbb_};
+  builder.add_specifier(static_cast<std::uint32_t>(ast->specifier));
 
   offset_ = builder.Finish().Union();
   type_ = io::Specifier_FloatingPointTypeSpecifier;
@@ -3348,6 +3464,7 @@ void ASTEncoder::visit(ReferenceOperatorAST* ast) {
   io::ReferenceOperator::Builder builder{fbb_};
   builder.add_attribute_list(attributeListOffsetsVector);
   builder.add_attribute_list_type(attributeListTypesVector);
+  builder.add_ref_op(static_cast<std::uint32_t>(ast->refOp));
 
   offset_ = builder.Finish().Union();
   type_ = io::PtrOperator_ReferenceOperator;

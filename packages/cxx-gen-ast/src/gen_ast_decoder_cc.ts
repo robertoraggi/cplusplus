@@ -110,10 +110,32 @@ export function gen_ast_decoder_cc({
           emit(`}`);
         } else if (m.kind == "attribute" && m.type === "Identifier") {
           emit(`  if (node->${snakeName}()) {`);
-          emit(
-            `    ast->${m.name} = unit_->control()->identifier(node->${snakeName}()->str());`
-          );
+          emit(`    ast->${m.name} = unit_->control()->identifier(`);
+          emit(`      node->${snakeName}()->str());`);
           emit(`  }`);
+        } else if (m.kind == "attribute" && m.type === "CharLiteral") {
+          emit(`  if (node->${snakeName}()) {`);
+          emit(`    ast->${m.name} = unit_->control()->charLiteral(`);
+          emit(`      node->${snakeName}()->str());`);
+          emit(`  }`);
+        } else if (m.kind == "attribute" && m.type === "StringLiteral") {
+          emit(`  if (node->${snakeName}()) {`);
+          emit(`    ast->${m.name} = unit_->control()->stringLiteral(`);
+          emit(`      node->${snakeName}()->str());`);
+          emit(`  }`);
+        } else if (m.kind == "attribute" && m.type === "IntegerLiteral") {
+          emit(`  if (node->${snakeName}()) {`);
+          emit(`    ast->${m.name} = unit_->control()->integerLiteral(`);
+          emit(`      node->${snakeName}()->str());`);
+          emit(`  }`);
+        } else if (m.kind == "attribute" && m.type === "FloatLiteral") {
+          emit(`  if (node->${snakeName}()) {`);
+          emit(`    ast->${m.name} = unit_->control()->floatLiteral(`);
+          emit(`      node->${snakeName}()->str());`);
+          emit(`  }`);
+        } else if (m.kind == "attribute" && m.type === "TokenKind") {
+          emit(`  ast->${m.name} = static_cast<TokenKind>(`);
+          emit(`    node->${snakeName}());`);
         }
       });
       emit(`  return ast;`);
