@@ -24,6 +24,7 @@ import { groupNodesByBaseType } from "./groupNodesByBaseType.js";
 import * as fs from "fs";
 
 export function gen_ast_fbs({ ast, output }: { ast: AST; output: string }) {
+  const withTokens = true;
   const code: string[] = [];
   const emit = (line = "") => code.push(line);
 
@@ -71,24 +72,26 @@ export function gen_ast_fbs({ ast, output }: { ast: AST; output: string }) {
         }
       });
 
-      members.forEach((m) => {
-        const fieldName = toSnakeName(m.name);
-        switch (m.kind) {
-          case "node":
-            break;
-          case "node-list":
-            break;
-          case "token":
-            emit(`  ${fieldName}: Token;`);
-            break;
-          case "token-list":
-            emit(`  ${fieldName}: [Token];`);
-            break;
-          case "attribute": {
-            break;
+      if (withTokens) {
+        members.forEach((m) => {
+          const fieldName = toSnakeName(m.name);
+          switch (m.kind) {
+            case "node":
+              break;
+            case "node-list":
+              break;
+            case "token":
+              emit(`  ${fieldName}: Token;`);
+              break;
+            case "token-list":
+              emit(`  ${fieldName}: [Token];`);
+              break;
+            case "attribute": {
+              break;
+            }
           }
-        }
-      });
+        });
+      }
 
       emit(`}`);
       emit();
@@ -132,7 +135,19 @@ table Token {
 ${code.join("\n")}
 
 table SerializedUnit {
+  version: uint32;
   unit: Unit;
+  file_name: string;
+  identifiers: [string];
+  integer_literals: [string];
+  float_literals: [string];
+  char_literals: [string];
+  string_literals: [string];
+  comment_literals: [string];
+  wide_string_literals: [string];
+  utf8_string_literals: [string];
+  utf16_string_literals: [string];
+  utf32_string_literals: [string];
 }
 
 root_type SerializedUnit;

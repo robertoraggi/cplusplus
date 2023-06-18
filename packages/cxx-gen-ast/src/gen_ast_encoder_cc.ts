@@ -169,13 +169,15 @@ export function gen_ast_encoder_cc({
 
 namespace cxx {
 
-auto ASTEncoder::operator()(TranslationUnit* unit) -> std::span<std::uint8_t> {
+auto ASTEncoder::operator()(TranslationUnit* unit) -> std::span<const std::uint8_t> {
   if (!unit) return {};
   std::swap(unit_, unit);
   auto [unitOffset, unitType] = acceptUnit(unit_->ast());
+  auto file_name = fbb_.CreateString(unit_->fileName());
   io::SerializedUnitBuilder builder{fbb_};
   builder.add_unit(unitOffset);
   builder.add_unit_type(static_cast<io::Unit>(unitType));
+  builder.add_file_name(file_name);
   std::swap(unit_, unit);
   fbb_.Finish(builder.Finish(), io::SerializedUnitIdentifier());
   return std::span{fbb_.GetBufferPointer(), fbb_.GetSize()};

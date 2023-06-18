@@ -22,8 +22,9 @@
 
 #include <cxx/ast_visitor.h>
 #include <flatbuffers/flatbuffer_builder.h>
-#include <tuple>
+
 #include <span>
+#include <tuple>
 
 namespace cxx {
 
@@ -35,48 +36,67 @@ class ASTEncoder : ASTVisitor {
   flatbuffers::Offset<> offset_;
   std::uint32_t type_ = 0;
 
-public:
+ public:
   explicit ASTEncoder() {}
 
-  auto operator()(TranslationUnit* unit) -> std::span<std::uint8_t>;
-private:
+  auto operator()(TranslationUnit* unit) -> std::span<const std::uint8_t>;
+
+ private:
   auto accept(AST* ast) -> flatbuffers::Offset<>;
 
-  auto acceptRequirement(RequirementAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+  auto acceptRequirement(RequirementAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
-  auto acceptTemplateArgument(TemplateArgumentAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+  auto acceptTemplateArgument(TemplateArgumentAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
-  auto acceptMemInitializer(MemInitializerAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+  auto acceptMemInitializer(MemInitializerAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
-  auto acceptLambdaCapture(LambdaCaptureAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+  auto acceptLambdaCapture(LambdaCaptureAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
-  auto acceptInitializer(InitializerAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+  auto acceptInitializer(InitializerAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
-  auto acceptNewInitializer(NewInitializerAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+  auto acceptNewInitializer(NewInitializerAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
-  auto acceptExceptionDeclaration(ExceptionDeclarationAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+  auto acceptExceptionDeclaration(ExceptionDeclarationAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
-  auto acceptFunctionBody(FunctionBodyAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+  auto acceptFunctionBody(FunctionBodyAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
-  auto acceptUnit(UnitAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+  auto acceptUnit(UnitAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
-  auto acceptExpression(ExpressionAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+  auto acceptExpression(ExpressionAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
-  auto acceptStatement(StatementAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+  auto acceptStatement(StatementAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
-  auto acceptDeclaration(DeclarationAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+  auto acceptDeclaration(DeclarationAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
-  auto acceptName(NameAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+  auto acceptName(NameAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
-  auto acceptSpecifier(SpecifierAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+  auto acceptSpecifier(SpecifierAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
-  auto acceptCoreDeclarator(CoreDeclaratorAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+  auto acceptCoreDeclarator(CoreDeclaratorAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
-  auto acceptPtrOperator(PtrOperatorAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+  auto acceptPtrOperator(PtrOperatorAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
-  auto acceptDeclaratorModifier(DeclaratorModifierAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+  auto acceptDeclaratorModifier(DeclaratorModifierAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
-  auto acceptAttribute(AttributeAST* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+  auto acceptAttribute(AttributeAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
   void visit(TypeIdAST* ast) override;
   void visit(NestedNameSpecifierAST* ast) override;
@@ -278,7 +298,6 @@ private:
 
   void visit(FunctionDeclaratorAST* ast) override;
   void visit(ArrayDeclaratorAST* ast) override;
-
 };
 
-} // namespace cxx
+}  // namespace cxx

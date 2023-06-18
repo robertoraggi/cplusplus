@@ -23,7 +23,7 @@ import { AST } from "./parseAST.js";
 import { cpy_header } from "./cpy_header.js";
 import * as fs from "fs";
 
-export function gen_ast_encoder_h({
+export function gen_ast_decoder_h({
   ast,
   output,
 }: {
@@ -39,50 +39,50 @@ export function gen_ast_encoder_h({
   const makeClassName = (name: string) =>
     name != "AST" ? name.slice(0, -3) : name;
 
-  emit(`class ASTEncoder : ASTVisitor {`);
-  emit(`  TranslationUnit* unit_ = nullptr;`);
-  emit(`  flatbuffers::FlatBufferBuilder fbb_;`);
-  emit(`  flatbuffers::Offset<> offset_;`);
-  emit(`  std::uint32_t type_ = 0;`);
-  emit();
+  emit(`class ASTDecoder {`);
   emit(`public:`);
-  emit(`  explicit ASTEncoder() {}`);
+  emit(`  explicit ASTDecoder(TranslationUnit* unit);`);
   emit();
-  emit(
-    `  auto operator()(TranslationUnit* unit) -> std::span<const std::uint8_t>;`
-  );
-
+  emit(`  auto operator()(`);
+  emit(`    std::span<const std::uint8_t> data) -> bool;`);
+  emit();
   emit(`private:`);
-  emit(`  auto accept(AST* ast) -> flatbuffers::Offset<>;`);
   by_base.forEach((_nodes, base) => {
     if (base === "AST") return;
     const className = makeClassName(base);
-    emit();
     emit(
-      `  auto accept${className}(${base}* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;`
+      `  auto decode${className}(const void* ptr, io::${className} type) -> ${base}*;`
     );
   });
-
+  emit();
   by_base.forEach((nodes) => {
-    emit();
+    if (nodes.length === 0) return;
     nodes.forEach(({ name }) => {
-      emit(`  void visit(${name}* ast) override;`);
+      const className = makeClassName(name);
+      emit(
+        `  auto decode${className}(const io::${className}* node) -> ${name}*;`
+      );
     });
+    emit();
   });
-
+  emit();
+  emit(`private:`);
+  emit(`  TranslationUnit* unit_ = nullptr;`);
+  emit(`  Arena* pool_ = nullptr;`);
   emit(`};`);
 
   const out = `${cpy_header}
 #pragma once
 
-#include <cxx/ast_visitor.h>
-#include <flatbuffers/flatbuffer_builder.h>
-#include <tuple>
+#include <cxx/ast_fwd.h>
+#include <cxx-ast-flatbuffers/ast_generated.h>
 #include <span>
 
 namespace cxx {
 
 class TranslationUnit;
+class Control;
+class Arena;
 
 ${code.join("\n")}
 

@@ -28,7 +28,9 @@
 #include <cxx/source_location.h>
 #include <cxx/token.h>
 
+#include <functional>
 #include <memory>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -51,6 +53,8 @@ class TranslationUnit {
   }
 
   [[nodiscard]] auto ast() const -> UnitAST* { return ast_; }
+
+  void setAST(UnitAST* ast) { ast_ = ast; }
 
   [[nodiscard]] auto fileName() const -> const std::string& {
     return fileName_;
@@ -122,7 +126,12 @@ class TranslationUnit {
 
   auto parse(bool checkTypes = false) -> bool;
 
+  [[nodiscard]] auto load(std::span<const std::uint8_t> data) -> bool;
+
   auto serialize(std::ostream& out) -> bool;
+
+  auto serialize(
+      const std::function<void(std::span<const std::uint8_t>)>& onData) -> bool;
 
   void replaceWithIdentifier(SourceLocation loc);
 

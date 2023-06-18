@@ -1421,7 +1421,19 @@ table ModuleUnit /* UnitAST */ {
 
 
 table SerializedUnit {
+  version: uint32;
   unit: Unit;
+  file_name: string;
+  identifiers: [string];
+  integer_literals: [string];
+  float_literals: [string];
+  char_literals: [string];
+  string_literals: [string];
+  comment_literals: [string];
+  wide_string_literals: [string];
+  utf8_string_literals: [string];
+  utf16_string_literals: [string];
+  utf32_string_literals: [string];
 }
 
 root_type SerializedUnit;
