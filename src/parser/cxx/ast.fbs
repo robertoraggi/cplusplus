@@ -661,6 +661,7 @@ table ParameterDeclaration /* DeclarationAST */ {
 
 table LinkageSpecification /* DeclarationAST */ {
   declaration_list: [Declaration];
+  string_literal: string;
   extern_loc: Token;
   stringliteral_loc: Token;
   lbrace_loc: Token;
@@ -694,30 +695,37 @@ table ThisExpression /* ExpressionAST */ {
 }
 
 table CharLiteralExpression /* ExpressionAST */ {
+  literal: string;
   literal_loc: Token;
 }
 
 table BoolLiteralExpression /* ExpressionAST */ {
+  literal: uint32;
   literal_loc: Token;
 }
 
 table IntLiteralExpression /* ExpressionAST */ {
+  literal: string;
   literal_loc: Token;
 }
 
 table FloatLiteralExpression /* ExpressionAST */ {
+  literal: string;
   literal_loc: Token;
 }
 
 table NullptrLiteralExpression /* ExpressionAST */ {
+  literal: uint32;
   literal_loc: Token;
 }
 
 table StringLiteralExpression /* ExpressionAST */ {
+  literal: string;
   string_literal_list: [Token];
 }
 
 table UserDefinedStringLiteralExpression /* ExpressionAST */ {
+  literal: string;
   literal_loc: Token;
 }
 
@@ -741,6 +749,7 @@ table NestedExpression /* ExpressionAST */ {
 
 table RightFoldExpression /* ExpressionAST */ {
   expression: Expression;
+  op: uint32;
   lparen_loc: Token;
   op_loc: Token;
   ellipsis_loc: Token;
@@ -749,6 +758,7 @@ table RightFoldExpression /* ExpressionAST */ {
 
 table LeftFoldExpression /* ExpressionAST */ {
   expression: Expression;
+  op: uint32;
   lparen_loc: Token;
   ellipsis_loc: Token;
   op_loc: Token;
@@ -758,6 +768,8 @@ table LeftFoldExpression /* ExpressionAST */ {
 table FoldExpression /* ExpressionAST */ {
   left_expression: Expression;
   right_expression: Expression;
+  op: uint32;
+  fold_op: uint32;
   lparen_loc: Token;
   op_loc: Token;
   ellipsis_loc: Token;
@@ -819,6 +831,7 @@ table AlignofExpression /* ExpressionAST */ {
 
 table TypeTraitsExpression /* ExpressionAST */ {
   type_id_list: [TypeId];
+  type_traits: uint32;
   type_traits_loc: Token;
   lparen_loc: Token;
   rparen_loc: Token;
@@ -826,18 +839,21 @@ table TypeTraitsExpression /* ExpressionAST */ {
 
 table UnaryExpression /* ExpressionAST */ {
   expression: Expression;
+  op: uint32;
   op_loc: Token;
 }
 
 table BinaryExpression /* ExpressionAST */ {
   left_expression: Expression;
   right_expression: Expression;
+  op: uint32;
   op_loc: Token;
 }
 
 table AssignmentExpression /* ExpressionAST */ {
   left_expression: Expression;
   right_expression: Expression;
+  op: uint32;
   op_loc: Token;
 }
 
@@ -870,12 +886,14 @@ table SubscriptExpression /* ExpressionAST */ {
 table MemberExpression /* ExpressionAST */ {
   base_expression: Expression;
   name: Name;
+  access_op: uint32;
   access_loc: Token;
   template_loc: Token;
 }
 
 table PostIncrExpression /* ExpressionAST */ {
   base_expression: Expression;
+  op: uint32;
   op_loc: Token;
 }
 
@@ -1043,6 +1061,7 @@ table DecltypeName /* NameAST */ {
 }
 
 table OperatorName /* NameAST */ {
+  op: uint32;
   operator_loc: Token;
   op_loc: Token;
   open_loc: Token;
@@ -1085,6 +1104,7 @@ table PointerOperator /* PtrOperatorAST */ {
 
 table ReferenceOperator /* PtrOperatorAST */ {
   attribute_list: [Attribute];
+  ref_op: uint32;
   ref_loc: Token;
 }
 
@@ -1187,14 +1207,17 @@ table VoidTypeSpecifier /* SpecifierAST */ {
 }
 
 table VaListTypeSpecifier /* SpecifierAST */ {
+  specifier: uint32;
   specifier_loc: Token;
 }
 
 table IntegralTypeSpecifier /* SpecifierAST */ {
+  specifier: uint32;
   specifier_loc: Token;
 }
 
 table FloatingPointTypeSpecifier /* SpecifierAST */ {
+  specifier: uint32;
   specifier_loc: Token;
 }
 

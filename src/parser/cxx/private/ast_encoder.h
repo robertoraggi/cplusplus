@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/ast_visitor.h>
+#include <cxx/literals_fwd.h>
 #include <cxx/names_fwd.h>
 #include <flatbuffers/flatbuffer_builder.h>
 
@@ -33,11 +34,16 @@ namespace cxx {
 class TranslationUnit;
 
 class ASTEncoder : ASTVisitor {
-  using IdentifierTable =
-      std::unordered_map<const Identifier*,
-                         flatbuffers::Offset<flatbuffers::String>>;
+  template <typename T>
+  using Table =
+      std::unordered_map<const T*, flatbuffers::Offset<flatbuffers::String>>;
+
   TranslationUnit* unit_ = nullptr;
-  IdentifierTable identifiers_;
+  Table<Identifier> identifiers_;
+  Table<CharLiteral> charLiterals_;
+  Table<StringLiteral> stringLiterals_;
+  Table<IntegerLiteral> integerLiterals_;
+  Table<FloatLiteral> floatLiterals_;
   flatbuffers::FlatBufferBuilder fbb_;
   flatbuffers::Offset<> offset_;
   std::uint32_t type_ = 0;

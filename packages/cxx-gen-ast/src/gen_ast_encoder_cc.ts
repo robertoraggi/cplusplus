@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 import { groupNodesByBaseType } from "./groupNodesByBaseType.js";
-import { AST } from "./parseAST.js";
+import { AST, Attribute } from "./parseAST.js";
 import { cpy_header } from "./cpy_header.js";
 import * as fs from "fs";
 
@@ -41,6 +41,30 @@ export function gen_ast_encoder_cc({
 
   const toSnakeName = (name: string) =>
     name.replace(/([A-Z])/g, "_$1").toLocaleLowerCase();
+
+  const emitLiteral = (
+    m: Attribute,
+    table: string,
+    finalizers: (() => void)[]
+  ) => {
+    const fieldName = toSnakeName(m.name);
+
+    emit(`    flatbuffers::Offset<flatbuffers::String> ${m.name};`);
+    emit(`    if (ast->${m.name}) {`);
+    emit(`       if (${table}.contains(ast->${m.name})) {`);
+    emit(`         ${m.name} = ${table}.at(ast->${m.name});`);
+    emit(`       } else {`);
+    emit(`         ${m.name} = fbb_.CreateString(`);
+    emit(`             ast->${m.name}->value());`);
+    emit(`         ${table}.emplace(ast->${m.name}, ${m.name});`);
+    emit(`       }`);
+    emit(`    }`);
+    finalizers.push(() => {
+      emit(`  if (ast->${m.name}) {`);
+      emit(`    builder.add_${fieldName}(${m.name});`);
+      emit(`  }`);
+    });
+  };
 
   by_base.forEach((_nodes, base) => {
     if (base === "AST") return;
@@ -134,26 +158,30 @@ export function gen_ast_encoder_cc({
             emit(`  builder.add_${fieldName}_type(${m.name}TypesVector);`);
           });
         } else if (m.kind === "attribute" && m.type.endsWith("Literal")) {
-          // todo
+          switch (m.type) {
+            case "CharLiteral":
+              emitLiteral(m, "charLiterals_", finalizers);
+              break;
+            case "StringLiteral":
+              emitLiteral(m, "stringLiterals_", finalizers);
+              break;
+            case "IntegerLiteral":
+              emitLiteral(m, "integerLiterals_", finalizers);
+              break;
+            case "FloatLiteral":
+              emitLiteral(m, "floatLiterals_", finalizers);
+              break;
+            default:
+              break;
+          } // switch
         } else if (m.kind === "attribute" && m.type === "Identifier") {
-          emit(`    flatbuffers::Offset<flatbuffers::String> ${m.name};`);
-          emit(`    if (ast->${m.name}) {`);
-          emit(`       if (identifiers_.contains(ast->${m.name})) {`);
-          emit(`         ${m.name} = identifiers_.at(ast->${m.name});`);
-          emit(`       } else {`);
-          emit(
-            `         ${m.name} = fbb_.CreateString(ast->${m.name}->name());`
-          );
-          emit(`         identifiers_.emplace(ast->${m.name}, ${m.name});`);
-          emit(`       }`);
-          emit(`    }`);
-          finalizers.push(() => {
-            emit(`  if (ast->${m.name}) {`);
-            emit(`    builder.add_${fieldName}(${m.name});`);
-            emit(`  }`);
-          });
+          emitLiteral(m, "identifiers_", finalizers);
         } else if (m.kind === "attribute" && m.type === "TokenKind") {
-          // todo
+          finalizers.push(() => {
+            emit(
+              `  builder.add_${fieldName}(static_cast<std::uint32_t>(ast->${m.name}));`
+            );
+          });
         }
       });
 
@@ -186,15 +214,37 @@ namespace cxx {
 
 auto ASTEncoder::operator()(TranslationUnit* unit) -> std::span<const std::uint8_t> {
   if (!unit) return {};
+  Table<Identifier> identifiers;
+  Table<CharLiteral> charLiterals;
+  Table<StringLiteral> stringLiterals;
+  Table<IntegerLiteral> integerLiterals;
+  Table<FloatLiteral> floatLiterals;
+
   std::swap(unit_, unit);
+  std::swap(identifiers_, identifiers);
+  std::swap(charLiterals_, charLiterals);
+  std::swap(stringLiterals_, stringLiterals);
+  std::swap(integerLiterals_, integerLiterals);
+  std::swap(floatLiterals_, floatLiterals);
+
   auto [unitOffset, unitType] = acceptUnit(unit_->ast());
+
   auto file_name = fbb_.CreateString(unit_->fileName());
+
   io::SerializedUnitBuilder builder{fbb_};
   builder.add_unit(unitOffset);
   builder.add_unit_type(static_cast<io::Unit>(unitType));
   builder.add_file_name(file_name);
+
   std::swap(unit_, unit);
+  std::swap(identifiers_, identifiers);
+  std::swap(charLiterals_, charLiterals);
+  std::swap(stringLiterals_, stringLiterals);
+  std::swap(integerLiterals_, integerLiterals);
+  std::swap(floatLiterals_, floatLiterals);
+
   fbb_.Finish(builder.Finish(), io::SerializedUnitIdentifier());
+
   return std::span{fbb_.GetBufferPointer(), fbb_.GetSize()};
 }
 

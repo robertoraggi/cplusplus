@@ -1427,6 +1427,9 @@ auto ASTDecoder::decodeCharLiteralExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) CharLiteralExpressionAST();
+  if (node->literal()) {
+    ast->literal = unit_->control()->charLiteral(node->literal()->str());
+  }
   return ast;
 }
 
@@ -1435,6 +1438,7 @@ auto ASTDecoder::decodeBoolLiteralExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) BoolLiteralExpressionAST();
+  ast->literal = static_cast<TokenKind>(node->literal());
   return ast;
 }
 
@@ -1443,6 +1447,9 @@ auto ASTDecoder::decodeIntLiteralExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) IntLiteralExpressionAST();
+  if (node->literal()) {
+    ast->literal = unit_->control()->integerLiteral(node->literal()->str());
+  }
   return ast;
 }
 
@@ -1451,6 +1458,9 @@ auto ASTDecoder::decodeFloatLiteralExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) FloatLiteralExpressionAST();
+  if (node->literal()) {
+    ast->literal = unit_->control()->floatLiteral(node->literal()->str());
+  }
   return ast;
 }
 
@@ -1459,6 +1469,7 @@ auto ASTDecoder::decodeNullptrLiteralExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) NullptrLiteralExpressionAST();
+  ast->literal = static_cast<TokenKind>(node->literal());
   return ast;
 }
 
@@ -1467,6 +1478,9 @@ auto ASTDecoder::decodeStringLiteralExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) StringLiteralExpressionAST();
+  if (node->literal()) {
+    ast->literal = unit_->control()->stringLiteral(node->literal()->str());
+  }
   return ast;
 }
 
@@ -1476,6 +1490,9 @@ auto ASTDecoder::decodeUserDefinedStringLiteralExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) UserDefinedStringLiteralExpressionAST();
+  if (node->literal()) {
+    ast->literal = unit_->control()->stringLiteral(node->literal()->str());
+  }
   return ast;
 }
 
@@ -1516,6 +1533,7 @@ auto ASTDecoder::decodeRightFoldExpression(const io::RightFoldExpression* node)
   auto ast = new (pool_) RightFoldExpressionAST();
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->op = static_cast<TokenKind>(node->op());
   return ast;
 }
 
@@ -1526,6 +1544,7 @@ auto ASTDecoder::decodeLeftFoldExpression(const io::LeftFoldExpression* node)
   auto ast = new (pool_) LeftFoldExpressionAST();
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->op = static_cast<TokenKind>(node->op());
   return ast;
 }
 
@@ -1538,6 +1557,8 @@ auto ASTDecoder::decodeFoldExpression(const io::FoldExpression* node)
       decodeExpression(node->left_expression(), node->left_expression_type());
   ast->rightExpression =
       decodeExpression(node->right_expression(), node->right_expression_type());
+  ast->op = static_cast<TokenKind>(node->op());
+  ast->foldOp = static_cast<TokenKind>(node->fold_op());
   return ast;
 }
 
@@ -1632,6 +1653,7 @@ auto ASTDecoder::decodeTypeTraitsExpression(
       inserter = &(*inserter)->next;
     }
   }
+  ast->typeTraits = static_cast<TokenKind>(node->type_traits());
   return ast;
 }
 
@@ -1642,6 +1664,7 @@ auto ASTDecoder::decodeUnaryExpression(const io::UnaryExpression* node)
   auto ast = new (pool_) UnaryExpressionAST();
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->op = static_cast<TokenKind>(node->op());
   return ast;
 }
 
@@ -1654,6 +1677,7 @@ auto ASTDecoder::decodeBinaryExpression(const io::BinaryExpression* node)
       decodeExpression(node->left_expression(), node->left_expression_type());
   ast->rightExpression =
       decodeExpression(node->right_expression(), node->right_expression_type());
+  ast->op = static_cast<TokenKind>(node->op());
   return ast;
 }
 
@@ -1666,6 +1690,7 @@ auto ASTDecoder::decodeAssignmentExpression(
       decodeExpression(node->left_expression(), node->left_expression_type());
   ast->rightExpression =
       decodeExpression(node->right_expression(), node->right_expression_type());
+  ast->op = static_cast<TokenKind>(node->op());
   return ast;
 }
 
@@ -1738,6 +1763,7 @@ auto ASTDecoder::decodeMemberExpression(const io::MemberExpression* node)
   ast->baseExpression =
       decodeExpression(node->base_expression(), node->base_expression_type());
   ast->name = decodeName(node->name(), node->name_type());
+  ast->accessOp = static_cast<TokenKind>(node->access_op());
   return ast;
 }
 
@@ -1748,6 +1774,7 @@ auto ASTDecoder::decodePostIncrExpression(const io::PostIncrExpression* node)
   auto ast = new (pool_) PostIncrExpressionAST();
   ast->baseExpression =
       decodeExpression(node->base_expression(), node->base_expression_type());
+  ast->op = static_cast<TokenKind>(node->op());
   return ast;
 }
 
@@ -2509,6 +2536,10 @@ auto ASTDecoder::decodeLinkageSpecification(
       inserter = &(*inserter)->next;
     }
   }
+  if (node->string_literal()) {
+    ast->stringLiteral =
+        unit_->control()->stringLiteral(node->string_literal()->str());
+  }
   return ast;
 }
 
@@ -2547,6 +2578,7 @@ auto ASTDecoder::decodeOperatorName(const io::OperatorName* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) OperatorNameAST();
+  ast->op = static_cast<TokenKind>(node->op());
   return ast;
 }
 
@@ -2715,6 +2747,7 @@ auto ASTDecoder::decodeVaListTypeSpecifier(const io::VaListTypeSpecifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) VaListTypeSpecifierAST();
+  ast->specifier = static_cast<TokenKind>(node->specifier());
   return ast;
 }
 
@@ -2723,6 +2756,7 @@ auto ASTDecoder::decodeIntegralTypeSpecifier(
   if (!node) return nullptr;
 
   auto ast = new (pool_) IntegralTypeSpecifierAST();
+  ast->specifier = static_cast<TokenKind>(node->specifier());
   return ast;
 }
 
@@ -2732,6 +2766,7 @@ auto ASTDecoder::decodeFloatingPointTypeSpecifier(
   if (!node) return nullptr;
 
   auto ast = new (pool_) FloatingPointTypeSpecifierAST();
+  ast->specifier = static_cast<TokenKind>(node->specifier());
   return ast;
 }
 
@@ -2976,6 +3011,7 @@ auto ASTDecoder::decodeReferenceOperator(const io::ReferenceOperator* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->refOp = static_cast<TokenKind>(node->ref_op());
   return ast;
 }
 

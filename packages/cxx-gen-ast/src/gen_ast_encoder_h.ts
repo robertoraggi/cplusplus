@@ -40,11 +40,16 @@ export function gen_ast_encoder_h({
     name != "AST" ? name.slice(0, -3) : name;
 
   emit(`class ASTEncoder : ASTVisitor {`);
-  emit(
-    `  using IdentifierTable = std::unordered_map<const Identifier*, flatbuffers::Offset<flatbuffers::String>>;`
-  );
+  emit(`  template <typename T>`);
+  emit(`  using Table = std::unordered_map<const T*,`);
+  emit(`    flatbuffers::Offset<flatbuffers::String>>;`);
+  emit();
   emit(`  TranslationUnit* unit_ = nullptr;`);
-  emit(`  IdentifierTable identifiers_;`);
+  emit(`  Table<Identifier> identifiers_;`);
+  emit(`  Table<CharLiteral> charLiterals_;`);
+  emit(`  Table<StringLiteral> stringLiterals_;`);
+  emit(`  Table<IntegerLiteral> integerLiterals_;`);
+  emit(`  Table<FloatLiteral> floatLiterals_;`);
   emit(`  flatbuffers::FlatBufferBuilder fbb_;`);
   emit(`  flatbuffers::Offset<> offset_;`);
   emit(`  std::uint32_t type_ = 0;`);
@@ -52,9 +57,8 @@ export function gen_ast_encoder_h({
   emit(`public:`);
   emit(`  explicit ASTEncoder() {}`);
   emit();
-  emit(
-    `  auto operator()(TranslationUnit* unit) -> std::span<const std::uint8_t>;`
-  );
+  emit(`  auto operator()(TranslationUnit* unit)`);
+  emit(`    -> std::span<const std::uint8_t>;`);
 
   emit(`private:`);
   emit(`  auto accept(AST* ast) -> flatbuffers::Offset<>;`);
@@ -62,9 +66,8 @@ export function gen_ast_encoder_h({
     if (base === "AST") return;
     const className = makeClassName(base);
     emit();
-    emit(
-      `  auto accept${className}(${base}* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;`
-    );
+    emit(`  auto accept${className}(${base}* ast)`);
+    emit(`    -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;`);
   });
 
   by_base.forEach((nodes) => {
@@ -81,6 +84,7 @@ export function gen_ast_encoder_h({
 
 #include <cxx/ast_visitor.h>
 #include <cxx/names_fwd.h>
+#include <cxx/literals_fwd.h>
 
 #include <flatbuffers/flatbuffer_builder.h>
 #include <tuple>

@@ -67,8 +67,20 @@ export function gen_ast_fbs({ ast, output }: { ast: AST; output: string }) {
           case "token-list":
             break;
           case "attribute": {
-            if (m.type == "Identifier") {
+            if (
+              [
+                "Identifier",
+                "CharLiteral",
+                "StringLiteral",
+                "IntegerLiteral",
+                "FloatLiteral",
+              ].includes(m.type)
+            ) {
               emit(`  ${fieldName}: string;`);
+            } else if (m.type === "TokenKind") {
+              emit(`  ${fieldName}: uint32;`);
+            } else {
+              // emit(`  // skip: ${fieldName}: ${m.type};`);
             }
             break;
           }
