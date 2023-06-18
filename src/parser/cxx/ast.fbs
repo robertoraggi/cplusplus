@@ -488,6 +488,7 @@ table ForRangeDeclaration /* DeclarationAST */ {
 table AliasDeclaration /* DeclarationAST */ {
   attribute_list: [Attribute];
   type_id: TypeId;
+  identifier: string;
   using_loc: Token;
   identifier_loc: Token;
   equal_loc: Token;
@@ -549,6 +550,7 @@ table NamespaceDefinition /* DeclarationAST */ {
 table NamespaceAliasDefinition /* DeclarationAST */ {
   nested_name_specifier: NestedNameSpecifier;
   name: Name;
+  identifier: string;
   namespace_loc: Token;
   identifier_loc: Token;
   equal_loc: Token;
@@ -609,6 +611,7 @@ table TemplateDeclaration /* DeclarationAST */ {
 
 table TypenameTypeParameter /* DeclarationAST */ {
   type_id: TypeId;
+  identifier: string;
   class_key_loc: Token;
   ellipsis_loc: Token;
   identifier_loc: Token;
@@ -619,6 +622,7 @@ table TemplateTypeParameter /* DeclarationAST */ {
   template_parameter_list: [Declaration];
   requires_clause: RequiresClause;
   name: Name;
+  identifier: string;
   template_loc: Token;
   less_loc: Token;
   greater_loc: Token;
@@ -629,6 +633,7 @@ table TemplateTypeParameter /* DeclarationAST */ {
 
 table TemplatePackTypeParameter /* DeclarationAST */ {
   template_parameter_list: [Declaration];
+  identifier: string;
   template_loc: Token;
   less_loc: Token;
   greater_loc: Token;
@@ -783,6 +788,7 @@ table SizeofTypeExpression /* ExpressionAST */ {
 }
 
 table SizeofPackExpression /* ExpressionAST */ {
+  identifier: string;
   sizeof_loc: Token;
   ellipsis_loc: Token;
   lparen_loc: Token;
@@ -981,11 +987,13 @@ table DerefThisLambdaCapture /* LambdaCaptureAST */ {
 }
 
 table SimpleLambdaCapture /* LambdaCaptureAST */ {
+  identifier: string;
   identifier_loc: Token;
   ellipsis_loc: Token;
 }
 
 table RefLambdaCapture /* LambdaCaptureAST */ {
+  identifier: string;
   amp_loc: Token;
   identifier_loc: Token;
   ellipsis_loc: Token;
@@ -993,6 +1001,7 @@ table RefLambdaCapture /* LambdaCaptureAST */ {
 
 table RefInitLambdaCapture /* LambdaCaptureAST */ {
   initializer: Initializer;
+  identifier: string;
   amp_loc: Token;
   ellipsis_loc: Token;
   identifier_loc: Token;
@@ -1000,6 +1009,7 @@ table RefInitLambdaCapture /* LambdaCaptureAST */ {
 
 table InitLambdaCapture /* LambdaCaptureAST */ {
   initializer: Initializer;
+  identifier: string;
   ellipsis_loc: Token;
   identifier_loc: Token;
 }
@@ -1019,6 +1029,7 @@ table BracedMemInitializer /* MemInitializerAST */ {
 }
 
 table SimpleName /* NameAST */ {
+  identifier: string;
   identifier_loc: Token;
 }
 
@@ -1274,6 +1285,7 @@ table TypenameSpecifier /* SpecifierAST */ {
 
 table LabeledStatement /* StatementAST */ {
   statement: Statement;
+  identifier: string;
   identifier_loc: Token;
   colon_loc: Token;
 }
@@ -1379,6 +1391,7 @@ table ReturnStatement /* StatementAST */ {
 }
 
 table GotoStatement /* StatementAST */ {
+  identifier: string;
   goto_loc: Token;
   identifier_loc: Token;
   semicolon_loc: Token;
@@ -1424,7 +1437,6 @@ table SerializedUnit {
   version: uint32;
   unit: Unit;
   file_name: string;
-  identifiers: [string];
   integer_literals: [string];
   float_literals: [string];
   char_literals: [string];

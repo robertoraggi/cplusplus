@@ -960,14 +960,40 @@ void ASTEncoder::visit(DerefThisLambdaCaptureAST* ast) {
 }
 
 void ASTEncoder::visit(SimpleLambdaCaptureAST* ast) {
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->name());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
   io::SimpleLambdaCapture::Builder builder{fbb_};
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
 
   offset_ = builder.Finish().Union();
   type_ = io::LambdaCapture_SimpleLambdaCapture;
 }
 
 void ASTEncoder::visit(RefLambdaCaptureAST* ast) {
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->name());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
   io::RefLambdaCapture::Builder builder{fbb_};
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
 
   offset_ = builder.Finish().Union();
   type_ = io::LambdaCapture_RefLambdaCapture;
@@ -977,9 +1003,22 @@ void ASTEncoder::visit(RefInitLambdaCaptureAST* ast) {
   const auto [initializer, initializerType] =
       acceptInitializer(ast->initializer);
 
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->name());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
   io::RefInitLambdaCapture::Builder builder{fbb_};
   builder.add_initializer(initializer);
   builder.add_initializer_type(static_cast<io::Initializer>(initializerType));
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
 
   offset_ = builder.Finish().Union();
   type_ = io::LambdaCapture_RefInitLambdaCapture;
@@ -989,9 +1028,22 @@ void ASTEncoder::visit(InitLambdaCaptureAST* ast) {
   const auto [initializer, initializerType] =
       acceptInitializer(ast->initializer);
 
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->name());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
   io::InitLambdaCapture::Builder builder{fbb_};
   builder.add_initializer(initializer);
   builder.add_initializer_type(static_cast<io::Initializer>(initializerType));
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
 
   offset_ = builder.Finish().Union();
   type_ = io::LambdaCapture_InitLambdaCapture;
@@ -1426,7 +1478,20 @@ void ASTEncoder::visit(SizeofTypeExpressionAST* ast) {
 }
 
 void ASTEncoder::visit(SizeofPackExpressionAST* ast) {
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->name());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
   io::SizeofPackExpression::Builder builder{fbb_};
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_SizeofPackExpression;
@@ -1763,9 +1828,22 @@ void ASTEncoder::visit(NoexceptExpressionAST* ast) {
 void ASTEncoder::visit(LabeledStatementAST* ast) {
   const auto [statement, statementType] = acceptStatement(ast->statement);
 
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->name());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
   io::LabeledStatement::Builder builder{fbb_};
   builder.add_statement(statement);
   builder.add_statement_type(static_cast<io::Statement>(statementType));
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
 
   offset_ = builder.Finish().Union();
   type_ = io::Statement_LabeledStatement;
@@ -1980,7 +2058,20 @@ void ASTEncoder::visit(ReturnStatementAST* ast) {
 }
 
 void ASTEncoder::visit(GotoStatementAST* ast) {
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->name());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
   io::GotoStatement::Builder builder{fbb_};
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
 
   offset_ = builder.Finish().Union();
   type_ = io::Statement_GotoStatement;
@@ -2123,10 +2214,23 @@ void ASTEncoder::visit(AliasDeclarationAST* ast) {
 
   const auto typeId = accept(ast->typeId);
 
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->name());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
   io::AliasDeclaration::Builder builder{fbb_};
   builder.add_attribute_list(attributeListOffsetsVector);
   builder.add_attribute_list_type(attributeListTypesVector);
   builder.add_type_id(typeId.o);
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
 
   offset_ = builder.Finish().Union();
   type_ = io::Declaration_AliasDeclaration;
@@ -2329,10 +2433,23 @@ void ASTEncoder::visit(NamespaceAliasDefinitionAST* ast) {
 
   const auto [name, nameType] = acceptName(ast->name);
 
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->name());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
   io::NamespaceAliasDefinition::Builder builder{fbb_};
   builder.add_nested_name_specifier(nestedNameSpecifier.o);
   builder.add_name(name);
   builder.add_name_type(static_cast<io::Name>(nameType));
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
 
   offset_ = builder.Finish().Union();
   type_ = io::Declaration_NamespaceAliasDefinition;
@@ -2502,8 +2619,21 @@ void ASTEncoder::visit(TemplateDeclarationAST* ast) {
 void ASTEncoder::visit(TypenameTypeParameterAST* ast) {
   const auto typeId = accept(ast->typeId);
 
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->name());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
   io::TypenameTypeParameter::Builder builder{fbb_};
   builder.add_type_id(typeId.o);
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
 
   offset_ = builder.Finish().Union();
   type_ = io::Declaration_TypenameTypeParameter;
@@ -2530,12 +2660,25 @@ void ASTEncoder::visit(TemplateTypeParameterAST* ast) {
 
   const auto [name, nameType] = acceptName(ast->name);
 
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->name());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
   io::TemplateTypeParameter::Builder builder{fbb_};
   builder.add_template_parameter_list(templateParameterListOffsetsVector);
   builder.add_template_parameter_list_type(templateParameterListTypesVector);
   builder.add_requires_clause(requiresClause.o);
   builder.add_name(name);
   builder.add_name_type(static_cast<io::Name>(nameType));
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
 
   offset_ = builder.Finish().Union();
   type_ = io::Declaration_TemplateTypeParameter;
@@ -2558,9 +2701,22 @@ void ASTEncoder::visit(TemplatePackTypeParameterAST* ast) {
   auto templateParameterListTypesVector =
       fbb_.CreateVector(templateParameterListTypes);
 
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->name());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
   io::TemplatePackTypeParameter::Builder builder{fbb_};
   builder.add_template_parameter_list(templateParameterListOffsetsVector);
   builder.add_template_parameter_list_type(templateParameterListTypesVector);
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
 
   offset_ = builder.Finish().Union();
   type_ = io::Declaration_TemplatePackTypeParameter;
@@ -2653,7 +2809,20 @@ void ASTEncoder::visit(LinkageSpecificationAST* ast) {
 }
 
 void ASTEncoder::visit(SimpleNameAST* ast) {
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->name());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
   io::SimpleName::Builder builder{fbb_};
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
 
   offset_ = builder.Finish().Union();
   type_ = io::Name_SimpleName;

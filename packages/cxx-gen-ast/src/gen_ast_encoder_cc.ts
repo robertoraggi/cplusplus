@@ -136,7 +136,22 @@ export function gen_ast_encoder_cc({
         } else if (m.kind === "attribute" && m.type.endsWith("Literal")) {
           // todo
         } else if (m.kind === "attribute" && m.type === "Identifier") {
-          // todo
+          emit(`    flatbuffers::Offset<flatbuffers::String> ${m.name};`);
+          emit(`    if (ast->${m.name}) {`);
+          emit(`       if (identifiers_.contains(ast->${m.name})) {`);
+          emit(`         ${m.name} = identifiers_.at(ast->${m.name});`);
+          emit(`       } else {`);
+          emit(
+            `         ${m.name} = fbb_.CreateString(ast->${m.name}->name());`
+          );
+          emit(`         identifiers_.emplace(ast->${m.name}, ${m.name});`);
+          emit(`       }`);
+          emit(`    }`);
+          finalizers.push(() => {
+            emit(`  if (ast->${m.name}) {`);
+            emit(`    builder.add_${fieldName}(${m.name});`);
+            emit(`  }`);
+          });
         } else if (m.kind === "attribute" && m.type === "TokenKind") {
           // todo
         }

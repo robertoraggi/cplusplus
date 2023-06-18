@@ -40,7 +40,11 @@ export function gen_ast_encoder_h({
     name != "AST" ? name.slice(0, -3) : name;
 
   emit(`class ASTEncoder : ASTVisitor {`);
+  emit(
+    `  using IdentifierTable = std::unordered_map<const Identifier*, flatbuffers::Offset<flatbuffers::String>>;`
+  );
   emit(`  TranslationUnit* unit_ = nullptr;`);
+  emit(`  IdentifierTable identifiers_;`);
   emit(`  flatbuffers::FlatBufferBuilder fbb_;`);
   emit(`  flatbuffers::Offset<> offset_;`);
   emit(`  std::uint32_t type_ = 0;`);
@@ -76,9 +80,12 @@ export function gen_ast_encoder_h({
 #pragma once
 
 #include <cxx/ast_visitor.h>
+#include <cxx/names_fwd.h>
+
 #include <flatbuffers/flatbuffer_builder.h>
 #include <tuple>
 #include <span>
+#include <unordered_map>
 
 namespace cxx {
 

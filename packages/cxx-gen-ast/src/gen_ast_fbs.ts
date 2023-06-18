@@ -67,6 +67,9 @@ export function gen_ast_fbs({ ast, output }: { ast: AST; output: string }) {
           case "token-list":
             break;
           case "attribute": {
+            if (m.type == "Identifier") {
+              emit(`  ${fieldName}: string;`);
+            }
             break;
           }
         }
@@ -138,7 +141,6 @@ table SerializedUnit {
   version: uint32;
   unit: Unit;
   file_name: string;
-  identifiers: [string];
   integer_literals: [string];
   float_literals: [string];
   char_literals: [string];
