@@ -21,17 +21,23 @@
 #pragma once
 
 #include <cxx/ast_visitor.h>
+#include <cxx/names_fwd.h>
 #include <flatbuffers/flatbuffer_builder.h>
 
 #include <span>
 #include <tuple>
+#include <unordered_map>
 
 namespace cxx {
 
 class TranslationUnit;
 
 class ASTEncoder : ASTVisitor {
+  using IdentifierTable =
+      std::unordered_map<const Identifier*,
+                         flatbuffers::Offset<flatbuffers::String>>;
   TranslationUnit* unit_ = nullptr;
+  IdentifierTable identifiers_;
   flatbuffers::FlatBufferBuilder fbb_;
   flatbuffers::Offset<> offset_;
   std::uint32_t type_ = 0;
