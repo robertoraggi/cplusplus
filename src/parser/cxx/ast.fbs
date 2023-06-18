@@ -1,0 +1,1441 @@
+// Copyright (c) 2023 Roberto Raggi <roberto.raggi@gmail.com>
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+namespace cxx.io;
+
+union TokenValue {
+  Identifier,
+  StringConstant,
+  FloatConstant,
+  IntConstant,
+}
+
+table Identifier {
+  name: string;
+}
+
+table FloatConstant {
+  value: float64;
+}
+
+table IntConstant {
+  value: int64;
+}
+
+table StringConstant {
+  value: string;
+}
+
+table Token {
+  kind: uint16;
+  flags: uint16;
+  offset: uint32;
+  length: uint32;
+  value: TokenValue;
+}
+
+union AST {
+  TypeId,
+  NestedNameSpecifier,
+  UsingDeclarator,
+  Handler,
+  EnumBase,
+  Enumerator,
+  Declarator,
+  InitDeclarator,
+  BaseSpecifier,
+  BaseClause,
+  NewTypeId,
+  RequiresClause,
+  ParameterDeclarationClause,
+  ParametersAndQualifiers,
+  LambdaIntroducer,
+  LambdaDeclarator,
+  TrailingReturnType,
+  CtorInitializer,
+  RequirementBody,
+  TypeConstraint,
+  GlobalModuleFragment,
+  PrivateModuleFragment,
+  ModuleDeclaration,
+  ModuleName,
+  ImportName,
+  ModulePartition,
+}
+
+union Attribute {
+}
+
+union CoreDeclarator {
+  IdDeclarator,
+  NestedDeclarator,
+}
+
+union Declaration {
+  AccessDeclaration,
+  FunctionDefinition,
+  ConceptDefinition,
+  ForRangeDeclaration,
+  AliasDeclaration,
+  SimpleDeclaration,
+  StaticAssertDeclaration,
+  EmptyDeclaration,
+  AttributeDeclaration,
+  OpaqueEnumDeclaration,
+  UsingEnumDeclaration,
+  NamespaceDefinition,
+  NamespaceAliasDefinition,
+  UsingDirective,
+  UsingDeclaration,
+  AsmDeclaration,
+  ExportDeclaration,
+  ExportCompoundDeclaration,
+  ModuleImportDeclaration,
+  TemplateDeclaration,
+  TypenameTypeParameter,
+  TemplateTypeParameter,
+  TemplatePackTypeParameter,
+  DeductionGuide,
+  ExplicitInstantiation,
+  ParameterDeclaration,
+  LinkageSpecification,
+}
+
+union DeclaratorModifier {
+  FunctionDeclarator,
+  ArrayDeclarator,
+}
+
+union ExceptionDeclaration {
+  EllipsisExceptionDeclaration,
+  TypeExceptionDeclaration,
+}
+
+union Expression {
+  ThisExpression,
+  CharLiteralExpression,
+  BoolLiteralExpression,
+  IntLiteralExpression,
+  FloatLiteralExpression,
+  NullptrLiteralExpression,
+  StringLiteralExpression,
+  UserDefinedStringLiteralExpression,
+  IdExpression,
+  RequiresExpression,
+  NestedExpression,
+  RightFoldExpression,
+  LeftFoldExpression,
+  FoldExpression,
+  LambdaExpression,
+  SizeofExpression,
+  SizeofTypeExpression,
+  SizeofPackExpression,
+  TypeidExpression,
+  TypeidOfTypeExpression,
+  AlignofExpression,
+  TypeTraitsExpression,
+  UnaryExpression,
+  BinaryExpression,
+  AssignmentExpression,
+  BracedTypeConstruction,
+  TypeConstruction,
+  CallExpression,
+  SubscriptExpression,
+  MemberExpression,
+  PostIncrExpression,
+  ConditionalExpression,
+  ImplicitCastExpression,
+  CastExpression,
+  CppCastExpression,
+  NewExpression,
+  DeleteExpression,
+  ThrowExpression,
+  NoexceptExpression,
+}
+
+union FunctionBody {
+  DefaultFunctionBody,
+  CompoundStatementFunctionBody,
+  TryStatementFunctionBody,
+  DeleteFunctionBody,
+}
+
+union Initializer {
+  EqualInitializer,
+  BracedInitList,
+  ParenInitializer,
+}
+
+union LambdaCapture {
+  ThisLambdaCapture,
+  DerefThisLambdaCapture,
+  SimpleLambdaCapture,
+  RefLambdaCapture,
+  RefInitLambdaCapture,
+  InitLambdaCapture,
+}
+
+union MemInitializer {
+  ParenMemInitializer,
+  BracedMemInitializer,
+}
+
+union Name {
+  SimpleName,
+  DestructorName,
+  DecltypeName,
+  OperatorName,
+  ConversionName,
+  TemplateName,
+  QualifiedName,
+}
+
+union NewInitializer {
+  NewParenInitializer,
+  NewBracedInitializer,
+}
+
+union PtrOperator {
+  PointerOperator,
+  ReferenceOperator,
+  PtrToMemberOperator,
+}
+
+union Requirement {
+  SimpleRequirement,
+  CompoundRequirement,
+  TypeRequirement,
+  NestedRequirement,
+}
+
+union Specifier {
+  TypedefSpecifier,
+  FriendSpecifier,
+  ConstevalSpecifier,
+  ConstinitSpecifier,
+  ConstexprSpecifier,
+  InlineSpecifier,
+  StaticSpecifier,
+  ExternSpecifier,
+  ThreadLocalSpecifier,
+  ThreadSpecifier,
+  MutableSpecifier,
+  VirtualSpecifier,
+  ExplicitSpecifier,
+  AutoTypeSpecifier,
+  VoidTypeSpecifier,
+  VaListTypeSpecifier,
+  IntegralTypeSpecifier,
+  FloatingPointTypeSpecifier,
+  ComplexTypeSpecifier,
+  NamedTypeSpecifier,
+  AtomicTypeSpecifier,
+  UnderlyingTypeSpecifier,
+  ElaboratedTypeSpecifier,
+  DecltypeAutoSpecifier,
+  DecltypeSpecifier,
+  PlaceholderTypeSpecifier,
+  ConstQualifier,
+  VolatileQualifier,
+  RestrictQualifier,
+  EnumSpecifier,
+  ClassSpecifier,
+  TypenameSpecifier,
+}
+
+union Statement {
+  LabeledStatement,
+  CaseStatement,
+  DefaultStatement,
+  ExpressionStatement,
+  CompoundStatement,
+  IfStatement,
+  SwitchStatement,
+  WhileStatement,
+  DoStatement,
+  ForRangeStatement,
+  ForStatement,
+  BreakStatement,
+  ContinueStatement,
+  ReturnStatement,
+  GotoStatement,
+  CoroutineReturnStatement,
+  DeclarationStatement,
+  TryBlockStatement,
+}
+
+union TemplateArgument {
+  TypeTemplateArgument,
+  ExpressionTemplateArgument,
+}
+
+union Unit {
+  TranslationUnit,
+  ModuleUnit,
+}
+
+table TypeId /* AST */ {
+  type_specifier_list: [Specifier];
+  declarator: Declarator;
+}
+
+table NestedNameSpecifier /* AST */ {
+  name_list: [Name];
+  scope_loc: Token;
+}
+
+table UsingDeclarator /* AST */ {
+  nested_name_specifier: NestedNameSpecifier;
+  name: Name;
+  typename_loc: Token;
+}
+
+table Handler /* AST */ {
+  exception_declaration: ExceptionDeclaration;
+  statement: CompoundStatement;
+  catch_loc: Token;
+  lparen_loc: Token;
+  rparen_loc: Token;
+}
+
+table EnumBase /* AST */ {
+  type_specifier_list: [Specifier];
+  colon_loc: Token;
+}
+
+table Enumerator /* AST */ {
+  name: Name;
+  attribute_list: [Attribute];
+  expression: Expression;
+  equal_loc: Token;
+}
+
+table Declarator /* AST */ {
+  ptr_op_list: [PtrOperator];
+  core_declarator: CoreDeclarator;
+  modifiers: [DeclaratorModifier];
+}
+
+table InitDeclarator /* AST */ {
+  declarator: Declarator;
+  requires_clause: RequiresClause;
+  initializer: Initializer;
+}
+
+table BaseSpecifier /* AST */ {
+  attribute_list: [Attribute];
+  name: Name;
+}
+
+table BaseClause /* AST */ {
+  base_specifier_list: [BaseSpecifier];
+  colon_loc: Token;
+}
+
+table NewTypeId /* AST */ {
+  type_specifier_list: [Specifier];
+}
+
+table RequiresClause /* AST */ {
+  expression: Expression;
+  requires_loc: Token;
+}
+
+table ParameterDeclarationClause /* AST */ {
+  parameter_declaration_list: [ParameterDeclaration];
+  comma_loc: Token;
+  ellipsis_loc: Token;
+}
+
+table ParametersAndQualifiers /* AST */ {
+  parameter_declaration_clause: ParameterDeclarationClause;
+  cv_qualifier_list: [Specifier];
+  attribute_list: [Attribute];
+  lparen_loc: Token;
+  rparen_loc: Token;
+  ref_loc: Token;
+}
+
+table LambdaIntroducer /* AST */ {
+  capture_list: [LambdaCapture];
+  lbracket_loc: Token;
+  capture_default_loc: Token;
+  rbracket_loc: Token;
+}
+
+table LambdaDeclarator /* AST */ {
+  parameter_declaration_clause: ParameterDeclarationClause;
+  decl_specifier_list: [Specifier];
+  attribute_list: [Attribute];
+  trailing_return_type: TrailingReturnType;
+  requires_clause: RequiresClause;
+  lparen_loc: Token;
+  rparen_loc: Token;
+}
+
+table TrailingReturnType /* AST */ {
+  type_id: TypeId;
+  minus_greater_loc: Token;
+}
+
+table CtorInitializer /* AST */ {
+  mem_initializer_list: [MemInitializer];
+  colon_loc: Token;
+}
+
+table RequirementBody /* AST */ {
+  requirement_list: [Requirement];
+  lbrace_loc: Token;
+  rbrace_loc: Token;
+}
+
+table TypeConstraint /* AST */ {
+  nested_name_specifier: NestedNameSpecifier;
+  name: Name;
+}
+
+table GlobalModuleFragment /* AST */ {
+  declaration_list: [Declaration];
+  module_loc: Token;
+  semicolon_loc: Token;
+}
+
+table PrivateModuleFragment /* AST */ {
+  declaration_list: [Declaration];
+  module_loc: Token;
+  colon_loc: Token;
+  private_loc: Token;
+  semicolon_loc: Token;
+}
+
+table ModuleDeclaration /* AST */ {
+  module_name: ModuleName;
+  module_partition: ModulePartition;
+  attribute_list: [Attribute];
+  export_loc: Token;
+  module_loc: Token;
+  semicolon_loc: Token;
+}
+
+table ModuleName /* AST */ {
+  identifier_list: [Token];
+}
+
+table ImportName /* AST */ {
+  module_partition: ModulePartition;
+  module_name: ModuleName;
+  header_loc: Token;
+}
+
+table ModulePartition /* AST */ {
+  module_name: ModuleName;
+  colon_loc: Token;
+}
+
+table IdDeclarator /* CoreDeclaratorAST */ {
+  name: Name;
+  attribute_list: [Attribute];
+  ellipsis_loc: Token;
+}
+
+table NestedDeclarator /* CoreDeclaratorAST */ {
+  declarator: Declarator;
+  lparen_loc: Token;
+  rparen_loc: Token;
+}
+
+table AccessDeclaration /* DeclarationAST */ {
+  access_loc: Token;
+  colon_loc: Token;
+}
+
+table FunctionDefinition /* DeclarationAST */ {
+  attribute_list: [Attribute];
+  decl_specifier_list: [Specifier];
+  declarator: Declarator;
+  requires_clause: RequiresClause;
+  function_body: FunctionBody;
+}
+
+table ConceptDefinition /* DeclarationAST */ {
+  name: Name;
+  expression: Expression;
+  concept_loc: Token;
+  equal_loc: Token;
+  semicolon_loc: Token;
+}
+
+table ForRangeDeclaration /* DeclarationAST */ {
+}
+
+table AliasDeclaration /* DeclarationAST */ {
+  attribute_list: [Attribute];
+  type_id: TypeId;
+  using_loc: Token;
+  identifier_loc: Token;
+  equal_loc: Token;
+  semicolon_loc: Token;
+}
+
+table SimpleDeclaration /* DeclarationAST */ {
+  attribute_list: [Attribute];
+  decl_specifier_list: [Specifier];
+  init_declarator_list: [InitDeclarator];
+  requires_clause: RequiresClause;
+  semicolon_loc: Token;
+}
+
+table StaticAssertDeclaration /* DeclarationAST */ {
+  expression: Expression;
+  static_assert_loc: Token;
+  lparen_loc: Token;
+  comma_loc: Token;
+  string_literal_list: [Token];
+  rparen_loc: Token;
+  semicolon_loc: Token;
+}
+
+table EmptyDeclaration /* DeclarationAST */ {
+  semicolon_loc: Token;
+}
+
+table AttributeDeclaration /* DeclarationAST */ {
+  attribute_list: [Attribute];
+  semicolon_loc: Token;
+}
+
+table OpaqueEnumDeclaration /* DeclarationAST */ {
+  attribute_list: [Attribute];
+  nested_name_specifier: NestedNameSpecifier;
+  name: Name;
+  enum_base: EnumBase;
+  enum_loc: Token;
+  class_loc: Token;
+  emicolon_loc: Token;
+}
+
+table UsingEnumDeclaration /* DeclarationAST */ {
+}
+
+table NamespaceDefinition /* DeclarationAST */ {
+  attribute_list: [Attribute];
+  nested_name_specifier: NestedNameSpecifier;
+  name: Name;
+  extra_attribute_list: [Attribute];
+  declaration_list: [Declaration];
+  inline_loc: Token;
+  namespace_loc: Token;
+  lbrace_loc: Token;
+  rbrace_loc: Token;
+}
+
+table NamespaceAliasDefinition /* DeclarationAST */ {
+  nested_name_specifier: NestedNameSpecifier;
+  name: Name;
+  namespace_loc: Token;
+  identifier_loc: Token;
+  equal_loc: Token;
+  semicolon_loc: Token;
+}
+
+table UsingDirective /* DeclarationAST */ {
+  attribute_list: [Attribute];
+  nested_name_specifier: NestedNameSpecifier;
+  name: Name;
+  using_loc: Token;
+  namespace_loc: Token;
+  semicolon_loc: Token;
+}
+
+table UsingDeclaration /* DeclarationAST */ {
+  using_declarator_list: [UsingDeclarator];
+  using_loc: Token;
+  semicolon_loc: Token;
+}
+
+table AsmDeclaration /* DeclarationAST */ {
+  attribute_list: [Attribute];
+  asm_loc: Token;
+  lparen_loc: Token;
+  string_literal_list: [Token];
+  rparen_loc: Token;
+  semicolon_loc: Token;
+}
+
+table ExportDeclaration /* DeclarationAST */ {
+  declaration: Declaration;
+  export_loc: Token;
+}
+
+table ExportCompoundDeclaration /* DeclarationAST */ {
+  declaration_list: [Declaration];
+  export_loc: Token;
+  lbrace_loc: Token;
+  rbrace_loc: Token;
+}
+
+table ModuleImportDeclaration /* DeclarationAST */ {
+  import_name: ImportName;
+  attribute_list: [Attribute];
+  import_loc: Token;
+  semicolon_loc: Token;
+}
+
+table TemplateDeclaration /* DeclarationAST */ {
+  template_parameter_list: [Declaration];
+  requires_clause: RequiresClause;
+  declaration: Declaration;
+  template_loc: Token;
+  less_loc: Token;
+  greater_loc: Token;
+}
+
+table TypenameTypeParameter /* DeclarationAST */ {
+  type_id: TypeId;
+  class_key_loc: Token;
+  ellipsis_loc: Token;
+  identifier_loc: Token;
+  equal_loc: Token;
+}
+
+table TemplateTypeParameter /* DeclarationAST */ {
+  template_parameter_list: [Declaration];
+  requires_clause: RequiresClause;
+  name: Name;
+  template_loc: Token;
+  less_loc: Token;
+  greater_loc: Token;
+  class_key_loc: Token;
+  identifier_loc: Token;
+  equal_loc: Token;
+}
+
+table TemplatePackTypeParameter /* DeclarationAST */ {
+  template_parameter_list: [Declaration];
+  template_loc: Token;
+  less_loc: Token;
+  greater_loc: Token;
+  class_key_loc: Token;
+  ellipsis_loc: Token;
+  identifier_loc: Token;
+}
+
+table DeductionGuide /* DeclarationAST */ {
+}
+
+table ExplicitInstantiation /* DeclarationAST */ {
+  declaration: Declaration;
+  extern_loc: Token;
+  template_loc: Token;
+}
+
+table ParameterDeclaration /* DeclarationAST */ {
+  attribute_list: [Attribute];
+  type_specifier_list: [Specifier];
+  declarator: Declarator;
+  expression: Expression;
+  equal_loc: Token;
+}
+
+table LinkageSpecification /* DeclarationAST */ {
+  declaration_list: [Declaration];
+  extern_loc: Token;
+  stringliteral_loc: Token;
+  lbrace_loc: Token;
+  rbrace_loc: Token;
+}
+
+table FunctionDeclarator /* DeclaratorModifierAST */ {
+  parameters_and_qualifiers: ParametersAndQualifiers;
+  trailing_return_type: TrailingReturnType;
+}
+
+table ArrayDeclarator /* DeclaratorModifierAST */ {
+  expression: Expression;
+  attribute_list: [Attribute];
+  lbracket_loc: Token;
+  rbracket_loc: Token;
+}
+
+table EllipsisExceptionDeclaration /* ExceptionDeclarationAST */ {
+  ellipsis_loc: Token;
+}
+
+table TypeExceptionDeclaration /* ExceptionDeclarationAST */ {
+  attribute_list: [Attribute];
+  type_specifier_list: [Specifier];
+  declarator: Declarator;
+}
+
+table ThisExpression /* ExpressionAST */ {
+  this_loc: Token;
+}
+
+table CharLiteralExpression /* ExpressionAST */ {
+  literal_loc: Token;
+}
+
+table BoolLiteralExpression /* ExpressionAST */ {
+  literal_loc: Token;
+}
+
+table IntLiteralExpression /* ExpressionAST */ {
+  literal_loc: Token;
+}
+
+table FloatLiteralExpression /* ExpressionAST */ {
+  literal_loc: Token;
+}
+
+table NullptrLiteralExpression /* ExpressionAST */ {
+  literal_loc: Token;
+}
+
+table StringLiteralExpression /* ExpressionAST */ {
+  string_literal_list: [Token];
+}
+
+table UserDefinedStringLiteralExpression /* ExpressionAST */ {
+  literal_loc: Token;
+}
+
+table IdExpression /* ExpressionAST */ {
+  name: Name;
+}
+
+table RequiresExpression /* ExpressionAST */ {
+  parameter_declaration_clause: ParameterDeclarationClause;
+  requirement_body: RequirementBody;
+  requires_loc: Token;
+  lparen_loc: Token;
+  rparen_loc: Token;
+}
+
+table NestedExpression /* ExpressionAST */ {
+  expression: Expression;
+  lparen_loc: Token;
+  rparen_loc: Token;
+}
+
+table RightFoldExpression /* ExpressionAST */ {
+  expression: Expression;
+  lparen_loc: Token;
+  op_loc: Token;
+  ellipsis_loc: Token;
+  rparen_loc: Token;
+}
+
+table LeftFoldExpression /* ExpressionAST */ {
+  expression: Expression;
+  lparen_loc: Token;
+  ellipsis_loc: Token;
+  op_loc: Token;
+  rparen_loc: Token;
+}
+
+table FoldExpression /* ExpressionAST */ {
+  left_expression: Expression;
+  right_expression: Expression;
+  lparen_loc: Token;
+  op_loc: Token;
+  ellipsis_loc: Token;
+  fold_op_loc: Token;
+  rparen_loc: Token;
+}
+
+table LambdaExpression /* ExpressionAST */ {
+  lambda_introducer: LambdaIntroducer;
+  template_parameter_list: [Declaration];
+  requires_clause: RequiresClause;
+  lambda_declarator: LambdaDeclarator;
+  statement: CompoundStatement;
+  less_loc: Token;
+  greater_loc: Token;
+}
+
+table SizeofExpression /* ExpressionAST */ {
+  expression: Expression;
+  sizeof_loc: Token;
+}
+
+table SizeofTypeExpression /* ExpressionAST */ {
+  type_id: TypeId;
+  sizeof_loc: Token;
+  lparen_loc: Token;
+  rparen_loc: Token;
+}
+
+table SizeofPackExpression /* ExpressionAST */ {
+  sizeof_loc: Token;
+  ellipsis_loc: Token;
+  lparen_loc: Token;
+  identifier_loc: Token;
+  rparen_loc: Token;
+}
+
+table TypeidExpression /* ExpressionAST */ {
+  expression: Expression;
+  typeid_loc: Token;
+  lparen_loc: Token;
+  rparen_loc: Token;
+}
+
+table TypeidOfTypeExpression /* ExpressionAST */ {
+  type_id: TypeId;
+  typeid_loc: Token;
+  lparen_loc: Token;
+  rparen_loc: Token;
+}
+
+table AlignofExpression /* ExpressionAST */ {
+  type_id: TypeId;
+  alignof_loc: Token;
+  lparen_loc: Token;
+  rparen_loc: Token;
+}
+
+table TypeTraitsExpression /* ExpressionAST */ {
+  type_id_list: [TypeId];
+  type_traits_loc: Token;
+  lparen_loc: Token;
+  rparen_loc: Token;
+}
+
+table UnaryExpression /* ExpressionAST */ {
+  expression: Expression;
+  op_loc: Token;
+}
+
+table BinaryExpression /* ExpressionAST */ {
+  left_expression: Expression;
+  right_expression: Expression;
+  op_loc: Token;
+}
+
+table AssignmentExpression /* ExpressionAST */ {
+  left_expression: Expression;
+  right_expression: Expression;
+  op_loc: Token;
+}
+
+table BracedTypeConstruction /* ExpressionAST */ {
+  type_specifier: Specifier;
+  braced_init_list: BracedInitList;
+}
+
+table TypeConstruction /* ExpressionAST */ {
+  type_specifier: Specifier;
+  expression_list: [Expression];
+  lparen_loc: Token;
+  rparen_loc: Token;
+}
+
+table CallExpression /* ExpressionAST */ {
+  base_expression: Expression;
+  expression_list: [Expression];
+  lparen_loc: Token;
+  rparen_loc: Token;
+}
+
+table SubscriptExpression /* ExpressionAST */ {
+  base_expression: Expression;
+  index_expression: Expression;
+  lbracket_loc: Token;
+  rbracket_loc: Token;
+}
+
+table MemberExpression /* ExpressionAST */ {
+  base_expression: Expression;
+  name: Name;
+  access_loc: Token;
+  template_loc: Token;
+}
+
+table PostIncrExpression /* ExpressionAST */ {
+  base_expression: Expression;
+  op_loc: Token;
+}
+
+table ConditionalExpression /* ExpressionAST */ {
+  condition: Expression;
+  iftrue_expression: Expression;
+  iffalse_expression: Expression;
+  question_loc: Token;
+  colon_loc: Token;
+}
+
+table ImplicitCastExpression /* ExpressionAST */ {
+  expression: Expression;
+}
+
+table CastExpression /* ExpressionAST */ {
+  type_id: TypeId;
+  expression: Expression;
+  lparen_loc: Token;
+  rparen_loc: Token;
+}
+
+table CppCastExpression /* ExpressionAST */ {
+  type_id: TypeId;
+  expression: Expression;
+  cast_loc: Token;
+  less_loc: Token;
+  greater_loc: Token;
+  lparen_loc: Token;
+  rparen_loc: Token;
+}
+
+table NewExpression /* ExpressionAST */ {
+  type_id: NewTypeId;
+  new_initalizer: NewInitializer;
+  scope_loc: Token;
+  new_loc: Token;
+}
+
+table DeleteExpression /* ExpressionAST */ {
+  expression: Expression;
+  scope_loc: Token;
+  delete_loc: Token;
+  lbracket_loc: Token;
+  rbracket_loc: Token;
+}
+
+table ThrowExpression /* ExpressionAST */ {
+  expression: Expression;
+  throw_loc: Token;
+}
+
+table NoexceptExpression /* ExpressionAST */ {
+  expression: Expression;
+  noexcept_loc: Token;
+  lparen_loc: Token;
+  rparen_loc: Token;
+}
+
+table DefaultFunctionBody /* FunctionBodyAST */ {
+  equal_loc: Token;
+  default_loc: Token;
+  semicolon_loc: Token;
+}
+
+table CompoundStatementFunctionBody /* FunctionBodyAST */ {
+  ctor_initializer: CtorInitializer;
+  statement: CompoundStatement;
+}
+
+table TryStatementFunctionBody /* FunctionBodyAST */ {
+  ctor_initializer: CtorInitializer;
+  statement: CompoundStatement;
+  handler_list: [Handler];
+  try_loc: Token;
+}
+
+table DeleteFunctionBody /* FunctionBodyAST */ {
+  equal_loc: Token;
+  delete_loc: Token;
+  semicolon_loc: Token;
+}
+
+table EqualInitializer /* InitializerAST */ {
+  expression: Expression;
+  equal_loc: Token;
+}
+
+table BracedInitList /* InitializerAST */ {
+  expression_list: [Expression];
+  lbrace_loc: Token;
+  comma_loc: Token;
+  rbrace_loc: Token;
+}
+
+table ParenInitializer /* InitializerAST */ {
+  expression_list: [Expression];
+  lparen_loc: Token;
+  rparen_loc: Token;
+}
+
+table ThisLambdaCapture /* LambdaCaptureAST */ {
+  this_loc: Token;
+}
+
+table DerefThisLambdaCapture /* LambdaCaptureAST */ {
+  star_loc: Token;
+  this_loc: Token;
+}
+
+table SimpleLambdaCapture /* LambdaCaptureAST */ {
+  identifier_loc: Token;
+  ellipsis_loc: Token;
+}
+
+table RefLambdaCapture /* LambdaCaptureAST */ {
+  amp_loc: Token;
+  identifier_loc: Token;
+  ellipsis_loc: Token;
+}
+
+table RefInitLambdaCapture /* LambdaCaptureAST */ {
+  initializer: Initializer;
+  amp_loc: Token;
+  ellipsis_loc: Token;
+  identifier_loc: Token;
+}
+
+table InitLambdaCapture /* LambdaCaptureAST */ {
+  initializer: Initializer;
+  ellipsis_loc: Token;
+  identifier_loc: Token;
+}
+
+table ParenMemInitializer /* MemInitializerAST */ {
+  name: Name;
+  expression_list: [Expression];
+  lparen_loc: Token;
+  rparen_loc: Token;
+  ellipsis_loc: Token;
+}
+
+table BracedMemInitializer /* MemInitializerAST */ {
+  name: Name;
+  braced_init_list: BracedInitList;
+  ellipsis_loc: Token;
+}
+
+table SimpleName /* NameAST */ {
+  identifier_loc: Token;
+}
+
+table DestructorName /* NameAST */ {
+  id: Name;
+  tilde_loc: Token;
+}
+
+table DecltypeName /* NameAST */ {
+  decltype_specifier: Specifier;
+}
+
+table OperatorName /* NameAST */ {
+  operator_loc: Token;
+  op_loc: Token;
+  open_loc: Token;
+  close_loc: Token;
+}
+
+table ConversionName /* NameAST */ {
+  type_id: TypeId;
+  operator_loc: Token;
+}
+
+table TemplateName /* NameAST */ {
+  id: Name;
+  template_argument_list: [TemplateArgument];
+  less_loc: Token;
+  greater_loc: Token;
+}
+
+table QualifiedName /* NameAST */ {
+  nested_name_specifier: NestedNameSpecifier;
+  id: Name;
+  template_loc: Token;
+}
+
+table NewParenInitializer /* NewInitializerAST */ {
+  expression_list: [Expression];
+  lparen_loc: Token;
+  rparen_loc: Token;
+}
+
+table NewBracedInitializer /* NewInitializerAST */ {
+  braced_init: BracedInitList;
+}
+
+table PointerOperator /* PtrOperatorAST */ {
+  attribute_list: [Attribute];
+  cv_qualifier_list: [Specifier];
+  star_loc: Token;
+}
+
+table ReferenceOperator /* PtrOperatorAST */ {
+  attribute_list: [Attribute];
+  ref_loc: Token;
+}
+
+table PtrToMemberOperator /* PtrOperatorAST */ {
+  nested_name_specifier: NestedNameSpecifier;
+  attribute_list: [Attribute];
+  cv_qualifier_list: [Specifier];
+  star_loc: Token;
+}
+
+table SimpleRequirement /* RequirementAST */ {
+  expression: Expression;
+  semicolon_loc: Token;
+}
+
+table CompoundRequirement /* RequirementAST */ {
+  expression: Expression;
+  type_constraint: TypeConstraint;
+  lbrace_loc: Token;
+  rbrace_loc: Token;
+  noexcept_loc: Token;
+  minus_greater_loc: Token;
+  semicolon_loc: Token;
+}
+
+table TypeRequirement /* RequirementAST */ {
+  nested_name_specifier: NestedNameSpecifier;
+  name: Name;
+  typename_loc: Token;
+  semicolon_loc: Token;
+}
+
+table NestedRequirement /* RequirementAST */ {
+  expression: Expression;
+  requires_loc: Token;
+  semicolon_loc: Token;
+}
+
+table TypedefSpecifier /* SpecifierAST */ {
+  typedef_loc: Token;
+}
+
+table FriendSpecifier /* SpecifierAST */ {
+  friend_loc: Token;
+}
+
+table ConstevalSpecifier /* SpecifierAST */ {
+  consteval_loc: Token;
+}
+
+table ConstinitSpecifier /* SpecifierAST */ {
+  constinit_loc: Token;
+}
+
+table ConstexprSpecifier /* SpecifierAST */ {
+  constexpr_loc: Token;
+}
+
+table InlineSpecifier /* SpecifierAST */ {
+  inline_loc: Token;
+}
+
+table StaticSpecifier /* SpecifierAST */ {
+  static_loc: Token;
+}
+
+table ExternSpecifier /* SpecifierAST */ {
+  extern_loc: Token;
+}
+
+table ThreadLocalSpecifier /* SpecifierAST */ {
+  thread_local_loc: Token;
+}
+
+table ThreadSpecifier /* SpecifierAST */ {
+  thread_loc: Token;
+}
+
+table MutableSpecifier /* SpecifierAST */ {
+  mutable_loc: Token;
+}
+
+table VirtualSpecifier /* SpecifierAST */ {
+  virtual_loc: Token;
+}
+
+table ExplicitSpecifier /* SpecifierAST */ {
+  expression: Expression;
+  explicit_loc: Token;
+  lparen_loc: Token;
+  rparen_loc: Token;
+}
+
+table AutoTypeSpecifier /* SpecifierAST */ {
+  auto_loc: Token;
+}
+
+table VoidTypeSpecifier /* SpecifierAST */ {
+  void_loc: Token;
+}
+
+table VaListTypeSpecifier /* SpecifierAST */ {
+  specifier_loc: Token;
+}
+
+table IntegralTypeSpecifier /* SpecifierAST */ {
+  specifier_loc: Token;
+}
+
+table FloatingPointTypeSpecifier /* SpecifierAST */ {
+  specifier_loc: Token;
+}
+
+table ComplexTypeSpecifier /* SpecifierAST */ {
+  complex_loc: Token;
+}
+
+table NamedTypeSpecifier /* SpecifierAST */ {
+  name: Name;
+}
+
+table AtomicTypeSpecifier /* SpecifierAST */ {
+  type_id: TypeId;
+  atomic_loc: Token;
+  lparen_loc: Token;
+  rparen_loc: Token;
+}
+
+table UnderlyingTypeSpecifier /* SpecifierAST */ {
+}
+
+table ElaboratedTypeSpecifier /* SpecifierAST */ {
+  attribute_list: [Attribute];
+  nested_name_specifier: NestedNameSpecifier;
+  name: Name;
+  class_loc: Token;
+}
+
+table DecltypeAutoSpecifier /* SpecifierAST */ {
+  decltype_loc: Token;
+  lparen_loc: Token;
+  auto_loc: Token;
+  rparen_loc: Token;
+}
+
+table DecltypeSpecifier /* SpecifierAST */ {
+  expression: Expression;
+  decltype_loc: Token;
+  lparen_loc: Token;
+  rparen_loc: Token;
+}
+
+table PlaceholderTypeSpecifier /* SpecifierAST */ {
+  type_constraint: TypeConstraint;
+  specifier: Specifier;
+}
+
+table ConstQualifier /* SpecifierAST */ {
+  const_loc: Token;
+}
+
+table VolatileQualifier /* SpecifierAST */ {
+  volatile_loc: Token;
+}
+
+table RestrictQualifier /* SpecifierAST */ {
+  restrict_loc: Token;
+}
+
+table EnumSpecifier /* SpecifierAST */ {
+  attribute_list: [Attribute];
+  nested_name_specifier: NestedNameSpecifier;
+  name: Name;
+  enum_base: EnumBase;
+  enumerator_list: [Enumerator];
+  enum_loc: Token;
+  class_loc: Token;
+  lbrace_loc: Token;
+  comma_loc: Token;
+  rbrace_loc: Token;
+}
+
+table ClassSpecifier /* SpecifierAST */ {
+  attribute_list: [Attribute];
+  name: Name;
+  base_clause: BaseClause;
+  declaration_list: [Declaration];
+  class_loc: Token;
+  lbrace_loc: Token;
+  rbrace_loc: Token;
+}
+
+table TypenameSpecifier /* SpecifierAST */ {
+  nested_name_specifier: NestedNameSpecifier;
+  name: Name;
+  typename_loc: Token;
+}
+
+table LabeledStatement /* StatementAST */ {
+  statement: Statement;
+  identifier_loc: Token;
+  colon_loc: Token;
+}
+
+table CaseStatement /* StatementAST */ {
+  expression: Expression;
+  statement: Statement;
+  case_loc: Token;
+  colon_loc: Token;
+}
+
+table DefaultStatement /* StatementAST */ {
+  statement: Statement;
+  default_loc: Token;
+  colon_loc: Token;
+}
+
+table ExpressionStatement /* StatementAST */ {
+  expression: Expression;
+  semicolon_loc: Token;
+}
+
+table CompoundStatement /* StatementAST */ {
+  statement_list: [Statement];
+  lbrace_loc: Token;
+  rbrace_loc: Token;
+}
+
+table IfStatement /* StatementAST */ {
+  initializer: Statement;
+  condition: Expression;
+  statement: Statement;
+  else_statement: Statement;
+  if_loc: Token;
+  constexpr_loc: Token;
+  lparen_loc: Token;
+  rparen_loc: Token;
+}
+
+table SwitchStatement /* StatementAST */ {
+  initializer: Statement;
+  condition: Expression;
+  statement: Statement;
+  switch_loc: Token;
+  lparen_loc: Token;
+  rparen_loc: Token;
+}
+
+table WhileStatement /* StatementAST */ {
+  condition: Expression;
+  statement: Statement;
+  while_loc: Token;
+  lparen_loc: Token;
+  rparen_loc: Token;
+}
+
+table DoStatement /* StatementAST */ {
+  statement: Statement;
+  expression: Expression;
+  do_loc: Token;
+  while_loc: Token;
+  lparen_loc: Token;
+  rparen_loc: Token;
+  semicolon_loc: Token;
+}
+
+table ForRangeStatement /* StatementAST */ {
+  initializer: Statement;
+  range_declaration: Declaration;
+  range_initializer: Expression;
+  statement: Statement;
+  for_loc: Token;
+  lparen_loc: Token;
+  colon_loc: Token;
+  rparen_loc: Token;
+}
+
+table ForStatement /* StatementAST */ {
+  initializer: Statement;
+  condition: Expression;
+  expression: Expression;
+  statement: Statement;
+  for_loc: Token;
+  lparen_loc: Token;
+  semicolon_loc: Token;
+  rparen_loc: Token;
+}
+
+table BreakStatement /* StatementAST */ {
+  break_loc: Token;
+  semicolon_loc: Token;
+}
+
+table ContinueStatement /* StatementAST */ {
+  continue_loc: Token;
+  semicolon_loc: Token;
+}
+
+table ReturnStatement /* StatementAST */ {
+  expression: Expression;
+  return_loc: Token;
+  semicolon_loc: Token;
+}
+
+table GotoStatement /* StatementAST */ {
+  goto_loc: Token;
+  identifier_loc: Token;
+  semicolon_loc: Token;
+}
+
+table CoroutineReturnStatement /* StatementAST */ {
+  expression: Expression;
+  coreturn_loc: Token;
+  semicolon_loc: Token;
+}
+
+table DeclarationStatement /* StatementAST */ {
+  declaration: Declaration;
+}
+
+table TryBlockStatement /* StatementAST */ {
+  statement: CompoundStatement;
+  handler_list: [Handler];
+  try_loc: Token;
+}
+
+table TypeTemplateArgument /* TemplateArgumentAST */ {
+  type_id: TypeId;
+}
+
+table ExpressionTemplateArgument /* TemplateArgumentAST */ {
+  expression: Expression;
+}
+
+table TranslationUnit /* UnitAST */ {
+  declaration_list: [Declaration];
+}
+
+table ModuleUnit /* UnitAST */ {
+  global_module_fragment: GlobalModuleFragment;
+  module_declaration: ModuleDeclaration;
+  declaration_list: [Declaration];
+  private_module_fragment: PrivateModuleFragment;
+}
+
+
+table SerializedUnit {
+  version: uint32;
+  unit: Unit;
+  file_name: string;
+  identifiers: [string];
+  integer_literals: [string];
+  float_literals: [string];
+  char_literals: [string];
+  string_literals: [string];
+  comment_literals: [string];
+  wide_string_literals: [string];
+  utf8_string_literals: [string];
+  utf16_string_literals: [string];
+  utf32_string_literals: [string];
+}
+
+root_type SerializedUnit;
+file_identifier "AST0";
+file_extension "ast";

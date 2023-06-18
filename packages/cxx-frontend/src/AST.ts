@@ -924,7 +924,7 @@ export class ModuleUnitAST extends UnitAST {
             yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
         }
     }
-    getPrivateModuleFragmentAST(): PrivateModuleFragmentAST | undefined {
+    getPrivateModuleFragment(): PrivateModuleFragmentAST | undefined {
         return AST.from<PrivateModuleFragmentAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
     }
 }

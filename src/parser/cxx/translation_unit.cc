@@ -28,7 +28,11 @@
 #include <cxx/names.h>
 #include <cxx/parser.h>
 #include <cxx/preprocessor.h>
+#include <cxx/private/ast_decoder.h>
+#include <cxx/private/ast_encoder.h>
 #include <utf8/unchecked.h>
+
+#include <ostream>
 
 namespace cxx {
 
@@ -39,7 +43,9 @@ TranslationUnit::TranslationUnit(Control* control,
 
   preprocessor_ = std::make_unique<Preprocessor>(control_, diagnosticsClient_);
 
-  diagnosticsClient_->setPreprocessor(preprocessor_.get());
+  if (diagnosticsClient_) {
+    diagnosticsClient_->setPreprocessor(preprocessor_.get());
+  }
 }
 
 TranslationUnit::~TranslationUnit() = default;
@@ -102,6 +108,25 @@ auto TranslationUnit::parse(bool checkTypes) -> bool {
   Parser parse(this);
   parse.setCheckTypes(checkTypes);
   return parse(ast_);
+}
+
+auto TranslationUnit::load(std::span<const std::uint8_t> data) -> bool {
+  ASTDecoder decode{this};
+  return decode(data);
+}
+
+auto TranslationUnit::serialize(std::ostream& out) -> bool {
+  return serialize([&out](auto data) {
+    out.write(reinterpret_cast<const char*>(data.data()), data.size());
+  });
+}
+
+auto TranslationUnit::serialize(
+    const std::function<void(std::span<const std::uint8_t>)>& block) -> bool {
+  ASTEncoder encode;
+  auto data = encode(this);
+  block(data);
+  return true;
 }
 
 void TranslationUnit::replaceWithIdentifier(SourceLocation keywordLoc) {

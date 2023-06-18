@@ -21,188 +21,87 @@
 #pragma once
 
 #include <cxx/ast_visitor.h>
-#include <cxx/names_fwd.h>
-#include <cxx/qualified_type.h>
-#include <cxx/translation_unit.h>
+#include <flatbuffers/flatbuffer_builder.h>
 
-#include <optional>
+#include <span>
+#include <tuple>
 
 namespace cxx {
 
 class TranslationUnit;
-class Control;
-class TypeEnvironment;
 
-class Semantics final : ASTVisitor {
+class ASTEncoder : ASTVisitor {
+  TranslationUnit* unit_ = nullptr;
+  flatbuffers::FlatBufferBuilder fbb_;
+  flatbuffers::Offset<> offset_;
+  std::uint32_t type_ = 0;
+
  public:
-  explicit Semantics(TranslationUnit* unit);
-  ~Semantics() override;
+  explicit ASTEncoder() {}
 
-  void setCheckTypes(bool checkTypes) { checkTypes_ = checkTypes; }
-
-  void error(SourceLocation loc, std::string message) {
-    unit_->error(loc, std::move(message));
-  }
-
-  void warning(SourceLocation loc, std::string message) {
-    unit_->warning(loc, std::move(message));
-  }
-
-  struct ScopeContext {
-    Semantics* sem = nullptr;
-    Scope* savedScope = nullptr;
-
-    ScopeContext(const ScopeContext&) = delete;
-    auto operator=(const ScopeContext&) -> ScopeContext& = delete;
-
-    explicit ScopeContext(Semantics* sem) : sem(sem), savedScope(sem->scope_) {}
-
-    ScopeContext(Semantics* sem, Scope* scope)
-        : sem(sem), savedScope(sem->scope_) {
-      sem->scope_ = scope;
-    }
-
-    ~ScopeContext() { sem->scope_ = savedScope; }
-  };
-
-  struct SpecifiersSem {
-    QualifiedType type;
-    bool isConstexpr = false;
-    bool isExtern = false;
-    bool isFriend = false;
-    bool isStatic = false;
-    bool isTypedef = false;
-    bool isUnsigned = false;
-  };
-
-  struct DeclaratorSem {
-    SpecifiersSem specifiers;
-    QualifiedType type;
-    Symbol* typeOrNamespaceSymbol = nullptr;
-    const Name* name = nullptr;
-
-    explicit DeclaratorSem(SpecifiersSem specifiers) noexcept
-        : specifiers(specifiers) {
-      type = this->specifiers.type;
-    }
-  };
-
-  struct ExpressionSem {
-    QualifiedType type;
-    std::optional<ConstValue> constValue;
-  };
-
-  struct NameSem {
-    const Name* name = nullptr;
-    Symbol* typeOrNamespaceSymbol = nullptr;
-  };
-
-  struct NestedNameSpecifierSem {
-    Symbol* symbol = nullptr;
-  };
-
-  auto changeScope(Scope* scope) -> Scope* {
-    std::swap(scope_, scope);
-    return scope;
-  }
-
-  [[nodiscard]] auto scope() const -> Scope* { return scope_; }
-
-  void unit(UnitAST* unit);
-
-  void declaration(DeclarationAST* ast);
-
-  void specifiers(List<SpecifierAST*>* ast, SpecifiersSem* specifiers);
-
-  void specifiers(SpecifierAST* ast, SpecifiersSem* specifiers);
-
-  void declarator(DeclaratorAST* ast, DeclaratorSem* declarator);
-
-  void initDeclarator(InitDeclaratorAST* ast, DeclaratorSem* declarator);
-
-  void name(NameAST* ast, NameSem* name);
-
-  void nestedNameSpecifier(NestedNameSpecifierAST* ast,
-                           NestedNameSpecifierSem* nestedNameSpecifier);
-
-  void expression(ExpressionAST* ast, ExpressionSem* expression);
-
-  void typeId(TypeIdAST* ast);
-
-  auto toBool(ExpressionAST* ast) -> std::optional<bool>;
+  auto operator()(TranslationUnit* unit) -> std::span<const std::uint8_t>;
 
  private:
-  void implicitConversion(ExpressionAST* ast, const QualifiedType& type);
+  auto accept(AST* ast) -> flatbuffers::Offset<>;
 
-  void standardConversion(ExpressionAST* ast, const QualifiedType& type);
+  auto acceptRequirement(RequirementAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
-  auto lvalueToRvalueConversion(ExpressionAST* ast, const QualifiedType& type)
-      -> bool;
-  auto arrayToPointerConversion(ExpressionAST* ast, const QualifiedType& type)
-      -> bool;
-  auto functionToPointerConversion(ExpressionAST* ast,
-                                   const QualifiedType& type) -> bool;
-  auto numericPromotion(ExpressionAST* ast, const QualifiedType& type) -> bool;
-  auto numericConversion(ExpressionAST* ast, const QualifiedType& type) -> bool;
-  void functionPointerConversion(ExpressionAST* ast, const QualifiedType& type);
-  void qualificationConversion(ExpressionAST* ast, const QualifiedType& type);
+  auto acceptTemplateArgument(TemplateArgumentAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
-  auto commonType(ExpressionAST* ast, ExpressionAST* other) -> QualifiedType;
+  auto acceptMemInitializer(MemInitializerAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
-  void accept(AST* ast);
+  auto acceptLambdaCapture(LambdaCaptureAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
-  void exceptionDeclaration(ExceptionDeclarationAST* ast);
-  void compoundStatement(CompoundStatementAST* ast);
-  void attribute(AttributeAST* ast);
-  void ptrOperator(PtrOperatorAST* ast);
-  void coreDeclarator(CoreDeclaratorAST* ast);
-  void declaratorModifiers(List<DeclaratorModifierAST*>* ast);
-  void declaratorModifier(DeclaratorModifierAST* ast);
-  void initializer(InitializerAST* ast);
-  void baseSpecifier(BaseSpecifierAST* ast);
-  void parameterDeclaration(ParameterDeclarationAST* ast);
-  void parameterDeclarationClause(ParameterDeclarationClauseAST* ast);
-  void lambdaCapture(LambdaCaptureAST* ast);
-  void trailingReturnType(TrailingReturnTypeAST* ast);
-  void memInitializer(MemInitializerAST* ast);
-  void bracedInitList(BracedInitListAST* ast);
-  void ctorInitializer(CtorInitializerAST* ast);
-  void handler(HandlerAST* ast);
-  void lambdaIntroducer(LambdaIntroducerAST* ast);
-  void lambdaDeclarator(LambdaDeclaratorAST* ast);
-  void newTypeId(NewTypeIdAST* ast);
-  void newInitializer(NewInitializerAST* ast);
-  void statement(StatementAST* ast);
-  void functionBody(FunctionBodyAST* ast);
-  void enumBase(EnumBaseAST* ast);
-  void usingDeclarator(UsingDeclaratorAST* ast);
-  void templateArgument(TemplateArgumentAST* ast);
-  void enumerator(EnumeratorAST* ast);
-  void baseClause(BaseClauseAST* ast);
-  void parametersAndQualifiers(ParametersAndQualifiersAST* ast);
-  void requiresClause(RequiresClauseAST* ast);
-  void typeConstraint(TypeConstraintAST* ast);
-  void requirement(RequirementAST* ast);
-  void requirementBody(RequirementBodyAST* ast);
+  auto acceptInitializer(InitializerAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
-  void visit(SimpleRequirementAST* ast) override;
-  void visit(CompoundRequirementAST* ast) override;
-  void visit(TypeRequirementAST* ast) override;
-  void visit(NestedRequirementAST* ast) override;
+  auto acceptNewInitializer(NewInitializerAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
-  void visit(GlobalModuleFragmentAST* ast) override;
-  void visit(PrivateModuleFragmentAST* ast) override;
-  void visit(ModuleDeclarationAST* ast) override;
-  void visit(ModuleNameAST* ast) override;
-  void visit(ImportNameAST* ast) override;
-  void visit(ModulePartitionAST* ast) override;
+  auto acceptExceptionDeclaration(ExceptionDeclarationAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
+  auto acceptFunctionBody(FunctionBodyAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
+  auto acceptUnit(UnitAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
+  auto acceptExpression(ExpressionAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
+  auto acceptStatement(StatementAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
+  auto acceptDeclaration(DeclarationAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
+  auto acceptName(NameAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
+  auto acceptSpecifier(SpecifierAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
+  auto acceptCoreDeclarator(CoreDeclaratorAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
+  auto acceptPtrOperator(PtrOperatorAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
+  auto acceptDeclaratorModifier(DeclaratorModifierAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
+  auto acceptAttribute(AttributeAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
   void visit(TypeIdAST* ast) override;
   void visit(NestedNameSpecifierAST* ast) override;
   void visit(UsingDeclaratorAST* ast) override;
   void visit(HandlerAST* ast) override;
-  void visit(TypeTemplateArgumentAST* ast) override;
-  void visit(ExpressionTemplateArgumentAST* ast) override;
   void visit(EnumBaseAST* ast) override;
   void visit(EnumeratorAST* ast) override;
   void visit(DeclaratorAST* ast) override;
@@ -219,6 +118,20 @@ class Semantics final : ASTVisitor {
   void visit(CtorInitializerAST* ast) override;
   void visit(RequirementBodyAST* ast) override;
   void visit(TypeConstraintAST* ast) override;
+  void visit(GlobalModuleFragmentAST* ast) override;
+  void visit(PrivateModuleFragmentAST* ast) override;
+  void visit(ModuleDeclarationAST* ast) override;
+  void visit(ModuleNameAST* ast) override;
+  void visit(ImportNameAST* ast) override;
+  void visit(ModulePartitionAST* ast) override;
+
+  void visit(SimpleRequirementAST* ast) override;
+  void visit(CompoundRequirementAST* ast) override;
+  void visit(TypeRequirementAST* ast) override;
+  void visit(NestedRequirementAST* ast) override;
+
+  void visit(TypeTemplateArgumentAST* ast) override;
+  void visit(ExpressionTemplateArgumentAST* ast) override;
 
   void visit(ParenMemInitializerAST* ast) override;
   void visit(BracedMemInitializerAST* ast) override;
@@ -385,19 +298,6 @@ class Semantics final : ASTVisitor {
 
   void visit(FunctionDeclaratorAST* ast) override;
   void visit(ArrayDeclaratorAST* ast) override;
-
- private:
-  TranslationUnit* unit_ = nullptr;
-  Control* control_ = nullptr;
-  TypeEnvironment* types_ = nullptr;
-  SymbolFactory* symbols_ = nullptr;
-  Scope* scope_ = nullptr;
-  NameSem* nameSem_ = nullptr;
-  SpecifiersSem* specifiers_ = nullptr;
-  DeclaratorSem* declarator_ = nullptr;
-  ExpressionSem* expression_ = nullptr;
-  NestedNameSpecifierSem* nestedNameSpecifier_ = nullptr;
-  bool checkTypes_ = false;
 };
 
 }  // namespace cxx

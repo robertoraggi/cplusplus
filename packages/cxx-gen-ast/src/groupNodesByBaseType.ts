@@ -28,5 +28,6 @@ export function groupNodesByBaseType({ nodes }: AST) {
     nodes.push(node);
     by_base.set(node.base, nodes);
   });
+
   return by_base;
 }

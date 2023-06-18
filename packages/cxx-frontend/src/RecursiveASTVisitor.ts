@@ -321,7 +321,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         for (const element of node.getDeclarationList()) {
             this.accept(element, context);
         }
-        this.accept(node.getPrivateModuleFragmentAST(), context);
+        this.accept(node.getPrivateModuleFragment(), context);
     }
 
     visitThisExpression(node: ast.ThisExpressionAST, context: Context): void {

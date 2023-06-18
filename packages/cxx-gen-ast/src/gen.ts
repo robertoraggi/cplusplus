@@ -45,6 +45,11 @@ import * as fs from "fs";
 import * as path from "path";
 import * as process from "process";
 import * as child_process from "child_process";
+import { gen_ast_fbs } from "./gen_ast_fbs.js";
+import { gen_ast_encoder_h } from "./gen_ast_encoder_h.js";
+import { gen_ast_encoder_cc } from "./gen_ast_encoder_cc.js";
+import { gen_ast_decoder_h } from "./gen_ast_decoder_h.js";
+import { gen_ast_decoder_cc } from "./gen_ast_decoder_cc.js";
 
 const outdir = process.cwd();
 
@@ -101,6 +106,31 @@ gen_ast_slot_cc({
   output: path.join(outdir, "src/parser/cxx/ast_slot.cc"),
 });
 
+gen_ast_fbs({
+  ast,
+  output: path.join(outdir, "src/parser/cxx/ast.fbs"),
+});
+
+gen_ast_encoder_h({
+  ast,
+  output: path.join(outdir, "src/parser/cxx/private/ast_encoder.h"),
+});
+
+gen_ast_encoder_cc({
+  ast,
+  output: path.join(outdir, "src/parser/cxx/ast_encoder.cc"),
+});
+
+gen_ast_decoder_h({
+  ast,
+  output: path.join(outdir, "src/parser/cxx/private/ast_decoder.h"),
+});
+
+gen_ast_decoder_cc({
+  ast,
+  output: path.join(outdir, "src/parser/cxx/ast_decoder.cc"),
+});
+
 // js integration
 
 gen_ast_ts({
@@ -122,6 +152,10 @@ gen_ast_kind_ts({
 
 child_process.execSync("clang-format -i *.h *.cc", {
   cwd: path.join(outdir, "src/parser/cxx"),
+});
+
+child_process.execSync("clang-format -i *.h", {
+  cwd: path.join(outdir, "src/parser/cxx/private"),
 });
 
 child_process.execSync("clang-format -i *.h *.cc", {

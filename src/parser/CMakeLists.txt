@@ -32,9 +32,12 @@ target_include_directories(cxx-parser
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
+target_compile_features(cxx-parser PUBLIC cxx_std_20)
+
 target_link_libraries(cxx-parser
     PUBLIC  $<BUILD_INTERFACE:fmt::fmt-header-only>
             $<BUILD_INTERFACE:utf8::cpp>
+            $<BUILD_INTERFACE:flatbuffers::header-only>
 )
 
 if (CMAKE_SYSTEM_NAME STREQUAL "WASI")
@@ -45,6 +48,18 @@ add_custom_command(OUTPUT keywords-priv.h
     COMMAND kwgen < ${CMAKE_CURRENT_SOURCE_DIR}/cxx/keywords.kwgen > keywords-priv.h
     DEPENDS cxx/keywords.kwgen
     COMMENT "Generate keywords-priv.h")
+
+
+# generate flatbuffers decoder for ast.fbs
+flatbuffers_generate_headers(
+    TARGET cxx-ast-flatbuffers
+    SCHEMAS cxx/ast.fbs
+    BINARY_SCHEMAS_DIR ${CMAKE_CURRENT_BINARY_DIR}/cxx
+    FLAGS --cpp)
+
+target_link_libraries(cxx-parser
+    PRIVATE $<BUILD_INTERFACE:cxx-ast-flatbuffers>
+)
 
 install(
     FILES ${CXX_INCLUDE_HEADER_FILES}

@@ -486,7 +486,7 @@ auto Parser::parse_module_unit(UnitAST*& yyast) -> bool {
 
   parse_declaration_seq(ast->declarationList);
 
-  parse_private_module_fragment(ast->privateModuleFragmentAST);
+  parse_private_module_fragment(ast->privateModuleFragment);
 
   expect(TokenKind::T_EOF_SYMBOL);
 
