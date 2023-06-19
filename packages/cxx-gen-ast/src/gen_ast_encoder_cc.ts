@@ -104,54 +104,45 @@ export function gen_ast_encoder_cc({
           });
         } else if (m.kind === "node" && by_base.has(m.type)) {
           const className = makeClassName(m.type);
-          emit(
-            `const auto [${m.name}, ${m.name}Type] = accept${className}(ast->${m.name});`
-          );
+          emit(`const auto [${m.name}, ${m.name}Type] =`);
+          emit(`  accept${className}(ast->${m.name});`);
           finalizers.push(() => {
             emit(`  builder.add_${fieldName}(${m.name});`);
-            emit(
-              `  builder.add_${fieldName}_type(static_cast<io::${className}>(${m.name}Type));`
-            );
+            emit(`  builder.add_${fieldName}_type(`);
+            emit(`    static_cast<io::${className}>(${m.name}Type));`);
           });
         } else if (m.kind === "node-list" && !by_base.has(m.type)) {
           const className = makeClassName(m.type);
-          emit(
-            `    std::vector<flatbuffers::Offset<io::${className}>> ${m.name}Offsets;`
-          );
+          emit(`  std::vector<flatbuffers::Offset<io::${className}>>`);
+          emit(`    ${m.name}Offsets;`);
           emit(`  for (auto it = ast->${m.name}; it; it = it->next) {`);
           emit(`     if (!it->value) continue;`);
           emit(`     ${m.name}Offsets.emplace_back(accept(it->value).o);`);
           emit(`  }`);
           emit();
-          emit(
-            `  auto ${m.name}OffsetsVector = fbb_.CreateVector(${m.name}Offsets);`
-          );
+          emit(`  auto ${m.name}OffsetsVector = fbb_.CreateVector(`);
+          emit(`    ${m.name}Offsets);`);
           finalizers.push(() => {
             emit(`    builder.add_${fieldName}(${m.name}OffsetsVector);`);
           });
         } else if (m.kind === "node-list" && by_base.has(m.type)) {
           const className = makeClassName(m.type);
           emit(`  std::vector<flatbuffers::Offset<>> ${m.name}Offsets;`);
-          emit(
-            `  std::vector<std::underlying_type_t<io::${className}>> ${m.name}Types;`
-          );
+          emit(`  std::vector<std::underlying_type_t<io::${className}>>`);
+          emit(`    ${m.name}Types;`);
           emit();
-          emit(`    for (auto it = ast->${m.name}; it; it = it->next) {`);
-          emit(`     if (!it->value) continue;`);
-          emit(
-            `     const auto [offset, type] = accept${className}(it->value);`
-          );
-          emit(`     ${m.name}Offsets.push_back(offset);`);
-          emit(`     ${m.name}Types.push_back(type);`);
-          emit(`    }`);
-
+          emit(`  for (auto it = ast->${m.name}; it; it = it->next) {`);
+          emit(`    if (!it->value) continue;`);
+          emit(`    const auto [offset, type] = accept${className}(`);
+          emit(`      it->value);`);
+          emit(`    ${m.name}Offsets.push_back(offset);`);
+          emit(`    ${m.name}Types.push_back(type);`);
+          emit(`  }`);
           emit();
-          emit(
-            `  auto ${m.name}OffsetsVector = fbb_.CreateVector(${m.name}Offsets);`
-          );
-          emit(
-            `  auto ${m.name}TypesVector = fbb_.CreateVector(${m.name}Types);`
-          );
+          emit(`  auto ${m.name}OffsetsVector = fbb_.CreateVector(`);
+          emit(`    ${m.name}Offsets);`);
+          emit(`  auto ${m.name}TypesVector = fbb_.CreateVector(`);
+          emit(`    ${m.name}Types);`);
 
           finalizers.push(() => {
             emit(`  builder.add_${fieldName}(${m.name}OffsetsVector);`);
@@ -178,9 +169,13 @@ export function gen_ast_encoder_cc({
           emitLiteral(m, "identifiers_", finalizers);
         } else if (m.kind === "attribute" && m.type === "TokenKind") {
           finalizers.push(() => {
-            emit(
-              `  builder.add_${fieldName}(static_cast<std::uint32_t>(ast->${m.name}));`
-            );
+            emit(`  builder.add_${fieldName}(`);
+            emit(`    static_cast<std::uint32_t>(ast->${m.name}));`);
+          });
+        } else if (m.kind == "token") {
+          emit(`  auto ${m.name} = encodeSourceLocation(ast->${m.name});`);
+          finalizers.push(() => {
+            emit(`  builder.add_${fieldName}(${m.name}.o);`);
           });
         }
       });
@@ -207,6 +202,7 @@ export function gen_ast_encoder_cc({
 #include <cxx/literals.h>
 #include <cxx/names.h>
 #include <cxx/translation_unit.h>
+#include <cxx/private/format.h>
 
 #include <algorithm>
 
@@ -219,6 +215,8 @@ auto ASTEncoder::operator()(TranslationUnit* unit) -> std::span<const std::uint8
   Table<StringLiteral> stringLiterals;
   Table<IntegerLiteral> integerLiterals;
   Table<FloatLiteral> floatLiterals;
+  SourceFiles sourceFiles;
+  SourceLines sourceLines;
 
   std::swap(unit_, unit);
   std::swap(identifiers_, identifiers);
@@ -226,6 +224,8 @@ auto ASTEncoder::operator()(TranslationUnit* unit) -> std::span<const std::uint8
   std::swap(stringLiterals_, stringLiterals);
   std::swap(integerLiterals_, integerLiterals);
   std::swap(floatLiterals_, floatLiterals);
+  std::swap(sourceFiles_, sourceFiles);
+  std::swap(sourceLines_, sourceLines);
 
   auto [unitOffset, unitType] = acceptUnit(unit_->ast());
 
@@ -242,6 +242,8 @@ auto ASTEncoder::operator()(TranslationUnit* unit) -> std::span<const std::uint8
   std::swap(stringLiterals_, stringLiterals);
   std::swap(integerLiterals_, integerLiterals);
   std::swap(floatLiterals_, floatLiterals);
+  std::swap(sourceFiles_, sourceFiles);
+  std::swap(sourceLines_, sourceLines);
 
   fbb_.Finish(builder.Finish(), io::SerializedUnitIdentifier());
 
@@ -256,6 +258,49 @@ auto ASTEncoder::accept(AST* ast) -> flatbuffers::Offset<> {
   std::swap(offset_, offset);
   return offset;
 }
+
+auto ASTEncoder::encodeSourceLocation(const SourceLocation& loc)
+    -> flatbuffers::Offset<> {
+  if (!loc) {
+    return {};
+  }
+
+  std::string_view fileName;
+  uint32_t line = 0, column = 0;
+  unit_->getTokenStartPosition(loc, &line, &column, &fileName);
+
+  flatbuffers::Offset<io::SourceLine> sourceLineOffset;
+
+  auto key = std::tuple(fileName, line);
+
+  if (sourceLines_.contains(key)) {
+    sourceLineOffset = sourceLines_.at(key).o;
+  } else {
+    flatbuffers::Offset<flatbuffers::String> fileNameOffset;
+
+    if (sourceFiles_.contains(fileName)) {
+      fileNameOffset = sourceFiles_.at(fileName);
+    } else {
+      fileNameOffset = fbb_.CreateString(fileName);
+      sourceFiles_.emplace(fileName, fileNameOffset.o);
+    }
+
+    io::SourceLineBuilder sourceLineBuilder{fbb_};
+    sourceLineBuilder.add_file_name(fileNameOffset);
+    sourceLineBuilder.add_line(line);
+    sourceLineOffset = sourceLineBuilder.Finish();
+    sourceLines_.emplace(std::move(key), sourceLineOffset.o);
+  }
+
+  io::SourceLocationBuilder sourceLocationBuilder{fbb_};
+  sourceLocationBuilder.add_source_line(sourceLineOffset);
+  sourceLocationBuilder.add_column(column);
+
+  auto offset = sourceLocationBuilder.Finish();
+
+  return offset.Union();
+}
+
 
 ${code.join("\n")}
 
