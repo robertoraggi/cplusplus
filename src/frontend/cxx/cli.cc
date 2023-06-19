@@ -137,7 +137,7 @@ std::vector<CLIOptionDescr> options{
 
     {"-fsyntax-only", "Check only the syntax", &CLI::opt_fsyntax_only},
 
-    {"-fserialize-ast", "Serialize the AST", &CLI::opt_fserialize_ast},
+    {"-emit-ast", "Emit AST files for source inputs", &CLI::opt_emit_ast},
 
     {"-ast-dump", "Build ASTs and then debug dump them", &CLI::opt_ast_dump},
 
