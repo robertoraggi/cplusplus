@@ -25,6 +25,7 @@
 #include <cxx/names_fwd.h>
 #include <flatbuffers/flatbuffer_builder.h>
 
+#include <map>
 #include <span>
 #include <tuple>
 #include <unordered_map>
@@ -32,11 +33,19 @@
 namespace cxx {
 
 class TranslationUnit;
+class SourceLocation;
 
 class ASTEncoder : ASTVisitor {
   template <typename T>
   using Table =
       std::unordered_map<const T*, flatbuffers::Offset<flatbuffers::String>>;
+
+  using SourceFiles =
+      std::unordered_map<std::string_view,
+                         flatbuffers::Offset<flatbuffers::String>>;
+
+  using SourceLines = std::map<std::tuple<std::string_view, std::uint32_t>,
+                               flatbuffers::Offset<flatbuffers::String>>;
 
   TranslationUnit* unit_ = nullptr;
   Table<Identifier> identifiers_;
@@ -44,6 +53,8 @@ class ASTEncoder : ASTVisitor {
   Table<StringLiteral> stringLiterals_;
   Table<IntegerLiteral> integerLiterals_;
   Table<FloatLiteral> floatLiterals_;
+  SourceFiles sourceFiles_;
+  SourceLines sourceLines_;
   flatbuffers::FlatBufferBuilder fbb_;
   flatbuffers::Offset<> offset_;
   std::uint32_t type_ = 0;
@@ -54,6 +65,8 @@ class ASTEncoder : ASTVisitor {
   auto operator()(TranslationUnit* unit) -> std::span<const std::uint8_t>;
 
  private:
+  auto encodeSourceLocation(const SourceLocation& loc) -> flatbuffers::Offset<>;
+
   auto accept(AST* ast) -> flatbuffers::Offset<>;
 
   auto acceptRequirement(RequirementAST* ast)

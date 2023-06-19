@@ -96,10 +96,10 @@ export function gen_ast_fbs({ ast, output }: { ast: AST; output: string }) {
             case "node-list":
               break;
             case "token":
-              emit(`  ${fieldName}: Token;`);
+              emit(`  ${fieldName}: SourceLocation;`);
               break;
             case "token-list":
-              emit(`  ${fieldName}: [Token];`);
+              emit(`  ${fieldName}: [SourceLocation];`);
               break;
             case "attribute": {
               break;
@@ -116,35 +116,14 @@ export function gen_ast_fbs({ ast, output }: { ast: AST; output: string }) {
   const out = `${cpy_header}
 namespace cxx.io;
 
-union TokenValue {
-  Identifier,
-  StringConstant,
-  FloatConstant,
-  IntConstant,
+table SourceLine {
+  file_name: string;
+  line: uint32;
 }
 
-table Identifier {
-  name: string;
-}
-
-table FloatConstant {
-  value: float64;
-}
-
-table IntConstant {
-  value: int64;
-}
-
-table StringConstant {
-  value: string;
-}
-
-table Token {
-  kind: uint16;
-  flags: uint16;
-  offset: uint32;
-  length: uint32;
-  value: TokenValue;
+table SourceLocation {
+  source_line: SourceLine;
+  column: uint32;
 }
 
 ${code.join("\n")}
@@ -153,15 +132,6 @@ table SerializedUnit {
   version: uint32;
   unit: Unit;
   file_name: string;
-  integer_literals: [string];
-  float_literals: [string];
-  char_literals: [string];
-  string_literals: [string];
-  comment_literals: [string];
-  wide_string_literals: [string];
-  utf8_string_literals: [string];
-  utf16_string_literals: [string];
-  utf32_string_literals: [string];
 }
 
 root_type SerializedUnit;
