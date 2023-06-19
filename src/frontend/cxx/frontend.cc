@@ -368,7 +368,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
     printSymbol(unit.ast()->symbol);
   }
 
-  if (cli.opt_fserialize_ast) {
+  if (cli.opt_emit_ast) {
     unit.serialize(output);
 
     diagnosticsClient.verifyExpectedDiagnostics(
