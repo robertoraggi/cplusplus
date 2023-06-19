@@ -240,7 +240,10 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
 
 #if __wasi__
     app_dir = fs::path("/usr/bin/");
-#elif __unix__
+#elif !defined(CXX_NO_FILESYSTEM)
+    app_dir = std::filesystem::canonical(
+        std::filesystem::path(cli.app_name).remove_filename());
+#elif __unix__ || __APPLE__
     char* app_name = realpath(cli.app_name.c_str(), nullptr);
     app_dir = fs::path(app_name).remove_filename().string();
     std::free(app_name);
