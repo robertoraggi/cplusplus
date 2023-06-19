@@ -69,6 +69,7 @@ struct ExpectedDiagnostic {
 struct VerifyCommentHandler : CommentHandler {
   std::regex rx{
       R"(^//\s*expected-(error|warning)(?:@([+-]?\d+))?\s*\{\{(.+)\}\})"};
+
   std::list<ExpectedDiagnostic> expectedDiagnostics;
 
   void handleComment(Preprocessor* preprocessor, const Token& token) override {
@@ -76,25 +77,31 @@ struct VerifyCommentHandler : CommentHandler {
 
     std::smatch match;
 
-    if (std::regex_match(text, match, rx)) {
-      std::string_view fileName;
-      unsigned line = 0;
-      unsigned column = 0;
-
-      preprocessor->getTokenStartPosition(token, &line, &column, &fileName);
-
-      Severity severity = Severity::Error;
-
-      if (match[1] == "warning") severity = Severity::Warning;
-
-      std::string offset = match[2];
-
-      if (!offset.empty()) line += std::stoi(offset);
-
-      const auto& message = match[3];
-
-      expectedDiagnostics.push_back({severity, fileName, line, message});
+    if (!std::regex_match(text, match, rx)) {
+      return;
     }
+
+    std::string_view fileName;
+    unsigned line = 0;
+    unsigned column = 0;
+
+    preprocessor->getTokenStartPosition(token, &line, &column, &fileName);
+
+    Severity severity = Severity::Error;
+
+    if (match[1] == "warning") {
+      severity = Severity::Warning;
+    }
+
+    std::string offset = match[2];
+
+    if (!offset.empty()) {
+      line += std::stoi(offset);
+    }
+
+    const auto& message = match[3];
+
+    expectedDiagnostics.push_back({severity, fileName, line, message});
   }
 };
 
@@ -103,7 +110,9 @@ struct VerifyDiagnostics : DiagnosticsClient {
   bool verify = false;
 
   [[nodiscard]] auto hasErrors() const -> bool {
-    if (verify) return !reportedDiagnostics.empty();
+    if (verify) {
+      return !reportedDiagnostics.empty();
+    }
 
     for (const auto& d : reportedDiagnostics) {
       if (d.severity() == Severity::Error || d.severity() == Severity::Fatal) {
@@ -141,27 +150,29 @@ struct VerifyDiagnostics : DiagnosticsClient {
  private:
   [[nodiscard]] auto findDiagnostic(const ExpectedDiagnostic& expected) const
       -> std::list<Diagnostic>::const_iterator {
+    auto isExpectedDiagnostic = [&](const Diagnostic& d) {
+      if (d.severity() != expected.severity) {
+        return false;
+      }
+
+      unsigned line = 0;
+      unsigned column = 0;
+      std::string_view fileName;
+
+      preprocessor()->getTokenStartPosition(d.token(), &line, &column,
+                                            &fileName);
+
+      if (line != expected.line) return false;
+
+      if (fileName != expected.fileName) return false;
+
+      if (d.message() != expected.message) return false;
+
+      return true;
+    };
+
     return std::find_if(reportedDiagnostics.begin(), reportedDiagnostics.end(),
-                        [&](const Diagnostic& d) {
-                          if (d.severity() != expected.severity) {
-                            return false;
-                          }
-
-                          unsigned line = 0;
-                          unsigned column = 0;
-                          std::string_view fileName;
-
-                          preprocessor()->getTokenStartPosition(
-                              d.token(), &line, &column, &fileName);
-
-                          if (line != expected.line) return false;
-
-                          if (fileName != expected.fileName) return false;
-
-                          if (d.message() != expected.message) return false;
-
-                          return true;
-                        });
+                        isExpectedDiagnostic);
   }
 };
 
@@ -404,10 +415,6 @@ auto main(int argc, char* argv[]) -> int {
     cli.showHelp();
     exit(0);
   }
-
-  // for (const auto& opt : cli) {
-  //   fmt::print("  {}\n", to_string(opt));
-  // }
 
   const auto& inputFiles = cli.positionals();
 
