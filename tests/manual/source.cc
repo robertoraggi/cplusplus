@@ -21,7 +21,6 @@
 #include <complex>
 #include <condition_variable>
 #include <csetjmp>
-#include <csignal>
 #include <cstdarg>
 #include <cstdbool>
 #include <cstddef>
@@ -35,7 +34,6 @@
 #include <cwctype>
 #include <deque>
 #include <exception>
-#include <filesystem>
 #include <forward_list>
 #include <fstream>
 #include <functional>
@@ -64,6 +62,7 @@
 #include <scoped_allocator>
 #include <set>
 #include <shared_mutex>
+#include <span>
 #include <sstream>
 #include <stack>
 #include <stdexcept>
@@ -84,6 +83,10 @@
 #include <vector>
 #include <version>
 
+#ifndef __wasi__
+#include <csignal>
+#include <filesystem>
+#endif
+
 // #include <execution>
 // #include <compare>
-// #include <span>
