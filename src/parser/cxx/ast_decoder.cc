@@ -648,6 +648,15 @@ auto ASTDecoder::decodeDeclaratorModifier(const void* ptr,
 auto ASTDecoder::decodeAttribute(const void* ptr, io::Attribute type)
     -> AttributeAST* {
   switch (type) {
+    case io::Attribute_CxxAttribute:
+      return decodeCxxAttribute(reinterpret_cast<const io::CxxAttribute*>(ptr));
+    case io::Attribute_GCCAttribute:
+      return decodeGCCAttribute(reinterpret_cast<const io::GCCAttribute*>(ptr));
+    case io::Attribute_AlignasAttribute:
+      return decodeAlignasAttribute(
+          reinterpret_cast<const io::AlignasAttribute*>(ptr));
+    case io::Attribute_AsmAttribute:
+      return decodeAsmAttribute(reinterpret_cast<const io::AsmAttribute*>(ptr));
     default:
       return nullptr;
   }  // switch
@@ -3071,6 +3080,40 @@ auto ASTDecoder::decodeArrayDeclarator(const io::ArrayDeclarator* node)
       inserter = &(*inserter)->next;
     }
   }
+  return ast;
+}
+
+auto ASTDecoder::decodeCxxAttribute(const io::CxxAttribute* node)
+    -> CxxAttributeAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) CxxAttributeAST();
+  return ast;
+}
+
+auto ASTDecoder::decodeGCCAttribute(const io::GCCAttribute* node)
+    -> GCCAttributeAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) GCCAttributeAST();
+  return ast;
+}
+
+auto ASTDecoder::decodeAlignasAttribute(const io::AlignasAttribute* node)
+    -> AlignasAttributeAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) AlignasAttributeAST();
+  ast->expression =
+      decodeExpression(node->expression(), node->expression_type());
+  return ast;
+}
+
+auto ASTDecoder::decodeAsmAttribute(const io::AsmAttribute* node)
+    -> AsmAttributeAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) AsmAttributeAST();
   return ast;
 }
 

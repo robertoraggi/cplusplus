@@ -3638,4 +3638,100 @@ void ASTSlot::visit(ArrayDeclaratorAST* ast) {
   slotCount_ = 4;
 }
 
+void ASTSlot::visit(CxxAttributeAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->lbracketLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:
+      value_ = ast->lbracket2Loc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 2:
+      value_ = ast->rbracketLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 3:
+      value_ = ast->rbracket2Loc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
+
+  slotCount_ = 4;
+}
+
+void ASTSlot::visit(GCCAttributeAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->attributeLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:
+      value_ = ast->lparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 2:
+      value_ = ast->lparen2Loc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 3:
+      value_ = ast->rparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 4:
+      value_ = ast->rparen2Loc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
+
+  slotCount_ = 5;
+}
+
+void ASTSlot::visit(AlignasAttributeAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->alignasLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:
+      value_ = ast->lparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 3:
+      value_ = ast->ellipsisLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 4:
+      value_ = ast->rparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
+
+  slotCount_ = 5;
+}
+
+void ASTSlot::visit(AsmAttributeAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->asmLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:
+      value_ = ast->lparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 2:
+      value_ = ast->rparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
+
+  slotCount_ = 3;
+}
+
 }  // namespace cxx

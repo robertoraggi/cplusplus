@@ -2864,4 +2864,65 @@ class ArrayDeclaratorAST final : public DeclaratorModifierAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class CxxAttributeAST final : public AttributeAST {
+ public:
+  CxxAttributeAST() : AttributeAST(ASTKind::CxxAttribute) {}
+
+  SourceLocation lbracketLoc;
+  SourceLocation lbracket2Loc;
+  SourceLocation rbracketLoc;
+  SourceLocation rbracket2Loc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class GCCAttributeAST final : public AttributeAST {
+ public:
+  GCCAttributeAST() : AttributeAST(ASTKind::GCCAttribute) {}
+
+  SourceLocation attributeLoc;
+  SourceLocation lparenLoc;
+  SourceLocation lparen2Loc;
+  SourceLocation rparenLoc;
+  SourceLocation rparen2Loc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class AlignasAttributeAST final : public AttributeAST {
+ public:
+  AlignasAttributeAST() : AttributeAST(ASTKind::AlignasAttribute) {}
+
+  SourceLocation alignasLoc;
+  SourceLocation lparenLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation ellipsisLoc;
+  SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class AsmAttributeAST final : public AttributeAST {
+ public:
+  AsmAttributeAST() : AttributeAST(ASTKind::AsmAttribute) {}
+
+  SourceLocation asmLoc;
+  SourceLocation lparenLoc;
+  SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 }  // namespace cxx

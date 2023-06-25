@@ -962,5 +962,18 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
             this.accept(element, context);
         }
     }
+
+    visitCxxAttribute(node: ast.CxxAttributeAST, context: Context): void {
+    }
+
+    visitGCCAttribute(node: ast.GCCAttributeAST, context: Context): void {
+    }
+
+    visitAlignasAttribute(node: ast.AlignasAttributeAST, context: Context): void {
+        this.accept(node.getExpression(), context);
+    }
+
+    visitAsmAttribute(node: ast.AsmAttributeAST, context: Context): void {
+    }
 }
 

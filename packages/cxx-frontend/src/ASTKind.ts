@@ -238,4 +238,10 @@ export enum ASTKind {
     // DeclaratorModifierAST
     FunctionDeclarator,
     ArrayDeclarator,
+
+    // AttributeAST
+    CxxAttribute,
+    GCCAttribute,
+    AlignasAttribute,
+    AsmAttribute,
 }

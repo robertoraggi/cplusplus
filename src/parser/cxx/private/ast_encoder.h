@@ -323,6 +323,11 @@ class ASTEncoder : ASTVisitor {
 
   void visit(FunctionDeclaratorAST* ast) override;
   void visit(ArrayDeclaratorAST* ast) override;
+
+  void visit(CxxAttributeAST* ast) override;
+  void visit(GCCAttributeAST* ast) override;
+  void visit(AlignasAttributeAST* ast) override;
+  void visit(AsmAttributeAST* ast) override;
 };
 
 }  // namespace cxx

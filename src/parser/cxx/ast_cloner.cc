@@ -3341,4 +3341,66 @@ void ASTCloner::visit(ArrayDeclaratorAST* ast) {
   }
 }
 
+void ASTCloner::visit(CxxAttributeAST* ast) {
+  auto copy = new (arena_) CxxAttributeAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->lbracketLoc = ast->lbracketLoc;
+
+  copy->lbracket2Loc = ast->lbracket2Loc;
+
+  copy->rbracketLoc = ast->rbracketLoc;
+
+  copy->rbracket2Loc = ast->rbracket2Loc;
+}
+
+void ASTCloner::visit(GCCAttributeAST* ast) {
+  auto copy = new (arena_) GCCAttributeAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->attributeLoc = ast->attributeLoc;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->lparen2Loc = ast->lparen2Loc;
+
+  copy->rparenLoc = ast->rparenLoc;
+
+  copy->rparen2Loc = ast->rparen2Loc;
+}
+
+void ASTCloner::visit(AlignasAttributeAST* ast) {
+  auto copy = new (arena_) AlignasAttributeAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->alignasLoc = ast->alignasLoc;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->expression = accept(ast->expression);
+
+  copy->ellipsisLoc = ast->ellipsisLoc;
+
+  copy->rparenLoc = ast->rparenLoc;
+}
+
+void ASTCloner::visit(AsmAttributeAST* ast) {
+  auto copy = new (arena_) AsmAttributeAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->asmLoc = ast->asmLoc;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->rparenLoc = ast->rparenLoc;
+}
+
 }  // namespace cxx

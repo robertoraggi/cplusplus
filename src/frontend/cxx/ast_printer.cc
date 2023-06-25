@@ -3603,4 +3603,35 @@ void ASTPrinter::visit(ArrayDeclaratorAST* ast) {
   }
 }
 
+void ASTPrinter::visit(CxxAttributeAST* ast) {
+  json_ = nlohmann::json::array();
+
+  json_.push_back("ast:CxxAttribute");
+}
+
+void ASTPrinter::visit(GCCAttributeAST* ast) {
+  json_ = nlohmann::json::array();
+
+  json_.push_back("ast:GCCAttribute");
+}
+
+void ASTPrinter::visit(AlignasAttributeAST* ast) {
+  json_ = nlohmann::json::array();
+
+  json_.push_back("ast:AlignasAttribute");
+
+  if (ast->expression) {
+    if (auto childNode = accept(ast->expression); !childNode.is_null()) {
+      json_.push_back(
+          std::vector<nlohmann::json>{"attr:expression", std::move(childNode)});
+    }
+  }
+}
+
+void ASTPrinter::visit(AsmAttributeAST* ast) {
+  json_ = nlohmann::json::array();
+
+  json_.push_back("ast:AsmAttribute");
+}
+
 }  // namespace cxx

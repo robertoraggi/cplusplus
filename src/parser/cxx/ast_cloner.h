@@ -231,6 +231,11 @@ class ASTCloner : public ASTVisitor {
   void visit(FunctionDeclaratorAST* ast) override;
   void visit(ArrayDeclaratorAST* ast) override;
 
+  void visit(CxxAttributeAST* ast) override;
+  void visit(GCCAttributeAST* ast) override;
+  void visit(AlignasAttributeAST* ast) override;
+  void visit(AsmAttributeAST* ast) override;
+
  protected:
   template <typename T>
   auto accept(T ast) -> T {

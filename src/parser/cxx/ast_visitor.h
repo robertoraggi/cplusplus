@@ -246,6 +246,12 @@ class ASTVisitor {
   // DeclaratorModifierAST
   virtual void visit(FunctionDeclaratorAST* ast) = 0;
   virtual void visit(ArrayDeclaratorAST* ast) = 0;
+
+  // AttributeAST
+  virtual void visit(CxxAttributeAST* ast) = 0;
+  virtual void visit(GCCAttributeAST* ast) = 0;
+  virtual void visit(AlignasAttributeAST* ast) = 0;
+  virtual void visit(AsmAttributeAST* ast) = 0;
 };
 
 }  // namespace cxx

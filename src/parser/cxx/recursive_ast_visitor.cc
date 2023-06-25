@@ -1071,4 +1071,14 @@ void RecursiveASTVisitor::visit(ArrayDeclaratorAST* ast) {
   }
 }
 
+void RecursiveASTVisitor::visit(CxxAttributeAST* ast) {}
+
+void RecursiveASTVisitor::visit(GCCAttributeAST* ast) {}
+
+void RecursiveASTVisitor::visit(AlignasAttributeAST* ast) {
+  acceptExpression(ast->expression);
+}
+
+void RecursiveASTVisitor::visit(AsmAttributeAST* ast) {}
+
 }  // namespace cxx

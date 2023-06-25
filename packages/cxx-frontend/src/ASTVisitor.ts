@@ -242,5 +242,11 @@ export abstract class ASTVisitor<Context, Result> {
     // DeclaratorModifierAST
     abstract visitFunctionDeclarator(node: ast.FunctionDeclaratorAST, context: Context): Result;
     abstract visitArrayDeclarator(node: ast.ArrayDeclaratorAST, context: Context): Result;
+
+    // AttributeAST
+    abstract visitCxxAttribute(node: ast.CxxAttributeAST, context: Context): Result;
+    abstract visitGCCAttribute(node: ast.GCCAttributeAST, context: Context): Result;
+    abstract visitAlignasAttribute(node: ast.AlignasAttributeAST, context: Context): Result;
+    abstract visitAsmAttribute(node: ast.AsmAttributeAST, context: Context): Result;
 }
 

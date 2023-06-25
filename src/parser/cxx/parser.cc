@@ -6403,39 +6403,56 @@ auto Parser::parse_linkage_specification(DeclarationAST*& yyast) -> bool {
 
 auto Parser::parse_attribute_specifier_seq(List<AttributeAST*>*& yyast)
     -> bool {
-  if (!parse_attribute_specifier()) return false;
+  AttributeAST* attribute = nullptr;
+  if (!parse_attribute_specifier(attribute)) return false;
 
-  while (parse_attribute_specifier()) {
+  attribute = nullptr;
+  while (parse_attribute_specifier(attribute)) {
     //
   }
 
   return true;
 }
 
-auto Parser::parse_attribute_specifier() -> bool {
-  if (LA().is(TokenKind::T_LBRACKET) && LA(1).is(TokenKind::T_LBRACKET)) {
-    consumeToken();
-    consumeToken();
-    parse_attribute_using_prefix();
-    parse_attribute_list();
-    expect(TokenKind::T_RBRACKET);
-    expect(TokenKind::T_RBRACKET);
-    return true;
-  }
+auto Parser::parse_attribute_specifier(AttributeAST*& yyast) -> bool {
+  if (parse_cxx_attribute_specifier(yyast)) return true;
 
-  if (parse_gcc_attribute()) return true;
+  if (parse_gcc_attribute(yyast)) return true;
 
-  if (parse_alignment_specifier()) return true;
+  if (parse_alignment_specifier(yyast)) return true;
 
-  if (parse_asm_specifier()) return true;
+  if (parse_asm_specifier(yyast)) return true;
 
   return false;
 }
 
-auto Parser::parse_asm_specifier() -> bool {
-  if (!match(TokenKind::T_ASM)) return false;
+auto Parser::parse_cxx_attribute_specifier(AttributeAST*& yyast) -> bool {
+  if (LA().isNot(TokenKind::T_LBRACKET) || LA(1).isNot(TokenKind::T_LBRACKET)) {
+    return false;
+  }
 
-  expect(TokenKind::T_LPAREN);
+  auto ast = new (pool) CxxAttributeAST();
+  yyast = ast;
+  ast->lbracketLoc = consumeToken();
+  ast->lbracket2Loc = consumeToken();
+  parse_attribute_using_prefix();
+  parse_attribute_list();
+  expect(TokenKind::T_RBRACKET, ast->rbracketLoc);
+  expect(TokenKind::T_RBRACKET, ast->rbracket2Loc);
+  return true;
+}
+
+auto Parser::parse_asm_specifier(AttributeAST*& yyast) -> bool {
+  SourceLocation asmLoc;
+
+  if (!match(TokenKind::T_ASM, asmLoc)) return false;
+
+  auto ast = new (pool) AsmAttributeAST();
+  yyast = ast;
+
+  ast->asmLoc = asmLoc;
+
+  expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
   List<SourceLocation>* stringLiteralList = nullptr;
 
@@ -6443,29 +6460,26 @@ auto Parser::parse_asm_specifier() -> bool {
     parse_error("expected a string literal");
   }
 
-  expect(TokenKind::T_RPAREN);
+  expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   return true;
 }
 
-auto Parser::parse_gcc_attribute() -> bool {
-  if (!match(TokenKind::T___ATTRIBUTE__)) return false;
+auto Parser::parse_gcc_attribute(AttributeAST*& yyast) -> bool {
+  SourceLocation attributeLoc;
 
-  expect(TokenKind::T_LPAREN);
+  if (!match(TokenKind::T___ATTRIBUTE__, attributeLoc)) return false;
+
+  auto ast = new (pool) GCCAttributeAST();
+  yyast = ast;
+
+  ast->attributeLoc = attributeLoc;
+
+  expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
   parse_skip_balanced();
 
-  expect(TokenKind::T_RPAREN);
-
-  return true;
-}
-
-auto Parser::parse_gcc_attribute_seq() -> bool {
-  if (!parse_gcc_attribute()) return false;
-
-  while (parse_gcc_attribute()) {
-    //
-  }
+  expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   return true;
 }
@@ -6486,38 +6500,42 @@ auto Parser::parse_skip_balanced() -> bool {
   return false;
 }
 
-auto Parser::parse_alignment_specifier() -> bool {
-  if (!match(TokenKind::T_ALIGNAS)) return false;
+auto Parser::parse_alignment_specifier(AttributeAST*& yyast) -> bool {
+  SourceLocation alignasLoc;
+  if (!match(TokenKind::T_ALIGNAS, alignasLoc)) return false;
 
-  expect(TokenKind::T_LPAREN);
+  auto ast = new (pool) AlignasAttributeAST();
+  yyast = ast;
+
+  ast->alignasLoc = alignasLoc;
+
+  expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
   const auto after_lparen = currentLocation();
 
   TypeIdAST* typeId = nullptr;
 
   if (parse_type_id(typeId)) {
-    match(TokenKind::T_DOT_DOT_DOT);
+    match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
 
-    if (match(TokenKind::T_RPAREN)) {
+    if (match(TokenKind::T_RPAREN, ast->rparenLoc)) {
       return true;
     }
   }
 
   rewind(after_lparen);
 
-  ExpressionAST* expression = nullptr;
-
-  if (!parse_constant_expression(expression)) {
+  if (!parse_constant_expression(ast->expression)) {
     parse_error("expected an expression");
   }
 
   Semantics::ExpressionSem expr;
 
-  sem->expression(expression, &expr);
+  sem->expression(ast->expression, &expr);
 
-  match(TokenKind::T_DOT_DOT_DOT);
+  match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
 
-  expect(TokenKind::T_RPAREN);
+  expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   return true;
 }
@@ -7264,7 +7282,8 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
 
   match(TokenKind::T_IDENTIFIER, identifierLoc);
 
-  parse_attribute_specifier();
+  List<AttributeAST*>* attributes = nullptr;
+  parse_attribute_specifier_seq(attributes);
 
   if (match(TokenKind::T_COLON)) {
     // ### TODO bit field declarators

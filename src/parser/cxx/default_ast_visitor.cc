@@ -776,4 +776,21 @@ void DefaultASTVisitor::visit(ArrayDeclaratorAST* ast) {
   cxx_runtime_error("visit(ArrayDeclaratorAST): not implemented");
 }
 
+// AttributeAST
+void DefaultASTVisitor::visit(CxxAttributeAST* ast) {
+  cxx_runtime_error("visit(CxxAttributeAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(GCCAttributeAST* ast) {
+  cxx_runtime_error("visit(GCCAttributeAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(AlignasAttributeAST* ast) {
+  cxx_runtime_error("visit(AlignasAttributeAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(AsmAttributeAST* ast) {
+  cxx_runtime_error("visit(AsmAttributeAST): not implemented");
+}
+
 }  // namespace cxx

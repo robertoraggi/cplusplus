@@ -437,6 +437,12 @@ class ASTDecoder {
   auto decodeArrayDeclarator(const io::ArrayDeclarator* node)
       -> ArrayDeclaratorAST*;
 
+  auto decodeCxxAttribute(const io::CxxAttribute* node) -> CxxAttributeAST*;
+  auto decodeGCCAttribute(const io::GCCAttribute* node) -> GCCAttributeAST*;
+  auto decodeAlignasAttribute(const io::AlignasAttribute* node)
+      -> AlignasAttributeAST*;
+  auto decodeAsmAttribute(const io::AsmAttribute* node) -> AsmAttributeAST*;
+
  private:
   TranslationUnit* unit_ = nullptr;
   Arena* pool_ = nullptr;

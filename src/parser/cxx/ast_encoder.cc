@@ -4591,4 +4591,84 @@ void ASTEncoder::visit(ArrayDeclaratorAST* ast) {
   type_ = io::DeclaratorModifier_ArrayDeclarator;
 }
 
+void ASTEncoder::visit(CxxAttributeAST* ast) {
+  auto lbracketLoc = encodeSourceLocation(ast->lbracketLoc);
+
+  auto lbracket2Loc = encodeSourceLocation(ast->lbracket2Loc);
+
+  auto rbracketLoc = encodeSourceLocation(ast->rbracketLoc);
+
+  auto rbracket2Loc = encodeSourceLocation(ast->rbracket2Loc);
+
+  io::CxxAttribute::Builder builder{fbb_};
+  builder.add_lbracket_loc(lbracketLoc.o);
+  builder.add_lbracket2_loc(lbracket2Loc.o);
+  builder.add_rbracket_loc(rbracketLoc.o);
+  builder.add_rbracket2_loc(rbracket2Loc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Attribute_CxxAttribute;
+}
+
+void ASTEncoder::visit(GCCAttributeAST* ast) {
+  auto attributeLoc = encodeSourceLocation(ast->attributeLoc);
+
+  auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
+
+  auto lparen2Loc = encodeSourceLocation(ast->lparen2Loc);
+
+  auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
+
+  auto rparen2Loc = encodeSourceLocation(ast->rparen2Loc);
+
+  io::GCCAttribute::Builder builder{fbb_};
+  builder.add_attribute_loc(attributeLoc.o);
+  builder.add_lparen_loc(lparenLoc.o);
+  builder.add_lparen2_loc(lparen2Loc.o);
+  builder.add_rparen_loc(rparenLoc.o);
+  builder.add_rparen2_loc(rparen2Loc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Attribute_GCCAttribute;
+}
+
+void ASTEncoder::visit(AlignasAttributeAST* ast) {
+  auto alignasLoc = encodeSourceLocation(ast->alignasLoc);
+
+  auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
+
+  const auto [expression, expressionType] = acceptExpression(ast->expression);
+
+  auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
+
+  auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
+
+  io::AlignasAttribute::Builder builder{fbb_};
+  builder.add_alignas_loc(alignasLoc.o);
+  builder.add_lparen_loc(lparenLoc.o);
+  builder.add_expression(expression);
+  builder.add_expression_type(static_cast<io::Expression>(expressionType));
+  builder.add_ellipsis_loc(ellipsisLoc.o);
+  builder.add_rparen_loc(rparenLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Attribute_AlignasAttribute;
+}
+
+void ASTEncoder::visit(AsmAttributeAST* ast) {
+  auto asmLoc = encodeSourceLocation(ast->asmLoc);
+
+  auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
+
+  auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
+
+  io::AsmAttribute::Builder builder{fbb_};
+  builder.add_asm_loc(asmLoc.o);
+  builder.add_lparen_loc(lparenLoc.o);
+  builder.add_rparen_loc(rparenLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Attribute_AsmAttribute;
+}
+
 }  // namespace cxx

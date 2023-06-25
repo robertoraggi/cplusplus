@@ -30,7 +30,6 @@ export function gen_ast_fwd_h({ ast, output }: { ast: AST; output: string }) {
   const by_base = groupNodesByBaseType(ast);
 
   const baseClassNames = Array.from(by_base.keys()).filter((b) => b !== "AST");
-  baseClassNames.push("AttributeAST");
   baseClassNames.sort();
 
   for (const base of baseClassNames) {

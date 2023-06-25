@@ -60,6 +60,10 @@ union AST {
 }
 
 union Attribute {
+  CxxAttribute,
+  GCCAttribute,
+  AlignasAttribute,
+  AsmAttribute,
 }
 
 union CoreDeclarator {
@@ -426,6 +430,35 @@ table ImportName /* AST */ {
 table ModulePartition /* AST */ {
   module_name: ModuleName;
   colon_loc: SourceLocation;
+}
+
+table CxxAttribute /* AttributeAST */ {
+  lbracket_loc: SourceLocation;
+  lbracket2_loc: SourceLocation;
+  rbracket_loc: SourceLocation;
+  rbracket2_loc: SourceLocation;
+}
+
+table GCCAttribute /* AttributeAST */ {
+  attribute_loc: SourceLocation;
+  lparen_loc: SourceLocation;
+  lparen2_loc: SourceLocation;
+  rparen_loc: SourceLocation;
+  rparen2_loc: SourceLocation;
+}
+
+table AlignasAttribute /* AttributeAST */ {
+  expression: Expression;
+  alignas_loc: SourceLocation;
+  lparen_loc: SourceLocation;
+  ellipsis_loc: SourceLocation;
+  rparen_loc: SourceLocation;
+}
+
+table AsmAttribute /* AttributeAST */ {
+  asm_loc: SourceLocation;
+  lparen_loc: SourceLocation;
+  rparen_loc: SourceLocation;
 }
 
 table IdDeclarator /* CoreDeclaratorAST */ {

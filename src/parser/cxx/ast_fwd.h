@@ -290,4 +290,10 @@ class PtrToMemberOperatorAST;
 class FunctionDeclaratorAST;
 class ArrayDeclaratorAST;
 
+// AttributeAST
+class CxxAttributeAST;
+class GCCAttributeAST;
+class AlignasAttributeAST;
+class AsmAttributeAST;
+
 }  // namespace cxx

@@ -356,12 +356,12 @@ class Parser final {
   auto parse_asm_declaration(DeclarationAST*& yyast) -> bool;
   auto parse_linkage_specification(DeclarationAST*& yyast) -> bool;
   auto parse_attribute_specifier_seq(List<AttributeAST*>*& yyast) -> bool;
-  auto parse_attribute_specifier() -> bool;
-  auto parse_asm_specifier() -> bool;
-  auto parse_gcc_attribute() -> bool;
-  auto parse_gcc_attribute_seq() -> bool;
+  auto parse_attribute_specifier(AttributeAST*& yyast) -> bool;
+  auto parse_cxx_attribute_specifier(AttributeAST*& yyast) -> bool;
+  auto parse_asm_specifier(AttributeAST*& yyast) -> bool;
+  auto parse_gcc_attribute(AttributeAST*& yyast) -> bool;
   auto parse_skip_balanced() -> bool;
-  auto parse_alignment_specifier() -> bool;
+  auto parse_alignment_specifier(AttributeAST*& yyast) -> bool;
   auto parse_attribute_using_prefix() -> bool;
   auto parse_attribute_list() -> bool;
   auto parse_attribute() -> bool;

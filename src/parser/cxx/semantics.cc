@@ -1846,4 +1846,12 @@ void Semantics::functionPointerConversion(ExpressionAST* ast,
 void Semantics::qualificationConversion(ExpressionAST* ast,
                                         const QualifiedType& type) {}
 
+void Semantics::visit(CxxAttributeAST* ast) {}
+
+void Semantics::visit(GCCAttributeAST* ast) {}
+
+void Semantics::visit(AlignasAttributeAST* ast) {}
+
+void Semantics::visit(AsmAttributeAST* ast) {}
+
 }  // namespace cxx

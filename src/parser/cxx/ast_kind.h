@@ -242,6 +242,12 @@ enum struct ASTKind {
   // DeclaratorModifierAST
   FunctionDeclarator,
   ArrayDeclarator,
+
+  // AttributeAST
+  CxxAttribute,
+  GCCAttribute,
+  AlignasAttribute,
+  AsmAttribute,
 };
 
 }  // namespace cxx
