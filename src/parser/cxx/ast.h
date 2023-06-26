@@ -572,6 +572,47 @@ class ModulePartitionAST final : public AST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class AttributeArgumentClauseAST final : public AST {
+ public:
+  AttributeArgumentClauseAST() : AST(ASTKind::AttributeArgumentClause) {}
+
+  SourceLocation lparenLoc;
+  SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class AttributeAST final : public AST {
+ public:
+  AttributeAST() : AST(ASTKind::Attribute) {}
+
+  AttributeTokenAST* attributeToken = nullptr;
+  AttributeArgumentClauseAST* attributeArgumentClause = nullptr;
+  SourceLocation ellipsisLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class AttributeUsingPrefixAST final : public AST {
+ public:
+  AttributeUsingPrefixAST() : AST(ASTKind::AttributeUsingPrefix) {}
+
+  SourceLocation usingLoc;
+  SourceLocation attributeNamespaceLoc;
+  SourceLocation colonLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 class SimpleRequirementAST final : public RequirementAST {
  public:
   SimpleRequirementAST() : RequirementAST(ASTKind::SimpleRequirement) {}
@@ -2875,6 +2916,8 @@ class CxxAttributeAST final : public AttributeSpecifierAST {
 
   SourceLocation lbracketLoc;
   SourceLocation lbracket2Loc;
+  AttributeUsingPrefixAST* attributeUsingPrefix = nullptr;
+  List<AttributeAST*>* attributeList = nullptr;
   SourceLocation rbracketLoc;
   SourceLocation rbracket2Loc;
 

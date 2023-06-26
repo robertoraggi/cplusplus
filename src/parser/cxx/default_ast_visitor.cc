@@ -130,6 +130,18 @@ void DefaultASTVisitor::visit(ModulePartitionAST* ast) {
   cxx_runtime_error("visit(ModulePartitionAST): not implemented");
 }
 
+void DefaultASTVisitor::visit(AttributeArgumentClauseAST* ast) {
+  cxx_runtime_error("visit(AttributeArgumentClauseAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(AttributeAST* ast) {
+  cxx_runtime_error("visit(AttributeAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(AttributeUsingPrefixAST* ast) {
+  cxx_runtime_error("visit(AttributeUsingPrefixAST): not implemented");
+}
+
 // RequirementAST
 void DefaultASTVisitor::visit(SimpleRequirementAST* ast) {
   cxx_runtime_error("visit(SimpleRequirementAST): not implemented");

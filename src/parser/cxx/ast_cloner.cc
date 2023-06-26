@@ -525,6 +525,43 @@ void ASTCloner::visit(ModulePartitionAST* ast) {
   copy->moduleName = accept(ast->moduleName);
 }
 
+void ASTCloner::visit(AttributeArgumentClauseAST* ast) {
+  auto copy = new (arena_) AttributeArgumentClauseAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->rparenLoc = ast->rparenLoc;
+}
+
+void ASTCloner::visit(AttributeAST* ast) {
+  auto copy = new (arena_) AttributeAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->attributeToken = accept(ast->attributeToken);
+
+  copy->attributeArgumentClause = accept(ast->attributeArgumentClause);
+
+  copy->ellipsisLoc = ast->ellipsisLoc;
+}
+
+void ASTCloner::visit(AttributeUsingPrefixAST* ast) {
+  auto copy = new (arena_) AttributeUsingPrefixAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->usingLoc = ast->usingLoc;
+
+  copy->attributeNamespaceLoc = ast->attributeNamespaceLoc;
+
+  copy->colonLoc = ast->colonLoc;
+}
+
 void ASTCloner::visit(SimpleRequirementAST* ast) {
   auto copy = new (arena_) SimpleRequirementAST();
   copy_ = copy;
@@ -3350,6 +3387,17 @@ void ASTCloner::visit(CxxAttributeAST* ast) {
   copy->lbracketLoc = ast->lbracketLoc;
 
   copy->lbracket2Loc = ast->lbracket2Loc;
+
+  copy->attributeUsingPrefix = accept(ast->attributeUsingPrefix);
+
+  if (auto it = ast->attributeList) {
+    auto out = &copy->attributeList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
 
   copy->rbracketLoc = ast->rbracketLoc;
 

@@ -117,6 +117,15 @@ void RecursiveASTVisitor::acceptModulePartition(ModulePartitionAST* ast) {
   accept(ast);
 }
 
+void RecursiveASTVisitor::acceptAttributeToken(AttributeTokenAST* ast) {
+  accept(ast);
+}
+
+void RecursiveASTVisitor::acceptAttributeArgumentClause(
+    AttributeArgumentClauseAST* ast) {
+  accept(ast);
+}
+
 void RecursiveASTVisitor::acceptTypeConstraint(TypeConstraintAST* ast) {
   accept(ast);
 }
@@ -193,6 +202,13 @@ void RecursiveASTVisitor::acceptParametersAndQualifiers(
     ParametersAndQualifiersAST* ast) {
   accept(ast);
 }
+
+void RecursiveASTVisitor::acceptAttributeUsingPrefix(
+    AttributeUsingPrefixAST* ast) {
+  accept(ast);
+}
+
+void RecursiveASTVisitor::acceptAttribute(AttributeAST* ast) { accept(ast); }
 
 void RecursiveASTVisitor::visit(TypeIdAST* ast) {
   for (auto it = ast->typeSpecifierList; it; it = it->next) {
@@ -355,6 +371,15 @@ void RecursiveASTVisitor::visit(ImportNameAST* ast) {
 void RecursiveASTVisitor::visit(ModulePartitionAST* ast) {
   acceptModuleName(ast->moduleName);
 }
+
+void RecursiveASTVisitor::visit(AttributeArgumentClauseAST* ast) {}
+
+void RecursiveASTVisitor::visit(AttributeAST* ast) {
+  acceptAttributeToken(ast->attributeToken);
+  acceptAttributeArgumentClause(ast->attributeArgumentClause);
+}
+
+void RecursiveASTVisitor::visit(AttributeUsingPrefixAST* ast) {}
 
 void RecursiveASTVisitor::visit(SimpleRequirementAST* ast) {
   acceptExpression(ast->expression);
@@ -1073,7 +1098,12 @@ void RecursiveASTVisitor::visit(ArrayDeclaratorAST* ast) {
   }
 }
 
-void RecursiveASTVisitor::visit(CxxAttributeAST* ast) {}
+void RecursiveASTVisitor::visit(CxxAttributeAST* ast) {
+  acceptAttributeUsingPrefix(ast->attributeUsingPrefix);
+  for (auto it = ast->attributeList; it; it = it->next) {
+    acceptAttribute(it->value);
+  }
+}
 
 void RecursiveASTVisitor::visit(GCCAttributeAST* ast) {}
 

@@ -56,6 +56,9 @@ class ASTCloner : public ASTVisitor {
   void visit(ModuleNameAST* ast) override;
   void visit(ImportNameAST* ast) override;
   void visit(ModulePartitionAST* ast) override;
+  void visit(AttributeArgumentClauseAST* ast) override;
+  void visit(AttributeAST* ast) override;
+  void visit(AttributeUsingPrefixAST* ast) override;
 
   void visit(SimpleRequirementAST* ast) override;
   void visit(CompoundRequirementAST* ast) override;

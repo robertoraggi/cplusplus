@@ -1025,6 +1025,51 @@ void ASTEncoder::visit(ModulePartitionAST* ast) {
   offset_ = builder.Finish().Union();
 }
 
+void ASTEncoder::visit(AttributeArgumentClauseAST* ast) {
+  auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
+
+  auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
+
+  io::AttributeArgumentClause::Builder builder{fbb_};
+  builder.add_lparen_loc(lparenLoc.o);
+  builder.add_rparen_loc(rparenLoc.o);
+
+  offset_ = builder.Finish().Union();
+}
+
+void ASTEncoder::visit(AttributeAST* ast) {
+  const auto [attributeToken, attributeTokenType] =
+      acceptAttributeToken(ast->attributeToken);
+
+  const auto attributeArgumentClause = accept(ast->attributeArgumentClause);
+
+  auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
+
+  io::Attribute::Builder builder{fbb_};
+  builder.add_attribute_token(attributeToken);
+  builder.add_attribute_token_type(
+      static_cast<io::AttributeToken>(attributeTokenType));
+  builder.add_attribute_argument_clause(attributeArgumentClause.o);
+  builder.add_ellipsis_loc(ellipsisLoc.o);
+
+  offset_ = builder.Finish().Union();
+}
+
+void ASTEncoder::visit(AttributeUsingPrefixAST* ast) {
+  auto usingLoc = encodeSourceLocation(ast->usingLoc);
+
+  auto attributeNamespaceLoc = encodeSourceLocation(ast->attributeNamespaceLoc);
+
+  auto colonLoc = encodeSourceLocation(ast->colonLoc);
+
+  io::AttributeUsingPrefix::Builder builder{fbb_};
+  builder.add_using_loc(usingLoc.o);
+  builder.add_attribute_namespace_loc(attributeNamespaceLoc.o);
+  builder.add_colon_loc(colonLoc.o);
+
+  offset_ = builder.Finish().Union();
+}
+
 void ASTEncoder::visit(SimpleRequirementAST* ast) {
   const auto [expression, expressionType] = acceptExpression(ast->expression);
 
@@ -4634,6 +4679,16 @@ void ASTEncoder::visit(CxxAttributeAST* ast) {
 
   auto lbracket2Loc = encodeSourceLocation(ast->lbracket2Loc);
 
+  const auto attributeUsingPrefix = accept(ast->attributeUsingPrefix);
+
+  std::vector<flatbuffers::Offset<io::Attribute>> attributeListOffsets;
+  for (auto it = ast->attributeList; it; it = it->next) {
+    if (!it->value) continue;
+    attributeListOffsets.emplace_back(accept(it->value).o);
+  }
+
+  auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
+
   auto rbracketLoc = encodeSourceLocation(ast->rbracketLoc);
 
   auto rbracket2Loc = encodeSourceLocation(ast->rbracket2Loc);
@@ -4641,6 +4696,8 @@ void ASTEncoder::visit(CxxAttributeAST* ast) {
   io::CxxAttribute::Builder builder{fbb_};
   builder.add_lbracket_loc(lbracketLoc.o);
   builder.add_lbracket2_loc(lbracket2Loc.o);
+  builder.add_attribute_using_prefix(attributeUsingPrefix.o);
+  builder.add_attribute_list(attributeListOffsetsVector);
   builder.add_rbracket_loc(rbracketLoc.o);
   builder.add_rbracket2_loc(rbracket2Loc.o);
 

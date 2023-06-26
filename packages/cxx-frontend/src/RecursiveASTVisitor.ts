@@ -193,6 +193,17 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         this.accept(node.getModuleName(), context);
     }
 
+    visitAttributeArgumentClause(node: ast.AttributeArgumentClauseAST, context: Context): void {
+    }
+
+    visitAttribute(node: ast.AttributeAST, context: Context): void {
+        this.accept(node.getAttributeToken(), context);
+        this.accept(node.getAttributeArgumentClause(), context);
+    }
+
+    visitAttributeUsingPrefix(node: ast.AttributeUsingPrefixAST, context: Context): void {
+    }
+
     visitSimpleRequirement(node: ast.SimpleRequirementAST, context: Context): void {
         this.accept(node.getExpression(), context);
     }
@@ -964,6 +975,10 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     }
 
     visitCxxAttribute(node: ast.CxxAttributeAST, context: Context): void {
+        this.accept(node.getAttributeUsingPrefix(), context);
+        for (const element of node.getAttributeList()) {
+            this.accept(element, context);
+        }
     }
 
     visitGCCAttribute(node: ast.GCCAttributeAST, context: Context): void {

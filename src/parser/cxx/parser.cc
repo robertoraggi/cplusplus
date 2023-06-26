@@ -6434,18 +6434,23 @@ auto Parser::parse_attribute_specifier(AttributeSpecifierAST*& yyast) -> bool {
   return false;
 }
 
+auto Parser::lookat_cxx_attribute_specifier() -> bool {
+  if (LA().isNot(TokenKind::T_LBRACKET)) return false;
+  if (LA(1).isNot(TokenKind::T_LBRACKET)) return false;
+  if (LA(1).leadingSpace() || LA(1).startOfLine()) return false;
+  return true;
+}
+
 auto Parser::parse_cxx_attribute_specifier(AttributeSpecifierAST*& yyast)
     -> bool {
-  if (LA().isNot(TokenKind::T_LBRACKET) || LA(1).isNot(TokenKind::T_LBRACKET)) {
-    return false;
-  }
+  if (!lookat_cxx_attribute_specifier()) return false;
 
   auto ast = new (pool) CxxAttributeAST();
   yyast = ast;
   ast->lbracketLoc = consumeToken();
   ast->lbracket2Loc = consumeToken();
-  parse_attribute_using_prefix();
-  parse_attribute_list();
+  parse_attribute_using_prefix(ast->attributeUsingPrefix);
+  parse_attribute_list(ast->attributeList);
   expect(TokenKind::T_RBRACKET, ast->rbracketLoc);
   expect(TokenKind::T_RBRACKET, ast->rbracket2Loc);
   return true;
@@ -6549,8 +6554,10 @@ auto Parser::parse_alignment_specifier(AttributeSpecifierAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_attribute_using_prefix() -> bool {
-  if (!match(TokenKind::T_USING)) return false;
+auto Parser::parse_attribute_using_prefix(AttributeUsingPrefixAST*& yyast)
+    -> bool {
+  SourceLocation usingLoc;
+  if (!match(TokenKind::T_USING, usingLoc)) return false;
 
   SourceLocation attributeNamespaceLoc;
 
@@ -6558,31 +6565,68 @@ auto Parser::parse_attribute_using_prefix() -> bool {
     parse_error("expected an attribute namespace");
   }
 
-  expect(TokenKind::T_COLON);
+  SourceLocation colonLoc;
+
+  expect(TokenKind::T_COLON, colonLoc);
+
+  auto ast = new (pool) AttributeUsingPrefixAST();
+  yyast = ast;
+
+  ast->usingLoc = usingLoc;
+  ast->attributeNamespaceLoc = attributeNamespaceLoc;
+  ast->colonLoc = colonLoc;
 
   return true;
 }
 
-auto Parser::parse_attribute_list() -> bool {
-  parse_attribute();
+auto Parser::parse_attribute_list(List<AttributeAST*>*& yyast) -> bool {
+  auto it = &yyast;
 
-  match(TokenKind::T_DOT_DOT_DOT);
+  AttributeAST* attribute = nullptr;
+  parse_attribute(attribute);
+
+  SourceLocation ellipsisLoc;
+  match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
+
+  if (attribute) {
+    attribute->ellipsisLoc = ellipsisLoc;
+
+    *it = new (pool) List(attribute);
+    it = &(*it)->next;
+  }
 
   while (match(TokenKind::T_COMMA)) {
-    parse_attribute();
+    AttributeAST* attribute = nullptr;
+    parse_attribute(attribute);
 
+    SourceLocation ellipsisLoc;
     match(TokenKind::T_DOT_DOT_DOT);
+
+    if (attribute) {
+      attribute->ellipsisLoc = ellipsisLoc;
+
+      *it = new (pool) List(attribute);
+      it = &(*it)->next;
+    }
   }
 
   return true;
 }
 
-auto Parser::parse_attribute() -> bool {
+auto Parser::parse_attribute(AttributeAST*& yyast) -> bool {
   AttributeTokenAST* attributeToken = nullptr;
 
   if (!parse_attribute_token(attributeToken)) return false;
 
-  parse_attribute_argument_clause();
+  AttributeArgumentClauseAST* attributeArgumentClause = nullptr;
+
+  parse_attribute_argument_clause(attributeArgumentClause);
+
+  auto ast = new (pool) AttributeAST();
+  yyast = ast;
+
+  ast->attributeToken = attributeToken;
+  ast->attributeArgumentClause = attributeArgumentClause;
 
   return true;
 }
@@ -6636,12 +6680,23 @@ auto Parser::parse_attribute_namespace(SourceLocation& attributeNamespaceLoc)
   return true;
 }
 
-auto Parser::parse_attribute_argument_clause() -> bool {
-  if (!match(TokenKind::T_LPAREN)) return false;
+auto Parser::parse_attribute_argument_clause(AttributeArgumentClauseAST*& yyast)
+    -> bool {
+  SourceLocation lparenLoc;
+
+  if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
 
   parse_skip_balanced();
 
-  expect(TokenKind::T_RPAREN);
+  SourceLocation rparenLoc;
+
+  expect(TokenKind::T_RPAREN, rparenLoc);
+
+  auto ast = new (pool) AttributeArgumentClauseAST();
+  yyast = ast;
+
+  ast->lparenLoc = lparenLoc;
+  ast->rparenLoc = rparenLoc;
 
   return true;
 }

@@ -116,6 +116,11 @@ class ASTDecoder {
   auto decodeImportName(const io::ImportName* node) -> ImportNameAST*;
   auto decodeModulePartition(const io::ModulePartition* node)
       -> ModulePartitionAST*;
+  auto decodeAttributeArgumentClause(const io::AttributeArgumentClause* node)
+      -> AttributeArgumentClauseAST*;
+  auto decodeAttribute(const io::Attribute* node) -> AttributeAST*;
+  auto decodeAttributeUsingPrefix(const io::AttributeUsingPrefix* node)
+      -> AttributeUsingPrefixAST*;
 
   auto decodeSimpleRequirement(const io::SimpleRequirement* node)
       -> SimpleRequirementAST*;

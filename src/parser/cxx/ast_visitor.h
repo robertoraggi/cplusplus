@@ -55,6 +55,9 @@ class ASTVisitor {
   virtual void visit(ModuleNameAST* ast) = 0;
   virtual void visit(ImportNameAST* ast) = 0;
   virtual void visit(ModulePartitionAST* ast) = 0;
+  virtual void visit(AttributeArgumentClauseAST* ast) = 0;
+  virtual void visit(AttributeAST* ast) = 0;
+  virtual void visit(AttributeUsingPrefixAST* ast) = 0;
 
   // RequirementAST
   virtual void visit(SimpleRequirementAST* ast) = 0;

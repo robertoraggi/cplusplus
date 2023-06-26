@@ -47,6 +47,9 @@ export enum ASTKind {
     ModuleName,
     ImportName,
     ModulePartition,
+    AttributeArgumentClause,
+    Attribute,
+    AttributeUsingPrefix,
 
     // RequirementAST
     SimpleRequirement,

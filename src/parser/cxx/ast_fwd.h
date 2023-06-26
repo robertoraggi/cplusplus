@@ -99,6 +99,9 @@ class ModuleDeclarationAST;
 class ModuleNameAST;
 class ImportNameAST;
 class ModulePartitionAST;
+class AttributeArgumentClauseAST;
+class AttributeAST;
+class AttributeUsingPrefixAST;
 
 // RequirementAST
 class SimpleRequirementAST;

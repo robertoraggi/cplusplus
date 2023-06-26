@@ -547,6 +547,59 @@ void ASTSlot::visit(ModulePartitionAST* ast) {
   slotCount_ = 2;
 }
 
+void ASTSlot::visit(AttributeArgumentClauseAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->lparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:
+      value_ = ast->rparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
+
+  slotCount_ = 2;
+}
+
+void ASTSlot::visit(AttributeAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = reinterpret_cast<std::intptr_t>(ast->attributeToken);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->attributeArgumentClause);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 2:
+      value_ = ast->ellipsisLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
+
+  slotCount_ = 3;
+}
+
+void ASTSlot::visit(AttributeUsingPrefixAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->usingLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:
+      value_ = ast->attributeNamespaceLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 2:
+      value_ = ast->colonLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
+
+  slotCount_ = 3;
+}
+
 void ASTSlot::visit(SimpleRequirementAST* ast) {
   switch (slot_) {
     case 0:
@@ -3649,16 +3702,24 @@ void ASTSlot::visit(CxxAttributeAST* ast) {
       slotKind_ = ASTSlotKind::kToken;
       break;
     case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->attributeUsingPrefix);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 3:
+      value_ = reinterpret_cast<std::intptr_t>(ast->attributeList);
+      slotKind_ = ASTSlotKind::kNodeList;
+      break;
+    case 4:
       value_ = ast->rbracketLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       break;
-    case 3:
+    case 5:
       value_ = ast->rbracket2Loc.index();
       slotKind_ = ASTSlotKind::kToken;
       break;
   }  // switch
 
-  slotCount_ = 4;
+  slotCount_ = 6;
 }
 
 void ASTSlot::visit(GCCAttributeAST* ast) {

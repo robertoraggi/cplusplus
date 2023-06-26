@@ -1095,6 +1095,33 @@ auto ASTDecoder::decodeModulePartition(const io::ModulePartition* node)
   return ast;
 }
 
+auto ASTDecoder::decodeAttributeArgumentClause(
+    const io::AttributeArgumentClause* node) -> AttributeArgumentClauseAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) AttributeArgumentClauseAST();
+  return ast;
+}
+
+auto ASTDecoder::decodeAttribute(const io::Attribute* node) -> AttributeAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) AttributeAST();
+  ast->attributeToken = decodeAttributeToken(node->attribute_token(),
+                                             node->attribute_token_type());
+  ast->attributeArgumentClause =
+      decodeAttributeArgumentClause(node->attribute_argument_clause());
+  return ast;
+}
+
+auto ASTDecoder::decodeAttributeUsingPrefix(
+    const io::AttributeUsingPrefix* node) -> AttributeUsingPrefixAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) AttributeUsingPrefixAST();
+  return ast;
+}
+
 auto ASTDecoder::decodeSimpleRequirement(const io::SimpleRequirement* node)
     -> SimpleRequirementAST* {
   if (!node) return nullptr;
@@ -3103,6 +3130,16 @@ auto ASTDecoder::decodeCxxAttribute(const io::CxxAttribute* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) CxxAttributeAST();
+  ast->attributeUsingPrefix =
+      decodeAttributeUsingPrefix(node->attribute_using_prefix());
+  if (node->attribute_list()) {
+    auto* inserter = &ast->attributeList;
+    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+      *inserter =
+          new (pool_) List(decodeAttribute(node->attribute_list()->Get(i)));
+      inserter = &(*inserter)->next;
+    }
+  }
   return ast;
 }
 

@@ -1858,4 +1858,10 @@ void Semantics::visit(SimpleAttributeTokenAST* ast) {}
 
 void Semantics::visit(ScopedAttributeTokenAST* ast) {}
 
+void Semantics::visit(AttributeAST* ast) {}
+
+void Semantics::visit(AttributeArgumentClauseAST* ast) {}
+
+void Semantics::visit(AttributeUsingPrefixAST* ast) {}
+
 }  // namespace cxx

@@ -688,6 +688,39 @@ void ASTPrinter::visit(ModulePartitionAST* ast) {
   }
 }
 
+void ASTPrinter::visit(AttributeArgumentClauseAST* ast) {
+  json_ = nlohmann::json::array();
+
+  json_.push_back("ast:AttributeArgumentClause");
+}
+
+void ASTPrinter::visit(AttributeAST* ast) {
+  json_ = nlohmann::json::array();
+
+  json_.push_back("ast:Attribute");
+
+  if (ast->attributeToken) {
+    if (auto childNode = accept(ast->attributeToken); !childNode.is_null()) {
+      json_.push_back(std::vector<nlohmann::json>{"attr:attributeToken",
+                                                  std::move(childNode)});
+    }
+  }
+
+  if (ast->attributeArgumentClause) {
+    if (auto childNode = accept(ast->attributeArgumentClause);
+        !childNode.is_null()) {
+      json_.push_back(std::vector<nlohmann::json>{
+          "attr:attributeArgumentClause", std::move(childNode)});
+    }
+  }
+}
+
+void ASTPrinter::visit(AttributeUsingPrefixAST* ast) {
+  json_ = nlohmann::json::array();
+
+  json_.push_back("ast:AttributeUsingPrefix");
+}
+
 void ASTPrinter::visit(SimpleRequirementAST* ast) {
   json_ = nlohmann::json::array();
 
@@ -3607,6 +3640,28 @@ void ASTPrinter::visit(CxxAttributeAST* ast) {
   json_ = nlohmann::json::array();
 
   json_.push_back("ast:CxxAttribute");
+
+  if (ast->attributeUsingPrefix) {
+    if (auto childNode = accept(ast->attributeUsingPrefix);
+        !childNode.is_null()) {
+      json_.push_back(std::vector<nlohmann::json>{"attr:attributeUsingPrefix",
+                                                  std::move(childNode)});
+    }
+  }
+
+  if (ast->attributeList) {
+    auto elements = nlohmann::json::array();
+    elements.push_back("array");
+    for (auto it = ast->attributeList; it; it = it->next) {
+      if (auto childNode = accept(it->value); !childNode.is_null()) {
+        elements.push_back(std::move(childNode));
+      }
+    }
+    if (elements.size() > 1) {
+      json_.push_back(
+          std::vector<nlohmann::json>{"attr:attributeList", elements});
+    }
+  }
 }
 
 void ASTPrinter::visit(GCCAttributeAST* ast) {

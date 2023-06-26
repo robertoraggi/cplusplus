@@ -51,6 +51,9 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitModuleName(node: ast.ModuleNameAST, context: Context): Result;
     abstract visitImportName(node: ast.ImportNameAST, context: Context): Result;
     abstract visitModulePartition(node: ast.ModulePartitionAST, context: Context): Result;
+    abstract visitAttributeArgumentClause(node: ast.AttributeArgumentClauseAST, context: Context): Result;
+    abstract visitAttribute(node: ast.AttributeAST, context: Context): Result;
+    abstract visitAttributeUsingPrefix(node: ast.AttributeUsingPrefixAST, context: Context): Result;
 
     // RequirementAST
     abstract visitSimpleRequirement(node: ast.SimpleRequirementAST, context: Context): Result;

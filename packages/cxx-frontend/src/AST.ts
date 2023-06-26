@@ -525,6 +525,48 @@ export class ModulePartitionAST extends AST {
     }
 }
 
+export class AttributeArgumentClauseAST extends AST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitAttributeArgumentClause(this, context);
+    }
+    getLparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getRparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+}
+
+export class AttributeAST extends AST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitAttribute(this, context);
+    }
+    getAttributeToken(): AttributeTokenAST | undefined {
+        return AST.from<AttributeTokenAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getAttributeArgumentClause(): AttributeArgumentClauseAST | undefined {
+        return AST.from<AttributeArgumentClauseAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getEllipsisToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+}
+
+export class AttributeUsingPrefixAST extends AST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitAttributeUsingPrefix(this, context);
+    }
+    getUsingToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getAttributeNamespaceToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getColonToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+}
+
 export class SimpleRequirementAST extends RequirementAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitSimpleRequirement(this, context);
@@ -3065,11 +3107,19 @@ export class CxxAttributeAST extends AttributeSpecifierAST {
     getLbracket2Token(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
     }
+    getAttributeUsingPrefix(): AttributeUsingPrefixAST | undefined {
+        return AST.from<AttributeUsingPrefixAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    *getAttributeList(): Generator<AttributeAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 3); it; it = cxx.getListNext(it)) {
+            yield AST.from<AttributeAST>(cxx.getListValue(it), this.parser);
+        }
+    }
     getRbracketToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+        return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
     }
     getRbracket2Token(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+        return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
     }
 }
 
@@ -3181,6 +3231,9 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     ModuleNameAST,
     ImportNameAST,
     ModulePartitionAST,
+    AttributeArgumentClauseAST,
+    AttributeAST,
+    AttributeUsingPrefixAST,
     SimpleRequirementAST,
     CompoundRequirementAST,
     TypeRequirementAST,

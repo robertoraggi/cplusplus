@@ -57,6 +57,9 @@ union AST {
   ModuleName,
   ImportName,
   ModulePartition,
+  AttributeArgumentClause,
+  Attribute,
+  AttributeUsingPrefix,
 }
 
 union AttributeSpecifier {
@@ -437,7 +440,26 @@ table ModulePartition /* AST */ {
   colon_loc: SourceLocation;
 }
 
+table AttributeArgumentClause /* AST */ {
+  lparen_loc: SourceLocation;
+  rparen_loc: SourceLocation;
+}
+
+table Attribute /* AST */ {
+  attribute_token: AttributeToken;
+  attribute_argument_clause: AttributeArgumentClause;
+  ellipsis_loc: SourceLocation;
+}
+
+table AttributeUsingPrefix /* AST */ {
+  using_loc: SourceLocation;
+  attribute_namespace_loc: SourceLocation;
+  colon_loc: SourceLocation;
+}
+
 table CxxAttribute /* AttributeSpecifierAST */ {
+  attribute_using_prefix: AttributeUsingPrefix;
+  attribute_list: [Attribute];
   lbracket_loc: SourceLocation;
   lbracket2_loc: SourceLocation;
   rbracket_loc: SourceLocation;
