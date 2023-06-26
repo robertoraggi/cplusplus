@@ -663,6 +663,20 @@ auto ASTDecoder::decodeAttributeSpecifier(const void* ptr,
   }  // switch
 }
 
+auto ASTDecoder::decodeAttributeToken(const void* ptr, io::AttributeToken type)
+    -> AttributeTokenAST* {
+  switch (type) {
+    case io::AttributeToken_ScopedAttributeToken:
+      return decodeScopedAttributeToken(
+          reinterpret_cast<const io::ScopedAttributeToken*>(ptr));
+    case io::AttributeToken_SimpleAttributeToken:
+      return decodeSimpleAttributeToken(
+          reinterpret_cast<const io::SimpleAttributeToken*>(ptr));
+    default:
+      return nullptr;
+  }  // switch
+}
+
 auto ASTDecoder::decodeTypeId(const io::TypeId* node) -> TypeIdAST* {
   if (!node) return nullptr;
 
@@ -3115,6 +3129,22 @@ auto ASTDecoder::decodeAsmAttribute(const io::AsmAttribute* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) AsmAttributeAST();
+  return ast;
+}
+
+auto ASTDecoder::decodeScopedAttributeToken(
+    const io::ScopedAttributeToken* node) -> ScopedAttributeTokenAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) ScopedAttributeTokenAST();
+  return ast;
+}
+
+auto ASTDecoder::decodeSimpleAttributeToken(
+    const io::SimpleAttributeToken* node) -> SimpleAttributeTokenAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) SimpleAttributeTokenAST();
   return ast;
 }
 

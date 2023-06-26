@@ -793,4 +793,13 @@ void DefaultASTVisitor::visit(AsmAttributeAST* ast) {
   cxx_runtime_error("visit(AsmAttributeAST): not implemented");
 }
 
+// AttributeTokenAST
+void DefaultASTVisitor::visit(ScopedAttributeTokenAST* ast) {
+  cxx_runtime_error("visit(ScopedAttributeTokenAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(SimpleAttributeTokenAST* ast) {
+  cxx_runtime_error("visit(SimpleAttributeTokenAST): not implemented");
+}
+
 }  // namespace cxx

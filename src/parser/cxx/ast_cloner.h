@@ -236,6 +236,9 @@ class ASTCloner : public ASTVisitor {
   void visit(AlignasAttributeAST* ast) override;
   void visit(AsmAttributeAST* ast) override;
 
+  void visit(ScopedAttributeTokenAST* ast) override;
+  void visit(SimpleAttributeTokenAST* ast) override;
+
  protected:
   template <typename T>
   auto accept(T ast) -> T {

@@ -6552,7 +6552,9 @@ auto Parser::parse_alignment_specifier(AttributeSpecifierAST*& yyast) -> bool {
 auto Parser::parse_attribute_using_prefix() -> bool {
   if (!match(TokenKind::T_USING)) return false;
 
-  if (!parse_attribute_namespace()) {
+  SourceLocation attributeNamespaceLoc;
+
+  if (!parse_attribute_namespace(attributeNamespaceLoc)) {
     parse_error("expected an attribute namespace");
   }
 
@@ -6576,37 +6578,60 @@ auto Parser::parse_attribute_list() -> bool {
 }
 
 auto Parser::parse_attribute() -> bool {
-  if (!parse_attribute_token()) return false;
+  AttributeTokenAST* attributeToken = nullptr;
+
+  if (!parse_attribute_token(attributeToken)) return false;
 
   parse_attribute_argument_clause();
 
   return true;
 }
 
-auto Parser::parse_attribute_token() -> bool {
+auto Parser::parse_attribute_token(AttributeTokenAST*& yyast) -> bool {
   const auto start = currentLocation();
 
-  if (parse_attribute_scoped_token()) return true;
+  if (parse_attribute_scoped_token(yyast)) return true;
 
   rewind(start);
 
-  if (!match(TokenKind::T_IDENTIFIER)) return false;
+  SourceLocation identifierLoc;
+
+  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
+
+  auto ast = new (pool) SimpleAttributeTokenAST();
+  yyast = ast;
+
+  ast->identifierLoc = identifierLoc;
 
   return true;
 }
 
-auto Parser::parse_attribute_scoped_token() -> bool {
-  if (!parse_attribute_namespace()) return false;
+auto Parser::parse_attribute_scoped_token(AttributeTokenAST*& yyast) -> bool {
+  SourceLocation attributeNamespaceLoc;
 
-  if (!match(TokenKind::T_COLON_COLON)) return false;
+  if (!parse_attribute_namespace(attributeNamespaceLoc)) return false;
 
-  expect(TokenKind::T_IDENTIFIER);
+  SourceLocation scopeLoc;
+
+  if (!match(TokenKind::T_COLON_COLON, scopeLoc)) return false;
+
+  SourceLocation identifierLoc;
+
+  expect(TokenKind::T_IDENTIFIER, identifierLoc);
+
+  auto ast = new (pool) ScopedAttributeTokenAST();
+  yyast = ast;
+
+  ast->attributeNamespaceLoc = attributeNamespaceLoc;
+  ast->scopeLoc = scopeLoc;
+  ast->identifierLoc = identifierLoc;
 
   return true;
 }
 
-auto Parser::parse_attribute_namespace() -> bool {
-  if (!match(TokenKind::T_IDENTIFIER)) return false;
+auto Parser::parse_attribute_namespace(SourceLocation& attributeNamespaceLoc)
+    -> bool {
+  if (!match(TokenKind::T_IDENTIFIER, attributeNamespaceLoc)) return false;
 
   return true;
 }

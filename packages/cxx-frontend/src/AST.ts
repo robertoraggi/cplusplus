@@ -73,6 +73,7 @@ export abstract class AST {
 }
 
 export abstract class AttributeSpecifierAST extends AST { }
+export abstract class AttributeTokenAST extends AST { }
 export abstract class CoreDeclaratorAST extends AST { }
 export abstract class DeclarationAST extends AST { }
 export abstract class DeclaratorModifierAST extends AST { }
@@ -3129,6 +3130,30 @@ export class AsmAttributeAST extends AttributeSpecifierAST {
     }
 }
 
+export class ScopedAttributeTokenAST extends AttributeTokenAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitScopedAttributeToken(this, context);
+    }
+    getAttributeNamespaceToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getScopeToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getIdentifierToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+}
+
+export class SimpleAttributeTokenAST extends AttributeTokenAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitSimpleAttributeToken(this, context);
+    }
+    getIdentifierToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+}
+
 const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser) => AST> = [
     TypeIdAST,
     NestedNameSpecifierAST,
@@ -3317,4 +3342,6 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser
     GCCAttributeAST,
     AlignasAttributeAST,
     AsmAttributeAST,
+    ScopedAttributeTokenAST,
+    SimpleAttributeTokenAST,
 ];

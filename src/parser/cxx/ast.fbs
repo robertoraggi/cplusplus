@@ -66,6 +66,11 @@ union AttributeSpecifier {
   AsmAttribute,
 }
 
+union AttributeToken {
+  ScopedAttributeToken,
+  SimpleAttributeToken,
+}
+
 union CoreDeclarator {
   IdDeclarator,
   NestedDeclarator,
@@ -459,6 +464,16 @@ table AsmAttribute /* AttributeSpecifierAST */ {
   asm_loc: SourceLocation;
   lparen_loc: SourceLocation;
   rparen_loc: SourceLocation;
+}
+
+table ScopedAttributeToken /* AttributeTokenAST */ {
+  attribute_namespace_loc: SourceLocation;
+  scope_loc: SourceLocation;
+  identifier_loc: SourceLocation;
+}
+
+table SimpleAttributeToken /* AttributeTokenAST */ {
+  identifier_loc: SourceLocation;
 }
 
 table IdDeclarator /* CoreDeclaratorAST */ {

@@ -3734,4 +3734,34 @@ void ASTSlot::visit(AsmAttributeAST* ast) {
   slotCount_ = 3;
 }
 
+void ASTSlot::visit(ScopedAttributeTokenAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->attributeNamespaceLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:
+      value_ = ast->scopeLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 2:
+      value_ = ast->identifierLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
+
+  slotCount_ = 3;
+}
+
+void ASTSlot::visit(SimpleAttributeTokenAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->identifierLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
+
+  slotCount_ = 1;
+}
+
 }  // namespace cxx

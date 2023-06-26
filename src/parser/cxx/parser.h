@@ -366,9 +366,9 @@ class Parser final {
   auto parse_attribute_using_prefix() -> bool;
   auto parse_attribute_list() -> bool;
   auto parse_attribute() -> bool;
-  auto parse_attribute_token() -> bool;
-  auto parse_attribute_scoped_token() -> bool;
-  auto parse_attribute_namespace() -> bool;
+  auto parse_attribute_token(AttributeTokenAST*& yyast) -> bool;
+  auto parse_attribute_scoped_token(AttributeTokenAST*& yyast) -> bool;
+  auto parse_attribute_namespace(SourceLocation& attributeNamespaceLoc) -> bool;
   auto parse_attribute_argument_clause() -> bool;
   auto parse_module_declaration(ModuleDeclarationAST*& yyast) -> bool;
   auto parse_module_name(ModuleNameAST*& yyast) -> bool;

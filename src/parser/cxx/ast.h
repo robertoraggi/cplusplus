@@ -108,6 +108,11 @@ class AttributeSpecifierAST : public AST {
   using AST::AST;
 };
 
+class AttributeTokenAST : public AST {
+ public:
+  using AST::AST;
+};
+
 class CoreDeclaratorAST : public AST {
  public:
   using AST::AST;
@@ -2918,6 +2923,34 @@ class AsmAttributeAST final : public AttributeSpecifierAST {
   SourceLocation asmLoc;
   SourceLocation lparenLoc;
   SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class ScopedAttributeTokenAST final : public AttributeTokenAST {
+ public:
+  ScopedAttributeTokenAST()
+      : AttributeTokenAST(ASTKind::ScopedAttributeToken) {}
+
+  SourceLocation attributeNamespaceLoc;
+  SourceLocation scopeLoc;
+  SourceLocation identifierLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class SimpleAttributeTokenAST final : public AttributeTokenAST {
+ public:
+  SimpleAttributeTokenAST()
+      : AttributeTokenAST(ASTKind::SimpleAttributeToken) {}
+
+  SourceLocation identifierLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

@@ -1083,4 +1083,8 @@ void RecursiveASTVisitor::visit(AlignasAttributeAST* ast) {
 
 void RecursiveASTVisitor::visit(AsmAttributeAST* ast) {}
 
+void RecursiveASTVisitor::visit(ScopedAttributeTokenAST* ast) {}
+
+void RecursiveASTVisitor::visit(SimpleAttributeTokenAST* ast) {}
+
 }  // namespace cxx

@@ -248,6 +248,10 @@ enum struct ASTKind {
   GCCAttribute,
   AlignasAttribute,
   AsmAttribute,
+
+  // AttributeTokenAST
+  ScopedAttributeToken,
+  SimpleAttributeToken,
 };
 
 }  // namespace cxx

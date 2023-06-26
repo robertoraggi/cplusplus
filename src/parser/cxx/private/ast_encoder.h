@@ -123,6 +123,9 @@ class ASTEncoder : ASTVisitor {
   auto acceptAttributeSpecifier(AttributeSpecifierAST* ast)
       -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
+  auto acceptAttributeToken(AttributeTokenAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
   void visit(TypeIdAST* ast) override;
   void visit(NestedNameSpecifierAST* ast) override;
   void visit(UsingDeclaratorAST* ast) override;
@@ -328,6 +331,9 @@ class ASTEncoder : ASTVisitor {
   void visit(GCCAttributeAST* ast) override;
   void visit(AlignasAttributeAST* ast) override;
   void visit(AsmAttributeAST* ast) override;
+
+  void visit(ScopedAttributeTokenAST* ast) override;
+  void visit(SimpleAttributeTokenAST* ast) override;
 };
 
 }  // namespace cxx

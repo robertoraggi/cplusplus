@@ -247,6 +247,9 @@ class ASTSlot final : ASTVisitor {
   void visit(AlignasAttributeAST* ast) override;
   void visit(AsmAttributeAST* ast) override;
 
+  void visit(ScopedAttributeTokenAST* ast) override;
+  void visit(SimpleAttributeTokenAST* ast) override;
+
  private:
   std::intptr_t value_ = 0;
   int slot_ = 0;

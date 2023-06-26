@@ -391,6 +391,9 @@ class Semantics final : ASTVisitor {
   void visit(AlignasAttributeAST* ast) override;
   void visit(AsmAttributeAST* ast) override;
 
+  void visit(SimpleAttributeTokenAST* ast) override;
+  void visit(ScopedAttributeTokenAST* ast) override;
+
  private:
   TranslationUnit* unit_ = nullptr;
   Control* control_ = nullptr;

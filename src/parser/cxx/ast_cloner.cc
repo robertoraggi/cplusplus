@@ -3403,4 +3403,26 @@ void ASTCloner::visit(AsmAttributeAST* ast) {
   copy->rparenLoc = ast->rparenLoc;
 }
 
+void ASTCloner::visit(ScopedAttributeTokenAST* ast) {
+  auto copy = new (arena_) ScopedAttributeTokenAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->attributeNamespaceLoc = ast->attributeNamespaceLoc;
+
+  copy->scopeLoc = ast->scopeLoc;
+
+  copy->identifierLoc = ast->identifierLoc;
+}
+
+void ASTCloner::visit(SimpleAttributeTokenAST* ast) {
+  auto copy = new (arena_) SimpleAttributeTokenAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->identifierLoc = ast->identifierLoc;
+}
+
 }  // namespace cxx

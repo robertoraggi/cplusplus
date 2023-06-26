@@ -1854,4 +1854,8 @@ void Semantics::visit(AlignasAttributeAST* ast) {}
 
 void Semantics::visit(AsmAttributeAST* ast) {}
 
+void Semantics::visit(SimpleAttributeTokenAST* ast) {}
+
+void Semantics::visit(ScopedAttributeTokenAST* ast) {}
+
 }  // namespace cxx

@@ -3634,4 +3634,16 @@ void ASTPrinter::visit(AsmAttributeAST* ast) {
   json_.push_back("ast:AsmAttribute");
 }
 
+void ASTPrinter::visit(ScopedAttributeTokenAST* ast) {
+  json_ = nlohmann::json::array();
+
+  json_.push_back("ast:ScopedAttributeToken");
+}
+
+void ASTPrinter::visit(SimpleAttributeTokenAST* ast) {
+  json_ = nlohmann::json::array();
+
+  json_.push_back("ast:SimpleAttributeToken");
+}
+
 }  // namespace cxx

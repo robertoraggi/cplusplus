@@ -975,5 +975,11 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitAsmAttribute(node: ast.AsmAttributeAST, context: Context): void {
     }
+
+    visitScopedAttributeToken(node: ast.ScopedAttributeTokenAST, context: Context): void {
+    }
+
+    visitSimpleAttributeToken(node: ast.SimpleAttributeTokenAST, context: Context): void {
+    }
 }
 

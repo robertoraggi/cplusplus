@@ -2716,4 +2716,28 @@ auto AsmAttributeAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto ScopedAttributeTokenAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(attributeNamespaceLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(scopeLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
+  return {};
+}
+
+auto ScopedAttributeTokenAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(scopeLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeNamespaceLoc)) return loc;
+  return {};
+}
+
+auto SimpleAttributeTokenAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
+  return {};
+}
+
+auto SimpleAttributeTokenAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  return {};
+}
+
 }  // namespace cxx

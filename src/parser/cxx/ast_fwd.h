@@ -53,6 +53,7 @@ enum class ImplicitCastKind {
 };
 
 class AttributeSpecifierAST;
+class AttributeTokenAST;
 class CoreDeclaratorAST;
 class DeclarationAST;
 class DeclaratorModifierAST;
@@ -295,5 +296,9 @@ class CxxAttributeAST;
 class GCCAttributeAST;
 class AlignasAttributeAST;
 class AsmAttributeAST;
+
+// AttributeTokenAST
+class ScopedAttributeTokenAST;
+class SimpleAttributeTokenAST;
 
 }  // namespace cxx

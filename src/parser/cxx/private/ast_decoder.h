@@ -70,6 +70,8 @@ class ASTDecoder {
       -> DeclaratorModifierAST*;
   auto decodeAttributeSpecifier(const void* ptr, io::AttributeSpecifier type)
       -> AttributeSpecifierAST*;
+  auto decodeAttributeToken(const void* ptr, io::AttributeToken type)
+      -> AttributeTokenAST*;
 
   auto decodeTypeId(const io::TypeId* node) -> TypeIdAST*;
   auto decodeNestedNameSpecifier(const io::NestedNameSpecifier* node)
@@ -443,6 +445,11 @@ class ASTDecoder {
   auto decodeAlignasAttribute(const io::AlignasAttribute* node)
       -> AlignasAttributeAST*;
   auto decodeAsmAttribute(const io::AsmAttribute* node) -> AsmAttributeAST*;
+
+  auto decodeScopedAttributeToken(const io::ScopedAttributeToken* node)
+      -> ScopedAttributeTokenAST*;
+  auto decodeSimpleAttributeToken(const io::SimpleAttributeToken* node)
+      -> SimpleAttributeTokenAST*;
 
  private:
   TranslationUnit* unit_ = nullptr;

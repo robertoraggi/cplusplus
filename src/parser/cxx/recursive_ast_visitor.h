@@ -283,6 +283,9 @@ class RecursiveASTVisitor : public ASTVisitor {
   void visit(GCCAttributeAST* ast) override;
   void visit(AlignasAttributeAST* ast) override;
   void visit(AsmAttributeAST* ast) override;
+
+  void visit(ScopedAttributeTokenAST* ast) override;
+  void visit(SimpleAttributeTokenAST* ast) override;
 };
 
 }  // namespace cxx

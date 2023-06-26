@@ -360,6 +360,19 @@ auto ASTEncoder::acceptAttributeSpecifier(AttributeSpecifierAST* ast)
   return {offset, type};
 }
 
+auto ASTEncoder::acceptAttributeToken(AttributeTokenAST* ast)
+    -> std::tuple<flatbuffers::Offset<>, std::uint32_t> {
+  if (!ast) return {};
+  flatbuffers::Offset<> offset;
+  std::uint32_t type = 0;
+  std::swap(offset, offset_);
+  std::swap(type, type_);
+  ast->accept(this);
+  std::swap(offset, offset_);
+  std::swap(type, type_);
+  return {offset, type};
+}
+
 void ASTEncoder::visit(TypeIdAST* ast) {
   std::vector<flatbuffers::Offset<>> typeSpecifierListOffsets;
   std::vector<std::underlying_type_t<io::Specifier>> typeSpecifierListTypes;
@@ -4694,6 +4707,32 @@ void ASTEncoder::visit(AsmAttributeAST* ast) {
 
   offset_ = builder.Finish().Union();
   type_ = io::AttributeSpecifier_AsmAttribute;
+}
+
+void ASTEncoder::visit(ScopedAttributeTokenAST* ast) {
+  auto attributeNamespaceLoc = encodeSourceLocation(ast->attributeNamespaceLoc);
+
+  auto scopeLoc = encodeSourceLocation(ast->scopeLoc);
+
+  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
+
+  io::ScopedAttributeToken::Builder builder{fbb_};
+  builder.add_attribute_namespace_loc(attributeNamespaceLoc.o);
+  builder.add_scope_loc(scopeLoc.o);
+  builder.add_identifier_loc(identifierLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::AttributeToken_ScopedAttributeToken;
+}
+
+void ASTEncoder::visit(SimpleAttributeTokenAST* ast) {
+  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
+
+  io::SimpleAttributeToken::Builder builder{fbb_};
+  builder.add_identifier_loc(identifierLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::AttributeToken_SimpleAttributeToken;
 }
 
 }  // namespace cxx
