@@ -51,6 +51,9 @@ enum struct ASTKind {
   ModuleName,
   ImportName,
   ModulePartition,
+  AttributeArgumentClause,
+  Attribute,
+  AttributeUsingPrefix,
 
   // RequirementAST
   SimpleRequirement,
@@ -242,6 +245,16 @@ enum struct ASTKind {
   // DeclaratorModifierAST
   FunctionDeclarator,
   ArrayDeclarator,
+
+  // AttributeSpecifierAST
+  CxxAttribute,
+  GCCAttribute,
+  AlignasAttribute,
+  AsmAttribute,
+
+  // AttributeTokenAST
+  ScopedAttributeToken,
+  SimpleAttributeToken,
 };
 
 }  // namespace cxx

@@ -120,7 +120,10 @@ class ASTEncoder : ASTVisitor {
   auto acceptDeclaratorModifier(DeclaratorModifierAST* ast)
       -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
-  auto acceptAttribute(AttributeAST* ast)
+  auto acceptAttributeSpecifier(AttributeSpecifierAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
+  auto acceptAttributeToken(AttributeTokenAST* ast)
       -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
   void visit(TypeIdAST* ast) override;
@@ -149,6 +152,9 @@ class ASTEncoder : ASTVisitor {
   void visit(ModuleNameAST* ast) override;
   void visit(ImportNameAST* ast) override;
   void visit(ModulePartitionAST* ast) override;
+  void visit(AttributeArgumentClauseAST* ast) override;
+  void visit(AttributeAST* ast) override;
+  void visit(AttributeUsingPrefixAST* ast) override;
 
   void visit(SimpleRequirementAST* ast) override;
   void visit(CompoundRequirementAST* ast) override;
@@ -323,6 +329,14 @@ class ASTEncoder : ASTVisitor {
 
   void visit(FunctionDeclaratorAST* ast) override;
   void visit(ArrayDeclaratorAST* ast) override;
+
+  void visit(CxxAttributeAST* ast) override;
+  void visit(GCCAttributeAST* ast) override;
+  void visit(AlignasAttributeAST* ast) override;
+  void visit(AsmAttributeAST* ast) override;
+
+  void visit(ScopedAttributeTokenAST* ast) override;
+  void visit(SimpleAttributeTokenAST* ast) override;
 };
 
 }  // namespace cxx

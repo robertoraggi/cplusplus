@@ -56,6 +56,9 @@ class ASTCloner : public ASTVisitor {
   void visit(ModuleNameAST* ast) override;
   void visit(ImportNameAST* ast) override;
   void visit(ModulePartitionAST* ast) override;
+  void visit(AttributeArgumentClauseAST* ast) override;
+  void visit(AttributeAST* ast) override;
+  void visit(AttributeUsingPrefixAST* ast) override;
 
   void visit(SimpleRequirementAST* ast) override;
   void visit(CompoundRequirementAST* ast) override;
@@ -230,6 +233,14 @@ class ASTCloner : public ASTVisitor {
 
   void visit(FunctionDeclaratorAST* ast) override;
   void visit(ArrayDeclaratorAST* ast) override;
+
+  void visit(CxxAttributeAST* ast) override;
+  void visit(GCCAttributeAST* ast) override;
+  void visit(AlignasAttributeAST* ast) override;
+  void visit(AsmAttributeAST* ast) override;
+
+  void visit(ScopedAttributeTokenAST* ast) override;
+  void visit(SimpleAttributeTokenAST* ast) override;
 
  protected:
   template <typename T>

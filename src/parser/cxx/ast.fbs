@@ -57,9 +57,21 @@ union AST {
   ModuleName,
   ImportName,
   ModulePartition,
+  AttributeArgumentClause,
+  Attribute,
+  AttributeUsingPrefix,
 }
 
-union Attribute {
+union AttributeSpecifier {
+  CxxAttribute,
+  GCCAttribute,
+  AlignasAttribute,
+  AsmAttribute,
+}
+
+union AttributeToken {
+  ScopedAttributeToken,
+  SimpleAttributeToken,
 }
 
 union CoreDeclarator {
@@ -301,7 +313,7 @@ table EnumBase /* AST */ {
 
 table Enumerator /* AST */ {
   name: Name;
-  attribute_list: [Attribute];
+  attribute_list: [AttributeSpecifier];
   expression: Expression;
   equal_loc: SourceLocation;
 }
@@ -319,7 +331,7 @@ table InitDeclarator /* AST */ {
 }
 
 table BaseSpecifier /* AST */ {
-  attribute_list: [Attribute];
+  attribute_list: [AttributeSpecifier];
   name: Name;
 }
 
@@ -346,7 +358,7 @@ table ParameterDeclarationClause /* AST */ {
 table ParametersAndQualifiers /* AST */ {
   parameter_declaration_clause: ParameterDeclarationClause;
   cv_qualifier_list: [Specifier];
-  attribute_list: [Attribute];
+  attribute_list: [AttributeSpecifier];
   lparen_loc: SourceLocation;
   rparen_loc: SourceLocation;
   ref_loc: SourceLocation;
@@ -362,7 +374,7 @@ table LambdaIntroducer /* AST */ {
 table LambdaDeclarator /* AST */ {
   parameter_declaration_clause: ParameterDeclarationClause;
   decl_specifier_list: [Specifier];
-  attribute_list: [Attribute];
+  attribute_list: [AttributeSpecifier];
   trailing_return_type: TrailingReturnType;
   requires_clause: RequiresClause;
   lparen_loc: SourceLocation;
@@ -407,7 +419,7 @@ table PrivateModuleFragment /* AST */ {
 table ModuleDeclaration /* AST */ {
   module_name: ModuleName;
   module_partition: ModulePartition;
-  attribute_list: [Attribute];
+  attribute_list: [AttributeSpecifier];
   export_loc: SourceLocation;
   module_loc: SourceLocation;
   semicolon_loc: SourceLocation;
@@ -428,9 +440,67 @@ table ModulePartition /* AST */ {
   colon_loc: SourceLocation;
 }
 
+table AttributeArgumentClause /* AST */ {
+  lparen_loc: SourceLocation;
+  rparen_loc: SourceLocation;
+}
+
+table Attribute /* AST */ {
+  attribute_token: AttributeToken;
+  attribute_argument_clause: AttributeArgumentClause;
+  ellipsis_loc: SourceLocation;
+}
+
+table AttributeUsingPrefix /* AST */ {
+  using_loc: SourceLocation;
+  attribute_namespace_loc: SourceLocation;
+  colon_loc: SourceLocation;
+}
+
+table CxxAttribute /* AttributeSpecifierAST */ {
+  attribute_using_prefix: AttributeUsingPrefix;
+  attribute_list: [Attribute];
+  lbracket_loc: SourceLocation;
+  lbracket2_loc: SourceLocation;
+  rbracket_loc: SourceLocation;
+  rbracket2_loc: SourceLocation;
+}
+
+table GCCAttribute /* AttributeSpecifierAST */ {
+  attribute_loc: SourceLocation;
+  lparen_loc: SourceLocation;
+  lparen2_loc: SourceLocation;
+  rparen_loc: SourceLocation;
+  rparen2_loc: SourceLocation;
+}
+
+table AlignasAttribute /* AttributeSpecifierAST */ {
+  expression: Expression;
+  alignas_loc: SourceLocation;
+  lparen_loc: SourceLocation;
+  ellipsis_loc: SourceLocation;
+  rparen_loc: SourceLocation;
+}
+
+table AsmAttribute /* AttributeSpecifierAST */ {
+  asm_loc: SourceLocation;
+  lparen_loc: SourceLocation;
+  rparen_loc: SourceLocation;
+}
+
+table ScopedAttributeToken /* AttributeTokenAST */ {
+  attribute_namespace_loc: SourceLocation;
+  scope_loc: SourceLocation;
+  identifier_loc: SourceLocation;
+}
+
+table SimpleAttributeToken /* AttributeTokenAST */ {
+  identifier_loc: SourceLocation;
+}
+
 table IdDeclarator /* CoreDeclaratorAST */ {
   name: Name;
-  attribute_list: [Attribute];
+  attribute_list: [AttributeSpecifier];
   ellipsis_loc: SourceLocation;
 }
 
@@ -446,7 +516,7 @@ table AccessDeclaration /* DeclarationAST */ {
 }
 
 table FunctionDefinition /* DeclarationAST */ {
-  attribute_list: [Attribute];
+  attribute_list: [AttributeSpecifier];
   decl_specifier_list: [Specifier];
   declarator: Declarator;
   requires_clause: RequiresClause;
@@ -465,7 +535,7 @@ table ForRangeDeclaration /* DeclarationAST */ {
 }
 
 table AliasDeclaration /* DeclarationAST */ {
-  attribute_list: [Attribute];
+  attribute_list: [AttributeSpecifier];
   type_id: TypeId;
   identifier: string;
   using_loc: SourceLocation;
@@ -475,7 +545,7 @@ table AliasDeclaration /* DeclarationAST */ {
 }
 
 table SimpleDeclaration /* DeclarationAST */ {
-  attribute_list: [Attribute];
+  attribute_list: [AttributeSpecifier];
   decl_specifier_list: [Specifier];
   init_declarator_list: [InitDeclarator];
   requires_clause: RequiresClause;
@@ -497,12 +567,12 @@ table EmptyDeclaration /* DeclarationAST */ {
 }
 
 table AttributeDeclaration /* DeclarationAST */ {
-  attribute_list: [Attribute];
+  attribute_list: [AttributeSpecifier];
   semicolon_loc: SourceLocation;
 }
 
 table OpaqueEnumDeclaration /* DeclarationAST */ {
-  attribute_list: [Attribute];
+  attribute_list: [AttributeSpecifier];
   nested_name_specifier: NestedNameSpecifier;
   name: Name;
   enum_base: EnumBase;
@@ -515,10 +585,10 @@ table UsingEnumDeclaration /* DeclarationAST */ {
 }
 
 table NamespaceDefinition /* DeclarationAST */ {
-  attribute_list: [Attribute];
+  attribute_list: [AttributeSpecifier];
   nested_name_specifier: NestedNameSpecifier;
   name: Name;
-  extra_attribute_list: [Attribute];
+  extra_attribute_list: [AttributeSpecifier];
   declaration_list: [Declaration];
   inline_loc: SourceLocation;
   namespace_loc: SourceLocation;
@@ -537,7 +607,7 @@ table NamespaceAliasDefinition /* DeclarationAST */ {
 }
 
 table UsingDirective /* DeclarationAST */ {
-  attribute_list: [Attribute];
+  attribute_list: [AttributeSpecifier];
   nested_name_specifier: NestedNameSpecifier;
   name: Name;
   using_loc: SourceLocation;
@@ -552,7 +622,7 @@ table UsingDeclaration /* DeclarationAST */ {
 }
 
 table AsmDeclaration /* DeclarationAST */ {
-  attribute_list: [Attribute];
+  attribute_list: [AttributeSpecifier];
   asm_loc: SourceLocation;
   lparen_loc: SourceLocation;
   string_literal_list: [SourceLocation];
@@ -574,7 +644,7 @@ table ExportCompoundDeclaration /* DeclarationAST */ {
 
 table ModuleImportDeclaration /* DeclarationAST */ {
   import_name: ImportName;
-  attribute_list: [Attribute];
+  attribute_list: [AttributeSpecifier];
   import_loc: SourceLocation;
   semicolon_loc: SourceLocation;
 }
@@ -631,7 +701,7 @@ table ExplicitInstantiation /* DeclarationAST */ {
 }
 
 table ParameterDeclaration /* DeclarationAST */ {
-  attribute_list: [Attribute];
+  attribute_list: [AttributeSpecifier];
   type_specifier_list: [Specifier];
   declarator: Declarator;
   expression: Expression;
@@ -654,7 +724,7 @@ table FunctionDeclarator /* DeclaratorModifierAST */ {
 
 table ArrayDeclarator /* DeclaratorModifierAST */ {
   expression: Expression;
-  attribute_list: [Attribute];
+  attribute_list: [AttributeSpecifier];
   lbracket_loc: SourceLocation;
   rbracket_loc: SourceLocation;
 }
@@ -664,7 +734,7 @@ table EllipsisExceptionDeclaration /* ExceptionDeclarationAST */ {
 }
 
 table TypeExceptionDeclaration /* ExceptionDeclarationAST */ {
-  attribute_list: [Attribute];
+  attribute_list: [AttributeSpecifier];
   type_specifier_list: [Specifier];
   declarator: Declarator;
 }
@@ -1076,20 +1146,20 @@ table NewBracedInitializer /* NewInitializerAST */ {
 }
 
 table PointerOperator /* PtrOperatorAST */ {
-  attribute_list: [Attribute];
+  attribute_list: [AttributeSpecifier];
   cv_qualifier_list: [Specifier];
   star_loc: SourceLocation;
 }
 
 table ReferenceOperator /* PtrOperatorAST */ {
-  attribute_list: [Attribute];
+  attribute_list: [AttributeSpecifier];
   ref_op: uint32;
   ref_loc: SourceLocation;
 }
 
 table PtrToMemberOperator /* PtrOperatorAST */ {
   nested_name_specifier: NestedNameSpecifier;
-  attribute_list: [Attribute];
+  attribute_list: [AttributeSpecifier];
   cv_qualifier_list: [Specifier];
   star_loc: SourceLocation;
 }
@@ -1219,7 +1289,7 @@ table UnderlyingTypeSpecifier /* SpecifierAST */ {
 }
 
 table ElaboratedTypeSpecifier /* SpecifierAST */ {
-  attribute_list: [Attribute];
+  attribute_list: [AttributeSpecifier];
   nested_name_specifier: NestedNameSpecifier;
   name: Name;
   class_loc: SourceLocation;
@@ -1257,7 +1327,7 @@ table RestrictQualifier /* SpecifierAST */ {
 }
 
 table EnumSpecifier /* SpecifierAST */ {
-  attribute_list: [Attribute];
+  attribute_list: [AttributeSpecifier];
   nested_name_specifier: NestedNameSpecifier;
   name: Name;
   enum_base: EnumBase;
@@ -1270,7 +1340,7 @@ table EnumSpecifier /* SpecifierAST */ {
 }
 
 table ClassSpecifier /* SpecifierAST */ {
-  attribute_list: [Attribute];
+  attribute_list: [AttributeSpecifier];
   name: Name;
   base_clause: BaseClause;
   declaration_list: [Declaration];

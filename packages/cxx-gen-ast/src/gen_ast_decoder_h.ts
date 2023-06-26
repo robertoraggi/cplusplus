@@ -34,7 +34,6 @@ export function gen_ast_decoder_h({
   const emit = (line = "") => code.push(line);
 
   const by_base = groupNodesByBaseType(ast);
-  by_base.set("AttributeAST", []);
 
   const makeClassName = (name: string) =>
     name != "AST" ? name.slice(0, -3) : name;

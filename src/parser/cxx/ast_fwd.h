@@ -52,7 +52,8 @@ enum class ImplicitCastKind {
   kUserDefinedConversion,
 };
 
-class AttributeAST;
+class AttributeSpecifierAST;
+class AttributeTokenAST;
 class CoreDeclaratorAST;
 class DeclarationAST;
 class DeclaratorModifierAST;
@@ -98,6 +99,9 @@ class ModuleDeclarationAST;
 class ModuleNameAST;
 class ImportNameAST;
 class ModulePartitionAST;
+class AttributeArgumentClauseAST;
+class AttributeAST;
+class AttributeUsingPrefixAST;
 
 // RequirementAST
 class SimpleRequirementAST;
@@ -289,5 +293,15 @@ class PtrToMemberOperatorAST;
 // DeclaratorModifierAST
 class FunctionDeclaratorAST;
 class ArrayDeclaratorAST;
+
+// AttributeSpecifierAST
+class CxxAttributeAST;
+class GCCAttributeAST;
+class AlignasAttributeAST;
+class AsmAttributeAST;
+
+// AttributeTokenAST
+class ScopedAttributeTokenAST;
+class SimpleAttributeTokenAST;
 
 }  // namespace cxx

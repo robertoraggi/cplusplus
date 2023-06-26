@@ -102,7 +102,7 @@ void Semantics::exceptionDeclaration(ExceptionDeclarationAST* ast) {
 
 void Semantics::compoundStatement(CompoundStatementAST* ast) { accept(ast); }
 
-void Semantics::attribute(AttributeAST* ast) { accept(ast); }
+void Semantics::attribute(AttributeSpecifierAST* ast) { accept(ast); }
 
 auto Semantics::toBool(ExpressionAST* ast) -> std::optional<bool> {
   if (!ast || !ast->constValue) return std::nullopt;
@@ -1845,5 +1845,23 @@ void Semantics::functionPointerConversion(ExpressionAST* ast,
 
 void Semantics::qualificationConversion(ExpressionAST* ast,
                                         const QualifiedType& type) {}
+
+void Semantics::visit(CxxAttributeAST* ast) {}
+
+void Semantics::visit(GCCAttributeAST* ast) {}
+
+void Semantics::visit(AlignasAttributeAST* ast) {}
+
+void Semantics::visit(AsmAttributeAST* ast) {}
+
+void Semantics::visit(SimpleAttributeTokenAST* ast) {}
+
+void Semantics::visit(ScopedAttributeTokenAST* ast) {}
+
+void Semantics::visit(AttributeAST* ast) {}
+
+void Semantics::visit(AttributeArgumentClauseAST* ast) {}
+
+void Semantics::visit(AttributeUsingPrefixAST* ast) {}
 
 }  // namespace cxx

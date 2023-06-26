@@ -34,7 +34,7 @@ class RecursiveASTVisitor : public ASTVisitor {
   virtual void acceptNestedNameSpecifier(NestedNameSpecifierAST* ast);
   virtual void acceptExceptionDeclaration(ExceptionDeclarationAST* ast);
   virtual void acceptCompoundStatement(CompoundStatementAST* ast);
-  virtual void acceptAttribute(AttributeAST* ast);
+  virtual void acceptAttributeSpecifier(AttributeSpecifierAST* ast);
   virtual void acceptExpression(ExpressionAST* ast);
   virtual void acceptPtrOperator(PtrOperatorAST* ast);
   virtual void acceptCoreDeclarator(CoreDeclaratorAST* ast);
@@ -53,6 +53,8 @@ class RecursiveASTVisitor : public ASTVisitor {
   virtual void acceptDeclaration(DeclarationAST* ast);
   virtual void acceptModuleName(ModuleNameAST* ast);
   virtual void acceptModulePartition(ModulePartitionAST* ast);
+  virtual void acceptAttributeToken(AttributeTokenAST* ast);
+  virtual void acceptAttributeArgumentClause(AttributeArgumentClauseAST* ast);
   virtual void acceptTypeConstraint(TypeConstraintAST* ast);
   virtual void acceptBracedInitList(BracedInitListAST* ast);
   virtual void acceptCtorInitializer(CtorInitializerAST* ast);
@@ -75,6 +77,8 @@ class RecursiveASTVisitor : public ASTVisitor {
   virtual void acceptEnumerator(EnumeratorAST* ast);
   virtual void acceptBaseClause(BaseClauseAST* ast);
   virtual void acceptParametersAndQualifiers(ParametersAndQualifiersAST* ast);
+  virtual void acceptAttributeUsingPrefix(AttributeUsingPrefixAST* ast);
+  virtual void acceptAttribute(AttributeAST* ast);
   virtual auto preVisit(AST*) -> bool { return true; }
   virtual void postVisit(AST*) {}
 
@@ -104,6 +108,9 @@ class RecursiveASTVisitor : public ASTVisitor {
   void visit(ModuleNameAST* ast) override;
   void visit(ImportNameAST* ast) override;
   void visit(ModulePartitionAST* ast) override;
+  void visit(AttributeArgumentClauseAST* ast) override;
+  void visit(AttributeAST* ast) override;
+  void visit(AttributeUsingPrefixAST* ast) override;
 
   void visit(SimpleRequirementAST* ast) override;
   void visit(CompoundRequirementAST* ast) override;
@@ -278,6 +285,14 @@ class RecursiveASTVisitor : public ASTVisitor {
 
   void visit(FunctionDeclaratorAST* ast) override;
   void visit(ArrayDeclaratorAST* ast) override;
+
+  void visit(CxxAttributeAST* ast) override;
+  void visit(GCCAttributeAST* ast) override;
+  void visit(AlignasAttributeAST* ast) override;
+  void visit(AsmAttributeAST* ast) override;
+
+  void visit(ScopedAttributeTokenAST* ast) override;
+  void visit(SimpleAttributeTokenAST* ast) override;
 };
 
 }  // namespace cxx

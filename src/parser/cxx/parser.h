@@ -355,20 +355,23 @@ class Parser final {
   auto parse_using_declarator(UsingDeclaratorAST*& yyast) -> bool;
   auto parse_asm_declaration(DeclarationAST*& yyast) -> bool;
   auto parse_linkage_specification(DeclarationAST*& yyast) -> bool;
-  auto parse_attribute_specifier_seq(List<AttributeAST*>*& yyast) -> bool;
-  auto parse_attribute_specifier() -> bool;
-  auto parse_asm_specifier() -> bool;
-  auto parse_gcc_attribute() -> bool;
-  auto parse_gcc_attribute_seq() -> bool;
+  auto parse_attribute_specifier_seq(List<AttributeSpecifierAST*>*& yyast)
+      -> bool;
+  auto parse_attribute_specifier(AttributeSpecifierAST*& yyast) -> bool;
+  auto lookat_cxx_attribute_specifier() -> bool;
+  auto parse_cxx_attribute_specifier(AttributeSpecifierAST*& yyast) -> bool;
+  auto parse_asm_specifier(AttributeSpecifierAST*& yyast) -> bool;
+  auto parse_gcc_attribute(AttributeSpecifierAST*& yyast) -> bool;
   auto parse_skip_balanced() -> bool;
-  auto parse_alignment_specifier() -> bool;
-  auto parse_attribute_using_prefix() -> bool;
-  auto parse_attribute_list() -> bool;
-  auto parse_attribute() -> bool;
-  auto parse_attribute_token() -> bool;
-  auto parse_attribute_scoped_token() -> bool;
-  auto parse_attribute_namespace() -> bool;
-  auto parse_attribute_argument_clause() -> bool;
+  auto parse_alignment_specifier(AttributeSpecifierAST*& yyast) -> bool;
+  auto parse_attribute_using_prefix(AttributeUsingPrefixAST*& yyast) -> bool;
+  auto parse_attribute_list(List<AttributeAST*>*& yyast) -> bool;
+  auto parse_attribute(AttributeAST*& yyast) -> bool;
+  auto parse_attribute_token(AttributeTokenAST*& yyast) -> bool;
+  auto parse_attribute_scoped_token(AttributeTokenAST*& yyast) -> bool;
+  auto parse_attribute_namespace(SourceLocation& attributeNamespaceLoc) -> bool;
+  auto parse_attribute_argument_clause(AttributeArgumentClauseAST*& yyast)
+      -> bool;
   auto parse_module_declaration(ModuleDeclarationAST*& yyast) -> bool;
   auto parse_module_name(ModuleNameAST*& yyast) -> bool;
   auto parse_module_partition(ModulePartitionAST*& yyast) -> bool;
@@ -381,8 +384,8 @@ class Parser final {
   auto parse_class_specifier(SpecifierAST*& yyast) -> bool;
   auto parse_class_body(List<DeclarationAST*>*& yyast) -> bool;
   auto parse_class_head(SourceLocation& classLoc,
-                        List<AttributeAST*>*& attributeList, NameAST*& name,
-                        BaseClauseAST*& baseClause) -> bool;
+                        List<AttributeSpecifierAST*>*& attributeList,
+                        NameAST*& name, BaseClauseAST*& baseClause) -> bool;
   auto parse_class_head_name(NameAST*& yyast) -> bool;
   auto parse_class_virt_specifier() -> bool;
   auto parse_class_key(SourceLocation& classLoc) -> bool;

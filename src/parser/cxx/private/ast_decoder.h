@@ -68,7 +68,10 @@ class ASTDecoder {
       -> PtrOperatorAST*;
   auto decodeDeclaratorModifier(const void* ptr, io::DeclaratorModifier type)
       -> DeclaratorModifierAST*;
-  auto decodeAttribute(const void* ptr, io::Attribute type) -> AttributeAST*;
+  auto decodeAttributeSpecifier(const void* ptr, io::AttributeSpecifier type)
+      -> AttributeSpecifierAST*;
+  auto decodeAttributeToken(const void* ptr, io::AttributeToken type)
+      -> AttributeTokenAST*;
 
   auto decodeTypeId(const io::TypeId* node) -> TypeIdAST*;
   auto decodeNestedNameSpecifier(const io::NestedNameSpecifier* node)
@@ -113,6 +116,11 @@ class ASTDecoder {
   auto decodeImportName(const io::ImportName* node) -> ImportNameAST*;
   auto decodeModulePartition(const io::ModulePartition* node)
       -> ModulePartitionAST*;
+  auto decodeAttributeArgumentClause(const io::AttributeArgumentClause* node)
+      -> AttributeArgumentClauseAST*;
+  auto decodeAttribute(const io::Attribute* node) -> AttributeAST*;
+  auto decodeAttributeUsingPrefix(const io::AttributeUsingPrefix* node)
+      -> AttributeUsingPrefixAST*;
 
   auto decodeSimpleRequirement(const io::SimpleRequirement* node)
       -> SimpleRequirementAST*;
@@ -436,6 +444,17 @@ class ASTDecoder {
       -> FunctionDeclaratorAST*;
   auto decodeArrayDeclarator(const io::ArrayDeclarator* node)
       -> ArrayDeclaratorAST*;
+
+  auto decodeCxxAttribute(const io::CxxAttribute* node) -> CxxAttributeAST*;
+  auto decodeGCCAttribute(const io::GCCAttribute* node) -> GCCAttributeAST*;
+  auto decodeAlignasAttribute(const io::AlignasAttribute* node)
+      -> AlignasAttributeAST*;
+  auto decodeAsmAttribute(const io::AsmAttribute* node) -> AsmAttributeAST*;
+
+  auto decodeScopedAttributeToken(const io::ScopedAttributeToken* node)
+      -> ScopedAttributeTokenAST*;
+  auto decodeSimpleAttributeToken(const io::SimpleAttributeToken* node)
+      -> SimpleAttributeTokenAST*;
 
  private:
   TranslationUnit* unit_ = nullptr;

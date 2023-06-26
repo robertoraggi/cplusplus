@@ -47,6 +47,9 @@ export enum ASTKind {
     ModuleName,
     ImportName,
     ModulePartition,
+    AttributeArgumentClause,
+    Attribute,
+    AttributeUsingPrefix,
 
     // RequirementAST
     SimpleRequirement,
@@ -238,4 +241,14 @@ export enum ASTKind {
     // DeclaratorModifierAST
     FunctionDeclarator,
     ArrayDeclarator,
+
+    // AttributeSpecifierAST
+    CxxAttribute,
+    GCCAttribute,
+    AlignasAttribute,
+    AsmAttribute,
+
+    // AttributeTokenAST
+    ScopedAttributeToken,
+    SimpleAttributeToken,
 }

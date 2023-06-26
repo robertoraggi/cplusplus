@@ -130,6 +130,18 @@ void DefaultASTVisitor::visit(ModulePartitionAST* ast) {
   cxx_runtime_error("visit(ModulePartitionAST): not implemented");
 }
 
+void DefaultASTVisitor::visit(AttributeArgumentClauseAST* ast) {
+  cxx_runtime_error("visit(AttributeArgumentClauseAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(AttributeAST* ast) {
+  cxx_runtime_error("visit(AttributeAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(AttributeUsingPrefixAST* ast) {
+  cxx_runtime_error("visit(AttributeUsingPrefixAST): not implemented");
+}
+
 // RequirementAST
 void DefaultASTVisitor::visit(SimpleRequirementAST* ast) {
   cxx_runtime_error("visit(SimpleRequirementAST): not implemented");
@@ -774,6 +786,32 @@ void DefaultASTVisitor::visit(FunctionDeclaratorAST* ast) {
 
 void DefaultASTVisitor::visit(ArrayDeclaratorAST* ast) {
   cxx_runtime_error("visit(ArrayDeclaratorAST): not implemented");
+}
+
+// AttributeSpecifierAST
+void DefaultASTVisitor::visit(CxxAttributeAST* ast) {
+  cxx_runtime_error("visit(CxxAttributeAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(GCCAttributeAST* ast) {
+  cxx_runtime_error("visit(GCCAttributeAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(AlignasAttributeAST* ast) {
+  cxx_runtime_error("visit(AlignasAttributeAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(AsmAttributeAST* ast) {
+  cxx_runtime_error("visit(AsmAttributeAST): not implemented");
+}
+
+// AttributeTokenAST
+void DefaultASTVisitor::visit(ScopedAttributeTokenAST* ast) {
+  cxx_runtime_error("visit(ScopedAttributeTokenAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(SimpleAttributeTokenAST* ast) {
+  cxx_runtime_error("visit(SimpleAttributeTokenAST): not implemented");
 }
 
 }  // namespace cxx

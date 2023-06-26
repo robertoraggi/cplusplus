@@ -29,7 +29,6 @@ export function gen_ast_fbs({ ast, output }: { ast: AST; output: string }) {
   const emit = (line = "") => code.push(line);
 
   const by_bases = groupNodesByBaseType(ast);
-  by_bases.set("AttributeAST", []);
 
   const className = (name: string) =>
     name != "AST" ? name.slice(0, -3) : name;

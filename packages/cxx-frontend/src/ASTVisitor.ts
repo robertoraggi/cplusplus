@@ -51,6 +51,9 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitModuleName(node: ast.ModuleNameAST, context: Context): Result;
     abstract visitImportName(node: ast.ImportNameAST, context: Context): Result;
     abstract visitModulePartition(node: ast.ModulePartitionAST, context: Context): Result;
+    abstract visitAttributeArgumentClause(node: ast.AttributeArgumentClauseAST, context: Context): Result;
+    abstract visitAttribute(node: ast.AttributeAST, context: Context): Result;
+    abstract visitAttributeUsingPrefix(node: ast.AttributeUsingPrefixAST, context: Context): Result;
 
     // RequirementAST
     abstract visitSimpleRequirement(node: ast.SimpleRequirementAST, context: Context): Result;
@@ -242,5 +245,15 @@ export abstract class ASTVisitor<Context, Result> {
     // DeclaratorModifierAST
     abstract visitFunctionDeclarator(node: ast.FunctionDeclaratorAST, context: Context): Result;
     abstract visitArrayDeclarator(node: ast.ArrayDeclaratorAST, context: Context): Result;
+
+    // AttributeSpecifierAST
+    abstract visitCxxAttribute(node: ast.CxxAttributeAST, context: Context): Result;
+    abstract visitGCCAttribute(node: ast.GCCAttributeAST, context: Context): Result;
+    abstract visitAlignasAttribute(node: ast.AlignasAttributeAST, context: Context): Result;
+    abstract visitAsmAttribute(node: ast.AsmAttributeAST, context: Context): Result;
+
+    // AttributeTokenAST
+    abstract visitScopedAttributeToken(node: ast.ScopedAttributeTokenAST, context: Context): Result;
+    abstract visitSimpleAttributeToken(node: ast.SimpleAttributeTokenAST, context: Context): Result;
 }
 

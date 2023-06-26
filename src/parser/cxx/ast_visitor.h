@@ -55,6 +55,9 @@ class ASTVisitor {
   virtual void visit(ModuleNameAST* ast) = 0;
   virtual void visit(ImportNameAST* ast) = 0;
   virtual void visit(ModulePartitionAST* ast) = 0;
+  virtual void visit(AttributeArgumentClauseAST* ast) = 0;
+  virtual void visit(AttributeAST* ast) = 0;
+  virtual void visit(AttributeUsingPrefixAST* ast) = 0;
 
   // RequirementAST
   virtual void visit(SimpleRequirementAST* ast) = 0;
@@ -246,6 +249,16 @@ class ASTVisitor {
   // DeclaratorModifierAST
   virtual void visit(FunctionDeclaratorAST* ast) = 0;
   virtual void visit(ArrayDeclaratorAST* ast) = 0;
+
+  // AttributeSpecifierAST
+  virtual void visit(CxxAttributeAST* ast) = 0;
+  virtual void visit(GCCAttributeAST* ast) = 0;
+  virtual void visit(AlignasAttributeAST* ast) = 0;
+  virtual void visit(AsmAttributeAST* ast) = 0;
+
+  // AttributeTokenAST
+  virtual void visit(ScopedAttributeTokenAST* ast) = 0;
+  virtual void visit(SimpleAttributeTokenAST* ast) = 0;
 };
 
 }  // namespace cxx

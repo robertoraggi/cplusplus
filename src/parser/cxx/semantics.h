@@ -153,7 +153,7 @@ class Semantics final : ASTVisitor {
 
   void exceptionDeclaration(ExceptionDeclarationAST* ast);
   void compoundStatement(CompoundStatementAST* ast);
-  void attribute(AttributeAST* ast);
+  void attribute(AttributeSpecifierAST* ast);
   void ptrOperator(PtrOperatorAST* ast);
   void coreDeclarator(CoreDeclaratorAST* ast);
   void declaratorModifiers(List<DeclaratorModifierAST*>* ast);
@@ -385,6 +385,19 @@ class Semantics final : ASTVisitor {
 
   void visit(FunctionDeclaratorAST* ast) override;
   void visit(ArrayDeclaratorAST* ast) override;
+
+  void visit(CxxAttributeAST* ast) override;
+  void visit(GCCAttributeAST* ast) override;
+  void visit(AlignasAttributeAST* ast) override;
+  void visit(AsmAttributeAST* ast) override;
+
+  void visit(SimpleAttributeTokenAST* ast) override;
+  void visit(ScopedAttributeTokenAST* ast) override;
+
+  void visit(AttributeAST* ast) override;
+  void visit(AttributeArgumentClauseAST* ast) override;
+
+  void visit(AttributeUsingPrefixAST* ast) override;
 
  private:
   TranslationUnit* unit_ = nullptr;

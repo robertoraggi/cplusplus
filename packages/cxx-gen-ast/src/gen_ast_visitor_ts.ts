@@ -36,7 +36,6 @@ export function gen_ast_visitor_ts({
   const by_bases = groupNodesByBaseType(ast);
 
   const baseClassNames = Array.from(by_bases.keys()).filter((b) => b !== "AST");
-  baseClassNames.push("AttributeAST");
   baseClassNames.sort();
 
   emit();
