@@ -645,17 +645,18 @@ auto ASTDecoder::decodeDeclaratorModifier(const void* ptr,
   }  // switch
 }
 
-auto ASTDecoder::decodeAttribute(const void* ptr, io::Attribute type)
-    -> AttributeAST* {
+auto ASTDecoder::decodeAttributeSpecifier(const void* ptr,
+                                          io::AttributeSpecifier type)
+    -> AttributeSpecifierAST* {
   switch (type) {
-    case io::Attribute_CxxAttribute:
+    case io::AttributeSpecifier_CxxAttribute:
       return decodeCxxAttribute(reinterpret_cast<const io::CxxAttribute*>(ptr));
-    case io::Attribute_GCCAttribute:
+    case io::AttributeSpecifier_GCCAttribute:
       return decodeGCCAttribute(reinterpret_cast<const io::GCCAttribute*>(ptr));
-    case io::Attribute_AlignasAttribute:
+    case io::AttributeSpecifier_AlignasAttribute:
       return decodeAlignasAttribute(
           reinterpret_cast<const io::AlignasAttribute*>(ptr));
-    case io::Attribute_AsmAttribute:
+    case io::AttributeSpecifier_AsmAttribute:
       return decodeAsmAttribute(reinterpret_cast<const io::AsmAttribute*>(ptr));
     default:
       return nullptr;
@@ -741,9 +742,9 @@ auto ASTDecoder::decodeEnumerator(const io::Enumerator* node)
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(
-          decodeAttribute(node->attribute_list()->Get(i),
-                          io::Attribute(node->attribute_list_type()->Get(i))));
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }
@@ -800,9 +801,9 @@ auto ASTDecoder::decodeBaseSpecifier(const io::BaseSpecifier* node)
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(
-          decodeAttribute(node->attribute_list()->Get(i),
-                          io::Attribute(node->attribute_list_type()->Get(i))));
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }
@@ -889,9 +890,9 @@ auto ASTDecoder::decodeParametersAndQualifiers(
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(
-          decodeAttribute(node->attribute_list()->Get(i),
-                          io::Attribute(node->attribute_list_type()->Get(i))));
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }
@@ -934,9 +935,9 @@ auto ASTDecoder::decodeLambdaDeclarator(const io::LambdaDeclarator* node)
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(
-          decodeAttribute(node->attribute_list()->Get(i),
-                          io::Attribute(node->attribute_list_type()->Get(i))));
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }
@@ -1044,9 +1045,9 @@ auto ASTDecoder::decodeModuleDeclaration(const io::ModuleDeclaration* node)
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(
-          decodeAttribute(node->attribute_list()->Get(i),
-                          io::Attribute(node->attribute_list_type()->Get(i))));
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }
@@ -1321,9 +1322,9 @@ auto ASTDecoder::decodeTypeExceptionDeclaration(
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(
-          decodeAttribute(node->attribute_list()->Get(i),
-                          io::Attribute(node->attribute_list_type()->Get(i))));
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }
@@ -2097,9 +2098,9 @@ auto ASTDecoder::decodeFunctionDefinition(const io::FunctionDefinition* node)
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(
-          decodeAttribute(node->attribute_list()->Get(i),
-                          io::Attribute(node->attribute_list_type()->Get(i))));
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }
@@ -2146,9 +2147,9 @@ auto ASTDecoder::decodeAliasDeclaration(const io::AliasDeclaration* node)
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(
-          decodeAttribute(node->attribute_list()->Get(i),
-                          io::Attribute(node->attribute_list_type()->Get(i))));
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }
@@ -2167,9 +2168,9 @@ auto ASTDecoder::decodeSimpleDeclaration(const io::SimpleDeclaration* node)
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(
-          decodeAttribute(node->attribute_list()->Get(i),
-                          io::Attribute(node->attribute_list_type()->Get(i))));
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }
@@ -2220,9 +2221,9 @@ auto ASTDecoder::decodeAttributeDeclaration(
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(
-          decodeAttribute(node->attribute_list()->Get(i),
-                          io::Attribute(node->attribute_list_type()->Get(i))));
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }
@@ -2237,9 +2238,9 @@ auto ASTDecoder::decodeOpaqueEnumDeclaration(
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(
-          decodeAttribute(node->attribute_list()->Get(i),
-                          io::Attribute(node->attribute_list_type()->Get(i))));
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }
@@ -2266,9 +2267,9 @@ auto ASTDecoder::decodeNamespaceDefinition(const io::NamespaceDefinition* node)
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(
-          decodeAttribute(node->attribute_list()->Get(i),
-                          io::Attribute(node->attribute_list_type()->Get(i))));
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }
@@ -2278,9 +2279,9 @@ auto ASTDecoder::decodeNamespaceDefinition(const io::NamespaceDefinition* node)
   if (node->extra_attribute_list()) {
     auto* inserter = &ast->extraAttributeList;
     for (std::size_t i = 0; i < node->extra_attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeAttribute(
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->extra_attribute_list()->Get(i),
-          io::Attribute(node->extra_attribute_list_type()->Get(i))));
+          io::AttributeSpecifier(node->extra_attribute_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }
@@ -2318,9 +2319,9 @@ auto ASTDecoder::decodeUsingDirective(const io::UsingDirective* node)
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(
-          decodeAttribute(node->attribute_list()->Get(i),
-                          io::Attribute(node->attribute_list_type()->Get(i))));
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }
@@ -2354,9 +2355,9 @@ auto ASTDecoder::decodeAsmDeclaration(const io::AsmDeclaration* node)
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(
-          decodeAttribute(node->attribute_list()->Get(i),
-                          io::Attribute(node->attribute_list_type()->Get(i))));
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }
@@ -2400,9 +2401,9 @@ auto ASTDecoder::decodeModuleImportDeclaration(
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(
-          decodeAttribute(node->attribute_list()->Get(i),
-                          io::Attribute(node->attribute_list_type()->Get(i))));
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }
@@ -2510,9 +2511,9 @@ auto ASTDecoder::decodeParameterDeclaration(
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(
-          decodeAttribute(node->attribute_list()->Get(i),
-                          io::Attribute(node->attribute_list_type()->Get(i))));
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }
@@ -2821,9 +2822,9 @@ auto ASTDecoder::decodeElaboratedTypeSpecifier(
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(
-          decodeAttribute(node->attribute_list()->Get(i),
-                          io::Attribute(node->attribute_list_type()->Get(i))));
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }
@@ -2893,9 +2894,9 @@ auto ASTDecoder::decodeEnumSpecifier(const io::EnumSpecifier* node)
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(
-          decodeAttribute(node->attribute_list()->Get(i),
-                          io::Attribute(node->attribute_list_type()->Get(i))));
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }
@@ -2922,9 +2923,9 @@ auto ASTDecoder::decodeClassSpecifier(const io::ClassSpecifier* node)
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(
-          decodeAttribute(node->attribute_list()->Get(i),
-                          io::Attribute(node->attribute_list_type()->Get(i))));
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }
@@ -2962,9 +2963,9 @@ auto ASTDecoder::decodeIdDeclarator(const io::IdDeclarator* node)
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(
-          decodeAttribute(node->attribute_list()->Get(i),
-                          io::Attribute(node->attribute_list_type()->Get(i))));
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }
@@ -2988,9 +2989,9 @@ auto ASTDecoder::decodePointerOperator(const io::PointerOperator* node)
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(
-          decodeAttribute(node->attribute_list()->Get(i),
-                          io::Attribute(node->attribute_list_type()->Get(i))));
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }
@@ -3014,9 +3015,9 @@ auto ASTDecoder::decodeReferenceOperator(const io::ReferenceOperator* node)
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(
-          decodeAttribute(node->attribute_list()->Get(i),
-                          io::Attribute(node->attribute_list_type()->Get(i))));
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }
@@ -3034,9 +3035,9 @@ auto ASTDecoder::decodePtrToMemberOperator(const io::PtrToMemberOperator* node)
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(
-          decodeAttribute(node->attribute_list()->Get(i),
-                          io::Attribute(node->attribute_list_type()->Get(i))));
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }
@@ -3074,9 +3075,9 @@ auto ASTDecoder::decodeArrayDeclarator(const io::ArrayDeclarator* node)
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(
-          decodeAttribute(node->attribute_list()->Get(i),
-                          io::Attribute(node->attribute_list_type()->Get(i))));
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }

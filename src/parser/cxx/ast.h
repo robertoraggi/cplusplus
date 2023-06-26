@@ -103,7 +103,7 @@ inline auto lastSourceLocation(List<T>* nodes) -> SourceLocation {
   return {};
 }
 
-class AttributeAST : public AST {
+class AttributeSpecifierAST : public AST {
  public:
   using AST::AST;
 };
@@ -274,7 +274,7 @@ class EnumeratorAST final : public AST {
   EnumeratorAST() : AST(ASTKind::Enumerator) {}
 
   NameAST* name = nullptr;
-  List<AttributeAST*>* attributeList = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation equalLoc;
   ExpressionAST* expression = nullptr;
 
@@ -317,7 +317,7 @@ class BaseSpecifierAST final : public AST {
  public:
   BaseSpecifierAST() : AST(ASTKind::BaseSpecifier) {}
 
-  List<AttributeAST*>* attributeList = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   NameAST* name = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -387,7 +387,7 @@ class ParametersAndQualifiersAST final : public AST {
   SourceLocation rparenLoc;
   List<SpecifierAST*>* cvQualifierList = nullptr;
   SourceLocation refLoc;
-  List<AttributeAST*>* attributeList = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -418,7 +418,7 @@ class LambdaDeclaratorAST final : public AST {
   ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
   SourceLocation rparenLoc;
   List<SpecifierAST*>* declSpecifierList = nullptr;
-  List<AttributeAST*>* attributeList = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   TrailingReturnTypeAST* trailingReturnType = nullptr;
   RequiresClauseAST* requiresClause = nullptr;
 
@@ -519,7 +519,7 @@ class ModuleDeclarationAST final : public AST {
   SourceLocation moduleLoc;
   ModuleNameAST* moduleName = nullptr;
   ModulePartitionAST* modulePartition = nullptr;
-  List<AttributeAST*>* attributeList = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -857,7 +857,7 @@ class TypeExceptionDeclarationAST final : public ExceptionDeclarationAST {
   TypeExceptionDeclarationAST()
       : ExceptionDeclarationAST(ASTKind::TypeExceptionDeclaration) {}
 
-  List<AttributeAST*>* attributeList = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   List<SpecifierAST*>* typeSpecifierList = nullptr;
   DeclaratorAST* declarator = nullptr;
 
@@ -1830,7 +1830,7 @@ class FunctionDefinitionAST final : public DeclarationAST {
  public:
   FunctionDefinitionAST() : DeclarationAST(ASTKind::FunctionDefinition) {}
 
-  List<AttributeAST*>* attributeList = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   List<SpecifierAST*>* declSpecifierList = nullptr;
   DeclaratorAST* declarator = nullptr;
   RequiresClauseAST* requiresClause = nullptr;
@@ -1875,7 +1875,7 @@ class AliasDeclarationAST final : public DeclarationAST {
 
   SourceLocation usingLoc;
   SourceLocation identifierLoc;
-  List<AttributeAST*>* attributeList = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation equalLoc;
   TypeIdAST* typeId = nullptr;
   SourceLocation semicolonLoc;
@@ -1892,7 +1892,7 @@ class SimpleDeclarationAST final : public DeclarationAST {
  public:
   SimpleDeclarationAST() : DeclarationAST(ASTKind::SimpleDeclaration) {}
 
-  List<AttributeAST*>* attributeList = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   List<SpecifierAST*>* declSpecifierList = nullptr;
   List<InitDeclaratorAST*>* initDeclaratorList = nullptr;
   RequiresClauseAST* requiresClause = nullptr;
@@ -1939,7 +1939,7 @@ class AttributeDeclarationAST final : public DeclarationAST {
  public:
   AttributeDeclarationAST() : DeclarationAST(ASTKind::AttributeDeclaration) {}
 
-  List<AttributeAST*>* attributeList = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -1954,7 +1954,7 @@ class OpaqueEnumDeclarationAST final : public DeclarationAST {
 
   SourceLocation enumLoc;
   SourceLocation classLoc;
-  List<AttributeAST*>* attributeList = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   NameAST* name = nullptr;
   EnumBaseAST* enumBase = nullptr;
@@ -1982,10 +1982,10 @@ class NamespaceDefinitionAST final : public DeclarationAST {
 
   SourceLocation inlineLoc;
   SourceLocation namespaceLoc;
-  List<AttributeAST*>* attributeList = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   NameAST* name = nullptr;
-  List<AttributeAST*>* extraAttributeList = nullptr;
+  List<AttributeSpecifierAST*>* extraAttributeList = nullptr;
   SourceLocation lbraceLoc;
   List<DeclarationAST*>* declarationList = nullptr;
   SourceLocation rbraceLoc;
@@ -2019,7 +2019,7 @@ class UsingDirectiveAST final : public DeclarationAST {
  public:
   UsingDirectiveAST() : DeclarationAST(ASTKind::UsingDirective) {}
 
-  List<AttributeAST*>* attributeList = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation usingLoc;
   SourceLocation namespaceLoc;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
@@ -2050,7 +2050,7 @@ class AsmDeclarationAST final : public DeclarationAST {
  public:
   AsmDeclarationAST() : DeclarationAST(ASTKind::AsmDeclaration) {}
 
-  List<AttributeAST*>* attributeList = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation asmLoc;
   SourceLocation lparenLoc;
   List<SourceLocation>* stringLiteralList = nullptr;
@@ -2099,7 +2099,7 @@ class ModuleImportDeclarationAST final : public DeclarationAST {
 
   SourceLocation importLoc;
   ImportNameAST* importName = nullptr;
-  List<AttributeAST*>* attributeList = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -2213,7 +2213,7 @@ class ParameterDeclarationAST final : public DeclarationAST {
  public:
   ParameterDeclarationAST() : DeclarationAST(ASTKind::ParameterDeclaration) {}
 
-  List<AttributeAST*>* attributeList = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   List<SpecifierAST*>* typeSpecifierList = nullptr;
   DeclaratorAST* declarator = nullptr;
   SourceLocation equalLoc;
@@ -2618,7 +2618,7 @@ class ElaboratedTypeSpecifierAST final : public SpecifierAST {
       : SpecifierAST(ASTKind::ElaboratedTypeSpecifier) {}
 
   SourceLocation classLoc;
-  List<AttributeAST*>* attributeList = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   NameAST* name = nullptr;
   Symbol* symbol = nullptr;
@@ -2715,7 +2715,7 @@ class EnumSpecifierAST final : public SpecifierAST {
 
   SourceLocation enumLoc;
   SourceLocation classLoc;
-  List<AttributeAST*>* attributeList = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   NameAST* name = nullptr;
   EnumBaseAST* enumBase = nullptr;
@@ -2736,7 +2736,7 @@ class ClassSpecifierAST final : public SpecifierAST {
   ClassSpecifierAST() : SpecifierAST(ASTKind::ClassSpecifier) {}
 
   SourceLocation classLoc;
-  List<AttributeAST*>* attributeList = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   NameAST* name = nullptr;
   BaseClauseAST* baseClause = nullptr;
   SourceLocation lbraceLoc;
@@ -2770,7 +2770,7 @@ class IdDeclaratorAST final : public CoreDeclaratorAST {
 
   SourceLocation ellipsisLoc;
   NameAST* name = nullptr;
-  List<AttributeAST*>* attributeList = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2797,7 +2797,7 @@ class PointerOperatorAST final : public PtrOperatorAST {
   PointerOperatorAST() : PtrOperatorAST(ASTKind::PointerOperator) {}
 
   SourceLocation starLoc;
-  List<AttributeAST*>* attributeList = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   List<SpecifierAST*>* cvQualifierList = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -2811,7 +2811,7 @@ class ReferenceOperatorAST final : public PtrOperatorAST {
   ReferenceOperatorAST() : PtrOperatorAST(ASTKind::ReferenceOperator) {}
 
   SourceLocation refLoc;
-  List<AttributeAST*>* attributeList = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   TokenKind refOp = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -2826,7 +2826,7 @@ class PtrToMemberOperatorAST final : public PtrOperatorAST {
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   SourceLocation starLoc;
-  List<AttributeAST*>* attributeList = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   List<SpecifierAST*>* cvQualifierList = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -2856,7 +2856,7 @@ class ArrayDeclaratorAST final : public DeclaratorModifierAST {
   SourceLocation lbracketLoc;
   ExpressionAST* expression = nullptr;
   SourceLocation rbracketLoc;
-  List<AttributeAST*>* attributeList = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2864,9 +2864,9 @@ class ArrayDeclaratorAST final : public DeclaratorModifierAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class CxxAttributeAST final : public AttributeAST {
+class CxxAttributeAST final : public AttributeSpecifierAST {
  public:
-  CxxAttributeAST() : AttributeAST(ASTKind::CxxAttribute) {}
+  CxxAttributeAST() : AttributeSpecifierAST(ASTKind::CxxAttribute) {}
 
   SourceLocation lbracketLoc;
   SourceLocation lbracket2Loc;
@@ -2879,9 +2879,9 @@ class CxxAttributeAST final : public AttributeAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class GCCAttributeAST final : public AttributeAST {
+class GCCAttributeAST final : public AttributeSpecifierAST {
  public:
-  GCCAttributeAST() : AttributeAST(ASTKind::GCCAttribute) {}
+  GCCAttributeAST() : AttributeSpecifierAST(ASTKind::GCCAttribute) {}
 
   SourceLocation attributeLoc;
   SourceLocation lparenLoc;
@@ -2895,9 +2895,9 @@ class GCCAttributeAST final : public AttributeAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class AlignasAttributeAST final : public AttributeAST {
+class AlignasAttributeAST final : public AttributeSpecifierAST {
  public:
-  AlignasAttributeAST() : AttributeAST(ASTKind::AlignasAttribute) {}
+  AlignasAttributeAST() : AttributeSpecifierAST(ASTKind::AlignasAttribute) {}
 
   SourceLocation alignasLoc;
   SourceLocation lparenLoc;
@@ -2911,9 +2911,9 @@ class AlignasAttributeAST final : public AttributeAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class AsmAttributeAST final : public AttributeAST {
+class AsmAttributeAST final : public AttributeSpecifierAST {
  public:
-  AsmAttributeAST() : AttributeAST(ASTKind::AsmAttribute) {}
+  AsmAttributeAST() : AttributeSpecifierAST(ASTKind::AsmAttribute) {}
 
   SourceLocation asmLoc;
   SourceLocation lparenLoc;

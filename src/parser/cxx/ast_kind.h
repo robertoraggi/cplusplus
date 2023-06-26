@@ -243,7 +243,7 @@ enum struct ASTKind {
   FunctionDeclarator,
   ArrayDeclarator,
 
-  // AttributeAST
+  // AttributeSpecifierAST
   CxxAttribute,
   GCCAttribute,
   AlignasAttribute,

@@ -2245,7 +2245,7 @@ auto Parser::parse_noptr_new_declarator() -> bool {
     expect(TokenKind::T_RBRACKET);
   }
 
-  List<AttributeAST*>* attributes = nullptr;
+  List<AttributeSpecifierAST*>* attributes = nullptr;
 
   parse_attribute_specifier_seq(attributes);
 
@@ -2264,7 +2264,7 @@ auto Parser::parse_noptr_new_declarator() -> bool {
       expect(TokenKind::T_RBRACKET);
     }
 
-    List<AttributeAST*>* attributes = nullptr;
+    List<AttributeSpecifierAST*>* attributes = nullptr;
 
     parse_attribute_specifier_seq(attributes);
   }
@@ -2695,7 +2695,7 @@ auto Parser::parse_template_argument_constant_expression(ExpressionAST*& yyast)
 auto Parser::parse_statement(StatementAST*& yyast) -> bool {
   match(TokenKind::T___EXTENSION__);
 
-  List<AttributeAST*>* attributes = nullptr;
+  List<AttributeSpecifierAST*>* attributes = nullptr;
   parse_attribute_specifier_seq(attributes);
 
   const auto start = currentLocation();
@@ -2792,7 +2792,7 @@ auto Parser::parse_init_statement(StatementAST*& yyast) -> bool {
 auto Parser::parse_condition(ExpressionAST*& yyast) -> bool {
   const auto start = currentLocation();
 
-  List<AttributeAST*>* attributes = nullptr;
+  List<AttributeSpecifierAST*>* attributes = nullptr;
 
   parse_attribute_specifier_seq(attributes);
 
@@ -3201,7 +3201,7 @@ auto Parser::parse_for_statement(StatementAST*& yyast) -> bool {
 }
 
 auto Parser::parse_for_range_declaration(DeclarationAST*& yyast) -> bool {
-  List<AttributeAST*>* attributeList = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
 
   parse_attribute_specifier_seq(attributeList);
 
@@ -3456,7 +3456,7 @@ auto Parser::parse_alias_declaration(DeclarationAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
 
-  List<AttributeAST*>* attributes = nullptr;
+  List<AttributeSpecifierAST*>* attributes = nullptr;
 
   parse_attribute_specifier_seq(attributes);
 
@@ -3523,7 +3523,7 @@ auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
                                       bool acceptFunctionDefinition) -> bool {
   match(TokenKind::T___EXTENSION__);
 
-  List<AttributeAST*>* attributes = nullptr;
+  List<AttributeSpecifierAST*>* attributes = nullptr;
 
   parse_attribute_specifier_seq(attributes);
 
@@ -3905,7 +3905,7 @@ auto Parser::parse_empty_declaration(DeclarationAST*& yyast) -> bool {
 }
 
 auto Parser::parse_attribute_declaration(DeclarationAST*& yyast) -> bool {
-  List<AttributeAST*>* attributes = nullptr;
+  List<AttributeSpecifierAST*>* attributes = nullptr;
 
   if (!parse_attribute_specifier_seq(attributes)) return false;
 
@@ -3990,7 +3990,7 @@ auto Parser::parse_decl_specifier_seq(List<SpecifierAST*>*& yyast,
 
   if (!parse_decl_specifier(specifier, specs)) return false;
 
-  List<AttributeAST*>* attributes = nullptr;
+  List<AttributeSpecifierAST*>* attributes = nullptr;
 
   parse_attribute_specifier_seq(attributes);
 
@@ -4002,7 +4002,7 @@ auto Parser::parse_decl_specifier_seq(List<SpecifierAST*>*& yyast,
   specifier = nullptr;
 
   while (parse_decl_specifier(specifier, specs)) {
-    List<AttributeAST*>* attributes = nullptr;
+    List<AttributeSpecifierAST*>* attributes = nullptr;
 
     parse_attribute_specifier_seq(attributes);
 
@@ -4027,7 +4027,7 @@ auto Parser::parse_decl_specifier_seq_no_typespecs(List<SpecifierAST*>*& yyast,
 
   if (!parse_decl_specifier(specifier, specs)) return false;
 
-  List<AttributeAST*>* attributes = nullptr;
+  List<AttributeSpecifierAST*>* attributes = nullptr;
 
   parse_attribute_specifier_seq(attributes);
 
@@ -4039,7 +4039,7 @@ auto Parser::parse_decl_specifier_seq_no_typespecs(List<SpecifierAST*>*& yyast,
   specifier = nullptr;
 
   while (parse_decl_specifier(specifier, specs)) {
-    List<AttributeAST*>* attributes = nullptr;
+    List<AttributeSpecifierAST*>* attributes = nullptr;
 
     parse_attribute_specifier_seq(attributes);
 
@@ -4156,7 +4156,7 @@ auto Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast) -> bool {
 
   if (!parse_type_specifier(typeSpecifier, specs)) return false;
 
-  List<AttributeAST*>* attributes = nullptr;
+  List<AttributeSpecifierAST*>* attributes = nullptr;
 
   parse_attribute_specifier_seq(attributes);
 
@@ -4177,7 +4177,7 @@ auto Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast) -> bool {
       break;
     }
 
-    List<AttributeAST*>* attributes = nullptr;
+    List<AttributeSpecifierAST*>* attributes = nullptr;
 
     parse_attribute_specifier_seq(attributes);
 
@@ -4218,7 +4218,7 @@ auto Parser::parse_defining_type_specifier_seq(List<SpecifierAST*>*& yyast,
 
   if (!parse_defining_type_specifier(typeSpecifier, specs)) return false;
 
-  List<AttributeAST*>* attributes = nullptr;
+  List<AttributeSpecifierAST*>* attributes = nullptr;
 
   parse_attribute_specifier_seq(attributes);
 
@@ -4237,7 +4237,7 @@ auto Parser::parse_defining_type_specifier_seq(List<SpecifierAST*>*& yyast,
       break;
     }
 
-    List<AttributeAST*>* attributes = nullptr;
+    List<AttributeSpecifierAST*>* attributes = nullptr;
 
     parse_attribute_specifier_seq(attributes);
 
@@ -4558,7 +4558,7 @@ auto Parser::parse_elaborated_type_specifier_helper(
 
   if (!parse_class_key(classLoc)) return false;
 
-  List<AttributeAST*>* attributes = nullptr;
+  List<AttributeSpecifierAST*>* attributes = nullptr;
 
   parse_attribute_specifier_seq(attributes);
 
@@ -4944,7 +4944,7 @@ auto Parser::parse_noptr_declarator(DeclaratorAST*& yyast,
         sem->expression(expression, &expr);
       }
 
-      List<AttributeAST*>* attributes = nullptr;
+      List<AttributeSpecifierAST*>* attributes = nullptr;
 
       parse_attribute_specifier_seq(attributes);
 
@@ -5379,7 +5379,7 @@ auto Parser::parse_noptr_abstract_pack_declarator() -> bool {
 
       expect(TokenKind::T_RBRACKET);
 
-      List<AttributeAST*>* attributes = nullptr;
+      List<AttributeSpecifierAST*>* attributes = nullptr;
 
       parse_attribute_specifier_seq(attributes);
     }
@@ -5772,7 +5772,7 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast) -> bool {
     return false;
   }
 
-  List<AttributeAST*>* attributes = nullptr;
+  List<AttributeSpecifierAST*>* attributes = nullptr;
 
   parse_attribute_specifier_seq(attributes);
 
@@ -5876,7 +5876,7 @@ auto Parser::parse_opaque_enum_declaration(DeclarationAST*& yyast) -> bool {
 
   if (!parse_enum_key(enumLoc, classLoc)) return false;
 
-  List<AttributeAST*>* attributes = nullptr;
+  List<AttributeSpecifierAST*>* attributes = nullptr;
 
   parse_attribute_specifier_seq(attributes);
 
@@ -6213,7 +6213,7 @@ auto Parser::parse_qualified_namespace_specifier(
 }
 
 auto Parser::parse_using_directive(DeclarationAST*& yyast) -> bool {
-  List<AttributeAST*>* attributes = nullptr;
+  List<AttributeSpecifierAST*>* attributes = nullptr;
 
   parse_attribute_specifier_seq(attributes);
 
@@ -6314,7 +6314,7 @@ auto Parser::parse_using_declarator(UsingDeclaratorAST*& yyast) -> bool {
 }
 
 auto Parser::parse_asm_declaration(DeclarationAST*& yyast) -> bool {
-  List<AttributeAST*>* attributes = nullptr;
+  List<AttributeSpecifierAST*>* attributes = nullptr;
 
   parse_attribute_specifier_seq(attributes);
 
@@ -6344,7 +6344,7 @@ auto Parser::parse_linkage_specification(DeclarationAST*& yyast) -> bool {
 
   SourceLocation externLoc;
 
-  List<AttributeAST*>* attributes = nullptr;
+  List<AttributeSpecifierAST*>* attributes = nullptr;
 
   parse_attribute_specifier_seq(attributes);
 
@@ -6401,20 +6401,28 @@ auto Parser::parse_linkage_specification(DeclarationAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_attribute_specifier_seq(List<AttributeAST*>*& yyast)
+auto Parser::parse_attribute_specifier_seq(List<AttributeSpecifierAST*>*& yyast)
     -> bool {
-  AttributeAST* attribute = nullptr;
+  auto it = &yyast;
+  AttributeSpecifierAST* attribute = nullptr;
+
   if (!parse_attribute_specifier(attribute)) return false;
 
+  *it = new (pool) List(attribute);
+  it = &(*it)->next;
+
   attribute = nullptr;
+
   while (parse_attribute_specifier(attribute)) {
-    //
+    *it = new (pool) List(attribute);
+    it = &(*it)->next;
+    attribute = nullptr;
   }
 
   return true;
 }
 
-auto Parser::parse_attribute_specifier(AttributeAST*& yyast) -> bool {
+auto Parser::parse_attribute_specifier(AttributeSpecifierAST*& yyast) -> bool {
   if (parse_cxx_attribute_specifier(yyast)) return true;
 
   if (parse_gcc_attribute(yyast)) return true;
@@ -6426,7 +6434,8 @@ auto Parser::parse_attribute_specifier(AttributeAST*& yyast) -> bool {
   return false;
 }
 
-auto Parser::parse_cxx_attribute_specifier(AttributeAST*& yyast) -> bool {
+auto Parser::parse_cxx_attribute_specifier(AttributeSpecifierAST*& yyast)
+    -> bool {
   if (LA().isNot(TokenKind::T_LBRACKET) || LA(1).isNot(TokenKind::T_LBRACKET)) {
     return false;
   }
@@ -6442,7 +6451,7 @@ auto Parser::parse_cxx_attribute_specifier(AttributeAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_asm_specifier(AttributeAST*& yyast) -> bool {
+auto Parser::parse_asm_specifier(AttributeSpecifierAST*& yyast) -> bool {
   SourceLocation asmLoc;
 
   if (!match(TokenKind::T_ASM, asmLoc)) return false;
@@ -6465,7 +6474,7 @@ auto Parser::parse_asm_specifier(AttributeAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_gcc_attribute(AttributeAST*& yyast) -> bool {
+auto Parser::parse_gcc_attribute(AttributeSpecifierAST*& yyast) -> bool {
   SourceLocation attributeLoc;
 
   if (!match(TokenKind::T___ATTRIBUTE__, attributeLoc)) return false;
@@ -6500,7 +6509,7 @@ auto Parser::parse_skip_balanced() -> bool {
   return false;
 }
 
-auto Parser::parse_alignment_specifier(AttributeAST*& yyast) -> bool {
+auto Parser::parse_alignment_specifier(AttributeSpecifierAST*& yyast) -> bool {
   SourceLocation alignasLoc;
   if (!match(TokenKind::T_ALIGNAS, alignasLoc)) return false;
 
@@ -6870,7 +6879,7 @@ auto Parser::parse_class_specifier(SpecifierAST*& yyast) -> bool {
   }
 
   SourceLocation classLoc;
-  List<AttributeAST*>* attributeList = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   NameAST* className = nullptr;
   BaseClauseAST* baseClause = nullptr;
 
@@ -6974,7 +6983,7 @@ auto Parser::parse_class_body(List<DeclarationAST*>*& yyast) -> bool {
 }
 
 auto Parser::parse_class_head(SourceLocation& classLoc,
-                              List<AttributeAST*>*& attributeList,
+                              List<AttributeSpecifierAST*>*& attributeList,
                               NameAST*& name, BaseClauseAST*& baseClause)
     -> bool {
   if (!parse_class_key(classLoc)) return false;
@@ -7098,7 +7107,7 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
 
   match(TokenKind::T___EXTENSION__, extensionLoc);
 
-  List<AttributeAST*>* attributes = nullptr;
+  List<AttributeSpecifierAST*>* attributes = nullptr;
 
   parse_attribute_specifier_seq(attributes);
 
@@ -7282,7 +7291,7 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
 
   match(TokenKind::T_IDENTIFIER, identifierLoc);
 
-  List<AttributeAST*>* attributes = nullptr;
+  List<AttributeSpecifierAST*>* attributes = nullptr;
   parse_attribute_specifier_seq(attributes);
 
   if (match(TokenKind::T_COLON)) {

@@ -347,7 +347,7 @@ auto ASTEncoder::acceptDeclaratorModifier(DeclaratorModifierAST* ast)
   return {offset, type};
 }
 
-auto ASTEncoder::acceptAttribute(AttributeAST* ast)
+auto ASTEncoder::acceptAttributeSpecifier(AttributeSpecifierAST* ast)
     -> std::tuple<flatbuffers::Offset<>, std::uint32_t> {
   if (!ast) return {};
   flatbuffers::Offset<> offset;
@@ -478,11 +478,12 @@ void ASTEncoder::visit(EnumeratorAST* ast) {
   const auto [name, nameType] = acceptName(ast->name);
 
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
-  std::vector<std::underlying_type_t<io::Attribute>> attributeListTypes;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
 
   for (auto it = ast->attributeList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptAttribute(it->value);
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
     attributeListOffsets.push_back(offset);
     attributeListTypes.push_back(type);
   }
@@ -567,11 +568,12 @@ void ASTEncoder::visit(InitDeclaratorAST* ast) {
 
 void ASTEncoder::visit(BaseSpecifierAST* ast) {
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
-  std::vector<std::underlying_type_t<io::Attribute>> attributeListTypes;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
 
   for (auto it = ast->attributeList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptAttribute(it->value);
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
     attributeListOffsets.push_back(offset);
     attributeListTypes.push_back(type);
   }
@@ -691,11 +693,12 @@ void ASTEncoder::visit(ParametersAndQualifiersAST* ast) {
   auto refLoc = encodeSourceLocation(ast->refLoc);
 
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
-  std::vector<std::underlying_type_t<io::Attribute>> attributeListTypes;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
 
   for (auto it = ast->attributeList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptAttribute(it->value);
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
     attributeListOffsets.push_back(offset);
     attributeListTypes.push_back(type);
   }
@@ -769,11 +772,12 @@ void ASTEncoder::visit(LambdaDeclaratorAST* ast) {
   auto declSpecifierListTypesVector = fbb_.CreateVector(declSpecifierListTypes);
 
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
-  std::vector<std::underlying_type_t<io::Attribute>> attributeListTypes;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
 
   for (auto it = ast->attributeList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptAttribute(it->value);
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
     attributeListOffsets.push_back(offset);
     attributeListTypes.push_back(type);
   }
@@ -948,11 +952,12 @@ void ASTEncoder::visit(ModuleDeclarationAST* ast) {
   const auto modulePartition = accept(ast->modulePartition);
 
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
-  std::vector<std::underlying_type_t<io::Attribute>> attributeListTypes;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
 
   for (auto it = ast->attributeList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptAttribute(it->value);
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
     attributeListOffsets.push_back(offset);
     attributeListTypes.push_back(type);
   }
@@ -1426,11 +1431,12 @@ void ASTEncoder::visit(EllipsisExceptionDeclarationAST* ast) {
 
 void ASTEncoder::visit(TypeExceptionDeclarationAST* ast) {
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
-  std::vector<std::underlying_type_t<io::Attribute>> attributeListTypes;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
 
   for (auto it = ast->attributeList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptAttribute(it->value);
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
     attributeListOffsets.push_back(offset);
     attributeListTypes.push_back(type);
   }
@@ -2882,11 +2888,12 @@ void ASTEncoder::visit(AccessDeclarationAST* ast) {
 
 void ASTEncoder::visit(FunctionDefinitionAST* ast) {
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
-  std::vector<std::underlying_type_t<io::Attribute>> attributeListTypes;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
 
   for (auto it = ast->attributeList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptAttribute(it->value);
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
     attributeListOffsets.push_back(offset);
     attributeListTypes.push_back(type);
   }
@@ -2967,11 +2974,12 @@ void ASTEncoder::visit(AliasDeclarationAST* ast) {
   auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
 
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
-  std::vector<std::underlying_type_t<io::Attribute>> attributeListTypes;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
 
   for (auto it = ast->attributeList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptAttribute(it->value);
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
     attributeListOffsets.push_back(offset);
     attributeListTypes.push_back(type);
   }
@@ -3013,11 +3021,12 @@ void ASTEncoder::visit(AliasDeclarationAST* ast) {
 
 void ASTEncoder::visit(SimpleDeclarationAST* ast) {
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
-  std::vector<std::underlying_type_t<io::Attribute>> attributeListTypes;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
 
   for (auto it = ast->attributeList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptAttribute(it->value);
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
     attributeListOffsets.push_back(offset);
     attributeListTypes.push_back(type);
   }
@@ -3104,11 +3113,12 @@ void ASTEncoder::visit(EmptyDeclarationAST* ast) {
 
 void ASTEncoder::visit(AttributeDeclarationAST* ast) {
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
-  std::vector<std::underlying_type_t<io::Attribute>> attributeListTypes;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
 
   for (auto it = ast->attributeList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptAttribute(it->value);
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
     attributeListOffsets.push_back(offset);
     attributeListTypes.push_back(type);
   }
@@ -3133,11 +3143,12 @@ void ASTEncoder::visit(OpaqueEnumDeclarationAST* ast) {
   auto classLoc = encodeSourceLocation(ast->classLoc);
 
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
-  std::vector<std::underlying_type_t<io::Attribute>> attributeListTypes;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
 
   for (auto it = ast->attributeList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptAttribute(it->value);
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
     attributeListOffsets.push_back(offset);
     attributeListTypes.push_back(type);
   }
@@ -3181,11 +3192,12 @@ void ASTEncoder::visit(NamespaceDefinitionAST* ast) {
   auto namespaceLoc = encodeSourceLocation(ast->namespaceLoc);
 
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
-  std::vector<std::underlying_type_t<io::Attribute>> attributeListTypes;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
 
   for (auto it = ast->attributeList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptAttribute(it->value);
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
     attributeListOffsets.push_back(offset);
     attributeListTypes.push_back(type);
   }
@@ -3198,11 +3210,12 @@ void ASTEncoder::visit(NamespaceDefinitionAST* ast) {
   const auto [name, nameType] = acceptName(ast->name);
 
   std::vector<flatbuffers::Offset<>> extraAttributeListOffsets;
-  std::vector<std::underlying_type_t<io::Attribute>> extraAttributeListTypes;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      extraAttributeListTypes;
 
   for (auto it = ast->extraAttributeList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptAttribute(it->value);
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
     extraAttributeListOffsets.push_back(offset);
     extraAttributeListTypes.push_back(type);
   }
@@ -3289,11 +3302,12 @@ void ASTEncoder::visit(NamespaceAliasDefinitionAST* ast) {
 
 void ASTEncoder::visit(UsingDirectiveAST* ast) {
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
-  std::vector<std::underlying_type_t<io::Attribute>> attributeListTypes;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
 
   for (auto it = ast->attributeList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptAttribute(it->value);
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
     attributeListOffsets.push_back(offset);
     attributeListTypes.push_back(type);
   }
@@ -3351,11 +3365,12 @@ void ASTEncoder::visit(UsingDeclarationAST* ast) {
 
 void ASTEncoder::visit(AsmDeclarationAST* ast) {
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
-  std::vector<std::underlying_type_t<io::Attribute>> attributeListTypes;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
 
   for (auto it = ast->attributeList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptAttribute(it->value);
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
     attributeListOffsets.push_back(offset);
     attributeListTypes.push_back(type);
   }
@@ -3435,11 +3450,12 @@ void ASTEncoder::visit(ModuleImportDeclarationAST* ast) {
   const auto importName = accept(ast->importName);
 
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
-  std::vector<std::underlying_type_t<io::Attribute>> attributeListTypes;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
 
   for (auto it = ast->attributeList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptAttribute(it->value);
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
     attributeListOffsets.push_back(offset);
     attributeListTypes.push_back(type);
   }
@@ -3683,11 +3699,12 @@ void ASTEncoder::visit(ExplicitInstantiationAST* ast) {
 
 void ASTEncoder::visit(ParameterDeclarationAST* ast) {
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
-  std::vector<std::underlying_type_t<io::Attribute>> attributeListTypes;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
 
   for (auto it = ast->attributeList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptAttribute(it->value);
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
     attributeListOffsets.push_back(offset);
     attributeListTypes.push_back(type);
   }
@@ -4155,11 +4172,12 @@ void ASTEncoder::visit(ElaboratedTypeSpecifierAST* ast) {
   auto classLoc = encodeSourceLocation(ast->classLoc);
 
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
-  std::vector<std::underlying_type_t<io::Attribute>> attributeListTypes;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
 
   for (auto it = ast->attributeList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptAttribute(it->value);
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
     attributeListOffsets.push_back(offset);
     attributeListTypes.push_back(type);
   }
@@ -4272,11 +4290,12 @@ void ASTEncoder::visit(EnumSpecifierAST* ast) {
   auto classLoc = encodeSourceLocation(ast->classLoc);
 
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
-  std::vector<std::underlying_type_t<io::Attribute>> attributeListTypes;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
 
   for (auto it = ast->attributeList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptAttribute(it->value);
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
     attributeListOffsets.push_back(offset);
     attributeListTypes.push_back(type);
   }
@@ -4326,11 +4345,12 @@ void ASTEncoder::visit(ClassSpecifierAST* ast) {
   auto classLoc = encodeSourceLocation(ast->classLoc);
 
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
-  std::vector<std::underlying_type_t<io::Attribute>> attributeListTypes;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
 
   for (auto it = ast->attributeList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptAttribute(it->value);
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
     attributeListOffsets.push_back(offset);
     attributeListTypes.push_back(type);
   }
@@ -4398,11 +4418,12 @@ void ASTEncoder::visit(IdDeclaratorAST* ast) {
   const auto [name, nameType] = acceptName(ast->name);
 
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
-  std::vector<std::underlying_type_t<io::Attribute>> attributeListTypes;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
 
   for (auto it = ast->attributeList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptAttribute(it->value);
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
     attributeListOffsets.push_back(offset);
     attributeListTypes.push_back(type);
   }
@@ -4441,11 +4462,12 @@ void ASTEncoder::visit(PointerOperatorAST* ast) {
   auto starLoc = encodeSourceLocation(ast->starLoc);
 
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
-  std::vector<std::underlying_type_t<io::Attribute>> attributeListTypes;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
 
   for (auto it = ast->attributeList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptAttribute(it->value);
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
     attributeListOffsets.push_back(offset);
     attributeListTypes.push_back(type);
   }
@@ -4481,11 +4503,12 @@ void ASTEncoder::visit(ReferenceOperatorAST* ast) {
   auto refLoc = encodeSourceLocation(ast->refLoc);
 
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
-  std::vector<std::underlying_type_t<io::Attribute>> attributeListTypes;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
 
   for (auto it = ast->attributeList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptAttribute(it->value);
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
     attributeListOffsets.push_back(offset);
     attributeListTypes.push_back(type);
   }
@@ -4509,11 +4532,12 @@ void ASTEncoder::visit(PtrToMemberOperatorAST* ast) {
   auto starLoc = encodeSourceLocation(ast->starLoc);
 
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
-  std::vector<std::underlying_type_t<io::Attribute>> attributeListTypes;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
 
   for (auto it = ast->attributeList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptAttribute(it->value);
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
     attributeListOffsets.push_back(offset);
     attributeListTypes.push_back(type);
   }
@@ -4567,11 +4591,12 @@ void ASTEncoder::visit(ArrayDeclaratorAST* ast) {
   auto rbracketLoc = encodeSourceLocation(ast->rbracketLoc);
 
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
-  std::vector<std::underlying_type_t<io::Attribute>> attributeListTypes;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
 
   for (auto it = ast->attributeList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptAttribute(it->value);
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
     attributeListOffsets.push_back(offset);
     attributeListTypes.push_back(type);
   }
@@ -4607,7 +4632,7 @@ void ASTEncoder::visit(CxxAttributeAST* ast) {
   builder.add_rbracket2_loc(rbracket2Loc.o);
 
   offset_ = builder.Finish().Union();
-  type_ = io::Attribute_CxxAttribute;
+  type_ = io::AttributeSpecifier_CxxAttribute;
 }
 
 void ASTEncoder::visit(GCCAttributeAST* ast) {
@@ -4629,7 +4654,7 @@ void ASTEncoder::visit(GCCAttributeAST* ast) {
   builder.add_rparen2_loc(rparen2Loc.o);
 
   offset_ = builder.Finish().Union();
-  type_ = io::Attribute_GCCAttribute;
+  type_ = io::AttributeSpecifier_GCCAttribute;
 }
 
 void ASTEncoder::visit(AlignasAttributeAST* ast) {
@@ -4652,7 +4677,7 @@ void ASTEncoder::visit(AlignasAttributeAST* ast) {
   builder.add_rparen_loc(rparenLoc.o);
 
   offset_ = builder.Finish().Union();
-  type_ = io::Attribute_AlignasAttribute;
+  type_ = io::AttributeSpecifier_AlignasAttribute;
 }
 
 void ASTEncoder::visit(AsmAttributeAST* ast) {
@@ -4668,7 +4693,7 @@ void ASTEncoder::visit(AsmAttributeAST* ast) {
   builder.add_rparen_loc(rparenLoc.o);
 
   offset_ = builder.Finish().Union();
-  type_ = io::Attribute_AsmAttribute;
+  type_ = io::AttributeSpecifier_AsmAttribute;
 }
 
 }  // namespace cxx

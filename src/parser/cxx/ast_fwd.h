@@ -52,7 +52,7 @@ enum class ImplicitCastKind {
   kUserDefinedConversion,
 };
 
-class AttributeAST;
+class AttributeSpecifierAST;
 class CoreDeclaratorAST;
 class DeclarationAST;
 class DeclaratorModifierAST;
@@ -290,7 +290,7 @@ class PtrToMemberOperatorAST;
 class FunctionDeclaratorAST;
 class ArrayDeclaratorAST;
 
-// AttributeAST
+// AttributeSpecifierAST
 class CxxAttributeAST;
 class GCCAttributeAST;
 class AlignasAttributeAST;

@@ -102,7 +102,7 @@ void Semantics::exceptionDeclaration(ExceptionDeclarationAST* ast) {
 
 void Semantics::compoundStatement(CompoundStatementAST* ast) { accept(ast); }
 
-void Semantics::attribute(AttributeAST* ast) { accept(ast); }
+void Semantics::attribute(AttributeSpecifierAST* ast) { accept(ast); }
 
 auto Semantics::toBool(ExpressionAST* ast) -> std::optional<bool> {
   if (!ast || !ast->constValue) return std::nullopt;

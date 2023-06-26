@@ -68,7 +68,8 @@ class ASTDecoder {
       -> PtrOperatorAST*;
   auto decodeDeclaratorModifier(const void* ptr, io::DeclaratorModifier type)
       -> DeclaratorModifierAST*;
-  auto decodeAttribute(const void* ptr, io::Attribute type) -> AttributeAST*;
+  auto decodeAttributeSpecifier(const void* ptr, io::AttributeSpecifier type)
+      -> AttributeSpecifierAST*;
 
   auto decodeTypeId(const io::TypeId* node) -> TypeIdAST*;
   auto decodeNestedNameSpecifier(const io::NestedNameSpecifier* node)

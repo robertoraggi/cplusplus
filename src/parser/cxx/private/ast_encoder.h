@@ -120,7 +120,7 @@ class ASTEncoder : ASTVisitor {
   auto acceptDeclaratorModifier(DeclaratorModifierAST* ast)
       -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
-  auto acceptAttribute(AttributeAST* ast)
+  auto acceptAttributeSpecifier(AttributeSpecifierAST* ast)
       -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
   void visit(TypeIdAST* ast) override;

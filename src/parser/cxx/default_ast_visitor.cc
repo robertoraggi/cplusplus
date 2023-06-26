@@ -776,7 +776,7 @@ void DefaultASTVisitor::visit(ArrayDeclaratorAST* ast) {
   cxx_runtime_error("visit(ArrayDeclaratorAST): not implemented");
 }
 
-// AttributeAST
+// AttributeSpecifierAST
 void DefaultASTVisitor::visit(CxxAttributeAST* ast) {
   cxx_runtime_error("visit(CxxAttributeAST): not implemented");
 }

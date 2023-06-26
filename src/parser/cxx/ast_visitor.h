@@ -247,7 +247,7 @@ class ASTVisitor {
   virtual void visit(FunctionDeclaratorAST* ast) = 0;
   virtual void visit(ArrayDeclaratorAST* ast) = 0;
 
-  // AttributeAST
+  // AttributeSpecifierAST
   virtual void visit(CxxAttributeAST* ast) = 0;
   virtual void visit(GCCAttributeAST* ast) = 0;
   virtual void visit(AlignasAttributeAST* ast) = 0;

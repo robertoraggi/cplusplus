@@ -34,7 +34,7 @@ class RecursiveASTVisitor : public ASTVisitor {
   virtual void acceptNestedNameSpecifier(NestedNameSpecifierAST* ast);
   virtual void acceptExceptionDeclaration(ExceptionDeclarationAST* ast);
   virtual void acceptCompoundStatement(CompoundStatementAST* ast);
-  virtual void acceptAttribute(AttributeAST* ast);
+  virtual void acceptAttributeSpecifier(AttributeSpecifierAST* ast);
   virtual void acceptExpression(ExpressionAST* ast);
   virtual void acceptPtrOperator(PtrOperatorAST* ast);
   virtual void acceptCoreDeclarator(CoreDeclaratorAST* ast);

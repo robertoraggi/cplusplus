@@ -49,7 +49,9 @@ void RecursiveASTVisitor::acceptCompoundStatement(CompoundStatementAST* ast) {
   accept(ast);
 }
 
-void RecursiveASTVisitor::acceptAttribute(AttributeAST* ast) { accept(ast); }
+void RecursiveASTVisitor::acceptAttributeSpecifier(AttributeSpecifierAST* ast) {
+  accept(ast);
+}
 
 void RecursiveASTVisitor::acceptExpression(ExpressionAST* ast) { accept(ast); }
 
@@ -224,7 +226,7 @@ void RecursiveASTVisitor::visit(EnumBaseAST* ast) {
 void RecursiveASTVisitor::visit(EnumeratorAST* ast) {
   acceptName(ast->name);
   for (auto it = ast->attributeList; it; it = it->next) {
-    acceptAttribute(it->value);
+    acceptAttributeSpecifier(it->value);
   }
   acceptExpression(ast->expression);
 }
@@ -247,7 +249,7 @@ void RecursiveASTVisitor::visit(InitDeclaratorAST* ast) {
 
 void RecursiveASTVisitor::visit(BaseSpecifierAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) {
-    acceptAttribute(it->value);
+    acceptAttributeSpecifier(it->value);
   }
   acceptName(ast->name);
 }
@@ -280,7 +282,7 @@ void RecursiveASTVisitor::visit(ParametersAndQualifiersAST* ast) {
     acceptSpecifier(it->value);
   }
   for (auto it = ast->attributeList; it; it = it->next) {
-    acceptAttribute(it->value);
+    acceptAttributeSpecifier(it->value);
   }
 }
 
@@ -296,7 +298,7 @@ void RecursiveASTVisitor::visit(LambdaDeclaratorAST* ast) {
     acceptSpecifier(it->value);
   }
   for (auto it = ast->attributeList; it; it = it->next) {
-    acceptAttribute(it->value);
+    acceptAttributeSpecifier(it->value);
   }
   acceptTrailingReturnType(ast->trailingReturnType);
   acceptRequiresClause(ast->requiresClause);
@@ -339,7 +341,7 @@ void RecursiveASTVisitor::visit(ModuleDeclarationAST* ast) {
   acceptModuleName(ast->moduleName);
   acceptModulePartition(ast->modulePartition);
   for (auto it = ast->attributeList; it; it = it->next) {
-    acceptAttribute(it->value);
+    acceptAttributeSpecifier(it->value);
   }
 }
 
@@ -438,7 +440,7 @@ void RecursiveASTVisitor::visit(EllipsisExceptionDeclarationAST* ast) {}
 
 void RecursiveASTVisitor::visit(TypeExceptionDeclarationAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) {
-    acceptAttribute(it->value);
+    acceptAttributeSpecifier(it->value);
   }
   for (auto it = ast->typeSpecifierList; it; it = it->next) {
     acceptSpecifier(it->value);
@@ -729,7 +731,7 @@ void RecursiveASTVisitor::visit(AccessDeclarationAST* ast) {}
 
 void RecursiveASTVisitor::visit(FunctionDefinitionAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) {
-    acceptAttribute(it->value);
+    acceptAttributeSpecifier(it->value);
   }
   for (auto it = ast->declSpecifierList; it; it = it->next) {
     acceptSpecifier(it->value);
@@ -748,14 +750,14 @@ void RecursiveASTVisitor::visit(ForRangeDeclarationAST* ast) {}
 
 void RecursiveASTVisitor::visit(AliasDeclarationAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) {
-    acceptAttribute(it->value);
+    acceptAttributeSpecifier(it->value);
   }
   acceptTypeId(ast->typeId);
 }
 
 void RecursiveASTVisitor::visit(SimpleDeclarationAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) {
-    acceptAttribute(it->value);
+    acceptAttributeSpecifier(it->value);
   }
   for (auto it = ast->declSpecifierList; it; it = it->next) {
     acceptSpecifier(it->value);
@@ -774,13 +776,13 @@ void RecursiveASTVisitor::visit(EmptyDeclarationAST* ast) {}
 
 void RecursiveASTVisitor::visit(AttributeDeclarationAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) {
-    acceptAttribute(it->value);
+    acceptAttributeSpecifier(it->value);
   }
 }
 
 void RecursiveASTVisitor::visit(OpaqueEnumDeclarationAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) {
-    acceptAttribute(it->value);
+    acceptAttributeSpecifier(it->value);
   }
   acceptNestedNameSpecifier(ast->nestedNameSpecifier);
   acceptName(ast->name);
@@ -791,12 +793,12 @@ void RecursiveASTVisitor::visit(UsingEnumDeclarationAST* ast) {}
 
 void RecursiveASTVisitor::visit(NamespaceDefinitionAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) {
-    acceptAttribute(it->value);
+    acceptAttributeSpecifier(it->value);
   }
   acceptNestedNameSpecifier(ast->nestedNameSpecifier);
   acceptName(ast->name);
   for (auto it = ast->extraAttributeList; it; it = it->next) {
-    acceptAttribute(it->value);
+    acceptAttributeSpecifier(it->value);
   }
   for (auto it = ast->declarationList; it; it = it->next) {
     acceptDeclaration(it->value);
@@ -810,7 +812,7 @@ void RecursiveASTVisitor::visit(NamespaceAliasDefinitionAST* ast) {
 
 void RecursiveASTVisitor::visit(UsingDirectiveAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) {
-    acceptAttribute(it->value);
+    acceptAttributeSpecifier(it->value);
   }
   acceptNestedNameSpecifier(ast->nestedNameSpecifier);
   acceptName(ast->name);
@@ -824,7 +826,7 @@ void RecursiveASTVisitor::visit(UsingDeclarationAST* ast) {
 
 void RecursiveASTVisitor::visit(AsmDeclarationAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) {
-    acceptAttribute(it->value);
+    acceptAttributeSpecifier(it->value);
   }
 }
 
@@ -841,7 +843,7 @@ void RecursiveASTVisitor::visit(ExportCompoundDeclarationAST* ast) {
 void RecursiveASTVisitor::visit(ModuleImportDeclarationAST* ast) {
   acceptImportName(ast->importName);
   for (auto it = ast->attributeList; it; it = it->next) {
-    acceptAttribute(it->value);
+    acceptAttributeSpecifier(it->value);
   }
 }
 
@@ -879,7 +881,7 @@ void RecursiveASTVisitor::visit(ExplicitInstantiationAST* ast) {
 
 void RecursiveASTVisitor::visit(ParameterDeclarationAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) {
-    acceptAttribute(it->value);
+    acceptAttributeSpecifier(it->value);
   }
   for (auto it = ast->typeSpecifierList; it; it = it->next) {
     acceptSpecifier(it->value);
@@ -972,7 +974,7 @@ void RecursiveASTVisitor::visit(UnderlyingTypeSpecifierAST* ast) {}
 
 void RecursiveASTVisitor::visit(ElaboratedTypeSpecifierAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) {
-    acceptAttribute(it->value);
+    acceptAttributeSpecifier(it->value);
   }
   acceptNestedNameSpecifier(ast->nestedNameSpecifier);
   acceptName(ast->name);
@@ -997,7 +999,7 @@ void RecursiveASTVisitor::visit(RestrictQualifierAST* ast) {}
 
 void RecursiveASTVisitor::visit(EnumSpecifierAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) {
-    acceptAttribute(it->value);
+    acceptAttributeSpecifier(it->value);
   }
   acceptNestedNameSpecifier(ast->nestedNameSpecifier);
   acceptName(ast->name);
@@ -1009,7 +1011,7 @@ void RecursiveASTVisitor::visit(EnumSpecifierAST* ast) {
 
 void RecursiveASTVisitor::visit(ClassSpecifierAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) {
-    acceptAttribute(it->value);
+    acceptAttributeSpecifier(it->value);
   }
   acceptName(ast->name);
   acceptBaseClause(ast->baseClause);
@@ -1026,7 +1028,7 @@ void RecursiveASTVisitor::visit(TypenameSpecifierAST* ast) {
 void RecursiveASTVisitor::visit(IdDeclaratorAST* ast) {
   acceptName(ast->name);
   for (auto it = ast->attributeList; it; it = it->next) {
-    acceptAttribute(it->value);
+    acceptAttributeSpecifier(it->value);
   }
 }
 
@@ -1036,7 +1038,7 @@ void RecursiveASTVisitor::visit(NestedDeclaratorAST* ast) {
 
 void RecursiveASTVisitor::visit(PointerOperatorAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) {
-    acceptAttribute(it->value);
+    acceptAttributeSpecifier(it->value);
   }
   for (auto it = ast->cvQualifierList; it; it = it->next) {
     acceptSpecifier(it->value);
@@ -1045,14 +1047,14 @@ void RecursiveASTVisitor::visit(PointerOperatorAST* ast) {
 
 void RecursiveASTVisitor::visit(ReferenceOperatorAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) {
-    acceptAttribute(it->value);
+    acceptAttributeSpecifier(it->value);
   }
 }
 
 void RecursiveASTVisitor::visit(PtrToMemberOperatorAST* ast) {
   acceptNestedNameSpecifier(ast->nestedNameSpecifier);
   for (auto it = ast->attributeList; it; it = it->next) {
-    acceptAttribute(it->value);
+    acceptAttributeSpecifier(it->value);
   }
   for (auto it = ast->cvQualifierList; it; it = it->next) {
     acceptSpecifier(it->value);
@@ -1067,7 +1069,7 @@ void RecursiveASTVisitor::visit(FunctionDeclaratorAST* ast) {
 void RecursiveASTVisitor::visit(ArrayDeclaratorAST* ast) {
   acceptExpression(ast->expression);
   for (auto it = ast->attributeList; it; it = it->next) {
-    acceptAttribute(it->value);
+    acceptAttributeSpecifier(it->value);
   }
 }
 

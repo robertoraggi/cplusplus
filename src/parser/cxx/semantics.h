@@ -153,7 +153,7 @@ class Semantics final : ASTVisitor {
 
   void exceptionDeclaration(ExceptionDeclarationAST* ast);
   void compoundStatement(CompoundStatementAST* ast);
-  void attribute(AttributeAST* ast);
+  void attribute(AttributeSpecifierAST* ast);
   void ptrOperator(PtrOperatorAST* ast);
   void coreDeclarator(CoreDeclaratorAST* ast);
   void declaratorModifiers(List<DeclaratorModifierAST*>* ast);
