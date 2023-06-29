@@ -14,6 +14,11 @@
     "vscode": {
       "extensions": ["ms-vscode.cpptools", "ms-vscode.cmake-tools"],
       "settings": {
+        "cmake.configureArgs": [
+          "-DCMAKE_TOOLCHAIN_FILE=/emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
+          "-DFLATBUFFERS_FLATC_EXECUTABLE=/usr/bin/flatc",
+          "-DKWGEN_EXECUTABLE=/usr/bin/kwgen"
+        ],
         "cmake.buildDirectory": "${workspaceFolder}/build.em",
         "C_Cpp.default.compilerPath": "/emsdk/upstream/emscripten/emcc",
         "C_Cpp.default.cStandard": "c17",
