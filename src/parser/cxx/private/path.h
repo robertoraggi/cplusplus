@@ -30,6 +30,7 @@ namespace cxx::fs {
 using path = std::filesystem::path;
 
 using std::filesystem::current_path;
+using std::filesystem::exists;
 
 }  // namespace cxx::fs
 
