@@ -10,6 +10,8 @@
 
   "remoteUser": "emscripten",
 
+  "postCreateCommand": "sudo g++ tools/kwgen/kwgen.cc -o /usr/bin/kwgen -std=c++20",
+
   "customizations": {
     "vscode": {
       "extensions": ["ms-vscode.cpptools", "ms-vscode.cmake-tools"],
