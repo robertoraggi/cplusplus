@@ -12,11 +12,21 @@
 
   "customizations": {
     "vscode": {
-      "extensions": [
-        "ms-vscode.cpptools",
-        "ms-vscode.cmake-tools",
-        "ms-azuretools.vscode-docker"
-      ]
+      "extensions": ["ms-vscode.cpptools", "ms-vscode.cmake-tools"],
+      "settings": {
+        "cmake.buildDirectory": "${workspaceFolder}/build.em",
+        "C_Cpp.default.compilerPath": "/emsdk/upstream/emscripten/emcc",
+        "C_Cpp.default.cStandard": "c17",
+        "C_Cpp.default.cppStandard": "c++20",
+        "C_Cpp.default.defines": ["__EMSCRIPTEN__=1"],
+        "C_Cpp.default.systemIncludePath": [
+          "/emsdk/upstream/emscripten/cache/sysroot/include/fakesdl",
+          "/emsdk/upstream/emscripten/cache/sysroot/include/compat",
+          "/emsdk/upstream/emscripten/cache/sysroot/include/c++/v1",
+          "/emsdk/upstream/lib/clang/17/include",
+          "/emsdk/upstream/emscripten/cache/sysroot/include"
+        ]
+      }
     }
   }
 }
