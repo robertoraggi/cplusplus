@@ -530,7 +530,7 @@ struct Preprocessor::Private {
              it != rend(d->systemIncludePaths_); ++it) {
           const auto p = fs::path(*it);
           auto path = p / include.fileName;
-          if (exists(path)) {
+          if (fs::exists(path)) {
             if (!next || hit) return path;
             hit = true;
           }
@@ -542,7 +542,7 @@ struct Preprocessor::Private {
           -> std::optional<fs::path> {
         bool hit = false;
 
-        if (exists(d->currentPath_ / include.fileName)) {
+        if (fs::exists(d->currentPath_ / include.fileName)) {
           if (!next) return d->currentPath_ / include.fileName;
           hit = true;
         }
@@ -551,7 +551,7 @@ struct Preprocessor::Private {
              it != rend(d->quoteIncludePaths_); ++it) {
           auto p = fs::path(*it);
           auto path = p / include.fileName;
-          if (exists(path)) {
+          if (fs::exists(path)) {
             if (!next || hit) return path;
             hit = true;
           }
@@ -561,7 +561,7 @@ struct Preprocessor::Private {
              it != rend(d->systemIncludePaths_); ++it) {
           auto p = fs::path(*it);
           auto path = p / include.fileName;
-          if (exists(path)) {
+          if (fs::exists(path)) {
             if (!next || hit) return path;
             hit = true;
           }
