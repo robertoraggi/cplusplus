@@ -33,7 +33,6 @@
 namespace cxx {
 
 class TranslationUnit;
-class Semantics;
 
 class Parser final {
  public:
@@ -477,7 +476,6 @@ class Parser final {
   Control* control = nullptr;
   SymbolFactory* symbols = nullptr;
   TypeEnvironment* types = nullptr;
-  std::unique_ptr<Semantics> sem;
   bool skipFunctionBody_ = false;
   bool checkTypes_ = false;
 
