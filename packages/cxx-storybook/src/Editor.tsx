@@ -1,31 +1,42 @@
-import { FC, useState } from "react";
+import { FC, useEffect, useRef, useState } from "react";
 import * as monaco from "monaco-editor";
 
-export const Editor: FC = ({}) => {
+interface EditorProps {
+  value?: string;
+}
+
+export const Editor: FC<EditorProps> = ({ value }) => {
+  const editorRef = useRef<HTMLDivElement>(null);
+
   const [editor, setEditor] =
     useState<monaco.editor.IStandaloneCodeEditor | null>(null);
 
-  const setup = (domElement: HTMLDivElement) => {
+  useEffect(() => {
+    editor?.setValue(value ?? "");
+  }, [editor, value]);
+
+  useEffect(() => {
+    const domElement = editorRef.current;
+
     if (!domElement) {
-      editor?.dispose();
       return;
     }
 
-    setEditor((editor) => {
-      if (!editor) {
-        editor = monaco.editor.create(domElement, {
-          automaticLayout: true,
-          minimap: {
-            enabled: false,
-          },
-          language: "cpp",
-          value: ["int main() {", "\treturn 0;", "}"].join("\n"),
-        });
-      }
-
-      return editor;
+    const editor = monaco.editor.create(domElement, {
+      automaticLayout: true,
+      minimap: {
+        enabled: false,
+      },
+      language: "cpp",
+      value: "",
     });
-  };
 
-  return <div ref={setup} style={{ height: "100%" }} />;
+    setEditor(editor);
+
+    return () => {
+      editor.dispose();
+    };
+  }, [editorRef]);
+
+  return <div ref={editorRef} style={{ height: "100%", minHeight: "200px" }} />;
 };
