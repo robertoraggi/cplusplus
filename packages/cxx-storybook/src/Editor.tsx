@@ -3,31 +3,30 @@ import { basicSetup } from "codemirror";
 import { cpp } from "@codemirror/lang-cpp";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { linter, Diagnostic } from "@codemirror/lint";
 import * as cxx from "cxx-frontend";
 
 interface EditorProps {
   initialValue?: string;
   didChangeCursorPosition?: (lineNumber: number, column: number) => void;
-  didChangeValue?: (value: string) => void;
   didParse?: (parser: cxx.Parser) => void;
 }
 
 export const Editor: FC<EditorProps> = ({
   initialValue: value,
   didChangeCursorPosition,
-  didChangeValue,
   didParse,
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const didChangeCursorPositionRef = useRef(didChangeCursorPosition);
-  const didChangeValueRef = useRef(didChangeValue);
   const didParseRef = useRef(didParse);
 
   didChangeCursorPositionRef.current = didChangeCursorPosition;
-  didChangeValueRef.current = didChangeValue;
   didParseRef.current = didParse;
 
   const [editor, setEditor] = useState<EditorView | null>(null);
+
+  const parserIsReady = useRef(false);
 
   const [cxxPromise] = useState(() => {
     const setup = async () => {
@@ -35,6 +34,7 @@ export const Editor: FC<EditorProps> = ({
       const data = await response.arrayBuffer();
       const wasmBinary = new Uint8Array(data);
       await cxx.Parser.init({ wasmBinary });
+      parserIsReady.current = true;
     };
     return setup();
   });
@@ -54,6 +54,41 @@ export const Editor: FC<EditorProps> = ({
       return;
     }
 
+    const syntaxChecker = linter((view) => {
+      if (!parserIsReady.current) {
+        // if cxxPromise is not resolved yet, we can't do anything
+        return [];
+      }
+
+      const source = view.state.doc.toString();
+
+      const parser = new cxx.Parser({
+        path: "main.cc",
+        source,
+      });
+
+      parser.parse();
+
+      didParseRef.current?.(parser);
+
+      const diagnostics: Diagnostic[] = [];
+
+      for (const diagnostic of parser.getDiagnostics()) {
+        const { startLine, startColumn, endLine, endColumn, message } =
+          diagnostic;
+        diagnostics.push({
+          severity: "error",
+          from: view.state.doc.line(startLine).from + startColumn - 1,
+          to: view.state.doc.line(endLine).from + endColumn - 1,
+          message,
+        });
+      }
+
+      parser.dispose();
+
+      return diagnostics;
+    });
+
     const updateListener = EditorView.updateListener.of((update) => {
       if (update.selectionSet && didChangeCursorPositionRef.current) {
         const sel = update.state.selection.main;
@@ -61,38 +96,11 @@ export const Editor: FC<EditorProps> = ({
         const column = sel.from - line.from;
         didChangeCursorPositionRef.current?.(line.number, column);
       }
-
-      if (
-        update.docChanged &&
-        (didChangeValueRef.current || didParseRef.current)
-      ) {
-        const value = update.state.doc.toString();
-
-        didChangeValueRef.current?.(value);
-
-        // ### TODO: delay
-        const checkSyntax = async () => {
-          await cxxPromise;
-
-          const parser = new cxx.Parser({
-            source: value,
-            path: "main.cc",
-          });
-
-          parser.parse();
-
-          didParseRef.current?.(parser);
-
-          parser.dispose();
-        };
-
-        checkSyntax();
-      }
     });
 
     const startState = EditorState.create({
       doc: "",
-      extensions: [basicSetup, cpp(), updateListener],
+      extensions: [basicSetup, cpp(), updateListener, syntaxChecker],
     });
 
     const editor = new EditorView({

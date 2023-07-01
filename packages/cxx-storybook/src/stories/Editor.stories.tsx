@@ -22,9 +22,5 @@ export const SyntaxChecker: Story = {
       "  return 0;",
       "}",
     ].join("\n"),
-
-    didParse: (parser) => {
-      console.table(parser.getDiagnostics());
-    },
   },
 };
