@@ -13,7 +13,7 @@ interface EditorProps {
 }
 
 export const Editor: FC<EditorProps> = ({
-  initialValue: value,
+  initialValue,
   didChangeCursorPosition,
   didParse,
 }) => {
@@ -43,9 +43,9 @@ export const Editor: FC<EditorProps> = ({
     if (!editor) return;
 
     editor.dispatch({
-      changes: { from: 0, to: editor.state.doc.length, insert: value },
+      changes: { from: 0, to: editor.state.doc.length, insert: initialValue },
     });
-  }, [editor, value]);
+  }, [editor, initialValue]);
 
   useEffect(() => {
     const domElement = editorRef.current;
@@ -54,40 +54,54 @@ export const Editor: FC<EditorProps> = ({
       return;
     }
 
-    const syntaxChecker = linter((view) => {
-      if (!parserIsReady.current) {
-        // if cxxPromise is not resolved yet, we can't do anything
-        return [];
-      }
+    const syntaxChecker = linter(
+      (view) => {
+        if (!parserIsReady.current) {
+          // if cxxPromise is not resolved yet, we can't do anything
+          return [];
+        }
 
-      const source = view.state.doc.toString();
+        const source = view.state.doc.toString();
 
-      const parser = new cxx.Parser({
-        path: "main.cc",
-        source,
-      });
-
-      parser.parse();
-
-      didParseRef.current?.(parser);
-
-      const diagnostics: Diagnostic[] = [];
-
-      for (const diagnostic of parser.getDiagnostics()) {
-        const { startLine, startColumn, endLine, endColumn, message } =
-          diagnostic;
-        diagnostics.push({
-          severity: "error",
-          from: view.state.doc.line(startLine).from + startColumn - 1,
-          to: view.state.doc.line(endLine).from + endColumn - 1,
-          message,
+        const parser = new cxx.Parser({
+          path: "main.cc",
+          source,
         });
+
+        parser.parse();
+
+        didParseRef.current?.(parser);
+
+        const diagnostics: Diagnostic[] = [];
+
+        for (const diagnostic of parser.getDiagnostics()) {
+          const { startLine, startColumn, endLine, endColumn, message } =
+            diagnostic;
+
+          const from =
+            view.state.doc.line(startLine).from + Math.max(startColumn - 1, 0);
+
+          const to =
+            view.state.doc.line(endLine).from + Math.max(endColumn - 1, 0);
+
+          diagnostics.push({
+            severity: "error",
+            from,
+            to,
+            message,
+          });
+        }
+
+        parser.dispose();
+
+        return diagnostics;
+      },
+      {
+        needsRefresh: () => {
+          return !parserIsReady.current;
+        },
       }
-
-      parser.dispose();
-
-      return diagnostics;
-    });
+    );
 
     const updateListener = EditorView.updateListener.of((update) => {
       if (update.selectionSet && didChangeCursorPositionRef.current) {
