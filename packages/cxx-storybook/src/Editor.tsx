@@ -1,5 +1,9 @@
 import { FC, useEffect, useRef, useState } from "react";
-import * as monaco from "monaco-editor";
+import { EditorState } from "@codemirror/state";
+import { EditorView, keymap } from "@codemirror/view";
+import { defaultKeymap } from "@codemirror/commands";
+import { cpp } from "@codemirror/lang-cpp";
+import { basicSetup } from "codemirror";
 
 interface EditorProps {
   value?: string;
@@ -8,11 +12,14 @@ interface EditorProps {
 export const Editor: FC<EditorProps> = ({ value }) => {
   const editorRef = useRef<HTMLDivElement>(null);
 
-  const [editor, setEditor] =
-    useState<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const [editor, setEditor] = useState<EditorView | null>(null);
 
   useEffect(() => {
-    editor?.setValue(value ?? "");
+    if (!editor) return;
+
+    editor.dispatch({
+      changes: { from: 0, to: editor.state.doc.length, insert: value },
+    });
   }, [editor, value]);
 
   useEffect(() => {
@@ -22,21 +29,22 @@ export const Editor: FC<EditorProps> = ({ value }) => {
       return;
     }
 
-    const editor = monaco.editor.create(domElement, {
-      automaticLayout: true,
-      minimap: {
-        enabled: false,
-      },
-      language: "cpp",
-      value: "",
+    const startState = EditorState.create({
+      doc: "Hello World",
+      extensions: [basicSetup, cpp()],
+    });
+
+    const editor = new EditorView({
+      state: startState,
+      parent: domElement,
     });
 
     setEditor(editor);
 
     return () => {
-      editor.dispose();
+      editor.destroy();
     };
   }, [editorRef]);
 
-  return <div ref={editorRef} style={{ height: "100%", minHeight: "200px" }} />;
+  return <div ref={editorRef} />;
 };
