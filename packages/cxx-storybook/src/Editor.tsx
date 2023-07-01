@@ -1,9 +1,8 @@
 import { FC, useEffect, useRef, useState } from "react";
-import { EditorState } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
-import { defaultKeymap } from "@codemirror/commands";
-import { cpp } from "@codemirror/lang-cpp";
 import { basicSetup } from "codemirror";
+import { cpp } from "@codemirror/lang-cpp";
+import { EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 
 interface EditorProps {
   value?: string;
@@ -30,7 +29,7 @@ export const Editor: FC<EditorProps> = ({ value }) => {
     }
 
     const startState = EditorState.create({
-      doc: "Hello World",
+      doc: "",
       extensions: [basicSetup, cpp()],
     });
 
