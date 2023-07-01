@@ -5,11 +5,22 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 
 interface EditorProps {
-  value?: string;
+  initialValue?: string;
+  didChangeCursorPosition?: (lineNumber: number, column: number) => void;
+  didChangeValue?: (value: string) => void;
 }
 
-export const Editor: FC<EditorProps> = ({ value }) => {
+export const Editor: FC<EditorProps> = ({
+  initialValue: value,
+  didChangeCursorPosition,
+  didChangeValue,
+}) => {
   const editorRef = useRef<HTMLDivElement>(null);
+  const didChangeCursorPositionRef = useRef(didChangeCursorPosition);
+  const didChangeValueRef = useRef(didChangeValue);
+
+  didChangeCursorPositionRef.current = didChangeCursorPosition;
+  didChangeValueRef.current = didChangeValue;
 
   const [editor, setEditor] = useState<EditorView | null>(null);
 
@@ -28,9 +39,24 @@ export const Editor: FC<EditorProps> = ({ value }) => {
       return;
     }
 
+    const updateListener = EditorView.updateListener.of((update) => {
+      if (update.selectionSet && didChangeCursorPositionRef.current) {
+        const sel = update.state.selection.main;
+        const line = update.state.doc.lineAt(sel.to);
+        const column = sel.from - line.from;
+        console.log(`selection set: ${line.number}, ${column}`);
+        didChangeCursorPositionRef.current?.(line.number, column);
+      }
+
+      if (update.docChanged && didChangeValueRef.current) {
+        const value = update.state.doc.toString();
+        didChangeValueRef.current(value);
+      }
+    });
+
     const startState = EditorState.create({
       doc: "",
-      extensions: [basicSetup, cpp()],
+      extensions: [basicSetup, cpp(), updateListener],
     });
 
     const editor = new EditorView({
