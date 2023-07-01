@@ -12,7 +12,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Primary: Story = {
+export const SyntaxChecker: Story = {
   args: {
     initialValue: [
       "#include <iostream>",
@@ -22,5 +22,9 @@ export const Primary: Story = {
       "  return 0;",
       "}",
     ].join("\n"),
+
+    didParse: (parser) => {
+      console.table(parser.getDiagnostics());
+    },
   },
 };

@@ -3,26 +3,41 @@ import { basicSetup } from "codemirror";
 import { cpp } from "@codemirror/lang-cpp";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import * as cxx from "cxx-frontend";
 
 interface EditorProps {
   initialValue?: string;
   didChangeCursorPosition?: (lineNumber: number, column: number) => void;
   didChangeValue?: (value: string) => void;
+  didParse?: (parser: cxx.Parser) => void;
 }
 
 export const Editor: FC<EditorProps> = ({
   initialValue: value,
   didChangeCursorPosition,
   didChangeValue,
+  didParse,
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const didChangeCursorPositionRef = useRef(didChangeCursorPosition);
   const didChangeValueRef = useRef(didChangeValue);
+  const didParseRef = useRef(didParse);
 
   didChangeCursorPositionRef.current = didChangeCursorPosition;
   didChangeValueRef.current = didChangeValue;
+  didParseRef.current = didParse;
 
   const [editor, setEditor] = useState<EditorView | null>(null);
+
+  const [cxxPromise] = useState(() => {
+    const setup = async () => {
+      const response = await fetch(cxx.Parser.DEFAULT_WASM_BINARY_URL);
+      const data = await response.arrayBuffer();
+      const wasmBinary = new Uint8Array(data);
+      await cxx.Parser.init({ wasmBinary });
+    };
+    return setup();
+  });
 
   useEffect(() => {
     if (!editor) return;
@@ -44,13 +59,34 @@ export const Editor: FC<EditorProps> = ({
         const sel = update.state.selection.main;
         const line = update.state.doc.lineAt(sel.to);
         const column = sel.from - line.from;
-        console.log(`selection set: ${line.number}, ${column}`);
         didChangeCursorPositionRef.current?.(line.number, column);
       }
 
-      if (update.docChanged && didChangeValueRef.current) {
+      if (
+        update.docChanged &&
+        (didChangeValueRef.current || didParseRef.current)
+      ) {
         const value = update.state.doc.toString();
-        didChangeValueRef.current(value);
+
+        didChangeValueRef.current?.(value);
+
+        // ### TODO: delay
+        const checkSyntax = async () => {
+          await cxxPromise;
+
+          const parser = new cxx.Parser({
+            source: value,
+            path: "main.cc",
+          });
+
+          parser.parse();
+
+          didParseRef.current?.(parser);
+
+          parser.dispose();
+        };
+
+        checkSyntax();
       }
     });
 
@@ -69,7 +105,7 @@ export const Editor: FC<EditorProps> = ({
     return () => {
       editor.destroy();
     };
-  }, [editorRef]);
+  }, [editorRef, cxxPromise]);
 
   return <div ref={editorRef} />;
 };
