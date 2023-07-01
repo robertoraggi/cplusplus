@@ -148,25 +148,36 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v3
+
       - name: Build
         working-directory: packages/cxx-storybook
         run: |
           npm ci
           npm run build-storybook
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: storybook
-          path: packages/cxx-storybook/storybook-static
-          retention-days: 1
-
-      - name: Configure GitHub Pages
-        if: github.repository == 'robertoraggi/cplusplus' && github.ref == 'refs/heads/main'
-        uses: actions/configure-pages@v3
-
       - name: Upload GitHub Pages artifact
-        if: github.repository == 'robertoraggi/cplusplus' && github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@v1
         with:
           path: packages/cxx-storybook/storybook-static
+
+  deploy-storybook:
+    name: Deploy Storybook
+    if: github.repository == 'robertoraggi/cplusplus' && github.ref == 'refs/heads/main'
+
+    needs: build-storybook
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
