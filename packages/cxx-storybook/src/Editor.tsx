@@ -45,6 +45,13 @@ export interface EditorProps {
   initialValue?: string;
 
   /**
+   * Whether the Editor owns the syntax tree.
+   *
+   * @default true
+   */
+  editorWillDisposeSyntaxTree?: boolean;
+
+  /**
    * Called when the cursor position changes.
    *
    * @param lineNumber 1-based line number
@@ -58,20 +65,13 @@ export interface EditorProps {
    * @param parser the Parser
    */
   onSyntaxChanged?: (parser: cxx.Parser) => void;
-
-  /**
-   * Whether the Editor owns the syntax tree.
-   *
-   * @default true
-   */
-  editorWillDisposeSyntaxTree?: boolean;
 }
 
 export const Editor: FC<EditorProps> = ({
   initialValue,
+  editorWillDisposeSyntaxTree = true,
   onCursorPositionChanged,
   onSyntaxChanged,
-  editorWillDisposeSyntaxTree = true,
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
 

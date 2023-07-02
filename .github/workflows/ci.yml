@@ -69,6 +69,14 @@ jobs:
         run: |
           node dump.mjs
 
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: cxx-frontend-dist
+          path: |
+            packages/cxx-frontend/dist/
+          retention-days: 1
+
   build-macos:
     runs-on: macos-12
 
@@ -147,6 +155,11 @@ jobs:
     needs: build-emscripten
     steps:
       - uses: actions/checkout@v3
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: cxx-frontend-dist
+          path: packages/cxx-frontend/dist
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v3
