@@ -24,7 +24,7 @@ mkdir -p $HOME/.emscripten-cache
 
 docker build -t cxx-emsdk -f $project_root/Dockerfile.emsdk ${project_root}
 
-docker run -t --rm -u emscripten -v $HOME/.emscripten-cache:/emsdk/upstream/emscripten/cache/ cxx-emsdk embuilder.py build MINIMAL --lto=thin
+docker run -t --rm -u $(id -u) -v $HOME/.emscripten-cache:/emsdk/upstream/emscripten/cache/ cxx-emsdk embuilder.py build MINIMAL --lto=thin
 
 DOCKER_EXTRA_OPTS="--rm -t -v $HOME/.emscripten-cache:/emsdk/upstream/emscripten/cache/ -v ${project_root}:/code -w /code -u $(id -u) cxx-emsdk"
 
