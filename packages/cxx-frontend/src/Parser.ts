@@ -44,6 +44,16 @@ export class Parser {
         return await initCxx({ wasmBinary });
     }
 
+    static async initFromURL(url: URL) {
+        const response = await fetch(url);
+        const wasmBinary = await response.arrayBuffer();
+        return await Parser.init({ wasmBinary: new Uint8Array(wasmBinary) });
+    }
+
+    static isInitialized(): boolean {
+        return cxx !== undefined && cxx !== null;
+    }
+
     constructor(options: ParseParams) {
         const { path, source } = options;
 
