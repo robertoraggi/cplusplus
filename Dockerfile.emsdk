@@ -13,6 +13,3 @@ RUN wget https://github.com/google/flatbuffers/releases/download/v23.5.26/Linux.
     unzip Linux.flatc.binary.g++-10.zip && \
     mv flatc /usr/bin/flatc && \
     rm Linux.flatc.binary.g++-10.zip
-
-RUN embuilder.py build MINIMAL --lto=thin
-

@@ -28,15 +28,23 @@ import * as cxx from "cxx-frontend";
 import wasmBinaryUrl from "cxx-frontend/dist/cxx-js.wasm?url";
 import "./Editor.css";
 
+let setupCxxPromise: Promise<any> | undefined;
+
 const setupCxxFrontend = async () => {
-  console.log("Setting up cxx-frontend");
+  if (setupCxxPromise) {
+    return;
+  }
+
   const response = await fetch(wasmBinaryUrl);
   const data = await response.arrayBuffer();
   const wasmBinary = new Uint8Array(data);
-  return await cxx.Parser.init({ wasmBinary });
+
+  setupCxxPromise = cxx.Parser.init({ wasmBinary });
+
+  return await setupCxxPromise;
 };
 
-await setupCxxFrontend();
+setupCxxFrontend().catch(console.error);
 
 export interface EditorProps {
   /**
