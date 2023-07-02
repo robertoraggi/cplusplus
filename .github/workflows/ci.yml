@@ -57,6 +57,14 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Setup emscripten cache
+        uses: actions/cache@v2
+        with:
+          path: ~/.emscripten-cache
+          key: ${{ runner.os }}-emscripten
+          restore-keys: |
+            ${{ runner.os }}-emscripten
+
       - name: Build
         working-directory: packages/cxx-frontend
         run: |
@@ -68,6 +76,14 @@ jobs:
         working-directory: packages/cxx-frontend/examples
         run: |
           node dump.mjs
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: cxx-frontend-dist
+          path: |
+            packages/cxx-frontend/dist/
+          retention-days: 1
 
   build-macos:
     runs-on: macos-12
@@ -147,6 +163,11 @@ jobs:
     needs: build-emscripten
     steps:
       - uses: actions/checkout@v3
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: cxx-frontend-dist
+          path: packages/cxx-frontend/dist
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v3
