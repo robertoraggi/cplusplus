@@ -21,6 +21,7 @@
 #include <cxx/ast.h>
 #include <cxx/ast_slot.h>
 #include <cxx/control.h>
+#include <cxx/lexer.h>
 #include <cxx/preprocessor.h>
 #include <cxx/source_location.h>
 #include <cxx/translation_unit.h>
@@ -29,6 +30,10 @@
 #include <emscripten/val.h>
 
 using namespace emscripten;
+
+namespace {
+
+cxx::ASTSlot getSlot;
 
 struct DiagnosticsClient final : cxx::DiagnosticsClient {
   val messages = val::array();
@@ -83,19 +88,19 @@ struct WrappedUnit {
   bool parse() { return unit->parse(); }
 };
 
-static std::string getTokenText(intptr_t handle, intptr_t unitHandle) {
+std::string getTokenText(intptr_t handle, intptr_t unitHandle) {
   auto unit = reinterpret_cast<cxx::TranslationUnit*>(unitHandle);
   auto text = unit->tokenText(cxx::SourceLocation(handle));
   return text;
 }
 
-static int getTokenKind(intptr_t handle, intptr_t unitHandle) {
+int getTokenKind(intptr_t handle, intptr_t unitHandle) {
   auto unit = reinterpret_cast<cxx::TranslationUnit*>(unitHandle);
   auto kind = unit->tokenKind(cxx::SourceLocation(handle));
   return static_cast<int>(kind);
 }
 
-static val getTokenLocation(intptr_t handle, intptr_t unitHandle) {
+val getTokenLocation(intptr_t handle, intptr_t unitHandle) {
   auto unit = reinterpret_cast<cxx::TranslationUnit*>(unitHandle);
 
   cxx::SourceLocation loc(handle);
@@ -118,60 +123,91 @@ static val getTokenLocation(intptr_t handle, intptr_t unitHandle) {
   return result;
 }
 
-static val getStartLocation(intptr_t handle, intptr_t unitHandle) {
+val getStartLocation(intptr_t handle, intptr_t unitHandle) {
   auto ast = (cxx::AST*)handle;
   return getTokenLocation(ast->firstSourceLocation().index(), unitHandle);
 }
 
-static val getEndLocation(intptr_t handle, intptr_t unitHandle) {
+val getEndLocation(intptr_t handle, intptr_t unitHandle) {
   auto ast = (cxx::AST*)handle;
   return getTokenLocation(ast->lastSourceLocation().previous().index(),
                           unitHandle);
 }
 
-static int getASTKind(intptr_t handle) {
+int getASTKind(intptr_t handle) {
   return static_cast<int>(((cxx::AST*)handle)->kind());
 }
 
-static int getListValue(intptr_t handle) {
+int getListValue(intptr_t handle) {
   auto list = reinterpret_cast<cxx::List<cxx::AST*>*>(handle);
   return intptr_t(list->value);
 }
 
-static intptr_t getListNext(intptr_t handle) {
+intptr_t getListNext(intptr_t handle) {
   auto list = reinterpret_cast<cxx::List<cxx::AST*>*>(handle);
   return intptr_t(list->next);
 }
 
-namespace {
-cxx::ASTSlot getSlot;
-}
-
-static intptr_t getASTSlot(intptr_t handle, int slot) {
+intptr_t getASTSlot(intptr_t handle, int slot) {
   auto ast = reinterpret_cast<cxx::AST*>(handle);
   auto [value, slotKind, slotCount] = getSlot(ast, slot);
   return value;
 }
 
-static int getASTSlotKind(intptr_t handle, int slot) {
+int getASTSlotKind(intptr_t handle, int slot) {
   auto ast = reinterpret_cast<cxx::AST*>(handle);
   auto [value, slotKind, slotCount] = getSlot(ast, slot);
   return static_cast<int>(slotKind);
 }
 
-static int getASTSlotCount(intptr_t handle, int slot) {
+int getASTSlotCount(intptr_t handle, int slot) {
   auto ast = reinterpret_cast<cxx::AST*>(handle);
   auto [value, slotKind, slotCount] = getSlot(ast, slot);
   return static_cast<int>(slotCount);
 }
 
-static WrappedUnit* createUnit(std::string source, std::string filename) {
+WrappedUnit* createUnit(std::string source, std::string filename) {
   auto wrapped = new WrappedUnit(std::move(source), std::move(filename));
 
   return wrapped;
 }
 
+auto lexerTokenKind(cxx::Lexer& lexer) -> int {
+  return static_cast<int>(lexer.tokenKind());
+}
+
+auto lexerTokenText(cxx::Lexer& lexer) -> std::string {
+  return std::string(lexer.tokenText());
+}
+
+auto lexerNext(cxx::Lexer& lexer) -> int {
+  return static_cast<int>(lexer.next());
+}
+
+auto register_lexer(const char* name = "Lexer") -> class_<cxx::Lexer> {
+  return class_<cxx::Lexer>(name)
+      .constructor<std::string>()
+
+      .property("preprocessing", &cxx::Lexer::preprocessing,
+                &cxx::Lexer::setPreprocessing)
+
+      .property("keepComments", &cxx::Lexer::keepComments,
+                &cxx::Lexer::setKeepComments)
+
+      .function("tokenKind", &lexerTokenKind)
+      .function("tokenAtStartOfLine", &cxx::Lexer::tokenStartOfLine)
+      .function("tokenHasLeadingSpace", &cxx::Lexer::tokenLeadingSpace)
+      .function("tokenOffset", &cxx::Lexer::tokenPos)
+      .function("tokenLength", &cxx::Lexer::tokenLength)
+      .function("tokenText", &lexerTokenText)
+      .function("next", &lexerNext);
+}
+
+}  // namespace
+
 EMSCRIPTEN_BINDINGS(my_module) {
+  register_lexer();
+
   class_<WrappedUnit>("Unit")
       .function("parse", &WrappedUnit::parse)
       .function("getHandle", &WrappedUnit::getHandle)

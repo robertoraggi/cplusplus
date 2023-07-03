@@ -96,8 +96,16 @@ inline void advance(It& it, int n, It end) {
 
 }  // namespace
 
-Lexer::Lexer(const std::string_view& source)
+Lexer::Lexer(std::string_view source)
     : source_(source), pos_(cbegin(source_)), end_(cend(source_)) {
+  currentChar_ = pos_ < end_ ? peekNext(pos_, end_) : 0;
+}
+
+Lexer::Lexer(std::string buffer)
+    : buffer_(std::move(buffer)),
+      source_(buffer_),
+      pos_(cbegin(source_)),
+      end_(cend(source_)) {
   currentChar_ = pos_ < end_ ? peekNext(pos_, end_) : 0;
 }
 
@@ -553,5 +561,7 @@ auto Lexer::skipSpaces() -> bool {
 auto Lexer::classifyKeyword(const std::string_view& text) -> TokenKind {
   return classify(text.data(), static_cast<int>(text.size()));
 }
+
+void Lexer::clearBuffer() { buffer_.clear(); }
 
 }  // namespace cxx
