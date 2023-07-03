@@ -32,7 +32,27 @@ export enum ASTSlotKind {
     NodeList,
 };
 
+interface Lexer {
+    new(source: string): Lexer;
+
+    delete(): void;
+
+    preprocessing: boolean;
+    keepComments: boolean;
+
+    next(): number;
+
+    tokenKind(): number;
+    tokenAtStartOfLine(): boolean;
+    tokenHasLeadingSpace(): boolean;
+    tokenOffset(): number;
+    tokenLength(): number;
+    tokenText(): string;
+}
+
 export interface CXX {
+    Lexer: Lexer;
+
     createUnit(source: string, path: string): Unit;
     getASTKind(handle: number): number;
     getASTSlot(handle: number, slot: number): number;

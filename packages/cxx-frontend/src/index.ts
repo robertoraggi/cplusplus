@@ -29,3 +29,5 @@ export * from "./Unit.js";
 export * from "./SourceLocation.js";
 export * from "./TokenKind.js";
 export * from "./Token.js";
+export * from "./Lexer.js";
+

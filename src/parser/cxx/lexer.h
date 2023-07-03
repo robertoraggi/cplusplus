@@ -27,33 +27,9 @@
 namespace cxx {
 
 class Lexer {
-  const std::string_view source_;
-  std::string_view::const_iterator pos_;
-  std::string_view::const_iterator end_;
-  std::string text_;
-  bool leadingSpace_ = false;
-  bool startOfLine_ = true;
-  bool keepComments_ = false;
-
-  TokenKind tokenKind_ = TokenKind::T_EOF_SYMBOL;
-  TokenValue tokenValue_{};
-  bool tokenLeadingSpace_ = false;
-  bool tokenStartOfLine_ = true;
-  bool tokenIsClean_ = true;
-  int tokenPos_ = 0;
-  uint32_t currentChar_ = 0;
-
-  bool preprocessing_ = false;
-
-  void consume();
-  void consume(int n);
-
-  [[nodiscard]] inline auto LA() const -> uint32_t { return currentChar_; }
-
-  [[nodiscard]] auto LA(int n) const -> uint32_t;
-
  public:
-  explicit Lexer(const std::string_view& source);
+  explicit Lexer(std::string_view source);
+  explicit Lexer(std::string buffer);
 
   [[nodiscard]] auto preprocessing() const -> bool { return preprocessing_; }
   void setPreprocessing(bool preprocessing) { preprocessing_ = preprocessing; }
@@ -93,6 +69,11 @@ class Lexer {
 
   [[nodiscard]] auto tokenValue() const -> TokenValue { return tokenValue_; }
 
+  [[nodiscard]] auto text() -> std::string& { return text_; }
+  [[nodiscard]] auto text() const -> const std::string& { return text_; }
+
+  static auto classifyKeyword(const std::string_view& text) -> TokenKind;
+
   struct State {
     std::string_view::const_iterator pos_;
     uint32_t currentChar_ = 0;
@@ -100,7 +81,7 @@ class Lexer {
     bool startOfLine_ = true;
   };
 
-  auto save() -> State {
+  [[nodiscard]] auto save() -> State {
     return {pos_, currentChar_, leadingSpace_, startOfLine_};
   }
 
@@ -111,16 +92,36 @@ class Lexer {
     startOfLine_ = state.startOfLine_;
   }
 
-  auto text() -> std::string& { return text_; }
-  [[nodiscard]] auto text() const -> const std::string& { return text_; }
-
-  static auto classifyKeyword(const std::string_view& text) -> TokenKind;
+  void clearBuffer();
 
  private:
-  auto readToken() -> TokenKind;
+  void consume();
+  void consume(int n);
+
+  [[nodiscard]] inline auto LA() const -> uint32_t { return currentChar_; }
+  [[nodiscard]] auto LA(int n) const -> uint32_t;
+  [[nodiscard]] auto readToken() -> TokenKind;
+  [[nodiscard]] auto skipSpaces() -> bool;
 
  private:
-  auto skipSpaces() -> bool;
+  std::string buffer_;
+  std::string_view source_;
+  std::string_view::const_iterator pos_;
+  std::string_view::const_iterator end_;
+  std::string text_;
+  bool leadingSpace_ = false;
+  bool startOfLine_ = true;
+  bool keepComments_ = false;
+
+  TokenKind tokenKind_ = TokenKind::T_EOF_SYMBOL;
+  TokenValue tokenValue_{};
+  bool tokenLeadingSpace_ = false;
+  bool tokenStartOfLine_ = true;
+  bool tokenIsClean_ = true;
+  int tokenPos_ = 0;
+  uint32_t currentChar_ = 0;
+
+  bool preprocessing_ = false;
 };
 
 }  // namespace cxx
