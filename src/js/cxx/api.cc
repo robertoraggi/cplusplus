@@ -29,6 +29,8 @@
 #include <emscripten/bind.h>
 #include <emscripten/val.h>
 
+#include <sstream>
+
 using namespace emscripten;
 
 namespace {
@@ -184,6 +186,38 @@ auto lexerNext(cxx::Lexer& lexer) -> int {
   return static_cast<int>(lexer.next());
 }
 
+auto preprocesorPreprocess(cxx::Preprocessor& preprocessor, std::string source,
+                           std::string filename) -> std::string {
+  std::ostringstream out;
+  preprocessor.preprocess(std::move(source), std::move(filename), out);
+  return out.str();
+}
+
+auto register_control(const char* name = "Control") -> class_<cxx::Control> {
+  return class_<cxx::Control>(name).constructor();
+}
+
+auto register_diagnostics_client(const char* name = "DiagnosticsClient")
+    -> class_<cxx::DiagnosticsClient> {
+  return class_<cxx::DiagnosticsClient>(name).constructor();
+}
+
+auto register_preprocessor(const char* name = "Preprocessor")
+    -> class_<cxx::Preprocessor> {
+  return class_<cxx::Preprocessor>(name)
+      .constructor<cxx::Control*, cxx::DiagnosticsClient*>()
+      .function("preprocess", &preprocesorPreprocess)
+      .function("addIncludePath",
+                &cxx::Preprocessor::addSystemIncludePath)
+      .function("defineMacro", &cxx::Preprocessor::defineMacro)
+      .function("undefineMacro", &cxx::Preprocessor::undefMacro)
+      .function("canResolveFiles", &cxx::Preprocessor::canResolveFiles)
+      .function("setCanResolveFiles", &cxx::Preprocessor::setCanResolveFiles)
+      .function("currentPath", &cxx::Preprocessor::currentPath)
+      .function("setCurrentPath", &cxx::Preprocessor::setCurrentPath)
+      ;
+}
+
 auto register_lexer(const char* name = "Lexer") -> class_<cxx::Lexer> {
   return class_<cxx::Lexer>(name)
       .constructor<std::string>()
@@ -206,6 +240,9 @@ auto register_lexer(const char* name = "Lexer") -> class_<cxx::Lexer> {
 }  // namespace
 
 EMSCRIPTEN_BINDINGS(my_module) {
+  register_control();
+  register_diagnostics_client();
+  register_preprocessor();
   register_lexer();
 
   class_<WrappedUnit>("Unit")

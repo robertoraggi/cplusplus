@@ -32,6 +32,31 @@ export enum ASTSlotKind {
     NodeList,
 };
 
+interface Control {
+    new(): Control;
+    delete(): void;
+}
+
+interface DiagnosticsClient {
+    new(): DiagnosticsClient;
+    delete(): void;
+}
+
+interface Preprocessor {
+    new(control: Control, diagnosticClient: DiagnosticsClient): Preprocessor;
+    delete(): void;
+
+    canResolveFiles(): boolean;
+    setCanResolveFiles(value: boolean): void;
+    currentPath(): string;
+    setCurrentPath(path: string): void;
+    defineMacro(name: string, value: string): void;
+    undefineMacro(name: string): void;
+    addIncludePath(path: string): void;
+
+    preprocess(source: string, fileName: string): string;
+}
+
 interface Lexer {
     new(source: string): Lexer;
 
@@ -51,6 +76,9 @@ interface Lexer {
 }
 
 export interface CXX {
+    Control: Control;
+    DiagnosticsClient: DiagnosticsClient;
+    Preprocessor: Preprocessor;
     Lexer: Lexer;
 
     createUnit(source: string, path: string): Unit;
