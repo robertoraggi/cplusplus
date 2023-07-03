@@ -20,19 +20,27 @@
 
 import { cxx } from "./cxx.js";
 import { SourceLocation } from "./SourceLocation.js";
-import { Parser } from "./Parser.js";
 import { TokenKind } from "./TokenKind.js";
 
+interface TranslationUnitLike {
+    getUnitHandle(): number;
+}
+
 export class Token {
-    constructor(private readonly handle: number, private readonly parser: Parser) {
+    #handle: number;
+    #unit: number;
+
+    constructor(handle: number, parser: TranslationUnitLike) {
+        this.#handle = handle;
+        this.#unit = parser.getUnitHandle();
     }
 
     getHandle() {
-        return this.handle;
+        return this.#handle;
     }
 
     getKind(): TokenKind {
-        return cxx.getTokenKind(this.handle, this.parser.getUnitHandle());
+        return cxx.getTokenKind(this.#handle, this.#unit);
     }
 
     is(kind: TokenKind) {
@@ -44,14 +52,14 @@ export class Token {
     }
 
     getText(): string {
-        return cxx.getTokenText(this.handle, this.parser.getUnitHandle());
+        return cxx.getTokenText(this.#handle, this.#unit);
     }
 
     getLocation(): SourceLocation {
-        return cxx.getTokenLocation(this.handle, this.parser.getUnitHandle());
+        return cxx.getTokenLocation(this.#handle, this.#unit);
     }
 
-    static from(handle: number, parser: Parser): Token | undefined {
+    static from(handle: number, parser: TranslationUnitLike): Token | undefined {
         return handle ? new Token(handle, parser) : undefined;
     }
 }

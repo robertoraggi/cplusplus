@@ -422,6 +422,20 @@ auto AttributeAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto AttributeUsingPrefixAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(usingLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(attributeNamespaceLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
+  return {};
+}
+
+auto AttributeUsingPrefixAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeNamespaceLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(usingLoc)) return loc;
+  return {};
+}
+
 auto SimpleRequirementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
@@ -2673,20 +2687,6 @@ auto ArrayDeclaratorAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rbracketLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(lbracketLoc)) return loc;
-  return {};
-}
-
-auto AttributeUsingPrefixAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(usingLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(attributeNamespaceLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
-  return {};
-}
-
-auto AttributeUsingPrefixAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(attributeNamespaceLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(usingLoc)) return loc;
   return {};
 }
 

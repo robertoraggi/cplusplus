@@ -42,8 +42,20 @@ interface DiagnosticsClient {
     delete(): void;
 }
 
+interface TranslationUnit {
+    new(control: Control, diagnosticsClient: DiagnosticsClient): TranslationUnit;
+    delete(): void;
+
+    getUnitHandle(): number;
+    setSource(source: string, path: string): void;
+    parse(checkTypes: boolean): boolean;
+    tokenCount(): number;
+    tokenAt(index: number): number;
+    getAST(): number;
+}
+
 interface Preprocessor {
-    new(control: Control, diagnosticClient: DiagnosticsClient): Preprocessor;
+    new(control: Control, diagnosticsClient: DiagnosticsClient): Preprocessor;
     delete(): void;
 
     canResolveFiles(): boolean;
@@ -80,6 +92,7 @@ export interface CXX {
     DiagnosticsClient: DiagnosticsClient;
     Preprocessor: Preprocessor;
     Lexer: Lexer;
+    TranslationUnit: TranslationUnit;
 
     createUnit(source: string, path: string): Unit;
     getASTKind(handle: number): number;

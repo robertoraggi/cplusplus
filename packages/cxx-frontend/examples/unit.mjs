@@ -1,23 +1,10 @@
-//
-// dump.mjs
-//
-
-import { Parser, AST, ASTKind } from "../dist/index.js";
+import { Parser, TokenKind, TranslationUnit, AST, ASTKind } from "../dist/index.js";
 import { readFile } from "fs/promises";
 import { fileURLToPath } from "url";
 
 const source = `
-template <typename T>
-concept CanAdd = requires(T n) {
-  n + n;
-};
-
-auto twice(CanAdd auto n) {
-  return n + n;
-}
-
 int main() {
-  return twice(2);
+  return 0;
 }
 `;
 
@@ -29,17 +16,20 @@ async function main() {
   // initialize the parser
   await Parser.init({ wasmBinary });
 
-  const parser = new Parser({ source, path: "source.cc" });
+  const translationUnit = new TranslationUnit();
 
-  parser.parse();
+  translationUnit.preprocess(source, "main.cc");
 
-  const diagnostics = parser.getDiagnostics();
+  console.log("== Tokens:");
 
-  if (diagnostics.length > 0) {
-    console.log("diagnostics", diagnostics);
+  for (const token of translationUnit.tokens()) {
+    console.log(TokenKind[token.getKind()], token.getText());
   }
 
-  const ast = parser.getAST();
+  const ast = translationUnit.parse();
+
+  console.log();
+  console.log("== AST:")
 
   ast?.walk().preVisit((node, depth) => {
     if (node instanceof AST) {
@@ -49,7 +39,7 @@ async function main() {
     }
   });
 
-  parser.dispose();
+  translationUnit.dispose();
 }
 
 main().catch(console.error);
