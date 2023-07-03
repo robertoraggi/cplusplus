@@ -23,11 +23,15 @@ import { Token } from "./Token.js";
 import { ASTSlotKind, cxx } from "./cxx.js";
 import { Parser } from "./Parser.js";
 
+interface TranslationUnitLike {
+  getUnitHandle(): number;
+}
+
 class StackEntry {
-  #parser: Parser;
+  #parser: TranslationUnitLike;
   children?: Generator<AST | Token>;
 
-  constructor(readonly owner: AST | Token, parser: Parser) {
+  constructor(readonly owner: AST | Token, parser: TranslationUnitLike) {
     this.#parser = parser;
   }
 
@@ -70,10 +74,10 @@ class StackEntry {
 }
 
 export class ASTCursor {
-  readonly #parser: Parser;
+  readonly #parser: TranslationUnitLike;
   readonly #stack: StackEntry[] = [];
 
-  constructor(readonly root: AST, parser: Parser) {
+  constructor(readonly root: AST, parser: TranslationUnitLike) {
     this.#parser = parser;
     this.#stack.push(new StackEntry(root, this.#parser));
   }

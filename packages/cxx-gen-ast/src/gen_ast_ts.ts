@@ -100,7 +100,7 @@ export function gen_ast_ts({ ast, output }: { ast: AST; output: string }) {
   });
 
   emit(
-    `const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Parser) => AST> = [`
+    `const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: TranslationUnitLike) => AST> = [`
   );
   by_bases.forEach((nodes) => {
     nodes.forEach(({ name }) => {
@@ -115,13 +115,16 @@ import { SourceLocation } from "./SourceLocation.js";
 import { ASTCursor } from "./ASTCursor.js";
 import { ASTVisitor } from "./ASTVisitor.js";
 import { ASTKind } from "./ASTKind.js";
-import { Parser } from "./Parser.js";
 import { Token } from "./Token.js";
+
+interface TranslationUnitLike {
+    getUnitHandle(): number;
+}
 
 export abstract class AST {
     constructor(private readonly handle: number,
         private readonly kind: ASTKind,
-        protected readonly parser: Parser) {
+        protected readonly parser: TranslationUnitLike) {
     }
 
     walk(): ASTCursor {
@@ -154,7 +157,7 @@ export abstract class AST {
 
     abstract accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result;
 
-    static from<T extends AST = AST>(handle: number, parser: Parser): T | undefined {
+    static from<T extends AST = AST>(handle: number, parser: TranslationUnitLike): T | undefined {
         if (handle) {
             const kind = cxx.getASTKind(handle) as ASTKind;
             const ast = new AST_CONSTRUCTORS[kind](handle, kind, parser) as T;

@@ -193,6 +193,14 @@ auto preprocesorPreprocess(cxx::Preprocessor& preprocessor, std::string source,
   return out.str();
 }
 
+auto translationUnitGetAST(cxx::TranslationUnit& unit) -> intptr_t {
+  return reinterpret_cast<intptr_t>(unit.ast());
+}
+
+auto translationUnitGetUnitHandle(cxx::TranslationUnit& unit) -> intptr_t {
+  return reinterpret_cast<intptr_t>(&unit);
+}
+
 auto register_control(const char* name = "Control") -> class_<cxx::Control> {
   return class_<cxx::Control>(name).constructor();
 }
@@ -207,15 +215,13 @@ auto register_preprocessor(const char* name = "Preprocessor")
   return class_<cxx::Preprocessor>(name)
       .constructor<cxx::Control*, cxx::DiagnosticsClient*>()
       .function("preprocess", &preprocesorPreprocess)
-      .function("addIncludePath",
-                &cxx::Preprocessor::addSystemIncludePath)
+      .function("addIncludePath", &cxx::Preprocessor::addSystemIncludePath)
       .function("defineMacro", &cxx::Preprocessor::defineMacro)
       .function("undefineMacro", &cxx::Preprocessor::undefMacro)
       .function("canResolveFiles", &cxx::Preprocessor::canResolveFiles)
       .function("setCanResolveFiles", &cxx::Preprocessor::setCanResolveFiles)
       .function("currentPath", &cxx::Preprocessor::currentPath)
-      .function("setCurrentPath", &cxx::Preprocessor::setCurrentPath)
-      ;
+      .function("setCurrentPath", &cxx::Preprocessor::setCurrentPath);
 }
 
 auto register_lexer(const char* name = "Lexer") -> class_<cxx::Lexer> {
@@ -237,6 +243,17 @@ auto register_lexer(const char* name = "Lexer") -> class_<cxx::Lexer> {
       .function("next", &lexerNext);
 }
 
+auto register_translation_unit(const char* name = "TranslationUnit")
+    -> class_<cxx::TranslationUnit> {
+  return class_<cxx::TranslationUnit>(name)
+      .constructor<cxx::Control*, cxx::DiagnosticsClient*>()
+      .function("setSource", &cxx::TranslationUnit::setSource)
+      .function("parse", &cxx::TranslationUnit::parse)
+      .function("tokenCount", &cxx::TranslationUnit::tokenCount)
+      .function("getAST", &translationUnitGetAST)
+      .function("getUnitHandle", &translationUnitGetUnitHandle);
+}
+
 }  // namespace
 
 EMSCRIPTEN_BINDINGS(my_module) {
@@ -244,6 +261,7 @@ EMSCRIPTEN_BINDINGS(my_module) {
   register_diagnostics_client();
   register_preprocessor();
   register_lexer();
+  register_translation_unit();
 
   class_<WrappedUnit>("Unit")
       .function("parse", &WrappedUnit::parse)
