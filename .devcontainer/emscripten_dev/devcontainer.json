@@ -14,7 +14,12 @@
 
   "customizations": {
     "vscode": {
-      "extensions": ["ms-vscode.cpptools", "ms-vscode.cmake-tools"],
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cmake-tools",
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint"
+      ],
       "settings": {
         "cmake.configureArgs": [
           "-DCMAKE_TOOLCHAIN_FILE=/emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",

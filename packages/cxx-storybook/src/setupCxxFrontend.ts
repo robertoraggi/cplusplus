@@ -18,42 +18,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import type { Meta, StoryObj } from "@storybook/react";
-import { Editor, EditorProps } from "../Editor";
-import { Parser } from "cxx-frontend";
+import * as cxx from "cxx-frontend";
+import wasmBinaryUrl from "cxx-frontend/dist/cxx-js.wasm?url";
 
-import "../setupCxxFrontend";
+const setupCxxFrontend = async () => {
+    const response = await fetch(wasmBinaryUrl);
+    const data = await response.arrayBuffer();
+    const wasmBinary = new Uint8Array(data);
 
-const meta = {
-  title: "Example/Editor",
-  component: Editor,
-  tags: ["autodocs"],
-  argTypes: {},
-} satisfies Meta<typeof Editor>;
-
-export default meta;
-type Story = StoryObj<typeof meta>;
-
-class SyntaxCheckerArgs implements EditorProps {
-  #lastParser?: Parser;
-
-  editorWillDisposeSyntaxTree = false;
-
-  initialValue = [
-    "#include <iostream>",
-    "",
-    "int main() {",
-    '  std::cout << "Hello, world!" << std::endl;',
-    "  return 0;",
-    "}",
-  ].join("\n");
-
-  onSyntaxChanged(parser: Parser) {
-    this.#lastParser?.dispose();
-    this.#lastParser = parser;
-  }
-}
-
-export const SyntaxChecker: Story = {
-  args: new SyntaxCheckerArgs(),
+    return await cxx.Parser.init({ wasmBinary });
 };
+
+export const promisedCxxFrontend = setupCxxFrontend()
