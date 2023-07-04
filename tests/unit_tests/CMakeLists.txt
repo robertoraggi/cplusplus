@@ -53,4 +53,9 @@ file(GENERATE
 
 add_subdirectory(tokens)
 add_subdirectory(preprocessor)
-add_subdirectory(parser)
+
+# test the semantics if CXX_TEST_PARSER is enabled
+if(CXX_TEST_PARSER)
+    add_subdirectory(parser)
+endif()
+

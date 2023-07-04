@@ -24,11 +24,8 @@
 #include <cxx/parser.h>
 #include <cxx/private/format.h>
 #include <cxx/scope.h>
-#include <cxx/semantics.h>
-#include <cxx/symbol_factory.h>
 #include <cxx/symbols.h>
 #include <cxx/token.h>
-#include <cxx/type_environment.h>
 #include <cxx/types.h>
 
 #include <algorithm>
@@ -96,8 +93,6 @@ Parser::Parser(TranslationUnit* unit) : unit(unit) {
 
   pool = unit->arena();
 
-  sem = std::make_unique<Semantics>(unit);
-
   module_id = control->identifier("module");
   import_id = control->identifier("import");
   final_id = control->identifier("final");
@@ -108,10 +103,7 @@ Parser::~Parser() = default;
 
 auto Parser::checkTypes() const -> bool { return checkTypes_; }
 
-void Parser::setCheckTypes(bool checkTypes) {
-  checkTypes_ = checkTypes;
-  sem->setCheckTypes(checkTypes);
-}
+void Parser::setCheckTypes(bool checkTypes) { checkTypes_ = checkTypes; }
 
 auto Parser::prec(TokenKind tk) -> Parser::Prec {
   switch (tk) {
@@ -172,7 +164,6 @@ struct Parser::DeclSpecs {
   bool has_placeholder_typespec = false;
   bool no_typespecs = false;
   bool no_class_or_enum_specs = false;
-  Semantics::SpecifiersSem specifiers;
 
   [[nodiscard]] auto accepts_simple_typespec() const -> bool {
     return !(has_complex_typespec || has_named_typespec ||
@@ -471,10 +462,6 @@ auto Parser::parse_module_unit(UnitAST*& yyast) -> bool {
 
   if (!parse_module_head()) return false;
 
-  globalNamespace_ = symbols->newNamespaceSymbol(nullptr, nullptr);
-
-  Semantics::ScopeContext scopeContext(sem.get(), globalNamespace_->scope());
-
   auto ast = new (pool) ModuleUnitAST();
   yyast = ast;
 
@@ -494,14 +481,8 @@ auto Parser::parse_module_unit(UnitAST*& yyast) -> bool {
 }
 
 auto Parser::parse_top_level_declaration_seq(UnitAST*& yyast) -> bool {
-  globalNamespace_ = symbols->newNamespaceSymbol(nullptr, nullptr);
-
-  Semantics::ScopeContext scopeContext(sem.get(), globalNamespace_->scope());
-
   auto ast = new (pool) TranslationUnitAST();
   yyast = ast;
-
-  ast->symbol = globalNamespace_;
 
   module_unit = false;
 
@@ -585,12 +566,6 @@ auto Parser::parse_primary_expression(ExpressionAST*& yyast,
     auto ast = new (pool) ThisExpressionAST();
     yyast = ast;
     ast->thisLoc = thisLoc;
-
-    if (auto classSymbol = sem->scope()->owner()->enclosingClass()) {
-      ast->type = QualifiedType{
-          types->pointerType(classSymbol->type(), Qualifiers::kNone)};
-    }
-
     return true;
   }
 
@@ -635,25 +610,6 @@ auto Parser::parse_primary_expression(ExpressionAST*& yyast,
   yyast = ast;
 
   ast->name = name;
-
-  Semantics::NameSem nameSem;
-
-  sem->name(ast->name, &nameSem);
-
-  if (checkTypes_ && nameSem.name) {
-    ast->symbol = sem->scope()->unqualifiedLookup(nameSem.name);
-
-    if (!ast->symbol) {
-      parse_warn(ast->name->firstSourceLocation(),
-                 fmt::format("undefined symbol '{}'", *nameSem.name));
-    } else {
-#if 0
-      parse_warn(ast->name->firstSourceLocation(),
-                 fmt::format("'{}' resolved to '{}' with type '{}'", *nameSem.name,
-                 typeid(*ast->symbol).name(), ast->symbol->type()));
-#endif
-    }
-  }
 
   return true;
 }
@@ -1427,10 +1383,6 @@ auto Parser::parse_simple_requirement(RequirementAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return false;
 
-  Semantics::ExpressionSem expr;
-
-  sem->expression(expression, &expr);
-
   auto ast = new (pool) SimpleRequirementAST();
   yyast = ast;
 
@@ -1469,10 +1421,6 @@ auto Parser::parse_compound_requirement(RequirementAST*& yyast) -> bool {
   ExpressionAST* expression = nullptr;
 
   if (!parse_expression(expression)) return false;
-
-  Semantics::ExpressionSem expr;
-
-  sem->expression(expression, &expr);
 
   SourceLocation rbraceLoc;
 
@@ -1678,10 +1626,6 @@ auto Parser::parse_cpp_cast_expression(ExpressionAST*& yyast) -> bool {
 
   if (!parse_expression(ast->expression)) parse_error("expected an expression");
 
-  Semantics::ExpressionSem expr;
-
-  sem->expression(ast->expression, &expr);
-
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   return true;
@@ -1776,10 +1720,6 @@ auto Parser::parse_typeid_expression(ExpressionAST*& yyast) -> bool {
   ast->lparenLoc = lparenLoc;
 
   if (!parse_expression(ast->expression)) parse_error("expected an expression");
-
-  Semantics::ExpressionSem expr;
-
-  sem->expression(ast->expression, &expr);
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
@@ -2130,10 +2070,6 @@ auto Parser::parse_noexcept_expression(ExpressionAST*& yyast) -> bool {
 
   if (!parse_expression(ast->expression)) parse_error("expected an expression");
 
-  Semantics::ExpressionSem expr;
-
-  sem->expression(ast->expression, &expr);
-
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   return true;
@@ -2238,10 +2174,6 @@ auto Parser::parse_noptr_new_declarator() -> bool {
 
     if (!parse_expression(expression)) parse_error("expected an expression");
 
-    Semantics::ExpressionSem expr;
-
-    sem->expression(expression, &expr);
-
     expect(TokenKind::T_RBRACKET);
   }
 
@@ -2256,10 +2188,6 @@ auto Parser::parse_noptr_new_declarator() -> bool {
       if (!parse_constant_expression(expression)) {
         parse_error("expected an expression");
       }
-
-      Semantics::ExpressionSem expr;
-
-      sem->expression(expression, &expr);
 
       expect(TokenKind::T_RBRACKET);
     }
@@ -2519,10 +2447,6 @@ auto Parser::parse_conditional_expression(ExpressionAST*& yyast,
       parse_error("expected an expression");
     }
 
-    Semantics::ExpressionSem expr;
-
-    sem->expression(ast->iftrueExpression, &expr);
-
     expect(TokenKind::T_COLON, ast->colonLoc);
 
     if (exprContext.templArg || exprContext.templParam) {
@@ -2532,10 +2456,6 @@ auto Parser::parse_conditional_expression(ExpressionAST*& yyast,
     } else if (!parse_assignment_expression(ast->iffalseExpression)) {
       parse_error("expected an expression");
     }
-
-    Semantics::ExpressionSem iffalseExpr;
-
-    sem->expression(ast->iffalseExpression, &iffalseExpr);
   }
 
   return true;
@@ -2556,10 +2476,6 @@ auto Parser::parse_yield_expression(ExpressionAST*& yyast) -> bool {
     if (!parse_assignment_expression(expression)) {
       parse_error("expected an expression");
     }
-
-    Semantics::ExpressionSem expr;
-
-    sem->expression(expression, &expr);
   }
 
   return true;
@@ -2579,10 +2495,6 @@ auto Parser::parse_throw_expression(ExpressionAST*& yyast) -> bool {
 
   if (!parse_assignment_expression(ast->expression)) rewind(saved);
 
-  Semantics::ExpressionSem expr;
-
-  sem->expression(ast->expression, &expr);
-
   return true;
 }
 
@@ -2599,10 +2511,6 @@ auto Parser::parse_assignment_expression(ExpressionAST*& yyast,
   if (parse_throw_expression(yyast)) return true;
 
   if (!parse_conditional_expression(yyast, exprContext)) return false;
-
-  Semantics::ExpressionSem expr;
-
-  sem->expression(yyast, &expr);
 
   SourceLocation opLoc;
   TokenKind op = TokenKind::T_EOF_SYMBOL;
@@ -2772,10 +2680,6 @@ auto Parser::parse_init_statement(StatementAST*& yyast) -> bool {
 
   if (!parse_expression(expression)) return false;
 
-  Semantics::ExpressionSem expr;
-
-  sem->expression(expression, &expr);
-
   SourceLocation semicolonLoc;
 
   if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return false;
@@ -2814,10 +2718,6 @@ auto Parser::parse_condition(ExpressionAST*& yyast) -> bool {
 
   if (!parse_expression(yyast)) return false;
 
-  Semantics::ExpressionSem expr;
-
-  sem->expression(yyast, &expr);
-
   return true;
 }
 
@@ -2855,10 +2755,6 @@ auto Parser::parse_case_statement(StatementAST*& yyast) -> bool {
   if (!parse_constant_expression(expression)) {
     parse_error("expected an expression");
   }
-
-  Semantics::ExpressionSem expr;
-
-  sem->expression(expression, &expr);
 
   SourceLocation colonLoc;
 
@@ -2910,10 +2806,6 @@ auto Parser::parse_expression_statement(StatementAST*& yyast) -> bool {
   if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) {
     if (!parse_expression(expression)) return false;
 
-    Semantics::ExpressionSem expr;
-
-    sem->expression(expression, &expr);
-
     expect(TokenKind::T_SEMICOLON, semicolonLoc);
   }
 
@@ -2932,14 +2824,10 @@ auto Parser::parse_compound_statement(CompoundStatementAST*& yyast, bool skip)
 
   if (!match(TokenKind::T_LBRACE, lbraceLoc)) return false;
 
-  auto blockSymbol = symbols->newBlockSymbol(sem->scope(), nullptr);
-  blockSymbol->addToEnclosingScope();
-
   auto ast = new (pool) CompoundStatementAST();
   yyast = ast;
 
   ast->lbraceLoc = lbraceLoc;
-  ast->symbol = blockSymbol;
 
   if (skip) {
     int depth = 1;
@@ -2972,8 +2860,6 @@ void Parser::finish_compound_statement(CompoundStatementAST* ast) {
   bool skipping = false;
 
   auto it = &ast->statementList;
-
-  Semantics::ScopeContext scopeContext(sem.get(), ast->symbol->scope());
 
   while (LA()) {
     if (LA().is(TokenKind::T_RBRACE)) break;
@@ -3008,9 +2894,6 @@ auto Parser::parse_if_statement(StatementAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_IF, ifLoc)) return false;
 
-  auto block = symbols->newBlockSymbol(sem->scope(), nullptr);
-  Semantics::ScopeContext blockContext(sem.get(), block->scope());
-
   auto ast = new (pool) IfStatementAST();
   yyast = ast;
 
@@ -3042,9 +2925,6 @@ auto Parser::parse_switch_statement(StatementAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_SWITCH, switchLoc)) return false;
 
-  auto block = symbols->newBlockSymbol(sem->scope(), nullptr);
-  Semantics::ScopeContext blockContext(sem.get(), block->scope());
-
   auto ast = new (pool) SwitchStatementAST();
   yyast = ast;
 
@@ -3069,9 +2949,6 @@ auto Parser::parse_while_statement(StatementAST*& yyast) -> bool {
   SourceLocation whileLoc;
 
   if (!match(TokenKind::T_WHILE, whileLoc)) return false;
-
-  auto block = symbols->newBlockSymbol(sem->scope(), nullptr);
-  Semantics::ScopeContext blockContext(sem.get(), block->scope());
 
   auto ast = new (pool) WhileStatementAST();
   yyast = ast;
@@ -3106,10 +2983,6 @@ auto Parser::parse_do_statement(StatementAST*& yyast) -> bool {
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
   if (!parse_expression(ast->expression)) parse_error("expected an expression");
-
-  Semantics::ExpressionSem expr;
-
-  sem->expression(ast->expression, &expr);
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
@@ -3168,9 +3041,6 @@ auto Parser::parse_for_statement(StatementAST*& yyast) -> bool {
   auto ast = new (pool) ForStatementAST();
   yyast = ast;
 
-  auto block = symbols->newBlockSymbol(sem->scope(), nullptr);
-  Semantics::ScopeContext blockContext(sem.get(), block->scope());
-
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
   if (!parse_init_statement(ast->initializer)) {
@@ -3187,10 +3057,6 @@ auto Parser::parse_for_statement(StatementAST*& yyast) -> bool {
     if (!parse_expression(ast->expression)) {
       parse_error("expected an expression");
     }
-
-    Semantics::ExpressionSem expr;
-
-    sem->expression(ast->expression, &expr);
 
     expect(TokenKind::T_RPAREN, ast->rparenLoc);
   }
@@ -3230,18 +3096,8 @@ auto Parser::parse_for_range_declaration(DeclarationAST*& yyast) -> bool {
 
     if (!parse_declarator(declarator)) return false;
 
-    Semantics::DeclaratorSem decl{specs.specifiers};
-
-    sem->declarator(declarator, &decl);
-
     auto initDeclarator = new (pool) InitDeclaratorAST();
     initDeclarator->declarator = declarator;
-
-    VariableSymbol* varSymbol = nullptr;
-    varSymbol = symbols->newVariableSymbol(sem->scope(), decl.name);
-    varSymbol->setType(decl.type);
-    varSymbol->addToEnclosingScope();
-    initDeclarator->symbol = varSymbol;
 
     auto ast = new (pool) SimpleDeclarationAST();
     yyast = ast;
@@ -3468,8 +3324,6 @@ auto Parser::parse_alias_declaration(DeclarationAST*& yyast) -> bool {
 
   if (!parse_defining_type_id(typeId)) parse_error("expected a type id");
 
-  sem->typeId(typeId);
-
   SourceLocation semicolonLoc;
 
   expect(TokenKind::T_SEMICOLON, semicolonLoc);
@@ -3485,39 +3339,11 @@ auto Parser::parse_alias_declaration(DeclarationAST*& yyast) -> bool {
   ast->typeId = typeId;
   ast->semicolonLoc = semicolonLoc;
 
-  if (ast->identifier && ast->typeId) {
-    auto typedefSymbol =
-        symbols->newTypedefSymbol(sem->scope(), ast->identifier);
-
-    typedefSymbol->setType(ast->typeId->type);
-    typedefSymbol->addToEnclosingScope();
-
-    ast->symbol = typedefSymbol;
-  }
-
   return true;
 }
 
 void Parser::enterFunctionScope(FunctionSymbol* functionSymbol,
-                                FunctionDeclaratorAST* functionDeclarator) {
-  auto params = functionDeclarator->parametersAndQualifiers;
-  if (!params) return;
-
-  auto paramDeclarations = params->parameterDeclarationClause;
-
-  if (!paramDeclarations) return;
-
-  for (auto it = paramDeclarations->parameterDeclarationList; it;
-       it = it->next) {
-    Semantics::SpecifiersSem specifiers;
-    sem->specifiers(it->value->typeSpecifierList, &specifiers);
-    Semantics::DeclaratorSem decl{specifiers};
-    sem->declarator(it->value->declarator, &decl);
-    auto param = symbols->newArgumentSymbol(sem->scope(), decl.name);
-    param->setType(decl.type);
-    param->addToEnclosingScope();
-  }
-}
+                                FunctionDeclaratorAST* functionDeclarator) {}
 
 auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
                                       bool acceptFunctionDefinition) -> bool {
@@ -3575,31 +3401,6 @@ auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
 
   after_decl_specs = currentLocation();
 
-  for (auto it = declSpecifierList; it; it = it->next) {
-    if (auto elaboratedTypeSpec =
-            dynamic_cast<ElaboratedTypeSpecifierAST*>(it->value)) {
-      if (!elaboratedTypeSpec->symbol) {
-        auto classKey = unit->tokenKind(elaboratedTypeSpec->classLoc);
-
-        Semantics::NameSem nameSem;
-        sem->name(elaboratedTypeSpec->name, &nameSem);
-
-        if (classKey == TokenKind::T_ENUM) {
-          auto enumSymbol = symbols->newEnumSymbol(sem->scope(), nameSem.name);
-          enumSymbol->setType(QualifiedType(types->enumType(enumSymbol)));
-          enumSymbol->addToEnclosingScope();
-        } else {
-          auto classSymbol =
-              symbols->newClassSymbol(sem->scope(), nameSem.name);
-          classSymbol->setClassKey(getClassKey(classKey));
-          classSymbol->setType(QualifiedType(types->classType(classSymbol)));
-          classSymbol->addToEnclosingScope();
-        }
-      }
-      break;
-    }
-  }
-
   if (specs.has_complex_typespec &&
       match(TokenKind::T_SEMICOLON, semicolonLoc)) {
     auto ast = new (pool) SimpleDeclarationAST();
@@ -3632,10 +3433,6 @@ auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
 
   if (!parse_declarator(declarator)) return false;
 
-  Semantics::DeclaratorSem decl{specs.specifiers};
-
-  sem->declarator(declarator, &decl);
-
   const auto after_declarator = currentLocation();
 
   auto functionDeclarator = getFunctionDeclarator(declarator);
@@ -3645,26 +3442,7 @@ auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
   parse_requires_clause(requiresClause);
 
   if (acceptFunctionDefinition && functionDeclarator &&
-      Type::is<FunctionType>(decl.type) && lookat_function_body()) {
-    FunctionSymbol* functionSymbol = nullptr;
-
-    if (decl.typeOrNamespaceSymbol) {
-      auto sym = decl.typeOrNamespaceSymbol->scope()->find(
-          decl.name, LookupOptions::kDefault);
-
-      functionSymbol = dynamic_cast<FunctionSymbol*>(sym);
-    }
-
-    if (!functionSymbol) {
-      functionSymbol = symbols->newFunctionSymbol(sem->scope(), decl.name);
-      functionSymbol->setType(decl.type);
-      functionSymbol->addToEnclosingScope();
-    }
-
-    Semantics::ScopeContext scopeContext(sem.get(), functionSymbol->scope());
-
-    enterFunctionScope(functionSymbol, functionDeclarator);
-
+      lookat_function_body()) {
     FunctionBodyAST* functionBody = nullptr;
 
     if (!parse_function_body(functionBody)) {
@@ -3679,7 +3457,6 @@ auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
     ast->declarator = declarator;
     ast->requiresClause = requiresClause;
     ast->functionBody = functionBody;
-    ast->symbol = functionSymbol;
 
     if (classDepth) pendingFunctionDefinitions_.push_back(ast);
 
@@ -3687,8 +3464,6 @@ auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
   }
 
   rewind(after_declarator);
-
-  const bool isTypedef = decl.specifiers.isTypedef;
 
   auto* initDeclarator = new (pool) InitDeclaratorAST();
 
@@ -3707,25 +3482,6 @@ auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
 
   *declIt = new (pool) List(initDeclarator);
   declIt = &(*declIt)->next;
-
-  if (isTypedef) {
-    auto typedefSymbol = symbols->newTypedefSymbol(sem->scope(), decl.name);
-    typedefSymbol->setType(decl.type);
-    typedefSymbol->addToEnclosingScope();
-    initDeclarator->symbol = typedefSymbol;
-  } else if (functionDeclarator) {
-    FunctionSymbol* functionSymbol = nullptr;
-    functionSymbol = symbols->newFunctionSymbol(sem->scope(), decl.name);
-    functionSymbol->setType(decl.type);
-    functionSymbol->addToEnclosingScope();
-    initDeclarator->symbol = functionSymbol;
-  } else {
-    VariableSymbol* varSymbol = nullptr;
-    varSymbol = symbols->newVariableSymbol(sem->scope(), decl.name);
-    varSymbol->setType(decl.type);
-    varSymbol->addToEnclosingScope();
-    initDeclarator->symbol = varSymbol;
-  }
 
   while (match(TokenKind::T_COMMA)) {
     InitDeclaratorAST* initDeclarator = nullptr;
@@ -3769,10 +3525,6 @@ auto Parser::parse_notypespec_function_definition(
   declarator->modifiers =
       new (pool) List<DeclaratorModifierAST*>(functionDeclarator);
 
-  Semantics::DeclaratorSem decl{specs.specifiers};
-
-  sem->declarator(declarator, &decl);
-
   RequiresClauseAST* requiresClause = nullptr;
 
   const auto has_requires_clause = parse_requires_clause(requiresClause);
@@ -3797,16 +3549,6 @@ auto Parser::parse_notypespec_function_definition(
 
   if (!lookat_function_body()) return false;
 
-  FunctionSymbol* functionSymbol = nullptr;
-
-  functionSymbol = symbols->newFunctionSymbol(sem->scope(), decl.name);
-  functionSymbol->setType(decl.type);
-  functionSymbol->addToEnclosingScope();
-
-  Semantics::ScopeContext scopeContext(sem.get(), functionSymbol->scope());
-
-  enterFunctionScope(functionSymbol, functionDeclarator);
-
   FunctionBodyAST* functionBody = nullptr;
 
   if (!parse_function_body(functionBody)) parse_error("expected function body");
@@ -3817,7 +3559,6 @@ auto Parser::parse_notypespec_function_definition(
   ast->declSpecifierList = declSpecifierList;
   ast->declarator = declarator;
   ast->functionBody = functionBody;
-  ast->symbol = functionSymbol;
 
   if (classDepth) pendingFunctionDefinitions_.push_back(ast);
 
@@ -3840,10 +3581,6 @@ auto Parser::parse_static_assert_declaration(DeclarationAST*& yyast) -> bool {
     parse_error("expected an expression");
   }
 
-  Semantics::ExpressionSem expr;
-
-  sem->expression(ast->expression, &expr);
-
   if (match(TokenKind::T_COMMA, ast->commaLoc)) {
     if (!parse_string_literal_seq(ast->stringLiteralList)) {
       parse_error("expected a string literal");
@@ -3853,8 +3590,6 @@ auto Parser::parse_static_assert_declaration(DeclarationAST*& yyast) -> bool {
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
-
-  sem->declaration(ast);
 
   return true;
 }
@@ -3994,8 +3729,6 @@ auto Parser::parse_decl_specifier_seq(List<SpecifierAST*>*& yyast,
 
   parse_attribute_specifier_seq(attributes);
 
-  sem->specifiers(specifier, &specs.specifiers);
-
   *it = new (pool) List(specifier);
   it = &(*it)->next;
 
@@ -4005,8 +3738,6 @@ auto Parser::parse_decl_specifier_seq(List<SpecifierAST*>*& yyast,
     List<AttributeSpecifierAST*>* attributes = nullptr;
 
     parse_attribute_specifier_seq(attributes);
-
-    sem->specifiers(specifier, &specs.specifiers);
 
     *it = new (pool) List(specifier);
     it = &(*it)->next;
@@ -4031,8 +3762,6 @@ auto Parser::parse_decl_specifier_seq_no_typespecs(List<SpecifierAST*>*& yyast,
 
   parse_attribute_specifier_seq(attributes);
 
-  sem->specifiers(specifier, &specs.specifiers);
-
   *it = new (pool) List(specifier);
   it = &(*it)->next;
 
@@ -4042,8 +3771,6 @@ auto Parser::parse_decl_specifier_seq_no_typespecs(List<SpecifierAST*>*& yyast,
     List<AttributeSpecifierAST*>* attributes = nullptr;
 
     parse_attribute_specifier_seq(attributes);
-
-    sem->specifiers(specifier, &specs.specifiers);
 
     *it = new (pool) List(specifier);
     it = &(*it)->next;
@@ -4119,10 +3846,6 @@ auto Parser::parse_explicit_specifier(SpecifierAST*& yyast) -> bool {
       parse_error("expected a expression");
     }
 
-    Semantics::ExpressionSem expr;
-
-    sem->expression(ast->expression, &expr);
-
     expect(TokenKind::T_RPAREN, ast->rparenLoc);
   }
 
@@ -4160,8 +3883,6 @@ auto Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast) -> bool {
 
   parse_attribute_specifier_seq(attributes);
 
-  sem->specifiers(typeSpecifier, &specs.specifiers);
-
   *it = new (pool) List(typeSpecifier);
   it = &(*it)->next;
 
@@ -4180,8 +3901,6 @@ auto Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast) -> bool {
     List<AttributeSpecifierAST*>* attributes = nullptr;
 
     parse_attribute_specifier_seq(attributes);
-
-    sem->specifiers(typeSpecifier, &specs.specifiers);
 
     *it = new (pool) List(typeSpecifier);
     it = &(*it)->next;
@@ -4222,8 +3941,6 @@ auto Parser::parse_defining_type_specifier_seq(List<SpecifierAST*>*& yyast,
 
   parse_attribute_specifier_seq(attributes);
 
-  sem->specifiers(typeSpecifier, &specs.specifiers);
-
   *it = new (pool) List(typeSpecifier);
   it = &(*it)->next;
 
@@ -4240,8 +3957,6 @@ auto Parser::parse_defining_type_specifier_seq(List<SpecifierAST*>*& yyast,
     List<AttributeSpecifierAST*>* attributes = nullptr;
 
     parse_attribute_specifier_seq(attributes);
-
-    sem->specifiers(typeSpecifier, &specs.specifiers);
 
     *it = new (pool) List(typeSpecifier);
     it = &(*it)->next;
@@ -4289,27 +4004,12 @@ auto Parser::parse_named_type_specifier_helper(SpecifierAST*& yyast,
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
 
   if (parse_nested_name_specifier(nestedNameSpecifier)) {
-    Semantics::NestedNameSpecifierSem nestedNameSpecifierSem;
-
-    sem->nestedNameSpecifier(nestedNameSpecifier, &nestedNameSpecifierSem);
-
     SourceLocation templateLoc;
     NameAST* name = nullptr;
 
     match(TokenKind::T_TEMPLATE, templateLoc);
 
     if (parse_type_name(name)) {
-      Semantics::NameSem nameSem;
-      sem->name(name, &nameSem);
-
-      Symbol* symbol = nullptr;
-
-      if (nestedNameSpecifier->symbol) {
-        if (auto scope = nestedNameSpecifier->symbol->scope()) {
-          symbol = scope->lookup(nameSem.name, LookupOptions::kType);
-        }
-      }
-
       auto qualifiedId = new (pool) QualifiedNameAST();
       qualifiedId->nestedNameSpecifier = nestedNameSpecifier;
       qualifiedId->templateLoc = templateLoc;
@@ -4319,7 +4019,6 @@ auto Parser::parse_named_type_specifier_helper(SpecifierAST*& yyast,
       yyast = ast;
 
       ast->name = qualifiedId;
-      ast->symbol = symbol;
 
       return true;
     }
@@ -4331,22 +4030,10 @@ auto Parser::parse_named_type_specifier_helper(SpecifierAST*& yyast,
 
   if (!parse_type_name(name)) return false;
 
-  Semantics::NameSem nameSem;
-
-  sem->name(name, &nameSem);
-
-  auto typeSymbol =
-      sem->scope()->unqualifiedLookup(nameSem.name, LookupOptions::kType);
-
-  if (checkTypes_) {
-    if (!typeSymbol) return false;
-  }
-
   auto ast = new (pool) NamedTypeSpecifierAST();
   yyast = ast;
 
   ast->name = name;
-  ast->symbol = typeSymbol;
 
   return true;
 }
@@ -4512,15 +4199,6 @@ auto Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
   const auto parsed = parse_elaborated_type_specifier_helper(ast, specs);
 
   yyast = ast;
-
-  if (checkTypes_ && parsed && !ast->nestedNameSpecifier) {
-    Semantics::NameSem nameSem;
-
-    sem->name(ast->name, &nameSem);
-
-    ast->symbol =
-        sem->scope()->unqualifiedLookup(nameSem.name, LookupOptions::kType);
-  }
 
   elaborated_type_specifiers_.emplace(
       start, std::tuple(currentLocation(), ast, parsed));
@@ -4716,10 +4394,6 @@ auto Parser::parse_decltype_specifier(SpecifierAST*& yyast) -> bool {
       parse_error("expected an expression");
     }
 
-    Semantics::ExpressionSem expr;
-
-    sem->expression(ast->expression, &expr);
-
     expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
     return true;
@@ -4789,10 +4463,6 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
 
   if (!parse_declarator(declarator)) return false;
 
-  Semantics::DeclaratorSem decl{specs.specifiers};
-
-  sem->declarator(declarator, &decl);
-
   const auto saved = currentLocation();
 
   RequiresClauseAST* requiresClause = nullptr;
@@ -4806,25 +4476,6 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
   ast->declarator = declarator;
   ast->requiresClause = requiresClause;
   ast->initializer = initializer;
-
-  if (decl.specifiers.isTypedef) {
-    auto typedefSymbol = symbols->newTypedefSymbol(sem->scope(), decl.name);
-    typedefSymbol->setType(decl.type);
-    typedefSymbol->addToEnclosingScope();
-    ast->symbol = typedefSymbol;
-  } else if (getFunctionDeclarator(declarator)) {
-    FunctionSymbol* functionSymbol = nullptr;
-    functionSymbol = symbols->newFunctionSymbol(sem->scope(), decl.name);
-    functionSymbol->setType(decl.type);
-    functionSymbol->addToEnclosingScope();
-    ast->symbol = functionSymbol;
-  } else {
-    VariableSymbol* varSymbol = nullptr;
-    varSymbol = symbols->newVariableSymbol(sem->scope(), decl.name);
-    varSymbol->setType(decl.type);
-    varSymbol->addToEnclosingScope();
-    ast->symbol = varSymbol;
-  }
 
   return true;
 }
@@ -4938,10 +4589,6 @@ auto Parser::parse_noptr_declarator(DeclaratorAST*& yyast,
           rewind(saved);
           break;
         }
-
-        Semantics::ExpressionSem expr;
-
-        sem->expression(expression, &expr);
       }
 
       List<AttributeSpecifierAST*>* attributes = nullptr;
@@ -5196,10 +4843,6 @@ auto Parser::parse_defining_type_id(TypeIdAST*& yyast) -> bool {
 
   if (!parse_abstract_declarator(declarator)) rewind(before_declarator);
 
-  Semantics::DeclaratorSem decl{specs.specifiers};
-
-  sem->declarator(declarator, &decl);
-
   auto ast = new (pool) TypeIdAST();
   yyast = ast;
 
@@ -5331,10 +4974,6 @@ auto Parser::parse_noptr_abstract_declarator(DeclaratorAST*& yyast) -> bool {
           parse_error("expected an expression");
         }
 
-        Semantics::ExpressionSem expr;
-
-        sem->expression(arrayDeclarator->expression, &expr);
-
         expect(TokenKind::T_RBRACKET, arrayDeclarator->rbracketLoc);
       }
     }
@@ -5372,10 +5011,6 @@ auto Parser::parse_noptr_abstract_pack_declarator() -> bool {
       if (!parse_constant_expression(expression)) {
         parse_error("expected a constant expression");
       }
-
-      Semantics::ExpressionSem expr;
-
-      sem->expression(expression, &expr);
 
       expect(TokenKind::T_RBRACKET);
 
@@ -5466,10 +5101,6 @@ auto Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast,
     if (!parse_abstract_declarator(ast->declarator)) rewind(before_declarator);
   }
 
-  Semantics::DeclaratorSem decl{specs.specifiers};
-
-  sem->declarator(ast->declarator, &decl);
-
   if (match(TokenKind::T_EQUAL, ast->equalLoc)) {
     if (!parse_initializer_clause(ast->expression, templParam)) {
       if (templParam) return false;
@@ -5541,10 +5172,6 @@ auto Parser::parse_initializer_clause(ExpressionAST*& yyast, bool templParam)
   exprContext.templParam = templParam;
 
   if (!parse_assignment_expression(yyast, exprContext)) return false;
-
-  Semantics::ExpressionSem expr;
-
-  sem->expression(yyast, &expr);
 
   return true;
 }
@@ -5665,10 +5292,6 @@ auto Parser::parse_expr_or_braced_init_list(ExpressionAST*& yyast) -> bool {
   }
 
   if (!parse_expression(yyast)) parse_error("expected an expression");
-
-  Semantics::ExpressionSem expr;
-
-  sem->expression(yyast, &expr);
 
   return true;
 }
@@ -5792,38 +5415,6 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast) -> bool {
   const Name* enumName = name ? name->name : nullptr;
   Scope* enumScope = nullptr;
 
-  if (classLoc) {
-    auto* scopedEnumSymbol =
-        symbols->newScopedEnumSymbol(sem->scope(), enumName);
-
-    scopedEnumSymbol->setType(
-        QualifiedType(types->scopedEnumType(scopedEnumSymbol)));
-
-    scopedEnumSymbol->addToEnclosingScope();
-
-    enumScope = scopedEnumSymbol->scope();
-
-    QualifiedType underlyingType;
-
-    if (enumBase) {
-      Semantics::SpecifiersSem specifiers;
-
-      sem->specifiers(enumBase->typeSpecifierList, &specifiers);
-
-      scopedEnumSymbol->setUnderlyingType(specifiers.type);
-    }
-  } else {
-    auto* enumSymbol = symbols->newEnumSymbol(sem->scope(), enumName);
-
-    enumSymbol->setType(QualifiedType(types->enumType(enumSymbol)));
-
-    enumSymbol->addToEnclosingScope();
-
-    enumScope = enumSymbol->scope();
-  }
-
-  Semantics::ScopeContext scopeContext(sem.get(), enumScope);
-
   auto ast = new (pool) EnumSpecifierAST();
   yyast = ast;
 
@@ -5834,7 +5425,6 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast) -> bool {
   ast->name = name;
   ast->enumBase = enumBase;
   ast->lbraceLoc = lbraceLoc;
-  ast->symbol = enumScope->owner();
 
   if (!match(TokenKind::T_RBRACE, ast->rbraceLoc)) {
     parse_enumerator_list(ast->enumeratorList);
@@ -5862,10 +5452,6 @@ auto Parser::parse_enum_head_name(NestedNameSpecifierAST*& nestedNameSpecifier,
   id->identifier = unit->identifier(id->identifierLoc);
 
   name = id;
-
-  Semantics::NameSem nameSem;
-
-  sem->name(name, &nameSem);
 
   return true;
 }
@@ -5980,10 +5566,6 @@ auto Parser::parse_enumerator_definition(EnumeratorAST*& yyast) -> bool {
     parse_error("expected an expression");
   }
 
-  Semantics::ExpressionSem expr;
-
-  sem->expression(yyast->expression, &expr);
-
   return true;
 }
 
@@ -6002,25 +5584,6 @@ auto Parser::parse_enumerator(EnumeratorAST*& yyast) -> bool {
   ast->name = name;
 
   parse_attribute_specifier_seq(ast->attributeList);
-
-  Semantics::NameSem nameSem;
-
-  sem->name(ast->name, &nameSem);
-
-  auto symbol = symbols->newEnumeratorSymbol(sem->scope(), ast->name->name);
-  symbol->setType(sem->scope()->owner()->type());
-  symbol->addToEnclosingScope();
-
-  if (auto enumSymbol = dynamic_cast<EnumSymbol*>(sem->scope()->owner())) {
-    auto enclosingNamespace = enumSymbol->enclosingClassOrNamespace();
-
-    auto symbol = symbols->newEnumeratorSymbol(enclosingNamespace->scope(),
-                                               ast->name->name);
-    // symbol->setType(enumSymbol->type());
-    symbol->setType(
-        QualifiedType{types->integerType(IntegerKind::kInt, false)});
-    symbol->addToEnclosingScope();
-  }
 
   return true;
 }
@@ -6076,14 +5639,6 @@ auto Parser::parse_namespace_definition(DeclarationAST*& yyast) -> bool {
 
     auto id = unit->identifier(identifierLoc);
 
-    namespaceSymbol = dynamic_cast<NamespaceSymbol*>(
-        sem->scope()->find(id, LookupOptions::kNamespace));
-
-    if (!namespaceSymbol) {
-      namespaceSymbol = symbols->newNamespaceSymbol(sem->scope(), id);
-      namespaceSymbol->addToEnclosingScope();
-    }
-
     while (match(TokenKind::T_COLON_COLON)) {
       SourceLocation inlineLoc;
       match(TokenKind::T_INLINE, inlineLoc);
@@ -6092,40 +5647,10 @@ auto Parser::parse_namespace_definition(DeclarationAST*& yyast) -> bool {
       expect(TokenKind::T_IDENTIFIER, identifierLoc);
 
       auto id = unit->identifier(identifierLoc);
-
-      if (!id) continue;
-
-      auto ns = dynamic_cast<NamespaceSymbol*>(
-          namespaceSymbol->scope()->find(id, LookupOptions::kNamespace));
-
-      if (!ns) {
-        ns = symbols->newNamespaceSymbol(namespaceSymbol->scope(), id);
-        if (inlineLoc) ns->setInline(true);
-
-        ns->addToEnclosingScope();
-      }
-
-      namespaceSymbol = ns;
     }
   } else if (parse_name_id(ast->name)) {
-    Semantics::NameSem nameSem;
-
-    sem->name(ast->name, &nameSem);
-
-    namespaceName = nameSem.name;
-
-    namespaceSymbol = dynamic_cast<NamespaceSymbol*>(
-        sem->scope()->find(namespaceName, LookupOptions::kNamespace));
+    //
   }
-
-  if (!namespaceSymbol) {
-    namespaceSymbol = symbols->newNamespaceSymbol(sem->scope(), namespaceName);
-    if (ast->inlineLoc) namespaceSymbol->setInline(true);
-
-    namespaceSymbol->addToEnclosingScope();
-  }
-
-  Semantics::ScopeContext scopeContext(sem.get(), namespaceSymbol->scope());
 
   parse_attribute_specifier_seq(ast->extraAttributeList);
 
@@ -6542,10 +6067,6 @@ auto Parser::parse_alignment_specifier(AttributeSpecifierAST*& yyast) -> bool {
   if (!parse_constant_expression(ast->expression)) {
     parse_error("expected an expression");
   }
-
-  Semantics::ExpressionSem expr;
-
-  sem->expression(ast->expression, &expr);
 
   match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
 
@@ -6983,29 +6504,6 @@ auto Parser::parse_class_specifier(SpecifierAST*& yyast) -> bool {
     return false;
   }
 
-  Semantics::NameSem nameSem;
-
-  sem->name(className, &nameSem);
-
-  ClassSymbol* classSymbol = nullptr;
-
-  for (auto s = sem->scope()->find(nameSem.name); s; s = s->next()) {
-    if (s->name() != nameSem.name) continue;
-    if (auto symbol = dynamic_cast<ClassSymbol*>(s)) {
-      if (!symbol->isDefined()) classSymbol = symbol;
-      break;
-    }
-  }
-
-  if (!classSymbol) {
-    classSymbol = symbols->newClassSymbol(sem->scope(), nameSem.name);
-    classSymbol->setClassKey(getClassKey(unit->tokenKind(classLoc)));
-    classSymbol->setType(QualifiedType(types->classType(classSymbol)));
-    classSymbol->addToEnclosingScope();
-  }
-
-  classSymbol->setDefined(true);
-
   auto ast = new (pool) ClassSpecifierAST();
   yyast = ast;
 
@@ -7014,11 +6512,8 @@ auto Parser::parse_class_specifier(SpecifierAST*& yyast) -> bool {
   ast->name = className;
   ast->baseClause = baseClause;
   ast->lbraceLoc = lbraceLoc;
-  ast->symbol = classSymbol;
 
   if (!match(TokenKind::T_RBRACE, ast->rbraceLoc)) {
-    Semantics::ScopeContext classScope(sem.get(), classSymbol->scope());
-
     if (!parse_class_body(ast->declarationList)) {
       parse_error("expected class body");
     }
@@ -7238,12 +6733,7 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
 
   const auto hasDeclarator = parse_declarator(declarator);
 
-  Semantics::DeclaratorSem decl{specs.specifiers};
-
-  if (hasDeclarator) sem->declarator(declarator, &decl);
-
-  if (hasDeclarator && Type::is<FunctionType>(decl.type) &&
-      getFunctionDeclarator(declarator)) {
+  if (hasDeclarator && getFunctionDeclarator(declarator)) {
     RequiresClauseAST* requiresClause = nullptr;
 
     const auto has_requires_clause = parse_requires_clause(requiresClause);
@@ -7251,17 +6741,7 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
     if (!has_requires_clause) parse_virt_specifier_seq();
 
     if (lookat_function_body()) {
-      FunctionSymbol* functionSymbol = nullptr;
-
-      functionSymbol = symbols->newFunctionSymbol(sem->scope(), decl.name);
-      functionSymbol->setType(decl.type);
-      functionSymbol->addToEnclosingScope();
-
       FunctionBodyAST* functionBody = nullptr;
-
-      Semantics::ScopeContext scopeContext(sem.get(), functionSymbol->scope());
-
-      enterFunctionScope(functionSymbol, getFunctionDeclarator(declarator));
 
       if (!parse_function_body(functionBody)) {
         parse_error("expected function body");
@@ -7274,7 +6754,6 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
       ast->declarator = declarator;
       ast->requiresClause = requiresClause;
       ast->functionBody = functionBody;
-      ast->symbol = functionSymbol;
 
       if (classDepth) pendingFunctionDefinitions_.push_back(ast);
 
@@ -7301,45 +6780,16 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
 
 auto Parser::parse_member_declarator_list(List<InitDeclaratorAST*>*& yyast,
                                           const DeclSpecs& specs) -> bool {
-  auto declare = [this](InitDeclaratorAST* initDeclarator,
-                        const Semantics::DeclaratorSem& decl) {
-    if (decl.specifiers.isFriend) {
-      if (checkTypes_) {
-        parse_error(initDeclarator->firstSourceLocation(),
-                    "skip friend declaration");
-      }
-    } else if (decl.specifiers.isTypedef) {
-      auto typedefSymbol = symbols->newTypedefSymbol(sem->scope(), decl.name);
-      typedefSymbol->setType(decl.type);
-      typedefSymbol->addToEnclosingScope();
-      initDeclarator->symbol = typedefSymbol;
-    } else if (Type::is<FunctionType>(decl.type)) {
-      auto functionSymbol = symbols->newFunctionSymbol(sem->scope(), decl.name);
-      functionSymbol->setType(decl.type);
-      functionSymbol->addToEnclosingScope();
-      initDeclarator->symbol = functionSymbol;
-    } else {
-      auto fieldSymbol = symbols->newFieldSymbol(sem->scope(), decl.name);
-      fieldSymbol->setType(decl.type);
-      fieldSymbol->addToEnclosingScope();
-      initDeclarator->symbol = fieldSymbol;
-    }
-  };
-
   auto it = &yyast;
 
   InitDeclaratorAST* initDeclarator = nullptr;
 
   if (!parse_member_declarator(initDeclarator, specs)) return false;
 
-  Semantics::DeclaratorSem decl{specs.specifiers};
-
-  if (initDeclarator) sem->declarator(initDeclarator->declarator, &decl);
-
-  declare(initDeclarator, decl);
-
-  *it = new (pool) List(initDeclarator);
-  it = &(*it)->next;
+  if (initDeclarator) {
+    *it = new (pool) List(initDeclarator);
+    it = &(*it)->next;
+  }
 
   while (match(TokenKind::T_COMMA)) {
     InitDeclaratorAST* initDeclarator = nullptr;
@@ -7349,12 +6799,6 @@ auto Parser::parse_member_declarator_list(List<InitDeclaratorAST*>*& yyast,
     }
 
     if (initDeclarator) {
-      Semantics::DeclaratorSem decl{specs.specifiers};
-
-      sem->declarator(initDeclarator->declarator, &decl);
-
-      declare(initDeclarator, decl);
-
       *it = new (pool) List(initDeclarator);
       it = &(*it)->next;
     }
@@ -7393,10 +6837,6 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
       parse_error("expected an expression");
     }
 
-    Semantics::ExpressionSem expr;
-
-    sem->expression(expression, &expr);
-
     InitializerAST* initializer = nullptr;
 
     parse_brace_or_equal_initializer(initializer);
@@ -7416,16 +6856,12 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
 
   if (!parse_declarator(declarator)) return false;
 
-  Semantics::DeclaratorSem decl{specs.specifiers};
-
-  sem->declarator(declarator, &decl);
-
   auto ast = new (pool) InitDeclaratorAST();
   yyast = ast;
 
   ast->declarator = declarator;
 
-  if (Type::is<FunctionType>(decl.type)) {
+  if (getFunctionDeclarator(declarator)) {
     RequiresClauseAST* requiresClause = nullptr;
 
     if (parse_requires_clause(requiresClause)) {
@@ -7861,10 +7297,6 @@ auto Parser::parse_template_declaration(DeclarationAST*& yyast) -> bool {
     return false;
   }
 
-  auto templSymbol = symbols->newTemplateParameterList(sem->scope());
-
-  Semantics::ScopeContext context(sem.get(), templSymbol->scope());
-
   SourceLocation greaterLoc;
   List<DeclarationAST*>* templateParameterList = nullptr;
 
@@ -7885,12 +7317,9 @@ auto Parser::parse_template_declaration(DeclarationAST*& yyast) -> bool {
     if (!parse_declaration(declaration)) parse_error("expected a declaration");
   }
 
-  templSymbol->addToEnclosingScope();
-
   auto ast = new (pool) TemplateDeclarationAST();
   yyast = ast;
 
-  ast->symbol = templSymbol;
   ast->templateLoc = templateLoc;
   ast->lessLoc = lessLoc;
   ast->templateParameterList = templateParameterList;
@@ -8046,26 +7475,9 @@ auto Parser::parse_typename_type_parameter(DeclarationAST*& yyast) -> bool {
 
   ast->identifier = unit->identifier(ast->identifierLoc);
 
-  if (dynamic_cast<TemplateParameterList*>(sem->scope()->owner())) {
-    auto symbol =
-        symbols->newTemplateTypeParameterSymbol(sem->scope(), ast->identifier);
-
-    ast->symbol = symbol;
-
-    if (ast->ellipsisLoc) symbol->setParameterPack(true);
-
-    symbol->addToEnclosingScope();
-  }
-
   if (!match(TokenKind::T_EQUAL, ast->equalLoc)) return true;
 
   if (!parse_type_id(ast->typeId)) parse_error("expected a type id");
-
-  if (ast->typeId) {
-    sem->typeId(ast->typeId);
-
-    if (ast->symbol) ast->symbol->setDefaultType(ast->typeId->type);
-  }
 
   return true;
 }
@@ -8214,20 +7626,6 @@ auto Parser::parse_type_constraint(TypeConstraintAST*& yyast,
   if (!parse_concept_name(name)) {
     rewind(start);
     return false;
-  }
-
-  if (checkTypes_) {
-    Semantics::NameSem nameSem;
-
-    sem->name(name, &nameSem);
-
-    auto conceptSymbol = dynamic_cast<ConceptSymbol*>(
-        sem->scope()->unqualifiedLookup(nameSem.name, LookupOptions::kType));
-
-    if (!conceptSymbol) {
-      rewind(start);
-      return false;
-    }
   }
 
   auto ast = new (pool) TypeConstraintAST();
@@ -8412,10 +7810,6 @@ auto Parser::parse_template_argument(TemplateArgumentAST*& yyast) -> bool {
   const auto parsed = parse_template_argument_constant_expression(expression);
 
   if (parsed && check()) {
-    Semantics::ExpressionSem expr;
-
-    sem->expression(expression, &expr);
-
     auto ast = new (pool) ExpressionTemplateArgumentAST();
     yyast = ast;
 
@@ -8483,16 +7877,6 @@ auto Parser::parse_concept_definition(DeclarationAST*& yyast) -> bool {
   ast->conceptLoc = conceptLoc;
 
   if (!parse_concept_name(ast->name)) parse_error("expected a concept name");
-
-  Semantics::NameSem nameSem;
-
-  sem->name(ast->name, &nameSem);
-
-  ConceptSymbol* conceptSymbol = nullptr;
-
-  conceptSymbol = symbols->newConceptSymbol(sem->scope(), nameSem.name);
-  conceptSymbol->setType(QualifiedType(types->conceptType(conceptSymbol)));
-  conceptSymbol->addToEnclosingScope();
 
   expect(TokenKind::T_EQUAL, ast->equalLoc);
 
@@ -8747,10 +8131,6 @@ auto Parser::parse_noexcept_specifier() -> bool {
       parse_error("expected a declaration");
     }
 
-    Semantics::ExpressionSem expr;
-
-    sem->expression(expression, &expr);
-
     expect(TokenKind::T_RPAREN);
   }
 
@@ -8788,8 +8168,6 @@ void Parser::completeFunctionDefinition(FunctionDefinitionAST* ast) {
   if (!functionBody) return;
 
   auto functionSymbol = ast->symbol;
-
-  Semantics::ScopeContext scopeContext(sem.get(), functionSymbol->scope());
 
   const auto saved = currentLocation();
 
