@@ -19,9 +19,10 @@
 // SOFTWARE.
 
 import type { Meta, StoryObj } from "@storybook/react";
-
 import { Editor, EditorProps } from "../Editor";
 import { Parser } from "cxx-frontend";
+
+import "../setupCxxFrontend";
 
 const meta = {
   title: "Example/Editor",
@@ -46,8 +47,6 @@ class SyntaxCheckerArgs implements EditorProps {
     "  return 0;",
     "}",
   ].join("\n");
-
-  onCursorPositionChanged(_lineNumber: number, _column: number) {}
 
   onSyntaxChanged(parser: Parser) {
     this.#lastParser?.dispose();

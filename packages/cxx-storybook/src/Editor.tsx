@@ -25,26 +25,7 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { linter, Diagnostic } from "@codemirror/lint";
 import * as cxx from "cxx-frontend";
-import wasmBinaryUrl from "cxx-frontend/dist/cxx-js.wasm?url";
 import "./Editor.css";
-
-let setupCxxPromise: Promise<any> | undefined;
-
-const setupCxxFrontend = async () => {
-  if (setupCxxPromise) {
-    return;
-  }
-
-  const response = await fetch(wasmBinaryUrl);
-  const data = await response.arrayBuffer();
-  const wasmBinary = new Uint8Array(data);
-
-  setupCxxPromise = cxx.Parser.init({ wasmBinary });
-
-  return await setupCxxPromise;
-};
-
-setupCxxFrontend().catch(console.error);
 
 export interface EditorProps {
   /**
@@ -85,6 +66,18 @@ export const Editor: FC<EditorProps> = ({
 
   const [editor, setEditor] = useState<EditorView | null>(null);
 
+  const linterRef = useRef({
+    editorWillDisposeSyntaxTree,
+    onCursorPositionChanged,
+    onSyntaxChanged,
+  });
+
+  linterRef.current = {
+    editorWillDisposeSyntaxTree,
+    onCursorPositionChanged,
+    onSyntaxChanged,
+  };
+
   useEffect(() => {
     if (!editor) return;
 
@@ -99,6 +92,12 @@ export const Editor: FC<EditorProps> = ({
     if (!domElement) {
       return;
     }
+
+    const {
+      editorWillDisposeSyntaxTree,
+      onCursorPositionChanged,
+      onSyntaxChanged,
+    } = linterRef.current;
 
     const syntaxChecker = (view: EditorView) => {
       if (!cxx.Parser.isInitialized()) {

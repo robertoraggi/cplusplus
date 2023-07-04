@@ -18,13 +18,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import React from "react";
-import ReactDOM from "react-dom/client";
-import App from "./App.tsx";
-import "./index.css";
+import * as cxx from "cxx-frontend";
+import wasmBinaryUrl from "cxx-frontend/dist/cxx-js.wasm?url";
 
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+const setupCxxFrontend = async () => {
+    const response = await fetch(wasmBinaryUrl);
+    const data = await response.arrayBuffer();
+    const wasmBinary = new Uint8Array(data);
+
+    return await cxx.Parser.init({ wasmBinary });
+};
+
+export const promisedCxxFrontend = setupCxxFrontend()
