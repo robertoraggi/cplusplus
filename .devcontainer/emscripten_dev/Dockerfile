@@ -1,6 +1,7 @@
 FROM emscripten/emsdk:3.1.42
 
 RUN apt-get update && apt-get install -y \
+    bash-completion \
     ninja-build \
     wget \
     unzip

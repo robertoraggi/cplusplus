@@ -19,6 +19,7 @@
         "cmake.configureArgs": [
           "-DCMAKE_TOOLCHAIN_FILE=/emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
           "-DFLATBUFFERS_FLATC_EXECUTABLE=/usr/bin/flatc",
+          "-DCMAKE_BUILD_TYPE=MinSizeRel",
           "-DKWGEN_EXECUTABLE=/usr/bin/kwgen"
         ],
         "cmake.buildDirectory": "${workspaceFolder}/build.em",
