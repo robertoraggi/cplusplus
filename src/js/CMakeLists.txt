@@ -30,6 +30,7 @@ target_link_libraries(cxx-js cxx-parser)
 target_link_options(cxx-js PUBLIC
     "SHELL:--bind"
     "SHELL:-s ENVIRONMENT=web"
+    "SHELL:-s EXPORT_ES6=1"
     "SHELL:-s WASM_ASYNC_COMPILATION=1"
     "SHELL:-s MODULARIZE=1"
     "SHELL:-s MALLOC=emmalloc"
@@ -37,6 +38,5 @@ target_link_options(cxx-js PUBLIC
     "SHELL:-s FILESYSTEM=0"
     "SHELL:-s NO_DYNAMIC_EXECUTION=1"
     "SHELL:-s WASM_BIGINT=1"
-    "SHELL:--extern-post-js ${CMAKE_CURRENT_SOURCE_DIR}/cxx/suffix.js"
 )
 

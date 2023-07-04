@@ -17,7 +17,9 @@
   "keywords": [
     "c++",
     "compiler",
+    "lexer",
     "parser",
+    "preprocessor",
     "syntax"
   ],
   "author": {
