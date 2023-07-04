@@ -88,6 +88,7 @@ auto Codegen::findOrCreateTargetBlock(const Identifier* id) -> ir::Block* {
 }
 
 void Codegen::visit(FunctionDefinitionAST* ast) {
+  if (!ast->symbol) return;
   ir::Function* function = irFactory()->createFunction(ast->symbol);
   std::unordered_map<Symbol*, ir::Local*> locals;
   std::unordered_map<const Identifier*, ir::Block*> labels;

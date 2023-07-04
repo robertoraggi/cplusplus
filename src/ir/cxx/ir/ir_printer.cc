@@ -37,6 +37,8 @@ TypePrinter typePrinter;
 }  // namespace
 
 void IRPrinter::print(Module* module, std::ostream& out) {
+  if (!module) return;
+
   for (auto function : module->functions()) {
     fmt::print(out, "\n");
     print(function, out);
