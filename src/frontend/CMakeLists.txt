@@ -23,13 +23,8 @@ add_executable(cxx ${SOURCES})
 
 target_link_libraries(cxx
     cxx-parser
-    cxx-ir
     nlohmann_json::nlohmann_json
 )
-
-if (LLVM_FOUND)
-    target_link_libraries(cxx cxx-llvm)
-endif()
 
 if(EMSCRIPTEN)
     target_link_options(cxx PUBLIC

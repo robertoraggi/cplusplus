@@ -19,184 +19,270 @@
 // SOFTWARE.
 
 #include <cxx/memory_layout.h>
-#include <cxx/private/format.h>
-#include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/types.h>
 
-#include <stdexcept>
-
-#if defined(_MSVC_LANG) && !defined(__PRETTY_FUNCTION__)
-#define __PRETTY_FUNCTION__ __FUNCSIG__
-#endif
+#include <cassert>
+#include <cstdlib>
 
 namespace cxx {
 
-auto MemoryLayout::ofType(const QualifiedType& type)
-    -> std::optional<std::tuple<std::uint64_t, std::uint64_t>> {
-  static MemoryLayout memoryLayout;
-  return memoryLayout(type);
+auto MemoryLayout::make(int bits) -> MemoryLayout* {
+  auto* memoryLayout = new MemoryLayout();
+  memoryLayout->bits_ = bits;
+  memoryLayout->sizeOfPointer_ = bits / 8;
+  memoryLayout->sizeOfLong_ = bits / 8;
+
+  return memoryLayout;
 }
 
-auto MemoryLayout::operator()(const QualifiedType& type)
-    -> std::optional<std::tuple<std::uint64_t, std::uint64_t>> {
-  std::uint64_t size = 0;
-  std::uint64_t alignment = 0;
-  std::swap(size_, size);
-  std::swap(alignment_, alignment);
-  type->accept(this);
-  std::swap(size_, size);
-  std::swap(alignment_, alignment);
-  if (!size) return std::nullopt;
-  return std::tuple(size, alignment);
-}
+auto MemoryLayout::bits() const -> int { return bits_; }
 
-void MemoryLayout::visit(const UndefinedType*) {}
+auto MemoryLayout::sizeOfPointer() const -> int { return sizeOfPointer_; }
 
-void MemoryLayout::visit(const ErrorType*) {}
+auto MemoryLayout::sizeOfLong() const -> int { return sizeOfLong_; }
 
-void MemoryLayout::visit(const AutoType*) {}
+#define PROCESS_TYPE(kind) \
+  case TypeKind::k##kind:  \
+    return sizeOf((const kind##Type*)type);
 
-void MemoryLayout::visit(const DecltypeAutoType*) {}
-
-void MemoryLayout::visit(const VoidType*) {}
-
-void MemoryLayout::visit(const NullptrType*) { alignment_ = size_ = 8; }
-
-void MemoryLayout::visit(const BooleanType*) { alignment_ = size_ = 1; }
-
-void MemoryLayout::visit(const CharacterType* ty) {
-  switch (ty->kind()) {
-    case CharacterKind::kChar8T:
-      alignment_ = size_ = 1;
-      break;
-    case CharacterKind::kChar16T:
-      alignment_ = size_ = 2;
-      break;
-    case CharacterKind::kChar32T:
-      alignment_ = size_ = 4;
-      break;
-    case CharacterKind::kWCharT:
-      alignment_ = size_ = 4;
-      break;
-    default:
-      cxx_runtime_error(
-          fmt::format("invalid character type: {}", __PRETTY_FUNCTION__));
-  }  // switch
-}
-
-void MemoryLayout::visit(const IntegerType* type) {
+auto MemoryLayout::sizeOf(const Type* type) const -> int {
   switch (type->kind()) {
-    case IntegerKind::kChar:
-      size_ = alignment_ = 1;
-      break;
-    case IntegerKind::kShort:
-      size_ = alignment_ = 2;
-      break;
-    case IntegerKind::kInt:
-      size_ = alignment_ = 4;
-      break;
-    case IntegerKind::kLong:
-    case IntegerKind::kInt64:
-      size_ = alignment_ = 8;
-      break;
-    case IntegerKind::kLongLong:
-      size_ = alignment_ = 8;
-      break;
-    case IntegerKind::kInt128:
-      size_ = alignment_ = 16;
-      break;
+    CXX_FOR_EACH_TYPE_KIND(PROCESS_TYPE)
     default:
-      cxx_runtime_error("unrecognized integer kind");
+      assert(!"unreachable");
+      return 0;
   }  // switch
 }
 
-void MemoryLayout::visit(const FloatingPointType* ty) {
-  switch (ty->kind()) {
-    case FloatingPointKind::kFloat:
-      size_ = alignment_ = 4;
-      break;
-    case FloatingPointKind::kFloat128:
-      size_ = alignment_ = 16;
-      break;
-    case FloatingPointKind::kDouble:
-      size_ = alignment_ = 8;
-      break;
-    case FloatingPointKind::kLongDouble:
-      size_ = alignment_ = 16;
-      break;
+#undef PROCESS_TYPE
+
+#define PROCESS_TYPE(kind) \
+  case TypeKind::k##kind:  \
+    return alignmentOf((const kind##Type*)type);
+
+auto MemoryLayout::alignmentOf(const Type* type) const -> int {
+  switch (type->kind()) {
+    CXX_FOR_EACH_TYPE_KIND(PROCESS_TYPE)
     default:
-      cxx_runtime_error("unrecognized integer kind");
-  }
+      assert(!"unreachable");
+      return 1;
+  }  // switch
 }
 
-void MemoryLayout::visit(const EnumType*) { size_ = alignment_ = 4; }
+#undef PROCESS_TYPE
 
-void MemoryLayout::visit(const ScopedEnumType*) {}
-
-void MemoryLayout::visit(const PointerType*) { size_ = alignment_ = 8; }
-
-void MemoryLayout::MemoryLayout::visit(const PointerToMemberType*) {}
-
-void MemoryLayout::MemoryLayout::visit(const ReferenceType*) {}
-
-void MemoryLayout::visit(const RValueReferenceType*) {}
-void MemoryLayout::visit(const ArrayType* type) {
-  auto element = operator()(type->elementType());
-
-  if (!element) return;
-
-  auto [arrayElementSize, arrayElementAlignment] = *element;
-
-  size_ = AlignTo(size_, arrayElementAlignment) +
-          type->dimension() * arrayElementSize;
-
-  alignment_ = arrayElementAlignment;
+auto MemoryLayout::alignmentOf(const InvalidType* type) const -> int {
+  assert(!"alignmentOf(InvalidType)");
+  return 0;
 }
 
-void MemoryLayout::visit(const UnboundArrayType*) {}
-
-void MemoryLayout::visit(const FunctionType*) {}
-
-void MemoryLayout::visit(const MemberFunctionType*) {}
-
-void MemoryLayout::visit(const NamespaceType*) {}
-
-void MemoryLayout::visit(const ClassType* type) {
-  auto symbol = type->symbol();
-
-  std::size_t size = 0;
-  std::size_t alignment = 0;
-
-  for (auto member : *symbol->scope()) {
-    auto field = dynamic_cast<FieldSymbol*>(member);
-    if (!field) continue;
-
-    auto layout = operator()(member->type());
-
-    if (!layout) {
-      // cannot compute the type of this class.
-      return;
-    }
-
-    const auto [memberSize, memberAlignment] = *layout;
-
-    size = AlignTo(size, memberAlignment) + memberSize;
-    alignment = std::max(alignment, static_cast<std::size_t>(memberAlignment));
-  }
-
-  if (size) {
-    alignment_ = alignment;
-    size_ = AlignTo(size, alignment_);
-  } else {
-    size_ = alignment_ = 1;
-  }
+auto MemoryLayout::alignmentOf(const DependentType* type) const -> int {
+  assert(!"alignmentOf(DependentType)");
+  return 0;
 }
 
-void MemoryLayout::visit(const TemplateType*) {}
+auto MemoryLayout::alignmentOf(const NullptrType* type) const -> int {
+  return sizeOfPointer_;
+}
 
-void MemoryLayout::visit(const TemplateArgumentType*) {}
+auto MemoryLayout::alignmentOf(const AutoType* type) const -> int {
+  assert(!"alignmentOf(AutoType)");
+  return 0;
+}
 
-void MemoryLayout::visit(const ConceptType*) {}
+auto MemoryLayout::alignmentOf(const VoidType* type) const -> int {
+  assert(!"alignmentOf(VoidType)");
+  return 0;
+}
+auto MemoryLayout::alignmentOf(const BoolType* type) const -> int { return 1; }
+auto MemoryLayout::alignmentOf(const CharType* type) const -> int { return 1; }
+auto MemoryLayout::alignmentOf(const SignedCharType* type) const -> int {
+  return 1;
+}
+auto MemoryLayout::alignmentOf(const UnsignedCharType* type) const -> int {
+  return 1;
+}
+auto MemoryLayout::alignmentOf(const ShortType* type) const -> int { return 2; }
+auto MemoryLayout::alignmentOf(const UnsignedShortType* type) const -> int {
+  return 2;
+}
+auto MemoryLayout::alignmentOf(const IntType* type) const -> int { return 4; }
+auto MemoryLayout::alignmentOf(const UnsignedIntType* type) const -> int {
+  return 4;
+}
+auto MemoryLayout::alignmentOf(const LongType* type) const -> int {
+  return sizeOfLong_;
+}
+auto MemoryLayout::alignmentOf(const UnsignedLongType* type) const -> int {
+  return sizeOfLong_;
+}
+auto MemoryLayout::alignmentOf(const FloatType* type) const -> int { return 4; }
+auto MemoryLayout::alignmentOf(const DoubleType* type) const -> int {
+  return 8;
+}
+auto MemoryLayout::alignmentOf(const QualType* type) const -> int {
+  return alignmentOf(type->elementType);
+}
+auto MemoryLayout::alignmentOf(const PointerType* type) const -> int {
+  return sizeOfPointer_;
+}
+auto MemoryLayout::alignmentOf(const LValueReferenceType* type) const -> int {
+  return sizeOfPointer_;
+}
+auto MemoryLayout::alignmentOf(const RValueReferenceType* type) const -> int {
+  return sizeOfPointer_;
+}
+auto MemoryLayout::alignmentOf(const ArrayType* type) const -> int {
+  return alignmentOf(type->elementType);
+}
+auto MemoryLayout::alignmentOf(const FunctionType* type) const -> int {
+  return sizeOfPointer_;
+}
+auto MemoryLayout::alignmentOf(const ConceptType* type) const -> int {
+  assert(!"alignmentOf(ConceptType)");
+  return 0;
+}
+auto MemoryLayout::alignmentOf(const ClassType* type) const -> int {
+  return type->symbol->alignment();
+}
+auto MemoryLayout::alignmentOf(const NamespaceType* type) const -> int {
+  assert(!"alignmentOf(NamespaceType)");
+  return 0;
+}
+auto MemoryLayout::alignmentOf(const MemberPointerType* type) const -> int {
+  return sizeOfPointer_;
+}
+auto MemoryLayout::alignmentOf(const EnumType* type) const -> int { return 4; }
+auto MemoryLayout::alignmentOf(const GenericType* type) const -> int {
+  assert(!"alignmentOf(GenericType)");
+  return 0;
+}
+auto MemoryLayout::alignmentOf(const PackType* type) const -> int {
+  assert(!"alignmentOf(PackType)");
+  return 0;
+}
+
+auto MemoryLayout::alignmentOf(const ScopedEnumType* type) const -> int {
+  return alignmentOf(type->elementType);
+}
+
+// size of type
+
+auto MemoryLayout::sizeOf(const InvalidType* type) const -> int {
+  assert(!"todo");
+  return 0;
+}
+
+auto MemoryLayout::sizeOf(const NullptrType* type) const -> int {
+  return sizeOfPointer_;
+}
+
+auto MemoryLayout::sizeOf(const DependentType* type) const -> int {
+  assert(!"sizeOfType of DependentType");
+  return 0;
+}
+
+auto MemoryLayout::sizeOf(const AutoType* type) const -> int {
+  assert(!"sizeOfType of placeholder type");
+  return 0;
+}
+
+auto MemoryLayout::sizeOf(const VoidType* type) const -> int {
+  assert(!"sizeOfType of incomplete type");
+  return 0;
+}
+
+auto MemoryLayout::sizeOf(const BoolType* type) const -> int { return 1; }
+
+auto MemoryLayout::sizeOf(const CharType* type) const -> int { return 1; }
+
+auto MemoryLayout::sizeOf(const SignedCharType* type) const -> int { return 1; }
+
+auto MemoryLayout::sizeOf(const UnsignedCharType* type) const -> int {
+  return 1;
+}
+
+auto MemoryLayout::sizeOf(const ShortType* type) const -> int { return 2; }
+
+auto MemoryLayout::sizeOf(const UnsignedShortType* type) const -> int {
+  return 2;
+}
+
+auto MemoryLayout::sizeOf(const IntType* type) const -> int { return 4; }
+
+auto MemoryLayout::sizeOf(const UnsignedIntType* type) const -> int {
+  return 4;
+}
+
+auto MemoryLayout::sizeOf(const LongType* type) const -> int {
+  return sizeOfLong_;
+}
+
+auto MemoryLayout::sizeOf(const UnsignedLongType* type) const -> int {
+  return sizeOfLong_;
+}
+
+auto MemoryLayout::sizeOf(const FloatType* type) const -> int { return 4; }
+
+auto MemoryLayout::sizeOf(const DoubleType* type) const -> int { return 8; }
+
+auto MemoryLayout::sizeOf(const QualType* type) const -> int {
+  return sizeOf(type->elementType);
+}
+
+auto MemoryLayout::sizeOf(const PointerType* type) const -> int {
+  return sizeOfPointer_;
+}
+
+auto MemoryLayout::sizeOf(const LValueReferenceType* type) const -> int {
+  return sizeOfPointer_;
+}
+
+auto MemoryLayout::sizeOf(const RValueReferenceType* type) const -> int {
+  return sizeOfPointer_;
+}
+
+auto MemoryLayout::sizeOf(const ArrayType* type) const -> int {
+  return sizeOf(type->elementType) * type->dim;
+}
+
+auto MemoryLayout::sizeOf(const FunctionType* type) const -> int {
+  return sizeOfPointer_;
+}
+
+auto MemoryLayout::sizeOf(const ConceptType* type) const -> int {
+  assert(!"sizeOfType0 of concept");
+  return 0;
+}
+
+auto MemoryLayout::sizeOf(const ClassType* type) const -> int {
+  return type->symbol->size();
+}
+
+auto MemoryLayout::sizeOf(const NamespaceType* type) const -> int {
+  assert(!"sizeOfType of namespace");
+  return 0;
+}
+
+auto MemoryLayout::sizeOf(const MemberPointerType* type) const -> int {
+  return sizeOfPointer_;
+}
+
+auto MemoryLayout::sizeOf(const EnumType* type) const -> int { return 4; }
+
+auto MemoryLayout::sizeOf(const GenericType* type) const -> int {
+  assert(!"sizeOfType of generic type");
+  return 0;
+}
+
+auto MemoryLayout::sizeOf(const PackType* type) const -> int {
+  assert(!"sizeOfType of pack type");
+  return 0;
+}
+
+auto MemoryLayout::sizeOf(const ScopedEnumType* type) const -> int {
+  return sizeOf(type->elementType);
+}
 
 }  // namespace cxx

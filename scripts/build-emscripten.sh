@@ -15,7 +15,7 @@ CMAKE_CONFIGURE_OPTIONS="
 
 if [ ! -z "${CODESPACES}" ] && [ ! -z "${EMSDK}" ]; then
     if [ ! -d "${project_root}/build.em" ]; then
-        cmake -G Ninja ${CMAKE_CONFIGURE_OPTIONS} -S ${project_root} -B ${project_root}/build.em
+        emcmake cmake -G Ninja ${CMAKE_CONFIGURE_OPTIONS} -S ${project_root} -B ${project_root}/build.em
     fi
     cmake --build $project_root/build.em
     exit 0

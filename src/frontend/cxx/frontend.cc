@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Roberto Raggi <roberto.raggi@gmail.com>
+#// Copyright (c) 2023 Roberto Raggi <roberto.raggi@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -23,19 +23,12 @@
 #include <cxx/ast_visitor.h>
 #include <cxx/control.h>
 #include <cxx/gcc_linux_toolchain.h>
-#include <cxx/ir/codegen.h>
-#include <cxx/ir/ir.h>
-#include <cxx/ir/ir_printer.h>
-#include <cxx/ir/x64_instruction_selection.h>
 #include <cxx/lexer.h>
 #include <cxx/macos_toolchain.h>
 #include <cxx/preprocessor.h>
 #include <cxx/private/format.h>
 #include <cxx/private/path.h>
 #include <cxx/recursive_ast_visitor.h>
-#include <cxx/scope.h>
-#include <cxx/symbol_printer.h>
-#include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/wasm32_wasi_toolchain.h>
 #include <cxx/windows_toolchain.h>
@@ -363,11 +356,6 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
 
   unit.parse(cli.checkTypes());
 
-  if (cli.opt_dump_symbols) {
-    SymbolPrinter printSymbol(std::cout);
-    printSymbol(unit.ast()->symbol);
-  }
-
   if (cli.opt_emit_ast) {
     unit.serialize(output);
 
@@ -381,20 +369,6 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
     ASTPrinter toJSON(&unit);
     fmt::print(std::cout, "{}",
                toJSON(unit.ast(), /*print locations*/ true).dump(2));
-  }
-
-  if (cli.opt_S || cli.opt_ir_dump || cli.opt_c) {
-    ir::Codegen cg;
-
-    auto module = cg(&unit);
-
-    if (cli.opt_S || cli.opt_c) {
-      ir::X64InstructionSelection isel;
-      isel(module.get(), output);
-    } else if (cli.opt_ir_dump) {
-      ir::IRPrinter printer;
-      printer.print(module.get(), output);
-    }
   }
 
   diagnosticsClient.verifyExpectedDiagnostics(

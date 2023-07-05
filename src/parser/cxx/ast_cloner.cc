@@ -46,8 +46,6 @@ void ASTCloner::visit(TypeIdAST* ast) {
   }
 
   copy->declarator = accept(ast->declarator);
-
-  copy->type = ast->type;
 }
 
 void ASTCloner::visit(NestedNameSpecifierAST* ast) {
@@ -66,8 +64,6 @@ void ASTCloner::visit(NestedNameSpecifierAST* ast) {
       out = &(*out)->next;
     }
   }
-
-  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(UsingDeclaratorAST* ast) {
@@ -178,8 +174,6 @@ void ASTCloner::visit(InitDeclaratorAST* ast) {
   copy->requiresClause = accept(ast->requiresClause);
 
   copy->initializer = accept(ast->initializer);
-
-  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(BaseSpecifierAST* ast) {
@@ -940,8 +934,6 @@ void ASTCloner::visit(TranslationUnitAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->symbol = ast->symbol;
-
   if (auto it = ast->declarationList) {
     auto out = &copy->declarationList;
 
@@ -957,8 +949,6 @@ void ASTCloner::visit(ModuleUnitAST* ast) {
   copy_ = copy;
 
   copy->setChecked(ast->checked());
-
-  copy->symbol = ast->symbol;
 
   copy->globalModuleFragment = accept(ast->globalModuleFragment);
 
@@ -982,8 +972,6 @@ void ASTCloner::visit(ThisExpressionAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->type = ast->type;
-
   copy->valueCategory = ast->valueCategory;
 
   copy->constValue = ast->constValue;
@@ -996,8 +984,6 @@ void ASTCloner::visit(CharLiteralExpressionAST* ast) {
   copy_ = copy;
 
   copy->setChecked(ast->checked());
-
-  copy->type = ast->type;
 
   copy->valueCategory = ast->valueCategory;
 
@@ -1014,8 +1000,6 @@ void ASTCloner::visit(BoolLiteralExpressionAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->type = ast->type;
-
   copy->valueCategory = ast->valueCategory;
 
   copy->constValue = ast->constValue;
@@ -1030,8 +1014,6 @@ void ASTCloner::visit(IntLiteralExpressionAST* ast) {
   copy_ = copy;
 
   copy->setChecked(ast->checked());
-
-  copy->type = ast->type;
 
   copy->valueCategory = ast->valueCategory;
 
@@ -1048,8 +1030,6 @@ void ASTCloner::visit(FloatLiteralExpressionAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->type = ast->type;
-
   copy->valueCategory = ast->valueCategory;
 
   copy->constValue = ast->constValue;
@@ -1065,8 +1045,6 @@ void ASTCloner::visit(NullptrLiteralExpressionAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->type = ast->type;
-
   copy->valueCategory = ast->valueCategory;
 
   copy->constValue = ast->constValue;
@@ -1081,8 +1059,6 @@ void ASTCloner::visit(StringLiteralExpressionAST* ast) {
   copy_ = copy;
 
   copy->setChecked(ast->checked());
-
-  copy->type = ast->type;
 
   copy->valueCategory = ast->valueCategory;
 
@@ -1106,8 +1082,6 @@ void ASTCloner::visit(UserDefinedStringLiteralExpressionAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->type = ast->type;
-
   copy->valueCategory = ast->valueCategory;
 
   copy->constValue = ast->constValue;
@@ -1123,15 +1097,11 @@ void ASTCloner::visit(IdExpressionAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->type = ast->type;
-
   copy->valueCategory = ast->valueCategory;
 
   copy->constValue = ast->constValue;
 
   copy->name = accept(ast->name);
-
-  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(RequiresExpressionAST* ast) {
@@ -1139,8 +1109,6 @@ void ASTCloner::visit(RequiresExpressionAST* ast) {
   copy_ = copy;
 
   copy->setChecked(ast->checked());
-
-  copy->type = ast->type;
 
   copy->valueCategory = ast->valueCategory;
 
@@ -1163,8 +1131,6 @@ void ASTCloner::visit(NestedExpressionAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->type = ast->type;
-
   copy->valueCategory = ast->valueCategory;
 
   copy->constValue = ast->constValue;
@@ -1181,8 +1147,6 @@ void ASTCloner::visit(RightFoldExpressionAST* ast) {
   copy_ = copy;
 
   copy->setChecked(ast->checked());
-
-  copy->type = ast->type;
 
   copy->valueCategory = ast->valueCategory;
 
@@ -1207,8 +1171,6 @@ void ASTCloner::visit(LeftFoldExpressionAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->type = ast->type;
-
   copy->valueCategory = ast->valueCategory;
 
   copy->constValue = ast->constValue;
@@ -1231,8 +1193,6 @@ void ASTCloner::visit(FoldExpressionAST* ast) {
   copy_ = copy;
 
   copy->setChecked(ast->checked());
-
-  copy->type = ast->type;
 
   copy->valueCategory = ast->valueCategory;
 
@@ -1262,8 +1222,6 @@ void ASTCloner::visit(LambdaExpressionAST* ast) {
   copy_ = copy;
 
   copy->setChecked(ast->checked());
-
-  copy->type = ast->type;
 
   copy->valueCategory = ast->valueCategory;
 
@@ -1297,8 +1255,6 @@ void ASTCloner::visit(SizeofExpressionAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->type = ast->type;
-
   copy->valueCategory = ast->valueCategory;
 
   copy->constValue = ast->constValue;
@@ -1313,8 +1269,6 @@ void ASTCloner::visit(SizeofTypeExpressionAST* ast) {
   copy_ = copy;
 
   copy->setChecked(ast->checked());
-
-  copy->type = ast->type;
 
   copy->valueCategory = ast->valueCategory;
 
@@ -1334,8 +1288,6 @@ void ASTCloner::visit(SizeofPackExpressionAST* ast) {
   copy_ = copy;
 
   copy->setChecked(ast->checked());
-
-  copy->type = ast->type;
 
   copy->valueCategory = ast->valueCategory;
 
@@ -1360,8 +1312,6 @@ void ASTCloner::visit(TypeidExpressionAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->type = ast->type;
-
   copy->valueCategory = ast->valueCategory;
 
   copy->constValue = ast->constValue;
@@ -1380,8 +1330,6 @@ void ASTCloner::visit(TypeidOfTypeExpressionAST* ast) {
   copy_ = copy;
 
   copy->setChecked(ast->checked());
-
-  copy->type = ast->type;
 
   copy->valueCategory = ast->valueCategory;
 
@@ -1402,8 +1350,6 @@ void ASTCloner::visit(AlignofExpressionAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->type = ast->type;
-
   copy->valueCategory = ast->valueCategory;
 
   copy->constValue = ast->constValue;
@@ -1422,8 +1368,6 @@ void ASTCloner::visit(TypeTraitsExpressionAST* ast) {
   copy_ = copy;
 
   copy->setChecked(ast->checked());
-
-  copy->type = ast->type;
 
   copy->valueCategory = ast->valueCategory;
 
@@ -1453,8 +1397,6 @@ void ASTCloner::visit(UnaryExpressionAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->type = ast->type;
-
   copy->valueCategory = ast->valueCategory;
 
   copy->constValue = ast->constValue;
@@ -1471,8 +1413,6 @@ void ASTCloner::visit(BinaryExpressionAST* ast) {
   copy_ = copy;
 
   copy->setChecked(ast->checked());
-
-  copy->type = ast->type;
 
   copy->valueCategory = ast->valueCategory;
 
@@ -1493,8 +1433,6 @@ void ASTCloner::visit(AssignmentExpressionAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->type = ast->type;
-
   copy->valueCategory = ast->valueCategory;
 
   copy->constValue = ast->constValue;
@@ -1514,8 +1452,6 @@ void ASTCloner::visit(BracedTypeConstructionAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->type = ast->type;
-
   copy->valueCategory = ast->valueCategory;
 
   copy->constValue = ast->constValue;
@@ -1530,8 +1466,6 @@ void ASTCloner::visit(TypeConstructionAST* ast) {
   copy_ = copy;
 
   copy->setChecked(ast->checked());
-
-  copy->type = ast->type;
 
   copy->valueCategory = ast->valueCategory;
 
@@ -1559,8 +1493,6 @@ void ASTCloner::visit(CallExpressionAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->type = ast->type;
-
   copy->valueCategory = ast->valueCategory;
 
   copy->constValue = ast->constValue;
@@ -1587,8 +1519,6 @@ void ASTCloner::visit(SubscriptExpressionAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->type = ast->type;
-
   copy->valueCategory = ast->valueCategory;
 
   copy->constValue = ast->constValue;
@@ -1608,8 +1538,6 @@ void ASTCloner::visit(MemberExpressionAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->type = ast->type;
-
   copy->valueCategory = ast->valueCategory;
 
   copy->constValue = ast->constValue;
@@ -1622,8 +1550,6 @@ void ASTCloner::visit(MemberExpressionAST* ast) {
 
   copy->name = accept(ast->name);
 
-  copy->symbol = ast->symbol;
-
   copy->accessOp = ast->accessOp;
 }
 
@@ -1632,8 +1558,6 @@ void ASTCloner::visit(PostIncrExpressionAST* ast) {
   copy_ = copy;
 
   copy->setChecked(ast->checked());
-
-  copy->type = ast->type;
 
   copy->valueCategory = ast->valueCategory;
 
@@ -1651,8 +1575,6 @@ void ASTCloner::visit(ConditionalExpressionAST* ast) {
   copy_ = copy;
 
   copy->setChecked(ast->checked());
-
-  copy->type = ast->type;
 
   copy->valueCategory = ast->valueCategory;
 
@@ -1675,8 +1597,6 @@ void ASTCloner::visit(ImplicitCastExpressionAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->type = ast->type;
-
   copy->valueCategory = ast->valueCategory;
 
   copy->constValue = ast->constValue;
@@ -1691,8 +1611,6 @@ void ASTCloner::visit(CastExpressionAST* ast) {
   copy_ = copy;
 
   copy->setChecked(ast->checked());
-
-  copy->type = ast->type;
 
   copy->valueCategory = ast->valueCategory;
 
@@ -1712,8 +1630,6 @@ void ASTCloner::visit(CppCastExpressionAST* ast) {
   copy_ = copy;
 
   copy->setChecked(ast->checked());
-
-  copy->type = ast->type;
 
   copy->valueCategory = ast->valueCategory;
 
@@ -1740,8 +1656,6 @@ void ASTCloner::visit(NewExpressionAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->type = ast->type;
-
   copy->valueCategory = ast->valueCategory;
 
   copy->constValue = ast->constValue;
@@ -1760,8 +1674,6 @@ void ASTCloner::visit(DeleteExpressionAST* ast) {
   copy_ = copy;
 
   copy->setChecked(ast->checked());
-
-  copy->type = ast->type;
 
   copy->valueCategory = ast->valueCategory;
 
@@ -1784,8 +1696,6 @@ void ASTCloner::visit(ThrowExpressionAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->type = ast->type;
-
   copy->valueCategory = ast->valueCategory;
 
   copy->constValue = ast->constValue;
@@ -1800,8 +1710,6 @@ void ASTCloner::visit(NoexceptExpressionAST* ast) {
   copy_ = copy;
 
   copy->setChecked(ast->checked());
-
-  copy->type = ast->type;
 
   copy->valueCategory = ast->valueCategory;
 
@@ -1888,8 +1796,6 @@ void ASTCloner::visit(CompoundStatementAST* ast) {
   }
 
   copy->rbraceLoc = ast->rbraceLoc;
-
-  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(IfStatementAST* ast) {
@@ -2150,8 +2056,6 @@ void ASTCloner::visit(FunctionDefinitionAST* ast) {
   copy->requiresClause = accept(ast->requiresClause);
 
   copy->functionBody = accept(ast->functionBody);
-
-  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(ConceptDefinitionAST* ast) {
@@ -2204,8 +2108,6 @@ void ASTCloner::visit(AliasDeclarationAST* ast) {
   copy->semicolonLoc = ast->semicolonLoc;
 
   copy->identifier = ast->identifier;
-
-  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(SimpleDeclarationAST* ast) {
@@ -2561,8 +2463,6 @@ void ASTCloner::visit(TemplateDeclarationAST* ast) {
   copy->requiresClause = accept(ast->requiresClause);
 
   copy->declaration = accept(ast->declaration);
-
-  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(TypenameTypeParameterAST* ast) {
@@ -2582,8 +2482,6 @@ void ASTCloner::visit(TypenameTypeParameterAST* ast) {
   copy->typeId = accept(ast->typeId);
 
   copy->identifier = ast->identifier;
-
-  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(TemplateTypeParameterAST* ast) {
@@ -3025,8 +2923,6 @@ void ASTCloner::visit(NamedTypeSpecifierAST* ast) {
   copy->setChecked(ast->checked());
 
   copy->name = accept(ast->name);
-
-  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(AtomicTypeSpecifierAST* ast) {
@@ -3071,8 +2967,6 @@ void ASTCloner::visit(ElaboratedTypeSpecifierAST* ast) {
   copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
 
   copy->name = accept(ast->name);
-
-  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(DecltypeAutoSpecifierAST* ast) {
@@ -3182,8 +3076,6 @@ void ASTCloner::visit(EnumSpecifierAST* ast) {
   }
 
   copy->rbraceLoc = ast->rbraceLoc;
-
-  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(ClassSpecifierAST* ast) {
@@ -3219,8 +3111,6 @@ void ASTCloner::visit(ClassSpecifierAST* ast) {
   }
 
   copy->rbraceLoc = ast->rbraceLoc;
-
-  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(TypenameSpecifierAST* ast) {

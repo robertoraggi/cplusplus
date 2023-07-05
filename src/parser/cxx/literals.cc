@@ -26,6 +26,10 @@ namespace cxx {
 
 Literal::~Literal() = default;
 
+auto Literal::hashCode() const -> std::size_t {
+  return std::hash<std::string>{}(value_);
+}
+
 IntegerLiteral::IntegerLiteral(std::string text) : Literal(std::move(text)) {
   if (value().find('\'') == std::string_view::npos) {
     integerValue_ = interpretText(value());

@@ -19,242 +19,222 @@
 // SOFTWARE.
 
 #include <cxx/names.h>
-#include <cxx/private/format.h>
-#include <cxx/qualified_type.h>
 #include <cxx/symbols.h>
 #include <cxx/type_printer.h>
 #include <cxx/types.h>
 
 namespace cxx {
 
-void TypePrinter::operator()(std::ostream& out, const QualifiedType& type,
-                             std::string declarator) {
-  out << toString(type, std::move(declarator));
+TypePrinter::TypePrinter() {
+  specifiers_.clear();
+  ptrOps_.clear();
+  declarator_.clear();
+  addFormals_ = true;
 }
 
-auto TypePrinter::toString(const QualifiedType& type, std::string declarator)
+TypePrinter::~TypePrinter() {
+  specifiers_.clear();
+  ptrOps_.clear();
+  declarator_.clear();
+}
+
+auto TypePrinter::to_string(const Type* type, const std::string& id)
     -> std::string {
-  if (!type) return {};
-  std::string specifiers;
-  std::string ptrOps;
-  std::swap(specifiers_, specifiers);
-  std::swap(ptrOps_, ptrOps);
-  std::swap(declarator_, declarator);
+  specifiers_.clear();
+  ptrOps_.clear();
+  declarator_.clear();
+  declarator_.append(id);
+
   accept(type);
-  std::swap(declarator_, declarator);
-  std::swap(ptrOps_, ptrOps);
-  std::swap(specifiers_, specifiers);
-  if (ptrOps.empty() && declarator.empty()) return specifiers;
-  return fmt::format("{} {}{}", specifiers, ptrOps, declarator);
-}
 
-auto TypePrinter::toString(const QualifiedType& type, std::string id,
-                           bool addFormals) -> std::string {
-  std::swap(addFormals_, addFormals);
-  auto text = toString(type, std::move(id));
-  std::swap(addFormals_, addFormals);
-  return text;
-}
+  std::string buffer;
+  buffer.clear();
 
-void TypePrinter::accept(const QualifiedType& type) {
-  if (!type) return;
-  addQualifiers(specifiers_, type.qualifiers());
-  type->accept(this);
-}
-
-void TypePrinter::addQualifiers(std::string& out, Qualifiers qualifiers) {
-  if ((qualifiers & Qualifiers::kConst) != Qualifiers::kNone) out += "const ";
-
-  if ((qualifiers & Qualifiers::kVolatile) != Qualifiers::kNone) {
-    out += "volatile ";
+  buffer.append(specifiers_);
+  buffer.append(ptrOps_);
+  if (!declarator_.empty()) {
+    buffer.append(" ");
+    buffer.append(declarator_);
   }
 
-  if ((qualifiers & Qualifiers::kRestrict) != Qualifiers::kNone) {
-    out += "restrict ";
+  return buffer;
+}
+
+auto TypePrinter::to_string(const Type* type) -> std::string {
+  return to_string(type, nullptr);
+}
+
+void TypePrinter::accept(const Type* type) {
+  if (type) type->accept(this);
+}
+
+void TypePrinter::visit(const InvalidType* type) {}
+
+void TypePrinter::visit(const NullptrType* type) {
+  specifiers_.append("decltype(nullptr)");
+}
+
+void TypePrinter::visit(const DependentType* type) {
+  specifiers_.append("dependent-type");
+}
+
+void TypePrinter::visit(const AutoType* type) { specifiers_.append("auto"); }
+
+void TypePrinter::visit(const VoidType* type) { specifiers_.append("void"); }
+
+void TypePrinter::visit(const BoolType* type) { specifiers_.append("bool"); }
+
+void TypePrinter::visit(const CharType* type) { specifiers_.append("char"); }
+
+void TypePrinter::visit(const SignedCharType* type) {
+  specifiers_.append("signed char");
+}
+
+void TypePrinter::visit(const UnsignedCharType* type) {
+  specifiers_.append("unsigned char");
+}
+
+void TypePrinter::visit(const ShortType* type) { specifiers_.append("short"); }
+
+void TypePrinter::visit(const UnsignedShortType* type) {
+  specifiers_.append("unsigned short");
+}
+
+void TypePrinter::visit(const IntType* type) { specifiers_.append("int"); }
+
+void TypePrinter::visit(const UnsignedIntType* type) {
+  specifiers_.append("unsigned int");
+}
+
+void TypePrinter::visit(const LongType* type) { specifiers_.append("long"); }
+
+void TypePrinter::visit(const UnsignedLongType* type) {
+  specifiers_.append("unsigned long");
+}
+
+void TypePrinter::visit(const FloatType* type) { specifiers_.append("float"); }
+
+void TypePrinter::visit(const DoubleType* type) {
+  specifiers_.append("double");
+}
+
+void TypePrinter::visit(const QualType* type) {
+  if (type->isConst) {
+    specifiers_.append("const ");
   }
-}
-
-void TypePrinter::visit(const UndefinedType* type) {
-  specifiers_ += "__undefined_type__";
-}
-
-void TypePrinter::visit(const ErrorType* type) {
-  specifiers_ += "__error_type__";
-}
-
-void TypePrinter::visit(const AutoType*) { specifiers_ += "auto"; }
-
-void TypePrinter::visit(const DecltypeAutoType*) {
-  specifiers_ += "decltype(auto)";
-}
-
-void TypePrinter::visit(const VoidType*) { specifiers_ += "void"; }
-
-void TypePrinter::visit(const NullptrType*) { specifiers_ += "nullptr_t"; }
-
-void TypePrinter::visit(const BooleanType*) { specifiers_ += "bool"; }
-
-void TypePrinter::visit(const CharacterType* type) {
-  switch (type->kind()) {
-    case CharacterKind::kChar8T:
-      specifiers_ += "char8_t";
-      break;
-    case CharacterKind::kChar16T:
-      specifiers_ += "char16_t";
-      break;
-    case CharacterKind::kChar32T:
-      specifiers_ += "char32_t";
-      break;
-    case CharacterKind::kWCharT:
-      specifiers_ += "wchar_t";
-      break;
-  }  // switch
-}
-
-void TypePrinter::visit(const IntegerType* type) {
-  if (type->isUnsigned()) specifiers_ += "unsigned ";
-  switch (type->kind()) {
-    case IntegerKind::kChar:
-      specifiers_ += "char";
-      break;
-    case IntegerKind::kShort:
-      specifiers_ += "short";
-      break;
-    case IntegerKind::kInt:
-      specifiers_ += "int";
-      break;
-    case IntegerKind::kInt64:
-      specifiers_ += "__int64";
-      break;
-    case IntegerKind::kInt128:
-      specifiers_ += "__int128";
-      break;
-    case IntegerKind::kLong:
-      specifiers_ += "long";
-      break;
-    case IntegerKind::kLongLong:
-      specifiers_ += "long long";
-      break;
-  }  // switch
-}
-
-void TypePrinter::visit(const FloatingPointType* type) {
-  switch (type->kind()) {
-    case FloatingPointKind::kFloat:
-      specifiers_ += "float";
-      break;
-    case FloatingPointKind::kDouble:
-      specifiers_ += "double";
-      break;
-    case FloatingPointKind::kLongDouble:
-      specifiers_ += "long double";
-      break;
-    case FloatingPointKind::kFloat128:
-      specifiers_ += "__float128";
-      break;
-  }  // switch
-}
-
-void TypePrinter::visit(const EnumType* type) {
-  if (auto name = type->symbol()->name()) {
-    specifiers_ += fmt::format("enum {}", *name);
-  } else {
-    specifiers_ += "int";
+  if (type->isVolatile) {
+    specifiers_.append("volatile ");
   }
-}
-
-void TypePrinter::visit(const ScopedEnumType* type) {
-  if (auto name = type->symbol()->name()) {
-    specifiers_ += fmt::format("enum class {}", *name);
-  } else {
-    specifiers_ += "enum class __anon__";
-  }
+  accept(type->elementType);
 }
 
 void TypePrinter::visit(const PointerType* type) {
-  ptrOps_ += "*";
-  addQualifiers(ptrOps_, type->qualifiers());
-  accept(type->elementType());
+  ptrOps_.append("*");
+  accept(type->elementType);
 }
 
-void TypePrinter::visit(const PointerToMemberType* type) {
-  cxx_runtime_error("todo");
-}
-
-void TypePrinter::visit(const ReferenceType* type) {
-  ptrOps_ += "&";
-  accept(type->elementType());
+void TypePrinter::visit(const LValueReferenceType* type) {
+  ptrOps_.append("&");
+  accept(type->elementType);
 }
 
 void TypePrinter::visit(const RValueReferenceType* type) {
-  ptrOps_ += "&&";
-  accept(type->elementType());
+  ptrOps_.append("&&");
+  accept(type->elementType);
 }
 
 void TypePrinter::visit(const ArrayType* type) {
-  if (!ptrOps_.empty()) {
-    declarator_ =
-        fmt::format("({}{}[{}])", ptrOps_, declarator_, type->dimension());
-    ptrOps_.clear();
-  } else {
-    declarator_ += fmt::format("[{}]", type->dimension());
-  }
-  accept(type->elementType());
-}
+  auto buf = "[" + std::to_string(type->dim) + "]";
 
-void TypePrinter::visit(const UnboundArrayType* type) {
-  if (!ptrOps_.empty()) {
-    declarator_ = fmt::format("({}{}[])", ptrOps_, declarator_);
-    ptrOps_.clear();
+  if (ptrOps_.empty()) {
+    declarator_.append(buf);
   } else {
-    declarator_ += fmt::format("[]");
+    std::string decl;
+    std::swap(decl, declarator_);
+    declarator_.append("(");
+    declarator_.append(ptrOps_);
+    declarator_.append(decl);
+    declarator_.append(")");
+    declarator_.append(buf);
+    ptrOps_.clear();
   }
-  accept(type->elementType());
+
+  accept(type->elementType);
 }
 
 void TypePrinter::visit(const FunctionType* type) {
-  const auto& args = type->argumentTypes();
-  std::string params = "(";
-  for (size_t i = 0; i < args.size(); ++i) {
-    if (i) params += ", ";
-    std::string formal = addFormals_ ? fmt::format("arg{}", i) : "";
-    params += toString(args[i], std::move(formal));
+  std::string signature;
+  signature.clear();
+
+  signature.append("(");
+
+  for (ParameterList* param = type->parameters; param; param = param->next) {
+    const Identifier* paramName = name_cast<Identifier>(param->name);
+
+    TypePrinter pp;
+
+    std::string paramId;
+
+    if (addFormals_ && paramName) {
+      paramId = paramName->name();
+    }
+
+    auto paramText = pp.to_string(param->type, paramId);
+
+    signature.append(paramText);
+
+    if (param->next) {
+      signature.append(", ");
+    }
   }
-  if (type->isVariadic()) params += "...";
-  params += ")";
+
+  if (type->isVariadic) {
+    signature.append("..");
+  }
+
+  signature.append(")");
+
   if (!ptrOps_.empty()) {
-    declarator_ = fmt::format("({}{}){}", ptrOps_, declarator_, params);
+    std::string decl;
+    std::swap(decl, declarator_);
+    declarator_.append("(");
+    declarator_.append(ptrOps_);
+    declarator_.append(decl);
+    declarator_.append(")");
     ptrOps_.clear();
-  } else {
-    declarator_ += params;
   }
-  accept(type->returnType());
-}
 
-void TypePrinter::visit(const MemberFunctionType* type) {
-  cxx_runtime_error("todo");
-}
+  declarator_.append(signature);
 
-void TypePrinter::visit(const NamespaceType* type) {
-  cxx_runtime_error("todo");
+  accept(type->returnType);
 }
 
 void TypePrinter::visit(const ClassType* type) {
-  const std::string_view classKey =
-      type->symbol()->classKey() == ClassKey::kUnion ? "union" : "struct";
-  if (auto name = type->symbol()->name()) {
-    specifiers_ += fmt::format("{} {}", classKey, *name);
-  } else {
-    specifiers_ += fmt::format("{} __anon__", classKey);
-  }
+  const Identifier* className = name_cast<Identifier>(type->symbol->name());
+  specifiers_.append(className->name());
 }
 
-void TypePrinter::visit(const TemplateType* type) { cxx_runtime_error("todo"); }
-
-void TypePrinter::visit(const TemplateArgumentType* type) {
-  cxx_runtime_error("todo");
+void TypePrinter::visit(const NamespaceType* type) {
+  const Identifier* className = name_cast<Identifier>(type->symbol->name());
+  specifiers_.append(className->name());
 }
 
-void TypePrinter::visit(const ConceptType* type) { cxx_runtime_error("todo"); }
+void TypePrinter::visit(const MemberPointerType* type) {}
+
+void TypePrinter::visit(const ConceptType* type) {}
+
+void TypePrinter::visit(const EnumType* type) {
+  const Identifier* className = name_cast<Identifier>(type->symbol->name());
+  specifiers_.append(className->name());
+}
+
+void TypePrinter::visit(const GenericType* type) {}
+
+void TypePrinter::visit(const PackType* type) {}
+
+void TypePrinter::visit(const ScopedEnumType* type) {
+  const Identifier* className = name_cast<Identifier>(type->symbol->name());
+  specifiers_.append(className->name());
+}
 
 }  // namespace cxx

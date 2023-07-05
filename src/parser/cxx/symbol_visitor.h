@@ -28,20 +28,24 @@ class SymbolVisitor {
  public:
   virtual ~SymbolVisitor();
 
-  virtual void visit(ConceptSymbol* symbol) = 0;
-  virtual void visit(NamespaceSymbol* symbol) = 0;
-  virtual void visit(ClassSymbol* symbol) = 0;
-  virtual void visit(TypedefSymbol* symbol) = 0;
-  virtual void visit(EnumSymbol* symbol) = 0;
-  virtual void visit(EnumeratorSymbol* symbol) = 0;
-  virtual void visit(ScopedEnumSymbol* symbol) = 0;
-  virtual void visit(TemplateParameterList* symbol) = 0;
-  virtual void visit(TemplateTypeParameterSymbol* symbol) = 0;
-  virtual void visit(VariableSymbol* symbol) = 0;
-  virtual void visit(FieldSymbol* symbol) = 0;
-  virtual void visit(FunctionSymbol* symbol) = 0;
-  virtual void visit(ArgumentSymbol* symbol) = 0;
-  virtual void visit(BlockSymbol* symbol) = 0;
+  virtual void visit(ClassSymbol*) = 0;
+  virtual void visit(ConceptSymbol*) = 0;
+  virtual void visit(DependentSymbol*) = 0;
+  virtual void visit(EnumeratorSymbol*) = 0;
+  virtual void visit(FunctionSymbol*) = 0;
+  virtual void visit(GlobalSymbol*) = 0;
+  virtual void visit(InjectedClassNameSymbol*) = 0;
+  virtual void visit(LocalSymbol*) = 0;
+  virtual void visit(MemberSymbol*) = 0;
+  virtual void visit(NamespaceSymbol*) = 0;
+  virtual void visit(NamespaceAliasSymbol*) = 0;
+  virtual void visit(NonTypeTemplateParameterSymbol*) = 0;
+  virtual void visit(ParameterSymbol*) = 0;
+  virtual void visit(ScopedEnumSymbol*) = 0;
+  virtual void visit(TemplateParameterSymbol*) = 0;
+  virtual void visit(TemplateParameterPackSymbol*) = 0;
+  virtual void visit(TypeAliasSymbol*) = 0;
+  virtual void visit(ValueSymbol*) = 0;
 };
 
 }  // namespace cxx

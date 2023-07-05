@@ -18,20 +18,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/name_printer.h>
 #include <cxx/names.h>
+
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 namespace cxx {
 
-namespace {
-NamePrinter printName;
-}
-
 Name::~Name() = default;
-
-auto operator<<(std::ostream& out, const Name& name) -> std::ostream& {
-  printName(out, &name);
-  return out;
-}
 
 }  // namespace cxx

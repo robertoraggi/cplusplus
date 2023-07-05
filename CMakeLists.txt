@@ -48,14 +48,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
     set(FMT_OS OFF CACHE BOOL "" FORCE)
 endif()
 
-find_package(LLVM 13 CONFIG QUIET)
-
-if(LLVM_FOUND)
-    message(STATUS "LLVM Version: ${LLVM_VERSION}")
-
-    list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
-endif()
-
 FetchContent_Declare(
     fmt
     GIT_REPOSITORY  https://github.com/fmtlib/fmt

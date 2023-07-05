@@ -22,55 +22,25 @@
 
 #include <cxx/type_visitor.h>
 
-#include <iosfwd>
 #include <string>
-#include <tuple>
 
 namespace cxx {
 
 class TypePrinter final : TypeVisitor {
  public:
-  void operator()(std::ostream& out, const QualifiedType& type,
-                  std::string id = std::string());
+  TypePrinter();
+  ~TypePrinter();
 
-  auto toString(const QualifiedType& type, std::string id = std::string())
-      -> std::string;
-
-  auto toString(const QualifiedType& type, std::string id, bool addFormals)
-      -> std::string;
+  auto to_string(const Type* type) -> std::string;
+  auto to_string(const Type* type, const std::string& id) -> std::string;
 
  private:
-  void addQualifiers(std::string& out, Qualifiers qualifiers);
+  void accept(const Type* type);
 
-  void accept(const QualifiedType& type);
+#define PROCESS_TYPE(T) void visit(const T##Type* type);
+  CXX_FOR_EACH_TYPE_KIND(PROCESS_TYPE)
+#undef PROCESS_TYPE
 
-  void visit(const UndefinedType* type) override;
-  void visit(const ErrorType* type) override;
-  void visit(const AutoType* type) override;
-  void visit(const DecltypeAutoType* type) override;
-  void visit(const VoidType* type) override;
-  void visit(const NullptrType* type) override;
-  void visit(const BooleanType* type) override;
-  void visit(const CharacterType* type) override;
-  void visit(const IntegerType* type) override;
-  void visit(const FloatingPointType* type) override;
-  void visit(const EnumType* type) override;
-  void visit(const ScopedEnumType* type) override;
-  void visit(const PointerType* type) override;
-  void visit(const PointerToMemberType* type) override;
-  void visit(const ReferenceType* type) override;
-  void visit(const RValueReferenceType* type) override;
-  void visit(const ArrayType* type) override;
-  void visit(const UnboundArrayType* type) override;
-  void visit(const FunctionType* type) override;
-  void visit(const MemberFunctionType* type) override;
-  void visit(const NamespaceType* type) override;
-  void visit(const ClassType* type) override;
-  void visit(const TemplateType* type) override;
-  void visit(const TemplateArgumentType* type) override;
-  void visit(const ConceptType* type) override;
-
- private:
   std::string specifiers_;
   std::string ptrOps_;
   std::string declarator_;

@@ -25,11 +25,8 @@
 #include <cxx/ast_kind.h>
 #include <cxx/ast_visitor.h>
 #include <cxx/const_value.h>
-#include <cxx/qualified_type.h>
 #include <cxx/source_location.h>
-#include <cxx/symbols_fwd.h>
 #include <cxx/token.h>
-#include <cxx/types_fwd.h>
 
 #include <optional>
 
@@ -136,7 +133,6 @@ class ExceptionDeclarationAST : public AST {
 class ExpressionAST : public AST {
  public:
   using AST::AST;
-  QualifiedType type;
   ValueCategory valueCategory = ValueCategory::kNone;
   std::optional<ConstValue> constValue;
 };
@@ -200,7 +196,6 @@ class TemplateArgumentAST : public AST {
 class UnitAST : public AST {
  public:
   using AST::AST;
-  Symbol* symbol = nullptr;
 };
 
 class TypeIdAST final : public AST {
@@ -209,7 +204,6 @@ class TypeIdAST final : public AST {
 
   List<SpecifierAST*>* typeSpecifierList = nullptr;
   DeclaratorAST* declarator = nullptr;
-  QualifiedType type;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -223,7 +217,6 @@ class NestedNameSpecifierAST final : public AST {
 
   SourceLocation scopeLoc;
   List<NameAST*>* nameList = nullptr;
-  Symbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -310,7 +303,6 @@ class InitDeclaratorAST final : public AST {
   DeclaratorAST* declarator = nullptr;
   RequiresClauseAST* requiresClause = nullptr;
   InitializerAST* initializer = nullptr;
-  Symbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1110,7 +1102,6 @@ class IdExpressionAST final : public ExpressionAST {
   IdExpressionAST() : ExpressionAST(ASTKind::IdExpression) {}
 
   NameAST* name = nullptr;
-  Symbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1438,7 +1429,6 @@ class MemberExpressionAST final : public ExpressionAST {
   SourceLocation accessLoc;
   SourceLocation templateLoc;
   NameAST* name = nullptr;
-  Symbol* symbol = nullptr;
   TokenKind accessOp = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -1647,7 +1637,6 @@ class CompoundStatementAST final : public StatementAST {
   SourceLocation lbraceLoc;
   List<StatementAST*>* statementList = nullptr;
   SourceLocation rbraceLoc;
-  BlockSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1881,7 +1870,6 @@ class FunctionDefinitionAST final : public DeclarationAST {
   DeclaratorAST* declarator = nullptr;
   RequiresClauseAST* requiresClause = nullptr;
   FunctionBodyAST* functionBody = nullptr;
-  FunctionSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1926,7 +1914,6 @@ class AliasDeclarationAST final : public DeclarationAST {
   TypeIdAST* typeId = nullptr;
   SourceLocation semicolonLoc;
   const Identifier* identifier = nullptr;
-  TypedefSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2164,7 +2151,6 @@ class TemplateDeclarationAST final : public DeclarationAST {
   SourceLocation greaterLoc;
   RequiresClauseAST* requiresClause = nullptr;
   DeclarationAST* declaration = nullptr;
-  TemplateParameterList* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2182,7 +2168,6 @@ class TypenameTypeParameterAST final : public DeclarationAST {
   SourceLocation equalLoc;
   TypeIdAST* typeId = nullptr;
   const Identifier* identifier = nullptr;
-  TemplateTypeParameterSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2624,7 +2609,6 @@ class NamedTypeSpecifierAST final : public SpecifierAST {
   NamedTypeSpecifierAST() : SpecifierAST(ASTKind::NamedTypeSpecifier) {}
 
   NameAST* name = nullptr;
-  Symbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2667,7 +2651,6 @@ class ElaboratedTypeSpecifierAST final : public SpecifierAST {
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   NameAST* name = nullptr;
-  Symbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2769,7 +2752,6 @@ class EnumSpecifierAST final : public SpecifierAST {
   SourceLocation commaLoc;
   List<EnumeratorAST*>* enumeratorList = nullptr;
   SourceLocation rbraceLoc;
-  Symbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2788,7 +2770,6 @@ class ClassSpecifierAST final : public SpecifierAST {
   SourceLocation lbraceLoc;
   List<DeclarationAST*>* declarationList = nullptr;
   SourceLocation rbraceLoc;
-  ClassSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

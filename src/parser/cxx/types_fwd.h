@@ -20,110 +20,65 @@
 
 #pragma once
 
-#include <cxx/cxx_fwd.h>
-
-#include <cstdint>
+#define CXX_FOR_EACH_TYPE_KIND(V) \
+  V(Invalid)                      \
+  V(Nullptr)                      \
+  V(Dependent)                    \
+  V(Auto)                         \
+  V(Void)                         \
+  V(Bool)                         \
+  V(Char)                         \
+  V(SignedChar)                   \
+  V(UnsignedChar)                 \
+  V(Short)                        \
+  V(UnsignedShort)                \
+  V(Int)                          \
+  V(UnsignedInt)                  \
+  V(Long)                         \
+  V(UnsignedLong)                 \
+  V(Float)                        \
+  V(Double)                       \
+  V(Qual)                         \
+  V(Pointer)                      \
+  V(LValueReference)              \
+  V(RValueReference)              \
+  V(Array)                        \
+  V(Function)                     \
+  V(Class)                        \
+  V(Namespace)                    \
+  V(MemberPointer)                \
+  V(Concept)                      \
+  V(Enum)                         \
+  V(Generic)                      \
+  V(Pack)                         \
+  V(ScopedEnum)
 
 namespace cxx {
 
-class QualifiedType;
+#define DECLARE_TYPE_KIND(kind) k##kind,
 
-class TypeEnvironment;
-class TypeVisitor;
+enum class TypeKind { CXX_FOR_EACH_TYPE_KIND(DECLARE_TYPE_KIND) };
+
+#undef DECLARE_TYPE_KIND
+
+enum TemplateArgumentKind {
+  TA_INVALID,
+  TA_TYPE,
+  TA_LITERAL,
+};
+
 class Type;
-
-class UndefinedType;
-class ErrorType;
-class AutoType;
-class DecltypeAutoType;
-class VoidType;
-class NullptrType;
-class BooleanType;
-class CharacterType;
-class IntegerType;
-class FloatingPointType;
-class EnumType;
-class ScopedEnumType;
-class PointerType;
-class PointerToMemberType;
+class TypeVisitor;
 class ReferenceType;
-class RValueReferenceType;
-class ArrayType;
-class UnboundArrayType;
-class FunctionType;
-class MemberFunctionType;
-class NamespaceType;
-class ClassType;
-class TemplateType;
-class TemplateArgumentType;
-class ConceptType;
+class TemplateArgumentList;
+class ParameterList;
 
-enum class CharacterKind {
-  kChar8T,
-  kChar16T,
-  kChar32T,
-  kWCharT,
-};
+#define PROCESS_TYPE(ty) class ty##Type;
+CXX_FOR_EACH_TYPE_KIND(PROCESS_TYPE)
+#undef PROCESS_TYPE
 
-enum class IntegerKind {
-  kChar,
-  kShort,
-  kInt,
-  kInt64,
-  kInt128,
-  kLong,
-  kLongLong,
-};
+auto equal_to(const Type* type, const Type* other) -> bool;
 
-enum class FloatingPointKind {
-  kFloat,
-  kFloat128,
-  kDouble,
-  kLongDouble,
-};
-
-enum class Qualifiers : std::uint8_t {
-  kNone = 0,
-  kConst = 1,
-  kVolatile = 2,
-  kRestrict = 4,
-};
-
-constexpr auto operator&(Qualifiers lhs, Qualifiers rhs) noexcept
-    -> Qualifiers {
-  return static_cast<Qualifiers>(static_cast<std::uint8_t>(lhs) &
-                                 static_cast<std::uint8_t>(rhs));
-}
-
-constexpr auto operator|(Qualifiers lhs, Qualifiers rhs) noexcept
-    -> Qualifiers {
-  return static_cast<Qualifiers>(static_cast<std::uint8_t>(lhs) |
-                                 static_cast<std::uint8_t>(rhs));
-}
-
-constexpr auto operator^(Qualifiers lhs, Qualifiers rhs) noexcept
-    -> Qualifiers {
-  return static_cast<Qualifiers>(static_cast<std::uint8_t>(lhs) ^
-                                 static_cast<std::uint8_t>(rhs));
-}
-
-constexpr auto operator~(Qualifiers lhs) noexcept -> Qualifiers {
-  return static_cast<Qualifiers>(~static_cast<std::uint8_t>(lhs));
-}
-
-inline auto operator&=(Qualifiers& lhs, Qualifiers rhs) noexcept
-    -> Qualifiers& {
-  return lhs = lhs & rhs;
-}
-
-inline auto operator|=(Qualifiers& lhs, Qualifiers rhs) noexcept
-    -> Qualifiers& {
-  return lhs = lhs | rhs;
-}
-
-inline auto operator^=(Qualifiers& lhs, Qualifiers rhs) noexcept
-    -> Qualifiers& {
-  return lhs = lhs ^ rhs;
-}
+auto type_kind_to_string(TypeKind kind) -> const char*;
 
 }  // namespace cxx

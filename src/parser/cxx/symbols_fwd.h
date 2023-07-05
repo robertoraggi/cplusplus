@@ -20,82 +20,65 @@
 
 #pragma once
 
-#include <cxx/cxx_fwd.h>
-
-#include <string_view>
-#include <type_traits>
+#define CXX_FOR_EACH_SYMBOL_KIND(V) \
+  V(Class)                          \
+  V(Concept)                        \
+  V(Dependent)                      \
+  V(Enumerator)                     \
+  V(Function)                       \
+  V(Global)                         \
+  V(InjectedClassName)              \
+  V(Local)                          \
+  V(Member)                         \
+  V(Namespace)                      \
+  V(NamespaceAlias)                 \
+  V(NonTypeTemplateParameter)       \
+  V(Parameter)                      \
+  V(ScopedEnum)                     \
+  V(TemplateParameter)              \
+  V(TemplateParameterPack)          \
+  V(TypeAlias)                      \
+  V(Value)
 
 namespace cxx {
 
-class SymbolVisitor;
-class SymbolFactory;
-
-class Symbol;
-class Scope;
-
-class ConceptSymbol;
-class NamespaceSymbol;
-class ClassSymbol;
-class TypedefSymbol;
-class EnumSymbol;
-class EnumeratorSymbol;
-class ScopedEnumSymbol;
-class TemplateParameterList;
-class TemplateTypeParameterSymbol;
-class VariableSymbol;
-class FieldSymbol;
-class FunctionSymbol;
-class ArgumentSymbol;
-class BlockSymbol;
-
-enum class Linkage {
-  kCxx,
-  kC,
+enum Lang {
+  LANG_CPP,
+  LANG_C,
 };
 
-enum class Visibility : std::uint8_t {
+enum class AccessKind {
   kPublic,
   kProtected,
   kPrivate,
 };
 
-enum class ClassKey : std::uint8_t {
-  kClass,
-  kStruct,
-  kUnion,
+enum class TemplateParameterKind {
+  kType,
+  kNonType,
+  kPack,
 };
 
-inline auto to_string_view(ClassKey classKey) -> std::string_view {
-  switch (classKey) {
-    case ClassKey::kClass:
-      return "class";
-    case ClassKey::kStruct:
-      return "struct";
-    case ClassKey::kUnion:
-      return "union";
-    default:
-      return {};
-  }  // switch
-}
+#define DECLARE_SYMBOL_KIND(name) k##name,
 
-enum class LookupOptions {
-  kDefault = 0,
-  kType = 1 << 0,
-  kNamespace = 1 << 1,
-  kTemplate = 1 << 2,
-  kTypeOrNamespace = kType | kNamespace,
-};
+enum class SymbolKind { CXX_FOR_EACH_SYMBOL_KIND(DECLARE_SYMBOL_KIND) };
 
-constexpr auto operator&(LookupOptions lhs, LookupOptions rhs) noexcept
-    -> LookupOptions {
-  using U = std::underlying_type<LookupOptions>::type;
-  return static_cast<LookupOptions>(static_cast<U>(lhs) & static_cast<U>(rhs));
-}
+#undef DECLARE_SYMBOL_KIND
 
-constexpr auto operator|(LookupOptions lhs, LookupOptions rhs) noexcept
-    -> LookupOptions {
-  using U = std::underlying_type<LookupOptions>::type;
-  return static_cast<LookupOptions>(static_cast<U>(lhs) | static_cast<U>(rhs));
-}
+class Scope;
+class Symbol;
+class SymbolVisitor;
+class TemplateHead;
+class TemplateParameter;
+
+#define DECLARE_SYMBOL(name) class name##Symbol;
+
+CXX_FOR_EACH_SYMBOL_KIND(DECLARE_SYMBOL)
+
+#undef DECLARE_SYMBOL
+
+auto equal_to(const Symbol* symbol, const Symbol* other) -> bool;
+
+auto symbol_kind_to_string(SymbolKind kind) -> const char*;
 
 }  // namespace cxx

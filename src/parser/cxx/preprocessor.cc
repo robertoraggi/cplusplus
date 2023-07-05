@@ -35,6 +35,8 @@
 #include <utf8/unchecked.h>
 
 // stl
+#include <cxx/preprocessor.h>
+
 #include <cassert>
 #include <forward_list>
 #include <fstream>
@@ -46,8 +48,6 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <variant>
-
-#include "preprocessor.h"
 
 namespace {
 
@@ -1709,7 +1709,7 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
       case TokenKind::T_IDENTIFIER: {
         kind = Lexer::classifyKeyword(tk->text);
         if (kind == TokenKind::T_IDENTIFIER) {
-          value.idValue = d->control_->identifier(tk->text);
+          value.idValue = d->control_->getIdentifier(tk->text);
         }
         break;
       }
