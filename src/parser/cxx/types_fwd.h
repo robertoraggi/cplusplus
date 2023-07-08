@@ -61,17 +61,16 @@ enum class TypeKind { CXX_FOR_EACH_TYPE_KIND(DECLARE_TYPE_KIND) };
 
 #undef DECLARE_TYPE_KIND
 
-enum TemplateArgumentKind {
-  TA_INVALID,
-  TA_TYPE,
-  TA_LITERAL,
+enum class TemplateArgumentKind {
+  kInvalid,
+  kType,
+  kLiteral,
 };
 
 class Type;
 class TypeVisitor;
 class ReferenceType;
-class TemplateArgumentList;
-class ParameterList;
+class Parameter;
 
 #define PROCESS_TYPE(ty) class ty##Type;
 CXX_FOR_EACH_TYPE_KIND(PROCESS_TYPE)

@@ -28,6 +28,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace cxx {
 
@@ -117,8 +118,9 @@ class Control {
   auto getRValueReferenceType(const Type* elementType)
       -> const RValueReferenceType*;
   auto getArrayType(const Type* elementType, int dimension) -> const ArrayType*;
-  auto getFunctionType(const Type* returnType, ParameterList* parameters,
-                       bool isVariadic) -> const FunctionType*;
+  auto getFunctionType(const Type* returnType,
+                       std::vector<Parameter> parameters, bool isVariadic)
+      -> const FunctionType*;
   auto getClassType(ClassSymbol* classSymbol) -> const ClassType*;
   auto getNamespaceType(NamespaceSymbol* namespaceSymbol)
       -> const NamespaceType*;

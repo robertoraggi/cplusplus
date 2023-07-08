@@ -139,6 +139,8 @@ struct Control::Private {
   std::forward_list<TypeAliasSymbol> typeAliasSymbols;
   std::forward_list<ValueSymbol> valueSymbols;
 
+  std::forward_list<TemplateParameter> templateParameters;
+
   InvalidType invalidType;
   NullptrType nullptrType;
   AutoType autoType;
@@ -242,16 +244,19 @@ auto Control::getDestructorId(std::string_view name) -> const DestructorId* {
 }
 
 auto Control::makeTypeParameter(const Name* name) -> TemplateParameter* {
-  return TemplateParameter::makeTypeParameter(name);
+  return &d->templateParameters.emplace_front(
+      this, TemplateParameterKind::kType, name, nullptr);
 }
 
 auto Control::makeTypeParameterPack(const Name* name) -> TemplateParameter* {
-  return TemplateParameter::makeTypeParameterPack(name);
+  return &d->templateParameters.emplace_front(
+      this, TemplateParameterKind::kPack, name, nullptr);
 }
 
 auto Control::makeNonTypeParameter(const Type* type, const Name* name)
     -> TemplateParameter* {
-  return TemplateParameter::makeNonTypeParameter(type, name);
+  return &d->templateParameters.emplace_front(
+      this, TemplateParameterKind::kNonType, name, type);
 }
 
 auto Control::makeParameterSymbol(const Name* name, const Type* type, int index)
@@ -404,10 +409,12 @@ auto Control::getArrayType(const Type* elementType, int dimension)
   return &*d->arrayTypes.emplace(this, elementType, dimension).first;
 }
 
-auto Control::getFunctionType(const Type* returnType, ParameterList* parameters,
+auto Control::getFunctionType(const Type* returnType,
+                              std::vector<Parameter> parameters,
                               bool isVariadic) -> const FunctionType* {
   return &*d->functionTypes
-               .emplace(this, nullptr, returnType, parameters, isVariadic)
+               .emplace(this, nullptr, returnType, std::move(parameters),
+                        isVariadic)
                .first;
 }
 

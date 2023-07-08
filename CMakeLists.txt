@@ -21,7 +21,6 @@ cmake_minimum_required(VERSION 3.16)
 
 project(cplusplus)
 
-# set policy CMP0135
 if(POLICY CMP0135)
     cmake_policy(SET CMP0135 NEW)
 endif()
@@ -36,6 +35,7 @@ file(READ "${CMAKE_CURRENT_SOURCE_DIR}/version.txt" version)
 option(CXX_INSTALL_TOOLS "Install tools" ON)
 option(CXX_INSTALL_WASI_SYSROOT "Install wasi sysroot" OFF)
 option(CXX_LIBCXX_WITH_CLANG "Link with libc++" OFF)
+OPTION(CXX_INTERPROCEDURAL_OPTIMIZATION "Enable interprocedural optimization" OFF)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CXX_LIBCXX_WITH_CLANG)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")

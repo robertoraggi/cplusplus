@@ -29,7 +29,7 @@ cmake . \
  -G Ninja \
  -B build \
  -DCMAKE_BUILD_TYPE=Release \
- -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=1
+ -DDCXX_INTERPROCEDURAL_OPTIMIZATION=1
 
 # build
 cmake --build build
@@ -109,15 +109,13 @@ async function main() {
 
   const ast = parser.getAST();
 
-  if (ast) {
-    ast.walk().preVisit((node, depth) => {
-      if (node instanceof AST) {
-        const ind = " ".repeat(depth * 2);
-        const kind = ASTKind[node.getKind()];
-        console.log(`${ind}${kind}`);
-      }
-    });
-  }
+  ast?.walk().preVisit((node, depth) => {
+    if (node instanceof AST) {
+      const ind = " ".repeat(depth * 2);
+      const kind = ASTKind[node.getKind()];
+      console.log(`${ind}${kind}`);
+    }
+  });
 
   parser.dispose();
 }

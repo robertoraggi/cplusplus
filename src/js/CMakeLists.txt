@@ -40,3 +40,6 @@ target_link_options(cxx-js PUBLIC
     "SHELL:-s WASM_BIGINT=1"
 )
 
+if(CXX_INTERPROCEDURAL_OPTIMIZATION)
+    set_target_properties(cxx-js PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
+endif()

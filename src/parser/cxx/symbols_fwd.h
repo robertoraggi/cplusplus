@@ -70,6 +70,7 @@ class Symbol;
 class SymbolVisitor;
 class TemplateHead;
 class TemplateParameter;
+class TemplateArgument;
 
 #define DECLARE_SYMBOL(name) class name##Symbol;
 

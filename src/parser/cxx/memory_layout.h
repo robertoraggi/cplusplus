@@ -26,7 +26,8 @@ namespace cxx {
 
 class MemoryLayout {
  public:
-  static auto make(int bits) -> MemoryLayout*;
+  explicit MemoryLayout(int bits);
+  ~MemoryLayout();
 
   auto bits() const -> int;
   auto sizeOfPointer() const -> int;

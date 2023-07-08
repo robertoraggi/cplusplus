@@ -52,16 +52,37 @@ class TemplateHead {
   bool isTemplateSpecialization_ = false;
 };
 
+class TemplateArgument {
+ public:
+  TemplateArgument(TemplateArgumentKind kind, const Type* type, long value)
+      : kind_(kind), type_(type), value_(value) {}
+
+  auto kind() const -> TemplateArgumentKind { return kind_; }
+  auto type() const -> const Type* { return type_; }
+  auto value() const -> long { return value_; }
+
+  static auto make(const Type* type) -> TemplateArgument;
+  static auto makeLiteral(const Type* type, long value) -> TemplateArgument;
+
+ private:
+  TemplateArgumentKind kind_;
+  const Type* type_ = nullptr;
+  long value_ = 0;
+};
+
 class TemplateParameter {
  public:
-  TemplateParameterKind kind;
-  const Name* name = nullptr;
-  const Type* type = nullptr;
+  TemplateParameter(Control* control, TemplateParameterKind kind,
+                    const Name* name, const Type* type);
 
-  static auto makeTypeParameter(const Name* name) -> TemplateParameter*;
-  static auto makeTypeParameterPack(const Name* name) -> TemplateParameter*;
-  static auto makeNonTypeParameter(const Type* type, const Name* name)
-      -> TemplateParameter*;
+  auto kind() const -> TemplateParameterKind { return kind_; }
+  auto name() const -> const Name* { return name_; }
+  auto type() const -> const Type* { return type_; }
+
+ private:
+  TemplateParameterKind kind_;
+  const Name* name_ = nullptr;
+  const Type* type_ = nullptr;
 };
 
 class Symbol {
@@ -110,8 +131,9 @@ class Symbol {
 
   auto templateParameters() const -> const std::vector<TemplateParameter*>&;
 
-  auto findTemplateInstance(TemplateArgumentList* templ_arguments,
-                            Symbol** sym) const -> bool;
+  auto findTemplateInstance(
+      const std::vector<TemplateArgument>& templ_arguments, Symbol** sym) const
+      -> bool;
 
   auto isAnonymous() const -> bool;
 
@@ -144,7 +166,7 @@ class Symbol {
 
   auto templateHead() -> TemplateHead* { return templateHead_; }
 
-  auto templateArguments() -> TemplateArgumentList* {
+  auto templateArguments() -> const std::vector<TemplateArgument>& {
     return templateArguments_;
   }
 
@@ -173,7 +195,7 @@ class Symbol {
   bool isConstexpr_ = false;
   bool isTemplate_ = false;
   TemplateHead* templateHead_ = nullptr;
-  TemplateArgumentList* templateArguments_ = nullptr;
+  std::vector<TemplateArgument> templateArguments_;
   std::vector<Symbol*> templateInstances_;
   Symbol* primaryTemplate_ = nullptr;
   Scope* members_ = nullptr;

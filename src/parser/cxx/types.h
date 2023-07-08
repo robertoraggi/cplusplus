@@ -28,28 +28,14 @@
 
 namespace cxx {
 
-class Symbol;
 class Control;
 
-class TemplateArgumentList {
+class Parameter : public std::tuple<const Name*, const Type*> {
  public:
-  TemplateArgumentKind kind;
-  const Type* type = nullptr;
-  long value = 0;
-  TemplateArgumentList* next = nullptr;
+  using tuple::tuple;
 
-  static auto make(const Type* type) -> TemplateArgumentList*;
-  static auto makeLiteral(const Type* type, long value)
-      -> TemplateArgumentList*;
-};
-
-class ParameterList {
- public:
-  const Name* name = nullptr;
-  const Type* type = nullptr;
-  ParameterList* next = nullptr;
-
-  static auto make(const Name* name, const Type* type) -> ParameterList*;
+  auto name() const -> const Name* { return std::get<0>(*this); }
+  auto type() const -> const Type* { return std::get<1>(*this); }
 };
 
 class Type {
@@ -65,8 +51,6 @@ class Type {
   auto isNot(TypeKind kind) const -> bool { return kind_ != kind; }
 
   auto equalTo(const Type* other) const -> bool;
-
-  auto remove_ref() const -> const Type*;
 
  private:
   TypeKind kind_;
@@ -251,11 +235,11 @@ class FunctionType final : public TypeMaker<TypeKind::kFunction> {
   FunctionSymbol* symbol = nullptr;
   const Type* classType = nullptr;
   const Type* returnType = nullptr;
-  ParameterList* parameters = nullptr;
+  std::vector<Parameter> parameters;
   bool isVariadic = false;
 
   FunctionType(Control* control, const Type* classType, const Type* returnType,
-               ParameterList* parameters, bool isVariadic);
+               std::vector<Parameter> parameters, bool isVariadic);
 
   auto makeTemplate(Control* control, FunctionSymbol* symbol) const
       -> const FunctionType*;
@@ -364,10 +348,12 @@ inline auto type_cast<ReferenceType>(const Type* type) -> const ReferenceType* {
 }
 
 auto is_same_type(const Type* type, const Type* other) -> bool;
-auto is_same_parameters(ParameterList* params, ParameterList* other) -> bool;
+auto is_same_parameters(const std::vector<Parameter>& params,
+                        const std::vector<Parameter>& other) -> bool;
 
-auto is_same_template_arguments(const TemplateArgumentList* list,
-                                const TemplateArgumentList* other) -> bool;
+auto is_same_template_arguments(const std::vector<TemplateArgument>& list,
+                                const std::vector<TemplateArgument>& other)
+    -> bool;
 
 auto promote_type(Control* control, const Type* type) -> const Type*;
 
@@ -406,6 +392,7 @@ auto make_signed(Control* control, const Type* type) -> const Type*;
 auto make_unsigned(Control* control, const Type* type) -> const Type*;
 
 auto remove_cv(const Type* type) -> const Type*;
+auto remove_ref(const Type* type) -> const Type*;
 auto remove_cvref(const Type* type) -> const Type*;
 
 auto is_integral_or_unscoped_enum_type(const Type* ty) -> bool;
@@ -423,7 +410,7 @@ auto is_literal_type(const Type* type) -> bool;
 auto common_type(Control* control, const Type* type, const Type* other)
     -> const Type*;
 
-auto function_type_parameter_count(const Type* ty) -> int;
+auto function_type_parameter_count(const Type* ty) -> std::size_t;
 
 auto type_to_string(const Type* type, char* out, std::size_t size)
     -> std::string;

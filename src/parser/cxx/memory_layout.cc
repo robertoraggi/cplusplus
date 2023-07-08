@@ -27,14 +27,12 @@
 
 namespace cxx {
 
-auto MemoryLayout::make(int bits) -> MemoryLayout* {
-  auto* memoryLayout = new MemoryLayout();
-  memoryLayout->bits_ = bits;
-  memoryLayout->sizeOfPointer_ = bits / 8;
-  memoryLayout->sizeOfLong_ = bits / 8;
-
-  return memoryLayout;
+MemoryLayout::MemoryLayout(int bits) : bits_(bits) {
+  sizeOfPointer_ = bits / 8;
+  sizeOfLong_ = bits / 8;
 }
+
+MemoryLayout::~MemoryLayout() = default;
 
 auto MemoryLayout::bits() const -> int { return bits_; }
 

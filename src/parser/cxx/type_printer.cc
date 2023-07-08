@@ -168,10 +168,11 @@ void TypePrinter::visit(const FunctionType* type) {
 
   signature.append("(");
 
-  for (ParameterList* param = type->parameters; param; param = param->next) {
-    const Identifier* paramName = name_cast<Identifier>(param->name);
+  TypePrinter pp;
 
-    TypePrinter pp;
+  for (std::size_t i = 0; i < type->parameters.size(); ++i) {
+    const auto& param = type->parameters[i];
+    const Identifier* paramName = name_cast<Identifier>(param.name());
 
     std::string paramId;
 
@@ -179,17 +180,17 @@ void TypePrinter::visit(const FunctionType* type) {
       paramId = paramName->name();
     }
 
-    auto paramText = pp.to_string(param->type, paramId);
+    auto paramText = pp.to_string(param.type(), paramId);
 
     signature.append(paramText);
 
-    if (param->next) {
+    if (i != type->parameters.size() - 1) {
       signature.append(", ");
     }
   }
 
   if (type->isVariadic) {
-    signature.append("..");
+    signature.append("...");
   }
 
   signature.append(")");

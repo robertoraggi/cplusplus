@@ -44,10 +44,25 @@ auto symbol_kind_to_string(SymbolKind kind) -> const char* {
 
 #undef PROCESS_SYMBOL_KIND
 
+auto TemplateArgument::make(const Type* type) -> TemplateArgument {
+  return TemplateArgument{TemplateArgumentKind::kType, type, 0};
+}
+
+auto TemplateArgument::makeLiteral(const Type* type, long value)
+    -> TemplateArgument {
+  return TemplateArgument{TemplateArgumentKind::kLiteral, type, value};
+}
+
+TemplateParameter::TemplateParameter(Control* control,
+                                     TemplateParameterKind kind,
+                                     const Name* name, const Type* type)
+    : kind_(kind), name_(name), type_(type) {}
+
 Symbol::~Symbol() = default;
 
-auto Symbol::findTemplateInstance(TemplateArgumentList* templ_arguments,
-                                  Symbol** sym) const -> bool {
+auto Symbol::findTemplateInstance(
+    const std::vector<TemplateArgument>& templ_arguments, Symbol** sym) const
+    -> bool {
   for (auto instance : templateInstances_) {
     if (is_same_template_arguments(instance->templateArguments(),
                                    templ_arguments)) {
@@ -61,7 +76,7 @@ auto Symbol::findTemplateInstance(TemplateArgumentList* templ_arguments,
 }
 
 void Symbol::addTemplateInstance(Symbol* instantiatedSymbol) {
-  assert(instantiatedSymbol->templateArguments());
+  assert(!instantiatedSymbol->templateArguments().empty());
 
   assert(instantiatedSymbol->primaryTemplate_ == nullptr ||
          instantiatedSymbol->primaryTemplate_ == this);
@@ -161,7 +176,7 @@ GlobalSymbol::GlobalSymbol(Control* control, const Name* name, const Type* type)
 FunctionSymbol::FunctionSymbol(Control* control, const Name* name,
                                const Type* type)
     : SymbolMaker(name, type) {
-  const auto* functionType = type_cast<FunctionType>(type);
+  auto functionType = type_cast<FunctionType>(type);
   assert(functionType->symbol == nullptr);
   const_cast<FunctionType*>(functionType)->symbol = this;
   stackSize_ = 0;
@@ -251,31 +266,6 @@ NonTypeTemplateParameterSymbol::NonTypeTemplateParameterSymbol(Control* control,
                                                                const Type* type,
                                                                int index)
     : SymbolMaker(name, type), index_(index) {}
-
-auto TemplateParameter::makeTypeParameter(const Name* name)
-    -> TemplateParameter* {
-  auto* param = new TemplateParameter();
-  param->kind = TemplateParameterKind::kType;
-  param->name = name;
-  return param;
-}
-
-auto TemplateParameter::makeTypeParameterPack(const Name* name)
-    -> TemplateParameter* {
-  auto* param = new TemplateParameter();
-  param->kind = TemplateParameterKind::kPack;
-  param->name = name;
-  return param;
-}
-
-auto TemplateParameter::makeNonTypeParameter(const Type* type, const Name* name)
-    -> TemplateParameter* {
-  auto* param = new TemplateParameter();
-  param->kind = TemplateParameterKind::kNonType;
-  param->type = type;
-  param->name = name;
-  return param;
-}
 
 void TemplateHead::addTemplateParameter(TemplateParameter* templateParameter) {
   templateParameters_.push_back(templateParameter);
