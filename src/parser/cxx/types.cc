@@ -71,12 +71,12 @@ auto Type::equalTo(const Type* other) const -> bool {
   case TypeKind::k##kind:       \
     return #kind;
 
-auto type_kind_to_string(TypeKind kind) -> const char* {
+auto to_string(TypeKind kind) -> std::string_view {
   switch (kind) {
     CXX_FOR_EACH_TYPE_KIND(PROCESS_TYPE_KIND)
     default:
       assert(!"invalid");
-      return nullptr;
+      return {};
   }  // switch
 }
 
@@ -87,7 +87,7 @@ auto InvalidType::equalTo0(const InvalidType*) const -> bool { return true; }
 auto NullptrType::equalTo0(const NullptrType*) const -> bool { return true; }
 
 auto DependentType::equalTo0(const DependentType* other) const -> bool {
-  return symbol == other->symbol;
+  return symbol() == other->symbol();
 }
 
 auto AutoType::equalTo0(const AutoType*) const -> bool { return true; }
@@ -129,86 +129,87 @@ auto FloatType::equalTo0(const FloatType*) const -> bool { return true; }
 auto DoubleType::equalTo0(const DoubleType*) const -> bool { return true; }
 
 auto QualType::equalTo0(const QualType* other) const -> bool {
-  return isConst == other->isConst && isVolatile == other->isVolatile &&
-         elementType->equalTo(other->elementType);
+  return isConst() == other->isConst() && isVolatile() == other->isVolatile() &&
+         elementType()->equalTo(other->elementType());
 }
 
 auto PointerType::equalTo0(const PointerType* other) const -> bool {
-  return elementType->equalTo(other->elementType);
+  return elementType_->equalTo(other->elementType());
 }
 
 auto LValueReferenceType::equalTo0(const LValueReferenceType* other) const
     -> bool {
-  return elementType->equalTo(other->elementType);
+  return elementType()->equalTo(other->elementType());
 }
 
 auto RValueReferenceType::equalTo0(const RValueReferenceType* other) const
     -> bool {
-  return elementType->equalTo(other->elementType);
+  return elementType()->equalTo(other->elementType());
 }
 
 auto ArrayType::equalTo0(const ArrayType* other) const -> bool {
-  return dim == other->dim && elementType->equalTo(other->elementType);
+  return extent() == other->extent() &&
+         elementType()->equalTo(other->elementType());
 }
 
 auto FunctionType::equalTo0(const FunctionType* other) const -> bool {
-  if (!is_same_type(classType, other->classType)) {
+  if (!is_same_type(classType(), other->classType())) {
     return false;
   }
-  if (isVariadic != other->isVariadic) {
+  if (isVariadic() != other->isVariadic()) {
     return false;
   }
-  if (!returnType->equalTo(other->returnType)) {
+  if (!returnType()->equalTo(other->returnType())) {
     return false;
   }
-  if (!is_same_parameters(parameters, other->parameters)) {
+  if (!is_same_parameters(parameters(), other->parameters())) {
     return false;
   }
   return true;
 }
 
 auto ConceptType::equalTo0(const ConceptType* other) const -> bool {
-  return symbol == other->symbol;
+  return symbol() == other->symbol();
 }
 
 auto ClassType::equalTo0(const ClassType* other) const -> bool {
-  return symbol == other->symbol;
+  return symbol() == other->symbol();
 }
 
 auto NamespaceType::equalTo0(const NamespaceType* other) const -> bool {
-  return symbol == other->symbol;
+  return symbol() == other->symbol();
 }
 
 auto MemberPointerType::equalTo0(const MemberPointerType* other) const -> bool {
-  if (!classType->equalTo(other->classType)) {
+  if (!classType()->equalTo(other->classType())) {
     return false;
   }
-  if (!elementType->equalTo(other->elementType)) {
+  if (!elementType()->equalTo(other->elementType())) {
     return false;
   }
   return true;
 }
 
 auto EnumType::equalTo0(const EnumType* other) const -> bool {
-  return symbol == other->symbol;
+  return symbol() == other->symbol();
 }
 
 auto GenericType::equalTo0(const GenericType* other) const -> bool {
-  return symbol == other->symbol;
+  return symbol() == other->symbol();
 }
 
 auto PackType::equalTo0(const PackType*) const -> bool { return true; }
 
 auto ScopedEnumType::equalTo0(const ScopedEnumType* other) const -> bool {
-  return symbol == other->symbol;
+  return symbol() == other->symbol();
 }
 
 DependentType::DependentType(Control* control, DependentSymbol* symbol)
-    : symbol(symbol) {}
+    : symbol_(symbol) {}
 
 auto ClassType::isDerivedFrom(const ClassType* classType) const -> bool {
-  auto* classSymbol = symbol_cast<ClassSymbol>(symbol);
-  auto* baseClassSymbol = symbol_cast<ClassSymbol>(classType->symbol);
+  auto* classSymbol = symbol_cast<ClassSymbol>(symbol_);
+  auto* baseClassSymbol = symbol_cast<ClassSymbol>(classType->symbol_);
   return classSymbol->isDerivedFrom(baseClassSymbol);
 }
 
@@ -217,11 +218,11 @@ auto ClassType::isBaseOf(const ClassType* classType) const -> bool {
 }
 
 PointerType::PointerType(Control* control, const Type* elementType)
-    : elementType(elementType) {}
+    : elementType_(elementType) {}
 
 QualType::QualType(Control* control, const Type* elementType, bool isConst,
                    bool isVolatile)
-    : elementType(elementType), isConst(isConst), isVolatile(isVolatile) {}
+    : elementType_(elementType), isConst_(isConst), isVolatile_(isVolatile) {}
 
 auto promote_type(Control* control, const Type* type) -> const Type* {
   switch (type->kind()) {
@@ -304,34 +305,33 @@ auto type_kind(const Type* ty) -> TypeKind { return ty->kind(); }
 
 auto type_element_type(const Type* ty) -> const Type* {
   if (auto qualType = type_cast<QualType>(ty)) {
-    return qualType->elementType;
+    return qualType->elementType();
   }
   if (const ReferenceType* refType = type_cast<ReferenceType>(ty)) {
-    return refType->elementType;
+    return refType->elementType();
   }
   if (auto pointerType = type_cast<PointerType>(ty)) {
-    return pointerType->elementType;
+    return pointerType->elementType();
   }
   if (auto arrayType = type_cast<ArrayType>(ty)) {
-    return arrayType->elementType;
+    return arrayType->elementType();
   }
   if (auto memberPointerType = type_cast<MemberPointerType>(ty)) {
-    return memberPointerType->elementType;
+    return memberPointerType->elementType();
   }
   if (auto scopedEnumType = type_cast<ScopedEnumType>(ty)) {
-    return scopedEnumType->elementType;
+    return scopedEnumType->elementType();
   }
 
   if (auto functionType = type_cast<FunctionType>(ty)) {
-    assert(!"deprecated");
-    return functionType->returnType;
+    return functionType->returnType();
   }
 
   return nullptr;
 }
 
 auto type_extent(const Type* ty) -> int {
-  return type_cast<ArrayType>(ty)->dim;
+  return type_cast<ArrayType>(ty)->extent();
 }
 
 auto function_type_parameter_count(const Type* ty) -> std::size_t {
@@ -341,7 +341,7 @@ auto function_type_parameter_count(const Type* ty) -> std::size_t {
     return 0;
   }
 
-  return functionType->parameters.size();
+  return functionType->parameters().size();
 }
 
 auto is_void_type(const Type* ty) -> bool { return ty->is(TypeKind::kVoid); }
@@ -380,14 +380,14 @@ auto is_floating_point_type(const Type* ty) -> bool {
 
 auto is_member_object_pointer_type(const Type* ty) -> bool {
   if (auto memberPointerType = type_cast<MemberPointerType>(ty)) {
-    return !is_function_type(memberPointerType->elementType);
+    return !is_function_type(memberPointerType->elementType());
   }
   return false;
 }
 
 auto is_member_function_pointer_type(const Type* ty) -> bool {
   if (auto memberPointerType = type_cast<MemberPointerType>(ty)) {
-    return is_function_type(memberPointerType->elementType);
+    return is_function_type(memberPointerType->elementType());
   }
   return false;
 }
@@ -425,7 +425,7 @@ auto is_union_type(const Type* ty) -> bool {
   if (!classType) {
     return false;
   }
-  auto* symbol = symbol_cast<ClassSymbol>(classType->symbol);
+  auto* symbol = symbol_cast<ClassSymbol>(classType->symbol());
   return symbol->isUnion();
 }
 
@@ -464,14 +464,14 @@ auto is_unsigned(const Type* type) -> bool {
 
 auto is_const(const Type* type) -> bool {
   if (auto qualType = type_cast<QualType>(type)) {
-    return qualType->isConst;
+    return qualType->isConst();
   }
   return false;
 }
 
 auto is_volatile(const Type* type) -> bool {
   if (auto qualType = type_cast<QualType>(type)) {
-    return qualType->isVolatile;
+    return qualType->isVolatile();
   }
   return false;
 }
@@ -509,14 +509,14 @@ auto make_unsigned(Control* control, const Type* type) -> const Type* {
 
 auto remove_cv(const Type* type) -> const Type* {
   if (auto qualType = type_cast<QualType>(type)) {
-    return qualType->elementType;
+    return qualType->elementType();
   }
   return type;
 }
 
 auto remove_ref(const Type* type) -> const Type* {
   if (auto refType = type_cast<ReferenceType>(type)) {
-    return refType->elementType;
+    return refType->elementType();
   }
   return type;
 }
@@ -568,7 +568,7 @@ auto is_object_type(const Type* type) -> bool {
 
 auto is_scalar_type(const Type* type) -> bool {
   if (auto qualType = type_cast<QualType>(type)) {
-    return is_scalar_type(qualType->elementType);
+    return is_scalar_type(qualType->elementType());
   }
   if (is_arithmetic_type(type)) {
     return true;
@@ -633,11 +633,11 @@ auto is_literal_type(const Type* type) -> bool {
   }
 
   if (auto arrayType = type_cast<ArrayType>(type)) {
-    return is_literal_type(arrayType->elementType);
+    return is_literal_type(arrayType->elementType());
   }
 
   if (auto classType = type_cast<ClassType>(remove_cv(type))) {
-    auto* symbol = symbol_cast<ClassSymbol>(classType->symbol);
+    auto* symbol = symbol_cast<ClassSymbol>(classType->symbol());
 
     for (auto baseClass : symbol->baseClasses()) {
       if (auto* baseClassSymbol = symbol_cast<ClassSymbol>(baseClass)) {
@@ -741,58 +741,54 @@ auto common_type(Control* control, const Type* type, const Type* other)
 }
 
 LValueReferenceType::LValueReferenceType(Control* control,
-                                         const Type* elementType) {
-  this->elementType = elementType;
-}
+                                         const Type* elementType)
+    : ReferenceType(Kind, elementType) {}
 
 RValueReferenceType::RValueReferenceType(Control* control,
-                                         const Type* elementType) {
-  this->elementType = elementType;
-}
+                                         const Type* elementType)
+    : ReferenceType(Kind, elementType) {}
 
-ArrayType::ArrayType(Control* control, const Type* elementType, int dim)
-    : elementType(elementType), dim(dim) {}
+ArrayType::ArrayType(Control* control, const Type* elementType, int extent)
+    : elementType_(elementType), extent_(extent) {}
 
 auto FunctionType::makeTemplate(Control* control, FunctionSymbol* symbol) const
     -> const FunctionType* {
-  auto* type = const_cast<FunctionType*>(this);
-  assert(type->symbol == nullptr || type->symbol == symbol);
-  type->symbol = symbol;
+  assert(symbol_ == nullptr || symbol_ == symbol);
+  setSymbol(symbol_);
   symbol->setTemplate(true);
-  return type;
+  return this;
 }
 
 FunctionType::FunctionType(Control* control, const Type* classType,
                            const Type* returnType,
                            std::vector<Parameter> parameters, bool isVariadic)
-    : classType(classType),
-      returnType(returnType),
-      parameters(std::move(parameters)),
-      isVariadic(isVariadic) {}
+    : classType_(classType),
+      returnType_(returnType),
+      parameters_(std::move(parameters)),
+      isVariadic_(isVariadic) {}
 
 MemberPointerType::MemberPointerType(Control* control, const Type* classType,
                                      const Type* elementType)
-    : classType(classType), elementType(elementType) {}
+    : classType_(classType), elementType_(elementType) {}
 
-GenericType::GenericType(Control* control, Symbol* symbol) : symbol(symbol) {}
+GenericType::GenericType(Control* control, Symbol* symbol) : symbol_(symbol) {}
 
-PackType::PackType(Control* control, Symbol* symbol) : symbol(symbol) {}
+PackType::PackType(Control* control, Symbol* symbol) : symbol_(symbol) {}
 
-ClassType::ClassType(Control* control, ClassSymbol* symbol) : symbol(symbol) {}
+ClassType::ClassType(Control* control, ClassSymbol* symbol) : symbol_(symbol) {}
 
-ConceptType::ConceptType(Control* control, Symbol* symbol) : symbol(symbol) {}
+ConceptType::ConceptType(Control* control, Symbol* symbol) : symbol_(symbol) {}
 
 ScopedEnumType::ScopedEnumType(Control* control, ScopedEnumSymbol* symbol,
                                const Type* elementType)
-    : elementType(elementType), symbol(symbol) {}
+    : elementType_(elementType), symbol_(symbol) {}
 
-EnumType::EnumType(Control* control, Symbol* symbol) : symbol(symbol) {}
+EnumType::EnumType(Control* control, Symbol* symbol) : symbol_(symbol) {}
 
 NamespaceType::NamespaceType(Control* control, NamespaceSymbol* symbol)
-    : symbol(symbol) {}
+    : symbol_(symbol) {}
 
-auto type_to_string(const Type* type, char* out, std::size_t size)
-    -> std::string {
+auto to_string(const Type* type) -> std::string {
   TypePrinter type_printer;
 
   return type_printer.to_string(type);

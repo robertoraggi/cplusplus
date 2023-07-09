@@ -120,7 +120,7 @@ auto MemoryLayout::alignmentOf(const DoubleType* type) const -> int {
   return 8;
 }
 auto MemoryLayout::alignmentOf(const QualType* type) const -> int {
-  return alignmentOf(type->elementType);
+  return alignmentOf(type->elementType());
 }
 auto MemoryLayout::alignmentOf(const PointerType* type) const -> int {
   return sizeOfPointer_;
@@ -132,7 +132,7 @@ auto MemoryLayout::alignmentOf(const RValueReferenceType* type) const -> int {
   return sizeOfPointer_;
 }
 auto MemoryLayout::alignmentOf(const ArrayType* type) const -> int {
-  return alignmentOf(type->elementType);
+  return alignmentOf(type->elementType());
 }
 auto MemoryLayout::alignmentOf(const FunctionType* type) const -> int {
   return sizeOfPointer_;
@@ -142,7 +142,7 @@ auto MemoryLayout::alignmentOf(const ConceptType* type) const -> int {
   return 0;
 }
 auto MemoryLayout::alignmentOf(const ClassType* type) const -> int {
-  return type->symbol->alignment();
+  return type->symbol()->alignment();
 }
 auto MemoryLayout::alignmentOf(const NamespaceType* type) const -> int {
   assert(!"alignmentOf(NamespaceType)");
@@ -162,7 +162,7 @@ auto MemoryLayout::alignmentOf(const PackType* type) const -> int {
 }
 
 auto MemoryLayout::alignmentOf(const ScopedEnumType* type) const -> int {
-  return alignmentOf(type->elementType);
+  return alignmentOf(type->elementType());
 }
 
 // size of type
@@ -226,7 +226,7 @@ auto MemoryLayout::sizeOf(const FloatType* type) const -> int { return 4; }
 auto MemoryLayout::sizeOf(const DoubleType* type) const -> int { return 8; }
 
 auto MemoryLayout::sizeOf(const QualType* type) const -> int {
-  return sizeOf(type->elementType);
+  return sizeOf(type->elementType());
 }
 
 auto MemoryLayout::sizeOf(const PointerType* type) const -> int {
@@ -242,7 +242,7 @@ auto MemoryLayout::sizeOf(const RValueReferenceType* type) const -> int {
 }
 
 auto MemoryLayout::sizeOf(const ArrayType* type) const -> int {
-  return sizeOf(type->elementType) * type->dim;
+  return sizeOf(type->elementType()) * type->extent();
 }
 
 auto MemoryLayout::sizeOf(const FunctionType* type) const -> int {
@@ -255,7 +255,7 @@ auto MemoryLayout::sizeOf(const ConceptType* type) const -> int {
 }
 
 auto MemoryLayout::sizeOf(const ClassType* type) const -> int {
-  return type->symbol->size();
+  return type->symbol()->size();
 }
 
 auto MemoryLayout::sizeOf(const NamespaceType* type) const -> int {
@@ -280,7 +280,7 @@ auto MemoryLayout::sizeOf(const PackType* type) const -> int {
 }
 
 auto MemoryLayout::sizeOf(const ScopedEnumType* type) const -> int {
-  return sizeOf(type->elementType);
+  return sizeOf(type->elementType());
 }
 
 }  // namespace cxx

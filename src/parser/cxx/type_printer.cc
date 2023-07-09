@@ -48,7 +48,6 @@ auto TypePrinter::to_string(const Type* type, const std::string& id)
   accept(type);
 
   std::string buffer;
-  buffer.clear();
 
   buffer.append(specifiers_);
   buffer.append(ptrOps_);
@@ -58,10 +57,6 @@ auto TypePrinter::to_string(const Type* type, const std::string& id)
   }
 
   return buffer;
-}
-
-auto TypePrinter::to_string(const Type* type) -> std::string {
-  return to_string(type, nullptr);
 }
 
 void TypePrinter::accept(const Type* type) {
@@ -119,32 +114,32 @@ void TypePrinter::visit(const DoubleType* type) {
 }
 
 void TypePrinter::visit(const QualType* type) {
-  if (type->isConst) {
+  if (type->isConst()) {
     specifiers_.append("const ");
   }
-  if (type->isVolatile) {
+  if (type->isVolatile()) {
     specifiers_.append("volatile ");
   }
-  accept(type->elementType);
+  accept(type->elementType());
 }
 
 void TypePrinter::visit(const PointerType* type) {
   ptrOps_.append("*");
-  accept(type->elementType);
+  accept(type->elementType());
 }
 
 void TypePrinter::visit(const LValueReferenceType* type) {
   ptrOps_.append("&");
-  accept(type->elementType);
+  accept(type->elementType());
 }
 
 void TypePrinter::visit(const RValueReferenceType* type) {
   ptrOps_.append("&&");
-  accept(type->elementType);
+  accept(type->elementType());
 }
 
 void TypePrinter::visit(const ArrayType* type) {
-  auto buf = "[" + std::to_string(type->dim) + "]";
+  auto buf = "[" + std::to_string(type->extent()) + "]";
 
   if (ptrOps_.empty()) {
     declarator_.append(buf);
@@ -159,19 +154,20 @@ void TypePrinter::visit(const ArrayType* type) {
     ptrOps_.clear();
   }
 
-  accept(type->elementType);
+  accept(type->elementType());
 }
 
 void TypePrinter::visit(const FunctionType* type) {
   std::string signature;
-  signature.clear();
 
   signature.append("(");
 
   TypePrinter pp;
 
-  for (std::size_t i = 0; i < type->parameters.size(); ++i) {
-    const auto& param = type->parameters[i];
+  const auto& params = type->parameters();
+
+  for (std::size_t i = 0; i < params.size(); ++i) {
+    const auto& param = params[i];
     const Identifier* paramName = name_cast<Identifier>(param.name());
 
     std::string paramId;
@@ -184,12 +180,12 @@ void TypePrinter::visit(const FunctionType* type) {
 
     signature.append(paramText);
 
-    if (i != type->parameters.size() - 1) {
+    if (i != params.size() - 1) {
       signature.append(", ");
     }
   }
 
-  if (type->isVariadic) {
+  if (type->isVariadic()) {
     signature.append("...");
   }
 
@@ -207,16 +203,16 @@ void TypePrinter::visit(const FunctionType* type) {
 
   declarator_.append(signature);
 
-  accept(type->returnType);
+  accept(type->returnType());
 }
 
 void TypePrinter::visit(const ClassType* type) {
-  const Identifier* className = name_cast<Identifier>(type->symbol->name());
+  const Identifier* className = name_cast<Identifier>(type->symbol()->name());
   specifiers_.append(className->name());
 }
 
 void TypePrinter::visit(const NamespaceType* type) {
-  const Identifier* className = name_cast<Identifier>(type->symbol->name());
+  const Identifier* className = name_cast<Identifier>(type->symbol()->name());
   specifiers_.append(className->name());
 }
 
@@ -225,7 +221,7 @@ void TypePrinter::visit(const MemberPointerType* type) {}
 void TypePrinter::visit(const ConceptType* type) {}
 
 void TypePrinter::visit(const EnumType* type) {
-  const Identifier* className = name_cast<Identifier>(type->symbol->name());
+  const Identifier* className = name_cast<Identifier>(type->symbol()->name());
   specifiers_.append(className->name());
 }
 
@@ -234,7 +230,7 @@ void TypePrinter::visit(const GenericType* type) {}
 void TypePrinter::visit(const PackType* type) {}
 
 void TypePrinter::visit(const ScopedEnumType* type) {
-  const Identifier* className = name_cast<Identifier>(type->symbol->name());
+  const Identifier* className = name_cast<Identifier>(type->symbol()->name());
   specifiers_.append(className->name());
 }
 

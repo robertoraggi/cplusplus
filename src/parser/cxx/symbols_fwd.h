@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include <string_view>
+
 #define CXX_FOR_EACH_SYMBOL_KIND(V) \
   V(Class)                          \
   V(Concept)                        \
@@ -80,6 +82,6 @@ CXX_FOR_EACH_SYMBOL_KIND(DECLARE_SYMBOL)
 
 auto equal_to(const Symbol* symbol, const Symbol* other) -> bool;
 
-auto symbol_kind_to_string(SymbolKind kind) -> const char*;
+auto to_string(SymbolKind kind) -> std::string_view;
 
 }  // namespace cxx
