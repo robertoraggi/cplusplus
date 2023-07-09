@@ -16,6 +16,8 @@ auto twice(CanAdd auto n) {
   return n + n;
 }
 
+const char* str = "hello";
+
 int main() {
   return twice(2);
 }
