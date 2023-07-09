@@ -134,6 +134,7 @@ class Control {
       -> const ScopedEnumType*;
   auto getConstType(const Type* type) -> const QualType*;
   auto getVolatileType(const Type* type) -> const QualType*;
+  auto getConstVolatileType(const Type* type) -> const QualType*;
   auto getDependentType(DependentSymbol* symbol) -> const DependentType*;
 
  private:

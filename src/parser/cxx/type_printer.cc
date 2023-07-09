@@ -114,28 +114,45 @@ void TypePrinter::visit(const DoubleType* type) {
 }
 
 void TypePrinter::visit(const QualType* type) {
+  if (is_pointer_type(type->elementType()) ||
+      is_member_object_pointer_type(type->elementType())) {
+    accept(type->elementType());
+
+    if (type->isConst()) {
+      ptrOps_.append(" const");
+    }
+
+    if (type->isVolatile()) {
+      ptrOps_.append(" volatile");
+    }
+
+    return;
+  }
+
   if (type->isConst()) {
     specifiers_.append("const ");
   }
+
   if (type->isVolatile()) {
     specifiers_.append("volatile ");
   }
+
   accept(type->elementType());
 }
 
 void TypePrinter::visit(const PointerType* type) {
-  ptrOps_.append("*");
   accept(type->elementType());
+  ptrOps_.append("*");
 }
 
 void TypePrinter::visit(const LValueReferenceType* type) {
-  ptrOps_.append("&");
   accept(type->elementType());
+  ptrOps_.append("&");
 }
 
 void TypePrinter::visit(const RValueReferenceType* type) {
-  ptrOps_.append("&&");
   accept(type->elementType());
+  ptrOps_.append("&&");
 }
 
 void TypePrinter::visit(const ArrayType* type) {
