@@ -61,6 +61,12 @@ TEST(TypePrinter, PointerTypes) {
       control.getConstType(control.getPointerType(control.getCharType()));
 
   ASSERT_EQ(to_string(constPointerToChar), "char* const");
+
+  // pointer to array of 10 ints
+  auto pointerToArrayOf10Ints =
+      control.getPointerType(control.getArrayType(control.getIntType(), 10));
+
+  ASSERT_EQ(to_string(pointerToArrayOf10Ints), "int (*)[10]");
 }
 
 TEST(TypePrinter, LValueReferences) {
@@ -83,6 +89,12 @@ TEST(TypePrinter, LValueReferences) {
       control.getConstType(control.getPointerType(control.getCharType())));
 
   ASSERT_EQ(to_string(referenceToConstPointerToChar), "char* const&");
+
+  // reference to array of 10 ints
+  auto referenceToArrayOf10Ints = control.getLValueReferenceType(
+      control.getArrayType(control.getIntType(), 10));
+
+  ASSERT_EQ(to_string(referenceToArrayOf10Ints), "int (&)[10]");
 }
 
 TEST(TypePrinter, RValueReferences) {
@@ -99,4 +111,37 @@ TEST(TypePrinter, RValueReferences) {
       control.getPointerType(control.getCharType()));
 
   ASSERT_EQ(to_string(referenceToPointerToChar), "char*&&");
+}
+
+TEST(TypePrinter, Arrays) {
+  Control control;
+
+  // array of 10 unsigned longs
+  auto arrayOf10UnsignedLongs =
+      control.getArrayType(control.getUnsignedLongType(), 10);
+
+  ASSERT_EQ(to_string(arrayOf10UnsignedLongs), "unsigned long [10]");
+
+  // array of 4 arrays of 2 floats
+  auto arrayOf10ArraysOf2Floats =
+      control.getArrayType(control.getArrayType(control.getFloatType(), 2), 4);
+
+  ASSERT_EQ(to_string(arrayOf10ArraysOf2Floats), "float [4][2]");
+
+  // array of 4 arrays of 2 pointers to char
+  auto arrayOf10ArraysOf2PointersToChar = control.getArrayType(
+      control.getArrayType(control.getPointerType(control.getCharType()), 2),
+      4);
+
+  ASSERT_EQ(to_string(arrayOf10ArraysOf2PointersToChar), "char* [4][2]");
+
+  // array of 4 arrays of 2 pointers to const char
+  auto arrayOf4ArraysOf2PointersToConstChar = control.getArrayType(
+      control.getArrayType(
+          control.getPointerType(control.getConstType(control.getCharType())),
+          2),
+      4);
+
+  ASSERT_EQ(to_string(arrayOf4ArraysOf2PointersToConstChar),
+            "const char* [4][2]");
 }
