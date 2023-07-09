@@ -28,7 +28,7 @@ jobs:
       - name: Test
         working-directory: build
         run: |
-          ctest --verbose
+          ctest --output-on-failure
 
   build-windows:
     runs-on: windows-latest
