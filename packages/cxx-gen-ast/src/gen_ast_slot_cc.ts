@@ -56,7 +56,7 @@ export function gen_ast_slot_cc({ ast, output }: { ast: AST; output: string }) {
           ++slotCount;
         } else if (m.kind === "token-list") {
           emit(`  case ${slotCount}:`);
-          emit(`    cxx_runtime_error("not implemented yet");`);
+          emit(`    value_ = 0; // not implemented yet`);
           emit(`    slotKind_ = ASTSlotKind::kTokenList;`);
           emit(`    break;`);
           ++slotCount;
