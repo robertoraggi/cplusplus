@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include <string_view>
+
 #define CXX_FOR_EACH_TYPE_KIND(V) \
   V(Invalid)                      \
   V(Nullptr)                      \
@@ -78,6 +80,6 @@ CXX_FOR_EACH_TYPE_KIND(PROCESS_TYPE)
 
 auto equal_to(const Type* type, const Type* other) -> bool;
 
-auto type_kind_to_string(TypeKind kind) -> const char*;
+auto to_string(TypeKind kind) -> std::string_view;
 
 }  // namespace cxx

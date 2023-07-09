@@ -34,7 +34,7 @@ namespace cxx {
   case SymbolKind::k##name:       \
     return #name;
 
-auto symbol_kind_to_string(SymbolKind kind) -> const char* {
+auto to_string(SymbolKind kind) -> std::string_view {
   switch (kind) {
     CXX_FOR_EACH_SYMBOL_KIND(PROCESS_SYMBOL_KIND)
     default:
@@ -177,8 +177,8 @@ FunctionSymbol::FunctionSymbol(Control* control, const Name* name,
                                const Type* type)
     : SymbolMaker(name, type) {
   auto functionType = type_cast<FunctionType>(type);
-  assert(functionType->symbol == nullptr);
-  const_cast<FunctionType*>(functionType)->symbol = this;
+  assert(functionType->symbol() == nullptr);
+  functionType->setSymbol(this);
   stackSize_ = 0;
 }
 

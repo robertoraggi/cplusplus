@@ -31,8 +31,7 @@ class TypePrinter final : TypeVisitor {
   TypePrinter();
   ~TypePrinter();
 
-  auto to_string(const Type* type) -> std::string;
-  auto to_string(const Type* type, const std::string& id) -> std::string;
+  auto to_string(const Type* type, const std::string& id = "") -> std::string;
 
  private:
   void accept(const Type* type);
