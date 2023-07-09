@@ -463,6 +463,10 @@ auto Control::getVolatileType(const Type* type) -> const QualType* {
   return getQualType(type, false, true);
 }
 
+auto Control::getConstVolatileType(const Type* type) -> const QualType* {
+  return getQualType(type, true, true);
+}
+
 auto Control::getDependentType(DependentSymbol* symbol)
     -> const DependentType* {
   return &*d->dependentTypes.emplace(this, symbol).first;

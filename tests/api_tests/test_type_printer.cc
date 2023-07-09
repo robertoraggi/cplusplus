@@ -5,7 +5,7 @@
 using namespace cxx;
 
 TEST(TypePrinter, BasicTypes) {
-  cxx::Control control;
+  Control control;
 
   ASSERT_EQ(to_string(control.getNullptrType()), "decltype(nullptr)");
   ASSERT_EQ(to_string(control.getAutoType()), "auto");
@@ -22,4 +22,81 @@ TEST(TypePrinter, BasicTypes) {
   ASSERT_EQ(to_string(control.getUnsignedLongType()), "unsigned long");
   ASSERT_EQ(to_string(control.getFloatType()), "float");
   ASSERT_EQ(to_string(control.getDoubleType()), "double");
+}
+
+TEST(TypePrinter, QualTypes) {
+  Control control;
+
+  ASSERT_EQ(to_string(control.getConstType(control.getUnsignedCharType())),
+            "const unsigned char");
+
+  ASSERT_EQ(to_string(control.getVolatileType(control.getUnsignedCharType())),
+            "volatile unsigned char");
+
+  ASSERT_EQ(
+      to_string(control.getConstVolatileType(control.getUnsignedCharType())),
+      "const volatile unsigned char");
+}
+
+TEST(TypePrinter, PointerTypes) {
+  Control control;
+
+  ASSERT_EQ(to_string(control.getPointerType(control.getUnsignedCharType())),
+            "unsigned char*");
+
+  // test pointer to pointer to unsigned int
+  auto pointerToPointerToUnsignedInt = control.getPointerType(
+      control.getPointerType(control.getUnsignedIntType()));
+
+  ASSERT_EQ(to_string(pointerToPointerToUnsignedInt), "unsigned int**");
+
+  // test pointer to const char
+  auto pointerToConstChar =
+      control.getPointerType(control.getConstType(control.getCharType()));
+
+  ASSERT_EQ(to_string(pointerToConstChar), "const char*");
+
+  // const pointer to char
+  auto constPointerToChar =
+      control.getConstType(control.getPointerType(control.getCharType()));
+
+  ASSERT_EQ(to_string(constPointerToChar), "char* const");
+}
+
+TEST(TypePrinter, LValueReferences) {
+  Control control;
+
+  // lvalue reference to unsigned long
+  auto referenceToUnsignedLong =
+      control.getLValueReferenceType(control.getUnsignedLongType());
+
+  ASSERT_EQ(to_string(referenceToUnsignedLong), "unsigned long&");
+
+  // lvalue reference to pointer to char
+  auto referenceToPointerToChar = control.getLValueReferenceType(
+      control.getPointerType(control.getCharType()));
+
+  ASSERT_EQ(to_string(referenceToPointerToChar), "char*&");
+
+  // lvalue reference to a const pointer to char
+  auto referenceToConstPointerToChar = control.getLValueReferenceType(
+      control.getConstType(control.getPointerType(control.getCharType())));
+
+  ASSERT_EQ(to_string(referenceToConstPointerToChar), "char* const&");
+}
+
+TEST(TypePrinter, RValueReferences) {
+  Control control;
+
+  // rvalue reference to unsigned long
+  auto referenceToUnsignedLong =
+      control.getRValueReferenceType(control.getUnsignedLongType());
+
+  ASSERT_EQ(to_string(referenceToUnsignedLong), "unsigned long&&");
+
+  // rvalue reference to pointer to char
+  auto referenceToPointerToChar = control.getRValueReferenceType(
+      control.getPointerType(control.getCharType()));
+
+  ASSERT_EQ(to_string(referenceToPointerToChar), "char*&&");
 }

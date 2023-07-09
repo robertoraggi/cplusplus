@@ -38,7 +38,7 @@ auto to_string(SymbolKind kind) -> std::string_view {
   switch (kind) {
     CXX_FOR_EACH_SYMBOL_KIND(PROCESS_SYMBOL_KIND)
     default:
-      return nullptr;
+      return {};
   }  // switch
 }
 
