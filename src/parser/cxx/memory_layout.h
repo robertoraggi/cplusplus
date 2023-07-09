@@ -18,56 +18,38 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/type_visitor.h>
-#include <cxx/types.h>
+#pragma once
 
-#include <optional>
-#include <stdexcept>
+#include <cxx/types_fwd.h>
 
 namespace cxx {
 
-constexpr auto AlignTo(std::uint64_t n, std::uint64_t align) -> std::uint64_t {
-  return (n + align - 1) / align * align;
-}
-
-class MemoryLayout final : TypeVisitor {
+class MemoryLayout {
  public:
-  static auto ofType(const QualifiedType& type)
-      -> std::optional<std::tuple<std::uint64_t, std::uint64_t>>;
+  explicit MemoryLayout(int bits);
+  ~MemoryLayout();
 
-  auto operator()(const QualifiedType& type)
-      -> std::optional<std::tuple<std::uint64_t, std::uint64_t>>;
+  auto bits() const -> int;
+  auto sizeOfPointer() const -> int;
+  auto sizeOfLong() const -> int;
 
- private:
-  void visit(const UndefinedType*) override;
-  void visit(const ErrorType*) override;
-  void visit(const AutoType*) override;
-  void visit(const DecltypeAutoType*) override;
-  void visit(const VoidType*) override;
-  void visit(const NullptrType*) override;
-  void visit(const BooleanType*) override;
-  void visit(const CharacterType*) override;
-  void visit(const IntegerType*) override;
-  void visit(const FloatingPointType*) override;
-  void visit(const EnumType*) override;
-  void visit(const ScopedEnumType*) override;
-  void visit(const PointerType*) override;
-  void visit(const PointerToMemberType*) override;
-  void visit(const ReferenceType*) override;
-  void visit(const RValueReferenceType*) override;
-  void visit(const ArrayType*) override;
-  void visit(const UnboundArrayType*) override;
-  void visit(const FunctionType*) override;
-  void visit(const MemberFunctionType*) override;
-  void visit(const NamespaceType*) override;
-  void visit(const ClassType*) override;
-  void visit(const TemplateType*) override;
-  void visit(const TemplateArgumentType*) override;
-  void visit(const ConceptType*) override;
+  auto sizeOf(const Type* type) const -> int;
+  auto alignmentOf(const Type* type) const -> int;
+
+#define DECLARE_METHOD(type) int sizeOf(const type##Type* type) const;
+  CXX_FOR_EACH_TYPE_KIND(DECLARE_METHOD)
+
+#undef DECLARE_METHOD
+
+#define DECLARE_METHOD(type) int alignmentOf(const type##Type* type) const;
+  CXX_FOR_EACH_TYPE_KIND(DECLARE_METHOD)
 
  private:
-  std::uint64_t size_ = 0;
-  std::uint64_t alignment_ = 0;
+  int bits_;
+  int sizeOfPointer_;
+  int sizeOfLong_;
 };
+
+#undef DECLARE_METHOD
 
 }  // namespace cxx

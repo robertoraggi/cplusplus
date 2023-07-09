@@ -20,80 +20,68 @@
 
 #pragma once
 
-#include <cxx/name_visitor.h>
 #include <cxx/names_fwd.h>
-#include <cxx/qualified_type.h>
-#include <cxx/token.h>
 
-#include <iosfwd>
+#include <cstdint>
 #include <string>
 
 namespace cxx {
 
 class Name {
  public:
+  explicit Name(NameKind kind) : kind_(kind) {}
   virtual ~Name();
 
-  virtual void accept(NameVisitor* visitor) const = 0;
-};
-
-class Identifier final : public Name {
- public:
-  explicit Identifier(std::string name) : name_(std::move(name)) {}
-
-  [[nodiscard]] auto name() const -> const std::string& { return name_; }
-  [[nodiscard]] auto value() const -> const std::string& { return name_; }
-
-  void accept(NameVisitor* visitor) const override { visitor->visit(this); }
+  auto kind() const -> NameKind { return kind_; }
 
  private:
+  NameKind kind_;
+};
+
+class Identifier : public Name {
   std::string name_;
-};
 
-class OperatorNameId final : public Name {
  public:
-  explicit OperatorNameId(TokenKind op) : op_(op) {}
+  static constexpr auto Kind = NameKind::kIdentifier;
 
-  [[nodiscard]] auto op() const -> TokenKind { return op_; }
+  explicit Identifier(std::string name) : Name(Kind), name_(std::move(name)) {}
 
-  void accept(NameVisitor* visitor) const override { visitor->visit(this); }
+  auto isAnonymous() const -> bool { return name_.at(0) == '$'; }
 
- private:
-  TokenKind op_;
+  auto value() const -> const std::string& { return name_; }
+  auto name() const -> const std::string& { return name_; }
+  auto length() const -> std::uint32_t { return name_.size(); }
 };
 
-class ConversionNameId final : public Name {
+class OperatorId : public Name {
+  std::string name_;
+
  public:
-  explicit ConversionNameId(const QualifiedType& type) : type_(type) {}
+  static constexpr auto Kind = NameKind::kOperatorId;
 
-  [[nodiscard]] auto type() const -> const QualifiedType& { return type_; }
+  explicit OperatorId(std::string name) : Name(Kind), name_(std::move(name)) {}
 
-  void accept(NameVisitor* visitor) const override { visitor->visit(this); }
-
- private:
-  QualifiedType type_;
+  auto name() const -> const std::string& { return name_; }
+  auto length() const -> std::uint32_t { return name_.size(); }
 };
 
-auto operator<<(std::ostream& out, const Name& name) -> std::ostream&;
+class DestructorId : public Name {
+  std::string name_;
+
+ public:
+  static constexpr auto Kind = NameKind::kDestructorId;
+
+  explicit DestructorId(std::string name)
+      : Name(Kind), name_(std::move(name)) {}
+
+  auto name() const -> const std::string& { return name_; }
+  auto length() const -> std::uint32_t { return name_.size(); }
+};
+
+template <typename T>
+auto name_cast(const Name* name) -> const T* {
+  return name && name->kind() == T::Kind ? static_cast<const T*>(name)
+                                         : nullptr;
+}
 
 }  // namespace cxx
-
-template <>
-struct std::less<cxx::Identifier> {
-  using is_transparent = void;
-
-  auto operator()(const cxx::Identifier& id, const cxx::Identifier& other) const
-      -> bool {
-    return id.name() < other.name();
-  }
-
-  auto operator()(const cxx::Identifier& id, const std::string_view& name) const
-      -> bool {
-    return id.name() < name;
-  }
-
-  auto operator()(const std::string_view& name, const cxx::Identifier& id) const
-      -> bool {
-    return name < id.name();
-  }
-};

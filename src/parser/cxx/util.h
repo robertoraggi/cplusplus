@@ -18,11 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/ir/ir.h>
-#include <cxx/ir/ir_visitor.h>
+#pragma once
 
-namespace cxx::ir {
-
-IRVisitor::~IRVisitor() = default;
-
-}  // namespace cxx::ir
+namespace cxx {
+auto align_to(int n, int align) -> int;
+}

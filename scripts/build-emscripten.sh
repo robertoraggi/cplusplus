@@ -9,13 +9,13 @@ project_root=$(cd "$me/.." && pwd)
 CMAKE_CONFIGURE_OPTIONS="
 -DCMAKE_INSTALL_PREFIX=build.em/install/usr \
 -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE:-MinSizeRel} \
--DCMAKE_INTERPROCEDURAL_OPTIMIZATION=${CMAKE_INTERPROCEDURAL_OPTIMIZATION:-1} \
+-DCXX_INTERPROCEDURAL_OPTIMIZATION=${CMAKE_INTERPROCEDURAL_OPTIMIZATION:-1} \
 -DKWGEN_EXECUTABLE=${KWGEN_EXECUTABLE:-/usr/bin/kwgen} \
 -DFLATBUFFERS_FLATC_EXECUTABLE=${FLATBUFFERS_FLATC_EXECUTABLE:-/usr/bin/flatc}"
 
 if [ ! -z "${CODESPACES}" ] && [ ! -z "${EMSDK}" ]; then
     if [ ! -d "${project_root}/build.em" ]; then
-        cmake -G Ninja ${CMAKE_CONFIGURE_OPTIONS} -S ${project_root} -B ${project_root}/build.em
+        emcmake cmake -G Ninja ${CMAKE_CONFIGURE_OPTIONS} -S ${project_root} -B ${project_root}/build.em
     fi
     cmake --build $project_root/build.em
     exit 0

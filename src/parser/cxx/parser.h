@@ -465,8 +465,7 @@ class Parser final {
   void completePendingFunctionDefinitions();
   void completeFunctionDefinition(FunctionDefinitionAST* ast);
 
-  void enterFunctionScope(FunctionSymbol* functionSymbol,
-                          FunctionDeclaratorAST* functionDeclarator);
+  void enterFunctionScope(FunctionDeclaratorAST* functionDeclarator);
 
   void check_type_traits();
 
@@ -474,8 +473,6 @@ class Parser final {
   TranslationUnit* unit = nullptr;
   Arena* pool = nullptr;
   Control* control = nullptr;
-  SymbolFactory* symbols = nullptr;
-  TypeEnvironment* types = nullptr;
   bool skipFunctionBody_ = false;
   bool checkTypes_ = false;
 
@@ -497,8 +494,6 @@ class Parser final {
       nested_name_specifiers_;
 
   std::vector<FunctionDefinitionAST*> pendingFunctionDefinitions_;
-
-  NamespaceSymbol* globalNamespace_ = nullptr;
 
   bool module_unit = false;
   const Identifier* module_id = nullptr;

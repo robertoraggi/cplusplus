@@ -23,13 +23,8 @@ add_executable(cxx ${SOURCES})
 
 target_link_libraries(cxx
     cxx-parser
-    cxx-ir
     nlohmann_json::nlohmann_json
 )
-
-if (LLVM_FOUND)
-    target_link_libraries(cxx cxx-llvm)
-endif()
 
 if(EMSCRIPTEN)
     target_link_options(cxx PUBLIC
@@ -45,6 +40,10 @@ if (CMAKE_SYSTEM_NAME STREQUAL "WASI")
 
     target_compile_definitions(cxx PRIVATE JSON_HAS_FILESYSTEM=0)
     target_compile_definitions(cxx PRIVATE CXX_NO_FILESYSTEM)
+endif()
+
+if(CXX_INTERPROCEDURAL_OPTIMIZATION)
+    set_target_properties(cxx PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
 if (CXX_INSTALL_TOOLS)

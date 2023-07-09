@@ -20,363 +20,399 @@
 
 #pragma once
 
-#include <cxx/qualified_type.h>
+#include <cxx/names_fwd.h>
 #include <cxx/symbols_fwd.h>
+#include <cxx/types_fwd.h>
 
-#include <tuple>
-#include <vector>
+#include <cstddef>
 
 namespace cxx {
 
+class Control;
+
+class Parameter : public std::tuple<const Name*, const Type*> {
+ public:
+  using tuple::tuple;
+
+  auto name() const -> const Name* { return std::get<0>(*this); }
+  auto type() const -> const Type* { return std::get<1>(*this); }
+};
+
 class Type {
  public:
+  explicit Type(TypeKind kind) : kind_(kind) {}
   virtual ~Type();
 
   virtual void accept(TypeVisitor* visitor) const = 0;
 
-  [[nodiscard]] auto isIntegral() const -> bool;
-  [[nodiscard]] auto isArithmetic() const -> bool;
-  [[nodiscard]] auto isScalar() const -> bool;
-  [[nodiscard]] auto isFundamental() const -> bool;
-  [[nodiscard]] auto isCompound() const -> bool;
-  [[nodiscard]] auto isObject() const -> bool;
+  auto kind() const -> TypeKind { return kind_; }
 
-  template <typename T>
-  static auto cast(const QualifiedType& qualType) -> const T* {
-    return dynamic_cast<const T*>(qualType.type());
-  }
+  auto is(TypeKind kind) const -> bool { return kind_ == kind; }
+  auto isNot(TypeKind kind) const -> bool { return kind_ != kind; }
 
-  template <typename T>
-  static auto cast(const Type* type) -> const T* {
-    return dynamic_cast<const T*>(type);
-  }
+  auto equalTo(const Type* other) const -> bool;
 
-  template <typename T>
-  static auto is(const QualifiedType& qualType) -> bool {
-    return cast<T>(qualType) != nullptr;
-  }
-
-  template <typename T>
-  static auto is(const Type* type) -> bool {
-    return cast<T>(type) != nullptr;
-  }
+ private:
+  TypeKind kind_;
 };
 
-class UndefinedType final : public Type {
-  UndefinedType() = default;
-
+template <TypeKind K, typename Base = Type>
+class TypeMaker : public Base {
  public:
-  static auto get() -> const UndefinedType*;
+  static constexpr TypeKind Kind = K;
+
+  TypeMaker() : Base(K) {}
+};
+
+class ReferenceType : public Type {
+ public:
+  using Type::Type;
+
+  const Type* elementType = nullptr;
+};
+
+class InvalidType final : public TypeMaker<TypeKind::kInvalid> {
+ public:
+  void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const InvalidType* other) const -> bool;
+};
+
+class DependentType final : public TypeMaker<TypeKind::kDependent> {
+ public:
+  DependentSymbol* symbol = nullptr;
+
+  DependentType(Control* control, DependentSymbol* symbol);
 
   void accept(TypeVisitor* visitor) const override;
+
+  auto equalTo0(const DependentType* other) const -> bool;
 };
 
-class ErrorType final : public Type {
-  ErrorType() = default;
-
+class NullptrType final : public TypeMaker<TypeKind::kNullptr> {
  public:
-  static auto get() -> const ErrorType*;
+  void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const NullptrType* other) const -> bool;
+};
+
+class AutoType final : public TypeMaker<TypeKind::kAuto> {
+ public:
+  void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const AutoType* other) const -> bool;
+};
+
+class VoidType final : public TypeMaker<TypeKind::kVoid> {
+ public:
+  void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const VoidType* other) const -> bool;
+};
+
+class BoolType final : public TypeMaker<TypeKind::kBool> {
+ public:
+  void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const BoolType* other) const -> bool;
+};
+
+class CharType final : public TypeMaker<TypeKind::kChar> {
+ public:
+  void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const CharType* other) const -> bool;
+};
+
+class SignedCharType final : public TypeMaker<TypeKind::kSignedChar> {
+ public:
+  void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const SignedCharType* other) const -> bool;
+};
+
+class UnsignedCharType final : public TypeMaker<TypeKind::kUnsignedChar> {
+ public:
+  void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const UnsignedCharType* other) const -> bool;
+};
+
+class ShortType final : public TypeMaker<TypeKind::kShort> {
+ public:
+  void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const ShortType* other) const -> bool;
+};
+
+class UnsignedShortType final : public TypeMaker<TypeKind::kUnsignedShort> {
+ public:
+  void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const UnsignedShortType* other) const -> bool;
+};
+
+class IntType final : public TypeMaker<TypeKind::kInt> {
+ public:
+  void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const IntType* other) const -> bool;
+};
+
+class UnsignedIntType final : public TypeMaker<TypeKind::kUnsignedInt> {
+ public:
+  void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const UnsignedIntType* other) const -> bool;
+};
+
+class LongType final : public TypeMaker<TypeKind::kLong> {
+ public:
+  void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const LongType* other) const -> bool;
+};
+
+class UnsignedLongType final : public TypeMaker<TypeKind::kUnsignedLong> {
+ public:
+  void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const UnsignedLongType* other) const -> bool;
+};
+
+class FloatType final : public TypeMaker<TypeKind::kFloat> {
+ public:
+  void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const FloatType* other) const -> bool;
+};
+
+class DoubleType final : public TypeMaker<TypeKind::kDouble> {
+ public:
+  void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const DoubleType* other) const -> bool;
+};
+
+class QualType final : public TypeMaker<TypeKind::kQual> {
+ public:
+  const Type* elementType = nullptr;
+  bool isConst = false;
+  bool isVolatile = false;
+
+  explicit QualType(Control* control, const Type* elementType, bool isConst,
+                    bool isVolatile);
 
   void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const QualType* other) const -> bool;
 };
 
-class AutoType final : public Type {
+class PointerType final : public TypeMaker<TypeKind::kPointer> {
  public:
-  static auto get() -> const AutoType*;
+  const Type* elementType = nullptr;
+
+  PointerType(Control* control, const Type* elementType);
 
   void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const PointerType* other) const -> bool;
 };
 
-class DecltypeAutoType final : public Type {
+class LValueReferenceType final
+    : public TypeMaker<TypeKind::kLValueReference, ReferenceType> {
  public:
-  static auto get() -> const DecltypeAutoType*;
+  LValueReferenceType(Control* control, const Type* elementType);
 
   void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const LValueReferenceType* other) const -> bool;
 };
 
-class VoidType final : public Type {
+class RValueReferenceType final
+    : public TypeMaker<TypeKind::kRValueReference, ReferenceType> {
  public:
-  static auto get() -> const VoidType*;
+  RValueReferenceType(Control* control, const Type* elementType);
 
   void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const RValueReferenceType* other) const -> bool;
 };
 
-class NullptrType final : public Type {
+class ArrayType final : public TypeMaker<TypeKind::kArray> {
  public:
-  static auto get() -> const NullptrType*;
+  const Type* elementType = nullptr;
+  int dim = 0;
+
+  ArrayType(Control* control, const Type* elementType, int dim);
 
   void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const ArrayType* other) const -> bool;
 };
 
-class BooleanType final : public Type {
+class FunctionType final : public TypeMaker<TypeKind::kFunction> {
  public:
-  static auto get() -> const BooleanType*;
+  FunctionSymbol* symbol = nullptr;
+  const Type* classType = nullptr;
+  const Type* returnType = nullptr;
+  std::vector<Parameter> parameters;
+  bool isVariadic = false;
+
+  FunctionType(Control* control, const Type* classType, const Type* returnType,
+               std::vector<Parameter> parameters, bool isVariadic);
+
+  auto makeTemplate(Control* control, FunctionSymbol* symbol) const
+      -> const FunctionType*;
 
   void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const FunctionType* other) const -> bool;
 };
 
-class CharacterType final : public Type, public std::tuple<CharacterKind> {
+class ConceptType final : public TypeMaker<TypeKind::kConcept> {
  public:
-  explicit CharacterType(CharacterKind kind) noexcept : tuple(kind) {}
+  Symbol* symbol = nullptr;
 
-  [[nodiscard]] auto kind() const -> CharacterKind {
-    return std::get<0>(*this);
-  }
+  ConceptType(Control* control, Symbol* symbol);
 
   void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const ConceptType* other) const -> bool;
 };
 
-class IntegerType final : public Type, public std::tuple<IntegerKind, bool> {
+class ClassType final : public TypeMaker<TypeKind::kClass> {
  public:
-  IntegerType(IntegerKind kind, bool isUnsigned) noexcept
-      : tuple(kind, isUnsigned) {}
+  ClassSymbol* symbol = nullptr;
 
-  [[nodiscard]] auto kind() const -> IntegerKind { return std::get<0>(*this); }
-
-  [[nodiscard]] auto isUnsigned() const -> bool { return std::get<1>(*this); }
+  ClassType(Control* control, ClassSymbol* symbol);
 
   void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const ClassType* other) const -> bool;
+
+  auto isDerivedFrom(const ClassType* classType) const -> bool;
+  auto isBaseOf(const ClassType* classType) const -> bool;
 };
 
-class FloatingPointType final : public Type,
-                                public std::tuple<FloatingPointKind> {
+class NamespaceType final : public TypeMaker<TypeKind::kNamespace> {
  public:
-  explicit FloatingPointType(FloatingPointKind kind) noexcept : tuple(kind) {}
+  NamespaceSymbol* symbol = nullptr;
 
-  [[nodiscard]] auto kind() const -> FloatingPointKind {
-    return std::get<0>(*this);
-  }
+  NamespaceType(Control* control, NamespaceSymbol* symbol);
 
   void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const NamespaceType* other) const -> bool;
 };
 
-class EnumType final : public Type, public std::tuple<EnumSymbol*> {
+class MemberPointerType final : public TypeMaker<TypeKind::kMemberPointer> {
  public:
-  explicit EnumType(EnumSymbol* symbol) noexcept : tuple(symbol) {}
+  const Type* elementType = nullptr;
+  const Type* classType = nullptr;
 
-  [[nodiscard]] auto symbol() const -> EnumSymbol* {
-    return std::get<0>(*this);
-  }
+  MemberPointerType(Control* control, const Type* class_type,
+                    const Type* member_type);
 
   void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const MemberPointerType* other) const -> bool;
 };
 
-class ScopedEnumType final : public Type, public std::tuple<ScopedEnumSymbol*> {
+class EnumType final : public TypeMaker<TypeKind::kEnum> {
  public:
-  explicit ScopedEnumType(ScopedEnumSymbol* symbol) noexcept : tuple(symbol) {}
+  Symbol* symbol = nullptr;
 
-  [[nodiscard]] auto symbol() const -> ScopedEnumSymbol* {
-    return std::get<0>(*this);
-  }
+  EnumType(Control* control, Symbol* symbol);
 
   void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const EnumType* other) const -> bool;
 };
 
-class PointerType final : public Type,
-                          public std::tuple<QualifiedType, Qualifiers> {
+class GenericType final : public TypeMaker<TypeKind::kGeneric> {
  public:
-  PointerType(const QualifiedType& elementType, Qualifiers qualifiers) noexcept
-      : tuple(elementType, qualifiers) {}
+  Symbol* symbol = nullptr;
 
-  [[nodiscard]] auto elementType() const -> const QualifiedType& {
-    return std::get<0>(*this);
-  }
-
-  [[nodiscard]] auto qualifiers() const -> Qualifiers {
-    return std::get<1>(*this);
-  }
+  GenericType(Control* control, Symbol* symbol);
 
   void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const GenericType* other) const -> bool;
 };
 
-class PointerToMemberType final
-    : public Type,
-      public std::tuple<const ClassType*, QualifiedType, Qualifiers> {
+class PackType final : public TypeMaker<TypeKind::kPack> {
  public:
-  PointerToMemberType(const ClassType* classType,
-                      const QualifiedType& elementType,
-                      Qualifiers qualifiers) noexcept
-      : tuple(classType, elementType, qualifiers) {}
+  Symbol* symbol = nullptr;
 
-  [[nodiscard]] auto classType() const -> const ClassType* {
-    return std::get<0>(*this);
-  }
-
-  [[nodiscard]] auto elementType() const -> const QualifiedType& {
-    return std::get<1>(*this);
-  }
-
-  [[nodiscard]] auto qualifiers() const -> Qualifiers {
-    return std::get<2>(*this);
-  }
+  PackType(Control* control, Symbol* symbol);
 
   void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const PackType* other) const -> bool;
 };
 
-class ReferenceType final : public Type, public std::tuple<QualifiedType> {
+class ScopedEnumType final : public TypeMaker<TypeKind::kScopedEnum> {
  public:
-  explicit ReferenceType(const QualifiedType& elementType) noexcept
-      : tuple(elementType) {}
+  ScopedEnumSymbol* symbol = nullptr;
+  const Type* elementType = nullptr;
 
-  [[nodiscard]] auto elementType() const -> const QualifiedType& {
-    return std::get<0>(*this);
-  }
+  ScopedEnumType(Control* control, ScopedEnumSymbol* symbol,
+                 const Type* elementType);
 
   void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const ScopedEnumType* other) const -> bool;
 };
 
-class RValueReferenceType final : public Type,
-                                  public std::tuple<QualifiedType> {
- public:
-  explicit RValueReferenceType(const QualifiedType& elementType) noexcept
-      : tuple(elementType) {}
+template <typename T>
+inline auto type_cast(const Type* type) -> const T* {
+  if (type && type->kind() == T::Kind) return static_cast<const T*>(type);
+  return nullptr;
+}
 
-  [[nodiscard]] auto elementType() const -> const QualifiedType& {
-    return std::get<0>(*this);
-  }
+template <>
+inline auto type_cast<ReferenceType>(const Type* type) -> const ReferenceType* {
+  if (auto result = type_cast<LValueReferenceType>(type)) return result;
+  return type_cast<RValueReferenceType>(type);
+}
 
-  void accept(TypeVisitor* visitor) const override;
-};
+auto is_same_type(const Type* type, const Type* other) -> bool;
+auto is_same_parameters(const std::vector<Parameter>& params,
+                        const std::vector<Parameter>& other) -> bool;
 
-class ArrayType final : public Type,
-                        public std::tuple<QualifiedType, std::size_t> {
- public:
-  ArrayType(const QualifiedType& elementType, std::size_t dimension) noexcept
-      : tuple(elementType, dimension) {}
+auto is_same_template_arguments(const std::vector<TemplateArgument>& list,
+                                const std::vector<TemplateArgument>& other)
+    -> bool;
 
-  [[nodiscard]] auto elementType() const -> const QualifiedType& {
-    return std::get<0>(*this);
-  }
+auto promote_type(Control* control, const Type* type) -> const Type*;
 
-  [[nodiscard]] auto dimension() const -> std::size_t {
-    return std::get<1>(*this);
-  }
+auto type_kind(const Type* ty) -> TypeKind;
+auto type_element_type(const Type* ty) -> const Type*;
 
-  void accept(TypeVisitor* visitor) const override;
-};
+auto type_extent(const Type* ty) -> int;
 
-class UnboundArrayType final : public Type, public std::tuple<QualifiedType> {
- public:
-  explicit UnboundArrayType(const QualifiedType& elementType) noexcept
-      : tuple(elementType) {}
+auto is_void_type(const Type* ty) -> bool;
+auto is_bool_type(const Type* ty) -> bool;
+auto is_qual_type(const Type* ty) -> bool;
+auto is_pointer_type(const Type* ty) -> bool;
+auto is_lvalue_reference_type(const Type* ty) -> bool;
+auto is_rvalue_reference_type(const Type* ty) -> bool;
+auto is_array_type(const Type* ty) -> bool;
+auto is_function_type(const Type* ty) -> bool;
+auto is_namespace_type(const Type* ty) -> bool;
+auto is_class_type(const Type* ty) -> bool;
+auto is_union_type(const Type* ty) -> bool;
+auto is_nullptr_type(const Type* ty) -> bool;
+auto is_integral_type(const Type* ty) -> bool;
+auto is_floating_point_type(const Type* ty) -> bool;
+auto is_member_object_pointer_type(const Type* ty) -> bool;
+auto is_member_function_pointer_type(const Type* ty) -> bool;
+auto is_enum_type(const Type* ty) -> bool;
+auto is_unscoped_enum_type(const Type* type) -> bool;
+auto is_scoped_enum_type(const Type* type) -> bool;
 
-  [[nodiscard]] auto elementType() const -> const QualifiedType& {
-    return std::get<0>(*this);
-  }
+auto is_signed(const Type* type) -> bool;
+auto is_unsigned(const Type* type) -> bool;
 
-  void accept(TypeVisitor* visitor) const override;
-};
+auto is_const(const Type* type) -> bool;
+auto is_volatile(const Type* type) -> bool;
 
-class FunctionType final
-    : public Type,
-      public std::tuple<QualifiedType, std::vector<QualifiedType>, bool> {
- public:
-  explicit FunctionType(const QualifiedType& returnType,
-                        std::vector<QualifiedType> argumentTypes,
-                        bool isVariadic) noexcept
-      : tuple(returnType, std::move(argumentTypes), isVariadic) {}
+auto make_signed(Control* control, const Type* type) -> const Type*;
+auto make_unsigned(Control* control, const Type* type) -> const Type*;
 
-  [[nodiscard]] auto returnType() const -> const QualifiedType& {
-    return std::get<0>(*this);
-  }
+auto remove_cv(const Type* type) -> const Type*;
+auto remove_ref(const Type* type) -> const Type*;
+auto remove_cvref(const Type* type) -> const Type*;
 
-  [[nodiscard]] auto argumentTypes() const
-      -> const std::vector<QualifiedType>& {
-    return std::get<1>(*this);
-  }
+auto is_integral_or_unscoped_enum_type(const Type* ty) -> bool;
 
-  [[nodiscard]] auto isVariadic() const -> bool { return std::get<2>(*this); }
+auto is_member_pointer_type(const Type* type) -> bool;
+auto is_reference_type(const Type* type) -> bool;
+auto is_compound_type(const Type* type) -> bool;
+auto is_object_type(const Type* type) -> bool;
+auto is_scalar_type(const Type* type) -> bool;
+auto is_arithmetic_type(const Type* type) -> bool;
+auto is_arithmetic_or_unscoped_type(const Type* type) -> bool;
+auto is_fundamental_type(const Type* type) -> bool;
+auto is_literal_type(const Type* type) -> bool;
 
-  void accept(TypeVisitor* visitor) const override;
-};
+auto common_type(Control* control, const Type* type, const Type* other)
+    -> const Type*;
 
-class MemberFunctionType final
-    : public Type,
-      public std::tuple<const ClassType*, QualifiedType,
-                        std::vector<QualifiedType>, bool> {
- public:
-  explicit MemberFunctionType(const ClassType* classType,
-                              const QualifiedType& returnType,
-                              std::vector<QualifiedType> argumentTypes,
-                              bool isVariadic) noexcept
-      : tuple(classType, returnType, std::move(argumentTypes), isVariadic) {}
+auto function_type_parameter_count(const Type* ty) -> std::size_t;
 
-  [[nodiscard]] auto classType() const -> const ClassType* {
-    return std::get<0>(*this);
-  }
-
-  [[nodiscard]] auto returnType() const -> const QualifiedType& {
-    return std::get<1>(*this);
-  }
-
-  [[nodiscard]] auto argumentTypes() const
-      -> const std::vector<QualifiedType>& {
-    return std::get<2>(*this);
-  }
-
-  [[nodiscard]] auto isVariadic() const -> bool { return std::get<3>(*this); }
-
-  void accept(TypeVisitor* visitor) const override;
-};
-
-class NamespaceType final : public Type, public std::tuple<NamespaceSymbol*> {
- public:
-  explicit NamespaceType(NamespaceSymbol* symbol) noexcept : tuple(symbol) {}
-
-  [[nodiscard]] auto symbol() const -> NamespaceSymbol* {
-    return std::get<0>(*this);
-  }
-
-  void accept(TypeVisitor* visitor) const override;
-};
-
-class ClassType final : public Type, public std::tuple<ClassSymbol*> {
- public:
-  explicit ClassType(ClassSymbol* symbol) noexcept : tuple(symbol) {}
-
-  [[nodiscard]] auto symbol() const -> ClassSymbol* {
-    return std::get<0>(*this);
-  }
-
-  void accept(TypeVisitor* visitor) const override;
-};
-
-class TemplateType final : public Type,
-                           public std::tuple<TemplateParameterList*> {
- public:
-  explicit TemplateType(TemplateParameterList* symbol) noexcept
-      : tuple(symbol) {}
-
-  [[nodiscard]] auto symbol() const -> TemplateParameterList* {
-    return std::get<0>(*this);
-  }
-
-  void accept(TypeVisitor* visitor) const override;
-};
-
-class TemplateArgumentType final
-    : public Type,
-      public std::tuple<TemplateTypeParameterSymbol*> {
- public:
-  explicit TemplateArgumentType(TemplateTypeParameterSymbol* symbol) noexcept
-      : tuple(symbol) {}
-
-  [[nodiscard]] auto symbol() const -> TemplateTypeParameterSymbol* {
-    return std::get<0>(*this);
-  }
-
-  void accept(TypeVisitor* visitor) const override;
-};
-
-class ConceptType final : public Type, public std::tuple<ConceptSymbol*> {
- public:
-  explicit ConceptType(ConceptSymbol* symbol) noexcept : tuple(symbol) {}
-
-  [[nodiscard]] auto symbol() const -> ConceptSymbol* {
-    return std::get<0>(*this);
-  }
-
-  void accept(TypeVisitor* visitor) const override;
-};
+auto type_to_string(const Type* type, char* out, std::size_t size)
+    -> std::string;
 
 }  // namespace cxx

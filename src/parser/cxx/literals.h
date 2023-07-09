@@ -32,6 +32,8 @@ class Literal {
 
   [[nodiscard]] auto value() const -> const std::string& { return value_; }
 
+  auto hashCode() const -> std::size_t;
+
  private:
   std::string value_;
 };

@@ -22,66 +22,53 @@
 
 #include <cxx/names_fwd.h>
 #include <cxx/symbols_fwd.h>
+#include <cxx/types_fwd.h>
 
-#include <variant>
 #include <vector>
 
 namespace cxx {
 
-class Scope final {
+class Scope {
  public:
+  using MemberIterator = std::vector<Symbol*>::const_iterator;
+
   Scope(const Scope& other) = delete;
   auto operator=(const Scope& other) -> Scope& = delete;
 
   Scope();
   ~Scope();
 
-  [[nodiscard]] auto enclosingScope() const -> Scope*;
-  [[nodiscard]] auto skipTemplateScope() const -> Scope*;
+  [[nodiscard]] auto empty() const -> bool;
+  [[nodiscard]] auto begin() const -> MemberIterator;
+  [[nodiscard]] auto end() const -> MemberIterator;
 
-  [[nodiscard]] auto isTemplateScope() const -> bool;
-
+  [[nodiscard]] auto usings() const -> const std::vector<Scope*>&;
   [[nodiscard]] auto owner() const -> Symbol*;
-  void setOwner(Symbol* owner);
+
+  [[nodiscard]] auto currentClassOrNamespaceScope() -> Scope*;
+  [[nodiscard]] auto currentNonTemplateScope() -> Scope*;
+  [[nodiscard]] auto enclosingClassOrNamespaceScope() -> Scope*;
+
+  [[nodiscard]] auto currentNamespaceScope() -> Scope*;
+  [[nodiscard]] auto enclosingNamespaceScope() -> Scope*;
+
+  [[nodiscard]] auto get(const Name* name) const -> Symbol*;
+  [[nodiscard]] auto getClass(const Name* name) const -> ClassSymbol*;
 
   void add(Symbol* symbol);
-
-  auto find(const Name* name,
-            LookupOptions lookupOptions = LookupOptions::kDefault) const
-      -> Symbol*;
-
-  auto lookup(const Name* name,
-              LookupOptions lookupOptions = LookupOptions::kDefault) const
-      -> Symbol*;
-
-  auto unqualifiedLookup(const Name* name, LookupOptions lookupOptions =
-                                               LookupOptions::kDefault) const
-      -> Symbol*;
-
-  using iterator = std::vector<Symbol*>::const_iterator;
-
-  [[nodiscard]] auto empty() const -> bool { return members_.empty(); }
-
-  [[nodiscard]] auto begin() const { return members_.begin(); }
-  [[nodiscard]] auto end() const { return members_.end(); }
-
-  [[nodiscard]] auto rbegin() const { return members_.rbegin(); }
-  [[nodiscard]] auto rend() const { return members_.rend(); }
+  void addUsing(Scope* scope);
 
  private:
   void rehash();
-
   void addHelper(Symbol* symbol);
 
-  auto lookup(const Name* name, LookupOptions lookupOptions,
-              std::vector<const Scope*>& processed) const -> Symbol*;
-
-  auto match(Symbol* symbol, LookupOptions options) const -> bool;
-
  private:
-  Symbol* owner_ = nullptr;
-  std::vector<Symbol*> members_;
+  std::vector<Symbol*> symbols_;
   std::vector<Symbol*> buckets_;
+  std::vector<Scope*> usings_;
+  Symbol* owner_ = nullptr;
+  Scope* parent_ = nullptr;
+  bool isTemplateScope_ = false;
 };
 
 }  // namespace cxx

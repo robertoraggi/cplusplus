@@ -22,159 +22,141 @@
 #include <cxx/scope.h>
 #include <cxx/symbols.h>
 
-#include <algorithm>
+#include <cassert>
 
 namespace cxx {
-
-namespace {
-
-std::hash<const Name*> hashName;
-
-inline auto is_set(LookupOptions options, LookupOptions flags) -> bool {
-  return (options & flags) == flags;
-}
-
-}  // namespace
 
 Scope::Scope() = default;
 
 Scope::~Scope() = default;
 
-auto Scope::enclosingScope() const -> Scope* {
-  return owner_ ? owner_->enclosingScope() : nullptr;
-}
-
-auto Scope::skipTemplateScope() const -> Scope* {
-  auto scope = const_cast<Scope*>(this);
-  while (scope && scope->isTemplateScope()) scope = scope->enclosingScope();
-  return scope;
-}
-
 auto Scope::owner() const -> Symbol* { return owner_; }
 
-void Scope::setOwner(Symbol* owner) { owner_ = owner; }
+auto Scope::empty() const -> bool { return symbols_.empty(); }
 
-auto Scope::isTemplateScope() const -> bool {
-  return dynamic_cast<TemplateParameterList*>(owner_);
+auto Scope::begin() const -> Scope::MemberIterator { return symbols_.begin(); }
+
+auto Scope::end() const -> Scope::MemberIterator { return symbols_.end(); }
+
+auto Scope::currentClassOrNamespaceScope() -> Scope* {
+  if (owner_ && owner_->isClassOrNamespace()) {
+    return this;
+  }
+  return enclosingClassOrNamespaceScope();
+}
+
+auto Scope::currentNonTemplateScope() -> Scope* {
+  if (!isTemplateScope_) {
+    return this;
+  }
+  return parent_->currentClassOrNamespaceScope();
+}
+
+auto Scope::enclosingClassOrNamespaceScope() -> Scope* {
+  Scope* scope = parent_;
+  for (; scope; scope = scope->parent_) {
+    if (scope->owner_ && scope->owner_->isClassOrNamespace()) {
+      return scope;
+    }
+  }
+  return nullptr;
+}
+
+auto Scope::currentNamespaceScope() -> Scope* {
+  if (owner_ && owner_->is(SymbolKind::kNamespace)) {
+    return this;
+  }
+  return enclosingNamespaceScope();
+}
+
+auto Scope::enclosingNamespaceScope() -> Scope* {
+  Scope* scope = parent_;
+  for (; scope; scope = scope->parent_) {
+    if (scope->owner_ && scope->owner_->is(SymbolKind::kNamespace)) {
+      return scope;
+    }
+  }
+  return nullptr;
 }
 
 void Scope::add(Symbol* symbol) {
-  if (dynamic_cast<TemplateParameterList*>(symbol) ||
-      dynamic_cast<TemplateTypeParameterSymbol*>(symbol)) {
-    if (isTemplateScope()) addHelper(symbol);
-  } else if (auto templateParameterList =
-                 dynamic_cast<TemplateParameterList*>(owner_)) {
-    symbol->setTemplateParameterList(templateParameterList);
+  const auto isTemplateParameter =
+      symbol->kind() == SymbolKind::kTemplateParameter ||
+      symbol->kind() == SymbolKind::kTemplateParameterPack ||
+      symbol->kind() == SymbolKind::kNonTypeTemplateParameter;
 
-    auto declarationScope = skipTemplateScope();
-    declarationScope->addHelper(symbol);
-  } else {
-    addHelper(symbol);
+  if (isTemplateScope_ && !isTemplateParameter) {
+    assert(!"cannot add symbol to the this scope");
   }
+
+  assert(!symbol->enclosingScope());
+
+  symbol->setEnclosingScope(this);
+
+  addHelper(symbol);
 }
 
-void Scope::addHelper(Symbol* symbol) {
-  members_.push_back(symbol);
-  if (3 * members_.size() > 2 * buckets_.size()) {
-    rehash();
-  } else {
-    const auto h = hashName(symbol->name()) % buckets_.size();
-    symbol->setNext(buckets_[h]);
-    buckets_[h] = symbol;
+void Scope::addUsing(Scope* scope) {
+  auto it = std::find(usings_.begin(), usings_.end(), scope);
+
+  if (it != usings_.end()) {
+    return;
   }
+
+  usings_.push_back(scope);
+}
+
+auto Scope::get(const Name* name) const -> Symbol* {
+  for (auto it = rbegin(symbols_); it != rend(symbols_); ++it) {
+    Symbol* symbol = *it;
+    if (symbol->name() == name) {
+      return symbol;
+    }
+  }
+  return nullptr;
+}
+
+auto Scope::getClass(const Name* name) const -> ClassSymbol* {
+  ClassSymbol* classSymbol = nullptr;
+
+  for (Symbol* symbol = get(name); symbol; symbol = symbol->next) {
+    if (symbol->name() != name) {
+      continue;
+    }
+
+    classSymbol = symbol_cast<ClassSymbol>(symbol);
+
+    if (classSymbol) {
+      break;
+    }
+  }
+
+  return classSymbol;
 }
 
 void Scope::rehash() {
   const auto bucketCount =
       std::max(buckets_.size() * 2, static_cast<std::size_t>(8));
   buckets_ = std::vector<Symbol*>(bucketCount, nullptr);
-  for (auto member : members_) {
-    const auto h = hashName(member->name()) % bucketCount;
-    member->setNext(buckets_[h]);
+  std::hash<const Name*> hashValue;
+  for (auto member : symbols_) {
+    const auto h = hashValue(member->name()) % bucketCount;
+    member->next = buckets_[h];
     buckets_[h] = member;
   }
 }
 
-auto Scope::find(const Name* name, LookupOptions lookupOptions) const
-    -> Symbol* {
-  if (name && members_.size()) {
-    const auto h = hashName(name) % buckets_.size();
+void Scope::addHelper(Symbol* symbol) {
+  symbols_.push_back(symbol);
+  if (3 * symbols_.size() > 2 * buckets_.size()) {
+    rehash();
+  } else {
+    std::hash<const Name*> hashValue;
 
-    for (auto symbol = buckets_[h]; symbol; symbol = symbol->next()) {
-      if (symbol->name() == name && match(symbol, lookupOptions)) return symbol;
-    }
+    const auto h = hashValue(symbol->name()) % buckets_.size();
+    symbol->next = buckets_[h];
+    buckets_[h] = symbol;
   }
-
-  return nullptr;
-}
-
-auto Scope::lookup(const Name* name, LookupOptions lookupOptions) const
-    -> Symbol* {
-  std::vector<const Scope*> processed;
-  return lookup(name, lookupOptions, processed);
-}
-
-auto Scope::unqualifiedLookup(const Name* name,
-                              LookupOptions lookupOptions) const -> Symbol* {
-  std::vector<const Scope*> processed;
-
-  auto scope = this;
-
-  while (scope) {
-    if (auto symbol = scope->lookup(name, lookupOptions, processed)) {
-      return symbol;
-    }
-
-    scope = scope->enclosingScope();
-  }
-
-  return nullptr;
-}
-
-auto Scope::lookup(const Name* name, LookupOptions lookupOptions,
-                   std::vector<const Scope*>& processed) const -> Symbol* {
-  if (std::find(processed.begin(), processed.end(), this) == processed.end()) {
-    processed.push_back(this);
-
-    if (auto symbol = find(name, lookupOptions)) return symbol;
-
-    if (auto ns = dynamic_cast<NamespaceSymbol*>(owner())) {
-      for (const auto& u : ns->usingNamespaces()) {
-        if (auto symbol = u->scope()->lookup(name, lookupOptions, processed)) {
-          return symbol;
-        }
-      }
-    } else if (auto classSymbol = dynamic_cast<ClassSymbol*>(owner())) {
-      for (const auto& base : classSymbol->baseClasses()) {
-        if (auto symbol =
-                base->scope()->lookup(name, lookupOptions, processed)) {
-          return symbol;
-        }
-      }
-    }
-  }
-
-  return nullptr;
-}
-
-auto Scope::match(Symbol* symbol, LookupOptions options) const -> bool {
-  if (options == LookupOptions::kDefault) return true;
-
-  if (is_set(options, LookupOptions::kNamespace) &&
-      dynamic_cast<NamespaceSymbol*>(symbol) != nullptr) {
-    return true;
-  }
-
-  if (is_set(options, LookupOptions::kType) && symbol->isTypeSymbol()) {
-    return true;
-  }
-
-  if (is_set(options, LookupOptions::kTemplate) &&
-      dynamic_cast<TemplateParameterList*>(symbol) != nullptr) {
-    return true;
-  }
-
-  return false;
 }
 
 }  // namespace cxx

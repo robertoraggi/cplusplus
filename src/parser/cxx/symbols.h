@@ -20,280 +20,398 @@
 
 #pragma once
 
+#include <cxx/ast_fwd.h>
+#include <cxx/const_value.h>
 #include <cxx/names_fwd.h>
-#include <cxx/qualified_type.h>
-#include <cxx/symbol_visitor.h>
+#include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
+#include <cxx/token.h>
+#include <cxx/types_fwd.h>
 
-#include <memory>
-#include <string>
+#include <cstdint>
 #include <vector>
 
 namespace cxx {
 
+class Control;
+
+class TemplateHead {
+ public:
+  auto templateParameters() const -> const std::vector<TemplateParameter*>& {
+    return templateParameters_;
+  }
+
+  void addTemplateParameter(TemplateParameter* templateParameter);
+
+  auto isTemplateSpecialization() const -> bool {
+    return isTemplateSpecialization_;
+  }
+
+ private:
+  std::vector<TemplateParameter*> templateParameters_;
+  bool isTemplateSpecialization_ = false;
+};
+
+class TemplateArgument {
+ public:
+  TemplateArgument(TemplateArgumentKind kind, const Type* type, long value)
+      : kind_(kind), type_(type), value_(value) {}
+
+  auto kind() const -> TemplateArgumentKind { return kind_; }
+  auto type() const -> const Type* { return type_; }
+  auto value() const -> long { return value_; }
+
+  static auto make(const Type* type) -> TemplateArgument;
+  static auto makeLiteral(const Type* type, long value) -> TemplateArgument;
+
+ private:
+  TemplateArgumentKind kind_;
+  const Type* type_ = nullptr;
+  long value_ = 0;
+};
+
+class TemplateParameter {
+ public:
+  TemplateParameter(Control* control, TemplateParameterKind kind,
+                    const Name* name, const Type* type);
+
+  auto kind() const -> TemplateParameterKind { return kind_; }
+  auto name() const -> const Name* { return name_; }
+  auto type() const -> const Type* { return type_; }
+
+ private:
+  TemplateParameterKind kind_;
+  const Name* name_ = nullptr;
+  const Type* type_ = nullptr;
+};
+
 class Symbol {
  public:
-  Symbol(const Symbol& other) = delete;
-  auto operator=(const Symbol& other) -> Symbol& = delete;
+  Symbol* next = nullptr;  // internal
 
-  Symbol(Scope* enclosingScope, const Name* name);
+  explicit Symbol(SymbolKind kind, const Name* name, const Type* type)
+      : kind_(kind), name_(name), type_(type) {}
+
   virtual ~Symbol();
-
-  [[nodiscard]] auto unqualifiedId() const -> std::string;
-  [[nodiscard]] auto qualifiedId() const -> std::string;
-
-  [[nodiscard]] auto name() const -> const Name* { return name_; }
-  void setName(const Name* name) { name_ = name; }
-
-  [[nodiscard]] auto next() const -> Symbol* { return next_; }
-  void setNext(Symbol* next) { next_ = next; }
-
-  [[nodiscard]] auto enclosingScope() const -> Scope* {
-    return enclosingScope_;
-  }
-  void setEnclosingScope(Scope* enclosingScope) {
-    enclosingScope_ = enclosingScope;
-  }
-
-  [[nodiscard]] auto enclosingClassOrNamespace() const -> Symbol*;
-  [[nodiscard]] auto enclosingNamespace() const -> NamespaceSymbol*;
-  [[nodiscard]] auto enclosingClass() const -> ClassSymbol*;
-  [[nodiscard]] auto enclosingFunction() const -> FunctionSymbol*;
-  [[nodiscard]] auto enclosingBlock() const -> BlockSymbol*;
-
-  [[nodiscard]] auto type() const -> const QualifiedType&;
-  void setType(const QualifiedType& type);
-
-  [[nodiscard]] auto linkage() const -> Linkage;
-  void setLinkage(Linkage linkage);
-
-  [[nodiscard]] auto visibility() const -> Visibility;
-  void setVisibility(Visibility visibility);
-
-  [[nodiscard]] auto templateParameterList() const -> TemplateParameterList*;
-  void setTemplateParameterList(TemplateParameterList* templateParameterList);
-
-  [[nodiscard]] virtual auto isTypeSymbol() const -> bool;
-
-  [[nodiscard]] virtual auto scope() const -> Scope* { return nullptr; }
-
-  void addToEnclosingScope();
-
-  [[nodiscard]] auto index() const -> int;
 
   virtual void accept(SymbolVisitor* visitor) = 0;
 
- private:
-  Scope* enclosingScope_ = nullptr;
-  const Name* name_ = nullptr;
-  Symbol* next_ = nullptr;
-  TemplateParameterList* templateParameterList_ = nullptr;
-  QualifiedType type_;
-  Linkage linkage_ = Linkage::kCxx;
-  Visibility visibility_ = Visibility::kPublic;
-};
+  auto kind() const { return kind_; }
 
-class TypeSymbol : public Symbol {
- public:
-  explicit TypeSymbol(Scope* enclosingScope, const Name* name);
+  auto name() const { return name_; }
 
-  [[nodiscard]] auto isTypeSymbol() const -> bool override;
-};
+  auto mangledName() const -> const std::string& { return mangledName_; }
 
-class ConceptSymbol final : public TypeSymbol {
- public:
-  explicit ConceptSymbol(Scope* enclosingScope, const Name* name = nullptr);
-
-  void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
-};
-
-class NamespaceSymbol final : public Symbol {
- public:
-  explicit NamespaceSymbol(Scope* enclosingScope, const Name* name = nullptr);
-  ~NamespaceSymbol() override;
-
-  void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
-
-  [[nodiscard]] auto scope() const -> Scope* override { return scope_.get(); }
-
-  [[nodiscard]] auto isInline() const -> bool { return isInline_; }
-  void setInline(bool isInline) { isInline_ = isInline; }
-
-  [[nodiscard]] auto usingNamespaces() const
-      -> const std::vector<NamespaceSymbol*>& {
-    return usingNamespaces_;
+  void setMangledName(std::string mangledName) {
+    mangledName_ = std::move(mangledName);
   }
 
-  void addUsingNamespace(NamespaceSymbol* symbol);
+  auto type() const { return type_; }
+  void setType(const Type* type) { type_ = type; }
+
+  auto is(SymbolKind kind) const -> bool { return kind_ == kind; }
+  auto isNot(SymbolKind kind) const -> bool { return kind_ != kind; }
+
+  auto accessKind() const -> AccessKind { return accessKind_; }
+  void setAccessKind(AccessKind accessKind) { accessKind_ = accessKind; }
+
+  auto lang() const -> Lang { return lang_; }
+  void setLang(Lang lang) { lang_ = lang; }
+
+  auto size() const -> int { return size_; }
+  void setSize(int size) { size_ = size; }
+
+  auto alignment() const -> int { return alignment_; }
+  void setAlignment(int alignment) { alignment_ = alignment; }
+
+  auto isType() const -> bool;
+  auto isMemberFunction() const -> bool;
+  auto isGlobalNamespace() const -> bool;
+  auto isClassOrNamespace() const -> bool;
+
+  auto templateParameters() const -> const std::vector<TemplateParameter*>&;
+
+  auto findTemplateInstance(
+      const std::vector<TemplateArgument>& templ_arguments, Symbol** sym) const
+      -> bool;
+
+  auto isAnonymous() const -> bool;
+
+  auto enclosingScope() const -> Scope* { return enclosingScope_; }
+  void setEnclosingScope(Scope* scope) { enclosingScope_ = scope; }
+
+  auto enclosingClassOrNamespace() const -> Symbol*;
+
+  void addTemplateInstance(Symbol* instantiatedSymbol);
+
+  auto definition() const -> SourceLocationRange { return definition_; }
+  void setDefinition(SourceLocationRange definition) {
+    definition_ = definition;
+  }
+
+  auto isExtern() const -> bool { return isExtern_; }
+  void setExtern(bool value) { isExtern_ = value; }
+
+  auto isStatic() const -> bool { return isStatic_; }
+  void setStatic(bool value) { isStatic_ = value; }
+
+  auto isInline() const -> bool { return isInline_; }
+  void setInline(bool value) { isInline_ = value; }
+
+  auto isConstexpr() const -> bool { return isConstexpr_; }
+  void setConstexpr(bool value) { isConstexpr_ = value; }
+
+  auto isTemplate() const -> bool { return isTemplate_; }
+  void setTemplate(bool value) { isTemplate_ = value; }
+
+  auto templateHead() -> TemplateHead* { return templateHead_; }
+
+  auto templateArguments() -> const std::vector<TemplateArgument>& {
+    return templateArguments_;
+  }
+
+  auto templateInstances() -> const std::vector<Symbol*>& {
+    return templateInstances_;
+  }
+
+  auto primaryTemplate() -> Symbol* { return primaryTemplate_; }
+
+  auto members() -> Scope* { return members_; }
 
  private:
-  std::unique_ptr<Scope> scope_;
-  std::vector<NamespaceSymbol*> usingNamespaces_;
+  SymbolKind kind_;
+  const Name* name_ = nullptr;
+  const Type* type_ = nullptr;
+  Scope* enclosingScope_ = nullptr;
+  std::string mangledName_;
+  AccessKind accessKind_ = AccessKind::kPublic;
+  Lang lang_ = LANG_CPP;
+  int size_ = 0;
+  int alignment_ = 0;
+  SourceLocationRange definition_;
+  bool isExtern_ = false;
+  bool isStatic_ = false;
   bool isInline_ = false;
+  bool isConstexpr_ = false;
+  bool isTemplate_ = false;
+  TemplateHead* templateHead_ = nullptr;
+  std::vector<TemplateArgument> templateArguments_;
+  std::vector<Symbol*> templateInstances_;
+  Symbol* primaryTemplate_ = nullptr;
+  Scope* members_ = nullptr;
 };
 
-class ClassSymbol final : public TypeSymbol {
+template <enum SymbolKind K>
+class SymbolMaker : public Symbol {
  public:
-  explicit ClassSymbol(Scope* enclosingScope, const Name* name = nullptr);
-  ~ClassSymbol() override;
+  static constexpr SymbolKind Kind = K;
 
-  void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
+  explicit SymbolMaker(const Name* name, const Type* type = nullptr)
+      : Symbol(K, name, type) {}
+};
 
-  [[nodiscard]] auto scope() const -> Scope* override { return scope_.get(); }
+class ParameterSymbol final : public SymbolMaker<SymbolKind::kParameter> {
+ public:
+  ParameterSymbol(Control* control, const Name* name, const Type* type,
+                  int index);
 
-  [[nodiscard]] auto classKey() const -> ClassKey { return classKey_; }
-  void setClassKey(ClassKey classKey) { classKey_ = classKey; }
+  void accept(SymbolVisitor* visitor) override;
 
-  [[nodiscard]] auto baseClasses() const -> const std::vector<ClassSymbol*>& {
+ private:
+  int index_ = 0;
+};
+
+class ClassSymbol final : public SymbolMaker<SymbolKind::kClass> {
+ public:
+  ClassSymbol(Control* control, const Name* name);
+
+  void accept(SymbolVisitor* visitor) override;
+
+  auto isDerivedFrom(ClassSymbol* symbol) -> bool;
+
+  auto baseClasses() const -> const std::vector<Symbol*>& {
     return baseClasses_;
   }
-  void addBaseClass(ClassSymbol* baseClass);
 
-  [[nodiscard]] auto isDefined() const -> bool { return isDefined_; }
-  void setDefined(bool isDefined) { isDefined_ = isDefined; }
+  auto constructors() const -> FunctionSymbol* { return constructors_; }
+  auto destructor() const -> FunctionSymbol* { return destructor_; }
 
- private:
-  std::unique_ptr<Scope> scope_;
-  std::vector<ClassSymbol*> baseClasses_;
-  ClassKey classKey_ = ClassKey::kClass;
-  bool isDefined_ = false;
-};
-
-class TypedefSymbol final : public TypeSymbol {
- public:
-  explicit TypedefSymbol(Scope* enclosingScope, const Name* name = nullptr);
-
-  void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
-};
-
-class EnumSymbol final : public TypeSymbol {
- public:
-  explicit EnumSymbol(Scope* enclosingScope, const Name* name = nullptr);
-  ~EnumSymbol() override;
-
-  void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
-
-  [[nodiscard]] auto scope() const -> Scope* override { return scope_.get(); }
+  auto isUnion() const -> bool { return isUnion_; }
+  auto isPolymorphic() const -> bool { return isPolymorphic_; }
+  auto isComplete() const -> bool { return isComplete_; }
+  auto isEmpty() const -> bool { return isEmpty_; }
 
  private:
-  std::unique_ptr<Scope> scope_;
+  std::vector<Symbol*> baseClasses_;
+  FunctionSymbol* constructors_ = nullptr;
+  FunctionSymbol* defaultConstructor_ = nullptr;
+  FunctionSymbol* destructor_ = nullptr;
+  bool isUnion_ = false;
+  bool isPolymorphic_ = false;
+  bool isComplete_ = false;
+  bool isEmpty_ = false;
 };
 
-class ScopedEnumSymbol final : public TypeSymbol {
+class EnumeratorSymbol final : public SymbolMaker<SymbolKind::kEnumerator> {
  public:
-  explicit ScopedEnumSymbol(Scope* enclosingScope, const Name* name = nullptr);
-  ~ScopedEnumSymbol() override;
+  EnumeratorSymbol(Control* control, const Name* name, const Type* type,
+                   long value);
 
-  void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
+  void accept(SymbolVisitor* visitor) override;
 
-  [[nodiscard]] auto scope() const -> Scope* override { return scope_.get(); }
-
-  [[nodiscard]] auto underlyingType() const -> QualifiedType {
-    return underlyingType_;
-  }
-
-  void setUnderlyingType(const QualifiedType& underlyingType) {
-    underlyingType_ = underlyingType;
-  }
+  auto value() const -> long { return value_; }
 
  private:
-  std::unique_ptr<Scope> scope_;
-  QualifiedType underlyingType_;
+  long value_ = 0;
 };
 
-class EnumeratorSymbol final : public Symbol {
+class FunctionSymbol final : public SymbolMaker<SymbolKind::kFunction> {
  public:
-  explicit EnumeratorSymbol(Scope* enclosingScope, const Name* name = nullptr);
+  FunctionSymbol(Control* control, const Name* name, const Type* type);
 
-  void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
-};
+  void accept(SymbolVisitor* visitor) override;
 
-class TemplateParameterList final : public Symbol {
- public:
-  explicit TemplateParameterList(Scope* enclosingScope);
-  ~TemplateParameterList() override;
-
-  void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
-
-  [[nodiscard]] auto scope() const -> Scope* override { return scope_.get(); }
+  auto allocateStack(int size, int alignment) -> int;
 
  private:
-  std::unique_ptr<Scope> scope_;
+  DeclarationAST* ast_ = nullptr;
+  int stackSize_ = 0;
+  bool isVirtual_ = false;
+  bool isLambda_ = false;
 };
 
-class TemplateTypeParameterSymbol final : public TypeSymbol {
+class GlobalSymbol final : public SymbolMaker<SymbolKind::kGlobal> {
  public:
-  explicit TemplateTypeParameterSymbol(Scope* enclosingScope,
-                                       const Name* name = nullptr);
+  GlobalSymbol(Control* control, const Name* name, const Type* type);
 
-  void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
-
-  [[nodiscard]] auto defaultType() const -> QualifiedType {
-    return defaultType_;
-  }
-
-  void setDefaultType(const QualifiedType& defaultType) {
-    defaultType_ = defaultType;
-  }
-
-  [[nodiscard]] auto isParameterPack() const -> bool { return parameterPack_; }
-
-  void setParameterPack(bool parameterPack) { parameterPack_ = parameterPack; }
+  void accept(SymbolVisitor* visitor) override;
 
  private:
-  QualifiedType defaultType_;
-  bool parameterPack_ = false;
+  ConstValue constValue_;
 };
 
-class VariableSymbol final : public Symbol {
+class InjectedClassNameSymbol final
+    : public SymbolMaker<SymbolKind::kInjectedClassName> {
  public:
-  explicit VariableSymbol(Scope* enclosingScope, const Name* name = nullptr);
+  InjectedClassNameSymbol(Control* control, const Name* name, const Type* type);
 
-  void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
+  void accept(SymbolVisitor* visitor) override;
 };
 
-class FieldSymbol final : public Symbol {
+class DependentSymbol final : public SymbolMaker<SymbolKind::kDependent> {
  public:
-  explicit FieldSymbol(Scope* enclosingScope, const Name* name = nullptr);
+  explicit DependentSymbol(Control* control);
 
-  void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
+  void accept(SymbolVisitor* visitor) override;
 };
 
-class FunctionSymbol final : public Symbol {
+class LocalSymbol final : public SymbolMaker<SymbolKind::kLocal> {
  public:
-  explicit FunctionSymbol(Scope* enclosingScope, const Name* name = nullptr);
-  ~FunctionSymbol() override;
+  LocalSymbol(Control* control, const Name* name, const Type* type);
 
-  void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
-
-  [[nodiscard]] auto scope() const -> Scope* override { return scope_.get(); }
-
-  [[nodiscard]] auto block() const -> BlockSymbol*;
-  void setBlock(BlockSymbol* block);
+  void accept(SymbolVisitor* visitor) override;
 
  private:
-  std::unique_ptr<Scope> scope_;
-  BlockSymbol* block_ = nullptr;
+  ConstValue constValue_;
 };
 
-class ArgumentSymbol final : public Symbol {
+class MemberSymbol final : public SymbolMaker<SymbolKind::kMember> {
  public:
-  explicit ArgumentSymbol(Scope* enclosingScope, const Name* name = nullptr);
+  MemberSymbol(Control* control, const Name* name, const Type* type,
+               int offset);
 
-  void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
-};
-
-class BlockSymbol final : public Symbol {
- public:
-  explicit BlockSymbol(Scope* enclosingScope, const Name* name = nullptr);
-  ~BlockSymbol() override;
-
-  void accept(SymbolVisitor* visitor) override { visitor->visit(this); }
-
-  [[nodiscard]] auto scope() const -> Scope* override { return scope_.get(); }
+  void accept(SymbolVisitor* visitor) override;
 
  private:
-  std::unique_ptr<Scope> scope_;
+  int offset_ = 0;
 };
+
+class NamespaceSymbol final : public SymbolMaker<SymbolKind::kNamespace> {
+ public:
+  NamespaceSymbol(Control* control, const Name* name);
+
+  void accept(SymbolVisitor* visitor) override;
+};
+
+class NamespaceAliasSymbol final
+    : public SymbolMaker<SymbolKind::kNamespaceAlias> {
+ public:
+  NamespaceAliasSymbol(Control* control, const Name* name, Symbol* ns);
+
+  void accept(SymbolVisitor* visitor) override;
+};
+
+class NonTypeTemplateParameterSymbol final
+    : public SymbolMaker<SymbolKind::kNonTypeTemplateParameter> {
+ public:
+  NonTypeTemplateParameterSymbol(Control* control, const Name* name,
+                                 const Type* type, int index);
+
+  void accept(SymbolVisitor* visitor) override;
+
+ private:
+  int index_ = 0;
+};
+
+class ScopedEnumSymbol final : public SymbolMaker<SymbolKind::kScopedEnum> {
+ public:
+  ScopedEnumSymbol(Control* control, const Name* name, const Type* type);
+
+  void accept(SymbolVisitor* visitor) override;
+};
+
+class TemplateParameterPackSymbol final
+    : public SymbolMaker<SymbolKind::kTemplateParameterPack> {
+ public:
+  TemplateParameterPackSymbol(Control* control, const Name* name, int index);
+
+  void accept(SymbolVisitor* visitor) override;
+
+ private:
+  int index_ = 0;
+};
+
+class TemplateParameterSymbol final
+    : public SymbolMaker<SymbolKind::kTemplateParameter> {
+ public:
+  TemplateParameterSymbol(Control* control, const Name* name, int index);
+
+  void accept(SymbolVisitor* visitor) override;
+
+ private:
+  int index_ = 0;
+};
+
+class ConceptSymbol final : public SymbolMaker<SymbolKind::kConcept> {
+ public:
+  ConceptSymbol(Control* control, const Name* name);
+
+  void accept(SymbolVisitor* visitor) override;
+};
+
+class TypeAliasSymbol final : public SymbolMaker<SymbolKind::kTypeAlias> {
+ public:
+  TypeAliasSymbol(Control* control, const Name* name, const Type* type);
+
+  void accept(SymbolVisitor* visitor) override;
+};
+
+class ValueSymbol final : public SymbolMaker<SymbolKind::kValue> {
+ public:
+  ValueSymbol(Control* control, const Name* name, const Type* type, long value);
+
+  void accept(SymbolVisitor* visitor) override;
+
+  auto value() const -> long { return value_; }
+
+ private:
+  long value_ = 0;
+};
+
+template <typename T>
+auto symbol_cast(Symbol* symbol) -> T* {
+  if (symbol && symbol->is(T::Kind)) return static_cast<T*>(symbol);
+  return nullptr;
+}
 
 }  // namespace cxx

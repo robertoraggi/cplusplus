@@ -105,11 +105,8 @@ export function gen_ast_h({ ast, output }: { ast: AST; output: string }) {
 #include <cxx/ast_fwd.h>
 #include <cxx/ast_visitor.h>
 #include <cxx/source_location.h>
-#include <cxx/qualified_type.h>
 #include <cxx/token.h>
 #include <cxx/ast_kind.h>
-#include <cxx/types_fwd.h>
-#include <cxx/symbols_fwd.h>
 #include <cxx/const_value.h>
 #include <optional>
 

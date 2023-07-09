@@ -18,33 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/qualified_type.h>
-#include <cxx/type_printer.h>
-#include <cxx/types.h>
+#include <cxx/util.h>
 
 namespace cxx {
 
-namespace {
-TypePrinter printType;
-}
-
-auto operator<<(std::ostream& out, const QualifiedType& type) -> std::ostream& {
-  printType(out, type);
-  return out;
-}
-
-QualifiedType::QualifiedType(const Type* type, Qualifiers qualifiers) noexcept
-    : type_(type), qualifiers_(qualifiers) {
-  if (!type_) type_ = UndefinedType::get();
-}
-
-QualifiedType::operator bool() const noexcept {
-  return type_ != UndefinedType::get();
-}
-
-void QualifiedType::setType(const Type* type) {
-  type_ = type;
-  if (!type_) type_ = UndefinedType::get();
+auto align_to(int n, int align) -> int {
+  return (n + align - 1) / align * align;
 }
 
 }  // namespace cxx

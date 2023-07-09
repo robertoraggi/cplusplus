@@ -34,6 +34,11 @@ target_include_directories(cxx-parser
 
 target_compile_features(cxx-parser PUBLIC cxx_std_20)
 
+# disable exception when targeting emscripten
+if (EMSCRIPTEN)
+    target_compile_options(cxx-parser PUBLIC -fno-exceptions)
+endif()
+
 target_link_libraries(cxx-parser
     PUBLIC  $<BUILD_INTERFACE:fmt::fmt-header-only>
             $<BUILD_INTERFACE:utf8::cpp>

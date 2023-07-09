@@ -20,15 +20,18 @@
 
 #pragma once
 
-#include <cxx/cxx_fwd.h>
-
 namespace cxx {
 
-class NameVisitor;
-class Name;
+enum class NameKind {
+  kInvalid,
+  kIdentifier,
+  kOperatorId,
+  kDestructorId,
+};
 
+class Name;
 class Identifier;
-class OperatorNameId;
-class ConversionNameId;
+class OperatorId;
+class DestructorId;
 
 }  // namespace cxx

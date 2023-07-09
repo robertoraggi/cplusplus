@@ -1234,7 +1234,8 @@ auto ASTDecoder::decodeSimpleLambdaCapture(const io::SimpleLambdaCapture* node)
 
   auto ast = new (pool_) SimpleLambdaCaptureAST();
   if (node->identifier()) {
-    ast->identifier = unit_->control()->identifier(node->identifier()->str());
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
   }
   return ast;
 }
@@ -1245,7 +1246,8 @@ auto ASTDecoder::decodeRefLambdaCapture(const io::RefLambdaCapture* node)
 
   auto ast = new (pool_) RefLambdaCaptureAST();
   if (node->identifier()) {
-    ast->identifier = unit_->control()->identifier(node->identifier()->str());
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
   }
   return ast;
 }
@@ -1258,7 +1260,8 @@ auto ASTDecoder::decodeRefInitLambdaCapture(
   ast->initializer =
       decodeInitializer(node->initializer(), node->initializer_type());
   if (node->identifier()) {
-    ast->identifier = unit_->control()->identifier(node->identifier()->str());
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
   }
   return ast;
 }
@@ -1271,7 +1274,8 @@ auto ASTDecoder::decodeInitLambdaCapture(const io::InitLambdaCapture* node)
   ast->initializer =
       decodeInitializer(node->initializer(), node->initializer_type());
   if (node->identifier()) {
-    ast->identifier = unit_->control()->identifier(node->identifier()->str());
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
   }
   return ast;
 }
@@ -1659,7 +1663,8 @@ auto ASTDecoder::decodeSizeofPackExpression(
 
   auto ast = new (pool_) SizeofPackExpressionAST();
   if (node->identifier()) {
-    ast->identifier = unit_->control()->identifier(node->identifier()->str());
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
   }
   return ast;
 }
@@ -1922,7 +1927,8 @@ auto ASTDecoder::decodeLabeledStatement(const io::LabeledStatement* node)
   auto ast = new (pool_) LabeledStatementAST();
   ast->statement = decodeStatement(node->statement(), node->statement_type());
   if (node->identifier()) {
-    ast->identifier = unit_->control()->identifier(node->identifier()->str());
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
   }
   return ast;
 }
@@ -2082,7 +2088,8 @@ auto ASTDecoder::decodeGotoStatement(const io::GotoStatement* node)
 
   auto ast = new (pool_) GotoStatementAST();
   if (node->identifier()) {
-    ast->identifier = unit_->control()->identifier(node->identifier()->str());
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
   }
   return ast;
 }
@@ -2196,7 +2203,8 @@ auto ASTDecoder::decodeAliasDeclaration(const io::AliasDeclaration* node)
   }
   ast->typeId = decodeTypeId(node->type_id());
   if (node->identifier()) {
-    ast->identifier = unit_->control()->identifier(node->identifier()->str());
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
   }
   return ast;
 }
@@ -2347,7 +2355,8 @@ auto ASTDecoder::decodeNamespaceAliasDefinition(
       decodeNestedNameSpecifier(node->nested_name_specifier());
   ast->name = decodeName(node->name(), node->name_type());
   if (node->identifier()) {
-    ast->identifier = unit_->control()->identifier(node->identifier()->str());
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
   }
   return ast;
 }
@@ -2478,7 +2487,8 @@ auto ASTDecoder::decodeTypenameTypeParameter(
   auto ast = new (pool_) TypenameTypeParameterAST();
   ast->typeId = decodeTypeId(node->type_id());
   if (node->identifier()) {
-    ast->identifier = unit_->control()->identifier(node->identifier()->str());
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
   }
   return ast;
 }
@@ -2500,7 +2510,8 @@ auto ASTDecoder::decodeTemplateTypeParameter(
   ast->requiresClause = decodeRequiresClause(node->requires_clause());
   ast->name = decodeName(node->name(), node->name_type());
   if (node->identifier()) {
-    ast->identifier = unit_->control()->identifier(node->identifier()->str());
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
   }
   return ast;
 }
@@ -2521,7 +2532,8 @@ auto ASTDecoder::decodeTemplatePackTypeParameter(
     }
   }
   if (node->identifier()) {
-    ast->identifier = unit_->control()->identifier(node->identifier()->str());
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
   }
   return ast;
 }
@@ -2600,7 +2612,8 @@ auto ASTDecoder::decodeSimpleName(const io::SimpleName* node)
 
   auto ast = new (pool_) SimpleNameAST();
   if (node->identifier()) {
-    ast->identifier = unit_->control()->identifier(node->identifier()->str());
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
   }
   return ast;
 }

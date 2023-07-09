@@ -19,7 +19,5 @@
 
 add_subdirectory(lib)
 add_subdirectory(parser)
-add_subdirectory(ir)
-add_subdirectory(llvm)
 add_subdirectory(js)
 add_subdirectory(frontend)

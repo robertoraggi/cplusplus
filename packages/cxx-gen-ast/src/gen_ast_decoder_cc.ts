@@ -109,7 +109,7 @@ export function gen_ast_decoder_cc({
           emit(`}`);
         } else if (m.kind == "attribute" && m.type === "Identifier") {
           emit(`  if (node->${snakeName}()) {`);
-          emit(`    ast->${m.name} = unit_->control()->identifier(`);
+          emit(`    ast->${m.name} = unit_->control()->getIdentifier(`);
           emit(`      node->${snakeName}()->str());`);
           emit(`  }`);
         } else if (m.kind == "attribute" && m.type === "CharLiteral") {

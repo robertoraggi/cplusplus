@@ -25,7 +25,9 @@
 
 namespace cxx {
 
-const std::string& Wasm32WasiToolchain::appdir() const { return appdir_; }
+auto Wasm32WasiToolchain::appdir() const -> const std::string& {
+  return appdir_;
+}
 
 void Wasm32WasiToolchain::setAppdir(std::string appdir) {
   appdir_ = std::move(appdir);
@@ -35,7 +37,9 @@ void Wasm32WasiToolchain::setAppdir(std::string appdir) {
   }
 }
 
-const std::string& Wasm32WasiToolchain::sysroot() const { return sysroot_; }
+auto Wasm32WasiToolchain::sysroot() const -> const std::string& {
+  return sysroot_;
+}
 
 void Wasm32WasiToolchain::setSysroot(std::string sysroot) {
   sysroot_ = std::move(sysroot);

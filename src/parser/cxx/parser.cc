@@ -23,10 +23,7 @@
 #include <cxx/names.h>
 #include <cxx/parser.h>
 #include <cxx/private/format.h>
-#include <cxx/scope.h>
-#include <cxx/symbols.h>
 #include <cxx/token.h>
-#include <cxx/types.h>
 
 #include <algorithm>
 #include <cassert>
@@ -37,19 +34,6 @@
 #include <variant>
 
 namespace cxx {
-
-static auto getClassKey(TokenKind kind) -> ClassKey {
-  switch (kind) {
-    case TokenKind::T_CLASS:
-      return ClassKey::kClass;
-    case TokenKind::T_STRUCT:
-      return ClassKey::kStruct;
-    case TokenKind::T_UNION:
-      return ClassKey::kUnion;
-    default:
-      cxx_runtime_error("invalid class key");
-  }  // switch
-}
 
 static auto getFunctionDeclaratorHelper(DeclaratorAST* declarator)
     -> std::pair<FunctionDeclaratorAST*, bool> {
@@ -87,16 +71,14 @@ static auto getFunctionDeclarator(DeclaratorAST* declarator)
 
 Parser::Parser(TranslationUnit* unit) : unit(unit) {
   control = unit->control();
-  symbols = control->symbols();
-  types = control->types();
   cursor_ = 1;
 
   pool = unit->arena();
 
-  module_id = control->identifier("module");
-  import_id = control->identifier("import");
-  final_id = control->identifier("final");
-  override_id = control->identifier("override");
+  module_id = control->getIdentifier("module");
+  import_id = control->getIdentifier("import");
+  final_id = control->getIdentifier("final");
+  override_id = control->getIdentifier("override");
 }
 
 Parser::~Parser() = default;
@@ -3342,8 +3324,7 @@ auto Parser::parse_alias_declaration(DeclarationAST*& yyast) -> bool {
   return true;
 }
 
-void Parser::enterFunctionScope(FunctionSymbol* functionSymbol,
-                                FunctionDeclaratorAST* functionDeclarator) {}
+void Parser::enterFunctionScope(FunctionDeclaratorAST* functionDeclarator) {}
 
 auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
                                       bool acceptFunctionDefinition) -> bool {
@@ -5413,7 +5394,6 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast) -> bool {
   if (!match(TokenKind::T_LBRACE, lbraceLoc)) return false;
 
   const Name* enumName = name ? name->name : nullptr;
-  Scope* enumScope = nullptr;
 
   auto ast = new (pool) EnumSpecifierAST();
   yyast = ast;
@@ -5621,8 +5601,6 @@ auto Parser::parse_namespace_definition(DeclarationAST*& yyast) -> bool {
     rewind(start);
     return false;
   }
-
-  NamespaceSymbol* namespaceSymbol = nullptr;
 
   auto ast = new (pool) NamespaceDefinitionAST();
   yyast = ast;
@@ -8166,8 +8144,6 @@ void Parser::completeFunctionDefinition(FunctionDefinitionAST* ast) {
       dynamic_cast<CompoundStatementFunctionBodyAST*>(ast->functionBody);
 
   if (!functionBody) return;
-
-  auto functionSymbol = ast->symbol;
 
   const auto saved = currentLocation();
 

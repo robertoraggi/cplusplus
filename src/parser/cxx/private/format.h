@@ -21,12 +21,8 @@
 #pragma once
 
 #include <cxx/names.h>
-#include <cxx/types.h>
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 
 template <>
 struct fmt::formatter<cxx::Name> : fmt::ostream_formatter {};
-
-template <>
-struct fmt::formatter<cxx::QualifiedType> : fmt::ostream_formatter {};

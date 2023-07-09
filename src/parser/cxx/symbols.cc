@@ -18,199 +18,268 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/control.h>
 #include <cxx/names.h>
-#include <cxx/private/format.h>
-#include <cxx/qualified_type.h>
 #include <cxx/scope.h>
+#include <cxx/symbol_visitor.h>
 #include <cxx/symbols.h>
 #include <cxx/types.h>
+#include <cxx/util.h>
 
-#include <algorithm>
-#include <list>
+#include <cassert>
 
 namespace cxx {
 
-Symbol::Symbol(Scope* enclosingScope, const Name* name)
-    : enclosingScope_(enclosingScope), name_(name) {}
+#define PROCESS_SYMBOL_KIND(name) \
+  case SymbolKind::k##name:       \
+    return #name;
+
+auto symbol_kind_to_string(SymbolKind kind) -> const char* {
+  switch (kind) {
+    CXX_FOR_EACH_SYMBOL_KIND(PROCESS_SYMBOL_KIND)
+    default:
+      return nullptr;
+  }  // switch
+}
+
+#undef PROCESS_SYMBOL_KIND
+
+auto TemplateArgument::make(const Type* type) -> TemplateArgument {
+  return TemplateArgument{TemplateArgumentKind::kType, type, 0};
+}
+
+auto TemplateArgument::makeLiteral(const Type* type, long value)
+    -> TemplateArgument {
+  return TemplateArgument{TemplateArgumentKind::kLiteral, type, value};
+}
+
+TemplateParameter::TemplateParameter(Control* control,
+                                     TemplateParameterKind kind,
+                                     const Name* name, const Type* type)
+    : kind_(kind), name_(name), type_(type) {}
 
 Symbol::~Symbol() = default;
 
-void Symbol::addToEnclosingScope() { enclosingScope_->add(this); }
-
-auto Symbol::unqualifiedId() const -> std::string {
-  if (name()) return fmt::format("{}", *name());
-  return "__anon__";
-}
-
-auto Symbol::qualifiedId() const -> std::string {
-  if (enclosingScope_) {
-    auto parent = enclosingScope_->owner();
-
-    if (!enclosingScope_->enclosingScope() && !parent->name()) {
-      return unqualifiedId();
+auto Symbol::findTemplateInstance(
+    const std::vector<TemplateArgument>& templ_arguments, Symbol** sym) const
+    -> bool {
+  for (auto instance : templateInstances_) {
+    if (is_same_template_arguments(instance->templateArguments(),
+                                   templ_arguments)) {
+      *sym = instance;
+      return true;
     }
-
-    return parent->qualifiedId() + "::" + unqualifiedId();
   }
 
-  return unqualifiedId();
+  *sym = nullptr;
+  return false;
 }
 
-auto Symbol::isTypeSymbol() const -> bool { return false; }
+void Symbol::addTemplateInstance(Symbol* instantiatedSymbol) {
+  assert(!instantiatedSymbol->templateArguments().empty());
 
-auto Symbol::index() const -> int {
-  if (!enclosingScope_) return -1;
+  assert(instantiatedSymbol->primaryTemplate_ == nullptr ||
+         instantiatedSymbol->primaryTemplate_ == this);
 
-  auto it = std::find(enclosingScope_->begin(), enclosingScope_->end(), this);
+  instantiatedSymbol->primaryTemplate_ = this;
 
-  return it != enclosingScope_->end()
-             ? int(std::distance(enclosingScope_->begin(), it))
-             : -1;
+  templateInstances_.push_back(instantiatedSymbol);
 }
 
-TypeSymbol::TypeSymbol(Scope* enclosingScope, const Name* name)
-    : Symbol(enclosingScope, name) {}
+auto Symbol::isAnonymous() const -> bool {
+  const Identifier* id = name_cast<Identifier>(name_);
+  return id && id->isAnonymous();
+}
 
-auto TypeSymbol::isTypeSymbol() const -> bool { return true; }
+auto Symbol::templateParameters() const
+    -> const std::vector<TemplateParameter*>& {
+  if (!templateHead_) {
+    static std::vector<TemplateParameter*> empty;
+    return empty;
+  }
+
+  return templateHead_->templateParameters();
+}
+
+auto Symbol::isType() const -> bool {
+  switch (kind_) {
+    case SymbolKind::kTypeAlias:
+    case SymbolKind::kClass:
+    case SymbolKind::kScopedEnum:
+    case SymbolKind::kTemplateParameter:
+    case SymbolKind::kTemplateParameterPack:
+    case SymbolKind::kInjectedClassName:
+      return true;
+    default:
+      return false;
+  }  // switch
+}
+
+auto Symbol::isMemberFunction() const -> bool {
+  if (!enclosingScope_) {
+    return false;
+  }
+
+  if (isNot(SymbolKind::kFunction)) {
+    return false;
+  }
+
+  if (isStatic()) {
+    return false;
+  }
+
+  auto parentClass = symbol_cast<ClassSymbol>(enclosingScope_->owner());
+
+  if (!parentClass) {
+    return false;
+  }
+
+  return false;
+}
+
+auto Symbol::isGlobalNamespace() const -> bool {
+  if (isNot(SymbolKind::kNamespace)) {
+    return false;
+  }
+
+  return enclosingScope_ == nullptr;
+}
+
+auto Symbol::isClassOrNamespace() const -> bool {
+  return is(SymbolKind::kClass) || is(SymbolKind::kNamespace);
+}
 
 auto Symbol::enclosingClassOrNamespace() const -> Symbol* {
-  for (auto scope = enclosingScope_; scope; scope = scope->enclosingScope()) {
-    if (auto sym = dynamic_cast<NamespaceSymbol*>(scope->owner())) return sym;
-    if (auto sym = dynamic_cast<ClassSymbol*>(scope->owner())) return sym;
+  if (!enclosingScope_) {
+    return nullptr;
   }
+
+  if (Scope* scope = enclosingScope_->currentClassOrNamespaceScope()) {
+    return scope->owner();
+  }
+
   return nullptr;
 }
 
-auto Symbol::enclosingNamespace() const -> NamespaceSymbol* {
-  for (auto scope = enclosingScope_; scope; scope = scope->enclosingScope()) {
-    if (auto sym = dynamic_cast<NamespaceSymbol*>(scope->owner())) return sym;
+TypeAliasSymbol::TypeAliasSymbol(Control* control, const Name* name,
+                                 const Type* type)
+    : SymbolMaker(name, type) {}
+
+ConceptSymbol::ConceptSymbol(Control* control, const Name* name)
+    : SymbolMaker(name) {
+  setType(control->getConceptType(this));
+}
+
+GlobalSymbol::GlobalSymbol(Control* control, const Name* name, const Type* type)
+    : SymbolMaker(name, type) {}
+
+FunctionSymbol::FunctionSymbol(Control* control, const Name* name,
+                               const Type* type)
+    : SymbolMaker(name, type) {
+  auto functionType = type_cast<FunctionType>(type);
+  assert(functionType->symbol == nullptr);
+  const_cast<FunctionType*>(functionType)->symbol = this;
+  stackSize_ = 0;
+}
+
+auto FunctionSymbol::allocateStack(int size, int alignment) -> int {
+  auto offset = align_to(stackSize_, alignment);
+  stackSize_ = offset + size;
+  return stackSize_;
+}
+
+ScopedEnumSymbol::ScopedEnumSymbol(Control* control, const Name* name,
+                                   const Type* type)
+    : SymbolMaker(name, nullptr) {
+  type = control->getScopedEnumType(this, type);
+}
+
+EnumeratorSymbol::EnumeratorSymbol(Control* control, const Name* name,
+                                   const Type* type, long value)
+    : SymbolMaker(name, type), value_(value) {}
+
+ValueSymbol::ValueSymbol(Control* control, const Name* name, const Type* type,
+                         long value)
+    : SymbolMaker(name, type), value_(value) {}
+
+InjectedClassNameSymbol::InjectedClassNameSymbol(Control* control,
+                                                 const Name* name,
+                                                 const Type* type)
+    : SymbolMaker(name, type) {}
+
+LocalSymbol::LocalSymbol(Control* control, const Name* name, const Type* type)
+    : SymbolMaker(name, type) {}
+
+NamespaceSymbol::NamespaceSymbol(Control* control, const Name* name)
+    : SymbolMaker(name, nullptr) {
+  setType(control->getNamespaceType(this));
+}
+
+MemberSymbol::MemberSymbol(Control* control, const Name* name, const Type* type,
+                           int offset)
+    : SymbolMaker(name, type), offset_(offset) {}
+
+NamespaceAliasSymbol::NamespaceAliasSymbol(Control* control, const Name* name,
+                                           Symbol* ns)
+    : SymbolMaker(name, ns->type()) {}
+
+ClassSymbol::ClassSymbol(Control* control, const Name* name)
+    : SymbolMaker(name, nullptr) {
+  setType(control->getClassType(this));
+}
+
+auto ClassSymbol::isDerivedFrom(ClassSymbol* symbol) -> bool {
+  for (auto baseClass : symbol->baseClasses()) {
+    auto baseClassSymbol = symbol_cast<ClassSymbol>(baseClass);
+
+    if (!baseClassSymbol) {
+      continue;
+    }
+
+    if (baseClassSymbol == symbol || baseClassSymbol->isDerivedFrom(symbol)) {
+      return true;
+    }
   }
-  return nullptr;
+
+  return false;
 }
 
-auto Symbol::enclosingClass() const -> ClassSymbol* {
-  for (auto scope = enclosingScope_; scope; scope = scope->enclosingScope()) {
-    if (auto sym = dynamic_cast<ClassSymbol*>(scope->owner())) return sym;
-  }
-  return nullptr;
+ParameterSymbol::ParameterSymbol(Control* control, const Name* name,
+                                 const Type* type, int index)
+    : SymbolMaker(name, type), index_(index) {}
+
+TemplateParameterSymbol::TemplateParameterSymbol(Control* control,
+                                                 const Name* name, int index)
+    : SymbolMaker(name, nullptr), index_(index) {
+  setType(control->getGenericType(this));
 }
 
-auto Symbol::enclosingFunction() const -> FunctionSymbol* {
-  for (auto scope = enclosingScope_; scope; scope = scope->enclosingScope()) {
-    if (auto sym = dynamic_cast<FunctionSymbol*>(scope->owner())) return sym;
-  }
-  return nullptr;
+TemplateParameterPackSymbol::TemplateParameterPackSymbol(Control* control,
+                                                         const Name* name,
+                                                         int index)
+    : SymbolMaker(name, nullptr), index_(index) {
+  setType(control->getPackType(this));
 }
 
-auto Symbol::enclosingBlock() const -> BlockSymbol* {
-  for (auto scope = enclosingScope_; scope; scope = scope->enclosingScope()) {
-    if (auto sym = dynamic_cast<BlockSymbol*>(scope->owner())) return sym;
-  }
-  return nullptr;
+NonTypeTemplateParameterSymbol::NonTypeTemplateParameterSymbol(Control* control,
+                                                               const Name* name,
+                                                               const Type* type,
+                                                               int index)
+    : SymbolMaker(name, type), index_(index) {}
+
+void TemplateHead::addTemplateParameter(TemplateParameter* templateParameter) {
+  templateParameters_.push_back(templateParameter);
 }
 
-auto Symbol::type() const -> const QualifiedType& { return type_; }
-
-void Symbol::setType(const QualifiedType& type) { type_ = type; }
-
-auto Symbol::linkage() const -> Linkage { return linkage_; }
-
-void Symbol::setLinkage(Linkage linkage) { linkage_ = linkage; }
-
-auto Symbol::visibility() const -> Visibility { return visibility_; }
-
-void Symbol::setVisibility(Visibility visibility) { visibility_ = visibility; }
-
-auto Symbol::templateParameterList() const -> TemplateParameterList* {
-  return templateParameterList_;
+DependentSymbol::DependentSymbol(Control* control) : SymbolMaker(nullptr) {
+  setType(control->getDependentType(this));
 }
 
-void Symbol::setTemplateParameterList(
-    TemplateParameterList* templateParameterList) {
-  templateParameterList_ = templateParameterList;
-}
+#define DECLARE_VISITOR(name) \
+  void name##Symbol::accept(SymbolVisitor* visitor) { visitor->visit(this); }
 
-NamespaceSymbol::NamespaceSymbol(Scope* enclosingScope, const Name* name)
-    : Symbol(enclosingScope, name), scope_(std::make_unique<Scope>()) {
-  scope_->setOwner(this);
-}
+CXX_FOR_EACH_SYMBOL_KIND(DECLARE_VISITOR)
 
-NamespaceSymbol::~NamespaceSymbol() = default;
-
-void NamespaceSymbol::addUsingNamespace(NamespaceSymbol* symbol) {
-  usingNamespaces_.push_back(symbol);
-}
-
-ClassSymbol::ClassSymbol(Scope* enclosingScope, const Name* name)
-    : TypeSymbol(enclosingScope, name), scope_(std::make_unique<Scope>()) {
-  scope_->setOwner(this);
-}
-
-ClassSymbol::~ClassSymbol() = default;
-
-void ClassSymbol::addBaseClass(ClassSymbol* baseClass) {
-  baseClasses_.push_back(baseClass);
-}
-
-ConceptSymbol::ConceptSymbol(Scope* enclosingScope, const Name* name)
-    : TypeSymbol(enclosingScope, name) {}
-
-TypedefSymbol::TypedefSymbol(Scope* enclosingScope, const Name* name)
-    : TypeSymbol(enclosingScope, name) {}
-
-EnumSymbol::EnumSymbol(Scope* enclosingScope, const Name* name)
-    : TypeSymbol(enclosingScope, name), scope_(std::make_unique<Scope>()) {
-  scope_->setOwner(this);
-}
-
-EnumSymbol::~EnumSymbol() = default;
-
-ScopedEnumSymbol::ScopedEnumSymbol(Scope* enclosingScope, const Name* name)
-    : TypeSymbol(enclosingScope, name), scope_(std::make_unique<Scope>()) {
-  scope_->setOwner(this);
-}
-
-ScopedEnumSymbol::~ScopedEnumSymbol() = default;
-
-EnumeratorSymbol::EnumeratorSymbol(Scope* enclosingScope, const Name* name)
-    : Symbol(enclosingScope, name) {}
-
-TemplateParameterList::TemplateParameterList(Scope* enclosingScope)
-    : Symbol(enclosingScope, nullptr), scope_(std::make_unique<Scope>()) {
-  scope_->setOwner(this);
-}
-
-TemplateParameterList::~TemplateParameterList() = default;
-
-TemplateTypeParameterSymbol::TemplateTypeParameterSymbol(Scope* enclosingScope,
-                                                         const Name* name)
-    : TypeSymbol(enclosingScope, name) {}
-
-VariableSymbol::VariableSymbol(Scope* enclosingScope, const Name* name)
-    : Symbol(enclosingScope, name) {}
-
-FieldSymbol::FieldSymbol(Scope* enclosingScope, const Name* name)
-    : Symbol(enclosingScope, name) {}
-
-FunctionSymbol::FunctionSymbol(Scope* enclosingScope, const Name* name)
-    : Symbol(enclosingScope, name), scope_(std::make_unique<Scope>()) {
-  scope_->setOwner(this);
-}
-
-FunctionSymbol::~FunctionSymbol() = default;
-
-auto FunctionSymbol::block() const -> BlockSymbol* { return block_; }
-
-void FunctionSymbol::setBlock(BlockSymbol* block) { block_ = block; }
-
-ArgumentSymbol::ArgumentSymbol(Scope* enclosingScope, const Name* name)
-    : Symbol(enclosingScope, name) {}
-
-BlockSymbol::BlockSymbol(Scope* enclosingScope, const Name* name)
-    : Symbol(enclosingScope, name), scope_(std::make_unique<Scope>()) {
-  scope_->setOwner(this);
-}
-
-BlockSymbol::~BlockSymbol() = default;
+#undef DECLARE_VISITOR
 
 }  // namespace cxx

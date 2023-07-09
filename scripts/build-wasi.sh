@@ -17,7 +17,7 @@ docker run ${DOCKER_EXTRA_OPTS} \
     -DCMAKE_INSTALL_PREFIX=build.wasi/install/usr \
     -DCMAKE_TOOLCHAIN_FILE=/usr/share/cmake/wasi-sdk.cmake \
     -DCMAKE_BUILD_TYPE=MinSizeRel \
-    -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=1 \
+    -DCXX_INTERPROCEDURAL_OPTIMIZATION=1 \
     -DKWGEN_EXECUTABLE=/usr/bin/kwgen \
     -DFLATBUFFERS_FLATC_EXECUTABLE=/usr/bin/flatc \
     -DCXX_INSTALL_WASI_SYSROOT=ON \
