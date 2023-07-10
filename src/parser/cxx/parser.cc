@@ -402,19 +402,13 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
     case TokenKind::T_UTF16_STRING_LITERAL:
     case TokenKind::T_UTF32_STRING_LITERAL:
     case TokenKind::T_STRING_LITERAL: {
-      List<SourceLocation>* stringLiterals = nullptr;
-
-      parse_string_literal_seq(stringLiterals);
+      auto literalLoc = consumeToken();
 
       auto ast = new (pool) StringLiteralExpressionAST();
       yyast = ast;
 
-      ast->stringLiteralList = stringLiterals;
-
-      if (ast->stringLiteralList) {
-        ast->literal = static_cast<const StringLiteral*>(
-            unit->literal(ast->stringLiteralList->value));
-      }
+      ast->literalLoc = literalLoc;
+      ast->literal = unit->literal(literalLoc);
 
       return true;
     }
@@ -3563,9 +3557,8 @@ auto Parser::parse_static_assert_declaration(DeclarationAST*& yyast) -> bool {
   }
 
   if (match(TokenKind::T_COMMA, ast->commaLoc)) {
-    if (!parse_string_literal_seq(ast->stringLiteralList)) {
-      parse_error("expected a string literal");
-    }
+    expect(TokenKind::T_STRING_LITERAL, ast->literalLoc);
+    ast->literal = unit->literal(ast->literalLoc);
   }
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
@@ -3587,24 +3580,6 @@ auto Parser::match_string_literal(SourceLocation& loc) -> bool {
     default:
       return false;
   }  // switch
-}
-
-auto Parser::parse_string_literal_seq(List<SourceLocation>*& yyast) -> bool {
-  auto it = &yyast;
-
-  SourceLocation loc;
-
-  if (!match_string_literal(loc)) return false;
-
-  *it = new (pool) List(loc);
-  it = &(*it)->next;
-
-  while (match_string_literal(loc)) {
-    *it = new (pool) List(loc);
-    it = &(*it)->next;
-  }
-
-  return true;
 }
 
 auto Parser::parse_empty_declaration(DeclarationAST*& yyast) -> bool {
@@ -5832,12 +5807,11 @@ auto Parser::parse_asm_declaration(DeclarationAST*& yyast) -> bool {
   ast->asmLoc = asmLoc;
 
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
-
-  parse_string_literal_seq(ast->stringLiteralList);
-
+  expect(TokenKind::T_STRING_LITERAL, ast->literalLoc);
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
-
   expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
+
+  ast->literal = unit->literal(ast->literalLoc);
 
   return true;
 }
@@ -5970,14 +5944,9 @@ auto Parser::parse_asm_specifier(AttributeSpecifierAST*& yyast) -> bool {
   ast->asmLoc = asmLoc;
 
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
-
-  List<SourceLocation>* stringLiteralList = nullptr;
-
-  if (!parse_string_literal_seq(stringLiteralList)) {
-    parse_error("expected a string literal");
-  }
-
+  expect(TokenKind::T_STRING_LITERAL, ast->literalLoc);
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
+  ast->literal = unit->literal(ast->literalLoc);
 
   return true;
 }
@@ -7248,13 +7217,13 @@ auto Parser::parse_operator(TokenKind& op, SourceLocation& opLoc,
 }
 
 auto Parser::parse_literal_operator_id(NameAST*& yyast) -> bool {
+  yyast = nullptr;
+
   if (!match(TokenKind::T_OPERATOR)) return false;
 
   if (match(TokenKind::T_USER_DEFINED_STRING_LITERAL)) return true;
 
-  List<SourceLocation>* stringLiteralList = nullptr;
-
-  if (!parse_string_literal_seq(stringLiteralList)) return false;
+  if (!match(TokenKind::T_STRING_LITERAL)) return false;
 
   if (!match(TokenKind::T_IDENTIFIER)) return false;
 

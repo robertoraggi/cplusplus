@@ -1033,6 +1033,9 @@ export class StringLiteralExpressionAST extends ExpressionAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitStringLiteralExpression(this, context);
     }
+    getLiteralToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
 }
 
 export class UserDefinedStringLiteralExpressionAST extends ExpressionAST {
@@ -2065,6 +2068,9 @@ export class StaticAssertDeclarationAST extends DeclarationAST {
     getCommaToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
     }
+    getLiteralToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+    }
     getRparenToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
     }
@@ -2251,6 +2257,9 @@ export class AsmDeclarationAST extends DeclarationAST {
     }
     getLparenToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getLiteralToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
     }
     getRparenToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
@@ -3178,8 +3187,11 @@ export class AsmAttributeAST extends AttributeSpecifierAST {
     getLparenToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
     }
-    getRparenToken(): Token | undefined {
+    getLiteralToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getRparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
     }
 }
 

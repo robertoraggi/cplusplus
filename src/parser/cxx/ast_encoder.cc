@@ -1754,20 +1754,10 @@ void ASTEncoder::visit(NullptrLiteralExpressionAST* ast) {
 }
 
 void ASTEncoder::visit(StringLiteralExpressionAST* ast) {
-  flatbuffers::Offset<flatbuffers::String> literal;
-  if (ast->literal) {
-    if (stringLiterals_.contains(ast->literal)) {
-      literal = stringLiterals_.at(ast->literal);
-    } else {
-      literal = fbb_.CreateString(ast->literal->value());
-      stringLiterals_.emplace(ast->literal, literal);
-    }
-  }
+  auto literalLoc = encodeSourceLocation(ast->literalLoc);
 
   io::StringLiteralExpression::Builder builder{fbb_};
-  if (ast->literal) {
-    builder.add_literal(literal);
-  }
+  builder.add_literal_loc(literalLoc.o);
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_StringLiteralExpression;
@@ -3142,6 +3132,8 @@ void ASTEncoder::visit(StaticAssertDeclarationAST* ast) {
 
   auto commaLoc = encodeSourceLocation(ast->commaLoc);
 
+  auto literalLoc = encodeSourceLocation(ast->literalLoc);
+
   auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
 
   auto semicolonLoc = encodeSourceLocation(ast->semicolonLoc);
@@ -3152,6 +3144,7 @@ void ASTEncoder::visit(StaticAssertDeclarationAST* ast) {
   builder.add_expression(expression);
   builder.add_expression_type(static_cast<io::Expression>(expressionType));
   builder.add_comma_loc(commaLoc.o);
+  builder.add_literal_loc(literalLoc.o);
   builder.add_rparen_loc(rparenLoc.o);
   builder.add_semicolon_loc(semicolonLoc.o);
 
@@ -3440,6 +3433,8 @@ void ASTEncoder::visit(AsmDeclarationAST* ast) {
 
   auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
 
+  auto literalLoc = encodeSourceLocation(ast->literalLoc);
+
   auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
 
   auto semicolonLoc = encodeSourceLocation(ast->semicolonLoc);
@@ -3449,6 +3444,7 @@ void ASTEncoder::visit(AsmDeclarationAST* ast) {
   builder.add_attribute_list_type(attributeListTypesVector);
   builder.add_asm_loc(asmLoc.o);
   builder.add_lparen_loc(lparenLoc.o);
+  builder.add_literal_loc(literalLoc.o);
   builder.add_rparen_loc(rparenLoc.o);
   builder.add_semicolon_loc(semicolonLoc.o);
 
@@ -4755,11 +4751,14 @@ void ASTEncoder::visit(AsmAttributeAST* ast) {
 
   auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
 
+  auto literalLoc = encodeSourceLocation(ast->literalLoc);
+
   auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
 
   io::AsmAttribute::Builder builder{fbb_};
   builder.add_asm_loc(asmLoc.o);
   builder.add_lparen_loc(lparenLoc.o);
+  builder.add_literal_loc(literalLoc.o);
   builder.add_rparen_loc(rparenLoc.o);
 
   offset_ = builder.Finish().Union();

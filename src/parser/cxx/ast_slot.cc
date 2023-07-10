@@ -1158,8 +1158,8 @@ void ASTSlot::visit(NullptrLiteralExpressionAST* ast) {
 void ASTSlot::visit(StringLiteralExpressionAST* ast) {
   switch (slot_) {
     case 0:
-      value_ = 0;  // not implemented yet
-      slotKind_ = ASTSlotKind::kTokenList;
+      value_ = ast->literalLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
       break;
   }  // switch
 
@@ -2448,8 +2448,8 @@ void ASTSlot::visit(StaticAssertDeclarationAST* ast) {
       slotKind_ = ASTSlotKind::kToken;
       break;
     case 4:
-      value_ = 0;  // not implemented yet
-      slotKind_ = ASTSlotKind::kTokenList;
+      value_ = ast->literalLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
       break;
     case 5:
       value_ = ast->rparenLoc.index();
@@ -2670,8 +2670,8 @@ void ASTSlot::visit(AsmDeclarationAST* ast) {
       slotKind_ = ASTSlotKind::kToken;
       break;
     case 3:
-      value_ = 0;  // not implemented yet
-      slotKind_ = ASTSlotKind::kTokenList;
+      value_ = ast->literalLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
       break;
     case 4:
       value_ = ast->rparenLoc.index();
@@ -3787,12 +3787,16 @@ void ASTSlot::visit(AsmAttributeAST* ast) {
       slotKind_ = ASTSlotKind::kToken;
       break;
     case 2:
+      value_ = ast->literalLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 3:
       value_ = ast->rparenLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       break;
   }  // switch
 
-  slotCount_ = 3;
+  slotCount_ = 4;
 }
 
 void ASTSlot::visit(ScopedAttributeTokenAST* ast) {

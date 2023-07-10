@@ -863,12 +863,12 @@ auto NullptrLiteralExpressionAST::lastSourceLocation() -> SourceLocation {
 }
 
 auto StringLiteralExpressionAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(stringLiteralList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(literalLoc)) return loc;
   return {};
 }
 
 auto StringLiteralExpressionAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(stringLiteralList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(literalLoc)) return loc;
   return {};
 }
 
@@ -1765,7 +1765,7 @@ auto StaticAssertDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(commaLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(stringLiteralList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(literalLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
   return {};
@@ -1774,7 +1774,7 @@ auto StaticAssertDeclarationAST::firstSourceLocation() -> SourceLocation {
 auto StaticAssertDeclarationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(stringLiteralList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(literalLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(commaLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
@@ -1918,7 +1918,7 @@ auto AsmDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(asmLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(stringLiteralList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(literalLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
   return {};
@@ -1927,7 +1927,7 @@ auto AsmDeclarationAST::firstSourceLocation() -> SourceLocation {
 auto AsmDeclarationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(stringLiteralList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(literalLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(asmLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
@@ -2749,12 +2749,14 @@ auto AlignasAttributeAST::lastSourceLocation() -> SourceLocation {
 auto AsmAttributeAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(asmLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(literalLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   return {};
 }
 
 auto AsmAttributeAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(literalLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(asmLoc)) return loc;
   return {};
