@@ -928,6 +928,27 @@ void Preprocessor::Private::expand(
       auto t =
           Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, value ? "1" : "0");
       emitToken(t);
+    } else if (!evaluateDirectives && matchId(ts, "__has_include_next")) {
+      std::string fn;
+      expect(ts, TokenKind::T_LPAREN);
+      auto literal = ts;
+      Include include;
+      if (match(ts, TokenKind::T_STRING_LITERAL)) {
+        fn = literal->head->text.substr(1, literal->head->text.length() - 2);
+        include = QuoteInclude(fn);
+      } else {
+        expect(ts, TokenKind::T_LESS);
+        for (; ts && !ts->head->is(TokenKind::T_GREATER); ts = ts->tail) {
+          fn += ts->head->text;
+        }
+        expect(ts, TokenKind::T_GREATER);
+        include = SystemInclude(fn);
+      }
+      expect(ts, TokenKind::T_RPAREN);
+      const auto value = resolve(include, /*next*/ true);
+      auto t =
+          Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, value ? "1" : "0");
+      emitToken(t);
     } else if (!evaluateDirectives && matchId(ts, "__has_feature")) {
       expect(ts, TokenKind::T_LPAREN);
       auto id = expectId(ts);
