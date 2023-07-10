@@ -96,6 +96,7 @@ class Control {
 
   auto getInvalidType() -> const InvalidType*;
   auto getNullptrType() -> const NullptrType*;
+  auto getDecltypeAutoType() -> const DecltypeAutoType*;
   auto getAutoType() -> const AutoType*;
   auto getVoidType() -> const VoidType*;
   auto getBoolType() -> const BoolType*;

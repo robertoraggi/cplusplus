@@ -143,6 +143,7 @@ struct Control::Private {
 
   InvalidType invalidType;
   NullptrType nullptrType;
+  DecltypeAutoType decltypeAutoType;
   AutoType autoType;
   VoidType voidType;
   BoolType boolType;
@@ -346,6 +347,10 @@ auto Control::makeValueSymbol(const Name* name, const Type* type, long val)
 auto Control::getInvalidType() -> const InvalidType* { return &d->invalidType; }
 
 auto Control::getNullptrType() -> const NullptrType* { return &d->nullptrType; }
+
+auto Control::getDecltypeAutoType() -> const DecltypeAutoType* {
+  return &d->decltypeAutoType;
+}
 
 auto Control::getAutoType() -> const AutoType* { return &d->autoType; }
 

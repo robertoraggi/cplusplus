@@ -31,6 +31,7 @@ class TypeVisitor {
   virtual void visit(const InvalidType* type) = 0;
   virtual void visit(const NullptrType* type) = 0;
   virtual void visit(const DependentType* type) = 0;
+  virtual void visit(const DecltypeAutoType* type) = 0;
   virtual void visit(const AutoType* type) = 0;
   virtual void visit(const VoidType* type) = 0;
   virtual void visit(const BoolType* type) = 0;

@@ -101,6 +101,12 @@ class NullptrType final : public TypeMaker<TypeKind::kNullptr> {
   auto equalTo0(const NullptrType* other) const -> bool;
 };
 
+class DecltypeAutoType final : public TypeMaker<TypeKind::kDecltypeAuto> {
+ public:
+  void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const DecltypeAutoType* other) const -> bool;
+};
+
 class AutoType final : public TypeMaker<TypeKind::kAuto> {
  public:
   void accept(TypeVisitor* visitor) const override;

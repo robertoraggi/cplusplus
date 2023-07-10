@@ -90,6 +90,10 @@ auto DependentType::equalTo0(const DependentType* other) const -> bool {
   return symbol() == other->symbol();
 }
 
+auto DecltypeAutoType::equalTo0(const DecltypeAutoType*) const -> bool {
+  return true;
+}
+
 auto AutoType::equalTo0(const AutoType*) const -> bool { return true; }
 
 auto VoidType::equalTo0(const VoidType*) const -> bool { return true; }
