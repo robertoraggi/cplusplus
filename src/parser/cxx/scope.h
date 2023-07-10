@@ -35,7 +35,7 @@ class Scope {
   Scope(const Scope& other) = delete;
   auto operator=(const Scope& other) -> Scope& = delete;
 
-  Scope();
+  explicit Scope(Scope* parent = nullptr);
   ~Scope();
 
   [[nodiscard]] auto empty() const -> bool;
@@ -44,6 +44,8 @@ class Scope {
 
   [[nodiscard]] auto usings() const -> const std::vector<Scope*>&;
   [[nodiscard]] auto owner() const -> Symbol*;
+  [[nodiscard]] auto parent() const -> Scope*;
+  [[nodiscard]] auto isTemplateScope() const -> bool;
 
   [[nodiscard]] auto currentClassOrNamespaceScope() -> Scope*;
   [[nodiscard]] auto currentNonTemplateScope() -> Scope*;
