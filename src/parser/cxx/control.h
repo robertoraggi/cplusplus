@@ -119,8 +119,8 @@ class Control {
       -> const RValueReferenceType*;
   auto getArrayType(const Type* elementType, int dimension) -> const ArrayType*;
   auto getFunctionType(const Type* returnType,
-                       std::vector<Parameter> parameters, bool isVariadic)
-      -> const FunctionType*;
+                       std::vector<Parameter> parameters,
+                       bool isVariadic = false) -> const FunctionType*;
   auto getClassType(ClassSymbol* classSymbol) -> const ClassType*;
   auto getNamespaceType(NamespaceSymbol* namespaceSymbol)
       -> const NamespaceType*;

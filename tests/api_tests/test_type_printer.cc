@@ -67,6 +67,13 @@ TEST(TypePrinter, PointerTypes) {
       control.getPointerType(control.getArrayType(control.getIntType(), 10));
 
   ASSERT_EQ(to_string(pointerToArrayOf10Ints), "int (*)[10]");
+
+  // pointer to function returning int
+
+  auto pointerToFunctionReturningInt =
+      control.getPointerType(control.getFunctionType(control.getIntType(), {}));
+
+  ASSERT_EQ(to_string(pointerToFunctionReturningInt), "int (*)()");
 }
 
 TEST(TypePrinter, LValueReferences) {
@@ -95,6 +102,15 @@ TEST(TypePrinter, LValueReferences) {
       control.getArrayType(control.getIntType(), 10));
 
   ASSERT_EQ(to_string(referenceToArrayOf10Ints), "int (&)[10]");
+
+  // reference to function returning pointer to const char
+  auto referenceToFunctionReturningPointerToConstChar =
+      control.getLValueReferenceType(control.getFunctionType(
+          control.getPointerType(control.getConstType(control.getCharType())),
+          {}));
+
+  ASSERT_EQ(to_string(referenceToFunctionReturningPointerToConstChar),
+            "const char* (&)()");
 }
 
 TEST(TypePrinter, RValueReferences) {
@@ -123,17 +139,17 @@ TEST(TypePrinter, Arrays) {
   ASSERT_EQ(to_string(arrayOf10UnsignedLongs), "unsigned long [10]");
 
   // array of 4 arrays of 2 floats
-  auto arrayOf10ArraysOf2Floats =
+  auto arrayOf4ArraysOf2Floats =
       control.getArrayType(control.getArrayType(control.getFloatType(), 2), 4);
 
-  ASSERT_EQ(to_string(arrayOf10ArraysOf2Floats), "float [4][2]");
+  ASSERT_EQ(to_string(arrayOf4ArraysOf2Floats), "float [4][2]");
 
   // array of 4 arrays of 2 pointers to char
-  auto arrayOf10ArraysOf2PointersToChar = control.getArrayType(
+  auto arrayOf4ArraysOf2PointersToChar = control.getArrayType(
       control.getArrayType(control.getPointerType(control.getCharType()), 2),
       4);
 
-  ASSERT_EQ(to_string(arrayOf10ArraysOf2PointersToChar), "char* [4][2]");
+  ASSERT_EQ(to_string(arrayOf4ArraysOf2PointersToChar), "char* [4][2]");
 
   // array of 4 arrays of 2 pointers to const char
   auto arrayOf4ArraysOf2PointersToConstChar = control.getArrayType(
@@ -144,4 +160,37 @@ TEST(TypePrinter, Arrays) {
 
   ASSERT_EQ(to_string(arrayOf4ArraysOf2PointersToConstChar),
             "const char* [4][2]");
+
+  // array of 4 pointers to function returning int
+  auto arrayOf4PointersToFunctionReturningInt = control.getArrayType(
+      control.getPointerType(control.getFunctionType(control.getIntType(), {})),
+      4);
+
+  ASSERT_EQ(to_string(arrayOf4PointersToFunctionReturningInt), "int (*[4])()");
+}
+
+TEST(TypePrinter, Functions) {
+  Control control;
+
+  // function returning pointer to const char
+
+  auto functionReturningPointerToConstChar = control.getFunctionType(
+      control.getPointerType(control.getConstType(control.getCharType())), {});
+
+  ASSERT_EQ(to_string(functionReturningPointerToConstChar), "const char* ()");
+
+  // function returning const pointer to int
+
+  auto functionReturningConstPointerToInt = control.getFunctionType(
+      control.getConstType(control.getPointerType(control.getIntType())), {});
+
+  ASSERT_EQ(to_string(functionReturningConstPointerToInt), "int* const ()");
+
+  // variadic function return unsigned long
+
+  auto variadicFunctionReturningUnsignedLong =
+      control.getFunctionType(control.getUnsignedLongType(), {}, true);
+
+  ASSERT_EQ(to_string(variadicFunctionReturningUnsignedLong),
+            "unsigned long (...)");
 }
