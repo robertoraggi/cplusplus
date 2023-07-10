@@ -73,6 +73,10 @@ void TypePrinter::visit(const DependentType* type) {
   specifiers_.append("dependent-type");
 }
 
+void TypePrinter::visit(const DecltypeAutoType* type) {
+  specifiers_.append("decltype(auto)");
+}
+
 void TypePrinter::visit(const AutoType* type) { specifiers_.append("auto"); }
 
 void TypePrinter::visit(const VoidType* type) { specifiers_.append("void"); }

@@ -26,6 +26,7 @@
   V(Invalid)                      \
   V(Nullptr)                      \
   V(Dependent)                    \
+  V(DecltypeAuto)                 \
   V(Auto)                         \
   V(Void)                         \
   V(Bool)                         \

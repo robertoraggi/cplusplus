@@ -8,6 +8,7 @@ TEST(TypePrinter, BasicTypes) {
   Control control;
 
   ASSERT_EQ(to_string(control.getNullptrType()), "decltype(nullptr)");
+  ASSERT_EQ(to_string(control.getDecltypeAutoType()), "decltype(auto)");
   ASSERT_EQ(to_string(control.getAutoType()), "auto");
   ASSERT_EQ(to_string(control.getVoidType()), "void");
   ASSERT_EQ(to_string(control.getBoolType()), "bool");
