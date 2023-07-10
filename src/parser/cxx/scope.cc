@@ -26,11 +26,17 @@
 
 namespace cxx {
 
-Scope::Scope() = default;
+Scope::Scope(Scope* parent) : parent_(parent) {}
 
 Scope::~Scope() = default;
 
 auto Scope::owner() const -> Symbol* { return owner_; }
+
+auto Scope::usings() const -> const std::vector<Scope*>& { return usings_; }
+
+auto Scope::parent() const -> Scope* { return parent_; }
+
+auto Scope::isTemplateScope() const -> bool { return isTemplateScope_; }
 
 auto Scope::empty() const -> bool { return symbols_.empty(); }
 
