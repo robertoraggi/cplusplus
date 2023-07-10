@@ -1064,14 +1064,7 @@ void ASTCloner::visit(StringLiteralExpressionAST* ast) {
 
   copy->constValue = ast->constValue;
 
-  if (auto it = ast->stringLiteralList) {
-    auto out = &copy->stringLiteralList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(it->value);
-      out = &(*out)->next;
-    }
-  }
+  copy->literalLoc = ast->literalLoc;
 
   copy->literal = ast->literal;
 }
@@ -2162,14 +2155,9 @@ void ASTCloner::visit(StaticAssertDeclarationAST* ast) {
 
   copy->commaLoc = ast->commaLoc;
 
-  if (auto it = ast->stringLiteralList) {
-    auto out = &copy->stringLiteralList;
+  copy->literalLoc = ast->literalLoc;
 
-    for (; it; it = it->next) {
-      *out = new (arena_) List(it->value);
-      out = &(*out)->next;
-    }
-  }
+  copy->literal = ast->literal;
 
   copy->rparenLoc = ast->rparenLoc;
 
@@ -2370,18 +2358,13 @@ void ASTCloner::visit(AsmDeclarationAST* ast) {
 
   copy->lparenLoc = ast->lparenLoc;
 
-  if (auto it = ast->stringLiteralList) {
-    auto out = &copy->stringLiteralList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(it->value);
-      out = &(*out)->next;
-    }
-  }
+  copy->literalLoc = ast->literalLoc;
 
   copy->rparenLoc = ast->rparenLoc;
 
   copy->semicolonLoc = ast->semicolonLoc;
+
+  copy->literal = ast->literal;
 }
 
 void ASTCloner::visit(ExportDeclarationAST* ast) {
@@ -3338,7 +3321,11 @@ void ASTCloner::visit(AsmAttributeAST* ast) {
 
   copy->lparenLoc = ast->lparenLoc;
 
+  copy->literalLoc = ast->literalLoc;
+
   copy->rparenLoc = ast->rparenLoc;
+
+  copy->literal = ast->literal;
 }
 
 void ASTCloner::visit(ScopedAttributeTokenAST* ast) {

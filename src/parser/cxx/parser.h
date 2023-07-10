@@ -246,7 +246,6 @@ class Parser final {
       const DeclSpecs& specs) -> bool;
   auto parse_static_assert_declaration(DeclarationAST*& yyast) -> bool;
   auto match_string_literal(SourceLocation& loc) -> bool;
-  auto parse_string_literal_seq(List<SourceLocation>*& yyast) -> bool;
   auto parse_empty_declaration(DeclarationAST*& yyast) -> bool;
   auto parse_attribute_declaration(DeclarationAST*& yyast) -> bool;
   auto parse_decl_specifier(SpecifierAST*& yyast, DeclSpecs& specs) -> bool;

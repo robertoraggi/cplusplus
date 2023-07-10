@@ -2433,6 +2433,12 @@ void ASTPrinter::visit(StaticAssertDeclarationAST* ast) {
           std::vector<nlohmann::json>{"attr:expression", std::move(childNode)});
     }
   }
+
+  if (ast->literal) {
+    json_.push_back(std::vector<nlohmann::json>{
+        "attr:literal",
+        std::vector<nlohmann::json>{"literal", ast->literal->value()}});
+  }
 }
 
 void ASTPrinter::visit(EmptyDeclarationAST* ast) {
@@ -2671,6 +2677,12 @@ void ASTPrinter::visit(AsmDeclarationAST* ast) {
       json_.push_back(
           std::vector<nlohmann::json>{"attr:attributeList", elements});
     }
+  }
+
+  if (ast->literal) {
+    json_.push_back(std::vector<nlohmann::json>{
+        "attr:literal",
+        std::vector<nlohmann::json>{"literal", ast->literal->value()}});
   }
 }
 
@@ -3687,6 +3699,12 @@ void ASTPrinter::visit(AsmAttributeAST* ast) {
   json_ = nlohmann::json::array();
 
   json_.push_back("ast:AsmAttribute");
+
+  if (ast->literal) {
+    json_.push_back(std::vector<nlohmann::json>{
+        "attr:literal",
+        std::vector<nlohmann::json>{"literal", ast->literal->value()}});
+  }
 }
 
 void ASTPrinter::visit(ScopedAttributeTokenAST* ast) {

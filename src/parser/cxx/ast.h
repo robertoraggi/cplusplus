@@ -1074,8 +1074,8 @@ class StringLiteralExpressionAST final : public ExpressionAST {
   StringLiteralExpressionAST()
       : ExpressionAST(ASTKind::StringLiteralExpression) {}
 
-  List<SourceLocation>* stringLiteralList = nullptr;
-  const StringLiteral* literal = nullptr;
+  SourceLocation literalLoc;
+  const Literal* literal = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1946,7 +1946,8 @@ class StaticAssertDeclarationAST final : public DeclarationAST {
   SourceLocation lparenLoc;
   ExpressionAST* expression = nullptr;
   SourceLocation commaLoc;
-  List<SourceLocation>* stringLiteralList = nullptr;
+  SourceLocation literalLoc;
+  const Literal* literal = nullptr;
   SourceLocation rparenLoc;
   SourceLocation semicolonLoc;
 
@@ -2086,9 +2087,10 @@ class AsmDeclarationAST final : public DeclarationAST {
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation asmLoc;
   SourceLocation lparenLoc;
-  List<SourceLocation>* stringLiteralList = nullptr;
+  SourceLocation literalLoc;
   SourceLocation rparenLoc;
   SourceLocation semicolonLoc;
+  const Literal* literal = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2946,7 +2948,9 @@ class AsmAttributeAST final : public AttributeSpecifierAST {
 
   SourceLocation asmLoc;
   SourceLocation lparenLoc;
+  SourceLocation literalLoc;
   SourceLocation rparenLoc;
+  const Literal* literal = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

@@ -485,6 +485,7 @@ table AlignasAttribute /* AttributeSpecifierAST */ {
 table AsmAttribute /* AttributeSpecifierAST */ {
   asm_loc: SourceLocation;
   lparen_loc: SourceLocation;
+  literal_loc: SourceLocation;
   rparen_loc: SourceLocation;
 }
 
@@ -557,7 +558,7 @@ table StaticAssertDeclaration /* DeclarationAST */ {
   static_assert_loc: SourceLocation;
   lparen_loc: SourceLocation;
   comma_loc: SourceLocation;
-  string_literal_list: [SourceLocation];
+  literal_loc: SourceLocation;
   rparen_loc: SourceLocation;
   semicolon_loc: SourceLocation;
 }
@@ -625,7 +626,7 @@ table AsmDeclaration /* DeclarationAST */ {
   attribute_list: [AttributeSpecifier];
   asm_loc: SourceLocation;
   lparen_loc: SourceLocation;
-  string_literal_list: [SourceLocation];
+  literal_loc: SourceLocation;
   rparen_loc: SourceLocation;
   semicolon_loc: SourceLocation;
 }
@@ -769,8 +770,7 @@ table NullptrLiteralExpression /* ExpressionAST */ {
 }
 
 table StringLiteralExpression /* ExpressionAST */ {
-  literal: string;
-  string_literal_list: [SourceLocation];
+  literal_loc: SourceLocation;
 }
 
 table UserDefinedStringLiteralExpression /* ExpressionAST */ {

@@ -498,6 +498,64 @@ struct Preprocessor::Private {
     return &*hidesets.emplace(std::set{name}).first;
   }
 
+  auto isStringLiteral(TokenKind kind) {
+    switch (kind) {
+      case TokenKind::T_STRING_LITERAL:
+      case TokenKind::T_WIDE_STRING_LITERAL:
+      case TokenKind::T_UTF8_STRING_LITERAL:
+      case TokenKind::T_UTF16_STRING_LITERAL:
+      case TokenKind::T_UTF32_STRING_LITERAL:
+        return true;
+      default:
+        return false;
+    }  // switch
+  }
+
+  auto updateStringLiteralValue(Token &lastToken, const Tok *tk) -> bool {
+    if (!isStringLiteral(lastToken.kind())) {
+      return false;
+    }
+
+    if (tk->isNot(TokenKind::T_STRING_LITERAL) &&
+        tk->kind != lastToken.kind()) {
+      return false;
+    }
+
+    auto newText = lastToken.value().literalValue->value();
+
+    if (newText.ends_with('"')) {
+      newText.pop_back();
+    }
+
+    newText += tk->text.substr(tk->text.find_first_of('"') + 1);
+
+    TokenValue value = lastToken.value();
+
+    switch (lastToken.kind()) {
+      case TokenKind::T_STRING_LITERAL:
+        value.literalValue = control_->stringLiteral(string(newText));
+        break;
+      case TokenKind::T_WIDE_STRING_LITERAL:
+        value.literalValue = control_->wideStringLiteral(string(newText));
+        break;
+      case TokenKind::T_UTF8_STRING_LITERAL:
+        value.literalValue = control_->utf8StringLiteral(string(newText));
+        break;
+      case TokenKind::T_UTF16_STRING_LITERAL:
+        value.literalValue = control_->utf16StringLiteral(string(newText));
+        break;
+      case TokenKind::T_UTF32_STRING_LITERAL:
+        value.literalValue = control_->utf32StringLiteral(string(newText));
+        break;
+      default:
+        break;
+    }  // switch
+
+    lastToken.setValue(value);
+
+    return true;
+  }
+
   [[nodiscard]] auto readFile(const fs::path &file) const -> std::string {
     std::ifstream in(file);
     std::ostringstream out;
@@ -1723,7 +1781,6 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
   d->expand(ts, /*directives*/ true, [&](const Tok *tk) {
     auto kind = tk->kind;
     const auto fileId = tk->sourceFile;
-
     TokenValue value{};
 
     switch (tk->kind) {
@@ -1740,22 +1797,40 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
         break;
 
       case TokenKind::T_WIDE_STRING_LITERAL:
+        if (d->updateStringLiteralValue(tokens.back(), tk)) {
+          return;
+        }
         value.literalValue = d->control_->wideStringLiteral(tk->text);
         break;
 
       case TokenKind::T_UTF8_STRING_LITERAL:
+        if (d->updateStringLiteralValue(tokens.back(), tk)) {
+          return;
+        }
         value.literalValue = d->control_->utf8StringLiteral(tk->text);
         break;
 
       case TokenKind::T_UTF16_STRING_LITERAL:
+        if (d->updateStringLiteralValue(tokens.back(), tk)) {
+          return;
+        }
         value.literalValue = d->control_->utf16StringLiteral(tk->text);
         break;
 
       case TokenKind::T_UTF32_STRING_LITERAL:
+        if (d->updateStringLiteralValue(tokens.back(), tk)) {
+          return;
+        }
         value.literalValue = d->control_->utf32StringLiteral(tk->text);
         break;
 
       case TokenKind::T_STRING_LITERAL:
+        if (d->updateStringLiteralValue(tokens.back(), tk)) {
+          return;
+        }
+        value.literalValue = d->control_->stringLiteral(tk->text);
+        break;
+
       case TokenKind::T_USER_DEFINED_STRING_LITERAL:
         value.literalValue = d->control_->stringLiteral(tk->text);
         break;
