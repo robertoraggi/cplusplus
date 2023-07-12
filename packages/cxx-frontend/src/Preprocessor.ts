@@ -106,13 +106,4 @@ export class Preprocessor {
         this.#handle.undefineMacro(name);
     }
 
-    /**
-     * Adds an include path.
-     *
-     * @param path the include path
-     */
-    addIncludePath(path: string): void {
-        this.#handle.addIncludePath(path);
-    }
-
 }
