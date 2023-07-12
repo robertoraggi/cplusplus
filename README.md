@@ -48,13 +48,23 @@ cd build
 ctest --progress
 ```
 
-## Dump the AST
+## Serialize the AST
 
-Use `-ast-dump` to dump the AST of a C++ program.
+Use `-emit-ast` to serialize the AST of a C++ program using flatbuffer
 
 ```sh
-echo 'int main() { auto f = []{ return 1; }; return f(); }' |
-  ./build/src/frontend/cxx -ast-dump -
+# serialize the AST
+$ ./build/src/frontend/cxx source.cc -o source.ast
+```
+
+You can use any flatbuffers supported decoder to read the AST, e.g. to the dump the AST to JSON
+
+```sh
+# Dump the ast to JSON using flatc
+$ ./build/_deps/flatbuffers-build/flatc --raw-binary -t build/src/parser/cxx/ast.bfbs  -- source.ast
+
+$ ll source.*
+source.ast source.cc source.json
 ```
 
 ## Build the npm package using docker
