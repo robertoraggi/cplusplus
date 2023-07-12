@@ -54,7 +54,7 @@ Use `-emit-ast` to serialize the AST of a C++ program to a flatbuffer binary fil
 
 ```sh
 # serialize the AST
-$ ./build/src/frontend/cxx source.cc -o source.ast
+$ ./build/src/frontend/cxx -emit-ast source.cc -o source.ast
 ```
 
 You can use any flatbuffers supported decoder to read the AST, e.g. to the dump the AST to JSON
