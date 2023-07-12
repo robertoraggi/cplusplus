@@ -50,7 +50,7 @@ ctest --progress
 
 ## Serialize the AST
 
-Use `-emit-ast` to serialize the AST of a C++ program using flatbuffer
+Use `-emit-ast` to serialize the AST of a C++ program to a flatbuffer binary file
 
 ```sh
 # serialize the AST
