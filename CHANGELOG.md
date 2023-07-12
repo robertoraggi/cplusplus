@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.1.17](https://github.com/robertoraggi/cplusplus/compare/v1.1.16...v1.1.17) (2023-07-12)
+
+
+### Bug Fixes
+
+* Add AST for the C++ attributes ([aedc6a7](https://github.com/robertoraggi/cplusplus/commit/aedc6a7ff4433e6294dc6c53fe4dcf99f31a8689))
+* Add cxx-gen-ast ([4030a30](https://github.com/robertoraggi/cplusplus/commit/4030a30b2c2fa76ed1bc5f51e9c87695526a0afe))
+* Add decltype(auto) type ([2a8ef93](https://github.com/robertoraggi/cplusplus/commit/2a8ef93a5e939cd03286587926261c7de15fb977))
+* Build the emscripten bindings with EXPORT_ES6=1 ([#106](https://github.com/robertoraggi/cplusplus/issues/106)) ([91926d7](https://github.com/robertoraggi/cplusplus/commit/91926d7c185a0e1be18f78a59512ae79c16a6c66))
+* Encode common literals ([c8c3d84](https://github.com/robertoraggi/cplusplus/commit/c8c3d84dbd0dec63632e11bc8bb6d620668cff32))
+* Encode source locations ([58f7719](https://github.com/robertoraggi/cplusplus/commit/58f77198193e4f2f627f724bc6d0012dac18d43d))
+* Expose the Lexer API to TypeScript ([1982d22](https://github.com/robertoraggi/cplusplus/commit/1982d222147091495501b343a342eba035fb28ea))
+* Expose the preprocessor API to TypeScript ([90e1f8a](https://github.com/robertoraggi/cplusplus/commit/90e1f8a33792bd09b70d9e023d1b988684db5439))
+* Expose TranslationUnit to TypeScript ([7792714](https://github.com/robertoraggi/cplusplus/commit/7792714f7758a17850428cf143a0534636baebfe))
+* Implement __has_include_next ([3d59a07](https://github.com/robertoraggi/cplusplus/commit/3d59a073c91442343406441988d96646c52945ad))
+* Initial work on the flatbuffers based serializer ([#89](https://github.com/robertoraggi/cplusplus/issues/89)) ([740e678](https://github.com/robertoraggi/cplusplus/commit/740e67811ccf5fe762f8b753c53ab3ed8487c2c5))
+* Merge adjacent string literals ([80d5b9f](https://github.com/robertoraggi/cplusplus/commit/80d5b9fc85d44e92522734d3438f388a6aaf6d79))
+* Print array types ([a9ae0d2](https://github.com/robertoraggi/cplusplus/commit/a9ae0d2f5978015f3089e99ad70b785b4e088d51))
+* Print of const pointers ([f7b2be8](https://github.com/robertoraggi/cplusplus/commit/f7b2be8c05aa9170706f0fc37895a5828152ef49))
+* Print of function types ([72d6c30](https://github.com/robertoraggi/cplusplus/commit/72d6c30d80ed6a4716d0bd925ceee6cb951d4c16))
+* Renamed -fserialize-ast to -emit-ast ([ea24578](https://github.com/robertoraggi/cplusplus/commit/ea245783b4ea4b894a1c982211943603b85d2684))
+* Serialize the identifiers ([c430188](https://github.com/robertoraggi/cplusplus/commit/c4301885e3d13b4822a788a5e8662c33aa3bc633))
+
 ## [1.1.16](https://github.com/robertoraggi/cplusplus/compare/v1.1.15...v1.1.16) (2023-06-11)
 
 
