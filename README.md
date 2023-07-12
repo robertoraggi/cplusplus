@@ -14,10 +14,15 @@ npm install cxx-frontend
 
 https://robertoraggi.github.io/cplusplus/
 
+## Node.JS examples
+
+- [Preprocess Source Files](./packages/cxx-frontend/examples/preprocess.mjs)
+- [Tokenize Input](./packages/cxx-frontend/examples/tokenize.mjs)
+- [Parse Translation Unit](./packages/cxx-frontend/examples/unit.mjs)
+
 ## JS Fiddle Playgrounds
 
 - [Dump the Abstract Syntax Tree](https://jsfiddle.net/4x9yvw6s)
-
 - [Check Syntax](https://jsfiddle.net/dfeLvy4a)
 
 ## Build
