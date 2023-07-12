@@ -57,10 +57,10 @@ Use `-emit-ast` to serialize the AST of a C++ program to a flatbuffer binary fil
 $ ./build/src/frontend/cxx -emit-ast source.cc -o source.ast
 ```
 
-You can use any flatbuffers supported decoder to read the AST, e.g. to the dump the AST to JSON
+You can use any flatbuffers supported decoder to read the AST, e.g.
 
 ```sh
-# Dump the ast to JSON using flatc
+# Use flatc to dump the AST to JSON
 $ ./build/_deps/flatbuffers-build/flatc --raw-binary -t build/src/parser/cxx/ast.bfbs  -- source.ast
 
 $ ll source.*
