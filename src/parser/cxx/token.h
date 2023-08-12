@@ -360,6 +360,10 @@ class Token {
   [[nodiscard]] auto is(TokenKind k) const -> bool;
   [[nodiscard]] auto isNot(TokenKind k) const -> bool;
 
+  [[nodiscard]] auto isOneOf(auto... tokens) const -> bool {
+    return (... || is(tokens));
+  }
+
   [[nodiscard]] auto spell() const -> const std::string&;
   [[nodiscard]] auto name() const -> const std::string&;
 
