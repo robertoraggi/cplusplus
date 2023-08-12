@@ -26,51 +26,48 @@
 #include <list>
 #include <regex>
 #include <string>
-#include <string_view>
 
 namespace cxx {
 
 struct ExpectedDiagnostic {
+  Token token;
   Severity severity = Severity::Error;
-  std::string_view fileName;
+  std::string fileName;
   std::string message;
   unsigned line = 0;
 };
 
 class VerifyDiagnosticsClient : public DiagnosticsClient,
                                 public CommentHandler {
+ public:
+  void verifyExpectedDiagnostics();
+
+  [[nodiscard]] auto hasErrors() const -> bool;
+
+  [[nodiscard]] auto verify() const -> bool;
+  void setVerify(bool verify);
+
+  [[nodiscard]] auto reportedDiagnostics() const
+      -> const std::list<Diagnostic>&;
+
+  [[nodiscard]] auto expectedDiagnostics() const
+      -> const std::list<ExpectedDiagnostic>&;
+
+  void report(const Diagnostic& diagnostic) override;
+  void handleComment(Preprocessor* preprocessor, const Token& token) override;
+
+ private:
+  [[nodiscard]] auto findDiagnostic(const ExpectedDiagnostic& expected) const
+      -> std::list<Diagnostic>::const_iterator;
+
+ private:
   std::regex rx{
       R"(^//\s*expected-(error|warning)(?:@([+-]?\d+))?\s*\{\{(.+)\}\})"};
 
   std::list<Diagnostic> reportedDiagnostics_;
   std::list<ExpectedDiagnostic> expectedDiagnostics_;
   bool verify_ = false;
-
- public:
-  [[nodiscard]] auto hasErrors() const -> bool;
-
-  [[nodiscard]] auto verify() const -> bool { return verify_; }
-  void setVerify(bool verify) { verify_ = verify; }
-
-  [[nodiscard]] auto reportedDiagnostics() const
-      -> const std::list<Diagnostic>& {
-    return reportedDiagnostics_;
-  }
-
-  void report(const Diagnostic& diagnostic) override;
-
-  [[nodiscard]] auto expectedDiagnostics() const
-      -> const std::list<ExpectedDiagnostic>& {
-    return expectedDiagnostics_;
-  }
-
-  void handleComment(Preprocessor* preprocessor, const Token& token) override;
-
-  void verifyExpectedDiagnostics();
-
- private:
-  [[nodiscard]] auto findDiagnostic(const ExpectedDiagnostic& expected) const
-      -> std::list<Diagnostic>::const_iterator;
+  bool hasErrors_ = false;
 };
 
 }  // namespace cxx

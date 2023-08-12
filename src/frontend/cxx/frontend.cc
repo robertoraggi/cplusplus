@@ -226,28 +226,20 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
     }
   }
 
-  if (shouldExit) {
-    diagnosticsClient.verifyExpectedDiagnostics();
+  if (!shouldExit) {
+    preprocesor->squeeze();
 
-    return !diagnosticsClient.hasErrors();
-  }
+    unit.parse(cli.checkTypes());
 
-  preprocesor->squeeze();
+    if (cli.opt_emit_ast) {
+      unit.serialize(output);
+    }
 
-  unit.parse(cli.checkTypes());
-
-  if (cli.opt_emit_ast) {
-    unit.serialize(output);
-
-    diagnosticsClient.verifyExpectedDiagnostics();
-
-    return !diagnosticsClient.hasErrors();
-  }
-
-  if (cli.opt_ast_dump) {
-    ASTPrinter toJSON(&unit);
-    fmt::print(std::cout, "{}",
-               toJSON(unit.ast(), /*print locations*/ true).dump(2));
+    if (cli.opt_ast_dump) {
+      ASTPrinter toJSON(&unit);
+      fmt::print(std::cout, "{}",
+                 toJSON(unit.ast(), /*print locations*/ true).dump(2));
+    }
   }
 
   diagnosticsClient.verifyExpectedDiagnostics();
