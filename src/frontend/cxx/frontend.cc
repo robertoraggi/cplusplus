@@ -105,11 +105,9 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
 
   std::unique_ptr<Toolchain> toolchain;
 
-  VerifyCommentHandler verifyCommentHandler;
-
   if (cli.opt_verify) {
     diagnosticsClient.setVerify(true);
-    preprocesor->setCommentHandler(&verifyCommentHandler);
+    preprocesor->setCommentHandler(&diagnosticsClient);
   }
 
   auto toolchainId = cli.getSingle("-toolchain");
@@ -229,8 +227,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
   }
 
   if (shouldExit) {
-    diagnosticsClient.verifyExpectedDiagnostics(
-        verifyCommentHandler.expectedDiagnostics());
+    diagnosticsClient.verifyExpectedDiagnostics();
 
     return !diagnosticsClient.hasErrors();
   }
@@ -242,8 +239,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
   if (cli.opt_emit_ast) {
     unit.serialize(output);
 
-    diagnosticsClient.verifyExpectedDiagnostics(
-        verifyCommentHandler.expectedDiagnostics());
+    diagnosticsClient.verifyExpectedDiagnostics();
 
     return !diagnosticsClient.hasErrors();
   }
@@ -254,8 +250,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
                toJSON(unit.ast(), /*print locations*/ true).dump(2));
   }
 
-  diagnosticsClient.verifyExpectedDiagnostics(
-      verifyCommentHandler.expectedDiagnostics());
+  diagnosticsClient.verifyExpectedDiagnostics();
 
   return !diagnosticsClient.hasErrors();
 }

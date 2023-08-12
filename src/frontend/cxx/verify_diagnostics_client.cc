@@ -22,8 +22,8 @@
 
 namespace cxx {
 
-void VerifyCommentHandler::handleComment(Preprocessor* preprocessor,
-                                         const Token& token) {
+void VerifyDiagnosticsClient::handleComment(Preprocessor* preprocessor,
+                                            const Token& token) {
   const std::string text{preprocessor->getTokenText(token)};
 
   std::smatch match;
@@ -78,11 +78,10 @@ void VerifyDiagnosticsClient::report(const Diagnostic& diagnostic) {
   reportedDiagnostics_.push_back(diagnostic);
 }
 
-void VerifyDiagnosticsClient::verifyExpectedDiagnostics(
-    const std::list<ExpectedDiagnostic>& expectedDiagnostics) {
+void VerifyDiagnosticsClient::verifyExpectedDiagnostics() {
   if (!verify_) return;
 
-  for (const auto& expected : expectedDiagnostics) {
+  for (const auto& expected : expectedDiagnostics_) {
     if (auto it = findDiagnostic(expected); it != cend(reportedDiagnostics_)) {
       reportedDiagnostics_.erase(it);
     }
