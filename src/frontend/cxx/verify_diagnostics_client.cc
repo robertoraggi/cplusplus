@@ -22,6 +22,20 @@
 
 namespace cxx {
 
+auto VerifyDiagnosticsClient::verify() const -> bool { return verify_; }
+
+void VerifyDiagnosticsClient::setVerify(bool verify) { verify_ = verify; }
+
+auto VerifyDiagnosticsClient::reportedDiagnostics() const
+    -> const std::list<Diagnostic>& {
+  return reportedDiagnostics_;
+}
+
+auto VerifyDiagnosticsClient::expectedDiagnostics() const
+    -> const std::list<ExpectedDiagnostic>& {
+  return expectedDiagnostics_;
+}
+
 void VerifyDiagnosticsClient::handleComment(Preprocessor* preprocessor,
                                             const Token& token) {
   const std::string text{preprocessor->getTokenText(token)};
@@ -52,38 +66,44 @@ void VerifyDiagnosticsClient::handleComment(Preprocessor* preprocessor,
 
   const auto& message = match[3];
 
-  expectedDiagnostics_.push_back({severity, fileName, message, line});
+  expectedDiagnostics_.push_back(
+      {token, severity, std::string(fileName), message, line});
 }
 
 auto VerifyDiagnosticsClient::hasErrors() const -> bool {
-  if (verify_) {
-    return !reportedDiagnostics_.empty();
-  }
-
-  for (const auto& d : reportedDiagnostics_) {
-    if (d.severity() == Severity::Error || d.severity() == Severity::Fatal) {
-      return true;
-    }
-  }
-
-  return false;
+  if (!reportedDiagnostics_.empty()) return true;
+  if (!expectedDiagnostics_.empty()) return true;
+  return hasErrors_;
 }
 
 void VerifyDiagnosticsClient::report(const Diagnostic& diagnostic) {
-  if (!verify_) {
-    DiagnosticsClient::report(diagnostic);
+  if (verify_) {
+    reportedDiagnostics_.push_back(diagnostic);
     return;
   }
 
-  reportedDiagnostics_.push_back(diagnostic);
+  if (diagnostic.severity() == Severity::Error ||
+      diagnostic.severity() == Severity::Fatal) {
+    hasErrors_ = true;
+  }
+
+  DiagnosticsClient::report(diagnostic);
 }
 
 void VerifyDiagnosticsClient::verifyExpectedDiagnostics() {
   if (!verify_) return;
 
-  for (const auto& expected : expectedDiagnostics_) {
+  while (!reportedDiagnostics_.empty()) {
+    auto expected = expectedDiagnostics_.front();
+    expectedDiagnostics_.pop_front();
+
     if (auto it = findDiagnostic(expected); it != cend(reportedDiagnostics_)) {
       reportedDiagnostics_.erase(it);
+    } else {
+      Diagnostic diag(Severity::Error, expected.token, "expected diagnostic");
+      DiagnosticsClient::report(diag);
+
+      hasErrors_ = true;
     }
   }
 
