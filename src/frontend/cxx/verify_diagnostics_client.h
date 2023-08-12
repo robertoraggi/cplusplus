@@ -37,23 +37,13 @@ struct ExpectedDiagnostic {
   unsigned line = 0;
 };
 
-class VerifyCommentHandler : public CommentHandler {
+class VerifyDiagnosticsClient : public DiagnosticsClient,
+                                public CommentHandler {
   std::regex rx{
       R"(^//\s*expected-(error|warning)(?:@([+-]?\d+))?\s*\{\{(.+)\}\})"};
 
-  std::list<ExpectedDiagnostic> expectedDiagnostics_;
-
- public:
-  [[nodiscard]] auto expectedDiagnostics() const
-      -> const std::list<ExpectedDiagnostic>& {
-    return expectedDiagnostics_;
-  }
-
-  void handleComment(Preprocessor* preprocessor, const Token& token) override;
-};
-
-class VerifyDiagnosticsClient : public DiagnosticsClient {
   std::list<Diagnostic> reportedDiagnostics_;
+  std::list<ExpectedDiagnostic> expectedDiagnostics_;
   bool verify_ = false;
 
  public:
@@ -69,8 +59,14 @@ class VerifyDiagnosticsClient : public DiagnosticsClient {
 
   void report(const Diagnostic& diagnostic) override;
 
-  void verifyExpectedDiagnostics(
-      const std::list<ExpectedDiagnostic>& expectedDiagnostics);
+  [[nodiscard]] auto expectedDiagnostics() const
+      -> const std::list<ExpectedDiagnostic>& {
+    return expectedDiagnostics_;
+  }
+
+  void handleComment(Preprocessor* preprocessor, const Token& token) override;
+
+  void verifyExpectedDiagnostics();
 
  private:
   [[nodiscard]] auto findDiagnostic(const ExpectedDiagnostic& expected) const
