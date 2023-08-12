@@ -34,6 +34,7 @@
 #include <cxx/windows_toolchain.h>
 
 #include "ast_printer.h"
+#include "verify_diagnostics_client.h"
 
 // fmt
 #include <fmt/format.h>
@@ -51,123 +52,6 @@
 #include "cli.h"
 
 namespace cxx {
-
-struct ExpectedDiagnostic {
-  Severity severity = Severity::Error;
-  std::string_view fileName;
-  unsigned line = 0;
-  std::string message;
-};
-
-struct VerifyCommentHandler : CommentHandler {
-  std::regex rx{
-      R"(^//\s*expected-(error|warning)(?:@([+-]?\d+))?\s*\{\{(.+)\}\})"};
-
-  std::list<ExpectedDiagnostic> expectedDiagnostics;
-
-  void handleComment(Preprocessor* preprocessor, const Token& token) override {
-    const std::string text{preprocessor->getTokenText(token)};
-
-    std::smatch match;
-
-    if (!std::regex_match(text, match, rx)) {
-      return;
-    }
-
-    std::string_view fileName;
-    unsigned line = 0;
-    unsigned column = 0;
-
-    preprocessor->getTokenStartPosition(token, &line, &column, &fileName);
-
-    Severity severity = Severity::Error;
-
-    if (match[1] == "warning") {
-      severity = Severity::Warning;
-    }
-
-    std::string offset = match[2];
-
-    if (!offset.empty()) {
-      line += std::stoi(offset);
-    }
-
-    const auto& message = match[3];
-
-    expectedDiagnostics.push_back({severity, fileName, line, message});
-  }
-};
-
-struct VerifyDiagnostics : DiagnosticsClient {
-  std::list<Diagnostic> reportedDiagnostics;
-  bool verify = false;
-
-  [[nodiscard]] auto hasErrors() const -> bool {
-    if (verify) {
-      return !reportedDiagnostics.empty();
-    }
-
-    for (const auto& d : reportedDiagnostics) {
-      if (d.severity() == Severity::Error || d.severity() == Severity::Fatal) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  void report(const Diagnostic& diagnostic) override {
-    if (!verify) {
-      DiagnosticsClient::report(diagnostic);
-      return;
-    }
-
-    reportedDiagnostics.push_back(diagnostic);
-  }
-
-  void verifyExpectedDiagnostics(
-      const std::list<ExpectedDiagnostic>& expectedDiagnostics) {
-    if (!verify) return;
-
-    for (const auto& expected : expectedDiagnostics) {
-      if (auto it = findDiagnostic(expected); it != cend(reportedDiagnostics)) {
-        reportedDiagnostics.erase(it);
-      }
-    }
-
-    for (const auto& diag : reportedDiagnostics) {
-      DiagnosticsClient::report(diag);
-    }
-  }
-
- private:
-  [[nodiscard]] auto findDiagnostic(const ExpectedDiagnostic& expected) const
-      -> std::list<Diagnostic>::const_iterator {
-    auto isExpectedDiagnostic = [&](const Diagnostic& d) {
-      if (d.severity() != expected.severity) {
-        return false;
-      }
-
-      unsigned line = 0;
-      unsigned column = 0;
-      std::string_view fileName;
-
-      preprocessor()->getTokenStartPosition(d.token(), &line, &column,
-                                            &fileName);
-
-      if (line != expected.line) return false;
-
-      if (fileName != expected.fileName) return false;
-
-      if (d.message() != expected.message) return false;
-
-      return true;
-    };
-
-    return std::find_if(reportedDiagnostics.begin(), reportedDiagnostics.end(),
-                        isExpectedDiagnostic);
-  }
-};
 
 auto readAll(const std::string& fileName, std::istream& in) -> std::string {
   std::string code;
@@ -214,7 +98,7 @@ void dumpTokens(const CLI& cli, TranslationUnit& unit, std::ostream& output) {
 
 auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
   Control control;
-  VerifyDiagnostics diagnosticsClient;
+  VerifyDiagnosticsClient diagnosticsClient;
   TranslationUnit unit(&control, &diagnosticsClient);
 
   auto preprocesor = unit.preprocessor();
@@ -223,9 +107,8 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
 
   VerifyCommentHandler verifyCommentHandler;
 
-  diagnosticsClient.verify = cli.opt_verify;
-
   if (cli.opt_verify) {
+    diagnosticsClient.setVerify(true);
     preprocesor->setCommentHandler(&verifyCommentHandler);
   }
 
@@ -347,7 +230,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
 
   if (shouldExit) {
     diagnosticsClient.verifyExpectedDiagnostics(
-        verifyCommentHandler.expectedDiagnostics);
+        verifyCommentHandler.expectedDiagnostics());
 
     return !diagnosticsClient.hasErrors();
   }
@@ -360,7 +243,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
     unit.serialize(output);
 
     diagnosticsClient.verifyExpectedDiagnostics(
-        verifyCommentHandler.expectedDiagnostics);
+        verifyCommentHandler.expectedDiagnostics());
 
     return !diagnosticsClient.hasErrors();
   }
@@ -372,7 +255,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
   }
 
   diagnosticsClient.verifyExpectedDiagnostics(
-      verifyCommentHandler.expectedDiagnostics);
+      verifyCommentHandler.expectedDiagnostics());
 
   return !diagnosticsClient.hasErrors();
 }
