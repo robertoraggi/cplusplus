@@ -23,7 +23,7 @@
 #include <cxx/names.h>
 #include <cxx/parser.h>
 #include <cxx/private/format.h>
-#include <cxx/token.h>
+#include <cxx/token_fwd.h>
 
 #include <algorithm>
 #include <cassert>
