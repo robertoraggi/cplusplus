@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/diagnostic.h>
-#include <cxx/token.h>
+#include <cxx/token_fwd.h>
 
 namespace cxx {
 

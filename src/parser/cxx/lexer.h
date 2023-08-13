@@ -22,6 +22,7 @@
 
 #include <cxx/token.h>
 
+#include <string>
 #include <string_view>
 
 namespace cxx {
@@ -67,7 +68,9 @@ class Lexer {
     return text_;
   }
 
-  [[nodiscard]] auto tokenValue() const -> TokenValue { return tokenValue_; }
+  [[nodiscard]] auto tokenValue() const -> const TokenValue& {
+    return tokenValue_;
+  }
 
   [[nodiscard]] auto text() -> std::string& { return text_; }
   [[nodiscard]] auto text() const -> const std::string& { return text_; }

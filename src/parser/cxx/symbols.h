@@ -25,7 +25,7 @@
 #include <cxx/names_fwd.h>
 #include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
-#include <cxx/token.h>
+#include <cxx/token_fwd.h>
 #include <cxx/types_fwd.h>
 
 #include <cstdint>
