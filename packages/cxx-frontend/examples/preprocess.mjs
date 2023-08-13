@@ -39,7 +39,6 @@ async function main() {
 
   const preprocessor = new Preprocessor();
 
-  preprocessor.addIncludePath("/include");
   preprocessor.defineMacro("DEBUG", "1");
   preprocessor.defineMacro("__unix__", "1");
 

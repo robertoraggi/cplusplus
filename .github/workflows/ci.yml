@@ -76,7 +76,7 @@ jobs:
         working-directory: packages/cxx-frontend/examples
         run: |
           for i in *.mjs; do
-            node dump.mjs
+            node $i
           done
 
       - name: Upload artifacts
