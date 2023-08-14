@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.18](https://github.com/robertoraggi/cplusplus/compare/v1.1.17...v1.1.18) (2023-08-14)
+
+
+### Bug Fixes
+
+* Temporary workaround to parse post increments [#118](https://github.com/robertoraggi/cplusplus/issues/118) ([29611ee](https://github.com/robertoraggi/cplusplus/commit/29611ee98a78f250e60b8a0ede2a28ddfc061211))
+
 ## [1.1.17](https://github.com/robertoraggi/cplusplus/compare/v1.1.16...v1.1.17) (2023-07-12)
 
 
