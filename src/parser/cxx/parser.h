@@ -448,12 +448,6 @@ class Parser final {
   [[nodiscard]] auto LA(int n = 0) const -> const Token&;
 
   auto match(TokenKind tk, SourceLocation& location) -> bool;
-
-  auto expect(TokenKind tk) -> bool {
-    SourceLocation loc;
-    return expect(tk, loc);
-  }
-
   auto expect(TokenKind tk, SourceLocation& location) -> bool;
 
   auto consumeToken() -> SourceLocation { return SourceLocation(cursor_++); }

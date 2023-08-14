@@ -467,7 +467,9 @@ auto Parser::parse_module_unit(UnitAST*& yyast) -> bool {
 
   parse_private_module_fragment(ast->privateModuleFragment);
 
-  expect(TokenKind::T_EOF_SYMBOL);
+  SourceLocation eofLoc;
+
+  expect(TokenKind::T_EOF_SYMBOL, eofLoc);
 
   return true;
 }
@@ -831,7 +833,10 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
         LA(1).is(TokenKind::T_COLON_COLON)) {
       NameAST* name = nullptr;
       parse_name_id(name);
-      expect(TokenKind::T_COLON_COLON);
+
+      SourceLocation scopeLoc;
+
+      expect(TokenKind::T_COLON_COLON, scopeLoc);
 
       *nameIt = new (pool) List(name);
       nameIt = &(*nameIt)->next;
@@ -3127,7 +3132,9 @@ auto Parser::parse_for_range_declaration(DeclarationAST*& yyast) -> bool {
 
     if (!parse_identifier_list()) parse_error("expected an identifier");
 
-    expect(TokenKind::T_RBRACKET);
+    SourceLocation rbracketLoc;
+
+    expect(TokenKind::T_RBRACKET, rbracketLoc);
   } else {
     DeclaratorAST* declarator = nullptr;
 
