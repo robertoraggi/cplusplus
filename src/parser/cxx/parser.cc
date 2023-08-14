@@ -186,22 +186,13 @@ auto Parser::LA(int n) const -> const Token& {
   return unit->tokenAt(SourceLocation(cursor_ + n));
 }
 
-auto Parser::match(TokenKind tk) -> bool {
-  if (LA().isNot(tk)) return false;
-  (void)consumeToken();
-  return true;
-}
-
 auto Parser::match(TokenKind tk, SourceLocation& location) -> bool {
-  if (LA().isNot(tk)) return false;
-  const auto loc = consumeToken();
-  location = loc;
-  return true;
-}
+  if (LA().is(tk)) {
+    location = consumeToken();
+    return true;
+  }
 
-auto Parser::expect(TokenKind tk) -> bool {
-  if (match(tk)) return true;
-  parse_error(fmt::format("expected '{}'", Token::spell(tk)));
+  location = {};
   return false;
 }
 
@@ -242,32 +233,51 @@ auto Parser::parse_nospace() -> bool {
 
 auto Parser::parse_greater_greater() -> bool {
   const auto saved = currentLocation();
-  if (match(TokenKind::T_GREATER) && parse_nospace() &&
-      match(TokenKind::T_GREATER)) {
+
+  SourceLocation greaterLoc;
+  SourceLocation secondGreaterLoc;
+
+  if (match(TokenKind::T_GREATER, greaterLoc) && parse_nospace() &&
+      match(TokenKind::T_GREATER, secondGreaterLoc)) {
     return true;
   }
+
   rewind(saved);
+
   return false;
 }
 
 auto Parser::parse_greater_greater_equal() -> bool {
   const auto saved = currentLocation();
-  if (match(TokenKind::T_GREATER) && parse_nospace() &&
-      match(TokenKind::T_GREATER) && parse_nospace() &&
-      match(TokenKind::T_EQUAL)) {
+
+  SourceLocation greaterLoc;
+  SourceLocation secondGreaterLoc;
+  SourceLocation equalLoc;
+
+  if (match(TokenKind::T_GREATER, greaterLoc) && parse_nospace() &&
+      match(TokenKind::T_GREATER, secondGreaterLoc) && parse_nospace() &&
+      match(TokenKind::T_EQUAL, equalLoc)) {
     return true;
   }
+
   rewind(saved);
+
   return false;
 }
 
 auto Parser::parse_greater_equal() -> bool {
   const auto saved = currentLocation();
-  if (match(TokenKind::T_GREATER) && parse_nospace() &&
-      match(TokenKind::T_EQUAL)) {
+
+  SourceLocation greaterLoc;
+  SourceLocation equalLoc;
+
+  if (match(TokenKind::T_GREATER, greaterLoc) && parse_nospace() &&
+      match(TokenKind::T_EQUAL, equalLoc)) {
     return true;
   }
+
   rewind(saved);
+
   return false;
 }
 
@@ -427,9 +437,15 @@ auto Parser::parse_translation_unit(UnitAST*& yyast) -> bool {
 
 auto Parser::parse_module_head() -> bool {
   const auto start = currentLocation();
-  match(TokenKind::T_EXPORT);
+
+  SourceLocation exportLoc;
+
+  match(TokenKind::T_EXPORT, exportLoc);
+
   const auto is_module = parse_id(module_id);
+
   rewind(start);
+
   return is_module;
 }
 
@@ -822,11 +838,16 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
     } else {
       const auto saved = currentLocation();
 
-      match(TokenKind::T_TEMPLATE);
+      SourceLocation templateLoc;
+
+      match(TokenKind::T_TEMPLATE, templateLoc);
 
       NameAST* name = nullptr;
 
-      if (parse_simple_template_id(name) && match(TokenKind::T_COLON_COLON)) {
+      SourceLocation scopeLoc;
+
+      if (parse_simple_template_id(name) &&
+          match(TokenKind::T_COLON_COLON, scopeLoc)) {
         *nameIt = new (pool) List(name);
         nameIt = &(*nameIt)->next;
       } else {
@@ -939,7 +960,9 @@ auto Parser::parse_lambda_capture(SourceLocation& captureDefaultLoc,
                                   List<LambdaCaptureAST*>*& captureList)
     -> bool {
   if (parse_capture_default(captureDefaultLoc)) {
-    if (match(TokenKind::T_COMMA)) {
+    SourceLocation commaLoc;
+
+    if (match(TokenKind::T_COMMA, commaLoc)) {
       if (!parse_capture_list(captureList)) parse_error("expected a capture");
     }
 
@@ -952,7 +975,11 @@ auto Parser::parse_lambda_capture(SourceLocation& captureDefaultLoc,
 auto Parser::parse_capture_default(SourceLocation& opLoc) -> bool {
   const auto start = currentLocation();
 
-  if (!match(TokenKind::T_AMP) && !match(TokenKind::T_EQUAL)) return false;
+  SourceLocation ampLoc;
+  SourceLocation equalLoc;
+
+  if (!match(TokenKind::T_AMP, ampLoc) && !match(TokenKind::T_EQUAL, equalLoc))
+    return false;
 
   if (LA().isNot(TokenKind::T_COMMA) && LA().isNot(TokenKind::T_RBRACKET)) {
     rewind(start);
@@ -976,7 +1003,9 @@ auto Parser::parse_capture_list(List<LambdaCaptureAST*>*& yyast) -> bool {
     it = &(*it)->next;
   }
 
-  while (match(TokenKind::T_COMMA)) {
+  SourceLocation commaLoc;
+
+  while (match(TokenKind::T_COMMA, commaLoc)) {
     LambdaCaptureAST* capture = nullptr;
 
     if (!parse_capture(capture)) parse_error("expected a capture");
@@ -1856,7 +1885,9 @@ auto Parser::parse_builtin_call_expression(ExpressionAST*& yyast) -> bool {
     it = &(*it)->next;
   }
 
-  while (match(TokenKind::T_COMMA)) {
+  SourceLocation commaLoc;
+
+  while (match(TokenKind::T_COMMA, commaLoc)) {
     TypeIdAST* typeId = nullptr;
 
     if (!parse_type_id(typeId)) {
@@ -1915,7 +1946,10 @@ auto Parser::parse_unop_expression(ExpressionAST*& yyast) -> bool {
 }
 
 auto Parser::parse_complex_expression(ExpressionAST*& yyast) -> bool {
-  if (!match(TokenKind::T___IMAG__) && !match(TokenKind::T___REAL__)) {
+  SourceLocation opLoc;
+
+  if (!match(TokenKind::T___IMAG__, opLoc) &&
+      !match(TokenKind::T___REAL__, opLoc)) {
     return false;
   }
 
@@ -2021,15 +2055,21 @@ auto Parser::parse_unary_operator(SourceLocation& opLoc) -> bool {
 }
 
 auto Parser::parse_await_expression(ExpressionAST*& yyast) -> bool {
-  if (!match(TokenKind::T_CO_AWAIT)) return false;
+  SourceLocation awaitLoc;
 
-  expect(TokenKind::T_LPAREN);
+  if (!match(TokenKind::T_CO_AWAIT, awaitLoc)) return false;
+
+  SourceLocation lparenLoc;
+
+  expect(TokenKind::T_LPAREN, lparenLoc);
 
   ExpressionAST* expression = nullptr;
 
   if (!parse_cast_expression(expression)) parse_error("expected an expression");
 
-  expect(TokenKind::T_RPAREN);
+  SourceLocation rparenLoc;
+
+  expect(TokenKind::T_RPAREN, rparenLoc);
 
   return true;
 }
@@ -2056,7 +2096,7 @@ auto Parser::parse_new_expression(ExpressionAST*& yyast) -> bool {
 
   SourceLocation scopeLoc;
 
-  match(TokenKind::T_COLON_COLON);
+  match(TokenKind::T_COLON_COLON, scopeLoc);
 
   SourceLocation newLoc;
 
@@ -2079,8 +2119,11 @@ auto Parser::parse_new_expression(ExpressionAST*& yyast) -> bool {
 
   TypeIdAST* typeId = nullptr;
 
-  if (match(TokenKind::T_LPAREN) && parse_type_id(typeId) &&
-      match(TokenKind::T_RPAREN)) {
+  SourceLocation lparenLoc;
+  SourceLocation rparenLoc;
+
+  if (match(TokenKind::T_LPAREN, lparenLoc) && parse_type_id(typeId) &&
+      match(TokenKind::T_RPAREN, rparenLoc)) {
     const auto saved = currentLocation();
 
     if (!parse_new_initializer(ast->newInitalizer)) rewind(saved);
@@ -2100,13 +2143,17 @@ auto Parser::parse_new_expression(ExpressionAST*& yyast) -> bool {
 }
 
 auto Parser::parse_new_placement() -> bool {
-  if (!match(TokenKind::T_LPAREN)) return false;
+  SourceLocation lparenLoc;
+
+  if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
 
   List<ExpressionAST*>* expressionList = nullptr;
 
   if (!parse_expression_list(expressionList)) return false;
 
-  if (!match(TokenKind::T_RPAREN)) return false;
+  SourceLocation rparenLoc;
+
+  if (!match(TokenKind::T_RPAREN, rparenLoc)) return false;
 
   return true;
 }
@@ -2143,29 +2190,35 @@ auto Parser::parse_new_declarator() -> bool {
 }
 
 auto Parser::parse_noptr_new_declarator() -> bool {
-  if (!match(TokenKind::T_LBRACKET)) return false;
+  SourceLocation lbracketLoc;
 
-  if (!match(TokenKind::T_RBRACKET)) {
+  if (!match(TokenKind::T_LBRACKET, lbracketLoc)) return false;
+
+  SourceLocation rbracketLoc;
+
+  if (!match(TokenKind::T_RBRACKET, rbracketLoc)) {
     ExpressionAST* expression = nullptr;
 
     if (!parse_expression(expression)) parse_error("expected an expression");
 
-    expect(TokenKind::T_RBRACKET);
+    expect(TokenKind::T_RBRACKET, rbracketLoc);
   }
 
   List<AttributeSpecifierAST*>* attributes = nullptr;
 
   parse_attribute_specifier_seq(attributes);
 
-  while (match(TokenKind::T_LBRACKET)) {
-    if (!match(TokenKind::T_RBRACKET)) {
+  while (match(TokenKind::T_LBRACKET, lbracketLoc)) {
+    SourceLocation rbracketLoc;
+
+    if (!match(TokenKind::T_RBRACKET, rbracketLoc)) {
       ExpressionAST* expression = nullptr;
 
       if (!parse_constant_expression(expression)) {
         parse_error("expected an expression");
       }
 
-      expect(TokenKind::T_RBRACKET);
+      expect(TokenKind::T_RBRACKET, rbracketLoc);
     }
 
     List<AttributeSpecifierAST*>* attributes = nullptr;
@@ -2438,7 +2491,9 @@ auto Parser::parse_conditional_expression(ExpressionAST*& yyast,
 }
 
 auto Parser::parse_yield_expression(ExpressionAST*& yyast) -> bool {
-  if (!match(TokenKind::T_CO_YIELD)) return false;
+  SourceLocation yieldLoc;
+
+  if (!match(TokenKind::T_CO_YIELD, yieldLoc)) return false;
 
   if (LA().is(TokenKind::T_LBRACE)) {
     BracedInitListAST* bracedInitList = nullptr;
@@ -2577,7 +2632,9 @@ auto Parser::parse_template_argument_constant_expression(ExpressionAST*& yyast)
 }
 
 auto Parser::parse_statement(StatementAST*& yyast) -> bool {
-  match(TokenKind::T___EXTENSION__);
+  SourceLocation extensionLoc;
+
+  match(TokenKind::T___EXTENSION__, extensionLoc);
 
   List<AttributeSpecifierAST*>* attributes = nullptr;
   parse_attribute_specifier_seq(attributes);
@@ -2754,7 +2811,7 @@ auto Parser::parse_case_statement(StatementAST*& yyast) -> bool {
 auto Parser::parse_default_statement(StatementAST*& yyast) -> bool {
   SourceLocation defaultLoc;
 
-  if (!match(TokenKind::T_DEFAULT)) return false;
+  if (!match(TokenKind::T_DEFAULT, defaultLoc)) return false;
 
   SourceLocation colonLoc;
 
@@ -2889,7 +2946,9 @@ auto Parser::parse_if_statement(StatementAST*& yyast) -> bool {
 
   if (!parse_statement(ast->statement)) parse_error("expected a statement");
 
-  if (!match(TokenKind::T_ELSE)) return true;
+  SourceLocation elseLoc;
+
+  if (!match(TokenKind::T_ELSE, elseLoc)) return true;
 
   if (!parse_statement(ast->elseStatement)) parse_error("expected a statement");
 
@@ -3062,7 +3121,9 @@ auto Parser::parse_for_range_declaration(DeclarationAST*& yyast) -> bool {
 
     parse_ref_qualifier(refLoc);
 
-    if (!match(TokenKind::T_LBRACKET)) return false;
+    SourceLocation lbracketLoc;
+
+    if (!match(TokenKind::T_LBRACKET, lbracketLoc)) return false;
 
     if (!parse_identifier_list()) parse_error("expected an identifier");
 
@@ -3199,7 +3260,9 @@ auto Parser::parse_maybe_module() -> bool {
 
   const auto start = currentLocation();
 
-  match(TokenKind::T_EXPORT);
+  SourceLocation exportLoc;
+
+  match(TokenKind::T_EXPORT, exportLoc);
 
   SourceLocation moduleLoc;
 
@@ -3322,7 +3385,9 @@ void Parser::enterFunctionScope(FunctionDeclaratorAST* functionDeclarator) {}
 
 auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
                                       bool acceptFunctionDefinition) -> bool {
-  match(TokenKind::T___EXTENSION__);
+  SourceLocation extensionLoc;
+
+  match(TokenKind::T___EXTENSION__, extensionLoc);
 
   List<AttributeSpecifierAST*>* attributes = nullptr;
 
@@ -3392,11 +3457,18 @@ auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
 
   parse_ref_qualifier(refLoc);
 
-  if (match(TokenKind::T_LBRACKET)) {
-    if (parse_identifier_list() && match(TokenKind::T_RBRACKET)) {
+  SourceLocation lbracketLoc;
+
+  if (match(TokenKind::T_LBRACKET, lbracketLoc)) {
+    SourceLocation rbracketLoc;
+
+    if (parse_identifier_list() && match(TokenKind::T_RBRACKET, rbracketLoc)) {
       InitializerAST* initializer = nullptr;
 
-      if (parse_initializer(initializer) && match(TokenKind::T_SEMICOLON)) {
+      SourceLocation semicolonLoc;
+
+      if (parse_initializer(initializer) &&
+          match(TokenKind::T_SEMICOLON, semicolonLoc)) {
         return true;
       }
     }
@@ -3458,7 +3530,9 @@ auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
   *declIt = new (pool) List(initDeclarator);
   declIt = &(*declIt)->next;
 
-  while (match(TokenKind::T_COMMA)) {
+  SourceLocation commaLoc;
+
+  while (match(TokenKind::T_COMMA, commaLoc)) {
     InitDeclaratorAST* initDeclarator = nullptr;
 
     if (!parse_init_declarator(initDeclarator, specs)) return false;
@@ -3467,7 +3541,7 @@ auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
     declIt = &(*declIt)->next;
   }
 
-  if (!match(TokenKind::T_SEMICOLON)) return false;
+  if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return false;
 
   auto ast = new (pool) SimpleDeclarationAST();
   yyast = ast;
@@ -4020,15 +4094,21 @@ auto Parser::parse_underlying_type_specifier(SpecifierAST*& yyast,
                                              DeclSpecs& specs) -> bool {
   if (specs.has_typespec()) return false;
 
-  if (!match(TokenKind::T___UNDERLYING_TYPE)) return false;
+  SourceLocation underlyingTypeLoc;
 
-  expect(TokenKind::T_LPAREN);
+  if (!match(TokenKind::T___UNDERLYING_TYPE, underlyingTypeLoc)) return false;
+
+  SourceLocation lparenLoc;
+
+  expect(TokenKind::T_LPAREN, lparenLoc);
 
   TypeIdAST* typeId = nullptr;
 
   if (!parse_type_id(typeId)) parse_error("expected type id");
 
-  expect(TokenKind::T_RPAREN);
+  SourceLocation rparenLoc;
+
+  expect(TokenKind::T_RPAREN, rparenLoc);
 
   specs.has_named_typespec = true;
 
@@ -4246,7 +4326,9 @@ auto Parser::parse_elaborated_type_specifier_helper(
 
   const auto after_nested_name_specifier = currentLocation();
 
-  const bool has_template = match(TokenKind::T_TEMPLATE);
+  SourceLocation templateLoc;
+
+  const bool has_template = match(TokenKind::T_TEMPLATE, templateLoc);
 
   NameAST* name = nullptr;
 
@@ -4883,8 +4965,12 @@ auto Parser::parse_noptr_abstract_declarator(DeclaratorAST*& yyast) -> bool {
 
   DeclaratorAST* declarator = nullptr;
 
-  if (match(TokenKind::T_LPAREN) && parse_ptr_abstract_declarator(declarator) &&
-      match(TokenKind::T_RPAREN)) {
+  SourceLocation lparenLoc;
+  SourceLocation rparenLoc;
+
+  if (match(TokenKind::T_LPAREN, lparenLoc) &&
+      parse_ptr_abstract_declarator(declarator) &&
+      match(TokenKind::T_RPAREN, rparenLoc)) {
     auto nestedDeclarator = new (pool) NestedDeclaratorAST();
 
     nestedDeclarator->declarator = declarator;
@@ -4954,21 +5040,27 @@ auto Parser::parse_abstract_pack_declarator() -> bool {
 }
 
 auto Parser::parse_noptr_abstract_pack_declarator() -> bool {
-  if (!match(TokenKind::T_DOT_DOT_DOT)) return false;
+  SourceLocation ellipsisLoc;
+
+  if (!match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) return false;
 
   ParametersAndQualifiersAST* parametersAndQualifiers = nullptr;
 
   if (parse_parameters_and_qualifiers(parametersAndQualifiers)) return true;
 
-  while (match(TokenKind::T_LBRACKET)) {
-    if (!match(TokenKind::T_RBRACKET)) {
+  SourceLocation lbracketLoc;
+
+  while (match(TokenKind::T_LBRACKET, lbracketLoc)) {
+    SourceLocation rbracketLoc;
+
+    if (!match(TokenKind::T_RBRACKET, rbracketLoc)) {
       ExpressionAST* expression = nullptr;
 
       if (!parse_constant_expression(expression)) {
         parse_error("expected a constant expression");
       }
 
-      expect(TokenKind::T_RBRACKET);
+      expect(TokenKind::T_RBRACKET, rbracketLoc);
 
       List<AttributeSpecifierAST*>* attributes = nullptr;
 
@@ -5144,7 +5236,9 @@ auto Parser::parse_braced_init_list(BracedInitListAST*& yyast) -> bool {
       parse_error("expected designated initializer clause");
     }
 
-    while (match(TokenKind::T_COMMA)) {
+    SourceLocation commaLoc;
+
+    while (match(TokenKind::T_COMMA, commaLoc)) {
       if (LA().is(TokenKind::T_RBRACE)) break;
 
       if (!parse_designated_initializer_clause()) {
@@ -5197,12 +5291,16 @@ auto Parser::parse_initializer_list(List<ExpressionAST*>*& yyast) -> bool {
 
   if (!parse_initializer_clause(expression)) return false;
 
-  match(TokenKind::T_DOT_DOT_DOT);
+  SourceLocation ellipsisLoc;
+
+  match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
 
   *it = new (pool) List(expression);
   it = &(*it)->next;
 
-  while (match(TokenKind::T_COMMA)) {
+  SourceLocation commaLoc;
+
+  while (match(TokenKind::T_COMMA, commaLoc)) {
     if (LA().is(TokenKind::T_RBRACE)) break;
 
     ExpressionAST* expression = nullptr;
@@ -5211,7 +5309,9 @@ auto Parser::parse_initializer_list(List<ExpressionAST*>*& yyast) -> bool {
       parse_error("expected initializer clause");
     }
 
-    match(TokenKind::T_DOT_DOT_DOT);
+    SourceLocation ellipsisLoc;
+
+    match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
 
     *it = new (pool) List(expression);
     it = &(*it)->next;
@@ -5233,9 +5333,13 @@ auto Parser::parse_designated_initializer_clause() -> bool {
 }
 
 auto Parser::parse_designator() -> bool {
-  if (!match(TokenKind::T_DOT)) return false;
+  SourceLocation dotLoc;
 
-  if (!match(TokenKind::T_IDENTIFIER)) return false;
+  if (!match(TokenKind::T_DOT, dotLoc)) return false;
+
+  SourceLocation identifierLoc;
+
+  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
 
   return true;
 }
@@ -5544,7 +5648,9 @@ auto Parser::parse_enumerator(EnumeratorAST*& yyast) -> bool {
 }
 
 auto Parser::parse_using_enum_declaration(DeclarationAST*& yyasts) -> bool {
-  if (!match(TokenKind::T_USING)) return false;
+  SourceLocation usingLoc;
+
+  if (!match(TokenKind::T_USING, usingLoc)) return false;
 
   ElaboratedTypeSpecifierAST* enumSpecifier = nullptr;
 
@@ -5552,7 +5658,9 @@ auto Parser::parse_using_enum_declaration(DeclarationAST*& yyasts) -> bool {
 
   if (!parse_elaborated_enum_specifier(enumSpecifier, specs)) return false;
 
-  if (!match(TokenKind::T_SEMICOLON)) return false;
+  SourceLocation semicolonLoc;
+
+  if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return false;
 
   return true;
 }
@@ -5592,7 +5700,9 @@ auto Parser::parse_namespace_definition(DeclarationAST*& yyast) -> bool {
 
     auto id = unit->identifier(identifierLoc);
 
-    while (match(TokenKind::T_COLON_COLON)) {
+    SourceLocation scopeLoc;
+
+    while (match(TokenKind::T_COLON_COLON, scopeLoc)) {
       SourceLocation inlineLoc;
       match(TokenKind::T_INLINE, inlineLoc);
 
@@ -5747,19 +5857,25 @@ auto Parser::parse_using_declarator_list(List<UsingDeclaratorAST*>*& yyast)
 
   if (!parse_using_declarator(declarator)) return false;
 
-  match(TokenKind::T_DOT_DOT_DOT);
+  SourceLocation ellipsisLoc;
+
+  match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
 
   *it = new (pool) List(declarator);
   it = &(*it)->next;
 
-  while (match(TokenKind::T_COMMA)) {
+  SourceLocation commaLoc;
+
+  while (match(TokenKind::T_COMMA, commaLoc)) {
     UsingDeclaratorAST* declarator = nullptr;
 
     if (!parse_using_declarator(declarator)) {
       parse_error("expected a using declarator");
     }
 
-    match(TokenKind::T_DOT_DOT_DOT);
+    SourceLocation ellipsisLoc;
+
+    match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
 
     *it = new (pool) List(declarator);
     it = &(*it)->next;
@@ -6063,12 +6179,14 @@ auto Parser::parse_attribute_list(List<AttributeAST*>*& yyast) -> bool {
     it = &(*it)->next;
   }
 
-  while (match(TokenKind::T_COMMA)) {
+  SourceLocation commaLoc;
+
+  while (match(TokenKind::T_COMMA, commaLoc)) {
     AttributeAST* attribute = nullptr;
     parse_attribute(attribute);
 
     SourceLocation ellipsisLoc;
-    match(TokenKind::T_DOT_DOT_DOT);
+    match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
 
     if (attribute) {
       attribute->ellipsisLoc = ellipsisLoc;
@@ -6215,7 +6333,9 @@ auto Parser::parse_module_name(ModuleNameAST*& yyast) -> bool {
   *it = new (pool) List(identifierLoc);
   it = &(*it)->next;
 
-  while (match(TokenKind::T_DOT)) {
+  SourceLocation dotLoc;
+
+  while (match(TokenKind::T_DOT, dotLoc)) {
     SourceLocation identifierLoc;
 
     expect(TokenKind::T_IDENTIFIER, identifierLoc);
@@ -6615,9 +6735,13 @@ auto Parser::parse_member_declaration(DeclarationAST*& yyast) -> bool {
 auto Parser::parse_maybe_template_member() -> bool {
   const auto start = currentLocation();
 
-  match(TokenKind::T_EXPLICIT);
+  SourceLocation explicitLoc;
 
-  const auto has_template = match(TokenKind::T_TEMPLATE);
+  match(TokenKind::T_EXPLICIT, explicitLoc);
+
+  SourceLocation templateLoc;
+
+  const auto has_template = match(TokenKind::T_TEMPLATE, templateLoc);
 
   rewind(start);
 
@@ -6738,7 +6862,9 @@ auto Parser::parse_member_declarator_list(List<InitDeclaratorAST*>*& yyast,
     it = &(*it)->next;
   }
 
-  while (match(TokenKind::T_COMMA)) {
+  SourceLocation commaLoc;
+
+  while (match(TokenKind::T_COMMA, commaLoc)) {
     InitDeclaratorAST* initDeclarator = nullptr;
 
     if (!parse_member_declarator(initDeclarator, specs)) {
@@ -6765,7 +6891,9 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
   List<AttributeSpecifierAST*>* attributes = nullptr;
   parse_attribute_specifier_seq(attributes);
 
-  if (match(TokenKind::T_COLON)) {
+  SourceLocation colonLoc;
+
+  if (match(TokenKind::T_COLON, colonLoc)) {
     // ### TODO bit field declarators
 
     auto name = new (pool) SimpleNameAST();
@@ -6835,7 +6963,9 @@ auto Parser::parse_virt_specifier() -> bool {
 }
 
 auto Parser::parse_pure_specifier() -> bool {
-  if (!match(TokenKind::T_EQUAL)) return false;
+  SourceLocation equalLoc;
+
+  if (!match(TokenKind::T_EQUAL, equalLoc)) return false;
 
   SourceLocation literalLoc;
 
@@ -6899,19 +7029,25 @@ auto Parser::parse_base_specifier_list(List<BaseSpecifierAST*>*& yyast)
 
   if (!parse_base_specifier(baseSpecifier)) return false;
 
-  match(TokenKind::T_DOT_DOT_DOT);
+  SourceLocation ellipsisLoc;
+
+  match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
 
   *it = new (pool) List(baseSpecifier);
   it = &(*it)->next;
 
-  while (match(TokenKind::T_COMMA)) {
+  SourceLocation commaLoc;
+
+  while (match(TokenKind::T_COMMA, commaLoc)) {
     BaseSpecifierAST* baseSpecifier = nullptr;
 
     if (!parse_base_specifier(baseSpecifier)) {
       parse_error("expected a base class specifier");
     }
 
-    match(TokenKind::T_DOT_DOT_DOT);
+    SourceLocation ellipsisLoc;
+
+    match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
 
     *it = new (pool) List(baseSpecifier);
     it = &(*it)->next;
@@ -7030,7 +7166,9 @@ auto Parser::parse_mem_initializer_list(List<MemInitializerAST*>*& yyast)
   *it = new (pool) List(mem_initializer);
   it = &(*it)->next;
 
-  while (match(TokenKind::T_COMMA)) {
+  SourceLocation commaLoc;
+
+  while (match(TokenKind::T_COMMA, commaLoc)) {
     MemInitializerAST* mem_initializer = nullptr;
 
     if (!parse_mem_initializer(mem_initializer)) {
@@ -7071,7 +7209,7 @@ auto Parser::parse_mem_initializer(MemInitializerAST*& yyast) -> bool {
 
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
-  if (!match(TokenKind::T_RPAREN)) {
+  if (!match(TokenKind::T_RPAREN, ast->rparenLoc)) {
     if (!parse_expression_list(ast->expressionList)) {
       parse_error("expected an expression");
     }
@@ -7093,7 +7231,9 @@ auto Parser::parse_mem_initializer_id(NameAST*& yyast) -> bool {
 
   rewind(start);
 
-  if (!match(TokenKind::T_IDENTIFIER)) return false;
+  SourceLocation identifierLoc;
+
+  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
 
   return true;
 }
@@ -7219,13 +7359,23 @@ auto Parser::parse_operator(TokenKind& op, SourceLocation& opLoc,
 auto Parser::parse_literal_operator_id(NameAST*& yyast) -> bool {
   yyast = nullptr;
 
-  if (!match(TokenKind::T_OPERATOR)) return false;
+  SourceLocation operatorLoc;
 
-  if (match(TokenKind::T_USER_DEFINED_STRING_LITERAL)) return true;
+  if (!match(TokenKind::T_OPERATOR, operatorLoc)) return false;
 
-  if (!match(TokenKind::T_STRING_LITERAL)) return false;
+  SourceLocation userDefinedStringLiteralLoc;
 
-  if (!match(TokenKind::T_IDENTIFIER)) return false;
+  if (match(TokenKind::T_USER_DEFINED_STRING_LITERAL,
+            userDefinedStringLiteralLoc))
+    return true;
+
+  SourceLocation stringLiteralLoc;
+
+  if (!match(TokenKind::T_STRING_LITERAL, stringLiteralLoc)) return false;
+
+  SourceLocation identifierLoc;
+
+  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
 
   return true;
 }
@@ -7288,7 +7438,9 @@ auto Parser::parse_template_parameter_list(List<DeclarationAST*>*& yyast)
   *it = new (pool) List(declaration);
   it = &(*it)->next;
 
-  while (match(TokenKind::T_COMMA)) {
+  SourceLocation commaLoc;
+
+  while (match(TokenKind::T_COMMA, commaLoc)) {
     DeclarationAST* declaration = nullptr;
 
     if (!parse_template_parameter(declaration)) {
@@ -7393,11 +7545,22 @@ auto Parser::parse_type_parameter(DeclarationAST*& yyast) -> bool {
 
 auto Parser::parse_typename_type_parameter(DeclarationAST*& yyast) -> bool {
   auto maybe_elaborated_type_spec = [this]() {
-    if (!match(TokenKind::T_TYPENAME)) return false;
-    if (!match(TokenKind::T_IDENTIFIER)) return false;
-    if (match(TokenKind::T_COLON_COLON) || match(TokenKind::T_LESS)) {
+    SourceLocation typenameLoc;
+
+    if (!match(TokenKind::T_TYPENAME, typenameLoc)) return false;
+
+    SourceLocation identifierLoc;
+
+    if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
+
+    SourceLocation scopeLoc;
+    SourceLocation lessLoc;
+
+    if (match(TokenKind::T_COLON_COLON, scopeLoc) ||
+        match(TokenKind::T_LESS, lessLoc)) {
       return true;
     }
+
     return false;
   };
 
@@ -7531,9 +7694,13 @@ auto Parser::parse_constraint_type_parameter(DeclarationAST*& yyast) -> bool {
 
   if ((LA().is(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_EQUAL)) ||
       LA().is(TokenKind::T_EQUAL)) {
-    match(TokenKind::T_IDENTIFIER);
+    SourceLocation identifierLoc;
 
-    expect(TokenKind::T_EQUAL);
+    match(TokenKind::T_IDENTIFIER, identifierLoc);
+
+    SourceLocation equalLoc;
+
+    expect(TokenKind::T_EQUAL, equalLoc);
 
     TypeIdAST* typeId = nullptr;
 
@@ -7544,9 +7711,13 @@ auto Parser::parse_constraint_type_parameter(DeclarationAST*& yyast) -> bool {
     return true;
   }
 
-  match(TokenKind::T_DOT_DOT_DOT);
+  SourceLocation ellipsisLoc;
 
-  match(TokenKind::T_IDENTIFIER);
+  match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
+
+  SourceLocation identifierLoc;
+
+  match(TokenKind::T_IDENTIFIER, identifierLoc);
 
   return true;
 }
@@ -7693,12 +7864,16 @@ auto Parser::parse_template_argument_list(List<TemplateArgumentAST*>*& yyast)
 
   if (!parse_template_argument(templateArgument)) return false;
 
-  match(TokenKind::T_DOT_DOT_DOT);
+  SourceLocation ellipsisLoc;
+
+  match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
 
   *it = new (pool) List(templateArgument);
   it = &(*it)->next;
 
-  while (match(TokenKind::T_COMMA)) {
+  SourceLocation commaLoc;
+
+  while (match(TokenKind::T_COMMA, commaLoc)) {
     TemplateArgumentAST* templateArgument = nullptr;
 
     if (!parse_template_argument(templateArgument)) {
@@ -7706,7 +7881,9 @@ auto Parser::parse_template_argument_list(List<TemplateArgumentAST*>*& yyast)
       return false;
     }
 
-    match(TokenKind::T_DOT_DOT_DOT);
+    SourceLocation ellipsisLoc;
+
+    match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
 
     *it = new (pool) List(templateArgument);
     it = &(*it)->next;
@@ -7788,19 +7965,25 @@ auto Parser::parse_deduction_guide(DeclarationAST*& yyast) -> bool {
 
   if (!parse_name_id(name)) return false;
 
-  if (!match(TokenKind::T_LPAREN)) return false;
+  SourceLocation lparenLoc;
 
-  if (!match(TokenKind::T_RPAREN)) {
+  if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
+
+  SourceLocation rparenLoc;
+
+  if (!match(TokenKind::T_RPAREN, rparenLoc)) {
     ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
 
     if (!parse_parameter_declaration_clause(parameterDeclarationClause)) {
       parse_error("expected a parameter declaration");
     }
 
-    expect(TokenKind::T_RPAREN);
+    expect(TokenKind::T_RPAREN, rparenLoc);
   }
 
-  if (!match(TokenKind::T_MINUS_GREATER)) return false;
+  SourceLocation arrowLoc;
+
+  if (!match(TokenKind::T_MINUS_GREATER, arrowLoc)) return false;
 
   NameAST* templateId = nullptr;
 
@@ -7808,7 +7991,9 @@ auto Parser::parse_deduction_guide(DeclarationAST*& yyast) -> bool {
     parse_error("expected a template id");
   }
 
-  expect(TokenKind::T_SEMICOLON);
+  SourceLocation semicolonLoc;
+
+  expect(TokenKind::T_SEMICOLON, semicolonLoc);
 
   return true;
 }
@@ -7851,7 +8036,9 @@ auto Parser::parse_typename_specifier(SpecifierAST*& yyast) -> bool {
 
   const auto after_nested_name_specifier = currentLocation();
 
-  match(TokenKind::T_TEMPLATE);
+  SourceLocation templateLoc;
+
+  match(TokenKind::T_TEMPLATE, templateLoc);
 
   NameAST* name = nullptr;
 
@@ -8063,32 +8250,46 @@ auto Parser::parse_exception_declaration(ExceptionDeclarationAST*& yyast)
 }
 
 auto Parser::parse_noexcept_specifier() -> bool {
-  if (match(TokenKind::T_THROW)) {
-    expect(TokenKind::T_LPAREN);
-    expect(TokenKind::T_RPAREN);
+  SourceLocation throwLoc;
+
+  if (match(TokenKind::T_THROW, throwLoc)) {
+    SourceLocation lparenLoc;
+    expect(TokenKind::T_LPAREN, lparenLoc);
+
+    SourceLocation rparenLoc;
+    expect(TokenKind::T_RPAREN, rparenLoc);
+
     return true;
   }
 
-  if (!match(TokenKind::T_NOEXCEPT)) return false;
+  SourceLocation noexceptLoc;
 
-  if (match(TokenKind::T_LPAREN)) {
+  if (!match(TokenKind::T_NOEXCEPT, noexceptLoc)) return false;
+
+  SourceLocation lparenLoc;
+  if (match(TokenKind::T_LPAREN, lparenLoc)) {
     ExpressionAST* expression = nullptr;
 
     if (!parse_constant_expression(expression)) {
       parse_error("expected a declaration");
     }
 
-    expect(TokenKind::T_RPAREN);
+    SourceLocation rparenLoc;
+    expect(TokenKind::T_RPAREN, rparenLoc);
   }
 
   return true;
 }
 
 auto Parser::parse_identifier_list() -> bool {
-  if (!match(TokenKind::T_IDENTIFIER)) return false;
+  SourceLocation identifierLoc;
+  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
 
-  while (match(TokenKind::T_COMMA)) {
-    expect(TokenKind::T_IDENTIFIER);
+  SourceLocation commaLoc;
+
+  while (match(TokenKind::T_COMMA, commaLoc)) {
+    SourceLocation identifierLoc;
+    expect(TokenKind::T_IDENTIFIER, identifierLoc);
   }
 
   return true;
