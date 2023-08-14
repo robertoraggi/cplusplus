@@ -35,7 +35,29 @@
 
 namespace cxx {
 
-static auto getFunctionDeclaratorHelper(DeclaratorAST* declarator)
+namespace {
+
+class RecordingDiagnosticsClient : public DiagnosticsClient {
+ public:
+  void reset() { messages_.clear(); }
+
+  void reportTo(DiagnosticsClient* client) {
+    for (const auto& message : messages_) {
+      client->report(message);
+    }
+  }
+
+  auto messages() const -> const std::vector<Diagnostic>& { return messages_; }
+
+  void report(const Diagnostic& message) override {
+    messages_.push_back(message);
+  }
+
+ private:
+  std::vector<Diagnostic> messages_;
+};
+
+auto getFunctionDeclaratorHelper(DeclaratorAST* declarator)
     -> std::pair<FunctionDeclaratorAST*, bool> {
   if (!declarator) return std::make_pair(nullptr, false);
 
@@ -64,10 +86,12 @@ static auto getFunctionDeclaratorHelper(DeclaratorAST* declarator)
   return std::make_pair(nullptr, false);
 }
 
-static auto getFunctionDeclarator(DeclaratorAST* declarator)
+auto getFunctionDeclarator(DeclaratorAST* declarator)
     -> FunctionDeclaratorAST* {
   return get<0>(getFunctionDeclaratorHelper(declarator));
 }
+
+}  // namespace
 
 Parser::Parser(TranslationUnit* unit) : unit(unit) {
   control = unit->control();
@@ -1945,6 +1969,8 @@ auto Parser::parse_unop_expression(ExpressionAST*& yyast) -> bool {
 
   if (!parse_cast_expression(ast->expression)) {
     parse_error("expected an expression");
+    rewind(opLoc);
+    return false;
   }
 
   return true;
@@ -2289,7 +2315,18 @@ auto Parser::parse_delete_expression(ExpressionAST*& yyast) -> bool {
 auto Parser::parse_cast_expression(ExpressionAST*& yyast) -> bool {
   const auto start = currentLocation();
 
-  if (parse_cast_expression_helper(yyast)) return true;
+  RecordingDiagnosticsClient diags;
+
+  auto savedDiagnosticClient = unit->changeDiagnosticsClient(&diags);
+
+  auto parsedCastExpression = parse_cast_expression_helper(yyast);
+
+  unit->changeDiagnosticsClient(savedDiagnosticClient);
+
+  if (parsedCastExpression) {
+    diags.reportTo(unit->diagnosticsClient());
+    return true;
+  }
 
   rewind(start);
 
@@ -2311,7 +2348,9 @@ auto Parser::parse_cast_expression_helper(ExpressionAST*& yyast) -> bool {
 
   ExpressionAST* expression = nullptr;
 
-  if (!parse_cast_expression(expression)) return false;
+  if (!parse_cast_expression(expression)) {
+    return false;
+  }
 
   auto ast = new (pool) CastExpressionAST();
   yyast = ast;
