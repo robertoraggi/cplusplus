@@ -48,9 +48,10 @@ class TranslationUnit {
 
   [[nodiscard]] auto arena() const -> Arena* { return arena_.get(); }
 
-  [[nodiscard]] auto diagnosticsClient() const -> DiagnosticsClient* {
-    return diagnosticsClient_;
-  }
+  [[nodiscard]] auto diagnosticsClient() const -> DiagnosticsClient*;
+
+  auto changeDiagnosticsClient(DiagnosticsClient* diagnosticsClient)
+      -> DiagnosticsClient*;
 
   [[nodiscard]] auto ast() const -> UnitAST* { return ast_; }
 

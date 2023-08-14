@@ -50,6 +50,16 @@ TranslationUnit::TranslationUnit(Control* control,
 
 TranslationUnit::~TranslationUnit() = default;
 
+auto TranslationUnit::diagnosticsClient() const -> DiagnosticsClient* {
+  return diagnosticsClient_;
+}
+
+auto TranslationUnit::changeDiagnosticsClient(
+    DiagnosticsClient* diagnosticsClient) -> DiagnosticsClient* {
+  std::swap(diagnosticsClient_, diagnosticsClient);
+  return diagnosticsClient;
+}
+
 void TranslationUnit::setSource(std::string source, std::string fileName) {
   fileName_ = std::move(fileName);
   preprocessor_->preprocess(std::move(source), fileName_, tokens_);
