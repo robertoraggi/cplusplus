@@ -419,6 +419,9 @@ auto ASTDecoder::decodeDeclaration(const void* ptr, io::Declaration type)
     case io::Declaration_UsingEnumDeclaration:
       return decodeUsingEnumDeclaration(
           reinterpret_cast<const io::UsingEnumDeclaration*>(ptr));
+    case io::Declaration_NestedNamespaceSpecifier:
+      return decodeNestedNamespaceSpecifier(
+          reinterpret_cast<const io::NestedNamespaceSpecifier*>(ptr));
     case io::Declaration_NamespaceDefinition:
       return decodeNamespaceDefinition(
           reinterpret_cast<const io::NamespaceDefinition*>(ptr));
@@ -2305,6 +2308,18 @@ auto ASTDecoder::decodeUsingEnumDeclaration(
   return ast;
 }
 
+auto ASTDecoder::decodeNestedNamespaceSpecifier(
+    const io::NestedNamespaceSpecifier* node) -> NestedNamespaceSpecifierAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) NestedNamespaceSpecifierAST();
+  if (node->namespace_name()) {
+    ast->namespaceName =
+        unit_->control()->getIdentifier(node->namespace_name()->str());
+  }
+  return ast;
+}
+
 auto ASTDecoder::decodeNamespaceDefinition(const io::NamespaceDefinition* node)
     -> NamespaceDefinitionAST* {
   if (!node) return nullptr;
@@ -2319,9 +2334,15 @@ auto ASTDecoder::decodeNamespaceDefinition(const io::NamespaceDefinition* node)
       inserter = &(*inserter)->next;
     }
   }
-  ast->nestedNameSpecifier =
-      decodeNestedNameSpecifier(node->nested_name_specifier());
-  ast->name = decodeName(node->name(), node->name_type());
+  if (node->nested_namespace_specifier_list()) {
+    auto* inserter = &ast->nestedNamespaceSpecifierList;
+    for (std::size_t i = 0; i < node->nested_namespace_specifier_list()->size();
+         ++i) {
+      *inserter = new (pool_) List(decodeNestedNamespaceSpecifier(
+          node->nested_namespace_specifier_list()->Get(i)));
+      inserter = &(*inserter)->next;
+    }
+  }
   if (node->extra_attribute_list()) {
     auto* inserter = &ast->extraAttributeList;
     for (std::size_t i = 0; i < node->extra_attribute_list()->size(); ++i) {
@@ -2339,6 +2360,10 @@ auto ASTDecoder::decodeNamespaceDefinition(const io::NamespaceDefinition* node)
           io::Declaration(node->declaration_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
+  }
+  if (node->namespace_name()) {
+    ast->namespaceName =
+        unit_->control()->getIdentifier(node->namespace_name()->str());
   }
   return ast;
 }

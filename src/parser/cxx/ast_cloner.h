@@ -166,6 +166,7 @@ class ASTCloner : public ASTVisitor {
   void visit(AttributeDeclarationAST* ast) override;
   void visit(OpaqueEnumDeclarationAST* ast) override;
   void visit(UsingEnumDeclarationAST* ast) override;
+  void visit(NestedNamespaceSpecifierAST* ast) override;
   void visit(NamespaceDefinitionAST* ast) override;
   void visit(NamespaceAliasDefinitionAST* ast) override;
   void visit(UsingDirectiveAST* ast) override;

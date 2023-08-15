@@ -2226,6 +2226,23 @@ void ASTCloner::visit(UsingEnumDeclarationAST* ast) {
   copy->setChecked(ast->checked());
 }
 
+void ASTCloner::visit(NestedNamespaceSpecifierAST* ast) {
+  auto copy = new (arena_) NestedNamespaceSpecifierAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->inlineLoc = ast->inlineLoc;
+
+  copy->identifierLoc = ast->identifierLoc;
+
+  copy->scopeLoc = ast->scopeLoc;
+
+  copy->namespaceName = ast->namespaceName;
+
+  copy->isInline = ast->isInline;
+}
+
 void ASTCloner::visit(NamespaceDefinitionAST* ast) {
   auto copy = new (arena_) NamespaceDefinitionAST();
   copy_ = copy;
@@ -2245,9 +2262,16 @@ void ASTCloner::visit(NamespaceDefinitionAST* ast) {
     }
   }
 
-  copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
+  if (auto it = ast->nestedNamespaceSpecifierList) {
+    auto out = &copy->nestedNamespaceSpecifierList;
 
-  copy->name = accept(ast->name);
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->identifierLoc = ast->identifierLoc;
 
   if (auto it = ast->extraAttributeList) {
     auto out = &copy->extraAttributeList;
@@ -2270,6 +2294,10 @@ void ASTCloner::visit(NamespaceDefinitionAST* ast) {
   }
 
   copy->rbraceLoc = ast->rbraceLoc;
+
+  copy->namespaceName = ast->namespaceName;
+
+  copy->isInline = ast->isInline;
 }
 
 void ASTCloner::visit(NamespaceAliasDefinitionAST* ast) {

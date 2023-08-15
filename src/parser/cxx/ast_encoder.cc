@@ -3237,6 +3237,35 @@ void ASTEncoder::visit(UsingEnumDeclarationAST* ast) {
   type_ = io::Declaration_UsingEnumDeclaration;
 }
 
+void ASTEncoder::visit(NestedNamespaceSpecifierAST* ast) {
+  auto inlineLoc = encodeSourceLocation(ast->inlineLoc);
+
+  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
+
+  auto scopeLoc = encodeSourceLocation(ast->scopeLoc);
+
+  flatbuffers::Offset<flatbuffers::String> namespaceName;
+  if (ast->namespaceName) {
+    if (identifiers_.contains(ast->namespaceName)) {
+      namespaceName = identifiers_.at(ast->namespaceName);
+    } else {
+      namespaceName = fbb_.CreateString(ast->namespaceName->value());
+      identifiers_.emplace(ast->namespaceName, namespaceName);
+    }
+  }
+
+  io::NestedNamespaceSpecifier::Builder builder{fbb_};
+  builder.add_inline_loc(inlineLoc.o);
+  builder.add_identifier_loc(identifierLoc.o);
+  builder.add_scope_loc(scopeLoc.o);
+  if (ast->namespaceName) {
+    builder.add_namespace_name(namespaceName);
+  }
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Declaration_NestedNamespaceSpecifier;
+}
+
 void ASTEncoder::visit(NamespaceDefinitionAST* ast) {
   auto inlineLoc = encodeSourceLocation(ast->inlineLoc);
 
@@ -3256,9 +3285,17 @@ void ASTEncoder::visit(NamespaceDefinitionAST* ast) {
   auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
   auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
 
-  const auto nestedNameSpecifier = accept(ast->nestedNameSpecifier);
+  std::vector<flatbuffers::Offset<io::NestedNamespaceSpecifier>>
+      nestedNamespaceSpecifierListOffsets;
+  for (auto it = ast->nestedNamespaceSpecifierList; it; it = it->next) {
+    if (!it->value) continue;
+    nestedNamespaceSpecifierListOffsets.emplace_back(accept(it->value).o);
+  }
 
-  const auto [name, nameType] = acceptName(ast->name);
+  auto nestedNamespaceSpecifierListOffsetsVector =
+      fbb_.CreateVector(nestedNamespaceSpecifierListOffsets);
+
+  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
 
   std::vector<flatbuffers::Offset<>> extraAttributeListOffsets;
   std::vector<std::underlying_type_t<io::AttributeSpecifier>>
@@ -3293,20 +3330,33 @@ void ASTEncoder::visit(NamespaceDefinitionAST* ast) {
 
   auto rbraceLoc = encodeSourceLocation(ast->rbraceLoc);
 
+  flatbuffers::Offset<flatbuffers::String> namespaceName;
+  if (ast->namespaceName) {
+    if (identifiers_.contains(ast->namespaceName)) {
+      namespaceName = identifiers_.at(ast->namespaceName);
+    } else {
+      namespaceName = fbb_.CreateString(ast->namespaceName->value());
+      identifiers_.emplace(ast->namespaceName, namespaceName);
+    }
+  }
+
   io::NamespaceDefinition::Builder builder{fbb_};
   builder.add_inline_loc(inlineLoc.o);
   builder.add_namespace_loc(namespaceLoc.o);
   builder.add_attribute_list(attributeListOffsetsVector);
   builder.add_attribute_list_type(attributeListTypesVector);
-  builder.add_nested_name_specifier(nestedNameSpecifier.o);
-  builder.add_name(name);
-  builder.add_name_type(static_cast<io::Name>(nameType));
+  builder.add_nested_namespace_specifier_list(
+      nestedNamespaceSpecifierListOffsetsVector);
+  builder.add_identifier_loc(identifierLoc.o);
   builder.add_extra_attribute_list(extraAttributeListOffsetsVector);
   builder.add_extra_attribute_list_type(extraAttributeListTypesVector);
   builder.add_lbrace_loc(lbraceLoc.o);
   builder.add_declaration_list(declarationListOffsetsVector);
   builder.add_declaration_list_type(declarationListTypesVector);
   builder.add_rbrace_loc(rbraceLoc.o);
+  if (ast->namespaceName) {
+    builder.add_namespace_name(namespaceName);
+  }
 
   offset_ = builder.Finish().Union();
   type_ = io::Declaration_NamespaceDefinition;

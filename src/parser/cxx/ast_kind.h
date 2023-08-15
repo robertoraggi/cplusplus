@@ -173,6 +173,7 @@ enum struct ASTKind {
   AttributeDeclaration,
   OpaqueEnumDeclaration,
   UsingEnumDeclaration,
+  NestedNamespaceSpecifier,
   NamespaceDefinition,
   NamespaceAliasDefinition,
   UsingDirective,

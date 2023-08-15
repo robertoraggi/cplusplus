@@ -2531,6 +2531,25 @@ void ASTSlot::visit(UsingEnumDeclarationAST* ast) {
   slotCount_ = 0;
 }
 
+void ASTSlot::visit(NestedNamespaceSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->inlineLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:
+      value_ = ast->identifierLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 2:
+      value_ = ast->scopeLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
+
+  slotCount_ = 3;
+}
+
 void ASTSlot::visit(NamespaceDefinitionAST* ast) {
   switch (slot_) {
     case 0:
@@ -2546,12 +2565,13 @@ void ASTSlot::visit(NamespaceDefinitionAST* ast) {
       slotKind_ = ASTSlotKind::kNodeList;
       break;
     case 3:
-      value_ = reinterpret_cast<std::intptr_t>(ast->nestedNameSpecifier);
-      slotKind_ = ASTSlotKind::kNode;
+      value_ =
+          reinterpret_cast<std::intptr_t>(ast->nestedNamespaceSpecifierList);
+      slotKind_ = ASTSlotKind::kNodeList;
       break;
     case 4:
-      value_ = reinterpret_cast<std::intptr_t>(ast->name);
-      slotKind_ = ASTSlotKind::kNode;
+      value_ = ast->identifierLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
       break;
     case 5:
       value_ = reinterpret_cast<std::intptr_t>(ast->extraAttributeList);

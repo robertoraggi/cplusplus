@@ -535,6 +535,10 @@ void DefaultASTVisitor::visit(UsingEnumDeclarationAST* ast) {
   cxx_runtime_error("visit(UsingEnumDeclarationAST): not implemented");
 }
 
+void DefaultASTVisitor::visit(NestedNamespaceSpecifierAST* ast) {
+  cxx_runtime_error("visit(NestedNamespaceSpecifierAST): not implemented");
+}
+
 void DefaultASTVisitor::visit(NamespaceDefinitionAST* ast) {
   cxx_runtime_error("visit(NamespaceDefinitionAST): not implemented");
 }

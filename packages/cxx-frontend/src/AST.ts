@@ -2137,6 +2137,21 @@ export class UsingEnumDeclarationAST extends DeclarationAST {
     }
 }
 
+export class NestedNamespaceSpecifierAST extends DeclarationAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitNestedNamespaceSpecifier(this, context);
+    }
+    getInlineToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getIdentifierToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getScopeToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+}
+
 export class NamespaceDefinitionAST extends DeclarationAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitNamespaceDefinition(this, context);
@@ -2152,11 +2167,13 @@ export class NamespaceDefinitionAST extends DeclarationAST {
             yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
         }
     }
-    getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
-        return AST.from<NestedNameSpecifierAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    *getNestedNamespaceSpecifierList(): Generator<NestedNamespaceSpecifierAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 3); it; it = cxx.getListNext(it)) {
+            yield AST.from<NestedNamespaceSpecifierAST>(cxx.getListValue(it), this.parser);
+        }
     }
-    getName(): NameAST | undefined {
-        return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+    getIdentifierToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
     }
     *getExtraAttributeList(): Generator<AttributeSpecifierAST | undefined> {
         for (let it = cxx.getASTSlot(this.getHandle(), 5); it; it = cxx.getListNext(it)) {
@@ -3344,6 +3361,7 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Transl
     AttributeDeclarationAST,
     OpaqueEnumDeclarationAST,
     UsingEnumDeclarationAST,
+    NestedNamespaceSpecifierAST,
     NamespaceDefinitionAST,
     NamespaceAliasDefinitionAST,
     UsingDirectiveAST,

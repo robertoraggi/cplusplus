@@ -1834,12 +1834,27 @@ auto UsingEnumDeclarationAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto NestedNamespaceSpecifierAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(inlineLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(scopeLoc)) return loc;
+  return {};
+}
+
+auto NestedNamespaceSpecifierAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(scopeLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(inlineLoc)) return loc;
+  return {};
+}
+
 auto NamespaceDefinitionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(inlineLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(namespaceLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
-  if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
-  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(nestedNamespaceSpecifierList))
+    return loc;
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(extraAttributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(lbraceLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(declarationList)) return loc;
@@ -1852,8 +1867,9 @@ auto NamespaceDefinitionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(declarationList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lbraceLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(extraAttributeList)) return loc;
-  if (auto loc = cxx::lastSourceLocation(name)) return loc;
-  if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(nestedNamespaceSpecifierList))
+    return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(namespaceLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(inlineLoc)) return loc;

@@ -2010,6 +2010,23 @@ class UsingEnumDeclarationAST final : public DeclarationAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class NestedNamespaceSpecifierAST final : public DeclarationAST {
+ public:
+  NestedNamespaceSpecifierAST()
+      : DeclarationAST(ASTKind::NestedNamespaceSpecifier) {}
+
+  SourceLocation inlineLoc;
+  SourceLocation identifierLoc;
+  SourceLocation scopeLoc;
+  const Identifier* namespaceName = nullptr;
+  bool isInline = false;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 class NamespaceDefinitionAST final : public DeclarationAST {
  public:
   NamespaceDefinitionAST() : DeclarationAST(ASTKind::NamespaceDefinition) {}
@@ -2017,12 +2034,14 @@ class NamespaceDefinitionAST final : public DeclarationAST {
   SourceLocation inlineLoc;
   SourceLocation namespaceLoc;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
-  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-  NameAST* name = nullptr;
+  List<NestedNamespaceSpecifierAST*>* nestedNamespaceSpecifierList = nullptr;
+  SourceLocation identifierLoc;
   List<AttributeSpecifierAST*>* extraAttributeList = nullptr;
   SourceLocation lbraceLoc;
   List<DeclarationAST*>* declarationList = nullptr;
   SourceLocation rbraceLoc;
+  const Identifier* namespaceName = nullptr;
+  bool isInline = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

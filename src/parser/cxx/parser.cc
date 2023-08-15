@@ -5712,9 +5712,9 @@ auto Parser::parse_using_enum_declaration(DeclarationAST*& yyasts) -> bool {
 }
 
 auto Parser::parse_namespace_definition(DeclarationAST*& yyast) -> bool {
-  if (LA().is(TokenKind::T_NAMESPACE) && LA(1).is(TokenKind::T_IDENTIFIER) &&
-      LA(2).is(TokenKind::T_EQUAL)) {
-    // skip namespace alias definitons
+  if (lookat(TokenKind::T_NAMESPACE, TokenKind::T_IDENTIFIER,
+             TokenKind::T_EQUAL)) {
+    // skip namespace alias definition
     return false;
   }
 
@@ -5722,7 +5722,7 @@ auto Parser::parse_namespace_definition(DeclarationAST*& yyast) -> bool {
 
   SourceLocation inlineLoc;
 
-  match(TokenKind::T_INLINE, inlineLoc);
+  auto isInline = match(TokenKind::T_INLINE, inlineLoc);
 
   SourceLocation namespaceLoc;
 
@@ -5734,32 +5734,61 @@ auto Parser::parse_namespace_definition(DeclarationAST*& yyast) -> bool {
   auto ast = new (pool) NamespaceDefinitionAST();
   yyast = ast;
 
+  ast->isInline = isInline;
   ast->inlineLoc = inlineLoc;
   ast->namespaceLoc = namespaceLoc;
 
   parse_attribute_specifier_seq(ast->attributeList);
 
-  const Name* namespaceName = nullptr;
+  if (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_COLON_COLON)) {
+    auto it = &ast->nestedNamespaceSpecifierList;
 
-  if (LA().is(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_COLON_COLON)) {
-    SourceLocation identifierLoc = consumeToken();
+    auto name = new (pool) NestedNamespaceSpecifierAST();
 
-    auto id = unit->identifier(identifierLoc);
+    expect(TokenKind::T_IDENTIFIER, name->identifierLoc);
+    expect(TokenKind::T_COLON_COLON, name->scopeLoc);
 
-    SourceLocation scopeLoc;
+    name->namespaceName = unit->identifier(name->identifierLoc);
 
-    while (match(TokenKind::T_COLON_COLON, scopeLoc)) {
+    *it = new (pool) List(name);
+    it = &(*it)->next;
+
+    while (true) {
+      const auto saved = currentLocation();
+
       SourceLocation inlineLoc;
-      match(TokenKind::T_INLINE, inlineLoc);
+
+      auto isInline = match(TokenKind::T_INLINE, inlineLoc);
 
       SourceLocation identifierLoc;
-      expect(TokenKind::T_IDENTIFIER, identifierLoc);
 
-      auto id = unit->identifier(identifierLoc);
+      if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) {
+        rewind(saved);
+        break;
+      }
+
+      SourceLocation scopeLoc;
+
+      if (!match(TokenKind::T_COLON_COLON, scopeLoc)) {
+        rewind(saved);
+        break;
+      }
+
+      auto name = new (pool) NestedNamespaceSpecifierAST();
+      name->inlineLoc = inlineLoc;
+      name->identifierLoc = identifierLoc;
+      name->scopeLoc = scopeLoc;
+      name->namespaceName = unit->identifier(name->identifierLoc);
+      name->isInline = isInline;
+
+      *it = new (pool) List(name);
+      it = &(*it)->next;
     }
-  } else if (parse_name_id(ast->name)) {
-    //
   }
+
+  match(TokenKind::T_IDENTIFIER, ast->identifierLoc);
+
+  ast->namespaceName = unit->identifier(ast->identifierLoc);
 
   parse_attribute_specifier_seq(ast->extraAttributeList);
 
