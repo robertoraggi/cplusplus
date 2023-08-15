@@ -120,7 +120,7 @@ void ASTCloner::visit(EnumeratorAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->name = accept(ast->name);
+  copy->identifierLoc = ast->identifierLoc;
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
@@ -134,6 +134,8 @@ void ASTCloner::visit(EnumeratorAST* ast) {
   copy->equalLoc = ast->equalLoc;
 
   copy->expression = accept(ast->expression);
+
+  copy->identifier = ast->identifier;
 }
 
 void ASTCloner::visit(DeclaratorAST* ast) {

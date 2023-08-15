@@ -60,7 +60,6 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     }
 
     visitEnumerator(node: ast.EnumeratorAST, context: Context): void {
-        this.accept(node.getName(), context);
         for (const element of node.getAttributeList()) {
             this.accept(element, context);
         }

@@ -177,8 +177,8 @@ export class EnumeratorAST extends AST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitEnumerator(this, context);
     }
-    getName(): NameAST | undefined {
-        return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    getIdentifierToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
     }
     *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
         for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {

@@ -755,7 +755,6 @@ auto ASTDecoder::decodeEnumerator(const io::Enumerator* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) EnumeratorAST();
-  ast->name = decodeName(node->name(), node->name_type());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
@@ -767,6 +766,10 @@ auto ASTDecoder::decodeEnumerator(const io::Enumerator* node)
   }
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
   return ast;
 }
 

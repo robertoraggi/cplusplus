@@ -245,7 +245,6 @@ void RecursiveASTVisitor::visit(EnumBaseAST* ast) {
 }
 
 void RecursiveASTVisitor::visit(EnumeratorAST* ast) {
-  acceptName(ast->name);
   for (auto it = ast->attributeList; it; it = it->next) {
     acceptAttributeSpecifier(it->value);
   }

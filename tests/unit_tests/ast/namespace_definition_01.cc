@@ -1,5 +1,4 @@
 // RUN: %cxx -verify -ast-dump %s | %filecheck %s --match-full-lines
-// --strict-whitespace
 
 namespace {}
 
