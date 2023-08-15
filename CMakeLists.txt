@@ -51,7 +51,7 @@ endif()
 FetchContent_Declare(
     fmt
     GIT_REPOSITORY  https://github.com/fmtlib/fmt
-    GIT_TAG         10.0.0
+    GIT_TAG         10.1.0
     GIT_SHALLOW     1
 )
 
@@ -63,7 +63,7 @@ FetchContent_MakeAvailable(fmt)
 FetchContent_Declare(
     utfcpp
     GIT_REPOSITORY  https://github.com/nemtrif/utfcpp
-    GIT_TAG         v3.2.2
+    GIT_TAG         v3.2.4
     GIT_SHALLOW     1
 )
 
