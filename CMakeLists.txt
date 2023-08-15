@@ -70,17 +70,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(utfcpp)
 
 FetchContent_Declare(
-    nlohmann_json
-    URL             https://github.com/nlohmann/json/releases/download/v3.11.2/include.zip
-    URL_HASH        SHA256=e5c7a9f49a16814be27e4ed0ee900ecd0092bfb7dbfca65b5a421b774dccaaed
-)
-
-FetchContent_MakeAvailable(nlohmann_json)
-
-add_library(nlohmann_json::nlohmann_json INTERFACE IMPORTED)
-set_target_properties(nlohmann_json::nlohmann_json PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${nlohmann_json_SOURCE_DIR}/single_include")
-
-FetchContent_Declare(
     wasi_sysroot
     URL https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-20/wasi-sysroot-20.0.tar.gz
     PATCH_COMMAND patch -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/patches/wasi-sysroot.patch

@@ -23,73 +23,38 @@ import { AST } from "./parseAST.js";
 import { cpy_header } from "./cpy_header.js";
 import * as fs from "fs";
 
-const json_vec = "std::vector<nlohmann::json>";
-
 export function gen_ast_dump_cc({ ast, output }: { ast: AST; output: string }) {
   const code: string[] = [];
   const emit = (line = "") => code.push(line);
 
   const by_base = groupNodesByBaseType(ast);
 
-  const astName = (name: string) => name.slice(0, -3);
+  const toKebapName = (name: string) =>
+    name.replace(/([A-Z]+)/g, "-$1").toLocaleLowerCase();
+
+  const astName = (name: string) => toKebapName(name.slice(0, -3)).slice(1);
 
   by_base.forEach((nodes) => {
     nodes.forEach(({ name, members }) => {
       emit();
       emit(`void ASTPrinter::visit(${name}* ast) {`);
-      emit(`  json_ = nlohmann::json::array();`);
-      emit();
-      emit(`  json_.push_back("ast:${astName(name)}");`);
-      emit();
-      members.forEach((m) => {
-        emit();
-        if (m.kind === "node") {
-          emit(`    if(ast->${m.name}) {`);
-          emit(
-            `      if (auto childNode = accept(ast->${m.name}); !childNode.is_null()) {`
-          );
-          emit(
-            `        json_.push_back(${json_vec}{"attr:${m.name}", std::move(childNode)});`
-          );
-          emit(`      }`);
+      emit(`  fmt::print(out_, "{}\\n", "${astName(name)}");`);
+      members.forEach((member) => {
+        const fieldName = toKebapName(member.name);
+        if (member.kind === "node-list") {
+          emit(`  if (ast->${member.name}) {`);
+          emit(`    ++indent_;`);
+          emit(`    fmt::print(out_, "{:{}}", "", indent_ * 2);`);
+          emit(`    fmt::print(out_, "{}\\n", "${fieldName}");`);
+          emit(`    for (auto it = ast->${member.name}; it; it = it->next) {`);
+          emit(`      accept(it->value);`);
           emit(`    }`);
-        } else if (m.kind === "node-list") {
-          emit(`    if(ast->${m.name}) {`);
-          emit(`      auto elements = nlohmann::json::array();`);
-          emit(`      elements.push_back("array");`);
-          emit(`      for (auto it = ast->${m.name}; it; it = it->next) {`);
-          emit(
-            `        if (auto childNode = accept(it->value); !childNode.is_null()) {`
-          );
-          emit(`          elements.push_back(std::move(childNode));`);
-          emit(`        }`);
-          emit(`      }`);
-          emit(`      if (elements.size() > 1) {`);
-          emit(
-            `          json_.push_back(${json_vec}{"attr:${m.name}", elements});`
-          );
-          emit(`      }`);
-          emit(`    }`);
-        } else if (m.kind === "attribute" && m.type.endsWith("Literal")) {
-          const tok = (s: string) => `${json_vec}{"literal", ${s}}`;
-          const val = tok(`ast->${m.name}->value()`);
-          emit(
-            `    if (ast->${m.name}) { json_.push_back(${json_vec}{"attr:${m.name}", ${val}}); }`
-          );
-        } else if (m.kind === "attribute" && m.type === "Identifier") {
-          const tok = (s: string) => `${json_vec}{"identifier", ${s}}`;
-          const val = tok(`ast->${m.name}->name()`);
-          emit(
-            `    if (ast->${m.name}) { json_.push_back(${json_vec}{"attr:${m.name}", ${val}}); }`
-          );
-        } else if (m.kind === "attribute" && m.type === "TokenKind") {
-          const tok = (s: string) => `${json_vec}{"token", ${s}}`;
-          const val = tok(`Token::spell(ast->${m.name})`);
-          emit(`    if (ast->${m.name} != TokenKind::T_EOF_SYMBOL) {`);
-          emit(
-            `        json_.push_back(${json_vec}{"attr:${m.name}", ${val}});`
-          );
-          emit(`    }`);
+          emit(`    --indent_;`);
+          emit(`  }`);
+        } else if (member.kind === "node") {
+          emit(`  accept(ast->${member.name}, "${fieldName}");`);
+        } else if (member.kind == "attribute" && member.type === "Identifier") {
+          emit(`  accept(ast->${member.name}, "${fieldName}");`);
         }
       });
       emit(`}`);
@@ -103,51 +68,38 @@ export function gen_ast_dump_cc({ ast, output }: { ast: AST; output: string }) {
 #include <cxx/translation_unit.h>
 #include <cxx/names.h>
 #include <cxx/literals.h>
+#include <cxx/private/format.h>
 
 #include <algorithm>
 
 namespace cxx {
 
-  auto ASTPrinter::operator()(AST* ast, bool printLocations) -> nlohmann::json {
-      std::vector<std::string_view> fileNames;
-      std::swap(fileNames_, fileNames);
-      std::swap(printLocations_, printLocations);
-      auto result = accept(ast);
-      std::swap(printLocations_, printLocations);
-      std::swap(fileNames_, fileNames);
-      result.push_back(std::vector<nlohmann::json>{"$files", std::move(fileNames)});
-      return result;
+ASTPrinter::ASTPrinter(TranslationUnit* unit, std::ostream& out)
+  : unit_(unit)
+  , out_(out) {}
+
+void ASTPrinter::operator()(AST* ast) {
+  accept(ast);
+}
+
+void ASTPrinter::accept(AST* ast, std::string_view field) {
+  if (!ast) return;
+  ++indent_;
+  fmt::print(out_, "{:{}}", "", indent_ * 2);
+  if (!field.empty()) {
+    fmt::print(out_, "{}: ", field);
   }
+  ast->accept(this);
+  --indent_;
+}
 
-  auto ASTPrinter::accept(AST* ast) -> nlohmann::json {
-    nlohmann::json json;
-
-  if (ast) {
-    std::swap(json_, json);
-    ast->accept(this);
-    std::swap(json_, json);
-
-    if (!json.is_null() && printLocations_) {
-      auto [startLoc, endLoc] = ast->sourceLocationRange();
-      if (startLoc && endLoc) {
-        unsigned startLine = 0, startColumn = 0;
-        unsigned endLine = 0, endColumn = 0;
-        std::string_view fileName, endFileName;
-
-        unit_->getTokenStartPosition(startLoc, &startLine, &startColumn, &fileName);
-        unit_->getTokenEndPosition(endLoc.previous(), &endLine, &endColumn, &endFileName);
-
-        if (fileName == endFileName && !fileName.empty()) {
-          auto it = std::find(begin(fileNames_), end(fileNames_), fileName);
-          auto fileId = std::distance(begin(fileNames_), it);
-          if (it == fileNames_.end()) fileNames_.push_back(fileName);
-          json.push_back(std::vector<nlohmann::json>{"$range", fileId, startLine, startColumn, endLine, endColumn});
-        }
-      }
-    }
-  }
-
-  return json;
+void ASTPrinter::accept(const Identifier* id, std::string_view field) {
+  if (!id) return;
+  ++indent_;
+  fmt::print(out_, "{:{}}", "", indent_ * 2);
+  if (!field.empty()) fmt::print(out_, "{}: ", field);
+  fmt::print(out_, "{}\\n", id->value());
+  --indent_;
 }
 
 ${code.join("\n")}

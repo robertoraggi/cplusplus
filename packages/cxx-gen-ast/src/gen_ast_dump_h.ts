@@ -30,34 +30,35 @@ export function gen_ast_dump_h({ ast, output }: { ast: AST; output: string }) {
   const by_base = groupNodesByBaseType(ast);
 
   emit(`class ASTPrinter : ASTVisitor {`);
-  emit(`  TranslationUnit* unit_;`);
-  emit(`  std::vector<std::string_view> fileNames_;`);
-  emit(`  nlohmann::json json_;`);
-  emit(`  bool printLocations_ = false;`);
-  emit();
-  emit(`  auto accept(AST* ast) -> nlohmann::json;`);
-  emit();
   emit(`public:`);
-  emit(`  explicit ASTPrinter(TranslationUnit* unit): unit_(unit) {}`);
+  emit(`  explicit ASTPrinter(TranslationUnit* unit, std::ostream& out);`);
   emit();
-  emit(
-    `  auto operator()(AST* ast, bool printLocations = false) -> nlohmann::json;`
-  );
+  emit(`  void operator()(AST* ast);`);
 
+  emit(`private:`);
+  emit(`  void accept(AST* ast, std::string_view field = {});`);
+  emit(`  void accept(const Identifier* id, std::string_view field = {});`);
   by_base.forEach((nodes) => {
     emit();
     nodes.forEach(({ name }) => {
       emit(`  void visit(${name}* ast) override;`);
     });
   });
-
+  emit(`private:`);
+  emit(`  TranslationUnit* unit_;`);
+  emit(`  std::ostream& out_;`);
+  emit(`  int indent_ = -1;`);
   emit(`};`);
 
   const out = `${cpy_header}
 #pragma once
 
 #include <cxx/ast_visitor.h>
-#include <nlohmann/json.hpp>
+#include <cxx/names_fwd.h>
+#include <cxx/literals_fwd.h>
+#include <cxx/types_fwd.h>
+#include <iosfwd>
+#include <string_view>
 
 namespace cxx {
 

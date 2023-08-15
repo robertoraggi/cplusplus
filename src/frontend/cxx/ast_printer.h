@@ -21,25 +21,26 @@
 #pragma once
 
 #include <cxx/ast_visitor.h>
+#include <cxx/literals_fwd.h>
+#include <cxx/names_fwd.h>
+#include <cxx/types_fwd.h>
 
-#include <nlohmann/json.hpp>
+#include <iosfwd>
+#include <string_view>
 
 namespace cxx {
 
 class TranslationUnit;
 
 class ASTPrinter : ASTVisitor {
-  TranslationUnit* unit_;
-  std::vector<std::string_view> fileNames_;
-  nlohmann::json json_;
-  bool printLocations_ = false;
-
-  auto accept(AST* ast) -> nlohmann::json;
-
  public:
-  explicit ASTPrinter(TranslationUnit* unit) : unit_(unit) {}
+  explicit ASTPrinter(TranslationUnit* unit, std::ostream& out);
 
-  auto operator()(AST* ast, bool printLocations = false) -> nlohmann::json;
+  void operator()(AST* ast);
+
+ private:
+  void accept(AST* ast, std::string_view field = {});
+  void accept(const Identifier* id, std::string_view field = {});
 
   void visit(TypeIdAST* ast) override;
   void visit(NestedNameSpecifierAST* ast) override;
@@ -252,6 +253,11 @@ class ASTPrinter : ASTVisitor {
 
   void visit(ScopedAttributeTokenAST* ast) override;
   void visit(SimpleAttributeTokenAST* ast) override;
+
+ private:
+  TranslationUnit* unit_;
+  std::ostream& out_;
+  int indent_ = -1;
 };
 
 }  // namespace cxx
