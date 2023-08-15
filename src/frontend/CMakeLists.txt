@@ -21,10 +21,7 @@ aux_source_directory(cxx SOURCES)
 
 add_executable(cxx ${SOURCES})
 
-target_link_libraries(cxx
-    cxx-parser
-    nlohmann_json::nlohmann_json
-)
+target_link_libraries(cxx cxx-parser)
 
 if(EMSCRIPTEN)
     target_link_options(cxx PUBLIC

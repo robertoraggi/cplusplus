@@ -236,9 +236,8 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
     }
 
     if (cli.opt_ast_dump) {
-      ASTPrinter toJSON(&unit);
-      fmt::print(std::cout, "{}",
-                 toJSON(unit.ast(), /*print locations*/ true).dump(2));
+      ASTPrinter printAST(&unit, std::cout);
+      printAST(unit.ast());
     }
   }
 
