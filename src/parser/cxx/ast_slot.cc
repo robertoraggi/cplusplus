@@ -139,8 +139,8 @@ void ASTSlot::visit(EnumBaseAST* ast) {
 void ASTSlot::visit(EnumeratorAST* ast) {
   switch (slot_) {
     case 0:
-      value_ = reinterpret_cast<std::intptr_t>(ast->name);
-      slotKind_ = ASTSlotKind::kNode;
+      value_ = ast->identifierLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
       break;
     case 1:
       value_ = reinterpret_cast<std::intptr_t>(ast->attributeList);

@@ -5651,9 +5651,7 @@ auto Parser::parse_enumerator_list(List<EnumeratorAST*>*& yyast) -> bool {
 
     EnumeratorAST* enumerator = nullptr;
 
-    if (!parse_enumerator_definition(enumerator)) {
-      parse_error("expected an enumerator");
-    }
+    parse_enumerator_definition(enumerator);
 
     *it = new (pool) List(enumerator);
     it = &(*it)->next;
@@ -5675,18 +5673,12 @@ auto Parser::parse_enumerator_definition(EnumeratorAST*& yyast) -> bool {
 }
 
 auto Parser::parse_enumerator(EnumeratorAST*& yyast) -> bool {
-  SourceLocation identifierLoc;
-
-  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
-
-  auto name = new (pool) SimpleNameAST();
-  name->identifierLoc = identifierLoc;
-  name->identifier = unit->identifier(name->identifierLoc);
-
   auto ast = new (pool) EnumeratorAST();
   yyast = ast;
 
-  ast->name = name;
+  expect(TokenKind::T_IDENTIFIER, ast->identifierLoc);
+
+  ast->identifier = unit->identifier(ast->identifierLoc);
 
   parse_attribute_specifier_seq(ast->attributeList);
 

@@ -109,7 +109,6 @@ void ASTPrinter::visit(EnumBaseAST* ast) {
 
 void ASTPrinter::visit(EnumeratorAST* ast) {
   fmt::print(out_, "{}\n", "enumerator");
-  accept(ast->name, "name");
   if (ast->attributeList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
@@ -120,6 +119,7 @@ void ASTPrinter::visit(EnumeratorAST* ast) {
     --indent_;
   }
   accept(ast->expression, "expression");
+  accept(ast->identifier, "identifier");
 }
 
 void ASTPrinter::visit(DeclaratorAST* ast) {
@@ -600,6 +600,12 @@ void ASTPrinter::visit(ThisExpressionAST* ast) {
 
 void ASTPrinter::visit(CharLiteralExpressionAST* ast) {
   fmt::print(out_, "{}\n", "char-literal-expression");
+  if (ast->literal) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "literal: {}\n", ast->literal->value());
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(BoolLiteralExpressionAST* ast) {
@@ -608,10 +614,22 @@ void ASTPrinter::visit(BoolLiteralExpressionAST* ast) {
 
 void ASTPrinter::visit(IntLiteralExpressionAST* ast) {
   fmt::print(out_, "{}\n", "int-literal-expression");
+  if (ast->literal) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "literal: {}\n", ast->literal->value());
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(FloatLiteralExpressionAST* ast) {
   fmt::print(out_, "{}\n", "float-literal-expression");
+  if (ast->literal) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "literal: {}\n", ast->literal->value());
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(NullptrLiteralExpressionAST* ast) {
@@ -620,10 +638,22 @@ void ASTPrinter::visit(NullptrLiteralExpressionAST* ast) {
 
 void ASTPrinter::visit(StringLiteralExpressionAST* ast) {
   fmt::print(out_, "{}\n", "string-literal-expression");
+  if (ast->literal) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "literal: {}\n", ast->literal->value());
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(UserDefinedStringLiteralExpressionAST* ast) {
   fmt::print(out_, "{}\n", "user-defined-string-literal-expression");
+  if (ast->literal) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "literal: {}\n", ast->literal->value());
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(IdExpressionAST* ast) {
@@ -1040,6 +1070,12 @@ void ASTPrinter::visit(SimpleDeclarationAST* ast) {
 void ASTPrinter::visit(StaticAssertDeclarationAST* ast) {
   fmt::print(out_, "{}\n", "static-assert-declaration");
   accept(ast->expression, "expression");
+  if (ast->literal) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "literal: {}\n", ast->literal->value());
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(EmptyDeclarationAST* ast) {
@@ -1179,6 +1215,12 @@ void ASTPrinter::visit(AsmDeclarationAST* ast) {
     }
     --indent_;
   }
+  if (ast->literal) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "literal: {}\n", ast->literal->value());
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(ExportDeclarationAST* ast) {
@@ -1306,6 +1348,12 @@ void ASTPrinter::visit(LinkageSpecificationAST* ast) {
     for (auto it = ast->declarationList; it; it = it->next) {
       accept(it->value);
     }
+    --indent_;
+  }
+  if (ast->stringLiteral) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "string-literal: {}\n", ast->stringLiteral->value());
     --indent_;
   }
 }
@@ -1664,6 +1712,12 @@ void ASTPrinter::visit(AlignasAttributeAST* ast) {
 
 void ASTPrinter::visit(AsmAttributeAST* ast) {
   fmt::print(out_, "{}\n", "asm-attribute");
+  if (ast->literal) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "literal: {}\n", ast->literal->value());
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(ScopedAttributeTokenAST* ast) {

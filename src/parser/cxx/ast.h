@@ -271,10 +271,11 @@ class EnumeratorAST final : public AST {
  public:
   EnumeratorAST() : AST(ASTKind::Enumerator) {}
 
-  NameAST* name = nullptr;
+  SourceLocation identifierLoc;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation equalLoc;
   ExpressionAST* expression = nullptr;
+  const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

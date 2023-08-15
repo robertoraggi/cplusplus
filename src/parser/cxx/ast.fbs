@@ -313,9 +313,10 @@ table EnumBase /* AST */ {
 }
 
 table Enumerator /* AST */ {
-  name: Name;
   attribute_list: [AttributeSpecifier];
   expression: Expression;
+  identifier: string;
+  identifier_loc: SourceLocation;
   equal_loc: SourceLocation;
 }
 

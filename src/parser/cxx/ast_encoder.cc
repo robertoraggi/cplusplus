@@ -488,7 +488,7 @@ void ASTEncoder::visit(EnumBaseAST* ast) {
 }
 
 void ASTEncoder::visit(EnumeratorAST* ast) {
-  const auto [name, nameType] = acceptName(ast->name);
+  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
 
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
   std::vector<std::underlying_type_t<io::AttributeSpecifier>>
@@ -508,14 +508,26 @@ void ASTEncoder::visit(EnumeratorAST* ast) {
 
   const auto [expression, expressionType] = acceptExpression(ast->expression);
 
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->value());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
   io::Enumerator::Builder builder{fbb_};
-  builder.add_name(name);
-  builder.add_name_type(static_cast<io::Name>(nameType));
+  builder.add_identifier_loc(identifierLoc.o);
   builder.add_attribute_list(attributeListOffsetsVector);
   builder.add_attribute_list_type(attributeListTypesVector);
   builder.add_equal_loc(equalLoc.o);
   builder.add_expression(expression);
   builder.add_expression_type(static_cast<io::Expression>(expressionType));
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
 
   offset_ = builder.Finish().Union();
 }
