@@ -177,6 +177,7 @@ class ASTVisitor {
   virtual void visit(AttributeDeclarationAST* ast) = 0;
   virtual void visit(OpaqueEnumDeclarationAST* ast) = 0;
   virtual void visit(UsingEnumDeclarationAST* ast) = 0;
+  virtual void visit(NestedNamespaceSpecifierAST* ast) = 0;
   virtual void visit(NamespaceDefinitionAST* ast) = 0;
   virtual void visit(NamespaceAliasDefinitionAST* ast) = 0;
   virtual void visit(UsingDirectiveAST* ast) = 0;

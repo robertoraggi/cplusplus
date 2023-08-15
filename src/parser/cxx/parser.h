@@ -445,6 +445,16 @@ class Parser final {
   auto parse_identifier_list() -> bool;
 
  private:
+  [[nodiscard]] auto lookat(auto... tokens) {
+    return lookatHelper(0, tokens...);
+  }
+
+  [[nodiscard]] auto lookatHelper(int) const { return true; }
+
+  [[nodiscard]] auto lookatHelper(int n, TokenKind tk, auto... rest) const {
+    return LA(n).is(tk) && lookatHelper(n + 1, rest...);
+  }
+
   [[nodiscard]] auto LA(int n = 0) const -> const Token&;
 
   auto match(TokenKind tk, SourceLocation& location) -> bool;

@@ -1079,6 +1079,15 @@ void ASTPrinter::visit(UsingEnumDeclarationAST* ast) {
   fmt::print(out_, "{}\n", "using-enum-declaration");
 }
 
+void ASTPrinter::visit(NestedNamespaceSpecifierAST* ast) {
+  fmt::print(out_, "{}\n", "nested-namespace-specifier");
+  accept(ast->namespaceName, "namespace-name");
+  ++indent_;
+  fmt::print(out_, "{:{}}", "", indent_ * 2);
+  fmt::print(out_, "is-inline: {}\n", ast->isInline);
+  --indent_;
+}
+
 void ASTPrinter::visit(NamespaceDefinitionAST* ast) {
   fmt::print(out_, "{}\n", "namespace-definition");
   if (ast->attributeList) {
@@ -1090,8 +1099,15 @@ void ASTPrinter::visit(NamespaceDefinitionAST* ast) {
     }
     --indent_;
   }
-  accept(ast->nestedNameSpecifier, "nested-name-specifier");
-  accept(ast->name, "name");
+  if (ast->nestedNamespaceSpecifierList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "nested-namespace-specifier-list");
+    for (auto it = ast->nestedNamespaceSpecifierList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
   if (ast->extraAttributeList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
@@ -1110,6 +1126,11 @@ void ASTPrinter::visit(NamespaceDefinitionAST* ast) {
     }
     --indent_;
   }
+  accept(ast->namespaceName, "namespace-name");
+  ++indent_;
+  fmt::print(out_, "{:{}}", "", indent_ * 2);
+  fmt::print(out_, "is-inline: {}\n", ast->isInline);
+  --indent_;
 }
 
 void ASTPrinter::visit(NamespaceAliasDefinitionAST* ast) {

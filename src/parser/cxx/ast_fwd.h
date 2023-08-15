@@ -221,6 +221,7 @@ class EmptyDeclarationAST;
 class AttributeDeclarationAST;
 class OpaqueEnumDeclarationAST;
 class UsingEnumDeclarationAST;
+class NestedNamespaceSpecifierAST;
 class NamespaceDefinitionAST;
 class NamespaceAliasDefinitionAST;
 class UsingDirectiveAST;

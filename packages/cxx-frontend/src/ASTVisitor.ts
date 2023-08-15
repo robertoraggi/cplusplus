@@ -173,6 +173,7 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitAttributeDeclaration(node: ast.AttributeDeclarationAST, context: Context): Result;
     abstract visitOpaqueEnumDeclaration(node: ast.OpaqueEnumDeclarationAST, context: Context): Result;
     abstract visitUsingEnumDeclaration(node: ast.UsingEnumDeclarationAST, context: Context): Result;
+    abstract visitNestedNamespaceSpecifier(node: ast.NestedNamespaceSpecifierAST, context: Context): Result;
     abstract visitNamespaceDefinition(node: ast.NamespaceDefinitionAST, context: Context): Result;
     abstract visitNamespaceAliasDefinition(node: ast.NamespaceAliasDefinitionAST, context: Context): Result;
     abstract visitUsingDirective(node: ast.UsingDirectiveAST, context: Context): Result;

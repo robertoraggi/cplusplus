@@ -169,6 +169,7 @@ export enum ASTKind {
     AttributeDeclaration,
     OpaqueEnumDeclaration,
     UsingEnumDeclaration,
+    NestedNamespaceSpecifier,
     NamespaceDefinition,
     NamespaceAliasDefinition,
     UsingDirective,

@@ -184,6 +184,11 @@ void RecursiveASTVisitor::acceptInitDeclarator(InitDeclaratorAST* ast) {
 
 void RecursiveASTVisitor::acceptEnumBase(EnumBaseAST* ast) { accept(ast); }
 
+void RecursiveASTVisitor::acceptNestedNamespaceSpecifier(
+    NestedNamespaceSpecifierAST* ast) {
+  accept(ast);
+}
+
 void RecursiveASTVisitor::acceptUsingDeclarator(UsingDeclaratorAST* ast) {
   accept(ast);
 }
@@ -816,12 +821,15 @@ void RecursiveASTVisitor::visit(OpaqueEnumDeclarationAST* ast) {
 
 void RecursiveASTVisitor::visit(UsingEnumDeclarationAST* ast) {}
 
+void RecursiveASTVisitor::visit(NestedNamespaceSpecifierAST* ast) {}
+
 void RecursiveASTVisitor::visit(NamespaceDefinitionAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) {
     acceptAttributeSpecifier(it->value);
   }
-  acceptNestedNameSpecifier(ast->nestedNameSpecifier);
-  acceptName(ast->name);
+  for (auto it = ast->nestedNamespaceSpecifierList; it; it = it->next) {
+    acceptNestedNamespaceSpecifier(it->value);
+  }
   for (auto it = ast->extraAttributeList; it; it = it->next) {
     acceptAttributeSpecifier(it->value);
   }

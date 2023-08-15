@@ -91,6 +91,7 @@ union Declaration {
   AttributeDeclaration,
   OpaqueEnumDeclaration,
   UsingEnumDeclaration,
+  NestedNamespaceSpecifier,
   NamespaceDefinition,
   NamespaceAliasDefinition,
   UsingDirective,
@@ -585,14 +586,22 @@ table OpaqueEnumDeclaration /* DeclarationAST */ {
 table UsingEnumDeclaration /* DeclarationAST */ {
 }
 
+table NestedNamespaceSpecifier /* DeclarationAST */ {
+  namespace_name: string;
+  inline_loc: SourceLocation;
+  identifier_loc: SourceLocation;
+  scope_loc: SourceLocation;
+}
+
 table NamespaceDefinition /* DeclarationAST */ {
   attribute_list: [AttributeSpecifier];
-  nested_name_specifier: NestedNameSpecifier;
-  name: Name;
+  nested_namespace_specifier_list: [NestedNamespaceSpecifier];
   extra_attribute_list: [AttributeSpecifier];
   declaration_list: [Declaration];
+  namespace_name: string;
   inline_loc: SourceLocation;
   namespace_loc: SourceLocation;
+  identifier_loc: SourceLocation;
   lbrace_loc: SourceLocation;
   rbrace_loc: SourceLocation;
 }
