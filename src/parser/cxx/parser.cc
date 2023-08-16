@@ -5778,7 +5778,12 @@ auto Parser::parse_namespace_definition(DeclarationAST*& yyast) -> bool {
     }
   }
 
-  match(TokenKind::T_IDENTIFIER, ast->identifierLoc);
+  if (ast->nestedNamespaceSpecifierList) {
+    ast->isInline = match(TokenKind::T_INLINE, ast->inlineLoc);
+    expect(TokenKind::T_IDENTIFIER, ast->identifierLoc);
+  } else {
+    match(TokenKind::T_IDENTIFIER, ast->identifierLoc);
+  }
 
   ast->namespaceName = unit->identifier(ast->identifierLoc);
 
