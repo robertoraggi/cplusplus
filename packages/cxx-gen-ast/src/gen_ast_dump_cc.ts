@@ -74,6 +74,18 @@ export function gen_ast_dump_cc({ ast, output }: { ast: AST; output: string }) {
           );
           emit(`    --indent_;`);
           emit(`  }`);
+        } else if (
+          member.kind == "attribute" &&
+          member.type.endsWith("TokenKind")
+        ) {
+          emit(`  if (ast->${member.name} != TokenKind::T_EOF_SYMBOL) {`);
+          emit(`    ++indent_;`);
+          emit(`    fmt::print(out_, "{:{}}", "", indent_ * 2);`);
+          emit(
+            `    fmt::print(out_, "${fieldName}: {}\\n", Token::spell(ast->${member.name}));`
+          );
+          emit(`    --indent_;`);
+          emit(`  }`);
         }
       });
       emit(`}`);

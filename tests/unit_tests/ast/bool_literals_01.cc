@@ -9,6 +9,7 @@ const bool ko = false;
 // CHECK-NEXT:      decl-specifier-list
 // CHECK-NEXT:        const-qualifier
 // CHECK-NEXT:        integral-type-specifier
+// CHECK-NEXT:          specifier: bool
 // CHECK-NEXT:      init-declarator-list
 // CHECK-NEXT:        init-declarator
 // CHECK-NEXT:          declarator: declarator
@@ -17,11 +18,12 @@ const bool ko = false;
 // CHECK-NEXT:                identifier: ok
 // CHECK-NEXT:          initializer: equal-initializer
 // CHECK-NEXT:            expression: bool-literal-expression
-// CHECK-NEXT:                value: true
+// CHECK-NEXT:              value: true
 // CHECK-NEXT:    simple-declaration
 // CHECK-NEXT:      decl-specifier-list
 // CHECK-NEXT:        const-qualifier
 // CHECK-NEXT:        integral-type-specifier
+// CHECK-NEXT:          specifier: bool
 // CHECK-NEXT:      init-declarator-list
 // CHECK-NEXT:        init-declarator
 // CHECK-NEXT:          declarator: declarator
@@ -30,4 +32,4 @@ const bool ko = false;
 // CHECK-NEXT:                identifier: ko
 // CHECK-NEXT:          initializer: equal-initializer
 // CHECK-NEXT:            expression: bool-literal-expression
-// CHECK-NEXT:                value: false
+// CHECK-NEXT:              value: false

@@ -638,6 +638,12 @@ void ASTPrinter::visit(FloatLiteralExpressionAST* ast) {
 
 void ASTPrinter::visit(NullptrLiteralExpressionAST* ast) {
   fmt::print(out_, "{}\n", "nullptr-literal-expression");
+  if (ast->literal != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "literal: {}\n", Token::spell(ast->literal));
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(StringLiteralExpressionAST* ast) {
@@ -679,17 +685,41 @@ void ASTPrinter::visit(NestedExpressionAST* ast) {
 void ASTPrinter::visit(RightFoldExpressionAST* ast) {
   fmt::print(out_, "{}\n", "right-fold-expression");
   accept(ast->expression, "expression");
+  if (ast->op != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "op: {}\n", Token::spell(ast->op));
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(LeftFoldExpressionAST* ast) {
   fmt::print(out_, "{}\n", "left-fold-expression");
   accept(ast->expression, "expression");
+  if (ast->op != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "op: {}\n", Token::spell(ast->op));
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(FoldExpressionAST* ast) {
   fmt::print(out_, "{}\n", "fold-expression");
   accept(ast->leftExpression, "left-expression");
   accept(ast->rightExpression, "right-expression");
+  if (ast->op != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "op: {}\n", Token::spell(ast->op));
+    --indent_;
+  }
+  if (ast->foldOp != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "fold-op: {}\n", Token::spell(ast->foldOp));
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(LambdaExpressionAST* ast) {
@@ -750,23 +780,47 @@ void ASTPrinter::visit(TypeTraitsExpressionAST* ast) {
     }
     --indent_;
   }
+  if (ast->typeTraits != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "type-traits: {}\n", Token::spell(ast->typeTraits));
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(UnaryExpressionAST* ast) {
   fmt::print(out_, "{}\n", "unary-expression");
   accept(ast->expression, "expression");
+  if (ast->op != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "op: {}\n", Token::spell(ast->op));
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(BinaryExpressionAST* ast) {
   fmt::print(out_, "{}\n", "binary-expression");
   accept(ast->leftExpression, "left-expression");
   accept(ast->rightExpression, "right-expression");
+  if (ast->op != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "op: {}\n", Token::spell(ast->op));
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(AssignmentExpressionAST* ast) {
   fmt::print(out_, "{}\n", "assignment-expression");
   accept(ast->leftExpression, "left-expression");
   accept(ast->rightExpression, "right-expression");
+  if (ast->op != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "op: {}\n", Token::spell(ast->op));
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(BracedTypeConstructionAST* ast) {
@@ -813,11 +867,23 @@ void ASTPrinter::visit(MemberExpressionAST* ast) {
   fmt::print(out_, "{}\n", "member-expression");
   accept(ast->baseExpression, "base-expression");
   accept(ast->name, "name");
+  if (ast->accessOp != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "access-op: {}\n", Token::spell(ast->accessOp));
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(PostIncrExpressionAST* ast) {
   fmt::print(out_, "{}\n", "post-incr-expression");
   accept(ast->baseExpression, "base-expression");
+  if (ast->op != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "op: {}\n", Token::spell(ast->op));
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(ConditionalExpressionAST* ast) {
@@ -1379,6 +1445,12 @@ void ASTPrinter::visit(DecltypeNameAST* ast) {
 
 void ASTPrinter::visit(OperatorNameAST* ast) {
   fmt::print(out_, "{}\n", "operator-name");
+  if (ast->op != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "op: {}\n", Token::spell(ast->op));
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(ConversionNameAST* ast) {
@@ -1469,14 +1541,32 @@ void ASTPrinter::visit(VoidTypeSpecifierAST* ast) {
 
 void ASTPrinter::visit(VaListTypeSpecifierAST* ast) {
   fmt::print(out_, "{}\n", "va-list-type-specifier");
+  if (ast->specifier != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "specifier: {}\n", Token::spell(ast->specifier));
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(IntegralTypeSpecifierAST* ast) {
   fmt::print(out_, "{}\n", "integral-type-specifier");
+  if (ast->specifier != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "specifier: {}\n", Token::spell(ast->specifier));
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(FloatingPointTypeSpecifierAST* ast) {
   fmt::print(out_, "{}\n", "floating-point-type-specifier");
+  if (ast->specifier != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "specifier: {}\n", Token::spell(ast->specifier));
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(ComplexTypeSpecifierAST* ast) {
@@ -1644,6 +1734,12 @@ void ASTPrinter::visit(ReferenceOperatorAST* ast) {
     for (auto it = ast->attributeList; it; it = it->next) {
       accept(it->value);
     }
+    --indent_;
+  }
+  if (ast->refOp != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "ref-op: {}\n", Token::spell(ast->refOp));
     --indent_;
   }
 }
