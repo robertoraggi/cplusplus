@@ -18,7 +18,6 @@ enum class Kind3 : int {
   k3 = 2,
 };
 
-// clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list
 // CHECK-NEXT:    simple-declaration
@@ -59,6 +58,7 @@ enum class Kind3 : int {
 // CHECK-NEXT:          enum-base: enum-base
 // CHECK-NEXT:            type-specifier-list
 // CHECK-NEXT:              integral-type-specifier
+// CHECK-NEXT:                specifier: int
 // CHECK-NEXT:          enumerator-list
 // CHECK-NEXT:            enumerator
 // CHECK-NEXT:              expression: int-literal-expression
