@@ -382,8 +382,10 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
       auto ast = new (pool) BoolLiteralExpressionAST();
       yyast = ast;
 
+      const auto value = LA().is(TokenKind::T_TRUE);
+
       ast->literalLoc = consumeToken();
-      ast->literal = unit->tokenKind(ast->literalLoc);
+      ast->value = value;
 
       return true;
     }

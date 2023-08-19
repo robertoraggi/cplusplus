@@ -1021,7 +1021,7 @@ class BoolLiteralExpressionAST final : public ExpressionAST {
   BoolLiteralExpressionAST() : ExpressionAST(ASTKind::BoolLiteralExpression) {}
 
   SourceLocation literalLoc;
-  TokenKind literal = TokenKind::T_EOF_SYMBOL;
+  bool value = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
