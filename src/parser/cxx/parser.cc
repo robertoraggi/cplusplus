@@ -1083,7 +1083,7 @@ auto Parser::parse_simple_capture(LambdaCaptureAST*& yyast) -> bool {
     return true;
   }
 
-  if (LA().is(TokenKind::T_STAR) && LA(1).is(TokenKind::T_THIS)) {
+  if (lookat(TokenKind::T_STAR, TokenKind::T_THIS)) {
     auto ast = new (pool) DerefThisLambdaCaptureAST();
     yyast = ast;
 
@@ -2723,7 +2723,7 @@ auto Parser::parse_statement(StatementAST*& yyast) -> bool {
       return false;
     }
     default:
-      if (LA().is(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_COLON)) {
+      if (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_COLON)) {
         return parse_labeled_statement(yyast);
       }
 
@@ -7698,7 +7698,7 @@ auto Parser::parse_template_type_parameter(DeclarationAST*& yyast) -> bool {
     parse_error("expected a type parameter");
   }
 
-  if ((LA().is(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_EQUAL)) ||
+  if (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_EQUAL) ||
       LA().is(TokenKind::T_EQUAL)) {
     auto ast = new (pool) TemplateTypeParameterAST();
     yyast = ast;
@@ -7764,7 +7764,7 @@ auto Parser::parse_constraint_type_parameter(DeclarationAST*& yyast) -> bool {
     return false;
   }
 
-  if ((LA().is(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_EQUAL)) ||
+  if (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_EQUAL) ||
       LA().is(TokenKind::T_EQUAL)) {
     SourceLocation identifierLoc;
 
