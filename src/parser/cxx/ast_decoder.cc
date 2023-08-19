@@ -1499,7 +1499,6 @@ auto ASTDecoder::decodeBoolLiteralExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) BoolLiteralExpressionAST();
-  ast->literal = static_cast<TokenKind>(node->literal());
   return ast;
 }
 

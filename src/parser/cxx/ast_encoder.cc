@@ -1702,7 +1702,6 @@ void ASTEncoder::visit(BoolLiteralExpressionAST* ast) {
 
   io::BoolLiteralExpression::Builder builder{fbb_};
   builder.add_literal_loc(literalLoc.o);
-  builder.add_literal(static_cast<std::uint32_t>(ast->literal));
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_BoolLiteralExpression;

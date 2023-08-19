@@ -610,6 +610,10 @@ void ASTPrinter::visit(CharLiteralExpressionAST* ast) {
 
 void ASTPrinter::visit(BoolLiteralExpressionAST* ast) {
   fmt::print(out_, "{}\n", "bool-literal-expression");
+  ++indent_;
+  fmt::print(out_, "{:{}}", "", indent_ * 2);
+  fmt::print(out_, "value: {}\n", ast->value);
+  --indent_;
 }
 
 void ASTPrinter::visit(IntLiteralExpressionAST* ast) {

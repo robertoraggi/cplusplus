@@ -760,7 +760,6 @@ table CharLiteralExpression /* ExpressionAST */ {
 }
 
 table BoolLiteralExpression /* ExpressionAST */ {
-  literal: uint32;
   literal_loc: SourceLocation;
 }
 
