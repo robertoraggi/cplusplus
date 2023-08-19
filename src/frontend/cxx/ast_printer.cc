@@ -109,6 +109,7 @@ void ASTPrinter::visit(EnumBaseAST* ast) {
 
 void ASTPrinter::visit(EnumeratorAST* ast) {
   fmt::print(out_, "{}\n", "enumerator");
+  accept(ast->identifier, "identifier");
   if (ast->attributeList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
@@ -119,7 +120,6 @@ void ASTPrinter::visit(EnumeratorAST* ast) {
     --indent_;
   }
   accept(ast->expression, "expression");
-  accept(ast->identifier, "identifier");
 }
 
 void ASTPrinter::visit(DeclaratorAST* ast) {
@@ -450,14 +450,14 @@ void ASTPrinter::visit(RefLambdaCaptureAST* ast) {
 
 void ASTPrinter::visit(RefInitLambdaCaptureAST* ast) {
   fmt::print(out_, "{}\n", "ref-init-lambda-capture");
-  accept(ast->initializer, "initializer");
   accept(ast->identifier, "identifier");
+  accept(ast->initializer, "initializer");
 }
 
 void ASTPrinter::visit(InitLambdaCaptureAST* ast) {
   fmt::print(out_, "{}\n", "init-lambda-capture");
-  accept(ast->initializer, "initializer");
   accept(ast->identifier, "identifier");
+  accept(ast->initializer, "initializer");
 }
 
 void ASTPrinter::visit(EqualInitializerAST* ast) {
@@ -684,30 +684,28 @@ void ASTPrinter::visit(NestedExpressionAST* ast) {
 
 void ASTPrinter::visit(RightFoldExpressionAST* ast) {
   fmt::print(out_, "{}\n", "right-fold-expression");
-  accept(ast->expression, "expression");
   if (ast->op != TokenKind::T_EOF_SYMBOL) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
     fmt::print(out_, "op: {}\n", Token::spell(ast->op));
     --indent_;
   }
+  accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(LeftFoldExpressionAST* ast) {
   fmt::print(out_, "{}\n", "left-fold-expression");
-  accept(ast->expression, "expression");
   if (ast->op != TokenKind::T_EOF_SYMBOL) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
     fmt::print(out_, "op: {}\n", Token::spell(ast->op));
     --indent_;
   }
+  accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(FoldExpressionAST* ast) {
   fmt::print(out_, "{}\n", "fold-expression");
-  accept(ast->leftExpression, "left-expression");
-  accept(ast->rightExpression, "right-expression");
   if (ast->op != TokenKind::T_EOF_SYMBOL) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
@@ -720,6 +718,8 @@ void ASTPrinter::visit(FoldExpressionAST* ast) {
     fmt::print(out_, "fold-op: {}\n", Token::spell(ast->foldOp));
     --indent_;
   }
+  accept(ast->leftExpression, "left-expression");
+  accept(ast->rightExpression, "right-expression");
 }
 
 void ASTPrinter::visit(LambdaExpressionAST* ast) {
@@ -771,6 +771,12 @@ void ASTPrinter::visit(AlignofExpressionAST* ast) {
 
 void ASTPrinter::visit(TypeTraitsExpressionAST* ast) {
   fmt::print(out_, "{}\n", "type-traits-expression");
+  if (ast->typeTraits != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "type-traits: {}\n", Token::spell(ast->typeTraits));
+    --indent_;
+  }
   if (ast->typeIdList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
@@ -780,47 +786,41 @@ void ASTPrinter::visit(TypeTraitsExpressionAST* ast) {
     }
     --indent_;
   }
-  if (ast->typeTraits != TokenKind::T_EOF_SYMBOL) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "type-traits: {}\n", Token::spell(ast->typeTraits));
-    --indent_;
-  }
 }
 
 void ASTPrinter::visit(UnaryExpressionAST* ast) {
   fmt::print(out_, "{}\n", "unary-expression");
-  accept(ast->expression, "expression");
   if (ast->op != TokenKind::T_EOF_SYMBOL) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
     fmt::print(out_, "op: {}\n", Token::spell(ast->op));
     --indent_;
   }
+  accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(BinaryExpressionAST* ast) {
   fmt::print(out_, "{}\n", "binary-expression");
-  accept(ast->leftExpression, "left-expression");
-  accept(ast->rightExpression, "right-expression");
   if (ast->op != TokenKind::T_EOF_SYMBOL) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
     fmt::print(out_, "op: {}\n", Token::spell(ast->op));
     --indent_;
   }
+  accept(ast->leftExpression, "left-expression");
+  accept(ast->rightExpression, "right-expression");
 }
 
 void ASTPrinter::visit(AssignmentExpressionAST* ast) {
   fmt::print(out_, "{}\n", "assignment-expression");
-  accept(ast->leftExpression, "left-expression");
-  accept(ast->rightExpression, "right-expression");
   if (ast->op != TokenKind::T_EOF_SYMBOL) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
     fmt::print(out_, "op: {}\n", Token::spell(ast->op));
     --indent_;
   }
+  accept(ast->leftExpression, "left-expression");
+  accept(ast->rightExpression, "right-expression");
 }
 
 void ASTPrinter::visit(BracedTypeConstructionAST* ast) {
@@ -865,25 +865,25 @@ void ASTPrinter::visit(SubscriptExpressionAST* ast) {
 
 void ASTPrinter::visit(MemberExpressionAST* ast) {
   fmt::print(out_, "{}\n", "member-expression");
-  accept(ast->baseExpression, "base-expression");
-  accept(ast->name, "name");
   if (ast->accessOp != TokenKind::T_EOF_SYMBOL) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
     fmt::print(out_, "access-op: {}\n", Token::spell(ast->accessOp));
     --indent_;
   }
+  accept(ast->baseExpression, "base-expression");
+  accept(ast->name, "name");
 }
 
 void ASTPrinter::visit(PostIncrExpressionAST* ast) {
   fmt::print(out_, "{}\n", "post-incr-expression");
-  accept(ast->baseExpression, "base-expression");
   if (ast->op != TokenKind::T_EOF_SYMBOL) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
     fmt::print(out_, "op: {}\n", Token::spell(ast->op));
     --indent_;
   }
+  accept(ast->baseExpression, "base-expression");
 }
 
 void ASTPrinter::visit(ConditionalExpressionAST* ast) {
@@ -933,8 +933,8 @@ void ASTPrinter::visit(NoexceptExpressionAST* ast) {
 
 void ASTPrinter::visit(LabeledStatementAST* ast) {
   fmt::print(out_, "{}\n", "labeled-statement");
-  accept(ast->statement, "statement");
   accept(ast->identifier, "identifier");
+  accept(ast->statement, "statement");
 }
 
 void ASTPrinter::visit(CaseStatementAST* ast) {
@@ -1092,6 +1092,7 @@ void ASTPrinter::visit(ForRangeDeclarationAST* ast) {
 
 void ASTPrinter::visit(AliasDeclarationAST* ast) {
   fmt::print(out_, "{}\n", "alias-declaration");
+  accept(ast->identifier, "identifier");
   if (ast->attributeList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
@@ -1102,7 +1103,6 @@ void ASTPrinter::visit(AliasDeclarationAST* ast) {
     --indent_;
   }
   accept(ast->typeId, "type-id");
-  accept(ast->identifier, "identifier");
 }
 
 void ASTPrinter::visit(SimpleDeclarationAST* ast) {
@@ -1139,13 +1139,13 @@ void ASTPrinter::visit(SimpleDeclarationAST* ast) {
 
 void ASTPrinter::visit(StaticAssertDeclarationAST* ast) {
   fmt::print(out_, "{}\n", "static-assert-declaration");
-  accept(ast->expression, "expression");
   if (ast->literal) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
     fmt::print(out_, "literal: {}\n", ast->literal->value());
     --indent_;
   }
+  accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(EmptyDeclarationAST* ast) {
@@ -1196,6 +1196,11 @@ void ASTPrinter::visit(NestedNamespaceSpecifierAST* ast) {
 
 void ASTPrinter::visit(NamespaceDefinitionAST* ast) {
   fmt::print(out_, "{}\n", "namespace-definition");
+  accept(ast->namespaceName, "namespace-name");
+  ++indent_;
+  fmt::print(out_, "{:{}}", "", indent_ * 2);
+  fmt::print(out_, "is-inline: {}\n", ast->isInline);
+  --indent_;
   if (ast->attributeList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
@@ -1232,18 +1237,13 @@ void ASTPrinter::visit(NamespaceDefinitionAST* ast) {
     }
     --indent_;
   }
-  accept(ast->namespaceName, "namespace-name");
-  ++indent_;
-  fmt::print(out_, "{:{}}", "", indent_ * 2);
-  fmt::print(out_, "is-inline: {}\n", ast->isInline);
-  --indent_;
 }
 
 void ASTPrinter::visit(NamespaceAliasDefinitionAST* ast) {
   fmt::print(out_, "{}\n", "namespace-alias-definition");
+  accept(ast->identifier, "identifier");
   accept(ast->nestedNameSpecifier, "nested-name-specifier");
   accept(ast->name, "name");
-  accept(ast->identifier, "identifier");
 }
 
 void ASTPrinter::visit(UsingDirectiveAST* ast) {
@@ -1276,6 +1276,12 @@ void ASTPrinter::visit(UsingDeclarationAST* ast) {
 
 void ASTPrinter::visit(AsmDeclarationAST* ast) {
   fmt::print(out_, "{}\n", "asm-declaration");
+  if (ast->literal) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "literal: {}\n", ast->literal->value());
+    --indent_;
+  }
   if (ast->attributeList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
@@ -1283,12 +1289,6 @@ void ASTPrinter::visit(AsmDeclarationAST* ast) {
     for (auto it = ast->attributeList; it; it = it->next) {
       accept(it->value);
     }
-    --indent_;
-  }
-  if (ast->literal) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "literal: {}\n", ast->literal->value());
     --indent_;
   }
 }
@@ -1342,12 +1342,13 @@ void ASTPrinter::visit(TemplateDeclarationAST* ast) {
 
 void ASTPrinter::visit(TypenameTypeParameterAST* ast) {
   fmt::print(out_, "{}\n", "typename-type-parameter");
-  accept(ast->typeId, "type-id");
   accept(ast->identifier, "identifier");
+  accept(ast->typeId, "type-id");
 }
 
 void ASTPrinter::visit(TemplateTypeParameterAST* ast) {
   fmt::print(out_, "{}\n", "template-type-parameter");
+  accept(ast->identifier, "identifier");
   if (ast->templateParameterList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
@@ -1359,11 +1360,11 @@ void ASTPrinter::visit(TemplateTypeParameterAST* ast) {
   }
   accept(ast->requiresClause, "requires-clause");
   accept(ast->name, "name");
-  accept(ast->identifier, "identifier");
 }
 
 void ASTPrinter::visit(TemplatePackTypeParameterAST* ast) {
   fmt::print(out_, "{}\n", "template-pack-type-parameter");
+  accept(ast->identifier, "identifier");
   if (ast->templateParameterList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
@@ -1373,7 +1374,6 @@ void ASTPrinter::visit(TemplatePackTypeParameterAST* ast) {
     }
     --indent_;
   }
-  accept(ast->identifier, "identifier");
 }
 
 void ASTPrinter::visit(DeductionGuideAST* ast) {
@@ -1411,6 +1411,12 @@ void ASTPrinter::visit(ParameterDeclarationAST* ast) {
 
 void ASTPrinter::visit(LinkageSpecificationAST* ast) {
   fmt::print(out_, "{}\n", "linkage-specification");
+  if (ast->stringLiteral) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "string-literal: {}\n", ast->stringLiteral->value());
+    --indent_;
+  }
   if (ast->declarationList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
@@ -1418,12 +1424,6 @@ void ASTPrinter::visit(LinkageSpecificationAST* ast) {
     for (auto it = ast->declarationList; it; it = it->next) {
       accept(it->value);
     }
-    --indent_;
-  }
-  if (ast->stringLiteral) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "string-literal: {}\n", ast->stringLiteral->value());
     --indent_;
   }
 }
@@ -1727,6 +1727,12 @@ void ASTPrinter::visit(PointerOperatorAST* ast) {
 
 void ASTPrinter::visit(ReferenceOperatorAST* ast) {
   fmt::print(out_, "{}\n", "reference-operator");
+  if (ast->refOp != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "ref-op: {}\n", Token::spell(ast->refOp));
+    --indent_;
+  }
   if (ast->attributeList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
@@ -1734,12 +1740,6 @@ void ASTPrinter::visit(ReferenceOperatorAST* ast) {
     for (auto it = ast->attributeList; it; it = it->next) {
       accept(it->value);
     }
-    --indent_;
-  }
-  if (ast->refOp != TokenKind::T_EOF_SYMBOL) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "ref-op: {}\n", Token::spell(ast->refOp));
     --indent_;
   }
 }
