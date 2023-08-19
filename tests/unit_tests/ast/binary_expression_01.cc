@@ -58,15 +58,15 @@ int c = a + b * c;
 // CHECK-NEXT:                identifier: c
 // CHECK-NEXT:          initializer: equal-initializer
 // CHECK-NEXT:            expression: binary-expression
+// CHECK-NEXT:              op: +
 // CHECK-NEXT:              left-expression: id-expression
 // CHECK-NEXT:                name: simple-name
 // CHECK-NEXT:                  identifier: a
 // CHECK-NEXT:              right-expression: binary-expression
+// CHECK-NEXT:                op: *
 // CHECK-NEXT:                left-expression: id-expression
 // CHECK-NEXT:                  name: simple-name
 // CHECK-NEXT:                    identifier: b
 // CHECK-NEXT:                right-expression: id-expression
 // CHECK-NEXT:                  name: simple-name
 // CHECK-NEXT:                    identifier: c
-// CHECK-NEXT:                op: *
-// CHECK-NEXT:              op: +

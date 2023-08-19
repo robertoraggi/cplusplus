@@ -39,17 +39,17 @@ enum class Kind3 : int {
 // CHECK-NEXT:            identifier: Kind2
 // CHECK-NEXT:          enumerator-list
 // CHECK-NEXT:            enumerator
+// CHECK-NEXT:              identifier: k1
 // CHECK-NEXT:              expression: int-literal-expression
 // CHECK-NEXT:                literal: 0
-// CHECK-NEXT:              identifier: k1
 // CHECK-NEXT:            enumerator
+// CHECK-NEXT:              identifier: k2
 // CHECK-NEXT:              expression: int-literal-expression
 // CHECK-NEXT:                literal: 1
-// CHECK-NEXT:              identifier: k2
 // CHECK-NEXT:            enumerator
+// CHECK-NEXT:              identifier: k3
 // CHECK-NEXT:              expression: int-literal-expression
 // CHECK-NEXT:                literal: 2
-// CHECK-NEXT:              identifier: k3
 // CHECK-NEXT:    simple-declaration
 // CHECK-NEXT:      decl-specifier-list
 // CHECK-NEXT:        enum-specifier
@@ -61,14 +61,14 @@ enum class Kind3 : int {
 // CHECK-NEXT:                specifier: int
 // CHECK-NEXT:          enumerator-list
 // CHECK-NEXT:            enumerator
+// CHECK-NEXT:              identifier: k1
 // CHECK-NEXT:              expression: int-literal-expression
 // CHECK-NEXT:                literal: 0
-// CHECK-NEXT:              identifier: k1
 // CHECK-NEXT:            enumerator
+// CHECK-NEXT:              identifier: k2
 // CHECK-NEXT:              expression: int-literal-expression
 // CHECK-NEXT:                literal: 1
-// CHECK-NEXT:              identifier: k2
 // CHECK-NEXT:            enumerator
+// CHECK-NEXT:              identifier: k3
 // CHECK-NEXT:              expression: int-literal-expression
 // CHECK-NEXT:                literal: 2
-// CHECK-NEXT:              identifier: k3

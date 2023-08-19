@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 import { groupNodesByBaseType } from "./groupNodesByBaseType.js";
-import { AST } from "./parseAST.js";
+import { AST, Member } from "./parseAST.js";
 import { cpy_header } from "./cpy_header.js";
 import * as fs from "fs";
 
@@ -34,60 +34,62 @@ export function gen_ast_dump_cc({ ast, output }: { ast: AST; output: string }) {
 
   const astName = (name: string) => toKebapName(name.slice(0, -3)).slice(1);
 
+  const dumpMember = (member: Member) => {
+    const fieldName = toKebapName(member.name);
+    if (member.kind === "node-list") {
+      emit(`  if (ast->${member.name}) {`);
+      emit(`    ++indent_;`);
+      emit(`    fmt::print(out_, "{:{}}", "", indent_ * 2);`);
+      emit(`    fmt::print(out_, "{}\\n", "${fieldName}");`);
+      emit(`    for (auto it = ast->${member.name}; it; it = it->next) {`);
+      emit(`      accept(it->value);`);
+      emit(`    }`);
+      emit(`    --indent_;`);
+      emit(`  }`);
+    } else if (member.kind === "node") {
+      emit(`  accept(ast->${member.name}, "${fieldName}");`);
+    } else if (member.kind == "attribute" && member.type === "Identifier") {
+      emit(`  accept(ast->${member.name}, "${fieldName}");`);
+    } else if (member.kind == "attribute" && member.type === "bool") {
+      emit(`  ++indent_;`);
+      emit(`  fmt::print(out_, "{:{}}", "", indent_ * 2);`);
+      emit(`  fmt::print(out_, "${fieldName}: {}\\n", ast->${member.name});`);
+      emit(`  --indent_;`);
+    } else if (member.kind == "attribute" && member.type.endsWith("Literal")) {
+      emit(`  if (ast->${member.name}) {`);
+      emit(`    ++indent_;`);
+      emit(`    fmt::print(out_, "{:{}}", "", indent_ * 2);`);
+      emit(
+        `    fmt::print(out_, "${fieldName}: {}\\n", ast->${member.name}->value());`
+      );
+      emit(`    --indent_;`);
+      emit(`  }`);
+    } else if (
+      member.kind == "attribute" &&
+      member.type.endsWith("TokenKind")
+    ) {
+      emit(`  if (ast->${member.name} != TokenKind::T_EOF_SYMBOL) {`);
+      emit(`    ++indent_;`);
+      emit(`    fmt::print(out_, "{:{}}", "", indent_ * 2);`);
+      emit(
+        `    fmt::print(out_, "${fieldName}: {}\\n", Token::spell(ast->${member.name}));`
+      );
+      emit(`    --indent_;`);
+      emit(`  }`);
+    }
+  };
+
   by_base.forEach((nodes) => {
     nodes.forEach(({ name, members }) => {
       emit();
       emit(`void ASTPrinter::visit(${name}* ast) {`);
       emit(`  fmt::print(out_, "{}\\n", "${astName(name)}");`);
-      members.forEach((member) => {
-        const fieldName = toKebapName(member.name);
-        if (member.kind === "node-list") {
-          emit(`  if (ast->${member.name}) {`);
-          emit(`    ++indent_;`);
-          emit(`    fmt::print(out_, "{:{}}", "", indent_ * 2);`);
-          emit(`    fmt::print(out_, "{}\\n", "${fieldName}");`);
-          emit(`    for (auto it = ast->${member.name}; it; it = it->next) {`);
-          emit(`      accept(it->value);`);
-          emit(`    }`);
-          emit(`    --indent_;`);
-          emit(`  }`);
-        } else if (member.kind === "node") {
-          emit(`  accept(ast->${member.name}, "${fieldName}");`);
-        } else if (member.kind == "attribute" && member.type === "Identifier") {
-          emit(`  accept(ast->${member.name}, "${fieldName}");`);
-        } else if (member.kind == "attribute" && member.type === "bool") {
-          emit(`  ++indent_;`);
-          emit(`  fmt::print(out_, "{:{}}", "", indent_ * 2);`);
-          emit(
-            `  fmt::print(out_, "${fieldName}: {}\\n", ast->${member.name});`
-          );
-          emit(`  --indent_;`);
-        } else if (
-          member.kind == "attribute" &&
-          member.type.endsWith("Literal")
-        ) {
-          emit(`  if (ast->${member.name}) {`);
-          emit(`    ++indent_;`);
-          emit(`    fmt::print(out_, "{:{}}", "", indent_ * 2);`);
-          emit(
-            `    fmt::print(out_, "${fieldName}: {}\\n", ast->${member.name}->value());`
-          );
-          emit(`    --indent_;`);
-          emit(`  }`);
-        } else if (
-          member.kind == "attribute" &&
-          member.type.endsWith("TokenKind")
-        ) {
-          emit(`  if (ast->${member.name} != TokenKind::T_EOF_SYMBOL) {`);
-          emit(`    ++indent_;`);
-          emit(`    fmt::print(out_, "{:{}}", "", indent_ * 2);`);
-          emit(
-            `    fmt::print(out_, "${fieldName}: {}\\n", Token::spell(ast->${member.name}));`
-          );
-          emit(`    --indent_;`);
-          emit(`  }`);
-        }
-      });
+      members
+        .filter((m) => m.kind === "attribute")
+        .forEach((member) => dumpMember(member));
+      members
+        .filter((m) => m.kind !== "attribute")
+        .forEach((member) => dumpMember(member));
       emit(`}`);
     });
   });
