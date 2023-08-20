@@ -2976,19 +2976,22 @@ export class ClassSpecifierAST extends SpecifierAST {
     getName(): NameAST | undefined {
         return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
     }
+    getFinalToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
     getBaseClause(): BaseClauseAST | undefined {
-        return AST.from<BaseClauseAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+        return AST.from<BaseClauseAST>(cxx.getASTSlot(this.getHandle(), 4), this.parser);
     }
     getLbraceToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+        return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
     }
     *getDeclarationList(): Generator<DeclarationAST | undefined> {
-        for (let it = cxx.getASTSlot(this.getHandle(), 5); it; it = cxx.getListNext(it)) {
+        for (let it = cxx.getASTSlot(this.getHandle(), 6); it; it = cxx.getListNext(it)) {
             yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
         }
     }
     getRbraceToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+        return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
     }
 }
 

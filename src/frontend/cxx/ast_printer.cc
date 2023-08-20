@@ -1656,6 +1656,10 @@ void ASTPrinter::visit(EnumSpecifierAST* ast) {
 
 void ASTPrinter::visit(ClassSpecifierAST* ast) {
   fmt::print(out_, "{}\n", "class-specifier");
+  ++indent_;
+  fmt::print(out_, "{:{}}", "", indent_ * 2);
+  fmt::print(out_, "is-final: {}\n", ast->isFinal);
+  --indent_;
   if (ast->attributeList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);

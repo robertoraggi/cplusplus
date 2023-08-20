@@ -3539,24 +3539,28 @@ void ASTSlot::visit(ClassSpecifierAST* ast) {
       slotKind_ = ASTSlotKind::kNode;
       break;
     case 3:
+      value_ = ast->finalLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 4:
       value_ = reinterpret_cast<std::intptr_t>(ast->baseClause);
       slotKind_ = ASTSlotKind::kNode;
       break;
-    case 4:
+    case 5:
       value_ = ast->lbraceLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       break;
-    case 5:
+    case 6:
       value_ = reinterpret_cast<std::intptr_t>(ast->declarationList);
       slotKind_ = ASTSlotKind::kNodeList;
       break;
-    case 6:
+    case 7:
       value_ = ast->rbraceLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       break;
   }  // switch
 
-  slotCount_ = 7;
+  slotCount_ = 8;
 }
 
 void ASTSlot::visit(TypenameSpecifierAST* ast) {
