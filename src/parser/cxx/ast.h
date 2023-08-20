@@ -2788,10 +2788,12 @@ class ClassSpecifierAST final : public SpecifierAST {
   SourceLocation classLoc;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   NameAST* name = nullptr;
+  SourceLocation finalLoc;
   BaseClauseAST* baseClause = nullptr;
   SourceLocation lbraceLoc;
   List<DeclarationAST*>* declarationList = nullptr;
   SourceLocation rbraceLoc;
+  bool isFinal = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

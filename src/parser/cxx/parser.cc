@@ -237,16 +237,11 @@ auto Parser::parse(UnitAST*& ast) -> bool {
   return parsed;
 }
 
-auto Parser::parse_id(const Identifier* id) -> bool {
-  SourceLocation identifierLoc;
-  return parse_id(id, identifierLoc);
-}
-
 auto Parser::parse_id(const Identifier* id, SourceLocation& loc) -> bool {
-  SourceLocation location;
-  if (!match(TokenKind::T_IDENTIFIER, location)) return false;
-  if (unit->identifier(location) != id) return false;
-  loc = location;
+  loc = {};
+  if (LA().isNot(TokenKind::T_IDENTIFIER)) return false;
+  if (unit->identifier(currentLocation()) != id)return false;
+  loc = consumeToken();
   return true;
 }
 
@@ -336,9 +331,13 @@ auto Parser::parse_module_keyword(SourceLocation& loc) -> bool {
   return true;
 }
 
-auto Parser::parse_final() -> bool { return parse_id(final_id); }
+auto Parser::parse_final(SourceLocation& loc) -> bool {
+  return parse_id(final_id, loc);
+}
 
-auto Parser::parse_override() -> bool { return parse_id(override_id); }
+auto Parser::parse_override(SourceLocation& loc) -> bool {
+  return parse_id(override_id, loc);
+}
 
 auto Parser::parse_type_name(NameAST*& yyast) -> bool {
   const auto start = currentLocation();
@@ -468,7 +467,9 @@ auto Parser::parse_module_head() -> bool {
 
   match(TokenKind::T_EXPORT, exportLoc);
 
-  const auto is_module = parse_id(module_id);
+  SourceLocation moduleLoc;
+
+  const auto is_module = parse_id(module_id, moduleLoc);
 
   rewind(start);
 
@@ -5405,9 +5406,11 @@ auto Parser::parse_expr_or_braced_init_list(ExpressionAST*& yyast) -> bool {
 }
 
 auto Parser::parse_virt_specifier_seq() -> bool {
-  if (!parse_virt_specifier()) return false;
+  SourceLocation finalLoc;
 
-  while (parse_virt_specifier()) {
+  if (!parse_virt_specifier(finalLoc)) return false;
+
+  while (parse_virt_specifier(finalLoc)) {
     //
   }
 
@@ -6624,8 +6627,10 @@ auto Parser::parse_class_specifier(SpecifierAST*& yyast) -> bool {
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   NameAST* className = nullptr;
   BaseClauseAST* baseClause = nullptr;
+  SourceLocation finalLoc;
 
-  if (!parse_class_head(classLoc, attributeList, className, baseClause)) {
+  if (!parse_class_head(classLoc, attributeList, className, finalLoc,
+                        baseClause)) {
     class_specifiers_.emplace(
         start,
         std::make_tuple(currentLocation(),
@@ -6651,8 +6656,13 @@ auto Parser::parse_class_specifier(SpecifierAST*& yyast) -> bool {
   ast->classLoc = classLoc;
   ast->attributeList = attributeList;
   ast->name = className;
+  ast->finalLoc = finalLoc;
   ast->baseClause = baseClause;
   ast->lbraceLoc = lbraceLoc;
+
+  if (finalLoc) {
+    ast->isFinal = true;
+  }
 
   if (!match(TokenKind::T_RBRACE, ast->rbraceLoc)) {
     if (!parse_class_body(ast->declarationList)) {
@@ -6700,14 +6710,14 @@ auto Parser::parse_class_body(List<DeclarationAST*>*& yyast) -> bool {
 
 auto Parser::parse_class_head(SourceLocation& classLoc,
                               List<AttributeSpecifierAST*>*& attributeList,
-                              NameAST*& name, BaseClauseAST*& baseClause)
-    -> bool {
+                              NameAST*& name, SourceLocation& finalLoc,
+                              BaseClauseAST*& baseClause) -> bool {
   if (!parse_class_key(classLoc)) return false;
 
   parse_attribute_specifier_seq(attributeList);
 
   if (parse_class_head_name(name)) {
-    parse_class_virt_specifier();
+    parse_class_virt_specifier(finalLoc);
   }
 
   parse_base_clause(baseClause);
@@ -6733,8 +6743,8 @@ auto Parser::parse_class_head_name(NameAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_class_virt_specifier() -> bool {
-  if (!parse_final()) return false;
+auto Parser::parse_class_virt_specifier(SourceLocation& finalLoc) -> bool {
+  if (!parse_final(finalLoc)) return false;
 
   return true;
 }
@@ -7028,10 +7038,10 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
   return true;
 }
 
-auto Parser::parse_virt_specifier() -> bool {
-  if (parse_final()) return true;
+auto Parser::parse_virt_specifier(SourceLocation& loc) -> bool {
+  if (parse_final(loc)) return true;
 
-  if (parse_override()) return true;
+  if (parse_override(loc)) return true;
 
   return false;
 }

@@ -18,21 +18,25 @@ class DerivedClass3 : virtual public EmptyClass {};
 // CHECK-NEXT:    simple-declaration
 // CHECK-NEXT:      decl-specifier-list
 // CHECK-NEXT:        class-specifier
+// CHECK-NEXT:          is-final: false
 // CHECK-NEXT:          name: simple-name
 // CHECK-NEXT:            identifier: EmptyClass
 // CHECK-NEXT:    simple-declaration
 // CHECK-NEXT:      decl-specifier-list
 // CHECK-NEXT:        class-specifier
+// CHECK-NEXT:          is-final: false
 // CHECK-NEXT:          name: simple-name
 // CHECK-NEXT:            identifier: OtherEmptyClass
 // CHECK-NEXT:    simple-declaration
 // CHECK-NEXT:      decl-specifier-list
 // CHECK-NEXT:        class-specifier
+// CHECK-NEXT:          is-final: true
 // CHECK-NEXT:          name: simple-name
 // CHECK-NEXT:            identifier: FinalClass
 // CHECK-NEXT:    simple-declaration
 // CHECK-NEXT:      decl-specifier-list
 // CHECK-NEXT:        class-specifier
+// CHECK-NEXT:          is-final: false
 // CHECK-NEXT:          name: simple-name
 // CHECK-NEXT:            identifier: DerivedClass
 // CHECK-NEXT:          base-clause: base-clause
@@ -43,6 +47,7 @@ class DerivedClass3 : virtual public EmptyClass {};
 // CHECK-NEXT:    simple-declaration
 // CHECK-NEXT:      decl-specifier-list
 // CHECK-NEXT:        class-specifier
+// CHECK-NEXT:          is-final: false
 // CHECK-NEXT:          name: simple-name
 // CHECK-NEXT:            identifier: DerivedClass2
 // CHECK-NEXT:          base-clause: base-clause
@@ -56,6 +61,7 @@ class DerivedClass3 : virtual public EmptyClass {};
 // CHECK-NEXT:    simple-declaration
 // CHECK-NEXT:      decl-specifier-list
 // CHECK-NEXT:        class-specifier
+// CHECK-NEXT:          is-final: false
 // CHECK-NEXT:          name: simple-name
 // CHECK-NEXT:            identifier: DerivedClass3
 // CHECK-NEXT:          base-clause: base-clause

@@ -1354,6 +1354,7 @@ table ClassSpecifier /* SpecifierAST */ {
   base_clause: BaseClause;
   declaration_list: [Declaration];
   class_loc: SourceLocation;
+  final_loc: SourceLocation;
   lbrace_loc: SourceLocation;
   rbrace_loc: SourceLocation;
 }

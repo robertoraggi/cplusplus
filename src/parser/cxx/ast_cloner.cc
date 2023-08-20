@@ -3110,6 +3110,8 @@ void ASTCloner::visit(ClassSpecifierAST* ast) {
 
   copy->name = accept(ast->name);
 
+  copy->finalLoc = ast->finalLoc;
+
   copy->baseClause = accept(ast->baseClause);
 
   copy->lbraceLoc = ast->lbraceLoc;
@@ -3124,6 +3126,8 @@ void ASTCloner::visit(ClassSpecifierAST* ast) {
   }
 
   copy->rbraceLoc = ast->rbraceLoc;
+
+  copy->isFinal = ast->isFinal;
 }
 
 void ASTCloner::visit(TypenameSpecifierAST* ast) {

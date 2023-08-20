@@ -97,7 +97,6 @@ class Parser final {
     return true;
   }
 
-  auto parse_id(const Identifier* id) -> bool;
   auto parse_id(const Identifier* id, SourceLocation& loc) -> bool;
   auto parse_nospace() -> bool;
   auto parse_greater_greater() -> bool;
@@ -107,8 +106,8 @@ class Parser final {
   auto parse_export_keyword(SourceLocation& loc) -> bool;
   auto parse_import_keyword(SourceLocation& loc) -> bool;
   auto parse_module_keyword(SourceLocation& loc) -> bool;
-  auto parse_final() -> bool;
-  auto parse_override() -> bool;
+  auto parse_final(SourceLocation& loc) -> bool;
+  auto parse_override(SourceLocation& loc) -> bool;
   auto parse_name_id(NameAST*& yyast) -> bool;
   auto parse_literal(ExpressionAST*& yyast) -> bool;
   auto parse_translation_unit(UnitAST*& yyast) -> bool;
@@ -383,9 +382,10 @@ class Parser final {
   auto parse_class_body(List<DeclarationAST*>*& yyast) -> bool;
   auto parse_class_head(SourceLocation& classLoc,
                         List<AttributeSpecifierAST*>*& attributeList,
-                        NameAST*& name, BaseClauseAST*& baseClause) -> bool;
+                        NameAST*& name, SourceLocation& finalLoc,
+                        BaseClauseAST*& baseClause) -> bool;
   auto parse_class_head_name(NameAST*& yyast) -> bool;
-  auto parse_class_virt_specifier() -> bool;
+  auto parse_class_virt_specifier(SourceLocation& loc) -> bool;
   auto parse_class_key(SourceLocation& classLoc) -> bool;
   auto parse_member_specification(DeclarationAST*& yyast) -> bool;
   auto parse_member_declaration(DeclarationAST*& yyast) -> bool;
@@ -395,7 +395,7 @@ class Parser final {
                                     const DeclSpecs& specs) -> bool;
   auto parse_member_declarator(InitDeclaratorAST*& yyast,
                                const DeclSpecs& specs) -> bool;
-  auto parse_virt_specifier() -> bool;
+  auto parse_virt_specifier(SourceLocation& loc) -> bool;
   auto parse_pure_specifier() -> bool;
   auto parse_conversion_function_id(NameAST*& yyast) -> bool;
   auto parse_base_clause(BaseClauseAST*& yyast) -> bool;

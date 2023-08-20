@@ -4475,6 +4475,8 @@ void ASTEncoder::visit(ClassSpecifierAST* ast) {
 
   const auto [name, nameType] = acceptName(ast->name);
 
+  auto finalLoc = encodeSourceLocation(ast->finalLoc);
+
   const auto baseClause = accept(ast->baseClause);
 
   auto lbraceLoc = encodeSourceLocation(ast->lbraceLoc);
@@ -4500,6 +4502,7 @@ void ASTEncoder::visit(ClassSpecifierAST* ast) {
   builder.add_attribute_list_type(attributeListTypesVector);
   builder.add_name(name);
   builder.add_name_type(static_cast<io::Name>(nameType));
+  builder.add_final_loc(finalLoc.o);
   builder.add_base_clause(baseClause.o);
   builder.add_lbrace_loc(lbraceLoc.o);
   builder.add_declaration_list(declarationListOffsetsVector);
