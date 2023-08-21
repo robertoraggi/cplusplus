@@ -5690,20 +5690,21 @@ auto Parser::parse_enumerator(EnumeratorAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_using_enum_declaration(DeclarationAST*& yyasts) -> bool {
-  SourceLocation usingLoc;
+auto Parser::parse_using_enum_declaration(DeclarationAST*& yyast) -> bool {
+  if (!lookat(TokenKind::T_USING, TokenKind::T_ENUM)) return false;
 
-  if (!match(TokenKind::T_USING, usingLoc)) return false;
+  auto ast = new (pool) UsingEnumDeclarationAST();
+  yyast = ast;
 
-  ElaboratedTypeSpecifierAST* enumSpecifier = nullptr;
+  expect(TokenKind::T_USING, ast->usingLoc);
 
   DeclSpecs specs;
 
-  if (!parse_elaborated_enum_specifier(enumSpecifier, specs)) return false;
+  if (!parse_elaborated_enum_specifier(ast->enumTypeSpecifier, specs)) {
+    parse_error("expected an elaborated enum specifier");
+  }
 
-  SourceLocation semicolonLoc;
-
-  if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return false;
+  expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
 
   return true;
 }
@@ -6789,8 +6790,6 @@ auto Parser::parse_member_declaration(DeclarationAST*& yyast) -> bool {
 
   if (LA().is(TokenKind::T_USING)) {
     if (parse_using_enum_declaration(yyast)) return true;
-
-    rewind(start);
 
     if (parse_alias_declaration(yyast)) return true;
 

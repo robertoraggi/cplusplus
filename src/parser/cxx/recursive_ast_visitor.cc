@@ -193,6 +193,11 @@ void RecursiveASTVisitor::acceptUsingDeclarator(UsingDeclaratorAST* ast) {
   accept(ast);
 }
 
+void RecursiveASTVisitor::acceptElaboratedTypeSpecifier(
+    ElaboratedTypeSpecifierAST* ast) {
+  accept(ast);
+}
+
 void RecursiveASTVisitor::acceptImportName(ImportNameAST* ast) { accept(ast); }
 
 void RecursiveASTVisitor::acceptTemplateArgument(TemplateArgumentAST* ast) {
@@ -818,8 +823,6 @@ void RecursiveASTVisitor::visit(OpaqueEnumDeclarationAST* ast) {
   acceptEnumBase(ast->enumBase);
 }
 
-void RecursiveASTVisitor::visit(UsingEnumDeclarationAST* ast) {}
-
 void RecursiveASTVisitor::visit(NestedNamespaceSpecifierAST* ast) {}
 
 void RecursiveASTVisitor::visit(NamespaceDefinitionAST* ast) {
@@ -854,6 +857,10 @@ void RecursiveASTVisitor::visit(UsingDeclarationAST* ast) {
   for (auto it = ast->usingDeclaratorList; it; it = it->next) {
     acceptUsingDeclarator(it->value);
   }
+}
+
+void RecursiveASTVisitor::visit(UsingEnumDeclarationAST* ast) {
+  acceptElaboratedTypeSpecifier(ast->enumTypeSpecifier);
 }
 
 void RecursiveASTVisitor::visit(AsmDeclarationAST* ast) {

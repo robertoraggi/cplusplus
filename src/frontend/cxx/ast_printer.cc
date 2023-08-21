@@ -1199,10 +1199,6 @@ void ASTPrinter::visit(OpaqueEnumDeclarationAST* ast) {
   accept(ast->enumBase, "enum-base");
 }
 
-void ASTPrinter::visit(UsingEnumDeclarationAST* ast) {
-  fmt::print(out_, "{}\n", "using-enum-declaration");
-}
-
 void ASTPrinter::visit(NestedNamespaceSpecifierAST* ast) {
   fmt::print(out_, "{}\n", "nested-namespace-specifier");
   accept(ast->namespaceName, "namespace-name");
@@ -1290,6 +1286,11 @@ void ASTPrinter::visit(UsingDeclarationAST* ast) {
     }
     --indent_;
   }
+}
+
+void ASTPrinter::visit(UsingEnumDeclarationAST* ast) {
+  fmt::print(out_, "{}\n", "using-enum-declaration");
+  accept(ast->enumTypeSpecifier, "enum-type-specifier");
 }
 
 void ASTPrinter::visit(AsmDeclarationAST* ast) {

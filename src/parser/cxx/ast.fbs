@@ -90,12 +90,12 @@ union Declaration {
   EmptyDeclaration,
   AttributeDeclaration,
   OpaqueEnumDeclaration,
-  UsingEnumDeclaration,
   NestedNamespaceSpecifier,
   NamespaceDefinition,
   NamespaceAliasDefinition,
   UsingDirective,
   UsingDeclaration,
+  UsingEnumDeclaration,
   AsmDeclaration,
   ExportDeclaration,
   ExportCompoundDeclaration,
@@ -586,9 +586,6 @@ table OpaqueEnumDeclaration /* DeclarationAST */ {
   emicolon_loc: SourceLocation;
 }
 
-table UsingEnumDeclaration /* DeclarationAST */ {
-}
-
 table NestedNamespaceSpecifier /* DeclarationAST */ {
   namespace_name: string;
   inline_loc: SourceLocation;
@@ -630,6 +627,12 @@ table UsingDirective /* DeclarationAST */ {
 
 table UsingDeclaration /* DeclarationAST */ {
   using_declarator_list: [UsingDeclarator];
+  using_loc: SourceLocation;
+  semicolon_loc: SourceLocation;
+}
+
+table UsingEnumDeclaration /* DeclarationAST */ {
+  enum_type_specifier: ElaboratedTypeSpecifier;
   using_loc: SourceLocation;
   semicolon_loc: SourceLocation;
 }

@@ -2004,16 +2004,6 @@ class OpaqueEnumDeclarationAST final : public DeclarationAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class UsingEnumDeclarationAST final : public DeclarationAST {
- public:
-  UsingEnumDeclarationAST() : DeclarationAST(ASTKind::UsingEnumDeclaration) {}
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
 class NestedNamespaceSpecifierAST final : public DeclarationAST {
  public:
   NestedNamespaceSpecifierAST()
@@ -2095,6 +2085,20 @@ class UsingDeclarationAST final : public DeclarationAST {
 
   SourceLocation usingLoc;
   List<UsingDeclaratorAST*>* usingDeclaratorList = nullptr;
+  SourceLocation semicolonLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class UsingEnumDeclarationAST final : public DeclarationAST {
+ public:
+  UsingEnumDeclarationAST() : DeclarationAST(ASTKind::UsingEnumDeclaration) {}
+
+  SourceLocation usingLoc;
+  ElaboratedTypeSpecifierAST* enumTypeSpecifier = nullptr;
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
