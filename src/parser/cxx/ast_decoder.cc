@@ -2913,6 +2913,7 @@ auto ASTDecoder::decodeElaboratedTypeSpecifier(
   ast->nestedNameSpecifier =
       decodeNestedNameSpecifier(node->nested_name_specifier());
   ast->name = decodeName(node->name(), node->name_type());
+  ast->classKey = static_cast<TokenKind>(node->class_key());
   return ast;
 }
 

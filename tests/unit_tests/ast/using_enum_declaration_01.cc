@@ -28,5 +28,6 @@ struct S {
 // CHECK-NEXT:          declaration-list
 // CHECK-NEXT:            using-enum-declaration
 // CHECK-NEXT:              enum-type-specifier: elaborated-type-specifier
+// CHECK-NEXT:                class-key: enum
 // CHECK-NEXT:                name: simple-name
 // CHECK-NEXT:                  identifier: fruit

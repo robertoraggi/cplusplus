@@ -4343,6 +4343,7 @@ auto Parser::parse_elaborated_type_specifier_helper(
       ast->classLoc = classLoc;
       ast->attributeList = attributes;
       ast->name = name;
+      ast->classKey = unit->tokenKind(classLoc);
 
       return true;
     }
@@ -4369,6 +4370,7 @@ auto Parser::parse_elaborated_type_specifier_helper(
     ast->classLoc = classLoc;
     ast->attributeList = attributes;
     ast->name = name;
+    ast->classKey = unit->tokenKind(classLoc);
 
     return true;
   }
@@ -4391,6 +4393,7 @@ auto Parser::parse_elaborated_type_specifier_helper(
     ast->attributeList = attributes;
     ast->nestedNameSpecifier = nestedNameSpecifier;
     ast->name = name;
+    ast->classKey = unit->tokenKind(classLoc);
 
     return true;
   }
@@ -4406,6 +4409,7 @@ auto Parser::parse_elaborated_type_specifier_helper(
     ast->attributeList = attributes;
     ast->nestedNameSpecifier = nestedNameSpecifier;
     ast->name = nullptr;  // error
+    ast->classKey = unit->tokenKind(classLoc);
 
     return true;
   }
@@ -4423,6 +4427,7 @@ auto Parser::parse_elaborated_type_specifier_helper(
   ast->attributeList = attributes;
   ast->nestedNameSpecifier = nestedNameSpecifier;
   ast->name = name;
+  ast->classKey = unit->tokenKind(classLoc);
 
   return true;
 }
@@ -4451,6 +4456,7 @@ auto Parser::parse_elaborated_enum_specifier(ElaboratedTypeSpecifierAST*& yyast,
   ast->classLoc = enumLoc;
   ast->nestedNameSpecifier = nestedNameSpecifier;
   ast->name = name;
+  ast->classKey = TokenKind::T_ENUM;
 
   return true;
 }

@@ -2680,6 +2680,7 @@ class ElaboratedTypeSpecifierAST final : public SpecifierAST {
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   NameAST* name = nullptr;
+  TokenKind classKey = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

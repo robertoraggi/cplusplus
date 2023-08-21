@@ -4324,6 +4324,7 @@ void ASTEncoder::visit(ElaboratedTypeSpecifierAST* ast) {
   builder.add_nested_name_specifier(nestedNameSpecifier.o);
   builder.add_name(name);
   builder.add_name_type(static_cast<io::Name>(nameType));
+  builder.add_class_key(static_cast<std::uint32_t>(ast->classKey));
 
   offset_ = builder.Finish().Union();
   type_ = io::Specifier_ElaboratedTypeSpecifier;
