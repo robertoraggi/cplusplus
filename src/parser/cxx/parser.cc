@@ -7316,15 +7316,26 @@ auto Parser::parse_mem_initializer_id(NameAST*& yyast) -> bool {
 
   NameAST* name = nullptr;
 
-  if (parse_class_or_decltype(name)) return true;
+  if (parse_class_or_decltype(name)) {
+    yyast = name;
+    return true;
+  }
 
   rewind(start);
 
   SourceLocation identifierLoc;
 
-  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
+  if (match(TokenKind::T_IDENTIFIER, identifierLoc)) {
+    auto name = new (pool) SimpleNameAST();
+    yyast = name;
+    name->identifierLoc = identifierLoc;
+    name->identifier = unit->identifier(identifierLoc);
+    return true;
+  }
 
-  return true;
+  rewind(start);
+
+  return false;
 }
 
 auto Parser::parse_operator_function_id(NameAST*& yyast) -> bool {
