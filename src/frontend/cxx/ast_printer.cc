@@ -1608,6 +1608,12 @@ void ASTPrinter::visit(UnderlyingTypeSpecifierAST* ast) {
 
 void ASTPrinter::visit(ElaboratedTypeSpecifierAST* ast) {
   fmt::print(out_, "{}\n", "elaborated-type-specifier");
+  if (ast->classKey != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "class-key: {}\n", Token::spell(ast->classKey));
+    --indent_;
+  }
   if (ast->attributeList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);

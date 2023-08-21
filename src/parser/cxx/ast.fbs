@@ -1306,6 +1306,7 @@ table ElaboratedTypeSpecifier /* SpecifierAST */ {
   attribute_list: [AttributeSpecifier];
   nested_name_specifier: NestedNameSpecifier;
   name: Name;
+  class_key: uint32;
   class_loc: SourceLocation;
 }
 

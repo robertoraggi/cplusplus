@@ -2992,6 +2992,8 @@ void ASTCloner::visit(ElaboratedTypeSpecifierAST* ast) {
   copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
 
   copy->name = accept(ast->name);
+
+  copy->classKey = ast->classKey;
 }
 
 void ASTCloner::visit(DecltypeAutoSpecifierAST* ast) {
