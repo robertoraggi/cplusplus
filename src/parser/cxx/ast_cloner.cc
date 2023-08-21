@@ -2227,13 +2227,6 @@ void ASTCloner::visit(OpaqueEnumDeclarationAST* ast) {
   copy->emicolonLoc = ast->emicolonLoc;
 }
 
-void ASTCloner::visit(UsingEnumDeclarationAST* ast) {
-  auto copy = new (arena_) UsingEnumDeclarationAST();
-  copy_ = copy;
-
-  copy->setChecked(ast->checked());
-}
-
 void ASTCloner::visit(NestedNamespaceSpecifierAST* ast) {
   auto copy = new (arena_) NestedNamespaceSpecifierAST();
   copy_ = copy;
@@ -2371,6 +2364,19 @@ void ASTCloner::visit(UsingDeclarationAST* ast) {
       out = &(*out)->next;
     }
   }
+
+  copy->semicolonLoc = ast->semicolonLoc;
+}
+
+void ASTCloner::visit(UsingEnumDeclarationAST* ast) {
+  auto copy = new (arena_) UsingEnumDeclarationAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->usingLoc = ast->usingLoc;
+
+  copy->enumTypeSpecifier = accept(ast->enumTypeSpecifier);
 
   copy->semicolonLoc = ast->semicolonLoc;
 }

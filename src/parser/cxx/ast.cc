@@ -1826,14 +1826,6 @@ auto OpaqueEnumDeclarationAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto UsingEnumDeclarationAST::firstSourceLocation() -> SourceLocation {
-  return {};
-}
-
-auto UsingEnumDeclarationAST::lastSourceLocation() -> SourceLocation {
-  return {};
-}
-
 auto NestedNamespaceSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(inlineLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
@@ -1926,6 +1918,20 @@ auto UsingDeclarationAST::firstSourceLocation() -> SourceLocation {
 auto UsingDeclarationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(usingDeclaratorList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(usingLoc)) return loc;
+  return {};
+}
+
+auto UsingEnumDeclarationAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(usingLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(enumTypeSpecifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
+  return {};
+}
+
+auto UsingEnumDeclarationAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(enumTypeSpecifier)) return loc;
   if (auto loc = cxx::lastSourceLocation(usingLoc)) return loc;
   return {};
 }

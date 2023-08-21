@@ -73,6 +73,7 @@ class RecursiveASTVisitor : public ASTVisitor {
   virtual void acceptEnumBase(EnumBaseAST* ast);
   virtual void acceptNestedNamespaceSpecifier(NestedNamespaceSpecifierAST* ast);
   virtual void acceptUsingDeclarator(UsingDeclaratorAST* ast);
+  virtual void acceptElaboratedTypeSpecifier(ElaboratedTypeSpecifierAST* ast);
   virtual void acceptImportName(ImportNameAST* ast);
   virtual void acceptTemplateArgument(TemplateArgumentAST* ast);
   virtual void acceptEnumerator(EnumeratorAST* ast);
@@ -218,12 +219,12 @@ class RecursiveASTVisitor : public ASTVisitor {
   void visit(EmptyDeclarationAST* ast) override;
   void visit(AttributeDeclarationAST* ast) override;
   void visit(OpaqueEnumDeclarationAST* ast) override;
-  void visit(UsingEnumDeclarationAST* ast) override;
   void visit(NestedNamespaceSpecifierAST* ast) override;
   void visit(NamespaceDefinitionAST* ast) override;
   void visit(NamespaceAliasDefinitionAST* ast) override;
   void visit(UsingDirectiveAST* ast) override;
   void visit(UsingDeclarationAST* ast) override;
+  void visit(UsingEnumDeclarationAST* ast) override;
   void visit(AsmDeclarationAST* ast) override;
   void visit(ExportDeclarationAST* ast) override;
   void visit(ExportCompoundDeclarationAST* ast) override;

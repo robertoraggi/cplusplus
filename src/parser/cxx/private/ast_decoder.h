@@ -317,8 +317,6 @@ class ASTDecoder {
       -> AttributeDeclarationAST*;
   auto decodeOpaqueEnumDeclaration(const io::OpaqueEnumDeclaration* node)
       -> OpaqueEnumDeclarationAST*;
-  auto decodeUsingEnumDeclaration(const io::UsingEnumDeclaration* node)
-      -> UsingEnumDeclarationAST*;
   auto decodeNestedNamespaceSpecifier(const io::NestedNamespaceSpecifier* node)
       -> NestedNamespaceSpecifierAST*;
   auto decodeNamespaceDefinition(const io::NamespaceDefinition* node)
@@ -329,6 +327,8 @@ class ASTDecoder {
       -> UsingDirectiveAST*;
   auto decodeUsingDeclaration(const io::UsingDeclaration* node)
       -> UsingDeclarationAST*;
+  auto decodeUsingEnumDeclaration(const io::UsingEnumDeclaration* node)
+      -> UsingEnumDeclarationAST*;
   auto decodeAsmDeclaration(const io::AsmDeclaration* node)
       -> AsmDeclarationAST*;
   auto decodeExportDeclaration(const io::ExportDeclaration* node)

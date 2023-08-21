@@ -416,9 +416,6 @@ auto ASTDecoder::decodeDeclaration(const void* ptr, io::Declaration type)
     case io::Declaration_OpaqueEnumDeclaration:
       return decodeOpaqueEnumDeclaration(
           reinterpret_cast<const io::OpaqueEnumDeclaration*>(ptr));
-    case io::Declaration_UsingEnumDeclaration:
-      return decodeUsingEnumDeclaration(
-          reinterpret_cast<const io::UsingEnumDeclaration*>(ptr));
     case io::Declaration_NestedNamespaceSpecifier:
       return decodeNestedNamespaceSpecifier(
           reinterpret_cast<const io::NestedNamespaceSpecifier*>(ptr));
@@ -434,6 +431,9 @@ auto ASTDecoder::decodeDeclaration(const void* ptr, io::Declaration type)
     case io::Declaration_UsingDeclaration:
       return decodeUsingDeclaration(
           reinterpret_cast<const io::UsingDeclaration*>(ptr));
+    case io::Declaration_UsingEnumDeclaration:
+      return decodeUsingEnumDeclaration(
+          reinterpret_cast<const io::UsingEnumDeclaration*>(ptr));
     case io::Declaration_AsmDeclaration:
       return decodeAsmDeclaration(
           reinterpret_cast<const io::AsmDeclaration*>(ptr));
@@ -2304,14 +2304,6 @@ auto ASTDecoder::decodeOpaqueEnumDeclaration(
   return ast;
 }
 
-auto ASTDecoder::decodeUsingEnumDeclaration(
-    const io::UsingEnumDeclaration* node) -> UsingEnumDeclarationAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) UsingEnumDeclarationAST();
-  return ast;
-}
-
 auto ASTDecoder::decodeNestedNamespaceSpecifier(
     const io::NestedNamespaceSpecifier* node) -> NestedNamespaceSpecifierAST* {
   if (!node) return nullptr;
@@ -2420,6 +2412,16 @@ auto ASTDecoder::decodeUsingDeclaration(const io::UsingDeclaration* node)
       inserter = &(*inserter)->next;
     }
   }
+  return ast;
+}
+
+auto ASTDecoder::decodeUsingEnumDeclaration(
+    const io::UsingEnumDeclaration* node) -> UsingEnumDeclarationAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) UsingEnumDeclarationAST();
+  ast->enumTypeSpecifier =
+      decodeElaboratedTypeSpecifier(node->enum_type_specifier());
   return ast;
 }
 

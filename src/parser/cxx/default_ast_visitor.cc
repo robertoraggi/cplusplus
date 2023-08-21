@@ -531,10 +531,6 @@ void DefaultASTVisitor::visit(OpaqueEnumDeclarationAST* ast) {
   cxx_runtime_error("visit(OpaqueEnumDeclarationAST): not implemented");
 }
 
-void DefaultASTVisitor::visit(UsingEnumDeclarationAST* ast) {
-  cxx_runtime_error("visit(UsingEnumDeclarationAST): not implemented");
-}
-
 void DefaultASTVisitor::visit(NestedNamespaceSpecifierAST* ast) {
   cxx_runtime_error("visit(NestedNamespaceSpecifierAST): not implemented");
 }
@@ -553,6 +549,10 @@ void DefaultASTVisitor::visit(UsingDirectiveAST* ast) {
 
 void DefaultASTVisitor::visit(UsingDeclarationAST* ast) {
   cxx_runtime_error("visit(UsingDeclarationAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(UsingEnumDeclarationAST* ast) {
+  cxx_runtime_error("visit(UsingEnumDeclarationAST): not implemented");
 }
 
 void DefaultASTVisitor::visit(AsmDeclarationAST* ast) {

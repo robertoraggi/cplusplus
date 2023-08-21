@@ -3245,13 +3245,6 @@ void ASTEncoder::visit(OpaqueEnumDeclarationAST* ast) {
   type_ = io::Declaration_OpaqueEnumDeclaration;
 }
 
-void ASTEncoder::visit(UsingEnumDeclarationAST* ast) {
-  io::UsingEnumDeclaration::Builder builder{fbb_};
-
-  offset_ = builder.Finish().Union();
-  type_ = io::Declaration_UsingEnumDeclaration;
-}
-
 void ASTEncoder::visit(NestedNamespaceSpecifierAST* ast) {
   auto inlineLoc = encodeSourceLocation(ast->inlineLoc);
 
@@ -3477,6 +3470,22 @@ void ASTEncoder::visit(UsingDeclarationAST* ast) {
 
   offset_ = builder.Finish().Union();
   type_ = io::Declaration_UsingDeclaration;
+}
+
+void ASTEncoder::visit(UsingEnumDeclarationAST* ast) {
+  auto usingLoc = encodeSourceLocation(ast->usingLoc);
+
+  const auto enumTypeSpecifier = accept(ast->enumTypeSpecifier);
+
+  auto semicolonLoc = encodeSourceLocation(ast->semicolonLoc);
+
+  io::UsingEnumDeclaration::Builder builder{fbb_};
+  builder.add_using_loc(usingLoc.o);
+  builder.add_enum_type_specifier(enumTypeSpecifier.o);
+  builder.add_semicolon_loc(semicolonLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Declaration_UsingEnumDeclaration;
 }
 
 void ASTEncoder::visit(AsmDeclarationAST* ast) {

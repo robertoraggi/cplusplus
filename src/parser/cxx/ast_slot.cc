@@ -2525,12 +2525,6 @@ void ASTSlot::visit(OpaqueEnumDeclarationAST* ast) {
   slotCount_ = 7;
 }
 
-void ASTSlot::visit(UsingEnumDeclarationAST* ast) {
-  switch (slot_) {}  // switch
-
-  slotCount_ = 0;
-}
-
 void ASTSlot::visit(NestedNamespaceSpecifierAST* ast) {
   switch (slot_) {
     case 0:
@@ -2665,6 +2659,25 @@ void ASTSlot::visit(UsingDeclarationAST* ast) {
     case 1:
       value_ = reinterpret_cast<std::intptr_t>(ast->usingDeclaratorList);
       slotKind_ = ASTSlotKind::kNodeList;
+      break;
+    case 2:
+      value_ = ast->semicolonLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
+
+  slotCount_ = 3;
+}
+
+void ASTSlot::visit(UsingEnumDeclarationAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->usingLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->enumTypeSpecifier);
+      slotKind_ = ASTSlotKind::kNode;
       break;
     case 2:
       value_ = ast->semicolonLoc.index();

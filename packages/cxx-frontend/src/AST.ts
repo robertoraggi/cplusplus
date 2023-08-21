@@ -2131,12 +2131,6 @@ export class OpaqueEnumDeclarationAST extends DeclarationAST {
     }
 }
 
-export class UsingEnumDeclarationAST extends DeclarationAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitUsingEnumDeclaration(this, context);
-    }
-}
-
 export class NestedNamespaceSpecifierAST extends DeclarationAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitNestedNamespaceSpecifier(this, context);
@@ -2254,6 +2248,21 @@ export class UsingDeclarationAST extends DeclarationAST {
         for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
             yield AST.from<UsingDeclaratorAST>(cxx.getListValue(it), this.parser);
         }
+    }
+    getSemicolonToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+}
+
+export class UsingEnumDeclarationAST extends DeclarationAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitUsingEnumDeclaration(this, context);
+    }
+    getUsingToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getEnumTypeSpecifier(): ElaboratedTypeSpecifierAST | undefined {
+        return AST.from<ElaboratedTypeSpecifierAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
     }
     getSemicolonToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
@@ -3363,12 +3372,12 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Transl
     EmptyDeclarationAST,
     AttributeDeclarationAST,
     OpaqueEnumDeclarationAST,
-    UsingEnumDeclarationAST,
     NestedNamespaceSpecifierAST,
     NamespaceDefinitionAST,
     NamespaceAliasDefinitionAST,
     UsingDirectiveAST,
     UsingDeclarationAST,
+    UsingEnumDeclarationAST,
     AsmDeclarationAST,
     ExportDeclarationAST,
     ExportCompoundDeclarationAST,

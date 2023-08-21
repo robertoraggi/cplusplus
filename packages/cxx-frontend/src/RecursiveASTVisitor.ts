@@ -660,9 +660,6 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         this.accept(node.getEnumBase(), context);
     }
 
-    visitUsingEnumDeclaration(node: ast.UsingEnumDeclarationAST, context: Context): void {
-    }
-
     visitNestedNamespaceSpecifier(node: ast.NestedNamespaceSpecifierAST, context: Context): void {
     }
 
@@ -698,6 +695,10 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         for (const element of node.getUsingDeclaratorList()) {
             this.accept(element, context);
         }
+    }
+
+    visitUsingEnumDeclaration(node: ast.UsingEnumDeclarationAST, context: Context): void {
+        this.accept(node.getEnumTypeSpecifier(), context);
     }
 
     visitAsmDeclaration(node: ast.AsmDeclarationAST, context: Context): void {
