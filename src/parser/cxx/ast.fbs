@@ -515,6 +515,7 @@ table NestedDeclarator /* CoreDeclaratorAST */ {
 }
 
 table AccessDeclaration /* DeclarationAST */ {
+  access_specifier: uint32;
   access_loc: SourceLocation;
   colon_loc: SourceLocation;
 }

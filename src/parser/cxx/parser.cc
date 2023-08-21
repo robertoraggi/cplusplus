@@ -6780,6 +6780,8 @@ auto Parser::parse_member_declaration(DeclarationAST*& yyast) -> bool {
     ast->accessLoc = accessLoc;
     expect(TokenKind::T_COLON, ast->colonLoc);
 
+    ast->accessSpecifier = unit->tokenKind(ast->accessLoc);
+
     return true;
   }
 
