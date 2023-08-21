@@ -1009,7 +1009,9 @@ void RecursiveASTVisitor::visit(AtomicTypeSpecifierAST* ast) {
   acceptTypeId(ast->typeId);
 }
 
-void RecursiveASTVisitor::visit(UnderlyingTypeSpecifierAST* ast) {}
+void RecursiveASTVisitor::visit(UnderlyingTypeSpecifierAST* ast) {
+  acceptTypeId(ast->typeId);
+}
 
 void RecursiveASTVisitor::visit(ElaboratedTypeSpecifierAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) {

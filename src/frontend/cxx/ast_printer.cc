@@ -1604,6 +1604,7 @@ void ASTPrinter::visit(AtomicTypeSpecifierAST* ast) {
 
 void ASTPrinter::visit(UnderlyingTypeSpecifierAST* ast) {
   fmt::print(out_, "{}\n", "underlying-type-specifier");
+  accept(ast->typeId, "type-id");
 }
 
 void ASTPrinter::visit(ElaboratedTypeSpecifierAST* ast) {

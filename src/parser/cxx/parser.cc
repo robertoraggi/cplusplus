@@ -4147,19 +4147,18 @@ auto Parser::parse_underlying_type_specifier(SpecifierAST*& yyast,
 
   if (!match(TokenKind::T___UNDERLYING_TYPE, underlyingTypeLoc)) return false;
 
-  SourceLocation lparenLoc;
-
-  expect(TokenKind::T_LPAREN, lparenLoc);
-
-  TypeIdAST* typeId = nullptr;
-
-  if (!parse_type_id(typeId)) parse_error("expected type id");
-
-  SourceLocation rparenLoc;
-
-  expect(TokenKind::T_RPAREN, rparenLoc);
-
   specs.has_named_typespec = true;
+
+  auto ast = new (pool) UnderlyingTypeSpecifierAST();
+  yyast = ast;
+
+  ast->underlyingTypeLoc = underlyingTypeLoc;
+
+  expect(TokenKind::T_LPAREN, ast->lparenLoc);
+
+  if (!parse_type_id(ast->typeId)) parse_error("expected type id");
+
+  expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   return true;
 }

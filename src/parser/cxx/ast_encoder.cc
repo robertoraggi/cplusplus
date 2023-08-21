@@ -4290,7 +4290,19 @@ void ASTEncoder::visit(AtomicTypeSpecifierAST* ast) {
 }
 
 void ASTEncoder::visit(UnderlyingTypeSpecifierAST* ast) {
+  auto underlyingTypeLoc = encodeSourceLocation(ast->underlyingTypeLoc);
+
+  auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
+
+  const auto typeId = accept(ast->typeId);
+
+  auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
+
   io::UnderlyingTypeSpecifier::Builder builder{fbb_};
+  builder.add_underlying_type_loc(underlyingTypeLoc.o);
+  builder.add_lparen_loc(lparenLoc.o);
+  builder.add_type_id(typeId.o);
+  builder.add_rparen_loc(rparenLoc.o);
 
   offset_ = builder.Finish().Union();
   type_ = io::Specifier_UnderlyingTypeSpecifier;

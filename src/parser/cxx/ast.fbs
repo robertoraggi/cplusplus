@@ -1300,6 +1300,10 @@ table AtomicTypeSpecifier /* SpecifierAST */ {
 }
 
 table UnderlyingTypeSpecifier /* SpecifierAST */ {
+  type_id: TypeId;
+  underlying_type_loc: SourceLocation;
+  lparen_loc: SourceLocation;
+  rparen_loc: SourceLocation;
 }
 
 table ElaboratedTypeSpecifier /* SpecifierAST */ {
