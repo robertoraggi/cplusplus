@@ -2665,6 +2665,11 @@ class UnderlyingTypeSpecifierAST final : public SpecifierAST {
   UnderlyingTypeSpecifierAST()
       : SpecifierAST(ASTKind::UnderlyingTypeSpecifier) {}
 
+  SourceLocation underlyingTypeLoc;
+  SourceLocation lparenLoc;
+  TypeIdAST* typeId = nullptr;
+  SourceLocation rparenLoc;
+
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
   auto firstSourceLocation() -> SourceLocation override;

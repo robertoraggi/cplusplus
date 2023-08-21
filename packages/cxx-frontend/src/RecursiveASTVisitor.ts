@@ -871,6 +871,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     }
 
     visitUnderlyingTypeSpecifier(node: ast.UnderlyingTypeSpecifierAST, context: Context): void {
+        this.accept(node.getTypeId(), context);
     }
 
     visitElaboratedTypeSpecifier(node: ast.ElaboratedTypeSpecifierAST, context: Context): void {

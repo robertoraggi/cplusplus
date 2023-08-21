@@ -2893,6 +2893,7 @@ auto ASTDecoder::decodeUnderlyingTypeSpecifier(
   if (!node) return nullptr;
 
   auto ast = new (pool_) UnderlyingTypeSpecifierAST();
+  ast->typeId = decodeTypeId(node->type_id());
   return ast;
 }
 

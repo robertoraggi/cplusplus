@@ -2453,10 +2453,18 @@ auto AtomicTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
 }
 
 auto UnderlyingTypeSpecifierAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(underlyingTypeLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   return {};
 }
 
 auto UnderlyingTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(underlyingTypeLoc)) return loc;
   return {};
 }
 

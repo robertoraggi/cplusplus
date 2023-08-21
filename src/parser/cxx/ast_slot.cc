@@ -3368,9 +3368,26 @@ void ASTSlot::visit(AtomicTypeSpecifierAST* ast) {
 }
 
 void ASTSlot::visit(UnderlyingTypeSpecifierAST* ast) {
-  switch (slot_) {}  // switch
+  switch (slot_) {
+    case 0:
+      value_ = ast->underlyingTypeLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:
+      value_ = ast->lparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->typeId);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 3:
+      value_ = ast->rparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
 
-  slotCount_ = 0;
+  slotCount_ = 4;
 }
 
 void ASTSlot::visit(ElaboratedTypeSpecifierAST* ast) {

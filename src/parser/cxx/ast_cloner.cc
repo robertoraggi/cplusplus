@@ -2970,6 +2970,14 @@ void ASTCloner::visit(UnderlyingTypeSpecifierAST* ast) {
   copy_ = copy;
 
   copy->setChecked(ast->checked());
+
+  copy->underlyingTypeLoc = ast->underlyingTypeLoc;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->typeId = accept(ast->typeId);
+
+  copy->rparenLoc = ast->rparenLoc;
 }
 
 void ASTCloner::visit(ElaboratedTypeSpecifierAST* ast) {
