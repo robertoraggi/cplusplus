@@ -2942,6 +2942,8 @@ void ASTEncoder::visit(AccessDeclarationAST* ast) {
   io::AccessDeclaration::Builder builder{fbb_};
   builder.add_access_loc(accessLoc.o);
   builder.add_colon_loc(colonLoc.o);
+  builder.add_access_specifier(
+      static_cast<std::uint32_t>(ast->accessSpecifier));
 
   offset_ = builder.Finish().Union();
   type_ = io::Declaration_AccessDeclaration;

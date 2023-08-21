@@ -1857,6 +1857,7 @@ class AccessDeclarationAST final : public DeclarationAST {
 
   SourceLocation accessLoc;
   SourceLocation colonLoc;
+  TokenKind accessSpecifier = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

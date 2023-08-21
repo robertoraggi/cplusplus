@@ -2024,6 +2024,8 @@ void ASTCloner::visit(AccessDeclarationAST* ast) {
   copy->accessLoc = ast->accessLoc;
 
   copy->colonLoc = ast->colonLoc;
+
+  copy->accessSpecifier = ast->accessSpecifier;
 }
 
 void ASTCloner::visit(FunctionDefinitionAST* ast) {

@@ -2138,6 +2138,7 @@ auto ASTDecoder::decodeAccessDeclaration(const io::AccessDeclaration* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) AccessDeclarationAST();
+  ast->accessSpecifier = static_cast<TokenKind>(node->access_specifier());
   return ast;
 }
 
