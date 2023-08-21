@@ -3019,6 +3019,7 @@ auto ASTDecoder::decodeClassSpecifier(const io::ClassSpecifier* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->classKey = static_cast<TokenKind>(node->class_key());
   return ast;
 }
 

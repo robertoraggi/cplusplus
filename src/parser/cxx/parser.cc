@@ -6660,6 +6660,8 @@ auto Parser::parse_class_specifier(SpecifierAST*& yyast) -> bool {
   ast->baseClause = baseClause;
   ast->lbraceLoc = lbraceLoc;
 
+  ast->classKey = unit->tokenKind(ast->classLoc);
+
   if (finalLoc) {
     ast->isFinal = true;
   }

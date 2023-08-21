@@ -1667,6 +1667,12 @@ void ASTPrinter::visit(EnumSpecifierAST* ast) {
 
 void ASTPrinter::visit(ClassSpecifierAST* ast) {
   fmt::print(out_, "{}\n", "class-specifier");
+  if (ast->classKey != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "class-key: {}\n", Token::spell(ast->classKey));
+    --indent_;
+  }
   ++indent_;
   fmt::print(out_, "{:{}}", "", indent_ * 2);
   fmt::print(out_, "is-final: {}\n", ast->isFinal);

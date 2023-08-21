@@ -2795,6 +2795,7 @@ class ClassSpecifierAST final : public SpecifierAST {
   SourceLocation lbraceLoc;
   List<DeclarationAST*>* declarationList = nullptr;
   SourceLocation rbraceLoc;
+  TokenKind classKey = TokenKind::T_EOF_SYMBOL;
   bool isFinal = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }

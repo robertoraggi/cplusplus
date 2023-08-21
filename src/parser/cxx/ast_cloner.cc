@@ -3131,6 +3131,8 @@ void ASTCloner::visit(ClassSpecifierAST* ast) {
 
   copy->rbraceLoc = ast->rbraceLoc;
 
+  copy->classKey = ast->classKey;
+
   copy->isFinal = ast->isFinal;
 }
 

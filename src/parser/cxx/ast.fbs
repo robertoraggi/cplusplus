@@ -1354,6 +1354,7 @@ table ClassSpecifier /* SpecifierAST */ {
   name: Name;
   base_clause: BaseClause;
   declaration_list: [Declaration];
+  class_key: uint32;
   class_loc: SourceLocation;
   final_loc: SourceLocation;
   lbrace_loc: SourceLocation;

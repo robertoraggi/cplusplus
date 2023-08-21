@@ -5,7 +5,7 @@ struct Handle {
   int value_;
   int otherValue_;
 
-  Handle(int value, int outerValue)
+  Handle(int value, int otherValue)
       : zero_(), value_(value), otherValue_{otherValue} {}
 };
 
@@ -15,6 +15,7 @@ struct Handle {
 // CHECK-NEXT:    simple-declaration
 // CHECK-NEXT:      decl-specifier-list
 // CHECK-NEXT:        class-specifier
+// CHECK-NEXT:          class-key: struct
 // CHECK-NEXT:          is-final: false
 // CHECK-NEXT:          name: simple-name
 // CHECK-NEXT:            identifier: Handle
@@ -74,7 +75,7 @@ struct Handle {
 // CHECK-NEXT:                            declarator: declarator
 // CHECK-NEXT:                              core-declarator: id-declarator
 // CHECK-NEXT:                                name: simple-name
-// CHECK-NEXT:                                  identifier: outerValue
+// CHECK-NEXT:                                  identifier: otherValue
 // CHECK-NEXT:              function-body: compound-statement-function-body
 // CHECK-NEXT:                ctor-initializer: ctor-initializer
 // CHECK-NEXT:                  mem-initializer-list

@@ -4510,6 +4510,7 @@ void ASTEncoder::visit(ClassSpecifierAST* ast) {
   builder.add_declaration_list(declarationListOffsetsVector);
   builder.add_declaration_list_type(declarationListTypesVector);
   builder.add_rbrace_loc(rbraceLoc.o);
+  builder.add_class_key(static_cast<std::uint32_t>(ast->classKey));
 
   offset_ = builder.Finish().Union();
   type_ = io::Specifier_ClassSpecifier;
