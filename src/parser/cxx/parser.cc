@@ -1630,17 +1630,12 @@ auto Parser::parse_postincr_expression(ExpressionAST*& yyast) -> bool {
 }
 
 auto Parser::parse_cpp_cast_head(SourceLocation& castLoc) -> bool {
-  switch (TokenKind(LA())) {
-    case TokenKind::T_CONST_CAST:
-    case TokenKind::T_DYNAMIC_CAST:
-    case TokenKind::T_REINTERPRET_CAST:
-    case TokenKind::T_STATIC_CAST:
-      castLoc = consumeToken();
-      return true;
-
-    default:
-      return false;
-  }  // switch
+  if (LA().isOneOf(TokenKind::T_CONST_CAST, TokenKind::T_DYNAMIC_CAST,
+                   TokenKind::T_REINTERPRET_CAST, TokenKind::T_STATIC_CAST)) {
+    castLoc = consumeToken();
+    return true;
+  }
+  return false;
 }
 
 auto Parser::parse_cpp_cast_expression(ExpressionAST*& yyast) -> bool {
@@ -4258,15 +4253,9 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
 
 auto Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
                                              DeclSpecs& specs) -> bool {
-  switch (TokenKind(LA())) {
-    case TokenKind::T_ENUM:
-    case TokenKind::T_CLASS:
-    case TokenKind::T_STRUCT:
-    case TokenKind::T_UNION:
-      break;
-    default:
-      return false;
-  }  // switch
+  if (!LA().isOneOf(TokenKind::T_ENUM, TokenKind::T_CLASS, TokenKind::T_STRUCT,
+                    TokenKind::T_UNION))
+    return false;
 
   const auto start = currentLocation();
 
@@ -6760,16 +6749,13 @@ auto Parser::parse_class_virt_specifier(SourceLocation& finalLoc) -> bool {
 }
 
 auto Parser::parse_class_key(SourceLocation& classLoc) -> bool {
-  switch (TokenKind(LA())) {
-    case TokenKind::T_CLASS:
-    case TokenKind::T_STRUCT:
-    case TokenKind::T_UNION:
-      classLoc = consumeToken();
-      return true;
+  if (LA().isOneOf(TokenKind::T_CLASS, TokenKind::T_STRUCT,
+                   TokenKind::T_UNION)) {
+    classLoc = consumeToken();
+    return true;
+  }
 
-    default:
-      return false;
-  }  // switch
+  return false;
 }
 
 auto Parser::parse_member_specification(DeclarationAST*& yyast) -> bool {
@@ -7225,16 +7211,13 @@ auto Parser::parse_class_or_decltype(NameAST*& yyast) -> bool {
 }
 
 auto Parser::parse_access_specifier(SourceLocation& loc) -> bool {
-  switch (TokenKind(LA())) {
-    case TokenKind::T_PRIVATE:
-    case TokenKind::T_PROTECTED:
-    case TokenKind::T_PUBLIC:
-      loc = consumeToken();
-      return true;
+  if (LA().isOneOf(TokenKind::T_PRIVATE, TokenKind::T_PROTECTED,
+                   TokenKind::T_PUBLIC)) {
+    loc = consumeToken();
+    return true;
+  }
 
-    default:
-      return false;
-  }  // switch
+  return false;
 }
 
 auto Parser::parse_ctor_initializer(CtorInitializerAST*& yyast) -> bool {
