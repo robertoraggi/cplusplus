@@ -4174,6 +4174,8 @@ auto Parser::parse_atomic_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   auto ast = new (pool) AtomicTypeSpecifierAST();
   yyast = ast;
 
+  ast->atomicLoc = atomicLoc;
+
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
   if (!parse_type_id(ast->typeId)) parse_error("expected type id");
