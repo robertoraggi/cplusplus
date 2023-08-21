@@ -154,6 +154,17 @@ void ASTPrinter::visit(InitDeclaratorAST* ast) {
 
 void ASTPrinter::visit(BaseSpecifierAST* ast) {
   fmt::print(out_, "{}\n", "base-specifier");
+  ++indent_;
+  fmt::print(out_, "{:{}}", "", indent_ * 2);
+  fmt::print(out_, "is-virtual: {}\n", ast->isVirtual);
+  --indent_;
+  if (ast->accessSpecifier != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "access-specifier: {}\n",
+               Token::spell(ast->accessSpecifier));
+    --indent_;
+  }
   if (ast->attributeList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);

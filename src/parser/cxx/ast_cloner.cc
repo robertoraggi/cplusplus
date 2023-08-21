@@ -194,6 +194,10 @@ void ASTCloner::visit(BaseSpecifierAST* ast) {
   }
 
   copy->name = accept(ast->name);
+
+  copy->isVirtual = ast->isVirtual;
+
+  copy->accessSpecifier = ast->accessSpecifier;
 }
 
 void ASTCloner::visit(BaseClauseAST* ast) {

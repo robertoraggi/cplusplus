@@ -613,6 +613,8 @@ void ASTEncoder::visit(BaseSpecifierAST* ast) {
   builder.add_attribute_list_type(attributeListTypesVector);
   builder.add_name(name);
   builder.add_name_type(static_cast<io::Name>(nameType));
+  builder.add_access_specifier(
+      static_cast<std::uint32_t>(ast->accessSpecifier));
 
   offset_ = builder.Finish().Union();
 }
