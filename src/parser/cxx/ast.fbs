@@ -335,6 +335,7 @@ table InitDeclarator /* AST */ {
 table BaseSpecifier /* AST */ {
   attribute_list: [AttributeSpecifier];
   name: Name;
+  access_specifier: uint32;
 }
 
 table BaseClause /* AST */ {

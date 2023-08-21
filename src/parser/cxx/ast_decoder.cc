@@ -828,6 +828,7 @@ auto ASTDecoder::decodeBaseSpecifier(const io::BaseSpecifier* node)
     }
   }
   ast->name = decodeName(node->name(), node->name_type());
+  ast->accessSpecifier = static_cast<TokenKind>(node->access_specifier());
   return ast;
 }
 

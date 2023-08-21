@@ -317,6 +317,8 @@ class BaseSpecifierAST final : public AST {
 
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   NameAST* name = nullptr;
+  bool isVirtual = false;
+  TokenKind accessSpecifier = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

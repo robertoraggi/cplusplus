@@ -240,7 +240,7 @@ auto Parser::parse(UnitAST*& ast) -> bool {
 auto Parser::parse_id(const Identifier* id, SourceLocation& loc) -> bool {
   loc = {};
   if (LA().isNot(TokenKind::T_IDENTIFIER)) return false;
-  if (unit->identifier(currentLocation()) != id)return false;
+  if (unit->identifier(currentLocation()) != id) return false;
   loc = consumeToken();
   return true;
 }
@@ -7150,9 +7150,14 @@ auto Parser::parse_base_specifier(BaseSpecifierAST*& yyast) -> bool {
   SourceLocation accessLoc;
 
   if (match(TokenKind::T_VIRTUAL, virtualLoc)) {
+    ast->isVirtual = true;
     parse_access_specifier(accessLoc);
   } else if (parse_access_specifier(accessLoc)) {
-    match(TokenKind::T_VIRTUAL, virtualLoc);
+    ast->isVirtual = match(TokenKind::T_VIRTUAL, virtualLoc);
+  }
+
+  if (accessLoc) {
+    ast->accessSpecifier = unit->tokenKind(accessLoc);
   }
 
   if (!parse_class_or_decltype(ast->name)) return false;
