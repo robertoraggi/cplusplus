@@ -97,6 +97,9 @@ enum struct ASTKind {
   DeleteExpression,
   ThrowExpression,
   NoexceptExpression,
+  EqualInitializer,
+  BracedInitList,
+  ParenInitializer,
 
   // RequirementAST
   SimpleRequirement,
@@ -119,11 +122,6 @@ enum struct ASTKind {
   RefLambdaCapture,
   RefInitLambdaCapture,
   InitLambdaCapture,
-
-  // InitializerAST
-  EqualInitializer,
-  BracedInitList,
-  ParenInitializer,
 
   // NewInitializerAST
   NewParenInitializer,

@@ -93,6 +93,9 @@ export enum ASTKind {
     DeleteExpression,
     ThrowExpression,
     NoexceptExpression,
+    EqualInitializer,
+    BracedInitList,
+    ParenInitializer,
 
     // RequirementAST
     SimpleRequirement,
@@ -115,11 +118,6 @@ export enum ASTKind {
     RefLambdaCapture,
     RefInitLambdaCapture,
     InitLambdaCapture,
-
-    // InitializerAST
-    EqualInitializer,
-    BracedInitList,
-    ParenInitializer,
 
     // NewInitializerAST
     NewParenInitializer,

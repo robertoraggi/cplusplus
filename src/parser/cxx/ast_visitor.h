@@ -101,6 +101,9 @@ class ASTVisitor {
   virtual void visit(DeleteExpressionAST* ast) = 0;
   virtual void visit(ThrowExpressionAST* ast) = 0;
   virtual void visit(NoexceptExpressionAST* ast) = 0;
+  virtual void visit(EqualInitializerAST* ast) = 0;
+  virtual void visit(BracedInitListAST* ast) = 0;
+  virtual void visit(ParenInitializerAST* ast) = 0;
 
   // RequirementAST
   virtual void visit(SimpleRequirementAST* ast) = 0;
@@ -123,11 +126,6 @@ class ASTVisitor {
   virtual void visit(RefLambdaCaptureAST* ast) = 0;
   virtual void visit(RefInitLambdaCaptureAST* ast) = 0;
   virtual void visit(InitLambdaCaptureAST* ast) = 0;
-
-  // InitializerAST
-  virtual void visit(EqualInitializerAST* ast) = 0;
-  virtual void visit(BracedInitListAST* ast) = 0;
-  virtual void visit(ParenInitializerAST* ast) = 0;
 
   // NewInitializerAST
   virtual void visit(NewParenInitializerAST* ast) = 0;

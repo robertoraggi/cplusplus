@@ -83,7 +83,6 @@ export abstract class DeclaratorModifierAST extends AST { }
 export abstract class ExceptionDeclarationAST extends AST { }
 export abstract class ExpressionAST extends AST { }
 export abstract class FunctionBodyAST extends AST { }
-export abstract class InitializerAST extends AST { }
 export abstract class LambdaCaptureAST extends AST { }
 export abstract class MemInitializerAST extends AST { }
 export abstract class NameAST extends AST { }
@@ -222,8 +221,8 @@ export class InitDeclaratorAST extends AST {
     getRequiresClause(): RequiresClauseAST | undefined {
         return AST.from<RequiresClauseAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
     }
-    getInitializer(): InitializerAST | undefined {
-        return AST.from<InitializerAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    getInitializer(): ExpressionAST | undefined {
+        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
     }
 }
 
@@ -589,8 +588,8 @@ export class DesignatedInitializerClauseAST extends ExpressionAST {
     getDesignator(): DesignatorAST | undefined {
         return AST.from<DesignatorAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
     }
-    getInitializer(): InitializerAST | undefined {
-        return AST.from<InitializerAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    getInitializer(): ExpressionAST | undefined {
+        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
     }
 }
 
@@ -1220,6 +1219,55 @@ export class NoexceptExpressionAST extends ExpressionAST {
     }
 }
 
+export class EqualInitializerAST extends ExpressionAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitEqualInitializer(this, context);
+    }
+    getEqualToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getExpression(): ExpressionAST | undefined {
+        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+}
+
+export class BracedInitListAST extends ExpressionAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitBracedInitList(this, context);
+    }
+    getLbraceToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    *getExpressionList(): Generator<ExpressionAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
+            yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+    getCommaToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getRbraceToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+}
+
+export class ParenInitializerAST extends ExpressionAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitParenInitializer(this, context);
+    }
+    getLparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    *getExpressionList(): Generator<ExpressionAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
+            yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+    getRparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+}
+
 export class SimpleRequirementAST extends RequirementAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitSimpleRequirement(this, context);
@@ -1409,8 +1457,8 @@ export class RefInitLambdaCaptureAST extends LambdaCaptureAST {
     getIdentifierToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
     }
-    getInitializer(): InitializerAST | undefined {
-        return AST.from<InitializerAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    getInitializer(): ExpressionAST | undefined {
+        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
     }
 }
 
@@ -1424,57 +1472,8 @@ export class InitLambdaCaptureAST extends LambdaCaptureAST {
     getIdentifierToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
     }
-    getInitializer(): InitializerAST | undefined {
-        return AST.from<InitializerAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-    }
-}
-
-export class EqualInitializerAST extends InitializerAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitEqualInitializer(this, context);
-    }
-    getEqualToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-    getExpression(): ExpressionAST | undefined {
-        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-    }
-}
-
-export class BracedInitListAST extends InitializerAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitBracedInitList(this, context);
-    }
-    getLbraceToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-    *getExpressionList(): Generator<ExpressionAST | undefined> {
-        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
-            yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
-        }
-    }
-    getCommaToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-    }
-    getRbraceToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-    }
-}
-
-export class ParenInitializerAST extends InitializerAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitParenInitializer(this, context);
-    }
-    getLparenToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-    *getExpressionList(): Generator<ExpressionAST | undefined> {
-        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
-            yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
-        }
-    }
-    getRparenToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    getInitializer(): ExpressionAST | undefined {
+        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
     }
 }
 
@@ -3355,6 +3354,9 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Transl
     DeleteExpressionAST,
     ThrowExpressionAST,
     NoexceptExpressionAST,
+    EqualInitializerAST,
+    BracedInitListAST,
+    ParenInitializerAST,
     SimpleRequirementAST,
     CompoundRequirementAST,
     TypeRequirementAST,
@@ -3369,9 +3371,6 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Transl
     RefLambdaCaptureAST,
     RefInitLambdaCaptureAST,
     InitLambdaCaptureAST,
-    EqualInitializerAST,
-    BracedInitListAST,
-    ParenInitializerAST,
     NewParenInitializerAST,
     NewBracedInitializerAST,
     EllipsisExceptionDeclarationAST,

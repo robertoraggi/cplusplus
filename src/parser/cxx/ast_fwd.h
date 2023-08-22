@@ -60,7 +60,6 @@ class DeclaratorModifierAST;
 class ExceptionDeclarationAST;
 class ExpressionAST;
 class FunctionBodyAST;
-class InitializerAST;
 class LambdaCaptureAST;
 class MemInitializerAST;
 class NameAST;
@@ -145,6 +144,9 @@ class NewExpressionAST;
 class DeleteExpressionAST;
 class ThrowExpressionAST;
 class NoexceptExpressionAST;
+class EqualInitializerAST;
+class BracedInitListAST;
+class ParenInitializerAST;
 
 // RequirementAST
 class SimpleRequirementAST;
@@ -167,11 +169,6 @@ class SimpleLambdaCaptureAST;
 class RefLambdaCaptureAST;
 class RefInitLambdaCaptureAST;
 class InitLambdaCaptureAST;
-
-// InitializerAST
-class EqualInitializerAST;
-class BracedInitListAST;
-class ParenInitializerAST;
 
 // NewInitializerAST
 class NewParenInitializerAST;

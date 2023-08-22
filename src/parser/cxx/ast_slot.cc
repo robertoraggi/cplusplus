@@ -1415,6 +1415,63 @@ void ASTSlot::visit(NoexceptExpressionAST* ast) {
   slotCount_ = 4;
 }
 
+void ASTSlot::visit(EqualInitializerAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->equalLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+  }  // switch
+
+  slotCount_ = 2;
+}
+
+void ASTSlot::visit(BracedInitListAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->lbraceLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->expressionList);
+      slotKind_ = ASTSlotKind::kNodeList;
+      break;
+    case 2:
+      value_ = ast->commaLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 3:
+      value_ = ast->rbraceLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
+
+  slotCount_ = 4;
+}
+
+void ASTSlot::visit(ParenInitializerAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->lparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->expressionList);
+      slotKind_ = ASTSlotKind::kNodeList;
+      break;
+    case 2:
+      value_ = ast->rparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
+
+  slotCount_ = 3;
+}
+
 void ASTSlot::visit(SimpleRequirementAST* ast) {
   switch (slot_) {
     case 0:
@@ -1671,63 +1728,6 @@ void ASTSlot::visit(InitLambdaCaptureAST* ast) {
     case 2:
       value_ = reinterpret_cast<std::intptr_t>(ast->initializer);
       slotKind_ = ASTSlotKind::kNode;
-      break;
-  }  // switch
-
-  slotCount_ = 3;
-}
-
-void ASTSlot::visit(EqualInitializerAST* ast) {
-  switch (slot_) {
-    case 0:
-      value_ = ast->equalLoc.index();
-      slotKind_ = ASTSlotKind::kToken;
-      break;
-    case 1:
-      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
-      slotKind_ = ASTSlotKind::kNode;
-      break;
-  }  // switch
-
-  slotCount_ = 2;
-}
-
-void ASTSlot::visit(BracedInitListAST* ast) {
-  switch (slot_) {
-    case 0:
-      value_ = ast->lbraceLoc.index();
-      slotKind_ = ASTSlotKind::kToken;
-      break;
-    case 1:
-      value_ = reinterpret_cast<std::intptr_t>(ast->expressionList);
-      slotKind_ = ASTSlotKind::kNodeList;
-      break;
-    case 2:
-      value_ = ast->commaLoc.index();
-      slotKind_ = ASTSlotKind::kToken;
-      break;
-    case 3:
-      value_ = ast->rbraceLoc.index();
-      slotKind_ = ASTSlotKind::kToken;
-      break;
-  }  // switch
-
-  slotCount_ = 4;
-}
-
-void ASTSlot::visit(ParenInitializerAST* ast) {
-  switch (slot_) {
-    case 0:
-      value_ = ast->lparenLoc.index();
-      slotKind_ = ASTSlotKind::kToken;
-      break;
-    case 1:
-      value_ = reinterpret_cast<std::intptr_t>(ast->expressionList);
-      slotKind_ = ASTSlotKind::kNodeList;
-      break;
-    case 2:
-      value_ = ast->rparenLoc.index();
-      slotKind_ = ASTSlotKind::kToken;
       break;
   }  // switch
 

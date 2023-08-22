@@ -99,6 +99,9 @@ class DefaultASTVisitor : public ASTVisitor {
   void visit(DeleteExpressionAST* ast) override;
   void visit(ThrowExpressionAST* ast) override;
   void visit(NoexceptExpressionAST* ast) override;
+  void visit(EqualInitializerAST* ast) override;
+  void visit(BracedInitListAST* ast) override;
+  void visit(ParenInitializerAST* ast) override;
 
   // RequirementAST
   void visit(SimpleRequirementAST* ast) override;
@@ -121,11 +124,6 @@ class DefaultASTVisitor : public ASTVisitor {
   void visit(RefLambdaCaptureAST* ast) override;
   void visit(RefInitLambdaCaptureAST* ast) override;
   void visit(InitLambdaCaptureAST* ast) override;
-
-  // InitializerAST
-  void visit(EqualInitializerAST* ast) override;
-  void visit(BracedInitListAST* ast) override;
-  void visit(ParenInitializerAST* ast) override;
 
   // NewInitializerAST
   void visit(NewParenInitializerAST* ast) override;

@@ -101,6 +101,9 @@ class ASTCloner : public ASTVisitor {
   void visit(DeleteExpressionAST* ast) override;
   void visit(ThrowExpressionAST* ast) override;
   void visit(NoexceptExpressionAST* ast) override;
+  void visit(EqualInitializerAST* ast) override;
+  void visit(BracedInitListAST* ast) override;
+  void visit(ParenInitializerAST* ast) override;
 
   void visit(SimpleRequirementAST* ast) override;
   void visit(CompoundRequirementAST* ast) override;
@@ -119,10 +122,6 @@ class ASTCloner : public ASTVisitor {
   void visit(RefLambdaCaptureAST* ast) override;
   void visit(RefInitLambdaCaptureAST* ast) override;
   void visit(InitLambdaCaptureAST* ast) override;
-
-  void visit(EqualInitializerAST* ast) override;
-  void visit(BracedInitListAST* ast) override;
-  void visit(ParenInitializerAST* ast) override;
 
   void visit(NewParenInitializerAST* ast) override;
   void visit(NewBracedInitializerAST* ast) override;

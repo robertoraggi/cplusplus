@@ -291,7 +291,7 @@ class Parser final {
   auto parse_init_declarator(InitDeclaratorAST*& yyast, const DeclSpecs& specs)
       -> bool;
   auto parse_declarator_initializer(RequiresClauseAST*& requiresClause,
-                                    InitializerAST*& yyast) -> bool;
+                                    ExpressionAST*& yyast) -> bool;
   auto parse_declarator(DeclaratorAST*& yyastl) -> bool;
   auto parse_ptr_operator_seq(List<PtrOperatorAST*>*& yyast) -> bool;
   auto parse_core_declarator(CoreDeclaratorAST*& yyast) -> bool;
@@ -318,8 +318,8 @@ class Parser final {
       -> bool;
   auto parse_parameter_declaration(ParameterDeclarationAST*& yyast,
                                    bool templParam) -> bool;
-  auto parse_initializer(InitializerAST*& yyast) -> bool;
-  auto parse_brace_or_equal_initializer(InitializerAST*& yyast) -> bool;
+  auto parse_initializer(ExpressionAST*& yyast) -> bool;
+  auto parse_brace_or_equal_initializer(ExpressionAST*& yyast) -> bool;
   auto parse_initializer_clause(ExpressionAST*& yyast, bool templParam = false)
       -> bool;
   auto parse_braced_init_list(BracedInitListAST*& yyast) -> bool;
