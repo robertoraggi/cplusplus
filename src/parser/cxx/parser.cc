@@ -3095,6 +3095,7 @@ auto Parser::parse_for_range_statement(StatementAST*& yyast) -> bool {
   yyast = ast;
 
   ast->forLoc = forLoc;
+  ast->rangeDeclaration = rangeDeclaration;
   ast->lparenLoc = lparenLoc;
   ast->initializer = initializer;
   ast->colonLoc = colonLoc;
