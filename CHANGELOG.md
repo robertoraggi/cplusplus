@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.1.19](https://github.com/robertoraggi/cplusplus/compare/v1.1.18...v1.1.19) (2023-08-22)
+
+
+### Bug Fixes
+
+* Add AST for designated initializers ([f36c3f4](https://github.com/robertoraggi/cplusplus/commit/f36c3f4000c64bae5872721f4e0458854e82000d))
+* Add AST node for underlying type specifier ([c716cc0](https://github.com/robertoraggi/cplusplus/commit/c716cc0dbe5011b836b75d8d7be1614b5cc6398f))
+* Add AST node for using enum declaration ([bf5f22a](https://github.com/robertoraggi/cplusplus/commit/bf5f22a2421fc221c7d295be688c7de11904fb5b))
+* Add missing attributes to the enumerator AST node ([bd2c9cd](https://github.com/robertoraggi/cplusplus/commit/bd2c9cd4d1a851e0b86432756af8c34ba76fb01d))
+* Add structured binding declaration AST nodes ([3cbbc6a](https://github.com/robertoraggi/cplusplus/commit/3cbbc6aee2201c7d91db7a488c7ae87a39f9f832))
+* Dump the AST in plain text instead of JSON ([ec19f4f](https://github.com/robertoraggi/cplusplus/commit/ec19f4fcabdca597aaef5f71915527682509cb71))
+* Parse of class virt specifiers ([97cb51e](https://github.com/robertoraggi/cplusplus/commit/97cb51e3dc09875cdcd3e9e59e0a073455a1a146))
+* Parse of inline for namespace definitions ([80a34cf](https://github.com/robertoraggi/cplusplus/commit/80a34cfd252db8e3a6b0b4ef459b0620cf910c3a))
+* Print TokenKind in AST dump ([0583d39](https://github.com/robertoraggi/cplusplus/commit/0583d39b2510497d2aa0b2fe6d9df6cd98c36c01))
+* Represent intiializers as expressions in the AST ([629ca3c](https://github.com/robertoraggi/cplusplus/commit/629ca3c31b3475a89f94cc1f6bcf9a9c25fe3f18))
+* Set access and virt specifier to the base specifier ast nodes ([613a070](https://github.com/robertoraggi/cplusplus/commit/613a0709b34e25a5b28ddec470d2577c375dad32))
+* Set access specifier of access declaration AST nodes ([dc7a545](https://github.com/robertoraggi/cplusplus/commit/dc7a545a2a3c614168a38c868ae3d67ba1367e1a))
+* Set class key of class specifier AST nodes ([f610253](https://github.com/robertoraggi/cplusplus/commit/f61025375f9c49cb6f5c25a453266be52b51c981))
+* Set class key of elaborated type specifiers ([a8db107](https://github.com/robertoraggi/cplusplus/commit/a8db10739bf97b379d4bb76846c532392406b872))
+* Set location of the atomic type specifier ([8d8e07b](https://github.com/robertoraggi/cplusplus/commit/8d8e07becea096c21b556913755224ea4cf36283))
+* Set the name of ctor member initializers ([35fdf21](https://github.com/robertoraggi/cplusplus/commit/35fdf21b1cab38ab142d3fdd5cc2614d39319123))
+* stddef.h: add missing typedefs ([3ea986f](https://github.com/robertoraggi/cplusplus/commit/3ea986f83093275fddcc4889cab04235162a2ffa))
+* Store the namespace name in the AST ([5df694b](https://github.com/robertoraggi/cplusplus/commit/5df694b0a49aeb4d6783c8859d459f85125fc8fd))
+* Store the value of the boolean literals in the AST ([a2fbad8](https://github.com/robertoraggi/cplusplus/commit/a2fbad8614b80c1991407b60251d4bdb11c97983))
+
 ## [1.1.18](https://github.com/robertoraggi/cplusplus/compare/v1.1.17...v1.1.18) (2023-08-14)
 
 
