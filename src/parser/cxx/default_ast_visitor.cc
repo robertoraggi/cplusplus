@@ -142,124 +142,15 @@ void DefaultASTVisitor::visit(AttributeUsingPrefixAST* ast) {
   cxx_runtime_error("visit(AttributeUsingPrefixAST): not implemented");
 }
 
-// RequirementAST
-void DefaultASTVisitor::visit(SimpleRequirementAST* ast) {
-  cxx_runtime_error("visit(SimpleRequirementAST): not implemented");
-}
-
-void DefaultASTVisitor::visit(CompoundRequirementAST* ast) {
-  cxx_runtime_error("visit(CompoundRequirementAST): not implemented");
-}
-
-void DefaultASTVisitor::visit(TypeRequirementAST* ast) {
-  cxx_runtime_error("visit(TypeRequirementAST): not implemented");
-}
-
-void DefaultASTVisitor::visit(NestedRequirementAST* ast) {
-  cxx_runtime_error("visit(NestedRequirementAST): not implemented");
-}
-
-// TemplateArgumentAST
-void DefaultASTVisitor::visit(TypeTemplateArgumentAST* ast) {
-  cxx_runtime_error("visit(TypeTemplateArgumentAST): not implemented");
-}
-
-void DefaultASTVisitor::visit(ExpressionTemplateArgumentAST* ast) {
-  cxx_runtime_error("visit(ExpressionTemplateArgumentAST): not implemented");
-}
-
-// MemInitializerAST
-void DefaultASTVisitor::visit(ParenMemInitializerAST* ast) {
-  cxx_runtime_error("visit(ParenMemInitializerAST): not implemented");
-}
-
-void DefaultASTVisitor::visit(BracedMemInitializerAST* ast) {
-  cxx_runtime_error("visit(BracedMemInitializerAST): not implemented");
-}
-
-// LambdaCaptureAST
-void DefaultASTVisitor::visit(ThisLambdaCaptureAST* ast) {
-  cxx_runtime_error("visit(ThisLambdaCaptureAST): not implemented");
-}
-
-void DefaultASTVisitor::visit(DerefThisLambdaCaptureAST* ast) {
-  cxx_runtime_error("visit(DerefThisLambdaCaptureAST): not implemented");
-}
-
-void DefaultASTVisitor::visit(SimpleLambdaCaptureAST* ast) {
-  cxx_runtime_error("visit(SimpleLambdaCaptureAST): not implemented");
-}
-
-void DefaultASTVisitor::visit(RefLambdaCaptureAST* ast) {
-  cxx_runtime_error("visit(RefLambdaCaptureAST): not implemented");
-}
-
-void DefaultASTVisitor::visit(RefInitLambdaCaptureAST* ast) {
-  cxx_runtime_error("visit(RefInitLambdaCaptureAST): not implemented");
-}
-
-void DefaultASTVisitor::visit(InitLambdaCaptureAST* ast) {
-  cxx_runtime_error("visit(InitLambdaCaptureAST): not implemented");
-}
-
-// InitializerAST
-void DefaultASTVisitor::visit(EqualInitializerAST* ast) {
-  cxx_runtime_error("visit(EqualInitializerAST): not implemented");
-}
-
-void DefaultASTVisitor::visit(BracedInitListAST* ast) {
-  cxx_runtime_error("visit(BracedInitListAST): not implemented");
-}
-
-void DefaultASTVisitor::visit(ParenInitializerAST* ast) {
-  cxx_runtime_error("visit(ParenInitializerAST): not implemented");
-}
-
-// NewInitializerAST
-void DefaultASTVisitor::visit(NewParenInitializerAST* ast) {
-  cxx_runtime_error("visit(NewParenInitializerAST): not implemented");
-}
-
-void DefaultASTVisitor::visit(NewBracedInitializerAST* ast) {
-  cxx_runtime_error("visit(NewBracedInitializerAST): not implemented");
-}
-
-// ExceptionDeclarationAST
-void DefaultASTVisitor::visit(EllipsisExceptionDeclarationAST* ast) {
-  cxx_runtime_error("visit(EllipsisExceptionDeclarationAST): not implemented");
-}
-
-void DefaultASTVisitor::visit(TypeExceptionDeclarationAST* ast) {
-  cxx_runtime_error("visit(TypeExceptionDeclarationAST): not implemented");
-}
-
-// FunctionBodyAST
-void DefaultASTVisitor::visit(DefaultFunctionBodyAST* ast) {
-  cxx_runtime_error("visit(DefaultFunctionBodyAST): not implemented");
-}
-
-void DefaultASTVisitor::visit(CompoundStatementFunctionBodyAST* ast) {
-  cxx_runtime_error("visit(CompoundStatementFunctionBodyAST): not implemented");
-}
-
-void DefaultASTVisitor::visit(TryStatementFunctionBodyAST* ast) {
-  cxx_runtime_error("visit(TryStatementFunctionBodyAST): not implemented");
-}
-
-void DefaultASTVisitor::visit(DeleteFunctionBodyAST* ast) {
-  cxx_runtime_error("visit(DeleteFunctionBodyAST): not implemented");
-}
-
-// UnitAST
-void DefaultASTVisitor::visit(TranslationUnitAST* ast) {
-  cxx_runtime_error("visit(TranslationUnitAST): not implemented");
-}
-
-void DefaultASTVisitor::visit(ModuleUnitAST* ast) {
-  cxx_runtime_error("visit(ModuleUnitAST): not implemented");
+void DefaultASTVisitor::visit(DesignatorAST* ast) {
+  cxx_runtime_error("visit(DesignatorAST): not implemented");
 }
 
 // ExpressionAST
+void DefaultASTVisitor::visit(DesignatedInitializerClauseAST* ast) {
+  cxx_runtime_error("visit(DesignatedInitializerClauseAST): not implemented");
+}
+
 void DefaultASTVisitor::visit(ThisExpressionAST* ast) {
   cxx_runtime_error("visit(ThisExpressionAST): not implemented");
 }
@@ -415,6 +306,123 @@ void DefaultASTVisitor::visit(ThrowExpressionAST* ast) {
 
 void DefaultASTVisitor::visit(NoexceptExpressionAST* ast) {
   cxx_runtime_error("visit(NoexceptExpressionAST): not implemented");
+}
+
+// RequirementAST
+void DefaultASTVisitor::visit(SimpleRequirementAST* ast) {
+  cxx_runtime_error("visit(SimpleRequirementAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(CompoundRequirementAST* ast) {
+  cxx_runtime_error("visit(CompoundRequirementAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(TypeRequirementAST* ast) {
+  cxx_runtime_error("visit(TypeRequirementAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(NestedRequirementAST* ast) {
+  cxx_runtime_error("visit(NestedRequirementAST): not implemented");
+}
+
+// TemplateArgumentAST
+void DefaultASTVisitor::visit(TypeTemplateArgumentAST* ast) {
+  cxx_runtime_error("visit(TypeTemplateArgumentAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(ExpressionTemplateArgumentAST* ast) {
+  cxx_runtime_error("visit(ExpressionTemplateArgumentAST): not implemented");
+}
+
+// MemInitializerAST
+void DefaultASTVisitor::visit(ParenMemInitializerAST* ast) {
+  cxx_runtime_error("visit(ParenMemInitializerAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(BracedMemInitializerAST* ast) {
+  cxx_runtime_error("visit(BracedMemInitializerAST): not implemented");
+}
+
+// LambdaCaptureAST
+void DefaultASTVisitor::visit(ThisLambdaCaptureAST* ast) {
+  cxx_runtime_error("visit(ThisLambdaCaptureAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(DerefThisLambdaCaptureAST* ast) {
+  cxx_runtime_error("visit(DerefThisLambdaCaptureAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(SimpleLambdaCaptureAST* ast) {
+  cxx_runtime_error("visit(SimpleLambdaCaptureAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(RefLambdaCaptureAST* ast) {
+  cxx_runtime_error("visit(RefLambdaCaptureAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(RefInitLambdaCaptureAST* ast) {
+  cxx_runtime_error("visit(RefInitLambdaCaptureAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(InitLambdaCaptureAST* ast) {
+  cxx_runtime_error("visit(InitLambdaCaptureAST): not implemented");
+}
+
+// InitializerAST
+void DefaultASTVisitor::visit(EqualInitializerAST* ast) {
+  cxx_runtime_error("visit(EqualInitializerAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(BracedInitListAST* ast) {
+  cxx_runtime_error("visit(BracedInitListAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(ParenInitializerAST* ast) {
+  cxx_runtime_error("visit(ParenInitializerAST): not implemented");
+}
+
+// NewInitializerAST
+void DefaultASTVisitor::visit(NewParenInitializerAST* ast) {
+  cxx_runtime_error("visit(NewParenInitializerAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(NewBracedInitializerAST* ast) {
+  cxx_runtime_error("visit(NewBracedInitializerAST): not implemented");
+}
+
+// ExceptionDeclarationAST
+void DefaultASTVisitor::visit(EllipsisExceptionDeclarationAST* ast) {
+  cxx_runtime_error("visit(EllipsisExceptionDeclarationAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(TypeExceptionDeclarationAST* ast) {
+  cxx_runtime_error("visit(TypeExceptionDeclarationAST): not implemented");
+}
+
+// FunctionBodyAST
+void DefaultASTVisitor::visit(DefaultFunctionBodyAST* ast) {
+  cxx_runtime_error("visit(DefaultFunctionBodyAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(CompoundStatementFunctionBodyAST* ast) {
+  cxx_runtime_error("visit(CompoundStatementFunctionBodyAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(TryStatementFunctionBodyAST* ast) {
+  cxx_runtime_error("visit(TryStatementFunctionBodyAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(DeleteFunctionBodyAST* ast) {
+  cxx_runtime_error("visit(DeleteFunctionBodyAST): not implemented");
+}
+
+// UnitAST
+void DefaultASTVisitor::visit(TranslationUnitAST* ast) {
+  cxx_runtime_error("visit(TranslationUnitAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(ModuleUnitAST* ast) {
+  cxx_runtime_error("visit(ModuleUnitAST): not implemented");
 }
 
 // StatementAST

@@ -60,6 +60,7 @@ union AST {
   AttributeArgumentClause,
   Attribute,
   AttributeUsingPrefix,
+  Designator,
 }
 
 union AttributeSpecifier {
@@ -121,6 +122,7 @@ union ExceptionDeclaration {
 }
 
 union Expression {
+  DesignatedInitializerClause,
   ThisExpression,
   CharLiteralExpression,
   BoolLiteralExpression,
@@ -460,6 +462,12 @@ table AttributeUsingPrefix /* AST */ {
   colon_loc: SourceLocation;
 }
 
+table Designator /* AST */ {
+  identifier: string;
+  dot_loc: SourceLocation;
+  identifier_loc: SourceLocation;
+}
+
 table CxxAttribute /* AttributeSpecifierAST */ {
   attribute_using_prefix: AttributeUsingPrefix;
   attribute_list: [Attribute];
@@ -753,6 +761,11 @@ table TypeExceptionDeclaration /* ExceptionDeclarationAST */ {
   attribute_list: [AttributeSpecifier];
   type_specifier_list: [Specifier];
   declarator: Declarator;
+}
+
+table DesignatedInitializerClause /* ExpressionAST */ {
+  designator: Designator;
+  initializer: Initializer;
 }
 
 table ThisExpression /* ExpressionAST */ {

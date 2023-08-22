@@ -54,6 +54,49 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitAttributeArgumentClause(node: ast.AttributeArgumentClauseAST, context: Context): Result;
     abstract visitAttribute(node: ast.AttributeAST, context: Context): Result;
     abstract visitAttributeUsingPrefix(node: ast.AttributeUsingPrefixAST, context: Context): Result;
+    abstract visitDesignator(node: ast.DesignatorAST, context: Context): Result;
+
+    // ExpressionAST
+    abstract visitDesignatedInitializerClause(node: ast.DesignatedInitializerClauseAST, context: Context): Result;
+    abstract visitThisExpression(node: ast.ThisExpressionAST, context: Context): Result;
+    abstract visitCharLiteralExpression(node: ast.CharLiteralExpressionAST, context: Context): Result;
+    abstract visitBoolLiteralExpression(node: ast.BoolLiteralExpressionAST, context: Context): Result;
+    abstract visitIntLiteralExpression(node: ast.IntLiteralExpressionAST, context: Context): Result;
+    abstract visitFloatLiteralExpression(node: ast.FloatLiteralExpressionAST, context: Context): Result;
+    abstract visitNullptrLiteralExpression(node: ast.NullptrLiteralExpressionAST, context: Context): Result;
+    abstract visitStringLiteralExpression(node: ast.StringLiteralExpressionAST, context: Context): Result;
+    abstract visitUserDefinedStringLiteralExpression(node: ast.UserDefinedStringLiteralExpressionAST, context: Context): Result;
+    abstract visitIdExpression(node: ast.IdExpressionAST, context: Context): Result;
+    abstract visitRequiresExpression(node: ast.RequiresExpressionAST, context: Context): Result;
+    abstract visitNestedExpression(node: ast.NestedExpressionAST, context: Context): Result;
+    abstract visitRightFoldExpression(node: ast.RightFoldExpressionAST, context: Context): Result;
+    abstract visitLeftFoldExpression(node: ast.LeftFoldExpressionAST, context: Context): Result;
+    abstract visitFoldExpression(node: ast.FoldExpressionAST, context: Context): Result;
+    abstract visitLambdaExpression(node: ast.LambdaExpressionAST, context: Context): Result;
+    abstract visitSizeofExpression(node: ast.SizeofExpressionAST, context: Context): Result;
+    abstract visitSizeofTypeExpression(node: ast.SizeofTypeExpressionAST, context: Context): Result;
+    abstract visitSizeofPackExpression(node: ast.SizeofPackExpressionAST, context: Context): Result;
+    abstract visitTypeidExpression(node: ast.TypeidExpressionAST, context: Context): Result;
+    abstract visitTypeidOfTypeExpression(node: ast.TypeidOfTypeExpressionAST, context: Context): Result;
+    abstract visitAlignofExpression(node: ast.AlignofExpressionAST, context: Context): Result;
+    abstract visitTypeTraitsExpression(node: ast.TypeTraitsExpressionAST, context: Context): Result;
+    abstract visitUnaryExpression(node: ast.UnaryExpressionAST, context: Context): Result;
+    abstract visitBinaryExpression(node: ast.BinaryExpressionAST, context: Context): Result;
+    abstract visitAssignmentExpression(node: ast.AssignmentExpressionAST, context: Context): Result;
+    abstract visitBracedTypeConstruction(node: ast.BracedTypeConstructionAST, context: Context): Result;
+    abstract visitTypeConstruction(node: ast.TypeConstructionAST, context: Context): Result;
+    abstract visitCallExpression(node: ast.CallExpressionAST, context: Context): Result;
+    abstract visitSubscriptExpression(node: ast.SubscriptExpressionAST, context: Context): Result;
+    abstract visitMemberExpression(node: ast.MemberExpressionAST, context: Context): Result;
+    abstract visitPostIncrExpression(node: ast.PostIncrExpressionAST, context: Context): Result;
+    abstract visitConditionalExpression(node: ast.ConditionalExpressionAST, context: Context): Result;
+    abstract visitImplicitCastExpression(node: ast.ImplicitCastExpressionAST, context: Context): Result;
+    abstract visitCastExpression(node: ast.CastExpressionAST, context: Context): Result;
+    abstract visitCppCastExpression(node: ast.CppCastExpressionAST, context: Context): Result;
+    abstract visitNewExpression(node: ast.NewExpressionAST, context: Context): Result;
+    abstract visitDeleteExpression(node: ast.DeleteExpressionAST, context: Context): Result;
+    abstract visitThrowExpression(node: ast.ThrowExpressionAST, context: Context): Result;
+    abstract visitNoexceptExpression(node: ast.NoexceptExpressionAST, context: Context): Result;
 
     // RequirementAST
     abstract visitSimpleRequirement(node: ast.SimpleRequirementAST, context: Context): Result;
@@ -99,47 +142,6 @@ export abstract class ASTVisitor<Context, Result> {
     // UnitAST
     abstract visitTranslationUnit(node: ast.TranslationUnitAST, context: Context): Result;
     abstract visitModuleUnit(node: ast.ModuleUnitAST, context: Context): Result;
-
-    // ExpressionAST
-    abstract visitThisExpression(node: ast.ThisExpressionAST, context: Context): Result;
-    abstract visitCharLiteralExpression(node: ast.CharLiteralExpressionAST, context: Context): Result;
-    abstract visitBoolLiteralExpression(node: ast.BoolLiteralExpressionAST, context: Context): Result;
-    abstract visitIntLiteralExpression(node: ast.IntLiteralExpressionAST, context: Context): Result;
-    abstract visitFloatLiteralExpression(node: ast.FloatLiteralExpressionAST, context: Context): Result;
-    abstract visitNullptrLiteralExpression(node: ast.NullptrLiteralExpressionAST, context: Context): Result;
-    abstract visitStringLiteralExpression(node: ast.StringLiteralExpressionAST, context: Context): Result;
-    abstract visitUserDefinedStringLiteralExpression(node: ast.UserDefinedStringLiteralExpressionAST, context: Context): Result;
-    abstract visitIdExpression(node: ast.IdExpressionAST, context: Context): Result;
-    abstract visitRequiresExpression(node: ast.RequiresExpressionAST, context: Context): Result;
-    abstract visitNestedExpression(node: ast.NestedExpressionAST, context: Context): Result;
-    abstract visitRightFoldExpression(node: ast.RightFoldExpressionAST, context: Context): Result;
-    abstract visitLeftFoldExpression(node: ast.LeftFoldExpressionAST, context: Context): Result;
-    abstract visitFoldExpression(node: ast.FoldExpressionAST, context: Context): Result;
-    abstract visitLambdaExpression(node: ast.LambdaExpressionAST, context: Context): Result;
-    abstract visitSizeofExpression(node: ast.SizeofExpressionAST, context: Context): Result;
-    abstract visitSizeofTypeExpression(node: ast.SizeofTypeExpressionAST, context: Context): Result;
-    abstract visitSizeofPackExpression(node: ast.SizeofPackExpressionAST, context: Context): Result;
-    abstract visitTypeidExpression(node: ast.TypeidExpressionAST, context: Context): Result;
-    abstract visitTypeidOfTypeExpression(node: ast.TypeidOfTypeExpressionAST, context: Context): Result;
-    abstract visitAlignofExpression(node: ast.AlignofExpressionAST, context: Context): Result;
-    abstract visitTypeTraitsExpression(node: ast.TypeTraitsExpressionAST, context: Context): Result;
-    abstract visitUnaryExpression(node: ast.UnaryExpressionAST, context: Context): Result;
-    abstract visitBinaryExpression(node: ast.BinaryExpressionAST, context: Context): Result;
-    abstract visitAssignmentExpression(node: ast.AssignmentExpressionAST, context: Context): Result;
-    abstract visitBracedTypeConstruction(node: ast.BracedTypeConstructionAST, context: Context): Result;
-    abstract visitTypeConstruction(node: ast.TypeConstructionAST, context: Context): Result;
-    abstract visitCallExpression(node: ast.CallExpressionAST, context: Context): Result;
-    abstract visitSubscriptExpression(node: ast.SubscriptExpressionAST, context: Context): Result;
-    abstract visitMemberExpression(node: ast.MemberExpressionAST, context: Context): Result;
-    abstract visitPostIncrExpression(node: ast.PostIncrExpressionAST, context: Context): Result;
-    abstract visitConditionalExpression(node: ast.ConditionalExpressionAST, context: Context): Result;
-    abstract visitImplicitCastExpression(node: ast.ImplicitCastExpressionAST, context: Context): Result;
-    abstract visitCastExpression(node: ast.CastExpressionAST, context: Context): Result;
-    abstract visitCppCastExpression(node: ast.CppCastExpressionAST, context: Context): Result;
-    abstract visitNewExpression(node: ast.NewExpressionAST, context: Context): Result;
-    abstract visitDeleteExpression(node: ast.DeleteExpressionAST, context: Context): Result;
-    abstract visitThrowExpression(node: ast.ThrowExpressionAST, context: Context): Result;
-    abstract visitNoexceptExpression(node: ast.NoexceptExpressionAST, context: Context): Result;
 
     // StatementAST
     abstract visitLabeledStatement(node: ast.LabeledStatementAST, context: Context): Result;

@@ -5271,14 +5271,27 @@ auto Parser::parse_initializer_clause(ExpressionAST*& yyast, bool templParam)
 
 auto Parser::parse_braced_init_list(BracedInitListAST*& yyast) -> bool {
   SourceLocation lbraceLoc;
-  SourceLocation commaLoc;
   SourceLocation rbraceLoc;
 
   if (!match(TokenKind::T_LBRACE, lbraceLoc)) return false;
 
   if (LA().is(TokenKind::T_DOT)) {
-    if (!parse_designated_initializer_clause()) {
+    auto ast = new (pool) BracedInitListAST();
+    yyast = ast;
+
+    ast->lbraceLoc = lbraceLoc;
+
+    auto it = &ast->expressionList;
+
+    DesignatedInitializerClauseAST* designatedInitializerClause = nullptr;
+
+    if (!parse_designated_initializer_clause(designatedInitializerClause)) {
       parse_error("expected designated initializer clause");
+    }
+
+    if (designatedInitializerClause) {
+      *it = new (pool) List<ExpressionAST*>(designatedInitializerClause);
+      it = &(*it)->next;
     }
 
     SourceLocation commaLoc;
@@ -5286,15 +5299,24 @@ auto Parser::parse_braced_init_list(BracedInitListAST*& yyast) -> bool {
     while (match(TokenKind::T_COMMA, commaLoc)) {
       if (LA().is(TokenKind::T_RBRACE)) break;
 
-      if (!parse_designated_initializer_clause()) {
+      DesignatedInitializerClauseAST* designatedInitializerClause = nullptr;
+
+      if (!parse_designated_initializer_clause(designatedInitializerClause)) {
         parse_error("expected designated initializer clause");
+      }
+
+      if (designatedInitializerClause) {
+        *it = new (pool) List<ExpressionAST*>(designatedInitializerClause);
+        it = &(*it)->next;
       }
     }
 
-    expect(TokenKind::T_RBRACE, rbraceLoc);
+    expect(TokenKind::T_RBRACE, ast->rbraceLoc);
 
     return true;
   }
+
+  SourceLocation commaLoc;
 
   if (match(TokenKind::T_COMMA, commaLoc)) {
     expect(TokenKind::T_RBRACE, rbraceLoc);
@@ -5365,26 +5387,39 @@ auto Parser::parse_initializer_list(List<ExpressionAST*>*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_designated_initializer_clause() -> bool {
-  if (!parse_designator()) return false;
+auto Parser::parse_designated_initializer_clause(
+    DesignatedInitializerClauseAST*& yyast) -> bool {
+  DesignatorAST* designator = nullptr;
 
-  InitializerAST* initializer = nullptr;
+  if (!parse_designator(designator)) return false;
 
-  if (!parse_brace_or_equal_initializer(initializer)) {
+  auto ast = new (pool) DesignatedInitializerClauseAST();
+  yyast = ast;
+
+  ast->designator = designator;
+
+  if (!parse_brace_or_equal_initializer(ast->initializer)) {
     parse_error("expected an initializer");
   }
 
   return true;
 }
 
-auto Parser::parse_designator() -> bool {
+auto Parser::parse_designator(DesignatorAST*& yyast) -> bool {
   SourceLocation dotLoc;
 
   if (!match(TokenKind::T_DOT, dotLoc)) return false;
 
+  auto ast = new (pool) DesignatorAST();
+  yyast = ast;
+
+  ast->dotLoc = dotLoc;
+
   SourceLocation identifierLoc;
 
-  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
+  expect(TokenKind::T_IDENTIFIER, ast->identifierLoc);
+
+  ast->identifier = unit->identifier(ast->identifierLoc);
 
   return true;
 }

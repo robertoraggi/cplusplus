@@ -47,6 +47,133 @@ auto ASTDecoder::operator()(std::span<const std::uint8_t> bytes) -> bool {
   return true;
 }
 
+auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
+    -> ExpressionAST* {
+  switch (type) {
+    case io::Expression_DesignatedInitializerClause:
+      return decodeDesignatedInitializerClause(
+          reinterpret_cast<const io::DesignatedInitializerClause*>(ptr));
+    case io::Expression_ThisExpression:
+      return decodeThisExpression(
+          reinterpret_cast<const io::ThisExpression*>(ptr));
+    case io::Expression_CharLiteralExpression:
+      return decodeCharLiteralExpression(
+          reinterpret_cast<const io::CharLiteralExpression*>(ptr));
+    case io::Expression_BoolLiteralExpression:
+      return decodeBoolLiteralExpression(
+          reinterpret_cast<const io::BoolLiteralExpression*>(ptr));
+    case io::Expression_IntLiteralExpression:
+      return decodeIntLiteralExpression(
+          reinterpret_cast<const io::IntLiteralExpression*>(ptr));
+    case io::Expression_FloatLiteralExpression:
+      return decodeFloatLiteralExpression(
+          reinterpret_cast<const io::FloatLiteralExpression*>(ptr));
+    case io::Expression_NullptrLiteralExpression:
+      return decodeNullptrLiteralExpression(
+          reinterpret_cast<const io::NullptrLiteralExpression*>(ptr));
+    case io::Expression_StringLiteralExpression:
+      return decodeStringLiteralExpression(
+          reinterpret_cast<const io::StringLiteralExpression*>(ptr));
+    case io::Expression_UserDefinedStringLiteralExpression:
+      return decodeUserDefinedStringLiteralExpression(
+          reinterpret_cast<const io::UserDefinedStringLiteralExpression*>(ptr));
+    case io::Expression_IdExpression:
+      return decodeIdExpression(reinterpret_cast<const io::IdExpression*>(ptr));
+    case io::Expression_RequiresExpression:
+      return decodeRequiresExpression(
+          reinterpret_cast<const io::RequiresExpression*>(ptr));
+    case io::Expression_NestedExpression:
+      return decodeNestedExpression(
+          reinterpret_cast<const io::NestedExpression*>(ptr));
+    case io::Expression_RightFoldExpression:
+      return decodeRightFoldExpression(
+          reinterpret_cast<const io::RightFoldExpression*>(ptr));
+    case io::Expression_LeftFoldExpression:
+      return decodeLeftFoldExpression(
+          reinterpret_cast<const io::LeftFoldExpression*>(ptr));
+    case io::Expression_FoldExpression:
+      return decodeFoldExpression(
+          reinterpret_cast<const io::FoldExpression*>(ptr));
+    case io::Expression_LambdaExpression:
+      return decodeLambdaExpression(
+          reinterpret_cast<const io::LambdaExpression*>(ptr));
+    case io::Expression_SizeofExpression:
+      return decodeSizeofExpression(
+          reinterpret_cast<const io::SizeofExpression*>(ptr));
+    case io::Expression_SizeofTypeExpression:
+      return decodeSizeofTypeExpression(
+          reinterpret_cast<const io::SizeofTypeExpression*>(ptr));
+    case io::Expression_SizeofPackExpression:
+      return decodeSizeofPackExpression(
+          reinterpret_cast<const io::SizeofPackExpression*>(ptr));
+    case io::Expression_TypeidExpression:
+      return decodeTypeidExpression(
+          reinterpret_cast<const io::TypeidExpression*>(ptr));
+    case io::Expression_TypeidOfTypeExpression:
+      return decodeTypeidOfTypeExpression(
+          reinterpret_cast<const io::TypeidOfTypeExpression*>(ptr));
+    case io::Expression_AlignofExpression:
+      return decodeAlignofExpression(
+          reinterpret_cast<const io::AlignofExpression*>(ptr));
+    case io::Expression_TypeTraitsExpression:
+      return decodeTypeTraitsExpression(
+          reinterpret_cast<const io::TypeTraitsExpression*>(ptr));
+    case io::Expression_UnaryExpression:
+      return decodeUnaryExpression(
+          reinterpret_cast<const io::UnaryExpression*>(ptr));
+    case io::Expression_BinaryExpression:
+      return decodeBinaryExpression(
+          reinterpret_cast<const io::BinaryExpression*>(ptr));
+    case io::Expression_AssignmentExpression:
+      return decodeAssignmentExpression(
+          reinterpret_cast<const io::AssignmentExpression*>(ptr));
+    case io::Expression_BracedTypeConstruction:
+      return decodeBracedTypeConstruction(
+          reinterpret_cast<const io::BracedTypeConstruction*>(ptr));
+    case io::Expression_TypeConstruction:
+      return decodeTypeConstruction(
+          reinterpret_cast<const io::TypeConstruction*>(ptr));
+    case io::Expression_CallExpression:
+      return decodeCallExpression(
+          reinterpret_cast<const io::CallExpression*>(ptr));
+    case io::Expression_SubscriptExpression:
+      return decodeSubscriptExpression(
+          reinterpret_cast<const io::SubscriptExpression*>(ptr));
+    case io::Expression_MemberExpression:
+      return decodeMemberExpression(
+          reinterpret_cast<const io::MemberExpression*>(ptr));
+    case io::Expression_PostIncrExpression:
+      return decodePostIncrExpression(
+          reinterpret_cast<const io::PostIncrExpression*>(ptr));
+    case io::Expression_ConditionalExpression:
+      return decodeConditionalExpression(
+          reinterpret_cast<const io::ConditionalExpression*>(ptr));
+    case io::Expression_ImplicitCastExpression:
+      return decodeImplicitCastExpression(
+          reinterpret_cast<const io::ImplicitCastExpression*>(ptr));
+    case io::Expression_CastExpression:
+      return decodeCastExpression(
+          reinterpret_cast<const io::CastExpression*>(ptr));
+    case io::Expression_CppCastExpression:
+      return decodeCppCastExpression(
+          reinterpret_cast<const io::CppCastExpression*>(ptr));
+    case io::Expression_NewExpression:
+      return decodeNewExpression(
+          reinterpret_cast<const io::NewExpression*>(ptr));
+    case io::Expression_DeleteExpression:
+      return decodeDeleteExpression(
+          reinterpret_cast<const io::DeleteExpression*>(ptr));
+    case io::Expression_ThrowExpression:
+      return decodeThrowExpression(
+          reinterpret_cast<const io::ThrowExpression*>(ptr));
+    case io::Expression_NoexceptExpression:
+      return decodeNoexceptExpression(
+          reinterpret_cast<const io::NoexceptExpression*>(ptr));
+    default:
+      return nullptr;
+  }  // switch
+}
+
 auto ASTDecoder::decodeRequirement(const void* ptr, io::Requirement type)
     -> RequirementAST* {
   switch (type) {
@@ -195,130 +322,6 @@ auto ASTDecoder::decodeUnit(const void* ptr, io::Unit type) -> UnitAST* {
           reinterpret_cast<const io::TranslationUnit*>(ptr));
     case io::Unit_ModuleUnit:
       return decodeModuleUnit(reinterpret_cast<const io::ModuleUnit*>(ptr));
-    default:
-      return nullptr;
-  }  // switch
-}
-
-auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
-    -> ExpressionAST* {
-  switch (type) {
-    case io::Expression_ThisExpression:
-      return decodeThisExpression(
-          reinterpret_cast<const io::ThisExpression*>(ptr));
-    case io::Expression_CharLiteralExpression:
-      return decodeCharLiteralExpression(
-          reinterpret_cast<const io::CharLiteralExpression*>(ptr));
-    case io::Expression_BoolLiteralExpression:
-      return decodeBoolLiteralExpression(
-          reinterpret_cast<const io::BoolLiteralExpression*>(ptr));
-    case io::Expression_IntLiteralExpression:
-      return decodeIntLiteralExpression(
-          reinterpret_cast<const io::IntLiteralExpression*>(ptr));
-    case io::Expression_FloatLiteralExpression:
-      return decodeFloatLiteralExpression(
-          reinterpret_cast<const io::FloatLiteralExpression*>(ptr));
-    case io::Expression_NullptrLiteralExpression:
-      return decodeNullptrLiteralExpression(
-          reinterpret_cast<const io::NullptrLiteralExpression*>(ptr));
-    case io::Expression_StringLiteralExpression:
-      return decodeStringLiteralExpression(
-          reinterpret_cast<const io::StringLiteralExpression*>(ptr));
-    case io::Expression_UserDefinedStringLiteralExpression:
-      return decodeUserDefinedStringLiteralExpression(
-          reinterpret_cast<const io::UserDefinedStringLiteralExpression*>(ptr));
-    case io::Expression_IdExpression:
-      return decodeIdExpression(reinterpret_cast<const io::IdExpression*>(ptr));
-    case io::Expression_RequiresExpression:
-      return decodeRequiresExpression(
-          reinterpret_cast<const io::RequiresExpression*>(ptr));
-    case io::Expression_NestedExpression:
-      return decodeNestedExpression(
-          reinterpret_cast<const io::NestedExpression*>(ptr));
-    case io::Expression_RightFoldExpression:
-      return decodeRightFoldExpression(
-          reinterpret_cast<const io::RightFoldExpression*>(ptr));
-    case io::Expression_LeftFoldExpression:
-      return decodeLeftFoldExpression(
-          reinterpret_cast<const io::LeftFoldExpression*>(ptr));
-    case io::Expression_FoldExpression:
-      return decodeFoldExpression(
-          reinterpret_cast<const io::FoldExpression*>(ptr));
-    case io::Expression_LambdaExpression:
-      return decodeLambdaExpression(
-          reinterpret_cast<const io::LambdaExpression*>(ptr));
-    case io::Expression_SizeofExpression:
-      return decodeSizeofExpression(
-          reinterpret_cast<const io::SizeofExpression*>(ptr));
-    case io::Expression_SizeofTypeExpression:
-      return decodeSizeofTypeExpression(
-          reinterpret_cast<const io::SizeofTypeExpression*>(ptr));
-    case io::Expression_SizeofPackExpression:
-      return decodeSizeofPackExpression(
-          reinterpret_cast<const io::SizeofPackExpression*>(ptr));
-    case io::Expression_TypeidExpression:
-      return decodeTypeidExpression(
-          reinterpret_cast<const io::TypeidExpression*>(ptr));
-    case io::Expression_TypeidOfTypeExpression:
-      return decodeTypeidOfTypeExpression(
-          reinterpret_cast<const io::TypeidOfTypeExpression*>(ptr));
-    case io::Expression_AlignofExpression:
-      return decodeAlignofExpression(
-          reinterpret_cast<const io::AlignofExpression*>(ptr));
-    case io::Expression_TypeTraitsExpression:
-      return decodeTypeTraitsExpression(
-          reinterpret_cast<const io::TypeTraitsExpression*>(ptr));
-    case io::Expression_UnaryExpression:
-      return decodeUnaryExpression(
-          reinterpret_cast<const io::UnaryExpression*>(ptr));
-    case io::Expression_BinaryExpression:
-      return decodeBinaryExpression(
-          reinterpret_cast<const io::BinaryExpression*>(ptr));
-    case io::Expression_AssignmentExpression:
-      return decodeAssignmentExpression(
-          reinterpret_cast<const io::AssignmentExpression*>(ptr));
-    case io::Expression_BracedTypeConstruction:
-      return decodeBracedTypeConstruction(
-          reinterpret_cast<const io::BracedTypeConstruction*>(ptr));
-    case io::Expression_TypeConstruction:
-      return decodeTypeConstruction(
-          reinterpret_cast<const io::TypeConstruction*>(ptr));
-    case io::Expression_CallExpression:
-      return decodeCallExpression(
-          reinterpret_cast<const io::CallExpression*>(ptr));
-    case io::Expression_SubscriptExpression:
-      return decodeSubscriptExpression(
-          reinterpret_cast<const io::SubscriptExpression*>(ptr));
-    case io::Expression_MemberExpression:
-      return decodeMemberExpression(
-          reinterpret_cast<const io::MemberExpression*>(ptr));
-    case io::Expression_PostIncrExpression:
-      return decodePostIncrExpression(
-          reinterpret_cast<const io::PostIncrExpression*>(ptr));
-    case io::Expression_ConditionalExpression:
-      return decodeConditionalExpression(
-          reinterpret_cast<const io::ConditionalExpression*>(ptr));
-    case io::Expression_ImplicitCastExpression:
-      return decodeImplicitCastExpression(
-          reinterpret_cast<const io::ImplicitCastExpression*>(ptr));
-    case io::Expression_CastExpression:
-      return decodeCastExpression(
-          reinterpret_cast<const io::CastExpression*>(ptr));
-    case io::Expression_CppCastExpression:
-      return decodeCppCastExpression(
-          reinterpret_cast<const io::CppCastExpression*>(ptr));
-    case io::Expression_NewExpression:
-      return decodeNewExpression(
-          reinterpret_cast<const io::NewExpression*>(ptr));
-    case io::Expression_DeleteExpression:
-      return decodeDeleteExpression(
-          reinterpret_cast<const io::DeleteExpression*>(ptr));
-    case io::Expression_ThrowExpression:
-      return decodeThrowExpression(
-          reinterpret_cast<const io::ThrowExpression*>(ptr));
-    case io::Expression_NoexceptExpression:
-      return decodeNoexceptExpression(
-          reinterpret_cast<const io::NoexceptExpression*>(ptr));
     default:
       return nullptr;
   }  // switch
@@ -1129,117 +1132,11 @@ auto ASTDecoder::decodeAttributeUsingPrefix(
   return ast;
 }
 
-auto ASTDecoder::decodeSimpleRequirement(const io::SimpleRequirement* node)
-    -> SimpleRequirementAST* {
+auto ASTDecoder::decodeDesignator(const io::Designator* node)
+    -> DesignatorAST* {
   if (!node) return nullptr;
 
-  auto ast = new (pool_) SimpleRequirementAST();
-  ast->expression =
-      decodeExpression(node->expression(), node->expression_type());
-  return ast;
-}
-
-auto ASTDecoder::decodeCompoundRequirement(const io::CompoundRequirement* node)
-    -> CompoundRequirementAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) CompoundRequirementAST();
-  ast->expression =
-      decodeExpression(node->expression(), node->expression_type());
-  ast->typeConstraint = decodeTypeConstraint(node->type_constraint());
-  return ast;
-}
-
-auto ASTDecoder::decodeTypeRequirement(const io::TypeRequirement* node)
-    -> TypeRequirementAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) TypeRequirementAST();
-  ast->nestedNameSpecifier =
-      decodeNestedNameSpecifier(node->nested_name_specifier());
-  ast->name = decodeName(node->name(), node->name_type());
-  return ast;
-}
-
-auto ASTDecoder::decodeNestedRequirement(const io::NestedRequirement* node)
-    -> NestedRequirementAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) NestedRequirementAST();
-  ast->expression =
-      decodeExpression(node->expression(), node->expression_type());
-  return ast;
-}
-
-auto ASTDecoder::decodeTypeTemplateArgument(
-    const io::TypeTemplateArgument* node) -> TypeTemplateArgumentAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) TypeTemplateArgumentAST();
-  ast->typeId = decodeTypeId(node->type_id());
-  return ast;
-}
-
-auto ASTDecoder::decodeExpressionTemplateArgument(
-    const io::ExpressionTemplateArgument* node)
-    -> ExpressionTemplateArgumentAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) ExpressionTemplateArgumentAST();
-  ast->expression =
-      decodeExpression(node->expression(), node->expression_type());
-  return ast;
-}
-
-auto ASTDecoder::decodeParenMemInitializer(const io::ParenMemInitializer* node)
-    -> ParenMemInitializerAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) ParenMemInitializerAST();
-  ast->name = decodeName(node->name(), node->name_type());
-  if (node->expression_list()) {
-    auto* inserter = &ast->expressionList;
-    for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeExpression(
-          node->expression_list()->Get(i),
-          io::Expression(node->expression_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  return ast;
-}
-
-auto ASTDecoder::decodeBracedMemInitializer(
-    const io::BracedMemInitializer* node) -> BracedMemInitializerAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) BracedMemInitializerAST();
-  ast->name = decodeName(node->name(), node->name_type());
-  ast->bracedInitList = decodeBracedInitList(node->braced_init_list());
-  return ast;
-}
-
-auto ASTDecoder::decodeThisLambdaCapture(const io::ThisLambdaCapture* node)
-    -> ThisLambdaCaptureAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) ThisLambdaCaptureAST();
-  return ast;
-}
-
-auto ASTDecoder::decodeDerefThisLambdaCapture(
-    const io::DerefThisLambdaCapture* node) -> DerefThisLambdaCaptureAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) DerefThisLambdaCaptureAST();
-  return ast;
-}
-
-auto ASTDecoder::decodeSimpleLambdaCapture(const io::SimpleLambdaCapture* node)
-    -> SimpleLambdaCaptureAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) SimpleLambdaCaptureAST();
+  auto ast = new (pool_) DesignatorAST();
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -1247,232 +1144,15 @@ auto ASTDecoder::decodeSimpleLambdaCapture(const io::SimpleLambdaCapture* node)
   return ast;
 }
 
-auto ASTDecoder::decodeRefLambdaCapture(const io::RefLambdaCapture* node)
-    -> RefLambdaCaptureAST* {
+auto ASTDecoder::decodeDesignatedInitializerClause(
+    const io::DesignatedInitializerClause* node)
+    -> DesignatedInitializerClauseAST* {
   if (!node) return nullptr;
 
-  auto ast = new (pool_) RefLambdaCaptureAST();
-  if (node->identifier()) {
-    ast->identifier =
-        unit_->control()->getIdentifier(node->identifier()->str());
-  }
-  return ast;
-}
-
-auto ASTDecoder::decodeRefInitLambdaCapture(
-    const io::RefInitLambdaCapture* node) -> RefInitLambdaCaptureAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) RefInitLambdaCaptureAST();
+  auto ast = new (pool_) DesignatedInitializerClauseAST();
+  ast->designator = decodeDesignator(node->designator());
   ast->initializer =
       decodeInitializer(node->initializer(), node->initializer_type());
-  if (node->identifier()) {
-    ast->identifier =
-        unit_->control()->getIdentifier(node->identifier()->str());
-  }
-  return ast;
-}
-
-auto ASTDecoder::decodeInitLambdaCapture(const io::InitLambdaCapture* node)
-    -> InitLambdaCaptureAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) InitLambdaCaptureAST();
-  ast->initializer =
-      decodeInitializer(node->initializer(), node->initializer_type());
-  if (node->identifier()) {
-    ast->identifier =
-        unit_->control()->getIdentifier(node->identifier()->str());
-  }
-  return ast;
-}
-
-auto ASTDecoder::decodeEqualInitializer(const io::EqualInitializer* node)
-    -> EqualInitializerAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) EqualInitializerAST();
-  ast->expression =
-      decodeExpression(node->expression(), node->expression_type());
-  return ast;
-}
-
-auto ASTDecoder::decodeBracedInitList(const io::BracedInitList* node)
-    -> BracedInitListAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) BracedInitListAST();
-  if (node->expression_list()) {
-    auto* inserter = &ast->expressionList;
-    for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeExpression(
-          node->expression_list()->Get(i),
-          io::Expression(node->expression_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  return ast;
-}
-
-auto ASTDecoder::decodeParenInitializer(const io::ParenInitializer* node)
-    -> ParenInitializerAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) ParenInitializerAST();
-  if (node->expression_list()) {
-    auto* inserter = &ast->expressionList;
-    for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeExpression(
-          node->expression_list()->Get(i),
-          io::Expression(node->expression_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  return ast;
-}
-
-auto ASTDecoder::decodeNewParenInitializer(const io::NewParenInitializer* node)
-    -> NewParenInitializerAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) NewParenInitializerAST();
-  if (node->expression_list()) {
-    auto* inserter = &ast->expressionList;
-    for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeExpression(
-          node->expression_list()->Get(i),
-          io::Expression(node->expression_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  return ast;
-}
-
-auto ASTDecoder::decodeNewBracedInitializer(
-    const io::NewBracedInitializer* node) -> NewBracedInitializerAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) NewBracedInitializerAST();
-  ast->bracedInit = decodeBracedInitList(node->braced_init());
-  return ast;
-}
-
-auto ASTDecoder::decodeEllipsisExceptionDeclaration(
-    const io::EllipsisExceptionDeclaration* node)
-    -> EllipsisExceptionDeclarationAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) EllipsisExceptionDeclarationAST();
-  return ast;
-}
-
-auto ASTDecoder::decodeTypeExceptionDeclaration(
-    const io::TypeExceptionDeclaration* node) -> TypeExceptionDeclarationAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) TypeExceptionDeclarationAST();
-  if (node->attribute_list()) {
-    auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeAttributeSpecifier(
-          node->attribute_list()->Get(i),
-          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  if (node->type_specifier_list()) {
-    auto* inserter = &ast->typeSpecifierList;
-    for (std::size_t i = 0; i < node->type_specifier_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeSpecifier(
-          node->type_specifier_list()->Get(i),
-          io::Specifier(node->type_specifier_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  ast->declarator = decodeDeclarator(node->declarator());
-  return ast;
-}
-
-auto ASTDecoder::decodeDefaultFunctionBody(const io::DefaultFunctionBody* node)
-    -> DefaultFunctionBodyAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) DefaultFunctionBodyAST();
-  return ast;
-}
-
-auto ASTDecoder::decodeCompoundStatementFunctionBody(
-    const io::CompoundStatementFunctionBody* node)
-    -> CompoundStatementFunctionBodyAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) CompoundStatementFunctionBodyAST();
-  ast->ctorInitializer = decodeCtorInitializer(node->ctor_initializer());
-  ast->statement = decodeCompoundStatement(node->statement());
-  return ast;
-}
-
-auto ASTDecoder::decodeTryStatementFunctionBody(
-    const io::TryStatementFunctionBody* node) -> TryStatementFunctionBodyAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) TryStatementFunctionBodyAST();
-  ast->ctorInitializer = decodeCtorInitializer(node->ctor_initializer());
-  ast->statement = decodeCompoundStatement(node->statement());
-  if (node->handler_list()) {
-    auto* inserter = &ast->handlerList;
-    for (std::size_t i = 0; i < node->handler_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeHandler(node->handler_list()->Get(i)));
-      inserter = &(*inserter)->next;
-    }
-  }
-  return ast;
-}
-
-auto ASTDecoder::decodeDeleteFunctionBody(const io::DeleteFunctionBody* node)
-    -> DeleteFunctionBodyAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) DeleteFunctionBodyAST();
-  return ast;
-}
-
-auto ASTDecoder::decodeTranslationUnit(const io::TranslationUnit* node)
-    -> TranslationUnitAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) TranslationUnitAST();
-  if (node->declaration_list()) {
-    auto* inserter = &ast->declarationList;
-    for (std::size_t i = 0; i < node->declaration_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeDeclaration(
-          node->declaration_list()->Get(i),
-          io::Declaration(node->declaration_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  return ast;
-}
-
-auto ASTDecoder::decodeModuleUnit(const io::ModuleUnit* node)
-    -> ModuleUnitAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) ModuleUnitAST();
-  ast->globalModuleFragment =
-      decodeGlobalModuleFragment(node->global_module_fragment());
-  ast->moduleDeclaration = decodeModuleDeclaration(node->module_declaration());
-  if (node->declaration_list()) {
-    auto* inserter = &ast->declarationList;
-    for (std::size_t i = 0; i < node->declaration_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeDeclaration(
-          node->declaration_list()->Get(i),
-          io::Declaration(node->declaration_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  ast->privateModuleFragment =
-      decodePrivateModuleFragment(node->private_module_fragment());
   return ast;
 }
 
@@ -1920,6 +1600,353 @@ auto ASTDecoder::decodeNoexceptExpression(const io::NoexceptExpression* node)
   auto ast = new (pool_) NoexceptExpressionAST();
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  return ast;
+}
+
+auto ASTDecoder::decodeSimpleRequirement(const io::SimpleRequirement* node)
+    -> SimpleRequirementAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) SimpleRequirementAST();
+  ast->expression =
+      decodeExpression(node->expression(), node->expression_type());
+  return ast;
+}
+
+auto ASTDecoder::decodeCompoundRequirement(const io::CompoundRequirement* node)
+    -> CompoundRequirementAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) CompoundRequirementAST();
+  ast->expression =
+      decodeExpression(node->expression(), node->expression_type());
+  ast->typeConstraint = decodeTypeConstraint(node->type_constraint());
+  return ast;
+}
+
+auto ASTDecoder::decodeTypeRequirement(const io::TypeRequirement* node)
+    -> TypeRequirementAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) TypeRequirementAST();
+  ast->nestedNameSpecifier =
+      decodeNestedNameSpecifier(node->nested_name_specifier());
+  ast->name = decodeName(node->name(), node->name_type());
+  return ast;
+}
+
+auto ASTDecoder::decodeNestedRequirement(const io::NestedRequirement* node)
+    -> NestedRequirementAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) NestedRequirementAST();
+  ast->expression =
+      decodeExpression(node->expression(), node->expression_type());
+  return ast;
+}
+
+auto ASTDecoder::decodeTypeTemplateArgument(
+    const io::TypeTemplateArgument* node) -> TypeTemplateArgumentAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) TypeTemplateArgumentAST();
+  ast->typeId = decodeTypeId(node->type_id());
+  return ast;
+}
+
+auto ASTDecoder::decodeExpressionTemplateArgument(
+    const io::ExpressionTemplateArgument* node)
+    -> ExpressionTemplateArgumentAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) ExpressionTemplateArgumentAST();
+  ast->expression =
+      decodeExpression(node->expression(), node->expression_type());
+  return ast;
+}
+
+auto ASTDecoder::decodeParenMemInitializer(const io::ParenMemInitializer* node)
+    -> ParenMemInitializerAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) ParenMemInitializerAST();
+  ast->name = decodeName(node->name(), node->name_type());
+  if (node->expression_list()) {
+    auto* inserter = &ast->expressionList;
+    for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeExpression(
+          node->expression_list()->Get(i),
+          io::Expression(node->expression_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeBracedMemInitializer(
+    const io::BracedMemInitializer* node) -> BracedMemInitializerAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) BracedMemInitializerAST();
+  ast->name = decodeName(node->name(), node->name_type());
+  ast->bracedInitList = decodeBracedInitList(node->braced_init_list());
+  return ast;
+}
+
+auto ASTDecoder::decodeThisLambdaCapture(const io::ThisLambdaCapture* node)
+    -> ThisLambdaCaptureAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) ThisLambdaCaptureAST();
+  return ast;
+}
+
+auto ASTDecoder::decodeDerefThisLambdaCapture(
+    const io::DerefThisLambdaCapture* node) -> DerefThisLambdaCaptureAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) DerefThisLambdaCaptureAST();
+  return ast;
+}
+
+auto ASTDecoder::decodeSimpleLambdaCapture(const io::SimpleLambdaCapture* node)
+    -> SimpleLambdaCaptureAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) SimpleLambdaCaptureAST();
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeRefLambdaCapture(const io::RefLambdaCapture* node)
+    -> RefLambdaCaptureAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) RefLambdaCaptureAST();
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeRefInitLambdaCapture(
+    const io::RefInitLambdaCapture* node) -> RefInitLambdaCaptureAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) RefInitLambdaCaptureAST();
+  ast->initializer =
+      decodeInitializer(node->initializer(), node->initializer_type());
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeInitLambdaCapture(const io::InitLambdaCapture* node)
+    -> InitLambdaCaptureAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) InitLambdaCaptureAST();
+  ast->initializer =
+      decodeInitializer(node->initializer(), node->initializer_type());
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeEqualInitializer(const io::EqualInitializer* node)
+    -> EqualInitializerAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) EqualInitializerAST();
+  ast->expression =
+      decodeExpression(node->expression(), node->expression_type());
+  return ast;
+}
+
+auto ASTDecoder::decodeBracedInitList(const io::BracedInitList* node)
+    -> BracedInitListAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) BracedInitListAST();
+  if (node->expression_list()) {
+    auto* inserter = &ast->expressionList;
+    for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeExpression(
+          node->expression_list()->Get(i),
+          io::Expression(node->expression_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeParenInitializer(const io::ParenInitializer* node)
+    -> ParenInitializerAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) ParenInitializerAST();
+  if (node->expression_list()) {
+    auto* inserter = &ast->expressionList;
+    for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeExpression(
+          node->expression_list()->Get(i),
+          io::Expression(node->expression_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeNewParenInitializer(const io::NewParenInitializer* node)
+    -> NewParenInitializerAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) NewParenInitializerAST();
+  if (node->expression_list()) {
+    auto* inserter = &ast->expressionList;
+    for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeExpression(
+          node->expression_list()->Get(i),
+          io::Expression(node->expression_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeNewBracedInitializer(
+    const io::NewBracedInitializer* node) -> NewBracedInitializerAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) NewBracedInitializerAST();
+  ast->bracedInit = decodeBracedInitList(node->braced_init());
+  return ast;
+}
+
+auto ASTDecoder::decodeEllipsisExceptionDeclaration(
+    const io::EllipsisExceptionDeclaration* node)
+    -> EllipsisExceptionDeclarationAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) EllipsisExceptionDeclarationAST();
+  return ast;
+}
+
+auto ASTDecoder::decodeTypeExceptionDeclaration(
+    const io::TypeExceptionDeclaration* node) -> TypeExceptionDeclarationAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) TypeExceptionDeclarationAST();
+  if (node->attribute_list()) {
+    auto* inserter = &ast->attributeList;
+    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  if (node->type_specifier_list()) {
+    auto* inserter = &ast->typeSpecifierList;
+    for (std::size_t i = 0; i < node->type_specifier_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeSpecifier(
+          node->type_specifier_list()->Get(i),
+          io::Specifier(node->type_specifier_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  ast->declarator = decodeDeclarator(node->declarator());
+  return ast;
+}
+
+auto ASTDecoder::decodeDefaultFunctionBody(const io::DefaultFunctionBody* node)
+    -> DefaultFunctionBodyAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) DefaultFunctionBodyAST();
+  return ast;
+}
+
+auto ASTDecoder::decodeCompoundStatementFunctionBody(
+    const io::CompoundStatementFunctionBody* node)
+    -> CompoundStatementFunctionBodyAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) CompoundStatementFunctionBodyAST();
+  ast->ctorInitializer = decodeCtorInitializer(node->ctor_initializer());
+  ast->statement = decodeCompoundStatement(node->statement());
+  return ast;
+}
+
+auto ASTDecoder::decodeTryStatementFunctionBody(
+    const io::TryStatementFunctionBody* node) -> TryStatementFunctionBodyAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) TryStatementFunctionBodyAST();
+  ast->ctorInitializer = decodeCtorInitializer(node->ctor_initializer());
+  ast->statement = decodeCompoundStatement(node->statement());
+  if (node->handler_list()) {
+    auto* inserter = &ast->handlerList;
+    for (std::size_t i = 0; i < node->handler_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeHandler(node->handler_list()->Get(i)));
+      inserter = &(*inserter)->next;
+    }
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeDeleteFunctionBody(const io::DeleteFunctionBody* node)
+    -> DeleteFunctionBodyAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) DeleteFunctionBodyAST();
+  return ast;
+}
+
+auto ASTDecoder::decodeTranslationUnit(const io::TranslationUnit* node)
+    -> TranslationUnitAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) TranslationUnitAST();
+  if (node->declaration_list()) {
+    auto* inserter = &ast->declarationList;
+    for (std::size_t i = 0; i < node->declaration_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeDeclaration(
+          node->declaration_list()->Get(i),
+          io::Declaration(node->declaration_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeModuleUnit(const io::ModuleUnit* node)
+    -> ModuleUnitAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) ModuleUnitAST();
+  ast->globalModuleFragment =
+      decodeGlobalModuleFragment(node->global_module_fragment());
+  ast->moduleDeclaration = decodeModuleDeclaration(node->module_declaration());
+  if (node->declaration_list()) {
+    auto* inserter = &ast->declarationList;
+    for (std::size_t i = 0; i < node->declaration_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeDeclaration(
+          node->declaration_list()->Get(i),
+          io::Declaration(node->declaration_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  ast->privateModuleFragment =
+      decodePrivateModuleFragment(node->private_module_fragment());
   return ast;
 }
 

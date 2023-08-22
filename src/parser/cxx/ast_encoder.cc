@@ -126,6 +126,19 @@ auto ASTEncoder::encodeSourceLocation(const SourceLocation& loc)
   return offset.Union();
 }
 
+auto ASTEncoder::acceptExpression(ExpressionAST* ast)
+    -> std::tuple<flatbuffers::Offset<>, std::uint32_t> {
+  if (!ast) return {};
+  flatbuffers::Offset<> offset;
+  std::uint32_t type = 0;
+  std::swap(offset, offset_);
+  std::swap(type, type_);
+  ast->accept(this);
+  std::swap(offset, offset_);
+  std::swap(type, type_);
+  return {offset, type};
+}
+
 auto ASTEncoder::acceptRequirement(RequirementAST* ast)
     -> std::tuple<flatbuffers::Offset<>, std::uint32_t> {
   if (!ast) return {};
@@ -231,19 +244,6 @@ auto ASTEncoder::acceptFunctionBody(FunctionBodyAST* ast)
 }
 
 auto ASTEncoder::acceptUnit(UnitAST* ast)
-    -> std::tuple<flatbuffers::Offset<>, std::uint32_t> {
-  if (!ast) return {};
-  flatbuffers::Offset<> offset;
-  std::uint32_t type = 0;
-  std::swap(offset, offset_);
-  std::swap(type, type_);
-  ast->accept(this);
-  std::swap(offset, offset_);
-  std::swap(type, type_);
-  return {offset, type};
-}
-
-auto ASTEncoder::acceptExpression(ExpressionAST* ast)
     -> std::tuple<flatbuffers::Offset<>, std::uint32_t> {
   if (!ast) return {};
   flatbuffers::Offset<> offset;
@@ -1084,186 +1084,10 @@ void ASTEncoder::visit(AttributeUsingPrefixAST* ast) {
   offset_ = builder.Finish().Union();
 }
 
-void ASTEncoder::visit(SimpleRequirementAST* ast) {
-  const auto [expression, expressionType] = acceptExpression(ast->expression);
+void ASTEncoder::visit(DesignatorAST* ast) {
+  auto dotLoc = encodeSourceLocation(ast->dotLoc);
 
-  auto semicolonLoc = encodeSourceLocation(ast->semicolonLoc);
-
-  io::SimpleRequirement::Builder builder{fbb_};
-  builder.add_expression(expression);
-  builder.add_expression_type(static_cast<io::Expression>(expressionType));
-  builder.add_semicolon_loc(semicolonLoc.o);
-
-  offset_ = builder.Finish().Union();
-  type_ = io::Requirement_SimpleRequirement;
-}
-
-void ASTEncoder::visit(CompoundRequirementAST* ast) {
-  auto lbraceLoc = encodeSourceLocation(ast->lbraceLoc);
-
-  const auto [expression, expressionType] = acceptExpression(ast->expression);
-
-  auto rbraceLoc = encodeSourceLocation(ast->rbraceLoc);
-
-  auto noexceptLoc = encodeSourceLocation(ast->noexceptLoc);
-
-  auto minusGreaterLoc = encodeSourceLocation(ast->minusGreaterLoc);
-
-  const auto typeConstraint = accept(ast->typeConstraint);
-
-  auto semicolonLoc = encodeSourceLocation(ast->semicolonLoc);
-
-  io::CompoundRequirement::Builder builder{fbb_};
-  builder.add_lbrace_loc(lbraceLoc.o);
-  builder.add_expression(expression);
-  builder.add_expression_type(static_cast<io::Expression>(expressionType));
-  builder.add_rbrace_loc(rbraceLoc.o);
-  builder.add_noexcept_loc(noexceptLoc.o);
-  builder.add_minus_greater_loc(minusGreaterLoc.o);
-  builder.add_type_constraint(typeConstraint.o);
-  builder.add_semicolon_loc(semicolonLoc.o);
-
-  offset_ = builder.Finish().Union();
-  type_ = io::Requirement_CompoundRequirement;
-}
-
-void ASTEncoder::visit(TypeRequirementAST* ast) {
-  auto typenameLoc = encodeSourceLocation(ast->typenameLoc);
-
-  const auto nestedNameSpecifier = accept(ast->nestedNameSpecifier);
-
-  const auto [name, nameType] = acceptName(ast->name);
-
-  auto semicolonLoc = encodeSourceLocation(ast->semicolonLoc);
-
-  io::TypeRequirement::Builder builder{fbb_};
-  builder.add_typename_loc(typenameLoc.o);
-  builder.add_nested_name_specifier(nestedNameSpecifier.o);
-  builder.add_name(name);
-  builder.add_name_type(static_cast<io::Name>(nameType));
-  builder.add_semicolon_loc(semicolonLoc.o);
-
-  offset_ = builder.Finish().Union();
-  type_ = io::Requirement_TypeRequirement;
-}
-
-void ASTEncoder::visit(NestedRequirementAST* ast) {
-  auto requiresLoc = encodeSourceLocation(ast->requiresLoc);
-
-  const auto [expression, expressionType] = acceptExpression(ast->expression);
-
-  auto semicolonLoc = encodeSourceLocation(ast->semicolonLoc);
-
-  io::NestedRequirement::Builder builder{fbb_};
-  builder.add_requires_loc(requiresLoc.o);
-  builder.add_expression(expression);
-  builder.add_expression_type(static_cast<io::Expression>(expressionType));
-  builder.add_semicolon_loc(semicolonLoc.o);
-
-  offset_ = builder.Finish().Union();
-  type_ = io::Requirement_NestedRequirement;
-}
-
-void ASTEncoder::visit(TypeTemplateArgumentAST* ast) {
-  const auto typeId = accept(ast->typeId);
-
-  io::TypeTemplateArgument::Builder builder{fbb_};
-  builder.add_type_id(typeId.o);
-
-  offset_ = builder.Finish().Union();
-  type_ = io::TemplateArgument_TypeTemplateArgument;
-}
-
-void ASTEncoder::visit(ExpressionTemplateArgumentAST* ast) {
-  const auto [expression, expressionType] = acceptExpression(ast->expression);
-
-  io::ExpressionTemplateArgument::Builder builder{fbb_};
-  builder.add_expression(expression);
-  builder.add_expression_type(static_cast<io::Expression>(expressionType));
-
-  offset_ = builder.Finish().Union();
-  type_ = io::TemplateArgument_ExpressionTemplateArgument;
-}
-
-void ASTEncoder::visit(ParenMemInitializerAST* ast) {
-  const auto [name, nameType] = acceptName(ast->name);
-
-  auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
-
-  std::vector<flatbuffers::Offset<>> expressionListOffsets;
-  std::vector<std::underlying_type_t<io::Expression>> expressionListTypes;
-
-  for (auto it = ast->expressionList; it; it = it->next) {
-    if (!it->value) continue;
-    const auto [offset, type] = acceptExpression(it->value);
-    expressionListOffsets.push_back(offset);
-    expressionListTypes.push_back(type);
-  }
-
-  auto expressionListOffsetsVector = fbb_.CreateVector(expressionListOffsets);
-  auto expressionListTypesVector = fbb_.CreateVector(expressionListTypes);
-
-  auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
-
-  auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
-
-  io::ParenMemInitializer::Builder builder{fbb_};
-  builder.add_name(name);
-  builder.add_name_type(static_cast<io::Name>(nameType));
-  builder.add_lparen_loc(lparenLoc.o);
-  builder.add_expression_list(expressionListOffsetsVector);
-  builder.add_expression_list_type(expressionListTypesVector);
-  builder.add_rparen_loc(rparenLoc.o);
-  builder.add_ellipsis_loc(ellipsisLoc.o);
-
-  offset_ = builder.Finish().Union();
-  type_ = io::MemInitializer_ParenMemInitializer;
-}
-
-void ASTEncoder::visit(BracedMemInitializerAST* ast) {
-  const auto [name, nameType] = acceptName(ast->name);
-
-  const auto bracedInitList = accept(ast->bracedInitList);
-
-  auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
-
-  io::BracedMemInitializer::Builder builder{fbb_};
-  builder.add_name(name);
-  builder.add_name_type(static_cast<io::Name>(nameType));
-  builder.add_braced_init_list(bracedInitList.o);
-  builder.add_ellipsis_loc(ellipsisLoc.o);
-
-  offset_ = builder.Finish().Union();
-  type_ = io::MemInitializer_BracedMemInitializer;
-}
-
-void ASTEncoder::visit(ThisLambdaCaptureAST* ast) {
-  auto thisLoc = encodeSourceLocation(ast->thisLoc);
-
-  io::ThisLambdaCapture::Builder builder{fbb_};
-  builder.add_this_loc(thisLoc.o);
-
-  offset_ = builder.Finish().Union();
-  type_ = io::LambdaCapture_ThisLambdaCapture;
-}
-
-void ASTEncoder::visit(DerefThisLambdaCaptureAST* ast) {
-  auto starLoc = encodeSourceLocation(ast->starLoc);
-
-  auto thisLoc = encodeSourceLocation(ast->thisLoc);
-
-  io::DerefThisLambdaCapture::Builder builder{fbb_};
-  builder.add_star_loc(starLoc.o);
-  builder.add_this_loc(thisLoc.o);
-
-  offset_ = builder.Finish().Union();
-  type_ = io::LambdaCapture_DerefThisLambdaCapture;
-}
-
-void ASTEncoder::visit(SimpleLambdaCaptureAST* ast) {
   auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
-
-  auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
 
   flatbuffers::Offset<flatbuffers::String> identifier;
   if (ast->identifier) {
@@ -1275,395 +1099,29 @@ void ASTEncoder::visit(SimpleLambdaCaptureAST* ast) {
     }
   }
 
-  io::SimpleLambdaCapture::Builder builder{fbb_};
+  io::Designator::Builder builder{fbb_};
+  builder.add_dot_loc(dotLoc.o);
   builder.add_identifier_loc(identifierLoc.o);
-  builder.add_ellipsis_loc(ellipsisLoc.o);
   if (ast->identifier) {
     builder.add_identifier(identifier);
   }
 
   offset_ = builder.Finish().Union();
-  type_ = io::LambdaCapture_SimpleLambdaCapture;
 }
 
-void ASTEncoder::visit(RefLambdaCaptureAST* ast) {
-  auto ampLoc = encodeSourceLocation(ast->ampLoc);
-
-  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
-
-  auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
-
-  flatbuffers::Offset<flatbuffers::String> identifier;
-  if (ast->identifier) {
-    if (identifiers_.contains(ast->identifier)) {
-      identifier = identifiers_.at(ast->identifier);
-    } else {
-      identifier = fbb_.CreateString(ast->identifier->value());
-      identifiers_.emplace(ast->identifier, identifier);
-    }
-  }
-
-  io::RefLambdaCapture::Builder builder{fbb_};
-  builder.add_amp_loc(ampLoc.o);
-  builder.add_identifier_loc(identifierLoc.o);
-  builder.add_ellipsis_loc(ellipsisLoc.o);
-  if (ast->identifier) {
-    builder.add_identifier(identifier);
-  }
-
-  offset_ = builder.Finish().Union();
-  type_ = io::LambdaCapture_RefLambdaCapture;
-}
-
-void ASTEncoder::visit(RefInitLambdaCaptureAST* ast) {
-  auto ampLoc = encodeSourceLocation(ast->ampLoc);
-
-  auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
-
-  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
+void ASTEncoder::visit(DesignatedInitializerClauseAST* ast) {
+  const auto designator = accept(ast->designator);
 
   const auto [initializer, initializerType] =
       acceptInitializer(ast->initializer);
 
-  flatbuffers::Offset<flatbuffers::String> identifier;
-  if (ast->identifier) {
-    if (identifiers_.contains(ast->identifier)) {
-      identifier = identifiers_.at(ast->identifier);
-    } else {
-      identifier = fbb_.CreateString(ast->identifier->value());
-      identifiers_.emplace(ast->identifier, identifier);
-    }
-  }
-
-  io::RefInitLambdaCapture::Builder builder{fbb_};
-  builder.add_amp_loc(ampLoc.o);
-  builder.add_ellipsis_loc(ellipsisLoc.o);
-  builder.add_identifier_loc(identifierLoc.o);
+  io::DesignatedInitializerClause::Builder builder{fbb_};
+  builder.add_designator(designator.o);
   builder.add_initializer(initializer);
   builder.add_initializer_type(static_cast<io::Initializer>(initializerType));
-  if (ast->identifier) {
-    builder.add_identifier(identifier);
-  }
 
   offset_ = builder.Finish().Union();
-  type_ = io::LambdaCapture_RefInitLambdaCapture;
-}
-
-void ASTEncoder::visit(InitLambdaCaptureAST* ast) {
-  auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
-
-  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
-
-  const auto [initializer, initializerType] =
-      acceptInitializer(ast->initializer);
-
-  flatbuffers::Offset<flatbuffers::String> identifier;
-  if (ast->identifier) {
-    if (identifiers_.contains(ast->identifier)) {
-      identifier = identifiers_.at(ast->identifier);
-    } else {
-      identifier = fbb_.CreateString(ast->identifier->value());
-      identifiers_.emplace(ast->identifier, identifier);
-    }
-  }
-
-  io::InitLambdaCapture::Builder builder{fbb_};
-  builder.add_ellipsis_loc(ellipsisLoc.o);
-  builder.add_identifier_loc(identifierLoc.o);
-  builder.add_initializer(initializer);
-  builder.add_initializer_type(static_cast<io::Initializer>(initializerType));
-  if (ast->identifier) {
-    builder.add_identifier(identifier);
-  }
-
-  offset_ = builder.Finish().Union();
-  type_ = io::LambdaCapture_InitLambdaCapture;
-}
-
-void ASTEncoder::visit(EqualInitializerAST* ast) {
-  auto equalLoc = encodeSourceLocation(ast->equalLoc);
-
-  const auto [expression, expressionType] = acceptExpression(ast->expression);
-
-  io::EqualInitializer::Builder builder{fbb_};
-  builder.add_equal_loc(equalLoc.o);
-  builder.add_expression(expression);
-  builder.add_expression_type(static_cast<io::Expression>(expressionType));
-
-  offset_ = builder.Finish().Union();
-  type_ = io::Initializer_EqualInitializer;
-}
-
-void ASTEncoder::visit(BracedInitListAST* ast) {
-  auto lbraceLoc = encodeSourceLocation(ast->lbraceLoc);
-
-  std::vector<flatbuffers::Offset<>> expressionListOffsets;
-  std::vector<std::underlying_type_t<io::Expression>> expressionListTypes;
-
-  for (auto it = ast->expressionList; it; it = it->next) {
-    if (!it->value) continue;
-    const auto [offset, type] = acceptExpression(it->value);
-    expressionListOffsets.push_back(offset);
-    expressionListTypes.push_back(type);
-  }
-
-  auto expressionListOffsetsVector = fbb_.CreateVector(expressionListOffsets);
-  auto expressionListTypesVector = fbb_.CreateVector(expressionListTypes);
-
-  auto commaLoc = encodeSourceLocation(ast->commaLoc);
-
-  auto rbraceLoc = encodeSourceLocation(ast->rbraceLoc);
-
-  io::BracedInitList::Builder builder{fbb_};
-  builder.add_lbrace_loc(lbraceLoc.o);
-  builder.add_expression_list(expressionListOffsetsVector);
-  builder.add_expression_list_type(expressionListTypesVector);
-  builder.add_comma_loc(commaLoc.o);
-  builder.add_rbrace_loc(rbraceLoc.o);
-
-  offset_ = builder.Finish().Union();
-  type_ = io::Initializer_BracedInitList;
-}
-
-void ASTEncoder::visit(ParenInitializerAST* ast) {
-  auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
-
-  std::vector<flatbuffers::Offset<>> expressionListOffsets;
-  std::vector<std::underlying_type_t<io::Expression>> expressionListTypes;
-
-  for (auto it = ast->expressionList; it; it = it->next) {
-    if (!it->value) continue;
-    const auto [offset, type] = acceptExpression(it->value);
-    expressionListOffsets.push_back(offset);
-    expressionListTypes.push_back(type);
-  }
-
-  auto expressionListOffsetsVector = fbb_.CreateVector(expressionListOffsets);
-  auto expressionListTypesVector = fbb_.CreateVector(expressionListTypes);
-
-  auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
-
-  io::ParenInitializer::Builder builder{fbb_};
-  builder.add_lparen_loc(lparenLoc.o);
-  builder.add_expression_list(expressionListOffsetsVector);
-  builder.add_expression_list_type(expressionListTypesVector);
-  builder.add_rparen_loc(rparenLoc.o);
-
-  offset_ = builder.Finish().Union();
-  type_ = io::Initializer_ParenInitializer;
-}
-
-void ASTEncoder::visit(NewParenInitializerAST* ast) {
-  auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
-
-  std::vector<flatbuffers::Offset<>> expressionListOffsets;
-  std::vector<std::underlying_type_t<io::Expression>> expressionListTypes;
-
-  for (auto it = ast->expressionList; it; it = it->next) {
-    if (!it->value) continue;
-    const auto [offset, type] = acceptExpression(it->value);
-    expressionListOffsets.push_back(offset);
-    expressionListTypes.push_back(type);
-  }
-
-  auto expressionListOffsetsVector = fbb_.CreateVector(expressionListOffsets);
-  auto expressionListTypesVector = fbb_.CreateVector(expressionListTypes);
-
-  auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
-
-  io::NewParenInitializer::Builder builder{fbb_};
-  builder.add_lparen_loc(lparenLoc.o);
-  builder.add_expression_list(expressionListOffsetsVector);
-  builder.add_expression_list_type(expressionListTypesVector);
-  builder.add_rparen_loc(rparenLoc.o);
-
-  offset_ = builder.Finish().Union();
-  type_ = io::NewInitializer_NewParenInitializer;
-}
-
-void ASTEncoder::visit(NewBracedInitializerAST* ast) {
-  const auto bracedInit = accept(ast->bracedInit);
-
-  io::NewBracedInitializer::Builder builder{fbb_};
-  builder.add_braced_init(bracedInit.o);
-
-  offset_ = builder.Finish().Union();
-  type_ = io::NewInitializer_NewBracedInitializer;
-}
-
-void ASTEncoder::visit(EllipsisExceptionDeclarationAST* ast) {
-  auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
-
-  io::EllipsisExceptionDeclaration::Builder builder{fbb_};
-  builder.add_ellipsis_loc(ellipsisLoc.o);
-
-  offset_ = builder.Finish().Union();
-  type_ = io::ExceptionDeclaration_EllipsisExceptionDeclaration;
-}
-
-void ASTEncoder::visit(TypeExceptionDeclarationAST* ast) {
-  std::vector<flatbuffers::Offset<>> attributeListOffsets;
-  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
-      attributeListTypes;
-
-  for (auto it = ast->attributeList; it; it = it->next) {
-    if (!it->value) continue;
-    const auto [offset, type] = acceptAttributeSpecifier(it->value);
-    attributeListOffsets.push_back(offset);
-    attributeListTypes.push_back(type);
-  }
-
-  auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
-  auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
-
-  std::vector<flatbuffers::Offset<>> typeSpecifierListOffsets;
-  std::vector<std::underlying_type_t<io::Specifier>> typeSpecifierListTypes;
-
-  for (auto it = ast->typeSpecifierList; it; it = it->next) {
-    if (!it->value) continue;
-    const auto [offset, type] = acceptSpecifier(it->value);
-    typeSpecifierListOffsets.push_back(offset);
-    typeSpecifierListTypes.push_back(type);
-  }
-
-  auto typeSpecifierListOffsetsVector =
-      fbb_.CreateVector(typeSpecifierListOffsets);
-  auto typeSpecifierListTypesVector = fbb_.CreateVector(typeSpecifierListTypes);
-
-  const auto declarator = accept(ast->declarator);
-
-  io::TypeExceptionDeclaration::Builder builder{fbb_};
-  builder.add_attribute_list(attributeListOffsetsVector);
-  builder.add_attribute_list_type(attributeListTypesVector);
-  builder.add_type_specifier_list(typeSpecifierListOffsetsVector);
-  builder.add_type_specifier_list_type(typeSpecifierListTypesVector);
-  builder.add_declarator(declarator.o);
-
-  offset_ = builder.Finish().Union();
-  type_ = io::ExceptionDeclaration_TypeExceptionDeclaration;
-}
-
-void ASTEncoder::visit(DefaultFunctionBodyAST* ast) {
-  auto equalLoc = encodeSourceLocation(ast->equalLoc);
-
-  auto defaultLoc = encodeSourceLocation(ast->defaultLoc);
-
-  auto semicolonLoc = encodeSourceLocation(ast->semicolonLoc);
-
-  io::DefaultFunctionBody::Builder builder{fbb_};
-  builder.add_equal_loc(equalLoc.o);
-  builder.add_default_loc(defaultLoc.o);
-  builder.add_semicolon_loc(semicolonLoc.o);
-
-  offset_ = builder.Finish().Union();
-  type_ = io::FunctionBody_DefaultFunctionBody;
-}
-
-void ASTEncoder::visit(CompoundStatementFunctionBodyAST* ast) {
-  const auto ctorInitializer = accept(ast->ctorInitializer);
-
-  const auto statement = accept(ast->statement);
-
-  io::CompoundStatementFunctionBody::Builder builder{fbb_};
-  builder.add_ctor_initializer(ctorInitializer.o);
-  builder.add_statement(statement.o);
-
-  offset_ = builder.Finish().Union();
-  type_ = io::FunctionBody_CompoundStatementFunctionBody;
-}
-
-void ASTEncoder::visit(TryStatementFunctionBodyAST* ast) {
-  auto tryLoc = encodeSourceLocation(ast->tryLoc);
-
-  const auto ctorInitializer = accept(ast->ctorInitializer);
-
-  const auto statement = accept(ast->statement);
-
-  std::vector<flatbuffers::Offset<io::Handler>> handlerListOffsets;
-  for (auto it = ast->handlerList; it; it = it->next) {
-    if (!it->value) continue;
-    handlerListOffsets.emplace_back(accept(it->value).o);
-  }
-
-  auto handlerListOffsetsVector = fbb_.CreateVector(handlerListOffsets);
-
-  io::TryStatementFunctionBody::Builder builder{fbb_};
-  builder.add_try_loc(tryLoc.o);
-  builder.add_ctor_initializer(ctorInitializer.o);
-  builder.add_statement(statement.o);
-  builder.add_handler_list(handlerListOffsetsVector);
-
-  offset_ = builder.Finish().Union();
-  type_ = io::FunctionBody_TryStatementFunctionBody;
-}
-
-void ASTEncoder::visit(DeleteFunctionBodyAST* ast) {
-  auto equalLoc = encodeSourceLocation(ast->equalLoc);
-
-  auto deleteLoc = encodeSourceLocation(ast->deleteLoc);
-
-  auto semicolonLoc = encodeSourceLocation(ast->semicolonLoc);
-
-  io::DeleteFunctionBody::Builder builder{fbb_};
-  builder.add_equal_loc(equalLoc.o);
-  builder.add_delete_loc(deleteLoc.o);
-  builder.add_semicolon_loc(semicolonLoc.o);
-
-  offset_ = builder.Finish().Union();
-  type_ = io::FunctionBody_DeleteFunctionBody;
-}
-
-void ASTEncoder::visit(TranslationUnitAST* ast) {
-  std::vector<flatbuffers::Offset<>> declarationListOffsets;
-  std::vector<std::underlying_type_t<io::Declaration>> declarationListTypes;
-
-  for (auto it = ast->declarationList; it; it = it->next) {
-    if (!it->value) continue;
-    const auto [offset, type] = acceptDeclaration(it->value);
-    declarationListOffsets.push_back(offset);
-    declarationListTypes.push_back(type);
-  }
-
-  auto declarationListOffsetsVector = fbb_.CreateVector(declarationListOffsets);
-  auto declarationListTypesVector = fbb_.CreateVector(declarationListTypes);
-
-  io::TranslationUnit::Builder builder{fbb_};
-  builder.add_declaration_list(declarationListOffsetsVector);
-  builder.add_declaration_list_type(declarationListTypesVector);
-
-  offset_ = builder.Finish().Union();
-  type_ = io::Unit_TranslationUnit;
-}
-
-void ASTEncoder::visit(ModuleUnitAST* ast) {
-  const auto globalModuleFragment = accept(ast->globalModuleFragment);
-
-  const auto moduleDeclaration = accept(ast->moduleDeclaration);
-
-  std::vector<flatbuffers::Offset<>> declarationListOffsets;
-  std::vector<std::underlying_type_t<io::Declaration>> declarationListTypes;
-
-  for (auto it = ast->declarationList; it; it = it->next) {
-    if (!it->value) continue;
-    const auto [offset, type] = acceptDeclaration(it->value);
-    declarationListOffsets.push_back(offset);
-    declarationListTypes.push_back(type);
-  }
-
-  auto declarationListOffsetsVector = fbb_.CreateVector(declarationListOffsets);
-  auto declarationListTypesVector = fbb_.CreateVector(declarationListTypes);
-
-  const auto privateModuleFragment = accept(ast->privateModuleFragment);
-
-  io::ModuleUnit::Builder builder{fbb_};
-  builder.add_global_module_fragment(globalModuleFragment.o);
-  builder.add_module_declaration(moduleDeclaration.o);
-  builder.add_declaration_list(declarationListOffsetsVector);
-  builder.add_declaration_list_type(declarationListTypesVector);
-  builder.add_private_module_fragment(privateModuleFragment.o);
-
-  offset_ = builder.Finish().Union();
-  type_ = io::Unit_ModuleUnit;
+  type_ = io::Expression_DesignatedInitializerClause;
 }
 
 void ASTEncoder::visit(ThisExpressionAST* ast) {
@@ -2506,6 +1964,588 @@ void ASTEncoder::visit(NoexceptExpressionAST* ast) {
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_NoexceptExpression;
+}
+
+void ASTEncoder::visit(SimpleRequirementAST* ast) {
+  const auto [expression, expressionType] = acceptExpression(ast->expression);
+
+  auto semicolonLoc = encodeSourceLocation(ast->semicolonLoc);
+
+  io::SimpleRequirement::Builder builder{fbb_};
+  builder.add_expression(expression);
+  builder.add_expression_type(static_cast<io::Expression>(expressionType));
+  builder.add_semicolon_loc(semicolonLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Requirement_SimpleRequirement;
+}
+
+void ASTEncoder::visit(CompoundRequirementAST* ast) {
+  auto lbraceLoc = encodeSourceLocation(ast->lbraceLoc);
+
+  const auto [expression, expressionType] = acceptExpression(ast->expression);
+
+  auto rbraceLoc = encodeSourceLocation(ast->rbraceLoc);
+
+  auto noexceptLoc = encodeSourceLocation(ast->noexceptLoc);
+
+  auto minusGreaterLoc = encodeSourceLocation(ast->minusGreaterLoc);
+
+  const auto typeConstraint = accept(ast->typeConstraint);
+
+  auto semicolonLoc = encodeSourceLocation(ast->semicolonLoc);
+
+  io::CompoundRequirement::Builder builder{fbb_};
+  builder.add_lbrace_loc(lbraceLoc.o);
+  builder.add_expression(expression);
+  builder.add_expression_type(static_cast<io::Expression>(expressionType));
+  builder.add_rbrace_loc(rbraceLoc.o);
+  builder.add_noexcept_loc(noexceptLoc.o);
+  builder.add_minus_greater_loc(minusGreaterLoc.o);
+  builder.add_type_constraint(typeConstraint.o);
+  builder.add_semicolon_loc(semicolonLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Requirement_CompoundRequirement;
+}
+
+void ASTEncoder::visit(TypeRequirementAST* ast) {
+  auto typenameLoc = encodeSourceLocation(ast->typenameLoc);
+
+  const auto nestedNameSpecifier = accept(ast->nestedNameSpecifier);
+
+  const auto [name, nameType] = acceptName(ast->name);
+
+  auto semicolonLoc = encodeSourceLocation(ast->semicolonLoc);
+
+  io::TypeRequirement::Builder builder{fbb_};
+  builder.add_typename_loc(typenameLoc.o);
+  builder.add_nested_name_specifier(nestedNameSpecifier.o);
+  builder.add_name(name);
+  builder.add_name_type(static_cast<io::Name>(nameType));
+  builder.add_semicolon_loc(semicolonLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Requirement_TypeRequirement;
+}
+
+void ASTEncoder::visit(NestedRequirementAST* ast) {
+  auto requiresLoc = encodeSourceLocation(ast->requiresLoc);
+
+  const auto [expression, expressionType] = acceptExpression(ast->expression);
+
+  auto semicolonLoc = encodeSourceLocation(ast->semicolonLoc);
+
+  io::NestedRequirement::Builder builder{fbb_};
+  builder.add_requires_loc(requiresLoc.o);
+  builder.add_expression(expression);
+  builder.add_expression_type(static_cast<io::Expression>(expressionType));
+  builder.add_semicolon_loc(semicolonLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Requirement_NestedRequirement;
+}
+
+void ASTEncoder::visit(TypeTemplateArgumentAST* ast) {
+  const auto typeId = accept(ast->typeId);
+
+  io::TypeTemplateArgument::Builder builder{fbb_};
+  builder.add_type_id(typeId.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::TemplateArgument_TypeTemplateArgument;
+}
+
+void ASTEncoder::visit(ExpressionTemplateArgumentAST* ast) {
+  const auto [expression, expressionType] = acceptExpression(ast->expression);
+
+  io::ExpressionTemplateArgument::Builder builder{fbb_};
+  builder.add_expression(expression);
+  builder.add_expression_type(static_cast<io::Expression>(expressionType));
+
+  offset_ = builder.Finish().Union();
+  type_ = io::TemplateArgument_ExpressionTemplateArgument;
+}
+
+void ASTEncoder::visit(ParenMemInitializerAST* ast) {
+  const auto [name, nameType] = acceptName(ast->name);
+
+  auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
+
+  std::vector<flatbuffers::Offset<>> expressionListOffsets;
+  std::vector<std::underlying_type_t<io::Expression>> expressionListTypes;
+
+  for (auto it = ast->expressionList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptExpression(it->value);
+    expressionListOffsets.push_back(offset);
+    expressionListTypes.push_back(type);
+  }
+
+  auto expressionListOffsetsVector = fbb_.CreateVector(expressionListOffsets);
+  auto expressionListTypesVector = fbb_.CreateVector(expressionListTypes);
+
+  auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
+
+  auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
+
+  io::ParenMemInitializer::Builder builder{fbb_};
+  builder.add_name(name);
+  builder.add_name_type(static_cast<io::Name>(nameType));
+  builder.add_lparen_loc(lparenLoc.o);
+  builder.add_expression_list(expressionListOffsetsVector);
+  builder.add_expression_list_type(expressionListTypesVector);
+  builder.add_rparen_loc(rparenLoc.o);
+  builder.add_ellipsis_loc(ellipsisLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::MemInitializer_ParenMemInitializer;
+}
+
+void ASTEncoder::visit(BracedMemInitializerAST* ast) {
+  const auto [name, nameType] = acceptName(ast->name);
+
+  const auto bracedInitList = accept(ast->bracedInitList);
+
+  auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
+
+  io::BracedMemInitializer::Builder builder{fbb_};
+  builder.add_name(name);
+  builder.add_name_type(static_cast<io::Name>(nameType));
+  builder.add_braced_init_list(bracedInitList.o);
+  builder.add_ellipsis_loc(ellipsisLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::MemInitializer_BracedMemInitializer;
+}
+
+void ASTEncoder::visit(ThisLambdaCaptureAST* ast) {
+  auto thisLoc = encodeSourceLocation(ast->thisLoc);
+
+  io::ThisLambdaCapture::Builder builder{fbb_};
+  builder.add_this_loc(thisLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::LambdaCapture_ThisLambdaCapture;
+}
+
+void ASTEncoder::visit(DerefThisLambdaCaptureAST* ast) {
+  auto starLoc = encodeSourceLocation(ast->starLoc);
+
+  auto thisLoc = encodeSourceLocation(ast->thisLoc);
+
+  io::DerefThisLambdaCapture::Builder builder{fbb_};
+  builder.add_star_loc(starLoc.o);
+  builder.add_this_loc(thisLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::LambdaCapture_DerefThisLambdaCapture;
+}
+
+void ASTEncoder::visit(SimpleLambdaCaptureAST* ast) {
+  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
+
+  auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
+
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->value());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
+  io::SimpleLambdaCapture::Builder builder{fbb_};
+  builder.add_identifier_loc(identifierLoc.o);
+  builder.add_ellipsis_loc(ellipsisLoc.o);
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
+
+  offset_ = builder.Finish().Union();
+  type_ = io::LambdaCapture_SimpleLambdaCapture;
+}
+
+void ASTEncoder::visit(RefLambdaCaptureAST* ast) {
+  auto ampLoc = encodeSourceLocation(ast->ampLoc);
+
+  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
+
+  auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
+
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->value());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
+  io::RefLambdaCapture::Builder builder{fbb_};
+  builder.add_amp_loc(ampLoc.o);
+  builder.add_identifier_loc(identifierLoc.o);
+  builder.add_ellipsis_loc(ellipsisLoc.o);
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
+
+  offset_ = builder.Finish().Union();
+  type_ = io::LambdaCapture_RefLambdaCapture;
+}
+
+void ASTEncoder::visit(RefInitLambdaCaptureAST* ast) {
+  auto ampLoc = encodeSourceLocation(ast->ampLoc);
+
+  auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
+
+  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
+
+  const auto [initializer, initializerType] =
+      acceptInitializer(ast->initializer);
+
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->value());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
+  io::RefInitLambdaCapture::Builder builder{fbb_};
+  builder.add_amp_loc(ampLoc.o);
+  builder.add_ellipsis_loc(ellipsisLoc.o);
+  builder.add_identifier_loc(identifierLoc.o);
+  builder.add_initializer(initializer);
+  builder.add_initializer_type(static_cast<io::Initializer>(initializerType));
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
+
+  offset_ = builder.Finish().Union();
+  type_ = io::LambdaCapture_RefInitLambdaCapture;
+}
+
+void ASTEncoder::visit(InitLambdaCaptureAST* ast) {
+  auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
+
+  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
+
+  const auto [initializer, initializerType] =
+      acceptInitializer(ast->initializer);
+
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->value());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
+  io::InitLambdaCapture::Builder builder{fbb_};
+  builder.add_ellipsis_loc(ellipsisLoc.o);
+  builder.add_identifier_loc(identifierLoc.o);
+  builder.add_initializer(initializer);
+  builder.add_initializer_type(static_cast<io::Initializer>(initializerType));
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
+
+  offset_ = builder.Finish().Union();
+  type_ = io::LambdaCapture_InitLambdaCapture;
+}
+
+void ASTEncoder::visit(EqualInitializerAST* ast) {
+  auto equalLoc = encodeSourceLocation(ast->equalLoc);
+
+  const auto [expression, expressionType] = acceptExpression(ast->expression);
+
+  io::EqualInitializer::Builder builder{fbb_};
+  builder.add_equal_loc(equalLoc.o);
+  builder.add_expression(expression);
+  builder.add_expression_type(static_cast<io::Expression>(expressionType));
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Initializer_EqualInitializer;
+}
+
+void ASTEncoder::visit(BracedInitListAST* ast) {
+  auto lbraceLoc = encodeSourceLocation(ast->lbraceLoc);
+
+  std::vector<flatbuffers::Offset<>> expressionListOffsets;
+  std::vector<std::underlying_type_t<io::Expression>> expressionListTypes;
+
+  for (auto it = ast->expressionList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptExpression(it->value);
+    expressionListOffsets.push_back(offset);
+    expressionListTypes.push_back(type);
+  }
+
+  auto expressionListOffsetsVector = fbb_.CreateVector(expressionListOffsets);
+  auto expressionListTypesVector = fbb_.CreateVector(expressionListTypes);
+
+  auto commaLoc = encodeSourceLocation(ast->commaLoc);
+
+  auto rbraceLoc = encodeSourceLocation(ast->rbraceLoc);
+
+  io::BracedInitList::Builder builder{fbb_};
+  builder.add_lbrace_loc(lbraceLoc.o);
+  builder.add_expression_list(expressionListOffsetsVector);
+  builder.add_expression_list_type(expressionListTypesVector);
+  builder.add_comma_loc(commaLoc.o);
+  builder.add_rbrace_loc(rbraceLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Initializer_BracedInitList;
+}
+
+void ASTEncoder::visit(ParenInitializerAST* ast) {
+  auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
+
+  std::vector<flatbuffers::Offset<>> expressionListOffsets;
+  std::vector<std::underlying_type_t<io::Expression>> expressionListTypes;
+
+  for (auto it = ast->expressionList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptExpression(it->value);
+    expressionListOffsets.push_back(offset);
+    expressionListTypes.push_back(type);
+  }
+
+  auto expressionListOffsetsVector = fbb_.CreateVector(expressionListOffsets);
+  auto expressionListTypesVector = fbb_.CreateVector(expressionListTypes);
+
+  auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
+
+  io::ParenInitializer::Builder builder{fbb_};
+  builder.add_lparen_loc(lparenLoc.o);
+  builder.add_expression_list(expressionListOffsetsVector);
+  builder.add_expression_list_type(expressionListTypesVector);
+  builder.add_rparen_loc(rparenLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Initializer_ParenInitializer;
+}
+
+void ASTEncoder::visit(NewParenInitializerAST* ast) {
+  auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
+
+  std::vector<flatbuffers::Offset<>> expressionListOffsets;
+  std::vector<std::underlying_type_t<io::Expression>> expressionListTypes;
+
+  for (auto it = ast->expressionList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptExpression(it->value);
+    expressionListOffsets.push_back(offset);
+    expressionListTypes.push_back(type);
+  }
+
+  auto expressionListOffsetsVector = fbb_.CreateVector(expressionListOffsets);
+  auto expressionListTypesVector = fbb_.CreateVector(expressionListTypes);
+
+  auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
+
+  io::NewParenInitializer::Builder builder{fbb_};
+  builder.add_lparen_loc(lparenLoc.o);
+  builder.add_expression_list(expressionListOffsetsVector);
+  builder.add_expression_list_type(expressionListTypesVector);
+  builder.add_rparen_loc(rparenLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::NewInitializer_NewParenInitializer;
+}
+
+void ASTEncoder::visit(NewBracedInitializerAST* ast) {
+  const auto bracedInit = accept(ast->bracedInit);
+
+  io::NewBracedInitializer::Builder builder{fbb_};
+  builder.add_braced_init(bracedInit.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::NewInitializer_NewBracedInitializer;
+}
+
+void ASTEncoder::visit(EllipsisExceptionDeclarationAST* ast) {
+  auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
+
+  io::EllipsisExceptionDeclaration::Builder builder{fbb_};
+  builder.add_ellipsis_loc(ellipsisLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::ExceptionDeclaration_EllipsisExceptionDeclaration;
+}
+
+void ASTEncoder::visit(TypeExceptionDeclarationAST* ast) {
+  std::vector<flatbuffers::Offset<>> attributeListOffsets;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
+
+  for (auto it = ast->attributeList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
+    attributeListOffsets.push_back(offset);
+    attributeListTypes.push_back(type);
+  }
+
+  auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
+  auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
+
+  std::vector<flatbuffers::Offset<>> typeSpecifierListOffsets;
+  std::vector<std::underlying_type_t<io::Specifier>> typeSpecifierListTypes;
+
+  for (auto it = ast->typeSpecifierList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptSpecifier(it->value);
+    typeSpecifierListOffsets.push_back(offset);
+    typeSpecifierListTypes.push_back(type);
+  }
+
+  auto typeSpecifierListOffsetsVector =
+      fbb_.CreateVector(typeSpecifierListOffsets);
+  auto typeSpecifierListTypesVector = fbb_.CreateVector(typeSpecifierListTypes);
+
+  const auto declarator = accept(ast->declarator);
+
+  io::TypeExceptionDeclaration::Builder builder{fbb_};
+  builder.add_attribute_list(attributeListOffsetsVector);
+  builder.add_attribute_list_type(attributeListTypesVector);
+  builder.add_type_specifier_list(typeSpecifierListOffsetsVector);
+  builder.add_type_specifier_list_type(typeSpecifierListTypesVector);
+  builder.add_declarator(declarator.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::ExceptionDeclaration_TypeExceptionDeclaration;
+}
+
+void ASTEncoder::visit(DefaultFunctionBodyAST* ast) {
+  auto equalLoc = encodeSourceLocation(ast->equalLoc);
+
+  auto defaultLoc = encodeSourceLocation(ast->defaultLoc);
+
+  auto semicolonLoc = encodeSourceLocation(ast->semicolonLoc);
+
+  io::DefaultFunctionBody::Builder builder{fbb_};
+  builder.add_equal_loc(equalLoc.o);
+  builder.add_default_loc(defaultLoc.o);
+  builder.add_semicolon_loc(semicolonLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::FunctionBody_DefaultFunctionBody;
+}
+
+void ASTEncoder::visit(CompoundStatementFunctionBodyAST* ast) {
+  const auto ctorInitializer = accept(ast->ctorInitializer);
+
+  const auto statement = accept(ast->statement);
+
+  io::CompoundStatementFunctionBody::Builder builder{fbb_};
+  builder.add_ctor_initializer(ctorInitializer.o);
+  builder.add_statement(statement.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::FunctionBody_CompoundStatementFunctionBody;
+}
+
+void ASTEncoder::visit(TryStatementFunctionBodyAST* ast) {
+  auto tryLoc = encodeSourceLocation(ast->tryLoc);
+
+  const auto ctorInitializer = accept(ast->ctorInitializer);
+
+  const auto statement = accept(ast->statement);
+
+  std::vector<flatbuffers::Offset<io::Handler>> handlerListOffsets;
+  for (auto it = ast->handlerList; it; it = it->next) {
+    if (!it->value) continue;
+    handlerListOffsets.emplace_back(accept(it->value).o);
+  }
+
+  auto handlerListOffsetsVector = fbb_.CreateVector(handlerListOffsets);
+
+  io::TryStatementFunctionBody::Builder builder{fbb_};
+  builder.add_try_loc(tryLoc.o);
+  builder.add_ctor_initializer(ctorInitializer.o);
+  builder.add_statement(statement.o);
+  builder.add_handler_list(handlerListOffsetsVector);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::FunctionBody_TryStatementFunctionBody;
+}
+
+void ASTEncoder::visit(DeleteFunctionBodyAST* ast) {
+  auto equalLoc = encodeSourceLocation(ast->equalLoc);
+
+  auto deleteLoc = encodeSourceLocation(ast->deleteLoc);
+
+  auto semicolonLoc = encodeSourceLocation(ast->semicolonLoc);
+
+  io::DeleteFunctionBody::Builder builder{fbb_};
+  builder.add_equal_loc(equalLoc.o);
+  builder.add_delete_loc(deleteLoc.o);
+  builder.add_semicolon_loc(semicolonLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::FunctionBody_DeleteFunctionBody;
+}
+
+void ASTEncoder::visit(TranslationUnitAST* ast) {
+  std::vector<flatbuffers::Offset<>> declarationListOffsets;
+  std::vector<std::underlying_type_t<io::Declaration>> declarationListTypes;
+
+  for (auto it = ast->declarationList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptDeclaration(it->value);
+    declarationListOffsets.push_back(offset);
+    declarationListTypes.push_back(type);
+  }
+
+  auto declarationListOffsetsVector = fbb_.CreateVector(declarationListOffsets);
+  auto declarationListTypesVector = fbb_.CreateVector(declarationListTypes);
+
+  io::TranslationUnit::Builder builder{fbb_};
+  builder.add_declaration_list(declarationListOffsetsVector);
+  builder.add_declaration_list_type(declarationListTypesVector);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Unit_TranslationUnit;
+}
+
+void ASTEncoder::visit(ModuleUnitAST* ast) {
+  const auto globalModuleFragment = accept(ast->globalModuleFragment);
+
+  const auto moduleDeclaration = accept(ast->moduleDeclaration);
+
+  std::vector<flatbuffers::Offset<>> declarationListOffsets;
+  std::vector<std::underlying_type_t<io::Declaration>> declarationListTypes;
+
+  for (auto it = ast->declarationList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptDeclaration(it->value);
+    declarationListOffsets.push_back(offset);
+    declarationListTypes.push_back(type);
+  }
+
+  auto declarationListOffsetsVector = fbb_.CreateVector(declarationListOffsets);
+  auto declarationListTypesVector = fbb_.CreateVector(declarationListTypes);
+
+  const auto privateModuleFragment = accept(ast->privateModuleFragment);
+
+  io::ModuleUnit::Builder builder{fbb_};
+  builder.add_global_module_fragment(globalModuleFragment.o);
+  builder.add_module_declaration(moduleDeclaration.o);
+  builder.add_declaration_list(declarationListOffsetsVector);
+  builder.add_declaration_list_type(declarationListTypesVector);
+  builder.add_private_module_fragment(privateModuleFragment.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Unit_ModuleUnit;
 }
 
 void ASTEncoder::visit(LabeledStatementAST* ast) {

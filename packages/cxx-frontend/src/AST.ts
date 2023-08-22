@@ -570,408 +570,27 @@ export class AttributeUsingPrefixAST extends AST {
     }
 }
 
-export class SimpleRequirementAST extends RequirementAST {
+export class DesignatorAST extends AST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitSimpleRequirement(this, context);
+        return visitor.visitDesignator(this, context);
     }
-    getExpression(): ExpressionAST | undefined {
-        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-    getSemicolonToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-    }
-}
-
-export class CompoundRequirementAST extends RequirementAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitCompoundRequirement(this, context);
-    }
-    getLbraceToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-    getExpression(): ExpressionAST | undefined {
-        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-    }
-    getRbraceToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-    }
-    getNoexceptToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-    }
-    getMinusGreaterToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
-    }
-    getTypeConstraint(): TypeConstraintAST | undefined {
-        return AST.from<TypeConstraintAST>(cxx.getASTSlot(this.getHandle(), 5), this.parser);
-    }
-    getSemicolonToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
-    }
-}
-
-export class TypeRequirementAST extends RequirementAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitTypeRequirement(this, context);
-    }
-    getTypenameToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-    getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
-        return AST.from<NestedNameSpecifierAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-    }
-    getName(): NameAST | undefined {
-        return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-    }
-    getSemicolonToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-    }
-}
-
-export class NestedRequirementAST extends RequirementAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitNestedRequirement(this, context);
-    }
-    getRequiresToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-    getExpression(): ExpressionAST | undefined {
-        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-    }
-    getSemicolonToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-    }
-}
-
-export class TypeTemplateArgumentAST extends TemplateArgumentAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitTypeTemplateArgument(this, context);
-    }
-    getTypeId(): TypeIdAST | undefined {
-        return AST.from<TypeIdAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-}
-
-export class ExpressionTemplateArgumentAST extends TemplateArgumentAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitExpressionTemplateArgument(this, context);
-    }
-    getExpression(): ExpressionAST | undefined {
-        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-}
-
-export class ParenMemInitializerAST extends MemInitializerAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitParenMemInitializer(this, context);
-    }
-    getName(): NameAST | undefined {
-        return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-    getLparenToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-    }
-    *getExpressionList(): Generator<ExpressionAST | undefined> {
-        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
-            yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
-        }
-    }
-    getRparenToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-    }
-    getEllipsisToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
-    }
-}
-
-export class BracedMemInitializerAST extends MemInitializerAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitBracedMemInitializer(this, context);
-    }
-    getName(): NameAST | undefined {
-        return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-    getBracedInitList(): BracedInitListAST | undefined {
-        return AST.from<BracedInitListAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-    }
-    getEllipsisToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-    }
-}
-
-export class ThisLambdaCaptureAST extends LambdaCaptureAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitThisLambdaCapture(this, context);
-    }
-    getThisToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-}
-
-export class DerefThisLambdaCaptureAST extends LambdaCaptureAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitDerefThisLambdaCapture(this, context);
-    }
-    getStarToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-    getThisToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-    }
-}
-
-export class SimpleLambdaCaptureAST extends LambdaCaptureAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitSimpleLambdaCapture(this, context);
-    }
-    getIdentifierToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-    getEllipsisToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-    }
-}
-
-export class RefLambdaCaptureAST extends LambdaCaptureAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitRefLambdaCapture(this, context);
-    }
-    getAmpToken(): Token | undefined {
+    getDotToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
     }
     getIdentifierToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
     }
-    getEllipsisToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-    }
 }
 
-export class RefInitLambdaCaptureAST extends LambdaCaptureAST {
+export class DesignatedInitializerClauseAST extends ExpressionAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitRefInitLambdaCapture(this, context);
+        return visitor.visitDesignatedInitializerClause(this, context);
     }
-    getAmpToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-    getEllipsisToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-    }
-    getIdentifierToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    getDesignator(): DesignatorAST | undefined {
+        return AST.from<DesignatorAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
     }
     getInitializer(): InitializerAST | undefined {
-        return AST.from<InitializerAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-    }
-}
-
-export class InitLambdaCaptureAST extends LambdaCaptureAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitInitLambdaCapture(this, context);
-    }
-    getEllipsisToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-    getIdentifierToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-    }
-    getInitializer(): InitializerAST | undefined {
-        return AST.from<InitializerAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-    }
-}
-
-export class EqualInitializerAST extends InitializerAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitEqualInitializer(this, context);
-    }
-    getEqualToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-    getExpression(): ExpressionAST | undefined {
-        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-    }
-}
-
-export class BracedInitListAST extends InitializerAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitBracedInitList(this, context);
-    }
-    getLbraceToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-    *getExpressionList(): Generator<ExpressionAST | undefined> {
-        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
-            yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
-        }
-    }
-    getCommaToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-    }
-    getRbraceToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-    }
-}
-
-export class ParenInitializerAST extends InitializerAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitParenInitializer(this, context);
-    }
-    getLparenToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-    *getExpressionList(): Generator<ExpressionAST | undefined> {
-        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
-            yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
-        }
-    }
-    getRparenToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-    }
-}
-
-export class NewParenInitializerAST extends NewInitializerAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitNewParenInitializer(this, context);
-    }
-    getLparenToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-    *getExpressionList(): Generator<ExpressionAST | undefined> {
-        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
-            yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
-        }
-    }
-    getRparenToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-    }
-}
-
-export class NewBracedInitializerAST extends NewInitializerAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitNewBracedInitializer(this, context);
-    }
-    getBracedInit(): BracedInitListAST | undefined {
-        return AST.from<BracedInitListAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-}
-
-export class EllipsisExceptionDeclarationAST extends ExceptionDeclarationAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitEllipsisExceptionDeclaration(this, context);
-    }
-    getEllipsisToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-}
-
-export class TypeExceptionDeclarationAST extends ExceptionDeclarationAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitTypeExceptionDeclaration(this, context);
-    }
-    *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
-            yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
-        }
-    }
-    *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
-        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
-            yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
-        }
-    }
-    getDeclarator(): DeclaratorAST | undefined {
-        return AST.from<DeclaratorAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-    }
-}
-
-export class DefaultFunctionBodyAST extends FunctionBodyAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitDefaultFunctionBody(this, context);
-    }
-    getEqualToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-    getDefaultToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-    }
-    getSemicolonToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-    }
-}
-
-export class CompoundStatementFunctionBodyAST extends FunctionBodyAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitCompoundStatementFunctionBody(this, context);
-    }
-    getCtorInitializer(): CtorInitializerAST | undefined {
-        return AST.from<CtorInitializerAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-    getStatement(): CompoundStatementAST | undefined {
-        return AST.from<CompoundStatementAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-    }
-}
-
-export class TryStatementFunctionBodyAST extends FunctionBodyAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitTryStatementFunctionBody(this, context);
-    }
-    getTryToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-    getCtorInitializer(): CtorInitializerAST | undefined {
-        return AST.from<CtorInitializerAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-    }
-    getStatement(): CompoundStatementAST | undefined {
-        return AST.from<CompoundStatementAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-    }
-    *getHandlerList(): Generator<HandlerAST | undefined> {
-        for (let it = cxx.getASTSlot(this.getHandle(), 3); it; it = cxx.getListNext(it)) {
-            yield AST.from<HandlerAST>(cxx.getListValue(it), this.parser);
-        }
-    }
-}
-
-export class DeleteFunctionBodyAST extends FunctionBodyAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitDeleteFunctionBody(this, context);
-    }
-    getEqualToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-    getDeleteToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-    }
-    getSemicolonToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-    }
-}
-
-export class TranslationUnitAST extends UnitAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitTranslationUnit(this, context);
-    }
-    *getDeclarationList(): Generator<DeclarationAST | undefined> {
-        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
-            yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
-        }
-    }
-}
-
-export class ModuleUnitAST extends UnitAST {
-    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitModuleUnit(this, context);
-    }
-    getGlobalModuleFragment(): GlobalModuleFragmentAST | undefined {
-        return AST.from<GlobalModuleFragmentAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-    }
-    getModuleDeclaration(): ModuleDeclarationAST | undefined {
-        return AST.from<ModuleDeclarationAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-    }
-    *getDeclarationList(): Generator<DeclarationAST | undefined> {
-        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
-            yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
-        }
-    }
-    getPrivateModuleFragment(): PrivateModuleFragmentAST | undefined {
-        return AST.from<PrivateModuleFragmentAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+        return AST.from<InitializerAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
     }
 }
 
@@ -1598,6 +1217,411 @@ export class NoexceptExpressionAST extends ExpressionAST {
     }
     getRparenToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+}
+
+export class SimpleRequirementAST extends RequirementAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitSimpleRequirement(this, context);
+    }
+    getExpression(): ExpressionAST | undefined {
+        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getSemicolonToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+}
+
+export class CompoundRequirementAST extends RequirementAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitCompoundRequirement(this, context);
+    }
+    getLbraceToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getExpression(): ExpressionAST | undefined {
+        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getRbraceToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getNoexceptToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+    getMinusGreaterToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+    }
+    getTypeConstraint(): TypeConstraintAST | undefined {
+        return AST.from<TypeConstraintAST>(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+    }
+    getSemicolonToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+    }
+}
+
+export class TypeRequirementAST extends RequirementAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitTypeRequirement(this, context);
+    }
+    getTypenameToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
+        return AST.from<NestedNameSpecifierAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getName(): NameAST | undefined {
+        return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getSemicolonToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+}
+
+export class NestedRequirementAST extends RequirementAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitNestedRequirement(this, context);
+    }
+    getRequiresToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getExpression(): ExpressionAST | undefined {
+        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getSemicolonToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+}
+
+export class TypeTemplateArgumentAST extends TemplateArgumentAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitTypeTemplateArgument(this, context);
+    }
+    getTypeId(): TypeIdAST | undefined {
+        return AST.from<TypeIdAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+}
+
+export class ExpressionTemplateArgumentAST extends TemplateArgumentAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitExpressionTemplateArgument(this, context);
+    }
+    getExpression(): ExpressionAST | undefined {
+        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+}
+
+export class ParenMemInitializerAST extends MemInitializerAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitParenMemInitializer(this, context);
+    }
+    getName(): NameAST | undefined {
+        return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getLparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    *getExpressionList(): Generator<ExpressionAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
+            yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+    getRparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+    getEllipsisToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+    }
+}
+
+export class BracedMemInitializerAST extends MemInitializerAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitBracedMemInitializer(this, context);
+    }
+    getName(): NameAST | undefined {
+        return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getBracedInitList(): BracedInitListAST | undefined {
+        return AST.from<BracedInitListAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getEllipsisToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+}
+
+export class ThisLambdaCaptureAST extends LambdaCaptureAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitThisLambdaCapture(this, context);
+    }
+    getThisToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+}
+
+export class DerefThisLambdaCaptureAST extends LambdaCaptureAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitDerefThisLambdaCapture(this, context);
+    }
+    getStarToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getThisToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+}
+
+export class SimpleLambdaCaptureAST extends LambdaCaptureAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitSimpleLambdaCapture(this, context);
+    }
+    getIdentifierToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getEllipsisToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+}
+
+export class RefLambdaCaptureAST extends LambdaCaptureAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitRefLambdaCapture(this, context);
+    }
+    getAmpToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getIdentifierToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getEllipsisToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+}
+
+export class RefInitLambdaCaptureAST extends LambdaCaptureAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitRefInitLambdaCapture(this, context);
+    }
+    getAmpToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getEllipsisToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getIdentifierToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getInitializer(): InitializerAST | undefined {
+        return AST.from<InitializerAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+}
+
+export class InitLambdaCaptureAST extends LambdaCaptureAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitInitLambdaCapture(this, context);
+    }
+    getEllipsisToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getIdentifierToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getInitializer(): InitializerAST | undefined {
+        return AST.from<InitializerAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+}
+
+export class EqualInitializerAST extends InitializerAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitEqualInitializer(this, context);
+    }
+    getEqualToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getExpression(): ExpressionAST | undefined {
+        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+}
+
+export class BracedInitListAST extends InitializerAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitBracedInitList(this, context);
+    }
+    getLbraceToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    *getExpressionList(): Generator<ExpressionAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
+            yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+    getCommaToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getRbraceToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+}
+
+export class ParenInitializerAST extends InitializerAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitParenInitializer(this, context);
+    }
+    getLparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    *getExpressionList(): Generator<ExpressionAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
+            yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+    getRparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+}
+
+export class NewParenInitializerAST extends NewInitializerAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitNewParenInitializer(this, context);
+    }
+    getLparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    *getExpressionList(): Generator<ExpressionAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
+            yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+    getRparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+}
+
+export class NewBracedInitializerAST extends NewInitializerAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitNewBracedInitializer(this, context);
+    }
+    getBracedInit(): BracedInitListAST | undefined {
+        return AST.from<BracedInitListAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+}
+
+export class EllipsisExceptionDeclarationAST extends ExceptionDeclarationAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitEllipsisExceptionDeclaration(this, context);
+    }
+    getEllipsisToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+}
+
+export class TypeExceptionDeclarationAST extends ExceptionDeclarationAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitTypeExceptionDeclaration(this, context);
+    }
+    *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+            yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+    *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
+            yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+    getDeclarator(): DeclaratorAST | undefined {
+        return AST.from<DeclaratorAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+}
+
+export class DefaultFunctionBodyAST extends FunctionBodyAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitDefaultFunctionBody(this, context);
+    }
+    getEqualToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getDefaultToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getSemicolonToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+}
+
+export class CompoundStatementFunctionBodyAST extends FunctionBodyAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitCompoundStatementFunctionBody(this, context);
+    }
+    getCtorInitializer(): CtorInitializerAST | undefined {
+        return AST.from<CtorInitializerAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getStatement(): CompoundStatementAST | undefined {
+        return AST.from<CompoundStatementAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+}
+
+export class TryStatementFunctionBodyAST extends FunctionBodyAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitTryStatementFunctionBody(this, context);
+    }
+    getTryToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getCtorInitializer(): CtorInitializerAST | undefined {
+        return AST.from<CtorInitializerAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getStatement(): CompoundStatementAST | undefined {
+        return AST.from<CompoundStatementAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    *getHandlerList(): Generator<HandlerAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 3); it; it = cxx.getListNext(it)) {
+            yield AST.from<HandlerAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+}
+
+export class DeleteFunctionBodyAST extends FunctionBodyAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitDeleteFunctionBody(this, context);
+    }
+    getEqualToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getDeleteToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getSemicolonToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+}
+
+export class TranslationUnitAST extends UnitAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitTranslationUnit(this, context);
+    }
+    *getDeclarationList(): Generator<DeclarationAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+            yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+}
+
+export class ModuleUnitAST extends UnitAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitModuleUnit(this, context);
+    }
+    getGlobalModuleFragment(): GlobalModuleFragmentAST | undefined {
+        return AST.from<GlobalModuleFragmentAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getModuleDeclaration(): ModuleDeclarationAST | undefined {
+        return AST.from<ModuleDeclarationAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    *getDeclarationList(): Generator<DeclarationAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
+            yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+    getPrivateModuleFragment(): PrivateModuleFragmentAST | undefined {
+        return AST.from<PrivateModuleFragmentAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
     }
 }
 
@@ -3290,33 +3314,8 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Transl
     AttributeArgumentClauseAST,
     AttributeAST,
     AttributeUsingPrefixAST,
-    SimpleRequirementAST,
-    CompoundRequirementAST,
-    TypeRequirementAST,
-    NestedRequirementAST,
-    TypeTemplateArgumentAST,
-    ExpressionTemplateArgumentAST,
-    ParenMemInitializerAST,
-    BracedMemInitializerAST,
-    ThisLambdaCaptureAST,
-    DerefThisLambdaCaptureAST,
-    SimpleLambdaCaptureAST,
-    RefLambdaCaptureAST,
-    RefInitLambdaCaptureAST,
-    InitLambdaCaptureAST,
-    EqualInitializerAST,
-    BracedInitListAST,
-    ParenInitializerAST,
-    NewParenInitializerAST,
-    NewBracedInitializerAST,
-    EllipsisExceptionDeclarationAST,
-    TypeExceptionDeclarationAST,
-    DefaultFunctionBodyAST,
-    CompoundStatementFunctionBodyAST,
-    TryStatementFunctionBodyAST,
-    DeleteFunctionBodyAST,
-    TranslationUnitAST,
-    ModuleUnitAST,
+    DesignatorAST,
+    DesignatedInitializerClauseAST,
     ThisExpressionAST,
     CharLiteralExpressionAST,
     BoolLiteralExpressionAST,
@@ -3356,6 +3355,33 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Transl
     DeleteExpressionAST,
     ThrowExpressionAST,
     NoexceptExpressionAST,
+    SimpleRequirementAST,
+    CompoundRequirementAST,
+    TypeRequirementAST,
+    NestedRequirementAST,
+    TypeTemplateArgumentAST,
+    ExpressionTemplateArgumentAST,
+    ParenMemInitializerAST,
+    BracedMemInitializerAST,
+    ThisLambdaCaptureAST,
+    DerefThisLambdaCaptureAST,
+    SimpleLambdaCaptureAST,
+    RefLambdaCaptureAST,
+    RefInitLambdaCaptureAST,
+    InitLambdaCaptureAST,
+    EqualInitializerAST,
+    BracedInitListAST,
+    ParenInitializerAST,
+    NewParenInitializerAST,
+    NewBracedInitializerAST,
+    EllipsisExceptionDeclarationAST,
+    TypeExceptionDeclarationAST,
+    DefaultFunctionBodyAST,
+    CompoundStatementFunctionBodyAST,
+    TryStatementFunctionBodyAST,
+    DeleteFunctionBodyAST,
+    TranslationUnitAST,
+    ModuleUnitAST,
     LabeledStatementAST,
     CaseStatementAST,
     DefaultStatementAST,

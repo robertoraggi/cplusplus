@@ -436,6 +436,30 @@ auto AttributeUsingPrefixAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto DesignatorAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(dotLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
+  return {};
+}
+
+auto DesignatorAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(dotLoc)) return loc;
+  return {};
+}
+
+auto DesignatedInitializerClauseAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(designator)) return loc;
+  if (auto loc = cxx::firstSourceLocation(initializer)) return loc;
+  return {};
+}
+
+auto DesignatedInitializerClauseAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(initializer)) return loc;
+  if (auto loc = cxx::lastSourceLocation(designator)) return loc;
+  return {};
+}
+
 auto SimpleRequirementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;

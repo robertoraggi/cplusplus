@@ -58,6 +58,49 @@ class ASTVisitor {
   virtual void visit(AttributeArgumentClauseAST* ast) = 0;
   virtual void visit(AttributeAST* ast) = 0;
   virtual void visit(AttributeUsingPrefixAST* ast) = 0;
+  virtual void visit(DesignatorAST* ast) = 0;
+
+  // ExpressionAST
+  virtual void visit(DesignatedInitializerClauseAST* ast) = 0;
+  virtual void visit(ThisExpressionAST* ast) = 0;
+  virtual void visit(CharLiteralExpressionAST* ast) = 0;
+  virtual void visit(BoolLiteralExpressionAST* ast) = 0;
+  virtual void visit(IntLiteralExpressionAST* ast) = 0;
+  virtual void visit(FloatLiteralExpressionAST* ast) = 0;
+  virtual void visit(NullptrLiteralExpressionAST* ast) = 0;
+  virtual void visit(StringLiteralExpressionAST* ast) = 0;
+  virtual void visit(UserDefinedStringLiteralExpressionAST* ast) = 0;
+  virtual void visit(IdExpressionAST* ast) = 0;
+  virtual void visit(RequiresExpressionAST* ast) = 0;
+  virtual void visit(NestedExpressionAST* ast) = 0;
+  virtual void visit(RightFoldExpressionAST* ast) = 0;
+  virtual void visit(LeftFoldExpressionAST* ast) = 0;
+  virtual void visit(FoldExpressionAST* ast) = 0;
+  virtual void visit(LambdaExpressionAST* ast) = 0;
+  virtual void visit(SizeofExpressionAST* ast) = 0;
+  virtual void visit(SizeofTypeExpressionAST* ast) = 0;
+  virtual void visit(SizeofPackExpressionAST* ast) = 0;
+  virtual void visit(TypeidExpressionAST* ast) = 0;
+  virtual void visit(TypeidOfTypeExpressionAST* ast) = 0;
+  virtual void visit(AlignofExpressionAST* ast) = 0;
+  virtual void visit(TypeTraitsExpressionAST* ast) = 0;
+  virtual void visit(UnaryExpressionAST* ast) = 0;
+  virtual void visit(BinaryExpressionAST* ast) = 0;
+  virtual void visit(AssignmentExpressionAST* ast) = 0;
+  virtual void visit(BracedTypeConstructionAST* ast) = 0;
+  virtual void visit(TypeConstructionAST* ast) = 0;
+  virtual void visit(CallExpressionAST* ast) = 0;
+  virtual void visit(SubscriptExpressionAST* ast) = 0;
+  virtual void visit(MemberExpressionAST* ast) = 0;
+  virtual void visit(PostIncrExpressionAST* ast) = 0;
+  virtual void visit(ConditionalExpressionAST* ast) = 0;
+  virtual void visit(ImplicitCastExpressionAST* ast) = 0;
+  virtual void visit(CastExpressionAST* ast) = 0;
+  virtual void visit(CppCastExpressionAST* ast) = 0;
+  virtual void visit(NewExpressionAST* ast) = 0;
+  virtual void visit(DeleteExpressionAST* ast) = 0;
+  virtual void visit(ThrowExpressionAST* ast) = 0;
+  virtual void visit(NoexceptExpressionAST* ast) = 0;
 
   // RequirementAST
   virtual void visit(SimpleRequirementAST* ast) = 0;
@@ -103,47 +146,6 @@ class ASTVisitor {
   // UnitAST
   virtual void visit(TranslationUnitAST* ast) = 0;
   virtual void visit(ModuleUnitAST* ast) = 0;
-
-  // ExpressionAST
-  virtual void visit(ThisExpressionAST* ast) = 0;
-  virtual void visit(CharLiteralExpressionAST* ast) = 0;
-  virtual void visit(BoolLiteralExpressionAST* ast) = 0;
-  virtual void visit(IntLiteralExpressionAST* ast) = 0;
-  virtual void visit(FloatLiteralExpressionAST* ast) = 0;
-  virtual void visit(NullptrLiteralExpressionAST* ast) = 0;
-  virtual void visit(StringLiteralExpressionAST* ast) = 0;
-  virtual void visit(UserDefinedStringLiteralExpressionAST* ast) = 0;
-  virtual void visit(IdExpressionAST* ast) = 0;
-  virtual void visit(RequiresExpressionAST* ast) = 0;
-  virtual void visit(NestedExpressionAST* ast) = 0;
-  virtual void visit(RightFoldExpressionAST* ast) = 0;
-  virtual void visit(LeftFoldExpressionAST* ast) = 0;
-  virtual void visit(FoldExpressionAST* ast) = 0;
-  virtual void visit(LambdaExpressionAST* ast) = 0;
-  virtual void visit(SizeofExpressionAST* ast) = 0;
-  virtual void visit(SizeofTypeExpressionAST* ast) = 0;
-  virtual void visit(SizeofPackExpressionAST* ast) = 0;
-  virtual void visit(TypeidExpressionAST* ast) = 0;
-  virtual void visit(TypeidOfTypeExpressionAST* ast) = 0;
-  virtual void visit(AlignofExpressionAST* ast) = 0;
-  virtual void visit(TypeTraitsExpressionAST* ast) = 0;
-  virtual void visit(UnaryExpressionAST* ast) = 0;
-  virtual void visit(BinaryExpressionAST* ast) = 0;
-  virtual void visit(AssignmentExpressionAST* ast) = 0;
-  virtual void visit(BracedTypeConstructionAST* ast) = 0;
-  virtual void visit(TypeConstructionAST* ast) = 0;
-  virtual void visit(CallExpressionAST* ast) = 0;
-  virtual void visit(SubscriptExpressionAST* ast) = 0;
-  virtual void visit(MemberExpressionAST* ast) = 0;
-  virtual void visit(PostIncrExpressionAST* ast) = 0;
-  virtual void visit(ConditionalExpressionAST* ast) = 0;
-  virtual void visit(ImplicitCastExpressionAST* ast) = 0;
-  virtual void visit(CastExpressionAST* ast) = 0;
-  virtual void visit(CppCastExpressionAST* ast) = 0;
-  virtual void visit(NewExpressionAST* ast) = 0;
-  virtual void visit(DeleteExpressionAST* ast) = 0;
-  virtual void visit(ThrowExpressionAST* ast) = 0;
-  virtual void visit(NoexceptExpressionAST* ast) = 0;
 
   // StatementAST
   virtual void visit(LabeledStatementAST* ast) = 0;
