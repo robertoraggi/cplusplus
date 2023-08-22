@@ -399,6 +399,9 @@ auto ASTDecoder::decodeDeclaration(const void* ptr, io::Declaration type)
     case io::Declaration_SimpleDeclaration:
       return decodeSimpleDeclaration(
           reinterpret_cast<const io::SimpleDeclaration*>(ptr));
+    case io::Declaration_StructuredBindingDeclaration:
+      return decodeStructuredBindingDeclaration(
+          reinterpret_cast<const io::StructuredBindingDeclaration*>(ptr));
     case io::Declaration_StaticAssertDeclaration:
       return decodeStaticAssertDeclaration(
           reinterpret_cast<const io::StaticAssertDeclaration*>(ptr));
@@ -2264,6 +2267,44 @@ auto ASTDecoder::decodeSimpleDeclaration(const io::SimpleDeclaration* node)
     }
   }
   ast->requiresClause = decodeRequiresClause(node->requires_clause());
+  return ast;
+}
+
+auto ASTDecoder::decodeStructuredBindingDeclaration(
+    const io::StructuredBindingDeclaration* node)
+    -> StructuredBindingDeclarationAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) StructuredBindingDeclarationAST();
+  if (node->attribute_list()) {
+    auto* inserter = &ast->attributeList;
+    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  if (node->decl_specifier_list()) {
+    auto* inserter = &ast->declSpecifierList;
+    for (std::size_t i = 0; i < node->decl_specifier_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeSpecifier(
+          node->decl_specifier_list()->Get(i),
+          io::Specifier(node->decl_specifier_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  if (node->binding_list()) {
+    auto* inserter = &ast->bindingList;
+    for (std::size_t i = 0; i < node->binding_list()->size(); ++i) {
+      *inserter = new (pool_)
+          List(decodeName(node->binding_list()->Get(i),
+                          io::Name(node->binding_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  ast->initializer =
+      decodeExpression(node->initializer(), node->initializer_type());
   return ast;
 }
 

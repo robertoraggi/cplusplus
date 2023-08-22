@@ -1784,6 +1784,30 @@ auto SimpleDeclarationAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto StructuredBindingDeclarationAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(declSpecifierList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(refQualifierLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lbracketLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(bindingList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rbracketLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(initializer)) return loc;
+  if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
+  return {};
+}
+
+auto StructuredBindingDeclarationAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(initializer)) return loc;
+  if (auto loc = cxx::lastSourceLocation(rbracketLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(bindingList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lbracketLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(refQualifierLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(declSpecifierList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
+  return {};
+}
+
 auto StaticAssertDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(staticAssertLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;

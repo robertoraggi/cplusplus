@@ -216,6 +216,7 @@ class RecursiveASTVisitor : public ASTVisitor {
   void visit(ForRangeDeclarationAST* ast) override;
   void visit(AliasDeclarationAST* ast) override;
   void visit(SimpleDeclarationAST* ast) override;
+  void visit(StructuredBindingDeclarationAST* ast) override;
   void visit(StaticAssertDeclarationAST* ast) override;
   void visit(EmptyDeclarationAST* ast) override;
   void visit(AttributeDeclarationAST* ast) override;

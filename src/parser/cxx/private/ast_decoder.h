@@ -310,6 +310,9 @@ class ASTDecoder {
       -> AliasDeclarationAST*;
   auto decodeSimpleDeclaration(const io::SimpleDeclaration* node)
       -> SimpleDeclarationAST*;
+  auto decodeStructuredBindingDeclaration(
+      const io::StructuredBindingDeclaration* node)
+      -> StructuredBindingDeclarationAST*;
   auto decodeStaticAssertDeclaration(const io::StaticAssertDeclaration* node)
       -> StaticAssertDeclarationAST*;
   auto decodeEmptyDeclaration(const io::EmptyDeclaration* node)

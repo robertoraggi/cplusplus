@@ -807,6 +807,19 @@ void RecursiveASTVisitor::visit(SimpleDeclarationAST* ast) {
   acceptRequiresClause(ast->requiresClause);
 }
 
+void RecursiveASTVisitor::visit(StructuredBindingDeclarationAST* ast) {
+  for (auto it = ast->attributeList; it; it = it->next) {
+    acceptAttributeSpecifier(it->value);
+  }
+  for (auto it = ast->declSpecifierList; it; it = it->next) {
+    acceptSpecifier(it->value);
+  }
+  for (auto it = ast->bindingList; it; it = it->next) {
+    acceptName(it->value);
+  }
+  acceptExpression(ast->initializer);
+}
+
 void RecursiveASTVisitor::visit(StaticAssertDeclarationAST* ast) {
   acceptExpression(ast->expression);
 }

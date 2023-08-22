@@ -168,6 +168,7 @@ enum struct ASTKind {
   ForRangeDeclaration,
   AliasDeclaration,
   SimpleDeclaration,
+  StructuredBindingDeclaration,
   StaticAssertDeclaration,
   EmptyDeclaration,
   AttributeDeclaration,

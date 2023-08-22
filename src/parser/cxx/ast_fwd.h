@@ -215,6 +215,7 @@ class ConceptDefinitionAST;
 class ForRangeDeclarationAST;
 class AliasDeclarationAST;
 class SimpleDeclarationAST;
+class StructuredBindingDeclarationAST;
 class StaticAssertDeclarationAST;
 class EmptyDeclarationAST;
 class AttributeDeclarationAST;

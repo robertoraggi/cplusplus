@@ -646,6 +646,19 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         this.accept(node.getRequiresClause(), context);
     }
 
+    visitStructuredBindingDeclaration(node: ast.StructuredBindingDeclarationAST, context: Context): void {
+        for (const element of node.getAttributeList()) {
+            this.accept(element, context);
+        }
+        for (const element of node.getDeclSpecifierList()) {
+            this.accept(element, context);
+        }
+        for (const element of node.getBindingList()) {
+            this.accept(element, context);
+        }
+        this.accept(node.getInitializer(), context);
+    }
+
     visitStaticAssertDeclaration(node: ast.StaticAssertDeclarationAST, context: Context): void {
         this.accept(node.getExpression(), context);
     }
