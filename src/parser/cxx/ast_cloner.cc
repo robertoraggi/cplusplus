@@ -3251,6 +3251,21 @@ void ASTCloner::visit(TypenameSpecifierAST* ast) {
   copy->name = accept(ast->name);
 }
 
+void ASTCloner::visit(BitfieldDeclaratorAST* ast) {
+  auto copy = new (arena_) BitfieldDeclaratorAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->identifierLoc = ast->identifierLoc;
+
+  copy->colonLoc = ast->colonLoc;
+
+  copy->sizeExpression = accept(ast->sizeExpression);
+
+  copy->identifier = ast->identifier;
+}
+
 void ASTCloner::visit(IdDeclaratorAST* ast) {
   auto copy = new (arena_) IdDeclaratorAST();
   copy_ = copy;

@@ -952,6 +952,10 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         this.accept(node.getName(), context);
     }
 
+    visitBitfieldDeclarator(node: ast.BitfieldDeclaratorAST, context: Context): void {
+        this.accept(node.getSizeExpression(), context);
+    }
+
     visitIdDeclarator(node: ast.IdDeclaratorAST, context: Context): void {
         this.accept(node.getName(), context);
         for (const element of node.getAttributeList()) {

@@ -238,6 +238,7 @@ class DefaultASTVisitor : public ASTVisitor {
   void visit(TypenameSpecifierAST* ast) override;
 
   // CoreDeclaratorAST
+  void visit(BitfieldDeclaratorAST* ast) override;
   void visit(IdDeclaratorAST* ast) override;
   void visit(NestedDeclaratorAST* ast) override;
 

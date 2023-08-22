@@ -2672,6 +2672,20 @@ auto TypenameSpecifierAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto BitfieldDeclaratorAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(sizeExpression)) return loc;
+  return {};
+}
+
+auto BitfieldDeclaratorAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(sizeExpression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  return {};
+}
+
 auto IdDeclaratorAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(name)) return loc;
