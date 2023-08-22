@@ -522,6 +522,10 @@ void DefaultASTVisitor::visit(SimpleDeclarationAST* ast) {
   cxx_runtime_error("visit(SimpleDeclarationAST): not implemented");
 }
 
+void DefaultASTVisitor::visit(StructuredBindingDeclarationAST* ast) {
+  cxx_runtime_error("visit(StructuredBindingDeclarationAST): not implemented");
+}
+
 void DefaultASTVisitor::visit(StaticAssertDeclarationAST* ast) {
   cxx_runtime_error("visit(StaticAssertDeclarationAST): not implemented");
 }

@@ -172,6 +172,7 @@ class ASTVisitor {
   virtual void visit(ForRangeDeclarationAST* ast) = 0;
   virtual void visit(AliasDeclarationAST* ast) = 0;
   virtual void visit(SimpleDeclarationAST* ast) = 0;
+  virtual void visit(StructuredBindingDeclarationAST* ast) = 0;
   virtual void visit(StaticAssertDeclarationAST* ast) = 0;
   virtual void visit(EmptyDeclarationAST* ast) = 0;
   virtual void visit(AttributeDeclarationAST* ast) = 0;

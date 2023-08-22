@@ -164,6 +164,7 @@ export enum ASTKind {
     ForRangeDeclaration,
     AliasDeclaration,
     SimpleDeclaration,
+    StructuredBindingDeclaration,
     StaticAssertDeclaration,
     EmptyDeclaration,
     AttributeDeclaration,

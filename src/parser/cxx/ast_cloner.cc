@@ -2189,6 +2189,50 @@ void ASTCloner::visit(SimpleDeclarationAST* ast) {
   copy->semicolonLoc = ast->semicolonLoc;
 }
 
+void ASTCloner::visit(StructuredBindingDeclarationAST* ast) {
+  auto copy = new (arena_) StructuredBindingDeclarationAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  if (auto it = ast->attributeList) {
+    auto out = &copy->attributeList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  if (auto it = ast->declSpecifierList) {
+    auto out = &copy->declSpecifierList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->refQualifierLoc = ast->refQualifierLoc;
+
+  copy->lbracketLoc = ast->lbracketLoc;
+
+  if (auto it = ast->bindingList) {
+    auto out = &copy->bindingList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->rbracketLoc = ast->rbracketLoc;
+
+  copy->initializer = accept(ast->initializer);
+
+  copy->semicolonLoc = ast->semicolonLoc;
+}
+
 void ASTCloner::visit(StaticAssertDeclarationAST* ast) {
   auto copy = new (arena_) StaticAssertDeclarationAST();
   copy_ = copy;

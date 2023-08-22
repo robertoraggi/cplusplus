@@ -1964,6 +1964,26 @@ class SimpleDeclarationAST final : public DeclarationAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class StructuredBindingDeclarationAST final : public DeclarationAST {
+ public:
+  StructuredBindingDeclarationAST()
+      : DeclarationAST(ASTKind::StructuredBindingDeclaration) {}
+
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
+  List<SpecifierAST*>* declSpecifierList = nullptr;
+  SourceLocation refQualifierLoc;
+  SourceLocation lbracketLoc;
+  List<NameAST*>* bindingList = nullptr;
+  SourceLocation rbracketLoc;
+  ExpressionAST* initializer = nullptr;
+  SourceLocation semicolonLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 class StaticAssertDeclarationAST final : public DeclarationAST {
  public:
   StaticAssertDeclarationAST()

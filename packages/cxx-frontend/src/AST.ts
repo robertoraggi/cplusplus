@@ -2075,6 +2075,42 @@ export class SimpleDeclarationAST extends DeclarationAST {
     }
 }
 
+export class StructuredBindingDeclarationAST extends DeclarationAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitStructuredBindingDeclaration(this, context);
+    }
+    *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+            yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+    *getDeclSpecifierList(): Generator<SpecifierAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
+            yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+    getRefQualifierToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getLbracketToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+    *getBindingList(): Generator<NameAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 4); it; it = cxx.getListNext(it)) {
+            yield AST.from<NameAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+    getRbracketToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+    }
+    getInitializer(): ExpressionAST | undefined {
+        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+    }
+    getSemicolonToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
+    }
+}
+
 export class StaticAssertDeclarationAST extends DeclarationAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitStaticAssertDeclaration(this, context);
@@ -3405,6 +3441,7 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Transl
     ForRangeDeclarationAST,
     AliasDeclarationAST,
     SimpleDeclarationAST,
+    StructuredBindingDeclarationAST,
     StaticAssertDeclarationAST,
     EmptyDeclarationAST,
     AttributeDeclarationAST,

@@ -3165,6 +3165,77 @@ void ASTEncoder::visit(SimpleDeclarationAST* ast) {
   type_ = io::Declaration_SimpleDeclaration;
 }
 
+void ASTEncoder::visit(StructuredBindingDeclarationAST* ast) {
+  std::vector<flatbuffers::Offset<>> attributeListOffsets;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
+
+  for (auto it = ast->attributeList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
+    attributeListOffsets.push_back(offset);
+    attributeListTypes.push_back(type);
+  }
+
+  auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
+  auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
+
+  std::vector<flatbuffers::Offset<>> declSpecifierListOffsets;
+  std::vector<std::underlying_type_t<io::Specifier>> declSpecifierListTypes;
+
+  for (auto it = ast->declSpecifierList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptSpecifier(it->value);
+    declSpecifierListOffsets.push_back(offset);
+    declSpecifierListTypes.push_back(type);
+  }
+
+  auto declSpecifierListOffsetsVector =
+      fbb_.CreateVector(declSpecifierListOffsets);
+  auto declSpecifierListTypesVector = fbb_.CreateVector(declSpecifierListTypes);
+
+  auto refQualifierLoc = encodeSourceLocation(ast->refQualifierLoc);
+
+  auto lbracketLoc = encodeSourceLocation(ast->lbracketLoc);
+
+  std::vector<flatbuffers::Offset<>> bindingListOffsets;
+  std::vector<std::underlying_type_t<io::Name>> bindingListTypes;
+
+  for (auto it = ast->bindingList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptName(it->value);
+    bindingListOffsets.push_back(offset);
+    bindingListTypes.push_back(type);
+  }
+
+  auto bindingListOffsetsVector = fbb_.CreateVector(bindingListOffsets);
+  auto bindingListTypesVector = fbb_.CreateVector(bindingListTypes);
+
+  auto rbracketLoc = encodeSourceLocation(ast->rbracketLoc);
+
+  const auto [initializer, initializerType] =
+      acceptExpression(ast->initializer);
+
+  auto semicolonLoc = encodeSourceLocation(ast->semicolonLoc);
+
+  io::StructuredBindingDeclaration::Builder builder{fbb_};
+  builder.add_attribute_list(attributeListOffsetsVector);
+  builder.add_attribute_list_type(attributeListTypesVector);
+  builder.add_decl_specifier_list(declSpecifierListOffsetsVector);
+  builder.add_decl_specifier_list_type(declSpecifierListTypesVector);
+  builder.add_ref_qualifier_loc(refQualifierLoc.o);
+  builder.add_lbracket_loc(lbracketLoc.o);
+  builder.add_binding_list(bindingListOffsetsVector);
+  builder.add_binding_list_type(bindingListTypesVector);
+  builder.add_rbracket_loc(rbracketLoc.o);
+  builder.add_initializer(initializer);
+  builder.add_initializer_type(static_cast<io::Expression>(initializerType));
+  builder.add_semicolon_loc(semicolonLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Declaration_StructuredBindingDeclaration;
+}
+
 void ASTEncoder::visit(StaticAssertDeclarationAST* ast) {
   auto staticAssertLoc = encodeSourceLocation(ast->staticAssertLoc);
 

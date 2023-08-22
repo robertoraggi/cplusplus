@@ -3167,11 +3167,22 @@ auto Parser::parse_for_range_declaration(DeclarationAST*& yyast) -> bool {
 
     if (!match(TokenKind::T_LBRACKET, lbracketLoc)) return false;
 
-    if (!parse_identifier_list()) parse_error("expected an identifier");
+    List<NameAST*>* bindings = nullptr;
+
+    if (!parse_identifier_list(bindings)) parse_error("expected an identifier");
 
     SourceLocation rbracketLoc;
 
     expect(TokenKind::T_RBRACKET, rbracketLoc);
+
+    auto ast = new (pool) StructuredBindingDeclarationAST();
+    yyast = ast;
+    ast->attributeList = attributeList;
+    ast->declSpecifierList = declSpecifierList;
+    ast->refQualifierLoc = refLoc;
+    ast->lbracketLoc = lbracketLoc;
+    ast->bindingList = bindings;
+    ast->rbracketLoc = rbracketLoc;
   } else {
     DeclaratorAST* declarator = nullptr;
 
@@ -3504,15 +3515,28 @@ auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
   SourceLocation lbracketLoc;
 
   if (match(TokenKind::T_LBRACKET, lbracketLoc)) {
+    List<NameAST*>* bindings = nullptr;
     SourceLocation rbracketLoc;
 
-    if (parse_identifier_list() && match(TokenKind::T_RBRACKET, rbracketLoc)) {
+    if (parse_identifier_list(bindings) &&
+        match(TokenKind::T_RBRACKET, rbracketLoc)) {
       ExpressionAST* initializer = nullptr;
-
       SourceLocation semicolonLoc;
 
       if (parse_initializer(initializer) &&
           match(TokenKind::T_SEMICOLON, semicolonLoc)) {
+        auto ast = new (pool) StructuredBindingDeclarationAST();
+        yyast = ast;
+
+        ast->attributeList = attributes;
+        ast->declSpecifierList = declSpecifierList;
+        ast->refQualifierLoc = refLoc;
+        ast->lbracketLoc = lbracketLoc;
+        ast->bindingList = bindings;
+        ast->rbracketLoc = rbracketLoc;
+        ast->initializer = initializer;
+        ast->semicolonLoc = semicolonLoc;
+
         return true;
       }
     }
@@ -8412,15 +8436,31 @@ auto Parser::parse_noexcept_specifier() -> bool {
   return true;
 }
 
-auto Parser::parse_identifier_list() -> bool {
-  SourceLocation identifierLoc;
-  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
+auto Parser::parse_identifier_list(List<NameAST*>*& yyast) -> bool {
+  auto it = &yyast;
+
+  NameAST* id = nullptr;
+
+  if (!parse_name_id(id)) return false;
+
+  if (id) {
+    *it = new (pool) List<NameAST*>(id);
+    it = &(*it)->next;
+  }
 
   SourceLocation commaLoc;
 
   while (match(TokenKind::T_COMMA, commaLoc)) {
-    SourceLocation identifierLoc;
-    expect(TokenKind::T_IDENTIFIER, identifierLoc);
+    NameAST* id = nullptr;
+
+    if (!parse_name_id(id)) {
+      parse_error("expected an identifier");
+    }
+
+    if (id) {
+      *it = new (pool) List<NameAST*>(id);
+      it = &(*it)->next;
+    }
   }
 
   return true;

@@ -168,6 +168,7 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitForRangeDeclaration(node: ast.ForRangeDeclarationAST, context: Context): Result;
     abstract visitAliasDeclaration(node: ast.AliasDeclarationAST, context: Context): Result;
     abstract visitSimpleDeclaration(node: ast.SimpleDeclarationAST, context: Context): Result;
+    abstract visitStructuredBindingDeclaration(node: ast.StructuredBindingDeclarationAST, context: Context): Result;
     abstract visitStaticAssertDeclaration(node: ast.StaticAssertDeclarationAST, context: Context): Result;
     abstract visitEmptyDeclaration(node: ast.EmptyDeclarationAST, context: Context): Result;
     abstract visitAttributeDeclaration(node: ast.AttributeDeclarationAST, context: Context): Result;

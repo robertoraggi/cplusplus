@@ -87,6 +87,7 @@ union Declaration {
   ForRangeDeclaration,
   AliasDeclaration,
   SimpleDeclaration,
+  StructuredBindingDeclaration,
   StaticAssertDeclaration,
   EmptyDeclaration,
   AttributeDeclaration,
@@ -559,6 +560,17 @@ table SimpleDeclaration /* DeclarationAST */ {
   decl_specifier_list: [Specifier];
   init_declarator_list: [InitDeclarator];
   requires_clause: RequiresClause;
+  semicolon_loc: SourceLocation;
+}
+
+table StructuredBindingDeclaration /* DeclarationAST */ {
+  attribute_list: [AttributeSpecifier];
+  decl_specifier_list: [Specifier];
+  binding_list: [Name];
+  initializer: Expression;
+  ref_qualifier_loc: SourceLocation;
+  lbracket_loc: SourceLocation;
+  rbracket_loc: SourceLocation;
   semicolon_loc: SourceLocation;
 }
 

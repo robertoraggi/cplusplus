@@ -2459,6 +2459,45 @@ void ASTSlot::visit(SimpleDeclarationAST* ast) {
   slotCount_ = 5;
 }
 
+void ASTSlot::visit(StructuredBindingDeclarationAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = reinterpret_cast<std::intptr_t>(ast->attributeList);
+      slotKind_ = ASTSlotKind::kNodeList;
+      break;
+    case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->declSpecifierList);
+      slotKind_ = ASTSlotKind::kNodeList;
+      break;
+    case 2:
+      value_ = ast->refQualifierLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 3:
+      value_ = ast->lbracketLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 4:
+      value_ = reinterpret_cast<std::intptr_t>(ast->bindingList);
+      slotKind_ = ASTSlotKind::kNodeList;
+      break;
+    case 5:
+      value_ = ast->rbracketLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 6:
+      value_ = reinterpret_cast<std::intptr_t>(ast->initializer);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 7:
+      value_ = ast->semicolonLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
+
+  slotCount_ = 8;
+}
+
 void ASTSlot::visit(StaticAssertDeclarationAST* ast) {
   switch (slot_) {
     case 0:
