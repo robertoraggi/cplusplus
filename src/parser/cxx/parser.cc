@@ -7037,23 +7037,20 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
   SourceLocation colonLoc;
 
   if (match(TokenKind::T_COLON, colonLoc)) {
-    // ### TODO bit field declarators
+    ExpressionAST* sizeExpression = nullptr;
 
-    auto name = new (pool) SimpleNameAST();
-    name->identifierLoc = identifierLoc;
-    name->identifier = unit->identifier(name->identifierLoc);
-
-    auto coreDeclarator = new (pool) IdDeclaratorAST();
-    coreDeclarator->name = name;
-
-    auto declarator = new (pool) DeclaratorAST();
-    declarator->coreDeclarator = coreDeclarator;
-
-    ExpressionAST* expression = nullptr;
-
-    if (!parse_constant_expression(expression)) {
+    if (!parse_constant_expression(sizeExpression)) {
       parse_error("expected an expression");
     }
+
+    auto bitfieldDeclarator = new (pool) BitfieldDeclaratorAST();
+    bitfieldDeclarator->identifierLoc = identifierLoc;
+    bitfieldDeclarator->identifier = unit->identifier(identifierLoc);
+    bitfieldDeclarator->colonLoc = colonLoc;
+    bitfieldDeclarator->sizeExpression = sizeExpression;
+
+    auto declarator = new (pool) DeclaratorAST();
+    declarator->coreDeclarator = bitfieldDeclarator;
 
     ExpressionAST* initializer = nullptr;
 

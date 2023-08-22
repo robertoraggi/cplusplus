@@ -773,6 +773,10 @@ void DefaultASTVisitor::visit(TypenameSpecifierAST* ast) {
 }
 
 // CoreDeclaratorAST
+void DefaultASTVisitor::visit(BitfieldDeclaratorAST* ast) {
+  cxx_runtime_error("visit(BitfieldDeclaratorAST): not implemented");
+}
+
 void DefaultASTVisitor::visit(IdDeclaratorAST* ast) {
   cxx_runtime_error("visit(IdDeclaratorAST): not implemented");
 }

@@ -232,6 +232,7 @@ export enum ASTKind {
     TypenameSpecifier,
 
     // CoreDeclaratorAST
+    BitfieldDeclarator,
     IdDeclarator,
     NestedDeclarator,
 

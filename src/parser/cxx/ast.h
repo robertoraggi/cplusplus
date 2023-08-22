@@ -2872,6 +2872,21 @@ class TypenameSpecifierAST final : public SpecifierAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class BitfieldDeclaratorAST final : public CoreDeclaratorAST {
+ public:
+  BitfieldDeclaratorAST() : CoreDeclaratorAST(ASTKind::BitfieldDeclarator) {}
+
+  SourceLocation identifierLoc;
+  SourceLocation colonLoc;
+  ExpressionAST* sizeExpression = nullptr;
+  const Identifier* identifier = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 class IdDeclaratorAST final : public CoreDeclaratorAST {
  public:
   IdDeclaratorAST() : CoreDeclaratorAST(ASTKind::IdDeclarator) {}

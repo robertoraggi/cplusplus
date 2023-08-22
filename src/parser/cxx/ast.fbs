@@ -76,6 +76,7 @@ union AttributeToken {
 }
 
 union CoreDeclarator {
+  BitfieldDeclarator,
   IdDeclarator,
   NestedDeclarator,
 }
@@ -506,6 +507,13 @@ table ScopedAttributeToken /* AttributeTokenAST */ {
 
 table SimpleAttributeToken /* AttributeTokenAST */ {
   identifier_loc: SourceLocation;
+}
+
+table BitfieldDeclarator /* CoreDeclaratorAST */ {
+  size_expression: Expression;
+  identifier: string;
+  identifier_loc: SourceLocation;
+  colon_loc: SourceLocation;
 }
 
 table IdDeclarator /* CoreDeclaratorAST */ {

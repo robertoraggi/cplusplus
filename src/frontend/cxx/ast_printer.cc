@@ -1763,6 +1763,12 @@ void ASTPrinter::visit(TypenameSpecifierAST* ast) {
   accept(ast->name, "name");
 }
 
+void ASTPrinter::visit(BitfieldDeclaratorAST* ast) {
+  fmt::print(out_, "{}\n", "bitfield-declarator");
+  accept(ast->identifier, "identifier");
+  accept(ast->sizeExpression, "size-expression");
+}
+
 void ASTPrinter::visit(IdDeclaratorAST* ast) {
   fmt::print(out_, "{}\n", "id-declarator");
   accept(ast->name, "name");

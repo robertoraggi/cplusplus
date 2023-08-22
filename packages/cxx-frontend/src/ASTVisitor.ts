@@ -236,6 +236,7 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitTypenameSpecifier(node: ast.TypenameSpecifierAST, context: Context): Result;
 
     // CoreDeclaratorAST
+    abstract visitBitfieldDeclarator(node: ast.BitfieldDeclaratorAST, context: Context): Result;
     abstract visitIdDeclarator(node: ast.IdDeclaratorAST, context: Context): Result;
     abstract visitNestedDeclarator(node: ast.NestedDeclaratorAST, context: Context): Result;
 

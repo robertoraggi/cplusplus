@@ -4655,6 +4655,38 @@ void ASTEncoder::visit(TypenameSpecifierAST* ast) {
   type_ = io::Specifier_TypenameSpecifier;
 }
 
+void ASTEncoder::visit(BitfieldDeclaratorAST* ast) {
+  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
+
+  auto colonLoc = encodeSourceLocation(ast->colonLoc);
+
+  const auto [sizeExpression, sizeExpressionType] =
+      acceptExpression(ast->sizeExpression);
+
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->value());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
+  io::BitfieldDeclarator::Builder builder{fbb_};
+  builder.add_identifier_loc(identifierLoc.o);
+  builder.add_colon_loc(colonLoc.o);
+  builder.add_size_expression(sizeExpression);
+  builder.add_size_expression_type(
+      static_cast<io::Expression>(sizeExpressionType));
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
+
+  offset_ = builder.Finish().Union();
+  type_ = io::CoreDeclarator_BitfieldDeclarator;
+}
+
 void ASTEncoder::visit(IdDeclaratorAST* ast) {
   auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
 

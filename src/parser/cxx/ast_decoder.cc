@@ -604,6 +604,9 @@ auto ASTDecoder::decodeSpecifier(const void* ptr, io::Specifier type)
 auto ASTDecoder::decodeCoreDeclarator(const void* ptr, io::CoreDeclarator type)
     -> CoreDeclaratorAST* {
   switch (type) {
+    case io::CoreDeclarator_BitfieldDeclarator:
+      return decodeBitfieldDeclarator(
+          reinterpret_cast<const io::BitfieldDeclarator*>(ptr));
     case io::CoreDeclarator_IdDeclarator:
       return decodeIdDeclarator(reinterpret_cast<const io::IdDeclarator*>(ptr));
     case io::CoreDeclarator_NestedDeclarator:
@@ -3096,6 +3099,20 @@ auto ASTDecoder::decodeTypenameSpecifier(const io::TypenameSpecifier* node)
   ast->nestedNameSpecifier =
       decodeNestedNameSpecifier(node->nested_name_specifier());
   ast->name = decodeName(node->name(), node->name_type());
+  return ast;
+}
+
+auto ASTDecoder::decodeBitfieldDeclarator(const io::BitfieldDeclarator* node)
+    -> BitfieldDeclaratorAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) BitfieldDeclaratorAST();
+  ast->sizeExpression =
+      decodeExpression(node->size_expression(), node->size_expression_type());
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
   return ast;
 }
 
