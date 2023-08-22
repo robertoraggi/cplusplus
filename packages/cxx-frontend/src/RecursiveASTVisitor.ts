@@ -384,6 +384,22 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         this.accept(node.getExpression(), context);
     }
 
+    visitEqualInitializer(node: ast.EqualInitializerAST, context: Context): void {
+        this.accept(node.getExpression(), context);
+    }
+
+    visitBracedInitList(node: ast.BracedInitListAST, context: Context): void {
+        for (const element of node.getExpressionList()) {
+            this.accept(element, context);
+        }
+    }
+
+    visitParenInitializer(node: ast.ParenInitializerAST, context: Context): void {
+        for (const element of node.getExpressionList()) {
+            this.accept(element, context);
+        }
+    }
+
     visitSimpleRequirement(node: ast.SimpleRequirementAST, context: Context): void {
         this.accept(node.getExpression(), context);
     }
@@ -440,22 +456,6 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitInitLambdaCapture(node: ast.InitLambdaCaptureAST, context: Context): void {
         this.accept(node.getInitializer(), context);
-    }
-
-    visitEqualInitializer(node: ast.EqualInitializerAST, context: Context): void {
-        this.accept(node.getExpression(), context);
-    }
-
-    visitBracedInitList(node: ast.BracedInitListAST, context: Context): void {
-        for (const element of node.getExpressionList()) {
-            this.accept(element, context);
-        }
-    }
-
-    visitParenInitializer(node: ast.ParenInitializerAST, context: Context): void {
-        for (const element of node.getExpressionList()) {
-            this.accept(element, context);
-        }
     }
 
     visitNewParenInitializer(node: ast.NewParenInitializerAST, context: Context): void {

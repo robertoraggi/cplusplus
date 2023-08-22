@@ -1126,7 +1126,7 @@ auto Parser::parse_init_capture(LambdaCaptureAST*& yyast) -> bool {
 
     if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
 
-    InitializerAST* initializer = nullptr;
+    ExpressionAST* initializer = nullptr;
 
     if (!parse_initializer(initializer)) return false;
 
@@ -1150,7 +1150,7 @@ auto Parser::parse_init_capture(LambdaCaptureAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
 
-  InitializerAST* initializer = nullptr;
+  ExpressionAST* initializer = nullptr;
 
   if (!parse_initializer(initializer)) return false;
 
@@ -2783,7 +2783,7 @@ auto Parser::parse_condition(ExpressionAST*& yyast) -> bool {
     DeclaratorAST* declarator = nullptr;
 
     if (parse_declarator(declarator)) {
-      InitializerAST* initializer = nullptr;
+      ExpressionAST* initializer = nullptr;
 
       if (parse_brace_or_equal_initializer(initializer)) return true;
     }
@@ -3507,7 +3507,7 @@ auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
     SourceLocation rbracketLoc;
 
     if (parse_identifier_list() && match(TokenKind::T_RBRACKET, rbracketLoc)) {
-      InitializerAST* initializer = nullptr;
+      ExpressionAST* initializer = nullptr;
 
       SourceLocation semicolonLoc;
 
@@ -4549,7 +4549,7 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
   const auto saved = currentLocation();
 
   RequiresClauseAST* requiresClause = nullptr;
-  InitializerAST* initializer = nullptr;
+  ExpressionAST* initializer = nullptr;
 
   if (!parse_declarator_initializer(requiresClause, initializer)) rewind(saved);
 
@@ -4564,7 +4564,7 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
 }
 
 auto Parser::parse_declarator_initializer(RequiresClauseAST*& requiresClause,
-                                          InitializerAST*& yyast) -> bool {
+                                          ExpressionAST*& yyast) -> bool {
   if (parse_requires_clause(requiresClause)) return true;
 
   return parse_initializer(yyast);
@@ -5205,7 +5205,7 @@ auto Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast,
   return true;
 }
 
-auto Parser::parse_initializer(InitializerAST*& yyast) -> bool {
+auto Parser::parse_initializer(ExpressionAST*& yyast) -> bool {
   SourceLocation lparenLoc;
 
   if (match(TokenKind::T_LPAREN, lparenLoc)) {
@@ -5228,7 +5228,7 @@ auto Parser::parse_initializer(InitializerAST*& yyast) -> bool {
   return parse_brace_or_equal_initializer(yyast);
 }
 
-auto Parser::parse_brace_or_equal_initializer(InitializerAST*& yyast) -> bool {
+auto Parser::parse_brace_or_equal_initializer(ExpressionAST*& yyast) -> bool {
   BracedInitListAST* bracedInitList = nullptr;
 
   if (LA().is(TokenKind::T_LBRACE)) {
@@ -5428,7 +5428,10 @@ auto Parser::parse_expr_or_braced_init_list(ExpressionAST*& yyast) -> bool {
   if (LA().is(TokenKind::T_LBRACE)) {
     BracedInitListAST* bracedInitList = nullptr;
 
-    return parse_braced_init_list(bracedInitList);
+    if (parse_braced_init_list(bracedInitList)) {
+      yyast = bracedInitList;
+      return true;
+    }
   }
 
   if (!parse_expression(yyast)) parse_error("expected an expression");
@@ -7027,7 +7030,7 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
       parse_error("expected an expression");
     }
 
-    InitializerAST* initializer = nullptr;
+    ExpressionAST* initializer = nullptr;
 
     parse_brace_or_equal_initializer(initializer);
 

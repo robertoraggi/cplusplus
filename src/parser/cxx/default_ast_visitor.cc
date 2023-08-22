@@ -308,6 +308,18 @@ void DefaultASTVisitor::visit(NoexceptExpressionAST* ast) {
   cxx_runtime_error("visit(NoexceptExpressionAST): not implemented");
 }
 
+void DefaultASTVisitor::visit(EqualInitializerAST* ast) {
+  cxx_runtime_error("visit(EqualInitializerAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(BracedInitListAST* ast) {
+  cxx_runtime_error("visit(BracedInitListAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(ParenInitializerAST* ast) {
+  cxx_runtime_error("visit(ParenInitializerAST): not implemented");
+}
+
 // RequirementAST
 void DefaultASTVisitor::visit(SimpleRequirementAST* ast) {
   cxx_runtime_error("visit(SimpleRequirementAST): not implemented");
@@ -366,19 +378,6 @@ void DefaultASTVisitor::visit(RefInitLambdaCaptureAST* ast) {
 
 void DefaultASTVisitor::visit(InitLambdaCaptureAST* ast) {
   cxx_runtime_error("visit(InitLambdaCaptureAST): not implemented");
-}
-
-// InitializerAST
-void DefaultASTVisitor::visit(EqualInitializerAST* ast) {
-  cxx_runtime_error("visit(EqualInitializerAST): not implemented");
-}
-
-void DefaultASTVisitor::visit(BracedInitListAST* ast) {
-  cxx_runtime_error("visit(BracedInitListAST): not implemented");
-}
-
-void DefaultASTVisitor::visit(ParenInitializerAST* ast) {
-  cxx_runtime_error("visit(ParenInitializerAST): not implemented");
 }
 
 // NewInitializerAST

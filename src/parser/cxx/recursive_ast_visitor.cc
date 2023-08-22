@@ -71,10 +71,6 @@ void RecursiveASTVisitor::acceptRequiresClause(RequiresClauseAST* ast) {
   accept(ast);
 }
 
-void RecursiveASTVisitor::acceptInitializer(InitializerAST* ast) {
-  accept(ast);
-}
-
 void RecursiveASTVisitor::acceptBaseSpecifier(BaseSpecifierAST* ast) {
   accept(ast);
 }
@@ -128,11 +124,29 @@ void RecursiveASTVisitor::acceptAttributeArgumentClause(
 
 void RecursiveASTVisitor::acceptDesignator(DesignatorAST* ast) { accept(ast); }
 
-void RecursiveASTVisitor::acceptTypeConstraint(TypeConstraintAST* ast) {
+void RecursiveASTVisitor::acceptRequirementBody(RequirementBodyAST* ast) {
+  accept(ast);
+}
+
+void RecursiveASTVisitor::acceptLambdaIntroducer(LambdaIntroducerAST* ast) {
+  accept(ast);
+}
+
+void RecursiveASTVisitor::acceptLambdaDeclarator(LambdaDeclaratorAST* ast) {
   accept(ast);
 }
 
 void RecursiveASTVisitor::acceptBracedInitList(BracedInitListAST* ast) {
+  accept(ast);
+}
+
+void RecursiveASTVisitor::acceptNewTypeId(NewTypeIdAST* ast) { accept(ast); }
+
+void RecursiveASTVisitor::acceptNewInitializer(NewInitializerAST* ast) {
+  accept(ast);
+}
+
+void RecursiveASTVisitor::acceptTypeConstraint(TypeConstraintAST* ast) {
   accept(ast);
 }
 
@@ -153,24 +167,6 @@ void RecursiveASTVisitor::acceptModuleDeclaration(ModuleDeclarationAST* ast) {
 
 void RecursiveASTVisitor::acceptPrivateModuleFragment(
     PrivateModuleFragmentAST* ast) {
-  accept(ast);
-}
-
-void RecursiveASTVisitor::acceptRequirementBody(RequirementBodyAST* ast) {
-  accept(ast);
-}
-
-void RecursiveASTVisitor::acceptLambdaIntroducer(LambdaIntroducerAST* ast) {
-  accept(ast);
-}
-
-void RecursiveASTVisitor::acceptLambdaDeclarator(LambdaDeclaratorAST* ast) {
-  accept(ast);
-}
-
-void RecursiveASTVisitor::acceptNewTypeId(NewTypeIdAST* ast) { accept(ast); }
-
-void RecursiveASTVisitor::acceptNewInitializer(NewInitializerAST* ast) {
   accept(ast);
 }
 
@@ -271,7 +267,7 @@ void RecursiveASTVisitor::visit(DeclaratorAST* ast) {
 void RecursiveASTVisitor::visit(InitDeclaratorAST* ast) {
   acceptDeclarator(ast->declarator);
   acceptRequiresClause(ast->requiresClause);
-  acceptInitializer(ast->initializer);
+  acceptExpression(ast->initializer);
 }
 
 void RecursiveASTVisitor::visit(BaseSpecifierAST* ast) {
@@ -396,7 +392,7 @@ void RecursiveASTVisitor::visit(DesignatorAST* ast) {}
 
 void RecursiveASTVisitor::visit(DesignatedInitializerClauseAST* ast) {
   acceptDesignator(ast->designator);
-  acceptInitializer(ast->initializer);
+  acceptExpression(ast->initializer);
 }
 
 void RecursiveASTVisitor::visit(ThisExpressionAST* ast) {}
@@ -561,6 +557,22 @@ void RecursiveASTVisitor::visit(NoexceptExpressionAST* ast) {
   acceptExpression(ast->expression);
 }
 
+void RecursiveASTVisitor::visit(EqualInitializerAST* ast) {
+  acceptExpression(ast->expression);
+}
+
+void RecursiveASTVisitor::visit(BracedInitListAST* ast) {
+  for (auto it = ast->expressionList; it; it = it->next) {
+    acceptExpression(it->value);
+  }
+}
+
+void RecursiveASTVisitor::visit(ParenInitializerAST* ast) {
+  for (auto it = ast->expressionList; it; it = it->next) {
+    acceptExpression(it->value);
+  }
+}
+
 void RecursiveASTVisitor::visit(SimpleRequirementAST* ast) {
   acceptExpression(ast->expression);
 }
@@ -608,27 +620,11 @@ void RecursiveASTVisitor::visit(SimpleLambdaCaptureAST* ast) {}
 void RecursiveASTVisitor::visit(RefLambdaCaptureAST* ast) {}
 
 void RecursiveASTVisitor::visit(RefInitLambdaCaptureAST* ast) {
-  acceptInitializer(ast->initializer);
+  acceptExpression(ast->initializer);
 }
 
 void RecursiveASTVisitor::visit(InitLambdaCaptureAST* ast) {
-  acceptInitializer(ast->initializer);
-}
-
-void RecursiveASTVisitor::visit(EqualInitializerAST* ast) {
-  acceptExpression(ast->expression);
-}
-
-void RecursiveASTVisitor::visit(BracedInitListAST* ast) {
-  for (auto it = ast->expressionList; it; it = it->next) {
-    acceptExpression(it->value);
-  }
-}
-
-void RecursiveASTVisitor::visit(ParenInitializerAST* ast) {
-  for (auto it = ast->expressionList; it; it = it->next) {
-    acceptExpression(it->value);
-  }
+  acceptExpression(ast->initializer);
 }
 
 void RecursiveASTVisitor::visit(NewParenInitializerAST* ast) {

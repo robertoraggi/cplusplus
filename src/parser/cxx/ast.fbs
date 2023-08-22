@@ -162,6 +162,9 @@ union Expression {
   DeleteExpression,
   ThrowExpression,
   NoexceptExpression,
+  EqualInitializer,
+  BracedInitList,
+  ParenInitializer,
 }
 
 union FunctionBody {
@@ -169,12 +172,6 @@ union FunctionBody {
   CompoundStatementFunctionBody,
   TryStatementFunctionBody,
   DeleteFunctionBody,
-}
-
-union Initializer {
-  EqualInitializer,
-  BracedInitList,
-  ParenInitializer,
 }
 
 union LambdaCapture {
@@ -331,7 +328,7 @@ table Declarator /* AST */ {
 table InitDeclarator /* AST */ {
   declarator: Declarator;
   requires_clause: RequiresClause;
-  initializer: Initializer;
+  initializer: Expression;
 }
 
 table BaseSpecifier /* AST */ {
@@ -765,7 +762,7 @@ table TypeExceptionDeclaration /* ExceptionDeclarationAST */ {
 
 table DesignatedInitializerClause /* ExpressionAST */ {
   designator: Designator;
-  initializer: Initializer;
+  initializer: Expression;
 }
 
 table ThisExpression /* ExpressionAST */ {
@@ -1029,6 +1026,24 @@ table NoexceptExpression /* ExpressionAST */ {
   rparen_loc: SourceLocation;
 }
 
+table EqualInitializer /* ExpressionAST */ {
+  expression: Expression;
+  equal_loc: SourceLocation;
+}
+
+table BracedInitList /* ExpressionAST */ {
+  expression_list: [Expression];
+  lbrace_loc: SourceLocation;
+  comma_loc: SourceLocation;
+  rbrace_loc: SourceLocation;
+}
+
+table ParenInitializer /* ExpressionAST */ {
+  expression_list: [Expression];
+  lparen_loc: SourceLocation;
+  rparen_loc: SourceLocation;
+}
+
 table DefaultFunctionBody /* FunctionBodyAST */ {
   equal_loc: SourceLocation;
   default_loc: SourceLocation;
@@ -1051,24 +1066,6 @@ table DeleteFunctionBody /* FunctionBodyAST */ {
   equal_loc: SourceLocation;
   delete_loc: SourceLocation;
   semicolon_loc: SourceLocation;
-}
-
-table EqualInitializer /* InitializerAST */ {
-  expression: Expression;
-  equal_loc: SourceLocation;
-}
-
-table BracedInitList /* InitializerAST */ {
-  expression_list: [Expression];
-  lbrace_loc: SourceLocation;
-  comma_loc: SourceLocation;
-  rbrace_loc: SourceLocation;
-}
-
-table ParenInitializer /* InitializerAST */ {
-  expression_list: [Expression];
-  lparen_loc: SourceLocation;
-  rparen_loc: SourceLocation;
 }
 
 table ThisLambdaCapture /* LambdaCaptureAST */ {
@@ -1094,7 +1091,7 @@ table RefLambdaCapture /* LambdaCaptureAST */ {
 }
 
 table RefInitLambdaCapture /* LambdaCaptureAST */ {
-  initializer: Initializer;
+  initializer: Expression;
   identifier: string;
   amp_loc: SourceLocation;
   ellipsis_loc: SourceLocation;
@@ -1102,7 +1099,7 @@ table RefInitLambdaCapture /* LambdaCaptureAST */ {
 }
 
 table InitLambdaCapture /* LambdaCaptureAST */ {
-  initializer: Initializer;
+  initializer: Expression;
   identifier: string;
   ellipsis_loc: SourceLocation;
   identifier_loc: SourceLocation;

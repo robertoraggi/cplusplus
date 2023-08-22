@@ -1341,6 +1341,71 @@ void ASTCloner::visit(NoexceptExpressionAST* ast) {
   copy->rparenLoc = ast->rparenLoc;
 }
 
+void ASTCloner::visit(EqualInitializerAST* ast) {
+  auto copy = new (arena_) EqualInitializerAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->valueCategory = ast->valueCategory;
+
+  copy->constValue = ast->constValue;
+
+  copy->equalLoc = ast->equalLoc;
+
+  copy->expression = accept(ast->expression);
+}
+
+void ASTCloner::visit(BracedInitListAST* ast) {
+  auto copy = new (arena_) BracedInitListAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->valueCategory = ast->valueCategory;
+
+  copy->constValue = ast->constValue;
+
+  copy->lbraceLoc = ast->lbraceLoc;
+
+  if (auto it = ast->expressionList) {
+    auto out = &copy->expressionList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->commaLoc = ast->commaLoc;
+
+  copy->rbraceLoc = ast->rbraceLoc;
+}
+
+void ASTCloner::visit(ParenInitializerAST* ast) {
+  auto copy = new (arena_) ParenInitializerAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->valueCategory = ast->valueCategory;
+
+  copy->constValue = ast->constValue;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  if (auto it = ast->expressionList) {
+    auto out = &copy->expressionList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->rparenLoc = ast->rparenLoc;
+}
+
 void ASTCloner::visit(SimpleRequirementAST* ast) {
   auto copy = new (arena_) SimpleRequirementAST();
   copy_ = copy;
@@ -1534,59 +1599,6 @@ void ASTCloner::visit(InitLambdaCaptureAST* ast) {
   copy->initializer = accept(ast->initializer);
 
   copy->identifier = ast->identifier;
-}
-
-void ASTCloner::visit(EqualInitializerAST* ast) {
-  auto copy = new (arena_) EqualInitializerAST();
-  copy_ = copy;
-
-  copy->setChecked(ast->checked());
-
-  copy->equalLoc = ast->equalLoc;
-
-  copy->expression = accept(ast->expression);
-}
-
-void ASTCloner::visit(BracedInitListAST* ast) {
-  auto copy = new (arena_) BracedInitListAST();
-  copy_ = copy;
-
-  copy->setChecked(ast->checked());
-
-  copy->lbraceLoc = ast->lbraceLoc;
-
-  if (auto it = ast->expressionList) {
-    auto out = &copy->expressionList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
-
-  copy->commaLoc = ast->commaLoc;
-
-  copy->rbraceLoc = ast->rbraceLoc;
-}
-
-void ASTCloner::visit(ParenInitializerAST* ast) {
-  auto copy = new (arena_) ParenInitializerAST();
-  copy_ = copy;
-
-  copy->setChecked(ast->checked());
-
-  copy->lparenLoc = ast->lparenLoc;
-
-  if (auto it = ast->expressionList) {
-    auto out = &copy->expressionList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
-
-  copy->rparenLoc = ast->rparenLoc;
 }
 
 void ASTCloner::visit(NewParenInitializerAST* ast) {

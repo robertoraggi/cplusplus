@@ -40,7 +40,6 @@ class RecursiveASTVisitor : public ASTVisitor {
   virtual void acceptCoreDeclarator(CoreDeclaratorAST* ast);
   virtual void acceptDeclaratorModifier(DeclaratorModifierAST* ast);
   virtual void acceptRequiresClause(RequiresClauseAST* ast);
-  virtual void acceptInitializer(InitializerAST* ast);
   virtual void acceptBaseSpecifier(BaseSpecifierAST* ast);
   virtual void acceptParameterDeclaration(ParameterDeclarationAST* ast);
   virtual void acceptParameterDeclarationClause(
@@ -56,18 +55,18 @@ class RecursiveASTVisitor : public ASTVisitor {
   virtual void acceptAttributeToken(AttributeTokenAST* ast);
   virtual void acceptAttributeArgumentClause(AttributeArgumentClauseAST* ast);
   virtual void acceptDesignator(DesignatorAST* ast);
-  virtual void acceptTypeConstraint(TypeConstraintAST* ast);
+  virtual void acceptRequirementBody(RequirementBodyAST* ast);
+  virtual void acceptLambdaIntroducer(LambdaIntroducerAST* ast);
+  virtual void acceptLambdaDeclarator(LambdaDeclaratorAST* ast);
   virtual void acceptBracedInitList(BracedInitListAST* ast);
+  virtual void acceptNewTypeId(NewTypeIdAST* ast);
+  virtual void acceptNewInitializer(NewInitializerAST* ast);
+  virtual void acceptTypeConstraint(TypeConstraintAST* ast);
   virtual void acceptCtorInitializer(CtorInitializerAST* ast);
   virtual void acceptHandler(HandlerAST* ast);
   virtual void acceptGlobalModuleFragment(GlobalModuleFragmentAST* ast);
   virtual void acceptModuleDeclaration(ModuleDeclarationAST* ast);
   virtual void acceptPrivateModuleFragment(PrivateModuleFragmentAST* ast);
-  virtual void acceptRequirementBody(RequirementBodyAST* ast);
-  virtual void acceptLambdaIntroducer(LambdaIntroducerAST* ast);
-  virtual void acceptLambdaDeclarator(LambdaDeclaratorAST* ast);
-  virtual void acceptNewTypeId(NewTypeIdAST* ast);
-  virtual void acceptNewInitializer(NewInitializerAST* ast);
   virtual void acceptStatement(StatementAST* ast);
   virtual void acceptFunctionBody(FunctionBodyAST* ast);
   virtual void acceptInitDeclarator(InitDeclaratorAST* ast);
@@ -156,6 +155,9 @@ class RecursiveASTVisitor : public ASTVisitor {
   void visit(DeleteExpressionAST* ast) override;
   void visit(ThrowExpressionAST* ast) override;
   void visit(NoexceptExpressionAST* ast) override;
+  void visit(EqualInitializerAST* ast) override;
+  void visit(BracedInitListAST* ast) override;
+  void visit(ParenInitializerAST* ast) override;
 
   void visit(SimpleRequirementAST* ast) override;
   void visit(CompoundRequirementAST* ast) override;
@@ -174,10 +176,6 @@ class RecursiveASTVisitor : public ASTVisitor {
   void visit(RefLambdaCaptureAST* ast) override;
   void visit(RefInitLambdaCaptureAST* ast) override;
   void visit(InitLambdaCaptureAST* ast) override;
-
-  void visit(EqualInitializerAST* ast) override;
-  void visit(BracedInitListAST* ast) override;
-  void visit(ParenInitializerAST* ast) override;
 
   void visit(NewParenInitializerAST* ast) override;
   void visit(NewBracedInitializerAST* ast) override;

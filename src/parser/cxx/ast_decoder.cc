@@ -169,6 +169,15 @@ auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
     case io::Expression_NoexceptExpression:
       return decodeNoexceptExpression(
           reinterpret_cast<const io::NoexceptExpression*>(ptr));
+    case io::Expression_EqualInitializer:
+      return decodeEqualInitializer(
+          reinterpret_cast<const io::EqualInitializer*>(ptr));
+    case io::Expression_BracedInitList:
+      return decodeBracedInitList(
+          reinterpret_cast<const io::BracedInitList*>(ptr));
+    case io::Expression_ParenInitializer:
+      return decodeParenInitializer(
+          reinterpret_cast<const io::ParenInitializer*>(ptr));
     default:
       return nullptr;
   }  // switch
@@ -244,23 +253,6 @@ auto ASTDecoder::decodeLambdaCapture(const void* ptr, io::LambdaCapture type)
     case io::LambdaCapture_InitLambdaCapture:
       return decodeInitLambdaCapture(
           reinterpret_cast<const io::InitLambdaCapture*>(ptr));
-    default:
-      return nullptr;
-  }  // switch
-}
-
-auto ASTDecoder::decodeInitializer(const void* ptr, io::Initializer type)
-    -> InitializerAST* {
-  switch (type) {
-    case io::Initializer_EqualInitializer:
-      return decodeEqualInitializer(
-          reinterpret_cast<const io::EqualInitializer*>(ptr));
-    case io::Initializer_BracedInitList:
-      return decodeBracedInitList(
-          reinterpret_cast<const io::BracedInitList*>(ptr));
-    case io::Initializer_ParenInitializer:
-      return decodeParenInitializer(
-          reinterpret_cast<const io::ParenInitializer*>(ptr));
     default:
       return nullptr;
   }  // switch
@@ -812,7 +804,7 @@ auto ASTDecoder::decodeInitDeclarator(const io::InitDeclarator* node)
   ast->declarator = decodeDeclarator(node->declarator());
   ast->requiresClause = decodeRequiresClause(node->requires_clause());
   ast->initializer =
-      decodeInitializer(node->initializer(), node->initializer_type());
+      decodeExpression(node->initializer(), node->initializer_type());
   return ast;
 }
 
@@ -1152,7 +1144,7 @@ auto ASTDecoder::decodeDesignatedInitializerClause(
   auto ast = new (pool_) DesignatedInitializerClauseAST();
   ast->designator = decodeDesignator(node->designator());
   ast->initializer =
-      decodeInitializer(node->initializer(), node->initializer_type());
+      decodeExpression(node->initializer(), node->initializer_type());
   return ast;
 }
 
@@ -1603,6 +1595,50 @@ auto ASTDecoder::decodeNoexceptExpression(const io::NoexceptExpression* node)
   return ast;
 }
 
+auto ASTDecoder::decodeEqualInitializer(const io::EqualInitializer* node)
+    -> EqualInitializerAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) EqualInitializerAST();
+  ast->expression =
+      decodeExpression(node->expression(), node->expression_type());
+  return ast;
+}
+
+auto ASTDecoder::decodeBracedInitList(const io::BracedInitList* node)
+    -> BracedInitListAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) BracedInitListAST();
+  if (node->expression_list()) {
+    auto* inserter = &ast->expressionList;
+    for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeExpression(
+          node->expression_list()->Get(i),
+          io::Expression(node->expression_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeParenInitializer(const io::ParenInitializer* node)
+    -> ParenInitializerAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) ParenInitializerAST();
+  if (node->expression_list()) {
+    auto* inserter = &ast->expressionList;
+    for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeExpression(
+          node->expression_list()->Get(i),
+          io::Expression(node->expression_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  return ast;
+}
+
 auto ASTDecoder::decodeSimpleRequirement(const io::SimpleRequirement* node)
     -> SimpleRequirementAST* {
   if (!node) return nullptr;
@@ -1739,7 +1775,7 @@ auto ASTDecoder::decodeRefInitLambdaCapture(
 
   auto ast = new (pool_) RefInitLambdaCaptureAST();
   ast->initializer =
-      decodeInitializer(node->initializer(), node->initializer_type());
+      decodeExpression(node->initializer(), node->initializer_type());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -1753,54 +1789,10 @@ auto ASTDecoder::decodeInitLambdaCapture(const io::InitLambdaCapture* node)
 
   auto ast = new (pool_) InitLambdaCaptureAST();
   ast->initializer =
-      decodeInitializer(node->initializer(), node->initializer_type());
+      decodeExpression(node->initializer(), node->initializer_type());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
-  }
-  return ast;
-}
-
-auto ASTDecoder::decodeEqualInitializer(const io::EqualInitializer* node)
-    -> EqualInitializerAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) EqualInitializerAST();
-  ast->expression =
-      decodeExpression(node->expression(), node->expression_type());
-  return ast;
-}
-
-auto ASTDecoder::decodeBracedInitList(const io::BracedInitList* node)
-    -> BracedInitListAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) BracedInitListAST();
-  if (node->expression_list()) {
-    auto* inserter = &ast->expressionList;
-    for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeExpression(
-          node->expression_list()->Get(i),
-          io::Expression(node->expression_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  return ast;
-}
-
-auto ASTDecoder::decodeParenInitializer(const io::ParenInitializer* node)
-    -> ParenInitializerAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) ParenInitializerAST();
-  if (node->expression_list()) {
-    auto* inserter = &ast->expressionList;
-    for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeExpression(
-          node->expression_list()->Get(i),
-          io::Expression(node->expression_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
   }
   return ast;
 }

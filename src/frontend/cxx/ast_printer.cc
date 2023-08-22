@@ -737,6 +737,37 @@ void ASTPrinter::visit(NoexceptExpressionAST* ast) {
   accept(ast->expression, "expression");
 }
 
+void ASTPrinter::visit(EqualInitializerAST* ast) {
+  fmt::print(out_, "{}\n", "equal-initializer");
+  accept(ast->expression, "expression");
+}
+
+void ASTPrinter::visit(BracedInitListAST* ast) {
+  fmt::print(out_, "{}\n", "braced-init-list");
+  if (ast->expressionList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "expression-list");
+    for (auto it = ast->expressionList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+}
+
+void ASTPrinter::visit(ParenInitializerAST* ast) {
+  fmt::print(out_, "{}\n", "paren-initializer");
+  if (ast->expressionList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "expression-list");
+    for (auto it = ast->expressionList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+}
+
 void ASTPrinter::visit(SimpleRequirementAST* ast) {
   fmt::print(out_, "{}\n", "simple-requirement");
   accept(ast->expression, "expression");
@@ -817,37 +848,6 @@ void ASTPrinter::visit(InitLambdaCaptureAST* ast) {
   fmt::print(out_, "{}\n", "init-lambda-capture");
   accept(ast->identifier, "identifier");
   accept(ast->initializer, "initializer");
-}
-
-void ASTPrinter::visit(EqualInitializerAST* ast) {
-  fmt::print(out_, "{}\n", "equal-initializer");
-  accept(ast->expression, "expression");
-}
-
-void ASTPrinter::visit(BracedInitListAST* ast) {
-  fmt::print(out_, "{}\n", "braced-init-list");
-  if (ast->expressionList) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "expression-list");
-    for (auto it = ast->expressionList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-}
-
-void ASTPrinter::visit(ParenInitializerAST* ast) {
-  fmt::print(out_, "{}\n", "paren-initializer");
-  if (ast->expressionList) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "expression-list");
-    for (auto it = ast->expressionList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
 }
 
 void ASTPrinter::visit(NewParenInitializerAST* ast) {

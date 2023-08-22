@@ -47,8 +47,6 @@ class ASTDecoder {
       -> MemInitializerAST*;
   auto decodeLambdaCapture(const void* ptr, io::LambdaCapture type)
       -> LambdaCaptureAST*;
-  auto decodeInitializer(const void* ptr, io::Initializer type)
-      -> InitializerAST*;
   auto decodeNewInitializer(const void* ptr, io::NewInitializer type)
       -> NewInitializerAST*;
   auto decodeExceptionDeclaration(const void* ptr,
@@ -203,6 +201,12 @@ class ASTDecoder {
       -> ThrowExpressionAST*;
   auto decodeNoexceptExpression(const io::NoexceptExpression* node)
       -> NoexceptExpressionAST*;
+  auto decodeEqualInitializer(const io::EqualInitializer* node)
+      -> EqualInitializerAST*;
+  auto decodeBracedInitList(const io::BracedInitList* node)
+      -> BracedInitListAST*;
+  auto decodeParenInitializer(const io::ParenInitializer* node)
+      -> ParenInitializerAST*;
 
   auto decodeSimpleRequirement(const io::SimpleRequirement* node)
       -> SimpleRequirementAST*;
@@ -236,13 +240,6 @@ class ASTDecoder {
       -> RefInitLambdaCaptureAST*;
   auto decodeInitLambdaCapture(const io::InitLambdaCapture* node)
       -> InitLambdaCaptureAST*;
-
-  auto decodeEqualInitializer(const io::EqualInitializer* node)
-      -> EqualInitializerAST*;
-  auto decodeBracedInitList(const io::BracedInitList* node)
-      -> BracedInitListAST*;
-  auto decodeParenInitializer(const io::ParenInitializer* node)
-      -> ParenInitializerAST*;
 
   auto decodeNewParenInitializer(const io::NewParenInitializer* node)
       -> NewParenInitializerAST*;

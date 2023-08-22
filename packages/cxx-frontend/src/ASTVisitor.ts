@@ -97,6 +97,9 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitDeleteExpression(node: ast.DeleteExpressionAST, context: Context): Result;
     abstract visitThrowExpression(node: ast.ThrowExpressionAST, context: Context): Result;
     abstract visitNoexceptExpression(node: ast.NoexceptExpressionAST, context: Context): Result;
+    abstract visitEqualInitializer(node: ast.EqualInitializerAST, context: Context): Result;
+    abstract visitBracedInitList(node: ast.BracedInitListAST, context: Context): Result;
+    abstract visitParenInitializer(node: ast.ParenInitializerAST, context: Context): Result;
 
     // RequirementAST
     abstract visitSimpleRequirement(node: ast.SimpleRequirementAST, context: Context): Result;
@@ -119,11 +122,6 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitRefLambdaCapture(node: ast.RefLambdaCaptureAST, context: Context): Result;
     abstract visitRefInitLambdaCapture(node: ast.RefInitLambdaCaptureAST, context: Context): Result;
     abstract visitInitLambdaCapture(node: ast.InitLambdaCaptureAST, context: Context): Result;
-
-    // InitializerAST
-    abstract visitEqualInitializer(node: ast.EqualInitializerAST, context: Context): Result;
-    abstract visitBracedInitList(node: ast.BracedInitListAST, context: Context): Result;
-    abstract visitParenInitializer(node: ast.ParenInitializerAST, context: Context): Result;
 
     // NewInitializerAST
     abstract visitNewParenInitializer(node: ast.NewParenInitializerAST, context: Context): Result;
