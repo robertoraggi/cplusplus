@@ -389,220 +389,15 @@ void ASTPrinter::visit(AttributeUsingPrefixAST* ast) {
   fmt::print(out_, "{}\n", "attribute-using-prefix");
 }
 
-void ASTPrinter::visit(SimpleRequirementAST* ast) {
-  fmt::print(out_, "{}\n", "simple-requirement");
-  accept(ast->expression, "expression");
-}
-
-void ASTPrinter::visit(CompoundRequirementAST* ast) {
-  fmt::print(out_, "{}\n", "compound-requirement");
-  accept(ast->expression, "expression");
-  accept(ast->typeConstraint, "type-constraint");
-}
-
-void ASTPrinter::visit(TypeRequirementAST* ast) {
-  fmt::print(out_, "{}\n", "type-requirement");
-  accept(ast->nestedNameSpecifier, "nested-name-specifier");
-  accept(ast->name, "name");
-}
-
-void ASTPrinter::visit(NestedRequirementAST* ast) {
-  fmt::print(out_, "{}\n", "nested-requirement");
-  accept(ast->expression, "expression");
-}
-
-void ASTPrinter::visit(TypeTemplateArgumentAST* ast) {
-  fmt::print(out_, "{}\n", "type-template-argument");
-  accept(ast->typeId, "type-id");
-}
-
-void ASTPrinter::visit(ExpressionTemplateArgumentAST* ast) {
-  fmt::print(out_, "{}\n", "expression-template-argument");
-  accept(ast->expression, "expression");
-}
-
-void ASTPrinter::visit(ParenMemInitializerAST* ast) {
-  fmt::print(out_, "{}\n", "paren-mem-initializer");
-  accept(ast->name, "name");
-  if (ast->expressionList) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "expression-list");
-    for (auto it = ast->expressionList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-}
-
-void ASTPrinter::visit(BracedMemInitializerAST* ast) {
-  fmt::print(out_, "{}\n", "braced-mem-initializer");
-  accept(ast->name, "name");
-  accept(ast->bracedInitList, "braced-init-list");
-}
-
-void ASTPrinter::visit(ThisLambdaCaptureAST* ast) {
-  fmt::print(out_, "{}\n", "this-lambda-capture");
-}
-
-void ASTPrinter::visit(DerefThisLambdaCaptureAST* ast) {
-  fmt::print(out_, "{}\n", "deref-this-lambda-capture");
-}
-
-void ASTPrinter::visit(SimpleLambdaCaptureAST* ast) {
-  fmt::print(out_, "{}\n", "simple-lambda-capture");
+void ASTPrinter::visit(DesignatorAST* ast) {
+  fmt::print(out_, "{}\n", "designator");
   accept(ast->identifier, "identifier");
 }
 
-void ASTPrinter::visit(RefLambdaCaptureAST* ast) {
-  fmt::print(out_, "{}\n", "ref-lambda-capture");
-  accept(ast->identifier, "identifier");
-}
-
-void ASTPrinter::visit(RefInitLambdaCaptureAST* ast) {
-  fmt::print(out_, "{}\n", "ref-init-lambda-capture");
-  accept(ast->identifier, "identifier");
+void ASTPrinter::visit(DesignatedInitializerClauseAST* ast) {
+  fmt::print(out_, "{}\n", "designated-initializer-clause");
+  accept(ast->designator, "designator");
   accept(ast->initializer, "initializer");
-}
-
-void ASTPrinter::visit(InitLambdaCaptureAST* ast) {
-  fmt::print(out_, "{}\n", "init-lambda-capture");
-  accept(ast->identifier, "identifier");
-  accept(ast->initializer, "initializer");
-}
-
-void ASTPrinter::visit(EqualInitializerAST* ast) {
-  fmt::print(out_, "{}\n", "equal-initializer");
-  accept(ast->expression, "expression");
-}
-
-void ASTPrinter::visit(BracedInitListAST* ast) {
-  fmt::print(out_, "{}\n", "braced-init-list");
-  if (ast->expressionList) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "expression-list");
-    for (auto it = ast->expressionList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-}
-
-void ASTPrinter::visit(ParenInitializerAST* ast) {
-  fmt::print(out_, "{}\n", "paren-initializer");
-  if (ast->expressionList) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "expression-list");
-    for (auto it = ast->expressionList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-}
-
-void ASTPrinter::visit(NewParenInitializerAST* ast) {
-  fmt::print(out_, "{}\n", "new-paren-initializer");
-  if (ast->expressionList) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "expression-list");
-    for (auto it = ast->expressionList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-}
-
-void ASTPrinter::visit(NewBracedInitializerAST* ast) {
-  fmt::print(out_, "{}\n", "new-braced-initializer");
-  accept(ast->bracedInit, "braced-init");
-}
-
-void ASTPrinter::visit(EllipsisExceptionDeclarationAST* ast) {
-  fmt::print(out_, "{}\n", "ellipsis-exception-declaration");
-}
-
-void ASTPrinter::visit(TypeExceptionDeclarationAST* ast) {
-  fmt::print(out_, "{}\n", "type-exception-declaration");
-  if (ast->attributeList) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-  if (ast->typeSpecifierList) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "type-specifier-list");
-    for (auto it = ast->typeSpecifierList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-  accept(ast->declarator, "declarator");
-}
-
-void ASTPrinter::visit(DefaultFunctionBodyAST* ast) {
-  fmt::print(out_, "{}\n", "default-function-body");
-}
-
-void ASTPrinter::visit(CompoundStatementFunctionBodyAST* ast) {
-  fmt::print(out_, "{}\n", "compound-statement-function-body");
-  accept(ast->ctorInitializer, "ctor-initializer");
-  accept(ast->statement, "statement");
-}
-
-void ASTPrinter::visit(TryStatementFunctionBodyAST* ast) {
-  fmt::print(out_, "{}\n", "try-statement-function-body");
-  accept(ast->ctorInitializer, "ctor-initializer");
-  accept(ast->statement, "statement");
-  if (ast->handlerList) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "handler-list");
-    for (auto it = ast->handlerList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-}
-
-void ASTPrinter::visit(DeleteFunctionBodyAST* ast) {
-  fmt::print(out_, "{}\n", "delete-function-body");
-}
-
-void ASTPrinter::visit(TranslationUnitAST* ast) {
-  fmt::print(out_, "{}\n", "translation-unit");
-  if (ast->declarationList) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "declaration-list");
-    for (auto it = ast->declarationList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-}
-
-void ASTPrinter::visit(ModuleUnitAST* ast) {
-  fmt::print(out_, "{}\n", "module-unit");
-  accept(ast->globalModuleFragment, "global-module-fragment");
-  accept(ast->moduleDeclaration, "module-declaration");
-  if (ast->declarationList) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "declaration-list");
-    for (auto it = ast->declarationList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-  accept(ast->privateModuleFragment, "private-module-fragment");
 }
 
 void ASTPrinter::visit(ThisExpressionAST* ast) {
@@ -940,6 +735,222 @@ void ASTPrinter::visit(ThrowExpressionAST* ast) {
 void ASTPrinter::visit(NoexceptExpressionAST* ast) {
   fmt::print(out_, "{}\n", "noexcept-expression");
   accept(ast->expression, "expression");
+}
+
+void ASTPrinter::visit(SimpleRequirementAST* ast) {
+  fmt::print(out_, "{}\n", "simple-requirement");
+  accept(ast->expression, "expression");
+}
+
+void ASTPrinter::visit(CompoundRequirementAST* ast) {
+  fmt::print(out_, "{}\n", "compound-requirement");
+  accept(ast->expression, "expression");
+  accept(ast->typeConstraint, "type-constraint");
+}
+
+void ASTPrinter::visit(TypeRequirementAST* ast) {
+  fmt::print(out_, "{}\n", "type-requirement");
+  accept(ast->nestedNameSpecifier, "nested-name-specifier");
+  accept(ast->name, "name");
+}
+
+void ASTPrinter::visit(NestedRequirementAST* ast) {
+  fmt::print(out_, "{}\n", "nested-requirement");
+  accept(ast->expression, "expression");
+}
+
+void ASTPrinter::visit(TypeTemplateArgumentAST* ast) {
+  fmt::print(out_, "{}\n", "type-template-argument");
+  accept(ast->typeId, "type-id");
+}
+
+void ASTPrinter::visit(ExpressionTemplateArgumentAST* ast) {
+  fmt::print(out_, "{}\n", "expression-template-argument");
+  accept(ast->expression, "expression");
+}
+
+void ASTPrinter::visit(ParenMemInitializerAST* ast) {
+  fmt::print(out_, "{}\n", "paren-mem-initializer");
+  accept(ast->name, "name");
+  if (ast->expressionList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "expression-list");
+    for (auto it = ast->expressionList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+}
+
+void ASTPrinter::visit(BracedMemInitializerAST* ast) {
+  fmt::print(out_, "{}\n", "braced-mem-initializer");
+  accept(ast->name, "name");
+  accept(ast->bracedInitList, "braced-init-list");
+}
+
+void ASTPrinter::visit(ThisLambdaCaptureAST* ast) {
+  fmt::print(out_, "{}\n", "this-lambda-capture");
+}
+
+void ASTPrinter::visit(DerefThisLambdaCaptureAST* ast) {
+  fmt::print(out_, "{}\n", "deref-this-lambda-capture");
+}
+
+void ASTPrinter::visit(SimpleLambdaCaptureAST* ast) {
+  fmt::print(out_, "{}\n", "simple-lambda-capture");
+  accept(ast->identifier, "identifier");
+}
+
+void ASTPrinter::visit(RefLambdaCaptureAST* ast) {
+  fmt::print(out_, "{}\n", "ref-lambda-capture");
+  accept(ast->identifier, "identifier");
+}
+
+void ASTPrinter::visit(RefInitLambdaCaptureAST* ast) {
+  fmt::print(out_, "{}\n", "ref-init-lambda-capture");
+  accept(ast->identifier, "identifier");
+  accept(ast->initializer, "initializer");
+}
+
+void ASTPrinter::visit(InitLambdaCaptureAST* ast) {
+  fmt::print(out_, "{}\n", "init-lambda-capture");
+  accept(ast->identifier, "identifier");
+  accept(ast->initializer, "initializer");
+}
+
+void ASTPrinter::visit(EqualInitializerAST* ast) {
+  fmt::print(out_, "{}\n", "equal-initializer");
+  accept(ast->expression, "expression");
+}
+
+void ASTPrinter::visit(BracedInitListAST* ast) {
+  fmt::print(out_, "{}\n", "braced-init-list");
+  if (ast->expressionList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "expression-list");
+    for (auto it = ast->expressionList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+}
+
+void ASTPrinter::visit(ParenInitializerAST* ast) {
+  fmt::print(out_, "{}\n", "paren-initializer");
+  if (ast->expressionList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "expression-list");
+    for (auto it = ast->expressionList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+}
+
+void ASTPrinter::visit(NewParenInitializerAST* ast) {
+  fmt::print(out_, "{}\n", "new-paren-initializer");
+  if (ast->expressionList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "expression-list");
+    for (auto it = ast->expressionList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+}
+
+void ASTPrinter::visit(NewBracedInitializerAST* ast) {
+  fmt::print(out_, "{}\n", "new-braced-initializer");
+  accept(ast->bracedInit, "braced-init");
+}
+
+void ASTPrinter::visit(EllipsisExceptionDeclarationAST* ast) {
+  fmt::print(out_, "{}\n", "ellipsis-exception-declaration");
+}
+
+void ASTPrinter::visit(TypeExceptionDeclarationAST* ast) {
+  fmt::print(out_, "{}\n", "type-exception-declaration");
+  if (ast->attributeList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "attribute-list");
+    for (auto it = ast->attributeList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+  if (ast->typeSpecifierList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "type-specifier-list");
+    for (auto it = ast->typeSpecifierList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+  accept(ast->declarator, "declarator");
+}
+
+void ASTPrinter::visit(DefaultFunctionBodyAST* ast) {
+  fmt::print(out_, "{}\n", "default-function-body");
+}
+
+void ASTPrinter::visit(CompoundStatementFunctionBodyAST* ast) {
+  fmt::print(out_, "{}\n", "compound-statement-function-body");
+  accept(ast->ctorInitializer, "ctor-initializer");
+  accept(ast->statement, "statement");
+}
+
+void ASTPrinter::visit(TryStatementFunctionBodyAST* ast) {
+  fmt::print(out_, "{}\n", "try-statement-function-body");
+  accept(ast->ctorInitializer, "ctor-initializer");
+  accept(ast->statement, "statement");
+  if (ast->handlerList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "handler-list");
+    for (auto it = ast->handlerList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+}
+
+void ASTPrinter::visit(DeleteFunctionBodyAST* ast) {
+  fmt::print(out_, "{}\n", "delete-function-body");
+}
+
+void ASTPrinter::visit(TranslationUnitAST* ast) {
+  fmt::print(out_, "{}\n", "translation-unit");
+  if (ast->declarationList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "declaration-list");
+    for (auto it = ast->declarationList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+}
+
+void ASTPrinter::visit(ModuleUnitAST* ast) {
+  fmt::print(out_, "{}\n", "module-unit");
+  accept(ast->globalModuleFragment, "global-module-fragment");
+  accept(ast->moduleDeclaration, "module-declaration");
+  if (ast->declarationList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "declaration-list");
+    for (auto it = ast->declarationList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+  accept(ast->privateModuleFragment, "private-module-fragment");
 }
 
 void ASTPrinter::visit(LabeledStatementAST* ast) {

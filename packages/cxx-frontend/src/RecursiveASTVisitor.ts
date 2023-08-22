@@ -203,135 +203,12 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     visitAttributeUsingPrefix(node: ast.AttributeUsingPrefixAST, context: Context): void {
     }
 
-    visitSimpleRequirement(node: ast.SimpleRequirementAST, context: Context): void {
-        this.accept(node.getExpression(), context);
+    visitDesignator(node: ast.DesignatorAST, context: Context): void {
     }
 
-    visitCompoundRequirement(node: ast.CompoundRequirementAST, context: Context): void {
-        this.accept(node.getExpression(), context);
-        this.accept(node.getTypeConstraint(), context);
-    }
-
-    visitTypeRequirement(node: ast.TypeRequirementAST, context: Context): void {
-        this.accept(node.getNestedNameSpecifier(), context);
-        this.accept(node.getName(), context);
-    }
-
-    visitNestedRequirement(node: ast.NestedRequirementAST, context: Context): void {
-        this.accept(node.getExpression(), context);
-    }
-
-    visitTypeTemplateArgument(node: ast.TypeTemplateArgumentAST, context: Context): void {
-        this.accept(node.getTypeId(), context);
-    }
-
-    visitExpressionTemplateArgument(node: ast.ExpressionTemplateArgumentAST, context: Context): void {
-        this.accept(node.getExpression(), context);
-    }
-
-    visitParenMemInitializer(node: ast.ParenMemInitializerAST, context: Context): void {
-        this.accept(node.getName(), context);
-        for (const element of node.getExpressionList()) {
-            this.accept(element, context);
-        }
-    }
-
-    visitBracedMemInitializer(node: ast.BracedMemInitializerAST, context: Context): void {
-        this.accept(node.getName(), context);
-        this.accept(node.getBracedInitList(), context);
-    }
-
-    visitThisLambdaCapture(node: ast.ThisLambdaCaptureAST, context: Context): void {
-    }
-
-    visitDerefThisLambdaCapture(node: ast.DerefThisLambdaCaptureAST, context: Context): void {
-    }
-
-    visitSimpleLambdaCapture(node: ast.SimpleLambdaCaptureAST, context: Context): void {
-    }
-
-    visitRefLambdaCapture(node: ast.RefLambdaCaptureAST, context: Context): void {
-    }
-
-    visitRefInitLambdaCapture(node: ast.RefInitLambdaCaptureAST, context: Context): void {
+    visitDesignatedInitializerClause(node: ast.DesignatedInitializerClauseAST, context: Context): void {
+        this.accept(node.getDesignator(), context);
         this.accept(node.getInitializer(), context);
-    }
-
-    visitInitLambdaCapture(node: ast.InitLambdaCaptureAST, context: Context): void {
-        this.accept(node.getInitializer(), context);
-    }
-
-    visitEqualInitializer(node: ast.EqualInitializerAST, context: Context): void {
-        this.accept(node.getExpression(), context);
-    }
-
-    visitBracedInitList(node: ast.BracedInitListAST, context: Context): void {
-        for (const element of node.getExpressionList()) {
-            this.accept(element, context);
-        }
-    }
-
-    visitParenInitializer(node: ast.ParenInitializerAST, context: Context): void {
-        for (const element of node.getExpressionList()) {
-            this.accept(element, context);
-        }
-    }
-
-    visitNewParenInitializer(node: ast.NewParenInitializerAST, context: Context): void {
-        for (const element of node.getExpressionList()) {
-            this.accept(element, context);
-        }
-    }
-
-    visitNewBracedInitializer(node: ast.NewBracedInitializerAST, context: Context): void {
-        this.accept(node.getBracedInit(), context);
-    }
-
-    visitEllipsisExceptionDeclaration(node: ast.EllipsisExceptionDeclarationAST, context: Context): void {
-    }
-
-    visitTypeExceptionDeclaration(node: ast.TypeExceptionDeclarationAST, context: Context): void {
-        for (const element of node.getAttributeList()) {
-            this.accept(element, context);
-        }
-        for (const element of node.getTypeSpecifierList()) {
-            this.accept(element, context);
-        }
-        this.accept(node.getDeclarator(), context);
-    }
-
-    visitDefaultFunctionBody(node: ast.DefaultFunctionBodyAST, context: Context): void {
-    }
-
-    visitCompoundStatementFunctionBody(node: ast.CompoundStatementFunctionBodyAST, context: Context): void {
-        this.accept(node.getCtorInitializer(), context);
-        this.accept(node.getStatement(), context);
-    }
-
-    visitTryStatementFunctionBody(node: ast.TryStatementFunctionBodyAST, context: Context): void {
-        this.accept(node.getCtorInitializer(), context);
-        this.accept(node.getStatement(), context);
-        for (const element of node.getHandlerList()) {
-            this.accept(element, context);
-        }
-    }
-
-    visitDeleteFunctionBody(node: ast.DeleteFunctionBodyAST, context: Context): void {
-    }
-
-    visitTranslationUnit(node: ast.TranslationUnitAST, context: Context): void {
-        for (const element of node.getDeclarationList()) {
-            this.accept(element, context);
-        }
-    }
-
-    visitModuleUnit(node: ast.ModuleUnitAST, context: Context): void {
-        this.accept(node.getGlobalModuleFragment(), context);
-        this.accept(node.getModuleDeclaration(), context);
-        for (const element of node.getDeclarationList()) {
-            this.accept(element, context);
-        }
-        this.accept(node.getPrivateModuleFragment(), context);
     }
 
     visitThisExpression(node: ast.ThisExpressionAST, context: Context): void {
@@ -505,6 +382,137 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
     visitNoexceptExpression(node: ast.NoexceptExpressionAST, context: Context): void {
         this.accept(node.getExpression(), context);
+    }
+
+    visitSimpleRequirement(node: ast.SimpleRequirementAST, context: Context): void {
+        this.accept(node.getExpression(), context);
+    }
+
+    visitCompoundRequirement(node: ast.CompoundRequirementAST, context: Context): void {
+        this.accept(node.getExpression(), context);
+        this.accept(node.getTypeConstraint(), context);
+    }
+
+    visitTypeRequirement(node: ast.TypeRequirementAST, context: Context): void {
+        this.accept(node.getNestedNameSpecifier(), context);
+        this.accept(node.getName(), context);
+    }
+
+    visitNestedRequirement(node: ast.NestedRequirementAST, context: Context): void {
+        this.accept(node.getExpression(), context);
+    }
+
+    visitTypeTemplateArgument(node: ast.TypeTemplateArgumentAST, context: Context): void {
+        this.accept(node.getTypeId(), context);
+    }
+
+    visitExpressionTemplateArgument(node: ast.ExpressionTemplateArgumentAST, context: Context): void {
+        this.accept(node.getExpression(), context);
+    }
+
+    visitParenMemInitializer(node: ast.ParenMemInitializerAST, context: Context): void {
+        this.accept(node.getName(), context);
+        for (const element of node.getExpressionList()) {
+            this.accept(element, context);
+        }
+    }
+
+    visitBracedMemInitializer(node: ast.BracedMemInitializerAST, context: Context): void {
+        this.accept(node.getName(), context);
+        this.accept(node.getBracedInitList(), context);
+    }
+
+    visitThisLambdaCapture(node: ast.ThisLambdaCaptureAST, context: Context): void {
+    }
+
+    visitDerefThisLambdaCapture(node: ast.DerefThisLambdaCaptureAST, context: Context): void {
+    }
+
+    visitSimpleLambdaCapture(node: ast.SimpleLambdaCaptureAST, context: Context): void {
+    }
+
+    visitRefLambdaCapture(node: ast.RefLambdaCaptureAST, context: Context): void {
+    }
+
+    visitRefInitLambdaCapture(node: ast.RefInitLambdaCaptureAST, context: Context): void {
+        this.accept(node.getInitializer(), context);
+    }
+
+    visitInitLambdaCapture(node: ast.InitLambdaCaptureAST, context: Context): void {
+        this.accept(node.getInitializer(), context);
+    }
+
+    visitEqualInitializer(node: ast.EqualInitializerAST, context: Context): void {
+        this.accept(node.getExpression(), context);
+    }
+
+    visitBracedInitList(node: ast.BracedInitListAST, context: Context): void {
+        for (const element of node.getExpressionList()) {
+            this.accept(element, context);
+        }
+    }
+
+    visitParenInitializer(node: ast.ParenInitializerAST, context: Context): void {
+        for (const element of node.getExpressionList()) {
+            this.accept(element, context);
+        }
+    }
+
+    visitNewParenInitializer(node: ast.NewParenInitializerAST, context: Context): void {
+        for (const element of node.getExpressionList()) {
+            this.accept(element, context);
+        }
+    }
+
+    visitNewBracedInitializer(node: ast.NewBracedInitializerAST, context: Context): void {
+        this.accept(node.getBracedInit(), context);
+    }
+
+    visitEllipsisExceptionDeclaration(node: ast.EllipsisExceptionDeclarationAST, context: Context): void {
+    }
+
+    visitTypeExceptionDeclaration(node: ast.TypeExceptionDeclarationAST, context: Context): void {
+        for (const element of node.getAttributeList()) {
+            this.accept(element, context);
+        }
+        for (const element of node.getTypeSpecifierList()) {
+            this.accept(element, context);
+        }
+        this.accept(node.getDeclarator(), context);
+    }
+
+    visitDefaultFunctionBody(node: ast.DefaultFunctionBodyAST, context: Context): void {
+    }
+
+    visitCompoundStatementFunctionBody(node: ast.CompoundStatementFunctionBodyAST, context: Context): void {
+        this.accept(node.getCtorInitializer(), context);
+        this.accept(node.getStatement(), context);
+    }
+
+    visitTryStatementFunctionBody(node: ast.TryStatementFunctionBodyAST, context: Context): void {
+        this.accept(node.getCtorInitializer(), context);
+        this.accept(node.getStatement(), context);
+        for (const element of node.getHandlerList()) {
+            this.accept(element, context);
+        }
+    }
+
+    visitDeleteFunctionBody(node: ast.DeleteFunctionBodyAST, context: Context): void {
+    }
+
+    visitTranslationUnit(node: ast.TranslationUnitAST, context: Context): void {
+        for (const element of node.getDeclarationList()) {
+            this.accept(element, context);
+        }
+    }
+
+    visitModuleUnit(node: ast.ModuleUnitAST, context: Context): void {
+        this.accept(node.getGlobalModuleFragment(), context);
+        this.accept(node.getModuleDeclaration(), context);
+        for (const element of node.getDeclarationList()) {
+            this.accept(element, context);
+        }
+        this.accept(node.getPrivateModuleFragment(), context);
     }
 
     visitLabeledStatement(node: ast.LabeledStatementAST, context: Context): void {

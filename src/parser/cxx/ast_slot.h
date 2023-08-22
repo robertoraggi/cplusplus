@@ -70,43 +70,9 @@ class ASTSlot final : ASTVisitor {
   void visit(AttributeArgumentClauseAST* ast) override;
   void visit(AttributeAST* ast) override;
   void visit(AttributeUsingPrefixAST* ast) override;
+  void visit(DesignatorAST* ast) override;
 
-  void visit(SimpleRequirementAST* ast) override;
-  void visit(CompoundRequirementAST* ast) override;
-  void visit(TypeRequirementAST* ast) override;
-  void visit(NestedRequirementAST* ast) override;
-
-  void visit(TypeTemplateArgumentAST* ast) override;
-  void visit(ExpressionTemplateArgumentAST* ast) override;
-
-  void visit(ParenMemInitializerAST* ast) override;
-  void visit(BracedMemInitializerAST* ast) override;
-
-  void visit(ThisLambdaCaptureAST* ast) override;
-  void visit(DerefThisLambdaCaptureAST* ast) override;
-  void visit(SimpleLambdaCaptureAST* ast) override;
-  void visit(RefLambdaCaptureAST* ast) override;
-  void visit(RefInitLambdaCaptureAST* ast) override;
-  void visit(InitLambdaCaptureAST* ast) override;
-
-  void visit(EqualInitializerAST* ast) override;
-  void visit(BracedInitListAST* ast) override;
-  void visit(ParenInitializerAST* ast) override;
-
-  void visit(NewParenInitializerAST* ast) override;
-  void visit(NewBracedInitializerAST* ast) override;
-
-  void visit(EllipsisExceptionDeclarationAST* ast) override;
-  void visit(TypeExceptionDeclarationAST* ast) override;
-
-  void visit(DefaultFunctionBodyAST* ast) override;
-  void visit(CompoundStatementFunctionBodyAST* ast) override;
-  void visit(TryStatementFunctionBodyAST* ast) override;
-  void visit(DeleteFunctionBodyAST* ast) override;
-
-  void visit(TranslationUnitAST* ast) override;
-  void visit(ModuleUnitAST* ast) override;
-
+  void visit(DesignatedInitializerClauseAST* ast) override;
   void visit(ThisExpressionAST* ast) override;
   void visit(CharLiteralExpressionAST* ast) override;
   void visit(BoolLiteralExpressionAST* ast) override;
@@ -146,6 +112,42 @@ class ASTSlot final : ASTVisitor {
   void visit(DeleteExpressionAST* ast) override;
   void visit(ThrowExpressionAST* ast) override;
   void visit(NoexceptExpressionAST* ast) override;
+
+  void visit(SimpleRequirementAST* ast) override;
+  void visit(CompoundRequirementAST* ast) override;
+  void visit(TypeRequirementAST* ast) override;
+  void visit(NestedRequirementAST* ast) override;
+
+  void visit(TypeTemplateArgumentAST* ast) override;
+  void visit(ExpressionTemplateArgumentAST* ast) override;
+
+  void visit(ParenMemInitializerAST* ast) override;
+  void visit(BracedMemInitializerAST* ast) override;
+
+  void visit(ThisLambdaCaptureAST* ast) override;
+  void visit(DerefThisLambdaCaptureAST* ast) override;
+  void visit(SimpleLambdaCaptureAST* ast) override;
+  void visit(RefLambdaCaptureAST* ast) override;
+  void visit(RefInitLambdaCaptureAST* ast) override;
+  void visit(InitLambdaCaptureAST* ast) override;
+
+  void visit(EqualInitializerAST* ast) override;
+  void visit(BracedInitListAST* ast) override;
+  void visit(ParenInitializerAST* ast) override;
+
+  void visit(NewParenInitializerAST* ast) override;
+  void visit(NewBracedInitializerAST* ast) override;
+
+  void visit(EllipsisExceptionDeclarationAST* ast) override;
+  void visit(TypeExceptionDeclarationAST* ast) override;
+
+  void visit(DefaultFunctionBodyAST* ast) override;
+  void visit(CompoundStatementFunctionBodyAST* ast) override;
+  void visit(TryStatementFunctionBodyAST* ast) override;
+  void visit(DeleteFunctionBodyAST* ast) override;
+
+  void visit(TranslationUnitAST* ast) override;
+  void visit(ModuleUnitAST* ast) override;
 
   void visit(LabeledStatementAST* ast) override;
   void visit(CaseStatementAST* ast) override;

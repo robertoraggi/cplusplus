@@ -56,6 +56,49 @@ class DefaultASTVisitor : public ASTVisitor {
   void visit(AttributeArgumentClauseAST* ast) override;
   void visit(AttributeAST* ast) override;
   void visit(AttributeUsingPrefixAST* ast) override;
+  void visit(DesignatorAST* ast) override;
+
+  // ExpressionAST
+  void visit(DesignatedInitializerClauseAST* ast) override;
+  void visit(ThisExpressionAST* ast) override;
+  void visit(CharLiteralExpressionAST* ast) override;
+  void visit(BoolLiteralExpressionAST* ast) override;
+  void visit(IntLiteralExpressionAST* ast) override;
+  void visit(FloatLiteralExpressionAST* ast) override;
+  void visit(NullptrLiteralExpressionAST* ast) override;
+  void visit(StringLiteralExpressionAST* ast) override;
+  void visit(UserDefinedStringLiteralExpressionAST* ast) override;
+  void visit(IdExpressionAST* ast) override;
+  void visit(RequiresExpressionAST* ast) override;
+  void visit(NestedExpressionAST* ast) override;
+  void visit(RightFoldExpressionAST* ast) override;
+  void visit(LeftFoldExpressionAST* ast) override;
+  void visit(FoldExpressionAST* ast) override;
+  void visit(LambdaExpressionAST* ast) override;
+  void visit(SizeofExpressionAST* ast) override;
+  void visit(SizeofTypeExpressionAST* ast) override;
+  void visit(SizeofPackExpressionAST* ast) override;
+  void visit(TypeidExpressionAST* ast) override;
+  void visit(TypeidOfTypeExpressionAST* ast) override;
+  void visit(AlignofExpressionAST* ast) override;
+  void visit(TypeTraitsExpressionAST* ast) override;
+  void visit(UnaryExpressionAST* ast) override;
+  void visit(BinaryExpressionAST* ast) override;
+  void visit(AssignmentExpressionAST* ast) override;
+  void visit(BracedTypeConstructionAST* ast) override;
+  void visit(TypeConstructionAST* ast) override;
+  void visit(CallExpressionAST* ast) override;
+  void visit(SubscriptExpressionAST* ast) override;
+  void visit(MemberExpressionAST* ast) override;
+  void visit(PostIncrExpressionAST* ast) override;
+  void visit(ConditionalExpressionAST* ast) override;
+  void visit(ImplicitCastExpressionAST* ast) override;
+  void visit(CastExpressionAST* ast) override;
+  void visit(CppCastExpressionAST* ast) override;
+  void visit(NewExpressionAST* ast) override;
+  void visit(DeleteExpressionAST* ast) override;
+  void visit(ThrowExpressionAST* ast) override;
+  void visit(NoexceptExpressionAST* ast) override;
 
   // RequirementAST
   void visit(SimpleRequirementAST* ast) override;
@@ -101,47 +144,6 @@ class DefaultASTVisitor : public ASTVisitor {
   // UnitAST
   void visit(TranslationUnitAST* ast) override;
   void visit(ModuleUnitAST* ast) override;
-
-  // ExpressionAST
-  void visit(ThisExpressionAST* ast) override;
-  void visit(CharLiteralExpressionAST* ast) override;
-  void visit(BoolLiteralExpressionAST* ast) override;
-  void visit(IntLiteralExpressionAST* ast) override;
-  void visit(FloatLiteralExpressionAST* ast) override;
-  void visit(NullptrLiteralExpressionAST* ast) override;
-  void visit(StringLiteralExpressionAST* ast) override;
-  void visit(UserDefinedStringLiteralExpressionAST* ast) override;
-  void visit(IdExpressionAST* ast) override;
-  void visit(RequiresExpressionAST* ast) override;
-  void visit(NestedExpressionAST* ast) override;
-  void visit(RightFoldExpressionAST* ast) override;
-  void visit(LeftFoldExpressionAST* ast) override;
-  void visit(FoldExpressionAST* ast) override;
-  void visit(LambdaExpressionAST* ast) override;
-  void visit(SizeofExpressionAST* ast) override;
-  void visit(SizeofTypeExpressionAST* ast) override;
-  void visit(SizeofPackExpressionAST* ast) override;
-  void visit(TypeidExpressionAST* ast) override;
-  void visit(TypeidOfTypeExpressionAST* ast) override;
-  void visit(AlignofExpressionAST* ast) override;
-  void visit(TypeTraitsExpressionAST* ast) override;
-  void visit(UnaryExpressionAST* ast) override;
-  void visit(BinaryExpressionAST* ast) override;
-  void visit(AssignmentExpressionAST* ast) override;
-  void visit(BracedTypeConstructionAST* ast) override;
-  void visit(TypeConstructionAST* ast) override;
-  void visit(CallExpressionAST* ast) override;
-  void visit(SubscriptExpressionAST* ast) override;
-  void visit(MemberExpressionAST* ast) override;
-  void visit(PostIncrExpressionAST* ast) override;
-  void visit(ConditionalExpressionAST* ast) override;
-  void visit(ImplicitCastExpressionAST* ast) override;
-  void visit(CastExpressionAST* ast) override;
-  void visit(CppCastExpressionAST* ast) override;
-  void visit(NewExpressionAST* ast) override;
-  void visit(DeleteExpressionAST* ast) override;
-  void visit(ThrowExpressionAST* ast) override;
-  void visit(NoexceptExpressionAST* ast) override;
 
   // StatementAST
   void visit(LabeledStatementAST* ast) override;

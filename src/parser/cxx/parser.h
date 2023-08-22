@@ -324,8 +324,9 @@ class Parser final {
       -> bool;
   auto parse_braced_init_list(BracedInitListAST*& yyast) -> bool;
   auto parse_initializer_list(List<ExpressionAST*>*& yyast) -> bool;
-  auto parse_designated_initializer_clause() -> bool;
-  auto parse_designator() -> bool;
+  auto parse_designated_initializer_clause(
+      DesignatedInitializerClauseAST*& yyast) -> bool;
+  auto parse_designator(DesignatorAST*& yyast) -> bool;
   auto parse_expr_or_braced_init_list(ExpressionAST*& yyast) -> bool;
   auto parse_virt_specifier_seq() -> bool;
   auto lookat_function_body() -> bool;

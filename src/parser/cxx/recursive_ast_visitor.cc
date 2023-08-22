@@ -126,6 +126,8 @@ void RecursiveASTVisitor::acceptAttributeArgumentClause(
   accept(ast);
 }
 
+void RecursiveASTVisitor::acceptDesignator(DesignatorAST* ast) { accept(ast); }
+
 void RecursiveASTVisitor::acceptTypeConstraint(TypeConstraintAST* ast) {
   accept(ast);
 }
@@ -390,128 +392,11 @@ void RecursiveASTVisitor::visit(AttributeAST* ast) {
 
 void RecursiveASTVisitor::visit(AttributeUsingPrefixAST* ast) {}
 
-void RecursiveASTVisitor::visit(SimpleRequirementAST* ast) {
-  acceptExpression(ast->expression);
-}
+void RecursiveASTVisitor::visit(DesignatorAST* ast) {}
 
-void RecursiveASTVisitor::visit(CompoundRequirementAST* ast) {
-  acceptExpression(ast->expression);
-  acceptTypeConstraint(ast->typeConstraint);
-}
-
-void RecursiveASTVisitor::visit(TypeRequirementAST* ast) {
-  acceptNestedNameSpecifier(ast->nestedNameSpecifier);
-  acceptName(ast->name);
-}
-
-void RecursiveASTVisitor::visit(NestedRequirementAST* ast) {
-  acceptExpression(ast->expression);
-}
-
-void RecursiveASTVisitor::visit(TypeTemplateArgumentAST* ast) {
-  acceptTypeId(ast->typeId);
-}
-
-void RecursiveASTVisitor::visit(ExpressionTemplateArgumentAST* ast) {
-  acceptExpression(ast->expression);
-}
-
-void RecursiveASTVisitor::visit(ParenMemInitializerAST* ast) {
-  acceptName(ast->name);
-  for (auto it = ast->expressionList; it; it = it->next) {
-    acceptExpression(it->value);
-  }
-}
-
-void RecursiveASTVisitor::visit(BracedMemInitializerAST* ast) {
-  acceptName(ast->name);
-  acceptBracedInitList(ast->bracedInitList);
-}
-
-void RecursiveASTVisitor::visit(ThisLambdaCaptureAST* ast) {}
-
-void RecursiveASTVisitor::visit(DerefThisLambdaCaptureAST* ast) {}
-
-void RecursiveASTVisitor::visit(SimpleLambdaCaptureAST* ast) {}
-
-void RecursiveASTVisitor::visit(RefLambdaCaptureAST* ast) {}
-
-void RecursiveASTVisitor::visit(RefInitLambdaCaptureAST* ast) {
+void RecursiveASTVisitor::visit(DesignatedInitializerClauseAST* ast) {
+  acceptDesignator(ast->designator);
   acceptInitializer(ast->initializer);
-}
-
-void RecursiveASTVisitor::visit(InitLambdaCaptureAST* ast) {
-  acceptInitializer(ast->initializer);
-}
-
-void RecursiveASTVisitor::visit(EqualInitializerAST* ast) {
-  acceptExpression(ast->expression);
-}
-
-void RecursiveASTVisitor::visit(BracedInitListAST* ast) {
-  for (auto it = ast->expressionList; it; it = it->next) {
-    acceptExpression(it->value);
-  }
-}
-
-void RecursiveASTVisitor::visit(ParenInitializerAST* ast) {
-  for (auto it = ast->expressionList; it; it = it->next) {
-    acceptExpression(it->value);
-  }
-}
-
-void RecursiveASTVisitor::visit(NewParenInitializerAST* ast) {
-  for (auto it = ast->expressionList; it; it = it->next) {
-    acceptExpression(it->value);
-  }
-}
-
-void RecursiveASTVisitor::visit(NewBracedInitializerAST* ast) {
-  acceptBracedInitList(ast->bracedInit);
-}
-
-void RecursiveASTVisitor::visit(EllipsisExceptionDeclarationAST* ast) {}
-
-void RecursiveASTVisitor::visit(TypeExceptionDeclarationAST* ast) {
-  for (auto it = ast->attributeList; it; it = it->next) {
-    acceptAttributeSpecifier(it->value);
-  }
-  for (auto it = ast->typeSpecifierList; it; it = it->next) {
-    acceptSpecifier(it->value);
-  }
-  acceptDeclarator(ast->declarator);
-}
-
-void RecursiveASTVisitor::visit(DefaultFunctionBodyAST* ast) {}
-
-void RecursiveASTVisitor::visit(CompoundStatementFunctionBodyAST* ast) {
-  acceptCtorInitializer(ast->ctorInitializer);
-  acceptCompoundStatement(ast->statement);
-}
-
-void RecursiveASTVisitor::visit(TryStatementFunctionBodyAST* ast) {
-  acceptCtorInitializer(ast->ctorInitializer);
-  acceptCompoundStatement(ast->statement);
-  for (auto it = ast->handlerList; it; it = it->next) {
-    acceptHandler(it->value);
-  }
-}
-
-void RecursiveASTVisitor::visit(DeleteFunctionBodyAST* ast) {}
-
-void RecursiveASTVisitor::visit(TranslationUnitAST* ast) {
-  for (auto it = ast->declarationList; it; it = it->next) {
-    acceptDeclaration(it->value);
-  }
-}
-
-void RecursiveASTVisitor::visit(ModuleUnitAST* ast) {
-  acceptGlobalModuleFragment(ast->globalModuleFragment);
-  acceptModuleDeclaration(ast->moduleDeclaration);
-  for (auto it = ast->declarationList; it; it = it->next) {
-    acceptDeclaration(it->value);
-  }
-  acceptPrivateModuleFragment(ast->privateModuleFragment);
 }
 
 void RecursiveASTVisitor::visit(ThisExpressionAST* ast) {}
@@ -674,6 +559,130 @@ void RecursiveASTVisitor::visit(ThrowExpressionAST* ast) {
 
 void RecursiveASTVisitor::visit(NoexceptExpressionAST* ast) {
   acceptExpression(ast->expression);
+}
+
+void RecursiveASTVisitor::visit(SimpleRequirementAST* ast) {
+  acceptExpression(ast->expression);
+}
+
+void RecursiveASTVisitor::visit(CompoundRequirementAST* ast) {
+  acceptExpression(ast->expression);
+  acceptTypeConstraint(ast->typeConstraint);
+}
+
+void RecursiveASTVisitor::visit(TypeRequirementAST* ast) {
+  acceptNestedNameSpecifier(ast->nestedNameSpecifier);
+  acceptName(ast->name);
+}
+
+void RecursiveASTVisitor::visit(NestedRequirementAST* ast) {
+  acceptExpression(ast->expression);
+}
+
+void RecursiveASTVisitor::visit(TypeTemplateArgumentAST* ast) {
+  acceptTypeId(ast->typeId);
+}
+
+void RecursiveASTVisitor::visit(ExpressionTemplateArgumentAST* ast) {
+  acceptExpression(ast->expression);
+}
+
+void RecursiveASTVisitor::visit(ParenMemInitializerAST* ast) {
+  acceptName(ast->name);
+  for (auto it = ast->expressionList; it; it = it->next) {
+    acceptExpression(it->value);
+  }
+}
+
+void RecursiveASTVisitor::visit(BracedMemInitializerAST* ast) {
+  acceptName(ast->name);
+  acceptBracedInitList(ast->bracedInitList);
+}
+
+void RecursiveASTVisitor::visit(ThisLambdaCaptureAST* ast) {}
+
+void RecursiveASTVisitor::visit(DerefThisLambdaCaptureAST* ast) {}
+
+void RecursiveASTVisitor::visit(SimpleLambdaCaptureAST* ast) {}
+
+void RecursiveASTVisitor::visit(RefLambdaCaptureAST* ast) {}
+
+void RecursiveASTVisitor::visit(RefInitLambdaCaptureAST* ast) {
+  acceptInitializer(ast->initializer);
+}
+
+void RecursiveASTVisitor::visit(InitLambdaCaptureAST* ast) {
+  acceptInitializer(ast->initializer);
+}
+
+void RecursiveASTVisitor::visit(EqualInitializerAST* ast) {
+  acceptExpression(ast->expression);
+}
+
+void RecursiveASTVisitor::visit(BracedInitListAST* ast) {
+  for (auto it = ast->expressionList; it; it = it->next) {
+    acceptExpression(it->value);
+  }
+}
+
+void RecursiveASTVisitor::visit(ParenInitializerAST* ast) {
+  for (auto it = ast->expressionList; it; it = it->next) {
+    acceptExpression(it->value);
+  }
+}
+
+void RecursiveASTVisitor::visit(NewParenInitializerAST* ast) {
+  for (auto it = ast->expressionList; it; it = it->next) {
+    acceptExpression(it->value);
+  }
+}
+
+void RecursiveASTVisitor::visit(NewBracedInitializerAST* ast) {
+  acceptBracedInitList(ast->bracedInit);
+}
+
+void RecursiveASTVisitor::visit(EllipsisExceptionDeclarationAST* ast) {}
+
+void RecursiveASTVisitor::visit(TypeExceptionDeclarationAST* ast) {
+  for (auto it = ast->attributeList; it; it = it->next) {
+    acceptAttributeSpecifier(it->value);
+  }
+  for (auto it = ast->typeSpecifierList; it; it = it->next) {
+    acceptSpecifier(it->value);
+  }
+  acceptDeclarator(ast->declarator);
+}
+
+void RecursiveASTVisitor::visit(DefaultFunctionBodyAST* ast) {}
+
+void RecursiveASTVisitor::visit(CompoundStatementFunctionBodyAST* ast) {
+  acceptCtorInitializer(ast->ctorInitializer);
+  acceptCompoundStatement(ast->statement);
+}
+
+void RecursiveASTVisitor::visit(TryStatementFunctionBodyAST* ast) {
+  acceptCtorInitializer(ast->ctorInitializer);
+  acceptCompoundStatement(ast->statement);
+  for (auto it = ast->handlerList; it; it = it->next) {
+    acceptHandler(it->value);
+  }
+}
+
+void RecursiveASTVisitor::visit(DeleteFunctionBodyAST* ast) {}
+
+void RecursiveASTVisitor::visit(TranslationUnitAST* ast) {
+  for (auto it = ast->declarationList; it; it = it->next) {
+    acceptDeclaration(it->value);
+  }
+}
+
+void RecursiveASTVisitor::visit(ModuleUnitAST* ast) {
+  acceptGlobalModuleFragment(ast->globalModuleFragment);
+  acceptModuleDeclaration(ast->moduleDeclaration);
+  for (auto it = ast->declarationList; it; it = it->next) {
+    acceptDeclaration(it->value);
+  }
+  acceptPrivateModuleFragment(ast->privateModuleFragment);
 }
 
 void RecursiveASTVisitor::visit(LabeledStatementAST* ast) {

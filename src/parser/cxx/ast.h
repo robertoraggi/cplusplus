@@ -608,155 +608,12 @@ class AttributeUsingPrefixAST final : public AST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class SimpleRequirementAST final : public RequirementAST {
+class DesignatorAST final : public AST {
  public:
-  SimpleRequirementAST() : RequirementAST(ASTKind::SimpleRequirement) {}
+  DesignatorAST() : AST(ASTKind::Designator) {}
 
-  ExpressionAST* expression = nullptr;
-  SourceLocation semicolonLoc;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class CompoundRequirementAST final : public RequirementAST {
- public:
-  CompoundRequirementAST() : RequirementAST(ASTKind::CompoundRequirement) {}
-
-  SourceLocation lbraceLoc;
-  ExpressionAST* expression = nullptr;
-  SourceLocation rbraceLoc;
-  SourceLocation noexceptLoc;
-  SourceLocation minusGreaterLoc;
-  TypeConstraintAST* typeConstraint = nullptr;
-  SourceLocation semicolonLoc;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class TypeRequirementAST final : public RequirementAST {
- public:
-  TypeRequirementAST() : RequirementAST(ASTKind::TypeRequirement) {}
-
-  SourceLocation typenameLoc;
-  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-  NameAST* name = nullptr;
-  SourceLocation semicolonLoc;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class NestedRequirementAST final : public RequirementAST {
- public:
-  NestedRequirementAST() : RequirementAST(ASTKind::NestedRequirement) {}
-
-  SourceLocation requiresLoc;
-  ExpressionAST* expression = nullptr;
-  SourceLocation semicolonLoc;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class TypeTemplateArgumentAST final : public TemplateArgumentAST {
- public:
-  TypeTemplateArgumentAST()
-      : TemplateArgumentAST(ASTKind::TypeTemplateArgument) {}
-
-  TypeIdAST* typeId = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class ExpressionTemplateArgumentAST final : public TemplateArgumentAST {
- public:
-  ExpressionTemplateArgumentAST()
-      : TemplateArgumentAST(ASTKind::ExpressionTemplateArgument) {}
-
-  ExpressionAST* expression = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class ParenMemInitializerAST final : public MemInitializerAST {
- public:
-  ParenMemInitializerAST() : MemInitializerAST(ASTKind::ParenMemInitializer) {}
-
-  NameAST* name = nullptr;
-  SourceLocation lparenLoc;
-  List<ExpressionAST*>* expressionList = nullptr;
-  SourceLocation rparenLoc;
-  SourceLocation ellipsisLoc;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class BracedMemInitializerAST final : public MemInitializerAST {
- public:
-  BracedMemInitializerAST()
-      : MemInitializerAST(ASTKind::BracedMemInitializer) {}
-
-  NameAST* name = nullptr;
-  BracedInitListAST* bracedInitList = nullptr;
-  SourceLocation ellipsisLoc;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class ThisLambdaCaptureAST final : public LambdaCaptureAST {
- public:
-  ThisLambdaCaptureAST() : LambdaCaptureAST(ASTKind::ThisLambdaCapture) {}
-
-  SourceLocation thisLoc;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class DerefThisLambdaCaptureAST final : public LambdaCaptureAST {
- public:
-  DerefThisLambdaCaptureAST()
-      : LambdaCaptureAST(ASTKind::DerefThisLambdaCapture) {}
-
-  SourceLocation starLoc;
-  SourceLocation thisLoc;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class SimpleLambdaCaptureAST final : public LambdaCaptureAST {
- public:
-  SimpleLambdaCaptureAST() : LambdaCaptureAST(ASTKind::SimpleLambdaCapture) {}
-
+  SourceLocation dotLoc;
   SourceLocation identifierLoc;
-  SourceLocation ellipsisLoc;
   const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -765,227 +622,13 @@ class SimpleLambdaCaptureAST final : public LambdaCaptureAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class RefLambdaCaptureAST final : public LambdaCaptureAST {
+class DesignatedInitializerClauseAST final : public ExpressionAST {
  public:
-  RefLambdaCaptureAST() : LambdaCaptureAST(ASTKind::RefLambdaCapture) {}
+  DesignatedInitializerClauseAST()
+      : ExpressionAST(ASTKind::DesignatedInitializerClause) {}
 
-  SourceLocation ampLoc;
-  SourceLocation identifierLoc;
-  SourceLocation ellipsisLoc;
-  const Identifier* identifier = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class RefInitLambdaCaptureAST final : public LambdaCaptureAST {
- public:
-  RefInitLambdaCaptureAST() : LambdaCaptureAST(ASTKind::RefInitLambdaCapture) {}
-
-  SourceLocation ampLoc;
-  SourceLocation ellipsisLoc;
-  SourceLocation identifierLoc;
+  DesignatorAST* designator = nullptr;
   InitializerAST* initializer = nullptr;
-  const Identifier* identifier = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class InitLambdaCaptureAST final : public LambdaCaptureAST {
- public:
-  InitLambdaCaptureAST() : LambdaCaptureAST(ASTKind::InitLambdaCapture) {}
-
-  SourceLocation ellipsisLoc;
-  SourceLocation identifierLoc;
-  InitializerAST* initializer = nullptr;
-  const Identifier* identifier = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class EqualInitializerAST final : public InitializerAST {
- public:
-  EqualInitializerAST() : InitializerAST(ASTKind::EqualInitializer) {}
-
-  SourceLocation equalLoc;
-  ExpressionAST* expression = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class BracedInitListAST final : public InitializerAST {
- public:
-  BracedInitListAST() : InitializerAST(ASTKind::BracedInitList) {}
-
-  SourceLocation lbraceLoc;
-  List<ExpressionAST*>* expressionList = nullptr;
-  SourceLocation commaLoc;
-  SourceLocation rbraceLoc;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class ParenInitializerAST final : public InitializerAST {
- public:
-  ParenInitializerAST() : InitializerAST(ASTKind::ParenInitializer) {}
-
-  SourceLocation lparenLoc;
-  List<ExpressionAST*>* expressionList = nullptr;
-  SourceLocation rparenLoc;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class NewParenInitializerAST final : public NewInitializerAST {
- public:
-  NewParenInitializerAST() : NewInitializerAST(ASTKind::NewParenInitializer) {}
-
-  SourceLocation lparenLoc;
-  List<ExpressionAST*>* expressionList = nullptr;
-  SourceLocation rparenLoc;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class NewBracedInitializerAST final : public NewInitializerAST {
- public:
-  NewBracedInitializerAST()
-      : NewInitializerAST(ASTKind::NewBracedInitializer) {}
-
-  BracedInitListAST* bracedInit = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class EllipsisExceptionDeclarationAST final : public ExceptionDeclarationAST {
- public:
-  EllipsisExceptionDeclarationAST()
-      : ExceptionDeclarationAST(ASTKind::EllipsisExceptionDeclaration) {}
-
-  SourceLocation ellipsisLoc;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class TypeExceptionDeclarationAST final : public ExceptionDeclarationAST {
- public:
-  TypeExceptionDeclarationAST()
-      : ExceptionDeclarationAST(ASTKind::TypeExceptionDeclaration) {}
-
-  List<AttributeSpecifierAST*>* attributeList = nullptr;
-  List<SpecifierAST*>* typeSpecifierList = nullptr;
-  DeclaratorAST* declarator = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class DefaultFunctionBodyAST final : public FunctionBodyAST {
- public:
-  DefaultFunctionBodyAST() : FunctionBodyAST(ASTKind::DefaultFunctionBody) {}
-
-  SourceLocation equalLoc;
-  SourceLocation defaultLoc;
-  SourceLocation semicolonLoc;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class CompoundStatementFunctionBodyAST final : public FunctionBodyAST {
- public:
-  CompoundStatementFunctionBodyAST()
-      : FunctionBodyAST(ASTKind::CompoundStatementFunctionBody) {}
-
-  CtorInitializerAST* ctorInitializer = nullptr;
-  CompoundStatementAST* statement = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class TryStatementFunctionBodyAST final : public FunctionBodyAST {
- public:
-  TryStatementFunctionBodyAST()
-      : FunctionBodyAST(ASTKind::TryStatementFunctionBody) {}
-
-  SourceLocation tryLoc;
-  CtorInitializerAST* ctorInitializer = nullptr;
-  CompoundStatementAST* statement = nullptr;
-  List<HandlerAST*>* handlerList = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class DeleteFunctionBodyAST final : public FunctionBodyAST {
- public:
-  DeleteFunctionBodyAST() : FunctionBodyAST(ASTKind::DeleteFunctionBody) {}
-
-  SourceLocation equalLoc;
-  SourceLocation deleteLoc;
-  SourceLocation semicolonLoc;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class TranslationUnitAST final : public UnitAST {
- public:
-  TranslationUnitAST() : UnitAST(ASTKind::TranslationUnit) {}
-
-  List<DeclarationAST*>* declarationList = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class ModuleUnitAST final : public UnitAST {
- public:
-  ModuleUnitAST() : UnitAST(ASTKind::ModuleUnit) {}
-
-  GlobalModuleFragmentAST* globalModuleFragment = nullptr;
-  ModuleDeclarationAST* moduleDeclaration = nullptr;
-  List<DeclarationAST*>* declarationList = nullptr;
-  PrivateModuleFragmentAST* privateModuleFragment = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1569,6 +1212,391 @@ class NoexceptExpressionAST final : public ExpressionAST {
   SourceLocation lparenLoc;
   ExpressionAST* expression = nullptr;
   SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class SimpleRequirementAST final : public RequirementAST {
+ public:
+  SimpleRequirementAST() : RequirementAST(ASTKind::SimpleRequirement) {}
+
+  ExpressionAST* expression = nullptr;
+  SourceLocation semicolonLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class CompoundRequirementAST final : public RequirementAST {
+ public:
+  CompoundRequirementAST() : RequirementAST(ASTKind::CompoundRequirement) {}
+
+  SourceLocation lbraceLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation rbraceLoc;
+  SourceLocation noexceptLoc;
+  SourceLocation minusGreaterLoc;
+  TypeConstraintAST* typeConstraint = nullptr;
+  SourceLocation semicolonLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class TypeRequirementAST final : public RequirementAST {
+ public:
+  TypeRequirementAST() : RequirementAST(ASTKind::TypeRequirement) {}
+
+  SourceLocation typenameLoc;
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  NameAST* name = nullptr;
+  SourceLocation semicolonLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class NestedRequirementAST final : public RequirementAST {
+ public:
+  NestedRequirementAST() : RequirementAST(ASTKind::NestedRequirement) {}
+
+  SourceLocation requiresLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation semicolonLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class TypeTemplateArgumentAST final : public TemplateArgumentAST {
+ public:
+  TypeTemplateArgumentAST()
+      : TemplateArgumentAST(ASTKind::TypeTemplateArgument) {}
+
+  TypeIdAST* typeId = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class ExpressionTemplateArgumentAST final : public TemplateArgumentAST {
+ public:
+  ExpressionTemplateArgumentAST()
+      : TemplateArgumentAST(ASTKind::ExpressionTemplateArgument) {}
+
+  ExpressionAST* expression = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class ParenMemInitializerAST final : public MemInitializerAST {
+ public:
+  ParenMemInitializerAST() : MemInitializerAST(ASTKind::ParenMemInitializer) {}
+
+  NameAST* name = nullptr;
+  SourceLocation lparenLoc;
+  List<ExpressionAST*>* expressionList = nullptr;
+  SourceLocation rparenLoc;
+  SourceLocation ellipsisLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class BracedMemInitializerAST final : public MemInitializerAST {
+ public:
+  BracedMemInitializerAST()
+      : MemInitializerAST(ASTKind::BracedMemInitializer) {}
+
+  NameAST* name = nullptr;
+  BracedInitListAST* bracedInitList = nullptr;
+  SourceLocation ellipsisLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class ThisLambdaCaptureAST final : public LambdaCaptureAST {
+ public:
+  ThisLambdaCaptureAST() : LambdaCaptureAST(ASTKind::ThisLambdaCapture) {}
+
+  SourceLocation thisLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class DerefThisLambdaCaptureAST final : public LambdaCaptureAST {
+ public:
+  DerefThisLambdaCaptureAST()
+      : LambdaCaptureAST(ASTKind::DerefThisLambdaCapture) {}
+
+  SourceLocation starLoc;
+  SourceLocation thisLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class SimpleLambdaCaptureAST final : public LambdaCaptureAST {
+ public:
+  SimpleLambdaCaptureAST() : LambdaCaptureAST(ASTKind::SimpleLambdaCapture) {}
+
+  SourceLocation identifierLoc;
+  SourceLocation ellipsisLoc;
+  const Identifier* identifier = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class RefLambdaCaptureAST final : public LambdaCaptureAST {
+ public:
+  RefLambdaCaptureAST() : LambdaCaptureAST(ASTKind::RefLambdaCapture) {}
+
+  SourceLocation ampLoc;
+  SourceLocation identifierLoc;
+  SourceLocation ellipsisLoc;
+  const Identifier* identifier = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class RefInitLambdaCaptureAST final : public LambdaCaptureAST {
+ public:
+  RefInitLambdaCaptureAST() : LambdaCaptureAST(ASTKind::RefInitLambdaCapture) {}
+
+  SourceLocation ampLoc;
+  SourceLocation ellipsisLoc;
+  SourceLocation identifierLoc;
+  InitializerAST* initializer = nullptr;
+  const Identifier* identifier = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class InitLambdaCaptureAST final : public LambdaCaptureAST {
+ public:
+  InitLambdaCaptureAST() : LambdaCaptureAST(ASTKind::InitLambdaCapture) {}
+
+  SourceLocation ellipsisLoc;
+  SourceLocation identifierLoc;
+  InitializerAST* initializer = nullptr;
+  const Identifier* identifier = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class EqualInitializerAST final : public InitializerAST {
+ public:
+  EqualInitializerAST() : InitializerAST(ASTKind::EqualInitializer) {}
+
+  SourceLocation equalLoc;
+  ExpressionAST* expression = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class BracedInitListAST final : public InitializerAST {
+ public:
+  BracedInitListAST() : InitializerAST(ASTKind::BracedInitList) {}
+
+  SourceLocation lbraceLoc;
+  List<ExpressionAST*>* expressionList = nullptr;
+  SourceLocation commaLoc;
+  SourceLocation rbraceLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class ParenInitializerAST final : public InitializerAST {
+ public:
+  ParenInitializerAST() : InitializerAST(ASTKind::ParenInitializer) {}
+
+  SourceLocation lparenLoc;
+  List<ExpressionAST*>* expressionList = nullptr;
+  SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class NewParenInitializerAST final : public NewInitializerAST {
+ public:
+  NewParenInitializerAST() : NewInitializerAST(ASTKind::NewParenInitializer) {}
+
+  SourceLocation lparenLoc;
+  List<ExpressionAST*>* expressionList = nullptr;
+  SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class NewBracedInitializerAST final : public NewInitializerAST {
+ public:
+  NewBracedInitializerAST()
+      : NewInitializerAST(ASTKind::NewBracedInitializer) {}
+
+  BracedInitListAST* bracedInit = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class EllipsisExceptionDeclarationAST final : public ExceptionDeclarationAST {
+ public:
+  EllipsisExceptionDeclarationAST()
+      : ExceptionDeclarationAST(ASTKind::EllipsisExceptionDeclaration) {}
+
+  SourceLocation ellipsisLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class TypeExceptionDeclarationAST final : public ExceptionDeclarationAST {
+ public:
+  TypeExceptionDeclarationAST()
+      : ExceptionDeclarationAST(ASTKind::TypeExceptionDeclaration) {}
+
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
+  List<SpecifierAST*>* typeSpecifierList = nullptr;
+  DeclaratorAST* declarator = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class DefaultFunctionBodyAST final : public FunctionBodyAST {
+ public:
+  DefaultFunctionBodyAST() : FunctionBodyAST(ASTKind::DefaultFunctionBody) {}
+
+  SourceLocation equalLoc;
+  SourceLocation defaultLoc;
+  SourceLocation semicolonLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class CompoundStatementFunctionBodyAST final : public FunctionBodyAST {
+ public:
+  CompoundStatementFunctionBodyAST()
+      : FunctionBodyAST(ASTKind::CompoundStatementFunctionBody) {}
+
+  CtorInitializerAST* ctorInitializer = nullptr;
+  CompoundStatementAST* statement = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class TryStatementFunctionBodyAST final : public FunctionBodyAST {
+ public:
+  TryStatementFunctionBodyAST()
+      : FunctionBodyAST(ASTKind::TryStatementFunctionBody) {}
+
+  SourceLocation tryLoc;
+  CtorInitializerAST* ctorInitializer = nullptr;
+  CompoundStatementAST* statement = nullptr;
+  List<HandlerAST*>* handlerList = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class DeleteFunctionBodyAST final : public FunctionBodyAST {
+ public:
+  DeleteFunctionBodyAST() : FunctionBodyAST(ASTKind::DeleteFunctionBody) {}
+
+  SourceLocation equalLoc;
+  SourceLocation deleteLoc;
+  SourceLocation semicolonLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class TranslationUnitAST final : public UnitAST {
+ public:
+  TranslationUnitAST() : UnitAST(ASTKind::TranslationUnit) {}
+
+  List<DeclarationAST*>* declarationList = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class ModuleUnitAST final : public UnitAST {
+ public:
+  ModuleUnitAST() : UnitAST(ASTKind::ModuleUnit) {}
+
+  GlobalModuleFragmentAST* globalModuleFragment = nullptr;
+  ModuleDeclarationAST* moduleDeclaration = nullptr;
+  List<DeclarationAST*>* declarationList = nullptr;
+  PrivateModuleFragmentAST* privateModuleFragment = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
