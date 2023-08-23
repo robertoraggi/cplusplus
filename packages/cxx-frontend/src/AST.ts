@@ -81,6 +81,7 @@ export abstract class CoreDeclaratorAST extends AST { }
 export abstract class DeclarationAST extends AST { }
 export abstract class DeclaratorModifierAST extends AST { }
 export abstract class ExceptionDeclarationAST extends AST { }
+export abstract class ExceptionSpecifierAST extends AST { }
 export abstract class ExpressionAST extends AST { }
 export abstract class FunctionBodyAST extends AST { }
 export abstract class LambdaCaptureAST extends AST { }
@@ -315,8 +316,11 @@ export class ParametersAndQualifiersAST extends AST {
     getRefToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
     }
+    getExceptionSpecifier(): ExceptionSpecifierAST | undefined {
+        return AST.from<ExceptionSpecifierAST>(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+    }
     *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-        for (let it = cxx.getASTSlot(this.getHandle(), 5); it; it = cxx.getListNext(it)) {
+        for (let it = cxx.getASTSlot(this.getHandle(), 6); it; it = cxx.getListNext(it)) {
             yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
         }
     }
@@ -360,16 +364,19 @@ export class LambdaDeclaratorAST extends AST {
             yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
         }
     }
+    getExceptionSpecifier(): ExceptionSpecifierAST | undefined {
+        return AST.from<ExceptionSpecifierAST>(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+    }
     *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-        for (let it = cxx.getASTSlot(this.getHandle(), 4); it; it = cxx.getListNext(it)) {
+        for (let it = cxx.getASTSlot(this.getHandle(), 5); it; it = cxx.getListNext(it)) {
             yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
         }
     }
     getTrailingReturnType(): TrailingReturnTypeAST | undefined {
-        return AST.from<TrailingReturnTypeAST>(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+        return AST.from<TrailingReturnTypeAST>(cxx.getASTSlot(this.getHandle(), 6), this.parser);
     }
     getRequiresClause(): RequiresClauseAST | undefined {
-        return AST.from<RequiresClauseAST>(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+        return AST.from<RequiresClauseAST>(cxx.getASTSlot(this.getHandle(), 7), this.parser);
     }
 }
 
@@ -578,6 +585,39 @@ export class DesignatorAST extends AST {
     }
     getIdentifierToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+}
+
+export class ThrowExceptionSpecifierAST extends ExceptionSpecifierAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitThrowExceptionSpecifier(this, context);
+    }
+    getThrowToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getLparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getRparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+}
+
+export class NoexceptSpecifierAST extends ExceptionSpecifierAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitNoexceptSpecifier(this, context);
+    }
+    getNoexceptToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getLparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getExpression(): ExpressionAST | undefined {
+        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getRparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
     }
 }
 
@@ -3389,6 +3429,8 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Transl
     AttributeAST,
     AttributeUsingPrefixAST,
     DesignatorAST,
+    ThrowExceptionSpecifierAST,
+    NoexceptSpecifierAST,
     DesignatedInitializerClauseAST,
     ThisExpressionAST,
     CharLiteralExpressionAST,

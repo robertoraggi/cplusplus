@@ -44,6 +44,7 @@ class RecursiveASTVisitor : public ASTVisitor {
   virtual void acceptParameterDeclaration(ParameterDeclarationAST* ast);
   virtual void acceptParameterDeclarationClause(
       ParameterDeclarationClauseAST* ast);
+  virtual void acceptExceptionSpecifier(ExceptionSpecifierAST* ast);
   virtual void acceptLambdaCapture(LambdaCaptureAST* ast);
   virtual void acceptTrailingReturnType(TrailingReturnTypeAST* ast);
   virtual void acceptTypeId(TypeIdAST* ast);
@@ -114,6 +115,9 @@ class RecursiveASTVisitor : public ASTVisitor {
   void visit(AttributeAST* ast) override;
   void visit(AttributeUsingPrefixAST* ast) override;
   void visit(DesignatorAST* ast) override;
+
+  void visit(ThrowExceptionSpecifierAST* ast) override;
+  void visit(NoexceptSpecifierAST* ast) override;
 
   void visit(DesignatedInitializerClauseAST* ast) override;
   void visit(ThisExpressionAST* ast) override;

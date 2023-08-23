@@ -116,6 +116,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         for (const element of node.getCvQualifierList()) {
             this.accept(element, context);
         }
+        this.accept(node.getExceptionSpecifier(), context);
         for (const element of node.getAttributeList()) {
             this.accept(element, context);
         }
@@ -132,6 +133,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         for (const element of node.getDeclSpecifierList()) {
             this.accept(element, context);
         }
+        this.accept(node.getExceptionSpecifier(), context);
         for (const element of node.getAttributeList()) {
             this.accept(element, context);
         }
@@ -204,6 +206,13 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     }
 
     visitDesignator(node: ast.DesignatorAST, context: Context): void {
+    }
+
+    visitThrowExceptionSpecifier(node: ast.ThrowExceptionSpecifierAST, context: Context): void {
+    }
+
+    visitNoexceptSpecifier(node: ast.NoexceptSpecifierAST, context: Context): void {
+        this.accept(node.getExpression(), context);
     }
 
     visitDesignatedInitializerClause(node: ast.DesignatedInitializerClauseAST, context: Context): void {

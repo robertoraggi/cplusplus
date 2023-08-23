@@ -60,6 +60,10 @@ class ASTVisitor {
   virtual void visit(AttributeUsingPrefixAST* ast) = 0;
   virtual void visit(DesignatorAST* ast) = 0;
 
+  // ExceptionSpecifierAST
+  virtual void visit(ThrowExceptionSpecifierAST* ast) = 0;
+  virtual void visit(NoexceptSpecifierAST* ast) = 0;
+
   // ExpressionAST
   virtual void visit(DesignatedInitializerClauseAST* ast) = 0;
   virtual void visit(ThisExpressionAST* ast) = 0;

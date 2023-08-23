@@ -52,6 +52,10 @@ export enum ASTKind {
     AttributeUsingPrefix,
     Designator,
 
+    // ExceptionSpecifierAST
+    ThrowExceptionSpecifier,
+    NoexceptSpecifier,
+
     // ExpressionAST
     DesignatedInitializerClause,
     ThisExpression,

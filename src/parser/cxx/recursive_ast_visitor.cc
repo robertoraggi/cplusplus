@@ -85,6 +85,10 @@ void RecursiveASTVisitor::acceptParameterDeclarationClause(
   accept(ast);
 }
 
+void RecursiveASTVisitor::acceptExceptionSpecifier(ExceptionSpecifierAST* ast) {
+  accept(ast);
+}
+
 void RecursiveASTVisitor::acceptLambdaCapture(LambdaCaptureAST* ast) {
   accept(ast);
 }
@@ -304,6 +308,7 @@ void RecursiveASTVisitor::visit(ParametersAndQualifiersAST* ast) {
   for (auto it = ast->cvQualifierList; it; it = it->next) {
     acceptSpecifier(it->value);
   }
+  acceptExceptionSpecifier(ast->exceptionSpecifier);
   for (auto it = ast->attributeList; it; it = it->next) {
     acceptAttributeSpecifier(it->value);
   }
@@ -320,6 +325,7 @@ void RecursiveASTVisitor::visit(LambdaDeclaratorAST* ast) {
   for (auto it = ast->declSpecifierList; it; it = it->next) {
     acceptSpecifier(it->value);
   }
+  acceptExceptionSpecifier(ast->exceptionSpecifier);
   for (auto it = ast->attributeList; it; it = it->next) {
     acceptAttributeSpecifier(it->value);
   }
@@ -389,6 +395,12 @@ void RecursiveASTVisitor::visit(AttributeAST* ast) {
 void RecursiveASTVisitor::visit(AttributeUsingPrefixAST* ast) {}
 
 void RecursiveASTVisitor::visit(DesignatorAST* ast) {}
+
+void RecursiveASTVisitor::visit(ThrowExceptionSpecifierAST* ast) {}
+
+void RecursiveASTVisitor::visit(NoexceptSpecifierAST* ast) {
+  acceptExpression(ast->expression);
+}
 
 void RecursiveASTVisitor::visit(DesignatedInitializerClauseAST* ast) {
   acceptDesignator(ast->designator);

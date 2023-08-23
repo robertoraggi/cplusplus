@@ -295,12 +295,16 @@ void ASTSlot::visit(ParametersAndQualifiersAST* ast) {
       slotKind_ = ASTSlotKind::kToken;
       break;
     case 5:
+      value_ = reinterpret_cast<std::intptr_t>(ast->exceptionSpecifier);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 6:
       value_ = reinterpret_cast<std::intptr_t>(ast->attributeList);
       slotKind_ = ASTSlotKind::kNodeList;
       break;
   }  // switch
 
-  slotCount_ = 6;
+  slotCount_ = 7;
 }
 
 void ASTSlot::visit(LambdaIntroducerAST* ast) {
@@ -345,20 +349,24 @@ void ASTSlot::visit(LambdaDeclaratorAST* ast) {
       slotKind_ = ASTSlotKind::kNodeList;
       break;
     case 4:
+      value_ = reinterpret_cast<std::intptr_t>(ast->exceptionSpecifier);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 5:
       value_ = reinterpret_cast<std::intptr_t>(ast->attributeList);
       slotKind_ = ASTSlotKind::kNodeList;
       break;
-    case 5:
+    case 6:
       value_ = reinterpret_cast<std::intptr_t>(ast->trailingReturnType);
       slotKind_ = ASTSlotKind::kNode;
       break;
-    case 6:
+    case 7:
       value_ = reinterpret_cast<std::intptr_t>(ast->requiresClause);
       slotKind_ = ASTSlotKind::kNode;
       break;
   }  // switch
 
-  slotCount_ = 7;
+  slotCount_ = 8;
 }
 
 void ASTSlot::visit(TrailingReturnTypeAST* ast) {
@@ -613,6 +621,48 @@ void ASTSlot::visit(DesignatorAST* ast) {
   }  // switch
 
   slotCount_ = 2;
+}
+
+void ASTSlot::visit(ThrowExceptionSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->throwLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:
+      value_ = ast->lparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 2:
+      value_ = ast->rparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
+
+  slotCount_ = 3;
+}
+
+void ASTSlot::visit(NoexceptSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = ast->noexceptLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:
+      value_ = ast->lparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 2:
+      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 3:
+      value_ = ast->rparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
+
+  slotCount_ = 4;
 }
 
 void ASTSlot::visit(DesignatedInitializerClauseAST* ast) {

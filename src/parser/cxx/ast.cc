@@ -203,12 +203,14 @@ auto ParametersAndQualifiersAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(cvQualifierList)) return loc;
   if (auto loc = cxx::firstSourceLocation(refLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(exceptionSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   return {};
 }
 
 auto ParametersAndQualifiersAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(exceptionSpecifier)) return loc;
   if (auto loc = cxx::lastSourceLocation(refLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(cvQualifierList)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
@@ -240,6 +242,7 @@ auto LambdaDeclaratorAST::firstSourceLocation() -> SourceLocation {
     return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(declSpecifierList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(exceptionSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(trailingReturnType)) return loc;
   if (auto loc = cxx::firstSourceLocation(requiresClause)) return loc;
@@ -250,6 +253,7 @@ auto LambdaDeclaratorAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(requiresClause)) return loc;
   if (auto loc = cxx::lastSourceLocation(trailingReturnType)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(exceptionSpecifier)) return loc;
   if (auto loc = cxx::lastSourceLocation(declSpecifierList)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(parameterDeclarationClause))
@@ -445,6 +449,36 @@ auto DesignatorAST::firstSourceLocation() -> SourceLocation {
 auto DesignatorAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(dotLoc)) return loc;
+  return {};
+}
+
+auto ThrowExceptionSpecifierAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(throwLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  return {};
+}
+
+auto ThrowExceptionSpecifierAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(throwLoc)) return loc;
+  return {};
+}
+
+auto NoexceptSpecifierAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(noexceptLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  return {};
+}
+
+auto NoexceptSpecifierAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(noexceptLoc)) return loc;
   return {};
 }
 

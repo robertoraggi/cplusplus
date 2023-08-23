@@ -233,6 +233,7 @@ void ASTPrinter::visit(ParametersAndQualifiersAST* ast) {
     }
     --indent_;
   }
+  accept(ast->exceptionSpecifier, "exception-specifier");
   if (ast->attributeList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
@@ -269,6 +270,7 @@ void ASTPrinter::visit(LambdaDeclaratorAST* ast) {
     }
     --indent_;
   }
+  accept(ast->exceptionSpecifier, "exception-specifier");
   if (ast->attributeList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
@@ -392,6 +394,15 @@ void ASTPrinter::visit(AttributeUsingPrefixAST* ast) {
 void ASTPrinter::visit(DesignatorAST* ast) {
   fmt::print(out_, "{}\n", "designator");
   accept(ast->identifier, "identifier");
+}
+
+void ASTPrinter::visit(ThrowExceptionSpecifierAST* ast) {
+  fmt::print(out_, "{}\n", "throw-exception-specifier");
+}
+
+void ASTPrinter::visit(NoexceptSpecifierAST* ast) {
+  fmt::print(out_, "{}\n", "noexcept-specifier");
+  accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(DesignatedInitializerClauseAST* ast) {

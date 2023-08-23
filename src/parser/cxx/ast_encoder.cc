@@ -126,6 +126,19 @@ auto ASTEncoder::encodeSourceLocation(const SourceLocation& loc)
   return offset.Union();
 }
 
+auto ASTEncoder::acceptExceptionSpecifier(ExceptionSpecifierAST* ast)
+    -> std::tuple<flatbuffers::Offset<>, std::uint32_t> {
+  if (!ast) return {};
+  flatbuffers::Offset<> offset;
+  std::uint32_t type = 0;
+  std::swap(offset, offset_);
+  std::swap(type, type_);
+  ast->accept(this);
+  std::swap(offset, offset_);
+  std::swap(type, type_);
+  return {offset, type};
+}
+
 auto ASTEncoder::acceptExpression(ExpressionAST* ast)
     -> std::tuple<flatbuffers::Offset<>, std::uint32_t> {
   if (!ast) return {};
@@ -706,6 +719,9 @@ void ASTEncoder::visit(ParametersAndQualifiersAST* ast) {
 
   auto refLoc = encodeSourceLocation(ast->refLoc);
 
+  const auto [exceptionSpecifier, exceptionSpecifierType] =
+      acceptExceptionSpecifier(ast->exceptionSpecifier);
+
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
   std::vector<std::underlying_type_t<io::AttributeSpecifier>>
       attributeListTypes;
@@ -727,6 +743,9 @@ void ASTEncoder::visit(ParametersAndQualifiersAST* ast) {
   builder.add_cv_qualifier_list(cvQualifierListOffsetsVector);
   builder.add_cv_qualifier_list_type(cvQualifierListTypesVector);
   builder.add_ref_loc(refLoc.o);
+  builder.add_exception_specifier(exceptionSpecifier);
+  builder.add_exception_specifier_type(
+      static_cast<io::ExceptionSpecifier>(exceptionSpecifierType));
   builder.add_attribute_list(attributeListOffsetsVector);
   builder.add_attribute_list_type(attributeListTypesVector);
 
@@ -785,6 +804,9 @@ void ASTEncoder::visit(LambdaDeclaratorAST* ast) {
       fbb_.CreateVector(declSpecifierListOffsets);
   auto declSpecifierListTypesVector = fbb_.CreateVector(declSpecifierListTypes);
 
+  const auto [exceptionSpecifier, exceptionSpecifierType] =
+      acceptExceptionSpecifier(ast->exceptionSpecifier);
+
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
   std::vector<std::underlying_type_t<io::AttributeSpecifier>>
       attributeListTypes;
@@ -809,6 +831,9 @@ void ASTEncoder::visit(LambdaDeclaratorAST* ast) {
   builder.add_rparen_loc(rparenLoc.o);
   builder.add_decl_specifier_list(declSpecifierListOffsetsVector);
   builder.add_decl_specifier_list_type(declSpecifierListTypesVector);
+  builder.add_exception_specifier(exceptionSpecifier);
+  builder.add_exception_specifier_type(
+      static_cast<io::ExceptionSpecifier>(exceptionSpecifierType));
   builder.add_attribute_list(attributeListOffsetsVector);
   builder.add_attribute_list_type(attributeListTypesVector);
   builder.add_trailing_return_type(trailingReturnType.o);
@@ -1094,6 +1119,42 @@ void ASTEncoder::visit(DesignatorAST* ast) {
   }
 
   offset_ = builder.Finish().Union();
+}
+
+void ASTEncoder::visit(ThrowExceptionSpecifierAST* ast) {
+  auto throwLoc = encodeSourceLocation(ast->throwLoc);
+
+  auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
+
+  auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
+
+  io::ThrowExceptionSpecifier::Builder builder{fbb_};
+  builder.add_throw_loc(throwLoc.o);
+  builder.add_lparen_loc(lparenLoc.o);
+  builder.add_rparen_loc(rparenLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::ExceptionSpecifier_ThrowExceptionSpecifier;
+}
+
+void ASTEncoder::visit(NoexceptSpecifierAST* ast) {
+  auto noexceptLoc = encodeSourceLocation(ast->noexceptLoc);
+
+  auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
+
+  const auto [expression, expressionType] = acceptExpression(ast->expression);
+
+  auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
+
+  io::NoexceptSpecifier::Builder builder{fbb_};
+  builder.add_noexcept_loc(noexceptLoc.o);
+  builder.add_lparen_loc(lparenLoc.o);
+  builder.add_expression(expression);
+  builder.add_expression_type(static_cast<io::Expression>(expressionType));
+  builder.add_rparen_loc(rparenLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::ExceptionSpecifier_NoexceptSpecifier;
 }
 
 void ASTEncoder::visit(DesignatedInitializerClauseAST* ast) {

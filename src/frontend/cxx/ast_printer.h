@@ -73,6 +73,9 @@ class ASTPrinter : ASTVisitor {
   void visit(AttributeUsingPrefixAST* ast) override;
   void visit(DesignatorAST* ast) override;
 
+  void visit(ThrowExceptionSpecifierAST* ast) override;
+  void visit(NoexceptSpecifierAST* ast) override;
+
   void visit(DesignatedInitializerClauseAST* ast) override;
   void visit(ThisExpressionAST* ast) override;
   void visit(CharLiteralExpressionAST* ast) override;

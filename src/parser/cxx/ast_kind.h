@@ -56,6 +56,10 @@ enum struct ASTKind {
   AttributeUsingPrefix,
   Designator,
 
+  // ExceptionSpecifierAST
+  ThrowExceptionSpecifier,
+  NoexceptSpecifier,
+
   // ExpressionAST
   DesignatedInitializerClause,
   ThisExpression,

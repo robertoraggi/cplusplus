@@ -47,6 +47,21 @@ auto ASTDecoder::operator()(std::span<const std::uint8_t> bytes) -> bool {
   return true;
 }
 
+auto ASTDecoder::decodeExceptionSpecifier(const void* ptr,
+                                          io::ExceptionSpecifier type)
+    -> ExceptionSpecifierAST* {
+  switch (type) {
+    case io::ExceptionSpecifier_ThrowExceptionSpecifier:
+      return decodeThrowExceptionSpecifier(
+          reinterpret_cast<const io::ThrowExceptionSpecifier*>(ptr));
+    case io::ExceptionSpecifier_NoexceptSpecifier:
+      return decodeNoexceptSpecifier(
+          reinterpret_cast<const io::NoexceptSpecifier*>(ptr));
+    default:
+      return nullptr;
+  }  // switch
+}
+
 auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
     -> ExpressionAST* {
   switch (type) {
@@ -909,6 +924,8 @@ auto ASTDecoder::decodeParametersAndQualifiers(
       inserter = &(*inserter)->next;
     }
   }
+  ast->exceptionSpecifier = decodeExceptionSpecifier(
+      node->exception_specifier(), node->exception_specifier_type());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
@@ -954,6 +971,8 @@ auto ASTDecoder::decodeLambdaDeclarator(const io::LambdaDeclarator* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->exceptionSpecifier = decodeExceptionSpecifier(
+      node->exception_specifier(), node->exception_specifier_type());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
@@ -1139,6 +1158,24 @@ auto ASTDecoder::decodeDesignator(const io::Designator* node)
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
   }
+  return ast;
+}
+
+auto ASTDecoder::decodeThrowExceptionSpecifier(
+    const io::ThrowExceptionSpecifier* node) -> ThrowExceptionSpecifierAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) ThrowExceptionSpecifierAST();
+  return ast;
+}
+
+auto ASTDecoder::decodeNoexceptSpecifier(const io::NoexceptSpecifier* node)
+    -> NoexceptSpecifierAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) NoexceptSpecifierAST();
+  ast->expression =
+      decodeExpression(node->expression(), node->expression_type());
   return ast;
 }
 

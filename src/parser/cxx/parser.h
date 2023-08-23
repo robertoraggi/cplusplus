@@ -442,7 +442,7 @@ class Parser final {
   auto parse_handler(HandlerAST*& yyast) -> bool;
   auto parse_handler_seq(List<HandlerAST*>*& yyast) -> bool;
   auto parse_exception_declaration(ExceptionDeclarationAST*& yyast) -> bool;
-  auto parse_noexcept_specifier() -> bool;
+  auto parse_noexcept_specifier(ExceptionSpecifierAST*& yyast) -> bool;
   auto parse_identifier_list(List<NameAST*>*& yyast) -> bool;
 
  private:

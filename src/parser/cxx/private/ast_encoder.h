@@ -69,6 +69,9 @@ class ASTEncoder : ASTVisitor {
 
   auto accept(AST* ast) -> flatbuffers::Offset<>;
 
+  auto acceptExceptionSpecifier(ExceptionSpecifierAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
   auto acceptExpression(ExpressionAST* ast)
       -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
@@ -153,6 +156,9 @@ class ASTEncoder : ASTVisitor {
   void visit(AttributeAST* ast) override;
   void visit(AttributeUsingPrefixAST* ast) override;
   void visit(DesignatorAST* ast) override;
+
+  void visit(ThrowExceptionSpecifierAST* ast) override;
+  void visit(NoexceptSpecifierAST* ast) override;
 
   void visit(DesignatedInitializerClauseAST* ast) override;
   void visit(ThisExpressionAST* ast) override;
