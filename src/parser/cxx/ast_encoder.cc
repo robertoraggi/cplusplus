@@ -3899,7 +3899,49 @@ void ASTEncoder::visit(TemplatePackTypeParameterAST* ast) {
 }
 
 void ASTEncoder::visit(DeductionGuideAST* ast) {
+  const auto [explicitSpecifier, explicitSpecifierType] =
+      acceptSpecifier(ast->explicitSpecifier);
+
+  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
+
+  auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
+
+  const auto parameterDeclarationClause =
+      accept(ast->parameterDeclarationClause);
+
+  auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
+
+  auto arrowLoc = encodeSourceLocation(ast->arrowLoc);
+
+  const auto [templateId, templateIdType] = acceptName(ast->templateId);
+
+  auto semicolonLoc = encodeSourceLocation(ast->semicolonLoc);
+
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->value());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
   io::DeductionGuide::Builder builder{fbb_};
+  builder.add_explicit_specifier(explicitSpecifier);
+  builder.add_explicit_specifier_type(
+      static_cast<io::Specifier>(explicitSpecifierType));
+  builder.add_identifier_loc(identifierLoc.o);
+  builder.add_lparen_loc(lparenLoc.o);
+  builder.add_parameter_declaration_clause(parameterDeclarationClause.o);
+  builder.add_rparen_loc(rparenLoc.o);
+  builder.add_arrow_loc(arrowLoc.o);
+  builder.add_template_id(templateId);
+  builder.add_template_id_type(static_cast<io::Name>(templateIdType));
+  builder.add_semicolon_loc(semicolonLoc.o);
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
 
   offset_ = builder.Finish().Union();
   type_ = io::Declaration_DeductionGuide;

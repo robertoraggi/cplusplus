@@ -733,6 +733,15 @@ table TemplatePackTypeParameter /* DeclarationAST */ {
 }
 
 table DeductionGuide /* DeclarationAST */ {
+  explicit_specifier: Specifier;
+  parameter_declaration_clause: ParameterDeclarationClause;
+  template_id: Name;
+  identifier: string;
+  identifier_loc: SourceLocation;
+  lparen_loc: SourceLocation;
+  rparen_loc: SourceLocation;
+  arrow_loc: SourceLocation;
+  semicolon_loc: SourceLocation;
 }
 
 table ExplicitInstantiation /* DeclarationAST */ {

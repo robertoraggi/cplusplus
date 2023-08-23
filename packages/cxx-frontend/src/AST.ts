@@ -2521,6 +2521,30 @@ export class DeductionGuideAST extends DeclarationAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitDeductionGuide(this, context);
     }
+    getExplicitSpecifier(): SpecifierAST | undefined {
+        return AST.from<SpecifierAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getIdentifierToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getLparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getParameterDeclarationClause(): ParameterDeclarationClauseAST | undefined {
+        return AST.from<ParameterDeclarationClauseAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+    getRparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+    }
+    getArrowToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+    }
+    getTemplateId(): NameAST | undefined {
+        return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+    }
+    getSemicolonToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
+    }
 }
 
 export class ExplicitInstantiationAST extends DeclarationAST {

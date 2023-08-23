@@ -930,7 +930,11 @@ void RecursiveASTVisitor::visit(TemplatePackTypeParameterAST* ast) {
   }
 }
 
-void RecursiveASTVisitor::visit(DeductionGuideAST* ast) {}
+void RecursiveASTVisitor::visit(DeductionGuideAST* ast) {
+  acceptSpecifier(ast->explicitSpecifier);
+  acceptParameterDeclarationClause(ast->parameterDeclarationClause);
+  acceptName(ast->templateId);
+}
 
 void RecursiveASTVisitor::visit(ExplicitInstantiationAST* ast) {
   acceptDeclaration(ast->declaration);

@@ -772,6 +772,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     }
 
     visitDeductionGuide(node: ast.DeductionGuideAST, context: Context): void {
+        this.accept(node.getExplicitSpecifier(), context);
+        this.accept(node.getParameterDeclarationClause(), context);
+        this.accept(node.getTemplateId(), context);
     }
 
     visitExplicitInstantiation(node: ast.ExplicitInstantiationAST, context: Context): void {

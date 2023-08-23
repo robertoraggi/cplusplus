@@ -2134,9 +2134,31 @@ auto TemplatePackTypeParameterAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto DeductionGuideAST::firstSourceLocation() -> SourceLocation { return {}; }
+auto DeductionGuideAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(explicitSpecifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(parameterDeclarationClause))
+    return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(arrowLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(templateId)) return loc;
+  if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
+  return {};
+}
 
-auto DeductionGuideAST::lastSourceLocation() -> SourceLocation { return {}; }
+auto DeductionGuideAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(templateId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(arrowLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(parameterDeclarationClause))
+    return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(explicitSpecifier)) return loc;
+  return {};
+}
 
 auto ExplicitInstantiationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(externLoc)) return loc;
