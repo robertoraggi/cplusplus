@@ -2986,9 +2986,42 @@ void ASTSlot::visit(TemplatePackTypeParameterAST* ast) {
 }
 
 void ASTSlot::visit(DeductionGuideAST* ast) {
-  switch (slot_) {}  // switch
+  switch (slot_) {
+    case 0:
+      value_ = reinterpret_cast<std::intptr_t>(ast->explicitSpecifier);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 1:
+      value_ = ast->identifierLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 2:
+      value_ = ast->lparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 3:
+      value_ = reinterpret_cast<std::intptr_t>(ast->parameterDeclarationClause);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 4:
+      value_ = ast->rparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 5:
+      value_ = ast->arrowLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 6:
+      value_ = reinterpret_cast<std::intptr_t>(ast->templateId);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 7:
+      value_ = ast->semicolonLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
 
-  slotCount_ = 0;
+  slotCount_ = 8;
 }
 
 void ASTSlot::visit(ExplicitInstantiationAST* ast) {

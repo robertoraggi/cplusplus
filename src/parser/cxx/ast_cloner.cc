@@ -2662,6 +2662,24 @@ void ASTCloner::visit(DeductionGuideAST* ast) {
   copy_ = copy;
 
   copy->setChecked(ast->checked());
+
+  copy->explicitSpecifier = accept(ast->explicitSpecifier);
+
+  copy->identifierLoc = ast->identifierLoc;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->parameterDeclarationClause = accept(ast->parameterDeclarationClause);
+
+  copy->rparenLoc = ast->rparenLoc;
+
+  copy->arrowLoc = ast->arrowLoc;
+
+  copy->templateId = accept(ast->templateId);
+
+  copy->semicolonLoc = ast->semicolonLoc;
+
+  copy->identifier = ast->identifier;
 }
 
 void ASTCloner::visit(ExplicitInstantiationAST* ast) {

@@ -8110,23 +8110,30 @@ auto Parser::parse_constraint_expression(ExpressionAST*& yyast) -> bool {
 }
 
 auto Parser::parse_deduction_guide(DeclarationAST*& yyast) -> bool {
+  const auto start = currentLocation();
+
   SpecifierAST* explicitSpecifier = nullptr;
 
   parse_explicit_specifier(explicitSpecifier);
 
-  NameAST* name = nullptr;
+  SourceLocation identifierLoc;
 
-  if (!parse_name_id(name)) return false;
+  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) {
+    rewind(start);
+    return false;
+  }
 
   SourceLocation lparenLoc;
 
-  if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
+  if (!match(TokenKind::T_LPAREN, lparenLoc)) {
+    rewind(start);
+    return false;
+  }
 
   SourceLocation rparenLoc;
+  ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
 
   if (!match(TokenKind::T_RPAREN, rparenLoc)) {
-    ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
-
     if (!parse_parameter_declaration_clause(parameterDeclarationClause)) {
       parse_error("expected a parameter declaration");
     }
@@ -8136,7 +8143,10 @@ auto Parser::parse_deduction_guide(DeclarationAST*& yyast) -> bool {
 
   SourceLocation arrowLoc;
 
-  if (!match(TokenKind::T_MINUS_GREATER, arrowLoc)) return false;
+  if (!match(TokenKind::T_MINUS_GREATER, arrowLoc)) {
+    rewind(start);
+    return false;
+  }
 
   NameAST* templateId = nullptr;
 
@@ -8147,6 +8157,18 @@ auto Parser::parse_deduction_guide(DeclarationAST*& yyast) -> bool {
   SourceLocation semicolonLoc;
 
   expect(TokenKind::T_SEMICOLON, semicolonLoc);
+
+  auto ast = new (pool) DeductionGuideAST();
+  yyast = ast;
+  ast->explicitSpecifier = explicitSpecifier;
+  ast->identifierLoc = identifierLoc;
+  ast->lparenLoc = lparenLoc;
+  ast->parameterDeclarationClause = parameterDeclarationClause;
+  ast->rparenLoc = rparenLoc;
+  ast->arrowLoc = arrowLoc;
+  ast->templateId = templateId;
+  ast->semicolonLoc = semicolonLoc;
+  ast->identifier = unit->identifier(identifierLoc);
 
   return true;
 }

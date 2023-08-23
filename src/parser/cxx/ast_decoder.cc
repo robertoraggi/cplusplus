@@ -2634,6 +2634,15 @@ auto ASTDecoder::decodeDeductionGuide(const io::DeductionGuide* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) DeductionGuideAST();
+  ast->explicitSpecifier = decodeSpecifier(node->explicit_specifier(),
+                                           node->explicit_specifier_type());
+  ast->parameterDeclarationClause =
+      decodeParameterDeclarationClause(node->parameter_declaration_clause());
+  ast->templateId = decodeName(node->template_id(), node->template_id_type());
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
   return ast;
 }
 

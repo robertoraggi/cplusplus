@@ -2292,6 +2292,16 @@ class DeductionGuideAST final : public DeclarationAST {
  public:
   DeductionGuideAST() : DeclarationAST(ASTKind::DeductionGuide) {}
 
+  SpecifierAST* explicitSpecifier = nullptr;
+  SourceLocation identifierLoc;
+  SourceLocation lparenLoc;
+  ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
+  SourceLocation rparenLoc;
+  SourceLocation arrowLoc;
+  NameAST* templateId = nullptr;
+  SourceLocation semicolonLoc;
+  const Identifier* identifier = nullptr;
+
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
   auto firstSourceLocation() -> SourceLocation override;

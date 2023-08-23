@@ -1440,6 +1440,10 @@ void ASTPrinter::visit(TemplatePackTypeParameterAST* ast) {
 
 void ASTPrinter::visit(DeductionGuideAST* ast) {
   fmt::print(out_, "{}\n", "deduction-guide");
+  accept(ast->identifier, "identifier");
+  accept(ast->explicitSpecifier, "explicit-specifier");
+  accept(ast->parameterDeclarationClause, "parameter-declaration-clause");
+  accept(ast->templateId, "template-id");
 }
 
 void ASTPrinter::visit(ExplicitInstantiationAST* ast) {
