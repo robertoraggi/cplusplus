@@ -6863,10 +6863,10 @@ auto Parser::parse_member_declaration(DeclarationAST*& yyast) -> bool {
 
     if (parse_explicit_specialization(yyast)) return true;
 
-    if (parse_deduction_guide(yyast)) return true;
-
     return false;
   }
+
+  if (parse_deduction_guide(yyast)) return true;
 
   if (parse_opaque_enum_declaration(yyast)) return true;
 
@@ -8123,9 +8123,22 @@ auto Parser::parse_deduction_guide(DeclarationAST*& yyast) -> bool {
     return false;
   }
 
+  bool lookat_deduction_guide = false;
+
   SourceLocation lparenLoc;
 
-  if (!match(TokenKind::T_LPAREN, lparenLoc)) {
+  if (match(TokenKind::T_LPAREN, lparenLoc)) {
+    SourceLocation saved = currentLocation();
+
+    if (parse_skip_balanced()) {
+      if (LA(1).is(TokenKind::T_MINUS_GREATER)) {
+        lookat_deduction_guide = true;
+        rewind(saved);
+      }
+    }
+  }
+
+  if (!lookat_deduction_guide) {
     rewind(start);
     return false;
   }
@@ -8143,10 +8156,7 @@ auto Parser::parse_deduction_guide(DeclarationAST*& yyast) -> bool {
 
   SourceLocation arrowLoc;
 
-  if (!match(TokenKind::T_MINUS_GREATER, arrowLoc)) {
-    rewind(start);
-    return false;
-  }
+  expect(TokenKind::T_MINUS_GREATER, arrowLoc);
 
   NameAST* templateId = nullptr;
 
