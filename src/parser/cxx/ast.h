@@ -130,6 +130,11 @@ class ExceptionDeclarationAST : public AST {
   using AST::AST;
 };
 
+class ExceptionSpecifierAST : public AST {
+ public:
+  using AST::AST;
+};
+
 class ExpressionAST : public AST {
  public:
   using AST::AST;
@@ -382,6 +387,7 @@ class ParametersAndQualifiersAST final : public AST {
   SourceLocation rparenLoc;
   List<SpecifierAST*>* cvQualifierList = nullptr;
   SourceLocation refLoc;
+  ExceptionSpecifierAST* exceptionSpecifier = nullptr;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -413,6 +419,7 @@ class LambdaDeclaratorAST final : public AST {
   ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
   SourceLocation rparenLoc;
   List<SpecifierAST*>* declSpecifierList = nullptr;
+  ExceptionSpecifierAST* exceptionSpecifier = nullptr;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   TrailingReturnTypeAST* trailingReturnType = nullptr;
   RequiresClauseAST* requiresClause = nullptr;
@@ -610,6 +617,36 @@ class DesignatorAST final : public AST {
   SourceLocation dotLoc;
   SourceLocation identifierLoc;
   const Identifier* identifier = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class ThrowExceptionSpecifierAST final : public ExceptionSpecifierAST {
+ public:
+  ThrowExceptionSpecifierAST()
+      : ExceptionSpecifierAST(ASTKind::ThrowExceptionSpecifier) {}
+
+  SourceLocation throwLoc;
+  SourceLocation lparenLoc;
+  SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class NoexceptSpecifierAST final : public ExceptionSpecifierAST {
+ public:
+  NoexceptSpecifierAST() : ExceptionSpecifierAST(ASTKind::NoexceptSpecifier) {}
+
+  SourceLocation noexceptLoc;
+  SourceLocation lparenLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation rparenLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

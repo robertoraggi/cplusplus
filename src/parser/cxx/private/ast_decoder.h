@@ -38,6 +38,8 @@ class ASTDecoder {
   auto operator()(std::span<const std::uint8_t> data) -> bool;
 
  private:
+  auto decodeExceptionSpecifier(const void* ptr, io::ExceptionSpecifier type)
+      -> ExceptionSpecifierAST*;
   auto decodeExpression(const void* ptr, io::Expression type) -> ExpressionAST*;
   auto decodeRequirement(const void* ptr, io::Requirement type)
       -> RequirementAST*;
@@ -120,6 +122,11 @@ class ASTDecoder {
   auto decodeAttributeUsingPrefix(const io::AttributeUsingPrefix* node)
       -> AttributeUsingPrefixAST*;
   auto decodeDesignator(const io::Designator* node) -> DesignatorAST*;
+
+  auto decodeThrowExceptionSpecifier(const io::ThrowExceptionSpecifier* node)
+      -> ThrowExceptionSpecifierAST*;
+  auto decodeNoexceptSpecifier(const io::NoexceptSpecifier* node)
+      -> NoexceptSpecifierAST*;
 
   auto decodeDesignatedInitializerClause(
       const io::DesignatedInitializerClause* node)

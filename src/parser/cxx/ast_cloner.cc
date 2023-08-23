@@ -288,6 +288,8 @@ void ASTCloner::visit(ParametersAndQualifiersAST* ast) {
 
   copy->refLoc = ast->refLoc;
 
+  copy->exceptionSpecifier = accept(ast->exceptionSpecifier);
+
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
 
@@ -340,6 +342,8 @@ void ASTCloner::visit(LambdaDeclaratorAST* ast) {
       out = &(*out)->next;
     }
   }
+
+  copy->exceptionSpecifier = accept(ast->exceptionSpecifier);
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
@@ -573,6 +577,34 @@ void ASTCloner::visit(DesignatorAST* ast) {
   copy->identifierLoc = ast->identifierLoc;
 
   copy->identifier = ast->identifier;
+}
+
+void ASTCloner::visit(ThrowExceptionSpecifierAST* ast) {
+  auto copy = new (arena_) ThrowExceptionSpecifierAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->throwLoc = ast->throwLoc;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->rparenLoc = ast->rparenLoc;
+}
+
+void ASTCloner::visit(NoexceptSpecifierAST* ast) {
+  auto copy = new (arena_) NoexceptSpecifierAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->noexceptLoc = ast->noexceptLoc;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->expression = accept(ast->expression);
+
+  copy->rparenLoc = ast->rparenLoc;
 }
 
 void ASTCloner::visit(DesignatedInitializerClauseAST* ast) {

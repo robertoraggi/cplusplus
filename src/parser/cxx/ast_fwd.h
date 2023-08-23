@@ -58,6 +58,7 @@ class CoreDeclaratorAST;
 class DeclarationAST;
 class DeclaratorModifierAST;
 class ExceptionDeclarationAST;
+class ExceptionSpecifierAST;
 class ExpressionAST;
 class FunctionBodyAST;
 class LambdaCaptureAST;
@@ -102,6 +103,10 @@ class AttributeArgumentClauseAST;
 class AttributeAST;
 class AttributeUsingPrefixAST;
 class DesignatorAST;
+
+// ExceptionSpecifierAST
+class ThrowExceptionSpecifierAST;
+class NoexceptSpecifierAST;
 
 // ExpressionAST
 class DesignatedInitializerClauseAST;

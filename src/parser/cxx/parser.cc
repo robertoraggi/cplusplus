@@ -977,7 +977,7 @@ auto Parser::parse_lambda_declarator(LambdaDeclaratorAST*& yyast) -> bool {
 
   parse_decl_specifier_seq(ast->declSpecifierList, specs);
 
-  parse_noexcept_specifier();
+  parse_noexcept_specifier(ast->exceptionSpecifier);
 
   parse_attribute_specifier_seq(ast->attributeList);
 
@@ -4763,7 +4763,7 @@ auto Parser::parse_parameters_and_qualifiers(ParametersAndQualifiersAST*& yyast)
 
   parse_ref_qualifier(ast->refLoc);
 
-  parse_noexcept_specifier();
+  parse_noexcept_specifier(ast->exceptionSpecifier);
 
   parse_attribute_specifier_seq(ast->attributeList);
 
@@ -8424,15 +8424,16 @@ auto Parser::parse_exception_declaration(ExceptionDeclarationAST*& yyast)
   return true;
 }
 
-auto Parser::parse_noexcept_specifier() -> bool {
+auto Parser::parse_noexcept_specifier(ExceptionSpecifierAST*& yyast) -> bool {
   SourceLocation throwLoc;
 
   if (match(TokenKind::T_THROW, throwLoc)) {
-    SourceLocation lparenLoc;
-    expect(TokenKind::T_LPAREN, lparenLoc);
+    auto ast = new (pool) ThrowExceptionSpecifierAST();
+    yyast = ast;
 
-    SourceLocation rparenLoc;
-    expect(TokenKind::T_RPAREN, rparenLoc);
+    ast->throwLoc = throwLoc;
+    expect(TokenKind::T_LPAREN, ast->lparenLoc);
+    expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
     return true;
   }
@@ -8441,16 +8442,17 @@ auto Parser::parse_noexcept_specifier() -> bool {
 
   if (!match(TokenKind::T_NOEXCEPT, noexceptLoc)) return false;
 
-  SourceLocation lparenLoc;
-  if (match(TokenKind::T_LPAREN, lparenLoc)) {
-    ExpressionAST* expression = nullptr;
+  auto ast = new (pool) NoexceptSpecifierAST();
+  yyast = ast;
 
-    if (!parse_constant_expression(expression)) {
+  ast->noexceptLoc = noexceptLoc;
+
+  if (match(TokenKind::T_LPAREN, ast->lparenLoc)) {
+    if (!parse_constant_expression(ast->expression)) {
       parse_error("expected a declaration");
     }
 
-    SourceLocation rparenLoc;
-    expect(TokenKind::T_RPAREN, rparenLoc);
+    expect(TokenKind::T_RPAREN, ast->rparenLoc);
   }
 
   return true;

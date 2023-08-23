@@ -58,6 +58,10 @@ class DefaultASTVisitor : public ASTVisitor {
   void visit(AttributeUsingPrefixAST* ast) override;
   void visit(DesignatorAST* ast) override;
 
+  // ExceptionSpecifierAST
+  void visit(ThrowExceptionSpecifierAST* ast) override;
+  void visit(NoexceptSpecifierAST* ast) override;
+
   // ExpressionAST
   void visit(DesignatedInitializerClauseAST* ast) override;
   void visit(ThisExpressionAST* ast) override;

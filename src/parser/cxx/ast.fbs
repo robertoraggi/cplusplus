@@ -123,6 +123,11 @@ union ExceptionDeclaration {
   TypeExceptionDeclaration,
 }
 
+union ExceptionSpecifier {
+  ThrowExceptionSpecifier,
+  NoexceptSpecifier,
+}
+
 union Expression {
   DesignatedInitializerClause,
   ThisExpression,
@@ -362,6 +367,7 @@ table ParameterDeclarationClause /* AST */ {
 table ParametersAndQualifiers /* AST */ {
   parameter_declaration_clause: ParameterDeclarationClause;
   cv_qualifier_list: [Specifier];
+  exception_specifier: ExceptionSpecifier;
   attribute_list: [AttributeSpecifier];
   lparen_loc: SourceLocation;
   rparen_loc: SourceLocation;
@@ -378,6 +384,7 @@ table LambdaIntroducer /* AST */ {
 table LambdaDeclarator /* AST */ {
   parameter_declaration_clause: ParameterDeclarationClause;
   decl_specifier_list: [Specifier];
+  exception_specifier: ExceptionSpecifier;
   attribute_list: [AttributeSpecifier];
   trailing_return_type: TrailingReturnType;
   requires_clause: RequiresClause;
@@ -787,6 +794,19 @@ table TypeExceptionDeclaration /* ExceptionDeclarationAST */ {
   attribute_list: [AttributeSpecifier];
   type_specifier_list: [Specifier];
   declarator: Declarator;
+}
+
+table ThrowExceptionSpecifier /* ExceptionSpecifierAST */ {
+  throw_loc: SourceLocation;
+  lparen_loc: SourceLocation;
+  rparen_loc: SourceLocation;
+}
+
+table NoexceptSpecifier /* ExceptionSpecifierAST */ {
+  expression: Expression;
+  noexcept_loc: SourceLocation;
+  lparen_loc: SourceLocation;
+  rparen_loc: SourceLocation;
 }
 
 table DesignatedInitializerClause /* ExpressionAST */ {
