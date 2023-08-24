@@ -37,25 +37,25 @@ export function gen_ast_slot_cc({ ast, output }: { ast: AST; output: string }) {
       let slotCount = 0;
       members.forEach((m) => {
         if (m.kind === "token") {
-          emit(`  case ${slotCount}:`);
+          emit(`  case ${slotCount}: // ${m.name}`);
           emit(`    value_ = ast->${m.name}.index();`);
           emit(`    slotKind_ = ASTSlotKind::kToken;`);
           emit(`    break;`);
           ++slotCount;
         } else if (m.kind === "node") {
-          emit(`  case ${slotCount}:`);
+          emit(`  case ${slotCount}: // ${m.name}`);
           emit(`    value_ = reinterpret_cast<std::intptr_t>(ast->${m.name});`);
           emit(`    slotKind_ = ASTSlotKind::kNode;`);
           emit(`    break;`);
           ++slotCount;
         } else if (m.kind === "node-list") {
-          emit(`  case ${slotCount}:`);
+          emit(`  case ${slotCount}: // ${m.name}`);
           emit(`    value_ = reinterpret_cast<std::intptr_t>(ast->${m.name});`);
           emit(`    slotKind_ = ASTSlotKind::kNodeList;`);
           emit(`    break;`);
           ++slotCount;
         } else if (m.kind === "token-list") {
-          emit(`  case ${slotCount}:`);
+          emit(`  case ${slotCount}: // ${m.name}`);
           emit(`    value_ = 0; // not implemented yet`);
           emit(`    slotKind_ = ASTSlotKind::kTokenList;`);
           emit(`    break;`);
