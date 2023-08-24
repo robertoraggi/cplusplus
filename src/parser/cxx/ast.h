@@ -3078,9 +3078,9 @@ class CxxAttributeAST final : public AttributeSpecifierAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class GCCAttributeAST final : public AttributeSpecifierAST {
+class GccAttributeAST final : public AttributeSpecifierAST {
  public:
-  GCCAttributeAST() : AttributeSpecifierAST(ASTKind::GCCAttribute) {}
+  GccAttributeAST() : AttributeSpecifierAST(ASTKind::GccAttribute) {}
 
   SourceLocation attributeLoc;
   SourceLocation lparenLoc;

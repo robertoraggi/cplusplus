@@ -464,7 +464,7 @@ class ASTDecoder {
       -> ArrayDeclaratorAST*;
 
   auto decodeCxxAttribute(const io::CxxAttribute* node) -> CxxAttributeAST*;
-  auto decodeGCCAttribute(const io::GCCAttribute* node) -> GCCAttributeAST*;
+  auto decodeGccAttribute(const io::GccAttribute* node) -> GccAttributeAST*;
   auto decodeAlignasAttribute(const io::AlignasAttribute* node)
       -> AlignasAttributeAST*;
   auto decodeAsmAttribute(const io::AsmAttribute* node) -> AsmAttributeAST*;

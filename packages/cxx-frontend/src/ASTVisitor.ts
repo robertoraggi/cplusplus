@@ -257,7 +257,7 @@ export abstract class ASTVisitor<Context, Result> {
 
     // AttributeSpecifierAST
     abstract visitCxxAttribute(node: ast.CxxAttributeAST, context: Context): Result;
-    abstract visitGCCAttribute(node: ast.GCCAttributeAST, context: Context): Result;
+    abstract visitGccAttribute(node: ast.GccAttributeAST, context: Context): Result;
     abstract visitAlignasAttribute(node: ast.AlignasAttributeAST, context: Context): Result;
     abstract visitAsmAttribute(node: ast.AsmAttributeAST, context: Context): Result;
 

@@ -5052,7 +5052,7 @@ void ASTEncoder::visit(CxxAttributeAST* ast) {
   type_ = io::AttributeSpecifier_CxxAttribute;
 }
 
-void ASTEncoder::visit(GCCAttributeAST* ast) {
+void ASTEncoder::visit(GccAttributeAST* ast) {
   auto attributeLoc = encodeSourceLocation(ast->attributeLoc);
 
   auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
@@ -5063,7 +5063,7 @@ void ASTEncoder::visit(GCCAttributeAST* ast) {
 
   auto rparen2Loc = encodeSourceLocation(ast->rparen2Loc);
 
-  io::GCCAttribute::Builder builder{fbb_};
+  io::GccAttribute::Builder builder{fbb_};
   builder.add_attribute_loc(attributeLoc.o);
   builder.add_lparen_loc(lparenLoc.o);
   builder.add_lparen2_loc(lparen2Loc.o);
@@ -5071,7 +5071,7 @@ void ASTEncoder::visit(GCCAttributeAST* ast) {
   builder.add_rparen2_loc(rparen2Loc.o);
 
   offset_ = builder.Finish().Union();
-  type_ = io::AttributeSpecifier_GCCAttribute;
+  type_ = io::AttributeSpecifier_GccAttribute;
 }
 
 void ASTEncoder::visit(AlignasAttributeAST* ast) {

@@ -6241,7 +6241,7 @@ auto Parser::parse_gcc_attribute(AttributeSpecifierAST*& yyast) -> bool {
 
   if (!match(TokenKind::T___ATTRIBUTE__, attributeLoc)) return false;
 
-  auto ast = new (pool) GCCAttributeAST();
+  auto ast = new (pool) GccAttributeAST();
   yyast = ast;
 
   ast->attributeLoc = attributeLoc;
