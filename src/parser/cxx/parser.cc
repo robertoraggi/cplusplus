@@ -99,10 +99,10 @@ Parser::Parser(TranslationUnit* unit) : unit(unit) {
 
   pool = unit->arena();
 
-  module_id = control->getIdentifier("module");
-  import_id = control->getIdentifier("import");
-  final_id = control->getIdentifier("final");
-  override_id = control->getIdentifier("override");
+  moduleId_ = control->getIdentifier("module");
+  importId_ = control->getIdentifier("import");
+  finalId_ = control->getIdentifier("final");
+  overrideId_ = control->getIdentifier("override");
 }
 
 Parser::~Parser() = default;
@@ -188,8 +188,8 @@ struct Parser::TemplArgContext {
 
   Parser* p;
 
-  explicit TemplArgContext(Parser* p) : p(p) { ++p->templArgDepth; }
-  ~TemplArgContext() { --p->templArgDepth; }
+  explicit TemplArgContext(Parser* p) : p(p) { ++p->templArgDepth_; }
+  ~TemplArgContext() { --p->templArgDepth_; }
 };
 
 struct Parser::ClassSpecifierContext {
@@ -199,10 +199,10 @@ struct Parser::ClassSpecifierContext {
 
   Parser* p;
 
-  explicit ClassSpecifierContext(Parser* p) : p(p) { ++p->classDepth; }
+  explicit ClassSpecifierContext(Parser* p) : p(p) { ++p->classDepth_; }
 
   ~ClassSpecifierContext() {
-    if (--p->classDepth == 0) p->completePendingFunctionDefinitions();
+    if (--p->classDepth_ == 0) p->completePendingFunctionDefinitions();
   }
 };
 
@@ -308,35 +308,35 @@ auto Parser::parse_header_name(SourceLocation& loc) -> bool {
 }
 
 auto Parser::parse_export_keyword(SourceLocation& loc) -> bool {
-  if (!module_unit) return false;
+  if (!moduleUnit_) return false;
   return match(TokenKind::T_EXPORT, loc);
 }
 
 auto Parser::parse_import_keyword(SourceLocation& loc) -> bool {
-  if (!module_unit) return false;
+  if (!moduleUnit_) return false;
   if (match(TokenKind::T_IMPORT, loc)) return true;
-  if (!parse_id(import_id, loc)) return false;
+  if (!parse_id(importId_, loc)) return false;
   unit->setTokenKind(loc, TokenKind::T_IMPORT);
   return true;
 }
 
 auto Parser::parse_module_keyword(SourceLocation& loc) -> bool {
-  if (!module_unit) return false;
+  if (!moduleUnit_) return false;
 
   if (match(TokenKind::T_MODULE, loc)) return true;
 
-  if (!parse_id(module_id, loc)) return false;
+  if (!parse_id(moduleId_, loc)) return false;
 
   unit->setTokenKind(loc, TokenKind::T_MODULE);
   return true;
 }
 
 auto Parser::parse_final(SourceLocation& loc) -> bool {
-  return parse_id(final_id, loc);
+  return parse_id(finalId_, loc);
 }
 
 auto Parser::parse_override(SourceLocation& loc) -> bool {
-  return parse_id(override_id, loc);
+  return parse_id(overrideId_, loc);
 }
 
 auto Parser::parse_type_name(NameAST*& yyast) -> bool {
@@ -469,7 +469,7 @@ auto Parser::parse_module_head() -> bool {
 
   SourceLocation moduleLoc;
 
-  const auto is_module = parse_id(module_id, moduleLoc);
+  const auto is_module = parse_id(moduleId_, moduleLoc);
 
   rewind(start);
 
@@ -477,7 +477,7 @@ auto Parser::parse_module_head() -> bool {
 }
 
 auto Parser::parse_module_unit(UnitAST*& yyast) -> bool {
-  module_unit = true;
+  moduleUnit_ = true;
 
   if (!parse_module_head()) return false;
 
@@ -505,7 +505,7 @@ auto Parser::parse_top_level_declaration_seq(UnitAST*& yyast) -> bool {
   auto ast = new (pool) TranslationUnitAST();
   yyast = ast;
 
-  module_unit = false;
+  moduleUnit_ = false;
 
   bool skipping = false;
 
@@ -572,7 +572,7 @@ auto Parser::parse_declaration_seq(List<DeclarationAST*>*& yyast) -> bool {
 auto Parser::parse_skip_declaration(bool& skipping) -> bool {
   if (LA().is(TokenKind::T_RBRACE)) return false;
   if (LA().is(TokenKind::T_MODULE)) return false;
-  if (module_unit && LA().is(TokenKind::T_EXPORT)) return false;
+  if (moduleUnit_ && LA().is(TokenKind::T_EXPORT)) return false;
   if (LA().is(TokenKind::T_IMPORT)) return false;
   if (!skipping) parse_error("expected a declaration");
   skipping = true;
@@ -2371,7 +2371,7 @@ auto Parser::parse_binary_operator(SourceLocation& loc, TokenKind& tk,
   switch (TokenKind(LA())) {
     case TokenKind::T_GREATER: {
       if (parse_greater_greater()) {
-        if (exprContext.templArg && templArgDepth >= 2) {
+        if (exprContext.templArg && templArgDepth_ >= 2) {
           rewind(start);
           return false;
         }
@@ -3312,7 +3312,7 @@ auto Parser::parse_declaration_statement(StatementAST*& yyast) -> bool {
 }
 
 auto Parser::parse_maybe_module() -> bool {
-  if (!module_unit) return false;
+  if (!moduleUnit_) return false;
 
   const auto start = currentLocation();
 
@@ -3574,7 +3574,7 @@ auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
     ast->requiresClause = requiresClause;
     ast->functionBody = functionBody;
 
-    if (classDepth) pendingFunctionDefinitions_.push_back(ast);
+    if (classDepth_) pendingFunctionDefinitions_.push_back(ast);
 
     return true;
   }
@@ -3678,7 +3678,7 @@ auto Parser::parse_notypespec_function_definition(
   ast->declarator = declarator;
   ast->functionBody = functionBody;
 
-  if (classDepth) pendingFunctionDefinitions_.push_back(ast);
+  if (classDepth_) pendingFunctionDefinitions_.push_back(ast);
 
   return true;
 }
@@ -5577,7 +5577,7 @@ auto Parser::parse_function_body(FunctionBodyAST*& yyast) -> bool {
 
   ast->ctorInitializer = ctorInitializer;
 
-  const bool skip = skipFunctionBody_ || classDepth > 0;
+  const bool skip = skipFunctionBody_ || classDepth_ > 0;
 
   if (!parse_compound_statement(ast->statement, skip)) {
     parse_error("expected a compound statement");
@@ -6580,7 +6580,7 @@ auto Parser::parse_export_declaration(DeclarationAST*& yyast) -> bool {
 }
 
 auto Parser::parse_maybe_import() -> bool {
-  if (!module_unit) return false;
+  if (!moduleUnit_) return false;
 
   const auto start = currentLocation();
 
@@ -7001,7 +7001,7 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
       ast->requiresClause = requiresClause;
       ast->functionBody = functionBody;
 
-      if (classDepth) pendingFunctionDefinitions_.push_back(ast);
+      if (classDepth_) pendingFunctionDefinitions_.push_back(ast);
 
       return true;
     }
