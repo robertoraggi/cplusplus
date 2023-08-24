@@ -662,7 +662,7 @@ void ASTCloner::visit(BoolLiteralExpressionAST* ast) {
 
   copy->literalLoc = ast->literalLoc;
 
-  copy->value = ast->value;
+  copy->isTrue = ast->isTrue;
 }
 
 void ASTCloner::visit(IntLiteralExpressionAST* ast) {

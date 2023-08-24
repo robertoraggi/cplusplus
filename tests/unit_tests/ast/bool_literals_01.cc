@@ -18,7 +18,7 @@ const bool ko = false;
 // CHECK-NEXT:                identifier: ok
 // CHECK-NEXT:          initializer: equal-initializer
 // CHECK-NEXT:            expression: bool-literal-expression
-// CHECK-NEXT:              value: true
+// CHECK-NEXT:              is-true: true
 // CHECK-NEXT:    simple-declaration
 // CHECK-NEXT:      decl-specifier-list
 // CHECK-NEXT:        const-qualifier
@@ -32,4 +32,3 @@ const bool ko = false;
 // CHECK-NEXT:                identifier: ko
 // CHECK-NEXT:          initializer: equal-initializer
 // CHECK-NEXT:            expression: bool-literal-expression
-// CHECK-NEXT:              value: false

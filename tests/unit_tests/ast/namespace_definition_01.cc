@@ -18,29 +18,23 @@ namespace n2::inline n4::inline n6 {}
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list
 // CHECK-NEXT:    namespace-definition
-// CHECK-NEXT:      is-inline: false
 // CHECK-NEXT:    namespace-definition
 // CHECK-NEXT:      is-inline: true
 // CHECK-NEXT:    namespace-definition
 // CHECK-NEXT:      namespace-name: ns1
-// CHECK-NEXT:      is-inline: false
 // CHECK-NEXT:    namespace-definition
 // CHECK-NEXT:      namespace-name: ns1
 // CHECK-NEXT:      is-inline: true
 // CHECK-NEXT:    namespace-definition
 // CHECK-NEXT:      namespace-name: n3
-// CHECK-NEXT:      is-inline: false
 // CHECK-NEXT:      nested-namespace-specifier-list
 // CHECK-NEXT:        nested-namespace-specifier
 // CHECK-NEXT:          namespace-name: n2
-// CHECK-NEXT:          is-inline: false
 // CHECK-NEXT:    namespace-definition
 // CHECK-NEXT:      namespace-name: n5
-// CHECK-NEXT:      is-inline: false
 // CHECK-NEXT:      nested-namespace-specifier-list
 // CHECK-NEXT:        nested-namespace-specifier
 // CHECK-NEXT:          namespace-name: n2
-// CHECK-NEXT:          is-inline: false
 // CHECK-NEXT:        nested-namespace-specifier
 // CHECK-NEXT:          namespace-name: n4
 // CHECK-NEXT:          is-inline: true
@@ -50,7 +44,6 @@ namespace n2::inline n4::inline n6 {}
 // CHECK-NEXT:      nested-namespace-specifier-list
 // CHECK-NEXT:        nested-namespace-specifier
 // CHECK-NEXT:          namespace-name: n2
-// CHECK-NEXT:          is-inline: false
 // CHECK-NEXT:        nested-namespace-specifier
 // CHECK-NEXT:          namespace-name: n4
 // CHECK-NEXT:          is-inline: true

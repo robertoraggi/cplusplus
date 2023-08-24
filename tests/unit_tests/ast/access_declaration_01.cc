@@ -13,7 +13,6 @@ class SimpleClass {
 // CHECK-NEXT:       decl-specifier-list
 // CHECK-NEXT:         class-specifier
 // CHECK-NEXT:           class-key: class
-// CHECK-NEXT:           is-final: false
 // CHECK-NEXT:           name: simple-name
 // CHECK-NEXT:             identifier: SimpleClass
 // CHECK-NEXT:           declaration-list
