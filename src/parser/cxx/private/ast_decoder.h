@@ -128,6 +128,8 @@ class ASTDecoder {
   auto decodeNoexceptSpecifier(const io::NoexceptSpecifier* node)
       -> NoexceptSpecifierAST*;
 
+  auto decodePackExpansionExpression(const io::PackExpansionExpression* node)
+      -> PackExpansionExpressionAST*;
   auto decodeDesignatedInitializerClause(
       const io::DesignatedInitializerClause* node)
       -> DesignatedInitializerClauseAST*;

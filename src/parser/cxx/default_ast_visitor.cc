@@ -156,6 +156,10 @@ void DefaultASTVisitor::visit(NoexceptSpecifierAST* ast) {
 }
 
 // ExpressionAST
+void DefaultASTVisitor::visit(PackExpansionExpressionAST* ast) {
+  cxx_runtime_error("visit(PackExpansionExpressionAST): not implemented");
+}
+
 void DefaultASTVisitor::visit(DesignatedInitializerClauseAST* ast) {
   cxx_runtime_error("visit(DesignatedInitializerClauseAST): not implemented");
 }

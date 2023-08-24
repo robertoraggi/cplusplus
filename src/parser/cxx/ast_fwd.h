@@ -109,6 +109,7 @@ class ThrowExceptionSpecifierAST;
 class NoexceptSpecifierAST;
 
 // ExpressionAST
+class PackExpansionExpressionAST;
 class DesignatedInitializerClauseAST;
 class ThisExpressionAST;
 class CharLiteralExpressionAST;

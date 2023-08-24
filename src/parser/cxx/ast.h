@@ -655,6 +655,20 @@ class NoexceptSpecifierAST final : public ExceptionSpecifierAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class PackExpansionExpressionAST final : public ExpressionAST {
+ public:
+  PackExpansionExpressionAST()
+      : ExpressionAST(ASTKind::PackExpansionExpression) {}
+
+  ExpressionAST* expression = nullptr;
+  SourceLocation ellipsisLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 class DesignatedInitializerClauseAST final : public ExpressionAST {
  public:
   DesignatedInitializerClauseAST()

@@ -482,6 +482,18 @@ auto NoexceptSpecifierAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto PackExpansionExpressionAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
+  return {};
+}
+
+auto PackExpansionExpressionAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  return {};
+}
+
 auto DesignatedInitializerClauseAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(designator)) return loc;
   if (auto loc = cxx::firstSourceLocation(initializer)) return loc;

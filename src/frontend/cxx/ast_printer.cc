@@ -413,6 +413,11 @@ void ASTPrinter::visit(NoexceptSpecifierAST* ast) {
   accept(ast->expression, "expression");
 }
 
+void ASTPrinter::visit(PackExpansionExpressionAST* ast) {
+  fmt::print(out_, "{}\n", "pack-expansion-expression");
+  accept(ast->expression, "expression");
+}
+
 void ASTPrinter::visit(DesignatedInitializerClauseAST* ast) {
   fmt::print(out_, "{}\n", "designated-initializer-clause");
   accept(ast->designator, "designator");

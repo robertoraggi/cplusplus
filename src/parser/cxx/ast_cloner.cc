@@ -609,6 +609,21 @@ void ASTCloner::visit(NoexceptSpecifierAST* ast) {
   copy->rparenLoc = ast->rparenLoc;
 }
 
+void ASTCloner::visit(PackExpansionExpressionAST* ast) {
+  auto copy = new (arena_) PackExpansionExpressionAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->valueCategory = ast->valueCategory;
+
+  copy->constValue = ast->constValue;
+
+  copy->expression = accept(ast->expression);
+
+  copy->ellipsisLoc = ast->ellipsisLoc;
+}
+
 void ASTCloner::visit(DesignatedInitializerClauseAST* ast) {
   auto copy = new (arena_) DesignatedInitializerClauseAST();
   copy_ = copy;

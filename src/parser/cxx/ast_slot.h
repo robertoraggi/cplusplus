@@ -75,6 +75,7 @@ class ASTSlot final : ASTVisitor {
   void visit(ThrowExceptionSpecifierAST* ast) override;
   void visit(NoexceptSpecifierAST* ast) override;
 
+  void visit(PackExpansionExpressionAST* ast) override;
   void visit(DesignatedInitializerClauseAST* ast) override;
   void visit(ThisExpressionAST* ast) override;
   void visit(CharLiteralExpressionAST* ast) override;

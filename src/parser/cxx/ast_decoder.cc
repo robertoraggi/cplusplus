@@ -65,6 +65,9 @@ auto ASTDecoder::decodeExceptionSpecifier(const void* ptr,
 auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
     -> ExpressionAST* {
   switch (type) {
+    case io::Expression_PackExpansionExpression:
+      return decodePackExpansionExpression(
+          reinterpret_cast<const io::PackExpansionExpression*>(ptr));
     case io::Expression_DesignatedInitializerClause:
       return decodeDesignatedInitializerClause(
           reinterpret_cast<const io::DesignatedInitializerClause*>(ptr));
@@ -1177,6 +1180,16 @@ auto ASTDecoder::decodeNoexceptSpecifier(const io::NoexceptSpecifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) NoexceptSpecifierAST();
+  ast->expression =
+      decodeExpression(node->expression(), node->expression_type());
+  return ast;
+}
+
+auto ASTDecoder::decodePackExpansionExpression(
+    const io::PackExpansionExpression* node) -> PackExpansionExpressionAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) PackExpansionExpressionAST();
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
   return ast;

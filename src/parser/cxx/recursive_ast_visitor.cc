@@ -402,6 +402,10 @@ void RecursiveASTVisitor::visit(NoexceptSpecifierAST* ast) {
   acceptExpression(ast->expression);
 }
 
+void RecursiveASTVisitor::visit(PackExpansionExpressionAST* ast) {
+  acceptExpression(ast->expression);
+}
+
 void RecursiveASTVisitor::visit(DesignatedInitializerClauseAST* ast) {
   acceptDesignator(ast->designator);
   acceptExpression(ast->initializer);

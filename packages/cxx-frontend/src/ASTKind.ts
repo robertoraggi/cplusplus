@@ -57,6 +57,7 @@ export enum ASTKind {
     NoexceptSpecifier,
 
     // ExpressionAST
+    PackExpansionExpression,
     DesignatedInitializerClause,
     ThisExpression,
     CharLiteralExpression,

@@ -621,6 +621,18 @@ export class NoexceptSpecifierAST extends ExceptionSpecifierAST {
     }
 }
 
+export class PackExpansionExpressionAST extends ExpressionAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitPackExpansionExpression(this, context);
+    }
+    getExpression(): ExpressionAST | undefined {
+        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getEllipsisToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+}
+
 export class DesignatedInitializerClauseAST extends ExpressionAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitDesignatedInitializerClause(this, context);
@@ -3440,6 +3452,7 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Transl
     DesignatorAST,
     ThrowExceptionSpecifierAST,
     NoexceptSpecifierAST,
+    PackExpansionExpressionAST,
     DesignatedInitializerClauseAST,
     ThisExpressionAST,
     CharLiteralExpressionAST,
