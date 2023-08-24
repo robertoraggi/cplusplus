@@ -622,6 +622,9 @@ auto ASTDecoder::decodeCoreDeclarator(const void* ptr, io::CoreDeclarator type)
     case io::CoreDeclarator_BitfieldDeclarator:
       return decodeBitfieldDeclarator(
           reinterpret_cast<const io::BitfieldDeclarator*>(ptr));
+    case io::CoreDeclarator_ParameterPack:
+      return decodeParameterPack(
+          reinterpret_cast<const io::ParameterPack*>(ptr));
     case io::CoreDeclarator_IdDeclarator:
       return decodeIdDeclarator(reinterpret_cast<const io::IdDeclarator*>(ptr));
     case io::CoreDeclarator_NestedDeclarator:
@@ -3159,6 +3162,16 @@ auto ASTDecoder::decodeBitfieldDeclarator(const io::BitfieldDeclarator* node)
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
   }
+  return ast;
+}
+
+auto ASTDecoder::decodeParameterPack(const io::ParameterPack* node)
+    -> ParameterPackAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) ParameterPackAST();
+  ast->coreDeclarator = decodeCoreDeclarator(node->core_declarator(),
+                                             node->core_declarator_type());
   return ast;
 }
 

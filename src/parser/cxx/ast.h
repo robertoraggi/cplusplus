@@ -2934,11 +2934,23 @@ class BitfieldDeclaratorAST final : public CoreDeclaratorAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class ParameterPackAST final : public CoreDeclaratorAST {
+ public:
+  ParameterPackAST() : CoreDeclaratorAST(ASTKind::ParameterPack) {}
+
+  SourceLocation ellipsisLoc;
+  CoreDeclaratorAST* coreDeclarator = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 class IdDeclaratorAST final : public CoreDeclaratorAST {
  public:
   IdDeclaratorAST() : CoreDeclaratorAST(ASTKind::IdDeclarator) {}
 
-  SourceLocation ellipsisLoc;
   NameAST* name = nullptr;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
 

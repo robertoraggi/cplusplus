@@ -3626,7 +3626,7 @@ auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
 auto Parser::parse_notypespec_function_definition(
     DeclarationAST*& yyast, List<SpecifierAST*>* declSpecifierList,
     const DeclSpecs& specs) -> bool {
-  IdDeclaratorAST* declaratorId = nullptr;
+  CoreDeclaratorAST* declaratorId = nullptr;
 
   if (!parse_declarator_id(declaratorId)) return false;
 
@@ -4633,12 +4633,7 @@ auto Parser::parse_ptr_operator_seq(List<PtrOperatorAST*>*& yyast) -> bool {
 }
 
 auto Parser::parse_core_declarator(CoreDeclaratorAST*& yyast) -> bool {
-  IdDeclaratorAST* declaratorId = nullptr;
-
-  if (parse_declarator_id(declaratorId)) {
-    yyast = declaratorId;
-    return true;
-  }
+  if (parse_declarator_id(yyast)) return true;
 
   SourceLocation lparenLoc;
 
@@ -4898,10 +4893,10 @@ auto Parser::parse_ref_qualifier(SourceLocation& refLoc) -> bool {
   }  // switch
 }
 
-auto Parser::parse_declarator_id(IdDeclaratorAST*& yyast) -> bool {
+auto Parser::parse_declarator_id(CoreDeclaratorAST*& yyast) -> bool {
   SourceLocation ellipsisLoc;
 
-  match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
+  const auto isPack = match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
 
   check_type_traits();
 
@@ -4909,11 +4904,19 @@ auto Parser::parse_declarator_id(IdDeclaratorAST*& yyast) -> bool {
 
   if (!parse_id_expression(name)) return false;
 
-  yyast = new (pool) IdDeclaratorAST();
-  yyast->ellipsisLoc = ellipsisLoc;
-  yyast->name = name;
+  auto ast = new (pool) IdDeclaratorAST();
+  yyast = ast;
 
-  parse_attribute_specifier_seq(yyast->attributeList);
+  ast->name = name;
+
+  parse_attribute_specifier_seq(ast->attributeList);
+
+  if (isPack) {
+    auto ast = new (pool) ParameterPackAST();
+    ast->ellipsisLoc = ellipsisLoc;
+    ast->coreDeclarator = yyast;
+    yyast = ast;
+  }
 
   return true;
 }
@@ -4961,7 +4964,7 @@ auto Parser::parse_defining_type_id(TypeIdAST*& yyast) -> bool {
 }
 
 auto Parser::parse_abstract_declarator(DeclaratorAST*& yyast) -> bool {
-  if (parse_abstract_pack_declarator()) return true;
+  if (parse_abstract_pack_declarator(yyast)) return true;
 
   if (parse_ptr_abstract_declarator(yyast)) return true;
 
@@ -5042,8 +5045,9 @@ auto Parser::parse_noptr_abstract_declarator(DeclaratorAST*& yyast) -> bool {
       parse_ptr_abstract_declarator(declarator) &&
       match(TokenKind::T_RPAREN, rparenLoc)) {
     auto nestedDeclarator = new (pool) NestedDeclaratorAST();
-
+    nestedDeclarator->lparenLoc = lparenLoc;
     nestedDeclarator->declarator = declarator;
+    nestedDeclarator->rparenLoc = rparenLoc;
 
     yyast->coreDeclarator = nestedDeclarator;
   } else {
@@ -5094,14 +5098,14 @@ auto Parser::parse_noptr_abstract_declarator(DeclaratorAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_abstract_pack_declarator() -> bool {
+auto Parser::parse_abstract_pack_declarator(DeclaratorAST*& yyast) -> bool {
   auto start = currentLocation();
 
   List<PtrOperatorAST*>* ptrOpList = nullptr;
 
   parse_ptr_operator_seq(ptrOpList);
 
-  if (!parse_noptr_abstract_pack_declarator()) {
+  if (!parse_noptr_abstract_pack_declarator(yyast, ptrOpList)) {
     rewind(start);
     return false;
   }
@@ -5109,32 +5113,49 @@ auto Parser::parse_abstract_pack_declarator() -> bool {
   return true;
 }
 
-auto Parser::parse_noptr_abstract_pack_declarator() -> bool {
+auto Parser::parse_noptr_abstract_pack_declarator(
+    DeclaratorAST*& yyast, List<PtrOperatorAST*>* ptrOpLst) -> bool {
   SourceLocation ellipsisLoc;
 
   if (!match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) return false;
 
+  auto ast = new (pool) DeclaratorAST();
+  yyast = ast;
+
+  auto coreDeclarator = new (pool) ParameterPackAST();
+  coreDeclarator->ellipsisLoc = ellipsisLoc;
+
+  ast->coreDeclarator = coreDeclarator;
+  ast->ptrOpList = ptrOpLst;
+
+  auto it = &yyast->modifiers;
+
   ParametersAndQualifiersAST* parametersAndQualifiers = nullptr;
 
-  if (parse_parameters_and_qualifiers(parametersAndQualifiers)) return true;
+  if (parse_parameters_and_qualifiers(parametersAndQualifiers)) {
+    auto functionDeclarator = new (pool) FunctionDeclaratorAST();
+    *it = new (pool) List<DeclaratorModifierAST*>(functionDeclarator);
+    return true;
+  }
 
   SourceLocation lbracketLoc;
 
   while (match(TokenKind::T_LBRACKET, lbracketLoc)) {
-    SourceLocation rbracketLoc;
+    auto arrayDeclarator = new (pool) ArrayDeclaratorAST();
 
-    if (!match(TokenKind::T_RBRACKET, rbracketLoc)) {
-      ExpressionAST* expression = nullptr;
+    *it = new (pool) List<DeclaratorModifierAST*>(arrayDeclarator);
+    it = &(*it)->next;
 
-      if (!parse_constant_expression(expression)) {
+    arrayDeclarator->lbracketLoc = lbracketLoc;
+
+    if (!match(TokenKind::T_RBRACKET, arrayDeclarator->rbracketLoc)) {
+      if (!parse_constant_expression(arrayDeclarator->expression)) {
         parse_error("expected a constant expression");
       }
 
-      expect(TokenKind::T_RBRACKET, rbracketLoc);
+      expect(TokenKind::T_RBRACKET, arrayDeclarator->rbracketLoc);
 
-      List<AttributeSpecifierAST*>* attributes = nullptr;
-
-      parse_attribute_specifier_seq(attributes);
+      parse_attribute_specifier_seq(arrayDeclarator->attributeList);
     }
   }
 

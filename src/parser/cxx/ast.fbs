@@ -77,6 +77,7 @@ union AttributeToken {
 
 union CoreDeclarator {
   BitfieldDeclarator,
+  ParameterPack,
   IdDeclarator,
   NestedDeclarator,
 }
@@ -523,10 +524,14 @@ table BitfieldDeclarator /* CoreDeclaratorAST */ {
   colon_loc: SourceLocation;
 }
 
+table ParameterPack /* CoreDeclaratorAST */ {
+  core_declarator: CoreDeclarator;
+  ellipsis_loc: SourceLocation;
+}
+
 table IdDeclarator /* CoreDeclaratorAST */ {
   name: Name;
   attribute_list: [AttributeSpecifier];
-  ellipsis_loc: SourceLocation;
 }
 
 table NestedDeclarator /* CoreDeclaratorAST */ {

@@ -968,6 +968,10 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         this.accept(node.getSizeExpression(), context);
     }
 
+    visitParameterPack(node: ast.ParameterPackAST, context: Context): void {
+        this.accept(node.getCoreDeclarator(), context);
+    }
+
     visitIdDeclarator(node: ast.IdDeclaratorAST, context: Context): void {
         this.accept(node.getName(), context);
         for (const element of node.getAttributeList()) {

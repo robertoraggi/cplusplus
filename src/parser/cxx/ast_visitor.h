@@ -245,6 +245,7 @@ class ASTVisitor {
 
   // CoreDeclaratorAST
   virtual void visit(BitfieldDeclaratorAST* ast) = 0;
+  virtual void visit(ParameterPackAST* ast) = 0;
   virtual void visit(IdDeclaratorAST* ast) = 0;
   virtual void visit(NestedDeclaratorAST* ast) = 0;
 

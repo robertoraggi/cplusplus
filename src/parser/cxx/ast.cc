@@ -2742,8 +2742,19 @@ auto BitfieldDeclaratorAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto IdDeclaratorAST::firstSourceLocation() -> SourceLocation {
+auto ParameterPackAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(coreDeclarator)) return loc;
+  return {};
+}
+
+auto ParameterPackAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(coreDeclarator)) return loc;
+  if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
+  return {};
+}
+
+auto IdDeclaratorAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(name)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   return {};
@@ -2752,7 +2763,6 @@ auto IdDeclaratorAST::firstSourceLocation() -> SourceLocation {
 auto IdDeclaratorAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(name)) return loc;
-  if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
   return {};
 }
 

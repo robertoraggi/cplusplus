@@ -3783,23 +3783,34 @@ void ASTSlot::visit(BitfieldDeclaratorAST* ast) {
   slotCount_ = 3;
 }
 
-void ASTSlot::visit(IdDeclaratorAST* ast) {
+void ASTSlot::visit(ParameterPackAST* ast) {
   switch (slot_) {
     case 0:
       value_ = ast->ellipsisLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       break;
     case 1:
+      value_ = reinterpret_cast<std::intptr_t>(ast->coreDeclarator);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+  }  // switch
+
+  slotCount_ = 2;
+}
+
+void ASTSlot::visit(IdDeclaratorAST* ast) {
+  switch (slot_) {
+    case 0:
       value_ = reinterpret_cast<std::intptr_t>(ast->name);
       slotKind_ = ASTSlotKind::kNode;
       break;
-    case 2:
+    case 1:
       value_ = reinterpret_cast<std::intptr_t>(ast->attributeList);
       slotKind_ = ASTSlotKind::kNodeList;
       break;
   }  // switch
 
-  slotCount_ = 3;
+  slotCount_ = 2;
 }
 
 void ASTSlot::visit(NestedDeclaratorAST* ast) {
