@@ -289,6 +289,7 @@ class TypenameSpecifierAST;
 
 // CoreDeclaratorAST
 class BitfieldDeclaratorAST;
+class ParameterPackAST;
 class IdDeclaratorAST;
 class NestedDeclaratorAST;
 

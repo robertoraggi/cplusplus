@@ -1104,6 +1104,10 @@ void RecursiveASTVisitor::visit(BitfieldDeclaratorAST* ast) {
   acceptExpression(ast->sizeExpression);
 }
 
+void RecursiveASTVisitor::visit(ParameterPackAST* ast) {
+  acceptCoreDeclarator(ast->coreDeclarator);
+}
+
 void RecursiveASTVisitor::visit(IdDeclaratorAST* ast) {
   acceptName(ast->name);
   for (auto it = ast->attributeList; it; it = it->next) {

@@ -444,6 +444,7 @@ class ASTDecoder {
 
   auto decodeBitfieldDeclarator(const io::BitfieldDeclarator* node)
       -> BitfieldDeclaratorAST*;
+  auto decodeParameterPack(const io::ParameterPack* node) -> ParameterPackAST*;
   auto decodeIdDeclarator(const io::IdDeclarator* node) -> IdDeclaratorAST*;
   auto decodeNestedDeclarator(const io::NestedDeclarator* node)
       -> NestedDeclaratorAST*;

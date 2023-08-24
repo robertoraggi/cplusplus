@@ -304,14 +304,16 @@ class Parser final {
   auto parse_ptr_operator(PtrOperatorAST*& yyast) -> bool;
   auto parse_cv_qualifier(SpecifierAST*& yyast) -> bool;
   auto parse_ref_qualifier(SourceLocation& refLoc) -> bool;
-  auto parse_declarator_id(IdDeclaratorAST*& yyast) -> bool;
+  auto parse_declarator_id(CoreDeclaratorAST*& yyast) -> bool;
   auto parse_type_id(TypeIdAST*& yyast) -> bool;
   auto parse_defining_type_id(TypeIdAST*& yyast) -> bool;
   auto parse_abstract_declarator(DeclaratorAST*& yyast) -> bool;
   auto parse_ptr_abstract_declarator(DeclaratorAST*& yyast) -> bool;
   auto parse_noptr_abstract_declarator(DeclaratorAST*& yyast) -> bool;
-  auto parse_abstract_pack_declarator() -> bool;
-  auto parse_noptr_abstract_pack_declarator() -> bool;
+  auto parse_abstract_pack_declarator(DeclaratorAST*& yyast) -> bool;
+  auto parse_noptr_abstract_pack_declarator(DeclaratorAST*& yyast,
+                                            List<PtrOperatorAST*>* ptrOpLst)
+      -> bool;
   auto parse_parameter_declaration_clause(ParameterDeclarationClauseAST*& yyast)
       -> bool;
   auto parse_parameter_declaration_list(List<ParameterDeclarationAST*>*& yyast)

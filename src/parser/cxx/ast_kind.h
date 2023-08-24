@@ -241,6 +241,7 @@ enum struct ASTKind {
 
   // CoreDeclaratorAST
   BitfieldDeclarator,
+  ParameterPack,
   IdDeclarator,
   NestedDeclarator,
 

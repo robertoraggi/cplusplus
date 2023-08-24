@@ -4790,9 +4790,23 @@ void ASTEncoder::visit(BitfieldDeclaratorAST* ast) {
   type_ = io::CoreDeclarator_BitfieldDeclarator;
 }
 
-void ASTEncoder::visit(IdDeclaratorAST* ast) {
+void ASTEncoder::visit(ParameterPackAST* ast) {
   auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
 
+  const auto [coreDeclarator, coreDeclaratorType] =
+      acceptCoreDeclarator(ast->coreDeclarator);
+
+  io::ParameterPack::Builder builder{fbb_};
+  builder.add_ellipsis_loc(ellipsisLoc.o);
+  builder.add_core_declarator(coreDeclarator);
+  builder.add_core_declarator_type(
+      static_cast<io::CoreDeclarator>(coreDeclaratorType));
+
+  offset_ = builder.Finish().Union();
+  type_ = io::CoreDeclarator_ParameterPack;
+}
+
+void ASTEncoder::visit(IdDeclaratorAST* ast) {
   const auto [name, nameType] = acceptName(ast->name);
 
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
@@ -4810,7 +4824,6 @@ void ASTEncoder::visit(IdDeclaratorAST* ast) {
   auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
 
   io::IdDeclarator::Builder builder{fbb_};
-  builder.add_ellipsis_loc(ellipsisLoc.o);
   builder.add_name(name);
   builder.add_name_type(static_cast<io::Name>(nameType));
   builder.add_attribute_list(attributeListOffsetsVector);

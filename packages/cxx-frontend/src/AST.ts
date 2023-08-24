@@ -3169,18 +3169,27 @@ export class BitfieldDeclaratorAST extends CoreDeclaratorAST {
     }
 }
 
-export class IdDeclaratorAST extends CoreDeclaratorAST {
+export class ParameterPackAST extends CoreDeclaratorAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitIdDeclarator(this, context);
+        return visitor.visitParameterPack(this, context);
     }
     getEllipsisToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
     }
+    getCoreDeclarator(): CoreDeclaratorAST | undefined {
+        return AST.from<CoreDeclaratorAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+}
+
+export class IdDeclaratorAST extends CoreDeclaratorAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitIdDeclarator(this, context);
+    }
     getName(): NameAST | undefined {
-        return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+        return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
     }
     *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-        for (let it = cxx.getASTSlot(this.getHandle(), 2); it; it = cxx.getListNext(it)) {
+        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
             yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
         }
     }
@@ -3585,6 +3594,7 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Transl
     ClassSpecifierAST,
     TypenameSpecifierAST,
     BitfieldDeclaratorAST,
+    ParameterPackAST,
     IdDeclaratorAST,
     NestedDeclaratorAST,
     PointerOperatorAST,
