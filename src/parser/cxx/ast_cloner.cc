@@ -263,6 +263,8 @@ void ASTCloner::visit(ParameterDeclarationClauseAST* ast) {
   copy->commaLoc = ast->commaLoc;
 
   copy->ellipsisLoc = ast->ellipsisLoc;
+
+  copy->isVariadic = ast->isVariadic;
 }
 
 void ASTCloner::visit(ParametersAndQualifiersAST* ast) {
