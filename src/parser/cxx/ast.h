@@ -698,7 +698,7 @@ class BoolLiteralExpressionAST final : public ExpressionAST {
   BoolLiteralExpressionAST() : ExpressionAST(ASTKind::BoolLiteralExpression) {}
 
   SourceLocation literalLoc;
-  bool value = false;
+  bool isTrue = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

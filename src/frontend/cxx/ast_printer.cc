@@ -154,10 +154,12 @@ void ASTPrinter::visit(InitDeclaratorAST* ast) {
 
 void ASTPrinter::visit(BaseSpecifierAST* ast) {
   fmt::print(out_, "{}\n", "base-specifier");
-  ++indent_;
-  fmt::print(out_, "{:{}}", "", indent_ * 2);
-  fmt::print(out_, "is-virtual: {}\n", ast->isVirtual);
-  --indent_;
+  if (ast->isVirtual) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "is-virtual: {}\n", ast->isVirtual);
+    --indent_;
+  }
   if (ast->accessSpecifier != TokenKind::T_EOF_SYMBOL) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
@@ -427,10 +429,12 @@ void ASTPrinter::visit(CharLiteralExpressionAST* ast) {
 
 void ASTPrinter::visit(BoolLiteralExpressionAST* ast) {
   fmt::print(out_, "{}\n", "bool-literal-expression");
-  ++indent_;
-  fmt::print(out_, "{:{}}", "", indent_ * 2);
-  fmt::print(out_, "value: {}\n", ast->value);
-  --indent_;
+  if (ast->isTrue) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "is-true: {}\n", ast->isTrue);
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(IntLiteralExpressionAST* ast) {
@@ -1256,19 +1260,23 @@ void ASTPrinter::visit(OpaqueEnumDeclarationAST* ast) {
 void ASTPrinter::visit(NestedNamespaceSpecifierAST* ast) {
   fmt::print(out_, "{}\n", "nested-namespace-specifier");
   accept(ast->namespaceName, "namespace-name");
-  ++indent_;
-  fmt::print(out_, "{:{}}", "", indent_ * 2);
-  fmt::print(out_, "is-inline: {}\n", ast->isInline);
-  --indent_;
+  if (ast->isInline) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "is-inline: {}\n", ast->isInline);
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(NamespaceDefinitionAST* ast) {
   fmt::print(out_, "{}\n", "namespace-definition");
   accept(ast->namespaceName, "namespace-name");
-  ++indent_;
-  fmt::print(out_, "{:{}}", "", indent_ * 2);
-  fmt::print(out_, "is-inline: {}\n", ast->isInline);
-  --indent_;
+  if (ast->isInline) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "is-inline: {}\n", ast->isInline);
+    --indent_;
+  }
   if (ast->attributeList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
@@ -1746,10 +1754,12 @@ void ASTPrinter::visit(ClassSpecifierAST* ast) {
     fmt::print(out_, "class-key: {}\n", Token::spell(ast->classKey));
     --indent_;
   }
-  ++indent_;
-  fmt::print(out_, "{:{}}", "", indent_ * 2);
-  fmt::print(out_, "is-final: {}\n", ast->isFinal);
-  --indent_;
+  if (ast->isFinal) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "is-final: {}\n", ast->isFinal);
+    --indent_;
+  }
   if (ast->attributeList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);

@@ -16,7 +16,6 @@ struct Handle {
 // CHECK-NEXT:      decl-specifier-list
 // CHECK-NEXT:        class-specifier
 // CHECK-NEXT:          class-key: struct
-// CHECK-NEXT:          is-final: false
 // CHECK-NEXT:          name: simple-name
 // CHECK-NEXT:            identifier: Handle
 // CHECK-NEXT:          declaration-list
