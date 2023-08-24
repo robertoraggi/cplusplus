@@ -65,6 +65,7 @@ class ASTVisitor {
   virtual void visit(NoexceptSpecifierAST* ast) = 0;
 
   // ExpressionAST
+  virtual void visit(PackExpansionExpressionAST* ast) = 0;
   virtual void visit(DesignatedInitializerClauseAST* ast) = 0;
   virtual void visit(ThisExpressionAST* ast) = 0;
   virtual void visit(CharLiteralExpressionAST* ast) = 0;

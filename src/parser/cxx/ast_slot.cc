@@ -665,6 +665,21 @@ void ASTSlot::visit(NoexceptSpecifierAST* ast) {
   slotCount_ = 4;
 }
 
+void ASTSlot::visit(PackExpansionExpressionAST* ast) {
+  switch (slot_) {
+    case 0:
+      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 1:
+      value_ = ast->ellipsisLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
+
+  slotCount_ = 2;
+}
+
 void ASTSlot::visit(DesignatedInitializerClauseAST* ast) {
   switch (slot_) {
     case 0:

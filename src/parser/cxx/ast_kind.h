@@ -61,6 +61,7 @@ enum struct ASTKind {
   NoexceptSpecifier,
 
   // ExpressionAST
+  PackExpansionExpression,
   DesignatedInitializerClause,
   ThisExpression,
   CharLiteralExpression,

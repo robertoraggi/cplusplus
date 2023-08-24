@@ -5407,7 +5407,12 @@ auto Parser::parse_initializer_list(List<ExpressionAST*>*& yyast) -> bool {
 
   SourceLocation ellipsisLoc;
 
-  match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
+  if (match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) {
+    auto pack = new (pool) PackExpansionExpressionAST();
+    pack->expression = expression;
+    pack->ellipsisLoc = ellipsisLoc;
+    expression = pack;
+  }
 
   *it = new (pool) List(expression);
   it = &(*it)->next;
@@ -5425,7 +5430,12 @@ auto Parser::parse_initializer_list(List<ExpressionAST*>*& yyast) -> bool {
 
     SourceLocation ellipsisLoc;
 
-    match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
+    if (match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) {
+      auto pack = new (pool) PackExpansionExpressionAST();
+      pack->expression = expression;
+      pack->ellipsisLoc = ellipsisLoc;
+      expression = pack;
+    }
 
     *it = new (pool) List(expression);
     it = &(*it)->next;

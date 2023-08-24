@@ -130,6 +130,7 @@ union ExceptionSpecifier {
 }
 
 union Expression {
+  PackExpansionExpression,
   DesignatedInitializerClause,
   ThisExpression,
   CharLiteralExpression,
@@ -812,6 +813,11 @@ table NoexceptSpecifier /* ExceptionSpecifierAST */ {
   noexcept_loc: SourceLocation;
   lparen_loc: SourceLocation;
   rparen_loc: SourceLocation;
+}
+
+table PackExpansionExpression /* ExpressionAST */ {
+  expression: Expression;
+  ellipsis_loc: SourceLocation;
 }
 
 table DesignatedInitializerClause /* ExpressionAST */ {

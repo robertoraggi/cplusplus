@@ -1157,6 +1157,20 @@ void ASTEncoder::visit(NoexceptSpecifierAST* ast) {
   type_ = io::ExceptionSpecifier_NoexceptSpecifier;
 }
 
+void ASTEncoder::visit(PackExpansionExpressionAST* ast) {
+  const auto [expression, expressionType] = acceptExpression(ast->expression);
+
+  auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
+
+  io::PackExpansionExpression::Builder builder{fbb_};
+  builder.add_expression(expression);
+  builder.add_expression_type(static_cast<io::Expression>(expressionType));
+  builder.add_ellipsis_loc(ellipsisLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Expression_PackExpansionExpression;
+}
+
 void ASTEncoder::visit(DesignatedInitializerClauseAST* ast) {
   const auto designator = accept(ast->designator);
 

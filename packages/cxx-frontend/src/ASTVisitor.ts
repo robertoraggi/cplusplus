@@ -61,6 +61,7 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitNoexceptSpecifier(node: ast.NoexceptSpecifierAST, context: Context): Result;
 
     // ExpressionAST
+    abstract visitPackExpansionExpression(node: ast.PackExpansionExpressionAST, context: Context): Result;
     abstract visitDesignatedInitializerClause(node: ast.DesignatedInitializerClauseAST, context: Context): Result;
     abstract visitThisExpression(node: ast.ThisExpressionAST, context: Context): Result;
     abstract visitCharLiteralExpression(node: ast.CharLiteralExpressionAST, context: Context): Result;

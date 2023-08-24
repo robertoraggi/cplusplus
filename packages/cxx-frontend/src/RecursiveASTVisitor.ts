@@ -215,6 +215,10 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         this.accept(node.getExpression(), context);
     }
 
+    visitPackExpansionExpression(node: ast.PackExpansionExpressionAST, context: Context): void {
+        this.accept(node.getExpression(), context);
+    }
+
     visitDesignatedInitializerClause(node: ast.DesignatedInitializerClauseAST, context: Context): void {
         this.accept(node.getDesignator(), context);
         this.accept(node.getInitializer(), context);
