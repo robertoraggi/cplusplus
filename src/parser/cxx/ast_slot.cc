@@ -3973,7 +3973,7 @@ void ASTSlot::visit(CxxAttributeAST* ast) {
   slotCount_ = 6;
 }
 
-void ASTSlot::visit(GCCAttributeAST* ast) {
+void ASTSlot::visit(GccAttributeAST* ast) {
   switch (slot_) {
     case 0:  // attributeLoc
       value_ = ast->attributeLoc.index();

@@ -305,7 +305,7 @@ class ArrayDeclaratorAST;
 
 // AttributeSpecifierAST
 class CxxAttributeAST;
-class GCCAttributeAST;
+class GccAttributeAST;
 class AlignasAttributeAST;
 class AsmAttributeAST;
 

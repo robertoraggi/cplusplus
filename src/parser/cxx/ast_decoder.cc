@@ -676,8 +676,8 @@ auto ASTDecoder::decodeAttributeSpecifier(const void* ptr,
   switch (type) {
     case io::AttributeSpecifier_CxxAttribute:
       return decodeCxxAttribute(reinterpret_cast<const io::CxxAttribute*>(ptr));
-    case io::AttributeSpecifier_GCCAttribute:
-      return decodeGCCAttribute(reinterpret_cast<const io::GCCAttribute*>(ptr));
+    case io::AttributeSpecifier_GccAttribute:
+      return decodeGccAttribute(reinterpret_cast<const io::GccAttribute*>(ptr));
     case io::AttributeSpecifier_AlignasAttribute:
       return decodeAlignasAttribute(
           reinterpret_cast<const io::AlignasAttribute*>(ptr));
@@ -3336,11 +3336,11 @@ auto ASTDecoder::decodeCxxAttribute(const io::CxxAttribute* node)
   return ast;
 }
 
-auto ASTDecoder::decodeGCCAttribute(const io::GCCAttribute* node)
-    -> GCCAttributeAST* {
+auto ASTDecoder::decodeGccAttribute(const io::GccAttribute* node)
+    -> GccAttributeAST* {
   if (!node) return nullptr;
 
-  auto ast = new (pool_) GCCAttributeAST();
+  auto ast = new (pool_) GccAttributeAST();
   return ast;
 }
 

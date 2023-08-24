@@ -1031,7 +1031,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         }
     }
 
-    visitGCCAttribute(node: ast.GCCAttributeAST, context: Context): void {
+    visitGccAttribute(node: ast.GccAttributeAST, context: Context): void {
     }
 
     visitAlignasAttribute(node: ast.AlignasAttributeAST, context: Context): void {

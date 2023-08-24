@@ -299,7 +299,7 @@ class RecursiveASTVisitor : public ASTVisitor {
   void visit(ArrayDeclaratorAST* ast) override;
 
   void visit(CxxAttributeAST* ast) override;
-  void visit(GCCAttributeAST* ast) override;
+  void visit(GccAttributeAST* ast) override;
   void visit(AlignasAttributeAST* ast) override;
   void visit(AsmAttributeAST* ast) override;
 

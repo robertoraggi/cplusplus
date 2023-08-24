@@ -3335,9 +3335,9 @@ export class CxxAttributeAST extends AttributeSpecifierAST {
     }
 }
 
-export class GCCAttributeAST extends AttributeSpecifierAST {
+export class GccAttributeAST extends AttributeSpecifierAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
-        return visitor.visitGCCAttribute(this, context);
+        return visitor.visitGccAttribute(this, context);
     }
     getAttributeToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
@@ -3616,7 +3616,7 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Transl
     FunctionDeclaratorAST,
     ArrayDeclaratorAST,
     CxxAttributeAST,
-    GCCAttributeAST,
+    GccAttributeAST,
     AlignasAttributeAST,
     AsmAttributeAST,
     ScopedAttributeTokenAST,

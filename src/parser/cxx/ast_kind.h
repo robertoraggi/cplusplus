@@ -257,7 +257,7 @@ enum struct ASTKind {
 
   // AttributeSpecifierAST
   CxxAttribute,
-  GCCAttribute,
+  GccAttribute,
   AlignasAttribute,
   AsmAttribute,
 

@@ -829,8 +829,8 @@ void DefaultASTVisitor::visit(CxxAttributeAST* ast) {
   cxx_runtime_error("visit(CxxAttributeAST): not implemented");
 }
 
-void DefaultASTVisitor::visit(GCCAttributeAST* ast) {
-  cxx_runtime_error("visit(GCCAttributeAST): not implemented");
+void DefaultASTVisitor::visit(GccAttributeAST* ast) {
+  cxx_runtime_error("visit(GccAttributeAST): not implemented");
 }
 
 void DefaultASTVisitor::visit(AlignasAttributeAST* ast) {

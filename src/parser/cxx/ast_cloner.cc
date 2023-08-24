@@ -3510,8 +3510,8 @@ void ASTCloner::visit(CxxAttributeAST* ast) {
   copy->rbracket2Loc = ast->rbracket2Loc;
 }
 
-void ASTCloner::visit(GCCAttributeAST* ast) {
-  auto copy = new (arena_) GCCAttributeAST();
+void ASTCloner::visit(GccAttributeAST* ast) {
+  auto copy = new (arena_) GccAttributeAST();
   copy_ = copy;
 
   copy->setChecked(ast->checked());

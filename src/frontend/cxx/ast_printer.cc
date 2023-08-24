@@ -1927,8 +1927,8 @@ void ASTPrinter::visit(CxxAttributeAST* ast) {
   }
 }
 
-void ASTPrinter::visit(GCCAttributeAST* ast) {
-  fmt::print(out_, "{}\n", "gccattribute");
+void ASTPrinter::visit(GccAttributeAST* ast) {
+  fmt::print(out_, "{}\n", "gcc-attribute");
 }
 
 void ASTPrinter::visit(AlignasAttributeAST* ast) {

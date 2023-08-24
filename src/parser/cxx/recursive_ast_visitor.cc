@@ -1167,7 +1167,7 @@ void RecursiveASTVisitor::visit(CxxAttributeAST* ast) {
   }
 }
 
-void RecursiveASTVisitor::visit(GCCAttributeAST* ast) {}
+void RecursiveASTVisitor::visit(GccAttributeAST* ast) {}
 
 void RecursiveASTVisitor::visit(AlignasAttributeAST* ast) {
   acceptExpression(ast->expression);

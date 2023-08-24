@@ -253,7 +253,7 @@ export enum ASTKind {
 
     // AttributeSpecifierAST
     CxxAttribute,
-    GCCAttribute,
+    GccAttribute,
     AlignasAttribute,
     AsmAttribute,
 

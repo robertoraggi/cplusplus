@@ -2882,7 +2882,7 @@ auto CxxAttributeAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto GCCAttributeAST::firstSourceLocation() -> SourceLocation {
+auto GccAttributeAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(attributeLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparen2Loc)) return loc;
@@ -2891,7 +2891,7 @@ auto GCCAttributeAST::firstSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto GCCAttributeAST::lastSourceLocation() -> SourceLocation {
+auto GccAttributeAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparen2Loc)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparen2Loc)) return loc;

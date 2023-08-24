@@ -65,7 +65,7 @@ union AST {
 
 union AttributeSpecifier {
   CxxAttribute,
-  GCCAttribute,
+  GccAttribute,
   AlignasAttribute,
   AsmAttribute,
 }
@@ -485,7 +485,7 @@ table CxxAttribute /* AttributeSpecifierAST */ {
   rbracket2_loc: SourceLocation;
 }
 
-table GCCAttribute /* AttributeSpecifierAST */ {
+table GccAttribute /* AttributeSpecifierAST */ {
   attribute_loc: SourceLocation;
   lparen_loc: SourceLocation;
   lparen2_loc: SourceLocation;
