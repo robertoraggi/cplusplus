@@ -212,6 +212,12 @@ void ASTPrinter::visit(RequiresClauseAST* ast) {
 
 void ASTPrinter::visit(ParameterDeclarationClauseAST* ast) {
   fmt::print(out_, "{}\n", "parameter-declaration-clause");
+  if (ast->isVariadic) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "is-variadic: {}\n", ast->isVariadic);
+    --indent_;
+  }
   if (ast->parameterDeclarationList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);

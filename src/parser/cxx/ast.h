@@ -371,6 +371,7 @@ class ParameterDeclarationClauseAST final : public AST {
   List<ParameterDeclarationAST*>* parameterDeclarationList = nullptr;
   SourceLocation commaLoc;
   SourceLocation ellipsisLoc;
+  bool isVariadic = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

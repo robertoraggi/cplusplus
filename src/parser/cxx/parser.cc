@@ -5171,6 +5171,7 @@ auto Parser::parse_parameter_declaration_clause(
     yyast = ast;
 
     ast->ellipsisLoc = ellipsisLoc;
+    ast->isVariadic = true;
 
     return true;
   }
@@ -5184,7 +5185,7 @@ auto Parser::parse_parameter_declaration_clause(
 
   match(TokenKind::T_COMMA, ast->commaLoc);
 
-  match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
+  ast->isVariadic = match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
 
   return true;
 }
