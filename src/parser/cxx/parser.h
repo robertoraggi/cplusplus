@@ -484,6 +484,17 @@ class Parser final {
   Control* control = nullptr;
   bool skipFunctionBody_ = false;
   bool checkTypes_ = false;
+  bool moduleUnit_ = false;
+  const Identifier* moduleId_ = nullptr;
+  const Identifier* importId_ = nullptr;
+  const Identifier* finalId_ = nullptr;
+  const Identifier* overrideId_ = nullptr;
+  int templArgDepth_ = 0;
+  int classDepth_ = 0;
+  uint32_t lastErrorCursor_ = 0;
+  uint32_t cursor_ = 0;
+
+  std::vector<FunctionDefinitionAST*> pendingFunctionDefinitions_;
 
   std::unordered_map<SourceLocation,
                      std::tuple<SourceLocation, ClassSpecifierAST*, bool>>
@@ -501,18 +512,6 @@ class Parser final {
   std::unordered_map<SourceLocation,
                      std::tuple<SourceLocation, NestedNameSpecifierAST*, bool>>
       nested_name_specifiers_;
-
-  std::vector<FunctionDefinitionAST*> pendingFunctionDefinitions_;
-
-  bool module_unit = false;
-  const Identifier* module_id = nullptr;
-  const Identifier* import_id = nullptr;
-  const Identifier* final_id = nullptr;
-  const Identifier* override_id = nullptr;
-  int templArgDepth = 0;
-  int classDepth = 0;
-  uint32_t lastErrorCursor_ = 0;
-  uint32_t cursor_ = 0;
 };
 
 }  // namespace cxx
