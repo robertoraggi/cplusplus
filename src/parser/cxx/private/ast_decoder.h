@@ -177,6 +177,8 @@ class ASTDecoder {
       -> AlignofExpressionAST*;
   auto decodeTypeTraitsExpression(const io::TypeTraitsExpression* node)
       -> TypeTraitsExpressionAST*;
+  auto decodeYieldExpression(const io::YieldExpression* node)
+      -> YieldExpressionAST*;
   auto decodeUnaryExpression(const io::UnaryExpression* node)
       -> UnaryExpressionAST*;
   auto decodeBinaryExpression(const io::BinaryExpression* node)

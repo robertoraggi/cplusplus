@@ -985,6 +985,18 @@ export class TypeTraitsExpressionAST extends ExpressionAST {
     }
 }
 
+export class YieldExpressionAST extends ExpressionAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitYieldExpression(this, context);
+    }
+    getYieldToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getExpression(): ExpressionAST | undefined {
+        return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+}
+
 export class UnaryExpressionAST extends ExpressionAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitUnaryExpression(this, context);
@@ -3476,6 +3488,7 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Transl
     TypeidOfTypeExpressionAST,
     AlignofExpressionAST,
     TypeTraitsExpressionAST,
+    YieldExpressionAST,
     UnaryExpressionAST,
     BinaryExpressionAST,
     AssignmentExpressionAST,

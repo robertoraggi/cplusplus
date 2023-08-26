@@ -1057,6 +1057,21 @@ void ASTCloner::visit(TypeTraitsExpressionAST* ast) {
   copy->typeTraits = ast->typeTraits;
 }
 
+void ASTCloner::visit(YieldExpressionAST* ast) {
+  auto copy = new (arena_) YieldExpressionAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->valueCategory = ast->valueCategory;
+
+  copy->constValue = ast->constValue;
+
+  copy->yieldLoc = ast->yieldLoc;
+
+  copy->expression = accept(ast->expression);
+}
+
 void ASTCloner::visit(UnaryExpressionAST* ast) {
   auto copy = new (arena_) UnaryExpressionAST();
   copy_ = copy;

@@ -489,6 +489,10 @@ void RecursiveASTVisitor::visit(TypeTraitsExpressionAST* ast) {
   }
 }
 
+void RecursiveASTVisitor::visit(YieldExpressionAST* ast) {
+  acceptExpression(ast->expression);
+}
+
 void RecursiveASTVisitor::visit(UnaryExpressionAST* ast) {
   acceptExpression(ast->expression);
 }

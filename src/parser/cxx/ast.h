@@ -1011,6 +1011,19 @@ class TypeTraitsExpressionAST final : public ExpressionAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class YieldExpressionAST final : public ExpressionAST {
+ public:
+  YieldExpressionAST() : ExpressionAST(ASTKind::YieldExpression) {}
+
+  SourceLocation yieldLoc;
+  ExpressionAST* expression = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 class UnaryExpressionAST final : public ExpressionAST {
  public:
   UnaryExpressionAST() : ExpressionAST(ASTKind::UnaryExpression) {}

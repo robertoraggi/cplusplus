@@ -136,6 +136,9 @@ auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
     case io::Expression_TypeTraitsExpression:
       return decodeTypeTraitsExpression(
           reinterpret_cast<const io::TypeTraitsExpression*>(ptr));
+    case io::Expression_YieldExpression:
+      return decodeYieldExpression(
+          reinterpret_cast<const io::YieldExpression*>(ptr));
     case io::Expression_UnaryExpression:
       return decodeUnaryExpression(
           reinterpret_cast<const io::UnaryExpression*>(ptr));
@@ -1444,6 +1447,16 @@ auto ASTDecoder::decodeTypeTraitsExpression(
     }
   }
   ast->typeTraits = static_cast<TokenKind>(node->type_traits());
+  return ast;
+}
+
+auto ASTDecoder::decodeYieldExpression(const io::YieldExpression* node)
+    -> YieldExpressionAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) YieldExpressionAST();
+  ast->expression =
+      decodeExpression(node->expression(), node->expression_type());
   return ast;
 }
 
