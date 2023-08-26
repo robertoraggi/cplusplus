@@ -1136,6 +1136,21 @@ void ASTSlot::visit(YieldExpressionAST* ast) {
   slotCount_ = 2;
 }
 
+void ASTSlot::visit(AwaitExpressionAST* ast) {
+  switch (slot_) {
+    case 0:  // awaitLoc
+      value_ = ast->awaitLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:  // expression
+      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+  }  // switch
+
+  slotCount_ = 2;
+}
+
 void ASTSlot::visit(UnaryExpressionAST* ast) {
   switch (slot_) {
     case 0:  // opLoc

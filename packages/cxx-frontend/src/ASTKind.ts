@@ -82,6 +82,7 @@ export enum ASTKind {
     AlignofExpression,
     TypeTraitsExpression,
     YieldExpression,
+    AwaitExpression,
     UnaryExpression,
     BinaryExpression,
     AssignmentExpression,

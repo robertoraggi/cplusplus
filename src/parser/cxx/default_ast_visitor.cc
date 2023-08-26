@@ -257,6 +257,10 @@ void DefaultASTVisitor::visit(YieldExpressionAST* ast) {
   cxx_runtime_error("visit(YieldExpressionAST): not implemented");
 }
 
+void DefaultASTVisitor::visit(AwaitExpressionAST* ast) {
+  cxx_runtime_error("visit(AwaitExpressionAST): not implemented");
+}
+
 void DefaultASTVisitor::visit(UnaryExpressionAST* ast) {
   cxx_runtime_error("visit(UnaryExpressionAST): not implemented");
 }

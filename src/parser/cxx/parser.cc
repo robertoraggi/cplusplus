@@ -2088,17 +2088,13 @@ auto Parser::parse_await_expression(ExpressionAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_CO_AWAIT, awaitLoc)) return false;
 
-  SourceLocation lparenLoc;
+  auto ast = new (pool) AwaitExpressionAST();
+  yyast = ast;
 
-  expect(TokenKind::T_LPAREN, lparenLoc);
+  ast->awaitLoc = awaitLoc;
 
-  ExpressionAST* expression = nullptr;
-
-  if (!parse_cast_expression(expression)) parse_error("expected an expression");
-
-  SourceLocation rparenLoc;
-
-  expect(TokenKind::T_RPAREN, rparenLoc);
+  if (!parse_cast_expression(ast->expression))
+    parse_error("expected an expression");
 
   return true;
 }

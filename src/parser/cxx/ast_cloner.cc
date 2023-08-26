@@ -1072,6 +1072,21 @@ void ASTCloner::visit(YieldExpressionAST* ast) {
   copy->expression = accept(ast->expression);
 }
 
+void ASTCloner::visit(AwaitExpressionAST* ast) {
+  auto copy = new (arena_) AwaitExpressionAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->valueCategory = ast->valueCategory;
+
+  copy->constValue = ast->constValue;
+
+  copy->awaitLoc = ast->awaitLoc;
+
+  copy->expression = accept(ast->expression);
+}
+
 void ASTCloner::visit(UnaryExpressionAST* ast) {
   auto copy = new (arena_) UnaryExpressionAST();
   copy_ = copy;

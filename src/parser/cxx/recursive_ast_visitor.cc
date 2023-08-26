@@ -493,6 +493,10 @@ void RecursiveASTVisitor::visit(YieldExpressionAST* ast) {
   acceptExpression(ast->expression);
 }
 
+void RecursiveASTVisitor::visit(AwaitExpressionAST* ast) {
+  acceptExpression(ast->expression);
+}
+
 void RecursiveASTVisitor::visit(UnaryExpressionAST* ast) {
   acceptExpression(ast->expression);
 }

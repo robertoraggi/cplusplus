@@ -317,6 +317,10 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         this.accept(node.getExpression(), context);
     }
 
+    visitAwaitExpression(node: ast.AwaitExpressionAST, context: Context): void {
+        this.accept(node.getExpression(), context);
+    }
+
     visitUnaryExpression(node: ast.UnaryExpressionAST, context: Context): void {
         this.accept(node.getExpression(), context);
     }
