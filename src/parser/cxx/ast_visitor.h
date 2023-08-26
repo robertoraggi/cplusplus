@@ -89,6 +89,7 @@ class ASTVisitor {
   virtual void visit(TypeidOfTypeExpressionAST* ast) = 0;
   virtual void visit(AlignofExpressionAST* ast) = 0;
   virtual void visit(TypeTraitsExpressionAST* ast) = 0;
+  virtual void visit(YieldExpressionAST* ast) = 0;
   virtual void visit(UnaryExpressionAST* ast) = 0;
   virtual void visit(BinaryExpressionAST* ast) = 0;
   virtual void visit(AssignmentExpressionAST* ast) = 0;

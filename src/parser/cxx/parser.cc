@@ -2537,19 +2537,11 @@ auto Parser::parse_yield_expression(ExpressionAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_CO_YIELD, yieldLoc)) return false;
 
-  if (LA().is(TokenKind::T_LBRACE)) {
-    BracedInitListAST* bracedInitList = nullptr;
+  auto ast = new (pool) YieldExpressionAST();
+  yyast = ast;
 
-    if (!parse_braced_init_list(bracedInitList)) {
-      parse_error("expected a braced initializer");
-    }
-  } else {
-    ExpressionAST* expression = nullptr;
-
-    if (!parse_assignment_expression(expression)) {
-      parse_error("expected an expression");
-    }
-  }
+  ast->yieldLoc = yieldLoc;
+  parse_expr_or_braced_init_list(ast->expression);
 
   return true;
 }

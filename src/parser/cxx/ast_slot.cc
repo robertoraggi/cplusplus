@@ -1121,6 +1121,21 @@ void ASTSlot::visit(TypeTraitsExpressionAST* ast) {
   slotCount_ = 4;
 }
 
+void ASTSlot::visit(YieldExpressionAST* ast) {
+  switch (slot_) {
+    case 0:  // yieldLoc
+      value_ = ast->yieldLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:  // expression
+      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+  }  // switch
+
+  slotCount_ = 2;
+}
+
 void ASTSlot::visit(UnaryExpressionAST* ast) {
   switch (slot_) {
     case 0:  // opLoc

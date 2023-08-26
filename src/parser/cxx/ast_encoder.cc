@@ -1649,6 +1649,20 @@ void ASTEncoder::visit(TypeTraitsExpressionAST* ast) {
   type_ = io::Expression_TypeTraitsExpression;
 }
 
+void ASTEncoder::visit(YieldExpressionAST* ast) {
+  auto yieldLoc = encodeSourceLocation(ast->yieldLoc);
+
+  const auto [expression, expressionType] = acceptExpression(ast->expression);
+
+  io::YieldExpression::Builder builder{fbb_};
+  builder.add_yield_loc(yieldLoc.o);
+  builder.add_expression(expression);
+  builder.add_expression_type(static_cast<io::Expression>(expressionType));
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Expression_YieldExpression;
+}
+
 void ASTEncoder::visit(UnaryExpressionAST* ast) {
   auto opLoc = encodeSourceLocation(ast->opLoc);
 

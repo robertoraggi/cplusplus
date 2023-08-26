@@ -822,6 +822,18 @@ auto TypeTraitsExpressionAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto YieldExpressionAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(yieldLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  return {};
+}
+
+auto YieldExpressionAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(yieldLoc)) return loc;
+  return {};
+}
+
 auto UnaryExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(opLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;

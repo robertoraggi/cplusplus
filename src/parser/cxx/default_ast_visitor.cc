@@ -253,6 +253,10 @@ void DefaultASTVisitor::visit(TypeTraitsExpressionAST* ast) {
   cxx_runtime_error("visit(TypeTraitsExpressionAST): not implemented");
 }
 
+void DefaultASTVisitor::visit(YieldExpressionAST* ast) {
+  cxx_runtime_error("visit(YieldExpressionAST): not implemented");
+}
+
 void DefaultASTVisitor::visit(UnaryExpressionAST* ast) {
   cxx_runtime_error("visit(UnaryExpressionAST): not implemented");
 }

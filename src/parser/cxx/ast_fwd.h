@@ -133,6 +133,7 @@ class TypeidExpressionAST;
 class TypeidOfTypeExpressionAST;
 class AlignofExpressionAST;
 class TypeTraitsExpressionAST;
+class YieldExpressionAST;
 class UnaryExpressionAST;
 class BinaryExpressionAST;
 class AssignmentExpressionAST;

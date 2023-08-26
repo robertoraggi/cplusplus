@@ -154,6 +154,7 @@ union Expression {
   TypeidOfTypeExpression,
   AlignofExpression,
   TypeTraitsExpression,
+  YieldExpression,
   UnaryExpression,
   BinaryExpression,
   AssignmentExpression,
@@ -968,6 +969,11 @@ table TypeTraitsExpression /* ExpressionAST */ {
   type_traits_loc: SourceLocation;
   lparen_loc: SourceLocation;
   rparen_loc: SourceLocation;
+}
+
+table YieldExpression /* ExpressionAST */ {
+  expression: Expression;
+  yield_loc: SourceLocation;
 }
 
 table UnaryExpression /* ExpressionAST */ {

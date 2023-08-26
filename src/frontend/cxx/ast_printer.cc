@@ -620,6 +620,11 @@ void ASTPrinter::visit(TypeTraitsExpressionAST* ast) {
   }
 }
 
+void ASTPrinter::visit(YieldExpressionAST* ast) {
+  fmt::print(out_, "{}\n", "yield-expression");
+  accept(ast->expression, "expression");
+}
+
 void ASTPrinter::visit(UnaryExpressionAST* ast) {
   fmt::print(out_, "{}\n", "unary-expression");
   if (ast->op != TokenKind::T_EOF_SYMBOL) {
