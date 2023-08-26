@@ -134,6 +134,7 @@ class TypeidOfTypeExpressionAST;
 class AlignofExpressionAST;
 class TypeTraitsExpressionAST;
 class YieldExpressionAST;
+class AwaitExpressionAST;
 class UnaryExpressionAST;
 class BinaryExpressionAST;
 class AssignmentExpressionAST;

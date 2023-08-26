@@ -139,6 +139,9 @@ auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
     case io::Expression_YieldExpression:
       return decodeYieldExpression(
           reinterpret_cast<const io::YieldExpression*>(ptr));
+    case io::Expression_AwaitExpression:
+      return decodeAwaitExpression(
+          reinterpret_cast<const io::AwaitExpression*>(ptr));
     case io::Expression_UnaryExpression:
       return decodeUnaryExpression(
           reinterpret_cast<const io::UnaryExpression*>(ptr));
@@ -1455,6 +1458,16 @@ auto ASTDecoder::decodeYieldExpression(const io::YieldExpression* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) YieldExpressionAST();
+  ast->expression =
+      decodeExpression(node->expression(), node->expression_type());
+  return ast;
+}
+
+auto ASTDecoder::decodeAwaitExpression(const io::AwaitExpression* node)
+    -> AwaitExpressionAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) AwaitExpressionAST();
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
   return ast;

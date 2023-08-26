@@ -625,6 +625,11 @@ void ASTPrinter::visit(YieldExpressionAST* ast) {
   accept(ast->expression, "expression");
 }
 
+void ASTPrinter::visit(AwaitExpressionAST* ast) {
+  fmt::print(out_, "{}\n", "await-expression");
+  accept(ast->expression, "expression");
+}
+
 void ASTPrinter::visit(UnaryExpressionAST* ast) {
   fmt::print(out_, "{}\n", "unary-expression");
   if (ast->op != TokenKind::T_EOF_SYMBOL) {

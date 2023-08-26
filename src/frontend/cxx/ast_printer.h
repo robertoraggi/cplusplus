@@ -101,6 +101,7 @@ class ASTPrinter : ASTVisitor {
   void visit(AlignofExpressionAST* ast) override;
   void visit(TypeTraitsExpressionAST* ast) override;
   void visit(YieldExpressionAST* ast) override;
+  void visit(AwaitExpressionAST* ast) override;
   void visit(UnaryExpressionAST* ast) override;
   void visit(BinaryExpressionAST* ast) override;
   void visit(AssignmentExpressionAST* ast) override;

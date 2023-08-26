@@ -1024,6 +1024,19 @@ class YieldExpressionAST final : public ExpressionAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class AwaitExpressionAST final : public ExpressionAST {
+ public:
+  AwaitExpressionAST() : ExpressionAST(ASTKind::AwaitExpression) {}
+
+  SourceLocation awaitLoc;
+  ExpressionAST* expression = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 class UnaryExpressionAST final : public ExpressionAST {
  public:
   UnaryExpressionAST() : ExpressionAST(ASTKind::UnaryExpression) {}

@@ -1663,6 +1663,20 @@ void ASTEncoder::visit(YieldExpressionAST* ast) {
   type_ = io::Expression_YieldExpression;
 }
 
+void ASTEncoder::visit(AwaitExpressionAST* ast) {
+  auto awaitLoc = encodeSourceLocation(ast->awaitLoc);
+
+  const auto [expression, expressionType] = acceptExpression(ast->expression);
+
+  io::AwaitExpression::Builder builder{fbb_};
+  builder.add_await_loc(awaitLoc.o);
+  builder.add_expression(expression);
+  builder.add_expression_type(static_cast<io::Expression>(expressionType));
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Expression_AwaitExpression;
+}
+
 void ASTEncoder::visit(UnaryExpressionAST* ast) {
   auto opLoc = encodeSourceLocation(ast->opLoc);
 

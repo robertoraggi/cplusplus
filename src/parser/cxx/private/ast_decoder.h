@@ -179,6 +179,8 @@ class ASTDecoder {
       -> TypeTraitsExpressionAST*;
   auto decodeYieldExpression(const io::YieldExpression* node)
       -> YieldExpressionAST*;
+  auto decodeAwaitExpression(const io::AwaitExpression* node)
+      -> AwaitExpressionAST*;
   auto decodeUnaryExpression(const io::UnaryExpression* node)
       -> UnaryExpressionAST*;
   auto decodeBinaryExpression(const io::BinaryExpression* node)

@@ -834,6 +834,18 @@ auto YieldExpressionAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto AwaitExpressionAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(awaitLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  return {};
+}
+
+auto AwaitExpressionAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(awaitLoc)) return loc;
+  return {};
+}
+
 auto UnaryExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(opLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
