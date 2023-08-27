@@ -3539,6 +3539,12 @@ void ASTCloner::visit(FunctionDeclaratorAST* ast) {
   copy->parametersAndQualifiers = accept(ast->parametersAndQualifiers);
 
   copy->trailingReturnType = accept(ast->trailingReturnType);
+
+  copy->isFinal = ast->isFinal;
+
+  copy->isOverride = ast->isOverride;
+
+  copy->isPure = ast->isPure;
 }
 
 void ASTCloner::visit(ArrayDeclaratorAST* ast) {

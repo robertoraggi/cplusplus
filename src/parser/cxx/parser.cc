@@ -3664,7 +3664,7 @@ auto Parser::parse_notypespec_function_definition(
 
   const auto has_requires_clause = parse_requires_clause(requiresClause);
 
-  if (!has_requires_clause) parse_virt_specifier_seq();
+  if (!has_requires_clause) parse_virt_specifier_seq(functionDeclarator);
 
   SourceLocation semicolonLoc;
 
@@ -5513,12 +5513,11 @@ auto Parser::parse_expr_or_braced_init_list(ExpressionAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_virt_specifier_seq() -> bool {
-  SourceLocation finalLoc;
+auto Parser::parse_virt_specifier_seq(FunctionDeclaratorAST* functionDeclarator)
+    -> bool {
+  if (!parse_virt_specifier(functionDeclarator)) return false;
 
-  if (!parse_virt_specifier(finalLoc)) return false;
-
-  while (parse_virt_specifier(finalLoc)) {
+  while (parse_virt_specifier(functionDeclarator)) {
     //
   }
 
@@ -6996,12 +6995,14 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
 
   const auto hasDeclarator = parse_declarator(declarator);
 
-  if (hasDeclarator && getFunctionDeclarator(declarator)) {
+  auto functionDeclarator = getFunctionDeclarator(declarator);
+
+  if (hasDeclarator && functionDeclarator) {
     RequiresClauseAST* requiresClause = nullptr;
 
     const auto has_requires_clause = parse_requires_clause(requiresClause);
 
-    if (!has_requires_clause) parse_virt_specifier_seq();
+    if (!has_requires_clause) parse_virt_specifier_seq(functionDeclarator);
 
     if (lookat_function_body()) {
       FunctionBodyAST* functionBody = nullptr;
@@ -7125,14 +7126,20 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
 
   ast->declarator = declarator;
 
-  if (getFunctionDeclarator(declarator)) {
+  if (auto functionDeclarator = getFunctionDeclarator(declarator)) {
     RequiresClauseAST* requiresClause = nullptr;
 
     if (parse_requires_clause(requiresClause)) {
       ast->requiresClause = requiresClause;
     } else {
-      parse_virt_specifier_seq();
-      parse_pure_specifier();
+      parse_virt_specifier_seq(functionDeclarator);
+
+      SourceLocation equalLoc;
+      SourceLocation zeroLoc;
+
+      const auto isPure = parse_pure_specifier(equalLoc, zeroLoc);
+
+      functionDeclarator->isPure = isPure;
     }
 
     return true;
@@ -7143,24 +7150,30 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
   return true;
 }
 
-auto Parser::parse_virt_specifier(SourceLocation& loc) -> bool {
-  if (parse_final(loc)) return true;
+auto Parser::parse_virt_specifier(FunctionDeclaratorAST* functionDeclarator)
+    -> bool {
+  SourceLocation loc;
 
-  if (parse_override(loc)) return true;
+  if (parse_final(loc)) {
+    functionDeclarator->isFinal = true;
+    return true;
+  }
+
+  if (parse_override(loc)) {
+    functionDeclarator->isOverride = true;
+    return true;
+  }
 
   return false;
 }
 
-auto Parser::parse_pure_specifier() -> bool {
-  SourceLocation equalLoc;
-
+auto Parser::parse_pure_specifier(SourceLocation& equalLoc,
+                                  SourceLocation& zeroLoc) -> bool {
   if (!match(TokenKind::T_EQUAL, equalLoc)) return false;
 
-  SourceLocation literalLoc;
+  if (!match(TokenKind::T_INTEGER_LITERAL, zeroLoc)) return false;
 
-  if (!match(TokenKind::T_INTEGER_LITERAL, literalLoc)) return false;
-
-  const auto& number = unit->tokenText(literalLoc);
+  const auto& number = unit->tokenText(zeroLoc);
 
   if (number != "0") return false;
 
