@@ -638,6 +638,36 @@ void ASTEncoder::visit(BaseClauseAST* ast) {
   offset_ = builder.Finish().Union();
 }
 
+void ASTEncoder::visit(NewDeclaratorAST* ast) {
+  std::vector<flatbuffers::Offset<>> ptrOpListOffsets;
+  std::vector<std::underlying_type_t<io::PtrOperator>> ptrOpListTypes;
+
+  for (auto it = ast->ptrOpList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptPtrOperator(it->value);
+    ptrOpListOffsets.push_back(offset);
+    ptrOpListTypes.push_back(type);
+  }
+
+  auto ptrOpListOffsetsVector = fbb_.CreateVector(ptrOpListOffsets);
+  auto ptrOpListTypesVector = fbb_.CreateVector(ptrOpListTypes);
+
+  std::vector<flatbuffers::Offset<io::ArrayDeclarator>> modifiersOffsets;
+  for (auto it = ast->modifiers; it; it = it->next) {
+    if (!it->value) continue;
+    modifiersOffsets.emplace_back(accept(it->value).o);
+  }
+
+  auto modifiersOffsetsVector = fbb_.CreateVector(modifiersOffsets);
+
+  io::NewDeclarator::Builder builder{fbb_};
+  builder.add_ptr_op_list(ptrOpListOffsetsVector);
+  builder.add_ptr_op_list_type(ptrOpListTypesVector);
+  builder.add_modifiers(modifiersOffsetsVector);
+
+  offset_ = builder.Finish().Union();
+}
+
 void ASTEncoder::visit(NewTypeIdAST* ast) {
   std::vector<flatbuffers::Offset<>> typeSpecifierListOffsets;
   std::vector<std::underlying_type_t<io::Specifier>> typeSpecifierListTypes;
@@ -653,9 +683,12 @@ void ASTEncoder::visit(NewTypeIdAST* ast) {
       fbb_.CreateVector(typeSpecifierListOffsets);
   auto typeSpecifierListTypesVector = fbb_.CreateVector(typeSpecifierListTypes);
 
+  const auto newDeclarator = accept(ast->newDeclarator);
+
   io::NewTypeId::Builder builder{fbb_};
   builder.add_type_specifier_list(typeSpecifierListOffsetsVector);
   builder.add_type_specifier_list_type(typeSpecifierListTypesVector);
+  builder.add_new_declarator(newDeclarator.o);
 
   offset_ = builder.Finish().Union();
 }

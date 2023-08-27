@@ -95,10 +95,20 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
         }
     }
 
+    visitNewDeclarator(node: ast.NewDeclaratorAST, context: Context): void {
+        for (const element of node.getPtrOpList()) {
+            this.accept(element, context);
+        }
+        for (const element of node.getModifiers()) {
+            this.accept(element, context);
+        }
+    }
+
     visitNewTypeId(node: ast.NewTypeIdAST, context: Context): void {
         for (const element of node.getTypeSpecifierList()) {
             this.accept(element, context);
         }
+        this.accept(node.getNewDeclarator(), context);
     }
 
     visitRequiresClause(node: ast.RequiresClauseAST, context: Context): void {

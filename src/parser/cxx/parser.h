@@ -182,8 +182,8 @@ class Parser final {
   auto parse_new_expression(ExpressionAST*& yyast) -> bool;
   auto parse_new_placement(NewPlacementAST*& yyast) -> bool;
   auto parse_new_type_id(NewTypeIdAST*& yyast) -> bool;
-  auto parse_new_declarator() -> bool;
-  auto parse_noptr_new_declarator() -> bool;
+  auto parse_new_declarator(NewDeclaratorAST*& yyast) -> bool;
+  auto parse_noptr_new_declarator(List<ArrayDeclaratorAST*>*& yyast) -> bool;
   auto parse_new_initializer(NewInitializerAST*& yyast) -> bool;
   auto parse_delete_expression(ExpressionAST*& yyast) -> bool;
   auto parse_cast_expression(ExpressionAST*& yyast) -> bool;

@@ -75,6 +75,14 @@ void RecursiveASTVisitor::acceptBaseSpecifier(BaseSpecifierAST* ast) {
   accept(ast);
 }
 
+void RecursiveASTVisitor::acceptArrayDeclarator(ArrayDeclaratorAST* ast) {
+  accept(ast);
+}
+
+void RecursiveASTVisitor::acceptNewDeclarator(NewDeclaratorAST* ast) {
+  accept(ast);
+}
+
 void RecursiveASTVisitor::acceptParameterDeclaration(
     ParameterDeclarationAST* ast) {
   accept(ast);
@@ -291,10 +299,20 @@ void RecursiveASTVisitor::visit(BaseClauseAST* ast) {
   }
 }
 
+void RecursiveASTVisitor::visit(NewDeclaratorAST* ast) {
+  for (auto it = ast->ptrOpList; it; it = it->next) {
+    acceptPtrOperator(it->value);
+  }
+  for (auto it = ast->modifiers; it; it = it->next) {
+    acceptArrayDeclarator(it->value);
+  }
+}
+
 void RecursiveASTVisitor::visit(NewTypeIdAST* ast) {
   for (auto it = ast->typeSpecifierList; it; it = it->next) {
     acceptSpecifier(it->value);
   }
+  acceptNewDeclarator(ast->newDeclarator);
 }
 
 void RecursiveASTVisitor::visit(RequiresClauseAST* ast) {

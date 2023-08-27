@@ -218,6 +218,31 @@ void ASTCloner::visit(BaseClauseAST* ast) {
   }
 }
 
+void ASTCloner::visit(NewDeclaratorAST* ast) {
+  auto copy = new (arena_) NewDeclaratorAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  if (auto it = ast->ptrOpList) {
+    auto out = &copy->ptrOpList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  if (auto it = ast->modifiers) {
+    auto out = &copy->modifiers;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+}
+
 void ASTCloner::visit(NewTypeIdAST* ast) {
   auto copy = new (arena_) NewTypeIdAST();
   copy_ = copy;
@@ -232,6 +257,8 @@ void ASTCloner::visit(NewTypeIdAST* ast) {
       out = &(*out)->next;
     }
   }
+
+  copy->newDeclarator = accept(ast->newDeclarator);
 }
 
 void ASTCloner::visit(RequiresClauseAST* ast) {

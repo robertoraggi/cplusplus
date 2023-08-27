@@ -136,6 +136,7 @@ class ASTEncoder : ASTVisitor {
   void visit(InitDeclaratorAST* ast) override;
   void visit(BaseSpecifierAST* ast) override;
   void visit(BaseClauseAST* ast) override;
+  void visit(NewDeclaratorAST* ast) override;
   void visit(NewTypeIdAST* ast) override;
   void visit(RequiresClauseAST* ast) override;
   void visit(ParameterDeclarationClauseAST* ast) override;

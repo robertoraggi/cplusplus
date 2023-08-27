@@ -227,15 +227,34 @@ void ASTSlot::visit(BaseClauseAST* ast) {
   slotCount_ = 2;
 }
 
+void ASTSlot::visit(NewDeclaratorAST* ast) {
+  switch (slot_) {
+    case 0:  // ptrOpList
+      value_ = reinterpret_cast<std::intptr_t>(ast->ptrOpList);
+      slotKind_ = ASTSlotKind::kNodeList;
+      break;
+    case 1:  // modifiers
+      value_ = reinterpret_cast<std::intptr_t>(ast->modifiers);
+      slotKind_ = ASTSlotKind::kNodeList;
+      break;
+  }  // switch
+
+  slotCount_ = 2;
+}
+
 void ASTSlot::visit(NewTypeIdAST* ast) {
   switch (slot_) {
     case 0:  // typeSpecifierList
       value_ = reinterpret_cast<std::intptr_t>(ast->typeSpecifierList);
       slotKind_ = ASTSlotKind::kNodeList;
       break;
+    case 1:  // newDeclarator
+      value_ = reinterpret_cast<std::intptr_t>(ast->newDeclarator);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
   }  // switch
 
-  slotCount_ = 1;
+  slotCount_ = 2;
 }
 
 void ASTSlot::visit(RequiresClauseAST* ast) {

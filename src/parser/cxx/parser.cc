@@ -2204,60 +2204,73 @@ auto Parser::parse_new_type_id(NewTypeIdAST*& yyast) -> bool {
 
   const auto saved = currentLocation();
 
-  if (!parse_new_declarator()) rewind(saved);
+  if (!parse_new_declarator(ast->newDeclarator)) rewind(saved);
 
   return true;
 }
 
-auto Parser::parse_new_declarator() -> bool {
-  PtrOperatorAST* ptrOp = nullptr;
+auto Parser::parse_new_declarator(NewDeclaratorAST*& yyast) -> bool {
+  List<PtrOperatorAST*>* ptrOpList = nullptr;
 
-  if (parse_ptr_operator(ptrOp)) {
-    auto saved = currentLocation();
+  const auto hasPtrList = parse_ptr_operator_seq(ptrOpList);
 
-    if (!parse_new_declarator()) rewind(saved);
+  List<ArrayDeclaratorAST*>* modifiers = nullptr;
 
-    return true;
-  }
+  const auto hasDeclChunks = parse_noptr_new_declarator(modifiers);
 
-  return parse_noptr_new_declarator();
+  if (!hasPtrList && !hasDeclChunks) return false;
+
+  auto ast = new (pool) NewDeclaratorAST();
+  yyast = ast;
+
+  ast->ptrOpList = ptrOpList;
+  ast->modifiers = modifiers;
+
+  return true;
 }
 
-auto Parser::parse_noptr_new_declarator() -> bool {
+auto Parser::parse_noptr_new_declarator(List<ArrayDeclaratorAST*>*& yyast)
+    -> bool {
+  auto it = &yyast;
+
   SourceLocation lbracketLoc;
 
   if (!match(TokenKind::T_LBRACKET, lbracketLoc)) return false;
 
-  SourceLocation rbracketLoc;
+  auto declarator = new (pool) ArrayDeclaratorAST();
 
-  if (!match(TokenKind::T_RBRACKET, rbracketLoc)) {
-    ExpressionAST* expression = nullptr;
+  declarator->lbracketLoc = lbracketLoc;
 
-    if (!parse_expression(expression)) parse_error("expected an expression");
+  if (!match(TokenKind::T_RBRACKET, declarator->rbracketLoc)) {
+    if (!parse_expression(declarator->expression))
+      parse_error("expected an expression");
 
-    expect(TokenKind::T_RBRACKET, rbracketLoc);
+    expect(TokenKind::T_RBRACKET, declarator->rbracketLoc);
   }
 
-  List<AttributeSpecifierAST*>* attributes = nullptr;
+  parse_attribute_specifier_seq(declarator->attributeList);
 
-  parse_attribute_specifier_seq(attributes);
+  *it = new (pool) List(declarator);
+  it = &(*it)->next;
 
   while (match(TokenKind::T_LBRACKET, lbracketLoc)) {
-    SourceLocation rbracketLoc;
+    auto declarator = new (pool) ArrayDeclaratorAST();
+    *it = new (pool) List(declarator);
+    it = &(*it)->next;
 
-    if (!match(TokenKind::T_RBRACKET, rbracketLoc)) {
+    declarator->lbracketLoc = lbracketLoc;
+
+    if (!match(TokenKind::T_RBRACKET, declarator->rbracketLoc)) {
       ExpressionAST* expression = nullptr;
 
-      if (!parse_constant_expression(expression)) {
+      if (!parse_constant_expression(declarator->expression)) {
         parse_error("expected an expression");
       }
 
-      expect(TokenKind::T_RBRACKET, rbracketLoc);
+      expect(TokenKind::T_RBRACKET, declarator->rbracketLoc);
     }
 
-    List<AttributeSpecifierAST*>* attributes = nullptr;
-
-    parse_attribute_specifier_seq(attributes);
+    parse_attribute_specifier_seq(declarator->attributeList);
   }
 
   return true;

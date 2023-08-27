@@ -35,6 +35,7 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitInitDeclarator(node: ast.InitDeclaratorAST, context: Context): Result;
     abstract visitBaseSpecifier(node: ast.BaseSpecifierAST, context: Context): Result;
     abstract visitBaseClause(node: ast.BaseClauseAST, context: Context): Result;
+    abstract visitNewDeclarator(node: ast.NewDeclaratorAST, context: Context): Result;
     abstract visitNewTypeId(node: ast.NewTypeIdAST, context: Context): Result;
     abstract visitRequiresClause(node: ast.RequiresClauseAST, context: Context): Result;
     abstract visitParameterDeclarationClause(node: ast.ParameterDeclarationClauseAST, context: Context): Result;

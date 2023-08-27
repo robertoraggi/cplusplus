@@ -339,11 +339,25 @@ class BaseClauseAST final : public AST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class NewDeclaratorAST final : public AST {
+ public:
+  NewDeclaratorAST() : AST(ASTKind::NewDeclarator) {}
+
+  List<PtrOperatorAST*>* ptrOpList = nullptr;
+  List<ArrayDeclaratorAST*>* modifiers = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 class NewTypeIdAST final : public AST {
  public:
   NewTypeIdAST() : AST(ASTKind::NewTypeId) {}
 
   List<SpecifierAST*>* typeSpecifierList = nullptr;
+  NewDeclaratorAST* newDeclarator = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
