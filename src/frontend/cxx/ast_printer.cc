@@ -192,6 +192,28 @@ void ASTPrinter::visit(BaseClauseAST* ast) {
   }
 }
 
+void ASTPrinter::visit(NewDeclaratorAST* ast) {
+  fmt::print(out_, "{}\n", "new-declarator");
+  if (ast->ptrOpList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "ptr-op-list");
+    for (auto it = ast->ptrOpList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+  if (ast->modifiers) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "modifiers");
+    for (auto it = ast->modifiers; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+}
+
 void ASTPrinter::visit(NewTypeIdAST* ast) {
   fmt::print(out_, "{}\n", "new-type-id");
   if (ast->typeSpecifierList) {
@@ -203,6 +225,7 @@ void ASTPrinter::visit(NewTypeIdAST* ast) {
     }
     --indent_;
   }
+  accept(ast->newDeclarator, "new-declarator");
 }
 
 void ASTPrinter::visit(RequiresClauseAST* ast) {

@@ -255,6 +255,22 @@ export class BaseClauseAST extends AST {
     }
 }
 
+export class NewDeclaratorAST extends AST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitNewDeclarator(this, context);
+    }
+    *getPtrOpList(): Generator<PtrOperatorAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
+            yield AST.from<PtrOperatorAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+    *getModifiers(): Generator<ArrayDeclaratorAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
+            yield AST.from<ArrayDeclaratorAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+}
+
 export class NewTypeIdAST extends AST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitNewTypeId(this, context);
@@ -263,6 +279,9 @@ export class NewTypeIdAST extends AST {
         for (let it = cxx.getASTSlot(this.getHandle(), 0); it; it = cxx.getListNext(it)) {
             yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
         }
+    }
+    getNewDeclarator(): NewDeclaratorAST | undefined {
+        return AST.from<NewDeclaratorAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
     }
 }
 
@@ -3474,6 +3493,7 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Transl
     InitDeclaratorAST,
     BaseSpecifierAST,
     BaseClauseAST,
+    NewDeclaratorAST,
     NewTypeIdAST,
     RequiresClauseAST,
     ParameterDeclarationClauseAST,

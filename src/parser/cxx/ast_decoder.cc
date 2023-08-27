@@ -876,6 +876,31 @@ auto ASTDecoder::decodeBaseClause(const io::BaseClause* node)
   return ast;
 }
 
+auto ASTDecoder::decodeNewDeclarator(const io::NewDeclarator* node)
+    -> NewDeclaratorAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) NewDeclaratorAST();
+  if (node->ptr_op_list()) {
+    auto* inserter = &ast->ptrOpList;
+    for (std::size_t i = 0; i < node->ptr_op_list()->size(); ++i) {
+      *inserter = new (pool_) List(
+          decodePtrOperator(node->ptr_op_list()->Get(i),
+                            io::PtrOperator(node->ptr_op_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  if (node->modifiers()) {
+    auto* inserter = &ast->modifiers;
+    for (std::size_t i = 0; i < node->modifiers()->size(); ++i) {
+      *inserter =
+          new (pool_) List(decodeArrayDeclarator(node->modifiers()->Get(i)));
+      inserter = &(*inserter)->next;
+    }
+  }
+  return ast;
+}
+
 auto ASTDecoder::decodeNewTypeId(const io::NewTypeId* node) -> NewTypeIdAST* {
   if (!node) return nullptr;
 
@@ -889,6 +914,7 @@ auto ASTDecoder::decodeNewTypeId(const io::NewTypeId* node) -> NewTypeIdAST* {
       inserter = &(*inserter)->next;
     }
   }
+  ast->newDeclarator = decodeNewDeclarator(node->new_declarator());
   return ast;
 }
 

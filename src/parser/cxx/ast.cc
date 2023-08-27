@@ -160,12 +160,26 @@ auto BaseClauseAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto NewDeclaratorAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(ptrOpList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(modifiers)) return loc;
+  return {};
+}
+
+auto NewDeclaratorAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(modifiers)) return loc;
+  if (auto loc = cxx::lastSourceLocation(ptrOpList)) return loc;
+  return {};
+}
+
 auto NewTypeIdAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(typeSpecifierList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(newDeclarator)) return loc;
   return {};
 }
 
 auto NewTypeIdAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(newDeclarator)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeSpecifierList)) return loc;
   return {};
 }
