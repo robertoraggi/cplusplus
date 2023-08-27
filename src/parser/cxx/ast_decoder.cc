@@ -1173,6 +1173,23 @@ auto ASTDecoder::decodeDesignator(const io::Designator* node)
   return ast;
 }
 
+auto ASTDecoder::decodeNewPlacement(const io::NewPlacement* node)
+    -> NewPlacementAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) NewPlacementAST();
+  if (node->expression_list()) {
+    auto* inserter = &ast->expressionList;
+    for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeExpression(
+          node->expression_list()->Get(i),
+          io::Expression(node->expression_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  return ast;
+}
+
 auto ASTDecoder::decodeThrowExceptionSpecifier(
     const io::ThrowExceptionSpecifier* node) -> ThrowExceptionSpecifierAST* {
   if (!node) return nullptr;
@@ -1644,6 +1661,7 @@ auto ASTDecoder::decodeNewExpression(const io::NewExpression* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) NewExpressionAST();
+  ast->newPlacement = decodeNewPlacement(node->new_placement());
   ast->typeId = decodeNewTypeId(node->type_id());
   ast->newInitalizer =
       decodeNewInitializer(node->new_initalizer(), node->new_initalizer_type());
@@ -1904,7 +1922,7 @@ auto ASTDecoder::decodeNewBracedInitializer(
   if (!node) return nullptr;
 
   auto ast = new (pool_) NewBracedInitializerAST();
-  ast->bracedInit = decodeBracedInitList(node->braced_init());
+  ast->bracedInitList = decodeBracedInitList(node->braced_init_list());
   return ast;
 }
 

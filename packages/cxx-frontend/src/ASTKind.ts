@@ -51,6 +51,7 @@ export enum ASTKind {
     Attribute,
     AttributeUsingPrefix,
     Designator,
+    NewPlacement,
 
     // ExceptionSpecifierAST
     ThrowExceptionSpecifier,

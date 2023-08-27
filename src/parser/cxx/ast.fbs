@@ -61,6 +61,7 @@ union AST {
   Attribute,
   AttributeUsingPrefix,
   Designator,
+  NewPlacement,
 }
 
 union AttributeSpecifier {
@@ -476,6 +477,12 @@ table Designator /* AST */ {
   identifier: string;
   dot_loc: SourceLocation;
   identifier_loc: SourceLocation;
+}
+
+table NewPlacement /* AST */ {
+  expression_list: [Expression];
+  lparen_loc: SourceLocation;
+  rparen_loc: SourceLocation;
 }
 
 table CxxAttribute /* AttributeSpecifierAST */ {
@@ -1072,6 +1079,7 @@ table CppCastExpression /* ExpressionAST */ {
 }
 
 table NewExpression /* ExpressionAST */ {
+  new_placement: NewPlacement;
   type_id: NewTypeId;
   new_initalizer: NewInitializer;
   scope_loc: SourceLocation;
@@ -1238,7 +1246,7 @@ table NewParenInitializer /* NewInitializerAST */ {
 }
 
 table NewBracedInitializer /* NewInitializerAST */ {
-  braced_init: BracedInitList;
+  braced_init_list: BracedInitList;
 }
 
 table PointerOperator /* PtrOperatorAST */ {

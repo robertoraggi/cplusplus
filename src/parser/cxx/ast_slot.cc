@@ -623,6 +623,25 @@ void ASTSlot::visit(DesignatorAST* ast) {
   slotCount_ = 2;
 }
 
+void ASTSlot::visit(NewPlacementAST* ast) {
+  switch (slot_) {
+    case 0:  // lparenLoc
+      value_ = ast->lparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:  // expressionList
+      value_ = reinterpret_cast<std::intptr_t>(ast->expressionList);
+      slotKind_ = ASTSlotKind::kNodeList;
+      break;
+    case 2:  // rparenLoc
+      value_ = ast->rparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
+
+  slotCount_ = 3;
+}
+
 void ASTSlot::visit(ThrowExceptionSpecifierAST* ast) {
   switch (slot_) {
     case 0:  // throwLoc
@@ -1432,17 +1451,21 @@ void ASTSlot::visit(NewExpressionAST* ast) {
       value_ = ast->newLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       break;
-    case 2:  // typeId
+    case 2:  // newPlacement
+      value_ = reinterpret_cast<std::intptr_t>(ast->newPlacement);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 3:  // typeId
       value_ = reinterpret_cast<std::intptr_t>(ast->typeId);
       slotKind_ = ASTSlotKind::kNode;
       break;
-    case 3:  // newInitalizer
+    case 4:  // newInitalizer
       value_ = reinterpret_cast<std::intptr_t>(ast->newInitalizer);
       slotKind_ = ASTSlotKind::kNode;
       break;
   }  // switch
 
-  slotCount_ = 4;
+  slotCount_ = 5;
 }
 
 void ASTSlot::visit(DeleteExpressionAST* ast) {
@@ -1850,8 +1873,8 @@ void ASTSlot::visit(NewParenInitializerAST* ast) {
 
 void ASTSlot::visit(NewBracedInitializerAST* ast) {
   switch (slot_) {
-    case 0:  // bracedInit
-      value_ = reinterpret_cast<std::intptr_t>(ast->bracedInit);
+    case 0:  // bracedInitList
+      value_ = reinterpret_cast<std::intptr_t>(ast->bracedInitList);
       slotKind_ = ASTSlotKind::kNode;
       break;
   }  // switch

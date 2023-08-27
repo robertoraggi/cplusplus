@@ -103,6 +103,7 @@ class AttributeArgumentClauseAST;
 class AttributeAST;
 class AttributeUsingPrefixAST;
 class DesignatorAST;
+class NewPlacementAST;
 
 // ExceptionSpecifierAST
 class ThrowExceptionSpecifierAST;

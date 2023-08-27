@@ -122,6 +122,7 @@ class ASTDecoder {
   auto decodeAttributeUsingPrefix(const io::AttributeUsingPrefix* node)
       -> AttributeUsingPrefixAST*;
   auto decodeDesignator(const io::Designator* node) -> DesignatorAST*;
+  auto decodeNewPlacement(const io::NewPlacement* node) -> NewPlacementAST*;
 
   auto decodeThrowExceptionSpecifier(const io::ThrowExceptionSpecifier* node)
       -> ThrowExceptionSpecifierAST*;

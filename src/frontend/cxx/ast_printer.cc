@@ -404,6 +404,19 @@ void ASTPrinter::visit(DesignatorAST* ast) {
   accept(ast->identifier, "identifier");
 }
 
+void ASTPrinter::visit(NewPlacementAST* ast) {
+  fmt::print(out_, "{}\n", "new-placement");
+  if (ast->expressionList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "expression-list");
+    for (auto it = ast->expressionList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+}
+
 void ASTPrinter::visit(ThrowExceptionSpecifierAST* ast) {
   fmt::print(out_, "{}\n", "throw-exception-specifier");
 }
@@ -754,6 +767,7 @@ void ASTPrinter::visit(CppCastExpressionAST* ast) {
 
 void ASTPrinter::visit(NewExpressionAST* ast) {
   fmt::print(out_, "{}\n", "new-expression");
+  accept(ast->newPlacement, "new-placement");
   accept(ast->typeId, "type-id");
   accept(ast->newInitalizer, "new-initalizer");
 }
@@ -901,7 +915,7 @@ void ASTPrinter::visit(NewParenInitializerAST* ast) {
 
 void ASTPrinter::visit(NewBracedInitializerAST* ast) {
   fmt::print(out_, "{}\n", "new-braced-initializer");
-  accept(ast->bracedInit, "braced-init");
+  accept(ast->bracedInitList, "braced-init-list");
 }
 
 void ASTPrinter::visit(EllipsisExceptionDeclarationAST* ast) {

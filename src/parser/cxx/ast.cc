@@ -452,6 +452,20 @@ auto DesignatorAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto NewPlacementAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expressionList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  return {};
+}
+
+auto NewPlacementAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(expressionList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  return {};
+}
+
 auto ThrowExceptionSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(throwLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
@@ -1043,6 +1057,7 @@ auto CppCastExpressionAST::lastSourceLocation() -> SourceLocation {
 auto NewExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(scopeLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(newLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(newPlacement)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
   if (auto loc = cxx::firstSourceLocation(newInitalizer)) return loc;
   return {};
@@ -1051,6 +1066,7 @@ auto NewExpressionAST::firstSourceLocation() -> SourceLocation {
 auto NewExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(newInitalizer)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(newPlacement)) return loc;
   if (auto loc = cxx::lastSourceLocation(newLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(scopeLoc)) return loc;
   return {};
@@ -1353,12 +1369,12 @@ auto NewParenInitializerAST::lastSourceLocation() -> SourceLocation {
 }
 
 auto NewBracedInitializerAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(bracedInit)) return loc;
+  if (auto loc = cxx::firstSourceLocation(bracedInitList)) return loc;
   return {};
 }
 
 auto NewBracedInitializerAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(bracedInit)) return loc;
+  if (auto loc = cxx::lastSourceLocation(bracedInitList)) return loc;
   return {};
 }
 

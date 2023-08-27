@@ -55,6 +55,7 @@ enum struct ASTKind {
   Attribute,
   AttributeUsingPrefix,
   Designator,
+  NewPlacement,
 
   // ExceptionSpecifierAST
   ThrowExceptionSpecifier,

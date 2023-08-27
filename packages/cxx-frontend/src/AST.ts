@@ -588,6 +588,23 @@ export class DesignatorAST extends AST {
     }
 }
 
+export class NewPlacementAST extends AST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitNewPlacement(this, context);
+    }
+    getLparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    *getExpressionList(): Generator<ExpressionAST | undefined> {
+        for (let it = cxx.getASTSlot(this.getHandle(), 1); it; it = cxx.getListNext(it)) {
+            yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
+        }
+    }
+    getRparenToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+}
+
 export class ThrowExceptionSpecifierAST extends ExceptionSpecifierAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitThrowExceptionSpecifier(this, context);
@@ -1236,11 +1253,14 @@ export class NewExpressionAST extends ExpressionAST {
     getNewToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
     }
+    getNewPlacement(): NewPlacementAST | undefined {
+        return AST.from<NewPlacementAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
     getTypeId(): NewTypeIdAST | undefined {
-        return AST.from<NewTypeIdAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+        return AST.from<NewTypeIdAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
     }
     getNewInitalizer(): NewInitializerAST | undefined {
-        return AST.from<NewInitializerAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+        return AST.from<NewInitializerAST>(cxx.getASTSlot(this.getHandle(), 4), this.parser);
     }
 }
 
@@ -1574,7 +1594,7 @@ export class NewBracedInitializerAST extends NewInitializerAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitNewBracedInitializer(this, context);
     }
-    getBracedInit(): BracedInitListAST | undefined {
+    getBracedInitList(): BracedInitListAST | undefined {
         return AST.from<BracedInitListAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
     }
 }
@@ -3474,6 +3494,7 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Transl
     AttributeAST,
     AttributeUsingPrefixAST,
     DesignatorAST,
+    NewPlacementAST,
     ThrowExceptionSpecifierAST,
     NoexceptSpecifierAST,
     PackExpansionExpressionAST,

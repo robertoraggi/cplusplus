@@ -581,6 +581,26 @@ void ASTCloner::visit(DesignatorAST* ast) {
   copy->identifier = ast->identifier;
 }
 
+void ASTCloner::visit(NewPlacementAST* ast) {
+  auto copy = new (arena_) NewPlacementAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  if (auto it = ast->expressionList) {
+    auto out = &copy->expressionList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->rparenLoc = ast->rparenLoc;
+}
+
 void ASTCloner::visit(ThrowExceptionSpecifierAST* ast) {
   auto copy = new (arena_) ThrowExceptionSpecifierAST();
   copy_ = copy;
@@ -1360,6 +1380,8 @@ void ASTCloner::visit(NewExpressionAST* ast) {
 
   copy->newLoc = ast->newLoc;
 
+  copy->newPlacement = accept(ast->newPlacement);
+
   copy->typeId = accept(ast->typeId);
 
   copy->newInitalizer = accept(ast->newInitalizer);
@@ -1706,7 +1728,7 @@ void ASTCloner::visit(NewBracedInitializerAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->bracedInit = accept(ast->bracedInit);
+  copy->bracedInitList = accept(ast->bracedInitList);
 }
 
 void ASTCloner::visit(EllipsisExceptionDeclarationAST* ast) {

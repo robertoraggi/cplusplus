@@ -1121,6 +1121,33 @@ void ASTEncoder::visit(DesignatorAST* ast) {
   offset_ = builder.Finish().Union();
 }
 
+void ASTEncoder::visit(NewPlacementAST* ast) {
+  auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
+
+  std::vector<flatbuffers::Offset<>> expressionListOffsets;
+  std::vector<std::underlying_type_t<io::Expression>> expressionListTypes;
+
+  for (auto it = ast->expressionList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptExpression(it->value);
+    expressionListOffsets.push_back(offset);
+    expressionListTypes.push_back(type);
+  }
+
+  auto expressionListOffsetsVector = fbb_.CreateVector(expressionListOffsets);
+  auto expressionListTypesVector = fbb_.CreateVector(expressionListTypes);
+
+  auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
+
+  io::NewPlacement::Builder builder{fbb_};
+  builder.add_lparen_loc(lparenLoc.o);
+  builder.add_expression_list(expressionListOffsetsVector);
+  builder.add_expression_list_type(expressionListTypesVector);
+  builder.add_rparen_loc(rparenLoc.o);
+
+  offset_ = builder.Finish().Union();
+}
+
 void ASTEncoder::visit(ThrowExceptionSpecifierAST* ast) {
   auto throwLoc = encodeSourceLocation(ast->throwLoc);
 
@@ -1982,6 +2009,8 @@ void ASTEncoder::visit(NewExpressionAST* ast) {
 
   auto newLoc = encodeSourceLocation(ast->newLoc);
 
+  const auto newPlacement = accept(ast->newPlacement);
+
   const auto typeId = accept(ast->typeId);
 
   const auto [newInitalizer, newInitalizerType] =
@@ -1990,6 +2019,7 @@ void ASTEncoder::visit(NewExpressionAST* ast) {
   io::NewExpression::Builder builder{fbb_};
   builder.add_scope_loc(scopeLoc.o);
   builder.add_new_loc(newLoc.o);
+  builder.add_new_placement(newPlacement.o);
   builder.add_type_id(typeId.o);
   builder.add_new_initalizer(newInitalizer);
   builder.add_new_initalizer_type(
@@ -2454,10 +2484,10 @@ void ASTEncoder::visit(NewParenInitializerAST* ast) {
 }
 
 void ASTEncoder::visit(NewBracedInitializerAST* ast) {
-  const auto bracedInit = accept(ast->bracedInit);
+  const auto bracedInitList = accept(ast->bracedInitList);
 
   io::NewBracedInitializer::Builder builder{fbb_};
-  builder.add_braced_init(bracedInit.o);
+  builder.add_braced_init_list(bracedInitList.o);
 
   offset_ = builder.Finish().Union();
   type_ = io::NewInitializer_NewBracedInitializer;
