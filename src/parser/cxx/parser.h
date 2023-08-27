@@ -180,7 +180,7 @@ class Parser final {
   auto parse_await_expression(ExpressionAST*& yyast) -> bool;
   auto parse_noexcept_expression(ExpressionAST*& yyast) -> bool;
   auto parse_new_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_new_placement() -> bool;
+  auto parse_new_placement(NewPlacementAST*& yyast) -> bool;
   auto parse_new_type_id(NewTypeIdAST*& yyast) -> bool;
   auto parse_new_declarator() -> bool;
   auto parse_noptr_new_declarator() -> bool;

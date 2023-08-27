@@ -144,6 +144,10 @@ void RecursiveASTVisitor::acceptBracedInitList(BracedInitListAST* ast) {
   accept(ast);
 }
 
+void RecursiveASTVisitor::acceptNewPlacement(NewPlacementAST* ast) {
+  accept(ast);
+}
+
 void RecursiveASTVisitor::acceptNewTypeId(NewTypeIdAST* ast) { accept(ast); }
 
 void RecursiveASTVisitor::acceptNewInitializer(NewInitializerAST* ast) {
@@ -396,6 +400,12 @@ void RecursiveASTVisitor::visit(AttributeUsingPrefixAST* ast) {}
 
 void RecursiveASTVisitor::visit(DesignatorAST* ast) {}
 
+void RecursiveASTVisitor::visit(NewPlacementAST* ast) {
+  for (auto it = ast->expressionList; it; it = it->next) {
+    acceptExpression(it->value);
+  }
+}
+
 void RecursiveASTVisitor::visit(ThrowExceptionSpecifierAST* ast) {}
 
 void RecursiveASTVisitor::visit(NoexceptSpecifierAST* ast) {
@@ -565,6 +575,7 @@ void RecursiveASTVisitor::visit(CppCastExpressionAST* ast) {
 }
 
 void RecursiveASTVisitor::visit(NewExpressionAST* ast) {
+  acceptNewPlacement(ast->newPlacement);
   acceptNewTypeId(ast->typeId);
   acceptNewInitializer(ast->newInitalizer);
 }
@@ -658,7 +669,7 @@ void RecursiveASTVisitor::visit(NewParenInitializerAST* ast) {
 }
 
 void RecursiveASTVisitor::visit(NewBracedInitializerAST* ast) {
-  acceptBracedInitList(ast->bracedInit);
+  acceptBracedInitList(ast->bracedInitList);
 }
 
 void RecursiveASTVisitor::visit(EllipsisExceptionDeclarationAST* ast) {}

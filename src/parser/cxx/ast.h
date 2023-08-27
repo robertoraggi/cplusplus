@@ -625,6 +625,20 @@ class DesignatorAST final : public AST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class NewPlacementAST final : public AST {
+ public:
+  NewPlacementAST() : AST(ASTKind::NewPlacement) {}
+
+  SourceLocation lparenLoc;
+  List<ExpressionAST*>* expressionList = nullptr;
+  SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 class ThrowExceptionSpecifierAST final : public ExceptionSpecifierAST {
  public:
   ThrowExceptionSpecifierAST()
@@ -1239,6 +1253,7 @@ class NewExpressionAST final : public ExpressionAST {
 
   SourceLocation scopeLoc;
   SourceLocation newLoc;
+  NewPlacementAST* newPlacement = nullptr;
   NewTypeIdAST* typeId = nullptr;
   NewInitializerAST* newInitalizer = nullptr;
 
@@ -1556,7 +1571,7 @@ class NewBracedInitializerAST final : public NewInitializerAST {
   NewBracedInitializerAST()
       : NewInitializerAST(ASTKind::NewBracedInitializer) {}
 
-  BracedInitListAST* bracedInit = nullptr;
+  BracedInitListAST* bracedInitList = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

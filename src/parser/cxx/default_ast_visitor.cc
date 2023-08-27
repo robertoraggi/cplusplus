@@ -146,6 +146,10 @@ void DefaultASTVisitor::visit(DesignatorAST* ast) {
   cxx_runtime_error("visit(DesignatorAST): not implemented");
 }
 
+void DefaultASTVisitor::visit(NewPlacementAST* ast) {
+  cxx_runtime_error("visit(NewPlacementAST): not implemented");
+}
+
 // ExceptionSpecifierAST
 void DefaultASTVisitor::visit(ThrowExceptionSpecifierAST* ast) {
   cxx_runtime_error("visit(ThrowExceptionSpecifierAST): not implemented");

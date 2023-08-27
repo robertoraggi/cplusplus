@@ -2138,7 +2138,9 @@ auto Parser::parse_new_expression(ExpressionAST*& yyast) -> bool {
 
   const auto after_new_op = currentLocation();
 
-  if (!parse_new_placement()) rewind(after_new_op);
+  NewPlacementAST* newPlacement = nullptr;
+
+  if (!parse_new_placement(ast->newPlacement)) rewind(after_new_op);
 
   const auto after_new_placement = currentLocation();
 
@@ -2167,7 +2169,7 @@ auto Parser::parse_new_expression(ExpressionAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_new_placement() -> bool {
+auto Parser::parse_new_placement(NewPlacementAST*& yyast) -> bool {
   SourceLocation lparenLoc;
 
   if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
@@ -2179,6 +2181,13 @@ auto Parser::parse_new_placement() -> bool {
   SourceLocation rparenLoc;
 
   if (!match(TokenKind::T_RPAREN, rparenLoc)) return false;
+
+  auto ast = new (pool) NewPlacementAST();
+  yyast = ast;
+
+  ast->lparenLoc = lparenLoc;
+  ast->expressionList = expressionList;
+  ast->rparenLoc = rparenLoc;
 
   return true;
 }
@@ -2257,7 +2266,14 @@ auto Parser::parse_noptr_new_declarator() -> bool {
 auto Parser::parse_new_initializer(NewInitializerAST*& yyast) -> bool {
   BracedInitListAST* bracedInitList = nullptr;
 
-  if (parse_braced_init_list(bracedInitList)) return true;
+  if (parse_braced_init_list(bracedInitList)) {
+    auto ast = new (pool) NewBracedInitializerAST();
+    yyast = ast;
+
+    ast->bracedInitList = bracedInitList;
+
+    return true;
+  }
 
   SourceLocation lparenLoc;
 

@@ -55,6 +55,7 @@ export abstract class ASTVisitor<Context, Result> {
     abstract visitAttribute(node: ast.AttributeAST, context: Context): Result;
     abstract visitAttributeUsingPrefix(node: ast.AttributeUsingPrefixAST, context: Context): Result;
     abstract visitDesignator(node: ast.DesignatorAST, context: Context): Result;
+    abstract visitNewPlacement(node: ast.NewPlacementAST, context: Context): Result;
 
     // ExceptionSpecifierAST
     abstract visitThrowExceptionSpecifier(node: ast.ThrowExceptionSpecifierAST, context: Context): Result;

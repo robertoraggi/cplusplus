@@ -60,6 +60,7 @@ class RecursiveASTVisitor : public ASTVisitor {
   virtual void acceptLambdaIntroducer(LambdaIntroducerAST* ast);
   virtual void acceptLambdaDeclarator(LambdaDeclaratorAST* ast);
   virtual void acceptBracedInitList(BracedInitListAST* ast);
+  virtual void acceptNewPlacement(NewPlacementAST* ast);
   virtual void acceptNewTypeId(NewTypeIdAST* ast);
   virtual void acceptNewInitializer(NewInitializerAST* ast);
   virtual void acceptTypeConstraint(TypeConstraintAST* ast);
@@ -115,6 +116,7 @@ class RecursiveASTVisitor : public ASTVisitor {
   void visit(AttributeAST* ast) override;
   void visit(AttributeUsingPrefixAST* ast) override;
   void visit(DesignatorAST* ast) override;
+  void visit(NewPlacementAST* ast) override;
 
   void visit(ThrowExceptionSpecifierAST* ast) override;
   void visit(NoexceptSpecifierAST* ast) override;

@@ -59,6 +59,7 @@ class ASTVisitor {
   virtual void visit(AttributeAST* ast) = 0;
   virtual void visit(AttributeUsingPrefixAST* ast) = 0;
   virtual void visit(DesignatorAST* ast) = 0;
+  virtual void visit(NewPlacementAST* ast) = 0;
 
   // ExceptionSpecifierAST
   virtual void visit(ThrowExceptionSpecifierAST* ast) = 0;

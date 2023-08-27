@@ -208,6 +208,12 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     visitDesignator(node: ast.DesignatorAST, context: Context): void {
     }
 
+    visitNewPlacement(node: ast.NewPlacementAST, context: Context): void {
+        for (const element of node.getExpressionList()) {
+            this.accept(element, context);
+        }
+    }
+
     visitThrowExceptionSpecifier(node: ast.ThrowExceptionSpecifierAST, context: Context): void {
     }
 
@@ -389,6 +395,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     }
 
     visitNewExpression(node: ast.NewExpressionAST, context: Context): void {
+        this.accept(node.getNewPlacement(), context);
         this.accept(node.getTypeId(), context);
         this.accept(node.getNewInitalizer(), context);
     }
@@ -486,7 +493,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     }
 
     visitNewBracedInitializer(node: ast.NewBracedInitializerAST, context: Context): void {
-        this.accept(node.getBracedInit(), context);
+        this.accept(node.getBracedInitList(), context);
     }
 
     visitEllipsisExceptionDeclaration(node: ast.EllipsisExceptionDeclarationAST, context: Context): void {

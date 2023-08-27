@@ -71,6 +71,7 @@ class ASTSlot final : ASTVisitor {
   void visit(AttributeAST* ast) override;
   void visit(AttributeUsingPrefixAST* ast) override;
   void visit(DesignatorAST* ast) override;
+  void visit(NewPlacementAST* ast) override;
 
   void visit(ThrowExceptionSpecifierAST* ast) override;
   void visit(NoexceptSpecifierAST* ast) override;
