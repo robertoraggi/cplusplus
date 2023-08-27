@@ -3094,6 +3094,9 @@ class FunctionDeclaratorAST final : public DeclaratorModifierAST {
 
   ParametersAndQualifiersAST* parametersAndQualifiers = nullptr;
   TrailingReturnTypeAST* trailingReturnType = nullptr;
+  bool isFinal = false;
+  bool isOverride = false;
+  bool isPure = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

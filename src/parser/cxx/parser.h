@@ -330,7 +330,8 @@ class Parser final {
       DesignatedInitializerClauseAST*& yyast) -> bool;
   auto parse_designator(DesignatorAST*& yyast) -> bool;
   auto parse_expr_or_braced_init_list(ExpressionAST*& yyast) -> bool;
-  auto parse_virt_specifier_seq() -> bool;
+  auto parse_virt_specifier_seq(FunctionDeclaratorAST* functionDeclarator)
+      -> bool;
   auto lookat_function_body() -> bool;
   auto parse_function_body(FunctionBodyAST*& yyast) -> bool;
   auto parse_enum_specifier(SpecifierAST*& yyast) -> bool;
@@ -398,8 +399,9 @@ class Parser final {
                                     const DeclSpecs& specs) -> bool;
   auto parse_member_declarator(InitDeclaratorAST*& yyast,
                                const DeclSpecs& specs) -> bool;
-  auto parse_virt_specifier(SourceLocation& loc) -> bool;
-  auto parse_pure_specifier() -> bool;
+  auto parse_virt_specifier(FunctionDeclaratorAST* functionDeclarator) -> bool;
+  auto parse_pure_specifier(SourceLocation& equalLoc, SourceLocation& zeroLoc)
+      -> bool;
   auto parse_conversion_function_id(NameAST*& yyast) -> bool;
   auto parse_base_clause(BaseClauseAST*& yyast) -> bool;
   auto parse_base_specifier_list(List<BaseSpecifierAST*>*& yyast) -> bool;

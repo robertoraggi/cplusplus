@@ -1942,6 +1942,24 @@ void ASTPrinter::visit(PtrToMemberOperatorAST* ast) {
 
 void ASTPrinter::visit(FunctionDeclaratorAST* ast) {
   fmt::print(out_, "{}\n", "function-declarator");
+  if (ast->isFinal) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "is-final: {}\n", ast->isFinal);
+    --indent_;
+  }
+  if (ast->isOverride) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "is-override: {}\n", ast->isOverride);
+    --indent_;
+  }
+  if (ast->isPure) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "is-pure: {}\n", ast->isPure);
+    --indent_;
+  }
   accept(ast->parametersAndQualifiers, "parameters-and-qualifiers");
   accept(ast->trailingReturnType, "trailing-return-type");
 }
