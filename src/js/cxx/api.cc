@@ -22,6 +22,8 @@
 #include <cxx/ast_slot.h>
 #include <cxx/control.h>
 #include <cxx/lexer.h>
+#include <cxx/literals.h>
+#include <cxx/names.h>
 #include <cxx/preprocessor.h>
 #include <cxx/source_location.h>
 #include <cxx/translation_unit.h>
@@ -126,14 +128,26 @@ val getTokenLocation(intptr_t handle, intptr_t unitHandle) {
 }
 
 val getStartLocation(intptr_t handle, intptr_t unitHandle) {
-  auto ast = (cxx::AST*)handle;
+  auto ast = reinterpret_cast<cxx::AST*>(handle);
   return getTokenLocation(ast->firstSourceLocation().index(), unitHandle);
 }
 
 val getEndLocation(intptr_t handle, intptr_t unitHandle) {
-  auto ast = (cxx::AST*)handle;
+  auto ast = reinterpret_cast<cxx::AST*>(handle);
   return getTokenLocation(ast->lastSourceLocation().previous().index(),
                           unitHandle);
+}
+
+val getIdentifierValue(intptr_t handle) {
+  auto id = reinterpret_cast<const cxx::Identifier*>(handle);
+  if (!id) return {};
+  return val(id->value());
+}
+
+val getLiteralValue(intptr_t handle) {
+  auto id = reinterpret_cast<const cxx::Literal*>(handle);
+  if (!id) return {};
+  return val(id->value());
 }
 
 int getASTKind(intptr_t handle) {
@@ -281,4 +295,6 @@ EMSCRIPTEN_BINDINGS(my_module) {
   function("getTokenLocation", &getTokenLocation);
   function("getStartLocation", &getStartLocation);
   function("getEndLocation", &getEndLocation);
+  function("getIdentifierValue", &getIdentifierValue);
+  function("getLiteralValue", &getLiteralValue);
 }

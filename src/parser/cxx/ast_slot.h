@@ -33,6 +33,9 @@ enum ASTSlotKind {
   kNode,
   kTokenList,
   kNodeList,
+  kIdentifierAttribute,
+  kLiteralAttribute,
+  kBoolAttribute,
 };
 
 class ASTSlot final : ASTVisitor {

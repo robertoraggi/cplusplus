@@ -191,6 +191,10 @@ export class EnumeratorAST extends AST {
     getExpression(): ExpressionAST | undefined {
         return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
     }
+    getIdentifier(): string | undefined {
+      const slot = cxx.getASTSlot(this.getHandle(), 4);
+      return cxx.getIdentifierValue(slot);
+    }
 }
 
 export class DeclaratorAST extends AST {
@@ -238,6 +242,9 @@ export class BaseSpecifierAST extends AST {
     }
     getName(): NameAST | undefined {
         return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getIsVirtual(): boolean {
+        return cxx.getASTSlot(this.getHandle(), 2) !== 0;
     }
 }
 
@@ -311,6 +318,9 @@ export class ParameterDeclarationClauseAST extends AST {
     }
     getEllipsisToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getIsVariadic(): boolean {
+        return cxx.getASTSlot(this.getHandle(), 3) !== 0;
     }
 }
 
@@ -605,6 +615,10 @@ export class DesignatorAST extends AST {
     getIdentifierToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
     }
+    getIdentifier(): string | undefined {
+      const slot = cxx.getASTSlot(this.getHandle(), 2);
+      return cxx.getIdentifierValue(slot);
+    }
 }
 
 export class NewPlacementAST extends AST {
@@ -697,6 +711,10 @@ export class CharLiteralExpressionAST extends ExpressionAST {
     getLiteralToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
     }
+    getLiteral(): string | undefined {
+      const slot = cxx.getASTSlot(this.getHandle(), 1);
+      return cxx.getLiteralValue(slot);
+    }
 }
 
 export class BoolLiteralExpressionAST extends ExpressionAST {
@@ -705,6 +723,9 @@ export class BoolLiteralExpressionAST extends ExpressionAST {
     }
     getLiteralToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getIsTrue(): boolean {
+        return cxx.getASTSlot(this.getHandle(), 1) !== 0;
     }
 }
 
@@ -715,6 +736,10 @@ export class IntLiteralExpressionAST extends ExpressionAST {
     getLiteralToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
     }
+    getLiteral(): string | undefined {
+      const slot = cxx.getASTSlot(this.getHandle(), 1);
+      return cxx.getLiteralValue(slot);
+    }
 }
 
 export class FloatLiteralExpressionAST extends ExpressionAST {
@@ -723,6 +748,10 @@ export class FloatLiteralExpressionAST extends ExpressionAST {
     }
     getLiteralToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getLiteral(): string | undefined {
+      const slot = cxx.getASTSlot(this.getHandle(), 1);
+      return cxx.getLiteralValue(slot);
     }
 }
 
@@ -742,6 +771,10 @@ export class StringLiteralExpressionAST extends ExpressionAST {
     getLiteralToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
     }
+    getLiteral(): string | undefined {
+      const slot = cxx.getASTSlot(this.getHandle(), 1);
+      return cxx.getLiteralValue(slot);
+    }
 }
 
 export class UserDefinedStringLiteralExpressionAST extends ExpressionAST {
@@ -750,6 +783,10 @@ export class UserDefinedStringLiteralExpressionAST extends ExpressionAST {
     }
     getLiteralToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getLiteral(): string | undefined {
+      const slot = cxx.getASTSlot(this.getHandle(), 1);
+      return cxx.getLiteralValue(slot);
     }
 }
 
@@ -944,6 +981,10 @@ export class SizeofPackExpressionAST extends ExpressionAST {
     }
     getRparenToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+    }
+    getIdentifier(): string | undefined {
+      const slot = cxx.getASTSlot(this.getHandle(), 5);
+      return cxx.getIdentifierValue(slot);
     }
 }
 
@@ -1542,6 +1583,10 @@ export class SimpleLambdaCaptureAST extends LambdaCaptureAST {
     getEllipsisToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
     }
+    getIdentifier(): string | undefined {
+      const slot = cxx.getASTSlot(this.getHandle(), 2);
+      return cxx.getIdentifierValue(slot);
+    }
 }
 
 export class RefLambdaCaptureAST extends LambdaCaptureAST {
@@ -1556,6 +1601,10 @@ export class RefLambdaCaptureAST extends LambdaCaptureAST {
     }
     getEllipsisToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getIdentifier(): string | undefined {
+      const slot = cxx.getASTSlot(this.getHandle(), 3);
+      return cxx.getIdentifierValue(slot);
     }
 }
 
@@ -1575,6 +1624,10 @@ export class RefInitLambdaCaptureAST extends LambdaCaptureAST {
     getInitializer(): ExpressionAST | undefined {
         return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
     }
+    getIdentifier(): string | undefined {
+      const slot = cxx.getASTSlot(this.getHandle(), 4);
+      return cxx.getIdentifierValue(slot);
+    }
 }
 
 export class InitLambdaCaptureAST extends LambdaCaptureAST {
@@ -1589,6 +1642,10 @@ export class InitLambdaCaptureAST extends LambdaCaptureAST {
     }
     getInitializer(): ExpressionAST | undefined {
         return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getIdentifier(): string | undefined {
+      const slot = cxx.getASTSlot(this.getHandle(), 3);
+      return cxx.getIdentifierValue(slot);
     }
 }
 
@@ -1751,6 +1808,10 @@ export class LabeledStatementAST extends StatementAST {
     }
     getStatement(): StatementAST | undefined {
         return AST.from<StatementAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getIdentifier(): string | undefined {
+      const slot = cxx.getASTSlot(this.getHandle(), 3);
+      return cxx.getIdentifierValue(slot);
     }
 }
 
@@ -2030,6 +2091,10 @@ export class GotoStatementAST extends StatementAST {
     getSemicolonToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
     }
+    getIdentifier(): string | undefined {
+      const slot = cxx.getASTSlot(this.getHandle(), 3);
+      return cxx.getIdentifierValue(slot);
+    }
 }
 
 export class CoroutineReturnStatementAST extends StatementAST {
@@ -2161,6 +2226,10 @@ export class AliasDeclarationAST extends DeclarationAST {
     getSemicolonToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
     }
+    getIdentifier(): string | undefined {
+      const slot = cxx.getASTSlot(this.getHandle(), 6);
+      return cxx.getIdentifierValue(slot);
+    }
 }
 
 export class SimpleDeclarationAST extends DeclarationAST {
@@ -2245,11 +2314,15 @@ export class StaticAssertDeclarationAST extends DeclarationAST {
     getLiteralToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
     }
+    getLiteral(): string | undefined {
+      const slot = cxx.getASTSlot(this.getHandle(), 5);
+      return cxx.getLiteralValue(slot);
+    }
     getRparenToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+        return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
     }
     getSemicolonToken(): Token | undefined {
-        return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+        return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
     }
 }
 
@@ -2318,6 +2391,13 @@ export class NestedNamespaceSpecifierAST extends DeclarationAST {
     getScopeToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
     }
+    getNamespaceName(): string | undefined {
+      const slot = cxx.getASTSlot(this.getHandle(), 3);
+      return cxx.getIdentifierValue(slot);
+    }
+    getIsInline(): boolean {
+        return cxx.getASTSlot(this.getHandle(), 4) !== 0;
+    }
 }
 
 export class NamespaceDefinitionAST extends DeclarationAST {
@@ -2359,6 +2439,13 @@ export class NamespaceDefinitionAST extends DeclarationAST {
     getRbraceToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 8), this.parser);
     }
+    getNamespaceName(): string | undefined {
+      const slot = cxx.getASTSlot(this.getHandle(), 9);
+      return cxx.getIdentifierValue(slot);
+    }
+    getIsInline(): boolean {
+        return cxx.getASTSlot(this.getHandle(), 10) !== 0;
+    }
 }
 
 export class NamespaceAliasDefinitionAST extends DeclarationAST {
@@ -2382,6 +2469,10 @@ export class NamespaceAliasDefinitionAST extends DeclarationAST {
     }
     getSemicolonToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+    }
+    getIdentifier(): string | undefined {
+      const slot = cxx.getASTSlot(this.getHandle(), 6);
+      return cxx.getIdentifierValue(slot);
     }
 }
 
@@ -2466,6 +2557,10 @@ export class AsmDeclarationAST extends DeclarationAST {
     }
     getSemicolonToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+    }
+    getLiteral(): string | undefined {
+      const slot = cxx.getASTSlot(this.getHandle(), 6);
+      return cxx.getLiteralValue(slot);
     }
 }
 
@@ -2566,6 +2661,10 @@ export class TypenameTypeParameterAST extends DeclarationAST {
     getTypeId(): TypeIdAST | undefined {
         return AST.from<TypeIdAST>(cxx.getASTSlot(this.getHandle(), 4), this.parser);
     }
+    getIdentifier(): string | undefined {
+      const slot = cxx.getASTSlot(this.getHandle(), 5);
+      return cxx.getIdentifierValue(slot);
+    }
 }
 
 export class TemplateTypeParameterAST extends DeclarationAST {
@@ -2601,6 +2700,10 @@ export class TemplateTypeParameterAST extends DeclarationAST {
     getName(): NameAST | undefined {
         return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 8), this.parser);
     }
+    getIdentifier(): string | undefined {
+      const slot = cxx.getASTSlot(this.getHandle(), 9);
+      return cxx.getIdentifierValue(slot);
+    }
 }
 
 export class TemplatePackTypeParameterAST extends DeclarationAST {
@@ -2629,6 +2732,10 @@ export class TemplatePackTypeParameterAST extends DeclarationAST {
     }
     getIdentifierToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+    }
+    getIdentifier(): string | undefined {
+      const slot = cxx.getASTSlot(this.getHandle(), 7);
+      return cxx.getIdentifierValue(slot);
     }
 }
 
@@ -2659,6 +2766,10 @@ export class DeductionGuideAST extends DeclarationAST {
     }
     getSemicolonToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
+    }
+    getIdentifier(): string | undefined {
+      const slot = cxx.getASTSlot(this.getHandle(), 8);
+      return cxx.getIdentifierValue(slot);
     }
 }
 
@@ -2723,6 +2834,10 @@ export class LinkageSpecificationAST extends DeclarationAST {
     getRbraceToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
     }
+    getStringLiteral(): string | undefined {
+      const slot = cxx.getASTSlot(this.getHandle(), 5);
+      return cxx.getLiteralValue(slot);
+    }
 }
 
 export class SimpleNameAST extends NameAST {
@@ -2731,6 +2846,10 @@ export class SimpleNameAST extends NameAST {
     }
     getIdentifierToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getIdentifier(): string | undefined {
+      const slot = cxx.getASTSlot(this.getHandle(), 1);
+      return cxx.getIdentifierValue(slot);
     }
 }
 
@@ -3212,6 +3331,9 @@ export class ClassSpecifierAST extends SpecifierAST {
     getRbraceToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
     }
+    getIsFinal(): boolean {
+        return cxx.getASTSlot(this.getHandle(), 8) !== 0;
+    }
 }
 
 export class TypenameSpecifierAST extends SpecifierAST {
@@ -3241,6 +3363,10 @@ export class BitfieldDeclaratorAST extends CoreDeclaratorAST {
     }
     getSizeExpression(): ExpressionAST | undefined {
         return AST.from<ExpressionAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+    getIdentifier(): string | undefined {
+      const slot = cxx.getASTSlot(this.getHandle(), 3);
+      return cxx.getIdentifierValue(slot);
     }
 }
 
@@ -3350,6 +3476,15 @@ export class FunctionDeclaratorAST extends DeclaratorModifierAST {
     getTrailingReturnType(): TrailingReturnTypeAST | undefined {
         return AST.from<TrailingReturnTypeAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
     }
+    getIsFinal(): boolean {
+        return cxx.getASTSlot(this.getHandle(), 2) !== 0;
+    }
+    getIsOverride(): boolean {
+        return cxx.getASTSlot(this.getHandle(), 3) !== 0;
+    }
+    getIsPure(): boolean {
+        return cxx.getASTSlot(this.getHandle(), 4) !== 0;
+    }
 }
 
 export class ArrayDeclaratorAST extends DeclaratorModifierAST {
@@ -3455,6 +3590,10 @@ export class AsmAttributeAST extends AttributeSpecifierAST {
     }
     getRparenToken(): Token | undefined {
         return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    }
+    getLiteral(): string | undefined {
+      const slot = cxx.getASTSlot(this.getHandle(), 4);
+      return cxx.getLiteralValue(slot);
     }
 }
 

@@ -36,7 +36,25 @@ export function gen_ast_slot_cc({ ast, output }: { ast: AST; output: string }) {
       emit(`  switch (slot_) {`);
       let slotCount = 0;
       members.forEach((m) => {
-        if (m.kind === "token") {
+        if (m.kind === "attribute" && m.type === "bool") {
+          emit(`  case ${slotCount}: // ${m.name}`);
+          emit(`    value_ = intptr_t(ast->${m.name} != 0);`);
+          emit(`    slotKind_ = ASTSlotKind::kBoolAttribute;`);
+          emit(`    break;`);
+          ++slotCount;
+        } else if (m.kind === "attribute" && m.type === "Identifier") {
+          emit(`  case ${slotCount}: // ${m.name}`);
+          emit(`    value_ = reinterpret_cast<std::intptr_t>(ast->${m.name});`);
+          emit(`    slotKind_ = ASTSlotKind::kIdentifierAttribute;`);
+          emit(`    break;`);
+          ++slotCount;
+        } else if (m.kind === "attribute" && m.type.endsWith("Literal")) {
+          emit(`  case ${slotCount}: // ${m.name}`);
+          emit(`    value_ = reinterpret_cast<std::intptr_t>(ast->${m.name});`);
+          emit(`    slotKind_ = ASTSlotKind::kLiteralAttribute;`);
+          emit(`    break;`);
+          ++slotCount;
+        } else if (m.kind === "token") {
           emit(`  case ${slotCount}: // ${m.name}`);
           emit(`    value_ = ast->${m.name}.index();`);
           emit(`    slotKind_ = ASTSlotKind::kToken;`);
