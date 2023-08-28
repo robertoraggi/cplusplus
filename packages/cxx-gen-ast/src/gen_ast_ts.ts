@@ -57,6 +57,32 @@ export function gen_ast_ts({ ast, output }: { ast: AST; output: string }) {
       let slotCount = 0;
       members.forEach((m) => {
         switch (m.kind) {
+          case "attribute":
+            if (m.type === "bool") {
+              emit(`    ${getterName(m.name)}(): boolean {`);
+              emit(
+                `        return cxx.getASTSlot(this.getHandle(), ${slotCount}) !== 0;`
+              );
+              emit(`    }`);
+              ++slotCount;
+            } else if (m.type === "Identifier") {
+              emit(`    ${getterName(m.name)}(): string | undefined {`);
+              emit(
+                `      const slot = cxx.getASTSlot(this.getHandle(), ${slotCount});`
+              );
+              emit(`      return cxx.getIdentifierValue(slot);`);
+              emit(`    }`);
+              ++slotCount;
+            } else if (m.type.endsWith("Literal")) {
+              emit(`    ${getterName(m.name)}(): string | undefined {`);
+              emit(
+                `      const slot = cxx.getASTSlot(this.getHandle(), ${slotCount});`
+              );
+              emit(`      return cxx.getLiteralValue(slot);`);
+              emit(`    }`);
+              ++slotCount;
+            }
+            break;
           case "node":
             emit(`    ${getterName(m.name)}(): ${m.type} | undefined {`);
             emit(

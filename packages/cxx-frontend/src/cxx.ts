@@ -106,6 +106,8 @@ export interface CXX {
     getTokenLocation(handle: number, unitHandle: number): SourceLocation;
     getStartLocation(handle: number, unitHandle: number): SourceLocation;
     getEndLocation(handle: number, unitHandle: number): SourceLocation;
+    getLiteralValue(handle: number): string | undefined;
+    getIdentifierValue(handle: number): string | undefined;
 }
 
 export let cxx!: CXX
