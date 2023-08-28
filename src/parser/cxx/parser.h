@@ -499,22 +499,14 @@ class Parser final {
 
   std::vector<FunctionDefinitionAST*> pendingFunctionDefinitions_;
 
-  std::unordered_map<SourceLocation,
-                     std::tuple<SourceLocation, ClassSpecifierAST*, bool>>
-      class_specifiers_;
+  template <typename T>
+  using CachedAST =
+      std::unordered_map<SourceLocation, std::tuple<SourceLocation, T*, bool>>;
 
-  std::unordered_map<
-      SourceLocation,
-      std::tuple<SourceLocation, ElaboratedTypeSpecifierAST*, bool>>
-      elaborated_type_specifiers_;
-
-  std::unordered_map<SourceLocation,
-                     std::tuple<SourceLocation, TemplateArgumentAST*, bool>>
-      template_arguments_;
-
-  std::unordered_map<SourceLocation,
-                     std::tuple<SourceLocation, NestedNameSpecifierAST*, bool>>
-      nested_name_specifiers_;
+  CachedAST<ClassSpecifierAST> class_specifiers_;
+  CachedAST<ElaboratedTypeSpecifierAST> elaborated_type_specifiers_;
+  CachedAST<TemplateArgumentAST> template_arguments_;
+  CachedAST<NestedNameSpecifierAST> nested_name_specifiers_;
 };
 
 }  // namespace cxx
