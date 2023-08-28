@@ -3391,51 +3391,49 @@ auto Parser::parse_declaration(DeclarationAST*& yyast) -> bool {
 
 auto Parser::parse_block_declaration(DeclarationAST*& yyast, bool fundef)
     -> bool {
-  const auto start = currentLocation();
-
-  if (parse_asm_declaration(yyast)) return true;
-
-  rewind(start);
-  if (parse_namespace_alias_definition(yyast)) return true;
-
-  rewind(start);
-  if (parse_using_directive(yyast)) return true;
-
-  rewind(start);
-  if (parse_alias_declaration(yyast)) return true;
-
-  rewind(start);
-  if (parse_using_declaration(yyast)) return true;
-
-  rewind(start);
-  if (parse_using_enum_declaration(yyast)) return true;
-
-  rewind(start);
-  if (parse_static_assert_declaration(yyast)) return true;
-
-  rewind(start);
-  if (parse_opaque_enum_declaration(yyast)) return true;
-
-  rewind(start);
-  return parse_simple_declaration(yyast, fundef);
+  if (parse_asm_declaration(yyast))
+    return true;
+  else if (parse_namespace_alias_definition(yyast))
+    return true;
+  else if (parse_static_assert_declaration(yyast))
+    return true;
+  else if (parse_opaque_enum_declaration(yyast))
+    return true;
+  else if (parse_using_enum_declaration(yyast))
+    return true;
+  else if (parse_using_directive(yyast))
+    return true;
+  else if (parse_alias_declaration(yyast))
+    return true;
+  else if (parse_using_declaration(yyast))
+    return true;
+  else
+    return parse_simple_declaration(yyast, fundef);
 }
 
 auto Parser::parse_alias_declaration(DeclarationAST*& yyast) -> bool {
   SourceLocation usingLoc;
-
-  if (!match(TokenKind::T_USING, usingLoc)) return false;
-
   SourceLocation identifierLoc;
-
-  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
-
   List<AttributeSpecifierAST*>* attributes = nullptr;
-
-  parse_attribute_specifier_seq(attributes);
-
   SourceLocation equalLoc;
 
-  if (!match(TokenKind::T_EQUAL, equalLoc)) return false;
+  auto lookat_alias_declaration = [&] {
+    LookaheadParser lookhead{this};
+
+    if (!match(TokenKind::T_USING, usingLoc)) return false;
+
+    if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
+
+    parse_attribute_specifier_seq(attributes);
+
+    if (!match(TokenKind::T_EQUAL, equalLoc)) return false;
+
+    lookhead.commit();
+
+    return true;
+  };
+
+  if (!lookat_alias_declaration()) return false;
 
   TypeIdAST* typeId = nullptr;
 
@@ -5688,25 +5686,24 @@ auto Parser::parse_enum_head_name(NestedNameSpecifierAST*& nestedNameSpecifier,
 auto Parser::parse_opaque_enum_declaration(DeclarationAST*& yyast) -> bool {
   SourceLocation enumLoc;
   SourceLocation classLoc;
-
-  if (!parse_enum_key(enumLoc, classLoc)) return false;
-
   List<AttributeSpecifierAST*>* attributes = nullptr;
-
-  parse_attribute_specifier_seq(attributes);
-
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   NameAST* name = nullptr;
-
-  if (!parse_enum_head_name(nestedNameSpecifier, name)) return false;
-
   EnumBaseAST* enumBase = nullptr;
-
-  parse_enum_base(enumBase);
-
   SourceLocation semicolonLoc;
 
-  if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return false;
+  auto lookat_opaque_enum_declaration = [&] {
+    LookaheadParser lookahead{this};
+    parse_attribute_specifier_seq(attributes);
+    if (!parse_enum_key(enumLoc, classLoc)) return false;
+    if (!parse_enum_head_name(nestedNameSpecifier, name)) return false;
+    parse_enum_base(enumBase);
+    if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return false;
+    lookahead.commit();
+    return true;
+  };
+
+  if (!lookat_opaque_enum_declaration()) return false;
 
   auto ast = new (pool) OpaqueEnumDeclarationAST();
   yyast = ast;
@@ -5945,18 +5942,19 @@ auto Parser::parse_namespace_body(NamespaceDefinitionAST* yyast) -> bool {
 }
 
 auto Parser::parse_namespace_alias_definition(DeclarationAST*& yyast) -> bool {
-  SourceLocation namespaceLoc;
-
-  if (!match(TokenKind::T_NAMESPACE, namespaceLoc)) return false;
+  if (!lookat(TokenKind::T_NAMESPACE, TokenKind::T_IDENTIFIER,
+              TokenKind::T_EQUAL)) {
+    return false;
+  }
 
   auto ast = new (pool) NamespaceAliasDefinitionAST();
   yyast = ast;
 
-  ast->namespaceLoc = namespaceLoc;
-
+  expect(TokenKind::T_NAMESPACE, ast->namespaceLoc);
   expect(TokenKind::T_IDENTIFIER, ast->identifierLoc);
-
   expect(TokenKind::T_EQUAL, ast->equalLoc);
+
+  ast->identifier = unit->identifier(ast->identifierLoc);
 
   if (!parse_qualified_namespace_specifier(ast->nestedNameSpecifier,
                                            ast->name)) {
@@ -5964,8 +5962,6 @@ auto Parser::parse_namespace_alias_definition(DeclarationAST*& yyast) -> bool {
   }
 
   expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
-
-  ast->identifier = unit->identifier(ast->identifierLoc);
 
   return true;
 }
@@ -5991,16 +5987,24 @@ auto Parser::parse_qualified_namespace_specifier(
 
 auto Parser::parse_using_directive(DeclarationAST*& yyast) -> bool {
   List<AttributeSpecifierAST*>* attributes = nullptr;
-
-  parse_attribute_specifier_seq(attributes);
-
   SourceLocation usingLoc;
-
-  if (!match(TokenKind::T_USING, usingLoc)) return false;
-
   SourceLocation namespaceLoc;
 
-  if (!match(TokenKind::T_NAMESPACE, namespaceLoc)) return false;
+  auto lookat_using_directive = [&] {
+    LookaheadParser lookahead{this};
+
+    parse_attribute_specifier_seq(attributes);
+
+    if (!match(TokenKind::T_USING, usingLoc)) return false;
+
+    if (!match(TokenKind::T_NAMESPACE, namespaceLoc)) return false;
+
+    lookahead.commit();
+
+    return true;
+  };
+
+  if (!lookat_using_directive()) return false;
 
   auto ast = new (pool) UsingDirectiveAST;
   yyast = ast;
@@ -6098,12 +6102,21 @@ auto Parser::parse_using_declarator(UsingDeclaratorAST*& yyast) -> bool {
 
 auto Parser::parse_asm_declaration(DeclarationAST*& yyast) -> bool {
   List<AttributeSpecifierAST*>* attributes = nullptr;
-
-  parse_attribute_specifier_seq(attributes);
-
   SourceLocation asmLoc;
 
-  if (!match(TokenKind::T_ASM, asmLoc)) return false;
+  auto lookat_asm_declaration = [&] {
+    LookaheadParser lookahead{this};
+
+    parse_attribute_specifier_seq(attributes);
+
+    if (!match(TokenKind::T_ASM, asmLoc)) return false;
+
+    lookahead.commit();
+
+    return true;
+  };
+
+  if (!lookat_asm_declaration()) return false;
 
   auto ast = new (pool) AsmDeclarationAST();
   yyast = ast;
