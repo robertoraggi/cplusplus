@@ -69,6 +69,7 @@ class Parser final {
   struct DeclSpecs;
   struct TemplArgContext;
   struct ClassSpecifierContext;
+  struct LookaheadParser;
 
   struct ExprContext {
     bool templParam = false;
