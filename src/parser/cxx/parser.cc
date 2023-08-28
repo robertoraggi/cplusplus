@@ -163,6 +163,23 @@ auto Parser::prec(TokenKind tk) -> Parser::Prec {
   }  // switch
 }
 
+struct Parser::LookaheadParser {
+  Parser* p;
+  SourceLocation loc;
+  bool committed = false;
+
+  LookaheadParser(const LookaheadParser&) = delete;
+  auto operator=(const LookaheadParser&) -> LookaheadParser& = delete;
+
+  explicit LookaheadParser(Parser* p) : p(p), loc(p->currentLocation()) {}
+
+  ~LookaheadParser() {
+    if (!committed) p->rewind(loc);
+  }
+
+  void commit() { committed = true; }
+};
+
 struct Parser::DeclSpecs {
   bool has_simple_typespec = false;
   bool has_complex_typespec = false;
@@ -3346,41 +3363,30 @@ auto Parser::parse_maybe_module() -> bool {
 }
 
 auto Parser::parse_declaration(DeclarationAST*& yyast) -> bool {
-  if (lookat(TokenKind::T_RBRACE)) return false;
-
-  auto start = currentLocation();
-
-  if (lookat(TokenKind::T_SEMICOLON)) return parse_empty_declaration(yyast);
-
-  rewind(start);
-  if (parse_explicit_instantiation(yyast)) return true;
-
-  rewind(start);
-  if (parse_explicit_specialization(yyast)) return true;
-
-  rewind(start);
-  if (parse_template_declaration(yyast)) return true;
-
-  rewind(start);
-  if (parse_deduction_guide(yyast)) return true;
-
-  rewind(start);
-  if (parse_export_declaration(yyast)) return true;
-
-  rewind(start);
-  if (parse_linkage_specification(yyast)) return true;
-
-  rewind(start);
-  if (parse_namespace_definition(yyast)) return true;
-
-  rewind(start);
-  if (parse_attribute_declaration(yyast)) return true;
-
-  rewind(start);
-  if (parse_module_import_declaration(yyast)) return true;
-
-  rewind(start);
-  return parse_block_declaration(yyast, true);
+  if (lookat(TokenKind::T_RBRACE))
+    return false;
+  else if (lookat(TokenKind::T_SEMICOLON))
+    return parse_empty_declaration(yyast);
+  else if (parse_explicit_instantiation(yyast))
+    return true;
+  else if (parse_explicit_specialization(yyast))
+    return true;
+  else if (parse_template_declaration(yyast))
+    return true;
+  else if (parse_linkage_specification(yyast))
+    return true;
+  else if (parse_namespace_definition(yyast))
+    return true;
+  else if (parse_deduction_guide(yyast))
+    return true;
+  else if (parse_export_declaration(yyast))
+    return true;
+  else if (parse_module_import_declaration(yyast))
+    return true;
+  else if (parse_attribute_declaration(yyast))
+    return true;
+  else
+    return parse_block_declaration(yyast, true);
 }
 
 auto Parser::parse_block_declaration(DeclarationAST*& yyast, bool fundef)
@@ -3756,12 +3762,19 @@ auto Parser::parse_empty_declaration(DeclarationAST*& yyast) -> bool {
 
 auto Parser::parse_attribute_declaration(DeclarationAST*& yyast) -> bool {
   List<AttributeSpecifierAST*>* attributes = nullptr;
-
-  if (!parse_attribute_specifier_seq(attributes)) return false;
-
   SourceLocation semicolonLoc;
 
-  if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return false;
+  auto lookat_attribute_declaration = [&] {
+    LookaheadParser lookahead{this};
+    if (!parse_attribute_specifier_seq(attributes)) return false;
+
+    if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return false;
+
+    lookahead.commit();
+    return true;
+  };
+
+  if (!lookat_attribute_declaration()) return false;
 
   auto ast = new (pool) AttributeDeclarationAST();
   yyast = ast;
@@ -5822,25 +5835,17 @@ auto Parser::parse_namespace_definition(DeclarationAST*& yyast) -> bool {
     return false;
   }
 
-  const auto start = currentLocation();
-
-  SourceLocation inlineLoc;
-
-  auto isInline = match(TokenKind::T_INLINE, inlineLoc);
-
-  SourceLocation namespaceLoc;
-
-  if (!match(TokenKind::T_NAMESPACE, namespaceLoc)) {
-    rewind(start);
+  if (!lookat(TokenKind::T_NAMESPACE) &&
+      !lookat(TokenKind::T_INLINE, TokenKind::T_NAMESPACE)) {
     return false;
   }
 
   auto ast = new (pool) NamespaceDefinitionAST();
   yyast = ast;
 
-  ast->isInline = isInline;
-  ast->inlineLoc = inlineLoc;
-  ast->namespaceLoc = namespaceLoc;
+  ast->isInline = match(TokenKind::T_INLINE, ast->inlineLoc);
+
+  expect(TokenKind::T_NAMESPACE, ast->namespaceLoc);
 
   parse_attribute_specifier_seq(ast->attributeList);
 
@@ -6117,25 +6122,25 @@ auto Parser::parse_asm_declaration(DeclarationAST*& yyast) -> bool {
 }
 
 auto Parser::parse_linkage_specification(DeclarationAST*& yyast) -> bool {
-  const auto start = currentLocation();
-
   SourceLocation externLoc;
-
   List<AttributeSpecifierAST*>* attributes = nullptr;
-
-  parse_attribute_specifier_seq(attributes);
-
-  if (!match(TokenKind::T_EXTERN, externLoc)) {
-    rewind(start);
-    return false;
-  }
-
   SourceLocation stringLiteralLoc;
 
-  if (!match(TokenKind::T_STRING_LITERAL, stringLiteralLoc)) {
-    rewind(start);
-    return false;
-  }
+  auto lookat_linkage_specification = [&] {
+    LookaheadParser lookahead{this};
+
+    if (!match(TokenKind::T_EXTERN, externLoc)) return false;
+
+    parse_attribute_specifier_seq(attributes);
+
+    if (!match(TokenKind::T_STRING_LITERAL, stringLiteralLoc)) return false;
+
+    lookahead.commit();
+
+    return true;
+  };
+
+  if (!lookat_linkage_specification()) return false;
 
   SourceLocation lbraceLoc;
 
@@ -7595,48 +7600,29 @@ auto Parser::parse_literal_operator_id(NameAST*& yyast) -> bool {
 }
 
 auto Parser::parse_template_declaration(DeclarationAST*& yyast) -> bool {
-  const auto start = currentLocation();
-
-  SourceLocation templateLoc;
-
-  if (!match(TokenKind::T_TEMPLATE, templateLoc)) return false;
-
-  SourceLocation lessLoc;
-
-  if (!match(TokenKind::T_LESS, lessLoc)) {
-    rewind(start);
-    return false;
-  }
-
-  SourceLocation greaterLoc;
-  List<DeclarationAST*>* templateParameterList = nullptr;
-
-  if (!match(TokenKind::T_GREATER, greaterLoc)) {
-    if (!parse_template_parameter_list(templateParameterList)) {
-      parse_error("expected a template parameter");
-    }
-
-    expect(TokenKind::T_GREATER, greaterLoc);
-  }
-
-  RequiresClauseAST* requiresClause = nullptr;
-  parse_requires_clause(requiresClause);
-
-  DeclarationAST* declaration = nullptr;
-
-  if (!parse_concept_definition(declaration)) {
-    if (!parse_declaration(declaration)) parse_error("expected a declaration");
-  }
+  if (!lookat(TokenKind::T_TEMPLATE, TokenKind::T_LESS)) return false;
 
   auto ast = new (pool) TemplateDeclarationAST();
   yyast = ast;
 
-  ast->templateLoc = templateLoc;
-  ast->lessLoc = lessLoc;
-  ast->templateParameterList = templateParameterList;
-  ast->greaterLoc = greaterLoc;
-  ast->requiresClause = requiresClause;
-  ast->declaration = declaration;
+  expect(TokenKind::T_TEMPLATE, ast->templateLoc);
+
+  expect(TokenKind::T_LESS, ast->lessLoc);
+
+  if (!match(TokenKind::T_GREATER, ast->greaterLoc)) {
+    if (!parse_template_parameter_list(ast->templateParameterList)) {
+      parse_error("expected a template parameter");
+    }
+
+    expect(TokenKind::T_GREATER, ast->greaterLoc);
+  }
+
+  parse_requires_clause(ast->requiresClause);
+
+  if (!parse_concept_definition(ast->declaration)) {
+    if (!parse_declaration(ast->declaration))
+      parse_error("expected a declaration");
+  }
 
   return true;
 }
@@ -8171,38 +8157,34 @@ auto Parser::parse_constraint_expression(ExpressionAST*& yyast) -> bool {
 }
 
 auto Parser::parse_deduction_guide(DeclarationAST*& yyast) -> bool {
-  const auto start = currentLocation();
-
   SpecifierAST* explicitSpecifier = nullptr;
-
-  parse_explicit_specifier(explicitSpecifier);
-
   SourceLocation identifierLoc;
-
-  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) {
-    rewind(start);
-    return false;
-  }
-
-  bool lookat_deduction_guide = false;
-
   SourceLocation lparenLoc;
 
-  if (match(TokenKind::T_LPAREN, lparenLoc)) {
-    SourceLocation saved = currentLocation();
+  auto lookat_deduction_guide = [&] {
+    LookaheadParser lookahead{this};
 
-    if (parse_skip_balanced()) {
-      if (LA(1).is(TokenKind::T_MINUS_GREATER)) {
-        lookat_deduction_guide = true;
-        rewind(saved);
-      }
-    }
-  }
+    parse_explicit_specifier(explicitSpecifier);
 
-  if (!lookat_deduction_guide) {
-    rewind(start);
-    return false;
-  }
+    if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
+
+    if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
+
+    const SourceLocation saved = currentLocation();
+
+    if (!parse_skip_balanced()) return false;
+
+    SourceLocation rparenLoc;
+    if (!match(TokenKind::T_RPAREN, rparenLoc)) return false;
+
+    if (!lookat(TokenKind::T_MINUS_GREATER)) return false;
+
+    rewind(saved);
+    lookahead.commit();
+    return true;
+  };
+
+  if (!lookat_deduction_guide()) return false;
 
   SourceLocation rparenLoc;
   ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
@@ -8314,62 +8296,47 @@ auto Parser::parse_typename_specifier(SpecifierAST*& yyast) -> bool {
 }
 
 auto Parser::parse_explicit_instantiation(DeclarationAST*& yyast) -> bool {
-  const auto start = currentLocation();
+  auto lookat_explicit_instantiation = [&] {
+    LookaheadParser _{this};
 
-  SourceLocation externLoc;
+    SourceLocation externLoc;
+    match(TokenKind::T_EXTERN, externLoc);
 
-  match(TokenKind::T_EXTERN, externLoc);
+    SourceLocation templateLoc;
+    if (!match(TokenKind::T_TEMPLATE, templateLoc)) return false;
 
-  SourceLocation templateLoc;
+    if (lookat(TokenKind::T_LESS)) return false;
 
-  if (!match(TokenKind::T_TEMPLATE, templateLoc)) {
-    rewind(start);
-    return false;
-  }
+    return true;
+  };
 
-  if (lookat(TokenKind::T_LESS)) {
-    rewind(start);
-    return false;
-  }
-
-  DeclarationAST* declaration = nullptr;
-
-  if (!parse_declaration(declaration)) parse_error("expected a declaration");
+  if (!lookat_explicit_instantiation()) return false;
 
   auto ast = new (pool) ExplicitInstantiationAST();
   yyast = ast;
 
-  ast->externLoc = externLoc;
-  ast->templateLoc = templateLoc;
-  ast->declaration = declaration;
+  match(TokenKind::T_EXTERN, ast->externLoc);
+  expect(TokenKind::T_TEMPLATE, ast->templateLoc);
+
+  if (!parse_declaration(ast->declaration))
+    parse_error("expected a declaration");
 
   return true;
 }
 
 auto Parser::parse_explicit_specialization(DeclarationAST*& yyast) -> bool {
-  SourceLocation templateLoc;
-
-  if (!match(TokenKind::T_TEMPLATE, templateLoc)) return false;
-
-  SourceLocation lessLoc;
-
-  if (!match(TokenKind::T_LESS, lessLoc)) return false;
-
-  SourceLocation greaterLoc;
-
-  if (!match(TokenKind::T_GREATER, greaterLoc)) return false;
-
-  DeclarationAST* declaration = nullptr;
-
-  if (!parse_declaration(declaration)) parse_error("expected a declaration");
+  if (!lookat(TokenKind::T_TEMPLATE, TokenKind::T_LESS, TokenKind::T_GREATER))
+    return false;
 
   auto ast = new (pool) TemplateDeclarationAST();
   yyast = ast;
 
-  ast->templateLoc = templateLoc;
-  ast->lessLoc = lessLoc;
-  ast->greaterLoc = greaterLoc;
-  ast->declaration = declaration;
+  expect(TokenKind::T_TEMPLATE, ast->templateLoc);
+  expect(TokenKind::T_LESS, ast->lessLoc);
+  expect(TokenKind::T_GREATER, ast->greaterLoc);
+
+  if (!parse_declaration(ast->declaration))
+    parse_error("expected a declaration");
 
   return true;
 }
