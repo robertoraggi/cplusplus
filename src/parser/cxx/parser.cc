@@ -211,7 +211,7 @@ auto Parser::LA(int n) const -> const Token& {
 }
 
 auto Parser::match(TokenKind tk, SourceLocation& location) -> bool {
-  if (LA().is(tk)) {
+  if (lookat(tk)) {
     location = consumeToken();
     return true;
   }
@@ -239,7 +239,7 @@ auto Parser::parse(UnitAST*& ast) -> bool {
 
 auto Parser::parse_id(const Identifier* id, SourceLocation& loc) -> bool {
   loc = {};
-  if (LA().isNot(TokenKind::T_IDENTIFIER)) return false;
+  if (!lookat(TokenKind::T_IDENTIFIER)) return false;
   if (unit->identifier(currentLocation()) != id) return false;
   loc = consumeToken();
   return true;
@@ -381,7 +381,7 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
       auto ast = new (pool) BoolLiteralExpressionAST();
       yyast = ast;
 
-      const auto isTrue = LA().is(TokenKind::T_TRUE);
+      const auto isTrue = lookat(TokenKind::T_TRUE);
 
       ast->literalLoc = consumeToken();
       ast->isTrue = isTrue;
@@ -545,7 +545,7 @@ auto Parser::parse_declaration_seq(List<DeclarationAST*>*& yyast) -> bool {
   auto it = &yyast;
 
   while (LA()) {
-    if (LA().is(TokenKind::T_RBRACE)) break;
+    if (lookat(TokenKind::T_RBRACE)) break;
 
     if (parse_maybe_module()) break;
 
@@ -570,10 +570,10 @@ auto Parser::parse_declaration_seq(List<DeclarationAST*>*& yyast) -> bool {
 }
 
 auto Parser::parse_skip_declaration(bool& skipping) -> bool {
-  if (LA().is(TokenKind::T_RBRACE)) return false;
-  if (LA().is(TokenKind::T_MODULE)) return false;
-  if (moduleUnit_ && LA().is(TokenKind::T_EXPORT)) return false;
-  if (LA().is(TokenKind::T_IMPORT)) return false;
+  if (lookat(TokenKind::T_RBRACE)) return false;
+  if (lookat(TokenKind::T_MODULE)) return false;
+  if (moduleUnit_ && lookat(TokenKind::T_EXPORT)) return false;
+  if (lookat(TokenKind::T_IMPORT)) return false;
   if (!skipping) parse_error("expected a declaration");
   skipping = true;
   return true;
@@ -592,11 +592,11 @@ auto Parser::parse_primary_expression(ExpressionAST*& yyast,
 
   if (parse_literal(yyast)) return true;
 
-  if (LA().is(TokenKind::T_LBRACKET)) return parse_lambda_expression(yyast);
+  if (lookat(TokenKind::T_LBRACKET)) return parse_lambda_expression(yyast);
 
-  if (LA().is(TokenKind::T_REQUIRES)) return parse_requires_expression(yyast);
+  if (lookat(TokenKind::T_REQUIRES)) return parse_requires_expression(yyast);
 
-  if (LA().is(TokenKind::T_LPAREN)) {
+  if (lookat(TokenKind::T_LPAREN)) {
     const auto saved = currentLocation();
 
     if (parse_fold_expression(yyast)) return true;
@@ -733,7 +733,7 @@ auto Parser::parse_unqualified_id(NameAST*& yyast, bool inRequiresClause)
     return true;
   }
 
-  if (LA().is(TokenKind::T_OPERATOR)) {
+  if (lookat(TokenKind::T_OPERATOR)) {
     if (parse_operator_function_id(yyast)) return true;
 
     rewind(start);
@@ -856,8 +856,7 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
   }
 
   while (true) {
-    if (LA().is(TokenKind::T_IDENTIFIER) &&
-        LA(1).is(TokenKind::T_COLON_COLON)) {
+    if (lookat(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_COLON_COLON)) {
       NameAST* name = nullptr;
       parse_name_id(name);
 
@@ -914,7 +913,7 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
     parse_requires_clause(ast->requiresClause);
   }
 
-  if (LA().isNot(TokenKind::T_LBRACE)) {
+  if (!lookat(TokenKind::T_LBRACE)) {
     if (!parse_lambda_declarator(ast->lambdaDeclarator)) {
       parse_error("expected lambda declarator");
     }
@@ -1013,7 +1012,7 @@ auto Parser::parse_capture_default(SourceLocation& opLoc) -> bool {
   if (!match(TokenKind::T_AMP, ampLoc) && !match(TokenKind::T_EQUAL, equalLoc))
     return false;
 
-  if (LA().isNot(TokenKind::T_COMMA) && LA().isNot(TokenKind::T_RBRACKET)) {
+  if (!lookat(TokenKind::T_COMMA) && !lookat(TokenKind::T_RBRACKET)) {
     rewind(start);
     return false;
   }
@@ -1319,7 +1318,7 @@ auto Parser::parse_requires_expression(ExpressionAST*& yyast) -> bool {
 
   ast->requiresLoc = requiresLoc;
 
-  if (LA().isNot(TokenKind::T_LBRACE)) {
+  if (!lookat(TokenKind::T_LBRACE)) {
     if (!parse_requirement_parameter_list(
             ast->lparenLoc, ast->parameterDeclarationClause, ast->rparenLoc)) {
       parse_error("expected a requirement parameter");
@@ -1380,7 +1379,7 @@ auto Parser::parse_requirement_seq(List<RequirementAST*>*& yyast) -> bool {
   it = &(*it)->next;
 
   while (LA()) {
-    if (LA().is(TokenKind::T_RBRACE)) break;
+    if (lookat(TokenKind::T_RBRACE)) break;
 
     const auto before_requirement = currentLocation();
 
@@ -1673,7 +1672,7 @@ auto Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast) -> bool {
   if (!parse_simple_type_specifier(typeSpecifier, specs)) return false;
 
   // ### prefer function calls to cpp-cast expressions for now.
-  if (LA().is(TokenKind::T_LPAREN) &&
+  if (lookat(TokenKind::T_LPAREN) &&
       dynamic_cast<NamedTypeSpecifierAST*>(typeSpecifier)) {
     rewind(start);
     return false;
@@ -2751,7 +2750,7 @@ auto Parser::parse_statement(StatementAST*& yyast) -> bool {
 }
 
 auto Parser::parse_init_statement(StatementAST*& yyast) -> bool {
-  if (LA().is(TokenKind::T_RPAREN)) return false;
+  if (lookat(TokenKind::T_RPAREN)) return false;
 
   auto saved = currentLocation();
 
@@ -2954,7 +2953,7 @@ void Parser::finish_compound_statement(CompoundStatementAST* ast) {
   auto it = &ast->statementList;
 
   while (LA()) {
-    if (LA().is(TokenKind::T_RBRACE)) break;
+    if (lookat(TokenKind::T_RBRACE)) break;
 
     StatementAST* statement = nullptr;
 
@@ -2970,12 +2969,12 @@ void Parser::finish_compound_statement(CompoundStatementAST* ast) {
 
 auto Parser::parse_skip_statement(bool& skipping) -> bool {
   if (!LA()) return false;
-  if (LA().is(TokenKind::T_RBRACE)) return false;
+  if (lookat(TokenKind::T_RBRACE)) return false;
   if (!skipping) parse_error("expected a statement");
   for (; LA(); consumeToken()) {
-    if (LA().is(TokenKind::T_SEMICOLON)) break;
-    if (LA().is(TokenKind::T_LBRACE)) break;
-    if (LA().is(TokenKind::T_RBRACE)) break;
+    if (lookat(TokenKind::T_SEMICOLON)) break;
+    if (lookat(TokenKind::T_LBRACE)) break;
+    if (lookat(TokenKind::T_RBRACE)) break;
   }
   skipping = true;
   return true;
@@ -3347,11 +3346,11 @@ auto Parser::parse_maybe_module() -> bool {
 }
 
 auto Parser::parse_declaration(DeclarationAST*& yyast) -> bool {
-  if (LA().is(TokenKind::T_RBRACE)) return false;
+  if (lookat(TokenKind::T_RBRACE)) return false;
 
   auto start = currentLocation();
 
-  if (LA().is(TokenKind::T_SEMICOLON)) return parse_empty_declaration(yyast);
+  if (lookat(TokenKind::T_SEMICOLON)) return parse_empty_declaration(yyast);
 
   rewind(start);
   if (parse_explicit_instantiation(yyast)) return true;
@@ -4345,7 +4344,7 @@ auto Parser::parse_elaborated_type_specifier_helper(
     ElaboratedTypeSpecifierAST*& yyast, DeclSpecs& specs) -> bool {
   // ### cleanup
 
-  if (LA().is(TokenKind::T_ENUM)) {
+  if (lookat(TokenKind::T_ENUM)) {
     return parse_elaborated_enum_specifier(yyast, specs);
   }
 
@@ -4507,7 +4506,7 @@ auto Parser::parse_decltype_specifier(SpecifierAST*& yyast) -> bool {
 
     if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
 
-    if (LA().is(TokenKind::T_AUTO)) return false;  // placeholder type specifier
+    if (lookat(TokenKind::T_AUTO)) return false;  // placeholder type specifier
 
     auto ast = new (pool) DecltypeSpecifierAST();
     yyast = ast;
@@ -5077,7 +5076,7 @@ auto Parser::parse_noptr_abstract_declarator(DeclaratorAST*& yyast) -> bool {
 
   auto it = &yyast->modifiers;
 
-  if (LA().is(TokenKind::T_LPAREN)) {
+  if (lookat(TokenKind::T_LPAREN)) {
     if (parse_parameters_and_qualifiers(parametersAndQualifiers)) {
       auto functionDeclarator = new (pool) FunctionDeclaratorAST();
 
@@ -5090,7 +5089,7 @@ auto Parser::parse_noptr_abstract_declarator(DeclaratorAST*& yyast) -> bool {
     }
   }
 
-  if (LA().is(TokenKind::T_LBRACKET)) {
+  if (lookat(TokenKind::T_LBRACKET)) {
     SourceLocation lbracketLoc;
 
     while (match(TokenKind::T_LBRACKET, lbracketLoc)) {
@@ -5273,7 +5272,7 @@ auto Parser::parse_initializer(ExpressionAST*& yyast) -> bool {
   SourceLocation lparenLoc;
 
   if (match(TokenKind::T_LPAREN, lparenLoc)) {
-    if (LA().is(TokenKind::T_RPAREN)) return false;
+    if (lookat(TokenKind::T_RPAREN)) return false;
 
     auto ast = new (pool) ParenInitializerAST();
     yyast = ast;
@@ -5295,7 +5294,7 @@ auto Parser::parse_initializer(ExpressionAST*& yyast) -> bool {
 auto Parser::parse_brace_or_equal_initializer(ExpressionAST*& yyast) -> bool {
   BracedInitListAST* bracedInitList = nullptr;
 
-  if (LA().is(TokenKind::T_LBRACE)) {
+  if (lookat(TokenKind::T_LBRACE)) {
     if (!parse_braced_init_list(bracedInitList)) return false;
     yyast = bracedInitList;
     return true;
@@ -5321,7 +5320,7 @@ auto Parser::parse_initializer_clause(ExpressionAST*& yyast, bool templParam)
     -> bool {
   BracedInitListAST* bracedInitList = nullptr;
 
-  if (LA().is(TokenKind::T_LBRACE)) {
+  if (lookat(TokenKind::T_LBRACE)) {
     return parse_braced_init_list(bracedInitList);
   }
 
@@ -5339,7 +5338,7 @@ auto Parser::parse_braced_init_list(BracedInitListAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_LBRACE, lbraceLoc)) return false;
 
-  if (LA().is(TokenKind::T_DOT)) {
+  if (lookat(TokenKind::T_DOT)) {
     auto ast = new (pool) BracedInitListAST();
     yyast = ast;
 
@@ -5361,7 +5360,7 @@ auto Parser::parse_braced_init_list(BracedInitListAST*& yyast) -> bool {
     SourceLocation commaLoc;
 
     while (match(TokenKind::T_COMMA, commaLoc)) {
-      if (LA().is(TokenKind::T_RBRACE)) break;
+      if (lookat(TokenKind::T_RBRACE)) break;
 
       DesignatedInitializerClauseAST* designatedInitializerClause = nullptr;
 
@@ -5437,7 +5436,7 @@ auto Parser::parse_initializer_list(List<ExpressionAST*>*& yyast) -> bool {
   SourceLocation commaLoc;
 
   while (match(TokenKind::T_COMMA, commaLoc)) {
-    if (LA().is(TokenKind::T_RBRACE)) break;
+    if (lookat(TokenKind::T_RBRACE)) break;
 
     ExpressionAST* expression = nullptr;
 
@@ -5499,7 +5498,7 @@ auto Parser::parse_designator(DesignatorAST*& yyast) -> bool {
 }
 
 auto Parser::parse_expr_or_braced_init_list(ExpressionAST*& yyast) -> bool {
-  if (LA().is(TokenKind::T_LBRACE)) {
+  if (lookat(TokenKind::T_LBRACE)) {
     BracedInitListAST* bracedInitList = nullptr;
 
     if (parse_braced_init_list(bracedInitList)) {
@@ -5544,7 +5543,7 @@ auto Parser::lookat_function_body() -> bool {
 }
 
 auto Parser::parse_function_body(FunctionBodyAST*& yyast) -> bool {
-  if (LA().is(TokenKind::T_SEMICOLON)) return false;
+  if (lookat(TokenKind::T_SEMICOLON)) return false;
 
   if (parse_function_try_block(yyast)) return true;
 
@@ -5586,7 +5585,7 @@ auto Parser::parse_function_body(FunctionBodyAST*& yyast) -> bool {
 
   parse_ctor_initializer(ctorInitializer);
 
-  if (LA().isNot(TokenKind::T_LBRACE)) return false;
+  if (!lookat(TokenKind::T_LBRACE)) return false;
 
   auto ast = new (pool) CompoundStatementFunctionBodyAST();
   yyast = ast;
@@ -5756,7 +5755,7 @@ auto Parser::parse_enumerator_list(List<EnumeratorAST*>*& yyast) -> bool {
   SourceLocation commaLoc;
 
   while (match(TokenKind::T_COMMA, commaLoc)) {
-    if (LA().is(TokenKind::T_RBRACE)) {
+    if (lookat(TokenKind::T_RBRACE)) {
       rewind(commaLoc);
       break;
     }
@@ -5917,7 +5916,7 @@ auto Parser::parse_namespace_body(NamespaceDefinitionAST* yyast) -> bool {
   auto it = &yyast->declarationList;
 
   while (LA()) {
-    if (LA().is(TokenKind::T_RBRACE)) break;
+    if (lookat(TokenKind::T_RBRACE)) break;
 
     const auto beforeDeclaration = currentLocation();
 
@@ -6213,7 +6212,7 @@ auto Parser::parse_attribute_specifier(AttributeSpecifierAST*& yyast) -> bool {
 }
 
 auto Parser::lookat_cxx_attribute_specifier() -> bool {
-  if (LA().isNot(TokenKind::T_LBRACKET)) return false;
+  if (!lookat(TokenKind::T_LBRACKET)) return false;
   if (LA(1).isNot(TokenKind::T_LBRACKET)) return false;
   if (LA(1).leadingSpace() || LA(1).startOfLine()) return false;
   return true;
@@ -6495,7 +6494,7 @@ auto Parser::parse_module_declaration(ModuleDeclarationAST*& yyast) -> bool {
     parse_error("expected a module name");
   }
 
-  if (LA().is(TokenKind::T_COLON)) {
+  if (lookat(TokenKind::T_COLON)) {
     parse_module_partition(yyast->modulePartition);
   }
 
@@ -6794,7 +6793,7 @@ auto Parser::parse_class_body(List<DeclarationAST*>*& yyast) -> bool {
   bool skipping = false;
 
   while (LA()) {
-    if (LA().is(TokenKind::T_RBRACE)) break;
+    if (lookat(TokenKind::T_RBRACE)) break;
 
     const auto saved = currentLocation();
 
@@ -6892,7 +6891,7 @@ auto Parser::parse_member_declaration(DeclarationAST*& yyast) -> bool {
 
   if (parse_empty_declaration(yyast)) return true;
 
-  if (LA().is(TokenKind::T_USING)) {
+  if (lookat(TokenKind::T_USING)) {
     if (parse_using_enum_declaration(yyast)) return true;
 
     if (parse_alias_declaration(yyast)) return true;
@@ -7391,7 +7390,7 @@ auto Parser::parse_mem_initializer(MemInitializerAST*& yyast) -> bool {
 
   if (!parse_mem_initializer_id(name)) parse_error("expected an member id");
 
-  if (LA().is(TokenKind::T_LBRACE)) {
+  if (lookat(TokenKind::T_LBRACE)) {
     auto ast = new (pool) BracedMemInitializerAST();
     yyast = ast;
 
@@ -7842,7 +7841,7 @@ auto Parser::parse_template_type_parameter(DeclarationAST*& yyast) -> bool {
   }
 
   if (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_EQUAL) ||
-      LA().is(TokenKind::T_EQUAL)) {
+      lookat(TokenKind::T_EQUAL)) {
     auto ast = new (pool) TemplateTypeParameterAST();
     yyast = ast;
 
@@ -7908,7 +7907,7 @@ auto Parser::parse_constraint_type_parameter(DeclarationAST*& yyast) -> bool {
   }
 
   if (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_EQUAL) ||
-      LA().is(TokenKind::T_EQUAL)) {
+      lookat(TokenKind::T_EQUAL)) {
     SourceLocation identifierLoc;
 
     match(TokenKind::T_IDENTIFIER, identifierLoc);
@@ -7994,7 +7993,7 @@ auto Parser::parse_type_constraint(TypeConstraintAST*& yyast,
 }
 
 auto Parser::parse_simple_template_id(NameAST*& yyast) -> bool {
-  if (LA().isNot(TokenKind::T_IDENTIFIER) || LA(1).isNot(TokenKind::T_LESS)) {
+  if (!lookat(TokenKind::T_IDENTIFIER) || LA(1).isNot(TokenKind::T_LESS)) {
     return false;
   }
 
@@ -8028,7 +8027,7 @@ auto Parser::parse_simple_template_id(NameAST*& yyast) -> bool {
 }
 
 auto Parser::parse_template_id(NameAST*& yyast) -> bool {
-  if (LA().is(TokenKind::T_OPERATOR)) {
+  if (lookat(TokenKind::T_OPERATOR)) {
     const auto start = currentLocation();
 
     NameAST* name = nullptr;
@@ -8328,7 +8327,7 @@ auto Parser::parse_explicit_instantiation(DeclarationAST*& yyast) -> bool {
     return false;
   }
 
-  if (LA().is(TokenKind::T_LESS)) {
+  if (lookat(TokenKind::T_LESS)) {
     rewind(start);
     return false;
   }
@@ -8406,7 +8405,7 @@ auto Parser::parse_function_try_block(FunctionBodyAST*& yyast) -> bool {
 
   ast->tryLoc = tryLoc;
 
-  if (LA().isNot(TokenKind::T_LBRACE)) {
+  if (!lookat(TokenKind::T_LBRACE)) {
     if (!parse_ctor_initializer(ast->ctorInitializer)) {
       parse_error("expected a ctor initializer");
     }
@@ -8448,11 +8447,11 @@ auto Parser::parse_handler(HandlerAST*& yyast) -> bool {
 }
 
 auto Parser::parse_handler_seq(List<HandlerAST*>*& yyast) -> bool {
-  if (LA().isNot(TokenKind::T_CATCH)) return false;
+  if (!lookat(TokenKind::T_CATCH)) return false;
 
   auto it = &yyast;
 
-  while (LA().is(TokenKind::T_CATCH)) {
+  while (lookat(TokenKind::T_CATCH)) {
     HandlerAST* handler = nullptr;
     parse_handler(handler);
     *it = new (pool) List(handler);
@@ -8483,7 +8482,7 @@ auto Parser::parse_exception_declaration(ExceptionDeclarationAST*& yyast)
     parse_error("expected a type specifier");
   }
 
-  if (LA().is(TokenKind::T_RPAREN)) return true;
+  if (lookat(TokenKind::T_RPAREN)) return true;
 
   const auto before_declarator = currentLocation();
 
