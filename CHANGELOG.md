@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.1.20](https://github.com/robertoraggi/cplusplus/compare/v1.1.19...v1.1.20) (2023-08-28)
+
+
+### Bug Fixes
+
+* Add AST node for await expressions ([76acaa8](https://github.com/robertoraggi/cplusplus/commit/76acaa86b72903027fd971ddbecf85e0db446afa))
+* Add AST node for bitfield declarations ([a0d0b15](https://github.com/robertoraggi/cplusplus/commit/a0d0b15fcd16f7e086b84656f487e5d9aa7914dd))
+* Add AST node for deduction guides ([89aa17e](https://github.com/robertoraggi/cplusplus/commit/89aa17eee4fbdc9544a576b5997212fe806952dc))
+* Add AST node for new declarators ([4e9134e](https://github.com/robertoraggi/cplusplus/commit/4e9134e14400a44917e902e92c49f023636f62ad))
+* Add AST node for new expressions ([e20770e](https://github.com/robertoraggi/cplusplus/commit/e20770ec6026abedbcbf9aa6010be395f613783a))
+* Add AST node for noexcept specifiers ([588c08a](https://github.com/robertoraggi/cplusplus/commit/588c08a3cad7c79450562a8a8b86d18703cb98f4))
+* Add AST node for the pack expansions ([3fa2c5b](https://github.com/robertoraggi/cplusplus/commit/3fa2c5bcf4ee4d0ca1bfbf38c2d234b145a5ebf6))
+* Add AST node for yield expressions ([aacbed0](https://github.com/robertoraggi/cplusplus/commit/aacbed0ab239f7e1653617e77d4a5df99f454c1b))
+* Add AST nodes to represent parameter packs ([f182718](https://github.com/robertoraggi/cplusplus/commit/f182718df7a14d2d0c2f80ca9346e51c8bba787f))
+* Don't print bool attributes with default values ([e681866](https://github.com/robertoraggi/cplusplus/commit/e6818668132d59f2929e5c05b12ac867d14714d8))
+* Expose the AST attributes to the JS API ([658afb7](https://github.com/robertoraggi/cplusplus/commit/658afb74f14871a9540b164c4917e25b491903b7))
+* Parse of deduction guide in class scopes ([b99baa5](https://github.com/robertoraggi/cplusplus/commit/b99baa55febb00711be967753bb8e56d0c5fad3e))
+* Renamed GCCAttribute to GccAttribute ([977ee14](https://github.com/robertoraggi/cplusplus/commit/977ee14636bd7309f7a209ef899f4f00c8d5da2d))
+* Set the declaration of the for range statement ([50a4800](https://github.com/robertoraggi/cplusplus/commit/50a4800d0b85485dc518384950909305e43d4767))
+* Set the variadic attribute of function prototypes ([8306e86](https://github.com/robertoraggi/cplusplus/commit/8306e86a661a8ecd6051c18e974d61c55047004c))
+* Set the virt specifier attributes ([51d0e8f](https://github.com/robertoraggi/cplusplus/commit/51d0e8feec905a51b69629f98f6e02c696823789))
+
 ## [1.1.19](https://github.com/robertoraggi/cplusplus/compare/v1.1.18...v1.1.19) (2023-08-22)
 
 
