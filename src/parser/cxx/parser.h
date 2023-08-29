@@ -128,6 +128,8 @@ class Parser final {
       -> bool;
   auto parse_qualified_id(NameAST*& yyast, bool inRequiresClause = false)
       -> bool;
+  auto parse_optional_nested_name_specifier(NestedNameSpecifierAST*& yyast)
+      -> bool;
   auto parse_nested_name_specifier(NestedNameSpecifierAST*& yyast) -> bool;
   auto parse_start_of_nested_name_specifier(NameAST*& yyast,
                                             SourceLocation& scopeLoc) -> bool;
@@ -293,6 +295,8 @@ class Parser final {
       -> bool;
   auto parse_declarator_initializer(RequiresClauseAST*& requiresClause,
                                     ExpressionAST*& yyast) -> bool;
+  auto parse_optional_declarator_or_abstract_declarator(DeclaratorAST*& yyastl)
+      -> bool;
   auto parse_declarator(DeclaratorAST*& yyastl) -> bool;
   auto parse_ptr_operator_seq(List<PtrOperatorAST*>*& yyast) -> bool;
   auto parse_core_declarator(CoreDeclaratorAST*& yyast) -> bool;
@@ -431,6 +435,7 @@ class Parser final {
   auto parse_type_parameter_key(SourceLocation& classKeyLoc) -> bool;
   auto parse_type_constraint(TypeConstraintAST*& yyast,
                              bool parsingPlaceholderTypeSpec) -> bool;
+  auto parse_simple_template_or_name_id(NameAST*& yyast) -> bool;
   auto parse_simple_template_id(NameAST*& yyast) -> bool;
   auto parse_template_id(NameAST*& yyast) -> bool;
   auto parse_template_argument_list(List<TemplateArgumentAST*>*& yyast) -> bool;

@@ -1109,6 +1109,21 @@ class AssignmentExpressionAST final : public ExpressionAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class ConditionExpressionAST final : public ExpressionAST {
+ public:
+  ConditionExpressionAST() : ExpressionAST(ASTKind::ConditionExpression) {}
+
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
+  List<SpecifierAST*>* declSpecifierList = nullptr;
+  DeclaratorAST* declarator = nullptr;
+  ExpressionAST* initializer = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 class BracedTypeConstructionAST final : public ExpressionAST {
  public:
   BracedTypeConstructionAST()

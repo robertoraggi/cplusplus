@@ -92,6 +92,7 @@ enum struct ASTKind {
   UnaryExpression,
   BinaryExpression,
   AssignmentExpression,
+  ConditionExpression,
   BracedTypeConstruction,
   TypeConstruction,
   CallExpression,

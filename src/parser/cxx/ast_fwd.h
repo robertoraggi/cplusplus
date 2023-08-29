@@ -140,6 +140,7 @@ class AwaitExpressionAST;
 class UnaryExpressionAST;
 class BinaryExpressionAST;
 class AssignmentExpressionAST;
+class ConditionExpressionAST;
 class BracedTypeConstructionAST;
 class TypeConstructionAST;
 class CallExpressionAST;

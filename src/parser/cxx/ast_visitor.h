@@ -96,6 +96,7 @@ class ASTVisitor {
   virtual void visit(UnaryExpressionAST* ast) = 0;
   virtual void visit(BinaryExpressionAST* ast) = 0;
   virtual void visit(AssignmentExpressionAST* ast) = 0;
+  virtual void visit(ConditionExpressionAST* ast) = 0;
   virtual void visit(BracedTypeConstructionAST* ast) = 0;
   virtual void visit(TypeConstructionAST* ast) = 0;
   virtual void visit(CallExpressionAST* ast) = 0;

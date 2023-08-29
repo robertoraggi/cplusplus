@@ -161,6 +161,7 @@ union Expression {
   UnaryExpression,
   BinaryExpression,
   AssignmentExpression,
+  ConditionExpression,
   BracedTypeConstruction,
   TypeConstruction,
   CallExpression,
@@ -1014,6 +1015,13 @@ table AssignmentExpression /* ExpressionAST */ {
   right_expression: Expression;
   op: uint32;
   op_loc: SourceLocation;
+}
+
+table ConditionExpression /* ExpressionAST */ {
+  attribute_list: [AttributeSpecifier];
+  decl_specifier_list: [Specifier];
+  declarator: Declarator;
+  initializer: Expression;
 }
 
 table BracedTypeConstruction /* ExpressionAST */ {

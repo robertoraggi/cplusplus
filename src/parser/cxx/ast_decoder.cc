@@ -151,6 +151,9 @@ auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
     case io::Expression_AssignmentExpression:
       return decodeAssignmentExpression(
           reinterpret_cast<const io::AssignmentExpression*>(ptr));
+    case io::Expression_ConditionExpression:
+      return decodeConditionExpression(
+          reinterpret_cast<const io::ConditionExpression*>(ptr));
     case io::Expression_BracedTypeConstruction:
       return decodeBracedTypeConstruction(
           reinterpret_cast<const io::BracedTypeConstruction*>(ptr));
@@ -1550,6 +1553,35 @@ auto ASTDecoder::decodeAssignmentExpression(
   ast->rightExpression =
       decodeExpression(node->right_expression(), node->right_expression_type());
   ast->op = static_cast<TokenKind>(node->op());
+  return ast;
+}
+
+auto ASTDecoder::decodeConditionExpression(const io::ConditionExpression* node)
+    -> ConditionExpressionAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) ConditionExpressionAST();
+  if (node->attribute_list()) {
+    auto* inserter = &ast->attributeList;
+    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  if (node->decl_specifier_list()) {
+    auto* inserter = &ast->declSpecifierList;
+    for (std::size_t i = 0; i < node->decl_specifier_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeSpecifier(
+          node->decl_specifier_list()->Get(i),
+          io::Specifier(node->decl_specifier_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  ast->declarator = decodeDeclarator(node->declarator());
+  ast->initializer =
+      decodeExpression(node->initializer(), node->initializer_type());
   return ast;
 }
 

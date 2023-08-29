@@ -701,6 +701,30 @@ void ASTPrinter::visit(AssignmentExpressionAST* ast) {
   accept(ast->rightExpression, "right-expression");
 }
 
+void ASTPrinter::visit(ConditionExpressionAST* ast) {
+  fmt::print(out_, "{}\n", "condition-expression");
+  if (ast->attributeList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "attribute-list");
+    for (auto it = ast->attributeList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+  if (ast->declSpecifierList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "decl-specifier-list");
+    for (auto it = ast->declSpecifierList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+  accept(ast->declarator, "declarator");
+  accept(ast->initializer, "initializer");
+}
+
 void ASTPrinter::visit(BracedTypeConstructionAST* ast) {
   fmt::print(out_, "{}\n", "braced-type-construction");
   accept(ast->typeSpecifier, "type-specifier");

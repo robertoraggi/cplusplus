@@ -539,6 +539,17 @@ void RecursiveASTVisitor::visit(AssignmentExpressionAST* ast) {
   acceptExpression(ast->rightExpression);
 }
 
+void RecursiveASTVisitor::visit(ConditionExpressionAST* ast) {
+  for (auto it = ast->attributeList; it; it = it->next) {
+    acceptAttributeSpecifier(it->value);
+  }
+  for (auto it = ast->declSpecifierList; it; it = it->next) {
+    acceptSpecifier(it->value);
+  }
+  acceptDeclarator(ast->declarator);
+  acceptExpression(ast->initializer);
+}
+
 void RecursiveASTVisitor::visit(BracedTypeConstructionAST* ast) {
   acceptSpecifier(ast->typeSpecifier);
   acceptBracedInitList(ast->bracedInitList);
