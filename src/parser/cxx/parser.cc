@@ -7080,23 +7080,27 @@ auto Parser::parse_member_declarator_list(List<InitDeclaratorAST*>*& yyast,
 
 auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
                                      const DeclSpecs& specs) -> bool {
-  const auto start = currentLocation();
+  auto lookat_bitfield = [&] {
+    LookaheadParser lookahead{this};
 
-  SourceLocation identifierLoc;
+    SourceLocation identifierLoc;
 
-  match(TokenKind::T_IDENTIFIER, identifierLoc);
+    match(TokenKind::T_IDENTIFIER, identifierLoc);
 
-  List<AttributeSpecifierAST*>* attributes = nullptr;
-  parse_attribute_specifier_seq(attributes);
+    List<AttributeSpecifierAST*>* attributes = nullptr;
+    parse_attribute_specifier_seq(attributes);
 
-  SourceLocation colonLoc;
+    SourceLocation colonLoc;
 
-  if (match(TokenKind::T_COLON, colonLoc)) {
+    if (!match(TokenKind::T_COLON, colonLoc)) return false;
+
     ExpressionAST* sizeExpression = nullptr;
 
     if (!parse_constant_expression(sizeExpression)) {
       parse_error("expected an expression");
     }
+
+    lookahead.commit();
 
     auto bitfieldDeclarator = new (pool) BitfieldDeclaratorAST();
     bitfieldDeclarator->identifierLoc = identifierLoc;
@@ -7118,9 +7122,9 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
     ast->initializer = initializer;
 
     return true;
-  }
+  };
 
-  rewind(start);
+  if (lookat_bitfield()) return true;
 
   DeclaratorAST* declarator = nullptr;
 
@@ -7283,7 +7287,9 @@ auto Parser::parse_base_specifier(BaseSpecifierAST*& yyast) -> bool {
     ast->accessSpecifier = unit->tokenKind(accessLoc);
   }
 
-  if (!parse_class_or_decltype(ast->name)) return false;
+  if (!parse_class_or_decltype(ast->name)) {
+    parse_error("expected a class name");
+  }
 
   return true;
 }
