@@ -6495,18 +6495,20 @@ auto Parser::parse_attribute_argument_clause(AttributeArgumentClauseAST*& yyast)
 }
 
 auto Parser::parse_module_declaration(ModuleDeclarationAST*& yyast) -> bool {
-  const auto start = currentLocation();
-
   SourceLocation exportLoc;
-
-  parse_export_keyword(exportLoc);
-
   SourceLocation moduleLoc;
 
-  if (!parse_module_keyword(moduleLoc)) {
-    rewind(start);
-    return false;
-  }
+  auto lookat_module_declaration = [&] {
+    LookaheadParser lookahead{this};
+
+    parse_export_keyword(exportLoc);
+    if (!parse_module_keyword(moduleLoc)) return false;
+
+    lookahead.commit();
+    return true;
+  };
+
+  if (!lookat_module_declaration()) return false;
 
   yyast = new (pool) ModuleDeclarationAST();
 
@@ -6620,15 +6622,11 @@ auto Parser::parse_export_declaration(DeclarationAST*& yyast) -> bool {
 auto Parser::parse_maybe_import() -> bool {
   if (!moduleUnit_) return false;
 
-  const auto start = currentLocation();
+  LookaheadParser lookahead{this};
 
   SourceLocation importLoc;
 
-  const auto import = parse_import_keyword(importLoc);
-
-  rewind(start);
-
-  return import;
+  return parse_import_keyword(importLoc);
 }
 
 auto Parser::parse_module_import_declaration(DeclarationAST*& yyast) -> bool {
@@ -6672,21 +6670,20 @@ auto Parser::parse_import_name(ImportNameAST*& yyast) -> bool {
 
 auto Parser::parse_global_module_fragment(GlobalModuleFragmentAST*& yyast)
     -> bool {
-  const auto start = currentLocation();
-
   SourceLocation moduleLoc;
-
-  if (!parse_module_keyword(moduleLoc)) {
-    rewind(start);
-    return false;
-  }
-
   SourceLocation semicolonLoc;
 
-  if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) {
-    rewind(start);
-    return false;
-  }
+  auto lookat_global_module_fragment = [&] {
+    LookaheadParser lookahead{this};
+
+    if (!parse_module_keyword(moduleLoc)) return false;
+    if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return false;
+
+    lookahead.commit();
+    return true;
+  };
+
+  if (!lookat_global_module_fragment()) return false;
 
   yyast = new (pool) GlobalModuleFragmentAST();
   yyast->moduleLoc = moduleLoc;
@@ -6700,25 +6697,20 @@ auto Parser::parse_global_module_fragment(GlobalModuleFragmentAST*& yyast)
 
 auto Parser::parse_private_module_fragment(PrivateModuleFragmentAST*& yyast)
     -> bool {
-  const auto start = currentLocation();
-
   SourceLocation moduleLoc;
-
-  if (!parse_module_keyword(moduleLoc)) return false;
-
   SourceLocation colonLoc;
-
-  if (!match(TokenKind::T_COLON, colonLoc)) {
-    rewind(start);
-    return false;
-  }
-
   SourceLocation privateLoc;
 
-  if (!match(TokenKind::T_PRIVATE, privateLoc)) {
-    rewind(start);
-    return false;
-  }
+  auto lookat_private_module_fragment = [&] {
+    LookaheadParser lookahead{this};
+    if (!parse_module_keyword(moduleLoc)) return false;
+    if (!match(TokenKind::T_COLON, colonLoc)) return false;
+    if (!match(TokenKind::T_PRIVATE, privateLoc)) return false;
+    lookahead.commit();
+    return true;
+  };
+
+  if (!lookat_private_module_fragment()) return false;
 
   yyast = new (pool) PrivateModuleFragmentAST();
 
@@ -6734,15 +6726,11 @@ auto Parser::parse_private_module_fragment(PrivateModuleFragmentAST*& yyast)
 }
 
 auto Parser::parse_class_specifier(SpecifierAST*& yyast) -> bool {
+  if (!LA().isOneOf(TokenKind::T_CLASS, TokenKind::T_STRUCT,
+                    TokenKind::T_UNION))
+    return false;
+
   const auto start = currentLocation();
-
-  SourceLocation classKey;
-
-  const auto maybeClassSpecifier = parse_class_key(classKey);
-
-  rewind(start);
-
-  if (!maybeClassSpecifier) return false;
 
   auto it = class_specifiers_.find(start);
 
@@ -6929,19 +6917,11 @@ auto Parser::parse_member_declaration(DeclarationAST*& yyast) -> bool {
 }
 
 auto Parser::parse_maybe_template_member() -> bool {
-  const auto start = currentLocation();
+  if (lookat(TokenKind::T_TEMPLATE) ||
+      lookat(TokenKind::T_EXPLICIT, TokenKind::T_TEMPLATE))
+    return true;
 
-  SourceLocation explicitLoc;
-
-  match(TokenKind::T_EXPLICIT, explicitLoc);
-
-  SourceLocation templateLoc;
-
-  const auto has_template = match(TokenKind::T_TEMPLATE, templateLoc);
-
-  rewind(start);
-
-  return has_template;
+  return false;
 }
 
 auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
