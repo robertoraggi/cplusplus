@@ -207,6 +207,7 @@ enum struct ASTKind {
   DestructorName,
   DecltypeName,
   OperatorName,
+  LiteralOperatorName,
   ConversionName,
   TemplateName,
   QualifiedName,

@@ -7577,25 +7577,37 @@ auto Parser::parse_operator(TokenKind& op, SourceLocation& opLoc,
 }
 
 auto Parser::parse_literal_operator_id(NameAST*& yyast) -> bool {
-  yyast = nullptr;
-
   SourceLocation operatorLoc;
 
-  if (!match(TokenKind::T_OPERATOR, operatorLoc)) return false;
+  auto lookat_literal_operator_id = [&] {
+    LookaheadParser lookahead{this};
 
-  SourceLocation userDefinedStringLiteralLoc;
+    if (!match(TokenKind::T_OPERATOR, operatorLoc)) return false;
 
-  if (match(TokenKind::T_USER_DEFINED_STRING_LITERAL,
-            userDefinedStringLiteralLoc))
+    if (!lookat(TokenKind::T_USER_DEFINED_STRING_LITERAL) &&
+        !lookat(TokenKind::T_STRING_LITERAL, TokenKind::T_IDENTIFIER))
+      return false;
+
+    lookahead.commit();
+
     return true;
+  };
 
-  SourceLocation stringLiteralLoc;
+  if (!lookat_literal_operator_id()) return false;
 
-  if (!match(TokenKind::T_STRING_LITERAL, stringLiteralLoc)) return false;
+  auto ast = new (pool) LiteralOperatorNameAST();
+  yyast = ast;
 
-  SourceLocation identifierLoc;
+  ast->operatorLoc = operatorLoc;
 
-  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
+  if (match(TokenKind::T_STRING_LITERAL, ast->literalLoc)) {
+    expect(TokenKind::T_IDENTIFIER, ast->identifierLoc);
+    ast->literal = unit->literal(ast->literalLoc);
+    ast->identifier = unit->identifier(ast->identifierLoc);
+  } else {
+    expect(TokenKind::T_USER_DEFINED_STRING_LITERAL, ast->literalLoc);
+    ast->literal = unit->literal(ast->literalLoc);
+  }
 
   return true;
 }
@@ -8029,39 +8041,37 @@ auto Parser::parse_simple_template_id(NameAST*& yyast) -> bool {
 
 auto Parser::parse_template_id(NameAST*& yyast) -> bool {
   if (lookat(TokenKind::T_OPERATOR)) {
-    const auto start = currentLocation();
-
     NameAST* name = nullptr;
 
-    if (!parse_literal_operator_id(name)) {
-      rewind(start);
+    auto lookat_operator = [&] {
+      LookaheadParser lookahead{this};
 
-      name = nullptr;
+      if (!parse_literal_operator_id(name) && !parse_operator_function_id(name))
+        return false;
 
-      if (!parse_operator_function_id(name)) return false;
-    }
+      if (!lookat(TokenKind::T_LESS)) return false;
 
-    SourceLocation lessLoc;
+      lookahead.commit();
 
-    if (!match(TokenKind::T_LESS, lessLoc)) return false;
+      return true;
+    };
 
-    List<TemplateArgumentAST*>* templateArgumentList = nullptr;
-
-    SourceLocation greaterLoc;
-
-    if (!match(TokenKind::T_GREATER, greaterLoc)) {
-      if (!parse_template_argument_list(templateArgumentList)) return false;
-
-      if (!match(TokenKind::T_GREATER, greaterLoc)) return false;
-    }
+    if (!lookat_operator()) return false;
 
     auto ast = new (pool) TemplateNameAST();
     yyast = ast;
 
     ast->id = name;
-    ast->lessLoc = lessLoc;
-    ast->templateArgumentList = templateArgumentList;
-    ast->greaterLoc = greaterLoc;
+
+    expect(TokenKind::T_LESS, ast->lessLoc);
+
+    if (!match(TokenKind::T_GREATER, ast->greaterLoc)) {
+      if (!parse_template_argument_list(ast->templateArgumentList)) {
+        parse_error("expected a template argument");
+      }
+
+      expect(TokenKind::T_GREATER, ast->greaterLoc);
+    }
 
     return true;
   }

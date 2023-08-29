@@ -2969,6 +2969,25 @@ void ASTCloner::visit(OperatorNameAST* ast) {
   copy->op = ast->op;
 }
 
+void ASTCloner::visit(LiteralOperatorNameAST* ast) {
+  auto copy = new (arena_) LiteralOperatorNameAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->name = ast->name;
+
+  copy->operatorLoc = ast->operatorLoc;
+
+  copy->literalLoc = ast->literalLoc;
+
+  copy->identifierLoc = ast->identifierLoc;
+
+  copy->literal = ast->literal;
+
+  copy->identifier = ast->identifier;
+}
+
 void ASTCloner::visit(ConversionNameAST* ast) {
   auto copy = new (arena_) ConversionNameAST();
   copy_ = copy;

@@ -4344,6 +4344,35 @@ void ASTEncoder::visit(OperatorNameAST* ast) {
   type_ = io::Name_OperatorName;
 }
 
+void ASTEncoder::visit(LiteralOperatorNameAST* ast) {
+  auto operatorLoc = encodeSourceLocation(ast->operatorLoc);
+
+  auto literalLoc = encodeSourceLocation(ast->literalLoc);
+
+  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
+
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->value());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
+  io::LiteralOperatorName::Builder builder{fbb_};
+  builder.add_operator_loc(operatorLoc.o);
+  builder.add_literal_loc(literalLoc.o);
+  builder.add_identifier_loc(identifierLoc.o);
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Name_LiteralOperatorName;
+}
+
 void ASTEncoder::visit(ConversionNameAST* ast) {
   auto operatorLoc = encodeSourceLocation(ast->operatorLoc);
 

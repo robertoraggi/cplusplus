@@ -2374,6 +2374,20 @@ auto OperatorNameAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto LiteralOperatorNameAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(operatorLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(literalLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
+  return {};
+}
+
+auto LiteralOperatorNameAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(literalLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(operatorLoc)) return loc;
+  return {};
+}
+
 auto ConversionNameAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(operatorLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeId)) return loc;

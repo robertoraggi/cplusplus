@@ -511,6 +511,9 @@ auto ASTDecoder::decodeName(const void* ptr, io::Name type) -> NameAST* {
       return decodeDecltypeName(reinterpret_cast<const io::DecltypeName*>(ptr));
     case io::Name_OperatorName:
       return decodeOperatorName(reinterpret_cast<const io::OperatorName*>(ptr));
+    case io::Name_LiteralOperatorName:
+      return decodeLiteralOperatorName(
+          reinterpret_cast<const io::LiteralOperatorName*>(ptr));
     case io::Name_ConversionName:
       return decodeConversionName(
           reinterpret_cast<const io::ConversionName*>(ptr));
@@ -2898,6 +2901,18 @@ auto ASTDecoder::decodeOperatorName(const io::OperatorName* node)
 
   auto ast = new (pool_) OperatorNameAST();
   ast->op = static_cast<TokenKind>(node->op());
+  return ast;
+}
+
+auto ASTDecoder::decodeLiteralOperatorName(const io::LiteralOperatorName* node)
+    -> LiteralOperatorNameAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) LiteralOperatorNameAST();
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
   return ast;
 }
 

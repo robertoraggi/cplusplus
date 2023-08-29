@@ -861,6 +861,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     visitOperatorName(node: ast.OperatorNameAST, context: Context): void {
     }
 
+    visitLiteralOperatorName(node: ast.LiteralOperatorNameAST, context: Context): void {
+    }
+
     visitConversionName(node: ast.ConversionNameAST, context: Context): void {
         this.accept(node.getTypeId(), context);
     }

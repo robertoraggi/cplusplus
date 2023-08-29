@@ -2795,6 +2795,21 @@ export class OperatorNameAST extends NameAST {
     }
 }
 
+export class LiteralOperatorNameAST extends NameAST {
+    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
+        return visitor.visitLiteralOperatorName(this, context);
+    }
+    getOperatorToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    }
+    getLiteralToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    }
+    getIdentifierToken(): Token | undefined {
+        return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    }
+}
+
 export class ConversionNameAST extends NameAST {
     accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {
         return visitor.visitConversionName(this, context);
@@ -3661,6 +3676,7 @@ const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: Transl
     DestructorNameAST,
     DecltypeNameAST,
     OperatorNameAST,
+    LiteralOperatorNameAST,
     ConversionNameAST,
     TemplateNameAST,
     QualifiedNameAST,
