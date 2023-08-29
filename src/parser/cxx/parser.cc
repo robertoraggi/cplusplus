@@ -7730,20 +7730,33 @@ auto Parser::parse_constraint_logical_and_expression(ExpressionAST*& yyast)
 }
 
 auto Parser::parse_template_parameter(DeclarationAST*& yyast) -> bool {
-  const auto start = currentLocation();
+  auto lookat_type_parameter = [&] {
+    LookaheadParser lookahead{this};
 
-  if (parse_type_parameter(yyast)) return true;
+    if (!parse_type_parameter(yyast)) return false;
 
-  rewind(start);
+    lookahead.commit();
 
-  ParameterDeclarationAST* parameter = nullptr;
-
-  if (parse_parameter_declaration(parameter, /*templParam*/ true)) {
-    yyast = parameter;
     return true;
-  }
+  };
 
-  rewind(start);
+  auto lookat_parameter_declaration = [&] {
+    LookaheadParser lookahead{this};
+
+    ParameterDeclarationAST* parameter = nullptr;
+
+    if (!parse_parameter_declaration(parameter, /*templParam*/ true))
+      return false;
+
+    yyast = parameter;
+
+    lookahead.commit();
+
+    return true;
+  };
+
+  if (lookat_type_parameter()) return true;
+  if (lookat_parameter_declaration()) return true;
 
   return parse_constraint_type_parameter(yyast);
 }
