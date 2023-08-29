@@ -189,6 +189,8 @@ class ASTDecoder {
       -> BinaryExpressionAST*;
   auto decodeAssignmentExpression(const io::AssignmentExpression* node)
       -> AssignmentExpressionAST*;
+  auto decodeConditionExpression(const io::ConditionExpression* node)
+      -> ConditionExpressionAST*;
   auto decodeBracedTypeConstruction(const io::BracedTypeConstruction* node)
       -> BracedTypeConstructionAST*;
   auto decodeTypeConstruction(const io::TypeConstruction* node)

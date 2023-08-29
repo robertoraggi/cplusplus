@@ -914,6 +914,22 @@ auto AssignmentExpressionAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto ConditionExpressionAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(declSpecifierList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(declarator)) return loc;
+  if (auto loc = cxx::firstSourceLocation(initializer)) return loc;
+  return {};
+}
+
+auto ConditionExpressionAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(initializer)) return loc;
+  if (auto loc = cxx::lastSourceLocation(declarator)) return loc;
+  if (auto loc = cxx::lastSourceLocation(declSpecifierList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
+  return {};
+}
+
 auto BracedTypeConstructionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(typeSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(bracedInitList)) return loc;

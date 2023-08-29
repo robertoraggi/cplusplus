@@ -191,6 +191,7 @@ class ASTEncoder : ASTVisitor {
   void visit(UnaryExpressionAST* ast) override;
   void visit(BinaryExpressionAST* ast) override;
   void visit(AssignmentExpressionAST* ast) override;
+  void visit(ConditionExpressionAST* ast) override;
   void visit(BracedTypeConstructionAST* ast) override;
   void visit(TypeConstructionAST* ast) override;
   void visit(CallExpressionAST* ast) override;

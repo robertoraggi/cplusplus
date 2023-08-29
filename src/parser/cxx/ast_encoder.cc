@@ -1798,6 +1798,53 @@ void ASTEncoder::visit(AssignmentExpressionAST* ast) {
   type_ = io::Expression_AssignmentExpression;
 }
 
+void ASTEncoder::visit(ConditionExpressionAST* ast) {
+  std::vector<flatbuffers::Offset<>> attributeListOffsets;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
+
+  for (auto it = ast->attributeList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
+    attributeListOffsets.push_back(offset);
+    attributeListTypes.push_back(type);
+  }
+
+  auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
+  auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
+
+  std::vector<flatbuffers::Offset<>> declSpecifierListOffsets;
+  std::vector<std::underlying_type_t<io::Specifier>> declSpecifierListTypes;
+
+  for (auto it = ast->declSpecifierList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptSpecifier(it->value);
+    declSpecifierListOffsets.push_back(offset);
+    declSpecifierListTypes.push_back(type);
+  }
+
+  auto declSpecifierListOffsetsVector =
+      fbb_.CreateVector(declSpecifierListOffsets);
+  auto declSpecifierListTypesVector = fbb_.CreateVector(declSpecifierListTypes);
+
+  const auto declarator = accept(ast->declarator);
+
+  const auto [initializer, initializerType] =
+      acceptExpression(ast->initializer);
+
+  io::ConditionExpression::Builder builder{fbb_};
+  builder.add_attribute_list(attributeListOffsetsVector);
+  builder.add_attribute_list_type(attributeListTypesVector);
+  builder.add_decl_specifier_list(declSpecifierListOffsetsVector);
+  builder.add_decl_specifier_list_type(declSpecifierListTypesVector);
+  builder.add_declarator(declarator.o);
+  builder.add_initializer(initializer);
+  builder.add_initializer_type(static_cast<io::Expression>(initializerType));
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Expression_ConditionExpression;
+}
+
 void ASTEncoder::visit(BracedTypeConstructionAST* ast) {
   const auto [typeSpecifier, typeSpecifierType] =
       acceptSpecifier(ast->typeSpecifier);

@@ -1189,6 +1189,39 @@ void ASTCloner::visit(AssignmentExpressionAST* ast) {
   copy->op = ast->op;
 }
 
+void ASTCloner::visit(ConditionExpressionAST* ast) {
+  auto copy = new (arena_) ConditionExpressionAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->valueCategory = ast->valueCategory;
+
+  copy->constValue = ast->constValue;
+
+  if (auto it = ast->attributeList) {
+    auto out = &copy->attributeList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  if (auto it = ast->declSpecifierList) {
+    auto out = &copy->declSpecifierList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->declarator = accept(ast->declarator);
+
+  copy->initializer = accept(ast->initializer);
+}
+
 void ASTCloner::visit(BracedTypeConstructionAST* ast) {
   auto copy = new (arena_) BracedTypeConstructionAST();
   copy_ = copy;

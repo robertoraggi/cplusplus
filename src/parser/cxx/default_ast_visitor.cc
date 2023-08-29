@@ -281,6 +281,10 @@ void DefaultASTVisitor::visit(AssignmentExpressionAST* ast) {
   cxx_runtime_error("visit(AssignmentExpressionAST): not implemented");
 }
 
+void DefaultASTVisitor::visit(ConditionExpressionAST* ast) {
+  cxx_runtime_error("visit(ConditionExpressionAST): not implemented");
+}
+
 void DefaultASTVisitor::visit(BracedTypeConstructionAST* ast) {
   cxx_runtime_error("visit(BracedTypeConstructionAST): not implemented");
 }
