@@ -1620,6 +1620,17 @@ void ASTPrinter::visit(OperatorNameAST* ast) {
   }
 }
 
+void ASTPrinter::visit(LiteralOperatorNameAST* ast) {
+  fmt::print(out_, "{}\n", "literal-operator-name");
+  if (ast->literal) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "literal: {}\n", ast->literal->value());
+    --indent_;
+  }
+  accept(ast->identifier, "identifier");
+}
+
 void ASTPrinter::visit(ConversionNameAST* ast) {
   fmt::print(out_, "{}\n", "conversion-name");
   accept(ast->typeId, "type-id");

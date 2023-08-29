@@ -2531,6 +2531,22 @@ class OperatorNameAST final : public NameAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class LiteralOperatorNameAST final : public NameAST {
+ public:
+  LiteralOperatorNameAST() : NameAST(ASTKind::LiteralOperatorName) {}
+
+  SourceLocation operatorLoc;
+  SourceLocation literalLoc;
+  SourceLocation identifierLoc;
+  const Literal* literal = nullptr;
+  const Identifier* identifier = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 class ConversionNameAST final : public NameAST {
  public:
   ConversionNameAST() : NameAST(ASTKind::ConversionName) {}

@@ -664,6 +664,10 @@ void DefaultASTVisitor::visit(OperatorNameAST* ast) {
   cxx_runtime_error("visit(OperatorNameAST): not implemented");
 }
 
+void DefaultASTVisitor::visit(LiteralOperatorNameAST* ast) {
+  cxx_runtime_error("visit(LiteralOperatorNameAST): not implemented");
+}
+
 void DefaultASTVisitor::visit(ConversionNameAST* ast) {
   cxx_runtime_error("visit(ConversionNameAST): not implemented");
 }

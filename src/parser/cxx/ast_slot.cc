@@ -3317,6 +3317,25 @@ void ASTSlot::visit(OperatorNameAST* ast) {
   slotCount_ = 4;
 }
 
+void ASTSlot::visit(LiteralOperatorNameAST* ast) {
+  switch (slot_) {
+    case 0:  // operatorLoc
+      value_ = ast->operatorLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:  // literalLoc
+      value_ = ast->literalLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 2:  // identifierLoc
+      value_ = ast->identifierLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
+
+  slotCount_ = 3;
+}
+
 void ASTSlot::visit(ConversionNameAST* ast) {
   switch (slot_) {
     case 0:  // operatorLoc

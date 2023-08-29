@@ -1031,6 +1031,8 @@ void RecursiveASTVisitor::visit(DecltypeNameAST* ast) {
 
 void RecursiveASTVisitor::visit(OperatorNameAST* ast) {}
 
+void RecursiveASTVisitor::visit(LiteralOperatorNameAST* ast) {}
+
 void RecursiveASTVisitor::visit(ConversionNameAST* ast) {
   acceptTypeId(ast->typeId);
 }
