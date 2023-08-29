@@ -7289,39 +7289,40 @@ auto Parser::parse_base_specifier(BaseSpecifierAST*& yyast) -> bool {
 }
 
 auto Parser::parse_class_or_decltype(NameAST*& yyast) -> bool {
-  const auto start = currentLocation();
+  auto lookat_qualified_name = [&] {
+    LookaheadParser lookahead{this};
 
-  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+    NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
 
-  if (parse_nested_name_specifier(nestedNameSpecifier)) {
-    NameAST* name = nullptr;
+    if (!parse_nested_name_specifier(nestedNameSpecifier)) return false;
 
     SourceLocation templateLoc;
 
-    if (match(TokenKind::T_TEMPLATE, templateLoc) &&
-        parse_simple_template_id(name)) {
-      auto ast = new (pool) QualifiedNameAST();
-      yyast = ast;
+    const auto hasTemplate = match(TokenKind::T_TEMPLATE, templateLoc);
 
-      ast->nestedNameSpecifier = nestedNameSpecifier;
-      ast->templateLoc = templateLoc;
-      ast->id = name;
+    NameAST* name = nullptr;
 
-      return true;
+    if (hasTemplate) {
+      if (!parse_simple_template_id(name)) {
+        parse_error("expected a template id");
+      }
+    } else {
+      if (!parse_type_name(name)) return false;
     }
 
-    if (parse_type_name(name)) {
-      auto ast = new (pool) QualifiedNameAST();
-      yyast = ast;
+    lookahead.commit();
 
-      ast->nestedNameSpecifier = nestedNameSpecifier;
-      ast->id = name;
+    auto ast = new (pool) QualifiedNameAST();
+    yyast = ast;
 
-      return true;
-    }
-  }
+    ast->nestedNameSpecifier = nestedNameSpecifier;
+    ast->templateLoc = templateLoc;
+    ast->id = name;
 
-  rewind(start);
+    return true;
+  };
+
+  if (lookat_qualified_name()) return true;
 
   SpecifierAST* decltypeSpecifier = nullptr;
 
@@ -7432,16 +7433,14 @@ auto Parser::parse_mem_initializer(MemInitializerAST*& yyast) -> bool {
 }
 
 auto Parser::parse_mem_initializer_id(NameAST*& yyast) -> bool {
-  const auto start = currentLocation();
-
-  NameAST* name = nullptr;
-
-  if (parse_class_or_decltype(name)) {
-    yyast = name;
+  auto lookat_class_or_decltype = [&] {
+    LookaheadParser lookahead{this};
+    if (!parse_class_or_decltype(yyast)) return false;
+    lookahead.commit();
     return true;
-  }
+  };
 
-  rewind(start);
+  if (lookat_class_or_decltype()) return true;
 
   SourceLocation identifierLoc;
 
@@ -7452,8 +7451,6 @@ auto Parser::parse_mem_initializer_id(NameAST*& yyast) -> bool {
     name->identifier = unit->identifier(identifierLoc);
     return true;
   }
-
-  rewind(start);
 
   return false;
 }
