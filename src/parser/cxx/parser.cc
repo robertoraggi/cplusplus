@@ -5273,13 +5273,7 @@ auto Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast,
 
   if (!parse_decl_specifier_seq(ast->typeSpecifierList, specs)) return false;
 
-  const auto before_declarator = currentLocation();
-
-  if (!parse_declarator(ast->declarator)) {
-    rewind(before_declarator);
-
-    if (!parse_abstract_declarator(ast->declarator)) rewind(before_declarator);
-  }
+  parse_optional_declarator_or_abstract_declarator(ast->declarator);
 
   if (match(TokenKind::T_EQUAL, ast->equalLoc)) {
     if (!parse_initializer_clause(ast->expression, templParam)) {
