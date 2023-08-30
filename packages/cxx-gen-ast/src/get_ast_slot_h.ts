@@ -54,6 +54,7 @@ enum ASTSlotKind {
   kIdentifierAttribute,
   kLiteralAttribute,
   kBoolAttribute,
+  kIntAttribute,
 };
 
 class ASTSlot final : ASTVisitor {

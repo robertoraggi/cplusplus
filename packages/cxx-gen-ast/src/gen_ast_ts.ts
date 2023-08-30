@@ -65,6 +65,13 @@ export function gen_ast_ts({ ast, output }: { ast: AST; output: string }) {
               );
               emit(`    }`);
               ++slotCount;
+            } else if (m.type === "TokenKind") {
+              emit(`    ${getterName(m.name)}(): TokenKind {`);
+              emit(
+                `        return cxx.getASTSlot(this.getHandle(), ${slotCount});`
+              );
+              emit(`    }`);
+              ++slotCount;
             } else if (m.type === "Identifier") {
               emit(`    ${getterName(m.name)}(): string | undefined {`);
               emit(
@@ -142,6 +149,7 @@ import { ASTCursor } from "./ASTCursor.js";
 import { ASTVisitor } from "./ASTVisitor.js";
 import { ASTKind } from "./ASTKind.js";
 import { Token } from "./Token.js";
+import { TokenKind } from "./TokenKind.js";
 
 interface TranslationUnitLike {
     getUnitHandle(): number;
