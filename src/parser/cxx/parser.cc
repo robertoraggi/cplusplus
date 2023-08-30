@@ -626,15 +626,11 @@ auto Parser::parse_primary_expression(ExpressionAST*& yyast,
 
   if (lookat(TokenKind::T_REQUIRES)) return parse_requires_expression(yyast);
 
-  if (lookat(TokenKind::T_LPAREN)) {
-    const auto saved = currentLocation();
+  if (parse_fold_expression(yyast)) return true;
 
-    if (parse_fold_expression(yyast)) return true;
+  SourceLocation lparenLoc;
 
-    rewind(saved);
-
-    SourceLocation lparenLoc = consumeToken();
-
+  if (match(TokenKind::T_LPAREN, lparenLoc)) {
     ExpressionAST* expression = nullptr;
 
     if (!parse_expression(expression)) return false;
@@ -1202,43 +1198,48 @@ auto Parser::parse_init_capture(LambdaCaptureAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_fold_expression(ExpressionAST*& yyast) -> bool {
-  SourceLocation lparenLoc;
+auto Parser::parse_left_fold_expression(ExpressionAST*& yyast) -> bool {
+  if (!lookat(TokenKind::T_LPAREN, TokenKind::T_DOT_DOT_DOT)) return false;
 
-  if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
+  auto ast = new (pool) LeftFoldExpressionAST();
+  yyast = ast;
 
-  SourceLocation ellipsisLoc;
+  expect(TokenKind::T_LPAREN, ast->lparenLoc);
+  expect(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
 
-  if (match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) {
-    auto ast = new (pool) LeftFoldExpressionAST();
-    yyast = ast;
-
-    ast->lparenLoc = lparenLoc;
-    ast->ellipsisLoc = ellipsisLoc;
-
-    if (!parse_fold_operator(ast->opLoc, ast->op)) {
-      parse_error("expected fold operator");
-    }
-
-    if (!parse_cast_expression(ast->expression)) {
-      parse_error("expected an expression");
-    }
-
-    expect(TokenKind::T_RPAREN, ast->rparenLoc);
-
-    return true;
+  if (!parse_fold_operator(ast->opLoc, ast->op)) {
+    parse_error("expected fold operator");
   }
 
+  if (!parse_cast_expression(ast->expression)) {
+    parse_error("expected an expression");
+  }
+
+  expect(TokenKind::T_RPAREN, ast->rparenLoc);
+
+  return true;
+}
+
+auto Parser::parse_fold_expression(ExpressionAST*& yyast) -> bool {
+  if (parse_left_fold_expression(yyast)) return true;
+
+  SourceLocation lparenLoc;
   ExpressionAST* expression = nullptr;
-
-  if (!parse_cast_expression(expression)) return false;
-
   SourceLocation opLoc;
   TokenKind op = TokenKind::T_EOF_SYMBOL;
+  SourceLocation ellipsisLoc;
 
-  if (!parse_fold_operator(opLoc, op)) return false;
+  auto lookat_fold_expression = [&] {
+    LookaheadParser lookahead{this};
+    if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
+    if (!parse_cast_expression(expression)) return false;
+    if (!parse_fold_operator(opLoc, op)) return false;
+    if (!match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) return false;
+    lookahead.commit();
+    return true;
+  };
 
-  if (!match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) return false;
+  if (!lookat_fold_expression()) return false;
 
   SourceLocation rparenLoc;
 
