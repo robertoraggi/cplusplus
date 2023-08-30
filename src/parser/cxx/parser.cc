@@ -367,11 +367,14 @@ auto Parser::parse_override(SourceLocation& loc) -> bool {
 }
 
 auto Parser::parse_type_name(NameAST*& yyast) -> bool {
-  const auto start = currentLocation();
+  auto lookat_simple_template_id = [&] {
+    LookaheadParser lookahead{this};
+    if (!parse_simple_template_id(yyast)) return false;
+    lookahead.commit();
+    return true;
+  };
 
-  if (parse_simple_template_id(yyast)) return true;
-
-  rewind(start);
+  if (lookat_simple_template_id()) return true;
 
   return parse_name_id(yyast);
 }
