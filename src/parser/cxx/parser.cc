@@ -611,6 +611,8 @@ auto Parser::parse_skip_declaration(bool& skipping) -> bool {
 
 auto Parser::parse_primary_expression(ExpressionAST*& yyast,
                                       bool inRequiresClause) -> bool {
+  NameAST* name = nullptr;
+
   if (parse_this_expression(yyast)) {
     return true;
   } else if (parse_literal(yyast)) {
@@ -625,21 +627,15 @@ auto Parser::parse_primary_expression(ExpressionAST*& yyast,
     return true;
   } else if (parse_nested_expession(yyast)) {
     return true;
-  } else {
-    LookaheadParser lookahead(this);
-
-    NameAST* name = nullptr;
-
-    if (!parse_id_expression(name, inRequiresClause)) return false;
-
-    lookahead.commit();
-
+  } else if (parse_id_expression(name, inRequiresClause)) {
     auto ast = new (pool) IdExpressionAST();
     yyast = ast;
 
     ast->name = name;
 
     return true;
+  } else {
+    return false;
   }
 }
 
@@ -654,26 +650,29 @@ auto Parser::parse_id_expression(NameAST*& yyast, bool inRequiresClause)
 
   if (lookat_qualified_id()) return true;
 
+  LookaheadParser lookahead{this};
+
   if (!parse_unqualified_id(yyast, inRequiresClause)) return false;
+
+  lookahead.commit();
 
   return true;
 }
 
 auto Parser::parse_maybe_template_id(NameAST*& yyast, bool inRequiresClause)
     -> bool {
-  const auto blockErrors = unit->blockErrors(true);
+  LookaheadParser lookahead{this};
 
   auto template_id = parse_template_id(yyast);
 
-  const auto& tk = LA();
-
-  unit->blockErrors(blockErrors);
-
   if (!template_id) return false;
 
-  if (inRequiresClause) return true;
+  if (inRequiresClause) {
+    lookahead.commit();
+    return true;
+  }
 
-  switch (TokenKind(tk)) {
+  switch (TokenKind(LA())) {
     case TokenKind::T_COMMA:
     case TokenKind::T_LPAREN:
     case TokenKind::T_RPAREN:
@@ -690,6 +689,7 @@ auto Parser::parse_maybe_template_id(NameAST*& yyast, bool inRequiresClause)
     case TokenKind::T_MINUS_GREATER:
     case TokenKind::T_AMP_AMP:
     case TokenKind::T_BAR_BAR:
+      lookahead.commit();
       return true;
 
     default: {
@@ -697,6 +697,7 @@ auto Parser::parse_maybe_template_id(NameAST*& yyast, bool inRequiresClause)
       TokenKind tk = TokenKind::T_EOF_SYMBOL;
       ExprContext ctx;
       if (parse_lookahead_binary_operator(loc, tk, ctx)) {
+        lookahead.commit();
         return true;
       }
       yyast = nullptr;
@@ -743,15 +744,15 @@ auto Parser::parse_unqualified_id(NameAST*& yyast, bool inRequiresClause)
   }
 
   if (lookat(TokenKind::T_OPERATOR)) {
+    if (parse_literal_operator_id(yyast)) return true;
     if (parse_operator_function_id(yyast)) return true;
 
     rewind(start);
 
-    if (parse_conversion_function_id(yyast)) return true;
-
-    rewind(start);
-
-    return parse_literal_operator_id(yyast);
+    LookaheadParser lookahead{this};
+    if (!parse_conversion_function_id(yyast)) return false;
+    lookahead.commit();
+    return true;
   }
 
   return parse_name_id(yyast);
@@ -760,31 +761,33 @@ auto Parser::parse_unqualified_id(NameAST*& yyast, bool inRequiresClause)
 auto Parser::parse_qualified_id(NameAST*& yyast, bool inRequiresClause)
     -> bool {
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-
-  if (!parse_nested_name_specifier(nestedNameSpecifier)) return false;
-
   SourceLocation templateLoc;
-
-  match(TokenKind::T_TEMPLATE, templateLoc);
-
+  bool hasTemplate = false;
   NameAST* name = nullptr;
+  bool hasName = false;
 
-  const auto hasName = parse_unqualified_id(name, inRequiresClause);
-
-  if (hasName || templateLoc) {
-    auto ast = new (pool) QualifiedNameAST();
-    yyast = ast;
-
-    ast->nestedNameSpecifier = nestedNameSpecifier;
-    ast->templateLoc = templateLoc;
-    ast->id = name;
-
-    if (!hasName) parse_error("expected a template name");
-
+  auto lookat_qualified_id = [&] {
+    LookaheadParser lookahead{this};
+    if (!parse_nested_name_specifier(nestedNameSpecifier)) return false;
+    hasTemplate = match(TokenKind::T_TEMPLATE, templateLoc);
+    hasName = parse_unqualified_id(name, inRequiresClause);
+    if (!hasName && !templateLoc) return false;
+    lookahead.commit();
     return true;
-  }
+  };
 
-  return false;
+  if (!lookat_qualified_id()) return false;
+
+  auto ast = new (pool) QualifiedNameAST();
+  yyast = ast;
+
+  ast->nestedNameSpecifier = nestedNameSpecifier;
+  ast->templateLoc = templateLoc;
+  ast->id = name;
+
+  if (!hasName) parse_error("expected a template name");
+
+  return true;
 }
 
 auto Parser::parse_start_of_nested_name_specifier(NameAST*& yyast,
@@ -794,27 +797,38 @@ auto Parser::parse_start_of_nested_name_specifier(NameAST*& yyast,
 
   if (match(TokenKind::T_COLON_COLON, scopeLoc)) return true;
 
-  SpecifierAST* decltypeSpecifier = nullptr;
-
-  if (parse_decltype_specifier(decltypeSpecifier) &&
-      match(TokenKind::T_COLON_COLON, scopeLoc)) {
+  auto lookat_decltype_specifier = [&] {
+    LookaheadParser lookahead{this};
+    SpecifierAST* decltypeSpecifier = nullptr;
+    if (!parse_decltype_specifier(decltypeSpecifier)) return false;
+    if (!match(TokenKind::T_COLON_COLON, scopeLoc)) return false;
+    lookahead.commit();
+    auto ast = new (pool) DecltypeNameAST();
+    yyast = ast;
+    ast->decltypeSpecifier = decltypeSpecifier;
     return true;
-  }
+  };
 
-  const auto start = currentLocation();
-
-  if (parse_name_id(yyast) && match(TokenKind::T_COLON_COLON, scopeLoc)) {
+  auto lookat_simple_template_id = [&] {
+    LookaheadParser lookahead{this};
+    NameAST* templateId = nullptr;
+    if (!parse_simple_template_id(templateId)) return false;
+    if (!match(TokenKind::T_COLON_COLON, scopeLoc)) return false;
+    lookahead.commit();
+    yyast = templateId;
     return true;
-  }
+  };
 
-  rewind(start);
+  if (lookat_decltype_specifier()) return true;
+  if (lookat_simple_template_id()) return true;
 
-  if (parse_simple_template_id(yyast) &&
-      match(TokenKind::T_COLON_COLON, scopeLoc)) {
-    return true;
-  }
-
-  return false;
+  LookaheadParser lookahead{this};
+  NameAST* nameId = nullptr;
+  if (!parse_name_id(nameId)) return false;
+  if (!match(TokenKind::T_COLON_COLON, scopeLoc)) return false;
+  lookahead.commit();
+  yyast = nameId;
+  return true;
 }
 
 auto Parser::parse_optional_nested_name_specifier(
@@ -873,7 +887,7 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
   }
 
   while (true) {
-    if (lookat(TokenKind::T_IDENTIFIER) && LA(1).is(TokenKind::T_COLON_COLON)) {
+    if (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_COLON_COLON)) {
       NameAST* name = nullptr;
       parse_name_id(name);
 
@@ -884,24 +898,20 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
       *nameIt = new (pool) List(name);
       nameIt = &(*nameIt)->next;
     } else {
-      const auto saved = currentLocation();
-
-      SourceLocation templateLoc;
-
-      match(TokenKind::T_TEMPLATE, templateLoc);
-
-      NameAST* name = nullptr;
-
-      SourceLocation scopeLoc;
-
-      if (parse_simple_template_id(name) &&
-          match(TokenKind::T_COLON_COLON, scopeLoc)) {
+      auto lookat_template_id = [&] {
+        LookaheadParser lookahead{this};
+        SourceLocation templateLoc;
+        const auto hasTemplate = match(TokenKind::T_TEMPLATE, templateLoc);
+        NameAST* name = nullptr;
+        if (!parse_simple_template_id(name)) return false;
+        if (!match(TokenKind::T_COLON_COLON, scopeLoc)) return false;
+        lookahead.commit();
         *nameIt = new (pool) List(name);
         nameIt = &(*nameIt)->next;
-      } else {
-        rewind(saved);
-        break;
-      }
+        return true;
+      };
+
+      if (!lookat_template_id()) break;
     }
   }
 
