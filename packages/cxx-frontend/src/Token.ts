@@ -23,43 +23,43 @@ import { SourceLocation } from "./SourceLocation.js";
 import { TokenKind } from "./TokenKind.js";
 
 interface TranslationUnitLike {
-    getUnitHandle(): number;
+  getUnitHandle(): number;
 }
 
 export class Token {
-    #handle: number;
-    #unit: number;
+  #handle: number;
+  #unit: number;
 
-    constructor(handle: number, parser: TranslationUnitLike) {
-        this.#handle = handle;
-        this.#unit = parser.getUnitHandle();
-    }
+  constructor(handle: number, parser: TranslationUnitLike) {
+    this.#handle = handle;
+    this.#unit = parser.getUnitHandle();
+  }
 
-    getHandle() {
-        return this.#handle;
-    }
+  getHandle() {
+    return this.#handle;
+  }
 
-    getKind(): TokenKind {
-        return cxx.getTokenKind(this.#handle, this.#unit);
-    }
+  getKind(): TokenKind {
+    return cxx.getTokenKind(this.#handle, this.#unit);
+  }
 
-    is(kind: TokenKind) {
-        return this.getKind() === kind;
-    }
+  is(kind: TokenKind) {
+    return this.getKind() === kind;
+  }
 
-    isNot(kind: TokenKind) {
-        return this.getKind() !== kind;
-    }
+  isNot(kind: TokenKind) {
+    return this.getKind() !== kind;
+  }
 
-    getText(): string {
-        return cxx.getTokenText(this.#handle, this.#unit);
-    }
+  getText(): string {
+    return cxx.getTokenText(this.#handle, this.#unit);
+  }
 
-    getLocation(): SourceLocation {
-        return cxx.getTokenLocation(this.#handle, this.#unit);
-    }
+  getLocation(): SourceLocation {
+    return cxx.getTokenLocation(this.#handle, this.#unit);
+  }
 
-    static from(handle: number, parser: TranslationUnitLike): Token | undefined {
-        return handle ? new Token(handle, parser) : undefined;
-    }
+  static from(handle: number, parser: TranslationUnitLike): Token | undefined {
+    return handle ? new Token(handle, parser) : undefined;
+  }
 }

@@ -22,78 +22,99 @@ import { TokenKind } from "./TokenKind.js";
 import { cxx } from "./cxx.js";
 
 export class Lexer {
+  #handle: typeof cxx.Lexer;
 
-    #handle: typeof cxx.Lexer;
+  /**
+   * Creates a new lexer.
+   *
+   * @param source The source code to be tokenized.
+   */
+  constructor(source: string) {
+    this.#handle = new cxx.Lexer(source);
+  }
 
-    /**
-     * Creates a new lexer.
-     *
-     * @param source The source code to be tokenized.
-     */
-    constructor(source: string) {
-        this.#handle = new cxx.Lexer(source);
-    }
+  /**
+   * Disposes the lexer.
+   */
+  dispose() {
+    this.#handle.delete();
+  }
 
-    /**
-     * Disposes the lexer.
-     */
-    dispose() {
-        this.#handle.delete();
-    }
+  /**
+   * Returns the next token.
+   * @returns The next token.
+   */
+  next(): TokenKind {
+    return this.#handle.next();
+  }
 
-    /**
-     * Returns the next token.
-     * @returns The next token.
-     */
-    next(): TokenKind { return this.#handle.next(); }
+  /**
+   * Returns whether the lexer is configured to preprocess the input.
+   */
+  get preprocessing(): boolean {
+    return this.#handle.preprocessing;
+  }
 
-    /**
-     * Returns whether the lexer is configured to preprocess the input.
-     */
-    get preprocessing(): boolean { return this.#handle.preprocessing; }
+  /**
+   * Sets whether the lexer should preprocess the input.
+   */
+  set preprocessing(value: boolean) {
+    this.#handle.preprocessing = value;
+  }
 
-    /**
-     * Sets whether the lexer should preprocess the input.
-     */
-    set preprocessing(value: boolean) { this.#handle.preprocessing = value; }
+  /**
+   * Returns whether the lexer should keep comments.
+   */
+  get keepComments(): boolean {
+    return this.#handle.keepComments;
+  }
 
-    /**
-     * Returns whether the lexer should keep comments.
-     */
-    get keepComments(): boolean { return this.#handle.keepComments; }
+  /**
+   * Sets whether the lexer should keep comments.
+   */
+  set keepComments(value: boolean) {
+    this.#handle.keepComments = value;
+  }
 
-    /**
-     * Sets whether the lexer should keep comments.
-     */
-    set keepComments(value: boolean) { this.#handle.keepComments = value; }
+  /**
+   * Returns the current token kind.
+   */
+  get tokenKind(): TokenKind {
+    return this.#handle.tokenKind();
+  }
 
-    /**
-     * Returns the current token kind.
-     */
-    get tokenKind(): TokenKind { return this.#handle.tokenKind(); }
+  /**
+   * Returns whether the current token is at the start of a line.
+   */
+  get tokenAtStartOfLine(): boolean {
+    return this.#handle.tokenAtStartOfLine();
+  }
 
-    /**
-     * Returns whether the current token is at the start of a line.
-     */
-    get tokenAtStartOfLine(): boolean { return this.#handle.tokenAtStartOfLine(); }
+  /**
+   * Returns whether the current token has a leading space.
+   */
+  get tokenHasLeadingSpace(): boolean {
+    return this.#handle.tokenHasLeadingSpace();
+  }
 
-    /**
-     * Returns whether the current token has a leading space.
-     */
-    get tokenHasLeadingSpace(): boolean { return this.#handle.tokenHasLeadingSpace(); }
+  /**
+   * Returns the offset of the current token.
+   */
+  get tokenOffset(): number {
+    return this.#handle.tokenOffset();
+  }
 
-    /**
-     * Returns the offset of the current token.
-     */
-    get tokenOffset(): number { return this.#handle.tokenOffset(); }
+  /**
+   * Returns the length of the current token.
+   */
+  get tokenLength(): number {
+    return this.#handle.tokenLength();
+  }
 
-    /**
-     * Returns the length of the current token.
-     */
-    get tokenLength(): number { return this.#handle.tokenLength(); }
-
-    /**
-     * Returns the text of the current token.
-     */
-    get tokenText(): string { return this.#handle.tokenText(); }
+  /**
+   * Returns the text of the current token.
+   */
+  get tokenText(): string {
+    return this.#handle.tokenText();
+  }
 }

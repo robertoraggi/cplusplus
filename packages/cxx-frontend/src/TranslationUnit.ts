@@ -23,100 +23,103 @@ import { cxx } from "./cxx.js";
 import { Token } from "./Token.js";
 
 export class TranslationUnit {
-    #control: typeof cxx.Control;
-    #diagnosticsClient: typeof cxx.DiagnosticsClient;
-    #handle: typeof cxx.TranslationUnit
+  #control: typeof cxx.Control;
+  #diagnosticsClient: typeof cxx.DiagnosticsClient;
+  #handle: typeof cxx.TranslationUnit;
 
-    /**
-     * Creates a new translation unit.
-     */
-    constructor() {
-        this.#control = new cxx.Control();
-        this.#diagnosticsClient = new cxx.DiagnosticsClient();
-        this.#handle = new cxx.TranslationUnit(this.#control, this.#diagnosticsClient);
+  /**
+   * Creates a new translation unit.
+   */
+  constructor() {
+    this.#control = new cxx.Control();
+    this.#diagnosticsClient = new cxx.DiagnosticsClient();
+    this.#handle = new cxx.TranslationUnit(
+      this.#control,
+      this.#diagnosticsClient,
+    );
+  }
+
+  /**
+   * Disposes the translation unit.
+   */
+  dispose() {
+    this.#handle.delete();
+    this.#diagnosticsClient.delete();
+    this.#control.delete();
+  }
+
+  /**
+   * Preprocesses the given source code.
+   *
+   * @param source the source code
+   * @param path the path of the source code
+   */
+  preprocess(source: string, path: string) {
+    this.#handle.setSource(source, path);
+  }
+
+  /**
+   * Parses the preprocessed code
+   *
+   * @returns the AST or undefined
+   */
+  parse(): AST | undefined {
+    if (!this.#handle.parse(false)) {
+      return undefined;
     }
 
-    /**
-     * Disposes the translation unit.
-     */
-    dispose() {
-        this.#handle.delete();
-        this.#diagnosticsClient.delete();
-        this.#control.delete();
-    }
+    return this.getAST();
+  }
 
-    /**
-     * Preprocesses the given source code.
-     *
-     * @param source the source code
-     * @param path the path of the source code
-     */
-    preprocess(source: string, path: string) {
-        this.#handle.setSource(source, path);
-    }
+  /**
+   * Returns the AST.
+   *
+   * @returns the AST or undefined
+   */
+  getAST(): AST | undefined {
+    return AST.from(this.#handle.getAST(), this.#handle);
+  }
 
-    /**
-     * Parses the preprocessed code
-     *
-     * @returns the AST or undefined
-     */
-    parse(): AST | undefined {
-        if (!this.#handle.parse(false)) {
-            return undefined;
-        }
-
-        return this.getAST();
-    }
-
-    /**
-     * Returns the AST.
-     *
-     * @returns the AST or undefined
-     */
-    getAST(): AST | undefined {
-        return AST.from(this.#handle.getAST(), this.#handle);
-    }
-
-    /**
-     * Returns the preprocessed tokens.
-     */
-    tokens(): Iterable<Token> {
+  /**
+   * Returns the preprocessed tokens.
+   */
+  tokens(): Iterable<Token> {
+    return {
+      [Symbol.iterator]: () => {
+        const count = this.tokenCount();
+        let index = 1;
         return {
-            [Symbol.iterator]: () => {
-                const count = this.tokenCount();
-                let index = 1;
-                return {
-                    next: () => {
-                        if (index < count) {
-                            const token = this.tokenAt(index++);
+          next: () => {
+            if (index < count) {
+              const token = this.tokenAt(index++);
 
-                            if (token !== undefined) {
-                                return { value: token, done: false };
-                            }
-                        }
-                        return { value: undefined, done: true };
-                    }
-                }
+              if (token !== undefined) {
+                return { value: token, done: false };
+              }
             }
-        }
-    }
+            return { value: undefined, done: true };
+          },
+        };
+      },
+    };
+  }
 
-    /**
-     * Returns the number of tokens.
-     *
-     * @returns the number of tokens
-     */
-    tokenCount(): number {
-        return this.#handle.tokenCount();
-    }
+  /**
+   * Returns the number of tokens.
+   *
+   * @returns the number of tokens
+   */
+  tokenCount(): number {
+    return this.#handle.tokenCount();
+  }
 
-    /**
-     * Returns the token at the given index.
-     *
-     * @param index the index
-     * @returns the token or undefined
-     */
-    tokenAt(index: number): Token | undefined {
-        return Token.from(index, this.#handle);
-    }
+  /**
+   * Returns the token at the given index.
+   *
+   * @param index the index
+   * @returns the token or undefined
+   */
+  tokenAt(index: number): Token | undefined {
+    return Token.from(index, this.#handle);
+  }
 }

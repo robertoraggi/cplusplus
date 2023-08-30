@@ -79,10 +79,19 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-emscripten
 
-      - name: Build
+      - name: Install dependencies
         working-directory: packages/cxx-frontend
         run: |
           npm ci
+
+      - name: Prettier
+        working-directory: packages/cxx-frontend
+        run: |
+          npm run prettier
+
+      - name: Build
+        working-directory: packages/cxx-frontend
+        run: |
           npm run build
           npm pack
 

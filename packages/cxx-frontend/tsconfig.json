@@ -1,14 +1,11 @@
 {
-    "compilerOptions": {
-        "module": "ESNext",
-        "target": "ESNext",
-        "outDir": "dist",
-        "declaration": true,
-        "strict": true,
-        "sourceMap": true
-    },
-    "exclude": [
-        "node_modules",
-        "dist"
-    ]
+  "compilerOptions": {
+    "module": "ESNext",
+    "target": "ESNext",
+    "outDir": "dist",
+    "declaration": true,
+    "strict": true,
+    "sourceMap": true
+  },
+  "exclude": ["node_modules", "dist"]
 }

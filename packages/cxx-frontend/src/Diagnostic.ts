@@ -19,10 +19,10 @@
 // SOFTWARE.
 
 export interface Diagnostic {
-    fileName: string;
-    startLine: number;
-    startColumn: number;
-    endLine: number;
-    endColumn: number;
-    message: string;
+  fileName: string;
+  startLine: number;
+  startColumn: number;
+  endLine: number;
+  endColumn: number;
+  message: string;
 }

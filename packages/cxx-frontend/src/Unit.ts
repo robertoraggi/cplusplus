@@ -21,9 +21,9 @@
 import { Diagnostic } from "./Diagnostic.js";
 
 export interface Unit {
-    delete(): void;
-    parse(): boolean;
-    getHandle(): number;
-    getUnitHandle(): number;
-    getDiagnostics(): Diagnostic[];
+  delete(): void;
+  parse(): boolean;
+  getHandle(): number;
+  getUnitHandle(): number;
+  getDiagnostics(): Diagnostic[];
 }

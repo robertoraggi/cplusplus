@@ -25,94 +25,94 @@ import { TokenKind } from "./TokenKind.js";
 import { Unit } from "./Unit.js";
 
 export enum ASTSlotKind {
-    Invalid,
-    Token,
-    Node,
-    TokenList,
-    NodeList,
-};
+  Invalid,
+  Token,
+  Node,
+  TokenList,
+  NodeList,
+}
 
 interface Control {
-    new(): Control;
-    delete(): void;
+  new (): Control;
+  delete(): void;
 }
 
 interface DiagnosticsClient {
-    new(): DiagnosticsClient;
-    delete(): void;
+  new (): DiagnosticsClient;
+  delete(): void;
 }
 
 interface TranslationUnit {
-    new(control: Control, diagnosticsClient: DiagnosticsClient): TranslationUnit;
-    delete(): void;
+  new (control: Control, diagnosticsClient: DiagnosticsClient): TranslationUnit;
+  delete(): void;
 
-    getUnitHandle(): number;
-    setSource(source: string, path: string): void;
-    parse(checkTypes: boolean): boolean;
-    tokenCount(): number;
-    tokenAt(index: number): number;
-    getAST(): number;
+  getUnitHandle(): number;
+  setSource(source: string, path: string): void;
+  parse(checkTypes: boolean): boolean;
+  tokenCount(): number;
+  tokenAt(index: number): number;
+  getAST(): number;
 }
 
 interface Preprocessor {
-    new(control: Control, diagnosticsClient: DiagnosticsClient): Preprocessor;
-    delete(): void;
+  new (control: Control, diagnosticsClient: DiagnosticsClient): Preprocessor;
+  delete(): void;
 
-    canResolveFiles(): boolean;
-    setCanResolveFiles(value: boolean): void;
-    currentPath(): string;
-    setCurrentPath(path: string): void;
-    defineMacro(name: string, value: string): void;
-    undefineMacro(name: string): void;
-    addIncludePath(path: string): void;
+  canResolveFiles(): boolean;
+  setCanResolveFiles(value: boolean): void;
+  currentPath(): string;
+  setCurrentPath(path: string): void;
+  defineMacro(name: string, value: string): void;
+  undefineMacro(name: string): void;
+  addIncludePath(path: string): void;
 
-    preprocess(source: string, fileName: string): string;
+  preprocess(source: string, fileName: string): string;
 }
 
 interface Lexer {
-    new(source: string): Lexer;
+  new (source: string): Lexer;
 
-    delete(): void;
+  delete(): void;
 
-    preprocessing: boolean;
-    keepComments: boolean;
+  preprocessing: boolean;
+  keepComments: boolean;
 
-    next(): number;
+  next(): number;
 
-    tokenKind(): number;
-    tokenAtStartOfLine(): boolean;
-    tokenHasLeadingSpace(): boolean;
-    tokenOffset(): number;
-    tokenLength(): number;
-    tokenText(): string;
+  tokenKind(): number;
+  tokenAtStartOfLine(): boolean;
+  tokenHasLeadingSpace(): boolean;
+  tokenOffset(): number;
+  tokenLength(): number;
+  tokenText(): string;
 }
 
 export interface CXX {
-    Control: Control;
-    DiagnosticsClient: DiagnosticsClient;
-    Preprocessor: Preprocessor;
-    Lexer: Lexer;
-    TranslationUnit: TranslationUnit;
+  Control: Control;
+  DiagnosticsClient: DiagnosticsClient;
+  Preprocessor: Preprocessor;
+  Lexer: Lexer;
+  TranslationUnit: TranslationUnit;
 
-    createUnit(source: string, path: string): Unit;
-    getASTKind(handle: number): number;
-    getASTSlot(handle: number, slot: number): number;
-    getASTSlotKind(handle: number, slot: number): ASTSlotKind;
-    getASTSlotCount(handle: number, slot: number): number;
-    getListValue(handle: number): number;
-    getListNext(handle: number): number;
-    getTokenText(handle: number, unitHandle: number): string;
-    getTokenKind(handle: number, unitHandle: number): TokenKind;
-    getTokenLocation(handle: number, unitHandle: number): SourceLocation;
-    getStartLocation(handle: number, unitHandle: number): SourceLocation;
-    getEndLocation(handle: number, unitHandle: number): SourceLocation;
-    getLiteralValue(handle: number): string | undefined;
-    getIdentifierValue(handle: number): string | undefined;
+  createUnit(source: string, path: string): Unit;
+  getASTKind(handle: number): number;
+  getASTSlot(handle: number, slot: number): number;
+  getASTSlotKind(handle: number, slot: number): ASTSlotKind;
+  getASTSlotCount(handle: number, slot: number): number;
+  getListValue(handle: number): number;
+  getListNext(handle: number): number;
+  getTokenText(handle: number, unitHandle: number): string;
+  getTokenKind(handle: number, unitHandle: number): TokenKind;
+  getTokenLocation(handle: number, unitHandle: number): SourceLocation;
+  getStartLocation(handle: number, unitHandle: number): SourceLocation;
+  getEndLocation(handle: number, unitHandle: number): SourceLocation;
+  getLiteralValue(handle: number): string | undefined;
+  getIdentifierValue(handle: number): string | undefined;
 }
 
-export let cxx!: CXX
+export let cxx!: CXX;
 
 export default async ({ wasmBinary }: { wasmBinary: Uint8Array }) => {
-    cxx = await makeCxx({ wasmBinary });
-    return cxx;
-}
+  cxx = await makeCxx({ wasmBinary });
+  return cxx;
+};
