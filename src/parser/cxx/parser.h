@@ -143,6 +143,8 @@ class Parser final {
   auto parse_capture(LambdaCaptureAST*& yyast) -> bool;
   auto parse_simple_capture(LambdaCaptureAST*& yyast) -> bool;
   auto parse_init_capture(LambdaCaptureAST*& yyast) -> bool;
+  auto parse_this_expression(ExpressionAST*& yyast) -> bool;
+  auto parse_nested_expession(ExpressionAST*& yyast) -> bool;
   auto parse_fold_expression(ExpressionAST*& yyast) -> bool;
   auto parse_left_fold_expression(ExpressionAST*& yyast) -> bool;
   auto parse_fold_operator(SourceLocation& loc, TokenKind& op) -> bool;

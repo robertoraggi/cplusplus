@@ -611,50 +611,36 @@ auto Parser::parse_skip_declaration(bool& skipping) -> bool {
 
 auto Parser::parse_primary_expression(ExpressionAST*& yyast,
                                       bool inRequiresClause) -> bool {
-  SourceLocation thisLoc;
-
-  if (match(TokenKind::T_THIS, thisLoc)) {
-    auto ast = new (pool) ThisExpressionAST();
-    yyast = ast;
-    ast->thisLoc = thisLoc;
+  if (parse_this_expression(yyast)) {
     return true;
-  }
+  } else if (parse_literal(yyast)) {
+    return true;
+  } else if (parse_lambda_expression(yyast)) {
+    return true;
+  } else if (parse_requires_expression(yyast)) {
+    return true;
+  } else if (lookat(TokenKind::T_LPAREN, TokenKind::T_RPAREN)) {
+    return false;
+  } else if (parse_fold_expression(yyast)) {
+    return true;
+  } else if (parse_nested_expession(yyast)) {
+    return true;
+  } else {
+    LookaheadParser lookahead(this);
 
-  if (parse_literal(yyast)) return true;
+    NameAST* name = nullptr;
 
-  if (lookat(TokenKind::T_LBRACKET)) return parse_lambda_expression(yyast);
+    if (!parse_id_expression(name, inRequiresClause)) return false;
 
-  if (lookat(TokenKind::T_REQUIRES)) return parse_requires_expression(yyast);
+    lookahead.commit();
 
-  if (parse_fold_expression(yyast)) return true;
-
-  SourceLocation lparenLoc;
-
-  if (match(TokenKind::T_LPAREN, lparenLoc)) {
-    auto ast = new (pool) NestedExpressionAST();
+    auto ast = new (pool) IdExpressionAST();
     yyast = ast;
 
-    ast->lparenLoc = lparenLoc;
-
-    if (!parse_expression(ast->expression)) {
-      parse_error("expected an expression");
-    }
-
-    expect(TokenKind::T_RPAREN, ast->rparenLoc);
+    ast->name = name;
 
     return true;
   }
-
-  NameAST* name = nullptr;
-
-  if (!parse_id_expression(name, inRequiresClause)) return false;
-
-  auto ast = new (pool) IdExpressionAST();
-  yyast = ast;
-
-  ast->name = name;
-
-  return true;
 }
 
 auto Parser::parse_id_expression(NameAST*& yyast, bool inRequiresClause)
@@ -924,6 +910,8 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
 }
 
 auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
+  if (!lookat(TokenKind::T_LBRACKET)) return false;
+
   LambdaIntroducerAST* lambdaIntroducer = nullptr;
 
   if (!parse_lambda_introducer(lambdaIntroducer)) return false;
@@ -1208,6 +1196,37 @@ auto Parser::parse_left_fold_expression(ExpressionAST*& yyast) -> bool {
   }
 
   if (!parse_cast_expression(ast->expression)) {
+    parse_error("expected an expression");
+  }
+
+  expect(TokenKind::T_RPAREN, ast->rparenLoc);
+
+  return true;
+}
+
+auto Parser::parse_this_expression(ExpressionAST*& yyast) -> bool {
+  SourceLocation thisLoc;
+
+  if (!match(TokenKind::T_THIS, thisLoc)) return false;
+
+  auto ast = new (pool) ThisExpressionAST();
+  yyast = ast;
+  ast->thisLoc = thisLoc;
+
+  return true;
+}
+
+auto Parser::parse_nested_expession(ExpressionAST*& yyast) -> bool {
+  SourceLocation lparenLoc;
+
+  if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
+
+  auto ast = new (pool) NestedExpressionAST();
+  yyast = ast;
+
+  ast->lparenLoc = lparenLoc;
+
+  if (!parse_expression(ast->expression)) {
     parse_error("expected an expression");
   }
 
