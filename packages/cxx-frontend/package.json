@@ -12,7 +12,9 @@
     "prepack": "npm run copy:readme",
     "build:wasm": "../../scripts/build-emscripten.sh",
     "copy:wasm": "copyfiles -V -f ../../build.em/src/js/cxx-js.* dist",
-    "copy:readme": "copyfiles -V -f ../../README.md ../../CHANGELOG.md ."
+    "copy:readme": "copyfiles -V -f ../../README.md ../../CHANGELOG.md .",
+    "prettier": "npx prettier --check .",
+    "prettier:fix": "npx prettier --write . "
   },
   "keywords": [
     "c++",
@@ -37,6 +39,7 @@
   "devDependencies": {
     "@types/node": "^20.2.1",
     "copyfiles": "^2.4.1",
+    "prettier": "^3.0.3",
     "typescript": "^5.0.4"
   }
 }

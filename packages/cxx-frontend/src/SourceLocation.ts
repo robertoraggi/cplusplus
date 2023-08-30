@@ -19,8 +19,8 @@
 // SOFTWARE.
 
 export interface SourceLocation {
-    startLine: number;
-    startColumn: number;
-    endLine: number;
-    endColumn: number;
+  startLine: number;
+  startColumn: number;
+  endLine: number;
+  endColumn: number;
 }

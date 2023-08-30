@@ -1,4 +1,10 @@
-import { Parser, TokenKind, TranslationUnit, AST, ASTKind } from "../dist/index.js";
+import {
+  Parser,
+  TokenKind,
+  TranslationUnit,
+  AST,
+  ASTKind,
+} from "../dist/index.js";
 import { readFile } from "fs/promises";
 import { fileURLToPath } from "url";
 
@@ -29,7 +35,7 @@ async function main() {
   const ast = translationUnit.parse();
 
   console.log();
-  console.log("== AST:")
+  console.log("== AST:");
 
   ast?.walk().preVisit((node, depth) => {
     if (node instanceof AST) {

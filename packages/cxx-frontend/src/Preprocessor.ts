@@ -21,89 +21,88 @@
 import { cxx } from "./cxx.js";
 
 export class Preprocessor {
-    #control: typeof cxx.Control;
-    #diagnosticClient: typeof cxx.DiagnosticsClient;
-    #handle: typeof cxx.Preprocessor;
+  #control: typeof cxx.Control;
+  #diagnosticClient: typeof cxx.DiagnosticsClient;
+  #handle: typeof cxx.Preprocessor;
 
-    /**
-     * Creates an instance of Preprocessor.
-     *
-     * @param source
-     */
-    constructor() {
-        this.#control = new cxx.Control();
-        this.#diagnosticClient = new cxx.DiagnosticsClient();
-        this.#handle = new cxx.Preprocessor(this.#control, this.#diagnosticClient);
-    }
+  /**
+   * Creates an instance of Preprocessor.
+   *
+   * @param source
+   */
+  constructor() {
+    this.#control = new cxx.Control();
+    this.#diagnosticClient = new cxx.DiagnosticsClient();
+    this.#handle = new cxx.Preprocessor(this.#control, this.#diagnosticClient);
+  }
 
-    /**
-     * Dispose the preprocessor.
-     */
-    dispose() {
-        this.#handle.delete();
-        this.#diagnosticClient.delete();
-        this.#control.delete();
-    }
+  /**
+   * Dispose the preprocessor.
+   */
+  dispose() {
+    this.#handle.delete();
+    this.#diagnosticClient.delete();
+    this.#control.delete();
+  }
 
-    /**
-     * Preprocess the given source code.
-     *
-     * @param source the source code to preprocess
-     * @param fileName the file name of the source code
-     * @returns the preprocessed source code
-     */
+  /**
+   * Preprocess the given source code.
+   *
+   * @param source the source code to preprocess
+   * @param fileName the file name of the source code
+   * @returns the preprocessed source code
+   */
 
-    preprocess(source: string, fileName: string): string {
-        return this.#handle.preprocess(source, fileName);
-    }
+  preprocess(source: string, fileName: string): string {
+    return this.#handle.preprocess(source, fileName);
+  }
 
-    /**
-     * Returns true if the preprocessor can resolve files.
-     */
-    get canResolveFiles(): boolean {
-        return this.#handle.canResolveFiles();
-    }
+  /**
+   * Returns true if the preprocessor can resolve files.
+   */
+  get canResolveFiles(): boolean {
+    return this.#handle.canResolveFiles();
+  }
 
-    /**
-     * Sets whether the preprocessor can resolve files.
-     */
-    set canResolveFiles(value: boolean) {
-        this.#handle.setCanResolveFiles(value);
-    }
+  /**
+   * Sets whether the preprocessor can resolve files.
+   */
+  set canResolveFiles(value: boolean) {
+    this.#handle.setCanResolveFiles(value);
+  }
 
-    /**
-     * Returns the current path.
-     */
-    get currentPath(): string {
-        return this.#handle.currentPath();
-    }
+  /**
+   * Returns the current path.
+   */
+  get currentPath(): string {
+    return this.#handle.currentPath();
+  }
 
-    /**
-     * Sets the current path.
-     *
-     * @param path the current path
-     */
-    set currentPath(path: string) {
-        this.#handle.setCurrentPath(path);
-    }
+  /**
+   * Sets the current path.
+   *
+   * @param path the current path
+   */
+  set currentPath(path: string) {
+    this.#handle.setCurrentPath(path);
+  }
 
-    /**
-     * Defines a macro.
-     *
-     * @param name the name of the macro
-     * @param value the value of the macro
-     */
-    defineMacro(name: string, value: string): void {
-        this.#handle.defineMacro(name, value);
-    }
+  /**
+   * Defines a macro.
+   *
+   * @param name the name of the macro
+   * @param value the value of the macro
+   */
+  defineMacro(name: string, value: string): void {
+    this.#handle.defineMacro(name, value);
+  }
 
-    /**
-     * Undefines a macro.
-     *
-     * @param name the name of the macro
-     */
-    undefineMacro(name: string): void {
-        this.#handle.undefineMacro(name);
-    }
-
+  /**
+   * Undefines a macro.
+   *
+   * @param name the name of the macro
+   */
+  undefineMacro(name: string): void {
+    this.#handle.undefineMacro(name);
+  }
 }

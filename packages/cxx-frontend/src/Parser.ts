@@ -23,74 +23,74 @@ import { Unit } from "./Unit.js";
 import { AST } from "./AST.js";
 
 interface ParseParams {
-    /**
-     * Path to the file to parse.
-     */
-    path: string;
+  /**
+   * Path to the file to parse.
+   */
+  path: string;
 
-    /**
-     * Source code to parse.
-     */
-    source: string;
+  /**
+   * Source code to parse.
+   */
+  source: string;
 }
 
 export class Parser {
-    #unit: Unit | undefined;
-    #ast: AST | undefined;
+  #unit: Unit | undefined;
+  #ast: AST | undefined;
 
-    static DEFAULT_WASM_BINARY_URL = new URL("./cxx-js.wasm", import.meta.url);
+  static DEFAULT_WASM_BINARY_URL = new URL("./cxx-js.wasm", import.meta.url);
 
-    static async init({ wasmBinary }: { wasmBinary: Uint8Array }) {
-        return await initCxx({ wasmBinary });
+  static async init({ wasmBinary }: { wasmBinary: Uint8Array }) {
+    return await initCxx({ wasmBinary });
+  }
+
+  static async initFromURL(url: URL) {
+    const response = await fetch(url);
+    const wasmBinary = await response.arrayBuffer();
+    return await Parser.init({ wasmBinary: new Uint8Array(wasmBinary) });
+  }
+
+  static isInitialized(): boolean {
+    return cxx !== undefined && cxx !== null;
+  }
+
+  constructor(options: ParseParams) {
+    const { path, source } = options;
+
+    if (typeof path !== "string") {
+      throw new TypeError("expected parameter 'path' of type 'string'");
     }
 
-    static async initFromURL(url: URL) {
-        const response = await fetch(url);
-        const wasmBinary = await response.arrayBuffer();
-        return await Parser.init({ wasmBinary: new Uint8Array(wasmBinary) });
+    if (typeof source !== "string") {
+      throw new TypeError("expected parameter 'source' of type 'string'");
     }
 
-    static isInitialized(): boolean {
-        return cxx !== undefined && cxx !== null;
+    this.#unit = cxx.createUnit(source, path);
+  }
+
+  parse() {
+    if (!this.#unit) {
+      return;
     }
+    this.#unit.parse();
+    this.#ast = AST.from(this.#unit.getHandle(), this);
+  }
 
-    constructor(options: ParseParams) {
-        const { path, source } = options;
+  dispose() {
+    this.#unit?.delete();
+    this.#unit = undefined;
+    this.#ast = undefined;
+  }
 
-        if (typeof path !== "string") {
-            throw new TypeError("expected parameter 'path' of type 'string'");
-        }
+  getUnitHandle(): number {
+    return this.#unit?.getUnitHandle() ?? 0;
+  }
 
-        if (typeof source !== "string") {
-            throw new TypeError("expected parameter 'source' of type 'string'");
-        }
+  getAST(): AST | undefined {
+    return this.#ast;
+  }
 
-        this.#unit = cxx.createUnit(source, path);
-    }
-
-    parse() {
-        if (!this.#unit) {
-            return;
-        }
-        this.#unit.parse();
-        this.#ast = AST.from(this.#unit.getHandle(), this);
-    }
-
-    dispose() {
-        this.#unit?.delete();
-        this.#unit = undefined;
-        this.#ast = undefined;
-    }
-
-    getUnitHandle(): number {
-        return this.#unit?.getUnitHandle() ?? 0;
-    }
-
-    getAST(): AST | undefined {
-        return this.#ast;
-    }
-
-    getDiagnostics() {
-        return this.#unit?.getDiagnostics() ?? [];
-    }
+  getDiagnostics() {
+    return this.#unit?.getDiagnostics() ?? [];
+  }
 }

@@ -31,7 +31,10 @@ class StackEntry {
   #parser: TranslationUnitLike;
   children?: Generator<AST | Token>;
 
-  constructor(readonly owner: AST | Token, parser: TranslationUnitLike) {
+  constructor(
+    readonly owner: AST | Token,
+    parser: TranslationUnitLike,
+  ) {
     this.#parser = parser;
   }
 
@@ -50,21 +53,16 @@ class StackEntry {
       const kind = cxx.getASTSlotKind(handle, i);
 
       if (kind === ASTSlotKind.Node) {
-
         const node = AST.from(cxx.getASTSlot(handle, i), this.#parser);
 
-        if (node) yield node
-
+        if (node) yield node;
       } else if (kind === ASTSlotKind.NodeList) {
-
         for (let it = cxx.getASTSlot(handle, i); it; it = cxx.getListNext(it)) {
           const node = AST.from(cxx.getListValue(it), this.#parser);
 
           if (node) yield node;
         }
-
       } else if (kind === ASTSlotKind.Token) {
-
         const token = Token.from(cxx.getASTSlot(handle, i), this.#parser);
 
         if (token) yield token;
@@ -77,7 +75,10 @@ export class ASTCursor {
   readonly #parser: TranslationUnitLike;
   readonly #stack: StackEntry[] = [];
 
-  constructor(readonly root: AST, parser: TranslationUnitLike) {
+  constructor(
+    readonly root: AST,
+    parser: TranslationUnitLike,
+  ) {
     this.#parser = parser;
     this.#stack.push(new StackEntry(root, this.#parser));
   }
@@ -117,8 +118,7 @@ export class ASTCursor {
 
     while (!done) {
       do {
-        if (accept(this.node, depth) === true)
-          return;
+        if (accept(this.node, depth) === true) return;
         ++depth;
       } while (this.gotoFirstChild());
 
