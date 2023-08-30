@@ -645,13 +645,14 @@ auto Parser::parse_primary_expression(ExpressionAST*& yyast,
 
 auto Parser::parse_id_expression(NameAST*& yyast, bool inRequiresClause)
     -> bool {
-  const auto start = currentLocation();
+  auto lookat_qualified_id = [&] {
+    LookaheadParser lookahead{this};
+    if (!parse_qualified_id(yyast, inRequiresClause)) return false;
+    lookahead.commit();
+    return true;
+  };
 
-  if (parse_qualified_id(yyast, inRequiresClause)) return true;
-
-  rewind(start);
-
-  yyast = nullptr;
+  if (lookat_qualified_id()) return true;
 
   if (!parse_unqualified_id(yyast, inRequiresClause)) return false;
 
