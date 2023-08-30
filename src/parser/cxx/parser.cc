@@ -631,20 +631,16 @@ auto Parser::parse_primary_expression(ExpressionAST*& yyast,
   SourceLocation lparenLoc;
 
   if (match(TokenKind::T_LPAREN, lparenLoc)) {
-    ExpressionAST* expression = nullptr;
-
-    if (!parse_expression(expression)) return false;
-
-    SourceLocation rparenLoc;
-
-    if (!match(TokenKind::T_RPAREN, rparenLoc)) return false;
-
     auto ast = new (pool) NestedExpressionAST();
     yyast = ast;
 
     ast->lparenLoc = lparenLoc;
-    ast->expression = expression;
-    ast->rparenLoc = rparenLoc;
+
+    if (!parse_expression(ast->expression)) {
+      parse_error("expected an expression");
+    }
+
+    expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
     return true;
   }
