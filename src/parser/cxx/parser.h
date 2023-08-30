@@ -144,6 +144,7 @@ class Parser final {
   auto parse_simple_capture(LambdaCaptureAST*& yyast) -> bool;
   auto parse_init_capture(LambdaCaptureAST*& yyast) -> bool;
   auto parse_fold_expression(ExpressionAST*& yyast) -> bool;
+  auto parse_left_fold_expression(ExpressionAST*& yyast) -> bool;
   auto parse_fold_operator(SourceLocation& loc, TokenKind& op) -> bool;
   auto parse_requires_expression(ExpressionAST*& yyast) -> bool;
   auto parse_requirement_parameter_list(
