@@ -42,6 +42,12 @@ export function gen_ast_slot_cc({ ast, output }: { ast: AST; output: string }) {
           emit(`    slotKind_ = ASTSlotKind::kBoolAttribute;`);
           emit(`    break;`);
           ++slotCount;
+        } else if (m.kind === "attribute" && m.type === "TokenKind") {
+          emit(`  case ${slotCount}: // ${m.name}`);
+          emit(`    value_ = intptr_t(ast->${m.name});`);
+          emit(`    slotKind_ = ASTSlotKind::kIntAttribute;`);
+          emit(`    break;`);
+          ++slotCount;
         } else if (m.kind === "attribute" && m.type === "Identifier") {
           emit(`  case ${slotCount}: // ${m.name}`);
           emit(`    value_ = reinterpret_cast<std::intptr_t>(ast->${m.name});`);
