@@ -5366,10 +5366,11 @@ auto Parser::parse_brace_or_equal_initializer(ExpressionAST*& yyast) -> bool {
 
 auto Parser::parse_initializer_clause(ExpressionAST*& yyast, bool templParam)
     -> bool {
-  BracedInitListAST* bracedInitList = nullptr;
-
   if (lookat(TokenKind::T_LBRACE)) {
-    return parse_braced_init_list(bracedInitList);
+    BracedInitListAST* bracedInitList = nullptr;
+    parse_braced_init_list(bracedInitList);
+    yyast = bracedInitList;
+    return true;
   }
 
   ExprContext exprContext;
