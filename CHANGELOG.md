@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.21](https://github.com/robertoraggi/cplusplus/compare/v1.1.20...v1.1.21) (2023-09-04)
+
+
+### Bug Fixes
+
+* AST creation of equal initializers ([9a224d5](https://github.com/robertoraggi/cplusplus/commit/9a224d5642e522adf5d1eb0e43a217811e31cafe))
+* Expose TokenKind attributes to JavaScript ([335824c](https://github.com/robertoraggi/cplusplus/commit/335824c9a18f22f74add893290c4e8a56c83de37))
+
 ## [1.1.20](https://github.com/robertoraggi/cplusplus/compare/v1.1.19...v1.1.20) (2023-08-28)
 
 
