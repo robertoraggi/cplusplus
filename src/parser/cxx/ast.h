@@ -1802,6 +1802,7 @@ class IfStatementAST final : public StatementAST {
   ExpressionAST* condition = nullptr;
   SourceLocation rparenLoc;
   StatementAST* statement = nullptr;
+  SourceLocation elseLoc;
   StatementAST* elseStatement = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }

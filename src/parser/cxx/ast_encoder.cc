@@ -2873,6 +2873,8 @@ void ASTEncoder::visit(IfStatementAST* ast) {
 
   const auto [statement, statementType] = acceptStatement(ast->statement);
 
+  auto elseLoc = encodeSourceLocation(ast->elseLoc);
+
   const auto [elseStatement, elseStatementType] =
       acceptStatement(ast->elseStatement);
 
@@ -2887,6 +2889,7 @@ void ASTEncoder::visit(IfStatementAST* ast) {
   builder.add_rparen_loc(rparenLoc.o);
   builder.add_statement(statement);
   builder.add_statement_type(static_cast<io::Statement>(statementType));
+  builder.add_else_loc(elseLoc.o);
   builder.add_else_statement(elseStatement);
   builder.add_else_statement_type(
       static_cast<io::Statement>(elseStatementType));

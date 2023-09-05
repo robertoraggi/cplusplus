@@ -2301,13 +2301,17 @@ void ASTSlot::visit(IfStatementAST* ast) {
       value_ = reinterpret_cast<std::intptr_t>(ast->statement);
       slotKind_ = ASTSlotKind::kNode;
       break;
-    case 7:  // elseStatement
+    case 7:  // elseLoc
+      value_ = ast->elseLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 8:  // elseStatement
       value_ = reinterpret_cast<std::intptr_t>(ast->elseStatement);
       slotKind_ = ASTSlotKind::kNode;
       break;
   }  // switch
 
-  slotCount_ = 8;
+  slotCount_ = 9;
 }
 
 void ASTSlot::visit(SwitchStatementAST* ast) {
