@@ -6772,26 +6772,31 @@ auto Parser::parse_class_specifier(SpecifierAST*& yyast) -> bool {
   BaseClauseAST* baseClause = nullptr;
   SourceLocation finalLoc;
 
-  if (!parse_class_head(classLoc, attributeList, className, finalLoc,
-                        baseClause)) {
+  auto lookat_class_specifier = [&] {
+    LookaheadParser lookahead{this};
+
+    if (parse_class_head(classLoc, attributeList, className, finalLoc,
+                         baseClause)) {
+      if (baseClause || lookat(TokenKind::T_LBRACE)) {
+        lookahead.commit();
+        return true;
+      }
+    }
+
     class_specifiers_.emplace(
         start,
         std::make_tuple(currentLocation(),
                         static_cast<ClassSpecifierAST*>(nullptr), false));
-    return false;
-  }
 
-  ClassSpecifierContext classContext(this);
+    return false;
+  };
+
+  if (!lookat_class_specifier()) return false;
 
   SourceLocation lbraceLoc;
+  expect(TokenKind::T_LBRACE, lbraceLoc);
 
-  if (!match(TokenKind::T_LBRACE, lbraceLoc)) {
-    class_specifiers_.emplace(
-        start,
-        std::make_tuple(currentLocation(),
-                        static_cast<ClassSpecifierAST*>(nullptr), false));
-    return false;
-  }
+  ClassSpecifierContext classContext(this);
 
   auto ast = new (pool) ClassSpecifierAST();
   yyast = ast;
