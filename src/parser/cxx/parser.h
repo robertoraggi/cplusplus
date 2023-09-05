@@ -211,10 +211,17 @@ class Parser final {
       ExpressionAST*& yyast, const ExprContext& exprContext) -> bool;
   [[nodiscard]] auto parse_yield_expression(ExpressionAST*& yyast) -> bool;
   [[nodiscard]] auto parse_throw_expression(ExpressionAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_assignment_expression(ExpressionAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_assignment_expression(ExpressionAST*& yyast,
-                                                 const ExprContext& exprContext)
-      -> bool;
+  void parse_assignment_expression(ExpressionAST*& yyast) {
+    parse_assignment_expression(yyast, ExprContext{});
+  }
+  void parse_assignment_expression(ExpressionAST*& yyast,
+                                   const ExprContext& exprContext);
+  [[nodiscard]] auto parse_maybe_assignment_expression(ExpressionAST*& yyast)
+      -> bool {
+    return parse_maybe_assignment_expression(yyast, ExprContext{});
+  }
+  [[nodiscard]] auto parse_maybe_assignment_expression(
+      ExpressionAST*& yyast, const ExprContext& exprContext) -> bool;
   [[nodiscard]] auto parse_assignment_operator(SourceLocation& loc,
                                                TokenKind& op) -> bool;
   void parse_expression(ExpressionAST*& yyast);
@@ -469,14 +476,13 @@ class Parser final {
                                     SourceLocation& closeLoc) -> bool;
   [[nodiscard]] auto parse_literal_operator_id(NameAST*& yyast) -> bool;
   [[nodiscard]] auto parse_template_declaration(DeclarationAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_template_parameter_list(
-      List<DeclarationAST*>*& yyast) -> bool;
+  void parse_template_parameter_list(List<DeclarationAST*>*& yyast);
   [[nodiscard]] auto parse_requires_clause(RequiresClauseAST*& yyast) -> bool;
   [[nodiscard]] auto parse_constraint_logical_or_expression(
       ExpressionAST*& yyast) -> bool;
   [[nodiscard]] auto parse_constraint_logical_and_expression(
       ExpressionAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_template_parameter(DeclarationAST*& yyast) -> bool;
+  void parse_template_parameter(DeclarationAST*& yyast);
   [[nodiscard]] auto parse_type_parameter(DeclarationAST*& yyast) -> bool;
   [[nodiscard]] auto parse_typename_type_parameter(DeclarationAST*& yyast)
       -> bool;
