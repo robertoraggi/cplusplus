@@ -3074,9 +3074,7 @@ auto Parser::parse_if_statement(StatementAST*& yyast) -> bool {
 
   parse_statement(ast->statement);
 
-  SourceLocation elseLoc;
-
-  if (!match(TokenKind::T_ELSE, elseLoc)) return true;
+  if (!match(TokenKind::T_ELSE, ast->elseLoc)) return true;
 
   parse_statement(ast->elseStatement);
 
@@ -5661,8 +5659,6 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast) -> bool {
   SourceLocation lbraceLoc;
 
   if (!match(TokenKind::T_LBRACE, lbraceLoc)) return false;
-
-  const Name* enumName = name ? name->name : nullptr;
 
   auto ast = new (pool) EnumSpecifierAST();
   yyast = ast;

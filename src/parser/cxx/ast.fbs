@@ -1529,6 +1529,7 @@ table IfStatement /* StatementAST */ {
   constexpr_loc: SourceLocation;
   lparen_loc: SourceLocation;
   rparen_loc: SourceLocation;
+  else_loc: SourceLocation;
 }
 
 table SwitchStatement /* StatementAST */ {

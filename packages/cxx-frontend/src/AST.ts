@@ -2777,9 +2777,12 @@ export class IfStatementAST extends StatementAST {
       this.parser,
     );
   }
+  getElseToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
+  }
   getElseStatement(): StatementAST | undefined {
     return AST.from<StatementAST>(
-      cxx.getASTSlot(this.getHandle(), 7),
+      cxx.getASTSlot(this.getHandle(), 8),
       this.parser,
     );
   }

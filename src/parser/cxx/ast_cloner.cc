@@ -2018,6 +2018,8 @@ void ASTCloner::visit(IfStatementAST* ast) {
 
   copy->statement = accept(ast->statement);
 
+  copy->elseLoc = ast->elseLoc;
+
   copy->elseStatement = accept(ast->elseStatement);
 }
 
