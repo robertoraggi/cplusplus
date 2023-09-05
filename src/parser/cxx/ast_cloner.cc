@@ -2919,8 +2919,6 @@ void ASTCloner::visit(SimpleNameAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->name = ast->name;
-
   copy->identifierLoc = ast->identifierLoc;
 
   copy->identifier = ast->identifier;
@@ -2931,8 +2929,6 @@ void ASTCloner::visit(DestructorNameAST* ast) {
   copy_ = copy;
 
   copy->setChecked(ast->checked());
-
-  copy->name = ast->name;
 
   copy->tildeLoc = ast->tildeLoc;
 
@@ -2945,8 +2941,6 @@ void ASTCloner::visit(DecltypeNameAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->name = ast->name;
-
   copy->decltypeSpecifier = accept(ast->decltypeSpecifier);
 }
 
@@ -2955,8 +2949,6 @@ void ASTCloner::visit(OperatorNameAST* ast) {
   copy_ = copy;
 
   copy->setChecked(ast->checked());
-
-  copy->name = ast->name;
 
   copy->operatorLoc = ast->operatorLoc;
 
@@ -2975,8 +2967,6 @@ void ASTCloner::visit(LiteralOperatorNameAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->name = ast->name;
-
   copy->operatorLoc = ast->operatorLoc;
 
   copy->literalLoc = ast->literalLoc;
@@ -2994,8 +2984,6 @@ void ASTCloner::visit(ConversionNameAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->name = ast->name;
-
   copy->operatorLoc = ast->operatorLoc;
 
   copy->typeId = accept(ast->typeId);
@@ -3006,8 +2994,6 @@ void ASTCloner::visit(TemplateNameAST* ast) {
   copy_ = copy;
 
   copy->setChecked(ast->checked());
-
-  copy->name = ast->name;
 
   copy->id = accept(ast->id);
 
@@ -3030,8 +3016,6 @@ void ASTCloner::visit(QualifiedNameAST* ast) {
   copy_ = copy;
 
   copy->setChecked(ast->checked());
-
-  copy->name = ast->name;
 
   copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
 
