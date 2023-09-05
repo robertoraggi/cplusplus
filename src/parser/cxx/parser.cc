@@ -253,15 +253,26 @@ auto Parser::expect(TokenKind tk, SourceLocation& location) -> bool {
   return false;
 }
 
-auto Parser::operator()(UnitAST*& ast) -> bool {
-  auto result = parse(ast);
-  return result;
+void Parser::operator()(UnitAST*& ast) { parse(ast); }
+
+void Parser::parse(UnitAST*& ast) { parse_translation_unit(ast); }
+
+void Parser::parse_warn(std::string message) {
+  unit->warning(SourceLocation(cursor_), std::move(message));
 }
 
-auto Parser::parse(UnitAST*& ast) -> bool {
-  auto parsed = parse_translation_unit(ast);
+void Parser::parse_warn(SourceLocation loc, std::string message) {
+  unit->warning(loc, std::move(message));
+}
 
-  return parsed;
+void Parser::parse_error(std::string message) {
+  if (lastErrorCursor_ == cursor_) return;
+  lastErrorCursor_ = cursor_;
+  unit->error(SourceLocation(cursor_), std::move(message));
+}
+
+auto Parser::parse_error(SourceLocation loc, std::string message) {
+  unit->error(loc, std::move(message));
 }
 
 auto Parser::parse_id(const Identifier* id, SourceLocation& loc) -> bool {
@@ -483,11 +494,9 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
   }  // switch
 }
 
-auto Parser::parse_translation_unit(UnitAST*& yyast) -> bool {
-  if (parse_module_unit(yyast)) return true;
+void Parser::parse_translation_unit(UnitAST*& yyast) {
+  if (parse_module_unit(yyast)) return;
   parse_top_level_declaration_seq(yyast);
-  // globalRegion->dump(std::cout);
-  return true;
 }
 
 auto Parser::parse_module_head() -> bool {
@@ -531,7 +540,7 @@ auto Parser::parse_module_unit(UnitAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_top_level_declaration_seq(UnitAST*& yyast) -> bool {
+void Parser::parse_top_level_declaration_seq(UnitAST*& yyast) {
   auto ast = new (pool) TranslationUnitAST();
   yyast = ast;
 
@@ -559,17 +568,14 @@ auto Parser::parse_top_level_declaration_seq(UnitAST*& yyast) -> bool {
       if (currentLocation() == saved) consumeToken();
     }
   }
-
-  return true;
 }
 
-auto Parser::parse_skip_top_level_declaration(bool& skipping) -> bool {
+void Parser::parse_skip_top_level_declaration(bool& skipping) {
   if (!skipping) parse_error("expected a declaration");
   skipping = true;
-  return true;
 }
 
-auto Parser::parse_declaration_seq(List<DeclarationAST*>*& yyast) -> bool {
+void Parser::parse_declaration_seq(List<DeclarationAST*>*& yyast) {
   bool skipping = false;
 
   auto it = &yyast;
@@ -595,18 +601,15 @@ auto Parser::parse_declaration_seq(List<DeclarationAST*>*& yyast) -> bool {
       if (currentLocation() == saved) consumeToken();
     }
   }
-
-  return true;
 }
 
-auto Parser::parse_skip_declaration(bool& skipping) -> bool {
-  if (lookat(TokenKind::T_RBRACE)) return false;
-  if (lookat(TokenKind::T_MODULE)) return false;
-  if (moduleUnit_ && lookat(TokenKind::T_EXPORT)) return false;
-  if (lookat(TokenKind::T_IMPORT)) return false;
+void Parser::parse_skip_declaration(bool& skipping) {
+  if (lookat(TokenKind::T_RBRACE)) return;
+  if (lookat(TokenKind::T_MODULE)) return;
+  if (moduleUnit_ && lookat(TokenKind::T_EXPORT)) return;
+  if (lookat(TokenKind::T_IMPORT)) return;
   if (!skipping) parse_error("expected a declaration");
   skipping = true;
-  return true;
 }
 
 auto Parser::parse_primary_expression(ExpressionAST*& yyast,
@@ -831,12 +834,11 @@ auto Parser::parse_start_of_nested_name_specifier(NameAST*& yyast,
   return true;
 }
 
-auto Parser::parse_optional_nested_name_specifier(
-    NestedNameSpecifierAST*& yyast) -> bool {
+void Parser::parse_optional_nested_name_specifier(
+    NestedNameSpecifierAST*& yyast) {
   LookaheadParser lookahead(this);
-  if (!parse_nested_name_specifier(yyast)) return false;
+  if (!parse_nested_name_specifier(yyast)) return;
   lookahead.commit();
-  return true;
 }
 
 auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
@@ -889,7 +891,7 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
   while (true) {
     if (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_COLON_COLON)) {
       NameAST* name = nullptr;
-      parse_name_id(name);
+      (void)parse_name_id(name);
 
       SourceLocation scopeLoc;
 
@@ -939,7 +941,7 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
 
     expect(TokenKind::T_GREATER, ast->greaterLoc);
 
-    parse_requires_clause(ast->requiresClause);
+    (void)parse_requires_clause(ast->requiresClause);
   }
 
   if (!lookat(TokenKind::T_LBRACE)) {
@@ -1003,15 +1005,15 @@ auto Parser::parse_lambda_declarator(LambdaDeclaratorAST*& yyast) -> bool {
 
   DeclSpecs specs;
 
-  parse_decl_specifier_seq(ast->declSpecifierList, specs);
+  (void)parse_decl_specifier_seq(ast->declSpecifierList, specs);
 
-  parse_noexcept_specifier(ast->exceptionSpecifier);
+  (void)parse_noexcept_specifier(ast->exceptionSpecifier);
 
-  parse_attribute_specifier_seq(ast->attributeList);
+  parse_optional_attribute_specifier_seq(ast->attributeList);
 
-  parse_trailing_return_type(ast->trailingReturnType);
+  (void)parse_trailing_return_type(ast->trailingReturnType);
 
-  parse_requires_clause(ast->requiresClause);
+  (void)parse_requires_clause(ast->requiresClause);
 
   return true;
 }
@@ -1641,9 +1643,7 @@ auto Parser::parse_subscript_expression(ExpressionAST*& yyast) -> bool {
 
   yyast = ast;
 
-  if (!parse_expr_or_braced_init_list(ast->indexExpression)) {
-    parse_error("expected an expression");
-  }
+  parse_expr_or_braced_init_list(ast->indexExpression);
 
   expect(TokenKind::T_RBRACKET, ast->rbracketLoc);
 
@@ -2308,7 +2308,7 @@ auto Parser::parse_noptr_new_declarator(List<ArrayDeclaratorAST*>*& yyast)
     expect(TokenKind::T_RBRACKET, declarator->rbracketLoc);
   }
 
-  parse_attribute_specifier_seq(declarator->attributeList);
+  parse_optional_attribute_specifier_seq(declarator->attributeList);
 
   *it = new (pool) List(declarator);
   it = &(*it)->next;
@@ -2330,7 +2330,7 @@ auto Parser::parse_noptr_new_declarator(List<ArrayDeclaratorAST*>*& yyast)
       expect(TokenKind::T_RBRACKET, declarator->rbracketLoc);
     }
 
-    parse_attribute_specifier_seq(declarator->attributeList);
+    parse_optional_attribute_specifier_seq(declarator->attributeList);
   }
 
   return true;
@@ -2525,7 +2525,7 @@ auto Parser::parse_binary_expression_helper(ExpressionAST*& yyast, Prec minPrec,
 
     ExpressionAST* rhs = nullptr;
 
-    parse_binary_operator(opLoc, op, exprContext);
+    (void)parse_binary_operator(opLoc, op, exprContext);
 
     if (!parse_cast_expression(rhs)) {
       rewind(saved);
@@ -2731,13 +2731,19 @@ auto Parser::parse_template_argument_constant_expression(ExpressionAST*& yyast)
   return parse_conditional_expression(yyast, exprContext);
 }
 
-auto Parser::parse_statement(StatementAST*& yyast) -> bool {
+void Parser::parse_statement(StatementAST*& yyast) {
+  if (!parse_statement_helper(yyast)) {
+    parse_error("expected a statement");
+  }
+}
+
+auto Parser::parse_statement_helper(StatementAST*& yyast) -> bool {
   SourceLocation extensionLoc;
 
   match(TokenKind::T___EXTENSION__, extensionLoc);
 
   List<AttributeSpecifierAST*>* attributes = nullptr;
-  parse_attribute_specifier_seq(attributes);
+  parse_optional_attribute_specifier_seq(attributes);
 
   const auto start = currentLocation();
 
@@ -2802,9 +2808,7 @@ auto Parser::parse_statement(StatementAST*& yyast) -> bool {
   }  // switch
 }
 
-auto Parser::parse_init_statement(StatementAST*& yyast) -> bool {
-  if (lookat(TokenKind::T_RPAREN)) return false;
-
+void Parser::parse_init_statement(StatementAST*& yyast) {
   auto lookat_simple_declaration = [&] {
     LookaheadParser lookahead{this};
     DeclarationAST* declaration = nullptr;
@@ -2817,14 +2821,17 @@ auto Parser::parse_init_statement(StatementAST*& yyast) -> bool {
     return true;
   };
 
-  if (lookat_simple_declaration()) return true;
+  if (lookat_simple_declaration()) return;
 
   auto lookat_expression = [&] {
     LookaheadParser lookahead{this};
+
     ExpressionAST* expression = nullptr;
     if (!parse_expression(expression)) return false;
+
     SourceLocation semicolonLoc;
     if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return false;
+
     lookahead.commit();
 
     auto ast = new (pool) ExpressionStatementAST();
@@ -2834,9 +2841,7 @@ auto Parser::parse_init_statement(StatementAST*& yyast) -> bool {
     return true;
   };
 
-  if (lookat_expression()) return true;
-
-  return false;
+  if (lookat_expression()) return;
 }
 
 auto Parser::parse_condition(ExpressionAST*& yyast) -> bool {
@@ -2845,7 +2850,7 @@ auto Parser::parse_condition(ExpressionAST*& yyast) -> bool {
 
     List<AttributeSpecifierAST*>* attributes = nullptr;
 
-    parse_attribute_specifier_seq(attributes);
+    parse_optional_attribute_specifier_seq(attributes);
 
     List<SpecifierAST*>* declSpecifierList = nullptr;
 
@@ -2891,7 +2896,7 @@ auto Parser::parse_labeled_statement(StatementAST*& yyast) -> bool {
 
   StatementAST* statement = nullptr;
 
-  if (!parse_statement(statement)) parse_error("expected a statement");
+  parse_statement(statement);
 
   auto ast = new (pool) LabeledStatementAST();
   yyast = ast;
@@ -2921,7 +2926,7 @@ auto Parser::parse_case_statement(StatementAST*& yyast) -> bool {
 
   StatementAST* statement = nullptr;
 
-  if (!parse_statement(statement)) parse_error("expected a statement");
+  parse_statement(statement);
 
   auto ast = new (pool) CaseStatementAST();
   yyast = ast;
@@ -2945,7 +2950,7 @@ auto Parser::parse_default_statement(StatementAST*& yyast) -> bool {
 
   StatementAST* statement = nullptr;
 
-  if (!parse_statement(statement)) parse_error("expected a statement");
+  parse_statement(statement);
 
   auto ast = new (pool) DefaultStatementAST();
   yyast = ast;
@@ -3025,7 +3030,7 @@ void Parser::finish_compound_statement(CompoundStatementAST* ast) {
 
     StatementAST* statement = nullptr;
 
-    if (parse_statement(statement)) {
+    if (parse_statement_helper(statement)) {
       *it = new (pool) List(statement);
       it = &(*it)->next;
       skipping = false;
@@ -3035,9 +3040,9 @@ void Parser::finish_compound_statement(CompoundStatementAST* ast) {
   }
 }
 
-auto Parser::parse_skip_statement(bool& skipping) -> bool {
-  if (!LA()) return false;
-  if (lookat(TokenKind::T_RBRACE)) return false;
+void Parser::parse_skip_statement(bool& skipping) {
+  if (!LA()) return;
+  if (lookat(TokenKind::T_RBRACE)) return;
   if (!skipping) parse_error("expected a statement");
   for (; LA(); consumeToken()) {
     if (lookat(TokenKind::T_SEMICOLON)) break;
@@ -3045,7 +3050,6 @@ auto Parser::parse_skip_statement(bool& skipping) -> bool {
     if (lookat(TokenKind::T_RBRACE)) break;
   }
   skipping = true;
-  return true;
 }
 
 auto Parser::parse_if_statement(StatementAST*& yyast) -> bool {
@@ -3068,13 +3072,13 @@ auto Parser::parse_if_statement(StatementAST*& yyast) -> bool {
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
-  if (!parse_statement(ast->statement)) parse_error("expected a statement");
+  parse_statement(ast->statement);
 
   SourceLocation elseLoc;
 
   if (!match(TokenKind::T_ELSE, elseLoc)) return true;
 
-  if (!parse_statement(ast->elseStatement)) parse_error("expected a statement");
+  parse_statement(ast->elseStatement);
 
   return true;
 }
@@ -3118,7 +3122,7 @@ auto Parser::parse_while_statement(StatementAST*& yyast) -> bool {
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
-  if (!parse_statement(ast->statement)) parse_error("expected a statement");
+  parse_statement(ast->statement);
 
   return true;
 }
@@ -3133,7 +3137,7 @@ auto Parser::parse_do_statement(StatementAST*& yyast) -> bool {
 
   ast->doLoc = doLoc;
 
-  if (!parse_statement(ast->statement)) parse_error("expected a statement");
+  parse_statement(ast->statement);
 
   expect(TokenKind::T_WHILE, ast->whileLoc);
 
@@ -3178,13 +3182,11 @@ auto Parser::parse_for_range_statement(StatementAST*& yyast) -> bool {
   ast->initializer = initializer;
   ast->colonLoc = colonLoc;
 
-  if (!parse_for_range_initializer(ast->rangeInitializer)) {
-    parse_error("expected for-range intializer");
-  }
+  parse_for_range_initializer(ast->rangeInitializer);
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
-  if (!parse_statement(ast->statement)) parse_error("expected a statement");
+  parse_statement(ast->statement);
 
   return true;
 }
@@ -3199,9 +3201,7 @@ auto Parser::parse_for_statement(StatementAST*& yyast) -> bool {
 
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
-  if (!parse_init_statement(ast->initializer)) {
-    parse_error("expected a statement");
-  }
+  parse_init_statement(ast->initializer);
 
   if (!match(TokenKind::T_SEMICOLON, ast->semicolonLoc)) {
     if (!parse_condition(ast->condition)) parse_error("expected a condition");
@@ -3217,7 +3217,7 @@ auto Parser::parse_for_statement(StatementAST*& yyast) -> bool {
     expect(TokenKind::T_RPAREN, ast->rparenLoc);
   }
 
-  if (!parse_statement(ast->statement)) parse_error("expected a statement");
+  parse_statement(ast->statement);
 
   return true;
 }
@@ -3225,7 +3225,7 @@ auto Parser::parse_for_statement(StatementAST*& yyast) -> bool {
 auto Parser::parse_for_range_declaration(DeclarationAST*& yyast) -> bool {
   List<AttributeSpecifierAST*>* attributeList = nullptr;
 
-  parse_attribute_specifier_seq(attributeList);
+  parse_optional_attribute_specifier_seq(attributeList);
 
   List<SpecifierAST*>* declSpecifierList = nullptr;
 
@@ -3240,7 +3240,7 @@ auto Parser::parse_for_range_declaration(DeclarationAST*& yyast) -> bool {
        LA(1).is(TokenKind::T_LBRACKET))) {
     SourceLocation refLoc;
 
-    parse_ref_qualifier(refLoc);
+    (void)parse_ref_qualifier(refLoc);
 
     SourceLocation lbracketLoc;
 
@@ -3281,8 +3281,8 @@ auto Parser::parse_for_range_declaration(DeclarationAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_for_range_initializer(ExpressionAST*& yyast) -> bool {
-  return parse_expr_or_braced_init_list(yyast);
+void Parser::parse_for_range_initializer(ExpressionAST*& yyast) {
+  parse_expr_or_braced_init_list(yyast);
 }
 
 auto Parser::parse_break_statement(StatementAST*& yyast) -> bool {
@@ -3326,9 +3326,7 @@ auto Parser::parse_return_statement(StatementAST*& yyast) -> bool {
   ast->returnLoc = returnLoc;
 
   if (!match(TokenKind::T_SEMICOLON, ast->semicolonLoc)) {
-    if (!parse_expr_or_braced_init_list(ast->expression)) {
-      parse_error("expected an expression or ';'");
-    }
+    parse_expr_or_braced_init_list(ast->expression);
 
     expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
   }
@@ -3366,9 +3364,7 @@ auto Parser::parse_coroutine_return_statement(StatementAST*& yyast) -> bool {
   ast->coreturnLoc = coreturnLoc;
 
   if (!match(TokenKind::T_SEMICOLON, ast->semicolonLoc)) {
-    if (!parse_expr_or_braced_init_list(ast->expression)) {
-      parse_error("expected an expression");
-    }
+    parse_expr_or_braced_init_list(ast->expression);
 
     expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
   }
@@ -3469,7 +3465,7 @@ auto Parser::parse_alias_declaration(DeclarationAST*& yyast) -> bool {
 
     if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
 
-    parse_attribute_specifier_seq(attributes);
+    parse_optional_attribute_specifier_seq(attributes);
 
     if (!match(TokenKind::T_EQUAL, equalLoc)) return false;
 
@@ -3512,7 +3508,7 @@ auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
 
   List<AttributeSpecifierAST*>* attributes = nullptr;
 
-  parse_attribute_specifier_seq(attributes);
+  parse_optional_attribute_specifier_seq(attributes);
 
   SourceLocation semicolonLoc;
 
@@ -3576,7 +3572,7 @@ auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
 
   SourceLocation refLoc;
 
-  parse_ref_qualifier(refLoc);
+  (void)parse_ref_qualifier(refLoc);
 
   SourceLocation lbracketLoc;
 
@@ -3620,7 +3616,7 @@ auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
 
   RequiresClauseAST* requiresClause = nullptr;
 
-  parse_requires_clause(requiresClause);
+  (void)parse_requires_clause(requiresClause);
 
   if (acceptFunctionDefinition && functionDeclarator &&
       lookat_function_body()) {
@@ -3898,7 +3894,7 @@ auto Parser::parse_decl_specifier_seq(List<SpecifierAST*>*& yyast,
 
   List<AttributeSpecifierAST*>* attributes = nullptr;
 
-  parse_attribute_specifier_seq(attributes);
+  parse_optional_attribute_specifier_seq(attributes);
 
   *it = new (pool) List(specifier);
   it = &(*it)->next;
@@ -3908,7 +3904,7 @@ auto Parser::parse_decl_specifier_seq(List<SpecifierAST*>*& yyast,
   while (parse_decl_specifier(specifier, specs)) {
     List<AttributeSpecifierAST*>* attributes = nullptr;
 
-    parse_attribute_specifier_seq(attributes);
+    parse_optional_attribute_specifier_seq(attributes);
 
     *it = new (pool) List(specifier);
     it = &(*it)->next;
@@ -3931,7 +3927,7 @@ auto Parser::parse_decl_specifier_seq_no_typespecs(List<SpecifierAST*>*& yyast,
 
   List<AttributeSpecifierAST*>* attributes = nullptr;
 
-  parse_attribute_specifier_seq(attributes);
+  parse_optional_attribute_specifier_seq(attributes);
 
   *it = new (pool) List(specifier);
   it = &(*it)->next;
@@ -3941,7 +3937,7 @@ auto Parser::parse_decl_specifier_seq_no_typespecs(List<SpecifierAST*>*& yyast,
   while (parse_decl_specifier(specifier, specs)) {
     List<AttributeSpecifierAST*>* attributes = nullptr;
 
-    parse_attribute_specifier_seq(attributes);
+    parse_optional_attribute_specifier_seq(attributes);
 
     *it = new (pool) List(specifier);
     it = &(*it)->next;
@@ -4052,7 +4048,7 @@ auto Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast) -> bool {
 
   List<AttributeSpecifierAST*>* attributes = nullptr;
 
-  parse_attribute_specifier_seq(attributes);
+  parse_optional_attribute_specifier_seq(attributes);
 
   *it = new (pool) List(typeSpecifier);
   it = &(*it)->next;
@@ -4071,7 +4067,7 @@ auto Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast) -> bool {
 
     List<AttributeSpecifierAST*>* attributes = nullptr;
 
-    parse_attribute_specifier_seq(attributes);
+    parse_optional_attribute_specifier_seq(attributes);
 
     *it = new (pool) List(typeSpecifier);
     it = &(*it)->next;
@@ -4110,7 +4106,7 @@ auto Parser::parse_defining_type_specifier_seq(List<SpecifierAST*>*& yyast,
 
   List<AttributeSpecifierAST*>* attributes = nullptr;
 
-  parse_attribute_specifier_seq(attributes);
+  parse_optional_attribute_specifier_seq(attributes);
 
   *it = new (pool) List(typeSpecifier);
   it = &(*it)->next;
@@ -4127,7 +4123,7 @@ auto Parser::parse_defining_type_specifier_seq(List<SpecifierAST*>*& yyast,
 
     List<AttributeSpecifierAST*>* attributes = nullptr;
 
-    parse_attribute_specifier_seq(attributes);
+    parse_optional_attribute_specifier_seq(attributes);
 
     *it = new (pool) List(typeSpecifier);
     it = &(*it)->next;
@@ -4401,7 +4397,7 @@ auto Parser::parse_elaborated_type_specifier_helper(
 
   List<AttributeSpecifierAST*>* attributes = nullptr;
 
-  parse_attribute_specifier_seq(attributes);
+  parse_optional_attribute_specifier_seq(attributes);
 
   const auto before_nested_name_specifier = currentLocation();
 
@@ -4577,7 +4573,7 @@ auto Parser::parse_placeholder_type_specifier(SpecifierAST*& yyast) -> bool {
   auto lookat_placeholder_type_specifier = [&] {
     LookaheadParser lookahead{this};
 
-    parse_type_constraint(typeConstraint, /*parsing placeholder=*/true);
+    (void)parse_type_constraint(typeConstraint, /*parsing placeholder=*/true);
 
     if (!lookat(TokenKind::T_AUTO) &&
         !lookat(TokenKind::T_DECLTYPE, TokenKind::T_LPAREN, TokenKind::T_AUTO))
@@ -4646,8 +4642,8 @@ auto Parser::parse_declarator_initializer(RequiresClauseAST*& requiresClause,
   return parse_initializer(yyast);
 }
 
-auto Parser::parse_optional_declarator_or_abstract_declarator(
-    DeclaratorAST*& yyast) -> bool {
+void Parser::parse_optional_declarator_or_abstract_declarator(
+    DeclaratorAST*& yyast) {
   auto lookat_declarator = [&] {
     LookaheadParser lookahead{this};
     if (!parse_declarator(yyast)) return false;
@@ -4655,16 +4651,15 @@ auto Parser::parse_optional_declarator_or_abstract_declarator(
     return true;
   };
 
+  if (lookat_declarator()) return;
+
   auto lookat_abstract_declarator = [&] {
     LookaheadParser lookahead{this};
-    if (!parse_abstract_declarator(yyast)) return false;
+    if (!parse_abstract_declarator(yyast)) return;
     lookahead.commit();
-    return true;
   };
 
-  if (lookat_declarator()) return true;
-
-  return lookat_abstract_declarator();
+  lookat_abstract_declarator();
 }
 
 auto Parser::parse_declarator(DeclaratorAST*& yyast) -> bool {
@@ -4772,7 +4767,7 @@ auto Parser::parse_noptr_declarator(DeclaratorAST*& yyast,
 
       List<AttributeSpecifierAST*>* attributes = nullptr;
 
-      parse_attribute_specifier_seq(attributes);
+      parse_optional_attribute_specifier_seq(attributes);
 
       auto modifier = new (pool) ArrayDeclaratorAST();
       modifier->lbracketLoc = lbracketLoc;
@@ -4789,10 +4784,9 @@ auto Parser::parse_noptr_declarator(DeclaratorAST*& yyast,
 
       modifier->parametersAndQualifiers = parametersAndQualifiers;
 
-      parse_trailing_return_type(modifier->trailingReturnType);
+      (void)parse_trailing_return_type(modifier->trailingReturnType);
 
       *it = new (pool) List<DeclaratorModifierAST*>(modifier);
-
       it = &(*it)->next;
 
       parametersAndQualifiers = nullptr;
@@ -4830,13 +4824,13 @@ auto Parser::parse_parameters_and_qualifiers(ParametersAndQualifiersAST*& yyast)
   ast->parameterDeclarationClause = parameterDeclarationClause;
   ast->rparenLoc = rparenLoc;
 
-  parse_cv_qualifier_seq(ast->cvQualifierList);
+  (void)parse_cv_qualifier_seq(ast->cvQualifierList);
 
-  parse_ref_qualifier(ast->refLoc);
+  (void)parse_ref_qualifier(ast->refLoc);
 
-  parse_noexcept_specifier(ast->exceptionSpecifier);
+  (void)parse_noexcept_specifier(ast->exceptionSpecifier);
 
-  parse_attribute_specifier_seq(ast->attributeList);
+  parse_optional_attribute_specifier_seq(ast->attributeList);
 
   return true;
 }
@@ -4887,9 +4881,9 @@ auto Parser::parse_ptr_operator(PtrOperatorAST*& yyast) -> bool {
 
     ast->starLoc = starLoc;
 
-    parse_attribute_specifier_seq(ast->attributeList);
+    parse_optional_attribute_specifier_seq(ast->attributeList);
 
-    parse_cv_qualifier_seq(ast->cvQualifierList);
+    (void)parse_cv_qualifier_seq(ast->cvQualifierList);
 
     return true;
   }
@@ -4903,7 +4897,7 @@ auto Parser::parse_ptr_operator(PtrOperatorAST*& yyast) -> bool {
     ast->refLoc = refLoc;
     ast->refOp = unit->tokenKind(refLoc);
 
-    parse_attribute_specifier_seq(ast->attributeList);
+    parse_optional_attribute_specifier_seq(ast->attributeList);
 
     return true;
   }
@@ -4921,9 +4915,9 @@ auto Parser::parse_ptr_operator(PtrOperatorAST*& yyast) -> bool {
 
     ast->starLoc = starLoc;
 
-    parse_attribute_specifier_seq(ast->attributeList);
+    parse_optional_attribute_specifier_seq(ast->attributeList);
 
-    parse_cv_qualifier_seq(ast->cvQualifierList);
+    (void)parse_cv_qualifier_seq(ast->cvQualifierList);
 
     return true;
   }
@@ -4979,7 +4973,7 @@ auto Parser::parse_declarator_id(CoreDeclaratorAST*& yyast) -> bool {
 
   ast->name = name;
 
-  parse_attribute_specifier_seq(ast->attributeList);
+  parse_optional_attribute_specifier_seq(ast->attributeList);
 
   if (isPack) {
     auto ast = new (pool) ParameterPackAST();
@@ -5173,7 +5167,7 @@ auto Parser::parse_abstract_pack_declarator(DeclaratorAST*& yyast) -> bool {
 
   List<PtrOperatorAST*>* ptrOpList = nullptr;
 
-  parse_ptr_operator_seq(ptrOpList);
+  (void)parse_ptr_operator_seq(ptrOpList);
 
   if (!parse_noptr_abstract_pack_declarator(yyast, ptrOpList)) {
     rewind(start);
@@ -5225,7 +5219,7 @@ auto Parser::parse_noptr_abstract_pack_declarator(
 
       expect(TokenKind::T_RBRACKET, arrayDeclarator->rbracketLoc);
 
-      parse_attribute_specifier_seq(arrayDeclarator->attributeList);
+      parse_optional_attribute_specifier_seq(arrayDeclarator->attributeList);
     }
   }
 
@@ -5295,7 +5289,7 @@ auto Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast,
   auto ast = new (pool) ParameterDeclarationAST();
   yyast = ast;
 
-  parse_attribute_specifier_seq(ast->attributeList);
+  parse_optional_attribute_specifier_seq(ast->attributeList);
 
   DeclSpecs specs;
 
@@ -5366,9 +5360,8 @@ auto Parser::parse_brace_or_equal_initializer(ExpressionAST*& yyast) -> bool {
 
 auto Parser::parse_initializer_clause(ExpressionAST*& yyast, bool templParam)
     -> bool {
-  if (lookat(TokenKind::T_LBRACE)) {
-    BracedInitListAST* bracedInitList = nullptr;
-    parse_braced_init_list(bracedInitList);
+  BracedInitListAST* bracedInitList = nullptr;
+  if (parse_braced_init_list(bracedInitList)) {
     yyast = bracedInitList;
     return true;
   }
@@ -5546,30 +5539,21 @@ auto Parser::parse_designator(DesignatorAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_expr_or_braced_init_list(ExpressionAST*& yyast) -> bool {
-  if (lookat(TokenKind::T_LBRACE)) {
-    BracedInitListAST* bracedInitList = nullptr;
+void Parser::parse_expr_or_braced_init_list(ExpressionAST*& yyast) {
+  BracedInitListAST* bracedInitList = nullptr;
 
-    if (parse_braced_init_list(bracedInitList)) {
-      yyast = bracedInitList;
-      return true;
-    }
+  if (parse_braced_init_list(bracedInitList)) {
+    yyast = bracedInitList;
+  } else if (!parse_expression(yyast)) {
+    parse_error("expected an expression");
   }
-
-  if (!parse_expression(yyast)) parse_error("expected an expression");
-
-  return true;
 }
 
-auto Parser::parse_virt_specifier_seq(FunctionDeclaratorAST* functionDeclarator)
-    -> bool {
-  if (!parse_virt_specifier(functionDeclarator)) return false;
-
+void Parser::parse_virt_specifier_seq(
+    FunctionDeclaratorAST* functionDeclarator) {
   while (parse_virt_specifier(functionDeclarator)) {
     //
   }
-
-  return true;
 }
 
 auto Parser::lookat_function_body() -> bool {
@@ -5632,7 +5616,7 @@ auto Parser::parse_function_body(FunctionBodyAST*& yyast) -> bool {
 
   CtorInitializerAST* ctorInitializer = nullptr;
 
-  parse_ctor_initializer(ctorInitializer);
+  (void)parse_ctor_initializer(ctorInitializer);
 
   if (!lookat(TokenKind::T_LBRACE)) return false;
 
@@ -5663,16 +5647,16 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast) -> bool {
 
   List<AttributeSpecifierAST*>* attributes = nullptr;
 
-  parse_attribute_specifier_seq(attributes);
+  parse_optional_attribute_specifier_seq(attributes);
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   NameAST* name = nullptr;
 
-  parse_enum_head_name(nestedNameSpecifier, name);
+  (void)parse_enum_head_name(nestedNameSpecifier, name);
 
   EnumBaseAST* enumBase = nullptr;
 
-  parse_enum_base(enumBase);
+  (void)parse_enum_base(enumBase);
 
   SourceLocation lbraceLoc;
 
@@ -5730,10 +5714,10 @@ auto Parser::parse_opaque_enum_declaration(DeclarationAST*& yyast) -> bool {
 
   auto lookat_opaque_enum_declaration = [&] {
     LookaheadParser lookahead{this};
-    parse_attribute_specifier_seq(attributes);
+    parse_optional_attribute_specifier_seq(attributes);
     if (!parse_enum_key(enumLoc, classLoc)) return false;
     if (!parse_enum_head_name(nestedNameSpecifier, name)) return false;
-    parse_enum_base(enumBase);
+    (void)parse_enum_base(enumBase);
     if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return false;
     lookahead.commit();
     return true;
@@ -5788,12 +5772,12 @@ auto Parser::parse_enum_base(EnumBaseAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_enumerator_list(List<EnumeratorAST*>*& yyast) -> bool {
+void Parser::parse_enumerator_list(List<EnumeratorAST*>*& yyast) {
   auto it = &yyast;
 
   EnumeratorAST* enumerator = nullptr;
 
-  if (!parse_enumerator_definition(enumerator)) return false;
+  parse_enumerator_definition(enumerator);
 
   *it = new (pool) List(enumerator);
   it = &(*it)->next;
@@ -5813,23 +5797,19 @@ auto Parser::parse_enumerator_list(List<EnumeratorAST*>*& yyast) -> bool {
     *it = new (pool) List(enumerator);
     it = &(*it)->next;
   }
-
-  return true;
 }
 
-auto Parser::parse_enumerator_definition(EnumeratorAST*& yyast) -> bool {
-  if (!parse_enumerator(yyast)) return false;
+void Parser::parse_enumerator_definition(EnumeratorAST*& yyast) {
+  parse_enumerator(yyast);
 
-  if (!match(TokenKind::T_EQUAL, yyast->equalLoc)) return true;
-
-  if (!parse_constant_expression(yyast->expression)) {
-    parse_error("expected an expression");
+  if (match(TokenKind::T_EQUAL, yyast->equalLoc)) {
+    if (!parse_constant_expression(yyast->expression)) {
+      parse_error("expected an expression");
+    }
   }
-
-  return true;
 }
 
-auto Parser::parse_enumerator(EnumeratorAST*& yyast) -> bool {
+void Parser::parse_enumerator(EnumeratorAST*& yyast) {
   auto ast = new (pool) EnumeratorAST();
   yyast = ast;
 
@@ -5837,9 +5817,7 @@ auto Parser::parse_enumerator(EnumeratorAST*& yyast) -> bool {
 
   ast->identifier = unit->identifier(ast->identifierLoc);
 
-  parse_attribute_specifier_seq(ast->attributeList);
-
-  return true;
+  parse_optional_attribute_specifier_seq(ast->attributeList);
 }
 
 auto Parser::parse_using_enum_declaration(DeclarationAST*& yyast) -> bool {
@@ -5880,7 +5858,7 @@ auto Parser::parse_namespace_definition(DeclarationAST*& yyast) -> bool {
 
   expect(TokenKind::T_NAMESPACE, ast->namespaceLoc);
 
-  parse_attribute_specifier_seq(ast->attributeList);
+  parse_optional_attribute_specifier_seq(ast->attributeList);
 
   if (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_COLON_COLON)) {
     auto it = &ast->nestedNamespaceSpecifierList;
@@ -5937,7 +5915,7 @@ auto Parser::parse_namespace_definition(DeclarationAST*& yyast) -> bool {
 
   ast->namespaceName = unit->identifier(ast->identifierLoc);
 
-  parse_attribute_specifier_seq(ast->extraAttributeList);
+  parse_optional_attribute_specifier_seq(ast->extraAttributeList);
 
   expect(TokenKind::T_LBRACE, ast->lbraceLoc);
 
@@ -5948,7 +5926,7 @@ auto Parser::parse_namespace_definition(DeclarationAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_namespace_body(NamespaceDefinitionAST* yyast) -> bool {
+void Parser::parse_namespace_body(NamespaceDefinitionAST* yyast) {
   bool skipping = false;
 
   auto it = &yyast->declarationList;
@@ -5973,8 +5951,6 @@ auto Parser::parse_namespace_body(NamespaceDefinitionAST* yyast) -> bool {
       if (currentLocation() == beforeDeclaration) consumeToken();
     }
   }
-
-  return true;
 }
 
 auto Parser::parse_namespace_alias_definition(DeclarationAST*& yyast) -> bool {
@@ -6027,7 +6003,7 @@ auto Parser::parse_using_directive(DeclarationAST*& yyast) -> bool {
   auto lookat_using_directive = [&] {
     LookaheadParser lookahead{this};
 
-    parse_attribute_specifier_seq(attributes);
+    parse_optional_attribute_specifier_seq(attributes);
 
     if (!match(TokenKind::T_USING, usingLoc)) return false;
 
@@ -6137,7 +6113,7 @@ auto Parser::parse_asm_declaration(DeclarationAST*& yyast) -> bool {
   auto lookat_asm_declaration = [&] {
     LookaheadParser lookahead{this};
 
-    parse_attribute_specifier_seq(attributes);
+    parse_optional_attribute_specifier_seq(attributes);
 
     if (!match(TokenKind::T_ASM, asmLoc)) return false;
 
@@ -6174,7 +6150,7 @@ auto Parser::parse_linkage_specification(DeclarationAST*& yyast) -> bool {
 
     if (!match(TokenKind::T_EXTERN, externLoc)) return false;
 
-    parse_attribute_specifier_seq(attributes);
+    parse_optional_attribute_specifier_seq(attributes);
 
     if (!match(TokenKind::T_STRING_LITERAL, stringLiteralLoc)) return false;
 
@@ -6200,10 +6176,7 @@ auto Parser::parse_linkage_specification(DeclarationAST*& yyast) -> bool {
     ast->lbraceLoc = lbraceLoc;
 
     if (!match(TokenKind::T_RBRACE, ast->rbraceLoc)) {
-      if (!parse_declaration_seq(ast->declarationList)) {
-        parse_error("expected a declaration");
-      }
-
+      parse_declaration_seq(ast->declarationList);
       expect(TokenKind::T_RBRACE, ast->rbraceLoc);
     }
 
@@ -6224,6 +6197,13 @@ auto Parser::parse_linkage_specification(DeclarationAST*& yyast) -> bool {
   ast->declarationList = new (pool) List(declaration);
 
   return true;
+}
+
+void Parser::parse_optional_attribute_specifier_seq(
+    List<AttributeSpecifierAST*>*& yyast) {
+  if (!parse_attribute_specifier_seq(yyast)) {
+    yyast = nullptr;
+  }
 }
 
 auto Parser::parse_attribute_specifier_seq(List<AttributeSpecifierAST*>*& yyast)
@@ -6274,8 +6254,8 @@ auto Parser::parse_cxx_attribute_specifier(AttributeSpecifierAST*& yyast)
   yyast = ast;
   ast->lbracketLoc = consumeToken();
   ast->lbracket2Loc = consumeToken();
-  parse_attribute_using_prefix(ast->attributeUsingPrefix);
-  parse_attribute_list(ast->attributeList);
+  (void)parse_attribute_using_prefix(ast->attributeUsingPrefix);
+  (void)parse_attribute_list(ast->attributeList);
   expect(TokenKind::T_RBRACKET, ast->rbracketLoc);
   expect(TokenKind::T_RBRACKET, ast->rbracket2Loc);
   return true;
@@ -6311,7 +6291,7 @@ auto Parser::parse_gcc_attribute(AttributeSpecifierAST*& yyast) -> bool {
 
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
-  parse_skip_balanced();
+  (void)parse_skip_balanced();
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
@@ -6399,7 +6379,7 @@ auto Parser::parse_attribute_list(List<AttributeAST*>*& yyast) -> bool {
   auto it = &yyast;
 
   AttributeAST* attribute = nullptr;
-  parse_attribute(attribute);
+  (void)parse_attribute(attribute);
 
   SourceLocation ellipsisLoc;
   match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
@@ -6415,7 +6395,7 @@ auto Parser::parse_attribute_list(List<AttributeAST*>*& yyast) -> bool {
 
   while (match(TokenKind::T_COMMA, commaLoc)) {
     AttributeAST* attribute = nullptr;
-    parse_attribute(attribute);
+    (void)parse_attribute(attribute);
 
     SourceLocation ellipsisLoc;
     match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
@@ -6438,7 +6418,7 @@ auto Parser::parse_attribute(AttributeAST*& yyast) -> bool {
 
   AttributeArgumentClauseAST* attributeArgumentClause = nullptr;
 
-  parse_attribute_argument_clause(attributeArgumentClause);
+  (void)parse_attribute_argument_clause(attributeArgumentClause);
 
   auto ast = new (pool) AttributeAST();
   yyast = ast;
@@ -6504,7 +6484,7 @@ auto Parser::parse_attribute_argument_clause(AttributeArgumentClauseAST*& yyast)
 
   if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
 
-  parse_skip_balanced();
+  (void)parse_skip_balanced();
 
   SourceLocation rparenLoc;
 
@@ -6526,7 +6506,8 @@ auto Parser::parse_module_declaration(ModuleDeclarationAST*& yyast) -> bool {
   auto lookat_module_declaration = [&] {
     LookaheadParser lookahead{this};
 
-    parse_export_keyword(exportLoc);
+    (void)parse_export_keyword(exportLoc);
+
     if (!parse_module_keyword(moduleLoc)) return false;
 
     lookahead.commit();
@@ -6544,11 +6525,9 @@ auto Parser::parse_module_declaration(ModuleDeclarationAST*& yyast) -> bool {
     parse_error("expected a module name");
   }
 
-  if (lookat(TokenKind::T_COLON)) {
-    parse_module_partition(yyast->modulePartition);
-  }
+  (void)parse_module_partition(yyast->modulePartition);
 
-  parse_attribute_specifier_seq(yyast->attributeList);
+  parse_optional_attribute_specifier_seq(yyast->attributeList);
 
   expect(TokenKind::T_SEMICOLON, yyast->semicolonLoc);
 
@@ -6614,10 +6593,7 @@ auto Parser::parse_export_declaration(DeclarationAST*& yyast) -> bool {
     ast->lbraceLoc = lbraceLoc;
 
     if (!match(TokenKind::T_RBRACE, ast->rbraceLoc)) {
-      if (!parse_declaration_seq(ast->declarationList)) {
-        parse_error("expected a declaration");
-      }
-
+      parse_declaration_seq(ast->declarationList);
       expect(TokenKind::T_RBRACE, ast->rbraceLoc);
     }
 
@@ -6668,7 +6644,7 @@ auto Parser::parse_module_import_declaration(DeclarationAST*& yyast) -> bool {
     parse_error("expected a module name");
   }
 
-  parse_attribute_specifier_seq(ast->attributeList);
+  parse_optional_attribute_specifier_seq(ast->attributeList);
 
   expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
 
@@ -6693,8 +6669,7 @@ auto Parser::parse_import_name(ImportNameAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_global_module_fragment(GlobalModuleFragmentAST*& yyast)
-    -> bool {
+void Parser::parse_global_module_fragment(GlobalModuleFragmentAST*& yyast) {
   SourceLocation moduleLoc;
   SourceLocation semicolonLoc;
 
@@ -6708,7 +6683,7 @@ auto Parser::parse_global_module_fragment(GlobalModuleFragmentAST*& yyast)
     return true;
   };
 
-  if (!lookat_global_module_fragment()) return false;
+  if (!lookat_global_module_fragment()) return;
 
   yyast = new (pool) GlobalModuleFragmentAST();
   yyast->moduleLoc = moduleLoc;
@@ -6716,12 +6691,9 @@ auto Parser::parse_global_module_fragment(GlobalModuleFragmentAST*& yyast)
 
   // ### must be from preprocessor inclusion
   parse_declaration_seq(yyast->declarationList);
-
-  return true;
 }
 
-auto Parser::parse_private_module_fragment(PrivateModuleFragmentAST*& yyast)
-    -> bool {
+void Parser::parse_private_module_fragment(PrivateModuleFragmentAST*& yyast) {
   SourceLocation moduleLoc;
   SourceLocation colonLoc;
   SourceLocation privateLoc;
@@ -6735,7 +6707,7 @@ auto Parser::parse_private_module_fragment(PrivateModuleFragmentAST*& yyast)
     return true;
   };
 
-  if (!lookat_private_module_fragment()) return false;
+  if (!lookat_private_module_fragment()) return;
 
   yyast = new (pool) PrivateModuleFragmentAST();
 
@@ -6746,8 +6718,6 @@ auto Parser::parse_private_module_fragment(PrivateModuleFragmentAST*& yyast)
   expect(TokenKind::T_SEMICOLON, yyast->semicolonLoc);
 
   parse_declaration_seq(yyast->declarationList);
-
-  return true;
 }
 
 auto Parser::parse_class_specifier(SpecifierAST*& yyast) -> bool {
@@ -6864,13 +6834,13 @@ auto Parser::parse_class_head(SourceLocation& classLoc,
                               BaseClauseAST*& baseClause) -> bool {
   if (!parse_class_key(classLoc)) return false;
 
-  parse_attribute_specifier_seq(attributeList);
+  parse_optional_attribute_specifier_seq(attributeList);
 
   if (parse_class_head_name(name)) {
-    parse_class_virt_specifier(finalLoc);
+    (void)parse_class_virt_specifier(finalLoc);
   }
 
-  parse_base_clause(baseClause);
+  (void)parse_base_clause(baseClause);
 
   return true;
 }
@@ -6961,7 +6931,7 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
 
   List<AttributeSpecifierAST*>* attributes = nullptr;
 
-  parse_attribute_specifier_seq(attributes);
+  parse_optional_attribute_specifier_seq(attributes);
 
   auto after_decl_specs = currentLocation();
 
@@ -7098,7 +7068,7 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
     match(TokenKind::T_IDENTIFIER, identifierLoc);
 
     List<AttributeSpecifierAST*>* attributes = nullptr;
-    parse_attribute_specifier_seq(attributes);
+    parse_optional_attribute_specifier_seq(attributes);
 
     SourceLocation colonLoc;
 
@@ -7123,7 +7093,7 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
 
     ExpressionAST* initializer = nullptr;
 
-    parse_brace_or_equal_initializer(initializer);
+    (void)parse_brace_or_equal_initializer(initializer);
 
     auto ast = new (pool) InitDeclaratorAST();
     yyast = ast;
@@ -7164,7 +7134,7 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
     return true;
   }
 
-  parse_brace_or_equal_initializer(ast->initializer);
+  (void)parse_brace_or_equal_initializer(ast->initializer);
 
   return true;
 }
@@ -7210,7 +7180,7 @@ auto Parser::parse_conversion_function_id(NameAST*& yyast) -> bool {
 
   auto declarator = new (pool) DeclaratorAST();
 
-  parse_ptr_operator_seq(declarator->ptrOpList);
+  (void)parse_ptr_operator_seq(declarator->ptrOpList);
 
   auto typeId = new (pool) TypeIdAST();
   typeId->typeSpecifierList = typeSpecifierList;
@@ -7248,7 +7218,7 @@ auto Parser::parse_base_specifier_list(List<BaseSpecifierAST*>*& yyast)
 
   BaseSpecifierAST* baseSpecifier = nullptr;
 
-  if (!parse_base_specifier(baseSpecifier)) return false;
+  parse_base_specifier(baseSpecifier);
 
   SourceLocation ellipsisLoc;
 
@@ -7262,9 +7232,7 @@ auto Parser::parse_base_specifier_list(List<BaseSpecifierAST*>*& yyast)
   while (match(TokenKind::T_COMMA, commaLoc)) {
     BaseSpecifierAST* baseSpecifier = nullptr;
 
-    if (!parse_base_specifier(baseSpecifier)) {
-      parse_error("expected a base class specifier");
-    }
+    parse_base_specifier(baseSpecifier);
 
     SourceLocation ellipsisLoc;
 
@@ -7277,18 +7245,18 @@ auto Parser::parse_base_specifier_list(List<BaseSpecifierAST*>*& yyast)
   return true;
 }
 
-auto Parser::parse_base_specifier(BaseSpecifierAST*& yyast) -> bool {
+void Parser::parse_base_specifier(BaseSpecifierAST*& yyast) {
   auto ast = new (pool) BaseSpecifierAST();
   yyast = ast;
 
-  parse_attribute_specifier_seq(ast->attributeList);
+  parse_optional_attribute_specifier_seq(ast->attributeList);
 
   SourceLocation virtualLoc;
   SourceLocation accessLoc;
 
   if (match(TokenKind::T_VIRTUAL, virtualLoc)) {
     ast->isVirtual = true;
-    parse_access_specifier(accessLoc);
+    (void)parse_access_specifier(accessLoc);
   } else if (parse_access_specifier(accessLoc)) {
     ast->isVirtual = match(TokenKind::T_VIRTUAL, virtualLoc);
   }
@@ -7300,8 +7268,6 @@ auto Parser::parse_base_specifier(BaseSpecifierAST*& yyast) -> bool {
   if (!parse_class_or_decltype(ast->name)) {
     parse_error("expected a class name");
   }
-
-  return true;
 }
 
 auto Parser::parse_class_or_decltype(NameAST*& yyast) -> bool {
@@ -7374,20 +7340,17 @@ auto Parser::parse_ctor_initializer(CtorInitializerAST*& yyast) -> bool {
 
   ast->colonLoc = colonLoc;
 
-  if (!parse_mem_initializer_list(ast->memInitializerList)) {
-    parse_error("expected a member intializer");
-  }
+  parse_mem_initializer_list(ast->memInitializerList);
 
   return true;
 }
 
-auto Parser::parse_mem_initializer_list(List<MemInitializerAST*>*& yyast)
-    -> bool {
+void Parser::parse_mem_initializer_list(List<MemInitializerAST*>*& yyast) {
   auto it = &yyast;
 
   MemInitializerAST* mem_initializer = nullptr;
 
-  if (!parse_mem_initializer(mem_initializer)) return false;
+  parse_mem_initializer(mem_initializer);
 
   *it = new (pool) List(mem_initializer);
   it = &(*it)->next;
@@ -7397,18 +7360,13 @@ auto Parser::parse_mem_initializer_list(List<MemInitializerAST*>*& yyast)
   while (match(TokenKind::T_COMMA, commaLoc)) {
     MemInitializerAST* mem_initializer = nullptr;
 
-    if (!parse_mem_initializer(mem_initializer)) {
-      parse_error("expected a member initializer");
-    } else {
-      *it = new (pool) List(mem_initializer);
-      it = &(*it)->next;
-    }
+    parse_mem_initializer(mem_initializer);
+    *it = new (pool) List(mem_initializer);
+    it = &(*it)->next;
   }
-
-  return true;
 }
 
-auto Parser::parse_mem_initializer(MemInitializerAST*& yyast) -> bool {
+void Parser::parse_mem_initializer(MemInitializerAST*& yyast) {
   NameAST* name = nullptr;
 
   if (!parse_mem_initializer_id(name)) parse_error("expected an member id");
@@ -7425,7 +7383,7 @@ auto Parser::parse_mem_initializer(MemInitializerAST*& yyast) -> bool {
 
     match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
 
-    return true;
+    return;
   }
 
   auto ast = new (pool) ParenMemInitializerAST();
@@ -7444,8 +7402,6 @@ auto Parser::parse_mem_initializer(MemInitializerAST*& yyast) -> bool {
   }
 
   match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
-
-  return true;
 }
 
 auto Parser::parse_mem_initializer_id(NameAST*& yyast) -> bool {
@@ -7643,7 +7599,7 @@ auto Parser::parse_template_declaration(DeclarationAST*& yyast) -> bool {
     expect(TokenKind::T_GREATER, ast->greaterLoc);
   }
 
-  parse_requires_clause(ast->requiresClause);
+  (void)parse_requires_clause(ast->requiresClause);
 
   if (!parse_concept_definition(ast->declaration)) {
     if (!parse_declaration(ast->declaration))
@@ -7689,7 +7645,9 @@ auto Parser::parse_requires_clause(RequiresClauseAST*& yyast) -> bool {
 
   yyast->requiresLoc = requiresLoc;
 
-  if (!parse_constraint_logical_or_expression(yyast->expression)) return false;
+  if (!parse_constraint_logical_or_expression(yyast->expression)) {
+    parse_error("expected a requirement expression");
+  }
 
   return true;
 }
@@ -7854,7 +7812,7 @@ auto Parser::parse_template_type_parameter(DeclarationAST*& yyast) -> bool {
   }
 
   RequiresClauseAST* requiresClause = nullptr;
-  parse_requires_clause(requiresClause);
+  (void)parse_requires_clause(requiresClause);
 
   SourceLocation classsKeyLoc;
 
@@ -8221,7 +8179,7 @@ auto Parser::parse_deduction_guide(DeclarationAST*& yyast) -> bool {
   auto lookat_deduction_guide = [&] {
     LookaheadParser lookahead{this};
 
-    parse_explicit_specifier(explicitSpecifier);
+    (void)parse_explicit_specifier(explicitSpecifier);
 
     if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
 
@@ -8462,9 +8420,8 @@ auto Parser::parse_handler_seq(List<HandlerAST*>*& yyast) -> bool {
 
   auto it = &yyast;
 
-  while (lookat(TokenKind::T_CATCH)) {
-    HandlerAST* handler = nullptr;
-    parse_handler(handler);
+  HandlerAST* handler = nullptr;
+  while (parse_handler(handler)) {
     *it = new (pool) List(handler);
     it = &(*it)->next;
   }
@@ -8487,7 +8444,7 @@ auto Parser::parse_exception_declaration(ExceptionDeclarationAST*& yyast)
   auto ast = new (pool) TypeExceptionDeclarationAST();
   yyast = ast;
 
-  parse_attribute_specifier_seq(ast->attributeList);
+  parse_optional_attribute_specifier_seq(ast->attributeList);
 
   if (!parse_type_specifier_seq(ast->typeSpecifierList)) {
     parse_error("expected a type specifier");

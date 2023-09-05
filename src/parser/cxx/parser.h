@@ -45,9 +45,9 @@ class Parser final {
   [[nodiscard]] auto checkTypes() const -> bool;
   void setCheckTypes(bool checkTypes);
 
-  auto operator()(UnitAST*& ast) -> bool;
+  void operator()(UnitAST*& ast);
 
-  auto parse(UnitAST*& ast) -> bool;
+  void parse(UnitAST*& ast);
 
   enum struct Prec {
     kLogicalOr,
@@ -76,387 +76,444 @@ class Parser final {
     bool templArg = false;
   };
 
-  auto parse_warn(std::string message) -> bool {
-    unit->warning(SourceLocation(cursor_), std::move(message));
-    return true;
-  }
+  void parse_warn(std::string message);
+  void parse_warn(SourceLocation loc, std::string message);
+  void parse_error(std::string message);
+  [[nodiscard]] auto parse_error(SourceLocation loc, std::string message);
 
-  auto parse_warn(SourceLocation loc, std::string message) -> bool {
-    unit->warning(loc, std::move(message));
-    return true;
-  }
-
-  auto parse_error(std::string message) -> bool {
-    if (lastErrorCursor_ == cursor_) return true;
-    lastErrorCursor_ = cursor_;
-    unit->error(SourceLocation(cursor_), std::move(message));
-    return true;
-  }
-
-  auto parse_error(SourceLocation loc, std::string message) -> bool {
-    unit->error(loc, std::move(message));
-    return true;
-  }
-
-  auto parse_id(const Identifier* id, SourceLocation& loc) -> bool;
-  auto parse_nospace() -> bool;
-  auto parse_greater_greater() -> bool;
-  auto parse_greater_greater_equal() -> bool;
-  auto parse_greater_equal() -> bool;
-  auto parse_header_name(SourceLocation& loc) -> bool;
-  auto parse_export_keyword(SourceLocation& loc) -> bool;
-  auto parse_import_keyword(SourceLocation& loc) -> bool;
-  auto parse_module_keyword(SourceLocation& loc) -> bool;
-  auto parse_final(SourceLocation& loc) -> bool;
-  auto parse_override(SourceLocation& loc) -> bool;
-  auto parse_name_id(NameAST*& yyast) -> bool;
-  auto parse_literal(ExpressionAST*& yyast) -> bool;
-  auto parse_translation_unit(UnitAST*& yyast) -> bool;
-  auto parse_module_head() -> bool;
-  auto parse_module_unit(UnitAST*& yyast) -> bool;
-  auto parse_top_level_declaration_seq(UnitAST*& yyast) -> bool;
-  auto parse_skip_top_level_declaration(bool& skipping) -> bool;
-  auto parse_declaration_seq(List<DeclarationAST*>*& yyast) -> bool;
-  auto parse_skip_declaration(bool& skipping) -> bool;
-  auto parse_primary_expression(ExpressionAST*& yyast,
-                                bool inRequiresClause = false) -> bool;
-  auto parse_id_expression(NameAST*& yyast, bool inRequiresClause = false)
+  [[nodiscard]] auto parse_id(const Identifier* id, SourceLocation& loc)
       -> bool;
-  auto parse_maybe_template_id(NameAST*& yyast, bool inRequiresClause = false)
+  [[nodiscard]] auto parse_nospace() -> bool;
+  [[nodiscard]] auto parse_greater_greater() -> bool;
+  [[nodiscard]] auto parse_greater_greater_equal() -> bool;
+  [[nodiscard]] auto parse_greater_equal() -> bool;
+  [[nodiscard]] auto parse_header_name(SourceLocation& loc) -> bool;
+  [[nodiscard]] auto parse_export_keyword(SourceLocation& loc) -> bool;
+  [[nodiscard]] auto parse_import_keyword(SourceLocation& loc) -> bool;
+  [[nodiscard]] auto parse_module_keyword(SourceLocation& loc) -> bool;
+  [[nodiscard]] auto parse_final(SourceLocation& loc) -> bool;
+  [[nodiscard]] auto parse_override(SourceLocation& loc) -> bool;
+  [[nodiscard]] auto parse_name_id(NameAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_literal(ExpressionAST*& yyast) -> bool;
+  void parse_translation_unit(UnitAST*& yyast);
+  [[nodiscard]] auto parse_module_head() -> bool;
+  [[nodiscard]] auto parse_module_unit(UnitAST*& yyast) -> bool;
+  void parse_top_level_declaration_seq(UnitAST*& yyast);
+  void parse_skip_top_level_declaration(bool& skipping);
+  void parse_declaration_seq(List<DeclarationAST*>*& yyast);
+  void parse_skip_declaration(bool& skipping);
+  [[nodiscard]] auto parse_primary_expression(ExpressionAST*& yyast,
+                                              bool inRequiresClause = false)
       -> bool;
-  auto parse_unqualified_id(NameAST*& yyast, bool inRequiresClause = false)
+  [[nodiscard]] auto parse_id_expression(NameAST*& yyast,
+                                         bool inRequiresClause = false) -> bool;
+  [[nodiscard]] auto parse_maybe_template_id(NameAST*& yyast,
+                                             bool inRequiresClause = false)
       -> bool;
-  auto parse_qualified_id(NameAST*& yyast, bool inRequiresClause = false)
+  [[nodiscard]] auto parse_unqualified_id(NameAST*& yyast,
+                                          bool inRequiresClause = false)
       -> bool;
-  auto parse_optional_nested_name_specifier(NestedNameSpecifierAST*& yyast)
+  [[nodiscard]] auto parse_qualified_id(NameAST*& yyast,
+                                        bool inRequiresClause = false) -> bool;
+  void parse_optional_nested_name_specifier(NestedNameSpecifierAST*& yyast);
+  [[nodiscard]] auto parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
       -> bool;
-  auto parse_nested_name_specifier(NestedNameSpecifierAST*& yyast) -> bool;
-  auto parse_start_of_nested_name_specifier(NameAST*& yyast,
-                                            SourceLocation& scopeLoc) -> bool;
-  auto parse_lambda_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_lambda_introducer(LambdaIntroducerAST*& yyast) -> bool;
-  auto parse_lambda_declarator(LambdaDeclaratorAST*& yyast) -> bool;
-  auto parse_lambda_capture(SourceLocation& captureDefaultLoc,
-                            List<LambdaCaptureAST*>*& yyast) -> bool;
-  auto parse_capture_default(SourceLocation& opLoc) -> bool;
-  auto parse_capture_list(List<LambdaCaptureAST*>*& yyast) -> bool;
-  auto parse_capture(LambdaCaptureAST*& yyast) -> bool;
-  auto parse_simple_capture(LambdaCaptureAST*& yyast) -> bool;
-  auto parse_init_capture(LambdaCaptureAST*& yyast) -> bool;
-  auto parse_this_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_nested_expession(ExpressionAST*& yyast) -> bool;
-  auto parse_fold_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_left_fold_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_fold_operator(SourceLocation& loc, TokenKind& op) -> bool;
-  auto parse_requires_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_requirement_parameter_list(
+  [[nodiscard]] auto parse_start_of_nested_name_specifier(
+      NameAST*& yyast, SourceLocation& scopeLoc) -> bool;
+  [[nodiscard]] auto parse_lambda_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_lambda_introducer(LambdaIntroducerAST*& yyast)
+      -> bool;
+  [[nodiscard]] auto parse_lambda_declarator(LambdaDeclaratorAST*& yyast)
+      -> bool;
+  [[nodiscard]] auto parse_lambda_capture(SourceLocation& captureDefaultLoc,
+                                          List<LambdaCaptureAST*>*& yyast)
+      -> bool;
+  [[nodiscard]] auto parse_capture_default(SourceLocation& opLoc) -> bool;
+  [[nodiscard]] auto parse_capture_list(List<LambdaCaptureAST*>*& yyast)
+      -> bool;
+  [[nodiscard]] auto parse_capture(LambdaCaptureAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_simple_capture(LambdaCaptureAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_init_capture(LambdaCaptureAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_this_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_nested_expession(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_fold_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_left_fold_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_fold_operator(SourceLocation& loc, TokenKind& op)
+      -> bool;
+  [[nodiscard]] auto parse_requires_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_requirement_parameter_list(
       SourceLocation& lparenLoc,
       ParameterDeclarationClauseAST*& parameterDeclarationClause,
       SourceLocation& rparenLoc) -> bool;
-  auto parse_requirement_body(RequirementBodyAST*& yyast) -> bool;
-  auto parse_requirement_seq(List<RequirementAST*>*& yyast) -> bool;
-  auto parse_requirement(RequirementAST*& yyast) -> bool;
-  auto parse_simple_requirement(RequirementAST*& yyast) -> bool;
-  auto parse_type_requirement(RequirementAST*& yyast) -> bool;
-  auto parse_compound_requirement(RequirementAST*& yyast) -> bool;
-  auto parse_return_type_requirement(SourceLocation& minusGreaterLoc,
-                                     TypeConstraintAST*& typeConstraint)
+  [[nodiscard]] auto parse_requirement_body(RequirementBodyAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_requirement_seq(List<RequirementAST*>*& yyast)
       -> bool;
-  auto parse_nested_requirement(RequirementAST*& yyast) -> bool;
-  auto parse_postfix_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_start_of_postfix_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_member_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_subscript_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_call_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_postincr_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_cpp_cast_head(SourceLocation& loc) -> bool;
-  auto parse_cpp_cast_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_cpp_type_cast_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_typeid_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_typename_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_type_traits_op(SourceLocation& loc) -> bool;
-  auto parse_builtin_call_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_expression_list(List<ExpressionAST*>*& yyast) -> bool;
-  auto parse_unary_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_unop_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_complex_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_sizeof_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_alignof_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_unary_operator(SourceLocation& opLoc) -> bool;
-  auto parse_await_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_noexcept_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_new_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_new_placement(NewPlacementAST*& yyast) -> bool;
-  auto parse_new_type_id(NewTypeIdAST*& yyast) -> bool;
-  auto parse_new_declarator(NewDeclaratorAST*& yyast) -> bool;
-  auto parse_noptr_new_declarator(List<ArrayDeclaratorAST*>*& yyast) -> bool;
-  auto parse_new_initializer(NewInitializerAST*& yyast) -> bool;
-  auto parse_delete_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_cast_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_cast_expression_helper(ExpressionAST*& yyast) -> bool;
-  auto parse_binary_operator(SourceLocation& loc, TokenKind& tk,
-                             const ExprContext& exprContext) -> bool;
-  auto parse_binary_expression(ExpressionAST*& yyast,
-                               const ExprContext& exprContext) -> bool;
-  auto parse_lookahead_binary_operator(SourceLocation& loc, TokenKind& tk,
-                                       const ExprContext& exprContext) -> bool;
-  auto parse_binary_expression_helper(ExpressionAST*& yyast, Prec minPrec,
-                                      const ExprContext& exprContext) -> bool;
-  auto parse_logical_or_expression(ExpressionAST*& yyast,
-                                   const ExprContext& exprContext) -> bool;
-  auto parse_conditional_expression(ExpressionAST*& yyast,
-                                    const ExprContext& exprContext) -> bool;
-  auto parse_yield_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_throw_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_assignment_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_assignment_expression(ExpressionAST*& yyast,
-                                   const ExprContext& exprContext) -> bool;
-  auto parse_assignment_operator(SourceLocation& loc, TokenKind& op) -> bool;
-  auto parse_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_constant_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_template_argument_constant_expression(ExpressionAST*& yyast)
+  [[nodiscard]] auto parse_requirement(RequirementAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_simple_requirement(RequirementAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_type_requirement(RequirementAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_compound_requirement(RequirementAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_return_type_requirement(
+      SourceLocation& minusGreaterLoc, TypeConstraintAST*& typeConstraint)
       -> bool;
-  auto parse_statement(StatementAST*& yyast) -> bool;
-  auto parse_init_statement(StatementAST*& yyast) -> bool;
-  auto parse_condition(ExpressionAST*& yyast) -> bool;
-  auto parse_labeled_statement(StatementAST*& yyast) -> bool;
-  auto parse_case_statement(StatementAST*& yyast) -> bool;
-  auto parse_default_statement(StatementAST*& yyast) -> bool;
-  auto parse_expression_statement(StatementAST*& yyast) -> bool;
-  auto parse_compound_statement(CompoundStatementAST*& yyast, bool skip = false)
+  [[nodiscard]] auto parse_nested_requirement(RequirementAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_postfix_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_start_of_postfix_expression(ExpressionAST*& yyast)
       -> bool;
+  [[nodiscard]] auto parse_member_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_subscript_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_call_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_postincr_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_cpp_cast_head(SourceLocation& loc) -> bool;
+  [[nodiscard]] auto parse_cpp_cast_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_cpp_type_cast_expression(ExpressionAST*& yyast)
+      -> bool;
+  [[nodiscard]] auto parse_typeid_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_typename_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_type_traits_op(SourceLocation& loc) -> bool;
+  [[nodiscard]] auto parse_builtin_call_expression(ExpressionAST*& yyast)
+      -> bool;
+  [[nodiscard]] auto parse_expression_list(List<ExpressionAST*>*& yyast)
+      -> bool;
+  [[nodiscard]] auto parse_unary_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_unop_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_complex_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_sizeof_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_alignof_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_unary_operator(SourceLocation& opLoc) -> bool;
+  [[nodiscard]] auto parse_await_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_noexcept_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_new_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_new_placement(NewPlacementAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_new_type_id(NewTypeIdAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_new_declarator(NewDeclaratorAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_noptr_new_declarator(
+      List<ArrayDeclaratorAST*>*& yyast) -> bool;
+  [[nodiscard]] auto parse_new_initializer(NewInitializerAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_delete_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_cast_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_cast_expression_helper(ExpressionAST*& yyast)
+      -> bool;
+  [[nodiscard]] auto parse_binary_operator(SourceLocation& loc, TokenKind& tk,
+                                           const ExprContext& exprContext)
+      -> bool;
+  [[nodiscard]] auto parse_binary_expression(ExpressionAST*& yyast,
+                                             const ExprContext& exprContext)
+      -> bool;
+  [[nodiscard]] auto parse_lookahead_binary_operator(
+      SourceLocation& loc, TokenKind& tk, const ExprContext& exprContext)
+      -> bool;
+  [[nodiscard]] auto parse_binary_expression_helper(
+      ExpressionAST*& yyast, Prec minPrec, const ExprContext& exprContext)
+      -> bool;
+  [[nodiscard]] auto parse_logical_or_expression(ExpressionAST*& yyast,
+                                                 const ExprContext& exprContext)
+      -> bool;
+  [[nodiscard]] auto parse_conditional_expression(
+      ExpressionAST*& yyast, const ExprContext& exprContext) -> bool;
+  [[nodiscard]] auto parse_yield_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_throw_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_assignment_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_assignment_expression(ExpressionAST*& yyast,
+                                                 const ExprContext& exprContext)
+      -> bool;
+  [[nodiscard]] auto parse_assignment_operator(SourceLocation& loc,
+                                               TokenKind& op) -> bool;
+  [[nodiscard]] auto parse_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_constant_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_template_argument_constant_expression(
+      ExpressionAST*& yyast) -> bool;
+  void parse_statement(StatementAST*& yyast);
+  [[nodiscard]] auto parse_statement_helper(StatementAST*& yyast) -> bool;
+  void parse_init_statement(StatementAST*& yyast);
+  [[nodiscard]] auto parse_condition(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_labeled_statement(StatementAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_case_statement(StatementAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_default_statement(StatementAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_expression_statement(StatementAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_compound_statement(CompoundStatementAST*& yyast,
+                                              bool skip = false) -> bool;
   void finish_compound_statement(CompoundStatementAST* yyast);
-  auto parse_skip_statement(bool& skipping) -> bool;
-  auto parse_if_statement(StatementAST*& yyast) -> bool;
-  auto parse_switch_statement(StatementAST*& yyast) -> bool;
-  auto parse_while_statement(StatementAST*& yyast) -> bool;
-  auto parse_do_statement(StatementAST*& yyast) -> bool;
-  auto parse_for_range_statement(StatementAST*& yyast) -> bool;
-  auto parse_for_statement(StatementAST*& yyast) -> bool;
-  auto parse_for_range_declaration(DeclarationAST*& yyast) -> bool;
-  auto parse_for_range_initializer(ExpressionAST*& yyast) -> bool;
-  auto parse_break_statement(StatementAST*& yyast) -> bool;
-  auto parse_continue_statement(StatementAST*& yyast) -> bool;
-  auto parse_return_statement(StatementAST*& yyast) -> bool;
-  auto parse_goto_statement(StatementAST*& yyast) -> bool;
-  auto parse_coroutine_return_statement(StatementAST*& yyast) -> bool;
-  auto parse_declaration_statement(StatementAST*& yyast) -> bool;
-  auto parse_maybe_module() -> bool;
-  auto parse_declaration(DeclarationAST*& yyast) -> bool;
-  auto parse_block_declaration(DeclarationAST*& yyast, bool fundef) -> bool;
-  auto parse_alias_declaration(DeclarationAST*& yyast) -> bool;
-  auto parse_simple_declaration(DeclarationAST*& yyast, bool fundef) -> bool;
-  auto parse_notypespec_function_definition(
+  void parse_skip_statement(bool& skipping);
+  [[nodiscard]] auto parse_if_statement(StatementAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_switch_statement(StatementAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_while_statement(StatementAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_do_statement(StatementAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_for_range_statement(StatementAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_for_statement(StatementAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_for_range_declaration(DeclarationAST*& yyast)
+      -> bool;
+  void parse_for_range_initializer(ExpressionAST*& yyast);
+  [[nodiscard]] auto parse_break_statement(StatementAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_continue_statement(StatementAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_return_statement(StatementAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_goto_statement(StatementAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_coroutine_return_statement(StatementAST*& yyast)
+      -> bool;
+  [[nodiscard]] auto parse_declaration_statement(StatementAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_maybe_module() -> bool;
+  [[nodiscard]] auto parse_declaration(DeclarationAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_block_declaration(DeclarationAST*& yyast,
+                                             bool fundef) -> bool;
+  [[nodiscard]] auto parse_alias_declaration(DeclarationAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_simple_declaration(DeclarationAST*& yyast,
+                                              bool fundef) -> bool;
+  [[nodiscard]] auto parse_notypespec_function_definition(
       DeclarationAST*& yyast, List<SpecifierAST*>* declSpecifierList,
       const DeclSpecs& specs) -> bool;
-  auto parse_static_assert_declaration(DeclarationAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_static_assert_declaration(DeclarationAST*& yyast)
+      -> bool;
   auto match_string_literal(SourceLocation& loc) -> bool;
-  auto parse_empty_declaration(DeclarationAST*& yyast) -> bool;
-  auto parse_attribute_declaration(DeclarationAST*& yyast) -> bool;
-  auto parse_decl_specifier(SpecifierAST*& yyast, DeclSpecs& specs) -> bool;
-  auto parse_decl_specifier_seq(List<SpecifierAST*>*& yyast, DeclSpecs& specs)
+  [[nodiscard]] auto parse_empty_declaration(DeclarationAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_attribute_declaration(DeclarationAST*& yyast)
       -> bool;
-  auto parse_decl_specifier_seq_no_typespecs(List<SpecifierAST*>*& yyast,
-                                             DeclSpecs& specs) -> bool;
-  auto parse_decl_specifier_seq_no_typespecs(List<SpecifierAST*>*& yyast)
+  [[nodiscard]] auto parse_decl_specifier(SpecifierAST*& yyast,
+                                          DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_decl_specifier_seq(List<SpecifierAST*>*& yyast,
+                                              DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_decl_specifier_seq_no_typespecs(
+      List<SpecifierAST*>*& yyast, DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_decl_specifier_seq_no_typespecs(
+      List<SpecifierAST*>*& yyast) -> bool;
+  [[nodiscard]] auto parse_storage_class_specifier(SpecifierAST*& yyast)
       -> bool;
-  auto parse_storage_class_specifier(SpecifierAST*& yyast) -> bool;
-  auto parse_function_specifier(SpecifierAST*& yyast) -> bool;
-  auto parse_explicit_specifier(SpecifierAST*& yyast) -> bool;
-  auto parse_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs) -> bool;
-  auto parse_type_specifier_seq(List<SpecifierAST*>*& yyast) -> bool;
-  auto parse_defining_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
+  [[nodiscard]] auto parse_function_specifier(SpecifierAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_explicit_specifier(SpecifierAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_type_specifier(SpecifierAST*& yyast,
+                                          DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_type_specifier_seq(List<SpecifierAST*>*& yyast)
       -> bool;
-  auto parse_defining_type_specifier_seq(List<SpecifierAST*>*& yyast,
-                                         DeclSpecs& specs) -> bool;
-  auto parse_simple_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
+  [[nodiscard]] auto parse_defining_type_specifier(SpecifierAST*& yyast,
+                                                   DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_defining_type_specifier_seq(
+      List<SpecifierAST*>*& yyast, DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_simple_type_specifier(SpecifierAST*& yyast,
+                                                 DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_named_type_specifier(SpecifierAST*& yyast,
+                                                DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_named_type_specifier_helper(SpecifierAST*& yyast,
+                                                       DeclSpecs& specs)
       -> bool;
-  auto parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
-      -> bool;
-  auto parse_named_type_specifier_helper(SpecifierAST*& yyast, DeclSpecs& specs)
-      -> bool;
-  auto parse_placeholder_type_specifier_helper(SpecifierAST*& yyast,
-                                               DeclSpecs& specs) -> bool;
-  auto parse_decltype_specifier_type_specifier(SpecifierAST*& yyast,
-                                               DeclSpecs& specs) -> bool;
-  auto parse_underlying_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
-      -> bool;
-  auto parse_atomic_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
-      -> bool;
-  auto parse_primitive_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
-      -> bool;
-  auto parse_type_name(NameAST*& yyast) -> bool;
-  auto parse_elaborated_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
-      -> bool;
-  auto parse_elaborated_type_specifier_helper(
+  [[nodiscard]] auto parse_placeholder_type_specifier_helper(
+      SpecifierAST*& yyast, DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_decltype_specifier_type_specifier(
+      SpecifierAST*& yyast, DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_underlying_type_specifier(SpecifierAST*& yyast,
+                                                     DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_atomic_type_specifier(SpecifierAST*& yyast,
+                                                 DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_primitive_type_specifier(SpecifierAST*& yyast,
+                                                    DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_type_name(NameAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_elaborated_type_specifier(SpecifierAST*& yyast,
+                                                     DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_elaborated_type_specifier_helper(
       ElaboratedTypeSpecifierAST*& yyast, DeclSpecs& specs) -> bool;
-  auto parse_elaborated_enum_specifier(ElaboratedTypeSpecifierAST*& yyast,
-                                       DeclSpecs& specs) -> bool;
-  auto parse_decltype_specifier(SpecifierAST*& yyast) -> bool;
-  auto parse_placeholder_type_specifier(SpecifierAST*& yyast) -> bool;
-  auto parse_init_declarator(InitDeclaratorAST*& yyast, const DeclSpecs& specs)
+  [[nodiscard]] auto parse_elaborated_enum_specifier(
+      ElaboratedTypeSpecifierAST*& yyast, DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_decltype_specifier(SpecifierAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_placeholder_type_specifier(SpecifierAST*& yyast)
       -> bool;
-  auto parse_declarator_initializer(RequiresClauseAST*& requiresClause,
-                                    ExpressionAST*& yyast) -> bool;
-  auto parse_optional_declarator_or_abstract_declarator(DeclaratorAST*& yyastl)
+  [[nodiscard]] auto parse_init_declarator(InitDeclaratorAST*& yyast,
+                                           const DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_declarator_initializer(
+      RequiresClauseAST*& requiresClause, ExpressionAST*& yyast) -> bool;
+  void parse_optional_declarator_or_abstract_declarator(DeclaratorAST*& yyastl);
+  [[nodiscard]] auto parse_declarator(DeclaratorAST*& yyastl) -> bool;
+  [[nodiscard]] auto parse_ptr_operator_seq(List<PtrOperatorAST*>*& yyast)
       -> bool;
-  auto parse_declarator(DeclaratorAST*& yyastl) -> bool;
-  auto parse_ptr_operator_seq(List<PtrOperatorAST*>*& yyast) -> bool;
-  auto parse_core_declarator(CoreDeclaratorAST*& yyast) -> bool;
-  auto parse_noptr_declarator(DeclaratorAST*& yyast,
-                              List<PtrOperatorAST*>* ptrOpLst) -> bool;
-  auto parse_parameters_and_qualifiers(ParametersAndQualifiersAST*& yyast)
-      -> bool;
-  auto parse_cv_qualifier_seq(List<SpecifierAST*>*& yyast) -> bool;
-  auto parse_trailing_return_type(TrailingReturnTypeAST*& yyast) -> bool;
-  auto parse_ptr_operator(PtrOperatorAST*& yyast) -> bool;
-  auto parse_cv_qualifier(SpecifierAST*& yyast) -> bool;
-  auto parse_ref_qualifier(SourceLocation& refLoc) -> bool;
-  auto parse_declarator_id(CoreDeclaratorAST*& yyast) -> bool;
-  auto parse_type_id(TypeIdAST*& yyast) -> bool;
-  auto parse_defining_type_id(TypeIdAST*& yyast) -> bool;
-  auto parse_abstract_declarator(DeclaratorAST*& yyast) -> bool;
-  auto parse_ptr_abstract_declarator(DeclaratorAST*& yyast) -> bool;
-  auto parse_noptr_abstract_declarator(DeclaratorAST*& yyast) -> bool;
-  auto parse_abstract_pack_declarator(DeclaratorAST*& yyast) -> bool;
-  auto parse_noptr_abstract_pack_declarator(DeclaratorAST*& yyast,
+  [[nodiscard]] auto parse_core_declarator(CoreDeclaratorAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_noptr_declarator(DeclaratorAST*& yyast,
                                             List<PtrOperatorAST*>* ptrOpLst)
       -> bool;
-  auto parse_parameter_declaration_clause(ParameterDeclarationClauseAST*& yyast)
+  [[nodiscard]] auto parse_parameters_and_qualifiers(
+      ParametersAndQualifiersAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_cv_qualifier_seq(List<SpecifierAST*>*& yyast)
       -> bool;
-  auto parse_parameter_declaration_list(List<ParameterDeclarationAST*>*& yyast)
+  [[nodiscard]] auto parse_trailing_return_type(TrailingReturnTypeAST*& yyast)
       -> bool;
-  auto parse_parameter_declaration(ParameterDeclarationAST*& yyast,
-                                   bool templParam) -> bool;
-  auto parse_initializer(ExpressionAST*& yyast) -> bool;
-  auto parse_brace_or_equal_initializer(ExpressionAST*& yyast) -> bool;
-  auto parse_initializer_clause(ExpressionAST*& yyast, bool templParam = false)
+  [[nodiscard]] auto parse_ptr_operator(PtrOperatorAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_cv_qualifier(SpecifierAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_ref_qualifier(SourceLocation& refLoc) -> bool;
+  [[nodiscard]] auto parse_declarator_id(CoreDeclaratorAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_type_id(TypeIdAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_defining_type_id(TypeIdAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_abstract_declarator(DeclaratorAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_ptr_abstract_declarator(DeclaratorAST*& yyast)
       -> bool;
-  auto parse_braced_init_list(BracedInitListAST*& yyast) -> bool;
-  auto parse_initializer_list(List<ExpressionAST*>*& yyast) -> bool;
-  auto parse_designated_initializer_clause(
+  [[nodiscard]] auto parse_noptr_abstract_declarator(DeclaratorAST*& yyast)
+      -> bool;
+  [[nodiscard]] auto parse_abstract_pack_declarator(DeclaratorAST*& yyast)
+      -> bool;
+  [[nodiscard]] auto parse_noptr_abstract_pack_declarator(
+      DeclaratorAST*& yyast, List<PtrOperatorAST*>* ptrOpLst) -> bool;
+  [[nodiscard]] auto parse_parameter_declaration_clause(
+      ParameterDeclarationClauseAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_parameter_declaration_list(
+      List<ParameterDeclarationAST*>*& yyast) -> bool;
+  [[nodiscard]] auto parse_parameter_declaration(
+      ParameterDeclarationAST*& yyast, bool templParam) -> bool;
+  [[nodiscard]] auto parse_initializer(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_brace_or_equal_initializer(ExpressionAST*& yyast)
+      -> bool;
+  [[nodiscard]] auto parse_initializer_clause(ExpressionAST*& yyast,
+                                              bool templParam = false) -> bool;
+  [[nodiscard]] auto parse_braced_init_list(BracedInitListAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_initializer_list(List<ExpressionAST*>*& yyast)
+      -> bool;
+  [[nodiscard]] auto parse_designated_initializer_clause(
       DesignatedInitializerClauseAST*& yyast) -> bool;
-  auto parse_designator(DesignatorAST*& yyast) -> bool;
-  auto parse_expr_or_braced_init_list(ExpressionAST*& yyast) -> bool;
-  auto parse_virt_specifier_seq(FunctionDeclaratorAST* functionDeclarator)
-      -> bool;
+  [[nodiscard]] auto parse_designator(DesignatorAST*& yyast) -> bool;
+  void parse_expr_or_braced_init_list(ExpressionAST*& yyast);
+  void parse_virt_specifier_seq(FunctionDeclaratorAST* functionDeclarator);
   auto lookat_function_body() -> bool;
-  auto parse_function_body(FunctionBodyAST*& yyast) -> bool;
-  auto parse_enum_specifier(SpecifierAST*& yyast) -> bool;
-  auto parse_enum_head_name(NestedNameSpecifierAST*& nestedNameSpecifier,
-                            NameAST*& name) -> bool;
-  auto parse_opaque_enum_declaration(DeclarationAST*& yyast) -> bool;
-  auto parse_enum_key(SourceLocation& enumLoc, SourceLocation& classLoc)
-      -> bool;
-  auto parse_enum_base(EnumBaseAST*& yyast) -> bool;
-  auto parse_enumerator_list(List<EnumeratorAST*>*& yyast) -> bool;
-  auto parse_enumerator_definition(EnumeratorAST*& yast) -> bool;
-  auto parse_enumerator(EnumeratorAST*& yyast) -> bool;
-  auto parse_using_enum_declaration(DeclarationAST*& yyast) -> bool;
-  auto parse_namespace_definition(DeclarationAST*& yyast) -> bool;
-  auto parse_namespace_body(NamespaceDefinitionAST* yyast) -> bool;
-  auto parse_namespace_alias_definition(DeclarationAST*& yyast) -> bool;
-  auto parse_qualified_namespace_specifier(
+  [[nodiscard]] auto parse_function_body(FunctionBodyAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_enum_specifier(SpecifierAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_enum_head_name(
       NestedNameSpecifierAST*& nestedNameSpecifier, NameAST*& name) -> bool;
-  auto parse_using_directive(DeclarationAST*& yyast) -> bool;
-  auto parse_using_declaration(DeclarationAST*& yyast) -> bool;
-  auto parse_using_declarator_list(List<UsingDeclaratorAST*>*& yyast) -> bool;
-  auto parse_using_declarator(UsingDeclaratorAST*& yyast) -> bool;
-  auto parse_asm_declaration(DeclarationAST*& yyast) -> bool;
-  auto parse_linkage_specification(DeclarationAST*& yyast) -> bool;
-  auto parse_attribute_specifier_seq(List<AttributeSpecifierAST*>*& yyast)
+  [[nodiscard]] auto parse_opaque_enum_declaration(DeclarationAST*& yyast)
       -> bool;
-  auto parse_attribute_specifier(AttributeSpecifierAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_enum_key(SourceLocation& enumLoc,
+                                    SourceLocation& classLoc) -> bool;
+  [[nodiscard]] auto parse_enum_base(EnumBaseAST*& yyast) -> bool;
+  void parse_enumerator_list(List<EnumeratorAST*>*& yyast);
+  void parse_enumerator_definition(EnumeratorAST*& yast);
+  void parse_enumerator(EnumeratorAST*& yyast);
+  [[nodiscard]] auto parse_using_enum_declaration(DeclarationAST*& yyast)
+      -> bool;
+  [[nodiscard]] auto parse_namespace_definition(DeclarationAST*& yyast) -> bool;
+  void parse_namespace_body(NamespaceDefinitionAST* yyast);
+  [[nodiscard]] auto parse_namespace_alias_definition(DeclarationAST*& yyast)
+      -> bool;
+  [[nodiscard]] auto parse_qualified_namespace_specifier(
+      NestedNameSpecifierAST*& nestedNameSpecifier, NameAST*& name) -> bool;
+  [[nodiscard]] auto parse_using_directive(DeclarationAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_using_declaration(DeclarationAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_using_declarator_list(
+      List<UsingDeclaratorAST*>*& yyast) -> bool;
+  [[nodiscard]] auto parse_using_declarator(UsingDeclaratorAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_asm_declaration(DeclarationAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_linkage_specification(DeclarationAST*& yyast)
+      -> bool;
+  void parse_optional_attribute_specifier_seq(
+      List<AttributeSpecifierAST*>*& yyast);
+  [[nodiscard]] auto parse_attribute_specifier_seq(
+      List<AttributeSpecifierAST*>*& yyast) -> bool;
+  [[nodiscard]] auto parse_attribute_specifier(AttributeSpecifierAST*& yyast)
+      -> bool;
   auto lookat_cxx_attribute_specifier() -> bool;
-  auto parse_cxx_attribute_specifier(AttributeSpecifierAST*& yyast) -> bool;
-  auto parse_asm_specifier(AttributeSpecifierAST*& yyast) -> bool;
-  auto parse_gcc_attribute(AttributeSpecifierAST*& yyast) -> bool;
-  auto parse_skip_balanced() -> bool;
-  auto parse_alignment_specifier(AttributeSpecifierAST*& yyast) -> bool;
-  auto parse_attribute_using_prefix(AttributeUsingPrefixAST*& yyast) -> bool;
-  auto parse_attribute_list(List<AttributeAST*>*& yyast) -> bool;
-  auto parse_attribute(AttributeAST*& yyast) -> bool;
-  auto parse_attribute_token(AttributeTokenAST*& yyast) -> bool;
-  auto parse_attribute_scoped_token(AttributeTokenAST*& yyast) -> bool;
-  auto parse_attribute_namespace(SourceLocation& attributeNamespaceLoc) -> bool;
-  auto parse_attribute_argument_clause(AttributeArgumentClauseAST*& yyast)
+  [[nodiscard]] auto parse_cxx_attribute_specifier(
+      AttributeSpecifierAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_asm_specifier(AttributeSpecifierAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_gcc_attribute(AttributeSpecifierAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_skip_balanced() -> bool;
+  [[nodiscard]] auto parse_alignment_specifier(AttributeSpecifierAST*& yyast)
       -> bool;
-  auto parse_module_declaration(ModuleDeclarationAST*& yyast) -> bool;
-  auto parse_module_name(ModuleNameAST*& yyast) -> bool;
-  auto parse_module_partition(ModulePartitionAST*& yyast) -> bool;
-  auto parse_export_declaration(DeclarationAST*& yyast) -> bool;
-  auto parse_maybe_import() -> bool;
-  auto parse_module_import_declaration(DeclarationAST*& yyast) -> bool;
-  auto parse_import_name(ImportNameAST*& yyast) -> bool;
-  auto parse_global_module_fragment(GlobalModuleFragmentAST*& yyast) -> bool;
-  auto parse_private_module_fragment(PrivateModuleFragmentAST*& yyast) -> bool;
-  auto parse_class_specifier(SpecifierAST*& yyast) -> bool;
-  auto parse_class_body(List<DeclarationAST*>*& yyast) -> bool;
-  auto parse_class_head(SourceLocation& classLoc,
-                        List<AttributeSpecifierAST*>*& attributeList,
-                        NameAST*& name, SourceLocation& finalLoc,
-                        BaseClauseAST*& baseClause) -> bool;
-  auto parse_class_head_name(NameAST*& yyast) -> bool;
-  auto parse_class_virt_specifier(SourceLocation& loc) -> bool;
-  auto parse_class_key(SourceLocation& classLoc) -> bool;
-  auto parse_member_specification(DeclarationAST*& yyast) -> bool;
-  auto parse_member_declaration(DeclarationAST*& yyast) -> bool;
-  auto parse_maybe_template_member() -> bool;
-  auto parse_member_declaration_helper(DeclarationAST*& yyast) -> bool;
-  auto parse_member_declarator_list(List<InitDeclaratorAST*>*& yyast,
-                                    const DeclSpecs& specs) -> bool;
-  auto parse_member_declarator(InitDeclaratorAST*& yyast,
-                               const DeclSpecs& specs) -> bool;
-  auto parse_virt_specifier(FunctionDeclaratorAST* functionDeclarator) -> bool;
-  auto parse_pure_specifier(SourceLocation& equalLoc, SourceLocation& zeroLoc)
+  [[nodiscard]] auto parse_attribute_using_prefix(
+      AttributeUsingPrefixAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_attribute_list(List<AttributeAST*>*& yyast) -> bool;
+  [[nodiscard]] auto parse_attribute(AttributeAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_attribute_token(AttributeTokenAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_attribute_scoped_token(AttributeTokenAST*& yyast)
       -> bool;
-  auto parse_conversion_function_id(NameAST*& yyast) -> bool;
-  auto parse_base_clause(BaseClauseAST*& yyast) -> bool;
-  auto parse_base_specifier_list(List<BaseSpecifierAST*>*& yyast) -> bool;
-  auto parse_base_specifier(BaseSpecifierAST*& yyast) -> bool;
-  auto parse_class_or_decltype(NameAST*& yyast) -> bool;
-  auto parse_access_specifier(SourceLocation& loc) -> bool;
-  auto parse_ctor_initializer(CtorInitializerAST*& yyast) -> bool;
-  auto parse_mem_initializer_list(List<MemInitializerAST*>*& yyast) -> bool;
-  auto parse_mem_initializer(MemInitializerAST*& yyast) -> bool;
-  auto parse_mem_initializer_id(NameAST*& yyast) -> bool;
-  auto parse_operator_function_id(NameAST*& yyast) -> bool;
-  auto parse_operator(TokenKind& op, SourceLocation& opLoc,
-                      SourceLocation& openLoc, SourceLocation& closeLoc)
+  [[nodiscard]] auto parse_attribute_namespace(
+      SourceLocation& attributeNamespaceLoc) -> bool;
+  [[nodiscard]] auto parse_attribute_argument_clause(
+      AttributeArgumentClauseAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_module_declaration(ModuleDeclarationAST*& yyast)
       -> bool;
-  auto parse_literal_operator_id(NameAST*& yyast) -> bool;
-  auto parse_template_declaration(DeclarationAST*& yyast) -> bool;
-  auto parse_template_parameter_list(List<DeclarationAST*>*& yyast) -> bool;
-  auto parse_requires_clause(RequiresClauseAST*& yyast) -> bool;
-  auto parse_constraint_logical_or_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_constraint_logical_and_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_template_parameter(DeclarationAST*& yyast) -> bool;
-  auto parse_type_parameter(DeclarationAST*& yyast) -> bool;
-  auto parse_typename_type_parameter(DeclarationAST*& yyast) -> bool;
-  auto parse_template_type_parameter(DeclarationAST*& yyast) -> bool;
-  auto parse_constraint_type_parameter(DeclarationAST*& yyast) -> bool;
-  auto parse_type_parameter_key(SourceLocation& classKeyLoc) -> bool;
-  auto parse_type_constraint(TypeConstraintAST*& yyast,
-                             bool parsingPlaceholderTypeSpec) -> bool;
-  auto parse_simple_template_or_name_id(NameAST*& yyast) -> bool;
-  auto parse_simple_template_id(NameAST*& yyast) -> bool;
-  auto parse_template_id(NameAST*& yyast) -> bool;
-  auto parse_template_argument_list(List<TemplateArgumentAST*>*& yyast) -> bool;
-  auto parse_template_argument(TemplateArgumentAST*& yyast) -> bool;
-  auto parse_constraint_expression(ExpressionAST*& yyast) -> bool;
-  auto parse_deduction_guide(DeclarationAST*& yyast) -> bool;
-  auto parse_concept_definition(DeclarationAST*& yyast) -> bool;
-  auto parse_concept_name(NameAST*& yyast) -> bool;
-  auto parse_typename_specifier(SpecifierAST*& yyast) -> bool;
-  auto parse_explicit_instantiation(DeclarationAST*& yyast) -> bool;
-  auto parse_explicit_specialization(DeclarationAST*& yyast) -> bool;
-  auto parse_try_block(StatementAST*& yyast) -> bool;
-  auto parse_function_try_block(FunctionBodyAST*& yyast) -> bool;
-  auto parse_handler(HandlerAST*& yyast) -> bool;
-  auto parse_handler_seq(List<HandlerAST*>*& yyast) -> bool;
-  auto parse_exception_declaration(ExceptionDeclarationAST*& yyast) -> bool;
-  auto parse_noexcept_specifier(ExceptionSpecifierAST*& yyast) -> bool;
-  auto parse_identifier_list(List<NameAST*>*& yyast) -> bool;
+  [[nodiscard]] auto parse_module_name(ModuleNameAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_module_partition(ModulePartitionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_export_declaration(DeclarationAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_maybe_import() -> bool;
+  [[nodiscard]] auto parse_module_import_declaration(DeclarationAST*& yyast)
+      -> bool;
+  [[nodiscard]] auto parse_import_name(ImportNameAST*& yyast) -> bool;
+  void parse_global_module_fragment(GlobalModuleFragmentAST*& yyast);
+  void parse_private_module_fragment(PrivateModuleFragmentAST*& yyast);
+  [[nodiscard]] auto parse_class_specifier(SpecifierAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_class_body(List<DeclarationAST*>*& yyast) -> bool;
+  [[nodiscard]] auto parse_class_head(
+      SourceLocation& classLoc, List<AttributeSpecifierAST*>*& attributeList,
+      NameAST*& name, SourceLocation& finalLoc, BaseClauseAST*& baseClause)
+      -> bool;
+  [[nodiscard]] auto parse_class_head_name(NameAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_class_virt_specifier(SourceLocation& loc) -> bool;
+  [[nodiscard]] auto parse_class_key(SourceLocation& classLoc) -> bool;
+  [[nodiscard]] auto parse_member_specification(DeclarationAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_member_declaration(DeclarationAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_maybe_template_member() -> bool;
+  [[nodiscard]] auto parse_member_declaration_helper(DeclarationAST*& yyast)
+      -> bool;
+  [[nodiscard]] auto parse_member_declarator_list(
+      List<InitDeclaratorAST*>*& yyast, const DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_member_declarator(InitDeclaratorAST*& yyast,
+                                             const DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_virt_specifier(
+      FunctionDeclaratorAST* functionDeclarator) -> bool;
+  [[nodiscard]] auto parse_pure_specifier(SourceLocation& equalLoc,
+                                          SourceLocation& zeroLoc) -> bool;
+  [[nodiscard]] auto parse_conversion_function_id(NameAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_base_clause(BaseClauseAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_base_specifier_list(List<BaseSpecifierAST*>*& yyast)
+      -> bool;
+  void parse_base_specifier(BaseSpecifierAST*& yyast);
+  [[nodiscard]] auto parse_class_or_decltype(NameAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_access_specifier(SourceLocation& loc) -> bool;
+  [[nodiscard]] auto parse_ctor_initializer(CtorInitializerAST*& yyast) -> bool;
+  void parse_mem_initializer_list(List<MemInitializerAST*>*& yyast);
+  void parse_mem_initializer(MemInitializerAST*& yyast);
+  [[nodiscard]] auto parse_mem_initializer_id(NameAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_operator_function_id(NameAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_operator(TokenKind& op, SourceLocation& opLoc,
+                                    SourceLocation& openLoc,
+                                    SourceLocation& closeLoc) -> bool;
+  [[nodiscard]] auto parse_literal_operator_id(NameAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_template_declaration(DeclarationAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_template_parameter_list(
+      List<DeclarationAST*>*& yyast) -> bool;
+  [[nodiscard]] auto parse_requires_clause(RequiresClauseAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_constraint_logical_or_expression(
+      ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_constraint_logical_and_expression(
+      ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_template_parameter(DeclarationAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_type_parameter(DeclarationAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_typename_type_parameter(DeclarationAST*& yyast)
+      -> bool;
+  [[nodiscard]] auto parse_template_type_parameter(DeclarationAST*& yyast)
+      -> bool;
+  [[nodiscard]] auto parse_constraint_type_parameter(DeclarationAST*& yyast)
+      -> bool;
+  [[nodiscard]] auto parse_type_parameter_key(SourceLocation& classKeyLoc)
+      -> bool;
+  [[nodiscard]] auto parse_type_constraint(TypeConstraintAST*& yyast,
+                                           bool parsingPlaceholderTypeSpec)
+      -> bool;
+  [[nodiscard]] auto parse_simple_template_or_name_id(NameAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_simple_template_id(NameAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_template_id(NameAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_template_argument_list(
+      List<TemplateArgumentAST*>*& yyast) -> bool;
+  [[nodiscard]] auto parse_template_argument(TemplateArgumentAST*& yyast)
+      -> bool;
+  [[nodiscard]] auto parse_constraint_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_deduction_guide(DeclarationAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_concept_definition(DeclarationAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_concept_name(NameAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_typename_specifier(SpecifierAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_explicit_instantiation(DeclarationAST*& yyast)
+      -> bool;
+  [[nodiscard]] auto parse_explicit_specialization(DeclarationAST*& yyast)
+      -> bool;
+  [[nodiscard]] auto parse_try_block(StatementAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_function_try_block(FunctionBodyAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_handler(HandlerAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_handler_seq(List<HandlerAST*>*& yyast) -> bool;
+  [[nodiscard]] auto parse_exception_declaration(
+      ExceptionDeclarationAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_noexcept_specifier(ExceptionSpecifierAST*& yyast)
+      -> bool;
+  [[nodiscard]] auto parse_identifier_list(List<NameAST*>*& yyast) -> bool;
 
  private:
   [[nodiscard]] auto lookat(auto... tokens) {

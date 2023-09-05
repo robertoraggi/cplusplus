@@ -117,7 +117,8 @@ void TranslationUnit::getTokenEndPosition(SourceLocation loc, unsigned* line,
 auto TranslationUnit::parse(bool checkTypes) -> bool {
   Parser parse(this);
   parse.setCheckTypes(checkTypes);
-  return parse(ast_);
+  parse(ast_);
+  return true;
 }
 
 auto TranslationUnit::load(std::span<const std::uint8_t> data) -> bool {
