@@ -935,9 +935,7 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
   ast->lambdaIntroducer = lambdaIntroducer;
 
   if (match(TokenKind::T_LESS, ast->lessLoc)) {
-    if (!parse_template_parameter_list(ast->templateParameterList)) {
-      parse_error("expected a template paramter");
-    }
+    parse_template_parameter_list(ast->templateParameterList);
 
     expect(TokenKind::T_GREATER, ast->greaterLoc);
 
@@ -2564,8 +2562,8 @@ auto Parser::parse_conditional_expression(ExpressionAST*& yyast,
       if (!parse_conditional_expression(ast->iffalseExpression, exprContext)) {
         parse_error("expected an expression");
       }
-    } else if (!parse_assignment_expression(ast->iffalseExpression)) {
-      parse_error("expected an expression");
+    } else {
+      parse_assignment_expression(ast->iffalseExpression);
     }
   }
 
@@ -2598,20 +2596,22 @@ auto Parser::parse_throw_expression(ExpressionAST*& yyast) -> bool {
 
   LookaheadParser lookahead{this};
 
-  if (parse_assignment_expression(ast->expression)) {
+  if (parse_maybe_assignment_expression(ast->expression)) {
     lookahead.commit();
   }
 
   return true;
 }
 
-auto Parser::parse_assignment_expression(ExpressionAST*& yyast) -> bool {
-  ExprContext context;
-  return parse_assignment_expression(yyast, context);
+void Parser::parse_assignment_expression(ExpressionAST*& yyast,
+                                         const ExprContext& exprContext) {
+  if (!parse_maybe_assignment_expression(yyast, exprContext)) {
+    parse_error("expected an expression");
+  }
 }
 
-auto Parser::parse_assignment_expression(ExpressionAST*& yyast,
-                                         const ExprContext& exprContext)
+auto Parser::parse_maybe_assignment_expression(ExpressionAST*& yyast,
+                                               const ExprContext& exprContext)
     -> bool {
   if (parse_yield_expression(yyast)) return true;
 
@@ -2679,23 +2679,21 @@ void Parser::parse_expression(ExpressionAST*& yyast) {
 }
 
 auto Parser::parse_maybe_expression(ExpressionAST*& yyast) -> bool {
-  if (!parse_assignment_expression(yyast)) return false;
+  if (!parse_maybe_assignment_expression(yyast)) return false;
 
   SourceLocation commaLoc;
 
   while (match(TokenKind::T_COMMA, commaLoc)) {
     ExpressionAST* expression = nullptr;
 
-    if (!parse_assignment_expression(expression)) {
-      parse_error("expected an expression");
-    } else {
-      auto ast = new (pool) BinaryExpressionAST();
-      ast->leftExpression = yyast;
-      ast->opLoc = commaLoc;
-      ast->op = TokenKind::T_COMMA;
-      ast->rightExpression = expression;
-      yyast = ast;
-    }
+    parse_assignment_expression(expression);
+
+    auto ast = new (pool) BinaryExpressionAST();
+    ast->leftExpression = yyast;
+    ast->opLoc = commaLoc;
+    ast->op = TokenKind::T_COMMA;
+    ast->rightExpression = expression;
+    yyast = ast;
   }
 
   return true;
@@ -5336,7 +5334,7 @@ auto Parser::parse_initializer_clause(ExpressionAST*& yyast, bool templParam)
   ExprContext exprContext;
   exprContext.templParam = templParam;
 
-  if (!parse_assignment_expression(yyast, exprContext)) return false;
+  parse_assignment_expression(yyast, exprContext);
 
   return true;
 }
@@ -7557,10 +7555,7 @@ auto Parser::parse_template_declaration(DeclarationAST*& yyast) -> bool {
   expect(TokenKind::T_LESS, ast->lessLoc);
 
   if (!match(TokenKind::T_GREATER, ast->greaterLoc)) {
-    if (!parse_template_parameter_list(ast->templateParameterList)) {
-      parse_error("expected a template parameter");
-    }
-
+    parse_template_parameter_list(ast->templateParameterList);
     expect(TokenKind::T_GREATER, ast->greaterLoc);
   }
 
@@ -7574,13 +7569,12 @@ auto Parser::parse_template_declaration(DeclarationAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_template_parameter_list(List<DeclarationAST*>*& yyast)
-    -> bool {
+void Parser::parse_template_parameter_list(List<DeclarationAST*>*& yyast) {
   auto it = &yyast;
 
   DeclarationAST* declaration = nullptr;
 
-  if (!parse_template_parameter(declaration)) return false;
+  parse_template_parameter(declaration);
 
   *it = new (pool) List(declaration);
   it = &(*it)->next;
@@ -7590,15 +7584,11 @@ auto Parser::parse_template_parameter_list(List<DeclarationAST*>*& yyast)
   while (match(TokenKind::T_COMMA, commaLoc)) {
     DeclarationAST* declaration = nullptr;
 
-    if (!parse_template_parameter(declaration)) {
-      parse_error("expected a template parameter");
-    }
+    parse_template_parameter(declaration);
 
     *it = new (pool) List(declaration);
     it = &(*it)->next;
   }
-
-  return true;
 }
 
 auto Parser::parse_requires_clause(RequiresClauseAST*& yyast) -> bool {
@@ -7665,7 +7655,7 @@ auto Parser::parse_constraint_logical_and_expression(ExpressionAST*& yyast)
   return true;
 }
 
-auto Parser::parse_template_parameter(DeclarationAST*& yyast) -> bool {
+void Parser::parse_template_parameter(DeclarationAST*& yyast) {
   auto lookat_type_parameter = [&] {
     LookaheadParser lookahead{this};
 
@@ -7675,6 +7665,8 @@ auto Parser::parse_template_parameter(DeclarationAST*& yyast) -> bool {
 
     return true;
   };
+
+  if (lookat_type_parameter()) return;
 
   auto lookat_parameter_declaration = [&] {
     LookaheadParser lookahead{this};
@@ -7691,10 +7683,9 @@ auto Parser::parse_template_parameter(DeclarationAST*& yyast) -> bool {
     return true;
   };
 
-  if (lookat_type_parameter()) return true;
-  if (lookat_parameter_declaration()) return true;
+  if (lookat_parameter_declaration()) return;
 
-  return parse_constraint_type_parameter(yyast);
+  (void)parse_constraint_type_parameter(yyast);
 }
 
 auto Parser::parse_type_parameter(DeclarationAST*& yyast) -> bool {
@@ -7769,10 +7760,7 @@ auto Parser::parse_template_type_parameter(DeclarationAST*& yyast) -> bool {
   List<DeclarationAST*>* templateParameterList = nullptr;
 
   if (!match(TokenKind::T_GREATER, greaterLoc)) {
-    if (!parse_template_parameter_list(templateParameterList)) {
-      parse_error("expected a template parameter");
-    }
-
+    parse_template_parameter_list(templateParameterList);
     expect(TokenKind::T_GREATER, greaterLoc);
   }
 
