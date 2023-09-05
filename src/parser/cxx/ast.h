@@ -160,7 +160,6 @@ class MemInitializerAST : public AST {
 class NameAST : public AST {
  public:
   using AST::AST;
-  const Name* name = nullptr;
 };
 
 class NewInitializerAST : public AST {
