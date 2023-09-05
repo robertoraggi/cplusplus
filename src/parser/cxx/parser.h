@@ -146,10 +146,9 @@ class Parser final {
       ParameterDeclarationClauseAST*& parameterDeclarationClause,
       SourceLocation& rparenLoc) -> bool;
   [[nodiscard]] auto parse_requirement_body(RequirementBodyAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_requirement_seq(List<RequirementAST*>*& yyast)
-      -> bool;
-  [[nodiscard]] auto parse_requirement(RequirementAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_simple_requirement(RequirementAST*& yyast) -> bool;
+  void parse_requirement_seq(List<RequirementAST*>*& yyast);
+  void parse_requirement(RequirementAST*& yyast);
+  void parse_simple_requirement(RequirementAST*& yyast);
   [[nodiscard]] auto parse_type_requirement(RequirementAST*& yyast) -> bool;
   [[nodiscard]] auto parse_compound_requirement(RequirementAST*& yyast) -> bool;
   [[nodiscard]] auto parse_return_type_requirement(
@@ -218,14 +217,15 @@ class Parser final {
       -> bool;
   [[nodiscard]] auto parse_assignment_operator(SourceLocation& loc,
                                                TokenKind& op) -> bool;
-  [[nodiscard]] auto parse_expression(ExpressionAST*& yyast) -> bool;
+  void parse_expression(ExpressionAST*& yyast);
+  [[nodiscard]] auto parse_maybe_expression(ExpressionAST*& yyast) -> bool;
   [[nodiscard]] auto parse_constant_expression(ExpressionAST*& yyast) -> bool;
   [[nodiscard]] auto parse_template_argument_constant_expression(
       ExpressionAST*& yyast) -> bool;
   void parse_statement(StatementAST*& yyast);
   [[nodiscard]] auto parse_statement_helper(StatementAST*& yyast) -> bool;
   void parse_init_statement(StatementAST*& yyast);
-  [[nodiscard]] auto parse_condition(ExpressionAST*& yyast) -> bool;
+  void parse_condition(ExpressionAST*& yyast);
   [[nodiscard]] auto parse_labeled_statement(StatementAST*& yyast) -> bool;
   [[nodiscard]] auto parse_case_statement(StatementAST*& yyast) -> bool;
   [[nodiscard]] auto parse_default_statement(StatementAST*& yyast) -> bool;
