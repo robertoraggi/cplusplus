@@ -445,7 +445,22 @@ void ASTCloner::visit(TypeConstraintAST* ast) {
 
   copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
 
-  copy->name = accept(ast->name);
+  copy->identifierLoc = ast->identifierLoc;
+
+  copy->lessLoc = ast->lessLoc;
+
+  if (auto it = ast->templateArgumentList) {
+    auto out = &copy->templateArgumentList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->greaterLoc = ast->greaterLoc;
+
+  copy->identifier = ast->identifier;
 }
 
 void ASTCloner::visit(GlobalModuleFragmentAST* ast) {
@@ -2285,13 +2300,15 @@ void ASTCloner::visit(ConceptDefinitionAST* ast) {
 
   copy->conceptLoc = ast->conceptLoc;
 
-  copy->name = accept(ast->name);
+  copy->identifierLoc = ast->identifierLoc;
 
   copy->equalLoc = ast->equalLoc;
 
   copy->expression = accept(ast->expression);
 
   copy->semicolonLoc = ast->semicolonLoc;
+
+  copy->identifier = ast->identifier;
 }
 
 void ASTCloner::visit(ForRangeDeclarationAST* ast) {

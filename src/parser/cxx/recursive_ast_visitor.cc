@@ -115,6 +115,10 @@ void RecursiveASTVisitor::acceptRequirement(RequirementAST* ast) {
   accept(ast);
 }
 
+void RecursiveASTVisitor::acceptTemplateArgument(TemplateArgumentAST* ast) {
+  accept(ast);
+}
+
 void RecursiveASTVisitor::acceptDeclaration(DeclarationAST* ast) {
   accept(ast);
 }
@@ -213,10 +217,6 @@ void RecursiveASTVisitor::acceptElaboratedTypeSpecifier(
 }
 
 void RecursiveASTVisitor::acceptImportName(ImportNameAST* ast) { accept(ast); }
-
-void RecursiveASTVisitor::acceptTemplateArgument(TemplateArgumentAST* ast) {
-  accept(ast);
-}
 
 void RecursiveASTVisitor::acceptEnumerator(EnumeratorAST* ast) { accept(ast); }
 
@@ -373,7 +373,9 @@ void RecursiveASTVisitor::visit(RequirementBodyAST* ast) {
 
 void RecursiveASTVisitor::visit(TypeConstraintAST* ast) {
   acceptNestedNameSpecifier(ast->nestedNameSpecifier);
-  acceptName(ast->name);
+  for (auto it = ast->templateArgumentList; it; it = it->next) {
+    acceptTemplateArgument(it->value);
+  }
 }
 
 void RecursiveASTVisitor::visit(GlobalModuleFragmentAST* ast) {
@@ -849,7 +851,6 @@ void RecursiveASTVisitor::visit(FunctionDefinitionAST* ast) {
 }
 
 void RecursiveASTVisitor::visit(ConceptDefinitionAST* ast) {
-  acceptName(ast->name);
   acceptExpression(ast->expression);
 }
 

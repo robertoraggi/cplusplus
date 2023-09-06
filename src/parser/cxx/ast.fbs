@@ -425,7 +425,11 @@ table RequirementBody /* AST */ {
 
 table TypeConstraint /* AST */ {
   nested_name_specifier: NestedNameSpecifier;
-  name: Name;
+  template_argument_list: [TemplateArgument];
+  identifier: string;
+  identifier_loc: SourceLocation;
+  less_loc: SourceLocation;
+  greater_loc: SourceLocation;
 }
 
 table GlobalModuleFragment /* AST */ {
@@ -575,9 +579,10 @@ table FunctionDefinition /* DeclarationAST */ {
 }
 
 table ConceptDefinition /* DeclarationAST */ {
-  name: Name;
   expression: Expression;
+  identifier: string;
   concept_loc: SourceLocation;
+  identifier_loc: SourceLocation;
   equal_loc: SourceLocation;
   semicolon_loc: SourceLocation;
 }

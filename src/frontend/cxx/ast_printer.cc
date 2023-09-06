@@ -348,8 +348,17 @@ void ASTPrinter::visit(RequirementBodyAST* ast) {
 
 void ASTPrinter::visit(TypeConstraintAST* ast) {
   fmt::print(out_, "{}\n", "type-constraint");
+  accept(ast->identifier, "identifier");
   accept(ast->nestedNameSpecifier, "nested-name-specifier");
-  accept(ast->name, "name");
+  if (ast->templateArgumentList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "template-argument-list");
+    for (auto it = ast->templateArgumentList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(GlobalModuleFragmentAST* ast) {
@@ -1213,7 +1222,7 @@ void ASTPrinter::visit(FunctionDefinitionAST* ast) {
 
 void ASTPrinter::visit(ConceptDefinitionAST* ast) {
   fmt::print(out_, "{}\n", "concept-definition");
-  accept(ast->name, "name");
+  accept(ast->identifier, "identifier");
   accept(ast->expression, "expression");
 }
 

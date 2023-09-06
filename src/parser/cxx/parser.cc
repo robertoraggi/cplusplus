@@ -18,20 +18,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/ast.h>
 #include <cxx/control.h>
 #include <cxx/literals.h>
 #include <cxx/names.h>
 #include <cxx/parser.h>
 #include <cxx/private/format.h>
-#include <cxx/token_fwd.h>
+#include <cxx/token.h>
 
 #include <algorithm>
-#include <cassert>
 #include <cstring>
 #include <forward_list>
-#include <iostream>
-#include <unordered_map>
-#include <variant>
 
 namespace cxx {
 
@@ -4166,10 +4163,10 @@ auto Parser::parse_defining_type_specifier_seq(List<SpecifierAST*>*& yyast,
 
 auto Parser::parse_simple_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     -> bool {
+  if (parse_placeholder_type_specifier_helper(yyast, specs)) return true;
   if (parse_primitive_type_specifier(yyast, specs)) return true;
   if (parse_underlying_type_specifier(yyast, specs)) return true;
   if (parse_atomic_type_specifier(yyast, specs)) return true;
-  if (parse_placeholder_type_specifier_helper(yyast, specs)) return true;
   if (parse_decltype_specifier_type_specifier(yyast, specs)) return true;
   if (parse_named_type_specifier(yyast, specs)) return true;
 
@@ -7721,6 +7718,18 @@ auto Parser::parse_constraint_logical_and_expression(ExpressionAST*& yyast)
 }
 
 void Parser::parse_template_parameter(DeclarationAST*& yyast) {
+  auto lookat_constraint_type_parameter = [&] {
+    LookaheadParser lookahead{this};
+
+    if (!parse_constraint_type_parameter(yyast)) return false;
+
+    lookahead.commit();
+
+    return true;
+  };
+
+  if (lookat_constraint_type_parameter()) return;
+
   auto lookat_type_parameter = [&] {
     LookaheadParser lookahead{this};
 
@@ -7733,31 +7742,22 @@ void Parser::parse_template_parameter(DeclarationAST*& yyast) {
 
   if (lookat_type_parameter()) return;
 
-  auto lookat_parameter_declaration = [&] {
-    LookaheadParser lookahead{this};
+  LookaheadParser lookahead{this};
 
-    ParameterDeclarationAST* parameter = nullptr;
+  ParameterDeclarationAST* parameter = nullptr;
 
-    if (!parse_parameter_declaration(parameter, /*templParam*/ true))
-      return false;
+  if (!parse_parameter_declaration(parameter, /*templParam*/ true)) return;
 
-    yyast = parameter;
+  yyast = parameter;
 
-    lookahead.commit();
-
-    return true;
-  };
-
-  if (lookat_parameter_declaration()) return;
-
-  (void)parse_constraint_type_parameter(yyast);
+  lookahead.commit();
 }
 
 auto Parser::parse_type_parameter(DeclarationAST*& yyast) -> bool {
-  if (parse_template_type_parameter(yyast)) return true;
-
-  if (parse_typename_type_parameter(yyast)) return true;
-
+  if (parse_template_type_parameter(yyast))
+    return true;
+  else if (parse_typename_type_parameter(yyast))
+    return true;
   return false;
 }
 
@@ -7946,14 +7946,19 @@ auto Parser::parse_type_parameter_key(SourceLocation& classKeyLoc) -> bool {
 auto Parser::parse_type_constraint(TypeConstraintAST*& yyast,
                                    bool parsingPlaceholderTypeSpec) -> bool {
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-  NameAST* name = nullptr;
+  SourceLocation identifierLoc;
+  const Identifier* identifier = nullptr;
 
   auto lookat_type_constraint = [&] {
     LookaheadParser lookahead{this};
 
     parse_optional_nested_name_specifier(nestedNameSpecifier);
 
-    if (!parse_concept_name(name)) return false;
+    if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
+
+    identifier = unit->identifier(identifierLoc);
+
+    if (!concept_names_.contains(identifier)) return false;
 
     lookahead.commit();
 
@@ -7966,29 +7971,15 @@ auto Parser::parse_type_constraint(TypeConstraintAST*& yyast,
   yyast = ast;
 
   ast->nestedNameSpecifier = nestedNameSpecifier;
-  ast->name = name;
+  ast->identifierLoc = identifierLoc;
+  ast->identifier = identifier;
 
-  SourceLocation lessLoc;
-
-  if (match(TokenKind::T_LESS, lessLoc)) {
-    SourceLocation greaterLoc;
-
-    List<TemplateArgumentAST*>* templateArgumentList = nullptr;
-
-    if (!parse_template_argument_list(templateArgumentList)) {
-      if (parsingPlaceholderTypeSpec) return false;
+  if (match(TokenKind::T_LESS, ast->lessLoc)) {
+    if (!parse_template_argument_list(ast->templateArgumentList)) {
       parse_error("expected a template argument");
     }
 
-    expect(TokenKind::T_GREATER, greaterLoc);
-
-    auto templateId = new (pool) TemplateNameAST();
-    templateId->id = name;
-    templateId->lessLoc = lessLoc;
-    templateId->templateArgumentList = templateArgumentList;
-    templateId->greaterLoc = greaterLoc;
-
-    ast->name = templateId;
+    expect(TokenKind::T_GREATER, ast->greaterLoc);
   }
 
   return true;
@@ -8266,7 +8257,12 @@ auto Parser::parse_concept_definition(DeclarationAST*& yyast) -> bool {
 
   ast->conceptLoc = conceptLoc;
 
-  if (!parse_concept_name(ast->name)) parse_error("expected a concept name");
+  expect(TokenKind::T_IDENTIFIER, ast->identifierLoc);
+  ast->identifier = unit->identifier(ast->identifierLoc);
+
+  if (ast->identifierLoc) {
+    concept_names_.insert(ast->identifier);
+  }
 
   expect(TokenKind::T_EQUAL, ast->equalLoc);
 
@@ -8277,10 +8273,6 @@ auto Parser::parse_concept_definition(DeclarationAST*& yyast) -> bool {
   expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
 
   return true;
-}
-
-auto Parser::parse_concept_name(NameAST*& yyast) -> bool {
-  return parse_name_id(yyast);
 }
 
 auto Parser::parse_typename_specifier(SpecifierAST*& yyast) -> bool {
