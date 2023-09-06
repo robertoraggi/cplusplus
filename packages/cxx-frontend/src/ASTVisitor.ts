@@ -219,6 +219,10 @@ export abstract class ASTVisitor<Context, Result> {
     node: ast.TypeidOfTypeExpressionAST,
     context: Context,
   ): Result;
+  abstract visitAlignofTypeExpression(
+    node: ast.AlignofTypeExpressionAST,
+    context: Context,
+  ): Result;
   abstract visitAlignofExpression(
     node: ast.AlignofExpressionAST,
     context: Context,

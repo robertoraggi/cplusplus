@@ -1057,8 +1057,8 @@ void ASTCloner::visit(TypeidOfTypeExpressionAST* ast) {
   copy->rparenLoc = ast->rparenLoc;
 }
 
-void ASTCloner::visit(AlignofExpressionAST* ast) {
-  auto copy = new (arena_) AlignofExpressionAST();
+void ASTCloner::visit(AlignofTypeExpressionAST* ast) {
+  auto copy = new (arena_) AlignofTypeExpressionAST();
   copy_ = copy;
 
   copy->setChecked(ast->checked());
@@ -1074,6 +1074,21 @@ void ASTCloner::visit(AlignofExpressionAST* ast) {
   copy->typeId = accept(ast->typeId);
 
   copy->rparenLoc = ast->rparenLoc;
+}
+
+void ASTCloner::visit(AlignofExpressionAST* ast) {
+  auto copy = new (arena_) AlignofExpressionAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->valueCategory = ast->valueCategory;
+
+  copy->constValue = ast->constValue;
+
+  copy->alignofLoc = ast->alignofLoc;
+
+  copy->expression = accept(ast->expression);
 }
 
 void ASTCloner::visit(TypeTraitsExpressionAST* ast) {

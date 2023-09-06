@@ -1664,7 +1664,7 @@ void ASTEncoder::visit(TypeidOfTypeExpressionAST* ast) {
   type_ = io::Expression_TypeidOfTypeExpression;
 }
 
-void ASTEncoder::visit(AlignofExpressionAST* ast) {
+void ASTEncoder::visit(AlignofTypeExpressionAST* ast) {
   auto alignofLoc = encodeSourceLocation(ast->alignofLoc);
 
   auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
@@ -1673,11 +1673,25 @@ void ASTEncoder::visit(AlignofExpressionAST* ast) {
 
   auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
 
-  io::AlignofExpression::Builder builder{fbb_};
+  io::AlignofTypeExpression::Builder builder{fbb_};
   builder.add_alignof_loc(alignofLoc.o);
   builder.add_lparen_loc(lparenLoc.o);
   builder.add_type_id(typeId.o);
   builder.add_rparen_loc(rparenLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Expression_AlignofTypeExpression;
+}
+
+void ASTEncoder::visit(AlignofExpressionAST* ast) {
+  auto alignofLoc = encodeSourceLocation(ast->alignofLoc);
+
+  const auto [expression, expressionType] = acceptExpression(ast->expression);
+
+  io::AlignofExpression::Builder builder{fbb_};
+  builder.add_alignof_loc(alignofLoc.o);
+  builder.add_expression(expression);
+  builder.add_expression_type(static_cast<io::Expression>(expressionType));
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_AlignofExpression;

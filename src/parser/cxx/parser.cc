@@ -2129,16 +2129,41 @@ auto Parser::parse_alignof_expression(ExpressionAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_ALIGNOF, alignofLoc)) return false;
 
+  auto lookat_alignof_type_id = [&] {
+    LookaheadParser lookahead{this};
+
+    SourceLocation lparenLoc;
+    if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
+
+    TypeIdAST* typeId = nullptr;
+    if (!parse_type_id(typeId)) return false;
+
+    SourceLocation rparenLoc;
+    if (!match(TokenKind::T_RPAREN, rparenLoc)) return false;
+
+    lookahead.commit();
+
+    auto ast = new (pool) AlignofTypeExpressionAST();
+    yyast = ast;
+
+    ast->alignofLoc = alignofLoc;
+    ast->lparenLoc = lparenLoc;
+    ast->typeId = typeId;
+    ast->rparenLoc = rparenLoc;
+
+    return true;
+  };
+
+  if (lookat_alignof_type_id()) return true;
+
   auto ast = new (pool) AlignofExpressionAST();
   yyast = ast;
 
   ast->alignofLoc = alignofLoc;
 
-  expect(TokenKind::T_LPAREN, ast->lparenLoc);
-
-  if (!parse_type_id(ast->typeId)) parse_error("expected a type id");
-
-  expect(TokenKind::T_RPAREN, ast->rparenLoc);
+  if (!parse_unary_expression(ast->expression)) {
+    parse_error("expected an expression");
+  }
 
   return true;
 }

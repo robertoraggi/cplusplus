@@ -130,6 +130,9 @@ auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
     case io::Expression_TypeidOfTypeExpression:
       return decodeTypeidOfTypeExpression(
           reinterpret_cast<const io::TypeidOfTypeExpression*>(ptr));
+    case io::Expression_AlignofTypeExpression:
+      return decodeAlignofTypeExpression(
+          reinterpret_cast<const io::AlignofTypeExpression*>(ptr));
     case io::Expression_AlignofExpression:
       return decodeAlignofExpression(
           reinterpret_cast<const io::AlignofExpression*>(ptr));
@@ -1477,12 +1480,22 @@ auto ASTDecoder::decodeTypeidOfTypeExpression(
   return ast;
 }
 
+auto ASTDecoder::decodeAlignofTypeExpression(
+    const io::AlignofTypeExpression* node) -> AlignofTypeExpressionAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) AlignofTypeExpressionAST();
+  ast->typeId = decodeTypeId(node->type_id());
+  return ast;
+}
+
 auto ASTDecoder::decodeAlignofExpression(const io::AlignofExpression* node)
     -> AlignofExpressionAST* {
   if (!node) return nullptr;
 
   auto ast = new (pool_) AlignofExpressionAST();
-  ast->typeId = decodeTypeId(node->type_id());
+  ast->expression =
+      decodeExpression(node->expression(), node->expression_type());
   return ast;
 }
 

@@ -253,6 +253,10 @@ void DefaultASTVisitor::visit(TypeidOfTypeExpressionAST* ast) {
   cxx_runtime_error("visit(TypeidOfTypeExpressionAST): not implemented");
 }
 
+void DefaultASTVisitor::visit(AlignofTypeExpressionAST* ast) {
+  cxx_runtime_error("visit(AlignofTypeExpressionAST): not implemented");
+}
+
 void DefaultASTVisitor::visit(AlignofExpressionAST* ast) {
   cxx_runtime_error("visit(AlignofExpressionAST): not implemented");
 }

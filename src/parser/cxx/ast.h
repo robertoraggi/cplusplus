@@ -1007,14 +1007,27 @@ class TypeidOfTypeExpressionAST final : public ExpressionAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class AlignofExpressionAST final : public ExpressionAST {
+class AlignofTypeExpressionAST final : public ExpressionAST {
  public:
-  AlignofExpressionAST() : ExpressionAST(ASTKind::AlignofExpression) {}
+  AlignofTypeExpressionAST() : ExpressionAST(ASTKind::AlignofTypeExpression) {}
 
   SourceLocation alignofLoc;
   SourceLocation lparenLoc;
   TypeIdAST* typeId = nullptr;
   SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class AlignofExpressionAST final : public ExpressionAST {
+ public:
+  AlignofExpressionAST() : ExpressionAST(ASTKind::AlignofExpression) {}
+
+  SourceLocation alignofLoc;
+  ExpressionAST* expression = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

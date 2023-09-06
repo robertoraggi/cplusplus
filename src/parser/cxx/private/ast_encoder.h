@@ -184,6 +184,7 @@ class ASTEncoder : ASTVisitor {
   void visit(SizeofPackExpressionAST* ast) override;
   void visit(TypeidExpressionAST* ast) override;
   void visit(TypeidOfTypeExpressionAST* ast) override;
+  void visit(AlignofTypeExpressionAST* ast) override;
   void visit(AlignofExpressionAST* ast) override;
   void visit(TypeTraitsExpressionAST* ast) override;
   void visit(YieldExpressionAST* ast) override;
