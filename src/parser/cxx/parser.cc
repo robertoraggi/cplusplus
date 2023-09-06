@@ -187,6 +187,35 @@ struct Parser::LookaheadParser {
   void commit() { committed = true; }
 };
 
+struct Parser::LoopParser {
+  Parser* p;
+  std::optional<SourceLocation> startLocation;
+  bool recovering = false;
+
+  LoopParser(const LoopParser&) = delete;
+  auto operator=(const LoopParser&) -> LoopParser& = delete;
+
+  explicit LoopParser(Parser* p) : p(p) {}
+
+  ~LoopParser() {}
+
+  void start() {
+    auto loc = p->currentLocation();
+
+    if (startLocation == loc) {
+      if (!recovering) {
+        recovering = true;
+        p->parse_error("skip spurious token");
+      }
+      loc = p->consumeToken();
+    } else {
+      recovering = false;
+    }
+
+    startLocation = loc;
+  }
+};
+
 struct Parser::DeclSpecs {
   bool has_simple_typespec = false;
   bool has_complex_typespec = false;
@@ -543,46 +572,38 @@ void Parser::parse_top_level_declaration_seq(UnitAST*& yyast) {
 
   moduleUnit_ = false;
 
-  bool skipping = false;
-
   auto it = &ast->declarationList;
 
+  LoopParser loop(this);
+
   while (LA()) {
-    const auto saved = currentLocation();
+    loop.start();
 
     DeclarationAST* declaration = nullptr;
 
-    if (parse_declaration(declaration)) {
-      if (declaration) {
-        *it = new (pool) List(declaration);
-        it = &(*it)->next;
-      }
+    if (!parse_declaration(declaration)) {
+      parse_error("expected a declaration");
+      continue;
+    }
 
-      skipping = false;
-    } else {
-      parse_skip_top_level_declaration(skipping);
-
-      if (currentLocation() == saved) consumeToken();
+    if (declaration) {
+      *it = new (pool) List(declaration);
+      it = &(*it)->next;
     }
   }
 }
 
-void Parser::parse_skip_top_level_declaration(bool& skipping) {
-  if (!skipping) parse_error("expected a declaration");
-  skipping = true;
-}
-
 void Parser::parse_declaration_seq(List<DeclarationAST*>*& yyast) {
-  bool skipping = false;
-
   auto it = &yyast;
+
+  LoopParser loop(this);
 
   while (LA()) {
     if (lookat(TokenKind::T_RBRACE)) break;
 
     if (parse_maybe_module()) break;
 
-    auto saved = currentLocation();
+    loop.start();
 
     DeclarationAST* declaration = nullptr;
 
@@ -591,11 +612,8 @@ void Parser::parse_declaration_seq(List<DeclarationAST*>*& yyast) {
         *it = new (pool) List(declaration);
         it = &(*it)->next;
       }
-      skipping = false;
     } else {
-      parse_skip_declaration(skipping);
-
-      if (currentLocation() == saved) consumeToken();
+      parse_error("expected a declaration");
     }
   }
 }
@@ -885,7 +903,11 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
     nameIt = &(*nameIt)->next;
   }
 
+  LoopParser loop(this);
+
   while (true) {
+    loop.start();
+
     if (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_COLON_COLON)) {
       NameAST* name = nullptr;
       (void)parse_name_id(name);
@@ -1436,8 +1458,12 @@ void Parser::parse_requirement_seq(List<RequirementAST*>*& yyast) {
   *it = new (pool) List(requirement);
   it = &(*it)->next;
 
+  LoopParser loop(this);
+
   while (LA()) {
     if (lookat(TokenKind::T_RBRACE)) break;
+
+    loop.start();
 
     RequirementAST* requirement = nullptr;
     parse_requirement(requirement);
@@ -1556,13 +1582,21 @@ auto Parser::parse_postfix_expression(ExpressionAST*& yyast) -> bool {
   if (!parse_start_of_postfix_expression(yyast)) return false;
 
   while (true) {
-    const auto saved = currentLocation();
-    if (parse_member_expression(yyast)) continue;
-    if (parse_subscript_expression(yyast)) continue;
-    if (parse_call_expression(yyast)) continue;
-    if (parse_postincr_expression(yyast)) continue;
-    rewind(saved);
-    break;
+    LookaheadParser lookahead{this};
+
+    if (parse_member_expression(yyast)) {
+      //
+    } else if (parse_subscript_expression(yyast)) {
+      //
+    } else if (parse_call_expression(yyast)) {
+      //
+    } else if (parse_postincr_expression(yyast)) {
+      //
+    } else {
+      break;
+    }
+
+    lookahead.commit();
   }
 
   return true;
@@ -3060,8 +3094,12 @@ void Parser::finish_compound_statement(CompoundStatementAST* ast) {
 
   auto it = &ast->statementList;
 
+  LoopParser loop{this};
+
   while (LA()) {
     if (lookat(TokenKind::T_RBRACE)) break;
+
+    loop.start();
 
     StatementAST* statement = nullptr;
 
@@ -4084,7 +4122,11 @@ auto Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast) -> bool {
 
   typeSpecifier = nullptr;
 
+  LoopParser loop{this};
+
   while (LA()) {
+    loop.start();
+
     const auto before_type_specifier = currentLocation();
 
     typeSpecifier = nullptr;
@@ -4140,7 +4182,11 @@ auto Parser::parse_defining_type_specifier_seq(List<SpecifierAST*>*& yyast,
   *it = new (pool) List(typeSpecifier);
   it = &(*it)->next;
 
+  LoopParser loop{this};
+
   while (LA()) {
+    loop.start();
+
     const auto before_type_specifier = currentLocation();
 
     typeSpecifier = nullptr;
@@ -4771,7 +4817,11 @@ auto Parser::parse_noptr_declarator(DeclaratorAST*& yyast,
 
   ParametersAndQualifiersAST* parametersAndQualifiers = nullptr;
 
+  LoopParser loop{this};
+
   while (true) {
+    loop.start();
+
     const auto saved = currentLocation();
 
     SourceLocation lbracketLoc;
@@ -5898,7 +5948,11 @@ auto Parser::parse_namespace_definition(DeclarationAST*& yyast) -> bool {
     *it = new (pool) List(name);
     it = &(*it)->next;
 
+    LoopParser loop{this};
+
     while (true) {
+      loop.start();
+
       const auto saved = currentLocation();
 
       SourceLocation inlineLoc;
@@ -5952,28 +6006,26 @@ auto Parser::parse_namespace_definition(DeclarationAST*& yyast) -> bool {
 }
 
 void Parser::parse_namespace_body(NamespaceDefinitionAST* yyast) {
-  bool skipping = false;
-
   auto it = &yyast->declarationList;
+
+  LoopParser loop{this};
 
   while (LA()) {
     if (lookat(TokenKind::T_RBRACE)) break;
+
+    loop.start();
 
     const auto beforeDeclaration = currentLocation();
 
     DeclarationAST* declaration = nullptr;
 
     if (parse_declaration(declaration)) {
-      skipping = false;
-
       if (declaration) {
         *it = new (pool) List(declaration);
         it = &(*it)->next;
       }
     } else {
-      parse_skip_declaration(skipping);
-
-      if (currentLocation() == beforeDeclaration) consumeToken();
+      parse_error("expected a declaration");
     }
   }
 }
@@ -6826,10 +6878,12 @@ auto Parser::parse_class_specifier(SpecifierAST*& yyast) -> bool {
 auto Parser::parse_class_body(List<DeclarationAST*>*& yyast) -> bool {
   auto it = &yyast;
 
-  bool skipping = false;
+  LoopParser loop{this};
 
   while (LA()) {
     if (lookat(TokenKind::T_RBRACE)) break;
+
+    loop.start();
 
     const auto saved = currentLocation();
 
@@ -6840,13 +6894,8 @@ auto Parser::parse_class_body(List<DeclarationAST*>*& yyast) -> bool {
         *it = new (pool) List(declaration);
         it = &(*it)->next;
       }
-      skipping = false;
     } else {
-      if (!skipping) parse_error("expected a declaration");
-
-      if (currentLocation() == saved) consumeToken();
-
-      skipping = true;
+      parse_error("expected a declaration");
     }
   }
 
