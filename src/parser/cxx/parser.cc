@@ -1998,41 +1998,43 @@ auto Parser::parse_expression_list(List<ExpressionAST*>*& yyast) -> bool {
 }
 
 auto Parser::parse_unary_expression(ExpressionAST*& yyast) -> bool {
-  if (parse_unop_expression(yyast)) return true;
-
-  if (parse_complex_expression(yyast)) return true;
-
-  if (parse_await_expression(yyast)) return true;
-
-  if (parse_sizeof_expression(yyast)) return true;
-
-  if (parse_alignof_expression(yyast)) return true;
-
-  if (parse_noexcept_expression(yyast)) return true;
-
-  if (parse_new_expression(yyast)) return true;
-
-  if (parse_delete_expression(yyast)) return true;
-
-  return parse_postfix_expression(yyast);
+  if (parse_unop_expression(yyast))
+    return true;
+  else if (parse_complex_expression(yyast))
+    return true;
+  else if (parse_await_expression(yyast))
+    return true;
+  else if (parse_sizeof_expression(yyast))
+    return true;
+  else if (parse_alignof_expression(yyast))
+    return true;
+  else if (parse_noexcept_expression(yyast))
+    return true;
+  else if (parse_new_expression(yyast))
+    return true;
+  else if (parse_delete_expression(yyast))
+    return true;
+  else
+    return parse_postfix_expression(yyast);
 }
 
 auto Parser::parse_unop_expression(ExpressionAST*& yyast) -> bool {
-  SourceLocation opLoc;
+  LookaheadParser lookahead{this};
 
+  SourceLocation opLoc;
   if (!parse_unary_operator(opLoc)) return false;
+
+  ExpressionAST* expression = nullptr;
+  if (!parse_cast_expression(expression)) return false;
+
+  lookahead.commit();
 
   auto ast = new (pool) UnaryExpressionAST();
   yyast = ast;
 
   ast->opLoc = opLoc;
   ast->op = unit->tokenKind(opLoc);
-
-  if (!parse_cast_expression(ast->expression)) {
-    parse_error("expected an expression");
-    rewind(opLoc);
-    return false;
-  }
+  ast->expression = expression;
 
   return true;
 }
@@ -2048,6 +2050,13 @@ auto Parser::parse_complex_expression(ExpressionAST*& yyast) -> bool {
   ExpressionAST* expression = nullptr;
 
   if (!parse_cast_expression(expression)) parse_error("expected an expression");
+
+  auto ast = new (pool) UnaryExpressionAST();
+  yyast = ast;
+
+  ast->opLoc = opLoc;
+  ast->op = unit->tokenKind(opLoc);
+  ast->expression = expression;
 
   return true;
 }
