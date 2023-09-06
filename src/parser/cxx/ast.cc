@@ -2809,6 +2809,7 @@ auto EnumSpecifierAST::lastSourceLocation() -> SourceLocation {
 auto ClassSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(classLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(name)) return loc;
   if (auto loc = cxx::firstSourceLocation(finalLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(baseClause)) return loc;
@@ -2825,6 +2826,7 @@ auto ClassSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(baseClause)) return loc;
   if (auto loc = cxx::lastSourceLocation(finalLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(classLoc)) return loc;
   return {};

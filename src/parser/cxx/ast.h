@@ -3009,6 +3009,7 @@ class ClassSpecifierAST final : public SpecifierAST {
 
   SourceLocation classLoc;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   NameAST* name = nullptr;
   SourceLocation finalLoc;
   BaseClauseAST* baseClause = nullptr;

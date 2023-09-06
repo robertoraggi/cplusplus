@@ -1484,6 +1484,7 @@ table EnumSpecifier /* SpecifierAST */ {
 
 table ClassSpecifier /* SpecifierAST */ {
   attribute_list: [AttributeSpecifier];
+  nested_name_specifier: NestedNameSpecifier;
   name: Name;
   base_clause: BaseClause;
   declaration_list: [Declaration];

@@ -4946,6 +4946,8 @@ void ASTEncoder::visit(ClassSpecifierAST* ast) {
   auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
   auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
 
+  const auto nestedNameSpecifier = accept(ast->nestedNameSpecifier);
+
   const auto [name, nameType] = acceptName(ast->name);
 
   auto finalLoc = encodeSourceLocation(ast->finalLoc);
@@ -4973,6 +4975,7 @@ void ASTEncoder::visit(ClassSpecifierAST* ast) {
   builder.add_class_loc(classLoc.o);
   builder.add_attribute_list(attributeListOffsetsVector);
   builder.add_attribute_list_type(attributeListTypesVector);
+  builder.add_nested_name_specifier(nestedNameSpecifier.o);
   builder.add_name(name);
   builder.add_name_type(static_cast<io::Name>(nameType));
   builder.add_final_loc(finalLoc.o);

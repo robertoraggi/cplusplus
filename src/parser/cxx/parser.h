@@ -439,9 +439,10 @@ class Parser final {
   void parse_class_body(List<DeclarationAST*>*& yyast);
   [[nodiscard]] auto parse_class_head(
       SourceLocation& classLoc, List<AttributeSpecifierAST*>*& attributeList,
-      NameAST*& name, SourceLocation& finalLoc, BaseClauseAST*& baseClause)
-      -> bool;
-  [[nodiscard]] auto parse_class_head_name(NameAST*& yyast) -> bool;
+      NestedNameSpecifierAST*& nestedNameSpecifier, NameAST*& name,
+      SourceLocation& finalLoc, BaseClauseAST*& baseClause) -> bool;
+  [[nodiscard]] auto parse_class_head_name(
+      NestedNameSpecifierAST*& nestedNameSpecifier, NameAST*& yyast) -> bool;
   [[nodiscard]] auto parse_class_virt_specifier(SourceLocation& loc) -> bool;
   [[nodiscard]] auto parse_class_key(SourceLocation& classLoc) -> bool;
   [[nodiscard]] auto parse_member_specification(DeclarationAST*& yyast) -> bool;

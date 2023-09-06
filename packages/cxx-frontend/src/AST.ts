@@ -4812,24 +4812,30 @@ export class ClassSpecifierAST extends SpecifierAST {
       yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
     }
   }
+  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
+    return AST.from<NestedNameSpecifierAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
   getName(): NameAST | undefined {
-    return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
   }
   getFinalToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
   }
   getBaseClause(): BaseClauseAST | undefined {
     return AST.from<BaseClauseAST>(
-      cxx.getASTSlot(this.getHandle(), 4),
+      cxx.getASTSlot(this.getHandle(), 5),
       this.parser,
     );
   }
   getLbraceToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
   }
   *getDeclarationList(): Generator<DeclarationAST | undefined> {
     for (
-      let it = cxx.getASTSlot(this.getHandle(), 6);
+      let it = cxx.getASTSlot(this.getHandle(), 7);
       it;
       it = cxx.getListNext(it)
     ) {
@@ -4837,13 +4843,13 @@ export class ClassSpecifierAST extends SpecifierAST {
     }
   }
   getRbraceToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 8), this.parser);
   }
   getClassKey(): TokenKind {
-    return cxx.getASTSlot(this.getHandle(), 8);
+    return cxx.getASTSlot(this.getHandle(), 9);
   }
   getIsFinal(): boolean {
-    return cxx.getASTSlot(this.getHandle(), 9) !== 0;
+    return cxx.getASTSlot(this.getHandle(), 10) !== 0;
   }
 }
 

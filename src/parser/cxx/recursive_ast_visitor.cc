@@ -1147,6 +1147,7 @@ void RecursiveASTVisitor::visit(ClassSpecifierAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) {
     acceptAttributeSpecifier(it->value);
   }
+  acceptNestedNameSpecifier(ast->nestedNameSpecifier);
   acceptName(ast->name);
   acceptBaseClause(ast->baseClause);
   for (auto it = ast->declarationList; it; it = it->next) {
