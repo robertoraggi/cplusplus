@@ -818,7 +818,7 @@ auto TypeidOfTypeExpressionAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto AlignofExpressionAST::firstSourceLocation() -> SourceLocation {
+auto AlignofTypeExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(alignofLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
@@ -826,10 +826,22 @@ auto AlignofExpressionAST::firstSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto AlignofExpressionAST::lastSourceLocation() -> SourceLocation {
+auto AlignofTypeExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(alignofLoc)) return loc;
+  return {};
+}
+
+auto AlignofExpressionAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(alignofLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  return {};
+}
+
+auto AlignofExpressionAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(alignofLoc)) return loc;
   return {};
 }

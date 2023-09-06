@@ -1181,7 +1181,7 @@ void ASTSlot::visit(TypeidOfTypeExpressionAST* ast) {
   slotCount_ = 4;
 }
 
-void ASTSlot::visit(AlignofExpressionAST* ast) {
+void ASTSlot::visit(AlignofTypeExpressionAST* ast) {
   switch (slot_) {
     case 0:  // alignofLoc
       value_ = ast->alignofLoc.index();
@@ -1202,6 +1202,21 @@ void ASTSlot::visit(AlignofExpressionAST* ast) {
   }  // switch
 
   slotCount_ = 4;
+}
+
+void ASTSlot::visit(AlignofExpressionAST* ast) {
+  switch (slot_) {
+    case 0:  // alignofLoc
+      value_ = ast->alignofLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:  // expression
+      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+  }  // switch
+
+  slotCount_ = 2;
 }
 
 void ASTSlot::visit(TypeTraitsExpressionAST* ast) {

@@ -383,11 +383,18 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     this.accept(node.getTypeId(), context);
   }
 
+  visitAlignofTypeExpression(
+    node: ast.AlignofTypeExpressionAST,
+    context: Context,
+  ): void {
+    this.accept(node.getTypeId(), context);
+  }
+
   visitAlignofExpression(
     node: ast.AlignofExpressionAST,
     context: Context,
   ): void {
-    this.accept(node.getTypeId(), context);
+    this.accept(node.getExpression(), context);
   }
 
   visitTypeTraitsExpression(

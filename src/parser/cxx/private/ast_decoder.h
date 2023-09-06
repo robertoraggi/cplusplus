@@ -175,6 +175,8 @@ class ASTDecoder {
       -> TypeidExpressionAST*;
   auto decodeTypeidOfTypeExpression(const io::TypeidOfTypeExpression* node)
       -> TypeidOfTypeExpressionAST*;
+  auto decodeAlignofTypeExpression(const io::AlignofTypeExpression* node)
+      -> AlignofTypeExpressionAST*;
   auto decodeAlignofExpression(const io::AlignofExpression* node)
       -> AlignofExpressionAST*;
   auto decodeTypeTraitsExpression(const io::TypeTraitsExpression* node)

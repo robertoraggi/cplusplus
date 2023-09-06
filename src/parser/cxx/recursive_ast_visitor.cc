@@ -507,8 +507,12 @@ void RecursiveASTVisitor::visit(TypeidOfTypeExpressionAST* ast) {
   acceptTypeId(ast->typeId);
 }
 
-void RecursiveASTVisitor::visit(AlignofExpressionAST* ast) {
+void RecursiveASTVisitor::visit(AlignofTypeExpressionAST* ast) {
   acceptTypeId(ast->typeId);
+}
+
+void RecursiveASTVisitor::visit(AlignofExpressionAST* ast) {
+  acceptExpression(ast->expression);
 }
 
 void RecursiveASTVisitor::visit(TypeTraitsExpressionAST* ast) {

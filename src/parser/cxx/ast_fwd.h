@@ -133,6 +133,7 @@ class SizeofTypeExpressionAST;
 class SizeofPackExpressionAST;
 class TypeidExpressionAST;
 class TypeidOfTypeExpressionAST;
+class AlignofTypeExpressionAST;
 class AlignofExpressionAST;
 class TypeTraitsExpressionAST;
 class YieldExpressionAST;

@@ -80,6 +80,7 @@ export enum ASTKind {
   SizeofPackExpression,
   TypeidExpression,
   TypeidOfTypeExpression,
+  AlignofTypeExpression,
   AlignofExpression,
   TypeTraitsExpression,
   YieldExpression,

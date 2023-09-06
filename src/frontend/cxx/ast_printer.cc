@@ -632,9 +632,14 @@ void ASTPrinter::visit(TypeidOfTypeExpressionAST* ast) {
   accept(ast->typeId, "type-id");
 }
 
+void ASTPrinter::visit(AlignofTypeExpressionAST* ast) {
+  fmt::print(out_, "{}\n", "alignof-type-expression");
+  accept(ast->typeId, "type-id");
+}
+
 void ASTPrinter::visit(AlignofExpressionAST* ast) {
   fmt::print(out_, "{}\n", "alignof-expression");
-  accept(ast->typeId, "type-id");
+  accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(TypeTraitsExpressionAST* ast) {

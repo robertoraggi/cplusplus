@@ -154,6 +154,7 @@ union Expression {
   SizeofPackExpression,
   TypeidExpression,
   TypeidOfTypeExpression,
+  AlignofTypeExpression,
   AlignofExpression,
   TypeTraitsExpression,
   YieldExpression,
@@ -973,11 +974,16 @@ table TypeidOfTypeExpression /* ExpressionAST */ {
   rparen_loc: SourceLocation;
 }
 
-table AlignofExpression /* ExpressionAST */ {
+table AlignofTypeExpression /* ExpressionAST */ {
   type_id: TypeId;
   alignof_loc: SourceLocation;
   lparen_loc: SourceLocation;
   rparen_loc: SourceLocation;
+}
+
+table AlignofExpression /* ExpressionAST */ {
+  expression: Expression;
+  alignof_loc: SourceLocation;
 }
 
 table TypeTraitsExpression /* ExpressionAST */ {
