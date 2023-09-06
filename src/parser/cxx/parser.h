@@ -436,7 +436,7 @@ class Parser final {
   void parse_global_module_fragment(GlobalModuleFragmentAST*& yyast);
   void parse_private_module_fragment(PrivateModuleFragmentAST*& yyast);
   [[nodiscard]] auto parse_class_specifier(SpecifierAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_class_body(List<DeclarationAST*>*& yyast) -> bool;
+  void parse_class_body(List<DeclarationAST*>*& yyast);
   [[nodiscard]] auto parse_class_head(
       SourceLocation& classLoc, List<AttributeSpecifierAST*>*& attributeList,
       NameAST*& name, SourceLocation& finalLoc, BaseClauseAST*& baseClause)
