@@ -3283,6 +3283,8 @@ auto ASTDecoder::decodeClassSpecifier(const io::ClassSpecifier* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->nestedNameSpecifier =
+      decodeNestedNameSpecifier(node->nested_name_specifier());
   ast->name = decodeName(node->name(), node->name_type());
   ast->baseClause = decodeBaseClause(node->base_clause());
   if (node->declaration_list()) {

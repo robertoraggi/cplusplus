@@ -3430,6 +3430,8 @@ void ASTCloner::visit(ClassSpecifierAST* ast) {
     }
   }
 
+  copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
+
   copy->name = accept(ast->name);
 
   copy->finalLoc = ast->finalLoc;

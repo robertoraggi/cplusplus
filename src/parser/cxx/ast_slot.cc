@@ -4088,41 +4088,45 @@ void ASTSlot::visit(ClassSpecifierAST* ast) {
       value_ = reinterpret_cast<std::intptr_t>(ast->attributeList);
       slotKind_ = ASTSlotKind::kNodeList;
       break;
-    case 2:  // name
+    case 2:  // nestedNameSpecifier
+      value_ = reinterpret_cast<std::intptr_t>(ast->nestedNameSpecifier);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 3:  // name
       value_ = reinterpret_cast<std::intptr_t>(ast->name);
       slotKind_ = ASTSlotKind::kNode;
       break;
-    case 3:  // finalLoc
+    case 4:  // finalLoc
       value_ = ast->finalLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       break;
-    case 4:  // baseClause
+    case 5:  // baseClause
       value_ = reinterpret_cast<std::intptr_t>(ast->baseClause);
       slotKind_ = ASTSlotKind::kNode;
       break;
-    case 5:  // lbraceLoc
+    case 6:  // lbraceLoc
       value_ = ast->lbraceLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       break;
-    case 6:  // declarationList
+    case 7:  // declarationList
       value_ = reinterpret_cast<std::intptr_t>(ast->declarationList);
       slotKind_ = ASTSlotKind::kNodeList;
       break;
-    case 7:  // rbraceLoc
+    case 8:  // rbraceLoc
       value_ = ast->rbraceLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       break;
-    case 8:  // classKey
+    case 9:  // classKey
       value_ = intptr_t(ast->classKey);
       slotKind_ = ASTSlotKind::kIntAttribute;
       break;
-    case 9:  // isFinal
+    case 10:  // isFinal
       value_ = intptr_t(ast->isFinal != 0);
       slotKind_ = ASTSlotKind::kBoolAttribute;
       break;
   }  // switch
 
-  slotCount_ = 10;
+  slotCount_ = 11;
 }
 
 void ASTSlot::visit(TypenameSpecifierAST* ast) {

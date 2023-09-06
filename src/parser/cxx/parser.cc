@@ -6815,6 +6815,7 @@ auto Parser::parse_class_specifier(SpecifierAST*& yyast) -> bool {
 
   SourceLocation classLoc;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   NameAST* className = nullptr;
   BaseClauseAST* baseClause = nullptr;
   SourceLocation finalLoc;
@@ -6822,8 +6823,8 @@ auto Parser::parse_class_specifier(SpecifierAST*& yyast) -> bool {
   auto lookat_class_specifier = [&] {
     LookaheadParser lookahead{this};
 
-    if (parse_class_head(classLoc, attributeList, className, finalLoc,
-                         baseClause)) {
+    if (parse_class_head(classLoc, attributeList, nestedNameSpecifier,
+                         className, finalLoc, baseClause)) {
       if (baseClause || lookat(TokenKind::T_LBRACE)) {
         lookahead.commit();
         return true;
@@ -6850,6 +6851,7 @@ auto Parser::parse_class_specifier(SpecifierAST*& yyast) -> bool {
 
   ast->classLoc = classLoc;
   ast->attributeList = attributeList;
+  ast->nestedNameSpecifier = nestedNameSpecifier;
   ast->name = className;
   ast->finalLoc = finalLoc;
   ast->baseClause = baseClause;
@@ -6899,13 +6901,14 @@ void Parser::parse_class_body(List<DeclarationAST*>*& yyast) {
 
 auto Parser::parse_class_head(SourceLocation& classLoc,
                               List<AttributeSpecifierAST*>*& attributeList,
+                              NestedNameSpecifierAST*& nestedNameSpecifier,
                               NameAST*& name, SourceLocation& finalLoc,
                               BaseClauseAST*& baseClause) -> bool {
   if (!parse_class_key(classLoc)) return false;
 
   parse_optional_attribute_specifier_seq(attributeList);
 
-  if (parse_class_head_name(name)) {
+  if (parse_class_head_name(nestedNameSpecifier, name)) {
     (void)parse_class_virt_specifier(finalLoc);
   }
 
@@ -6914,9 +6917,8 @@ auto Parser::parse_class_head(SourceLocation& classLoc,
   return true;
 }
 
-auto Parser::parse_class_head_name(NameAST*& yyast) -> bool {
-  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-
+auto Parser::parse_class_head_name(NestedNameSpecifierAST*& nestedNameSpecifier,
+                                   NameAST*& yyast) -> bool {
   parse_optional_nested_name_specifier(nestedNameSpecifier);
 
   check_type_traits();
@@ -6925,7 +6927,7 @@ auto Parser::parse_class_head_name(NameAST*& yyast) -> bool {
 
   if (!parse_type_name(name)) return false;
 
-  if (!nestedNameSpecifier) yyast = name;
+  yyast = name;
 
   return true;
 }

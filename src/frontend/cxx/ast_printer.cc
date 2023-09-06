@@ -1876,6 +1876,7 @@ void ASTPrinter::visit(ClassSpecifierAST* ast) {
     }
     --indent_;
   }
+  accept(ast->nestedNameSpecifier, "nested-name-specifier");
   accept(ast->name, "name");
   accept(ast->baseClause, "base-clause");
   if (ast->declarationList) {
