@@ -6862,10 +6862,7 @@ auto Parser::parse_class_specifier(SpecifierAST*& yyast) -> bool {
   }
 
   if (!match(TokenKind::T_RBRACE, ast->rbraceLoc)) {
-    if (!parse_class_body(ast->declarationList)) {
-      parse_error("expected class body");
-    }
-
+    parse_class_body(ast->declarationList);
     expect(TokenKind::T_RBRACE, ast->rbraceLoc);
   }
 
@@ -6875,7 +6872,7 @@ auto Parser::parse_class_specifier(SpecifierAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_class_body(List<DeclarationAST*>*& yyast) -> bool {
+void Parser::parse_class_body(List<DeclarationAST*>*& yyast) {
   auto it = &yyast;
 
   LoopParser loop{this};
@@ -6898,8 +6895,6 @@ auto Parser::parse_class_body(List<DeclarationAST*>*& yyast) -> bool {
       parse_error("expected a declaration");
     }
   }
-
-  return true;
 }
 
 auto Parser::parse_class_head(SourceLocation& classLoc,
