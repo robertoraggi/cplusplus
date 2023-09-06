@@ -2085,14 +2085,20 @@ auto Parser::parse_sizeof_expression(ExpressionAST*& yyast) -> bool {
     return true;
   }
 
-  const auto after_sizeof_op = currentLocation();
+  auto lookat_sizeof_type_id = [&] {
+    LookaheadParser lookahead{this};
 
-  SourceLocation lparenLoc;
-  TypeIdAST* typeId = nullptr;
-  SourceLocation rparenLoc;
+    SourceLocation lparenLoc;
+    if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
 
-  if (match(TokenKind::T_LPAREN, lparenLoc) && parse_type_id(typeId) &&
-      match(TokenKind::T_RPAREN, rparenLoc)) {
+    TypeIdAST* typeId = nullptr;
+    if (!parse_type_id(typeId)) return false;
+
+    SourceLocation rparenLoc;
+    if (!match(TokenKind::T_RPAREN, rparenLoc)) return false;
+
+    lookahead.commit();
+
     auto ast = new (pool) SizeofTypeExpressionAST();
     yyast = ast;
 
@@ -2102,9 +2108,9 @@ auto Parser::parse_sizeof_expression(ExpressionAST*& yyast) -> bool {
     ast->rparenLoc = rparenLoc;
 
     return true;
-  }
+  };
 
-  rewind(after_sizeof_op);
+  if (lookat_sizeof_type_id()) return true;
 
   auto ast = new (pool) SizeofExpressionAST();
   yyast = ast;
