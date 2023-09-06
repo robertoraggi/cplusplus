@@ -68,6 +68,7 @@ class Parser final {
   struct TemplArgContext;
   struct ClassSpecifierContext;
   struct LookaheadParser;
+  struct LoopParser;
 
   struct ExprContext {
     bool templParam = false;
@@ -97,7 +98,6 @@ class Parser final {
   [[nodiscard]] auto parse_module_head() -> bool;
   [[nodiscard]] auto parse_module_unit(UnitAST*& yyast) -> bool;
   void parse_top_level_declaration_seq(UnitAST*& yyast);
-  void parse_skip_top_level_declaration(bool& skipping);
   void parse_declaration_seq(List<DeclarationAST*>*& yyast);
   void parse_skip_declaration(bool& skipping);
   [[nodiscard]] auto parse_primary_expression(ExpressionAST*& yyast,
