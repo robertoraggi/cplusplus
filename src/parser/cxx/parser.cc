@@ -1702,24 +1702,38 @@ auto Parser::parse_cpp_cast_expression(ExpressionAST*& yyast) -> bool {
 }
 
 auto Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast) -> bool {
-  const auto start = currentLocation();
+  auto lookat_function_call = [&] {
+    LookaheadParser lookahead{this};
 
-  SpecifierAST* typeSpecifier = nullptr;
+    SpecifierAST* typeSpecifier = nullptr;
+    DeclSpecs specs;
 
-  DeclSpecs specs;
+    if (!parse_simple_type_specifier(typeSpecifier, specs)) return false;
 
-  if (!parse_simple_type_specifier(typeSpecifier, specs)) return false;
+    if (!lookat(TokenKind::T_LPAREN)) return false;
 
-  // ### prefer function calls to cpp-cast expressions for now.
-  if (lookat(TokenKind::T_LPAREN) &&
-      dynamic_cast<NamedTypeSpecifierAST*>(typeSpecifier)) {
-    rewind(start);
+    // ### prefer function calls to cpp-cast expressions for now.
+    if (dynamic_cast<NamedTypeSpecifierAST*>(typeSpecifier)) return true;
+
     return false;
-  }
+  };
 
-  BracedInitListAST* bracedInitList = nullptr;
+  if (lookat_function_call()) return false;
 
-  if (parse_braced_init_list(bracedInitList)) {
+  auto lookat_braced_type_construction = [&] {
+    LookaheadParser lookahead{this};
+
+    SpecifierAST* typeSpecifier = nullptr;
+    DeclSpecs specs;
+
+    if (!parse_simple_type_specifier(typeSpecifier, specs)) return false;
+
+    BracedInitListAST* bracedInitList = nullptr;
+
+    if (!parse_braced_init_list(bracedInitList)) return false;
+
+    lookahead.commit();
+
     auto ast = new (pool) BracedTypeConstructionAST();
     yyast = ast;
 
@@ -1727,7 +1741,16 @@ auto Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast) -> bool {
     ast->bracedInitList = bracedInitList;
 
     return true;
-  }
+  };
+
+  if (lookat_braced_type_construction()) return true;
+
+  LookaheadParser lookahead{this};
+
+  SpecifierAST* typeSpecifier = nullptr;
+  DeclSpecs specs;
+
+  if (!parse_simple_type_specifier(typeSpecifier, specs)) return false;
 
   SourceLocation lparenLoc;
 
@@ -1742,6 +1765,8 @@ auto Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast) -> bool {
 
     if (!match(TokenKind::T_RPAREN, rparenLoc)) return false;
   }
+
+  lookahead.commit();
 
   auto ast = new (pool) TypeConstructionAST();
   yyast = ast;
