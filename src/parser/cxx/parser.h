@@ -20,15 +20,13 @@
 
 #pragma once
 
-#include <cxx/ast.h>
+#include <cxx/ast_fwd.h>
 #include <cxx/control.h>
 #include <cxx/source_location.h>
 #include <cxx/translation_unit.h>
 
-#include <forward_list>
-#include <functional>
 #include <unordered_map>
-#include <variant>
+#include <unordered_set>
 
 namespace cxx {
 
@@ -505,7 +503,6 @@ class Parser final {
   [[nodiscard]] auto parse_constraint_expression(ExpressionAST*& yyast) -> bool;
   [[nodiscard]] auto parse_deduction_guide(DeclarationAST*& yyast) -> bool;
   [[nodiscard]] auto parse_concept_definition(DeclarationAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_concept_name(NameAST*& yyast) -> bool;
   [[nodiscard]] auto parse_typename_specifier(SpecifierAST*& yyast) -> bool;
   [[nodiscard]] auto parse_explicit_instantiation(DeclarationAST*& yyast)
       -> bool;
@@ -578,6 +575,9 @@ class Parser final {
   CachedAST<ElaboratedTypeSpecifierAST> elaborated_type_specifiers_;
   CachedAST<TemplateArgumentAST> template_arguments_;
   CachedAST<NestedNameSpecifierAST> nested_name_specifiers_;
+
+  // TODO: remove
+  std::unordered_set<const Identifier*> concept_names_;
 };
 
 }  // namespace cxx

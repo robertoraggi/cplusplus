@@ -944,12 +944,48 @@ void ASTEncoder::visit(RequirementBodyAST* ast) {
 void ASTEncoder::visit(TypeConstraintAST* ast) {
   const auto nestedNameSpecifier = accept(ast->nestedNameSpecifier);
 
-  const auto [name, nameType] = acceptName(ast->name);
+  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
+
+  auto lessLoc = encodeSourceLocation(ast->lessLoc);
+
+  std::vector<flatbuffers::Offset<>> templateArgumentListOffsets;
+  std::vector<std::underlying_type_t<io::TemplateArgument>>
+      templateArgumentListTypes;
+
+  for (auto it = ast->templateArgumentList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptTemplateArgument(it->value);
+    templateArgumentListOffsets.push_back(offset);
+    templateArgumentListTypes.push_back(type);
+  }
+
+  auto templateArgumentListOffsetsVector =
+      fbb_.CreateVector(templateArgumentListOffsets);
+  auto templateArgumentListTypesVector =
+      fbb_.CreateVector(templateArgumentListTypes);
+
+  auto greaterLoc = encodeSourceLocation(ast->greaterLoc);
+
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->value());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
 
   io::TypeConstraint::Builder builder{fbb_};
   builder.add_nested_name_specifier(nestedNameSpecifier.o);
-  builder.add_name(name);
-  builder.add_name_type(static_cast<io::Name>(nameType));
+  builder.add_identifier_loc(identifierLoc.o);
+  builder.add_less_loc(lessLoc.o);
+  builder.add_template_argument_list(templateArgumentListOffsetsVector);
+  builder.add_template_argument_list_type(templateArgumentListTypesVector);
+  builder.add_greater_loc(greaterLoc.o);
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
 
   offset_ = builder.Finish().Union();
 }
@@ -3260,7 +3296,7 @@ void ASTEncoder::visit(FunctionDefinitionAST* ast) {
 void ASTEncoder::visit(ConceptDefinitionAST* ast) {
   auto conceptLoc = encodeSourceLocation(ast->conceptLoc);
 
-  const auto [name, nameType] = acceptName(ast->name);
+  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
 
   auto equalLoc = encodeSourceLocation(ast->equalLoc);
 
@@ -3268,14 +3304,26 @@ void ASTEncoder::visit(ConceptDefinitionAST* ast) {
 
   auto semicolonLoc = encodeSourceLocation(ast->semicolonLoc);
 
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->value());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
   io::ConceptDefinition::Builder builder{fbb_};
   builder.add_concept_loc(conceptLoc.o);
-  builder.add_name(name);
-  builder.add_name_type(static_cast<io::Name>(nameType));
+  builder.add_identifier_loc(identifierLoc.o);
   builder.add_equal_loc(equalLoc.o);
   builder.add_expression(expression);
   builder.add_expression_type(static_cast<io::Expression>(expressionType));
   builder.add_semicolon_loc(semicolonLoc.o);
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
 
   offset_ = builder.Finish().Union();
   type_ = io::Declaration_ConceptDefinition;

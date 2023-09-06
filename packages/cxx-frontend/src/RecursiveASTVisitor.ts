@@ -181,7 +181,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
   visitTypeConstraint(node: ast.TypeConstraintAST, context: Context): void {
     this.accept(node.getNestedNameSpecifier(), context);
-    this.accept(node.getName(), context);
+    for (const element of node.getTemplateArgumentList()) {
+      this.accept(element, context);
+    }
   }
 
   visitGlobalModuleFragment(
@@ -854,7 +856,6 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     node: ast.ConceptDefinitionAST,
     context: Context,
   ): void {
-    this.accept(node.getName(), context);
     this.accept(node.getExpression(), context);
   }
 

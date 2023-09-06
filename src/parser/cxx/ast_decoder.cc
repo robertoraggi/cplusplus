@@ -1085,7 +1085,19 @@ auto ASTDecoder::decodeTypeConstraint(const io::TypeConstraint* node)
   auto ast = new (pool_) TypeConstraintAST();
   ast->nestedNameSpecifier =
       decodeNestedNameSpecifier(node->nested_name_specifier());
-  ast->name = decodeName(node->name(), node->name_type());
+  if (node->template_argument_list()) {
+    auto* inserter = &ast->templateArgumentList;
+    for (std::size_t i = 0; i < node->template_argument_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeTemplateArgument(
+          node->template_argument_list()->Get(i),
+          io::TemplateArgument(node->template_argument_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
   return ast;
 }
 
@@ -2373,9 +2385,12 @@ auto ASTDecoder::decodeConceptDefinition(const io::ConceptDefinition* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) ConceptDefinitionAST();
-  ast->name = decodeName(node->name(), node->name_type());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
   return ast;
 }
 

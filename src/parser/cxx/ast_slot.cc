@@ -459,13 +459,29 @@ void ASTSlot::visit(TypeConstraintAST* ast) {
       value_ = reinterpret_cast<std::intptr_t>(ast->nestedNameSpecifier);
       slotKind_ = ASTSlotKind::kNode;
       break;
-    case 1:  // name
-      value_ = reinterpret_cast<std::intptr_t>(ast->name);
-      slotKind_ = ASTSlotKind::kNode;
+    case 1:  // identifierLoc
+      value_ = ast->identifierLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 2:  // lessLoc
+      value_ = ast->lessLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 3:  // templateArgumentList
+      value_ = reinterpret_cast<std::intptr_t>(ast->templateArgumentList);
+      slotKind_ = ASTSlotKind::kNodeList;
+      break;
+    case 4:  // greaterLoc
+      value_ = ast->greaterLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 5:  // identifier
+      value_ = reinterpret_cast<std::intptr_t>(ast->identifier);
+      slotKind_ = ASTSlotKind::kIdentifierAttribute;
       break;
   }  // switch
 
-  slotCount_ = 2;
+  slotCount_ = 6;
 }
 
 void ASTSlot::visit(GlobalModuleFragmentAST* ast) {
@@ -2673,9 +2689,9 @@ void ASTSlot::visit(ConceptDefinitionAST* ast) {
       value_ = ast->conceptLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       break;
-    case 1:  // name
-      value_ = reinterpret_cast<std::intptr_t>(ast->name);
-      slotKind_ = ASTSlotKind::kNode;
+    case 1:  // identifierLoc
+      value_ = ast->identifierLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
       break;
     case 2:  // equalLoc
       value_ = ast->equalLoc.index();
@@ -2689,9 +2705,13 @@ void ASTSlot::visit(ConceptDefinitionAST* ast) {
       value_ = ast->semicolonLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       break;
+    case 5:  // identifier
+      value_ = reinterpret_cast<std::intptr_t>(ast->identifier);
+      slotKind_ = ASTSlotKind::kIdentifierAttribute;
+      break;
   }  // switch
 
-  slotCount_ = 5;
+  slotCount_ = 6;
 }
 
 void ASTSlot::visit(ForRangeDeclarationAST* ast) {

@@ -671,8 +671,27 @@ export class TypeConstraintAST extends AST {
       this.parser,
     );
   }
-  getName(): NameAST | undefined {
-    return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+  getLessToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+  *getTemplateArgumentList(): Generator<TemplateArgumentAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 3);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<TemplateArgumentAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+  getGreaterToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  }
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 5);
+    return cxx.getIdentifierValue(slot);
   }
 }
 
@@ -3207,8 +3226,8 @@ export class ConceptDefinitionAST extends DeclarationAST {
   getConceptToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
   }
-  getName(): NameAST | undefined {
-    return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
   }
   getEqualToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
@@ -3221,6 +3240,10 @@ export class ConceptDefinitionAST extends DeclarationAST {
   }
   getSemicolonToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  }
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 5);
+    return cxx.getIdentifierValue(slot);
   }
 }
 

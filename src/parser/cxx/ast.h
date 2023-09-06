@@ -489,7 +489,11 @@ class TypeConstraintAST final : public AST {
   TypeConstraintAST() : AST(ASTKind::TypeConstraint) {}
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-  NameAST* name = nullptr;
+  SourceLocation identifierLoc;
+  SourceLocation lessLoc;
+  List<TemplateArgumentAST*>* templateArgumentList = nullptr;
+  SourceLocation greaterLoc;
+  const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2044,10 +2048,11 @@ class ConceptDefinitionAST final : public DeclarationAST {
   ConceptDefinitionAST() : DeclarationAST(ASTKind::ConceptDefinition) {}
 
   SourceLocation conceptLoc;
-  NameAST* name = nullptr;
+  SourceLocation identifierLoc;
   SourceLocation equalLoc;
   ExpressionAST* expression = nullptr;
   SourceLocation semicolonLoc;
+  const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

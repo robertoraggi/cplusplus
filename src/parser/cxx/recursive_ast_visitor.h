@@ -52,6 +52,7 @@ class RecursiveASTVisitor : public ASTVisitor {
   virtual void acceptTypeId(TypeIdAST* ast);
   virtual void acceptMemInitializer(MemInitializerAST* ast);
   virtual void acceptRequirement(RequirementAST* ast);
+  virtual void acceptTemplateArgument(TemplateArgumentAST* ast);
   virtual void acceptDeclaration(DeclarationAST* ast);
   virtual void acceptModuleName(ModuleNameAST* ast);
   virtual void acceptModulePartition(ModulePartitionAST* ast);
@@ -79,7 +80,6 @@ class RecursiveASTVisitor : public ASTVisitor {
   virtual void acceptUsingDeclarator(UsingDeclaratorAST* ast);
   virtual void acceptElaboratedTypeSpecifier(ElaboratedTypeSpecifierAST* ast);
   virtual void acceptImportName(ImportNameAST* ast);
-  virtual void acceptTemplateArgument(TemplateArgumentAST* ast);
   virtual void acceptEnumerator(EnumeratorAST* ast);
   virtual void acceptBaseClause(BaseClauseAST* ast);
   virtual void acceptParametersAndQualifiers(ParametersAndQualifiersAST* ast);

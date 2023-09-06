@@ -316,12 +316,18 @@ auto RequirementBodyAST::lastSourceLocation() -> SourceLocation {
 
 auto TypeConstraintAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
-  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lessLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(templateArgumentList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(greaterLoc)) return loc;
   return {};
 }
 
 auto TypeConstraintAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(greaterLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(templateArgumentList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lessLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   return {};
 }
@@ -1852,7 +1858,7 @@ auto FunctionDefinitionAST::lastSourceLocation() -> SourceLocation {
 
 auto ConceptDefinitionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(conceptLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(equalLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
@@ -1863,7 +1869,7 @@ auto ConceptDefinitionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(equalLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(conceptLoc)) return loc;
   return {};
 }
