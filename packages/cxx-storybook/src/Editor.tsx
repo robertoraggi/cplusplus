@@ -18,162 +18,49 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { FC, useEffect, useRef, useState } from "react";
-import { basicSetup } from "codemirror";
-import { cpp } from "@codemirror/lang-cpp";
-import { EditorState } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
-import { linter, Diagnostic } from "@codemirror/lint";
-import * as cxx from "cxx-frontend";
-import "./Editor.css";
+import { ComponentProps } from "react";
+import { useConfigureEditor } from "./useConfigureEditor";
+import { Parser } from "cxx-frontend";
 
-export interface EditorProps {
+export interface EditorProps
+  extends Pick<ComponentProps<"div">, "className" | "style"> {
   /**
-   * The initial text of the editor.
+   * The initial value of the editor.
+   * @default ""
    */
   initialValue?: string;
 
   /**
-   * Whether the Editor owns the syntax tree.
-   *
+   * Whether the editor is editable.
    * @default true
    */
-  editorWillDisposeSyntaxTree?: boolean;
+  editable?: boolean;
 
   /**
-   * Called when the cursor position changes.
-   *
-   * @param lineNumber 1-based line number
-   * @param column 1-based column number
+   * Whether to check the syntax of the document.
+   * @default true
    */
-  onCursorPositionChanged?: (lineNumber: number, column: number) => void;
+  checkSyntax?: boolean;
 
   /**
-   * Called when the syntax is parsed.
-   *
-   * @param parser the Parser
+   * Called when the parser changes.
+   * @param parser The new parser or null if the parser was unset.
    */
-  onSyntaxChanged?: (parser: cxx.Parser) => void;
+  onParserChanged?: (parser: Parser | null) => void;
 }
 
-export const Editor: FC<EditorProps> = ({
+export function Editor({
   initialValue,
-  editorWillDisposeSyntaxTree = true,
-  onCursorPositionChanged,
-  onSyntaxChanged,
-}) => {
-  const editorRef = useRef<HTMLDivElement>(null);
-
-  const [editor, setEditor] = useState<EditorView | null>(null);
-
-  const linterRef = useRef({
-    editorWillDisposeSyntaxTree,
-    onCursorPositionChanged,
-    onSyntaxChanged,
+  checkSyntax,
+  editable,
+  onParserChanged,
+  ...props
+}: EditorProps) {
+  const configureEditor = useConfigureEditor({
+    initialValue,
+    checkSyntax,
+    editable,
+    onParserChanged,
   });
-
-  linterRef.current = {
-    editorWillDisposeSyntaxTree,
-    onCursorPositionChanged,
-    onSyntaxChanged,
-  };
-
-  useEffect(() => {
-    if (!editor) return;
-
-    editor.dispatch({
-      changes: { from: 0, to: editor.state.doc.length, insert: initialValue },
-    });
-  }, [editor, initialValue]);
-
-  useEffect(() => {
-    const domElement = editorRef.current;
-
-    if (!domElement) {
-      return;
-    }
-
-    const {
-      editorWillDisposeSyntaxTree,
-      onCursorPositionChanged,
-      onSyntaxChanged,
-    } = linterRef.current;
-
-    const syntaxChecker = (view: EditorView) => {
-      if (!cxx.Parser.isInitialized()) {
-        // The parser is not ready yet, we can't do anything
-        return [];
-      }
-
-      const source = view.state.doc.toString();
-
-      const parser = new cxx.Parser({
-        path: "main.cc",
-        source,
-      });
-
-      parser.parse();
-
-      const diagnostics: Diagnostic[] = [];
-
-      for (const diagnostic of parser.getDiagnostics()) {
-        const { startLine, startColumn, endLine, endColumn, message } =
-          diagnostic;
-
-        const from =
-          view.state.doc.line(startLine).from + Math.max(startColumn - 1, 0);
-
-        const to =
-          view.state.doc.line(endLine).from + Math.max(endColumn - 1, 0);
-
-        diagnostics.push({
-          severity: "error",
-          from,
-          to,
-          message,
-        });
-      }
-
-      onSyntaxChanged?.(parser);
-
-      if (editorWillDisposeSyntaxTree || !onSyntaxChanged) {
-        parser.dispose();
-      }
-
-      return diagnostics;
-    };
-
-    const needsRefresh = () => {
-      return !cxx.Parser.isInitialized();
-    };
-
-    const cppLinter = linter(syntaxChecker, { needsRefresh });
-
-    const updateListener = EditorView.updateListener.of((update) => {
-      if (update.selectionSet && onCursorPositionChanged) {
-        const sel = update.state.selection.main;
-        const line = update.state.doc.lineAt(sel.to);
-        const column = sel.from - line.from;
-        onCursorPositionChanged(line.number, column);
-      }
-    });
-
-    const startState = EditorState.create({
-      doc: "",
-      extensions: [basicSetup, cpp(), updateListener, cppLinter],
-    });
-
-    const editor = new EditorView({
-      state: startState,
-      parent: domElement,
-    });
-
-    setEditor(editor);
-
-    return () => {
-      editor.destroy();
-    };
-  }, [editorRef]);
-
-  return <div ref={editorRef} className="Editor" />;
-};
+  return <div ref={configureEditor} {...props} />;
+}

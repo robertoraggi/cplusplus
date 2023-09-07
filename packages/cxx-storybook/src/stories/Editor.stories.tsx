@@ -19,41 +19,83 @@
 // SOFTWARE.
 
 import type { Meta, StoryObj } from "@storybook/react";
-import { Editor, EditorProps } from "../Editor";
+
+import { Editor } from "../Editor";
+import { CxxFrontendProvider } from "../CxxFrontendProvider";
+import { CxxFrontendClient } from "../CxxFrontendClient";
 import { Parser } from "cxx-frontend";
+import { useState } from "react";
+import { SyntaxTree } from "./SyntaxTree";
 
-import "../setupCxxFrontend";
+const client = new CxxFrontendClient();
 
-const meta = {
-  title: "Example/Editor",
+const meta: Meta<typeof Editor> = {
+  title: "CxxFrontend/Editor",
   component: Editor,
   tags: ["autodocs"],
-  argTypes: {},
-} satisfies Meta<typeof Editor>;
+  decorators: [
+    (Story) => (
+      <CxxFrontendProvider client={client}>
+        <Story />
+      </CxxFrontendProvider>
+    ),
+  ],
+};
 
 export default meta;
-type Story = StoryObj<typeof meta>;
 
-class SyntaxCheckerArgs implements EditorProps {
-  #lastParser?: Parser;
+type EditorStory = StoryObj<typeof Editor>;
 
-  editorWillDisposeSyntaxTree = false;
+export const EditableEditorWithSyntaxChecker: EditorStory = {
+  args: {
+    initialValue: `auto main() -> int {\n  return 0\n}`,
+    editable: true,
+    checkSyntax: true,
+  },
+};
 
-  initialValue = [
-    "#include <iostream>",
-    "",
-    "int main() {",
-    '  std::cout << "Hello, world!" << std::endl;',
-    "  return 0;",
-    "}",
-  ].join("\n");
+export const EditableEditor: EditorStory = {
+  args: {
+    initialValue: `auto main() -> int {\n  return 0;\n}`,
+    editable: true,
+    checkSyntax: false,
+  },
+};
 
-  onSyntaxChanged(parser: Parser) {
-    this.#lastParser?.dispose();
-    this.#lastParser = parser;
-  }
+export const ReadonlyEditor: EditorStory = {
+  args: {
+    initialValue: `auto main() -> int {\n  return 0;\n}`,
+    editable: false,
+    checkSyntax: false,
+  },
+};
+
+export function EditorWithSyntaxTree() {
+  const [parser, setParser] = useState<Parser | null>(null);
+
+  const value = `
+template <typename T>
+concept CanAdd = requires(T n) {
+  n + n;
+};
+
+auto twice(CanAdd auto n) {
+  return n + n;
 }
 
-export const SyntaxChecker: Story = {
-  args: new SyntaxCheckerArgs(),
-};
+int main() {
+  return twice(2);
+}
+`;
+
+  return (
+    <div style={{ display: "flex", height: "90svh" }}>
+      <Editor
+        initialValue={value}
+        style={{ flex: 1, overflow: "auto" }}
+        onParserChanged={setParser}
+      />
+      <SyntaxTree parser={parser} />
+    </div>
+  );
+}
