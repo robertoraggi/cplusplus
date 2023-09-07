@@ -228,13 +228,15 @@ class Parser final {
   [[nodiscard]] auto parse_template_argument_constant_expression(
       ExpressionAST*& yyast) -> bool;
   void parse_statement(StatementAST*& yyast);
-  [[nodiscard]] auto parse_statement_helper(StatementAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_maybe_statement(StatementAST*& yyast) -> bool;
   void parse_init_statement(StatementAST*& yyast);
   void parse_condition(ExpressionAST*& yyast);
   [[nodiscard]] auto parse_labeled_statement(StatementAST*& yyast) -> bool;
   [[nodiscard]] auto parse_case_statement(StatementAST*& yyast) -> bool;
   [[nodiscard]] auto parse_default_statement(StatementAST*& yyast) -> bool;
   [[nodiscard]] auto parse_expression_statement(StatementAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_maybe_compound_statement(StatementAST*& yyast)
+      -> bool;
   [[nodiscard]] auto parse_compound_statement(CompoundStatementAST*& yyast,
                                               bool skip = false) -> bool;
   void finish_compound_statement(CompoundStatementAST* yyast);

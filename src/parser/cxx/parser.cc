@@ -2808,12 +2808,12 @@ auto Parser::parse_template_argument_constant_expression(ExpressionAST*& yyast)
 }
 
 void Parser::parse_statement(StatementAST*& yyast) {
-  if (!parse_statement_helper(yyast)) {
+  if (!parse_maybe_statement(yyast)) {
     parse_error("expected a statement");
   }
 }
 
-auto Parser::parse_statement_helper(StatementAST*& yyast) -> bool {
+auto Parser::parse_maybe_statement(StatementAST*& yyast) -> bool {
   SourceLocation extensionLoc;
 
   match(TokenKind::T___EXTENSION__, extensionLoc);
@@ -2821,67 +2821,52 @@ auto Parser::parse_statement_helper(StatementAST*& yyast) -> bool {
   List<AttributeSpecifierAST*>* attributes = nullptr;
   parse_optional_attribute_specifier_seq(attributes);
 
-  const auto start = currentLocation();
+  if (!extensionLoc) {
+    match(TokenKind::T___EXTENSION__, extensionLoc);
+  }
 
-  switch (TokenKind(LA())) {
-    case TokenKind::T_CASE:
-      return parse_case_statement(yyast);
-    case TokenKind::T_DEFAULT:
-      return parse_default_statement(yyast);
-    case TokenKind::T_WHILE:
-      return parse_while_statement(yyast);
-    case TokenKind::T_DO:
-      return parse_do_statement(yyast);
-    case TokenKind::T_FOR: {
-      auto lookat_for_range_statement = [&] {
-        LookaheadParser lookahead{this};
-        if (!parse_for_range_statement(yyast)) return false;
-        lookahead.commit();
-        return true;
-      };
-      if (lookat_for_range_statement()) return true;
-      return parse_for_statement(yyast);
-    }
-    case TokenKind::T_IF:
-      return parse_if_statement(yyast);
-    case TokenKind::T_SWITCH:
-      return parse_switch_statement(yyast);
-    case TokenKind::T_BREAK:
-      return parse_break_statement(yyast);
-    case TokenKind::T_CONTINUE:
-      return parse_continue_statement(yyast);
-    case TokenKind::T_RETURN:
-      return parse_return_statement(yyast);
-    case TokenKind::T_GOTO:
-      return parse_goto_statement(yyast);
-    case TokenKind::T_CO_RETURN:
-      return parse_coroutine_return_statement(yyast);
-    case TokenKind::T_TRY:
-      return parse_try_block(yyast);
-    case TokenKind::T_LBRACE: {
-      CompoundStatementAST* statement = nullptr;
-      if (parse_compound_statement(statement)) {
-        yyast = statement;
-        return true;
-      }
-      return false;
-    }
-    default:
-      if (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_COLON)) {
-        return parse_labeled_statement(yyast);
-      }
+  if (parse_case_statement(yyast)) {
+    return true;
+  } else if (parse_default_statement(yyast)) {
+    return true;
+  } else if (parse_while_statement(yyast)) {
+    return true;
+  } else if (parse_do_statement(yyast)) {
+    return true;
+  } else if (parse_for_statement(yyast)) {
+    return true;
+  } else if (parse_if_statement(yyast)) {
+    return true;
+  } else if (parse_switch_statement(yyast)) {
+    return true;
+  } else if (parse_break_statement(yyast)) {
+    return true;
+  } else if (parse_continue_statement(yyast)) {
+    return true;
+  } else if (parse_return_statement(yyast)) {
+    return true;
+  } else if (parse_goto_statement(yyast)) {
+    return true;
+  } else if (parse_coroutine_return_statement(yyast)) {
+    return true;
+  } else if (parse_try_block(yyast)) {
+    return true;
+  } else if (parse_maybe_compound_statement(yyast)) {
+    return true;
+  } else if (parse_labeled_statement(yyast)) {
+    return true;
+  } else {
+    auto lookat_declaration_statement = [&] {
+      LookaheadParser lookahead{this};
+      if (!parse_declaration_statement(yyast)) return false;
+      lookahead.commit();
+      return true;
+    };
 
-      auto lookat_declaration_statement = [&] {
-        LookaheadParser lookahead{this};
-        if (!parse_declaration_statement(yyast)) return false;
-        lookahead.commit();
-        return true;
-      };
+    if (lookat_declaration_statement()) return true;
 
-      if (lookat_declaration_statement()) return true;
-
-      return parse_expression_statement(yyast);
-  }  // switch
+    return parse_expression_statement(yyast);
+  }
 }
 
 void Parser::parse_init_statement(StatementAST*& yyast) {
@@ -2955,25 +2940,16 @@ void Parser::parse_condition(ExpressionAST*& yyast) {
 }
 
 auto Parser::parse_labeled_statement(StatementAST*& yyast) -> bool {
-  SourceLocation identifierLoc;
-
-  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
-
-  SourceLocation colonLoc;
-
-  expect(TokenKind::T_COLON, colonLoc);
-
-  StatementAST* statement = nullptr;
-
-  parse_statement(statement);
+  if (!lookat(TokenKind::T_IDENTIFIER, TokenKind::T_COLON)) return false;
 
   auto ast = new (pool) LabeledStatementAST();
   yyast = ast;
 
-  ast->identifierLoc = identifierLoc;
+  expect(TokenKind::T_IDENTIFIER, ast->identifierLoc);
+  expect(TokenKind::T_COLON, ast->colonLoc);
+  parse_statement(ast->statement);
+
   ast->identifier = unit->identifier(ast->identifierLoc);
-  ast->colonLoc = colonLoc;
-  ast->statement = statement;
 
   return true;
 }
@@ -3051,6 +3027,15 @@ auto Parser::parse_expression_statement(StatementAST*& yyast) -> bool {
   return true;
 }
 
+auto Parser::parse_maybe_compound_statement(StatementAST*& yyast) -> bool {
+  CompoundStatementAST* statement = nullptr;
+  if (parse_compound_statement(statement)) {
+    yyast = statement;
+    return true;
+  }
+  return false;
+}
+
 auto Parser::parse_compound_statement(CompoundStatementAST*& yyast, bool skip)
     -> bool {
   SourceLocation lbraceLoc;
@@ -3103,7 +3088,7 @@ void Parser::finish_compound_statement(CompoundStatementAST* ast) {
 
     StatementAST* statement = nullptr;
 
-    if (parse_statement_helper(statement)) {
+    if (parse_maybe_statement(statement)) {
       *it = new (pool) List(statement);
       it = &(*it)->next;
       skipping = false;
@@ -3225,24 +3210,29 @@ auto Parser::parse_do_statement(StatementAST*& yyast) -> bool {
 
 auto Parser::parse_for_range_statement(StatementAST*& yyast) -> bool {
   SourceLocation forLoc;
-
-  if (!match(TokenKind::T_FOR, forLoc)) return false;
-
   SourceLocation lparenLoc;
-
-  if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
-
   StatementAST* initializer = nullptr;
-
-  parse_init_statement(initializer);
-
   DeclarationAST* rangeDeclaration = nullptr;
-
-  if (!parse_for_range_declaration(rangeDeclaration)) return false;
-
   SourceLocation colonLoc;
 
-  if (!match(TokenKind::T_COLON, colonLoc)) return false;
+  auto lookat_for_range_statement = [&] {
+    LookaheadParser lookahead{this};
+
+    if (!match(TokenKind::T_FOR, forLoc)) return false;
+    if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
+
+    parse_init_statement(initializer);
+
+    if (!parse_for_range_declaration(rangeDeclaration)) return false;
+
+    if (!match(TokenKind::T_COLON, colonLoc)) return false;
+
+    lookahead.commit();
+
+    return true;
+  };
+
+  if (!lookat_for_range_statement()) return false;
 
   auto ast = new (pool) ForRangeStatementAST();
   yyast = ast;
@@ -3263,6 +3253,8 @@ auto Parser::parse_for_range_statement(StatementAST*& yyast) -> bool {
 }
 
 auto Parser::parse_for_statement(StatementAST*& yyast) -> bool {
+  if (parse_for_range_statement(yyast)) return true;
+
   SourceLocation forLoc;
 
   if (!match(TokenKind::T_FOR, forLoc)) return false;
