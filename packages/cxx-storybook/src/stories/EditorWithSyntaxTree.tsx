@@ -18,72 +18,41 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { ComponentProps } from "react";
-import { useConfigureEditor } from "./useConfigureEditor";
+import { Editor } from "../Editor";
 import { Parser } from "cxx-frontend";
+import { useState } from "react";
+import { SyntaxTree } from "../SyntaxTree";
 
-export interface EditorProps
-  extends Pick<ComponentProps<"div">, "className" | "style"> {
+interface EditorWithSyntaxTreeProps {
   /**
    * The initial value of the editor.
-   * @default ""
    */
-  initialValue?: string;
-
-  /**
-   * Whether the editor is editable.
-   * @default true
-   */
-  editable?: boolean;
+  initialValue: string;
 
   /**
    * The delay in milliseconds before parsing the document.
    * @default 250
    */
-  delay?: number;
-
-  /**
-   * Whether to check the syntax of the document.
-   * @default true
-   */
-  checkSyntax?: boolean;
-
-  /**
-   * Called when the parser changes.
-   * @param parser The new parser or null if the parser was unset.
-   */
-  onParserChanged?: (parser: Parser | null) => void;
-
-  /**
-   * Called when the cursor position changes.
-   * @param line The new line.
-   * @param column The new column.
-   */
-  onCursorPositionChanged?: ({
-    line,
-    column,
-  }: {
-    line: number;
-    column: number;
-  }) => void;
+  delay: number;
 }
 
-export function Editor({
-  initialValue = "",
+export function EditorWithSyntaxTree({
+  initialValue,
   delay = 250,
-  checkSyntax = true,
-  editable = true,
-  onParserChanged,
-  onCursorPositionChanged,
-  ...props
-}: EditorProps) {
-  const configureEditor = useConfigureEditor({
-    initialValue,
-    checkSyntax,
-    editable,
-    delay,
-    onParserChanged,
-    onCursorPositionChanged,
-  });
-  return <div ref={configureEditor} {...props} />;
+}: EditorWithSyntaxTreeProps) {
+  const [parser, setParser] = useState<Parser | null>(null);
+  const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 0 });
+
+  return (
+    <div style={{ display: "flex", height: "100svh" }}>
+      <Editor
+        style={{ flex: 1, overflow: "auto" }}
+        initialValue={initialValue}
+        delay={delay}
+        onParserChanged={setParser}
+        onCursorPositionChanged={setCursorPosition}
+      />
+      <SyntaxTree parser={parser} cursorPosition={cursorPosition} />
+    </div>
+  );
 }

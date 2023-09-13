@@ -19,17 +19,19 @@
 // SOFTWARE.
 
 import type { Meta, StoryObj } from "@storybook/react";
-
-import { Editor } from "../Editor";
+import { EditorWithSyntaxTree } from "./EditorWithSyntaxTree";
 import { CxxFrontendProvider } from "../CxxFrontendProvider";
 import { CxxFrontendClient } from "../CxxFrontendClient";
 
 const client = new CxxFrontendClient();
 
-const meta: Meta<typeof Editor> = {
-  title: "CxxFrontend/Editor",
-  component: Editor,
+const meta: Meta<typeof EditorWithSyntaxTree> = {
+  title: "CxxFrontend/SyntaxTree",
+  component: EditorWithSyntaxTree,
   tags: ["autodocs"],
+  parameters: {
+    layout: "fullscreen",
+  },
   decorators: [
     (Story) => (
       <CxxFrontendProvider client={client}>
@@ -41,28 +43,33 @@ const meta: Meta<typeof Editor> = {
 
 export default meta;
 
-type EditorStory = StoryObj<typeof Editor>;
+type EditorWithSyntaxTreeStory = StoryObj<typeof EditorWithSyntaxTree>;
 
-export const EditorWithSyntaxChecker: EditorStory = {
-  args: {
-    initialValue: `auto main() -> int {\n  return 0\n}`,
-    editable: true,
-    checkSyntax: true,
-  },
-};
+export const Basic: EditorWithSyntaxTreeStory = {
+  loaders: [
+    async () => {
+      const response = await fetch(
+        "https://raw.githubusercontent.com/robertoraggi/cplusplus/main/src/parser/cxx/parser.cc"
+      );
 
-export const EditableEditor: EditorStory = {
-  args: {
-    initialValue: `auto main() -> int {\n  return 0;\n}`,
-    editable: true,
-    checkSyntax: false,
-  },
-};
+      if (!response.ok) {
+        return {
+          source: [
+            "auto main() -> int",
+            "{",
+            "  int exitValue = 0;",
+            "  return exitValue;",
+            "}",
+          ].join("\n"),
+        };
+      }
 
-export const ReadonlyEditor: EditorStory = {
-  args: {
-    initialValue: `auto main() -> int {\n  return 0;\n}`,
-    editable: false,
-    checkSyntax: false,
+      const source = await response.text();
+
+      return { source };
+    },
+  ],
+  render: (args, { loaded: { source } }) => {
+    return <EditorWithSyntaxTree {...args} initialValue={source} />;
   },
 };
