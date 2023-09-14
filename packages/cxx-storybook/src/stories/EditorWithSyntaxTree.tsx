@@ -44,7 +44,7 @@ export function EditorWithSyntaxTree({
   const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 0 });
 
   return (
-    <div style={{ display: "flex", height: "100svh" }}>
+    <div style={{ display: "flex", height: "100svh", overflow: "hidden" }}>
       <Editor
         style={{ flex: 1, overflow: "auto" }}
         initialValue={initialValue}
