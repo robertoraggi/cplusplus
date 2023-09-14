@@ -7933,6 +7933,7 @@ auto Parser::parse_template_type_parameter(DeclarationAST*& yyast) -> bool {
   ast->classKeyLoc = classsKeyLoc;
 
   match(TokenKind::T_IDENTIFIER, ast->identifierLoc);
+  ast->identifier = unit->identifier(ast->identifierLoc);
 
   return true;
 }
