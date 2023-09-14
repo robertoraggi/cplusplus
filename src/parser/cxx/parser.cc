@@ -3262,6 +3262,8 @@ auto Parser::parse_for_statement(StatementAST*& yyast) -> bool {
   auto ast = new (pool) ForStatementAST();
   yyast = ast;
 
+  ast->forLoc = forLoc;
+
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
   parse_init_statement(ast->initializer);
