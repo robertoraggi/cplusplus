@@ -213,7 +213,6 @@ union Name {
   SimpleTemplateName,
   LiteralOperatorTemplateName,
   OperatorFunctionTemplateName,
-  QualifiedName,
 }
 
 union NestedNameSpecifier {
@@ -314,7 +313,7 @@ table TypeId /* AST */ {
 
 table UsingDeclarator /* AST */ {
   nested_name_specifier: NestedNameSpecifier;
-  name: Name;
+  unqualified_id: Name;
   typename_loc: SourceLocation;
 }
 
@@ -353,8 +352,10 @@ table InitDeclarator /* AST */ {
 
 table BaseSpecifier /* AST */ {
   attribute_list: [AttributeSpecifier];
-  name: Name;
+  nested_name_specifier: NestedNameSpecifier;
+  unqualified_id: Name;
   access_specifier: uint32;
+  template_loc: SourceLocation;
 }
 
 table BaseClause /* AST */ {
@@ -567,7 +568,7 @@ table ParameterPack /* CoreDeclaratorAST */ {
 }
 
 table IdDeclarator /* CoreDeclaratorAST */ {
-  name: Name;
+  id_expression: IdExpression;
   attribute_list: [AttributeSpecifier];
 }
 
@@ -654,7 +655,7 @@ table AttributeDeclaration /* DeclarationAST */ {
 table OpaqueEnumDeclaration /* DeclarationAST */ {
   attribute_list: [AttributeSpecifier];
   nested_name_specifier: NestedNameSpecifier;
-  name: Name;
+  unqualified_id: Name;
   enum_base: EnumBase;
   enum_loc: SourceLocation;
   class_loc: SourceLocation;
@@ -683,7 +684,7 @@ table NamespaceDefinition /* DeclarationAST */ {
 
 table NamespaceAliasDefinition /* DeclarationAST */ {
   nested_name_specifier: NestedNameSpecifier;
-  name: Name;
+  unqualified_id: Name;
   identifier: string;
   namespace_loc: SourceLocation;
   identifier_loc: SourceLocation;
@@ -694,7 +695,7 @@ table NamespaceAliasDefinition /* DeclarationAST */ {
 table UsingDirective /* DeclarationAST */ {
   attribute_list: [AttributeSpecifier];
   nested_name_specifier: NestedNameSpecifier;
-  name: Name;
+  unqualified_id: Name;
   using_loc: SourceLocation;
   namespace_loc: SourceLocation;
   semicolon_loc: SourceLocation;
@@ -761,7 +762,7 @@ table TypenameTypeParameter /* DeclarationAST */ {
 table TemplateTypeParameter /* DeclarationAST */ {
   template_parameter_list: [Declaration];
   requires_clause: RequiresClause;
-  name: Name;
+  id_expression: IdExpression;
   identifier: string;
   template_loc: SourceLocation;
   less_loc: SourceLocation;
@@ -900,7 +901,9 @@ table UserDefinedStringLiteralExpression /* ExpressionAST */ {
 }
 
 table IdExpression /* ExpressionAST */ {
-  name: Name;
+  nested_name_specifier: NestedNameSpecifier;
+  unqualified_id: Name;
+  template_loc: SourceLocation;
 }
 
 table RequiresExpression /* ExpressionAST */ {
@@ -1077,7 +1080,7 @@ table SubscriptExpression /* ExpressionAST */ {
 
 table MemberExpression /* ExpressionAST */ {
   base_expression: Expression;
-  name: Name;
+  id_expression: IdExpression;
   access_op: uint32;
   access_loc: SourceLocation;
   template_loc: SourceLocation;
@@ -1226,7 +1229,8 @@ table InitLambdaCapture /* LambdaCaptureAST */ {
 }
 
 table ParenMemInitializer /* MemInitializerAST */ {
-  name: Name;
+  nested_name_specifier: NestedNameSpecifier;
+  unqualified_id: Name;
   expression_list: [Expression];
   lparen_loc: SourceLocation;
   rparen_loc: SourceLocation;
@@ -1234,7 +1238,8 @@ table ParenMemInitializer /* MemInitializerAST */ {
 }
 
 table BracedMemInitializer /* MemInitializerAST */ {
-  name: Name;
+  nested_name_specifier: NestedNameSpecifier;
+  unqualified_id: Name;
   braced_init_list: BracedInitList;
   ellipsis_loc: SourceLocation;
 }
@@ -1293,12 +1298,6 @@ table OperatorFunctionTemplateName /* NameAST */ {
   template_argument_list: [TemplateArgument];
   less_loc: SourceLocation;
   greater_loc: SourceLocation;
-}
-
-table QualifiedName /* NameAST */ {
-  nested_name_specifier: NestedNameSpecifier;
-  id: Name;
-  template_loc: SourceLocation;
 }
 
 table GlobalNestedNameSpecifier /* NestedNameSpecifierAST */ {
@@ -1371,7 +1370,7 @@ table CompoundRequirement /* RequirementAST */ {
 
 table TypeRequirement /* RequirementAST */ {
   nested_name_specifier: NestedNameSpecifier;
-  name: Name;
+  unqualified_id: Name;
   typename_loc: SourceLocation;
   semicolon_loc: SourceLocation;
 }
@@ -1465,7 +1464,9 @@ table ComplexTypeSpecifier /* SpecifierAST */ {
 }
 
 table NamedTypeSpecifier /* SpecifierAST */ {
-  name: Name;
+  nested_name_specifier: NestedNameSpecifier;
+  unqualified_id: Name;
+  template_loc: SourceLocation;
 }
 
 table AtomicTypeSpecifier /* SpecifierAST */ {
@@ -1485,7 +1486,7 @@ table UnderlyingTypeSpecifier /* SpecifierAST */ {
 table ElaboratedTypeSpecifier /* SpecifierAST */ {
   attribute_list: [AttributeSpecifier];
   nested_name_specifier: NestedNameSpecifier;
-  name: Name;
+  unqualified_id: Name;
   class_key: uint32;
   class_loc: SourceLocation;
 }
@@ -1524,7 +1525,7 @@ table RestrictQualifier /* SpecifierAST */ {
 table EnumSpecifier /* SpecifierAST */ {
   attribute_list: [AttributeSpecifier];
   nested_name_specifier: NestedNameSpecifier;
-  name: Name;
+  unqualified_id: Name;
   enum_base: EnumBase;
   enumerator_list: [Enumerator];
   enum_loc: SourceLocation;
@@ -1537,7 +1538,7 @@ table EnumSpecifier /* SpecifierAST */ {
 table ClassSpecifier /* SpecifierAST */ {
   attribute_list: [AttributeSpecifier];
   nested_name_specifier: NestedNameSpecifier;
-  name: Name;
+  unqualified_id: Name;
   base_clause: BaseClause;
   declaration_list: [Declaration];
   class_key: uint32;
@@ -1549,7 +1550,7 @@ table ClassSpecifier /* SpecifierAST */ {
 
 table TypenameSpecifier /* SpecifierAST */ {
   nested_name_specifier: NestedNameSpecifier;
-  name: Name;
+  unqualified_id: Name;
   typename_loc: SourceLocation;
 }
 

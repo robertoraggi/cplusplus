@@ -72,7 +72,7 @@ void ASTPrinter::visit(TypeIdAST* ast) {
 void ASTPrinter::visit(UsingDeclaratorAST* ast) {
   fmt::print(out_, "{}\n", "using-declarator");
   accept(ast->nestedNameSpecifier, "nested-name-specifier");
-  accept(ast->name, "name");
+  accept(ast->unqualifiedId, "unqualified-id");
 }
 
 void ASTPrinter::visit(HandlerAST* ast) {
@@ -141,6 +141,12 @@ void ASTPrinter::visit(InitDeclaratorAST* ast) {
 
 void ASTPrinter::visit(BaseSpecifierAST* ast) {
   fmt::print(out_, "{}\n", "base-specifier");
+  if (ast->isTemplateIntroduced) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "is-template-introduced: {}\n", ast->isTemplateIntroduced);
+    --indent_;
+  }
   if (ast->isVirtual) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
@@ -163,7 +169,8 @@ void ASTPrinter::visit(BaseSpecifierAST* ast) {
     }
     --indent_;
   }
-  accept(ast->name, "name");
+  accept(ast->nestedNameSpecifier, "nested-name-specifier");
+  accept(ast->unqualifiedId, "unqualified-id");
 }
 
 void ASTPrinter::visit(BaseClauseAST* ast) {
@@ -568,7 +575,14 @@ void ASTPrinter::visit(UserDefinedStringLiteralExpressionAST* ast) {
 
 void ASTPrinter::visit(IdExpressionAST* ast) {
   fmt::print(out_, "{}\n", "id-expression");
-  accept(ast->name, "name");
+  if (ast->isTemplateIntroduced) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "is-template-introduced: {}\n", ast->isTemplateIntroduced);
+    --indent_;
+  }
+  accept(ast->nestedNameSpecifier, "nested-name-specifier");
+  accept(ast->unqualifiedId, "unqualified-id");
 }
 
 void ASTPrinter::visit(RequiresExpressionAST* ast) {
@@ -811,7 +825,7 @@ void ASTPrinter::visit(MemberExpressionAST* ast) {
     --indent_;
   }
   accept(ast->baseExpression, "base-expression");
-  accept(ast->name, "name");
+  accept(ast->idExpression, "id-expression");
 }
 
 void ASTPrinter::visit(PostIncrExpressionAST* ast) {
@@ -916,7 +930,7 @@ void ASTPrinter::visit(CompoundRequirementAST* ast) {
 void ASTPrinter::visit(TypeRequirementAST* ast) {
   fmt::print(out_, "{}\n", "type-requirement");
   accept(ast->nestedNameSpecifier, "nested-name-specifier");
-  accept(ast->name, "name");
+  accept(ast->unqualifiedId, "unqualified-id");
 }
 
 void ASTPrinter::visit(NestedRequirementAST* ast) {
@@ -936,7 +950,8 @@ void ASTPrinter::visit(ExpressionTemplateArgumentAST* ast) {
 
 void ASTPrinter::visit(ParenMemInitializerAST* ast) {
   fmt::print(out_, "{}\n", "paren-mem-initializer");
-  accept(ast->name, "name");
+  accept(ast->nestedNameSpecifier, "nested-name-specifier");
+  accept(ast->unqualifiedId, "unqualified-id");
   if (ast->expressionList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
@@ -950,7 +965,8 @@ void ASTPrinter::visit(ParenMemInitializerAST* ast) {
 
 void ASTPrinter::visit(BracedMemInitializerAST* ast) {
   fmt::print(out_, "{}\n", "braced-mem-initializer");
-  accept(ast->name, "name");
+  accept(ast->nestedNameSpecifier, "nested-name-specifier");
+  accept(ast->unqualifiedId, "unqualified-id");
   accept(ast->bracedInitList, "braced-init-list");
 }
 
@@ -1372,7 +1388,7 @@ void ASTPrinter::visit(OpaqueEnumDeclarationAST* ast) {
     --indent_;
   }
   accept(ast->nestedNameSpecifier, "nested-name-specifier");
-  accept(ast->name, "name");
+  accept(ast->unqualifiedId, "unqualified-id");
   accept(ast->enumBase, "enum-base");
 }
 
@@ -1438,7 +1454,7 @@ void ASTPrinter::visit(NamespaceAliasDefinitionAST* ast) {
   fmt::print(out_, "{}\n", "namespace-alias-definition");
   accept(ast->identifier, "identifier");
   accept(ast->nestedNameSpecifier, "nested-name-specifier");
-  accept(ast->name, "name");
+  accept(ast->unqualifiedId, "unqualified-id");
 }
 
 void ASTPrinter::visit(UsingDirectiveAST* ast) {
@@ -1453,7 +1469,7 @@ void ASTPrinter::visit(UsingDirectiveAST* ast) {
     --indent_;
   }
   accept(ast->nestedNameSpecifier, "nested-name-specifier");
-  accept(ast->name, "name");
+  accept(ast->unqualifiedId, "unqualified-id");
 }
 
 void ASTPrinter::visit(UsingDeclarationAST* ast) {
@@ -1559,7 +1575,7 @@ void ASTPrinter::visit(TemplateTypeParameterAST* ast) {
     --indent_;
   }
   accept(ast->requiresClause, "requires-clause");
-  accept(ast->name, "name");
+  accept(ast->idExpression, "id-expression");
 }
 
 void ASTPrinter::visit(TemplatePackTypeParameterAST* ast) {
@@ -1715,12 +1731,6 @@ void ASTPrinter::visit(OperatorFunctionTemplateNameAST* ast) {
   }
 }
 
-void ASTPrinter::visit(QualifiedNameAST* ast) {
-  fmt::print(out_, "{}\n", "qualified-name");
-  accept(ast->nestedNameSpecifier, "nested-name-specifier");
-  accept(ast->id, "id");
-}
-
 void ASTPrinter::visit(TypedefSpecifierAST* ast) {
   fmt::print(out_, "{}\n", "typedef-specifier");
 }
@@ -1818,7 +1828,14 @@ void ASTPrinter::visit(ComplexTypeSpecifierAST* ast) {
 
 void ASTPrinter::visit(NamedTypeSpecifierAST* ast) {
   fmt::print(out_, "{}\n", "named-type-specifier");
-  accept(ast->name, "name");
+  if (ast->isTemplateIntroduced) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "is-template-introduced: {}\n", ast->isTemplateIntroduced);
+    --indent_;
+  }
+  accept(ast->nestedNameSpecifier, "nested-name-specifier");
+  accept(ast->unqualifiedId, "unqualified-id");
 }
 
 void ASTPrinter::visit(AtomicTypeSpecifierAST* ast) {
@@ -1849,7 +1866,7 @@ void ASTPrinter::visit(ElaboratedTypeSpecifierAST* ast) {
     --indent_;
   }
   accept(ast->nestedNameSpecifier, "nested-name-specifier");
-  accept(ast->name, "name");
+  accept(ast->unqualifiedId, "unqualified-id");
 }
 
 void ASTPrinter::visit(DecltypeAutoSpecifierAST* ast) {
@@ -1891,7 +1908,7 @@ void ASTPrinter::visit(EnumSpecifierAST* ast) {
     --indent_;
   }
   accept(ast->nestedNameSpecifier, "nested-name-specifier");
-  accept(ast->name, "name");
+  accept(ast->unqualifiedId, "unqualified-id");
   accept(ast->enumBase, "enum-base");
   if (ast->enumeratorList) {
     ++indent_;
@@ -1928,7 +1945,7 @@ void ASTPrinter::visit(ClassSpecifierAST* ast) {
     --indent_;
   }
   accept(ast->nestedNameSpecifier, "nested-name-specifier");
-  accept(ast->name, "name");
+  accept(ast->unqualifiedId, "unqualified-id");
   accept(ast->baseClause, "base-clause");
   if (ast->declarationList) {
     ++indent_;
@@ -1944,7 +1961,7 @@ void ASTPrinter::visit(ClassSpecifierAST* ast) {
 void ASTPrinter::visit(TypenameSpecifierAST* ast) {
   fmt::print(out_, "{}\n", "typename-specifier");
   accept(ast->nestedNameSpecifier, "nested-name-specifier");
-  accept(ast->name, "name");
+  accept(ast->unqualifiedId, "unqualified-id");
 }
 
 void ASTPrinter::visit(BitfieldDeclaratorAST* ast) {
@@ -1960,7 +1977,7 @@ void ASTPrinter::visit(ParameterPackAST* ast) {
 
 void ASTPrinter::visit(IdDeclaratorAST* ast) {
   fmt::print(out_, "{}\n", "id-declarator");
-  accept(ast->name, "name");
+  accept(ast->idExpression, "id-expression");
   if (ast->attributeList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);

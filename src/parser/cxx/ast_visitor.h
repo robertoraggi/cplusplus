@@ -223,7 +223,6 @@ class ASTVisitor {
   virtual void visit(SimpleTemplateNameAST* ast) = 0;
   virtual void visit(LiteralOperatorTemplateNameAST* ast) = 0;
   virtual void visit(OperatorFunctionTemplateNameAST* ast) = 0;
-  virtual void visit(QualifiedNameAST* ast) = 0;
 
   // SpecifierAST
   virtual void visit(TypedefSpecifierAST* ast) = 0;

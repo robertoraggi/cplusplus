@@ -39,12 +39,12 @@ auto TypeIdAST::lastSourceLocation() -> SourceLocation {
 auto UsingDeclaratorAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(typenameLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
-  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(unqualifiedId)) return loc;
   return {};
 }
 
 auto UsingDeclaratorAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(unqualifiedId)) return loc;
   if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::lastSourceLocation(typenameLoc)) return loc;
   return {};
@@ -126,12 +126,16 @@ auto InitDeclaratorAST::lastSourceLocation() -> SourceLocation {
 
 auto BaseSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
-  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(templateLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(unqualifiedId)) return loc;
   return {};
 }
 
 auto BaseSpecifierAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(unqualifiedId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   return {};
 }
@@ -681,12 +685,16 @@ auto UserDefinedStringLiteralExpressionAST::lastSourceLocation()
 }
 
 auto IdExpressionAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(templateLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(unqualifiedId)) return loc;
   return {};
 }
 
 auto IdExpressionAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(unqualifiedId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   return {};
 }
 
@@ -1070,12 +1078,12 @@ auto MemberExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(baseExpression)) return loc;
   if (auto loc = cxx::firstSourceLocation(accessLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(templateLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(idExpression)) return loc;
   return {};
 }
 
 auto MemberExpressionAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(idExpression)) return loc;
   if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(accessLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(baseExpression)) return loc;
@@ -1303,14 +1311,14 @@ auto CompoundRequirementAST::lastSourceLocation() -> SourceLocation {
 auto TypeRequirementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(typenameLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
-  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(unqualifiedId)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
   return {};
 }
 
 auto TypeRequirementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(unqualifiedId)) return loc;
   if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::lastSourceLocation(typenameLoc)) return loc;
   return {};
@@ -1351,7 +1359,8 @@ auto ExpressionTemplateArgumentAST::lastSourceLocation() -> SourceLocation {
 }
 
 auto ParenMemInitializerAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(unqualifiedId)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expressionList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
@@ -1364,12 +1373,14 @@ auto ParenMemInitializerAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expressionList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(unqualifiedId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   return {};
 }
 
 auto BracedMemInitializerAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(unqualifiedId)) return loc;
   if (auto loc = cxx::firstSourceLocation(bracedInitList)) return loc;
   if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
   return {};
@@ -1378,7 +1389,8 @@ auto BracedMemInitializerAST::firstSourceLocation() -> SourceLocation {
 auto BracedMemInitializerAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(bracedInitList)) return loc;
-  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(unqualifiedId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   return {};
 }
 
@@ -2051,7 +2063,7 @@ auto OpaqueEnumDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(classLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
-  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(unqualifiedId)) return loc;
   if (auto loc = cxx::firstSourceLocation(enumBase)) return loc;
   if (auto loc = cxx::firstSourceLocation(emicolonLoc)) return loc;
   return {};
@@ -2060,7 +2072,7 @@ auto OpaqueEnumDeclarationAST::firstSourceLocation() -> SourceLocation {
 auto OpaqueEnumDeclarationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(emicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(enumBase)) return loc;
-  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(unqualifiedId)) return loc;
   if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(classLoc)) return loc;
@@ -2115,14 +2127,14 @@ auto NamespaceAliasDefinitionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(equalLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
-  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(unqualifiedId)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
   return {};
 }
 
 auto NamespaceAliasDefinitionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(unqualifiedId)) return loc;
   if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::lastSourceLocation(equalLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
@@ -2135,14 +2147,14 @@ auto UsingDirectiveAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(usingLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(namespaceLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
-  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(unqualifiedId)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
   return {};
 }
 
 auto UsingDirectiveAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(unqualifiedId)) return loc;
   if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::lastSourceLocation(namespaceLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(usingLoc)) return loc;
@@ -2289,12 +2301,12 @@ auto TemplateTypeParameterAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(classKeyLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(equalLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(idExpression)) return loc;
   return {};
 }
 
 auto TemplateTypeParameterAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(idExpression)) return loc;
   if (auto loc = cxx::lastSourceLocation(equalLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(classKeyLoc)) return loc;
@@ -2526,20 +2538,6 @@ auto OperatorFunctionTemplateNameAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto QualifiedNameAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
-  if (auto loc = cxx::firstSourceLocation(templateLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(id)) return loc;
-  return {};
-}
-
-auto QualifiedNameAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(id)) return loc;
-  if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
-  return {};
-}
-
 auto TypedefSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(typedefLoc)) return loc;
   return {};
@@ -2737,12 +2735,16 @@ auto ComplexTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
 }
 
 auto NamedTypeSpecifierAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(templateLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(unqualifiedId)) return loc;
   return {};
 }
 
 auto NamedTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(unqualifiedId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   return {};
 }
 
@@ -2782,12 +2784,12 @@ auto ElaboratedTypeSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(classLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
-  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(unqualifiedId)) return loc;
   return {};
 }
 
 auto ElaboratedTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(unqualifiedId)) return loc;
   if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(classLoc)) return loc;
@@ -2873,7 +2875,7 @@ auto EnumSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(classLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
-  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(unqualifiedId)) return loc;
   if (auto loc = cxx::firstSourceLocation(enumBase)) return loc;
   if (auto loc = cxx::firstSourceLocation(lbraceLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(commaLoc)) return loc;
@@ -2888,7 +2890,7 @@ auto EnumSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(commaLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(lbraceLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(enumBase)) return loc;
-  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(unqualifiedId)) return loc;
   if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(classLoc)) return loc;
@@ -2900,7 +2902,7 @@ auto ClassSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(classLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
-  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(unqualifiedId)) return loc;
   if (auto loc = cxx::firstSourceLocation(finalLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(baseClause)) return loc;
   if (auto loc = cxx::firstSourceLocation(lbraceLoc)) return loc;
@@ -2915,7 +2917,7 @@ auto ClassSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(lbraceLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(baseClause)) return loc;
   if (auto loc = cxx::lastSourceLocation(finalLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(unqualifiedId)) return loc;
   if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(classLoc)) return loc;
@@ -2925,12 +2927,12 @@ auto ClassSpecifierAST::lastSourceLocation() -> SourceLocation {
 auto TypenameSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(typenameLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
-  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(unqualifiedId)) return loc;
   return {};
 }
 
 auto TypenameSpecifierAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(unqualifiedId)) return loc;
   if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::lastSourceLocation(typenameLoc)) return loc;
   return {};
@@ -2963,14 +2965,14 @@ auto ParameterPackAST::lastSourceLocation() -> SourceLocation {
 }
 
 auto IdDeclaratorAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(name)) return loc;
+  if (auto loc = cxx::firstSourceLocation(idExpression)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   return {};
 }
 
 auto IdDeclaratorAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
-  if (auto loc = cxx::lastSourceLocation(name)) return loc;
+  if (auto loc = cxx::lastSourceLocation(idExpression)) return loc;
   return {};
 }
 

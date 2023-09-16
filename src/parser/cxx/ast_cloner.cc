@@ -58,7 +58,7 @@ void ASTCloner::visit(UsingDeclaratorAST* ast) {
 
   copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
 
-  copy->name = accept(ast->name);
+  copy->unqualifiedId = accept(ast->unqualifiedId);
 }
 
 void ASTCloner::visit(HandlerAST* ast) {
@@ -175,7 +175,13 @@ void ASTCloner::visit(BaseSpecifierAST* ast) {
     }
   }
 
-  copy->name = accept(ast->name);
+  copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
+
+  copy->templateLoc = ast->templateLoc;
+
+  copy->unqualifiedId = accept(ast->unqualifiedId);
+
+  copy->isTemplateIntroduced = ast->isTemplateIntroduced;
 
   copy->isVirtual = ast->isVirtual;
 
@@ -877,7 +883,13 @@ void ASTCloner::visit(IdExpressionAST* ast) {
 
   copy->constValue = ast->constValue;
 
-  copy->name = accept(ast->name);
+  copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
+
+  copy->templateLoc = ast->templateLoc;
+
+  copy->unqualifiedId = accept(ast->unqualifiedId);
+
+  copy->isTemplateIntroduced = ast->isTemplateIntroduced;
 }
 
 void ASTCloner::visit(RequiresExpressionAST* ast) {
@@ -1402,7 +1414,7 @@ void ASTCloner::visit(MemberExpressionAST* ast) {
 
   copy->templateLoc = ast->templateLoc;
 
-  copy->name = accept(ast->name);
+  copy->idExpression = accept(ast->idExpression);
 
   copy->accessOp = ast->accessOp;
 }
@@ -1687,7 +1699,7 @@ void ASTCloner::visit(TypeRequirementAST* ast) {
 
   copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
 
-  copy->name = accept(ast->name);
+  copy->unqualifiedId = accept(ast->unqualifiedId);
 
   copy->semicolonLoc = ast->semicolonLoc;
 }
@@ -1729,7 +1741,9 @@ void ASTCloner::visit(ParenMemInitializerAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->name = accept(ast->name);
+  copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
+
+  copy->unqualifiedId = accept(ast->unqualifiedId);
 
   copy->lparenLoc = ast->lparenLoc;
 
@@ -1753,7 +1767,9 @@ void ASTCloner::visit(BracedMemInitializerAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->name = accept(ast->name);
+  copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
+
+  copy->unqualifiedId = accept(ast->unqualifiedId);
 
   copy->bracedInitList = accept(ast->bracedInitList);
 
@@ -2547,7 +2563,7 @@ void ASTCloner::visit(OpaqueEnumDeclarationAST* ast) {
 
   copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
 
-  copy->name = accept(ast->name);
+  copy->unqualifiedId = accept(ast->unqualifiedId);
 
   copy->enumBase = accept(ast->enumBase);
 
@@ -2642,7 +2658,7 @@ void ASTCloner::visit(NamespaceAliasDefinitionAST* ast) {
 
   copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
 
-  copy->name = accept(ast->name);
+  copy->unqualifiedId = accept(ast->unqualifiedId);
 
   copy->semicolonLoc = ast->semicolonLoc;
 
@@ -2670,7 +2686,7 @@ void ASTCloner::visit(UsingDirectiveAST* ast) {
 
   copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
 
-  copy->name = accept(ast->name);
+  copy->unqualifiedId = accept(ast->unqualifiedId);
 
   copy->semicolonLoc = ast->semicolonLoc;
 }
@@ -2865,7 +2881,7 @@ void ASTCloner::visit(TemplateTypeParameterAST* ast) {
 
   copy->equalLoc = ast->equalLoc;
 
-  copy->name = accept(ast->name);
+  copy->idExpression = accept(ast->idExpression);
 
   copy->identifier = ast->identifier;
 }
@@ -3139,19 +3155,6 @@ void ASTCloner::visit(OperatorFunctionTemplateNameAST* ast) {
   copy->greaterLoc = ast->greaterLoc;
 }
 
-void ASTCloner::visit(QualifiedNameAST* ast) {
-  auto copy = new (arena_) QualifiedNameAST();
-  copy_ = copy;
-
-  copy->setChecked(ast->checked());
-
-  copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
-
-  copy->templateLoc = ast->templateLoc;
-
-  copy->id = accept(ast->id);
-}
-
 void ASTCloner::visit(TypedefSpecifierAST* ast) {
   auto copy = new (arena_) TypedefSpecifierAST();
   copy_ = copy;
@@ -3341,7 +3344,13 @@ void ASTCloner::visit(NamedTypeSpecifierAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->name = accept(ast->name);
+  copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
+
+  copy->templateLoc = ast->templateLoc;
+
+  copy->unqualifiedId = accept(ast->unqualifiedId);
+
+  copy->isTemplateIntroduced = ast->isTemplateIntroduced;
 }
 
 void ASTCloner::visit(AtomicTypeSpecifierAST* ast) {
@@ -3393,7 +3402,7 @@ void ASTCloner::visit(ElaboratedTypeSpecifierAST* ast) {
 
   copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
 
-  copy->name = accept(ast->name);
+  copy->unqualifiedId = accept(ast->unqualifiedId);
 
   copy->classKey = ast->classKey;
 }
@@ -3487,7 +3496,7 @@ void ASTCloner::visit(EnumSpecifierAST* ast) {
 
   copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
 
-  copy->name = accept(ast->name);
+  copy->unqualifiedId = accept(ast->unqualifiedId);
 
   copy->enumBase = accept(ast->enumBase);
 
@@ -3526,7 +3535,7 @@ void ASTCloner::visit(ClassSpecifierAST* ast) {
 
   copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
 
-  copy->name = accept(ast->name);
+  copy->unqualifiedId = accept(ast->unqualifiedId);
 
   copy->finalLoc = ast->finalLoc;
 
@@ -3560,7 +3569,7 @@ void ASTCloner::visit(TypenameSpecifierAST* ast) {
 
   copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
 
-  copy->name = accept(ast->name);
+  copy->unqualifiedId = accept(ast->unqualifiedId);
 }
 
 void ASTCloner::visit(BitfieldDeclaratorAST* ast) {
@@ -3595,7 +3604,7 @@ void ASTCloner::visit(IdDeclaratorAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->name = accept(ast->name);
+  copy->idExpression = accept(ast->idExpression);
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;

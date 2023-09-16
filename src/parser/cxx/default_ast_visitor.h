@@ -221,7 +221,6 @@ class DefaultASTVisitor : public ASTVisitor {
   void visit(SimpleTemplateNameAST* ast) override;
   void visit(LiteralOperatorTemplateNameAST* ast) override;
   void visit(OperatorFunctionTemplateNameAST* ast) override;
-  void visit(QualifiedNameAST* ast) override;
 
   // SpecifierAST
   void visit(TypedefSpecifierAST* ast) override;

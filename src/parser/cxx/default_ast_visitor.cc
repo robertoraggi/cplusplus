@@ -705,10 +705,6 @@ void DefaultASTVisitor::visit(OperatorFunctionTemplateNameAST* ast) {
   cxx_runtime_error("visit(OperatorFunctionTemplateNameAST): not implemented");
 }
 
-void DefaultASTVisitor::visit(QualifiedNameAST* ast) {
-  cxx_runtime_error("visit(QualifiedNameAST): not implemented");
-}
-
 // SpecifierAST
 void DefaultASTVisitor::visit(TypedefSpecifierAST* ast) {
   cxx_runtime_error("visit(TypedefSpecifierAST): not implemented");

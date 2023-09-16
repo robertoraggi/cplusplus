@@ -268,7 +268,6 @@ class ConversionFunctionNameAST;
 class SimpleTemplateNameAST;
 class LiteralOperatorTemplateNameAST;
 class OperatorFunctionTemplateNameAST;
-class QualifiedNameAST;
 
 // SpecifierAST
 class TypedefSpecifierAST;

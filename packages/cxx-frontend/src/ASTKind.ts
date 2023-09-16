@@ -214,7 +214,6 @@ export enum ASTKind {
   SimpleTemplateName,
   LiteralOperatorTemplateName,
   OperatorFunctionTemplateName,
-  QualifiedName,
 
   // SpecifierAST
   TypedefSpecifier,

@@ -103,16 +103,14 @@ class Parser final {
   [[nodiscard]] auto parse_primary_expression(ExpressionAST*& yyast,
                                               bool inRequiresClause = false)
       -> bool;
-  [[nodiscard]] auto parse_id_expression(NameAST*& yyast,
+  [[nodiscard]] auto parse_id_expression(IdExpressionAST*& yyast,
                                          bool inRequiresClause = false) -> bool;
   [[nodiscard]] auto parse_maybe_template_id(NameAST*& yyast,
                                              bool inRequiresClause = false)
       -> bool;
   [[nodiscard]] auto parse_unqualified_id(NameAST*& yyast,
-                                          bool inRequiresClause = false)
-      -> bool;
-  [[nodiscard]] auto parse_qualified_id(NameAST*& yyast,
-                                        bool inRequiresClause = false) -> bool;
+                                          bool isTemplateIntroduced,
+                                          bool inRequiresClause) -> bool;
   void parse_optional_nested_name_specifier(NestedNameSpecifierAST*& yyast);
   [[nodiscard]] auto parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
       -> bool;
@@ -465,12 +463,15 @@ class Parser final {
   [[nodiscard]] auto parse_base_specifier_list(List<BaseSpecifierAST*>*& yyast)
       -> bool;
   void parse_base_specifier(BaseSpecifierAST*& yyast);
-  [[nodiscard]] auto parse_class_or_decltype(NameAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_class_or_decltype(
+      NestedNameSpecifierAST*& nestedNameSpecifier, SourceLocation& templateLoc,
+      NameAST*& unqualifiedId) -> bool;
   [[nodiscard]] auto parse_access_specifier(SourceLocation& loc) -> bool;
   [[nodiscard]] auto parse_ctor_initializer(CtorInitializerAST*& yyast) -> bool;
   void parse_mem_initializer_list(List<MemInitializerAST*>*& yyast);
   void parse_mem_initializer(MemInitializerAST*& yyast);
-  [[nodiscard]] auto parse_mem_initializer_id(NameAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_mem_initializer_id(
+      NestedNameSpecifierAST*& nestedNameSpecifier, NameAST*& yyast) -> bool;
   [[nodiscard]] auto parse_operator_function_id(OperatorFunctionNameAST*& yyast)
       -> bool;
   [[nodiscard]] auto parse_operator(TokenKind& op, SourceLocation& opLoc,
@@ -499,7 +500,8 @@ class Parser final {
                                            bool parsingPlaceholderTypeSpec)
       -> bool;
   [[nodiscard]] auto parse_simple_template_or_name_id(NameAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_simple_template_id(SimpleTemplateNameAST*& yyast)
+  [[nodiscard]] auto parse_simple_template_id(SimpleTemplateNameAST*& yyast,
+                                              bool isTemplateIntroduced = false)
       -> bool;
   [[nodiscard]] auto parse_literal_operator_template_id(
       LiteralOperatorTemplateNameAST*& yyast) -> bool;
