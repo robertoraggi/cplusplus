@@ -530,6 +530,48 @@ void ASTSlot::visit(PrivateModuleFragmentAST* ast) {
   slotCount_ = 5;
 }
 
+void ASTSlot::visit(ModuleQualifierAST* ast) {
+  switch (slot_) {
+    case 0:  // moduleQualifier
+      value_ = reinterpret_cast<std::intptr_t>(ast->moduleQualifier);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 1:  // identifierLoc
+      value_ = ast->identifierLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 2:  // dotLoc
+      value_ = ast->dotLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 3:  // identifier
+      value_ = reinterpret_cast<std::intptr_t>(ast->identifier);
+      slotKind_ = ASTSlotKind::kIdentifierAttribute;
+      break;
+  }  // switch
+
+  slotCount_ = 4;
+}
+
+void ASTSlot::visit(ModuleNameAST* ast) {
+  switch (slot_) {
+    case 0:  // moduleQualifier
+      value_ = reinterpret_cast<std::intptr_t>(ast->moduleQualifier);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 1:  // identifierLoc
+      value_ = ast->identifierLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 2:  // identifier
+      value_ = reinterpret_cast<std::intptr_t>(ast->identifier);
+      slotKind_ = ASTSlotKind::kIdentifierAttribute;
+      break;
+  }  // switch
+
+  slotCount_ = 3;
+}
+
 void ASTSlot::visit(ModuleDeclarationAST* ast) {
   switch (slot_) {
     case 0:  // exportLoc
@@ -559,17 +601,6 @@ void ASTSlot::visit(ModuleDeclarationAST* ast) {
   }  // switch
 
   slotCount_ = 6;
-}
-
-void ASTSlot::visit(ModuleNameAST* ast) {
-  switch (slot_) {
-    case 0:        // identifierList
-      value_ = 0;  // not implemented yet
-      slotKind_ = ASTSlotKind::kTokenList;
-      break;
-  }  // switch
-
-  slotCount_ = 1;
 }
 
 void ASTSlot::visit(ImportNameAST* ast) {

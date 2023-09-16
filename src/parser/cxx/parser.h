@@ -428,7 +428,7 @@ class Parser final {
       AttributeArgumentClauseAST*& yyast) -> bool;
   [[nodiscard]] auto parse_module_declaration(ModuleDeclarationAST*& yyast)
       -> bool;
-  [[nodiscard]] auto parse_module_name(ModuleNameAST*& yyast) -> bool;
+  void parse_module_name(ModuleNameAST*& yyast);
   [[nodiscard]] auto parse_module_partition(ModulePartitionAST*& yyast) -> bool;
   [[nodiscard]] auto parse_export_declaration(DeclarationAST*& yyast) -> bool;
   [[nodiscard]] auto parse_maybe_import() -> bool;

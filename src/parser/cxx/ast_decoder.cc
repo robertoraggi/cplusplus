@@ -1135,6 +1135,32 @@ auto ASTDecoder::decodePrivateModuleFragment(
   return ast;
 }
 
+auto ASTDecoder::decodeModuleQualifier(const io::ModuleQualifier* node)
+    -> ModuleQualifierAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) ModuleQualifierAST();
+  ast->moduleQualifier = decodeModuleQualifier(node->module_qualifier());
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeModuleName(const io::ModuleName* node)
+    -> ModuleNameAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) ModuleNameAST();
+  ast->moduleQualifier = decodeModuleQualifier(node->module_qualifier());
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
+  return ast;
+}
+
 auto ASTDecoder::decodeModuleDeclaration(const io::ModuleDeclaration* node)
     -> ModuleDeclarationAST* {
   if (!node) return nullptr;
@@ -1151,14 +1177,6 @@ auto ASTDecoder::decodeModuleDeclaration(const io::ModuleDeclaration* node)
       inserter = &(*inserter)->next;
     }
   }
-  return ast;
-}
-
-auto ASTDecoder::decodeModuleName(const io::ModuleName* node)
-    -> ModuleNameAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) ModuleNameAST();
   return ast;
 }
 

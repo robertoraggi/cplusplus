@@ -507,6 +507,34 @@ void ASTCloner::visit(PrivateModuleFragmentAST* ast) {
   }
 }
 
+void ASTCloner::visit(ModuleQualifierAST* ast) {
+  auto copy = new (arena_) ModuleQualifierAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->moduleQualifier = accept(ast->moduleQualifier);
+
+  copy->identifierLoc = ast->identifierLoc;
+
+  copy->dotLoc = ast->dotLoc;
+
+  copy->identifier = ast->identifier;
+}
+
+void ASTCloner::visit(ModuleNameAST* ast) {
+  auto copy = new (arena_) ModuleNameAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->moduleQualifier = accept(ast->moduleQualifier);
+
+  copy->identifierLoc = ast->identifierLoc;
+
+  copy->identifier = ast->identifier;
+}
+
 void ASTCloner::visit(ModuleDeclarationAST* ast) {
   auto copy = new (arena_) ModuleDeclarationAST();
   copy_ = copy;
@@ -531,22 +559,6 @@ void ASTCloner::visit(ModuleDeclarationAST* ast) {
   }
 
   copy->semicolonLoc = ast->semicolonLoc;
-}
-
-void ASTCloner::visit(ModuleNameAST* ast) {
-  auto copy = new (arena_) ModuleNameAST();
-  copy_ = copy;
-
-  copy->setChecked(ast->checked());
-
-  if (auto it = ast->identifierList) {
-    auto out = &copy->identifierList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(it->value);
-      out = &(*out)->next;
-    }
-  }
 }
 
 void ASTCloner::visit(ImportNameAST* ast) {

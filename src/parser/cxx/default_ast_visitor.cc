@@ -118,12 +118,16 @@ void DefaultASTVisitor::visit(PrivateModuleFragmentAST* ast) {
   cxx_runtime_error("visit(PrivateModuleFragmentAST): not implemented");
 }
 
-void DefaultASTVisitor::visit(ModuleDeclarationAST* ast) {
-  cxx_runtime_error("visit(ModuleDeclarationAST): not implemented");
+void DefaultASTVisitor::visit(ModuleQualifierAST* ast) {
+  cxx_runtime_error("visit(ModuleQualifierAST): not implemented");
 }
 
 void DefaultASTVisitor::visit(ModuleNameAST* ast) {
   cxx_runtime_error("visit(ModuleNameAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(ModuleDeclarationAST* ast) {
+  cxx_runtime_error("visit(ModuleDeclarationAST): not implemented");
 }
 
 void DefaultASTVisitor::visit(ImportNameAST* ast) {
