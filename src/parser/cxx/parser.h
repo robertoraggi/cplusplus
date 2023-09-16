@@ -92,7 +92,7 @@ class Parser final {
   [[nodiscard]] auto parse_module_keyword(SourceLocation& loc) -> bool;
   [[nodiscard]] auto parse_final(SourceLocation& loc) -> bool;
   [[nodiscard]] auto parse_override(SourceLocation& loc) -> bool;
-  [[nodiscard]] auto parse_name_id(NameAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_name_id(UnqualifiedIdAST*& yyast) -> bool;
   [[nodiscard]] auto parse_literal(ExpressionAST*& yyast) -> bool;
   void parse_translation_unit(UnitAST*& yyast);
   [[nodiscard]] auto parse_module_head() -> bool;
@@ -105,10 +105,10 @@ class Parser final {
       -> bool;
   [[nodiscard]] auto parse_id_expression(IdExpressionAST*& yyast,
                                          bool inRequiresClause = false) -> bool;
-  [[nodiscard]] auto parse_maybe_template_id(NameAST*& yyast,
+  [[nodiscard]] auto parse_maybe_template_id(UnqualifiedIdAST*& yyast,
                                              bool inRequiresClause = false)
       -> bool;
-  [[nodiscard]] auto parse_unqualified_id(NameAST*& yyast,
+  [[nodiscard]] auto parse_unqualified_id(UnqualifiedIdAST*& yyast,
                                           bool isTemplateIntroduced,
                                           bool inRequiresClause) -> bool;
   void parse_optional_nested_name_specifier(NestedNameSpecifierAST*& yyast);
@@ -306,7 +306,7 @@ class Parser final {
                                                  DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_primitive_type_specifier(SpecifierAST*& yyast,
                                                     DeclSpecs& specs) -> bool;
-  [[nodiscard]] auto parse_type_name(NameAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_type_name(UnqualifiedIdAST*& yyast) -> bool;
   [[nodiscard]] auto parse_elaborated_type_specifier(SpecifierAST*& yyast,
                                                      DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_elaborated_type_specifier_helper(
@@ -373,7 +373,8 @@ class Parser final {
   [[nodiscard]] auto parse_function_body(FunctionBodyAST*& yyast) -> bool;
   [[nodiscard]] auto parse_enum_specifier(SpecifierAST*& yyast) -> bool;
   [[nodiscard]] auto parse_enum_head_name(
-      NestedNameSpecifierAST*& nestedNameSpecifier, NameAST*& name) -> bool;
+      NestedNameSpecifierAST*& nestedNameSpecifier, UnqualifiedIdAST*& name)
+      -> bool;
   [[nodiscard]] auto parse_opaque_enum_declaration(DeclarationAST*& yyast)
       -> bool;
   [[nodiscard]] auto parse_enum_key(SourceLocation& enumLoc,
@@ -389,7 +390,8 @@ class Parser final {
   [[nodiscard]] auto parse_namespace_alias_definition(DeclarationAST*& yyast)
       -> bool;
   [[nodiscard]] auto parse_qualified_namespace_specifier(
-      NestedNameSpecifierAST*& nestedNameSpecifier, NameAST*& name) -> bool;
+      NestedNameSpecifierAST*& nestedNameSpecifier, UnqualifiedIdAST*& name)
+      -> bool;
   [[nodiscard]] auto parse_using_directive(DeclarationAST*& yyast) -> bool;
   [[nodiscard]] auto parse_using_declaration(DeclarationAST*& yyast) -> bool;
   [[nodiscard]] auto parse_using_declarator_list(
@@ -438,10 +440,11 @@ class Parser final {
   void parse_class_body(List<DeclarationAST*>*& yyast);
   [[nodiscard]] auto parse_class_head(
       SourceLocation& classLoc, List<AttributeSpecifierAST*>*& attributeList,
-      NestedNameSpecifierAST*& nestedNameSpecifier, NameAST*& name,
+      NestedNameSpecifierAST*& nestedNameSpecifier, UnqualifiedIdAST*& name,
       SourceLocation& finalLoc, BaseClauseAST*& baseClause) -> bool;
   [[nodiscard]] auto parse_class_head_name(
-      NestedNameSpecifierAST*& nestedNameSpecifier, NameAST*& yyast) -> bool;
+      NestedNameSpecifierAST*& nestedNameSpecifier, UnqualifiedIdAST*& yyast)
+      -> bool;
   [[nodiscard]] auto parse_class_virt_specifier(SourceLocation& loc) -> bool;
   [[nodiscard]] auto parse_class_key(SourceLocation& classLoc) -> bool;
   [[nodiscard]] auto parse_member_specification(DeclarationAST*& yyast) -> bool;
@@ -458,26 +461,27 @@ class Parser final {
   [[nodiscard]] auto parse_pure_specifier(SourceLocation& equalLoc,
                                           SourceLocation& zeroLoc) -> bool;
   [[nodiscard]] auto parse_conversion_function_id(
-      ConversionFunctionNameAST*& yyast) -> bool;
+      ConversionFunctionIdAST*& yyast) -> bool;
   [[nodiscard]] auto parse_base_clause(BaseClauseAST*& yyast) -> bool;
   [[nodiscard]] auto parse_base_specifier_list(List<BaseSpecifierAST*>*& yyast)
       -> bool;
   void parse_base_specifier(BaseSpecifierAST*& yyast);
   [[nodiscard]] auto parse_class_or_decltype(
       NestedNameSpecifierAST*& nestedNameSpecifier, SourceLocation& templateLoc,
-      NameAST*& unqualifiedId) -> bool;
+      UnqualifiedIdAST*& unqualifiedId) -> bool;
   [[nodiscard]] auto parse_access_specifier(SourceLocation& loc) -> bool;
   [[nodiscard]] auto parse_ctor_initializer(CtorInitializerAST*& yyast) -> bool;
   void parse_mem_initializer_list(List<MemInitializerAST*>*& yyast);
   void parse_mem_initializer(MemInitializerAST*& yyast);
   [[nodiscard]] auto parse_mem_initializer_id(
-      NestedNameSpecifierAST*& nestedNameSpecifier, NameAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_operator_function_id(OperatorFunctionNameAST*& yyast)
+      NestedNameSpecifierAST*& nestedNameSpecifier, UnqualifiedIdAST*& yyast)
+      -> bool;
+  [[nodiscard]] auto parse_operator_function_id(OperatorFunctionIdAST*& yyast)
       -> bool;
   [[nodiscard]] auto parse_operator(TokenKind& op, SourceLocation& opLoc,
                                     SourceLocation& openLoc,
                                     SourceLocation& closeLoc) -> bool;
-  [[nodiscard]] auto parse_literal_operator_id(LiteralOperatorNameAST*& yyast)
+  [[nodiscard]] auto parse_literal_operator_id(LiteralOperatorIdAST*& yyast)
       -> bool;
   [[nodiscard]] auto parse_template_declaration(DeclarationAST*& yyast) -> bool;
   void parse_template_parameter_list(List<DeclarationAST*>*& yyast);
@@ -499,15 +503,16 @@ class Parser final {
   [[nodiscard]] auto parse_type_constraint(TypeConstraintAST*& yyast,
                                            bool parsingPlaceholderTypeSpec)
       -> bool;
-  [[nodiscard]] auto parse_simple_template_or_name_id(NameAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_simple_template_id(SimpleTemplateNameAST*& yyast,
+  [[nodiscard]] auto parse_simple_template_or_name_id(UnqualifiedIdAST*& yyast)
+      -> bool;
+  [[nodiscard]] auto parse_simple_template_id(SimpleTemplateIdAST*& yyast,
                                               bool isTemplateIntroduced = false)
       -> bool;
   [[nodiscard]] auto parse_literal_operator_template_id(
-      LiteralOperatorTemplateNameAST*& yyast) -> bool;
+      LiteralOperatorTemplateIdAST*& yyast) -> bool;
   [[nodiscard]] auto parse_function_operator_template_id(
-      OperatorFunctionTemplateNameAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_template_id(NameAST*& yyast) -> bool;
+      OperatorFunctionTemplateIdAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_template_id(UnqualifiedIdAST*& yyast) -> bool;
   [[nodiscard]] auto parse_template_argument_list(
       List<TemplateArgumentAST*>*& yyast) -> bool;
   [[nodiscard]] auto parse_template_argument(TemplateArgumentAST*& yyast)
@@ -528,7 +533,8 @@ class Parser final {
       ExceptionDeclarationAST*& yyast) -> bool;
   [[nodiscard]] auto parse_noexcept_specifier(ExceptionSpecifierAST*& yyast)
       -> bool;
-  [[nodiscard]] auto parse_identifier_list(List<NameAST*>*& yyast) -> bool;
+  [[nodiscard]] auto parse_identifier_list(List<UnqualifiedIdAST*>*& yyast)
+      -> bool;
 
  private:
   [[nodiscard]] auto lookat(auto... tokens) {

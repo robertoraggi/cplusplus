@@ -213,16 +213,16 @@ class ASTVisitor {
   virtual void visit(ParameterDeclarationAST* ast) = 0;
   virtual void visit(LinkageSpecificationAST* ast) = 0;
 
-  // NameAST
-  virtual void visit(SimpleNameAST* ast) = 0;
-  virtual void visit(DestructorNameAST* ast) = 0;
-  virtual void visit(DecltypeNameAST* ast) = 0;
-  virtual void visit(OperatorFunctionNameAST* ast) = 0;
-  virtual void visit(LiteralOperatorNameAST* ast) = 0;
-  virtual void visit(ConversionFunctionNameAST* ast) = 0;
-  virtual void visit(SimpleTemplateNameAST* ast) = 0;
-  virtual void visit(LiteralOperatorTemplateNameAST* ast) = 0;
-  virtual void visit(OperatorFunctionTemplateNameAST* ast) = 0;
+  // UnqualifiedIdAST
+  virtual void visit(NameIdAST* ast) = 0;
+  virtual void visit(DestructorIdAST* ast) = 0;
+  virtual void visit(DecltypeIdAST* ast) = 0;
+  virtual void visit(OperatorFunctionIdAST* ast) = 0;
+  virtual void visit(LiteralOperatorIdAST* ast) = 0;
+  virtual void visit(ConversionFunctionIdAST* ast) = 0;
+  virtual void visit(SimpleTemplateIdAST* ast) = 0;
+  virtual void visit(LiteralOperatorTemplateIdAST* ast) = 0;
+  virtual void visit(OperatorFunctionTemplateIdAST* ast) = 0;
 
   // SpecifierAST
   virtual void visit(TypedefSpecifierAST* ast) = 0;

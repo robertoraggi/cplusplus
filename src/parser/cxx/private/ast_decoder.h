@@ -62,7 +62,8 @@ class ASTDecoder {
   auto decodeStatement(const void* ptr, io::Statement type) -> StatementAST*;
   auto decodeDeclaration(const void* ptr, io::Declaration type)
       -> DeclarationAST*;
-  auto decodeName(const void* ptr, io::Name type) -> NameAST*;
+  auto decodeUnqualifiedId(const void* ptr, io::UnqualifiedId type)
+      -> UnqualifiedIdAST*;
   auto decodeSpecifier(const void* ptr, io::Specifier type) -> SpecifierAST*;
   auto decodeCoreDeclarator(const void* ptr, io::CoreDeclarator type)
       -> CoreDeclaratorAST*;
@@ -394,24 +395,23 @@ class ASTDecoder {
   auto decodeLinkageSpecification(const io::LinkageSpecification* node)
       -> LinkageSpecificationAST*;
 
-  auto decodeSimpleName(const io::SimpleName* node) -> SimpleNameAST*;
-  auto decodeDestructorName(const io::DestructorName* node)
-      -> DestructorNameAST*;
-  auto decodeDecltypeName(const io::DecltypeName* node) -> DecltypeNameAST*;
-  auto decodeOperatorFunctionName(const io::OperatorFunctionName* node)
-      -> OperatorFunctionNameAST*;
-  auto decodeLiteralOperatorName(const io::LiteralOperatorName* node)
-      -> LiteralOperatorNameAST*;
-  auto decodeConversionFunctionName(const io::ConversionFunctionName* node)
-      -> ConversionFunctionNameAST*;
-  auto decodeSimpleTemplateName(const io::SimpleTemplateName* node)
-      -> SimpleTemplateNameAST*;
-  auto decodeLiteralOperatorTemplateName(
-      const io::LiteralOperatorTemplateName* node)
-      -> LiteralOperatorTemplateNameAST*;
-  auto decodeOperatorFunctionTemplateName(
-      const io::OperatorFunctionTemplateName* node)
-      -> OperatorFunctionTemplateNameAST*;
+  auto decodeNameId(const io::NameId* node) -> NameIdAST*;
+  auto decodeDestructorId(const io::DestructorId* node) -> DestructorIdAST*;
+  auto decodeDecltypeId(const io::DecltypeId* node) -> DecltypeIdAST*;
+  auto decodeOperatorFunctionId(const io::OperatorFunctionId* node)
+      -> OperatorFunctionIdAST*;
+  auto decodeLiteralOperatorId(const io::LiteralOperatorId* node)
+      -> LiteralOperatorIdAST*;
+  auto decodeConversionFunctionId(const io::ConversionFunctionId* node)
+      -> ConversionFunctionIdAST*;
+  auto decodeSimpleTemplateId(const io::SimpleTemplateId* node)
+      -> SimpleTemplateIdAST*;
+  auto decodeLiteralOperatorTemplateId(
+      const io::LiteralOperatorTemplateId* node)
+      -> LiteralOperatorTemplateIdAST*;
+  auto decodeOperatorFunctionTemplateId(
+      const io::OperatorFunctionTemplateId* node)
+      -> OperatorFunctionTemplateIdAST*;
 
   auto decodeTypedefSpecifier(const io::TypedefSpecifier* node)
       -> TypedefSpecifierAST*;

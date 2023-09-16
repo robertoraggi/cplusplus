@@ -272,7 +272,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     context: Context,
   ): void {
     this.accept(node.getNestedNameSpecifier(), context);
-    this.accept(node.getTemplateName(), context);
+    this.accept(node.getTemplateId(), context);
   }
 
   visitThrowExceptionSpecifier(
@@ -1123,57 +1123,54 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     }
   }
 
-  visitSimpleName(node: ast.SimpleNameAST, context: Context): void {}
+  visitNameId(node: ast.NameIdAST, context: Context): void {}
 
-  visitDestructorName(node: ast.DestructorNameAST, context: Context): void {
+  visitDestructorId(node: ast.DestructorIdAST, context: Context): void {
     this.accept(node.getId(), context);
   }
 
-  visitDecltypeName(node: ast.DecltypeNameAST, context: Context): void {
+  visitDecltypeId(node: ast.DecltypeIdAST, context: Context): void {
     this.accept(node.getDecltypeSpecifier(), context);
   }
 
-  visitOperatorFunctionName(
-    node: ast.OperatorFunctionNameAST,
+  visitOperatorFunctionId(
+    node: ast.OperatorFunctionIdAST,
     context: Context,
   ): void {}
 
-  visitLiteralOperatorName(
-    node: ast.LiteralOperatorNameAST,
+  visitLiteralOperatorId(
+    node: ast.LiteralOperatorIdAST,
     context: Context,
   ): void {}
 
-  visitConversionFunctionName(
-    node: ast.ConversionFunctionNameAST,
+  visitConversionFunctionId(
+    node: ast.ConversionFunctionIdAST,
     context: Context,
   ): void {
     this.accept(node.getTypeId(), context);
   }
 
-  visitSimpleTemplateName(
-    node: ast.SimpleTemplateNameAST,
-    context: Context,
-  ): void {
+  visitSimpleTemplateId(node: ast.SimpleTemplateIdAST, context: Context): void {
     for (const element of node.getTemplateArgumentList()) {
       this.accept(element, context);
     }
   }
 
-  visitLiteralOperatorTemplateName(
-    node: ast.LiteralOperatorTemplateNameAST,
+  visitLiteralOperatorTemplateId(
+    node: ast.LiteralOperatorTemplateIdAST,
     context: Context,
   ): void {
-    this.accept(node.getLiteralOperatorName(), context);
+    this.accept(node.getLiteralOperatorId(), context);
     for (const element of node.getTemplateArgumentList()) {
       this.accept(element, context);
     }
   }
 
-  visitOperatorFunctionTemplateName(
-    node: ast.OperatorFunctionTemplateNameAST,
+  visitOperatorFunctionTemplateId(
+    node: ast.OperatorFunctionTemplateIdAST,
     context: Context,
   ): void {
-    this.accept(node.getOperatorFunctionName(), context);
+    this.accept(node.getOperatorFunctionId(), context);
     for (const element of node.getTemplateArgumentList()) {
       this.accept(element, context);
     }

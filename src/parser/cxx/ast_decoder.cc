@@ -524,33 +524,33 @@ auto ASTDecoder::decodeDeclaration(const void* ptr, io::Declaration type)
   }  // switch
 }
 
-auto ASTDecoder::decodeName(const void* ptr, io::Name type) -> NameAST* {
+auto ASTDecoder::decodeUnqualifiedId(const void* ptr, io::UnqualifiedId type)
+    -> UnqualifiedIdAST* {
   switch (type) {
-    case io::Name_SimpleName:
-      return decodeSimpleName(reinterpret_cast<const io::SimpleName*>(ptr));
-    case io::Name_DestructorName:
-      return decodeDestructorName(
-          reinterpret_cast<const io::DestructorName*>(ptr));
-    case io::Name_DecltypeName:
-      return decodeDecltypeName(reinterpret_cast<const io::DecltypeName*>(ptr));
-    case io::Name_OperatorFunctionName:
-      return decodeOperatorFunctionName(
-          reinterpret_cast<const io::OperatorFunctionName*>(ptr));
-    case io::Name_LiteralOperatorName:
-      return decodeLiteralOperatorName(
-          reinterpret_cast<const io::LiteralOperatorName*>(ptr));
-    case io::Name_ConversionFunctionName:
-      return decodeConversionFunctionName(
-          reinterpret_cast<const io::ConversionFunctionName*>(ptr));
-    case io::Name_SimpleTemplateName:
-      return decodeSimpleTemplateName(
-          reinterpret_cast<const io::SimpleTemplateName*>(ptr));
-    case io::Name_LiteralOperatorTemplateName:
-      return decodeLiteralOperatorTemplateName(
-          reinterpret_cast<const io::LiteralOperatorTemplateName*>(ptr));
-    case io::Name_OperatorFunctionTemplateName:
-      return decodeOperatorFunctionTemplateName(
-          reinterpret_cast<const io::OperatorFunctionTemplateName*>(ptr));
+    case io::UnqualifiedId_NameId:
+      return decodeNameId(reinterpret_cast<const io::NameId*>(ptr));
+    case io::UnqualifiedId_DestructorId:
+      return decodeDestructorId(reinterpret_cast<const io::DestructorId*>(ptr));
+    case io::UnqualifiedId_DecltypeId:
+      return decodeDecltypeId(reinterpret_cast<const io::DecltypeId*>(ptr));
+    case io::UnqualifiedId_OperatorFunctionId:
+      return decodeOperatorFunctionId(
+          reinterpret_cast<const io::OperatorFunctionId*>(ptr));
+    case io::UnqualifiedId_LiteralOperatorId:
+      return decodeLiteralOperatorId(
+          reinterpret_cast<const io::LiteralOperatorId*>(ptr));
+    case io::UnqualifiedId_ConversionFunctionId:
+      return decodeConversionFunctionId(
+          reinterpret_cast<const io::ConversionFunctionId*>(ptr));
+    case io::UnqualifiedId_SimpleTemplateId:
+      return decodeSimpleTemplateId(
+          reinterpret_cast<const io::SimpleTemplateId*>(ptr));
+    case io::UnqualifiedId_LiteralOperatorTemplateId:
+      return decodeLiteralOperatorTemplateId(
+          reinterpret_cast<const io::LiteralOperatorTemplateId*>(ptr));
+    case io::UnqualifiedId_OperatorFunctionTemplateId:
+      return decodeOperatorFunctionTemplateId(
+          reinterpret_cast<const io::OperatorFunctionTemplateId*>(ptr));
     default:
       return nullptr;
   }  // switch
@@ -768,7 +768,7 @@ auto ASTDecoder::decodeUsingDeclarator(const io::UsingDeclarator* node)
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->unqualifiedId =
-      decodeName(node->unqualified_id(), node->unqualified_id_type());
+      decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
   return ast;
 }
 
@@ -878,7 +878,7 @@ auto ASTDecoder::decodeBaseSpecifier(const io::BaseSpecifier* node)
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->unqualifiedId =
-      decodeName(node->unqualified_id(), node->unqualified_id_type());
+      decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
   ast->accessSpecifier = static_cast<TokenKind>(node->access_specifier());
   return ast;
 }
@@ -1313,7 +1313,7 @@ auto ASTDecoder::decodeTemplateNestedNameSpecifier(
   auto ast = new (pool_) TemplateNestedNameSpecifierAST();
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
-  ast->templateName = decodeSimpleTemplateName(node->template_name());
+  ast->templateId = decodeSimpleTemplateId(node->template_id());
   return ast;
 }
 
@@ -1443,7 +1443,7 @@ auto ASTDecoder::decodeIdExpression(const io::IdExpression* node)
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->unqualifiedId =
-      decodeName(node->unqualified_id(), node->unqualified_id_type());
+      decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
   return ast;
 }
 
@@ -1940,7 +1940,7 @@ auto ASTDecoder::decodeTypeRequirement(const io::TypeRequirement* node)
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->unqualifiedId =
-      decodeName(node->unqualified_id(), node->unqualified_id_type());
+      decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
   return ast;
 }
 
@@ -1982,7 +1982,7 @@ auto ASTDecoder::decodeParenMemInitializer(const io::ParenMemInitializer* node)
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->unqualifiedId =
-      decodeName(node->unqualified_id(), node->unqualified_id_type());
+      decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
   if (node->expression_list()) {
     auto* inserter = &ast->expressionList;
     for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
@@ -2003,7 +2003,7 @@ auto ASTDecoder::decodeBracedMemInitializer(
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->unqualifiedId =
-      decodeName(node->unqualified_id(), node->unqualified_id_type());
+      decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
   ast->bracedInitList = decodeBracedInitList(node->braced_init_list());
   return ast;
 }
@@ -2576,9 +2576,9 @@ auto ASTDecoder::decodeStructuredBindingDeclaration(
   if (node->binding_list()) {
     auto* inserter = &ast->bindingList;
     for (std::size_t i = 0; i < node->binding_list()->size(); ++i) {
-      *inserter = new (pool_)
-          List(decodeName(node->binding_list()->Get(i),
-                          io::Name(node->binding_list_type()->Get(i))));
+      *inserter = new (pool_) List(decodeUnqualifiedId(
+          node->binding_list()->Get(i),
+          io::UnqualifiedId(node->binding_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }
@@ -2639,7 +2639,7 @@ auto ASTDecoder::decodeOpaqueEnumDeclaration(
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->unqualifiedId =
-      decodeName(node->unqualified_id(), node->unqualified_id_type());
+      decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
   ast->enumBase = decodeEnumBase(node->enum_base());
   return ast;
 }
@@ -2649,9 +2649,9 @@ auto ASTDecoder::decodeNestedNamespaceSpecifier(
   if (!node) return nullptr;
 
   auto ast = new (pool_) NestedNamespaceSpecifierAST();
-  if (node->namespace_name()) {
-    ast->namespaceName =
-        unit_->control()->getIdentifier(node->namespace_name()->str());
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
   }
   return ast;
 }
@@ -2697,9 +2697,9 @@ auto ASTDecoder::decodeNamespaceDefinition(const io::NamespaceDefinition* node)
       inserter = &(*inserter)->next;
     }
   }
-  if (node->namespace_name()) {
-    ast->namespaceName =
-        unit_->control()->getIdentifier(node->namespace_name()->str());
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
   }
   return ast;
 }
@@ -2712,7 +2712,7 @@ auto ASTDecoder::decodeNamespaceAliasDefinition(
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->unqualifiedId =
-      decodeName(node->unqualified_id(), node->unqualified_id_type());
+      decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -2737,7 +2737,7 @@ auto ASTDecoder::decodeUsingDirective(const io::UsingDirective* node)
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->unqualifiedId =
-      decodeName(node->unqualified_id(), node->unqualified_id_type());
+      decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
   return ast;
 }
 
@@ -2917,7 +2917,7 @@ auto ASTDecoder::decodeDeductionGuide(const io::DeductionGuide* node)
                                            node->explicit_specifier_type());
   ast->parameterDeclarationClause =
       decodeParameterDeclarationClause(node->parameter_declaration_clause());
-  ast->templateId = decodeSimpleTemplateName(node->template_id());
+  ast->templateId = decodeSimpleTemplateId(node->template_id());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -2985,11 +2985,10 @@ auto ASTDecoder::decodeLinkageSpecification(
   return ast;
 }
 
-auto ASTDecoder::decodeSimpleName(const io::SimpleName* node)
-    -> SimpleNameAST* {
+auto ASTDecoder::decodeNameId(const io::NameId* node) -> NameIdAST* {
   if (!node) return nullptr;
 
-  auto ast = new (pool_) SimpleNameAST();
+  auto ast = new (pool_) NameIdAST();
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -2997,38 +2996,38 @@ auto ASTDecoder::decodeSimpleName(const io::SimpleName* node)
   return ast;
 }
 
-auto ASTDecoder::decodeDestructorName(const io::DestructorName* node)
-    -> DestructorNameAST* {
+auto ASTDecoder::decodeDestructorId(const io::DestructorId* node)
+    -> DestructorIdAST* {
   if (!node) return nullptr;
 
-  auto ast = new (pool_) DestructorNameAST();
-  ast->id = decodeName(node->id(), node->id_type());
+  auto ast = new (pool_) DestructorIdAST();
+  ast->id = decodeUnqualifiedId(node->id(), node->id_type());
   return ast;
 }
 
-auto ASTDecoder::decodeDecltypeName(const io::DecltypeName* node)
-    -> DecltypeNameAST* {
+auto ASTDecoder::decodeDecltypeId(const io::DecltypeId* node)
+    -> DecltypeIdAST* {
   if (!node) return nullptr;
 
-  auto ast = new (pool_) DecltypeNameAST();
+  auto ast = new (pool_) DecltypeIdAST();
   ast->decltypeSpecifier = decodeDecltypeSpecifier(node->decltype_specifier());
   return ast;
 }
 
-auto ASTDecoder::decodeOperatorFunctionName(
-    const io::OperatorFunctionName* node) -> OperatorFunctionNameAST* {
+auto ASTDecoder::decodeOperatorFunctionId(const io::OperatorFunctionId* node)
+    -> OperatorFunctionIdAST* {
   if (!node) return nullptr;
 
-  auto ast = new (pool_) OperatorFunctionNameAST();
+  auto ast = new (pool_) OperatorFunctionIdAST();
   ast->op = static_cast<TokenKind>(node->op());
   return ast;
 }
 
-auto ASTDecoder::decodeLiteralOperatorName(const io::LiteralOperatorName* node)
-    -> LiteralOperatorNameAST* {
+auto ASTDecoder::decodeLiteralOperatorId(const io::LiteralOperatorId* node)
+    -> LiteralOperatorIdAST* {
   if (!node) return nullptr;
 
-  auto ast = new (pool_) LiteralOperatorNameAST();
+  auto ast = new (pool_) LiteralOperatorIdAST();
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -3036,20 +3035,20 @@ auto ASTDecoder::decodeLiteralOperatorName(const io::LiteralOperatorName* node)
   return ast;
 }
 
-auto ASTDecoder::decodeConversionFunctionName(
-    const io::ConversionFunctionName* node) -> ConversionFunctionNameAST* {
+auto ASTDecoder::decodeConversionFunctionId(
+    const io::ConversionFunctionId* node) -> ConversionFunctionIdAST* {
   if (!node) return nullptr;
 
-  auto ast = new (pool_) ConversionFunctionNameAST();
+  auto ast = new (pool_) ConversionFunctionIdAST();
   ast->typeId = decodeTypeId(node->type_id());
   return ast;
 }
 
-auto ASTDecoder::decodeSimpleTemplateName(const io::SimpleTemplateName* node)
-    -> SimpleTemplateNameAST* {
+auto ASTDecoder::decodeSimpleTemplateId(const io::SimpleTemplateId* node)
+    -> SimpleTemplateIdAST* {
   if (!node) return nullptr;
 
-  auto ast = new (pool_) SimpleTemplateNameAST();
+  auto ast = new (pool_) SimpleTemplateIdAST();
   if (node->template_argument_list()) {
     auto* inserter = &ast->templateArgumentList;
     for (std::size_t i = 0; i < node->template_argument_list()->size(); ++i) {
@@ -3066,14 +3065,13 @@ auto ASTDecoder::decodeSimpleTemplateName(const io::SimpleTemplateName* node)
   return ast;
 }
 
-auto ASTDecoder::decodeLiteralOperatorTemplateName(
-    const io::LiteralOperatorTemplateName* node)
-    -> LiteralOperatorTemplateNameAST* {
+auto ASTDecoder::decodeLiteralOperatorTemplateId(
+    const io::LiteralOperatorTemplateId* node)
+    -> LiteralOperatorTemplateIdAST* {
   if (!node) return nullptr;
 
-  auto ast = new (pool_) LiteralOperatorTemplateNameAST();
-  ast->literalOperatorName =
-      decodeLiteralOperatorName(node->literal_operator_name());
+  auto ast = new (pool_) LiteralOperatorTemplateIdAST();
+  ast->literalOperatorId = decodeLiteralOperatorId(node->literal_operator_id());
   if (node->template_argument_list()) {
     auto* inserter = &ast->templateArgumentList;
     for (std::size_t i = 0; i < node->template_argument_list()->size(); ++i) {
@@ -3086,14 +3084,14 @@ auto ASTDecoder::decodeLiteralOperatorTemplateName(
   return ast;
 }
 
-auto ASTDecoder::decodeOperatorFunctionTemplateName(
-    const io::OperatorFunctionTemplateName* node)
-    -> OperatorFunctionTemplateNameAST* {
+auto ASTDecoder::decodeOperatorFunctionTemplateId(
+    const io::OperatorFunctionTemplateId* node)
+    -> OperatorFunctionTemplateIdAST* {
   if (!node) return nullptr;
 
-  auto ast = new (pool_) OperatorFunctionTemplateNameAST();
-  ast->operatorFunctionName =
-      decodeOperatorFunctionName(node->operator_function_name());
+  auto ast = new (pool_) OperatorFunctionTemplateIdAST();
+  ast->operatorFunctionId =
+      decodeOperatorFunctionId(node->operator_function_id());
   if (node->template_argument_list()) {
     auto* inserter = &ast->templateArgumentList;
     for (std::size_t i = 0; i < node->template_argument_list()->size(); ++i) {
@@ -3272,7 +3270,7 @@ auto ASTDecoder::decodeNamedTypeSpecifier(const io::NamedTypeSpecifier* node)
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->unqualifiedId =
-      decodeName(node->unqualified_id(), node->unqualified_id_type());
+      decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
   return ast;
 }
 
@@ -3311,7 +3309,7 @@ auto ASTDecoder::decodeElaboratedTypeSpecifier(
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->unqualifiedId =
-      decodeName(node->unqualified_id(), node->unqualified_id_type());
+      decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
   ast->classKey = static_cast<TokenKind>(node->class_key());
   return ast;
 }
@@ -3385,7 +3383,7 @@ auto ASTDecoder::decodeEnumSpecifier(const io::EnumSpecifier* node)
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->unqualifiedId =
-      decodeName(node->unqualified_id(), node->unqualified_id_type());
+      decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
   ast->enumBase = decodeEnumBase(node->enum_base());
   if (node->enumerator_list()) {
     auto* inserter = &ast->enumeratorList;
@@ -3415,7 +3413,7 @@ auto ASTDecoder::decodeClassSpecifier(const io::ClassSpecifier* node)
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->unqualifiedId =
-      decodeName(node->unqualified_id(), node->unqualified_id_type());
+      decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
   ast->baseClause = decodeBaseClause(node->base_clause());
   if (node->declaration_list()) {
     auto* inserter = &ast->declarationList;
@@ -3438,7 +3436,7 @@ auto ASTDecoder::decodeTypenameSpecifier(const io::TypenameSpecifier* node)
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->unqualifiedId =
-      decodeName(node->unqualified_id(), node->unqualified_id_type());
+      decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
   return ast;
 }
 

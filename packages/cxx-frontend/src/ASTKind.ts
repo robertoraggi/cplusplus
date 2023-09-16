@@ -204,16 +204,16 @@ export enum ASTKind {
   ParameterDeclaration,
   LinkageSpecification,
 
-  // NameAST
-  SimpleName,
-  DestructorName,
-  DecltypeName,
-  OperatorFunctionName,
-  LiteralOperatorName,
-  ConversionFunctionName,
-  SimpleTemplateName,
-  LiteralOperatorTemplateName,
-  OperatorFunctionTemplateName,
+  // UnqualifiedIdAST
+  NameId,
+  DestructorId,
+  DecltypeId,
+  OperatorFunctionId,
+  LiteralOperatorId,
+  ConversionFunctionId,
+  SimpleTemplateId,
+  LiteralOperatorTemplateId,
+  OperatorFunctionTemplateId,
 
   // SpecifierAST
   TypedefSpecifier,

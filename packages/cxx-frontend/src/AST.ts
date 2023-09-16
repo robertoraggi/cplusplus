@@ -94,7 +94,6 @@ export abstract class ExpressionAST extends AST {}
 export abstract class FunctionBodyAST extends AST {}
 export abstract class LambdaCaptureAST extends AST {}
 export abstract class MemInitializerAST extends AST {}
-export abstract class NameAST extends AST {}
 export abstract class NestedNameSpecifierAST extends AST {}
 export abstract class NewInitializerAST extends AST {}
 export abstract class PtrOperatorAST extends AST {}
@@ -103,6 +102,7 @@ export abstract class SpecifierAST extends AST {}
 export abstract class StatementAST extends AST {}
 export abstract class TemplateArgumentAST extends AST {}
 export abstract class UnitAST extends AST {}
+export abstract class UnqualifiedIdAST extends AST {}
 
 export class TypeIdAST extends AST {
   accept<Context, Result>(
@@ -144,8 +144,11 @@ export class UsingDeclaratorAST extends AST {
       this.parser,
     );
   }
-  getUnqualifiedId(): NameAST | undefined {
-    return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  getUnqualifiedId(): UnqualifiedIdAST | undefined {
+    return AST.from<UnqualifiedIdAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
   }
 }
 
@@ -319,8 +322,11 @@ export class BaseSpecifierAST extends AST {
   getTemplateToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
   }
-  getUnqualifiedId(): NameAST | undefined {
-    return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  getUnqualifiedId(): UnqualifiedIdAST | undefined {
+    return AST.from<UnqualifiedIdAST>(
+      cxx.getASTSlot(this.getHandle(), 3),
+      this.parser,
+    );
   }
   getIsTemplateIntroduced(): boolean {
     return cxx.getASTSlot(this.getHandle(), 4) !== 0;
@@ -1046,8 +1052,8 @@ export class TemplateNestedNameSpecifierAST extends NestedNameSpecifierAST {
   getTemplateToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
   }
-  getTemplateName(): SimpleTemplateNameAST | undefined {
-    return AST.from<SimpleTemplateNameAST>(
+  getTemplateId(): SimpleTemplateIdAST | undefined {
+    return AST.from<SimpleTemplateIdAST>(
       cxx.getASTSlot(this.getHandle(), 2),
       this.parser,
     );
@@ -1279,8 +1285,11 @@ export class IdExpressionAST extends ExpressionAST {
   getTemplateToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
   }
-  getUnqualifiedId(): NameAST | undefined {
-    return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  getUnqualifiedId(): UnqualifiedIdAST | undefined {
+    return AST.from<UnqualifiedIdAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
   }
   getIsTemplateIntroduced(): boolean {
     return cxx.getASTSlot(this.getHandle(), 3) !== 0;
@@ -2339,8 +2348,11 @@ export class TypeRequirementAST extends RequirementAST {
       this.parser,
     );
   }
-  getUnqualifiedId(): NameAST | undefined {
-    return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  getUnqualifiedId(): UnqualifiedIdAST | undefined {
+    return AST.from<UnqualifiedIdAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
   }
   getSemicolonToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
@@ -2411,8 +2423,11 @@ export class ParenMemInitializerAST extends MemInitializerAST {
       this.parser,
     );
   }
-  getUnqualifiedId(): NameAST | undefined {
-    return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  getUnqualifiedId(): UnqualifiedIdAST | undefined {
+    return AST.from<UnqualifiedIdAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
   }
   getLparenToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
@@ -2447,8 +2462,11 @@ export class BracedMemInitializerAST extends MemInitializerAST {
       this.parser,
     );
   }
-  getUnqualifiedId(): NameAST | undefined {
-    return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  getUnqualifiedId(): UnqualifiedIdAST | undefined {
+    return AST.from<UnqualifiedIdAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
   }
   getBracedInitList(): BracedInitListAST | undefined {
     return AST.from<BracedInitListAST>(
@@ -3520,13 +3538,13 @@ export class StructuredBindingDeclarationAST extends DeclarationAST {
   getLbracketToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
   }
-  *getBindingList(): Generator<NameAST | undefined> {
+  *getBindingList(): Generator<UnqualifiedIdAST | undefined> {
     for (
       let it = cxx.getASTSlot(this.getHandle(), 4);
       it;
       it = cxx.getListNext(it)
     ) {
-      yield AST.from<NameAST>(cxx.getListValue(it), this.parser);
+      yield AST.from<UnqualifiedIdAST>(cxx.getListValue(it), this.parser);
     }
   }
   getRbracketToken(): Token | undefined {
@@ -3641,8 +3659,11 @@ export class OpaqueEnumDeclarationAST extends DeclarationAST {
       this.parser,
     );
   }
-  getUnqualifiedId(): NameAST | undefined {
-    return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  getUnqualifiedId(): UnqualifiedIdAST | undefined {
+    return AST.from<UnqualifiedIdAST>(
+      cxx.getASTSlot(this.getHandle(), 4),
+      this.parser,
+    );
   }
   getEnumBase(): EnumBaseAST | undefined {
     return AST.from<EnumBaseAST>(
@@ -3671,7 +3692,7 @@ export class NestedNamespaceSpecifierAST extends DeclarationAST {
   getScopeToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
   }
-  getNamespaceName(): string | undefined {
+  getIdentifier(): string | undefined {
     const slot = cxx.getASTSlot(this.getHandle(), 3);
     return cxx.getIdentifierValue(slot);
   }
@@ -3743,7 +3764,7 @@ export class NamespaceDefinitionAST extends DeclarationAST {
   getRbraceToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 8), this.parser);
   }
-  getNamespaceName(): string | undefined {
+  getIdentifier(): string | undefined {
     const slot = cxx.getASTSlot(this.getHandle(), 9);
     return cxx.getIdentifierValue(slot);
   }
@@ -3774,8 +3795,11 @@ export class NamespaceAliasDefinitionAST extends DeclarationAST {
       this.parser,
     );
   }
-  getUnqualifiedId(): NameAST | undefined {
-    return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  getUnqualifiedId(): UnqualifiedIdAST | undefined {
+    return AST.from<UnqualifiedIdAST>(
+      cxx.getASTSlot(this.getHandle(), 4),
+      this.parser,
+    );
   }
   getSemicolonToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
@@ -3814,8 +3838,11 @@ export class UsingDirectiveAST extends DeclarationAST {
       this.parser,
     );
   }
-  getUnqualifiedId(): NameAST | undefined {
-    return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  getUnqualifiedId(): UnqualifiedIdAST | undefined {
+    return AST.from<UnqualifiedIdAST>(
+      cxx.getASTSlot(this.getHandle(), 4),
+      this.parser,
+    );
   }
   getSemicolonToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
@@ -4172,8 +4199,8 @@ export class DeductionGuideAST extends DeclarationAST {
   getArrowToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
   }
-  getTemplateId(): SimpleTemplateNameAST | undefined {
-    return AST.from<SimpleTemplateNameAST>(
+  getTemplateId(): SimpleTemplateIdAST | undefined {
+    return AST.from<SimpleTemplateIdAST>(
       cxx.getASTSlot(this.getHandle(), 6),
       this.parser,
     );
@@ -4284,12 +4311,12 @@ export class LinkageSpecificationAST extends DeclarationAST {
   }
 }
 
-export class SimpleNameAST extends NameAST {
+export class NameIdAST extends UnqualifiedIdAST {
   accept<Context, Result>(
     visitor: ASTVisitor<Context, Result>,
     context: Context,
   ): Result {
-    return visitor.visitSimpleName(this, context);
+    return visitor.visitNameId(this, context);
   }
   getIdentifierToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
@@ -4300,27 +4327,30 @@ export class SimpleNameAST extends NameAST {
   }
 }
 
-export class DestructorNameAST extends NameAST {
+export class DestructorIdAST extends UnqualifiedIdAST {
   accept<Context, Result>(
     visitor: ASTVisitor<Context, Result>,
     context: Context,
   ): Result {
-    return visitor.visitDestructorName(this, context);
+    return visitor.visitDestructorId(this, context);
   }
   getTildeToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
   }
-  getId(): NameAST | undefined {
-    return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  getId(): UnqualifiedIdAST | undefined {
+    return AST.from<UnqualifiedIdAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
   }
 }
 
-export class DecltypeNameAST extends NameAST {
+export class DecltypeIdAST extends UnqualifiedIdAST {
   accept<Context, Result>(
     visitor: ASTVisitor<Context, Result>,
     context: Context,
   ): Result {
-    return visitor.visitDecltypeName(this, context);
+    return visitor.visitDecltypeId(this, context);
   }
   getDecltypeSpecifier(): DecltypeSpecifierAST | undefined {
     return AST.from<DecltypeSpecifierAST>(
@@ -4330,12 +4360,12 @@ export class DecltypeNameAST extends NameAST {
   }
 }
 
-export class OperatorFunctionNameAST extends NameAST {
+export class OperatorFunctionIdAST extends UnqualifiedIdAST {
   accept<Context, Result>(
     visitor: ASTVisitor<Context, Result>,
     context: Context,
   ): Result {
-    return visitor.visitOperatorFunctionName(this, context);
+    return visitor.visitOperatorFunctionId(this, context);
   }
   getOperatorToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
@@ -4354,12 +4384,12 @@ export class OperatorFunctionNameAST extends NameAST {
   }
 }
 
-export class LiteralOperatorNameAST extends NameAST {
+export class LiteralOperatorIdAST extends UnqualifiedIdAST {
   accept<Context, Result>(
     visitor: ASTVisitor<Context, Result>,
     context: Context,
   ): Result {
-    return visitor.visitLiteralOperatorName(this, context);
+    return visitor.visitLiteralOperatorId(this, context);
   }
   getOperatorToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
@@ -4380,12 +4410,12 @@ export class LiteralOperatorNameAST extends NameAST {
   }
 }
 
-export class ConversionFunctionNameAST extends NameAST {
+export class ConversionFunctionIdAST extends UnqualifiedIdAST {
   accept<Context, Result>(
     visitor: ASTVisitor<Context, Result>,
     context: Context,
   ): Result {
-    return visitor.visitConversionFunctionName(this, context);
+    return visitor.visitConversionFunctionId(this, context);
   }
   getOperatorToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
@@ -4398,12 +4428,12 @@ export class ConversionFunctionNameAST extends NameAST {
   }
 }
 
-export class SimpleTemplateNameAST extends NameAST {
+export class SimpleTemplateIdAST extends UnqualifiedIdAST {
   accept<Context, Result>(
     visitor: ASTVisitor<Context, Result>,
     context: Context,
   ): Result {
-    return visitor.visitSimpleTemplateName(this, context);
+    return visitor.visitSimpleTemplateId(this, context);
   }
   getIdentifierToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
@@ -4429,15 +4459,15 @@ export class SimpleTemplateNameAST extends NameAST {
   }
 }
 
-export class LiteralOperatorTemplateNameAST extends NameAST {
+export class LiteralOperatorTemplateIdAST extends UnqualifiedIdAST {
   accept<Context, Result>(
     visitor: ASTVisitor<Context, Result>,
     context: Context,
   ): Result {
-    return visitor.visitLiteralOperatorTemplateName(this, context);
+    return visitor.visitLiteralOperatorTemplateId(this, context);
   }
-  getLiteralOperatorName(): LiteralOperatorNameAST | undefined {
-    return AST.from<LiteralOperatorNameAST>(
+  getLiteralOperatorId(): LiteralOperatorIdAST | undefined {
+    return AST.from<LiteralOperatorIdAST>(
       cxx.getASTSlot(this.getHandle(), 0),
       this.parser,
     );
@@ -4459,15 +4489,15 @@ export class LiteralOperatorTemplateNameAST extends NameAST {
   }
 }
 
-export class OperatorFunctionTemplateNameAST extends NameAST {
+export class OperatorFunctionTemplateIdAST extends UnqualifiedIdAST {
   accept<Context, Result>(
     visitor: ASTVisitor<Context, Result>,
     context: Context,
   ): Result {
-    return visitor.visitOperatorFunctionTemplateName(this, context);
+    return visitor.visitOperatorFunctionTemplateId(this, context);
   }
-  getOperatorFunctionName(): OperatorFunctionNameAST | undefined {
-    return AST.from<OperatorFunctionNameAST>(
+  getOperatorFunctionId(): OperatorFunctionIdAST | undefined {
+    return AST.from<OperatorFunctionIdAST>(
       cxx.getASTSlot(this.getHandle(), 0),
       this.parser,
     );
@@ -4754,8 +4784,11 @@ export class NamedTypeSpecifierAST extends SpecifierAST {
   getTemplateToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
   }
-  getUnqualifiedId(): NameAST | undefined {
-    return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  getUnqualifiedId(): UnqualifiedIdAST | undefined {
+    return AST.from<UnqualifiedIdAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
   }
   getIsTemplateIntroduced(): boolean {
     return cxx.getASTSlot(this.getHandle(), 3) !== 0;
@@ -4835,8 +4868,11 @@ export class ElaboratedTypeSpecifierAST extends SpecifierAST {
       this.parser,
     );
   }
-  getUnqualifiedId(): NameAST | undefined {
-    return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  getUnqualifiedId(): UnqualifiedIdAST | undefined {
+    return AST.from<UnqualifiedIdAST>(
+      cxx.getASTSlot(this.getHandle(), 3),
+      this.parser,
+    );
   }
   getClassKey(): TokenKind {
     return cxx.getASTSlot(this.getHandle(), 4);
@@ -4973,8 +5009,11 @@ export class EnumSpecifierAST extends SpecifierAST {
       this.parser,
     );
   }
-  getUnqualifiedId(): NameAST | undefined {
-    return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  getUnqualifiedId(): UnqualifiedIdAST | undefined {
+    return AST.from<UnqualifiedIdAST>(
+      cxx.getASTSlot(this.getHandle(), 4),
+      this.parser,
+    );
   }
   getEnumBase(): EnumBaseAST | undefined {
     return AST.from<EnumBaseAST>(
@@ -5027,8 +5066,11 @@ export class ClassSpecifierAST extends SpecifierAST {
       this.parser,
     );
   }
-  getUnqualifiedId(): NameAST | undefined {
-    return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  getUnqualifiedId(): UnqualifiedIdAST | undefined {
+    return AST.from<UnqualifiedIdAST>(
+      cxx.getASTSlot(this.getHandle(), 3),
+      this.parser,
+    );
   }
   getFinalToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
@@ -5078,8 +5120,11 @@ export class TypenameSpecifierAST extends SpecifierAST {
       this.parser,
     );
   }
-  getUnqualifiedId(): NameAST | undefined {
-    return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  getUnqualifiedId(): UnqualifiedIdAST | undefined {
+    return AST.from<UnqualifiedIdAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
   }
 }
 
@@ -5623,15 +5668,15 @@ const AST_CONSTRUCTORS: Array<
   ExplicitInstantiationAST,
   ParameterDeclarationAST,
   LinkageSpecificationAST,
-  SimpleNameAST,
-  DestructorNameAST,
-  DecltypeNameAST,
-  OperatorFunctionNameAST,
-  LiteralOperatorNameAST,
-  ConversionFunctionNameAST,
-  SimpleTemplateNameAST,
-  LiteralOperatorTemplateNameAST,
-  OperatorFunctionTemplateNameAST,
+  NameIdAST,
+  DestructorIdAST,
+  DecltypeIdAST,
+  OperatorFunctionIdAST,
+  LiteralOperatorIdAST,
+  ConversionFunctionIdAST,
+  SimpleTemplateIdAST,
+  LiteralOperatorTemplateIdAST,
+  OperatorFunctionTemplateIdAST,
   TypedefSpecifierAST,
   FriendSpecifierAST,
   ConstevalSpecifierAST,

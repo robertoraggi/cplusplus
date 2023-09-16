@@ -63,7 +63,6 @@ class ExpressionAST;
 class FunctionBodyAST;
 class LambdaCaptureAST;
 class MemInitializerAST;
-class NameAST;
 class NestedNameSpecifierAST;
 class NewInitializerAST;
 class PtrOperatorAST;
@@ -72,6 +71,7 @@ class SpecifierAST;
 class StatementAST;
 class TemplateArgumentAST;
 class UnitAST;
+class UnqualifiedIdAST;
 
 // AST
 class TypeIdAST;
@@ -258,16 +258,16 @@ class ExplicitInstantiationAST;
 class ParameterDeclarationAST;
 class LinkageSpecificationAST;
 
-// NameAST
-class SimpleNameAST;
-class DestructorNameAST;
-class DecltypeNameAST;
-class OperatorFunctionNameAST;
-class LiteralOperatorNameAST;
-class ConversionFunctionNameAST;
-class SimpleTemplateNameAST;
-class LiteralOperatorTemplateNameAST;
-class OperatorFunctionTemplateNameAST;
+// UnqualifiedIdAST
+class NameIdAST;
+class DestructorIdAST;
+class DecltypeIdAST;
+class OperatorFunctionIdAST;
+class LiteralOperatorIdAST;
+class ConversionFunctionIdAST;
+class SimpleTemplateIdAST;
+class LiteralOperatorTemplateIdAST;
+class OperatorFunctionTemplateIdAST;
 
 // SpecifierAST
 class TypedefSpecifierAST;

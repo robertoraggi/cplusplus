@@ -403,10 +403,10 @@ auto Parser::parse_override(SourceLocation& loc) -> bool {
   return parse_id(overrideId_, loc);
 }
 
-auto Parser::parse_type_name(NameAST*& yyast) -> bool {
+auto Parser::parse_type_name(UnqualifiedIdAST*& yyast) -> bool {
   auto lookat_simple_template_id = [&] {
     LookaheadParser lookahead{this};
-    SimpleTemplateNameAST* templateId = nullptr;
+    SimpleTemplateIdAST* templateId = nullptr;
     if (!parse_simple_template_id(templateId)) return false;
     yyast = templateId;
     lookahead.commit();
@@ -418,12 +418,12 @@ auto Parser::parse_type_name(NameAST*& yyast) -> bool {
   return parse_name_id(yyast);
 }
 
-auto Parser::parse_name_id(NameAST*& yyast) -> bool {
+auto Parser::parse_name_id(UnqualifiedIdAST*& yyast) -> bool {
   SourceLocation identifierLoc;
 
   if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
 
-  auto ast = new (pool) SimpleNameAST();
+  auto ast = new (pool) NameIdAST();
   yyast = ast;
 
   ast->identifierLoc = identifierLoc;
@@ -631,7 +631,7 @@ void Parser::parse_skip_declaration(bool& skipping) {
 
 auto Parser::parse_primary_expression(ExpressionAST*& yyast,
                                       bool inRequiresClause) -> bool {
-  NameAST* name = nullptr;
+  UnqualifiedIdAST* name = nullptr;
 
   if (parse_this_expression(yyast)) {
     return true;
@@ -666,7 +666,7 @@ auto Parser::parse_id_expression(IdExpressionAST*& yyast, bool inRequiresClause)
   SourceLocation templateLoc;
   const auto isTemplateIntroduced = match(TokenKind::T_TEMPLATE, templateLoc);
 
-  NameAST* unqualifiedId = nullptr;
+  UnqualifiedIdAST* unqualifiedId = nullptr;
   if (!parse_unqualified_id(unqualifiedId,
                             /*isTemplateIntroduced*/ false, inRequiresClause))
     return false;
@@ -684,8 +684,8 @@ auto Parser::parse_id_expression(IdExpressionAST*& yyast, bool inRequiresClause)
   return true;
 }
 
-auto Parser::parse_maybe_template_id(NameAST*& yyast, bool inRequiresClause)
-    -> bool {
+auto Parser::parse_maybe_template_id(UnqualifiedIdAST*& yyast,
+                                     bool inRequiresClause) -> bool {
   LookaheadParser lookahead{this};
 
   auto template_id = parse_template_id(yyast);
@@ -731,7 +731,8 @@ auto Parser::parse_maybe_template_id(NameAST*& yyast, bool inRequiresClause)
   }  // switch
 }
 
-auto Parser::parse_unqualified_id(NameAST*& yyast, bool isTemplateIntroduced,
+auto Parser::parse_unqualified_id(UnqualifiedIdAST*& yyast,
+                                  bool isTemplateIntroduced,
                                   bool inRequiresClause) -> bool {
   const auto start = currentLocation();
 
@@ -745,10 +746,10 @@ auto Parser::parse_unqualified_id(NameAST*& yyast, bool isTemplateIntroduced,
     DecltypeSpecifierAST* decltypeSpecifier = nullptr;
 
     if (parse_decltype_specifier(decltypeSpecifier)) {
-      auto decltypeName = new (pool) DecltypeNameAST();
+      auto decltypeName = new (pool) DecltypeIdAST();
       decltypeName->decltypeSpecifier = decltypeSpecifier;
 
-      auto ast = new (pool) DestructorNameAST();
+      auto ast = new (pool) DestructorIdAST();
       yyast = ast;
 
       ast->id = decltypeName;
@@ -756,25 +757,25 @@ auto Parser::parse_unqualified_id(NameAST*& yyast, bool isTemplateIntroduced,
       return true;
     }
 
-    NameAST* name = nullptr;
+    UnqualifiedIdAST* name = nullptr;
 
     if (!parse_type_name(name)) return false;
 
-    auto ast = new (pool) DestructorNameAST();
+    auto ast = new (pool) DestructorIdAST();
     yyast = ast;
 
     ast->id = name;
 
     return true;
-  } else if (LiteralOperatorNameAST* literalOperatorName = nullptr;
+  } else if (LiteralOperatorIdAST* literalOperatorName = nullptr;
              parse_literal_operator_id(literalOperatorName)) {
     yyast = literalOperatorName;
     return true;
-  } else if (ConversionFunctionNameAST* conversionFunctionName = nullptr;
+  } else if (ConversionFunctionIdAST* conversionFunctionName = nullptr;
              parse_conversion_function_id(conversionFunctionName)) {
     yyast = conversionFunctionName;
     return true;
-  } else if (OperatorFunctionNameAST* functionOperatorName = nullptr;
+  } else if (OperatorFunctionIdAST* functionOperatorName = nullptr;
              parse_operator_function_id(functionOperatorName)) {
     yyast = functionOperatorName;
     return true;
@@ -849,7 +850,7 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
     SourceLocation templateLoc;
     const auto isTemplateIntroduced = match(TokenKind::T_TEMPLATE, templateLoc);
 
-    SimpleTemplateNameAST* templateName = nullptr;
+    SimpleTemplateIdAST* templateName = nullptr;
     if (!parse_simple_template_id(templateName)) return false;
 
     SourceLocation scopeLoc;
@@ -862,7 +863,7 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
     yyast = ast;
 
     ast->templateLoc = templateLoc;
-    ast->templateName = templateName;
+    ast->templateId = templateName;
     ast->scopeLoc = scopeLoc;
     ast->isTemplateIntroduced = isTemplateIntroduced;
 
@@ -3269,7 +3270,7 @@ auto Parser::parse_for_range_declaration(DeclarationAST*& yyast) -> bool {
 
     if (!match(TokenKind::T_LBRACKET, lbracketLoc)) return false;
 
-    List<NameAST*>* bindings = nullptr;
+    List<UnqualifiedIdAST*>* bindings = nullptr;
 
     if (!parse_identifier_list(bindings)) parse_error("expected an identifier");
 
@@ -3600,7 +3601,7 @@ auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
   SourceLocation lbracketLoc;
 
   if (match(TokenKind::T_LBRACKET, lbracketLoc)) {
-    List<NameAST*>* bindings = nullptr;
+    List<UnqualifiedIdAST*>* bindings = nullptr;
     SourceLocation rbracketLoc;
 
     if (parse_identifier_list(bindings) &&
@@ -4196,10 +4197,10 @@ auto Parser::parse_named_type_specifier_helper(SpecifierAST*& yyast,
   SourceLocation templateLoc;
   const auto isTemplateIntroduced = match(TokenKind::T_TEMPLATE, templateLoc);
 
-  NameAST* unqualifiedId = nullptr;
+  UnqualifiedIdAST* unqualifiedId = nullptr;
 
   if (isTemplateIntroduced) {
-    if (SimpleTemplateNameAST* templateId = nullptr;
+    if (SimpleTemplateIdAST* templateId = nullptr;
         parse_simple_template_id(templateId, isTemplateIntroduced)) {
       unqualifiedId = templateId;
     } else {
@@ -4435,7 +4436,7 @@ auto Parser::parse_elaborated_type_specifier_helper(
   if (!parse_nested_name_specifier(nestedNameSpecifier)) {
     rewind(before_nested_name_specifier);
 
-    if (SimpleTemplateNameAST* templateName = nullptr;
+    if (SimpleTemplateIdAST* templateName = nullptr;
         parse_simple_template_id(templateName)) {
       specs.has_complex_typespec = true;
 
@@ -4458,7 +4459,7 @@ auto Parser::parse_elaborated_type_specifier_helper(
 
     if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
 
-    auto id = new (pool) SimpleNameAST();
+    auto id = new (pool) NameIdAST();
 
     id->identifierLoc = identifierLoc;
     id->identifier = unit->identifier(id->identifierLoc);
@@ -4482,7 +4483,7 @@ auto Parser::parse_elaborated_type_specifier_helper(
 
   const bool isTemplateIntroduced = match(TokenKind::T_TEMPLATE, templateLoc);
 
-  if (SimpleTemplateNameAST* templateName = nullptr;
+  if (SimpleTemplateIdAST* templateName = nullptr;
       parse_simple_template_id(templateName)) {
     specs.has_complex_typespec = true;
 
@@ -4516,7 +4517,7 @@ auto Parser::parse_elaborated_type_specifier_helper(
 
   rewind(after_nested_name_specifier);
 
-  NameAST* name = nullptr;
+  UnqualifiedIdAST* name = nullptr;
   if (!parse_name_id(name)) return false;
 
   specs.has_complex_typespec = true;
@@ -4543,7 +4544,7 @@ auto Parser::parse_elaborated_enum_specifier(ElaboratedTypeSpecifierAST*& yyast,
 
   parse_optional_nested_name_specifier(nestedNameSpecifier);
 
-  NameAST* name = nullptr;
+  UnqualifiedIdAST* name = nullptr;
 
   if (!parse_name_id(name)) return false;
 
@@ -5679,7 +5680,7 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast) -> bool {
   parse_optional_attribute_specifier_seq(attributes);
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-  NameAST* name = nullptr;
+  UnqualifiedIdAST* name = nullptr;
 
   (void)parse_enum_head_name(nestedNameSpecifier, name);
 
@@ -5714,14 +5715,14 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast) -> bool {
 }
 
 auto Parser::parse_enum_head_name(NestedNameSpecifierAST*& nestedNameSpecifier,
-                                  NameAST*& name) -> bool {
+                                  UnqualifiedIdAST*& name) -> bool {
   parse_optional_nested_name_specifier(nestedNameSpecifier);
 
   SourceLocation identifierLoc;
 
   if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
 
-  auto id = new (pool) SimpleNameAST();
+  auto id = new (pool) NameIdAST();
   id->identifierLoc = identifierLoc;
   id->identifier = unit->identifier(id->identifierLoc);
 
@@ -5735,7 +5736,7 @@ auto Parser::parse_opaque_enum_declaration(DeclarationAST*& yyast) -> bool {
   SourceLocation classLoc;
   List<AttributeSpecifierAST*>* attributes = nullptr;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-  NameAST* name = nullptr;
+  UnqualifiedIdAST* name = nullptr;
   EnumBaseAST* enumBase = nullptr;
   SourceLocation semicolonLoc;
 
@@ -5895,7 +5896,7 @@ auto Parser::parse_namespace_definition(DeclarationAST*& yyast) -> bool {
     expect(TokenKind::T_IDENTIFIER, name->identifierLoc);
     expect(TokenKind::T_COLON_COLON, name->scopeLoc);
 
-    name->namespaceName = unit->identifier(name->identifierLoc);
+    name->identifier = unit->identifier(name->identifierLoc);
 
     *it = new (pool) List(name);
     it = &(*it)->next;
@@ -5929,7 +5930,7 @@ auto Parser::parse_namespace_definition(DeclarationAST*& yyast) -> bool {
       name->inlineLoc = inlineLoc;
       name->identifierLoc = identifierLoc;
       name->scopeLoc = scopeLoc;
-      name->namespaceName = unit->identifier(name->identifierLoc);
+      name->identifier = unit->identifier(name->identifierLoc);
       name->isInline = isInline;
 
       *it = new (pool) List(name);
@@ -5944,7 +5945,7 @@ auto Parser::parse_namespace_definition(DeclarationAST*& yyast) -> bool {
     match(TokenKind::T_IDENTIFIER, ast->identifierLoc);
   }
 
-  ast->namespaceName = unit->identifier(ast->identifierLoc);
+  ast->identifier = unit->identifier(ast->identifierLoc);
 
   parse_optional_attribute_specifier_seq(ast->extraAttributeList);
 
@@ -6008,14 +6009,15 @@ auto Parser::parse_namespace_alias_definition(DeclarationAST*& yyast) -> bool {
 }
 
 auto Parser::parse_qualified_namespace_specifier(
-    NestedNameSpecifierAST*& nestedNameSpecifier, NameAST*& name) -> bool {
+    NestedNameSpecifierAST*& nestedNameSpecifier, UnqualifiedIdAST*& name)
+    -> bool {
   parse_optional_nested_name_specifier(nestedNameSpecifier);
 
   SourceLocation identifierLoc;
 
   if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
 
-  auto id = new (pool) SimpleNameAST();
+  auto id = new (pool) NameIdAST();
   id->identifierLoc = identifierLoc;
   id->identifier = unit->identifier(id->identifierLoc);
 
@@ -6124,7 +6126,7 @@ auto Parser::parse_using_declarator(UsingDeclaratorAST*& yyast) -> bool {
 
   parse_optional_nested_name_specifier(nestedNameSpecifier);
 
-  NameAST* unqualifiedId = nullptr;
+  UnqualifiedIdAST* unqualifiedId = nullptr;
 
   if (!parse_unqualified_id(unqualifiedId, /*isTemplateIntroduced*/ false,
                             /*inRequiresClause*/ false))
@@ -6762,7 +6764,7 @@ auto Parser::parse_class_specifier(SpecifierAST*& yyast) -> bool {
   SourceLocation classLoc;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-  NameAST* className = nullptr;
+  UnqualifiedIdAST* className = nullptr;
   BaseClauseAST* baseClause = nullptr;
   SourceLocation finalLoc;
 
@@ -6848,7 +6850,7 @@ void Parser::parse_class_body(List<DeclarationAST*>*& yyast) {
 auto Parser::parse_class_head(SourceLocation& classLoc,
                               List<AttributeSpecifierAST*>*& attributeList,
                               NestedNameSpecifierAST*& nestedNameSpecifier,
-                              NameAST*& name, SourceLocation& finalLoc,
+                              UnqualifiedIdAST*& name, SourceLocation& finalLoc,
                               BaseClauseAST*& baseClause) -> bool {
   if (!parse_class_key(classLoc)) return false;
 
@@ -6864,12 +6866,12 @@ auto Parser::parse_class_head(SourceLocation& classLoc,
 }
 
 auto Parser::parse_class_head_name(NestedNameSpecifierAST*& nestedNameSpecifier,
-                                   NameAST*& yyast) -> bool {
+                                   UnqualifiedIdAST*& yyast) -> bool {
   parse_optional_nested_name_specifier(nestedNameSpecifier);
 
   check_type_traits();
 
-  NameAST* name = nullptr;
+  UnqualifiedIdAST* name = nullptr;
 
   if (!parse_type_name(name)) return false;
 
@@ -7186,7 +7188,7 @@ auto Parser::parse_pure_specifier(SourceLocation& equalLoc,
   return true;
 }
 
-auto Parser::parse_conversion_function_id(ConversionFunctionNameAST*& yyast)
+auto Parser::parse_conversion_function_id(ConversionFunctionIdAST*& yyast)
     -> bool {
   LookaheadParser lookahead{this};
 
@@ -7208,7 +7210,7 @@ auto Parser::parse_conversion_function_id(ConversionFunctionNameAST*& yyast)
   typeId->typeSpecifierList = typeSpecifierList;
   typeId->declarator = declarator;
 
-  auto ast = new (pool) ConversionFunctionNameAST();
+  auto ast = new (pool) ConversionFunctionIdAST();
   yyast = ast;
 
   ast->operatorLoc = operatorLoc;
@@ -7299,7 +7301,7 @@ void Parser::parse_base_specifier(BaseSpecifierAST*& yyast) {
 
 auto Parser::parse_class_or_decltype(
     NestedNameSpecifierAST*& yynestedNameSpecifier,
-    SourceLocation& yytemplateLoc, NameAST*& yyast) -> bool {
+    SourceLocation& yytemplateLoc, UnqualifiedIdAST*& yyast) -> bool {
   LookaheadParser lookahead{this};
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
@@ -7308,10 +7310,10 @@ auto Parser::parse_class_or_decltype(
   SourceLocation templateLoc;
   const auto isTemplateIntroduced = match(TokenKind::T_TEMPLATE, templateLoc);
 
-  NameAST* unqualifiedName = nullptr;
+  UnqualifiedIdAST* unqualifiedName = nullptr;
 
   if (isTemplateIntroduced) {
-    if (SimpleTemplateNameAST* templateId = nullptr;
+    if (SimpleTemplateIdAST* templateId = nullptr;
         parse_simple_template_id(templateId, isTemplateIntroduced)) {
       unqualifiedName = templateId;
     } else {
@@ -7319,10 +7321,10 @@ auto Parser::parse_class_or_decltype(
     }
   } else if (DecltypeSpecifierAST* decltypeSpecifier = nullptr;
              parse_decltype_specifier(decltypeSpecifier)) {
-    DecltypeNameAST* decltypeName = new (pool) DecltypeNameAST();
+    DecltypeIdAST* decltypeName = new (pool) DecltypeIdAST();
     decltypeName->decltypeSpecifier = decltypeSpecifier;
     unqualifiedName = decltypeName;
-  } else if (NameAST* name = nullptr; parse_type_name(name)) {
+  } else if (UnqualifiedIdAST* name = nullptr; parse_type_name(name)) {
     unqualifiedName = name;
   } else {
     return false;
@@ -7385,7 +7387,7 @@ void Parser::parse_mem_initializer_list(List<MemInitializerAST*>*& yyast) {
 
 void Parser::parse_mem_initializer(MemInitializerAST*& yyast) {
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-  NameAST* name = nullptr;
+  UnqualifiedIdAST* name = nullptr;
 
   if (!parse_mem_initializer_id(nestedNameSpecifier, name))
     parse_error("expected an member id");
@@ -7426,7 +7428,8 @@ void Parser::parse_mem_initializer(MemInitializerAST*& yyast) {
 }
 
 auto Parser::parse_mem_initializer_id(
-    NestedNameSpecifierAST*& yynestedNameSpecifier, NameAST*& yyast) -> bool {
+    NestedNameSpecifierAST*& yynestedNameSpecifier, UnqualifiedIdAST*& yyast)
+    -> bool {
   auto lookat_class_or_decltype = [&] {
     LookaheadParser lookahead{this};
     NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
@@ -7443,7 +7446,7 @@ auto Parser::parse_mem_initializer_id(
   SourceLocation identifierLoc;
 
   if (match(TokenKind::T_IDENTIFIER, identifierLoc)) {
-    auto name = new (pool) SimpleNameAST();
+    auto name = new (pool) NameIdAST();
     yyast = name;
     name->identifierLoc = identifierLoc;
     name->identifier = unit->identifier(identifierLoc);
@@ -7453,8 +7456,7 @@ auto Parser::parse_mem_initializer_id(
   return false;
 }
 
-auto Parser::parse_operator_function_id(OperatorFunctionNameAST*& yyast)
-    -> bool {
+auto Parser::parse_operator_function_id(OperatorFunctionIdAST*& yyast) -> bool {
   SourceLocation operatorLoc;
 
   if (!match(TokenKind::T_OPERATOR, operatorLoc)) return false;
@@ -7466,7 +7468,7 @@ auto Parser::parse_operator_function_id(OperatorFunctionNameAST*& yyast)
 
   if (!parse_operator(op, opLoc, openLoc, closeLoc)) return false;
 
-  auto ast = new (pool) OperatorFunctionNameAST();
+  auto ast = new (pool) OperatorFunctionIdAST();
   yyast = ast;
 
   ast->operatorLoc = operatorLoc;
@@ -7572,7 +7574,7 @@ auto Parser::parse_operator(TokenKind& op, SourceLocation& opLoc,
   }  // switch
 }
 
-auto Parser::parse_literal_operator_id(LiteralOperatorNameAST*& yyast) -> bool {
+auto Parser::parse_literal_operator_id(LiteralOperatorIdAST*& yyast) -> bool {
   SourceLocation operatorLoc;
 
   auto lookat_literal_operator_id = [&] {
@@ -7591,7 +7593,7 @@ auto Parser::parse_literal_operator_id(LiteralOperatorNameAST*& yyast) -> bool {
 
   if (!lookat_literal_operator_id()) return false;
 
-  auto ast = new (pool) LiteralOperatorNameAST();
+  auto ast = new (pool) LiteralOperatorIdAST();
   yyast = ast;
 
   ast->operatorLoc = operatorLoc;
@@ -7988,10 +7990,11 @@ auto Parser::parse_type_constraint(TypeConstraintAST*& yyast,
   return true;
 }
 
-auto Parser::parse_simple_template_or_name_id(NameAST*& yyast) -> bool {
+auto Parser::parse_simple_template_or_name_id(UnqualifiedIdAST*& yyast)
+    -> bool {
   auto lookat_simple_template_id = [&] {
     LookaheadParser lookahead{this};
-    SimpleTemplateNameAST* templateName = nullptr;
+    SimpleTemplateIdAST* templateName = nullptr;
     if (!parse_simple_template_id(templateName)) return false;
     lookahead.commit();
     yyast = templateName;
@@ -8003,7 +8006,7 @@ auto Parser::parse_simple_template_or_name_id(NameAST*& yyast) -> bool {
   return parse_name_id(yyast);
 }
 
-auto Parser::parse_simple_template_id(SimpleTemplateNameAST*& yyast,
+auto Parser::parse_simple_template_id(SimpleTemplateIdAST*& yyast,
                                       bool isTemplateIntroduced) -> bool {
   LookaheadParser lookahead{this};
 
@@ -8026,7 +8029,7 @@ auto Parser::parse_simple_template_id(SimpleTemplateNameAST*& yyast,
 
   lookahead.commit();
 
-  auto ast = new (pool) SimpleTemplateNameAST();
+  auto ast = new (pool) SimpleTemplateIdAST();
   yyast = ast;
 
   ast->identifierLoc = identifierLoc;
@@ -8039,22 +8042,22 @@ auto Parser::parse_simple_template_id(SimpleTemplateNameAST*& yyast,
 }
 
 auto Parser::parse_literal_operator_template_id(
-    LiteralOperatorTemplateNameAST*& yyast) -> bool {
+    LiteralOperatorTemplateIdAST*& yyast) -> bool {
   if (!lookat(TokenKind::T_OPERATOR)) return false;
 
   LookaheadParser lookahead{this};
 
-  LiteralOperatorNameAST* literalOperatorName = nullptr;
+  LiteralOperatorIdAST* literalOperatorName = nullptr;
   if (!parse_literal_operator_id(literalOperatorName)) return false;
 
   if (!lookat(TokenKind::T_LESS)) return false;
 
   lookahead.commit();
 
-  auto ast = new (pool) LiteralOperatorTemplateNameAST();
+  auto ast = new (pool) LiteralOperatorTemplateIdAST();
   yyast = ast;
 
-  ast->literalOperatorName = literalOperatorName;
+  ast->literalOperatorId = literalOperatorName;
   expect(TokenKind::T_LESS, ast->lessLoc);
   if (!match(TokenKind::T_GREATER, ast->greaterLoc)) {
     if (!parse_template_argument_list(ast->templateArgumentList))
@@ -8066,22 +8069,22 @@ auto Parser::parse_literal_operator_template_id(
 }
 
 auto Parser::parse_function_operator_template_id(
-    OperatorFunctionTemplateNameAST*& yyast) -> bool {
+    OperatorFunctionTemplateIdAST*& yyast) -> bool {
   if (!lookat(TokenKind::T_OPERATOR)) return false;
 
   LookaheadParser lookahead{this};
 
-  OperatorFunctionNameAST* operatorFunctionName = nullptr;
+  OperatorFunctionIdAST* operatorFunctionName = nullptr;
   if (!parse_operator_function_id(operatorFunctionName)) return false;
 
   if (!lookat(TokenKind::T_LESS)) return false;
 
   lookahead.commit();
 
-  auto ast = new (pool) OperatorFunctionTemplateNameAST();
+  auto ast = new (pool) OperatorFunctionTemplateIdAST();
   yyast = ast;
 
-  ast->operatorFunctionName = operatorFunctionName;
+  ast->operatorFunctionId = operatorFunctionName;
   expect(TokenKind::T_LESS, ast->lessLoc);
   if (!match(TokenKind::T_GREATER, ast->greaterLoc)) {
     if (!parse_template_argument_list(ast->templateArgumentList))
@@ -8092,16 +8095,16 @@ auto Parser::parse_function_operator_template_id(
   return true;
 }
 
-auto Parser::parse_template_id(NameAST*& yyast) -> bool {
-  if (LiteralOperatorTemplateNameAST* templateName = nullptr;
+auto Parser::parse_template_id(UnqualifiedIdAST*& yyast) -> bool {
+  if (LiteralOperatorTemplateIdAST* templateName = nullptr;
       parse_literal_operator_template_id(templateName)) {
     yyast = templateName;
     return true;
-  } else if (OperatorFunctionTemplateNameAST* templateName = nullptr;
+  } else if (OperatorFunctionTemplateIdAST* templateName = nullptr;
              parse_function_operator_template_id(templateName)) {
     yyast = templateName;
     return true;
-  } else if (SimpleTemplateNameAST* templateName = nullptr;
+  } else if (SimpleTemplateIdAST* templateName = nullptr;
              parse_simple_template_id(templateName)) {
     yyast = templateName;
     return true;
@@ -8260,7 +8263,7 @@ auto Parser::parse_deduction_guide(DeclarationAST*& yyast) -> bool {
 
   expect(TokenKind::T_MINUS_GREATER, arrowLoc);
 
-  SimpleTemplateNameAST* templateId = nullptr;
+  SimpleTemplateIdAST* templateId = nullptr;
 
   if (!parse_simple_template_id(templateId)) {
     parse_error("expected a template id");
@@ -8317,7 +8320,7 @@ auto Parser::parse_typename_specifier(SpecifierAST*& yyast) -> bool {
   SourceLocation typenameLoc;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   SourceLocation templateLoc;
-  NameAST* name = nullptr;
+  UnqualifiedIdAST* name = nullptr;
 
   auto lookat_typename_specifier = [&] {
     LookaheadParser lookahead{this};
@@ -8539,29 +8542,29 @@ auto Parser::parse_noexcept_specifier(ExceptionSpecifierAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_identifier_list(List<NameAST*>*& yyast) -> bool {
+auto Parser::parse_identifier_list(List<UnqualifiedIdAST*>*& yyast) -> bool {
   auto it = &yyast;
 
-  NameAST* id = nullptr;
+  UnqualifiedIdAST* id = nullptr;
 
   if (!parse_name_id(id)) return false;
 
   if (id) {
-    *it = new (pool) List<NameAST*>(id);
+    *it = new (pool) List<UnqualifiedIdAST*>(id);
     it = &(*it)->next;
   }
 
   SourceLocation commaLoc;
 
   while (match(TokenKind::T_COMMA, commaLoc)) {
-    NameAST* id = nullptr;
+    UnqualifiedIdAST* id = nullptr;
 
     if (!parse_name_id(id)) {
       parse_error("expected an identifier");
     }
 
     if (id) {
-      *it = new (pool) List<NameAST*>(id);
+      *it = new (pool) List<UnqualifiedIdAST*>(id);
       it = &(*it)->next;
     }
   }
