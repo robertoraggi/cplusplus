@@ -546,12 +546,15 @@ table AsmAttribute /* AttributeSpecifierAST */ {
 }
 
 table ScopedAttributeToken /* AttributeTokenAST */ {
+  attribute_namespace: string;
+  identifier: string;
   attribute_namespace_loc: SourceLocation;
   scope_loc: SourceLocation;
   identifier_loc: SourceLocation;
 }
 
 table SimpleAttributeToken /* AttributeTokenAST */ {
+  identifier: string;
   identifier_loc: SourceLocation;
 }
 

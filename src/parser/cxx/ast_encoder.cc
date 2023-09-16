@@ -5633,10 +5633,36 @@ void ASTEncoder::visit(ScopedAttributeTokenAST* ast) {
 
   auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
 
+  flatbuffers::Offset<flatbuffers::String> attributeNamespace;
+  if (ast->attributeNamespace) {
+    if (identifiers_.contains(ast->attributeNamespace)) {
+      attributeNamespace = identifiers_.at(ast->attributeNamespace);
+    } else {
+      attributeNamespace = fbb_.CreateString(ast->attributeNamespace->value());
+      identifiers_.emplace(ast->attributeNamespace, attributeNamespace);
+    }
+  }
+
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->value());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
   io::ScopedAttributeToken::Builder builder{fbb_};
   builder.add_attribute_namespace_loc(attributeNamespaceLoc.o);
   builder.add_scope_loc(scopeLoc.o);
   builder.add_identifier_loc(identifierLoc.o);
+  if (ast->attributeNamespace) {
+    builder.add_attribute_namespace(attributeNamespace);
+  }
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
 
   offset_ = builder.Finish().Union();
   type_ = io::AttributeToken_ScopedAttributeToken;
@@ -5645,8 +5671,21 @@ void ASTEncoder::visit(ScopedAttributeTokenAST* ast) {
 void ASTEncoder::visit(SimpleAttributeTokenAST* ast) {
   auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
 
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->value());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
   io::SimpleAttributeToken::Builder builder{fbb_};
   builder.add_identifier_loc(identifierLoc.o);
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
 
   offset_ = builder.Finish().Union();
   type_ = io::AttributeToken_SimpleAttributeToken;

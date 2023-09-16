@@ -5494,6 +5494,14 @@ export class ScopedAttributeTokenAST extends AttributeTokenAST {
   getIdentifierToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
   }
+  getAttributeNamespace(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 3);
+    return cxx.getIdentifierValue(slot);
+  }
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 4);
+    return cxx.getIdentifierValue(slot);
+  }
 }
 
 export class SimpleAttributeTokenAST extends AttributeTokenAST {
@@ -5505,6 +5513,10 @@ export class SimpleAttributeTokenAST extends AttributeTokenAST {
   }
   getIdentifierToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 1);
+    return cxx.getIdentifierValue(slot);
   }
 }
 
