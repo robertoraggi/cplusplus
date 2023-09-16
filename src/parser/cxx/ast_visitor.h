@@ -30,7 +30,6 @@ class ASTVisitor {
 
   // AST
   virtual void visit(TypeIdAST* ast) = 0;
-  virtual void visit(NestedNameSpecifierAST* ast) = 0;
   virtual void visit(UsingDeclaratorAST* ast) = 0;
   virtual void visit(HandlerAST* ast) = 0;
   virtual void visit(EnumBaseAST* ast) = 0;
@@ -62,6 +61,12 @@ class ASTVisitor {
   virtual void visit(AttributeUsingPrefixAST* ast) = 0;
   virtual void visit(DesignatorAST* ast) = 0;
   virtual void visit(NewPlacementAST* ast) = 0;
+
+  // NestedNameSpecifierAST
+  virtual void visit(GlobalNestedNameSpecifierAST* ast) = 0;
+  virtual void visit(SimpleNestedNameSpecifierAST* ast) = 0;
+  virtual void visit(DecltypeNestedNameSpecifierAST* ast) = 0;
+  virtual void visit(TemplateNestedNameSpecifierAST* ast) = 0;
 
   // ExceptionSpecifierAST
   virtual void visit(ThrowExceptionSpecifierAST* ast) = 0;

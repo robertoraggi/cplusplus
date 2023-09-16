@@ -735,7 +735,7 @@ auto Parser::parse_unqualified_id(NameAST*& yyast, bool inRequiresClause)
   SourceLocation tildeLoc;
 
   if (match(TokenKind::T_TILDE, tildeLoc)) {
-    SpecifierAST* decltypeSpecifier = nullptr;
+    DecltypeSpecifierAST* decltypeSpecifier = nullptr;
 
     if (parse_decltype_specifier(decltypeSpecifier)) {
       auto decltypeName = new (pool) DecltypeNameAST();
@@ -808,47 +808,6 @@ auto Parser::parse_qualified_id(NameAST*& yyast, bool inRequiresClause)
   return true;
 }
 
-auto Parser::parse_start_of_nested_name_specifier(NameAST*& yyast,
-                                                  SourceLocation& scopeLoc)
-    -> bool {
-  yyast = nullptr;
-
-  if (match(TokenKind::T_COLON_COLON, scopeLoc)) return true;
-
-  auto lookat_decltype_specifier = [&] {
-    LookaheadParser lookahead{this};
-    SpecifierAST* decltypeSpecifier = nullptr;
-    if (!parse_decltype_specifier(decltypeSpecifier)) return false;
-    if (!match(TokenKind::T_COLON_COLON, scopeLoc)) return false;
-    lookahead.commit();
-    auto ast = new (pool) DecltypeNameAST();
-    yyast = ast;
-    ast->decltypeSpecifier = decltypeSpecifier;
-    return true;
-  };
-
-  auto lookat_simple_template_id = [&] {
-    LookaheadParser lookahead{this};
-    NameAST* templateId = nullptr;
-    if (!parse_simple_template_id(templateId)) return false;
-    if (!match(TokenKind::T_COLON_COLON, scopeLoc)) return false;
-    lookahead.commit();
-    yyast = templateId;
-    return true;
-  };
-
-  if (lookat_decltype_specifier()) return true;
-  if (lookat_simple_template_id()) return true;
-
-  LookaheadParser lookahead{this};
-  NameAST* nameId = nullptr;
-  if (!parse_name_id(nameId)) return false;
-  if (!match(TokenKind::T_COLON_COLON, scopeLoc)) return false;
-  lookahead.commit();
-  yyast = nameId;
-  return true;
-}
-
 void Parser::parse_optional_nested_name_specifier(
     NestedNameSpecifierAST*& yyast) {
   LookaheadParser lookahead(this);
@@ -858,87 +817,113 @@ void Parser::parse_optional_nested_name_specifier(
 
 auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
     -> bool {
+  auto lookat_global_nested_name_specifier = [&] {
+    if (yyast) return false;
+
+    SourceLocation scopeLoc;
+    if (!match(TokenKind::T_COLON_COLON, scopeLoc)) return false;
+
+    auto ast = new (pool) GlobalNestedNameSpecifierAST();
+    yyast = ast;
+    ast->scopeLoc = scopeLoc;
+
+    return true;
+  };
+
+  auto lookat_decltype_nested_name_specifier = [&] {
+    if (yyast) return false;
+
+    LookaheadParser lookahead{this};
+
+    DecltypeSpecifierAST* decltypeSpecifier = nullptr;
+    if (!parse_decltype_specifier(decltypeSpecifier)) return false;
+
+    SourceLocation scopeLoc;
+    if (!match(TokenKind::T_COLON_COLON, scopeLoc)) return false;
+
+    lookahead.commit();
+
+    auto ast = new (pool) DecltypeNestedNameSpecifierAST();
+    ast->nestedNameSpecifier = yyast;
+    yyast = ast;
+
+    ast->decltypeSpecifier = decltypeSpecifier;
+    ast->scopeLoc = scopeLoc;
+
+    return true;
+  };
+
+  auto lookat_simple_nested_name_specifier = [&] {
+    if (!lookat(TokenKind::T_IDENTIFIER, TokenKind::T_COLON_COLON))
+      return false;
+
+    auto ast = new (pool) SimpleNestedNameSpecifierAST();
+    ast->nestedNameSpecifier = yyast;
+    yyast = ast;
+
+    ast->identifierLoc = consumeToken();
+    ast->identifier = unit->identifier(ast->identifierLoc);
+    ast->scopeLoc = consumeToken();
+
+    return true;
+  };
+
+  auto lookat_template_nested_name_specifier = [&] {
+    LookaheadParser lookahead{this};
+
+    SourceLocation templateLoc;
+    match(TokenKind::T_TEMPLATE, templateLoc);
+
+    NameAST* templateName = nullptr;
+    if (!parse_simple_template_id(templateName)) return false;
+
+    SourceLocation scopeLoc;
+    if (!match(TokenKind::T_COLON_COLON, scopeLoc)) return false;
+
+    lookahead.commit();
+
+    auto ast = new (pool) TemplateNestedNameSpecifierAST();
+    ast->nestedNameSpecifier = yyast;
+    yyast = ast;
+
+    ast->templateLoc = templateLoc;
+    ast->templateName = static_cast<TemplateNameAST*>(templateName);
+    ast->scopeLoc = scopeLoc;
+
+    return true;
+  };
+
   const auto start = currentLocation();
 
-  auto it = nested_name_specifiers_.find(start);
-
-  if (it != nested_name_specifiers_.end()) {
+  if (auto it = nested_name_specifiers_.find(start);
+      it != nested_name_specifiers_.end()) {
     auto [cursor, ast, parsed] = it->second;
     rewind(cursor);
     yyast = ast;
     return parsed;
   }
 
-  struct Context {
-    Parser* p;
-    SourceLocation start;
-    NestedNameSpecifierAST* ast = nullptr;
-    bool parsed = false;
-
-    explicit Context(Parser* p) : p(p), start(p->currentLocation()) {}
-
-    ~Context() {
-      p->nested_name_specifiers_.emplace(
-          start, std::make_tuple(p->currentLocation(), ast, parsed));
-    }
-  };
-
-  Context context(this);
-
-  NameAST* name = nullptr;
-  SourceLocation scopeLoc;
-
-  if (!parse_start_of_nested_name_specifier(name, scopeLoc)) return false;
-
-  auto ast = new (pool) NestedNameSpecifierAST();
-  context.ast = ast;
-  yyast = ast;
-
-  auto nameIt = &ast->nameList;
-
-  if (!name) {
-    ast->scopeLoc = scopeLoc;
-  } else {
-    *nameIt = new (pool) List(name);
-    nameIt = &(*nameIt)->next;
-  }
-
-  LoopParser loop(this);
+  yyast = nullptr;
 
   while (true) {
-    loop.start();
-
-    if (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_COLON_COLON)) {
-      NameAST* name = nullptr;
-      (void)parse_name_id(name);
-
-      SourceLocation scopeLoc;
-
-      expect(TokenKind::T_COLON_COLON, scopeLoc);
-
-      *nameIt = new (pool) List(name);
-      nameIt = &(*nameIt)->next;
-    } else {
-      auto lookat_template_id = [&] {
-        LookaheadParser lookahead{this};
-        SourceLocation templateLoc;
-        const auto hasTemplate = match(TokenKind::T_TEMPLATE, templateLoc);
-        NameAST* name = nullptr;
-        if (!parse_simple_template_id(name)) return false;
-        if (!match(TokenKind::T_COLON_COLON, scopeLoc)) return false;
-        lookahead.commit();
-        *nameIt = new (pool) List(name);
-        nameIt = &(*nameIt)->next;
-        return true;
-      };
-
-      if (!lookat_template_id()) break;
-    }
+    if (lookat_global_nested_name_specifier())
+      continue;
+    else if (lookat_simple_nested_name_specifier())
+      continue;
+    else if (lookat_decltype_nested_name_specifier())
+      continue;
+    else if (lookat_template_nested_name_specifier())
+      continue;
+    else
+      break;
   }
 
-  context.parsed = true;
+  const auto parsed = yyast != nullptr;
 
-  return true;
+  nested_name_specifiers_.emplace(
+      start, std::make_tuple(currentLocation(), yyast, parsed));
+
+  return parsed;
 }
 
 auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
@@ -4207,8 +4192,8 @@ auto Parser::parse_simple_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   if (parse_primitive_type_specifier(yyast, specs)) return true;
   if (parse_underlying_type_specifier(yyast, specs)) return true;
   if (parse_atomic_type_specifier(yyast, specs)) return true;
-  if (parse_decltype_specifier_type_specifier(yyast, specs)) return true;
   if (parse_named_type_specifier(yyast, specs)) return true;
+  if (parse_decltype_specifier_type_specifier(yyast, specs)) return true;
 
   return false;
 }
@@ -4280,7 +4265,10 @@ auto Parser::parse_decltype_specifier_type_specifier(SpecifierAST*& yyast,
                                                      DeclSpecs& specs) -> bool {
   if (specs.has_typespec()) return false;
 
-  if (!parse_decltype_specifier(yyast)) return false;
+  DecltypeSpecifierAST* decltypeSpecifier = nullptr;
+  if (!parse_decltype_specifier(decltypeSpecifier)) return false;
+
+  yyast = decltypeSpecifier;
 
   specs.has_placeholder_typespec = true;
 
@@ -4608,7 +4596,7 @@ auto Parser::parse_decl_specifier_seq_no_typespecs(List<SpecifierAST*>*& yyast)
   return parse_decl_specifier_seq_no_typespecs(yyast, specs);
 }
 
-auto Parser::parse_decltype_specifier(SpecifierAST*& yyast) -> bool {
+auto Parser::parse_decltype_specifier(DecltypeSpecifierAST*& yyast) -> bool {
   SourceLocation decltypeLoc;
 
   if (match(TokenKind::T_DECLTYPE, decltypeLoc)) {
@@ -7362,7 +7350,7 @@ auto Parser::parse_class_or_decltype(NameAST*& yyast) -> bool {
 
   if (lookat_qualified_name()) return true;
 
-  SpecifierAST* decltypeSpecifier = nullptr;
+  DecltypeSpecifierAST* decltypeSpecifier = nullptr;
 
   if (parse_decltype_specifier(decltypeSpecifier)) {
     auto ast = new (pool) DecltypeNameAST();

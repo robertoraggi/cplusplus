@@ -69,19 +69,6 @@ void ASTPrinter::visit(TypeIdAST* ast) {
   accept(ast->declarator, "declarator");
 }
 
-void ASTPrinter::visit(NestedNameSpecifierAST* ast) {
-  fmt::print(out_, "{}\n", "nested-name-specifier");
-  if (ast->nameList) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "name-list");
-    for (auto it = ast->nameList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-}
-
 void ASTPrinter::visit(UsingDeclaratorAST* ast) {
   fmt::print(out_, "{}\n", "using-declarator");
   accept(ast->nestedNameSpecifier, "nested-name-specifier");
@@ -455,6 +442,28 @@ void ASTPrinter::visit(NewPlacementAST* ast) {
     }
     --indent_;
   }
+}
+
+void ASTPrinter::visit(GlobalNestedNameSpecifierAST* ast) {
+  fmt::print(out_, "{}\n", "global-nested-name-specifier");
+}
+
+void ASTPrinter::visit(SimpleNestedNameSpecifierAST* ast) {
+  fmt::print(out_, "{}\n", "simple-nested-name-specifier");
+  accept(ast->identifier, "identifier");
+  accept(ast->nestedNameSpecifier, "nested-name-specifier");
+}
+
+void ASTPrinter::visit(DecltypeNestedNameSpecifierAST* ast) {
+  fmt::print(out_, "{}\n", "decltype-nested-name-specifier");
+  accept(ast->nestedNameSpecifier, "nested-name-specifier");
+  accept(ast->decltypeSpecifier, "decltype-specifier");
+}
+
+void ASTPrinter::visit(TemplateNestedNameSpecifierAST* ast) {
+  fmt::print(out_, "{}\n", "template-nested-name-specifier");
+  accept(ast->nestedNameSpecifier, "nested-name-specifier");
+  accept(ast->templateName, "template-name");
 }
 
 void ASTPrinter::visit(ThrowExceptionSpecifierAST* ast) {

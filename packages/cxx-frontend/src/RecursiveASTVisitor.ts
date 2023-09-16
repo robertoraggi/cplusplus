@@ -37,15 +37,6 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     this.accept(node.getDeclarator(), context);
   }
 
-  visitNestedNameSpecifier(
-    node: ast.NestedNameSpecifierAST,
-    context: Context,
-  ): void {
-    for (const element of node.getNameList()) {
-      this.accept(element, context);
-    }
-  }
-
   visitUsingDeclarator(node: ast.UsingDeclaratorAST, context: Context): void {
     this.accept(node.getNestedNameSpecifier(), context);
     this.accept(node.getName(), context);
@@ -253,6 +244,34 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     for (const element of node.getExpressionList()) {
       this.accept(element, context);
     }
+  }
+
+  visitGlobalNestedNameSpecifier(
+    node: ast.GlobalNestedNameSpecifierAST,
+    context: Context,
+  ): void {}
+
+  visitSimpleNestedNameSpecifier(
+    node: ast.SimpleNestedNameSpecifierAST,
+    context: Context,
+  ): void {
+    this.accept(node.getNestedNameSpecifier(), context);
+  }
+
+  visitDecltypeNestedNameSpecifier(
+    node: ast.DecltypeNestedNameSpecifierAST,
+    context: Context,
+  ): void {
+    this.accept(node.getNestedNameSpecifier(), context);
+    this.accept(node.getDecltypeSpecifier(), context);
+  }
+
+  visitTemplateNestedNameSpecifier(
+    node: ast.TemplateNestedNameSpecifierAST,
+    context: Context,
+  ): void {
+    this.accept(node.getNestedNameSpecifier(), context);
+    this.accept(node.getTemplateName(), context);
   }
 
   visitThrowExceptionSpecifier(

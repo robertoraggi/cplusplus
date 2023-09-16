@@ -25,10 +25,6 @@ export abstract class ASTVisitor<Context, Result> {
 
   // AST
   abstract visitTypeId(node: ast.TypeIdAST, context: Context): Result;
-  abstract visitNestedNameSpecifier(
-    node: ast.NestedNameSpecifierAST,
-    context: Context,
-  ): Result;
   abstract visitUsingDeclarator(
     node: ast.UsingDeclaratorAST,
     context: Context,
@@ -121,6 +117,24 @@ export abstract class ASTVisitor<Context, Result> {
   abstract visitDesignator(node: ast.DesignatorAST, context: Context): Result;
   abstract visitNewPlacement(
     node: ast.NewPlacementAST,
+    context: Context,
+  ): Result;
+
+  // NestedNameSpecifierAST
+  abstract visitGlobalNestedNameSpecifier(
+    node: ast.GlobalNestedNameSpecifierAST,
+    context: Context,
+  ): Result;
+  abstract visitSimpleNestedNameSpecifier(
+    node: ast.SimpleNestedNameSpecifierAST,
+    context: Context,
+  ): Result;
+  abstract visitDecltypeNestedNameSpecifier(
+    node: ast.DecltypeNestedNameSpecifierAST,
+    context: Context,
+  ): Result;
+  abstract visitTemplateNestedNameSpecifier(
+    node: ast.TemplateNestedNameSpecifierAST,
     context: Context,
   ): Result;
 

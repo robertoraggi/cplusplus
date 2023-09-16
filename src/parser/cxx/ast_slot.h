@@ -46,7 +46,6 @@ class ASTSlot final : ASTVisitor {
 
  private:
   void visit(TypeIdAST* ast) override;
-  void visit(NestedNameSpecifierAST* ast) override;
   void visit(UsingDeclaratorAST* ast) override;
   void visit(HandlerAST* ast) override;
   void visit(EnumBaseAST* ast) override;
@@ -78,6 +77,11 @@ class ASTSlot final : ASTVisitor {
   void visit(AttributeUsingPrefixAST* ast) override;
   void visit(DesignatorAST* ast) override;
   void visit(NewPlacementAST* ast) override;
+
+  void visit(GlobalNestedNameSpecifierAST* ast) override;
+  void visit(SimpleNestedNameSpecifierAST* ast) override;
+  void visit(DecltypeNestedNameSpecifierAST* ast) override;
+  void visit(TemplateNestedNameSpecifierAST* ast) override;
 
   void visit(ThrowExceptionSpecifierAST* ast) override;
   void visit(NoexceptSpecifierAST* ast) override;
