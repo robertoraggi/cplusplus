@@ -225,7 +225,6 @@ class ASTSlot final : ASTVisitor {
   void visit(SimpleTemplateNameAST* ast) override;
   void visit(LiteralOperatorTemplateNameAST* ast) override;
   void visit(OperatorFunctionTemplateNameAST* ast) override;
-  void visit(QualifiedNameAST* ast) override;
 
   void visit(TypedefSpecifierAST* ast) override;
   void visit(FriendSpecifierAST* ast) override;

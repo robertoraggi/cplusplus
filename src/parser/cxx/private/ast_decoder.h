@@ -412,7 +412,6 @@ class ASTDecoder {
   auto decodeOperatorFunctionTemplateName(
       const io::OperatorFunctionTemplateName* node)
       -> OperatorFunctionTemplateNameAST*;
-  auto decodeQualifiedName(const io::QualifiedName* node) -> QualifiedNameAST*;
 
   auto decodeTypedefSpecifier(const io::TypedefSpecifier* node)
       -> TypedefSpecifierAST*;

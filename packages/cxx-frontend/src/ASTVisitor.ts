@@ -671,10 +671,6 @@ export abstract class ASTVisitor<Context, Result> {
     node: ast.OperatorFunctionTemplateNameAST,
     context: Context,
   ): Result;
-  abstract visitQualifiedName(
-    node: ast.QualifiedNameAST,
-    context: Context,
-  ): Result;
 
   // SpecifierAST
   abstract visitTypedefSpecifier(

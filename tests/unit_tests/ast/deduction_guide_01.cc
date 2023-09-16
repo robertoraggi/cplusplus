@@ -24,8 +24,9 @@ List(int) -> List<int>;
 // CHECK-NEXT:              function-definition
 // CHECK-NEXT:                declarator: declarator
 // CHECK-NEXT:                  core-declarator: id-declarator
-// CHECK-NEXT:                    name: simple-name
-// CHECK-NEXT:                      identifier: List
+// CHECK-NEXT:                    id-expression: id-expression
+// CHECK-NEXT:                      unqualified-id: simple-name
+// CHECK-NEXT:                        identifier: List
 // CHECK-NEXT:                  modifiers
 // CHECK-NEXT:                    function-declarator
 // CHECK-NEXT:                      parameters-and-qualifiers: parameters-and-qualifiers

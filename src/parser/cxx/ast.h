@@ -221,7 +221,7 @@ class UsingDeclaratorAST final : public AST {
 
   SourceLocation typenameLoc;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-  NameAST* name = nullptr;
+  NameAST* unqualifiedId = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -307,7 +307,10 @@ class BaseSpecifierAST final : public AST {
   BaseSpecifierAST() : AST(ASTKind::BaseSpecifier) {}
 
   List<AttributeSpecifierAST*>* attributeList = nullptr;
-  NameAST* name = nullptr;
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  SourceLocation templateLoc;
+  NameAST* unqualifiedId = nullptr;
+  bool isTemplateIntroduced = false;
   bool isVirtual = false;
   TokenKind accessSpecifier = TokenKind::T_EOF_SYMBOL;
 
@@ -895,7 +898,10 @@ class IdExpressionAST final : public ExpressionAST {
  public:
   IdExpressionAST() : ExpressionAST(ASTKind::IdExpression) {}
 
-  NameAST* name = nullptr;
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  SourceLocation templateLoc;
+  NameAST* unqualifiedId = nullptr;
+  bool isTemplateIntroduced = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1276,7 +1282,7 @@ class MemberExpressionAST final : public ExpressionAST {
   ExpressionAST* baseExpression = nullptr;
   SourceLocation accessLoc;
   SourceLocation templateLoc;
-  NameAST* name = nullptr;
+  IdExpressionAST* idExpression = nullptr;
   TokenKind accessOp = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -1501,7 +1507,7 @@ class TypeRequirementAST final : public RequirementAST {
 
   SourceLocation typenameLoc;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-  NameAST* name = nullptr;
+  NameAST* unqualifiedId = nullptr;
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -1554,7 +1560,8 @@ class ParenMemInitializerAST final : public MemInitializerAST {
  public:
   ParenMemInitializerAST() : MemInitializerAST(ASTKind::ParenMemInitializer) {}
 
-  NameAST* name = nullptr;
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  NameAST* unqualifiedId = nullptr;
   SourceLocation lparenLoc;
   List<ExpressionAST*>* expressionList = nullptr;
   SourceLocation rparenLoc;
@@ -1571,7 +1578,8 @@ class BracedMemInitializerAST final : public MemInitializerAST {
   BracedMemInitializerAST()
       : MemInitializerAST(ASTKind::BracedMemInitializer) {}
 
-  NameAST* name = nullptr;
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  NameAST* unqualifiedId = nullptr;
   BracedInitListAST* bracedInitList = nullptr;
   SourceLocation ellipsisLoc;
 
@@ -2247,7 +2255,7 @@ class OpaqueEnumDeclarationAST final : public DeclarationAST {
   SourceLocation classLoc;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-  NameAST* name = nullptr;
+  NameAST* unqualifiedId = nullptr;
   EnumBaseAST* enumBase = nullptr;
   SourceLocation emicolonLoc;
 
@@ -2305,7 +2313,7 @@ class NamespaceAliasDefinitionAST final : public DeclarationAST {
   SourceLocation identifierLoc;
   SourceLocation equalLoc;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-  NameAST* name = nullptr;
+  NameAST* unqualifiedId = nullptr;
   SourceLocation semicolonLoc;
   const Identifier* identifier = nullptr;
 
@@ -2323,7 +2331,7 @@ class UsingDirectiveAST final : public DeclarationAST {
   SourceLocation usingLoc;
   SourceLocation namespaceLoc;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-  NameAST* name = nullptr;
+  NameAST* unqualifiedId = nullptr;
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -2469,7 +2477,7 @@ class TemplateTypeParameterAST final : public DeclarationAST {
   SourceLocation classKeyLoc;
   SourceLocation identifierLoc;
   SourceLocation equalLoc;
-  NameAST* name = nullptr;
+  IdExpressionAST* idExpression = nullptr;
   const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -2689,20 +2697,6 @@ class OperatorFunctionTemplateNameAST final : public NameAST {
   SourceLocation lessLoc;
   List<TemplateArgumentAST*>* templateArgumentList = nullptr;
   SourceLocation greaterLoc;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class QualifiedNameAST final : public NameAST {
- public:
-  QualifiedNameAST() : NameAST(ASTKind::QualifiedName) {}
-
-  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-  SourceLocation templateLoc;
-  NameAST* id = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2949,7 +2943,10 @@ class NamedTypeSpecifierAST final : public SpecifierAST {
  public:
   NamedTypeSpecifierAST() : SpecifierAST(ASTKind::NamedTypeSpecifier) {}
 
-  NameAST* name = nullptr;
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  SourceLocation templateLoc;
+  NameAST* unqualifiedId = nullptr;
+  bool isTemplateIntroduced = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2996,7 +2993,7 @@ class ElaboratedTypeSpecifierAST final : public SpecifierAST {
   SourceLocation classLoc;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-  NameAST* name = nullptr;
+  NameAST* unqualifiedId = nullptr;
   TokenKind classKey = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -3093,7 +3090,7 @@ class EnumSpecifierAST final : public SpecifierAST {
   SourceLocation classLoc;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-  NameAST* name = nullptr;
+  NameAST* unqualifiedId = nullptr;
   EnumBaseAST* enumBase = nullptr;
   SourceLocation lbraceLoc;
   SourceLocation commaLoc;
@@ -3113,7 +3110,7 @@ class ClassSpecifierAST final : public SpecifierAST {
   SourceLocation classLoc;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-  NameAST* name = nullptr;
+  NameAST* unqualifiedId = nullptr;
   SourceLocation finalLoc;
   BaseClauseAST* baseClause = nullptr;
   SourceLocation lbraceLoc;
@@ -3134,7 +3131,7 @@ class TypenameSpecifierAST final : public SpecifierAST {
 
   SourceLocation typenameLoc;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-  NameAST* name = nullptr;
+  NameAST* unqualifiedId = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -3174,7 +3171,7 @@ class IdDeclaratorAST final : public CoreDeclaratorAST {
  public:
   IdDeclaratorAST() : CoreDeclaratorAST(ASTKind::IdDeclarator) {}
 
-  NameAST* name = nullptr;
+  IdExpressionAST* idExpression = nullptr;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }

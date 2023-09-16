@@ -219,7 +219,6 @@ enum struct ASTKind {
   SimpleTemplateName,
   LiteralOperatorTemplateName,
   OperatorFunctionTemplateName,
-  QualifiedName,
 
   // SpecifierAST
   TypedefSpecifier,
