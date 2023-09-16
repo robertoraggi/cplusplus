@@ -568,7 +568,7 @@ table ParameterPack /* CoreDeclaratorAST */ {
 }
 
 table IdDeclarator /* CoreDeclaratorAST */ {
-  id_expression: IdExpression;
+  declarator_id: IdExpression;
   attribute_list: [AttributeSpecifier];
 }
 
@@ -1080,7 +1080,7 @@ table SubscriptExpression /* ExpressionAST */ {
 
 table MemberExpression /* ExpressionAST */ {
   base_expression: Expression;
-  id_expression: IdExpression;
+  member_id: IdExpression;
   access_op: uint32;
   access_loc: SourceLocation;
   template_loc: SourceLocation;

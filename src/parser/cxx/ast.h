@@ -1282,7 +1282,7 @@ class MemberExpressionAST final : public ExpressionAST {
   ExpressionAST* baseExpression = nullptr;
   SourceLocation accessLoc;
   SourceLocation templateLoc;
-  IdExpressionAST* idExpression = nullptr;
+  IdExpressionAST* memberId = nullptr;
   TokenKind accessOp = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -3171,7 +3171,7 @@ class IdDeclaratorAST final : public CoreDeclaratorAST {
  public:
   IdDeclaratorAST() : CoreDeclaratorAST(ASTKind::IdDeclarator) {}
 
-  IdExpressionAST* idExpression = nullptr;
+  IdExpressionAST* declaratorId = nullptr;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }

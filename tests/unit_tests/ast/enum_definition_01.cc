@@ -17,13 +17,13 @@ enum class Kind3 : int {
   k2 = 1,
   k3 = 2,
 };
-
+// clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list
 // CHECK-NEXT:    simple-declaration
 // CHECK-NEXT:      decl-specifier-list
 // CHECK-NEXT:        enum-specifier
-// CHECK-NEXT:          name: simple-name
+// CHECK-NEXT:          unqualified-id: name-id
 // CHECK-NEXT:            identifier: Kind
 // CHECK-NEXT:          enumerator-list
 // CHECK-NEXT:            enumerator
@@ -35,7 +35,7 @@ enum class Kind3 : int {
 // CHECK-NEXT:    simple-declaration
 // CHECK-NEXT:      decl-specifier-list
 // CHECK-NEXT:        enum-specifier
-// CHECK-NEXT:          name: simple-name
+// CHECK-NEXT:          unqualified-id: name-id
 // CHECK-NEXT:            identifier: Kind2
 // CHECK-NEXT:          enumerator-list
 // CHECK-NEXT:            enumerator
@@ -53,7 +53,7 @@ enum class Kind3 : int {
 // CHECK-NEXT:    simple-declaration
 // CHECK-NEXT:      decl-specifier-list
 // CHECK-NEXT:        enum-specifier
-// CHECK-NEXT:          name: simple-name
+// CHECK-NEXT:          unqualified-id: name-id
 // CHECK-NEXT:            identifier: Kind3
 // CHECK-NEXT:          enum-base: enum-base
 // CHECK-NEXT:            type-specifier-list

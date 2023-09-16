@@ -1414,7 +1414,7 @@ void ASTCloner::visit(MemberExpressionAST* ast) {
 
   copy->templateLoc = ast->templateLoc;
 
-  copy->idExpression = accept(ast->idExpression);
+  copy->memberId = accept(ast->memberId);
 
   copy->accessOp = ast->accessOp;
 }
@@ -3604,7 +3604,7 @@ void ASTCloner::visit(IdDeclaratorAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->idExpression = accept(ast->idExpression);
+  copy->declaratorId = accept(ast->declaratorId);
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;

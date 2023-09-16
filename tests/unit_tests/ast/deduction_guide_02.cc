@@ -7,7 +7,6 @@ struct List {
   };
   Node(int) -> Node<int>;
 };
-
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list
@@ -15,7 +14,7 @@ struct List {
 // CHECK-NEXT:      decl-specifier-list
 // CHECK-NEXT:        class-specifier
 // CHECK-NEXT:          class-key: struct
-// CHECK-NEXT:          name: simple-name
+// CHECK-NEXT:          unqualified-id: name-id
 // CHECK-NEXT:            identifier: List
 // CHECK-NEXT:          declaration-list
 // CHECK-NEXT:            template-declaration
@@ -26,14 +25,15 @@ struct List {
 // CHECK-NEXT:                decl-specifier-list
 // CHECK-NEXT:                  class-specifier
 // CHECK-NEXT:                    class-key: struct
-// CHECK-NEXT:                    name: simple-name
+// CHECK-NEXT:                    unqualified-id: name-id
 // CHECK-NEXT:                      identifier: Node
 // CHECK-NEXT:                    declaration-list
 // CHECK-NEXT:                      function-definition
 // CHECK-NEXT:                        declarator: declarator
 // CHECK-NEXT:                          core-declarator: id-declarator
-// CHECK-NEXT:                            name: simple-name
-// CHECK-NEXT:                              identifier: Node
+// CHECK-NEXT:                            declarator-id: id-expression
+// CHECK-NEXT:                              unqualified-id: name-id
+// CHECK-NEXT:                                identifier: Node
 // CHECK-NEXT:                          modifiers
 // CHECK-NEXT:                            function-declarator
 // CHECK-NEXT:                              parameters-and-qualifiers: parameters-and-qualifiers
@@ -42,7 +42,7 @@ struct List {
 // CHECK-NEXT:                                    parameter-declaration
 // CHECK-NEXT:                                      type-specifier-list
 // CHECK-NEXT:                                        named-type-specifier
-// CHECK-NEXT:                                          name: simple-name
+// CHECK-NEXT:                                          unqualified-id: name-id
 // CHECK-NEXT:                                            identifier: T
 // CHECK-NEXT:                                      declarator: declarator
 // CHECK-NEXT:                        function-body: compound-statement-function-body
@@ -56,7 +56,7 @@ struct List {
 // CHECK-NEXT:                      integral-type-specifier
 // CHECK-NEXT:                        specifier: int
 // CHECK-NEXT:                    declarator: declarator
-// CHECK-NEXT:              template-id: simple-template-name
+// CHECK-NEXT:              template-id: simple-template-id
 // CHECK-NEXT:                identifier: Node
 // CHECK-NEXT:                template-argument-list
 // CHECK-NEXT:                  type-template-argument

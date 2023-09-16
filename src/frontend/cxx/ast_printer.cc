@@ -825,7 +825,7 @@ void ASTPrinter::visit(MemberExpressionAST* ast) {
     --indent_;
   }
   accept(ast->baseExpression, "base-expression");
-  accept(ast->idExpression, "id-expression");
+  accept(ast->memberId, "member-id");
 }
 
 void ASTPrinter::visit(PostIncrExpressionAST* ast) {
@@ -1977,7 +1977,7 @@ void ASTPrinter::visit(ParameterPackAST* ast) {
 
 void ASTPrinter::visit(IdDeclaratorAST* ast) {
   fmt::print(out_, "{}\n", "id-declarator");
-  accept(ast->idExpression, "id-expression");
+  accept(ast->declaratorId, "declarator-id");
   if (ast->attributeList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);

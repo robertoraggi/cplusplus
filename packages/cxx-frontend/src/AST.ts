@@ -1964,7 +1964,7 @@ export class MemberExpressionAST extends ExpressionAST {
   getTemplateToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
   }
-  getIdExpression(): IdExpressionAST | undefined {
+  getMemberId(): IdExpressionAST | undefined {
     return AST.from<IdExpressionAST>(
       cxx.getASTSlot(this.getHandle(), 3),
       this.parser,
@@ -5178,7 +5178,7 @@ export class IdDeclaratorAST extends CoreDeclaratorAST {
   ): Result {
     return visitor.visitIdDeclarator(this, context);
   }
-  getIdExpression(): IdExpressionAST | undefined {
+  getDeclaratorId(): IdExpressionAST | undefined {
     return AST.from<IdExpressionAST>(
       cxx.getASTSlot(this.getHandle(), 0),
       this.parser,

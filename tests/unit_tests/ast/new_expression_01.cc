@@ -5,7 +5,6 @@ auto make(void* where, T init) {
   auto a = new (where) T{init};
   auto b = new (where) T(init);
 }
-
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list
@@ -18,8 +17,9 @@ auto make(void* where, T init) {
 // CHECK-NEXT:          auto-type-specifier
 // CHECK-NEXT:        declarator: declarator
 // CHECK-NEXT:          core-declarator: id-declarator
-// CHECK-NEXT:            name: simple-name
-// CHECK-NEXT:              identifier: make
+// CHECK-NEXT:            declarator-id: id-expression
+// CHECK-NEXT:              unqualified-id: name-id
+// CHECK-NEXT:                identifier: make
 // CHECK-NEXT:          modifiers
 // CHECK-NEXT:            function-declarator
 // CHECK-NEXT:              parameters-and-qualifiers: parameters-and-qualifiers
@@ -32,17 +32,19 @@ auto make(void* where, T init) {
 // CHECK-NEXT:                        ptr-op-list
 // CHECK-NEXT:                          pointer-operator
 // CHECK-NEXT:                        core-declarator: id-declarator
-// CHECK-NEXT:                          name: simple-name
-// CHECK-NEXT:                            identifier: where
+// CHECK-NEXT:                          declarator-id: id-expression
+// CHECK-NEXT:                            unqualified-id: name-id
+// CHECK-NEXT:                              identifier: where
 // CHECK-NEXT:                    parameter-declaration
 // CHECK-NEXT:                      type-specifier-list
 // CHECK-NEXT:                        named-type-specifier
-// CHECK-NEXT:                          name: simple-name
+// CHECK-NEXT:                          unqualified-id: name-id
 // CHECK-NEXT:                            identifier: T
 // CHECK-NEXT:                      declarator: declarator
 // CHECK-NEXT:                        core-declarator: id-declarator
-// CHECK-NEXT:                          name: simple-name
-// CHECK-NEXT:                            identifier: init
+// CHECK-NEXT:                          declarator-id: id-expression
+// CHECK-NEXT:                            unqualified-id: name-id
+// CHECK-NEXT:                              identifier: init
 // CHECK-NEXT:        function-body: compound-statement-function-body
 // CHECK-NEXT:          statement: compound-statement
 // CHECK-NEXT:            statement-list
@@ -54,25 +56,26 @@ auto make(void* where, T init) {
 // CHECK-NEXT:                    init-declarator
 // CHECK-NEXT:                      declarator: declarator
 // CHECK-NEXT:                        core-declarator: id-declarator
-// CHECK-NEXT:                          name: simple-name
-// CHECK-NEXT:                            identifier: a
+// CHECK-NEXT:                          declarator-id: id-expression
+// CHECK-NEXT:                            unqualified-id: name-id
+// CHECK-NEXT:                              identifier: a
 // CHECK-NEXT:                      initializer: equal-initializer
 // CHECK-NEXT:                        expression: new-expression
 // CHECK-NEXT:                          new-placement: new-placement
 // CHECK-NEXT:                            expression-list
 // CHECK-NEXT:                              id-expression
-// CHECK-NEXT:                                name: simple-name
+// CHECK-NEXT:                                unqualified-id: name-id
 // CHECK-NEXT:                                  identifier: where
 // CHECK-NEXT:                          type-id: new-type-id
 // CHECK-NEXT:                            type-specifier-list
 // CHECK-NEXT:                              named-type-specifier
-// CHECK-NEXT:                                name: simple-name
+// CHECK-NEXT:                                unqualified-id: name-id
 // CHECK-NEXT:                                  identifier: T
 // CHECK-NEXT:                          new-initalizer: new-braced-initializer
 // CHECK-NEXT:                            braced-init-list: braced-init-list
 // CHECK-NEXT:                              expression-list
 // CHECK-NEXT:                                id-expression
-// CHECK-NEXT:                                  name: simple-name
+// CHECK-NEXT:                                  unqualified-id: name-id
 // CHECK-NEXT:                                    identifier: init
 // CHECK-NEXT:              declaration-statement
 // CHECK-NEXT:                declaration: simple-declaration
@@ -82,22 +85,23 @@ auto make(void* where, T init) {
 // CHECK-NEXT:                    init-declarator
 // CHECK-NEXT:                      declarator: declarator
 // CHECK-NEXT:                        core-declarator: id-declarator
-// CHECK-NEXT:                          name: simple-name
-// CHECK-NEXT:                            identifier: b
+// CHECK-NEXT:                          declarator-id: id-expression
+// CHECK-NEXT:                            unqualified-id: name-id
+// CHECK-NEXT:                              identifier: b
 // CHECK-NEXT:                      initializer: equal-initializer
 // CHECK-NEXT:                        expression: new-expression
 // CHECK-NEXT:                          new-placement: new-placement
 // CHECK-NEXT:                            expression-list
 // CHECK-NEXT:                              id-expression
-// CHECK-NEXT:                                name: simple-name
+// CHECK-NEXT:                                unqualified-id: name-id
 // CHECK-NEXT:                                  identifier: where
 // CHECK-NEXT:                          type-id: new-type-id
 // CHECK-NEXT:                            type-specifier-list
 // CHECK-NEXT:                              named-type-specifier
-// CHECK-NEXT:                                name: simple-name
+// CHECK-NEXT:                                unqualified-id: name-id
 // CHECK-NEXT:                                  identifier: T
 // CHECK-NEXT:                          new-initalizer: new-paren-initializer
 // CHECK-NEXT:                            expression-list
 // CHECK-NEXT:                              id-expression
-// CHECK-NEXT:                                name: simple-name
+// CHECK-NEXT:                                unqualified-id: name-id
 // CHECK-NEXT:                                  identifier: init

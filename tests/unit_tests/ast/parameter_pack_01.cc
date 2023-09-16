@@ -3,7 +3,6 @@
 void func(auto... args);
 
 void other_func(auto&&...);
-
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list
@@ -14,8 +13,9 @@ void other_func(auto&&...);
 // CHECK-NEXT:        init-declarator
 // CHECK-NEXT:          declarator: declarator
 // CHECK-NEXT:            core-declarator: id-declarator
-// CHECK-NEXT:              name: simple-name
-// CHECK-NEXT:                identifier: func
+// CHECK-NEXT:              declarator-id: id-expression
+// CHECK-NEXT:                unqualified-id: name-id
+// CHECK-NEXT:                  identifier: func
 // CHECK-NEXT:            modifiers
 // CHECK-NEXT:              function-declarator
 // CHECK-NEXT:                parameters-and-qualifiers: parameters-and-qualifiers
@@ -27,8 +27,9 @@ void other_func(auto&&...);
 // CHECK-NEXT:                        declarator: declarator
 // CHECK-NEXT:                          core-declarator: parameter-pack
 // CHECK-NEXT:                            core-declarator: id-declarator
-// CHECK-NEXT:                              name: simple-name
-// CHECK-NEXT:                                identifier: args
+// CHECK-NEXT:                              declarator-id: id-expression
+// CHECK-NEXT:                                unqualified-id: name-id
+// CHECK-NEXT:                                  identifier: args
 // CHECK-NEXT:    simple-declaration
 // CHECK-NEXT:      decl-specifier-list
 // CHECK-NEXT:        void-type-specifier
@@ -36,8 +37,9 @@ void other_func(auto&&...);
 // CHECK-NEXT:        init-declarator
 // CHECK-NEXT:          declarator: declarator
 // CHECK-NEXT:            core-declarator: id-declarator
-// CHECK-NEXT:              name: simple-name
-// CHECK-NEXT:                identifier: other_func
+// CHECK-NEXT:              declarator-id: id-expression
+// CHECK-NEXT:                unqualified-id: name-id
+// CHECK-NEXT:                  identifier: other_func
 // CHECK-NEXT:            modifiers
 // CHECK-NEXT:              function-declarator
 // CHECK-NEXT:                parameters-and-qualifiers: parameters-and-qualifiers

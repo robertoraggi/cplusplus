@@ -628,7 +628,7 @@ void RecursiveASTVisitor::visit(SubscriptExpressionAST* ast) {
 
 void RecursiveASTVisitor::visit(MemberExpressionAST* ast) {
   acceptExpression(ast->baseExpression);
-  acceptIdExpression(ast->idExpression);
+  acceptIdExpression(ast->memberId);
 }
 
 void RecursiveASTVisitor::visit(PostIncrExpressionAST* ast) {
@@ -1228,7 +1228,7 @@ void RecursiveASTVisitor::visit(ParameterPackAST* ast) {
 }
 
 void RecursiveASTVisitor::visit(IdDeclaratorAST* ast) {
-  acceptIdExpression(ast->idExpression);
+  acceptIdExpression(ast->declaratorId);
   for (auto it = ast->attributeList; it; it = it->next) {
     acceptAttributeSpecifier(it->value);
   }

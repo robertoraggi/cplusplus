@@ -3,7 +3,6 @@
 struct Bits {
   int value : 32;
 };
-
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list
@@ -11,7 +10,7 @@ struct Bits {
 // CHECK-NEXT:      decl-specifier-list
 // CHECK-NEXT:        class-specifier
 // CHECK-NEXT:          class-key: struct
-// CHECK-NEXT:          name: simple-name
+// CHECK-NEXT:          unqualified-id: name-id
 // CHECK-NEXT:            identifier: Bits
 // CHECK-NEXT:          declaration-list
 // CHECK-NEXT:            simple-declaration

@@ -1078,12 +1078,12 @@ auto MemberExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(baseExpression)) return loc;
   if (auto loc = cxx::firstSourceLocation(accessLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(templateLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(idExpression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(memberId)) return loc;
   return {};
 }
 
 auto MemberExpressionAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(idExpression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(memberId)) return loc;
   if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(accessLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(baseExpression)) return loc;
@@ -2965,14 +2965,14 @@ auto ParameterPackAST::lastSourceLocation() -> SourceLocation {
 }
 
 auto IdDeclaratorAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(idExpression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(declaratorId)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   return {};
 }
 
 auto IdDeclaratorAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
-  if (auto loc = cxx::lastSourceLocation(idExpression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(declaratorId)) return loc;
   return {};
 }
 

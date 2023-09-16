@@ -1598,7 +1598,7 @@ auto Parser::parse_member_expression(ExpressionAST*& yyast) -> bool {
 
   match(TokenKind::T_TEMPLATE, ast->templateLoc);
 
-  if (!parse_id_expression(ast->idExpression))
+  if (!parse_id_expression(ast->memberId))
     parse_error("expected a member name");
 
   return true;
@@ -5001,7 +5001,7 @@ auto Parser::parse_declarator_id(CoreDeclaratorAST*& yyast) -> bool {
   auto ast = new (pool) IdDeclaratorAST();
   yyast = ast;
 
-  ast->idExpression = idExpression;
+  ast->declaratorId = idExpression;
 
   parse_optional_attribute_specifier_seq(ast->attributeList);
 

@@ -1598,8 +1598,8 @@ void ASTSlot::visit(MemberExpressionAST* ast) {
       value_ = ast->templateLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       break;
-    case 3:  // idExpression
-      value_ = reinterpret_cast<std::intptr_t>(ast->idExpression);
+    case 3:  // memberId
+      value_ = reinterpret_cast<std::intptr_t>(ast->memberId);
       slotKind_ = ASTSlotKind::kNode;
       break;
     case 4:  // accessOp
@@ -4359,8 +4359,8 @@ void ASTSlot::visit(ParameterPackAST* ast) {
 
 void ASTSlot::visit(IdDeclaratorAST* ast) {
   switch (slot_) {
-    case 0:  // idExpression
-      value_ = reinterpret_cast<std::intptr_t>(ast->idExpression);
+    case 0:  // declaratorId
+      value_ = reinterpret_cast<std::intptr_t>(ast->declaratorId);
       slotKind_ = ASTSlotKind::kNode;
       break;
     case 1:  // attributeList
