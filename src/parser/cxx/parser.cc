@@ -6591,10 +6591,7 @@ auto Parser::parse_module_declaration(ModuleDeclarationAST*& yyast) -> bool {
 
   yyast->exportLoc = exportLoc;
   yyast->moduleLoc = moduleLoc;
-
-  if (!parse_module_name(yyast->moduleName)) {
-    parse_error("expected a module name");
-  }
+  parse_module_name(yyast->moduleName);
 
   (void)parse_module_partition(yyast->modulePartition);
 
@@ -6605,32 +6602,30 @@ auto Parser::parse_module_declaration(ModuleDeclarationAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_module_name(ModuleNameAST*& yyast) -> bool {
-  SourceLocation identifierLoc;
+void Parser::parse_module_name(ModuleNameAST*& yyast) {
+  auto ast = new (pool) ModuleNameAST();
+  yyast = ast;
 
-  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
+  if (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_DOT)) {
+    ast->moduleQualifier = new (pool) ModuleQualifierAST();
+    ast->moduleQualifier->identifierLoc = consumeToken();
+    ast->moduleQualifier->identifier =
+        unit->identifier(ast->moduleQualifier->identifierLoc);
+    ast->moduleQualifier->dotLoc = consumeToken();
 
-  yyast = new (pool) ModuleNameAST();
-
-  auto it = &yyast->identifierList;
-
-  *it = new (pool) List(identifierLoc);
-  it = &(*it)->next;
-
-  SourceLocation dotLoc;
-
-  while (match(TokenKind::T_DOT, dotLoc)) {
-    SourceLocation identifierLoc;
-
-    expect(TokenKind::T_IDENTIFIER, identifierLoc);
-
-    if (!identifierLoc) break;
-
-    *it = new (pool) List(consumeToken());
-    it = &(*it)->next;
+    while (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_DOT)) {
+      auto baseModuleQualifier = ast->moduleQualifier;
+      ast->moduleQualifier = new (pool) ModuleQualifierAST();
+      ast->moduleQualifier->moduleQualifier = baseModuleQualifier;
+      ast->moduleQualifier->identifierLoc = consumeToken();
+      ast->moduleQualifier->identifier =
+          unit->identifier(ast->moduleQualifier->identifierLoc);
+      ast->moduleQualifier->dotLoc = consumeToken();
+    }
   }
 
-  return true;
+  expect(TokenKind::T_IDENTIFIER, ast->identifierLoc);
+  ast->identifier = unit->identifier(ast->identifierLoc);
 }
 
 auto Parser::parse_module_partition(ModulePartitionAST*& yyast) -> bool {
@@ -6642,9 +6637,7 @@ auto Parser::parse_module_partition(ModulePartitionAST*& yyast) -> bool {
 
   yyast->colonLoc = colonLoc;
 
-  if (!parse_module_name(yyast->moduleName)) {
-    parse_error("expected module name");
-  }
+  parse_module_name(yyast->moduleName);
 
   return true;
 }
@@ -6733,9 +6726,7 @@ auto Parser::parse_import_name(ImportNameAST*& yyast) -> bool {
 
   if (parse_module_partition(yyast->modulePartition)) return true;
 
-  if (!parse_module_name(yyast->moduleName)) {
-    parse_error("expected module name");
-  }
+  parse_module_name(yyast->moduleName);
 
   return true;
 }

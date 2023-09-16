@@ -387,6 +387,18 @@ void ASTPrinter::visit(PrivateModuleFragmentAST* ast) {
   }
 }
 
+void ASTPrinter::visit(ModuleQualifierAST* ast) {
+  fmt::print(out_, "{}\n", "module-qualifier");
+  accept(ast->identifier, "identifier");
+  accept(ast->moduleQualifier, "module-qualifier");
+}
+
+void ASTPrinter::visit(ModuleNameAST* ast) {
+  fmt::print(out_, "{}\n", "module-name");
+  accept(ast->identifier, "identifier");
+  accept(ast->moduleQualifier, "module-qualifier");
+}
+
 void ASTPrinter::visit(ModuleDeclarationAST* ast) {
   fmt::print(out_, "{}\n", "module-declaration");
   accept(ast->moduleName, "module-name");
@@ -400,10 +412,6 @@ void ASTPrinter::visit(ModuleDeclarationAST* ast) {
     }
     --indent_;
   }
-}
-
-void ASTPrinter::visit(ModuleNameAST* ast) {
-  fmt::print(out_, "{}\n", "module-name");
 }
 
 void ASTPrinter::visit(ImportNameAST* ast) {

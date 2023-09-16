@@ -364,6 +364,32 @@ auto PrivateModuleFragmentAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto ModuleQualifierAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(moduleQualifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(dotLoc)) return loc;
+  return {};
+}
+
+auto ModuleQualifierAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(dotLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(moduleQualifier)) return loc;
+  return {};
+}
+
+auto ModuleNameAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(moduleQualifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
+  return {};
+}
+
+auto ModuleNameAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(moduleQualifier)) return loc;
+  return {};
+}
+
 auto ModuleDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(exportLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(moduleLoc)) return loc;
@@ -381,16 +407,6 @@ auto ModuleDeclarationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(moduleName)) return loc;
   if (auto loc = cxx::lastSourceLocation(moduleLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(exportLoc)) return loc;
-  return {};
-}
-
-auto ModuleNameAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(identifierList)) return loc;
-  return {};
-}
-
-auto ModuleNameAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(identifierList)) return loc;
   return {};
 }
 

@@ -54,6 +54,7 @@ class RecursiveASTVisitor : public ASTVisitor {
   virtual void acceptRequirement(RequirementAST* ast);
   virtual void acceptTemplateArgument(TemplateArgumentAST* ast);
   virtual void acceptDeclaration(DeclarationAST* ast);
+  virtual void acceptModuleQualifier(ModuleQualifierAST* ast);
   virtual void acceptModuleName(ModuleNameAST* ast);
   virtual void acceptModulePartition(ModulePartitionAST* ast);
   virtual void acceptAttributeToken(AttributeTokenAST* ast);
@@ -111,8 +112,9 @@ class RecursiveASTVisitor : public ASTVisitor {
   void visit(TypeConstraintAST* ast) override;
   void visit(GlobalModuleFragmentAST* ast) override;
   void visit(PrivateModuleFragmentAST* ast) override;
-  void visit(ModuleDeclarationAST* ast) override;
+  void visit(ModuleQualifierAST* ast) override;
   void visit(ModuleNameAST* ast) override;
+  void visit(ModuleDeclarationAST* ast) override;
   void visit(ImportNameAST* ast) override;
   void visit(ModulePartitionAST* ast) override;
   void visit(AttributeArgumentClauseAST* ast) override;

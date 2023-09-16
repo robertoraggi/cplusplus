@@ -531,16 +531,14 @@ class PrivateModuleFragmentAST final : public AST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class ModuleDeclarationAST final : public AST {
+class ModuleQualifierAST final : public AST {
  public:
-  ModuleDeclarationAST() : AST(ASTKind::ModuleDeclaration) {}
+  ModuleQualifierAST() : AST(ASTKind::ModuleQualifier) {}
 
-  SourceLocation exportLoc;
-  SourceLocation moduleLoc;
-  ModuleNameAST* moduleName = nullptr;
-  ModulePartitionAST* modulePartition = nullptr;
-  List<AttributeSpecifierAST*>* attributeList = nullptr;
-  SourceLocation semicolonLoc;
+  ModuleQualifierAST* moduleQualifier = nullptr;
+  SourceLocation identifierLoc;
+  SourceLocation dotLoc;
+  const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -552,7 +550,26 @@ class ModuleNameAST final : public AST {
  public:
   ModuleNameAST() : AST(ASTKind::ModuleName) {}
 
-  List<SourceLocation>* identifierList = nullptr;
+  ModuleQualifierAST* moduleQualifier = nullptr;
+  SourceLocation identifierLoc;
+  const Identifier* identifier = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class ModuleDeclarationAST final : public AST {
+ public:
+  ModuleDeclarationAST() : AST(ASTKind::ModuleDeclaration) {}
+
+  SourceLocation exportLoc;
+  SourceLocation moduleLoc;
+  ModuleNameAST* moduleName = nullptr;
+  ModulePartitionAST* modulePartition = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
+  SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

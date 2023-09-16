@@ -1050,6 +1050,59 @@ void ASTEncoder::visit(PrivateModuleFragmentAST* ast) {
   offset_ = builder.Finish().Union();
 }
 
+void ASTEncoder::visit(ModuleQualifierAST* ast) {
+  const auto moduleQualifier = accept(ast->moduleQualifier);
+
+  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
+
+  auto dotLoc = encodeSourceLocation(ast->dotLoc);
+
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->value());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
+  io::ModuleQualifier::Builder builder{fbb_};
+  builder.add_module_qualifier(moduleQualifier.o);
+  builder.add_identifier_loc(identifierLoc.o);
+  builder.add_dot_loc(dotLoc.o);
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
+
+  offset_ = builder.Finish().Union();
+}
+
+void ASTEncoder::visit(ModuleNameAST* ast) {
+  const auto moduleQualifier = accept(ast->moduleQualifier);
+
+  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
+
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->value());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
+  io::ModuleName::Builder builder{fbb_};
+  builder.add_module_qualifier(moduleQualifier.o);
+  builder.add_identifier_loc(identifierLoc.o);
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
+
+  offset_ = builder.Finish().Union();
+}
+
 void ASTEncoder::visit(ModuleDeclarationAST* ast) {
   auto exportLoc = encodeSourceLocation(ast->exportLoc);
 
@@ -1083,12 +1136,6 @@ void ASTEncoder::visit(ModuleDeclarationAST* ast) {
   builder.add_attribute_list(attributeListOffsetsVector);
   builder.add_attribute_list_type(attributeListTypesVector);
   builder.add_semicolon_loc(semicolonLoc.o);
-
-  offset_ = builder.Finish().Union();
-}
-
-void ASTEncoder::visit(ModuleNameAST* ast) {
-  io::ModuleName::Builder builder{fbb_};
 
   offset_ = builder.Finish().Union();
 }

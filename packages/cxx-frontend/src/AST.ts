@@ -749,6 +749,53 @@ export class PrivateModuleFragmentAST extends AST {
   }
 }
 
+export class ModuleQualifierAST extends AST {
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitModuleQualifier(this, context);
+  }
+  getModuleQualifier(): ModuleQualifierAST | undefined {
+    return AST.from<ModuleQualifierAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+  getDotToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 3);
+    return cxx.getIdentifierValue(slot);
+  }
+}
+
+export class ModuleNameAST extends AST {
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitModuleName(this, context);
+  }
+  getModuleQualifier(): ModuleQualifierAST | undefined {
+    return AST.from<ModuleQualifierAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 2);
+    return cxx.getIdentifierValue(slot);
+  }
+}
+
 export class ModuleDeclarationAST extends AST {
   accept<Context, Result>(
     visitor: ASTVisitor<Context, Result>,
@@ -785,15 +832,6 @@ export class ModuleDeclarationAST extends AST {
   }
   getSemicolonToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
-  }
-}
-
-export class ModuleNameAST extends AST {
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitModuleName(this, context);
   }
 }
 
@@ -5277,8 +5315,9 @@ const AST_CONSTRUCTORS: Array<
   TypeConstraintAST,
   GlobalModuleFragmentAST,
   PrivateModuleFragmentAST,
-  ModuleDeclarationAST,
+  ModuleQualifierAST,
   ModuleNameAST,
+  ModuleDeclarationAST,
   ImportNameAST,
   ModulePartitionAST,
   AttributeArgumentClauseAST,

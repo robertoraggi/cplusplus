@@ -204,6 +204,14 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     }
   }
 
+  visitModuleQualifier(node: ast.ModuleQualifierAST, context: Context): void {
+    this.accept(node.getModuleQualifier(), context);
+  }
+
+  visitModuleName(node: ast.ModuleNameAST, context: Context): void {
+    this.accept(node.getModuleQualifier(), context);
+  }
+
   visitModuleDeclaration(
     node: ast.ModuleDeclarationAST,
     context: Context,
@@ -214,8 +222,6 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
       this.accept(element, context);
     }
   }
-
-  visitModuleName(node: ast.ModuleNameAST, context: Context): void {}
 
   visitImportName(node: ast.ImportNameAST, context: Context): void {
     this.accept(node.getModulePartition(), context);

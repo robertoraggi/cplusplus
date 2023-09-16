@@ -111,9 +111,11 @@ class ASTDecoder {
       -> GlobalModuleFragmentAST*;
   auto decodePrivateModuleFragment(const io::PrivateModuleFragment* node)
       -> PrivateModuleFragmentAST*;
+  auto decodeModuleQualifier(const io::ModuleQualifier* node)
+      -> ModuleQualifierAST*;
+  auto decodeModuleName(const io::ModuleName* node) -> ModuleNameAST*;
   auto decodeModuleDeclaration(const io::ModuleDeclaration* node)
       -> ModuleDeclarationAST*;
-  auto decodeModuleName(const io::ModuleName* node) -> ModuleNameAST*;
   auto decodeImportName(const io::ImportName* node) -> ImportNameAST*;
   auto decodeModulePartition(const io::ModulePartition* node)
       -> ModulePartitionAST*;

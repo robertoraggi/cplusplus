@@ -123,6 +123,10 @@ void RecursiveASTVisitor::acceptDeclaration(DeclarationAST* ast) {
   accept(ast);
 }
 
+void RecursiveASTVisitor::acceptModuleQualifier(ModuleQualifierAST* ast) {
+  accept(ast);
+}
+
 void RecursiveASTVisitor::acceptModuleName(ModuleNameAST* ast) { accept(ast); }
 
 void RecursiveASTVisitor::acceptModulePartition(ModulePartitionAST* ast) {
@@ -390,6 +394,14 @@ void RecursiveASTVisitor::visit(PrivateModuleFragmentAST* ast) {
   }
 }
 
+void RecursiveASTVisitor::visit(ModuleQualifierAST* ast) {
+  acceptModuleQualifier(ast->moduleQualifier);
+}
+
+void RecursiveASTVisitor::visit(ModuleNameAST* ast) {
+  acceptModuleQualifier(ast->moduleQualifier);
+}
+
 void RecursiveASTVisitor::visit(ModuleDeclarationAST* ast) {
   acceptModuleName(ast->moduleName);
   acceptModulePartition(ast->modulePartition);
@@ -397,8 +409,6 @@ void RecursiveASTVisitor::visit(ModuleDeclarationAST* ast) {
     acceptAttributeSpecifier(it->value);
   }
 }
-
-void RecursiveASTVisitor::visit(ModuleNameAST* ast) {}
 
 void RecursiveASTVisitor::visit(ImportNameAST* ast) {
   acceptModulePartition(ast->modulePartition);

@@ -52,8 +52,9 @@ class ASTVisitor {
   virtual void visit(TypeConstraintAST* ast) = 0;
   virtual void visit(GlobalModuleFragmentAST* ast) = 0;
   virtual void visit(PrivateModuleFragmentAST* ast) = 0;
-  virtual void visit(ModuleDeclarationAST* ast) = 0;
+  virtual void visit(ModuleQualifierAST* ast) = 0;
   virtual void visit(ModuleNameAST* ast) = 0;
+  virtual void visit(ModuleDeclarationAST* ast) = 0;
   virtual void visit(ImportNameAST* ast) = 0;
   virtual void visit(ModulePartitionAST* ast) = 0;
   virtual void visit(AttributeArgumentClauseAST* ast) = 0;

@@ -95,11 +95,15 @@ export abstract class ASTVisitor<Context, Result> {
     node: ast.PrivateModuleFragmentAST,
     context: Context,
   ): Result;
+  abstract visitModuleQualifier(
+    node: ast.ModuleQualifierAST,
+    context: Context,
+  ): Result;
+  abstract visitModuleName(node: ast.ModuleNameAST, context: Context): Result;
   abstract visitModuleDeclaration(
     node: ast.ModuleDeclarationAST,
     context: Context,
   ): Result;
-  abstract visitModuleName(node: ast.ModuleNameAST, context: Context): Result;
   abstract visitImportName(node: ast.ImportNameAST, context: Context): Result;
   abstract visitModulePartition(
     node: ast.ModulePartitionAST,

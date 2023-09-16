@@ -54,8 +54,9 @@ union AST {
   TypeConstraint,
   GlobalModuleFragment,
   PrivateModuleFragment,
-  ModuleDeclaration,
+  ModuleQualifier,
   ModuleName,
+  ModuleDeclaration,
   ImportName,
   ModulePartition,
   AttributeArgumentClause,
@@ -446,6 +447,19 @@ table PrivateModuleFragment /* AST */ {
   semicolon_loc: SourceLocation;
 }
 
+table ModuleQualifier /* AST */ {
+  module_qualifier: ModuleQualifier;
+  identifier: string;
+  identifier_loc: SourceLocation;
+  dot_loc: SourceLocation;
+}
+
+table ModuleName /* AST */ {
+  module_qualifier: ModuleQualifier;
+  identifier: string;
+  identifier_loc: SourceLocation;
+}
+
 table ModuleDeclaration /* AST */ {
   module_name: ModuleName;
   module_partition: ModulePartition;
@@ -453,10 +467,6 @@ table ModuleDeclaration /* AST */ {
   export_loc: SourceLocation;
   module_loc: SourceLocation;
   semicolon_loc: SourceLocation;
-}
-
-table ModuleName /* AST */ {
-  identifier_list: [SourceLocation];
 }
 
 table ImportName /* AST */ {
