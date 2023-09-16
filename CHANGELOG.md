@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.1.22](https://github.com/robertoraggi/cplusplus/compare/v1.1.21...v1.1.22) (2023-09-16)
+
+
+### Bug Fixes
+
+* Add nested name specifier to the class specifier AST node ([8919a0a](https://github.com/robertoraggi/cplusplus/commit/8919a0a8acf1a7475bb15bb36350b1ee3ba34dcf))
+* Add reference to the else token in the AST ([e365784](https://github.com/robertoraggi/cplusplus/commit/e36578455c1a6ecb44b25f3453477f4a00c959ee))
+* Improve the Editor with SyntaxTree story ([b58a418](https://github.com/robertoraggi/cplusplus/commit/b58a4185f6d9fdbc138bbe6e7fe459bd820c9e4f))
+* Parsing of alignof expressions ([7703791](https://github.com/robertoraggi/cplusplus/commit/77037911133158c3b65d0afeba586e40f7a0ab3b))
+* Parsing of module names ([3c38cab](https://github.com/robertoraggi/cplusplus/commit/3c38cabbe410030dada3ff9b8d4b2bd6aca31a50))
+* Refactored support for template ids ([a8e129d](https://github.com/robertoraggi/cplusplus/commit/a8e129dea74be2bb2b3e98f784d5dfb8b051b53a))
+* Reimplemented the support for nested name specifiers ([a9f60ed](https://github.com/robertoraggi/cplusplus/commit/a9f60ed53cb577f8c0c90a53e4637301174bc76a))
+* Rewrite support for id-expressions ([73b2e80](https://github.com/robertoraggi/cplusplus/commit/73b2e80ab417b94635e073eb75886537ab919f42))
+* Set the initial location of the for-statement in the AST ([b23bd1d](https://github.com/robertoraggi/cplusplus/commit/b23bd1df5480fa5344bf362012e7b45a232ac0ed))
+* Set the template type parameter name in the AST ([3653720](https://github.com/robertoraggi/cplusplus/commit/36537200530fe63d13b4b440aa6c6bcdd05121a0))
+* Update React Editor component ([cf6cf4f](https://github.com/robertoraggi/cplusplus/commit/cf6cf4f0238714b2c91b359138cfebeafc510682))
+
 ## [1.1.21](https://github.com/robertoraggi/cplusplus/compare/v1.1.20...v1.1.21) (2023-09-04)
 
 
