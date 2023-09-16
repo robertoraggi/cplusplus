@@ -38,6 +38,8 @@ class ASTDecoder {
   auto operator()(std::span<const std::uint8_t> data) -> bool;
 
  private:
+  auto decodeNestedNameSpecifier(const void* ptr, io::NestedNameSpecifier type)
+      -> NestedNameSpecifierAST*;
   auto decodeExceptionSpecifier(const void* ptr, io::ExceptionSpecifier type)
       -> ExceptionSpecifierAST*;
   auto decodeExpression(const void* ptr, io::Expression type) -> ExpressionAST*;
@@ -74,8 +76,6 @@ class ASTDecoder {
       -> AttributeTokenAST*;
 
   auto decodeTypeId(const io::TypeId* node) -> TypeIdAST*;
-  auto decodeNestedNameSpecifier(const io::NestedNameSpecifier* node)
-      -> NestedNameSpecifierAST*;
   auto decodeUsingDeclarator(const io::UsingDeclarator* node)
       -> UsingDeclaratorAST*;
   auto decodeHandler(const io::Handler* node) -> HandlerAST*;
@@ -126,6 +126,19 @@ class ASTDecoder {
       -> AttributeUsingPrefixAST*;
   auto decodeDesignator(const io::Designator* node) -> DesignatorAST*;
   auto decodeNewPlacement(const io::NewPlacement* node) -> NewPlacementAST*;
+
+  auto decodeGlobalNestedNameSpecifier(
+      const io::GlobalNestedNameSpecifier* node)
+      -> GlobalNestedNameSpecifierAST*;
+  auto decodeSimpleNestedNameSpecifier(
+      const io::SimpleNestedNameSpecifier* node)
+      -> SimpleNestedNameSpecifierAST*;
+  auto decodeDecltypeNestedNameSpecifier(
+      const io::DecltypeNestedNameSpecifier* node)
+      -> DecltypeNestedNameSpecifierAST*;
+  auto decodeTemplateNestedNameSpecifier(
+      const io::TemplateNestedNameSpecifier* node)
+      -> TemplateNestedNameSpecifierAST*;
 
   auto decodeThrowExceptionSpecifier(const io::ThrowExceptionSpecifier* node)
       -> ThrowExceptionSpecifierAST*;

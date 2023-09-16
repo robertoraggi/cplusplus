@@ -28,7 +28,6 @@ class DefaultASTVisitor : public ASTVisitor {
  public:
   // AST
   void visit(TypeIdAST* ast) override;
-  void visit(NestedNameSpecifierAST* ast) override;
   void visit(UsingDeclaratorAST* ast) override;
   void visit(HandlerAST* ast) override;
   void visit(EnumBaseAST* ast) override;
@@ -60,6 +59,12 @@ class DefaultASTVisitor : public ASTVisitor {
   void visit(AttributeUsingPrefixAST* ast) override;
   void visit(DesignatorAST* ast) override;
   void visit(NewPlacementAST* ast) override;
+
+  // NestedNameSpecifierAST
+  void visit(GlobalNestedNameSpecifierAST* ast) override;
+  void visit(SimpleNestedNameSpecifierAST* ast) override;
+  void visit(DecltypeNestedNameSpecifierAST* ast) override;
+  void visit(TemplateNestedNameSpecifierAST* ast) override;
 
   // ExceptionSpecifierAST
   void visit(ThrowExceptionSpecifierAST* ast) override;

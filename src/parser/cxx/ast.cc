@@ -36,18 +36,6 @@ auto TypeIdAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto NestedNameSpecifierAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(scopeLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(nameList)) return loc;
-  return {};
-}
-
-auto NestedNameSpecifierAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(nameList)) return loc;
-  if (auto loc = cxx::lastSourceLocation(scopeLoc)) return loc;
-  return {};
-}
-
 auto UsingDeclaratorAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(typenameLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
@@ -499,6 +487,60 @@ auto NewPlacementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expressionList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  return {};
+}
+
+auto GlobalNestedNameSpecifierAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(scopeLoc)) return loc;
+  return {};
+}
+
+auto GlobalNestedNameSpecifierAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(scopeLoc)) return loc;
+  return {};
+}
+
+auto SimpleNestedNameSpecifierAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(scopeLoc)) return loc;
+  return {};
+}
+
+auto SimpleNestedNameSpecifierAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(scopeLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
+  return {};
+}
+
+auto DecltypeNestedNameSpecifierAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(decltypeSpecifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(scopeLoc)) return loc;
+  return {};
+}
+
+auto DecltypeNestedNameSpecifierAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(scopeLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(decltypeSpecifier)) return loc;
+  if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
+  return {};
+}
+
+auto TemplateNestedNameSpecifierAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(templateLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(templateName)) return loc;
+  if (auto loc = cxx::firstSourceLocation(scopeLoc)) return loc;
+  return {};
+}
+
+auto TemplateNestedNameSpecifierAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(scopeLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(templateName)) return loc;
+  if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   return {};
 }
 

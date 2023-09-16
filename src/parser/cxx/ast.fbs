@@ -32,7 +32,6 @@ table SourceLocation {
 
 union AST {
   TypeId,
-  NestedNameSpecifier,
   UsingDeclarator,
   Handler,
   EnumBase,
@@ -215,6 +214,13 @@ union Name {
   QualifiedName,
 }
 
+union NestedNameSpecifier {
+  GlobalNestedNameSpecifier,
+  SimpleNestedNameSpecifier,
+  DecltypeNestedNameSpecifier,
+  TemplateNestedNameSpecifier,
+}
+
 union NewInitializer {
   NewParenInitializer,
   NewBracedInitializer,
@@ -302,11 +308,6 @@ union Unit {
 table TypeId /* AST */ {
   type_specifier_list: [Specifier];
   declarator: Declarator;
-}
-
-table NestedNameSpecifier /* AST */ {
-  name_list: [Name];
-  scope_loc: SourceLocation;
 }
 
 table UsingDeclarator /* AST */ {
@@ -1247,7 +1248,7 @@ table DestructorName /* NameAST */ {
 }
 
 table DecltypeName /* NameAST */ {
-  decltype_specifier: Specifier;
+  decltype_specifier: DecltypeSpecifier;
 }
 
 table OperatorName /* NameAST */ {
@@ -1281,6 +1282,30 @@ table QualifiedName /* NameAST */ {
   nested_name_specifier: NestedNameSpecifier;
   id: Name;
   template_loc: SourceLocation;
+}
+
+table GlobalNestedNameSpecifier /* NestedNameSpecifierAST */ {
+  scope_loc: SourceLocation;
+}
+
+table SimpleNestedNameSpecifier /* NestedNameSpecifierAST */ {
+  nested_name_specifier: NestedNameSpecifier;
+  identifier: string;
+  identifier_loc: SourceLocation;
+  scope_loc: SourceLocation;
+}
+
+table DecltypeNestedNameSpecifier /* NestedNameSpecifierAST */ {
+  nested_name_specifier: NestedNameSpecifier;
+  decltype_specifier: DecltypeSpecifier;
+  scope_loc: SourceLocation;
+}
+
+table TemplateNestedNameSpecifier /* NestedNameSpecifierAST */ {
+  nested_name_specifier: NestedNameSpecifier;
+  template_name: TemplateName;
+  template_loc: SourceLocation;
+  scope_loc: SourceLocation;
 }
 
 table NewParenInitializer /* NewInitializerAST */ {

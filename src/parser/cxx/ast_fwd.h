@@ -64,6 +64,7 @@ class FunctionBodyAST;
 class LambdaCaptureAST;
 class MemInitializerAST;
 class NameAST;
+class NestedNameSpecifierAST;
 class NewInitializerAST;
 class PtrOperatorAST;
 class RequirementAST;
@@ -74,7 +75,6 @@ class UnitAST;
 
 // AST
 class TypeIdAST;
-class NestedNameSpecifierAST;
 class UsingDeclaratorAST;
 class HandlerAST;
 class EnumBaseAST;
@@ -106,6 +106,12 @@ class AttributeAST;
 class AttributeUsingPrefixAST;
 class DesignatorAST;
 class NewPlacementAST;
+
+// NestedNameSpecifierAST
+class GlobalNestedNameSpecifierAST;
+class SimpleNestedNameSpecifierAST;
+class DecltypeNestedNameSpecifierAST;
+class TemplateNestedNameSpecifierAST;
 
 // ExceptionSpecifierAST
 class ThrowExceptionSpecifierAST;

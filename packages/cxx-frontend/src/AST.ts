@@ -95,6 +95,7 @@ export abstract class FunctionBodyAST extends AST {}
 export abstract class LambdaCaptureAST extends AST {}
 export abstract class MemInitializerAST extends AST {}
 export abstract class NameAST extends AST {}
+export abstract class NestedNameSpecifierAST extends AST {}
 export abstract class NewInitializerAST extends AST {}
 export abstract class PtrOperatorAST extends AST {}
 export abstract class RequirementAST extends AST {}
@@ -124,27 +125,6 @@ export class TypeIdAST extends AST {
       cxx.getASTSlot(this.getHandle(), 1),
       this.parser,
     );
-  }
-}
-
-export class NestedNameSpecifierAST extends AST {
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitNestedNameSpecifier(this, context);
-  }
-  getScopeToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-  *getNameList(): Generator<NameAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<NameAST>(cxx.getListValue(it), this.parser);
-    }
   }
 }
 
@@ -974,6 +954,94 @@ export class NewPlacementAST extends AST {
   }
   getRparenToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+}
+
+export class GlobalNestedNameSpecifierAST extends NestedNameSpecifierAST {
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitGlobalNestedNameSpecifier(this, context);
+  }
+  getScopeToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+}
+
+export class SimpleNestedNameSpecifierAST extends NestedNameSpecifierAST {
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitSimpleNestedNameSpecifier(this, context);
+  }
+  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
+    return AST.from<NestedNameSpecifierAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 2);
+    return cxx.getIdentifierValue(slot);
+  }
+  getScopeToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+}
+
+export class DecltypeNestedNameSpecifierAST extends NestedNameSpecifierAST {
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitDecltypeNestedNameSpecifier(this, context);
+  }
+  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
+    return AST.from<NestedNameSpecifierAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+  getDecltypeSpecifier(): DecltypeSpecifierAST | undefined {
+    return AST.from<DecltypeSpecifierAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+  getScopeToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+}
+
+export class TemplateNestedNameSpecifierAST extends NestedNameSpecifierAST {
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitTemplateNestedNameSpecifier(this, context);
+  }
+  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
+    return AST.from<NestedNameSpecifierAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+  getTemplateToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+  getTemplateName(): TemplateNameAST | undefined {
+    return AST.from<TemplateNameAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+  getScopeToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
   }
 }
 
@@ -4206,8 +4274,8 @@ export class DecltypeNameAST extends NameAST {
   ): Result {
     return visitor.visitDecltypeName(this, context);
   }
-  getDecltypeSpecifier(): SpecifierAST | undefined {
-    return AST.from<SpecifierAST>(
+  getDecltypeSpecifier(): DecltypeSpecifierAST | undefined {
+    return AST.from<DecltypeSpecifierAST>(
       cxx.getASTSlot(this.getHandle(), 0),
       this.parser,
     );
@@ -5293,7 +5361,6 @@ const AST_CONSTRUCTORS: Array<
   new (handle: number, kind: ASTKind, parser: TranslationUnitLike) => AST
 > = [
   TypeIdAST,
-  NestedNameSpecifierAST,
   UsingDeclaratorAST,
   HandlerAST,
   EnumBaseAST,
@@ -5325,6 +5392,10 @@ const AST_CONSTRUCTORS: Array<
   AttributeUsingPrefixAST,
   DesignatorAST,
   NewPlacementAST,
+  GlobalNestedNameSpecifierAST,
+  SimpleNestedNameSpecifierAST,
+  DecltypeNestedNameSpecifierAST,
+  TemplateNestedNameSpecifierAST,
   ThrowExceptionSpecifierAST,
   NoexceptSpecifierAST,
   PackExpansionExpressionAST,

@@ -60,21 +60,6 @@ void ASTSlot::visit(TypeIdAST* ast) {
   slotCount_ = 2;
 }
 
-void ASTSlot::visit(NestedNameSpecifierAST* ast) {
-  switch (slot_) {
-    case 0:  // scopeLoc
-      value_ = ast->scopeLoc.index();
-      slotKind_ = ASTSlotKind::kToken;
-      break;
-    case 1:  // nameList
-      value_ = reinterpret_cast<std::intptr_t>(ast->nameList);
-      slotKind_ = ASTSlotKind::kNodeList;
-      break;
-  }  // switch
-
-  slotCount_ = 2;
-}
-
 void ASTSlot::visit(UsingDeclaratorAST* ast) {
   switch (slot_) {
     case 0:  // typenameLoc
@@ -726,6 +711,82 @@ void ASTSlot::visit(NewPlacementAST* ast) {
   }  // switch
 
   slotCount_ = 3;
+}
+
+void ASTSlot::visit(GlobalNestedNameSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:  // scopeLoc
+      value_ = ast->scopeLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
+
+  slotCount_ = 1;
+}
+
+void ASTSlot::visit(SimpleNestedNameSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:  // nestedNameSpecifier
+      value_ = reinterpret_cast<std::intptr_t>(ast->nestedNameSpecifier);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 1:  // identifierLoc
+      value_ = ast->identifierLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 2:  // identifier
+      value_ = reinterpret_cast<std::intptr_t>(ast->identifier);
+      slotKind_ = ASTSlotKind::kIdentifierAttribute;
+      break;
+    case 3:  // scopeLoc
+      value_ = ast->scopeLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
+
+  slotCount_ = 4;
+}
+
+void ASTSlot::visit(DecltypeNestedNameSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:  // nestedNameSpecifier
+      value_ = reinterpret_cast<std::intptr_t>(ast->nestedNameSpecifier);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 1:  // decltypeSpecifier
+      value_ = reinterpret_cast<std::intptr_t>(ast->decltypeSpecifier);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 2:  // scopeLoc
+      value_ = ast->scopeLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
+
+  slotCount_ = 3;
+}
+
+void ASTSlot::visit(TemplateNestedNameSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:  // nestedNameSpecifier
+      value_ = reinterpret_cast<std::intptr_t>(ast->nestedNameSpecifier);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 1:  // templateLoc
+      value_ = ast->templateLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 2:  // templateName
+      value_ = reinterpret_cast<std::intptr_t>(ast->templateName);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 3:  // scopeLoc
+      value_ = ast->scopeLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
+
+  slotCount_ = 4;
 }
 
 void ASTSlot::visit(ThrowExceptionSpecifierAST* ast) {

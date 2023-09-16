@@ -30,10 +30,6 @@ void DefaultASTVisitor::visit(TypeIdAST* ast) {
   cxx_runtime_error("visit(TypeIdAST): not implemented");
 }
 
-void DefaultASTVisitor::visit(NestedNameSpecifierAST* ast) {
-  cxx_runtime_error("visit(NestedNameSpecifierAST): not implemented");
-}
-
 void DefaultASTVisitor::visit(UsingDeclaratorAST* ast) {
   cxx_runtime_error("visit(UsingDeclaratorAST): not implemented");
 }
@@ -156,6 +152,23 @@ void DefaultASTVisitor::visit(DesignatorAST* ast) {
 
 void DefaultASTVisitor::visit(NewPlacementAST* ast) {
   cxx_runtime_error("visit(NewPlacementAST): not implemented");
+}
+
+// NestedNameSpecifierAST
+void DefaultASTVisitor::visit(GlobalNestedNameSpecifierAST* ast) {
+  cxx_runtime_error("visit(GlobalNestedNameSpecifierAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(SimpleNestedNameSpecifierAST* ast) {
+  cxx_runtime_error("visit(SimpleNestedNameSpecifierAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(DecltypeNestedNameSpecifierAST* ast) {
+  cxx_runtime_error("visit(DecltypeNestedNameSpecifierAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(TemplateNestedNameSpecifierAST* ast) {
+  cxx_runtime_error("visit(TemplateNestedNameSpecifierAST): not implemented");
 }
 
 // ExceptionSpecifierAST

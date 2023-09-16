@@ -26,7 +26,6 @@ enum struct ASTKind {
 
   // AST
   TypeId,
-  NestedNameSpecifier,
   UsingDeclarator,
   Handler,
   EnumBase,
@@ -58,6 +57,12 @@ enum struct ASTKind {
   AttributeUsingPrefix,
   Designator,
   NewPlacement,
+
+  // NestedNameSpecifierAST
+  GlobalNestedNameSpecifier,
+  SimpleNestedNameSpecifier,
+  DecltypeNestedNameSpecifier,
+  TemplateNestedNameSpecifier,
 
   // ExceptionSpecifierAST
   ThrowExceptionSpecifier,

@@ -162,6 +162,11 @@ class NameAST : public AST {
   using AST::AST;
 };
 
+class NestedNameSpecifierAST : public AST {
+ public:
+  using AST::AST;
+};
+
 class NewInitializerAST : public AST {
  public:
   using AST::AST;
@@ -203,19 +208,6 @@ class TypeIdAST final : public AST {
 
   List<SpecifierAST*>* typeSpecifierList = nullptr;
   DeclaratorAST* declarator = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class NestedNameSpecifierAST final : public AST {
- public:
-  NestedNameSpecifierAST() : AST(ASTKind::NestedNameSpecifier) {}
-
-  SourceLocation scopeLoc;
-  List<NameAST*>* nameList = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -666,6 +658,66 @@ class NewPlacementAST final : public AST {
   SourceLocation lparenLoc;
   List<ExpressionAST*>* expressionList = nullptr;
   SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class GlobalNestedNameSpecifierAST final : public NestedNameSpecifierAST {
+ public:
+  GlobalNestedNameSpecifierAST()
+      : NestedNameSpecifierAST(ASTKind::GlobalNestedNameSpecifier) {}
+
+  SourceLocation scopeLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class SimpleNestedNameSpecifierAST final : public NestedNameSpecifierAST {
+ public:
+  SimpleNestedNameSpecifierAST()
+      : NestedNameSpecifierAST(ASTKind::SimpleNestedNameSpecifier) {}
+
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  SourceLocation identifierLoc;
+  const Identifier* identifier = nullptr;
+  SourceLocation scopeLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class DecltypeNestedNameSpecifierAST final : public NestedNameSpecifierAST {
+ public:
+  DecltypeNestedNameSpecifierAST()
+      : NestedNameSpecifierAST(ASTKind::DecltypeNestedNameSpecifier) {}
+
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  DecltypeSpecifierAST* decltypeSpecifier = nullptr;
+  SourceLocation scopeLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class TemplateNestedNameSpecifierAST final : public NestedNameSpecifierAST {
+ public:
+  TemplateNestedNameSpecifierAST()
+      : NestedNameSpecifierAST(ASTKind::TemplateNestedNameSpecifier) {}
+
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  SourceLocation templateLoc;
+  TemplateNameAST* templateName = nullptr;
+  SourceLocation scopeLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2542,7 +2594,7 @@ class DecltypeNameAST final : public NameAST {
  public:
   DecltypeNameAST() : NameAST(ASTKind::DecltypeName) {}
 
-  SpecifierAST* decltypeSpecifier = nullptr;
+  DecltypeSpecifierAST* decltypeSpecifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

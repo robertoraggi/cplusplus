@@ -48,24 +48,6 @@ void ASTCloner::visit(TypeIdAST* ast) {
   copy->declarator = accept(ast->declarator);
 }
 
-void ASTCloner::visit(NestedNameSpecifierAST* ast) {
-  auto copy = new (arena_) NestedNameSpecifierAST();
-  copy_ = copy;
-
-  copy->setChecked(ast->checked());
-
-  copy->scopeLoc = ast->scopeLoc;
-
-  if (auto it = ast->nameList) {
-    auto out = &copy->nameList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
-}
-
 void ASTCloner::visit(UsingDeclaratorAST* ast) {
   auto copy = new (arena_) UsingDeclaratorAST();
   copy_ = copy;
@@ -653,6 +635,58 @@ void ASTCloner::visit(NewPlacementAST* ast) {
   }
 
   copy->rparenLoc = ast->rparenLoc;
+}
+
+void ASTCloner::visit(GlobalNestedNameSpecifierAST* ast) {
+  auto copy = new (arena_) GlobalNestedNameSpecifierAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->scopeLoc = ast->scopeLoc;
+}
+
+void ASTCloner::visit(SimpleNestedNameSpecifierAST* ast) {
+  auto copy = new (arena_) SimpleNestedNameSpecifierAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
+
+  copy->identifierLoc = ast->identifierLoc;
+
+  copy->identifier = ast->identifier;
+
+  copy->scopeLoc = ast->scopeLoc;
+}
+
+void ASTCloner::visit(DecltypeNestedNameSpecifierAST* ast) {
+  auto copy = new (arena_) DecltypeNestedNameSpecifierAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
+
+  copy->decltypeSpecifier = accept(ast->decltypeSpecifier);
+
+  copy->scopeLoc = ast->scopeLoc;
+}
+
+void ASTCloner::visit(TemplateNestedNameSpecifierAST* ast) {
+  auto copy = new (arena_) TemplateNestedNameSpecifierAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
+
+  copy->templateLoc = ast->templateLoc;
+
+  copy->templateName = accept(ast->templateName);
+
+  copy->scopeLoc = ast->scopeLoc;
 }
 
 void ASTCloner::visit(ThrowExceptionSpecifierAST* ast) {

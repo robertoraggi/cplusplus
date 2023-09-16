@@ -21,7 +21,6 @@
 export enum ASTKind {
   // AST
   TypeId,
-  NestedNameSpecifier,
   UsingDeclarator,
   Handler,
   EnumBase,
@@ -53,6 +52,12 @@ export enum ASTKind {
   AttributeUsingPrefix,
   Designator,
   NewPlacement,
+
+  // NestedNameSpecifierAST
+  GlobalNestedNameSpecifier,
+  SimpleNestedNameSpecifier,
+  DecltypeNestedNameSpecifier,
+  TemplateNestedNameSpecifier,
 
   // ExceptionSpecifierAST
   ThrowExceptionSpecifier,

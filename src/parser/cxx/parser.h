@@ -116,8 +116,6 @@ class Parser final {
   void parse_optional_nested_name_specifier(NestedNameSpecifierAST*& yyast);
   [[nodiscard]] auto parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
       -> bool;
-  [[nodiscard]] auto parse_start_of_nested_name_specifier(
-      NameAST*& yyast, SourceLocation& scopeLoc) -> bool;
   [[nodiscard]] auto parse_lambda_expression(ExpressionAST*& yyast) -> bool;
   [[nodiscard]] auto parse_lambda_introducer(LambdaIntroducerAST*& yyast)
       -> bool;
@@ -317,7 +315,8 @@ class Parser final {
       ElaboratedTypeSpecifierAST*& yyast, DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_elaborated_enum_specifier(
       ElaboratedTypeSpecifierAST*& yyast, DeclSpecs& specs) -> bool;
-  [[nodiscard]] auto parse_decltype_specifier(SpecifierAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_decltype_specifier(DecltypeSpecifierAST*& yyast)
+      -> bool;
   [[nodiscard]] auto parse_placeholder_type_specifier(SpecifierAST*& yyast)
       -> bool;
   [[nodiscard]] auto parse_init_declarator(InitDeclaratorAST*& yyast,
