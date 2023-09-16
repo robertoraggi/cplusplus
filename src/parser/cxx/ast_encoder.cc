@@ -2161,7 +2161,7 @@ void ASTEncoder::visit(MemberExpressionAST* ast) {
 
   auto templateLoc = encodeSourceLocation(ast->templateLoc);
 
-  const auto idExpression = accept(ast->idExpression);
+  const auto memberId = accept(ast->memberId);
 
   io::MemberExpression::Builder builder{fbb_};
   builder.add_base_expression(baseExpression);
@@ -2169,7 +2169,7 @@ void ASTEncoder::visit(MemberExpressionAST* ast) {
       static_cast<io::Expression>(baseExpressionType));
   builder.add_access_loc(accessLoc.o);
   builder.add_template_loc(templateLoc.o);
-  builder.add_id_expression(idExpression.o);
+  builder.add_member_id(memberId.o);
   builder.add_access_op(static_cast<std::uint32_t>(ast->accessOp));
 
   offset_ = builder.Finish().Union();
@@ -5329,7 +5329,7 @@ void ASTEncoder::visit(ParameterPackAST* ast) {
 }
 
 void ASTEncoder::visit(IdDeclaratorAST* ast) {
-  const auto idExpression = accept(ast->idExpression);
+  const auto declaratorId = accept(ast->declaratorId);
 
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
   std::vector<std::underlying_type_t<io::AttributeSpecifier>>
@@ -5346,7 +5346,7 @@ void ASTEncoder::visit(IdDeclaratorAST* ast) {
   auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
 
   io::IdDeclarator::Builder builder{fbb_};
-  builder.add_id_expression(idExpression.o);
+  builder.add_declarator_id(declaratorId.o);
   builder.add_attribute_list(attributeListOffsetsVector);
   builder.add_attribute_list_type(attributeListTypesVector);
 

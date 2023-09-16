@@ -6,7 +6,6 @@ struct List {
 };
 
 List(int) -> List<int>;
-
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list
@@ -18,14 +17,14 @@ List(int) -> List<int>;
 // CHECK-NEXT:        decl-specifier-list
 // CHECK-NEXT:          class-specifier
 // CHECK-NEXT:            class-key: struct
-// CHECK-NEXT:            name: simple-name
+// CHECK-NEXT:            unqualified-id: name-id
 // CHECK-NEXT:              identifier: List
 // CHECK-NEXT:            declaration-list
 // CHECK-NEXT:              function-definition
 // CHECK-NEXT:                declarator: declarator
 // CHECK-NEXT:                  core-declarator: id-declarator
-// CHECK-NEXT:                    id-expression: id-expression
-// CHECK-NEXT:                      unqualified-id: simple-name
+// CHECK-NEXT:                    declarator-id: id-expression
+// CHECK-NEXT:                      unqualified-id: name-id
 // CHECK-NEXT:                        identifier: List
 // CHECK-NEXT:                  modifiers
 // CHECK-NEXT:                    function-declarator
@@ -35,7 +34,7 @@ List(int) -> List<int>;
 // CHECK-NEXT:                            parameter-declaration
 // CHECK-NEXT:                              type-specifier-list
 // CHECK-NEXT:                                named-type-specifier
-// CHECK-NEXT:                                  name: simple-name
+// CHECK-NEXT:                                  unqualified-id: name-id
 // CHECK-NEXT:                                    identifier: T
 // CHECK-NEXT:                              declarator: declarator
 // CHECK-NEXT:                function-body: compound-statement-function-body
@@ -49,7 +48,7 @@ List(int) -> List<int>;
 // CHECK-NEXT:              integral-type-specifier
 // CHECK-NEXT:                specifier: int
 // CHECK-NEXT:            declarator: declarator
-// CHECK-NEXT:      template-id: simple-template-name
+// CHECK-NEXT:      template-id: simple-template-id
 // CHECK-NEXT:        identifier: List
 // CHECK-NEXT:        template-argument-list
 // CHECK-NEXT:          type-template-argument

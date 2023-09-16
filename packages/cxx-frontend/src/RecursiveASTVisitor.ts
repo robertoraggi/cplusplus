@@ -506,7 +506,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
 
   visitMemberExpression(node: ast.MemberExpressionAST, context: Context): void {
     this.accept(node.getBaseExpression(), context);
-    this.accept(node.getIdExpression(), context);
+    this.accept(node.getMemberId(), context);
   }
 
   visitPostIncrExpression(
@@ -1367,7 +1367,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   }
 
   visitIdDeclarator(node: ast.IdDeclaratorAST, context: Context): void {
-    this.accept(node.getIdExpression(), context);
+    this.accept(node.getDeclaratorId(), context);
     for (const element of node.getAttributeList()) {
       this.accept(element, context);
     }

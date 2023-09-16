@@ -1764,7 +1764,7 @@ auto ASTDecoder::decodeMemberExpression(const io::MemberExpression* node)
   auto ast = new (pool_) MemberExpressionAST();
   ast->baseExpression =
       decodeExpression(node->base_expression(), node->base_expression_type());
-  ast->idExpression = decodeIdExpression(node->id_expression());
+  ast->memberId = decodeIdExpression(node->member_id());
   ast->accessOp = static_cast<TokenKind>(node->access_op());
   return ast;
 }
@@ -3469,7 +3469,7 @@ auto ASTDecoder::decodeIdDeclarator(const io::IdDeclarator* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) IdDeclaratorAST();
-  ast->idExpression = decodeIdExpression(node->id_expression());
+  ast->declaratorId = decodeIdExpression(node->declarator_id());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {

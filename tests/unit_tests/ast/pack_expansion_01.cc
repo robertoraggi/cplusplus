@@ -3,7 +3,6 @@
 void foo() {}
 
 void foo(int x, auto... xs) { foo(xs...); }
-
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list
@@ -12,8 +11,9 @@ void foo(int x, auto... xs) { foo(xs...); }
 // CHECK-NEXT:        void-type-specifier
 // CHECK-NEXT:      declarator: declarator
 // CHECK-NEXT:        core-declarator: id-declarator
-// CHECK-NEXT:          name: simple-name
-// CHECK-NEXT:            identifier: foo
+// CHECK-NEXT:          declarator-id: id-expression
+// CHECK-NEXT:            unqualified-id: name-id
+// CHECK-NEXT:              identifier: foo
 // CHECK-NEXT:        modifiers
 // CHECK-NEXT:          function-declarator
 // CHECK-NEXT:            parameters-and-qualifiers: parameters-and-qualifiers
@@ -24,8 +24,9 @@ void foo(int x, auto... xs) { foo(xs...); }
 // CHECK-NEXT:        void-type-specifier
 // CHECK-NEXT:      declarator: declarator
 // CHECK-NEXT:        core-declarator: id-declarator
-// CHECK-NEXT:          name: simple-name
-// CHECK-NEXT:            identifier: foo
+// CHECK-NEXT:          declarator-id: id-expression
+// CHECK-NEXT:            unqualified-id: name-id
+// CHECK-NEXT:              identifier: foo
 // CHECK-NEXT:        modifiers
 // CHECK-NEXT:          function-declarator
 // CHECK-NEXT:            parameters-and-qualifiers: parameters-and-qualifiers
@@ -37,26 +38,28 @@ void foo(int x, auto... xs) { foo(xs...); }
 // CHECK-NEXT:                        specifier: int
 // CHECK-NEXT:                    declarator: declarator
 // CHECK-NEXT:                      core-declarator: id-declarator
-// CHECK-NEXT:                        name: simple-name
-// CHECK-NEXT:                          identifier: x
+// CHECK-NEXT:                        declarator-id: id-expression
+// CHECK-NEXT:                          unqualified-id: name-id
+// CHECK-NEXT:                            identifier: x
 // CHECK-NEXT:                  parameter-declaration
 // CHECK-NEXT:                    type-specifier-list
 // CHECK-NEXT:                      auto-type-specifier
 // CHECK-NEXT:                    declarator: declarator
 // CHECK-NEXT:                      core-declarator: parameter-pack
 // CHECK-NEXT:                        core-declarator: id-declarator
-// CHECK-NEXT:                          name: simple-name
-// CHECK-NEXT:                            identifier: xs
+// CHECK-NEXT:                          declarator-id: id-expression
+// CHECK-NEXT:                            unqualified-id: name-id
+// CHECK-NEXT:                              identifier: xs
 // CHECK-NEXT:      function-body: compound-statement-function-body
 // CHECK-NEXT:        statement: compound-statement
 // CHECK-NEXT:          statement-list
 // CHECK-NEXT:            expression-statement
 // CHECK-NEXT:              expression: call-expression
 // CHECK-NEXT:                base-expression: id-expression
-// CHECK-NEXT:                  name: simple-name
+// CHECK-NEXT:                  unqualified-id: name-id
 // CHECK-NEXT:                    identifier: foo
 // CHECK-NEXT:                expression-list
 // CHECK-NEXT:                  pack-expansion-expression
 // CHECK-NEXT:                    expression: id-expression
-// CHECK-NEXT:                      name: simple-name
+// CHECK-NEXT:                      unqualified-id: name-id
 // CHECK-NEXT:                        identifier: xs

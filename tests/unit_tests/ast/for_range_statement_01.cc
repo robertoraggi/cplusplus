@@ -4,7 +4,6 @@ int main() {
   for (int i : {10, 20, 30}) {
   }
 }
-
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list
@@ -14,8 +13,9 @@ int main() {
 // CHECK-NEXT:          specifier: int
 // CHECK-NEXT:      declarator: declarator
 // CHECK-NEXT:        core-declarator: id-declarator
-// CHECK-NEXT:          name: simple-name
-// CHECK-NEXT:            identifier: main
+// CHECK-NEXT:          declarator-id: id-expression
+// CHECK-NEXT:            unqualified-id: name-id
+// CHECK-NEXT:              identifier: main
 // CHECK-NEXT:        modifiers
 // CHECK-NEXT:          function-declarator
 // CHECK-NEXT:            parameters-and-qualifiers: parameters-and-qualifiers
@@ -31,8 +31,9 @@ int main() {
 // CHECK-NEXT:                  init-declarator
 // CHECK-NEXT:                    declarator: declarator
 // CHECK-NEXT:                      core-declarator: id-declarator
-// CHECK-NEXT:                        name: simple-name
-// CHECK-NEXT:                          identifier: i
+// CHECK-NEXT:                        declarator-id: id-expression
+// CHECK-NEXT:                          unqualified-id: name-id
+// CHECK-NEXT:                            identifier: i
 // CHECK-NEXT:              range-initializer: braced-init-list
 // CHECK-NEXT:                expression-list
 // CHECK-NEXT:                  int-literal-expression
