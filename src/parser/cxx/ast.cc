@@ -535,14 +535,14 @@ auto DecltypeNestedNameSpecifierAST::lastSourceLocation() -> SourceLocation {
 auto TemplateNestedNameSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(templateLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(templateName)) return loc;
+  if (auto loc = cxx::firstSourceLocation(templateId)) return loc;
   if (auto loc = cxx::firstSourceLocation(scopeLoc)) return loc;
   return {};
 }
 
 auto TemplateNestedNameSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(scopeLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(templateName)) return loc;
+  if (auto loc = cxx::lastSourceLocation(templateId)) return loc;
   if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   return {};
@@ -2416,39 +2416,39 @@ auto LinkageSpecificationAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto SimpleNameAST::firstSourceLocation() -> SourceLocation {
+auto NameIdAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   return {};
 }
 
-auto SimpleNameAST::lastSourceLocation() -> SourceLocation {
+auto NameIdAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
   return {};
 }
 
-auto DestructorNameAST::firstSourceLocation() -> SourceLocation {
+auto DestructorIdAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(tildeLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(id)) return loc;
   return {};
 }
 
-auto DestructorNameAST::lastSourceLocation() -> SourceLocation {
+auto DestructorIdAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(id)) return loc;
   if (auto loc = cxx::lastSourceLocation(tildeLoc)) return loc;
   return {};
 }
 
-auto DecltypeNameAST::firstSourceLocation() -> SourceLocation {
+auto DecltypeIdAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(decltypeSpecifier)) return loc;
   return {};
 }
 
-auto DecltypeNameAST::lastSourceLocation() -> SourceLocation {
+auto DecltypeIdAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(decltypeSpecifier)) return loc;
   return {};
 }
 
-auto OperatorFunctionNameAST::firstSourceLocation() -> SourceLocation {
+auto OperatorFunctionIdAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(operatorLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(opLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(openLoc)) return loc;
@@ -2456,7 +2456,7 @@ auto OperatorFunctionNameAST::firstSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto OperatorFunctionNameAST::lastSourceLocation() -> SourceLocation {
+auto OperatorFunctionIdAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(closeLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(openLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(opLoc)) return loc;
@@ -2464,33 +2464,33 @@ auto OperatorFunctionNameAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto LiteralOperatorNameAST::firstSourceLocation() -> SourceLocation {
+auto LiteralOperatorIdAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(operatorLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(literalLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   return {};
 }
 
-auto LiteralOperatorNameAST::lastSourceLocation() -> SourceLocation {
+auto LiteralOperatorIdAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(literalLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(operatorLoc)) return loc;
   return {};
 }
 
-auto ConversionFunctionNameAST::firstSourceLocation() -> SourceLocation {
+auto ConversionFunctionIdAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(operatorLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
   return {};
 }
 
-auto ConversionFunctionNameAST::lastSourceLocation() -> SourceLocation {
+auto ConversionFunctionIdAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
   if (auto loc = cxx::lastSourceLocation(operatorLoc)) return loc;
   return {};
 }
 
-auto SimpleTemplateNameAST::firstSourceLocation() -> SourceLocation {
+auto SimpleTemplateIdAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lessLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(templateArgumentList)) return loc;
@@ -2498,7 +2498,7 @@ auto SimpleTemplateNameAST::firstSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto SimpleTemplateNameAST::lastSourceLocation() -> SourceLocation {
+auto SimpleTemplateIdAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(greaterLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(templateArgumentList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lessLoc)) return loc;
@@ -2506,35 +2506,35 @@ auto SimpleTemplateNameAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto LiteralOperatorTemplateNameAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(literalOperatorName)) return loc;
+auto LiteralOperatorTemplateIdAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(literalOperatorId)) return loc;
   if (auto loc = cxx::firstSourceLocation(lessLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(templateArgumentList)) return loc;
   if (auto loc = cxx::firstSourceLocation(greaterLoc)) return loc;
   return {};
 }
 
-auto LiteralOperatorTemplateNameAST::lastSourceLocation() -> SourceLocation {
+auto LiteralOperatorTemplateIdAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(greaterLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(templateArgumentList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lessLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(literalOperatorName)) return loc;
+  if (auto loc = cxx::lastSourceLocation(literalOperatorId)) return loc;
   return {};
 }
 
-auto OperatorFunctionTemplateNameAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(operatorFunctionName)) return loc;
+auto OperatorFunctionTemplateIdAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(operatorFunctionId)) return loc;
   if (auto loc = cxx::firstSourceLocation(lessLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(templateArgumentList)) return loc;
   if (auto loc = cxx::firstSourceLocation(greaterLoc)) return loc;
   return {};
 }
 
-auto OperatorFunctionTemplateNameAST::lastSourceLocation() -> SourceLocation {
+auto OperatorFunctionTemplateIdAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(greaterLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(templateArgumentList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lessLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(operatorFunctionName)) return loc;
+  if (auto loc = cxx::lastSourceLocation(operatorFunctionId)) return loc;
   return {};
 }
 

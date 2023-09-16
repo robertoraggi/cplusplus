@@ -295,7 +295,7 @@ auto ASTEncoder::acceptDeclaration(DeclarationAST* ast)
   return {offset, type};
 }
 
-auto ASTEncoder::acceptName(NameAST* ast)
+auto ASTEncoder::acceptUnqualifiedId(UnqualifiedIdAST* ast)
     -> std::tuple<flatbuffers::Offset<>, std::uint32_t> {
   if (!ast) return {};
   flatbuffers::Offset<> offset;
@@ -418,7 +418,7 @@ void ASTEncoder::visit(UsingDeclaratorAST* ast) {
       acceptNestedNameSpecifier(ast->nestedNameSpecifier);
 
   const auto [unqualifiedId, unqualifiedIdType] =
-      acceptName(ast->unqualifiedId);
+      acceptUnqualifiedId(ast->unqualifiedId);
 
   io::UsingDeclarator::Builder builder{fbb_};
   builder.add_typename_loc(typenameLoc.o);
@@ -426,7 +426,8 @@ void ASTEncoder::visit(UsingDeclaratorAST* ast) {
   builder.add_nested_name_specifier_type(
       static_cast<io::NestedNameSpecifier>(nestedNameSpecifierType));
   builder.add_unqualified_id(unqualifiedId);
-  builder.add_unqualified_id_type(static_cast<io::Name>(unqualifiedIdType));
+  builder.add_unqualified_id_type(
+      static_cast<io::UnqualifiedId>(unqualifiedIdType));
 
   offset_ = builder.Finish().Union();
 }
@@ -605,7 +606,7 @@ void ASTEncoder::visit(BaseSpecifierAST* ast) {
   auto templateLoc = encodeSourceLocation(ast->templateLoc);
 
   const auto [unqualifiedId, unqualifiedIdType] =
-      acceptName(ast->unqualifiedId);
+      acceptUnqualifiedId(ast->unqualifiedId);
 
   io::BaseSpecifier::Builder builder{fbb_};
   builder.add_attribute_list(attributeListOffsetsVector);
@@ -615,7 +616,8 @@ void ASTEncoder::visit(BaseSpecifierAST* ast) {
       static_cast<io::NestedNameSpecifier>(nestedNameSpecifierType));
   builder.add_template_loc(templateLoc.o);
   builder.add_unqualified_id(unqualifiedId);
-  builder.add_unqualified_id_type(static_cast<io::Name>(unqualifiedIdType));
+  builder.add_unqualified_id_type(
+      static_cast<io::UnqualifiedId>(unqualifiedIdType));
   builder.add_access_specifier(
       static_cast<std::uint32_t>(ast->accessSpecifier));
 
@@ -1337,7 +1339,7 @@ void ASTEncoder::visit(TemplateNestedNameSpecifierAST* ast) {
 
   auto templateLoc = encodeSourceLocation(ast->templateLoc);
 
-  const auto templateName = accept(ast->templateName);
+  const auto templateId = accept(ast->templateId);
 
   auto scopeLoc = encodeSourceLocation(ast->scopeLoc);
 
@@ -1346,7 +1348,7 @@ void ASTEncoder::visit(TemplateNestedNameSpecifierAST* ast) {
   builder.add_nested_name_specifier_type(
       static_cast<io::NestedNameSpecifier>(nestedNameSpecifierType));
   builder.add_template_loc(templateLoc.o);
-  builder.add_template_name(templateName.o);
+  builder.add_template_id(templateId.o);
   builder.add_scope_loc(scopeLoc.o);
 
   offset_ = builder.Finish().Union();
@@ -1558,7 +1560,7 @@ void ASTEncoder::visit(IdExpressionAST* ast) {
   auto templateLoc = encodeSourceLocation(ast->templateLoc);
 
   const auto [unqualifiedId, unqualifiedIdType] =
-      acceptName(ast->unqualifiedId);
+      acceptUnqualifiedId(ast->unqualifiedId);
 
   io::IdExpression::Builder builder{fbb_};
   builder.add_nested_name_specifier(nestedNameSpecifier);
@@ -1566,7 +1568,8 @@ void ASTEncoder::visit(IdExpressionAST* ast) {
       static_cast<io::NestedNameSpecifier>(nestedNameSpecifierType));
   builder.add_template_loc(templateLoc.o);
   builder.add_unqualified_id(unqualifiedId);
-  builder.add_unqualified_id_type(static_cast<io::Name>(unqualifiedIdType));
+  builder.add_unqualified_id_type(
+      static_cast<io::UnqualifiedId>(unqualifiedIdType));
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_IdExpression;
@@ -2484,7 +2487,7 @@ void ASTEncoder::visit(TypeRequirementAST* ast) {
       acceptNestedNameSpecifier(ast->nestedNameSpecifier);
 
   const auto [unqualifiedId, unqualifiedIdType] =
-      acceptName(ast->unqualifiedId);
+      acceptUnqualifiedId(ast->unqualifiedId);
 
   auto semicolonLoc = encodeSourceLocation(ast->semicolonLoc);
 
@@ -2494,7 +2497,8 @@ void ASTEncoder::visit(TypeRequirementAST* ast) {
   builder.add_nested_name_specifier_type(
       static_cast<io::NestedNameSpecifier>(nestedNameSpecifierType));
   builder.add_unqualified_id(unqualifiedId);
-  builder.add_unqualified_id_type(static_cast<io::Name>(unqualifiedIdType));
+  builder.add_unqualified_id_type(
+      static_cast<io::UnqualifiedId>(unqualifiedIdType));
   builder.add_semicolon_loc(semicolonLoc.o);
 
   offset_ = builder.Finish().Union();
@@ -2544,7 +2548,7 @@ void ASTEncoder::visit(ParenMemInitializerAST* ast) {
       acceptNestedNameSpecifier(ast->nestedNameSpecifier);
 
   const auto [unqualifiedId, unqualifiedIdType] =
-      acceptName(ast->unqualifiedId);
+      acceptUnqualifiedId(ast->unqualifiedId);
 
   auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
 
@@ -2570,7 +2574,8 @@ void ASTEncoder::visit(ParenMemInitializerAST* ast) {
   builder.add_nested_name_specifier_type(
       static_cast<io::NestedNameSpecifier>(nestedNameSpecifierType));
   builder.add_unqualified_id(unqualifiedId);
-  builder.add_unqualified_id_type(static_cast<io::Name>(unqualifiedIdType));
+  builder.add_unqualified_id_type(
+      static_cast<io::UnqualifiedId>(unqualifiedIdType));
   builder.add_lparen_loc(lparenLoc.o);
   builder.add_expression_list(expressionListOffsetsVector);
   builder.add_expression_list_type(expressionListTypesVector);
@@ -2586,7 +2591,7 @@ void ASTEncoder::visit(BracedMemInitializerAST* ast) {
       acceptNestedNameSpecifier(ast->nestedNameSpecifier);
 
   const auto [unqualifiedId, unqualifiedIdType] =
-      acceptName(ast->unqualifiedId);
+      acceptUnqualifiedId(ast->unqualifiedId);
 
   const auto bracedInitList = accept(ast->bracedInitList);
 
@@ -2597,7 +2602,8 @@ void ASTEncoder::visit(BracedMemInitializerAST* ast) {
   builder.add_nested_name_specifier_type(
       static_cast<io::NestedNameSpecifier>(nestedNameSpecifierType));
   builder.add_unqualified_id(unqualifiedId);
-  builder.add_unqualified_id_type(static_cast<io::Name>(unqualifiedIdType));
+  builder.add_unqualified_id_type(
+      static_cast<io::UnqualifiedId>(unqualifiedIdType));
   builder.add_braced_init_list(bracedInitList.o);
   builder.add_ellipsis_loc(ellipsisLoc.o);
 
@@ -3640,11 +3646,11 @@ void ASTEncoder::visit(StructuredBindingDeclarationAST* ast) {
   auto lbracketLoc = encodeSourceLocation(ast->lbracketLoc);
 
   std::vector<flatbuffers::Offset<>> bindingListOffsets;
-  std::vector<std::underlying_type_t<io::Name>> bindingListTypes;
+  std::vector<std::underlying_type_t<io::UnqualifiedId>> bindingListTypes;
 
   for (auto it = ast->bindingList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptName(it->value);
+    const auto [offset, type] = acceptUnqualifiedId(it->value);
     bindingListOffsets.push_back(offset);
     bindingListTypes.push_back(type);
   }
@@ -3765,7 +3771,7 @@ void ASTEncoder::visit(OpaqueEnumDeclarationAST* ast) {
       acceptNestedNameSpecifier(ast->nestedNameSpecifier);
 
   const auto [unqualifiedId, unqualifiedIdType] =
-      acceptName(ast->unqualifiedId);
+      acceptUnqualifiedId(ast->unqualifiedId);
 
   const auto enumBase = accept(ast->enumBase);
 
@@ -3780,7 +3786,8 @@ void ASTEncoder::visit(OpaqueEnumDeclarationAST* ast) {
   builder.add_nested_name_specifier_type(
       static_cast<io::NestedNameSpecifier>(nestedNameSpecifierType));
   builder.add_unqualified_id(unqualifiedId);
-  builder.add_unqualified_id_type(static_cast<io::Name>(unqualifiedIdType));
+  builder.add_unqualified_id_type(
+      static_cast<io::UnqualifiedId>(unqualifiedIdType));
   builder.add_enum_base(enumBase.o);
   builder.add_emicolon_loc(emicolonLoc.o);
 
@@ -3795,13 +3802,13 @@ void ASTEncoder::visit(NestedNamespaceSpecifierAST* ast) {
 
   auto scopeLoc = encodeSourceLocation(ast->scopeLoc);
 
-  flatbuffers::Offset<flatbuffers::String> namespaceName;
-  if (ast->namespaceName) {
-    if (identifiers_.contains(ast->namespaceName)) {
-      namespaceName = identifiers_.at(ast->namespaceName);
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
     } else {
-      namespaceName = fbb_.CreateString(ast->namespaceName->value());
-      identifiers_.emplace(ast->namespaceName, namespaceName);
+      identifier = fbb_.CreateString(ast->identifier->value());
+      identifiers_.emplace(ast->identifier, identifier);
     }
   }
 
@@ -3809,8 +3816,8 @@ void ASTEncoder::visit(NestedNamespaceSpecifierAST* ast) {
   builder.add_inline_loc(inlineLoc.o);
   builder.add_identifier_loc(identifierLoc.o);
   builder.add_scope_loc(scopeLoc.o);
-  if (ast->namespaceName) {
-    builder.add_namespace_name(namespaceName);
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
   }
 
   offset_ = builder.Finish().Union();
@@ -3881,13 +3888,13 @@ void ASTEncoder::visit(NamespaceDefinitionAST* ast) {
 
   auto rbraceLoc = encodeSourceLocation(ast->rbraceLoc);
 
-  flatbuffers::Offset<flatbuffers::String> namespaceName;
-  if (ast->namespaceName) {
-    if (identifiers_.contains(ast->namespaceName)) {
-      namespaceName = identifiers_.at(ast->namespaceName);
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
     } else {
-      namespaceName = fbb_.CreateString(ast->namespaceName->value());
-      identifiers_.emplace(ast->namespaceName, namespaceName);
+      identifier = fbb_.CreateString(ast->identifier->value());
+      identifiers_.emplace(ast->identifier, identifier);
     }
   }
 
@@ -3905,8 +3912,8 @@ void ASTEncoder::visit(NamespaceDefinitionAST* ast) {
   builder.add_declaration_list(declarationListOffsetsVector);
   builder.add_declaration_list_type(declarationListTypesVector);
   builder.add_rbrace_loc(rbraceLoc.o);
-  if (ast->namespaceName) {
-    builder.add_namespace_name(namespaceName);
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
   }
 
   offset_ = builder.Finish().Union();
@@ -3924,7 +3931,7 @@ void ASTEncoder::visit(NamespaceAliasDefinitionAST* ast) {
       acceptNestedNameSpecifier(ast->nestedNameSpecifier);
 
   const auto [unqualifiedId, unqualifiedIdType] =
-      acceptName(ast->unqualifiedId);
+      acceptUnqualifiedId(ast->unqualifiedId);
 
   auto semicolonLoc = encodeSourceLocation(ast->semicolonLoc);
 
@@ -3946,7 +3953,8 @@ void ASTEncoder::visit(NamespaceAliasDefinitionAST* ast) {
   builder.add_nested_name_specifier_type(
       static_cast<io::NestedNameSpecifier>(nestedNameSpecifierType));
   builder.add_unqualified_id(unqualifiedId);
-  builder.add_unqualified_id_type(static_cast<io::Name>(unqualifiedIdType));
+  builder.add_unqualified_id_type(
+      static_cast<io::UnqualifiedId>(unqualifiedIdType));
   builder.add_semicolon_loc(semicolonLoc.o);
   if (ast->identifier) {
     builder.add_identifier(identifier);
@@ -3979,7 +3987,7 @@ void ASTEncoder::visit(UsingDirectiveAST* ast) {
       acceptNestedNameSpecifier(ast->nestedNameSpecifier);
 
   const auto [unqualifiedId, unqualifiedIdType] =
-      acceptName(ast->unqualifiedId);
+      acceptUnqualifiedId(ast->unqualifiedId);
 
   auto semicolonLoc = encodeSourceLocation(ast->semicolonLoc);
 
@@ -3992,7 +4000,8 @@ void ASTEncoder::visit(UsingDirectiveAST* ast) {
   builder.add_nested_name_specifier_type(
       static_cast<io::NestedNameSpecifier>(nestedNameSpecifierType));
   builder.add_unqualified_id(unqualifiedId);
-  builder.add_unqualified_id_type(static_cast<io::Name>(unqualifiedIdType));
+  builder.add_unqualified_id_type(
+      static_cast<io::UnqualifiedId>(unqualifiedIdType));
   builder.add_semicolon_loc(semicolonLoc.o);
 
   offset_ = builder.Finish().Union();
@@ -4512,7 +4521,7 @@ void ASTEncoder::visit(LinkageSpecificationAST* ast) {
   type_ = io::Declaration_LinkageSpecification;
 }
 
-void ASTEncoder::visit(SimpleNameAST* ast) {
+void ASTEncoder::visit(NameIdAST* ast) {
   auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
 
   flatbuffers::Offset<flatbuffers::String> identifier;
@@ -4525,41 +4534,41 @@ void ASTEncoder::visit(SimpleNameAST* ast) {
     }
   }
 
-  io::SimpleName::Builder builder{fbb_};
+  io::NameId::Builder builder{fbb_};
   builder.add_identifier_loc(identifierLoc.o);
   if (ast->identifier) {
     builder.add_identifier(identifier);
   }
 
   offset_ = builder.Finish().Union();
-  type_ = io::Name_SimpleName;
+  type_ = io::UnqualifiedId_NameId;
 }
 
-void ASTEncoder::visit(DestructorNameAST* ast) {
+void ASTEncoder::visit(DestructorIdAST* ast) {
   auto tildeLoc = encodeSourceLocation(ast->tildeLoc);
 
-  const auto [id, idType] = acceptName(ast->id);
+  const auto [id, idType] = acceptUnqualifiedId(ast->id);
 
-  io::DestructorName::Builder builder{fbb_};
+  io::DestructorId::Builder builder{fbb_};
   builder.add_tilde_loc(tildeLoc.o);
   builder.add_id(id);
-  builder.add_id_type(static_cast<io::Name>(idType));
+  builder.add_id_type(static_cast<io::UnqualifiedId>(idType));
 
   offset_ = builder.Finish().Union();
-  type_ = io::Name_DestructorName;
+  type_ = io::UnqualifiedId_DestructorId;
 }
 
-void ASTEncoder::visit(DecltypeNameAST* ast) {
+void ASTEncoder::visit(DecltypeIdAST* ast) {
   const auto decltypeSpecifier = accept(ast->decltypeSpecifier);
 
-  io::DecltypeName::Builder builder{fbb_};
+  io::DecltypeId::Builder builder{fbb_};
   builder.add_decltype_specifier(decltypeSpecifier.o);
 
   offset_ = builder.Finish().Union();
-  type_ = io::Name_DecltypeName;
+  type_ = io::UnqualifiedId_DecltypeId;
 }
 
-void ASTEncoder::visit(OperatorFunctionNameAST* ast) {
+void ASTEncoder::visit(OperatorFunctionIdAST* ast) {
   auto operatorLoc = encodeSourceLocation(ast->operatorLoc);
 
   auto opLoc = encodeSourceLocation(ast->opLoc);
@@ -4568,7 +4577,7 @@ void ASTEncoder::visit(OperatorFunctionNameAST* ast) {
 
   auto closeLoc = encodeSourceLocation(ast->closeLoc);
 
-  io::OperatorFunctionName::Builder builder{fbb_};
+  io::OperatorFunctionId::Builder builder{fbb_};
   builder.add_operator_loc(operatorLoc.o);
   builder.add_op_loc(opLoc.o);
   builder.add_open_loc(openLoc.o);
@@ -4576,10 +4585,10 @@ void ASTEncoder::visit(OperatorFunctionNameAST* ast) {
   builder.add_op(static_cast<std::uint32_t>(ast->op));
 
   offset_ = builder.Finish().Union();
-  type_ = io::Name_OperatorFunctionName;
+  type_ = io::UnqualifiedId_OperatorFunctionId;
 }
 
-void ASTEncoder::visit(LiteralOperatorNameAST* ast) {
+void ASTEncoder::visit(LiteralOperatorIdAST* ast) {
   auto operatorLoc = encodeSourceLocation(ast->operatorLoc);
 
   auto literalLoc = encodeSourceLocation(ast->literalLoc);
@@ -4596,7 +4605,7 @@ void ASTEncoder::visit(LiteralOperatorNameAST* ast) {
     }
   }
 
-  io::LiteralOperatorName::Builder builder{fbb_};
+  io::LiteralOperatorId::Builder builder{fbb_};
   builder.add_operator_loc(operatorLoc.o);
   builder.add_literal_loc(literalLoc.o);
   builder.add_identifier_loc(identifierLoc.o);
@@ -4605,23 +4614,23 @@ void ASTEncoder::visit(LiteralOperatorNameAST* ast) {
   }
 
   offset_ = builder.Finish().Union();
-  type_ = io::Name_LiteralOperatorName;
+  type_ = io::UnqualifiedId_LiteralOperatorId;
 }
 
-void ASTEncoder::visit(ConversionFunctionNameAST* ast) {
+void ASTEncoder::visit(ConversionFunctionIdAST* ast) {
   auto operatorLoc = encodeSourceLocation(ast->operatorLoc);
 
   const auto typeId = accept(ast->typeId);
 
-  io::ConversionFunctionName::Builder builder{fbb_};
+  io::ConversionFunctionId::Builder builder{fbb_};
   builder.add_operator_loc(operatorLoc.o);
   builder.add_type_id(typeId.o);
 
   offset_ = builder.Finish().Union();
-  type_ = io::Name_ConversionFunctionName;
+  type_ = io::UnqualifiedId_ConversionFunctionId;
 }
 
-void ASTEncoder::visit(SimpleTemplateNameAST* ast) {
+void ASTEncoder::visit(SimpleTemplateIdAST* ast) {
   auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
 
   auto lessLoc = encodeSourceLocation(ast->lessLoc);
@@ -4654,7 +4663,7 @@ void ASTEncoder::visit(SimpleTemplateNameAST* ast) {
     }
   }
 
-  io::SimpleTemplateName::Builder builder{fbb_};
+  io::SimpleTemplateId::Builder builder{fbb_};
   builder.add_identifier_loc(identifierLoc.o);
   builder.add_less_loc(lessLoc.o);
   builder.add_template_argument_list(templateArgumentListOffsetsVector);
@@ -4665,11 +4674,11 @@ void ASTEncoder::visit(SimpleTemplateNameAST* ast) {
   }
 
   offset_ = builder.Finish().Union();
-  type_ = io::Name_SimpleTemplateName;
+  type_ = io::UnqualifiedId_SimpleTemplateId;
 }
 
-void ASTEncoder::visit(LiteralOperatorTemplateNameAST* ast) {
-  const auto literalOperatorName = accept(ast->literalOperatorName);
+void ASTEncoder::visit(LiteralOperatorTemplateIdAST* ast) {
+  const auto literalOperatorId = accept(ast->literalOperatorId);
 
   auto lessLoc = encodeSourceLocation(ast->lessLoc);
 
@@ -4691,19 +4700,19 @@ void ASTEncoder::visit(LiteralOperatorTemplateNameAST* ast) {
 
   auto greaterLoc = encodeSourceLocation(ast->greaterLoc);
 
-  io::LiteralOperatorTemplateName::Builder builder{fbb_};
-  builder.add_literal_operator_name(literalOperatorName.o);
+  io::LiteralOperatorTemplateId::Builder builder{fbb_};
+  builder.add_literal_operator_id(literalOperatorId.o);
   builder.add_less_loc(lessLoc.o);
   builder.add_template_argument_list(templateArgumentListOffsetsVector);
   builder.add_template_argument_list_type(templateArgumentListTypesVector);
   builder.add_greater_loc(greaterLoc.o);
 
   offset_ = builder.Finish().Union();
-  type_ = io::Name_LiteralOperatorTemplateName;
+  type_ = io::UnqualifiedId_LiteralOperatorTemplateId;
 }
 
-void ASTEncoder::visit(OperatorFunctionTemplateNameAST* ast) {
-  const auto operatorFunctionName = accept(ast->operatorFunctionName);
+void ASTEncoder::visit(OperatorFunctionTemplateIdAST* ast) {
+  const auto operatorFunctionId = accept(ast->operatorFunctionId);
 
   auto lessLoc = encodeSourceLocation(ast->lessLoc);
 
@@ -4725,15 +4734,15 @@ void ASTEncoder::visit(OperatorFunctionTemplateNameAST* ast) {
 
   auto greaterLoc = encodeSourceLocation(ast->greaterLoc);
 
-  io::OperatorFunctionTemplateName::Builder builder{fbb_};
-  builder.add_operator_function_name(operatorFunctionName.o);
+  io::OperatorFunctionTemplateId::Builder builder{fbb_};
+  builder.add_operator_function_id(operatorFunctionId.o);
   builder.add_less_loc(lessLoc.o);
   builder.add_template_argument_list(templateArgumentListOffsetsVector);
   builder.add_template_argument_list_type(templateArgumentListTypesVector);
   builder.add_greater_loc(greaterLoc.o);
 
   offset_ = builder.Finish().Union();
-  type_ = io::Name_OperatorFunctionTemplateName;
+  type_ = io::UnqualifiedId_OperatorFunctionTemplateId;
 }
 
 void ASTEncoder::visit(TypedefSpecifierAST* ast) {
@@ -4946,7 +4955,7 @@ void ASTEncoder::visit(NamedTypeSpecifierAST* ast) {
   auto templateLoc = encodeSourceLocation(ast->templateLoc);
 
   const auto [unqualifiedId, unqualifiedIdType] =
-      acceptName(ast->unqualifiedId);
+      acceptUnqualifiedId(ast->unqualifiedId);
 
   io::NamedTypeSpecifier::Builder builder{fbb_};
   builder.add_nested_name_specifier(nestedNameSpecifier);
@@ -4954,7 +4963,8 @@ void ASTEncoder::visit(NamedTypeSpecifierAST* ast) {
       static_cast<io::NestedNameSpecifier>(nestedNameSpecifierType));
   builder.add_template_loc(templateLoc.o);
   builder.add_unqualified_id(unqualifiedId);
-  builder.add_unqualified_id_type(static_cast<io::Name>(unqualifiedIdType));
+  builder.add_unqualified_id_type(
+      static_cast<io::UnqualifiedId>(unqualifiedIdType));
 
   offset_ = builder.Finish().Union();
   type_ = io::Specifier_NamedTypeSpecifier;
@@ -5019,7 +5029,7 @@ void ASTEncoder::visit(ElaboratedTypeSpecifierAST* ast) {
       acceptNestedNameSpecifier(ast->nestedNameSpecifier);
 
   const auto [unqualifiedId, unqualifiedIdType] =
-      acceptName(ast->unqualifiedId);
+      acceptUnqualifiedId(ast->unqualifiedId);
 
   io::ElaboratedTypeSpecifier::Builder builder{fbb_};
   builder.add_class_loc(classLoc.o);
@@ -5029,7 +5039,8 @@ void ASTEncoder::visit(ElaboratedTypeSpecifierAST* ast) {
   builder.add_nested_name_specifier_type(
       static_cast<io::NestedNameSpecifier>(nestedNameSpecifierType));
   builder.add_unqualified_id(unqualifiedId);
-  builder.add_unqualified_id_type(static_cast<io::Name>(unqualifiedIdType));
+  builder.add_unqualified_id_type(
+      static_cast<io::UnqualifiedId>(unqualifiedIdType));
   builder.add_class_key(static_cast<std::uint32_t>(ast->classKey));
 
   offset_ = builder.Finish().Union();
@@ -5142,7 +5153,7 @@ void ASTEncoder::visit(EnumSpecifierAST* ast) {
       acceptNestedNameSpecifier(ast->nestedNameSpecifier);
 
   const auto [unqualifiedId, unqualifiedIdType] =
-      acceptName(ast->unqualifiedId);
+      acceptUnqualifiedId(ast->unqualifiedId);
 
   const auto enumBase = accept(ast->enumBase);
 
@@ -5169,7 +5180,8 @@ void ASTEncoder::visit(EnumSpecifierAST* ast) {
   builder.add_nested_name_specifier_type(
       static_cast<io::NestedNameSpecifier>(nestedNameSpecifierType));
   builder.add_unqualified_id(unqualifiedId);
-  builder.add_unqualified_id_type(static_cast<io::Name>(unqualifiedIdType));
+  builder.add_unqualified_id_type(
+      static_cast<io::UnqualifiedId>(unqualifiedIdType));
   builder.add_enum_base(enumBase.o);
   builder.add_lbrace_loc(lbraceLoc.o);
   builder.add_comma_loc(commaLoc.o);
@@ -5201,7 +5213,7 @@ void ASTEncoder::visit(ClassSpecifierAST* ast) {
       acceptNestedNameSpecifier(ast->nestedNameSpecifier);
 
   const auto [unqualifiedId, unqualifiedIdType] =
-      acceptName(ast->unqualifiedId);
+      acceptUnqualifiedId(ast->unqualifiedId);
 
   auto finalLoc = encodeSourceLocation(ast->finalLoc);
 
@@ -5232,7 +5244,8 @@ void ASTEncoder::visit(ClassSpecifierAST* ast) {
   builder.add_nested_name_specifier_type(
       static_cast<io::NestedNameSpecifier>(nestedNameSpecifierType));
   builder.add_unqualified_id(unqualifiedId);
-  builder.add_unqualified_id_type(static_cast<io::Name>(unqualifiedIdType));
+  builder.add_unqualified_id_type(
+      static_cast<io::UnqualifiedId>(unqualifiedIdType));
   builder.add_final_loc(finalLoc.o);
   builder.add_base_clause(baseClause.o);
   builder.add_lbrace_loc(lbraceLoc.o);
@@ -5252,7 +5265,7 @@ void ASTEncoder::visit(TypenameSpecifierAST* ast) {
       acceptNestedNameSpecifier(ast->nestedNameSpecifier);
 
   const auto [unqualifiedId, unqualifiedIdType] =
-      acceptName(ast->unqualifiedId);
+      acceptUnqualifiedId(ast->unqualifiedId);
 
   io::TypenameSpecifier::Builder builder{fbb_};
   builder.add_typename_loc(typenameLoc.o);
@@ -5260,7 +5273,8 @@ void ASTEncoder::visit(TypenameSpecifierAST* ast) {
   builder.add_nested_name_specifier_type(
       static_cast<io::NestedNameSpecifier>(nestedNameSpecifierType));
   builder.add_unqualified_id(unqualifiedId);
-  builder.add_unqualified_id_type(static_cast<io::Name>(unqualifiedIdType));
+  builder.add_unqualified_id_type(
+      static_cast<io::UnqualifiedId>(unqualifiedIdType));
 
   offset_ = builder.Finish().Union();
   type_ = io::Specifier_TypenameSpecifier;

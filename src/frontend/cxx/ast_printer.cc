@@ -476,7 +476,7 @@ void ASTPrinter::visit(TemplateNestedNameSpecifierAST* ast) {
     --indent_;
   }
   accept(ast->nestedNameSpecifier, "nested-name-specifier");
-  accept(ast->templateName, "template-name");
+  accept(ast->templateId, "template-id");
 }
 
 void ASTPrinter::visit(ThrowExceptionSpecifierAST* ast) {
@@ -1394,7 +1394,7 @@ void ASTPrinter::visit(OpaqueEnumDeclarationAST* ast) {
 
 void ASTPrinter::visit(NestedNamespaceSpecifierAST* ast) {
   fmt::print(out_, "{}\n", "nested-namespace-specifier");
-  accept(ast->namespaceName, "namespace-name");
+  accept(ast->identifier, "identifier");
   if (ast->isInline) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
@@ -1405,7 +1405,7 @@ void ASTPrinter::visit(NestedNamespaceSpecifierAST* ast) {
 
 void ASTPrinter::visit(NamespaceDefinitionAST* ast) {
   fmt::print(out_, "{}\n", "namespace-definition");
-  accept(ast->namespaceName, "namespace-name");
+  accept(ast->identifier, "identifier");
   if (ast->isInline) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
@@ -1648,23 +1648,23 @@ void ASTPrinter::visit(LinkageSpecificationAST* ast) {
   }
 }
 
-void ASTPrinter::visit(SimpleNameAST* ast) {
-  fmt::print(out_, "{}\n", "simple-name");
+void ASTPrinter::visit(NameIdAST* ast) {
+  fmt::print(out_, "{}\n", "name-id");
   accept(ast->identifier, "identifier");
 }
 
-void ASTPrinter::visit(DestructorNameAST* ast) {
-  fmt::print(out_, "{}\n", "destructor-name");
+void ASTPrinter::visit(DestructorIdAST* ast) {
+  fmt::print(out_, "{}\n", "destructor-id");
   accept(ast->id, "id");
 }
 
-void ASTPrinter::visit(DecltypeNameAST* ast) {
-  fmt::print(out_, "{}\n", "decltype-name");
+void ASTPrinter::visit(DecltypeIdAST* ast) {
+  fmt::print(out_, "{}\n", "decltype-id");
   accept(ast->decltypeSpecifier, "decltype-specifier");
 }
 
-void ASTPrinter::visit(OperatorFunctionNameAST* ast) {
-  fmt::print(out_, "{}\n", "operator-function-name");
+void ASTPrinter::visit(OperatorFunctionIdAST* ast) {
+  fmt::print(out_, "{}\n", "operator-function-id");
   if (ast->op != TokenKind::T_EOF_SYMBOL) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
@@ -1673,8 +1673,8 @@ void ASTPrinter::visit(OperatorFunctionNameAST* ast) {
   }
 }
 
-void ASTPrinter::visit(LiteralOperatorNameAST* ast) {
-  fmt::print(out_, "{}\n", "literal-operator-name");
+void ASTPrinter::visit(LiteralOperatorIdAST* ast) {
+  fmt::print(out_, "{}\n", "literal-operator-id");
   if (ast->literal) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
@@ -1684,13 +1684,13 @@ void ASTPrinter::visit(LiteralOperatorNameAST* ast) {
   accept(ast->identifier, "identifier");
 }
 
-void ASTPrinter::visit(ConversionFunctionNameAST* ast) {
-  fmt::print(out_, "{}\n", "conversion-function-name");
+void ASTPrinter::visit(ConversionFunctionIdAST* ast) {
+  fmt::print(out_, "{}\n", "conversion-function-id");
   accept(ast->typeId, "type-id");
 }
 
-void ASTPrinter::visit(SimpleTemplateNameAST* ast) {
-  fmt::print(out_, "{}\n", "simple-template-name");
+void ASTPrinter::visit(SimpleTemplateIdAST* ast) {
+  fmt::print(out_, "{}\n", "simple-template-id");
   accept(ast->identifier, "identifier");
   if (ast->templateArgumentList) {
     ++indent_;
@@ -1703,9 +1703,9 @@ void ASTPrinter::visit(SimpleTemplateNameAST* ast) {
   }
 }
 
-void ASTPrinter::visit(LiteralOperatorTemplateNameAST* ast) {
-  fmt::print(out_, "{}\n", "literal-operator-template-name");
-  accept(ast->literalOperatorName, "literal-operator-name");
+void ASTPrinter::visit(LiteralOperatorTemplateIdAST* ast) {
+  fmt::print(out_, "{}\n", "literal-operator-template-id");
+  accept(ast->literalOperatorId, "literal-operator-id");
   if (ast->templateArgumentList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
@@ -1717,9 +1717,9 @@ void ASTPrinter::visit(LiteralOperatorTemplateNameAST* ast) {
   }
 }
 
-void ASTPrinter::visit(OperatorFunctionTemplateNameAST* ast) {
-  fmt::print(out_, "{}\n", "operator-function-template-name");
-  accept(ast->operatorFunctionName, "operator-function-name");
+void ASTPrinter::visit(OperatorFunctionTemplateIdAST* ast) {
+  fmt::print(out_, "{}\n", "operator-function-template-id");
+  accept(ast->operatorFunctionId, "operator-function-id");
   if (ast->templateArgumentList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);

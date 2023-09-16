@@ -668,41 +668,41 @@ void DefaultASTVisitor::visit(LinkageSpecificationAST* ast) {
   cxx_runtime_error("visit(LinkageSpecificationAST): not implemented");
 }
 
-// NameAST
-void DefaultASTVisitor::visit(SimpleNameAST* ast) {
-  cxx_runtime_error("visit(SimpleNameAST): not implemented");
+// UnqualifiedIdAST
+void DefaultASTVisitor::visit(NameIdAST* ast) {
+  cxx_runtime_error("visit(NameIdAST): not implemented");
 }
 
-void DefaultASTVisitor::visit(DestructorNameAST* ast) {
-  cxx_runtime_error("visit(DestructorNameAST): not implemented");
+void DefaultASTVisitor::visit(DestructorIdAST* ast) {
+  cxx_runtime_error("visit(DestructorIdAST): not implemented");
 }
 
-void DefaultASTVisitor::visit(DecltypeNameAST* ast) {
-  cxx_runtime_error("visit(DecltypeNameAST): not implemented");
+void DefaultASTVisitor::visit(DecltypeIdAST* ast) {
+  cxx_runtime_error("visit(DecltypeIdAST): not implemented");
 }
 
-void DefaultASTVisitor::visit(OperatorFunctionNameAST* ast) {
-  cxx_runtime_error("visit(OperatorFunctionNameAST): not implemented");
+void DefaultASTVisitor::visit(OperatorFunctionIdAST* ast) {
+  cxx_runtime_error("visit(OperatorFunctionIdAST): not implemented");
 }
 
-void DefaultASTVisitor::visit(LiteralOperatorNameAST* ast) {
-  cxx_runtime_error("visit(LiteralOperatorNameAST): not implemented");
+void DefaultASTVisitor::visit(LiteralOperatorIdAST* ast) {
+  cxx_runtime_error("visit(LiteralOperatorIdAST): not implemented");
 }
 
-void DefaultASTVisitor::visit(ConversionFunctionNameAST* ast) {
-  cxx_runtime_error("visit(ConversionFunctionNameAST): not implemented");
+void DefaultASTVisitor::visit(ConversionFunctionIdAST* ast) {
+  cxx_runtime_error("visit(ConversionFunctionIdAST): not implemented");
 }
 
-void DefaultASTVisitor::visit(SimpleTemplateNameAST* ast) {
-  cxx_runtime_error("visit(SimpleTemplateNameAST): not implemented");
+void DefaultASTVisitor::visit(SimpleTemplateIdAST* ast) {
+  cxx_runtime_error("visit(SimpleTemplateIdAST): not implemented");
 }
 
-void DefaultASTVisitor::visit(LiteralOperatorTemplateNameAST* ast) {
-  cxx_runtime_error("visit(LiteralOperatorTemplateNameAST): not implemented");
+void DefaultASTVisitor::visit(LiteralOperatorTemplateIdAST* ast) {
+  cxx_runtime_error("visit(LiteralOperatorTemplateIdAST): not implemented");
 }
 
-void DefaultASTVisitor::visit(OperatorFunctionTemplateNameAST* ast) {
-  cxx_runtime_error("visit(OperatorFunctionTemplateNameAST): not implemented");
+void DefaultASTVisitor::visit(OperatorFunctionTemplateIdAST* ast) {
+  cxx_runtime_error("visit(OperatorFunctionTemplateIdAST): not implemented");
 }
 
 // SpecifierAST

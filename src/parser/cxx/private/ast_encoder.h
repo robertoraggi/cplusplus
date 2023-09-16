@@ -108,7 +108,7 @@ class ASTEncoder : ASTVisitor {
   auto acceptDeclaration(DeclarationAST* ast)
       -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
-  auto acceptName(NameAST* ast)
+  auto acceptUnqualifiedId(UnqualifiedIdAST* ast)
       -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
   auto acceptSpecifier(SpecifierAST* ast)
@@ -300,15 +300,15 @@ class ASTEncoder : ASTVisitor {
   void visit(ParameterDeclarationAST* ast) override;
   void visit(LinkageSpecificationAST* ast) override;
 
-  void visit(SimpleNameAST* ast) override;
-  void visit(DestructorNameAST* ast) override;
-  void visit(DecltypeNameAST* ast) override;
-  void visit(OperatorFunctionNameAST* ast) override;
-  void visit(LiteralOperatorNameAST* ast) override;
-  void visit(ConversionFunctionNameAST* ast) override;
-  void visit(SimpleTemplateNameAST* ast) override;
-  void visit(LiteralOperatorTemplateNameAST* ast) override;
-  void visit(OperatorFunctionTemplateNameAST* ast) override;
+  void visit(NameIdAST* ast) override;
+  void visit(DestructorIdAST* ast) override;
+  void visit(DecltypeIdAST* ast) override;
+  void visit(OperatorFunctionIdAST* ast) override;
+  void visit(LiteralOperatorIdAST* ast) override;
+  void visit(ConversionFunctionIdAST* ast) override;
+  void visit(SimpleTemplateIdAST* ast) override;
+  void visit(LiteralOperatorTemplateIdAST* ast) override;
+  void visit(OperatorFunctionTemplateIdAST* ast) override;
 
   void visit(TypedefSpecifierAST* ast) override;
   void visit(FriendSpecifierAST* ast) override;

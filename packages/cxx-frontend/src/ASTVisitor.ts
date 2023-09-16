@@ -637,38 +637,35 @@ export abstract class ASTVisitor<Context, Result> {
     context: Context,
   ): Result;
 
-  // NameAST
-  abstract visitSimpleName(node: ast.SimpleNameAST, context: Context): Result;
-  abstract visitDestructorName(
-    node: ast.DestructorNameAST,
+  // UnqualifiedIdAST
+  abstract visitNameId(node: ast.NameIdAST, context: Context): Result;
+  abstract visitDestructorId(
+    node: ast.DestructorIdAST,
     context: Context,
   ): Result;
-  abstract visitDecltypeName(
-    node: ast.DecltypeNameAST,
+  abstract visitDecltypeId(node: ast.DecltypeIdAST, context: Context): Result;
+  abstract visitOperatorFunctionId(
+    node: ast.OperatorFunctionIdAST,
     context: Context,
   ): Result;
-  abstract visitOperatorFunctionName(
-    node: ast.OperatorFunctionNameAST,
+  abstract visitLiteralOperatorId(
+    node: ast.LiteralOperatorIdAST,
     context: Context,
   ): Result;
-  abstract visitLiteralOperatorName(
-    node: ast.LiteralOperatorNameAST,
+  abstract visitConversionFunctionId(
+    node: ast.ConversionFunctionIdAST,
     context: Context,
   ): Result;
-  abstract visitConversionFunctionName(
-    node: ast.ConversionFunctionNameAST,
+  abstract visitSimpleTemplateId(
+    node: ast.SimpleTemplateIdAST,
     context: Context,
   ): Result;
-  abstract visitSimpleTemplateName(
-    node: ast.SimpleTemplateNameAST,
+  abstract visitLiteralOperatorTemplateId(
+    node: ast.LiteralOperatorTemplateIdAST,
     context: Context,
   ): Result;
-  abstract visitLiteralOperatorTemplateName(
-    node: ast.LiteralOperatorTemplateNameAST,
-    context: Context,
-  ): Result;
-  abstract visitOperatorFunctionTemplateName(
-    node: ast.OperatorFunctionTemplateNameAST,
+  abstract visitOperatorFunctionTemplateId(
+    node: ast.OperatorFunctionTemplateIdAST,
     context: Context,
   ): Result;
 
