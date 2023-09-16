@@ -216,10 +216,12 @@ class ASTPrinter : ASTVisitor {
   void visit(SimpleNameAST* ast) override;
   void visit(DestructorNameAST* ast) override;
   void visit(DecltypeNameAST* ast) override;
-  void visit(OperatorNameAST* ast) override;
+  void visit(OperatorFunctionNameAST* ast) override;
   void visit(LiteralOperatorNameAST* ast) override;
-  void visit(ConversionNameAST* ast) override;
-  void visit(TemplateNameAST* ast) override;
+  void visit(ConversionFunctionNameAST* ast) override;
+  void visit(SimpleTemplateNameAST* ast) override;
+  void visit(LiteralOperatorTemplateNameAST* ast) override;
+  void visit(OperatorFunctionTemplateNameAST* ast) override;
   void visit(QualifiedNameAST* ast) override;
 
   void visit(TypedefSpecifierAST* ast) override;

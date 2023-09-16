@@ -262,10 +262,12 @@ class LinkageSpecificationAST;
 class SimpleNameAST;
 class DestructorNameAST;
 class DecltypeNameAST;
-class OperatorNameAST;
+class OperatorFunctionNameAST;
 class LiteralOperatorNameAST;
-class ConversionNameAST;
-class TemplateNameAST;
+class ConversionFunctionNameAST;
+class SimpleTemplateNameAST;
+class LiteralOperatorTemplateNameAST;
+class OperatorFunctionTemplateNameAST;
 class QualifiedNameAST;
 
 // SpecifierAST

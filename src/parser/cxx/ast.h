@@ -716,8 +716,9 @@ class TemplateNestedNameSpecifierAST final : public NestedNameSpecifierAST {
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   SourceLocation templateLoc;
-  TemplateNameAST* templateName = nullptr;
+  SimpleTemplateNameAST* templateName = nullptr;
   SourceLocation scopeLoc;
+  bool isTemplateIntroduced = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2507,7 +2508,7 @@ class DeductionGuideAST final : public DeclarationAST {
   ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
   SourceLocation rparenLoc;
   SourceLocation arrowLoc;
-  NameAST* templateId = nullptr;
+  SimpleTemplateNameAST* templateId = nullptr;
   SourceLocation semicolonLoc;
   const Identifier* identifier = nullptr;
 
@@ -2602,9 +2603,9 @@ class DecltypeNameAST final : public NameAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class OperatorNameAST final : public NameAST {
+class OperatorFunctionNameAST final : public NameAST {
  public:
-  OperatorNameAST() : NameAST(ASTKind::OperatorName) {}
+  OperatorFunctionNameAST() : NameAST(ASTKind::OperatorFunctionName) {}
 
   SourceLocation operatorLoc;
   SourceLocation opLoc;
@@ -2634,9 +2635,9 @@ class LiteralOperatorNameAST final : public NameAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class ConversionNameAST final : public NameAST {
+class ConversionFunctionNameAST final : public NameAST {
  public:
-  ConversionNameAST() : NameAST(ASTKind::ConversionName) {}
+  ConversionFunctionNameAST() : NameAST(ASTKind::ConversionFunctionName) {}
 
   SourceLocation operatorLoc;
   TypeIdAST* typeId = nullptr;
@@ -2647,11 +2648,44 @@ class ConversionNameAST final : public NameAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class TemplateNameAST final : public NameAST {
+class SimpleTemplateNameAST final : public NameAST {
  public:
-  TemplateNameAST() : NameAST(ASTKind::TemplateName) {}
+  SimpleTemplateNameAST() : NameAST(ASTKind::SimpleTemplateName) {}
 
-  NameAST* id = nullptr;
+  SourceLocation identifierLoc;
+  SourceLocation lessLoc;
+  List<TemplateArgumentAST*>* templateArgumentList = nullptr;
+  SourceLocation greaterLoc;
+  const Identifier* identifier = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class LiteralOperatorTemplateNameAST final : public NameAST {
+ public:
+  LiteralOperatorTemplateNameAST()
+      : NameAST(ASTKind::LiteralOperatorTemplateName) {}
+
+  LiteralOperatorNameAST* literalOperatorName = nullptr;
+  SourceLocation lessLoc;
+  List<TemplateArgumentAST*>* templateArgumentList = nullptr;
+  SourceLocation greaterLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class OperatorFunctionTemplateNameAST final : public NameAST {
+ public:
+  OperatorFunctionTemplateNameAST()
+      : NameAST(ASTKind::OperatorFunctionTemplateName) {}
+
+  OperatorFunctionNameAST* operatorFunctionName = nullptr;
   SourceLocation lessLoc;
   List<TemplateArgumentAST*>* templateArgumentList = nullptr;
   SourceLocation greaterLoc;

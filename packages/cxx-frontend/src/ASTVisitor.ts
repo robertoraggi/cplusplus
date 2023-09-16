@@ -647,20 +647,28 @@ export abstract class ASTVisitor<Context, Result> {
     node: ast.DecltypeNameAST,
     context: Context,
   ): Result;
-  abstract visitOperatorName(
-    node: ast.OperatorNameAST,
+  abstract visitOperatorFunctionName(
+    node: ast.OperatorFunctionNameAST,
     context: Context,
   ): Result;
   abstract visitLiteralOperatorName(
     node: ast.LiteralOperatorNameAST,
     context: Context,
   ): Result;
-  abstract visitConversionName(
-    node: ast.ConversionNameAST,
+  abstract visitConversionFunctionName(
+    node: ast.ConversionFunctionNameAST,
     context: Context,
   ): Result;
-  abstract visitTemplateName(
-    node: ast.TemplateNameAST,
+  abstract visitSimpleTemplateName(
+    node: ast.SimpleTemplateNameAST,
+    context: Context,
+  ): Result;
+  abstract visitLiteralOperatorTemplateName(
+    node: ast.LiteralOperatorTemplateNameAST,
+    context: Context,
+  ): Result;
+  abstract visitOperatorFunctionTemplateName(
+    node: ast.OperatorFunctionTemplateNameAST,
     context: Context,
   ): Result;
   abstract visitQualifiedName(

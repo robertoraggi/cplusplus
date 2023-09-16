@@ -398,12 +398,20 @@ class ASTDecoder {
   auto decodeDestructorName(const io::DestructorName* node)
       -> DestructorNameAST*;
   auto decodeDecltypeName(const io::DecltypeName* node) -> DecltypeNameAST*;
-  auto decodeOperatorName(const io::OperatorName* node) -> OperatorNameAST*;
+  auto decodeOperatorFunctionName(const io::OperatorFunctionName* node)
+      -> OperatorFunctionNameAST*;
   auto decodeLiteralOperatorName(const io::LiteralOperatorName* node)
       -> LiteralOperatorNameAST*;
-  auto decodeConversionName(const io::ConversionName* node)
-      -> ConversionNameAST*;
-  auto decodeTemplateName(const io::TemplateName* node) -> TemplateNameAST*;
+  auto decodeConversionFunctionName(const io::ConversionFunctionName* node)
+      -> ConversionFunctionNameAST*;
+  auto decodeSimpleTemplateName(const io::SimpleTemplateName* node)
+      -> SimpleTemplateNameAST*;
+  auto decodeLiteralOperatorTemplateName(
+      const io::LiteralOperatorTemplateName* node)
+      -> LiteralOperatorTemplateNameAST*;
+  auto decodeOperatorFunctionTemplateName(
+      const io::OperatorFunctionTemplateName* node)
+      -> OperatorFunctionTemplateNameAST*;
   auto decodeQualifiedName(const io::QualifiedName* node) -> QualifiedNameAST*;
 
   auto decodeTypedefSpecifier(const io::TypedefSpecifier* node)

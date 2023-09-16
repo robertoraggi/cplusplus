@@ -2436,7 +2436,7 @@ auto DecltypeNameAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto OperatorNameAST::firstSourceLocation() -> SourceLocation {
+auto OperatorFunctionNameAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(operatorLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(opLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(openLoc)) return loc;
@@ -2444,7 +2444,7 @@ auto OperatorNameAST::firstSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto OperatorNameAST::lastSourceLocation() -> SourceLocation {
+auto OperatorFunctionNameAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(closeLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(openLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(opLoc)) return loc;
@@ -2466,31 +2466,63 @@ auto LiteralOperatorNameAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto ConversionNameAST::firstSourceLocation() -> SourceLocation {
+auto ConversionFunctionNameAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(operatorLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
   return {};
 }
 
-auto ConversionNameAST::lastSourceLocation() -> SourceLocation {
+auto ConversionFunctionNameAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
   if (auto loc = cxx::lastSourceLocation(operatorLoc)) return loc;
   return {};
 }
 
-auto TemplateNameAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(id)) return loc;
+auto SimpleTemplateNameAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lessLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(templateArgumentList)) return loc;
   if (auto loc = cxx::firstSourceLocation(greaterLoc)) return loc;
   return {};
 }
 
-auto TemplateNameAST::lastSourceLocation() -> SourceLocation {
+auto SimpleTemplateNameAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(greaterLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(templateArgumentList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lessLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(id)) return loc;
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  return {};
+}
+
+auto LiteralOperatorTemplateNameAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(literalOperatorName)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lessLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(templateArgumentList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(greaterLoc)) return loc;
+  return {};
+}
+
+auto LiteralOperatorTemplateNameAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(greaterLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(templateArgumentList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lessLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(literalOperatorName)) return loc;
+  return {};
+}
+
+auto OperatorFunctionTemplateNameAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(operatorFunctionName)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lessLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(templateArgumentList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(greaterLoc)) return loc;
+  return {};
+}
+
+auto OperatorFunctionTemplateNameAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(greaterLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(templateArgumentList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lessLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(operatorFunctionName)) return loc;
   return {};
 }
 

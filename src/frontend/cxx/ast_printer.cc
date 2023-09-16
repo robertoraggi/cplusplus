@@ -462,6 +462,12 @@ void ASTPrinter::visit(DecltypeNestedNameSpecifierAST* ast) {
 
 void ASTPrinter::visit(TemplateNestedNameSpecifierAST* ast) {
   fmt::print(out_, "{}\n", "template-nested-name-specifier");
+  if (ast->isTemplateIntroduced) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "is-template-introduced: {}\n", ast->isTemplateIntroduced);
+    --indent_;
+  }
   accept(ast->nestedNameSpecifier, "nested-name-specifier");
   accept(ast->templateName, "template-name");
 }
@@ -1641,8 +1647,8 @@ void ASTPrinter::visit(DecltypeNameAST* ast) {
   accept(ast->decltypeSpecifier, "decltype-specifier");
 }
 
-void ASTPrinter::visit(OperatorNameAST* ast) {
-  fmt::print(out_, "{}\n", "operator-name");
+void ASTPrinter::visit(OperatorFunctionNameAST* ast) {
+  fmt::print(out_, "{}\n", "operator-function-name");
   if (ast->op != TokenKind::T_EOF_SYMBOL) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
@@ -1662,14 +1668,42 @@ void ASTPrinter::visit(LiteralOperatorNameAST* ast) {
   accept(ast->identifier, "identifier");
 }
 
-void ASTPrinter::visit(ConversionNameAST* ast) {
-  fmt::print(out_, "{}\n", "conversion-name");
+void ASTPrinter::visit(ConversionFunctionNameAST* ast) {
+  fmt::print(out_, "{}\n", "conversion-function-name");
   accept(ast->typeId, "type-id");
 }
 
-void ASTPrinter::visit(TemplateNameAST* ast) {
-  fmt::print(out_, "{}\n", "template-name");
-  accept(ast->id, "id");
+void ASTPrinter::visit(SimpleTemplateNameAST* ast) {
+  fmt::print(out_, "{}\n", "simple-template-name");
+  accept(ast->identifier, "identifier");
+  if (ast->templateArgumentList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "template-argument-list");
+    for (auto it = ast->templateArgumentList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+}
+
+void ASTPrinter::visit(LiteralOperatorTemplateNameAST* ast) {
+  fmt::print(out_, "{}\n", "literal-operator-template-name");
+  accept(ast->literalOperatorName, "literal-operator-name");
+  if (ast->templateArgumentList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "template-argument-list");
+    for (auto it = ast->templateArgumentList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+}
+
+void ASTPrinter::visit(OperatorFunctionTemplateNameAST* ast) {
+  fmt::print(out_, "{}\n", "operator-function-template-name");
+  accept(ast->operatorFunctionName, "operator-function-name");
   if (ast->templateArgumentList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);

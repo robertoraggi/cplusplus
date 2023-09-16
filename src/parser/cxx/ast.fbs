@@ -207,10 +207,12 @@ union Name {
   SimpleName,
   DestructorName,
   DecltypeName,
-  OperatorName,
+  OperatorFunctionName,
   LiteralOperatorName,
-  ConversionName,
-  TemplateName,
+  ConversionFunctionName,
+  SimpleTemplateName,
+  LiteralOperatorTemplateName,
+  OperatorFunctionTemplateName,
   QualifiedName,
 }
 
@@ -783,7 +785,7 @@ table TemplatePackTypeParameter /* DeclarationAST */ {
 table DeductionGuide /* DeclarationAST */ {
   explicit_specifier: Specifier;
   parameter_declaration_clause: ParameterDeclarationClause;
-  template_id: Name;
+  template_id: SimpleTemplateName;
   identifier: string;
   identifier_loc: SourceLocation;
   lparen_loc: SourceLocation;
@@ -1251,7 +1253,7 @@ table DecltypeName /* NameAST */ {
   decltype_specifier: DecltypeSpecifier;
 }
 
-table OperatorName /* NameAST */ {
+table OperatorFunctionName /* NameAST */ {
   op: uint32;
   operator_loc: SourceLocation;
   op_loc: SourceLocation;
@@ -1266,13 +1268,28 @@ table LiteralOperatorName /* NameAST */ {
   identifier_loc: SourceLocation;
 }
 
-table ConversionName /* NameAST */ {
+table ConversionFunctionName /* NameAST */ {
   type_id: TypeId;
   operator_loc: SourceLocation;
 }
 
-table TemplateName /* NameAST */ {
-  id: Name;
+table SimpleTemplateName /* NameAST */ {
+  template_argument_list: [TemplateArgument];
+  identifier: string;
+  identifier_loc: SourceLocation;
+  less_loc: SourceLocation;
+  greater_loc: SourceLocation;
+}
+
+table LiteralOperatorTemplateName /* NameAST */ {
+  literal_operator_name: LiteralOperatorName;
+  template_argument_list: [TemplateArgument];
+  less_loc: SourceLocation;
+  greater_loc: SourceLocation;
+}
+
+table OperatorFunctionTemplateName /* NameAST */ {
+  operator_function_name: OperatorFunctionName;
   template_argument_list: [TemplateArgument];
   less_loc: SourceLocation;
   greater_loc: SourceLocation;
@@ -1303,7 +1320,7 @@ table DecltypeNestedNameSpecifier /* NestedNameSpecifierAST */ {
 
 table TemplateNestedNameSpecifier /* NestedNameSpecifierAST */ {
   nested_name_specifier: NestedNameSpecifier;
-  template_name: TemplateName;
+  template_name: SimpleTemplateName;
   template_loc: SourceLocation;
   scope_loc: SourceLocation;
 }

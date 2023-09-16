@@ -1034,14 +1034,17 @@ export class TemplateNestedNameSpecifierAST extends NestedNameSpecifierAST {
   getTemplateToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
   }
-  getTemplateName(): TemplateNameAST | undefined {
-    return AST.from<TemplateNameAST>(
+  getTemplateName(): SimpleTemplateNameAST | undefined {
+    return AST.from<SimpleTemplateNameAST>(
       cxx.getASTSlot(this.getHandle(), 2),
       this.parser,
     );
   }
   getScopeToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+  getIsTemplateIntroduced(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 4) !== 0;
   }
 }
 
@@ -4127,8 +4130,11 @@ export class DeductionGuideAST extends DeclarationAST {
   getArrowToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
   }
-  getTemplateId(): NameAST | undefined {
-    return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+  getTemplateId(): SimpleTemplateNameAST | undefined {
+    return AST.from<SimpleTemplateNameAST>(
+      cxx.getASTSlot(this.getHandle(), 6),
+      this.parser,
+    );
   }
   getSemicolonToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
@@ -4282,12 +4288,12 @@ export class DecltypeNameAST extends NameAST {
   }
 }
 
-export class OperatorNameAST extends NameAST {
+export class OperatorFunctionNameAST extends NameAST {
   accept<Context, Result>(
     visitor: ASTVisitor<Context, Result>,
     context: Context,
   ): Result {
-    return visitor.visitOperatorName(this, context);
+    return visitor.visitOperatorFunctionName(this, context);
   }
   getOperatorToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
@@ -4332,12 +4338,12 @@ export class LiteralOperatorNameAST extends NameAST {
   }
 }
 
-export class ConversionNameAST extends NameAST {
+export class ConversionFunctionNameAST extends NameAST {
   accept<Context, Result>(
     visitor: ASTVisitor<Context, Result>,
     context: Context,
   ): Result {
-    return visitor.visitConversionName(this, context);
+    return visitor.visitConversionFunctionName(this, context);
   }
   getOperatorToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
@@ -4350,15 +4356,79 @@ export class ConversionNameAST extends NameAST {
   }
 }
 
-export class TemplateNameAST extends NameAST {
+export class SimpleTemplateNameAST extends NameAST {
   accept<Context, Result>(
     visitor: ASTVisitor<Context, Result>,
     context: Context,
   ): Result {
-    return visitor.visitTemplateName(this, context);
+    return visitor.visitSimpleTemplateName(this, context);
   }
-  getId(): NameAST | undefined {
-    return AST.from<NameAST>(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+  getLessToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+  *getTemplateArgumentList(): Generator<TemplateArgumentAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 2);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<TemplateArgumentAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+  getGreaterToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 4);
+    return cxx.getIdentifierValue(slot);
+  }
+}
+
+export class LiteralOperatorTemplateNameAST extends NameAST {
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitLiteralOperatorTemplateName(this, context);
+  }
+  getLiteralOperatorName(): LiteralOperatorNameAST | undefined {
+    return AST.from<LiteralOperatorNameAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+  getLessToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+  *getTemplateArgumentList(): Generator<TemplateArgumentAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 2);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<TemplateArgumentAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+  getGreaterToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+}
+
+export class OperatorFunctionTemplateNameAST extends NameAST {
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitOperatorFunctionTemplateName(this, context);
+  }
+  getOperatorFunctionName(): OperatorFunctionNameAST | undefined {
+    return AST.from<OperatorFunctionNameAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
   }
   getLessToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
@@ -5520,10 +5590,12 @@ const AST_CONSTRUCTORS: Array<
   SimpleNameAST,
   DestructorNameAST,
   DecltypeNameAST,
-  OperatorNameAST,
+  OperatorFunctionNameAST,
   LiteralOperatorNameAST,
-  ConversionNameAST,
-  TemplateNameAST,
+  ConversionFunctionNameAST,
+  SimpleTemplateNameAST,
+  LiteralOperatorTemplateNameAST,
+  OperatorFunctionTemplateNameAST,
   QualifiedNameAST,
   TypedefSpecifierAST,
   FriendSpecifierAST,
