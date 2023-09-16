@@ -687,6 +687,8 @@ void ASTCloner::visit(TemplateNestedNameSpecifierAST* ast) {
   copy->templateName = accept(ast->templateName);
 
   copy->scopeLoc = ast->scopeLoc;
+
+  copy->isTemplateIntroduced = ast->isTemplateIntroduced;
 }
 
 void ASTCloner::visit(ThrowExceptionSpecifierAST* ast) {
@@ -3024,8 +3026,8 @@ void ASTCloner::visit(DecltypeNameAST* ast) {
   copy->decltypeSpecifier = accept(ast->decltypeSpecifier);
 }
 
-void ASTCloner::visit(OperatorNameAST* ast) {
-  auto copy = new (arena_) OperatorNameAST();
+void ASTCloner::visit(OperatorFunctionNameAST* ast) {
+  auto copy = new (arena_) OperatorFunctionNameAST();
   copy_ = copy;
 
   copy->setChecked(ast->checked());
@@ -3058,8 +3060,8 @@ void ASTCloner::visit(LiteralOperatorNameAST* ast) {
   copy->identifier = ast->identifier;
 }
 
-void ASTCloner::visit(ConversionNameAST* ast) {
-  auto copy = new (arena_) ConversionNameAST();
+void ASTCloner::visit(ConversionFunctionNameAST* ast) {
+  auto copy = new (arena_) ConversionFunctionNameAST();
   copy_ = copy;
 
   copy->setChecked(ast->checked());
@@ -3069,13 +3071,59 @@ void ASTCloner::visit(ConversionNameAST* ast) {
   copy->typeId = accept(ast->typeId);
 }
 
-void ASTCloner::visit(TemplateNameAST* ast) {
-  auto copy = new (arena_) TemplateNameAST();
+void ASTCloner::visit(SimpleTemplateNameAST* ast) {
+  auto copy = new (arena_) SimpleTemplateNameAST();
   copy_ = copy;
 
   copy->setChecked(ast->checked());
 
-  copy->id = accept(ast->id);
+  copy->identifierLoc = ast->identifierLoc;
+
+  copy->lessLoc = ast->lessLoc;
+
+  if (auto it = ast->templateArgumentList) {
+    auto out = &copy->templateArgumentList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->greaterLoc = ast->greaterLoc;
+
+  copy->identifier = ast->identifier;
+}
+
+void ASTCloner::visit(LiteralOperatorTemplateNameAST* ast) {
+  auto copy = new (arena_) LiteralOperatorTemplateNameAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->literalOperatorName = accept(ast->literalOperatorName);
+
+  copy->lessLoc = ast->lessLoc;
+
+  if (auto it = ast->templateArgumentList) {
+    auto out = &copy->templateArgumentList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->greaterLoc = ast->greaterLoc;
+}
+
+void ASTCloner::visit(OperatorFunctionTemplateNameAST* ast) {
+  auto copy = new (arena_) OperatorFunctionTemplateNameAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->operatorFunctionName = accept(ast->operatorFunctionName);
 
   copy->lessLoc = ast->lessLoc;
 

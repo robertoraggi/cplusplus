@@ -213,10 +213,12 @@ enum struct ASTKind {
   SimpleName,
   DestructorName,
   DecltypeName,
-  OperatorName,
+  OperatorFunctionName,
   LiteralOperatorName,
-  ConversionName,
-  TemplateName,
+  ConversionFunctionName,
+  SimpleTemplateName,
+  LiteralOperatorTemplateName,
+  OperatorFunctionTemplateName,
   QualifiedName,
 
   // SpecifierAST

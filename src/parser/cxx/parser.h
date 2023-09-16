@@ -459,7 +459,8 @@ class Parser final {
       FunctionDeclaratorAST* functionDeclarator) -> bool;
   [[nodiscard]] auto parse_pure_specifier(SourceLocation& equalLoc,
                                           SourceLocation& zeroLoc) -> bool;
-  [[nodiscard]] auto parse_conversion_function_id(NameAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_conversion_function_id(
+      ConversionFunctionNameAST*& yyast) -> bool;
   [[nodiscard]] auto parse_base_clause(BaseClauseAST*& yyast) -> bool;
   [[nodiscard]] auto parse_base_specifier_list(List<BaseSpecifierAST*>*& yyast)
       -> bool;
@@ -470,11 +471,13 @@ class Parser final {
   void parse_mem_initializer_list(List<MemInitializerAST*>*& yyast);
   void parse_mem_initializer(MemInitializerAST*& yyast);
   [[nodiscard]] auto parse_mem_initializer_id(NameAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_operator_function_id(NameAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_operator_function_id(OperatorFunctionNameAST*& yyast)
+      -> bool;
   [[nodiscard]] auto parse_operator(TokenKind& op, SourceLocation& opLoc,
                                     SourceLocation& openLoc,
                                     SourceLocation& closeLoc) -> bool;
-  [[nodiscard]] auto parse_literal_operator_id(NameAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_literal_operator_id(LiteralOperatorNameAST*& yyast)
+      -> bool;
   [[nodiscard]] auto parse_template_declaration(DeclarationAST*& yyast) -> bool;
   void parse_template_parameter_list(List<DeclarationAST*>*& yyast);
   [[nodiscard]] auto parse_requires_clause(RequiresClauseAST*& yyast) -> bool;
@@ -496,7 +499,12 @@ class Parser final {
                                            bool parsingPlaceholderTypeSpec)
       -> bool;
   [[nodiscard]] auto parse_simple_template_or_name_id(NameAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_simple_template_id(NameAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_simple_template_id(SimpleTemplateNameAST*& yyast)
+      -> bool;
+  [[nodiscard]] auto parse_literal_operator_template_id(
+      LiteralOperatorTemplateNameAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_function_operator_template_id(
+      OperatorFunctionTemplateNameAST*& yyast) -> bool;
   [[nodiscard]] auto parse_template_id(NameAST*& yyast) -> bool;
   [[nodiscard]] auto parse_template_argument_list(
       List<TemplateArgumentAST*>*& yyast) -> bool;

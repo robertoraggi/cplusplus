@@ -146,7 +146,7 @@ void RecursiveASTVisitor::acceptDecltypeSpecifier(DecltypeSpecifierAST* ast) {
   accept(ast);
 }
 
-void RecursiveASTVisitor::acceptTemplateName(TemplateNameAST* ast) {
+void RecursiveASTVisitor::acceptSimpleTemplateName(SimpleTemplateNameAST* ast) {
   accept(ast);
 }
 
@@ -229,6 +229,16 @@ void RecursiveASTVisitor::acceptElaboratedTypeSpecifier(
 }
 
 void RecursiveASTVisitor::acceptImportName(ImportNameAST* ast) { accept(ast); }
+
+void RecursiveASTVisitor::acceptLiteralOperatorName(
+    LiteralOperatorNameAST* ast) {
+  accept(ast);
+}
+
+void RecursiveASTVisitor::acceptOperatorFunctionName(
+    OperatorFunctionNameAST* ast) {
+  accept(ast);
+}
 
 void RecursiveASTVisitor::acceptEnumerator(EnumeratorAST* ast) { accept(ast); }
 
@@ -451,7 +461,7 @@ void RecursiveASTVisitor::visit(DecltypeNestedNameSpecifierAST* ast) {
 
 void RecursiveASTVisitor::visit(TemplateNestedNameSpecifierAST* ast) {
   acceptNestedNameSpecifier(ast->nestedNameSpecifier);
-  acceptTemplateName(ast->templateName);
+  acceptSimpleTemplateName(ast->templateName);
 }
 
 void RecursiveASTVisitor::visit(ThrowExceptionSpecifierAST* ast) {}
@@ -1030,7 +1040,7 @@ void RecursiveASTVisitor::visit(TemplatePackTypeParameterAST* ast) {
 void RecursiveASTVisitor::visit(DeductionGuideAST* ast) {
   acceptSpecifier(ast->explicitSpecifier);
   acceptParameterDeclarationClause(ast->parameterDeclarationClause);
-  acceptName(ast->templateId);
+  acceptSimpleTemplateName(ast->templateId);
 }
 
 void RecursiveASTVisitor::visit(ExplicitInstantiationAST* ast) {
@@ -1062,16 +1072,29 @@ void RecursiveASTVisitor::visit(DecltypeNameAST* ast) {
   acceptDecltypeSpecifier(ast->decltypeSpecifier);
 }
 
-void RecursiveASTVisitor::visit(OperatorNameAST* ast) {}
+void RecursiveASTVisitor::visit(OperatorFunctionNameAST* ast) {}
 
 void RecursiveASTVisitor::visit(LiteralOperatorNameAST* ast) {}
 
-void RecursiveASTVisitor::visit(ConversionNameAST* ast) {
+void RecursiveASTVisitor::visit(ConversionFunctionNameAST* ast) {
   acceptTypeId(ast->typeId);
 }
 
-void RecursiveASTVisitor::visit(TemplateNameAST* ast) {
-  acceptName(ast->id);
+void RecursiveASTVisitor::visit(SimpleTemplateNameAST* ast) {
+  for (auto it = ast->templateArgumentList; it; it = it->next) {
+    acceptTemplateArgument(it->value);
+  }
+}
+
+void RecursiveASTVisitor::visit(LiteralOperatorTemplateNameAST* ast) {
+  acceptLiteralOperatorName(ast->literalOperatorName);
+  for (auto it = ast->templateArgumentList; it; it = it->next) {
+    acceptTemplateArgument(it->value);
+  }
+}
+
+void RecursiveASTVisitor::visit(OperatorFunctionTemplateNameAST* ast) {
+  acceptOperatorFunctionName(ast->operatorFunctionName);
   for (auto it = ast->templateArgumentList; it; it = it->next) {
     acceptTemplateArgument(it->value);
   }

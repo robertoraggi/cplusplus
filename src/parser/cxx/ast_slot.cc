@@ -784,9 +784,13 @@ void ASTSlot::visit(TemplateNestedNameSpecifierAST* ast) {
       value_ = ast->scopeLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       break;
+    case 4:  // isTemplateIntroduced
+      value_ = intptr_t(ast->isTemplateIntroduced != 0);
+      slotKind_ = ASTSlotKind::kBoolAttribute;
+      break;
   }  // switch
 
-  slotCount_ = 4;
+  slotCount_ = 5;
 }
 
 void ASTSlot::visit(ThrowExceptionSpecifierAST* ast) {
@@ -3601,7 +3605,7 @@ void ASTSlot::visit(DecltypeNameAST* ast) {
   slotCount_ = 1;
 }
 
-void ASTSlot::visit(OperatorNameAST* ast) {
+void ASTSlot::visit(OperatorFunctionNameAST* ast) {
   switch (slot_) {
     case 0:  // operatorLoc
       value_ = ast->operatorLoc.index();
@@ -3655,7 +3659,7 @@ void ASTSlot::visit(LiteralOperatorNameAST* ast) {
   slotCount_ = 5;
 }
 
-void ASTSlot::visit(ConversionNameAST* ast) {
+void ASTSlot::visit(ConversionFunctionNameAST* ast) {
   switch (slot_) {
     case 0:  // operatorLoc
       value_ = ast->operatorLoc.index();
@@ -3670,10 +3674,60 @@ void ASTSlot::visit(ConversionNameAST* ast) {
   slotCount_ = 2;
 }
 
-void ASTSlot::visit(TemplateNameAST* ast) {
+void ASTSlot::visit(SimpleTemplateNameAST* ast) {
   switch (slot_) {
-    case 0:  // id
-      value_ = reinterpret_cast<std::intptr_t>(ast->id);
+    case 0:  // identifierLoc
+      value_ = ast->identifierLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:  // lessLoc
+      value_ = ast->lessLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 2:  // templateArgumentList
+      value_ = reinterpret_cast<std::intptr_t>(ast->templateArgumentList);
+      slotKind_ = ASTSlotKind::kNodeList;
+      break;
+    case 3:  // greaterLoc
+      value_ = ast->greaterLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 4:  // identifier
+      value_ = reinterpret_cast<std::intptr_t>(ast->identifier);
+      slotKind_ = ASTSlotKind::kIdentifierAttribute;
+      break;
+  }  // switch
+
+  slotCount_ = 5;
+}
+
+void ASTSlot::visit(LiteralOperatorTemplateNameAST* ast) {
+  switch (slot_) {
+    case 0:  // literalOperatorName
+      value_ = reinterpret_cast<std::intptr_t>(ast->literalOperatorName);
+      slotKind_ = ASTSlotKind::kNode;
+      break;
+    case 1:  // lessLoc
+      value_ = ast->lessLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 2:  // templateArgumentList
+      value_ = reinterpret_cast<std::intptr_t>(ast->templateArgumentList);
+      slotKind_ = ASTSlotKind::kNodeList;
+      break;
+    case 3:  // greaterLoc
+      value_ = ast->greaterLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+  }  // switch
+
+  slotCount_ = 4;
+}
+
+void ASTSlot::visit(OperatorFunctionTemplateNameAST* ast) {
+  switch (slot_) {
+    case 0:  // operatorFunctionName
+      value_ = reinterpret_cast<std::intptr_t>(ast->operatorFunctionName);
       slotKind_ = ASTSlotKind::kNode;
       break;
     case 1:  // lessLoc

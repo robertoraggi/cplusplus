@@ -406,7 +406,9 @@ auto Parser::parse_override(SourceLocation& loc) -> bool {
 auto Parser::parse_type_name(NameAST*& yyast) -> bool {
   auto lookat_simple_template_id = [&] {
     LookaheadParser lookahead{this};
-    if (!parse_simple_template_id(yyast)) return false;
+    SimpleTemplateNameAST* templateId = nullptr;
+    if (!parse_simple_template_id(templateId)) return false;
+    yyast = templateId;
     lookahead.commit();
     return true;
   };
@@ -759,21 +761,21 @@ auto Parser::parse_unqualified_id(NameAST*& yyast, bool inRequiresClause)
     ast->id = name;
 
     return true;
-  }
-
-  if (lookat(TokenKind::T_OPERATOR)) {
-    if (parse_literal_operator_id(yyast)) return true;
-    if (parse_operator_function_id(yyast)) return true;
-
-    rewind(start);
-
-    LookaheadParser lookahead{this};
-    if (!parse_conversion_function_id(yyast)) return false;
-    lookahead.commit();
+  } else if (LiteralOperatorNameAST* literalOperatorName = nullptr;
+             parse_literal_operator_id(literalOperatorName)) {
+    yyast = literalOperatorName;
     return true;
+  } else if (ConversionFunctionNameAST* conversionFunctionName = nullptr;
+             parse_conversion_function_id(conversionFunctionName)) {
+    yyast = conversionFunctionName;
+    return true;
+  } else if (OperatorFunctionNameAST* functionOperatorName = nullptr;
+             parse_operator_function_id(functionOperatorName)) {
+    yyast = functionOperatorName;
+    return true;
+  } else {
+    return parse_name_id(yyast);
   }
-
-  return parse_name_id(yyast);
 }
 
 auto Parser::parse_qualified_id(NameAST*& yyast, bool inRequiresClause)
@@ -872,9 +874,9 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
     LookaheadParser lookahead{this};
 
     SourceLocation templateLoc;
-    match(TokenKind::T_TEMPLATE, templateLoc);
+    const auto isTemplateIntroduced = match(TokenKind::T_TEMPLATE, templateLoc);
 
-    NameAST* templateName = nullptr;
+    SimpleTemplateNameAST* templateName = nullptr;
     if (!parse_simple_template_id(templateName)) return false;
 
     SourceLocation scopeLoc;
@@ -887,8 +889,9 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
     yyast = ast;
 
     ast->templateLoc = templateLoc;
-    ast->templateName = static_cast<TemplateNameAST*>(templateName);
+    ast->templateName = templateName;
     ast->scopeLoc = scopeLoc;
+    ast->isTemplateIntroduced = isTemplateIntroduced;
 
     return true;
   };
@@ -4463,9 +4466,8 @@ auto Parser::parse_elaborated_type_specifier_helper(
   if (!parse_nested_name_specifier(nestedNameSpecifier)) {
     rewind(before_nested_name_specifier);
 
-    NameAST* name = nullptr;
-
-    if (parse_simple_template_id(name)) {
+    if (SimpleTemplateNameAST* templateName = nullptr;
+        parse_simple_template_id(templateName)) {
       specs.has_complex_typespec = true;
 
       auto ast = new (pool) ElaboratedTypeSpecifierAST();
@@ -4473,7 +4475,7 @@ auto Parser::parse_elaborated_type_specifier_helper(
 
       ast->classLoc = classLoc;
       ast->attributeList = attributes;
-      ast->name = name;
+      ast->name = templateName;
       ast->classKey = unit->tokenKind(classLoc);
 
       return true;
@@ -4488,7 +4490,6 @@ auto Parser::parse_elaborated_type_specifier_helper(
     if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
 
     auto id = new (pool) SimpleNameAST();
-    name = id;
 
     id->identifierLoc = identifierLoc;
     id->identifier = unit->identifier(id->identifierLoc);
@@ -4500,7 +4501,7 @@ auto Parser::parse_elaborated_type_specifier_helper(
 
     ast->classLoc = classLoc;
     ast->attributeList = attributes;
-    ast->name = name;
+    ast->name = id;
     ast->classKey = unit->tokenKind(classLoc);
 
     return true;
@@ -4512,9 +4513,8 @@ auto Parser::parse_elaborated_type_specifier_helper(
 
   const bool has_template = match(TokenKind::T_TEMPLATE, templateLoc);
 
-  NameAST* name = nullptr;
-
-  if (parse_simple_template_id(name)) {
+  if (SimpleTemplateNameAST* templateName = nullptr;
+      parse_simple_template_id(templateName)) {
     specs.has_complex_typespec = true;
 
     auto ast = new (pool) ElaboratedTypeSpecifierAST();
@@ -4523,7 +4523,7 @@ auto Parser::parse_elaborated_type_specifier_helper(
     ast->classLoc = classLoc;
     ast->attributeList = attributes;
     ast->nestedNameSpecifier = nestedNameSpecifier;
-    ast->name = name;
+    ast->name = templateName;
     ast->classKey = unit->tokenKind(classLoc);
 
     return true;
@@ -4547,6 +4547,7 @@ auto Parser::parse_elaborated_type_specifier_helper(
 
   rewind(after_nested_name_specifier);
 
+  NameAST* name = nullptr;
   if (!parse_name_id(name)) return false;
 
   specs.has_complex_typespec = true;
@@ -7213,7 +7214,10 @@ auto Parser::parse_pure_specifier(SourceLocation& equalLoc,
   return true;
 }
 
-auto Parser::parse_conversion_function_id(NameAST*& yyast) -> bool {
+auto Parser::parse_conversion_function_id(ConversionFunctionNameAST*& yyast)
+    -> bool {
+  LookaheadParser lookahead{this};
+
   SourceLocation operatorLoc;
 
   if (!match(TokenKind::T_OPERATOR, operatorLoc)) return false;
@@ -7221,6 +7225,8 @@ auto Parser::parse_conversion_function_id(NameAST*& yyast) -> bool {
   List<SpecifierAST*>* typeSpecifierList = nullptr;
 
   if (!parse_type_specifier_seq(typeSpecifierList)) return false;
+
+  lookahead.commit();
 
   auto declarator = new (pool) DeclaratorAST();
 
@@ -7230,7 +7236,7 @@ auto Parser::parse_conversion_function_id(NameAST*& yyast) -> bool {
   typeId->typeSpecifierList = typeSpecifierList;
   typeId->declarator = declarator;
 
-  auto ast = new (pool) ConversionNameAST();
+  auto ast = new (pool) ConversionFunctionNameAST();
   yyast = ast;
 
   ast->operatorLoc = operatorLoc;
@@ -7329,7 +7335,10 @@ auto Parser::parse_class_or_decltype(NameAST*& yyast) -> bool {
     NameAST* name = nullptr;
 
     if (hasTemplate) {
-      if (!parse_simple_template_id(name)) {
+      if (SimpleTemplateNameAST* templateName = nullptr;
+          parse_simple_template_id(templateName)) {
+        name = templateName;
+      } else {
         parse_error("expected a template id");
       }
     } else {
@@ -7471,7 +7480,8 @@ auto Parser::parse_mem_initializer_id(NameAST*& yyast) -> bool {
   return false;
 }
 
-auto Parser::parse_operator_function_id(NameAST*& yyast) -> bool {
+auto Parser::parse_operator_function_id(OperatorFunctionNameAST*& yyast)
+    -> bool {
   SourceLocation operatorLoc;
 
   if (!match(TokenKind::T_OPERATOR, operatorLoc)) return false;
@@ -7483,7 +7493,7 @@ auto Parser::parse_operator_function_id(NameAST*& yyast) -> bool {
 
   if (!parse_operator(op, opLoc, openLoc, closeLoc)) return false;
 
-  auto ast = new (pool) OperatorNameAST();
+  auto ast = new (pool) OperatorFunctionNameAST();
   yyast = ast;
 
   ast->operatorLoc = operatorLoc;
@@ -7589,7 +7599,7 @@ auto Parser::parse_operator(TokenKind& op, SourceLocation& opLoc,
   }  // switch
 }
 
-auto Parser::parse_literal_operator_id(NameAST*& yyast) -> bool {
+auto Parser::parse_literal_operator_id(LiteralOperatorNameAST*& yyast) -> bool {
   SourceLocation operatorLoc;
 
   auto lookat_literal_operator_id = [&] {
@@ -8008,8 +8018,10 @@ auto Parser::parse_type_constraint(TypeConstraintAST*& yyast,
 auto Parser::parse_simple_template_or_name_id(NameAST*& yyast) -> bool {
   auto lookat_simple_template_id = [&] {
     LookaheadParser lookahead{this};
-    if (!parse_simple_template_id(yyast)) return false;
+    SimpleTemplateNameAST* templateName = nullptr;
+    if (!parse_simple_template_id(templateName)) return false;
     lookahead.commit();
+    yyast = templateName;
     return true;
   };
 
@@ -8018,18 +8030,15 @@ auto Parser::parse_simple_template_or_name_id(NameAST*& yyast) -> bool {
   return parse_name_id(yyast);
 }
 
-auto Parser::parse_simple_template_id(NameAST*& yyast) -> bool {
-  if (!lookat(TokenKind::T_IDENTIFIER) || LA(1).isNot(TokenKind::T_LESS)) {
-    return false;
-  }
+auto Parser::parse_simple_template_id(SimpleTemplateNameAST*& yyast) -> bool {
+  LookaheadParser lookahead{this};
 
-  NameAST* name = nullptr;
+  if (!lookat(TokenKind::T_IDENTIFIER, TokenKind::T_LESS)) return false;
 
-  if (!parse_name_id(name)) return false;
+  SourceLocation identifierLoc = consumeToken();
+  SourceLocation lessLoc = consumeToken();
 
-  SourceLocation lessLoc;
-
-  if (!match(TokenKind::T_LESS, lessLoc)) return false;
+  auto identifier = unit->identifier(identifierLoc);
 
   SourceLocation greaterLoc;
 
@@ -8041,10 +8050,13 @@ auto Parser::parse_simple_template_id(NameAST*& yyast) -> bool {
     if (!match(TokenKind::T_GREATER, greaterLoc)) return false;
   }
 
-  auto ast = new (pool) TemplateNameAST();
+  lookahead.commit();
+
+  auto ast = new (pool) SimpleTemplateNameAST();
   yyast = ast;
 
-  ast->id = name;
+  ast->identifierLoc = identifierLoc;
+  ast->identifier = identifier;
   ast->lessLoc = lessLoc;
   ast->templateArgumentList = templateArgumentList;
   ast->greaterLoc = greaterLoc;
@@ -8052,44 +8064,76 @@ auto Parser::parse_simple_template_id(NameAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_template_id(NameAST*& yyast) -> bool {
-  if (lookat(TokenKind::T_OPERATOR)) {
-    NameAST* name = nullptr;
+auto Parser::parse_literal_operator_template_id(
+    LiteralOperatorTemplateNameAST*& yyast) -> bool {
+  if (!lookat(TokenKind::T_OPERATOR)) return false;
 
-    auto lookat_operator = [&] {
-      LookaheadParser lookahead{this};
+  LookaheadParser lookahead{this};
 
-      if (!parse_literal_operator_id(name) && !parse_operator_function_id(name))
-        return false;
+  LiteralOperatorNameAST* literalOperatorName = nullptr;
+  if (!parse_literal_operator_id(literalOperatorName)) return false;
 
-      if (!lookat(TokenKind::T_LESS)) return false;
+  if (!lookat(TokenKind::T_LESS)) return false;
 
-      lookahead.commit();
+  lookahead.commit();
 
-      return true;
-    };
+  auto ast = new (pool) LiteralOperatorTemplateNameAST();
+  yyast = ast;
 
-    if (!lookat_operator()) return false;
-
-    auto ast = new (pool) TemplateNameAST();
-    yyast = ast;
-
-    ast->id = name;
-
-    expect(TokenKind::T_LESS, ast->lessLoc);
-
-    if (!match(TokenKind::T_GREATER, ast->greaterLoc)) {
-      if (!parse_template_argument_list(ast->templateArgumentList)) {
-        parse_error("expected a template argument");
-      }
-
-      expect(TokenKind::T_GREATER, ast->greaterLoc);
-    }
-
-    return true;
+  ast->literalOperatorName = literalOperatorName;
+  expect(TokenKind::T_LESS, ast->lessLoc);
+  if (!match(TokenKind::T_GREATER, ast->greaterLoc)) {
+    if (!parse_template_argument_list(ast->templateArgumentList))
+      parse_error("expected a template argument");
+    expect(TokenKind::T_GREATER, ast->greaterLoc);
   }
 
-  return parse_simple_template_id(yyast);
+  return true;
+}
+
+auto Parser::parse_function_operator_template_id(
+    OperatorFunctionTemplateNameAST*& yyast) -> bool {
+  if (!lookat(TokenKind::T_OPERATOR)) return false;
+
+  LookaheadParser lookahead{this};
+
+  OperatorFunctionNameAST* operatorFunctionName = nullptr;
+  if (!parse_operator_function_id(operatorFunctionName)) return false;
+
+  if (!lookat(TokenKind::T_LESS)) return false;
+
+  lookahead.commit();
+
+  auto ast = new (pool) OperatorFunctionTemplateNameAST();
+  yyast = ast;
+
+  ast->operatorFunctionName = operatorFunctionName;
+  expect(TokenKind::T_LESS, ast->lessLoc);
+  if (!match(TokenKind::T_GREATER, ast->greaterLoc)) {
+    if (!parse_template_argument_list(ast->templateArgumentList))
+      parse_error("expected a template argument");
+    expect(TokenKind::T_GREATER, ast->greaterLoc);
+  }
+
+  return true;
+}
+
+auto Parser::parse_template_id(NameAST*& yyast) -> bool {
+  if (LiteralOperatorTemplateNameAST* templateName = nullptr;
+      parse_literal_operator_template_id(templateName)) {
+    yyast = templateName;
+    return true;
+  } else if (OperatorFunctionTemplateNameAST* templateName = nullptr;
+             parse_function_operator_template_id(templateName)) {
+    yyast = templateName;
+    return true;
+  } else if (SimpleTemplateNameAST* templateName = nullptr;
+             parse_simple_template_id(templateName)) {
+    yyast = templateName;
+    return true;
+  } else {
+    return false;
+  }
 }
 
 auto Parser::parse_template_argument_list(List<TemplateArgumentAST*>*& yyast)
@@ -8242,7 +8286,7 @@ auto Parser::parse_deduction_guide(DeclarationAST*& yyast) -> bool {
 
   expect(TokenKind::T_MINUS_GREATER, arrowLoc);
 
-  NameAST* templateId = nullptr;
+  SimpleTemplateNameAST* templateId = nullptr;
 
   if (!parse_simple_template_id(templateId)) {
     parse_error("expected a template id");

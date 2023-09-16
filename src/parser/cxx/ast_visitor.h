@@ -217,10 +217,12 @@ class ASTVisitor {
   virtual void visit(SimpleNameAST* ast) = 0;
   virtual void visit(DestructorNameAST* ast) = 0;
   virtual void visit(DecltypeNameAST* ast) = 0;
-  virtual void visit(OperatorNameAST* ast) = 0;
+  virtual void visit(OperatorFunctionNameAST* ast) = 0;
   virtual void visit(LiteralOperatorNameAST* ast) = 0;
-  virtual void visit(ConversionNameAST* ast) = 0;
-  virtual void visit(TemplateNameAST* ast) = 0;
+  virtual void visit(ConversionFunctionNameAST* ast) = 0;
+  virtual void visit(SimpleTemplateNameAST* ast) = 0;
+  virtual void visit(LiteralOperatorTemplateNameAST* ast) = 0;
+  virtual void visit(OperatorFunctionTemplateNameAST* ast) = 0;
   virtual void visit(QualifiedNameAST* ast) = 0;
 
   // SpecifierAST

@@ -56,9 +56,8 @@ struct List {
 // CHECK-NEXT:                      integral-type-specifier
 // CHECK-NEXT:                        specifier: int
 // CHECK-NEXT:                    declarator: declarator
-// CHECK-NEXT:              template-id: template-name
-// CHECK-NEXT:                id: simple-name
-// CHECK-NEXT:                  identifier: Node
+// CHECK-NEXT:              template-id: simple-template-name
+// CHECK-NEXT:                identifier: Node
 // CHECK-NEXT:                template-argument-list
 // CHECK-NEXT:                  type-template-argument
 // CHECK-NEXT:                    type-id: type-id

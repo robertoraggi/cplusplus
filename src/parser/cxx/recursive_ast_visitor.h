@@ -60,7 +60,7 @@ class RecursiveASTVisitor : public ASTVisitor {
   virtual void acceptAttributeToken(AttributeTokenAST* ast);
   virtual void acceptAttributeArgumentClause(AttributeArgumentClauseAST* ast);
   virtual void acceptDecltypeSpecifier(DecltypeSpecifierAST* ast);
-  virtual void acceptTemplateName(TemplateNameAST* ast);
+  virtual void acceptSimpleTemplateName(SimpleTemplateNameAST* ast);
   virtual void acceptDesignator(DesignatorAST* ast);
   virtual void acceptRequirementBody(RequirementBodyAST* ast);
   virtual void acceptLambdaIntroducer(LambdaIntroducerAST* ast);
@@ -83,6 +83,8 @@ class RecursiveASTVisitor : public ASTVisitor {
   virtual void acceptUsingDeclarator(UsingDeclaratorAST* ast);
   virtual void acceptElaboratedTypeSpecifier(ElaboratedTypeSpecifierAST* ast);
   virtual void acceptImportName(ImportNameAST* ast);
+  virtual void acceptLiteralOperatorName(LiteralOperatorNameAST* ast);
+  virtual void acceptOperatorFunctionName(OperatorFunctionNameAST* ast);
   virtual void acceptEnumerator(EnumeratorAST* ast);
   virtual void acceptBaseClause(BaseClauseAST* ast);
   virtual void acceptParametersAndQualifiers(ParametersAndQualifiersAST* ast);
@@ -265,10 +267,12 @@ class RecursiveASTVisitor : public ASTVisitor {
   void visit(SimpleNameAST* ast) override;
   void visit(DestructorNameAST* ast) override;
   void visit(DecltypeNameAST* ast) override;
-  void visit(OperatorNameAST* ast) override;
+  void visit(OperatorFunctionNameAST* ast) override;
   void visit(LiteralOperatorNameAST* ast) override;
-  void visit(ConversionNameAST* ast) override;
-  void visit(TemplateNameAST* ast) override;
+  void visit(ConversionFunctionNameAST* ast) override;
+  void visit(SimpleTemplateNameAST* ast) override;
+  void visit(LiteralOperatorTemplateNameAST* ast) override;
+  void visit(OperatorFunctionTemplateNameAST* ast) override;
   void visit(QualifiedNameAST* ast) override;
 
   void visit(TypedefSpecifierAST* ast) override;

@@ -533,16 +533,24 @@ auto ASTDecoder::decodeName(const void* ptr, io::Name type) -> NameAST* {
           reinterpret_cast<const io::DestructorName*>(ptr));
     case io::Name_DecltypeName:
       return decodeDecltypeName(reinterpret_cast<const io::DecltypeName*>(ptr));
-    case io::Name_OperatorName:
-      return decodeOperatorName(reinterpret_cast<const io::OperatorName*>(ptr));
+    case io::Name_OperatorFunctionName:
+      return decodeOperatorFunctionName(
+          reinterpret_cast<const io::OperatorFunctionName*>(ptr));
     case io::Name_LiteralOperatorName:
       return decodeLiteralOperatorName(
           reinterpret_cast<const io::LiteralOperatorName*>(ptr));
-    case io::Name_ConversionName:
-      return decodeConversionName(
-          reinterpret_cast<const io::ConversionName*>(ptr));
-    case io::Name_TemplateName:
-      return decodeTemplateName(reinterpret_cast<const io::TemplateName*>(ptr));
+    case io::Name_ConversionFunctionName:
+      return decodeConversionFunctionName(
+          reinterpret_cast<const io::ConversionFunctionName*>(ptr));
+    case io::Name_SimpleTemplateName:
+      return decodeSimpleTemplateName(
+          reinterpret_cast<const io::SimpleTemplateName*>(ptr));
+    case io::Name_LiteralOperatorTemplateName:
+      return decodeLiteralOperatorTemplateName(
+          reinterpret_cast<const io::LiteralOperatorTemplateName*>(ptr));
+    case io::Name_OperatorFunctionTemplateName:
+      return decodeOperatorFunctionTemplateName(
+          reinterpret_cast<const io::OperatorFunctionTemplateName*>(ptr));
     case io::Name_QualifiedName:
       return decodeQualifiedName(
           reinterpret_cast<const io::QualifiedName*>(ptr));
@@ -1304,7 +1312,7 @@ auto ASTDecoder::decodeTemplateNestedNameSpecifier(
   auto ast = new (pool_) TemplateNestedNameSpecifierAST();
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
-  ast->templateName = decodeTemplateName(node->template_name());
+  ast->templateName = decodeSimpleTemplateName(node->template_name());
   return ast;
 }
 
@@ -2895,7 +2903,7 @@ auto ASTDecoder::decodeDeductionGuide(const io::DeductionGuide* node)
                                            node->explicit_specifier_type());
   ast->parameterDeclarationClause =
       decodeParameterDeclarationClause(node->parameter_declaration_clause());
-  ast->templateId = decodeName(node->template_id(), node->template_id_type());
+  ast->templateId = decodeSimpleTemplateName(node->template_id());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -2993,11 +3001,11 @@ auto ASTDecoder::decodeDecltypeName(const io::DecltypeName* node)
   return ast;
 }
 
-auto ASTDecoder::decodeOperatorName(const io::OperatorName* node)
-    -> OperatorNameAST* {
+auto ASTDecoder::decodeOperatorFunctionName(
+    const io::OperatorFunctionName* node) -> OperatorFunctionNameAST* {
   if (!node) return nullptr;
 
-  auto ast = new (pool_) OperatorNameAST();
+  auto ast = new (pool_) OperatorFunctionNameAST();
   ast->op = static_cast<TokenKind>(node->op());
   return ast;
 }
@@ -3014,21 +3022,64 @@ auto ASTDecoder::decodeLiteralOperatorName(const io::LiteralOperatorName* node)
   return ast;
 }
 
-auto ASTDecoder::decodeConversionName(const io::ConversionName* node)
-    -> ConversionNameAST* {
+auto ASTDecoder::decodeConversionFunctionName(
+    const io::ConversionFunctionName* node) -> ConversionFunctionNameAST* {
   if (!node) return nullptr;
 
-  auto ast = new (pool_) ConversionNameAST();
+  auto ast = new (pool_) ConversionFunctionNameAST();
   ast->typeId = decodeTypeId(node->type_id());
   return ast;
 }
 
-auto ASTDecoder::decodeTemplateName(const io::TemplateName* node)
-    -> TemplateNameAST* {
+auto ASTDecoder::decodeSimpleTemplateName(const io::SimpleTemplateName* node)
+    -> SimpleTemplateNameAST* {
   if (!node) return nullptr;
 
-  auto ast = new (pool_) TemplateNameAST();
-  ast->id = decodeName(node->id(), node->id_type());
+  auto ast = new (pool_) SimpleTemplateNameAST();
+  if (node->template_argument_list()) {
+    auto* inserter = &ast->templateArgumentList;
+    for (std::size_t i = 0; i < node->template_argument_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeTemplateArgument(
+          node->template_argument_list()->Get(i),
+          io::TemplateArgument(node->template_argument_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeLiteralOperatorTemplateName(
+    const io::LiteralOperatorTemplateName* node)
+    -> LiteralOperatorTemplateNameAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) LiteralOperatorTemplateNameAST();
+  ast->literalOperatorName =
+      decodeLiteralOperatorName(node->literal_operator_name());
+  if (node->template_argument_list()) {
+    auto* inserter = &ast->templateArgumentList;
+    for (std::size_t i = 0; i < node->template_argument_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeTemplateArgument(
+          node->template_argument_list()->Get(i),
+          io::TemplateArgument(node->template_argument_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeOperatorFunctionTemplateName(
+    const io::OperatorFunctionTemplateName* node)
+    -> OperatorFunctionTemplateNameAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) OperatorFunctionTemplateNameAST();
+  ast->operatorFunctionName =
+      decodeOperatorFunctionName(node->operator_function_name());
   if (node->template_argument_list()) {
     auto* inserter = &ast->templateArgumentList;
     for (std::size_t i = 0; i < node->template_argument_list()->size(); ++i) {

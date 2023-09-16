@@ -4328,7 +4328,7 @@ void ASTEncoder::visit(DeductionGuideAST* ast) {
 
   auto arrowLoc = encodeSourceLocation(ast->arrowLoc);
 
-  const auto [templateId, templateIdType] = acceptName(ast->templateId);
+  const auto templateId = accept(ast->templateId);
 
   auto semicolonLoc = encodeSourceLocation(ast->semicolonLoc);
 
@@ -4351,8 +4351,7 @@ void ASTEncoder::visit(DeductionGuideAST* ast) {
   builder.add_parameter_declaration_clause(parameterDeclarationClause.o);
   builder.add_rparen_loc(rparenLoc.o);
   builder.add_arrow_loc(arrowLoc.o);
-  builder.add_template_id(templateId);
-  builder.add_template_id_type(static_cast<io::Name>(templateIdType));
+  builder.add_template_id(templateId.o);
   builder.add_semicolon_loc(semicolonLoc.o);
   if (ast->identifier) {
     builder.add_identifier(identifier);
@@ -4523,7 +4522,7 @@ void ASTEncoder::visit(DecltypeNameAST* ast) {
   type_ = io::Name_DecltypeName;
 }
 
-void ASTEncoder::visit(OperatorNameAST* ast) {
+void ASTEncoder::visit(OperatorFunctionNameAST* ast) {
   auto operatorLoc = encodeSourceLocation(ast->operatorLoc);
 
   auto opLoc = encodeSourceLocation(ast->opLoc);
@@ -4532,7 +4531,7 @@ void ASTEncoder::visit(OperatorNameAST* ast) {
 
   auto closeLoc = encodeSourceLocation(ast->closeLoc);
 
-  io::OperatorName::Builder builder{fbb_};
+  io::OperatorFunctionName::Builder builder{fbb_};
   builder.add_operator_loc(operatorLoc.o);
   builder.add_op_loc(opLoc.o);
   builder.add_open_loc(openLoc.o);
@@ -4540,7 +4539,7 @@ void ASTEncoder::visit(OperatorNameAST* ast) {
   builder.add_op(static_cast<std::uint32_t>(ast->op));
 
   offset_ = builder.Finish().Union();
-  type_ = io::Name_OperatorName;
+  type_ = io::Name_OperatorFunctionName;
 }
 
 void ASTEncoder::visit(LiteralOperatorNameAST* ast) {
@@ -4572,21 +4571,21 @@ void ASTEncoder::visit(LiteralOperatorNameAST* ast) {
   type_ = io::Name_LiteralOperatorName;
 }
 
-void ASTEncoder::visit(ConversionNameAST* ast) {
+void ASTEncoder::visit(ConversionFunctionNameAST* ast) {
   auto operatorLoc = encodeSourceLocation(ast->operatorLoc);
 
   const auto typeId = accept(ast->typeId);
 
-  io::ConversionName::Builder builder{fbb_};
+  io::ConversionFunctionName::Builder builder{fbb_};
   builder.add_operator_loc(operatorLoc.o);
   builder.add_type_id(typeId.o);
 
   offset_ = builder.Finish().Union();
-  type_ = io::Name_ConversionName;
+  type_ = io::Name_ConversionFunctionName;
 }
 
-void ASTEncoder::visit(TemplateNameAST* ast) {
-  const auto [id, idType] = acceptName(ast->id);
+void ASTEncoder::visit(SimpleTemplateNameAST* ast) {
+  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
 
   auto lessLoc = encodeSourceLocation(ast->lessLoc);
 
@@ -4608,16 +4607,96 @@ void ASTEncoder::visit(TemplateNameAST* ast) {
 
   auto greaterLoc = encodeSourceLocation(ast->greaterLoc);
 
-  io::TemplateName::Builder builder{fbb_};
-  builder.add_id(id);
-  builder.add_id_type(static_cast<io::Name>(idType));
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->value());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
+  io::SimpleTemplateName::Builder builder{fbb_};
+  builder.add_identifier_loc(identifierLoc.o);
+  builder.add_less_loc(lessLoc.o);
+  builder.add_template_argument_list(templateArgumentListOffsetsVector);
+  builder.add_template_argument_list_type(templateArgumentListTypesVector);
+  builder.add_greater_loc(greaterLoc.o);
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Name_SimpleTemplateName;
+}
+
+void ASTEncoder::visit(LiteralOperatorTemplateNameAST* ast) {
+  const auto literalOperatorName = accept(ast->literalOperatorName);
+
+  auto lessLoc = encodeSourceLocation(ast->lessLoc);
+
+  std::vector<flatbuffers::Offset<>> templateArgumentListOffsets;
+  std::vector<std::underlying_type_t<io::TemplateArgument>>
+      templateArgumentListTypes;
+
+  for (auto it = ast->templateArgumentList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptTemplateArgument(it->value);
+    templateArgumentListOffsets.push_back(offset);
+    templateArgumentListTypes.push_back(type);
+  }
+
+  auto templateArgumentListOffsetsVector =
+      fbb_.CreateVector(templateArgumentListOffsets);
+  auto templateArgumentListTypesVector =
+      fbb_.CreateVector(templateArgumentListTypes);
+
+  auto greaterLoc = encodeSourceLocation(ast->greaterLoc);
+
+  io::LiteralOperatorTemplateName::Builder builder{fbb_};
+  builder.add_literal_operator_name(literalOperatorName.o);
   builder.add_less_loc(lessLoc.o);
   builder.add_template_argument_list(templateArgumentListOffsetsVector);
   builder.add_template_argument_list_type(templateArgumentListTypesVector);
   builder.add_greater_loc(greaterLoc.o);
 
   offset_ = builder.Finish().Union();
-  type_ = io::Name_TemplateName;
+  type_ = io::Name_LiteralOperatorTemplateName;
+}
+
+void ASTEncoder::visit(OperatorFunctionTemplateNameAST* ast) {
+  const auto operatorFunctionName = accept(ast->operatorFunctionName);
+
+  auto lessLoc = encodeSourceLocation(ast->lessLoc);
+
+  std::vector<flatbuffers::Offset<>> templateArgumentListOffsets;
+  std::vector<std::underlying_type_t<io::TemplateArgument>>
+      templateArgumentListTypes;
+
+  for (auto it = ast->templateArgumentList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptTemplateArgument(it->value);
+    templateArgumentListOffsets.push_back(offset);
+    templateArgumentListTypes.push_back(type);
+  }
+
+  auto templateArgumentListOffsetsVector =
+      fbb_.CreateVector(templateArgumentListOffsets);
+  auto templateArgumentListTypesVector =
+      fbb_.CreateVector(templateArgumentListTypes);
+
+  auto greaterLoc = encodeSourceLocation(ast->greaterLoc);
+
+  io::OperatorFunctionTemplateName::Builder builder{fbb_};
+  builder.add_operator_function_name(operatorFunctionName.o);
+  builder.add_less_loc(lessLoc.o);
+  builder.add_template_argument_list(templateArgumentListOffsetsVector);
+  builder.add_template_argument_list_type(templateArgumentListTypesVector);
+  builder.add_greater_loc(greaterLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Name_OperatorFunctionTemplateName;
 }
 
 void ASTEncoder::visit(QualifiedNameAST* ast) {

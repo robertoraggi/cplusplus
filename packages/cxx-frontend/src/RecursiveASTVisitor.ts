@@ -1129,19 +1129,47 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     this.accept(node.getDecltypeSpecifier(), context);
   }
 
-  visitOperatorName(node: ast.OperatorNameAST, context: Context): void {}
+  visitOperatorFunctionName(
+    node: ast.OperatorFunctionNameAST,
+    context: Context,
+  ): void {}
 
   visitLiteralOperatorName(
     node: ast.LiteralOperatorNameAST,
     context: Context,
   ): void {}
 
-  visitConversionName(node: ast.ConversionNameAST, context: Context): void {
+  visitConversionFunctionName(
+    node: ast.ConversionFunctionNameAST,
+    context: Context,
+  ): void {
     this.accept(node.getTypeId(), context);
   }
 
-  visitTemplateName(node: ast.TemplateNameAST, context: Context): void {
-    this.accept(node.getId(), context);
+  visitSimpleTemplateName(
+    node: ast.SimpleTemplateNameAST,
+    context: Context,
+  ): void {
+    for (const element of node.getTemplateArgumentList()) {
+      this.accept(element, context);
+    }
+  }
+
+  visitLiteralOperatorTemplateName(
+    node: ast.LiteralOperatorTemplateNameAST,
+    context: Context,
+  ): void {
+    this.accept(node.getLiteralOperatorName(), context);
+    for (const element of node.getTemplateArgumentList()) {
+      this.accept(element, context);
+    }
+  }
+
+  visitOperatorFunctionTemplateName(
+    node: ast.OperatorFunctionTemplateNameAST,
+    context: Context,
+  ): void {
+    this.accept(node.getOperatorFunctionName(), context);
     for (const element of node.getTemplateArgumentList()) {
       this.accept(element, context);
     }
