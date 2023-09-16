@@ -3832,6 +3832,10 @@ void ASTCloner::visit(ScopedAttributeTokenAST* ast) {
   copy->scopeLoc = ast->scopeLoc;
 
   copy->identifierLoc = ast->identifierLoc;
+
+  copy->attributeNamespace = ast->attributeNamespace;
+
+  copy->identifier = ast->identifier;
 }
 
 void ASTCloner::visit(SimpleAttributeTokenAST* ast) {
@@ -3841,6 +3845,8 @@ void ASTCloner::visit(SimpleAttributeTokenAST* ast) {
   copy->setChecked(ast->checked());
 
   copy->identifierLoc = ast->identifierLoc;
+
+  copy->identifier = ast->identifier;
 }
 
 }  // namespace cxx

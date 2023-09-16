@@ -2131,10 +2131,13 @@ void ASTPrinter::visit(AsmAttributeAST* ast) {
 
 void ASTPrinter::visit(ScopedAttributeTokenAST* ast) {
   fmt::print(out_, "{}\n", "scoped-attribute-token");
+  accept(ast->attributeNamespace, "attribute-namespace");
+  accept(ast->identifier, "identifier");
 }
 
 void ASTPrinter::visit(SimpleAttributeTokenAST* ast) {
   fmt::print(out_, "{}\n", "simple-attribute-token");
+  accept(ast->identifier, "identifier");
 }
 
 }  // namespace cxx

@@ -4628,9 +4628,17 @@ void ASTSlot::visit(ScopedAttributeTokenAST* ast) {
       value_ = ast->identifierLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       break;
+    case 3:  // attributeNamespace
+      value_ = reinterpret_cast<std::intptr_t>(ast->attributeNamespace);
+      slotKind_ = ASTSlotKind::kIdentifierAttribute;
+      break;
+    case 4:  // identifier
+      value_ = reinterpret_cast<std::intptr_t>(ast->identifier);
+      slotKind_ = ASTSlotKind::kIdentifierAttribute;
+      break;
   }  // switch
 
-  slotCount_ = 3;
+  slotCount_ = 5;
 }
 
 void ASTSlot::visit(SimpleAttributeTokenAST* ast) {
@@ -4639,9 +4647,13 @@ void ASTSlot::visit(SimpleAttributeTokenAST* ast) {
       value_ = ast->identifierLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       break;
+    case 1:  // identifier
+      value_ = reinterpret_cast<std::intptr_t>(ast->identifier);
+      slotKind_ = ASTSlotKind::kIdentifierAttribute;
+      break;
   }  // switch
 
-  slotCount_ = 1;
+  slotCount_ = 2;
 }
 
 }  // namespace cxx

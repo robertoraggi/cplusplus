@@ -3643,6 +3643,14 @@ auto ASTDecoder::decodeScopedAttributeToken(
   if (!node) return nullptr;
 
   auto ast = new (pool_) ScopedAttributeTokenAST();
+  if (node->attribute_namespace()) {
+    ast->attributeNamespace =
+        unit_->control()->getIdentifier(node->attribute_namespace()->str());
+  }
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
   return ast;
 }
 
@@ -3651,6 +3659,10 @@ auto ASTDecoder::decodeSimpleAttributeToken(
   if (!node) return nullptr;
 
   auto ast = new (pool_) SimpleAttributeTokenAST();
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
   return ast;
 }
 

@@ -3342,6 +3342,8 @@ class ScopedAttributeTokenAST final : public AttributeTokenAST {
   SourceLocation attributeNamespaceLoc;
   SourceLocation scopeLoc;
   SourceLocation identifierLoc;
+  const Identifier* attributeNamespace = nullptr;
+  const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -3355,6 +3357,7 @@ class SimpleAttributeTokenAST final : public AttributeTokenAST {
       : AttributeTokenAST(ASTKind::SimpleAttributeToken) {}
 
   SourceLocation identifierLoc;
+  const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

@@ -6478,6 +6478,7 @@ auto Parser::parse_attribute_token(AttributeTokenAST*& yyast) -> bool {
   yyast = ast;
 
   ast->identifierLoc = identifierLoc;
+  ast->identifier = unit->identifier(ast->identifierLoc);
 
   return true;
 }
@@ -6501,6 +6502,8 @@ auto Parser::parse_attribute_scoped_token(AttributeTokenAST*& yyast) -> bool {
   ast->attributeNamespaceLoc = attributeNamespaceLoc;
   ast->scopeLoc = scopeLoc;
   ast->identifierLoc = identifierLoc;
+  ast->attributeNamespace = unit->identifier(ast->attributeNamespaceLoc);
+  ast->identifier = unit->identifier(ast->identifierLoc);
 
   return true;
 }
