@@ -14,8 +14,8 @@ void foo(int x, auto... xs) { foo(xs...); }
 // CHECK-NEXT:          declarator-id: id-expression
 // CHECK-NEXT:            unqualified-id: name-id
 // CHECK-NEXT:              identifier: foo
-// CHECK-NEXT:        modifiers
-// CHECK-NEXT:          function-declarator
+// CHECK-NEXT:        declarator-chunk-list
+// CHECK-NEXT:          function-declarator-chunk
 // CHECK-NEXT:            parameters-and-qualifiers: parameters-and-qualifiers
 // CHECK-NEXT:      function-body: compound-statement-function-body
 // CHECK-NEXT:        statement: compound-statement
@@ -27,8 +27,8 @@ void foo(int x, auto... xs) { foo(xs...); }
 // CHECK-NEXT:          declarator-id: id-expression
 // CHECK-NEXT:            unqualified-id: name-id
 // CHECK-NEXT:              identifier: foo
-// CHECK-NEXT:        modifiers
-// CHECK-NEXT:          function-declarator
+// CHECK-NEXT:        declarator-chunk-list
+// CHECK-NEXT:          function-declarator-chunk
 // CHECK-NEXT:            parameters-and-qualifiers: parameters-and-qualifiers
 // CHECK-NEXT:              parameter-declaration-clause: parameter-declaration-clause
 // CHECK-NEXT:                parameter-declaration-list

@@ -180,7 +180,7 @@ class Parser final {
   [[nodiscard]] auto parse_new_type_id(NewTypeIdAST*& yyast) -> bool;
   [[nodiscard]] auto parse_new_declarator(NewDeclaratorAST*& yyast) -> bool;
   [[nodiscard]] auto parse_noptr_new_declarator(
-      List<ArrayDeclaratorAST*>*& yyast) -> bool;
+      List<ArrayDeclaratorChunkAST*>*& yyast) -> bool;
   [[nodiscard]] auto parse_new_initializer(NewInitializerAST*& yyast) -> bool;
   [[nodiscard]] auto parse_delete_expression(ExpressionAST*& yyast) -> bool;
   [[nodiscard]] auto parse_cast_expression(ExpressionAST*& yyast) -> bool;
@@ -368,7 +368,7 @@ class Parser final {
       DesignatedInitializerClauseAST*& yyast) -> bool;
   [[nodiscard]] auto parse_designator(DesignatorAST*& yyast) -> bool;
   void parse_expr_or_braced_init_list(ExpressionAST*& yyast);
-  void parse_virt_specifier_seq(FunctionDeclaratorAST* functionDeclarator);
+  void parse_virt_specifier_seq(FunctionDeclaratorChunkAST* functionDeclarator);
   auto lookat_function_body() -> bool;
   [[nodiscard]] auto parse_function_body(FunctionBodyAST*& yyast) -> bool;
   [[nodiscard]] auto parse_enum_specifier(SpecifierAST*& yyast) -> bool;
@@ -457,7 +457,7 @@ class Parser final {
   [[nodiscard]] auto parse_member_declarator(InitDeclaratorAST*& yyast,
                                              const DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_virt_specifier(
-      FunctionDeclaratorAST* functionDeclarator) -> bool;
+      FunctionDeclaratorChunkAST* functionDeclarator) -> bool;
   [[nodiscard]] auto parse_pure_specifier(SourceLocation& equalLoc,
                                           SourceLocation& zeroLoc) -> bool;
   [[nodiscard]] auto parse_conversion_function_id(
@@ -563,7 +563,7 @@ class Parser final {
   void completePendingFunctionDefinitions();
   void completeFunctionDefinition(FunctionDefinitionAST* ast);
 
-  void enterFunctionScope(FunctionDeclaratorAST* functionDeclarator);
+  void enterFunctionScope(FunctionDeclaratorChunkAST* functionDeclarator);
 
   void check_type_traits();
 

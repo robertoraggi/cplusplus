@@ -269,9 +269,9 @@ class DefaultASTVisitor : public ASTVisitor {
   void visit(ReferenceOperatorAST* ast) override;
   void visit(PtrToMemberOperatorAST* ast) override;
 
-  // DeclaratorModifierAST
-  void visit(FunctionDeclaratorAST* ast) override;
-  void visit(ArrayDeclaratorAST* ast) override;
+  // DeclaratorChunkAST
+  void visit(FunctionDeclaratorChunkAST* ast) override;
+  void visit(ArrayDeclaratorChunkAST* ast) override;
 
   // AttributeSpecifierAST
   void visit(CxxAttributeAST* ast) override;

@@ -20,8 +20,8 @@ const int values[] = {
 // CHECK-NEXT:              declarator-id: id-expression
 // CHECK-NEXT:                unqualified-id: name-id
 // CHECK-NEXT:                  identifier: values
-// CHECK-NEXT:            modifiers
-// CHECK-NEXT:              array-declarator
+// CHECK-NEXT:            declarator-chunk-list
+// CHECK-NEXT:              array-declarator-chunk
 // CHECK-NEXT:          initializer: equal-initializer
 // CHECK-NEXT:            expression: braced-init-list
 // CHECK-NEXT:              expression-list

@@ -120,7 +120,7 @@ class DeclarationAST : public AST {
   using AST::AST;
 };
 
-class DeclaratorModifierAST : public AST {
+class DeclaratorChunkAST : public AST {
  public:
   using AST::AST;
 };
@@ -280,7 +280,7 @@ class DeclaratorAST final : public AST {
 
   List<PtrOperatorAST*>* ptrOpList = nullptr;
   CoreDeclaratorAST* coreDeclarator = nullptr;
-  List<DeclaratorModifierAST*>* modifiers = nullptr;
+  List<DeclaratorChunkAST*>* declaratorChunkList = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -338,7 +338,7 @@ class NewDeclaratorAST final : public AST {
   NewDeclaratorAST() : AST(ASTKind::NewDeclarator) {}
 
   List<PtrOperatorAST*>* ptrOpList = nullptr;
-  List<ArrayDeclaratorAST*>* modifiers = nullptr;
+  List<ArrayDeclaratorChunkAST*>* declaratorChunkList = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -3262,10 +3262,10 @@ class PtrToMemberOperatorAST final : public PtrOperatorAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class FunctionDeclaratorAST final : public DeclaratorModifierAST {
+class FunctionDeclaratorChunkAST final : public DeclaratorChunkAST {
  public:
-  FunctionDeclaratorAST()
-      : DeclaratorModifierAST(ASTKind::FunctionDeclarator) {}
+  FunctionDeclaratorChunkAST()
+      : DeclaratorChunkAST(ASTKind::FunctionDeclaratorChunk) {}
 
   ParametersAndQualifiersAST* parametersAndQualifiers = nullptr;
   TrailingReturnTypeAST* trailingReturnType = nullptr;
@@ -3279,9 +3279,10 @@ class FunctionDeclaratorAST final : public DeclaratorModifierAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class ArrayDeclaratorAST final : public DeclaratorModifierAST {
+class ArrayDeclaratorChunkAST final : public DeclaratorChunkAST {
  public:
-  ArrayDeclaratorAST() : DeclaratorModifierAST(ASTKind::ArrayDeclarator) {}
+  ArrayDeclaratorChunkAST()
+      : DeclaratorChunkAST(ASTKind::ArrayDeclaratorChunk) {}
 
   SourceLocation lbracketLoc;
   ExpressionAST* expression = nullptr;

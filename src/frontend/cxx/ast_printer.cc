@@ -121,11 +121,11 @@ void ASTPrinter::visit(DeclaratorAST* ast) {
     --indent_;
   }
   accept(ast->coreDeclarator, "core-declarator");
-  if (ast->modifiers) {
+  if (ast->declaratorChunkList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "modifiers");
-    for (auto it = ast->modifiers; it; it = it->next) {
+    fmt::print(out_, "{}\n", "declarator-chunk-list");
+    for (auto it = ast->declaratorChunkList; it; it = it->next) {
       accept(it->value);
     }
     --indent_;
@@ -197,11 +197,11 @@ void ASTPrinter::visit(NewDeclaratorAST* ast) {
     }
     --indent_;
   }
-  if (ast->modifiers) {
+  if (ast->declaratorChunkList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "modifiers");
-    for (auto it = ast->modifiers; it; it = it->next) {
+    fmt::print(out_, "{}\n", "declarator-chunk-list");
+    for (auto it = ast->declaratorChunkList; it; it = it->next) {
       accept(it->value);
     }
     --indent_;
@@ -2078,8 +2078,8 @@ void ASTPrinter::visit(PtrToMemberOperatorAST* ast) {
   }
 }
 
-void ASTPrinter::visit(FunctionDeclaratorAST* ast) {
-  fmt::print(out_, "{}\n", "function-declarator");
+void ASTPrinter::visit(FunctionDeclaratorChunkAST* ast) {
+  fmt::print(out_, "{}\n", "function-declarator-chunk");
   if (ast->isFinal) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
@@ -2102,8 +2102,8 @@ void ASTPrinter::visit(FunctionDeclaratorAST* ast) {
   accept(ast->trailingReturnType, "trailing-return-type");
 }
 
-void ASTPrinter::visit(ArrayDeclaratorAST* ast) {
-  fmt::print(out_, "{}\n", "array-declarator");
+void ASTPrinter::visit(ArrayDeclaratorChunkAST* ast) {
+  fmt::print(out_, "{}\n", "array-declarator-chunk");
   accept(ast->expression, "expression");
   if (ast->attributeList) {
     ++indent_;

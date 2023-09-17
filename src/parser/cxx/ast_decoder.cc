@@ -699,16 +699,16 @@ auto ASTDecoder::decodePtrOperator(const void* ptr, io::PtrOperator type)
   }  // switch
 }
 
-auto ASTDecoder::decodeDeclaratorModifier(const void* ptr,
-                                          io::DeclaratorModifier type)
-    -> DeclaratorModifierAST* {
+auto ASTDecoder::decodeDeclaratorChunk(const void* ptr,
+                                       io::DeclaratorChunk type)
+    -> DeclaratorChunkAST* {
   switch (type) {
-    case io::DeclaratorModifier_FunctionDeclarator:
-      return decodeFunctionDeclarator(
-          reinterpret_cast<const io::FunctionDeclarator*>(ptr));
-    case io::DeclaratorModifier_ArrayDeclarator:
-      return decodeArrayDeclarator(
-          reinterpret_cast<const io::ArrayDeclarator*>(ptr));
+    case io::DeclaratorChunk_FunctionDeclaratorChunk:
+      return decodeFunctionDeclaratorChunk(
+          reinterpret_cast<const io::FunctionDeclaratorChunk*>(ptr));
+    case io::DeclaratorChunk_ArrayDeclaratorChunk:
+      return decodeArrayDeclaratorChunk(
+          reinterpret_cast<const io::ArrayDeclaratorChunk*>(ptr));
     default:
       return nullptr;
   }  // switch
@@ -840,12 +840,12 @@ auto ASTDecoder::decodeDeclarator(const io::Declarator* node)
   }
   ast->coreDeclarator = decodeCoreDeclarator(node->core_declarator(),
                                              node->core_declarator_type());
-  if (node->modifiers()) {
-    auto* inserter = &ast->modifiers;
-    for (std::size_t i = 0; i < node->modifiers()->size(); ++i) {
-      *inserter = new (pool_) List(decodeDeclaratorModifier(
-          node->modifiers()->Get(i),
-          io::DeclaratorModifier(node->modifiers_type()->Get(i))));
+  if (node->declarator_chunk_list()) {
+    auto* inserter = &ast->declaratorChunkList;
+    for (std::size_t i = 0; i < node->declarator_chunk_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeDeclaratorChunk(
+          node->declarator_chunk_list()->Get(i),
+          io::DeclaratorChunk(node->declarator_chunk_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }
@@ -916,11 +916,11 @@ auto ASTDecoder::decodeNewDeclarator(const io::NewDeclarator* node)
       inserter = &(*inserter)->next;
     }
   }
-  if (node->modifiers()) {
-    auto* inserter = &ast->modifiers;
-    for (std::size_t i = 0; i < node->modifiers()->size(); ++i) {
-      *inserter =
-          new (pool_) List(decodeArrayDeclarator(node->modifiers()->Get(i)));
+  if (node->declarator_chunk_list()) {
+    auto* inserter = &ast->declaratorChunkList;
+    for (std::size_t i = 0; i < node->declarator_chunk_list()->size(); ++i) {
+      *inserter = new (pool_) List(
+          decodeArrayDeclaratorChunk(node->declarator_chunk_list()->Get(i)));
       inserter = &(*inserter)->next;
     }
   }
@@ -3584,11 +3584,11 @@ auto ASTDecoder::decodePtrToMemberOperator(const io::PtrToMemberOperator* node)
   return ast;
 }
 
-auto ASTDecoder::decodeFunctionDeclarator(const io::FunctionDeclarator* node)
-    -> FunctionDeclaratorAST* {
+auto ASTDecoder::decodeFunctionDeclaratorChunk(
+    const io::FunctionDeclaratorChunk* node) -> FunctionDeclaratorChunkAST* {
   if (!node) return nullptr;
 
-  auto ast = new (pool_) FunctionDeclaratorAST();
+  auto ast = new (pool_) FunctionDeclaratorChunkAST();
   ast->parametersAndQualifiers =
       decodeParametersAndQualifiers(node->parameters_and_qualifiers());
   ast->trailingReturnType =
@@ -3596,11 +3596,11 @@ auto ASTDecoder::decodeFunctionDeclarator(const io::FunctionDeclarator* node)
   return ast;
 }
 
-auto ASTDecoder::decodeArrayDeclarator(const io::ArrayDeclarator* node)
-    -> ArrayDeclaratorAST* {
+auto ASTDecoder::decodeArrayDeclaratorChunk(
+    const io::ArrayDeclaratorChunk* node) -> ArrayDeclaratorChunkAST* {
   if (!node) return nullptr;
 
-  auto ast = new (pool_) ArrayDeclaratorAST();
+  auto ast = new (pool_) ArrayDeclaratorChunkAST();
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
   if (node->attribute_list()) {

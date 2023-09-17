@@ -267,8 +267,8 @@ class ASTPrinter : ASTVisitor {
   void visit(ReferenceOperatorAST* ast) override;
   void visit(PtrToMemberOperatorAST* ast) override;
 
-  void visit(FunctionDeclaratorAST* ast) override;
-  void visit(ArrayDeclaratorAST* ast) override;
+  void visit(FunctionDeclaratorChunkAST* ast) override;
+  void visit(ArrayDeclaratorChunkAST* ast) override;
 
   void visit(CxxAttributeAST* ast) override;
   void visit(GccAttributeAST* ast) override;

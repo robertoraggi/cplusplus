@@ -137,8 +137,8 @@ void ASTCloner::visit(DeclaratorAST* ast) {
 
   copy->coreDeclarator = accept(ast->coreDeclarator);
 
-  if (auto it = ast->modifiers) {
-    auto out = &copy->modifiers;
+  if (auto it = ast->declaratorChunkList) {
+    auto out = &copy->declaratorChunkList;
 
     for (; it; it = it->next) {
       *out = new (arena_) List(accept(it->value));
@@ -221,8 +221,8 @@ void ASTCloner::visit(NewDeclaratorAST* ast) {
     }
   }
 
-  if (auto it = ast->modifiers) {
-    auto out = &copy->modifiers;
+  if (auto it = ast->declaratorChunkList) {
+    auto out = &copy->declaratorChunkList;
 
     for (; it; it = it->next) {
       *out = new (arena_) List(accept(it->value));
@@ -3727,8 +3727,8 @@ void ASTCloner::visit(PtrToMemberOperatorAST* ast) {
   }
 }
 
-void ASTCloner::visit(FunctionDeclaratorAST* ast) {
-  auto copy = new (arena_) FunctionDeclaratorAST();
+void ASTCloner::visit(FunctionDeclaratorChunkAST* ast) {
+  auto copy = new (arena_) FunctionDeclaratorChunkAST();
   copy_ = copy;
 
   copy->setChecked(ast->checked());
@@ -3744,8 +3744,8 @@ void ASTCloner::visit(FunctionDeclaratorAST* ast) {
   copy->isPure = ast->isPure;
 }
 
-void ASTCloner::visit(ArrayDeclaratorAST* ast) {
-  auto copy = new (arena_) ArrayDeclaratorAST();
+void ASTCloner::visit(ArrayDeclaratorChunkAST* ast) {
+  auto copy = new (arena_) ArrayDeclaratorChunkAST();
   copy_ = copy;
 
   copy->setChecked(ast->checked());

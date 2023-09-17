@@ -55,7 +55,7 @@ class RecordingDiagnosticsClient : public DiagnosticsClient {
 };
 
 auto getFunctionDeclaratorHelper(DeclaratorAST* declarator)
-    -> std::pair<FunctionDeclaratorAST*, bool> {
+    -> std::pair<FunctionDeclaratorChunkAST*, bool> {
   if (!declarator) return std::make_pair(nullptr, false);
 
   if (auto n = dynamic_cast<NestedDeclaratorAST*>(declarator->coreDeclarator)) {
@@ -64,16 +64,17 @@ auto getFunctionDeclaratorHelper(DeclaratorAST* declarator)
     if (done) return std::make_pair(fundecl, done);
   }
 
-  std::vector<DeclaratorModifierAST*> modifiers;
+  std::vector<DeclaratorChunkAST*> declaratorChunkList;
 
-  for (auto it = declarator->modifiers; it; it = it->next) {
-    modifiers.push_back(it->value);
+  for (auto it = declarator->declaratorChunkList; it; it = it->next) {
+    declaratorChunkList.push_back(it->value);
   }
 
-  for (auto it = rbegin(modifiers); it != rend(modifiers); ++it) {
+  for (auto it = rbegin(declaratorChunkList); it != rend(declaratorChunkList);
+       ++it) {
     auto modifier = *it;
 
-    if (auto decl = dynamic_cast<FunctionDeclaratorAST*>(modifier)) {
+    if (auto decl = dynamic_cast<FunctionDeclaratorChunkAST*>(modifier)) {
       return std::make_pair(decl, true);
     }
 
@@ -84,7 +85,7 @@ auto getFunctionDeclaratorHelper(DeclaratorAST* declarator)
 }
 
 auto getFunctionDeclarator(DeclaratorAST* declarator)
-    -> FunctionDeclaratorAST* {
+    -> FunctionDeclaratorChunkAST* {
   return get<0>(getFunctionDeclaratorHelper(declarator));
 }
 
@@ -2311,9 +2312,9 @@ auto Parser::parse_new_declarator(NewDeclaratorAST*& yyast) -> bool {
 
   const auto hasPtrList = parse_ptr_operator_seq(ptrOpList);
 
-  List<ArrayDeclaratorAST*>* modifiers = nullptr;
+  List<ArrayDeclaratorChunkAST*>* declaratorChunkList = nullptr;
 
-  const auto hasDeclChunks = parse_noptr_new_declarator(modifiers);
+  const auto hasDeclChunks = parse_noptr_new_declarator(declaratorChunkList);
 
   if (!hasPtrList && !hasDeclChunks) return false;
 
@@ -2321,12 +2322,12 @@ auto Parser::parse_new_declarator(NewDeclaratorAST*& yyast) -> bool {
   yyast = ast;
 
   ast->ptrOpList = ptrOpList;
-  ast->modifiers = modifiers;
+  ast->declaratorChunkList = declaratorChunkList;
 
   return true;
 }
 
-auto Parser::parse_noptr_new_declarator(List<ArrayDeclaratorAST*>*& yyast)
+auto Parser::parse_noptr_new_declarator(List<ArrayDeclaratorChunkAST*>*& yyast)
     -> bool {
   auto it = &yyast;
 
@@ -2334,7 +2335,7 @@ auto Parser::parse_noptr_new_declarator(List<ArrayDeclaratorAST*>*& yyast)
 
   if (!match(TokenKind::T_LBRACKET, lbracketLoc)) return false;
 
-  auto declarator = new (pool) ArrayDeclaratorAST();
+  auto declarator = new (pool) ArrayDeclaratorChunkAST();
 
   declarator->lbracketLoc = lbracketLoc;
 
@@ -2349,7 +2350,7 @@ auto Parser::parse_noptr_new_declarator(List<ArrayDeclaratorAST*>*& yyast)
   it = &(*it)->next;
 
   while (match(TokenKind::T_LBRACKET, lbracketLoc)) {
-    auto declarator = new (pool) ArrayDeclaratorAST();
+    auto declarator = new (pool) ArrayDeclaratorChunkAST();
     *it = new (pool) List(declarator);
     it = &(*it)->next;
 
@@ -3522,7 +3523,8 @@ auto Parser::parse_alias_declaration(DeclarationAST*& yyast) -> bool {
   return true;
 }
 
-void Parser::enterFunctionScope(FunctionDeclaratorAST* functionDeclarator) {}
+void Parser::enterFunctionScope(
+    FunctionDeclaratorChunkAST* functionDeclarator) {}
 
 auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
                                       bool acceptFunctionDefinition) -> bool {
@@ -3722,11 +3724,11 @@ auto Parser::parse_notypespec_function_definition(
   auto declarator = new (pool) DeclaratorAST();
   declarator->coreDeclarator = declaratorId;
 
-  auto functionDeclarator = new (pool) FunctionDeclaratorAST();
+  auto functionDeclarator = new (pool) FunctionDeclaratorChunkAST();
   functionDeclarator->parametersAndQualifiers = parametersAndQualifiers;
 
-  declarator->modifiers =
-      new (pool) List<DeclaratorModifierAST*>(functionDeclarator);
+  declarator->declaratorChunkList =
+      new (pool) List<DeclaratorChunkAST*>(functionDeclarator);
 
   RequiresClauseAST* requiresClause = nullptr;
 
@@ -4782,7 +4784,7 @@ auto Parser::parse_noptr_declarator(DeclaratorAST*& yyast,
 
   yyast->coreDeclarator = coreDeclarator;
 
-  auto it = &yyast->modifiers;
+  auto it = &yyast->declaratorChunkList;
 
   ParametersAndQualifiersAST* parametersAndQualifiers = nullptr;
 
@@ -4815,24 +4817,24 @@ auto Parser::parse_noptr_declarator(DeclaratorAST*& yyast,
 
       parse_optional_attribute_specifier_seq(attributes);
 
-      auto modifier = new (pool) ArrayDeclaratorAST();
+      auto modifier = new (pool) ArrayDeclaratorChunkAST();
       modifier->lbracketLoc = lbracketLoc;
       modifier->expression = expression;
       modifier->rbracketLoc = rbracketLoc;
       modifier->attributeList = attributes;
 
-      *it = new (pool) List<DeclaratorModifierAST*>(modifier);
+      *it = new (pool) List<DeclaratorChunkAST*>(modifier);
 
       it = &(*it)->next;
 
     } else if (parse_parameters_and_qualifiers(parametersAndQualifiers)) {
-      auto modifier = new (pool) FunctionDeclaratorAST();
+      auto modifier = new (pool) FunctionDeclaratorChunkAST();
 
       modifier->parametersAndQualifiers = parametersAndQualifiers;
 
       (void)parse_trailing_return_type(modifier->trailingReturnType);
 
-      *it = new (pool) List<DeclaratorModifierAST*>(modifier);
+      *it = new (pool) List<DeclaratorChunkAST*>(modifier);
       it = &(*it)->next;
 
       parametersAndQualifiers = nullptr;
@@ -5085,15 +5087,15 @@ auto Parser::parse_abstract_declarator(DeclaratorAST*& yyast) -> bool {
 
   if (parse_parameters_and_qualifiers(parametersAndQualifiers) &&
       parse_trailing_return_type(trailingReturnType)) {
-    auto functionDeclarator = new (pool) FunctionDeclaratorAST();
+    auto functionDeclarator = new (pool) FunctionDeclaratorChunkAST();
     functionDeclarator->parametersAndQualifiers = parametersAndQualifiers;
     functionDeclarator->trailingReturnType = trailingReturnType;
 
     auto ast = new (pool) DeclaratorAST();
     yyast = ast;
 
-    ast->modifiers =
-        new (pool) List<DeclaratorModifierAST*>(functionDeclarator);
+    ast->declaratorChunkList =
+        new (pool) List<DeclaratorChunkAST*>(functionDeclarator);
 
     return true;
   }
@@ -5110,12 +5112,12 @@ auto Parser::parse_abstract_declarator(DeclaratorAST*& yyast) -> bool {
 
   if (parse_parameters_and_qualifiers(parametersAndQualifiers) &&
       parse_trailing_return_type(trailingReturnType)) {
-    auto functionDeclarator = new (pool) FunctionDeclaratorAST();
+    auto functionDeclarator = new (pool) FunctionDeclaratorChunkAST();
     functionDeclarator->parametersAndQualifiers = parametersAndQualifiers;
     functionDeclarator->trailingReturnType = trailingReturnType;
 
-    ast->modifiers =
-        new (pool) List<DeclaratorModifierAST*>(functionDeclarator);
+    ast->declaratorChunkList =
+        new (pool) List<DeclaratorChunkAST*>(functionDeclarator);
   } else {
     rewind(after_noptr_declarator);
   }
@@ -5168,15 +5170,15 @@ auto Parser::parse_noptr_abstract_declarator(DeclaratorAST*& yyast) -> bool {
 
   ParametersAndQualifiersAST* parametersAndQualifiers = nullptr;
 
-  auto it = &yyast->modifiers;
+  auto it = &yyast->declaratorChunkList;
 
   if (lookat(TokenKind::T_LPAREN)) {
     if (parse_parameters_and_qualifiers(parametersAndQualifiers)) {
-      auto functionDeclarator = new (pool) FunctionDeclaratorAST();
+      auto functionDeclarator = new (pool) FunctionDeclaratorChunkAST();
 
       functionDeclarator->parametersAndQualifiers = parametersAndQualifiers;
 
-      *it = new (pool) List<DeclaratorModifierAST*>(functionDeclarator);
+      *it = new (pool) List<DeclaratorChunkAST*>(functionDeclarator);
       it = &(*it)->next;
     } else {
       rewind(after_nested_declarator);
@@ -5189,10 +5191,10 @@ auto Parser::parse_noptr_abstract_declarator(DeclaratorAST*& yyast) -> bool {
     while (match(TokenKind::T_LBRACKET, lbracketLoc)) {
       SourceLocation rbracketLoc;
 
-      auto arrayDeclarator = new (pool) ArrayDeclaratorAST();
+      auto arrayDeclarator = new (pool) ArrayDeclaratorChunkAST();
       arrayDeclarator->lbracketLoc = lbracketLoc;
 
-      *it = new (pool) List<DeclaratorModifierAST*>(arrayDeclarator);
+      *it = new (pool) List<DeclaratorChunkAST*>(arrayDeclarator);
       it = &(*it)->next;
 
       if (!match(TokenKind::T_RBRACKET, arrayDeclarator->rbracketLoc)) {
@@ -5238,22 +5240,22 @@ auto Parser::parse_noptr_abstract_pack_declarator(
   ast->coreDeclarator = coreDeclarator;
   ast->ptrOpList = ptrOpLst;
 
-  auto it = &yyast->modifiers;
+  auto it = &yyast->declaratorChunkList;
 
   ParametersAndQualifiersAST* parametersAndQualifiers = nullptr;
 
   if (parse_parameters_and_qualifiers(parametersAndQualifiers)) {
-    auto functionDeclarator = new (pool) FunctionDeclaratorAST();
-    *it = new (pool) List<DeclaratorModifierAST*>(functionDeclarator);
+    auto functionDeclarator = new (pool) FunctionDeclaratorChunkAST();
+    *it = new (pool) List<DeclaratorChunkAST*>(functionDeclarator);
     return true;
   }
 
   SourceLocation lbracketLoc;
 
   while (match(TokenKind::T_LBRACKET, lbracketLoc)) {
-    auto arrayDeclarator = new (pool) ArrayDeclaratorAST();
+    auto arrayDeclarator = new (pool) ArrayDeclaratorChunkAST();
 
-    *it = new (pool) List<DeclaratorModifierAST*>(arrayDeclarator);
+    *it = new (pool) List<DeclaratorChunkAST*>(arrayDeclarator);
     it = &(*it)->next;
 
     arrayDeclarator->lbracketLoc = lbracketLoc;
@@ -5596,7 +5598,7 @@ void Parser::parse_expr_or_braced_init_list(ExpressionAST*& yyast) {
 }
 
 void Parser::parse_virt_specifier_seq(
-    FunctionDeclaratorAST* functionDeclarator) {
+    FunctionDeclaratorChunkAST* functionDeclarator) {
   while (parse_virt_specifier(functionDeclarator)) {
     //
   }
@@ -7177,8 +7179,8 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
   return true;
 }
 
-auto Parser::parse_virt_specifier(FunctionDeclaratorAST* functionDeclarator)
-    -> bool {
+auto Parser::parse_virt_specifier(
+    FunctionDeclaratorChunkAST* functionDeclarator) -> bool {
   SourceLocation loc;
 
   if (parse_final(loc)) {

@@ -69,8 +69,8 @@ class ASTDecoder {
       -> CoreDeclaratorAST*;
   auto decodePtrOperator(const void* ptr, io::PtrOperator type)
       -> PtrOperatorAST*;
-  auto decodeDeclaratorModifier(const void* ptr, io::DeclaratorModifier type)
-      -> DeclaratorModifierAST*;
+  auto decodeDeclaratorChunk(const void* ptr, io::DeclaratorChunk type)
+      -> DeclaratorChunkAST*;
   auto decodeAttributeSpecifier(const void* ptr, io::AttributeSpecifier type)
       -> AttributeSpecifierAST*;
   auto decodeAttributeToken(const void* ptr, io::AttributeToken type)
@@ -496,10 +496,10 @@ class ASTDecoder {
   auto decodePtrToMemberOperator(const io::PtrToMemberOperator* node)
       -> PtrToMemberOperatorAST*;
 
-  auto decodeFunctionDeclarator(const io::FunctionDeclarator* node)
-      -> FunctionDeclaratorAST*;
-  auto decodeArrayDeclarator(const io::ArrayDeclarator* node)
-      -> ArrayDeclaratorAST*;
+  auto decodeFunctionDeclaratorChunk(const io::FunctionDeclaratorChunk* node)
+      -> FunctionDeclaratorChunkAST*;
+  auto decodeArrayDeclaratorChunk(const io::ArrayDeclaratorChunk* node)
+      -> ArrayDeclaratorChunkAST*;
 
   auto decodeCxxAttribute(const io::CxxAttribute* node) -> CxxAttributeAST*;
   auto decodeGccAttribute(const io::GccAttribute* node) -> GccAttributeAST*;

@@ -65,7 +65,7 @@ void RecursiveASTVisitor::acceptCoreDeclarator(CoreDeclaratorAST* ast) {
   accept(ast);
 }
 
-void RecursiveASTVisitor::acceptDeclaratorModifier(DeclaratorModifierAST* ast) {
+void RecursiveASTVisitor::acceptDeclaratorChunk(DeclaratorChunkAST* ast) {
   accept(ast);
 }
 
@@ -77,7 +77,8 @@ void RecursiveASTVisitor::acceptBaseSpecifier(BaseSpecifierAST* ast) {
   accept(ast);
 }
 
-void RecursiveASTVisitor::acceptArrayDeclarator(ArrayDeclaratorAST* ast) {
+void RecursiveASTVisitor::acceptArrayDeclaratorChunk(
+    ArrayDeclaratorChunkAST* ast) {
   accept(ast);
 }
 
@@ -295,8 +296,8 @@ void RecursiveASTVisitor::visit(DeclaratorAST* ast) {
     acceptPtrOperator(it->value);
   }
   acceptCoreDeclarator(ast->coreDeclarator);
-  for (auto it = ast->modifiers; it; it = it->next) {
-    acceptDeclaratorModifier(it->value);
+  for (auto it = ast->declaratorChunkList; it; it = it->next) {
+    acceptDeclaratorChunk(it->value);
   }
 }
 
@@ -324,8 +325,8 @@ void RecursiveASTVisitor::visit(NewDeclaratorAST* ast) {
   for (auto it = ast->ptrOpList; it; it = it->next) {
     acceptPtrOperator(it->value);
   }
-  for (auto it = ast->modifiers; it; it = it->next) {
-    acceptArrayDeclarator(it->value);
+  for (auto it = ast->declaratorChunkList; it; it = it->next) {
+    acceptArrayDeclaratorChunk(it->value);
   }
 }
 
@@ -1267,12 +1268,12 @@ void RecursiveASTVisitor::visit(PtrToMemberOperatorAST* ast) {
   }
 }
 
-void RecursiveASTVisitor::visit(FunctionDeclaratorAST* ast) {
+void RecursiveASTVisitor::visit(FunctionDeclaratorChunkAST* ast) {
   acceptParametersAndQualifiers(ast->parametersAndQualifiers);
   acceptTrailingReturnType(ast->trailingReturnType);
 }
 
-void RecursiveASTVisitor::visit(ArrayDeclaratorAST* ast) {
+void RecursiveASTVisitor::visit(ArrayDeclaratorChunkAST* ast) {
   acceptExpression(ast->expression);
   for (auto it = ast->attributeList; it; it = it->next) {
     acceptAttributeSpecifier(it->value);

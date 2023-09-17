@@ -271,9 +271,9 @@ class ASTVisitor {
   virtual void visit(ReferenceOperatorAST* ast) = 0;
   virtual void visit(PtrToMemberOperatorAST* ast) = 0;
 
-  // DeclaratorModifierAST
-  virtual void visit(FunctionDeclaratorAST* ast) = 0;
-  virtual void visit(ArrayDeclaratorAST* ast) = 0;
+  // DeclaratorChunkAST
+  virtual void visit(FunctionDeclaratorChunkAST* ast) = 0;
+  virtual void visit(ArrayDeclaratorChunkAST* ast) = 0;
 
   // AttributeSpecifierAST
   virtual void visit(CxxAttributeAST* ast) = 0;

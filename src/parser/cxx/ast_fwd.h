@@ -56,7 +56,7 @@ class AttributeSpecifierAST;
 class AttributeTokenAST;
 class CoreDeclaratorAST;
 class DeclarationAST;
-class DeclaratorModifierAST;
+class DeclaratorChunkAST;
 class ExceptionDeclarationAST;
 class ExceptionSpecifierAST;
 class ExpressionAST;
@@ -316,9 +316,9 @@ class PointerOperatorAST;
 class ReferenceOperatorAST;
 class PtrToMemberOperatorAST;
 
-// DeclaratorModifierAST
-class FunctionDeclaratorAST;
-class ArrayDeclaratorAST;
+// DeclaratorChunkAST
+class FunctionDeclaratorChunkAST;
+class ArrayDeclaratorChunkAST;
 
 // AttributeSpecifierAST
 class CxxAttributeAST;

@@ -116,9 +116,9 @@ union Declaration {
   LinkageSpecification,
 }
 
-union DeclaratorModifier {
-  FunctionDeclarator,
-  ArrayDeclarator,
+union DeclaratorChunk {
+  FunctionDeclaratorChunk,
+  ArrayDeclaratorChunk,
 }
 
 union ExceptionDeclaration {
@@ -343,7 +343,7 @@ table Enumerator /* AST */ {
 table Declarator /* AST */ {
   ptr_op_list: [PtrOperator];
   core_declarator: CoreDeclarator;
-  modifiers: [DeclaratorModifier];
+  declarator_chunk_list: [DeclaratorChunk];
 }
 
 table InitDeclarator /* AST */ {
@@ -367,7 +367,7 @@ table BaseClause /* AST */ {
 
 table NewDeclarator /* AST */ {
   ptr_op_list: [PtrOperator];
-  modifiers: [ArrayDeclarator];
+  declarator_chunk_list: [ArrayDeclaratorChunk];
 }
 
 table NewTypeId /* AST */ {
@@ -823,12 +823,12 @@ table LinkageSpecification /* DeclarationAST */ {
   rbrace_loc: SourceLocation;
 }
 
-table FunctionDeclarator /* DeclaratorModifierAST */ {
+table FunctionDeclaratorChunk /* DeclaratorChunkAST */ {
   parameters_and_qualifiers: ParametersAndQualifiers;
   trailing_return_type: TrailingReturnType;
 }
 
-table ArrayDeclarator /* DeclaratorModifierAST */ {
+table ArrayDeclaratorChunk /* DeclaratorChunkAST */ {
   expression: Expression;
   attribute_list: [AttributeSpecifier];
   lbracket_loc: SourceLocation;
