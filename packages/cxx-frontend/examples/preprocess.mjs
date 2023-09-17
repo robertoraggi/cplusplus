@@ -1,3 +1,4 @@
+import DEFAULT_WASM_BINARY_URL from "../dist/defaultWasmBinaryUrl.js";
 import { Parser, Preprocessor } from "../dist/index.js";
 import { readFile } from "fs/promises";
 import { fileURLToPath } from "url";
@@ -30,7 +31,7 @@ constexpr bool unix_target = false;
 `;
 
 async function main() {
-  const wasmBinaryFile = fileURLToPath(Parser.DEFAULT_WASM_BINARY_URL);
+  const wasmBinaryFile = fileURLToPath(DEFAULT_WASM_BINARY_URL);
 
   const wasmBinary = await readFile(wasmBinaryFile);
 

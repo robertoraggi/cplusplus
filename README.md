@@ -84,6 +84,7 @@ npm pack
 // example.mjs
 //
 
+import DEFAULT_WASM_BINARY_URL from "../dist/defaultWasmBinaryUrl.js";
 import { Parser, AST, ASTKind } from "cxx-frontend";
 import { readFile } from "fs/promises";
 import { fileURLToPath } from "url";
@@ -104,7 +105,7 @@ int main() {
 `;
 
 async function main() {
-  const wasmBinaryFile = fileURLToPath(Parser.DEFAULT_WASM_BINARY_URL);
+  const wasmBinaryFile = fileURLToPath(DEFAULT_WASM_BINARY_URL);
 
   const wasmBinary = await readFile(wasmBinaryFile);
 
@@ -147,13 +148,11 @@ main().catch(console.error);
   </head>
   <body>
     <script type="module">
-      import {
-        Parser,
-        AST,
-        ASTKind,
-      } from "https://unpkg.com/cxx-frontend@latest/dist/index.js";
+      import { Parser, AST, ASTKind } from "https://unpkg.com/cxx-frontend";
 
-      const response = await fetch(Parser.DEFAULT_WASM_BINARY_URL);
+      const response = await fetch(
+        "https://unpkg.com/cxx-frontend/dist/cxx-js.wasm"
+      );
 
       const wasmBinary = new Uint8Array(await response.arrayBuffer());
 

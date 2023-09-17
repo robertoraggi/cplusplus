@@ -38,15 +38,26 @@ export class Parser {
   #unit: Unit | undefined;
   #ast: AST | undefined;
 
-  static DEFAULT_WASM_BINARY_URL = new URL("./cxx-js.wasm", import.meta.url);
-
   static async init({ wasmBinary }: { wasmBinary: Uint8Array }) {
     return await initCxx({ wasmBinary });
   }
 
-  static async initFromURL(url: URL) {
-    const response = await fetch(url);
+  static async initFromURL(
+    url: URL,
+    { signal }: { signal?: AbortSignal } = {}
+  ) {
+    const response = await fetch(url, { signal });
+
+    if (!response.ok) {
+      throw new Error(`failed to fetch '${url}'`);
+    }
+
+    if (signal?.aborted) {
+      throw new Error(`fetch '${url}' aborted`);
+    }
+
     const wasmBinary = await response.arrayBuffer();
+
     return await Parser.init({ wasmBinary: new Uint8Array(wasmBinary) });
   }
 
