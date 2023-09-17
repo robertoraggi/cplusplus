@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-const defaultWasmBinaryUrl = new URL("./cxx-js.wasm", import.meta.url);
-
-export default defaultWasmBinaryUrl;
+export const DEFAULT_WASM_BINARY_URL = new URL(
+  "./cxx-js.wasm",
+  import.meta.url,
+);

@@ -19,16 +19,18 @@
 // SOFTWARE.
 
 export * from "./AST.js";
-export * from "./ASTKind.js";
-export * from "./ASTVisitor.js";
 export * from "./ASTCursor.js";
-export * from "./RecursiveASTVisitor.js";
-export * from "./Parser.js";
+export * from "./ASTKind.js";
+export * from "./ASTSlot.js";
+export * from "./ASTVisitor.js";
+export * from "./defaultWasmBinaryUrl.js";
 export * from "./Diagnostic.js";
-export * from "./Unit.js";
-export * from "./SourceLocation.js";
-export * from "./TokenKind.js";
-export * from "./Token.js";
 export * from "./Lexer.js";
+export * from "./Parser.js";
 export * from "./Preprocessor.js";
+export * from "./RecursiveASTVisitor.js";
+export * from "./SourceLocation.js";
+export * from "./Token.js";
+export * from "./TokenKind.js";
 export * from "./TranslationUnit.js";
+export * from "./Unit.js";

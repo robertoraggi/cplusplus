@@ -2,8 +2,12 @@
 // tokenize.mjs
 //
 
-import DEFAULT_WASM_BINARY_URL from "../dist/defaultWasmBinaryUrl.js";
-import { Parser, Lexer, TokenKind } from "../dist/index.js";
+import {
+  DEFAULT_WASM_BINARY_URL,
+  Parser,
+  Lexer,
+  TokenKind,
+} from "../dist/index.js";
 import { readFile } from "fs/promises";
 import { fileURLToPath } from "url";
 

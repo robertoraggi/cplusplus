@@ -1,5 +1,5 @@
-import DEFAULT_WASM_BINARY_URL from "../dist/defaultWasmBinaryUrl.js";
 import {
+  DEFAULT_WASM_BINARY_URL,
   Parser,
   TokenKind,
   TranslationUnit,
