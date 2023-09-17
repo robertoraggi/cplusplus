@@ -601,6 +601,12 @@ auto ASTDecoder::decodeSpecifier(const void* ptr, io::Specifier type)
     case io::Specifier_VoidTypeSpecifier:
       return decodeVoidTypeSpecifier(
           reinterpret_cast<const io::VoidTypeSpecifier*>(ptr));
+    case io::Specifier_SizeTypeSpecifier:
+      return decodeSizeTypeSpecifier(
+          reinterpret_cast<const io::SizeTypeSpecifier*>(ptr));
+    case io::Specifier_SignTypeSpecifier:
+      return decodeSignTypeSpecifier(
+          reinterpret_cast<const io::SignTypeSpecifier*>(ptr));
     case io::Specifier_VaListTypeSpecifier:
       return decodeVaListTypeSpecifier(
           reinterpret_cast<const io::VaListTypeSpecifier*>(ptr));
@@ -3220,6 +3226,24 @@ auto ASTDecoder::decodeVoidTypeSpecifier(const io::VoidTypeSpecifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) VoidTypeSpecifierAST();
+  return ast;
+}
+
+auto ASTDecoder::decodeSizeTypeSpecifier(const io::SizeTypeSpecifier* node)
+    -> SizeTypeSpecifierAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) SizeTypeSpecifierAST();
+  ast->specifier = static_cast<TokenKind>(node->specifier());
+  return ast;
+}
+
+auto ASTDecoder::decodeSignTypeSpecifier(const io::SignTypeSpecifier* node)
+    -> SignTypeSpecifierAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) SignTypeSpecifierAST();
+  ast->specifier = static_cast<TokenKind>(node->specifier());
   return ast;
 }
 

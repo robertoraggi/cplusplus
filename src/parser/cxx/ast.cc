@@ -494,6 +494,20 @@ auto NewPlacementAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto NestedNamespaceSpecifierAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(inlineLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(scopeLoc)) return loc;
+  return {};
+}
+
+auto NestedNamespaceSpecifierAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(scopeLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(inlineLoc)) return loc;
+  return {};
+}
+
 auto GlobalNestedNameSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(scopeLoc)) return loc;
   return {};
@@ -2080,20 +2094,6 @@ auto OpaqueEnumDeclarationAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto NestedNamespaceSpecifierAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(inlineLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(scopeLoc)) return loc;
-  return {};
-}
-
-auto NestedNamespaceSpecifierAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(scopeLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(inlineLoc)) return loc;
-  return {};
-}
-
 auto NamespaceDefinitionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(inlineLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(namespaceLoc)) return loc;
@@ -2691,6 +2691,26 @@ auto VoidTypeSpecifierAST::firstSourceLocation() -> SourceLocation {
 
 auto VoidTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(voidLoc)) return loc;
+  return {};
+}
+
+auto SizeTypeSpecifierAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(specifierLoc)) return loc;
+  return {};
+}
+
+auto SizeTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(specifierLoc)) return loc;
+  return {};
+}
+
+auto SignTypeSpecifierAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(specifierLoc)) return loc;
+  return {};
+}
+
+auto SignTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(specifierLoc)) return loc;
   return {};
 }
 

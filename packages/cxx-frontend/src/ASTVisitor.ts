@@ -730,6 +730,14 @@ export abstract class ASTVisitor<Context, Result> {
     node: ast.VoidTypeSpecifierAST,
     context: Context,
   ): Result;
+  abstract visitSizeTypeSpecifier(
+    node: ast.SizeTypeSpecifierAST,
+    context: Context,
+  ): Result;
+  abstract visitSignTypeSpecifier(
+    node: ast.SignTypeSpecifierAST,
+    context: Context,
+  ): Result;
   abstract visitVaListTypeSpecifier(
     node: ast.VaListTypeSpecifierAST,
     context: Context,

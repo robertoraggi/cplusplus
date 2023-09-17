@@ -1238,6 +1238,16 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     context: Context,
   ): void {}
 
+  visitSizeTypeSpecifier(
+    node: ast.SizeTypeSpecifierAST,
+    context: Context,
+  ): void {}
+
+  visitSignTypeSpecifier(
+    node: ast.SignTypeSpecifierAST,
+    context: Context,
+  ): void {}
+
   visitVaListTypeSpecifier(
     node: ast.VaListTypeSpecifierAST,
     context: Context,

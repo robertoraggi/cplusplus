@@ -238,6 +238,8 @@ class DefaultASTVisitor : public ASTVisitor {
   void visit(ExplicitSpecifierAST* ast) override;
   void visit(AutoTypeSpecifierAST* ast) override;
   void visit(VoidTypeSpecifierAST* ast) override;
+  void visit(SizeTypeSpecifierAST* ast) override;
+  void visit(SignTypeSpecifierAST* ast) override;
   void visit(VaListTypeSpecifierAST* ast) override;
   void visit(IntegralTypeSpecifierAST* ast) override;
   void visit(FloatingPointTypeSpecifierAST* ast) override;

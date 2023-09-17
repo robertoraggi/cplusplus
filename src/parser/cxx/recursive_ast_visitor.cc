@@ -1144,6 +1144,10 @@ void RecursiveASTVisitor::visit(AutoTypeSpecifierAST* ast) {}
 
 void RecursiveASTVisitor::visit(VoidTypeSpecifierAST* ast) {}
 
+void RecursiveASTVisitor::visit(SizeTypeSpecifierAST* ast) {}
+
+void RecursiveASTVisitor::visit(SignTypeSpecifierAST* ast) {}
+
 void RecursiveASTVisitor::visit(VaListTypeSpecifierAST* ast) {}
 
 void RecursiveASTVisitor::visit(IntegralTypeSpecifierAST* ast) {}

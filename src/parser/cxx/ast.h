@@ -2886,6 +2886,32 @@ class VoidTypeSpecifierAST final : public SpecifierAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class SizeTypeSpecifierAST final : public SpecifierAST {
+ public:
+  SizeTypeSpecifierAST() : SpecifierAST(ASTKind::SizeTypeSpecifier) {}
+
+  SourceLocation specifierLoc;
+  TokenKind specifier = TokenKind::T_EOF_SYMBOL;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class SignTypeSpecifierAST final : public SpecifierAST {
+ public:
+  SignTypeSpecifierAST() : SpecifierAST(ASTKind::SignTypeSpecifier) {}
+
+  SourceLocation specifierLoc;
+  TokenKind specifier = TokenKind::T_EOF_SYMBOL;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 class VaListTypeSpecifierAST final : public SpecifierAST {
  public:
   VaListTypeSpecifierAST() : SpecifierAST(ASTKind::VaListTypeSpecifier) {}

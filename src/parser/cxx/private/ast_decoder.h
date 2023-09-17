@@ -443,6 +443,10 @@ class ASTDecoder {
       -> AutoTypeSpecifierAST*;
   auto decodeVoidTypeSpecifier(const io::VoidTypeSpecifier* node)
       -> VoidTypeSpecifierAST*;
+  auto decodeSizeTypeSpecifier(const io::SizeTypeSpecifier* node)
+      -> SizeTypeSpecifierAST*;
+  auto decodeSignTypeSpecifier(const io::SignTypeSpecifier* node)
+      -> SignTypeSpecifierAST*;
   auto decodeVaListTypeSpecifier(const io::VaListTypeSpecifier* node)
       -> VaListTypeSpecifierAST*;
   auto decodeIntegralTypeSpecifier(const io::IntegralTypeSpecifier* node)

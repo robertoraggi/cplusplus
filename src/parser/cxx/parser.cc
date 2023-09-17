@@ -4316,14 +4316,30 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
     case TokenKind::T_CHAR32_T:
     case TokenKind::T_WCHAR_T:
     case TokenKind::T_BOOL:
-    case TokenKind::T_SHORT:
     case TokenKind::T_INT:
     case TokenKind::T___INT64:
-    case TokenKind::T___INT128:
-    case TokenKind::T_LONG:
+    case TokenKind::T___INT128: {
+      auto ast = new (pool) IntegralTypeSpecifierAST();
+      yyast = ast;
+      ast->specifierLoc = consumeToken();
+      ast->specifier = unit->tokenKind(ast->specifierLoc);
+      specs.has_simple_typespec = true;
+      return true;
+    }
+
+    case TokenKind::T_SHORT:
+    case TokenKind::T_LONG: {
+      auto ast = new (pool) SizeTypeSpecifierAST();
+      yyast = ast;
+      ast->specifierLoc = consumeToken();
+      ast->specifier = unit->tokenKind(ast->specifierLoc);
+      specs.has_simple_typespec = true;
+      return true;
+    }
+
     case TokenKind::T_SIGNED:
     case TokenKind::T_UNSIGNED: {
-      auto ast = new (pool) IntegralTypeSpecifierAST();
+      auto ast = new (pool) SignTypeSpecifierAST();
       yyast = ast;
       ast->specifierLoc = consumeToken();
       ast->specifier = unit->tokenKind(ast->specifierLoc);
