@@ -804,18 +804,13 @@ void RecursiveASTVisitor::visit(ModuleUnitAST* ast) {
   acceptPrivateModuleFragment(ast->privateModuleFragment);
 }
 
-void RecursiveASTVisitor::visit(LabeledStatementAST* ast) {
-  acceptStatement(ast->statement);
-}
+void RecursiveASTVisitor::visit(LabeledStatementAST* ast) {}
 
 void RecursiveASTVisitor::visit(CaseStatementAST* ast) {
   acceptExpression(ast->expression);
-  acceptStatement(ast->statement);
 }
 
-void RecursiveASTVisitor::visit(DefaultStatementAST* ast) {
-  acceptStatement(ast->statement);
-}
+void RecursiveASTVisitor::visit(DefaultStatementAST* ast) {}
 
 void RecursiveASTVisitor::visit(ExpressionStatementAST* ast) {
   acceptExpression(ast->expression);

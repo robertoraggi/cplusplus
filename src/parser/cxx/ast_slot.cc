@@ -2987,19 +2987,14 @@ void ASTSlot::visit(LabeledStatementAST* ast) {
       slotKind_ = ASTSlotKind::kToken;
       slotNameIndex_ = SlotNameIndex{33};
       break;
-    case 2:  // statement
-      value_ = reinterpret_cast<std::intptr_t>(ast->statement);
-      slotKind_ = ASTSlotKind::kNode;
-      slotNameIndex_ = SlotNameIndex{176};
-      break;
-    case 3:  // identifier
+    case 2:  // identifier
       value_ = reinterpret_cast<std::intptr_t>(ast->identifier);
       slotKind_ = ASTSlotKind::kIdentifierAttribute;
       slotNameIndex_ = SlotNameIndex{91};
       break;
   }  // switch
 
-  slotCount_ = 4;
+  slotCount_ = 3;
 }
 
 void ASTSlot::visit(CaseStatementAST* ast) {
@@ -3019,14 +3014,9 @@ void ASTSlot::visit(CaseStatementAST* ast) {
       slotKind_ = ASTSlotKind::kToken;
       slotNameIndex_ = SlotNameIndex{33};
       break;
-    case 3:  // statement
-      value_ = reinterpret_cast<std::intptr_t>(ast->statement);
-      slotKind_ = ASTSlotKind::kNode;
-      slotNameIndex_ = SlotNameIndex{176};
-      break;
   }  // switch
 
-  slotCount_ = 4;
+  slotCount_ = 3;
 }
 
 void ASTSlot::visit(DefaultStatementAST* ast) {
@@ -3041,14 +3031,9 @@ void ASTSlot::visit(DefaultStatementAST* ast) {
       slotKind_ = ASTSlotKind::kToken;
       slotNameIndex_ = SlotNameIndex{33};
       break;
-    case 2:  // statement
-      value_ = reinterpret_cast<std::intptr_t>(ast->statement);
-      slotKind_ = ASTSlotKind::kNode;
-      slotNameIndex_ = SlotNameIndex{176};
-      break;
   }  // switch
 
-  slotCount_ = 3;
+  slotCount_ = 2;
 }
 
 void ASTSlot::visit(ExpressionStatementAST* ast) {

@@ -1621,12 +1621,10 @@ auto ModuleUnitAST::lastSourceLocation() -> SourceLocation {
 auto LabeledStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(statement)) return loc;
   return {};
 }
 
 auto LabeledStatementAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(statement)) return loc;
   if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
   return {};
@@ -1636,12 +1634,10 @@ auto CaseStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(caseLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(statement)) return loc;
   return {};
 }
 
 auto CaseStatementAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(statement)) return loc;
   if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(caseLoc)) return loc;
@@ -1651,12 +1647,10 @@ auto CaseStatementAST::lastSourceLocation() -> SourceLocation {
 auto DefaultStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(defaultLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(statement)) return loc;
   return {};
 }
 
 auto DefaultStatementAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(statement)) return loc;
   if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(defaultLoc)) return loc;
   return {};

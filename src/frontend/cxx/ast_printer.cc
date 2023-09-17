@@ -1123,18 +1123,15 @@ void ASTPrinter::visit(ModuleUnitAST* ast) {
 void ASTPrinter::visit(LabeledStatementAST* ast) {
   fmt::print(out_, "{}\n", "labeled-statement");
   accept(ast->identifier, "identifier");
-  accept(ast->statement, "statement");
 }
 
 void ASTPrinter::visit(CaseStatementAST* ast) {
   fmt::print(out_, "{}\n", "case-statement");
   accept(ast->expression, "expression");
-  accept(ast->statement, "statement");
 }
 
 void ASTPrinter::visit(DefaultStatementAST* ast) {
   fmt::print(out_, "{}\n", "default-statement");
-  accept(ast->statement, "statement");
 }
 
 void ASTPrinter::visit(ExpressionStatementAST* ast) {

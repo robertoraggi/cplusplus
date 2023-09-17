@@ -1515,7 +1515,6 @@ table TypenameSpecifier /* SpecifierAST */ {
 }
 
 table LabeledStatement /* StatementAST */ {
-  statement: Statement;
   identifier: string;
   identifier_loc: SourceLocation;
   colon_loc: SourceLocation;
@@ -1523,13 +1522,11 @@ table LabeledStatement /* StatementAST */ {
 
 table CaseStatement /* StatementAST */ {
   expression: Expression;
-  statement: Statement;
   case_loc: SourceLocation;
   colon_loc: SourceLocation;
 }
 
 table DefaultStatement /* StatementAST */ {
-  statement: Statement;
   default_loc: SourceLocation;
   colon_loc: SourceLocation;
 }

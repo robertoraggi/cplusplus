@@ -760,18 +760,19 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     this.accept(node.getPrivateModuleFragment(), context);
   }
 
-  visitLabeledStatement(node: ast.LabeledStatementAST, context: Context): void {
-    this.accept(node.getStatement(), context);
-  }
+  visitLabeledStatement(
+    node: ast.LabeledStatementAST,
+    context: Context,
+  ): void {}
 
   visitCaseStatement(node: ast.CaseStatementAST, context: Context): void {
     this.accept(node.getExpression(), context);
-    this.accept(node.getStatement(), context);
   }
 
-  visitDefaultStatement(node: ast.DefaultStatementAST, context: Context): void {
-    this.accept(node.getStatement(), context);
-  }
+  visitDefaultStatement(
+    node: ast.DefaultStatementAST,
+    context: Context,
+  ): void {}
 
   visitExpressionStatement(
     node: ast.ExpressionStatementAST,

@@ -2241,7 +2241,6 @@ auto ASTDecoder::decodeLabeledStatement(const io::LabeledStatement* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) LabeledStatementAST();
-  ast->statement = decodeStatement(node->statement(), node->statement_type());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -2256,7 +2255,6 @@ auto ASTDecoder::decodeCaseStatement(const io::CaseStatement* node)
   auto ast = new (pool_) CaseStatementAST();
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
-  ast->statement = decodeStatement(node->statement(), node->statement_type());
   return ast;
 }
 
@@ -2265,7 +2263,6 @@ auto ASTDecoder::decodeDefaultStatement(const io::DefaultStatement* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) DefaultStatementAST();
-  ast->statement = decodeStatement(node->statement(), node->statement_type());
   return ast;
 }
 
