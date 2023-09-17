@@ -62,7 +62,7 @@ export function gen_ast_dump_cc({ ast, output }: { ast: AST; output: string }) {
       emit(`    ++indent_;`);
       emit(`    fmt::print(out_, "{:{}}", "", indent_ * 2);`);
       emit(
-        `    fmt::print(out_, "${fieldName}: {}\\n", ast->${member.name}->value());`
+        `    fmt::print(out_, "${fieldName}: {}\\n", ast->${member.name}->value());`,
       );
       emit(`    --indent_;`);
       emit(`  }`);
@@ -74,7 +74,7 @@ export function gen_ast_dump_cc({ ast, output }: { ast: AST; output: string }) {
       emit(`    ++indent_;`);
       emit(`    fmt::print(out_, "{:{}}", "", indent_ * 2);`);
       emit(
-        `    fmt::print(out_, "${fieldName}: {}\\n", Token::spell(ast->${member.name}));`
+        `    fmt::print(out_, "${fieldName}: {}\\n", Token::spell(ast->${member.name}));`,
       );
       emit(`    --indent_;`);
       emit(`  }`);

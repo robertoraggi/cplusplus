@@ -21,9 +21,10 @@
 import { cpy_header } from "./cpy_header.js";
 import { AST } from "./parseAST.js";
 import { groupNodesByBaseType } from "./groupNodesByBaseType.js";
+import { format } from "prettier";
 import * as fs from "fs";
 
-export function gen_ast_visitor_ts({
+export async function gen_ast_visitor_ts({
   ast,
   output,
 }: {
@@ -51,8 +52,8 @@ export function gen_ast_visitor_ts({
     nodes.forEach(({ name }) => {
       emit(
         `    abstract visit${nodeName(
-          name
-        )}(node: ast.${name}, context: Context): Result;`
+          name,
+        )}(node: ast.${name}, context: Context): Result;`,
       );
     });
   });
@@ -66,5 +67,5 @@ import * as ast from "./AST.js";
 ${code.join("\n")}
 `;
 
-  fs.writeFileSync(output, out);
+  fs.writeFileSync(output, await format(out, { parser: "typescript" }));
 }
