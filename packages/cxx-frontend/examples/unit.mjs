@@ -1,3 +1,4 @@
+import DEFAULT_WASM_BINARY_URL from "../dist/defaultWasmBinaryUrl.js";
 import {
   Parser,
   TokenKind,
@@ -15,7 +16,7 @@ int main() {
 `;
 
 async function main() {
-  const wasmBinaryFile = fileURLToPath(Parser.DEFAULT_WASM_BINARY_URL);
+  const wasmBinaryFile = fileURLToPath(DEFAULT_WASM_BINARY_URL);
 
   const wasmBinary = await readFile(wasmBinaryFile);
 
