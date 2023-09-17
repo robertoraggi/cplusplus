@@ -21,9 +21,16 @@
 import { cpy_header } from "./cpy_header.js";
 import { AST } from "./parseAST.js";
 import { groupNodesByBaseType } from "./groupNodesByBaseType.js";
+import { format } from "prettier";
 import * as fs from "fs";
 
-export function gen_ast_kind_ts({ ast, output }: { ast: AST; output: string }) {
+export async function gen_ast_kind_ts({
+  ast,
+  output,
+}: {
+  ast: AST;
+  output: string;
+}) {
   const code: string[] = [];
   const emit = (line = "") => code.push(line);
 
@@ -47,5 +54,5 @@ export function gen_ast_kind_ts({ ast, output }: { ast: AST; output: string }) {
 ${code.join("\n")}
 `;
 
-  fs.writeFileSync(output, out);
+  fs.writeFileSync(output, await format(out, { parser: "typescript" }));
 }

@@ -88,7 +88,7 @@ export function gen_ast_h({ ast, output }: { ast: AST; output: string }) {
       }
 
       emit(
-        `  void accept(ASTVisitor* visitor) override { visitor->visit(this); }`
+        `  void accept(ASTVisitor* visitor) override { visitor->visit(this); }`,
       );
       emit();
       emit(`  auto firstSourceLocation() -> SourceLocation override;`);

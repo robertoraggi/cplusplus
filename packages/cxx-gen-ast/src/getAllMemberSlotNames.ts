@@ -32,7 +32,7 @@ export enum MemberSlotClassification {
   TokenList,
 }
 export function classifyMemberSlot(
-  m: Member
+  m: Member,
 ): MemberSlotClassification | undefined {
   if (m.kind === "attribute" && m.type === "bool") {
     return MemberSlotClassification.BoolAttribute;

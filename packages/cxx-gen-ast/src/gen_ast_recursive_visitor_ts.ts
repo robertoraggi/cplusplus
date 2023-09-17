@@ -21,9 +21,10 @@
 import { cpy_header } from "./cpy_header.js";
 import { AST } from "./parseAST.js";
 import { groupNodesByBaseType } from "./groupNodesByBaseType.js";
+import { format } from "prettier";
 import * as fs from "fs";
 
-export function gen_ast_recursive_visitor_ts({
+export async function gen_ast_recursive_visitor_ts({
   ast,
   output,
 }: {
@@ -45,7 +46,7 @@ export function gen_ast_recursive_visitor_ts({
   const nodeName = (name: string) => name.slice(0, -3);
 
   emit(
-    `export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {`
+    `export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {`,
   );
   emit(`    constructor() {`);
   emit(`        super();`);
@@ -60,8 +61,8 @@ export function gen_ast_recursive_visitor_ts({
       emit();
       emit(
         `    visit${nodeName(
-          name
-        )}(node: ast.${name}, context: Context): void {`
+          name,
+        )}(node: ast.${name}, context: Context): void {`,
       );
       members.forEach((m) => {
         switch (m.kind) {
@@ -70,7 +71,7 @@ export function gen_ast_recursive_visitor_ts({
             break;
           case "node-list":
             emit(
-              `        for (const element of node.${getterName(m.name)}()) {`
+              `        for (const element of node.${getterName(m.name)}()) {`,
             );
             emit(`            this.accept(element, context);`);
             emit(`        }`);
@@ -90,5 +91,5 @@ import { ASTVisitor } from "./ASTVisitor.js";
 ${code.join("\n")}
 `;
 
-  fs.writeFileSync(output, out);
+  fs.writeFileSync(output, await format(out, { parser: "typescript" }));
 }
