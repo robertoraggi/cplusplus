@@ -262,9 +262,9 @@ export enum ASTKind {
   ReferenceOperator,
   PtrToMemberOperator,
 
-  // DeclaratorModifierAST
-  FunctionDeclarator,
-  ArrayDeclarator,
+  // DeclaratorChunkAST
+  FunctionDeclaratorChunk,
+  ArrayDeclaratorChunk,
 
   // AttributeSpecifierAST
   CxxAttribute,

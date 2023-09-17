@@ -872,13 +872,13 @@ void DefaultASTVisitor::visit(PtrToMemberOperatorAST* ast) {
   cxx_runtime_error("visit(PtrToMemberOperatorAST): not implemented");
 }
 
-// DeclaratorModifierAST
-void DefaultASTVisitor::visit(FunctionDeclaratorAST* ast) {
-  cxx_runtime_error("visit(FunctionDeclaratorAST): not implemented");
+// DeclaratorChunkAST
+void DefaultASTVisitor::visit(FunctionDeclaratorChunkAST* ast) {
+  cxx_runtime_error("visit(FunctionDeclaratorChunkAST): not implemented");
 }
 
-void DefaultASTVisitor::visit(ArrayDeclaratorAST* ast) {
-  cxx_runtime_error("visit(ArrayDeclaratorAST): not implemented");
+void DefaultASTVisitor::visit(ArrayDeclaratorChunkAST* ast) {
+  cxx_runtime_error("visit(ArrayDeclaratorChunkAST): not implemented");
 }
 
 // AttributeSpecifierAST

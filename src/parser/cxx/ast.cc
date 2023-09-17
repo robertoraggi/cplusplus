@@ -99,12 +99,12 @@ auto EnumeratorAST::lastSourceLocation() -> SourceLocation {
 auto DeclaratorAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(ptrOpList)) return loc;
   if (auto loc = cxx::firstSourceLocation(coreDeclarator)) return loc;
-  if (auto loc = cxx::firstSourceLocation(modifiers)) return loc;
+  if (auto loc = cxx::firstSourceLocation(declaratorChunkList)) return loc;
   return {};
 }
 
 auto DeclaratorAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(modifiers)) return loc;
+  if (auto loc = cxx::lastSourceLocation(declaratorChunkList)) return loc;
   if (auto loc = cxx::lastSourceLocation(coreDeclarator)) return loc;
   if (auto loc = cxx::lastSourceLocation(ptrOpList)) return loc;
   return {};
@@ -154,12 +154,12 @@ auto BaseClauseAST::lastSourceLocation() -> SourceLocation {
 
 auto NewDeclaratorAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(ptrOpList)) return loc;
-  if (auto loc = cxx::firstSourceLocation(modifiers)) return loc;
+  if (auto loc = cxx::firstSourceLocation(declaratorChunkList)) return loc;
   return {};
 }
 
 auto NewDeclaratorAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(modifiers)) return loc;
+  if (auto loc = cxx::lastSourceLocation(declaratorChunkList)) return loc;
   if (auto loc = cxx::lastSourceLocation(ptrOpList)) return loc;
   return {};
 }
@@ -3052,19 +3052,19 @@ auto PtrToMemberOperatorAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto FunctionDeclaratorAST::firstSourceLocation() -> SourceLocation {
+auto FunctionDeclaratorChunkAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(parametersAndQualifiers)) return loc;
   if (auto loc = cxx::firstSourceLocation(trailingReturnType)) return loc;
   return {};
 }
 
-auto FunctionDeclaratorAST::lastSourceLocation() -> SourceLocation {
+auto FunctionDeclaratorChunkAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(trailingReturnType)) return loc;
   if (auto loc = cxx::lastSourceLocation(parametersAndQualifiers)) return loc;
   return {};
 }
 
-auto ArrayDeclaratorAST::firstSourceLocation() -> SourceLocation {
+auto ArrayDeclaratorChunkAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lbracketLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(rbracketLoc)) return loc;
@@ -3072,7 +3072,7 @@ auto ArrayDeclaratorAST::firstSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto ArrayDeclaratorAST::lastSourceLocation() -> SourceLocation {
+auto ArrayDeclaratorChunkAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(rbracketLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;

@@ -65,7 +65,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
       this.accept(element, context);
     }
     this.accept(node.getCoreDeclarator(), context);
-    for (const element of node.getModifiers()) {
+    for (const element of node.getDeclaratorChunkList()) {
       this.accept(element, context);
     }
   }
@@ -94,7 +94,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     for (const element of node.getPtrOpList()) {
       this.accept(element, context);
     }
-    for (const element of node.getModifiers()) {
+    for (const element of node.getDeclaratorChunkList()) {
       this.accept(element, context);
     }
   }
@@ -1418,15 +1418,18 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     }
   }
 
-  visitFunctionDeclarator(
-    node: ast.FunctionDeclaratorAST,
+  visitFunctionDeclaratorChunk(
+    node: ast.FunctionDeclaratorChunkAST,
     context: Context,
   ): void {
     this.accept(node.getParametersAndQualifiers(), context);
     this.accept(node.getTrailingReturnType(), context);
   }
 
-  visitArrayDeclarator(node: ast.ArrayDeclaratorAST, context: Context): void {
+  visitArrayDeclaratorChunk(
+    node: ast.ArrayDeclaratorChunkAST,
+    context: Context,
+  ): void {
     this.accept(node.getExpression(), context);
     for (const element of node.getAttributeList()) {
       this.accept(element, context);

@@ -839,13 +839,13 @@ export abstract class ASTVisitor<Context, Result> {
     context: Context,
   ): Result;
 
-  // DeclaratorModifierAST
-  abstract visitFunctionDeclarator(
-    node: ast.FunctionDeclaratorAST,
+  // DeclaratorChunkAST
+  abstract visitFunctionDeclaratorChunk(
+    node: ast.FunctionDeclaratorChunkAST,
     context: Context,
   ): Result;
-  abstract visitArrayDeclarator(
-    node: ast.ArrayDeclaratorAST,
+  abstract visitArrayDeclaratorChunk(
+    node: ast.ArrayDeclaratorChunkAST,
     context: Context,
   ): Result;
 

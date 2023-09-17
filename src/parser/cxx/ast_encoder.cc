@@ -347,7 +347,7 @@ auto ASTEncoder::acceptPtrOperator(PtrOperatorAST* ast)
   return {offset, type};
 }
 
-auto ASTEncoder::acceptDeclaratorModifier(DeclaratorModifierAST* ast)
+auto ASTEncoder::acceptDeclaratorChunk(DeclaratorChunkAST* ast)
     -> std::tuple<flatbuffers::Offset<>, std::uint32_t> {
   if (!ast) return {};
   flatbuffers::Offset<> offset;
@@ -543,18 +543,21 @@ void ASTEncoder::visit(DeclaratorAST* ast) {
   const auto [coreDeclarator, coreDeclaratorType] =
       acceptCoreDeclarator(ast->coreDeclarator);
 
-  std::vector<flatbuffers::Offset<>> modifiersOffsets;
-  std::vector<std::underlying_type_t<io::DeclaratorModifier>> modifiersTypes;
+  std::vector<flatbuffers::Offset<>> declaratorChunkListOffsets;
+  std::vector<std::underlying_type_t<io::DeclaratorChunk>>
+      declaratorChunkListTypes;
 
-  for (auto it = ast->modifiers; it; it = it->next) {
+  for (auto it = ast->declaratorChunkList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptDeclaratorModifier(it->value);
-    modifiersOffsets.push_back(offset);
-    modifiersTypes.push_back(type);
+    const auto [offset, type] = acceptDeclaratorChunk(it->value);
+    declaratorChunkListOffsets.push_back(offset);
+    declaratorChunkListTypes.push_back(type);
   }
 
-  auto modifiersOffsetsVector = fbb_.CreateVector(modifiersOffsets);
-  auto modifiersTypesVector = fbb_.CreateVector(modifiersTypes);
+  auto declaratorChunkListOffsetsVector =
+      fbb_.CreateVector(declaratorChunkListOffsets);
+  auto declaratorChunkListTypesVector =
+      fbb_.CreateVector(declaratorChunkListTypes);
 
   io::Declarator::Builder builder{fbb_};
   builder.add_ptr_op_list(ptrOpListOffsetsVector);
@@ -562,8 +565,8 @@ void ASTEncoder::visit(DeclaratorAST* ast) {
   builder.add_core_declarator(coreDeclarator);
   builder.add_core_declarator_type(
       static_cast<io::CoreDeclarator>(coreDeclaratorType));
-  builder.add_modifiers(modifiersOffsetsVector);
-  builder.add_modifiers_type(modifiersTypesVector);
+  builder.add_declarator_chunk_list(declaratorChunkListOffsetsVector);
+  builder.add_declarator_chunk_list_type(declaratorChunkListTypesVector);
 
   offset_ = builder.Finish().Union();
 }
@@ -657,18 +660,20 @@ void ASTEncoder::visit(NewDeclaratorAST* ast) {
   auto ptrOpListOffsetsVector = fbb_.CreateVector(ptrOpListOffsets);
   auto ptrOpListTypesVector = fbb_.CreateVector(ptrOpListTypes);
 
-  std::vector<flatbuffers::Offset<io::ArrayDeclarator>> modifiersOffsets;
-  for (auto it = ast->modifiers; it; it = it->next) {
+  std::vector<flatbuffers::Offset<io::ArrayDeclaratorChunk>>
+      declaratorChunkListOffsets;
+  for (auto it = ast->declaratorChunkList; it; it = it->next) {
     if (!it->value) continue;
-    modifiersOffsets.emplace_back(accept(it->value).o);
+    declaratorChunkListOffsets.emplace_back(accept(it->value).o);
   }
 
-  auto modifiersOffsetsVector = fbb_.CreateVector(modifiersOffsets);
+  auto declaratorChunkListOffsetsVector =
+      fbb_.CreateVector(declaratorChunkListOffsets);
 
   io::NewDeclarator::Builder builder{fbb_};
   builder.add_ptr_op_list(ptrOpListOffsetsVector);
   builder.add_ptr_op_list_type(ptrOpListTypesVector);
-  builder.add_modifiers(modifiersOffsetsVector);
+  builder.add_declarator_chunk_list(declaratorChunkListOffsetsVector);
 
   offset_ = builder.Finish().Union();
 }
@@ -5506,20 +5511,20 @@ void ASTEncoder::visit(PtrToMemberOperatorAST* ast) {
   type_ = io::PtrOperator_PtrToMemberOperator;
 }
 
-void ASTEncoder::visit(FunctionDeclaratorAST* ast) {
+void ASTEncoder::visit(FunctionDeclaratorChunkAST* ast) {
   const auto parametersAndQualifiers = accept(ast->parametersAndQualifiers);
 
   const auto trailingReturnType = accept(ast->trailingReturnType);
 
-  io::FunctionDeclarator::Builder builder{fbb_};
+  io::FunctionDeclaratorChunk::Builder builder{fbb_};
   builder.add_parameters_and_qualifiers(parametersAndQualifiers.o);
   builder.add_trailing_return_type(trailingReturnType.o);
 
   offset_ = builder.Finish().Union();
-  type_ = io::DeclaratorModifier_FunctionDeclarator;
+  type_ = io::DeclaratorChunk_FunctionDeclaratorChunk;
 }
 
-void ASTEncoder::visit(ArrayDeclaratorAST* ast) {
+void ASTEncoder::visit(ArrayDeclaratorChunkAST* ast) {
   auto lbracketLoc = encodeSourceLocation(ast->lbracketLoc);
 
   const auto [expression, expressionType] = acceptExpression(ast->expression);
@@ -5540,7 +5545,7 @@ void ASTEncoder::visit(ArrayDeclaratorAST* ast) {
   auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
   auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
 
-  io::ArrayDeclarator::Builder builder{fbb_};
+  io::ArrayDeclaratorChunk::Builder builder{fbb_};
   builder.add_lbracket_loc(lbracketLoc.o);
   builder.add_expression(expression);
   builder.add_expression_type(static_cast<io::Expression>(expressionType));
@@ -5549,7 +5554,7 @@ void ASTEncoder::visit(ArrayDeclaratorAST* ast) {
   builder.add_attribute_list_type(attributeListTypesVector);
 
   offset_ = builder.Finish().Union();
-  type_ = io::DeclaratorModifier_ArrayDeclarator;
+  type_ = io::DeclaratorChunk_ArrayDeclaratorChunk;
 }
 
 void ASTEncoder::visit(CxxAttributeAST* ast) {

@@ -87,7 +87,7 @@ export abstract class AttributeSpecifierAST extends AST {}
 export abstract class AttributeTokenAST extends AST {}
 export abstract class CoreDeclaratorAST extends AST {}
 export abstract class DeclarationAST extends AST {}
-export abstract class DeclaratorModifierAST extends AST {}
+export abstract class DeclaratorChunkAST extends AST {}
 export abstract class ExceptionDeclarationAST extends AST {}
 export abstract class ExceptionSpecifierAST extends AST {}
 export abstract class ExpressionAST extends AST {}
@@ -259,13 +259,13 @@ export class DeclaratorAST extends AST {
       this.parser,
     );
   }
-  *getModifiers(): Generator<DeclaratorModifierAST | undefined> {
+  *getDeclaratorChunkList(): Generator<DeclaratorChunkAST | undefined> {
     for (
       let it = cxx.getASTSlot(this.getHandle(), 2);
       it;
       it = cxx.getListNext(it)
     ) {
-      yield AST.from<DeclaratorModifierAST>(cxx.getListValue(it), this.parser);
+      yield AST.from<DeclaratorChunkAST>(cxx.getListValue(it), this.parser);
     }
   }
 }
@@ -376,13 +376,16 @@ export class NewDeclaratorAST extends AST {
       yield AST.from<PtrOperatorAST>(cxx.getListValue(it), this.parser);
     }
   }
-  *getModifiers(): Generator<ArrayDeclaratorAST | undefined> {
+  *getDeclaratorChunkList(): Generator<ArrayDeclaratorChunkAST | undefined> {
     for (
       let it = cxx.getASTSlot(this.getHandle(), 1);
       it;
       it = cxx.getListNext(it)
     ) {
-      yield AST.from<ArrayDeclaratorAST>(cxx.getListValue(it), this.parser);
+      yield AST.from<ArrayDeclaratorChunkAST>(
+        cxx.getListValue(it),
+        this.parser,
+      );
     }
   }
 }
@@ -5336,12 +5339,12 @@ export class PtrToMemberOperatorAST extends PtrOperatorAST {
   }
 }
 
-export class FunctionDeclaratorAST extends DeclaratorModifierAST {
+export class FunctionDeclaratorChunkAST extends DeclaratorChunkAST {
   accept<Context, Result>(
     visitor: ASTVisitor<Context, Result>,
     context: Context,
   ): Result {
-    return visitor.visitFunctionDeclarator(this, context);
+    return visitor.visitFunctionDeclaratorChunk(this, context);
   }
   getParametersAndQualifiers(): ParametersAndQualifiersAST | undefined {
     return AST.from<ParametersAndQualifiersAST>(
@@ -5366,12 +5369,12 @@ export class FunctionDeclaratorAST extends DeclaratorModifierAST {
   }
 }
 
-export class ArrayDeclaratorAST extends DeclaratorModifierAST {
+export class ArrayDeclaratorChunkAST extends DeclaratorChunkAST {
   accept<Context, Result>(
     visitor: ASTVisitor<Context, Result>,
     context: Context,
   ): Result {
-    return visitor.visitArrayDeclarator(this, context);
+    return visitor.visitArrayDeclaratorChunk(this, context);
   }
   getLbracketToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
@@ -5760,8 +5763,8 @@ const AST_CONSTRUCTORS: Array<
   PointerOperatorAST,
   ReferenceOperatorAST,
   PtrToMemberOperatorAST,
-  FunctionDeclaratorAST,
-  ArrayDeclaratorAST,
+  FunctionDeclaratorChunkAST,
+  ArrayDeclaratorChunkAST,
   CxxAttributeAST,
   GccAttributeAST,
   AlignasAttributeAST,

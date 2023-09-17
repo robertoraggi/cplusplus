@@ -20,8 +20,8 @@ auto make(void* where, T init) {
 // CHECK-NEXT:            declarator-id: id-expression
 // CHECK-NEXT:              unqualified-id: name-id
 // CHECK-NEXT:                identifier: make
-// CHECK-NEXT:          modifiers
-// CHECK-NEXT:            function-declarator
+// CHECK-NEXT:          declarator-chunk-list
+// CHECK-NEXT:            function-declarator-chunk
 // CHECK-NEXT:              parameters-and-qualifiers: parameters-and-qualifiers
 // CHECK-NEXT:                parameter-declaration-clause: parameter-declaration-clause
 // CHECK-NEXT:                  parameter-declaration-list
