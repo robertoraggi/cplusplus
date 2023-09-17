@@ -1,5 +1,8 @@
-import DEFAULT_WASM_BINARY_URL from "../dist/defaultWasmBinaryUrl.js";
-import { Parser, Preprocessor } from "../dist/index.js";
+import {
+  DEFAULT_WASM_BINARY_URL,
+  Parser,
+  Preprocessor,
+} from "../dist/index.js";
 import { readFile } from "fs/promises";
 import { fileURLToPath } from "url";
 

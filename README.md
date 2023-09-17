@@ -84,8 +84,7 @@ npm pack
 // example.mjs
 //
 
-import DEFAULT_WASM_BINARY_URL from "../dist/defaultWasmBinaryUrl.js";
-import { Parser, AST, ASTKind } from "cxx-frontend";
+import { DEFAULT_WASM_BINARY_URL, Parser, AST, ASTKind } from "cxx-frontend";
 import { readFile } from "fs/promises";
 import { fileURLToPath } from "url";
 

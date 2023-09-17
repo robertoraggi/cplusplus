@@ -2,11 +2,15 @@
 // dump.mjs
 //
 
-import DEFAULT_WASM_BINARY_URL from "../dist/defaultWasmBinaryUrl.js";
-import { Parser, AST, ASTKind } from "../dist/index.js";
+import {
+  DEFAULT_WASM_BINARY_URL,
+  Parser,
+  AST,
+  ASTKind,
+  ASTSlot,
+} from "../dist/index.js";
 import { readFile } from "fs/promises";
 import { fileURLToPath } from "url";
-import { ASTSlot } from "../dist/ASTSlot.js";
 
 const source = `
 template <typename T>
@@ -46,12 +50,11 @@ async function main() {
   const ast = parser.getAST();
 
   ast?.walk().preVisit(({ node, slot, depth }) => {
-    if (node instanceof AST) {
-      const ind = " ".repeat(depth * 2);
-      const kind = ASTKind[node.getKind()];
-      const member = slot !== undefined ? `${ASTSlot[slot]}: ` : "";
-      console.log(`${ind}- ${member}${kind}`);
-    }
+    if (!node instanceof AST) return;
+    const ind = " ".repeat(depth * 2);
+    const kind = ASTKind[node.getKind()];
+    const member = slot !== undefined ? `${ASTSlot[slot]}: ` : "";
+    console.log(`${ind}- ${member}${kind}`);
   });
 
   parser.dispose();
