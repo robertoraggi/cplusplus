@@ -5,6 +5,7 @@
 import { Parser, AST, ASTKind } from "../dist/index.js";
 import { readFile } from "fs/promises";
 import { fileURLToPath } from "url";
+import { ASTSlot } from "../dist/ASTSlot.js";
 
 const source = `
 template <typename T>
@@ -43,11 +44,12 @@ async function main() {
 
   const ast = parser.getAST();
 
-  ast?.walk().preVisit((node, depth) => {
+  ast?.walk().preVisit(({ node, slot, depth }) => {
     if (node instanceof AST) {
       const ind = " ".repeat(depth * 2);
       const kind = ASTKind[node.getKind()];
-      console.log(`${ind}${kind}`);
+      const member = slot !== undefined ? `${ASTSlot[slot]}: ` : "";
+      console.log(`${ind}- ${member}${kind}`);
     }
   });
 

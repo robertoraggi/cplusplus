@@ -22,18 +22,24 @@ import { AST } from "./AST.js";
 import { Token } from "./Token.js";
 import { ASTSlotKind, cxx } from "./cxx.js";
 import { Parser } from "./Parser.js";
+import { ASTSlot } from "./ASTSlot.js";
 
 interface TranslationUnitLike {
   getUnitHandle(): number;
 }
 
+interface StackNode {
+  node: AST | Token;
+  name?: ASTSlot;
+}
+
 class StackEntry {
   #parser: TranslationUnitLike;
-  children?: Generator<AST | Token>;
+  children?: Generator<StackNode, undefined>;
 
   constructor(
-    readonly owner: AST | Token,
-    parser: TranslationUnitLike,
+    readonly owner: StackNode,
+    parser: TranslationUnitLike
   ) {
     this.#parser = parser;
   }
@@ -43,32 +49,39 @@ class StackEntry {
   }
 
   *#initChildren() {
-    if (this.owner instanceof Token) return;
+    if (!(this.owner.node instanceof AST)) {
+      return undefined;
+    }
 
-    const slotCount = cxx.getASTSlotCount(this.owner.getHandle(), 0);
-
-    const handle = this.owner.getHandle();
+    const handle = this.owner.node.getHandle();
+    const slotCount = cxx.getASTSlotCount(handle, 0);
 
     for (let i = 0; i < slotCount; ++i) {
-      const kind = cxx.getASTSlotKind(handle, i);
+      const slotKind = cxx.getASTSlotKind(handle, i);
+      const name = cxx.getASTSlotName(handle, i);
 
-      if (kind === ASTSlotKind.Node) {
+      if (slotKind === ASTSlotKind.Node) {
         const node = AST.from(cxx.getASTSlot(handle, i), this.#parser);
 
-        if (node) yield node;
-      } else if (kind === ASTSlotKind.NodeList) {
+        if (node) yield { name, node };
+      } else if (slotKind === ASTSlotKind.NodeList) {
         for (let it = cxx.getASTSlot(handle, i); it; it = cxx.getListNext(it)) {
           const node = AST.from(cxx.getListValue(it), this.#parser);
 
-          if (node) yield node;
+          if (node) yield { name, node };
         }
-      } else if (kind === ASTSlotKind.Token) {
+      } else if (slotKind === ASTSlotKind.Token) {
         const token = Token.from(cxx.getASTSlot(handle, i), this.#parser);
-
-        if (token) yield token;
+        if (token) yield { name, node: token };
       }
     }
   }
+}
+
+interface AcceptArgs {
+  node: AST | Token;
+  depth: number;
+  slot?: ASTSlot;
 }
 
 export class ASTCursor {
@@ -77,14 +90,18 @@ export class ASTCursor {
 
   constructor(
     readonly root: AST,
-    parser: TranslationUnitLike,
+    parser: TranslationUnitLike
   ) {
     this.#parser = parser;
-    this.#stack.push(new StackEntry(root, this.#parser));
+    this.#stack.push(new StackEntry({ node: root }, this.#parser));
   }
 
-  get node() {
-    return this.#current.owner;
+  get node(): AST | Token {
+    return this.#current.owner.node;
+  }
+
+  get slot(): ASTSlot | undefined {
+    return this.#current.owner.name;
   }
 
   gotoFirstChild() {
@@ -107,18 +124,19 @@ export class ASTCursor {
   }
 
   gotoParent() {
-    if (this.#current.owner === this.root) return false;
+    if (this.#current.owner.node === this.root) return false;
     this.#stack.pop();
     return true;
   }
 
-  preVisit(accept: (node: AST | Token, depth: number) => void | boolean) {
+  preVisit(accept: (args: AcceptArgs) => void | boolean) {
     let done = false;
     let depth = 0;
 
     while (!done) {
       do {
-        if (accept(this.node, depth) === true) return;
+        if (accept({ node: this.node, slot: this.slot, depth }) === true)
+          return;
         ++depth;
       } while (this.gotoFirstChild());
 

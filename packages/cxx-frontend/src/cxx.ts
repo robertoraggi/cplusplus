@@ -22,6 +22,7 @@
 import makeCxx from "./cxx-js.js";
 import { SourceLocation } from "./SourceLocation.js";
 import { TokenKind } from "./TokenKind.js";
+import { ASTSlot } from "./ASTSlot.js";
 import { Unit } from "./Unit.js";
 
 export enum ASTSlotKind {
@@ -98,6 +99,7 @@ export interface CXX {
   getASTKind(handle: number): number;
   getASTSlot(handle: number, slot: number): number;
   getASTSlotKind(handle: number, slot: number): ASTSlotKind;
+  getASTSlotName(handle: number, slot: number): ASTSlot;
   getASTSlotCount(handle: number, slot: number): number;
   getListValue(handle: number): number;
   getListNext(handle: number): number;

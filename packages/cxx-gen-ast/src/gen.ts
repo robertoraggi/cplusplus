@@ -50,6 +50,7 @@ import { gen_ast_encoder_h } from "./gen_ast_encoder_h.js";
 import { gen_ast_encoder_cc } from "./gen_ast_encoder_cc.js";
 import { gen_ast_decoder_h } from "./gen_ast_decoder_h.js";
 import { gen_ast_decoder_cc } from "./gen_ast_decoder_cc.js";
+import { gen_ast_slot_ts } from "./gen_ast_slot_ts.js";
 
 const outdir = process.cwd();
 
@@ -148,6 +149,10 @@ gen_ast_recursive_visitor_ts({
 gen_ast_kind_ts({
   ast,
   output: path.join(outdir, "packages/cxx-frontend/src/ASTKind.ts"),
+});
+gen_ast_slot_ts({
+  ast,
+  output: path.join(outdir, "packages/cxx-frontend/src/ASTSlot.ts"),
 });
 
 child_process.execSync("clang-format -i *.h *.cc", {

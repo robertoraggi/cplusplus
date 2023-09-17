@@ -20,11 +20,6 @@ https://robertoraggi.github.io/cplusplus/
 - [Tokenize Input](./packages/cxx-frontend/examples/tokenize.mjs)
 - [Parse Translation Unit](./packages/cxx-frontend/examples/unit.mjs)
 
-## JS Fiddle Playgrounds
-
-- [Dump the Abstract Syntax Tree](https://jsfiddle.net/4x9yvw6s)
-- [Check Syntax](https://jsfiddle.net/dfeLvy4a)
-
 ## Build
 
 On Linux, macOS and Windows:
@@ -128,7 +123,7 @@ async function main() {
 
   const ast = parser.getAST();
 
-  ast?.walk().preVisit((node, depth) => {
+  ast?.walk().preVisit(({ node, depth }) => {
     if (node instanceof AST) {
       const ind = " ".repeat(depth * 2);
       const kind = ASTKind[node.getKind()];
@@ -177,7 +172,7 @@ main().catch(console.error);
 
       const ast = parser.getAST();
 
-      ast?.walk().preVisit((node, depth) => {
+      ast?.walk().preVisit(({ node, depth }) => {
         if (node instanceof AST)
           rows.push("  ".repeat(depth) + ASTKind[node.getKind()]);
       });

@@ -19,56 +19,14 @@
 // SOFTWARE.
 
 import { groupNodesByBaseType } from "./groupNodesByBaseType.js";
-import { AST, Member } from "./parseAST.js";
+import { AST } from "./parseAST.js";
 import { cpy_header } from "./cpy_header.js";
 import * as fs from "fs";
-
-enum SlotClassification {
-  BoolAttribute,
-  TokenKindAttribute,
-  IdentifierAttribute,
-  LiteralAttribute,
-  Token,
-  Node,
-  NodeList,
-  TokenList,
-}
-
-function classifyMember(m: Member): SlotClassification | undefined {
-  if (m.kind === "attribute" && m.type === "bool") {
-    return SlotClassification.BoolAttribute;
-  } else if (m.kind === "attribute" && m.type === "TokenKind") {
-    return SlotClassification.TokenKindAttribute;
-  } else if (m.kind === "attribute" && m.type === "Identifier") {
-    return SlotClassification.IdentifierAttribute;
-  } else if (m.kind === "attribute" && m.type.endsWith("Literal")) {
-    return SlotClassification.LiteralAttribute;
-  } else if (m.kind === "token") {
-    return SlotClassification.Token;
-  } else if (m.kind === "node") {
-    return SlotClassification.Node;
-  } else if (m.kind === "node-list") {
-    return SlotClassification.NodeList;
-  } else if (m.kind === "token-list") {
-    return SlotClassification.TokenList;
-  } else {
-    return undefined;
-  }
-}
-
-function getAllSlotMemberNames({ ast }: { ast: AST }): string[] {
-  const allSlotMemberNameSet = new Set<string>();
-
-  groupNodesByBaseType(ast).forEach((nodes) => {
-    nodes.forEach(({ members }) => {
-      members
-        .filter((m) => classifyMember(m) !== undefined)
-        .forEach(({ name }) => allSlotMemberNameSet.add(name));
-    });
-  });
-
-  return Array.from(allSlotMemberNameSet).sort();
-}
+import {
+  getAllMemberSlotNames,
+  classifyMemberSlot,
+  MemberSlotClassification,
+} from "./getAllMemberSlotNames.js";
 
 export function gen_ast_slot_cc({ ast, output }: { ast: AST; output: string }) {
   const code: string[] = [];
@@ -76,24 +34,24 @@ export function gen_ast_slot_cc({ ast, output }: { ast: AST; output: string }) {
 
   const by_base = groupNodesByBaseType(ast);
 
-  const allSlotMemberNames = getAllSlotMemberNames({ ast });
+  const allMemberSlotNames = getAllMemberSlotNames({ ast });
 
   emit(`namespace {`);
-  emit(`std::string_view kSlotMemberNames[] = {`);
-  allSlotMemberNames.forEach((name, nameIndex) => {
+  emit(`std::string_view kMemberSlotNames[] = {`);
+  allMemberSlotNames.forEach((name, nameIndex) => {
     emit(`  "${name}",`);
   });
   emit(`};`);
   emit(`} // namespace`);
 
   emit(`std::string_view to_string(SlotNameIndex index) {`);
-  emit(`  return kSlotMemberNames[int(index)];`);
+  emit(`  return kMemberSlotNames[int(index)];`);
   emit(`}`);
 
   by_base.forEach((nodes) => {
     nodes.forEach(({ name, members }) => {
       const memberSlots = members.filter(
-        (m) => classifyMember(m) !== undefined
+        (m) => classifyMemberSlot(m) !== undefined
       );
 
       emit();
@@ -101,63 +59,72 @@ export function gen_ast_slot_cc({ ast, output }: { ast: AST; output: string }) {
       if (memberSlots.length > 0) {
         emit(`  switch (slot_) {`);
         memberSlots.forEach((m, slotCount) => {
-          const classification = classifyMember(m);
+          const classification = classifyMemberSlot(m);
+          const slotNameIndex = allMemberSlotNames.indexOf(m.name);
 
           switch (classification) {
-            case SlotClassification.BoolAttribute:
+            case MemberSlotClassification.BoolAttribute:
               emit(`  case ${slotCount}: // ${m.name}`);
               emit(`    value_ = intptr_t(ast->${m.name} != 0);`);
               emit(`    slotKind_ = ASTSlotKind::kBoolAttribute;`);
+              emit(`    slotNameIndex_ = SlotNameIndex{${slotNameIndex}};`);
               emit(`    break;`);
               break;
-            case SlotClassification.TokenKindAttribute:
+            case MemberSlotClassification.TokenKindAttribute:
               emit(`  case ${slotCount}: // ${m.name}`);
               emit(`    value_ = intptr_t(ast->${m.name});`);
               emit(`    slotKind_ = ASTSlotKind::kIntAttribute;`);
+              emit(`    slotNameIndex_ = SlotNameIndex{${slotNameIndex}};`);
               emit(`    break;`);
               break;
-            case SlotClassification.IdentifierAttribute:
+            case MemberSlotClassification.IdentifierAttribute:
               emit(`  case ${slotCount}: // ${m.name}`);
               emit(
                 `    value_ = reinterpret_cast<std::intptr_t>(ast->${m.name});`
               );
               emit(`    slotKind_ = ASTSlotKind::kIdentifierAttribute;`);
+              emit(`    slotNameIndex_ = SlotNameIndex{${slotNameIndex}};`);
               emit(`    break;`);
               break;
-            case SlotClassification.LiteralAttribute:
+            case MemberSlotClassification.LiteralAttribute:
               emit(`  case ${slotCount}: // ${m.name}`);
               emit(
                 `    value_ = reinterpret_cast<std::intptr_t>(ast->${m.name});`
               );
               emit(`    slotKind_ = ASTSlotKind::kLiteralAttribute;`);
+              emit(`    slotNameIndex_ = SlotNameIndex{${slotNameIndex}};`);
               emit(`    break;`);
               break;
-            case SlotClassification.Token:
+            case MemberSlotClassification.Token:
               emit(`  case ${slotCount}: // ${m.name}`);
               emit(`    value_ = ast->${m.name}.index();`);
               emit(`    slotKind_ = ASTSlotKind::kToken;`);
+              emit(`    slotNameIndex_ = SlotNameIndex{${slotNameIndex}};`);
               emit(`    break;`);
               break;
-            case SlotClassification.Node:
+            case MemberSlotClassification.Node:
               emit(`  case ${slotCount}: // ${m.name}`);
               emit(
                 `    value_ = reinterpret_cast<std::intptr_t>(ast->${m.name});`
               );
               emit(`    slotKind_ = ASTSlotKind::kNode;`);
+              emit(`    slotNameIndex_ = SlotNameIndex{${slotNameIndex}};`);
               emit(`    break;`);
               break;
-            case SlotClassification.NodeList:
+            case MemberSlotClassification.NodeList:
               emit(`  case ${slotCount}: // ${m.name}`);
               emit(
                 `    value_ = reinterpret_cast<std::intptr_t>(ast->${m.name});`
               );
               emit(`    slotKind_ = ASTSlotKind::kNodeList;`);
+              emit(`    slotNameIndex_ = SlotNameIndex{${slotNameIndex}};`);
               emit(`    break;`);
               break;
-            case SlotClassification.TokenList:
+            case MemberSlotClassification.TokenList:
               emit(`  case ${slotCount}: // ${m.name}`);
               emit(`    value_ = 0; // not implemented yet`);
               emit(`    slotKind_ = ASTSlotKind::kTokenList;`);
+              emit(`    slotNameIndex_ = SlotNameIndex{${slotNameIndex}};`);
               emit(`    break;`);
               break;
             default:

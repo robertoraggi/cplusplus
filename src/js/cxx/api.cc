@@ -176,6 +176,12 @@ int getASTSlotKind(intptr_t handle, int slot) {
   return static_cast<int>(slotKind);
 }
 
+int getASTSlotName(intptr_t handle, int slot) {
+  auto ast = reinterpret_cast<cxx::AST*>(handle);
+  auto [value, slotKind, slotName, slotCount] = getSlot(ast, slot);
+  return static_cast<int>(slotName);
+}
+
 int getASTSlotCount(intptr_t handle, int slot) {
   auto ast = reinterpret_cast<cxx::AST*>(handle);
   auto [value, slotKind, slotNameIndex, slotCount] = getSlot(ast, slot);
@@ -289,6 +295,7 @@ EMSCRIPTEN_BINDINGS(my_module) {
   function("getListNext", &getListNext);
   function("getASTSlot", &getASTSlot);
   function("getASTSlotKind", &getASTSlotKind);
+  function("getASTSlotName", &getASTSlotName);
   function("getASTSlotCount", &getASTSlotCount);
   function("getTokenKind", &getTokenKind);
   function("getTokenText", &getTokenText);

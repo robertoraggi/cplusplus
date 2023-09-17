@@ -22,6 +22,7 @@ import { FixedSizeList } from "react-window";
 import { AST, ASTKind, Parser, TokenKind } from "cxx-frontend";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import AutoSizer from "react-virtualized-auto-sizer";
+import { ASTSlot } from "cxx-frontend/dist/ASTSlot";
 
 function hasOp(node: any): node is AST & { getOp(): TokenKind } {
   return typeof node.getOp === "function" && node.getOp();
@@ -60,6 +61,7 @@ interface SyntaxTreeNode {
   description: string;
   handle: number;
   level: number;
+  slot?: ASTSlot;
 }
 
 export function SyntaxTree({ parser, cursorPosition }: SyntaxTreeProps) {
@@ -72,7 +74,7 @@ export function SyntaxTree({ parser, cursorPosition }: SyntaxTreeProps) {
 
     const ast = parser?.getAST();
 
-    ast?.walk().preVisit((node, level) => {
+    ast?.walk().preVisit(({ node, slot, depth: level }) => {
       if (!(node instanceof AST)) return;
 
       const kind = ASTKind[node.getKind()];
@@ -86,10 +88,12 @@ export function SyntaxTree({ parser, cursorPosition }: SyntaxTreeProps) {
       if (hasAccessSpecifier(node))
         extra += ` (${TokenKind[node.getAccessSpecifier()]})`;
 
-      const description = `${kind}${extra}`;
+      const member = slot !== undefined ? `${ASTSlot[slot]}: ` : "";
+
+      const description = `${member}${kind}${extra}`;
       const handle = node.getHandle();
 
-      nodes.push({ description, handle, level });
+      nodes.push({ description, slot, handle, level });
     });
     setNodes(nodes);
   }, [parser]);
