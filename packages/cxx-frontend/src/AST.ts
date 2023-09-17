@@ -4711,6 +4711,36 @@ export class VoidTypeSpecifierAST extends SpecifierAST {
   }
 }
 
+export class SizeTypeSpecifierAST extends SpecifierAST {
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitSizeTypeSpecifier(this, context);
+  }
+  getSpecifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+  getSpecifier(): TokenKind {
+    return cxx.getASTSlot(this.getHandle(), 1);
+  }
+}
+
+export class SignTypeSpecifierAST extends SpecifierAST {
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitSignTypeSpecifier(this, context);
+  }
+  getSpecifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+  getSpecifier(): TokenKind {
+    return cxx.getASTSlot(this.getHandle(), 1);
+  }
+}
+
 export class VaListTypeSpecifierAST extends SpecifierAST {
   accept<Context, Result>(
     visitor: ASTVisitor<Context, Result>,
@@ -5704,6 +5734,8 @@ const AST_CONSTRUCTORS: Array<
   ExplicitSpecifierAST,
   AutoTypeSpecifierAST,
   VoidTypeSpecifierAST,
+  SizeTypeSpecifierAST,
+  SignTypeSpecifierAST,
   VaListTypeSpecifierAST,
   IntegralTypeSpecifierAST,
   FloatingPointTypeSpecifierAST,

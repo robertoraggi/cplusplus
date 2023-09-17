@@ -766,6 +766,14 @@ void DefaultASTVisitor::visit(VoidTypeSpecifierAST* ast) {
   cxx_runtime_error("visit(VoidTypeSpecifierAST): not implemented");
 }
 
+void DefaultASTVisitor::visit(SizeTypeSpecifierAST* ast) {
+  cxx_runtime_error("visit(SizeTypeSpecifierAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(SignTypeSpecifierAST* ast) {
+  cxx_runtime_error("visit(SignTypeSpecifierAST): not implemented");
+}
+
 void DefaultASTVisitor::visit(VaListTypeSpecifierAST* ast) {
   cxx_runtime_error("visit(VaListTypeSpecifierAST): not implemented");
 }

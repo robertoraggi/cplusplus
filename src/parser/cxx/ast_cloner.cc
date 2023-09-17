@@ -3296,6 +3296,28 @@ void ASTCloner::visit(VoidTypeSpecifierAST* ast) {
   copy->voidLoc = ast->voidLoc;
 }
 
+void ASTCloner::visit(SizeTypeSpecifierAST* ast) {
+  auto copy = new (arena_) SizeTypeSpecifierAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->specifierLoc = ast->specifierLoc;
+
+  copy->specifier = ast->specifier;
+}
+
+void ASTCloner::visit(SignTypeSpecifierAST* ast) {
+  auto copy = new (arena_) SignTypeSpecifierAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->specifierLoc = ast->specifierLoc;
+
+  copy->specifier = ast->specifier;
+}
+
 void ASTCloner::visit(VaListTypeSpecifierAST* ast) {
   auto copy = new (arena_) VaListTypeSpecifierAST();
   copy_ = copy;

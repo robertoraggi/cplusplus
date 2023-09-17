@@ -285,6 +285,8 @@ class VirtualSpecifierAST;
 class ExplicitSpecifierAST;
 class AutoTypeSpecifierAST;
 class VoidTypeSpecifierAST;
+class SizeTypeSpecifierAST;
+class SignTypeSpecifierAST;
 class VaListTypeSpecifierAST;
 class IntegralTypeSpecifierAST;
 class FloatingPointTypeSpecifierAST;

@@ -240,6 +240,8 @@ class ASTVisitor {
   virtual void visit(ExplicitSpecifierAST* ast) = 0;
   virtual void visit(AutoTypeSpecifierAST* ast) = 0;
   virtual void visit(VoidTypeSpecifierAST* ast) = 0;
+  virtual void visit(SizeTypeSpecifierAST* ast) = 0;
+  virtual void visit(SignTypeSpecifierAST* ast) = 0;
   virtual void visit(VaListTypeSpecifierAST* ast) = 0;
   virtual void visit(IntegralTypeSpecifierAST* ast) = 0;
   virtual void visit(FloatingPointTypeSpecifierAST* ast) = 0;

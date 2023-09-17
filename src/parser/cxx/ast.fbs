@@ -244,6 +244,8 @@ union Specifier {
   ExplicitSpecifier,
   AutoTypeSpecifier,
   VoidTypeSpecifier,
+  SizeTypeSpecifier,
+  SignTypeSpecifier,
   VaListTypeSpecifier,
   IntegralTypeSpecifier,
   FloatingPointTypeSpecifier,
@@ -1389,6 +1391,16 @@ table AutoTypeSpecifier /* SpecifierAST */ {
 
 table VoidTypeSpecifier /* SpecifierAST */ {
   void_loc: SourceLocation;
+}
+
+table SizeTypeSpecifier /* SpecifierAST */ {
+  specifier: uint32;
+  specifier_loc: SourceLocation;
+}
+
+table SignTypeSpecifier /* SpecifierAST */ {
+  specifier: uint32;
+  specifier_loc: SourceLocation;
 }
 
 table VaListTypeSpecifier /* SpecifierAST */ {

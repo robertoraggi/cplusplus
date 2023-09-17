@@ -1792,6 +1792,26 @@ void ASTPrinter::visit(VoidTypeSpecifierAST* ast) {
   fmt::print(out_, "{}\n", "void-type-specifier");
 }
 
+void ASTPrinter::visit(SizeTypeSpecifierAST* ast) {
+  fmt::print(out_, "{}\n", "size-type-specifier");
+  if (ast->specifier != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "specifier: {}\n", Token::spell(ast->specifier));
+    --indent_;
+  }
+}
+
+void ASTPrinter::visit(SignTypeSpecifierAST* ast) {
+  fmt::print(out_, "{}\n", "sign-type-specifier");
+  if (ast->specifier != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "specifier: {}\n", Token::spell(ast->specifier));
+    --indent_;
+  }
+}
+
 void ASTPrinter::visit(VaListTypeSpecifierAST* ast) {
   fmt::print(out_, "{}\n", "va-list-type-specifier");
   if (ast->specifier != TokenKind::T_EOF_SYMBOL) {

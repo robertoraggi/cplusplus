@@ -3956,6 +3956,36 @@ void ASTSlot::visit(VoidTypeSpecifierAST* ast) {
   slotCount_ = 1;
 }
 
+void ASTSlot::visit(SizeTypeSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:  // specifierLoc
+      value_ = ast->specifierLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:  // specifier
+      value_ = intptr_t(ast->specifier);
+      slotKind_ = ASTSlotKind::kIntAttribute;
+      break;
+  }  // switch
+
+  slotCount_ = 2;
+}
+
+void ASTSlot::visit(SignTypeSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:  // specifierLoc
+      value_ = ast->specifierLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:  // specifier
+      value_ = intptr_t(ast->specifier);
+      slotKind_ = ASTSlotKind::kIntAttribute;
+      break;
+  }  // switch
+
+  slotCount_ = 2;
+}
+
 void ASTSlot::visit(VaListTypeSpecifierAST* ast) {
   switch (slot_) {
     case 0:  // specifierLoc

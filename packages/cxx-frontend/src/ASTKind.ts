@@ -231,6 +231,8 @@ export enum ASTKind {
   ExplicitSpecifier,
   AutoTypeSpecifier,
   VoidTypeSpecifier,
+  SizeTypeSpecifier,
+  SignTypeSpecifier,
   VaListTypeSpecifier,
   IntegralTypeSpecifier,
   FloatingPointTypeSpecifier,

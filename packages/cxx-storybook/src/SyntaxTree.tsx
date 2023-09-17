@@ -24,21 +24,31 @@ import { CSSProperties, useEffect, useRef, useState } from "react";
 import AutoSizer from "react-virtualized-auto-sizer";
 
 function hasOp(node: any): node is AST & { getOp(): TokenKind } {
-  return typeof node.getOp === "function";
+  return typeof node.getOp === "function" && node.getOp();
+}
+
+function hasAccessOp(node: any): node is AST & { getAccessOp(): TokenKind } {
+  return typeof node.getAccessOp === "function" && node.getAccessOp();
+}
+
+function hasAccessSpecifier(
+  node: any
+): node is AST & { getAccessSpecifier(): TokenKind } {
+  return (
+    typeof node.getAccessSpecifier === "function" && node.getAccessSpecifier()
+  );
+}
+
+function hasSpecifier(node: any): node is AST & { getSpecifier(): TokenKind } {
+  return typeof node.getSpecifier === "function" && node.getSpecifier();
 }
 
 function hasIdentifier(node: any): node is AST & { getIdentifier(): string } {
-  return typeof node.getIdentifier === "function";
-}
-
-function hasNamespaceName(
-  node: any
-): node is AST & { getNamespaceName(): string } {
-  return typeof node.getNamespaceName === "function";
+  return typeof node.getIdentifier === "function" && node.getIdentifier();
 }
 
 function hasLiteral(node: any): node is AST & { getLiteral(): string } {
-  return typeof node.getLiteral === "function";
+  return typeof node.getLiteral === "function" && node.getLiteral();
 }
 
 interface SyntaxTreeProps {
@@ -68,10 +78,13 @@ export function SyntaxTree({ parser, cursorPosition }: SyntaxTreeProps) {
       const kind = ASTKind[node.getKind()];
 
       let extra = "";
-      if (hasNamespaceName(node)) extra += ` (${node.getNamespaceName()})`;
       if (hasIdentifier(node)) extra += ` (${node.getIdentifier()})`;
       if (hasLiteral(node)) extra += ` (${node.getLiteral()})`;
       if (hasOp(node)) extra += ` (${TokenKind[node.getOp()]})`;
+      if (hasAccessOp(node)) extra += ` (${TokenKind[node.getAccessOp()]})`;
+      if (hasSpecifier(node)) extra += ` (${TokenKind[node.getSpecifier()]})`;
+      if (hasAccessSpecifier(node))
+        extra += ` (${TokenKind[node.getAccessSpecifier()]})`;
 
       const description = `${kind}${extra}`;
       const handle = node.getHandle();

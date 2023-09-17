@@ -4904,6 +4904,28 @@ void ASTEncoder::visit(VoidTypeSpecifierAST* ast) {
   type_ = io::Specifier_VoidTypeSpecifier;
 }
 
+void ASTEncoder::visit(SizeTypeSpecifierAST* ast) {
+  auto specifierLoc = encodeSourceLocation(ast->specifierLoc);
+
+  io::SizeTypeSpecifier::Builder builder{fbb_};
+  builder.add_specifier_loc(specifierLoc.o);
+  builder.add_specifier(static_cast<std::uint32_t>(ast->specifier));
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Specifier_SizeTypeSpecifier;
+}
+
+void ASTEncoder::visit(SignTypeSpecifierAST* ast) {
+  auto specifierLoc = encodeSourceLocation(ast->specifierLoc);
+
+  io::SignTypeSpecifier::Builder builder{fbb_};
+  builder.add_specifier_loc(specifierLoc.o);
+  builder.add_specifier(static_cast<std::uint32_t>(ast->specifier));
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Specifier_SignTypeSpecifier;
+}
+
 void ASTEncoder::visit(VaListTypeSpecifierAST* ast) {
   auto specifierLoc = encodeSourceLocation(ast->specifierLoc);
 
