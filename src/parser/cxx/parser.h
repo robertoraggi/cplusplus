@@ -590,6 +590,7 @@ class Parser final {
   CachedAST<ElaboratedTypeSpecifierAST> elaborated_type_specifiers_;
   CachedAST<TemplateArgumentAST> template_arguments_;
   CachedAST<NestedNameSpecifierAST> nested_name_specifiers_;
+  CachedAST<ParameterDeclarationClauseAST> parameter_declaration_clauses_;
 
   // TODO: remove
   std::unordered_set<const Identifier*> concept_names_;
