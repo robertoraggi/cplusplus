@@ -5273,30 +5273,45 @@ auto Parser::parse_noptr_abstract_pack_declarator(
 
 auto Parser::parse_parameter_declaration_clause(
     ParameterDeclarationClauseAST*& yyast) -> bool {
+  const auto start = currentLocation();
+
+  if (auto it = parameter_declaration_clauses_.find(start);
+      it != parameter_declaration_clauses_.end()) {
+    auto [cursor, ast, parsed] = it->second;
+    rewind(cursor);
+    yyast = ast;
+    return parsed;
+  }
+
+  bool parsed = false;
+
   SourceLocation ellipsisLoc;
 
   if (match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) {
+    parsed = true;
+
     auto ast = new (pool) ParameterDeclarationClauseAST();
     yyast = ast;
 
     ast->ellipsisLoc = ellipsisLoc;
     ast->isVariadic = true;
+  } else if (List<ParameterDeclarationAST*>* parameterDeclarationList = nullptr;
+             parse_parameter_declaration_list(parameterDeclarationList)) {
+    parsed = true;
 
-    return true;
+    auto ast = new (pool) ParameterDeclarationClauseAST();
+    yyast = ast;
+    ast->parameterDeclarationList = parameterDeclarationList;
+    match(TokenKind::T_COMMA, ast->commaLoc);
+    ast->isVariadic = match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
+  } else {
+    parsed = false;
   }
 
-  auto ast = new (pool) ParameterDeclarationClauseAST();
-  yyast = ast;
+  parameter_declaration_clauses_.emplace(
+      start, std::make_tuple(currentLocation(), yyast, parsed));
 
-  if (!parse_parameter_declaration_list(ast->parameterDeclarationList)) {
-    return false;
-  }
-
-  match(TokenKind::T_COMMA, ast->commaLoc);
-
-  ast->isVariadic = match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
-
-  return true;
+  return parsed;
 }
 
 auto Parser::parse_parameter_declaration_list(
