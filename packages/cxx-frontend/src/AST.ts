@@ -3566,13 +3566,13 @@ export class StructuredBindingDeclarationAST extends DeclarationAST {
   getLbracketToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
   }
-  *getBindingList(): Generator<UnqualifiedIdAST | undefined> {
+  *getBindingList(): Generator<NameIdAST | undefined> {
     for (
       let it = cxx.getASTSlot(this.getHandle(), 4);
       it;
       it = cxx.getListNext(it)
     ) {
-      yield AST.from<UnqualifiedIdAST>(cxx.getListValue(it), this.parser);
+      yield AST.from<NameIdAST>(cxx.getListValue(it), this.parser);
     }
   }
   getRbracketToken(): Token | undefined {
@@ -3687,8 +3687,8 @@ export class OpaqueEnumDeclarationAST extends DeclarationAST {
       this.parser,
     );
   }
-  getUnqualifiedId(): UnqualifiedIdAST | undefined {
-    return AST.from<UnqualifiedIdAST>(
+  getUnqualifiedId(): NameIdAST | undefined {
+    return AST.from<NameIdAST>(
       cxx.getASTSlot(this.getHandle(), 4),
       this.parser,
     );
@@ -3798,8 +3798,8 @@ export class NamespaceAliasDefinitionAST extends DeclarationAST {
       this.parser,
     );
   }
-  getUnqualifiedId(): UnqualifiedIdAST | undefined {
-    return AST.from<UnqualifiedIdAST>(
+  getUnqualifiedId(): NameIdAST | undefined {
+    return AST.from<NameIdAST>(
       cxx.getASTSlot(this.getHandle(), 4),
       this.parser,
     );
@@ -3841,8 +3841,8 @@ export class UsingDirectiveAST extends DeclarationAST {
       this.parser,
     );
   }
-  getUnqualifiedId(): UnqualifiedIdAST | undefined {
-    return AST.from<UnqualifiedIdAST>(
+  getUnqualifiedId(): NameIdAST | undefined {
+    return AST.from<NameIdAST>(
       cxx.getASTSlot(this.getHandle(), 4),
       this.parser,
     );
@@ -5042,8 +5042,8 @@ export class EnumSpecifierAST extends SpecifierAST {
       this.parser,
     );
   }
-  getUnqualifiedId(): UnqualifiedIdAST | undefined {
-    return AST.from<UnqualifiedIdAST>(
+  getUnqualifiedId(): NameIdAST | undefined {
+    return AST.from<NameIdAST>(
       cxx.getASTSlot(this.getHandle(), 4),
       this.parser,
     );

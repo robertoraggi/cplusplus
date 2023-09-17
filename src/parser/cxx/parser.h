@@ -92,7 +92,7 @@ class Parser final {
   [[nodiscard]] auto parse_module_keyword(SourceLocation& loc) -> bool;
   [[nodiscard]] auto parse_final(SourceLocation& loc) -> bool;
   [[nodiscard]] auto parse_override(SourceLocation& loc) -> bool;
-  [[nodiscard]] auto parse_name_id(UnqualifiedIdAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_name_id(NameIdAST*& yyast) -> bool;
   [[nodiscard]] auto parse_literal(ExpressionAST*& yyast) -> bool;
   void parse_translation_unit(UnitAST*& yyast);
   [[nodiscard]] auto parse_module_head() -> bool;
@@ -373,8 +373,7 @@ class Parser final {
   [[nodiscard]] auto parse_function_body(FunctionBodyAST*& yyast) -> bool;
   [[nodiscard]] auto parse_enum_specifier(SpecifierAST*& yyast) -> bool;
   [[nodiscard]] auto parse_enum_head_name(
-      NestedNameSpecifierAST*& nestedNameSpecifier, UnqualifiedIdAST*& name)
-      -> bool;
+      NestedNameSpecifierAST*& nestedNameSpecifier, NameIdAST*& name) -> bool;
   [[nodiscard]] auto parse_opaque_enum_declaration(DeclarationAST*& yyast)
       -> bool;
   [[nodiscard]] auto parse_enum_key(SourceLocation& enumLoc,
@@ -390,8 +389,7 @@ class Parser final {
   [[nodiscard]] auto parse_namespace_alias_definition(DeclarationAST*& yyast)
       -> bool;
   [[nodiscard]] auto parse_qualified_namespace_specifier(
-      NestedNameSpecifierAST*& nestedNameSpecifier, UnqualifiedIdAST*& name)
-      -> bool;
+      NestedNameSpecifierAST*& nestedNameSpecifier, NameIdAST*& name) -> bool;
   [[nodiscard]] auto parse_using_directive(DeclarationAST*& yyast) -> bool;
   [[nodiscard]] auto parse_using_declaration(DeclarationAST*& yyast) -> bool;
   [[nodiscard]] auto parse_using_declarator_list(
@@ -533,8 +531,7 @@ class Parser final {
       ExceptionDeclarationAST*& yyast) -> bool;
   [[nodiscard]] auto parse_noexcept_specifier(ExceptionSpecifierAST*& yyast)
       -> bool;
-  [[nodiscard]] auto parse_identifier_list(List<UnqualifiedIdAST*>*& yyast)
-      -> bool;
+  [[nodiscard]] auto parse_identifier_list(List<NameIdAST*>*& yyast) -> bool;
 
  private:
   [[nodiscard]] auto lookat(auto... tokens) {

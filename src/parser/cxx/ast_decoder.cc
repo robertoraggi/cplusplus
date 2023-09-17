@@ -2591,9 +2591,7 @@ auto ASTDecoder::decodeStructuredBindingDeclaration(
   if (node->binding_list()) {
     auto* inserter = &ast->bindingList;
     for (std::size_t i = 0; i < node->binding_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeUnqualifiedId(
-          node->binding_list()->Get(i),
-          io::UnqualifiedId(node->binding_list_type()->Get(i))));
+      *inserter = new (pool_) List(decodeNameId(node->binding_list()->Get(i)));
       inserter = &(*inserter)->next;
     }
   }
@@ -2653,8 +2651,7 @@ auto ASTDecoder::decodeOpaqueEnumDeclaration(
   }
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
-  ast->unqualifiedId =
-      decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
+  ast->unqualifiedId = decodeNameId(node->unqualified_id());
   ast->enumBase = decodeEnumBase(node->enum_base());
   return ast;
 }
@@ -2714,8 +2711,7 @@ auto ASTDecoder::decodeNamespaceAliasDefinition(
   auto ast = new (pool_) NamespaceAliasDefinitionAST();
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
-  ast->unqualifiedId =
-      decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
+  ast->unqualifiedId = decodeNameId(node->unqualified_id());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -2739,8 +2735,7 @@ auto ASTDecoder::decodeUsingDirective(const io::UsingDirective* node)
   }
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
-  ast->unqualifiedId =
-      decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
+  ast->unqualifiedId = decodeNameId(node->unqualified_id());
   return ast;
 }
 
@@ -3403,8 +3398,7 @@ auto ASTDecoder::decodeEnumSpecifier(const io::EnumSpecifier* node)
   }
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
-  ast->unqualifiedId =
-      decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
+  ast->unqualifiedId = decodeNameId(node->unqualified_id());
   ast->enumBase = decodeEnumBase(node->enum_base());
   if (node->enumerator_list()) {
     auto* inserter = &ast->enumeratorList;
