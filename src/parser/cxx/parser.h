@@ -84,8 +84,6 @@ class Parser final {
       -> bool;
   [[nodiscard]] auto parse_nospace() -> bool;
   [[nodiscard]] auto parse_greater_greater() -> bool;
-  [[nodiscard]] auto parse_greater_greater_equal() -> bool;
-  [[nodiscard]] auto parse_greater_equal() -> bool;
   [[nodiscard]] auto parse_header_name(SourceLocation& loc) -> bool;
   [[nodiscard]] auto parse_export_keyword(SourceLocation& loc) -> bool;
   [[nodiscard]] auto parse_import_keyword(SourceLocation& loc) -> bool;

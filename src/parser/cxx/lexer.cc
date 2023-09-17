@@ -457,29 +457,20 @@ auto Lexer::readToken() -> TokenKind {
       return TokenKind::T_LESS;
 
     case '>':
-      if (preprocessing_) {
-        if (pos_ != end_ && LA() == '=') {
+      if (pos_ != end_ && LA() == '=') {
+        consume();
+        return TokenKind::T_GREATER_EQUAL;
+      } else if (pos_ != end_ && LA() == '>') {
+        if (LA(1) == '=') {
+          consume(2);
+          return TokenKind::T_GREATER_GREATER_EQUAL;
+        } else if (preprocessing_) {
           consume();
-          return TokenKind::T_GREATER_EQUAL;
-        }
-        if (pos_ != end_ && LA() == '>') {
-          consume();
-          if (pos_ != end_ && LA() == '=') {
-            consume();
-            return TokenKind::T_GREATER_GREATER_EQUAL;
-          }
           return TokenKind::T_GREATER_GREATER;
         }
-      } else if (LA() == '>') {
-        TokenKind k = TokenKind::T_GREATER_GREATER;
 
-        if (LA(1) == '=') k = TokenKind::T_GREATER_GREATER_EQUAL;
-
-        tokenValue_.tokenKindValue = k;
-      } else if (LA() == '=') {
-        tokenValue_.tokenKindValue = TokenKind::T_GREATER_EQUAL;
+        tokenValue_.tokenKindValue = TokenKind::T_GREATER_GREATER;
       }
-
       return TokenKind::T_GREATER;
 
     case '/': {
