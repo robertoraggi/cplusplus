@@ -26,23 +26,245 @@
 
 namespace cxx {
 
-auto ASTSlot::operator()(AST* ast, int slot)
-    -> std::tuple<std::intptr_t, ASTSlotKind, int> {
+auto ASTSlot::operator()(AST* ast, int slot) -> SlotInfo {
   std::intptr_t value = 0;
   ASTSlotKind slotKind = ASTSlotKind::kInvalid;
+  SlotNameIndex slotNameIndex{};
   int slotCount = 0;
   if (ast) {
     std::swap(slot_, slot);
     std::swap(value_, value);
     std::swap(slotKind_, slotKind);
+    std::swap(slotNameIndex_, slotNameIndex);
     std::swap(slotCount_, slotCount);
     ast->accept(this);
-    std::swap(slotCount_, slotCount);
-    std::swap(slotKind_, slotKind);
-    std::swap(value_, value);
     std::swap(slot_, slot);
+    std::swap(value_, value);
+    std::swap(slotKind_, slotKind);
+    std::swap(slotNameIndex_, slotNameIndex);
+    std::swap(slotCount_, slotCount);
   }
-  return std::tuple(value, slotKind, slotCount);
+  return {value, slotKind, SlotNameIndex{slotNameIndex}, slotCount};
+}
+
+namespace {
+std::string_view kSlotMemberNames[] = {
+    "accessLoc",
+    "accessOp",
+    "accessSpecifier",
+    "alignasLoc",
+    "alignofLoc",
+    "ampLoc",
+    "arrowLoc",
+    "asmLoc",
+    "atomicLoc",
+    "attributeArgumentClause",
+    "attributeList",
+    "attributeLoc",
+    "attributeNamespace",
+    "attributeNamespaceLoc",
+    "attributeToken",
+    "attributeUsingPrefix",
+    "autoLoc",
+    "awaitLoc",
+    "baseClause",
+    "baseExpression",
+    "baseSpecifierList",
+    "bindingList",
+    "bracedInitList",
+    "breakLoc",
+    "captureDefaultLoc",
+    "captureList",
+    "caseLoc",
+    "castLoc",
+    "catchLoc",
+    "classKey",
+    "classKeyLoc",
+    "classLoc",
+    "closeLoc",
+    "colonLoc",
+    "commaLoc",
+    "complexLoc",
+    "conceptLoc",
+    "condition",
+    "constLoc",
+    "constevalLoc",
+    "constexprLoc",
+    "constinitLoc",
+    "continueLoc",
+    "coreDeclarator",
+    "coreturnLoc",
+    "ctorInitializer",
+    "cvQualifierList",
+    "declSpecifierList",
+    "declaration",
+    "declarationList",
+    "declarator",
+    "declaratorId",
+    "decltypeLoc",
+    "decltypeSpecifier",
+    "defaultLoc",
+    "deleteLoc",
+    "designator",
+    "doLoc",
+    "dotLoc",
+    "ellipsisLoc",
+    "elseLoc",
+    "elseStatement",
+    "emicolonLoc",
+    "enumBase",
+    "enumLoc",
+    "enumTypeSpecifier",
+    "enumeratorList",
+    "equalLoc",
+    "exceptionDeclaration",
+    "exceptionSpecifier",
+    "explicitLoc",
+    "explicitSpecifier",
+    "exportLoc",
+    "expression",
+    "expressionList",
+    "externLoc",
+    "extraAttributeList",
+    "finalLoc",
+    "foldOp",
+    "foldOpLoc",
+    "forLoc",
+    "friendLoc",
+    "functionBody",
+    "globalModuleFragment",
+    "gotoLoc",
+    "greaterLoc",
+    "handlerList",
+    "headerLoc",
+    "id",
+    "idExpression",
+    "identifier",
+    "identifierLoc",
+    "ifLoc",
+    "iffalseExpression",
+    "iftrueExpression",
+    "importLoc",
+    "importName",
+    "indexExpression",
+    "initDeclaratorList",
+    "initializer",
+    "inlineLoc",
+    "isFinal",
+    "isInline",
+    "isOverride",
+    "isPure",
+    "isTemplateIntroduced",
+    "isTrue",
+    "isVariadic",
+    "isVirtual",
+    "lambdaDeclarator",
+    "lambdaIntroducer",
+    "lbraceLoc",
+    "lbracket2Loc",
+    "lbracketLoc",
+    "leftExpression",
+    "lessLoc",
+    "literal",
+    "literalLoc",
+    "literalOperatorId",
+    "lparen2Loc",
+    "lparenLoc",
+    "memInitializerList",
+    "memberId",
+    "minusGreaterLoc",
+    "modifiers",
+    "moduleDeclaration",
+    "moduleLoc",
+    "moduleName",
+    "modulePartition",
+    "moduleQualifier",
+    "mutableLoc",
+    "namespaceLoc",
+    "nestedNameSpecifier",
+    "nestedNamespaceSpecifierList",
+    "newDeclarator",
+    "newInitalizer",
+    "newLoc",
+    "newPlacement",
+    "noexceptLoc",
+    "op",
+    "opLoc",
+    "openLoc",
+    "operatorFunctionId",
+    "operatorLoc",
+    "parameterDeclarationClause",
+    "parameterDeclarationList",
+    "parametersAndQualifiers",
+    "privateLoc",
+    "privateModuleFragment",
+    "ptrOpList",
+    "questionLoc",
+    "rangeDeclaration",
+    "rangeInitializer",
+    "rbraceLoc",
+    "rbracket2Loc",
+    "rbracketLoc",
+    "refLoc",
+    "refOp",
+    "refQualifierLoc",
+    "requirementBody",
+    "requirementList",
+    "requiresClause",
+    "requiresLoc",
+    "restrictLoc",
+    "returnLoc",
+    "rightExpression",
+    "rparen2Loc",
+    "rparenLoc",
+    "scopeLoc",
+    "semicolonLoc",
+    "sizeExpression",
+    "sizeofLoc",
+    "specifier",
+    "specifierLoc",
+    "starLoc",
+    "statement",
+    "statementList",
+    "staticAssertLoc",
+    "staticLoc",
+    "stringLiteral",
+    "stringliteralLoc",
+    "switchLoc",
+    "templateArgumentList",
+    "templateId",
+    "templateLoc",
+    "templateParameterList",
+    "thisLoc",
+    "threadLoc",
+    "threadLocalLoc",
+    "throwLoc",
+    "tildeLoc",
+    "trailingReturnType",
+    "tryLoc",
+    "typeConstraint",
+    "typeId",
+    "typeIdList",
+    "typeSpecifier",
+    "typeSpecifierList",
+    "typeTraits",
+    "typeTraitsLoc",
+    "typedefLoc",
+    "typeidLoc",
+    "typenameLoc",
+    "underlyingTypeLoc",
+    "unqualifiedId",
+    "usingDeclaratorList",
+    "usingLoc",
+    "virtualLoc",
+    "voidLoc",
+    "volatileLoc",
+    "whileLoc",
+    "yieldLoc",
+};
+}  // namespace
+std::string_view to_string(SlotNameIndex index) {
+  return kSlotMemberNames[int(index)];
 }
 
 void ASTSlot::visit(TypeIdAST* ast) {
@@ -2869,11 +3091,7 @@ void ASTSlot::visit(ConceptDefinitionAST* ast) {
   slotCount_ = 6;
 }
 
-void ASTSlot::visit(ForRangeDeclarationAST* ast) {
-  switch (slot_) {}  // switch
-
-  slotCount_ = 0;
-}
+void ASTSlot::visit(ForRangeDeclarationAST* ast) {}
 
 void ASTSlot::visit(AliasDeclarationAST* ast) {
   switch (slot_) {

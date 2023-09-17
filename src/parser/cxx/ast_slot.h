@@ -39,10 +39,18 @@ enum ASTSlotKind {
   kIntAttribute,
 };
 
+enum class SlotNameIndex : int {};
+
 class ASTSlot final : ASTVisitor {
  public:
-  auto operator()(AST* ast, int slot)
-      -> std::tuple<std::intptr_t, ASTSlotKind, int>;
+  struct SlotInfo {
+    std::intptr_t handle;
+    ASTSlotKind kind;
+    SlotNameIndex nameIndex;
+    int slotCount;
+  };
+
+  auto operator()(AST* ast, int slot) -> SlotInfo;
 
  private:
   void visit(TypeIdAST* ast) override;
@@ -285,7 +293,10 @@ class ASTSlot final : ASTVisitor {
   std::intptr_t value_ = 0;
   int slot_ = 0;
   ASTSlotKind slotKind_ = ASTSlotKind::kInvalid;
+  SlotNameIndex slotNameIndex_{};
   int slotCount_ = 0;
 };
+
+std::string_view to_string(SlotNameIndex index);
 
 }  // namespace cxx
