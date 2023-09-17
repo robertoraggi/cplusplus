@@ -1860,21 +1860,7 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
         break;
     }  // switch
 
-    if (tk->kind == TokenKind::T_GREATER_EQUAL) {
-      value.tokenKindValue = tk->kind;
-
-      Token token(TokenKind::T_GREATER, tk->offset, 1, value);
-      token.setFileId(fileId);
-      token.setLeadingSpace(tk->space);
-      token.setStartOfLine(tk->bol);
-      tokens.push_back(token);
-
-      token = Token(TokenKind::T_EQUAL, tk->offset + 1, 1);
-      token.setFileId(fileId);
-      token.setLeadingSpace(false);
-      token.setStartOfLine(false);
-      tokens.push_back(token);
-    } else if (tk->kind == TokenKind::T_GREATER_GREATER) {
+    if (tk->kind == TokenKind::T_GREATER_GREATER) {
       value.tokenKindValue = tk->kind;
 
       Token token(TokenKind::T_GREATER, tk->offset, 1);
@@ -1888,27 +1874,6 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
       token.setLeadingSpace(false);
       token.setStartOfLine(false);
       tokens.push_back(token);
-    } else if (tk->kind == TokenKind::T_GREATER_GREATER_EQUAL) {
-      value.tokenKindValue = tk->kind;
-
-      Token token(TokenKind::T_GREATER, tk->offset, 1);
-      token.setFileId(fileId);
-      token.setLeadingSpace(tk->space);
-      token.setStartOfLine(tk->bol);
-      tokens.push_back(token);
-
-      token = Token(TokenKind::T_GREATER, tk->offset + 1, 1);
-      token.setFileId(fileId);
-      token.setLeadingSpace(false);
-      token.setStartOfLine(false);
-      tokens.push_back(token);
-
-      token = Token(TokenKind::T_EQUAL, tk->offset + 2, 1);
-      token.setFileId(fileId);
-      token.setLeadingSpace(false);
-      token.setStartOfLine(false);
-      tokens.push_back(token);
-
     } else {
       Token token(kind, tk->offset, tk->length, value);
       token.setFileId(fileId);

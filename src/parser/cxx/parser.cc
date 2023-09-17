@@ -112,7 +112,8 @@ void Parser::setCheckTypes(bool checkTypes) { checkTypes_ = checkTypes; }
 auto Parser::prec(TokenKind tk) -> Parser::Prec {
   switch (tk) {
     default:
-      cxx_runtime_error("expected a binary operator");
+      cxx_runtime_error(fmt::format("expected a binary operator, found {}",
+                                    Token::spell(tk)));
 
     case TokenKind::T_DOT_STAR:
     case TokenKind::T_MINUS_GREATER_STAR:
@@ -323,40 +324,6 @@ auto Parser::parse_greater_greater() -> bool {
 
   if (match(TokenKind::T_GREATER, greaterLoc) && parse_nospace() &&
       match(TokenKind::T_GREATER, secondGreaterLoc)) {
-    return true;
-  }
-
-  rewind(saved);
-
-  return false;
-}
-
-auto Parser::parse_greater_greater_equal() -> bool {
-  const auto saved = currentLocation();
-
-  SourceLocation greaterLoc;
-  SourceLocation secondGreaterLoc;
-  SourceLocation equalLoc;
-
-  if (match(TokenKind::T_GREATER, greaterLoc) && parse_nospace() &&
-      match(TokenKind::T_GREATER, secondGreaterLoc) && parse_nospace() &&
-      match(TokenKind::T_EQUAL, equalLoc)) {
-    return true;
-  }
-
-  rewind(saved);
-
-  return false;
-}
-
-auto Parser::parse_greater_equal() -> bool {
-  const auto saved = currentLocation();
-
-  SourceLocation greaterLoc;
-  SourceLocation equalLoc;
-
-  if (match(TokenKind::T_GREATER, greaterLoc) && parse_nospace() &&
-      match(TokenKind::T_EQUAL, equalLoc)) {
     return true;
   }
 
@@ -1298,18 +1265,8 @@ auto Parser::parse_fold_operator(SourceLocation& loc, TokenKind& op) -> bool {
 
   switch (TokenKind(LA())) {
     case TokenKind::T_GREATER: {
-      if (parse_greater_greater_equal()) {
-        op = TokenKind::T_GREATER_GREATER_EQUAL;
-        return true;
-      }
-
       if (parse_greater_greater()) {
         op = TokenKind::T_GREATER_GREATER;
-        return true;
-      }
-
-      if (parse_greater_equal()) {
-        op = TokenKind::T_GREATER_EQUAL;
         return true;
       }
 
@@ -2492,11 +2449,6 @@ auto Parser::parse_binary_operator(SourceLocation& loc, TokenKind& tk,
         return true;
       }
 
-      if (parse_greater_equal()) {
-        tk = TokenKind::T_GREATER_EQUAL;
-        return true;
-      }
-
       if (exprContext.templArg || exprContext.templParam) {
         rewind(start);
         return false;
@@ -2507,24 +2459,25 @@ auto Parser::parse_binary_operator(SourceLocation& loc, TokenKind& tk,
       return true;
     }
 
-    case TokenKind::T_STAR:
-    case TokenKind::T_SLASH:
-    case TokenKind::T_PLUS:
-    case TokenKind::T_PERCENT:
-    case TokenKind::T_MINUS_GREATER_STAR:
-    case TokenKind::T_MINUS:
-    case TokenKind::T_LESS_LESS:
-    case TokenKind::T_LESS_EQUAL_GREATER:
-    case TokenKind::T_LESS_EQUAL:
-    case TokenKind::T_LESS:
-    case TokenKind::T_EXCLAIM_EQUAL:
-    case TokenKind::T_EQUAL_EQUAL:
-    case TokenKind::T_DOT_STAR:
-    case TokenKind::T_CARET:
-    case TokenKind::T_BAR_BAR:
-    case TokenKind::T_BAR:
     case TokenKind::T_AMP_AMP:
     case TokenKind::T_AMP:
+    case TokenKind::T_BAR_BAR:
+    case TokenKind::T_BAR:
+    case TokenKind::T_CARET:
+    case TokenKind::T_DOT_STAR:
+    case TokenKind::T_EQUAL_EQUAL:
+    case TokenKind::T_EXCLAIM_EQUAL:
+    case TokenKind::T_GREATER_EQUAL:
+    case TokenKind::T_LESS_EQUAL_GREATER:
+    case TokenKind::T_LESS_EQUAL:
+    case TokenKind::T_LESS_LESS:
+    case TokenKind::T_LESS:
+    case TokenKind::T_MINUS_GREATER_STAR:
+    case TokenKind::T_MINUS:
+    case TokenKind::T_PERCENT:
+    case TokenKind::T_PLUS:
+    case TokenKind::T_SLASH:
+    case TokenKind::T_STAR:
       tk = LA().kind();
       consumeToken();
       return true;
@@ -2725,13 +2678,6 @@ auto Parser::parse_assignment_operator(SourceLocation& loc, TokenKind& op)
     case TokenKind::T_GREATER_GREATER_EQUAL: {
       op = LA().kind();
       loc = consumeToken();
-      return true;
-    }
-
-    case TokenKind::T_GREATER: {
-      loc = currentLocation();
-      if (!parse_greater_greater_equal()) return false;
-      op = TokenKind::T_GREATER_GREATER_EQUAL;
       return true;
     }
 
@@ -7540,16 +7486,8 @@ auto Parser::parse_operator(TokenKind& op, SourceLocation& opLoc,
 
     case TokenKind::T_GREATER: {
       opLoc = currentLocation();
-      if (parse_greater_greater_equal()) {
-        op = TokenKind::T_GREATER_GREATER_EQUAL;
-        return true;
-      }
       if (parse_greater_greater()) {
         op = TokenKind::T_GREATER_GREATER;
-        return true;
-      }
-      if (parse_greater_equal()) {
-        op = TokenKind::T_GREATER_EQUAL;
         return true;
       }
       consumeToken();
