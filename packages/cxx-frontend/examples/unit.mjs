@@ -37,7 +37,7 @@ async function main() {
   console.log();
   console.log("== AST:");
 
-  ast?.walk().preVisit((node, depth) => {
+  ast?.walk().preVisit(({ node, depth }) => {
     if (node instanceof AST) {
       const ind = " ".repeat(depth * 2);
       const kind = ASTKind[node.getKind()];
