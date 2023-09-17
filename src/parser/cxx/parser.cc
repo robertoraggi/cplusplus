@@ -3733,9 +3733,20 @@ auto Parser::parse_notypespec_function_definition(
 
   if (!has_requires_clause) parse_virt_specifier_seq(functionDeclarator);
 
+  SourceLocation equalLoc;
+  SourceLocation zeroLoc;
+
+  const auto isPure = parse_pure_specifier(equalLoc, zeroLoc);
+
+  functionDeclarator->isPure = isPure;
+
   SourceLocation semicolonLoc;
 
-  if (match(TokenKind::T_SEMICOLON, semicolonLoc)) {
+  if (isPure) {
+    expect(TokenKind::T_SEMICOLON, semicolonLoc);
+  }
+
+  if (isPure || match(TokenKind::T_SEMICOLON, semicolonLoc)) {
     auto initDeclarator = new (pool) InitDeclaratorAST();
     initDeclarator->declarator = declarator;
 
@@ -7205,6 +7216,8 @@ auto Parser::parse_virt_specifier(
 
 auto Parser::parse_pure_specifier(SourceLocation& equalLoc,
                                   SourceLocation& zeroLoc) -> bool {
+  LookaheadParser lookahead{this};
+
   if (!match(TokenKind::T_EQUAL, equalLoc)) return false;
 
   if (!match(TokenKind::T_INTEGER_LITERAL, zeroLoc)) return false;
@@ -7212,6 +7225,8 @@ auto Parser::parse_pure_specifier(SourceLocation& equalLoc,
   const auto& number = unit->tokenText(zeroLoc);
 
   if (number != "0") return false;
+
+  lookahead.commit();
 
   return true;
 }
