@@ -61,6 +61,7 @@ class ASTVisitor {
   virtual void visit(AttributeUsingPrefixAST* ast) = 0;
   virtual void visit(DesignatorAST* ast) = 0;
   virtual void visit(NewPlacementAST* ast) = 0;
+  virtual void visit(NestedNamespaceSpecifierAST* ast) = 0;
 
   // NestedNameSpecifierAST
   virtual void visit(GlobalNestedNameSpecifierAST* ast) = 0;
@@ -194,7 +195,6 @@ class ASTVisitor {
   virtual void visit(EmptyDeclarationAST* ast) = 0;
   virtual void visit(AttributeDeclarationAST* ast) = 0;
   virtual void visit(OpaqueEnumDeclarationAST* ast) = 0;
-  virtual void visit(NestedNamespaceSpecifierAST* ast) = 0;
   virtual void visit(NamespaceDefinitionAST* ast) = 0;
   virtual void visit(NamespaceAliasDefinitionAST* ast) = 0;
   virtual void visit(UsingDirectiveAST* ast) = 0;

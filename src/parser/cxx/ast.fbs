@@ -63,6 +63,7 @@ union AST {
   AttributeUsingPrefix,
   Designator,
   NewPlacement,
+  NestedNamespaceSpecifier,
 }
 
 union AttributeSpecifier {
@@ -96,7 +97,6 @@ union Declaration {
   EmptyDeclaration,
   AttributeDeclaration,
   OpaqueEnumDeclaration,
-  NestedNamespaceSpecifier,
   NamespaceDefinition,
   NamespaceAliasDefinition,
   UsingDirective,
@@ -513,6 +513,13 @@ table NewPlacement /* AST */ {
   rparen_loc: SourceLocation;
 }
 
+table NestedNamespaceSpecifier /* AST */ {
+  identifier: string;
+  inline_loc: SourceLocation;
+  identifier_loc: SourceLocation;
+  scope_loc: SourceLocation;
+}
+
 table CxxAttribute /* AttributeSpecifierAST */ {
   attribute_using_prefix: AttributeUsingPrefix;
   attribute_list: [Attribute];
@@ -663,13 +670,6 @@ table OpaqueEnumDeclaration /* DeclarationAST */ {
   enum_loc: SourceLocation;
   class_loc: SourceLocation;
   emicolon_loc: SourceLocation;
-}
-
-table NestedNamespaceSpecifier /* DeclarationAST */ {
-  identifier: string;
-  inline_loc: SourceLocation;
-  identifier_loc: SourceLocation;
-  scope_loc: SourceLocation;
 }
 
 table NamespaceDefinition /* DeclarationAST */ {

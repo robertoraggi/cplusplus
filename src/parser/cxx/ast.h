@@ -668,6 +668,22 @@ class NewPlacementAST final : public AST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class NestedNamespaceSpecifierAST final : public AST {
+ public:
+  NestedNamespaceSpecifierAST() : AST(ASTKind::NestedNamespaceSpecifier) {}
+
+  SourceLocation inlineLoc;
+  SourceLocation identifierLoc;
+  SourceLocation scopeLoc;
+  const Identifier* identifier = nullptr;
+  bool isInline = false;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 class GlobalNestedNameSpecifierAST final : public NestedNameSpecifierAST {
  public:
   GlobalNestedNameSpecifierAST()
@@ -2258,23 +2274,6 @@ class OpaqueEnumDeclarationAST final : public DeclarationAST {
   UnqualifiedIdAST* unqualifiedId = nullptr;
   EnumBaseAST* enumBase = nullptr;
   SourceLocation emicolonLoc;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class NestedNamespaceSpecifierAST final : public DeclarationAST {
- public:
-  NestedNamespaceSpecifierAST()
-      : DeclarationAST(ASTKind::NestedNamespaceSpecifier) {}
-
-  SourceLocation inlineLoc;
-  SourceLocation identifierLoc;
-  SourceLocation scopeLoc;
-  const Identifier* identifier = nullptr;
-  bool isInline = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

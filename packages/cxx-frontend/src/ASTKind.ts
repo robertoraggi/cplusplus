@@ -52,6 +52,7 @@ export enum ASTKind {
   AttributeUsingPrefix,
   Designator,
   NewPlacement,
+  NestedNamespaceSpecifier,
 
   // NestedNameSpecifierAST
   GlobalNestedNameSpecifier,
@@ -185,7 +186,6 @@ export enum ASTKind {
   EmptyDeclaration,
   AttributeDeclaration,
   OpaqueEnumDeclaration,
-  NestedNamespaceSpecifier,
   NamespaceDefinition,
   NamespaceAliasDefinition,
   UsingDirective,

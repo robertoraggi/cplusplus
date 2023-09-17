@@ -1272,6 +1272,34 @@ void ASTEncoder::visit(NewPlacementAST* ast) {
   offset_ = builder.Finish().Union();
 }
 
+void ASTEncoder::visit(NestedNamespaceSpecifierAST* ast) {
+  auto inlineLoc = encodeSourceLocation(ast->inlineLoc);
+
+  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
+
+  auto scopeLoc = encodeSourceLocation(ast->scopeLoc);
+
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->value());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
+  io::NestedNamespaceSpecifier::Builder builder{fbb_};
+  builder.add_inline_loc(inlineLoc.o);
+  builder.add_identifier_loc(identifierLoc.o);
+  builder.add_scope_loc(scopeLoc.o);
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
+
+  offset_ = builder.Finish().Union();
+}
+
 void ASTEncoder::visit(GlobalNestedNameSpecifierAST* ast) {
   auto scopeLoc = encodeSourceLocation(ast->scopeLoc);
 
@@ -3793,35 +3821,6 @@ void ASTEncoder::visit(OpaqueEnumDeclarationAST* ast) {
 
   offset_ = builder.Finish().Union();
   type_ = io::Declaration_OpaqueEnumDeclaration;
-}
-
-void ASTEncoder::visit(NestedNamespaceSpecifierAST* ast) {
-  auto inlineLoc = encodeSourceLocation(ast->inlineLoc);
-
-  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
-
-  auto scopeLoc = encodeSourceLocation(ast->scopeLoc);
-
-  flatbuffers::Offset<flatbuffers::String> identifier;
-  if (ast->identifier) {
-    if (identifiers_.contains(ast->identifier)) {
-      identifier = identifiers_.at(ast->identifier);
-    } else {
-      identifier = fbb_.CreateString(ast->identifier->value());
-      identifiers_.emplace(ast->identifier, identifier);
-    }
-  }
-
-  io::NestedNamespaceSpecifier::Builder builder{fbb_};
-  builder.add_inline_loc(inlineLoc.o);
-  builder.add_identifier_loc(identifierLoc.o);
-  builder.add_scope_loc(scopeLoc.o);
-  if (ast->identifier) {
-    builder.add_identifier(identifier);
-  }
-
-  offset_ = builder.Finish().Union();
-  type_ = io::Declaration_NestedNamespaceSpecifier;
 }
 
 void ASTEncoder::visit(NamespaceDefinitionAST* ast) {

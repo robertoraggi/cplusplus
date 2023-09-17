@@ -975,6 +975,31 @@ export class NewPlacementAST extends AST {
   }
 }
 
+export class NestedNamespaceSpecifierAST extends AST {
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitNestedNamespaceSpecifier(this, context);
+  }
+  getInlineToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+  getScopeToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 3);
+    return cxx.getIdentifierValue(slot);
+  }
+  getIsInline(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 4) !== 0;
+  }
+}
+
 export class GlobalNestedNameSpecifierAST extends NestedNameSpecifierAST {
   accept<Context, Result>(
     visitor: ASTVisitor<Context, Result>,
@@ -3676,31 +3701,6 @@ export class OpaqueEnumDeclarationAST extends DeclarationAST {
   }
 }
 
-export class NestedNamespaceSpecifierAST extends DeclarationAST {
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitNestedNamespaceSpecifier(this, context);
-  }
-  getInlineToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-  getScopeToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-  getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 3);
-    return cxx.getIdentifierValue(slot);
-  }
-  getIsInline(): boolean {
-    return cxx.getASTSlot(this.getHandle(), 4) !== 0;
-  }
-}
-
 export class NamespaceDefinitionAST extends DeclarationAST {
   accept<Context, Result>(
     visitor: ASTVisitor<Context, Result>,
@@ -5555,6 +5555,7 @@ const AST_CONSTRUCTORS: Array<
   AttributeUsingPrefixAST,
   DesignatorAST,
   NewPlacementAST,
+  NestedNamespaceSpecifierAST,
   GlobalNestedNameSpecifierAST,
   SimpleNestedNameSpecifierAST,
   DecltypeNestedNameSpecifierAST,
@@ -5662,7 +5663,6 @@ const AST_CONSTRUCTORS: Array<
   EmptyDeclarationAST,
   AttributeDeclarationAST,
   OpaqueEnumDeclarationAST,
-  NestedNamespaceSpecifierAST,
   NamespaceDefinitionAST,
   NamespaceAliasDefinitionAST,
   UsingDirectiveAST,

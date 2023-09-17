@@ -106,6 +106,7 @@ class AttributeAST;
 class AttributeUsingPrefixAST;
 class DesignatorAST;
 class NewPlacementAST;
+class NestedNamespaceSpecifierAST;
 
 // NestedNameSpecifierAST
 class GlobalNestedNameSpecifierAST;
@@ -239,7 +240,6 @@ class StaticAssertDeclarationAST;
 class EmptyDeclarationAST;
 class AttributeDeclarationAST;
 class OpaqueEnumDeclarationAST;
-class NestedNamespaceSpecifierAST;
 class NamespaceDefinitionAST;
 class NamespaceAliasDefinitionAST;
 class UsingDirectiveAST;

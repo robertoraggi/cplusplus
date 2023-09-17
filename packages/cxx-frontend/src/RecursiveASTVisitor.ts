@@ -247,6 +247,11 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     }
   }
 
+  visitNestedNamespaceSpecifier(
+    node: ast.NestedNamespaceSpecifierAST,
+    context: Context,
+  ): void {}
+
   visitGlobalNestedNameSpecifier(
     node: ast.GlobalNestedNameSpecifierAST,
     context: Context,
@@ -964,11 +969,6 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     this.accept(node.getUnqualifiedId(), context);
     this.accept(node.getEnumBase(), context);
   }
-
-  visitNestedNamespaceSpecifier(
-    node: ast.NestedNamespaceSpecifierAST,
-    context: Context,
-  ): void {}
 
   visitNamespaceDefinition(
     node: ast.NamespaceDefinitionAST,

@@ -465,9 +465,6 @@ auto ASTDecoder::decodeDeclaration(const void* ptr, io::Declaration type)
     case io::Declaration_OpaqueEnumDeclaration:
       return decodeOpaqueEnumDeclaration(
           reinterpret_cast<const io::OpaqueEnumDeclaration*>(ptr));
-    case io::Declaration_NestedNamespaceSpecifier:
-      return decodeNestedNamespaceSpecifier(
-          reinterpret_cast<const io::NestedNamespaceSpecifier*>(ptr));
     case io::Declaration_NamespaceDefinition:
       return decodeNamespaceDefinition(
           reinterpret_cast<const io::NamespaceDefinition*>(ptr));
@@ -1265,6 +1262,18 @@ auto ASTDecoder::decodeNewPlacement(const io::NewPlacement* node)
           io::Expression(node->expression_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeNestedNamespaceSpecifier(
+    const io::NestedNamespaceSpecifier* node) -> NestedNamespaceSpecifierAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) NestedNamespaceSpecifierAST();
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
   }
   return ast;
 }
@@ -2641,18 +2650,6 @@ auto ASTDecoder::decodeOpaqueEnumDeclaration(
   ast->unqualifiedId =
       decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
   ast->enumBase = decodeEnumBase(node->enum_base());
-  return ast;
-}
-
-auto ASTDecoder::decodeNestedNamespaceSpecifier(
-    const io::NestedNamespaceSpecifier* node) -> NestedNamespaceSpecifierAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) NestedNamespaceSpecifierAST();
-  if (node->identifier()) {
-    ast->identifier =
-        unit_->control()->getIdentifier(node->identifier()->str());
-  }
   return ast;
 }
 

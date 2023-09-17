@@ -643,6 +643,23 @@ void ASTCloner::visit(NewPlacementAST* ast) {
   copy->rparenLoc = ast->rparenLoc;
 }
 
+void ASTCloner::visit(NestedNamespaceSpecifierAST* ast) {
+  auto copy = new (arena_) NestedNamespaceSpecifierAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->inlineLoc = ast->inlineLoc;
+
+  copy->identifierLoc = ast->identifierLoc;
+
+  copy->scopeLoc = ast->scopeLoc;
+
+  copy->identifier = ast->identifier;
+
+  copy->isInline = ast->isInline;
+}
+
 void ASTCloner::visit(GlobalNestedNameSpecifierAST* ast) {
   auto copy = new (arena_) GlobalNestedNameSpecifierAST();
   copy_ = copy;
@@ -2568,23 +2585,6 @@ void ASTCloner::visit(OpaqueEnumDeclarationAST* ast) {
   copy->enumBase = accept(ast->enumBase);
 
   copy->emicolonLoc = ast->emicolonLoc;
-}
-
-void ASTCloner::visit(NestedNamespaceSpecifierAST* ast) {
-  auto copy = new (arena_) NestedNamespaceSpecifierAST();
-  copy_ = copy;
-
-  copy->setChecked(ast->checked());
-
-  copy->inlineLoc = ast->inlineLoc;
-
-  copy->identifierLoc = ast->identifierLoc;
-
-  copy->scopeLoc = ast->scopeLoc;
-
-  copy->identifier = ast->identifier;
-
-  copy->isInline = ast->isInline;
 }
 
 void ASTCloner::visit(NamespaceDefinitionAST* ast) {
