@@ -44,7 +44,7 @@ export class Parser {
 
   static async initFromURL(
     url: URL,
-    { signal }: { signal?: AbortSignal } = {}
+    { signal }: { signal?: AbortSignal } = {},
   ) {
     const response = await fetch(url, { signal });
 
