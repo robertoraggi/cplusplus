@@ -2875,14 +2875,8 @@ export class LabeledStatementAST extends StatementAST {
   getColonToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
   }
-  getStatement(): StatementAST | undefined {
-    return AST.from<StatementAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
   getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 3);
+    const slot = cxx.getASTSlot(this.getHandle(), 2);
     return cxx.getIdentifierValue(slot);
   }
 }
@@ -2906,12 +2900,6 @@ export class CaseStatementAST extends StatementAST {
   getColonToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
   }
-  getStatement(): StatementAST | undefined {
-    return AST.from<StatementAST>(
-      cxx.getASTSlot(this.getHandle(), 3),
-      this.parser,
-    );
-  }
 }
 
 export class DefaultStatementAST extends StatementAST {
@@ -2926,12 +2914,6 @@ export class DefaultStatementAST extends StatementAST {
   }
   getColonToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-  getStatement(): StatementAST | undefined {
-    return AST.from<StatementAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
   }
 }
 

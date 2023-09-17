@@ -1839,7 +1839,6 @@ class LabeledStatementAST final : public StatementAST {
 
   SourceLocation identifierLoc;
   SourceLocation colonLoc;
-  StatementAST* statement = nullptr;
   const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -1855,7 +1854,6 @@ class CaseStatementAST final : public StatementAST {
   SourceLocation caseLoc;
   ExpressionAST* expression = nullptr;
   SourceLocation colonLoc;
-  StatementAST* statement = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1869,7 +1867,6 @@ class DefaultStatementAST final : public StatementAST {
 
   SourceLocation defaultLoc;
   SourceLocation colonLoc;
-  StatementAST* statement = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

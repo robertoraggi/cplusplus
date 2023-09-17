@@ -3008,8 +3008,6 @@ void ASTEncoder::visit(LabeledStatementAST* ast) {
 
   auto colonLoc = encodeSourceLocation(ast->colonLoc);
 
-  const auto [statement, statementType] = acceptStatement(ast->statement);
-
   flatbuffers::Offset<flatbuffers::String> identifier;
   if (ast->identifier) {
     if (identifiers_.contains(ast->identifier)) {
@@ -3023,8 +3021,6 @@ void ASTEncoder::visit(LabeledStatementAST* ast) {
   io::LabeledStatement::Builder builder{fbb_};
   builder.add_identifier_loc(identifierLoc.o);
   builder.add_colon_loc(colonLoc.o);
-  builder.add_statement(statement);
-  builder.add_statement_type(static_cast<io::Statement>(statementType));
   if (ast->identifier) {
     builder.add_identifier(identifier);
   }
@@ -3040,15 +3036,11 @@ void ASTEncoder::visit(CaseStatementAST* ast) {
 
   auto colonLoc = encodeSourceLocation(ast->colonLoc);
 
-  const auto [statement, statementType] = acceptStatement(ast->statement);
-
   io::CaseStatement::Builder builder{fbb_};
   builder.add_case_loc(caseLoc.o);
   builder.add_expression(expression);
   builder.add_expression_type(static_cast<io::Expression>(expressionType));
   builder.add_colon_loc(colonLoc.o);
-  builder.add_statement(statement);
-  builder.add_statement_type(static_cast<io::Statement>(statementType));
 
   offset_ = builder.Finish().Union();
   type_ = io::Statement_CaseStatement;
@@ -3059,13 +3051,9 @@ void ASTEncoder::visit(DefaultStatementAST* ast) {
 
   auto colonLoc = encodeSourceLocation(ast->colonLoc);
 
-  const auto [statement, statementType] = acceptStatement(ast->statement);
-
   io::DefaultStatement::Builder builder{fbb_};
   builder.add_default_loc(defaultLoc.o);
   builder.add_colon_loc(colonLoc.o);
-  builder.add_statement(statement);
-  builder.add_statement_type(static_cast<io::Statement>(statementType));
 
   offset_ = builder.Finish().Union();
   type_ = io::Statement_DefaultStatement;

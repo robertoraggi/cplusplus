@@ -2049,8 +2049,6 @@ void ASTCloner::visit(LabeledStatementAST* ast) {
 
   copy->colonLoc = ast->colonLoc;
 
-  copy->statement = accept(ast->statement);
-
   copy->identifier = ast->identifier;
 }
 
@@ -2065,8 +2063,6 @@ void ASTCloner::visit(CaseStatementAST* ast) {
   copy->expression = accept(ast->expression);
 
   copy->colonLoc = ast->colonLoc;
-
-  copy->statement = accept(ast->statement);
 }
 
 void ASTCloner::visit(DefaultStatementAST* ast) {
@@ -2078,8 +2074,6 @@ void ASTCloner::visit(DefaultStatementAST* ast) {
   copy->defaultLoc = ast->defaultLoc;
 
   copy->colonLoc = ast->colonLoc;
-
-  copy->statement = accept(ast->statement);
 }
 
 void ASTCloner::visit(ExpressionStatementAST* ast) {

@@ -2919,7 +2919,6 @@ auto Parser::parse_labeled_statement(StatementAST*& yyast) -> bool {
 
   expect(TokenKind::T_IDENTIFIER, ast->identifierLoc);
   expect(TokenKind::T_COLON, ast->colonLoc);
-  parse_statement(ast->statement);
 
   ast->identifier = unit->identifier(ast->identifierLoc);
 
@@ -2941,17 +2940,12 @@ auto Parser::parse_case_statement(StatementAST*& yyast) -> bool {
 
   expect(TokenKind::T_COLON, colonLoc);
 
-  StatementAST* statement = nullptr;
-
-  parse_statement(statement);
-
   auto ast = new (pool) CaseStatementAST();
   yyast = ast;
 
   ast->caseLoc = caseLoc;
   ast->expression = expression;
   ast->colonLoc = colonLoc;
-  ast->statement = statement;
 
   return true;
 }
@@ -2965,16 +2959,11 @@ auto Parser::parse_default_statement(StatementAST*& yyast) -> bool {
 
   expect(TokenKind::T_COLON, colonLoc);
 
-  StatementAST* statement = nullptr;
-
-  parse_statement(statement);
-
   auto ast = new (pool) DefaultStatementAST();
   yyast = ast;
 
   ast->defaultLoc = defaultLoc;
   ast->colonLoc = colonLoc;
-  ast->statement = statement;
 
   return true;
 }
