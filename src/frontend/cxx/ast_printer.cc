@@ -451,6 +451,17 @@ void ASTPrinter::visit(NewPlacementAST* ast) {
   }
 }
 
+void ASTPrinter::visit(NestedNamespaceSpecifierAST* ast) {
+  fmt::print(out_, "{}\n", "nested-namespace-specifier");
+  accept(ast->identifier, "identifier");
+  if (ast->isInline) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "is-inline: {}\n", ast->isInline);
+    --indent_;
+  }
+}
+
 void ASTPrinter::visit(GlobalNestedNameSpecifierAST* ast) {
   fmt::print(out_, "{}\n", "global-nested-name-specifier");
 }
@@ -1390,17 +1401,6 @@ void ASTPrinter::visit(OpaqueEnumDeclarationAST* ast) {
   accept(ast->nestedNameSpecifier, "nested-name-specifier");
   accept(ast->unqualifiedId, "unqualified-id");
   accept(ast->enumBase, "enum-base");
-}
-
-void ASTPrinter::visit(NestedNamespaceSpecifierAST* ast) {
-  fmt::print(out_, "{}\n", "nested-namespace-specifier");
-  accept(ast->identifier, "identifier");
-  if (ast->isInline) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "is-inline: {}\n", ast->isInline);
-    --indent_;
-  }
 }
 
 void ASTPrinter::visit(NamespaceDefinitionAST* ast) {

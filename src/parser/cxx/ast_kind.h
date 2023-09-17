@@ -57,6 +57,7 @@ enum struct ASTKind {
   AttributeUsingPrefix,
   Designator,
   NewPlacement,
+  NestedNamespaceSpecifier,
 
   // NestedNameSpecifierAST
   GlobalNestedNameSpecifier,
@@ -190,7 +191,6 @@ enum struct ASTKind {
   EmptyDeclaration,
   AttributeDeclaration,
   OpaqueEnumDeclaration,
-  NestedNamespaceSpecifier,
   NamespaceDefinition,
   NamespaceAliasDefinition,
   UsingDirective,

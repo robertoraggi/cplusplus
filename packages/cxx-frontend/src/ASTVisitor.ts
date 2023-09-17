@@ -119,6 +119,10 @@ export abstract class ASTVisitor<Context, Result> {
     node: ast.NewPlacementAST,
     context: Context,
   ): Result;
+  abstract visitNestedNamespaceSpecifier(
+    node: ast.NestedNamespaceSpecifierAST,
+    context: Context,
+  ): Result;
 
   // NestedNameSpecifierAST
   abstract visitGlobalNestedNameSpecifier(
@@ -562,10 +566,6 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
   abstract visitOpaqueEnumDeclaration(
     node: ast.OpaqueEnumDeclarationAST,
-    context: Context,
-  ): Result;
-  abstract visitNestedNamespaceSpecifier(
-    node: ast.NestedNamespaceSpecifierAST,
     context: Context,
   ): Result;
   abstract visitNamespaceDefinition(

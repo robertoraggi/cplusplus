@@ -725,6 +725,33 @@ void ASTSlot::visit(NewPlacementAST* ast) {
   slotCount_ = 3;
 }
 
+void ASTSlot::visit(NestedNamespaceSpecifierAST* ast) {
+  switch (slot_) {
+    case 0:  // inlineLoc
+      value_ = ast->inlineLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 1:  // identifierLoc
+      value_ = ast->identifierLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 2:  // scopeLoc
+      value_ = ast->scopeLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      break;
+    case 3:  // identifier
+      value_ = reinterpret_cast<std::intptr_t>(ast->identifier);
+      slotKind_ = ASTSlotKind::kIdentifierAttribute;
+      break;
+    case 4:  // isInline
+      value_ = intptr_t(ast->isInline != 0);
+      slotKind_ = ASTSlotKind::kBoolAttribute;
+      break;
+  }  // switch
+
+  slotCount_ = 5;
+}
+
 void ASTSlot::visit(GlobalNestedNameSpecifierAST* ast) {
   switch (slot_) {
     case 0:  // scopeLoc
@@ -3047,33 +3074,6 @@ void ASTSlot::visit(OpaqueEnumDeclarationAST* ast) {
   }  // switch
 
   slotCount_ = 7;
-}
-
-void ASTSlot::visit(NestedNamespaceSpecifierAST* ast) {
-  switch (slot_) {
-    case 0:  // inlineLoc
-      value_ = ast->inlineLoc.index();
-      slotKind_ = ASTSlotKind::kToken;
-      break;
-    case 1:  // identifierLoc
-      value_ = ast->identifierLoc.index();
-      slotKind_ = ASTSlotKind::kToken;
-      break;
-    case 2:  // scopeLoc
-      value_ = ast->scopeLoc.index();
-      slotKind_ = ASTSlotKind::kToken;
-      break;
-    case 3:  // identifier
-      value_ = reinterpret_cast<std::intptr_t>(ast->identifier);
-      slotKind_ = ASTSlotKind::kIdentifierAttribute;
-      break;
-    case 4:  // isInline
-      value_ = intptr_t(ast->isInline != 0);
-      slotKind_ = ASTSlotKind::kBoolAttribute;
-      break;
-  }  // switch
-
-  slotCount_ = 5;
 }
 
 void ASTSlot::visit(NamespaceDefinitionAST* ast) {

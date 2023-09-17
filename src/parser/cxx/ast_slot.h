@@ -77,6 +77,7 @@ class ASTSlot final : ASTVisitor {
   void visit(AttributeUsingPrefixAST* ast) override;
   void visit(DesignatorAST* ast) override;
   void visit(NewPlacementAST* ast) override;
+  void visit(NestedNamespaceSpecifierAST* ast) override;
 
   void visit(GlobalNestedNameSpecifierAST* ast) override;
   void visit(SimpleNestedNameSpecifierAST* ast) override;
@@ -197,7 +198,6 @@ class ASTSlot final : ASTVisitor {
   void visit(EmptyDeclarationAST* ast) override;
   void visit(AttributeDeclarationAST* ast) override;
   void visit(OpaqueEnumDeclarationAST* ast) override;
-  void visit(NestedNamespaceSpecifierAST* ast) override;
   void visit(NamespaceDefinitionAST* ast) override;
   void visit(NamespaceAliasDefinitionAST* ast) override;
   void visit(UsingDirectiveAST* ast) override;

@@ -127,6 +127,8 @@ class ASTDecoder {
       -> AttributeUsingPrefixAST*;
   auto decodeDesignator(const io::Designator* node) -> DesignatorAST*;
   auto decodeNewPlacement(const io::NewPlacement* node) -> NewPlacementAST*;
+  auto decodeNestedNamespaceSpecifier(const io::NestedNamespaceSpecifier* node)
+      -> NestedNamespaceSpecifierAST*;
 
   auto decodeGlobalNestedNameSpecifier(
       const io::GlobalNestedNameSpecifier* node)
@@ -356,8 +358,6 @@ class ASTDecoder {
       -> AttributeDeclarationAST*;
   auto decodeOpaqueEnumDeclaration(const io::OpaqueEnumDeclaration* node)
       -> OpaqueEnumDeclarationAST*;
-  auto decodeNestedNamespaceSpecifier(const io::NestedNamespaceSpecifier* node)
-      -> NestedNamespaceSpecifierAST*;
   auto decodeNamespaceDefinition(const io::NamespaceDefinition* node)
       -> NamespaceDefinitionAST*;
   auto decodeNamespaceAliasDefinition(const io::NamespaceAliasDefinition* node)

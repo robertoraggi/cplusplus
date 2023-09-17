@@ -453,6 +453,8 @@ void RecursiveASTVisitor::visit(NewPlacementAST* ast) {
   }
 }
 
+void RecursiveASTVisitor::visit(NestedNamespaceSpecifierAST* ast) {}
+
 void RecursiveASTVisitor::visit(GlobalNestedNameSpecifierAST* ast) {}
 
 void RecursiveASTVisitor::visit(SimpleNestedNameSpecifierAST* ast) {
@@ -957,8 +959,6 @@ void RecursiveASTVisitor::visit(OpaqueEnumDeclarationAST* ast) {
   acceptUnqualifiedId(ast->unqualifiedId);
   acceptEnumBase(ast->enumBase);
 }
-
-void RecursiveASTVisitor::visit(NestedNamespaceSpecifierAST* ast) {}
 
 void RecursiveASTVisitor::visit(NamespaceDefinitionAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) {
