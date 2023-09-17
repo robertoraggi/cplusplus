@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.1.23](https://github.com/robertoraggi/cplusplus/compare/v1.1.22...v1.1.23) (2023-09-17)
+
+
+### Bug Fixes
+
+* Add APIs to get the AST slot name ([3bb7c79](https://github.com/robertoraggi/cplusplus/commit/3bb7c793ac07ad1153e473fd9aaa1bceec1b05e0))
+* Add SizeTypeSpecifierAST and SignTypeSpecifierAST ([6ebf73e](https://github.com/robertoraggi/cplusplus/commit/6ebf73e66f16462bfc05f80c6e94f4ff28f784c4))
+* Removed Parsed.DEFAULT_WASM_BINARY_URL ([5ff941c](https://github.com/robertoraggi/cplusplus/commit/5ff941ce6f8b78eec40386379757c15426694ac5))
+* Renamed DeclaratorModifierAST to DeclaratorChunkAST ([bc9cd83](https://github.com/robertoraggi/cplusplus/commit/bc9cd8332bafce6f74d4f75a4918fb2783bad973))
+
 ## [1.1.22](https://github.com/robertoraggi/cplusplus/compare/v1.1.21...v1.1.22) (2023-09-16)
 
 
