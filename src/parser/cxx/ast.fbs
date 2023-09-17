@@ -637,7 +637,7 @@ table SimpleDeclaration /* DeclarationAST */ {
 table StructuredBindingDeclaration /* DeclarationAST */ {
   attribute_list: [AttributeSpecifier];
   decl_specifier_list: [Specifier];
-  binding_list: [UnqualifiedId];
+  binding_list: [NameId];
   initializer: Expression;
   ref_qualifier_loc: SourceLocation;
   lbracket_loc: SourceLocation;
@@ -667,7 +667,7 @@ table AttributeDeclaration /* DeclarationAST */ {
 table OpaqueEnumDeclaration /* DeclarationAST */ {
   attribute_list: [AttributeSpecifier];
   nested_name_specifier: NestedNameSpecifier;
-  unqualified_id: UnqualifiedId;
+  unqualified_id: NameId;
   enum_base: EnumBase;
   enum_loc: SourceLocation;
   class_loc: SourceLocation;
@@ -689,7 +689,7 @@ table NamespaceDefinition /* DeclarationAST */ {
 
 table NamespaceAliasDefinition /* DeclarationAST */ {
   nested_name_specifier: NestedNameSpecifier;
-  unqualified_id: UnqualifiedId;
+  unqualified_id: NameId;
   identifier: string;
   namespace_loc: SourceLocation;
   identifier_loc: SourceLocation;
@@ -700,7 +700,7 @@ table NamespaceAliasDefinition /* DeclarationAST */ {
 table UsingDirective /* DeclarationAST */ {
   attribute_list: [AttributeSpecifier];
   nested_name_specifier: NestedNameSpecifier;
-  unqualified_id: UnqualifiedId;
+  unqualified_id: NameId;
   using_loc: SourceLocation;
   namespace_loc: SourceLocation;
   semicolon_loc: SourceLocation;
@@ -1484,7 +1484,7 @@ table RestrictQualifier /* SpecifierAST */ {
 table EnumSpecifier /* SpecifierAST */ {
   attribute_list: [AttributeSpecifier];
   nested_name_specifier: NestedNameSpecifier;
-  unqualified_id: UnqualifiedId;
+  unqualified_id: NameId;
   enum_base: EnumBase;
   enumerator_list: [Enumerator];
   enum_loc: SourceLocation;

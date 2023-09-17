@@ -2207,7 +2207,7 @@ class StructuredBindingDeclarationAST final : public DeclarationAST {
   List<SpecifierAST*>* declSpecifierList = nullptr;
   SourceLocation refQualifierLoc;
   SourceLocation lbracketLoc;
-  List<UnqualifiedIdAST*>* bindingList = nullptr;
+  List<NameIdAST*>* bindingList = nullptr;
   SourceLocation rbracketLoc;
   ExpressionAST* initializer = nullptr;
   SourceLocation semicolonLoc;
@@ -2271,7 +2271,7 @@ class OpaqueEnumDeclarationAST final : public DeclarationAST {
   SourceLocation classLoc;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-  UnqualifiedIdAST* unqualifiedId = nullptr;
+  NameIdAST* unqualifiedId = nullptr;
   EnumBaseAST* enumBase = nullptr;
   SourceLocation emicolonLoc;
 
@@ -2312,7 +2312,7 @@ class NamespaceAliasDefinitionAST final : public DeclarationAST {
   SourceLocation identifierLoc;
   SourceLocation equalLoc;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-  UnqualifiedIdAST* unqualifiedId = nullptr;
+  NameIdAST* unqualifiedId = nullptr;
   SourceLocation semicolonLoc;
   const Identifier* identifier = nullptr;
 
@@ -2330,7 +2330,7 @@ class UsingDirectiveAST final : public DeclarationAST {
   SourceLocation usingLoc;
   SourceLocation namespaceLoc;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-  UnqualifiedIdAST* unqualifiedId = nullptr;
+  NameIdAST* unqualifiedId = nullptr;
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -3115,7 +3115,7 @@ class EnumSpecifierAST final : public SpecifierAST {
   SourceLocation classLoc;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-  UnqualifiedIdAST* unqualifiedId = nullptr;
+  NameIdAST* unqualifiedId = nullptr;
   EnumBaseAST* enumBase = nullptr;
   SourceLocation lbraceLoc;
   SourceLocation commaLoc;

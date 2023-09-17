@@ -219,6 +219,8 @@ void RecursiveASTVisitor::acceptInitDeclarator(InitDeclaratorAST* ast) {
   accept(ast);
 }
 
+void RecursiveASTVisitor::acceptNameId(NameIdAST* ast) { accept(ast); }
+
 void RecursiveASTVisitor::acceptEnumBase(EnumBaseAST* ast) { accept(ast); }
 
 void RecursiveASTVisitor::acceptNestedNamespaceSpecifier(
@@ -935,7 +937,7 @@ void RecursiveASTVisitor::visit(StructuredBindingDeclarationAST* ast) {
     acceptSpecifier(it->value);
   }
   for (auto it = ast->bindingList; it; it = it->next) {
-    acceptUnqualifiedId(it->value);
+    acceptNameId(it->value);
   }
   acceptExpression(ast->initializer);
 }
@@ -957,7 +959,7 @@ void RecursiveASTVisitor::visit(OpaqueEnumDeclarationAST* ast) {
     acceptAttributeSpecifier(it->value);
   }
   acceptNestedNameSpecifier(ast->nestedNameSpecifier);
-  acceptUnqualifiedId(ast->unqualifiedId);
+  acceptNameId(ast->unqualifiedId);
   acceptEnumBase(ast->enumBase);
 }
 
@@ -978,7 +980,7 @@ void RecursiveASTVisitor::visit(NamespaceDefinitionAST* ast) {
 
 void RecursiveASTVisitor::visit(NamespaceAliasDefinitionAST* ast) {
   acceptNestedNameSpecifier(ast->nestedNameSpecifier);
-  acceptUnqualifiedId(ast->unqualifiedId);
+  acceptNameId(ast->unqualifiedId);
 }
 
 void RecursiveASTVisitor::visit(UsingDirectiveAST* ast) {
@@ -986,7 +988,7 @@ void RecursiveASTVisitor::visit(UsingDirectiveAST* ast) {
     acceptAttributeSpecifier(it->value);
   }
   acceptNestedNameSpecifier(ast->nestedNameSpecifier);
-  acceptUnqualifiedId(ast->unqualifiedId);
+  acceptNameId(ast->unqualifiedId);
 }
 
 void RecursiveASTVisitor::visit(UsingDeclarationAST* ast) {
@@ -1200,7 +1202,7 @@ void RecursiveASTVisitor::visit(EnumSpecifierAST* ast) {
     acceptAttributeSpecifier(it->value);
   }
   acceptNestedNameSpecifier(ast->nestedNameSpecifier);
-  acceptUnqualifiedId(ast->unqualifiedId);
+  acceptNameId(ast->unqualifiedId);
   acceptEnumBase(ast->enumBase);
   for (auto it = ast->enumeratorList; it; it = it->next) {
     acceptEnumerator(it->value);
