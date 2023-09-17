@@ -317,6 +317,7 @@ table UsingDeclarator /* AST */ {
   nested_name_specifier: NestedNameSpecifier;
   unqualified_id: UnqualifiedId;
   typename_loc: SourceLocation;
+  ellipsis_loc: SourceLocation;
 }
 
 table Handler /* AST */ {

@@ -150,6 +150,12 @@ export class UsingDeclaratorAST extends AST {
       this.parser,
     );
   }
+  getEllipsisToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+  getIsPack(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 4) !== 0;
+  }
 }
 
 export class HandlerAST extends AST {

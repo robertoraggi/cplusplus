@@ -71,6 +71,12 @@ void ASTPrinter::visit(TypeIdAST* ast) {
 
 void ASTPrinter::visit(UsingDeclaratorAST* ast) {
   fmt::print(out_, "{}\n", "using-declarator");
+  if (ast->isPack) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "is-pack: {}\n", ast->isPack);
+    --indent_;
+  }
   accept(ast->nestedNameSpecifier, "nested-name-specifier");
   accept(ast->unqualifiedId, "unqualified-id");
 }

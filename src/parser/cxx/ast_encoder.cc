@@ -420,6 +420,8 @@ void ASTEncoder::visit(UsingDeclaratorAST* ast) {
   const auto [unqualifiedId, unqualifiedIdType] =
       acceptUnqualifiedId(ast->unqualifiedId);
 
+  auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
+
   io::UsingDeclarator::Builder builder{fbb_};
   builder.add_typename_loc(typenameLoc.o);
   builder.add_nested_name_specifier(nestedNameSpecifier);
@@ -428,6 +430,7 @@ void ASTEncoder::visit(UsingDeclaratorAST* ast) {
   builder.add_unqualified_id(unqualifiedId);
   builder.add_unqualified_id_type(
       static_cast<io::UnqualifiedId>(unqualifiedIdType));
+  builder.add_ellipsis_loc(ellipsisLoc.o);
 
   offset_ = builder.Finish().Union();
 }

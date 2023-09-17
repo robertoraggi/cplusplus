@@ -222,6 +222,8 @@ class UsingDeclaratorAST final : public AST {
   SourceLocation typenameLoc;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   UnqualifiedIdAST* unqualifiedId = nullptr;
+  SourceLocation ellipsisLoc;
+  bool isPack = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

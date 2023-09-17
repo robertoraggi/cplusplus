@@ -40,10 +40,12 @@ auto UsingDeclaratorAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(typenameLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(unqualifiedId)) return loc;
+  if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
   return {};
 }
 
 auto UsingDeclaratorAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(unqualifiedId)) return loc;
   if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::lastSourceLocation(typenameLoc)) return loc;
