@@ -59,6 +59,10 @@ void ASTCloner::visit(UsingDeclaratorAST* ast) {
   copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
 
   copy->unqualifiedId = accept(ast->unqualifiedId);
+
+  copy->ellipsisLoc = ast->ellipsisLoc;
+
+  copy->isPack = ast->isPack;
 }
 
 void ASTCloner::visit(HandlerAST* ast) {

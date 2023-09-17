@@ -6115,9 +6115,7 @@ auto Parser::parse_using_declarator_list(List<UsingDeclaratorAST*>*& yyast)
 
   if (!parse_using_declarator(declarator)) return false;
 
-  SourceLocation ellipsisLoc;
-
-  match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
+  declarator->isPack = match(TokenKind::T_DOT_DOT_DOT, declarator->ellipsisLoc);
 
   *it = new (pool) List(declarator);
   it = &(*it)->next;
@@ -6125,18 +6123,16 @@ auto Parser::parse_using_declarator_list(List<UsingDeclaratorAST*>*& yyast)
   SourceLocation commaLoc;
 
   while (match(TokenKind::T_COMMA, commaLoc)) {
-    UsingDeclaratorAST* declarator = nullptr;
+    if (UsingDeclaratorAST* declarator = nullptr;
+        parse_using_declarator(declarator)) {
+      declarator->isPack =
+          match(TokenKind::T_DOT_DOT_DOT, declarator->ellipsisLoc);
 
-    if (!parse_using_declarator(declarator)) {
+      *it = new (pool) List(declarator);
+      it = &(*it)->next;
+    } else {
       parse_error("expected a using declarator");
     }
-
-    SourceLocation ellipsisLoc;
-
-    match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
-
-    *it = new (pool) List(declarator);
-    it = &(*it)->next;
   }
 
   return true;
