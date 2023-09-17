@@ -1007,6 +1007,19 @@ void Preprocessor::Private::expand(
       auto t =
           Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, value ? "1" : "0");
       emitToken(t);
+    } else if (!evaluateDirectives && matchId(ts, "__has_extension")) {
+      expect(ts, TokenKind::T_LPAREN);
+      const auto id = expectId(ts);
+      expect(ts, TokenKind::T_RPAREN);
+      bool enabled = true;
+      if (id == "blocks") {
+        enabled = false;
+      } else if (id.starts_with("obj_")) {
+        enabled = false;
+      }
+      auto t =
+          Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, enabled ? "1" : "0");
+      emitToken(t);
     } else if (!evaluateDirectives && matchId(ts, "__has_feature")) {
       expect(ts, TokenKind::T_LPAREN);
       auto id = expectId(ts);
