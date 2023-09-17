@@ -39,7 +39,7 @@ class StackEntry {
 
   constructor(
     readonly owner: StackNode,
-    parser: TranslationUnitLike
+    parser: TranslationUnitLike,
   ) {
     this.#parser = parser;
   }
@@ -90,7 +90,7 @@ export class ASTCursor {
 
   constructor(
     readonly root: AST,
-    parser: TranslationUnitLike
+    parser: TranslationUnitLike,
   ) {
     this.#parser = parser;
     this.#stack.push(new StackEntry({ node: root }, this.#parser));
