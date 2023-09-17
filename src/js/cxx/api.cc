@@ -166,19 +166,19 @@ intptr_t getListNext(intptr_t handle) {
 
 intptr_t getASTSlot(intptr_t handle, int slot) {
   auto ast = reinterpret_cast<cxx::AST*>(handle);
-  auto [value, slotKind, slotCount] = getSlot(ast, slot);
+  auto [value, slotKind, slotNameIndex, slotCount] = getSlot(ast, slot);
   return value;
 }
 
 int getASTSlotKind(intptr_t handle, int slot) {
   auto ast = reinterpret_cast<cxx::AST*>(handle);
-  auto [value, slotKind, slotCount] = getSlot(ast, slot);
+  auto [value, slotKind, slotNameIndex, slotCount] = getSlot(ast, slot);
   return static_cast<int>(slotKind);
 }
 
 int getASTSlotCount(intptr_t handle, int slot) {
   auto ast = reinterpret_cast<cxx::AST*>(handle);
-  auto [value, slotKind, slotCount] = getSlot(ast, slot);
+  auto [value, slotKind, slotNameIndex, slotCount] = getSlot(ast, slot);
   return static_cast<int>(slotCount);
 }
 
