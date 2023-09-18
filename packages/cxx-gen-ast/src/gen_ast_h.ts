@@ -54,7 +54,9 @@ export function gen_ast_h({ ast, output }: { ast: AST; output: string }) {
     nodes.forEach(({ name, base, members }) => {
       emit(`class ${name} final : public ${base} {`);
       emit(`public:`);
-      emit(`  ${name}(): ${base}(ASTKind::${enumName(name)}) {}`);
+      emit(`  static constexpr ASTKind Kind = ASTKind::${enumName(name)};`);
+      emit();
+      emit(`  ${name}(): ${base}(Kind) {}`);
       emit();
 
       members.forEach((m) => {
@@ -88,7 +90,7 @@ export function gen_ast_h({ ast, output }: { ast: AST; output: string }) {
       }
 
       emit(
-        `  void accept(ASTVisitor* visitor) override { visitor->visit(this); }`,
+        `  void accept(ASTVisitor* visitor) override { visitor->visit(this); }`
       );
       emit();
       emit(`  auto firstSourceLocation() -> SourceLocation override;`);
@@ -179,6 +181,11 @@ inline auto lastSourceLocation(List<T>* nodes) -> SourceLocation {
 }
 
 ${code.join("\n")}
+
+template <typename T>
+auto ast_cast(AST* ast) -> T* {
+  return ast && ast->kind() == T::Kind ? static_cast<T*>(ast) : nullptr;
+}
 
 } // namespace cxx
 `;
