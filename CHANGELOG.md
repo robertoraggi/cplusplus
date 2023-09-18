@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.1.24](https://github.com/robertoraggi/cplusplus/compare/v1.1.23...v1.1.24) (2023-09-18)
+
+
+### Bug Fixes
+
+* Add support for pack expansion to using declarators ([e60e914](https://github.com/robertoraggi/cplusplus/commit/e60e914be04d4cfecf6949392bbaa573a74b26aa))
+* Avoid splitting &gt;= and >>= tokens ([2d407ce](https://github.com/robertoraggi/cplusplus/commit/2d407cef68a3628e424b90954e7a4cc29d6560e0))
+* Disable blocks and objc extensions ([c3dfb41](https://github.com/robertoraggi/cplusplus/commit/c3dfb41311006f0c4b4fdd9ede83e05fc7adba16))
+* Parsing of pure virtual destructors ([4d73086](https://github.com/robertoraggi/cplusplus/commit/4d730866512803a5811ddc0b4ee60c2ca033ab18))
+* Remove the trailing statement from the labeled statements ([74ba101](https://github.com/robertoraggi/cplusplus/commit/74ba1012e243d1d603d5b306d03265def1bdd7a0))
+
 ## [1.1.23](https://github.com/robertoraggi/cplusplus/compare/v1.1.22...v1.1.23) (2023-09-17)
 
 
