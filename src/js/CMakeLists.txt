@@ -25,10 +25,9 @@ aux_source_directory(cxx SOURCES)
 
 add_executable(cxx-js ${SOURCES})
 
-target_link_libraries(cxx-js cxx-parser)
+target_link_libraries(cxx-js cxx-parser embind)
 
 target_link_options(cxx-js PUBLIC
-    "SHELL:--bind"
     "SHELL:-s ENVIRONMENT=web"
     "SHELL:-s EXPORT_ES6=1"
     "SHELL:-s WASM_ASYNC_COMPILATION=1"
