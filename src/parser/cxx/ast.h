@@ -204,7 +204,9 @@ class UnqualifiedIdAST : public AST {
 
 class TypeIdAST final : public AST {
  public:
-  TypeIdAST() : AST(ASTKind::TypeId) {}
+  static constexpr ASTKind Kind = ASTKind::TypeId;
+
+  TypeIdAST() : AST(Kind) {}
 
   List<SpecifierAST*>* typeSpecifierList = nullptr;
   DeclaratorAST* declarator = nullptr;
@@ -217,7 +219,9 @@ class TypeIdAST final : public AST {
 
 class UsingDeclaratorAST final : public AST {
  public:
-  UsingDeclaratorAST() : AST(ASTKind::UsingDeclarator) {}
+  static constexpr ASTKind Kind = ASTKind::UsingDeclarator;
+
+  UsingDeclaratorAST() : AST(Kind) {}
 
   SourceLocation typenameLoc;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
@@ -233,7 +237,9 @@ class UsingDeclaratorAST final : public AST {
 
 class HandlerAST final : public AST {
  public:
-  HandlerAST() : AST(ASTKind::Handler) {}
+  static constexpr ASTKind Kind = ASTKind::Handler;
+
+  HandlerAST() : AST(Kind) {}
 
   SourceLocation catchLoc;
   SourceLocation lparenLoc;
@@ -249,7 +255,9 @@ class HandlerAST final : public AST {
 
 class EnumBaseAST final : public AST {
  public:
-  EnumBaseAST() : AST(ASTKind::EnumBase) {}
+  static constexpr ASTKind Kind = ASTKind::EnumBase;
+
+  EnumBaseAST() : AST(Kind) {}
 
   SourceLocation colonLoc;
   List<SpecifierAST*>* typeSpecifierList = nullptr;
@@ -262,7 +270,9 @@ class EnumBaseAST final : public AST {
 
 class EnumeratorAST final : public AST {
  public:
-  EnumeratorAST() : AST(ASTKind::Enumerator) {}
+  static constexpr ASTKind Kind = ASTKind::Enumerator;
+
+  EnumeratorAST() : AST(Kind) {}
 
   SourceLocation identifierLoc;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
@@ -278,7 +288,9 @@ class EnumeratorAST final : public AST {
 
 class DeclaratorAST final : public AST {
  public:
-  DeclaratorAST() : AST(ASTKind::Declarator) {}
+  static constexpr ASTKind Kind = ASTKind::Declarator;
+
+  DeclaratorAST() : AST(Kind) {}
 
   List<PtrOperatorAST*>* ptrOpList = nullptr;
   CoreDeclaratorAST* coreDeclarator = nullptr;
@@ -292,7 +304,9 @@ class DeclaratorAST final : public AST {
 
 class InitDeclaratorAST final : public AST {
  public:
-  InitDeclaratorAST() : AST(ASTKind::InitDeclarator) {}
+  static constexpr ASTKind Kind = ASTKind::InitDeclarator;
+
+  InitDeclaratorAST() : AST(Kind) {}
 
   DeclaratorAST* declarator = nullptr;
   RequiresClauseAST* requiresClause = nullptr;
@@ -306,7 +320,9 @@ class InitDeclaratorAST final : public AST {
 
 class BaseSpecifierAST final : public AST {
  public:
-  BaseSpecifierAST() : AST(ASTKind::BaseSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::BaseSpecifier;
+
+  BaseSpecifierAST() : AST(Kind) {}
 
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
@@ -324,7 +340,9 @@ class BaseSpecifierAST final : public AST {
 
 class BaseClauseAST final : public AST {
  public:
-  BaseClauseAST() : AST(ASTKind::BaseClause) {}
+  static constexpr ASTKind Kind = ASTKind::BaseClause;
+
+  BaseClauseAST() : AST(Kind) {}
 
   SourceLocation colonLoc;
   List<BaseSpecifierAST*>* baseSpecifierList = nullptr;
@@ -337,7 +355,9 @@ class BaseClauseAST final : public AST {
 
 class NewDeclaratorAST final : public AST {
  public:
-  NewDeclaratorAST() : AST(ASTKind::NewDeclarator) {}
+  static constexpr ASTKind Kind = ASTKind::NewDeclarator;
+
+  NewDeclaratorAST() : AST(Kind) {}
 
   List<PtrOperatorAST*>* ptrOpList = nullptr;
   List<ArrayDeclaratorChunkAST*>* declaratorChunkList = nullptr;
@@ -350,7 +370,9 @@ class NewDeclaratorAST final : public AST {
 
 class NewTypeIdAST final : public AST {
  public:
-  NewTypeIdAST() : AST(ASTKind::NewTypeId) {}
+  static constexpr ASTKind Kind = ASTKind::NewTypeId;
+
+  NewTypeIdAST() : AST(Kind) {}
 
   List<SpecifierAST*>* typeSpecifierList = nullptr;
   NewDeclaratorAST* newDeclarator = nullptr;
@@ -363,7 +385,9 @@ class NewTypeIdAST final : public AST {
 
 class RequiresClauseAST final : public AST {
  public:
-  RequiresClauseAST() : AST(ASTKind::RequiresClause) {}
+  static constexpr ASTKind Kind = ASTKind::RequiresClause;
+
+  RequiresClauseAST() : AST(Kind) {}
 
   SourceLocation requiresLoc;
   ExpressionAST* expression = nullptr;
@@ -376,7 +400,9 @@ class RequiresClauseAST final : public AST {
 
 class ParameterDeclarationClauseAST final : public AST {
  public:
-  ParameterDeclarationClauseAST() : AST(ASTKind::ParameterDeclarationClause) {}
+  static constexpr ASTKind Kind = ASTKind::ParameterDeclarationClause;
+
+  ParameterDeclarationClauseAST() : AST(Kind) {}
 
   List<ParameterDeclarationAST*>* parameterDeclarationList = nullptr;
   SourceLocation commaLoc;
@@ -391,7 +417,9 @@ class ParameterDeclarationClauseAST final : public AST {
 
 class ParametersAndQualifiersAST final : public AST {
  public:
-  ParametersAndQualifiersAST() : AST(ASTKind::ParametersAndQualifiers) {}
+  static constexpr ASTKind Kind = ASTKind::ParametersAndQualifiers;
+
+  ParametersAndQualifiersAST() : AST(Kind) {}
 
   SourceLocation lparenLoc;
   ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
@@ -409,7 +437,9 @@ class ParametersAndQualifiersAST final : public AST {
 
 class LambdaIntroducerAST final : public AST {
  public:
-  LambdaIntroducerAST() : AST(ASTKind::LambdaIntroducer) {}
+  static constexpr ASTKind Kind = ASTKind::LambdaIntroducer;
+
+  LambdaIntroducerAST() : AST(Kind) {}
 
   SourceLocation lbracketLoc;
   SourceLocation captureDefaultLoc;
@@ -424,7 +454,9 @@ class LambdaIntroducerAST final : public AST {
 
 class LambdaDeclaratorAST final : public AST {
  public:
-  LambdaDeclaratorAST() : AST(ASTKind::LambdaDeclarator) {}
+  static constexpr ASTKind Kind = ASTKind::LambdaDeclarator;
+
+  LambdaDeclaratorAST() : AST(Kind) {}
 
   SourceLocation lparenLoc;
   ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
@@ -443,7 +475,9 @@ class LambdaDeclaratorAST final : public AST {
 
 class TrailingReturnTypeAST final : public AST {
  public:
-  TrailingReturnTypeAST() : AST(ASTKind::TrailingReturnType) {}
+  static constexpr ASTKind Kind = ASTKind::TrailingReturnType;
+
+  TrailingReturnTypeAST() : AST(Kind) {}
 
   SourceLocation minusGreaterLoc;
   TypeIdAST* typeId = nullptr;
@@ -456,7 +490,9 @@ class TrailingReturnTypeAST final : public AST {
 
 class CtorInitializerAST final : public AST {
  public:
-  CtorInitializerAST() : AST(ASTKind::CtorInitializer) {}
+  static constexpr ASTKind Kind = ASTKind::CtorInitializer;
+
+  CtorInitializerAST() : AST(Kind) {}
 
   SourceLocation colonLoc;
   List<MemInitializerAST*>* memInitializerList = nullptr;
@@ -469,7 +505,9 @@ class CtorInitializerAST final : public AST {
 
 class RequirementBodyAST final : public AST {
  public:
-  RequirementBodyAST() : AST(ASTKind::RequirementBody) {}
+  static constexpr ASTKind Kind = ASTKind::RequirementBody;
+
+  RequirementBodyAST() : AST(Kind) {}
 
   SourceLocation lbraceLoc;
   List<RequirementAST*>* requirementList = nullptr;
@@ -483,7 +521,9 @@ class RequirementBodyAST final : public AST {
 
 class TypeConstraintAST final : public AST {
  public:
-  TypeConstraintAST() : AST(ASTKind::TypeConstraint) {}
+  static constexpr ASTKind Kind = ASTKind::TypeConstraint;
+
+  TypeConstraintAST() : AST(Kind) {}
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   SourceLocation identifierLoc;
@@ -500,7 +540,9 @@ class TypeConstraintAST final : public AST {
 
 class GlobalModuleFragmentAST final : public AST {
  public:
-  GlobalModuleFragmentAST() : AST(ASTKind::GlobalModuleFragment) {}
+  static constexpr ASTKind Kind = ASTKind::GlobalModuleFragment;
+
+  GlobalModuleFragmentAST() : AST(Kind) {}
 
   SourceLocation moduleLoc;
   SourceLocation semicolonLoc;
@@ -514,7 +556,9 @@ class GlobalModuleFragmentAST final : public AST {
 
 class PrivateModuleFragmentAST final : public AST {
  public:
-  PrivateModuleFragmentAST() : AST(ASTKind::PrivateModuleFragment) {}
+  static constexpr ASTKind Kind = ASTKind::PrivateModuleFragment;
+
+  PrivateModuleFragmentAST() : AST(Kind) {}
 
   SourceLocation moduleLoc;
   SourceLocation colonLoc;
@@ -530,7 +574,9 @@ class PrivateModuleFragmentAST final : public AST {
 
 class ModuleQualifierAST final : public AST {
  public:
-  ModuleQualifierAST() : AST(ASTKind::ModuleQualifier) {}
+  static constexpr ASTKind Kind = ASTKind::ModuleQualifier;
+
+  ModuleQualifierAST() : AST(Kind) {}
 
   ModuleQualifierAST* moduleQualifier = nullptr;
   SourceLocation identifierLoc;
@@ -545,7 +591,9 @@ class ModuleQualifierAST final : public AST {
 
 class ModuleNameAST final : public AST {
  public:
-  ModuleNameAST() : AST(ASTKind::ModuleName) {}
+  static constexpr ASTKind Kind = ASTKind::ModuleName;
+
+  ModuleNameAST() : AST(Kind) {}
 
   ModuleQualifierAST* moduleQualifier = nullptr;
   SourceLocation identifierLoc;
@@ -559,7 +607,9 @@ class ModuleNameAST final : public AST {
 
 class ModuleDeclarationAST final : public AST {
  public:
-  ModuleDeclarationAST() : AST(ASTKind::ModuleDeclaration) {}
+  static constexpr ASTKind Kind = ASTKind::ModuleDeclaration;
+
+  ModuleDeclarationAST() : AST(Kind) {}
 
   SourceLocation exportLoc;
   SourceLocation moduleLoc;
@@ -576,7 +626,9 @@ class ModuleDeclarationAST final : public AST {
 
 class ImportNameAST final : public AST {
  public:
-  ImportNameAST() : AST(ASTKind::ImportName) {}
+  static constexpr ASTKind Kind = ASTKind::ImportName;
+
+  ImportNameAST() : AST(Kind) {}
 
   SourceLocation headerLoc;
   ModulePartitionAST* modulePartition = nullptr;
@@ -590,7 +642,9 @@ class ImportNameAST final : public AST {
 
 class ModulePartitionAST final : public AST {
  public:
-  ModulePartitionAST() : AST(ASTKind::ModulePartition) {}
+  static constexpr ASTKind Kind = ASTKind::ModulePartition;
+
+  ModulePartitionAST() : AST(Kind) {}
 
   SourceLocation colonLoc;
   ModuleNameAST* moduleName = nullptr;
@@ -603,7 +657,9 @@ class ModulePartitionAST final : public AST {
 
 class AttributeArgumentClauseAST final : public AST {
  public:
-  AttributeArgumentClauseAST() : AST(ASTKind::AttributeArgumentClause) {}
+  static constexpr ASTKind Kind = ASTKind::AttributeArgumentClause;
+
+  AttributeArgumentClauseAST() : AST(Kind) {}
 
   SourceLocation lparenLoc;
   SourceLocation rparenLoc;
@@ -616,7 +672,9 @@ class AttributeArgumentClauseAST final : public AST {
 
 class AttributeAST final : public AST {
  public:
-  AttributeAST() : AST(ASTKind::Attribute) {}
+  static constexpr ASTKind Kind = ASTKind::Attribute;
+
+  AttributeAST() : AST(Kind) {}
 
   AttributeTokenAST* attributeToken = nullptr;
   AttributeArgumentClauseAST* attributeArgumentClause = nullptr;
@@ -630,7 +688,9 @@ class AttributeAST final : public AST {
 
 class AttributeUsingPrefixAST final : public AST {
  public:
-  AttributeUsingPrefixAST() : AST(ASTKind::AttributeUsingPrefix) {}
+  static constexpr ASTKind Kind = ASTKind::AttributeUsingPrefix;
+
+  AttributeUsingPrefixAST() : AST(Kind) {}
 
   SourceLocation usingLoc;
   SourceLocation attributeNamespaceLoc;
@@ -644,7 +704,9 @@ class AttributeUsingPrefixAST final : public AST {
 
 class DesignatorAST final : public AST {
  public:
-  DesignatorAST() : AST(ASTKind::Designator) {}
+  static constexpr ASTKind Kind = ASTKind::Designator;
+
+  DesignatorAST() : AST(Kind) {}
 
   SourceLocation dotLoc;
   SourceLocation identifierLoc;
@@ -658,7 +720,9 @@ class DesignatorAST final : public AST {
 
 class NewPlacementAST final : public AST {
  public:
-  NewPlacementAST() : AST(ASTKind::NewPlacement) {}
+  static constexpr ASTKind Kind = ASTKind::NewPlacement;
+
+  NewPlacementAST() : AST(Kind) {}
 
   SourceLocation lparenLoc;
   List<ExpressionAST*>* expressionList = nullptr;
@@ -672,7 +736,9 @@ class NewPlacementAST final : public AST {
 
 class NestedNamespaceSpecifierAST final : public AST {
  public:
-  NestedNamespaceSpecifierAST() : AST(ASTKind::NestedNamespaceSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::NestedNamespaceSpecifier;
+
+  NestedNamespaceSpecifierAST() : AST(Kind) {}
 
   SourceLocation inlineLoc;
   SourceLocation identifierLoc;
@@ -688,8 +754,9 @@ class NestedNamespaceSpecifierAST final : public AST {
 
 class GlobalNestedNameSpecifierAST final : public NestedNameSpecifierAST {
  public:
-  GlobalNestedNameSpecifierAST()
-      : NestedNameSpecifierAST(ASTKind::GlobalNestedNameSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::GlobalNestedNameSpecifier;
+
+  GlobalNestedNameSpecifierAST() : NestedNameSpecifierAST(Kind) {}
 
   SourceLocation scopeLoc;
 
@@ -701,8 +768,9 @@ class GlobalNestedNameSpecifierAST final : public NestedNameSpecifierAST {
 
 class SimpleNestedNameSpecifierAST final : public NestedNameSpecifierAST {
  public:
-  SimpleNestedNameSpecifierAST()
-      : NestedNameSpecifierAST(ASTKind::SimpleNestedNameSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::SimpleNestedNameSpecifier;
+
+  SimpleNestedNameSpecifierAST() : NestedNameSpecifierAST(Kind) {}
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   SourceLocation identifierLoc;
@@ -717,8 +785,9 @@ class SimpleNestedNameSpecifierAST final : public NestedNameSpecifierAST {
 
 class DecltypeNestedNameSpecifierAST final : public NestedNameSpecifierAST {
  public:
-  DecltypeNestedNameSpecifierAST()
-      : NestedNameSpecifierAST(ASTKind::DecltypeNestedNameSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::DecltypeNestedNameSpecifier;
+
+  DecltypeNestedNameSpecifierAST() : NestedNameSpecifierAST(Kind) {}
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   DecltypeSpecifierAST* decltypeSpecifier = nullptr;
@@ -732,8 +801,9 @@ class DecltypeNestedNameSpecifierAST final : public NestedNameSpecifierAST {
 
 class TemplateNestedNameSpecifierAST final : public NestedNameSpecifierAST {
  public:
-  TemplateNestedNameSpecifierAST()
-      : NestedNameSpecifierAST(ASTKind::TemplateNestedNameSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::TemplateNestedNameSpecifier;
+
+  TemplateNestedNameSpecifierAST() : NestedNameSpecifierAST(Kind) {}
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   SourceLocation templateLoc;
@@ -749,8 +819,9 @@ class TemplateNestedNameSpecifierAST final : public NestedNameSpecifierAST {
 
 class ThrowExceptionSpecifierAST final : public ExceptionSpecifierAST {
  public:
-  ThrowExceptionSpecifierAST()
-      : ExceptionSpecifierAST(ASTKind::ThrowExceptionSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::ThrowExceptionSpecifier;
+
+  ThrowExceptionSpecifierAST() : ExceptionSpecifierAST(Kind) {}
 
   SourceLocation throwLoc;
   SourceLocation lparenLoc;
@@ -764,7 +835,9 @@ class ThrowExceptionSpecifierAST final : public ExceptionSpecifierAST {
 
 class NoexceptSpecifierAST final : public ExceptionSpecifierAST {
  public:
-  NoexceptSpecifierAST() : ExceptionSpecifierAST(ASTKind::NoexceptSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::NoexceptSpecifier;
+
+  NoexceptSpecifierAST() : ExceptionSpecifierAST(Kind) {}
 
   SourceLocation noexceptLoc;
   SourceLocation lparenLoc;
@@ -779,8 +852,9 @@ class NoexceptSpecifierAST final : public ExceptionSpecifierAST {
 
 class PackExpansionExpressionAST final : public ExpressionAST {
  public:
-  PackExpansionExpressionAST()
-      : ExpressionAST(ASTKind::PackExpansionExpression) {}
+  static constexpr ASTKind Kind = ASTKind::PackExpansionExpression;
+
+  PackExpansionExpressionAST() : ExpressionAST(Kind) {}
 
   ExpressionAST* expression = nullptr;
   SourceLocation ellipsisLoc;
@@ -793,8 +867,9 @@ class PackExpansionExpressionAST final : public ExpressionAST {
 
 class DesignatedInitializerClauseAST final : public ExpressionAST {
  public:
-  DesignatedInitializerClauseAST()
-      : ExpressionAST(ASTKind::DesignatedInitializerClause) {}
+  static constexpr ASTKind Kind = ASTKind::DesignatedInitializerClause;
+
+  DesignatedInitializerClauseAST() : ExpressionAST(Kind) {}
 
   DesignatorAST* designator = nullptr;
   ExpressionAST* initializer = nullptr;
@@ -807,7 +882,9 @@ class DesignatedInitializerClauseAST final : public ExpressionAST {
 
 class ThisExpressionAST final : public ExpressionAST {
  public:
-  ThisExpressionAST() : ExpressionAST(ASTKind::ThisExpression) {}
+  static constexpr ASTKind Kind = ASTKind::ThisExpression;
+
+  ThisExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation thisLoc;
 
@@ -819,7 +896,9 @@ class ThisExpressionAST final : public ExpressionAST {
 
 class CharLiteralExpressionAST final : public ExpressionAST {
  public:
-  CharLiteralExpressionAST() : ExpressionAST(ASTKind::CharLiteralExpression) {}
+  static constexpr ASTKind Kind = ASTKind::CharLiteralExpression;
+
+  CharLiteralExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation literalLoc;
   const CharLiteral* literal = nullptr;
@@ -832,7 +911,9 @@ class CharLiteralExpressionAST final : public ExpressionAST {
 
 class BoolLiteralExpressionAST final : public ExpressionAST {
  public:
-  BoolLiteralExpressionAST() : ExpressionAST(ASTKind::BoolLiteralExpression) {}
+  static constexpr ASTKind Kind = ASTKind::BoolLiteralExpression;
+
+  BoolLiteralExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation literalLoc;
   bool isTrue = false;
@@ -845,7 +926,9 @@ class BoolLiteralExpressionAST final : public ExpressionAST {
 
 class IntLiteralExpressionAST final : public ExpressionAST {
  public:
-  IntLiteralExpressionAST() : ExpressionAST(ASTKind::IntLiteralExpression) {}
+  static constexpr ASTKind Kind = ASTKind::IntLiteralExpression;
+
+  IntLiteralExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation literalLoc;
   const IntegerLiteral* literal = nullptr;
@@ -858,8 +941,9 @@ class IntLiteralExpressionAST final : public ExpressionAST {
 
 class FloatLiteralExpressionAST final : public ExpressionAST {
  public:
-  FloatLiteralExpressionAST()
-      : ExpressionAST(ASTKind::FloatLiteralExpression) {}
+  static constexpr ASTKind Kind = ASTKind::FloatLiteralExpression;
+
+  FloatLiteralExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation literalLoc;
   const FloatLiteral* literal = nullptr;
@@ -872,8 +956,9 @@ class FloatLiteralExpressionAST final : public ExpressionAST {
 
 class NullptrLiteralExpressionAST final : public ExpressionAST {
  public:
-  NullptrLiteralExpressionAST()
-      : ExpressionAST(ASTKind::NullptrLiteralExpression) {}
+  static constexpr ASTKind Kind = ASTKind::NullptrLiteralExpression;
+
+  NullptrLiteralExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation literalLoc;
   TokenKind literal = TokenKind::T_EOF_SYMBOL;
@@ -886,8 +971,9 @@ class NullptrLiteralExpressionAST final : public ExpressionAST {
 
 class StringLiteralExpressionAST final : public ExpressionAST {
  public:
-  StringLiteralExpressionAST()
-      : ExpressionAST(ASTKind::StringLiteralExpression) {}
+  static constexpr ASTKind Kind = ASTKind::StringLiteralExpression;
+
+  StringLiteralExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation literalLoc;
   const Literal* literal = nullptr;
@@ -900,8 +986,9 @@ class StringLiteralExpressionAST final : public ExpressionAST {
 
 class UserDefinedStringLiteralExpressionAST final : public ExpressionAST {
  public:
-  UserDefinedStringLiteralExpressionAST()
-      : ExpressionAST(ASTKind::UserDefinedStringLiteralExpression) {}
+  static constexpr ASTKind Kind = ASTKind::UserDefinedStringLiteralExpression;
+
+  UserDefinedStringLiteralExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation literalLoc;
   const StringLiteral* literal = nullptr;
@@ -914,7 +1001,9 @@ class UserDefinedStringLiteralExpressionAST final : public ExpressionAST {
 
 class IdExpressionAST final : public ExpressionAST {
  public:
-  IdExpressionAST() : ExpressionAST(ASTKind::IdExpression) {}
+  static constexpr ASTKind Kind = ASTKind::IdExpression;
+
+  IdExpressionAST() : ExpressionAST(Kind) {}
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   SourceLocation templateLoc;
@@ -929,7 +1018,9 @@ class IdExpressionAST final : public ExpressionAST {
 
 class RequiresExpressionAST final : public ExpressionAST {
  public:
-  RequiresExpressionAST() : ExpressionAST(ASTKind::RequiresExpression) {}
+  static constexpr ASTKind Kind = ASTKind::RequiresExpression;
+
+  RequiresExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation requiresLoc;
   SourceLocation lparenLoc;
@@ -945,7 +1036,9 @@ class RequiresExpressionAST final : public ExpressionAST {
 
 class NestedExpressionAST final : public ExpressionAST {
  public:
-  NestedExpressionAST() : ExpressionAST(ASTKind::NestedExpression) {}
+  static constexpr ASTKind Kind = ASTKind::NestedExpression;
+
+  NestedExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation lparenLoc;
   ExpressionAST* expression = nullptr;
@@ -959,7 +1052,9 @@ class NestedExpressionAST final : public ExpressionAST {
 
 class RightFoldExpressionAST final : public ExpressionAST {
  public:
-  RightFoldExpressionAST() : ExpressionAST(ASTKind::RightFoldExpression) {}
+  static constexpr ASTKind Kind = ASTKind::RightFoldExpression;
+
+  RightFoldExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation lparenLoc;
   ExpressionAST* expression = nullptr;
@@ -976,7 +1071,9 @@ class RightFoldExpressionAST final : public ExpressionAST {
 
 class LeftFoldExpressionAST final : public ExpressionAST {
  public:
-  LeftFoldExpressionAST() : ExpressionAST(ASTKind::LeftFoldExpression) {}
+  static constexpr ASTKind Kind = ASTKind::LeftFoldExpression;
+
+  LeftFoldExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation lparenLoc;
   SourceLocation ellipsisLoc;
@@ -993,7 +1090,9 @@ class LeftFoldExpressionAST final : public ExpressionAST {
 
 class FoldExpressionAST final : public ExpressionAST {
  public:
-  FoldExpressionAST() : ExpressionAST(ASTKind::FoldExpression) {}
+  static constexpr ASTKind Kind = ASTKind::FoldExpression;
+
+  FoldExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation lparenLoc;
   ExpressionAST* leftExpression = nullptr;
@@ -1013,7 +1112,9 @@ class FoldExpressionAST final : public ExpressionAST {
 
 class LambdaExpressionAST final : public ExpressionAST {
  public:
-  LambdaExpressionAST() : ExpressionAST(ASTKind::LambdaExpression) {}
+  static constexpr ASTKind Kind = ASTKind::LambdaExpression;
+
+  LambdaExpressionAST() : ExpressionAST(Kind) {}
 
   LambdaIntroducerAST* lambdaIntroducer = nullptr;
   SourceLocation lessLoc;
@@ -1031,7 +1132,9 @@ class LambdaExpressionAST final : public ExpressionAST {
 
 class SizeofExpressionAST final : public ExpressionAST {
  public:
-  SizeofExpressionAST() : ExpressionAST(ASTKind::SizeofExpression) {}
+  static constexpr ASTKind Kind = ASTKind::SizeofExpression;
+
+  SizeofExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation sizeofLoc;
   ExpressionAST* expression = nullptr;
@@ -1044,7 +1147,9 @@ class SizeofExpressionAST final : public ExpressionAST {
 
 class SizeofTypeExpressionAST final : public ExpressionAST {
  public:
-  SizeofTypeExpressionAST() : ExpressionAST(ASTKind::SizeofTypeExpression) {}
+  static constexpr ASTKind Kind = ASTKind::SizeofTypeExpression;
+
+  SizeofTypeExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation sizeofLoc;
   SourceLocation lparenLoc;
@@ -1059,7 +1164,9 @@ class SizeofTypeExpressionAST final : public ExpressionAST {
 
 class SizeofPackExpressionAST final : public ExpressionAST {
  public:
-  SizeofPackExpressionAST() : ExpressionAST(ASTKind::SizeofPackExpression) {}
+  static constexpr ASTKind Kind = ASTKind::SizeofPackExpression;
+
+  SizeofPackExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation sizeofLoc;
   SourceLocation ellipsisLoc;
@@ -1076,7 +1183,9 @@ class SizeofPackExpressionAST final : public ExpressionAST {
 
 class TypeidExpressionAST final : public ExpressionAST {
  public:
-  TypeidExpressionAST() : ExpressionAST(ASTKind::TypeidExpression) {}
+  static constexpr ASTKind Kind = ASTKind::TypeidExpression;
+
+  TypeidExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation typeidLoc;
   SourceLocation lparenLoc;
@@ -1091,8 +1200,9 @@ class TypeidExpressionAST final : public ExpressionAST {
 
 class TypeidOfTypeExpressionAST final : public ExpressionAST {
  public:
-  TypeidOfTypeExpressionAST()
-      : ExpressionAST(ASTKind::TypeidOfTypeExpression) {}
+  static constexpr ASTKind Kind = ASTKind::TypeidOfTypeExpression;
+
+  TypeidOfTypeExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation typeidLoc;
   SourceLocation lparenLoc;
@@ -1107,7 +1217,9 @@ class TypeidOfTypeExpressionAST final : public ExpressionAST {
 
 class AlignofTypeExpressionAST final : public ExpressionAST {
  public:
-  AlignofTypeExpressionAST() : ExpressionAST(ASTKind::AlignofTypeExpression) {}
+  static constexpr ASTKind Kind = ASTKind::AlignofTypeExpression;
+
+  AlignofTypeExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation alignofLoc;
   SourceLocation lparenLoc;
@@ -1122,7 +1234,9 @@ class AlignofTypeExpressionAST final : public ExpressionAST {
 
 class AlignofExpressionAST final : public ExpressionAST {
  public:
-  AlignofExpressionAST() : ExpressionAST(ASTKind::AlignofExpression) {}
+  static constexpr ASTKind Kind = ASTKind::AlignofExpression;
+
+  AlignofExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation alignofLoc;
   ExpressionAST* expression = nullptr;
@@ -1135,7 +1249,9 @@ class AlignofExpressionAST final : public ExpressionAST {
 
 class TypeTraitsExpressionAST final : public ExpressionAST {
  public:
-  TypeTraitsExpressionAST() : ExpressionAST(ASTKind::TypeTraitsExpression) {}
+  static constexpr ASTKind Kind = ASTKind::TypeTraitsExpression;
+
+  TypeTraitsExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation typeTraitsLoc;
   SourceLocation lparenLoc;
@@ -1151,7 +1267,9 @@ class TypeTraitsExpressionAST final : public ExpressionAST {
 
 class YieldExpressionAST final : public ExpressionAST {
  public:
-  YieldExpressionAST() : ExpressionAST(ASTKind::YieldExpression) {}
+  static constexpr ASTKind Kind = ASTKind::YieldExpression;
+
+  YieldExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation yieldLoc;
   ExpressionAST* expression = nullptr;
@@ -1164,7 +1282,9 @@ class YieldExpressionAST final : public ExpressionAST {
 
 class AwaitExpressionAST final : public ExpressionAST {
  public:
-  AwaitExpressionAST() : ExpressionAST(ASTKind::AwaitExpression) {}
+  static constexpr ASTKind Kind = ASTKind::AwaitExpression;
+
+  AwaitExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation awaitLoc;
   ExpressionAST* expression = nullptr;
@@ -1177,7 +1297,9 @@ class AwaitExpressionAST final : public ExpressionAST {
 
 class UnaryExpressionAST final : public ExpressionAST {
  public:
-  UnaryExpressionAST() : ExpressionAST(ASTKind::UnaryExpression) {}
+  static constexpr ASTKind Kind = ASTKind::UnaryExpression;
+
+  UnaryExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation opLoc;
   ExpressionAST* expression = nullptr;
@@ -1191,7 +1313,9 @@ class UnaryExpressionAST final : public ExpressionAST {
 
 class BinaryExpressionAST final : public ExpressionAST {
  public:
-  BinaryExpressionAST() : ExpressionAST(ASTKind::BinaryExpression) {}
+  static constexpr ASTKind Kind = ASTKind::BinaryExpression;
+
+  BinaryExpressionAST() : ExpressionAST(Kind) {}
 
   ExpressionAST* leftExpression = nullptr;
   SourceLocation opLoc;
@@ -1206,7 +1330,9 @@ class BinaryExpressionAST final : public ExpressionAST {
 
 class AssignmentExpressionAST final : public ExpressionAST {
  public:
-  AssignmentExpressionAST() : ExpressionAST(ASTKind::AssignmentExpression) {}
+  static constexpr ASTKind Kind = ASTKind::AssignmentExpression;
+
+  AssignmentExpressionAST() : ExpressionAST(Kind) {}
 
   ExpressionAST* leftExpression = nullptr;
   SourceLocation opLoc;
@@ -1221,7 +1347,9 @@ class AssignmentExpressionAST final : public ExpressionAST {
 
 class ConditionExpressionAST final : public ExpressionAST {
  public:
-  ConditionExpressionAST() : ExpressionAST(ASTKind::ConditionExpression) {}
+  static constexpr ASTKind Kind = ASTKind::ConditionExpression;
+
+  ConditionExpressionAST() : ExpressionAST(Kind) {}
 
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   List<SpecifierAST*>* declSpecifierList = nullptr;
@@ -1236,8 +1364,9 @@ class ConditionExpressionAST final : public ExpressionAST {
 
 class BracedTypeConstructionAST final : public ExpressionAST {
  public:
-  BracedTypeConstructionAST()
-      : ExpressionAST(ASTKind::BracedTypeConstruction) {}
+  static constexpr ASTKind Kind = ASTKind::BracedTypeConstruction;
+
+  BracedTypeConstructionAST() : ExpressionAST(Kind) {}
 
   SpecifierAST* typeSpecifier = nullptr;
   BracedInitListAST* bracedInitList = nullptr;
@@ -1250,7 +1379,9 @@ class BracedTypeConstructionAST final : public ExpressionAST {
 
 class TypeConstructionAST final : public ExpressionAST {
  public:
-  TypeConstructionAST() : ExpressionAST(ASTKind::TypeConstruction) {}
+  static constexpr ASTKind Kind = ASTKind::TypeConstruction;
+
+  TypeConstructionAST() : ExpressionAST(Kind) {}
 
   SpecifierAST* typeSpecifier = nullptr;
   SourceLocation lparenLoc;
@@ -1265,7 +1396,9 @@ class TypeConstructionAST final : public ExpressionAST {
 
 class CallExpressionAST final : public ExpressionAST {
  public:
-  CallExpressionAST() : ExpressionAST(ASTKind::CallExpression) {}
+  static constexpr ASTKind Kind = ASTKind::CallExpression;
+
+  CallExpressionAST() : ExpressionAST(Kind) {}
 
   ExpressionAST* baseExpression = nullptr;
   SourceLocation lparenLoc;
@@ -1280,7 +1413,9 @@ class CallExpressionAST final : public ExpressionAST {
 
 class SubscriptExpressionAST final : public ExpressionAST {
  public:
-  SubscriptExpressionAST() : ExpressionAST(ASTKind::SubscriptExpression) {}
+  static constexpr ASTKind Kind = ASTKind::SubscriptExpression;
+
+  SubscriptExpressionAST() : ExpressionAST(Kind) {}
 
   ExpressionAST* baseExpression = nullptr;
   SourceLocation lbracketLoc;
@@ -1295,7 +1430,9 @@ class SubscriptExpressionAST final : public ExpressionAST {
 
 class MemberExpressionAST final : public ExpressionAST {
  public:
-  MemberExpressionAST() : ExpressionAST(ASTKind::MemberExpression) {}
+  static constexpr ASTKind Kind = ASTKind::MemberExpression;
+
+  MemberExpressionAST() : ExpressionAST(Kind) {}
 
   ExpressionAST* baseExpression = nullptr;
   SourceLocation accessLoc;
@@ -1311,7 +1448,9 @@ class MemberExpressionAST final : public ExpressionAST {
 
 class PostIncrExpressionAST final : public ExpressionAST {
  public:
-  PostIncrExpressionAST() : ExpressionAST(ASTKind::PostIncrExpression) {}
+  static constexpr ASTKind Kind = ASTKind::PostIncrExpression;
+
+  PostIncrExpressionAST() : ExpressionAST(Kind) {}
 
   ExpressionAST* baseExpression = nullptr;
   SourceLocation opLoc;
@@ -1325,7 +1464,9 @@ class PostIncrExpressionAST final : public ExpressionAST {
 
 class ConditionalExpressionAST final : public ExpressionAST {
  public:
-  ConditionalExpressionAST() : ExpressionAST(ASTKind::ConditionalExpression) {}
+  static constexpr ASTKind Kind = ASTKind::ConditionalExpression;
+
+  ConditionalExpressionAST() : ExpressionAST(Kind) {}
 
   ExpressionAST* condition = nullptr;
   SourceLocation questionLoc;
@@ -1341,8 +1482,9 @@ class ConditionalExpressionAST final : public ExpressionAST {
 
 class ImplicitCastExpressionAST final : public ExpressionAST {
  public:
-  ImplicitCastExpressionAST()
-      : ExpressionAST(ASTKind::ImplicitCastExpression) {}
+  static constexpr ASTKind Kind = ASTKind::ImplicitCastExpression;
+
+  ImplicitCastExpressionAST() : ExpressionAST(Kind) {}
 
   ExpressionAST* expression = nullptr;
   ImplicitCastKind castKind = ImplicitCastKind::kIdentity;
@@ -1355,7 +1497,9 @@ class ImplicitCastExpressionAST final : public ExpressionAST {
 
 class CastExpressionAST final : public ExpressionAST {
  public:
-  CastExpressionAST() : ExpressionAST(ASTKind::CastExpression) {}
+  static constexpr ASTKind Kind = ASTKind::CastExpression;
+
+  CastExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation lparenLoc;
   TypeIdAST* typeId = nullptr;
@@ -1370,7 +1514,9 @@ class CastExpressionAST final : public ExpressionAST {
 
 class CppCastExpressionAST final : public ExpressionAST {
  public:
-  CppCastExpressionAST() : ExpressionAST(ASTKind::CppCastExpression) {}
+  static constexpr ASTKind Kind = ASTKind::CppCastExpression;
+
+  CppCastExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation castLoc;
   SourceLocation lessLoc;
@@ -1388,7 +1534,9 @@ class CppCastExpressionAST final : public ExpressionAST {
 
 class NewExpressionAST final : public ExpressionAST {
  public:
-  NewExpressionAST() : ExpressionAST(ASTKind::NewExpression) {}
+  static constexpr ASTKind Kind = ASTKind::NewExpression;
+
+  NewExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation scopeLoc;
   SourceLocation newLoc;
@@ -1404,7 +1552,9 @@ class NewExpressionAST final : public ExpressionAST {
 
 class DeleteExpressionAST final : public ExpressionAST {
  public:
-  DeleteExpressionAST() : ExpressionAST(ASTKind::DeleteExpression) {}
+  static constexpr ASTKind Kind = ASTKind::DeleteExpression;
+
+  DeleteExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation scopeLoc;
   SourceLocation deleteLoc;
@@ -1420,7 +1570,9 @@ class DeleteExpressionAST final : public ExpressionAST {
 
 class ThrowExpressionAST final : public ExpressionAST {
  public:
-  ThrowExpressionAST() : ExpressionAST(ASTKind::ThrowExpression) {}
+  static constexpr ASTKind Kind = ASTKind::ThrowExpression;
+
+  ThrowExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation throwLoc;
   ExpressionAST* expression = nullptr;
@@ -1433,7 +1585,9 @@ class ThrowExpressionAST final : public ExpressionAST {
 
 class NoexceptExpressionAST final : public ExpressionAST {
  public:
-  NoexceptExpressionAST() : ExpressionAST(ASTKind::NoexceptExpression) {}
+  static constexpr ASTKind Kind = ASTKind::NoexceptExpression;
+
+  NoexceptExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation noexceptLoc;
   SourceLocation lparenLoc;
@@ -1448,7 +1602,9 @@ class NoexceptExpressionAST final : public ExpressionAST {
 
 class EqualInitializerAST final : public ExpressionAST {
  public:
-  EqualInitializerAST() : ExpressionAST(ASTKind::EqualInitializer) {}
+  static constexpr ASTKind Kind = ASTKind::EqualInitializer;
+
+  EqualInitializerAST() : ExpressionAST(Kind) {}
 
   SourceLocation equalLoc;
   ExpressionAST* expression = nullptr;
@@ -1461,7 +1617,9 @@ class EqualInitializerAST final : public ExpressionAST {
 
 class BracedInitListAST final : public ExpressionAST {
  public:
-  BracedInitListAST() : ExpressionAST(ASTKind::BracedInitList) {}
+  static constexpr ASTKind Kind = ASTKind::BracedInitList;
+
+  BracedInitListAST() : ExpressionAST(Kind) {}
 
   SourceLocation lbraceLoc;
   List<ExpressionAST*>* expressionList = nullptr;
@@ -1476,7 +1634,9 @@ class BracedInitListAST final : public ExpressionAST {
 
 class ParenInitializerAST final : public ExpressionAST {
  public:
-  ParenInitializerAST() : ExpressionAST(ASTKind::ParenInitializer) {}
+  static constexpr ASTKind Kind = ASTKind::ParenInitializer;
+
+  ParenInitializerAST() : ExpressionAST(Kind) {}
 
   SourceLocation lparenLoc;
   List<ExpressionAST*>* expressionList = nullptr;
@@ -1490,7 +1650,9 @@ class ParenInitializerAST final : public ExpressionAST {
 
 class SimpleRequirementAST final : public RequirementAST {
  public:
-  SimpleRequirementAST() : RequirementAST(ASTKind::SimpleRequirement) {}
+  static constexpr ASTKind Kind = ASTKind::SimpleRequirement;
+
+  SimpleRequirementAST() : RequirementAST(Kind) {}
 
   ExpressionAST* expression = nullptr;
   SourceLocation semicolonLoc;
@@ -1503,7 +1665,9 @@ class SimpleRequirementAST final : public RequirementAST {
 
 class CompoundRequirementAST final : public RequirementAST {
  public:
-  CompoundRequirementAST() : RequirementAST(ASTKind::CompoundRequirement) {}
+  static constexpr ASTKind Kind = ASTKind::CompoundRequirement;
+
+  CompoundRequirementAST() : RequirementAST(Kind) {}
 
   SourceLocation lbraceLoc;
   ExpressionAST* expression = nullptr;
@@ -1521,7 +1685,9 @@ class CompoundRequirementAST final : public RequirementAST {
 
 class TypeRequirementAST final : public RequirementAST {
  public:
-  TypeRequirementAST() : RequirementAST(ASTKind::TypeRequirement) {}
+  static constexpr ASTKind Kind = ASTKind::TypeRequirement;
+
+  TypeRequirementAST() : RequirementAST(Kind) {}
 
   SourceLocation typenameLoc;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
@@ -1536,7 +1702,9 @@ class TypeRequirementAST final : public RequirementAST {
 
 class NestedRequirementAST final : public RequirementAST {
  public:
-  NestedRequirementAST() : RequirementAST(ASTKind::NestedRequirement) {}
+  static constexpr ASTKind Kind = ASTKind::NestedRequirement;
+
+  NestedRequirementAST() : RequirementAST(Kind) {}
 
   SourceLocation requiresLoc;
   ExpressionAST* expression = nullptr;
@@ -1550,8 +1718,9 @@ class NestedRequirementAST final : public RequirementAST {
 
 class TypeTemplateArgumentAST final : public TemplateArgumentAST {
  public:
-  TypeTemplateArgumentAST()
-      : TemplateArgumentAST(ASTKind::TypeTemplateArgument) {}
+  static constexpr ASTKind Kind = ASTKind::TypeTemplateArgument;
+
+  TypeTemplateArgumentAST() : TemplateArgumentAST(Kind) {}
 
   TypeIdAST* typeId = nullptr;
 
@@ -1563,8 +1732,9 @@ class TypeTemplateArgumentAST final : public TemplateArgumentAST {
 
 class ExpressionTemplateArgumentAST final : public TemplateArgumentAST {
  public:
-  ExpressionTemplateArgumentAST()
-      : TemplateArgumentAST(ASTKind::ExpressionTemplateArgument) {}
+  static constexpr ASTKind Kind = ASTKind::ExpressionTemplateArgument;
+
+  ExpressionTemplateArgumentAST() : TemplateArgumentAST(Kind) {}
 
   ExpressionAST* expression = nullptr;
 
@@ -1576,7 +1746,9 @@ class ExpressionTemplateArgumentAST final : public TemplateArgumentAST {
 
 class ParenMemInitializerAST final : public MemInitializerAST {
  public:
-  ParenMemInitializerAST() : MemInitializerAST(ASTKind::ParenMemInitializer) {}
+  static constexpr ASTKind Kind = ASTKind::ParenMemInitializer;
+
+  ParenMemInitializerAST() : MemInitializerAST(Kind) {}
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   UnqualifiedIdAST* unqualifiedId = nullptr;
@@ -1593,8 +1765,9 @@ class ParenMemInitializerAST final : public MemInitializerAST {
 
 class BracedMemInitializerAST final : public MemInitializerAST {
  public:
-  BracedMemInitializerAST()
-      : MemInitializerAST(ASTKind::BracedMemInitializer) {}
+  static constexpr ASTKind Kind = ASTKind::BracedMemInitializer;
+
+  BracedMemInitializerAST() : MemInitializerAST(Kind) {}
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   UnqualifiedIdAST* unqualifiedId = nullptr;
@@ -1609,7 +1782,9 @@ class BracedMemInitializerAST final : public MemInitializerAST {
 
 class ThisLambdaCaptureAST final : public LambdaCaptureAST {
  public:
-  ThisLambdaCaptureAST() : LambdaCaptureAST(ASTKind::ThisLambdaCapture) {}
+  static constexpr ASTKind Kind = ASTKind::ThisLambdaCapture;
+
+  ThisLambdaCaptureAST() : LambdaCaptureAST(Kind) {}
 
   SourceLocation thisLoc;
 
@@ -1621,8 +1796,9 @@ class ThisLambdaCaptureAST final : public LambdaCaptureAST {
 
 class DerefThisLambdaCaptureAST final : public LambdaCaptureAST {
  public:
-  DerefThisLambdaCaptureAST()
-      : LambdaCaptureAST(ASTKind::DerefThisLambdaCapture) {}
+  static constexpr ASTKind Kind = ASTKind::DerefThisLambdaCapture;
+
+  DerefThisLambdaCaptureAST() : LambdaCaptureAST(Kind) {}
 
   SourceLocation starLoc;
   SourceLocation thisLoc;
@@ -1635,7 +1811,9 @@ class DerefThisLambdaCaptureAST final : public LambdaCaptureAST {
 
 class SimpleLambdaCaptureAST final : public LambdaCaptureAST {
  public:
-  SimpleLambdaCaptureAST() : LambdaCaptureAST(ASTKind::SimpleLambdaCapture) {}
+  static constexpr ASTKind Kind = ASTKind::SimpleLambdaCapture;
+
+  SimpleLambdaCaptureAST() : LambdaCaptureAST(Kind) {}
 
   SourceLocation identifierLoc;
   SourceLocation ellipsisLoc;
@@ -1649,7 +1827,9 @@ class SimpleLambdaCaptureAST final : public LambdaCaptureAST {
 
 class RefLambdaCaptureAST final : public LambdaCaptureAST {
  public:
-  RefLambdaCaptureAST() : LambdaCaptureAST(ASTKind::RefLambdaCapture) {}
+  static constexpr ASTKind Kind = ASTKind::RefLambdaCapture;
+
+  RefLambdaCaptureAST() : LambdaCaptureAST(Kind) {}
 
   SourceLocation ampLoc;
   SourceLocation identifierLoc;
@@ -1664,7 +1844,9 @@ class RefLambdaCaptureAST final : public LambdaCaptureAST {
 
 class RefInitLambdaCaptureAST final : public LambdaCaptureAST {
  public:
-  RefInitLambdaCaptureAST() : LambdaCaptureAST(ASTKind::RefInitLambdaCapture) {}
+  static constexpr ASTKind Kind = ASTKind::RefInitLambdaCapture;
+
+  RefInitLambdaCaptureAST() : LambdaCaptureAST(Kind) {}
 
   SourceLocation ampLoc;
   SourceLocation ellipsisLoc;
@@ -1680,7 +1862,9 @@ class RefInitLambdaCaptureAST final : public LambdaCaptureAST {
 
 class InitLambdaCaptureAST final : public LambdaCaptureAST {
  public:
-  InitLambdaCaptureAST() : LambdaCaptureAST(ASTKind::InitLambdaCapture) {}
+  static constexpr ASTKind Kind = ASTKind::InitLambdaCapture;
+
+  InitLambdaCaptureAST() : LambdaCaptureAST(Kind) {}
 
   SourceLocation ellipsisLoc;
   SourceLocation identifierLoc;
@@ -1695,7 +1879,9 @@ class InitLambdaCaptureAST final : public LambdaCaptureAST {
 
 class NewParenInitializerAST final : public NewInitializerAST {
  public:
-  NewParenInitializerAST() : NewInitializerAST(ASTKind::NewParenInitializer) {}
+  static constexpr ASTKind Kind = ASTKind::NewParenInitializer;
+
+  NewParenInitializerAST() : NewInitializerAST(Kind) {}
 
   SourceLocation lparenLoc;
   List<ExpressionAST*>* expressionList = nullptr;
@@ -1709,8 +1895,9 @@ class NewParenInitializerAST final : public NewInitializerAST {
 
 class NewBracedInitializerAST final : public NewInitializerAST {
  public:
-  NewBracedInitializerAST()
-      : NewInitializerAST(ASTKind::NewBracedInitializer) {}
+  static constexpr ASTKind Kind = ASTKind::NewBracedInitializer;
+
+  NewBracedInitializerAST() : NewInitializerAST(Kind) {}
 
   BracedInitListAST* bracedInitList = nullptr;
 
@@ -1722,8 +1909,9 @@ class NewBracedInitializerAST final : public NewInitializerAST {
 
 class EllipsisExceptionDeclarationAST final : public ExceptionDeclarationAST {
  public:
-  EllipsisExceptionDeclarationAST()
-      : ExceptionDeclarationAST(ASTKind::EllipsisExceptionDeclaration) {}
+  static constexpr ASTKind Kind = ASTKind::EllipsisExceptionDeclaration;
+
+  EllipsisExceptionDeclarationAST() : ExceptionDeclarationAST(Kind) {}
 
   SourceLocation ellipsisLoc;
 
@@ -1735,8 +1923,9 @@ class EllipsisExceptionDeclarationAST final : public ExceptionDeclarationAST {
 
 class TypeExceptionDeclarationAST final : public ExceptionDeclarationAST {
  public:
-  TypeExceptionDeclarationAST()
-      : ExceptionDeclarationAST(ASTKind::TypeExceptionDeclaration) {}
+  static constexpr ASTKind Kind = ASTKind::TypeExceptionDeclaration;
+
+  TypeExceptionDeclarationAST() : ExceptionDeclarationAST(Kind) {}
 
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   List<SpecifierAST*>* typeSpecifierList = nullptr;
@@ -1750,7 +1939,9 @@ class TypeExceptionDeclarationAST final : public ExceptionDeclarationAST {
 
 class DefaultFunctionBodyAST final : public FunctionBodyAST {
  public:
-  DefaultFunctionBodyAST() : FunctionBodyAST(ASTKind::DefaultFunctionBody) {}
+  static constexpr ASTKind Kind = ASTKind::DefaultFunctionBody;
+
+  DefaultFunctionBodyAST() : FunctionBodyAST(Kind) {}
 
   SourceLocation equalLoc;
   SourceLocation defaultLoc;
@@ -1764,8 +1955,9 @@ class DefaultFunctionBodyAST final : public FunctionBodyAST {
 
 class CompoundStatementFunctionBodyAST final : public FunctionBodyAST {
  public:
-  CompoundStatementFunctionBodyAST()
-      : FunctionBodyAST(ASTKind::CompoundStatementFunctionBody) {}
+  static constexpr ASTKind Kind = ASTKind::CompoundStatementFunctionBody;
+
+  CompoundStatementFunctionBodyAST() : FunctionBodyAST(Kind) {}
 
   CtorInitializerAST* ctorInitializer = nullptr;
   CompoundStatementAST* statement = nullptr;
@@ -1778,8 +1970,9 @@ class CompoundStatementFunctionBodyAST final : public FunctionBodyAST {
 
 class TryStatementFunctionBodyAST final : public FunctionBodyAST {
  public:
-  TryStatementFunctionBodyAST()
-      : FunctionBodyAST(ASTKind::TryStatementFunctionBody) {}
+  static constexpr ASTKind Kind = ASTKind::TryStatementFunctionBody;
+
+  TryStatementFunctionBodyAST() : FunctionBodyAST(Kind) {}
 
   SourceLocation tryLoc;
   CtorInitializerAST* ctorInitializer = nullptr;
@@ -1794,7 +1987,9 @@ class TryStatementFunctionBodyAST final : public FunctionBodyAST {
 
 class DeleteFunctionBodyAST final : public FunctionBodyAST {
  public:
-  DeleteFunctionBodyAST() : FunctionBodyAST(ASTKind::DeleteFunctionBody) {}
+  static constexpr ASTKind Kind = ASTKind::DeleteFunctionBody;
+
+  DeleteFunctionBodyAST() : FunctionBodyAST(Kind) {}
 
   SourceLocation equalLoc;
   SourceLocation deleteLoc;
@@ -1808,7 +2003,9 @@ class DeleteFunctionBodyAST final : public FunctionBodyAST {
 
 class TranslationUnitAST final : public UnitAST {
  public:
-  TranslationUnitAST() : UnitAST(ASTKind::TranslationUnit) {}
+  static constexpr ASTKind Kind = ASTKind::TranslationUnit;
+
+  TranslationUnitAST() : UnitAST(Kind) {}
 
   List<DeclarationAST*>* declarationList = nullptr;
 
@@ -1820,7 +2017,9 @@ class TranslationUnitAST final : public UnitAST {
 
 class ModuleUnitAST final : public UnitAST {
  public:
-  ModuleUnitAST() : UnitAST(ASTKind::ModuleUnit) {}
+  static constexpr ASTKind Kind = ASTKind::ModuleUnit;
+
+  ModuleUnitAST() : UnitAST(Kind) {}
 
   GlobalModuleFragmentAST* globalModuleFragment = nullptr;
   ModuleDeclarationAST* moduleDeclaration = nullptr;
@@ -1835,7 +2034,9 @@ class ModuleUnitAST final : public UnitAST {
 
 class LabeledStatementAST final : public StatementAST {
  public:
-  LabeledStatementAST() : StatementAST(ASTKind::LabeledStatement) {}
+  static constexpr ASTKind Kind = ASTKind::LabeledStatement;
+
+  LabeledStatementAST() : StatementAST(Kind) {}
 
   SourceLocation identifierLoc;
   SourceLocation colonLoc;
@@ -1849,7 +2050,9 @@ class LabeledStatementAST final : public StatementAST {
 
 class CaseStatementAST final : public StatementAST {
  public:
-  CaseStatementAST() : StatementAST(ASTKind::CaseStatement) {}
+  static constexpr ASTKind Kind = ASTKind::CaseStatement;
+
+  CaseStatementAST() : StatementAST(Kind) {}
 
   SourceLocation caseLoc;
   ExpressionAST* expression = nullptr;
@@ -1863,7 +2066,9 @@ class CaseStatementAST final : public StatementAST {
 
 class DefaultStatementAST final : public StatementAST {
  public:
-  DefaultStatementAST() : StatementAST(ASTKind::DefaultStatement) {}
+  static constexpr ASTKind Kind = ASTKind::DefaultStatement;
+
+  DefaultStatementAST() : StatementAST(Kind) {}
 
   SourceLocation defaultLoc;
   SourceLocation colonLoc;
@@ -1876,7 +2081,9 @@ class DefaultStatementAST final : public StatementAST {
 
 class ExpressionStatementAST final : public StatementAST {
  public:
-  ExpressionStatementAST() : StatementAST(ASTKind::ExpressionStatement) {}
+  static constexpr ASTKind Kind = ASTKind::ExpressionStatement;
+
+  ExpressionStatementAST() : StatementAST(Kind) {}
 
   ExpressionAST* expression = nullptr;
   SourceLocation semicolonLoc;
@@ -1889,7 +2096,9 @@ class ExpressionStatementAST final : public StatementAST {
 
 class CompoundStatementAST final : public StatementAST {
  public:
-  CompoundStatementAST() : StatementAST(ASTKind::CompoundStatement) {}
+  static constexpr ASTKind Kind = ASTKind::CompoundStatement;
+
+  CompoundStatementAST() : StatementAST(Kind) {}
 
   SourceLocation lbraceLoc;
   List<StatementAST*>* statementList = nullptr;
@@ -1903,7 +2112,9 @@ class CompoundStatementAST final : public StatementAST {
 
 class IfStatementAST final : public StatementAST {
  public:
-  IfStatementAST() : StatementAST(ASTKind::IfStatement) {}
+  static constexpr ASTKind Kind = ASTKind::IfStatement;
+
+  IfStatementAST() : StatementAST(Kind) {}
 
   SourceLocation ifLoc;
   SourceLocation constexprLoc;
@@ -1923,7 +2134,9 @@ class IfStatementAST final : public StatementAST {
 
 class SwitchStatementAST final : public StatementAST {
  public:
-  SwitchStatementAST() : StatementAST(ASTKind::SwitchStatement) {}
+  static constexpr ASTKind Kind = ASTKind::SwitchStatement;
+
+  SwitchStatementAST() : StatementAST(Kind) {}
 
   SourceLocation switchLoc;
   SourceLocation lparenLoc;
@@ -1940,7 +2153,9 @@ class SwitchStatementAST final : public StatementAST {
 
 class WhileStatementAST final : public StatementAST {
  public:
-  WhileStatementAST() : StatementAST(ASTKind::WhileStatement) {}
+  static constexpr ASTKind Kind = ASTKind::WhileStatement;
+
+  WhileStatementAST() : StatementAST(Kind) {}
 
   SourceLocation whileLoc;
   SourceLocation lparenLoc;
@@ -1956,7 +2171,9 @@ class WhileStatementAST final : public StatementAST {
 
 class DoStatementAST final : public StatementAST {
  public:
-  DoStatementAST() : StatementAST(ASTKind::DoStatement) {}
+  static constexpr ASTKind Kind = ASTKind::DoStatement;
+
+  DoStatementAST() : StatementAST(Kind) {}
 
   SourceLocation doLoc;
   StatementAST* statement = nullptr;
@@ -1974,7 +2191,9 @@ class DoStatementAST final : public StatementAST {
 
 class ForRangeStatementAST final : public StatementAST {
  public:
-  ForRangeStatementAST() : StatementAST(ASTKind::ForRangeStatement) {}
+  static constexpr ASTKind Kind = ASTKind::ForRangeStatement;
+
+  ForRangeStatementAST() : StatementAST(Kind) {}
 
   SourceLocation forLoc;
   SourceLocation lparenLoc;
@@ -1993,7 +2212,9 @@ class ForRangeStatementAST final : public StatementAST {
 
 class ForStatementAST final : public StatementAST {
  public:
-  ForStatementAST() : StatementAST(ASTKind::ForStatement) {}
+  static constexpr ASTKind Kind = ASTKind::ForStatement;
+
+  ForStatementAST() : StatementAST(Kind) {}
 
   SourceLocation forLoc;
   SourceLocation lparenLoc;
@@ -2012,7 +2233,9 @@ class ForStatementAST final : public StatementAST {
 
 class BreakStatementAST final : public StatementAST {
  public:
-  BreakStatementAST() : StatementAST(ASTKind::BreakStatement) {}
+  static constexpr ASTKind Kind = ASTKind::BreakStatement;
+
+  BreakStatementAST() : StatementAST(Kind) {}
 
   SourceLocation breakLoc;
   SourceLocation semicolonLoc;
@@ -2025,7 +2248,9 @@ class BreakStatementAST final : public StatementAST {
 
 class ContinueStatementAST final : public StatementAST {
  public:
-  ContinueStatementAST() : StatementAST(ASTKind::ContinueStatement) {}
+  static constexpr ASTKind Kind = ASTKind::ContinueStatement;
+
+  ContinueStatementAST() : StatementAST(Kind) {}
 
   SourceLocation continueLoc;
   SourceLocation semicolonLoc;
@@ -2038,7 +2263,9 @@ class ContinueStatementAST final : public StatementAST {
 
 class ReturnStatementAST final : public StatementAST {
  public:
-  ReturnStatementAST() : StatementAST(ASTKind::ReturnStatement) {}
+  static constexpr ASTKind Kind = ASTKind::ReturnStatement;
+
+  ReturnStatementAST() : StatementAST(Kind) {}
 
   SourceLocation returnLoc;
   ExpressionAST* expression = nullptr;
@@ -2052,7 +2279,9 @@ class ReturnStatementAST final : public StatementAST {
 
 class GotoStatementAST final : public StatementAST {
  public:
-  GotoStatementAST() : StatementAST(ASTKind::GotoStatement) {}
+  static constexpr ASTKind Kind = ASTKind::GotoStatement;
+
+  GotoStatementAST() : StatementAST(Kind) {}
 
   SourceLocation gotoLoc;
   SourceLocation identifierLoc;
@@ -2067,8 +2296,9 @@ class GotoStatementAST final : public StatementAST {
 
 class CoroutineReturnStatementAST final : public StatementAST {
  public:
-  CoroutineReturnStatementAST()
-      : StatementAST(ASTKind::CoroutineReturnStatement) {}
+  static constexpr ASTKind Kind = ASTKind::CoroutineReturnStatement;
+
+  CoroutineReturnStatementAST() : StatementAST(Kind) {}
 
   SourceLocation coreturnLoc;
   ExpressionAST* expression = nullptr;
@@ -2082,7 +2312,9 @@ class CoroutineReturnStatementAST final : public StatementAST {
 
 class DeclarationStatementAST final : public StatementAST {
  public:
-  DeclarationStatementAST() : StatementAST(ASTKind::DeclarationStatement) {}
+  static constexpr ASTKind Kind = ASTKind::DeclarationStatement;
+
+  DeclarationStatementAST() : StatementAST(Kind) {}
 
   DeclarationAST* declaration = nullptr;
 
@@ -2094,7 +2326,9 @@ class DeclarationStatementAST final : public StatementAST {
 
 class TryBlockStatementAST final : public StatementAST {
  public:
-  TryBlockStatementAST() : StatementAST(ASTKind::TryBlockStatement) {}
+  static constexpr ASTKind Kind = ASTKind::TryBlockStatement;
+
+  TryBlockStatementAST() : StatementAST(Kind) {}
 
   SourceLocation tryLoc;
   CompoundStatementAST* statement = nullptr;
@@ -2108,7 +2342,9 @@ class TryBlockStatementAST final : public StatementAST {
 
 class AccessDeclarationAST final : public DeclarationAST {
  public:
-  AccessDeclarationAST() : DeclarationAST(ASTKind::AccessDeclaration) {}
+  static constexpr ASTKind Kind = ASTKind::AccessDeclaration;
+
+  AccessDeclarationAST() : DeclarationAST(Kind) {}
 
   SourceLocation accessLoc;
   SourceLocation colonLoc;
@@ -2122,7 +2358,9 @@ class AccessDeclarationAST final : public DeclarationAST {
 
 class FunctionDefinitionAST final : public DeclarationAST {
  public:
-  FunctionDefinitionAST() : DeclarationAST(ASTKind::FunctionDefinition) {}
+  static constexpr ASTKind Kind = ASTKind::FunctionDefinition;
+
+  FunctionDefinitionAST() : DeclarationAST(Kind) {}
 
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   List<SpecifierAST*>* declSpecifierList = nullptr;
@@ -2138,7 +2376,9 @@ class FunctionDefinitionAST final : public DeclarationAST {
 
 class ConceptDefinitionAST final : public DeclarationAST {
  public:
-  ConceptDefinitionAST() : DeclarationAST(ASTKind::ConceptDefinition) {}
+  static constexpr ASTKind Kind = ASTKind::ConceptDefinition;
+
+  ConceptDefinitionAST() : DeclarationAST(Kind) {}
 
   SourceLocation conceptLoc;
   SourceLocation identifierLoc;
@@ -2155,7 +2395,9 @@ class ConceptDefinitionAST final : public DeclarationAST {
 
 class ForRangeDeclarationAST final : public DeclarationAST {
  public:
-  ForRangeDeclarationAST() : DeclarationAST(ASTKind::ForRangeDeclaration) {}
+  static constexpr ASTKind Kind = ASTKind::ForRangeDeclaration;
+
+  ForRangeDeclarationAST() : DeclarationAST(Kind) {}
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2165,7 +2407,9 @@ class ForRangeDeclarationAST final : public DeclarationAST {
 
 class AliasDeclarationAST final : public DeclarationAST {
  public:
-  AliasDeclarationAST() : DeclarationAST(ASTKind::AliasDeclaration) {}
+  static constexpr ASTKind Kind = ASTKind::AliasDeclaration;
+
+  AliasDeclarationAST() : DeclarationAST(Kind) {}
 
   SourceLocation usingLoc;
   SourceLocation identifierLoc;
@@ -2183,7 +2427,9 @@ class AliasDeclarationAST final : public DeclarationAST {
 
 class SimpleDeclarationAST final : public DeclarationAST {
  public:
-  SimpleDeclarationAST() : DeclarationAST(ASTKind::SimpleDeclaration) {}
+  static constexpr ASTKind Kind = ASTKind::SimpleDeclaration;
+
+  SimpleDeclarationAST() : DeclarationAST(Kind) {}
 
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   List<SpecifierAST*>* declSpecifierList = nullptr;
@@ -2199,8 +2445,9 @@ class SimpleDeclarationAST final : public DeclarationAST {
 
 class StructuredBindingDeclarationAST final : public DeclarationAST {
  public:
-  StructuredBindingDeclarationAST()
-      : DeclarationAST(ASTKind::StructuredBindingDeclaration) {}
+  static constexpr ASTKind Kind = ASTKind::StructuredBindingDeclaration;
+
+  StructuredBindingDeclarationAST() : DeclarationAST(Kind) {}
 
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   List<SpecifierAST*>* declSpecifierList = nullptr;
@@ -2219,8 +2466,9 @@ class StructuredBindingDeclarationAST final : public DeclarationAST {
 
 class StaticAssertDeclarationAST final : public DeclarationAST {
  public:
-  StaticAssertDeclarationAST()
-      : DeclarationAST(ASTKind::StaticAssertDeclaration) {}
+  static constexpr ASTKind Kind = ASTKind::StaticAssertDeclaration;
+
+  StaticAssertDeclarationAST() : DeclarationAST(Kind) {}
 
   SourceLocation staticAssertLoc;
   SourceLocation lparenLoc;
@@ -2239,7 +2487,9 @@ class StaticAssertDeclarationAST final : public DeclarationAST {
 
 class EmptyDeclarationAST final : public DeclarationAST {
  public:
-  EmptyDeclarationAST() : DeclarationAST(ASTKind::EmptyDeclaration) {}
+  static constexpr ASTKind Kind = ASTKind::EmptyDeclaration;
+
+  EmptyDeclarationAST() : DeclarationAST(Kind) {}
 
   SourceLocation semicolonLoc;
 
@@ -2251,7 +2501,9 @@ class EmptyDeclarationAST final : public DeclarationAST {
 
 class AttributeDeclarationAST final : public DeclarationAST {
  public:
-  AttributeDeclarationAST() : DeclarationAST(ASTKind::AttributeDeclaration) {}
+  static constexpr ASTKind Kind = ASTKind::AttributeDeclaration;
+
+  AttributeDeclarationAST() : DeclarationAST(Kind) {}
 
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation semicolonLoc;
@@ -2264,7 +2516,9 @@ class AttributeDeclarationAST final : public DeclarationAST {
 
 class OpaqueEnumDeclarationAST final : public DeclarationAST {
  public:
-  OpaqueEnumDeclarationAST() : DeclarationAST(ASTKind::OpaqueEnumDeclaration) {}
+  static constexpr ASTKind Kind = ASTKind::OpaqueEnumDeclaration;
+
+  OpaqueEnumDeclarationAST() : DeclarationAST(Kind) {}
 
   SourceLocation enumLoc;
   SourceLocation classLoc;
@@ -2282,7 +2536,9 @@ class OpaqueEnumDeclarationAST final : public DeclarationAST {
 
 class NamespaceDefinitionAST final : public DeclarationAST {
  public:
-  NamespaceDefinitionAST() : DeclarationAST(ASTKind::NamespaceDefinition) {}
+  static constexpr ASTKind Kind = ASTKind::NamespaceDefinition;
+
+  NamespaceDefinitionAST() : DeclarationAST(Kind) {}
 
   SourceLocation inlineLoc;
   SourceLocation namespaceLoc;
@@ -2304,8 +2560,9 @@ class NamespaceDefinitionAST final : public DeclarationAST {
 
 class NamespaceAliasDefinitionAST final : public DeclarationAST {
  public:
-  NamespaceAliasDefinitionAST()
-      : DeclarationAST(ASTKind::NamespaceAliasDefinition) {}
+  static constexpr ASTKind Kind = ASTKind::NamespaceAliasDefinition;
+
+  NamespaceAliasDefinitionAST() : DeclarationAST(Kind) {}
 
   SourceLocation namespaceLoc;
   SourceLocation identifierLoc;
@@ -2323,7 +2580,9 @@ class NamespaceAliasDefinitionAST final : public DeclarationAST {
 
 class UsingDirectiveAST final : public DeclarationAST {
  public:
-  UsingDirectiveAST() : DeclarationAST(ASTKind::UsingDirective) {}
+  static constexpr ASTKind Kind = ASTKind::UsingDirective;
+
+  UsingDirectiveAST() : DeclarationAST(Kind) {}
 
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation usingLoc;
@@ -2340,7 +2599,9 @@ class UsingDirectiveAST final : public DeclarationAST {
 
 class UsingDeclarationAST final : public DeclarationAST {
  public:
-  UsingDeclarationAST() : DeclarationAST(ASTKind::UsingDeclaration) {}
+  static constexpr ASTKind Kind = ASTKind::UsingDeclaration;
+
+  UsingDeclarationAST() : DeclarationAST(Kind) {}
 
   SourceLocation usingLoc;
   List<UsingDeclaratorAST*>* usingDeclaratorList = nullptr;
@@ -2354,7 +2615,9 @@ class UsingDeclarationAST final : public DeclarationAST {
 
 class UsingEnumDeclarationAST final : public DeclarationAST {
  public:
-  UsingEnumDeclarationAST() : DeclarationAST(ASTKind::UsingEnumDeclaration) {}
+  static constexpr ASTKind Kind = ASTKind::UsingEnumDeclaration;
+
+  UsingEnumDeclarationAST() : DeclarationAST(Kind) {}
 
   SourceLocation usingLoc;
   ElaboratedTypeSpecifierAST* enumTypeSpecifier = nullptr;
@@ -2368,7 +2631,9 @@ class UsingEnumDeclarationAST final : public DeclarationAST {
 
 class AsmDeclarationAST final : public DeclarationAST {
  public:
-  AsmDeclarationAST() : DeclarationAST(ASTKind::AsmDeclaration) {}
+  static constexpr ASTKind Kind = ASTKind::AsmDeclaration;
+
+  AsmDeclarationAST() : DeclarationAST(Kind) {}
 
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation asmLoc;
@@ -2386,7 +2651,9 @@ class AsmDeclarationAST final : public DeclarationAST {
 
 class ExportDeclarationAST final : public DeclarationAST {
  public:
-  ExportDeclarationAST() : DeclarationAST(ASTKind::ExportDeclaration) {}
+  static constexpr ASTKind Kind = ASTKind::ExportDeclaration;
+
+  ExportDeclarationAST() : DeclarationAST(Kind) {}
 
   SourceLocation exportLoc;
   DeclarationAST* declaration = nullptr;
@@ -2399,8 +2666,9 @@ class ExportDeclarationAST final : public DeclarationAST {
 
 class ExportCompoundDeclarationAST final : public DeclarationAST {
  public:
-  ExportCompoundDeclarationAST()
-      : DeclarationAST(ASTKind::ExportCompoundDeclaration) {}
+  static constexpr ASTKind Kind = ASTKind::ExportCompoundDeclaration;
+
+  ExportCompoundDeclarationAST() : DeclarationAST(Kind) {}
 
   SourceLocation exportLoc;
   SourceLocation lbraceLoc;
@@ -2415,8 +2683,9 @@ class ExportCompoundDeclarationAST final : public DeclarationAST {
 
 class ModuleImportDeclarationAST final : public DeclarationAST {
  public:
-  ModuleImportDeclarationAST()
-      : DeclarationAST(ASTKind::ModuleImportDeclaration) {}
+  static constexpr ASTKind Kind = ASTKind::ModuleImportDeclaration;
+
+  ModuleImportDeclarationAST() : DeclarationAST(Kind) {}
 
   SourceLocation importLoc;
   ImportNameAST* importName = nullptr;
@@ -2431,7 +2700,9 @@ class ModuleImportDeclarationAST final : public DeclarationAST {
 
 class TemplateDeclarationAST final : public DeclarationAST {
  public:
-  TemplateDeclarationAST() : DeclarationAST(ASTKind::TemplateDeclaration) {}
+  static constexpr ASTKind Kind = ASTKind::TemplateDeclaration;
+
+  TemplateDeclarationAST() : DeclarationAST(Kind) {}
 
   SourceLocation templateLoc;
   SourceLocation lessLoc;
@@ -2448,7 +2719,9 @@ class TemplateDeclarationAST final : public DeclarationAST {
 
 class TypenameTypeParameterAST final : public DeclarationAST {
  public:
-  TypenameTypeParameterAST() : DeclarationAST(ASTKind::TypenameTypeParameter) {}
+  static constexpr ASTKind Kind = ASTKind::TypenameTypeParameter;
+
+  TypenameTypeParameterAST() : DeclarationAST(Kind) {}
 
   SourceLocation classKeyLoc;
   SourceLocation ellipsisLoc;
@@ -2465,7 +2738,9 @@ class TypenameTypeParameterAST final : public DeclarationAST {
 
 class TemplateTypeParameterAST final : public DeclarationAST {
  public:
-  TemplateTypeParameterAST() : DeclarationAST(ASTKind::TemplateTypeParameter) {}
+  static constexpr ASTKind Kind = ASTKind::TemplateTypeParameter;
+
+  TemplateTypeParameterAST() : DeclarationAST(Kind) {}
 
   SourceLocation templateLoc;
   SourceLocation lessLoc;
@@ -2486,8 +2761,9 @@ class TemplateTypeParameterAST final : public DeclarationAST {
 
 class TemplatePackTypeParameterAST final : public DeclarationAST {
  public:
-  TemplatePackTypeParameterAST()
-      : DeclarationAST(ASTKind::TemplatePackTypeParameter) {}
+  static constexpr ASTKind Kind = ASTKind::TemplatePackTypeParameter;
+
+  TemplatePackTypeParameterAST() : DeclarationAST(Kind) {}
 
   SourceLocation templateLoc;
   SourceLocation lessLoc;
@@ -2506,7 +2782,9 @@ class TemplatePackTypeParameterAST final : public DeclarationAST {
 
 class DeductionGuideAST final : public DeclarationAST {
  public:
-  DeductionGuideAST() : DeclarationAST(ASTKind::DeductionGuide) {}
+  static constexpr ASTKind Kind = ASTKind::DeductionGuide;
+
+  DeductionGuideAST() : DeclarationAST(Kind) {}
 
   SpecifierAST* explicitSpecifier = nullptr;
   SourceLocation identifierLoc;
@@ -2526,7 +2804,9 @@ class DeductionGuideAST final : public DeclarationAST {
 
 class ExplicitInstantiationAST final : public DeclarationAST {
  public:
-  ExplicitInstantiationAST() : DeclarationAST(ASTKind::ExplicitInstantiation) {}
+  static constexpr ASTKind Kind = ASTKind::ExplicitInstantiation;
+
+  ExplicitInstantiationAST() : DeclarationAST(Kind) {}
 
   SourceLocation externLoc;
   SourceLocation templateLoc;
@@ -2540,7 +2820,9 @@ class ExplicitInstantiationAST final : public DeclarationAST {
 
 class ParameterDeclarationAST final : public DeclarationAST {
  public:
-  ParameterDeclarationAST() : DeclarationAST(ASTKind::ParameterDeclaration) {}
+  static constexpr ASTKind Kind = ASTKind::ParameterDeclaration;
+
+  ParameterDeclarationAST() : DeclarationAST(Kind) {}
 
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   List<SpecifierAST*>* typeSpecifierList = nullptr;
@@ -2556,7 +2838,9 @@ class ParameterDeclarationAST final : public DeclarationAST {
 
 class LinkageSpecificationAST final : public DeclarationAST {
  public:
-  LinkageSpecificationAST() : DeclarationAST(ASTKind::LinkageSpecification) {}
+  static constexpr ASTKind Kind = ASTKind::LinkageSpecification;
+
+  LinkageSpecificationAST() : DeclarationAST(Kind) {}
 
   SourceLocation externLoc;
   SourceLocation stringliteralLoc;
@@ -2573,7 +2857,9 @@ class LinkageSpecificationAST final : public DeclarationAST {
 
 class NameIdAST final : public UnqualifiedIdAST {
  public:
-  NameIdAST() : UnqualifiedIdAST(ASTKind::NameId) {}
+  static constexpr ASTKind Kind = ASTKind::NameId;
+
+  NameIdAST() : UnqualifiedIdAST(Kind) {}
 
   SourceLocation identifierLoc;
   const Identifier* identifier = nullptr;
@@ -2586,7 +2872,9 @@ class NameIdAST final : public UnqualifiedIdAST {
 
 class DestructorIdAST final : public UnqualifiedIdAST {
  public:
-  DestructorIdAST() : UnqualifiedIdAST(ASTKind::DestructorId) {}
+  static constexpr ASTKind Kind = ASTKind::DestructorId;
+
+  DestructorIdAST() : UnqualifiedIdAST(Kind) {}
 
   SourceLocation tildeLoc;
   UnqualifiedIdAST* id = nullptr;
@@ -2599,7 +2887,9 @@ class DestructorIdAST final : public UnqualifiedIdAST {
 
 class DecltypeIdAST final : public UnqualifiedIdAST {
  public:
-  DecltypeIdAST() : UnqualifiedIdAST(ASTKind::DecltypeId) {}
+  static constexpr ASTKind Kind = ASTKind::DecltypeId;
+
+  DecltypeIdAST() : UnqualifiedIdAST(Kind) {}
 
   DecltypeSpecifierAST* decltypeSpecifier = nullptr;
 
@@ -2611,7 +2901,9 @@ class DecltypeIdAST final : public UnqualifiedIdAST {
 
 class OperatorFunctionIdAST final : public UnqualifiedIdAST {
  public:
-  OperatorFunctionIdAST() : UnqualifiedIdAST(ASTKind::OperatorFunctionId) {}
+  static constexpr ASTKind Kind = ASTKind::OperatorFunctionId;
+
+  OperatorFunctionIdAST() : UnqualifiedIdAST(Kind) {}
 
   SourceLocation operatorLoc;
   SourceLocation opLoc;
@@ -2627,7 +2919,9 @@ class OperatorFunctionIdAST final : public UnqualifiedIdAST {
 
 class LiteralOperatorIdAST final : public UnqualifiedIdAST {
  public:
-  LiteralOperatorIdAST() : UnqualifiedIdAST(ASTKind::LiteralOperatorId) {}
+  static constexpr ASTKind Kind = ASTKind::LiteralOperatorId;
+
+  LiteralOperatorIdAST() : UnqualifiedIdAST(Kind) {}
 
   SourceLocation operatorLoc;
   SourceLocation literalLoc;
@@ -2643,7 +2937,9 @@ class LiteralOperatorIdAST final : public UnqualifiedIdAST {
 
 class ConversionFunctionIdAST final : public UnqualifiedIdAST {
  public:
-  ConversionFunctionIdAST() : UnqualifiedIdAST(ASTKind::ConversionFunctionId) {}
+  static constexpr ASTKind Kind = ASTKind::ConversionFunctionId;
+
+  ConversionFunctionIdAST() : UnqualifiedIdAST(Kind) {}
 
   SourceLocation operatorLoc;
   TypeIdAST* typeId = nullptr;
@@ -2656,7 +2952,9 @@ class ConversionFunctionIdAST final : public UnqualifiedIdAST {
 
 class SimpleTemplateIdAST final : public UnqualifiedIdAST {
  public:
-  SimpleTemplateIdAST() : UnqualifiedIdAST(ASTKind::SimpleTemplateId) {}
+  static constexpr ASTKind Kind = ASTKind::SimpleTemplateId;
+
+  SimpleTemplateIdAST() : UnqualifiedIdAST(Kind) {}
 
   SourceLocation identifierLoc;
   SourceLocation lessLoc;
@@ -2672,8 +2970,9 @@ class SimpleTemplateIdAST final : public UnqualifiedIdAST {
 
 class LiteralOperatorTemplateIdAST final : public UnqualifiedIdAST {
  public:
-  LiteralOperatorTemplateIdAST()
-      : UnqualifiedIdAST(ASTKind::LiteralOperatorTemplateId) {}
+  static constexpr ASTKind Kind = ASTKind::LiteralOperatorTemplateId;
+
+  LiteralOperatorTemplateIdAST() : UnqualifiedIdAST(Kind) {}
 
   LiteralOperatorIdAST* literalOperatorId = nullptr;
   SourceLocation lessLoc;
@@ -2688,8 +2987,9 @@ class LiteralOperatorTemplateIdAST final : public UnqualifiedIdAST {
 
 class OperatorFunctionTemplateIdAST final : public UnqualifiedIdAST {
  public:
-  OperatorFunctionTemplateIdAST()
-      : UnqualifiedIdAST(ASTKind::OperatorFunctionTemplateId) {}
+  static constexpr ASTKind Kind = ASTKind::OperatorFunctionTemplateId;
+
+  OperatorFunctionTemplateIdAST() : UnqualifiedIdAST(Kind) {}
 
   OperatorFunctionIdAST* operatorFunctionId = nullptr;
   SourceLocation lessLoc;
@@ -2704,7 +3004,9 @@ class OperatorFunctionTemplateIdAST final : public UnqualifiedIdAST {
 
 class TypedefSpecifierAST final : public SpecifierAST {
  public:
-  TypedefSpecifierAST() : SpecifierAST(ASTKind::TypedefSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::TypedefSpecifier;
+
+  TypedefSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation typedefLoc;
 
@@ -2716,7 +3018,9 @@ class TypedefSpecifierAST final : public SpecifierAST {
 
 class FriendSpecifierAST final : public SpecifierAST {
  public:
-  FriendSpecifierAST() : SpecifierAST(ASTKind::FriendSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::FriendSpecifier;
+
+  FriendSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation friendLoc;
 
@@ -2728,7 +3032,9 @@ class FriendSpecifierAST final : public SpecifierAST {
 
 class ConstevalSpecifierAST final : public SpecifierAST {
  public:
-  ConstevalSpecifierAST() : SpecifierAST(ASTKind::ConstevalSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::ConstevalSpecifier;
+
+  ConstevalSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation constevalLoc;
 
@@ -2740,7 +3046,9 @@ class ConstevalSpecifierAST final : public SpecifierAST {
 
 class ConstinitSpecifierAST final : public SpecifierAST {
  public:
-  ConstinitSpecifierAST() : SpecifierAST(ASTKind::ConstinitSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::ConstinitSpecifier;
+
+  ConstinitSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation constinitLoc;
 
@@ -2752,7 +3060,9 @@ class ConstinitSpecifierAST final : public SpecifierAST {
 
 class ConstexprSpecifierAST final : public SpecifierAST {
  public:
-  ConstexprSpecifierAST() : SpecifierAST(ASTKind::ConstexprSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::ConstexprSpecifier;
+
+  ConstexprSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation constexprLoc;
 
@@ -2764,7 +3074,9 @@ class ConstexprSpecifierAST final : public SpecifierAST {
 
 class InlineSpecifierAST final : public SpecifierAST {
  public:
-  InlineSpecifierAST() : SpecifierAST(ASTKind::InlineSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::InlineSpecifier;
+
+  InlineSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation inlineLoc;
 
@@ -2776,7 +3088,9 @@ class InlineSpecifierAST final : public SpecifierAST {
 
 class StaticSpecifierAST final : public SpecifierAST {
  public:
-  StaticSpecifierAST() : SpecifierAST(ASTKind::StaticSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::StaticSpecifier;
+
+  StaticSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation staticLoc;
 
@@ -2788,7 +3102,9 @@ class StaticSpecifierAST final : public SpecifierAST {
 
 class ExternSpecifierAST final : public SpecifierAST {
  public:
-  ExternSpecifierAST() : SpecifierAST(ASTKind::ExternSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::ExternSpecifier;
+
+  ExternSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation externLoc;
 
@@ -2800,7 +3116,9 @@ class ExternSpecifierAST final : public SpecifierAST {
 
 class ThreadLocalSpecifierAST final : public SpecifierAST {
  public:
-  ThreadLocalSpecifierAST() : SpecifierAST(ASTKind::ThreadLocalSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::ThreadLocalSpecifier;
+
+  ThreadLocalSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation threadLocalLoc;
 
@@ -2812,7 +3130,9 @@ class ThreadLocalSpecifierAST final : public SpecifierAST {
 
 class ThreadSpecifierAST final : public SpecifierAST {
  public:
-  ThreadSpecifierAST() : SpecifierAST(ASTKind::ThreadSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::ThreadSpecifier;
+
+  ThreadSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation threadLoc;
 
@@ -2824,7 +3144,9 @@ class ThreadSpecifierAST final : public SpecifierAST {
 
 class MutableSpecifierAST final : public SpecifierAST {
  public:
-  MutableSpecifierAST() : SpecifierAST(ASTKind::MutableSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::MutableSpecifier;
+
+  MutableSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation mutableLoc;
 
@@ -2836,7 +3158,9 @@ class MutableSpecifierAST final : public SpecifierAST {
 
 class VirtualSpecifierAST final : public SpecifierAST {
  public:
-  VirtualSpecifierAST() : SpecifierAST(ASTKind::VirtualSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::VirtualSpecifier;
+
+  VirtualSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation virtualLoc;
 
@@ -2848,7 +3172,9 @@ class VirtualSpecifierAST final : public SpecifierAST {
 
 class ExplicitSpecifierAST final : public SpecifierAST {
  public:
-  ExplicitSpecifierAST() : SpecifierAST(ASTKind::ExplicitSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::ExplicitSpecifier;
+
+  ExplicitSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation explicitLoc;
   SourceLocation lparenLoc;
@@ -2863,7 +3189,9 @@ class ExplicitSpecifierAST final : public SpecifierAST {
 
 class AutoTypeSpecifierAST final : public SpecifierAST {
  public:
-  AutoTypeSpecifierAST() : SpecifierAST(ASTKind::AutoTypeSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::AutoTypeSpecifier;
+
+  AutoTypeSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation autoLoc;
 
@@ -2875,7 +3203,9 @@ class AutoTypeSpecifierAST final : public SpecifierAST {
 
 class VoidTypeSpecifierAST final : public SpecifierAST {
  public:
-  VoidTypeSpecifierAST() : SpecifierAST(ASTKind::VoidTypeSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::VoidTypeSpecifier;
+
+  VoidTypeSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation voidLoc;
 
@@ -2887,7 +3217,9 @@ class VoidTypeSpecifierAST final : public SpecifierAST {
 
 class SizeTypeSpecifierAST final : public SpecifierAST {
  public:
-  SizeTypeSpecifierAST() : SpecifierAST(ASTKind::SizeTypeSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::SizeTypeSpecifier;
+
+  SizeTypeSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation specifierLoc;
   TokenKind specifier = TokenKind::T_EOF_SYMBOL;
@@ -2900,7 +3232,9 @@ class SizeTypeSpecifierAST final : public SpecifierAST {
 
 class SignTypeSpecifierAST final : public SpecifierAST {
  public:
-  SignTypeSpecifierAST() : SpecifierAST(ASTKind::SignTypeSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::SignTypeSpecifier;
+
+  SignTypeSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation specifierLoc;
   TokenKind specifier = TokenKind::T_EOF_SYMBOL;
@@ -2913,7 +3247,9 @@ class SignTypeSpecifierAST final : public SpecifierAST {
 
 class VaListTypeSpecifierAST final : public SpecifierAST {
  public:
-  VaListTypeSpecifierAST() : SpecifierAST(ASTKind::VaListTypeSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::VaListTypeSpecifier;
+
+  VaListTypeSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation specifierLoc;
   TokenKind specifier = TokenKind::T_EOF_SYMBOL;
@@ -2926,7 +3262,9 @@ class VaListTypeSpecifierAST final : public SpecifierAST {
 
 class IntegralTypeSpecifierAST final : public SpecifierAST {
  public:
-  IntegralTypeSpecifierAST() : SpecifierAST(ASTKind::IntegralTypeSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::IntegralTypeSpecifier;
+
+  IntegralTypeSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation specifierLoc;
   TokenKind specifier = TokenKind::T_EOF_SYMBOL;
@@ -2939,8 +3277,9 @@ class IntegralTypeSpecifierAST final : public SpecifierAST {
 
 class FloatingPointTypeSpecifierAST final : public SpecifierAST {
  public:
-  FloatingPointTypeSpecifierAST()
-      : SpecifierAST(ASTKind::FloatingPointTypeSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::FloatingPointTypeSpecifier;
+
+  FloatingPointTypeSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation specifierLoc;
   TokenKind specifier = TokenKind::T_EOF_SYMBOL;
@@ -2953,7 +3292,9 @@ class FloatingPointTypeSpecifierAST final : public SpecifierAST {
 
 class ComplexTypeSpecifierAST final : public SpecifierAST {
  public:
-  ComplexTypeSpecifierAST() : SpecifierAST(ASTKind::ComplexTypeSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::ComplexTypeSpecifier;
+
+  ComplexTypeSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation complexLoc;
 
@@ -2965,7 +3306,9 @@ class ComplexTypeSpecifierAST final : public SpecifierAST {
 
 class NamedTypeSpecifierAST final : public SpecifierAST {
  public:
-  NamedTypeSpecifierAST() : SpecifierAST(ASTKind::NamedTypeSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::NamedTypeSpecifier;
+
+  NamedTypeSpecifierAST() : SpecifierAST(Kind) {}
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   SourceLocation templateLoc;
@@ -2980,7 +3323,9 @@ class NamedTypeSpecifierAST final : public SpecifierAST {
 
 class AtomicTypeSpecifierAST final : public SpecifierAST {
  public:
-  AtomicTypeSpecifierAST() : SpecifierAST(ASTKind::AtomicTypeSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::AtomicTypeSpecifier;
+
+  AtomicTypeSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation atomicLoc;
   SourceLocation lparenLoc;
@@ -2995,8 +3340,9 @@ class AtomicTypeSpecifierAST final : public SpecifierAST {
 
 class UnderlyingTypeSpecifierAST final : public SpecifierAST {
  public:
-  UnderlyingTypeSpecifierAST()
-      : SpecifierAST(ASTKind::UnderlyingTypeSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::UnderlyingTypeSpecifier;
+
+  UnderlyingTypeSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation underlyingTypeLoc;
   SourceLocation lparenLoc;
@@ -3011,8 +3357,9 @@ class UnderlyingTypeSpecifierAST final : public SpecifierAST {
 
 class ElaboratedTypeSpecifierAST final : public SpecifierAST {
  public:
-  ElaboratedTypeSpecifierAST()
-      : SpecifierAST(ASTKind::ElaboratedTypeSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::ElaboratedTypeSpecifier;
+
+  ElaboratedTypeSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation classLoc;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
@@ -3028,7 +3375,9 @@ class ElaboratedTypeSpecifierAST final : public SpecifierAST {
 
 class DecltypeAutoSpecifierAST final : public SpecifierAST {
  public:
-  DecltypeAutoSpecifierAST() : SpecifierAST(ASTKind::DecltypeAutoSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::DecltypeAutoSpecifier;
+
+  DecltypeAutoSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation decltypeLoc;
   SourceLocation lparenLoc;
@@ -3043,7 +3392,9 @@ class DecltypeAutoSpecifierAST final : public SpecifierAST {
 
 class DecltypeSpecifierAST final : public SpecifierAST {
  public:
-  DecltypeSpecifierAST() : SpecifierAST(ASTKind::DecltypeSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::DecltypeSpecifier;
+
+  DecltypeSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation decltypeLoc;
   SourceLocation lparenLoc;
@@ -3058,8 +3409,9 @@ class DecltypeSpecifierAST final : public SpecifierAST {
 
 class PlaceholderTypeSpecifierAST final : public SpecifierAST {
  public:
-  PlaceholderTypeSpecifierAST()
-      : SpecifierAST(ASTKind::PlaceholderTypeSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::PlaceholderTypeSpecifier;
+
+  PlaceholderTypeSpecifierAST() : SpecifierAST(Kind) {}
 
   TypeConstraintAST* typeConstraint = nullptr;
   SpecifierAST* specifier = nullptr;
@@ -3072,7 +3424,9 @@ class PlaceholderTypeSpecifierAST final : public SpecifierAST {
 
 class ConstQualifierAST final : public SpecifierAST {
  public:
-  ConstQualifierAST() : SpecifierAST(ASTKind::ConstQualifier) {}
+  static constexpr ASTKind Kind = ASTKind::ConstQualifier;
+
+  ConstQualifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation constLoc;
 
@@ -3084,7 +3438,9 @@ class ConstQualifierAST final : public SpecifierAST {
 
 class VolatileQualifierAST final : public SpecifierAST {
  public:
-  VolatileQualifierAST() : SpecifierAST(ASTKind::VolatileQualifier) {}
+  static constexpr ASTKind Kind = ASTKind::VolatileQualifier;
+
+  VolatileQualifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation volatileLoc;
 
@@ -3096,7 +3452,9 @@ class VolatileQualifierAST final : public SpecifierAST {
 
 class RestrictQualifierAST final : public SpecifierAST {
  public:
-  RestrictQualifierAST() : SpecifierAST(ASTKind::RestrictQualifier) {}
+  static constexpr ASTKind Kind = ASTKind::RestrictQualifier;
+
+  RestrictQualifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation restrictLoc;
 
@@ -3108,7 +3466,9 @@ class RestrictQualifierAST final : public SpecifierAST {
 
 class EnumSpecifierAST final : public SpecifierAST {
  public:
-  EnumSpecifierAST() : SpecifierAST(ASTKind::EnumSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::EnumSpecifier;
+
+  EnumSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation enumLoc;
   SourceLocation classLoc;
@@ -3129,7 +3489,9 @@ class EnumSpecifierAST final : public SpecifierAST {
 
 class ClassSpecifierAST final : public SpecifierAST {
  public:
-  ClassSpecifierAST() : SpecifierAST(ASTKind::ClassSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::ClassSpecifier;
+
+  ClassSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation classLoc;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
@@ -3151,7 +3513,9 @@ class ClassSpecifierAST final : public SpecifierAST {
 
 class TypenameSpecifierAST final : public SpecifierAST {
  public:
-  TypenameSpecifierAST() : SpecifierAST(ASTKind::TypenameSpecifier) {}
+  static constexpr ASTKind Kind = ASTKind::TypenameSpecifier;
+
+  TypenameSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation typenameLoc;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
@@ -3165,7 +3529,9 @@ class TypenameSpecifierAST final : public SpecifierAST {
 
 class BitfieldDeclaratorAST final : public CoreDeclaratorAST {
  public:
-  BitfieldDeclaratorAST() : CoreDeclaratorAST(ASTKind::BitfieldDeclarator) {}
+  static constexpr ASTKind Kind = ASTKind::BitfieldDeclarator;
+
+  BitfieldDeclaratorAST() : CoreDeclaratorAST(Kind) {}
 
   SourceLocation identifierLoc;
   SourceLocation colonLoc;
@@ -3180,7 +3546,9 @@ class BitfieldDeclaratorAST final : public CoreDeclaratorAST {
 
 class ParameterPackAST final : public CoreDeclaratorAST {
  public:
-  ParameterPackAST() : CoreDeclaratorAST(ASTKind::ParameterPack) {}
+  static constexpr ASTKind Kind = ASTKind::ParameterPack;
+
+  ParameterPackAST() : CoreDeclaratorAST(Kind) {}
 
   SourceLocation ellipsisLoc;
   CoreDeclaratorAST* coreDeclarator = nullptr;
@@ -3193,7 +3561,9 @@ class ParameterPackAST final : public CoreDeclaratorAST {
 
 class IdDeclaratorAST final : public CoreDeclaratorAST {
  public:
-  IdDeclaratorAST() : CoreDeclaratorAST(ASTKind::IdDeclarator) {}
+  static constexpr ASTKind Kind = ASTKind::IdDeclarator;
+
+  IdDeclaratorAST() : CoreDeclaratorAST(Kind) {}
 
   IdExpressionAST* declaratorId = nullptr;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
@@ -3206,7 +3576,9 @@ class IdDeclaratorAST final : public CoreDeclaratorAST {
 
 class NestedDeclaratorAST final : public CoreDeclaratorAST {
  public:
-  NestedDeclaratorAST() : CoreDeclaratorAST(ASTKind::NestedDeclarator) {}
+  static constexpr ASTKind Kind = ASTKind::NestedDeclarator;
+
+  NestedDeclaratorAST() : CoreDeclaratorAST(Kind) {}
 
   SourceLocation lparenLoc;
   DeclaratorAST* declarator = nullptr;
@@ -3220,7 +3592,9 @@ class NestedDeclaratorAST final : public CoreDeclaratorAST {
 
 class PointerOperatorAST final : public PtrOperatorAST {
  public:
-  PointerOperatorAST() : PtrOperatorAST(ASTKind::PointerOperator) {}
+  static constexpr ASTKind Kind = ASTKind::PointerOperator;
+
+  PointerOperatorAST() : PtrOperatorAST(Kind) {}
 
   SourceLocation starLoc;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
@@ -3234,7 +3608,9 @@ class PointerOperatorAST final : public PtrOperatorAST {
 
 class ReferenceOperatorAST final : public PtrOperatorAST {
  public:
-  ReferenceOperatorAST() : PtrOperatorAST(ASTKind::ReferenceOperator) {}
+  static constexpr ASTKind Kind = ASTKind::ReferenceOperator;
+
+  ReferenceOperatorAST() : PtrOperatorAST(Kind) {}
 
   SourceLocation refLoc;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
@@ -3248,7 +3624,9 @@ class ReferenceOperatorAST final : public PtrOperatorAST {
 
 class PtrToMemberOperatorAST final : public PtrOperatorAST {
  public:
-  PtrToMemberOperatorAST() : PtrOperatorAST(ASTKind::PtrToMemberOperator) {}
+  static constexpr ASTKind Kind = ASTKind::PtrToMemberOperator;
+
+  PtrToMemberOperatorAST() : PtrOperatorAST(Kind) {}
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   SourceLocation starLoc;
@@ -3263,8 +3641,9 @@ class PtrToMemberOperatorAST final : public PtrOperatorAST {
 
 class FunctionDeclaratorChunkAST final : public DeclaratorChunkAST {
  public:
-  FunctionDeclaratorChunkAST()
-      : DeclaratorChunkAST(ASTKind::FunctionDeclaratorChunk) {}
+  static constexpr ASTKind Kind = ASTKind::FunctionDeclaratorChunk;
+
+  FunctionDeclaratorChunkAST() : DeclaratorChunkAST(Kind) {}
 
   ParametersAndQualifiersAST* parametersAndQualifiers = nullptr;
   TrailingReturnTypeAST* trailingReturnType = nullptr;
@@ -3280,8 +3659,9 @@ class FunctionDeclaratorChunkAST final : public DeclaratorChunkAST {
 
 class ArrayDeclaratorChunkAST final : public DeclaratorChunkAST {
  public:
-  ArrayDeclaratorChunkAST()
-      : DeclaratorChunkAST(ASTKind::ArrayDeclaratorChunk) {}
+  static constexpr ASTKind Kind = ASTKind::ArrayDeclaratorChunk;
+
+  ArrayDeclaratorChunkAST() : DeclaratorChunkAST(Kind) {}
 
   SourceLocation lbracketLoc;
   ExpressionAST* expression = nullptr;
@@ -3296,7 +3676,9 @@ class ArrayDeclaratorChunkAST final : public DeclaratorChunkAST {
 
 class CxxAttributeAST final : public AttributeSpecifierAST {
  public:
-  CxxAttributeAST() : AttributeSpecifierAST(ASTKind::CxxAttribute) {}
+  static constexpr ASTKind Kind = ASTKind::CxxAttribute;
+
+  CxxAttributeAST() : AttributeSpecifierAST(Kind) {}
 
   SourceLocation lbracketLoc;
   SourceLocation lbracket2Loc;
@@ -3313,7 +3695,9 @@ class CxxAttributeAST final : public AttributeSpecifierAST {
 
 class GccAttributeAST final : public AttributeSpecifierAST {
  public:
-  GccAttributeAST() : AttributeSpecifierAST(ASTKind::GccAttribute) {}
+  static constexpr ASTKind Kind = ASTKind::GccAttribute;
+
+  GccAttributeAST() : AttributeSpecifierAST(Kind) {}
 
   SourceLocation attributeLoc;
   SourceLocation lparenLoc;
@@ -3329,7 +3713,9 @@ class GccAttributeAST final : public AttributeSpecifierAST {
 
 class AlignasAttributeAST final : public AttributeSpecifierAST {
  public:
-  AlignasAttributeAST() : AttributeSpecifierAST(ASTKind::AlignasAttribute) {}
+  static constexpr ASTKind Kind = ASTKind::AlignasAttribute;
+
+  AlignasAttributeAST() : AttributeSpecifierAST(Kind) {}
 
   SourceLocation alignasLoc;
   SourceLocation lparenLoc;
@@ -3345,7 +3731,9 @@ class AlignasAttributeAST final : public AttributeSpecifierAST {
 
 class AsmAttributeAST final : public AttributeSpecifierAST {
  public:
-  AsmAttributeAST() : AttributeSpecifierAST(ASTKind::AsmAttribute) {}
+  static constexpr ASTKind Kind = ASTKind::AsmAttribute;
+
+  AsmAttributeAST() : AttributeSpecifierAST(Kind) {}
 
   SourceLocation asmLoc;
   SourceLocation lparenLoc;
@@ -3361,8 +3749,9 @@ class AsmAttributeAST final : public AttributeSpecifierAST {
 
 class ScopedAttributeTokenAST final : public AttributeTokenAST {
  public:
-  ScopedAttributeTokenAST()
-      : AttributeTokenAST(ASTKind::ScopedAttributeToken) {}
+  static constexpr ASTKind Kind = ASTKind::ScopedAttributeToken;
+
+  ScopedAttributeTokenAST() : AttributeTokenAST(Kind) {}
 
   SourceLocation attributeNamespaceLoc;
   SourceLocation scopeLoc;
@@ -3378,8 +3767,9 @@ class ScopedAttributeTokenAST final : public AttributeTokenAST {
 
 class SimpleAttributeTokenAST final : public AttributeTokenAST {
  public:
-  SimpleAttributeTokenAST()
-      : AttributeTokenAST(ASTKind::SimpleAttributeToken) {}
+  static constexpr ASTKind Kind = ASTKind::SimpleAttributeToken;
+
+  SimpleAttributeTokenAST() : AttributeTokenAST(Kind) {}
 
   SourceLocation identifierLoc;
   const Identifier* identifier = nullptr;
@@ -3389,5 +3779,10 @@ class SimpleAttributeTokenAST final : public AttributeTokenAST {
   auto firstSourceLocation() -> SourceLocation override;
   auto lastSourceLocation() -> SourceLocation override;
 };
+
+template <typename T>
+auto ast_cast(AST* ast) -> T* {
+  return ast && ast->kind() == T::Kind ? static_cast<T*>(ast) : nullptr;
+}
 
 }  // namespace cxx

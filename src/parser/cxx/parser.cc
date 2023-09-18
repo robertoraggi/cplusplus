@@ -58,7 +58,7 @@ auto getFunctionDeclaratorHelper(DeclaratorAST* declarator)
     -> std::pair<FunctionDeclaratorChunkAST*, bool> {
   if (!declarator) return std::make_pair(nullptr, false);
 
-  if (auto n = dynamic_cast<NestedDeclaratorAST*>(declarator->coreDeclarator)) {
+  if (auto n = ast_cast<NestedDeclaratorAST>(declarator->coreDeclarator)) {
     auto [fundecl, done] = getFunctionDeclaratorHelper(n->declarator);
 
     if (done) return std::make_pair(fundecl, done);
@@ -74,7 +74,7 @@ auto getFunctionDeclaratorHelper(DeclaratorAST* declarator)
        ++it) {
     auto modifier = *it;
 
-    if (auto decl = dynamic_cast<FunctionDeclaratorChunkAST*>(modifier)) {
+    if (auto decl = ast_cast<FunctionDeclaratorChunkAST>(modifier)) {
       return std::make_pair(decl, true);
     }
 
@@ -1673,7 +1673,7 @@ auto Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast) -> bool {
     if (!lookat(TokenKind::T_LPAREN)) return false;
 
     // ### prefer function calls to cpp-cast expressions for now.
-    if (dynamic_cast<NamedTypeSpecifierAST*>(typeSpecifier)) return true;
+    if (ast_cast<NamedTypeSpecifierAST>(typeSpecifier)) return true;
 
     return false;
   };
@@ -8568,7 +8568,7 @@ void Parser::completeFunctionDefinition(FunctionDefinitionAST* ast) {
   if (!ast->functionBody) return;
 
   auto functionBody =
-      dynamic_cast<CompoundStatementFunctionBodyAST*>(ast->functionBody);
+      ast_cast<CompoundStatementFunctionBodyAST>(ast->functionBody);
 
   if (!functionBody) return;
 
