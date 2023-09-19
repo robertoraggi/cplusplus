@@ -1,18 +1,16 @@
 {
   "name": "cxx-frontend",
-  "version": "1.1.24",
+  "version": "1.1.25",
   "description": "A compiler front end for the C++ language",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/cjs/index.cjs",
+  "module": "dist/esm/index.js",
+  "types": "dist/dts/index.d.ts",
   "type": "module",
+  "browser": {
+    "url": false
+  },
   "scripts": {
-    "build": "npm run build:wasm && npm run copy:wasm && npm run build:ts",
-    "build:ts": "tsc",
-    "watch:ts": "tsc --watch",
-    "prepack": "npm run copy:readme",
-    "build:wasm": "../../scripts/build-emscripten.sh",
-    "copy:wasm": "copyfiles -V -f ../../build.em/src/js/cxx-js.* dist",
-    "copy:readme": "copyfiles -V -f ../../README.md ../../CHANGELOG.md .",
+    "build": "node scripts/build.js",
     "prettier": "npx prettier --check .",
     "prettier:fix": "npx prettier --write . "
   },
@@ -37,9 +35,10 @@
     "url": "https://github.com/robertoraggi/cplusplus/issues"
   },
   "devDependencies": {
-    "@types/node": "^20.2.1",
-    "copyfiles": "^2.4.1",
+    "@types/node": "^20.6.2",
+    "esbuild": "^0.19.3",
     "prettier": "^3.0.3",
-    "typescript": "^5.0.4"
+    "typescript": "^5.2.2",
+    "zx": "^7.2.3"
   }
 }

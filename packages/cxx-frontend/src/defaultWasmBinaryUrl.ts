@@ -19,6 +19,6 @@
 // SOFTWARE.
 
 export const DEFAULT_WASM_BINARY_URL = new URL(
-  "./cxx-js.wasm",
+  "../wasm/cxx-js.wasm",
   import.meta.url,
 );

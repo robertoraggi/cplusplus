@@ -19,10 +19,9 @@
 // SOFTWARE.
 
 import { FixedSizeList } from "react-window";
-import { AST, ASTKind, Parser, TokenKind } from "cxx-frontend";
+import { AST, ASTKind, ASTSlot, Parser, TokenKind } from "cxx-frontend";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import AutoSizer from "react-virtualized-auto-sizer";
-import { ASTSlot } from "cxx-frontend/dist/ASTSlot";
 
 function hasOp(node: any): node is AST & { getOp(): TokenKind } {
   return typeof node.getOp === "function" && node.getOp();

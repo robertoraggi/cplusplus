@@ -2,10 +2,11 @@
   "compilerOptions": {
     "module": "ESNext",
     "target": "ESNext",
-    "outDir": "dist",
+    "outDir": "dist/dts",
+    "esModuleInterop": true,
+    "emitDeclarationOnly": true,
     "declaration": true,
-    "strict": true,
-    "sourceMap": true
+    "strict": true
   },
   "exclude": ["node_modules", "dist"]
 }
