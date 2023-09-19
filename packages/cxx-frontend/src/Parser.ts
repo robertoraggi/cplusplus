@@ -38,8 +38,12 @@ export class Parser {
   #unit: Unit | undefined;
   #ast: AST | undefined;
 
-  static async init({ wasmBinary }: { wasmBinary: Uint8Array }) {
-    return await initCxx({ wasmBinary });
+  static async init({
+    wasm,
+  }: {
+    wasm: Uint8Array | ArrayBuffer | WebAssembly.Module;
+  }) {
+    return await initCxx({ wasm });
   }
 
   static async initFromURL(
@@ -56,9 +60,9 @@ export class Parser {
       throw new Error(`fetch '${url}' aborted`);
     }
 
-    const wasmBinary = await response.arrayBuffer();
+    const wasm = await response.arrayBuffer();
 
-    return await Parser.init({ wasmBinary: new Uint8Array(wasmBinary) });
+    return await Parser.init({ wasm });
   }
 
   static isInitialized(): boolean {

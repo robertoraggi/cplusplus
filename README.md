@@ -109,7 +109,7 @@ async function main() {
   const wasmBinary = await readFile(wasmBinaryFile);
 
   // initialize the parser
-  await Parser.init({ wasmBinary });
+  await Parser.init({ wasm: wasmBinary });
 
   const parser = new Parser({ source, path: "source.cc" });
 
@@ -147,15 +147,18 @@ main().catch(console.error);
   </head>
   <body>
     <script type="module">
-      import { Parser, AST, ASTKind } from "https://unpkg.com/cxx-frontend";
+      import {
+        DEFAULT_WASM_BINARY_URL,
+        Parser,
+        AST,
+        ASTKind,
+      } from "https://unpkg.com/cxx-frontend";
 
-      const response = await fetch(
-        "https://unpkg.com/cxx-frontend/dist/cxx-js.wasm"
-      );
+      const response = await fetch(DEFAULT_WASM_BINARY_URL);
 
-      const wasmBinary = new Uint8Array(await response.arrayBuffer());
+      const wasm = await response.arrayBuffer();
 
-      await Parser.init({ wasmBinary });
+      await Parser.init({ wasm: wasmBinary });
 
       const source = `int main()\n{\n  return 0;\n}\n`;
 

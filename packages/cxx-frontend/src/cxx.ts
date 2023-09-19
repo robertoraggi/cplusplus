@@ -114,7 +114,11 @@ export interface CXX {
 
 export let cxx!: CXX;
 
-export default async ({ wasmBinary }: { wasmBinary: Uint8Array }) => {
-  cxx = await makeCxx({ wasmBinary });
+export default async ({
+  wasm,
+}: {
+  wasm: Uint8Array | ArrayBuffer | WebAssembly.Module;
+}) => {
+  cxx = await makeCxx({ wasm });
   return cxx;
 };

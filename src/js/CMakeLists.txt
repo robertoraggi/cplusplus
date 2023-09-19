@@ -29,6 +29,7 @@ target_link_libraries(cxx-js cxx-parser embind)
 
 target_link_options(cxx-js PUBLIC
     "SHELL:-s ENVIRONMENT=web"
+    "SHELL:-s MINIMAL_RUNTIME"
     "SHELL:-s EXPORT_ES6=1"
     "SHELL:-s WASM_ASYNC_COMPILATION=1"
     "SHELL:-s MODULARIZE=1"
@@ -37,6 +38,7 @@ target_link_options(cxx-js PUBLIC
     "SHELL:-s FILESYSTEM=0"
     "SHELL:-s NO_DYNAMIC_EXECUTION=1"
     "SHELL:-s WASM_BIGINT=1"
+    "SHELL:-s INCOMING_MODULE_JS_API=[]"
 )
 
 if(CXX_INTERPROCEDURAL_OPTIMIZATION)

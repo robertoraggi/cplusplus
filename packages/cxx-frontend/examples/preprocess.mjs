@@ -2,7 +2,7 @@ import {
   DEFAULT_WASM_BINARY_URL,
   Parser,
   Preprocessor,
-} from "../dist/index.js";
+} from "../dist/esm/index.js";
 import { readFile } from "fs/promises";
 import { fileURLToPath } from "url";
 
@@ -39,7 +39,7 @@ async function main() {
   const wasmBinary = await readFile(wasmBinaryFile);
 
   // initialize the parser
-  await Parser.init({ wasmBinary });
+  await Parser.init({ wasm: wasmBinary });
 
   const preprocessor = new Preprocessor();
 
