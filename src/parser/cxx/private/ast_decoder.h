@@ -313,6 +313,8 @@ class ASTDecoder {
   auto decodeCompoundStatement(const io::CompoundStatement* node)
       -> CompoundStatementAST*;
   auto decodeIfStatement(const io::IfStatement* node) -> IfStatementAST*;
+  auto decodeConstevalIfStatement(const io::ConstevalIfStatement* node)
+      -> ConstevalIfStatementAST*;
   auto decodeSwitchStatement(const io::SwitchStatement* node)
       -> SwitchStatementAST*;
   auto decodeWhileStatement(const io::WhileStatement* node)

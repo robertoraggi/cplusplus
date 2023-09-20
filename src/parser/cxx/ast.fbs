@@ -272,6 +272,7 @@ union Statement {
   ExpressionStatement,
   CompoundStatement,
   IfStatement,
+  ConstevalIfStatement,
   SwitchStatement,
   WhileStatement,
   DoStatement,
@@ -1552,6 +1553,15 @@ table IfStatement /* StatementAST */ {
   constexpr_loc: SourceLocation;
   lparen_loc: SourceLocation;
   rparen_loc: SourceLocation;
+  else_loc: SourceLocation;
+}
+
+table ConstevalIfStatement /* StatementAST */ {
+  statement: Statement;
+  else_statement: Statement;
+  if_loc: SourceLocation;
+  exclaim_loc: SourceLocation;
+  constval_loc: SourceLocation;
   else_loc: SourceLocation;
 }
 

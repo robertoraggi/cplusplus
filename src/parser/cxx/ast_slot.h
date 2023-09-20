@@ -182,6 +182,7 @@ class ASTSlot final : ASTVisitor {
   void visit(ExpressionStatementAST* ast) override;
   void visit(CompoundStatementAST* ast) override;
   void visit(IfStatementAST* ast) override;
+  void visit(ConstevalIfStatementAST* ast) override;
   void visit(SwitchStatementAST* ast) override;
   void visit(WhileStatementAST* ast) override;
   void visit(DoStatementAST* ast) override;

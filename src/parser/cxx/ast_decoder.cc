@@ -390,6 +390,9 @@ auto ASTDecoder::decodeStatement(const void* ptr, io::Statement type)
           reinterpret_cast<const io::CompoundStatement*>(ptr));
     case io::Statement_IfStatement:
       return decodeIfStatement(reinterpret_cast<const io::IfStatement*>(ptr));
+    case io::Statement_ConstevalIfStatement:
+      return decodeConstevalIfStatement(
+          reinterpret_cast<const io::ConstevalIfStatement*>(ptr));
     case io::Statement_SwitchStatement:
       return decodeSwitchStatement(
           reinterpret_cast<const io::SwitchStatement*>(ptr));
@@ -2301,6 +2304,17 @@ auto ASTDecoder::decodeIfStatement(const io::IfStatement* node)
   ast->initializer =
       decodeStatement(node->initializer(), node->initializer_type());
   ast->condition = decodeExpression(node->condition(), node->condition_type());
+  ast->statement = decodeStatement(node->statement(), node->statement_type());
+  ast->elseStatement =
+      decodeStatement(node->else_statement(), node->else_statement_type());
+  return ast;
+}
+
+auto ASTDecoder::decodeConstevalIfStatement(
+    const io::ConstevalIfStatement* node) -> ConstevalIfStatementAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) ConstevalIfStatementAST();
   ast->statement = decodeStatement(node->statement(), node->statement_type());
   ast->elseStatement =
       decodeStatement(node->else_statement(), node->else_statement_type());

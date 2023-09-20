@@ -797,6 +797,14 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     this.accept(node.getElseStatement(), context);
   }
 
+  visitConstevalIfStatement(
+    node: ast.ConstevalIfStatementAST,
+    context: Context,
+  ): void {
+    this.accept(node.getStatement(), context);
+    this.accept(node.getElseStatement(), context);
+  }
+
   visitSwitchStatement(node: ast.SwitchStatementAST, context: Context): void {
     this.accept(node.getInitializer(), context);
     this.accept(node.getCondition(), context);

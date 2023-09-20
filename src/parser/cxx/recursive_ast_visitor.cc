@@ -829,6 +829,11 @@ void RecursiveASTVisitor::visit(IfStatementAST* ast) {
   acceptStatement(ast->elseStatement);
 }
 
+void RecursiveASTVisitor::visit(ConstevalIfStatementAST* ast) {
+  acceptStatement(ast->statement);
+  acceptStatement(ast->elseStatement);
+}
+
 void RecursiveASTVisitor::visit(SwitchStatementAST* ast) {
   acceptStatement(ast->initializer);
   acceptExpression(ast->condition);

@@ -507,6 +507,10 @@ void DefaultASTVisitor::visit(IfStatementAST* ast) {
   cxx_runtime_error("visit(IfStatementAST): not implemented");
 }
 
+void DefaultASTVisitor::visit(ConstevalIfStatementAST* ast) {
+  cxx_runtime_error("visit(ConstevalIfStatementAST): not implemented");
+}
+
 void DefaultASTVisitor::visit(SwitchStatementAST* ast) {
   cxx_runtime_error("visit(SwitchStatementAST): not implemented");
 }

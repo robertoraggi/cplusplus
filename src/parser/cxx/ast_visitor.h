@@ -170,6 +170,7 @@ class ASTVisitor {
   virtual void visit(ExpressionStatementAST* ast) = 0;
   virtual void visit(CompoundStatementAST* ast) = 0;
   virtual void visit(IfStatementAST* ast) = 0;
+  virtual void visit(ConstevalIfStatementAST* ast) = 0;
   virtual void visit(SwitchStatementAST* ast) = 0;
   virtual void visit(WhileStatementAST* ast) = 0;
   virtual void visit(DoStatementAST* ast) = 0;

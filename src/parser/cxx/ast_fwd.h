@@ -215,6 +215,7 @@ class DefaultStatementAST;
 class ExpressionStatementAST;
 class CompoundStatementAST;
 class IfStatementAST;
+class ConstevalIfStatementAST;
 class SwitchStatementAST;
 class WhileStatementAST;
 class DoStatementAST;

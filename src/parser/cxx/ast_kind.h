@@ -166,6 +166,7 @@ enum struct ASTKind {
   ExpressionStatement,
   CompoundStatement,
   IfStatement,
+  ConstevalIfStatement,
   SwitchStatement,
   WhileStatement,
   DoStatement,

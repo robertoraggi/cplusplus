@@ -477,6 +477,10 @@ export abstract class ASTVisitor<Context, Result> {
     context: Context,
   ): Result;
   abstract visitIfStatement(node: ast.IfStatementAST, context: Context): Result;
+  abstract visitConstevalIfStatement(
+    node: ast.ConstevalIfStatementAST,
+    context: Context,
+  ): Result;
   abstract visitSwitchStatement(
     node: ast.SwitchStatementAST,
     context: Context,

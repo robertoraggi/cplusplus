@@ -1160,6 +1160,18 @@ void ASTPrinter::visit(IfStatementAST* ast) {
   accept(ast->elseStatement, "else-statement");
 }
 
+void ASTPrinter::visit(ConstevalIfStatementAST* ast) {
+  fmt::print(out_, "{}\n", "consteval-if-statement");
+  if (ast->isNot) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "is-not: {}\n", ast->isNot);
+    --indent_;
+  }
+  accept(ast->statement, "statement");
+  accept(ast->elseStatement, "else-statement");
+}
+
 void ASTPrinter::visit(SwitchStatementAST* ast) {
   fmt::print(out_, "{}\n", "switch-statement");
   accept(ast->initializer, "initializer");

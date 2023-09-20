@@ -2132,6 +2132,26 @@ class IfStatementAST final : public StatementAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class ConstevalIfStatementAST final : public StatementAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::ConstevalIfStatement;
+
+  ConstevalIfStatementAST() : StatementAST(Kind) {}
+
+  SourceLocation ifLoc;
+  SourceLocation exclaimLoc;
+  SourceLocation constvalLoc;
+  StatementAST* statement = nullptr;
+  SourceLocation elseLoc;
+  StatementAST* elseStatement = nullptr;
+  bool isNot = false;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 class SwitchStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::SwitchStatement;
