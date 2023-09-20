@@ -4242,9 +4242,12 @@ export class ParameterDeclarationAST extends DeclarationAST {
       yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
     }
   }
+  getThisToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
   *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
     for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
+      let it = cxx.getASTSlot(this.getHandle(), 2);
       it;
       it = cxx.getListNext(it)
     ) {
@@ -4253,18 +4256,21 @@ export class ParameterDeclarationAST extends DeclarationAST {
   }
   getDeclarator(): DeclaratorAST | undefined {
     return AST.from<DeclaratorAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
+      cxx.getASTSlot(this.getHandle(), 3),
       this.parser,
     );
   }
   getEqualToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
   }
   getExpression(): ExpressionAST | undefined {
     return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 4),
+      cxx.getASTSlot(this.getHandle(), 5),
       this.parser,
     );
+  }
+  getIsThisIntroduced(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 6) !== 0;
   }
 }
 

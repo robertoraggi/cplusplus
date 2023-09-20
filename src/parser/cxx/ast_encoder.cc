@@ -4420,6 +4420,8 @@ void ASTEncoder::visit(ParameterDeclarationAST* ast) {
   auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
   auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
 
+  auto thisLoc = encodeSourceLocation(ast->thisLoc);
+
   std::vector<flatbuffers::Offset<>> typeSpecifierListOffsets;
   std::vector<std::underlying_type_t<io::Specifier>> typeSpecifierListTypes;
 
@@ -4443,6 +4445,7 @@ void ASTEncoder::visit(ParameterDeclarationAST* ast) {
   io::ParameterDeclaration::Builder builder{fbb_};
   builder.add_attribute_list(attributeListOffsetsVector);
   builder.add_attribute_list_type(attributeListTypesVector);
+  builder.add_this_loc(thisLoc.o);
   builder.add_type_specifier_list(typeSpecifierListOffsetsVector);
   builder.add_type_specifier_list_type(typeSpecifierListTypesVector);
   builder.add_declarator(declarator.o);

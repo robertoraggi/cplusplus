@@ -1610,6 +1610,12 @@ void ASTPrinter::visit(ExplicitInstantiationAST* ast) {
 
 void ASTPrinter::visit(ParameterDeclarationAST* ast) {
   fmt::print(out_, "{}\n", "parameter-declaration");
+  if (ast->isThisIntroduced) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "is-this-introduced: {}\n", ast->isThisIntroduced);
+    --indent_;
+  }
   if (ast->attributeList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);

@@ -5312,6 +5312,8 @@ auto Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast,
 
   specs.no_class_or_enum_specs = true;
 
+  ast->isThisIntroduced = match(TokenKind::T_THIS, ast->thisLoc);
+
   if (!parse_decl_specifier_seq(ast->typeSpecifierList, specs)) return false;
 
   parse_optional_declarator_or_abstract_declarator(ast->declarator);

@@ -812,6 +812,7 @@ table ParameterDeclaration /* DeclarationAST */ {
   type_specifier_list: [Specifier];
   declarator: Declarator;
   expression: Expression;
+  this_loc: SourceLocation;
   equal_loc: SourceLocation;
 }
 
