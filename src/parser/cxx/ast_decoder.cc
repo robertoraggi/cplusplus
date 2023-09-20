@@ -1022,6 +1022,15 @@ auto ASTDecoder::decodeLambdaIntroducer(const io::LambdaIntroducer* node)
   return ast;
 }
 
+auto ASTDecoder::decodeLambdaSpecifier(const io::LambdaSpecifier* node)
+    -> LambdaSpecifierAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) LambdaSpecifierAST();
+  ast->specifier = static_cast<TokenKind>(node->specifier());
+  return ast;
+}
+
 auto ASTDecoder::decodeLambdaDeclarator(const io::LambdaDeclarator* node)
     -> LambdaDeclaratorAST* {
   if (!node) return nullptr;
@@ -1029,12 +1038,11 @@ auto ASTDecoder::decodeLambdaDeclarator(const io::LambdaDeclarator* node)
   auto ast = new (pool_) LambdaDeclaratorAST();
   ast->parameterDeclarationClause =
       decodeParameterDeclarationClause(node->parameter_declaration_clause());
-  if (node->decl_specifier_list()) {
-    auto* inserter = &ast->declSpecifierList;
-    for (std::size_t i = 0; i < node->decl_specifier_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeSpecifier(
-          node->decl_specifier_list()->Get(i),
-          io::Specifier(node->decl_specifier_list_type()->Get(i))));
+  if (node->lambda_specifier_list()) {
+    auto* inserter = &ast->lambdaSpecifierList;
+    for (std::size_t i = 0; i < node->lambda_specifier_list()->size(); ++i) {
+      *inserter = new (pool_)
+          List(decodeLambdaSpecifier(node->lambda_specifier_list()->Get(i)));
       inserter = &(*inserter)->next;
     }
   }

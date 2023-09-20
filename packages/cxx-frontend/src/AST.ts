@@ -545,6 +545,21 @@ export class LambdaIntroducerAST extends AST {
   }
 }
 
+export class LambdaSpecifierAST extends AST {
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitLambdaSpecifier(this, context);
+  }
+  getSpecifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+  getSpecifier(): TokenKind {
+    return cxx.getASTSlot(this.getHandle(), 1);
+  }
+}
+
 export class LambdaDeclaratorAST extends AST {
   accept<Context, Result>(
     visitor: ASTVisitor<Context, Result>,
@@ -564,13 +579,13 @@ export class LambdaDeclaratorAST extends AST {
   getRparenToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
   }
-  *getDeclSpecifierList(): Generator<SpecifierAST | undefined> {
+  *getLambdaSpecifierList(): Generator<LambdaSpecifierAST | undefined> {
     for (
       let it = cxx.getASTSlot(this.getHandle(), 3);
       it;
       it = cxx.getListNext(it)
     ) {
-      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+      yield AST.from<LambdaSpecifierAST>(cxx.getListValue(it), this.parser);
     }
   }
   getExceptionSpecifier(): ExceptionSpecifierAST | undefined {
@@ -5601,6 +5616,7 @@ const AST_CONSTRUCTORS: Array<
   ParameterDeclarationClauseAST,
   ParametersAndQualifiersAST,
   LambdaIntroducerAST,
+  LambdaSpecifierAST,
   LambdaDeclaratorAST,
   TrailingReturnTypeAST,
   CtorInitializerAST,

@@ -828,6 +828,16 @@ void ASTEncoder::visit(LambdaIntroducerAST* ast) {
   offset_ = builder.Finish().Union();
 }
 
+void ASTEncoder::visit(LambdaSpecifierAST* ast) {
+  auto specifierLoc = encodeSourceLocation(ast->specifierLoc);
+
+  io::LambdaSpecifier::Builder builder{fbb_};
+  builder.add_specifier_loc(specifierLoc.o);
+  builder.add_specifier(static_cast<std::uint32_t>(ast->specifier));
+
+  offset_ = builder.Finish().Union();
+}
+
 void ASTEncoder::visit(LambdaDeclaratorAST* ast) {
   auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
 
@@ -836,19 +846,15 @@ void ASTEncoder::visit(LambdaDeclaratorAST* ast) {
 
   auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
 
-  std::vector<flatbuffers::Offset<>> declSpecifierListOffsets;
-  std::vector<std::underlying_type_t<io::Specifier>> declSpecifierListTypes;
-
-  for (auto it = ast->declSpecifierList; it; it = it->next) {
+  std::vector<flatbuffers::Offset<io::LambdaSpecifier>>
+      lambdaSpecifierListOffsets;
+  for (auto it = ast->lambdaSpecifierList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptSpecifier(it->value);
-    declSpecifierListOffsets.push_back(offset);
-    declSpecifierListTypes.push_back(type);
+    lambdaSpecifierListOffsets.emplace_back(accept(it->value).o);
   }
 
-  auto declSpecifierListOffsetsVector =
-      fbb_.CreateVector(declSpecifierListOffsets);
-  auto declSpecifierListTypesVector = fbb_.CreateVector(declSpecifierListTypes);
+  auto lambdaSpecifierListOffsetsVector =
+      fbb_.CreateVector(lambdaSpecifierListOffsets);
 
   const auto [exceptionSpecifier, exceptionSpecifierType] =
       acceptExceptionSpecifier(ast->exceptionSpecifier);
@@ -875,8 +881,7 @@ void ASTEncoder::visit(LambdaDeclaratorAST* ast) {
   builder.add_lparen_loc(lparenLoc.o);
   builder.add_parameter_declaration_clause(parameterDeclarationClause.o);
   builder.add_rparen_loc(rparenLoc.o);
-  builder.add_decl_specifier_list(declSpecifierListOffsetsVector);
-  builder.add_decl_specifier_list_type(declSpecifierListTypesVector);
+  builder.add_lambda_specifier_list(lambdaSpecifierListOffsetsVector);
   builder.add_exception_specifier(exceptionSpecifier);
   builder.add_exception_specifier_type(
       static_cast<io::ExceptionSpecifier>(exceptionSpecifierType));

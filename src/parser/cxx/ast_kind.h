@@ -40,6 +40,7 @@ enum struct ASTKind {
   ParameterDeclarationClause,
   ParametersAndQualifiers,
   LambdaIntroducer,
+  LambdaSpecifier,
   LambdaDeclarator,
   TrailingReturnType,
   CtorInitializer,

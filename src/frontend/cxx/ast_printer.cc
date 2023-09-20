@@ -289,14 +289,24 @@ void ASTPrinter::visit(LambdaIntroducerAST* ast) {
   }
 }
 
+void ASTPrinter::visit(LambdaSpecifierAST* ast) {
+  fmt::print(out_, "{}\n", "lambda-specifier");
+  if (ast->specifier != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "specifier: {}\n", Token::spell(ast->specifier));
+    --indent_;
+  }
+}
+
 void ASTPrinter::visit(LambdaDeclaratorAST* ast) {
   fmt::print(out_, "{}\n", "lambda-declarator");
   accept(ast->parameterDeclarationClause, "parameter-declaration-clause");
-  if (ast->declSpecifierList) {
+  if (ast->lambdaSpecifierList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "decl-specifier-list");
-    for (auto it = ast->declSpecifierList; it; it = it->next) {
+    fmt::print(out_, "{}\n", "lambda-specifier-list");
+    for (auto it = ast->lambdaSpecifierList; it; it = it->next) {
       accept(it->value);
     }
     --indent_;

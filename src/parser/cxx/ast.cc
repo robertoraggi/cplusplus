@@ -244,12 +244,22 @@ auto LambdaIntroducerAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto LambdaSpecifierAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(specifierLoc)) return loc;
+  return {};
+}
+
+auto LambdaSpecifierAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(specifierLoc)) return loc;
+  return {};
+}
+
 auto LambdaDeclaratorAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(parameterDeclarationClause))
     return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(declSpecifierList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lambdaSpecifierList)) return loc;
   if (auto loc = cxx::firstSourceLocation(exceptionSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(trailingReturnType)) return loc;
@@ -262,7 +272,7 @@ auto LambdaDeclaratorAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(trailingReturnType)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(exceptionSpecifier)) return loc;
-  if (auto loc = cxx::lastSourceLocation(declSpecifierList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lambdaSpecifierList)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(parameterDeclarationClause))
     return loc;

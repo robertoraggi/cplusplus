@@ -63,6 +63,10 @@ export abstract class ASTVisitor<Context, Result> {
     node: ast.LambdaIntroducerAST,
     context: Context,
   ): Result;
+  abstract visitLambdaSpecifier(
+    node: ast.LambdaSpecifierAST,
+    context: Context,
+  ): Result;
   abstract visitLambdaDeclarator(
     node: ast.LambdaDeclaratorAST,
     context: Context,

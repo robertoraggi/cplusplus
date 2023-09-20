@@ -68,6 +68,7 @@ class ASTSlot final : ASTVisitor {
   void visit(ParameterDeclarationClauseAST* ast) override;
   void visit(ParametersAndQualifiersAST* ast) override;
   void visit(LambdaIntroducerAST* ast) override;
+  void visit(LambdaSpecifierAST* ast) override;
   void visit(LambdaDeclaratorAST* ast) override;
   void visit(TrailingReturnTypeAST* ast) override;
   void visit(CtorInitializerAST* ast) override;

@@ -104,6 +104,10 @@ void RecursiveASTVisitor::acceptLambdaCapture(LambdaCaptureAST* ast) {
   accept(ast);
 }
 
+void RecursiveASTVisitor::acceptLambdaSpecifier(LambdaSpecifierAST* ast) {
+  accept(ast);
+}
+
 void RecursiveASTVisitor::acceptTrailingReturnType(TrailingReturnTypeAST* ast) {
   accept(ast);
 }
@@ -366,10 +370,12 @@ void RecursiveASTVisitor::visit(LambdaIntroducerAST* ast) {
   }
 }
 
+void RecursiveASTVisitor::visit(LambdaSpecifierAST* ast) {}
+
 void RecursiveASTVisitor::visit(LambdaDeclaratorAST* ast) {
   acceptParameterDeclarationClause(ast->parameterDeclarationClause);
-  for (auto it = ast->declSpecifierList; it; it = it->next) {
-    acceptSpecifier(it->value);
+  for (auto it = ast->lambdaSpecifierList; it; it = it->next) {
+    acceptLambdaSpecifier(it->value);
   }
   acceptExceptionSpecifier(ast->exceptionSpecifier);
   for (auto it = ast->attributeList; it; it = it->next) {

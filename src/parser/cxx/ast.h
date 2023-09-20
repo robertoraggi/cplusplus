@@ -452,6 +452,21 @@ class LambdaIntroducerAST final : public AST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class LambdaSpecifierAST final : public AST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::LambdaSpecifier;
+
+  LambdaSpecifierAST() : AST(Kind) {}
+
+  SourceLocation specifierLoc;
+  TokenKind specifier = TokenKind::T_EOF_SYMBOL;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 class LambdaDeclaratorAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::LambdaDeclarator;
@@ -461,7 +476,7 @@ class LambdaDeclaratorAST final : public AST {
   SourceLocation lparenLoc;
   ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
   SourceLocation rparenLoc;
-  List<SpecifierAST*>* declSpecifierList = nullptr;
+  List<LambdaSpecifierAST*>* lambdaSpecifierList = nullptr;
   ExceptionSpecifierAST* exceptionSpecifier = nullptr;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   TrailingReturnTypeAST* trailingReturnType = nullptr;

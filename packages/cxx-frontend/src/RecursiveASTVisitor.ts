@@ -139,9 +139,11 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     }
   }
 
+  visitLambdaSpecifier(node: ast.LambdaSpecifierAST, context: Context): void {}
+
   visitLambdaDeclarator(node: ast.LambdaDeclaratorAST, context: Context): void {
     this.accept(node.getParameterDeclarationClause(), context);
-    for (const element of node.getDeclSpecifierList()) {
+    for (const element of node.getLambdaSpecifierList()) {
       this.accept(element, context);
     }
     this.accept(node.getExceptionSpecifier(), context);

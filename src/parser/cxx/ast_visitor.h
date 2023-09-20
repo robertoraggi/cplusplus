@@ -44,6 +44,7 @@ class ASTVisitor {
   virtual void visit(ParameterDeclarationClauseAST* ast) = 0;
   virtual void visit(ParametersAndQualifiersAST* ast) = 0;
   virtual void visit(LambdaIntroducerAST* ast) = 0;
+  virtual void visit(LambdaSpecifierAST* ast) = 0;
   virtual void visit(LambdaDeclaratorAST* ast) = 0;
   virtual void visit(TrailingReturnTypeAST* ast) = 0;
   virtual void visit(CtorInitializerAST* ast) = 0;

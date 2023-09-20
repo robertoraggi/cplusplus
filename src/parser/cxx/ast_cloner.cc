@@ -343,6 +343,17 @@ void ASTCloner::visit(LambdaIntroducerAST* ast) {
   copy->rbracketLoc = ast->rbracketLoc;
 }
 
+void ASTCloner::visit(LambdaSpecifierAST* ast) {
+  auto copy = new (arena_) LambdaSpecifierAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->specifierLoc = ast->specifierLoc;
+
+  copy->specifier = ast->specifier;
+}
+
 void ASTCloner::visit(LambdaDeclaratorAST* ast) {
   auto copy = new (arena_) LambdaDeclaratorAST();
   copy_ = copy;
@@ -355,8 +366,8 @@ void ASTCloner::visit(LambdaDeclaratorAST* ast) {
 
   copy->rparenLoc = ast->rparenLoc;
 
-  if (auto it = ast->declSpecifierList) {
-    auto out = &copy->declSpecifierList;
+  if (auto it = ast->lambdaSpecifierList) {
+    auto out = &copy->lambdaSpecifierList;
 
     for (; it; it = it->next) {
       *out = new (arena_) List(accept(it->value));
