@@ -89,6 +89,7 @@ class RequiresClauseAST;
 class ParameterDeclarationClauseAST;
 class ParametersAndQualifiersAST;
 class LambdaIntroducerAST;
+class LambdaSpecifierAST;
 class LambdaDeclaratorAST;
 class TrailingReturnTypeAST;
 class CtorInitializerAST;

@@ -35,6 +35,7 @@ export enum ASTKind {
   ParameterDeclarationClause,
   ParametersAndQualifiers,
   LambdaIntroducer,
+  LambdaSpecifier,
   LambdaDeclarator,
   TrailingReturnType,
   CtorInitializer,

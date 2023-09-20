@@ -117,6 +117,8 @@ class Parser final {
       -> bool;
   [[nodiscard]] auto parse_lambda_declarator(LambdaDeclaratorAST*& yyast)
       -> bool;
+  [[nodiscard]] auto parse_lambda_specifier_seq(
+      List<LambdaSpecifierAST*>*& yyast) -> bool;
   [[nodiscard]] auto parse_lambda_capture(SourceLocation& captureDefaultLoc,
                                           List<LambdaCaptureAST*>*& yyast)
       -> bool;

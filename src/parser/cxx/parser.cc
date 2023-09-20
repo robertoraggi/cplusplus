@@ -958,9 +958,7 @@ auto Parser::parse_lambda_declarator(LambdaDeclaratorAST*& yyast) -> bool {
     expect(TokenKind::T_RPAREN, ast->rparenLoc);
   }
 
-  DeclSpecs specs;
-
-  (void)parse_decl_specifier_seq(ast->declSpecifierList, specs);
+  (void)parse_lambda_specifier_seq(ast->lambdaSpecifierList);
 
   (void)parse_noexcept_specifier(ast->exceptionSpecifier);
 
@@ -971,6 +969,23 @@ auto Parser::parse_lambda_declarator(LambdaDeclaratorAST*& yyast) -> bool {
   (void)parse_requires_clause(ast->requiresClause);
 
   return true;
+}
+
+auto Parser::parse_lambda_specifier_seq(List<LambdaSpecifierAST*>*& yyast)
+    -> bool {
+  yyast = nullptr;
+
+  auto it = &yyast;
+
+  while (LA().isOneOf(TokenKind::T_CONSTEVAL, TokenKind::T_CONSTEXPR,
+                      TokenKind::T_MUTABLE, TokenKind::T_STATIC)) {
+    auto specifier = new (pool) LambdaSpecifierAST();
+    specifier->specifierLoc = consumeToken();
+    specifier->specifier = unit->tokenKind(specifier->specifierLoc);
+    *it = new (pool) List(specifier);
+    it = &(*it)->next;
+  }
+  return yyast != nullptr;
 }
 
 auto Parser::parse_lambda_capture(SourceLocation& captureDefaultLoc,

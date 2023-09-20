@@ -46,6 +46,7 @@ union AST {
   ParameterDeclarationClause,
   ParametersAndQualifiers,
   LambdaIntroducer,
+  LambdaSpecifier,
   LambdaDeclarator,
   TrailingReturnType,
   CtorInitializer,
@@ -405,9 +406,14 @@ table LambdaIntroducer /* AST */ {
   rbracket_loc: SourceLocation;
 }
 
+table LambdaSpecifier /* AST */ {
+  specifier: uint32;
+  specifier_loc: SourceLocation;
+}
+
 table LambdaDeclarator /* AST */ {
   parameter_declaration_clause: ParameterDeclarationClause;
-  decl_specifier_list: [Specifier];
+  lambda_specifier_list: [LambdaSpecifier];
   exception_specifier: ExceptionSpecifier;
   attribute_list: [AttributeSpecifier];
   trailing_return_type: TrailingReturnType;
