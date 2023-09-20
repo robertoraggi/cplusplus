@@ -18,9 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { AST } from "./AST.js";
-import { cxx } from "./cxx.js";
-import { Token } from "./Token.js";
+import { AST } from "./AST";
+import { cxx } from "./cxx";
+import { Token } from "./Token";
 
 export class TranslationUnit {
   #control: typeof cxx.Control;

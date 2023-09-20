@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { cxx } from "./cxx.js";
+import { cxx } from "./cxx";
 
 export class Preprocessor {
   #control: typeof cxx.Control;

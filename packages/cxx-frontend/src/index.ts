@@ -18,19 +18,19 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-export * from "./AST.js";
-export * from "./ASTCursor.js";
-export * from "./ASTKind.js";
-export * from "./ASTSlot.js";
-export * from "./ASTVisitor.js";
-export * from "./defaultWasmBinaryUrl.js";
-export * from "./Diagnostic.js";
-export * from "./Lexer.js";
-export * from "./Parser.js";
-export * from "./Preprocessor.js";
-export * from "./RecursiveASTVisitor.js";
-export * from "./SourceLocation.js";
-export * from "./Token.js";
-export * from "./TokenKind.js";
-export * from "./TranslationUnit.js";
-export * from "./Unit.js";
+export * from "./AST";
+export * from "./ASTCursor";
+export * from "./ASTKind";
+export * from "./ASTSlot";
+export * from "./ASTVisitor";
+export * from "./defaultWasmBinaryUrl";
+export * from "./Diagnostic";
+export * from "./Lexer";
+export * from "./Parser";
+export * from "./Preprocessor";
+export * from "./RecursiveASTVisitor";
+export * from "./SourceLocation";
+export * from "./Token";
+export * from "./TokenKind";
+export * from "./TranslationUnit";
+export * from "./Unit";

@@ -18,48 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { cxx } from "./cxx";
-import { SourceLocation } from "./SourceLocation";
-import { TokenKind } from "./TokenKind";
-
-interface TranslationUnitLike {
-  getUnitHandle(): number;
-}
-
-export class Token {
-  #handle: number;
-  #unit: number;
-
-  constructor(handle: number, parser: TranslationUnitLike) {
-    this.#handle = handle;
-    this.#unit = parser.getUnitHandle();
-  }
-
-  getHandle() {
-    return this.#handle;
-  }
-
-  getKind(): TokenKind {
-    return cxx.getTokenKind(this.#handle, this.#unit);
-  }
-
-  is(kind: TokenKind) {
-    return this.getKind() === kind;
-  }
-
-  isNot(kind: TokenKind) {
-    return this.getKind() !== kind;
-  }
-
-  getText(): string {
-    return cxx.getTokenText(this.#handle, this.#unit);
-  }
-
-  getLocation(): SourceLocation {
-    return cxx.getTokenLocation(this.#handle, this.#unit);
-  }
-
-  static from(handle: number, parser: TranslationUnitLike): Token | undefined {
-    return handle ? new Token(handle, parser) : undefined;
-  }
+export enum ASTSlotKind {
+  Invalid,
+  Token,
+  Node,
+  TokenList,
+  NodeList,
 }
