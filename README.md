@@ -1,6 +1,6 @@
 # A compiler front end for the C++ language
 
-This repository contains a _work in progress_ compiler front end for C++ 20.
+This repository contains a _work in progress_ compiler front end for C++ 23.
 
 ## Install
 
@@ -25,7 +25,7 @@ https://robertoraggi.github.io/cplusplus/
 On Linux, macOS and Windows:
 
 ```sh
-# install the python packages required to run the unit tests
+# install the python packages required to run the unit tests (optional)
 pip install -r tests/unit_tests/requirements.txt
 
 # configure the source code

@@ -918,6 +918,30 @@ void Preprocessor::Private::expand(
             setState(std::tuple(true, evaluating));
           }
         }
+      } else if (matchId(ts, "elifdef")) {
+        if (!evaluating) {
+          setState(std::tuple(true, false));
+        } else {
+          const Macro *macro = nullptr;
+          const auto value = lookupMacro(ts->head, macro);
+          if (value) {
+            setState(std::tuple(!evaluating, false));
+          } else {
+            setState(std::tuple(true, evaluating));
+          }
+        }
+      } else if (matchId(ts, "elifndef")) {
+        if (!evaluating) {
+          setState(std::tuple(true, false));
+        } else {
+          const Macro *macro = nullptr;
+          const auto value = lookupMacro(ts->head, macro);
+          if (!value) {
+            setState(std::tuple(!evaluating, false));
+          } else {
+            setState(std::tuple(true, evaluating));
+          }
+        }
       } else if (matchId(ts, "else")) {
         setState(std::tuple(!evaluating, false));
       } else if (matchId(ts, "endif")) {
@@ -1231,6 +1255,7 @@ auto Preprocessor::Private::constantExpression(const TokList *ts) -> long {
 }
 
 auto Preprocessor::Private::conditionalExpression(const TokList *&ts) -> long {
+  if (!ts) return 0;
   const auto value = binaryExpression(ts);
   if (!match(ts, TokenKind::T_QUESTION)) return value;
   const auto iftrue = conditionalExpression(ts);
