@@ -2825,10 +2825,12 @@ class ParameterDeclarationAST final : public DeclarationAST {
   ParameterDeclarationAST() : DeclarationAST(Kind) {}
 
   List<AttributeSpecifierAST*>* attributeList = nullptr;
+  SourceLocation thisLoc;
   List<SpecifierAST*>* typeSpecifierList = nullptr;
   DeclaratorAST* declarator = nullptr;
   SourceLocation equalLoc;
   ExpressionAST* expression = nullptr;
+  bool isThisIntroduced = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

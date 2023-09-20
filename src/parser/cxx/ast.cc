@@ -2378,6 +2378,7 @@ auto ExplicitInstantiationAST::lastSourceLocation() -> SourceLocation {
 
 auto ParameterDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(thisLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeSpecifierList)) return loc;
   if (auto loc = cxx::firstSourceLocation(declarator)) return loc;
   if (auto loc = cxx::firstSourceLocation(equalLoc)) return loc;
@@ -2390,6 +2391,7 @@ auto ParameterDeclarationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(equalLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(declarator)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeSpecifierList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(thisLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   return {};
 }

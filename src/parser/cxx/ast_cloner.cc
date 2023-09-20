@@ -2967,6 +2967,8 @@ void ASTCloner::visit(ParameterDeclarationAST* ast) {
     }
   }
 
+  copy->thisLoc = ast->thisLoc;
+
   if (auto it = ast->typeSpecifierList) {
     auto out = &copy->typeSpecifierList;
 
@@ -2981,6 +2983,8 @@ void ASTCloner::visit(ParameterDeclarationAST* ast) {
   copy->equalLoc = ast->equalLoc;
 
   copy->expression = accept(ast->expression);
+
+  copy->isThisIntroduced = ast->isThisIntroduced;
 }
 
 void ASTCloner::visit(LinkageSpecificationAST* ast) {
