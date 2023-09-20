@@ -52,8 +52,8 @@ export async function gen_ast_visitor_ts({
     nodes.forEach(({ name }) => {
       emit(
         `    abstract visit${nodeName(
-          name,
-        )}(node: ast.${name}, context: Context): Result;`,
+          name
+        )}(node: ast.${name}, context: Context): Result;`
       );
     });
   });
@@ -62,7 +62,7 @@ export async function gen_ast_visitor_ts({
   emit();
 
   const out = `${cpy_header}
-import * as ast from "./AST.js";
+import * as ast from "./AST";
 
 ${code.join("\n")}
 `;

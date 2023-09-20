@@ -40,17 +40,17 @@ import { parseAST } from "./parseAST.js";
 import { gen_ast_kind_ts } from "./gen_ast_kind_ts.js";
 import { gen_default_ast_visitor_h } from "./gen_default_ast_visitor_h.js";
 import { gen_default_ast_visitor_cc } from "./gen_default_ast_visitor_cc.js";
-
-import * as fs from "fs";
-import * as path from "path";
-import * as process from "process";
-import * as child_process from "child_process";
 import { gen_ast_fbs } from "./gen_ast_fbs.js";
 import { gen_ast_encoder_h } from "./gen_ast_encoder_h.js";
 import { gen_ast_encoder_cc } from "./gen_ast_encoder_cc.js";
 import { gen_ast_decoder_h } from "./gen_ast_decoder_h.js";
 import { gen_ast_decoder_cc } from "./gen_ast_decoder_cc.js";
 import { gen_ast_slot_ts } from "./gen_ast_slot_ts.js";
+
+import * as fs from "fs";
+import * as path from "path";
+import * as process from "process";
+import * as child_process from "child_process";
 
 const outdir = process.cwd();
 

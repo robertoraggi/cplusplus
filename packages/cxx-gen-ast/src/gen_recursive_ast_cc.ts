@@ -49,8 +49,8 @@ export function gen_recursive_ast_cc({
   Array.from(types.values()).forEach((base) => {
     emit(
       `void RecursiveASTVisitor::${funcName(
-        base,
-      )}(${base}* ast){ accept(ast); }`,
+        base
+      )}(${base}* ast){ accept(ast); }`
     );
     emit();
   });

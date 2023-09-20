@@ -56,7 +56,7 @@ export async function gen_ast_ts({
       emit(`export class ${name} extends ${base} {`);
 
       emit(
-        `    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {`,
+        `    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {`
       );
       emit(`        return visitor.visit${nodeName(name)}(this, context);`);
       emit(`    }`);
@@ -68,21 +68,21 @@ export async function gen_ast_ts({
             if (m.type === "bool") {
               emit(`    ${getterName(m.name)}(): boolean {`);
               emit(
-                `        return cxx.getASTSlot(this.getHandle(), ${slotCount}) !== 0;`,
+                `        return cxx.getASTSlot(this.getHandle(), ${slotCount}) !== 0;`
               );
               emit(`    }`);
               ++slotCount;
             } else if (m.type === "TokenKind") {
               emit(`    ${getterName(m.name)}(): TokenKind {`);
               emit(
-                `        return cxx.getASTSlot(this.getHandle(), ${slotCount});`,
+                `        return cxx.getASTSlot(this.getHandle(), ${slotCount});`
               );
               emit(`    }`);
               ++slotCount;
             } else if (m.type === "Identifier") {
               emit(`    ${getterName(m.name)}(): string | undefined {`);
               emit(
-                `      const slot = cxx.getASTSlot(this.getHandle(), ${slotCount});`,
+                `      const slot = cxx.getASTSlot(this.getHandle(), ${slotCount});`
               );
               emit(`      return cxx.getIdentifierValue(slot);`);
               emit(`    }`);
@@ -90,7 +90,7 @@ export async function gen_ast_ts({
             } else if (m.type.endsWith("Literal")) {
               emit(`    ${getterName(m.name)}(): string | undefined {`);
               emit(
-                `      const slot = cxx.getASTSlot(this.getHandle(), ${slotCount});`,
+                `      const slot = cxx.getASTSlot(this.getHandle(), ${slotCount});`
               );
               emit(`      return cxx.getLiteralValue(slot);`);
               emit(`    }`);
@@ -100,22 +100,20 @@ export async function gen_ast_ts({
           case "node":
             emit(`    ${getterName(m.name)}(): ${m.type} | undefined {`);
             emit(
-              `        return AST.from<${m.type}>(cxx.getASTSlot(this.getHandle(), ${slotCount}), this.parser);`,
+              `        return AST.from<${m.type}>(cxx.getASTSlot(this.getHandle(), ${slotCount}), this.parser);`
             );
             emit(`    }`);
             ++slotCount;
             break;
           case "node-list":
             emit(
-              `    *${getterName(m.name)}(): Generator<${
-                m.type
-              } | undefined> {`,
+              `    *${getterName(m.name)}(): Generator<${m.type} | undefined> {`
             );
             emit(
-              `        for (let it = cxx.getASTSlot(this.getHandle(), ${slotCount}); it; it = cxx.getListNext(it)) {`,
+              `        for (let it = cxx.getASTSlot(this.getHandle(), ${slotCount}); it; it = cxx.getListNext(it)) {`
             );
             emit(
-              `            yield AST.from<${m.type}>(cxx.getListValue(it), this.parser);`,
+              `            yield AST.from<${m.type}>(cxx.getListValue(it), this.parser);`
             );
             emit(`        }`);
             emit(`    }`);
@@ -124,7 +122,7 @@ export async function gen_ast_ts({
           case "token":
             emit(`    ${tokenGetterName(m.name)}(): Token | undefined {`);
             emit(
-              `        return Token.from(cxx.getASTSlot(this.getHandle(), ${slotCount}), this.parser);`,
+              `        return Token.from(cxx.getASTSlot(this.getHandle(), ${slotCount}), this.parser);`
             );
             emit(`    }`);
             ++slotCount;
@@ -142,7 +140,7 @@ export async function gen_ast_ts({
   });
 
   emit(
-    `const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: TranslationUnitLike) => AST> = [`,
+    `const AST_CONSTRUCTORS: Array<new (handle: number, kind: ASTKind, parser: TranslationUnitLike) => AST> = [`
   );
   by_bases.forEach((nodes) => {
     nodes.forEach(({ name }) => {
@@ -152,13 +150,13 @@ export async function gen_ast_ts({
   emit(`];`);
 
   const out = `${cpy_header}
-import { cxx } from "./cxx.js";
-import { SourceLocation } from "./SourceLocation.js";
-import { ASTCursor } from "./ASTCursor.js";
-import { ASTVisitor } from "./ASTVisitor.js";
-import { ASTKind } from "./ASTKind.js";
-import { Token } from "./Token.js";
-import { TokenKind } from "./TokenKind.js";
+import { cxx } from "./cxx";
+import { SourceLocation } from "./SourceLocation";
+import { ASTCursor } from "./ASTCursor";
+import { ASTVisitor } from "./ASTVisitor";
+import { ASTKind } from "./ASTKind";
+import { Token } from "./Token";
+import { TokenKind } from "./TokenKind";
 
 interface TranslationUnitLike {
     getUnitHandle(): number;

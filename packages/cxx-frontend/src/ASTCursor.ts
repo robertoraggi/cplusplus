@@ -18,11 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { AST } from "./AST.js";
-import { Token } from "./Token.js";
-import { ASTSlotKind, cxx } from "./cxx.js";
-import { Parser } from "./Parser.js";
-import { ASTSlot } from "./ASTSlot.js";
+import { AST } from "./AST";
+import { Token } from "./Token";
+import { cxx } from "./cxx";
+import { ASTSlotKind } from "./ASTSlotKind";
+import { Parser } from "./Parser";
+import { ASTSlot } from "./ASTSlot";
 
 interface TranslationUnitLike {
   getUnitHandle(): number;

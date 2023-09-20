@@ -18,13 +18,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { cxx } from "./cxx.js";
-import { SourceLocation } from "./SourceLocation.js";
-import { ASTCursor } from "./ASTCursor.js";
-import { ASTVisitor } from "./ASTVisitor.js";
-import { ASTKind } from "./ASTKind.js";
-import { Token } from "./Token.js";
-import { TokenKind } from "./TokenKind.js";
+import { cxx } from "./cxx";
+import { SourceLocation } from "./SourceLocation";
+import { ASTCursor } from "./ASTCursor";
+import { ASTVisitor } from "./ASTVisitor";
+import { ASTKind } from "./ASTKind";
+import { Token } from "./Token";
+import { TokenKind } from "./TokenKind";
 
 interface TranslationUnitLike {
   getUnitHandle(): number;

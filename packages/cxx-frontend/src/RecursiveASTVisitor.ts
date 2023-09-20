@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import * as ast from "./AST.js";
-import { ASTVisitor } from "./ASTVisitor.js";
+import * as ast from "./AST";
+import { ASTVisitor } from "./ASTVisitor";
 
 export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   constructor() {
