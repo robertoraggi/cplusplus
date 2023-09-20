@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.25](https://github.com/robertoraggi/cplusplus/compare/v1.1.24...v1.1.25) (2023-09-20)
+
+
+### Bug Fixes
+
+* Add support for c++23 consteval if statements ([e3669c7](https://github.com/robertoraggi/cplusplus/commit/e3669c77fbbe2e765a06b69973cec024f9f2d26f))
+* Add support for c++23 elifdef and elifndef ([94c0ec0](https://github.com/robertoraggi/cplusplus/commit/94c0ec02cd8cecd4899cdcb71834c3e3ccddf4fa))
+* Add support for c++23 lambda specifiers ([eac4fad](https://github.com/robertoraggi/cplusplus/commit/eac4fadb822268bdd2744c813c83e0503c28a83d))
+* Package both esm and commonjs bundles ([0ee29dc](https://github.com/robertoraggi/cplusplus/commit/0ee29dc9c6435cc814acb49478fdc6221e75e0cc))
+* Parse c++23 deduce this ([bec4386](https://github.com/robertoraggi/cplusplus/commit/bec43869cf2e4b6ca454c640bd74c441caeaee52))
+* Use the bundler module resolution in the cxx-frontend package ([91c28f9](https://github.com/robertoraggi/cplusplus/commit/91c28f953974d3713e7d54582423b6d45702701a))
+
 ## [1.1.24](https://github.com/robertoraggi/cplusplus/compare/v1.1.23...v1.1.24) (2023-09-18)
 
 
