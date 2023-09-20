@@ -1708,6 +1708,26 @@ auto IfStatementAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto ConstevalIfStatementAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(ifLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(exclaimLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(constvalLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(statement)) return loc;
+  if (auto loc = cxx::firstSourceLocation(elseLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(elseStatement)) return loc;
+  return {};
+}
+
+auto ConstevalIfStatementAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(elseStatement)) return loc;
+  if (auto loc = cxx::lastSourceLocation(elseLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(statement)) return loc;
+  if (auto loc = cxx::lastSourceLocation(constvalLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(exclaimLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(ifLoc)) return loc;
+  return {};
+}
+
 auto SwitchStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(switchLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;

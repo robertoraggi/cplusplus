@@ -3007,6 +3007,42 @@ export class IfStatementAST extends StatementAST {
   }
 }
 
+export class ConstevalIfStatementAST extends StatementAST {
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitConstevalIfStatement(this, context);
+  }
+  getIfToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+  getExclaimToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+  getConstvalToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+  getStatement(): StatementAST | undefined {
+    return AST.from<StatementAST>(
+      cxx.getASTSlot(this.getHandle(), 3),
+      this.parser,
+    );
+  }
+  getElseToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  }
+  getElseStatement(): StatementAST | undefined {
+    return AST.from<StatementAST>(
+      cxx.getASTSlot(this.getHandle(), 5),
+      this.parser,
+    );
+  }
+  getIsNot(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 6) !== 0;
+  }
+}
+
 export class SwitchStatementAST extends StatementAST {
   accept<Context, Result>(
     visitor: ASTVisitor<Context, Result>,
@@ -5667,6 +5703,7 @@ const AST_CONSTRUCTORS: Array<
   ExpressionStatementAST,
   CompoundStatementAST,
   IfStatementAST,
+  ConstevalIfStatementAST,
   SwitchStatementAST,
   WhileStatementAST,
   DoStatementAST,

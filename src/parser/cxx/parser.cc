@@ -3022,6 +3022,29 @@ auto Parser::parse_if_statement(StatementAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_IF, ifLoc)) return false;
 
+  if (LA().isOneOf(TokenKind::T_EXCLAIM, TokenKind::T_CONSTEVAL)) {
+    auto ast = new (pool) ConstevalIfStatementAST();
+    yyast = ast;
+    ast->ifLoc = ifLoc;
+
+    ast->isNot = match(TokenKind::T_EXCLAIM, ast->exclaimLoc);
+
+    expect(TokenKind::T_CONSTEVAL, ast->constvalLoc);
+
+    if (CompoundStatementAST* statement = nullptr;
+        parse_compound_statement(statement)) {
+      ast->statement = statement;
+    } else {
+      parse_error("expected compound statement");
+    }
+
+    if (match(TokenKind::T_ELSE, ast->elseLoc)) {
+      parse_statement(ast->elseStatement);
+    }
+
+    return true;
+  }
+
   auto ast = new (pool) IfStatementAST();
   yyast = ast;
 

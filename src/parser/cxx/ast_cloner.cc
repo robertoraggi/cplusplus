@@ -2132,6 +2132,27 @@ void ASTCloner::visit(IfStatementAST* ast) {
   copy->elseStatement = accept(ast->elseStatement);
 }
 
+void ASTCloner::visit(ConstevalIfStatementAST* ast) {
+  auto copy = new (arena_) ConstevalIfStatementAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->ifLoc = ast->ifLoc;
+
+  copy->exclaimLoc = ast->exclaimLoc;
+
+  copy->constvalLoc = ast->constvalLoc;
+
+  copy->statement = accept(ast->statement);
+
+  copy->elseLoc = ast->elseLoc;
+
+  copy->elseStatement = accept(ast->elseStatement);
+
+  copy->isNot = ast->isNot;
+}
+
 void ASTCloner::visit(SwitchStatementAST* ast) {
   auto copy = new (arena_) SwitchStatementAST();
   copy_ = copy;

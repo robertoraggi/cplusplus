@@ -3141,6 +3141,35 @@ void ASTEncoder::visit(IfStatementAST* ast) {
   type_ = io::Statement_IfStatement;
 }
 
+void ASTEncoder::visit(ConstevalIfStatementAST* ast) {
+  auto ifLoc = encodeSourceLocation(ast->ifLoc);
+
+  auto exclaimLoc = encodeSourceLocation(ast->exclaimLoc);
+
+  auto constvalLoc = encodeSourceLocation(ast->constvalLoc);
+
+  const auto [statement, statementType] = acceptStatement(ast->statement);
+
+  auto elseLoc = encodeSourceLocation(ast->elseLoc);
+
+  const auto [elseStatement, elseStatementType] =
+      acceptStatement(ast->elseStatement);
+
+  io::ConstevalIfStatement::Builder builder{fbb_};
+  builder.add_if_loc(ifLoc.o);
+  builder.add_exclaim_loc(exclaimLoc.o);
+  builder.add_constval_loc(constvalLoc.o);
+  builder.add_statement(statement);
+  builder.add_statement_type(static_cast<io::Statement>(statementType));
+  builder.add_else_loc(elseLoc.o);
+  builder.add_else_statement(elseStatement);
+  builder.add_else_statement_type(
+      static_cast<io::Statement>(elseStatementType));
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Statement_ConstevalIfStatement;
+}
+
 void ASTEncoder::visit(SwitchStatementAST* ast) {
   auto switchLoc = encodeSourceLocation(ast->switchLoc);
 
