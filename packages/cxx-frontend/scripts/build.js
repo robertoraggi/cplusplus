@@ -40,8 +40,9 @@ async function main() {
   await $`cp ${projectRootSourcePath}/README.md .`;
   await $`cp ${projectRootSourcePath}/CHANGELOG.md .`;
   await $`cp ${projectRootSourcePath}/build.em/src/js/cxx-js.js src`;
-  await $`mkdir -p dist/wasm/`;
+  await $`mkdir -p dist/wasm/ dist/dts/`;
   await $`cp ${projectRootSourcePath}/build.em/src/js/cxx-js.wasm dist/wasm`;
+  await $`cp ${cxxFrontendSourcePath}/src/*.d.ts dist/dts/`;
   await $`npm exec --package-typescript tsc`;
 
   /** @type{esbuild.BuildOptions} */

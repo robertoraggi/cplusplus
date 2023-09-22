@@ -77,7 +77,7 @@ interface Lexer {
   tokenText(): string;
 }
 
-export interface CXX {
+export type CXX = {
   Control: Control;
   DiagnosticsClient: DiagnosticsClient;
   Preprocessor: Preprocessor;
@@ -99,7 +99,7 @@ export interface CXX {
   getEndLocation(handle: number, unitHandle: number): SourceLocation;
   getLiteralValue(handle: number): string | undefined;
   getIdentifierValue(handle: number): string | undefined;
-}
+};
 
 export default function ({
   wasm,
