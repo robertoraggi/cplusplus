@@ -22,6 +22,7 @@
 
 #include <cxx/cxx_fwd.h>
 
+#include <functional>
 #include <iosfwd>
 #include <memory>
 #include <string>
@@ -70,6 +71,9 @@ class Preprocessor {
 
   [[nodiscard]] auto currentPath() const -> std::string;
   void setCurrentPath(std::string currentPath);
+
+  void setFileExistsFunction(std::function<bool(std::string)> fileExists);
+  void setReadFileFunction(std::function<std::string(std::string)> readFile);
 
   void operator()(std::string source, std::string fileName, std::ostream &out);
 

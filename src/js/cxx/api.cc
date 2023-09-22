@@ -25,6 +25,7 @@
 #include <cxx/literals.h>
 #include <cxx/names.h>
 #include <cxx/preprocessor.h>
+#include <cxx/private/format.h>
 #include <cxx/source_location.h>
 #include <cxx/translation_unit.h>
 #include <emscripten.h>
@@ -206,6 +207,17 @@ auto lexerNext(cxx::Lexer& lexer) -> int {
   return static_cast<int>(lexer.next());
 }
 
+void preprocessorSetup(cxx::Preprocessor& preprocessor, val fileExistsFn,
+                       val readFileFn) {
+  preprocessor.setFileExistsFunction([fileExistsFn](std::string fileName) {
+    return fileExistsFn(fileName).as<bool>();
+  });
+
+  preprocessor.setReadFileFunction([readFileFn](std::string fileName) {
+    return readFileFn(fileName).as<std::string>();
+  });
+}
+
 auto preprocesorPreprocess(cxx::Preprocessor& preprocessor, std::string source,
                            std::string filename) -> std::string {
   std::ostringstream out;
@@ -227,7 +239,10 @@ auto register_control(const char* name = "Control") -> class_<cxx::Control> {
 
 auto register_diagnostics_client(const char* name = "DiagnosticsClient")
     -> class_<cxx::DiagnosticsClient> {
-  return class_<cxx::DiagnosticsClient>(name).constructor();
+  return class_<cxx::DiagnosticsClient>(name)
+      .constructor()  // ctor
+      .function("setPreprocessor", &cxx::DiagnosticsClient::setPreprocessor,
+                allow_raw_pointers());
 }
 
 auto register_preprocessor(const char* name = "Preprocessor")
@@ -235,6 +250,7 @@ auto register_preprocessor(const char* name = "Preprocessor")
   return class_<cxx::Preprocessor>(name)
       .constructor<cxx::Control*, cxx::DiagnosticsClient*>()
       .function("preprocess", &preprocesorPreprocess)
+      .function("setup", &preprocessorSetup)
       .function("addIncludePath", &cxx::Preprocessor::addSystemIncludePath)
       .function("defineMacro", &cxx::Preprocessor::defineMacro)
       .function("undefineMacro", &cxx::Preprocessor::undefMacro)

@@ -381,6 +381,8 @@ struct Preprocessor::Private {
   std::vector<bool> skipping_;
   std::string_view date_;
   std::string_view time_;
+  std::function<bool(std::string)> fileExists_;
+  std::function<std::string(std::string)> readFile_;
   int counter_ = 0;
   Arena pool_;
 
@@ -556,7 +558,13 @@ struct Preprocessor::Private {
     return true;
   }
 
+  [[nodiscard]] auto fileExists(const fs::path &file) const -> bool {
+    if (fileExists_) return fileExists_(file.string());
+    return fs::exists(file);
+  }
+
   [[nodiscard]] auto readFile(const fs::path &file) const -> std::string {
+    if (readFile_) return readFile_(file.string());
     std::ifstream in(file);
     std::ostringstream out;
     out << in.rdbuf();
@@ -588,7 +596,7 @@ struct Preprocessor::Private {
              it != rend(d->systemIncludePaths_); ++it) {
           const auto p = fs::path(*it);
           auto path = p / include.fileName;
-          if (fs::exists(path)) {
+          if (d->fileExists(path)) {
             if (!next || hit) return path;
             hit = true;
           }
@@ -600,7 +608,7 @@ struct Preprocessor::Private {
           -> std::optional<fs::path> {
         bool hit = false;
 
-        if (fs::exists(d->currentPath_ / include.fileName)) {
+        if (d->fileExists(d->currentPath_ / include.fileName)) {
           if (!next) return d->currentPath_ / include.fileName;
           hit = true;
         }
@@ -609,7 +617,7 @@ struct Preprocessor::Private {
              it != rend(d->quoteIncludePaths_); ++it) {
           auto p = fs::path(*it);
           auto path = p / include.fileName;
-          if (fs::exists(path)) {
+          if (d->fileExists(path)) {
             if (!next || hit) return path;
             hit = true;
           }
@@ -619,7 +627,7 @@ struct Preprocessor::Private {
              it != rend(d->systemIncludePaths_); ++it) {
           auto p = fs::path(*it);
           auto path = p / include.fileName;
-          if (fs::exists(path)) {
+          if (d->fileExists(path)) {
             if (!next || hit) return path;
             hit = true;
           }
@@ -1734,6 +1742,16 @@ auto Preprocessor::currentPath() const -> std::string {
 
 void Preprocessor::setCurrentPath(std::string currentPath) {
   d->currentPath_ = std::move(currentPath);
+}
+
+void Preprocessor::setFileExistsFunction(
+    std::function<bool(std::string)> fileExists) {
+  d->fileExists_ = std::move(fileExists);
+}
+
+void Preprocessor::setReadFileFunction(
+    std::function<std::string(std::string)> readFile) {
+  d->readFile_ = std::move(readFile);
 }
 
 void Preprocessor::squeeze() { d->pool_.reset(); }
