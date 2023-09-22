@@ -32,6 +32,8 @@ interface Control {
 interface DiagnosticsClient {
   new (): DiagnosticsClient;
   delete(): void;
+
+  setPreprocessor(preprocessor: Preprocessor): void;
 }
 
 interface TranslationUnit {
@@ -46,12 +48,16 @@ interface TranslationUnit {
   getAST(): number;
 }
 
+type FileExistsFn = (path: string) => boolean;
+type ReadFileFn = (path: string) => string | undefined;
+
 interface Preprocessor {
   new (control: Control, diagnosticsClient: DiagnosticsClient): Preprocessor;
   delete(): void;
 
   canResolveFiles(): boolean;
   setCanResolveFiles(value: boolean): void;
+  setup(fileExists: FileExistsFn, readFile: ReadFileFn): void;
   currentPath(): string;
   setCurrentPath(path: string): void;
   defineMacro(name: string, value: string): void;

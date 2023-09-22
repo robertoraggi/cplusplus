@@ -20,6 +20,15 @@
 
 import { cxx } from "./cxx";
 
+interface PreprocessorOptions {
+  systemIncludePaths?: string[];
+
+  fs?: {
+    existsSync(path: string): boolean;
+    readFileSync(path: string): string;
+  };
+}
+
 export class Preprocessor {
   #control: typeof cxx.Control;
   #diagnosticClient: typeof cxx.DiagnosticsClient;
@@ -30,10 +39,22 @@ export class Preprocessor {
    *
    * @param source
    */
-  constructor() {
+  constructor({ systemIncludePaths, fs }: PreprocessorOptions = {}) {
     this.#control = new cxx.Control();
     this.#diagnosticClient = new cxx.DiagnosticsClient();
     this.#handle = new cxx.Preprocessor(this.#control, this.#diagnosticClient);
+    this.#diagnosticClient.setPreprocessor(this.#handle);
+
+    systemIncludePaths?.forEach((path) => {
+      this.#handle.addIncludePath(path);
+    });
+
+    if (fs) {
+      const { existsSync, readFileSync } = fs;
+
+      this.#handle.setCanResolveFiles(true);
+      this.#handle.setup(existsSync, readFileSync);
+    }
   }
 
   /**

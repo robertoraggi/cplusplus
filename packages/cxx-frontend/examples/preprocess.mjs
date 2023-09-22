@@ -31,6 +31,8 @@ constexpr bool unix_target = false;
 #endif
 
 #endif
+
+#include "iostream"
 `;
 
 async function main() {
@@ -41,7 +43,16 @@ async function main() {
   // initialize the parser
   await Parser.init({ wasm: wasmBinary });
 
-  const preprocessor = new Preprocessor();
+  const preprocessor = new Preprocessor({
+    systemIncludePaths: ["/usr/include"],
+
+    fs: {
+      existsSync: (path) => path === "/usr/include/iostream",
+
+      readFileSync: (path) =>
+        path === "/usr/include/iostream" ? "namespace std {}" : "",
+    },
+  });
 
   preprocessor.defineMacro("DEBUG", "1");
   preprocessor.defineMacro("__unix__", "1");
