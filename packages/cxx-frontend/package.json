@@ -10,7 +10,7 @@
     "url": false
   },
   "scripts": {
-    "build": "node scripts/build.js",
+    "build": "zx scripts/build.js",
     "prettier": "npx prettier --check .",
     "prettier:fix": "npx prettier --write . "
   },
