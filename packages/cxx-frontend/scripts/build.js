@@ -68,12 +68,6 @@ async function build() {
     outfile: "dist/cjs/index.cjs",
     format: "cjs",
     platform: "node",
-    define: {
-      "import.meta.url": "import_meta_url",
-    },
-    inject: [
-      path.join(cxxFrontendSourcePath, "scripts/import.meta.url-polyfill.js"),
-    ],
   });
 
   // build the esm cxx-frontend package

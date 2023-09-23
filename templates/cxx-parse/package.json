@@ -1,0 +1,20 @@
+{
+  "name": "@robertoraggi/cxx-parse",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "description": "Dump C++ AST to the standard output",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": {
+    "name": "Roberto Raggi",
+    "email": "roberto.raggi@gmail.com"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "cxx-frontend": "^1.1.26"
+  }
+}
