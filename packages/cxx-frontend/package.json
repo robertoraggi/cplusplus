@@ -12,6 +12,7 @@
   "scripts": {
     "watch": "watchexec --print-events -r npm run build",
     "build": "zx scripts/build.js",
+    "docs": "typedoc src/index.ts",
     "prettier": "npx prettier --check .",
     "prettier:fix": "npx prettier --write . "
   },
@@ -39,6 +40,7 @@
     "@types/node": "^20.6.2",
     "esbuild": "^0.19.3",
     "prettier": "^3.0.3",
+    "typedoc": "^0.25.1",
     "typescript": "^5.2.2",
     "zx": "^7.2.3"
   }
