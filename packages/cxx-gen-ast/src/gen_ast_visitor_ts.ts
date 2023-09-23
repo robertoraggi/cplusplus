@@ -43,13 +43,25 @@ export async function gen_ast_visitor_ts({
 
   const nodeName = (name: string) => name.slice(0, -3);
 
+  emit(`/**`);
+  emit(` * AST Visitor.`);
+  emit(` *`);
+  emit(` * Base class for all AST visitors.`);
+  emit(` */`);
   emit(`export abstract class ASTVisitor<Context, Result> {`);
   emit(`    constructor() { }`);
 
-  by_bases.forEach((nodes, base) => {
+  by_bases.forEach((nodes, _base) => {
     emit();
-    emit(`    // ${base}`);
     nodes.forEach(({ name }) => {
+      emit();
+      emit(`/**`);
+      emit(` * Visit ${nodeName(name)} node.`);
+      emit(` *`);
+      emit(` * @param node The node to visit.`);
+      emit(` * @param context The context.`);
+      emit(` * @returns The result of the visit.`);
+      emit(` */`);
       emit(
         `    abstract visit${nodeName(
           name

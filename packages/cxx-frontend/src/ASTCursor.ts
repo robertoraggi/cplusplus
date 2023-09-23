@@ -22,7 +22,6 @@ import { AST } from "./AST";
 import { Token } from "./Token";
 import { cxx } from "./cxx";
 import { ASTSlotKind } from "./ASTSlotKind";
-import { Parser } from "./Parser";
 import { ASTSlot } from "./ASTSlot";
 
 interface TranslationUnitLike {
@@ -85,10 +84,21 @@ interface AcceptArgs {
   slot?: ASTSlot;
 }
 
+/**
+ * AST cursor.
+ *
+ * A cursor is used to traverse the AST.
+ */
 export class ASTCursor {
   readonly #parser: TranslationUnitLike;
   readonly #stack: StackEntry[] = [];
 
+  /**
+   * Constructs a new AST cursor.
+   *
+   * @param root The root node.
+   * @param parser The parser that owns the AST.
+   */
   constructor(
     readonly root: AST,
     parser: TranslationUnitLike,
@@ -97,14 +107,23 @@ export class ASTCursor {
     this.#stack.push(new StackEntry({ node: root }, this.#parser));
   }
 
+  /**
+   * Returns the current AST node or Token.
+   */
   get node(): AST | Token {
     return this.#current.owner.node;
   }
 
+  /**
+   * Returns the current AST slot.
+   */
   get slot(): ASTSlot | undefined {
     return this.#current.owner.name;
   }
 
+  /**
+   * Move the cursor to the first child of the current node.
+   */
   gotoFirstChild() {
     this.#current.restart();
     if (!this.#current.children) return false;
@@ -114,6 +133,9 @@ export class ASTCursor {
     return true;
   }
 
+  /**
+   * Move the cursor to the next sibling of the current node.
+   */
   gotoNextSibling() {
     if (!this.#parent) return false;
     if (!this.#parent.children) return false;
@@ -124,12 +146,20 @@ export class ASTCursor {
     return true;
   }
 
+  /**
+   * Move the cursor to the parent of the current node.
+   */
   gotoParent() {
     if (this.#current.owner.node === this.root) return false;
     this.#stack.pop();
     return true;
   }
 
+  /**
+   * Pre-order traversal of the AST.
+   *
+   * @param accept The function to call for each node.
+   */
   preVisit(accept: (args: AcceptArgs) => void | boolean) {
     let done = false;
     let depth = 0;

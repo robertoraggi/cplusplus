@@ -53,8 +53,17 @@ export async function gen_ast_ts({
 
   by_bases.forEach((nodes) => {
     nodes.forEach(({ name, base, members }) => {
+      emit(`/**`);
+      emit(` * ${name} node.`);
+      emit(` */`);
       emit(`export class ${name} extends ${base} {`);
 
+      emit(`    /**`);
+      emit(`     * Traverse this node using the given visitor.`);
+      emit(`     * @param visitor the visitor.`);
+      emit(`     * @param context the context.`);
+      emit(`     * @returns the result of the visit.`);
+      emit(`     */`);
       emit(
         `    accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result {`
       );
@@ -66,6 +75,10 @@ export async function gen_ast_ts({
         switch (m.kind) {
           case "attribute":
             if (m.type === "bool") {
+              emit();
+              emit(`    /**`);
+              emit(`     * Returns the ${m.name} attribute of this node`);
+              emit(`     */`);
               emit(`    ${getterName(m.name)}(): boolean {`);
               emit(
                 `        return cxx.getASTSlot(this.getHandle(), ${slotCount}) !== 0;`
@@ -73,6 +86,10 @@ export async function gen_ast_ts({
               emit(`    }`);
               ++slotCount;
             } else if (m.type === "TokenKind") {
+              emit();
+              emit(`    /**`);
+              emit(`     * Returns the ${m.name} attribute of this node`);
+              emit(`     */`);
               emit(`    ${getterName(m.name)}(): TokenKind {`);
               emit(
                 `        return cxx.getASTSlot(this.getHandle(), ${slotCount});`
@@ -80,6 +97,10 @@ export async function gen_ast_ts({
               emit(`    }`);
               ++slotCount;
             } else if (m.type === "Identifier") {
+              emit();
+              emit(`    /**`);
+              emit(`     * Returns the ${m.name} attribute of this node`);
+              emit(`     */`);
               emit(`    ${getterName(m.name)}(): string | undefined {`);
               emit(
                 `      const slot = cxx.getASTSlot(this.getHandle(), ${slotCount});`
@@ -88,6 +109,10 @@ export async function gen_ast_ts({
               emit(`    }`);
               ++slotCount;
             } else if (m.type.endsWith("Literal")) {
+              emit();
+              emit(`    /**`);
+              emit(`     * Returns the ${m.name} attribute of this node`);
+              emit(`     */`);
               emit(`    ${getterName(m.name)}(): string | undefined {`);
               emit(
                 `      const slot = cxx.getASTSlot(this.getHandle(), ${slotCount});`
@@ -98,6 +123,10 @@ export async function gen_ast_ts({
             }
             break;
           case "node":
+            emit();
+            emit(`    /**`);
+            emit(`     * Returns the ${m.name} of this node`);
+            emit(`     */`);
             emit(`    ${getterName(m.name)}(): ${m.type} | undefined {`);
             emit(
               `        return AST.from<${m.type}>(cxx.getASTSlot(this.getHandle(), ${slotCount}), this.parser);`
@@ -106,6 +135,10 @@ export async function gen_ast_ts({
             ++slotCount;
             break;
           case "node-list":
+            emit();
+            emit(`    /**`);
+            emit(`     * Returns the ${m.name} of this node`);
+            emit(`     */`);
             emit(
               `    *${getterName(m.name)}(): Generator<${m.type} | undefined> {`
             );
@@ -119,7 +152,14 @@ export async function gen_ast_ts({
             emit(`    }`);
             ++slotCount;
             break;
-          case "token":
+          case "token": {
+            const tokenName = m.name.slice(0, -3);
+            emit();
+            emit(`    /**`);
+            emit(
+              `     * Returns the location of the ${tokenName} token in this node`
+            );
+            emit(`     */`);
             emit(`    ${tokenGetterName(m.name)}(): Token | undefined {`);
             emit(
               `        return Token.from(cxx.getASTSlot(this.getHandle(), ${slotCount}), this.parser);`
@@ -127,6 +167,7 @@ export async function gen_ast_ts({
             emit(`    }`);
             ++slotCount;
             break;
+          }
           case "token-list":
             // emit(`  List<SourceLocation>* ${m.name} = nullptr;`);
             ++slotCount;
@@ -158,46 +199,110 @@ import { ASTKind } from "./ASTKind";
 import { Token } from "./Token";
 import { TokenKind } from "./TokenKind";
 
+/**
+ * An interface that represents a translation unit.
+ */
 interface TranslationUnitLike {
+    /**
+     * Returns the handle of the translation unit.
+     */
     getUnitHandle(): number;
 }
 
+/**
+ * The base class of all the AST nodes.
+ */
 export abstract class AST {
+    /**
+     * Constructs an AST node.
+     * @param handle the handle of the AST node.
+     * @param kind the kind of the AST node.
+     * @param parser the parser that owns the AST node.
+     */
     constructor(private readonly handle: number,
         private readonly kind: ASTKind,
         protected readonly parser: TranslationUnitLike) {
     }
 
+    /**
+     * Returns the cursor of the AST node.
+     *
+     * The cursor is used to traverse the AST.
+     *
+     * @returns the cursor of the AST node.
+     */
     walk(): ASTCursor {
         return new ASTCursor(this, this.parser);
     }
 
+    /**
+     * Returns the kind of the AST node.
+     *
+     * @returns the kind of the AST node.
+     */
     getKind(): ASTKind {
         return this.kind;
     }
 
+    /**
+     * Returns true if the AST node is of the given kind.
+     *
+     * @param kind the kind to check.
+     * @returns true if the AST node is of the given kind.
+     */
     is(kind: ASTKind): boolean {
         return this.kind === kind;
     }
 
+    /**
+     * Returns true if the AST node is not of the given kind.
+     *
+     * @param kind the kind to check.
+     * @returns true if the AST node is not of the given kind.
+     */
     isNot(kind: ASTKind): boolean {
         return this.kind !== kind;
     }
 
+    /**
+     * Returns the handle of the AST node.
+     *
+     * @returns the handle of the AST node.
+     */
     getHandle() {
         return this.handle;
     }
 
+    /**
+     * Returns the source location of the AST node.
+     *
+     * @returns the source location of the AST node.
+     */
     getStartLocation(): SourceLocation {
         return cxx.getStartLocation(this.handle, this.parser.getUnitHandle());
     }
 
+    /**
+     * Returns the source location of the AST node.
+     *
+     * @returns the source location of the AST node.
+     */
     getEndLocation(): SourceLocation {
         return cxx.getEndLocation(this.handle, this.parser.getUnitHandle());
     }
 
+    /**
+     * Accepts the given visitor.
+     */
     abstract accept<Context, Result>(visitor: ASTVisitor<Context, Result>, context: Context): Result;
 
+    /**
+     * Constructs an AST node from the given handle.
+     *
+     * @param handle the handle of the AST node.
+     * @param parser the parser that owns the AST node.
+     * @returns the AST node.
+     */
     static from<T extends AST = AST>(handle: number, parser: TranslationUnitLike): T | undefined {
         if (handle) {
             const kind = cxx.getASTKind(handle) as ASTKind;
