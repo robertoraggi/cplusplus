@@ -4,4 +4,4 @@ node_modules
 *.tgz
 README.md
 CHANGELOG.md
-src/cxx-js.js
+cxx-js.js
