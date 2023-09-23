@@ -10,6 +10,7 @@
     "url": false
   },
   "scripts": {
+    "watch": "watchexec --print-events -r npm run build",
     "build": "zx scripts/build.js",
     "prettier": "npx prettier --check .",
     "prettier:fix": "npx prettier --write . "
