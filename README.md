@@ -17,6 +17,12 @@ For updates, improvements, and recent features in cxx-frontend, please consult t
 
 - **C++-23 Support**: Latest language enhancements, syntax, and features (WIP).
 
+## Syntax Checker and AST Browser Showcase
+
+Storybook and CodeMirror are used to demonstrate how to create a syntax checker and navigate the Abstract Syntax Tree (AST)
+
+https://robertoraggi.github.io/cplusplus/
+
 ## Installing from npm
 
 To integrate the latest stable version of the C++ Compiler Frontend bindings into your project, you can install them from npm:
@@ -29,7 +35,7 @@ Once installed, you can use the bindings in your Node.js or web projects as need
 
 ## Getting Started Using Example Projects
 
-These projects are pre-configured and serve as starting points for various use cases.
+These projects are pre-configured and serve as starting points for various [use cases](https://github.com/robertoraggi/cplusplus/tree/main/templates).
 
 For Node.js
 
@@ -43,17 +49,11 @@ node .
 For web-based applications, use these commands to clone, set up, and start a development server:
 
 ```sh
-npx degit robertoraggi/cplusplus/templates/cxx-browser-esm-vite
+npx degit robertoraggi/cplusplus/templates/cxx-browser-esm-vite cxx-browser-esm-vite
 cd cxx-browser-esm-vite
 npm install
 npm run dev
 ```
-
-## Syntax Checker and AST Browser Showcase
-
-Storybook and CodeMirror are used to demonstrate how to create a syntax checker and navigate the Abstract Syntax Tree (AST)
-
-https://robertoraggi.github.io/cplusplus/
 
 ## Build the npm package (requires docker)
 
