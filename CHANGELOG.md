@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.26](https://github.com/robertoraggi/cplusplus/compare/v1.1.25...v1.1.26) (2023-09-23)
+
+
+### Bug Fixes
+
+* Add JavaScript API docs ([810fcb1](https://github.com/robertoraggi/cplusplus/commit/810fcb1f5aa1383494ec8f6347ad819423820ad8))
+* Copy cxx-js.d.ts to the build output directory ([27f4d50](https://github.com/robertoraggi/cplusplus/commit/27f4d504281d13634fd7edaf137586446d8c6740))
+* Expose APIs to resolve include directives ([cdac9c3](https://github.com/robertoraggi/cplusplus/commit/cdac9c35dac778a4f631c1387fd77ba9987cccff))
+* Generate docs for cxx-frontend using typedoc ([30366dc](https://github.com/robertoraggi/cplusplus/commit/30366dc675a795333032ebb88d2e3659e79df5ce))
+* Rewrote build script using zx ([8f01dfd](https://github.com/robertoraggi/cplusplus/commit/8f01dfd55592fbcb94886b93d1179b4b3a2ca77f))
+* Update the docs and add templates for node cjs, node esm and web ([81fb699](https://github.com/robertoraggi/cplusplus/commit/81fb6998388938a96a29a484a9cae8f32aa60d54))
+
 ## [1.1.25](https://github.com/robertoraggi/cplusplus/compare/v1.1.24...v1.1.25) (2023-09-20)
 
 
