@@ -1,26 +1,90 @@
 # A compiler front end for the C++ language
 
-This repository contains a _work in progress_ compiler front end for C++ 23.
+cxx-frontend is a work-in-progress compiler frontend for C++23
 
-## Install
+The compiler frontend is designed to be a powerful tool for developers, enabling them to parse, analyze, and modify C++ source code. This project aims to provide a robust foundation for building a complete C++ frontend, staying
+up-to-date with the latest language features and standards.
 
-For the latest stable version of the JavaScript bindings:
+# Changelog and What's New
 
-```
+For updates, improvements, and recent features in cxx-frontend, please consult the [Changelog](CHANGELOG.md).
+
+# Key Features
+
+- **Syntax Analysis**: APIs to scan, preprocess, parse, and inspect the syntax of source code, making it a versatile tool for various code analysis tasks.
+
+- **Multi-Language Support**: In addition to C++, the library provides APIs for TypeScript and JavaScript.
+
+- **C++-23 Support**: Latest language enhancements, syntax, and features (WIP).
+
+## Installing from npm
+
+To integrate the latest stable version of the C++ Compiler Frontend bindings into your project, you can install them from npm:
+
+```sh
 npm install cxx-frontend
 ```
 
-## Storybook
+Once installed, you can use the bindings in your Node.js or web projects as needed.
+
+## Getting Started Using Example Projects
+
+These projects are pre-configured and serve as starting points for various use cases.
+
+For Node.js
+
+```sh
+npx degit robertoraggi/cplusplus/templates/cxx-parse cxx-parse
+cd cxx-parse
+npm install
+node .
+```
+
+For web-based applications, use these commands to clone, set up, and start a development server:
+
+```sh
+npx degit robertoraggi/cplusplus/templates/cxx-browser-esm-vite
+cd cxx-browser-esm-vite
+npm install
+npm run dev
+```
+
+## Syntax Checker and AST Browser Showcase
+
+Storybook and CodeMirror are used to demonstrate how to create a syntax checker and navigate the Abstract Syntax Tree (AST)
 
 https://robertoraggi.github.io/cplusplus/
 
-## Node.JS examples
+## Build the npm package (requires docker)
 
-- [Preprocess Source Files](./packages/cxx-frontend/examples/preprocess.mjs)
-- [Tokenize Input](./packages/cxx-frontend/examples/tokenize.mjs)
-- [Parse Translation Unit](./packages/cxx-frontend/examples/unit.mjs)
+```sh
+cd packages/cxx-frontend
 
-## Build
+# prepare the package
+npm ci
+
+# compile WASM and TypeScript code
+npm run build
+
+# build the package
+npm pack
+```
+
+## Build the WASM/WASI (requires docker)
+
+```sh
+# build for WASI and install it under build.em/install/
+./scripts/build-wasi.sh
+
+# run the C++ front end CLI tool using wasmtime
+wasmtime \
+  --mapdir=/::build.wasi/install \
+  --mapdir tests::tests \
+  build.wasi/install/usr/bin/cxx.wasm -- \
+  tests/manual/source.cc -ast-dump
+```
+
+## Native Build and CLI tools
 
 On Linux, macOS and Windows:
 
@@ -61,142 +125,6 @@ $ ./build/_deps/flatbuffers-build/flatc --raw-binary -t build/src/parser/cxx/ast
 $ ll source.*
 source.ast source.cc source.json
 ```
-
-## Build the npm package using docker
-
-```sh
-cd packages/cxx-frontend
-
-# prepare the package
-npm ci
-
-# compile WASM and TypeScript code
-npm run build
-
-# build the package
-npm pack
-```
-
-## Use the JavaScript API with Node.JS
-
-```js
-//
-// example.mjs
-//
-
-import { DEFAULT_WASM_BINARY_URL, Parser, AST, ASTKind } from "cxx-frontend";
-import { readFile } from "fs/promises";
-import { fileURLToPath } from "url";
-
-const source = `
-template <typename T>
-concept CanAdd = requires(T n) {
-  n + n;
-};
-
-auto twice(CanAdd auto n) {
-  return n + n;
-}
-
-int main() {
-  return twice(2);
-}
-`;
-
-async function main() {
-  const wasmBinaryFile = fileURLToPath(DEFAULT_WASM_BINARY_URL);
-
-  const wasmBinary = await readFile(wasmBinaryFile);
-
-  // initialize the parser
-  await Parser.init({ wasm: wasmBinary });
-
-  const parser = new Parser({ source, path: "source.cc" });
-
-  parser.parse();
-
-  const diagnostics = parser.getDiagnostics();
-
-  if (diagnostics.length > 0) {
-    console.log("diagnostics", diagnostics);
-  }
-
-  const ast = parser.getAST();
-
-  ast?.walk().preVisit(({ node, depth }) => {
-    if (node instanceof AST) {
-      const ind = " ".repeat(depth * 2);
-      const kind = ASTKind[node.getKind()];
-      console.log(`${ind}${kind}`);
-    }
-  });
-
-  parser.dispose();
-}
-
-main().catch(console.error);
-```
-
-## Use the JavaScript API in a web browser
-
-```html
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <title>C++ Playground</title>
-  </head>
-  <body>
-    <script type="module">
-      import {
-        DEFAULT_WASM_BINARY_URL,
-        Parser,
-        AST,
-        ASTKind,
-      } from "https://unpkg.com/cxx-frontend";
-
-      const response = await fetch(DEFAULT_WASM_BINARY_URL);
-
-      const wasm = await response.arrayBuffer();
-
-      await Parser.init({ wasm: wasmBinary });
-
-      const source = `int main()\n{\n  return 0;\n}\n`;
-
-      const parser = new Parser({
-        path: "source.cc",
-        source,
-      });
-
-      parser.parse();
-
-      const rows = [];
-
-      const ast = parser.getAST();
-
-      ast?.walk().preVisit(({ node, depth }) => {
-        if (node instanceof AST)
-          rows.push("  ".repeat(depth) + ASTKind[node.getKind()]);
-      });
-
-      parser.dispose();
-
-      const sourceOutput = document.createElement("pre");
-      sourceOutput.style.borderStyle = "solid";
-      sourceOutput.innerText = source;
-      document.body.appendChild(sourceOutput);
-
-      const astOutput = document.createElement("pre");
-      astOutput.style.borderStyle = "solid";
-      astOutput.innerText = rows.join("\n");
-      document.body.appendChild(astOutput);
-    </script>
-  </body>
-</html>
-```
-
-## Release Notes
-
-[Changelog](CHANGELOG.md)
 
 ## License
 

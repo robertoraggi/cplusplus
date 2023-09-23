@@ -1,0 +1,18 @@
+{
+  "name": "@robertoraggi/cxx-examples",
+  "version": "1.0.0",
+  "private": true,
+  "description": "cxx-frontend examples",
+  "scripts": {
+    "build": "npm run --workspaces --if-present build"
+  },
+  "author": {
+    "name": "Roberto Raggi",
+    "email": "roberto.raggi@gmail.com"
+  },
+  "license": "MIT",
+  "workspaces": [
+    "../packages/cxx-frontend",
+    "cxx-*"
+  ]
+}

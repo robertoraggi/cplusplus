@@ -23,7 +23,6 @@ export * from "./ASTCursor";
 export * from "./ASTKind";
 export * from "./ASTSlot";
 export * from "./ASTVisitor";
-export * from "./defaultWasmBinaryUrl";
 export * from "./Diagnostic";
 export * from "./Lexer";
 export * from "./Parser";

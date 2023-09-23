@@ -95,13 +95,6 @@ jobs:
           npm run build
           npm pack
 
-      - name: Test
-        working-directory: packages/cxx-frontend/examples
-        run: |
-          for i in *.mjs; do
-            node $i
-          done
-
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
