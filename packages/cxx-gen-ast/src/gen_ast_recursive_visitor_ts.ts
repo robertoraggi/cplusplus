@@ -45,13 +45,27 @@ export async function gen_ast_recursive_visitor_ts({
     `get${name[0].toUpperCase() + name.substr(1)}`;
   const nodeName = (name: string) => name.slice(0, -3);
 
+  emit(`/**`);
+  emit(` * RecursiveASTVisitor.`);
+  emit(` *`);
+  emit(` * Base class for recursive AST visitors.`);
+  emit(` */`);
   emit(
     `export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {`
   );
+  emit(`    /**`);
+  emit(`     * Constructor.`);
+  emit(`     */`);
   emit(`    constructor() {`);
   emit(`        super();`);
   emit(`    }`);
   emit();
+  emit(`    /**`);
+  emit(`     * Visits a node.`);
+  emit(`     *`);
+  emit(`     * @param node The node to visit.`);
+  emit(`     * @param context The context.`);
+  emit(`     */`);
   emit(`    accept(node: ast.AST | undefined, context: Context) {`);
   emit(`        node?.accept(this, context);`);
   emit(`    }`);
@@ -59,6 +73,12 @@ export async function gen_ast_recursive_visitor_ts({
   by_bases.forEach((nodes) => {
     nodes.forEach(({ name, members }) => {
       emit();
+      emit(`    /**`);
+      emit(`     * Visit a ${nodeName(name)} node.`);
+      emit(`     *`);
+      emit(`     * @param node The node to visit.`);
+      emit(`     * @param context The context.`);
+      emit(`     */`);
       emit(
         `    visit${nodeName(
           name
