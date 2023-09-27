@@ -1055,9 +1055,15 @@ void Preprocessor::Private::expand(
     } else if (!evaluateDirectives && matchId(ts, "__has_feature")) {
       expect(ts, TokenKind::T_LPAREN);
       auto id = expectId(ts);
-      (void)id;
       expect(ts, TokenKind::T_RPAREN);
-      auto t = Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, "1");
+      bool enabled = true;
+      if (id == "blocks") {
+        enabled = false;
+      } else if (id.starts_with("obj_")) {
+        enabled = false;
+      }
+      auto t =
+          Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, enabled ? "1" : "0");
       emitToken(t);
     } else {
       ts = expandOne(ts, emitToken);
