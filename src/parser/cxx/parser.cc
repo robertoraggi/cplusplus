@@ -2935,7 +2935,7 @@ auto Parser::parse_expression_statement(StatementAST*& yyast) -> bool {
   ExpressionAST* expression = nullptr;
 
   if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) {
-    parse_expression(expression);
+    if (!parse_maybe_expression(expression)) return false;
 
     expect(TokenKind::T_SEMICOLON, semicolonLoc);
   }
