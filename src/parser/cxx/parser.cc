@@ -91,6 +91,7 @@ class FunctionPrototype {
   }
 
   void process(DeclaratorAST* declarator) {
+    if (!declarator) return;
     if (declarator->ptrOpList) makePtr();
     if (declarator->declaratorChunkList) {
       auto prototype = ast_cast<FunctionDeclaratorChunkAST>(
