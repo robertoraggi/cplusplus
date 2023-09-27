@@ -155,12 +155,20 @@ export function SyntaxTree({ parser, cursorPosition }: SyntaxTreeProps) {
 }
 
 function isWithin(node: AST, line: number, column: number): boolean {
-  const { startLine, startColumn } = node.getStartLocation();
-  const { endLine, endColumn } = node.getEndLocation();
+  const start = node.getStartLocation();
+  if (!start) return false;
+
+  const end = node.getEndLocation();
+  if (!end) return false;
+
+  const { startLine, startColumn } = start;
+  const { endLine, endColumn } = end;
+
   if (line < startLine) return false;
   if (line > endLine) return false;
   if (line === startLine && column < startColumn) return false;
   if (line === endLine && column > endColumn) return false;
+
   return true;
 }
 

@@ -130,13 +130,16 @@ val getTokenLocation(intptr_t handle, intptr_t unitHandle) {
 
 val getStartLocation(intptr_t handle, intptr_t unitHandle) {
   auto ast = reinterpret_cast<cxx::AST*>(handle);
-  return getTokenLocation(ast->firstSourceLocation().index(), unitHandle);
+  const auto loc = ast->firstSourceLocation();
+  if (!loc) return {};
+  return getTokenLocation(loc.index(), unitHandle);
 }
 
 val getEndLocation(intptr_t handle, intptr_t unitHandle) {
   auto ast = reinterpret_cast<cxx::AST*>(handle);
-  return getTokenLocation(ast->lastSourceLocation().previous().index(),
-                          unitHandle);
+  const auto loc = ast->lastSourceLocation().previous();
+  if (!loc) return {};
+  return getTokenLocation(loc.index(), unitHandle);
 }
 
 val getIdentifierValue(intptr_t handle) {
