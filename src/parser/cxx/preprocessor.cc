@@ -1059,6 +1059,8 @@ void Preprocessor::Private::expand(
       bool enabled = true;
       if (id == "blocks") {
         enabled = false;
+      } else if (id == "memory_sanitizer") {
+        enabled = false;
       } else if (id.starts_with("obj_")) {
         enabled = false;
       }
