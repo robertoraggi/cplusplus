@@ -54,39 +54,58 @@ class RecordingDiagnosticsClient : public DiagnosticsClient {
   std::vector<Diagnostic> messages_;
 };
 
-auto getFunctionDeclaratorHelper(DeclaratorAST* declarator)
-    -> std::pair<FunctionDeclaratorChunkAST*, bool> {
-  if (!declarator) return std::make_pair(nullptr, false);
+class FunctionPrototype {
+  enum struct Kind { Direct, Ptr, Function, Array };
 
-  if (auto n = ast_cast<NestedDeclaratorAST>(declarator->coreDeclarator)) {
-    auto [fundecl, done] = getFunctionDeclaratorHelper(n->declarator);
+  FunctionDeclaratorChunkAST* prototype_ = nullptr;
+  Kind kind_ = Kind::Direct;
 
-    if (done) return std::make_pair(fundecl, done);
+ public:
+  FunctionPrototype() = default;
+
+  FunctionDeclaratorChunkAST* operator()(DeclaratorAST* declarator) {
+    makeDirect();
+    process(declarator);
+    return prototype_;
   }
 
-  std::vector<DeclaratorChunkAST*> declaratorChunkList;
-
-  for (auto it = declarator->declaratorChunkList; it; it = it->next) {
-    declaratorChunkList.push_back(it->value);
+ private:
+  void makeDirect() {
+    prototype_ = nullptr;
+    kind_ = Kind::Direct;
   }
 
-  for (auto it = rbegin(declaratorChunkList); it != rend(declaratorChunkList);
-       ++it) {
-    auto modifier = *it;
+  void makePtr() {
+    prototype_ = nullptr;
+    kind_ = Kind::Ptr;
+  }
 
-    if (auto decl = ast_cast<FunctionDeclaratorChunkAST>(modifier)) {
-      return std::make_pair(decl, true);
+  void makeArray() {
+    prototype_ = nullptr;
+    kind_ = Kind::Array;
+  }
+
+  void makeFunction(FunctionDeclaratorChunkAST* prototype) {
+    prototype_ = prototype;
+    kind_ = Kind::Function;
+  }
+
+  void process(DeclaratorAST* declarator) {
+    if (declarator->ptrOpList) makePtr();
+    if (declarator->declaratorChunkList) {
+      auto prototype = ast_cast<FunctionDeclaratorChunkAST>(
+          declarator->declaratorChunkList->value);
+      if (prototype) makeFunction(prototype);
     }
-
-    return std::make_pair(nullptr, true);
+    auto nested = ast_cast<NestedDeclaratorAST>(declarator->coreDeclarator);
+    if (nested) process(nested->declarator);
   }
+};
 
-  return std::make_pair(nullptr, false);
-}
-
-auto getFunctionDeclarator(DeclaratorAST* declarator)
+auto getFunctionPrototype(DeclaratorAST* declarator)
     -> FunctionDeclaratorChunkAST* {
-  return get<0>(getFunctionDeclaratorHelper(declarator));
+  FunctionPrototype prototype;
+  return prototype(declarator);
 }
 
 }  // namespace
@@ -3619,7 +3638,7 @@ auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
 
   const auto after_declarator = currentLocation();
 
-  auto functionDeclarator = getFunctionDeclarator(declarator);
+  auto functionDeclarator = getFunctionPrototype(declarator);
 
   RequiresClauseAST* requiresClause = nullptr;
 
@@ -7024,7 +7043,7 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
 
   const auto hasDeclarator = parse_declarator(declarator);
 
-  auto functionDeclarator = getFunctionDeclarator(declarator);
+  auto functionDeclarator = getFunctionPrototype(declarator);
 
   if (hasDeclarator && functionDeclarator) {
     RequiresClauseAST* requiresClause = nullptr;
@@ -7159,7 +7178,7 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
 
   ast->declarator = declarator;
 
-  if (auto functionDeclarator = getFunctionDeclarator(declarator)) {
+  if (auto functionDeclarator = getFunctionPrototype(declarator)) {
     RequiresClauseAST* requiresClause = nullptr;
 
     if (parse_requires_clause(requiresClause)) {
