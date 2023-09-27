@@ -98,13 +98,19 @@ export type CXX = {
   getASTSlotCount(handle: number, slot: number): number;
   getListValue(handle: number): number;
   getListNext(handle: number): number;
+  getLiteralValue(handle: number): string | undefined;
+  getIdentifierValue(handle: number): string | undefined;
   getTokenText(handle: number, unitHandle: number): string;
   getTokenKind(handle: number, unitHandle: number): TokenKind;
   getTokenLocation(handle: number, unitHandle: number): SourceLocation;
-  getStartLocation(handle: number, unitHandle: number): SourceLocation;
-  getEndLocation(handle: number, unitHandle: number): SourceLocation;
-  getLiteralValue(handle: number): string | undefined;
-  getIdentifierValue(handle: number): string | undefined;
+  getStartLocation(
+    handle: number,
+    unitHandle: number,
+  ): SourceLocation | undefined;
+  getEndLocation(
+    handle: number,
+    unitHandle: number,
+  ): SourceLocation | undefined;
 };
 
 export default function ({

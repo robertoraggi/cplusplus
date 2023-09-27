@@ -278,7 +278,7 @@ export abstract class AST {
      *
      * @returns the source location of the AST node.
      */
-    getStartLocation(): SourceLocation {
+    getStartLocation(): SourceLocation | undefined {
         return cxx.getStartLocation(this.handle, this.parser.getUnitHandle());
     }
 
@@ -287,7 +287,7 @@ export abstract class AST {
      *
      * @returns the source location of the AST node.
      */
-    getEndLocation(): SourceLocation {
+    getEndLocation(): SourceLocation | undefined {
         return cxx.getEndLocation(this.handle, this.parser.getUnitHandle());
     }
 
