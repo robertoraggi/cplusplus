@@ -2060,6 +2060,10 @@ void Preprocessor::printMacros(std::ostream &out) const {
         if (i > 0) fmt::print(",");
         fmt::print(out, "{}", macro.formals[i]);
       }
+      if (macro.variadic) {
+        if (!macro.formals.empty()) fmt::print(out, ",");
+        fmt::print(out, "...");
+      }
       fmt::print(out, ")");
     }
     if (macro.body) fmt::print(out, " ");
