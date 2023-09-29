@@ -78,7 +78,8 @@ class Preprocessor {
   void setFileExistsFunction(std::function<bool(std::string)> fileExists);
   void setReadFileFunction(std::function<std::string(std::string)> readFile);
 
-  void operator()(std::string source, std::string fileName, std::ostream &out);
+  void setOnWillIncludeHeader(
+      std::function<void(const std::string &, int)> willIncludeHeader);
 
   void preprocess(std::string source, std::string fileName, std::ostream &out);
 

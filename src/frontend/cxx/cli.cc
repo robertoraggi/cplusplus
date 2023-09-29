@@ -122,6 +122,9 @@ std::vector<CLIOptionDescr> options{
 
     {"-P", "Omit line markers", &CLI::opt_P},
 
+    {"-H", "Print the name of each header file used to the standard output",
+     &CLI::opt_H},
+
     {"-dM", "Print macro definitions in -E mode instead of normal output",
      &CLI::opt_dM},
 

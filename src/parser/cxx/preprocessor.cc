@@ -452,7 +452,9 @@ struct Preprocessor::Private {
   std::string_view time_;
   std::function<bool(std::string)> fileExists_;
   std::function<std::string(std::string)> readFile_;
+  std::function<void(const std::string &, int)> willIncludeHeader_;
   int counter_ = 0;
+  int includeDepth_ = 0;
   bool omitLineMarkers_ = false;
   Arena pool_;
 
@@ -956,7 +958,15 @@ void Preprocessor::Private::expand(
 
         if (prot) ifndefProtectedFiles_.emplace(fn, prot->head->text);
 
+        ++includeDepth_;
+
+        if (willIncludeHeader_) {
+          willIncludeHeader_(fn, includeDepth_);
+        }
+
         expand(sourceFile->tokens, /*directives=*/true, emitToken);
+
+        --includeDepth_;
 
         if (prot && macros_.find(prot->head->text) == macros_.end()) {
           auto it = ifndefProtectedFiles_.find(std::string(prot->head->text));
@@ -1834,12 +1844,12 @@ void Preprocessor::setReadFileFunction(
   d->readFile_ = std::move(readFile);
 }
 
-void Preprocessor::squeeze() { d->pool_.reset(); }
-
-void Preprocessor::operator()(std::string source, std::string fileName,
-                              std::ostream &out) {
-  preprocess(std::move(source), std::move(fileName), out);
+void Preprocessor::setOnWillIncludeHeader(
+    std::function<void(const std::string &, int)> willIncludeHeader) {
+  d->willIncludeHeader_ = std::move(willIncludeHeader);
 }
+
+void Preprocessor::squeeze() { d->pool_.reset(); }
 
 void Preprocessor::preprocess(std::string source, std::string fileName,
                               std::ostream &out) {

@@ -59,6 +59,7 @@ class CLI {
   bool opt_E = false;
   bool opt_Eonly = false;
   bool opt_P = false;
+  bool opt_H = false;
   bool opt_help = false;
   bool opt_nostdinc = false;
   bool opt_nostdincpp = false;

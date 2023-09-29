@@ -213,6 +213,14 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
     preprocesor->setOmitLineMarkers(true);
   }
 
+  if (cli.opt_H && (cli.opt_E || cli.opt_Eonly)) {
+    preprocesor->setOnWillIncludeHeader(
+        [&](const std::string& header, int level) {
+          std::string fill(level, '.');
+          fmt::print(stdout, "{} {}\n", fill, header);
+        });
+  }
+
   if (cli.opt_E && !cli.opt_dM) {
     preprocesor->preprocess(readAll(fileName), fileName, output);
     shouldExit = true;
