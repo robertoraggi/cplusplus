@@ -453,6 +453,7 @@ struct Preprocessor::Private {
   std::function<bool(std::string)> fileExists_;
   std::function<std::string(std::string)> readFile_;
   int counter_ = 0;
+  bool omitLineMarkers_ = false;
   Arena pool_;
 
   Private() {
@@ -1815,6 +1816,14 @@ void Preprocessor::setCurrentPath(std::string currentPath) {
   d->currentPath_ = std::move(currentPath);
 }
 
+auto Preprocessor::omitLineMarkers() const -> bool {
+  return d->omitLineMarkers_;
+}
+
+void Preprocessor::setOmitLineMarkers(bool omitLineMarkers) {
+  d->omitLineMarkers_ = omitLineMarkers;
+}
+
 void Preprocessor::setFileExistsFunction(
     std::function<bool(std::string)> fileExists) {
   d->fileExists_ = std::move(fileExists);
@@ -1871,12 +1880,17 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
         fmt::print(out, "\n");
       } else {
         if (it != os) fmt::print(out, "\n");
-        fmt::print(out, "# {} \"{}\"\n", line, fileName);
+        if (!d->omitLineMarkers_) {
+          fmt::print(out, "# {} \"{}\"\n", line, fileName);
+        }
         outLine = line + 1;
         outFile = tk->sourceFile;
       }
     } else if (needSpace(prevTk, tk) || tk->space || !tk->sourceFile) {
-      fmt::print(out, " ");
+      if (tk->bol)
+        fmt::print(out, "\n");
+      else
+        fmt::print(out, " ");
     }
     fmt::print(out, "{}", tk->text);
     prevTk = tk;

@@ -72,6 +72,9 @@ class Preprocessor {
   [[nodiscard]] auto currentPath() const -> std::string;
   void setCurrentPath(std::string currentPath);
 
+  [[nodiscard]] auto omitLineMarkers() const -> bool;
+  void setOmitLineMarkers(bool omitLineMarkers);
+
   void setFileExistsFunction(std::function<bool(std::string)> fileExists);
   void setReadFileFunction(std::function<std::string(std::string)> readFile);
 

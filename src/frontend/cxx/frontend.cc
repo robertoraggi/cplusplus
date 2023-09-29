@@ -209,6 +209,10 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
 
   bool shouldExit = false;
 
+  if (cli.opt_P) {
+    preprocesor->setOmitLineMarkers(true);
+  }
+
   if (cli.opt_E && !cli.opt_dM) {
     preprocesor->preprocess(readAll(fileName), fileName, output);
     shouldExit = true;
