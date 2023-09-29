@@ -120,6 +120,8 @@ std::vector<CLIOptionDescr> options{
     {"-Eonly", "Just run preprocessor, no output (for timings)",
      &CLI::opt_Eonly},
 
+    {"-P", "Omit line markers", &CLI::opt_P},
+
     {"-dM", "Print macro definitions in -E mode instead of normal output",
      &CLI::opt_dM},
 
