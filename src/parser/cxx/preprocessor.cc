@@ -51,6 +51,75 @@
 
 namespace {
 
+std::unordered_set<std::string_view> builtinMacros{
+    "__has_extension",
+    "__has_feature",
+    "__has_include",
+};
+
+std::unordered_set<std::string_view> enabledExtensions{
+    "__cxx_binary_literals__",
+    "__cxx_binary_literals__",
+    "cxx_string_literal_templates",
+};
+
+std::unordered_set<std::string_view> enabledFeatures{
+    "__cxx_aggregate_nsdmi__",
+    "__cxx_alias_templates__",
+    "__cxx_binary_literals__",
+    "__cxx_constexpr__",
+    "__cxx_decltype__",
+    "__cxx_decltype_auto__",
+    "__cxx_deleted_functions__",
+    "__cxx_generic_lambdas__",
+    "__cxx_init_captures__",
+    "__cxx_noexcept__",
+    "__cxx_nullptr__",
+    "__cxx_reference_qualified_functions__",
+    "__cxx_relaxed_constexpr__",
+    "__cxx_return_type_deduction__",
+    "__cxx_rvalue_references__",
+    "__cxx_static_assert__",
+    "__cxx_variable_templates__",
+    "__cxx_variadic_templates__",
+    "cxx_alias_templates",
+    "cxx_alignas",
+    "cxx_alignof",
+    "cxx_atomic",
+    "cxx_attributes",
+    "cxx_auto_type",
+    "cxx_constexpr_string_builtins",
+    "cxx_constexpr",
+    "cxx_decltype_incomplete_return_types",
+    "cxx_decltype",
+    "cxx_default_function_template_args",
+    "cxx_defaulted_functions",
+    "cxx_delegating_constructors",
+    "cxx_deleted_functions",
+    "cxx_exceptions",
+    "cxx_explicit_conversions",
+    "cxx_generalized_initializers",
+    "cxx_inline_namespaces",
+    "cxx_lambdas",
+    "cxx_local_type_template_args",
+    "cxx_noexcept",
+    "cxx_nullptr",
+    "cxx_override_control",
+    "cxx_range_for",
+    "cxx_raw_string_literals",
+    "cxx_reference_qualified_functions",
+    "cxx_rtti",
+    "cxx_rvalue_references",
+    "cxx_static_assert",
+    "cxx_strong_enums",
+    "cxx_thread_local",
+    "cxx_trailing_return",
+    "cxx_unicode_literals",
+    "cxx_unrestricted_unions",
+    "cxx_user_literals",
+    "cxx_variadic_templates",
+};
+
 class Hideset {
  public:
   Hideset(const Hideset &other) = default;
@@ -639,6 +708,16 @@ struct Preprocessor::Private {
     return std::visit(Resolve(this, next), include);
   }
 
+  auto isDefined(const std::string_view &id) const -> bool {
+    if (macros_.contains(id)) return true;
+    return builtinMacros.contains(id);
+  }
+
+  auto isDefined(const Tok *tok) const -> bool {
+    if (!tok) return false;
+    return isDefined(tok->text);
+  }
+
   void defineMacro(const TokList *ts);
 
   auto tokenize(const std::string_view &source, int sourceFile, bool bol)
@@ -889,16 +968,14 @@ void Preprocessor::Private::expand(
         std::swap(currentFileName_, currentFileName);
         ts = skipLine(directive);
       } else if (matchId(ts, "ifdef")) {
-        const Macro *macro = nullptr;
-        const auto value = lookupMacro(ts->head, macro);
+        const auto value = isDefined(ts->head);
         if (value) {
           pushState(std::tuple(skipping, false));
         } else {
           pushState(std::tuple(true, !skipping));
         }
       } else if (matchId(ts, "ifndef")) {
-        const Macro *macro = nullptr;
-        const auto value = !lookupMacro(ts->head, macro);
+        const auto value = !isDefined(ts->head);
         if (value) {
           pushState(std::tuple(skipping, false));
         } else {
@@ -930,8 +1007,7 @@ void Preprocessor::Private::expand(
         if (!evaluating) {
           setState(std::tuple(true, false));
         } else {
-          const Macro *macro = nullptr;
-          const auto value = lookupMacro(ts->head, macro);
+          const auto value = isDefined(ts->head);
           if (value) {
             setState(std::tuple(!evaluating, false));
           } else {
@@ -942,8 +1018,7 @@ void Preprocessor::Private::expand(
         if (!evaluating) {
           setState(std::tuple(true, false));
         } else {
-          const Macro *macro = nullptr;
-          const auto value = lookupMacro(ts->head, macro);
+          const auto value = isDefined(ts->head);
           if (!value) {
             setState(std::tuple(!evaluating, false));
           } else {
@@ -985,17 +1060,17 @@ void Preprocessor::Private::expand(
     } else if (evaluateDirectives && skipping) {
       ts = skipLine(ts->tail);
     } else if (!evaluateDirectives && matchId(ts, "defined")) {
-      const Macro *macro = nullptr;
+      auto value = false;
       if (match(ts, TokenKind::T_LPAREN)) {
-        lookupMacro(ts->head, macro);
+        value = isDefined(ts->head);
         ts = ts->tail;
         expect(ts, TokenKind::T_RPAREN);
       } else {
-        lookupMacro(ts->head, macro);
+        value = isDefined(ts->head);
         ts = ts->tail;
       }
       auto t =
-          Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, macro ? "1" : "0");
+          Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, value ? "1" : "0");
       emitToken(t);
     } else if (!evaluateDirectives && matchId(ts, "__has_include")) {
       std::string fn;
@@ -1043,12 +1118,7 @@ void Preprocessor::Private::expand(
       expect(ts, TokenKind::T_LPAREN);
       const auto id = expectId(ts);
       expect(ts, TokenKind::T_RPAREN);
-      bool enabled = true;
-      if (id == "blocks") {
-        enabled = false;
-      } else if (id.starts_with("obj_")) {
-        enabled = false;
-      }
+      const auto enabled = enabledExtensions.contains(id);
       auto t =
           Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, enabled ? "1" : "0");
       emitToken(t);
@@ -1056,14 +1126,7 @@ void Preprocessor::Private::expand(
       expect(ts, TokenKind::T_LPAREN);
       auto id = expectId(ts);
       expect(ts, TokenKind::T_RPAREN);
-      bool enabled = true;
-      if (id == "blocks") {
-        enabled = false;
-      } else if (id == "memory_sanitizer") {
-        enabled = false;
-      } else if (id.starts_with("obj_")) {
-        enabled = false;
-      }
+      const auto enabled = enabledFeatures.contains(id);
       auto t =
           Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, enabled ? "1" : "0");
       emitToken(t);
