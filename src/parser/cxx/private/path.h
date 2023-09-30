@@ -31,6 +31,8 @@ using path = std::filesystem::path;
 
 using std::filesystem::current_path;
 using std::filesystem::exists;
+using std::filesystem::is_symlink;
+using std::filesystem::read_symlink;
 
 }  // namespace cxx::fs
 

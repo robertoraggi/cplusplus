@@ -51,7 +51,8 @@
 
 #include "cli.h"
 
-namespace cxx {
+namespace {
+using namespace cxx;
 
 auto readAll(const std::string& fileName, std::istream& in) -> std::string {
   std::string code;
@@ -258,7 +259,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
   return !diagnosticsClient.hasErrors();
 }
 
-}  // namespace cxx
+}  // namespace
 
 auto main(int argc, char* argv[]) -> int {
   using namespace cxx;
