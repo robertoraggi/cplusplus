@@ -21,6 +21,7 @@
 #include "cli.h"
 
 #include <cxx/private/format.h>
+#include <cxx/private/path.h>
 
 #include <array>
 #include <utility>
@@ -181,6 +182,35 @@ std::vector<CLIOptionDescr> options{
 
 };
 
+#ifndef CXX_NO_FILESYSTEM
+
+/**
+ * Retuns the system path found in the PATH environment variable.
+ */
+auto getSystemPaths() -> std::vector<fs::path> {
+  std::vector<fs::path> paths;
+
+  char sep = ':';
+
+  // if on windows use ';' as separator
+#ifdef _WIN32
+  sep = ';';
+#endif
+
+  if (auto path = getenv("PATH")) {
+    std::istringstream iss(path);
+    std::string token;
+
+    while (std::getline(iss, token, sep)) {
+      paths.push_back(fs::path(token));
+    }
+  }
+
+  return paths;
+}
+
+#endif
+
 }  // namespace
 
 CLI::CLI() = default;
@@ -223,6 +253,21 @@ auto CLI::positionals() const -> std::vector<std::string> {
 
 void CLI::parse(int& argc, char**& argv) {
   app_name = argv[0];
+
+#ifndef CXX_NO_FILESYSTEM
+  if (fs::path(app_name).remove_filename().empty()) {
+    for (auto path : getSystemPaths()) {
+      if (fs::exists(path / app_name)) {
+        app_name = (path / app_name).string();
+        break;
+      }
+    }
+  }
+
+  while (fs::is_symlink(app_name)) {
+    app_name = fs::read_symlink(app_name).string();
+  }
+#endif
 
   for (int i = 1; i < argc;) {
     const std::string arg(argv[i++]);
