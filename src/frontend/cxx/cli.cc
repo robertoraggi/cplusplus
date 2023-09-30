@@ -24,6 +24,7 @@
 #include <cxx/private/path.h>
 
 #include <array>
+#include <sstream>
 #include <utility>
 #include <vector>
 
