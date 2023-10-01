@@ -215,6 +215,7 @@ auto Lexer::readToken() -> TokenKind {
     }
 
     while (pos_ != end_) {
+      if (!isRawStringLiteral && LA() == '\n') break;
       if (LA() == '"') {
         consume();
 
@@ -266,7 +267,7 @@ auto Lexer::readToken() -> TokenKind {
 
   if (LA() == '\'') {
     consume();
-    while (pos_ != end_ && LA() != '\'') {
+    while (pos_ != end_ && LA() != '\'' && LA() != '\n') {
       if (pos_ + 1 < end_ && LA() == '\\') {
         consume(2);
       } else {
