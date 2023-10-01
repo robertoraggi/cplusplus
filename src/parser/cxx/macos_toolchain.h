@@ -30,9 +30,15 @@ class MacOSToolchain final : public Toolchain {
  public:
   using Toolchain::Toolchain;
 
+  explicit MacOSToolchain(Preprocessor* preprocessor);
+
   void addSystemIncludePaths() override;
   void addSystemCppIncludePaths() override;
   void addPredefinedMacros() override;
+
+ private:
+  std::string platformPath_;
+  std::string toolchainPath_;
 };
 
 }  // namespace cxx

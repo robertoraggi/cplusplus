@@ -117,7 +117,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
     toolchainId = "wasm32";
   }
 
-  if (toolchainId == "darwin") {
+  if (toolchainId == "darwin" || toolchainId == "macos") {
     toolchain = std::make_unique<MacOSToolchain>(preprocesor);
   } else if (toolchainId == "wasm32") {
     auto wasmToolchain = std::make_unique<Wasm32WasiToolchain>(preprocesor);
