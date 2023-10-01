@@ -2826,7 +2826,7 @@ void Parser::parse_init_statement(StatementAST*& yyast) {
   auto lookat_simple_declaration = [&] {
     LookaheadParser lookahead{this};
     DeclarationAST* declaration = nullptr;
-    if (!parse_simple_declaration(declaration, true)) return false;
+    if (!parse_simple_declaration(declaration, false)) return false;
     lookahead.commit();
 
     auto ast = new (pool) DeclarationStatementAST();
