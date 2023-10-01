@@ -271,30 +271,32 @@
   V(__REFERENCE_BINDS_TO_TEMPORARY, "__reference_binds_to_temporary")
 
 #define FOR_EACH_TOKEN_ALIAS(V) \
-  V(AND, AMP_AMP)               \
   V(AND_EQ, AMP_EQUAL)          \
+  V(AND, AMP_AMP)               \
   V(BITAND, AMP)                \
   V(BITOR, BAR)                 \
   V(COMPL, TILDE)               \
-  V(NOT, EXCLAIM)               \
   V(NOT_EQ, EXCLAIM_EQUAL)      \
-  V(OR, BAR_BAR)                \
+  V(NOT, EXCLAIM)               \
   V(OR_EQ, BAR_EQUAL)           \
-  V(XOR, CARET)                 \
+  V(OR, BAR_BAR)                \
   V(XOR_EQ, CARET_EQUAL)        \
-  V(__ALIGNOF, ALIGNOF)         \
+  V(XOR, CARET)                 \
   V(__ALIGNOF__, ALIGNOF)       \
-  V(__ASM, ASM)                 \
+  V(__ALIGNOF, ALIGNOF)         \
   V(__ASM__, ASM)               \
+  V(__ASM, ASM)                 \
   V(__ATTRIBUTE, __ATTRIBUTE__) \
-  V(__DECLTYPE, DECLTYPE)       \
   V(__DECLTYPE__, DECLTYPE)     \
-  V(__INLINE, INLINE)           \
+  V(__DECLTYPE, DECLTYPE)       \
   V(__INLINE__, INLINE)         \
+  V(__INLINE, INLINE)           \
+  V(__IS_SAME_AS, __IS_SAME)    \
   V(__RESTRICT, __RESTRICT__)   \
-  V(__TYPEOF, DECLTYPE)         \
   V(__TYPEOF__, DECLTYPE)       \
-  V(__IS_SAME_AS, __IS_SAME)
+  V(__TYPEOF, DECLTYPE)         \
+  V(_ALIGNOF, ALIGNOF)          \
+  V(_STATIC_ASSERT, STATIC_ASSERT)
 
 namespace cxx {
 
