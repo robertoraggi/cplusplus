@@ -70,10 +70,6 @@ class CLI {
   bool opt_v = false;
   bool opt_emit_ast = false;
 
-  [[nodiscard]] auto checkTypes() const -> bool {
-    return opt_ir_dump || opt_S || opt_c || opt_fsyntax_only;
-  }
-
   void parse(int& argc, char**& argv);
 
   [[nodiscard]] auto count(const std::string& flag) const -> int;
