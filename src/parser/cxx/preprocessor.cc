@@ -503,6 +503,32 @@ struct Preprocessor::Private {
     evaluating_.pop_back();
   }
 
+  auto findSourceFile(const std::string &fileName) -> SourceFile * {
+    for (auto &sourceFile : sourceFiles_) {
+      if (sourceFile->fileName == fileName) {
+        return sourceFile.get();
+      }
+    }
+    return nullptr;
+  }
+
+  auto createSourceFile(std::string fileName, std::string source)
+      -> SourceFile * {
+    if (sourceFiles_.size() >= 4096) {
+      cxx_runtime_error("too many source files");
+    }
+
+    const int sourceFileId = static_cast<int>(sourceFiles_.size() + 1);
+
+    SourceFile *sourceFile =
+        &*sourceFiles_.emplace_back(std::make_unique<SourceFile>(
+            std::move(fileName), std::move(source), sourceFileId));
+
+    sourceFile->tokens = tokenize(sourceFile->source, sourceFileId, true);
+
+    return sourceFile;
+  }
+
   auto bol(const TokList *ts) const -> bool { return ts && ts->head->bol; }
 
   [[nodiscard]] auto lookat(const TokList *ts, auto... tokens) const -> bool {
@@ -884,6 +910,20 @@ void Preprocessor::Private::expand(const TokList *ts, bool evaluateDirectives,
 void Preprocessor::Private::expand(
     const TokList *ts, bool evaluateDirectives,
     const std::function<void(const Tok *)> &emitToken) {
+  const TokList *headerProtection = nullptr;
+  const auto headerProtectionLevel = evaluating_.size();
+
+  const auto start = ts;
+
+  if (evaluateDirectives) {
+    headerProtection = checkHeaderProtection(ts);
+
+    if (headerProtection) {
+      ifndefProtectedFiles_.insert_or_assign(currentFileName_,
+                                             headerProtection->head->text);
+    }
+  }
+
   while (ts && !lookat(ts, TokenKind::T_EOF_SYMBOL)) {
     const auto tk = ts->head;
     const auto start = ts;
@@ -941,23 +981,34 @@ void Preprocessor::Private::expand(
           continue;
         }
 
-        const auto fn = path->string();
+        std::string currentFileName = path->string();
 
-        if (pragmaOnceProtected_.find(fn) != pragmaOnceProtected_.end()) {
+        if (pragmaOnceProtected_.contains(currentFileName)) {
           ts = skipLine(directive);
           continue;
         }
 
-        auto it = ifndefProtectedFiles_.find(fn);
+        if (auto it = ifndefProtectedFiles_.find(currentFileName);
+            it != ifndefProtectedFiles_.end() && macros_.contains(it->second)) {
+          ts = skipLine(directive);
+          continue;
+        }
 
-        if (it != ifndefProtectedFiles_.end()) {
-          if (macros_.find(it->second) != macros_.end()) {
-            ts = skipLine(directive);
-            continue;
+        auto sourceFile = findSourceFile(currentFileName);
+
+        if (!sourceFile) {
+          sourceFile = createSourceFile(path->string(), readFile(*path));
+
+          if (checkPragmaOnceProtected(sourceFile->tokens)) {
+            pragmaOnceProtected_.insert(currentFileName);
           }
         }
 
-        std::string currentFileName = path->string();
+        ++includeDepth_;
+
+        if (willIncludeHeader_) {
+          willIncludeHeader_(currentFileName, includeDepth_);
+        }
 
         auto dirpath = *path;
         dirpath.remove_filename();
@@ -965,56 +1016,13 @@ void Preprocessor::Private::expand(
         std::swap(currentPath_, dirpath);
         std::swap(currentFileName_, currentFileName);
 
-        SourceFile *sourceFile = nullptr;
-
-        auto fileName = path->string();
-
-        for (const auto &source : sourceFiles_) {
-          if (source->fileName == fileName) {
-            sourceFile = source.get();
-            break;
-          }
-        }
-
-        if (!sourceFile) {
-          const int sourceFileId = static_cast<int>(sourceFiles_.size() + 1);
-
-          sourceFile = sourceFiles_
-                           .emplace_back(std::make_unique<SourceFile>(
-                               path->string(), readFile(*path), sourceFileId))
-                           .get();
-
-          sourceFile->tokens =
-              tokenize(sourceFile->source, sourceFile->id, true);
-
-          if (checkPragmaOnceProtected(sourceFile->tokens)) {
-            pragmaOnceProtected_.insert(fn);
-          }
-        }
-
-        const auto prot = checkHeaderProtection(sourceFile->tokens);
-
-        if (prot) ifndefProtectedFiles_.emplace(fn, prot->head->text);
-
-        ++includeDepth_;
-
-        if (willIncludeHeader_) {
-          willIncludeHeader_(fn, includeDepth_);
-        }
-
         expand(sourceFile->tokens, /*directives=*/true, emitToken);
-
-        --includeDepth_;
-
-        if (prot && macros_.find(prot->head->text) == macros_.end()) {
-          auto it = ifndefProtectedFiles_.find(std::string(prot->head->text));
-          if (it != ifndefProtectedFiles_.end()) {
-            ifndefProtectedFiles_.erase(it);
-          }
-        }
 
         std::swap(currentPath_, dirpath);
         std::swap(currentFileName_, currentFileName);
+
+        --includeDepth_;
+
         ts = skipLine(directive);
       } else if (matchId(ts, "ifdef")) {
         const auto value = isDefined(ts->head);
@@ -1080,6 +1088,11 @@ void Preprocessor::Private::expand(
         popState();
         if (evaluating_.empty()) {
           error(directive->head->token(), "unexpected '#endif'");
+        }
+        if (headerProtection && evaluating_.size() == headerProtectionLevel) {
+          if (!lookat(ts, TokenKind::T_EOF_SYMBOL)) {
+            ifndefProtectedFiles_.erase(currentFileName_);
+          }
         }
       } else if (matchId(ts, "line")) {
         // ###
@@ -1804,7 +1817,7 @@ void Preprocessor::Private::defineMacro(const TokList *ts) {
     macros_.erase(it);
   }
 
-  macros_.emplace(name, std::move(m));
+  macros_.insert_or_assign(name, std::move(m));
 }
 
 auto Preprocessor::Private::merge(const Tok *left, const Tok *right)
@@ -1970,21 +1983,19 @@ void Preprocessor::squeeze() { d->pool_.reset(); }
 
 void Preprocessor::preprocess(std::string source, std::string fileName,
                               std::ostream &out) {
-  const int sourceFileId = static_cast<int>(d->sourceFiles_.size() + 1);
-  auto &sourceFile = *d->sourceFiles_.emplace_back(std::make_unique<SourceFile>(
-      std::move(fileName), std::move(source), sourceFileId));
+  assert(!d->findSourceFile(fileName));
+  auto sourceFile = d->createSourceFile(std::move(fileName), std::move(source));
+  const auto sourceFileId = sourceFile->id;
 
-  std::string currentFileName = sourceFile.fileName;
+  std::string currentFileName = sourceFile->fileName;
 
-  fs::path path(sourceFile.fileName);
+  fs::path path(sourceFile->fileName);
   path.remove_filename();
 
   std::swap(d->currentPath_, path);
   std::swap(d->currentFileName_, currentFileName);
 
-  const auto ts = d->tokenize(sourceFile.source, sourceFileId, true);
-
-  const auto os = d->expand(ts, /*directives*/ true);
+  const auto os = d->expand(sourceFile->tokens, /*directives*/ true);
 
   std::swap(d->currentFileName_, currentFileName);
   std::swap(d->currentPath_, path);
@@ -2028,21 +2039,19 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
 
 void Preprocessor::preprocess(std::string source, std::string fileName,
                               std::vector<Token> &tokens) {
-  const int sourceFileId = static_cast<int>(d->sourceFiles_.size() + 1);
-  auto &sourceFile = *d->sourceFiles_.emplace_back(std::make_unique<SourceFile>(
-      std::move(fileName), std::move(source), sourceFileId));
+  assert(!d->findSourceFile(fileName));
+  auto sourceFile = d->createSourceFile(std::move(fileName), std::move(source));
+  const auto sourceFileId = sourceFile->id;
 
-  std::string currentFileName = sourceFile.fileName;
+  std::string currentFileName = sourceFile->fileName;
 
-  fs::path path(sourceFile.fileName);
+  fs::path path(currentFileName);
   path.remove_filename();
 
   std::swap(d->currentPath_, path);
   std::swap(d->currentFileName_, currentFileName);
 
-  const auto ts = d->tokenize(sourceFile.source, sourceFileId, true);
-
-  sourceFile.tokens = ts;
+  const TokList *ts = sourceFile->tokens;
 
   tokens.emplace_back(TokenKind::T_ERROR);
 
@@ -2139,7 +2148,7 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
   });
 
   tokens.emplace_back(TokenKind::T_EOF_SYMBOL,
-                      static_cast<uint32_t>(sourceFile.source.size()));
+                      static_cast<uint32_t>(sourceFile->source.size()));
 
   tokens.back().setFileId(sourceFileId);
 
