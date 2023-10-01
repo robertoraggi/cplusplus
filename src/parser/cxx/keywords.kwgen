@@ -204,7 +204,9 @@ __decltype
 __decltype__
 __inline
 __inline__
+__is_same_as
 __restrict
 __typeof
 __typeof__
-__is_same_as
+_Alignof
+_Static_assert
