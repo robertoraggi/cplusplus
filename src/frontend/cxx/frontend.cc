@@ -242,7 +242,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
   if (!shouldExit) {
     preprocesor->squeeze();
 
-    unit.parse(cli.checkTypes());
+    unit.parse(/*checkTypes=*/true);
 
     if (cli.opt_emit_ast) {
       unit.serialize(output);
