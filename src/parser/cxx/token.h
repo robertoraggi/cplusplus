@@ -87,18 +87,18 @@ class Token {
   static auto name(TokenKind kind) -> const std::string&;
 
  private:
-  TokenKind kind_ : 8;
-  uint32_t startOfLine_ : 1;
-  uint32_t leadingSpace_ : 1;
-  uint32_t fileId_ : 10;
-  uint32_t length_ : 16;
-  uint32_t offset_ : 28;
+  std::uint64_t kind_ : 8;
+  std::uint64_t startOfLine_ : 1;
+  std::uint64_t leadingSpace_ : 1;
+  std::uint64_t fileId_ : 12;
+  std::uint64_t length_ : 17;
+  std::uint64_t offset_ : 25;
   TokenValue value_;
 };
 
 inline Token::Token(TokenKind kind, unsigned offset, unsigned length,
                     TokenValue value)
-    : kind_(kind),
+    : kind_(static_cast<std::uint64_t>(kind)),
       startOfLine_(0),
       leadingSpace_(0),
       fileId_(0),
@@ -106,9 +106,13 @@ inline Token::Token(TokenKind kind, unsigned offset, unsigned length,
       offset_(offset),
       value_(value) {}
 
-inline auto Token::kind() const -> TokenKind { return kind_; }
+inline auto Token::kind() const -> TokenKind {
+  return static_cast<TokenKind>(kind_);
+}
 
-inline void Token::setKind(TokenKind kind) { kind_ = kind; }
+inline void Token::setKind(TokenKind kind) {
+  kind_ = static_cast<std::uint64_t>(kind);
+}
 
 inline auto Token::value() const -> TokenValue { return value_; }
 
