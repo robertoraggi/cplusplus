@@ -2214,11 +2214,68 @@ auto UsingEnumDeclarationAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto AsmOperandAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(lbracketLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(symbolicNameLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rbracketLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(constraintLiteralLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  return {};
+}
+
+auto AsmOperandAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(constraintLiteralLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(rbracketLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(symbolicNameLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lbracketLoc)) return loc;
+  return {};
+}
+
+auto AsmQualifierAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(qualifierLoc)) return loc;
+  return {};
+}
+
+auto AsmQualifierAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(qualifierLoc)) return loc;
+  return {};
+}
+
+auto AsmClobberAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(literalLoc)) return loc;
+  return {};
+}
+
+auto AsmClobberAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(literalLoc)) return loc;
+  return {};
+}
+
+auto AsmGotoLabelAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
+  return {};
+}
+
+auto AsmGotoLabelAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  return {};
+}
+
 auto AsmDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(asmQualifierList)) return loc;
   if (auto loc = cxx::firstSourceLocation(asmLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(literalLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(outputOperandList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(inputOperandList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(clobberList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(gotoLabelList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
   return {};
@@ -2227,9 +2284,14 @@ auto AsmDeclarationAST::firstSourceLocation() -> SourceLocation {
 auto AsmDeclarationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(gotoLabelList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(clobberList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(inputOperandList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(outputOperandList)) return loc;
   if (auto loc = cxx::lastSourceLocation(literalLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(asmLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(asmQualifierList)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   return {};
 }

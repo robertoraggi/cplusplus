@@ -628,6 +628,22 @@ void DefaultASTVisitor::visit(UsingEnumDeclarationAST* ast) {
   cxx_runtime_error("visit(UsingEnumDeclarationAST): not implemented");
 }
 
+void DefaultASTVisitor::visit(AsmOperandAST* ast) {
+  cxx_runtime_error("visit(AsmOperandAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(AsmQualifierAST* ast) {
+  cxx_runtime_error("visit(AsmQualifierAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(AsmClobberAST* ast) {
+  cxx_runtime_error("visit(AsmClobberAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(AsmGotoLabelAST* ast) {
+  cxx_runtime_error("visit(AsmGotoLabelAST): not implemented");
+}
+
 void DefaultASTVisitor::visit(AsmDeclarationAST* ast) {
   cxx_runtime_error("visit(AsmDeclarationAST): not implemented");
 }

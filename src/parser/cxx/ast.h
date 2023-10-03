@@ -2663,6 +2663,73 @@ class UsingEnumDeclarationAST final : public DeclarationAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class AsmOperandAST final : public DeclarationAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::AsmOperand;
+
+  AsmOperandAST() : DeclarationAST(Kind) {}
+
+  SourceLocation lbracketLoc;
+  SourceLocation symbolicNameLoc;
+  SourceLocation rbracketLoc;
+  SourceLocation constraintLiteralLoc;
+  SourceLocation lparenLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation rparenLoc;
+  const Identifier* symbolicName = nullptr;
+  const Literal* constraintLiteral = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class AsmQualifierAST final : public DeclarationAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::AsmQualifier;
+
+  AsmQualifierAST() : DeclarationAST(Kind) {}
+
+  SourceLocation qualifierLoc;
+  TokenKind qualifier = TokenKind::T_EOF_SYMBOL;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class AsmClobberAST final : public DeclarationAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::AsmClobber;
+
+  AsmClobberAST() : DeclarationAST(Kind) {}
+
+  SourceLocation literalLoc;
+  const StringLiteral* literal = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class AsmGotoLabelAST final : public DeclarationAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::AsmGotoLabel;
+
+  AsmGotoLabelAST() : DeclarationAST(Kind) {}
+
+  SourceLocation identifierLoc;
+  const Identifier* identifier = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 class AsmDeclarationAST final : public DeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::AsmDeclaration;
@@ -2670,9 +2737,14 @@ class AsmDeclarationAST final : public DeclarationAST {
   AsmDeclarationAST() : DeclarationAST(Kind) {}
 
   List<AttributeSpecifierAST*>* attributeList = nullptr;
+  List<AsmQualifierAST*>* asmQualifierList = nullptr;
   SourceLocation asmLoc;
   SourceLocation lparenLoc;
   SourceLocation literalLoc;
+  List<AsmOperandAST*>* outputOperandList = nullptr;
+  List<AsmOperandAST*>* inputOperandList = nullptr;
+  List<AsmClobberAST*>* clobberList = nullptr;
+  List<AsmGotoLabelAST*>* gotoLabelList = nullptr;
   SourceLocation rparenLoc;
   SourceLocation semicolonLoc;
   const Literal* literal = nullptr;

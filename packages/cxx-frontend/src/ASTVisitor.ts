@@ -1751,6 +1751,48 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
 
   /**
+   * Visit AsmOperand node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitAsmOperand(node: ast.AsmOperandAST, context: Context): Result;
+
+  /**
+   * Visit AsmQualifier node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitAsmQualifier(
+    node: ast.AsmQualifierAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit AsmClobber node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitAsmClobber(node: ast.AsmClobberAST, context: Context): Result;
+
+  /**
+   * Visit AsmGotoLabel node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitAsmGotoLabel(
+    node: ast.AsmGotoLabelAST,
+    context: Context,
+  ): Result;
+
+  /**
    * Visit AsmDeclaration node.
    *
    * @param node The node to visit.

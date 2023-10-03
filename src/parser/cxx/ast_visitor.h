@@ -202,6 +202,10 @@ class ASTVisitor {
   virtual void visit(UsingDirectiveAST* ast) = 0;
   virtual void visit(UsingDeclarationAST* ast) = 0;
   virtual void visit(UsingEnumDeclarationAST* ast) = 0;
+  virtual void visit(AsmOperandAST* ast) = 0;
+  virtual void visit(AsmQualifierAST* ast) = 0;
+  virtual void visit(AsmClobberAST* ast) = 0;
+  virtual void visit(AsmGotoLabelAST* ast) = 0;
   virtual void visit(AsmDeclarationAST* ast) = 0;
   virtual void visit(ExportDeclarationAST* ast) = 0;
   virtual void visit(ExportCompoundDeclarationAST* ast) = 0;

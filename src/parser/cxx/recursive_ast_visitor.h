@@ -85,6 +85,10 @@ class RecursiveASTVisitor : public ASTVisitor {
   virtual void acceptNestedNamespaceSpecifier(NestedNamespaceSpecifierAST* ast);
   virtual void acceptUsingDeclarator(UsingDeclaratorAST* ast);
   virtual void acceptElaboratedTypeSpecifier(ElaboratedTypeSpecifierAST* ast);
+  virtual void acceptAsmQualifier(AsmQualifierAST* ast);
+  virtual void acceptAsmOperand(AsmOperandAST* ast);
+  virtual void acceptAsmClobber(AsmClobberAST* ast);
+  virtual void acceptAsmGotoLabel(AsmGotoLabelAST* ast);
   virtual void acceptImportName(ImportNameAST* ast);
   virtual void acceptLiteralOperatorId(LiteralOperatorIdAST* ast);
   virtual void acceptOperatorFunctionId(OperatorFunctionIdAST* ast);
@@ -256,6 +260,10 @@ class RecursiveASTVisitor : public ASTVisitor {
   void visit(UsingDirectiveAST* ast) override;
   void visit(UsingDeclarationAST* ast) override;
   void visit(UsingEnumDeclarationAST* ast) override;
+  void visit(AsmOperandAST* ast) override;
+  void visit(AsmQualifierAST* ast) override;
+  void visit(AsmClobberAST* ast) override;
+  void visit(AsmGotoLabelAST* ast) override;
   void visit(AsmDeclarationAST* ast) override;
   void visit(ExportDeclarationAST* ast) override;
   void visit(ExportCompoundDeclarationAST* ast) override;

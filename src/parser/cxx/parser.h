@@ -468,15 +468,17 @@ class Parser final {
   [[nodiscard]] auto parse_using_declarator_list(
       List<UsingDeclaratorAST*>*& yyast) -> bool;
   [[nodiscard]] auto parse_using_declarator(UsingDeclaratorAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_asm_operand(AsmOperandAST*& yyast) -> bool;
   [[nodiscard]] auto parse_asm_declaration(DeclarationAST*& yyast) -> bool;
   [[nodiscard]] auto parse_linkage_specification(DeclarationAST*& yyast)
       -> bool;
   void parse_optional_attribute_specifier_seq(
-      List<AttributeSpecifierAST*>*& yyast);
+      List<AttributeSpecifierAST*>*& yyast, bool allowAsmSpecifier = false);
   [[nodiscard]] auto parse_attribute_specifier_seq(
-      List<AttributeSpecifierAST*>*& yyast) -> bool;
-  [[nodiscard]] auto parse_attribute_specifier(AttributeSpecifierAST*& yyast)
+      List<AttributeSpecifierAST*>*& yyast, bool allowAsmSpecifier = false)
       -> bool;
+  [[nodiscard]] auto parse_attribute_specifier(AttributeSpecifierAST*& yyast,
+                                               bool allowAsmSpecifier) -> bool;
   auto lookat_cxx_attribute_specifier() -> bool;
   [[nodiscard]] auto parse_cxx_attribute_specifier(
       AttributeSpecifierAST*& yyast) -> bool;

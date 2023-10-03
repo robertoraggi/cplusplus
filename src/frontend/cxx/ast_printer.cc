@@ -1515,6 +1515,44 @@ void ASTPrinter::visit(UsingEnumDeclarationAST* ast) {
   accept(ast->enumTypeSpecifier, "enum-type-specifier");
 }
 
+void ASTPrinter::visit(AsmOperandAST* ast) {
+  fmt::print(out_, "{}\n", "asm-operand");
+  accept(ast->symbolicName, "symbolic-name");
+  if (ast->constraintLiteral) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "constraint-literal: {}\n",
+               ast->constraintLiteral->value());
+    --indent_;
+  }
+  accept(ast->expression, "expression");
+}
+
+void ASTPrinter::visit(AsmQualifierAST* ast) {
+  fmt::print(out_, "{}\n", "asm-qualifier");
+  if (ast->qualifier != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "qualifier: {}\n", Token::spell(ast->qualifier));
+    --indent_;
+  }
+}
+
+void ASTPrinter::visit(AsmClobberAST* ast) {
+  fmt::print(out_, "{}\n", "asm-clobber");
+  if (ast->literal) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "literal: {}\n", ast->literal->value());
+    --indent_;
+  }
+}
+
+void ASTPrinter::visit(AsmGotoLabelAST* ast) {
+  fmt::print(out_, "{}\n", "asm-goto-label");
+  accept(ast->identifier, "identifier");
+}
+
 void ASTPrinter::visit(AsmDeclarationAST* ast) {
   fmt::print(out_, "{}\n", "asm-declaration");
   if (ast->literal) {
@@ -1528,6 +1566,51 @@ void ASTPrinter::visit(AsmDeclarationAST* ast) {
     fmt::print(out_, "{:{}}", "", indent_ * 2);
     fmt::print(out_, "{}\n", "attribute-list");
     for (auto it = ast->attributeList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+  if (ast->asmQualifierList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "asm-qualifier-list");
+    for (auto it = ast->asmQualifierList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+  if (ast->outputOperandList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "output-operand-list");
+    for (auto it = ast->outputOperandList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+  if (ast->inputOperandList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "input-operand-list");
+    for (auto it = ast->inputOperandList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+  if (ast->clobberList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "clobber-list");
+    for (auto it = ast->clobberList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+  if (ast->gotoLabelList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "goto-label-list");
+    for (auto it = ast->gotoLabelList; it; it = it->next) {
       accept(it->value);
     }
     --indent_;

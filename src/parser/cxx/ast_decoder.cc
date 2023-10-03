@@ -483,6 +483,14 @@ auto ASTDecoder::decodeDeclaration(const void* ptr, io::Declaration type)
     case io::Declaration_UsingEnumDeclaration:
       return decodeUsingEnumDeclaration(
           reinterpret_cast<const io::UsingEnumDeclaration*>(ptr));
+    case io::Declaration_AsmOperand:
+      return decodeAsmOperand(reinterpret_cast<const io::AsmOperand*>(ptr));
+    case io::Declaration_AsmQualifier:
+      return decodeAsmQualifier(reinterpret_cast<const io::AsmQualifier*>(ptr));
+    case io::Declaration_AsmClobber:
+      return decodeAsmClobber(reinterpret_cast<const io::AsmClobber*>(ptr));
+    case io::Declaration_AsmGotoLabel:
+      return decodeAsmGotoLabel(reinterpret_cast<const io::AsmGotoLabel*>(ptr));
     case io::Declaration_AsmDeclaration:
       return decodeAsmDeclaration(
           reinterpret_cast<const io::AsmDeclaration*>(ptr));
@@ -2784,6 +2792,52 @@ auto ASTDecoder::decodeUsingEnumDeclaration(
   return ast;
 }
 
+auto ASTDecoder::decodeAsmOperand(const io::AsmOperand* node)
+    -> AsmOperandAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) AsmOperandAST();
+  ast->expression =
+      decodeExpression(node->expression(), node->expression_type());
+  if (node->symbolic_name()) {
+    ast->symbolicName =
+        unit_->control()->getIdentifier(node->symbolic_name()->str());
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeAsmQualifier(const io::AsmQualifier* node)
+    -> AsmQualifierAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) AsmQualifierAST();
+  ast->qualifier = static_cast<TokenKind>(node->qualifier());
+  return ast;
+}
+
+auto ASTDecoder::decodeAsmClobber(const io::AsmClobber* node)
+    -> AsmClobberAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) AsmClobberAST();
+  if (node->literal()) {
+    ast->literal = unit_->control()->stringLiteral(node->literal()->str());
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeAsmGotoLabel(const io::AsmGotoLabel* node)
+    -> AsmGotoLabelAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) AsmGotoLabelAST();
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
+  return ast;
+}
+
 auto ASTDecoder::decodeAsmDeclaration(const io::AsmDeclaration* node)
     -> AsmDeclarationAST* {
   if (!node) return nullptr;
@@ -2795,6 +2849,46 @@ auto ASTDecoder::decodeAsmDeclaration(const io::AsmDeclaration* node)
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->attribute_list()->Get(i),
           io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  if (node->asm_qualifier_list()) {
+    auto* inserter = &ast->asmQualifierList;
+    for (std::size_t i = 0; i < node->asm_qualifier_list()->size(); ++i) {
+      *inserter = new (pool_)
+          List(decodeAsmQualifier(node->asm_qualifier_list()->Get(i)));
+      inserter = &(*inserter)->next;
+    }
+  }
+  if (node->output_operand_list()) {
+    auto* inserter = &ast->outputOperandList;
+    for (std::size_t i = 0; i < node->output_operand_list()->size(); ++i) {
+      *inserter = new (pool_)
+          List(decodeAsmOperand(node->output_operand_list()->Get(i)));
+      inserter = &(*inserter)->next;
+    }
+  }
+  if (node->input_operand_list()) {
+    auto* inserter = &ast->inputOperandList;
+    for (std::size_t i = 0; i < node->input_operand_list()->size(); ++i) {
+      *inserter = new (pool_)
+          List(decodeAsmOperand(node->input_operand_list()->Get(i)));
+      inserter = &(*inserter)->next;
+    }
+  }
+  if (node->clobber_list()) {
+    auto* inserter = &ast->clobberList;
+    for (std::size_t i = 0; i < node->clobber_list()->size(); ++i) {
+      *inserter =
+          new (pool_) List(decodeAsmClobber(node->clobber_list()->Get(i)));
+      inserter = &(*inserter)->next;
+    }
+  }
+  if (node->goto_label_list()) {
+    auto* inserter = &ast->gotoLabelList;
+    for (std::size_t i = 0; i < node->goto_label_list()->size(); ++i) {
+      *inserter =
+          new (pool_) List(decodeAsmGotoLabel(node->goto_label_list()->Get(i)));
       inserter = &(*inserter)->next;
     }
   }

@@ -5062,7 +5062,8 @@ auto Parser::parse_parameters_and_qualifiers(ParametersAndQualifiersAST*& yyast)
 
   (void)parse_noexcept_specifier(ast->exceptionSpecifier);
 
-  parse_optional_attribute_specifier_seq(ast->attributeList);
+  parse_optional_attribute_specifier_seq(ast->attributeList,
+                                         /*allowAsmSpecifier*/ true);
 
   return true;
 }
@@ -5205,7 +5206,8 @@ auto Parser::parse_declarator_id(CoreDeclaratorAST*& yyast) -> bool {
 
   ast->declaratorId = idExpression;
 
-  parse_optional_attribute_specifier_seq(ast->attributeList);
+  parse_optional_attribute_specifier_seq(ast->attributeList,
+                                         /*allowAsmSpecifier*/ true);
 
   if (isPack) {
     auto ast = new (pool) ParameterPackAST();
@@ -6355,6 +6357,31 @@ auto Parser::parse_using_declarator(UsingDeclaratorAST*& yyast) -> bool {
   return true;
 }
 
+auto Parser::parse_asm_operand(AsmOperandAST*& yyast) -> bool {
+  if (!LA().isOneOf(TokenKind::T_LBRACKET, TokenKind::T_STRING_LITERAL))
+    return false;
+
+  auto ast = new (pool) AsmOperandAST();
+  yyast = ast;
+
+  if (match(TokenKind::T_LBRACKET, ast->lbracketLoc)) {
+    expect(TokenKind::T_IDENTIFIER, ast->symbolicNameLoc);
+    ast->symbolicName = unit->identifier(ast->symbolicNameLoc);
+    expect(TokenKind::T_RBRACKET, ast->rbracketLoc);
+  }
+
+  expect(TokenKind::T_STRING_LITERAL, ast->constraintLiteralLoc);
+
+  ast->constraintLiteral = static_cast<const StringLiteral*>(
+      unit->literal(ast->constraintLiteralLoc));
+
+  expect(TokenKind::T_LPAREN, ast->lparenLoc);
+  parse_expression(ast->expression);
+  expect(TokenKind::T_RPAREN, ast->rparenLoc);
+
+  return true;
+}
+
 auto Parser::parse_asm_declaration(DeclarationAST*& yyast) -> bool {
   List<AttributeSpecifierAST*>* attributes = nullptr;
   SourceLocation asmLoc;
@@ -6379,8 +6406,99 @@ auto Parser::parse_asm_declaration(DeclarationAST*& yyast) -> bool {
   ast->attributeList = attributes;
   ast->asmLoc = asmLoc;
 
+  auto it = &ast->asmQualifierList;
+  while (LA().isOneOf(TokenKind::T_INLINE, TokenKind::T_VOLATILE,
+                      TokenKind::T_GOTO)) {
+    auto qualifier = new (pool) AsmQualifierAST();
+    qualifier->qualifierLoc = consumeToken();
+    *it = new (pool) List(qualifier);
+    it = &(*it)->next;
+  }
+
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
   expect(TokenKind::T_STRING_LITERAL, ast->literalLoc);
+
+  if (SourceLocation colonLoc; match(TokenKind::T_COLON, colonLoc)) {
+    if (AsmOperandAST* operand = nullptr; parse_asm_operand(operand)) {
+      auto it = &ast->outputOperandList;
+      *it = new (pool) List(operand);
+      it = &(*it)->next;
+      SourceLocation commaLoc;
+      while (match(TokenKind::T_COMMA, commaLoc)) {
+        if (AsmOperandAST* operand = nullptr; parse_asm_operand(operand)) {
+          *it = new (pool) List(operand);
+          it = &(*it)->next;
+        } else {
+          parse_error("expected an asm operand");
+        }
+      }
+    }
+  }
+  if (SourceLocation colonLoc; match(TokenKind::T_COLON, colonLoc)) {
+    if (AsmOperandAST* operand = nullptr; parse_asm_operand(operand)) {
+      auto it = &ast->inputOperandList;
+      *it = new (pool) List(operand);
+      it = &(*it)->next;
+      SourceLocation commaLoc;
+      while (match(TokenKind::T_COMMA, commaLoc)) {
+        if (AsmOperandAST* operand = nullptr; parse_asm_operand(operand)) {
+          *it = new (pool) List(operand);
+          it = &(*it)->next;
+        } else {
+          parse_error("expected an asm operand");
+        }
+      }
+    }
+  }
+
+  if (SourceLocation colonLoc; match(TokenKind::T_COLON, colonLoc)) {
+    if (SourceLocation literalLoc;
+        match(TokenKind::T_STRING_LITERAL, literalLoc)) {
+      auto it = &ast->clobberList;
+      auto clobber = new (pool) AsmClobberAST();
+      clobber->literalLoc = literalLoc;
+      clobber->literal =
+          static_cast<const StringLiteral*>(unit->literal(literalLoc));
+      *it = new (pool) List(clobber);
+      it = &(*it)->next;
+      SourceLocation commaLoc;
+      while (match(TokenKind::T_COMMA, commaLoc)) {
+        SourceLocation literalLoc;
+        expect(TokenKind::T_STRING_LITERAL, literalLoc);
+        if (!literalLoc) continue;
+        auto clobber = new (pool) AsmClobberAST();
+        clobber->literalLoc = literalLoc;
+        clobber->literal =
+            static_cast<const StringLiteral*>(unit->literal(literalLoc));
+        *it = new (pool) List(clobber);
+        it = &(*it)->next;
+      }
+    }
+  }
+
+  if (SourceLocation colonLoc; match(TokenKind::T_COLON, colonLoc)) {
+    if (SourceLocation identifierLoc;
+        match(TokenKind::T_IDENTIFIER, identifierLoc)) {
+      auto it = &ast->gotoLabelList;
+      auto label = new (pool) AsmGotoLabelAST();
+      label->identifierLoc = identifierLoc;
+      label->identifier = unit->identifier(label->identifierLoc);
+      *it = new (pool) List(label);
+      it = &(*it)->next;
+      SourceLocation commaLoc;
+      while (match(TokenKind::T_COMMA, commaLoc)) {
+        SourceLocation identifierLoc;
+        expect(TokenKind::T_IDENTIFIER, identifierLoc);
+        if (!identifierLoc) continue;
+        auto label = new (pool) AsmGotoLabelAST();
+        label->identifierLoc = identifierLoc;
+        label->identifier = unit->identifier(label->identifierLoc);
+        *it = new (pool) List(label);
+        it = &(*it)->next;
+      }
+    }
+  }
+
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
   expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
 
@@ -6449,25 +6567,25 @@ auto Parser::parse_linkage_specification(DeclarationAST*& yyast) -> bool {
 }
 
 void Parser::parse_optional_attribute_specifier_seq(
-    List<AttributeSpecifierAST*>*& yyast) {
-  if (!parse_attribute_specifier_seq(yyast)) {
+    List<AttributeSpecifierAST*>*& yyast, bool allowAsmSpecifier) {
+  if (!parse_attribute_specifier_seq(yyast, allowAsmSpecifier)) {
     yyast = nullptr;
   }
 }
 
-auto Parser::parse_attribute_specifier_seq(List<AttributeSpecifierAST*>*& yyast)
-    -> bool {
+auto Parser::parse_attribute_specifier_seq(List<AttributeSpecifierAST*>*& yyast,
+                                           bool allowAsmSpecifier) -> bool {
   auto it = &yyast;
   AttributeSpecifierAST* attribute = nullptr;
 
-  if (!parse_attribute_specifier(attribute)) return false;
+  if (!parse_attribute_specifier(attribute, allowAsmSpecifier)) return false;
 
   *it = new (pool) List(attribute);
   it = &(*it)->next;
 
   attribute = nullptr;
 
-  while (parse_attribute_specifier(attribute)) {
+  while (parse_attribute_specifier(attribute, allowAsmSpecifier)) {
     *it = new (pool) List(attribute);
     it = &(*it)->next;
     attribute = nullptr;
@@ -6476,14 +6594,15 @@ auto Parser::parse_attribute_specifier_seq(List<AttributeSpecifierAST*>*& yyast)
   return true;
 }
 
-auto Parser::parse_attribute_specifier(AttributeSpecifierAST*& yyast) -> bool {
+auto Parser::parse_attribute_specifier(AttributeSpecifierAST*& yyast,
+                                       bool allowAsmSpecifier) -> bool {
   if (parse_cxx_attribute_specifier(yyast)) return true;
 
   if (parse_gcc_attribute(yyast)) return true;
 
   if (parse_alignment_specifier(yyast)) return true;
 
-  if (parse_asm_specifier(yyast)) return true;
+  if (allowAsmSpecifier && parse_asm_specifier(yyast)) return true;
 
   return false;
 }

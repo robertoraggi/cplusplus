@@ -241,6 +241,18 @@ void RecursiveASTVisitor::acceptElaboratedTypeSpecifier(
   accept(ast);
 }
 
+void RecursiveASTVisitor::acceptAsmQualifier(AsmQualifierAST* ast) {
+  accept(ast);
+}
+
+void RecursiveASTVisitor::acceptAsmOperand(AsmOperandAST* ast) { accept(ast); }
+
+void RecursiveASTVisitor::acceptAsmClobber(AsmClobberAST* ast) { accept(ast); }
+
+void RecursiveASTVisitor::acceptAsmGotoLabel(AsmGotoLabelAST* ast) {
+  accept(ast);
+}
+
 void RecursiveASTVisitor::acceptImportName(ImportNameAST* ast) { accept(ast); }
 
 void RecursiveASTVisitor::acceptLiteralOperatorId(LiteralOperatorIdAST* ast) {
@@ -1007,9 +1019,34 @@ void RecursiveASTVisitor::visit(UsingEnumDeclarationAST* ast) {
   acceptElaboratedTypeSpecifier(ast->enumTypeSpecifier);
 }
 
+void RecursiveASTVisitor::visit(AsmOperandAST* ast) {
+  acceptExpression(ast->expression);
+}
+
+void RecursiveASTVisitor::visit(AsmQualifierAST* ast) {}
+
+void RecursiveASTVisitor::visit(AsmClobberAST* ast) {}
+
+void RecursiveASTVisitor::visit(AsmGotoLabelAST* ast) {}
+
 void RecursiveASTVisitor::visit(AsmDeclarationAST* ast) {
   for (auto it = ast->attributeList; it; it = it->next) {
     acceptAttributeSpecifier(it->value);
+  }
+  for (auto it = ast->asmQualifierList; it; it = it->next) {
+    acceptAsmQualifier(it->value);
+  }
+  for (auto it = ast->outputOperandList; it; it = it->next) {
+    acceptAsmOperand(it->value);
+  }
+  for (auto it = ast->inputOperandList; it; it = it->next) {
+    acceptAsmOperand(it->value);
+  }
+  for (auto it = ast->clobberList; it; it = it->next) {
+    acceptAsmClobber(it->value);
+  }
+  for (auto it = ast->gotoLabelList; it; it = it->next) {
+    acceptAsmGotoLabel(it->value);
   }
 }
 

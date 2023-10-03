@@ -2752,6 +2752,64 @@ void ASTCloner::visit(UsingEnumDeclarationAST* ast) {
   copy->semicolonLoc = ast->semicolonLoc;
 }
 
+void ASTCloner::visit(AsmOperandAST* ast) {
+  auto copy = new (arena_) AsmOperandAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->lbracketLoc = ast->lbracketLoc;
+
+  copy->symbolicNameLoc = ast->symbolicNameLoc;
+
+  copy->rbracketLoc = ast->rbracketLoc;
+
+  copy->constraintLiteralLoc = ast->constraintLiteralLoc;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->expression = accept(ast->expression);
+
+  copy->rparenLoc = ast->rparenLoc;
+
+  copy->symbolicName = ast->symbolicName;
+
+  copy->constraintLiteral = ast->constraintLiteral;
+}
+
+void ASTCloner::visit(AsmQualifierAST* ast) {
+  auto copy = new (arena_) AsmQualifierAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->qualifierLoc = ast->qualifierLoc;
+
+  copy->qualifier = ast->qualifier;
+}
+
+void ASTCloner::visit(AsmClobberAST* ast) {
+  auto copy = new (arena_) AsmClobberAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->literalLoc = ast->literalLoc;
+
+  copy->literal = ast->literal;
+}
+
+void ASTCloner::visit(AsmGotoLabelAST* ast) {
+  auto copy = new (arena_) AsmGotoLabelAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->identifierLoc = ast->identifierLoc;
+
+  copy->identifier = ast->identifier;
+}
+
 void ASTCloner::visit(AsmDeclarationAST* ast) {
   auto copy = new (arena_) AsmDeclarationAST();
   copy_ = copy;
@@ -2767,11 +2825,56 @@ void ASTCloner::visit(AsmDeclarationAST* ast) {
     }
   }
 
+  if (auto it = ast->asmQualifierList) {
+    auto out = &copy->asmQualifierList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
   copy->asmLoc = ast->asmLoc;
 
   copy->lparenLoc = ast->lparenLoc;
 
   copy->literalLoc = ast->literalLoc;
+
+  if (auto it = ast->outputOperandList) {
+    auto out = &copy->outputOperandList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  if (auto it = ast->inputOperandList) {
+    auto out = &copy->inputOperandList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  if (auto it = ast->clobberList) {
+    auto out = &copy->clobberList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  if (auto it = ast->gotoLabelList) {
+    auto out = &copy->gotoLabelList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
 
   copy->rparenLoc = ast->rparenLoc;
 

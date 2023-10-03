@@ -7521,6 +7521,190 @@ export class UsingEnumDeclarationAST extends DeclarationAST {
 }
 
 /**
+ * AsmOperandAST node.
+ */
+export class AsmOperandAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitAsmOperand(this, context);
+  }
+
+  /**
+   * Returns the location of the lbracket token in this node
+   */
+  getLbracketToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the symbolicName token in this node
+   */
+  getSymbolicNameToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the rbracket token in this node
+   */
+  getRbracketToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the location of the constraintLiteral token in this node
+   */
+  getConstraintLiteralToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 5),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+  }
+
+  /**
+   * Returns the symbolicName attribute of this node
+   */
+  getSymbolicName(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 7);
+    return cxx.getIdentifierValue(slot);
+  }
+
+  /**
+   * Returns the constraintLiteral attribute of this node
+   */
+  getConstraintLiteral(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 8);
+    return cxx.getLiteralValue(slot);
+  }
+}
+
+/**
+ * AsmQualifierAST node.
+ */
+export class AsmQualifierAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitAsmQualifier(this, context);
+  }
+
+  /**
+   * Returns the location of the qualifier token in this node
+   */
+  getQualifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the qualifier attribute of this node
+   */
+  getQualifier(): TokenKind {
+    return cxx.getASTSlot(this.getHandle(), 1);
+  }
+}
+
+/**
+ * AsmClobberAST node.
+ */
+export class AsmClobberAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitAsmClobber(this, context);
+  }
+
+  /**
+   * Returns the location of the literal token in this node
+   */
+  getLiteralToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the literal attribute of this node
+   */
+  getLiteral(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 1);
+    return cxx.getLiteralValue(slot);
+  }
+}
+
+/**
+ * AsmGotoLabelAST node.
+ */
+export class AsmGotoLabelAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitAsmGotoLabel(this, context);
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 1);
+    return cxx.getIdentifierValue(slot);
+  }
+}
+
+/**
  * AsmDeclarationAST node.
  */
 export class AsmDeclarationAST extends DeclarationAST {
@@ -7551,45 +7735,110 @@ export class AsmDeclarationAST extends DeclarationAST {
   }
 
   /**
+   * Returns the asmQualifierList of this node
+   */
+  *getAsmQualifierList(): Generator<AsmQualifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 1);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AsmQualifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
    * Returns the location of the asm token in this node
    */
   getAsmToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
   }
 
   /**
    * Returns the location of the lparen token in this node
    */
   getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
   }
 
   /**
    * Returns the location of the literal token in this node
    */
   getLiteralToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  }
+
+  /**
+   * Returns the outputOperandList of this node
+   */
+  *getOutputOperandList(): Generator<AsmOperandAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 5);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AsmOperandAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the inputOperandList of this node
+   */
+  *getInputOperandList(): Generator<AsmOperandAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 6);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AsmOperandAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the clobberList of this node
+   */
+  *getClobberList(): Generator<AsmClobberAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 7);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AsmClobberAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the gotoLabelList of this node
+   */
+  *getGotoLabelList(): Generator<AsmGotoLabelAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 8);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AsmGotoLabelAST>(cxx.getListValue(it), this.parser);
+    }
   }
 
   /**
    * Returns the location of the rparen token in this node
    */
   getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 9), this.parser);
   }
 
   /**
    * Returns the location of the semicolon token in this node
    */
   getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 10), this.parser);
   }
 
   /**
    * Returns the literal attribute of this node
    */
   getLiteral(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 6);
+    const slot = cxx.getASTSlot(this.getHandle(), 11);
     return cxx.getLiteralValue(slot);
   }
 }
@@ -10934,6 +11183,10 @@ const AST_CONSTRUCTORS: Array<
   UsingDirectiveAST,
   UsingDeclarationAST,
   UsingEnumDeclarationAST,
+  AsmOperandAST,
+  AsmQualifierAST,
+  AsmClobberAST,
+  AsmGotoLabelAST,
   AsmDeclarationAST,
   ExportDeclarationAST,
   ExportCompoundDeclarationAST,
