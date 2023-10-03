@@ -1451,7 +1451,6 @@ class MemberExpressionAST final : public ExpressionAST {
 
   ExpressionAST* baseExpression = nullptr;
   SourceLocation accessLoc;
-  SourceLocation templateLoc;
   IdExpressionAST* memberId = nullptr;
   TokenKind accessOp = TokenKind::T_EOF_SYMBOL;
 

@@ -128,8 +128,8 @@ class Parser final {
   [[nodiscard]] auto parse_id_expression(IdExpressionAST*& yyast,
                                          bool inRequiresClause = false) -> bool;
   [[nodiscard]] auto parse_maybe_template_id(UnqualifiedIdAST*& yyast,
-                                             bool inRequiresClause = false)
-      -> bool;
+                                             bool isTemplateIntroduced,
+                                             bool inRequiresClause) -> bool;
   [[nodiscard]] auto parse_unqualified_id(UnqualifiedIdAST*& yyast,
                                           bool isTemplateIntroduced,
                                           bool inRequiresClause) -> bool;
@@ -601,7 +601,8 @@ class Parser final {
       LiteralOperatorTemplateIdAST*& yyast) -> bool;
   [[nodiscard]] auto parse_function_operator_template_id(
       OperatorFunctionTemplateIdAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_template_id(UnqualifiedIdAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_template_id(UnqualifiedIdAST*& yyast,
+                                       bool isTemplateIntroduced) -> bool;
   [[nodiscard]] auto parse_template_argument_list(
       List<TemplateArgumentAST*>*& yyast) -> bool;
   [[nodiscard]] auto parse_template_argument(TemplateArgumentAST*& yyast)

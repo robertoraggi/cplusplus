@@ -2140,24 +2140,19 @@ void ASTSlot::visit(MemberExpressionAST* ast) {
       slotKind_ = ASTSlotKind::kToken;
       slotNameIndex_ = SlotNameIndex{0};
       break;
-    case 2:  // templateLoc
-      value_ = ast->templateLoc.index();
-      slotKind_ = ASTSlotKind::kToken;
-      slotNameIndex_ = SlotNameIndex{190};
-      break;
-    case 3:  // memberId
+    case 2:  // memberId
       value_ = reinterpret_cast<std::intptr_t>(ast->memberId);
       slotKind_ = ASTSlotKind::kNode;
       slotNameIndex_ = SlotNameIndex{129};
       break;
-    case 4:  // accessOp
+    case 3:  // accessOp
       value_ = intptr_t(ast->accessOp);
       slotKind_ = ASTSlotKind::kIntAttribute;
       slotNameIndex_ = SlotNameIndex{1};
       break;
   }  // switch
 
-  slotCount_ = 5;
+  slotCount_ = 4;
 }
 
 void ASTSlot::visit(PostIncrExpressionAST* ast) {

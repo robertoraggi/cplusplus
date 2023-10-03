@@ -1444,8 +1444,6 @@ void ASTCloner::visit(MemberExpressionAST* ast) {
 
   copy->accessLoc = ast->accessLoc;
 
-  copy->templateLoc = ast->templateLoc;
-
   copy->memberId = accept(ast->memberId);
 
   copy->accessOp = ast->accessOp;
