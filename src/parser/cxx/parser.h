@@ -411,7 +411,9 @@ class Parser final {
   [[nodiscard]] auto parse_ref_qualifier(SourceLocation& refLoc) -> bool;
   [[nodiscard]] auto parse_declarator_id(CoreDeclaratorAST*& yyast) -> bool;
   [[nodiscard]] auto parse_type_id(TypeIdAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_defining_type_id(TypeIdAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_defining_type_id(
+      TypeIdAST*& yyast,
+      const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool;
   [[nodiscard]] auto parse_abstract_declarator(DeclaratorAST*& yyast) -> bool;
   [[nodiscard]] auto parse_ptr_abstract_declarator(DeclaratorAST*& yyast)
       -> bool;

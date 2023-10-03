@@ -3529,7 +3529,8 @@ auto Parser::parse_alias_declaration(
 
   TypeIdAST* typeId = nullptr;
 
-  if (!parse_defining_type_id(typeId)) parse_error("expected a type id");
+  if (!parse_defining_type_id(typeId, templateDeclarations))
+    parse_error("expected a type id");
 
   SourceLocation semicolonLoc;
 
@@ -5232,10 +5233,12 @@ auto Parser::parse_type_id(TypeIdAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_defining_type_id(TypeIdAST*& yyast) -> bool {
+auto Parser::parse_defining_type_id(
+    TypeIdAST*& yyast,
+    const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool {
   DeclSpecs specs;
 
-  specs.no_class_or_enum_specs = true;
+  if (!templateDeclarations.empty()) specs.no_class_or_enum_specs = true;
 
   List<SpecifierAST*>* typeSpecifierList = nullptr;
 
