@@ -2200,8 +2200,6 @@ void ASTEncoder::visit(MemberExpressionAST* ast) {
 
   auto accessLoc = encodeSourceLocation(ast->accessLoc);
 
-  auto templateLoc = encodeSourceLocation(ast->templateLoc);
-
   const auto memberId = accept(ast->memberId);
 
   io::MemberExpression::Builder builder{fbb_};
@@ -2209,7 +2207,6 @@ void ASTEncoder::visit(MemberExpressionAST* ast) {
   builder.add_base_expression_type(
       static_cast<io::Expression>(baseExpressionType));
   builder.add_access_loc(accessLoc.o);
-  builder.add_template_loc(templateLoc.o);
   builder.add_member_id(memberId.o);
   builder.add_access_op(static_cast<std::uint32_t>(ast->accessOp));
 

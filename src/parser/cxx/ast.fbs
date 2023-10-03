@@ -1097,7 +1097,6 @@ table MemberExpression /* ExpressionAST */ {
   member_id: IdExpression;
   access_op: uint32;
   access_loc: SourceLocation;
-  template_loc: SourceLocation;
 }
 
 table PostIncrExpression /* ExpressionAST */ {

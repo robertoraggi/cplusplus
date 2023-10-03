@@ -653,8 +653,8 @@ auto Parser::parse_id_expression(IdExpressionAST*& yyast, bool inRequiresClause)
   const auto isTemplateIntroduced = match(TokenKind::T_TEMPLATE, templateLoc);
 
   UnqualifiedIdAST* unqualifiedId = nullptr;
-  if (!parse_unqualified_id(unqualifiedId,
-                            /*isTemplateIntroduced*/ false, inRequiresClause))
+  if (!parse_unqualified_id(unqualifiedId, isTemplateIntroduced,
+                            inRequiresClause))
     return false;
 
   lookahead.commit();
@@ -671,10 +671,11 @@ auto Parser::parse_id_expression(IdExpressionAST*& yyast, bool inRequiresClause)
 }
 
 auto Parser::parse_maybe_template_id(UnqualifiedIdAST*& yyast,
+                                     bool isTemplateIntroduced,
                                      bool inRequiresClause) -> bool {
   LookaheadParser lookahead{this};
 
-  auto template_id = parse_template_id(yyast);
+  auto template_id = parse_template_id(yyast, isTemplateIntroduced);
 
   if (!template_id) return false;
 
@@ -722,7 +723,8 @@ auto Parser::parse_unqualified_id(UnqualifiedIdAST*& yyast,
                                   bool inRequiresClause) -> bool {
   const auto start = currentLocation();
 
-  if (parse_maybe_template_id(yyast, inRequiresClause)) return true;
+  if (parse_maybe_template_id(yyast, isTemplateIntroduced, inRequiresClause))
+    return true;
 
   rewind(start);
 
@@ -1589,8 +1591,6 @@ auto Parser::parse_member_expression(ExpressionAST*& yyast) -> bool {
   ast->accessOp = unit->tokenKind(accessLoc);
 
   yyast = ast;
-
-  // match(TokenKind::T_TEMPLATE, ast->templateLoc);
 
   if (!parse_id_expression(ast->memberId))
     parse_error("expected a member name");
@@ -8349,7 +8349,8 @@ auto Parser::parse_function_operator_template_id(
   return true;
 }
 
-auto Parser::parse_template_id(UnqualifiedIdAST*& yyast) -> bool {
+auto Parser::parse_template_id(UnqualifiedIdAST*& yyast,
+                               bool isTemplateIntroduced) -> bool {
   if (LiteralOperatorTemplateIdAST* templateName = nullptr;
       parse_literal_operator_template_id(templateName)) {
     yyast = templateName;
@@ -8359,7 +8360,7 @@ auto Parser::parse_template_id(UnqualifiedIdAST*& yyast) -> bool {
     yyast = templateName;
     return true;
   } else if (SimpleTemplateIdAST* templateName = nullptr;
-             parse_simple_template_id(templateName)) {
+             parse_simple_template_id(templateName, isTemplateIntroduced)) {
     yyast = templateName;
     return true;
   } else {

@@ -3832,18 +3832,11 @@ export class MemberExpressionAST extends ExpressionAST {
   }
 
   /**
-   * Returns the location of the template token in this node
-   */
-  getTemplateToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
    * Returns the memberId of this node
    */
   getMemberId(): IdExpressionAST | undefined {
     return AST.from<IdExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 3),
+      cxx.getASTSlot(this.getHandle(), 2),
       this.parser,
     );
   }
@@ -3852,7 +3845,7 @@ export class MemberExpressionAST extends ExpressionAST {
    * Returns the accessOp attribute of this node
    */
   getAccessOp(): TokenKind {
-    return cxx.getASTSlot(this.getHandle(), 4);
+    return cxx.getASTSlot(this.getHandle(), 3);
   }
 }
 
