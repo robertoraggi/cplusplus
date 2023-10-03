@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.1.27](https://github.com/robertoraggi/cplusplus/compare/v1.1.26...v1.1.27) (2023-10-03)
+
+
+### Bug Fixes
+
+* Add aliases for _Static_assert and _Alignof ([fb3450a](https://github.com/robertoraggi/cplusplus/commit/fb3450a077598ab6961896dfea2f146febb6cfe1))
+* Add option to omit line markers ([18c7f05](https://github.com/robertoraggi/cplusplus/commit/18c7f05647b36193f6f5caccb142ec34659e8216))
+* Add option to print the included header files to stdout ([490e39e](https://github.com/robertoraggi/cplusplus/commit/490e39e73cc28bc528ad3867366db203f6720f00))
+* Add support for C++20 __VA_OPT__ ([2de0592](https://github.com/robertoraggi/cplusplus/commit/2de05928f5a28163d8dbc90e53616c79fe247f3d))
+* Add support for gcc-like inline asm declarations ([303a0a7](https://github.com/robertoraggi/cplusplus/commit/303a0a7aac098a5af13ef2ed095b3ea937bd0cb3))
+* Availability of blocks extension ([665e72b](https://github.com/robertoraggi/cplusplus/commit/665e72b39e6d8e5a9c57c60ca25976a1966d90bc))
+* Availability of memory_sanitizer extension ([595f6dd](https://github.com/robertoraggi/cplusplus/commit/595f6dd5b5db810b8cff0d7abe4843464d2dbc12))
+* Break string and character literals on newlines ([350793f](https://github.com/robertoraggi/cplusplus/commit/350793fdaf1efd12fb0f79c45df2204cad33e495))
+* Compatibility with xcode 15 ([0b32c08](https://github.com/robertoraggi/cplusplus/commit/0b32c08ebf3505b1d3172df1c61e999e01b70261))
+* Disallow parsing function definitions in for init statements ([2d85c53](https://github.com/robertoraggi/cplusplus/commit/2d85c531f56e2ea9e7f95fd836e9f16910fd5a32))
+* Improve detection of header protections ([70a5472](https://github.com/robertoraggi/cplusplus/commit/70a5472758597dc0cd3f3cdcf7332981b947bc77))
+* Initial work on the parser binding context ([bc4d32f](https://github.com/robertoraggi/cplusplus/commit/bc4d32f0c2932a09cd09bda3ee95a350dc56a527))
+* Parse of braced initialized function pointers ([933a625](https://github.com/robertoraggi/cplusplus/commit/933a625336a3193997b5371e7cb19c99a8e02a27))
+* Parse of class specifiers in defining type ids ([184e1dd](https://github.com/robertoraggi/cplusplus/commit/184e1dd16066e4c7aed11f43473575d14543b6dc))
+* Parse of template member expressions ([6e43b5b](https://github.com/robertoraggi/cplusplus/commit/6e43b5bdcfe9467fc8362cf2ff7f4018be9c29e2))
+* Parse of template nested name specifier ([93f32c2](https://github.com/robertoraggi/cplusplus/commit/93f32c256b2fa9a44822f736a2569dba5df8e0a2))
+* Parse of the true branch of an if statement ([7dfd83f](https://github.com/robertoraggi/cplusplus/commit/7dfd83f42940a27ce378b2c22b76720a5e6a9d78))
+* Print of variadic macro arguments ([64a2b34](https://github.com/robertoraggi/cplusplus/commit/64a2b346228d9f7976d3f431bfb18c7aa3dbefa7))
+* Signature of first/lastSourceLocation ([e071140](https://github.com/robertoraggi/cplusplus/commit/e071140d93a3b9130e7d0a8217577e2706a33481))
+* Testing for __has_feature and __has_extension ([a879a36](https://github.com/robertoraggi/cplusplus/commit/a879a36117b698d9707f4493940b5f141ae316ff))
+
 ## [1.1.26](https://github.com/robertoraggi/cplusplus/compare/v1.1.25...v1.1.26) (2023-09-23)
 
 
