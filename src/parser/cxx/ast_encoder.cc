@@ -4059,6 +4059,105 @@ void ASTEncoder::visit(UsingEnumDeclarationAST* ast) {
   type_ = io::Declaration_UsingEnumDeclaration;
 }
 
+void ASTEncoder::visit(AsmOperandAST* ast) {
+  auto lbracketLoc = encodeSourceLocation(ast->lbracketLoc);
+
+  auto symbolicNameLoc = encodeSourceLocation(ast->symbolicNameLoc);
+
+  auto rbracketLoc = encodeSourceLocation(ast->rbracketLoc);
+
+  auto constraintLiteralLoc = encodeSourceLocation(ast->constraintLiteralLoc);
+
+  auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
+
+  const auto [expression, expressionType] = acceptExpression(ast->expression);
+
+  auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
+
+  flatbuffers::Offset<flatbuffers::String> symbolicName;
+  if (ast->symbolicName) {
+    if (identifiers_.contains(ast->symbolicName)) {
+      symbolicName = identifiers_.at(ast->symbolicName);
+    } else {
+      symbolicName = fbb_.CreateString(ast->symbolicName->value());
+      identifiers_.emplace(ast->symbolicName, symbolicName);
+    }
+  }
+
+  io::AsmOperand::Builder builder{fbb_};
+  builder.add_lbracket_loc(lbracketLoc.o);
+  builder.add_symbolic_name_loc(symbolicNameLoc.o);
+  builder.add_rbracket_loc(rbracketLoc.o);
+  builder.add_constraint_literal_loc(constraintLiteralLoc.o);
+  builder.add_lparen_loc(lparenLoc.o);
+  builder.add_expression(expression);
+  builder.add_expression_type(static_cast<io::Expression>(expressionType));
+  builder.add_rparen_loc(rparenLoc.o);
+  if (ast->symbolicName) {
+    builder.add_symbolic_name(symbolicName);
+  }
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Declaration_AsmOperand;
+}
+
+void ASTEncoder::visit(AsmQualifierAST* ast) {
+  auto qualifierLoc = encodeSourceLocation(ast->qualifierLoc);
+
+  io::AsmQualifier::Builder builder{fbb_};
+  builder.add_qualifier_loc(qualifierLoc.o);
+  builder.add_qualifier(static_cast<std::uint32_t>(ast->qualifier));
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Declaration_AsmQualifier;
+}
+
+void ASTEncoder::visit(AsmClobberAST* ast) {
+  auto literalLoc = encodeSourceLocation(ast->literalLoc);
+
+  flatbuffers::Offset<flatbuffers::String> literal;
+  if (ast->literal) {
+    if (stringLiterals_.contains(ast->literal)) {
+      literal = stringLiterals_.at(ast->literal);
+    } else {
+      literal = fbb_.CreateString(ast->literal->value());
+      stringLiterals_.emplace(ast->literal, literal);
+    }
+  }
+
+  io::AsmClobber::Builder builder{fbb_};
+  builder.add_literal_loc(literalLoc.o);
+  if (ast->literal) {
+    builder.add_literal(literal);
+  }
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Declaration_AsmClobber;
+}
+
+void ASTEncoder::visit(AsmGotoLabelAST* ast) {
+  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
+
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->value());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
+  io::AsmGotoLabel::Builder builder{fbb_};
+  builder.add_identifier_loc(identifierLoc.o);
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Declaration_AsmGotoLabel;
+}
+
 void ASTEncoder::visit(AsmDeclarationAST* ast) {
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
   std::vector<std::underlying_type_t<io::AttributeSpecifier>>
@@ -4074,11 +4173,54 @@ void ASTEncoder::visit(AsmDeclarationAST* ast) {
   auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
   auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
 
+  std::vector<flatbuffers::Offset<io::AsmQualifier>> asmQualifierListOffsets;
+  for (auto it = ast->asmQualifierList; it; it = it->next) {
+    if (!it->value) continue;
+    asmQualifierListOffsets.emplace_back(accept(it->value).o);
+  }
+
+  auto asmQualifierListOffsetsVector =
+      fbb_.CreateVector(asmQualifierListOffsets);
+
   auto asmLoc = encodeSourceLocation(ast->asmLoc);
 
   auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
 
   auto literalLoc = encodeSourceLocation(ast->literalLoc);
+
+  std::vector<flatbuffers::Offset<io::AsmOperand>> outputOperandListOffsets;
+  for (auto it = ast->outputOperandList; it; it = it->next) {
+    if (!it->value) continue;
+    outputOperandListOffsets.emplace_back(accept(it->value).o);
+  }
+
+  auto outputOperandListOffsetsVector =
+      fbb_.CreateVector(outputOperandListOffsets);
+
+  std::vector<flatbuffers::Offset<io::AsmOperand>> inputOperandListOffsets;
+  for (auto it = ast->inputOperandList; it; it = it->next) {
+    if (!it->value) continue;
+    inputOperandListOffsets.emplace_back(accept(it->value).o);
+  }
+
+  auto inputOperandListOffsetsVector =
+      fbb_.CreateVector(inputOperandListOffsets);
+
+  std::vector<flatbuffers::Offset<io::AsmClobber>> clobberListOffsets;
+  for (auto it = ast->clobberList; it; it = it->next) {
+    if (!it->value) continue;
+    clobberListOffsets.emplace_back(accept(it->value).o);
+  }
+
+  auto clobberListOffsetsVector = fbb_.CreateVector(clobberListOffsets);
+
+  std::vector<flatbuffers::Offset<io::AsmGotoLabel>> gotoLabelListOffsets;
+  for (auto it = ast->gotoLabelList; it; it = it->next) {
+    if (!it->value) continue;
+    gotoLabelListOffsets.emplace_back(accept(it->value).o);
+  }
+
+  auto gotoLabelListOffsetsVector = fbb_.CreateVector(gotoLabelListOffsets);
 
   auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
 
@@ -4087,9 +4229,14 @@ void ASTEncoder::visit(AsmDeclarationAST* ast) {
   io::AsmDeclaration::Builder builder{fbb_};
   builder.add_attribute_list(attributeListOffsetsVector);
   builder.add_attribute_list_type(attributeListTypesVector);
+  builder.add_asm_qualifier_list(asmQualifierListOffsetsVector);
   builder.add_asm_loc(asmLoc.o);
   builder.add_lparen_loc(lparenLoc.o);
   builder.add_literal_loc(literalLoc.o);
+  builder.add_output_operand_list(outputOperandListOffsetsVector);
+  builder.add_input_operand_list(inputOperandListOffsetsVector);
+  builder.add_clobber_list(clobberListOffsetsVector);
+  builder.add_goto_label_list(gotoLabelListOffsetsVector);
   builder.add_rparen_loc(rparenLoc.o);
   builder.add_semicolon_loc(semicolonLoc.o);
 

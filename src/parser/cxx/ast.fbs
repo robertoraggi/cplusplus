@@ -103,6 +103,10 @@ union Declaration {
   UsingDirective,
   UsingDeclaration,
   UsingEnumDeclaration,
+  AsmOperand,
+  AsmQualifier,
+  AsmClobber,
+  AsmGotoLabel,
   AsmDeclaration,
   ExportDeclaration,
   ExportCompoundDeclaration,
@@ -726,8 +730,39 @@ table UsingEnumDeclaration /* DeclarationAST */ {
   semicolon_loc: SourceLocation;
 }
 
+table AsmOperand /* DeclarationAST */ {
+  expression: Expression;
+  symbolic_name: string;
+  lbracket_loc: SourceLocation;
+  symbolic_name_loc: SourceLocation;
+  rbracket_loc: SourceLocation;
+  constraint_literal_loc: SourceLocation;
+  lparen_loc: SourceLocation;
+  rparen_loc: SourceLocation;
+}
+
+table AsmQualifier /* DeclarationAST */ {
+  qualifier: uint32;
+  qualifier_loc: SourceLocation;
+}
+
+table AsmClobber /* DeclarationAST */ {
+  literal: string;
+  literal_loc: SourceLocation;
+}
+
+table AsmGotoLabel /* DeclarationAST */ {
+  identifier: string;
+  identifier_loc: SourceLocation;
+}
+
 table AsmDeclaration /* DeclarationAST */ {
   attribute_list: [AttributeSpecifier];
+  asm_qualifier_list: [AsmQualifier];
+  output_operand_list: [AsmOperand];
+  input_operand_list: [AsmOperand];
+  clobber_list: [AsmClobber];
+  goto_label_list: [AsmGotoLabel];
   asm_loc: SourceLocation;
   lparen_loc: SourceLocation;
   literal_loc: SourceLocation;

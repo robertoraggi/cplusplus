@@ -1925,6 +1925,40 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   }
 
   /**
+   * Visit a AsmOperand node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitAsmOperand(node: ast.AsmOperandAST, context: Context): void {
+    this.accept(node.getExpression(), context);
+  }
+
+  /**
+   * Visit a AsmQualifier node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitAsmQualifier(node: ast.AsmQualifierAST, context: Context): void {}
+
+  /**
+   * Visit a AsmClobber node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitAsmClobber(node: ast.AsmClobberAST, context: Context): void {}
+
+  /**
+   * Visit a AsmGotoLabel node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitAsmGotoLabel(node: ast.AsmGotoLabelAST, context: Context): void {}
+
+  /**
    * Visit a AsmDeclaration node.
    *
    * @param node The node to visit.
@@ -1932,6 +1966,21 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
    */
   visitAsmDeclaration(node: ast.AsmDeclarationAST, context: Context): void {
     for (const element of node.getAttributeList()) {
+      this.accept(element, context);
+    }
+    for (const element of node.getAsmQualifierList()) {
+      this.accept(element, context);
+    }
+    for (const element of node.getOutputOperandList()) {
+      this.accept(element, context);
+    }
+    for (const element of node.getInputOperandList()) {
+      this.accept(element, context);
+    }
+    for (const element of node.getClobberList()) {
+      this.accept(element, context);
+    }
+    for (const element of node.getGotoLabelList()) {
       this.accept(element, context);
     }
   }

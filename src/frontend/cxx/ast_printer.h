@@ -202,6 +202,10 @@ class ASTPrinter : ASTVisitor {
   void visit(UsingDirectiveAST* ast) override;
   void visit(UsingDeclarationAST* ast) override;
   void visit(UsingEnumDeclarationAST* ast) override;
+  void visit(AsmOperandAST* ast) override;
+  void visit(AsmQualifierAST* ast) override;
+  void visit(AsmClobberAST* ast) override;
+  void visit(AsmGotoLabelAST* ast) override;
   void visit(AsmDeclarationAST* ast) override;
   void visit(ExportDeclarationAST* ast) override;
   void visit(ExportCompoundDeclarationAST* ast) override;

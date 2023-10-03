@@ -372,6 +372,10 @@ class ASTDecoder {
       -> UsingDeclarationAST*;
   auto decodeUsingEnumDeclaration(const io::UsingEnumDeclaration* node)
       -> UsingEnumDeclarationAST*;
+  auto decodeAsmOperand(const io::AsmOperand* node) -> AsmOperandAST*;
+  auto decodeAsmQualifier(const io::AsmQualifier* node) -> AsmQualifierAST*;
+  auto decodeAsmClobber(const io::AsmClobber* node) -> AsmClobberAST*;
+  auto decodeAsmGotoLabel(const io::AsmGotoLabel* node) -> AsmGotoLabelAST*;
   auto decodeAsmDeclaration(const io::AsmDeclaration* node)
       -> AsmDeclarationAST*;
   auto decodeExportDeclaration(const io::ExportDeclaration* node)
