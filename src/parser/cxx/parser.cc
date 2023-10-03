@@ -842,7 +842,8 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
     const auto isTemplateIntroduced = match(TokenKind::T_TEMPLATE, templateLoc);
 
     SimpleTemplateIdAST* templateName = nullptr;
-    if (!parse_simple_template_id(templateName)) return false;
+    if (!parse_simple_template_id(templateName, isTemplateIntroduced))
+      return false;
 
     SourceLocation scopeLoc;
     if (!match(TokenKind::T_COLON_COLON, scopeLoc)) return false;
