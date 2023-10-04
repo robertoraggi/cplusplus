@@ -80,20 +80,22 @@ jobs:
             ${{ runner.os }}-emscripten
 
       - name: Install dependencies
-        working-directory: packages/cxx-frontend
         run: |
           npm ci
 
       - name: Prettier
-        working-directory: packages/cxx-frontend
         run: |
-          npm run prettier
+          npm -w cxx-frontend run prettier
 
       - name: Build
+        run: |
+          npm -w cxx-frontend run build
+          npm -w cxx-frontend pack
+
+      - name: Build Docs
         working-directory: packages/cxx-frontend
         run: |
-          npm run build
-          npm pack
+          npm -w cxx-frontend run docs
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
@@ -101,6 +103,7 @@ jobs:
           name: cxx-frontend-dist
           path: |
             packages/cxx-frontend/dist/
+            packages/cxx-frontend/docs/
           retention-days: 1
 
   build-macos:
@@ -184,16 +187,17 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: cxx-frontend-dist
-          path: packages/cxx-frontend/dist
+          path: packages/cxx-frontend
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v3
 
       - name: Build
-        working-directory: packages/cxx-storybook
         run: |
           npm ci
-          npm run build-storybook
+          npm run build:storybook
+          mkdir -p packages/cxx-storybook/storybook-static/docs
+          cp -a packages/cxx-frontend/docs/. packages/cxx-storybook/storybook-static/docs
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v1

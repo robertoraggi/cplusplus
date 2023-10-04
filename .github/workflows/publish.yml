@@ -29,10 +29,9 @@ jobs:
           registry-url: https://registry.npmjs.org/
 
       - name: Build
-        working-directory: packages/cxx-frontend
         run: |
           npm ci
-          npm run build
+          npm -w cxx-frontend run build
 
       - name: Publish
         working-directory: packages/cxx-frontend

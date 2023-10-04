@@ -31,7 +31,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/robertoraggi/cplusplus"
+    "url": "git+https://github.com/robertoraggi/cplusplus.git"
   },
   "bugs": {
     "url": "https://github.com/robertoraggi/cplusplus/issues"

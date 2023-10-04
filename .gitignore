@@ -3,3 +3,4 @@
 out
 .venv
 node_modules
+*.tgz
