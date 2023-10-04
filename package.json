@@ -18,12 +18,20 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/robertoraggi/cplusplus"
+    "url": "https://github.com/robertoraggi/cplusplus.git"
   },
   "bugs": {
     "url": "https://github.com/robertoraggi/cplusplus/issues"
   },
   "devDependencies": {
     "zx": "^7.2.3"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build:cxx-frontend": "npm run build -w cxx-frontend",
+    "build:storybook": "npm run build-storybook -w @robertoraggi/cxx-storybook",
+    "storybook": "npm run storybook -w @robertoraggi/cxx-storybook"
   }
 }

@@ -9,6 +9,7 @@
     "cxx-gen-ast": "./dist/gen.js"
   },
   "scripts": {
+    "postinstall": "npm run build",
     "build": "tsc",
     "watch": "tsc -w"
   },

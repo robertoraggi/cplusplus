@@ -58,16 +58,11 @@ npm run dev
 ## Build the npm package (requires docker)
 
 ```sh
-cd packages/cxx-frontend
-
 # prepare the package
 npm ci
 
 # compile WASM and TypeScript code
-npm run build
-
-# build the package
-npm pack
+npm run build:cxx-frontend
 ```
 
 ## Build the WASM/WASI (requires docker)
