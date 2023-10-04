@@ -76,7 +76,6 @@ FetchContent_MakeAvailable(utfcpp)
 FetchContent_Declare(
     wasi_sysroot
     URL https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-20/wasi-sysroot-20.0.tar.gz
-    PATCH_COMMAND patch -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/patches/wasi-sysroot.patch
 )
 
 FetchContent_MakeAvailable(wasi_sysroot)
