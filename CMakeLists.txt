@@ -19,7 +19,11 @@
 
 cmake_minimum_required(VERSION 3.16)
 
-project(cplusplus)
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/package.json" PACKAGE_JSON)
+
+string(JSON version GET ${PACKAGE_JSON} version)
+
+project(cplusplus VERSION ${version})
 
 if(POLICY CMP0135)
     cmake_policy(SET CMP0135 NEW)
@@ -29,7 +33,7 @@ include(FetchContent)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
-file(READ "${CMAKE_CURRENT_SOURCE_DIR}/version.txt" version)
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/package.json" package_json)
 
 # option to install tools
 option(CXX_INSTALL_TOOLS "Install tools" ON)

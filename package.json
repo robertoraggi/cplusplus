@@ -1,0 +1,29 @@
+{
+  "name": "@robertoraggi/cplusplus",
+  "version": "1.1.27",
+  "description": "A compiler frontend for C++23",
+  "private": true,
+  "keywords": [
+    "c++",
+    "compiler",
+    "lexer",
+    "parser",
+    "preprocessor",
+    "syntax"
+  ],
+  "author": {
+    "name": "Roberto Raggi",
+    "email": "roberto.raggi@gmail.com"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/robertoraggi/cplusplus"
+  },
+  "bugs": {
+    "url": "https://github.com/robertoraggi/cplusplus/issues"
+  },
+  "devDependencies": {
+    "zx": "^7.2.3"
+  }
+}
