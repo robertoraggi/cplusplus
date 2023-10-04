@@ -5,6 +5,12 @@ cxx-frontend is a work-in-progress compiler frontend for C++23
 The compiler frontend is designed to be a powerful tool for developers, enabling them to parse, analyze, and modify C++ source code. This project aims to provide a robust foundation for building a complete C++ frontend, staying
 up-to-date with the latest language features and standards.
 
+The API Reference is available at https://robertoraggi.github.io/cplusplus/docs/
+
+If you have any specific questions about the API Reference, feel free to ask and I'll do my best to help you.
+
+For more information, please consult the [API Reference](https://robertoraggi.github.io/cplusplus/docs/).
+
 # Changelog and What's New
 
 For updates, improvements, and recent features in cxx-frontend, please consult the [Changelog](CHANGELOG.md).
