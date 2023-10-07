@@ -260,6 +260,19 @@ struct Parser::DeclSpecs {
   }
 };
 
+struct Parser::TemplateHeadContext {
+  TemplateHeadContext(const TemplateHeadContext&) = delete;
+  auto operator=(const TemplateHeadContext&) -> TemplateHeadContext& = delete;
+
+  Parser* p;
+
+  explicit TemplateHeadContext(Parser* p) : p(p) {
+    ++p->templateParameterDepth_;
+  }
+
+  ~TemplateHeadContext() { --p->templateParameterDepth_; }
+};
+
 struct Parser::ClassSpecifierContext {
   ClassSpecifierContext(const ClassSpecifierContext&) = delete;
   auto operator=(const ClassSpecifierContext&)
@@ -897,6 +910,8 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
 
 auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
   if (!lookat(TokenKind::T_LBRACKET)) return false;
+
+  TemplateHeadContext templateHeadContext{this};
 
   auto ast = new (pool) LambdaExpressionAST();
   yyast = ast;
@@ -7778,6 +7793,8 @@ auto Parser::parse_template_declaration(
     std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool {
   if (!lookat(TokenKind::T_TEMPLATE, TokenKind::T_LESS)) return false;
 
+  TemplateHeadContext templateHeadContext{this};
+
   auto ast = new (pool) TemplateDeclarationAST();
   yyast = ast;
 
@@ -7814,30 +7831,33 @@ void Parser::parse_template_parameter_list(
     List<TemplateParameterAST*>*& yyast) {
   auto it = &yyast;
 
-  ++templateParameterDepth_;
-
   int templateParameterCount = 0;
   std::swap(templateParameterCount_, templateParameterCount);
 
-  TemplateParameterAST* declaration = nullptr;
+  TemplateParameterAST* parameter = nullptr;
 
-  parse_template_parameter(declaration);
+  parse_template_parameter(parameter);
 
-  *it = new (pool) List(declaration);
+  parameter->depth = templateParameterDepth_;
+  parameter->index = templateParameterCount_++;
+
+  *it = new (pool) List(parameter);
   it = &(*it)->next;
 
   SourceLocation commaLoc;
 
   while (match(TokenKind::T_COMMA, commaLoc)) {
-    TemplateParameterAST* declaration = nullptr;
+    TemplateParameterAST* parameter = nullptr;
 
-    parse_template_parameter(declaration);
+    parse_template_parameter(parameter);
 
-    *it = new (pool) List(declaration);
+    parameter->depth = templateParameterDepth_;
+    parameter->index = templateParameterCount_++;
+
+    *it = new (pool) List(parameter);
     it = &(*it)->next;
   }
 
-  --templateParameterDepth_;
   std::swap(templateParameterCount_, templateParameterCount);
 }
 

@@ -76,6 +76,7 @@ class Parser final {
   static auto prec(TokenKind tk) -> Prec;
 
   struct DeclSpecs;
+  struct TemplateHeadContext;
   struct ClassSpecifierContext;
   struct LookaheadParser;
   struct LoopParser;

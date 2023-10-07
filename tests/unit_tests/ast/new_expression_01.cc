@@ -12,6 +12,8 @@ auto make(void* where, T init) {
 // CHECK-NEXT:    template-declaration
 // CHECK-NEXT:      template-parameter-list
 // CHECK-NEXT:        typename-type-parameter
+// CHECK-NEXT:          depth: 0
+// CHECK-NEXT:          index: 0
 // CHECK-NEXT:          identifier: T
 // CHECK-NEXT:      declaration: function-definition
 // CHECK-NEXT:        decl-specifier-list

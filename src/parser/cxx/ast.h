@@ -43,9 +43,6 @@ class List final : public Managed {
 };
 
 class AST : public Managed {
-  ASTKind kind_;
-  bool checked_ = false;
-
  public:
   explicit AST(ASTKind kind) : kind_(kind) {}
 
@@ -53,47 +50,50 @@ class AST : public Managed {
 
   [[nodiscard]] auto kind() const -> ASTKind { return kind_; }
 
-  [[nodiscard]] auto checked() const -> bool { return checked_; }
-  void setChecked(bool checked) { checked_ = checked; }
-
   virtual void accept(ASTVisitor* visitor) = 0;
 
   virtual auto firstSourceLocation() -> SourceLocation = 0;
   virtual auto lastSourceLocation() -> SourceLocation = 0;
 
-  auto sourceLocationRange() -> SourceLocationRange {
+  [[nodiscard]] auto sourceLocationRange() -> SourceLocationRange {
     return SourceLocationRange(firstSourceLocation(), lastSourceLocation());
   }
+
+ private:
+  ASTKind kind_;
 };
 
-inline auto firstSourceLocation(SourceLocation loc) -> SourceLocation {
+[[nodiscard]] inline auto firstSourceLocation(SourceLocation loc)
+    -> SourceLocation {
   return loc;
 }
 
 template <typename T>
-inline auto firstSourceLocation(T* node) -> SourceLocation {
+[[nodiscard]] inline auto firstSourceLocation(T* node) -> SourceLocation {
   return node ? node->firstSourceLocation() : SourceLocation();
 }
 
 template <typename T>
-inline auto firstSourceLocation(List<T>* nodes) -> SourceLocation {
+[[nodiscard]] inline auto firstSourceLocation(List<T>* nodes)
+    -> SourceLocation {
   for (auto it = nodes; it; it = it->next) {
     if (auto loc = firstSourceLocation(it->value)) return loc;
   }
   return {};
 }
 
-inline auto lastSourceLocation(SourceLocation loc) -> SourceLocation {
+[[nodiscard]] inline auto lastSourceLocation(SourceLocation loc)
+    -> SourceLocation {
   return loc ? loc.next() : SourceLocation();
 }
 
 template <typename T>
-inline auto lastSourceLocation(T* node) -> SourceLocation {
+[[nodiscard]] inline auto lastSourceLocation(T* node) -> SourceLocation {
   return node ? node->lastSourceLocation() : SourceLocation();
 }
 
 template <typename T>
-inline auto lastSourceLocation(List<T>* nodes) -> SourceLocation {
+[[nodiscard]] inline auto lastSourceLocation(List<T>* nodes) -> SourceLocation {
   if (!nodes) return {};
   if (auto loc = lastSourceLocation(nodes->next)) return loc;
   if (auto loc = lastSourceLocation(nodes->value)) return loc;
@@ -195,6 +195,8 @@ class TemplateArgumentAST : public AST {
 class TemplateParameterAST : public AST {
  public:
   using AST::AST;
+  int depth = 0;
+  int index = 0;
 };
 
 class UnitAST : public AST {
@@ -3791,7 +3793,7 @@ class NestedNamespaceSpecifierAST final : public AST {
 };
 
 template <typename T>
-auto ast_cast(AST* ast) -> T* {
+[[nodiscard]] auto ast_cast(AST* ast) -> T* {
   return ast && ast->kind() == T::Kind ? static_cast<T*>(ast) : nullptr;
 }
 
