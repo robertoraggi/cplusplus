@@ -77,15 +77,6 @@ void RecursiveASTVisitor::acceptBaseSpecifier(BaseSpecifierAST* ast) {
   accept(ast);
 }
 
-void RecursiveASTVisitor::acceptArrayDeclaratorChunk(
-    ArrayDeclaratorChunkAST* ast) {
-  accept(ast);
-}
-
-void RecursiveASTVisitor::acceptNewDeclarator(NewDeclaratorAST* ast) {
-  accept(ast);
-}
-
 void RecursiveASTVisitor::acceptParameterDeclaration(
     ParameterDeclarationAST* ast) {
   accept(ast);
@@ -186,8 +177,6 @@ void RecursiveASTVisitor::acceptIdExpression(IdExpressionAST* ast) {
 void RecursiveASTVisitor::acceptNewPlacement(NewPlacementAST* ast) {
   accept(ast);
 }
-
-void RecursiveASTVisitor::acceptNewTypeId(NewTypeIdAST* ast) { accept(ast); }
 
 void RecursiveASTVisitor::acceptNewInitializer(NewInitializerAST* ast) {
   accept(ast);
@@ -341,22 +330,6 @@ void RecursiveASTVisitor::visit(BaseClauseAST* ast) {
   for (auto it = ast->baseSpecifierList; it; it = it->next) {
     acceptBaseSpecifier(it->value);
   }
-}
-
-void RecursiveASTVisitor::visit(NewDeclaratorAST* ast) {
-  for (auto it = ast->ptrOpList; it; it = it->next) {
-    acceptPtrOperator(it->value);
-  }
-  for (auto it = ast->declaratorChunkList; it; it = it->next) {
-    acceptArrayDeclaratorChunk(it->value);
-  }
-}
-
-void RecursiveASTVisitor::visit(NewTypeIdAST* ast) {
-  for (auto it = ast->typeSpecifierList; it; it = it->next) {
-    acceptSpecifier(it->value);
-  }
-  acceptNewDeclarator(ast->newDeclarator);
 }
 
 void RecursiveASTVisitor::visit(RequiresClauseAST* ast) {
@@ -684,7 +657,10 @@ void RecursiveASTVisitor::visit(CppCastExpressionAST* ast) {
 
 void RecursiveASTVisitor::visit(NewExpressionAST* ast) {
   acceptNewPlacement(ast->newPlacement);
-  acceptNewTypeId(ast->typeId);
+  for (auto it = ast->typeSpecifierList; it; it = it->next) {
+    acceptSpecifier(it->value);
+  }
+  acceptDeclarator(ast->declarator);
   acceptNewInitializer(ast->newInitalizer);
 }
 

@@ -358,36 +358,6 @@ class BaseClauseAST final : public AST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class NewDeclaratorAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::NewDeclarator;
-
-  NewDeclaratorAST() : AST(Kind) {}
-
-  List<PtrOperatorAST*>* ptrOpList = nullptr;
-  List<ArrayDeclaratorChunkAST*>* declaratorChunkList = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class NewTypeIdAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::NewTypeId;
-
-  NewTypeIdAST() : AST(Kind) {}
-
-  List<SpecifierAST*>* typeSpecifierList = nullptr;
-  NewDeclaratorAST* newDeclarator = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
 class RequiresClauseAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::RequiresClause;
@@ -1560,7 +1530,10 @@ class NewExpressionAST final : public ExpressionAST {
   SourceLocation scopeLoc;
   SourceLocation newLoc;
   NewPlacementAST* newPlacement = nullptr;
-  NewTypeIdAST* typeId = nullptr;
+  SourceLocation lparenLoc;
+  List<SpecifierAST*>* typeSpecifierList = nullptr;
+  DeclaratorAST* declarator = nullptr;
+  SourceLocation rparenLoc;
   NewInitializerAST* newInitalizer = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }

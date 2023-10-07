@@ -29,8 +29,6 @@ export enum ASTKind {
   InitDeclarator,
   BaseSpecifier,
   BaseClause,
-  NewDeclarator,
-  NewTypeId,
   RequiresClause,
   ParameterDeclarationClause,
   ParametersAndQualifiers,

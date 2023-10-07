@@ -928,48 +928,6 @@ auto ASTDecoder::decodeBaseClause(const io::BaseClause* node)
   return ast;
 }
 
-auto ASTDecoder::decodeNewDeclarator(const io::NewDeclarator* node)
-    -> NewDeclaratorAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) NewDeclaratorAST();
-  if (node->ptr_op_list()) {
-    auto* inserter = &ast->ptrOpList;
-    for (std::size_t i = 0; i < node->ptr_op_list()->size(); ++i) {
-      *inserter = new (pool_) List(
-          decodePtrOperator(node->ptr_op_list()->Get(i),
-                            io::PtrOperator(node->ptr_op_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  if (node->declarator_chunk_list()) {
-    auto* inserter = &ast->declaratorChunkList;
-    for (std::size_t i = 0; i < node->declarator_chunk_list()->size(); ++i) {
-      *inserter = new (pool_) List(
-          decodeArrayDeclaratorChunk(node->declarator_chunk_list()->Get(i)));
-      inserter = &(*inserter)->next;
-    }
-  }
-  return ast;
-}
-
-auto ASTDecoder::decodeNewTypeId(const io::NewTypeId* node) -> NewTypeIdAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) NewTypeIdAST();
-  if (node->type_specifier_list()) {
-    auto* inserter = &ast->typeSpecifierList;
-    for (std::size_t i = 0; i < node->type_specifier_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeSpecifier(
-          node->type_specifier_list()->Get(i),
-          io::Specifier(node->type_specifier_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  ast->newDeclarator = decodeNewDeclarator(node->new_declarator());
-  return ast;
-}
-
 auto ASTDecoder::decodeRequiresClause(const io::RequiresClause* node)
     -> RequiresClauseAST* {
   if (!node) return nullptr;
@@ -1880,7 +1838,16 @@ auto ASTDecoder::decodeNewExpression(const io::NewExpression* node)
 
   auto ast = new (pool_) NewExpressionAST();
   ast->newPlacement = decodeNewPlacement(node->new_placement());
-  ast->typeId = decodeNewTypeId(node->type_id());
+  if (node->type_specifier_list()) {
+    auto* inserter = &ast->typeSpecifierList;
+    for (std::size_t i = 0; i < node->type_specifier_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeSpecifier(
+          node->type_specifier_list()->Get(i),
+          io::Specifier(node->type_specifier_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  ast->declarator = decodeDeclarator(node->declarator());
   ast->newInitalizer =
       decodeNewInitializer(node->new_initalizer(), node->new_initalizer_type());
   return ast;

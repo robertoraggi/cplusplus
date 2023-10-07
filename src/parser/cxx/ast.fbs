@@ -40,8 +40,6 @@ union AST {
   InitDeclarator,
   BaseSpecifier,
   BaseClause,
-  NewDeclarator,
-  NewTypeId,
   RequiresClause,
   ParameterDeclarationClause,
   ParametersAndQualifiers,
@@ -375,16 +373,6 @@ table BaseSpecifier /* AST */ {
 table BaseClause /* AST */ {
   base_specifier_list: [BaseSpecifier];
   colon_loc: SourceLocation;
-}
-
-table NewDeclarator /* AST */ {
-  ptr_op_list: [PtrOperator];
-  declarator_chunk_list: [ArrayDeclaratorChunk];
-}
-
-table NewTypeId /* AST */ {
-  type_specifier_list: [Specifier];
-  new_declarator: NewDeclarator;
 }
 
 table RequiresClause /* AST */ {
@@ -1143,10 +1131,13 @@ table CppCastExpression /* ExpressionAST */ {
 
 table NewExpression /* ExpressionAST */ {
   new_placement: NewPlacement;
-  type_id: NewTypeId;
+  type_specifier_list: [Specifier];
+  declarator: Declarator;
   new_initalizer: NewInitializer;
   scope_loc: SourceLocation;
   new_loc: SourceLocation;
+  lparen_loc: SourceLocation;
+  rparen_loc: SourceLocation;
 }
 
 table DeleteExpression /* ExpressionAST */ {

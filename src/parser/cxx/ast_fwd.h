@@ -84,8 +84,6 @@ class DeclaratorAST;
 class InitDeclaratorAST;
 class BaseSpecifierAST;
 class BaseClauseAST;
-class NewDeclaratorAST;
-class NewTypeIdAST;
 class RequiresClauseAST;
 class ParameterDeclarationClauseAST;
 class ParametersAndQualifiersAST;

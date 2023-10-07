@@ -159,34 +159,6 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   }
 
   /**
-   * Visit a NewDeclarator node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitNewDeclarator(node: ast.NewDeclaratorAST, context: Context): void {
-    for (const element of node.getPtrOpList()) {
-      this.accept(element, context);
-    }
-    for (const element of node.getDeclaratorChunkList()) {
-      this.accept(element, context);
-    }
-  }
-
-  /**
-   * Visit a NewTypeId node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitNewTypeId(node: ast.NewTypeIdAST, context: Context): void {
-    for (const element of node.getTypeSpecifierList()) {
-      this.accept(element, context);
-    }
-    this.accept(node.getNewDeclarator(), context);
-  }
-
-  /**
    * Visit a RequiresClause node.
    *
    * @param node The node to visit.
@@ -1060,7 +1032,10 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
    */
   visitNewExpression(node: ast.NewExpressionAST, context: Context): void {
     this.accept(node.getNewPlacement(), context);
-    this.accept(node.getTypeId(), context);
+    for (const element of node.getTypeSpecifierList()) {
+      this.accept(element, context);
+    }
+    this.accept(node.getDeclarator(), context);
     this.accept(node.getNewInitalizer(), context);
   }
 

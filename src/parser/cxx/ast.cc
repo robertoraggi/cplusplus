@@ -154,30 +154,6 @@ auto BaseClauseAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto NewDeclaratorAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(ptrOpList)) return loc;
-  if (auto loc = cxx::firstSourceLocation(declaratorChunkList)) return loc;
-  return {};
-}
-
-auto NewDeclaratorAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(declaratorChunkList)) return loc;
-  if (auto loc = cxx::lastSourceLocation(ptrOpList)) return loc;
-  return {};
-}
-
-auto NewTypeIdAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(typeSpecifierList)) return loc;
-  if (auto loc = cxx::firstSourceLocation(newDeclarator)) return loc;
-  return {};
-}
-
-auto NewTypeIdAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(newDeclarator)) return loc;
-  if (auto loc = cxx::lastSourceLocation(typeSpecifierList)) return loc;
-  return {};
-}
-
 auto RequiresClauseAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(requiresLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
@@ -1196,14 +1172,20 @@ auto NewExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(scopeLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(newLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(newPlacement)) return loc;
-  if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(typeSpecifierList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(declarator)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(newInitalizer)) return loc;
   return {};
 }
 
 auto NewExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(newInitalizer)) return loc;
-  if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(declarator)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeSpecifierList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(newPlacement)) return loc;
   if (auto loc = cxx::lastSourceLocation(newLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(scopeLoc)) return loc;
@@ -2360,54 +2342,6 @@ auto TemplateDeclarationAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto TemplateTypeParameterAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(templateLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(lessLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(templateParameterList)) return loc;
-  if (auto loc = cxx::firstSourceLocation(greaterLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(requiresClause)) return loc;
-  if (auto loc = cxx::firstSourceLocation(classKeyLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(equalLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(idExpression)) return loc;
-  return {};
-}
-
-auto TemplateTypeParameterAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(idExpression)) return loc;
-  if (auto loc = cxx::lastSourceLocation(equalLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(classKeyLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(requiresClause)) return loc;
-  if (auto loc = cxx::lastSourceLocation(greaterLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(templateParameterList)) return loc;
-  if (auto loc = cxx::lastSourceLocation(lessLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
-  return {};
-}
-
-auto TemplatePackTypeParameterAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(templateLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(lessLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(templateParameterList)) return loc;
-  if (auto loc = cxx::firstSourceLocation(greaterLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(classKeyLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
-  return {};
-}
-
-auto TemplatePackTypeParameterAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(classKeyLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(greaterLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(templateParameterList)) return loc;
-  if (auto loc = cxx::lastSourceLocation(lessLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
-  return {};
-}
-
 auto DeductionGuideAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(explicitSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
@@ -2483,6 +2417,54 @@ auto LinkageSpecificationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(lbraceLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(stringliteralLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(externLoc)) return loc;
+  return {};
+}
+
+auto TemplateTypeParameterAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(templateLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lessLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(templateParameterList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(greaterLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(requiresClause)) return loc;
+  if (auto loc = cxx::firstSourceLocation(classKeyLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(equalLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(idExpression)) return loc;
+  return {};
+}
+
+auto TemplateTypeParameterAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(idExpression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(equalLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(classKeyLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(requiresClause)) return loc;
+  if (auto loc = cxx::lastSourceLocation(greaterLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(templateParameterList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lessLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
+  return {};
+}
+
+auto TemplatePackTypeParameterAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(templateLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lessLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(templateParameterList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(greaterLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(classKeyLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
+  return {};
+}
+
+auto TemplatePackTypeParameterAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(classKeyLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(greaterLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(templateParameterList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lessLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
   return {};
 }
 

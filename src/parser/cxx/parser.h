@@ -200,12 +200,8 @@ class Parser final {
   [[nodiscard]] auto parse_await_expression(ExpressionAST*& yyast) -> bool;
   [[nodiscard]] auto parse_noexcept_expression(ExpressionAST*& yyast) -> bool;
   [[nodiscard]] auto parse_new_expression(ExpressionAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_new_placement(NewPlacementAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_new_type_id(NewTypeIdAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_new_declarator(NewDeclaratorAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_noptr_new_declarator(
-      List<ArrayDeclaratorChunkAST*>*& yyast) -> bool;
-  [[nodiscard]] auto parse_new_initializer(NewInitializerAST*& yyast) -> bool;
+  void parse_optional_new_placement(NewPlacementAST*& yyast);
+  void parse_optional_new_initializer(NewInitializerAST*& yyast);
   [[nodiscard]] auto parse_delete_expression(ExpressionAST*& yyast) -> bool;
   [[nodiscard]] auto parse_cast_expression(ExpressionAST*& yyast) -> bool;
   [[nodiscard]] auto parse_cast_expression_helper(ExpressionAST*& yyast)
@@ -414,10 +410,14 @@ class Parser final {
   [[nodiscard]] auto parse_defining_type_id(
       TypeIdAST*& yyast,
       const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool;
-  [[nodiscard]] auto parse_abstract_declarator(DeclaratorAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_ptr_abstract_declarator(DeclaratorAST*& yyast)
+  [[nodiscard]] auto parse_abstract_declarator(DeclaratorAST*& yyast,
+                                               bool isNewDeclarator = false)
       -> bool;
-  [[nodiscard]] auto parse_noptr_abstract_declarator(DeclaratorAST*& yyast)
+  [[nodiscard]] auto parse_ptr_abstract_declarator(DeclaratorAST*& yyast,
+                                                   bool isNewDeclarator)
+      -> bool;
+  [[nodiscard]] auto parse_noptr_abstract_declarator(DeclaratorAST*& yyast,
+                                                     bool isNewDeclarator)
       -> bool;
   [[nodiscard]] auto parse_abstract_pack_declarator(DeclaratorAST*& yyast)
       -> bool;
