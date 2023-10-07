@@ -31,25 +31,25 @@ table SourceLocation {
 }
 
 union AST {
-  TypeId,
-  UsingDeclarator,
-  Handler,
-  Enumerator,
-  Declarator,
+  GlobalModuleFragment,
+  PrivateModuleFragment,
+  ModuleDeclaration,
+  ModuleName,
+  ModuleQualifier,
+  ModulePartition,
+  ImportName,
   InitDeclarator,
+  Declarator,
+  UsingDeclarator,
+  Enumerator,
+  TypeId,
+  Handler,
   BaseSpecifier,
   RequiresClause,
   ParameterDeclarationClause,
-  LambdaSpecifier,
   TrailingReturnType,
+  LambdaSpecifier,
   TypeConstraint,
-  GlobalModuleFragment,
-  PrivateModuleFragment,
-  ModuleQualifier,
-  ModuleName,
-  ModuleDeclaration,
-  ImportName,
-  ModulePartition,
   AttributeArgumentClause,
   Attribute,
   AttributeUsingPrefix,
@@ -77,35 +77,35 @@ union CoreDeclarator {
 }
 
 union Declaration {
-  AccessDeclaration,
-  FunctionDefinition,
-  ConceptDefinition,
-  ForRangeDeclaration,
-  AliasDeclaration,
   SimpleDeclaration,
-  StructuredBindingDeclaration,
-  StaticAssertDeclaration,
-  EmptyDeclaration,
-  AttributeDeclaration,
-  OpaqueEnumDeclaration,
-  NamespaceDefinition,
+  AsmDeclaration,
   NamespaceAliasDefinition,
-  UsingDirective,
   UsingDeclaration,
   UsingEnumDeclaration,
+  UsingDirective,
+  StaticAssertDeclaration,
+  AliasDeclaration,
+  OpaqueEnumDeclaration,
+  FunctionDefinition,
+  TemplateDeclaration,
+  ConceptDefinition,
+  DeductionGuide,
+  ExplicitInstantiation,
+  ExportDeclaration,
+  ExportCompoundDeclaration,
+  LinkageSpecification,
+  NamespaceDefinition,
+  EmptyDeclaration,
+  AttributeDeclaration,
+  ModuleImportDeclaration,
+  ParameterDeclaration,
+  AccessDeclaration,
+  ForRangeDeclaration,
+  StructuredBindingDeclaration,
   AsmOperand,
   AsmQualifier,
   AsmClobber,
   AsmGotoLabel,
-  AsmDeclaration,
-  ExportDeclaration,
-  ExportCompoundDeclaration,
-  ModuleImportDeclaration,
-  TemplateDeclaration,
-  DeductionGuide,
-  ExplicitInstantiation,
-  ParameterDeclaration,
-  LinkageSpecification,
 }
 
 union DeclaratorChunk {
@@ -124,9 +124,6 @@ union ExceptionSpecifier {
 }
 
 union Expression {
-  PackExpansionExpression,
-  DesignatedInitializerClause,
-  ThisExpression,
   CharLiteralExpression,
   BoolLiteralExpression,
   IntLiteralExpression,
@@ -134,41 +131,44 @@ union Expression {
   NullptrLiteralExpression,
   StringLiteralExpression,
   UserDefinedStringLiteralExpression,
-  IdExpression,
-  RequiresExpression,
+  ThisExpression,
   NestedExpression,
+  IdExpression,
+  LambdaExpression,
+  FoldExpression,
   RightFoldExpression,
   LeftFoldExpression,
-  FoldExpression,
-  LambdaExpression,
+  RequiresExpression,
+  SubscriptExpression,
+  CallExpression,
+  TypeConstruction,
+  BracedTypeConstruction,
+  MemberExpression,
+  PostIncrExpression,
+  CppCastExpression,
+  TypeidExpression,
+  TypeidOfTypeExpression,
+  UnaryExpression,
+  AwaitExpression,
   SizeofExpression,
   SizeofTypeExpression,
   SizeofPackExpression,
-  TypeidExpression,
-  TypeidOfTypeExpression,
   AlignofTypeExpression,
   AlignofExpression,
-  TypeTraitsExpression,
-  YieldExpression,
-  AwaitExpression,
-  UnaryExpression,
-  BinaryExpression,
-  AssignmentExpression,
-  ConditionExpression,
-  BracedTypeConstruction,
-  TypeConstruction,
-  CallExpression,
-  SubscriptExpression,
-  MemberExpression,
-  PostIncrExpression,
-  ConditionalExpression,
-  ImplicitCastExpression,
-  CastExpression,
-  CppCastExpression,
+  NoexceptExpression,
   NewExpression,
   DeleteExpression,
+  CastExpression,
+  ImplicitCastExpression,
+  BinaryExpression,
+  ConditionalExpression,
+  YieldExpression,
   ThrowExpression,
-  NoexceptExpression,
+  AssignmentExpression,
+  PackExpansionExpression,
+  DesignatedInitializerClause,
+  TypeTraitsExpression,
+  ConditionExpression,
   EqualInitializer,
   BracedInitList,
   ParenInitializer,
@@ -273,8 +273,8 @@ union Statement {
   BreakStatement,
   ContinueStatement,
   ReturnStatement,
-  GotoStatement,
   CoroutineReturnStatement,
+  GotoStatement,
   DeclarationStatement,
   TryBlockStatement,
 }
@@ -309,9 +309,63 @@ union UnqualifiedId {
   OperatorFunctionTemplateId,
 }
 
-table TypeId /* AST */ {
-  type_specifier_list: [Specifier];
+table GlobalModuleFragment /* AST */ {
+  declaration_list: [Declaration];
+  module_loc: SourceLocation;
+  semicolon_loc: SourceLocation;
+}
+
+table PrivateModuleFragment /* AST */ {
+  declaration_list: [Declaration];
+  module_loc: SourceLocation;
+  colon_loc: SourceLocation;
+  private_loc: SourceLocation;
+  semicolon_loc: SourceLocation;
+}
+
+table ModuleDeclaration /* AST */ {
+  module_name: ModuleName;
+  module_partition: ModulePartition;
+  attribute_list: [AttributeSpecifier];
+  export_loc: SourceLocation;
+  module_loc: SourceLocation;
+  semicolon_loc: SourceLocation;
+}
+
+table ModuleName /* AST */ {
+  module_qualifier: ModuleQualifier;
+  identifier: string;
+  identifier_loc: SourceLocation;
+}
+
+table ModuleQualifier /* AST */ {
+  module_qualifier: ModuleQualifier;
+  identifier: string;
+  identifier_loc: SourceLocation;
+  dot_loc: SourceLocation;
+}
+
+table ModulePartition /* AST */ {
+  module_name: ModuleName;
+  colon_loc: SourceLocation;
+}
+
+table ImportName /* AST */ {
+  module_partition: ModulePartition;
+  module_name: ModuleName;
+  header_loc: SourceLocation;
+}
+
+table InitDeclarator /* AST */ {
   declarator: Declarator;
+  requires_clause: RequiresClause;
+  initializer: Expression;
+}
+
+table Declarator /* AST */ {
+  ptr_op_list: [PtrOperator];
+  core_declarator: CoreDeclarator;
+  declarator_chunk_list: [DeclaratorChunk];
 }
 
 table UsingDeclarator /* AST */ {
@@ -319,14 +373,6 @@ table UsingDeclarator /* AST */ {
   unqualified_id: UnqualifiedId;
   typename_loc: SourceLocation;
   ellipsis_loc: SourceLocation;
-}
-
-table Handler /* AST */ {
-  exception_declaration: ExceptionDeclaration;
-  statement: CompoundStatement;
-  catch_loc: SourceLocation;
-  lparen_loc: SourceLocation;
-  rparen_loc: SourceLocation;
 }
 
 table Enumerator /* AST */ {
@@ -337,16 +383,17 @@ table Enumerator /* AST */ {
   equal_loc: SourceLocation;
 }
 
-table Declarator /* AST */ {
-  ptr_op_list: [PtrOperator];
-  core_declarator: CoreDeclarator;
-  declarator_chunk_list: [DeclaratorChunk];
+table TypeId /* AST */ {
+  type_specifier_list: [Specifier];
+  declarator: Declarator;
 }
 
-table InitDeclarator /* AST */ {
-  declarator: Declarator;
-  requires_clause: RequiresClause;
-  initializer: Expression;
+table Handler /* AST */ {
+  exception_declaration: ExceptionDeclaration;
+  statement: CompoundStatement;
+  catch_loc: SourceLocation;
+  lparen_loc: SourceLocation;
+  rparen_loc: SourceLocation;
 }
 
 table BaseSpecifier /* AST */ {
@@ -368,14 +415,14 @@ table ParameterDeclarationClause /* AST */ {
   ellipsis_loc: SourceLocation;
 }
 
-table LambdaSpecifier /* AST */ {
-  specifier: uint32;
-  specifier_loc: SourceLocation;
-}
-
 table TrailingReturnType /* AST */ {
   type_id: TypeId;
   minus_greater_loc: SourceLocation;
+}
+
+table LambdaSpecifier /* AST */ {
+  specifier: uint32;
+  specifier_loc: SourceLocation;
 }
 
 table TypeConstraint /* AST */ {
@@ -385,53 +432,6 @@ table TypeConstraint /* AST */ {
   identifier_loc: SourceLocation;
   less_loc: SourceLocation;
   greater_loc: SourceLocation;
-}
-
-table GlobalModuleFragment /* AST */ {
-  declaration_list: [Declaration];
-  module_loc: SourceLocation;
-  semicolon_loc: SourceLocation;
-}
-
-table PrivateModuleFragment /* AST */ {
-  declaration_list: [Declaration];
-  module_loc: SourceLocation;
-  colon_loc: SourceLocation;
-  private_loc: SourceLocation;
-  semicolon_loc: SourceLocation;
-}
-
-table ModuleQualifier /* AST */ {
-  module_qualifier: ModuleQualifier;
-  identifier: string;
-  identifier_loc: SourceLocation;
-  dot_loc: SourceLocation;
-}
-
-table ModuleName /* AST */ {
-  module_qualifier: ModuleQualifier;
-  identifier: string;
-  identifier_loc: SourceLocation;
-}
-
-table ModuleDeclaration /* AST */ {
-  module_name: ModuleName;
-  module_partition: ModulePartition;
-  attribute_list: [AttributeSpecifier];
-  export_loc: SourceLocation;
-  module_loc: SourceLocation;
-  semicolon_loc: SourceLocation;
-}
-
-table ImportName /* AST */ {
-  module_partition: ModulePartition;
-  module_name: ModuleName;
-  header_loc: SourceLocation;
-}
-
-table ModulePartition /* AST */ {
-  module_name: ModuleName;
-  colon_loc: SourceLocation;
 }
 
 table AttributeArgumentClause /* AST */ {
@@ -532,42 +532,6 @@ table NestedDeclarator /* CoreDeclaratorAST */ {
   rparen_loc: SourceLocation;
 }
 
-table AccessDeclaration /* DeclarationAST */ {
-  access_specifier: uint32;
-  access_loc: SourceLocation;
-  colon_loc: SourceLocation;
-}
-
-table FunctionDefinition /* DeclarationAST */ {
-  attribute_list: [AttributeSpecifier];
-  decl_specifier_list: [Specifier];
-  declarator: Declarator;
-  requires_clause: RequiresClause;
-  function_body: FunctionBody;
-}
-
-table ConceptDefinition /* DeclarationAST */ {
-  expression: Expression;
-  identifier: string;
-  concept_loc: SourceLocation;
-  identifier_loc: SourceLocation;
-  equal_loc: SourceLocation;
-  semicolon_loc: SourceLocation;
-}
-
-table ForRangeDeclaration /* DeclarationAST */ {
-}
-
-table AliasDeclaration /* DeclarationAST */ {
-  attribute_list: [AttributeSpecifier];
-  type_id: TypeId;
-  identifier: string;
-  using_loc: SourceLocation;
-  identifier_loc: SourceLocation;
-  equal_loc: SourceLocation;
-  semicolon_loc: SourceLocation;
-}
-
 table SimpleDeclaration /* DeclarationAST */ {
   attribute_list: [AttributeSpecifier];
   decl_specifier_list: [Specifier];
@@ -576,14 +540,48 @@ table SimpleDeclaration /* DeclarationAST */ {
   semicolon_loc: SourceLocation;
 }
 
-table StructuredBindingDeclaration /* DeclarationAST */ {
+table AsmDeclaration /* DeclarationAST */ {
   attribute_list: [AttributeSpecifier];
-  decl_specifier_list: [Specifier];
-  binding_list: [NameId];
-  initializer: Expression;
-  ref_qualifier_loc: SourceLocation;
-  lbracket_loc: SourceLocation;
-  rbracket_loc: SourceLocation;
+  asm_qualifier_list: [AsmQualifier];
+  output_operand_list: [AsmOperand];
+  input_operand_list: [AsmOperand];
+  clobber_list: [AsmClobber];
+  goto_label_list: [AsmGotoLabel];
+  asm_loc: SourceLocation;
+  lparen_loc: SourceLocation;
+  literal_loc: SourceLocation;
+  rparen_loc: SourceLocation;
+  semicolon_loc: SourceLocation;
+}
+
+table NamespaceAliasDefinition /* DeclarationAST */ {
+  nested_name_specifier: NestedNameSpecifier;
+  unqualified_id: NameId;
+  identifier: string;
+  namespace_loc: SourceLocation;
+  identifier_loc: SourceLocation;
+  equal_loc: SourceLocation;
+  semicolon_loc: SourceLocation;
+}
+
+table UsingDeclaration /* DeclarationAST */ {
+  using_declarator_list: [UsingDeclarator];
+  using_loc: SourceLocation;
+  semicolon_loc: SourceLocation;
+}
+
+table UsingEnumDeclaration /* DeclarationAST */ {
+  enum_type_specifier: ElaboratedTypeSpecifier;
+  using_loc: SourceLocation;
+  semicolon_loc: SourceLocation;
+}
+
+table UsingDirective /* DeclarationAST */ {
+  attribute_list: [AttributeSpecifier];
+  nested_name_specifier: NestedNameSpecifier;
+  unqualified_id: NameId;
+  using_loc: SourceLocation;
+  namespace_loc: SourceLocation;
   semicolon_loc: SourceLocation;
 }
 
@@ -597,12 +595,13 @@ table StaticAssertDeclaration /* DeclarationAST */ {
   semicolon_loc: SourceLocation;
 }
 
-table EmptyDeclaration /* DeclarationAST */ {
-  semicolon_loc: SourceLocation;
-}
-
-table AttributeDeclaration /* DeclarationAST */ {
+table AliasDeclaration /* DeclarationAST */ {
   attribute_list: [AttributeSpecifier];
+  type_id: TypeId;
+  identifier: string;
+  using_loc: SourceLocation;
+  identifier_loc: SourceLocation;
+  equal_loc: SourceLocation;
   semicolon_loc: SourceLocation;
 }
 
@@ -615,6 +614,71 @@ table OpaqueEnumDeclaration /* DeclarationAST */ {
   class_loc: SourceLocation;
   colon_loc: SourceLocation;
   emicolon_loc: SourceLocation;
+}
+
+table FunctionDefinition /* DeclarationAST */ {
+  attribute_list: [AttributeSpecifier];
+  decl_specifier_list: [Specifier];
+  declarator: Declarator;
+  requires_clause: RequiresClause;
+  function_body: FunctionBody;
+}
+
+table TemplateDeclaration /* DeclarationAST */ {
+  template_parameter_list: [TemplateParameter];
+  requires_clause: RequiresClause;
+  declaration: Declaration;
+  template_loc: SourceLocation;
+  less_loc: SourceLocation;
+  greater_loc: SourceLocation;
+}
+
+table ConceptDefinition /* DeclarationAST */ {
+  expression: Expression;
+  identifier: string;
+  concept_loc: SourceLocation;
+  identifier_loc: SourceLocation;
+  equal_loc: SourceLocation;
+  semicolon_loc: SourceLocation;
+}
+
+table DeductionGuide /* DeclarationAST */ {
+  explicit_specifier: Specifier;
+  parameter_declaration_clause: ParameterDeclarationClause;
+  template_id: SimpleTemplateId;
+  identifier: string;
+  identifier_loc: SourceLocation;
+  lparen_loc: SourceLocation;
+  rparen_loc: SourceLocation;
+  arrow_loc: SourceLocation;
+  semicolon_loc: SourceLocation;
+}
+
+table ExplicitInstantiation /* DeclarationAST */ {
+  declaration: Declaration;
+  extern_loc: SourceLocation;
+  template_loc: SourceLocation;
+}
+
+table ExportDeclaration /* DeclarationAST */ {
+  declaration: Declaration;
+  export_loc: SourceLocation;
+}
+
+table ExportCompoundDeclaration /* DeclarationAST */ {
+  declaration_list: [Declaration];
+  export_loc: SourceLocation;
+  lbrace_loc: SourceLocation;
+  rbrace_loc: SourceLocation;
+}
+
+table LinkageSpecification /* DeclarationAST */ {
+  declaration_list: [Declaration];
+  string_literal: string;
+  extern_loc: SourceLocation;
+  stringliteral_loc: SourceLocation;
+  lbrace_loc: SourceLocation;
+  rbrace_loc: SourceLocation;
 }
 
 table NamespaceDefinition /* DeclarationAST */ {
@@ -630,34 +694,48 @@ table NamespaceDefinition /* DeclarationAST */ {
   rbrace_loc: SourceLocation;
 }
 
-table NamespaceAliasDefinition /* DeclarationAST */ {
-  nested_name_specifier: NestedNameSpecifier;
-  unqualified_id: NameId;
-  identifier: string;
-  namespace_loc: SourceLocation;
-  identifier_loc: SourceLocation;
-  equal_loc: SourceLocation;
+table EmptyDeclaration /* DeclarationAST */ {
   semicolon_loc: SourceLocation;
 }
 
-table UsingDirective /* DeclarationAST */ {
+table AttributeDeclaration /* DeclarationAST */ {
   attribute_list: [AttributeSpecifier];
-  nested_name_specifier: NestedNameSpecifier;
-  unqualified_id: NameId;
-  using_loc: SourceLocation;
-  namespace_loc: SourceLocation;
   semicolon_loc: SourceLocation;
 }
 
-table UsingDeclaration /* DeclarationAST */ {
-  using_declarator_list: [UsingDeclarator];
-  using_loc: SourceLocation;
+table ModuleImportDeclaration /* DeclarationAST */ {
+  import_name: ImportName;
+  attribute_list: [AttributeSpecifier];
+  import_loc: SourceLocation;
   semicolon_loc: SourceLocation;
 }
 
-table UsingEnumDeclaration /* DeclarationAST */ {
-  enum_type_specifier: ElaboratedTypeSpecifier;
-  using_loc: SourceLocation;
+table ParameterDeclaration /* DeclarationAST */ {
+  attribute_list: [AttributeSpecifier];
+  type_specifier_list: [Specifier];
+  declarator: Declarator;
+  expression: Expression;
+  this_loc: SourceLocation;
+  equal_loc: SourceLocation;
+}
+
+table AccessDeclaration /* DeclarationAST */ {
+  access_specifier: uint32;
+  access_loc: SourceLocation;
+  colon_loc: SourceLocation;
+}
+
+table ForRangeDeclaration /* DeclarationAST */ {
+}
+
+table StructuredBindingDeclaration /* DeclarationAST */ {
+  attribute_list: [AttributeSpecifier];
+  decl_specifier_list: [Specifier];
+  binding_list: [NameId];
+  initializer: Expression;
+  ref_qualifier_loc: SourceLocation;
+  lbracket_loc: SourceLocation;
+  rbracket_loc: SourceLocation;
   semicolon_loc: SourceLocation;
 }
 
@@ -685,84 +763,6 @@ table AsmClobber /* DeclarationAST */ {
 table AsmGotoLabel /* DeclarationAST */ {
   identifier: string;
   identifier_loc: SourceLocation;
-}
-
-table AsmDeclaration /* DeclarationAST */ {
-  attribute_list: [AttributeSpecifier];
-  asm_qualifier_list: [AsmQualifier];
-  output_operand_list: [AsmOperand];
-  input_operand_list: [AsmOperand];
-  clobber_list: [AsmClobber];
-  goto_label_list: [AsmGotoLabel];
-  asm_loc: SourceLocation;
-  lparen_loc: SourceLocation;
-  literal_loc: SourceLocation;
-  rparen_loc: SourceLocation;
-  semicolon_loc: SourceLocation;
-}
-
-table ExportDeclaration /* DeclarationAST */ {
-  declaration: Declaration;
-  export_loc: SourceLocation;
-}
-
-table ExportCompoundDeclaration /* DeclarationAST */ {
-  declaration_list: [Declaration];
-  export_loc: SourceLocation;
-  lbrace_loc: SourceLocation;
-  rbrace_loc: SourceLocation;
-}
-
-table ModuleImportDeclaration /* DeclarationAST */ {
-  import_name: ImportName;
-  attribute_list: [AttributeSpecifier];
-  import_loc: SourceLocation;
-  semicolon_loc: SourceLocation;
-}
-
-table TemplateDeclaration /* DeclarationAST */ {
-  template_parameter_list: [TemplateParameter];
-  requires_clause: RequiresClause;
-  declaration: Declaration;
-  template_loc: SourceLocation;
-  less_loc: SourceLocation;
-  greater_loc: SourceLocation;
-}
-
-table DeductionGuide /* DeclarationAST */ {
-  explicit_specifier: Specifier;
-  parameter_declaration_clause: ParameterDeclarationClause;
-  template_id: SimpleTemplateId;
-  identifier: string;
-  identifier_loc: SourceLocation;
-  lparen_loc: SourceLocation;
-  rparen_loc: SourceLocation;
-  arrow_loc: SourceLocation;
-  semicolon_loc: SourceLocation;
-}
-
-table ExplicitInstantiation /* DeclarationAST */ {
-  declaration: Declaration;
-  extern_loc: SourceLocation;
-  template_loc: SourceLocation;
-}
-
-table ParameterDeclaration /* DeclarationAST */ {
-  attribute_list: [AttributeSpecifier];
-  type_specifier_list: [Specifier];
-  declarator: Declarator;
-  expression: Expression;
-  this_loc: SourceLocation;
-  equal_loc: SourceLocation;
-}
-
-table LinkageSpecification /* DeclarationAST */ {
-  declaration_list: [Declaration];
-  string_literal: string;
-  extern_loc: SourceLocation;
-  stringliteral_loc: SourceLocation;
-  lbrace_loc: SourceLocation;
-  rbrace_loc: SourceLocation;
 }
 
 table FunctionDeclaratorChunk /* DeclaratorChunkAST */ {
@@ -806,22 +806,6 @@ table NoexceptSpecifier /* ExceptionSpecifierAST */ {
   rparen_loc: SourceLocation;
 }
 
-table PackExpansionExpression /* ExpressionAST */ {
-  expression: Expression;
-  ellipsis_loc: SourceLocation;
-}
-
-table DesignatedInitializerClause /* ExpressionAST */ {
-  identifier: string;
-  initializer: Expression;
-  dot_loc: SourceLocation;
-  identifier_loc: SourceLocation;
-}
-
-table ThisExpression /* ExpressionAST */ {
-  this_loc: SourceLocation;
-}
-
 table CharLiteralExpression /* ExpressionAST */ {
   literal: string;
   literal_loc: SourceLocation;
@@ -855,25 +839,51 @@ table UserDefinedStringLiteralExpression /* ExpressionAST */ {
   literal_loc: SourceLocation;
 }
 
+table ThisExpression /* ExpressionAST */ {
+  this_loc: SourceLocation;
+}
+
+table NestedExpression /* ExpressionAST */ {
+  expression: Expression;
+  lparen_loc: SourceLocation;
+  rparen_loc: SourceLocation;
+}
+
 table IdExpression /* ExpressionAST */ {
   nested_name_specifier: NestedNameSpecifier;
   unqualified_id: UnqualifiedId;
   template_loc: SourceLocation;
 }
 
-table RequiresExpression /* ExpressionAST */ {
+table LambdaExpression /* ExpressionAST */ {
+  capture_list: [LambdaCapture];
+  template_parameter_list: [TemplateParameter];
+  template_requires_clause: RequiresClause;
   parameter_declaration_clause: ParameterDeclarationClause;
-  requirement_list: [Requirement];
-  requires_loc: SourceLocation;
+  lambda_specifier_list: [LambdaSpecifier];
+  exception_specifier: ExceptionSpecifier;
+  attribute_list: [AttributeSpecifier];
+  trailing_return_type: TrailingReturnType;
+  requires_clause: RequiresClause;
+  statement: CompoundStatement;
+  lbracket_loc: SourceLocation;
+  capture_default_loc: SourceLocation;
+  rbracket_loc: SourceLocation;
+  less_loc: SourceLocation;
+  greater_loc: SourceLocation;
   lparen_loc: SourceLocation;
   rparen_loc: SourceLocation;
-  lbrace_loc: SourceLocation;
-  rbrace_loc: SourceLocation;
 }
 
-table NestedExpression /* ExpressionAST */ {
-  expression: Expression;
+table FoldExpression /* ExpressionAST */ {
+  left_expression: Expression;
+  right_expression: Expression;
+  op: uint32;
+  fold_op: uint32;
   lparen_loc: SourceLocation;
+  op_loc: SourceLocation;
+  ellipsis_loc: SourceLocation;
+  fold_op_loc: SourceLocation;
   rparen_loc: SourceLocation;
 }
 
@@ -895,36 +905,88 @@ table LeftFoldExpression /* ExpressionAST */ {
   rparen_loc: SourceLocation;
 }
 
-table FoldExpression /* ExpressionAST */ {
-  left_expression: Expression;
-  right_expression: Expression;
-  op: uint32;
-  fold_op: uint32;
+table RequiresExpression /* ExpressionAST */ {
+  parameter_declaration_clause: ParameterDeclarationClause;
+  requirement_list: [Requirement];
+  requires_loc: SourceLocation;
   lparen_loc: SourceLocation;
-  op_loc: SourceLocation;
-  ellipsis_loc: SourceLocation;
-  fold_op_loc: SourceLocation;
+  rparen_loc: SourceLocation;
+  lbrace_loc: SourceLocation;
+  rbrace_loc: SourceLocation;
+}
+
+table SubscriptExpression /* ExpressionAST */ {
+  base_expression: Expression;
+  index_expression: Expression;
+  lbracket_loc: SourceLocation;
+  rbracket_loc: SourceLocation;
+}
+
+table CallExpression /* ExpressionAST */ {
+  base_expression: Expression;
+  expression_list: [Expression];
+  lparen_loc: SourceLocation;
   rparen_loc: SourceLocation;
 }
 
-table LambdaExpression /* ExpressionAST */ {
-  capture_list: [LambdaCapture];
-  template_parameter_list: [TemplateParameter];
-  template_requires_clause: RequiresClause;
-  parameter_declaration_clause: ParameterDeclarationClause;
-  lambda_specifier_list: [LambdaSpecifier];
-  exception_specifier: ExceptionSpecifier;
-  attribute_list: [AttributeSpecifier];
-  trailing_return_type: TrailingReturnType;
-  requires_clause: RequiresClause;
-  statement: CompoundStatement;
-  lbracket_loc: SourceLocation;
-  capture_default_loc: SourceLocation;
-  rbracket_loc: SourceLocation;
+table TypeConstruction /* ExpressionAST */ {
+  type_specifier: Specifier;
+  expression_list: [Expression];
+  lparen_loc: SourceLocation;
+  rparen_loc: SourceLocation;
+}
+
+table BracedTypeConstruction /* ExpressionAST */ {
+  type_specifier: Specifier;
+  braced_init_list: BracedInitList;
+}
+
+table MemberExpression /* ExpressionAST */ {
+  base_expression: Expression;
+  member_id: IdExpression;
+  access_op: uint32;
+  access_loc: SourceLocation;
+}
+
+table PostIncrExpression /* ExpressionAST */ {
+  base_expression: Expression;
+  op: uint32;
+  op_loc: SourceLocation;
+}
+
+table CppCastExpression /* ExpressionAST */ {
+  type_id: TypeId;
+  expression: Expression;
+  cast_loc: SourceLocation;
   less_loc: SourceLocation;
   greater_loc: SourceLocation;
   lparen_loc: SourceLocation;
   rparen_loc: SourceLocation;
+}
+
+table TypeidExpression /* ExpressionAST */ {
+  expression: Expression;
+  typeid_loc: SourceLocation;
+  lparen_loc: SourceLocation;
+  rparen_loc: SourceLocation;
+}
+
+table TypeidOfTypeExpression /* ExpressionAST */ {
+  type_id: TypeId;
+  typeid_loc: SourceLocation;
+  lparen_loc: SourceLocation;
+  rparen_loc: SourceLocation;
+}
+
+table UnaryExpression /* ExpressionAST */ {
+  expression: Expression;
+  op: uint32;
+  op_loc: SourceLocation;
+}
+
+table AwaitExpression /* ExpressionAST */ {
+  expression: Expression;
+  await_loc: SourceLocation;
 }
 
 table SizeofExpression /* ExpressionAST */ {
@@ -948,20 +1010,6 @@ table SizeofPackExpression /* ExpressionAST */ {
   rparen_loc: SourceLocation;
 }
 
-table TypeidExpression /* ExpressionAST */ {
-  expression: Expression;
-  typeid_loc: SourceLocation;
-  lparen_loc: SourceLocation;
-  rparen_loc: SourceLocation;
-}
-
-table TypeidOfTypeExpression /* ExpressionAST */ {
-  type_id: TypeId;
-  typeid_loc: SourceLocation;
-  lparen_loc: SourceLocation;
-  rparen_loc: SourceLocation;
-}
-
 table AlignofTypeExpression /* ExpressionAST */ {
   type_id: TypeId;
   alignof_loc: SourceLocation;
@@ -974,115 +1022,9 @@ table AlignofExpression /* ExpressionAST */ {
   alignof_loc: SourceLocation;
 }
 
-table TypeTraitsExpression /* ExpressionAST */ {
-  type_id_list: [TypeId];
-  type_traits: uint32;
-  type_traits_loc: SourceLocation;
-  lparen_loc: SourceLocation;
-  rparen_loc: SourceLocation;
-}
-
-table YieldExpression /* ExpressionAST */ {
+table NoexceptExpression /* ExpressionAST */ {
   expression: Expression;
-  yield_loc: SourceLocation;
-}
-
-table AwaitExpression /* ExpressionAST */ {
-  expression: Expression;
-  await_loc: SourceLocation;
-}
-
-table UnaryExpression /* ExpressionAST */ {
-  expression: Expression;
-  op: uint32;
-  op_loc: SourceLocation;
-}
-
-table BinaryExpression /* ExpressionAST */ {
-  left_expression: Expression;
-  right_expression: Expression;
-  op: uint32;
-  op_loc: SourceLocation;
-}
-
-table AssignmentExpression /* ExpressionAST */ {
-  left_expression: Expression;
-  right_expression: Expression;
-  op: uint32;
-  op_loc: SourceLocation;
-}
-
-table ConditionExpression /* ExpressionAST */ {
-  attribute_list: [AttributeSpecifier];
-  decl_specifier_list: [Specifier];
-  declarator: Declarator;
-  initializer: Expression;
-}
-
-table BracedTypeConstruction /* ExpressionAST */ {
-  type_specifier: Specifier;
-  braced_init_list: BracedInitList;
-}
-
-table TypeConstruction /* ExpressionAST */ {
-  type_specifier: Specifier;
-  expression_list: [Expression];
-  lparen_loc: SourceLocation;
-  rparen_loc: SourceLocation;
-}
-
-table CallExpression /* ExpressionAST */ {
-  base_expression: Expression;
-  expression_list: [Expression];
-  lparen_loc: SourceLocation;
-  rparen_loc: SourceLocation;
-}
-
-table SubscriptExpression /* ExpressionAST */ {
-  base_expression: Expression;
-  index_expression: Expression;
-  lbracket_loc: SourceLocation;
-  rbracket_loc: SourceLocation;
-}
-
-table MemberExpression /* ExpressionAST */ {
-  base_expression: Expression;
-  member_id: IdExpression;
-  access_op: uint32;
-  access_loc: SourceLocation;
-}
-
-table PostIncrExpression /* ExpressionAST */ {
-  base_expression: Expression;
-  op: uint32;
-  op_loc: SourceLocation;
-}
-
-table ConditionalExpression /* ExpressionAST */ {
-  condition: Expression;
-  iftrue_expression: Expression;
-  iffalse_expression: Expression;
-  question_loc: SourceLocation;
-  colon_loc: SourceLocation;
-}
-
-table ImplicitCastExpression /* ExpressionAST */ {
-  expression: Expression;
-}
-
-table CastExpression /* ExpressionAST */ {
-  type_id: TypeId;
-  expression: Expression;
-  lparen_loc: SourceLocation;
-  rparen_loc: SourceLocation;
-}
-
-table CppCastExpression /* ExpressionAST */ {
-  type_id: TypeId;
-  expression: Expression;
-  cast_loc: SourceLocation;
-  less_loc: SourceLocation;
-  greater_loc: SourceLocation;
+  noexcept_loc: SourceLocation;
   lparen_loc: SourceLocation;
   rparen_loc: SourceLocation;
 }
@@ -1106,16 +1048,74 @@ table DeleteExpression /* ExpressionAST */ {
   rbracket_loc: SourceLocation;
 }
 
+table CastExpression /* ExpressionAST */ {
+  type_id: TypeId;
+  expression: Expression;
+  lparen_loc: SourceLocation;
+  rparen_loc: SourceLocation;
+}
+
+table ImplicitCastExpression /* ExpressionAST */ {
+  expression: Expression;
+}
+
+table BinaryExpression /* ExpressionAST */ {
+  left_expression: Expression;
+  right_expression: Expression;
+  op: uint32;
+  op_loc: SourceLocation;
+}
+
+table ConditionalExpression /* ExpressionAST */ {
+  condition: Expression;
+  iftrue_expression: Expression;
+  iffalse_expression: Expression;
+  question_loc: SourceLocation;
+  colon_loc: SourceLocation;
+}
+
+table YieldExpression /* ExpressionAST */ {
+  expression: Expression;
+  yield_loc: SourceLocation;
+}
+
 table ThrowExpression /* ExpressionAST */ {
   expression: Expression;
   throw_loc: SourceLocation;
 }
 
-table NoexceptExpression /* ExpressionAST */ {
+table AssignmentExpression /* ExpressionAST */ {
+  left_expression: Expression;
+  right_expression: Expression;
+  op: uint32;
+  op_loc: SourceLocation;
+}
+
+table PackExpansionExpression /* ExpressionAST */ {
   expression: Expression;
-  noexcept_loc: SourceLocation;
+  ellipsis_loc: SourceLocation;
+}
+
+table DesignatedInitializerClause /* ExpressionAST */ {
+  identifier: string;
+  initializer: Expression;
+  dot_loc: SourceLocation;
+  identifier_loc: SourceLocation;
+}
+
+table TypeTraitsExpression /* ExpressionAST */ {
+  type_id_list: [TypeId];
+  type_traits: uint32;
+  type_traits_loc: SourceLocation;
   lparen_loc: SourceLocation;
   rparen_loc: SourceLocation;
+}
+
+table ConditionExpression /* ExpressionAST */ {
+  attribute_list: [AttributeSpecifier];
+  decl_specifier_list: [Specifier];
+  declarator: Declarator;
+  initializer: Expression;
 }
 
 table EqualInitializer /* ExpressionAST */ {
@@ -1595,16 +1595,16 @@ table ReturnStatement /* StatementAST */ {
   semicolon_loc: SourceLocation;
 }
 
+table CoroutineReturnStatement /* StatementAST */ {
+  expression: Expression;
+  coreturn_loc: SourceLocation;
+  semicolon_loc: SourceLocation;
+}
+
 table GotoStatement /* StatementAST */ {
   identifier: string;
   goto_loc: SourceLocation;
   identifier_loc: SourceLocation;
-  semicolon_loc: SourceLocation;
-}
-
-table CoroutineReturnStatement /* StatementAST */ {
-  expression: Expression;
-  coreturn_loc: SourceLocation;
   semicolon_loc: SourceLocation;
 }
 

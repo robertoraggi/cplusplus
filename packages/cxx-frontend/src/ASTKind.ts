@@ -19,131 +19,40 @@
 // SOFTWARE.
 
 export enum ASTKind {
-  // AST
-  TypeId,
-  UsingDeclarator,
-  Handler,
-  Enumerator,
-  Declarator,
-  InitDeclarator,
-  BaseSpecifier,
-  RequiresClause,
-  ParameterDeclarationClause,
-  LambdaSpecifier,
-  TrailingReturnType,
-  TypeConstraint,
-  GlobalModuleFragment,
-  PrivateModuleFragment,
-  ModuleQualifier,
-  ModuleName,
-  ModuleDeclaration,
-  ImportName,
-  ModulePartition,
-  AttributeArgumentClause,
-  Attribute,
-  AttributeUsingPrefix,
-  NewPlacement,
-  NestedNamespaceSpecifier,
-
-  // NestedNameSpecifierAST
-  GlobalNestedNameSpecifier,
-  SimpleNestedNameSpecifier,
-  DecltypeNestedNameSpecifier,
-  TemplateNestedNameSpecifier,
-
-  // ExceptionSpecifierAST
-  ThrowExceptionSpecifier,
-  NoexceptSpecifier,
-
-  // ExpressionAST
-  PackExpansionExpression,
-  DesignatedInitializerClause,
-  ThisExpression,
-  CharLiteralExpression,
-  BoolLiteralExpression,
-  IntLiteralExpression,
-  FloatLiteralExpression,
-  NullptrLiteralExpression,
-  StringLiteralExpression,
-  UserDefinedStringLiteralExpression,
-  IdExpression,
-  RequiresExpression,
-  NestedExpression,
-  RightFoldExpression,
-  LeftFoldExpression,
-  FoldExpression,
-  LambdaExpression,
-  SizeofExpression,
-  SizeofTypeExpression,
-  SizeofPackExpression,
-  TypeidExpression,
-  TypeidOfTypeExpression,
-  AlignofTypeExpression,
-  AlignofExpression,
-  TypeTraitsExpression,
-  YieldExpression,
-  AwaitExpression,
-  UnaryExpression,
-  BinaryExpression,
-  AssignmentExpression,
-  ConditionExpression,
-  BracedTypeConstruction,
-  TypeConstruction,
-  CallExpression,
-  SubscriptExpression,
-  MemberExpression,
-  PostIncrExpression,
-  ConditionalExpression,
-  ImplicitCastExpression,
-  CastExpression,
-  CppCastExpression,
-  NewExpression,
-  DeleteExpression,
-  ThrowExpression,
-  NoexceptExpression,
-  EqualInitializer,
-  BracedInitList,
-  ParenInitializer,
-
-  // RequirementAST
-  SimpleRequirement,
-  CompoundRequirement,
-  TypeRequirement,
-  NestedRequirement,
-
-  // TemplateArgumentAST
-  TypeTemplateArgument,
-  ExpressionTemplateArgument,
-
-  // MemInitializerAST
-  ParenMemInitializer,
-  BracedMemInitializer,
-
-  // LambdaCaptureAST
-  ThisLambdaCapture,
-  DerefThisLambdaCapture,
-  SimpleLambdaCapture,
-  RefLambdaCapture,
-  RefInitLambdaCapture,
-  InitLambdaCapture,
-
-  // NewInitializerAST
-  NewParenInitializer,
-  NewBracedInitializer,
-
-  // ExceptionDeclarationAST
-  EllipsisExceptionDeclaration,
-  TypeExceptionDeclaration,
-
-  // FunctionBodyAST
-  DefaultFunctionBody,
-  CompoundStatementFunctionBody,
-  TryStatementFunctionBody,
-  DeleteFunctionBody,
-
   // UnitAST
   TranslationUnit,
   ModuleUnit,
+
+  // DeclarationAST
+  SimpleDeclaration,
+  AsmDeclaration,
+  NamespaceAliasDefinition,
+  UsingDeclaration,
+  UsingEnumDeclaration,
+  UsingDirective,
+  StaticAssertDeclaration,
+  AliasDeclaration,
+  OpaqueEnumDeclaration,
+  FunctionDefinition,
+  TemplateDeclaration,
+  ConceptDefinition,
+  DeductionGuide,
+  ExplicitInstantiation,
+  ExportDeclaration,
+  ExportCompoundDeclaration,
+  LinkageSpecification,
+  NamespaceDefinition,
+  EmptyDeclaration,
+  AttributeDeclaration,
+  ModuleImportDeclaration,
+  ParameterDeclaration,
+  AccessDeclaration,
+  ForRangeDeclaration,
+  StructuredBindingDeclaration,
+  AsmOperand,
+  AsmQualifier,
+  AsmClobber,
+  AsmGotoLabel,
 
   // StatementAST
   LabeledStatement,
@@ -161,41 +70,60 @@ export enum ASTKind {
   BreakStatement,
   ContinueStatement,
   ReturnStatement,
-  GotoStatement,
   CoroutineReturnStatement,
+  GotoStatement,
   DeclarationStatement,
   TryBlockStatement,
 
-  // DeclarationAST
-  AccessDeclaration,
-  FunctionDefinition,
-  ConceptDefinition,
-  ForRangeDeclaration,
-  AliasDeclaration,
-  SimpleDeclaration,
-  StructuredBindingDeclaration,
-  StaticAssertDeclaration,
-  EmptyDeclaration,
-  AttributeDeclaration,
-  OpaqueEnumDeclaration,
-  NamespaceDefinition,
-  NamespaceAliasDefinition,
-  UsingDirective,
-  UsingDeclaration,
-  UsingEnumDeclaration,
-  AsmOperand,
-  AsmQualifier,
-  AsmClobber,
-  AsmGotoLabel,
-  AsmDeclaration,
-  ExportDeclaration,
-  ExportCompoundDeclaration,
-  ModuleImportDeclaration,
-  TemplateDeclaration,
-  DeductionGuide,
-  ExplicitInstantiation,
-  ParameterDeclaration,
-  LinkageSpecification,
+  // ExpressionAST
+  CharLiteralExpression,
+  BoolLiteralExpression,
+  IntLiteralExpression,
+  FloatLiteralExpression,
+  NullptrLiteralExpression,
+  StringLiteralExpression,
+  UserDefinedStringLiteralExpression,
+  ThisExpression,
+  NestedExpression,
+  IdExpression,
+  LambdaExpression,
+  FoldExpression,
+  RightFoldExpression,
+  LeftFoldExpression,
+  RequiresExpression,
+  SubscriptExpression,
+  CallExpression,
+  TypeConstruction,
+  BracedTypeConstruction,
+  MemberExpression,
+  PostIncrExpression,
+  CppCastExpression,
+  TypeidExpression,
+  TypeidOfTypeExpression,
+  UnaryExpression,
+  AwaitExpression,
+  SizeofExpression,
+  SizeofTypeExpression,
+  SizeofPackExpression,
+  AlignofTypeExpression,
+  AlignofExpression,
+  NoexceptExpression,
+  NewExpression,
+  DeleteExpression,
+  CastExpression,
+  ImplicitCastExpression,
+  BinaryExpression,
+  ConditionalExpression,
+  YieldExpression,
+  ThrowExpression,
+  AssignmentExpression,
+  PackExpansionExpression,
+  DesignatedInitializerClause,
+  TypeTraitsExpression,
+  ConditionExpression,
+  EqualInitializer,
+  BracedInitList,
+  ParenInitializer,
 
   // TemplateParameterAST
   TemplateTypeParameter,
@@ -203,17 +131,6 @@ export enum ASTKind {
   NonTypeTemplateParameter,
   TypenameTypeParameter,
   ConstraintTypeParameter,
-
-  // UnqualifiedIdAST
-  NameId,
-  DestructorId,
-  DecltypeId,
-  OperatorFunctionId,
-  LiteralOperatorId,
-  ConversionFunctionId,
-  SimpleTemplateId,
-  LiteralOperatorTemplateId,
-  OperatorFunctionTemplateId,
 
   // SpecifierAST
   TypedefSpecifier,
@@ -251,20 +168,77 @@ export enum ASTKind {
   ClassSpecifier,
   TypenameSpecifier,
 
+  // PtrOperatorAST
+  PointerOperator,
+  ReferenceOperator,
+  PtrToMemberOperator,
+
   // CoreDeclaratorAST
   BitfieldDeclarator,
   ParameterPack,
   IdDeclarator,
   NestedDeclarator,
 
-  // PtrOperatorAST
-  PointerOperator,
-  ReferenceOperator,
-  PtrToMemberOperator,
-
   // DeclaratorChunkAST
   FunctionDeclaratorChunk,
   ArrayDeclaratorChunk,
+
+  // UnqualifiedIdAST
+  NameId,
+  DestructorId,
+  DecltypeId,
+  OperatorFunctionId,
+  LiteralOperatorId,
+  ConversionFunctionId,
+  SimpleTemplateId,
+  LiteralOperatorTemplateId,
+  OperatorFunctionTemplateId,
+
+  // NestedNameSpecifierAST
+  GlobalNestedNameSpecifier,
+  SimpleNestedNameSpecifier,
+  DecltypeNestedNameSpecifier,
+  TemplateNestedNameSpecifier,
+
+  // FunctionBodyAST
+  DefaultFunctionBody,
+  CompoundStatementFunctionBody,
+  TryStatementFunctionBody,
+  DeleteFunctionBody,
+
+  // TemplateArgumentAST
+  TypeTemplateArgument,
+  ExpressionTemplateArgument,
+
+  // ExceptionSpecifierAST
+  ThrowExceptionSpecifier,
+  NoexceptSpecifier,
+
+  // RequirementAST
+  SimpleRequirement,
+  CompoundRequirement,
+  TypeRequirement,
+  NestedRequirement,
+
+  // NewInitializerAST
+  NewParenInitializer,
+  NewBracedInitializer,
+
+  // MemInitializerAST
+  ParenMemInitializer,
+  BracedMemInitializer,
+
+  // LambdaCaptureAST
+  ThisLambdaCapture,
+  DerefThisLambdaCapture,
+  SimpleLambdaCapture,
+  RefLambdaCapture,
+  RefInitLambdaCapture,
+  InitLambdaCapture,
+
+  // ExceptionDeclarationAST
+  EllipsisExceptionDeclaration,
+  TypeExceptionDeclaration,
 
   // AttributeSpecifierAST
   CxxAttribute,
@@ -275,4 +249,30 @@ export enum ASTKind {
   // AttributeTokenAST
   ScopedAttributeToken,
   SimpleAttributeToken,
+
+  // AST
+  GlobalModuleFragment,
+  PrivateModuleFragment,
+  ModuleDeclaration,
+  ModuleName,
+  ModuleQualifier,
+  ModulePartition,
+  ImportName,
+  InitDeclarator,
+  Declarator,
+  UsingDeclarator,
+  Enumerator,
+  TypeId,
+  Handler,
+  BaseSpecifier,
+  RequiresClause,
+  ParameterDeclarationClause,
+  TrailingReturnType,
+  LambdaSpecifier,
+  TypeConstraint,
+  AttributeArgumentClause,
+  Attribute,
+  AttributeUsingPrefix,
+  NewPlacement,
+  NestedNamespaceSpecifier,
 }

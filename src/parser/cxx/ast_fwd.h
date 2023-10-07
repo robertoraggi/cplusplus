@@ -74,131 +74,40 @@ class TemplateParameterAST;
 class UnitAST;
 class UnqualifiedIdAST;
 
-// AST
-class TypeIdAST;
-class UsingDeclaratorAST;
-class HandlerAST;
-class EnumeratorAST;
-class DeclaratorAST;
-class InitDeclaratorAST;
-class BaseSpecifierAST;
-class RequiresClauseAST;
-class ParameterDeclarationClauseAST;
-class LambdaSpecifierAST;
-class TrailingReturnTypeAST;
-class TypeConstraintAST;
-class GlobalModuleFragmentAST;
-class PrivateModuleFragmentAST;
-class ModuleQualifierAST;
-class ModuleNameAST;
-class ModuleDeclarationAST;
-class ImportNameAST;
-class ModulePartitionAST;
-class AttributeArgumentClauseAST;
-class AttributeAST;
-class AttributeUsingPrefixAST;
-class NewPlacementAST;
-class NestedNamespaceSpecifierAST;
-
-// NestedNameSpecifierAST
-class GlobalNestedNameSpecifierAST;
-class SimpleNestedNameSpecifierAST;
-class DecltypeNestedNameSpecifierAST;
-class TemplateNestedNameSpecifierAST;
-
-// ExceptionSpecifierAST
-class ThrowExceptionSpecifierAST;
-class NoexceptSpecifierAST;
-
-// ExpressionAST
-class PackExpansionExpressionAST;
-class DesignatedInitializerClauseAST;
-class ThisExpressionAST;
-class CharLiteralExpressionAST;
-class BoolLiteralExpressionAST;
-class IntLiteralExpressionAST;
-class FloatLiteralExpressionAST;
-class NullptrLiteralExpressionAST;
-class StringLiteralExpressionAST;
-class UserDefinedStringLiteralExpressionAST;
-class IdExpressionAST;
-class RequiresExpressionAST;
-class NestedExpressionAST;
-class RightFoldExpressionAST;
-class LeftFoldExpressionAST;
-class FoldExpressionAST;
-class LambdaExpressionAST;
-class SizeofExpressionAST;
-class SizeofTypeExpressionAST;
-class SizeofPackExpressionAST;
-class TypeidExpressionAST;
-class TypeidOfTypeExpressionAST;
-class AlignofTypeExpressionAST;
-class AlignofExpressionAST;
-class TypeTraitsExpressionAST;
-class YieldExpressionAST;
-class AwaitExpressionAST;
-class UnaryExpressionAST;
-class BinaryExpressionAST;
-class AssignmentExpressionAST;
-class ConditionExpressionAST;
-class BracedTypeConstructionAST;
-class TypeConstructionAST;
-class CallExpressionAST;
-class SubscriptExpressionAST;
-class MemberExpressionAST;
-class PostIncrExpressionAST;
-class ConditionalExpressionAST;
-class ImplicitCastExpressionAST;
-class CastExpressionAST;
-class CppCastExpressionAST;
-class NewExpressionAST;
-class DeleteExpressionAST;
-class ThrowExpressionAST;
-class NoexceptExpressionAST;
-class EqualInitializerAST;
-class BracedInitListAST;
-class ParenInitializerAST;
-
-// RequirementAST
-class SimpleRequirementAST;
-class CompoundRequirementAST;
-class TypeRequirementAST;
-class NestedRequirementAST;
-
-// TemplateArgumentAST
-class TypeTemplateArgumentAST;
-class ExpressionTemplateArgumentAST;
-
-// MemInitializerAST
-class ParenMemInitializerAST;
-class BracedMemInitializerAST;
-
-// LambdaCaptureAST
-class ThisLambdaCaptureAST;
-class DerefThisLambdaCaptureAST;
-class SimpleLambdaCaptureAST;
-class RefLambdaCaptureAST;
-class RefInitLambdaCaptureAST;
-class InitLambdaCaptureAST;
-
-// NewInitializerAST
-class NewParenInitializerAST;
-class NewBracedInitializerAST;
-
-// ExceptionDeclarationAST
-class EllipsisExceptionDeclarationAST;
-class TypeExceptionDeclarationAST;
-
-// FunctionBodyAST
-class DefaultFunctionBodyAST;
-class CompoundStatementFunctionBodyAST;
-class TryStatementFunctionBodyAST;
-class DeleteFunctionBodyAST;
-
 // UnitAST
 class TranslationUnitAST;
 class ModuleUnitAST;
+
+// DeclarationAST
+class SimpleDeclarationAST;
+class AsmDeclarationAST;
+class NamespaceAliasDefinitionAST;
+class UsingDeclarationAST;
+class UsingEnumDeclarationAST;
+class UsingDirectiveAST;
+class StaticAssertDeclarationAST;
+class AliasDeclarationAST;
+class OpaqueEnumDeclarationAST;
+class FunctionDefinitionAST;
+class TemplateDeclarationAST;
+class ConceptDefinitionAST;
+class DeductionGuideAST;
+class ExplicitInstantiationAST;
+class ExportDeclarationAST;
+class ExportCompoundDeclarationAST;
+class LinkageSpecificationAST;
+class NamespaceDefinitionAST;
+class EmptyDeclarationAST;
+class AttributeDeclarationAST;
+class ModuleImportDeclarationAST;
+class ParameterDeclarationAST;
+class AccessDeclarationAST;
+class ForRangeDeclarationAST;
+class StructuredBindingDeclarationAST;
+class AsmOperandAST;
+class AsmQualifierAST;
+class AsmClobberAST;
+class AsmGotoLabelAST;
 
 // StatementAST
 class LabeledStatementAST;
@@ -216,41 +125,60 @@ class ForStatementAST;
 class BreakStatementAST;
 class ContinueStatementAST;
 class ReturnStatementAST;
-class GotoStatementAST;
 class CoroutineReturnStatementAST;
+class GotoStatementAST;
 class DeclarationStatementAST;
 class TryBlockStatementAST;
 
-// DeclarationAST
-class AccessDeclarationAST;
-class FunctionDefinitionAST;
-class ConceptDefinitionAST;
-class ForRangeDeclarationAST;
-class AliasDeclarationAST;
-class SimpleDeclarationAST;
-class StructuredBindingDeclarationAST;
-class StaticAssertDeclarationAST;
-class EmptyDeclarationAST;
-class AttributeDeclarationAST;
-class OpaqueEnumDeclarationAST;
-class NamespaceDefinitionAST;
-class NamespaceAliasDefinitionAST;
-class UsingDirectiveAST;
-class UsingDeclarationAST;
-class UsingEnumDeclarationAST;
-class AsmOperandAST;
-class AsmQualifierAST;
-class AsmClobberAST;
-class AsmGotoLabelAST;
-class AsmDeclarationAST;
-class ExportDeclarationAST;
-class ExportCompoundDeclarationAST;
-class ModuleImportDeclarationAST;
-class TemplateDeclarationAST;
-class DeductionGuideAST;
-class ExplicitInstantiationAST;
-class ParameterDeclarationAST;
-class LinkageSpecificationAST;
+// ExpressionAST
+class CharLiteralExpressionAST;
+class BoolLiteralExpressionAST;
+class IntLiteralExpressionAST;
+class FloatLiteralExpressionAST;
+class NullptrLiteralExpressionAST;
+class StringLiteralExpressionAST;
+class UserDefinedStringLiteralExpressionAST;
+class ThisExpressionAST;
+class NestedExpressionAST;
+class IdExpressionAST;
+class LambdaExpressionAST;
+class FoldExpressionAST;
+class RightFoldExpressionAST;
+class LeftFoldExpressionAST;
+class RequiresExpressionAST;
+class SubscriptExpressionAST;
+class CallExpressionAST;
+class TypeConstructionAST;
+class BracedTypeConstructionAST;
+class MemberExpressionAST;
+class PostIncrExpressionAST;
+class CppCastExpressionAST;
+class TypeidExpressionAST;
+class TypeidOfTypeExpressionAST;
+class UnaryExpressionAST;
+class AwaitExpressionAST;
+class SizeofExpressionAST;
+class SizeofTypeExpressionAST;
+class SizeofPackExpressionAST;
+class AlignofTypeExpressionAST;
+class AlignofExpressionAST;
+class NoexceptExpressionAST;
+class NewExpressionAST;
+class DeleteExpressionAST;
+class CastExpressionAST;
+class ImplicitCastExpressionAST;
+class BinaryExpressionAST;
+class ConditionalExpressionAST;
+class YieldExpressionAST;
+class ThrowExpressionAST;
+class AssignmentExpressionAST;
+class PackExpansionExpressionAST;
+class DesignatedInitializerClauseAST;
+class TypeTraitsExpressionAST;
+class ConditionExpressionAST;
+class EqualInitializerAST;
+class BracedInitListAST;
+class ParenInitializerAST;
 
 // TemplateParameterAST
 class TemplateTypeParameterAST;
@@ -258,17 +186,6 @@ class TemplatePackTypeParameterAST;
 class NonTypeTemplateParameterAST;
 class TypenameTypeParameterAST;
 class ConstraintTypeParameterAST;
-
-// UnqualifiedIdAST
-class NameIdAST;
-class DestructorIdAST;
-class DecltypeIdAST;
-class OperatorFunctionIdAST;
-class LiteralOperatorIdAST;
-class ConversionFunctionIdAST;
-class SimpleTemplateIdAST;
-class LiteralOperatorTemplateIdAST;
-class OperatorFunctionTemplateIdAST;
 
 // SpecifierAST
 class TypedefSpecifierAST;
@@ -306,20 +223,77 @@ class EnumSpecifierAST;
 class ClassSpecifierAST;
 class TypenameSpecifierAST;
 
+// PtrOperatorAST
+class PointerOperatorAST;
+class ReferenceOperatorAST;
+class PtrToMemberOperatorAST;
+
 // CoreDeclaratorAST
 class BitfieldDeclaratorAST;
 class ParameterPackAST;
 class IdDeclaratorAST;
 class NestedDeclaratorAST;
 
-// PtrOperatorAST
-class PointerOperatorAST;
-class ReferenceOperatorAST;
-class PtrToMemberOperatorAST;
-
 // DeclaratorChunkAST
 class FunctionDeclaratorChunkAST;
 class ArrayDeclaratorChunkAST;
+
+// UnqualifiedIdAST
+class NameIdAST;
+class DestructorIdAST;
+class DecltypeIdAST;
+class OperatorFunctionIdAST;
+class LiteralOperatorIdAST;
+class ConversionFunctionIdAST;
+class SimpleTemplateIdAST;
+class LiteralOperatorTemplateIdAST;
+class OperatorFunctionTemplateIdAST;
+
+// NestedNameSpecifierAST
+class GlobalNestedNameSpecifierAST;
+class SimpleNestedNameSpecifierAST;
+class DecltypeNestedNameSpecifierAST;
+class TemplateNestedNameSpecifierAST;
+
+// FunctionBodyAST
+class DefaultFunctionBodyAST;
+class CompoundStatementFunctionBodyAST;
+class TryStatementFunctionBodyAST;
+class DeleteFunctionBodyAST;
+
+// TemplateArgumentAST
+class TypeTemplateArgumentAST;
+class ExpressionTemplateArgumentAST;
+
+// ExceptionSpecifierAST
+class ThrowExceptionSpecifierAST;
+class NoexceptSpecifierAST;
+
+// RequirementAST
+class SimpleRequirementAST;
+class CompoundRequirementAST;
+class TypeRequirementAST;
+class NestedRequirementAST;
+
+// NewInitializerAST
+class NewParenInitializerAST;
+class NewBracedInitializerAST;
+
+// MemInitializerAST
+class ParenMemInitializerAST;
+class BracedMemInitializerAST;
+
+// LambdaCaptureAST
+class ThisLambdaCaptureAST;
+class DerefThisLambdaCaptureAST;
+class SimpleLambdaCaptureAST;
+class RefLambdaCaptureAST;
+class RefInitLambdaCaptureAST;
+class InitLambdaCaptureAST;
+
+// ExceptionDeclarationAST
+class EllipsisExceptionDeclarationAST;
+class TypeExceptionDeclarationAST;
 
 // AttributeSpecifierAST
 class CxxAttributeAST;
@@ -330,5 +304,31 @@ class AsmAttributeAST;
 // AttributeTokenAST
 class ScopedAttributeTokenAST;
 class SimpleAttributeTokenAST;
+
+// AST
+class GlobalModuleFragmentAST;
+class PrivateModuleFragmentAST;
+class ModuleDeclarationAST;
+class ModuleNameAST;
+class ModuleQualifierAST;
+class ModulePartitionAST;
+class ImportNameAST;
+class InitDeclaratorAST;
+class DeclaratorAST;
+class UsingDeclaratorAST;
+class EnumeratorAST;
+class TypeIdAST;
+class HandlerAST;
+class BaseSpecifierAST;
+class RequiresClauseAST;
+class ParameterDeclarationClauseAST;
+class TrailingReturnTypeAST;
+class LambdaSpecifierAST;
+class TypeConstraintAST;
+class AttributeArgumentClauseAST;
+class AttributeAST;
+class AttributeUsingPrefixAST;
+class NewPlacementAST;
+class NestedNamespaceSpecifierAST;
 
 }  // namespace cxx
