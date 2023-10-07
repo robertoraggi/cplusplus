@@ -278,28 +278,6 @@ void ASTCloner::visit(ParametersAndQualifiersAST* ast) {
   }
 }
 
-void ASTCloner::visit(LambdaIntroducerAST* ast) {
-  auto copy = new (arena_) LambdaIntroducerAST();
-  copy_ = copy;
-
-  copy->setChecked(ast->checked());
-
-  copy->lbracketLoc = ast->lbracketLoc;
-
-  copy->captureDefaultLoc = ast->captureDefaultLoc;
-
-  if (auto it = ast->captureList) {
-    auto out = &copy->captureList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
-
-  copy->rbracketLoc = ast->rbracketLoc;
-}
-
 void ASTCloner::visit(LambdaSpecifierAST* ast) {
   auto copy = new (arena_) LambdaSpecifierAST();
   copy_ = copy;
@@ -309,43 +287,6 @@ void ASTCloner::visit(LambdaSpecifierAST* ast) {
   copy->specifierLoc = ast->specifierLoc;
 
   copy->specifier = ast->specifier;
-}
-
-void ASTCloner::visit(LambdaDeclaratorAST* ast) {
-  auto copy = new (arena_) LambdaDeclaratorAST();
-  copy_ = copy;
-
-  copy->setChecked(ast->checked());
-
-  copy->lparenLoc = ast->lparenLoc;
-
-  copy->parameterDeclarationClause = accept(ast->parameterDeclarationClause);
-
-  copy->rparenLoc = ast->rparenLoc;
-
-  if (auto it = ast->lambdaSpecifierList) {
-    auto out = &copy->lambdaSpecifierList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
-
-  copy->exceptionSpecifier = accept(ast->exceptionSpecifier);
-
-  if (auto it = ast->attributeList) {
-    auto out = &copy->attributeList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
-
-  copy->trailingReturnType = accept(ast->trailingReturnType);
-
-  copy->requiresClause = accept(ast->requiresClause);
 }
 
 void ASTCloner::visit(TrailingReturnTypeAST* ast) {
@@ -1004,7 +945,20 @@ void ASTCloner::visit(LambdaExpressionAST* ast) {
 
   copy->constValue = ast->constValue;
 
-  copy->lambdaIntroducer = accept(ast->lambdaIntroducer);
+  copy->lbracketLoc = ast->lbracketLoc;
+
+  copy->captureDefaultLoc = ast->captureDefaultLoc;
+
+  if (auto it = ast->captureList) {
+    auto out = &copy->captureList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->rbracketLoc = ast->rbracketLoc;
 
   copy->lessLoc = ast->lessLoc;
 
@@ -1019,9 +973,37 @@ void ASTCloner::visit(LambdaExpressionAST* ast) {
 
   copy->greaterLoc = ast->greaterLoc;
 
-  copy->requiresClause = accept(ast->requiresClause);
+  copy->templateRequiresClause = accept(ast->templateRequiresClause);
 
-  copy->lambdaDeclarator = accept(ast->lambdaDeclarator);
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->parameterDeclarationClause = accept(ast->parameterDeclarationClause);
+
+  copy->rparenLoc = ast->rparenLoc;
+
+  if (auto it = ast->lambdaSpecifierList) {
+    auto out = &copy->lambdaSpecifierList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->exceptionSpecifier = accept(ast->exceptionSpecifier);
+
+  if (auto it = ast->attributeList) {
+    auto out = &copy->attributeList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->trailingReturnType = accept(ast->trailingReturnType);
+
+  copy->requiresClause = accept(ast->requiresClause);
 
   copy->statement = accept(ast->statement);
 }

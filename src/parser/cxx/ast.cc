@@ -204,22 +204,6 @@ auto ParametersAndQualifiersAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto LambdaIntroducerAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(lbracketLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(captureDefaultLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(captureList)) return loc;
-  if (auto loc = cxx::firstSourceLocation(rbracketLoc)) return loc;
-  return {};
-}
-
-auto LambdaIntroducerAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(rbracketLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(captureList)) return loc;
-  if (auto loc = cxx::lastSourceLocation(captureDefaultLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(lbracketLoc)) return loc;
-  return {};
-}
-
 auto LambdaSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(specifierLoc)) return loc;
   return {};
@@ -227,32 +211,6 @@ auto LambdaSpecifierAST::firstSourceLocation() -> SourceLocation {
 
 auto LambdaSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(specifierLoc)) return loc;
-  return {};
-}
-
-auto LambdaDeclaratorAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(parameterDeclarationClause))
-    return loc;
-  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(lambdaSpecifierList)) return loc;
-  if (auto loc = cxx::firstSourceLocation(exceptionSpecifier)) return loc;
-  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
-  if (auto loc = cxx::firstSourceLocation(trailingReturnType)) return loc;
-  if (auto loc = cxx::firstSourceLocation(requiresClause)) return loc;
-  return {};
-}
-
-auto LambdaDeclaratorAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(requiresClause)) return loc;
-  if (auto loc = cxx::lastSourceLocation(trailingReturnType)) return loc;
-  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
-  if (auto loc = cxx::lastSourceLocation(exceptionSpecifier)) return loc;
-  if (auto loc = cxx::lastSourceLocation(lambdaSpecifierList)) return loc;
-  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(parameterDeclarationClause))
-    return loc;
-  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   return {};
 }
 
@@ -793,24 +751,46 @@ auto FoldExpressionAST::lastSourceLocation() -> SourceLocation {
 }
 
 auto LambdaExpressionAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(lambdaIntroducer)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lbracketLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(captureDefaultLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(captureList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rbracketLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lessLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(templateParameterList)) return loc;
   if (auto loc = cxx::firstSourceLocation(greaterLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(templateRequiresClause)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(parameterDeclarationClause))
+    return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lambdaSpecifierList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(exceptionSpecifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(trailingReturnType)) return loc;
   if (auto loc = cxx::firstSourceLocation(requiresClause)) return loc;
-  if (auto loc = cxx::firstSourceLocation(lambdaDeclarator)) return loc;
   if (auto loc = cxx::firstSourceLocation(statement)) return loc;
   return {};
 }
 
 auto LambdaExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(statement)) return loc;
-  if (auto loc = cxx::lastSourceLocation(lambdaDeclarator)) return loc;
   if (auto loc = cxx::lastSourceLocation(requiresClause)) return loc;
+  if (auto loc = cxx::lastSourceLocation(trailingReturnType)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(exceptionSpecifier)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lambdaSpecifierList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(parameterDeclarationClause))
+    return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(templateRequiresClause)) return loc;
   if (auto loc = cxx::lastSourceLocation(greaterLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(templateParameterList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lessLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(lambdaIntroducer)) return loc;
+  if (auto loc = cxx::lastSourceLocation(rbracketLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(captureList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(captureDefaultLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lbracketLoc)) return loc;
   return {};
 }
 

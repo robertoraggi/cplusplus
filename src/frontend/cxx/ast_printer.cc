@@ -240,19 +240,6 @@ void ASTPrinter::visit(ParametersAndQualifiersAST* ast) {
   }
 }
 
-void ASTPrinter::visit(LambdaIntroducerAST* ast) {
-  fmt::print(out_, "{}\n", "lambda-introducer");
-  if (ast->captureList) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "capture-list");
-    for (auto it = ast->captureList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-}
-
 void ASTPrinter::visit(LambdaSpecifierAST* ast) {
   fmt::print(out_, "{}\n", "lambda-specifier");
   if (ast->specifier != TokenKind::T_EOF_SYMBOL) {
@@ -261,32 +248,6 @@ void ASTPrinter::visit(LambdaSpecifierAST* ast) {
     fmt::print(out_, "specifier: {}\n", Token::spell(ast->specifier));
     --indent_;
   }
-}
-
-void ASTPrinter::visit(LambdaDeclaratorAST* ast) {
-  fmt::print(out_, "{}\n", "lambda-declarator");
-  accept(ast->parameterDeclarationClause, "parameter-declaration-clause");
-  if (ast->lambdaSpecifierList) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "lambda-specifier-list");
-    for (auto it = ast->lambdaSpecifierList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-  accept(ast->exceptionSpecifier, "exception-specifier");
-  if (ast->attributeList) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-  accept(ast->trailingReturnType, "trailing-return-type");
-  accept(ast->requiresClause, "requires-clause");
 }
 
 void ASTPrinter::visit(TrailingReturnTypeAST* ast) {
@@ -629,7 +590,15 @@ void ASTPrinter::visit(FoldExpressionAST* ast) {
 
 void ASTPrinter::visit(LambdaExpressionAST* ast) {
   fmt::print(out_, "{}\n", "lambda-expression");
-  accept(ast->lambdaIntroducer, "lambda-introducer");
+  if (ast->captureList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "capture-list");
+    for (auto it = ast->captureList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
   if (ast->templateParameterList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
@@ -639,8 +608,29 @@ void ASTPrinter::visit(LambdaExpressionAST* ast) {
     }
     --indent_;
   }
+  accept(ast->templateRequiresClause, "template-requires-clause");
+  accept(ast->parameterDeclarationClause, "parameter-declaration-clause");
+  if (ast->lambdaSpecifierList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "lambda-specifier-list");
+    for (auto it = ast->lambdaSpecifierList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+  accept(ast->exceptionSpecifier, "exception-specifier");
+  if (ast->attributeList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "attribute-list");
+    for (auto it = ast->attributeList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+  accept(ast->trailingReturnType, "trailing-return-type");
   accept(ast->requiresClause, "requires-clause");
-  accept(ast->lambdaDeclarator, "lambda-declarator");
   accept(ast->statement, "statement");
 }
 

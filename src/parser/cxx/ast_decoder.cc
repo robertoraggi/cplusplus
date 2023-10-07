@@ -986,61 +986,12 @@ auto ASTDecoder::decodeParametersAndQualifiers(
   return ast;
 }
 
-auto ASTDecoder::decodeLambdaIntroducer(const io::LambdaIntroducer* node)
-    -> LambdaIntroducerAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) LambdaIntroducerAST();
-  if (node->capture_list()) {
-    auto* inserter = &ast->captureList;
-    for (std::size_t i = 0; i < node->capture_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeLambdaCapture(
-          node->capture_list()->Get(i),
-          io::LambdaCapture(node->capture_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  return ast;
-}
-
 auto ASTDecoder::decodeLambdaSpecifier(const io::LambdaSpecifier* node)
     -> LambdaSpecifierAST* {
   if (!node) return nullptr;
 
   auto ast = new (pool_) LambdaSpecifierAST();
   ast->specifier = static_cast<TokenKind>(node->specifier());
-  return ast;
-}
-
-auto ASTDecoder::decodeLambdaDeclarator(const io::LambdaDeclarator* node)
-    -> LambdaDeclaratorAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) LambdaDeclaratorAST();
-  ast->parameterDeclarationClause =
-      decodeParameterDeclarationClause(node->parameter_declaration_clause());
-  if (node->lambda_specifier_list()) {
-    auto* inserter = &ast->lambdaSpecifierList;
-    for (std::size_t i = 0; i < node->lambda_specifier_list()->size(); ++i) {
-      *inserter = new (pool_)
-          List(decodeLambdaSpecifier(node->lambda_specifier_list()->Get(i)));
-      inserter = &(*inserter)->next;
-    }
-  }
-  ast->exceptionSpecifier = decodeExceptionSpecifier(
-      node->exception_specifier(), node->exception_specifier_type());
-  if (node->attribute_list()) {
-    auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeAttributeSpecifier(
-          node->attribute_list()->Get(i),
-          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  ast->trailingReturnType =
-      decodeTrailingReturnType(node->trailing_return_type());
-  ast->requiresClause = decodeRequiresClause(node->requires_clause());
   return ast;
 }
 
@@ -1516,7 +1467,15 @@ auto ASTDecoder::decodeLambdaExpression(const io::LambdaExpression* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) LambdaExpressionAST();
-  ast->lambdaIntroducer = decodeLambdaIntroducer(node->lambda_introducer());
+  if (node->capture_list()) {
+    auto* inserter = &ast->captureList;
+    for (std::size_t i = 0; i < node->capture_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeLambdaCapture(
+          node->capture_list()->Get(i),
+          io::LambdaCapture(node->capture_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
   if (node->template_parameter_list()) {
     auto* inserter = &ast->templateParameterList;
     for (std::size_t i = 0; i < node->template_parameter_list()->size(); ++i) {
@@ -1526,8 +1485,32 @@ auto ASTDecoder::decodeLambdaExpression(const io::LambdaExpression* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->templateRequiresClause =
+      decodeRequiresClause(node->template_requires_clause());
+  ast->parameterDeclarationClause =
+      decodeParameterDeclarationClause(node->parameter_declaration_clause());
+  if (node->lambda_specifier_list()) {
+    auto* inserter = &ast->lambdaSpecifierList;
+    for (std::size_t i = 0; i < node->lambda_specifier_list()->size(); ++i) {
+      *inserter = new (pool_)
+          List(decodeLambdaSpecifier(node->lambda_specifier_list()->Get(i)));
+      inserter = &(*inserter)->next;
+    }
+  }
+  ast->exceptionSpecifier = decodeExceptionSpecifier(
+      node->exception_specifier(), node->exception_specifier_type());
+  if (node->attribute_list()) {
+    auto* inserter = &ast->attributeList;
+    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  ast->trailingReturnType =
+      decodeTrailingReturnType(node->trailing_return_type());
   ast->requiresClause = decodeRequiresClause(node->requires_clause());
-  ast->lambdaDeclarator = decodeLambdaDeclarator(node->lambda_declarator());
   ast->statement = decodeCompoundStatement(node->statement());
   return ast;
 }

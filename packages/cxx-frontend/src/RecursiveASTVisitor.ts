@@ -204,43 +204,12 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   }
 
   /**
-   * Visit a LambdaIntroducer node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitLambdaIntroducer(node: ast.LambdaIntroducerAST, context: Context): void {
-    for (const element of node.getCaptureList()) {
-      this.accept(element, context);
-    }
-  }
-
-  /**
    * Visit a LambdaSpecifier node.
    *
    * @param node The node to visit.
    * @param context The context.
    */
   visitLambdaSpecifier(node: ast.LambdaSpecifierAST, context: Context): void {}
-
-  /**
-   * Visit a LambdaDeclarator node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitLambdaDeclarator(node: ast.LambdaDeclaratorAST, context: Context): void {
-    this.accept(node.getParameterDeclarationClause(), context);
-    for (const element of node.getLambdaSpecifierList()) {
-      this.accept(element, context);
-    }
-    this.accept(node.getExceptionSpecifier(), context);
-    for (const element of node.getAttributeList()) {
-      this.accept(element, context);
-    }
-    this.accept(node.getTrailingReturnType(), context);
-    this.accept(node.getRequiresClause(), context);
-  }
 
   /**
    * Visit a TrailingReturnType node.
@@ -711,12 +680,23 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
    * @param context The context.
    */
   visitLambdaExpression(node: ast.LambdaExpressionAST, context: Context): void {
-    this.accept(node.getLambdaIntroducer(), context);
+    for (const element of node.getCaptureList()) {
+      this.accept(element, context);
+    }
     for (const element of node.getTemplateParameterList()) {
       this.accept(element, context);
     }
+    this.accept(node.getTemplateRequiresClause(), context);
+    this.accept(node.getParameterDeclarationClause(), context);
+    for (const element of node.getLambdaSpecifierList()) {
+      this.accept(element, context);
+    }
+    this.accept(node.getExceptionSpecifier(), context);
+    for (const element of node.getAttributeList()) {
+      this.accept(element, context);
+    }
+    this.accept(node.getTrailingReturnType(), context);
     this.accept(node.getRequiresClause(), context);
-    this.accept(node.getLambdaDeclarator(), context);
     this.accept(node.getStatement(), context);
   }
 

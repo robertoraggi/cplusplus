@@ -410,23 +410,6 @@ class ParametersAndQualifiersAST final : public AST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class LambdaIntroducerAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::LambdaIntroducer;
-
-  LambdaIntroducerAST() : AST(Kind) {}
-
-  SourceLocation lbracketLoc;
-  SourceLocation captureDefaultLoc;
-  List<LambdaCaptureAST*>* captureList = nullptr;
-  SourceLocation rbracketLoc;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
 class LambdaSpecifierAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::LambdaSpecifier;
@@ -435,27 +418,6 @@ class LambdaSpecifierAST final : public AST {
 
   SourceLocation specifierLoc;
   TokenKind specifier = TokenKind::T_EOF_SYMBOL;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class LambdaDeclaratorAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::LambdaDeclarator;
-
-  LambdaDeclaratorAST() : AST(Kind) {}
-
-  SourceLocation lparenLoc;
-  ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
-  SourceLocation rparenLoc;
-  List<LambdaSpecifierAST*>* lambdaSpecifierList = nullptr;
-  ExceptionSpecifierAST* exceptionSpecifier = nullptr;
-  List<AttributeSpecifierAST*>* attributeList = nullptr;
-  TrailingReturnTypeAST* trailingReturnType = nullptr;
-  RequiresClauseAST* requiresClause = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1106,12 +1068,22 @@ class LambdaExpressionAST final : public ExpressionAST {
 
   LambdaExpressionAST() : ExpressionAST(Kind) {}
 
-  LambdaIntroducerAST* lambdaIntroducer = nullptr;
+  SourceLocation lbracketLoc;
+  SourceLocation captureDefaultLoc;
+  List<LambdaCaptureAST*>* captureList = nullptr;
+  SourceLocation rbracketLoc;
   SourceLocation lessLoc;
   List<TemplateParameterAST*>* templateParameterList = nullptr;
   SourceLocation greaterLoc;
+  RequiresClauseAST* templateRequiresClause = nullptr;
+  SourceLocation lparenLoc;
+  ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
+  SourceLocation rparenLoc;
+  List<LambdaSpecifierAST*>* lambdaSpecifierList = nullptr;
+  ExceptionSpecifierAST* exceptionSpecifier = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
+  TrailingReturnTypeAST* trailingReturnType = nullptr;
   RequiresClauseAST* requiresClause = nullptr;
-  LambdaDeclaratorAST* lambdaDeclarator = nullptr;
   CompoundStatementAST* statement = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }

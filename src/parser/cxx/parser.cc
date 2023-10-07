@@ -898,91 +898,51 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
 auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
   if (!lookat(TokenKind::T_LBRACKET)) return false;
 
-  LambdaIntroducerAST* lambdaIntroducer = nullptr;
-
-  if (!parse_lambda_introducer(lambdaIntroducer)) return false;
-
   auto ast = new (pool) LambdaExpressionAST();
   yyast = ast;
 
-  ast->lambdaIntroducer = lambdaIntroducer;
+  expect(TokenKind::T_LBRACKET, ast->lbracketLoc);
+
+  if (!match(TokenKind::T_RBRACKET, ast->rbracketLoc)) {
+    if (!parse_lambda_capture(ast->captureDefaultLoc, ast->captureList)) {
+      parse_error("expected a lambda capture");
+    }
+
+    expect(TokenKind::T_RBRACKET, ast->rbracketLoc);
+  }
 
   if (match(TokenKind::T_LESS, ast->lessLoc)) {
     parse_template_parameter_list(ast->templateParameterList);
 
     expect(TokenKind::T_GREATER, ast->greaterLoc);
 
-    (void)parse_requires_clause(ast->requiresClause);
+    (void)parse_requires_clause(ast->templateRequiresClause);
   }
 
-  if (!lookat(TokenKind::T_LBRACE)) {
-    if (!parse_lambda_declarator(ast->lambdaDeclarator)) {
-      parse_error("expected lambda declarator");
+  if (match(TokenKind::T_LPAREN, ast->lparenLoc)) {
+    if (!match(TokenKind::T_RPAREN, ast->rparenLoc)) {
+      if (!parse_parameter_declaration_clause(
+              ast->parameterDeclarationClause)) {
+        parse_error("expected a parameter declaration clause");
+      }
+
+      expect(TokenKind::T_RPAREN, ast->rparenLoc);
     }
+
+    (void)parse_lambda_specifier_seq(ast->lambdaSpecifierList);
+
+    (void)parse_noexcept_specifier(ast->exceptionSpecifier);
+
+    parse_optional_attribute_specifier_seq(ast->attributeList);
+
+    (void)parse_trailing_return_type(ast->trailingReturnType);
+
+    (void)parse_requires_clause(ast->requiresClause);
   }
 
   if (!parse_compound_statement(ast->statement)) {
     parse_error("expected a compound statement");
   }
-
-  return true;
-}
-
-auto Parser::parse_lambda_introducer(LambdaIntroducerAST*& yyast) -> bool {
-  SourceLocation lbracketLoc;
-
-  if (!match(TokenKind::T_LBRACKET, lbracketLoc)) return false;
-
-  SourceLocation rbracketLoc;
-  SourceLocation defaultCaptureLoc;
-  List<LambdaCaptureAST*>* captureList = nullptr;
-
-  if (!match(TokenKind::T_RBRACKET, rbracketLoc)) {
-    if (!parse_lambda_capture(defaultCaptureLoc, captureList)) {
-      parse_error("expected a lambda capture");
-    }
-
-    expect(TokenKind::T_RBRACKET, rbracketLoc);
-  }
-
-  auto ast = new (pool) LambdaIntroducerAST();
-  yyast = ast;
-
-  ast->lbracketLoc = lbracketLoc;
-  ast->captureDefaultLoc = defaultCaptureLoc;
-  ast->captureList = captureList;
-  ast->rbracketLoc = rbracketLoc;
-
-  return true;
-}
-
-auto Parser::parse_lambda_declarator(LambdaDeclaratorAST*& yyast) -> bool {
-  SourceLocation lparenLoc;
-
-  if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
-
-  auto ast = new (pool) LambdaDeclaratorAST();
-  yyast = ast;
-
-  ast->lparenLoc = lparenLoc;
-
-  if (!match(TokenKind::T_RPAREN, ast->rparenLoc)) {
-    if (!parse_parameter_declaration_clause(ast->parameterDeclarationClause)) {
-      parse_error("expected a parameter declaration clause");
-    }
-
-    expect(TokenKind::T_RPAREN, ast->rparenLoc);
-  }
-
-  (void)parse_lambda_specifier_seq(ast->lambdaSpecifierList);
-
-  (void)parse_noexcept_specifier(ast->exceptionSpecifier);
-
-  parse_optional_attribute_specifier_seq(ast->attributeList);
-
-  (void)parse_trailing_return_type(ast->trailingReturnType);
-
-  (void)parse_requires_clause(ast->requiresClause);
 
   return true;
 }
