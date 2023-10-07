@@ -96,12 +96,8 @@ class ASTDecoder {
       -> ParameterDeclarationClauseAST*;
   auto decodeParametersAndQualifiers(const io::ParametersAndQualifiers* node)
       -> ParametersAndQualifiersAST*;
-  auto decodeLambdaIntroducer(const io::LambdaIntroducer* node)
-      -> LambdaIntroducerAST*;
   auto decodeLambdaSpecifier(const io::LambdaSpecifier* node)
       -> LambdaSpecifierAST*;
-  auto decodeLambdaDeclarator(const io::LambdaDeclarator* node)
-      -> LambdaDeclaratorAST*;
   auto decodeTrailingReturnType(const io::TrailingReturnType* node)
       -> TrailingReturnTypeAST*;
   auto decodeCtorInitializer(const io::CtorInitializer* node)

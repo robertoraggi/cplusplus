@@ -74,16 +74,8 @@ void DefaultASTVisitor::visit(ParametersAndQualifiersAST* ast) {
   cxx_runtime_error("visit(ParametersAndQualifiersAST): not implemented");
 }
 
-void DefaultASTVisitor::visit(LambdaIntroducerAST* ast) {
-  cxx_runtime_error("visit(LambdaIntroducerAST): not implemented");
-}
-
 void DefaultASTVisitor::visit(LambdaSpecifierAST* ast) {
   cxx_runtime_error("visit(LambdaSpecifierAST): not implemented");
-}
-
-void DefaultASTVisitor::visit(LambdaDeclaratorAST* ast) {
-  cxx_runtime_error("visit(LambdaDeclaratorAST): not implemented");
 }
 
 void DefaultASTVisitor::visit(TrailingReturnTypeAST* ast) {

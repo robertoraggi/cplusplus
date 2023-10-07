@@ -137,10 +137,6 @@ class Parser final {
   [[nodiscard]] auto parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
       -> bool;
   [[nodiscard]] auto parse_lambda_expression(ExpressionAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_lambda_introducer(LambdaIntroducerAST*& yyast)
-      -> bool;
-  [[nodiscard]] auto parse_lambda_declarator(LambdaDeclaratorAST*& yyast)
-      -> bool;
   [[nodiscard]] auto parse_lambda_specifier_seq(
       List<LambdaSpecifierAST*>*& yyast) -> bool;
   [[nodiscard]] auto parse_lambda_capture(SourceLocation& captureDefaultLoc,

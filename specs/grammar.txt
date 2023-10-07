@@ -364,7 +364,7 @@ nested-name-specifier:
     nested-name-specifier template-opt simple-template-id ::
 
 lambda-expression:
-    lambda-introducer lambda-declarator-opt compound-statement
+    lambda-introducer                                                 lambda-declarator-opt compound-statement
     lambda-introducer < template-parameter-list > requires-clause-opt lambda-declarator-opt compound-statement
 
 lambda-introducer:

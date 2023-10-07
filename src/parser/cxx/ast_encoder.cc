@@ -754,97 +754,12 @@ void ASTEncoder::visit(ParametersAndQualifiersAST* ast) {
   offset_ = builder.Finish().Union();
 }
 
-void ASTEncoder::visit(LambdaIntroducerAST* ast) {
-  auto lbracketLoc = encodeSourceLocation(ast->lbracketLoc);
-
-  auto captureDefaultLoc = encodeSourceLocation(ast->captureDefaultLoc);
-
-  std::vector<flatbuffers::Offset<>> captureListOffsets;
-  std::vector<std::underlying_type_t<io::LambdaCapture>> captureListTypes;
-
-  for (auto it = ast->captureList; it; it = it->next) {
-    if (!it->value) continue;
-    const auto [offset, type] = acceptLambdaCapture(it->value);
-    captureListOffsets.push_back(offset);
-    captureListTypes.push_back(type);
-  }
-
-  auto captureListOffsetsVector = fbb_.CreateVector(captureListOffsets);
-  auto captureListTypesVector = fbb_.CreateVector(captureListTypes);
-
-  auto rbracketLoc = encodeSourceLocation(ast->rbracketLoc);
-
-  io::LambdaIntroducer::Builder builder{fbb_};
-  builder.add_lbracket_loc(lbracketLoc.o);
-  builder.add_capture_default_loc(captureDefaultLoc.o);
-  builder.add_capture_list(captureListOffsetsVector);
-  builder.add_capture_list_type(captureListTypesVector);
-  builder.add_rbracket_loc(rbracketLoc.o);
-
-  offset_ = builder.Finish().Union();
-}
-
 void ASTEncoder::visit(LambdaSpecifierAST* ast) {
   auto specifierLoc = encodeSourceLocation(ast->specifierLoc);
 
   io::LambdaSpecifier::Builder builder{fbb_};
   builder.add_specifier_loc(specifierLoc.o);
   builder.add_specifier(static_cast<std::uint32_t>(ast->specifier));
-
-  offset_ = builder.Finish().Union();
-}
-
-void ASTEncoder::visit(LambdaDeclaratorAST* ast) {
-  auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
-
-  const auto parameterDeclarationClause =
-      accept(ast->parameterDeclarationClause);
-
-  auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
-
-  std::vector<flatbuffers::Offset<io::LambdaSpecifier>>
-      lambdaSpecifierListOffsets;
-  for (auto it = ast->lambdaSpecifierList; it; it = it->next) {
-    if (!it->value) continue;
-    lambdaSpecifierListOffsets.emplace_back(accept(it->value).o);
-  }
-
-  auto lambdaSpecifierListOffsetsVector =
-      fbb_.CreateVector(lambdaSpecifierListOffsets);
-
-  const auto [exceptionSpecifier, exceptionSpecifierType] =
-      acceptExceptionSpecifier(ast->exceptionSpecifier);
-
-  std::vector<flatbuffers::Offset<>> attributeListOffsets;
-  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
-      attributeListTypes;
-
-  for (auto it = ast->attributeList; it; it = it->next) {
-    if (!it->value) continue;
-    const auto [offset, type] = acceptAttributeSpecifier(it->value);
-    attributeListOffsets.push_back(offset);
-    attributeListTypes.push_back(type);
-  }
-
-  auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
-  auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
-
-  const auto trailingReturnType = accept(ast->trailingReturnType);
-
-  const auto requiresClause = accept(ast->requiresClause);
-
-  io::LambdaDeclarator::Builder builder{fbb_};
-  builder.add_lparen_loc(lparenLoc.o);
-  builder.add_parameter_declaration_clause(parameterDeclarationClause.o);
-  builder.add_rparen_loc(rparenLoc.o);
-  builder.add_lambda_specifier_list(lambdaSpecifierListOffsetsVector);
-  builder.add_exception_specifier(exceptionSpecifier);
-  builder.add_exception_specifier_type(
-      static_cast<io::ExceptionSpecifier>(exceptionSpecifierType));
-  builder.add_attribute_list(attributeListOffsetsVector);
-  builder.add_attribute_list_type(attributeListTypesVector);
-  builder.add_trailing_return_type(trailingReturnType.o);
-  builder.add_requires_clause(requiresClause.o);
 
   offset_ = builder.Finish().Union();
 }
@@ -1697,7 +1612,24 @@ void ASTEncoder::visit(FoldExpressionAST* ast) {
 }
 
 void ASTEncoder::visit(LambdaExpressionAST* ast) {
-  const auto lambdaIntroducer = accept(ast->lambdaIntroducer);
+  auto lbracketLoc = encodeSourceLocation(ast->lbracketLoc);
+
+  auto captureDefaultLoc = encodeSourceLocation(ast->captureDefaultLoc);
+
+  std::vector<flatbuffers::Offset<>> captureListOffsets;
+  std::vector<std::underlying_type_t<io::LambdaCapture>> captureListTypes;
+
+  for (auto it = ast->captureList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptLambdaCapture(it->value);
+    captureListOffsets.push_back(offset);
+    captureListTypes.push_back(type);
+  }
+
+  auto captureListOffsetsVector = fbb_.CreateVector(captureListOffsets);
+  auto captureListTypesVector = fbb_.CreateVector(captureListTypes);
+
+  auto rbracketLoc = encodeSourceLocation(ast->rbracketLoc);
 
   auto lessLoc = encodeSourceLocation(ast->lessLoc);
 
@@ -1719,20 +1651,70 @@ void ASTEncoder::visit(LambdaExpressionAST* ast) {
 
   auto greaterLoc = encodeSourceLocation(ast->greaterLoc);
 
-  const auto requiresClause = accept(ast->requiresClause);
+  const auto templateRequiresClause = accept(ast->templateRequiresClause);
 
-  const auto lambdaDeclarator = accept(ast->lambdaDeclarator);
+  auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
+
+  const auto parameterDeclarationClause =
+      accept(ast->parameterDeclarationClause);
+
+  auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
+
+  std::vector<flatbuffers::Offset<io::LambdaSpecifier>>
+      lambdaSpecifierListOffsets;
+  for (auto it = ast->lambdaSpecifierList; it; it = it->next) {
+    if (!it->value) continue;
+    lambdaSpecifierListOffsets.emplace_back(accept(it->value).o);
+  }
+
+  auto lambdaSpecifierListOffsetsVector =
+      fbb_.CreateVector(lambdaSpecifierListOffsets);
+
+  const auto [exceptionSpecifier, exceptionSpecifierType] =
+      acceptExceptionSpecifier(ast->exceptionSpecifier);
+
+  std::vector<flatbuffers::Offset<>> attributeListOffsets;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
+
+  for (auto it = ast->attributeList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
+    attributeListOffsets.push_back(offset);
+    attributeListTypes.push_back(type);
+  }
+
+  auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
+  auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
+
+  const auto trailingReturnType = accept(ast->trailingReturnType);
+
+  const auto requiresClause = accept(ast->requiresClause);
 
   const auto statement = accept(ast->statement);
 
   io::LambdaExpression::Builder builder{fbb_};
-  builder.add_lambda_introducer(lambdaIntroducer.o);
+  builder.add_lbracket_loc(lbracketLoc.o);
+  builder.add_capture_default_loc(captureDefaultLoc.o);
+  builder.add_capture_list(captureListOffsetsVector);
+  builder.add_capture_list_type(captureListTypesVector);
+  builder.add_rbracket_loc(rbracketLoc.o);
   builder.add_less_loc(lessLoc.o);
   builder.add_template_parameter_list(templateParameterListOffsetsVector);
   builder.add_template_parameter_list_type(templateParameterListTypesVector);
   builder.add_greater_loc(greaterLoc.o);
+  builder.add_template_requires_clause(templateRequiresClause.o);
+  builder.add_lparen_loc(lparenLoc.o);
+  builder.add_parameter_declaration_clause(parameterDeclarationClause.o);
+  builder.add_rparen_loc(rparenLoc.o);
+  builder.add_lambda_specifier_list(lambdaSpecifierListOffsetsVector);
+  builder.add_exception_specifier(exceptionSpecifier);
+  builder.add_exception_specifier_type(
+      static_cast<io::ExceptionSpecifier>(exceptionSpecifierType));
+  builder.add_attribute_list(attributeListOffsetsVector);
+  builder.add_attribute_list_type(attributeListTypesVector);
+  builder.add_trailing_return_type(trailingReturnType.o);
   builder.add_requires_clause(requiresClause.o);
-  builder.add_lambda_declarator(lambdaDeclarator.o);
   builder.add_statement(statement.o);
 
   offset_ = builder.Finish().Union();

@@ -44,11 +44,9 @@ auto main() -> int {
 // CHECK-NEXT:                            identifier: consteval_lambda
 // CHECK-NEXT:                    initializer: equal-initializer
 // CHECK-NEXT:                      expression: lambda-expression
-// CHECK-NEXT:                        lambda-introducer: lambda-introducer
-// CHECK-NEXT:                        lambda-declarator: lambda-declarator
-// CHECK-NEXT:                          lambda-specifier-list
-// CHECK-NEXT:                            lambda-specifier
-// CHECK-NEXT:                              specifier: consteval
+// CHECK-NEXT:                        lambda-specifier-list
+// CHECK-NEXT:                          lambda-specifier
+// CHECK-NEXT:                            specifier: consteval
 // CHECK-NEXT:                        statement: compound-statement
 // CHECK-NEXT:                          statement-list
 // CHECK-NEXT:                            return-statement
@@ -67,11 +65,9 @@ auto main() -> int {
 // CHECK-NEXT:                            identifier: constexpr_lambda
 // CHECK-NEXT:                    initializer: equal-initializer
 // CHECK-NEXT:                      expression: lambda-expression
-// CHECK-NEXT:                        lambda-introducer: lambda-introducer
-// CHECK-NEXT:                        lambda-declarator: lambda-declarator
-// CHECK-NEXT:                          lambda-specifier-list
-// CHECK-NEXT:                            lambda-specifier
-// CHECK-NEXT:                              specifier: constexpr
+// CHECK-NEXT:                        lambda-specifier-list
+// CHECK-NEXT:                          lambda-specifier
+// CHECK-NEXT:                            specifier: constexpr
 // CHECK-NEXT:                        statement: compound-statement
 // CHECK-NEXT:                          statement-list
 // CHECK-NEXT:                            return-statement
@@ -90,11 +86,9 @@ auto main() -> int {
 // CHECK-NEXT:                            identifier: mutable_lambda
 // CHECK-NEXT:                    initializer: equal-initializer
 // CHECK-NEXT:                      expression: lambda-expression
-// CHECK-NEXT:                        lambda-introducer: lambda-introducer
-// CHECK-NEXT:                        lambda-declarator: lambda-declarator
-// CHECK-NEXT:                          lambda-specifier-list
-// CHECK-NEXT:                            lambda-specifier
-// CHECK-NEXT:                              specifier: mutable
+// CHECK-NEXT:                        lambda-specifier-list
+// CHECK-NEXT:                          lambda-specifier
+// CHECK-NEXT:                            specifier: mutable
 // CHECK-NEXT:                        statement: compound-statement
 // CHECK-NEXT:                          statement-list
 // CHECK-NEXT:                            return-statement
@@ -113,11 +107,9 @@ auto main() -> int {
 // CHECK-NEXT:                            identifier: static_lambda
 // CHECK-NEXT:                    initializer: equal-initializer
 // CHECK-NEXT:                      expression: lambda-expression
-// CHECK-NEXT:                        lambda-introducer: lambda-introducer
-// CHECK-NEXT:                        lambda-declarator: lambda-declarator
-// CHECK-NEXT:                          lambda-specifier-list
-// CHECK-NEXT:                            lambda-specifier
-// CHECK-NEXT:                              specifier: static
+// CHECK-NEXT:                        lambda-specifier-list
+// CHECK-NEXT:                          lambda-specifier
+// CHECK-NEXT:                            specifier: static
 // CHECK-NEXT:                        statement: compound-statement
 // CHECK-NEXT:                          statement-list
 // CHECK-NEXT:                            return-statement

@@ -155,18 +155,6 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
 
   /**
-   * Visit LambdaIntroducer node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitLambdaIntroducer(
-    node: ast.LambdaIntroducerAST,
-    context: Context,
-  ): Result;
-
-  /**
    * Visit LambdaSpecifier node.
    *
    * @param node The node to visit.
@@ -175,18 +163,6 @@ export abstract class ASTVisitor<Context, Result> {
    */
   abstract visitLambdaSpecifier(
     node: ast.LambdaSpecifierAST,
-    context: Context,
-  ): Result;
-
-  /**
-   * Visit LambdaDeclarator node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitLambdaDeclarator(
-    node: ast.LambdaDeclaratorAST,
     context: Context,
   ): Result;
 

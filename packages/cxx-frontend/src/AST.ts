@@ -826,58 +826,6 @@ export class ParametersAndQualifiersAST extends AST {
 }
 
 /**
- * LambdaIntroducerAST node.
- */
-export class LambdaIntroducerAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitLambdaIntroducer(this, context);
-  }
-
-  /**
-   * Returns the location of the lbracket token in this node
-   */
-  getLbracketToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the captureDefault token in this node
-   */
-  getCaptureDefaultToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the captureList of this node
-   */
-  *getCaptureList(): Generator<LambdaCaptureAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<LambdaCaptureAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the rbracket token in this node
-   */
-  getRbracketToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-}
-
-/**
  * LambdaSpecifierAST node.
  */
 export class LambdaSpecifierAST extends AST {
@@ -906,104 +854,6 @@ export class LambdaSpecifierAST extends AST {
    */
   getSpecifier(): TokenKind {
     return cxx.getASTSlot(this.getHandle(), 1);
-  }
-}
-
-/**
- * LambdaDeclaratorAST node.
- */
-export class LambdaDeclaratorAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitLambdaDeclarator(this, context);
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the parameterDeclarationClause of this node
-   */
-  getParameterDeclarationClause(): ParameterDeclarationClauseAST | undefined {
-    return AST.from<ParameterDeclarationClauseAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the lambdaSpecifierList of this node
-   */
-  *getLambdaSpecifierList(): Generator<LambdaSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 3);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<LambdaSpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the exceptionSpecifier of this node
-   */
-  getExceptionSpecifier(): ExceptionSpecifierAST | undefined {
-    return AST.from<ExceptionSpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 4),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the attributeList of this node
-   */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 5);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the trailingReturnType of this node
-   */
-  getTrailingReturnType(): TrailingReturnTypeAST | undefined {
-    return AST.from<TrailingReturnTypeAST>(
-      cxx.getASTSlot(this.getHandle(), 6),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the requiresClause of this node
-   */
-  getRequiresClause(): RequiresClauseAST | undefined {
-    return AST.from<RequiresClauseAST>(
-      cxx.getASTSlot(this.getHandle(), 7),
-      this.parser,
-    );
   }
 }
 
@@ -2777,20 +2627,44 @@ export class LambdaExpressionAST extends ExpressionAST {
   }
 
   /**
-   * Returns the lambdaIntroducer of this node
+   * Returns the location of the lbracket token in this node
    */
-  getLambdaIntroducer(): LambdaIntroducerAST | undefined {
-    return AST.from<LambdaIntroducerAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
+  getLbracketToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the captureDefault token in this node
+   */
+  getCaptureDefaultToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the captureList of this node
+   */
+  *getCaptureList(): Generator<LambdaCaptureAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 2);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<LambdaCaptureAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the rbracket token in this node
+   */
+  getRbracketToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
   }
 
   /**
    * Returns the location of the less token in this node
    */
   getLessToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
   }
 
   /**
@@ -2798,7 +2672,7 @@ export class LambdaExpressionAST extends ExpressionAST {
    */
   *getTemplateParameterList(): Generator<TemplateParameterAST | undefined> {
     for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
+      let it = cxx.getASTSlot(this.getHandle(), 5);
       it;
       it = cxx.getListNext(it)
     ) {
@@ -2810,7 +2684,87 @@ export class LambdaExpressionAST extends ExpressionAST {
    * Returns the location of the greater token in this node
    */
   getGreaterToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+  }
+
+  /**
+   * Returns the templateRequiresClause of this node
+   */
+  getTemplateRequiresClause(): RequiresClauseAST | undefined {
+    return AST.from<RequiresClauseAST>(
+      cxx.getASTSlot(this.getHandle(), 7),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 8), this.parser);
+  }
+
+  /**
+   * Returns the parameterDeclarationClause of this node
+   */
+  getParameterDeclarationClause(): ParameterDeclarationClauseAST | undefined {
+    return AST.from<ParameterDeclarationClauseAST>(
+      cxx.getASTSlot(this.getHandle(), 9),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 10), this.parser);
+  }
+
+  /**
+   * Returns the lambdaSpecifierList of this node
+   */
+  *getLambdaSpecifierList(): Generator<LambdaSpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 11);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<LambdaSpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the exceptionSpecifier of this node
+   */
+  getExceptionSpecifier(): ExceptionSpecifierAST | undefined {
+    return AST.from<ExceptionSpecifierAST>(
+      cxx.getASTSlot(this.getHandle(), 12),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the attributeList of this node
+   */
+  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 13);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the trailingReturnType of this node
+   */
+  getTrailingReturnType(): TrailingReturnTypeAST | undefined {
+    return AST.from<TrailingReturnTypeAST>(
+      cxx.getASTSlot(this.getHandle(), 14),
+      this.parser,
+    );
   }
 
   /**
@@ -2818,17 +2772,7 @@ export class LambdaExpressionAST extends ExpressionAST {
    */
   getRequiresClause(): RequiresClauseAST | undefined {
     return AST.from<RequiresClauseAST>(
-      cxx.getASTSlot(this.getHandle(), 4),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the lambdaDeclarator of this node
-   */
-  getLambdaDeclarator(): LambdaDeclaratorAST | undefined {
-    return AST.from<LambdaDeclaratorAST>(
-      cxx.getASTSlot(this.getHandle(), 5),
+      cxx.getASTSlot(this.getHandle(), 15),
       this.parser,
     );
   }
@@ -2838,7 +2782,7 @@ export class LambdaExpressionAST extends ExpressionAST {
    */
   getStatement(): CompoundStatementAST | undefined {
     return AST.from<CompoundStatementAST>(
-      cxx.getASTSlot(this.getHandle(), 6),
+      cxx.getASTSlot(this.getHandle(), 16),
       this.parser,
     );
   }
@@ -11090,9 +11034,7 @@ const AST_CONSTRUCTORS: Array<
   RequiresClauseAST,
   ParameterDeclarationClauseAST,
   ParametersAndQualifiersAST,
-  LambdaIntroducerAST,
   LambdaSpecifierAST,
-  LambdaDeclaratorAST,
   TrailingReturnTypeAST,
   CtorInitializerAST,
   RequirementBodyAST,

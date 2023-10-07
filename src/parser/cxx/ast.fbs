@@ -43,9 +43,7 @@ union AST {
   RequiresClause,
   ParameterDeclarationClause,
   ParametersAndQualifiers,
-  LambdaIntroducer,
   LambdaSpecifier,
-  LambdaDeclarator,
   TrailingReturnType,
   CtorInitializer,
   RequirementBody,
@@ -396,27 +394,9 @@ table ParametersAndQualifiers /* AST */ {
   ref_loc: SourceLocation;
 }
 
-table LambdaIntroducer /* AST */ {
-  capture_list: [LambdaCapture];
-  lbracket_loc: SourceLocation;
-  capture_default_loc: SourceLocation;
-  rbracket_loc: SourceLocation;
-}
-
 table LambdaSpecifier /* AST */ {
   specifier: uint32;
   specifier_loc: SourceLocation;
-}
-
-table LambdaDeclarator /* AST */ {
-  parameter_declaration_clause: ParameterDeclarationClause;
-  lambda_specifier_list: [LambdaSpecifier];
-  exception_specifier: ExceptionSpecifier;
-  attribute_list: [AttributeSpecifier];
-  trailing_return_type: TrailingReturnType;
-  requires_clause: RequiresClause;
-  lparen_loc: SourceLocation;
-  rparen_loc: SourceLocation;
 }
 
 table TrailingReturnType /* AST */ {
@@ -960,13 +940,23 @@ table FoldExpression /* ExpressionAST */ {
 }
 
 table LambdaExpression /* ExpressionAST */ {
-  lambda_introducer: LambdaIntroducer;
+  capture_list: [LambdaCapture];
   template_parameter_list: [TemplateParameter];
+  template_requires_clause: RequiresClause;
+  parameter_declaration_clause: ParameterDeclarationClause;
+  lambda_specifier_list: [LambdaSpecifier];
+  exception_specifier: ExceptionSpecifier;
+  attribute_list: [AttributeSpecifier];
+  trailing_return_type: TrailingReturnType;
   requires_clause: RequiresClause;
-  lambda_declarator: LambdaDeclarator;
   statement: CompoundStatement;
+  lbracket_loc: SourceLocation;
+  capture_default_loc: SourceLocation;
+  rbracket_loc: SourceLocation;
   less_loc: SourceLocation;
   greater_loc: SourceLocation;
+  lparen_loc: SourceLocation;
+  rparen_loc: SourceLocation;
 }
 
 table SizeofExpression /* ExpressionAST */ {
