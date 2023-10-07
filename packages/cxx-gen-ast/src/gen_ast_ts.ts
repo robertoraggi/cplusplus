@@ -140,15 +140,28 @@ export async function gen_ast_ts({
             emit(`     * Returns the ${m.name} of this node`);
             emit(`     */`);
             emit(
-              `    *${getterName(m.name)}(): Generator<${m.type} | undefined> {`
+              `    ${getterName(m.name)}(): Iterable<${m.type} | undefined> {`
             );
-            emit(
-              `        for (let it = cxx.getASTSlot(this.getHandle(), ${slotCount}); it; it = cxx.getListNext(it)) {`
-            );
-            emit(
-              `            yield AST.from<${m.type}>(cxx.getListValue(it), this.parser);`
-            );
-            emit(`        }`);
+            emit(`let it = cxx.getASTSlot(this.getHandle(), 0);`);
+            emit(`let value: ${m.type} | undefined;`);
+            emit(`let done = false;`);
+            emit(`const p = this.parser;`);
+            emit(`function advance() {`);
+            emit(`  done = it === 0;`);
+            emit(`  if (done) return;`);
+            emit(`  const ast = cxx.getListValue(it);`);
+            emit(`  value = AST.from<${m.type}>(ast, p);`);
+            emit(`  it = cxx.getListNext(it);`);
+            emit(`};`);
+            emit(`function next() {`);
+            emit(`  advance();`);
+            emit(`  return { done, value };`);
+            emit(`};`);
+            emit(`return {`);
+            emit(`  [Symbol.iterator]() {`);
+            emit(`    return { next };`);
+            emit(`  },`);
+            emit(`};`);
             emit(`    }`);
             ++slotCount;
             break;
