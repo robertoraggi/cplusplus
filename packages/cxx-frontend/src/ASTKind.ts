@@ -35,7 +35,6 @@ export enum ASTKind {
   LambdaSpecifier,
   TrailingReturnType,
   CtorInitializer,
-  RequirementBody,
   TypeConstraint,
   GlobalModuleFragment,
   PrivateModuleFragment,

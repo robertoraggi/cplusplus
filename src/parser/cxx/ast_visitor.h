@@ -44,7 +44,6 @@ class ASTVisitor {
   virtual void visit(LambdaSpecifierAST* ast) = 0;
   virtual void visit(TrailingReturnTypeAST* ast) = 0;
   virtual void visit(CtorInitializerAST* ast) = 0;
-  virtual void visit(RequirementBodyAST* ast) = 0;
   virtual void visit(TypeConstraintAST* ast) = 0;
   virtual void visit(GlobalModuleFragmentAST* ast) = 0;
   virtual void visit(PrivateModuleFragmentAST* ast) = 0;

@@ -8,5 +8,5 @@ auto subscript(int a[], int n) -> int { return a[n]; }
 auto incr_1(int x) -> int { return (x)++; }
 auto decr_1(int x) -> int { return (x)--; }
 
-// expected-error@1 {{expected lambda declarator}}
+// expected-error@1 {{expected a compound statement}}
 auto subscript_1(int a[], int n) -> int { return (a)[n]; }

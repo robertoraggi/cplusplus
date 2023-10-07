@@ -97,10 +97,6 @@ void RecursiveASTVisitor::acceptMemInitializer(MemInitializerAST* ast) {
   accept(ast);
 }
 
-void RecursiveASTVisitor::acceptRequirement(RequirementAST* ast) {
-  accept(ast);
-}
-
 void RecursiveASTVisitor::acceptTemplateArgument(TemplateArgumentAST* ast) {
   accept(ast);
 }
@@ -138,7 +134,7 @@ void RecursiveASTVisitor::acceptSimpleTemplateId(SimpleTemplateIdAST* ast) {
 
 void RecursiveASTVisitor::acceptDesignator(DesignatorAST* ast) { accept(ast); }
 
-void RecursiveASTVisitor::acceptRequirementBody(RequirementBodyAST* ast) {
+void RecursiveASTVisitor::acceptRequirement(RequirementAST* ast) {
   accept(ast);
 }
 
@@ -357,12 +353,6 @@ void RecursiveASTVisitor::visit(CtorInitializerAST* ast) {
   }
 }
 
-void RecursiveASTVisitor::visit(RequirementBodyAST* ast) {
-  for (auto it = ast->requirementList; it; it = it->next) {
-    acceptRequirement(it->value);
-  }
-}
-
 void RecursiveASTVisitor::visit(TypeConstraintAST* ast) {
   acceptNestedNameSpecifier(ast->nestedNameSpecifier);
   for (auto it = ast->templateArgumentList; it; it = it->next) {
@@ -480,7 +470,9 @@ void RecursiveASTVisitor::visit(IdExpressionAST* ast) {
 
 void RecursiveASTVisitor::visit(RequiresExpressionAST* ast) {
   acceptParameterDeclarationClause(ast->parameterDeclarationClause);
-  acceptRequirementBody(ast->requirementBody);
+  for (auto it = ast->requirementList; it; it = it->next) {
+    acceptRequirement(it->value);
+  }
 }
 
 void RecursiveASTVisitor::visit(NestedExpressionAST* ast) {

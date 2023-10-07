@@ -455,22 +455,6 @@ class CtorInitializerAST final : public AST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class RequirementBodyAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::RequirementBody;
-
-  RequirementBodyAST() : AST(Kind) {}
-
-  SourceLocation lbraceLoc;
-  List<RequirementAST*>* requirementList = nullptr;
-  SourceLocation rbraceLoc;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
 class TypeConstraintAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::TypeConstraint;
@@ -978,7 +962,9 @@ class RequiresExpressionAST final : public ExpressionAST {
   SourceLocation lparenLoc;
   ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
   SourceLocation rparenLoc;
-  RequirementBodyAST* requirementBody = nullptr;
+  SourceLocation lbraceLoc;
+  List<RequirementAST*>* requirementList = nullptr;
+  SourceLocation rbraceLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

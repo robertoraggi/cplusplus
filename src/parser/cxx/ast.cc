@@ -238,20 +238,6 @@ auto CtorInitializerAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto RequirementBodyAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(lbraceLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(requirementList)) return loc;
-  if (auto loc = cxx::firstSourceLocation(rbraceLoc)) return loc;
-  return {};
-}
-
-auto RequirementBodyAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(rbraceLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(requirementList)) return loc;
-  if (auto loc = cxx::lastSourceLocation(lbraceLoc)) return loc;
-  return {};
-}
-
 auto TypeConstraintAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
@@ -664,12 +650,16 @@ auto RequiresExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(parameterDeclarationClause))
     return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(requirementBody)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lbraceLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(requirementList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rbraceLoc)) return loc;
   return {};
 }
 
 auto RequiresExpressionAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(requirementBody)) return loc;
+  if (auto loc = cxx::lastSourceLocation(rbraceLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(requirementList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lbraceLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(parameterDeclarationClause))
     return loc;

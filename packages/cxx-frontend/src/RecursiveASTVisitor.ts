@@ -237,18 +237,6 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   }
 
   /**
-   * Visit a RequirementBody node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitRequirementBody(node: ast.RequirementBodyAST, context: Context): void {
-    for (const element of node.getRequirementList()) {
-      this.accept(element, context);
-    }
-  }
-
-  /**
    * Visit a TypeConstraint node.
    *
    * @param node The node to visit.
@@ -623,7 +611,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     context: Context,
   ): void {
     this.accept(node.getParameterDeclarationClause(), context);
-    this.accept(node.getRequirementBody(), context);
+    for (const element of node.getRequirementList()) {
+      this.accept(element, context);
+    }
   }
 
   /**

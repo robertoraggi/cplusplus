@@ -318,26 +318,6 @@ void ASTCloner::visit(CtorInitializerAST* ast) {
   }
 }
 
-void ASTCloner::visit(RequirementBodyAST* ast) {
-  auto copy = new (arena_) RequirementBodyAST();
-  copy_ = copy;
-
-  copy->setChecked(ast->checked());
-
-  copy->lbraceLoc = ast->lbraceLoc;
-
-  if (auto it = ast->requirementList) {
-    auto out = &copy->requirementList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
-
-  copy->rbraceLoc = ast->rbraceLoc;
-}
-
 void ASTCloner::visit(TypeConstraintAST* ast) {
   auto copy = new (arena_) TypeConstraintAST();
   copy_ = copy;
@@ -840,7 +820,18 @@ void ASTCloner::visit(RequiresExpressionAST* ast) {
 
   copy->rparenLoc = ast->rparenLoc;
 
-  copy->requirementBody = accept(ast->requirementBody);
+  copy->lbraceLoc = ast->lbraceLoc;
+
+  if (auto it = ast->requirementList) {
+    auto out = &copy->requirementList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->rbraceLoc = ast->rbraceLoc;
 }
 
 void ASTCloner::visit(NestedExpressionAST* ast) {

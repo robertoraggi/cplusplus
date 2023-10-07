@@ -40,7 +40,6 @@ enum struct ASTKind {
   LambdaSpecifier,
   TrailingReturnType,
   CtorInitializer,
-  RequirementBody,
   TypeConstraint,
   GlobalModuleFragment,
   PrivateModuleFragment,

@@ -86,10 +86,6 @@ void DefaultASTVisitor::visit(CtorInitializerAST* ast) {
   cxx_runtime_error("visit(CtorInitializerAST): not implemented");
 }
 
-void DefaultASTVisitor::visit(RequirementBodyAST* ast) {
-  cxx_runtime_error("visit(RequirementBodyAST): not implemented");
-}
-
 void DefaultASTVisitor::visit(TypeConstraintAST* ast) {
   cxx_runtime_error("visit(TypeConstraintAST): not implemented");
 }

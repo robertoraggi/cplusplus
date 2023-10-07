@@ -102,8 +102,6 @@ class ASTDecoder {
       -> TrailingReturnTypeAST*;
   auto decodeCtorInitializer(const io::CtorInitializer* node)
       -> CtorInitializerAST*;
-  auto decodeRequirementBody(const io::RequirementBody* node)
-      -> RequirementBodyAST*;
   auto decodeTypeConstraint(const io::TypeConstraint* node)
       -> TypeConstraintAST*;
   auto decodeGlobalModuleFragment(const io::GlobalModuleFragment* node)

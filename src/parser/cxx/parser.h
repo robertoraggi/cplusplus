@@ -159,7 +159,6 @@ class Parser final {
       SourceLocation& lparenLoc,
       ParameterDeclarationClauseAST*& parameterDeclarationClause,
       SourceLocation& rparenLoc) -> bool;
-  [[nodiscard]] auto parse_requirement_body(RequirementBodyAST*& yyast) -> bool;
   void parse_requirement_seq(List<RequirementAST*>*& yyast);
   void parse_requirement(RequirementAST*& yyast);
   void parse_simple_requirement(RequirementAST*& yyast);

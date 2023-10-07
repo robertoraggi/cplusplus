@@ -191,18 +191,6 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
 
   /**
-   * Visit RequirementBody node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitRequirementBody(
-    node: ast.RequirementBodyAST,
-    context: Context,
-  ): Result;
-
-  /**
    * Visit TypeConstraint node.
    *
    * @param node The node to visit.

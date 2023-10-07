@@ -803,33 +803,6 @@ void ASTEncoder::visit(CtorInitializerAST* ast) {
   offset_ = builder.Finish().Union();
 }
 
-void ASTEncoder::visit(RequirementBodyAST* ast) {
-  auto lbraceLoc = encodeSourceLocation(ast->lbraceLoc);
-
-  std::vector<flatbuffers::Offset<>> requirementListOffsets;
-  std::vector<std::underlying_type_t<io::Requirement>> requirementListTypes;
-
-  for (auto it = ast->requirementList; it; it = it->next) {
-    if (!it->value) continue;
-    const auto [offset, type] = acceptRequirement(it->value);
-    requirementListOffsets.push_back(offset);
-    requirementListTypes.push_back(type);
-  }
-
-  auto requirementListOffsetsVector = fbb_.CreateVector(requirementListOffsets);
-  auto requirementListTypesVector = fbb_.CreateVector(requirementListTypes);
-
-  auto rbraceLoc = encodeSourceLocation(ast->rbraceLoc);
-
-  io::RequirementBody::Builder builder{fbb_};
-  builder.add_lbrace_loc(lbraceLoc.o);
-  builder.add_requirement_list(requirementListOffsetsVector);
-  builder.add_requirement_list_type(requirementListTypesVector);
-  builder.add_rbrace_loc(rbraceLoc.o);
-
-  offset_ = builder.Finish().Union();
-}
-
 void ASTEncoder::visit(TypeConstraintAST* ast) {
   const auto [nestedNameSpecifier, nestedNameSpecifierType] =
       acceptNestedNameSpecifier(ast->nestedNameSpecifier);
@@ -1497,14 +1470,32 @@ void ASTEncoder::visit(RequiresExpressionAST* ast) {
 
   auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
 
-  const auto requirementBody = accept(ast->requirementBody);
+  auto lbraceLoc = encodeSourceLocation(ast->lbraceLoc);
+
+  std::vector<flatbuffers::Offset<>> requirementListOffsets;
+  std::vector<std::underlying_type_t<io::Requirement>> requirementListTypes;
+
+  for (auto it = ast->requirementList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptRequirement(it->value);
+    requirementListOffsets.push_back(offset);
+    requirementListTypes.push_back(type);
+  }
+
+  auto requirementListOffsetsVector = fbb_.CreateVector(requirementListOffsets);
+  auto requirementListTypesVector = fbb_.CreateVector(requirementListTypes);
+
+  auto rbraceLoc = encodeSourceLocation(ast->rbraceLoc);
 
   io::RequiresExpression::Builder builder{fbb_};
   builder.add_requires_loc(requiresLoc.o);
   builder.add_lparen_loc(lparenLoc.o);
   builder.add_parameter_declaration_clause(parameterDeclarationClause.o);
   builder.add_rparen_loc(rparenLoc.o);
-  builder.add_requirement_body(requirementBody.o);
+  builder.add_lbrace_loc(lbraceLoc.o);
+  builder.add_requirement_list(requirementListOffsetsVector);
+  builder.add_requirement_list_type(requirementListTypesVector);
+  builder.add_rbrace_loc(rbraceLoc.o);
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_RequiresExpression;
