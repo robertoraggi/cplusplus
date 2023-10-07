@@ -189,14 +189,27 @@ export class TranslationUnitAST extends UnitAST {
   /**
    * Returns the declarationList of this node
    */
-  *getDeclarationList(): Generator<DeclarationAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 0);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
+  getDeclarationList(): Iterable<DeclarationAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: DeclarationAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<DeclarationAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 }
 
@@ -240,14 +253,27 @@ export class ModuleUnitAST extends UnitAST {
   /**
    * Returns the declarationList of this node
    */
-  *getDeclarationList(): Generator<DeclarationAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
+  getDeclarationList(): Iterable<DeclarationAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: DeclarationAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<DeclarationAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -281,40 +307,79 @@ export class SimpleDeclarationAST extends DeclarationAST {
   /**
    * Returns the attributeList of this node
    */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 0);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
    * Returns the declSpecifierList of this node
    */
-  *getDeclSpecifierList(): Generator<SpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+  getDeclSpecifierList(): Iterable<SpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: SpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<SpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
    * Returns the initDeclaratorList of this node
    */
-  *getInitDeclaratorList(): Generator<InitDeclaratorAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<InitDeclaratorAST>(cxx.getListValue(it), this.parser);
+  getInitDeclaratorList(): Iterable<InitDeclaratorAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: InitDeclaratorAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<InitDeclaratorAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -355,27 +420,53 @@ export class AsmDeclarationAST extends DeclarationAST {
   /**
    * Returns the attributeList of this node
    */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 0);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
    * Returns the asmQualifierList of this node
    */
-  *getAsmQualifierList(): Generator<AsmQualifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AsmQualifierAST>(cxx.getListValue(it), this.parser);
+  getAsmQualifierList(): Iterable<AsmQualifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AsmQualifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AsmQualifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -402,53 +493,105 @@ export class AsmDeclarationAST extends DeclarationAST {
   /**
    * Returns the outputOperandList of this node
    */
-  *getOutputOperandList(): Generator<AsmOperandAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 5);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AsmOperandAST>(cxx.getListValue(it), this.parser);
+  getOutputOperandList(): Iterable<AsmOperandAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AsmOperandAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AsmOperandAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
    * Returns the inputOperandList of this node
    */
-  *getInputOperandList(): Generator<AsmOperandAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 6);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AsmOperandAST>(cxx.getListValue(it), this.parser);
+  getInputOperandList(): Iterable<AsmOperandAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AsmOperandAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AsmOperandAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
    * Returns the clobberList of this node
    */
-  *getClobberList(): Generator<AsmClobberAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 7);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AsmClobberAST>(cxx.getListValue(it), this.parser);
+  getClobberList(): Iterable<AsmClobberAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AsmClobberAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AsmClobberAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
    * Returns the gotoLabelList of this node
    */
-  *getGotoLabelList(): Generator<AsmGotoLabelAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 8);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AsmGotoLabelAST>(cxx.getListValue(it), this.parser);
+  getGotoLabelList(): Iterable<AsmGotoLabelAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AsmGotoLabelAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AsmGotoLabelAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -575,14 +718,27 @@ export class UsingDeclarationAST extends DeclarationAST {
   /**
    * Returns the usingDeclaratorList of this node
    */
-  *getUsingDeclaratorList(): Generator<UsingDeclaratorAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<UsingDeclaratorAST>(cxx.getListValue(it), this.parser);
+  getUsingDeclaratorList(): Iterable<UsingDeclaratorAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: UsingDeclaratorAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<UsingDeclaratorAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -655,14 +811,27 @@ export class UsingDirectiveAST extends DeclarationAST {
   /**
    * Returns the attributeList of this node
    */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 0);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -819,14 +988,27 @@ export class AliasDeclarationAST extends DeclarationAST {
   /**
    * Returns the attributeList of this node
    */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -896,14 +1078,27 @@ export class OpaqueEnumDeclarationAST extends DeclarationAST {
   /**
    * Returns the attributeList of this node
    */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -936,14 +1131,27 @@ export class OpaqueEnumDeclarationAST extends DeclarationAST {
   /**
    * Returns the typeSpecifierList of this node
    */
-  *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 6);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+  getTypeSpecifierList(): Iterable<SpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: SpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<SpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -974,27 +1182,53 @@ export class FunctionDefinitionAST extends DeclarationAST {
   /**
    * Returns the attributeList of this node
    */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 0);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
    * Returns the declSpecifierList of this node
    */
-  *getDeclSpecifierList(): Generator<SpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+  getDeclSpecifierList(): Iterable<SpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: SpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<SpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -1062,14 +1296,27 @@ export class TemplateDeclarationAST extends DeclarationAST {
   /**
    * Returns the templateParameterList of this node
    */
-  *getTemplateParameterList(): Generator<TemplateParameterAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<TemplateParameterAST>(cxx.getListValue(it), this.parser);
+  getTemplateParameterList(): Iterable<TemplateParameterAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: TemplateParameterAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<TemplateParameterAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -1366,14 +1613,27 @@ export class ExportCompoundDeclarationAST extends DeclarationAST {
   /**
    * Returns the declarationList of this node
    */
-  *getDeclarationList(): Generator<DeclarationAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
+  getDeclarationList(): Iterable<DeclarationAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: DeclarationAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<DeclarationAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -1425,14 +1685,27 @@ export class LinkageSpecificationAST extends DeclarationAST {
   /**
    * Returns the declarationList of this node
    */
-  *getDeclarationList(): Generator<DeclarationAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 3);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
+  getDeclarationList(): Iterable<DeclarationAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: DeclarationAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<DeclarationAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -1485,32 +1758,55 @@ export class NamespaceDefinitionAST extends DeclarationAST {
   /**
    * Returns the attributeList of this node
    */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
    * Returns the nestedNamespaceSpecifierList of this node
    */
-  *getNestedNamespaceSpecifierList(): Generator<
+  getNestedNamespaceSpecifierList(): Iterable<
     NestedNamespaceSpecifierAST | undefined
   > {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 3);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<NestedNamespaceSpecifierAST>(
-        cxx.getListValue(it),
-        this.parser,
-      );
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: NestedNamespaceSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<NestedNamespaceSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -1523,14 +1819,27 @@ export class NamespaceDefinitionAST extends DeclarationAST {
   /**
    * Returns the extraAttributeList of this node
    */
-  *getExtraAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 5);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+  getExtraAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -1543,14 +1852,27 @@ export class NamespaceDefinitionAST extends DeclarationAST {
   /**
    * Returns the declarationList of this node
    */
-  *getDeclarationList(): Generator<DeclarationAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 7);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
+  getDeclarationList(): Iterable<DeclarationAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: DeclarationAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<DeclarationAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -1621,14 +1943,27 @@ export class AttributeDeclarationAST extends DeclarationAST {
   /**
    * Returns the attributeList of this node
    */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 0);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -1676,14 +2011,27 @@ export class ModuleImportDeclarationAST extends DeclarationAST {
   /**
    * Returns the attributeList of this node
    */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -1714,14 +2062,27 @@ export class ParameterDeclarationAST extends DeclarationAST {
   /**
    * Returns the attributeList of this node
    */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 0);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -1734,14 +2095,27 @@ export class ParameterDeclarationAST extends DeclarationAST {
   /**
    * Returns the typeSpecifierList of this node
    */
-  *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+  getTypeSpecifierList(): Iterable<SpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: SpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<SpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -1856,27 +2230,53 @@ export class StructuredBindingDeclarationAST extends DeclarationAST {
   /**
    * Returns the attributeList of this node
    */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 0);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
    * Returns the declSpecifierList of this node
    */
-  *getDeclSpecifierList(): Generator<SpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+  getDeclSpecifierList(): Iterable<SpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: SpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<SpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -1896,14 +2296,27 @@ export class StructuredBindingDeclarationAST extends DeclarationAST {
   /**
    * Returns the bindingList of this node
    */
-  *getBindingList(): Generator<NameIdAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 4);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<NameIdAST>(cxx.getListValue(it), this.parser);
+  getBindingList(): Iterable<NameIdAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: NameIdAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<NameIdAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -2291,14 +2704,27 @@ export class CompoundStatementAST extends StatementAST {
   /**
    * Returns the statementList of this node
    */
-  *getStatementList(): Generator<StatementAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<StatementAST>(cxx.getListValue(it), this.parser);
+  getStatementList(): Iterable<StatementAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: StatementAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<StatementAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -3108,14 +3534,27 @@ export class TryBlockStatementAST extends StatementAST {
   /**
    * Returns the handlerList of this node
    */
-  *getHandlerList(): Generator<HandlerAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<HandlerAST>(cxx.getListValue(it), this.parser);
+  getHandlerList(): Iterable<HandlerAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: HandlerAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<HandlerAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 }
 
@@ -3501,14 +3940,27 @@ export class LambdaExpressionAST extends ExpressionAST {
   /**
    * Returns the captureList of this node
    */
-  *getCaptureList(): Generator<LambdaCaptureAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<LambdaCaptureAST>(cxx.getListValue(it), this.parser);
+  getCaptureList(): Iterable<LambdaCaptureAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: LambdaCaptureAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<LambdaCaptureAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -3528,14 +3980,27 @@ export class LambdaExpressionAST extends ExpressionAST {
   /**
    * Returns the templateParameterList of this node
    */
-  *getTemplateParameterList(): Generator<TemplateParameterAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 5);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<TemplateParameterAST>(cxx.getListValue(it), this.parser);
+  getTemplateParameterList(): Iterable<TemplateParameterAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: TemplateParameterAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<TemplateParameterAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -3582,14 +4047,27 @@ export class LambdaExpressionAST extends ExpressionAST {
   /**
    * Returns the lambdaSpecifierList of this node
    */
-  *getLambdaSpecifierList(): Generator<LambdaSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 11);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<LambdaSpecifierAST>(cxx.getListValue(it), this.parser);
+  getLambdaSpecifierList(): Iterable<LambdaSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: LambdaSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<LambdaSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -3605,14 +4083,27 @@ export class LambdaExpressionAST extends ExpressionAST {
   /**
    * Returns the attributeList of this node
    */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 13);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -3917,14 +4408,27 @@ export class RequiresExpressionAST extends ExpressionAST {
   /**
    * Returns the requirementList of this node
    */
-  *getRequirementList(): Generator<RequirementAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 5);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<RequirementAST>(cxx.getListValue(it), this.parser);
+  getRequirementList(): Iterable<RequirementAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: RequirementAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<RequirementAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -4024,14 +4528,27 @@ export class CallExpressionAST extends ExpressionAST {
   /**
    * Returns the expressionList of this node
    */
-  *getExpressionList(): Generator<ExpressionAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
+  getExpressionList(): Iterable<ExpressionAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: ExpressionAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<ExpressionAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -4079,14 +4596,27 @@ export class TypeConstructionAST extends ExpressionAST {
   /**
    * Returns the expressionList of this node
    */
-  *getExpressionList(): Generator<ExpressionAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
+  getExpressionList(): Iterable<ExpressionAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: ExpressionAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<ExpressionAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -4806,14 +5336,27 @@ export class NewExpressionAST extends ExpressionAST {
   /**
    * Returns the typeSpecifierList of this node
    */
-  *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 4);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+  getTypeSpecifierList(): Iterable<SpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: SpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<SpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -5335,14 +5878,27 @@ export class TypeTraitsExpressionAST extends ExpressionAST {
   /**
    * Returns the typeIdList of this node
    */
-  *getTypeIdList(): Generator<TypeIdAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<TypeIdAST>(cxx.getListValue(it), this.parser);
+  getTypeIdList(): Iterable<TypeIdAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: TypeIdAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<TypeIdAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -5380,27 +5936,53 @@ export class ConditionExpressionAST extends ExpressionAST {
   /**
    * Returns the attributeList of this node
    */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 0);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
    * Returns the declSpecifierList of this node
    */
-  *getDeclSpecifierList(): Generator<SpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+  getDeclSpecifierList(): Iterable<SpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: SpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<SpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -5486,14 +6068,27 @@ export class BracedInitListAST extends ExpressionAST {
   /**
    * Returns the expressionList of this node
    */
-  *getExpressionList(): Generator<ExpressionAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
+  getExpressionList(): Iterable<ExpressionAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: ExpressionAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<ExpressionAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -5538,14 +6133,27 @@ export class ParenInitializerAST extends ExpressionAST {
   /**
    * Returns the expressionList of this node
    */
-  *getExpressionList(): Generator<ExpressionAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
+  getExpressionList(): Iterable<ExpressionAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: ExpressionAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<ExpressionAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -5590,14 +6198,27 @@ export class TemplateTypeParameterAST extends TemplateParameterAST {
   /**
    * Returns the templateParameterList of this node
    */
-  *getTemplateParameterList(): Generator<TemplateParameterAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<TemplateParameterAST>(cxx.getListValue(it), this.parser);
+  getTemplateParameterList(): Iterable<TemplateParameterAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: TemplateParameterAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<TemplateParameterAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -5691,14 +6312,27 @@ export class TemplatePackTypeParameterAST extends TemplateParameterAST {
   /**
    * Returns the templateParameterList of this node
    */
-  *getTemplateParameterList(): Generator<TemplateParameterAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<TemplateParameterAST>(cxx.getListValue(it), this.parser);
+  getTemplateParameterList(): Iterable<TemplateParameterAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: TemplateParameterAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<TemplateParameterAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -6665,14 +7299,27 @@ export class ElaboratedTypeSpecifierAST extends SpecifierAST {
   /**
    * Returns the attributeList of this node
    */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -6945,14 +7592,27 @@ export class EnumSpecifierAST extends SpecifierAST {
   /**
    * Returns the attributeList of this node
    */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -6985,14 +7645,27 @@ export class EnumSpecifierAST extends SpecifierAST {
   /**
    * Returns the typeSpecifierList of this node
    */
-  *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 6);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+  getTypeSpecifierList(): Iterable<SpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: SpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<SpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -7012,14 +7685,27 @@ export class EnumSpecifierAST extends SpecifierAST {
   /**
    * Returns the enumeratorList of this node
    */
-  *getEnumeratorList(): Generator<EnumeratorAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 9);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<EnumeratorAST>(cxx.getListValue(it), this.parser);
+  getEnumeratorList(): Iterable<EnumeratorAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: EnumeratorAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<EnumeratorAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -7057,14 +7743,27 @@ export class ClassSpecifierAST extends SpecifierAST {
   /**
    * Returns the attributeList of this node
    */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -7104,14 +7803,27 @@ export class ClassSpecifierAST extends SpecifierAST {
   /**
    * Returns the baseSpecifierList of this node
    */
-  *getBaseSpecifierList(): Generator<BaseSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 6);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<BaseSpecifierAST>(cxx.getListValue(it), this.parser);
+  getBaseSpecifierList(): Iterable<BaseSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: BaseSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<BaseSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -7124,14 +7836,27 @@ export class ClassSpecifierAST extends SpecifierAST {
   /**
    * Returns the declarationList of this node
    */
-  *getDeclarationList(): Generator<DeclarationAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 8);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
+  getDeclarationList(): Iterable<DeclarationAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: DeclarationAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<DeclarationAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -7228,27 +7953,53 @@ export class PointerOperatorAST extends PtrOperatorAST {
   /**
    * Returns the attributeList of this node
    */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
    * Returns the cvQualifierList of this node
    */
-  *getCvQualifierList(): Generator<SpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+  getCvQualifierList(): Iterable<SpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: SpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<SpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 }
 
@@ -7279,14 +8030,27 @@ export class ReferenceOperatorAST extends PtrOperatorAST {
   /**
    * Returns the attributeList of this node
    */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -7334,27 +8098,53 @@ export class PtrToMemberOperatorAST extends PtrOperatorAST {
   /**
    * Returns the attributeList of this node
    */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
    * Returns the cvQualifierList of this node
    */
-  *getCvQualifierList(): Generator<SpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 3);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+  getCvQualifierList(): Iterable<SpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: SpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<SpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 }
 
@@ -7473,14 +8263,27 @@ export class IdDeclaratorAST extends CoreDeclaratorAST {
   /**
    * Returns the attributeList of this node
    */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 }
 
@@ -7570,14 +8373,27 @@ export class FunctionDeclaratorChunkAST extends DeclaratorChunkAST {
   /**
    * Returns the cvQualifierList of this node
    */
-  *getCvQualifierList(): Generator<SpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 3);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+  getCvQualifierList(): Iterable<SpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: SpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<SpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -7600,14 +8416,27 @@ export class FunctionDeclaratorChunkAST extends DeclaratorChunkAST {
   /**
    * Returns the attributeList of this node
    */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 6);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -7686,14 +8515,27 @@ export class ArrayDeclaratorChunkAST extends DeclaratorChunkAST {
   /**
    * Returns the attributeList of this node
    */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 3);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 }
 
@@ -7970,14 +8812,27 @@ export class SimpleTemplateIdAST extends UnqualifiedIdAST {
   /**
    * Returns the templateArgumentList of this node
    */
-  *getTemplateArgumentList(): Generator<TemplateArgumentAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<TemplateArgumentAST>(cxx.getListValue(it), this.parser);
+  getTemplateArgumentList(): Iterable<TemplateArgumentAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: TemplateArgumentAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<TemplateArgumentAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -8033,14 +8888,27 @@ export class LiteralOperatorTemplateIdAST extends UnqualifiedIdAST {
   /**
    * Returns the templateArgumentList of this node
    */
-  *getTemplateArgumentList(): Generator<TemplateArgumentAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<TemplateArgumentAST>(cxx.getListValue(it), this.parser);
+  getTemplateArgumentList(): Iterable<TemplateArgumentAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: TemplateArgumentAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<TemplateArgumentAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -8088,14 +8956,27 @@ export class OperatorFunctionTemplateIdAST extends UnqualifiedIdAST {
   /**
    * Returns the templateArgumentList of this node
    */
-  *getTemplateArgumentList(): Generator<TemplateArgumentAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<TemplateArgumentAST>(cxx.getListValue(it), this.parser);
+  getTemplateArgumentList(): Iterable<TemplateArgumentAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: TemplateArgumentAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<TemplateArgumentAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -8351,14 +9232,27 @@ export class CompoundStatementFunctionBodyAST extends FunctionBodyAST {
   /**
    * Returns the memInitializerList of this node
    */
-  *getMemInitializerList(): Generator<MemInitializerAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<MemInitializerAST>(cxx.getListValue(it), this.parser);
+  getMemInitializerList(): Iterable<MemInitializerAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: MemInitializerAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<MemInitializerAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -8406,14 +9300,27 @@ export class TryStatementFunctionBodyAST extends FunctionBodyAST {
   /**
    * Returns the memInitializerList of this node
    */
-  *getMemInitializerList(): Generator<MemInitializerAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<MemInitializerAST>(cxx.getListValue(it), this.parser);
+  getMemInitializerList(): Iterable<MemInitializerAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: MemInitializerAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<MemInitializerAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -8429,14 +9336,27 @@ export class TryStatementFunctionBodyAST extends FunctionBodyAST {
   /**
    * Returns the handlerList of this node
    */
-  *getHandlerList(): Generator<HandlerAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 4);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<HandlerAST>(cxx.getListValue(it), this.parser);
+  getHandlerList(): Iterable<HandlerAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: HandlerAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<HandlerAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 }
 
@@ -8852,14 +9772,27 @@ export class NewParenInitializerAST extends NewInitializerAST {
   /**
    * Returns the expressionList of this node
    */
-  *getExpressionList(): Generator<ExpressionAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
+  getExpressionList(): Iterable<ExpressionAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: ExpressionAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<ExpressionAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -8945,14 +9878,27 @@ export class ParenMemInitializerAST extends MemInitializerAST {
   /**
    * Returns the expressionList of this node
    */
-  *getExpressionList(): Generator<ExpressionAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 3);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
+  getExpressionList(): Iterable<ExpressionAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: ExpressionAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<ExpressionAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -9321,27 +10267,53 @@ export class TypeExceptionDeclarationAST extends ExceptionDeclarationAST {
   /**
    * Returns the attributeList of this node
    */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 0);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
    * Returns the typeSpecifierList of this node
    */
-  *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+  getTypeSpecifierList(): Iterable<SpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: SpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<SpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -9399,14 +10371,27 @@ export class CxxAttributeAST extends AttributeSpecifierAST {
   /**
    * Returns the attributeList of this node
    */
-  *getAttributeList(): Generator<AttributeAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 3);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeAST>(cxx.getListValue(it), this.parser);
+  getAttributeList(): Iterable<AttributeAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -9709,14 +10694,27 @@ export class GlobalModuleFragmentAST extends AST {
   /**
    * Returns the declarationList of this node
    */
-  *getDeclarationList(): Generator<DeclarationAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
+  getDeclarationList(): Iterable<DeclarationAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: DeclarationAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<DeclarationAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 }
 
@@ -9768,14 +10766,27 @@ export class PrivateModuleFragmentAST extends AST {
   /**
    * Returns the declarationList of this node
    */
-  *getDeclarationList(): Generator<DeclarationAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 4);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
+  getDeclarationList(): Iterable<DeclarationAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: DeclarationAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<DeclarationAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 }
 
@@ -9833,14 +10844,27 @@ export class ModuleDeclarationAST extends AST {
   /**
    * Returns the attributeList of this node
    */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 4);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -10092,14 +11116,27 @@ export class DeclaratorAST extends AST {
   /**
    * Returns the ptrOpList of this node
    */
-  *getPtrOpList(): Generator<PtrOperatorAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 0);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<PtrOperatorAST>(cxx.getListValue(it), this.parser);
+  getPtrOpList(): Iterable<PtrOperatorAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: PtrOperatorAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<PtrOperatorAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -10115,14 +11152,27 @@ export class DeclaratorAST extends AST {
   /**
    * Returns the declaratorChunkList of this node
    */
-  *getDeclaratorChunkList(): Generator<DeclaratorChunkAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<DeclaratorChunkAST>(cxx.getListValue(it), this.parser);
+  getDeclaratorChunkList(): Iterable<DeclaratorChunkAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: DeclaratorChunkAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<DeclaratorChunkAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 }
 
@@ -10212,14 +11262,27 @@ export class EnumeratorAST extends AST {
   /**
    * Returns the attributeList of this node
    */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -10268,14 +11331,27 @@ export class TypeIdAST extends AST {
   /**
    * Returns the typeSpecifierList of this node
    */
-  *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 0);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+  getTypeSpecifierList(): Iterable<SpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: SpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<SpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -10368,14 +11444,27 @@ export class BaseSpecifierAST extends AST {
   /**
    * Returns the attributeList of this node
    */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 0);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -10482,19 +11571,27 @@ export class ParameterDeclarationClauseAST extends AST {
   /**
    * Returns the parameterDeclarationList of this node
    */
-  *getParameterDeclarationList(): Generator<
-    ParameterDeclarationAST | undefined
-  > {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 0);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<ParameterDeclarationAST>(
-        cxx.getListValue(it),
-        this.parser,
-      );
+  getParameterDeclarationList(): Iterable<ParameterDeclarationAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: ParameterDeclarationAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<ParameterDeclarationAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -10630,14 +11727,27 @@ export class TypeConstraintAST extends AST {
   /**
    * Returns the templateArgumentList of this node
    */
-  *getTemplateArgumentList(): Generator<TemplateArgumentAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 3);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<TemplateArgumentAST>(cxx.getListValue(it), this.parser);
+  getTemplateArgumentList(): Iterable<TemplateArgumentAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: TemplateArgumentAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<TemplateArgumentAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -10799,14 +11909,27 @@ export class NewPlacementAST extends AST {
   /**
    * Returns the expressionList of this node
    */
-  *getExpressionList(): Generator<ExpressionAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
+  getExpressionList(): Iterable<ExpressionAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: ExpressionAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<ExpressionAST>(ast, p);
+      it = cxx.getListNext(it);
     }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
