@@ -649,94 +649,6 @@ export class BaseClauseAST extends AST {
 }
 
 /**
- * NewDeclaratorAST node.
- */
-export class NewDeclaratorAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitNewDeclarator(this, context);
-  }
-
-  /**
-   * Returns the ptrOpList of this node
-   */
-  *getPtrOpList(): Generator<PtrOperatorAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 0);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<PtrOperatorAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the declaratorChunkList of this node
-   */
-  *getDeclaratorChunkList(): Generator<ArrayDeclaratorChunkAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<ArrayDeclaratorChunkAST>(
-        cxx.getListValue(it),
-        this.parser,
-      );
-    }
-  }
-}
-
-/**
- * NewTypeIdAST node.
- */
-export class NewTypeIdAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitNewTypeId(this, context);
-  }
-
-  /**
-   * Returns the typeSpecifierList of this node
-   */
-  *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 0);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the newDeclarator of this node
-   */
-  getNewDeclarator(): NewDeclaratorAST | undefined {
-    return AST.from<NewDeclaratorAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-}
-
-/**
  * RequiresClauseAST node.
  */
 export class RequiresClauseAST extends AST {
@@ -4149,13 +4061,40 @@ export class NewExpressionAST extends ExpressionAST {
   }
 
   /**
-   * Returns the typeId of this node
+   * Returns the location of the lparen token in this node
    */
-  getTypeId(): NewTypeIdAST | undefined {
-    return AST.from<NewTypeIdAST>(
-      cxx.getASTSlot(this.getHandle(), 3),
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the typeSpecifierList of this node
+   */
+  *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 4);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the declarator of this node
+   */
+  getDeclarator(): DeclaratorAST | undefined {
+    return AST.from<DeclaratorAST>(
+      cxx.getASTSlot(this.getHandle(), 5),
       this.parser,
     );
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
   }
 
   /**
@@ -4163,7 +4102,7 @@ export class NewExpressionAST extends ExpressionAST {
    */
   getNewInitalizer(): NewInitializerAST | undefined {
     return AST.from<NewInitializerAST>(
-      cxx.getASTSlot(this.getHandle(), 4),
+      cxx.getASTSlot(this.getHandle(), 7),
       this.parser,
     );
   }
@@ -8615,6 +8554,13 @@ export class TypenameTypeParameterAST extends TemplateParameterAST {
     const slot = cxx.getASTSlot(this.getHandle(), 5);
     return cxx.getIdentifierValue(slot);
   }
+
+  /**
+   * Returns the isPack attribute of this node
+   */
+  getIsPack(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 6) !== 0;
+  }
 }
 
 /**
@@ -11141,8 +11087,6 @@ const AST_CONSTRUCTORS: Array<
   InitDeclaratorAST,
   BaseSpecifierAST,
   BaseClauseAST,
-  NewDeclaratorAST,
-  NewTypeIdAST,
   RequiresClauseAST,
   ParameterDeclarationClauseAST,
   ParametersAndQualifiersAST,

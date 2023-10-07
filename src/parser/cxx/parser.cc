@@ -2209,70 +2209,73 @@ auto Parser::parse_noexcept_expression(ExpressionAST*& yyast) -> bool {
 }
 
 auto Parser::parse_new_expression(ExpressionAST*& yyast) -> bool {
-  const auto start = currentLocation();
-
-  SourceLocation scopeLoc;
-
-  match(TokenKind::T_COLON_COLON, scopeLoc);
-
-  SourceLocation newLoc;
-
-  if (!match(TokenKind::T_NEW, newLoc)) {
-    rewind(start);
+  if (!lookat(TokenKind::T_NEW) &&
+      !lookat(TokenKind::T_COLON_COLON, TokenKind::T_NEW))
     return false;
-  }
 
   auto ast = new (pool) NewExpressionAST();
   yyast = ast;
 
-  ast->scopeLoc = scopeLoc;
-  ast->newLoc = newLoc;
+  match(TokenKind::T_COLON_COLON, ast->scopeLoc);
+  expect(TokenKind::T_NEW, ast->newLoc);
 
-  const auto after_new_op = currentLocation();
-
-  NewPlacementAST* newPlacement = nullptr;
-
-  if (!parse_new_placement(ast->newPlacement)) rewind(after_new_op);
+  parse_optional_new_placement(ast->newPlacement);
 
   const auto after_new_placement = currentLocation();
 
-  TypeIdAST* typeId = nullptr;
+  auto lookat_nested_type_id = [&] {
+    LookaheadParser lookahead{this};
 
-  SourceLocation lparenLoc;
-  SourceLocation rparenLoc;
+    SourceLocation lparenLoc;
+    if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
 
-  if (match(TokenKind::T_LPAREN, lparenLoc) && parse_type_id(typeId) &&
-      match(TokenKind::T_RPAREN, rparenLoc)) {
-    const auto saved = currentLocation();
+    List<SpecifierAST*>* typeSpecifierList = nullptr;
+    if (!parse_type_specifier_seq(typeSpecifierList)) return false;
 
-    if (!parse_new_initializer(ast->newInitalizer)) rewind(saved);
+    DeclaratorAST* declarator = nullptr;
+    (void)parse_abstract_declarator(declarator);
+
+    SourceLocation rparenLoc;
+    if (!match(TokenKind::T_RPAREN, rparenLoc)) return false;
+
+    lookahead.commit();
+
+    NewInitializerAST* newInitializer = nullptr;
+    parse_optional_new_initializer(newInitializer);
+
+    ast->lparenLoc = lparenLoc;
+    ast->typeSpecifierList = typeSpecifierList;
+    ast->rparenLoc = rparenLoc;
+    ast->newInitalizer = newInitializer;
 
     return true;
-  }
+  };
 
-  rewind(after_new_placement);
+  if (lookat_nested_type_id()) return true;
 
-  if (!parse_new_type_id(ast->typeId)) return false;
+  if (!parse_type_specifier_seq(ast->typeSpecifierList))
+    parse_error("expected a type specifier");
 
-  const auto saved = currentLocation();
+  (void)parse_abstract_declarator(ast->declarator, /*isNewDeclarator*/ true);
 
-  if (!parse_new_initializer(ast->newInitalizer)) rewind(saved);
+  parse_optional_new_initializer(ast->newInitalizer);
 
   return true;
 }
 
-auto Parser::parse_new_placement(NewPlacementAST*& yyast) -> bool {
-  SourceLocation lparenLoc;
+void Parser::parse_optional_new_placement(NewPlacementAST*& yyast) {
+  LookaheadParser lookahead{this};
 
-  if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
+  SourceLocation lparenLoc;
+  if (!match(TokenKind::T_LPAREN, lparenLoc)) return;
 
   List<ExpressionAST*>* expressionList = nullptr;
-
-  if (!parse_expression_list(expressionList)) return false;
+  if (!parse_expression_list(expressionList)) return;
 
   SourceLocation rparenLoc;
+  if (!match(TokenKind::T_RPAREN, rparenLoc)) return;
 
-  if (!match(TokenKind::T_RPAREN, rparenLoc)) return false;
+  lookahead.commit();
 
   auto ast = new (pool) NewPlacementAST();
   yyast = ast;
@@ -2280,118 +2283,38 @@ auto Parser::parse_new_placement(NewPlacementAST*& yyast) -> bool {
   ast->lparenLoc = lparenLoc;
   ast->expressionList = expressionList;
   ast->rparenLoc = rparenLoc;
-
-  return true;
 }
 
-auto Parser::parse_new_type_id(NewTypeIdAST*& yyast) -> bool {
-  List<SpecifierAST*>* typeSpecifierList = nullptr;
-
-  if (!parse_type_specifier_seq(typeSpecifierList)) return false;
-
-  auto ast = new (pool) NewTypeIdAST();
-  yyast = ast;
-
-  ast->typeSpecifierList = typeSpecifierList;
-
-  const auto saved = currentLocation();
-
-  if (!parse_new_declarator(ast->newDeclarator)) rewind(saved);
-
-  return true;
-}
-
-auto Parser::parse_new_declarator(NewDeclaratorAST*& yyast) -> bool {
-  List<PtrOperatorAST*>* ptrOpList = nullptr;
-
-  const auto hasPtrList = parse_ptr_operator_seq(ptrOpList);
-
-  List<ArrayDeclaratorChunkAST*>* declaratorChunkList = nullptr;
-
-  const auto hasDeclChunks = parse_noptr_new_declarator(declaratorChunkList);
-
-  if (!hasPtrList && !hasDeclChunks) return false;
-
-  auto ast = new (pool) NewDeclaratorAST();
-  yyast = ast;
-
-  ast->ptrOpList = ptrOpList;
-  ast->declaratorChunkList = declaratorChunkList;
-
-  return true;
-}
-
-auto Parser::parse_noptr_new_declarator(List<ArrayDeclaratorChunkAST*>*& yyast)
-    -> bool {
-  auto it = &yyast;
-
-  SourceLocation lbracketLoc;
-
-  if (!match(TokenKind::T_LBRACKET, lbracketLoc)) return false;
-
-  auto declarator = new (pool) ArrayDeclaratorChunkAST();
-
-  declarator->lbracketLoc = lbracketLoc;
-
-  if (!match(TokenKind::T_RBRACKET, declarator->rbracketLoc)) {
-    parse_expression(declarator->expression);
-    expect(TokenKind::T_RBRACKET, declarator->rbracketLoc);
-  }
-
-  parse_optional_attribute_specifier_seq(declarator->attributeList);
-
-  *it = new (pool) List(declarator);
-  it = &(*it)->next;
-
-  while (match(TokenKind::T_LBRACKET, lbracketLoc)) {
-    auto declarator = new (pool) ArrayDeclaratorChunkAST();
-    *it = new (pool) List(declarator);
-    it = &(*it)->next;
-
-    declarator->lbracketLoc = lbracketLoc;
-
-    if (!match(TokenKind::T_RBRACKET, declarator->rbracketLoc)) {
-      ExpressionAST* expression = nullptr;
-
-      if (!parse_constant_expression(declarator->expression)) {
-        parse_error("expected an expression");
-      }
-
-      expect(TokenKind::T_RBRACKET, declarator->rbracketLoc);
-    }
-
-    parse_optional_attribute_specifier_seq(declarator->attributeList);
-  }
-
-  return true;
-}
-
-auto Parser::parse_new_initializer(NewInitializerAST*& yyast) -> bool {
-  BracedInitListAST* bracedInitList = nullptr;
-
-  if (parse_braced_init_list(bracedInitList)) {
+void Parser::parse_optional_new_initializer(NewInitializerAST*& yyast) {
+  if (BracedInitListAST* bracedInitList = nullptr;
+      parse_braced_init_list(bracedInitList)) {
     auto ast = new (pool) NewBracedInitializerAST();
     yyast = ast;
 
     ast->bracedInitList = bracedInitList;
-
-    return true;
+    return;
   }
 
-  SourceLocation lparenLoc;
+  LookaheadParser lookahead{this};
 
-  if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
+  SourceLocation lparenLoc;
+  List<ExpressionAST*>* expressionList = nullptr;
+  SourceLocation rparenLoc;
+
+  if (!match(TokenKind::T_LPAREN, lparenLoc)) return;
+  if (!match(TokenKind::T_RPAREN, rparenLoc)) {
+    if (!parse_expression_list(expressionList)) return;
+    if (!match(TokenKind::T_RPAREN, rparenLoc)) return;
+  }
+
+  lookahead.commit();
 
   auto ast = new (pool) NewParenInitializerAST();
   yyast = ast;
 
-  if (!match(TokenKind::T_RPAREN, ast->rparenLoc)) {
-    if (!parse_expression_list(ast->expressionList)) return false;
-
-    if (!match(TokenKind::T_RPAREN, ast->rparenLoc)) return false;
-  }
-
-  return true;
+  ast->lparenLoc = lparenLoc;
+  ast->expressionList = expressionList;
+  ast->rparenLoc = rparenLoc;
 }
 
 auto Parser::parse_delete_expression(ExpressionAST*& yyast) -> bool {
@@ -5263,10 +5186,11 @@ auto Parser::parse_defining_type_id(
   return true;
 }
 
-auto Parser::parse_abstract_declarator(DeclaratorAST*& yyast) -> bool {
-  if (parse_abstract_pack_declarator(yyast)) return true;
+auto Parser::parse_abstract_declarator(DeclaratorAST*& yyast,
+                                       bool isNewDeclarator) -> bool {
+  if (!isNewDeclarator && parse_abstract_pack_declarator(yyast)) return true;
 
-  if (parse_ptr_abstract_declarator(yyast)) return true;
+  if (parse_ptr_abstract_declarator(yyast, isNewDeclarator)) return true;
 
   const auto saved = currentLocation();
 
@@ -5290,31 +5214,13 @@ auto Parser::parse_abstract_declarator(DeclaratorAST*& yyast) -> bool {
 
   rewind(saved);
 
-  if (!parse_noptr_abstract_declarator(yyast)) return false;
-
-#if 0
-  const auto after_noptr_declarator = currentLocation();
-
-  parametersAndQualifiers = nullptr;
-  trailingReturnType = nullptr;
-
-  if (parse_parameters_and_qualifiers(parametersAndQualifiers) &&
-      parse_trailing_return_type(trailingReturnType)) {
-    auto functionDeclarator = new (pool) FunctionDeclaratorChunkAST();
-    functionDeclarator->parametersAndQualifiers = parametersAndQualifiers;
-    functionDeclarator->trailingReturnType = trailingReturnType;
-
-    ast->declaratorChunkList =
-        new (pool) List<DeclaratorChunkAST*>(functionDeclarator);
-  } else {
-    rewind(after_noptr_declarator);
-  }
-#endif
+  if (!parse_noptr_abstract_declarator(yyast, isNewDeclarator)) return false;
 
   return true;
 }
 
-auto Parser::parse_ptr_abstract_declarator(DeclaratorAST*& yyast) -> bool {
+auto Parser::parse_ptr_abstract_declarator(DeclaratorAST*& yyast,
+                                           bool isNewDeclarator) -> bool {
   List<PtrOperatorAST*>* ptrOpList = nullptr;
 
   if (!parse_ptr_operator_seq(ptrOpList)) return false;
@@ -5326,12 +5232,13 @@ auto Parser::parse_ptr_abstract_declarator(DeclaratorAST*& yyast) -> bool {
 
   const auto saved = currentLocation();
 
-  if (!parse_noptr_abstract_declarator(yyast)) rewind(saved);
+  if (!parse_noptr_abstract_declarator(yyast, isNewDeclarator)) rewind(saved);
 
   return true;
 }
 
-auto Parser::parse_noptr_abstract_declarator(DeclaratorAST*& yyast) -> bool {
+auto Parser::parse_noptr_abstract_declarator(DeclaratorAST*& yyast,
+                                             bool isNewDeclarator) -> bool {
   if (!yyast) yyast = new (pool) DeclaratorAST();
 
   const auto start = currentLocation();
@@ -5342,7 +5249,7 @@ auto Parser::parse_noptr_abstract_declarator(DeclaratorAST*& yyast) -> bool {
   SourceLocation rparenLoc;
 
   if (match(TokenKind::T_LPAREN, lparenLoc) &&
-      parse_ptr_abstract_declarator(declarator) &&
+      parse_ptr_abstract_declarator(declarator, isNewDeclarator) &&
       match(TokenKind::T_RPAREN, rparenLoc)) {
     auto nestedDeclarator = new (pool) NestedDeclaratorAST();
     nestedDeclarator->lparenLoc = lparenLoc;
@@ -5360,7 +5267,7 @@ auto Parser::parse_noptr_abstract_declarator(DeclaratorAST*& yyast) -> bool {
 
   auto it = &yyast->declaratorChunkList;
 
-  if (lookat(TokenKind::T_LPAREN)) {
+  if (!isNewDeclarator && lookat(TokenKind::T_LPAREN)) {
     if (parse_parameters_and_qualifiers(parametersAndQualifiers)) {
       auto functionDeclarator = new (pool) FunctionDeclaratorChunkAST();
 

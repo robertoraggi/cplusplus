@@ -41,8 +41,6 @@ class RecursiveASTVisitor : public ASTVisitor {
   virtual void acceptDeclaratorChunk(DeclaratorChunkAST* ast);
   virtual void acceptRequiresClause(RequiresClauseAST* ast);
   virtual void acceptBaseSpecifier(BaseSpecifierAST* ast);
-  virtual void acceptArrayDeclaratorChunk(ArrayDeclaratorChunkAST* ast);
-  virtual void acceptNewDeclarator(NewDeclaratorAST* ast);
   virtual void acceptParameterDeclaration(ParameterDeclarationAST* ast);
   virtual void acceptParameterDeclarationClause(
       ParameterDeclarationClauseAST* ast);
@@ -70,7 +68,6 @@ class RecursiveASTVisitor : public ASTVisitor {
   virtual void acceptBracedInitList(BracedInitListAST* ast);
   virtual void acceptIdExpression(IdExpressionAST* ast);
   virtual void acceptNewPlacement(NewPlacementAST* ast);
-  virtual void acceptNewTypeId(NewTypeIdAST* ast);
   virtual void acceptNewInitializer(NewInitializerAST* ast);
   virtual void acceptTypeConstraint(TypeConstraintAST* ast);
   virtual void acceptCtorInitializer(CtorInitializerAST* ast);
@@ -110,8 +107,6 @@ class RecursiveASTVisitor : public ASTVisitor {
   void visit(InitDeclaratorAST* ast) override;
   void visit(BaseSpecifierAST* ast) override;
   void visit(BaseClauseAST* ast) override;
-  void visit(NewDeclaratorAST* ast) override;
-  void visit(NewTypeIdAST* ast) override;
   void visit(RequiresClauseAST* ast) override;
   void visit(ParameterDeclarationClauseAST* ast) override;
   void visit(ParametersAndQualifiersAST* ast) override;

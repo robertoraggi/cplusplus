@@ -662,63 +662,6 @@ void ASTEncoder::visit(BaseClauseAST* ast) {
   offset_ = builder.Finish().Union();
 }
 
-void ASTEncoder::visit(NewDeclaratorAST* ast) {
-  std::vector<flatbuffers::Offset<>> ptrOpListOffsets;
-  std::vector<std::underlying_type_t<io::PtrOperator>> ptrOpListTypes;
-
-  for (auto it = ast->ptrOpList; it; it = it->next) {
-    if (!it->value) continue;
-    const auto [offset, type] = acceptPtrOperator(it->value);
-    ptrOpListOffsets.push_back(offset);
-    ptrOpListTypes.push_back(type);
-  }
-
-  auto ptrOpListOffsetsVector = fbb_.CreateVector(ptrOpListOffsets);
-  auto ptrOpListTypesVector = fbb_.CreateVector(ptrOpListTypes);
-
-  std::vector<flatbuffers::Offset<io::ArrayDeclaratorChunk>>
-      declaratorChunkListOffsets;
-  for (auto it = ast->declaratorChunkList; it; it = it->next) {
-    if (!it->value) continue;
-    declaratorChunkListOffsets.emplace_back(accept(it->value).o);
-  }
-
-  auto declaratorChunkListOffsetsVector =
-      fbb_.CreateVector(declaratorChunkListOffsets);
-
-  io::NewDeclarator::Builder builder{fbb_};
-  builder.add_ptr_op_list(ptrOpListOffsetsVector);
-  builder.add_ptr_op_list_type(ptrOpListTypesVector);
-  builder.add_declarator_chunk_list(declaratorChunkListOffsetsVector);
-
-  offset_ = builder.Finish().Union();
-}
-
-void ASTEncoder::visit(NewTypeIdAST* ast) {
-  std::vector<flatbuffers::Offset<>> typeSpecifierListOffsets;
-  std::vector<std::underlying_type_t<io::Specifier>> typeSpecifierListTypes;
-
-  for (auto it = ast->typeSpecifierList; it; it = it->next) {
-    if (!it->value) continue;
-    const auto [offset, type] = acceptSpecifier(it->value);
-    typeSpecifierListOffsets.push_back(offset);
-    typeSpecifierListTypes.push_back(type);
-  }
-
-  auto typeSpecifierListOffsetsVector =
-      fbb_.CreateVector(typeSpecifierListOffsets);
-  auto typeSpecifierListTypesVector = fbb_.CreateVector(typeSpecifierListTypes);
-
-  const auto newDeclarator = accept(ast->newDeclarator);
-
-  io::NewTypeId::Builder builder{fbb_};
-  builder.add_type_specifier_list(typeSpecifierListOffsetsVector);
-  builder.add_type_specifier_list_type(typeSpecifierListTypesVector);
-  builder.add_new_declarator(newDeclarator.o);
-
-  offset_ = builder.Finish().Union();
-}
-
 void ASTEncoder::visit(RequiresClauseAST* ast) {
   auto requiresLoc = encodeSourceLocation(ast->requiresLoc);
 
@@ -2340,7 +2283,25 @@ void ASTEncoder::visit(NewExpressionAST* ast) {
 
   const auto newPlacement = accept(ast->newPlacement);
 
-  const auto typeId = accept(ast->typeId);
+  auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
+
+  std::vector<flatbuffers::Offset<>> typeSpecifierListOffsets;
+  std::vector<std::underlying_type_t<io::Specifier>> typeSpecifierListTypes;
+
+  for (auto it = ast->typeSpecifierList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptSpecifier(it->value);
+    typeSpecifierListOffsets.push_back(offset);
+    typeSpecifierListTypes.push_back(type);
+  }
+
+  auto typeSpecifierListOffsetsVector =
+      fbb_.CreateVector(typeSpecifierListOffsets);
+  auto typeSpecifierListTypesVector = fbb_.CreateVector(typeSpecifierListTypes);
+
+  const auto declarator = accept(ast->declarator);
+
+  auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
 
   const auto [newInitalizer, newInitalizerType] =
       acceptNewInitializer(ast->newInitalizer);
@@ -2349,7 +2310,11 @@ void ASTEncoder::visit(NewExpressionAST* ast) {
   builder.add_scope_loc(scopeLoc.o);
   builder.add_new_loc(newLoc.o);
   builder.add_new_placement(newPlacement.o);
-  builder.add_type_id(typeId.o);
+  builder.add_lparen_loc(lparenLoc.o);
+  builder.add_type_specifier_list(typeSpecifierListOffsetsVector);
+  builder.add_type_specifier_list_type(typeSpecifierListTypesVector);
+  builder.add_declarator(declarator.o);
+  builder.add_rparen_loc(rparenLoc.o);
   builder.add_new_initalizer(newInitalizer);
   builder.add_new_initalizer_type(
       static_cast<io::NewInitializer>(newInitalizerType));

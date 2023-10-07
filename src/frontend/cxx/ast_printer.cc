@@ -192,42 +192,6 @@ void ASTPrinter::visit(BaseClauseAST* ast) {
   }
 }
 
-void ASTPrinter::visit(NewDeclaratorAST* ast) {
-  fmt::print(out_, "{}\n", "new-declarator");
-  if (ast->ptrOpList) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "ptr-op-list");
-    for (auto it = ast->ptrOpList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-  if (ast->declaratorChunkList) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "declarator-chunk-list");
-    for (auto it = ast->declaratorChunkList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-}
-
-void ASTPrinter::visit(NewTypeIdAST* ast) {
-  fmt::print(out_, "{}\n", "new-type-id");
-  if (ast->typeSpecifierList) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "type-specifier-list");
-    for (auto it = ast->typeSpecifierList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-  accept(ast->newDeclarator, "new-declarator");
-}
-
 void ASTPrinter::visit(RequiresClauseAST* ast) {
   fmt::print(out_, "{}\n", "requires-clause");
   accept(ast->expression, "expression");
@@ -893,7 +857,16 @@ void ASTPrinter::visit(CppCastExpressionAST* ast) {
 void ASTPrinter::visit(NewExpressionAST* ast) {
   fmt::print(out_, "{}\n", "new-expression");
   accept(ast->newPlacement, "new-placement");
-  accept(ast->typeId, "type-id");
+  if (ast->typeSpecifierList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "type-specifier-list");
+    for (auto it = ast->typeSpecifierList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+  accept(ast->declarator, "declarator");
   accept(ast->newInitalizer, "new-initalizer");
 }
 
@@ -1764,6 +1737,12 @@ void ASTPrinter::visit(NonTypeTemplateParameterAST* ast) {
 void ASTPrinter::visit(TypenameTypeParameterAST* ast) {
   fmt::print(out_, "{}\n", "typename-type-parameter");
   accept(ast->identifier, "identifier");
+  if (ast->isPack) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "is-pack: {}\n", ast->isPack);
+    --indent_;
+  }
   accept(ast->typeId, "type-id");
 }
 

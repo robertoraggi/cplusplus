@@ -210,49 +210,6 @@ void ASTCloner::visit(BaseClauseAST* ast) {
   }
 }
 
-void ASTCloner::visit(NewDeclaratorAST* ast) {
-  auto copy = new (arena_) NewDeclaratorAST();
-  copy_ = copy;
-
-  copy->setChecked(ast->checked());
-
-  if (auto it = ast->ptrOpList) {
-    auto out = &copy->ptrOpList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
-
-  if (auto it = ast->declaratorChunkList) {
-    auto out = &copy->declaratorChunkList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
-}
-
-void ASTCloner::visit(NewTypeIdAST* ast) {
-  auto copy = new (arena_) NewTypeIdAST();
-  copy_ = copy;
-
-  copy->setChecked(ast->checked());
-
-  if (auto it = ast->typeSpecifierList) {
-    auto out = &copy->typeSpecifierList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
-
-  copy->newDeclarator = accept(ast->newDeclarator);
-}
-
 void ASTCloner::visit(RequiresClauseAST* ast) {
   auto copy = new (arena_) RequiresClauseAST();
   copy_ = copy;
@@ -1562,7 +1519,20 @@ void ASTCloner::visit(NewExpressionAST* ast) {
 
   copy->newPlacement = accept(ast->newPlacement);
 
-  copy->typeId = accept(ast->typeId);
+  copy->lparenLoc = ast->lparenLoc;
+
+  if (auto it = ast->typeSpecifierList) {
+    auto out = &copy->typeSpecifierList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->declarator = accept(ast->declarator);
+
+  copy->rparenLoc = ast->rparenLoc;
 
   copy->newInitalizer = accept(ast->newInitalizer);
 }
@@ -3153,6 +3123,8 @@ void ASTCloner::visit(TypenameTypeParameterAST* ast) {
   copy->typeId = accept(ast->typeId);
 
   copy->identifier = ast->identifier;
+
+  copy->isPack = ast->isPack;
 }
 
 void ASTCloner::visit(ConstraintTypeParameterAST* ast) {
