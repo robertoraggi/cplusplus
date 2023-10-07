@@ -679,62 +679,6 @@ void ASTEncoder::visit(ParameterDeclarationClauseAST* ast) {
   offset_ = builder.Finish().Union();
 }
 
-void ASTEncoder::visit(ParametersAndQualifiersAST* ast) {
-  auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
-
-  const auto parameterDeclarationClause =
-      accept(ast->parameterDeclarationClause);
-
-  auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
-
-  std::vector<flatbuffers::Offset<>> cvQualifierListOffsets;
-  std::vector<std::underlying_type_t<io::Specifier>> cvQualifierListTypes;
-
-  for (auto it = ast->cvQualifierList; it; it = it->next) {
-    if (!it->value) continue;
-    const auto [offset, type] = acceptSpecifier(it->value);
-    cvQualifierListOffsets.push_back(offset);
-    cvQualifierListTypes.push_back(type);
-  }
-
-  auto cvQualifierListOffsetsVector = fbb_.CreateVector(cvQualifierListOffsets);
-  auto cvQualifierListTypesVector = fbb_.CreateVector(cvQualifierListTypes);
-
-  auto refLoc = encodeSourceLocation(ast->refLoc);
-
-  const auto [exceptionSpecifier, exceptionSpecifierType] =
-      acceptExceptionSpecifier(ast->exceptionSpecifier);
-
-  std::vector<flatbuffers::Offset<>> attributeListOffsets;
-  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
-      attributeListTypes;
-
-  for (auto it = ast->attributeList; it; it = it->next) {
-    if (!it->value) continue;
-    const auto [offset, type] = acceptAttributeSpecifier(it->value);
-    attributeListOffsets.push_back(offset);
-    attributeListTypes.push_back(type);
-  }
-
-  auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
-  auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
-
-  io::ParametersAndQualifiers::Builder builder{fbb_};
-  builder.add_lparen_loc(lparenLoc.o);
-  builder.add_parameter_declaration_clause(parameterDeclarationClause.o);
-  builder.add_rparen_loc(rparenLoc.o);
-  builder.add_cv_qualifier_list(cvQualifierListOffsetsVector);
-  builder.add_cv_qualifier_list_type(cvQualifierListTypesVector);
-  builder.add_ref_loc(refLoc.o);
-  builder.add_exception_specifier(exceptionSpecifier);
-  builder.add_exception_specifier_type(
-      static_cast<io::ExceptionSpecifier>(exceptionSpecifierType));
-  builder.add_attribute_list(attributeListOffsetsVector);
-  builder.add_attribute_list_type(attributeListTypesVector);
-
-  offset_ = builder.Finish().Union();
-}
-
 void ASTEncoder::visit(LambdaSpecifierAST* ast) {
   auto specifierLoc = encodeSourceLocation(ast->specifierLoc);
 
@@ -753,33 +697,6 @@ void ASTEncoder::visit(TrailingReturnTypeAST* ast) {
   io::TrailingReturnType::Builder builder{fbb_};
   builder.add_minus_greater_loc(minusGreaterLoc.o);
   builder.add_type_id(typeId.o);
-
-  offset_ = builder.Finish().Union();
-}
-
-void ASTEncoder::visit(CtorInitializerAST* ast) {
-  auto colonLoc = encodeSourceLocation(ast->colonLoc);
-
-  std::vector<flatbuffers::Offset<>> memInitializerListOffsets;
-  std::vector<std::underlying_type_t<io::MemInitializer>>
-      memInitializerListTypes;
-
-  for (auto it = ast->memInitializerList; it; it = it->next) {
-    if (!it->value) continue;
-    const auto [offset, type] = acceptMemInitializer(it->value);
-    memInitializerListOffsets.push_back(offset);
-    memInitializerListTypes.push_back(type);
-  }
-
-  auto memInitializerListOffsetsVector =
-      fbb_.CreateVector(memInitializerListOffsets);
-  auto memInitializerListTypesVector =
-      fbb_.CreateVector(memInitializerListTypes);
-
-  io::CtorInitializer::Builder builder{fbb_};
-  builder.add_colon_loc(colonLoc.o);
-  builder.add_mem_initializer_list(memInitializerListOffsetsVector);
-  builder.add_mem_initializer_list_type(memInitializerListTypesVector);
 
   offset_ = builder.Finish().Union();
 }
@@ -1058,31 +975,6 @@ void ASTEncoder::visit(AttributeUsingPrefixAST* ast) {
   offset_ = builder.Finish().Union();
 }
 
-void ASTEncoder::visit(DesignatorAST* ast) {
-  auto dotLoc = encodeSourceLocation(ast->dotLoc);
-
-  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
-
-  flatbuffers::Offset<flatbuffers::String> identifier;
-  if (ast->identifier) {
-    if (identifiers_.contains(ast->identifier)) {
-      identifier = identifiers_.at(ast->identifier);
-    } else {
-      identifier = fbb_.CreateString(ast->identifier->value());
-      identifiers_.emplace(ast->identifier, identifier);
-    }
-  }
-
-  io::Designator::Builder builder{fbb_};
-  builder.add_dot_loc(dotLoc.o);
-  builder.add_identifier_loc(identifierLoc.o);
-  if (ast->identifier) {
-    builder.add_identifier(identifier);
-  }
-
-  offset_ = builder.Finish().Union();
-}
-
 void ASTEncoder::visit(NewPlacementAST* ast) {
   auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
 
@@ -1272,13 +1164,29 @@ void ASTEncoder::visit(PackExpansionExpressionAST* ast) {
 }
 
 void ASTEncoder::visit(DesignatedInitializerClauseAST* ast) {
-  const auto designator = accept(ast->designator);
+  auto dotLoc = encodeSourceLocation(ast->dotLoc);
+
+  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
+
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->value());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
 
   const auto [initializer, initializerType] =
       acceptExpression(ast->initializer);
 
   io::DesignatedInitializerClause::Builder builder{fbb_};
-  builder.add_designator(designator.o);
+  builder.add_dot_loc(dotLoc.o);
+  builder.add_identifier_loc(identifierLoc.o);
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
   builder.add_initializer(initializer);
   builder.add_initializer_type(static_cast<io::Expression>(initializerType));
 
@@ -2831,12 +2739,30 @@ void ASTEncoder::visit(DefaultFunctionBodyAST* ast) {
 }
 
 void ASTEncoder::visit(CompoundStatementFunctionBodyAST* ast) {
-  const auto ctorInitializer = accept(ast->ctorInitializer);
+  auto colonLoc = encodeSourceLocation(ast->colonLoc);
+
+  std::vector<flatbuffers::Offset<>> memInitializerListOffsets;
+  std::vector<std::underlying_type_t<io::MemInitializer>>
+      memInitializerListTypes;
+
+  for (auto it = ast->memInitializerList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptMemInitializer(it->value);
+    memInitializerListOffsets.push_back(offset);
+    memInitializerListTypes.push_back(type);
+  }
+
+  auto memInitializerListOffsetsVector =
+      fbb_.CreateVector(memInitializerListOffsets);
+  auto memInitializerListTypesVector =
+      fbb_.CreateVector(memInitializerListTypes);
 
   const auto statement = accept(ast->statement);
 
   io::CompoundStatementFunctionBody::Builder builder{fbb_};
-  builder.add_ctor_initializer(ctorInitializer.o);
+  builder.add_colon_loc(colonLoc.o);
+  builder.add_mem_initializer_list(memInitializerListOffsetsVector);
+  builder.add_mem_initializer_list_type(memInitializerListTypesVector);
   builder.add_statement(statement.o);
 
   offset_ = builder.Finish().Union();
@@ -2846,7 +2772,23 @@ void ASTEncoder::visit(CompoundStatementFunctionBodyAST* ast) {
 void ASTEncoder::visit(TryStatementFunctionBodyAST* ast) {
   auto tryLoc = encodeSourceLocation(ast->tryLoc);
 
-  const auto ctorInitializer = accept(ast->ctorInitializer);
+  auto colonLoc = encodeSourceLocation(ast->colonLoc);
+
+  std::vector<flatbuffers::Offset<>> memInitializerListOffsets;
+  std::vector<std::underlying_type_t<io::MemInitializer>>
+      memInitializerListTypes;
+
+  for (auto it = ast->memInitializerList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptMemInitializer(it->value);
+    memInitializerListOffsets.push_back(offset);
+    memInitializerListTypes.push_back(type);
+  }
+
+  auto memInitializerListOffsetsVector =
+      fbb_.CreateVector(memInitializerListOffsets);
+  auto memInitializerListTypesVector =
+      fbb_.CreateVector(memInitializerListTypes);
 
   const auto statement = accept(ast->statement);
 
@@ -2860,7 +2802,9 @@ void ASTEncoder::visit(TryStatementFunctionBodyAST* ast) {
 
   io::TryStatementFunctionBody::Builder builder{fbb_};
   builder.add_try_loc(tryLoc.o);
-  builder.add_ctor_initializer(ctorInitializer.o);
+  builder.add_colon_loc(colonLoc.o);
+  builder.add_mem_initializer_list(memInitializerListOffsetsVector);
+  builder.add_mem_initializer_list_type(memInitializerListTypesVector);
   builder.add_statement(statement.o);
   builder.add_handler_list(handlerListOffsetsVector);
 
@@ -5653,12 +5597,59 @@ void ASTEncoder::visit(PtrToMemberOperatorAST* ast) {
 }
 
 void ASTEncoder::visit(FunctionDeclaratorChunkAST* ast) {
-  const auto parametersAndQualifiers = accept(ast->parametersAndQualifiers);
+  auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
+
+  const auto parameterDeclarationClause =
+      accept(ast->parameterDeclarationClause);
+
+  auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
+
+  std::vector<flatbuffers::Offset<>> cvQualifierListOffsets;
+  std::vector<std::underlying_type_t<io::Specifier>> cvQualifierListTypes;
+
+  for (auto it = ast->cvQualifierList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptSpecifier(it->value);
+    cvQualifierListOffsets.push_back(offset);
+    cvQualifierListTypes.push_back(type);
+  }
+
+  auto cvQualifierListOffsetsVector = fbb_.CreateVector(cvQualifierListOffsets);
+  auto cvQualifierListTypesVector = fbb_.CreateVector(cvQualifierListTypes);
+
+  auto refLoc = encodeSourceLocation(ast->refLoc);
+
+  const auto [exceptionSpecifier, exceptionSpecifierType] =
+      acceptExceptionSpecifier(ast->exceptionSpecifier);
+
+  std::vector<flatbuffers::Offset<>> attributeListOffsets;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
+
+  for (auto it = ast->attributeList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
+    attributeListOffsets.push_back(offset);
+    attributeListTypes.push_back(type);
+  }
+
+  auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
+  auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
 
   const auto trailingReturnType = accept(ast->trailingReturnType);
 
   io::FunctionDeclaratorChunk::Builder builder{fbb_};
-  builder.add_parameters_and_qualifiers(parametersAndQualifiers.o);
+  builder.add_lparen_loc(lparenLoc.o);
+  builder.add_parameter_declaration_clause(parameterDeclarationClause.o);
+  builder.add_rparen_loc(rparenLoc.o);
+  builder.add_cv_qualifier_list(cvQualifierListOffsetsVector);
+  builder.add_cv_qualifier_list_type(cvQualifierListTypesVector);
+  builder.add_ref_loc(refLoc.o);
+  builder.add_exception_specifier(exceptionSpecifier);
+  builder.add_exception_specifier_type(
+      static_cast<io::ExceptionSpecifier>(exceptionSpecifierType));
+  builder.add_attribute_list(attributeListOffsetsVector);
+  builder.add_attribute_list_type(attributeListTypesVector);
   builder.add_trailing_return_type(trailingReturnType.o);
 
   offset_ = builder.Finish().Union();

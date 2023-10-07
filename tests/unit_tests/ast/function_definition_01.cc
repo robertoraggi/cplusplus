@@ -23,7 +23,6 @@ void (*f(int))() {}
 // CHECK-NEXT:                      identifier: ptr
 // CHECK-NEXT:            declarator-chunk-list
 // CHECK-NEXT:              function-declarator-chunk
-// CHECK-NEXT:                parameters-and-qualifiers: parameters-and-qualifiers
 // CHECK-NEXT:          initializer: braced-init-list
 // CHECK-NEXT:    function-definition
 // CHECK-NEXT:      decl-specifier-list
@@ -39,16 +38,14 @@ void (*f(int))() {}
 // CHECK-NEXT:                  identifier: f
 // CHECK-NEXT:            declarator-chunk-list
 // CHECK-NEXT:              function-declarator-chunk
-// CHECK-NEXT:                parameters-and-qualifiers: parameters-and-qualifiers
-// CHECK-NEXT:                  parameter-declaration-clause: parameter-declaration-clause
-// CHECK-NEXT:                    parameter-declaration-list
-// CHECK-NEXT:                      parameter-declaration
-// CHECK-NEXT:                        type-specifier-list
-// CHECK-NEXT:                          integral-type-specifier
-// CHECK-NEXT:                            specifier: int
-// CHECK-NEXT:                        declarator: declarator
+// CHECK-NEXT:                parameter-declaration-clause: parameter-declaration-clause
+// CHECK-NEXT:                  parameter-declaration-list
+// CHECK-NEXT:                    parameter-declaration
+// CHECK-NEXT:                      type-specifier-list
+// CHECK-NEXT:                        integral-type-specifier
+// CHECK-NEXT:                          specifier: int
+// CHECK-NEXT:                      declarator: declarator
 // CHECK-NEXT:        declarator-chunk-list
 // CHECK-NEXT:          function-declarator-chunk
-// CHECK-NEXT:            parameters-and-qualifiers: parameters-and-qualifiers
 // CHECK-NEXT:      function-body: compound-statement-function-body
 // CHECK-NEXT:        statement: compound-statement

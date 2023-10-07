@@ -60,14 +60,12 @@ auto pair = Pair{
 // CHECK-NEXT:              braced-init-list: braced-init-list
 // CHECK-NEXT:                expression-list
 // CHECK-NEXT:                  designated-initializer-clause
-// CHECK-NEXT:                    designator: designator
-// CHECK-NEXT:                      identifier: first
+// CHECK-NEXT:                    identifier: first
 // CHECK-NEXT:                    initializer: equal-initializer
 // CHECK-NEXT:                      expression: int-literal-expression
 // CHECK-NEXT:                        literal: 1
 // CHECK-NEXT:                  designated-initializer-clause
-// CHECK-NEXT:                    designator: designator
-// CHECK-NEXT:                      identifier: second
+// CHECK-NEXT:                    identifier: second
 // CHECK-NEXT:                    initializer: equal-initializer
 // CHECK-NEXT:                      expression: int-literal-expression
 // CHECK-NEXT:                        literal: 2

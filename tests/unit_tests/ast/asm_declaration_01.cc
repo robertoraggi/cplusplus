@@ -34,7 +34,6 @@ end:;
 // CHECK-NEXT:              identifier: asm_qualifiers
 // CHECK-NEXT:        declarator-chunk-list
 // CHECK-NEXT:          function-declarator-chunk
-// CHECK-NEXT:            parameters-and-qualifiers: parameters-and-qualifiers
 // CHECK-NEXT:      function-body: compound-statement-function-body
 // CHECK-NEXT:        statement: compound-statement
 // CHECK-NEXT:          statement-list
@@ -66,7 +65,6 @@ end:;
 // CHECK-NEXT:              identifier: asm_output
 // CHECK-NEXT:        declarator-chunk-list
 // CHECK-NEXT:          function-declarator-chunk
-// CHECK-NEXT:            parameters-and-qualifiers: parameters-and-qualifiers
 // CHECK-NEXT:      function-body: compound-statement-function-body
 // CHECK-NEXT:        statement: compound-statement
 // CHECK-NEXT:          statement-list
@@ -125,7 +123,6 @@ end:;
 // CHECK-NEXT:              identifier: asm_clobbers
 // CHECK-NEXT:        declarator-chunk-list
 // CHECK-NEXT:          function-declarator-chunk
-// CHECK-NEXT:            parameters-and-qualifiers: parameters-and-qualifiers
 // CHECK-NEXT:      function-body: compound-statement-function-body
 // CHECK-NEXT:        statement: compound-statement
 // CHECK-NEXT:          statement-list
@@ -149,7 +146,6 @@ end:;
 // CHECK-NEXT:              identifier: asm_goto
 // CHECK-NEXT:        declarator-chunk-list
 // CHECK-NEXT:          function-declarator-chunk
-// CHECK-NEXT:            parameters-and-qualifiers: parameters-and-qualifiers
 // CHECK-NEXT:      function-body: compound-statement-function-body
 // CHECK-NEXT:        statement: compound-statement
 // CHECK-NEXT:          statement-list

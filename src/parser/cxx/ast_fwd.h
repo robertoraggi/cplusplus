@@ -85,10 +85,8 @@ class InitDeclaratorAST;
 class BaseSpecifierAST;
 class RequiresClauseAST;
 class ParameterDeclarationClauseAST;
-class ParametersAndQualifiersAST;
 class LambdaSpecifierAST;
 class TrailingReturnTypeAST;
-class CtorInitializerAST;
 class TypeConstraintAST;
 class GlobalModuleFragmentAST;
 class PrivateModuleFragmentAST;
@@ -100,7 +98,6 @@ class ModulePartitionAST;
 class AttributeArgumentClauseAST;
 class AttributeAST;
 class AttributeUsingPrefixAST;
-class DesignatorAST;
 class NewPlacementAST;
 class NestedNamespaceSpecifierAST;
 

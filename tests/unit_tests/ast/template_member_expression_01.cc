@@ -33,14 +33,13 @@ auto copy(Allocator &A) -> void * { return A.template Allocate<char>(128); }
 // CHECK-NEXT:                        identifier: Allocate
 // CHECK-NEXT:                  declarator-chunk-list
 // CHECK-NEXT:                    function-declarator-chunk
-// CHECK-NEXT:                      parameters-and-qualifiers: parameters-and-qualifiers
-// CHECK-NEXT:                        parameter-declaration-clause: parameter-declaration-clause
-// CHECK-NEXT:                          parameter-declaration-list
-// CHECK-NEXT:                            parameter-declaration
-// CHECK-NEXT:                              type-specifier-list
-// CHECK-NEXT:                                integral-type-specifier
-// CHECK-NEXT:                                  specifier: int
-// CHECK-NEXT:                              declarator: declarator
+// CHECK-NEXT:                      parameter-declaration-clause: parameter-declaration-clause
+// CHECK-NEXT:                        parameter-declaration-list
+// CHECK-NEXT:                          parameter-declaration
+// CHECK-NEXT:                            type-specifier-list
+// CHECK-NEXT:                              integral-type-specifier
+// CHECK-NEXT:                                specifier: int
+// CHECK-NEXT:                            declarator: declarator
 // CHECK-NEXT:                      trailing-return-type: trailing-return-type
 // CHECK-NEXT:                        type-id: type-id
 // CHECK-NEXT:                          type-specifier-list
@@ -66,22 +65,21 @@ auto copy(Allocator &A) -> void * { return A.template Allocate<char>(128); }
 // CHECK-NEXT:              identifier: copy
 // CHECK-NEXT:        declarator-chunk-list
 // CHECK-NEXT:          function-declarator-chunk
-// CHECK-NEXT:            parameters-and-qualifiers: parameters-and-qualifiers
-// CHECK-NEXT:              parameter-declaration-clause: parameter-declaration-clause
-// CHECK-NEXT:                parameter-declaration-list
-// CHECK-NEXT:                  parameter-declaration
-// CHECK-NEXT:                    type-specifier-list
-// CHECK-NEXT:                      named-type-specifier
+// CHECK-NEXT:            parameter-declaration-clause: parameter-declaration-clause
+// CHECK-NEXT:              parameter-declaration-list
+// CHECK-NEXT:                parameter-declaration
+// CHECK-NEXT:                  type-specifier-list
+// CHECK-NEXT:                    named-type-specifier
+// CHECK-NEXT:                      unqualified-id: name-id
+// CHECK-NEXT:                        identifier: Allocator
+// CHECK-NEXT:                  declarator: declarator
+// CHECK-NEXT:                    ptr-op-list
+// CHECK-NEXT:                      reference-operator
+// CHECK-NEXT:                        ref-op: &
+// CHECK-NEXT:                    core-declarator: id-declarator
+// CHECK-NEXT:                      declarator-id: id-expression
 // CHECK-NEXT:                        unqualified-id: name-id
-// CHECK-NEXT:                          identifier: Allocator
-// CHECK-NEXT:                    declarator: declarator
-// CHECK-NEXT:                      ptr-op-list
-// CHECK-NEXT:                        reference-operator
-// CHECK-NEXT:                          ref-op: &
-// CHECK-NEXT:                      core-declarator: id-declarator
-// CHECK-NEXT:                        declarator-id: id-expression
-// CHECK-NEXT:                          unqualified-id: name-id
-// CHECK-NEXT:                            identifier: A
+// CHECK-NEXT:                          identifier: A
 // CHECK-NEXT:            trailing-return-type: trailing-return-type
 // CHECK-NEXT:              type-id: type-id
 // CHECK-NEXT:                type-specifier-list

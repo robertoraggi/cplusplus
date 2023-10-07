@@ -35,18 +35,17 @@ struct object {
 // CHECK-NEXT:                      identifier: clone
 // CHECK-NEXT:                declarator-chunk-list
 // CHECK-NEXT:                  function-declarator-chunk
-// CHECK-NEXT:                    parameters-and-qualifiers: parameters-and-qualifiers
-// CHECK-NEXT:                      parameter-declaration-clause: parameter-declaration-clause
-// CHECK-NEXT:                        parameter-declaration-list
-// CHECK-NEXT:                          parameter-declaration
-// CHECK-NEXT:                            is-this-introduced: true
-// CHECK-NEXT:                            type-specifier-list
-// CHECK-NEXT:                              auto-type-specifier
-// CHECK-NEXT:                            declarator: declarator
-// CHECK-NEXT:                              core-declarator: id-declarator
-// CHECK-NEXT:                                declarator-id: id-expression
-// CHECK-NEXT:                                  unqualified-id: name-id
-// CHECK-NEXT:                                    identifier: self
+// CHECK-NEXT:                    parameter-declaration-clause: parameter-declaration-clause
+// CHECK-NEXT:                      parameter-declaration-list
+// CHECK-NEXT:                        parameter-declaration
+// CHECK-NEXT:                          is-this-introduced: true
+// CHECK-NEXT:                          type-specifier-list
+// CHECK-NEXT:                            auto-type-specifier
+// CHECK-NEXT:                          declarator: declarator
+// CHECK-NEXT:                            core-declarator: id-declarator
+// CHECK-NEXT:                              declarator-id: id-expression
+// CHECK-NEXT:                                unqualified-id: name-id
+// CHECK-NEXT:                                  identifier: self
 // CHECK-NEXT:              function-body: compound-statement-function-body
 // CHECK-NEXT:                statement: compound-statement
 // CHECK-NEXT:                  statement-list

@@ -66,20 +66,12 @@ void DefaultASTVisitor::visit(ParameterDeclarationClauseAST* ast) {
   cxx_runtime_error("visit(ParameterDeclarationClauseAST): not implemented");
 }
 
-void DefaultASTVisitor::visit(ParametersAndQualifiersAST* ast) {
-  cxx_runtime_error("visit(ParametersAndQualifiersAST): not implemented");
-}
-
 void DefaultASTVisitor::visit(LambdaSpecifierAST* ast) {
   cxx_runtime_error("visit(LambdaSpecifierAST): not implemented");
 }
 
 void DefaultASTVisitor::visit(TrailingReturnTypeAST* ast) {
   cxx_runtime_error("visit(TrailingReturnTypeAST): not implemented");
-}
-
-void DefaultASTVisitor::visit(CtorInitializerAST* ast) {
-  cxx_runtime_error("visit(CtorInitializerAST): not implemented");
 }
 
 void DefaultASTVisitor::visit(TypeConstraintAST* ast) {
@@ -124,10 +116,6 @@ void DefaultASTVisitor::visit(AttributeAST* ast) {
 
 void DefaultASTVisitor::visit(AttributeUsingPrefixAST* ast) {
   cxx_runtime_error("visit(AttributeUsingPrefixAST): not implemented");
-}
-
-void DefaultASTVisitor::visit(DesignatorAST* ast) {
-  cxx_runtime_error("visit(DesignatorAST): not implemented");
 }
 
 void DefaultASTVisitor::visit(NewPlacementAST* ast) {

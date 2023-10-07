@@ -63,10 +63,8 @@ class ASTSlot final : ASTVisitor {
   void visit(BaseSpecifierAST* ast) override;
   void visit(RequiresClauseAST* ast) override;
   void visit(ParameterDeclarationClauseAST* ast) override;
-  void visit(ParametersAndQualifiersAST* ast) override;
   void visit(LambdaSpecifierAST* ast) override;
   void visit(TrailingReturnTypeAST* ast) override;
-  void visit(CtorInitializerAST* ast) override;
   void visit(TypeConstraintAST* ast) override;
   void visit(GlobalModuleFragmentAST* ast) override;
   void visit(PrivateModuleFragmentAST* ast) override;
@@ -78,7 +76,6 @@ class ASTSlot final : ASTVisitor {
   void visit(AttributeArgumentClauseAST* ast) override;
   void visit(AttributeAST* ast) override;
   void visit(AttributeUsingPrefixAST* ast) override;
-  void visit(DesignatorAST* ast) override;
   void visit(NewPlacementAST* ast) override;
   void visit(NestedNamespaceSpecifierAST* ast) override;
 

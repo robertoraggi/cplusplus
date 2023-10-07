@@ -30,10 +30,8 @@ export enum ASTKind {
   BaseSpecifier,
   RequiresClause,
   ParameterDeclarationClause,
-  ParametersAndQualifiers,
   LambdaSpecifier,
   TrailingReturnType,
-  CtorInitializer,
   TypeConstraint,
   GlobalModuleFragment,
   PrivateModuleFragment,
@@ -45,7 +43,6 @@ export enum ASTKind {
   AttributeArgumentClause,
   Attribute,
   AttributeUsingPrefix,
-  Designator,
   NewPlacement,
   NestedNamespaceSpecifier,
 

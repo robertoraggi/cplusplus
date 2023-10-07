@@ -391,8 +391,9 @@ class Parser final {
   [[nodiscard]] auto parse_noptr_declarator(DeclaratorAST*& yyast,
                                             List<PtrOperatorAST*>* ptrOpLst)
       -> bool;
-  [[nodiscard]] auto parse_parameters_and_qualifiers(
-      ParametersAndQualifiersAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_function_declarator(
+      FunctionDeclaratorChunkAST*& yyast, bool acceptTrailingReturnType = true)
+      -> bool;
   [[nodiscard]] auto parse_cv_qualifier_seq(List<SpecifierAST*>*& yyast)
       -> bool;
   [[nodiscard]] auto parse_trailing_return_type(TrailingReturnTypeAST*& yyast)
@@ -434,7 +435,6 @@ class Parser final {
       -> bool;
   [[nodiscard]] auto parse_designated_initializer_clause(
       DesignatedInitializerClauseAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_designator(DesignatorAST*& yyast) -> bool;
   void parse_expr_or_braced_init_list(ExpressionAST*& yyast);
   void parse_virt_specifier_seq(FunctionDeclaratorChunkAST* functionDeclarator);
   auto lookat_function_body() -> bool;
@@ -556,7 +556,9 @@ class Parser final {
       NestedNameSpecifierAST*& nestedNameSpecifier, SourceLocation& templateLoc,
       UnqualifiedIdAST*& unqualifiedId) -> bool;
   [[nodiscard]] auto parse_access_specifier(SourceLocation& loc) -> bool;
-  [[nodiscard]] auto parse_ctor_initializer(CtorInitializerAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_ctor_initializer(
+      SourceLocation& colonLoc, List<MemInitializerAST*>*& memInitializerList)
+      -> bool;
   void parse_mem_initializer_list(List<MemInitializerAST*>*& yyast);
   void parse_mem_initializer(MemInitializerAST*& yyast);
   [[nodiscard]] auto parse_mem_initializer_id(

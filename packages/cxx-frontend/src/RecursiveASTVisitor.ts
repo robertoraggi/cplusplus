@@ -172,26 +172,6 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   }
 
   /**
-   * Visit a ParametersAndQualifiers node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitParametersAndQualifiers(
-    node: ast.ParametersAndQualifiersAST,
-    context: Context,
-  ): void {
-    this.accept(node.getParameterDeclarationClause(), context);
-    for (const element of node.getCvQualifierList()) {
-      this.accept(element, context);
-    }
-    this.accept(node.getExceptionSpecifier(), context);
-    for (const element of node.getAttributeList()) {
-      this.accept(element, context);
-    }
-  }
-
-  /**
    * Visit a LambdaSpecifier node.
    *
    * @param node The node to visit.
@@ -210,18 +190,6 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     context: Context,
   ): void {
     this.accept(node.getTypeId(), context);
-  }
-
-  /**
-   * Visit a CtorInitializer node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitCtorInitializer(node: ast.CtorInitializerAST, context: Context): void {
-    for (const element of node.getMemInitializerList()) {
-      this.accept(element, context);
-    }
   }
 
   /**
@@ -359,14 +327,6 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   ): void {}
 
   /**
-   * Visit a Designator node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitDesignator(node: ast.DesignatorAST, context: Context): void {}
-
-  /**
    * Visit a NewPlacement node.
    *
    * @param node The node to visit.
@@ -488,7 +448,6 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     node: ast.DesignatedInitializerClauseAST,
     context: Context,
   ): void {
-    this.accept(node.getDesignator(), context);
     this.accept(node.getInitializer(), context);
   }
 
@@ -1322,7 +1281,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     node: ast.CompoundStatementFunctionBodyAST,
     context: Context,
   ): void {
-    this.accept(node.getCtorInitializer(), context);
+    for (const element of node.getMemInitializerList()) {
+      this.accept(element, context);
+    }
     this.accept(node.getStatement(), context);
   }
 
@@ -1336,7 +1297,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     node: ast.TryStatementFunctionBodyAST,
     context: Context,
   ): void {
-    this.accept(node.getCtorInitializer(), context);
+    for (const element of node.getMemInitializerList()) {
+      this.accept(element, context);
+    }
     this.accept(node.getStatement(), context);
     for (const element of node.getHandlerList()) {
       this.accept(element, context);
@@ -2718,7 +2681,14 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     node: ast.FunctionDeclaratorChunkAST,
     context: Context,
   ): void {
-    this.accept(node.getParametersAndQualifiers(), context);
+    this.accept(node.getParameterDeclarationClause(), context);
+    for (const element of node.getCvQualifierList()) {
+      this.accept(element, context);
+    }
+    this.accept(node.getExceptionSpecifier(), context);
+    for (const element of node.getAttributeList()) {
+      this.accept(element, context);
+    }
     this.accept(node.getTrailingReturnType(), context);
   }
 

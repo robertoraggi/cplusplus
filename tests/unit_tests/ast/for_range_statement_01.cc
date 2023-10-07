@@ -19,7 +19,6 @@ int main() {
 // CHECK-NEXT:              identifier: main
 // CHECK-NEXT:        declarator-chunk-list
 // CHECK-NEXT:          function-declarator-chunk
-// CHECK-NEXT:            parameters-and-qualifiers: parameters-and-qualifiers
 // CHECK-NEXT:      function-body: compound-statement-function-body
 // CHECK-NEXT:        statement: compound-statement
 // CHECK-NEXT:          statement-list

@@ -134,18 +134,6 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
 
   /**
-   * Visit ParametersAndQualifiers node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitParametersAndQualifiers(
-    node: ast.ParametersAndQualifiersAST,
-    context: Context,
-  ): Result;
-
-  /**
    * Visit LambdaSpecifier node.
    *
    * @param node The node to visit.
@@ -166,18 +154,6 @@ export abstract class ASTVisitor<Context, Result> {
    */
   abstract visitTrailingReturnType(
     node: ast.TrailingReturnTypeAST,
-    context: Context,
-  ): Result;
-
-  /**
-   * Visit CtorInitializer node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitCtorInitializer(
-    node: ast.CtorInitializerAST,
     context: Context,
   ): Result;
 
@@ -303,15 +279,6 @@ export abstract class ASTVisitor<Context, Result> {
     node: ast.AttributeUsingPrefixAST,
     context: Context,
   ): Result;
-
-  /**
-   * Visit Designator node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitDesignator(node: ast.DesignatorAST, context: Context): Result;
 
   /**
    * Visit NewPlacement node.

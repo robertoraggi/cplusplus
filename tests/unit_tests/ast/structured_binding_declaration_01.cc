@@ -52,7 +52,6 @@ struct Pair {
 // CHECK-NEXT:                      identifier: sum
 // CHECK-NEXT:                declarator-chunk-list
 // CHECK-NEXT:                  function-declarator-chunk
-// CHECK-NEXT:                    parameters-and-qualifiers: parameters-and-qualifiers
 // CHECK-NEXT:                    trailing-return-type: trailing-return-type
 // CHECK-NEXT:                      type-id: type-id
 // CHECK-NEXT:                        type-specifier-list

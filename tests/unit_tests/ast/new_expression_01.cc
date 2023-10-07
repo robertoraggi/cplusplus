@@ -23,29 +23,28 @@ auto make(void* where, T init) {
 // CHECK-NEXT:                identifier: make
 // CHECK-NEXT:          declarator-chunk-list
 // CHECK-NEXT:            function-declarator-chunk
-// CHECK-NEXT:              parameters-and-qualifiers: parameters-and-qualifiers
-// CHECK-NEXT:                parameter-declaration-clause: parameter-declaration-clause
-// CHECK-NEXT:                  parameter-declaration-list
-// CHECK-NEXT:                    parameter-declaration
-// CHECK-NEXT:                      type-specifier-list
-// CHECK-NEXT:                        void-type-specifier
-// CHECK-NEXT:                      declarator: declarator
-// CHECK-NEXT:                        ptr-op-list
-// CHECK-NEXT:                          pointer-operator
-// CHECK-NEXT:                        core-declarator: id-declarator
-// CHECK-NEXT:                          declarator-id: id-expression
-// CHECK-NEXT:                            unqualified-id: name-id
-// CHECK-NEXT:                              identifier: where
-// CHECK-NEXT:                    parameter-declaration
-// CHECK-NEXT:                      type-specifier-list
-// CHECK-NEXT:                        named-type-specifier
+// CHECK-NEXT:              parameter-declaration-clause: parameter-declaration-clause
+// CHECK-NEXT:                parameter-declaration-list
+// CHECK-NEXT:                  parameter-declaration
+// CHECK-NEXT:                    type-specifier-list
+// CHECK-NEXT:                      void-type-specifier
+// CHECK-NEXT:                    declarator: declarator
+// CHECK-NEXT:                      ptr-op-list
+// CHECK-NEXT:                        pointer-operator
+// CHECK-NEXT:                      core-declarator: id-declarator
+// CHECK-NEXT:                        declarator-id: id-expression
 // CHECK-NEXT:                          unqualified-id: name-id
-// CHECK-NEXT:                            identifier: T
-// CHECK-NEXT:                      declarator: declarator
-// CHECK-NEXT:                        core-declarator: id-declarator
-// CHECK-NEXT:                          declarator-id: id-expression
-// CHECK-NEXT:                            unqualified-id: name-id
-// CHECK-NEXT:                              identifier: init
+// CHECK-NEXT:                            identifier: where
+// CHECK-NEXT:                  parameter-declaration
+// CHECK-NEXT:                    type-specifier-list
+// CHECK-NEXT:                      named-type-specifier
+// CHECK-NEXT:                        unqualified-id: name-id
+// CHECK-NEXT:                          identifier: T
+// CHECK-NEXT:                    declarator: declarator
+// CHECK-NEXT:                      core-declarator: id-declarator
+// CHECK-NEXT:                        declarator-id: id-expression
+// CHECK-NEXT:                          unqualified-id: name-id
+// CHECK-NEXT:                            identifier: init
 // CHECK-NEXT:        function-body: compound-statement-function-body
 // CHECK-NEXT:          statement: compound-statement
 // CHECK-NEXT:            statement-list

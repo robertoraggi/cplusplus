@@ -225,41 +225,6 @@ void ASTCloner::visit(ParameterDeclarationClauseAST* ast) {
   copy->isVariadic = ast->isVariadic;
 }
 
-void ASTCloner::visit(ParametersAndQualifiersAST* ast) {
-  auto copy = new (arena_) ParametersAndQualifiersAST();
-  copy_ = copy;
-
-  copy->setChecked(ast->checked());
-
-  copy->lparenLoc = ast->lparenLoc;
-
-  copy->parameterDeclarationClause = accept(ast->parameterDeclarationClause);
-
-  copy->rparenLoc = ast->rparenLoc;
-
-  if (auto it = ast->cvQualifierList) {
-    auto out = &copy->cvQualifierList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
-
-  copy->refLoc = ast->refLoc;
-
-  copy->exceptionSpecifier = accept(ast->exceptionSpecifier);
-
-  if (auto it = ast->attributeList) {
-    auto out = &copy->attributeList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
-}
-
 void ASTCloner::visit(LambdaSpecifierAST* ast) {
   auto copy = new (arena_) LambdaSpecifierAST();
   copy_ = copy;
@@ -280,24 +245,6 @@ void ASTCloner::visit(TrailingReturnTypeAST* ast) {
   copy->minusGreaterLoc = ast->minusGreaterLoc;
 
   copy->typeId = accept(ast->typeId);
-}
-
-void ASTCloner::visit(CtorInitializerAST* ast) {
-  auto copy = new (arena_) CtorInitializerAST();
-  copy_ = copy;
-
-  copy->setChecked(ast->checked());
-
-  copy->colonLoc = ast->colonLoc;
-
-  if (auto it = ast->memInitializerList) {
-    auto out = &copy->memInitializerList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
 }
 
 void ASTCloner::visit(TypeConstraintAST* ast) {
@@ -485,19 +432,6 @@ void ASTCloner::visit(AttributeUsingPrefixAST* ast) {
   copy->colonLoc = ast->colonLoc;
 }
 
-void ASTCloner::visit(DesignatorAST* ast) {
-  auto copy = new (arena_) DesignatorAST();
-  copy_ = copy;
-
-  copy->setChecked(ast->checked());
-
-  copy->dotLoc = ast->dotLoc;
-
-  copy->identifierLoc = ast->identifierLoc;
-
-  copy->identifier = ast->identifier;
-}
-
 void ASTCloner::visit(NewPlacementAST* ast) {
   auto copy = new (arena_) NewPlacementAST();
   copy_ = copy;
@@ -642,7 +576,11 @@ void ASTCloner::visit(DesignatedInitializerClauseAST* ast) {
 
   copy->constValue = ast->constValue;
 
-  copy->designator = accept(ast->designator);
+  copy->dotLoc = ast->dotLoc;
+
+  copy->identifierLoc = ast->identifierLoc;
+
+  copy->identifier = ast->identifier;
 
   copy->initializer = accept(ast->initializer);
 }
@@ -1895,7 +1833,16 @@ void ASTCloner::visit(CompoundStatementFunctionBodyAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->ctorInitializer = accept(ast->ctorInitializer);
+  copy->colonLoc = ast->colonLoc;
+
+  if (auto it = ast->memInitializerList) {
+    auto out = &copy->memInitializerList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
 
   copy->statement = accept(ast->statement);
 }
@@ -1908,7 +1855,16 @@ void ASTCloner::visit(TryStatementFunctionBodyAST* ast) {
 
   copy->tryLoc = ast->tryLoc;
 
-  copy->ctorInitializer = accept(ast->ctorInitializer);
+  copy->colonLoc = ast->colonLoc;
+
+  if (auto it = ast->memInitializerList) {
+    auto out = &copy->memInitializerList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
 
   copy->statement = accept(ast->statement);
 
@@ -3832,7 +3788,33 @@ void ASTCloner::visit(FunctionDeclaratorChunkAST* ast) {
 
   copy->setChecked(ast->checked());
 
-  copy->parametersAndQualifiers = accept(ast->parametersAndQualifiers);
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->parameterDeclarationClause = accept(ast->parameterDeclarationClause);
+
+  copy->rparenLoc = ast->rparenLoc;
+
+  if (auto it = ast->cvQualifierList) {
+    auto out = &copy->cvQualifierList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->refLoc = ast->refLoc;
+
+  copy->exceptionSpecifier = accept(ast->exceptionSpecifier);
+
+  if (auto it = ast->attributeList) {
+    auto out = &copy->attributeList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
 
   copy->trailingReturnType = accept(ast->trailingReturnType);
 

@@ -17,19 +17,18 @@ void print_like(const char* fmt, ...);
 // CHECK-NEXT:                  identifier: print_like
 // CHECK-NEXT:            declarator-chunk-list
 // CHECK-NEXT:              function-declarator-chunk
-// CHECK-NEXT:                parameters-and-qualifiers: parameters-and-qualifiers
-// CHECK-NEXT:                  parameter-declaration-clause: parameter-declaration-clause
-// CHECK-NEXT:                    is-variadic: true
-// CHECK-NEXT:                    parameter-declaration-list
-// CHECK-NEXT:                      parameter-declaration
-// CHECK-NEXT:                        type-specifier-list
-// CHECK-NEXT:                          const-qualifier
-// CHECK-NEXT:                          integral-type-specifier
-// CHECK-NEXT:                            specifier: char
-// CHECK-NEXT:                        declarator: declarator
-// CHECK-NEXT:                          ptr-op-list
-// CHECK-NEXT:                            pointer-operator
-// CHECK-NEXT:                          core-declarator: id-declarator
-// CHECK-NEXT:                            declarator-id: id-expression
-// CHECK-NEXT:                              unqualified-id: name-id
-// CHECK-NEXT:                                identifier: fmt
+// CHECK-NEXT:                parameter-declaration-clause: parameter-declaration-clause
+// CHECK-NEXT:                  is-variadic: true
+// CHECK-NEXT:                  parameter-declaration-list
+// CHECK-NEXT:                    parameter-declaration
+// CHECK-NEXT:                      type-specifier-list
+// CHECK-NEXT:                        const-qualifier
+// CHECK-NEXT:                        integral-type-specifier
+// CHECK-NEXT:                          specifier: char
+// CHECK-NEXT:                      declarator: declarator
+// CHECK-NEXT:                        ptr-op-list
+// CHECK-NEXT:                          pointer-operator
+// CHECK-NEXT:                        core-declarator: id-declarator
+// CHECK-NEXT:                          declarator-id: id-expression
+// CHECK-NEXT:                            unqualified-id: name-id
+// CHECK-NEXT:                              identifier: fmt
