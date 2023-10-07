@@ -664,18 +664,6 @@ void DefaultASTVisitor::visit(TemplateDeclarationAST* ast) {
   cxx_runtime_error("visit(TemplateDeclarationAST): not implemented");
 }
 
-void DefaultASTVisitor::visit(TypenameTypeParameterAST* ast) {
-  cxx_runtime_error("visit(TypenameTypeParameterAST): not implemented");
-}
-
-void DefaultASTVisitor::visit(TemplateTypeParameterAST* ast) {
-  cxx_runtime_error("visit(TemplateTypeParameterAST): not implemented");
-}
-
-void DefaultASTVisitor::visit(TemplatePackTypeParameterAST* ast) {
-  cxx_runtime_error("visit(TemplatePackTypeParameterAST): not implemented");
-}
-
 void DefaultASTVisitor::visit(DeductionGuideAST* ast) {
   cxx_runtime_error("visit(DeductionGuideAST): not implemented");
 }
@@ -690,6 +678,27 @@ void DefaultASTVisitor::visit(ParameterDeclarationAST* ast) {
 
 void DefaultASTVisitor::visit(LinkageSpecificationAST* ast) {
   cxx_runtime_error("visit(LinkageSpecificationAST): not implemented");
+}
+
+// TemplateParameterAST
+void DefaultASTVisitor::visit(TemplateTypeParameterAST* ast) {
+  cxx_runtime_error("visit(TemplateTypeParameterAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(TemplatePackTypeParameterAST* ast) {
+  cxx_runtime_error("visit(TemplatePackTypeParameterAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(NonTypeTemplateParameterAST* ast) {
+  cxx_runtime_error("visit(NonTypeTemplateParameterAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(TypenameTypeParameterAST* ast) {
+  cxx_runtime_error("visit(TypenameTypeParameterAST): not implemented");
+}
+
+void DefaultASTVisitor::visit(ConstraintTypeParameterAST* ast) {
+  cxx_runtime_error("visit(ConstraintTypeParameterAST): not implemented");
 }
 
 // UnqualifiedIdAST

@@ -1853,42 +1853,6 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
 
   /**
-   * Visit TypenameTypeParameter node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitTypenameTypeParameter(
-    node: ast.TypenameTypeParameterAST,
-    context: Context,
-  ): Result;
-
-  /**
-   * Visit TemplateTypeParameter node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitTemplateTypeParameter(
-    node: ast.TemplateTypeParameterAST,
-    context: Context,
-  ): Result;
-
-  /**
-   * Visit TemplatePackTypeParameter node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitTemplatePackTypeParameter(
-    node: ast.TemplatePackTypeParameterAST,
-    context: Context,
-  ): Result;
-
-  /**
    * Visit DeductionGuide node.
    *
    * @param node The node to visit.
@@ -1933,6 +1897,66 @@ export abstract class ASTVisitor<Context, Result> {
    */
   abstract visitLinkageSpecification(
     node: ast.LinkageSpecificationAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit TemplateTypeParameter node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitTemplateTypeParameter(
+    node: ast.TemplateTypeParameterAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit TemplatePackTypeParameter node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitTemplatePackTypeParameter(
+    node: ast.TemplatePackTypeParameterAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit NonTypeTemplateParameter node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitNonTypeTemplateParameter(
+    node: ast.NonTypeTemplateParameterAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit TypenameTypeParameter node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitTypenameTypeParameter(
+    node: ast.TypenameTypeParameterAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit ConstraintTypeParameter node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitConstraintTypeParameter(
+    node: ast.ConstraintTypeParameterAST,
     context: Context,
   ): Result;
 

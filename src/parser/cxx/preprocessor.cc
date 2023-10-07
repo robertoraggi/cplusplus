@@ -448,7 +448,8 @@ struct SourceFile {
   SourceFile(SourceFile &&) noexcept = default;
   auto operator=(SourceFile &&) noexcept -> SourceFile & = default;
 
-  SourceFile(std::string fileName, std::string source, std::uint32_t id) noexcept
+  SourceFile(std::string fileName, std::string source,
+             std::uint32_t id) noexcept
       : fileName(std::move(fileName)), source(std::move(source)), id(id) {
     initLineMap();
   }

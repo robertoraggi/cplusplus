@@ -91,7 +91,7 @@ auto ASTEncoder::encodeSourceLocation(const SourceLocation& loc)
   }
 
   std::string_view fileName;
-  std::uint32_t line = 0, column = 0;
+  uint32_t line = 0, column = 0;
   unit_->getTokenStartPosition(loc, &line, &column, &fileName);
 
   flatbuffers::Offset<io::SourceLine> sourceLineOffset;
@@ -283,6 +283,19 @@ auto ASTEncoder::acceptStatement(StatementAST* ast)
 }
 
 auto ASTEncoder::acceptDeclaration(DeclarationAST* ast)
+    -> std::tuple<flatbuffers::Offset<>, std::uint32_t> {
+  if (!ast) return {};
+  flatbuffers::Offset<> offset;
+  std::uint32_t type = 0;
+  std::swap(offset, offset_);
+  std::swap(type, type_);
+  ast->accept(this);
+  std::swap(offset, offset_);
+  std::swap(type, type_);
+  return {offset, type};
+}
+
+auto ASTEncoder::acceptTemplateParameter(TemplateParameterAST* ast)
     -> std::tuple<flatbuffers::Offset<>, std::uint32_t> {
   if (!ast) return {};
   flatbuffers::Offset<> offset;
@@ -1746,12 +1759,12 @@ void ASTEncoder::visit(LambdaExpressionAST* ast) {
   auto lessLoc = encodeSourceLocation(ast->lessLoc);
 
   std::vector<flatbuffers::Offset<>> templateParameterListOffsets;
-  std::vector<std::underlying_type_t<io::Declaration>>
+  std::vector<std::underlying_type_t<io::TemplateParameter>>
       templateParameterListTypes;
 
   for (auto it = ast->templateParameterList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptDeclaration(it->value);
+    const auto [offset, type] = acceptTemplateParameter(it->value);
     templateParameterListOffsets.push_back(offset);
     templateParameterListTypes.push_back(type);
   }
@@ -4328,12 +4341,12 @@ void ASTEncoder::visit(TemplateDeclarationAST* ast) {
   auto lessLoc = encodeSourceLocation(ast->lessLoc);
 
   std::vector<flatbuffers::Offset<>> templateParameterListOffsets;
-  std::vector<std::underlying_type_t<io::Declaration>>
+  std::vector<std::underlying_type_t<io::TemplateParameter>>
       templateParameterListTypes;
 
   for (auto it = ast->templateParameterList; it; it = it->next) {
     if (!it->value) continue;
-    const auto [offset, type] = acceptDeclaration(it->value);
+    const auto [offset, type] = acceptTemplateParameter(it->value);
     templateParameterListOffsets.push_back(offset);
     templateParameterListTypes.push_back(type);
   }
@@ -4362,159 +4375,6 @@ void ASTEncoder::visit(TemplateDeclarationAST* ast) {
 
   offset_ = builder.Finish().Union();
   type_ = io::Declaration_TemplateDeclaration;
-}
-
-void ASTEncoder::visit(TypenameTypeParameterAST* ast) {
-  auto classKeyLoc = encodeSourceLocation(ast->classKeyLoc);
-
-  auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
-
-  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
-
-  auto equalLoc = encodeSourceLocation(ast->equalLoc);
-
-  const auto typeId = accept(ast->typeId);
-
-  flatbuffers::Offset<flatbuffers::String> identifier;
-  if (ast->identifier) {
-    if (identifiers_.contains(ast->identifier)) {
-      identifier = identifiers_.at(ast->identifier);
-    } else {
-      identifier = fbb_.CreateString(ast->identifier->value());
-      identifiers_.emplace(ast->identifier, identifier);
-    }
-  }
-
-  io::TypenameTypeParameter::Builder builder{fbb_};
-  builder.add_class_key_loc(classKeyLoc.o);
-  builder.add_ellipsis_loc(ellipsisLoc.o);
-  builder.add_identifier_loc(identifierLoc.o);
-  builder.add_equal_loc(equalLoc.o);
-  builder.add_type_id(typeId.o);
-  if (ast->identifier) {
-    builder.add_identifier(identifier);
-  }
-
-  offset_ = builder.Finish().Union();
-  type_ = io::Declaration_TypenameTypeParameter;
-}
-
-void ASTEncoder::visit(TemplateTypeParameterAST* ast) {
-  auto templateLoc = encodeSourceLocation(ast->templateLoc);
-
-  auto lessLoc = encodeSourceLocation(ast->lessLoc);
-
-  std::vector<flatbuffers::Offset<>> templateParameterListOffsets;
-  std::vector<std::underlying_type_t<io::Declaration>>
-      templateParameterListTypes;
-
-  for (auto it = ast->templateParameterList; it; it = it->next) {
-    if (!it->value) continue;
-    const auto [offset, type] = acceptDeclaration(it->value);
-    templateParameterListOffsets.push_back(offset);
-    templateParameterListTypes.push_back(type);
-  }
-
-  auto templateParameterListOffsetsVector =
-      fbb_.CreateVector(templateParameterListOffsets);
-  auto templateParameterListTypesVector =
-      fbb_.CreateVector(templateParameterListTypes);
-
-  auto greaterLoc = encodeSourceLocation(ast->greaterLoc);
-
-  const auto requiresClause = accept(ast->requiresClause);
-
-  auto classKeyLoc = encodeSourceLocation(ast->classKeyLoc);
-
-  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
-
-  auto equalLoc = encodeSourceLocation(ast->equalLoc);
-
-  const auto idExpression = accept(ast->idExpression);
-
-  flatbuffers::Offset<flatbuffers::String> identifier;
-  if (ast->identifier) {
-    if (identifiers_.contains(ast->identifier)) {
-      identifier = identifiers_.at(ast->identifier);
-    } else {
-      identifier = fbb_.CreateString(ast->identifier->value());
-      identifiers_.emplace(ast->identifier, identifier);
-    }
-  }
-
-  io::TemplateTypeParameter::Builder builder{fbb_};
-  builder.add_template_loc(templateLoc.o);
-  builder.add_less_loc(lessLoc.o);
-  builder.add_template_parameter_list(templateParameterListOffsetsVector);
-  builder.add_template_parameter_list_type(templateParameterListTypesVector);
-  builder.add_greater_loc(greaterLoc.o);
-  builder.add_requires_clause(requiresClause.o);
-  builder.add_class_key_loc(classKeyLoc.o);
-  builder.add_identifier_loc(identifierLoc.o);
-  builder.add_equal_loc(equalLoc.o);
-  builder.add_id_expression(idExpression.o);
-  if (ast->identifier) {
-    builder.add_identifier(identifier);
-  }
-
-  offset_ = builder.Finish().Union();
-  type_ = io::Declaration_TemplateTypeParameter;
-}
-
-void ASTEncoder::visit(TemplatePackTypeParameterAST* ast) {
-  auto templateLoc = encodeSourceLocation(ast->templateLoc);
-
-  auto lessLoc = encodeSourceLocation(ast->lessLoc);
-
-  std::vector<flatbuffers::Offset<>> templateParameterListOffsets;
-  std::vector<std::underlying_type_t<io::Declaration>>
-      templateParameterListTypes;
-
-  for (auto it = ast->templateParameterList; it; it = it->next) {
-    if (!it->value) continue;
-    const auto [offset, type] = acceptDeclaration(it->value);
-    templateParameterListOffsets.push_back(offset);
-    templateParameterListTypes.push_back(type);
-  }
-
-  auto templateParameterListOffsetsVector =
-      fbb_.CreateVector(templateParameterListOffsets);
-  auto templateParameterListTypesVector =
-      fbb_.CreateVector(templateParameterListTypes);
-
-  auto greaterLoc = encodeSourceLocation(ast->greaterLoc);
-
-  auto classKeyLoc = encodeSourceLocation(ast->classKeyLoc);
-
-  auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
-
-  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
-
-  flatbuffers::Offset<flatbuffers::String> identifier;
-  if (ast->identifier) {
-    if (identifiers_.contains(ast->identifier)) {
-      identifier = identifiers_.at(ast->identifier);
-    } else {
-      identifier = fbb_.CreateString(ast->identifier->value());
-      identifiers_.emplace(ast->identifier, identifier);
-    }
-  }
-
-  io::TemplatePackTypeParameter::Builder builder{fbb_};
-  builder.add_template_loc(templateLoc.o);
-  builder.add_less_loc(lessLoc.o);
-  builder.add_template_parameter_list(templateParameterListOffsetsVector);
-  builder.add_template_parameter_list_type(templateParameterListTypesVector);
-  builder.add_greater_loc(greaterLoc.o);
-  builder.add_class_key_loc(classKeyLoc.o);
-  builder.add_ellipsis_loc(ellipsisLoc.o);
-  builder.add_identifier_loc(identifierLoc.o);
-  if (ast->identifier) {
-    builder.add_identifier(identifier);
-  }
-
-  offset_ = builder.Finish().Union();
-  type_ = io::Declaration_TemplatePackTypeParameter;
 }
 
 void ASTEncoder::visit(DeductionGuideAST* ast) {
@@ -4680,6 +4540,204 @@ void ASTEncoder::visit(LinkageSpecificationAST* ast) {
 
   offset_ = builder.Finish().Union();
   type_ = io::Declaration_LinkageSpecification;
+}
+
+void ASTEncoder::visit(TemplateTypeParameterAST* ast) {
+  auto templateLoc = encodeSourceLocation(ast->templateLoc);
+
+  auto lessLoc = encodeSourceLocation(ast->lessLoc);
+
+  std::vector<flatbuffers::Offset<>> templateParameterListOffsets;
+  std::vector<std::underlying_type_t<io::TemplateParameter>>
+      templateParameterListTypes;
+
+  for (auto it = ast->templateParameterList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptTemplateParameter(it->value);
+    templateParameterListOffsets.push_back(offset);
+    templateParameterListTypes.push_back(type);
+  }
+
+  auto templateParameterListOffsetsVector =
+      fbb_.CreateVector(templateParameterListOffsets);
+  auto templateParameterListTypesVector =
+      fbb_.CreateVector(templateParameterListTypes);
+
+  auto greaterLoc = encodeSourceLocation(ast->greaterLoc);
+
+  const auto requiresClause = accept(ast->requiresClause);
+
+  auto classKeyLoc = encodeSourceLocation(ast->classKeyLoc);
+
+  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
+
+  auto equalLoc = encodeSourceLocation(ast->equalLoc);
+
+  const auto idExpression = accept(ast->idExpression);
+
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->value());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
+  io::TemplateTypeParameter::Builder builder{fbb_};
+  builder.add_template_loc(templateLoc.o);
+  builder.add_less_loc(lessLoc.o);
+  builder.add_template_parameter_list(templateParameterListOffsetsVector);
+  builder.add_template_parameter_list_type(templateParameterListTypesVector);
+  builder.add_greater_loc(greaterLoc.o);
+  builder.add_requires_clause(requiresClause.o);
+  builder.add_class_key_loc(classKeyLoc.o);
+  builder.add_identifier_loc(identifierLoc.o);
+  builder.add_equal_loc(equalLoc.o);
+  builder.add_id_expression(idExpression.o);
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
+
+  offset_ = builder.Finish().Union();
+  type_ = io::TemplateParameter_TemplateTypeParameter;
+}
+
+void ASTEncoder::visit(TemplatePackTypeParameterAST* ast) {
+  auto templateLoc = encodeSourceLocation(ast->templateLoc);
+
+  auto lessLoc = encodeSourceLocation(ast->lessLoc);
+
+  std::vector<flatbuffers::Offset<>> templateParameterListOffsets;
+  std::vector<std::underlying_type_t<io::TemplateParameter>>
+      templateParameterListTypes;
+
+  for (auto it = ast->templateParameterList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptTemplateParameter(it->value);
+    templateParameterListOffsets.push_back(offset);
+    templateParameterListTypes.push_back(type);
+  }
+
+  auto templateParameterListOffsetsVector =
+      fbb_.CreateVector(templateParameterListOffsets);
+  auto templateParameterListTypesVector =
+      fbb_.CreateVector(templateParameterListTypes);
+
+  auto greaterLoc = encodeSourceLocation(ast->greaterLoc);
+
+  auto classKeyLoc = encodeSourceLocation(ast->classKeyLoc);
+
+  auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
+
+  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
+
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->value());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
+  io::TemplatePackTypeParameter::Builder builder{fbb_};
+  builder.add_template_loc(templateLoc.o);
+  builder.add_less_loc(lessLoc.o);
+  builder.add_template_parameter_list(templateParameterListOffsetsVector);
+  builder.add_template_parameter_list_type(templateParameterListTypesVector);
+  builder.add_greater_loc(greaterLoc.o);
+  builder.add_class_key_loc(classKeyLoc.o);
+  builder.add_ellipsis_loc(ellipsisLoc.o);
+  builder.add_identifier_loc(identifierLoc.o);
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
+
+  offset_ = builder.Finish().Union();
+  type_ = io::TemplateParameter_TemplatePackTypeParameter;
+}
+
+void ASTEncoder::visit(NonTypeTemplateParameterAST* ast) {
+  const auto declaration = accept(ast->declaration);
+
+  io::NonTypeTemplateParameter::Builder builder{fbb_};
+  builder.add_declaration(declaration.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::TemplateParameter_NonTypeTemplateParameter;
+}
+
+void ASTEncoder::visit(TypenameTypeParameterAST* ast) {
+  auto classKeyLoc = encodeSourceLocation(ast->classKeyLoc);
+
+  auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
+
+  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
+
+  auto equalLoc = encodeSourceLocation(ast->equalLoc);
+
+  const auto typeId = accept(ast->typeId);
+
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->value());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
+  io::TypenameTypeParameter::Builder builder{fbb_};
+  builder.add_class_key_loc(classKeyLoc.o);
+  builder.add_ellipsis_loc(ellipsisLoc.o);
+  builder.add_identifier_loc(identifierLoc.o);
+  builder.add_equal_loc(equalLoc.o);
+  builder.add_type_id(typeId.o);
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
+
+  offset_ = builder.Finish().Union();
+  type_ = io::TemplateParameter_TypenameTypeParameter;
+}
+
+void ASTEncoder::visit(ConstraintTypeParameterAST* ast) {
+  const auto typeConstraint = accept(ast->typeConstraint);
+
+  auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
+
+  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
+
+  auto equalLoc = encodeSourceLocation(ast->equalLoc);
+
+  const auto typeId = accept(ast->typeId);
+
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->value());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
+  io::ConstraintTypeParameter::Builder builder{fbb_};
+  builder.add_type_constraint(typeConstraint.o);
+  builder.add_ellipsis_loc(ellipsisLoc.o);
+  builder.add_identifier_loc(identifierLoc.o);
+  builder.add_equal_loc(equalLoc.o);
+  builder.add_type_id(typeId.o);
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
+
+  offset_ = builder.Finish().Union();
+  type_ = io::TemplateParameter_ConstraintTypeParameter;
 }
 
 void ASTEncoder::visit(NameIdAST* ast) {

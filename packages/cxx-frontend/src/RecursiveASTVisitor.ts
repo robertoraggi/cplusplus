@@ -2047,51 +2047,6 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   }
 
   /**
-   * Visit a TypenameTypeParameter node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitTypenameTypeParameter(
-    node: ast.TypenameTypeParameterAST,
-    context: Context,
-  ): void {
-    this.accept(node.getTypeId(), context);
-  }
-
-  /**
-   * Visit a TemplateTypeParameter node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitTemplateTypeParameter(
-    node: ast.TemplateTypeParameterAST,
-    context: Context,
-  ): void {
-    for (const element of node.getTemplateParameterList()) {
-      this.accept(element, context);
-    }
-    this.accept(node.getRequiresClause(), context);
-    this.accept(node.getIdExpression(), context);
-  }
-
-  /**
-   * Visit a TemplatePackTypeParameter node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitTemplatePackTypeParameter(
-    node: ast.TemplatePackTypeParameterAST,
-    context: Context,
-  ): void {
-    for (const element of node.getTemplateParameterList()) {
-      this.accept(element, context);
-    }
-  }
-
-  /**
    * Visit a DeductionGuide node.
    *
    * @param node The node to visit.
@@ -2149,6 +2104,78 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     for (const element of node.getDeclarationList()) {
       this.accept(element, context);
     }
+  }
+
+  /**
+   * Visit a TemplateTypeParameter node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitTemplateTypeParameter(
+    node: ast.TemplateTypeParameterAST,
+    context: Context,
+  ): void {
+    for (const element of node.getTemplateParameterList()) {
+      this.accept(element, context);
+    }
+    this.accept(node.getRequiresClause(), context);
+    this.accept(node.getIdExpression(), context);
+  }
+
+  /**
+   * Visit a TemplatePackTypeParameter node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitTemplatePackTypeParameter(
+    node: ast.TemplatePackTypeParameterAST,
+    context: Context,
+  ): void {
+    for (const element of node.getTemplateParameterList()) {
+      this.accept(element, context);
+    }
+  }
+
+  /**
+   * Visit a NonTypeTemplateParameter node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitNonTypeTemplateParameter(
+    node: ast.NonTypeTemplateParameterAST,
+    context: Context,
+  ): void {
+    this.accept(node.getDeclaration(), context);
+  }
+
+  /**
+   * Visit a TypenameTypeParameter node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitTypenameTypeParameter(
+    node: ast.TypenameTypeParameterAST,
+    context: Context,
+  ): void {
+    this.accept(node.getTypeId(), context);
+  }
+
+  /**
+   * Visit a ConstraintTypeParameter node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitConstraintTypeParameter(
+    node: ast.ConstraintTypeParameterAST,
+    context: Context,
+  ): void {
+    this.accept(node.getTypeConstraint(), context);
+    this.accept(node.getTypeId(), context);
   }
 
   /**

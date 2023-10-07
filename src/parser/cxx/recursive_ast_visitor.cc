@@ -167,6 +167,10 @@ void RecursiveASTVisitor::acceptLambdaIntroducer(LambdaIntroducerAST* ast) {
   accept(ast);
 }
 
+void RecursiveASTVisitor::acceptTemplateParameter(TemplateParameterAST* ast) {
+  accept(ast);
+}
+
 void RecursiveASTVisitor::acceptLambdaDeclarator(LambdaDeclaratorAST* ast) {
   accept(ast);
 }
@@ -553,7 +557,7 @@ void RecursiveASTVisitor::visit(FoldExpressionAST* ast) {
 void RecursiveASTVisitor::visit(LambdaExpressionAST* ast) {
   acceptLambdaIntroducer(ast->lambdaIntroducer);
   for (auto it = ast->templateParameterList; it; it = it->next) {
-    acceptDeclaration(it->value);
+    acceptTemplateParameter(it->value);
   }
   acceptRequiresClause(ast->requiresClause);
   acceptLambdaDeclarator(ast->lambdaDeclarator);
@@ -1069,28 +1073,10 @@ void RecursiveASTVisitor::visit(ModuleImportDeclarationAST* ast) {
 
 void RecursiveASTVisitor::visit(TemplateDeclarationAST* ast) {
   for (auto it = ast->templateParameterList; it; it = it->next) {
-    acceptDeclaration(it->value);
+    acceptTemplateParameter(it->value);
   }
   acceptRequiresClause(ast->requiresClause);
   acceptDeclaration(ast->declaration);
-}
-
-void RecursiveASTVisitor::visit(TypenameTypeParameterAST* ast) {
-  acceptTypeId(ast->typeId);
-}
-
-void RecursiveASTVisitor::visit(TemplateTypeParameterAST* ast) {
-  for (auto it = ast->templateParameterList; it; it = it->next) {
-    acceptDeclaration(it->value);
-  }
-  acceptRequiresClause(ast->requiresClause);
-  acceptIdExpression(ast->idExpression);
-}
-
-void RecursiveASTVisitor::visit(TemplatePackTypeParameterAST* ast) {
-  for (auto it = ast->templateParameterList; it; it = it->next) {
-    acceptDeclaration(it->value);
-  }
 }
 
 void RecursiveASTVisitor::visit(DeductionGuideAST* ast) {
@@ -1118,6 +1104,33 @@ void RecursiveASTVisitor::visit(LinkageSpecificationAST* ast) {
   for (auto it = ast->declarationList; it; it = it->next) {
     acceptDeclaration(it->value);
   }
+}
+
+void RecursiveASTVisitor::visit(TemplateTypeParameterAST* ast) {
+  for (auto it = ast->templateParameterList; it; it = it->next) {
+    acceptTemplateParameter(it->value);
+  }
+  acceptRequiresClause(ast->requiresClause);
+  acceptIdExpression(ast->idExpression);
+}
+
+void RecursiveASTVisitor::visit(TemplatePackTypeParameterAST* ast) {
+  for (auto it = ast->templateParameterList; it; it = it->next) {
+    acceptTemplateParameter(it->value);
+  }
+}
+
+void RecursiveASTVisitor::visit(NonTypeTemplateParameterAST* ast) {
+  acceptParameterDeclaration(ast->declaration);
+}
+
+void RecursiveASTVisitor::visit(TypenameTypeParameterAST* ast) {
+  acceptTypeId(ast->typeId);
+}
+
+void RecursiveASTVisitor::visit(ConstraintTypeParameterAST* ast) {
+  acceptTypeConstraint(ast->typeConstraint);
+  acceptTypeId(ast->typeId);
 }
 
 void RecursiveASTVisitor::visit(NameIdAST* ast) {}

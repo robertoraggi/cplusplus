@@ -9,7 +9,8 @@ struct ident {
 };
 
 template <Any auto x>
-constexpr auto ident_v = ident<x>::value;// clang-format off
+constexpr auto ident_v = ident<x>::value;
+// clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list
 // CHECK-NEXT:    template-declaration
@@ -22,17 +23,18 @@ constexpr auto ident_v = ident<x>::value;// clang-format off
 // CHECK-NEXT:          is-true: true
 // CHECK-NEXT:    template-declaration
 // CHECK-NEXT:      template-parameter-list
-// CHECK-NEXT:        parameter-declaration
-// CHECK-NEXT:          type-specifier-list
-// CHECK-NEXT:            placeholder-type-specifier
-// CHECK-NEXT:              type-constraint: type-constraint
-// CHECK-NEXT:                identifier: Any
-// CHECK-NEXT:              specifier: auto-type-specifier
-// CHECK-NEXT:          declarator: declarator
-// CHECK-NEXT:            core-declarator: id-declarator
-// CHECK-NEXT:              declarator-id: id-expression
-// CHECK-NEXT:                unqualified-id: name-id
-// CHECK-NEXT:                  identifier: x
+// CHECK-NEXT:        non-type-template-parameter
+// CHECK-NEXT:          declaration: parameter-declaration
+// CHECK-NEXT:            type-specifier-list
+// CHECK-NEXT:              placeholder-type-specifier
+// CHECK-NEXT:                type-constraint: type-constraint
+// CHECK-NEXT:                  identifier: Any
+// CHECK-NEXT:                specifier: auto-type-specifier
+// CHECK-NEXT:            declarator: declarator
+// CHECK-NEXT:              core-declarator: id-declarator
+// CHECK-NEXT:                declarator-id: id-expression
+// CHECK-NEXT:                  unqualified-id: name-id
+// CHECK-NEXT:                    identifier: x
 // CHECK-NEXT:      declaration: simple-declaration
 // CHECK-NEXT:        decl-specifier-list
 // CHECK-NEXT:          class-specifier
@@ -58,17 +60,18 @@ constexpr auto ident_v = ident<x>::value;// clang-format off
 // CHECK-NEXT:                          identifier: x
 // CHECK-NEXT:    template-declaration
 // CHECK-NEXT:      template-parameter-list
-// CHECK-NEXT:        parameter-declaration
-// CHECK-NEXT:          type-specifier-list
-// CHECK-NEXT:            placeholder-type-specifier
-// CHECK-NEXT:              type-constraint: type-constraint
-// CHECK-NEXT:                identifier: Any
-// CHECK-NEXT:              specifier: auto-type-specifier
-// CHECK-NEXT:          declarator: declarator
-// CHECK-NEXT:            core-declarator: id-declarator
-// CHECK-NEXT:              declarator-id: id-expression
-// CHECK-NEXT:                unqualified-id: name-id
-// CHECK-NEXT:                  identifier: x
+// CHECK-NEXT:        non-type-template-parameter
+// CHECK-NEXT:          declaration: parameter-declaration
+// CHECK-NEXT:            type-specifier-list
+// CHECK-NEXT:              placeholder-type-specifier
+// CHECK-NEXT:                type-constraint: type-constraint
+// CHECK-NEXT:                  identifier: Any
+// CHECK-NEXT:                specifier: auto-type-specifier
+// CHECK-NEXT:            declarator: declarator
+// CHECK-NEXT:              core-declarator: id-declarator
+// CHECK-NEXT:                declarator-id: id-expression
+// CHECK-NEXT:                  unqualified-id: name-id
+// CHECK-NEXT:                    identifier: x
 // CHECK-NEXT:      declaration: simple-declaration
 // CHECK-NEXT:        decl-specifier-list
 // CHECK-NEXT:          constexpr-specifier

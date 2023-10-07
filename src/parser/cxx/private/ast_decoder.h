@@ -62,6 +62,8 @@ class ASTDecoder {
   auto decodeStatement(const void* ptr, io::Statement type) -> StatementAST*;
   auto decodeDeclaration(const void* ptr, io::Declaration type)
       -> DeclarationAST*;
+  auto decodeTemplateParameter(const void* ptr, io::TemplateParameter type)
+      -> TemplateParameterAST*;
   auto decodeUnqualifiedId(const void* ptr, io::UnqualifiedId type)
       -> UnqualifiedIdAST*;
   auto decodeSpecifier(const void* ptr, io::Specifier type) -> SpecifierAST*;
@@ -387,13 +389,6 @@ class ASTDecoder {
       -> ModuleImportDeclarationAST*;
   auto decodeTemplateDeclaration(const io::TemplateDeclaration* node)
       -> TemplateDeclarationAST*;
-  auto decodeTypenameTypeParameter(const io::TypenameTypeParameter* node)
-      -> TypenameTypeParameterAST*;
-  auto decodeTemplateTypeParameter(const io::TemplateTypeParameter* node)
-      -> TemplateTypeParameterAST*;
-  auto decodeTemplatePackTypeParameter(
-      const io::TemplatePackTypeParameter* node)
-      -> TemplatePackTypeParameterAST*;
   auto decodeDeductionGuide(const io::DeductionGuide* node)
       -> DeductionGuideAST*;
   auto decodeExplicitInstantiation(const io::ExplicitInstantiation* node)
@@ -402,6 +397,18 @@ class ASTDecoder {
       -> ParameterDeclarationAST*;
   auto decodeLinkageSpecification(const io::LinkageSpecification* node)
       -> LinkageSpecificationAST*;
+
+  auto decodeTemplateTypeParameter(const io::TemplateTypeParameter* node)
+      -> TemplateTypeParameterAST*;
+  auto decodeTemplatePackTypeParameter(
+      const io::TemplatePackTypeParameter* node)
+      -> TemplatePackTypeParameterAST*;
+  auto decodeNonTypeTemplateParameter(const io::NonTypeTemplateParameter* node)
+      -> NonTypeTemplateParameterAST*;
+  auto decodeTypenameTypeParameter(const io::TypenameTypeParameter* node)
+      -> TypenameTypeParameterAST*;
+  auto decodeConstraintTypeParameter(const io::ConstraintTypeParameter* node)
+      -> ConstraintTypeParameterAST*;
 
   auto decodeNameId(const io::NameId* node) -> NameIdAST*;
   auto decodeDestructorId(const io::DestructorId* node) -> DestructorIdAST*;

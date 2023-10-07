@@ -576,20 +576,20 @@ class Parser final {
   [[nodiscard]] auto parse_template_declaration(
       TemplateDeclarationAST*& yyast,
       std::vector<TemplateDeclarationAST*>& chain) -> bool;
-  void parse_template_parameter_list(List<DeclarationAST*>*& yyast);
+  void parse_template_parameter_list(List<TemplateParameterAST*>*& yyast);
   [[nodiscard]] auto parse_requires_clause(RequiresClauseAST*& yyast) -> bool;
   [[nodiscard]] auto parse_constraint_logical_or_expression(
       ExpressionAST*& yyast) -> bool;
   [[nodiscard]] auto parse_constraint_logical_and_expression(
       ExpressionAST*& yyast) -> bool;
-  void parse_template_parameter(DeclarationAST*& yyast);
-  [[nodiscard]] auto parse_type_parameter(DeclarationAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_typename_type_parameter(DeclarationAST*& yyast)
+  void parse_template_parameter(TemplateParameterAST*& yyast);
+  [[nodiscard]] auto parse_type_parameter(TemplateParameterAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_typename_type_parameter(TemplateParameterAST*& yyast)
       -> bool;
-  [[nodiscard]] auto parse_template_type_parameter(DeclarationAST*& yyast)
+  [[nodiscard]] auto parse_template_type_parameter(TemplateParameterAST*& yyast)
       -> bool;
-  [[nodiscard]] auto parse_constraint_type_parameter(DeclarationAST*& yyast)
-      -> bool;
+  [[nodiscard]] auto parse_constraint_type_parameter(
+      TemplateParameterAST*& yyast) -> bool;
   [[nodiscard]] auto parse_type_parameter_key(SourceLocation& classKeyLoc)
       -> bool;
   [[nodiscard]] auto parse_type_constraint(TypeConstraintAST*& yyast,
@@ -679,6 +679,8 @@ class Parser final {
   int classDepth_ = 0;
   std::uint32_t lastErrorCursor_ = 0;
   std::uint32_t cursor_ = 0;
+  int templateParameterDepth_ = -1;
+  int templateParameterCount_ = 0;
 
   std::vector<FunctionDefinitionAST*> pendingFunctionDefinitions_;
 
