@@ -179,19 +179,6 @@ void ASTPrinter::visit(BaseSpecifierAST* ast) {
   accept(ast->unqualifiedId, "unqualified-id");
 }
 
-void ASTPrinter::visit(BaseClauseAST* ast) {
-  fmt::print(out_, "{}\n", "base-clause");
-  if (ast->baseSpecifierList) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "base-specifier-list");
-    for (auto it = ast->baseSpecifierList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-}
-
 void ASTPrinter::visit(RequiresClauseAST* ast) {
   fmt::print(out_, "{}\n", "requires-clause");
   accept(ast->expression, "expression");
@@ -2056,7 +2043,15 @@ void ASTPrinter::visit(ClassSpecifierAST* ast) {
   }
   accept(ast->nestedNameSpecifier, "nested-name-specifier");
   accept(ast->unqualifiedId, "unqualified-id");
-  accept(ast->baseClause, "base-clause");
+  if (ast->baseSpecifierList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "base-specifier-list");
+    for (auto it = ast->baseSpecifierList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
   if (ast->declarationList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);

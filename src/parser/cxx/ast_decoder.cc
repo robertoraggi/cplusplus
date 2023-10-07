@@ -912,22 +912,6 @@ auto ASTDecoder::decodeBaseSpecifier(const io::BaseSpecifier* node)
   return ast;
 }
 
-auto ASTDecoder::decodeBaseClause(const io::BaseClause* node)
-    -> BaseClauseAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) BaseClauseAST();
-  if (node->base_specifier_list()) {
-    auto* inserter = &ast->baseSpecifierList;
-    for (std::size_t i = 0; i < node->base_specifier_list()->size(); ++i) {
-      *inserter = new (pool_)
-          List(decodeBaseSpecifier(node->base_specifier_list()->Get(i)));
-      inserter = &(*inserter)->next;
-    }
-  }
-  return ast;
-}
-
 auto ASTDecoder::decodeRequiresClause(const io::RequiresClause* node)
     -> RequiresClauseAST* {
   if (!node) return nullptr;
@@ -3521,7 +3505,14 @@ auto ASTDecoder::decodeClassSpecifier(const io::ClassSpecifier* node)
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->unqualifiedId =
       decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
-  ast->baseClause = decodeBaseClause(node->base_clause());
+  if (node->base_specifier_list()) {
+    auto* inserter = &ast->baseSpecifierList;
+    for (std::size_t i = 0; i < node->base_specifier_list()->size(); ++i) {
+      *inserter = new (pool_)
+          List(decodeBaseSpecifier(node->base_specifier_list()->Get(i)));
+      inserter = &(*inserter)->next;
+    }
+  }
   if (node->declaration_list()) {
     auto* inserter = &ast->declarationList;
     for (std::size_t i = 0; i < node->declaration_list()->size(); ++i) {

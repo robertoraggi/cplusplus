@@ -643,25 +643,6 @@ void ASTEncoder::visit(BaseSpecifierAST* ast) {
   offset_ = builder.Finish().Union();
 }
 
-void ASTEncoder::visit(BaseClauseAST* ast) {
-  auto colonLoc = encodeSourceLocation(ast->colonLoc);
-
-  std::vector<flatbuffers::Offset<io::BaseSpecifier>> baseSpecifierListOffsets;
-  for (auto it = ast->baseSpecifierList; it; it = it->next) {
-    if (!it->value) continue;
-    baseSpecifierListOffsets.emplace_back(accept(it->value).o);
-  }
-
-  auto baseSpecifierListOffsetsVector =
-      fbb_.CreateVector(baseSpecifierListOffsets);
-
-  io::BaseClause::Builder builder{fbb_};
-  builder.add_colon_loc(colonLoc.o);
-  builder.add_base_specifier_list(baseSpecifierListOffsetsVector);
-
-  offset_ = builder.Finish().Union();
-}
-
 void ASTEncoder::visit(RequiresClauseAST* ast) {
   auto requiresLoc = encodeSourceLocation(ast->requiresLoc);
 
@@ -5393,7 +5374,16 @@ void ASTEncoder::visit(ClassSpecifierAST* ast) {
 
   auto finalLoc = encodeSourceLocation(ast->finalLoc);
 
-  const auto baseClause = accept(ast->baseClause);
+  auto colonLoc = encodeSourceLocation(ast->colonLoc);
+
+  std::vector<flatbuffers::Offset<io::BaseSpecifier>> baseSpecifierListOffsets;
+  for (auto it = ast->baseSpecifierList; it; it = it->next) {
+    if (!it->value) continue;
+    baseSpecifierListOffsets.emplace_back(accept(it->value).o);
+  }
+
+  auto baseSpecifierListOffsetsVector =
+      fbb_.CreateVector(baseSpecifierListOffsets);
 
   auto lbraceLoc = encodeSourceLocation(ast->lbraceLoc);
 
@@ -5423,7 +5413,8 @@ void ASTEncoder::visit(ClassSpecifierAST* ast) {
   builder.add_unqualified_id_type(
       static_cast<io::UnqualifiedId>(unqualifiedIdType));
   builder.add_final_loc(finalLoc.o);
-  builder.add_base_clause(baseClause.o);
+  builder.add_colon_loc(colonLoc.o);
+  builder.add_base_specifier_list(baseSpecifierListOffsetsVector);
   builder.add_lbrace_loc(lbraceLoc.o);
   builder.add_declaration_list(declarationListOffsetsVector);
   builder.add_declaration_list_type(declarationListTypesVector);

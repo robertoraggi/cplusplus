@@ -147,18 +147,6 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   }
 
   /**
-   * Visit a BaseClause node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitBaseClause(node: ast.BaseClauseAST, context: Context): void {
-    for (const element of node.getBaseSpecifierList()) {
-      this.accept(element, context);
-    }
-  }
-
-  /**
    * Visit a RequiresClause node.
    *
    * @param node The node to visit.
@@ -2603,7 +2591,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     }
     this.accept(node.getNestedNameSpecifier(), context);
     this.accept(node.getUnqualifiedId(), context);
-    this.accept(node.getBaseClause(), context);
+    for (const element of node.getBaseSpecifierList()) {
+      this.accept(element, context);
+    }
     for (const element of node.getDeclarationList()) {
       this.accept(element, context);
     }

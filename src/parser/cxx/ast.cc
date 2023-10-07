@@ -142,18 +142,6 @@ auto BaseSpecifierAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto BaseClauseAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(baseSpecifierList)) return loc;
-  return {};
-}
-
-auto BaseClauseAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(baseSpecifierList)) return loc;
-  if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
-  return {};
-}
-
 auto RequiresClauseAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(requiresLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
@@ -2992,7 +2980,8 @@ auto ClassSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(unqualifiedId)) return loc;
   if (auto loc = cxx::firstSourceLocation(finalLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(baseClause)) return loc;
+  if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(baseSpecifierList)) return loc;
   if (auto loc = cxx::firstSourceLocation(lbraceLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(declarationList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rbraceLoc)) return loc;
@@ -3003,7 +2992,8 @@ auto ClassSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rbraceLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(declarationList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lbraceLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(baseClause)) return loc;
+  if (auto loc = cxx::lastSourceLocation(baseSpecifierList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(finalLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(unqualifiedId)) return loc;
   if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;

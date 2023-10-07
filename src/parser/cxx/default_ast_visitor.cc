@@ -58,10 +58,6 @@ void DefaultASTVisitor::visit(BaseSpecifierAST* ast) {
   cxx_runtime_error("visit(BaseSpecifierAST): not implemented");
 }
 
-void DefaultASTVisitor::visit(BaseClauseAST* ast) {
-  cxx_runtime_error("visit(BaseClauseAST): not implemented");
-}
-
 void DefaultASTVisitor::visit(RequiresClauseAST* ast) {
   cxx_runtime_error("visit(RequiresClauseAST): not implemented");
 }

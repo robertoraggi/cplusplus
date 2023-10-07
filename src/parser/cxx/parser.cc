@@ -6963,7 +6963,7 @@ auto Parser::parse_class_specifier(
     LookaheadParser lookahead{this};
 
     if (parse_class_head(classHead)) {
-      if (classHead.baseClause || lookat(TokenKind::T_LBRACE)) {
+      if (classHead.colonLoc || lookat(TokenKind::T_LBRACE)) {
         lookahead.commit();
         return true;
       }
@@ -6992,7 +6992,8 @@ auto Parser::parse_class_specifier(
   ast->nestedNameSpecifier = classHead.nestedNameSpecifier;
   ast->unqualifiedId = classHead.name;
   ast->finalLoc = classHead.finalLoc;
-  ast->baseClause = classHead.baseClause;
+  ast->colonLoc = classHead.colonLoc;
+  ast->baseSpecifierList = classHead.baseSpecifierList;
   ast->lbraceLoc = lbraceLoc;
 
   ast->classKey = unit->tokenKind(ast->classLoc);
@@ -7061,7 +7062,7 @@ auto Parser::parse_class_head(ClassHead& classHead) -> bool {
     mark_maybe_template_name(classHead.name);
   }
 
-  (void)parse_base_clause(classHead.baseClause);
+  (void)parse_base_clause(classHead.colonLoc, classHead.baseSpecifierList);
 
   return true;
 }
@@ -7425,17 +7426,12 @@ auto Parser::parse_conversion_function_id(ConversionFunctionIdAST*& yyast)
   return true;
 }
 
-auto Parser::parse_base_clause(BaseClauseAST*& yyast) -> bool {
-  SourceLocation colonLoc;
-
+auto Parser::parse_base_clause(SourceLocation& colonLoc,
+                               List<BaseSpecifierAST*>*& baseSpecifierList)
+    -> bool {
   if (!match(TokenKind::T_COLON, colonLoc)) return false;
 
-  auto ast = new (pool) BaseClauseAST();
-  yyast = ast;
-
-  ast->colonLoc = colonLoc;
-
-  if (!parse_base_specifier_list(ast->baseSpecifierList)) {
+  if (!parse_base_specifier_list(baseSpecifierList)) {
     parse_error("expected a base class specifier");
   }
 

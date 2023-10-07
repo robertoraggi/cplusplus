@@ -611,44 +611,6 @@ export class BaseSpecifierAST extends AST {
 }
 
 /**
- * BaseClauseAST node.
- */
-export class BaseClauseAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitBaseClause(this, context);
-  }
-
-  /**
-   * Returns the location of the colon token in this node
-   */
-  getColonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the baseSpecifierList of this node
-   */
-  *getBaseSpecifierList(): Generator<BaseSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<BaseSpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-}
-
-/**
  * RequiresClauseAST node.
  */
 export class RequiresClauseAST extends AST {
@@ -10136,20 +10098,30 @@ export class ClassSpecifierAST extends SpecifierAST {
   }
 
   /**
-   * Returns the baseClause of this node
+   * Returns the location of the colon token in this node
    */
-  getBaseClause(): BaseClauseAST | undefined {
-    return AST.from<BaseClauseAST>(
-      cxx.getASTSlot(this.getHandle(), 5),
-      this.parser,
-    );
+  getColonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+  }
+
+  /**
+   * Returns the baseSpecifierList of this node
+   */
+  *getBaseSpecifierList(): Generator<BaseSpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 6);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<BaseSpecifierAST>(cxx.getListValue(it), this.parser);
+    }
   }
 
   /**
    * Returns the location of the lbrace token in this node
    */
   getLbraceToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
   }
 
   /**
@@ -10157,7 +10129,7 @@ export class ClassSpecifierAST extends SpecifierAST {
    */
   *getDeclarationList(): Generator<DeclarationAST | undefined> {
     for (
-      let it = cxx.getASTSlot(this.getHandle(), 7);
+      let it = cxx.getASTSlot(this.getHandle(), 8);
       it;
       it = cxx.getListNext(it)
     ) {
@@ -10169,21 +10141,21 @@ export class ClassSpecifierAST extends SpecifierAST {
    * Returns the location of the rbrace token in this node
    */
   getRbraceToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 8), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 9), this.parser);
   }
 
   /**
    * Returns the classKey attribute of this node
    */
   getClassKey(): TokenKind {
-    return cxx.getASTSlot(this.getHandle(), 9);
+    return cxx.getASTSlot(this.getHandle(), 10);
   }
 
   /**
    * Returns the isFinal attribute of this node
    */
   getIsFinal(): boolean {
-    return cxx.getASTSlot(this.getHandle(), 10) !== 0;
+    return cxx.getASTSlot(this.getHandle(), 11) !== 0;
   }
 }
 
@@ -11002,7 +10974,6 @@ const AST_CONSTRUCTORS: Array<
   DeclaratorAST,
   InitDeclaratorAST,
   BaseSpecifierAST,
-  BaseClauseAST,
   RequiresClauseAST,
   ParameterDeclarationClauseAST,
   ParametersAndQualifiersAST,
