@@ -192,24 +192,6 @@ void ASTCloner::visit(BaseSpecifierAST* ast) {
   copy->accessSpecifier = ast->accessSpecifier;
 }
 
-void ASTCloner::visit(BaseClauseAST* ast) {
-  auto copy = new (arena_) BaseClauseAST();
-  copy_ = copy;
-
-  copy->setChecked(ast->checked());
-
-  copy->colonLoc = ast->colonLoc;
-
-  if (auto it = ast->baseSpecifierList) {
-    auto out = &copy->baseSpecifierList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
-}
-
 void ASTCloner::visit(RequiresClauseAST* ast) {
   auto copy = new (arena_) RequiresClauseAST();
   copy_ = copy;
@@ -3669,7 +3651,16 @@ void ASTCloner::visit(ClassSpecifierAST* ast) {
 
   copy->finalLoc = ast->finalLoc;
 
-  copy->baseClause = accept(ast->baseClause);
+  copy->colonLoc = ast->colonLoc;
+
+  if (auto it = ast->baseSpecifierList) {
+    auto out = &copy->baseSpecifierList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
 
   copy->lbraceLoc = ast->lbraceLoc;
 

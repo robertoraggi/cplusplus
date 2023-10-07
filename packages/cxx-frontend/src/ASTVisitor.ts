@@ -110,15 +110,6 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
 
   /**
-   * Visit BaseClause node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitBaseClause(node: ast.BaseClauseAST, context: Context): Result;
-
-  /**
    * Visit RequiresClause node.
    *
    * @param node The node to visit.

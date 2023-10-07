@@ -88,7 +88,6 @@ class ASTDecoder {
   auto decodeInitDeclarator(const io::InitDeclarator* node)
       -> InitDeclaratorAST*;
   auto decodeBaseSpecifier(const io::BaseSpecifier* node) -> BaseSpecifierAST*;
-  auto decodeBaseClause(const io::BaseClause* node) -> BaseClauseAST*;
   auto decodeRequiresClause(const io::RequiresClause* node)
       -> RequiresClauseAST*;
   auto decodeParameterDeclarationClause(

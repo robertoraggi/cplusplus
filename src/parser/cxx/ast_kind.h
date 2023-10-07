@@ -33,7 +33,6 @@ enum struct ASTKind {
   Declarator,
   InitDeclarator,
   BaseSpecifier,
-  BaseClause,
   RequiresClause,
   ParameterDeclarationClause,
   ParametersAndQualifiers,

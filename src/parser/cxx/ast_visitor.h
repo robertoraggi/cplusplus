@@ -37,7 +37,6 @@ class ASTVisitor {
   virtual void visit(DeclaratorAST* ast) = 0;
   virtual void visit(InitDeclaratorAST* ast) = 0;
   virtual void visit(BaseSpecifierAST* ast) = 0;
-  virtual void visit(BaseClauseAST* ast) = 0;
   virtual void visit(RequiresClauseAST* ast) = 0;
   virtual void visit(ParameterDeclarationClauseAST* ast) = 0;
   virtual void visit(ParametersAndQualifiersAST* ast) = 0;

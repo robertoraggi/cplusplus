@@ -343,21 +343,6 @@ class BaseSpecifierAST final : public AST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class BaseClauseAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::BaseClause;
-
-  BaseClauseAST() : AST(Kind) {}
-
-  SourceLocation colonLoc;
-  List<BaseSpecifierAST*>* baseSpecifierList = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
 class RequiresClauseAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::RequiresClause;
@@ -3576,7 +3561,8 @@ class ClassSpecifierAST final : public SpecifierAST {
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   UnqualifiedIdAST* unqualifiedId = nullptr;
   SourceLocation finalLoc;
-  BaseClauseAST* baseClause = nullptr;
+  SourceLocation colonLoc;
+  List<BaseSpecifierAST*>* baseSpecifierList = nullptr;
   SourceLocation lbraceLoc;
   List<DeclarationAST*>* declarationList = nullptr;
   SourceLocation rbraceLoc;

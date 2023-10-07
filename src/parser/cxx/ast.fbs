@@ -39,7 +39,6 @@ union AST {
   Declarator,
   InitDeclarator,
   BaseSpecifier,
-  BaseClause,
   RequiresClause,
   ParameterDeclarationClause,
   ParametersAndQualifiers,
@@ -365,11 +364,6 @@ table BaseSpecifier /* AST */ {
   unqualified_id: UnqualifiedId;
   access_specifier: uint32;
   template_loc: SourceLocation;
-}
-
-table BaseClause /* AST */ {
-  base_specifier_list: [BaseSpecifier];
-  colon_loc: SourceLocation;
 }
 
 table RequiresClause /* AST */ {
@@ -1489,11 +1483,12 @@ table ClassSpecifier /* SpecifierAST */ {
   attribute_list: [AttributeSpecifier];
   nested_name_specifier: NestedNameSpecifier;
   unqualified_id: UnqualifiedId;
-  base_clause: BaseClause;
+  base_specifier_list: [BaseSpecifier];
   declaration_list: [Declaration];
   class_key: uint32;
   class_loc: SourceLocation;
   final_loc: SourceLocation;
+  colon_loc: SourceLocation;
   lbrace_loc: SourceLocation;
   rbrace_loc: SourceLocation;
 }

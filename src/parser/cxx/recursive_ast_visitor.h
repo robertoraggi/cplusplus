@@ -40,7 +40,6 @@ class RecursiveASTVisitor : public ASTVisitor {
   virtual void acceptCoreDeclarator(CoreDeclaratorAST* ast);
   virtual void acceptDeclaratorChunk(DeclaratorChunkAST* ast);
   virtual void acceptRequiresClause(RequiresClauseAST* ast);
-  virtual void acceptBaseSpecifier(BaseSpecifierAST* ast);
   virtual void acceptParameterDeclaration(ParameterDeclarationAST* ast);
   virtual void acceptParameterDeclarationClause(
       ParameterDeclarationClauseAST* ast);
@@ -88,7 +87,7 @@ class RecursiveASTVisitor : public ASTVisitor {
   virtual void acceptLiteralOperatorId(LiteralOperatorIdAST* ast);
   virtual void acceptOperatorFunctionId(OperatorFunctionIdAST* ast);
   virtual void acceptEnumerator(EnumeratorAST* ast);
-  virtual void acceptBaseClause(BaseClauseAST* ast);
+  virtual void acceptBaseSpecifier(BaseSpecifierAST* ast);
   virtual void acceptParametersAndQualifiers(ParametersAndQualifiersAST* ast);
   virtual void acceptAttributeUsingPrefix(AttributeUsingPrefixAST* ast);
   virtual void acceptAttribute(AttributeAST* ast);
@@ -103,7 +102,6 @@ class RecursiveASTVisitor : public ASTVisitor {
   void visit(DeclaratorAST* ast) override;
   void visit(InitDeclaratorAST* ast) override;
   void visit(BaseSpecifierAST* ast) override;
-  void visit(BaseClauseAST* ast) override;
   void visit(RequiresClauseAST* ast) override;
   void visit(ParameterDeclarationClauseAST* ast) override;
   void visit(ParametersAndQualifiersAST* ast) override;

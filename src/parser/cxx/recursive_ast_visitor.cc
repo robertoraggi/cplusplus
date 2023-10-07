@@ -73,10 +73,6 @@ void RecursiveASTVisitor::acceptRequiresClause(RequiresClauseAST* ast) {
   accept(ast);
 }
 
-void RecursiveASTVisitor::acceptBaseSpecifier(BaseSpecifierAST* ast) {
-  accept(ast);
-}
-
 void RecursiveASTVisitor::acceptParameterDeclaration(
     ParameterDeclarationAST* ast) {
   accept(ast);
@@ -246,7 +242,9 @@ void RecursiveASTVisitor::acceptOperatorFunctionId(OperatorFunctionIdAST* ast) {
 
 void RecursiveASTVisitor::acceptEnumerator(EnumeratorAST* ast) { accept(ast); }
 
-void RecursiveASTVisitor::acceptBaseClause(BaseClauseAST* ast) { accept(ast); }
+void RecursiveASTVisitor::acceptBaseSpecifier(BaseSpecifierAST* ast) {
+  accept(ast);
+}
 
 void RecursiveASTVisitor::acceptParametersAndQualifiers(
     ParametersAndQualifiersAST* ast) {
@@ -312,12 +310,6 @@ void RecursiveASTVisitor::visit(BaseSpecifierAST* ast) {
   }
   acceptNestedNameSpecifier(ast->nestedNameSpecifier);
   acceptUnqualifiedId(ast->unqualifiedId);
-}
-
-void RecursiveASTVisitor::visit(BaseClauseAST* ast) {
-  for (auto it = ast->baseSpecifierList; it; it = it->next) {
-    acceptBaseSpecifier(it->value);
-  }
 }
 
 void RecursiveASTVisitor::visit(RequiresClauseAST* ast) {
@@ -1223,7 +1215,9 @@ void RecursiveASTVisitor::visit(ClassSpecifierAST* ast) {
   }
   acceptNestedNameSpecifier(ast->nestedNameSpecifier);
   acceptUnqualifiedId(ast->unqualifiedId);
-  acceptBaseClause(ast->baseClause);
+  for (auto it = ast->baseSpecifierList; it; it = it->next) {
+    acceptBaseSpecifier(it->value);
+  }
   for (auto it = ast->declarationList; it; it = it->next) {
     acceptDeclaration(it->value);
   }

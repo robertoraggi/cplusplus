@@ -521,7 +521,8 @@ class Parser final {
     NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
     UnqualifiedIdAST* name = nullptr;
     SourceLocation finalLoc;
-    BaseClauseAST* baseClause = nullptr;
+    SourceLocation colonLoc;
+    List<BaseSpecifierAST*>* baseSpecifierList = nullptr;
   };
 
   [[nodiscard]] auto parse_class_head(ClassHead& classHead) -> bool;
@@ -545,7 +546,9 @@ class Parser final {
                                           SourceLocation& zeroLoc) -> bool;
   [[nodiscard]] auto parse_conversion_function_id(
       ConversionFunctionIdAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_base_clause(BaseClauseAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_base_clause(
+      SourceLocation& colonLoc, List<BaseSpecifierAST*>*& baseSpecifierList)
+      -> bool;
   [[nodiscard]] auto parse_base_specifier_list(List<BaseSpecifierAST*>*& yyast)
       -> bool;
   void parse_base_specifier(BaseSpecifierAST*& yyast);

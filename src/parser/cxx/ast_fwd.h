@@ -83,7 +83,6 @@ class EnumeratorAST;
 class DeclaratorAST;
 class InitDeclaratorAST;
 class BaseSpecifierAST;
-class BaseClauseAST;
 class RequiresClauseAST;
 class ParameterDeclarationClauseAST;
 class ParametersAndQualifiersAST;
