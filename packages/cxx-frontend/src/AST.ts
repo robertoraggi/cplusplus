@@ -170,4888 +170,6 @@ export abstract class UnitAST extends AST {}
 export abstract class UnqualifiedIdAST extends AST {}
 
 /**
- * TypeIdAST node.
- */
-export class TypeIdAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitTypeId(this, context);
-  }
-
-  /**
-   * Returns the typeSpecifierList of this node
-   */
-  *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 0);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the declarator of this node
-   */
-  getDeclarator(): DeclaratorAST | undefined {
-    return AST.from<DeclaratorAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-}
-
-/**
- * UsingDeclaratorAST node.
- */
-export class UsingDeclaratorAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitUsingDeclarator(this, context);
-  }
-
-  /**
-   * Returns the location of the typename token in this node
-   */
-  getTypenameToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the nestedNameSpecifier of this node
-   */
-  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
-    return AST.from<NestedNameSpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the unqualifiedId of this node
-   */
-  getUnqualifiedId(): UnqualifiedIdAST | undefined {
-    return AST.from<UnqualifiedIdAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the ellipsis token in this node
-   */
-  getEllipsisToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-
-  /**
-   * Returns the isPack attribute of this node
-   */
-  getIsPack(): boolean {
-    return cxx.getASTSlot(this.getHandle(), 4) !== 0;
-  }
-}
-
-/**
- * HandlerAST node.
- */
-export class HandlerAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitHandler(this, context);
-  }
-
-  /**
-   * Returns the location of the catch token in this node
-   */
-  getCatchToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the exceptionDeclaration of this node
-   */
-  getExceptionDeclaration(): ExceptionDeclarationAST | undefined {
-    return AST.from<ExceptionDeclarationAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-
-  /**
-   * Returns the statement of this node
-   */
-  getStatement(): CompoundStatementAST | undefined {
-    return AST.from<CompoundStatementAST>(
-      cxx.getASTSlot(this.getHandle(), 4),
-      this.parser,
-    );
-  }
-}
-
-/**
- * EnumeratorAST node.
- */
-export class EnumeratorAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitEnumerator(this, context);
-  }
-
-  /**
-   * Returns the location of the identifier token in this node
-   */
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the attributeList of this node
-   */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the equal token in this node
-   */
-  getEqualToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 3),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the identifier attribute of this node
-   */
-  getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 4);
-    return cxx.getIdentifierValue(slot);
-  }
-}
-
-/**
- * DeclaratorAST node.
- */
-export class DeclaratorAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitDeclarator(this, context);
-  }
-
-  /**
-   * Returns the ptrOpList of this node
-   */
-  *getPtrOpList(): Generator<PtrOperatorAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 0);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<PtrOperatorAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the coreDeclarator of this node
-   */
-  getCoreDeclarator(): CoreDeclaratorAST | undefined {
-    return AST.from<CoreDeclaratorAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the declaratorChunkList of this node
-   */
-  *getDeclaratorChunkList(): Generator<DeclaratorChunkAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<DeclaratorChunkAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-}
-
-/**
- * InitDeclaratorAST node.
- */
-export class InitDeclaratorAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitInitDeclarator(this, context);
-  }
-
-  /**
-   * Returns the declarator of this node
-   */
-  getDeclarator(): DeclaratorAST | undefined {
-    return AST.from<DeclaratorAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the requiresClause of this node
-   */
-  getRequiresClause(): RequiresClauseAST | undefined {
-    return AST.from<RequiresClauseAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the initializer of this node
-   */
-  getInitializer(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-}
-
-/**
- * BaseSpecifierAST node.
- */
-export class BaseSpecifierAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitBaseSpecifier(this, context);
-  }
-
-  /**
-   * Returns the attributeList of this node
-   */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 0);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the nestedNameSpecifier of this node
-   */
-  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
-    return AST.from<NestedNameSpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the template token in this node
-   */
-  getTemplateToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the unqualifiedId of this node
-   */
-  getUnqualifiedId(): UnqualifiedIdAST | undefined {
-    return AST.from<UnqualifiedIdAST>(
-      cxx.getASTSlot(this.getHandle(), 3),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the isTemplateIntroduced attribute of this node
-   */
-  getIsTemplateIntroduced(): boolean {
-    return cxx.getASTSlot(this.getHandle(), 4) !== 0;
-  }
-
-  /**
-   * Returns the isVirtual attribute of this node
-   */
-  getIsVirtual(): boolean {
-    return cxx.getASTSlot(this.getHandle(), 5) !== 0;
-  }
-
-  /**
-   * Returns the accessSpecifier attribute of this node
-   */
-  getAccessSpecifier(): TokenKind {
-    return cxx.getASTSlot(this.getHandle(), 6);
-  }
-}
-
-/**
- * RequiresClauseAST node.
- */
-export class RequiresClauseAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitRequiresClause(this, context);
-  }
-
-  /**
-   * Returns the location of the requires token in this node
-   */
-  getRequiresToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-}
-
-/**
- * ParameterDeclarationClauseAST node.
- */
-export class ParameterDeclarationClauseAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitParameterDeclarationClause(this, context);
-  }
-
-  /**
-   * Returns the parameterDeclarationList of this node
-   */
-  *getParameterDeclarationList(): Generator<
-    ParameterDeclarationAST | undefined
-  > {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 0);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<ParameterDeclarationAST>(
-        cxx.getListValue(it),
-        this.parser,
-      );
-    }
-  }
-
-  /**
-   * Returns the location of the comma token in this node
-   */
-  getCommaToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the location of the ellipsis token in this node
-   */
-  getEllipsisToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the isVariadic attribute of this node
-   */
-  getIsVariadic(): boolean {
-    return cxx.getASTSlot(this.getHandle(), 3) !== 0;
-  }
-}
-
-/**
- * LambdaSpecifierAST node.
- */
-export class LambdaSpecifierAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitLambdaSpecifier(this, context);
-  }
-
-  /**
-   * Returns the location of the specifier token in this node
-   */
-  getSpecifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the specifier attribute of this node
-   */
-  getSpecifier(): TokenKind {
-    return cxx.getASTSlot(this.getHandle(), 1);
-  }
-}
-
-/**
- * TrailingReturnTypeAST node.
- */
-export class TrailingReturnTypeAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitTrailingReturnType(this, context);
-  }
-
-  /**
-   * Returns the location of the minusGreater token in this node
-   */
-  getMinusGreaterToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the typeId of this node
-   */
-  getTypeId(): TypeIdAST | undefined {
-    return AST.from<TypeIdAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-}
-
-/**
- * TypeConstraintAST node.
- */
-export class TypeConstraintAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitTypeConstraint(this, context);
-  }
-
-  /**
-   * Returns the nestedNameSpecifier of this node
-   */
-  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
-    return AST.from<NestedNameSpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the identifier token in this node
-   */
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the location of the less token in this node
-   */
-  getLessToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the templateArgumentList of this node
-   */
-  *getTemplateArgumentList(): Generator<TemplateArgumentAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 3);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<TemplateArgumentAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the greater token in this node
-   */
-  getGreaterToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
-  }
-
-  /**
-   * Returns the identifier attribute of this node
-   */
-  getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 5);
-    return cxx.getIdentifierValue(slot);
-  }
-}
-
-/**
- * GlobalModuleFragmentAST node.
- */
-export class GlobalModuleFragmentAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitGlobalModuleFragment(this, context);
-  }
-
-  /**
-   * Returns the location of the module token in this node
-   */
-  getModuleToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the semicolon token in this node
-   */
-  getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the declarationList of this node
-   */
-  *getDeclarationList(): Generator<DeclarationAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-}
-
-/**
- * PrivateModuleFragmentAST node.
- */
-export class PrivateModuleFragmentAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitPrivateModuleFragment(this, context);
-  }
-
-  /**
-   * Returns the location of the module token in this node
-   */
-  getModuleToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the colon token in this node
-   */
-  getColonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the location of the private token in this node
-   */
-  getPrivateToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the location of the semicolon token in this node
-   */
-  getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-
-  /**
-   * Returns the declarationList of this node
-   */
-  *getDeclarationList(): Generator<DeclarationAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 4);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-}
-
-/**
- * ModuleQualifierAST node.
- */
-export class ModuleQualifierAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitModuleQualifier(this, context);
-  }
-
-  /**
-   * Returns the moduleQualifier of this node
-   */
-  getModuleQualifier(): ModuleQualifierAST | undefined {
-    return AST.from<ModuleQualifierAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the identifier token in this node
-   */
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the location of the dot token in this node
-   */
-  getDotToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the identifier attribute of this node
-   */
-  getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 3);
-    return cxx.getIdentifierValue(slot);
-  }
-}
-
-/**
- * ModuleNameAST node.
- */
-export class ModuleNameAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitModuleName(this, context);
-  }
-
-  /**
-   * Returns the moduleQualifier of this node
-   */
-  getModuleQualifier(): ModuleQualifierAST | undefined {
-    return AST.from<ModuleQualifierAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the identifier token in this node
-   */
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the identifier attribute of this node
-   */
-  getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 2);
-    return cxx.getIdentifierValue(slot);
-  }
-}
-
-/**
- * ModuleDeclarationAST node.
- */
-export class ModuleDeclarationAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitModuleDeclaration(this, context);
-  }
-
-  /**
-   * Returns the location of the export token in this node
-   */
-  getExportToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the module token in this node
-   */
-  getModuleToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the moduleName of this node
-   */
-  getModuleName(): ModuleNameAST | undefined {
-    return AST.from<ModuleNameAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the modulePartition of this node
-   */
-  getModulePartition(): ModulePartitionAST | undefined {
-    return AST.from<ModulePartitionAST>(
-      cxx.getASTSlot(this.getHandle(), 3),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the attributeList of this node
-   */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 4);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the semicolon token in this node
-   */
-  getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
-  }
-}
-
-/**
- * ImportNameAST node.
- */
-export class ImportNameAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitImportName(this, context);
-  }
-
-  /**
-   * Returns the location of the header token in this node
-   */
-  getHeaderToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the modulePartition of this node
-   */
-  getModulePartition(): ModulePartitionAST | undefined {
-    return AST.from<ModulePartitionAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the moduleName of this node
-   */
-  getModuleName(): ModuleNameAST | undefined {
-    return AST.from<ModuleNameAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-}
-
-/**
- * ModulePartitionAST node.
- */
-export class ModulePartitionAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitModulePartition(this, context);
-  }
-
-  /**
-   * Returns the location of the colon token in this node
-   */
-  getColonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the moduleName of this node
-   */
-  getModuleName(): ModuleNameAST | undefined {
-    return AST.from<ModuleNameAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-}
-
-/**
- * AttributeArgumentClauseAST node.
- */
-export class AttributeArgumentClauseAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitAttributeArgumentClause(this, context);
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-}
-
-/**
- * AttributeAST node.
- */
-export class AttributeAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitAttribute(this, context);
-  }
-
-  /**
-   * Returns the attributeToken of this node
-   */
-  getAttributeToken(): AttributeTokenAST | undefined {
-    return AST.from<AttributeTokenAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the attributeArgumentClause of this node
-   */
-  getAttributeArgumentClause(): AttributeArgumentClauseAST | undefined {
-    return AST.from<AttributeArgumentClauseAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the ellipsis token in this node
-   */
-  getEllipsisToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-}
-
-/**
- * AttributeUsingPrefixAST node.
- */
-export class AttributeUsingPrefixAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitAttributeUsingPrefix(this, context);
-  }
-
-  /**
-   * Returns the location of the using token in this node
-   */
-  getUsingToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the attributeNamespace token in this node
-   */
-  getAttributeNamespaceToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the location of the colon token in this node
-   */
-  getColonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-}
-
-/**
- * NewPlacementAST node.
- */
-export class NewPlacementAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitNewPlacement(this, context);
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the expressionList of this node
-   */
-  *getExpressionList(): Generator<ExpressionAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-}
-
-/**
- * NestedNamespaceSpecifierAST node.
- */
-export class NestedNamespaceSpecifierAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitNestedNamespaceSpecifier(this, context);
-  }
-
-  /**
-   * Returns the location of the inline token in this node
-   */
-  getInlineToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the identifier token in this node
-   */
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the location of the scope token in this node
-   */
-  getScopeToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the identifier attribute of this node
-   */
-  getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 3);
-    return cxx.getIdentifierValue(slot);
-  }
-
-  /**
-   * Returns the isInline attribute of this node
-   */
-  getIsInline(): boolean {
-    return cxx.getASTSlot(this.getHandle(), 4) !== 0;
-  }
-}
-
-/**
- * GlobalNestedNameSpecifierAST node.
- */
-export class GlobalNestedNameSpecifierAST extends NestedNameSpecifierAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitGlobalNestedNameSpecifier(this, context);
-  }
-
-  /**
-   * Returns the location of the scope token in this node
-   */
-  getScopeToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-}
-
-/**
- * SimpleNestedNameSpecifierAST node.
- */
-export class SimpleNestedNameSpecifierAST extends NestedNameSpecifierAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitSimpleNestedNameSpecifier(this, context);
-  }
-
-  /**
-   * Returns the nestedNameSpecifier of this node
-   */
-  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
-    return AST.from<NestedNameSpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the identifier token in this node
-   */
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the identifier attribute of this node
-   */
-  getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 2);
-    return cxx.getIdentifierValue(slot);
-  }
-
-  /**
-   * Returns the location of the scope token in this node
-   */
-  getScopeToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-}
-
-/**
- * DecltypeNestedNameSpecifierAST node.
- */
-export class DecltypeNestedNameSpecifierAST extends NestedNameSpecifierAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitDecltypeNestedNameSpecifier(this, context);
-  }
-
-  /**
-   * Returns the nestedNameSpecifier of this node
-   */
-  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
-    return AST.from<NestedNameSpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the decltypeSpecifier of this node
-   */
-  getDecltypeSpecifier(): DecltypeSpecifierAST | undefined {
-    return AST.from<DecltypeSpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the scope token in this node
-   */
-  getScopeToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-}
-
-/**
- * TemplateNestedNameSpecifierAST node.
- */
-export class TemplateNestedNameSpecifierAST extends NestedNameSpecifierAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitTemplateNestedNameSpecifier(this, context);
-  }
-
-  /**
-   * Returns the nestedNameSpecifier of this node
-   */
-  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
-    return AST.from<NestedNameSpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the template token in this node
-   */
-  getTemplateToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the templateId of this node
-   */
-  getTemplateId(): SimpleTemplateIdAST | undefined {
-    return AST.from<SimpleTemplateIdAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the scope token in this node
-   */
-  getScopeToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-
-  /**
-   * Returns the isTemplateIntroduced attribute of this node
-   */
-  getIsTemplateIntroduced(): boolean {
-    return cxx.getASTSlot(this.getHandle(), 4) !== 0;
-  }
-}
-
-/**
- * ThrowExceptionSpecifierAST node.
- */
-export class ThrowExceptionSpecifierAST extends ExceptionSpecifierAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitThrowExceptionSpecifier(this, context);
-  }
-
-  /**
-   * Returns the location of the throw token in this node
-   */
-  getThrowToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-}
-
-/**
- * NoexceptSpecifierAST node.
- */
-export class NoexceptSpecifierAST extends ExceptionSpecifierAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitNoexceptSpecifier(this, context);
-  }
-
-  /**
-   * Returns the location of the noexcept token in this node
-   */
-  getNoexceptToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-}
-
-/**
- * PackExpansionExpressionAST node.
- */
-export class PackExpansionExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitPackExpansionExpression(this, context);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the ellipsis token in this node
-   */
-  getEllipsisToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-}
-
-/**
- * DesignatedInitializerClauseAST node.
- */
-export class DesignatedInitializerClauseAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitDesignatedInitializerClause(this, context);
-  }
-
-  /**
-   * Returns the location of the dot token in this node
-   */
-  getDotToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the identifier token in this node
-   */
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the identifier attribute of this node
-   */
-  getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 2);
-    return cxx.getIdentifierValue(slot);
-  }
-
-  /**
-   * Returns the initializer of this node
-   */
-  getInitializer(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 3),
-      this.parser,
-    );
-  }
-}
-
-/**
- * ThisExpressionAST node.
- */
-export class ThisExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitThisExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the this token in this node
-   */
-  getThisToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-}
-
-/**
- * CharLiteralExpressionAST node.
- */
-export class CharLiteralExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitCharLiteralExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the literal token in this node
-   */
-  getLiteralToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the literal attribute of this node
-   */
-  getLiteral(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 1);
-    return cxx.getLiteralValue(slot);
-  }
-}
-
-/**
- * BoolLiteralExpressionAST node.
- */
-export class BoolLiteralExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitBoolLiteralExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the literal token in this node
-   */
-  getLiteralToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the isTrue attribute of this node
-   */
-  getIsTrue(): boolean {
-    return cxx.getASTSlot(this.getHandle(), 1) !== 0;
-  }
-}
-
-/**
- * IntLiteralExpressionAST node.
- */
-export class IntLiteralExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitIntLiteralExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the literal token in this node
-   */
-  getLiteralToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the literal attribute of this node
-   */
-  getLiteral(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 1);
-    return cxx.getLiteralValue(slot);
-  }
-}
-
-/**
- * FloatLiteralExpressionAST node.
- */
-export class FloatLiteralExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitFloatLiteralExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the literal token in this node
-   */
-  getLiteralToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the literal attribute of this node
-   */
-  getLiteral(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 1);
-    return cxx.getLiteralValue(slot);
-  }
-}
-
-/**
- * NullptrLiteralExpressionAST node.
- */
-export class NullptrLiteralExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitNullptrLiteralExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the literal token in this node
-   */
-  getLiteralToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the literal attribute of this node
-   */
-  getLiteral(): TokenKind {
-    return cxx.getASTSlot(this.getHandle(), 1);
-  }
-}
-
-/**
- * StringLiteralExpressionAST node.
- */
-export class StringLiteralExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitStringLiteralExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the literal token in this node
-   */
-  getLiteralToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the literal attribute of this node
-   */
-  getLiteral(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 1);
-    return cxx.getLiteralValue(slot);
-  }
-}
-
-/**
- * UserDefinedStringLiteralExpressionAST node.
- */
-export class UserDefinedStringLiteralExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitUserDefinedStringLiteralExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the literal token in this node
-   */
-  getLiteralToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the literal attribute of this node
-   */
-  getLiteral(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 1);
-    return cxx.getLiteralValue(slot);
-  }
-}
-
-/**
- * IdExpressionAST node.
- */
-export class IdExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitIdExpression(this, context);
-  }
-
-  /**
-   * Returns the nestedNameSpecifier of this node
-   */
-  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
-    return AST.from<NestedNameSpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the template token in this node
-   */
-  getTemplateToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the unqualifiedId of this node
-   */
-  getUnqualifiedId(): UnqualifiedIdAST | undefined {
-    return AST.from<UnqualifiedIdAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the isTemplateIntroduced attribute of this node
-   */
-  getIsTemplateIntroduced(): boolean {
-    return cxx.getASTSlot(this.getHandle(), 3) !== 0;
-  }
-}
-
-/**
- * RequiresExpressionAST node.
- */
-export class RequiresExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitRequiresExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the requires token in this node
-   */
-  getRequiresToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the parameterDeclarationClause of this node
-   */
-  getParameterDeclarationClause(): ParameterDeclarationClauseAST | undefined {
-    return AST.from<ParameterDeclarationClauseAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-
-  /**
-   * Returns the location of the lbrace token in this node
-   */
-  getLbraceToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
-  }
-
-  /**
-   * Returns the requirementList of this node
-   */
-  *getRequirementList(): Generator<RequirementAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 5);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<RequirementAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the rbrace token in this node
-   */
-  getRbraceToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
-  }
-}
-
-/**
- * NestedExpressionAST node.
- */
-export class NestedExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitNestedExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-}
-
-/**
- * RightFoldExpressionAST node.
- */
-export class RightFoldExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitRightFoldExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the op token in this node
-   */
-  getOpToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the location of the ellipsis token in this node
-   */
-  getEllipsisToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
-  }
-
-  /**
-   * Returns the op attribute of this node
-   */
-  getOp(): TokenKind {
-    return cxx.getASTSlot(this.getHandle(), 5);
-  }
-}
-
-/**
- * LeftFoldExpressionAST node.
- */
-export class LeftFoldExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitLeftFoldExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the ellipsis token in this node
-   */
-  getEllipsisToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the location of the op token in this node
-   */
-  getOpToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 3),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
-  }
-
-  /**
-   * Returns the op attribute of this node
-   */
-  getOp(): TokenKind {
-    return cxx.getASTSlot(this.getHandle(), 5);
-  }
-}
-
-/**
- * FoldExpressionAST node.
- */
-export class FoldExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitFoldExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the leftExpression of this node
-   */
-  getLeftExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the op token in this node
-   */
-  getOpToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the location of the ellipsis token in this node
-   */
-  getEllipsisToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-
-  /**
-   * Returns the location of the foldOp token in this node
-   */
-  getFoldOpToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
-  }
-
-  /**
-   * Returns the rightExpression of this node
-   */
-  getRightExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 5),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
-  }
-
-  /**
-   * Returns the op attribute of this node
-   */
-  getOp(): TokenKind {
-    return cxx.getASTSlot(this.getHandle(), 7);
-  }
-
-  /**
-   * Returns the foldOp attribute of this node
-   */
-  getFoldOp(): TokenKind {
-    return cxx.getASTSlot(this.getHandle(), 8);
-  }
-}
-
-/**
- * LambdaExpressionAST node.
- */
-export class LambdaExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitLambdaExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the lbracket token in this node
-   */
-  getLbracketToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the captureDefault token in this node
-   */
-  getCaptureDefaultToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the captureList of this node
-   */
-  *getCaptureList(): Generator<LambdaCaptureAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<LambdaCaptureAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the rbracket token in this node
-   */
-  getRbracketToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-
-  /**
-   * Returns the location of the less token in this node
-   */
-  getLessToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
-  }
-
-  /**
-   * Returns the templateParameterList of this node
-   */
-  *getTemplateParameterList(): Generator<TemplateParameterAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 5);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<TemplateParameterAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the greater token in this node
-   */
-  getGreaterToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
-  }
-
-  /**
-   * Returns the templateRequiresClause of this node
-   */
-  getTemplateRequiresClause(): RequiresClauseAST | undefined {
-    return AST.from<RequiresClauseAST>(
-      cxx.getASTSlot(this.getHandle(), 7),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 8), this.parser);
-  }
-
-  /**
-   * Returns the parameterDeclarationClause of this node
-   */
-  getParameterDeclarationClause(): ParameterDeclarationClauseAST | undefined {
-    return AST.from<ParameterDeclarationClauseAST>(
-      cxx.getASTSlot(this.getHandle(), 9),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 10), this.parser);
-  }
-
-  /**
-   * Returns the lambdaSpecifierList of this node
-   */
-  *getLambdaSpecifierList(): Generator<LambdaSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 11);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<LambdaSpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the exceptionSpecifier of this node
-   */
-  getExceptionSpecifier(): ExceptionSpecifierAST | undefined {
-    return AST.from<ExceptionSpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 12),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the attributeList of this node
-   */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 13);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the trailingReturnType of this node
-   */
-  getTrailingReturnType(): TrailingReturnTypeAST | undefined {
-    return AST.from<TrailingReturnTypeAST>(
-      cxx.getASTSlot(this.getHandle(), 14),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the requiresClause of this node
-   */
-  getRequiresClause(): RequiresClauseAST | undefined {
-    return AST.from<RequiresClauseAST>(
-      cxx.getASTSlot(this.getHandle(), 15),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the statement of this node
-   */
-  getStatement(): CompoundStatementAST | undefined {
-    return AST.from<CompoundStatementAST>(
-      cxx.getASTSlot(this.getHandle(), 16),
-      this.parser,
-    );
-  }
-}
-
-/**
- * SizeofExpressionAST node.
- */
-export class SizeofExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitSizeofExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the sizeof token in this node
-   */
-  getSizeofToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-}
-
-/**
- * SizeofTypeExpressionAST node.
- */
-export class SizeofTypeExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitSizeofTypeExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the sizeof token in this node
-   */
-  getSizeofToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the typeId of this node
-   */
-  getTypeId(): TypeIdAST | undefined {
-    return AST.from<TypeIdAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-}
-
-/**
- * SizeofPackExpressionAST node.
- */
-export class SizeofPackExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitSizeofPackExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the sizeof token in this node
-   */
-  getSizeofToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the ellipsis token in this node
-   */
-  getEllipsisToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the location of the identifier token in this node
-   */
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
-  }
-
-  /**
-   * Returns the identifier attribute of this node
-   */
-  getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 5);
-    return cxx.getIdentifierValue(slot);
-  }
-}
-
-/**
- * TypeidExpressionAST node.
- */
-export class TypeidExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitTypeidExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the typeid token in this node
-   */
-  getTypeidToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-}
-
-/**
- * TypeidOfTypeExpressionAST node.
- */
-export class TypeidOfTypeExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitTypeidOfTypeExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the typeid token in this node
-   */
-  getTypeidToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the typeId of this node
-   */
-  getTypeId(): TypeIdAST | undefined {
-    return AST.from<TypeIdAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-}
-
-/**
- * AlignofTypeExpressionAST node.
- */
-export class AlignofTypeExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitAlignofTypeExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the alignof token in this node
-   */
-  getAlignofToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the typeId of this node
-   */
-  getTypeId(): TypeIdAST | undefined {
-    return AST.from<TypeIdAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-}
-
-/**
- * AlignofExpressionAST node.
- */
-export class AlignofExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitAlignofExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the alignof token in this node
-   */
-  getAlignofToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-}
-
-/**
- * TypeTraitsExpressionAST node.
- */
-export class TypeTraitsExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitTypeTraitsExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the typeTraits token in this node
-   */
-  getTypeTraitsToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the typeIdList of this node
-   */
-  *getTypeIdList(): Generator<TypeIdAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<TypeIdAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-
-  /**
-   * Returns the typeTraits attribute of this node
-   */
-  getTypeTraits(): TokenKind {
-    return cxx.getASTSlot(this.getHandle(), 4);
-  }
-}
-
-/**
- * YieldExpressionAST node.
- */
-export class YieldExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitYieldExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the yield token in this node
-   */
-  getYieldToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-}
-
-/**
- * AwaitExpressionAST node.
- */
-export class AwaitExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitAwaitExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the await token in this node
-   */
-  getAwaitToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-}
-
-/**
- * UnaryExpressionAST node.
- */
-export class UnaryExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitUnaryExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the op token in this node
-   */
-  getOpToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the op attribute of this node
-   */
-  getOp(): TokenKind {
-    return cxx.getASTSlot(this.getHandle(), 2);
-  }
-}
-
-/**
- * BinaryExpressionAST node.
- */
-export class BinaryExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitBinaryExpression(this, context);
-  }
-
-  /**
-   * Returns the leftExpression of this node
-   */
-  getLeftExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the op token in this node
-   */
-  getOpToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the rightExpression of this node
-   */
-  getRightExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the op attribute of this node
-   */
-  getOp(): TokenKind {
-    return cxx.getASTSlot(this.getHandle(), 3);
-  }
-}
-
-/**
- * AssignmentExpressionAST node.
- */
-export class AssignmentExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitAssignmentExpression(this, context);
-  }
-
-  /**
-   * Returns the leftExpression of this node
-   */
-  getLeftExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the op token in this node
-   */
-  getOpToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the rightExpression of this node
-   */
-  getRightExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the op attribute of this node
-   */
-  getOp(): TokenKind {
-    return cxx.getASTSlot(this.getHandle(), 3);
-  }
-}
-
-/**
- * ConditionExpressionAST node.
- */
-export class ConditionExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitConditionExpression(this, context);
-  }
-
-  /**
-   * Returns the attributeList of this node
-   */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 0);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the declSpecifierList of this node
-   */
-  *getDeclSpecifierList(): Generator<SpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the declarator of this node
-   */
-  getDeclarator(): DeclaratorAST | undefined {
-    return AST.from<DeclaratorAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the initializer of this node
-   */
-  getInitializer(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 3),
-      this.parser,
-    );
-  }
-}
-
-/**
- * BracedTypeConstructionAST node.
- */
-export class BracedTypeConstructionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitBracedTypeConstruction(this, context);
-  }
-
-  /**
-   * Returns the typeSpecifier of this node
-   */
-  getTypeSpecifier(): SpecifierAST | undefined {
-    return AST.from<SpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the bracedInitList of this node
-   */
-  getBracedInitList(): BracedInitListAST | undefined {
-    return AST.from<BracedInitListAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-}
-
-/**
- * TypeConstructionAST node.
- */
-export class TypeConstructionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitTypeConstruction(this, context);
-  }
-
-  /**
-   * Returns the typeSpecifier of this node
-   */
-  getTypeSpecifier(): SpecifierAST | undefined {
-    return AST.from<SpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the expressionList of this node
-   */
-  *getExpressionList(): Generator<ExpressionAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-}
-
-/**
- * CallExpressionAST node.
- */
-export class CallExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitCallExpression(this, context);
-  }
-
-  /**
-   * Returns the baseExpression of this node
-   */
-  getBaseExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the expressionList of this node
-   */
-  *getExpressionList(): Generator<ExpressionAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-}
-
-/**
- * SubscriptExpressionAST node.
- */
-export class SubscriptExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitSubscriptExpression(this, context);
-  }
-
-  /**
-   * Returns the baseExpression of this node
-   */
-  getBaseExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the lbracket token in this node
-   */
-  getLbracketToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the indexExpression of this node
-   */
-  getIndexExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the rbracket token in this node
-   */
-  getRbracketToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-}
-
-/**
- * MemberExpressionAST node.
- */
-export class MemberExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitMemberExpression(this, context);
-  }
-
-  /**
-   * Returns the baseExpression of this node
-   */
-  getBaseExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the access token in this node
-   */
-  getAccessToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the memberId of this node
-   */
-  getMemberId(): IdExpressionAST | undefined {
-    return AST.from<IdExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the accessOp attribute of this node
-   */
-  getAccessOp(): TokenKind {
-    return cxx.getASTSlot(this.getHandle(), 3);
-  }
-}
-
-/**
- * PostIncrExpressionAST node.
- */
-export class PostIncrExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitPostIncrExpression(this, context);
-  }
-
-  /**
-   * Returns the baseExpression of this node
-   */
-  getBaseExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the op token in this node
-   */
-  getOpToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the op attribute of this node
-   */
-  getOp(): TokenKind {
-    return cxx.getASTSlot(this.getHandle(), 2);
-  }
-}
-
-/**
- * ConditionalExpressionAST node.
- */
-export class ConditionalExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitConditionalExpression(this, context);
-  }
-
-  /**
-   * Returns the condition of this node
-   */
-  getCondition(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the question token in this node
-   */
-  getQuestionToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the iftrueExpression of this node
-   */
-  getIftrueExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the colon token in this node
-   */
-  getColonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-
-  /**
-   * Returns the iffalseExpression of this node
-   */
-  getIffalseExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 4),
-      this.parser,
-    );
-  }
-}
-
-/**
- * ImplicitCastExpressionAST node.
- */
-export class ImplicitCastExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitImplicitCastExpression(this, context);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-}
-
-/**
- * CastExpressionAST node.
- */
-export class CastExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitCastExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the typeId of this node
-   */
-  getTypeId(): TypeIdAST | undefined {
-    return AST.from<TypeIdAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 3),
-      this.parser,
-    );
-  }
-}
-
-/**
- * CppCastExpressionAST node.
- */
-export class CppCastExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitCppCastExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the cast token in this node
-   */
-  getCastToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the less token in this node
-   */
-  getLessToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the typeId of this node
-   */
-  getTypeId(): TypeIdAST | undefined {
-    return AST.from<TypeIdAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the greater token in this node
-   */
-  getGreaterToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 5),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
-  }
-}
-
-/**
- * NewExpressionAST node.
- */
-export class NewExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitNewExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the scope token in this node
-   */
-  getScopeToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the new token in this node
-   */
-  getNewToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the newPlacement of this node
-   */
-  getNewPlacement(): NewPlacementAST | undefined {
-    return AST.from<NewPlacementAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-
-  /**
-   * Returns the typeSpecifierList of this node
-   */
-  *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 4);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the declarator of this node
-   */
-  getDeclarator(): DeclaratorAST | undefined {
-    return AST.from<DeclaratorAST>(
-      cxx.getASTSlot(this.getHandle(), 5),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
-  }
-
-  /**
-   * Returns the newInitalizer of this node
-   */
-  getNewInitalizer(): NewInitializerAST | undefined {
-    return AST.from<NewInitializerAST>(
-      cxx.getASTSlot(this.getHandle(), 7),
-      this.parser,
-    );
-  }
-}
-
-/**
- * DeleteExpressionAST node.
- */
-export class DeleteExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitDeleteExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the scope token in this node
-   */
-  getScopeToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the delete token in this node
-   */
-  getDeleteToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the location of the lbracket token in this node
-   */
-  getLbracketToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the location of the rbracket token in this node
-   */
-  getRbracketToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 4),
-      this.parser,
-    );
-  }
-}
-
-/**
- * ThrowExpressionAST node.
- */
-export class ThrowExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitThrowExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the throw token in this node
-   */
-  getThrowToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-}
-
-/**
- * NoexceptExpressionAST node.
- */
-export class NoexceptExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitNoexceptExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the noexcept token in this node
-   */
-  getNoexceptToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-}
-
-/**
- * EqualInitializerAST node.
- */
-export class EqualInitializerAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitEqualInitializer(this, context);
-  }
-
-  /**
-   * Returns the location of the equal token in this node
-   */
-  getEqualToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-}
-
-/**
- * BracedInitListAST node.
- */
-export class BracedInitListAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitBracedInitList(this, context);
-  }
-
-  /**
-   * Returns the location of the lbrace token in this node
-   */
-  getLbraceToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the expressionList of this node
-   */
-  *getExpressionList(): Generator<ExpressionAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the comma token in this node
-   */
-  getCommaToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the location of the rbrace token in this node
-   */
-  getRbraceToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-}
-
-/**
- * ParenInitializerAST node.
- */
-export class ParenInitializerAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitParenInitializer(this, context);
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the expressionList of this node
-   */
-  *getExpressionList(): Generator<ExpressionAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-}
-
-/**
- * SimpleRequirementAST node.
- */
-export class SimpleRequirementAST extends RequirementAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitSimpleRequirement(this, context);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the semicolon token in this node
-   */
-  getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-}
-
-/**
- * CompoundRequirementAST node.
- */
-export class CompoundRequirementAST extends RequirementAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitCompoundRequirement(this, context);
-  }
-
-  /**
-   * Returns the location of the lbrace token in this node
-   */
-  getLbraceToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the rbrace token in this node
-   */
-  getRbraceToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the location of the noexcept token in this node
-   */
-  getNoexceptToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-
-  /**
-   * Returns the location of the minusGreater token in this node
-   */
-  getMinusGreaterToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
-  }
-
-  /**
-   * Returns the typeConstraint of this node
-   */
-  getTypeConstraint(): TypeConstraintAST | undefined {
-    return AST.from<TypeConstraintAST>(
-      cxx.getASTSlot(this.getHandle(), 5),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the semicolon token in this node
-   */
-  getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
-  }
-}
-
-/**
- * TypeRequirementAST node.
- */
-export class TypeRequirementAST extends RequirementAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitTypeRequirement(this, context);
-  }
-
-  /**
-   * Returns the location of the typename token in this node
-   */
-  getTypenameToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the nestedNameSpecifier of this node
-   */
-  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
-    return AST.from<NestedNameSpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the unqualifiedId of this node
-   */
-  getUnqualifiedId(): UnqualifiedIdAST | undefined {
-    return AST.from<UnqualifiedIdAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the semicolon token in this node
-   */
-  getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-}
-
-/**
- * NestedRequirementAST node.
- */
-export class NestedRequirementAST extends RequirementAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitNestedRequirement(this, context);
-  }
-
-  /**
-   * Returns the location of the requires token in this node
-   */
-  getRequiresToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the semicolon token in this node
-   */
-  getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-}
-
-/**
- * TypeTemplateArgumentAST node.
- */
-export class TypeTemplateArgumentAST extends TemplateArgumentAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitTypeTemplateArgument(this, context);
-  }
-
-  /**
-   * Returns the typeId of this node
-   */
-  getTypeId(): TypeIdAST | undefined {
-    return AST.from<TypeIdAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-}
-
-/**
- * ExpressionTemplateArgumentAST node.
- */
-export class ExpressionTemplateArgumentAST extends TemplateArgumentAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitExpressionTemplateArgument(this, context);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-}
-
-/**
- * ParenMemInitializerAST node.
- */
-export class ParenMemInitializerAST extends MemInitializerAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitParenMemInitializer(this, context);
-  }
-
-  /**
-   * Returns the nestedNameSpecifier of this node
-   */
-  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
-    return AST.from<NestedNameSpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the unqualifiedId of this node
-   */
-  getUnqualifiedId(): UnqualifiedIdAST | undefined {
-    return AST.from<UnqualifiedIdAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the expressionList of this node
-   */
-  *getExpressionList(): Generator<ExpressionAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 3);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
-  }
-
-  /**
-   * Returns the location of the ellipsis token in this node
-   */
-  getEllipsisToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
-  }
-}
-
-/**
- * BracedMemInitializerAST node.
- */
-export class BracedMemInitializerAST extends MemInitializerAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitBracedMemInitializer(this, context);
-  }
-
-  /**
-   * Returns the nestedNameSpecifier of this node
-   */
-  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
-    return AST.from<NestedNameSpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the unqualifiedId of this node
-   */
-  getUnqualifiedId(): UnqualifiedIdAST | undefined {
-    return AST.from<UnqualifiedIdAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the bracedInitList of this node
-   */
-  getBracedInitList(): BracedInitListAST | undefined {
-    return AST.from<BracedInitListAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the ellipsis token in this node
-   */
-  getEllipsisToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-}
-
-/**
- * ThisLambdaCaptureAST node.
- */
-export class ThisLambdaCaptureAST extends LambdaCaptureAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitThisLambdaCapture(this, context);
-  }
-
-  /**
-   * Returns the location of the this token in this node
-   */
-  getThisToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-}
-
-/**
- * DerefThisLambdaCaptureAST node.
- */
-export class DerefThisLambdaCaptureAST extends LambdaCaptureAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitDerefThisLambdaCapture(this, context);
-  }
-
-  /**
-   * Returns the location of the star token in this node
-   */
-  getStarToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the this token in this node
-   */
-  getThisToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-}
-
-/**
- * SimpleLambdaCaptureAST node.
- */
-export class SimpleLambdaCaptureAST extends LambdaCaptureAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitSimpleLambdaCapture(this, context);
-  }
-
-  /**
-   * Returns the location of the identifier token in this node
-   */
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the ellipsis token in this node
-   */
-  getEllipsisToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the identifier attribute of this node
-   */
-  getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 2);
-    return cxx.getIdentifierValue(slot);
-  }
-}
-
-/**
- * RefLambdaCaptureAST node.
- */
-export class RefLambdaCaptureAST extends LambdaCaptureAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitRefLambdaCapture(this, context);
-  }
-
-  /**
-   * Returns the location of the amp token in this node
-   */
-  getAmpToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the identifier token in this node
-   */
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the location of the ellipsis token in this node
-   */
-  getEllipsisToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the identifier attribute of this node
-   */
-  getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 3);
-    return cxx.getIdentifierValue(slot);
-  }
-}
-
-/**
- * RefInitLambdaCaptureAST node.
- */
-export class RefInitLambdaCaptureAST extends LambdaCaptureAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitRefInitLambdaCapture(this, context);
-  }
-
-  /**
-   * Returns the location of the amp token in this node
-   */
-  getAmpToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the ellipsis token in this node
-   */
-  getEllipsisToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the location of the identifier token in this node
-   */
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the initializer of this node
-   */
-  getInitializer(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 3),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the identifier attribute of this node
-   */
-  getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 4);
-    return cxx.getIdentifierValue(slot);
-  }
-}
-
-/**
- * InitLambdaCaptureAST node.
- */
-export class InitLambdaCaptureAST extends LambdaCaptureAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitInitLambdaCapture(this, context);
-  }
-
-  /**
-   * Returns the location of the ellipsis token in this node
-   */
-  getEllipsisToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the identifier token in this node
-   */
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the initializer of this node
-   */
-  getInitializer(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the identifier attribute of this node
-   */
-  getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 3);
-    return cxx.getIdentifierValue(slot);
-  }
-}
-
-/**
- * NewParenInitializerAST node.
- */
-export class NewParenInitializerAST extends NewInitializerAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitNewParenInitializer(this, context);
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the expressionList of this node
-   */
-  *getExpressionList(): Generator<ExpressionAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-}
-
-/**
- * NewBracedInitializerAST node.
- */
-export class NewBracedInitializerAST extends NewInitializerAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitNewBracedInitializer(this, context);
-  }
-
-  /**
-   * Returns the bracedInitList of this node
-   */
-  getBracedInitList(): BracedInitListAST | undefined {
-    return AST.from<BracedInitListAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-}
-
-/**
- * EllipsisExceptionDeclarationAST node.
- */
-export class EllipsisExceptionDeclarationAST extends ExceptionDeclarationAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitEllipsisExceptionDeclaration(this, context);
-  }
-
-  /**
-   * Returns the location of the ellipsis token in this node
-   */
-  getEllipsisToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-}
-
-/**
- * TypeExceptionDeclarationAST node.
- */
-export class TypeExceptionDeclarationAST extends ExceptionDeclarationAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitTypeExceptionDeclaration(this, context);
-  }
-
-  /**
-   * Returns the attributeList of this node
-   */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 0);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the typeSpecifierList of this node
-   */
-  *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the declarator of this node
-   */
-  getDeclarator(): DeclaratorAST | undefined {
-    return AST.from<DeclaratorAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-}
-
-/**
- * DefaultFunctionBodyAST node.
- */
-export class DefaultFunctionBodyAST extends FunctionBodyAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitDefaultFunctionBody(this, context);
-  }
-
-  /**
-   * Returns the location of the equal token in this node
-   */
-  getEqualToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the default token in this node
-   */
-  getDefaultToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the location of the semicolon token in this node
-   */
-  getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-}
-
-/**
- * CompoundStatementFunctionBodyAST node.
- */
-export class CompoundStatementFunctionBodyAST extends FunctionBodyAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitCompoundStatementFunctionBody(this, context);
-  }
-
-  /**
-   * Returns the location of the colon token in this node
-   */
-  getColonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the memInitializerList of this node
-   */
-  *getMemInitializerList(): Generator<MemInitializerAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<MemInitializerAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the statement of this node
-   */
-  getStatement(): CompoundStatementAST | undefined {
-    return AST.from<CompoundStatementAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-}
-
-/**
- * TryStatementFunctionBodyAST node.
- */
-export class TryStatementFunctionBodyAST extends FunctionBodyAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitTryStatementFunctionBody(this, context);
-  }
-
-  /**
-   * Returns the location of the try token in this node
-   */
-  getTryToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the colon token in this node
-   */
-  getColonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the memInitializerList of this node
-   */
-  *getMemInitializerList(): Generator<MemInitializerAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<MemInitializerAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the statement of this node
-   */
-  getStatement(): CompoundStatementAST | undefined {
-    return AST.from<CompoundStatementAST>(
-      cxx.getASTSlot(this.getHandle(), 3),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the handlerList of this node
-   */
-  *getHandlerList(): Generator<HandlerAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 4);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<HandlerAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-}
-
-/**
- * DeleteFunctionBodyAST node.
- */
-export class DeleteFunctionBodyAST extends FunctionBodyAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitDeleteFunctionBody(this, context);
-  }
-
-  /**
-   * Returns the location of the equal token in this node
-   */
-  getEqualToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the delete token in this node
-   */
-  getDeleteToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the location of the semicolon token in this node
-   */
-  getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-}
-
-/**
  * TranslationUnitAST node.
  */
 export class TranslationUnitAST extends UnitAST {
@@ -5140,6 +258,1860 @@ export class ModuleUnitAST extends UnitAST {
       cxx.getASTSlot(this.getHandle(), 3),
       this.parser,
     );
+  }
+}
+
+/**
+ * SimpleDeclarationAST node.
+ */
+export class SimpleDeclarationAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitSimpleDeclaration(this, context);
+  }
+
+  /**
+   * Returns the attributeList of this node
+   */
+  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 0);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the declSpecifierList of this node
+   */
+  *getDeclSpecifierList(): Generator<SpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 1);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the initDeclaratorList of this node
+   */
+  *getInitDeclaratorList(): Generator<InitDeclaratorAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 2);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<InitDeclaratorAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the requiresClause of this node
+   */
+  getRequiresClause(): RequiresClauseAST | undefined {
+    return AST.from<RequiresClauseAST>(
+      cxx.getASTSlot(this.getHandle(), 3),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the semicolon token in this node
+   */
+  getSemicolonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  }
+}
+
+/**
+ * AsmDeclarationAST node.
+ */
+export class AsmDeclarationAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitAsmDeclaration(this, context);
+  }
+
+  /**
+   * Returns the attributeList of this node
+   */
+  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 0);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the asmQualifierList of this node
+   */
+  *getAsmQualifierList(): Generator<AsmQualifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 1);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AsmQualifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the asm token in this node
+   */
+  getAsmToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the location of the literal token in this node
+   */
+  getLiteralToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  }
+
+  /**
+   * Returns the outputOperandList of this node
+   */
+  *getOutputOperandList(): Generator<AsmOperandAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 5);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AsmOperandAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the inputOperandList of this node
+   */
+  *getInputOperandList(): Generator<AsmOperandAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 6);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AsmOperandAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the clobberList of this node
+   */
+  *getClobberList(): Generator<AsmClobberAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 7);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AsmClobberAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the gotoLabelList of this node
+   */
+  *getGotoLabelList(): Generator<AsmGotoLabelAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 8);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AsmGotoLabelAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 9), this.parser);
+  }
+
+  /**
+   * Returns the location of the semicolon token in this node
+   */
+  getSemicolonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 10), this.parser);
+  }
+
+  /**
+   * Returns the literal attribute of this node
+   */
+  getLiteral(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 11);
+    return cxx.getLiteralValue(slot);
+  }
+}
+
+/**
+ * NamespaceAliasDefinitionAST node.
+ */
+export class NamespaceAliasDefinitionAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitNamespaceAliasDefinition(this, context);
+  }
+
+  /**
+   * Returns the location of the namespace token in this node
+   */
+  getNamespaceToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the equal token in this node
+   */
+  getEqualToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the nestedNameSpecifier of this node
+   */
+  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
+    return AST.from<NestedNameSpecifierAST>(
+      cxx.getASTSlot(this.getHandle(), 3),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the unqualifiedId of this node
+   */
+  getUnqualifiedId(): NameIdAST | undefined {
+    return AST.from<NameIdAST>(
+      cxx.getASTSlot(this.getHandle(), 4),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the semicolon token in this node
+   */
+  getSemicolonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 6);
+    return cxx.getIdentifierValue(slot);
+  }
+}
+
+/**
+ * UsingDeclarationAST node.
+ */
+export class UsingDeclarationAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitUsingDeclaration(this, context);
+  }
+
+  /**
+   * Returns the location of the using token in this node
+   */
+  getUsingToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the usingDeclaratorList of this node
+   */
+  *getUsingDeclaratorList(): Generator<UsingDeclaratorAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 1);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<UsingDeclaratorAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the semicolon token in this node
+   */
+  getSemicolonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+}
+
+/**
+ * UsingEnumDeclarationAST node.
+ */
+export class UsingEnumDeclarationAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitUsingEnumDeclaration(this, context);
+  }
+
+  /**
+   * Returns the location of the using token in this node
+   */
+  getUsingToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the enumTypeSpecifier of this node
+   */
+  getEnumTypeSpecifier(): ElaboratedTypeSpecifierAST | undefined {
+    return AST.from<ElaboratedTypeSpecifierAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the semicolon token in this node
+   */
+  getSemicolonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+}
+
+/**
+ * UsingDirectiveAST node.
+ */
+export class UsingDirectiveAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitUsingDirective(this, context);
+  }
+
+  /**
+   * Returns the attributeList of this node
+   */
+  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 0);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the using token in this node
+   */
+  getUsingToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the namespace token in this node
+   */
+  getNamespaceToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the nestedNameSpecifier of this node
+   */
+  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
+    return AST.from<NestedNameSpecifierAST>(
+      cxx.getASTSlot(this.getHandle(), 3),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the unqualifiedId of this node
+   */
+  getUnqualifiedId(): NameIdAST | undefined {
+    return AST.from<NameIdAST>(
+      cxx.getASTSlot(this.getHandle(), 4),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the semicolon token in this node
+   */
+  getSemicolonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+  }
+}
+
+/**
+ * StaticAssertDeclarationAST node.
+ */
+export class StaticAssertDeclarationAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitStaticAssertDeclaration(this, context);
+  }
+
+  /**
+   * Returns the location of the staticAssert token in this node
+   */
+  getStaticAssertToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the comma token in this node
+   */
+  getCommaToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the location of the literal token in this node
+   */
+  getLiteralToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  }
+
+  /**
+   * Returns the literal attribute of this node
+   */
+  getLiteral(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 5);
+    return cxx.getLiteralValue(slot);
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+  }
+
+  /**
+   * Returns the location of the semicolon token in this node
+   */
+  getSemicolonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
+  }
+}
+
+/**
+ * AliasDeclarationAST node.
+ */
+export class AliasDeclarationAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitAliasDeclaration(this, context);
+  }
+
+  /**
+   * Returns the location of the using token in this node
+   */
+  getUsingToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the attributeList of this node
+   */
+  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 2);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the equal token in this node
+   */
+  getEqualToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the typeId of this node
+   */
+  getTypeId(): TypeIdAST | undefined {
+    return AST.from<TypeIdAST>(
+      cxx.getASTSlot(this.getHandle(), 4),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the semicolon token in this node
+   */
+  getSemicolonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 6);
+    return cxx.getIdentifierValue(slot);
+  }
+}
+
+/**
+ * OpaqueEnumDeclarationAST node.
+ */
+export class OpaqueEnumDeclarationAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitOpaqueEnumDeclaration(this, context);
+  }
+
+  /**
+   * Returns the location of the enum token in this node
+   */
+  getEnumToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the class token in this node
+   */
+  getClassToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the attributeList of this node
+   */
+  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 2);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the nestedNameSpecifier of this node
+   */
+  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
+    return AST.from<NestedNameSpecifierAST>(
+      cxx.getASTSlot(this.getHandle(), 3),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the unqualifiedId of this node
+   */
+  getUnqualifiedId(): NameIdAST | undefined {
+    return AST.from<NameIdAST>(
+      cxx.getASTSlot(this.getHandle(), 4),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the colon token in this node
+   */
+  getColonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+  }
+
+  /**
+   * Returns the typeSpecifierList of this node
+   */
+  *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 6);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the emicolon token in this node
+   */
+  getEmicolonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
+  }
+}
+
+/**
+ * FunctionDefinitionAST node.
+ */
+export class FunctionDefinitionAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitFunctionDefinition(this, context);
+  }
+
+  /**
+   * Returns the attributeList of this node
+   */
+  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 0);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the declSpecifierList of this node
+   */
+  *getDeclSpecifierList(): Generator<SpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 1);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the declarator of this node
+   */
+  getDeclarator(): DeclaratorAST | undefined {
+    return AST.from<DeclaratorAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the requiresClause of this node
+   */
+  getRequiresClause(): RequiresClauseAST | undefined {
+    return AST.from<RequiresClauseAST>(
+      cxx.getASTSlot(this.getHandle(), 3),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the functionBody of this node
+   */
+  getFunctionBody(): FunctionBodyAST | undefined {
+    return AST.from<FunctionBodyAST>(
+      cxx.getASTSlot(this.getHandle(), 4),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * TemplateDeclarationAST node.
+ */
+export class TemplateDeclarationAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitTemplateDeclaration(this, context);
+  }
+
+  /**
+   * Returns the location of the template token in this node
+   */
+  getTemplateToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the less token in this node
+   */
+  getLessToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the templateParameterList of this node
+   */
+  *getTemplateParameterList(): Generator<TemplateParameterAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 2);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<TemplateParameterAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the greater token in this node
+   */
+  getGreaterToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the requiresClause of this node
+   */
+  getRequiresClause(): RequiresClauseAST | undefined {
+    return AST.from<RequiresClauseAST>(
+      cxx.getASTSlot(this.getHandle(), 4),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the declaration of this node
+   */
+  getDeclaration(): DeclarationAST | undefined {
+    return AST.from<DeclarationAST>(
+      cxx.getASTSlot(this.getHandle(), 5),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * ConceptDefinitionAST node.
+ */
+export class ConceptDefinitionAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitConceptDefinition(this, context);
+  }
+
+  /**
+   * Returns the location of the concept token in this node
+   */
+  getConceptToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the equal token in this node
+   */
+  getEqualToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 3),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the semicolon token in this node
+   */
+  getSemicolonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 5);
+    return cxx.getIdentifierValue(slot);
+  }
+}
+
+/**
+ * DeductionGuideAST node.
+ */
+export class DeductionGuideAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitDeductionGuide(this, context);
+  }
+
+  /**
+   * Returns the explicitSpecifier of this node
+   */
+  getExplicitSpecifier(): SpecifierAST | undefined {
+    return AST.from<SpecifierAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the parameterDeclarationClause of this node
+   */
+  getParameterDeclarationClause(): ParameterDeclarationClauseAST | undefined {
+    return AST.from<ParameterDeclarationClauseAST>(
+      cxx.getASTSlot(this.getHandle(), 3),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  }
+
+  /**
+   * Returns the location of the arrow token in this node
+   */
+  getArrowToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+  }
+
+  /**
+   * Returns the templateId of this node
+   */
+  getTemplateId(): SimpleTemplateIdAST | undefined {
+    return AST.from<SimpleTemplateIdAST>(
+      cxx.getASTSlot(this.getHandle(), 6),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the semicolon token in this node
+   */
+  getSemicolonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 8);
+    return cxx.getIdentifierValue(slot);
+  }
+}
+
+/**
+ * ExplicitInstantiationAST node.
+ */
+export class ExplicitInstantiationAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitExplicitInstantiation(this, context);
+  }
+
+  /**
+   * Returns the location of the extern token in this node
+   */
+  getExternToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the template token in this node
+   */
+  getTemplateToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the declaration of this node
+   */
+  getDeclaration(): DeclarationAST | undefined {
+    return AST.from<DeclarationAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * ExportDeclarationAST node.
+ */
+export class ExportDeclarationAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitExportDeclaration(this, context);
+  }
+
+  /**
+   * Returns the location of the export token in this node
+   */
+  getExportToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the declaration of this node
+   */
+  getDeclaration(): DeclarationAST | undefined {
+    return AST.from<DeclarationAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * ExportCompoundDeclarationAST node.
+ */
+export class ExportCompoundDeclarationAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitExportCompoundDeclaration(this, context);
+  }
+
+  /**
+   * Returns the location of the export token in this node
+   */
+  getExportToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the lbrace token in this node
+   */
+  getLbraceToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the declarationList of this node
+   */
+  *getDeclarationList(): Generator<DeclarationAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 2);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the rbrace token in this node
+   */
+  getRbraceToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+}
+
+/**
+ * LinkageSpecificationAST node.
+ */
+export class LinkageSpecificationAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitLinkageSpecification(this, context);
+  }
+
+  /**
+   * Returns the location of the extern token in this node
+   */
+  getExternToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the stringliteral token in this node
+   */
+  getStringliteralToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the lbrace token in this node
+   */
+  getLbraceToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the declarationList of this node
+   */
+  *getDeclarationList(): Generator<DeclarationAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 3);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the rbrace token in this node
+   */
+  getRbraceToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  }
+
+  /**
+   * Returns the stringLiteral attribute of this node
+   */
+  getStringLiteral(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 5);
+    return cxx.getLiteralValue(slot);
+  }
+}
+
+/**
+ * NamespaceDefinitionAST node.
+ */
+export class NamespaceDefinitionAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitNamespaceDefinition(this, context);
+  }
+
+  /**
+   * Returns the location of the inline token in this node
+   */
+  getInlineToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the namespace token in this node
+   */
+  getNamespaceToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the attributeList of this node
+   */
+  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 2);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the nestedNamespaceSpecifierList of this node
+   */
+  *getNestedNamespaceSpecifierList(): Generator<
+    NestedNamespaceSpecifierAST | undefined
+  > {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 3);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<NestedNamespaceSpecifierAST>(
+        cxx.getListValue(it),
+        this.parser,
+      );
+    }
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  }
+
+  /**
+   * Returns the extraAttributeList of this node
+   */
+  *getExtraAttributeList(): Generator<AttributeSpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 5);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the lbrace token in this node
+   */
+  getLbraceToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+  }
+
+  /**
+   * Returns the declarationList of this node
+   */
+  *getDeclarationList(): Generator<DeclarationAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 7);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the rbrace token in this node
+   */
+  getRbraceToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 8), this.parser);
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 9);
+    return cxx.getIdentifierValue(slot);
+  }
+
+  /**
+   * Returns the isInline attribute of this node
+   */
+  getIsInline(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 10) !== 0;
+  }
+}
+
+/**
+ * EmptyDeclarationAST node.
+ */
+export class EmptyDeclarationAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitEmptyDeclaration(this, context);
+  }
+
+  /**
+   * Returns the location of the semicolon token in this node
+   */
+  getSemicolonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+}
+
+/**
+ * AttributeDeclarationAST node.
+ */
+export class AttributeDeclarationAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitAttributeDeclaration(this, context);
+  }
+
+  /**
+   * Returns the attributeList of this node
+   */
+  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 0);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the semicolon token in this node
+   */
+  getSemicolonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+}
+
+/**
+ * ModuleImportDeclarationAST node.
+ */
+export class ModuleImportDeclarationAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitModuleImportDeclaration(this, context);
+  }
+
+  /**
+   * Returns the location of the import token in this node
+   */
+  getImportToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the importName of this node
+   */
+  getImportName(): ImportNameAST | undefined {
+    return AST.from<ImportNameAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the attributeList of this node
+   */
+  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 2);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the semicolon token in this node
+   */
+  getSemicolonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+}
+
+/**
+ * ParameterDeclarationAST node.
+ */
+export class ParameterDeclarationAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitParameterDeclaration(this, context);
+  }
+
+  /**
+   * Returns the attributeList of this node
+   */
+  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 0);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the this token in this node
+   */
+  getThisToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the typeSpecifierList of this node
+   */
+  *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 2);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the declarator of this node
+   */
+  getDeclarator(): DeclaratorAST | undefined {
+    return AST.from<DeclaratorAST>(
+      cxx.getASTSlot(this.getHandle(), 3),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the equal token in this node
+   */
+  getEqualToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 5),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the isThisIntroduced attribute of this node
+   */
+  getIsThisIntroduced(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 6) !== 0;
+  }
+}
+
+/**
+ * AccessDeclarationAST node.
+ */
+export class AccessDeclarationAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitAccessDeclaration(this, context);
+  }
+
+  /**
+   * Returns the location of the access token in this node
+   */
+  getAccessToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the colon token in this node
+   */
+  getColonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the accessSpecifier attribute of this node
+   */
+  getAccessSpecifier(): TokenKind {
+    return cxx.getASTSlot(this.getHandle(), 2);
+  }
+}
+
+/**
+ * ForRangeDeclarationAST node.
+ */
+export class ForRangeDeclarationAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitForRangeDeclaration(this, context);
+  }
+}
+
+/**
+ * StructuredBindingDeclarationAST node.
+ */
+export class StructuredBindingDeclarationAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitStructuredBindingDeclaration(this, context);
+  }
+
+  /**
+   * Returns the attributeList of this node
+   */
+  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 0);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the declSpecifierList of this node
+   */
+  *getDeclSpecifierList(): Generator<SpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 1);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the refQualifier token in this node
+   */
+  getRefQualifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the location of the lbracket token in this node
+   */
+  getLbracketToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the bindingList of this node
+   */
+  *getBindingList(): Generator<NameIdAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 4);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<NameIdAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the rbracket token in this node
+   */
+  getRbracketToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+  }
+
+  /**
+   * Returns the initializer of this node
+   */
+  getInitializer(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 6),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the semicolon token in this node
+   */
+  getSemicolonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
+  }
+}
+
+/**
+ * AsmOperandAST node.
+ */
+export class AsmOperandAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitAsmOperand(this, context);
+  }
+
+  /**
+   * Returns the location of the lbracket token in this node
+   */
+  getLbracketToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the symbolicName token in this node
+   */
+  getSymbolicNameToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the rbracket token in this node
+   */
+  getRbracketToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the location of the constraintLiteral token in this node
+   */
+  getConstraintLiteralToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 5),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+  }
+
+  /**
+   * Returns the symbolicName attribute of this node
+   */
+  getSymbolicName(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 7);
+    return cxx.getIdentifierValue(slot);
+  }
+
+  /**
+   * Returns the constraintLiteral attribute of this node
+   */
+  getConstraintLiteral(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 8);
+    return cxx.getLiteralValue(slot);
+  }
+}
+
+/**
+ * AsmQualifierAST node.
+ */
+export class AsmQualifierAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitAsmQualifier(this, context);
+  }
+
+  /**
+   * Returns the location of the qualifier token in this node
+   */
+  getQualifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the qualifier attribute of this node
+   */
+  getQualifier(): TokenKind {
+    return cxx.getASTSlot(this.getHandle(), 1);
+  }
+}
+
+/**
+ * AsmClobberAST node.
+ */
+export class AsmClobberAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitAsmClobber(this, context);
+  }
+
+  /**
+   * Returns the location of the literal token in this node
+   */
+  getLiteralToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the literal attribute of this node
+   */
+  getLiteral(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 1);
+    return cxx.getLiteralValue(slot);
+  }
+}
+
+/**
+ * AsmGotoLabelAST node.
+ */
+export class AsmGotoLabelAST extends DeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitAsmGotoLabel(this, context);
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 1);
+    return cxx.getIdentifierValue(slot);
   }
 }
 
@@ -5983,6 +2955,48 @@ export class ReturnStatementAST extends StatementAST {
 }
 
 /**
+ * CoroutineReturnStatementAST node.
+ */
+export class CoroutineReturnStatementAST extends StatementAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitCoroutineReturnStatement(this, context);
+  }
+
+  /**
+   * Returns the location of the coreturn token in this node
+   */
+  getCoreturnToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the semicolon token in this node
+   */
+  getSemicolonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+}
+
+/**
  * GotoStatementAST node.
  */
 export class GotoStatementAST extends StatementAST {
@@ -6026,48 +3040,6 @@ export class GotoStatementAST extends StatementAST {
   getIdentifier(): string | undefined {
     const slot = cxx.getASTSlot(this.getHandle(), 3);
     return cxx.getIdentifierValue(slot);
-  }
-}
-
-/**
- * CoroutineReturnStatementAST node.
- */
-export class CoroutineReturnStatementAST extends StatementAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitCoroutineReturnStatement(this, context);
-  }
-
-  /**
-   * Returns the location of the coreturn token in this node
-   */
-  getCoreturnToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the semicolon token in this node
-   */
-  getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
   }
 }
 
@@ -6148,9 +3120,9 @@ export class TryBlockStatementAST extends StatementAST {
 }
 
 /**
- * AccessDeclarationAST node.
+ * CharLiteralExpressionAST node.
  */
-export class AccessDeclarationAST extends DeclarationAST {
+export class CharLiteralExpressionAST extends ExpressionAST {
   /**
    * Traverse this node using the given visitor.
    * @param visitor the visitor.
@@ -6161,1114 +3133,29 @@ export class AccessDeclarationAST extends DeclarationAST {
     visitor: ASTVisitor<Context, Result>,
     context: Context,
   ): Result {
-    return visitor.visitAccessDeclaration(this, context);
-  }
-
-  /**
-   * Returns the location of the access token in this node
-   */
-  getAccessToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the colon token in this node
-   */
-  getColonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the accessSpecifier attribute of this node
-   */
-  getAccessSpecifier(): TokenKind {
-    return cxx.getASTSlot(this.getHandle(), 2);
-  }
-}
-
-/**
- * FunctionDefinitionAST node.
- */
-export class FunctionDefinitionAST extends DeclarationAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitFunctionDefinition(this, context);
-  }
-
-  /**
-   * Returns the attributeList of this node
-   */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 0);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the declSpecifierList of this node
-   */
-  *getDeclSpecifierList(): Generator<SpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the declarator of this node
-   */
-  getDeclarator(): DeclaratorAST | undefined {
-    return AST.from<DeclaratorAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the requiresClause of this node
-   */
-  getRequiresClause(): RequiresClauseAST | undefined {
-    return AST.from<RequiresClauseAST>(
-      cxx.getASTSlot(this.getHandle(), 3),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the functionBody of this node
-   */
-  getFunctionBody(): FunctionBodyAST | undefined {
-    return AST.from<FunctionBodyAST>(
-      cxx.getASTSlot(this.getHandle(), 4),
-      this.parser,
-    );
-  }
-}
-
-/**
- * ConceptDefinitionAST node.
- */
-export class ConceptDefinitionAST extends DeclarationAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitConceptDefinition(this, context);
-  }
-
-  /**
-   * Returns the location of the concept token in this node
-   */
-  getConceptToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the identifier token in this node
-   */
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the location of the equal token in this node
-   */
-  getEqualToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 3),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the semicolon token in this node
-   */
-  getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
-  }
-
-  /**
-   * Returns the identifier attribute of this node
-   */
-  getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 5);
-    return cxx.getIdentifierValue(slot);
-  }
-}
-
-/**
- * ForRangeDeclarationAST node.
- */
-export class ForRangeDeclarationAST extends DeclarationAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitForRangeDeclaration(this, context);
-  }
-}
-
-/**
- * AliasDeclarationAST node.
- */
-export class AliasDeclarationAST extends DeclarationAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitAliasDeclaration(this, context);
-  }
-
-  /**
-   * Returns the location of the using token in this node
-   */
-  getUsingToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the identifier token in this node
-   */
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the attributeList of this node
-   */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the equal token in this node
-   */
-  getEqualToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-
-  /**
-   * Returns the typeId of this node
-   */
-  getTypeId(): TypeIdAST | undefined {
-    return AST.from<TypeIdAST>(
-      cxx.getASTSlot(this.getHandle(), 4),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the semicolon token in this node
-   */
-  getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
-  }
-
-  /**
-   * Returns the identifier attribute of this node
-   */
-  getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 6);
-    return cxx.getIdentifierValue(slot);
-  }
-}
-
-/**
- * SimpleDeclarationAST node.
- */
-export class SimpleDeclarationAST extends DeclarationAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitSimpleDeclaration(this, context);
-  }
-
-  /**
-   * Returns the attributeList of this node
-   */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 0);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the declSpecifierList of this node
-   */
-  *getDeclSpecifierList(): Generator<SpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the initDeclaratorList of this node
-   */
-  *getInitDeclaratorList(): Generator<InitDeclaratorAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<InitDeclaratorAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the requiresClause of this node
-   */
-  getRequiresClause(): RequiresClauseAST | undefined {
-    return AST.from<RequiresClauseAST>(
-      cxx.getASTSlot(this.getHandle(), 3),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the semicolon token in this node
-   */
-  getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
-  }
-}
-
-/**
- * StructuredBindingDeclarationAST node.
- */
-export class StructuredBindingDeclarationAST extends DeclarationAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitStructuredBindingDeclaration(this, context);
-  }
-
-  /**
-   * Returns the attributeList of this node
-   */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 0);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the declSpecifierList of this node
-   */
-  *getDeclSpecifierList(): Generator<SpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the refQualifier token in this node
-   */
-  getRefQualifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the location of the lbracket token in this node
-   */
-  getLbracketToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-
-  /**
-   * Returns the bindingList of this node
-   */
-  *getBindingList(): Generator<NameIdAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 4);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<NameIdAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the rbracket token in this node
-   */
-  getRbracketToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
-  }
-
-  /**
-   * Returns the initializer of this node
-   */
-  getInitializer(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 6),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the semicolon token in this node
-   */
-  getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
-  }
-}
-
-/**
- * StaticAssertDeclarationAST node.
- */
-export class StaticAssertDeclarationAST extends DeclarationAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitStaticAssertDeclaration(this, context);
-  }
-
-  /**
-   * Returns the location of the staticAssert token in this node
-   */
-  getStaticAssertToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the comma token in this node
-   */
-  getCommaToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    return visitor.visitCharLiteralExpression(this, context);
   }
 
   /**
    * Returns the location of the literal token in this node
    */
   getLiteralToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
   }
 
   /**
    * Returns the literal attribute of this node
    */
   getLiteral(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 5);
-    return cxx.getLiteralValue(slot);
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
-  }
-
-  /**
-   * Returns the location of the semicolon token in this node
-   */
-  getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
-  }
-}
-
-/**
- * EmptyDeclarationAST node.
- */
-export class EmptyDeclarationAST extends DeclarationAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitEmptyDeclaration(this, context);
-  }
-
-  /**
-   * Returns the location of the semicolon token in this node
-   */
-  getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-}
-
-/**
- * AttributeDeclarationAST node.
- */
-export class AttributeDeclarationAST extends DeclarationAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitAttributeDeclaration(this, context);
-  }
-
-  /**
-   * Returns the attributeList of this node
-   */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 0);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the semicolon token in this node
-   */
-  getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-}
-
-/**
- * OpaqueEnumDeclarationAST node.
- */
-export class OpaqueEnumDeclarationAST extends DeclarationAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitOpaqueEnumDeclaration(this, context);
-  }
-
-  /**
-   * Returns the location of the enum token in this node
-   */
-  getEnumToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the class token in this node
-   */
-  getClassToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the attributeList of this node
-   */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the nestedNameSpecifier of this node
-   */
-  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
-    return AST.from<NestedNameSpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 3),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the unqualifiedId of this node
-   */
-  getUnqualifiedId(): NameIdAST | undefined {
-    return AST.from<NameIdAST>(
-      cxx.getASTSlot(this.getHandle(), 4),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the colon token in this node
-   */
-  getColonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
-  }
-
-  /**
-   * Returns the typeSpecifierList of this node
-   */
-  *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 6);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the emicolon token in this node
-   */
-  getEmicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
-  }
-}
-
-/**
- * NamespaceDefinitionAST node.
- */
-export class NamespaceDefinitionAST extends DeclarationAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitNamespaceDefinition(this, context);
-  }
-
-  /**
-   * Returns the location of the inline token in this node
-   */
-  getInlineToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the namespace token in this node
-   */
-  getNamespaceToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the attributeList of this node
-   */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the nestedNamespaceSpecifierList of this node
-   */
-  *getNestedNamespaceSpecifierList(): Generator<
-    NestedNamespaceSpecifierAST | undefined
-  > {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 3);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<NestedNamespaceSpecifierAST>(
-        cxx.getListValue(it),
-        this.parser,
-      );
-    }
-  }
-
-  /**
-   * Returns the location of the identifier token in this node
-   */
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
-  }
-
-  /**
-   * Returns the extraAttributeList of this node
-   */
-  *getExtraAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 5);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the lbrace token in this node
-   */
-  getLbraceToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
-  }
-
-  /**
-   * Returns the declarationList of this node
-   */
-  *getDeclarationList(): Generator<DeclarationAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 7);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the rbrace token in this node
-   */
-  getRbraceToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 8), this.parser);
-  }
-
-  /**
-   * Returns the identifier attribute of this node
-   */
-  getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 9);
-    return cxx.getIdentifierValue(slot);
-  }
-
-  /**
-   * Returns the isInline attribute of this node
-   */
-  getIsInline(): boolean {
-    return cxx.getASTSlot(this.getHandle(), 10) !== 0;
-  }
-}
-
-/**
- * NamespaceAliasDefinitionAST node.
- */
-export class NamespaceAliasDefinitionAST extends DeclarationAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitNamespaceAliasDefinition(this, context);
-  }
-
-  /**
-   * Returns the location of the namespace token in this node
-   */
-  getNamespaceToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the identifier token in this node
-   */
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the location of the equal token in this node
-   */
-  getEqualToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the nestedNameSpecifier of this node
-   */
-  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
-    return AST.from<NestedNameSpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 3),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the unqualifiedId of this node
-   */
-  getUnqualifiedId(): NameIdAST | undefined {
-    return AST.from<NameIdAST>(
-      cxx.getASTSlot(this.getHandle(), 4),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the semicolon token in this node
-   */
-  getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
-  }
-
-  /**
-   * Returns the identifier attribute of this node
-   */
-  getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 6);
-    return cxx.getIdentifierValue(slot);
-  }
-}
-
-/**
- * UsingDirectiveAST node.
- */
-export class UsingDirectiveAST extends DeclarationAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitUsingDirective(this, context);
-  }
-
-  /**
-   * Returns the attributeList of this node
-   */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 0);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the using token in this node
-   */
-  getUsingToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the location of the namespace token in this node
-   */
-  getNamespaceToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the nestedNameSpecifier of this node
-   */
-  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
-    return AST.from<NestedNameSpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 3),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the unqualifiedId of this node
-   */
-  getUnqualifiedId(): NameIdAST | undefined {
-    return AST.from<NameIdAST>(
-      cxx.getASTSlot(this.getHandle(), 4),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the semicolon token in this node
-   */
-  getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
-  }
-}
-
-/**
- * UsingDeclarationAST node.
- */
-export class UsingDeclarationAST extends DeclarationAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitUsingDeclaration(this, context);
-  }
-
-  /**
-   * Returns the location of the using token in this node
-   */
-  getUsingToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the usingDeclaratorList of this node
-   */
-  *getUsingDeclaratorList(): Generator<UsingDeclaratorAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<UsingDeclaratorAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the semicolon token in this node
-   */
-  getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-}
-
-/**
- * UsingEnumDeclarationAST node.
- */
-export class UsingEnumDeclarationAST extends DeclarationAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitUsingEnumDeclaration(this, context);
-  }
-
-  /**
-   * Returns the location of the using token in this node
-   */
-  getUsingToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the enumTypeSpecifier of this node
-   */
-  getEnumTypeSpecifier(): ElaboratedTypeSpecifierAST | undefined {
-    return AST.from<ElaboratedTypeSpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the semicolon token in this node
-   */
-  getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-}
-
-/**
- * AsmOperandAST node.
- */
-export class AsmOperandAST extends DeclarationAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitAsmOperand(this, context);
-  }
-
-  /**
-   * Returns the location of the lbracket token in this node
-   */
-  getLbracketToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the symbolicName token in this node
-   */
-  getSymbolicNameToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the location of the rbracket token in this node
-   */
-  getRbracketToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the location of the constraintLiteral token in this node
-   */
-  getConstraintLiteralToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 5),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
-  }
-
-  /**
-   * Returns the symbolicName attribute of this node
-   */
-  getSymbolicName(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 7);
-    return cxx.getIdentifierValue(slot);
-  }
-
-  /**
-   * Returns the constraintLiteral attribute of this node
-   */
-  getConstraintLiteral(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 8);
+    const slot = cxx.getASTSlot(this.getHandle(), 1);
     return cxx.getLiteralValue(slot);
   }
 }
 
 /**
- * AsmQualifierAST node.
+ * BoolLiteralExpressionAST node.
  */
-export class AsmQualifierAST extends DeclarationAST {
+export class BoolLiteralExpressionAST extends ExpressionAST {
   /**
    * Traverse this node using the given visitor.
    * @param visitor the visitor.
@@ -7279,28 +3166,126 @@ export class AsmQualifierAST extends DeclarationAST {
     visitor: ASTVisitor<Context, Result>,
     context: Context,
   ): Result {
-    return visitor.visitAsmQualifier(this, context);
+    return visitor.visitBoolLiteralExpression(this, context);
   }
 
   /**
-   * Returns the location of the qualifier token in this node
+   * Returns the location of the literal token in this node
    */
-  getQualifierToken(): Token | undefined {
+  getLiteralToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
   }
 
   /**
-   * Returns the qualifier attribute of this node
+   * Returns the isTrue attribute of this node
    */
-  getQualifier(): TokenKind {
+  getIsTrue(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 1) !== 0;
+  }
+}
+
+/**
+ * IntLiteralExpressionAST node.
+ */
+export class IntLiteralExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitIntLiteralExpression(this, context);
+  }
+
+  /**
+   * Returns the location of the literal token in this node
+   */
+  getLiteralToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the literal attribute of this node
+   */
+  getLiteral(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 1);
+    return cxx.getLiteralValue(slot);
+  }
+}
+
+/**
+ * FloatLiteralExpressionAST node.
+ */
+export class FloatLiteralExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitFloatLiteralExpression(this, context);
+  }
+
+  /**
+   * Returns the location of the literal token in this node
+   */
+  getLiteralToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the literal attribute of this node
+   */
+  getLiteral(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 1);
+    return cxx.getLiteralValue(slot);
+  }
+}
+
+/**
+ * NullptrLiteralExpressionAST node.
+ */
+export class NullptrLiteralExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitNullptrLiteralExpression(this, context);
+  }
+
+  /**
+   * Returns the location of the literal token in this node
+   */
+  getLiteralToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the literal attribute of this node
+   */
+  getLiteral(): TokenKind {
     return cxx.getASTSlot(this.getHandle(), 1);
   }
 }
 
 /**
- * AsmClobberAST node.
+ * StringLiteralExpressionAST node.
  */
-export class AsmClobberAST extends DeclarationAST {
+export class StringLiteralExpressionAST extends ExpressionAST {
   /**
    * Traverse this node using the given visitor.
    * @param visitor the visitor.
@@ -7311,7 +3296,7 @@ export class AsmClobberAST extends DeclarationAST {
     visitor: ASTVisitor<Context, Result>,
     context: Context,
   ): Result {
-    return visitor.visitAsmClobber(this, context);
+    return visitor.visitStringLiteralExpression(this, context);
   }
 
   /**
@@ -7331,9 +3316,9 @@ export class AsmClobberAST extends DeclarationAST {
 }
 
 /**
- * AsmGotoLabelAST node.
+ * UserDefinedStringLiteralExpressionAST node.
  */
-export class AsmGotoLabelAST extends DeclarationAST {
+export class UserDefinedStringLiteralExpressionAST extends ExpressionAST {
   /**
    * Traverse this node using the given visitor.
    * @param visitor the visitor.
@@ -7344,29 +3329,29 @@ export class AsmGotoLabelAST extends DeclarationAST {
     visitor: ASTVisitor<Context, Result>,
     context: Context,
   ): Result {
-    return visitor.visitAsmGotoLabel(this, context);
+    return visitor.visitUserDefinedStringLiteralExpression(this, context);
   }
 
   /**
-   * Returns the location of the identifier token in this node
+   * Returns the location of the literal token in this node
    */
-  getIdentifierToken(): Token | undefined {
+  getLiteralToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
   }
 
   /**
-   * Returns the identifier attribute of this node
+   * Returns the literal attribute of this node
    */
-  getIdentifier(): string | undefined {
+  getLiteral(): string | undefined {
     const slot = cxx.getASTSlot(this.getHandle(), 1);
-    return cxx.getIdentifierValue(slot);
+    return cxx.getLiteralValue(slot);
   }
 }
 
 /**
- * AsmDeclarationAST node.
+ * ThisExpressionAST node.
  */
-export class AsmDeclarationAST extends DeclarationAST {
+export class ThisExpressionAST extends ExpressionAST {
   /**
    * Traverse this node using the given visitor.
    * @param visitor the visitor.
@@ -7377,135 +3362,63 @@ export class AsmDeclarationAST extends DeclarationAST {
     visitor: ASTVisitor<Context, Result>,
     context: Context,
   ): Result {
-    return visitor.visitAsmDeclaration(this, context);
+    return visitor.visitThisExpression(this, context);
   }
 
   /**
-   * Returns the attributeList of this node
+   * Returns the location of the this token in this node
    */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 0);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
-    }
+  getThisToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
   }
+}
 
+/**
+ * NestedExpressionAST node.
+ */
+export class NestedExpressionAST extends ExpressionAST {
   /**
-   * Returns the asmQualifierList of this node
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
    */
-  *getAsmQualifierList(): Generator<AsmQualifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AsmQualifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the asm token in this node
-   */
-  getAsmToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitNestedExpression(this, context);
   }
 
   /**
    * Returns the location of the lparen token in this node
    */
   getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
   }
 
   /**
-   * Returns the location of the literal token in this node
+   * Returns the expression of this node
    */
-  getLiteralToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
-  }
-
-  /**
-   * Returns the outputOperandList of this node
-   */
-  *getOutputOperandList(): Generator<AsmOperandAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 5);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AsmOperandAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the inputOperandList of this node
-   */
-  *getInputOperandList(): Generator<AsmOperandAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 6);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AsmOperandAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the clobberList of this node
-   */
-  *getClobberList(): Generator<AsmClobberAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 7);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AsmClobberAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the gotoLabelList of this node
-   */
-  *getGotoLabelList(): Generator<AsmGotoLabelAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 8);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AsmGotoLabelAST>(cxx.getListValue(it), this.parser);
-    }
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
   }
 
   /**
    * Returns the location of the rparen token in this node
    */
   getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 9), this.parser);
-  }
-
-  /**
-   * Returns the location of the semicolon token in this node
-   */
-  getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 10), this.parser);
-  }
-
-  /**
-   * Returns the literal attribute of this node
-   */
-  getLiteral(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 11);
-    return cxx.getLiteralValue(slot);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
   }
 }
 
 /**
- * ExportDeclarationAST node.
+ * IdExpressionAST node.
  */
-export class ExportDeclarationAST extends DeclarationAST {
+export class IdExpressionAST extends ExpressionAST {
   /**
    * Traverse this node using the given visitor.
    * @param visitor the visitor.
@@ -7516,163 +3429,100 @@ export class ExportDeclarationAST extends DeclarationAST {
     visitor: ASTVisitor<Context, Result>,
     context: Context,
   ): Result {
-    return visitor.visitExportDeclaration(this, context);
+    return visitor.visitIdExpression(this, context);
   }
 
   /**
-   * Returns the location of the export token in this node
+   * Returns the nestedNameSpecifier of this node
    */
-  getExportToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the declaration of this node
-   */
-  getDeclaration(): DeclarationAST | undefined {
-    return AST.from<DeclarationAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
+  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
+    return AST.from<NestedNameSpecifierAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
       this.parser,
     );
-  }
-}
-
-/**
- * ExportCompoundDeclarationAST node.
- */
-export class ExportCompoundDeclarationAST extends DeclarationAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitExportCompoundDeclaration(this, context);
-  }
-
-  /**
-   * Returns the location of the export token in this node
-   */
-  getExportToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the lbrace token in this node
-   */
-  getLbraceToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the declarationList of this node
-   */
-  *getDeclarationList(): Generator<DeclarationAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the rbrace token in this node
-   */
-  getRbraceToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-}
-
-/**
- * ModuleImportDeclarationAST node.
- */
-export class ModuleImportDeclarationAST extends DeclarationAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitModuleImportDeclaration(this, context);
-  }
-
-  /**
-   * Returns the location of the import token in this node
-   */
-  getImportToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the importName of this node
-   */
-  getImportName(): ImportNameAST | undefined {
-    return AST.from<ImportNameAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the attributeList of this node
-   */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the semicolon token in this node
-   */
-  getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-}
-
-/**
- * TemplateDeclarationAST node.
- */
-export class TemplateDeclarationAST extends DeclarationAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitTemplateDeclaration(this, context);
   }
 
   /**
    * Returns the location of the template token in this node
    */
   getTemplateToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the unqualifiedId of this node
+   */
+  getUnqualifiedId(): UnqualifiedIdAST | undefined {
+    return AST.from<UnqualifiedIdAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the isTemplateIntroduced attribute of this node
+   */
+  getIsTemplateIntroduced(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 3) !== 0;
+  }
+}
+
+/**
+ * LambdaExpressionAST node.
+ */
+export class LambdaExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitLambdaExpression(this, context);
+  }
+
+  /**
+   * Returns the location of the lbracket token in this node
+   */
+  getLbracketToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the captureDefault token in this node
+   */
+  getCaptureDefaultToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the captureList of this node
+   */
+  *getCaptureList(): Generator<LambdaCaptureAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 2);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<LambdaCaptureAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the rbracket token in this node
+   */
+  getRbracketToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
   }
 
   /**
    * Returns the location of the less token in this node
    */
   getLessToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
   }
 
   /**
@@ -7680,7 +3530,7 @@ export class TemplateDeclarationAST extends DeclarationAST {
    */
   *getTemplateParameterList(): Generator<TemplateParameterAST | undefined> {
     for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
+      let it = cxx.getASTSlot(this.getHandle(), 5);
       it;
       it = cxx.getListNext(it)
     ) {
@@ -7692,7 +3542,87 @@ export class TemplateDeclarationAST extends DeclarationAST {
    * Returns the location of the greater token in this node
    */
   getGreaterToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+  }
+
+  /**
+   * Returns the templateRequiresClause of this node
+   */
+  getTemplateRequiresClause(): RequiresClauseAST | undefined {
+    return AST.from<RequiresClauseAST>(
+      cxx.getASTSlot(this.getHandle(), 7),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 8), this.parser);
+  }
+
+  /**
+   * Returns the parameterDeclarationClause of this node
+   */
+  getParameterDeclarationClause(): ParameterDeclarationClauseAST | undefined {
+    return AST.from<ParameterDeclarationClauseAST>(
+      cxx.getASTSlot(this.getHandle(), 9),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 10), this.parser);
+  }
+
+  /**
+   * Returns the lambdaSpecifierList of this node
+   */
+  *getLambdaSpecifierList(): Generator<LambdaSpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 11);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<LambdaSpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the exceptionSpecifier of this node
+   */
+  getExceptionSpecifier(): ExceptionSpecifierAST | undefined {
+    return AST.from<ExceptionSpecifierAST>(
+      cxx.getASTSlot(this.getHandle(), 12),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the attributeList of this node
+   */
+  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 13);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the trailingReturnType of this node
+   */
+  getTrailingReturnType(): TrailingReturnTypeAST | undefined {
+    return AST.from<TrailingReturnTypeAST>(
+      cxx.getASTSlot(this.getHandle(), 14),
+      this.parser,
+    );
   }
 
   /**
@@ -7700,26 +3630,26 @@ export class TemplateDeclarationAST extends DeclarationAST {
    */
   getRequiresClause(): RequiresClauseAST | undefined {
     return AST.from<RequiresClauseAST>(
-      cxx.getASTSlot(this.getHandle(), 4),
+      cxx.getASTSlot(this.getHandle(), 15),
       this.parser,
     );
   }
 
   /**
-   * Returns the declaration of this node
+   * Returns the statement of this node
    */
-  getDeclaration(): DeclarationAST | undefined {
-    return AST.from<DeclarationAST>(
-      cxx.getASTSlot(this.getHandle(), 5),
+  getStatement(): CompoundStatementAST | undefined {
+    return AST.from<CompoundStatementAST>(
+      cxx.getASTSlot(this.getHandle(), 16),
       this.parser,
     );
   }
 }
 
 /**
- * DeductionGuideAST node.
+ * FoldExpressionAST node.
  */
-export class DeductionGuideAST extends DeclarationAST {
+export class FoldExpressionAST extends ExpressionAST {
   /**
    * Traverse this node using the given visitor.
    * @param visitor the visitor.
@@ -7730,38 +3660,185 @@ export class DeductionGuideAST extends DeclarationAST {
     visitor: ASTVisitor<Context, Result>,
     context: Context,
   ): Result {
-    return visitor.visitDeductionGuide(this, context);
-  }
-
-  /**
-   * Returns the explicitSpecifier of this node
-   */
-  getExplicitSpecifier(): SpecifierAST | undefined {
-    return AST.from<SpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the identifier token in this node
-   */
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    return visitor.visitFoldExpression(this, context);
   }
 
   /**
    * Returns the location of the lparen token in this node
    */
   getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the leftExpression of this node
+   */
+  getLeftExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the op token in this node
+   */
+  getOpToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
   }
 
   /**
-   * Returns the parameterDeclarationClause of this node
+   * Returns the location of the ellipsis token in this node
    */
-  getParameterDeclarationClause(): ParameterDeclarationClauseAST | undefined {
-    return AST.from<ParameterDeclarationClauseAST>(
+  getEllipsisToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the location of the foldOp token in this node
+   */
+  getFoldOpToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  }
+
+  /**
+   * Returns the rightExpression of this node
+   */
+  getRightExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 5),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+  }
+
+  /**
+   * Returns the op attribute of this node
+   */
+  getOp(): TokenKind {
+    return cxx.getASTSlot(this.getHandle(), 7);
+  }
+
+  /**
+   * Returns the foldOp attribute of this node
+   */
+  getFoldOp(): TokenKind {
+    return cxx.getASTSlot(this.getHandle(), 8);
+  }
+}
+
+/**
+ * RightFoldExpressionAST node.
+ */
+export class RightFoldExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitRightFoldExpression(this, context);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the op token in this node
+   */
+  getOpToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the location of the ellipsis token in this node
+   */
+  getEllipsisToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  }
+
+  /**
+   * Returns the op attribute of this node
+   */
+  getOp(): TokenKind {
+    return cxx.getASTSlot(this.getHandle(), 5);
+  }
+}
+
+/**
+ * LeftFoldExpressionAST node.
+ */
+export class LeftFoldExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitLeftFoldExpression(this, context);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the ellipsis token in this node
+   */
+  getEllipsisToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the op token in this node
+   */
+  getOpToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
       cxx.getASTSlot(this.getHandle(), 3),
       this.parser,
     );
@@ -7775,42 +3852,780 @@ export class DeductionGuideAST extends DeclarationAST {
   }
 
   /**
-   * Returns the location of the arrow token in this node
+   * Returns the op attribute of this node
    */
-  getArrowToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+  getOp(): TokenKind {
+    return cxx.getASTSlot(this.getHandle(), 5);
+  }
+}
+
+/**
+ * RequiresExpressionAST node.
+ */
+export class RequiresExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitRequiresExpression(this, context);
   }
 
   /**
-   * Returns the templateId of this node
+   * Returns the location of the requires token in this node
    */
-  getTemplateId(): SimpleTemplateIdAST | undefined {
-    return AST.from<SimpleTemplateIdAST>(
-      cxx.getASTSlot(this.getHandle(), 6),
+  getRequiresToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the parameterDeclarationClause of this node
+   */
+  getParameterDeclarationClause(): ParameterDeclarationClauseAST | undefined {
+    return AST.from<ParameterDeclarationClauseAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
       this.parser,
     );
   }
 
   /**
-   * Returns the location of the semicolon token in this node
+   * Returns the location of the rparen token in this node
    */
-  getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the location of the lbrace token in this node
+   */
+  getLbraceToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  }
+
+  /**
+   * Returns the requirementList of this node
+   */
+  *getRequirementList(): Generator<RequirementAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 5);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<RequirementAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the rbrace token in this node
+   */
+  getRbraceToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+  }
+}
+
+/**
+ * SubscriptExpressionAST node.
+ */
+export class SubscriptExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitSubscriptExpression(this, context);
+  }
+
+  /**
+   * Returns the baseExpression of this node
+   */
+  getBaseExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the lbracket token in this node
+   */
+  getLbracketToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the indexExpression of this node
+   */
+  getIndexExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the rbracket token in this node
+   */
+  getRbracketToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+}
+
+/**
+ * CallExpressionAST node.
+ */
+export class CallExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitCallExpression(this, context);
+  }
+
+  /**
+   * Returns the baseExpression of this node
+   */
+  getBaseExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the expressionList of this node
+   */
+  *getExpressionList(): Generator<ExpressionAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 2);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+}
+
+/**
+ * TypeConstructionAST node.
+ */
+export class TypeConstructionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitTypeConstruction(this, context);
+  }
+
+  /**
+   * Returns the typeSpecifier of this node
+   */
+  getTypeSpecifier(): SpecifierAST | undefined {
+    return AST.from<SpecifierAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the expressionList of this node
+   */
+  *getExpressionList(): Generator<ExpressionAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 2);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+}
+
+/**
+ * BracedTypeConstructionAST node.
+ */
+export class BracedTypeConstructionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitBracedTypeConstruction(this, context);
+  }
+
+  /**
+   * Returns the typeSpecifier of this node
+   */
+  getTypeSpecifier(): SpecifierAST | undefined {
+    return AST.from<SpecifierAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the bracedInitList of this node
+   */
+  getBracedInitList(): BracedInitListAST | undefined {
+    return AST.from<BracedInitListAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * MemberExpressionAST node.
+ */
+export class MemberExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitMemberExpression(this, context);
+  }
+
+  /**
+   * Returns the baseExpression of this node
+   */
+  getBaseExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the access token in this node
+   */
+  getAccessToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the memberId of this node
+   */
+  getMemberId(): IdExpressionAST | undefined {
+    return AST.from<IdExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the accessOp attribute of this node
+   */
+  getAccessOp(): TokenKind {
+    return cxx.getASTSlot(this.getHandle(), 3);
+  }
+}
+
+/**
+ * PostIncrExpressionAST node.
+ */
+export class PostIncrExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitPostIncrExpression(this, context);
+  }
+
+  /**
+   * Returns the baseExpression of this node
+   */
+  getBaseExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the op token in this node
+   */
+  getOpToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the op attribute of this node
+   */
+  getOp(): TokenKind {
+    return cxx.getASTSlot(this.getHandle(), 2);
+  }
+}
+
+/**
+ * CppCastExpressionAST node.
+ */
+export class CppCastExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitCppCastExpression(this, context);
+  }
+
+  /**
+   * Returns the location of the cast token in this node
+   */
+  getCastToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the less token in this node
+   */
+  getLessToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the typeId of this node
+   */
+  getTypeId(): TypeIdAST | undefined {
+    return AST.from<TypeIdAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the greater token in this node
+   */
+  getGreaterToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 5),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+  }
+}
+
+/**
+ * TypeidExpressionAST node.
+ */
+export class TypeidExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitTypeidExpression(this, context);
+  }
+
+  /**
+   * Returns the location of the typeid token in this node
+   */
+  getTypeidToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+}
+
+/**
+ * TypeidOfTypeExpressionAST node.
+ */
+export class TypeidOfTypeExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitTypeidOfTypeExpression(this, context);
+  }
+
+  /**
+   * Returns the location of the typeid token in this node
+   */
+  getTypeidToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the typeId of this node
+   */
+  getTypeId(): TypeIdAST | undefined {
+    return AST.from<TypeIdAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+}
+
+/**
+ * UnaryExpressionAST node.
+ */
+export class UnaryExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitUnaryExpression(this, context);
+  }
+
+  /**
+   * Returns the location of the op token in this node
+   */
+  getOpToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the op attribute of this node
+   */
+  getOp(): TokenKind {
+    return cxx.getASTSlot(this.getHandle(), 2);
+  }
+}
+
+/**
+ * AwaitExpressionAST node.
+ */
+export class AwaitExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitAwaitExpression(this, context);
+  }
+
+  /**
+   * Returns the location of the await token in this node
+   */
+  getAwaitToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * SizeofExpressionAST node.
+ */
+export class SizeofExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitSizeofExpression(this, context);
+  }
+
+  /**
+   * Returns the location of the sizeof token in this node
+   */
+  getSizeofToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * SizeofTypeExpressionAST node.
+ */
+export class SizeofTypeExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitSizeofTypeExpression(this, context);
+  }
+
+  /**
+   * Returns the location of the sizeof token in this node
+   */
+  getSizeofToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the typeId of this node
+   */
+  getTypeId(): TypeIdAST | undefined {
+    return AST.from<TypeIdAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+}
+
+/**
+ * SizeofPackExpressionAST node.
+ */
+export class SizeofPackExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitSizeofPackExpression(this, context);
+  }
+
+  /**
+   * Returns the location of the sizeof token in this node
+   */
+  getSizeofToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the ellipsis token in this node
+   */
+  getEllipsisToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
   }
 
   /**
    * Returns the identifier attribute of this node
    */
   getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 8);
+    const slot = cxx.getASTSlot(this.getHandle(), 5);
     return cxx.getIdentifierValue(slot);
   }
 }
 
 /**
- * ExplicitInstantiationAST node.
+ * AlignofTypeExpressionAST node.
  */
-export class ExplicitInstantiationAST extends DeclarationAST {
+export class AlignofTypeExpressionAST extends ExpressionAST {
   /**
    * Traverse this node using the given visitor.
    * @param visitor the visitor.
@@ -7821,38 +4636,80 @@ export class ExplicitInstantiationAST extends DeclarationAST {
     visitor: ASTVisitor<Context, Result>,
     context: Context,
   ): Result {
-    return visitor.visitExplicitInstantiation(this, context);
+    return visitor.visitAlignofTypeExpression(this, context);
   }
 
   /**
-   * Returns the location of the extern token in this node
+   * Returns the location of the alignof token in this node
    */
-  getExternToken(): Token | undefined {
+  getAlignofToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
   }
 
   /**
-   * Returns the location of the template token in this node
+   * Returns the location of the lparen token in this node
    */
-  getTemplateToken(): Token | undefined {
+  getLparenToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
   }
 
   /**
-   * Returns the declaration of this node
+   * Returns the typeId of this node
    */
-  getDeclaration(): DeclarationAST | undefined {
-    return AST.from<DeclarationAST>(
+  getTypeId(): TypeIdAST | undefined {
+    return AST.from<TypeIdAST>(
       cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+}
+
+/**
+ * AlignofExpressionAST node.
+ */
+export class AlignofExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitAlignofExpression(this, context);
+  }
+
+  /**
+   * Returns the location of the alignof token in this node
+   */
+  getAlignofToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
       this.parser,
     );
   }
 }
 
 /**
- * ParameterDeclarationAST node.
+ * NoexceptExpressionAST node.
  */
-export class ParameterDeclarationAST extends DeclarationAST {
+export class NoexceptExpressionAST extends ExpressionAST {
   /**
    * Traverse this node using the given visitor.
    * @param visitor the visitor.
@@ -7863,7 +4720,661 @@ export class ParameterDeclarationAST extends DeclarationAST {
     visitor: ASTVisitor<Context, Result>,
     context: Context,
   ): Result {
-    return visitor.visitParameterDeclaration(this, context);
+    return visitor.visitNoexceptExpression(this, context);
+  }
+
+  /**
+   * Returns the location of the noexcept token in this node
+   */
+  getNoexceptToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+}
+
+/**
+ * NewExpressionAST node.
+ */
+export class NewExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitNewExpression(this, context);
+  }
+
+  /**
+   * Returns the location of the scope token in this node
+   */
+  getScopeToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the new token in this node
+   */
+  getNewToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the newPlacement of this node
+   */
+  getNewPlacement(): NewPlacementAST | undefined {
+    return AST.from<NewPlacementAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the typeSpecifierList of this node
+   */
+  *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 4);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the declarator of this node
+   */
+  getDeclarator(): DeclaratorAST | undefined {
+    return AST.from<DeclaratorAST>(
+      cxx.getASTSlot(this.getHandle(), 5),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+  }
+
+  /**
+   * Returns the newInitalizer of this node
+   */
+  getNewInitalizer(): NewInitializerAST | undefined {
+    return AST.from<NewInitializerAST>(
+      cxx.getASTSlot(this.getHandle(), 7),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * DeleteExpressionAST node.
+ */
+export class DeleteExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitDeleteExpression(this, context);
+  }
+
+  /**
+   * Returns the location of the scope token in this node
+   */
+  getScopeToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the delete token in this node
+   */
+  getDeleteToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the lbracket token in this node
+   */
+  getLbracketToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the location of the rbracket token in this node
+   */
+  getRbracketToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 4),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * CastExpressionAST node.
+ */
+export class CastExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitCastExpression(this, context);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the typeId of this node
+   */
+  getTypeId(): TypeIdAST | undefined {
+    return AST.from<TypeIdAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 3),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * ImplicitCastExpressionAST node.
+ */
+export class ImplicitCastExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitImplicitCastExpression(this, context);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * BinaryExpressionAST node.
+ */
+export class BinaryExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitBinaryExpression(this, context);
+  }
+
+  /**
+   * Returns the leftExpression of this node
+   */
+  getLeftExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the op token in this node
+   */
+  getOpToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the rightExpression of this node
+   */
+  getRightExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the op attribute of this node
+   */
+  getOp(): TokenKind {
+    return cxx.getASTSlot(this.getHandle(), 3);
+  }
+}
+
+/**
+ * ConditionalExpressionAST node.
+ */
+export class ConditionalExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitConditionalExpression(this, context);
+  }
+
+  /**
+   * Returns the condition of this node
+   */
+  getCondition(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the question token in this node
+   */
+  getQuestionToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the iftrueExpression of this node
+   */
+  getIftrueExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the colon token in this node
+   */
+  getColonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the iffalseExpression of this node
+   */
+  getIffalseExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 4),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * YieldExpressionAST node.
+ */
+export class YieldExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitYieldExpression(this, context);
+  }
+
+  /**
+   * Returns the location of the yield token in this node
+   */
+  getYieldToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * ThrowExpressionAST node.
+ */
+export class ThrowExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitThrowExpression(this, context);
+  }
+
+  /**
+   * Returns the location of the throw token in this node
+   */
+  getThrowToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * AssignmentExpressionAST node.
+ */
+export class AssignmentExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitAssignmentExpression(this, context);
+  }
+
+  /**
+   * Returns the leftExpression of this node
+   */
+  getLeftExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the op token in this node
+   */
+  getOpToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the rightExpression of this node
+   */
+  getRightExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the op attribute of this node
+   */
+  getOp(): TokenKind {
+    return cxx.getASTSlot(this.getHandle(), 3);
+  }
+}
+
+/**
+ * PackExpansionExpressionAST node.
+ */
+export class PackExpansionExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitPackExpansionExpression(this, context);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the ellipsis token in this node
+   */
+  getEllipsisToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+}
+
+/**
+ * DesignatedInitializerClauseAST node.
+ */
+export class DesignatedInitializerClauseAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitDesignatedInitializerClause(this, context);
+  }
+
+  /**
+   * Returns the location of the dot token in this node
+   */
+  getDotToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 2);
+    return cxx.getIdentifierValue(slot);
+  }
+
+  /**
+   * Returns the initializer of this node
+   */
+  getInitializer(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 3),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * TypeTraitsExpressionAST node.
+ */
+export class TypeTraitsExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitTypeTraitsExpression(this, context);
+  }
+
+  /**
+   * Returns the location of the typeTraits token in this node
+   */
+  getTypeTraitsToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the typeIdList of this node
+   */
+  *getTypeIdList(): Generator<TypeIdAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 2);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<TypeIdAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the typeTraits attribute of this node
+   */
+  getTypeTraits(): TokenKind {
+    return cxx.getASTSlot(this.getHandle(), 4);
+  }
+}
+
+/**
+ * ConditionExpressionAST node.
+ */
+export class ConditionExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitConditionExpression(this, context);
   }
 
   /**
@@ -7880,18 +5391,11 @@ export class ParameterDeclarationAST extends DeclarationAST {
   }
 
   /**
-   * Returns the location of the this token in this node
+   * Returns the declSpecifierList of this node
    */
-  getThisToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the typeSpecifierList of this node
-   */
-  *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
+  *getDeclSpecifierList(): Generator<SpecifierAST | undefined> {
     for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
+      let it = cxx.getASTSlot(this.getHandle(), 1);
       it;
       it = cxx.getListNext(it)
     ) {
@@ -7904,40 +5408,26 @@ export class ParameterDeclarationAST extends DeclarationAST {
    */
   getDeclarator(): DeclaratorAST | undefined {
     return AST.from<DeclaratorAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the initializer of this node
+   */
+  getInitializer(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
       cxx.getASTSlot(this.getHandle(), 3),
       this.parser,
     );
   }
-
-  /**
-   * Returns the location of the equal token in this node
-   */
-  getEqualToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
-  }
-
-  /**
-   * Returns the expression of this node
-   */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 5),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the isThisIntroduced attribute of this node
-   */
-  getIsThisIntroduced(): boolean {
-    return cxx.getASTSlot(this.getHandle(), 6) !== 0;
-  }
 }
 
 /**
- * LinkageSpecificationAST node.
+ * EqualInitializerAST node.
  */
-export class LinkageSpecificationAST extends DeclarationAST {
+export class EqualInitializerAST extends ExpressionAST {
   /**
    * Traverse this node using the given visitor.
    * @param visitor the visitor.
@@ -7948,56 +5438,121 @@ export class LinkageSpecificationAST extends DeclarationAST {
     visitor: ASTVisitor<Context, Result>,
     context: Context,
   ): Result {
-    return visitor.visitLinkageSpecification(this, context);
+    return visitor.visitEqualInitializer(this, context);
   }
 
   /**
-   * Returns the location of the extern token in this node
+   * Returns the location of the equal token in this node
    */
-  getExternToken(): Token | undefined {
+  getEqualToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
   }
 
   /**
-   * Returns the location of the stringliteral token in this node
+   * Returns the expression of this node
    */
-  getStringliteralToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * BracedInitListAST node.
+ */
+export class BracedInitListAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitBracedInitList(this, context);
   }
 
   /**
    * Returns the location of the lbrace token in this node
    */
   getLbraceToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
   }
 
   /**
-   * Returns the declarationList of this node
+   * Returns the expressionList of this node
    */
-  *getDeclarationList(): Generator<DeclarationAST | undefined> {
+  *getExpressionList(): Generator<ExpressionAST | undefined> {
     for (
-      let it = cxx.getASTSlot(this.getHandle(), 3);
+      let it = cxx.getASTSlot(this.getHandle(), 1);
       it;
       it = cxx.getListNext(it)
     ) {
-      yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
+      yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
     }
+  }
+
+  /**
+   * Returns the location of the comma token in this node
+   */
+  getCommaToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
   }
 
   /**
    * Returns the location of the rbrace token in this node
    */
   getRbraceToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+}
+
+/**
+ * ParenInitializerAST node.
+ */
+export class ParenInitializerAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitParenInitializer(this, context);
   }
 
   /**
-   * Returns the stringLiteral attribute of this node
+   * Returns the location of the lparen token in this node
    */
-  getStringLiteral(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 5);
-    return cxx.getLiteralValue(slot);
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the expressionList of this node
+   */
+  *getExpressionList(): Generator<ExpressionAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 1);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
   }
 }
 
@@ -8346,415 +5901,6 @@ export class ConstraintTypeParameterAST extends TemplateParameterAST {
   getIdentifier(): string | undefined {
     const slot = cxx.getASTSlot(this.getHandle(), 5);
     return cxx.getIdentifierValue(slot);
-  }
-}
-
-/**
- * NameIdAST node.
- */
-export class NameIdAST extends UnqualifiedIdAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitNameId(this, context);
-  }
-
-  /**
-   * Returns the location of the identifier token in this node
-   */
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the identifier attribute of this node
-   */
-  getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 1);
-    return cxx.getIdentifierValue(slot);
-  }
-}
-
-/**
- * DestructorIdAST node.
- */
-export class DestructorIdAST extends UnqualifiedIdAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitDestructorId(this, context);
-  }
-
-  /**
-   * Returns the location of the tilde token in this node
-   */
-  getTildeToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the id of this node
-   */
-  getId(): UnqualifiedIdAST | undefined {
-    return AST.from<UnqualifiedIdAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-}
-
-/**
- * DecltypeIdAST node.
- */
-export class DecltypeIdAST extends UnqualifiedIdAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitDecltypeId(this, context);
-  }
-
-  /**
-   * Returns the decltypeSpecifier of this node
-   */
-  getDecltypeSpecifier(): DecltypeSpecifierAST | undefined {
-    return AST.from<DecltypeSpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-}
-
-/**
- * OperatorFunctionIdAST node.
- */
-export class OperatorFunctionIdAST extends UnqualifiedIdAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitOperatorFunctionId(this, context);
-  }
-
-  /**
-   * Returns the location of the operator token in this node
-   */
-  getOperatorToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the op token in this node
-   */
-  getOpToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the location of the open token in this node
-   */
-  getOpenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the location of the close token in this node
-   */
-  getCloseToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-
-  /**
-   * Returns the op attribute of this node
-   */
-  getOp(): TokenKind {
-    return cxx.getASTSlot(this.getHandle(), 4);
-  }
-}
-
-/**
- * LiteralOperatorIdAST node.
- */
-export class LiteralOperatorIdAST extends UnqualifiedIdAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitLiteralOperatorId(this, context);
-  }
-
-  /**
-   * Returns the location of the operator token in this node
-   */
-  getOperatorToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the literal token in this node
-   */
-  getLiteralToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the location of the identifier token in this node
-   */
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the literal attribute of this node
-   */
-  getLiteral(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 3);
-    return cxx.getLiteralValue(slot);
-  }
-
-  /**
-   * Returns the identifier attribute of this node
-   */
-  getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 4);
-    return cxx.getIdentifierValue(slot);
-  }
-}
-
-/**
- * ConversionFunctionIdAST node.
- */
-export class ConversionFunctionIdAST extends UnqualifiedIdAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitConversionFunctionId(this, context);
-  }
-
-  /**
-   * Returns the location of the operator token in this node
-   */
-  getOperatorToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the typeId of this node
-   */
-  getTypeId(): TypeIdAST | undefined {
-    return AST.from<TypeIdAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-}
-
-/**
- * SimpleTemplateIdAST node.
- */
-export class SimpleTemplateIdAST extends UnqualifiedIdAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitSimpleTemplateId(this, context);
-  }
-
-  /**
-   * Returns the location of the identifier token in this node
-   */
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the less token in this node
-   */
-  getLessToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the templateArgumentList of this node
-   */
-  *getTemplateArgumentList(): Generator<TemplateArgumentAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<TemplateArgumentAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the greater token in this node
-   */
-  getGreaterToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-
-  /**
-   * Returns the identifier attribute of this node
-   */
-  getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 4);
-    return cxx.getIdentifierValue(slot);
-  }
-}
-
-/**
- * LiteralOperatorTemplateIdAST node.
- */
-export class LiteralOperatorTemplateIdAST extends UnqualifiedIdAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitLiteralOperatorTemplateId(this, context);
-  }
-
-  /**
-   * Returns the literalOperatorId of this node
-   */
-  getLiteralOperatorId(): LiteralOperatorIdAST | undefined {
-    return AST.from<LiteralOperatorIdAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the less token in this node
-   */
-  getLessToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the templateArgumentList of this node
-   */
-  *getTemplateArgumentList(): Generator<TemplateArgumentAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<TemplateArgumentAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the greater token in this node
-   */
-  getGreaterToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-}
-
-/**
- * OperatorFunctionTemplateIdAST node.
- */
-export class OperatorFunctionTemplateIdAST extends UnqualifiedIdAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitOperatorFunctionTemplateId(this, context);
-  }
-
-  /**
-   * Returns the operatorFunctionId of this node
-   */
-  getOperatorFunctionId(): OperatorFunctionIdAST | undefined {
-    return AST.from<OperatorFunctionIdAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the less token in this node
-   */
-  getLessToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the templateArgumentList of this node
-   */
-  *getTemplateArgumentList(): Generator<TemplateArgumentAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<TemplateArgumentAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the greater token in this node
-   */
-  getGreaterToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
   }
 }
 
@@ -10056,6 +7202,163 @@ export class TypenameSpecifierAST extends SpecifierAST {
 }
 
 /**
+ * PointerOperatorAST node.
+ */
+export class PointerOperatorAST extends PtrOperatorAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitPointerOperator(this, context);
+  }
+
+  /**
+   * Returns the location of the star token in this node
+   */
+  getStarToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the attributeList of this node
+   */
+  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 1);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the cvQualifierList of this node
+   */
+  *getCvQualifierList(): Generator<SpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 2);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+}
+
+/**
+ * ReferenceOperatorAST node.
+ */
+export class ReferenceOperatorAST extends PtrOperatorAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitReferenceOperator(this, context);
+  }
+
+  /**
+   * Returns the location of the ref token in this node
+   */
+  getRefToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the attributeList of this node
+   */
+  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 1);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the refOp attribute of this node
+   */
+  getRefOp(): TokenKind {
+    return cxx.getASTSlot(this.getHandle(), 2);
+  }
+}
+
+/**
+ * PtrToMemberOperatorAST node.
+ */
+export class PtrToMemberOperatorAST extends PtrOperatorAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitPtrToMemberOperator(this, context);
+  }
+
+  /**
+   * Returns the nestedNameSpecifier of this node
+   */
+  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
+    return AST.from<NestedNameSpecifierAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the star token in this node
+   */
+  getStarToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the attributeList of this node
+   */
+  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 2);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the cvQualifierList of this node
+   */
+  *getCvQualifierList(): Generator<SpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 3);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+}
+
+/**
  * BitfieldDeclaratorAST node.
  */
 export class BitfieldDeclaratorAST extends CoreDeclaratorAST {
@@ -10220,163 +7523,6 @@ export class NestedDeclaratorAST extends CoreDeclaratorAST {
    */
   getRparenToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-}
-
-/**
- * PointerOperatorAST node.
- */
-export class PointerOperatorAST extends PtrOperatorAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitPointerOperator(this, context);
-  }
-
-  /**
-   * Returns the location of the star token in this node
-   */
-  getStarToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the attributeList of this node
-   */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the cvQualifierList of this node
-   */
-  *getCvQualifierList(): Generator<SpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-}
-
-/**
- * ReferenceOperatorAST node.
- */
-export class ReferenceOperatorAST extends PtrOperatorAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitReferenceOperator(this, context);
-  }
-
-  /**
-   * Returns the location of the ref token in this node
-   */
-  getRefToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the attributeList of this node
-   */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the refOp attribute of this node
-   */
-  getRefOp(): TokenKind {
-    return cxx.getASTSlot(this.getHandle(), 2);
-  }
-}
-
-/**
- * PtrToMemberOperatorAST node.
- */
-export class PtrToMemberOperatorAST extends PtrOperatorAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitPtrToMemberOperator(this, context);
-  }
-
-  /**
-   * Returns the nestedNameSpecifier of this node
-   */
-  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
-    return AST.from<NestedNameSpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the star token in this node
-   */
-  getStarToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the attributeList of this node
-   */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the cvQualifierList of this node
-   */
-  *getCvQualifierList(): Generator<SpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 3);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
-    }
   }
 }
 
@@ -10548,6 +7694,1664 @@ export class ArrayDeclaratorChunkAST extends DeclaratorChunkAST {
     ) {
       yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
     }
+  }
+}
+
+/**
+ * NameIdAST node.
+ */
+export class NameIdAST extends UnqualifiedIdAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitNameId(this, context);
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 1);
+    return cxx.getIdentifierValue(slot);
+  }
+}
+
+/**
+ * DestructorIdAST node.
+ */
+export class DestructorIdAST extends UnqualifiedIdAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitDestructorId(this, context);
+  }
+
+  /**
+   * Returns the location of the tilde token in this node
+   */
+  getTildeToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the id of this node
+   */
+  getId(): UnqualifiedIdAST | undefined {
+    return AST.from<UnqualifiedIdAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * DecltypeIdAST node.
+ */
+export class DecltypeIdAST extends UnqualifiedIdAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitDecltypeId(this, context);
+  }
+
+  /**
+   * Returns the decltypeSpecifier of this node
+   */
+  getDecltypeSpecifier(): DecltypeSpecifierAST | undefined {
+    return AST.from<DecltypeSpecifierAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * OperatorFunctionIdAST node.
+ */
+export class OperatorFunctionIdAST extends UnqualifiedIdAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitOperatorFunctionId(this, context);
+  }
+
+  /**
+   * Returns the location of the operator token in this node
+   */
+  getOperatorToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the op token in this node
+   */
+  getOpToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the open token in this node
+   */
+  getOpenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the location of the close token in this node
+   */
+  getCloseToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the op attribute of this node
+   */
+  getOp(): TokenKind {
+    return cxx.getASTSlot(this.getHandle(), 4);
+  }
+}
+
+/**
+ * LiteralOperatorIdAST node.
+ */
+export class LiteralOperatorIdAST extends UnqualifiedIdAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitLiteralOperatorId(this, context);
+  }
+
+  /**
+   * Returns the location of the operator token in this node
+   */
+  getOperatorToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the literal token in this node
+   */
+  getLiteralToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the literal attribute of this node
+   */
+  getLiteral(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 3);
+    return cxx.getLiteralValue(slot);
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 4);
+    return cxx.getIdentifierValue(slot);
+  }
+}
+
+/**
+ * ConversionFunctionIdAST node.
+ */
+export class ConversionFunctionIdAST extends UnqualifiedIdAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitConversionFunctionId(this, context);
+  }
+
+  /**
+   * Returns the location of the operator token in this node
+   */
+  getOperatorToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the typeId of this node
+   */
+  getTypeId(): TypeIdAST | undefined {
+    return AST.from<TypeIdAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * SimpleTemplateIdAST node.
+ */
+export class SimpleTemplateIdAST extends UnqualifiedIdAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitSimpleTemplateId(this, context);
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the less token in this node
+   */
+  getLessToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the templateArgumentList of this node
+   */
+  *getTemplateArgumentList(): Generator<TemplateArgumentAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 2);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<TemplateArgumentAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the greater token in this node
+   */
+  getGreaterToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 4);
+    return cxx.getIdentifierValue(slot);
+  }
+}
+
+/**
+ * LiteralOperatorTemplateIdAST node.
+ */
+export class LiteralOperatorTemplateIdAST extends UnqualifiedIdAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitLiteralOperatorTemplateId(this, context);
+  }
+
+  /**
+   * Returns the literalOperatorId of this node
+   */
+  getLiteralOperatorId(): LiteralOperatorIdAST | undefined {
+    return AST.from<LiteralOperatorIdAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the less token in this node
+   */
+  getLessToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the templateArgumentList of this node
+   */
+  *getTemplateArgumentList(): Generator<TemplateArgumentAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 2);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<TemplateArgumentAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the greater token in this node
+   */
+  getGreaterToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+}
+
+/**
+ * OperatorFunctionTemplateIdAST node.
+ */
+export class OperatorFunctionTemplateIdAST extends UnqualifiedIdAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitOperatorFunctionTemplateId(this, context);
+  }
+
+  /**
+   * Returns the operatorFunctionId of this node
+   */
+  getOperatorFunctionId(): OperatorFunctionIdAST | undefined {
+    return AST.from<OperatorFunctionIdAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the less token in this node
+   */
+  getLessToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the templateArgumentList of this node
+   */
+  *getTemplateArgumentList(): Generator<TemplateArgumentAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 2);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<TemplateArgumentAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the greater token in this node
+   */
+  getGreaterToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+}
+
+/**
+ * GlobalNestedNameSpecifierAST node.
+ */
+export class GlobalNestedNameSpecifierAST extends NestedNameSpecifierAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitGlobalNestedNameSpecifier(this, context);
+  }
+
+  /**
+   * Returns the location of the scope token in this node
+   */
+  getScopeToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+}
+
+/**
+ * SimpleNestedNameSpecifierAST node.
+ */
+export class SimpleNestedNameSpecifierAST extends NestedNameSpecifierAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitSimpleNestedNameSpecifier(this, context);
+  }
+
+  /**
+   * Returns the nestedNameSpecifier of this node
+   */
+  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
+    return AST.from<NestedNameSpecifierAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 2);
+    return cxx.getIdentifierValue(slot);
+  }
+
+  /**
+   * Returns the location of the scope token in this node
+   */
+  getScopeToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+}
+
+/**
+ * DecltypeNestedNameSpecifierAST node.
+ */
+export class DecltypeNestedNameSpecifierAST extends NestedNameSpecifierAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitDecltypeNestedNameSpecifier(this, context);
+  }
+
+  /**
+   * Returns the nestedNameSpecifier of this node
+   */
+  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
+    return AST.from<NestedNameSpecifierAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the decltypeSpecifier of this node
+   */
+  getDecltypeSpecifier(): DecltypeSpecifierAST | undefined {
+    return AST.from<DecltypeSpecifierAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the scope token in this node
+   */
+  getScopeToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+}
+
+/**
+ * TemplateNestedNameSpecifierAST node.
+ */
+export class TemplateNestedNameSpecifierAST extends NestedNameSpecifierAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitTemplateNestedNameSpecifier(this, context);
+  }
+
+  /**
+   * Returns the nestedNameSpecifier of this node
+   */
+  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
+    return AST.from<NestedNameSpecifierAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the template token in this node
+   */
+  getTemplateToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the templateId of this node
+   */
+  getTemplateId(): SimpleTemplateIdAST | undefined {
+    return AST.from<SimpleTemplateIdAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the scope token in this node
+   */
+  getScopeToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the isTemplateIntroduced attribute of this node
+   */
+  getIsTemplateIntroduced(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 4) !== 0;
+  }
+}
+
+/**
+ * DefaultFunctionBodyAST node.
+ */
+export class DefaultFunctionBodyAST extends FunctionBodyAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitDefaultFunctionBody(this, context);
+  }
+
+  /**
+   * Returns the location of the equal token in this node
+   */
+  getEqualToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the default token in this node
+   */
+  getDefaultToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the semicolon token in this node
+   */
+  getSemicolonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+}
+
+/**
+ * CompoundStatementFunctionBodyAST node.
+ */
+export class CompoundStatementFunctionBodyAST extends FunctionBodyAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitCompoundStatementFunctionBody(this, context);
+  }
+
+  /**
+   * Returns the location of the colon token in this node
+   */
+  getColonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the memInitializerList of this node
+   */
+  *getMemInitializerList(): Generator<MemInitializerAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 1);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<MemInitializerAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the statement of this node
+   */
+  getStatement(): CompoundStatementAST | undefined {
+    return AST.from<CompoundStatementAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * TryStatementFunctionBodyAST node.
+ */
+export class TryStatementFunctionBodyAST extends FunctionBodyAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitTryStatementFunctionBody(this, context);
+  }
+
+  /**
+   * Returns the location of the try token in this node
+   */
+  getTryToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the colon token in this node
+   */
+  getColonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the memInitializerList of this node
+   */
+  *getMemInitializerList(): Generator<MemInitializerAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 2);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<MemInitializerAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the statement of this node
+   */
+  getStatement(): CompoundStatementAST | undefined {
+    return AST.from<CompoundStatementAST>(
+      cxx.getASTSlot(this.getHandle(), 3),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the handlerList of this node
+   */
+  *getHandlerList(): Generator<HandlerAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 4);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<HandlerAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+}
+
+/**
+ * DeleteFunctionBodyAST node.
+ */
+export class DeleteFunctionBodyAST extends FunctionBodyAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitDeleteFunctionBody(this, context);
+  }
+
+  /**
+   * Returns the location of the equal token in this node
+   */
+  getEqualToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the delete token in this node
+   */
+  getDeleteToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the semicolon token in this node
+   */
+  getSemicolonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+}
+
+/**
+ * TypeTemplateArgumentAST node.
+ */
+export class TypeTemplateArgumentAST extends TemplateArgumentAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitTypeTemplateArgument(this, context);
+  }
+
+  /**
+   * Returns the typeId of this node
+   */
+  getTypeId(): TypeIdAST | undefined {
+    return AST.from<TypeIdAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * ExpressionTemplateArgumentAST node.
+ */
+export class ExpressionTemplateArgumentAST extends TemplateArgumentAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitExpressionTemplateArgument(this, context);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * ThrowExceptionSpecifierAST node.
+ */
+export class ThrowExceptionSpecifierAST extends ExceptionSpecifierAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitThrowExceptionSpecifier(this, context);
+  }
+
+  /**
+   * Returns the location of the throw token in this node
+   */
+  getThrowToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+}
+
+/**
+ * NoexceptSpecifierAST node.
+ */
+export class NoexceptSpecifierAST extends ExceptionSpecifierAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitNoexceptSpecifier(this, context);
+  }
+
+  /**
+   * Returns the location of the noexcept token in this node
+   */
+  getNoexceptToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+}
+
+/**
+ * SimpleRequirementAST node.
+ */
+export class SimpleRequirementAST extends RequirementAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitSimpleRequirement(this, context);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the semicolon token in this node
+   */
+  getSemicolonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+}
+
+/**
+ * CompoundRequirementAST node.
+ */
+export class CompoundRequirementAST extends RequirementAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitCompoundRequirement(this, context);
+  }
+
+  /**
+   * Returns the location of the lbrace token in this node
+   */
+  getLbraceToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the rbrace token in this node
+   */
+  getRbraceToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the location of the noexcept token in this node
+   */
+  getNoexceptToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the location of the minusGreater token in this node
+   */
+  getMinusGreaterToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  }
+
+  /**
+   * Returns the typeConstraint of this node
+   */
+  getTypeConstraint(): TypeConstraintAST | undefined {
+    return AST.from<TypeConstraintAST>(
+      cxx.getASTSlot(this.getHandle(), 5),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the semicolon token in this node
+   */
+  getSemicolonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+  }
+}
+
+/**
+ * TypeRequirementAST node.
+ */
+export class TypeRequirementAST extends RequirementAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitTypeRequirement(this, context);
+  }
+
+  /**
+   * Returns the location of the typename token in this node
+   */
+  getTypenameToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the nestedNameSpecifier of this node
+   */
+  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
+    return AST.from<NestedNameSpecifierAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the unqualifiedId of this node
+   */
+  getUnqualifiedId(): UnqualifiedIdAST | undefined {
+    return AST.from<UnqualifiedIdAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the semicolon token in this node
+   */
+  getSemicolonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+}
+
+/**
+ * NestedRequirementAST node.
+ */
+export class NestedRequirementAST extends RequirementAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitNestedRequirement(this, context);
+  }
+
+  /**
+   * Returns the location of the requires token in this node
+   */
+  getRequiresToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the semicolon token in this node
+   */
+  getSemicolonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+}
+
+/**
+ * NewParenInitializerAST node.
+ */
+export class NewParenInitializerAST extends NewInitializerAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitNewParenInitializer(this, context);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the expressionList of this node
+   */
+  *getExpressionList(): Generator<ExpressionAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 1);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+}
+
+/**
+ * NewBracedInitializerAST node.
+ */
+export class NewBracedInitializerAST extends NewInitializerAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitNewBracedInitializer(this, context);
+  }
+
+  /**
+   * Returns the bracedInitList of this node
+   */
+  getBracedInitList(): BracedInitListAST | undefined {
+    return AST.from<BracedInitListAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * ParenMemInitializerAST node.
+ */
+export class ParenMemInitializerAST extends MemInitializerAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitParenMemInitializer(this, context);
+  }
+
+  /**
+   * Returns the nestedNameSpecifier of this node
+   */
+  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
+    return AST.from<NestedNameSpecifierAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the unqualifiedId of this node
+   */
+  getUnqualifiedId(): UnqualifiedIdAST | undefined {
+    return AST.from<UnqualifiedIdAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the expressionList of this node
+   */
+  *getExpressionList(): Generator<ExpressionAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 3);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  }
+
+  /**
+   * Returns the location of the ellipsis token in this node
+   */
+  getEllipsisToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+  }
+}
+
+/**
+ * BracedMemInitializerAST node.
+ */
+export class BracedMemInitializerAST extends MemInitializerAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitBracedMemInitializer(this, context);
+  }
+
+  /**
+   * Returns the nestedNameSpecifier of this node
+   */
+  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
+    return AST.from<NestedNameSpecifierAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the unqualifiedId of this node
+   */
+  getUnqualifiedId(): UnqualifiedIdAST | undefined {
+    return AST.from<UnqualifiedIdAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the bracedInitList of this node
+   */
+  getBracedInitList(): BracedInitListAST | undefined {
+    return AST.from<BracedInitListAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the ellipsis token in this node
+   */
+  getEllipsisToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+}
+
+/**
+ * ThisLambdaCaptureAST node.
+ */
+export class ThisLambdaCaptureAST extends LambdaCaptureAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitThisLambdaCapture(this, context);
+  }
+
+  /**
+   * Returns the location of the this token in this node
+   */
+  getThisToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+}
+
+/**
+ * DerefThisLambdaCaptureAST node.
+ */
+export class DerefThisLambdaCaptureAST extends LambdaCaptureAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitDerefThisLambdaCapture(this, context);
+  }
+
+  /**
+   * Returns the location of the star token in this node
+   */
+  getStarToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the this token in this node
+   */
+  getThisToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+}
+
+/**
+ * SimpleLambdaCaptureAST node.
+ */
+export class SimpleLambdaCaptureAST extends LambdaCaptureAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitSimpleLambdaCapture(this, context);
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the ellipsis token in this node
+   */
+  getEllipsisToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 2);
+    return cxx.getIdentifierValue(slot);
+  }
+}
+
+/**
+ * RefLambdaCaptureAST node.
+ */
+export class RefLambdaCaptureAST extends LambdaCaptureAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitRefLambdaCapture(this, context);
+  }
+
+  /**
+   * Returns the location of the amp token in this node
+   */
+  getAmpToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the ellipsis token in this node
+   */
+  getEllipsisToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 3);
+    return cxx.getIdentifierValue(slot);
+  }
+}
+
+/**
+ * RefInitLambdaCaptureAST node.
+ */
+export class RefInitLambdaCaptureAST extends LambdaCaptureAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitRefInitLambdaCapture(this, context);
+  }
+
+  /**
+   * Returns the location of the amp token in this node
+   */
+  getAmpToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the ellipsis token in this node
+   */
+  getEllipsisToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the initializer of this node
+   */
+  getInitializer(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 3),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 4);
+    return cxx.getIdentifierValue(slot);
+  }
+}
+
+/**
+ * InitLambdaCaptureAST node.
+ */
+export class InitLambdaCaptureAST extends LambdaCaptureAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitInitLambdaCapture(this, context);
+  }
+
+  /**
+   * Returns the location of the ellipsis token in this node
+   */
+  getEllipsisToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the initializer of this node
+   */
+  getInitializer(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 3);
+    return cxx.getIdentifierValue(slot);
+  }
+}
+
+/**
+ * EllipsisExceptionDeclarationAST node.
+ */
+export class EllipsisExceptionDeclarationAST extends ExceptionDeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitEllipsisExceptionDeclaration(this, context);
+  }
+
+  /**
+   * Returns the location of the ellipsis token in this node
+   */
+  getEllipsisToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+}
+
+/**
+ * TypeExceptionDeclarationAST node.
+ */
+export class TypeExceptionDeclarationAST extends ExceptionDeclarationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitTypeExceptionDeclaration(this, context);
+  }
+
+  /**
+   * Returns the attributeList of this node
+   */
+  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 0);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the typeSpecifierList of this node
+   */
+  *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 1);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the declarator of this node
+   */
+  getDeclarator(): DeclaratorAST | undefined {
+    return AST.from<DeclaratorAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
   }
 }
 
@@ -10871,111 +9675,1236 @@ export class SimpleAttributeTokenAST extends AttributeTokenAST {
   }
 }
 
+/**
+ * GlobalModuleFragmentAST node.
+ */
+export class GlobalModuleFragmentAST extends AST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitGlobalModuleFragment(this, context);
+  }
+
+  /**
+   * Returns the location of the module token in this node
+   */
+  getModuleToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the semicolon token in this node
+   */
+  getSemicolonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the declarationList of this node
+   */
+  *getDeclarationList(): Generator<DeclarationAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 2);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+}
+
+/**
+ * PrivateModuleFragmentAST node.
+ */
+export class PrivateModuleFragmentAST extends AST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitPrivateModuleFragment(this, context);
+  }
+
+  /**
+   * Returns the location of the module token in this node
+   */
+  getModuleToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the colon token in this node
+   */
+  getColonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the private token in this node
+   */
+  getPrivateToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the location of the semicolon token in this node
+   */
+  getSemicolonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the declarationList of this node
+   */
+  *getDeclarationList(): Generator<DeclarationAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 4);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+}
+
+/**
+ * ModuleDeclarationAST node.
+ */
+export class ModuleDeclarationAST extends AST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitModuleDeclaration(this, context);
+  }
+
+  /**
+   * Returns the location of the export token in this node
+   */
+  getExportToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the module token in this node
+   */
+  getModuleToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the moduleName of this node
+   */
+  getModuleName(): ModuleNameAST | undefined {
+    return AST.from<ModuleNameAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the modulePartition of this node
+   */
+  getModulePartition(): ModulePartitionAST | undefined {
+    return AST.from<ModulePartitionAST>(
+      cxx.getASTSlot(this.getHandle(), 3),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the attributeList of this node
+   */
+  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 4);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the semicolon token in this node
+   */
+  getSemicolonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+  }
+}
+
+/**
+ * ModuleNameAST node.
+ */
+export class ModuleNameAST extends AST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitModuleName(this, context);
+  }
+
+  /**
+   * Returns the moduleQualifier of this node
+   */
+  getModuleQualifier(): ModuleQualifierAST | undefined {
+    return AST.from<ModuleQualifierAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 2);
+    return cxx.getIdentifierValue(slot);
+  }
+}
+
+/**
+ * ModuleQualifierAST node.
+ */
+export class ModuleQualifierAST extends AST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitModuleQualifier(this, context);
+  }
+
+  /**
+   * Returns the moduleQualifier of this node
+   */
+  getModuleQualifier(): ModuleQualifierAST | undefined {
+    return AST.from<ModuleQualifierAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the dot token in this node
+   */
+  getDotToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 3);
+    return cxx.getIdentifierValue(slot);
+  }
+}
+
+/**
+ * ModulePartitionAST node.
+ */
+export class ModulePartitionAST extends AST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitModulePartition(this, context);
+  }
+
+  /**
+   * Returns the location of the colon token in this node
+   */
+  getColonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the moduleName of this node
+   */
+  getModuleName(): ModuleNameAST | undefined {
+    return AST.from<ModuleNameAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * ImportNameAST node.
+ */
+export class ImportNameAST extends AST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitImportName(this, context);
+  }
+
+  /**
+   * Returns the location of the header token in this node
+   */
+  getHeaderToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the modulePartition of this node
+   */
+  getModulePartition(): ModulePartitionAST | undefined {
+    return AST.from<ModulePartitionAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the moduleName of this node
+   */
+  getModuleName(): ModuleNameAST | undefined {
+    return AST.from<ModuleNameAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * InitDeclaratorAST node.
+ */
+export class InitDeclaratorAST extends AST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitInitDeclarator(this, context);
+  }
+
+  /**
+   * Returns the declarator of this node
+   */
+  getDeclarator(): DeclaratorAST | undefined {
+    return AST.from<DeclaratorAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the requiresClause of this node
+   */
+  getRequiresClause(): RequiresClauseAST | undefined {
+    return AST.from<RequiresClauseAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the initializer of this node
+   */
+  getInitializer(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * DeclaratorAST node.
+ */
+export class DeclaratorAST extends AST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitDeclarator(this, context);
+  }
+
+  /**
+   * Returns the ptrOpList of this node
+   */
+  *getPtrOpList(): Generator<PtrOperatorAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 0);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<PtrOperatorAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the coreDeclarator of this node
+   */
+  getCoreDeclarator(): CoreDeclaratorAST | undefined {
+    return AST.from<CoreDeclaratorAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the declaratorChunkList of this node
+   */
+  *getDeclaratorChunkList(): Generator<DeclaratorChunkAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 2);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<DeclaratorChunkAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+}
+
+/**
+ * UsingDeclaratorAST node.
+ */
+export class UsingDeclaratorAST extends AST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitUsingDeclarator(this, context);
+  }
+
+  /**
+   * Returns the location of the typename token in this node
+   */
+  getTypenameToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the nestedNameSpecifier of this node
+   */
+  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
+    return AST.from<NestedNameSpecifierAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the unqualifiedId of this node
+   */
+  getUnqualifiedId(): UnqualifiedIdAST | undefined {
+    return AST.from<UnqualifiedIdAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the ellipsis token in this node
+   */
+  getEllipsisToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the isPack attribute of this node
+   */
+  getIsPack(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 4) !== 0;
+  }
+}
+
+/**
+ * EnumeratorAST node.
+ */
+export class EnumeratorAST extends AST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitEnumerator(this, context);
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the attributeList of this node
+   */
+  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 1);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the equal token in this node
+   */
+  getEqualToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 3),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 4);
+    return cxx.getIdentifierValue(slot);
+  }
+}
+
+/**
+ * TypeIdAST node.
+ */
+export class TypeIdAST extends AST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitTypeId(this, context);
+  }
+
+  /**
+   * Returns the typeSpecifierList of this node
+   */
+  *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 0);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the declarator of this node
+   */
+  getDeclarator(): DeclaratorAST | undefined {
+    return AST.from<DeclaratorAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * HandlerAST node.
+ */
+export class HandlerAST extends AST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitHandler(this, context);
+  }
+
+  /**
+   * Returns the location of the catch token in this node
+   */
+  getCatchToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the exceptionDeclaration of this node
+   */
+  getExceptionDeclaration(): ExceptionDeclarationAST | undefined {
+    return AST.from<ExceptionDeclarationAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the statement of this node
+   */
+  getStatement(): CompoundStatementAST | undefined {
+    return AST.from<CompoundStatementAST>(
+      cxx.getASTSlot(this.getHandle(), 4),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * BaseSpecifierAST node.
+ */
+export class BaseSpecifierAST extends AST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitBaseSpecifier(this, context);
+  }
+
+  /**
+   * Returns the attributeList of this node
+   */
+  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 0);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the nestedNameSpecifier of this node
+   */
+  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
+    return AST.from<NestedNameSpecifierAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the template token in this node
+   */
+  getTemplateToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the unqualifiedId of this node
+   */
+  getUnqualifiedId(): UnqualifiedIdAST | undefined {
+    return AST.from<UnqualifiedIdAST>(
+      cxx.getASTSlot(this.getHandle(), 3),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the isTemplateIntroduced attribute of this node
+   */
+  getIsTemplateIntroduced(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 4) !== 0;
+  }
+
+  /**
+   * Returns the isVirtual attribute of this node
+   */
+  getIsVirtual(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 5) !== 0;
+  }
+
+  /**
+   * Returns the accessSpecifier attribute of this node
+   */
+  getAccessSpecifier(): TokenKind {
+    return cxx.getASTSlot(this.getHandle(), 6);
+  }
+}
+
+/**
+ * RequiresClauseAST node.
+ */
+export class RequiresClauseAST extends AST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitRequiresClause(this, context);
+  }
+
+  /**
+   * Returns the location of the requires token in this node
+   */
+  getRequiresToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * ParameterDeclarationClauseAST node.
+ */
+export class ParameterDeclarationClauseAST extends AST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitParameterDeclarationClause(this, context);
+  }
+
+  /**
+   * Returns the parameterDeclarationList of this node
+   */
+  *getParameterDeclarationList(): Generator<
+    ParameterDeclarationAST | undefined
+  > {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 0);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<ParameterDeclarationAST>(
+        cxx.getListValue(it),
+        this.parser,
+      );
+    }
+  }
+
+  /**
+   * Returns the location of the comma token in this node
+   */
+  getCommaToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the ellipsis token in this node
+   */
+  getEllipsisToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the isVariadic attribute of this node
+   */
+  getIsVariadic(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 3) !== 0;
+  }
+}
+
+/**
+ * TrailingReturnTypeAST node.
+ */
+export class TrailingReturnTypeAST extends AST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitTrailingReturnType(this, context);
+  }
+
+  /**
+   * Returns the location of the minusGreater token in this node
+   */
+  getMinusGreaterToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the typeId of this node
+   */
+  getTypeId(): TypeIdAST | undefined {
+    return AST.from<TypeIdAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * LambdaSpecifierAST node.
+ */
+export class LambdaSpecifierAST extends AST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitLambdaSpecifier(this, context);
+  }
+
+  /**
+   * Returns the location of the specifier token in this node
+   */
+  getSpecifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the specifier attribute of this node
+   */
+  getSpecifier(): TokenKind {
+    return cxx.getASTSlot(this.getHandle(), 1);
+  }
+}
+
+/**
+ * TypeConstraintAST node.
+ */
+export class TypeConstraintAST extends AST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitTypeConstraint(this, context);
+  }
+
+  /**
+   * Returns the nestedNameSpecifier of this node
+   */
+  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
+    return AST.from<NestedNameSpecifierAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the less token in this node
+   */
+  getLessToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the templateArgumentList of this node
+   */
+  *getTemplateArgumentList(): Generator<TemplateArgumentAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 3);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<TemplateArgumentAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the greater token in this node
+   */
+  getGreaterToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 5);
+    return cxx.getIdentifierValue(slot);
+  }
+}
+
+/**
+ * AttributeArgumentClauseAST node.
+ */
+export class AttributeArgumentClauseAST extends AST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitAttributeArgumentClause(this, context);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+}
+
+/**
+ * AttributeAST node.
+ */
+export class AttributeAST extends AST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitAttribute(this, context);
+  }
+
+  /**
+   * Returns the attributeToken of this node
+   */
+  getAttributeToken(): AttributeTokenAST | undefined {
+    return AST.from<AttributeTokenAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the attributeArgumentClause of this node
+   */
+  getAttributeArgumentClause(): AttributeArgumentClauseAST | undefined {
+    return AST.from<AttributeArgumentClauseAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the ellipsis token in this node
+   */
+  getEllipsisToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+}
+
+/**
+ * AttributeUsingPrefixAST node.
+ */
+export class AttributeUsingPrefixAST extends AST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitAttributeUsingPrefix(this, context);
+  }
+
+  /**
+   * Returns the location of the using token in this node
+   */
+  getUsingToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the attributeNamespace token in this node
+   */
+  getAttributeNamespaceToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the colon token in this node
+   */
+  getColonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+}
+
+/**
+ * NewPlacementAST node.
+ */
+export class NewPlacementAST extends AST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitNewPlacement(this, context);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the expressionList of this node
+   */
+  *getExpressionList(): Generator<ExpressionAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 1);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<ExpressionAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+}
+
+/**
+ * NestedNamespaceSpecifierAST node.
+ */
+export class NestedNamespaceSpecifierAST extends AST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitNestedNamespaceSpecifier(this, context);
+  }
+
+  /**
+   * Returns the location of the inline token in this node
+   */
+  getInlineToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the scope token in this node
+   */
+  getScopeToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 3);
+    return cxx.getIdentifierValue(slot);
+  }
+
+  /**
+   * Returns the isInline attribute of this node
+   */
+  getIsInline(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 4) !== 0;
+  }
+}
+
 const AST_CONSTRUCTORS: Array<
   new (handle: number, kind: ASTKind, parser: TranslationUnitLike) => AST
 > = [
-  TypeIdAST,
-  UsingDeclaratorAST,
-  HandlerAST,
-  EnumeratorAST,
-  DeclaratorAST,
-  InitDeclaratorAST,
-  BaseSpecifierAST,
-  RequiresClauseAST,
-  ParameterDeclarationClauseAST,
-  LambdaSpecifierAST,
-  TrailingReturnTypeAST,
-  TypeConstraintAST,
-  GlobalModuleFragmentAST,
-  PrivateModuleFragmentAST,
-  ModuleQualifierAST,
-  ModuleNameAST,
-  ModuleDeclarationAST,
-  ImportNameAST,
-  ModulePartitionAST,
-  AttributeArgumentClauseAST,
-  AttributeAST,
-  AttributeUsingPrefixAST,
-  NewPlacementAST,
-  NestedNamespaceSpecifierAST,
-  GlobalNestedNameSpecifierAST,
-  SimpleNestedNameSpecifierAST,
-  DecltypeNestedNameSpecifierAST,
-  TemplateNestedNameSpecifierAST,
-  ThrowExceptionSpecifierAST,
-  NoexceptSpecifierAST,
-  PackExpansionExpressionAST,
-  DesignatedInitializerClauseAST,
-  ThisExpressionAST,
-  CharLiteralExpressionAST,
-  BoolLiteralExpressionAST,
-  IntLiteralExpressionAST,
-  FloatLiteralExpressionAST,
-  NullptrLiteralExpressionAST,
-  StringLiteralExpressionAST,
-  UserDefinedStringLiteralExpressionAST,
-  IdExpressionAST,
-  RequiresExpressionAST,
-  NestedExpressionAST,
-  RightFoldExpressionAST,
-  LeftFoldExpressionAST,
-  FoldExpressionAST,
-  LambdaExpressionAST,
-  SizeofExpressionAST,
-  SizeofTypeExpressionAST,
-  SizeofPackExpressionAST,
-  TypeidExpressionAST,
-  TypeidOfTypeExpressionAST,
-  AlignofTypeExpressionAST,
-  AlignofExpressionAST,
-  TypeTraitsExpressionAST,
-  YieldExpressionAST,
-  AwaitExpressionAST,
-  UnaryExpressionAST,
-  BinaryExpressionAST,
-  AssignmentExpressionAST,
-  ConditionExpressionAST,
-  BracedTypeConstructionAST,
-  TypeConstructionAST,
-  CallExpressionAST,
-  SubscriptExpressionAST,
-  MemberExpressionAST,
-  PostIncrExpressionAST,
-  ConditionalExpressionAST,
-  ImplicitCastExpressionAST,
-  CastExpressionAST,
-  CppCastExpressionAST,
-  NewExpressionAST,
-  DeleteExpressionAST,
-  ThrowExpressionAST,
-  NoexceptExpressionAST,
-  EqualInitializerAST,
-  BracedInitListAST,
-  ParenInitializerAST,
-  SimpleRequirementAST,
-  CompoundRequirementAST,
-  TypeRequirementAST,
-  NestedRequirementAST,
-  TypeTemplateArgumentAST,
-  ExpressionTemplateArgumentAST,
-  ParenMemInitializerAST,
-  BracedMemInitializerAST,
-  ThisLambdaCaptureAST,
-  DerefThisLambdaCaptureAST,
-  SimpleLambdaCaptureAST,
-  RefLambdaCaptureAST,
-  RefInitLambdaCaptureAST,
-  InitLambdaCaptureAST,
-  NewParenInitializerAST,
-  NewBracedInitializerAST,
-  EllipsisExceptionDeclarationAST,
-  TypeExceptionDeclarationAST,
-  DefaultFunctionBodyAST,
-  CompoundStatementFunctionBodyAST,
-  TryStatementFunctionBodyAST,
-  DeleteFunctionBodyAST,
   TranslationUnitAST,
   ModuleUnitAST,
+  SimpleDeclarationAST,
+  AsmDeclarationAST,
+  NamespaceAliasDefinitionAST,
+  UsingDeclarationAST,
+  UsingEnumDeclarationAST,
+  UsingDirectiveAST,
+  StaticAssertDeclarationAST,
+  AliasDeclarationAST,
+  OpaqueEnumDeclarationAST,
+  FunctionDefinitionAST,
+  TemplateDeclarationAST,
+  ConceptDefinitionAST,
+  DeductionGuideAST,
+  ExplicitInstantiationAST,
+  ExportDeclarationAST,
+  ExportCompoundDeclarationAST,
+  LinkageSpecificationAST,
+  NamespaceDefinitionAST,
+  EmptyDeclarationAST,
+  AttributeDeclarationAST,
+  ModuleImportDeclarationAST,
+  ParameterDeclarationAST,
+  AccessDeclarationAST,
+  ForRangeDeclarationAST,
+  StructuredBindingDeclarationAST,
+  AsmOperandAST,
+  AsmQualifierAST,
+  AsmClobberAST,
+  AsmGotoLabelAST,
   LabeledStatementAST,
   CaseStatementAST,
   DefaultStatementAST,
@@ -10991,53 +10920,63 @@ const AST_CONSTRUCTORS: Array<
   BreakStatementAST,
   ContinueStatementAST,
   ReturnStatementAST,
-  GotoStatementAST,
   CoroutineReturnStatementAST,
+  GotoStatementAST,
   DeclarationStatementAST,
   TryBlockStatementAST,
-  AccessDeclarationAST,
-  FunctionDefinitionAST,
-  ConceptDefinitionAST,
-  ForRangeDeclarationAST,
-  AliasDeclarationAST,
-  SimpleDeclarationAST,
-  StructuredBindingDeclarationAST,
-  StaticAssertDeclarationAST,
-  EmptyDeclarationAST,
-  AttributeDeclarationAST,
-  OpaqueEnumDeclarationAST,
-  NamespaceDefinitionAST,
-  NamespaceAliasDefinitionAST,
-  UsingDirectiveAST,
-  UsingDeclarationAST,
-  UsingEnumDeclarationAST,
-  AsmOperandAST,
-  AsmQualifierAST,
-  AsmClobberAST,
-  AsmGotoLabelAST,
-  AsmDeclarationAST,
-  ExportDeclarationAST,
-  ExportCompoundDeclarationAST,
-  ModuleImportDeclarationAST,
-  TemplateDeclarationAST,
-  DeductionGuideAST,
-  ExplicitInstantiationAST,
-  ParameterDeclarationAST,
-  LinkageSpecificationAST,
+  CharLiteralExpressionAST,
+  BoolLiteralExpressionAST,
+  IntLiteralExpressionAST,
+  FloatLiteralExpressionAST,
+  NullptrLiteralExpressionAST,
+  StringLiteralExpressionAST,
+  UserDefinedStringLiteralExpressionAST,
+  ThisExpressionAST,
+  NestedExpressionAST,
+  IdExpressionAST,
+  LambdaExpressionAST,
+  FoldExpressionAST,
+  RightFoldExpressionAST,
+  LeftFoldExpressionAST,
+  RequiresExpressionAST,
+  SubscriptExpressionAST,
+  CallExpressionAST,
+  TypeConstructionAST,
+  BracedTypeConstructionAST,
+  MemberExpressionAST,
+  PostIncrExpressionAST,
+  CppCastExpressionAST,
+  TypeidExpressionAST,
+  TypeidOfTypeExpressionAST,
+  UnaryExpressionAST,
+  AwaitExpressionAST,
+  SizeofExpressionAST,
+  SizeofTypeExpressionAST,
+  SizeofPackExpressionAST,
+  AlignofTypeExpressionAST,
+  AlignofExpressionAST,
+  NoexceptExpressionAST,
+  NewExpressionAST,
+  DeleteExpressionAST,
+  CastExpressionAST,
+  ImplicitCastExpressionAST,
+  BinaryExpressionAST,
+  ConditionalExpressionAST,
+  YieldExpressionAST,
+  ThrowExpressionAST,
+  AssignmentExpressionAST,
+  PackExpansionExpressionAST,
+  DesignatedInitializerClauseAST,
+  TypeTraitsExpressionAST,
+  ConditionExpressionAST,
+  EqualInitializerAST,
+  BracedInitListAST,
+  ParenInitializerAST,
   TemplateTypeParameterAST,
   TemplatePackTypeParameterAST,
   NonTypeTemplateParameterAST,
   TypenameTypeParameterAST,
   ConstraintTypeParameterAST,
-  NameIdAST,
-  DestructorIdAST,
-  DecltypeIdAST,
-  OperatorFunctionIdAST,
-  LiteralOperatorIdAST,
-  ConversionFunctionIdAST,
-  SimpleTemplateIdAST,
-  LiteralOperatorTemplateIdAST,
-  OperatorFunctionTemplateIdAST,
   TypedefSpecifierAST,
   FriendSpecifierAST,
   ConstevalSpecifierAST,
@@ -11072,19 +11011,80 @@ const AST_CONSTRUCTORS: Array<
   EnumSpecifierAST,
   ClassSpecifierAST,
   TypenameSpecifierAST,
+  PointerOperatorAST,
+  ReferenceOperatorAST,
+  PtrToMemberOperatorAST,
   BitfieldDeclaratorAST,
   ParameterPackAST,
   IdDeclaratorAST,
   NestedDeclaratorAST,
-  PointerOperatorAST,
-  ReferenceOperatorAST,
-  PtrToMemberOperatorAST,
   FunctionDeclaratorChunkAST,
   ArrayDeclaratorChunkAST,
+  NameIdAST,
+  DestructorIdAST,
+  DecltypeIdAST,
+  OperatorFunctionIdAST,
+  LiteralOperatorIdAST,
+  ConversionFunctionIdAST,
+  SimpleTemplateIdAST,
+  LiteralOperatorTemplateIdAST,
+  OperatorFunctionTemplateIdAST,
+  GlobalNestedNameSpecifierAST,
+  SimpleNestedNameSpecifierAST,
+  DecltypeNestedNameSpecifierAST,
+  TemplateNestedNameSpecifierAST,
+  DefaultFunctionBodyAST,
+  CompoundStatementFunctionBodyAST,
+  TryStatementFunctionBodyAST,
+  DeleteFunctionBodyAST,
+  TypeTemplateArgumentAST,
+  ExpressionTemplateArgumentAST,
+  ThrowExceptionSpecifierAST,
+  NoexceptSpecifierAST,
+  SimpleRequirementAST,
+  CompoundRequirementAST,
+  TypeRequirementAST,
+  NestedRequirementAST,
+  NewParenInitializerAST,
+  NewBracedInitializerAST,
+  ParenMemInitializerAST,
+  BracedMemInitializerAST,
+  ThisLambdaCaptureAST,
+  DerefThisLambdaCaptureAST,
+  SimpleLambdaCaptureAST,
+  RefLambdaCaptureAST,
+  RefInitLambdaCaptureAST,
+  InitLambdaCaptureAST,
+  EllipsisExceptionDeclarationAST,
+  TypeExceptionDeclarationAST,
   CxxAttributeAST,
   GccAttributeAST,
   AlignasAttributeAST,
   AsmAttributeAST,
   ScopedAttributeTokenAST,
   SimpleAttributeTokenAST,
+  GlobalModuleFragmentAST,
+  PrivateModuleFragmentAST,
+  ModuleDeclarationAST,
+  ModuleNameAST,
+  ModuleQualifierAST,
+  ModulePartitionAST,
+  ImportNameAST,
+  InitDeclaratorAST,
+  DeclaratorAST,
+  UsingDeclaratorAST,
+  EnumeratorAST,
+  TypeIdAST,
+  HandlerAST,
+  BaseSpecifierAST,
+  RequiresClauseAST,
+  ParameterDeclarationClauseAST,
+  TrailingReturnTypeAST,
+  LambdaSpecifierAST,
+  TypeConstraintAST,
+  AttributeArgumentClauseAST,
+  AttributeAST,
+  AttributeUsingPrefixAST,
+  NewPlacementAST,
+  NestedNamespaceSpecifierAST,
 ];
