@@ -178,6 +178,11 @@ jobs:
           token: ${{ secrets.RELEASE_TOKEN }}
           release-type: node
           package-name: cplusplus
+          extra-files: |
+            packages/cxx-frontend/package.json
+            templates/cxx-parse/package.json
+            templates/cxx-browser-esm-vite/package.json
+            templates/cxx-parse-esm/package.json
 
   build-storybook:
     runs-on: ubuntu-latest
