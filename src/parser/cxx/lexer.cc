@@ -74,7 +74,7 @@ inline auto skipSlash(It it, It end) -> It {
 }
 
 template <typename It>
-inline auto peekNext(It it, It end) -> uint32_t {
+inline auto peekNext(It it, It end) -> std::uint32_t {
   it = skipSlash(it, end);
   return it < end ? utf8::unchecked::peek_next(it) : 0;
 }
@@ -119,7 +119,7 @@ void Lexer::consume(int n) {
   currentChar_ = pos_ < end_ ? peekNext(pos_, end_) : 0;
 }
 
-auto Lexer::LA(int n) const -> uint32_t {
+auto Lexer::LA(int n) const -> std::uint32_t {
   auto it = pos_;
   advance(it, n, n >= 0 ? end_ : source_.begin());
   return it < end_ ? peekNext(it, end_) : 0;

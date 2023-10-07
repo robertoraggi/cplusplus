@@ -51,8 +51,8 @@ void DiagnosticsClient::report(const Diagnostic& diag) {
   }  // switch
 
   std::string_view fileName;
-  uint32_t line = 0;
-  uint32_t column = 0;
+  std::uint32_t line = 0;
+  std::uint32_t column = 0;
 
   preprocessor_->getTokenStartPosition(diag.token(), &line, &column, &fileName);
 

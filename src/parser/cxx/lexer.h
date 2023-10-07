@@ -57,7 +57,7 @@ class Lexer {
 
   [[nodiscard]] auto tokenPos() const -> int { return tokenPos_; }
 
-  [[nodiscard]] auto tokenLength() const -> uint32_t {
+  [[nodiscard]] auto tokenLength() const -> std::uint32_t {
     return (pos_ - cbegin(source_)) - tokenPos_;
   }
 
@@ -79,7 +79,7 @@ class Lexer {
 
   struct State {
     std::string_view::const_iterator pos_;
-    uint32_t currentChar_ = 0;
+    std::uint32_t currentChar_ = 0;
     bool leadingSpace_ = false;
     bool startOfLine_ = true;
   };
@@ -101,8 +101,8 @@ class Lexer {
   void consume();
   void consume(int n);
 
-  [[nodiscard]] inline auto LA() const -> uint32_t { return currentChar_; }
-  [[nodiscard]] auto LA(int n) const -> uint32_t;
+  [[nodiscard]] inline auto LA() const -> std::uint32_t { return currentChar_; }
+  [[nodiscard]] auto LA(int n) const -> std::uint32_t;
   [[nodiscard]] auto readToken() -> TokenKind;
   [[nodiscard]] auto skipSpaces() -> bool;
 
@@ -122,7 +122,7 @@ class Lexer {
   bool tokenStartOfLine_ = true;
   bool tokenIsClean_ = true;
   int tokenPos_ = 0;
-  uint32_t currentChar_ = 0;
+  std::uint32_t currentChar_ = 0;
 
   bool preprocessing_ = false;
 };

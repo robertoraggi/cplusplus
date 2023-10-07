@@ -330,13 +330,13 @@ struct SourceFile;
 struct Tok final : Managed {
   std::string_view text;
   const Hideset *hideset = nullptr;
-  uint32_t offset = 0;
-  uint32_t length = 0;
-  uint32_t sourceFile = 0;
+  std::uint32_t offset = 0;
+  std::uint32_t length = 0;
+  std::uint32_t sourceFile = 0;
   TokenKind kind = TokenKind::T_EOF_SYMBOL;
-  uint16_t bol : 1 = false;
-  uint16_t space : 1 = false;
-  uint16_t generated : 1 = false;
+  std::uint16_t bol : 1 = false;
+  std::uint16_t space : 1 = false;
+  std::uint16_t generated : 1 = false;
 
   Tok(const Tok &other) = default;
   auto operator=(const Tok &other) -> Tok & = default;
@@ -448,7 +448,7 @@ struct SourceFile {
   SourceFile(SourceFile &&) noexcept = default;
   auto operator=(SourceFile &&) noexcept -> SourceFile & = default;
 
-  SourceFile(std::string fileName, std::string source, uint32_t id) noexcept
+  SourceFile(std::string fileName, std::string source, std::uint32_t id) noexcept
       : fileName(std::move(fileName)), source(std::move(source)), id(id) {
     initLineMap();
   }
@@ -2072,8 +2072,8 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
   std::swap(d->currentFileName_, currentFileName);
   std::swap(d->currentPath_, path);
 
-  uint32_t outFile = 0;
-  uint32_t outLine = -1;
+  std::uint32_t outFile = 0;
+  std::uint32_t outLine = -1;
 
   const Tok *prevTk = nullptr;
 
@@ -2083,7 +2083,7 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
         tk->sourceFile > 0 ? &*d->sourceFiles_[tk->sourceFile - 1] : nullptr;
     if ((tk->bol || it == os) && file) {
       std::string_view fileName;
-      uint32_t line = 0;
+      std::uint32_t line = 0;
       file->getTokenStartPosition(tk->offset, &line, nullptr, &fileName);
       if (outFile == tk->sourceFile && line == outLine) {
         ++outLine;
@@ -2220,7 +2220,7 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
   });
 
   tokens.emplace_back(TokenKind::T_EOF_SYMBOL,
-                      static_cast<uint32_t>(sourceFile->source.size()));
+                      static_cast<std::uint32_t>(sourceFile->source.size()));
 
   tokens.back().setFileId(sourceFileId);
 
