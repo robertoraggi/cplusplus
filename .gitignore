@@ -4,3 +4,4 @@ out
 .venv
 node_modules
 *.tgz
+.vscode/launch.json
