@@ -202,13 +202,17 @@ export enum ASTKind {
   ExportCompoundDeclaration,
   ModuleImportDeclaration,
   TemplateDeclaration,
-  TypenameTypeParameter,
-  TemplateTypeParameter,
-  TemplatePackTypeParameter,
   DeductionGuide,
   ExplicitInstantiation,
   ParameterDeclaration,
   LinkageSpecification,
+
+  // TemplateParameterAST
+  TemplateTypeParameter,
+  TemplatePackTypeParameter,
+  NonTypeTemplateParameter,
+  TypenameTypeParameter,
+  ConstraintTypeParameter,
 
   // UnqualifiedIdAST
   NameId,

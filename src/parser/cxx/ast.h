@@ -192,6 +192,11 @@ class TemplateArgumentAST : public AST {
   using AST::AST;
 };
 
+class TemplateParameterAST : public AST {
+ public:
+  using AST::AST;
+};
+
 class UnitAST : public AST {
  public:
   using AST::AST;
@@ -1133,7 +1138,7 @@ class LambdaExpressionAST final : public ExpressionAST {
 
   LambdaIntroducerAST* lambdaIntroducer = nullptr;
   SourceLocation lessLoc;
-  List<DeclarationAST*>* templateParameterList = nullptr;
+  List<TemplateParameterAST*>* templateParameterList = nullptr;
   SourceLocation greaterLoc;
   RequiresClauseAST* requiresClause = nullptr;
   LambdaDeclaratorAST* lambdaDeclarator = nullptr;
@@ -2812,73 +2817,10 @@ class TemplateDeclarationAST final : public DeclarationAST {
 
   SourceLocation templateLoc;
   SourceLocation lessLoc;
-  List<DeclarationAST*>* templateParameterList = nullptr;
+  List<TemplateParameterAST*>* templateParameterList = nullptr;
   SourceLocation greaterLoc;
   RequiresClauseAST* requiresClause = nullptr;
   DeclarationAST* declaration = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class TypenameTypeParameterAST final : public DeclarationAST {
- public:
-  static constexpr ASTKind Kind = ASTKind::TypenameTypeParameter;
-
-  TypenameTypeParameterAST() : DeclarationAST(Kind) {}
-
-  SourceLocation classKeyLoc;
-  SourceLocation ellipsisLoc;
-  SourceLocation identifierLoc;
-  SourceLocation equalLoc;
-  TypeIdAST* typeId = nullptr;
-  const Identifier* identifier = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class TemplateTypeParameterAST final : public DeclarationAST {
- public:
-  static constexpr ASTKind Kind = ASTKind::TemplateTypeParameter;
-
-  TemplateTypeParameterAST() : DeclarationAST(Kind) {}
-
-  SourceLocation templateLoc;
-  SourceLocation lessLoc;
-  List<DeclarationAST*>* templateParameterList = nullptr;
-  SourceLocation greaterLoc;
-  RequiresClauseAST* requiresClause = nullptr;
-  SourceLocation classKeyLoc;
-  SourceLocation identifierLoc;
-  SourceLocation equalLoc;
-  IdExpressionAST* idExpression = nullptr;
-  const Identifier* identifier = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class TemplatePackTypeParameterAST final : public DeclarationAST {
- public:
-  static constexpr ASTKind Kind = ASTKind::TemplatePackTypeParameter;
-
-  TemplatePackTypeParameterAST() : DeclarationAST(Kind) {}
-
-  SourceLocation templateLoc;
-  SourceLocation lessLoc;
-  List<DeclarationAST*>* templateParameterList = nullptr;
-  SourceLocation greaterLoc;
-  SourceLocation classKeyLoc;
-  SourceLocation ellipsisLoc;
-  SourceLocation identifierLoc;
-  const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2956,6 +2898,103 @@ class LinkageSpecificationAST final : public DeclarationAST {
   List<DeclarationAST*>* declarationList = nullptr;
   SourceLocation rbraceLoc;
   const StringLiteral* stringLiteral = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class TemplateTypeParameterAST final : public TemplateParameterAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::TemplateTypeParameter;
+
+  TemplateTypeParameterAST() : TemplateParameterAST(Kind) {}
+
+  SourceLocation templateLoc;
+  SourceLocation lessLoc;
+  List<TemplateParameterAST*>* templateParameterList = nullptr;
+  SourceLocation greaterLoc;
+  RequiresClauseAST* requiresClause = nullptr;
+  SourceLocation classKeyLoc;
+  SourceLocation identifierLoc;
+  SourceLocation equalLoc;
+  IdExpressionAST* idExpression = nullptr;
+  const Identifier* identifier = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class TemplatePackTypeParameterAST final : public TemplateParameterAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::TemplatePackTypeParameter;
+
+  TemplatePackTypeParameterAST() : TemplateParameterAST(Kind) {}
+
+  SourceLocation templateLoc;
+  SourceLocation lessLoc;
+  List<TemplateParameterAST*>* templateParameterList = nullptr;
+  SourceLocation greaterLoc;
+  SourceLocation classKeyLoc;
+  SourceLocation ellipsisLoc;
+  SourceLocation identifierLoc;
+  const Identifier* identifier = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class NonTypeTemplateParameterAST final : public TemplateParameterAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::NonTypeTemplateParameter;
+
+  NonTypeTemplateParameterAST() : TemplateParameterAST(Kind) {}
+
+  ParameterDeclarationAST* declaration = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class TypenameTypeParameterAST final : public TemplateParameterAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::TypenameTypeParameter;
+
+  TypenameTypeParameterAST() : TemplateParameterAST(Kind) {}
+
+  SourceLocation classKeyLoc;
+  SourceLocation ellipsisLoc;
+  SourceLocation identifierLoc;
+  SourceLocation equalLoc;
+  TypeIdAST* typeId = nullptr;
+  const Identifier* identifier = nullptr;
+  bool isPack = false;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class ConstraintTypeParameterAST final : public TemplateParameterAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::ConstraintTypeParameter;
+
+  ConstraintTypeParameterAST() : TemplateParameterAST(Kind) {}
+
+  TypeConstraintAST* typeConstraint = nullptr;
+  SourceLocation ellipsisLoc;
+  SourceLocation identifierLoc;
+  SourceLocation equalLoc;
+  TypeIdAST* typeId = nullptr;
+  const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

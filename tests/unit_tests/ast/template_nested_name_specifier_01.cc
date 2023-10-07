@@ -43,15 +43,16 @@ void set(typename HelperT::template Lookup<int>::PointerT p);
 // CHECK-NEXT:                              pointer-operator
 // CHECK-NEXT:    template-declaration
 // CHECK-NEXT:      template-parameter-list
-// CHECK-NEXT:        parameter-declaration
-// CHECK-NEXT:          type-specifier-list
-// CHECK-NEXT:            integral-type-specifier
-// CHECK-NEXT:              specifier: int
-// CHECK-NEXT:          declarator: declarator
-// CHECK-NEXT:            core-declarator: id-declarator
-// CHECK-NEXT:              declarator-id: id-expression
-// CHECK-NEXT:                unqualified-id: name-id
-// CHECK-NEXT:                  identifier: N
+// CHECK-NEXT:        non-type-template-parameter
+// CHECK-NEXT:          declaration: parameter-declaration
+// CHECK-NEXT:            type-specifier-list
+// CHECK-NEXT:              integral-type-specifier
+// CHECK-NEXT:                specifier: int
+// CHECK-NEXT:            declarator: declarator
+// CHECK-NEXT:              core-declarator: id-declarator
+// CHECK-NEXT:                declarator-id: id-expression
+// CHECK-NEXT:                  unqualified-id: name-id
+// CHECK-NEXT:                    identifier: N
 // CHECK-NEXT:      declaration: simple-declaration
 // CHECK-NEXT:        decl-specifier-list
 // CHECK-NEXT:          void-type-specifier

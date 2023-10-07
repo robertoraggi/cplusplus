@@ -70,6 +70,7 @@ class RequirementAST;
 class SpecifierAST;
 class StatementAST;
 class TemplateArgumentAST;
+class TemplateParameterAST;
 class UnitAST;
 class UnqualifiedIdAST;
 
@@ -256,13 +257,17 @@ class ExportDeclarationAST;
 class ExportCompoundDeclarationAST;
 class ModuleImportDeclarationAST;
 class TemplateDeclarationAST;
-class TypenameTypeParameterAST;
-class TemplateTypeParameterAST;
-class TemplatePackTypeParameterAST;
 class DeductionGuideAST;
 class ExplicitInstantiationAST;
 class ParameterDeclarationAST;
 class LinkageSpecificationAST;
+
+// TemplateParameterAST
+class TemplateTypeParameterAST;
+class TemplatePackTypeParameterAST;
+class NonTypeTemplateParameterAST;
+class TypenameTypeParameterAST;
+class ConstraintTypeParameterAST;
 
 // UnqualifiedIdAST
 class NameIdAST;

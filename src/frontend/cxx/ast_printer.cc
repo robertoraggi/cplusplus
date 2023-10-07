@@ -1664,42 +1664,6 @@ void ASTPrinter::visit(TemplateDeclarationAST* ast) {
   accept(ast->declaration, "declaration");
 }
 
-void ASTPrinter::visit(TypenameTypeParameterAST* ast) {
-  fmt::print(out_, "{}\n", "typename-type-parameter");
-  accept(ast->identifier, "identifier");
-  accept(ast->typeId, "type-id");
-}
-
-void ASTPrinter::visit(TemplateTypeParameterAST* ast) {
-  fmt::print(out_, "{}\n", "template-type-parameter");
-  accept(ast->identifier, "identifier");
-  if (ast->templateParameterList) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "template-parameter-list");
-    for (auto it = ast->templateParameterList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-  accept(ast->requiresClause, "requires-clause");
-  accept(ast->idExpression, "id-expression");
-}
-
-void ASTPrinter::visit(TemplatePackTypeParameterAST* ast) {
-  fmt::print(out_, "{}\n", "template-pack-type-parameter");
-  accept(ast->identifier, "identifier");
-  if (ast->templateParameterList) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "template-parameter-list");
-    for (auto it = ast->templateParameterList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-}
-
 void ASTPrinter::visit(DeductionGuideAST* ast) {
   fmt::print(out_, "{}\n", "deduction-guide");
   accept(ast->identifier, "identifier");
@@ -1760,6 +1724,54 @@ void ASTPrinter::visit(LinkageSpecificationAST* ast) {
     }
     --indent_;
   }
+}
+
+void ASTPrinter::visit(TemplateTypeParameterAST* ast) {
+  fmt::print(out_, "{}\n", "template-type-parameter");
+  accept(ast->identifier, "identifier");
+  if (ast->templateParameterList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "template-parameter-list");
+    for (auto it = ast->templateParameterList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+  accept(ast->requiresClause, "requires-clause");
+  accept(ast->idExpression, "id-expression");
+}
+
+void ASTPrinter::visit(TemplatePackTypeParameterAST* ast) {
+  fmt::print(out_, "{}\n", "template-pack-type-parameter");
+  accept(ast->identifier, "identifier");
+  if (ast->templateParameterList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "template-parameter-list");
+    for (auto it = ast->templateParameterList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+}
+
+void ASTPrinter::visit(NonTypeTemplateParameterAST* ast) {
+  fmt::print(out_, "{}\n", "non-type-template-parameter");
+  accept(ast->declaration, "declaration");
+}
+
+void ASTPrinter::visit(TypenameTypeParameterAST* ast) {
+  fmt::print(out_, "{}\n", "typename-type-parameter");
+  accept(ast->identifier, "identifier");
+  accept(ast->typeId, "type-id");
+}
+
+void ASTPrinter::visit(ConstraintTypeParameterAST* ast) {
+  fmt::print(out_, "{}\n", "constraint-type-parameter");
+  accept(ast->identifier, "identifier");
+  accept(ast->typeConstraint, "type-constraint");
+  accept(ast->typeId, "type-id");
 }
 
 void ASTPrinter::visit(NameIdAST* ast) {

@@ -112,9 +112,6 @@ union Declaration {
   ExportCompoundDeclaration,
   ModuleImportDeclaration,
   TemplateDeclaration,
-  TypenameTypeParameter,
-  TemplateTypeParameter,
-  TemplatePackTypeParameter,
   DeductionGuide,
   ExplicitInstantiation,
   ParameterDeclaration,
@@ -295,6 +292,14 @@ union Statement {
 union TemplateArgument {
   TypeTemplateArgument,
   ExpressionTemplateArgument,
+}
+
+union TemplateParameter {
+  TemplateTypeParameter,
+  TemplatePackTypeParameter,
+  NonTypeTemplateParameter,
+  TypenameTypeParameter,
+  ConstraintTypeParameter,
 }
 
 union Unit {
@@ -790,45 +795,12 @@ table ModuleImportDeclaration /* DeclarationAST */ {
 }
 
 table TemplateDeclaration /* DeclarationAST */ {
-  template_parameter_list: [Declaration];
+  template_parameter_list: [TemplateParameter];
   requires_clause: RequiresClause;
   declaration: Declaration;
   template_loc: SourceLocation;
   less_loc: SourceLocation;
   greater_loc: SourceLocation;
-}
-
-table TypenameTypeParameter /* DeclarationAST */ {
-  type_id: TypeId;
-  identifier: string;
-  class_key_loc: SourceLocation;
-  ellipsis_loc: SourceLocation;
-  identifier_loc: SourceLocation;
-  equal_loc: SourceLocation;
-}
-
-table TemplateTypeParameter /* DeclarationAST */ {
-  template_parameter_list: [Declaration];
-  requires_clause: RequiresClause;
-  id_expression: IdExpression;
-  identifier: string;
-  template_loc: SourceLocation;
-  less_loc: SourceLocation;
-  greater_loc: SourceLocation;
-  class_key_loc: SourceLocation;
-  identifier_loc: SourceLocation;
-  equal_loc: SourceLocation;
-}
-
-table TemplatePackTypeParameter /* DeclarationAST */ {
-  template_parameter_list: [Declaration];
-  identifier: string;
-  template_loc: SourceLocation;
-  less_loc: SourceLocation;
-  greater_loc: SourceLocation;
-  class_key_loc: SourceLocation;
-  ellipsis_loc: SourceLocation;
-  identifier_loc: SourceLocation;
 }
 
 table DeductionGuide /* DeclarationAST */ {
@@ -1001,7 +973,7 @@ table FoldExpression /* ExpressionAST */ {
 
 table LambdaExpression /* ExpressionAST */ {
   lambda_introducer: LambdaIntroducer;
-  template_parameter_list: [Declaration];
+  template_parameter_list: [TemplateParameter];
   requires_clause: RequiresClause;
   lambda_declarator: LambdaDeclarator;
   statement: CompoundStatement;
@@ -1699,6 +1671,52 @@ table TypeTemplateArgument /* TemplateArgumentAST */ {
 
 table ExpressionTemplateArgument /* TemplateArgumentAST */ {
   expression: Expression;
+}
+
+table TemplateTypeParameter /* TemplateParameterAST */ {
+  template_parameter_list: [TemplateParameter];
+  requires_clause: RequiresClause;
+  id_expression: IdExpression;
+  identifier: string;
+  template_loc: SourceLocation;
+  less_loc: SourceLocation;
+  greater_loc: SourceLocation;
+  class_key_loc: SourceLocation;
+  identifier_loc: SourceLocation;
+  equal_loc: SourceLocation;
+}
+
+table TemplatePackTypeParameter /* TemplateParameterAST */ {
+  template_parameter_list: [TemplateParameter];
+  identifier: string;
+  template_loc: SourceLocation;
+  less_loc: SourceLocation;
+  greater_loc: SourceLocation;
+  class_key_loc: SourceLocation;
+  ellipsis_loc: SourceLocation;
+  identifier_loc: SourceLocation;
+}
+
+table NonTypeTemplateParameter /* TemplateParameterAST */ {
+  declaration: ParameterDeclaration;
+}
+
+table TypenameTypeParameter /* TemplateParameterAST */ {
+  type_id: TypeId;
+  identifier: string;
+  class_key_loc: SourceLocation;
+  ellipsis_loc: SourceLocation;
+  identifier_loc: SourceLocation;
+  equal_loc: SourceLocation;
+}
+
+table ConstraintTypeParameter /* TemplateParameterAST */ {
+  type_constraint: TypeConstraint;
+  type_id: TypeId;
+  identifier: string;
+  ellipsis_loc: SourceLocation;
+  identifier_loc: SourceLocation;
+  equal_loc: SourceLocation;
 }
 
 table TranslationUnit /* UnitAST */ {

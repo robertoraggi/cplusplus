@@ -211,13 +211,17 @@ class ASTVisitor {
   virtual void visit(ExportCompoundDeclarationAST* ast) = 0;
   virtual void visit(ModuleImportDeclarationAST* ast) = 0;
   virtual void visit(TemplateDeclarationAST* ast) = 0;
-  virtual void visit(TypenameTypeParameterAST* ast) = 0;
-  virtual void visit(TemplateTypeParameterAST* ast) = 0;
-  virtual void visit(TemplatePackTypeParameterAST* ast) = 0;
   virtual void visit(DeductionGuideAST* ast) = 0;
   virtual void visit(ExplicitInstantiationAST* ast) = 0;
   virtual void visit(ParameterDeclarationAST* ast) = 0;
   virtual void visit(LinkageSpecificationAST* ast) = 0;
+
+  // TemplateParameterAST
+  virtual void visit(TemplateTypeParameterAST* ast) = 0;
+  virtual void visit(TemplatePackTypeParameterAST* ast) = 0;
+  virtual void visit(NonTypeTemplateParameterAST* ast) = 0;
+  virtual void visit(TypenameTypeParameterAST* ast) = 0;
+  virtual void visit(ConstraintTypeParameterAST* ast) = 0;
 
   // UnqualifiedIdAST
   virtual void visit(NameIdAST* ast) = 0;

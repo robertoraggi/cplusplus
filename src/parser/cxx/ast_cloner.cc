@@ -2964,89 +2964,6 @@ void ASTCloner::visit(TemplateDeclarationAST* ast) {
   copy->declaration = accept(ast->declaration);
 }
 
-void ASTCloner::visit(TypenameTypeParameterAST* ast) {
-  auto copy = new (arena_) TypenameTypeParameterAST();
-  copy_ = copy;
-
-  copy->setChecked(ast->checked());
-
-  copy->classKeyLoc = ast->classKeyLoc;
-
-  copy->ellipsisLoc = ast->ellipsisLoc;
-
-  copy->identifierLoc = ast->identifierLoc;
-
-  copy->equalLoc = ast->equalLoc;
-
-  copy->typeId = accept(ast->typeId);
-
-  copy->identifier = ast->identifier;
-}
-
-void ASTCloner::visit(TemplateTypeParameterAST* ast) {
-  auto copy = new (arena_) TemplateTypeParameterAST();
-  copy_ = copy;
-
-  copy->setChecked(ast->checked());
-
-  copy->templateLoc = ast->templateLoc;
-
-  copy->lessLoc = ast->lessLoc;
-
-  if (auto it = ast->templateParameterList) {
-    auto out = &copy->templateParameterList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
-
-  copy->greaterLoc = ast->greaterLoc;
-
-  copy->requiresClause = accept(ast->requiresClause);
-
-  copy->classKeyLoc = ast->classKeyLoc;
-
-  copy->identifierLoc = ast->identifierLoc;
-
-  copy->equalLoc = ast->equalLoc;
-
-  copy->idExpression = accept(ast->idExpression);
-
-  copy->identifier = ast->identifier;
-}
-
-void ASTCloner::visit(TemplatePackTypeParameterAST* ast) {
-  auto copy = new (arena_) TemplatePackTypeParameterAST();
-  copy_ = copy;
-
-  copy->setChecked(ast->checked());
-
-  copy->templateLoc = ast->templateLoc;
-
-  copy->lessLoc = ast->lessLoc;
-
-  if (auto it = ast->templateParameterList) {
-    auto out = &copy->templateParameterList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
-
-  copy->greaterLoc = ast->greaterLoc;
-
-  copy->classKeyLoc = ast->classKeyLoc;
-
-  copy->ellipsisLoc = ast->ellipsisLoc;
-
-  copy->identifierLoc = ast->identifierLoc;
-
-  copy->identifier = ast->identifier;
-}
-
 void ASTCloner::visit(DeductionGuideAST* ast) {
   auto copy = new (arena_) DeductionGuideAST();
   copy_ = copy;
@@ -3144,6 +3061,117 @@ void ASTCloner::visit(LinkageSpecificationAST* ast) {
   copy->rbraceLoc = ast->rbraceLoc;
 
   copy->stringLiteral = ast->stringLiteral;
+}
+
+void ASTCloner::visit(TemplateTypeParameterAST* ast) {
+  auto copy = new (arena_) TemplateTypeParameterAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->templateLoc = ast->templateLoc;
+
+  copy->lessLoc = ast->lessLoc;
+
+  if (auto it = ast->templateParameterList) {
+    auto out = &copy->templateParameterList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->greaterLoc = ast->greaterLoc;
+
+  copy->requiresClause = accept(ast->requiresClause);
+
+  copy->classKeyLoc = ast->classKeyLoc;
+
+  copy->identifierLoc = ast->identifierLoc;
+
+  copy->equalLoc = ast->equalLoc;
+
+  copy->idExpression = accept(ast->idExpression);
+
+  copy->identifier = ast->identifier;
+}
+
+void ASTCloner::visit(TemplatePackTypeParameterAST* ast) {
+  auto copy = new (arena_) TemplatePackTypeParameterAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->templateLoc = ast->templateLoc;
+
+  copy->lessLoc = ast->lessLoc;
+
+  if (auto it = ast->templateParameterList) {
+    auto out = &copy->templateParameterList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->greaterLoc = ast->greaterLoc;
+
+  copy->classKeyLoc = ast->classKeyLoc;
+
+  copy->ellipsisLoc = ast->ellipsisLoc;
+
+  copy->identifierLoc = ast->identifierLoc;
+
+  copy->identifier = ast->identifier;
+}
+
+void ASTCloner::visit(NonTypeTemplateParameterAST* ast) {
+  auto copy = new (arena_) NonTypeTemplateParameterAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->declaration = accept(ast->declaration);
+}
+
+void ASTCloner::visit(TypenameTypeParameterAST* ast) {
+  auto copy = new (arena_) TypenameTypeParameterAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->classKeyLoc = ast->classKeyLoc;
+
+  copy->ellipsisLoc = ast->ellipsisLoc;
+
+  copy->identifierLoc = ast->identifierLoc;
+
+  copy->equalLoc = ast->equalLoc;
+
+  copy->typeId = accept(ast->typeId);
+
+  copy->identifier = ast->identifier;
+}
+
+void ASTCloner::visit(ConstraintTypeParameterAST* ast) {
+  auto copy = new (arena_) ConstraintTypeParameterAST();
+  copy_ = copy;
+
+  copy->setChecked(ast->checked());
+
+  copy->typeConstraint = accept(ast->typeConstraint);
+
+  copy->ellipsisLoc = ast->ellipsisLoc;
+
+  copy->identifierLoc = ast->identifierLoc;
+
+  copy->equalLoc = ast->equalLoc;
+
+  copy->typeId = accept(ast->typeId);
+
+  copy->identifier = ast->identifier;
 }
 
 void ASTCloner::visit(NameIdAST* ast) {

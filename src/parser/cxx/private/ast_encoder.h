@@ -108,6 +108,9 @@ class ASTEncoder : ASTVisitor {
   auto acceptDeclaration(DeclarationAST* ast)
       -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
+  auto acceptTemplateParameter(TemplateParameterAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
   auto acceptUnqualifiedId(UnqualifiedIdAST* ast)
       -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
@@ -298,13 +301,16 @@ class ASTEncoder : ASTVisitor {
   void visit(ExportCompoundDeclarationAST* ast) override;
   void visit(ModuleImportDeclarationAST* ast) override;
   void visit(TemplateDeclarationAST* ast) override;
-  void visit(TypenameTypeParameterAST* ast) override;
-  void visit(TemplateTypeParameterAST* ast) override;
-  void visit(TemplatePackTypeParameterAST* ast) override;
   void visit(DeductionGuideAST* ast) override;
   void visit(ExplicitInstantiationAST* ast) override;
   void visit(ParameterDeclarationAST* ast) override;
   void visit(LinkageSpecificationAST* ast) override;
+
+  void visit(TemplateTypeParameterAST* ast) override;
+  void visit(TemplatePackTypeParameterAST* ast) override;
+  void visit(NonTypeTemplateParameterAST* ast) override;
+  void visit(TypenameTypeParameterAST* ast) override;
+  void visit(ConstraintTypeParameterAST* ast) override;
 
   void visit(NameIdAST* ast) override;
   void visit(DestructorIdAST* ast) override;

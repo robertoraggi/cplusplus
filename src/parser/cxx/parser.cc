@@ -7999,10 +7999,16 @@ auto Parser::parse_template_declaration(
   return true;
 }
 
-void Parser::parse_template_parameter_list(List<DeclarationAST*>*& yyast) {
+void Parser::parse_template_parameter_list(
+    List<TemplateParameterAST*>*& yyast) {
   auto it = &yyast;
 
-  DeclarationAST* declaration = nullptr;
+  ++templateParameterDepth_;
+
+  int templateParameterCount = 0;
+  std::swap(templateParameterCount_, templateParameterCount);
+
+  TemplateParameterAST* declaration = nullptr;
 
   parse_template_parameter(declaration);
 
@@ -8012,13 +8018,16 @@ void Parser::parse_template_parameter_list(List<DeclarationAST*>*& yyast) {
   SourceLocation commaLoc;
 
   while (match(TokenKind::T_COMMA, commaLoc)) {
-    DeclarationAST* declaration = nullptr;
+    TemplateParameterAST* declaration = nullptr;
 
     parse_template_parameter(declaration);
 
     *it = new (pool) List(declaration);
     it = &(*it)->next;
   }
+
+  --templateParameterDepth_;
+  std::swap(templateParameterCount_, templateParameterCount);
 }
 
 auto Parser::parse_requires_clause(RequiresClauseAST*& yyast) -> bool {
@@ -8085,7 +8094,7 @@ auto Parser::parse_constraint_logical_and_expression(ExpressionAST*& yyast)
   return true;
 }
 
-void Parser::parse_template_parameter(DeclarationAST*& yyast) {
+void Parser::parse_template_parameter(TemplateParameterAST*& yyast) {
   auto lookat_constraint_type_parameter = [&] {
     LookaheadParser lookahead{this};
 
@@ -8117,12 +8126,15 @@ void Parser::parse_template_parameter(DeclarationAST*& yyast) {
 
   if (!parse_parameter_declaration(parameter, /*templParam*/ true)) return;
 
-  yyast = parameter;
+  auto ast = new (pool) NonTypeTemplateParameterAST();
+  yyast = ast;
+
+  ast->declaration = parameter;
 
   lookahead.commit();
 }
 
-auto Parser::parse_type_parameter(DeclarationAST*& yyast) -> bool {
+auto Parser::parse_type_parameter(TemplateParameterAST*& yyast) -> bool {
   if (parse_template_type_parameter(yyast))
     return true;
   else if (parse_typename_type_parameter(yyast))
@@ -8130,32 +8142,18 @@ auto Parser::parse_type_parameter(DeclarationAST*& yyast) -> bool {
   return false;
 }
 
-auto Parser::parse_typename_type_parameter(DeclarationAST*& yyast) -> bool {
+auto Parser::parse_typename_type_parameter(TemplateParameterAST*& yyast)
+    -> bool {
   auto maybe_elaborated_type_spec = [this]() {
-    SourceLocation typenameLoc;
+    if (!lookat(TokenKind::T_TYPENAME, TokenKind::T_IDENTIFIER)) return false;
 
-    if (!match(TokenKind::T_TYPENAME, typenameLoc)) return false;
+    if (!LA(2).isOneOf(TokenKind::T_COLON_COLON, TokenKind::T_LESS))
+      return false;
 
-    SourceLocation identifierLoc;
-
-    if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
-
-    SourceLocation scopeLoc;
-    SourceLocation lessLoc;
-
-    if (match(TokenKind::T_COLON_COLON, scopeLoc) ||
-        match(TokenKind::T_LESS, lessLoc)) {
-      return true;
-    }
-
-    return false;
+    return true;
   };
 
-  const auto start = currentLocation();
-  const auto is_type_spec = maybe_elaborated_type_spec();
-  rewind(start);
-
-  if (is_type_spec) return false;
+  if (maybe_elaborated_type_spec()) return false;
 
   SourceLocation classKeyLoc;
 
@@ -8166,7 +8164,7 @@ auto Parser::parse_typename_type_parameter(DeclarationAST*& yyast) -> bool {
 
   ast->classKeyLoc = classKeyLoc;
 
-  match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
+  const auto isPack = match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
 
   match(TokenKind::T_IDENTIFIER, ast->identifierLoc);
 
@@ -8176,10 +8174,13 @@ auto Parser::parse_typename_type_parameter(DeclarationAST*& yyast) -> bool {
 
   if (!parse_type_id(ast->typeId)) parse_error("expected a type id");
 
+  ast->isPack = isPack;
+
   return true;
 }
 
-auto Parser::parse_template_type_parameter(DeclarationAST*& yyast) -> bool {
+auto Parser::parse_template_type_parameter(TemplateParameterAST*& yyast)
+    -> bool {
   if (!lookat(TokenKind::T_TEMPLATE, TokenKind::T_LESS)) return false;
 
   SourceLocation templateLoc;
@@ -8191,7 +8192,7 @@ auto Parser::parse_template_type_parameter(DeclarationAST*& yyast) -> bool {
   expect(TokenKind::T_LESS, lessLoc);
 
   SourceLocation greaterLoc;
-  List<DeclarationAST*>* templateParameterList = nullptr;
+  List<TemplateParameterAST*>* templateParameterList = nullptr;
 
   if (!match(TokenKind::T_GREATER, greaterLoc)) {
     parse_template_parameter_list(templateParameterList);
@@ -8271,30 +8272,12 @@ auto Parser::parse_template_type_parameter(DeclarationAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_constraint_type_parameter(DeclarationAST*& yyast) -> bool {
+auto Parser::parse_constraint_type_parameter(TemplateParameterAST*& yyast)
+    -> bool {
   TypeConstraintAST* typeConstraint = nullptr;
 
   if (!parse_type_constraint(typeConstraint, /*parsing placeholder=*/false)) {
     return false;
-  }
-
-  if (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_EQUAL) ||
-      lookat(TokenKind::T_EQUAL)) {
-    SourceLocation identifierLoc;
-
-    match(TokenKind::T_IDENTIFIER, identifierLoc);
-
-    SourceLocation equalLoc;
-
-    expect(TokenKind::T_EQUAL, equalLoc);
-
-    TypeIdAST* typeId = nullptr;
-
-    if (!parse_type_id(typeId)) {
-      return false;  // ### FIXME: parse_error("expected a type id");
-    }
-
-    return true;
   }
 
   SourceLocation ellipsisLoc;
@@ -8302,8 +8285,26 @@ auto Parser::parse_constraint_type_parameter(DeclarationAST*& yyast) -> bool {
   match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
 
   SourceLocation identifierLoc;
-
   match(TokenKind::T_IDENTIFIER, identifierLoc);
+
+  SourceLocation equalLoc;
+  TypeIdAST* typeId = nullptr;
+
+  if (match(TokenKind::T_EQUAL, equalLoc)) {
+    if (!parse_type_id(typeId)) {
+      return false;  // ### FIXME: parse_error("expected a type id");
+    }
+  }
+
+  auto ast = new (pool) ConstraintTypeParameterAST();
+  yyast = ast;
+
+  ast->typeConstraint = typeConstraint;
+  ast->ellipsisLoc = ellipsisLoc;
+  ast->identifierLoc = identifierLoc;
+  ast->identifier = unit->identifier(identifierLoc);
+  ast->equalLoc = equalLoc;
+  ast->typeId = typeId;
 
   return true;
 }

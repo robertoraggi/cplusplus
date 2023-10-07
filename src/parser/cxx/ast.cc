@@ -2360,24 +2360,6 @@ auto TemplateDeclarationAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto TypenameTypeParameterAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(classKeyLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(equalLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
-  return {};
-}
-
-auto TypenameTypeParameterAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
-  if (auto loc = cxx::lastSourceLocation(equalLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(classKeyLoc)) return loc;
-  return {};
-}
-
 auto TemplateTypeParameterAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(templateLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lessLoc)) return loc;
@@ -2501,6 +2483,52 @@ auto LinkageSpecificationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(lbraceLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(stringliteralLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(externLoc)) return loc;
+  return {};
+}
+
+auto NonTypeTemplateParameterAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(declaration)) return loc;
+  return {};
+}
+
+auto NonTypeTemplateParameterAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(declaration)) return loc;
+  return {};
+}
+
+auto TypenameTypeParameterAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(classKeyLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(equalLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
+  return {};
+}
+
+auto TypenameTypeParameterAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(equalLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(classKeyLoc)) return loc;
+  return {};
+}
+
+auto ConstraintTypeParameterAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(typeConstraint)) return loc;
+  if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(equalLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
+  return {};
+}
+
+auto ConstraintTypeParameterAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(equalLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeConstraint)) return loc;
   return {};
 }
 

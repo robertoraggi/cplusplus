@@ -165,6 +165,7 @@ export abstract class RequirementAST extends AST {}
 export abstract class SpecifierAST extends AST {}
 export abstract class StatementAST extends AST {}
 export abstract class TemplateArgumentAST extends AST {}
+export abstract class TemplateParameterAST extends AST {}
 export abstract class UnitAST extends AST {}
 export abstract class UnqualifiedIdAST extends AST {}
 
@@ -2883,13 +2884,13 @@ export class LambdaExpressionAST extends ExpressionAST {
   /**
    * Returns the templateParameterList of this node
    */
-  *getTemplateParameterList(): Generator<DeclarationAST | undefined> {
+  *getTemplateParameterList(): Generator<TemplateParameterAST | undefined> {
     for (
       let it = cxx.getASTSlot(this.getHandle(), 2);
       it;
       it = cxx.getListNext(it)
     ) {
-      yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
+      yield AST.from<TemplateParameterAST>(cxx.getListValue(it), this.parser);
     }
   }
 
@@ -8019,13 +8020,13 @@ export class TemplateDeclarationAST extends DeclarationAST {
   /**
    * Returns the templateParameterList of this node
    */
-  *getTemplateParameterList(): Generator<DeclarationAST | undefined> {
+  *getTemplateParameterList(): Generator<TemplateParameterAST | undefined> {
     for (
       let it = cxx.getASTSlot(this.getHandle(), 2);
       it;
       it = cxx.getListNext(it)
     ) {
-      yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
+      yield AST.from<TemplateParameterAST>(cxx.getListValue(it), this.parser);
     }
   }
 
@@ -8054,252 +8055,6 @@ export class TemplateDeclarationAST extends DeclarationAST {
       cxx.getASTSlot(this.getHandle(), 5),
       this.parser,
     );
-  }
-}
-
-/**
- * TypenameTypeParameterAST node.
- */
-export class TypenameTypeParameterAST extends DeclarationAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitTypenameTypeParameter(this, context);
-  }
-
-  /**
-   * Returns the location of the classKey token in this node
-   */
-  getClassKeyToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the ellipsis token in this node
-   */
-  getEllipsisToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the location of the identifier token in this node
-   */
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the location of the equal token in this node
-   */
-  getEqualToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-
-  /**
-   * Returns the typeId of this node
-   */
-  getTypeId(): TypeIdAST | undefined {
-    return AST.from<TypeIdAST>(
-      cxx.getASTSlot(this.getHandle(), 4),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the identifier attribute of this node
-   */
-  getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 5);
-    return cxx.getIdentifierValue(slot);
-  }
-}
-
-/**
- * TemplateTypeParameterAST node.
- */
-export class TemplateTypeParameterAST extends DeclarationAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitTemplateTypeParameter(this, context);
-  }
-
-  /**
-   * Returns the location of the template token in this node
-   */
-  getTemplateToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the less token in this node
-   */
-  getLessToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the templateParameterList of this node
-   */
-  *getTemplateParameterList(): Generator<DeclarationAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the greater token in this node
-   */
-  getGreaterToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-
-  /**
-   * Returns the requiresClause of this node
-   */
-  getRequiresClause(): RequiresClauseAST | undefined {
-    return AST.from<RequiresClauseAST>(
-      cxx.getASTSlot(this.getHandle(), 4),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the classKey token in this node
-   */
-  getClassKeyToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
-  }
-
-  /**
-   * Returns the location of the identifier token in this node
-   */
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
-  }
-
-  /**
-   * Returns the location of the equal token in this node
-   */
-  getEqualToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
-  }
-
-  /**
-   * Returns the idExpression of this node
-   */
-  getIdExpression(): IdExpressionAST | undefined {
-    return AST.from<IdExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 8),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the identifier attribute of this node
-   */
-  getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 9);
-    return cxx.getIdentifierValue(slot);
-  }
-}
-
-/**
- * TemplatePackTypeParameterAST node.
- */
-export class TemplatePackTypeParameterAST extends DeclarationAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitTemplatePackTypeParameter(this, context);
-  }
-
-  /**
-   * Returns the location of the template token in this node
-   */
-  getTemplateToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the less token in this node
-   */
-  getLessToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the templateParameterList of this node
-   */
-  *getTemplateParameterList(): Generator<DeclarationAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 2);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<DeclarationAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the greater token in this node
-   */
-  getGreaterToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-
-  /**
-   * Returns the location of the classKey token in this node
-   */
-  getClassKeyToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
-  }
-
-  /**
-   * Returns the location of the ellipsis token in this node
-   */
-  getEllipsisToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
-  }
-
-  /**
-   * Returns the location of the identifier token in this node
-   */
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
-  }
-
-  /**
-   * Returns the identifier attribute of this node
-   */
-  getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 7);
-    return cxx.getIdentifierValue(slot);
   }
 }
 
@@ -8585,6 +8340,347 @@ export class LinkageSpecificationAST extends DeclarationAST {
   getStringLiteral(): string | undefined {
     const slot = cxx.getASTSlot(this.getHandle(), 5);
     return cxx.getLiteralValue(slot);
+  }
+}
+
+/**
+ * TemplateTypeParameterAST node.
+ */
+export class TemplateTypeParameterAST extends TemplateParameterAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitTemplateTypeParameter(this, context);
+  }
+
+  /**
+   * Returns the location of the template token in this node
+   */
+  getTemplateToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the less token in this node
+   */
+  getLessToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the templateParameterList of this node
+   */
+  *getTemplateParameterList(): Generator<TemplateParameterAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 2);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<TemplateParameterAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the greater token in this node
+   */
+  getGreaterToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the requiresClause of this node
+   */
+  getRequiresClause(): RequiresClauseAST | undefined {
+    return AST.from<RequiresClauseAST>(
+      cxx.getASTSlot(this.getHandle(), 4),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the classKey token in this node
+   */
+  getClassKeyToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+  }
+
+  /**
+   * Returns the location of the equal token in this node
+   */
+  getEqualToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
+  }
+
+  /**
+   * Returns the idExpression of this node
+   */
+  getIdExpression(): IdExpressionAST | undefined {
+    return AST.from<IdExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 8),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 9);
+    return cxx.getIdentifierValue(slot);
+  }
+}
+
+/**
+ * TemplatePackTypeParameterAST node.
+ */
+export class TemplatePackTypeParameterAST extends TemplateParameterAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitTemplatePackTypeParameter(this, context);
+  }
+
+  /**
+   * Returns the location of the template token in this node
+   */
+  getTemplateToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the less token in this node
+   */
+  getLessToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the templateParameterList of this node
+   */
+  *getTemplateParameterList(): Generator<TemplateParameterAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 2);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<TemplateParameterAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the greater token in this node
+   */
+  getGreaterToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the location of the classKey token in this node
+   */
+  getClassKeyToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  }
+
+  /**
+   * Returns the location of the ellipsis token in this node
+   */
+  getEllipsisToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 7);
+    return cxx.getIdentifierValue(slot);
+  }
+}
+
+/**
+ * NonTypeTemplateParameterAST node.
+ */
+export class NonTypeTemplateParameterAST extends TemplateParameterAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitNonTypeTemplateParameter(this, context);
+  }
+
+  /**
+   * Returns the declaration of this node
+   */
+  getDeclaration(): ParameterDeclarationAST | undefined {
+    return AST.from<ParameterDeclarationAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * TypenameTypeParameterAST node.
+ */
+export class TypenameTypeParameterAST extends TemplateParameterAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitTypenameTypeParameter(this, context);
+  }
+
+  /**
+   * Returns the location of the classKey token in this node
+   */
+  getClassKeyToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the ellipsis token in this node
+   */
+  getEllipsisToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the location of the equal token in this node
+   */
+  getEqualToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the typeId of this node
+   */
+  getTypeId(): TypeIdAST | undefined {
+    return AST.from<TypeIdAST>(
+      cxx.getASTSlot(this.getHandle(), 4),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 5);
+    return cxx.getIdentifierValue(slot);
+  }
+}
+
+/**
+ * ConstraintTypeParameterAST node.
+ */
+export class ConstraintTypeParameterAST extends TemplateParameterAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitConstraintTypeParameter(this, context);
+  }
+
+  /**
+   * Returns the typeConstraint of this node
+   */
+  getTypeConstraint(): TypeConstraintAST | undefined {
+    return AST.from<TypeConstraintAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the ellipsis token in this node
+   */
+  getEllipsisToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the location of the equal token in this node
+   */
+  getEqualToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the typeId of this node
+   */
+  getTypeId(): TypeIdAST | undefined {
+    return AST.from<TypeIdAST>(
+      cxx.getASTSlot(this.getHandle(), 4),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 5);
+    return cxx.getIdentifierValue(slot);
   }
 }
 
@@ -11192,13 +11288,15 @@ const AST_CONSTRUCTORS: Array<
   ExportCompoundDeclarationAST,
   ModuleImportDeclarationAST,
   TemplateDeclarationAST,
-  TypenameTypeParameterAST,
-  TemplateTypeParameterAST,
-  TemplatePackTypeParameterAST,
   DeductionGuideAST,
   ExplicitInstantiationAST,
   ParameterDeclarationAST,
   LinkageSpecificationAST,
+  TemplateTypeParameterAST,
+  TemplatePackTypeParameterAST,
+  NonTypeTemplateParameterAST,
+  TypenameTypeParameterAST,
+  ConstraintTypeParameterAST,
   NameIdAST,
   DestructorIdAST,
   DecltypeIdAST,

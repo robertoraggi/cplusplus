@@ -506,15 +506,6 @@ auto ASTDecoder::decodeDeclaration(const void* ptr, io::Declaration type)
     case io::Declaration_TemplateDeclaration:
       return decodeTemplateDeclaration(
           reinterpret_cast<const io::TemplateDeclaration*>(ptr));
-    case io::Declaration_TypenameTypeParameter:
-      return decodeTypenameTypeParameter(
-          reinterpret_cast<const io::TypenameTypeParameter*>(ptr));
-    case io::Declaration_TemplateTypeParameter:
-      return decodeTemplateTypeParameter(
-          reinterpret_cast<const io::TemplateTypeParameter*>(ptr));
-    case io::Declaration_TemplatePackTypeParameter:
-      return decodeTemplatePackTypeParameter(
-          reinterpret_cast<const io::TemplatePackTypeParameter*>(ptr));
     case io::Declaration_DeductionGuide:
       return decodeDeductionGuide(
           reinterpret_cast<const io::DeductionGuide*>(ptr));
@@ -527,6 +518,30 @@ auto ASTDecoder::decodeDeclaration(const void* ptr, io::Declaration type)
     case io::Declaration_LinkageSpecification:
       return decodeLinkageSpecification(
           reinterpret_cast<const io::LinkageSpecification*>(ptr));
+    default:
+      return nullptr;
+  }  // switch
+}
+
+auto ASTDecoder::decodeTemplateParameter(const void* ptr,
+                                         io::TemplateParameter type)
+    -> TemplateParameterAST* {
+  switch (type) {
+    case io::TemplateParameter_TemplateTypeParameter:
+      return decodeTemplateTypeParameter(
+          reinterpret_cast<const io::TemplateTypeParameter*>(ptr));
+    case io::TemplateParameter_TemplatePackTypeParameter:
+      return decodeTemplatePackTypeParameter(
+          reinterpret_cast<const io::TemplatePackTypeParameter*>(ptr));
+    case io::TemplateParameter_NonTypeTemplateParameter:
+      return decodeNonTypeTemplateParameter(
+          reinterpret_cast<const io::NonTypeTemplateParameter*>(ptr));
+    case io::TemplateParameter_TypenameTypeParameter:
+      return decodeTypenameTypeParameter(
+          reinterpret_cast<const io::TypenameTypeParameter*>(ptr));
+    case io::TemplateParameter_ConstraintTypeParameter:
+      return decodeConstraintTypeParameter(
+          reinterpret_cast<const io::ConstraintTypeParameter*>(ptr));
     default:
       return nullptr;
   }  // switch
@@ -1547,9 +1562,9 @@ auto ASTDecoder::decodeLambdaExpression(const io::LambdaExpression* node)
   if (node->template_parameter_list()) {
     auto* inserter = &ast->templateParameterList;
     for (std::size_t i = 0; i < node->template_parameter_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeDeclaration(
+      *inserter = new (pool_) List(decodeTemplateParameter(
           node->template_parameter_list()->Get(i),
-          io::Declaration(node->template_parameter_list_type()->Get(i))));
+          io::TemplateParameter(node->template_parameter_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }
@@ -2949,73 +2964,15 @@ auto ASTDecoder::decodeTemplateDeclaration(const io::TemplateDeclaration* node)
   if (node->template_parameter_list()) {
     auto* inserter = &ast->templateParameterList;
     for (std::size_t i = 0; i < node->template_parameter_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeDeclaration(
+      *inserter = new (pool_) List(decodeTemplateParameter(
           node->template_parameter_list()->Get(i),
-          io::Declaration(node->template_parameter_list_type()->Get(i))));
+          io::TemplateParameter(node->template_parameter_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }
   ast->requiresClause = decodeRequiresClause(node->requires_clause());
   ast->declaration =
       decodeDeclaration(node->declaration(), node->declaration_type());
-  return ast;
-}
-
-auto ASTDecoder::decodeTypenameTypeParameter(
-    const io::TypenameTypeParameter* node) -> TypenameTypeParameterAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) TypenameTypeParameterAST();
-  ast->typeId = decodeTypeId(node->type_id());
-  if (node->identifier()) {
-    ast->identifier =
-        unit_->control()->getIdentifier(node->identifier()->str());
-  }
-  return ast;
-}
-
-auto ASTDecoder::decodeTemplateTypeParameter(
-    const io::TemplateTypeParameter* node) -> TemplateTypeParameterAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) TemplateTypeParameterAST();
-  if (node->template_parameter_list()) {
-    auto* inserter = &ast->templateParameterList;
-    for (std::size_t i = 0; i < node->template_parameter_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeDeclaration(
-          node->template_parameter_list()->Get(i),
-          io::Declaration(node->template_parameter_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  ast->requiresClause = decodeRequiresClause(node->requires_clause());
-  ast->idExpression = decodeIdExpression(node->id_expression());
-  if (node->identifier()) {
-    ast->identifier =
-        unit_->control()->getIdentifier(node->identifier()->str());
-  }
-  return ast;
-}
-
-auto ASTDecoder::decodeTemplatePackTypeParameter(
-    const io::TemplatePackTypeParameter* node)
-    -> TemplatePackTypeParameterAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) TemplatePackTypeParameterAST();
-  if (node->template_parameter_list()) {
-    auto* inserter = &ast->templateParameterList;
-    for (std::size_t i = 0; i < node->template_parameter_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeDeclaration(
-          node->template_parameter_list()->Get(i),
-          io::Declaration(node->template_parameter_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  if (node->identifier()) {
-    ast->identifier =
-        unit_->control()->getIdentifier(node->identifier()->str());
-  }
   return ast;
 }
 
@@ -3092,6 +3049,87 @@ auto ASTDecoder::decodeLinkageSpecification(
   if (node->string_literal()) {
     ast->stringLiteral =
         unit_->control()->stringLiteral(node->string_literal()->str());
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeTemplateTypeParameter(
+    const io::TemplateTypeParameter* node) -> TemplateTypeParameterAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) TemplateTypeParameterAST();
+  if (node->template_parameter_list()) {
+    auto* inserter = &ast->templateParameterList;
+    for (std::size_t i = 0; i < node->template_parameter_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeTemplateParameter(
+          node->template_parameter_list()->Get(i),
+          io::TemplateParameter(node->template_parameter_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  ast->requiresClause = decodeRequiresClause(node->requires_clause());
+  ast->idExpression = decodeIdExpression(node->id_expression());
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeTemplatePackTypeParameter(
+    const io::TemplatePackTypeParameter* node)
+    -> TemplatePackTypeParameterAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) TemplatePackTypeParameterAST();
+  if (node->template_parameter_list()) {
+    auto* inserter = &ast->templateParameterList;
+    for (std::size_t i = 0; i < node->template_parameter_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeTemplateParameter(
+          node->template_parameter_list()->Get(i),
+          io::TemplateParameter(node->template_parameter_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeNonTypeTemplateParameter(
+    const io::NonTypeTemplateParameter* node) -> NonTypeTemplateParameterAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) NonTypeTemplateParameterAST();
+  ast->declaration = decodeParameterDeclaration(node->declaration());
+  return ast;
+}
+
+auto ASTDecoder::decodeTypenameTypeParameter(
+    const io::TypenameTypeParameter* node) -> TypenameTypeParameterAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) TypenameTypeParameterAST();
+  ast->typeId = decodeTypeId(node->type_id());
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeConstraintTypeParameter(
+    const io::ConstraintTypeParameter* node) -> ConstraintTypeParameterAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) ConstraintTypeParameterAST();
+  ast->typeConstraint = decodeTypeConstraint(node->type_constraint());
+  ast->typeId = decodeTypeId(node->type_id());
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
   }
   return ast;
 }
