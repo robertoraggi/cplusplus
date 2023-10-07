@@ -67,11 +67,11 @@ npm ci
 npm run build:cxx-frontend
 ```
 
-## Build the WASM/WASI (requires docker)
+## Build for WASM/WASI (requires docker)
 
 ```sh
-# build for WASI and install it under build.em/install/
-./scripts/build-wasi.sh
+npm ci
+npm run build:wasi
 
 # run the C++ front end CLI tool using wasmtime
 wasmtime \

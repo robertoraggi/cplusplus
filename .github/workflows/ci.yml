@@ -141,7 +141,8 @@ jobs:
 
       - name: Build
         run: |
-          bash -x scripts/build-wasi.sh
+          npm ci
+          npm run build:wasi
 
       - name: Install wasmtime
         run: |
