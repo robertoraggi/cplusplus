@@ -65,29 +65,28 @@ void set(typename HelperT::template Lookup<int>::PointerT p);
 // CHECK-NEXT:                    identifier: set
 // CHECK-NEXT:              declarator-chunk-list
 // CHECK-NEXT:                function-declarator-chunk
-// CHECK-NEXT:                  parameters-and-qualifiers: parameters-and-qualifiers
-// CHECK-NEXT:                    parameter-declaration-clause: parameter-declaration-clause
-// CHECK-NEXT:                      parameter-declaration-list
-// CHECK-NEXT:                        parameter-declaration
-// CHECK-NEXT:                          type-specifier-list
-// CHECK-NEXT:                            typename-specifier
-// CHECK-NEXT:                              nested-name-specifier: template-nested-name-specifier
-// CHECK-NEXT:                                is-template-introduced: true
-// CHECK-NEXT:                                nested-name-specifier: simple-nested-name-specifier
-// CHECK-NEXT:                                  identifier: HelperT
-// CHECK-NEXT:                                template-id: simple-template-id
-// CHECK-NEXT:                                  identifier: Lookup
-// CHECK-NEXT:                                  template-argument-list
-// CHECK-NEXT:                                    type-template-argument
-// CHECK-NEXT:                                      type-id: type-id
-// CHECK-NEXT:                                        type-specifier-list
-// CHECK-NEXT:                                          integral-type-specifier
-// CHECK-NEXT:                                            specifier: int
-// CHECK-NEXT:                                        declarator: declarator
+// CHECK-NEXT:                  parameter-declaration-clause: parameter-declaration-clause
+// CHECK-NEXT:                    parameter-declaration-list
+// CHECK-NEXT:                      parameter-declaration
+// CHECK-NEXT:                        type-specifier-list
+// CHECK-NEXT:                          typename-specifier
+// CHECK-NEXT:                            nested-name-specifier: template-nested-name-specifier
+// CHECK-NEXT:                              is-template-introduced: true
+// CHECK-NEXT:                              nested-name-specifier: simple-nested-name-specifier
+// CHECK-NEXT:                                identifier: HelperT
+// CHECK-NEXT:                              template-id: simple-template-id
+// CHECK-NEXT:                                identifier: Lookup
+// CHECK-NEXT:                                template-argument-list
+// CHECK-NEXT:                                  type-template-argument
+// CHECK-NEXT:                                    type-id: type-id
+// CHECK-NEXT:                                      type-specifier-list
+// CHECK-NEXT:                                        integral-type-specifier
+// CHECK-NEXT:                                          specifier: int
+// CHECK-NEXT:                                      declarator: declarator
+// CHECK-NEXT:                            unqualified-id: name-id
+// CHECK-NEXT:                              identifier: PointerT
+// CHECK-NEXT:                        declarator: declarator
+// CHECK-NEXT:                          core-declarator: id-declarator
+// CHECK-NEXT:                            declarator-id: id-expression
 // CHECK-NEXT:                              unqualified-id: name-id
-// CHECK-NEXT:                                identifier: PointerT
-// CHECK-NEXT:                          declarator: declarator
-// CHECK-NEXT:                            core-declarator: id-declarator
-// CHECK-NEXT:                              declarator-id: id-expression
-// CHECK-NEXT:                                unqualified-id: name-id
-// CHECK-NEXT:                                  identifier: p
+// CHECK-NEXT:                                identifier: p

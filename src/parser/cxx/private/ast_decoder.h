@@ -93,14 +93,10 @@ class ASTDecoder {
   auto decodeParameterDeclarationClause(
       const io::ParameterDeclarationClause* node)
       -> ParameterDeclarationClauseAST*;
-  auto decodeParametersAndQualifiers(const io::ParametersAndQualifiers* node)
-      -> ParametersAndQualifiersAST*;
   auto decodeLambdaSpecifier(const io::LambdaSpecifier* node)
       -> LambdaSpecifierAST*;
   auto decodeTrailingReturnType(const io::TrailingReturnType* node)
       -> TrailingReturnTypeAST*;
-  auto decodeCtorInitializer(const io::CtorInitializer* node)
-      -> CtorInitializerAST*;
   auto decodeTypeConstraint(const io::TypeConstraint* node)
       -> TypeConstraintAST*;
   auto decodeGlobalModuleFragment(const io::GlobalModuleFragment* node)
@@ -120,7 +116,6 @@ class ASTDecoder {
   auto decodeAttribute(const io::Attribute* node) -> AttributeAST*;
   auto decodeAttributeUsingPrefix(const io::AttributeUsingPrefix* node)
       -> AttributeUsingPrefixAST*;
-  auto decodeDesignator(const io::Designator* node) -> DesignatorAST*;
   auto decodeNewPlacement(const io::NewPlacement* node) -> NewPlacementAST*;
   auto decodeNestedNamespaceSpecifier(const io::NestedNamespaceSpecifier* node)
       -> NestedNamespaceSpecifierAST*;

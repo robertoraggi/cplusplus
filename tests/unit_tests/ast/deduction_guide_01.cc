@@ -29,15 +29,14 @@ List(int) -> List<int>;
 // CHECK-NEXT:                        identifier: List
 // CHECK-NEXT:                  declarator-chunk-list
 // CHECK-NEXT:                    function-declarator-chunk
-// CHECK-NEXT:                      parameters-and-qualifiers: parameters-and-qualifiers
-// CHECK-NEXT:                        parameter-declaration-clause: parameter-declaration-clause
-// CHECK-NEXT:                          parameter-declaration-list
-// CHECK-NEXT:                            parameter-declaration
-// CHECK-NEXT:                              type-specifier-list
-// CHECK-NEXT:                                named-type-specifier
-// CHECK-NEXT:                                  unqualified-id: name-id
-// CHECK-NEXT:                                    identifier: T
-// CHECK-NEXT:                              declarator: declarator
+// CHECK-NEXT:                      parameter-declaration-clause: parameter-declaration-clause
+// CHECK-NEXT:                        parameter-declaration-list
+// CHECK-NEXT:                          parameter-declaration
+// CHECK-NEXT:                            type-specifier-list
+// CHECK-NEXT:                              named-type-specifier
+// CHECK-NEXT:                                unqualified-id: name-id
+// CHECK-NEXT:                                  identifier: T
+// CHECK-NEXT:                            declarator: declarator
 // CHECK-NEXT:                function-body: compound-statement-function-body
 // CHECK-NEXT:                  statement: compound-statement
 // CHECK-NEXT:    deduction-guide

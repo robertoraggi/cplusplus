@@ -35,10 +35,8 @@ enum struct ASTKind {
   BaseSpecifier,
   RequiresClause,
   ParameterDeclarationClause,
-  ParametersAndQualifiers,
   LambdaSpecifier,
   TrailingReturnType,
-  CtorInitializer,
   TypeConstraint,
   GlobalModuleFragment,
   PrivateModuleFragment,
@@ -50,7 +48,6 @@ enum struct ASTKind {
   AttributeArgumentClause,
   Attribute,
   AttributeUsingPrefix,
-  Designator,
   NewPlacement,
   NestedNamespaceSpecifier,
 

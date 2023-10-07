@@ -203,30 +203,6 @@ void ASTPrinter::visit(ParameterDeclarationClauseAST* ast) {
   }
 }
 
-void ASTPrinter::visit(ParametersAndQualifiersAST* ast) {
-  fmt::print(out_, "{}\n", "parameters-and-qualifiers");
-  accept(ast->parameterDeclarationClause, "parameter-declaration-clause");
-  if (ast->cvQualifierList) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "cv-qualifier-list");
-    for (auto it = ast->cvQualifierList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-  accept(ast->exceptionSpecifier, "exception-specifier");
-  if (ast->attributeList) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-}
-
 void ASTPrinter::visit(LambdaSpecifierAST* ast) {
   fmt::print(out_, "{}\n", "lambda-specifier");
   if (ast->specifier != TokenKind::T_EOF_SYMBOL) {
@@ -240,19 +216,6 @@ void ASTPrinter::visit(LambdaSpecifierAST* ast) {
 void ASTPrinter::visit(TrailingReturnTypeAST* ast) {
   fmt::print(out_, "{}\n", "trailing-return-type");
   accept(ast->typeId, "type-id");
-}
-
-void ASTPrinter::visit(CtorInitializerAST* ast) {
-  fmt::print(out_, "{}\n", "ctor-initializer");
-  if (ast->memInitializerList) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "mem-initializer-list");
-    for (auto it = ast->memInitializerList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
 }
 
 void ASTPrinter::visit(TypeConstraintAST* ast) {
@@ -348,11 +311,6 @@ void ASTPrinter::visit(AttributeUsingPrefixAST* ast) {
   fmt::print(out_, "{}\n", "attribute-using-prefix");
 }
 
-void ASTPrinter::visit(DesignatorAST* ast) {
-  fmt::print(out_, "{}\n", "designator");
-  accept(ast->identifier, "identifier");
-}
-
 void ASTPrinter::visit(NewPlacementAST* ast) {
   fmt::print(out_, "{}\n", "new-placement");
   if (ast->expressionList) {
@@ -421,7 +379,7 @@ void ASTPrinter::visit(PackExpansionExpressionAST* ast) {
 
 void ASTPrinter::visit(DesignatedInitializerClauseAST* ast) {
   fmt::print(out_, "{}\n", "designated-initializer-clause");
-  accept(ast->designator, "designator");
+  accept(ast->identifier, "identifier");
   accept(ast->initializer, "initializer");
 }
 
@@ -1023,13 +981,29 @@ void ASTPrinter::visit(DefaultFunctionBodyAST* ast) {
 
 void ASTPrinter::visit(CompoundStatementFunctionBodyAST* ast) {
   fmt::print(out_, "{}\n", "compound-statement-function-body");
-  accept(ast->ctorInitializer, "ctor-initializer");
+  if (ast->memInitializerList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "mem-initializer-list");
+    for (auto it = ast->memInitializerList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
   accept(ast->statement, "statement");
 }
 
 void ASTPrinter::visit(TryStatementFunctionBodyAST* ast) {
   fmt::print(out_, "{}\n", "try-statement-function-body");
-  accept(ast->ctorInitializer, "ctor-initializer");
+  if (ast->memInitializerList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "mem-initializer-list");
+    for (auto it = ast->memInitializerList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
   accept(ast->statement, "statement");
   if (ast->handlerList) {
     ++indent_;
@@ -2183,7 +2157,26 @@ void ASTPrinter::visit(FunctionDeclaratorChunkAST* ast) {
     fmt::print(out_, "is-pure: {}\n", ast->isPure);
     --indent_;
   }
-  accept(ast->parametersAndQualifiers, "parameters-and-qualifiers");
+  accept(ast->parameterDeclarationClause, "parameter-declaration-clause");
+  if (ast->cvQualifierList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "cv-qualifier-list");
+    for (auto it = ast->cvQualifierList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+  accept(ast->exceptionSpecifier, "exception-specifier");
+  if (ast->attributeList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "attribute-list");
+    for (auto it = ast->attributeList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
   accept(ast->trailingReturnType, "trailing-return-type");
 }
 

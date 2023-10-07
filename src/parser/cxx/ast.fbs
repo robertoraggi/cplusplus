@@ -41,10 +41,8 @@ union AST {
   BaseSpecifier,
   RequiresClause,
   ParameterDeclarationClause,
-  ParametersAndQualifiers,
   LambdaSpecifier,
   TrailingReturnType,
-  CtorInitializer,
   TypeConstraint,
   GlobalModuleFragment,
   PrivateModuleFragment,
@@ -56,7 +54,6 @@ union AST {
   AttributeArgumentClause,
   Attribute,
   AttributeUsingPrefix,
-  Designator,
   NewPlacement,
   NestedNamespaceSpecifier,
 }
@@ -377,16 +374,6 @@ table ParameterDeclarationClause /* AST */ {
   ellipsis_loc: SourceLocation;
 }
 
-table ParametersAndQualifiers /* AST */ {
-  parameter_declaration_clause: ParameterDeclarationClause;
-  cv_qualifier_list: [Specifier];
-  exception_specifier: ExceptionSpecifier;
-  attribute_list: [AttributeSpecifier];
-  lparen_loc: SourceLocation;
-  rparen_loc: SourceLocation;
-  ref_loc: SourceLocation;
-}
-
 table LambdaSpecifier /* AST */ {
   specifier: uint32;
   specifier_loc: SourceLocation;
@@ -395,11 +382,6 @@ table LambdaSpecifier /* AST */ {
 table TrailingReturnType /* AST */ {
   type_id: TypeId;
   minus_greater_loc: SourceLocation;
-}
-
-table CtorInitializer /* AST */ {
-  mem_initializer_list: [MemInitializer];
-  colon_loc: SourceLocation;
 }
 
 table TypeConstraint /* AST */ {
@@ -473,12 +455,6 @@ table AttributeUsingPrefix /* AST */ {
   using_loc: SourceLocation;
   attribute_namespace_loc: SourceLocation;
   colon_loc: SourceLocation;
-}
-
-table Designator /* AST */ {
-  identifier: string;
-  dot_loc: SourceLocation;
-  identifier_loc: SourceLocation;
 }
 
 table NewPlacement /* AST */ {
@@ -795,8 +771,14 @@ table LinkageSpecification /* DeclarationAST */ {
 }
 
 table FunctionDeclaratorChunk /* DeclaratorChunkAST */ {
-  parameters_and_qualifiers: ParametersAndQualifiers;
+  parameter_declaration_clause: ParameterDeclarationClause;
+  cv_qualifier_list: [Specifier];
+  exception_specifier: ExceptionSpecifier;
+  attribute_list: [AttributeSpecifier];
   trailing_return_type: TrailingReturnType;
+  lparen_loc: SourceLocation;
+  rparen_loc: SourceLocation;
+  ref_loc: SourceLocation;
 }
 
 table ArrayDeclaratorChunk /* DeclaratorChunkAST */ {
@@ -835,8 +817,10 @@ table PackExpansionExpression /* ExpressionAST */ {
 }
 
 table DesignatedInitializerClause /* ExpressionAST */ {
-  designator: Designator;
+  identifier: string;
   initializer: Expression;
+  dot_loc: SourceLocation;
+  identifier_loc: SourceLocation;
 }
 
 table ThisExpression /* ExpressionAST */ {
@@ -1164,15 +1148,17 @@ table DefaultFunctionBody /* FunctionBodyAST */ {
 }
 
 table CompoundStatementFunctionBody /* FunctionBodyAST */ {
-  ctor_initializer: CtorInitializer;
+  mem_initializer_list: [MemInitializer];
   statement: CompoundStatement;
+  colon_loc: SourceLocation;
 }
 
 table TryStatementFunctionBody /* FunctionBodyAST */ {
-  ctor_initializer: CtorInitializer;
+  mem_initializer_list: [MemInitializer];
   statement: CompoundStatement;
   handler_list: [Handler];
   try_loc: SourceLocation;
+  colon_loc: SourceLocation;
 }
 
 table DeleteFunctionBody /* FunctionBodyAST */ {

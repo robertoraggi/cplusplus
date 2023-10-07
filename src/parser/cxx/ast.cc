@@ -168,30 +168,6 @@ auto ParameterDeclarationClauseAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto ParametersAndQualifiersAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(parameterDeclarationClause))
-    return loc;
-  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(cvQualifierList)) return loc;
-  if (auto loc = cxx::firstSourceLocation(refLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(exceptionSpecifier)) return loc;
-  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
-  return {};
-}
-
-auto ParametersAndQualifiersAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
-  if (auto loc = cxx::lastSourceLocation(exceptionSpecifier)) return loc;
-  if (auto loc = cxx::lastSourceLocation(refLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(cvQualifierList)) return loc;
-  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(parameterDeclarationClause))
-    return loc;
-  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
-  return {};
-}
-
 auto LambdaSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(specifierLoc)) return loc;
   return {};
@@ -211,18 +187,6 @@ auto TrailingReturnTypeAST::firstSourceLocation() -> SourceLocation {
 auto TrailingReturnTypeAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
   if (auto loc = cxx::lastSourceLocation(minusGreaterLoc)) return loc;
-  return {};
-}
-
-auto CtorInitializerAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(memInitializerList)) return loc;
-  return {};
-}
-
-auto CtorInitializerAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(memInitializerList)) return loc;
-  if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
   return {};
 }
 
@@ -388,18 +352,6 @@ auto AttributeUsingPrefixAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto DesignatorAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(dotLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
-  return {};
-}
-
-auto DesignatorAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(dotLoc)) return loc;
-  return {};
-}
-
 auto NewPlacementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expressionList)) return loc;
@@ -525,14 +477,16 @@ auto PackExpansionExpressionAST::lastSourceLocation() -> SourceLocation {
 }
 
 auto DesignatedInitializerClauseAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(designator)) return loc;
+  if (auto loc = cxx::firstSourceLocation(dotLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(initializer)) return loc;
   return {};
 }
 
 auto DesignatedInitializerClauseAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(initializer)) return loc;
-  if (auto loc = cxx::lastSourceLocation(designator)) return loc;
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(dotLoc)) return loc;
   return {};
 }
 
@@ -1499,20 +1453,23 @@ auto DefaultFunctionBodyAST::lastSourceLocation() -> SourceLocation {
 }
 
 auto CompoundStatementFunctionBodyAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(ctorInitializer)) return loc;
+  if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(memInitializerList)) return loc;
   if (auto loc = cxx::firstSourceLocation(statement)) return loc;
   return {};
 }
 
 auto CompoundStatementFunctionBodyAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(statement)) return loc;
-  if (auto loc = cxx::lastSourceLocation(ctorInitializer)) return loc;
+  if (auto loc = cxx::lastSourceLocation(memInitializerList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
   return {};
 }
 
 auto TryStatementFunctionBodyAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(tryLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(ctorInitializer)) return loc;
+  if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(memInitializerList)) return loc;
   if (auto loc = cxx::firstSourceLocation(statement)) return loc;
   if (auto loc = cxx::firstSourceLocation(handlerList)) return loc;
   return {};
@@ -1521,7 +1478,8 @@ auto TryStatementFunctionBodyAST::firstSourceLocation() -> SourceLocation {
 auto TryStatementFunctionBodyAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(handlerList)) return loc;
   if (auto loc = cxx::lastSourceLocation(statement)) return loc;
-  if (auto loc = cxx::lastSourceLocation(ctorInitializer)) return loc;
+  if (auto loc = cxx::lastSourceLocation(memInitializerList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(tryLoc)) return loc;
   return {};
 }
@@ -3111,14 +3069,28 @@ auto PtrToMemberOperatorAST::lastSourceLocation() -> SourceLocation {
 }
 
 auto FunctionDeclaratorChunkAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(parametersAndQualifiers)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(parameterDeclarationClause))
+    return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(cvQualifierList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(refLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(exceptionSpecifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(trailingReturnType)) return loc;
   return {};
 }
 
 auto FunctionDeclaratorChunkAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(trailingReturnType)) return loc;
-  if (auto loc = cxx::lastSourceLocation(parametersAndQualifiers)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(exceptionSpecifier)) return loc;
+  if (auto loc = cxx::lastSourceLocation(refLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(cvQualifierList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(parameterDeclarationClause))
+    return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   return {};
 }
 

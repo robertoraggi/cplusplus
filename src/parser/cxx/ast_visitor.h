@@ -39,10 +39,8 @@ class ASTVisitor {
   virtual void visit(BaseSpecifierAST* ast) = 0;
   virtual void visit(RequiresClauseAST* ast) = 0;
   virtual void visit(ParameterDeclarationClauseAST* ast) = 0;
-  virtual void visit(ParametersAndQualifiersAST* ast) = 0;
   virtual void visit(LambdaSpecifierAST* ast) = 0;
   virtual void visit(TrailingReturnTypeAST* ast) = 0;
-  virtual void visit(CtorInitializerAST* ast) = 0;
   virtual void visit(TypeConstraintAST* ast) = 0;
   virtual void visit(GlobalModuleFragmentAST* ast) = 0;
   virtual void visit(PrivateModuleFragmentAST* ast) = 0;
@@ -54,7 +52,6 @@ class ASTVisitor {
   virtual void visit(AttributeArgumentClauseAST* ast) = 0;
   virtual void visit(AttributeAST* ast) = 0;
   virtual void visit(AttributeUsingPrefixAST* ast) = 0;
-  virtual void visit(DesignatorAST* ast) = 0;
   virtual void visit(NewPlacementAST* ast) = 0;
   virtual void visit(NestedNamespaceSpecifierAST* ast) = 0;
 

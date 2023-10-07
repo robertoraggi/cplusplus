@@ -375,26 +375,6 @@ class ParameterDeclarationClauseAST final : public AST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class ParametersAndQualifiersAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::ParametersAndQualifiers;
-
-  ParametersAndQualifiersAST() : AST(Kind) {}
-
-  SourceLocation lparenLoc;
-  ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
-  SourceLocation rparenLoc;
-  List<SpecifierAST*>* cvQualifierList = nullptr;
-  SourceLocation refLoc;
-  ExceptionSpecifierAST* exceptionSpecifier = nullptr;
-  List<AttributeSpecifierAST*>* attributeList = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
 class LambdaSpecifierAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::LambdaSpecifier;
@@ -418,21 +398,6 @@ class TrailingReturnTypeAST final : public AST {
 
   SourceLocation minusGreaterLoc;
   TypeIdAST* typeId = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class CtorInitializerAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::CtorInitializer;
-
-  CtorInitializerAST() : AST(Kind) {}
-
-  SourceLocation colonLoc;
-  List<MemInitializerAST*>* memInitializerList = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -623,22 +588,6 @@ class AttributeUsingPrefixAST final : public AST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class DesignatorAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::Designator;
-
-  DesignatorAST() : AST(Kind) {}
-
-  SourceLocation dotLoc;
-  SourceLocation identifierLoc;
-  const Identifier* identifier = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
 class NewPlacementAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::NewPlacement;
@@ -792,7 +741,9 @@ class DesignatedInitializerClauseAST final : public ExpressionAST {
 
   DesignatedInitializerClauseAST() : ExpressionAST(Kind) {}
 
-  DesignatorAST* designator = nullptr;
+  SourceLocation dotLoc;
+  SourceLocation identifierLoc;
+  const Identifier* identifier = nullptr;
   ExpressionAST* initializer = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -1894,7 +1845,8 @@ class CompoundStatementFunctionBodyAST final : public FunctionBodyAST {
 
   CompoundStatementFunctionBodyAST() : FunctionBodyAST(Kind) {}
 
-  CtorInitializerAST* ctorInitializer = nullptr;
+  SourceLocation colonLoc;
+  List<MemInitializerAST*>* memInitializerList = nullptr;
   CompoundStatementAST* statement = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -1910,7 +1862,8 @@ class TryStatementFunctionBodyAST final : public FunctionBodyAST {
   TryStatementFunctionBodyAST() : FunctionBodyAST(Kind) {}
 
   SourceLocation tryLoc;
-  CtorInitializerAST* ctorInitializer = nullptr;
+  SourceLocation colonLoc;
+  List<MemInitializerAST*>* memInitializerList = nullptr;
   CompoundStatementAST* statement = nullptr;
   List<HandlerAST*>* handlerList = nullptr;
 
@@ -3709,7 +3662,13 @@ class FunctionDeclaratorChunkAST final : public DeclaratorChunkAST {
 
   FunctionDeclaratorChunkAST() : DeclaratorChunkAST(Kind) {}
 
-  ParametersAndQualifiersAST* parametersAndQualifiers = nullptr;
+  SourceLocation lparenLoc;
+  ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
+  SourceLocation rparenLoc;
+  List<SpecifierAST*>* cvQualifierList = nullptr;
+  SourceLocation refLoc;
+  ExceptionSpecifierAST* exceptionSpecifier = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   TrailingReturnTypeAST* trailingReturnType = nullptr;
   bool isFinal = false;
   bool isOverride = false;

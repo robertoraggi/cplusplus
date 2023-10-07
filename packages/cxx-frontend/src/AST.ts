@@ -703,91 +703,6 @@ export class ParameterDeclarationClauseAST extends AST {
 }
 
 /**
- * ParametersAndQualifiersAST node.
- */
-export class ParametersAndQualifiersAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitParametersAndQualifiers(this, context);
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the parameterDeclarationClause of this node
-   */
-  getParameterDeclarationClause(): ParameterDeclarationClauseAST | undefined {
-    return AST.from<ParameterDeclarationClauseAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the cvQualifierList of this node
-   */
-  *getCvQualifierList(): Generator<SpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 3);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the ref token in this node
-   */
-  getRefToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
-  }
-
-  /**
-   * Returns the exceptionSpecifier of this node
-   */
-  getExceptionSpecifier(): ExceptionSpecifierAST | undefined {
-    return AST.from<ExceptionSpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 5),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the attributeList of this node
-   */
-  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 6);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-}
-
-/**
  * LambdaSpecifierAST node.
  */
 export class LambdaSpecifierAST extends AST {
@@ -851,44 +766,6 @@ export class TrailingReturnTypeAST extends AST {
       cxx.getASTSlot(this.getHandle(), 1),
       this.parser,
     );
-  }
-}
-
-/**
- * CtorInitializerAST node.
- */
-export class CtorInitializerAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitCtorInitializer(this, context);
-  }
-
-  /**
-   * Returns the location of the colon token in this node
-   */
-  getColonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the memInitializerList of this node
-   */
-  *getMemInitializerList(): Generator<MemInitializerAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<MemInitializerAST>(cxx.getListValue(it), this.parser);
-    }
   }
 }
 
@@ -1428,46 +1305,6 @@ export class AttributeUsingPrefixAST extends AST {
 }
 
 /**
- * DesignatorAST node.
- */
-export class DesignatorAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitDesignator(this, context);
-  }
-
-  /**
-   * Returns the location of the dot token in this node
-   */
-  getDotToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the identifier token in this node
-   */
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the identifier attribute of this node
-   */
-  getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 2);
-    return cxx.getIdentifierValue(slot);
-  }
-}
-
-/**
  * NewPlacementAST node.
  */
 export class NewPlacementAST extends AST {
@@ -1886,13 +1723,25 @@ export class DesignatedInitializerClauseAST extends ExpressionAST {
   }
 
   /**
-   * Returns the designator of this node
+   * Returns the location of the dot token in this node
    */
-  getDesignator(): DesignatorAST | undefined {
-    return AST.from<DesignatorAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
+  getDotToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 2);
+    return cxx.getIdentifierValue(slot);
   }
 
   /**
@@ -1900,7 +1749,7 @@ export class DesignatedInitializerClauseAST extends ExpressionAST {
    */
   getInitializer(): ExpressionAST | undefined {
     return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
+      cxx.getASTSlot(this.getHandle(), 3),
       this.parser,
     );
   }
@@ -5103,13 +4952,23 @@ export class CompoundStatementFunctionBodyAST extends FunctionBodyAST {
   }
 
   /**
-   * Returns the ctorInitializer of this node
+   * Returns the location of the colon token in this node
    */
-  getCtorInitializer(): CtorInitializerAST | undefined {
-    return AST.from<CtorInitializerAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
+  getColonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the memInitializerList of this node
+   */
+  *getMemInitializerList(): Generator<MemInitializerAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 1);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<MemInitializerAST>(cxx.getListValue(it), this.parser);
+    }
   }
 
   /**
@@ -5117,7 +4976,7 @@ export class CompoundStatementFunctionBodyAST extends FunctionBodyAST {
    */
   getStatement(): CompoundStatementAST | undefined {
     return AST.from<CompoundStatementAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
+      cxx.getASTSlot(this.getHandle(), 2),
       this.parser,
     );
   }
@@ -5148,13 +5007,23 @@ export class TryStatementFunctionBodyAST extends FunctionBodyAST {
   }
 
   /**
-   * Returns the ctorInitializer of this node
+   * Returns the location of the colon token in this node
    */
-  getCtorInitializer(): CtorInitializerAST | undefined {
-    return AST.from<CtorInitializerAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
-      this.parser,
-    );
+  getColonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the memInitializerList of this node
+   */
+  *getMemInitializerList(): Generator<MemInitializerAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 2);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<MemInitializerAST>(cxx.getListValue(it), this.parser);
+    }
   }
 
   /**
@@ -5162,7 +5031,7 @@ export class TryStatementFunctionBodyAST extends FunctionBodyAST {
    */
   getStatement(): CompoundStatementAST | undefined {
     return AST.from<CompoundStatementAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
+      cxx.getASTSlot(this.getHandle(), 3),
       this.parser,
     );
   }
@@ -5172,7 +5041,7 @@ export class TryStatementFunctionBodyAST extends FunctionBodyAST {
    */
   *getHandlerList(): Generator<HandlerAST | undefined> {
     for (
-      let it = cxx.getASTSlot(this.getHandle(), 3);
+      let it = cxx.getASTSlot(this.getHandle(), 4);
       it;
       it = cxx.getListNext(it)
     ) {
@@ -10547,13 +10416,70 @@ export class FunctionDeclaratorChunkAST extends DeclaratorChunkAST {
   }
 
   /**
-   * Returns the parametersAndQualifiers of this node
+   * Returns the location of the lparen token in this node
    */
-  getParametersAndQualifiers(): ParametersAndQualifiersAST | undefined {
-    return AST.from<ParametersAndQualifiersAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the parameterDeclarationClause of this node
+   */
+  getParameterDeclarationClause(): ParameterDeclarationClauseAST | undefined {
+    return AST.from<ParameterDeclarationClauseAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
       this.parser,
     );
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the cvQualifierList of this node
+   */
+  *getCvQualifierList(): Generator<SpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 3);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the ref token in this node
+   */
+  getRefToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  }
+
+  /**
+   * Returns the exceptionSpecifier of this node
+   */
+  getExceptionSpecifier(): ExceptionSpecifierAST | undefined {
+    return AST.from<ExceptionSpecifierAST>(
+      cxx.getASTSlot(this.getHandle(), 5),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the attributeList of this node
+   */
+  *getAttributeList(): Generator<AttributeSpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 6);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<AttributeSpecifierAST>(cxx.getListValue(it), this.parser);
+    }
   }
 
   /**
@@ -10561,7 +10487,7 @@ export class FunctionDeclaratorChunkAST extends DeclaratorChunkAST {
    */
   getTrailingReturnType(): TrailingReturnTypeAST | undefined {
     return AST.from<TrailingReturnTypeAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
+      cxx.getASTSlot(this.getHandle(), 7),
       this.parser,
     );
   }
@@ -10570,21 +10496,21 @@ export class FunctionDeclaratorChunkAST extends DeclaratorChunkAST {
    * Returns the isFinal attribute of this node
    */
   getIsFinal(): boolean {
-    return cxx.getASTSlot(this.getHandle(), 2) !== 0;
+    return cxx.getASTSlot(this.getHandle(), 8) !== 0;
   }
 
   /**
    * Returns the isOverride attribute of this node
    */
   getIsOverride(): boolean {
-    return cxx.getASTSlot(this.getHandle(), 3) !== 0;
+    return cxx.getASTSlot(this.getHandle(), 9) !== 0;
   }
 
   /**
    * Returns the isPure attribute of this node
    */
   getIsPure(): boolean {
-    return cxx.getASTSlot(this.getHandle(), 4) !== 0;
+    return cxx.getASTSlot(this.getHandle(), 10) !== 0;
   }
 }
 
@@ -10976,10 +10902,8 @@ const AST_CONSTRUCTORS: Array<
   BaseSpecifierAST,
   RequiresClauseAST,
   ParameterDeclarationClauseAST,
-  ParametersAndQualifiersAST,
   LambdaSpecifierAST,
   TrailingReturnTypeAST,
-  CtorInitializerAST,
   TypeConstraintAST,
   GlobalModuleFragmentAST,
   PrivateModuleFragmentAST,
@@ -10991,7 +10915,6 @@ const AST_CONSTRUCTORS: Array<
   AttributeArgumentClauseAST,
   AttributeAST,
   AttributeUsingPrefixAST,
-  DesignatorAST,
   NewPlacementAST,
   NestedNamespaceSpecifierAST,
   GlobalNestedNameSpecifierAST,

@@ -940,36 +940,6 @@ auto ASTDecoder::decodeParameterDeclarationClause(
   return ast;
 }
 
-auto ASTDecoder::decodeParametersAndQualifiers(
-    const io::ParametersAndQualifiers* node) -> ParametersAndQualifiersAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) ParametersAndQualifiersAST();
-  ast->parameterDeclarationClause =
-      decodeParameterDeclarationClause(node->parameter_declaration_clause());
-  if (node->cv_qualifier_list()) {
-    auto* inserter = &ast->cvQualifierList;
-    for (std::size_t i = 0; i < node->cv_qualifier_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeSpecifier(
-          node->cv_qualifier_list()->Get(i),
-          io::Specifier(node->cv_qualifier_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  ast->exceptionSpecifier = decodeExceptionSpecifier(
-      node->exception_specifier(), node->exception_specifier_type());
-  if (node->attribute_list()) {
-    auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeAttributeSpecifier(
-          node->attribute_list()->Get(i),
-          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  return ast;
-}
-
 auto ASTDecoder::decodeLambdaSpecifier(const io::LambdaSpecifier* node)
     -> LambdaSpecifierAST* {
   if (!node) return nullptr;
@@ -985,23 +955,6 @@ auto ASTDecoder::decodeTrailingReturnType(const io::TrailingReturnType* node)
 
   auto ast = new (pool_) TrailingReturnTypeAST();
   ast->typeId = decodeTypeId(node->type_id());
-  return ast;
-}
-
-auto ASTDecoder::decodeCtorInitializer(const io::CtorInitializer* node)
-    -> CtorInitializerAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) CtorInitializerAST();
-  if (node->mem_initializer_list()) {
-    auto* inserter = &ast->memInitializerList;
-    for (std::size_t i = 0; i < node->mem_initializer_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeMemInitializer(
-          node->mem_initializer_list()->Get(i),
-          io::MemInitializer(node->mem_initializer_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
   return ast;
 }
 
@@ -1153,18 +1106,6 @@ auto ASTDecoder::decodeAttributeUsingPrefix(
   return ast;
 }
 
-auto ASTDecoder::decodeDesignator(const io::Designator* node)
-    -> DesignatorAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) DesignatorAST();
-  if (node->identifier()) {
-    ast->identifier =
-        unit_->control()->getIdentifier(node->identifier()->str());
-  }
-  return ast;
-}
-
 auto ASTDecoder::decodeNewPlacement(const io::NewPlacement* node)
     -> NewPlacementAST* {
   if (!node) return nullptr;
@@ -1276,7 +1217,10 @@ auto ASTDecoder::decodeDesignatedInitializerClause(
   if (!node) return nullptr;
 
   auto ast = new (pool_) DesignatedInitializerClauseAST();
-  ast->designator = decodeDesignator(node->designator());
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
   ast->initializer =
       decodeExpression(node->initializer(), node->initializer_type());
   return ast;
@@ -2126,7 +2070,15 @@ auto ASTDecoder::decodeCompoundStatementFunctionBody(
   if (!node) return nullptr;
 
   auto ast = new (pool_) CompoundStatementFunctionBodyAST();
-  ast->ctorInitializer = decodeCtorInitializer(node->ctor_initializer());
+  if (node->mem_initializer_list()) {
+    auto* inserter = &ast->memInitializerList;
+    for (std::size_t i = 0; i < node->mem_initializer_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeMemInitializer(
+          node->mem_initializer_list()->Get(i),
+          io::MemInitializer(node->mem_initializer_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
   ast->statement = decodeCompoundStatement(node->statement());
   return ast;
 }
@@ -2136,7 +2088,15 @@ auto ASTDecoder::decodeTryStatementFunctionBody(
   if (!node) return nullptr;
 
   auto ast = new (pool_) TryStatementFunctionBodyAST();
-  ast->ctorInitializer = decodeCtorInitializer(node->ctor_initializer());
+  if (node->mem_initializer_list()) {
+    auto* inserter = &ast->memInitializerList;
+    for (std::size_t i = 0; i < node->mem_initializer_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeMemInitializer(
+          node->mem_initializer_list()->Get(i),
+          io::MemInitializer(node->mem_initializer_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
   ast->statement = decodeCompoundStatement(node->statement());
   if (node->handler_list()) {
     auto* inserter = &ast->handlerList;
@@ -3666,8 +3626,28 @@ auto ASTDecoder::decodeFunctionDeclaratorChunk(
   if (!node) return nullptr;
 
   auto ast = new (pool_) FunctionDeclaratorChunkAST();
-  ast->parametersAndQualifiers =
-      decodeParametersAndQualifiers(node->parameters_and_qualifiers());
+  ast->parameterDeclarationClause =
+      decodeParameterDeclarationClause(node->parameter_declaration_clause());
+  if (node->cv_qualifier_list()) {
+    auto* inserter = &ast->cvQualifierList;
+    for (std::size_t i = 0; i < node->cv_qualifier_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeSpecifier(
+          node->cv_qualifier_list()->Get(i),
+          io::Specifier(node->cv_qualifier_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  ast->exceptionSpecifier = decodeExceptionSpecifier(
+      node->exception_specifier(), node->exception_specifier_type());
+  if (node->attribute_list()) {
+    auto* inserter = &ast->attributeList;
+    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
   ast->trailingReturnType =
       decodeTrailingReturnType(node->trailing_return_type());
   return ast;
