@@ -65,14 +65,14 @@ export function gen_ast_slot_cc({ ast, output }: { ast: AST; output: string }) {
           switch (classification) {
             case MemberSlotClassification.BoolAttribute:
               emit(`  case ${slotCount}: // ${m.name}`);
-              emit(`    value_ = intptr_t(ast->${m.name} != 0);`);
+              emit(`    value_ = std::intptr_t(ast->${m.name} != 0);`);
               emit(`    slotKind_ = ASTSlotKind::kBoolAttribute;`);
               emit(`    slotNameIndex_ = SlotNameIndex{${slotNameIndex}};`);
               emit(`    break;`);
               break;
             case MemberSlotClassification.TokenKindAttribute:
               emit(`  case ${slotCount}: // ${m.name}`);
-              emit(`    value_ = intptr_t(ast->${m.name});`);
+              emit(`    value_ = std::intptr_t(ast->${m.name});`);
               emit(`    slotKind_ = ASTSlotKind::kIntAttribute;`);
               emit(`    slotNameIndex_ = SlotNameIndex{${slotNameIndex}};`);
               emit(`    break;`);

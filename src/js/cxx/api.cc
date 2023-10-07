@@ -45,14 +45,14 @@ struct DiagnosticsClient final : cxx::DiagnosticsClient {
 
   void report(const cxx::Diagnostic& diag) override {
     std::string_view fileName;
-    uint32_t line = 0;
-    uint32_t column = 0;
+    std::uint32_t line = 0;
+    std::uint32_t column = 0;
 
     preprocessor()->getTokenStartPosition(diag.token(), &line, &column,
                                           &fileName);
 
-    uint32_t endLine = 0;
-    uint32_t endColumn = 0;
+    std::uint32_t endLine = 0;
+    std::uint32_t endColumn = 0;
 
     preprocessor()->getTokenEndPosition(diag.token(), &endLine, &endColumn,
                                         nullptr);
@@ -84,28 +84,28 @@ struct WrappedUnit {
     unit->setSource(std::move(source), std::move(filename));
   }
 
-  intptr_t getUnitHandle() const { return (intptr_t)unit.get(); }
+  std::intptr_t getUnitHandle() const { return (std::intptr_t)unit.get(); }
 
-  intptr_t getHandle() const { return (intptr_t)unit->ast(); }
+  std::intptr_t getHandle() const { return (std::intptr_t)unit->ast(); }
 
   val getDiagnostics() const { return diagnosticsClient->messages; }
 
   bool parse() { return unit->parse(); }
 };
 
-std::string getTokenText(intptr_t handle, intptr_t unitHandle) {
+std::string getTokenText(std::intptr_t handle, std::intptr_t unitHandle) {
   auto unit = reinterpret_cast<cxx::TranslationUnit*>(unitHandle);
   auto text = unit->tokenText(cxx::SourceLocation(handle));
   return text;
 }
 
-int getTokenKind(intptr_t handle, intptr_t unitHandle) {
+int getTokenKind(std::intptr_t handle, std::intptr_t unitHandle) {
   auto unit = reinterpret_cast<cxx::TranslationUnit*>(unitHandle);
   auto kind = unit->tokenKind(cxx::SourceLocation(handle));
   return static_cast<int>(kind);
 }
 
-val getTokenLocation(intptr_t handle, intptr_t unitHandle) {
+val getTokenLocation(std::intptr_t handle, std::intptr_t unitHandle) {
   auto unit = reinterpret_cast<cxx::TranslationUnit*>(unitHandle);
 
   cxx::SourceLocation loc(handle);
@@ -128,65 +128,65 @@ val getTokenLocation(intptr_t handle, intptr_t unitHandle) {
   return result;
 }
 
-val getStartLocation(intptr_t handle, intptr_t unitHandle) {
+val getStartLocation(std::intptr_t handle, std::intptr_t unitHandle) {
   auto ast = reinterpret_cast<cxx::AST*>(handle);
   const auto loc = ast->firstSourceLocation();
   if (!loc) return {};
   return getTokenLocation(loc.index(), unitHandle);
 }
 
-val getEndLocation(intptr_t handle, intptr_t unitHandle) {
+val getEndLocation(std::intptr_t handle, std::intptr_t unitHandle) {
   auto ast = reinterpret_cast<cxx::AST*>(handle);
   const auto loc = ast->lastSourceLocation().previous();
   if (!loc) return {};
   return getTokenLocation(loc.index(), unitHandle);
 }
 
-val getIdentifierValue(intptr_t handle) {
+val getIdentifierValue(std::intptr_t handle) {
   auto id = reinterpret_cast<const cxx::Identifier*>(handle);
   if (!id) return {};
   return val(id->value());
 }
 
-val getLiteralValue(intptr_t handle) {
+val getLiteralValue(std::intptr_t handle) {
   auto id = reinterpret_cast<const cxx::Literal*>(handle);
   if (!id) return {};
   return val(id->value());
 }
 
-int getASTKind(intptr_t handle) {
+int getASTKind(std::intptr_t handle) {
   return static_cast<int>(((cxx::AST*)handle)->kind());
 }
 
-int getListValue(intptr_t handle) {
+int getListValue(std::intptr_t handle) {
   auto list = reinterpret_cast<cxx::List<cxx::AST*>*>(handle);
-  return intptr_t(list->value);
+  return std::intptr_t(list->value);
 }
 
-intptr_t getListNext(intptr_t handle) {
+std::intptr_t getListNext(std::intptr_t handle) {
   auto list = reinterpret_cast<cxx::List<cxx::AST*>*>(handle);
-  return intptr_t(list->next);
+  return std::intptr_t(list->next);
 }
 
-intptr_t getASTSlot(intptr_t handle, int slot) {
+std::intptr_t getASTSlot(std::intptr_t handle, int slot) {
   auto ast = reinterpret_cast<cxx::AST*>(handle);
   auto [value, slotKind, slotNameIndex, slotCount] = getSlot(ast, slot);
   return value;
 }
 
-int getASTSlotKind(intptr_t handle, int slot) {
+int getASTSlotKind(std::intptr_t handle, int slot) {
   auto ast = reinterpret_cast<cxx::AST*>(handle);
   auto [value, slotKind, slotNameIndex, slotCount] = getSlot(ast, slot);
   return static_cast<int>(slotKind);
 }
 
-int getASTSlotName(intptr_t handle, int slot) {
+int getASTSlotName(std::intptr_t handle, int slot) {
   auto ast = reinterpret_cast<cxx::AST*>(handle);
   auto [value, slotKind, slotName, slotCount] = getSlot(ast, slot);
   return static_cast<int>(slotName);
 }
 
-int getASTSlotCount(intptr_t handle, int slot) {
+int getASTSlotCount(std::intptr_t handle, int slot) {
   auto ast = reinterpret_cast<cxx::AST*>(handle);
   auto [value, slotKind, slotNameIndex, slotCount] = getSlot(ast, slot);
   return static_cast<int>(slotCount);
@@ -228,12 +228,12 @@ auto preprocesorPreprocess(cxx::Preprocessor& preprocessor, std::string source,
   return out.str();
 }
 
-auto translationUnitGetAST(cxx::TranslationUnit& unit) -> intptr_t {
-  return reinterpret_cast<intptr_t>(unit.ast());
+auto translationUnitGetAST(cxx::TranslationUnit& unit) -> std::intptr_t {
+  return reinterpret_cast<std::intptr_t>(unit.ast());
 }
 
-auto translationUnitGetUnitHandle(cxx::TranslationUnit& unit) -> intptr_t {
-  return reinterpret_cast<intptr_t>(&unit);
+auto translationUnitGetUnitHandle(cxx::TranslationUnit& unit) -> std::intptr_t {
+  return reinterpret_cast<std::intptr_t>(&unit);
 }
 
 auto register_control(const char* name = "Control") -> class_<cxx::Control> {

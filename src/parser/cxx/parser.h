@@ -677,8 +677,8 @@ class Parser final {
   const Identifier* overrideId_ = nullptr;
   int templArgDepth_ = 0;
   int classDepth_ = 0;
-  uint32_t lastErrorCursor_ = 0;
-  uint32_t cursor_ = 0;
+  std::uint32_t lastErrorCursor_ = 0;
+  std::uint32_t cursor_ = 0;
 
   std::vector<FunctionDefinitionAST*> pendingFunctionDefinitions_;
 

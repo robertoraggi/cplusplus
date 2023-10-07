@@ -324,7 +324,7 @@ void ASTSlot::visit(UsingDeclaratorAST* ast) {
       slotNameIndex_ = SlotNameIndex{65};
       break;
     case 4:  // isPack
-      value_ = intptr_t(ast->isPack != 0);
+      value_ = std::intptr_t(ast->isPack != 0);
       slotKind_ = ASTSlotKind::kBoolAttribute;
       slotNameIndex_ = SlotNameIndex{114};
       break;
@@ -481,17 +481,17 @@ void ASTSlot::visit(BaseSpecifierAST* ast) {
       slotNameIndex_ = SlotNameIndex{221};
       break;
     case 4:  // isTemplateIntroduced
-      value_ = intptr_t(ast->isTemplateIntroduced != 0);
+      value_ = std::intptr_t(ast->isTemplateIntroduced != 0);
       slotKind_ = ASTSlotKind::kBoolAttribute;
       slotNameIndex_ = SlotNameIndex{116};
       break;
     case 5:  // isVirtual
-      value_ = intptr_t(ast->isVirtual != 0);
+      value_ = std::intptr_t(ast->isVirtual != 0);
       slotKind_ = ASTSlotKind::kBoolAttribute;
       slotNameIndex_ = SlotNameIndex{120};
       break;
     case 6:  // accessSpecifier
-      value_ = intptr_t(ast->accessSpecifier);
+      value_ = std::intptr_t(ast->accessSpecifier);
       slotKind_ = ASTSlotKind::kIntAttribute;
       slotNameIndex_ = SlotNameIndex{2};
       break;
@@ -586,7 +586,7 @@ void ASTSlot::visit(ParameterDeclarationClauseAST* ast) {
       slotNameIndex_ = SlotNameIndex{65};
       break;
     case 3:  // isVariadic
-      value_ = intptr_t(ast->isVariadic != 0);
+      value_ = std::intptr_t(ast->isVariadic != 0);
       slotKind_ = ASTSlotKind::kBoolAttribute;
       slotNameIndex_ = SlotNameIndex{119};
       break;
@@ -672,7 +672,7 @@ void ASTSlot::visit(LambdaSpecifierAST* ast) {
       slotNameIndex_ = SlotNameIndex{188};
       break;
     case 1:  // specifier
-      value_ = intptr_t(ast->specifier);
+      value_ = std::intptr_t(ast->specifier);
       slotKind_ = ASTSlotKind::kIntAttribute;
       slotNameIndex_ = SlotNameIndex{187};
       break;
@@ -1128,7 +1128,7 @@ void ASTSlot::visit(NestedNamespaceSpecifierAST* ast) {
       slotNameIndex_ = SlotNameIndex{98};
       break;
     case 4:  // isInline
-      value_ = intptr_t(ast->isInline != 0);
+      value_ = std::intptr_t(ast->isInline != 0);
       slotKind_ = ASTSlotKind::kBoolAttribute;
       slotNameIndex_ = SlotNameIndex{111};
       break;
@@ -1221,7 +1221,7 @@ void ASTSlot::visit(TemplateNestedNameSpecifierAST* ast) {
       slotNameIndex_ = SlotNameIndex{183};
       break;
     case 4:  // isTemplateIntroduced
-      value_ = intptr_t(ast->isTemplateIntroduced != 0);
+      value_ = std::intptr_t(ast->isTemplateIntroduced != 0);
       slotKind_ = ASTSlotKind::kBoolAttribute;
       slotNameIndex_ = SlotNameIndex{116};
       break;
@@ -1350,7 +1350,7 @@ void ASTSlot::visit(BoolLiteralExpressionAST* ast) {
       slotNameIndex_ = SlotNameIndex{130};
       break;
     case 1:  // isTrue
-      value_ = intptr_t(ast->isTrue != 0);
+      value_ = std::intptr_t(ast->isTrue != 0);
       slotKind_ = ASTSlotKind::kBoolAttribute;
       slotNameIndex_ = SlotNameIndex{118};
       break;
@@ -1401,7 +1401,7 @@ void ASTSlot::visit(NullptrLiteralExpressionAST* ast) {
       slotNameIndex_ = SlotNameIndex{130};
       break;
     case 1:  // literal
-      value_ = intptr_t(ast->literal);
+      value_ = std::intptr_t(ast->literal);
       slotKind_ = ASTSlotKind::kIntAttribute;
       slotNameIndex_ = SlotNameIndex{129};
       break;
@@ -1462,7 +1462,7 @@ void ASTSlot::visit(IdExpressionAST* ast) {
       slotNameIndex_ = SlotNameIndex{221};
       break;
     case 3:  // isTemplateIntroduced
-      value_ = intptr_t(ast->isTemplateIntroduced != 0);
+      value_ = std::intptr_t(ast->isTemplateIntroduced != 0);
       slotKind_ = ASTSlotKind::kBoolAttribute;
       slotNameIndex_ = SlotNameIndex{116};
       break;
@@ -1553,7 +1553,7 @@ void ASTSlot::visit(RightFoldExpressionAST* ast) {
       slotNameIndex_ = SlotNameIndex{182};
       break;
     case 5:  // op
-      value_ = intptr_t(ast->op);
+      value_ = std::intptr_t(ast->op);
       slotKind_ = ASTSlotKind::kIntAttribute;
       slotNameIndex_ = SlotNameIndex{151};
       break;
@@ -1590,7 +1590,7 @@ void ASTSlot::visit(LeftFoldExpressionAST* ast) {
       slotNameIndex_ = SlotNameIndex{182};
       break;
     case 5:  // op
-      value_ = intptr_t(ast->op);
+      value_ = std::intptr_t(ast->op);
       slotKind_ = ASTSlotKind::kIntAttribute;
       slotNameIndex_ = SlotNameIndex{151};
       break;
@@ -1637,12 +1637,12 @@ void ASTSlot::visit(FoldExpressionAST* ast) {
       slotNameIndex_ = SlotNameIndex{182};
       break;
     case 7:  // op
-      value_ = intptr_t(ast->op);
+      value_ = std::intptr_t(ast->op);
       slotKind_ = ASTSlotKind::kIntAttribute;
       slotNameIndex_ = SlotNameIndex{151};
       break;
     case 8:  // foldOp
-      value_ = intptr_t(ast->foldOp);
+      value_ = std::intptr_t(ast->foldOp);
       slotKind_ = ASTSlotKind::kIntAttribute;
       slotNameIndex_ = SlotNameIndex{85};
       break;
@@ -1895,7 +1895,7 @@ void ASTSlot::visit(TypeTraitsExpressionAST* ast) {
       slotNameIndex_ = SlotNameIndex{182};
       break;
     case 4:  // typeTraits
-      value_ = intptr_t(ast->typeTraits);
+      value_ = std::intptr_t(ast->typeTraits);
       slotKind_ = ASTSlotKind::kIntAttribute;
       slotNameIndex_ = SlotNameIndex{215};
       break;
@@ -1951,7 +1951,7 @@ void ASTSlot::visit(UnaryExpressionAST* ast) {
       slotNameIndex_ = SlotNameIndex{80};
       break;
     case 2:  // op
-      value_ = intptr_t(ast->op);
+      value_ = std::intptr_t(ast->op);
       slotKind_ = ASTSlotKind::kIntAttribute;
       slotNameIndex_ = SlotNameIndex{151};
       break;
@@ -1978,7 +1978,7 @@ void ASTSlot::visit(BinaryExpressionAST* ast) {
       slotNameIndex_ = SlotNameIndex{180};
       break;
     case 3:  // op
-      value_ = intptr_t(ast->op);
+      value_ = std::intptr_t(ast->op);
       slotKind_ = ASTSlotKind::kIntAttribute;
       slotNameIndex_ = SlotNameIndex{151};
       break;
@@ -2005,7 +2005,7 @@ void ASTSlot::visit(AssignmentExpressionAST* ast) {
       slotNameIndex_ = SlotNameIndex{180};
       break;
     case 3:  // op
-      value_ = intptr_t(ast->op);
+      value_ = std::intptr_t(ast->op);
       slotKind_ = ASTSlotKind::kIntAttribute;
       slotNameIndex_ = SlotNameIndex{151};
       break;
@@ -2157,7 +2157,7 @@ void ASTSlot::visit(MemberExpressionAST* ast) {
       slotNameIndex_ = SlotNameIndex{135};
       break;
     case 3:  // accessOp
-      value_ = intptr_t(ast->accessOp);
+      value_ = std::intptr_t(ast->accessOp);
       slotKind_ = ASTSlotKind::kIntAttribute;
       slotNameIndex_ = SlotNameIndex{1};
       break;
@@ -2179,7 +2179,7 @@ void ASTSlot::visit(PostIncrExpressionAST* ast) {
       slotNameIndex_ = SlotNameIndex{152};
       break;
     case 2:  // op
-      value_ = intptr_t(ast->op);
+      value_ = std::intptr_t(ast->op);
       slotKind_ = ASTSlotKind::kIntAttribute;
       slotNameIndex_ = SlotNameIndex{151};
       break;
@@ -3188,7 +3188,7 @@ void ASTSlot::visit(ConstevalIfStatementAST* ast) {
       slotNameIndex_ = SlotNameIndex{67};
       break;
     case 6:  // isNot
-      value_ = intptr_t(ast->isNot != 0);
+      value_ = std::intptr_t(ast->isNot != 0);
       slotKind_ = ASTSlotKind::kBoolAttribute;
       slotNameIndex_ = SlotNameIndex{112};
       break;
@@ -3554,7 +3554,7 @@ void ASTSlot::visit(AccessDeclarationAST* ast) {
       slotNameIndex_ = SlotNameIndex{35};
       break;
     case 2:  // accessSpecifier
-      value_ = intptr_t(ast->accessSpecifier);
+      value_ = std::intptr_t(ast->accessSpecifier);
       slotKind_ = ASTSlotKind::kIntAttribute;
       slotNameIndex_ = SlotNameIndex{2};
       break;
@@ -3927,7 +3927,7 @@ void ASTSlot::visit(NamespaceDefinitionAST* ast) {
       slotNameIndex_ = SlotNameIndex{98};
       break;
     case 10:  // isInline
-      value_ = intptr_t(ast->isInline != 0);
+      value_ = std::intptr_t(ast->isInline != 0);
       slotKind_ = ASTSlotKind::kBoolAttribute;
       slotNameIndex_ = SlotNameIndex{111};
       break;
@@ -4119,7 +4119,7 @@ void ASTSlot::visit(AsmQualifierAST* ast) {
       slotNameIndex_ = SlotNameIndex{164};
       break;
     case 1:  // qualifier
-      value_ = intptr_t(ast->qualifier);
+      value_ = std::intptr_t(ast->qualifier);
       slotKind_ = ASTSlotKind::kIntAttribute;
       slotNameIndex_ = SlotNameIndex{163};
       break;
@@ -4585,7 +4585,7 @@ void ASTSlot::visit(ParameterDeclarationAST* ast) {
       slotNameIndex_ = SlotNameIndex{80};
       break;
     case 6:  // isThisIntroduced
-      value_ = intptr_t(ast->isThisIntroduced != 0);
+      value_ = std::intptr_t(ast->isThisIntroduced != 0);
       slotKind_ = ASTSlotKind::kBoolAttribute;
       slotNameIndex_ = SlotNameIndex{117};
       break;
@@ -4700,7 +4700,7 @@ void ASTSlot::visit(OperatorFunctionIdAST* ast) {
       slotNameIndex_ = SlotNameIndex{34};
       break;
     case 4:  // op
-      value_ = intptr_t(ast->op);
+      value_ = std::intptr_t(ast->op);
       slotKind_ = ASTSlotKind::kIntAttribute;
       slotNameIndex_ = SlotNameIndex{151};
       break;
@@ -5047,7 +5047,7 @@ void ASTSlot::visit(SizeTypeSpecifierAST* ast) {
       slotNameIndex_ = SlotNameIndex{188};
       break;
     case 1:  // specifier
-      value_ = intptr_t(ast->specifier);
+      value_ = std::intptr_t(ast->specifier);
       slotKind_ = ASTSlotKind::kIntAttribute;
       slotNameIndex_ = SlotNameIndex{187};
       break;
@@ -5064,7 +5064,7 @@ void ASTSlot::visit(SignTypeSpecifierAST* ast) {
       slotNameIndex_ = SlotNameIndex{188};
       break;
     case 1:  // specifier
-      value_ = intptr_t(ast->specifier);
+      value_ = std::intptr_t(ast->specifier);
       slotKind_ = ASTSlotKind::kIntAttribute;
       slotNameIndex_ = SlotNameIndex{187};
       break;
@@ -5081,7 +5081,7 @@ void ASTSlot::visit(VaListTypeSpecifierAST* ast) {
       slotNameIndex_ = SlotNameIndex{188};
       break;
     case 1:  // specifier
-      value_ = intptr_t(ast->specifier);
+      value_ = std::intptr_t(ast->specifier);
       slotKind_ = ASTSlotKind::kIntAttribute;
       slotNameIndex_ = SlotNameIndex{187};
       break;
@@ -5098,7 +5098,7 @@ void ASTSlot::visit(IntegralTypeSpecifierAST* ast) {
       slotNameIndex_ = SlotNameIndex{188};
       break;
     case 1:  // specifier
-      value_ = intptr_t(ast->specifier);
+      value_ = std::intptr_t(ast->specifier);
       slotKind_ = ASTSlotKind::kIntAttribute;
       slotNameIndex_ = SlotNameIndex{187};
       break;
@@ -5115,7 +5115,7 @@ void ASTSlot::visit(FloatingPointTypeSpecifierAST* ast) {
       slotNameIndex_ = SlotNameIndex{188};
       break;
     case 1:  // specifier
-      value_ = intptr_t(ast->specifier);
+      value_ = std::intptr_t(ast->specifier);
       slotKind_ = ASTSlotKind::kIntAttribute;
       slotNameIndex_ = SlotNameIndex{187};
       break;
@@ -5154,7 +5154,7 @@ void ASTSlot::visit(NamedTypeSpecifierAST* ast) {
       slotNameIndex_ = SlotNameIndex{221};
       break;
     case 3:  // isTemplateIntroduced
-      value_ = intptr_t(ast->isTemplateIntroduced != 0);
+      value_ = std::intptr_t(ast->isTemplateIntroduced != 0);
       slotKind_ = ASTSlotKind::kBoolAttribute;
       slotNameIndex_ = SlotNameIndex{116};
       break;
@@ -5240,7 +5240,7 @@ void ASTSlot::visit(ElaboratedTypeSpecifierAST* ast) {
       slotNameIndex_ = SlotNameIndex{221};
       break;
     case 4:  // classKey
-      value_ = intptr_t(ast->classKey);
+      value_ = std::intptr_t(ast->classKey);
       slotKind_ = ASTSlotKind::kIntAttribute;
       slotNameIndex_ = SlotNameIndex{30};
       break;
@@ -5461,12 +5461,12 @@ void ASTSlot::visit(ClassSpecifierAST* ast) {
       slotNameIndex_ = SlotNameIndex{168};
       break;
     case 9:  // classKey
-      value_ = intptr_t(ast->classKey);
+      value_ = std::intptr_t(ast->classKey);
       slotKind_ = ASTSlotKind::kIntAttribute;
       slotNameIndex_ = SlotNameIndex{30};
       break;
     case 10:  // isFinal
-      value_ = intptr_t(ast->isFinal != 0);
+      value_ = std::intptr_t(ast->isFinal != 0);
       slotKind_ = ASTSlotKind::kBoolAttribute;
       slotNameIndex_ = SlotNameIndex{110};
       break;
@@ -5615,7 +5615,7 @@ void ASTSlot::visit(ReferenceOperatorAST* ast) {
       slotNameIndex_ = SlotNameIndex{11};
       break;
     case 2:  // refOp
-      value_ = intptr_t(ast->refOp);
+      value_ = std::intptr_t(ast->refOp);
       slotKind_ = ASTSlotKind::kIntAttribute;
       slotNameIndex_ = SlotNameIndex{172};
       break;
@@ -5664,17 +5664,17 @@ void ASTSlot::visit(FunctionDeclaratorChunkAST* ast) {
       slotNameIndex_ = SlotNameIndex{208};
       break;
     case 2:  // isFinal
-      value_ = intptr_t(ast->isFinal != 0);
+      value_ = std::intptr_t(ast->isFinal != 0);
       slotKind_ = ASTSlotKind::kBoolAttribute;
       slotNameIndex_ = SlotNameIndex{110};
       break;
     case 3:  // isOverride
-      value_ = intptr_t(ast->isOverride != 0);
+      value_ = std::intptr_t(ast->isOverride != 0);
       slotKind_ = ASTSlotKind::kBoolAttribute;
       slotNameIndex_ = SlotNameIndex{113};
       break;
     case 4:  // isPure
-      value_ = intptr_t(ast->isPure != 0);
+      value_ = std::intptr_t(ast->isPure != 0);
       slotKind_ = ASTSlotKind::kBoolAttribute;
       slotNameIndex_ = SlotNameIndex{115};
       break;

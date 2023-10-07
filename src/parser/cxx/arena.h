@@ -62,7 +62,7 @@ class Arena {
   auto allocate(std::size_t size) noexcept -> void* {
     if (!blocks.empty()) {
       auto block = blocks.back();
-      block->ptr = (char*)((intptr_t(block->ptr) + 7) & ~7);
+      block->ptr = (char*)((std::intptr_t(block->ptr) + 7) & ~7);
       void* addr = block->ptr;
       block->ptr += size;
       if (block->ptr < block->data + Block::SIZE) return addr;
