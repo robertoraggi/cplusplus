@@ -34,6 +34,7 @@
     "build:storybook": "npm run build-storybook -w @robertoraggi/cxx-storybook",
     "storybook": "npm run storybook -w @robertoraggi/cxx-storybook",
     "setup-venv": "zx scripts/setup-venv.mjs",
-    "update-tests": "zx scripts/update-tests.mjs"
+    "update-tests": "zx scripts/update-tests.mjs",
+    "cxx-gen-ast": "node packages/cxx-gen-ast"
   }
 }
