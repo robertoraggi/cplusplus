@@ -8091,12 +8091,12 @@ void Parser::parse_template_parameter(DeclarationAST*& yyast) {
 
     if (!parse_constraint_type_parameter(yyast)) return false;
 
+    if (!LA().isOneOf(TokenKind::T_GREATER, TokenKind::T_COMMA)) return false;
+
     lookahead.commit();
 
     return true;
   };
-
-  if (lookat_constraint_type_parameter()) return;
 
   auto lookat_type_parameter = [&] {
     LookaheadParser lookahead{this};
@@ -8108,6 +8108,7 @@ void Parser::parse_template_parameter(DeclarationAST*& yyast) {
     return true;
   };
 
+  if (lookat_constraint_type_parameter()) return;
   if (lookat_type_parameter()) return;
 
   LookaheadParser lookahead{this};
