@@ -5,6 +5,7 @@ const int values[] = {
     2,
     3,
 };
+
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list

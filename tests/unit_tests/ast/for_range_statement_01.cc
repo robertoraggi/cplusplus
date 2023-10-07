@@ -4,6 +4,7 @@ int main() {
   for (int i : {10, 20, 30}) {
   }
 }
+
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list

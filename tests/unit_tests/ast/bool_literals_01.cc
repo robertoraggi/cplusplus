@@ -2,6 +2,7 @@
 
 const bool ok = true;
 const bool ko = false;
+
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list

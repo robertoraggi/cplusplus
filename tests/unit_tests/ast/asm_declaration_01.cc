@@ -20,6 +20,7 @@ void asm_goto() {
   asm goto("nop" : : : : end);
 end:;
 }
+
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list

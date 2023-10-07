@@ -11,6 +11,7 @@ class DerivedClass : public EmptyClass {};
 class DerivedClass2 : public EmptyClass, private OtherEmptyClass {};
 
 class DerivedClass3 : virtual public EmptyClass {};
+
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list

@@ -7,6 +7,7 @@ auto main() -> int {
   auto static_lambda = []() static { return 0; };
 };
 
+
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list

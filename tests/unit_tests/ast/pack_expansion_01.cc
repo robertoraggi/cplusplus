@@ -3,6 +3,7 @@
 void foo() {}
 
 void foo(int x, auto... xs) { foo(xs...); }
+
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list

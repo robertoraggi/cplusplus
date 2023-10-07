@@ -13,6 +13,7 @@ namespace n2::n3 {}
 namespace n2::inline n4::n5 {}
 
 namespace n2::inline n4::inline n6 {}
+
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list

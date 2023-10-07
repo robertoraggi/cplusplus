@@ -8,6 +8,7 @@ struct Allocator {
 };
 
 auto copy(Allocator &A) -> void * { return A.template Allocate<char>(128); }
+
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list

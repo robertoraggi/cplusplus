@@ -3,6 +3,7 @@
 void (*ptr)(){};
 
 void (*f(int))() {}
+
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list

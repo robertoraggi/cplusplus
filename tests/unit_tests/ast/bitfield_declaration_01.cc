@@ -3,6 +3,7 @@
 struct Bits {
   int value : 32;
 };
+
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list

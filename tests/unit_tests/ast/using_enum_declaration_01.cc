@@ -5,6 +5,7 @@ enum class fruit { orange, apple };
 struct S {
   using enum fruit;
 };
+
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list

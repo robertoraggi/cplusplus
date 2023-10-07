@@ -8,6 +8,7 @@ struct Handle {
   Handle(int value, int otherValue)
       : zero_(), value_(value), otherValue_{otherValue} {}
 };
+
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list

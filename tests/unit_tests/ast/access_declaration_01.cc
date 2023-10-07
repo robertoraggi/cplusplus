@@ -5,6 +5,7 @@ class SimpleClass {
  protected:
  public:
 };
+
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list
