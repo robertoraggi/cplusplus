@@ -32,6 +32,7 @@
   "scripts": {
     "build:cxx-frontend": "npm run build -w cxx-frontend",
     "build:storybook": "npm run build-storybook -w @robertoraggi/cxx-storybook",
-    "storybook": "npm run storybook -w @robertoraggi/cxx-storybook"
+    "storybook": "npm run storybook -w @robertoraggi/cxx-storybook",
+    "setup-venv": "zx scripts/setup-venv.mjs"
   }
 }
