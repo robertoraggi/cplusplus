@@ -82,24 +82,6 @@ void ASTCloner::visit(HandlerAST* ast) {
   copy->statement = accept(ast->statement);
 }
 
-void ASTCloner::visit(EnumBaseAST* ast) {
-  auto copy = new (arena_) EnumBaseAST();
-  copy_ = copy;
-
-  copy->setChecked(ast->checked());
-
-  copy->colonLoc = ast->colonLoc;
-
-  if (auto it = ast->typeSpecifierList) {
-    auto out = &copy->typeSpecifierList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
-}
-
 void ASTCloner::visit(EnumeratorAST* ast) {
   auto copy = new (arena_) EnumeratorAST();
   copy_ = copy;
@@ -2491,7 +2473,16 @@ void ASTCloner::visit(OpaqueEnumDeclarationAST* ast) {
 
   copy->unqualifiedId = accept(ast->unqualifiedId);
 
-  copy->enumBase = accept(ast->enumBase);
+  copy->colonLoc = ast->colonLoc;
+
+  if (auto it = ast->typeSpecifierList) {
+    auto out = &copy->typeSpecifierList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
 
   copy->emicolonLoc = ast->emicolonLoc;
 }
@@ -3566,7 +3557,16 @@ void ASTCloner::visit(EnumSpecifierAST* ast) {
 
   copy->unqualifiedId = accept(ast->unqualifiedId);
 
-  copy->enumBase = accept(ast->enumBase);
+  copy->colonLoc = ast->colonLoc;
+
+  if (auto it = ast->typeSpecifierList) {
+    auto out = &copy->typeSpecifierList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
 
   copy->lbraceLoc = ast->lbraceLoc;
 

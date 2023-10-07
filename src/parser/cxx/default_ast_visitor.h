@@ -30,7 +30,6 @@ class DefaultASTVisitor : public ASTVisitor {
   void visit(TypeIdAST* ast) override;
   void visit(UsingDeclaratorAST* ast) override;
   void visit(HandlerAST* ast) override;
-  void visit(EnumBaseAST* ast) override;
   void visit(EnumeratorAST* ast) override;
   void visit(DeclaratorAST* ast) override;
   void visit(InitDeclaratorAST* ast) override;

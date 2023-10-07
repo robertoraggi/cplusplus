@@ -446,7 +446,9 @@ class Parser final {
       -> bool;
   [[nodiscard]] auto parse_enum_key(SourceLocation& enumLoc,
                                     SourceLocation& classLoc) -> bool;
-  [[nodiscard]] auto parse_enum_base(EnumBaseAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_enum_base(SourceLocation& colonLoc,
+                                     List<SpecifierAST*>*& typeSpecifierList)
+      -> bool;
   void parse_enumerator_list(List<EnumeratorAST*>*& yyast);
   void parse_enumerator_definition(EnumeratorAST*& yast);
   void parse_enumerator(EnumeratorAST*& yyast);

@@ -196,8 +196,6 @@ void RecursiveASTVisitor::acceptInitDeclarator(InitDeclaratorAST* ast) {
 
 void RecursiveASTVisitor::acceptNameId(NameIdAST* ast) { accept(ast); }
 
-void RecursiveASTVisitor::acceptEnumBase(EnumBaseAST* ast) { accept(ast); }
-
 void RecursiveASTVisitor::acceptNestedNamespaceSpecifier(
     NestedNamespaceSpecifierAST* ast) {
   accept(ast);
@@ -262,12 +260,6 @@ void RecursiveASTVisitor::visit(UsingDeclaratorAST* ast) {
 void RecursiveASTVisitor::visit(HandlerAST* ast) {
   acceptExceptionDeclaration(ast->exceptionDeclaration);
   acceptCompoundStatement(ast->statement);
-}
-
-void RecursiveASTVisitor::visit(EnumBaseAST* ast) {
-  for (auto it = ast->typeSpecifierList; it; it = it->next) {
-    acceptSpecifier(it->value);
-  }
 }
 
 void RecursiveASTVisitor::visit(EnumeratorAST* ast) {
@@ -899,7 +891,9 @@ void RecursiveASTVisitor::visit(OpaqueEnumDeclarationAST* ast) {
   }
   acceptNestedNameSpecifier(ast->nestedNameSpecifier);
   acceptNameId(ast->unqualifiedId);
-  acceptEnumBase(ast->enumBase);
+  for (auto it = ast->typeSpecifierList; it; it = it->next) {
+    acceptSpecifier(it->value);
+  }
 }
 
 void RecursiveASTVisitor::visit(NamespaceDefinitionAST* ast) {
@@ -1176,7 +1170,9 @@ void RecursiveASTVisitor::visit(EnumSpecifierAST* ast) {
   }
   acceptNestedNameSpecifier(ast->nestedNameSpecifier);
   acceptNameId(ast->unqualifiedId);
-  acceptEnumBase(ast->enumBase);
+  for (auto it = ast->typeSpecifierList; it; it = it->next) {
+    acceptSpecifier(it->value);
+  }
   for (auto it = ast->enumeratorList; it; it = it->next) {
     acceptEnumerator(it->value);
   }

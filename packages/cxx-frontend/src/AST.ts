@@ -329,44 +329,6 @@ export class HandlerAST extends AST {
 }
 
 /**
- * EnumBaseAST node.
- */
-export class EnumBaseAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitEnumBase(this, context);
-  }
-
-  /**
-   * Returns the location of the colon token in this node
-   */
-  getColonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the typeSpecifierList of this node
-   */
-  *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-}
-
-/**
  * EnumeratorAST node.
  */
 export class EnumeratorAST extends AST {
@@ -6832,20 +6794,30 @@ export class OpaqueEnumDeclarationAST extends DeclarationAST {
   }
 
   /**
-   * Returns the enumBase of this node
+   * Returns the location of the colon token in this node
    */
-  getEnumBase(): EnumBaseAST | undefined {
-    return AST.from<EnumBaseAST>(
-      cxx.getASTSlot(this.getHandle(), 5),
-      this.parser,
-    );
+  getColonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+  }
+
+  /**
+   * Returns the typeSpecifierList of this node
+   */
+  *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 6);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+    }
   }
 
   /**
    * Returns the location of the emicolon token in this node
    */
   getEmicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
   }
 }
 
@@ -9858,27 +9830,37 @@ export class EnumSpecifierAST extends SpecifierAST {
   }
 
   /**
-   * Returns the enumBase of this node
+   * Returns the location of the colon token in this node
    */
-  getEnumBase(): EnumBaseAST | undefined {
-    return AST.from<EnumBaseAST>(
-      cxx.getASTSlot(this.getHandle(), 5),
-      this.parser,
-    );
+  getColonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+  }
+
+  /**
+   * Returns the typeSpecifierList of this node
+   */
+  *getTypeSpecifierList(): Generator<SpecifierAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 6);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<SpecifierAST>(cxx.getListValue(it), this.parser);
+    }
   }
 
   /**
    * Returns the location of the lbrace token in this node
    */
   getLbraceToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
   }
 
   /**
    * Returns the location of the comma token in this node
    */
   getCommaToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 8), this.parser);
   }
 
   /**
@@ -9886,7 +9868,7 @@ export class EnumSpecifierAST extends SpecifierAST {
    */
   *getEnumeratorList(): Generator<EnumeratorAST | undefined> {
     for (
-      let it = cxx.getASTSlot(this.getHandle(), 8);
+      let it = cxx.getASTSlot(this.getHandle(), 9);
       it;
       it = cxx.getListNext(it)
     ) {
@@ -9898,7 +9880,7 @@ export class EnumSpecifierAST extends SpecifierAST {
    * Returns the location of the rbrace token in this node
    */
   getRbraceToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 9), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 10), this.parser);
   }
 }
 
@@ -10895,7 +10877,6 @@ const AST_CONSTRUCTORS: Array<
   TypeIdAST,
   UsingDeclaratorAST,
   HandlerAST,
-  EnumBaseAST,
   EnumeratorAST,
   DeclaratorAST,
   InitDeclaratorAST,

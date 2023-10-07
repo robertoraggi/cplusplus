@@ -472,31 +472,6 @@ void ASTEncoder::visit(HandlerAST* ast) {
   offset_ = builder.Finish().Union();
 }
 
-void ASTEncoder::visit(EnumBaseAST* ast) {
-  auto colonLoc = encodeSourceLocation(ast->colonLoc);
-
-  std::vector<flatbuffers::Offset<>> typeSpecifierListOffsets;
-  std::vector<std::underlying_type_t<io::Specifier>> typeSpecifierListTypes;
-
-  for (auto it = ast->typeSpecifierList; it; it = it->next) {
-    if (!it->value) continue;
-    const auto [offset, type] = acceptSpecifier(it->value);
-    typeSpecifierListOffsets.push_back(offset);
-    typeSpecifierListTypes.push_back(type);
-  }
-
-  auto typeSpecifierListOffsetsVector =
-      fbb_.CreateVector(typeSpecifierListOffsets);
-  auto typeSpecifierListTypesVector = fbb_.CreateVector(typeSpecifierListTypes);
-
-  io::EnumBase::Builder builder{fbb_};
-  builder.add_colon_loc(colonLoc.o);
-  builder.add_type_specifier_list(typeSpecifierListOffsetsVector);
-  builder.add_type_specifier_list_type(typeSpecifierListTypesVector);
-
-  offset_ = builder.Finish().Union();
-}
-
 void ASTEncoder::visit(EnumeratorAST* ast) {
   auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
 
@@ -3697,7 +3672,21 @@ void ASTEncoder::visit(OpaqueEnumDeclarationAST* ast) {
 
   const auto unqualifiedId = accept(ast->unqualifiedId);
 
-  const auto enumBase = accept(ast->enumBase);
+  auto colonLoc = encodeSourceLocation(ast->colonLoc);
+
+  std::vector<flatbuffers::Offset<>> typeSpecifierListOffsets;
+  std::vector<std::underlying_type_t<io::Specifier>> typeSpecifierListTypes;
+
+  for (auto it = ast->typeSpecifierList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptSpecifier(it->value);
+    typeSpecifierListOffsets.push_back(offset);
+    typeSpecifierListTypes.push_back(type);
+  }
+
+  auto typeSpecifierListOffsetsVector =
+      fbb_.CreateVector(typeSpecifierListOffsets);
+  auto typeSpecifierListTypesVector = fbb_.CreateVector(typeSpecifierListTypes);
 
   auto emicolonLoc = encodeSourceLocation(ast->emicolonLoc);
 
@@ -3710,7 +3699,9 @@ void ASTEncoder::visit(OpaqueEnumDeclarationAST* ast) {
   builder.add_nested_name_specifier_type(
       static_cast<io::NestedNameSpecifier>(nestedNameSpecifierType));
   builder.add_unqualified_id(unqualifiedId.o);
-  builder.add_enum_base(enumBase.o);
+  builder.add_colon_loc(colonLoc.o);
+  builder.add_type_specifier_list(typeSpecifierListOffsetsVector);
+  builder.add_type_specifier_list_type(typeSpecifierListTypesVector);
   builder.add_emicolon_loc(emicolonLoc.o);
 
   offset_ = builder.Finish().Union();
@@ -5258,7 +5249,21 @@ void ASTEncoder::visit(EnumSpecifierAST* ast) {
 
   const auto unqualifiedId = accept(ast->unqualifiedId);
 
-  const auto enumBase = accept(ast->enumBase);
+  auto colonLoc = encodeSourceLocation(ast->colonLoc);
+
+  std::vector<flatbuffers::Offset<>> typeSpecifierListOffsets;
+  std::vector<std::underlying_type_t<io::Specifier>> typeSpecifierListTypes;
+
+  for (auto it = ast->typeSpecifierList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptSpecifier(it->value);
+    typeSpecifierListOffsets.push_back(offset);
+    typeSpecifierListTypes.push_back(type);
+  }
+
+  auto typeSpecifierListOffsetsVector =
+      fbb_.CreateVector(typeSpecifierListOffsets);
+  auto typeSpecifierListTypesVector = fbb_.CreateVector(typeSpecifierListTypes);
 
   auto lbraceLoc = encodeSourceLocation(ast->lbraceLoc);
 
@@ -5283,7 +5288,9 @@ void ASTEncoder::visit(EnumSpecifierAST* ast) {
   builder.add_nested_name_specifier_type(
       static_cast<io::NestedNameSpecifier>(nestedNameSpecifierType));
   builder.add_unqualified_id(unqualifiedId.o);
-  builder.add_enum_base(enumBase.o);
+  builder.add_colon_loc(colonLoc.o);
+  builder.add_type_specifier_list(typeSpecifierListOffsetsVector);
+  builder.add_type_specifier_list_type(typeSpecifierListTypesVector);
   builder.add_lbrace_loc(lbraceLoc.o);
   builder.add_comma_loc(commaLoc.o);
   builder.add_enumerator_list(enumeratorListOffsetsVector);

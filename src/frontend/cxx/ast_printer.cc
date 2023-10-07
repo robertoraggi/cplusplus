@@ -87,19 +87,6 @@ void ASTPrinter::visit(HandlerAST* ast) {
   accept(ast->statement, "statement");
 }
 
-void ASTPrinter::visit(EnumBaseAST* ast) {
-  fmt::print(out_, "{}\n", "enum-base");
-  if (ast->typeSpecifierList) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "type-specifier-list");
-    for (auto it = ast->typeSpecifierList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-}
-
 void ASTPrinter::visit(EnumeratorAST* ast) {
   fmt::print(out_, "{}\n", "enumerator");
   accept(ast->identifier, "identifier");
@@ -1344,7 +1331,15 @@ void ASTPrinter::visit(OpaqueEnumDeclarationAST* ast) {
   }
   accept(ast->nestedNameSpecifier, "nested-name-specifier");
   accept(ast->unqualifiedId, "unqualified-id");
-  accept(ast->enumBase, "enum-base");
+  if (ast->typeSpecifierList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "type-specifier-list");
+    for (auto it = ast->typeSpecifierList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(NamespaceDefinitionAST* ast) {
@@ -1980,7 +1975,15 @@ void ASTPrinter::visit(EnumSpecifierAST* ast) {
   }
   accept(ast->nestedNameSpecifier, "nested-name-specifier");
   accept(ast->unqualifiedId, "unqualified-id");
-  accept(ast->enumBase, "enum-base");
+  if (ast->typeSpecifierList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "type-specifier-list");
+    for (auto it = ast->typeSpecifierList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
   if (ast->enumeratorList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);

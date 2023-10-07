@@ -78,7 +78,6 @@ class UnqualifiedIdAST;
 class TypeIdAST;
 class UsingDeclaratorAST;
 class HandlerAST;
-class EnumBaseAST;
 class EnumeratorAST;
 class DeclaratorAST;
 class InitDeclaratorAST;
