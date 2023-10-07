@@ -931,51 +931,6 @@ export class CtorInitializerAST extends AST {
 }
 
 /**
- * RequirementBodyAST node.
- */
-export class RequirementBodyAST extends AST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitRequirementBody(this, context);
-  }
-
-  /**
-   * Returns the location of the lbrace token in this node
-   */
-  getLbraceToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the requirementList of this node
-   */
-  *getRequirementList(): Generator<RequirementAST | undefined> {
-    for (
-      let it = cxx.getASTSlot(this.getHandle(), 1);
-      it;
-      it = cxx.getListNext(it)
-    ) {
-      yield AST.from<RequirementAST>(cxx.getListValue(it), this.parser);
-    }
-  }
-
-  /**
-   * Returns the location of the rbrace token in this node
-   */
-  getRbraceToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-}
-
-/**
  * TypeConstraintAST node.
  */
 export class TypeConstraintAST extends AST {
@@ -2344,13 +2299,30 @@ export class RequiresExpressionAST extends ExpressionAST {
   }
 
   /**
-   * Returns the requirementBody of this node
+   * Returns the location of the lbrace token in this node
    */
-  getRequirementBody(): RequirementBodyAST | undefined {
-    return AST.from<RequirementBodyAST>(
-      cxx.getASTSlot(this.getHandle(), 4),
-      this.parser,
-    );
+  getLbraceToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  }
+
+  /**
+   * Returns the requirementList of this node
+   */
+  *getRequirementList(): Generator<RequirementAST | undefined> {
+    for (
+      let it = cxx.getASTSlot(this.getHandle(), 5);
+      it;
+      it = cxx.getListNext(it)
+    ) {
+      yield AST.from<RequirementAST>(cxx.getListValue(it), this.parser);
+    }
+  }
+
+  /**
+   * Returns the location of the rbrace token in this node
+   */
+  getRbraceToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
   }
 }
 
@@ -11037,7 +11009,6 @@ const AST_CONSTRUCTORS: Array<
   LambdaSpecifierAST,
   TrailingReturnTypeAST,
   CtorInitializerAST,
-  RequirementBodyAST,
   TypeConstraintAST,
   GlobalModuleFragmentAST,
   PrivateModuleFragmentAST,

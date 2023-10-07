@@ -90,7 +90,6 @@ class ParametersAndQualifiersAST;
 class LambdaSpecifierAST;
 class TrailingReturnTypeAST;
 class CtorInitializerAST;
-class RequirementBodyAST;
 class TypeConstraintAST;
 class GlobalModuleFragmentAST;
 class PrivateModuleFragmentAST;

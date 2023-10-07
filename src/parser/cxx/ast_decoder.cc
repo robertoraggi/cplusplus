@@ -1021,23 +1021,6 @@ auto ASTDecoder::decodeCtorInitializer(const io::CtorInitializer* node)
   return ast;
 }
 
-auto ASTDecoder::decodeRequirementBody(const io::RequirementBody* node)
-    -> RequirementBodyAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) RequirementBodyAST();
-  if (node->requirement_list()) {
-    auto* inserter = &ast->requirementList;
-    for (std::size_t i = 0; i < node->requirement_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeRequirement(
-          node->requirement_list()->Get(i),
-          io::Requirement(node->requirement_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  return ast;
-}
-
 auto ASTDecoder::decodeTypeConstraint(const io::TypeConstraint* node)
     -> TypeConstraintAST* {
   if (!node) return nullptr;
@@ -1412,7 +1395,15 @@ auto ASTDecoder::decodeRequiresExpression(const io::RequiresExpression* node)
   auto ast = new (pool_) RequiresExpressionAST();
   ast->parameterDeclarationClause =
       decodeParameterDeclarationClause(node->parameter_declaration_clause());
-  ast->requirementBody = decodeRequirementBody(node->requirement_body());
+  if (node->requirement_list()) {
+    auto* inserter = &ast->requirementList;
+    for (std::size_t i = 0; i < node->requirement_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeRequirement(
+          node->requirement_list()->Get(i),
+          io::Requirement(node->requirement_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
   return ast;
 }
 

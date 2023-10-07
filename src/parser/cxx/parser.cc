@@ -1326,9 +1326,9 @@ auto Parser::parse_requires_expression(ExpressionAST*& yyast) -> bool {
     }
   }
 
-  if (!parse_requirement_body(ast->requirementBody)) {
-    parse_error("expected a requirement body");
-  }
+  expect(TokenKind::T_LBRACE, ast->lbraceLoc);
+  parse_requirement_seq(ast->requirementList);
+  expect(TokenKind::T_RBRACE, ast->rbraceLoc);
 
   return true;
 }
@@ -1346,21 +1346,6 @@ auto Parser::parse_requirement_parameter_list(
 
     expect(TokenKind::T_RPAREN, rparenLoc);
   }
-
-  return true;
-}
-
-auto Parser::parse_requirement_body(RequirementBodyAST*& yyast) -> bool {
-  SourceLocation lbraceLoc;
-
-  if (!match(TokenKind::T_LBRACE, lbraceLoc)) return false;
-
-  yyast = new (pool) RequirementBodyAST();
-  yyast->lbraceLoc = lbraceLoc;
-
-  parse_requirement_seq(yyast->requirementList);
-
-  expect(TokenKind::T_RBRACE, yyast->rbraceLoc);
 
   return true;
 }

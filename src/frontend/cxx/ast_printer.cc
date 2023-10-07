@@ -268,19 +268,6 @@ void ASTPrinter::visit(CtorInitializerAST* ast) {
   }
 }
 
-void ASTPrinter::visit(RequirementBodyAST* ast) {
-  fmt::print(out_, "{}\n", "requirement-body");
-  if (ast->requirementList) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "requirement-list");
-    for (auto it = ast->requirementList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-}
-
 void ASTPrinter::visit(TypeConstraintAST* ast) {
   fmt::print(out_, "{}\n", "type-constraint");
   accept(ast->identifier, "identifier");
@@ -540,7 +527,15 @@ void ASTPrinter::visit(IdExpressionAST* ast) {
 void ASTPrinter::visit(RequiresExpressionAST* ast) {
   fmt::print(out_, "{}\n", "requires-expression");
   accept(ast->parameterDeclarationClause, "parameter-declaration-clause");
-  accept(ast->requirementBody, "requirement-body");
+  if (ast->requirementList) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "{}\n", "requirement-list");
+    for (auto it = ast->requirementList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(NestedExpressionAST* ast) {

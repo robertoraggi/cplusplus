@@ -47,7 +47,6 @@ class RecursiveASTVisitor : public ASTVisitor {
   virtual void acceptExceptionSpecifier(ExceptionSpecifierAST* ast);
   virtual void acceptTypeId(TypeIdAST* ast);
   virtual void acceptMemInitializer(MemInitializerAST* ast);
-  virtual void acceptRequirement(RequirementAST* ast);
   virtual void acceptTemplateArgument(TemplateArgumentAST* ast);
   virtual void acceptDeclaration(DeclarationAST* ast);
   virtual void acceptModuleQualifier(ModuleQualifierAST* ast);
@@ -58,7 +57,7 @@ class RecursiveASTVisitor : public ASTVisitor {
   virtual void acceptDecltypeSpecifier(DecltypeSpecifierAST* ast);
   virtual void acceptSimpleTemplateId(SimpleTemplateIdAST* ast);
   virtual void acceptDesignator(DesignatorAST* ast);
-  virtual void acceptRequirementBody(RequirementBodyAST* ast);
+  virtual void acceptRequirement(RequirementAST* ast);
   virtual void acceptLambdaCapture(LambdaCaptureAST* ast);
   virtual void acceptTemplateParameter(TemplateParameterAST* ast);
   virtual void acceptLambdaSpecifier(LambdaSpecifierAST* ast);
@@ -111,7 +110,6 @@ class RecursiveASTVisitor : public ASTVisitor {
   void visit(LambdaSpecifierAST* ast) override;
   void visit(TrailingReturnTypeAST* ast) override;
   void visit(CtorInitializerAST* ast) override;
-  void visit(RequirementBodyAST* ast) override;
   void visit(TypeConstraintAST* ast) override;
   void visit(GlobalModuleFragmentAST* ast) override;
   void visit(PrivateModuleFragmentAST* ast) override;
