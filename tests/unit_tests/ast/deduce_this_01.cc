@@ -6,6 +6,7 @@ concept ok = true;
 struct object {
   auto clone(this auto self) { return self; }
 };
+
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list

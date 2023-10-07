@@ -3,6 +3,7 @@
 void func(auto... args);
 
 void other_func(auto&&...);
+
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list

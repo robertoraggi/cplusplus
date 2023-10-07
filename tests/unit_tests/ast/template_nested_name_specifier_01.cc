@@ -9,6 +9,7 @@ struct HelperT {
 
 template <int N>
 void set(typename HelperT::template Lookup<int>::PointerT p);
+
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list

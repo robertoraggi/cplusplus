@@ -6,6 +6,7 @@ struct Pair {
 
   static auto zero() -> Pair { return {0, 0}; }
 };
+
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list

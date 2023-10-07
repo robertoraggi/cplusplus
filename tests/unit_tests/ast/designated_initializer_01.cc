@@ -9,6 +9,7 @@ auto pair = Pair{
     .first = 1,
     .second = 2,
 };
+
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list

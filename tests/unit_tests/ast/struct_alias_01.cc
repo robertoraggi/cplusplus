@@ -3,6 +3,7 @@
 using Pair = struct {
   int a, b;
 };
+
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list

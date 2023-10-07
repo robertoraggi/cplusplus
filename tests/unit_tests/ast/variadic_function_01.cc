@@ -1,6 +1,7 @@
 // RUN: %cxx -verify -ast-dump %s | %filecheck %s --match-full-lines
 
 void print_like(const char* fmt, ...);
+
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list

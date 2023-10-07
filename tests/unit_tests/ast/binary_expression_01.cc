@@ -4,6 +4,7 @@ int a = 10;
 int b = 20;
 int c = 30;
 int c = a + b * c;
+
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list

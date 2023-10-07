@@ -6,6 +6,7 @@ struct List {
 };
 
 List(int) -> List<int>;
+
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list

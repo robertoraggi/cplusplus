@@ -3,6 +3,7 @@
 enum class fruit { orange, apple };
 
 using I = __underlying_type(fruit);
+
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list

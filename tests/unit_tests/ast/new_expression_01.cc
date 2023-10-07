@@ -5,6 +5,7 @@ auto make(void* where, T init) {
   auto a = new (where) T{init};
   auto b = new (where) T(init);
 }
+
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list

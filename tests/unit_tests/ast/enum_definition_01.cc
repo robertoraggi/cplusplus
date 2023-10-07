@@ -17,6 +17,7 @@ enum class Kind3 : int {
   k2 = 1,
   k3 = 2,
 };
+
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list
