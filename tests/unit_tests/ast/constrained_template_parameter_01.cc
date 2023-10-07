@@ -16,6 +16,8 @@ constexpr auto ident_v = ident<x>::value;
 // CHECK-NEXT:    template-declaration
 // CHECK-NEXT:      template-parameter-list
 // CHECK-NEXT:        typename-type-parameter
+// CHECK-NEXT:          depth: 0
+// CHECK-NEXT:          index: 0
 // CHECK-NEXT:          identifier: T
 // CHECK-NEXT:      declaration: concept-definition
 // CHECK-NEXT:        identifier: Any
@@ -24,6 +26,8 @@ constexpr auto ident_v = ident<x>::value;
 // CHECK-NEXT:    template-declaration
 // CHECK-NEXT:      template-parameter-list
 // CHECK-NEXT:        non-type-template-parameter
+// CHECK-NEXT:          depth: 0
+// CHECK-NEXT:          index: 0
 // CHECK-NEXT:          declaration: parameter-declaration
 // CHECK-NEXT:            type-specifier-list
 // CHECK-NEXT:              placeholder-type-specifier
@@ -61,6 +65,8 @@ constexpr auto ident_v = ident<x>::value;
 // CHECK-NEXT:    template-declaration
 // CHECK-NEXT:      template-parameter-list
 // CHECK-NEXT:        non-type-template-parameter
+// CHECK-NEXT:          depth: 0
+// CHECK-NEXT:          index: 0
 // CHECK-NEXT:          declaration: parameter-declaration
 // CHECK-NEXT:            type-specifier-list
 // CHECK-NEXT:              placeholder-type-specifier

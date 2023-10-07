@@ -42,7 +42,6 @@ export function gen_ast_cloner_cc({
       emit(`  auto copy = new (arena_) ${name}();`);
       emit(`  copy_ = copy;`);
       emit();
-      emit(`  copy->setChecked(ast->checked());`);
       ast.baseMembers.get(base)?.forEach((m) => {
         emit();
         emit(`    copy->${m.name} = ast->${m.name};`);

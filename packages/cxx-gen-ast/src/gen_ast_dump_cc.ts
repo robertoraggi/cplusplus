@@ -36,6 +36,7 @@ export function gen_ast_dump_cc({ ast, output }: { ast: AST; output: string }) {
 
   const dumpMember = (member: Member) => {
     const fieldName = toKebapName(member.name);
+
     if (member.kind === "node-list") {
       emit(`  if (ast->${member.name}) {`);
       emit(`    ++indent_;`);
@@ -57,6 +58,11 @@ export function gen_ast_dump_cc({ ast, output }: { ast: AST; output: string }) {
       emit(`    fmt::print(out_, "${fieldName}: {}\\n", ast->${member.name});`);
       emit(`    --indent_;`);
       emit(`  }`);
+    } else if (member.kind == "attribute" && member.type === "int") {
+      emit(`  ++indent_;`);
+      emit(`  fmt::print(out_, "{:{}}", "", indent_ * 2);`);
+      emit(`  fmt::print(out_, "${fieldName}: {}\\n", ast->${member.name});`);
+      emit(`  --indent_;`);
     } else if (member.kind == "attribute" && member.type.endsWith("Literal")) {
       emit(`  if (ast->${member.name}) {`);
       emit(`    ++indent_;`);
@@ -82,13 +88,25 @@ export function gen_ast_dump_cc({ ast, output }: { ast: AST; output: string }) {
   };
 
   by_base.forEach((nodes) => {
-    nodes.forEach(({ name, members }) => {
+    nodes.forEach(({ name, base, members }) => {
       emit();
       emit(`void ASTPrinter::visit(${name}* ast) {`);
       emit(`  fmt::print(out_, "{}\\n", "${astName(name)}");`);
+
+      const baseMembers = ast.baseMembers.get(base);
+
+      baseMembers
+        ?.filter((m) => m.kind === "attribute")
+        ?.forEach((member) => dumpMember(member));
+
       members
         .filter((m) => m.kind === "attribute")
         .forEach((member) => dumpMember(member));
+
+      baseMembers
+        ?.filter((m) => m.kind !== "attribute")
+        ?.forEach((member) => dumpMember(member));
+
       members
         .filter((m) => m.kind !== "attribute")
         .forEach((member) => dumpMember(member));

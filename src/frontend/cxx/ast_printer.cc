@@ -1164,6 +1164,14 @@ void ASTPrinter::visit(ParenInitializerAST* ast) {
 
 void ASTPrinter::visit(TemplateTypeParameterAST* ast) {
   fmt::print(out_, "{}\n", "template-type-parameter");
+  ++indent_;
+  fmt::print(out_, "{:{}}", "", indent_ * 2);
+  fmt::print(out_, "depth: {}\n", ast->depth);
+  --indent_;
+  ++indent_;
+  fmt::print(out_, "{:{}}", "", indent_ * 2);
+  fmt::print(out_, "index: {}\n", ast->index);
+  --indent_;
   accept(ast->identifier, "identifier");
   if (ast->templateParameterList) {
     ++indent_;
@@ -1180,6 +1188,14 @@ void ASTPrinter::visit(TemplateTypeParameterAST* ast) {
 
 void ASTPrinter::visit(TemplatePackTypeParameterAST* ast) {
   fmt::print(out_, "{}\n", "template-pack-type-parameter");
+  ++indent_;
+  fmt::print(out_, "{:{}}", "", indent_ * 2);
+  fmt::print(out_, "depth: {}\n", ast->depth);
+  --indent_;
+  ++indent_;
+  fmt::print(out_, "{:{}}", "", indent_ * 2);
+  fmt::print(out_, "index: {}\n", ast->index);
+  --indent_;
   accept(ast->identifier, "identifier");
   if (ast->templateParameterList) {
     ++indent_;
@@ -1194,11 +1210,27 @@ void ASTPrinter::visit(TemplatePackTypeParameterAST* ast) {
 
 void ASTPrinter::visit(NonTypeTemplateParameterAST* ast) {
   fmt::print(out_, "{}\n", "non-type-template-parameter");
+  ++indent_;
+  fmt::print(out_, "{:{}}", "", indent_ * 2);
+  fmt::print(out_, "depth: {}\n", ast->depth);
+  --indent_;
+  ++indent_;
+  fmt::print(out_, "{:{}}", "", indent_ * 2);
+  fmt::print(out_, "index: {}\n", ast->index);
+  --indent_;
   accept(ast->declaration, "declaration");
 }
 
 void ASTPrinter::visit(TypenameTypeParameterAST* ast) {
   fmt::print(out_, "{}\n", "typename-type-parameter");
+  ++indent_;
+  fmt::print(out_, "{:{}}", "", indent_ * 2);
+  fmt::print(out_, "depth: {}\n", ast->depth);
+  --indent_;
+  ++indent_;
+  fmt::print(out_, "{:{}}", "", indent_ * 2);
+  fmt::print(out_, "index: {}\n", ast->index);
+  --indent_;
   accept(ast->identifier, "identifier");
   if (ast->isPack) {
     ++indent_;
@@ -1211,6 +1243,14 @@ void ASTPrinter::visit(TypenameTypeParameterAST* ast) {
 
 void ASTPrinter::visit(ConstraintTypeParameterAST* ast) {
   fmt::print(out_, "{}\n", "constraint-type-parameter");
+  ++indent_;
+  fmt::print(out_, "{:{}}", "", indent_ * 2);
+  fmt::print(out_, "depth: {}\n", ast->depth);
+  --indent_;
+  ++indent_;
+  fmt::print(out_, "{:{}}", "", indent_ * 2);
+  fmt::print(out_, "index: {}\n", ast->index);
+  --indent_;
   accept(ast->identifier, "identifier");
   accept(ast->typeConstraint, "type-constraint");
   accept(ast->typeId, "type-id");

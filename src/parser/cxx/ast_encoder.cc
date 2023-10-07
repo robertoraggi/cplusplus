@@ -91,7 +91,7 @@ auto ASTEncoder::encodeSourceLocation(const SourceLocation& loc)
   }
 
   std::string_view fileName;
-  uint32_t line = 0, column = 0;
+  std::uint32_t line = 0, column = 0;
   unit_->getTokenStartPosition(loc, &line, &column, &fileName);
 
   flatbuffers::Offset<io::SourceLine> sourceLineOffset;

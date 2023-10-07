@@ -70,6 +70,13 @@ export function gen_ast_slot_cc({ ast, output }: { ast: AST; output: string }) {
               emit(`    slotNameIndex_ = SlotNameIndex{${slotNameIndex}};`);
               emit(`    break;`);
               break;
+            case MemberSlotClassification.IntAttribute:
+              emit(`  case ${slotCount}: // ${m.name}`);
+              emit(`    value_ = ast->${m.name};`);
+              emit(`    slotKind_ = ASTSlotKind::kIntAttribute;`);
+              emit(`    slotNameIndex_ = SlotNameIndex{${slotNameIndex}};`);
+              emit(`    break;`);
+              break;
             case MemberSlotClassification.TokenKindAttribute:
               emit(`  case ${slotCount}: // ${m.name}`);
               emit(`    value_ = std::intptr_t(ast->${m.name});`);

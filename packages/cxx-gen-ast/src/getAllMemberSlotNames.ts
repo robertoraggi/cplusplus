@@ -23,6 +23,7 @@ import { AST, Member } from "./parseAST.js";
 
 export enum MemberSlotClassification {
   BoolAttribute,
+  IntAttribute,
   TokenKindAttribute,
   IdentifierAttribute,
   LiteralAttribute,
@@ -36,6 +37,8 @@ export function classifyMemberSlot(
 ): MemberSlotClassification | undefined {
   if (m.kind === "attribute" && m.type === "bool") {
     return MemberSlotClassification.BoolAttribute;
+  } else if (m.kind === "attribute" && m.type === "int") {
+    return MemberSlotClassification.IntAttribute;
   } else if (m.kind === "attribute" && m.type === "TokenKind") {
     return MemberSlotClassification.TokenKindAttribute;
   } else if (m.kind === "attribute" && m.type === "Identifier") {
