@@ -59,15 +59,6 @@ export abstract class ASTVisitor<Context, Result> {
   abstract visitHandler(node: ast.HandlerAST, context: Context): Result;
 
   /**
-   * Visit EnumBase node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitEnumBase(node: ast.EnumBaseAST, context: Context): Result;
-
-  /**
    * Visit Enumerator node.
    *
    * @param node The node to visit.

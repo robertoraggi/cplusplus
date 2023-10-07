@@ -56,10 +56,9 @@ enum class Kind3 : int {
 // CHECK-NEXT:        enum-specifier
 // CHECK-NEXT:          unqualified-id: name-id
 // CHECK-NEXT:            identifier: Kind3
-// CHECK-NEXT:          enum-base: enum-base
-// CHECK-NEXT:            type-specifier-list
-// CHECK-NEXT:              integral-type-specifier
-// CHECK-NEXT:                specifier: int
+// CHECK-NEXT:          type-specifier-list
+// CHECK-NEXT:            integral-type-specifier
+// CHECK-NEXT:              specifier: int
 // CHECK-NEXT:          enumerator-list
 // CHECK-NEXT:            enumerator
 // CHECK-NEXT:              identifier: k1

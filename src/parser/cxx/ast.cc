@@ -70,18 +70,6 @@ auto HandlerAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto EnumBaseAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(typeSpecifierList)) return loc;
-  return {};
-}
-
-auto EnumBaseAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(typeSpecifierList)) return loc;
-  if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
-  return {};
-}
-
 auto EnumeratorAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
@@ -2000,14 +1988,16 @@ auto OpaqueEnumDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(unqualifiedId)) return loc;
-  if (auto loc = cxx::firstSourceLocation(enumBase)) return loc;
+  if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(typeSpecifierList)) return loc;
   if (auto loc = cxx::firstSourceLocation(emicolonLoc)) return loc;
   return {};
 }
 
 auto OpaqueEnumDeclarationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(emicolonLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(enumBase)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeSpecifierList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(unqualifiedId)) return loc;
   if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
@@ -2910,7 +2900,8 @@ auto EnumSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(unqualifiedId)) return loc;
-  if (auto loc = cxx::firstSourceLocation(enumBase)) return loc;
+  if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(typeSpecifierList)) return loc;
   if (auto loc = cxx::firstSourceLocation(lbraceLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(commaLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(enumeratorList)) return loc;
@@ -2923,7 +2914,8 @@ auto EnumSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(enumeratorList)) return loc;
   if (auto loc = cxx::lastSourceLocation(commaLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(lbraceLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(enumBase)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeSpecifierList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(unqualifiedId)) return loc;
   if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;

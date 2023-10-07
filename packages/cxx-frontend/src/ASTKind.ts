@@ -23,7 +23,6 @@ export enum ASTKind {
   TypeId,
   UsingDeclarator,
   Handler,
-  EnumBase,
   Enumerator,
   Declarator,
   InitDeclarator,

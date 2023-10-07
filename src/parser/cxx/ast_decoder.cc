@@ -811,22 +811,6 @@ auto ASTDecoder::decodeHandler(const io::Handler* node) -> HandlerAST* {
   return ast;
 }
 
-auto ASTDecoder::decodeEnumBase(const io::EnumBase* node) -> EnumBaseAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) EnumBaseAST();
-  if (node->type_specifier_list()) {
-    auto* inserter = &ast->typeSpecifierList;
-    for (std::size_t i = 0; i < node->type_specifier_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeSpecifier(
-          node->type_specifier_list()->Get(i),
-          io::Specifier(node->type_specifier_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  return ast;
-}
-
 auto ASTDecoder::decodeEnumerator(const io::Enumerator* node)
     -> EnumeratorAST* {
   if (!node) return nullptr;
@@ -2579,7 +2563,15 @@ auto ASTDecoder::decodeOpaqueEnumDeclaration(
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->unqualifiedId = decodeNameId(node->unqualified_id());
-  ast->enumBase = decodeEnumBase(node->enum_base());
+  if (node->type_specifier_list()) {
+    auto* inserter = &ast->typeSpecifierList;
+    for (std::size_t i = 0; i < node->type_specifier_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeSpecifier(
+          node->type_specifier_list()->Get(i),
+          io::Specifier(node->type_specifier_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
   return ast;
 }
 
@@ -3435,7 +3427,15 @@ auto ASTDecoder::decodeEnumSpecifier(const io::EnumSpecifier* node)
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->unqualifiedId = decodeNameId(node->unqualified_id());
-  ast->enumBase = decodeEnumBase(node->enum_base());
+  if (node->type_specifier_list()) {
+    auto* inserter = &ast->typeSpecifierList;
+    for (std::size_t i = 0; i < node->type_specifier_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeSpecifier(
+          node->type_specifier_list()->Get(i),
+          io::Specifier(node->type_specifier_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
   if (node->enumerator_list()) {
     auto* inserter = &ast->enumeratorList;
     for (std::size_t i = 0; i < node->enumerator_list()->size(); ++i) {

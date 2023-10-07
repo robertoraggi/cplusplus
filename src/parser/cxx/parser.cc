@@ -5729,9 +5729,10 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast) -> bool {
 
   (void)parse_enum_head_name(nestedNameSpecifier, name);
 
-  EnumBaseAST* enumBase = nullptr;
+  SourceLocation colonLoc;
+  List<SpecifierAST*>* typeSpecifierList = nullptr;
 
-  (void)parse_enum_base(enumBase);
+  (void)parse_enum_base(colonLoc, typeSpecifierList);
 
   SourceLocation lbraceLoc;
 
@@ -5747,7 +5748,8 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast) -> bool {
   ast->attributeList = attributes;
   ast->nestedNameSpecifier = nestedNameSpecifier;
   ast->unqualifiedId = name;
-  ast->enumBase = enumBase;
+  ast->colonLoc = colonLoc;
+  ast->typeSpecifierList = typeSpecifierList;
   ast->lbraceLoc = lbraceLoc;
 
   if (!match(TokenKind::T_RBRACE, ast->rbraceLoc)) {
@@ -5784,7 +5786,8 @@ auto Parser::parse_opaque_enum_declaration(DeclarationAST*& yyast) -> bool {
   List<AttributeSpecifierAST*>* attributes = nullptr;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   NameIdAST* name = nullptr;
-  EnumBaseAST* enumBase = nullptr;
+  SourceLocation colonLoc;
+  List<SpecifierAST*>* typeSpecifierList = nullptr;
   SourceLocation semicolonLoc;
 
   auto lookat_opaque_enum_declaration = [&] {
@@ -5792,7 +5795,7 @@ auto Parser::parse_opaque_enum_declaration(DeclarationAST*& yyast) -> bool {
     parse_optional_attribute_specifier_seq(attributes);
     if (!parse_enum_key(enumLoc, classLoc)) return false;
     if (!parse_enum_head_name(nestedNameSpecifier, name)) return false;
-    (void)parse_enum_base(enumBase);
+    (void)parse_enum_base(colonLoc, typeSpecifierList);
     if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return false;
     lookahead.commit();
     return true;
@@ -5808,7 +5811,8 @@ auto Parser::parse_opaque_enum_declaration(DeclarationAST*& yyast) -> bool {
   ast->attributeList = attributes;
   ast->nestedNameSpecifier = nestedNameSpecifier;
   ast->unqualifiedId = name;
-  ast->enumBase = enumBase;
+  ast->colonLoc = colonLoc;
+  ast->typeSpecifierList = typeSpecifierList;
   ast->emicolonLoc = semicolonLoc;
 
   return true;
@@ -5827,22 +5831,13 @@ auto Parser::parse_enum_key(SourceLocation& enumLoc, SourceLocation& classLoc)
   return true;
 }
 
-auto Parser::parse_enum_base(EnumBaseAST*& yyast) -> bool {
-  SourceLocation colonLoc;
-
+auto Parser::parse_enum_base(SourceLocation& colonLoc,
+                             List<SpecifierAST*>*& typeSpecifierList) -> bool {
   if (!match(TokenKind::T_COLON, colonLoc)) return false;
-
-  List<SpecifierAST*>* typeSpecifierList = nullptr;
 
   if (!parse_type_specifier_seq(typeSpecifierList)) {
     parse_error("expected a type specifier");
   }
-
-  auto ast = new (pool) EnumBaseAST();
-  yyast = ast;
-
-  ast->colonLoc = colonLoc;
-  ast->typeSpecifierList = typeSpecifierList;
 
   return true;
 }

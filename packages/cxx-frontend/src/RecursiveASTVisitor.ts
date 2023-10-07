@@ -80,18 +80,6 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   }
 
   /**
-   * Visit a EnumBase node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitEnumBase(node: ast.EnumBaseAST, context: Context): void {
-    for (const element of node.getTypeSpecifierList()) {
-      this.accept(element, context);
-    }
-  }
-
-  /**
    * Visit a Enumerator node.
    *
    * @param node The node to visit.
@@ -1740,7 +1728,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     }
     this.accept(node.getNestedNameSpecifier(), context);
     this.accept(node.getUnqualifiedId(), context);
-    this.accept(node.getEnumBase(), context);
+    for (const element of node.getTypeSpecifierList()) {
+      this.accept(element, context);
+    }
   }
 
   /**
@@ -2536,7 +2526,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     }
     this.accept(node.getNestedNameSpecifier(), context);
     this.accept(node.getUnqualifiedId(), context);
-    this.accept(node.getEnumBase(), context);
+    for (const element of node.getTypeSpecifierList()) {
+      this.accept(element, context);
+    }
     for (const element of node.getEnumeratorList()) {
       this.accept(element, context);
     }

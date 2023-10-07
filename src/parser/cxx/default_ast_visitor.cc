@@ -38,10 +38,6 @@ void DefaultASTVisitor::visit(HandlerAST* ast) {
   cxx_runtime_error("visit(HandlerAST): not implemented");
 }
 
-void DefaultASTVisitor::visit(EnumBaseAST* ast) {
-  cxx_runtime_error("visit(EnumBaseAST): not implemented");
-}
-
 void DefaultASTVisitor::visit(EnumeratorAST* ast) {
   cxx_runtime_error("visit(EnumeratorAST): not implemented");
 }

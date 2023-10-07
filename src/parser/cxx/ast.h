@@ -258,21 +258,6 @@ class HandlerAST final : public AST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class EnumBaseAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::EnumBase;
-
-  EnumBaseAST() : AST(Kind) {}
-
-  SourceLocation colonLoc;
-  List<SpecifierAST*>* typeSpecifierList = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
 class EnumeratorAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::Enumerator;
@@ -2433,7 +2418,8 @@ class OpaqueEnumDeclarationAST final : public DeclarationAST {
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   NameIdAST* unqualifiedId = nullptr;
-  EnumBaseAST* enumBase = nullptr;
+  SourceLocation colonLoc;
+  List<SpecifierAST*>* typeSpecifierList = nullptr;
   SourceLocation emicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -3491,7 +3477,8 @@ class EnumSpecifierAST final : public SpecifierAST {
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   NameIdAST* unqualifiedId = nullptr;
-  EnumBaseAST* enumBase = nullptr;
+  SourceLocation colonLoc;
+  List<SpecifierAST*>* typeSpecifierList = nullptr;
   SourceLocation lbraceLoc;
   SourceLocation commaLoc;
   List<EnumeratorAST*>* enumeratorList = nullptr;

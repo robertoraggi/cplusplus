@@ -82,7 +82,6 @@ class ASTDecoder {
   auto decodeUsingDeclarator(const io::UsingDeclarator* node)
       -> UsingDeclaratorAST*;
   auto decodeHandler(const io::Handler* node) -> HandlerAST*;
-  auto decodeEnumBase(const io::EnumBase* node) -> EnumBaseAST*;
   auto decodeEnumerator(const io::Enumerator* node) -> EnumeratorAST*;
   auto decodeDeclarator(const io::Declarator* node) -> DeclaratorAST*;
   auto decodeInitDeclarator(const io::InitDeclarator* node)

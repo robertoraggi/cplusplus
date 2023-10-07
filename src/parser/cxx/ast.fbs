@@ -34,7 +34,6 @@ union AST {
   TypeId,
   UsingDeclarator,
   Handler,
-  EnumBase,
   Enumerator,
   Declarator,
   InitDeclarator,
@@ -330,11 +329,6 @@ table Handler /* AST */ {
   rparen_loc: SourceLocation;
 }
 
-table EnumBase /* AST */ {
-  type_specifier_list: [Specifier];
-  colon_loc: SourceLocation;
-}
-
 table Enumerator /* AST */ {
   attribute_list: [AttributeSpecifier];
   expression: Expression;
@@ -616,9 +610,10 @@ table OpaqueEnumDeclaration /* DeclarationAST */ {
   attribute_list: [AttributeSpecifier];
   nested_name_specifier: NestedNameSpecifier;
   unqualified_id: NameId;
-  enum_base: EnumBase;
+  type_specifier_list: [Specifier];
   enum_loc: SourceLocation;
   class_loc: SourceLocation;
+  colon_loc: SourceLocation;
   emicolon_loc: SourceLocation;
 }
 
@@ -1456,10 +1451,11 @@ table EnumSpecifier /* SpecifierAST */ {
   attribute_list: [AttributeSpecifier];
   nested_name_specifier: NestedNameSpecifier;
   unqualified_id: NameId;
-  enum_base: EnumBase;
+  type_specifier_list: [Specifier];
   enumerator_list: [Enumerator];
   enum_loc: SourceLocation;
   class_loc: SourceLocation;
+  colon_loc: SourceLocation;
   lbrace_loc: SourceLocation;
   comma_loc: SourceLocation;
   rbrace_loc: SourceLocation;
