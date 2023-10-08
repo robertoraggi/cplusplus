@@ -87,6 +87,7 @@ class Parser final {
   struct DeclSpecs;
   struct TemplateHeadContext;
   struct ClassSpecifierContext;
+  struct ScopeContext;
   struct ExprContext;
   struct LookaheadParser;
   struct LoopParser;
