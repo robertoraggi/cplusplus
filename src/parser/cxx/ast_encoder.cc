@@ -2269,6 +2269,7 @@ void ASTEncoder::visit(LambdaExpressionAST* ast) {
   builder.add_trailing_return_type(trailingReturnType.o);
   builder.add_requires_clause(requiresClause.o);
   builder.add_statement(statement.o);
+  builder.add_capture_default(static_cast<std::uint32_t>(ast->captureDefault));
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_LambdaExpression;

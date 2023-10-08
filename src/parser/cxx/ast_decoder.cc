@@ -1752,6 +1752,7 @@ auto ASTDecoder::decodeLambdaExpression(const io::LambdaExpression* node)
       decodeTrailingReturnType(node->trailing_return_type());
   ast->requiresClause = decodeRequiresClause(node->requires_clause());
   ast->statement = decodeCompoundStatement(node->statement());
+  ast->captureDefault = static_cast<TokenKind>(node->capture_default());
   return ast;
 }
 

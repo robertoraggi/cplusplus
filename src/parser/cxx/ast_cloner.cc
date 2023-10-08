@@ -1195,6 +1195,8 @@ void ASTCloner::visit(LambdaExpressionAST* ast) {
   copy->requiresClause = accept(ast->requiresClause);
 
   copy->statement = accept(ast->statement);
+
+  copy->captureDefault = ast->captureDefault;
 }
 
 void ASTCloner::visit(FoldExpressionAST* ast) {

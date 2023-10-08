@@ -1270,6 +1270,7 @@ class LambdaExpressionAST final : public ExpressionAST {
   TrailingReturnTypeAST* trailingReturnType = nullptr;
   RequiresClauseAST* requiresClause = nullptr;
   CompoundStatementAST* statement = nullptr;
+  TokenKind captureDefault = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

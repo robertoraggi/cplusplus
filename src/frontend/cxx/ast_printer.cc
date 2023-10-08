@@ -781,6 +781,13 @@ void ASTPrinter::visit(IdExpressionAST* ast) {
 
 void ASTPrinter::visit(LambdaExpressionAST* ast) {
   fmt::print(out_, "{}\n", "lambda-expression");
+  if (ast->captureDefault != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "capture-default: {}\n",
+               Token::spell(ast->captureDefault));
+    --indent_;
+  }
   if (ast->captureList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
