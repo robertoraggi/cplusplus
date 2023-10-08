@@ -1578,20 +1578,18 @@ auto Parser::parse_postfix_expression(ExpressionAST*& yyast) -> bool {
 }
 
 auto Parser::parse_start_of_postfix_expression(ExpressionAST*& yyast) -> bool {
-  const auto start = currentLocation();
-
-  if (parse_cpp_cast_expression(yyast)) return true;
-
-  if (parse_typeid_expression(yyast)) return true;
-
-  if (parse_builtin_call_expression(yyast)) return true;
-
-  if (parse_typename_expression(yyast)) return true;
-
-  if (parse_cpp_type_cast_expression(yyast)) return true;
-
-  rewind(start);
-  return parse_primary_expression(yyast);
+  if (parse_cpp_cast_expression(yyast))
+    return true;
+  else if (parse_typeid_expression(yyast))
+    return true;
+  else if (parse_builtin_call_expression(yyast))
+    return true;
+  else if (parse_typename_expression(yyast))
+    return true;
+  else if (parse_cpp_type_cast_expression(yyast))
+    return true;
+  else
+    return parse_primary_expression(yyast);
 }
 
 auto Parser::parse_member_expression(ExpressionAST*& yyast) -> bool {
@@ -1723,8 +1721,6 @@ auto Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast) -> bool {
     return false;
   };
 
-  if (lookat_function_call()) return false;
-
   auto lookat_braced_type_construction = [&] {
     LookaheadParser lookahead{this};
 
@@ -1748,6 +1744,7 @@ auto Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast) -> bool {
     return true;
   };
 
+  if (lookat_function_call()) return false;
   if (lookat_braced_type_construction()) return true;
 
   LookaheadParser lookahead{this};
@@ -1827,13 +1824,15 @@ auto Parser::parse_typeid_expression(ExpressionAST*& yyast) -> bool {
 }
 
 auto Parser::parse_typename_expression(ExpressionAST*& yyast) -> bool {
-  SpecifierAST* typenameSpecifier = nullptr;
+  LookaheadParser lookahead{this};
 
+  SpecifierAST* typenameSpecifier = nullptr;
   if (!parse_typename_specifier(typenameSpecifier)) return false;
 
-  BracedInitListAST* bracedInitList = nullptr;
+  if (BracedInitListAST* bracedInitList = nullptr;
+      parse_braced_init_list(bracedInitList)) {
+    lookahead.commit();
 
-  if (parse_braced_init_list(bracedInitList)) {
     auto ast = new (pool_) BracedTypeConstructionAST();
     yyast = ast;
 
@@ -1856,6 +1855,8 @@ auto Parser::parse_typename_expression(ExpressionAST*& yyast) -> bool {
 
     if (!match(TokenKind::T_RPAREN, rparenLoc)) return false;
   }
+
+  lookahead.commit();
 
   auto ast = new (pool_) TypeConstructionAST();
   yyast = ast;
