@@ -46,6 +46,8 @@ import { gen_ast_encoder_cc } from "./gen_ast_encoder_cc.js";
 import { gen_ast_decoder_h } from "./gen_ast_decoder_h.js";
 import { gen_ast_decoder_cc } from "./gen_ast_decoder_cc.js";
 import { gen_ast_slot_ts } from "./gen_ast_slot_ts.js";
+import { gen_syntax_h } from "./gen_syntax_h.js";
+import { gen_syntax_cc } from "./gen_syntax_cc.js";
 
 import * as fs from "fs";
 import * as path from "path";
@@ -64,6 +66,14 @@ const ast = parseAST({ fn, source });
 gen_ast_fwd_h({ ast, output: path.join(outdir, "src/parser/cxx/ast_fwd.h") });
 gen_ast_h({ ast, output: path.join(outdir, "src/parser/cxx/ast.h") });
 gen_ast_cc({ ast, output: path.join(outdir, "src/parser/cxx/ast.cc") });
+gen_syntax_h({
+  ast,
+  output: path.join(outdir, "src/parser/cxx/syntax.h"),
+});
+gen_syntax_cc({
+  ast,
+  output: path.join(outdir, "src/parser/cxx/syntax.cc"),
+});
 gen_ast_visitor_h({
   ast,
   output: path.join(outdir, "src/parser/cxx/ast_visitor.h"),
