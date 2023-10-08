@@ -1071,41 +1071,20 @@ auto Parser::parse_capture_list(List<LambdaCaptureAST*>*& yyast) -> bool {
 }
 
 auto Parser::parse_capture(LambdaCaptureAST*& yyast) -> bool {
-  const auto start = currentLocation();
-
+  if (parse_simple_capture(yyast)) return true;
   if (parse_init_capture(yyast)) return true;
-
-  rewind(start);
-
-  return parse_simple_capture(yyast);
+  return false;
 }
 
 auto Parser::parse_simple_capture(LambdaCaptureAST*& yyast) -> bool {
-  SourceLocation thisLoc;
-
-  if (match(TokenKind::T_THIS, thisLoc)) {
+  if (SourceLocation thisLoc; match(TokenKind::T_THIS, thisLoc)) {
     auto ast = new (pool_) ThisLambdaCaptureAST();
     yyast = ast;
 
     ast->thisLoc = thisLoc;
 
     return true;
-  }
-
-  SourceLocation identifierLoc;
-
-  if (match(TokenKind::T_IDENTIFIER, identifierLoc)) {
-    auto ast = new (pool_) SimpleLambdaCaptureAST();
-    yyast = ast;
-
-    ast->identifierLoc = identifierLoc;
-    ast->identifier = unit->identifier(ast->identifierLoc);
-    match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
-
-    return true;
-  }
-
-  if (lookat(TokenKind::T_STAR, TokenKind::T_THIS)) {
+  } else if (lookat(TokenKind::T_STAR, TokenKind::T_THIS)) {
     auto ast = new (pool_) DerefThisLambdaCaptureAST();
     yyast = ast;
 
@@ -1115,11 +1094,45 @@ auto Parser::parse_simple_capture(LambdaCaptureAST*& yyast) -> bool {
     return true;
   }
 
-  SourceLocation ampLoc;
+  auto lookat_simple_capture = [&] {
+    LookaheadParser lookahead{this};
 
+    SourceLocation identifierLoc;
+    if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
+
+    SourceLocation ellipsisLoc;
+    match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
+
+    if (!LA().isOneOf(TokenKind::T_COMMA, TokenKind::T_RBRACKET)) return false;
+
+    auto ast = new (pool_) SimpleLambdaCaptureAST();
+    yyast = ast;
+
+    ast->identifierLoc = identifierLoc;
+    ast->identifier = unit->identifier(ast->identifierLoc);
+    ast->ellipsisLoc = ellipsisLoc;
+
+    lookahead.commit();
+
+    return true;
+  };
+
+  if (lookat_simple_capture()) return true;
+
+  LookaheadParser lookahead{this};
+
+  SourceLocation ampLoc;
   if (!match(TokenKind::T_AMP, ampLoc)) return false;
 
-  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
+  SourceLocation identifierLoc;
+  expect(TokenKind::T_IDENTIFIER, identifierLoc);
+
+  SourceLocation ellipsisLoc;
+  match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
+
+  if (!LA().isOneOf(TokenKind::T_COMMA, TokenKind::T_RBRACKET)) return false;
+
+  lookahead.commit();
 
   auto ast = new (pool_) RefLambdaCaptureAST();
   yyast = ast;
@@ -1127,27 +1140,40 @@ auto Parser::parse_simple_capture(LambdaCaptureAST*& yyast) -> bool {
   ast->ampLoc = ampLoc;
   ast->identifierLoc = identifierLoc;
   ast->identifier = unit->identifier(ast->identifierLoc);
-
-  match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
+  ast->ellipsisLoc = ellipsisLoc;
 
   return true;
 }
 
 auto Parser::parse_init_capture(LambdaCaptureAST*& yyast) -> bool {
-  SourceLocation ampLoc;
+  auto lookat_init_capture = [&] {
+    LookaheadParser lookahead{this};
 
-  if (match(TokenKind::T_AMP, ampLoc)) {
+    SourceLocation ampLoc;
+    match(TokenKind::T_AMP, ampLoc);
+
+    if (LA().isOneOf(TokenKind::T_DOT_DOT_DOT, TokenKind::T_IDENTIFIER))
+      return true;
+
+    return false;
+  };
+
+  if (!lookat_init_capture()) return false;
+
+  if (SourceLocation ampLoc; match(TokenKind::T_AMP, ampLoc)) {
     SourceLocation ellipsisLoc;
 
     match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
 
     SourceLocation identifierLoc;
 
-    if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
+    expect(TokenKind::T_IDENTIFIER, identifierLoc);
 
     ExpressionAST* initializer = nullptr;
 
-    if (!parse_initializer(initializer)) return false;
+    if (!parse_initializer(initializer)) {
+      parse_error("expected an initializer");
+    }
 
     auto ast = new (pool_) RefInitLambdaCaptureAST();
     yyast = ast;
@@ -1167,11 +1193,13 @@ auto Parser::parse_init_capture(LambdaCaptureAST*& yyast) -> bool {
 
   SourceLocation identifierLoc;
 
-  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
+  expect(TokenKind::T_IDENTIFIER, identifierLoc);
 
   ExpressionAST* initializer = nullptr;
 
-  if (!parse_initializer(initializer)) return false;
+  if (!parse_initializer(initializer)) {
+    parse_error("expected an initializer");
+  }
 
   auto ast = new (pool_) InitLambdaCaptureAST();
   yyast = ast;
