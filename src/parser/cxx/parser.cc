@@ -8014,6 +8014,8 @@ auto Parser::parse_template_type_parameter(TemplateParameterAST*& yyast)
     -> bool {
   if (!lookat(TokenKind::T_TEMPLATE, TokenKind::T_LESS)) return false;
 
+  TemplateHeadContext templateHeadContext{this};
+
   SourceLocation templateLoc;
 
   expect(TokenKind::T_TEMPLATE, templateLoc);
