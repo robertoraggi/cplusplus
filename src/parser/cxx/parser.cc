@@ -914,9 +914,8 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
 
   const auto start = currentLocation();
 
-  if (auto it = nested_name_specifiers_.find(start);
-      it != nested_name_specifiers_.end()) {
-    auto [cursor, ast, parsed] = it->second;
+  if (auto entry = nested_name_specifiers_.get(start)) {
+    auto [cursor, ast, parsed, hit] = *entry;
     rewind(cursor);
     yyast = ast;
     return parsed;
@@ -939,8 +938,7 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
 
   const auto parsed = yyast != nullptr;
 
-  nested_name_specifiers_.emplace(
-      start, std::make_tuple(currentLocation(), yyast, parsed));
+  nested_name_specifiers_.set(start, currentLocation(), yyast, parsed);
 
   return parsed;
 }
@@ -1284,9 +1282,7 @@ auto Parser::parse_fold_expression(ExpressionAST*& yyast) -> bool {
 
   if (!lookat_fold_expression()) return false;
 
-  SourceLocation rparenLoc;
-
-  if (match(TokenKind::T_RPAREN, rparenLoc)) {
+  if (SourceLocation rparenLoc; match(TokenKind::T_RPAREN, rparenLoc)) {
     auto ast = new (pool_) RightFoldExpressionAST();
     yyast = ast;
 
@@ -2360,6 +2356,15 @@ auto Parser::parse_delete_expression(ExpressionAST*& yyast) -> bool {
 }
 
 auto Parser::parse_cast_expression(ExpressionAST*& yyast) -> bool {
+  const auto start = currentLocation();
+
+  if (auto it = cast_expressions_.get(start)) {
+    auto [endLoc, ast, parsed, hit] = *it;
+    rewind(endLoc);
+    yyast = ast;
+    return parsed;
+  }
+
   auto lookat_cast_expression = [&] {
     LookaheadParser lookahead{this};
     if (!parse_cast_expression_helper(yyast)) return false;
@@ -2367,9 +2372,15 @@ auto Parser::parse_cast_expression(ExpressionAST*& yyast) -> bool {
     return true;
   };
 
-  if (lookat_cast_expression()) return true;
+  auto parsed = lookat_cast_expression();
 
-  return parse_unary_expression(yyast);
+  if (!parsed) {
+    parsed = parse_unary_expression(yyast);
+  }
+
+  cast_expressions_.set(start, currentLocation(), yyast, parsed);
+
+  return parsed;
 }
 
 auto Parser::parse_cast_expression_helper(ExpressionAST*& yyast) -> bool {
@@ -4495,10 +4506,8 @@ auto Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
 
   const auto start = currentLocation();
 
-  auto it = elaborated_type_specifiers_.find(start);
-
-  if (it != elaborated_type_specifiers_.end()) {
-    auto [cursor, ast, parsed] = it->second;
+  if (auto entry = elaborated_type_specifiers_.get(start)) {
+    auto [cursor, ast, parsed, hit] = *entry;
     rewind(cursor);
     yyast = ast;
     if (parsed) specs.has_complex_typespec = true;
@@ -4511,8 +4520,7 @@ auto Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
 
   yyast = ast;
 
-  elaborated_type_specifiers_.emplace(
-      start, std::tuple(currentLocation(), ast, parsed));
+  elaborated_type_specifiers_.set(start, currentLocation(), ast, parsed);
 
   return parsed;
 }
@@ -5389,9 +5397,8 @@ auto Parser::parse_parameter_declaration_clause(
     ParameterDeclarationClauseAST*& yyast) -> bool {
   const auto start = currentLocation();
 
-  if (auto it = parameter_declaration_clauses_.find(start);
-      it != parameter_declaration_clauses_.end()) {
-    auto [cursor, ast, parsed] = it->second;
+  if (auto entry = parameter_declaration_clauses_.get(start)) {
+    auto [cursor, ast, parsed, hit] = *entry;
     rewind(cursor);
     yyast = ast;
     return parsed;
@@ -5422,8 +5429,7 @@ auto Parser::parse_parameter_declaration_clause(
     parsed = false;
   }
 
-  parameter_declaration_clauses_.emplace(
-      start, std::make_tuple(currentLocation(), yyast, parsed));
+  parameter_declaration_clauses_.set(start, currentLocation(), yyast, parsed);
 
   return parsed;
 }
@@ -7000,10 +7006,8 @@ auto Parser::parse_class_specifier(
 
   const auto start = currentLocation();
 
-  auto it = class_specifiers_.find(start);
-
-  if (it != class_specifiers_.end()) {
-    auto [cursor, ast, parsed] = it->second;
+  if (auto entry = class_specifiers_.get(start)) {
+    auto [cursor, ast, parsed, hit] = *entry;
     rewind(cursor);
     yyast = ast;
     return parsed;
@@ -7021,10 +7025,8 @@ auto Parser::parse_class_specifier(
       }
     }
 
-    class_specifiers_.emplace(
-        start,
-        std::make_tuple(currentLocation(),
-                        static_cast<ClassSpecifierAST*>(nullptr), false));
+    class_specifiers_.set(start, currentLocation(),
+                          static_cast<ClassSpecifierAST*>(nullptr), false);
 
     return false;
   };
@@ -7059,8 +7061,7 @@ auto Parser::parse_class_specifier(
     expect(TokenKind::T_RBRACE, ast->rbraceLoc);
   }
 
-  class_specifiers_.emplace(start,
-                            std::make_tuple(currentLocation(), ast, true));
+  class_specifiers_.set(start, currentLocation(), ast, true);
 
   return true;
 }
@@ -8434,10 +8435,8 @@ auto Parser::parse_template_argument_list(List<TemplateArgumentAST*>*& yyast)
 auto Parser::parse_template_argument(TemplateArgumentAST*& yyast) -> bool {
   const auto start = currentLocation();
 
-  auto it = template_arguments_.find(start);
-
-  if (it != template_arguments_.end()) {
-    auto [loc, ast, parsed] = it->second;
+  if (auto entry = template_arguments_.get(start)) {
+    auto [loc, ast, parsed, hit] = *entry;
     rewind(loc);
     yyast = ast;
     return parsed;
@@ -8487,8 +8486,7 @@ auto Parser::parse_template_argument(TemplateArgumentAST*& yyast) -> bool {
   };
 
   if (lookat_type_id() || lookat_template_argument_constant_expression()) {
-    template_arguments_.emplace(
-        start, std::make_tuple(currentLocation(), yyast, true));
+    template_arguments_.set(start, currentLocation(), yyast, true);
 
     return true;
   }
