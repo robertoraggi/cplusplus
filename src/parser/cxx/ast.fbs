@@ -866,6 +866,7 @@ table LambdaExpression /* ExpressionAST */ {
   trailing_return_type: TrailingReturnType;
   requires_clause: RequiresClause;
   statement: CompoundStatement;
+  capture_default: uint32;
   lbracket_loc: SourceLocation;
   capture_default_loc: SourceLocation;
   rbracket_loc: SourceLocation;

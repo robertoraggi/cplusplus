@@ -4135,6 +4135,13 @@ export class LambdaExpressionAST extends ExpressionAST {
       this.parser,
     );
   }
+
+  /**
+   * Returns the captureDefault attribute of this node
+   */
+  getCaptureDefault(): TokenKind {
+    return cxx.getASTSlot(this.getHandle(), 17);
+  }
 }
 
 /**

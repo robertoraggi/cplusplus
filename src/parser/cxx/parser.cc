@@ -963,6 +963,9 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
     expect(TokenKind::T_RBRACKET, ast->rbracketLoc);
   }
 
+  if (ast->captureDefaultLoc)
+    ast->captureDefault = unit->tokenKind(ast->captureDefaultLoc);
+
   if (match(TokenKind::T_LESS, ast->lessLoc)) {
     parse_template_parameter_list(ast->templateParameterList);
 
@@ -1020,9 +1023,7 @@ auto Parser::parse_lambda_capture(SourceLocation& captureDefaultLoc,
                                   List<LambdaCaptureAST*>*& captureList)
     -> bool {
   if (parse_capture_default(captureDefaultLoc)) {
-    SourceLocation commaLoc;
-
-    if (match(TokenKind::T_COMMA, commaLoc)) {
+    if (SourceLocation commaLoc; match(TokenKind::T_COMMA, commaLoc)) {
       if (!parse_capture_list(captureList)) parse_error("expected a capture");
     }
 
@@ -1033,20 +1034,10 @@ auto Parser::parse_lambda_capture(SourceLocation& captureDefaultLoc,
 }
 
 auto Parser::parse_capture_default(SourceLocation& opLoc) -> bool {
-  const auto start = currentLocation();
+  if (!LA().isOneOf(TokenKind::T_AMP, TokenKind::T_EQUAL)) return false;
+  if (!LA(1).isOneOf(TokenKind::T_COMMA, TokenKind::T_RBRACKET)) return false;
 
-  SourceLocation ampLoc;
-  SourceLocation equalLoc;
-
-  if (!match(TokenKind::T_AMP, ampLoc) && !match(TokenKind::T_EQUAL, equalLoc))
-    return false;
-
-  if (!lookat(TokenKind::T_COMMA) && !lookat(TokenKind::T_RBRACKET)) {
-    rewind(start);
-    return false;
-  }
-
-  opLoc = start;
+  opLoc = consumeToken();
 
   return true;
 }
