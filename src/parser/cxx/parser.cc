@@ -1787,16 +1787,19 @@ auto Parser::parse_typeid_expression(ExpressionAST*& yyast) -> bool {
   if (!match(TokenKind::T_TYPEID, typeidLoc)) return false;
 
   SourceLocation lparenLoc;
-
   expect(TokenKind::T_LPAREN, lparenLoc);
 
-  const auto saved = currentLocation();
+  auto lookat_typeid_of_type = [&] {
+    LookaheadParser lookahead{this};
 
-  TypeIdAST* typeId = nullptr;
+    TypeIdAST* typeId = nullptr;
+    if (!parse_type_id(typeId)) return false;
 
-  SourceLocation rparenLoc;
+    SourceLocation rparenLoc;
+    if (!match(TokenKind::T_RPAREN, rparenLoc)) return false;
 
-  if (parse_type_id(typeId) && match(TokenKind::T_RPAREN, rparenLoc)) {
+    lookahead.commit();
+
     auto ast = new (pool_) TypeidOfTypeExpressionAST();
     yyast = ast;
 
@@ -1806,9 +1809,9 @@ auto Parser::parse_typeid_expression(ExpressionAST*& yyast) -> bool {
     ast->rparenLoc = rparenLoc;
 
     return true;
-  }
+  };
 
-  rewind(saved);
+  if (lookat_typeid_of_type()) return true;
 
   auto ast = new (pool_) TypeidExpressionAST();
   yyast = ast;
