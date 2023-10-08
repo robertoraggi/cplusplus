@@ -30,25 +30,65 @@
 
 namespace cxx {
 
-class TranslationUnit;
-
 class Parser final {
  public:
   Parser(const Parser&) = delete;
   auto operator=(const Parser&) -> Parser& = delete;
 
+  /**
+   * Constructs a new parser.
+   *
+   * @param unit the translation unit to parse
+   */
   explicit Parser(TranslationUnit* unit);
   ~Parser();
 
+  /**
+   * Whether to enable fuzzy template resolution.
+   */
   [[nodiscard]] auto fuzzyTemplateResolution() const -> bool;
+
+  /**
+   * Sets whether to enable fuzzy template resolution.
+   *
+   * When enabled, the parser will try to resolve template names
+   *
+   * @param fuzzyTemplateResolution whether to enable fuzzy template resolution
+   */
   void setFuzzyTemplateResolution(bool fuzzyTemplateResolution);
 
+  /**
+   * Whether to check types.
+   */
   [[nodiscard]] auto checkTypes() const -> bool;
+
+  /**
+   * Sets whether to check types.
+   *
+   * When enabled, the parser will check types.
+   *
+   * @param checkTypes whether to check types
+   */
   void setCheckTypes(bool checkTypes);
 
+  /**
+   * Parse the given unit.
+   */
+  void parse(UnitAST*& ast);
+
+  /**
+   * Parse the given unit.
+   */
   void operator()(UnitAST*& ast);
 
-  void parse(UnitAST*& ast);
+ private:
+  struct DeclSpecs;
+  struct TemplateHeadContext;
+  struct ClassSpecifierContext;
+  struct ExprContext;
+  struct LookaheadParser;
+  struct LoopParser;
+  struct ClassHead;
 
   enum struct BindingContext {
     kNamespace,
@@ -75,17 +115,6 @@ class Parser final {
 
   static auto prec(TokenKind tk) -> Prec;
 
-  struct DeclSpecs;
-  struct TemplateHeadContext;
-  struct ClassSpecifierContext;
-  struct LookaheadParser;
-  struct LoopParser;
-
-  struct ExprContext {
-    bool templParam = false;
-    bool templArg = false;
-  };
-
   [[nodiscard]] auto context_allows_function_definition(
       BindingContext ctx) const -> bool {
     if (ctx == BindingContext::kBlock) return false;
@@ -100,10 +129,19 @@ class Parser final {
     return false;
   }
 
+  // diagnostics
   void parse_warn(std::string message);
   void parse_warn(SourceLocation loc, std::string message);
   void parse_error(std::string message);
-  [[nodiscard]] auto parse_error(SourceLocation loc, std::string message);
+  void parse_error(SourceLocation loc, std::string message);
+
+  // generate diagnostic messages regardless of the current parsing state
+  void warning(std::string message);
+  void warning(SourceLocation loc, std::string message);
+  void error(std::string message);
+  void error(SourceLocation loc, std::string message);
+
+  void parse_translation_unit(UnitAST*& yyast);
 
   [[nodiscard]] auto parse_id(const Identifier* id, SourceLocation& loc)
       -> bool;
@@ -117,7 +155,6 @@ class Parser final {
   [[nodiscard]] auto parse_override(SourceLocation& loc) -> bool;
   [[nodiscard]] auto parse_name_id(NameIdAST*& yyast) -> bool;
   [[nodiscard]] auto parse_literal(ExpressionAST*& yyast) -> bool;
-  void parse_translation_unit(UnitAST*& yyast);
   [[nodiscard]] auto parse_module_head() -> bool;
   [[nodiscard]] auto parse_module_unit(UnitAST*& yyast) -> bool;
   void parse_top_level_declaration_seq(UnitAST*& yyast);
@@ -221,15 +258,11 @@ class Parser final {
       ExpressionAST*& yyast, const ExprContext& exprContext) -> bool;
   [[nodiscard]] auto parse_yield_expression(ExpressionAST*& yyast) -> bool;
   [[nodiscard]] auto parse_throw_expression(ExpressionAST*& yyast) -> bool;
-  void parse_assignment_expression(ExpressionAST*& yyast) {
-    parse_assignment_expression(yyast, ExprContext{});
-  }
+  void parse_assignment_expression(ExpressionAST*& yyast);
   void parse_assignment_expression(ExpressionAST*& yyast,
                                    const ExprContext& exprContext);
   [[nodiscard]] auto parse_maybe_assignment_expression(ExpressionAST*& yyast)
-      -> bool {
-    return parse_maybe_assignment_expression(yyast, ExprContext{});
-  }
+      -> bool;
   [[nodiscard]] auto parse_maybe_assignment_expression(
       ExpressionAST*& yyast, const ExprContext& exprContext) -> bool;
   [[nodiscard]] auto parse_assignment_operator(SourceLocation& loc,
@@ -512,22 +545,6 @@ class Parser final {
       ClassSpecifierAST*& yyast,
       const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool;
   void parse_class_body(List<DeclarationAST*>*& yyast);
-
-  struct ClassHead {
-    explicit ClassHead(
-        const std::vector<TemplateDeclarationAST*>& templateDeclarations)
-        : templateDeclarations(templateDeclarations) {}
-
-    const std::vector<TemplateDeclarationAST*>& templateDeclarations;
-    SourceLocation classLoc;
-    List<AttributeSpecifierAST*>* attributeList = nullptr;
-    NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-    UnqualifiedIdAST* name = nullptr;
-    SourceLocation finalLoc;
-    SourceLocation colonLoc;
-    List<BaseSpecifierAST*>* baseSpecifierList = nullptr;
-  };
-
   [[nodiscard]] auto parse_class_head(ClassHead& classHead) -> bool;
   [[nodiscard]] auto parse_class_head_name(
       NestedNameSpecifierAST*& nestedNameSpecifier, UnqualifiedIdAST*& yyast)
@@ -669,8 +686,9 @@ class Parser final {
 
  private:
   TranslationUnit* unit = nullptr;
-  Arena* pool = nullptr;
-  Control* control = nullptr;
+  Arena* pool_ = nullptr;
+  Control* control_ = nullptr;
+  DiagnosticsClient* diagnosticClient_ = nullptr;
   bool skipFunctionBody_ = false;
   bool checkTypes_ = false;
   bool moduleUnit_ = false;
