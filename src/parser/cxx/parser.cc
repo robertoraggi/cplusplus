@@ -773,19 +773,22 @@ auto Parser::parse_maybe_template_id(UnqualifiedIdAST*& yyast,
 auto Parser::parse_unqualified_id(UnqualifiedIdAST*& yyast,
                                   bool isTemplateIntroduced,
                                   bool inRequiresClause) -> bool {
-  const auto start = currentLocation();
+  auto lookat_template_id = [&] {
+    LookaheadParser lookahead{this};
 
-  if (parse_maybe_template_id(yyast, isTemplateIntroduced, inRequiresClause))
+    if (!parse_maybe_template_id(yyast, isTemplateIntroduced, inRequiresClause))
+      return false;
+
+    lookahead.commit();
+
     return true;
+  };
 
-  rewind(start);
+  if (lookat_template_id()) return true;
 
-  SourceLocation tildeLoc;
-
-  if (match(TokenKind::T_TILDE, tildeLoc)) {
-    DecltypeSpecifierAST* decltypeSpecifier = nullptr;
-
-    if (parse_decltype_specifier(decltypeSpecifier)) {
+  if (SourceLocation tildeLoc; match(TokenKind::T_TILDE, tildeLoc)) {
+    if (DecltypeSpecifierAST* decltypeSpecifier = nullptr;
+        parse_decltype_specifier(decltypeSpecifier)) {
       auto decltypeName = new (pool_) DecltypeIdAST();
       decltypeName->decltypeSpecifier = decltypeSpecifier;
 
@@ -793,20 +796,15 @@ auto Parser::parse_unqualified_id(UnqualifiedIdAST*& yyast,
       yyast = ast;
 
       ast->id = decltypeName;
+      return true;
+    } else if (UnqualifiedIdAST* name = nullptr; parse_type_name(name)) {
+      auto ast = new (pool_) DestructorIdAST();
+      yyast = ast;
 
+      ast->id = name;
       return true;
     }
-
-    UnqualifiedIdAST* name = nullptr;
-
-    if (!parse_type_name(name)) return false;
-
-    auto ast = new (pool_) DestructorIdAST();
-    yyast = ast;
-
-    ast->id = name;
-
-    return true;
+    return false;
   } else if (LiteralOperatorIdAST* literalOperatorName = nullptr;
              parse_literal_operator_id(literalOperatorName)) {
     yyast = literalOperatorName;
