@@ -4210,20 +4210,21 @@ auto Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast) -> bool {
 auto Parser::parse_defining_type_specifier(SpecifierAST*& yyast,
                                            DeclSpecs& specs) -> bool {
   if (!specs.no_class_or_enum_specs) {
-    const auto start = currentLocation();
+    LookaheadParser lookahead{this};
 
     if (parse_enum_specifier(yyast)) {
       specs.has_complex_typespec = true;
-      return true;
-    }
 
-    if (ClassSpecifierAST* classSpecifier = nullptr;
-        parse_class_specifier(classSpecifier)) {
+      lookahead.commit();
+      return true;
+    } else if (ClassSpecifierAST* classSpecifier = nullptr;
+               parse_class_specifier(classSpecifier)) {
       yyast = classSpecifier;
       specs.has_complex_typespec = true;
+
+      lookahead.commit();
       return true;
     }
-    rewind(start);
   }
 
   return parse_type_specifier(yyast, specs);
