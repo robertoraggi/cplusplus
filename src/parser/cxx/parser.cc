@@ -276,6 +276,38 @@ struct Parser::DeclSpecs {
   }
 };
 
+struct Parser::ScopeContext {
+  Parser* p = nullptr;
+
+  ScopeContext(const ScopeContext&) = delete;
+  auto operator=(const ScopeContext&) -> ScopeContext& = delete;
+
+  ScopeContext(ScopeContext&& other) noexcept : p(other.p) {
+    other.p = nullptr;
+  }
+
+  auto operator=(ScopeContext&& other) noexcept -> ScopeContext& {
+    if (this != &other) {
+      p = other.p;
+      other.p = nullptr;
+    }
+    return *this;
+  }
+
+  ScopeContext() = default;
+  explicit ScopeContext(Parser* p) : p(p) {
+#if false
+    p->parse_warn("enter scope");
+#endif
+  }
+
+  ~ScopeContext() {
+#if false
+    if (p) p->parse_warn("leave scope");
+#endif
+  }
+};
+
 struct Parser::ExprContext {
   bool templParam = false;
   bool templArg = false;
@@ -946,6 +978,8 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
 auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
   if (!lookat(TokenKind::T_LBRACKET)) return false;
 
+  ScopeContext scopeContext{this};
+
   TemplateHeadContext templateHeadContext{this};
 
   auto ast = new (pool_) LambdaExpressionAST();
@@ -964,7 +998,11 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
   if (ast->captureDefaultLoc)
     ast->captureDefault = unit->tokenKind(ast->captureDefaultLoc);
 
+  ScopeContext templateScopeContext;
+
   if (match(TokenKind::T_LESS, ast->lessLoc)) {
+    templateScopeContext = ScopeContext{this};
+
     parse_template_parameter_list(ast->templateParameterList);
 
     expect(TokenKind::T_GREATER, ast->greaterLoc);
@@ -1488,6 +1526,8 @@ auto Parser::parse_compound_requirement(RequirementAST*& yyast) -> bool {
   SourceLocation lbraceLoc;
 
   if (!match(TokenKind::T_LBRACE, lbraceLoc)) return false;
+
+  ScopeContext scopeContext{this};
 
   ExpressionAST* expression = nullptr;
 
@@ -3014,6 +3054,8 @@ auto Parser::parse_if_statement(StatementAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_IF, ifLoc)) return false;
 
+  ScopeContext scopeContext{this};
+
   if (LA().isOneOf(TokenKind::T_EXCLAIM, TokenKind::T_CONSTEVAL)) {
     auto ast = new (pool_) ConstevalIfStatementAST();
     yyast = ast;
@@ -3066,6 +3108,8 @@ auto Parser::parse_switch_statement(StatementAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_SWITCH, switchLoc)) return false;
 
+  ScopeContext scopeContext{this};
+
   auto ast = new (pool_) SwitchStatementAST();
   yyast = ast;
 
@@ -3089,6 +3133,8 @@ auto Parser::parse_while_statement(StatementAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_WHILE, whileLoc)) return false;
 
+  ScopeContext scopeContext{this};
+
   auto ast = new (pool_) WhileStatementAST();
   yyast = ast;
 
@@ -3109,6 +3155,8 @@ auto Parser::parse_do_statement(StatementAST*& yyast) -> bool {
   SourceLocation doLoc;
 
   if (!match(TokenKind::T_DO, doLoc)) return false;
+
+  ScopeContext scopeContext{this};
 
   auto ast = new (pool_) DoStatementAST();
   yyast = ast;
@@ -3131,30 +3179,24 @@ auto Parser::parse_do_statement(StatementAST*& yyast) -> bool {
 }
 
 auto Parser::parse_for_range_statement(StatementAST*& yyast) -> bool {
+  LookaheadParser lookahead{this};
+
   SourceLocation forLoc;
+  if (!match(TokenKind::T_FOR, forLoc)) return false;
+
   SourceLocation lparenLoc;
+  if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
+
   StatementAST* initializer = nullptr;
+  parse_init_statement(initializer);
+
   DeclarationAST* rangeDeclaration = nullptr;
+  if (!parse_for_range_declaration(rangeDeclaration)) return false;
+
   SourceLocation colonLoc;
+  if (!match(TokenKind::T_COLON, colonLoc)) return false;
 
-  auto lookat_for_range_statement = [&] {
-    LookaheadParser lookahead{this};
-
-    if (!match(TokenKind::T_FOR, forLoc)) return false;
-    if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
-
-    parse_init_statement(initializer);
-
-    if (!parse_for_range_declaration(rangeDeclaration)) return false;
-
-    if (!match(TokenKind::T_COLON, colonLoc)) return false;
-
-    lookahead.commit();
-
-    return true;
-  };
-
-  if (!lookat_for_range_statement()) return false;
+  lookahead.commit();
 
   auto ast = new (pool_) ForRangeStatementAST();
   yyast = ast;
@@ -4985,6 +5027,8 @@ auto Parser::parse_function_declarator(FunctionDeclaratorChunkAST*& yyast,
 
   if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
 
+  ScopeContext scopeContext{this};
+
   SourceLocation rparenLoc;
 
   ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
@@ -5828,6 +5872,8 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_LBRACE, lbraceLoc)) return false;
 
+  ScopeContext scopeContext{this};
+
   lookahead.commit();
 
   auto ast = new (pool_) EnumSpecifierAST();
@@ -6080,6 +6126,8 @@ auto Parser::parse_namespace_definition(DeclarationAST*& yyast) -> bool {
   ast->identifier = unit->identifier(ast->identifierLoc);
 
   parse_optional_attribute_specifier_seq(ast->extraAttributeList);
+
+  ScopeContext scopeContext{this};
 
   expect(TokenKind::T_LBRACE, ast->lbraceLoc);
 
@@ -7033,6 +7081,8 @@ auto Parser::parse_class_specifier(
 
   if (!lookat_class_specifier()) return false;
 
+  ScopeContext scopeContext{this};
+
   SourceLocation lbraceLoc;
   expect(TokenKind::T_LBRACE, lbraceLoc);
 
@@ -7863,6 +7913,7 @@ auto Parser::parse_template_declaration(
     std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool {
   if (!lookat(TokenKind::T_TEMPLATE, TokenKind::T_LESS)) return false;
 
+  ScopeContext scopeContext{this};
   TemplateHeadContext templateHeadContext{this};
 
   auto ast = new (pool_) TemplateDeclarationAST();
@@ -8084,6 +8135,7 @@ auto Parser::parse_template_type_parameter(TemplateParameterAST*& yyast)
     -> bool {
   if (!lookat(TokenKind::T_TEMPLATE, TokenKind::T_LESS)) return false;
 
+  ScopeContext scopeContext{this};
   TemplateHeadContext templateHeadContext{this};
 
   SourceLocation templateLoc;
