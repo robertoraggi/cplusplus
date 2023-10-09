@@ -85,6 +85,7 @@ class Parser final {
 
  private:
   struct DeclSpecs;
+  struct Decl;
   struct TemplateHeadContext;
   struct ClassSpecifierContext;
   struct ScopeContext;
@@ -378,14 +379,16 @@ class Parser final {
       List<SpecifierAST*>*& yyast, DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_decl_specifier_seq_no_typespecs(
       List<SpecifierAST*>*& yyast) -> bool;
-  [[nodiscard]] auto parse_storage_class_specifier(SpecifierAST*& yyast)
-      -> bool;
-  [[nodiscard]] auto parse_function_specifier(SpecifierAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_explicit_specifier(SpecifierAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_storage_class_specifier(SpecifierAST*& yyast,
+                                                   DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_function_specifier(SpecifierAST*& yyast,
+                                              DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_explicit_specifier(SpecifierAST*& yyast,
+                                              DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_type_specifier(SpecifierAST*& yyast,
                                           DeclSpecs& specs) -> bool;
-  [[nodiscard]] auto parse_type_specifier_seq(List<SpecifierAST*>*& yyast)
-      -> bool;
+  [[nodiscard]] auto parse_type_specifier_seq(List<SpecifierAST*>*& yyast,
+                                              DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_defining_type_specifier(SpecifierAST*& yyast,
                                                    DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_defining_type_specifier_seq(
@@ -416,29 +419,33 @@ class Parser final {
       ElaboratedTypeSpecifierAST*& yyast, DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_decltype_specifier(DecltypeSpecifierAST*& yyast)
       -> bool;
-  [[nodiscard]] auto parse_placeholder_type_specifier(SpecifierAST*& yyast)
-      -> bool;
+  [[nodiscard]] auto parse_placeholder_type_specifier(SpecifierAST*& yyast,
+                                                      DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_init_declarator(InitDeclaratorAST*& yyast,
                                            const DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_declarator_initializer(
       RequiresClauseAST*& requiresClause, ExpressionAST*& yyast) -> bool;
-  void parse_optional_declarator_or_abstract_declarator(DeclaratorAST*& yyastl);
-  [[nodiscard]] auto parse_declarator(DeclaratorAST*& yyastl) -> bool;
+  void parse_optional_declarator_or_abstract_declarator(DeclaratorAST*& yyastl,
+                                                        Decl& decl);
+  [[nodiscard]] auto parse_declarator(DeclaratorAST*& yyastl, Decl& decl)
+      -> bool;
   [[nodiscard]] auto parse_ptr_operator_seq(List<PtrOperatorAST*>*& yyast)
       -> bool;
-  [[nodiscard]] auto parse_core_declarator(CoreDeclaratorAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_noptr_declarator(DeclaratorAST*& yyast,
+  [[nodiscard]] auto parse_core_declarator(CoreDeclaratorAST*& yyast,
+                                           Decl& decl) -> bool;
+  [[nodiscard]] auto parse_noptr_declarator(DeclaratorAST*& yyast, Decl& decl,
                                             List<PtrOperatorAST*>* ptrOpLst)
       -> bool;
   [[nodiscard]] auto parse_function_declarator(
       FunctionDeclaratorChunkAST*& yyast, bool acceptTrailingReturnType = true)
       -> bool;
-  [[nodiscard]] auto parse_cv_qualifier_seq(List<SpecifierAST*>*& yyast)
-      -> bool;
+  [[nodiscard]] auto parse_cv_qualifier_seq(List<SpecifierAST*>*& yyast,
+                                            DeclSpecs& declSpecs) -> bool;
   [[nodiscard]] auto parse_trailing_return_type(TrailingReturnTypeAST*& yyast)
       -> bool;
   [[nodiscard]] auto parse_ptr_operator(PtrOperatorAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_cv_qualifier(SpecifierAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_cv_qualifier(SpecifierAST*& yyast,
+                                        DeclSpecs& declSpecs) -> bool;
   [[nodiscard]] auto parse_ref_qualifier(SourceLocation& refLoc) -> bool;
   [[nodiscard]] auto parse_declarator_id(CoreDeclaratorAST*& yyast) -> bool;
   [[nodiscard]] auto parse_type_id(TypeIdAST*& yyast) -> bool;
@@ -446,16 +453,19 @@ class Parser final {
       TypeIdAST*& yyast,
       const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool;
   [[nodiscard]] auto parse_abstract_declarator(DeclaratorAST*& yyast,
+                                               Decl& decl,
                                                bool isNewDeclarator = false)
       -> bool;
   [[nodiscard]] auto parse_ptr_abstract_declarator(DeclaratorAST*& yyast,
+                                                   Decl& decl,
                                                    bool isNewDeclarator)
       -> bool;
   [[nodiscard]] auto parse_noptr_abstract_declarator(DeclaratorAST*& yyast,
+                                                     Decl& decl,
                                                      bool isNewDeclarator)
       -> bool;
-  [[nodiscard]] auto parse_abstract_pack_declarator(DeclaratorAST*& yyast)
-      -> bool;
+  [[nodiscard]] auto parse_abstract_pack_declarator(DeclaratorAST*& yyast,
+                                                    Decl& decl) -> bool;
   [[nodiscard]] auto parse_noptr_abstract_pack_declarator(
       DeclaratorAST*& yyast, List<PtrOperatorAST*>* ptrOpLst) -> bool;
   [[nodiscard]] auto parse_parameter_declaration_clause(
