@@ -3258,50 +3258,24 @@ auto Parser::parse_for_range_declaration(DeclarationAST*& yyast) -> bool {
 
   if (!parse_decl_specifier_seq(declSpecifierList, specs)) return false;
 
-  const auto& tk = LA();
-
-  if (tk.is(TokenKind::T_LBRACKET) ||
-      ((tk.is(TokenKind::T_AMP) || tk.is(TokenKind::T_AMP_AMP)) &&
-       LA(1).is(TokenKind::T_LBRACKET))) {
-    SourceLocation refLoc;
-
-    (void)parse_ref_qualifier(refLoc);
-
-    SourceLocation lbracketLoc;
-
-    if (!match(TokenKind::T_LBRACKET, lbracketLoc)) return false;
-
-    List<NameIdAST*>* bindings = nullptr;
-
-    if (!parse_identifier_list(bindings)) parse_error("expected an identifier");
-
-    SourceLocation rbracketLoc;
-
-    expect(TokenKind::T_RBRACKET, rbracketLoc);
-
-    auto ast = new (pool_) StructuredBindingDeclarationAST();
-    yyast = ast;
-    ast->attributeList = attributeList;
-    ast->declSpecifierList = declSpecifierList;
-    ast->refQualifierLoc = refLoc;
-    ast->lbracketLoc = lbracketLoc;
-    ast->bindingList = bindings;
-    ast->rbracketLoc = rbracketLoc;
-  } else {
-    DeclaratorAST* declarator = nullptr;
-
-    if (!parse_declarator(declarator)) return false;
-
-    auto initDeclarator = new (pool_) InitDeclaratorAST();
-    initDeclarator->declarator = declarator;
-
-    auto ast = new (pool_) SimpleDeclarationAST();
-    yyast = ast;
-
-    ast->attributeList = attributeList;
-    ast->declSpecifierList = declSpecifierList;
-    ast->initDeclaratorList = new (pool_) List(initDeclarator);
+  if (parse_structured_binding(yyast, attributeList, declSpecifierList, specs,
+                               BindingContext::kCondition)) {
+    return true;
   }
+
+  DeclaratorAST* declarator = nullptr;
+
+  if (!parse_declarator(declarator)) return false;
+
+  auto initDeclarator = new (pool_) InitDeclaratorAST();
+  initDeclarator->declarator = declarator;
+
+  auto ast = new (pool_) SimpleDeclarationAST();
+  yyast = ast;
+
+  ast->attributeList = attributeList;
+  ast->declSpecifierList = declSpecifierList;
+  ast->initDeclaratorList = new (pool_) List(initDeclarator);
 
   return true;
 }
@@ -3685,7 +3659,9 @@ auto Parser::parse_structured_binding(DeclarationAST*& yyast,
                                       BindingContext ctx) -> bool {
   LookaheadParser lookahead{this};
 
-  if (!context_allows_structured_bindings(ctx)) return false;
+  if (!context_allows_structured_bindings(ctx)) {
+    return false;
+  }
 
   SourceLocation refLoc;
   (void)parse_ref_qualifier(refLoc);
@@ -3700,10 +3676,12 @@ auto Parser::parse_structured_binding(DeclarationAST*& yyast,
   if (!match(TokenKind::T_RBRACKET, rbracketLoc)) return false;
 
   ExpressionAST* initializer = nullptr;
-  if (!parse_initializer(initializer)) return false;
-
   SourceLocation semicolonLoc;
-  if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return false;
+
+  if (ctx != BindingContext::kCondition) {
+    if (!parse_initializer(initializer)) return false;
+    if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return false;
+  }
 
   lookahead.commit();
 
@@ -7383,57 +7361,62 @@ auto Parser::parse_member_declarator_list(List<InitDeclaratorAST*>*& yyast,
   return true;
 }
 
+auto Parser::parse_bitfield_declarator(InitDeclaratorAST*& yyast) -> bool {
+  LookaheadParser lookahead{this};
+
+  SourceLocation identifierLoc;
+
+  match(TokenKind::T_IDENTIFIER, identifierLoc);
+
+  List<AttributeSpecifierAST*>* attributes = nullptr;
+  parse_optional_attribute_specifier_seq(attributes);
+
+  SourceLocation colonLoc;
+
+  if (!match(TokenKind::T_COLON, colonLoc)) return false;
+
+  ExpressionAST* sizeExpression = nullptr;
+
+  if (!parse_constant_expression(sizeExpression)) {
+    parse_error("expected an expression");
+  }
+
+  lookahead.commit();
+
+  auto bitfieldDeclarator = new (pool_) BitfieldDeclaratorAST();
+  bitfieldDeclarator->identifierLoc = identifierLoc;
+  bitfieldDeclarator->identifier = unit->identifier(identifierLoc);
+  bitfieldDeclarator->colonLoc = colonLoc;
+  bitfieldDeclarator->sizeExpression = sizeExpression;
+
+  auto declarator = new (pool_) DeclaratorAST();
+  declarator->coreDeclarator = bitfieldDeclarator;
+
+  ExpressionAST* initializer = nullptr;
+
+  (void)parse_brace_or_equal_initializer(initializer);
+
+  auto ast = new (pool_) InitDeclaratorAST();
+  yyast = ast;
+
+  ast->declarator = declarator;
+  ast->initializer = initializer;
+
+  return true;
+}
+
 auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
                                      const DeclSpecs& specs) -> bool {
-  auto lookat_bitfield = [&] {
-    LookaheadParser lookahead{this};
-
-    SourceLocation identifierLoc;
-
-    match(TokenKind::T_IDENTIFIER, identifierLoc);
-
-    List<AttributeSpecifierAST*>* attributes = nullptr;
-    parse_optional_attribute_specifier_seq(attributes);
-
-    SourceLocation colonLoc;
-
-    if (!match(TokenKind::T_COLON, colonLoc)) return false;
-
-    ExpressionAST* sizeExpression = nullptr;
-
-    if (!parse_constant_expression(sizeExpression)) {
-      parse_error("expected an expression");
-    }
-
-    lookahead.commit();
-
-    auto bitfieldDeclarator = new (pool_) BitfieldDeclaratorAST();
-    bitfieldDeclarator->identifierLoc = identifierLoc;
-    bitfieldDeclarator->identifier = unit->identifier(identifierLoc);
-    bitfieldDeclarator->colonLoc = colonLoc;
-    bitfieldDeclarator->sizeExpression = sizeExpression;
-
-    auto declarator = new (pool_) DeclaratorAST();
-    declarator->coreDeclarator = bitfieldDeclarator;
-
-    ExpressionAST* initializer = nullptr;
-
-    (void)parse_brace_or_equal_initializer(initializer);
-
-    auto ast = new (pool_) InitDeclaratorAST();
-    yyast = ast;
-
-    ast->declarator = declarator;
-    ast->initializer = initializer;
-
+  if (parse_bitfield_declarator(yyast)) {
     return true;
-  };
+  }
 
-  if (lookat_bitfield()) return true;
+  LookaheadParser lookahead{this};
 
   DeclaratorAST* declarator = nullptr;
-
   if (!parse_declarator(declarator)) return false;
+
+  lookahead.commit();
 
   auto ast = new (pool_) InitDeclaratorAST();
   yyast = ast;

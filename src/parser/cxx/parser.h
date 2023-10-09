@@ -99,6 +99,7 @@ class Parser final {
     kTemplate,
     kBlock,
     kInitStatement,
+    kCondition,
   };
 
   enum struct Prec {
@@ -129,6 +130,7 @@ class Parser final {
       BindingContext ctx) const -> bool {
     if (ctx == BindingContext::kBlock) return true;
     if (ctx == BindingContext::kInitStatement) return true;
+    if (ctx == BindingContext::kCondition) return true;
     return false;
   }
 
@@ -556,6 +558,8 @@ class Parser final {
   [[nodiscard]] auto parse_class_key(SourceLocation& classLoc) -> bool;
   [[nodiscard]] auto parse_member_specification(DeclarationAST*& yyast) -> bool;
   [[nodiscard]] auto parse_member_declaration(DeclarationAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_bitfield_declarator(InitDeclaratorAST*& yyast)
+      -> bool;
   [[nodiscard]] auto parse_maybe_template_member() -> bool;
   [[nodiscard]] auto parse_member_declaration_helper(DeclarationAST*& yyast)
       -> bool;
@@ -775,10 +779,10 @@ class Parser final {
 
   CachedAST<ClassSpecifierAST> class_specifiers_;
   CachedAST<ElaboratedTypeSpecifierAST> elaborated_type_specifiers_;
-  CachedAST<TemplateArgumentAST> template_arguments_;
+  CachedAST<ExpressionAST> cast_expressions_;
   CachedAST<NestedNameSpecifierAST> nested_name_specifiers_;
   CachedAST<ParameterDeclarationClauseAST> parameter_declaration_clauses_;
-  CachedAST<ExpressionAST> cast_expressions_;
+  CachedAST<TemplateArgumentAST> template_arguments_;
 
   // TODO: remove
   std::unordered_set<const Identifier*> concept_names_;
