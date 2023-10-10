@@ -93,6 +93,22 @@ void TypePrinter::visit(const UnsignedCharType* type) {
   specifiers_.append("unsigned char");
 }
 
+void TypePrinter::visit(const Char8Type* type) {
+  specifiers_.append("char8_t");
+}
+
+void TypePrinter::visit(const Char16Type* type) {
+  specifiers_.append("char16_t");
+}
+
+void TypePrinter::visit(const Char32Type* type) {
+  specifiers_.append("char32_t");
+}
+
+void TypePrinter::visit(const WideCharType* type) {
+  specifiers_.append("wchar_t");
+}
+
 void TypePrinter::visit(const ShortType* type) { specifiers_.append("short"); }
 
 void TypePrinter::visit(const UnsignedShortType* type) {

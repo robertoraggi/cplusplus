@@ -110,6 +110,14 @@ auto UnsignedCharType::equalTo0(const UnsignedCharType* oher) const -> bool {
   return true;
 }
 
+auto Char8Type::equalTo0(const Char8Type*) const -> bool { return true; }
+
+auto Char16Type::equalTo0(const Char16Type*) const -> bool { return true; }
+
+auto Char32Type::equalTo0(const Char32Type*) const -> bool { return true; }
+
+auto WideCharType::equalTo0(const WideCharType*) const -> bool { return true; }
+
 auto ShortType::equalTo0(const ShortType*) const -> bool { return true; }
 
 auto UnsignedShortType::equalTo0(const UnsignedShortType*) const -> bool {

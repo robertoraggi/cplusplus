@@ -150,6 +150,10 @@ struct Control::Private {
   CharType charType;
   SignedCharType signedCharType;
   UnsignedCharType unsignedCharType;
+  Char8Type char8Type;
+  Char16Type char16Type;
+  Char32Type char32Type;
+  WideCharType wideCharType;
   ShortType shortType;
   UnsignedShortType unsignedShortType;
   IntType intType;
@@ -366,6 +370,16 @@ auto Control::getSignedCharType() -> const SignedCharType* {
 
 auto Control::getUnsignedCharType() -> const UnsignedCharType* {
   return &d->unsignedCharType;
+}
+
+auto Control::getChar8Type() -> const Char8Type* { return &d->char8Type; }
+
+auto Control::getChar16Type() -> const Char16Type* { return &d->char16Type; }
+
+auto Control::getChar32Type() -> const Char32Type* { return &d->char32Type; }
+
+auto Control::getWideCharType() -> const WideCharType* {
+  return &d->wideCharType;
 }
 
 auto Control::getShortType() -> const ShortType* { return &d->shortType; }

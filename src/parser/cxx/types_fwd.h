@@ -33,6 +33,10 @@
   V(Char)                         \
   V(SignedChar)                   \
   V(UnsignedChar)                 \
+  V(Char8)                        \
+  V(Char16)                       \
+  V(Char32)                       \
+  V(WideChar)                     \
   V(Short)                        \
   V(UnsignedShort)                \
   V(Int)                          \

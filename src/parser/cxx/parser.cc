@@ -25,6 +25,7 @@
 #include <cxx/parser.h>
 #include <cxx/private/format.h>
 #include <cxx/token.h>
+#include <cxx/types.h>
 
 #include <algorithm>
 #include <cstring>
@@ -286,6 +287,13 @@ struct Parser::DeclSpecs {
   // sign specifiers
   bool isSigned = false;
   bool isUnsigned = false;
+
+  // sized specifiers
+  bool isShort = false;
+  bool isLong = false;
+  bool isLongLong = false;
+
+  bool isComplex = false;
 
   // placeholder type specifiers
   bool isAuto = false;
@@ -4499,6 +4507,38 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
                                             DeclSpecs& specs) -> bool {
   if (!specs.accepts_simple_typespec()) return false;
 
+  auto makeIntegralTypeSpecifier = [&] {
+    auto ast = new (pool_) IntegralTypeSpecifierAST();
+    yyast = ast;
+    ast->specifierLoc = consumeToken();
+    ast->specifier = unit->tokenKind(ast->specifierLoc);
+    specs.has_simple_typespec = true;
+  };
+
+  auto makeFloatingPointTypeSpecifier = [&] {
+    auto ast = new (pool_) FloatingPointTypeSpecifierAST();
+    yyast = ast;
+    ast->specifierLoc = consumeToken();
+    ast->specifier = unit->tokenKind(ast->specifierLoc);
+    specs.has_simple_typespec = true;
+  };
+
+  auto makeSizedTypeSpecifer = [&] {
+    auto ast = new (pool_) SizeTypeSpecifierAST();
+    yyast = ast;
+    ast->specifierLoc = consumeToken();
+    ast->specifier = unit->tokenKind(ast->specifierLoc);
+    specs.has_simple_typespec = true;
+  };
+
+  auto makeSignTypeSpecifier = [&] {
+    auto ast = new (pool_) SignTypeSpecifierAST();
+    yyast = ast;
+    ast->specifierLoc = consumeToken();
+    ast->specifier = unit->tokenKind(ast->specifierLoc);
+    specs.has_simple_typespec = true;
+  };
+
   switch (auto tk = LA(); tk.kind()) {
     case TokenKind::T___BUILTIN_VA_LIST: {
       auto ast = new (pool_) VaListTypeSpecifierAST();
@@ -4510,63 +4550,97 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
     };
 
     case TokenKind::T_CHAR:
-    case TokenKind::T_CHAR8_T:
-    case TokenKind::T_CHAR16_T:
-    case TokenKind::T_CHAR32_T:
-    case TokenKind::T_WCHAR_T:
-    case TokenKind::T_BOOL:
-    case TokenKind::T_INT:
-    case TokenKind::T___INT64:
-    case TokenKind::T___INT128: {
-      auto ast = new (pool_) IntegralTypeSpecifierAST();
-      yyast = ast;
-      ast->specifierLoc = consumeToken();
-      ast->specifier = unit->tokenKind(ast->specifierLoc);
-      specs.has_simple_typespec = true;
+      makeIntegralTypeSpecifier();
+      specs.type = control_->getCharType();
       return true;
-    }
+
+    case TokenKind::T_CHAR8_T:
+      makeIntegralTypeSpecifier();
+      specs.type = control_->getChar8Type();
+      return true;
+
+    case TokenKind::T_CHAR16_T:
+      makeIntegralTypeSpecifier();
+      specs.type = control_->getChar16Type();
+      return true;
+
+    case TokenKind::T_CHAR32_T:
+      makeIntegralTypeSpecifier();
+      specs.type = control_->getChar32Type();
+      return true;
+
+    case TokenKind::T_WCHAR_T:
+      makeIntegralTypeSpecifier();
+      specs.type = control_->getWideCharType();
+      return true;
+
+    case TokenKind::T_BOOL:
+      makeIntegralTypeSpecifier();
+      specs.type = control_->getBoolType();
+      return true;
+
+    case TokenKind::T_INT:
+      makeIntegralTypeSpecifier();
+      specs.type = control_->getIntType();
+      return true;
+
+    case TokenKind::T___INT64:
+      makeIntegralTypeSpecifier();
+      return true;
+
+    case TokenKind::T___INT128:
+      makeIntegralTypeSpecifier();
+      return true;
 
     case TokenKind::T_SHORT:
-    case TokenKind::T_LONG: {
-      auto ast = new (pool_) SizeTypeSpecifierAST();
-      yyast = ast;
-      ast->specifierLoc = consumeToken();
-      ast->specifier = unit->tokenKind(ast->specifierLoc);
-      specs.has_simple_typespec = true;
+      makeSizedTypeSpecifer();
+      specs.isShort = true;
       return true;
-    }
+
+    case TokenKind::T_LONG:
+      makeSizedTypeSpecifer();
+      if (specs.isLong) {
+        specs.isLongLong = true;
+        specs.isLong = false;
+      } else {
+        specs.isLong = true;
+      }
+      return true;
 
     case TokenKind::T_SIGNED:
-    case TokenKind::T_UNSIGNED: {
-      auto ast = new (pool_) SignTypeSpecifierAST();
-      yyast = ast;
-      ast->specifierLoc = consumeToken();
-      ast->specifier = unit->tokenKind(ast->specifierLoc);
-      specs.has_simple_typespec = true;
-      if (ast->specifier == TokenKind::T_SIGNED)
-        specs.isSigned = true;
-      else
-        specs.isUnsigned = true;
+      makeSignTypeSpecifier();
+      specs.isSigned = true;
       return true;
-    }
+
+    case TokenKind::T_UNSIGNED:
+      makeSignTypeSpecifier();
+      specs.isUnsigned = true;
+      return true;
 
     case TokenKind::T_FLOAT:
-    case TokenKind::T_DOUBLE:
-    case TokenKind::T___FLOAT80:
-    case TokenKind::T___FLOAT128: {
-      auto ast = new (pool_) FloatingPointTypeSpecifierAST();
-      yyast = ast;
-      ast->specifierLoc = consumeToken();
-      ast->specifier = unit->tokenKind(ast->specifierLoc);
-      specs.has_simple_typespec = true;
+      makeFloatingPointTypeSpecifier();
+      specs.type = control_->getFloatType();
       return true;
-    }
+
+    case TokenKind::T_DOUBLE:
+      makeFloatingPointTypeSpecifier();
+      specs.type = control_->getDoubleType();
+      return true;
+
+    case TokenKind::T___FLOAT80:
+      makeFloatingPointTypeSpecifier();
+      return true;
+
+    case TokenKind::T___FLOAT128:
+      makeFloatingPointTypeSpecifier();
+      return true;
 
     case TokenKind::T_VOID: {
       auto ast = new (pool_) VoidTypeSpecifierAST();
       yyast = ast;
       ast->voidLoc = consumeToken();
       specs.has_simple_typespec = true;
+      specs.type = control_->getVoidType();
       return true;
     }
 
@@ -4576,6 +4650,7 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
       yyast = ast;
       ast->complexLoc = consumeToken();
       specs.has_simple_typespec = true;
+      specs.isComplex = true;
       return true;
     }
 

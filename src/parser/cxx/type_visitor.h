@@ -38,6 +38,10 @@ class TypeVisitor {
   virtual void visit(const CharType* type) = 0;
   virtual void visit(const SignedCharType* type) = 0;
   virtual void visit(const UnsignedCharType* type) = 0;
+  virtual void visit(const Char8Type* type) = 0;
+  virtual void visit(const Char16Type* type) = 0;
+  virtual void visit(const Char32Type* type) = 0;
+  virtual void visit(const WideCharType* type) = 0;
   virtual void visit(const ShortType* type) = 0;
   virtual void visit(const UnsignedShortType* type) = 0;
   virtual void visit(const IntType* type) = 0;

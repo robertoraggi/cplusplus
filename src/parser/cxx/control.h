@@ -103,6 +103,10 @@ class Control {
   auto getCharType() -> const CharType*;
   auto getSignedCharType() -> const SignedCharType*;
   auto getUnsignedCharType() -> const UnsignedCharType*;
+  auto getChar8Type() -> const Char8Type*;
+  auto getChar16Type() -> const Char16Type*;
+  auto getChar32Type() -> const Char32Type*;
+  auto getWideCharType() -> const WideCharType*;
   auto getShortType() -> const ShortType*;
   auto getUnsignedShortType() -> const UnsignedShortType*;
   auto getIntType() -> const IntType*;
