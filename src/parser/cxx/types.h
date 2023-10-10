@@ -143,6 +143,30 @@ class UnsignedCharType final : public TypeMaker<TypeKind::kUnsignedChar> {
   auto equalTo0(const UnsignedCharType* other) const -> bool;
 };
 
+class Char8Type final : public TypeMaker<TypeKind::kChar8> {
+ public:
+  void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const Char8Type* other) const -> bool;
+};
+
+class Char16Type final : public TypeMaker<TypeKind::kChar16> {
+ public:
+  void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const Char16Type* other) const -> bool;
+};
+
+class Char32Type final : public TypeMaker<TypeKind::kChar32> {
+ public:
+  void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const Char32Type* other) const -> bool;
+};
+
+class WideCharType final : public TypeMaker<TypeKind::kWideChar> {
+ public:
+  void accept(TypeVisitor* visitor) const override;
+  auto equalTo0(const WideCharType* other) const -> bool;
+};
+
 class ShortType final : public TypeMaker<TypeKind::kShort> {
  public:
   void accept(TypeVisitor* visitor) const override;
