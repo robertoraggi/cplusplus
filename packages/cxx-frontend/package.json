@@ -1,6 +1,6 @@
 {
   "name": "cxx-frontend",
-  "version": "1.1.27",
+  "version": "1.2.0",
   "description": "A compiler front end for the C++ language",
   "main": "dist/cjs/index.cjs",
   "module": "dist/esm/index.js",
