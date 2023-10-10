@@ -2153,7 +2153,7 @@ auto PtrToMemberOperatorAST::lastSourceLocation() -> SourceLocation {
 }
 
 auto BitfieldDeclaratorAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(unqualifiedId)) return loc;
   if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(sizeExpression)) return loc;
   return {};
@@ -2162,7 +2162,7 @@ auto BitfieldDeclaratorAST::firstSourceLocation() -> SourceLocation {
 auto BitfieldDeclaratorAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(sizeExpression)) return loc;
   if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(unqualifiedId)) return loc;
   return {};
 }
 
@@ -2179,14 +2179,18 @@ auto ParameterPackAST::lastSourceLocation() -> SourceLocation {
 }
 
 auto IdDeclaratorAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(declaratorId)) return loc;
+  if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(templateLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(unqualifiedId)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   return {};
 }
 
 auto IdDeclaratorAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
-  if (auto loc = cxx::lastSourceLocation(declaratorId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(unqualifiedId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   return {};
 }
 

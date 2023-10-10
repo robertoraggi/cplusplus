@@ -27,9 +27,8 @@ struct Handle {
 // CHECK-NEXT:                init-declarator
 // CHECK-NEXT:                  declarator: declarator
 // CHECK-NEXT:                    core-declarator: id-declarator
-// CHECK-NEXT:                      declarator-id: id-expression
-// CHECK-NEXT:                        unqualified-id: name-id
-// CHECK-NEXT:                          identifier: zero_
+// CHECK-NEXT:                      unqualified-id: name-id
+// CHECK-NEXT:                        identifier: zero_
 // CHECK-NEXT:            simple-declaration
 // CHECK-NEXT:              decl-specifier-list
 // CHECK-NEXT:                integral-type-specifier
@@ -38,9 +37,8 @@ struct Handle {
 // CHECK-NEXT:                init-declarator
 // CHECK-NEXT:                  declarator: declarator
 // CHECK-NEXT:                    core-declarator: id-declarator
-// CHECK-NEXT:                      declarator-id: id-expression
-// CHECK-NEXT:                        unqualified-id: name-id
-// CHECK-NEXT:                          identifier: value_
+// CHECK-NEXT:                      unqualified-id: name-id
+// CHECK-NEXT:                        identifier: value_
 // CHECK-NEXT:            simple-declaration
 // CHECK-NEXT:              decl-specifier-list
 // CHECK-NEXT:                integral-type-specifier
@@ -49,15 +47,13 @@ struct Handle {
 // CHECK-NEXT:                init-declarator
 // CHECK-NEXT:                  declarator: declarator
 // CHECK-NEXT:                    core-declarator: id-declarator
-// CHECK-NEXT:                      declarator-id: id-expression
-// CHECK-NEXT:                        unqualified-id: name-id
-// CHECK-NEXT:                          identifier: otherValue_
+// CHECK-NEXT:                      unqualified-id: name-id
+// CHECK-NEXT:                        identifier: otherValue_
 // CHECK-NEXT:            function-definition
 // CHECK-NEXT:              declarator: declarator
 // CHECK-NEXT:                core-declarator: id-declarator
-// CHECK-NEXT:                  declarator-id: id-expression
-// CHECK-NEXT:                    unqualified-id: name-id
-// CHECK-NEXT:                      identifier: Handle
+// CHECK-NEXT:                  unqualified-id: name-id
+// CHECK-NEXT:                    identifier: Handle
 // CHECK-NEXT:                declarator-chunk-list
 // CHECK-NEXT:                  function-declarator-chunk
 // CHECK-NEXT:                    parameter-declaration-clause: parameter-declaration-clause
@@ -68,18 +64,16 @@ struct Handle {
 // CHECK-NEXT:                              specifier: int
 // CHECK-NEXT:                          declarator: declarator
 // CHECK-NEXT:                            core-declarator: id-declarator
-// CHECK-NEXT:                              declarator-id: id-expression
-// CHECK-NEXT:                                unqualified-id: name-id
-// CHECK-NEXT:                                  identifier: value
+// CHECK-NEXT:                              unqualified-id: name-id
+// CHECK-NEXT:                                identifier: value
 // CHECK-NEXT:                        parameter-declaration
 // CHECK-NEXT:                          type-specifier-list
 // CHECK-NEXT:                            integral-type-specifier
 // CHECK-NEXT:                              specifier: int
 // CHECK-NEXT:                          declarator: declarator
 // CHECK-NEXT:                            core-declarator: id-declarator
-// CHECK-NEXT:                              declarator-id: id-expression
-// CHECK-NEXT:                                unqualified-id: name-id
-// CHECK-NEXT:                                  identifier: otherValue
+// CHECK-NEXT:                              unqualified-id: name-id
+// CHECK-NEXT:                                identifier: otherValue
 // CHECK-NEXT:              function-body: compound-statement-function-body
 // CHECK-NEXT:                mem-initializer-list
 // CHECK-NEXT:                  paren-mem-initializer

@@ -22,13 +22,11 @@ using Pair = struct {
 // CHECK-NEXT:                  init-declarator
 // CHECK-NEXT:                    declarator: declarator
 // CHECK-NEXT:                      core-declarator: id-declarator
-// CHECK-NEXT:                        declarator-id: id-expression
-// CHECK-NEXT:                          unqualified-id: name-id
-// CHECK-NEXT:                            identifier: a
+// CHECK-NEXT:                        unqualified-id: name-id
+// CHECK-NEXT:                          identifier: a
 // CHECK-NEXT:                  init-declarator
 // CHECK-NEXT:                    declarator: declarator
 // CHECK-NEXT:                      core-declarator: id-declarator
-// CHECK-NEXT:                        declarator-id: id-expression
-// CHECK-NEXT:                          unqualified-id: name-id
-// CHECK-NEXT:                            identifier: b
+// CHECK-NEXT:                        unqualified-id: name-id
+// CHECK-NEXT:                          identifier: b
 // CHECK-NEXT:        declarator: declarator

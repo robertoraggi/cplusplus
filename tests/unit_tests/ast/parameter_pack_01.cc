@@ -14,9 +14,8 @@ void other_func(auto&&...);
 // CHECK-NEXT:        init-declarator
 // CHECK-NEXT:          declarator: declarator
 // CHECK-NEXT:            core-declarator: id-declarator
-// CHECK-NEXT:              declarator-id: id-expression
-// CHECK-NEXT:                unqualified-id: name-id
-// CHECK-NEXT:                  identifier: func
+// CHECK-NEXT:              unqualified-id: name-id
+// CHECK-NEXT:                identifier: func
 // CHECK-NEXT:            declarator-chunk-list
 // CHECK-NEXT:              function-declarator-chunk
 // CHECK-NEXT:                parameter-declaration-clause: parameter-declaration-clause
@@ -27,9 +26,8 @@ void other_func(auto&&...);
 // CHECK-NEXT:                      declarator: declarator
 // CHECK-NEXT:                        core-declarator: parameter-pack
 // CHECK-NEXT:                          core-declarator: id-declarator
-// CHECK-NEXT:                            declarator-id: id-expression
-// CHECK-NEXT:                              unqualified-id: name-id
-// CHECK-NEXT:                                identifier: args
+// CHECK-NEXT:                            unqualified-id: name-id
+// CHECK-NEXT:                              identifier: args
 // CHECK-NEXT:    simple-declaration
 // CHECK-NEXT:      decl-specifier-list
 // CHECK-NEXT:        void-type-specifier
@@ -37,9 +35,8 @@ void other_func(auto&&...);
 // CHECK-NEXT:        init-declarator
 // CHECK-NEXT:          declarator: declarator
 // CHECK-NEXT:            core-declarator: id-declarator
-// CHECK-NEXT:              declarator-id: id-expression
-// CHECK-NEXT:                unqualified-id: name-id
-// CHECK-NEXT:                  identifier: other_func
+// CHECK-NEXT:              unqualified-id: name-id
+// CHECK-NEXT:                identifier: other_func
 // CHECK-NEXT:            declarator-chunk-list
 // CHECK-NEXT:              function-declarator-chunk
 // CHECK-NEXT:                parameter-declaration-clause: parameter-declaration-clause

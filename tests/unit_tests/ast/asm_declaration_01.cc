@@ -29,9 +29,8 @@ end:;
 // CHECK-NEXT:        void-type-specifier
 // CHECK-NEXT:      declarator: declarator
 // CHECK-NEXT:        core-declarator: id-declarator
-// CHECK-NEXT:          declarator-id: id-expression
-// CHECK-NEXT:            unqualified-id: name-id
-// CHECK-NEXT:              identifier: asm_qualifiers
+// CHECK-NEXT:          unqualified-id: name-id
+// CHECK-NEXT:            identifier: asm_qualifiers
 // CHECK-NEXT:        declarator-chunk-list
 // CHECK-NEXT:          function-declarator-chunk
 // CHECK-NEXT:      function-body: compound-statement-function-body
@@ -60,9 +59,8 @@ end:;
 // CHECK-NEXT:        void-type-specifier
 // CHECK-NEXT:      declarator: declarator
 // CHECK-NEXT:        core-declarator: id-declarator
-// CHECK-NEXT:          declarator-id: id-expression
-// CHECK-NEXT:            unqualified-id: name-id
-// CHECK-NEXT:              identifier: asm_output
+// CHECK-NEXT:          unqualified-id: name-id
+// CHECK-NEXT:            identifier: asm_output
 // CHECK-NEXT:        declarator-chunk-list
 // CHECK-NEXT:          function-declarator-chunk
 // CHECK-NEXT:      function-body: compound-statement-function-body
@@ -77,9 +75,8 @@ end:;
 // CHECK-NEXT:                  init-declarator
 // CHECK-NEXT:                    declarator: declarator
 // CHECK-NEXT:                      core-declarator: id-declarator
-// CHECK-NEXT:                        declarator-id: id-expression
-// CHECK-NEXT:                          unqualified-id: name-id
-// CHECK-NEXT:                            identifier: a
+// CHECK-NEXT:                        unqualified-id: name-id
+// CHECK-NEXT:                          identifier: a
 // CHECK-NEXT:            declaration-statement
 // CHECK-NEXT:              declaration: simple-declaration
 // CHECK-NEXT:                decl-specifier-list
@@ -91,9 +88,8 @@ end:;
 // CHECK-NEXT:                      ptr-op-list
 // CHECK-NEXT:                        pointer-operator
 // CHECK-NEXT:                      core-declarator: id-declarator
-// CHECK-NEXT:                        declarator-id: id-expression
-// CHECK-NEXT:                          unqualified-id: name-id
-// CHECK-NEXT:                            identifier: p
+// CHECK-NEXT:                        unqualified-id: name-id
+// CHECK-NEXT:                          identifier: p
 // CHECK-NEXT:                    initializer: equal-initializer
 // CHECK-NEXT:                      expression: nullptr-literal-expression
 // CHECK-NEXT:                        literal: nullptr
@@ -118,9 +114,8 @@ end:;
 // CHECK-NEXT:        void-type-specifier
 // CHECK-NEXT:      declarator: declarator
 // CHECK-NEXT:        core-declarator: id-declarator
-// CHECK-NEXT:          declarator-id: id-expression
-// CHECK-NEXT:            unqualified-id: name-id
-// CHECK-NEXT:              identifier: asm_clobbers
+// CHECK-NEXT:          unqualified-id: name-id
+// CHECK-NEXT:            identifier: asm_clobbers
 // CHECK-NEXT:        declarator-chunk-list
 // CHECK-NEXT:          function-declarator-chunk
 // CHECK-NEXT:      function-body: compound-statement-function-body
@@ -141,9 +136,8 @@ end:;
 // CHECK-NEXT:        void-type-specifier
 // CHECK-NEXT:      declarator: declarator
 // CHECK-NEXT:        core-declarator: id-declarator
-// CHECK-NEXT:          declarator-id: id-expression
-// CHECK-NEXT:            unqualified-id: name-id
-// CHECK-NEXT:              identifier: asm_goto
+// CHECK-NEXT:          unqualified-id: name-id
+// CHECK-NEXT:            identifier: asm_goto
 // CHECK-NEXT:        declarator-chunk-list
 // CHECK-NEXT:          function-declarator-chunk
 // CHECK-NEXT:      function-body: compound-statement-function-body

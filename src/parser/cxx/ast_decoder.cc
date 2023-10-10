@@ -2757,12 +2757,9 @@ auto ASTDecoder::decodeBitfieldDeclarator(const io::BitfieldDeclarator* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) BitfieldDeclaratorAST();
+  ast->unqualifiedId = decodeNameId(node->unqualified_id());
   ast->sizeExpression =
       decodeExpression(node->size_expression(), node->size_expression_type());
-  if (node->identifier()) {
-    ast->identifier =
-        unit_->control()->getIdentifier(node->identifier()->str());
-  }
   return ast;
 }
 
@@ -2781,7 +2778,10 @@ auto ASTDecoder::decodeIdDeclarator(const io::IdDeclarator* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) IdDeclaratorAST();
-  ast->declaratorId = decodeIdExpression(node->declarator_id());
+  ast->nestedNameSpecifier = decodeNestedNameSpecifier(
+      node->nested_name_specifier(), node->nested_name_specifier_type());
+  ast->unqualifiedId =
+      decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {

@@ -12,9 +12,8 @@ void print_like(const char* fmt, ...);
 // CHECK-NEXT:        init-declarator
 // CHECK-NEXT:          declarator: declarator
 // CHECK-NEXT:            core-declarator: id-declarator
-// CHECK-NEXT:              declarator-id: id-expression
-// CHECK-NEXT:                unqualified-id: name-id
-// CHECK-NEXT:                  identifier: print_like
+// CHECK-NEXT:              unqualified-id: name-id
+// CHECK-NEXT:                identifier: print_like
 // CHECK-NEXT:            declarator-chunk-list
 // CHECK-NEXT:              function-declarator-chunk
 // CHECK-NEXT:                parameter-declaration-clause: parameter-declaration-clause
@@ -29,6 +28,5 @@ void print_like(const char* fmt, ...);
 // CHECK-NEXT:                        ptr-op-list
 // CHECK-NEXT:                          pointer-operator
 // CHECK-NEXT:                        core-declarator: id-declarator
-// CHECK-NEXT:                          declarator-id: id-expression
-// CHECK-NEXT:                            unqualified-id: name-id
-// CHECK-NEXT:                              identifier: fmt
+// CHECK-NEXT:                          unqualified-id: name-id
+// CHECK-NEXT:                            identifier: fmt

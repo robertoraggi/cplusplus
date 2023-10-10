@@ -36,9 +36,8 @@ constexpr auto ident_v = ident<x>::value;
 // CHECK-NEXT:                specifier: auto-type-specifier
 // CHECK-NEXT:            declarator: declarator
 // CHECK-NEXT:              core-declarator: id-declarator
-// CHECK-NEXT:                declarator-id: id-expression
-// CHECK-NEXT:                  unqualified-id: name-id
-// CHECK-NEXT:                    identifier: x
+// CHECK-NEXT:                unqualified-id: name-id
+// CHECK-NEXT:                  identifier: x
 // CHECK-NEXT:      declaration: simple-declaration
 // CHECK-NEXT:        decl-specifier-list
 // CHECK-NEXT:          class-specifier
@@ -55,9 +54,8 @@ constexpr auto ident_v = ident<x>::value;
 // CHECK-NEXT:                  init-declarator
 // CHECK-NEXT:                    declarator: declarator
 // CHECK-NEXT:                      core-declarator: id-declarator
-// CHECK-NEXT:                        declarator-id: id-expression
-// CHECK-NEXT:                          unqualified-id: name-id
-// CHECK-NEXT:                            identifier: value
+// CHECK-NEXT:                        unqualified-id: name-id
+// CHECK-NEXT:                          identifier: value
 // CHECK-NEXT:                    initializer: equal-initializer
 // CHECK-NEXT:                      expression: id-expression
 // CHECK-NEXT:                        unqualified-id: name-id
@@ -75,9 +73,8 @@ constexpr auto ident_v = ident<x>::value;
 // CHECK-NEXT:                specifier: auto-type-specifier
 // CHECK-NEXT:            declarator: declarator
 // CHECK-NEXT:              core-declarator: id-declarator
-// CHECK-NEXT:                declarator-id: id-expression
-// CHECK-NEXT:                  unqualified-id: name-id
-// CHECK-NEXT:                    identifier: x
+// CHECK-NEXT:                unqualified-id: name-id
+// CHECK-NEXT:                  identifier: x
 // CHECK-NEXT:      declaration: simple-declaration
 // CHECK-NEXT:        decl-specifier-list
 // CHECK-NEXT:          constexpr-specifier
@@ -86,9 +83,8 @@ constexpr auto ident_v = ident<x>::value;
 // CHECK-NEXT:          init-declarator
 // CHECK-NEXT:            declarator: declarator
 // CHECK-NEXT:              core-declarator: id-declarator
-// CHECK-NEXT:                declarator-id: id-expression
-// CHECK-NEXT:                  unqualified-id: name-id
-// CHECK-NEXT:                    identifier: ident_v
+// CHECK-NEXT:                unqualified-id: name-id
+// CHECK-NEXT:                  identifier: ident_v
 // CHECK-NEXT:            initializer: equal-initializer
 // CHECK-NEXT:              expression: id-expression
 // CHECK-NEXT:                nested-name-specifier: template-nested-name-specifier

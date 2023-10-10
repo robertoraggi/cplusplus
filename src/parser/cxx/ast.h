@@ -2589,10 +2589,9 @@ class BitfieldDeclaratorAST final : public CoreDeclaratorAST {
 
   BitfieldDeclaratorAST() : CoreDeclaratorAST(Kind) {}
 
-  SourceLocation identifierLoc;
+  NameIdAST* unqualifiedId = nullptr;
   SourceLocation colonLoc;
   ExpressionAST* sizeExpression = nullptr;
-  const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2621,8 +2620,11 @@ class IdDeclaratorAST final : public CoreDeclaratorAST {
 
   IdDeclaratorAST() : CoreDeclaratorAST(Kind) {}
 
-  IdExpressionAST* declaratorId = nullptr;
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  SourceLocation templateLoc;
+  UnqualifiedIdAST* unqualifiedId = nullptr;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
+  bool isTemplateIntroduced = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

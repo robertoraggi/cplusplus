@@ -510,9 +510,8 @@ table SimpleAttributeToken /* AttributeTokenAST */ {
 }
 
 table BitfieldDeclarator /* CoreDeclaratorAST */ {
+  unqualified_id: NameId;
   size_expression: Expression;
-  identifier: string;
-  identifier_loc: SourceLocation;
   colon_loc: SourceLocation;
 }
 
@@ -522,8 +521,10 @@ table ParameterPack /* CoreDeclaratorAST */ {
 }
 
 table IdDeclarator /* CoreDeclaratorAST */ {
-  declarator_id: IdExpression;
+  nested_name_specifier: NestedNameSpecifier;
+  unqualified_id: UnqualifiedId;
   attribute_list: [AttributeSpecifier];
+  template_loc: SourceLocation;
 }
 
 table NestedDeclarator /* CoreDeclaratorAST */ {

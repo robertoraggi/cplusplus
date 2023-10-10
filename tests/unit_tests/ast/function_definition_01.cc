@@ -18,9 +18,8 @@ void (*f(int))() {}
 // CHECK-NEXT:                ptr-op-list
 // CHECK-NEXT:                  pointer-operator
 // CHECK-NEXT:                core-declarator: id-declarator
-// CHECK-NEXT:                  declarator-id: id-expression
-// CHECK-NEXT:                    unqualified-id: name-id
-// CHECK-NEXT:                      identifier: ptr
+// CHECK-NEXT:                  unqualified-id: name-id
+// CHECK-NEXT:                    identifier: ptr
 // CHECK-NEXT:            declarator-chunk-list
 // CHECK-NEXT:              function-declarator-chunk
 // CHECK-NEXT:          initializer: braced-init-list
@@ -33,9 +32,8 @@ void (*f(int))() {}
 // CHECK-NEXT:            ptr-op-list
 // CHECK-NEXT:              pointer-operator
 // CHECK-NEXT:            core-declarator: id-declarator
-// CHECK-NEXT:              declarator-id: id-expression
-// CHECK-NEXT:                unqualified-id: name-id
-// CHECK-NEXT:                  identifier: f
+// CHECK-NEXT:              unqualified-id: name-id
+// CHECK-NEXT:                identifier: f
 // CHECK-NEXT:            declarator-chunk-list
 // CHECK-NEXT:              function-declarator-chunk
 // CHECK-NEXT:                parameter-declaration-clause: parameter-declaration-clause

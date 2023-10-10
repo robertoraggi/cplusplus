@@ -4706,9 +4706,7 @@ void Parser::mark_maybe_template_name(UnqualifiedIdAST* name) {
 
 void Parser::mark_maybe_template_name(DeclaratorAST* declarator) {
   if (!declarator) return;
-  auto id = ast_cast<IdDeclaratorAST>(declarator->coreDeclarator);
-  if (!id) return;
-  auto declaratorId = id->declaratorId;
+  auto declaratorId = ast_cast<IdDeclaratorAST>(declarator->coreDeclarator);
   if (!declaratorId) return;
   if (declaratorId->nestedNameSpecifier) return;
   mark_maybe_template_name(declaratorId->unqualifiedId);
@@ -5319,20 +5317,34 @@ auto Parser::parse_ref_qualifier(SourceLocation& refLoc) -> bool {
 }
 
 auto Parser::parse_declarator_id(CoreDeclaratorAST*& yyast) -> bool {
+  LookaheadParser lookahead{this};
+
   SourceLocation ellipsisLoc;
 
   const auto isPack = match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
 
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  parse_optional_nested_name_specifier(nestedNameSpecifier);
+
+  SourceLocation templateLoc;
+  const auto isTemplateIntroduced = match(TokenKind::T_TEMPLATE, templateLoc);
+
   check_type_traits();
 
-  IdExpressionAST* idExpression = nullptr;
+  UnqualifiedIdAST* unqualifiedId = nullptr;
+  if (!parse_unqualified_id(unqualifiedId, isTemplateIntroduced,
+                            /*inRequiresClause*/ false))
+    return false;
 
-  if (!parse_id_expression(idExpression)) return false;
+  lookahead.commit();
 
   auto ast = new (pool_) IdDeclaratorAST();
   yyast = ast;
 
-  ast->declaratorId = idExpression;
+  ast->nestedNameSpecifier = nestedNameSpecifier;
+  ast->templateLoc = templateLoc;
+  ast->unqualifiedId = unqualifiedId;
+  ast->isTemplateIntroduced = isTemplateIntroduced;
 
   parse_optional_attribute_specifier_seq(ast->attributeList,
                                          /*allowAsmSpecifier*/ true);
@@ -7523,9 +7535,12 @@ auto Parser::parse_bitfield_declarator(InitDeclaratorAST*& yyast) -> bool {
 
   lookahead.commit();
 
+  auto nameId = new (pool_) NameIdAST();
+  nameId->identifierLoc = identifierLoc;
+  nameId->identifier = unit->identifier(identifierLoc);
+
   auto bitfieldDeclarator = new (pool_) BitfieldDeclaratorAST();
-  bitfieldDeclarator->identifierLoc = identifierLoc;
-  bitfieldDeclarator->identifier = unit->identifier(identifierLoc);
+  bitfieldDeclarator->unqualifiedId = nameId;
   bitfieldDeclarator->colonLoc = colonLoc;
   bitfieldDeclarator->sizeExpression = sizeExpression;
 

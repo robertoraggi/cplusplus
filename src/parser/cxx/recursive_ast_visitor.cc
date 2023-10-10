@@ -939,6 +939,7 @@ void RecursiveASTVisitor::visit(PtrToMemberOperatorAST* ast) {
 }
 
 void RecursiveASTVisitor::visit(BitfieldDeclaratorAST* ast) {
+  acceptNameId(ast->unqualifiedId);
   acceptExpression(ast->sizeExpression);
 }
 
@@ -947,7 +948,8 @@ void RecursiveASTVisitor::visit(ParameterPackAST* ast) {
 }
 
 void RecursiveASTVisitor::visit(IdDeclaratorAST* ast) {
-  acceptIdExpression(ast->declaratorId);
+  acceptNestedNameSpecifier(ast->nestedNameSpecifier);
+  acceptUnqualifiedId(ast->unqualifiedId);
   for (auto it = ast->attributeList; it; it = it->next) {
     acceptAttributeSpecifier(it->value);
   }

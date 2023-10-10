@@ -54,9 +54,8 @@ void set(typename HelperT::template Lookup<int>::PointerT p);
 // CHECK-NEXT:                specifier: int
 // CHECK-NEXT:            declarator: declarator
 // CHECK-NEXT:              core-declarator: id-declarator
-// CHECK-NEXT:                declarator-id: id-expression
-// CHECK-NEXT:                  unqualified-id: name-id
-// CHECK-NEXT:                    identifier: N
+// CHECK-NEXT:                unqualified-id: name-id
+// CHECK-NEXT:                  identifier: N
 // CHECK-NEXT:      declaration: simple-declaration
 // CHECK-NEXT:        decl-specifier-list
 // CHECK-NEXT:          void-type-specifier
@@ -64,9 +63,8 @@ void set(typename HelperT::template Lookup<int>::PointerT p);
 // CHECK-NEXT:          init-declarator
 // CHECK-NEXT:            declarator: declarator
 // CHECK-NEXT:              core-declarator: id-declarator
-// CHECK-NEXT:                declarator-id: id-expression
-// CHECK-NEXT:                  unqualified-id: name-id
-// CHECK-NEXT:                    identifier: set
+// CHECK-NEXT:                unqualified-id: name-id
+// CHECK-NEXT:                  identifier: set
 // CHECK-NEXT:              declarator-chunk-list
 // CHECK-NEXT:                function-declarator-chunk
 // CHECK-NEXT:                  parameter-declaration-clause: parameter-declaration-clause
@@ -91,6 +89,5 @@ void set(typename HelperT::template Lookup<int>::PointerT p);
 // CHECK-NEXT:                              identifier: PointerT
 // CHECK-NEXT:                        declarator: declarator
 // CHECK-NEXT:                          core-declarator: id-declarator
-// CHECK-NEXT:                            declarator-id: id-expression
-// CHECK-NEXT:                              unqualified-id: name-id
-// CHECK-NEXT:                                identifier: p
+// CHECK-NEXT:                            unqualified-id: name-id
+// CHECK-NEXT:                              identifier: p
