@@ -2483,13 +2483,11 @@ void ASTCloner::visit(BitfieldDeclaratorAST* ast) {
   auto copy = new (arena_) BitfieldDeclaratorAST();
   copy_ = copy;
 
-  copy->identifierLoc = ast->identifierLoc;
+  copy->unqualifiedId = accept(ast->unqualifiedId);
 
   copy->colonLoc = ast->colonLoc;
 
   copy->sizeExpression = accept(ast->sizeExpression);
-
-  copy->identifier = ast->identifier;
 }
 
 void ASTCloner::visit(ParameterPackAST* ast) {
@@ -2505,7 +2503,11 @@ void ASTCloner::visit(IdDeclaratorAST* ast) {
   auto copy = new (arena_) IdDeclaratorAST();
   copy_ = copy;
 
-  copy->declaratorId = accept(ast->declaratorId);
+  copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
+
+  copy->templateLoc = ast->templateLoc;
+
+  copy->unqualifiedId = accept(ast->unqualifiedId);
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
@@ -2515,6 +2517,8 @@ void ASTCloner::visit(IdDeclaratorAST* ast) {
       out = &(*out)->next;
     }
   }
+
+  copy->isTemplateIntroduced = ast->isTemplateIntroduced;
 }
 
 void ASTCloner::visit(NestedDeclaratorAST* ast) {

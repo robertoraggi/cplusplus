@@ -32,9 +32,8 @@ struct object {
 // CHECK-NEXT:                auto-type-specifier
 // CHECK-NEXT:              declarator: declarator
 // CHECK-NEXT:                core-declarator: id-declarator
-// CHECK-NEXT:                  declarator-id: id-expression
-// CHECK-NEXT:                    unqualified-id: name-id
-// CHECK-NEXT:                      identifier: clone
+// CHECK-NEXT:                  unqualified-id: name-id
+// CHECK-NEXT:                    identifier: clone
 // CHECK-NEXT:                declarator-chunk-list
 // CHECK-NEXT:                  function-declarator-chunk
 // CHECK-NEXT:                    parameter-declaration-clause: parameter-declaration-clause
@@ -45,9 +44,8 @@ struct object {
 // CHECK-NEXT:                            auto-type-specifier
 // CHECK-NEXT:                          declarator: declarator
 // CHECK-NEXT:                            core-declarator: id-declarator
-// CHECK-NEXT:                              declarator-id: id-expression
-// CHECK-NEXT:                                unqualified-id: name-id
-// CHECK-NEXT:                                  identifier: self
+// CHECK-NEXT:                              unqualified-id: name-id
+// CHECK-NEXT:                                identifier: self
 // CHECK-NEXT:              function-body: compound-statement-function-body
 // CHECK-NEXT:                statement: compound-statement
 // CHECK-NEXT:                  statement-list

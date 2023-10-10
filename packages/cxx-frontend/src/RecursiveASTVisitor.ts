@@ -1857,6 +1857,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     node: ast.BitfieldDeclaratorAST,
     context: Context,
   ): void {
+    this.accept(node.getUnqualifiedId(), context);
     this.accept(node.getSizeExpression(), context);
   }
 
@@ -1877,7 +1878,8 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
    * @param context The context.
    */
   visitIdDeclarator(node: ast.IdDeclaratorAST, context: Context): void {
-    this.accept(node.getDeclaratorId(), context);
+    this.accept(node.getNestedNameSpecifier(), context);
+    this.accept(node.getUnqualifiedId(), context);
     for (const element of node.getAttributeList()) {
       this.accept(element, context);
     }

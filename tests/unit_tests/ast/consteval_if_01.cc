@@ -25,9 +25,8 @@ auto main() -> int {
 // CHECK-NEXT:        auto-type-specifier
 // CHECK-NEXT:      declarator: declarator
 // CHECK-NEXT:        core-declarator: id-declarator
-// CHECK-NEXT:          declarator-id: id-expression
-// CHECK-NEXT:            unqualified-id: name-id
-// CHECK-NEXT:              identifier: main
+// CHECK-NEXT:          unqualified-id: name-id
+// CHECK-NEXT:            identifier: main
 // CHECK-NEXT:        declarator-chunk-list
 // CHECK-NEXT:          function-declarator-chunk
 // CHECK-NEXT:            trailing-return-type: trailing-return-type

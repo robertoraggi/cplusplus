@@ -15,9 +15,8 @@ int main() {
 // CHECK-NEXT:          specifier: int
 // CHECK-NEXT:      declarator: declarator
 // CHECK-NEXT:        core-declarator: id-declarator
-// CHECK-NEXT:          declarator-id: id-expression
-// CHECK-NEXT:            unqualified-id: name-id
-// CHECK-NEXT:              identifier: main
+// CHECK-NEXT:          unqualified-id: name-id
+// CHECK-NEXT:            identifier: main
 // CHECK-NEXT:        declarator-chunk-list
 // CHECK-NEXT:          function-declarator-chunk
 // CHECK-NEXT:      function-body: compound-statement-function-body
@@ -32,9 +31,8 @@ int main() {
 // CHECK-NEXT:                  init-declarator
 // CHECK-NEXT:                    declarator: declarator
 // CHECK-NEXT:                      core-declarator: id-declarator
-// CHECK-NEXT:                        declarator-id: id-expression
-// CHECK-NEXT:                          unqualified-id: name-id
-// CHECK-NEXT:                            identifier: map
+// CHECK-NEXT:                        unqualified-id: name-id
+// CHECK-NEXT:                          identifier: map
 // CHECK-NEXT:                      declarator-chunk-list
 // CHECK-NEXT:                        array-declarator-chunk
 // CHECK-NEXT:                        array-declarator-chunk

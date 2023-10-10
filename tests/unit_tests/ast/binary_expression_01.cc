@@ -16,9 +16,8 @@ int c = a + b * c;
 // CHECK-NEXT:        init-declarator
 // CHECK-NEXT:          declarator: declarator
 // CHECK-NEXT:            core-declarator: id-declarator
-// CHECK-NEXT:              declarator-id: id-expression
-// CHECK-NEXT:                unqualified-id: name-id
-// CHECK-NEXT:                  identifier: a
+// CHECK-NEXT:              unqualified-id: name-id
+// CHECK-NEXT:                identifier: a
 // CHECK-NEXT:          initializer: equal-initializer
 // CHECK-NEXT:            expression: int-literal-expression
 // CHECK-NEXT:              literal: 10
@@ -30,9 +29,8 @@ int c = a + b * c;
 // CHECK-NEXT:        init-declarator
 // CHECK-NEXT:          declarator: declarator
 // CHECK-NEXT:            core-declarator: id-declarator
-// CHECK-NEXT:              declarator-id: id-expression
-// CHECK-NEXT:                unqualified-id: name-id
-// CHECK-NEXT:                  identifier: b
+// CHECK-NEXT:              unqualified-id: name-id
+// CHECK-NEXT:                identifier: b
 // CHECK-NEXT:          initializer: equal-initializer
 // CHECK-NEXT:            expression: int-literal-expression
 // CHECK-NEXT:              literal: 20
@@ -44,9 +42,8 @@ int c = a + b * c;
 // CHECK-NEXT:        init-declarator
 // CHECK-NEXT:          declarator: declarator
 // CHECK-NEXT:            core-declarator: id-declarator
-// CHECK-NEXT:              declarator-id: id-expression
-// CHECK-NEXT:                unqualified-id: name-id
-// CHECK-NEXT:                  identifier: c
+// CHECK-NEXT:              unqualified-id: name-id
+// CHECK-NEXT:                identifier: c
 // CHECK-NEXT:          initializer: equal-initializer
 // CHECK-NEXT:            expression: int-literal-expression
 // CHECK-NEXT:              literal: 30
@@ -58,9 +55,8 @@ int c = a + b * c;
 // CHECK-NEXT:        init-declarator
 // CHECK-NEXT:          declarator: declarator
 // CHECK-NEXT:            core-declarator: id-declarator
-// CHECK-NEXT:              declarator-id: id-expression
-// CHECK-NEXT:                unqualified-id: name-id
-// CHECK-NEXT:                  identifier: c
+// CHECK-NEXT:              unqualified-id: name-id
+// CHECK-NEXT:                identifier: c
 // CHECK-NEXT:          initializer: equal-initializer
 // CHECK-NEXT:            expression: binary-expression
 // CHECK-NEXT:              op: +

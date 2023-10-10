@@ -28,9 +28,8 @@ struct Pair {
 // CHECK-NEXT:                init-declarator
 // CHECK-NEXT:                  declarator: declarator
 // CHECK-NEXT:                    core-declarator: id-declarator
-// CHECK-NEXT:                      declarator-id: id-expression
-// CHECK-NEXT:                        unqualified-id: name-id
-// CHECK-NEXT:                          identifier: first
+// CHECK-NEXT:                      unqualified-id: name-id
+// CHECK-NEXT:                        identifier: first
 // CHECK-NEXT:            simple-declaration
 // CHECK-NEXT:              decl-specifier-list
 // CHECK-NEXT:                integral-type-specifier
@@ -39,17 +38,15 @@ struct Pair {
 // CHECK-NEXT:                init-declarator
 // CHECK-NEXT:                  declarator: declarator
 // CHECK-NEXT:                    core-declarator: id-declarator
-// CHECK-NEXT:                      declarator-id: id-expression
-// CHECK-NEXT:                        unqualified-id: name-id
-// CHECK-NEXT:                          identifier: second
+// CHECK-NEXT:                      unqualified-id: name-id
+// CHECK-NEXT:                        identifier: second
 // CHECK-NEXT:            function-definition
 // CHECK-NEXT:              decl-specifier-list
 // CHECK-NEXT:                auto-type-specifier
 // CHECK-NEXT:              declarator: declarator
 // CHECK-NEXT:                core-declarator: id-declarator
-// CHECK-NEXT:                  declarator-id: id-expression
-// CHECK-NEXT:                    unqualified-id: name-id
-// CHECK-NEXT:                      identifier: sum
+// CHECK-NEXT:                  unqualified-id: name-id
+// CHECK-NEXT:                    identifier: sum
 // CHECK-NEXT:                declarator-chunk-list
 // CHECK-NEXT:                  function-declarator-chunk
 // CHECK-NEXT:                    trailing-return-type: trailing-return-type

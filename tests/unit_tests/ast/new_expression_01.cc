@@ -20,9 +20,8 @@ auto make(void* where, T init) {
 // CHECK-NEXT:          auto-type-specifier
 // CHECK-NEXT:        declarator: declarator
 // CHECK-NEXT:          core-declarator: id-declarator
-// CHECK-NEXT:            declarator-id: id-expression
-// CHECK-NEXT:              unqualified-id: name-id
-// CHECK-NEXT:                identifier: make
+// CHECK-NEXT:            unqualified-id: name-id
+// CHECK-NEXT:              identifier: make
 // CHECK-NEXT:          declarator-chunk-list
 // CHECK-NEXT:            function-declarator-chunk
 // CHECK-NEXT:              parameter-declaration-clause: parameter-declaration-clause
@@ -34,9 +33,8 @@ auto make(void* where, T init) {
 // CHECK-NEXT:                      ptr-op-list
 // CHECK-NEXT:                        pointer-operator
 // CHECK-NEXT:                      core-declarator: id-declarator
-// CHECK-NEXT:                        declarator-id: id-expression
-// CHECK-NEXT:                          unqualified-id: name-id
-// CHECK-NEXT:                            identifier: where
+// CHECK-NEXT:                        unqualified-id: name-id
+// CHECK-NEXT:                          identifier: where
 // CHECK-NEXT:                  parameter-declaration
 // CHECK-NEXT:                    type-specifier-list
 // CHECK-NEXT:                      named-type-specifier
@@ -44,9 +42,8 @@ auto make(void* where, T init) {
 // CHECK-NEXT:                          identifier: T
 // CHECK-NEXT:                    declarator: declarator
 // CHECK-NEXT:                      core-declarator: id-declarator
-// CHECK-NEXT:                        declarator-id: id-expression
-// CHECK-NEXT:                          unqualified-id: name-id
-// CHECK-NEXT:                            identifier: init
+// CHECK-NEXT:                        unqualified-id: name-id
+// CHECK-NEXT:                          identifier: init
 // CHECK-NEXT:        function-body: compound-statement-function-body
 // CHECK-NEXT:          statement: compound-statement
 // CHECK-NEXT:            statement-list
@@ -58,9 +55,8 @@ auto make(void* where, T init) {
 // CHECK-NEXT:                    init-declarator
 // CHECK-NEXT:                      declarator: declarator
 // CHECK-NEXT:                        core-declarator: id-declarator
-// CHECK-NEXT:                          declarator-id: id-expression
-// CHECK-NEXT:                            unqualified-id: name-id
-// CHECK-NEXT:                              identifier: a
+// CHECK-NEXT:                          unqualified-id: name-id
+// CHECK-NEXT:                            identifier: a
 // CHECK-NEXT:                      initializer: equal-initializer
 // CHECK-NEXT:                        expression: new-expression
 // CHECK-NEXT:                          new-placement: new-placement
@@ -87,9 +83,8 @@ auto make(void* where, T init) {
 // CHECK-NEXT:                    init-declarator
 // CHECK-NEXT:                      declarator: declarator
 // CHECK-NEXT:                        core-declarator: id-declarator
-// CHECK-NEXT:                          declarator-id: id-expression
-// CHECK-NEXT:                            unqualified-id: name-id
-// CHECK-NEXT:                              identifier: b
+// CHECK-NEXT:                          unqualified-id: name-id
+// CHECK-NEXT:                            identifier: b
 // CHECK-NEXT:                      initializer: equal-initializer
 // CHECK-NEXT:                        expression: new-expression
 // CHECK-NEXT:                          new-placement: new-placement

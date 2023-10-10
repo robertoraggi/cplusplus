@@ -4053,32 +4053,19 @@ void ASTEncoder::visit(PtrToMemberOperatorAST* ast) {
 }
 
 void ASTEncoder::visit(BitfieldDeclaratorAST* ast) {
-  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
+  const auto unqualifiedId = accept(ast->unqualifiedId);
 
   auto colonLoc = encodeSourceLocation(ast->colonLoc);
 
   const auto [sizeExpression, sizeExpressionType] =
       acceptExpression(ast->sizeExpression);
 
-  flatbuffers::Offset<flatbuffers::String> identifier;
-  if (ast->identifier) {
-    if (identifiers_.contains(ast->identifier)) {
-      identifier = identifiers_.at(ast->identifier);
-    } else {
-      identifier = fbb_.CreateString(ast->identifier->value());
-      identifiers_.emplace(ast->identifier, identifier);
-    }
-  }
-
   io::BitfieldDeclarator::Builder builder{fbb_};
-  builder.add_identifier_loc(identifierLoc.o);
+  builder.add_unqualified_id(unqualifiedId.o);
   builder.add_colon_loc(colonLoc.o);
   builder.add_size_expression(sizeExpression);
   builder.add_size_expression_type(
       static_cast<io::Expression>(sizeExpressionType));
-  if (ast->identifier) {
-    builder.add_identifier(identifier);
-  }
 
   offset_ = builder.Finish().Union();
   type_ = io::CoreDeclarator_BitfieldDeclarator;
@@ -4101,7 +4088,13 @@ void ASTEncoder::visit(ParameterPackAST* ast) {
 }
 
 void ASTEncoder::visit(IdDeclaratorAST* ast) {
-  const auto declaratorId = accept(ast->declaratorId);
+  const auto [nestedNameSpecifier, nestedNameSpecifierType] =
+      acceptNestedNameSpecifier(ast->nestedNameSpecifier);
+
+  auto templateLoc = encodeSourceLocation(ast->templateLoc);
+
+  const auto [unqualifiedId, unqualifiedIdType] =
+      acceptUnqualifiedId(ast->unqualifiedId);
 
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
   std::vector<std::underlying_type_t<io::AttributeSpecifier>>
@@ -4118,7 +4111,13 @@ void ASTEncoder::visit(IdDeclaratorAST* ast) {
   auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
 
   io::IdDeclarator::Builder builder{fbb_};
-  builder.add_declarator_id(declaratorId.o);
+  builder.add_nested_name_specifier(nestedNameSpecifier);
+  builder.add_nested_name_specifier_type(
+      static_cast<io::NestedNameSpecifier>(nestedNameSpecifierType));
+  builder.add_template_loc(templateLoc.o);
+  builder.add_unqualified_id(unqualifiedId);
+  builder.add_unqualified_id_type(
+      static_cast<io::UnqualifiedId>(unqualifiedIdType));
   builder.add_attribute_list(attributeListOffsetsVector);
   builder.add_attribute_list_type(attributeListTypesVector);
 

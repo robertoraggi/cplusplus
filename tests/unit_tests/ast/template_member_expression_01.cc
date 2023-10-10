@@ -30,9 +30,8 @@ auto copy(Allocator &A) -> void * { return A.template Allocate<char>(128); }
 // CHECK-NEXT:                  auto-type-specifier
 // CHECK-NEXT:                declarator: declarator
 // CHECK-NEXT:                  core-declarator: id-declarator
-// CHECK-NEXT:                    declarator-id: id-expression
-// CHECK-NEXT:                      unqualified-id: name-id
-// CHECK-NEXT:                        identifier: Allocate
+// CHECK-NEXT:                    unqualified-id: name-id
+// CHECK-NEXT:                      identifier: Allocate
 // CHECK-NEXT:                  declarator-chunk-list
 // CHECK-NEXT:                    function-declarator-chunk
 // CHECK-NEXT:                      parameter-declaration-clause: parameter-declaration-clause
@@ -62,9 +61,8 @@ auto copy(Allocator &A) -> void * { return A.template Allocate<char>(128); }
 // CHECK-NEXT:        auto-type-specifier
 // CHECK-NEXT:      declarator: declarator
 // CHECK-NEXT:        core-declarator: id-declarator
-// CHECK-NEXT:          declarator-id: id-expression
-// CHECK-NEXT:            unqualified-id: name-id
-// CHECK-NEXT:              identifier: copy
+// CHECK-NEXT:          unqualified-id: name-id
+// CHECK-NEXT:            identifier: copy
 // CHECK-NEXT:        declarator-chunk-list
 // CHECK-NEXT:          function-declarator-chunk
 // CHECK-NEXT:            parameter-declaration-clause: parameter-declaration-clause
@@ -79,9 +77,8 @@ auto copy(Allocator &A) -> void * { return A.template Allocate<char>(128); }
 // CHECK-NEXT:                      reference-operator
 // CHECK-NEXT:                        ref-op: &
 // CHECK-NEXT:                    core-declarator: id-declarator
-// CHECK-NEXT:                      declarator-id: id-expression
-// CHECK-NEXT:                        unqualified-id: name-id
-// CHECK-NEXT:                          identifier: A
+// CHECK-NEXT:                      unqualified-id: name-id
+// CHECK-NEXT:                        identifier: A
 // CHECK-NEXT:            trailing-return-type: trailing-return-type
 // CHECK-NEXT:              type-id: type-id
 // CHECK-NEXT:                type-specifier-list

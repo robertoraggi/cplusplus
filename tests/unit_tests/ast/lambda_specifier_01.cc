@@ -16,9 +16,8 @@ auto main() -> int {
 // CHECK-NEXT:        auto-type-specifier
 // CHECK-NEXT:      declarator: declarator
 // CHECK-NEXT:        core-declarator: id-declarator
-// CHECK-NEXT:          declarator-id: id-expression
-// CHECK-NEXT:            unqualified-id: name-id
-// CHECK-NEXT:              identifier: main
+// CHECK-NEXT:          unqualified-id: name-id
+// CHECK-NEXT:            identifier: main
 // CHECK-NEXT:        declarator-chunk-list
 // CHECK-NEXT:          function-declarator-chunk
 // CHECK-NEXT:            trailing-return-type: trailing-return-type
@@ -38,9 +37,8 @@ auto main() -> int {
 // CHECK-NEXT:                  init-declarator
 // CHECK-NEXT:                    declarator: declarator
 // CHECK-NEXT:                      core-declarator: id-declarator
-// CHECK-NEXT:                        declarator-id: id-expression
-// CHECK-NEXT:                          unqualified-id: name-id
-// CHECK-NEXT:                            identifier: consteval_lambda
+// CHECK-NEXT:                        unqualified-id: name-id
+// CHECK-NEXT:                          identifier: consteval_lambda
 // CHECK-NEXT:                    initializer: equal-initializer
 // CHECK-NEXT:                      expression: lambda-expression
 // CHECK-NEXT:                        lambda-specifier-list
@@ -59,9 +57,8 @@ auto main() -> int {
 // CHECK-NEXT:                  init-declarator
 // CHECK-NEXT:                    declarator: declarator
 // CHECK-NEXT:                      core-declarator: id-declarator
-// CHECK-NEXT:                        declarator-id: id-expression
-// CHECK-NEXT:                          unqualified-id: name-id
-// CHECK-NEXT:                            identifier: constexpr_lambda
+// CHECK-NEXT:                        unqualified-id: name-id
+// CHECK-NEXT:                          identifier: constexpr_lambda
 // CHECK-NEXT:                    initializer: equal-initializer
 // CHECK-NEXT:                      expression: lambda-expression
 // CHECK-NEXT:                        lambda-specifier-list
@@ -80,9 +77,8 @@ auto main() -> int {
 // CHECK-NEXT:                  init-declarator
 // CHECK-NEXT:                    declarator: declarator
 // CHECK-NEXT:                      core-declarator: id-declarator
-// CHECK-NEXT:                        declarator-id: id-expression
-// CHECK-NEXT:                          unqualified-id: name-id
-// CHECK-NEXT:                            identifier: mutable_lambda
+// CHECK-NEXT:                        unqualified-id: name-id
+// CHECK-NEXT:                          identifier: mutable_lambda
 // CHECK-NEXT:                    initializer: equal-initializer
 // CHECK-NEXT:                      expression: lambda-expression
 // CHECK-NEXT:                        lambda-specifier-list
@@ -101,9 +97,8 @@ auto main() -> int {
 // CHECK-NEXT:                  init-declarator
 // CHECK-NEXT:                    declarator: declarator
 // CHECK-NEXT:                      core-declarator: id-declarator
-// CHECK-NEXT:                        declarator-id: id-expression
-// CHECK-NEXT:                          unqualified-id: name-id
-// CHECK-NEXT:                            identifier: static_lambda
+// CHECK-NEXT:                        unqualified-id: name-id
+// CHECK-NEXT:                          identifier: static_lambda
 // CHECK-NEXT:                    initializer: equal-initializer
 // CHECK-NEXT:                      expression: lambda-expression
 // CHECK-NEXT:                        lambda-specifier-list

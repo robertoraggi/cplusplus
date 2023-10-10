@@ -8173,10 +8173,13 @@ export class BitfieldDeclaratorAST extends CoreDeclaratorAST {
   }
 
   /**
-   * Returns the location of the identifier token in this node
+   * Returns the unqualifiedId of this node
    */
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  getUnqualifiedId(): NameIdAST | undefined {
+    return AST.from<NameIdAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
   }
 
   /**
@@ -8194,14 +8197,6 @@ export class BitfieldDeclaratorAST extends CoreDeclaratorAST {
       cxx.getASTSlot(this.getHandle(), 2),
       this.parser,
     );
-  }
-
-  /**
-   * Returns the identifier attribute of this node
-   */
-  getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 3);
-    return cxx.getIdentifierValue(slot);
   }
 }
 
@@ -8258,11 +8253,28 @@ export class IdDeclaratorAST extends CoreDeclaratorAST {
   }
 
   /**
-   * Returns the declaratorId of this node
+   * Returns the nestedNameSpecifier of this node
    */
-  getDeclaratorId(): IdExpressionAST | undefined {
-    return AST.from<IdExpressionAST>(
+  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
+    return AST.from<NestedNameSpecifierAST>(
       cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the template token in this node
+   */
+  getTemplateToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the unqualifiedId of this node
+   */
+  getUnqualifiedId(): UnqualifiedIdAST | undefined {
+    return AST.from<UnqualifiedIdAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
       this.parser,
     );
   }
@@ -8291,6 +8303,13 @@ export class IdDeclaratorAST extends CoreDeclaratorAST {
         return { next };
       },
     };
+  }
+
+  /**
+   * Returns the isTemplateIntroduced attribute of this node
+   */
+  getIsTemplateIntroduced(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 4) !== 0;
   }
 }
 

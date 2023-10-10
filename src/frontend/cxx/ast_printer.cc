@@ -1598,7 +1598,7 @@ void ASTPrinter::visit(PtrToMemberOperatorAST* ast) {
 
 void ASTPrinter::visit(BitfieldDeclaratorAST* ast) {
   fmt::print(out_, "{}\n", "bitfield-declarator");
-  accept(ast->identifier, "identifier");
+  accept(ast->unqualifiedId, "unqualified-id");
   accept(ast->sizeExpression, "size-expression");
 }
 
@@ -1609,7 +1609,14 @@ void ASTPrinter::visit(ParameterPackAST* ast) {
 
 void ASTPrinter::visit(IdDeclaratorAST* ast) {
   fmt::print(out_, "{}\n", "id-declarator");
-  accept(ast->declaratorId, "declarator-id");
+  if (ast->isTemplateIntroduced) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "is-template-introduced: {}\n", ast->isTemplateIntroduced);
+    --indent_;
+  }
+  accept(ast->nestedNameSpecifier, "nested-name-specifier");
+  accept(ast->unqualifiedId, "unqualified-id");
   if (ast->attributeList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);

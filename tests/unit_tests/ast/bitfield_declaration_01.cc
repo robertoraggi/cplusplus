@@ -22,6 +22,7 @@ struct Bits {
 // CHECK-NEXT:                init-declarator
 // CHECK-NEXT:                  declarator: declarator
 // CHECK-NEXT:                    core-declarator: bitfield-declarator
-// CHECK-NEXT:                      identifier: value
+// CHECK-NEXT:                      unqualified-id: name-id
+// CHECK-NEXT:                        identifier: value
 // CHECK-NEXT:                      size-expression: int-literal-expression
 // CHECK-NEXT:                        literal: 32
