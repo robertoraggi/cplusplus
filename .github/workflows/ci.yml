@@ -178,7 +178,6 @@ jobs:
           token: ${{ secrets.RELEASE_TOKEN }}
           release-type: node
           package-name: cplusplus
-          component: cplusplus
           command: manifest
 
   build-storybook:
