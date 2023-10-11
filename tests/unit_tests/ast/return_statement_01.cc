@@ -53,7 +53,6 @@ struct Pair {
 // CHECK-NEXT:                          named-type-specifier
 // CHECK-NEXT:                            unqualified-id: name-id
 // CHECK-NEXT:                              identifier: Pair
-// CHECK-NEXT:                        declarator: declarator
 // CHECK-NEXT:              function-body: compound-statement-function-body
 // CHECK-NEXT:                statement: compound-statement
 // CHECK-NEXT:                  statement-list

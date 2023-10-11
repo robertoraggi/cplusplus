@@ -54,7 +54,6 @@ struct Pair {
 // CHECK-NEXT:                        type-specifier-list
 // CHECK-NEXT:                          integral-type-specifier
 // CHECK-NEXT:                            specifier: int
-// CHECK-NEXT:                        declarator: declarator
 // CHECK-NEXT:              function-body: compound-statement-function-body
 // CHECK-NEXT:                statement: compound-statement
 // CHECK-NEXT:                  statement-list

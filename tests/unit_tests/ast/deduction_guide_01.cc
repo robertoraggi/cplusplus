@@ -37,7 +37,6 @@ List(int) -> List<int>;
 // CHECK-NEXT:                              named-type-specifier
 // CHECK-NEXT:                                unqualified-id: name-id
 // CHECK-NEXT:                                  identifier: T
-// CHECK-NEXT:                            declarator: declarator
 // CHECK-NEXT:                function-body: compound-statement-function-body
 // CHECK-NEXT:                  statement: compound-statement
 // CHECK-NEXT:    deduction-guide
@@ -48,7 +47,6 @@ List(int) -> List<int>;
 // CHECK-NEXT:            type-specifier-list
 // CHECK-NEXT:              integral-type-specifier
 // CHECK-NEXT:                specifier: int
-// CHECK-NEXT:            declarator: declarator
 // CHECK-NEXT:      template-id: simple-template-id
 // CHECK-NEXT:        identifier: List
 // CHECK-NEXT:        template-argument-list
@@ -57,4 +55,3 @@ List(int) -> List<int>;
 // CHECK-NEXT:              type-specifier-list
 // CHECK-NEXT:                integral-type-specifier
 // CHECK-NEXT:                  specifier: int
-// CHECK-NEXT:              declarator: declarator

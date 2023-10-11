@@ -2338,7 +2338,7 @@ auto Parser::parse_new_expression(ExpressionAST*& yyast) -> bool {
 
     DeclaratorAST* declarator = nullptr;
     Decl decl{specs};
-    (void)parse_abstract_declarator(declarator, decl);
+    parse_optional_abstract_declarator(declarator, decl);
 
     SourceLocation rparenLoc;
     if (!match(TokenKind::T_RPAREN, rparenLoc)) return false;
@@ -2364,8 +2364,7 @@ auto Parser::parse_new_expression(ExpressionAST*& yyast) -> bool {
 
   Decl decl{specs};
 
-  (void)parse_abstract_declarator(ast->declarator, decl,
-                                  /*isNewDeclarator*/ true);
+  (void)parse_declarator(ast->declarator, decl, DeclaratorKind::kNewDeclarator);
 
   parse_optional_new_initializer(ast->newInitalizer);
 
@@ -3894,7 +3893,8 @@ auto Parser::parse_notypespec_function_definition(
     const DeclSpecs& specs) -> bool {
   CoreDeclaratorAST* declaratorId = nullptr;
 
-  if (!parse_declarator_id(declaratorId)) return false;
+  if (!parse_declarator_id(declaratorId, DeclaratorKind::kDeclarator))
+    return false;
 
   FunctionDeclaratorChunkAST* functionDeclarator = nullptr;
   if (!parse_function_declarator(functionDeclarator)) return false;
@@ -4992,37 +4992,80 @@ auto Parser::parse_declarator_initializer(RequiresClauseAST*& requiresClause,
 
 void Parser::parse_optional_declarator_or_abstract_declarator(
     DeclaratorAST*& yyast, Decl& decl) {
-  auto lookat_declarator = [&] {
-    LookaheadParser lookahead{this};
-    if (!parse_declarator(yyast, decl)) return false;
-    lookahead.commit();
-    return true;
-  };
-
-  auto lookat_abstract_declarator = [&] {
-    LookaheadParser lookahead{this};
-    if (!parse_abstract_declarator(yyast, decl)) return;
-    lookahead.commit();
-  };
-
-  if (lookat_declarator()) return;
-  lookat_abstract_declarator();
+  (void)parse_declarator(yyast, decl,
+                         DeclaratorKind::kDeclaratorOrAbstractDeclarator);
 }
 
-auto Parser::parse_declarator(DeclaratorAST*& yyast, Decl& decl) -> bool {
-  const auto start = currentLocation();
+auto Parser::parse_declarator(DeclaratorAST*& yyast, Decl& decl,
+                              DeclaratorKind declaratorKind) -> bool {
+  if (declaratorKind == DeclaratorKind::kDeclaratorOrAbstractDeclarator) {
+    if (Decl tempDecl{decl};
+        parse_declarator(yyast, tempDecl, DeclaratorKind::kDeclarator)) {
+      decl = tempDecl;
+      return true;
+    }
 
-  List<PtrOperatorAST*>* ptrOpList = nullptr;
+    if (Decl tempDecl{decl}; parse_declarator(
+            yyast, tempDecl, DeclaratorKind::kAbstractDeclarator)) {
+      decl = tempDecl;
+      return true;
+    }
 
-  if (!parse_ptr_operator_seq(ptrOpList)) {
-    rewind(start);
-
-    ptrOpList = nullptr;
+    return false;
   }
 
-  if (!parse_noptr_declarator(yyast, decl, ptrOpList)) return false;
+  LookaheadParser lookahead{this};
+
+  List<PtrOperatorAST*>* ptrOpList = nullptr;
+  (void)parse_ptr_operator_seq(ptrOpList);
+
+  CoreDeclaratorAST* coreDeclarator = nullptr;
+  if (!parse_core_declarator(coreDeclarator, decl, declaratorKind)) {
+    return false;
+  }
+
+  List<DeclaratorChunkAST*>* declaratorChunkList = nullptr;
+  auto it = &declaratorChunkList;
+
+  while (LA().isOneOf(TokenKind::T_LPAREN, TokenKind::T_LBRACKET)) {
+    if (ArrayDeclaratorChunkAST* arrayDeclaratorChunk = nullptr;
+        parse_array_declarator(arrayDeclaratorChunk)) {
+      *it = new (pool_) List<DeclaratorChunkAST*>(arrayDeclaratorChunk);
+      it = &(*it)->next;
+    } else if (FunctionDeclaratorChunkAST* functionDeclaratorChunk = nullptr;
+               declaratorKind != DeclaratorKind::kNewDeclarator &&
+               parse_function_declarator(functionDeclaratorChunk)) {
+      *it = new (pool_) List<DeclaratorChunkAST*>(functionDeclaratorChunk);
+      it = &(*it)->next;
+      if (declaratorKind == DeclaratorKind::kAbstractDeclarator &&
+          functionDeclaratorChunk->trailingReturnType) {
+        break;
+      }
+    } else {
+      break;
+    }
+  }
+
+  if (!ptrOpList && !coreDeclarator && !declaratorChunkList) {
+    return false;
+  }
+
+  lookahead.commit();
+
+  yyast = new (pool_) DeclaratorAST();
+  yyast->ptrOpList = ptrOpList;
+  yyast->coreDeclarator = coreDeclarator;
+  yyast->declaratorChunkList = declaratorChunkList;
 
   return true;
+}
+
+void Parser::parse_optional_abstract_declarator(DeclaratorAST*& yyast,
+                                                Decl& decl) {
+  LookaheadParser lookahead{this};
+  if (!parse_declarator(yyast, decl, DeclaratorKind::kAbstractDeclarator))
+    return;
+  lookahead.commit();
 }
 
 auto Parser::parse_ptr_operator_seq(List<PtrOperatorAST*>*& yyast) -> bool {
@@ -5046,112 +5089,54 @@ auto Parser::parse_ptr_operator_seq(List<PtrOperatorAST*>*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_core_declarator(CoreDeclaratorAST*& yyast, Decl& decl)
-    -> bool {
-  if (parse_declarator_id(yyast)) return true;
+auto Parser::parse_core_declarator(CoreDeclaratorAST*& yyast, Decl& decl,
+                                   DeclaratorKind declaratorKind) -> bool {
+  if (parse_declarator_id(yyast, declaratorKind)) return true;
+  if (parse_nested_declarator(yyast, decl, declaratorKind)) return true;
+  if (declaratorKind != DeclaratorKind::kDeclarator) return true;
+  return false;
+}
 
+auto Parser::parse_array_declarator(ArrayDeclaratorChunkAST*& yyast) -> bool {
   LookaheadParser lookahead{this};
 
-  SourceLocation lparenLoc;
+  SourceLocation lbracketLoc;
+  if (!match(TokenKind::T_LBRACKET, lbracketLoc)) return false;
 
-  if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
+  SourceLocation rbracketLoc;
+  ExpressionAST* expression = nullptr;
 
-  DeclaratorAST* declarator = nullptr;
-  if (!parse_declarator(declarator, decl)) return false;
+  if (!match(TokenKind::T_RBRACKET, rbracketLoc)) {
+    if (!parse_constant_expression(expression)) return false;
+    if (!match(TokenKind::T_RBRACKET, rbracketLoc)) return false;
+  }
 
-  SourceLocation rparenLoc;
-
-  if (!match(TokenKind::T_RPAREN, rparenLoc)) return false;
+  List<AttributeSpecifierAST*>* attributes = nullptr;
+  parse_optional_attribute_specifier_seq(attributes);
 
   lookahead.commit();
 
-  auto ast = new (pool_) NestedDeclaratorAST();
-  yyast = ast;
+  auto modifier = new (pool_) ArrayDeclaratorChunkAST();
+  yyast = modifier;
 
-  ast->lparenLoc = lparenLoc;
-  ast->declarator = declarator;
-  ast->rparenLoc = lparenLoc;
-
-  return true;
-}
-
-auto Parser::parse_noptr_declarator(DeclaratorAST*& yyast, Decl& decl,
-                                    List<PtrOperatorAST*>* ptrOpLst) -> bool {
-  CoreDeclaratorAST* coreDeclarator = nullptr;
-
-  if (!parse_core_declarator(coreDeclarator, decl)) return false;
-
-  yyast = new (pool_) DeclaratorAST();
-
-  yyast->ptrOpList = ptrOpLst;
-
-  yyast->coreDeclarator = coreDeclarator;
-
-  auto it = &yyast->declaratorChunkList;
-
-  LoopParser loop{this};
-
-  while (true) {
-    loop.start();
-
-    const auto saved = currentLocation();
-
-    SourceLocation lbracketLoc;
-
-    if (match(TokenKind::T_LBRACKET, lbracketLoc)) {
-      SourceLocation rbracketLoc;
-      ExpressionAST* expression = nullptr;
-
-      if (!match(TokenKind::T_RBRACKET, rbracketLoc)) {
-        if (!parse_constant_expression(expression)) {
-          rewind(saved);
-          break;
-        }
-
-        if (!match(TokenKind::T_RBRACKET, rbracketLoc)) {
-          rewind(saved);
-          break;
-        }
-      }
-
-      List<AttributeSpecifierAST*>* attributes = nullptr;
-
-      parse_optional_attribute_specifier_seq(attributes);
-
-      auto modifier = new (pool_) ArrayDeclaratorChunkAST();
-      modifier->lbracketLoc = lbracketLoc;
-      modifier->expression = expression;
-      modifier->rbracketLoc = rbracketLoc;
-      modifier->attributeList = attributes;
-
-      *it = new (pool_) List<DeclaratorChunkAST*>(modifier);
-
-      it = &(*it)->next;
-
-    } else if (FunctionDeclaratorChunkAST* functionDeclaratorChunk = nullptr;
-               parse_function_declarator(functionDeclaratorChunk,
-                                         /*acceptTrailingReturnType*/ true)) {
-      *it = new (pool_) List<DeclaratorChunkAST*>(functionDeclaratorChunk);
-      it = &(*it)->next;
-    } else {
-      rewind(saved);
-      break;
-    }
-  }
+  modifier->lbracketLoc = lbracketLoc;
+  modifier->expression = expression;
+  modifier->rbracketLoc = rbracketLoc;
+  modifier->attributeList = attributes;
 
   return true;
 }
 
 auto Parser::parse_function_declarator(FunctionDeclaratorChunkAST*& yyast,
                                        bool acceptTrailingReturnType) -> bool {
-  SourceLocation lparenLoc;
+  LookaheadParser lookahead{this};
 
+  SourceLocation lparenLoc;
   if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
 
   ScopeContext scopeContext{this};
 
   SourceLocation rparenLoc;
-
   ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
 
   if (!match(TokenKind::T_RPAREN, rparenLoc)) {
@@ -5161,6 +5146,8 @@ auto Parser::parse_function_declarator(FunctionDeclaratorChunkAST*& yyast,
 
     if (!match(TokenKind::T_RPAREN, rparenLoc)) return false;
   }
+
+  lookahead.commit();
 
   auto ast = new (pool_) FunctionDeclaratorChunkAST();
   yyast = ast;
@@ -5226,9 +5213,7 @@ auto Parser::parse_trailing_return_type(TrailingReturnTypeAST*& yyast) -> bool {
 }
 
 auto Parser::parse_ptr_operator(PtrOperatorAST*& yyast) -> bool {
-  SourceLocation starLoc;
-
-  if (match(TokenKind::T_STAR, starLoc)) {
+  if (SourceLocation starLoc; match(TokenKind::T_STAR, starLoc)) {
     auto ast = new (pool_) PointerOperatorAST();
     yyast = ast;
 
@@ -5240,11 +5225,7 @@ auto Parser::parse_ptr_operator(PtrOperatorAST*& yyast) -> bool {
     (void)parse_cv_qualifier_seq(ast->cvQualifierList, cvQualifiers);
 
     return true;
-  }
-
-  SourceLocation refLoc;
-
-  if (parse_ref_qualifier(refLoc)) {
+  } else if (SourceLocation refLoc; parse_ref_qualifier(refLoc)) {
     auto ast = new (pool_) ReferenceOperatorAST();
     yyast = ast;
 
@@ -5256,30 +5237,28 @@ auto Parser::parse_ptr_operator(PtrOperatorAST*& yyast) -> bool {
     return true;
   }
 
-  const auto saved = currentLocation();
+  LookaheadParser lookahead{this};
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  if (!parse_nested_name_specifier(nestedNameSpecifier)) return false;
 
-  if (parse_nested_name_specifier(nestedNameSpecifier) &&
-      match(TokenKind::T_STAR, starLoc)) {
-    auto ast = new (pool_) PtrToMemberOperatorAST();
-    yyast = ast;
+  SourceLocation starLoc;
+  if (!match(TokenKind::T_STAR, starLoc)) return false;
 
-    ast->nestedNameSpecifier = nestedNameSpecifier;
+  lookahead.commit();
 
-    ast->starLoc = starLoc;
+  auto ast = new (pool_) PtrToMemberOperatorAST();
+  yyast = ast;
 
-    parse_optional_attribute_specifier_seq(ast->attributeList);
+  ast->nestedNameSpecifier = nestedNameSpecifier;
+  ast->starLoc = starLoc;
 
-    DeclSpecs cvQualifiers;
-    (void)parse_cv_qualifier_seq(ast->cvQualifierList, cvQualifiers);
+  parse_optional_attribute_specifier_seq(ast->attributeList);
 
-    return true;
-  }
+  DeclSpecs cvQualifiers;
+  (void)parse_cv_qualifier_seq(ast->cvQualifierList, cvQualifiers);
 
-  rewind(saved);
-
-  return false;
+  return true;
 }
 
 auto Parser::parse_cv_qualifier(SpecifierAST*& yyast, DeclSpecs& declSpecs)
@@ -5316,12 +5295,26 @@ auto Parser::parse_ref_qualifier(SourceLocation& refLoc) -> bool {
   return false;
 }
 
-auto Parser::parse_declarator_id(CoreDeclaratorAST*& yyast) -> bool {
+auto Parser::parse_declarator_id(CoreDeclaratorAST*& yyast,
+                                 DeclaratorKind declaratorKind) -> bool {
   LookaheadParser lookahead{this};
 
   SourceLocation ellipsisLoc;
 
   const auto isPack = match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
+
+  if (isPack && (declaratorKind == DeclaratorKind::kAbstractDeclarator ||
+                 declaratorKind == DeclaratorKind::kNewDeclarator)) {
+    lookahead.commit();
+
+    auto ast = new (pool_) ParameterPackAST();
+    ast->ellipsisLoc = ellipsisLoc;
+    yyast = ast;
+
+    return true;
+  }
+
+  if (declaratorKind != DeclaratorKind::kDeclarator) return false;
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   parse_optional_nested_name_specifier(nestedNameSpecifier);
@@ -5365,14 +5358,10 @@ auto Parser::parse_type_id(TypeIdAST*& yyast) -> bool {
   if (!parse_type_specifier_seq(specifierList, specs)) return false;
 
   yyast = new (pool_) TypeIdAST();
-
   yyast->typeSpecifierList = specifierList;
 
-  const auto before_declarator = currentLocation();
-
   Decl decl{specs};
-  if (!parse_abstract_declarator(yyast->declarator, decl))
-    rewind(before_declarator);
+  parse_optional_abstract_declarator(yyast->declarator, decl);
 
   return true;
 }
@@ -5390,11 +5379,9 @@ auto Parser::parse_defining_type_id(
     return false;
   }
 
-  const auto before_declarator = currentLocation();
-
   DeclaratorAST* declarator = nullptr;
   Decl decl{specs};
-  if (!parse_abstract_declarator(declarator, decl)) rewind(before_declarator);
+  parse_optional_abstract_declarator(declarator, decl);
 
   auto ast = new (pool_) TypeIdAST();
   yyast = ast;
@@ -5405,162 +5392,28 @@ auto Parser::parse_defining_type_id(
   return true;
 }
 
-auto Parser::parse_abstract_declarator(DeclaratorAST*& yyast, Decl& decl,
-                                       bool isNewDeclarator) -> bool {
-  if (!isNewDeclarator && parse_abstract_pack_declarator(yyast, decl))
-    return true;
-  if (parse_ptr_abstract_declarator(yyast, decl, isNewDeclarator)) return true;
-  if (parse_noptr_abstract_declarator(yyast, decl, isNewDeclarator))
-    return true;
+auto Parser::parse_nested_declarator(CoreDeclaratorAST*& yyast, Decl& decl,
+                                     DeclaratorKind declaratorKind) -> bool {
+  LookaheadParser lookahead{this};
 
-  return true;
-}
+  SourceLocation lparenLoc;
+  if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
 
-auto Parser::parse_ptr_abstract_declarator(DeclaratorAST*& yyast, Decl& decl,
-                                           bool isNewDeclarator) -> bool {
-  List<PtrOperatorAST*>* ptrOpList = nullptr;
+  DeclaratorAST* declarator = nullptr;
+  if (!parse_declarator(declarator, decl, declaratorKind)) return false;
 
-  if (!parse_ptr_operator_seq(ptrOpList)) return false;
+  SourceLocation rparenLoc;
 
-  auto ast = new (pool_) DeclaratorAST();
+  if (!match(TokenKind::T_RPAREN, rparenLoc)) return false;
+
+  lookahead.commit();
+
+  auto ast = new (pool_) NestedDeclaratorAST();
   yyast = ast;
 
-  ast->ptrOpList = ptrOpList;
-
-  const auto saved = currentLocation();
-
-  if (!parse_noptr_abstract_declarator(yyast, decl, isNewDeclarator))
-    rewind(saved);
-
-  return true;
-}
-
-auto Parser::parse_noptr_abstract_declarator(DeclaratorAST*& yyast, Decl& decl,
-                                             bool isNewDeclarator) -> bool {
-  if (!yyast) yyast = new (pool_) DeclaratorAST();
-
-  auto lookat_optional_nested_declarator = [&] {
-    LookaheadParser lookahead{this};
-
-    SourceLocation lparenLoc;
-    if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
-
-    DeclaratorAST* declarator = nullptr;
-    if (!parse_ptr_abstract_declarator(declarator, decl, isNewDeclarator))
-      return false;
-
-    SourceLocation rparenLoc;
-    if (!match(TokenKind::T_RPAREN, rparenLoc)) return false;
-
-    lookahead.commit();
-
-    auto nestedDeclarator = new (pool_) NestedDeclaratorAST();
-    nestedDeclarator->lparenLoc = lparenLoc;
-    nestedDeclarator->declarator = declarator;
-    nestedDeclarator->rparenLoc = rparenLoc;
-
-    yyast->coreDeclarator = nestedDeclarator;
-
-    return true;
-  };
-
-  const auto hasNestedDeclarator = lookat_optional_nested_declarator();
-
-  auto it = &yyast->declaratorChunkList;
-
-  if (!isNewDeclarator) {
-    if (FunctionDeclaratorChunkAST* functionDeclarator = nullptr;
-        parse_function_declarator(functionDeclarator,
-                                  /*acceptTrailingReturnType*/ true)) {
-      *it = new (pool_) List<DeclaratorChunkAST*>(functionDeclarator);
-      it = &(*it)->next;
-
-      if (functionDeclarator->trailingReturnType) return true;
-    }
-  }
-
-  SourceLocation lbracketLoc;
-
-  while (match(TokenKind::T_LBRACKET, lbracketLoc)) {
-    SourceLocation rbracketLoc;
-
-    auto arrayDeclarator = new (pool_) ArrayDeclaratorChunkAST();
-    arrayDeclarator->lbracketLoc = lbracketLoc;
-
-    *it = new (pool_) List<DeclaratorChunkAST*>(arrayDeclarator);
-    it = &(*it)->next;
-
-    if (!match(TokenKind::T_RBRACKET, arrayDeclarator->rbracketLoc)) {
-      if (!parse_constant_expression(arrayDeclarator->expression)) {
-        parse_error("expected an expression");
-      }
-
-      expect(TokenKind::T_RBRACKET, arrayDeclarator->rbracketLoc);
-    }
-  }
-
-  return true;
-}
-
-auto Parser::parse_abstract_pack_declarator(DeclaratorAST*& yyast, Decl& decl)
-    -> bool {
-  auto start = currentLocation();
-
-  List<PtrOperatorAST*>* ptrOpList = nullptr;
-
-  (void)parse_ptr_operator_seq(ptrOpList);
-
-  if (!parse_noptr_abstract_pack_declarator(yyast, ptrOpList)) {
-    rewind(start);
-    return false;
-  }
-
-  return true;
-}
-
-auto Parser::parse_noptr_abstract_pack_declarator(
-    DeclaratorAST*& yyast, List<PtrOperatorAST*>* ptrOpLst) -> bool {
-  SourceLocation ellipsisLoc;
-
-  if (!match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) return false;
-
-  auto ast = new (pool_) DeclaratorAST();
-  yyast = ast;
-
-  auto coreDeclarator = new (pool_) ParameterPackAST();
-  coreDeclarator->ellipsisLoc = ellipsisLoc;
-
-  ast->coreDeclarator = coreDeclarator;
-  ast->ptrOpList = ptrOpLst;
-
-  auto it = &yyast->declaratorChunkList;
-
-  if (FunctionDeclaratorChunkAST* functionDeclarator = nullptr;
-      parse_function_declarator(functionDeclarator)) {
-    *it = new (pool_) List<DeclaratorChunkAST*>(functionDeclarator);
-    return true;
-  }
-
-  SourceLocation lbracketLoc;
-
-  while (match(TokenKind::T_LBRACKET, lbracketLoc)) {
-    auto arrayDeclarator = new (pool_) ArrayDeclaratorChunkAST();
-
-    *it = new (pool_) List<DeclaratorChunkAST*>(arrayDeclarator);
-    it = &(*it)->next;
-
-    arrayDeclarator->lbracketLoc = lbracketLoc;
-
-    if (!match(TokenKind::T_RBRACKET, arrayDeclarator->rbracketLoc)) {
-      if (!parse_constant_expression(arrayDeclarator->expression)) {
-        parse_error("expected a constant expression");
-      }
-
-      expect(TokenKind::T_RBRACKET, arrayDeclarator->rbracketLoc);
-
-      parse_optional_attribute_specifier_seq(arrayDeclarator->attributeList);
-    }
-  }
+  ast->lparenLoc = lparenLoc;
+  ast->declarator = declarator;
+  ast->rparenLoc = lparenLoc;
 
   return true;
 }

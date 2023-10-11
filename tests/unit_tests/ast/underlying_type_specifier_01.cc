@@ -27,5 +27,3 @@ using I = __underlying_type(fruit);
 // CHECK-NEXT:                named-type-specifier
 // CHECK-NEXT:                  unqualified-id: name-id
 // CHECK-NEXT:                    identifier: fruit
-// CHECK-NEXT:              declarator: declarator
-// CHECK-NEXT:        declarator: declarator

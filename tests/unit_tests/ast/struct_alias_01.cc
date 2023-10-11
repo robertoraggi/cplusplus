@@ -29,4 +29,3 @@ using Pair = struct {
 // CHECK-NEXT:                      core-declarator: id-declarator
 // CHECK-NEXT:                        unqualified-id: name-id
 // CHECK-NEXT:                          identifier: b
-// CHECK-NEXT:        declarator: declarator

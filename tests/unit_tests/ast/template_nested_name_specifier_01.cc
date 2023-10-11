@@ -84,7 +84,6 @@ void set(typename HelperT::template Lookup<int>::PointerT p);
 // CHECK-NEXT:                                      type-specifier-list
 // CHECK-NEXT:                                        integral-type-specifier
 // CHECK-NEXT:                                          specifier: int
-// CHECK-NEXT:                                      declarator: declarator
 // CHECK-NEXT:                            unqualified-id: name-id
 // CHECK-NEXT:                              identifier: PointerT
 // CHECK-NEXT:                        declarator: declarator

@@ -42,7 +42,6 @@ void (*f(int))() {}
 // CHECK-NEXT:                      type-specifier-list
 // CHECK-NEXT:                        integral-type-specifier
 // CHECK-NEXT:                          specifier: int
-// CHECK-NEXT:                      declarator: declarator
 // CHECK-NEXT:        declarator-chunk-list
 // CHECK-NEXT:          function-declarator-chunk
 // CHECK-NEXT:      function-body: compound-statement-function-body

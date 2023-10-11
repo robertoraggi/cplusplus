@@ -97,6 +97,5 @@ constexpr auto ident_v = ident<x>::value;
 // CHECK-NEXT:                            named-type-specifier
 // CHECK-NEXT:                              unqualified-id: name-id
 // CHECK-NEXT:                                identifier: x
-// CHECK-NEXT:                          declarator: declarator
 // CHECK-NEXT:                unqualified-id: name-id
 // CHECK-NEXT:                  identifier: value

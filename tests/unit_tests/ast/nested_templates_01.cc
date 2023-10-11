@@ -55,12 +55,9 @@ class List {
 // CHECK-NEXT:                                          named-type-specifier
 // CHECK-NEXT:                                            unqualified-id: name-id
 // CHECK-NEXT:                                              identifier: U
-// CHECK-NEXT:                                        declarator: declarator
 // CHECK-NEXT:                                    type-template-argument
 // CHECK-NEXT:                                      type-id: type-id
 // CHECK-NEXT:                                        type-specifier-list
 // CHECK-NEXT:                                          named-type-specifier
 // CHECK-NEXT:                                            unqualified-id: name-id
 // CHECK-NEXT:                                              identifier: A
-// CHECK-NEXT:                                        declarator: declarator
-// CHECK-NEXT:                            declarator: declarator
