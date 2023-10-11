@@ -68,7 +68,6 @@ auto make(void* where, T init) {
 // CHECK-NEXT:                            named-type-specifier
 // CHECK-NEXT:                              unqualified-id: name-id
 // CHECK-NEXT:                                identifier: T
-// CHECK-NEXT:                          declarator: declarator
 // CHECK-NEXT:                          new-initalizer: new-braced-initializer
 // CHECK-NEXT:                            braced-init-list: braced-init-list
 // CHECK-NEXT:                              expression-list
@@ -96,7 +95,6 @@ auto make(void* where, T init) {
 // CHECK-NEXT:                            named-type-specifier
 // CHECK-NEXT:                              unqualified-id: name-id
 // CHECK-NEXT:                                identifier: T
-// CHECK-NEXT:                          declarator: declarator
 // CHECK-NEXT:                          new-initalizer: new-paren-initializer
 // CHECK-NEXT:                            expression-list
 // CHECK-NEXT:                              id-expression

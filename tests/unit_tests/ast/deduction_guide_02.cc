@@ -45,7 +45,6 @@ struct List {
 // CHECK-NEXT:                                      named-type-specifier
 // CHECK-NEXT:                                        unqualified-id: name-id
 // CHECK-NEXT:                                          identifier: T
-// CHECK-NEXT:                                    declarator: declarator
 // CHECK-NEXT:                        function-body: compound-statement-function-body
 // CHECK-NEXT:                          statement: compound-statement
 // CHECK-NEXT:            deduction-guide
@@ -56,7 +55,6 @@ struct List {
 // CHECK-NEXT:                    type-specifier-list
 // CHECK-NEXT:                      integral-type-specifier
 // CHECK-NEXT:                        specifier: int
-// CHECK-NEXT:                    declarator: declarator
 // CHECK-NEXT:              template-id: simple-template-id
 // CHECK-NEXT:                identifier: Node
 // CHECK-NEXT:                template-argument-list
@@ -65,4 +63,3 @@ struct List {
 // CHECK-NEXT:                      type-specifier-list
 // CHECK-NEXT:                        integral-type-specifier
 // CHECK-NEXT:                          specifier: int
-// CHECK-NEXT:                      declarator: declarator

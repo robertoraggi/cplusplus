@@ -40,7 +40,6 @@ auto copy(Allocator &A) -> void * { return A.template Allocate<char>(128); }
 // CHECK-NEXT:                            type-specifier-list
 // CHECK-NEXT:                              integral-type-specifier
 // CHECK-NEXT:                                specifier: int
-// CHECK-NEXT:                            declarator: declarator
 // CHECK-NEXT:                      trailing-return-type: trailing-return-type
 // CHECK-NEXT:                        type-id: type-id
 // CHECK-NEXT:                          type-specifier-list
@@ -106,7 +105,6 @@ auto copy(Allocator &A) -> void * { return A.template Allocate<char>(128); }
 // CHECK-NEXT:                            type-specifier-list
 // CHECK-NEXT:                              integral-type-specifier
 // CHECK-NEXT:                                specifier: char
-// CHECK-NEXT:                            declarator: declarator
 // CHECK-NEXT:                expression-list
 // CHECK-NEXT:                  int-literal-expression
 // CHECK-NEXT:                    literal: 128
