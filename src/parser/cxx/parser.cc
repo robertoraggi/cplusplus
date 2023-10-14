@@ -4966,12 +4966,13 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
   Decl decl{specs};
   if (!parse_declarator(declarator, decl)) return false;
 
-  const auto saved = currentLocation();
-
   RequiresClauseAST* requiresClause = nullptr;
   ExpressionAST* initializer = nullptr;
 
-  if (!parse_declarator_initializer(requiresClause, initializer)) rewind(saved);
+  LookaheadParser lookahead{this};
+  if (parse_declarator_initializer(requiresClause, initializer)) {
+    lookahead.commit();
+  }
 
   auto ast = new (pool_) InitDeclaratorAST();
   yyast = ast;
