@@ -397,11 +397,6 @@ class Parser final {
                                                  DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_named_type_specifier(SpecifierAST*& yyast,
                                                 DeclSpecs& specs) -> bool;
-  [[nodiscard]] auto parse_named_type_specifier_helper(SpecifierAST*& yyast,
-                                                       DeclSpecs& specs)
-      -> bool;
-  [[nodiscard]] auto parse_placeholder_type_specifier_helper(
-      SpecifierAST*& yyast, DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_decltype_specifier_type_specifier(
       SpecifierAST*& yyast, DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_underlying_type_specifier(SpecifierAST*& yyast,
@@ -410,6 +405,10 @@ class Parser final {
                                                  DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_primitive_type_specifier(SpecifierAST*& yyast,
                                                     DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_size_type_specifier(SpecifierAST*& yyast,
+                                               DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_sign_type_specifier(SpecifierAST*& yyast,
+                                               DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_type_name(UnqualifiedIdAST*& yyast) -> bool;
   [[nodiscard]] auto parse_elaborated_type_specifier(SpecifierAST*& yyast,
                                                      DeclSpecs& specs) -> bool;
