@@ -6758,11 +6758,7 @@ auto Parser::parse_attribute(AttributeAST*& yyast) -> bool {
 }
 
 auto Parser::parse_attribute_token(AttributeTokenAST*& yyast) -> bool {
-  const auto start = currentLocation();
-
   if (parse_attribute_scoped_token(yyast)) return true;
-
-  rewind(start);
 
   SourceLocation identifierLoc;
 
@@ -6778,6 +6774,8 @@ auto Parser::parse_attribute_token(AttributeTokenAST*& yyast) -> bool {
 }
 
 auto Parser::parse_attribute_scoped_token(AttributeTokenAST*& yyast) -> bool {
+  LookaheadParser lookahead{this};
+
   SourceLocation attributeNamespaceLoc;
 
   if (!parse_attribute_namespace(attributeNamespaceLoc)) return false;
@@ -6785,6 +6783,8 @@ auto Parser::parse_attribute_scoped_token(AttributeTokenAST*& yyast) -> bool {
   SourceLocation scopeLoc;
 
   if (!match(TokenKind::T_COLON_COLON, scopeLoc)) return false;
+
+  lookahead.commit();
 
   SourceLocation identifierLoc;
 
