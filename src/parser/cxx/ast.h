@@ -2369,8 +2369,10 @@ class ElaboratedTypeSpecifierAST final : public SpecifierAST {
   SourceLocation classLoc;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  SourceLocation templateLoc;
   UnqualifiedIdAST* unqualifiedId = nullptr;
   TokenKind classKey = TokenKind::T_EOF_SYMBOL;
+  bool isTemplateIntroduced = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

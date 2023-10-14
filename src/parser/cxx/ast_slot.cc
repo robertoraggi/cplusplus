@@ -3678,19 +3678,29 @@ void ASTSlot::visit(ElaboratedTypeSpecifierAST* ast) {
       slotKind_ = ASTSlotKind::kNode;
       slotNameIndex_ = SlotNameIndex{138};
       break;
-    case 3:  // unqualifiedId
+    case 3:  // templateLoc
+      value_ = ast->templateLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      slotNameIndex_ = SlotNameIndex{192};
+      break;
+    case 4:  // unqualifiedId
       value_ = reinterpret_cast<std::intptr_t>(ast->unqualifiedId);
       slotKind_ = ASTSlotKind::kNode;
       slotNameIndex_ = SlotNameIndex{213};
       break;
-    case 4:  // classKey
+    case 5:  // classKey
       value_ = std::intptr_t(ast->classKey);
       slotKind_ = ASTSlotKind::kIntAttribute;
       slotNameIndex_ = SlotNameIndex{30};
       break;
+    case 6:  // isTemplateIntroduced
+      value_ = std::intptr_t(ast->isTemplateIntroduced != 0);
+      slotKind_ = ASTSlotKind::kBoolAttribute;
+      slotNameIndex_ = SlotNameIndex{112};
+      break;
   }  // switch
 
-  slotCount_ = 5;
+  slotCount_ = 7;
 }
 
 void ASTSlot::visit(DecltypeAutoSpecifierAST* ast) {

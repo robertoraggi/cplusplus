@@ -3662,6 +3662,8 @@ void ASTEncoder::visit(ElaboratedTypeSpecifierAST* ast) {
   const auto [nestedNameSpecifier, nestedNameSpecifierType] =
       acceptNestedNameSpecifier(ast->nestedNameSpecifier);
 
+  auto templateLoc = encodeSourceLocation(ast->templateLoc);
+
   const auto [unqualifiedId, unqualifiedIdType] =
       acceptUnqualifiedId(ast->unqualifiedId);
 
@@ -3672,6 +3674,7 @@ void ASTEncoder::visit(ElaboratedTypeSpecifierAST* ast) {
   builder.add_nested_name_specifier(nestedNameSpecifier);
   builder.add_nested_name_specifier_type(
       static_cast<io::NestedNameSpecifier>(nestedNameSpecifierType));
+  builder.add_template_loc(templateLoc.o);
   builder.add_unqualified_id(unqualifiedId);
   builder.add_unqualified_id_type(
       static_cast<io::UnqualifiedId>(unqualifiedIdType));

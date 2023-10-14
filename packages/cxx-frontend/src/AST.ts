@@ -7340,11 +7340,18 @@ export class ElaboratedTypeSpecifierAST extends SpecifierAST {
   }
 
   /**
+   * Returns the location of the template token in this node
+   */
+  getTemplateToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
    * Returns the unqualifiedId of this node
    */
   getUnqualifiedId(): UnqualifiedIdAST | undefined {
     return AST.from<UnqualifiedIdAST>(
-      cxx.getASTSlot(this.getHandle(), 3),
+      cxx.getASTSlot(this.getHandle(), 4),
       this.parser,
     );
   }
@@ -7353,7 +7360,14 @@ export class ElaboratedTypeSpecifierAST extends SpecifierAST {
    * Returns the classKey attribute of this node
    */
   getClassKey(): TokenKind {
-    return cxx.getASTSlot(this.getHandle(), 4);
+    return cxx.getASTSlot(this.getHandle(), 5);
+  }
+
+  /**
+   * Returns the isTemplateIntroduced attribute of this node
+   */
+  getIsTemplateIntroduced(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 6) !== 0;
   }
 }
 

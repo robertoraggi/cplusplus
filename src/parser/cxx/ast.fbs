@@ -1425,6 +1425,7 @@ table ElaboratedTypeSpecifier /* SpecifierAST */ {
   unqualified_id: UnqualifiedId;
   class_key: uint32;
   class_loc: SourceLocation;
+  template_loc: SourceLocation;
 }
 
 table DecltypeAutoSpecifier /* SpecifierAST */ {

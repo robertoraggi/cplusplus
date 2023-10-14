@@ -4680,35 +4680,6 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
   }  // switch
 }
 
-auto Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
-                                             DeclSpecs& specs) -> bool {
-  if (specs.typeSpecifier) return false;
-
-  if (!LA().isOneOf(TokenKind::T_ENUM, TokenKind::T_CLASS, TokenKind::T_STRUCT,
-                    TokenKind::T_UNION))
-    return false;
-
-  const auto start = currentLocation();
-
-  if (auto entry = elaborated_type_specifiers_.get(start)) {
-    auto [cursor, ast, parsed, hit] = *entry;
-    rewind(cursor);
-    yyast = ast;
-
-    return parsed;
-  }
-
-  ElaboratedTypeSpecifierAST* ast = nullptr;
-
-  const auto parsed = parse_elaborated_type_specifier_helper(ast, specs);
-
-  yyast = ast;
-
-  elaborated_type_specifiers_.set(start, currentLocation(), ast, parsed);
-
-  return parsed;
-}
-
 auto Parser::maybe_template_name(const Identifier* id) -> bool {
   if (!checkTypes_) return true;
   if (template_names_.contains(id)) return true;
@@ -4753,105 +4724,54 @@ void Parser::check_type_traits() {
   rewind(typeTraitsLoc);
 }
 
-auto Parser::parse_elaborated_type_specifier_helper(
-    ElaboratedTypeSpecifierAST*& yyast, DeclSpecs& specs) -> bool {
-  // ### cleanup
+auto Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
+                                             DeclSpecs& specs) -> bool {
+  if (specs.typeSpecifier) return false;
 
-  if (lookat(TokenKind::T_ENUM)) {
-    return parse_elaborated_enum_specifier(yyast, specs);
+  if (!LA().isOneOf(TokenKind::T_ENUM, TokenKind::T_CLASS, TokenKind::T_STRUCT,
+                    TokenKind::T_UNION))
+    return false;
+
+  const auto start = currentLocation();
+
+  if (auto entry = elaborated_type_specifiers_.get(start)) {
+    auto [cursor, ast, parsed, hit] = *entry;
+    rewind(cursor);
+    yyast = ast;
+
+    return parsed;
   }
 
-  SourceLocation classLoc;
+  ElaboratedTypeSpecifierAST* ast = nullptr;
 
+  const auto parsed = parse_elaborated_type_specifier_helper(ast, specs);
+
+  yyast = ast;
+
+  elaborated_type_specifiers_.set(start, currentLocation(), ast, parsed);
+
+  return parsed;
+}
+
+auto Parser::parse_elaborated_type_specifier_helper(
+    ElaboratedTypeSpecifierAST*& yyast, DeclSpecs& specs) -> bool {
+  if (parse_elaborated_enum_specifier(yyast, specs)) return true;
+
+  SourceLocation classLoc;
   if (!parse_class_key(classLoc)) return false;
 
   List<AttributeSpecifierAST*>* attributes = nullptr;
-
   parse_optional_attribute_specifier_seq(attributes);
 
-  const auto before_nested_name_specifier = currentLocation();
-
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-
-  if (!parse_nested_name_specifier(nestedNameSpecifier)) {
-    rewind(before_nested_name_specifier);
-
-    if (SimpleTemplateIdAST* templateName = nullptr;
-        parse_simple_template_id(templateName)) {
-      auto ast = new (pool_) ElaboratedTypeSpecifierAST();
-      yyast = ast;
-
-      ast->classLoc = classLoc;
-      ast->attributeList = attributes;
-      ast->unqualifiedId = templateName;
-      ast->classKey = unit->tokenKind(classLoc);
-
-      return true;
-    }
-
-    rewind(before_nested_name_specifier);
-
-    check_type_traits();
-
-    SourceLocation identifierLoc;
-
-    if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
-
-    auto id = new (pool_) NameIdAST();
-
-    id->identifierLoc = identifierLoc;
-    id->identifier = unit->identifier(id->identifierLoc);
-
-    auto ast = new (pool_) ElaboratedTypeSpecifierAST();
-    yyast = ast;
-
-    ast->classLoc = classLoc;
-    ast->attributeList = attributes;
-    ast->unqualifiedId = id;
-    ast->classKey = unit->tokenKind(classLoc);
-
-    return true;
-  }
-
-  const auto after_nested_name_specifier = currentLocation();
+  parse_optional_nested_name_specifier(nestedNameSpecifier);
 
   SourceLocation templateLoc;
+  const auto isTemplateIntroduced = match(TokenKind::T_TEMPLATE, templateLoc);
 
-  const bool isTemplateIntroduced = match(TokenKind::T_TEMPLATE, templateLoc);
-
-  if (SimpleTemplateIdAST* templateName = nullptr;
-      parse_simple_template_id(templateName)) {
-    auto ast = new (pool_) ElaboratedTypeSpecifierAST();
-    yyast = ast;
-
-    ast->classLoc = classLoc;
-    ast->attributeList = attributes;
-    ast->nestedNameSpecifier = nestedNameSpecifier;
-    ast->unqualifiedId = templateName;
-    ast->classKey = unit->tokenKind(classLoc);
-
-    return true;
-  }
-
-  if (isTemplateIntroduced) {
-    parse_error("expected a template-id");
-
-    auto ast = new (pool_) ElaboratedTypeSpecifierAST();
-    yyast = ast;
-
-    ast->classLoc = classLoc;
-    ast->attributeList = attributes;
-    ast->nestedNameSpecifier = nestedNameSpecifier;
-    ast->unqualifiedId = nullptr;  // error
-    ast->classKey = unit->tokenKind(classLoc);
-
-    return true;
-  }
-
-  rewind(after_nested_name_specifier);
-
-  NameIdAST* name = nullptr;
-  if (!parse_name_id(name)) return false;
+  UnqualifiedIdAST* unqualifiedId = nullptr;
+  if (!parse_simple_template_or_name_id(unqualifiedId, isTemplateIntroduced))
+    parse_error("expected unqualified id");
 
   auto ast = new (pool_) ElaboratedTypeSpecifierAST();
   yyast = ast;
@@ -4859,8 +4779,10 @@ auto Parser::parse_elaborated_type_specifier_helper(
   ast->classLoc = classLoc;
   ast->attributeList = attributes;
   ast->nestedNameSpecifier = nestedNameSpecifier;
-  ast->unqualifiedId = name;
+  ast->templateLoc = templateLoc;
+  ast->unqualifiedId = unqualifiedId;
   ast->classKey = unit->tokenKind(classLoc);
+  ast->isTemplateIntroduced = isTemplateIntroduced;
 
   return true;
 }
@@ -4868,16 +4790,15 @@ auto Parser::parse_elaborated_type_specifier_helper(
 auto Parser::parse_elaborated_enum_specifier(ElaboratedTypeSpecifierAST*& yyast,
                                              DeclSpecs& specs) -> bool {
   SourceLocation enumLoc;
-
   if (!match(TokenKind::T_ENUM, enumLoc)) return false;
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-
   parse_optional_nested_name_specifier(nestedNameSpecifier);
 
   NameIdAST* name = nullptr;
-
-  if (!parse_name_id(name)) return false;
+  if (!parse_name_id(name)) {
+    parse_error("expected a name");
+  }
 
   auto ast = new (pool_) ElaboratedTypeSpecifierAST();
   yyast = ast;
