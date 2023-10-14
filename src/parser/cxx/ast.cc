@@ -2818,6 +2818,24 @@ auto AlignasAttributeAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto AlignasTypeAttributeAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(alignasLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  return {};
+}
+
+auto AlignasTypeAttributeAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(alignasLoc)) return loc;
+  return {};
+}
+
 auto AsmAttributeAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(asmLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;

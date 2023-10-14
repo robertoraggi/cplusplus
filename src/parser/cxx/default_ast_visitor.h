@@ -251,6 +251,7 @@ class DefaultASTVisitor : public ASTVisitor {
   void visit(CxxAttributeAST* ast) override;
   void visit(GccAttributeAST* ast) override;
   void visit(AlignasAttributeAST* ast) override;
+  void visit(AlignasTypeAttributeAST* ast) override;
   void visit(AsmAttributeAST* ast) override;
 
   // AttributeTokenAST

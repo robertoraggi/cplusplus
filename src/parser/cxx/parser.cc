@@ -6627,6 +6627,39 @@ auto Parser::parse_alignment_specifier(AttributeSpecifierAST*& yyast) -> bool {
   SourceLocation alignasLoc;
   if (!match(TokenKind::T_ALIGNAS, alignasLoc)) return false;
 
+  auto lookat_type_id = [&] {
+    LookaheadParser lookahead{this};
+
+    SourceLocation lparenLoc;
+    if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
+
+    TypeIdAST* typeId = nullptr;
+    if (!parse_type_id(typeId)) return false;
+
+    SourceLocation ellipsisLoc;
+    const auto isPack = match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
+
+    SourceLocation rparenLoc;
+    if (!match(TokenKind::T_RPAREN, rparenLoc)) return false;
+
+    lookahead.commit();
+
+    auto ast = new (pool_) AlignasTypeAttributeAST();
+    yyast = ast;
+
+    ast->alignasLoc = alignasLoc;
+    ast->lparenLoc = lparenLoc;
+    ast->typeId = typeId;
+    ast->ellipsisLoc = ellipsisLoc;
+    ast->rparenLoc = rparenLoc;
+
+    ast->isPack = isPack;
+
+    return true;
+  };
+
+  if (lookat_type_id()) return true;
+
   auto ast = new (pool_) AlignasAttributeAST();
   yyast = ast;
 
@@ -6634,25 +6667,11 @@ auto Parser::parse_alignment_specifier(AttributeSpecifierAST*& yyast) -> bool {
 
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
-  const auto after_lparen = currentLocation();
-
-  TypeIdAST* typeId = nullptr;
-
-  if (parse_type_id(typeId)) {
-    match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
-
-    if (match(TokenKind::T_RPAREN, ast->rparenLoc)) {
-      return true;
-    }
-  }
-
-  rewind(after_lparen);
-
   if (!parse_constant_expression(ast->expression)) {
     parse_error("expected an expression");
   }
 
-  match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
+  ast->isPack = match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 

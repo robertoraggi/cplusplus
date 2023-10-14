@@ -139,8 +139,9 @@ using LambdaCapture =
 using ExceptionDeclaration = std::variant<EllipsisExceptionDeclarationAST*,
                                           TypeExceptionDeclarationAST*>;
 
-using AttributeSpecifier = std::variant<CxxAttributeAST*, GccAttributeAST*,
-                                        AlignasAttributeAST*, AsmAttributeAST*>;
+using AttributeSpecifier =
+    std::variant<CxxAttributeAST*, GccAttributeAST*, AlignasAttributeAST*,
+                 AlignasTypeAttributeAST*, AsmAttributeAST*>;
 
 using AttributeToken =
     std::variant<ScopedAttributeTokenAST*, SimpleAttributeTokenAST*>;

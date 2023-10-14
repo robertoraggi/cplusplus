@@ -790,6 +790,10 @@ void DefaultASTVisitor::visit(AlignasAttributeAST* ast) {
   cxx_runtime_error("visit(AlignasAttributeAST): not implemented");
 }
 
+void DefaultASTVisitor::visit(AlignasTypeAttributeAST* ast) {
+  cxx_runtime_error("visit(AlignasTypeAttributeAST): not implemented");
+}
+
 void DefaultASTVisitor::visit(AsmAttributeAST* ast) {
   cxx_runtime_error("visit(AsmAttributeAST): not implemented");
 }

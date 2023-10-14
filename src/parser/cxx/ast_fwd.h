@@ -299,6 +299,7 @@ class TypeExceptionDeclarationAST;
 class CxxAttributeAST;
 class GccAttributeAST;
 class AlignasAttributeAST;
+class AlignasTypeAttributeAST;
 class AsmAttributeAST;
 
 // AttributeTokenAST

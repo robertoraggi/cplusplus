@@ -5154,9 +5154,51 @@ void ASTSlot::visit(AlignasAttributeAST* ast) {
       slotKind_ = ASTSlotKind::kToken;
       slotNameIndex_ = SlotNameIndex{173};
       break;
+    case 5:  // isPack
+      value_ = std::intptr_t(ast->isPack != 0);
+      slotKind_ = ASTSlotKind::kBoolAttribute;
+      slotNameIndex_ = SlotNameIndex{110};
+      break;
   }  // switch
 
-  slotCount_ = 5;
+  slotCount_ = 6;
+}
+
+void ASTSlot::visit(AlignasTypeAttributeAST* ast) {
+  switch (slot_) {
+    case 0:  // alignasLoc
+      value_ = ast->alignasLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      slotNameIndex_ = SlotNameIndex{3};
+      break;
+    case 1:  // lparenLoc
+      value_ = ast->lparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      slotNameIndex_ = SlotNameIndex{127};
+      break;
+    case 2:  // typeId
+      value_ = reinterpret_cast<std::intptr_t>(ast->typeId);
+      slotKind_ = ASTSlotKind::kNode;
+      slotNameIndex_ = SlotNameIndex{203};
+      break;
+    case 3:  // ellipsisLoc
+      value_ = ast->ellipsisLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      slotNameIndex_ = SlotNameIndex{62};
+      break;
+    case 4:  // rparenLoc
+      value_ = ast->rparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      slotNameIndex_ = SlotNameIndex{173};
+      break;
+    case 5:  // isPack
+      value_ = std::intptr_t(ast->isPack != 0);
+      slotKind_ = ASTSlotKind::kBoolAttribute;
+      slotNameIndex_ = SlotNameIndex{110};
+      break;
+  }  // switch
+
+  slotCount_ = 6;
 }
 
 void ASTSlot::visit(AsmAttributeAST* ast) {

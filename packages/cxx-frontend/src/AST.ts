@@ -10542,6 +10542,76 @@ export class AlignasAttributeAST extends AttributeSpecifierAST {
   getRparenToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
   }
+
+  /**
+   * Returns the isPack attribute of this node
+   */
+  getIsPack(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 5) !== 0;
+  }
+}
+
+/**
+ * AlignasTypeAttributeAST node.
+ */
+export class AlignasTypeAttributeAST extends AttributeSpecifierAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitAlignasTypeAttribute(this, context);
+  }
+
+  /**
+   * Returns the location of the alignas token in this node
+   */
+  getAlignasToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the typeId of this node
+   */
+  getTypeId(): TypeIdAST | undefined {
+    return AST.from<TypeIdAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the ellipsis token in this node
+   */
+  getEllipsisToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  }
+
+  /**
+   * Returns the isPack attribute of this node
+   */
+  getIsPack(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 5) !== 0;
+  }
 }
 
 /**
@@ -12209,6 +12279,7 @@ const AST_CONSTRUCTORS: Array<
   CxxAttributeAST,
   GccAttributeAST,
   AlignasAttributeAST,
+  AlignasTypeAttributeAST,
   AsmAttributeAST,
   ScopedAttributeTokenAST,
   SimpleAttributeTokenAST,

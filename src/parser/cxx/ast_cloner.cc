@@ -3138,6 +3138,25 @@ void ASTCloner::visit(AlignasAttributeAST* ast) {
   copy->ellipsisLoc = ast->ellipsisLoc;
 
   copy->rparenLoc = ast->rparenLoc;
+
+  copy->isPack = ast->isPack;
+}
+
+void ASTCloner::visit(AlignasTypeAttributeAST* ast) {
+  auto copy = new (arena_) AlignasTypeAttributeAST();
+  copy_ = copy;
+
+  copy->alignasLoc = ast->alignasLoc;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->typeId = accept(ast->typeId);
+
+  copy->ellipsisLoc = ast->ellipsisLoc;
+
+  copy->rparenLoc = ast->rparenLoc;
+
+  copy->isPack = ast->isPack;
 }
 
 void ASTCloner::visit(AsmAttributeAST* ast) {

@@ -3337,6 +3337,26 @@ class AlignasAttributeAST final : public AttributeSpecifierAST {
   ExpressionAST* expression = nullptr;
   SourceLocation ellipsisLoc;
   SourceLocation rparenLoc;
+  bool isPack = false;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class AlignasTypeAttributeAST final : public AttributeSpecifierAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::AlignasTypeAttribute;
+
+  AlignasTypeAttributeAST() : AttributeSpecifierAST(Kind) {}
+
+  SourceLocation alignasLoc;
+  SourceLocation lparenLoc;
+  TypeIdAST* typeId = nullptr;
+  SourceLocation ellipsisLoc;
+  SourceLocation rparenLoc;
+  bool isPack = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

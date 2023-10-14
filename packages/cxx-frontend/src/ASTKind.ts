@@ -244,6 +244,7 @@ export enum ASTKind {
   CxxAttribute,
   GccAttribute,
   AlignasAttribute,
+  AlignasTypeAttribute,
   AsmAttribute,
 
   // AttributeTokenAST

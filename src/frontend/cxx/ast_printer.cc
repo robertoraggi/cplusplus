@@ -2004,7 +2004,24 @@ void ASTPrinter::visit(GccAttributeAST* ast) {
 
 void ASTPrinter::visit(AlignasAttributeAST* ast) {
   fmt::print(out_, "{}\n", "alignas-attribute");
+  if (ast->isPack) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "is-pack: {}\n", ast->isPack);
+    --indent_;
+  }
   accept(ast->expression, "expression");
+}
+
+void ASTPrinter::visit(AlignasTypeAttributeAST* ast) {
+  fmt::print(out_, "{}\n", "alignas-type-attribute");
+  if (ast->isPack) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "is-pack: {}\n", ast->isPack);
+    --indent_;
+  }
+  accept(ast->typeId, "type-id");
 }
 
 void ASTPrinter::visit(AsmAttributeAST* ast) {

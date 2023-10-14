@@ -751,6 +751,9 @@ auto ASTDecoder::decodeAttributeSpecifier(const void* ptr,
     case io::AttributeSpecifier_AlignasAttribute:
       return decodeAlignasAttribute(
           reinterpret_cast<const io::AlignasAttribute*>(ptr));
+    case io::AttributeSpecifier_AlignasTypeAttribute:
+      return decodeAlignasTypeAttribute(
+          reinterpret_cast<const io::AlignasTypeAttribute*>(ptr));
     case io::AttributeSpecifier_AsmAttribute:
       return decodeAsmAttribute(reinterpret_cast<const io::AsmAttribute*>(ptr));
     default:
@@ -3359,6 +3362,15 @@ auto ASTDecoder::decodeAlignasAttribute(const io::AlignasAttribute* node)
   auto ast = new (pool_) AlignasAttributeAST();
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  return ast;
+}
+
+auto ASTDecoder::decodeAlignasTypeAttribute(
+    const io::AlignasTypeAttribute* node) -> AlignasTypeAttributeAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) AlignasTypeAttributeAST();
+  ast->typeId = decodeTypeId(node->type_id());
   return ast;
 }
 
