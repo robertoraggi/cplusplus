@@ -249,6 +249,7 @@ enum struct ASTKind {
   CxxAttribute,
   GccAttribute,
   AlignasAttribute,
+  AlignasTypeAttribute,
   AsmAttribute,
 
   // AttributeTokenAST

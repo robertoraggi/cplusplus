@@ -2240,6 +2240,18 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
 
   /**
+   * Visit AlignasTypeAttribute node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitAlignasTypeAttribute(
+    node: ast.AlignasTypeAttributeAST,
+    context: Context,
+  ): Result;
+
+  /**
    * Visit AsmAttribute node.
    *
    * @param node The node to visit.

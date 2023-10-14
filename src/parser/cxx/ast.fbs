@@ -61,6 +61,7 @@ union AttributeSpecifier {
   CxxAttribute,
   GccAttribute,
   AlignasAttribute,
+  AlignasTypeAttribute,
   AsmAttribute,
 }
 
@@ -483,6 +484,14 @@ table GccAttribute /* AttributeSpecifierAST */ {
 
 table AlignasAttribute /* AttributeSpecifierAST */ {
   expression: Expression;
+  alignas_loc: SourceLocation;
+  lparen_loc: SourceLocation;
+  ellipsis_loc: SourceLocation;
+  rparen_loc: SourceLocation;
+}
+
+table AlignasTypeAttribute /* AttributeSpecifierAST */ {
+  type_id: TypeId;
   alignas_loc: SourceLocation;
   lparen_loc: SourceLocation;
   ellipsis_loc: SourceLocation;

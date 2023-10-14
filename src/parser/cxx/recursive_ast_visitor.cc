@@ -1150,6 +1150,10 @@ void RecursiveASTVisitor::visit(AlignasAttributeAST* ast) {
   acceptExpression(ast->expression);
 }
 
+void RecursiveASTVisitor::visit(AlignasTypeAttributeAST* ast) {
+  acceptTypeId(ast->typeId);
+}
+
 void RecursiveASTVisitor::visit(AsmAttributeAST* ast) {}
 
 void RecursiveASTVisitor::visit(ScopedAttributeTokenAST* ast) {}

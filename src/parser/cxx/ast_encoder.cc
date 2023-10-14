@@ -5166,6 +5166,28 @@ void ASTEncoder::visit(AlignasAttributeAST* ast) {
   type_ = io::AttributeSpecifier_AlignasAttribute;
 }
 
+void ASTEncoder::visit(AlignasTypeAttributeAST* ast) {
+  auto alignasLoc = encodeSourceLocation(ast->alignasLoc);
+
+  auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
+
+  const auto typeId = accept(ast->typeId);
+
+  auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
+
+  auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
+
+  io::AlignasTypeAttribute::Builder builder{fbb_};
+  builder.add_alignas_loc(alignasLoc.o);
+  builder.add_lparen_loc(lparenLoc.o);
+  builder.add_type_id(typeId.o);
+  builder.add_ellipsis_loc(ellipsisLoc.o);
+  builder.add_rparen_loc(rparenLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::AttributeSpecifier_AlignasTypeAttribute;
+}
+
 void ASTEncoder::visit(AsmAttributeAST* ast) {
   auto asmLoc = encodeSourceLocation(ast->asmLoc);
 

@@ -557,6 +557,8 @@ auto from(AttributeSpecifierAST* ast) -> std::optional<AttributeSpecifier> {
       return AttributeSpecifier(static_cast<GccAttributeAST*>(ast));
     case AlignasAttributeAST::Kind:
       return AttributeSpecifier(static_cast<AlignasAttributeAST*>(ast));
+    case AlignasTypeAttributeAST::Kind:
+      return AttributeSpecifier(static_cast<AlignasTypeAttributeAST*>(ast));
     case AsmAttributeAST::Kind:
       return AttributeSpecifier(static_cast<AsmAttributeAST*>(ast));
     default:

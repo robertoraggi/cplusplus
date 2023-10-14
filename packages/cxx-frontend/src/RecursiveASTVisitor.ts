@@ -2441,6 +2441,19 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   }
 
   /**
+   * Visit a AlignasTypeAttribute node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitAlignasTypeAttribute(
+    node: ast.AlignasTypeAttributeAST,
+    context: Context,
+  ): void {
+    this.accept(node.getTypeId(), context);
+  }
+
+  /**
    * Visit a AsmAttribute node.
    *
    * @param node The node to visit.
