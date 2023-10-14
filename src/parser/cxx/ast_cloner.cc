@@ -2239,9 +2239,13 @@ void ASTCloner::visit(ElaboratedTypeSpecifierAST* ast) {
 
   copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
 
+  copy->templateLoc = ast->templateLoc;
+
   copy->unqualifiedId = accept(ast->unqualifiedId);
 
   copy->classKey = ast->classKey;
+
+  copy->isTemplateIntroduced = ast->isTemplateIntroduced;
 }
 
 void ASTCloner::visit(DecltypeAutoSpecifierAST* ast) {

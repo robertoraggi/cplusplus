@@ -1408,6 +1408,12 @@ void ASTPrinter::visit(ElaboratedTypeSpecifierAST* ast) {
     fmt::print(out_, "class-key: {}\n", Token::spell(ast->classKey));
     --indent_;
   }
+  if (ast->isTemplateIntroduced) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "is-template-introduced: {}\n", ast->isTemplateIntroduced);
+    --indent_;
+  }
   if (ast->attributeList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
