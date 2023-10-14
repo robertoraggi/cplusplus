@@ -259,22 +259,35 @@ struct Parser::ClassHead {
 };
 
 struct Parser::DeclSpecs {
-  void setTypeSpecifier(SpecifierAST* specifier) {
-#if false
-    if (typeSpecifier) {
-      cxx_runtime_error("type specifier already set");
-    }
-#endif
-    typeSpecifier = specifier;
+  [[nodiscard]] auto hasTypeSpecifier() const -> bool {
+    if (typeSpecifier) return true;
+    if (isShort || isLong) return true;
+    if (isSigned || isUnsigned) return true;
+    return false;
   }
 
-  auto hasClassOrEnumSpecifier() const -> bool {
+  void setTypeSpecifier(SpecifierAST* specifier) { typeSpecifier = specifier; }
+
+  [[nodiscard]] auto hasClassOrEnumSpecifier() const -> bool {
     if (!typeSpecifier) return false;
     switch (typeSpecifier->kind()) {
       case ASTKind::ClassSpecifier:
       case ASTKind::EnumSpecifier:
       case ASTKind::ElaboratedTypeSpecifier:
       case ASTKind::TypenameSpecifier:
+        return true;
+      default:
+        return false;
+    }  // switch
+  }
+
+  [[nodiscard]] auto hasPlaceholderTypeSpecifier() const -> bool {
+    if (!typeSpecifier) return false;
+    switch (typeSpecifier->kind()) {
+      case ASTKind::AutoTypeSpecifier:
+      case ASTKind::DecltypeAutoSpecifier:
+      case ASTKind::PlaceholderTypeSpecifier:
+      case ASTKind::DecltypeSpecifier:
         return true;
       default:
         return false;
@@ -322,21 +335,8 @@ struct Parser::DeclSpecs {
   bool isAuto = false;
   bool isDecltypeAuto = false;
 
-  bool has_simple_typespec = false;
-  bool has_named_typespec = false;
-  bool has_placeholder_typespec = false;
   bool no_typespecs = false;
   bool no_class_or_enum_specs = false;
-
-  [[nodiscard]] auto accepts_simple_typespec() const -> bool {
-    return !(hasClassOrEnumSpecifier() || has_named_typespec ||
-             has_placeholder_typespec);
-  }
-
-  [[nodiscard]] auto has_typespec() const -> bool {
-    return has_simple_typespec || hasClassOrEnumSpecifier() ||
-           has_named_typespec || has_placeholder_typespec;
-  }
 };
 
 struct Parser::Decl {
@@ -3891,7 +3891,7 @@ auto Parser::parse_simple_declaration(
   auto lookat_decl_specifiers = [&] {
     LookaheadParser lookahead{this};
     if (!parse_decl_specifier_seq(declSpecifierList, specs)) return false;
-    if (!specs.has_typespec()) return false;
+    if (!specs.hasTypeSpecifier()) return false;
     lookahead.commit();
     return true;
   };
@@ -4131,11 +4131,9 @@ auto Parser::parse_decl_specifier_seq(List<SpecifierAST*>*& yyast,
   specs.no_typespecs = false;
 
   SpecifierAST* specifier = nullptr;
-
   if (!parse_decl_specifier(specifier, specs)) return false;
 
   List<AttributeSpecifierAST*>* attributes = nullptr;
-
   parse_optional_attribute_specifier_seq(attributes);
 
   *it = new (pool_) List(specifier);
@@ -4145,7 +4143,6 @@ auto Parser::parse_decl_specifier_seq(List<SpecifierAST*>*& yyast,
 
   while (parse_decl_specifier(specifier, specs)) {
     List<AttributeSpecifierAST*>* attributes = nullptr;
-
     parse_optional_attribute_specifier_seq(attributes);
 
     *it = new (pool_) List(specifier);
@@ -4274,18 +4271,19 @@ auto Parser::parse_explicit_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
 
 auto Parser::parse_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     -> bool {
-  if (parse_simple_type_specifier(yyast, specs)) return true;
-
-  if (parse_elaborated_type_specifier(yyast, specs)) return true;
-
-  if (parse_cv_qualifier(yyast, specs)) return true;
-
-  if (parse_typename_specifier(yyast, specs)) {
-    specs.has_named_typespec = true;
+  if (parse_simple_type_specifier(yyast, specs)) {
     return true;
+  } else if (parse_cv_qualifier(yyast, specs)) {
+    return true;
+  } else if (parse_elaborated_type_specifier(yyast, specs)) {
+    specs.setTypeSpecifier(yyast);
+    return true;
+  } else if (parse_typename_specifier(yyast, specs)) {
+    specs.setTypeSpecifier(yyast);
+    return true;
+  } else {
+    return false;
   }
-
-  return false;
 }
 
 auto Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast,
@@ -4295,11 +4293,9 @@ auto Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast,
   specs.no_class_or_enum_specs = true;
 
   SpecifierAST* typeSpecifier = nullptr;
-
   if (!parse_type_specifier(typeSpecifier, specs)) return false;
 
   List<AttributeSpecifierAST*>* attributes = nullptr;
-
   parse_optional_attribute_specifier_seq(attributes);
 
   *it = new (pool_) List(typeSpecifier);
@@ -4322,7 +4318,6 @@ auto Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast,
     }
 
     List<AttributeSpecifierAST*>* attributes = nullptr;
-
     parse_optional_attribute_specifier_seq(attributes);
 
     *it = new (pool_) List(typeSpecifier);
@@ -4334,17 +4329,24 @@ auto Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast,
 
 auto Parser::parse_defining_type_specifier(SpecifierAST*& yyast,
                                            DeclSpecs& specs) -> bool {
-  if (!specs.no_class_or_enum_specs) {
+  if (!specs.no_class_or_enum_specs && !specs.typeSpecifier) {
     LookaheadParser lookahead{this};
 
     if (parse_enum_specifier(yyast, specs)) {
       lookahead.commit();
+
+      specs.setTypeSpecifier(yyast);
+
       return true;
-    } else if (ClassSpecifierAST* classSpecifier = nullptr;
-               parse_class_specifier(classSpecifier, specs)) {
+    }
+
+    if (ClassSpecifierAST* classSpecifier = nullptr;
+        parse_class_specifier(classSpecifier, specs)) {
+      lookahead.commit();
+
+      specs.setTypeSpecifier(classSpecifier);
       yyast = classSpecifier;
 
-      lookahead.commit();
       return true;
     }
   }
@@ -4382,7 +4384,6 @@ auto Parser::parse_defining_type_specifier_seq(List<SpecifierAST*>*& yyast,
     }
 
     List<AttributeSpecifierAST*>* attributes = nullptr;
-
     parse_optional_attribute_specifier_seq(attributes);
 
     *it = new (pool_) List(typeSpecifier);
@@ -4394,28 +4395,95 @@ auto Parser::parse_defining_type_specifier_seq(List<SpecifierAST*>*& yyast,
 
 auto Parser::parse_simple_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     -> bool {
-  if (parse_placeholder_type_specifier_helper(yyast, specs)) return true;
-  if (parse_primitive_type_specifier(yyast, specs)) return true;
-  if (parse_underlying_type_specifier(yyast, specs)) return true;
-  if (parse_atomic_type_specifier(yyast, specs)) return true;
-  if (parse_named_type_specifier(yyast, specs)) return true;
-  if (parse_decltype_specifier_type_specifier(yyast, specs)) return true;
+  if (parse_size_type_specifier(yyast, specs)) return true;
+  if (parse_sign_type_specifier(yyast, specs)) return true;
+
+  if (specs.typeSpecifier) {
+    return false;
+  } else if (parse_primitive_type_specifier(yyast, specs)) {
+    specs.setTypeSpecifier(yyast);
+    return true;
+  } else if (parse_placeholder_type_specifier(yyast, specs)) {
+    specs.setTypeSpecifier(yyast);
+    return true;
+  } else if (parse_underlying_type_specifier(yyast, specs)) {
+    specs.setTypeSpecifier(yyast);
+    return true;
+  } else if (parse_atomic_type_specifier(yyast, specs)) {
+    specs.setTypeSpecifier(yyast);
+    return true;
+  } else if (parse_named_type_specifier(yyast, specs)) {
+    specs.setTypeSpecifier(yyast);
+    return true;
+  } else if (parse_decltype_specifier_type_specifier(yyast, specs)) {
+    specs.setTypeSpecifier(yyast);
+    return true;
+  }
+
+  return false;
+}
+
+auto Parser::parse_size_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
+    -> bool {
+  if (SourceLocation specifierLoc; match(TokenKind::T_LONG, specifierLoc)) {
+    auto ast = new (pool_) SizeTypeSpecifierAST();
+    yyast = ast;
+    ast->specifierLoc = specifierLoc;
+    ast->specifier = unit->tokenKind(specifierLoc);
+
+    if (specs.isLong)
+      specs.isLongLong = true;
+    else
+      specs.isLong = true;
+
+    return true;
+  }
+
+  if (SourceLocation specifierLoc; match(TokenKind::T_SHORT, specifierLoc)) {
+    auto ast = new (pool_) SizeTypeSpecifierAST();
+    yyast = ast;
+    ast->specifierLoc = specifierLoc;
+    ast->specifier = unit->tokenKind(specifierLoc);
+
+    specs.isShort = true;
+
+    return true;
+  }
+
+  return false;
+}
+
+auto Parser::parse_sign_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
+    -> bool {
+  if (SourceLocation specifierLoc; match(TokenKind::T_UNSIGNED, specifierLoc)) {
+    auto ast = new (pool_) SignTypeSpecifierAST();
+    yyast = ast;
+    ast->specifierLoc = specifierLoc;
+    ast->specifier = unit->tokenKind(specifierLoc);
+
+    specs.isUnsigned = true;
+
+    return true;
+  }
+
+  if (SourceLocation specifierLoc; match(TokenKind::T_SIGNED, specifierLoc)) {
+    auto ast = new (pool_) SignTypeSpecifierAST();
+    yyast = ast;
+    ast->specifierLoc = specifierLoc;
+    ast->specifier = unit->tokenKind(specifierLoc);
+
+    specs.isSigned = true;
+
+    return true;
+  }
 
   return false;
 }
 
 auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     -> bool {
-  if (!parse_named_type_specifier_helper(yyast, specs)) return false;
-
-  specs.has_named_typespec = true;
-
-  return true;
-}
-
-auto Parser::parse_named_type_specifier_helper(SpecifierAST*& yyast,
-                                               DeclSpecs& specs) -> bool {
-  if (specs.has_typespec()) return false;
+  if (specs.isUnsigned || specs.isSigned || specs.isShort || specs.isLong)
+    return false;
 
   LookaheadParser lookahead{this};
 
@@ -4451,40 +4519,22 @@ auto Parser::parse_named_type_specifier_helper(SpecifierAST*& yyast,
   return true;
 }
 
-auto Parser::parse_placeholder_type_specifier_helper(SpecifierAST*& yyast,
-                                                     DeclSpecs& specs) -> bool {
-  if (specs.has_typespec()) return false;
-
-  if (!parse_placeholder_type_specifier(yyast, specs)) return false;
-
-  specs.has_placeholder_typespec = true;
-
-  return true;
-}
-
 auto Parser::parse_decltype_specifier_type_specifier(SpecifierAST*& yyast,
                                                      DeclSpecs& specs) -> bool {
-  if (specs.has_typespec()) return false;
-
   DecltypeSpecifierAST* decltypeSpecifier = nullptr;
   if (!parse_decltype_specifier(decltypeSpecifier)) return false;
 
-  yyast = decltypeSpecifier;
+  specs.setTypeSpecifier(decltypeSpecifier);
 
-  specs.has_placeholder_typespec = true;
+  yyast = decltypeSpecifier;
 
   return true;
 }
 
 auto Parser::parse_underlying_type_specifier(SpecifierAST*& yyast,
                                              DeclSpecs& specs) -> bool {
-  if (specs.has_typespec()) return false;
-
   SourceLocation underlyingTypeLoc;
-
   if (!match(TokenKind::T___UNDERLYING_TYPE, underlyingTypeLoc)) return false;
-
-  specs.has_named_typespec = true;
 
   auto ast = new (pool_) UnderlyingTypeSpecifierAST();
   yyast = ast;
@@ -4502,10 +4552,7 @@ auto Parser::parse_underlying_type_specifier(SpecifierAST*& yyast,
 
 auto Parser::parse_atomic_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     -> bool {
-  if (!specs.accepts_simple_typespec()) return false;
-
   SourceLocation atomicLoc;
-
   if (!match(TokenKind::T__ATOMIC, atomicLoc)) return false;
 
   auto ast = new (pool_) AtomicTypeSpecifierAST();
@@ -4519,22 +4566,16 @@ auto Parser::parse_atomic_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
-  specs.has_simple_typespec = true;
-
   return true;
 }
 
 auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
                                             DeclSpecs& specs) -> bool {
-  if (!specs.accepts_simple_typespec()) return false;
-
   auto makeIntegralTypeSpecifier = [&] {
     auto ast = new (pool_) IntegralTypeSpecifierAST();
     yyast = ast;
     ast->specifierLoc = consumeToken();
     ast->specifier = unit->tokenKind(ast->specifierLoc);
-    specs.setTypeSpecifier(ast);
-    specs.has_simple_typespec = true;
   };
 
   auto makeFloatingPointTypeSpecifier = [&] {
@@ -4542,24 +4583,6 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
     yyast = ast;
     ast->specifierLoc = consumeToken();
     ast->specifier = unit->tokenKind(ast->specifierLoc);
-    specs.setTypeSpecifier(ast);
-    specs.has_simple_typespec = true;
-  };
-
-  auto makeSizedTypeSpecifer = [&] {
-    auto ast = new (pool_) SizeTypeSpecifierAST();
-    yyast = ast;
-    ast->specifierLoc = consumeToken();
-    ast->specifier = unit->tokenKind(ast->specifierLoc);
-    specs.has_simple_typespec = true;
-  };
-
-  auto makeSignTypeSpecifier = [&] {
-    auto ast = new (pool_) SignTypeSpecifierAST();
-    yyast = ast;
-    ast->specifierLoc = consumeToken();
-    ast->specifier = unit->tokenKind(ast->specifierLoc);
-    specs.has_simple_typespec = true;
   };
 
   switch (auto tk = LA(); tk.kind()) {
@@ -4568,7 +4591,7 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
       yyast = ast;
       ast->specifierLoc = consumeToken();
       ast->specifier = unit->tokenKind(ast->specifierLoc);
-      specs.has_simple_typespec = true;
+
       return true;
     };
 
@@ -4615,31 +4638,6 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
       makeIntegralTypeSpecifier();
       return true;
 
-    case TokenKind::T_SHORT:
-      makeSizedTypeSpecifer();
-      specs.isShort = true;
-      return true;
-
-    case TokenKind::T_LONG:
-      makeSizedTypeSpecifer();
-      if (specs.isLong) {
-        specs.isLongLong = true;
-        specs.isLong = false;
-      } else {
-        specs.isLong = true;
-      }
-      return true;
-
-    case TokenKind::T_SIGNED:
-      makeSignTypeSpecifier();
-      specs.isSigned = true;
-      return true;
-
-    case TokenKind::T_UNSIGNED:
-      makeSignTypeSpecifier();
-      specs.isUnsigned = true;
-      return true;
-
     case TokenKind::T_FLOAT:
       makeFloatingPointTypeSpecifier();
       specs.type = control_->getFloatType();
@@ -4662,9 +4660,8 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
       auto ast = new (pool_) VoidTypeSpecifierAST();
       yyast = ast;
       ast->voidLoc = consumeToken();
-      specs.has_simple_typespec = true;
       specs.type = control_->getVoidType();
-      specs.setTypeSpecifier(ast);
+
       return true;
     }
 
@@ -4673,9 +4670,8 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
       auto ast = new (pool_) ComplexTypeSpecifierAST();
       yyast = ast;
       ast->complexLoc = consumeToken();
-      specs.has_simple_typespec = true;
       specs.isComplex = true;
-      specs.setTypeSpecifier(ast);
+
       return true;
     }
 
@@ -4686,6 +4682,8 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
 
 auto Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
                                              DeclSpecs& specs) -> bool {
+  if (specs.typeSpecifier) return false;
+
   if (!LA().isOneOf(TokenKind::T_ENUM, TokenKind::T_CLASS, TokenKind::T_STRUCT,
                     TokenKind::T_UNION))
     return false;
@@ -4696,7 +4694,7 @@ auto Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
     auto [cursor, ast, parsed, hit] = *entry;
     rewind(cursor);
     yyast = ast;
-    specs.setTypeSpecifier(ast);
+
     return parsed;
   }
 
@@ -4783,8 +4781,6 @@ auto Parser::parse_elaborated_type_specifier_helper(
       auto ast = new (pool_) ElaboratedTypeSpecifierAST();
       yyast = ast;
 
-      specs.setTypeSpecifier(ast);
-
       ast->classLoc = classLoc;
       ast->attributeList = attributes;
       ast->unqualifiedId = templateName;
@@ -4809,8 +4805,6 @@ auto Parser::parse_elaborated_type_specifier_helper(
     auto ast = new (pool_) ElaboratedTypeSpecifierAST();
     yyast = ast;
 
-    specs.setTypeSpecifier(ast);
-
     ast->classLoc = classLoc;
     ast->attributeList = attributes;
     ast->unqualifiedId = id;
@@ -4830,8 +4824,6 @@ auto Parser::parse_elaborated_type_specifier_helper(
     auto ast = new (pool_) ElaboratedTypeSpecifierAST();
     yyast = ast;
 
-    specs.setTypeSpecifier(ast);
-
     ast->classLoc = classLoc;
     ast->attributeList = attributes;
     ast->nestedNameSpecifier = nestedNameSpecifier;
@@ -4846,8 +4838,6 @@ auto Parser::parse_elaborated_type_specifier_helper(
 
     auto ast = new (pool_) ElaboratedTypeSpecifierAST();
     yyast = ast;
-
-    specs.setTypeSpecifier(ast);
 
     ast->classLoc = classLoc;
     ast->attributeList = attributes;
@@ -4865,8 +4855,6 @@ auto Parser::parse_elaborated_type_specifier_helper(
 
   auto ast = new (pool_) ElaboratedTypeSpecifierAST();
   yyast = ast;
-
-  specs.setTypeSpecifier(ast);
 
   ast->classLoc = classLoc;
   ast->attributeList = attributes;
@@ -4893,8 +4881,6 @@ auto Parser::parse_elaborated_enum_specifier(ElaboratedTypeSpecifierAST*& yyast,
 
   auto ast = new (pool_) ElaboratedTypeSpecifierAST();
   yyast = ast;
-
-  specs.setTypeSpecifier(ast);
 
   ast->classLoc = enumLoc;
   ast->nestedNameSpecifier = nestedNameSpecifier;
@@ -4956,9 +4942,7 @@ auto Parser::parse_placeholder_type_specifier(SpecifierAST*& yyast,
 
   if (!lookat_placeholder_type_specifier()) return false;
 
-  SourceLocation autoLoc;
-
-  if (match(TokenKind::T_AUTO, autoLoc)) {
+  if (SourceLocation autoLoc; match(TokenKind::T_AUTO, autoLoc)) {
     auto ast = new (pool_) AutoTypeSpecifierAST();
     yyast = ast;
     ast->autoLoc = autoLoc;
@@ -4978,8 +4962,10 @@ auto Parser::parse_placeholder_type_specifier(SpecifierAST*& yyast,
 
   if (typeConstraint) {
     auto ast = new (pool_) PlaceholderTypeSpecifierAST();
+
     ast->typeConstraint = typeConstraint;
     ast->specifier = yyast;
+
     yyast = ast;
   }
 
@@ -5888,8 +5874,6 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
 
   auto ast = new (pool_) EnumSpecifierAST();
   yyast = ast;
-
-  specs.setTypeSpecifier(ast);
 
   ast->enumLoc = enumLoc;
   ast->classLoc = classLoc;
@@ -7091,7 +7075,7 @@ auto Parser::parse_class_specifier(
     auto [cursor, ast, parsed, hit] = *entry;
     rewind(cursor);
     yyast = ast;
-    specs.setTypeSpecifier(ast);
+
     return parsed;
   }
 
@@ -7124,8 +7108,6 @@ auto Parser::parse_class_specifier(
 
   auto ast = new (pool_) ClassSpecifierAST();
   yyast = ast;
-
-  specs.setTypeSpecifier(ast);
 
   ast->classLoc = classHead.classLoc;
   ast->attributeList = classHead.attributeList;
@@ -7324,7 +7306,7 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
 
   after_decl_specs = currentLocation();
 
-  if (!specs.has_typespec()) return false;
+  if (!specs.hasTypeSpecifier()) return false;
 
   SourceLocation semicolonLoc;
 
@@ -8694,6 +8676,8 @@ auto Parser::parse_concept_definition(DeclarationAST*& yyast) -> bool {
 
 auto Parser::parse_typename_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     -> bool {
+  if (specs.typeSpecifier) return false;
+
   SourceLocation typenameLoc;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   SourceLocation templateLoc;
@@ -8718,8 +8702,6 @@ auto Parser::parse_typename_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
 
   auto ast = new (pool_) TypenameSpecifierAST();
   yyast = ast;
-
-  specs.setTypeSpecifier(ast);
 
   ast->typenameLoc = typenameLoc;
   ast->nestedNameSpecifier = nestedNameSpecifier;
