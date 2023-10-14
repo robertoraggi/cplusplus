@@ -259,7 +259,30 @@ struct Parser::ClassHead {
 };
 
 struct Parser::DeclSpecs {
+  void setTypeSpecifier(SpecifierAST* specifier) {
+#if false
+    if (typeSpecifier) {
+      cxx_runtime_error("type specifier already set");
+    }
+#endif
+    typeSpecifier = specifier;
+  }
+
+  auto hasClassOrEnumSpecifier() const -> bool {
+    if (!typeSpecifier) return false;
+    switch (typeSpecifier->kind()) {
+      case ASTKind::ClassSpecifier:
+      case ASTKind::EnumSpecifier:
+      case ASTKind::ElaboratedTypeSpecifier:
+      case ASTKind::TypenameSpecifier:
+        return true;
+      default:
+        return false;
+    }  // switch
+  }
+
   const Type* type = nullptr;
+  SpecifierAST* typeSpecifier = nullptr;
 
   bool isTypedef = false;
   bool isFriend = false;
@@ -300,20 +323,19 @@ struct Parser::DeclSpecs {
   bool isDecltypeAuto = false;
 
   bool has_simple_typespec = false;
-  bool has_complex_typespec = false;
   bool has_named_typespec = false;
   bool has_placeholder_typespec = false;
   bool no_typespecs = false;
   bool no_class_or_enum_specs = false;
 
   [[nodiscard]] auto accepts_simple_typespec() const -> bool {
-    return !(has_complex_typespec || has_named_typespec ||
+    return !(hasClassOrEnumSpecifier() || has_named_typespec ||
              has_placeholder_typespec);
   }
 
   [[nodiscard]] auto has_typespec() const -> bool {
-    return has_simple_typespec || has_complex_typespec || has_named_typespec ||
-           has_placeholder_typespec;
+    return has_simple_typespec || hasClassOrEnumSpecifier() ||
+           has_named_typespec || has_placeholder_typespec;
   }
 };
 
@@ -1913,7 +1935,8 @@ auto Parser::parse_typename_expression(ExpressionAST*& yyast) -> bool {
   LookaheadParser lookahead{this};
 
   SpecifierAST* typenameSpecifier = nullptr;
-  if (!parse_typename_specifier(typenameSpecifier)) return false;
+  DeclSpecs specs;
+  if (!parse_typename_specifier(typenameSpecifier, specs)) return false;
 
   if (BracedInitListAST* bracedInitList = nullptr;
       parse_braced_init_list(bracedInitList)) {
@@ -3598,7 +3621,8 @@ auto Parser::parse_template_class_declaration(
   if (ctx != BindingContext::kTemplate) return false;
 
   ClassSpecifierAST* classSpecifier = nullptr;
-  if (!parse_class_specifier(classSpecifier, templateDeclarations))
+  DeclSpecs specs;
+  if (!parse_class_specifier(classSpecifier, specs, templateDeclarations))
     return false;
 
   lookahead.commit();
@@ -3676,7 +3700,7 @@ auto Parser::parse_type_or_forward_declaration(
     BindingContext ctx) -> bool {
   LookaheadParser lookahead{this};
 
-  if (!specs.has_complex_typespec) return false;
+  if (!specs.hasClassOrEnumSpecifier()) return false;
 
   SourceLocation semicolonLoc;
   if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return false;
@@ -4256,7 +4280,7 @@ auto Parser::parse_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
 
   if (parse_cv_qualifier(yyast, specs)) return true;
 
-  if (parse_typename_specifier(yyast)) {
+  if (parse_typename_specifier(yyast, specs)) {
     specs.has_named_typespec = true;
     return true;
   }
@@ -4313,15 +4337,12 @@ auto Parser::parse_defining_type_specifier(SpecifierAST*& yyast,
   if (!specs.no_class_or_enum_specs) {
     LookaheadParser lookahead{this};
 
-    if (parse_enum_specifier(yyast)) {
-      specs.has_complex_typespec = true;
-
+    if (parse_enum_specifier(yyast, specs)) {
       lookahead.commit();
       return true;
     } else if (ClassSpecifierAST* classSpecifier = nullptr;
-               parse_class_specifier(classSpecifier)) {
+               parse_class_specifier(classSpecifier, specs)) {
       yyast = classSpecifier;
-      specs.has_complex_typespec = true;
 
       lookahead.commit();
       return true;
@@ -4512,6 +4533,7 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
     yyast = ast;
     ast->specifierLoc = consumeToken();
     ast->specifier = unit->tokenKind(ast->specifierLoc);
+    specs.setTypeSpecifier(ast);
     specs.has_simple_typespec = true;
   };
 
@@ -4520,6 +4542,7 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
     yyast = ast;
     ast->specifierLoc = consumeToken();
     ast->specifier = unit->tokenKind(ast->specifierLoc);
+    specs.setTypeSpecifier(ast);
     specs.has_simple_typespec = true;
   };
 
@@ -4641,6 +4664,7 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
       ast->voidLoc = consumeToken();
       specs.has_simple_typespec = true;
       specs.type = control_->getVoidType();
+      specs.setTypeSpecifier(ast);
       return true;
     }
 
@@ -4651,6 +4675,7 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
       ast->complexLoc = consumeToken();
       specs.has_simple_typespec = true;
       specs.isComplex = true;
+      specs.setTypeSpecifier(ast);
       return true;
     }
 
@@ -4671,7 +4696,7 @@ auto Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
     auto [cursor, ast, parsed, hit] = *entry;
     rewind(cursor);
     yyast = ast;
-    if (parsed) specs.has_complex_typespec = true;
+    specs.setTypeSpecifier(ast);
     return parsed;
   }
 
@@ -4755,10 +4780,10 @@ auto Parser::parse_elaborated_type_specifier_helper(
 
     if (SimpleTemplateIdAST* templateName = nullptr;
         parse_simple_template_id(templateName)) {
-      specs.has_complex_typespec = true;
-
       auto ast = new (pool_) ElaboratedTypeSpecifierAST();
       yyast = ast;
+
+      specs.setTypeSpecifier(ast);
 
       ast->classLoc = classLoc;
       ast->attributeList = attributes;
@@ -4781,10 +4806,10 @@ auto Parser::parse_elaborated_type_specifier_helper(
     id->identifierLoc = identifierLoc;
     id->identifier = unit->identifier(id->identifierLoc);
 
-    specs.has_complex_typespec = true;
-
     auto ast = new (pool_) ElaboratedTypeSpecifierAST();
     yyast = ast;
+
+    specs.setTypeSpecifier(ast);
 
     ast->classLoc = classLoc;
     ast->attributeList = attributes;
@@ -4802,10 +4827,10 @@ auto Parser::parse_elaborated_type_specifier_helper(
 
   if (SimpleTemplateIdAST* templateName = nullptr;
       parse_simple_template_id(templateName)) {
-    specs.has_complex_typespec = true;
-
     auto ast = new (pool_) ElaboratedTypeSpecifierAST();
     yyast = ast;
+
+    specs.setTypeSpecifier(ast);
 
     ast->classLoc = classLoc;
     ast->attributeList = attributes;
@@ -4818,10 +4843,11 @@ auto Parser::parse_elaborated_type_specifier_helper(
 
   if (isTemplateIntroduced) {
     parse_error("expected a template-id");
-    specs.has_complex_typespec = true;
 
     auto ast = new (pool_) ElaboratedTypeSpecifierAST();
     yyast = ast;
+
+    specs.setTypeSpecifier(ast);
 
     ast->classLoc = classLoc;
     ast->attributeList = attributes;
@@ -4837,10 +4863,10 @@ auto Parser::parse_elaborated_type_specifier_helper(
   NameIdAST* name = nullptr;
   if (!parse_name_id(name)) return false;
 
-  specs.has_complex_typespec = true;
-
   auto ast = new (pool_) ElaboratedTypeSpecifierAST();
   yyast = ast;
+
+  specs.setTypeSpecifier(ast);
 
   ast->classLoc = classLoc;
   ast->attributeList = attributes;
@@ -4865,10 +4891,10 @@ auto Parser::parse_elaborated_enum_specifier(ElaboratedTypeSpecifierAST*& yyast,
 
   if (!parse_name_id(name)) return false;
 
-  specs.has_complex_typespec = true;
-
   auto ast = new (pool_) ElaboratedTypeSpecifierAST();
   yyast = ast;
+
+  specs.setTypeSpecifier(ast);
 
   ast->classLoc = enumLoc;
   ast->nestedNameSpecifier = nestedNameSpecifier;
@@ -5829,7 +5855,8 @@ auto Parser::parse_function_body(FunctionBodyAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_enum_specifier(SpecifierAST*& yyast) -> bool {
+auto Parser::parse_enum_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
+    -> bool {
   LookaheadParser lookahead{this};
 
   SourceLocation enumLoc;
@@ -5861,6 +5888,8 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast) -> bool {
 
   auto ast = new (pool_) EnumSpecifierAST();
   yyast = ast;
+
+  specs.setTypeSpecifier(ast);
 
   ast->enumLoc = enumLoc;
   ast->classLoc = classLoc;
@@ -7043,13 +7072,14 @@ void Parser::parse_private_module_fragment(PrivateModuleFragmentAST*& yyast) {
   parse_declaration_seq(yyast->declarationList);
 }
 
-auto Parser::parse_class_specifier(ClassSpecifierAST*& yyast) -> bool {
+auto Parser::parse_class_specifier(ClassSpecifierAST*& yyast, DeclSpecs& specs)
+    -> bool {
   std::vector<TemplateDeclarationAST*> templateDeclarations;
-  return parse_class_specifier(yyast, templateDeclarations);
+  return parse_class_specifier(yyast, specs, templateDeclarations);
 }
 
 auto Parser::parse_class_specifier(
-    ClassSpecifierAST*& yyast,
+    ClassSpecifierAST*& yyast, DeclSpecs& specs,
     const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool {
   if (!LA().isOneOf(TokenKind::T_CLASS, TokenKind::T_STRUCT,
                     TokenKind::T_UNION))
@@ -7061,6 +7091,7 @@ auto Parser::parse_class_specifier(
     auto [cursor, ast, parsed, hit] = *entry;
     rewind(cursor);
     yyast = ast;
+    specs.setTypeSpecifier(ast);
     return parsed;
   }
 
@@ -7093,6 +7124,8 @@ auto Parser::parse_class_specifier(
 
   auto ast = new (pool_) ClassSpecifierAST();
   yyast = ast;
+
+  specs.setTypeSpecifier(ast);
 
   ast->classLoc = classHead.classLoc;
   ast->attributeList = classHead.attributeList;
@@ -8659,7 +8692,8 @@ auto Parser::parse_concept_definition(DeclarationAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_typename_specifier(SpecifierAST*& yyast) -> bool {
+auto Parser::parse_typename_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
+    -> bool {
   SourceLocation typenameLoc;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   SourceLocation templateLoc;
@@ -8684,6 +8718,8 @@ auto Parser::parse_typename_specifier(SpecifierAST*& yyast) -> bool {
 
   auto ast = new (pool_) TypenameSpecifierAST();
   yyast = ast;
+
+  specs.setTypeSpecifier(ast);
 
   ast->typenameLoc = typenameLoc;
   ast->nestedNameSpecifier = nestedNameSpecifier;

@@ -491,7 +491,8 @@ class Parser final {
   void parse_virt_specifier_seq(FunctionDeclaratorChunkAST* functionDeclarator);
   auto lookat_function_body() -> bool;
   [[nodiscard]] auto parse_function_body(FunctionBodyAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_enum_specifier(SpecifierAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_enum_specifier(SpecifierAST*& yyast,
+                                          DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_enum_head_name(
       NestedNameSpecifierAST*& nestedNameSpecifier, NameIdAST*& name) -> bool;
   [[nodiscard]] auto parse_opaque_enum_declaration(DeclarationAST*& yyast)
@@ -558,9 +559,10 @@ class Parser final {
   [[nodiscard]] auto parse_import_name(ImportNameAST*& yyast) -> bool;
   void parse_global_module_fragment(GlobalModuleFragmentAST*& yyast);
   void parse_private_module_fragment(PrivateModuleFragmentAST*& yyast);
-  [[nodiscard]] auto parse_class_specifier(ClassSpecifierAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_class_specifier(ClassSpecifierAST*& yyast,
+                                           DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_class_specifier(
-      ClassSpecifierAST*& yyast,
+      ClassSpecifierAST*& yyast, DeclSpecs& specs,
       const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool;
   void parse_class_body(List<DeclarationAST*>*& yyast);
   [[nodiscard]] auto parse_class_head(ClassHead& classHead) -> bool;
@@ -654,7 +656,8 @@ class Parser final {
   [[nodiscard]] auto parse_constraint_expression(ExpressionAST*& yyast) -> bool;
   [[nodiscard]] auto parse_deduction_guide(DeclarationAST*& yyast) -> bool;
   [[nodiscard]] auto parse_concept_definition(DeclarationAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_typename_specifier(SpecifierAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_typename_specifier(SpecifierAST*& yyast,
+                                              DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_explicit_instantiation(DeclarationAST*& yyast)
       -> bool;
   [[nodiscard]] auto parse_try_block(StatementAST*& yyast) -> bool;
