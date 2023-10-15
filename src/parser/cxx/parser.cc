@@ -581,6 +581,8 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
       ast->literal =
           static_cast<const CharLiteral*>(unit->literal(ast->literalLoc));
 
+      ast->constValue = ast->literal->charValue();
+
       return true;
     }
 
@@ -593,6 +595,7 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
 
       ast->literalLoc = consumeToken();
       ast->isTrue = isTrue;
+      ast->constValue = isTrue;
 
       return true;
     }
@@ -604,6 +607,7 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
       ast->literalLoc = consumeToken();
       ast->literal =
           static_cast<const IntegerLiteral*>(unit->literal(ast->literalLoc));
+      ast->constValue = ast->literal->integerValue();
 
       return true;
     }
@@ -615,6 +619,7 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
       ast->literalLoc = consumeToken();
       ast->literal =
           static_cast<const FloatLiteral*>(unit->literal(ast->literalLoc));
+      ast->constValue = ast->literal->floatValue();
 
       return true;
     }
@@ -625,6 +630,7 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
 
       ast->literalLoc = consumeToken();
       ast->literal = unit->tokenKind(ast->literalLoc);
+      ast->constValue = std::uint64_t(0);
 
       return true;
     }
@@ -651,7 +657,12 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
       yyast = ast;
 
       ast->literalLoc = literalLoc;
-      ast->literal = unit->literal(literalLoc);
+      ast->literal =
+          static_cast<const StringLiteral*>(unit->literal(literalLoc));
+
+      if (unit->tokenKind(literalLoc) == TokenKind::T_STRING_LITERAL) {
+        ast->constValue = ast->literal;
+      }
 
       return true;
     }

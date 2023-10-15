@@ -1660,6 +1660,9 @@ auto ASTDecoder::decodeStringLiteralExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) StringLiteralExpressionAST();
+  if (node->literal()) {
+    ast->literal = unit_->control()->stringLiteral(node->literal()->str());
+  }
   return ast;
 }
 

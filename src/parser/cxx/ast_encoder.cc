@@ -2085,8 +2085,21 @@ void ASTEncoder::visit(NullptrLiteralExpressionAST* ast) {
 void ASTEncoder::visit(StringLiteralExpressionAST* ast) {
   auto literalLoc = encodeSourceLocation(ast->literalLoc);
 
+  flatbuffers::Offset<flatbuffers::String> literal;
+  if (ast->literal) {
+    if (stringLiterals_.contains(ast->literal)) {
+      literal = stringLiterals_.at(ast->literal);
+    } else {
+      literal = fbb_.CreateString(ast->literal->value());
+      stringLiterals_.emplace(ast->literal, literal);
+    }
+  }
+
   io::StringLiteralExpression::Builder builder{fbb_};
   builder.add_literal_loc(literalLoc.o);
+  if (ast->literal) {
+    builder.add_literal(literal);
+  }
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_StringLiteralExpression;

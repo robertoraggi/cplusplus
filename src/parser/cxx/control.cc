@@ -206,7 +206,9 @@ auto Control::stringLiteral(std::string_view spelling) -> const StringLiteral* {
 }
 
 auto Control::charLiteral(std::string_view spelling) -> const CharLiteral* {
-  return &*d->charLiterals.emplace(std::string(spelling)).first;
+  auto [it, inserted] = d->charLiterals.emplace(std::string(spelling));
+  if (inserted) it->initialize();
+  return &*it;
 }
 
 auto Control::wideStringLiteral(std::string_view spelling)
