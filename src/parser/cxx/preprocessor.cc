@@ -1731,7 +1731,7 @@ auto Preprocessor::Private::unaryExpression(const TokList *&ts) -> long {
 auto Preprocessor::Private::primaryExpression(const TokList *&ts) -> long {
   const auto tk = ts->head;
   if (match(ts, TokenKind::T_INTEGER_LITERAL)) {
-    return IntegerLiteral::interpretText(tk->text.data());
+    return IntegerLiteral::Components::from(tk->text.data()).value;
   }
   if (match(ts, TokenKind::T_LPAREN)) {
     auto result = conditionalExpression(ts);

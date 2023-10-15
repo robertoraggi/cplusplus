@@ -188,7 +188,9 @@ Control::~Control() = default;
 
 auto Control::integerLiteral(std::string_view spelling)
     -> const IntegerLiteral* {
-  return &*d->integerLiterals.emplace(std::string(spelling)).first;
+  auto [it, inserted] = d->integerLiterals.emplace(std::string(spelling));
+  if (inserted) it->initialize();
+  return &*it;
 }
 
 auto Control::floatLiteral(std::string_view spelling) -> const FloatLiteral* {

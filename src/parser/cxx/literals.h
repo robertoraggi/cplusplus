@@ -25,6 +25,8 @@
 
 namespace cxx {
 
+class DiagnosticsClient;
+
 class Literal {
  public:
   explicit Literal(std::string value) : value_(std::move(value)) {}
@@ -40,16 +42,40 @@ class Literal {
 
 class IntegerLiteral final : public Literal {
  public:
+  enum struct Radix {
+    kDecimal,
+    kHexadecimal,
+    kOctal,
+    kBinary,
+  };
+
+  struct Components {
+    std::uint64_t value;
+    std::string_view integerPart;
+    std::string_view userSuffix;
+    Radix radix = Radix::kDecimal;
+    bool isUnsigned = false;
+    bool isLongLong = false;
+    bool isLong = false;
+    bool hasSizeSuffix = false;
+
+    static auto from(std::string_view text,
+                     DiagnosticsClient* diagnostics = nullptr) -> Components;
+  };
+
   explicit IntegerLiteral(std::string text);
 
   [[nodiscard]] auto integerValue() const -> std::uint64_t {
-    return integerValue_;
+    return components_.value;
   }
 
-  static auto interpretText(std::string_view text) -> std::uint64_t;
+  [[nodiscard]] auto components() const { return components_; }
+
+  void initialize() const;
 
  private:
   std::uint64_t integerValue_ = 0;
+  mutable Components components_;
 };
 
 class FloatLiteral final : public Literal {
