@@ -1177,7 +1177,7 @@ class StringLiteralExpressionAST final : public ExpressionAST {
   StringLiteralExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation literalLoc;
-  const Literal* literal = nullptr;
+  const StringLiteral* literal = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

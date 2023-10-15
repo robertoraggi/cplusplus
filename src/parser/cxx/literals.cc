@@ -30,6 +30,192 @@ namespace cxx {
 
 namespace {
 
+template <typename String>
+struct StringLiteralParser {
+  std::string_view text;
+  DiagnosticsClient *diagnostics;
+  String value;
+  int pos = 0;
+
+  explicit StringLiteralParser(std::string_view text,
+                               DiagnosticsClient *diagnostics)
+      : text(text), diagnostics(diagnostics) {}
+
+  [[nodiscard]] auto LA(int n = 0) -> int {
+    auto p = pos + n;
+    if (p < 0 || p >= text.size()) return 0;
+    return text[pos + n];
+  }
+
+  void consume(int n = 1) { pos += n; }
+
+  [[nodiscard]] auto isOctDigit(int ch) -> bool {
+    return ch >= '0' && ch <= '7';
+  }
+
+  [[nodiscard]] auto isHexDigit(int ch) -> bool {
+    return (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') ||
+           (ch >= 'A' && ch <= 'F');
+  }
+
+  [[nodiscard]] auto hexDigitValue(int hexDigit) -> int {
+    if (hexDigit >= '0' && hexDigit <= '9') {
+      return hexDigit - '0';
+    } else if (hexDigit >= 'a' && hexDigit <= 'f') {
+      return hexDigit - 'a' + 10;
+    } else if (hexDigit >= 'A' && hexDigit <= 'F') {
+      return hexDigit - 'A' + 10;
+    } else {
+      cxx_runtime_error("invalid hex digit");
+      return 0;
+    }
+  }
+
+  [[nodiscard]] auto octDigitValue(int octDigit) -> int {
+    return octDigit - '0';
+  }
+
+  void parseSimpleHexadecimalEscapeSequence() {
+    int x = 0;
+    while (isHexDigit(LA())) {
+      x = x * 16 + hexDigitValue(LA());
+      consume();
+    }
+    value += static_cast<char>(x);
+  }
+
+  [[nodiscard]] auto parseHexadecimalEscapeSequence() -> bool {
+    if (LA() != 'x') return false;
+    consume();
+    parseSimpleHexadecimalEscapeSequence();
+    return true;
+  }
+
+  [[nodiscard]] auto parseOctalEscapeSequence() -> bool {
+    if (!isOctDigit(LA())) return false;
+    int x = octDigitValue(LA());
+    consume();
+    if (isOctDigit(LA())) {
+      x = x * 8 + octDigitValue(LA());
+      consume();
+      if (isOctDigit(LA())) {
+        x = x * 8 + octDigitValue(LA());
+        consume();
+      }
+    }
+    value += static_cast<char>(x);
+    return true;
+  }
+
+  [[nodiscard]] auto parseNumericEscapeSequence() -> bool {
+    return parseHexadecimalEscapeSequence() || parseOctalEscapeSequence();
+  }
+
+  [[nodiscard]] auto parseSimpleEscapeSequence() -> bool {
+    switch (LA()) {
+      case '\'':
+        value += '\'';
+        consume();
+        return true;
+      case '"':
+        value += '"';
+        consume();
+        return true;
+      case '?':
+        value += '?';
+        consume();
+        return true;
+      case '\\':
+        value += '\\';
+        consume();
+        return true;
+      case 'a':
+        value += '\a';
+        consume();
+        return true;
+      case 'b':
+        value += '\b';
+        consume();
+        return true;
+      case 'f':
+        value += '\f';
+        consume();
+        return true;
+      case 'n':
+        value += '\n';
+        consume();
+        return true;
+      case 'r':
+        value += '\r';
+        consume();
+        return true;
+      case 't':
+        value += '\t';
+        consume();
+        return true;
+      case 'v':
+        value += '\v';
+        consume();
+        return true;
+      default:
+        return false;
+    }  // switch
+  };
+
+  [[nodiscard]] auto parseConditionalEscapeSequence() -> bool { return true; };
+
+  [[nodiscard]] auto parseEscapeSequence() -> bool {
+    const auto ch = LA();
+    if (ch != '\\') return false;
+    consume();
+    return parseNumericEscapeSequence() || parseSimpleEscapeSequence() ||
+           parseConditionalEscapeSequence();
+  };
+
+  void parseStringLiteral() {
+    // TODO: handle encoding prefix
+
+    while (auto ch = LA()) {
+      if (ch == '"') break;
+      consume();
+    }
+
+    if (LA() == '"') {
+      consume();
+
+      while (const auto ch = LA()) {
+        if (ch == '"') break;
+
+        if (parseEscapeSequence()) continue;
+
+        value += ch;
+        consume();
+      }
+    }
+  }
+
+  void parseCharLiteral() {
+    // TODO: handle encoding prefix
+    while (auto ch = LA()) {
+      if (ch == '\'') break;
+      consume();
+    }
+
+    if (LA() == '\'') {
+      consume();
+
+      while (const auto ch = LA()) {
+        if (ch == '\'') break;
+
+        if (parseEscapeSequence()) continue;
+
+        value += ch;
+        consume();
+      }
+    }
+  }
+};
+
 using FloatingPointSuffix = FloatLiteral::Components::FloatingPointSuffix;
 
 auto to_string(FloatingPointSuffix suffix) -> std::string_view {
@@ -549,160 +735,34 @@ auto FloatLiteral::Components::from(std::string_view text,
 auto StringLiteral::Components::from(std::string_view text,
                                      DiagnosticsClient *diagnostics)
     -> Components {
-  std::size_t pos = 0;
+  StringLiteralParser<std::string> parser(text, diagnostics);
 
-  auto LA = [&](int n = 0) -> int {
-    auto p = pos + n;
-    if (p < 0 || p >= text.size()) return 0;
-    return text[pos + n];
-  };
-
-  auto consume = [&](int n = 1) { pos += n; };
-
-  auto isOctDigit = [&](int ch) { return ch >= '0' && ch <= '7'; };
-
-  auto isHexDigit = [&](int ch) {
-    return (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') ||
-           (ch >= 'A' && ch <= 'F');
-  };
+  parser.parseStringLiteral();
 
   Components components;
-
-  std::string value;
-
-  auto hexDigitValue = [](int hexDigit) -> int {
-    if (hexDigit >= '0' && hexDigit <= '9') {
-      return hexDigit - '0';
-    } else if (hexDigit >= 'a' && hexDigit <= 'f') {
-      return hexDigit - 'a' + 10;
-    } else if (hexDigit >= 'A' && hexDigit <= 'F') {
-      return hexDigit - 'A' + 10;
-    } else {
-      cxx_runtime_error("invalid hex digit");
-      return 0;
-    }
-  };
-
-  auto octDigitValue = [](int octDigit) -> int { return octDigit - '0'; };
-
-  auto parseSimpleHexadecimalEscapeSequence = [&] {
-    int x = 0;
-    while (isHexDigit(LA())) {
-      x = x * 16 + hexDigitValue(LA());
-      consume();
-    }
-    value += static_cast<char>(x);
-  };
-
-  auto parseHexadecimalEscapeSequence = [&] {
-    if (LA() != 'x') return false;
-    consume();
-    parseSimpleHexadecimalEscapeSequence();
-    return true;
-  };
-
-  auto parseOctalEscapeSequence = [&] {
-    if (!isOctDigit(LA())) return false;
-    int x = octDigitValue(LA());
-    consume();
-    if (isOctDigit(LA())) {
-      x = x * 8 + octDigitValue(LA());
-      consume();
-      if (isOctDigit(LA())) {
-        x = x * 8 + octDigitValue(LA());
-        consume();
-      }
-    }
-    value += static_cast<char>(x);
-    return true;
-  };
-
-  auto parseNumericEscapeSequence = [&] {
-    return parseHexadecimalEscapeSequence() || parseOctalEscapeSequence();
-  };
-
-  auto parseSimpleEscapeSequence = [&] {
-    switch (LA()) {
-      case '\'':
-        value += '\'';
-        consume();
-        return true;
-      case '"':
-        value += '"';
-        consume();
-        return true;
-      case '?':
-        value += '?';
-        consume();
-        return true;
-      case '\\':
-        value += '\\';
-        consume();
-        return true;
-      case 'a':
-        value += '\a';
-        consume();
-        return true;
-      case 'b':
-        value += '\b';
-        consume();
-        return true;
-      case 'f':
-        value += '\f';
-        consume();
-        return true;
-      case 'n':
-        value += '\n';
-        consume();
-        return true;
-      case 'r':
-        value += '\r';
-        consume();
-        return true;
-      case 't':
-        value += '\t';
-        consume();
-        return true;
-      case 'v':
-        value += '\v';
-        consume();
-        return true;
-      default:
-        return false;
-    }  // switch
-  };
-
-  auto parseConditionalEscapeSequence = [&] { return false; };
-
-  auto parseEscapeSequence = [&] {
-    const auto ch = LA();
-    if (ch != '\\') return false;
-    consume();
-    return parseNumericEscapeSequence() || parseSimpleEscapeSequence() ||
-           parseConditionalEscapeSequence();
-  };
-
-  // TODO: handle encoding prefix
-
-  if (LA() == '"') {
-    consume();
-
-    while (const auto ch = LA()) {
-      if (ch == '"') break;
-
-      if (parseEscapeSequence()) continue;
-
-      value += ch;
-      consume();
-    }
-  }
-
-  components.value = std::move(value);
+  components.value = std::move(parser.value);
 
   return components;
 }
 
 void StringLiteral::initialize() const {
+  components_ = Components::from(value());
+}
+
+auto CharLiteral::Components::from(std::string_view text,
+                                   DiagnosticsClient *diagnostics)
+    -> Components {
+  StringLiteralParser<std::string> parser(text, diagnostics);
+
+  parser.parseCharLiteral();
+
+  Components components;
+  components.value = !parser.value.empty() ? parser.value[0] : 0;
+
+  return components;
+}
+
+void CharLiteral::initialize() const {
   components_ = Components::from(value());
 }
 

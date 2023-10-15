@@ -21,29 +21,15 @@
 #pragma once
 
 #include <cxx/cxx_fwd.h>
+#include <cxx/literals_fwd.h>
 
-#include <cstddef>
+#include <cstdint>
 #include <variant>
 
 namespace cxx {
 
-using ConstValue = std::variant<std::uint64_t, double>;
-
-namespace details {
-
-template <typename To>
-struct ConstValueCast {
-  template <typename From>
-  auto operator()(From value) const -> To {
-    return static_cast<To>(value);
-  }
-};
-
-}  // namespace details
-
-template <typename T>
-auto const_value_cast(const ConstValue& value) -> T {
-  return std::visit(details::ConstValueCast<T>(), value);
-}
+using ConstValue =
+    std::variant<bool, std::int32_t, std::uint32_t, std::int64_t, std::uint64_t,
+                 float, double, const StringLiteral*>;
 
 }  // namespace cxx

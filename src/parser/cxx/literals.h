@@ -34,7 +34,7 @@ class Literal {
 
   [[nodiscard]] auto value() const -> const std::string& { return value_; }
 
-  auto hashCode() const -> std::size_t;
+  [[nodiscard]] auto hashCode() const -> std::size_t;
 
  private:
   std::string value_;
@@ -59,8 +59,9 @@ class IntegerLiteral final : public Literal {
     bool isLong = false;
     bool hasSizeSuffix = false;
 
-    static auto from(std::string_view text,
-                     DiagnosticsClient* diagnostics = nullptr) -> Components;
+    [[nodiscard]] static auto from(std::string_view text,
+                                   DiagnosticsClient* diagnostics = nullptr)
+        -> Components;
   };
 
   explicit IntegerLiteral(std::string text);
@@ -98,8 +99,9 @@ class FloatLiteral final : public Literal {
     bool isFloat = false;
     bool isLongDouble = false;
 
-    static auto from(std::string_view text,
-                     DiagnosticsClient* diagnostics = nullptr) -> Components;
+    [[nodiscard]] static auto from(std::string_view text,
+                                   DiagnosticsClient* diagnostics = nullptr)
+        -> Components;
   };
 
   explicit FloatLiteral(std::string text);
@@ -121,8 +123,9 @@ class StringLiteral final : public Literal {
   struct Components {
     std::string value;
 
-    static auto from(std::string_view text,
-                     DiagnosticsClient* diagnostics = nullptr) -> Components;
+    [[nodiscard]] static auto from(std::string_view text,
+                                   DiagnosticsClient* diagnostics = nullptr)
+        -> Components;
   };
 
   [[nodiscard]] auto stringValue() const -> std::string_view {
@@ -160,6 +163,23 @@ class Utf32StringLiteral final : public Literal {
 class CharLiteral final : public Literal {
  public:
   using Literal::Literal;
+
+  struct Components {
+    int value = 0;
+
+    [[nodiscard]] static auto from(std::string_view text,
+                                   DiagnosticsClient* diagnostics = nullptr)
+        -> Components;
+  };
+
+  [[nodiscard]] auto charValue() const -> int { return components_.value; }
+
+  [[nodiscard]] auto components() const { return components_; }
+
+  void initialize() const;
+
+ private:
+  mutable Components components_;
 };
 
 class CommentLiteral final : public Literal {
