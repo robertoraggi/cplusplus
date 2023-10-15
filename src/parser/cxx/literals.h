@@ -104,9 +104,7 @@ class FloatLiteral final : public Literal {
 
   explicit FloatLiteral(std::string text);
 
-  [[nodiscard]] auto floatValue() const -> double {
-    return components_.value;
-  }
+  [[nodiscard]] auto floatValue() const -> double { return components_.value; }
 
   [[nodiscard]] auto components() const { return components_; }
 
@@ -119,6 +117,24 @@ class FloatLiteral final : public Literal {
 class StringLiteral final : public Literal {
  public:
   using Literal::Literal;
+
+  struct Components {
+    std::string value;
+
+    static auto from(std::string_view text,
+                     DiagnosticsClient* diagnostics = nullptr) -> Components;
+  };
+
+  [[nodiscard]] auto stringValue() const -> std::string_view {
+    return components_.value;
+  };
+
+  [[nodiscard]] auto components() const { return components_; }
+
+  void initialize() const;
+
+ private:
+  mutable Components components_;
 };
 
 class WideStringLiteral final : public Literal {
