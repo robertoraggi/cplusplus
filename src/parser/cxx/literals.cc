@@ -28,6 +28,134 @@
 
 namespace cxx {
 
+namespace {
+
+using FloatingPointSuffix = FloatLiteral::Components::FloatingPointSuffix;
+
+auto to_string(FloatingPointSuffix suffix) -> std::string_view {
+  switch (suffix) {
+    case FloatingPointSuffix::kNone:
+      return "";
+    case FloatingPointSuffix::kF:
+      return "f";
+    case FloatingPointSuffix::kL:
+      return "l";
+    case FloatingPointSuffix::kF16:
+      return "f16";
+    case FloatingPointSuffix::kF32:
+      return "f32";
+    case FloatingPointSuffix::kF64:
+      return "f64";
+    case FloatingPointSuffix::kBF16:
+      return "bf16";
+    case FloatingPointSuffix::kF128:
+      return "f128";
+    default:
+      cxx_runtime_error("invalid floating point suffix");
+  }  // switch
+}
+
+auto classifyFloatingPointSuffix(std::string_view s) -> FloatingPointSuffix {
+  auto classifyFloatingPointSuffix1 =
+      [](std::string_view s) -> FloatingPointSuffix {
+    if (s[0] == 'F') {
+      return FloatingPointSuffix::kF;
+    } else if (s[0] == 'L') {
+      return FloatingPointSuffix::kL;
+    } else if (s[0] == 'f') {
+      return FloatingPointSuffix::kF;
+    } else if (s[0] == 'l') {
+      return FloatingPointSuffix::kL;
+    }
+    return FloatingPointSuffix::kNone;
+  };
+
+  auto classifyFloatingPointSuffix3 =
+      [](std::string_view s) -> FloatingPointSuffix {
+    if (s[0] == 'F') {
+      if (s[1] == '1') {
+        if (s[2] == '6') {
+          return FloatingPointSuffix::kF16;
+        }
+      } else if (s[1] == '3') {
+        if (s[2] == '2') {
+          return FloatingPointSuffix::kF32;
+        }
+      } else if (s[1] == '6') {
+        if (s[2] == '4') {
+          return FloatingPointSuffix::kF64;
+        }
+      }
+    } else if (s[0] == 'f') {
+      if (s[1] == '1') {
+        if (s[2] == '6') {
+          return FloatingPointSuffix::kF16;
+        }
+      } else if (s[1] == '3') {
+        if (s[2] == '2') {
+          return FloatingPointSuffix::kF32;
+        }
+      } else if (s[1] == '6') {
+        if (s[2] == '4') {
+          return FloatingPointSuffix::kF64;
+        }
+      }
+    }
+    return FloatingPointSuffix::kNone;
+  };
+
+  auto classifyFloatingPointSuffix4 =
+      [](std::string_view s) -> FloatingPointSuffix {
+    if (s[0] == 'B') {
+      if (s[1] == 'F') {
+        if (s[2] == '1') {
+          if (s[3] == '6') {
+            return FloatingPointSuffix::kBF16;
+          }
+        }
+      }
+    } else if (s[0] == 'F') {
+      if (s[1] == '1') {
+        if (s[2] == '2') {
+          if (s[3] == '8') {
+            return FloatingPointSuffix::kF128;
+          }
+        }
+      }
+    } else if (s[0] == 'b') {
+      if (s[1] == 'f') {
+        if (s[2] == '1') {
+          if (s[3] == '6') {
+            return FloatingPointSuffix::kBF16;
+          }
+        }
+      }
+    } else if (s[0] == 'f') {
+      if (s[1] == '1') {
+        if (s[2] == '2') {
+          if (s[3] == '8') {
+            return FloatingPointSuffix::kF128;
+          }
+        }
+      }
+    }
+    return FloatingPointSuffix::kNone;
+  };
+
+  switch (s.length()) {
+    case 1:
+      return classifyFloatingPointSuffix1(s);
+    case 3:
+      return classifyFloatingPointSuffix3(s);
+    case 4:
+      return classifyFloatingPointSuffix4(s);
+    default:
+      return FloatingPointSuffix::kNone;
+  }  // switch
+}
+
+}  // namespace
+
 Literal::~Literal() = default;
 
 auto Literal::hashCode() const -> std::size_t {
@@ -41,7 +169,7 @@ void IntegerLiteral::initialize() const {
 }
 
 auto IntegerLiteral::Components::from(std::string_view text,
-                                      DiagnosticsClient* diagnostics)
+                                      DiagnosticsClient *diagnostics)
     -> Components {
   std::string integerPart;
   integerPart.reserve(text.size());
@@ -257,8 +385,165 @@ auto IntegerLiteral::Components::from(std::string_view text,
   };
 }
 
-FloatLiteral::FloatLiteral(std::string text) : Literal(std::move(text)) {
-  floatValue_ = std::strtod(value().c_str(), nullptr);
+FloatLiteral::FloatLiteral(std::string text) : Literal(std::move(text)) {}
+
+void FloatLiteral::initialize() const {
+  components_ = Components::from(value());
+}
+
+auto FloatLiteral::Components::from(std::string_view text,
+                                    DiagnosticsClient *diagnostics)
+    -> Components {
+  std::size_t pos = 0;
+
+  auto LA = [&](int n = 0) -> int {
+    auto p = pos + n;
+    if (p < 0 || p >= text.size()) return 0;
+    return text[pos + n];
+  };
+
+  auto isDigit = [&](int ch) { return ch >= '0' && ch <= '9'; };
+
+  auto isHexDigit = [&](int ch) {
+    return (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') ||
+           (ch >= 'A' && ch <= 'F');
+  };
+
+  auto consume = [&](int n = 1) { pos += n; };
+
+  Components components;
+
+  std::string literalText;
+  literalText.reserve(text.size());
+
+  auto parseDigitSequence = [&] {
+    const auto start = pos;
+    while (true) {
+      if (isDigit(LA())) {
+        literalText += LA();
+        consume();
+      } else if (LA() == '\'' && isDigit(LA(1))) {
+        literalText += LA(1);
+        consume(2);
+      } else {
+        break;
+      }
+    }
+    return pos != start;
+  };
+
+  auto parseExponentPart = [&]() -> std::string_view {
+    const auto start = pos;
+    const auto literalLength = literalText.length();
+    if (LA() != 'e' && LA() != 'E') return {};
+    literalText += LA();
+    consume();
+    if (LA() == '+' || LA() == '-') {
+      literalText += LA();
+      consume();
+    }
+    if (parseDigitSequence()) return text.substr(start, pos - start);
+    pos = start;
+    literalText.resize(literalLength);
+    return {};
+  };
+
+  auto parseBinaryExponentPart = [&]() -> std::string_view {
+    const auto start = pos;
+    const auto literalLength = literalText.length();
+    if (LA() != 'p' && LA() != 'P') return {};
+    literalText += LA();
+    consume();
+    if (LA() == '+' || LA() == '-') {
+      literalText += LA();
+      consume();
+    }
+    if (parseDigitSequence()) return text.substr(start, pos - start);
+    pos = start;
+    literalText.resize(literalLength);
+    return {};
+  };
+
+  auto parseOptionalFloatingPointSuffix = [&]() -> std::string_view {
+    const auto suffix = text.substr(pos);
+    components.suffix = classifyFloatingPointSuffix(suffix);
+    if (components.suffix == FloatingPointSuffix::kNone) return {};
+    return suffix;
+  };
+
+  auto parseDecimalFloatPointLiteral = [&] {
+    if (LA() == '.') {
+      literalText += LA();
+      consume();
+      parseDigitSequence();
+    } else {
+      parseDigitSequence();
+      if (LA() == '.') {
+        literalText += LA();
+        consume();
+        parseDigitSequence();
+      }
+    }
+
+    parseExponentPart();
+    parseOptionalFloatingPointSuffix();
+  };
+
+  auto parseHexadecimalPrefix = [&] {
+    if (LA() != '0' && (LA(1) != 'x' || LA(1) != 'X')) return false;
+    literalText += LA();
+    literalText += LA(1);
+    consume(2);
+    return true;
+  };
+
+  auto parseHexadecimalDigitSequence = [&] {
+    const auto start = pos;
+    while (const auto ch = LA()) {
+      if (isHexDigit(ch)) {
+        literalText += ch;
+        consume();
+      } else if (ch == '\'' && isHexDigit(LA(1))) {
+        literalText += LA(1);
+        consume(2);
+      } else {
+        break;
+      }
+    }
+    return pos != start;
+  };
+
+  auto parseHexadecimalFloatingPointLiteral = [&] {
+    if (!parseHexadecimalPrefix()) return false;
+
+    if (LA() == '.' && isHexDigit(LA(1))) {
+      literalText += LA();
+      consume();
+      parseHexadecimalDigitSequence();
+    } else {
+      (void)parseHexadecimalDigitSequence();
+
+      if (LA() == '.' && isHexDigit(LA(1))) {
+        literalText += LA();
+        consume();
+        parseHexadecimalDigitSequence();
+      }
+    }
+
+    parseBinaryExponentPart();
+    parseOptionalFloatingPointSuffix();
+
+    return true;
+  };
+
+  if (!parseHexadecimalFloatingPointLiteral()) {
+    parseDecimalFloatPointLiteral();
+  }
+
+  const auto firstChar = literalText.data();
+  components.value = strtod(firstChar, nullptr);
+
+  return components;
 }
 
 }  // namespace cxx

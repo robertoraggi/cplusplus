@@ -80,12 +80,40 @@ class IntegerLiteral final : public Literal {
 
 class FloatLiteral final : public Literal {
  public:
+  struct Components {
+    enum class FloatingPointSuffix {
+      kNone,
+      kF,
+      kL,
+      kF16,
+      kF32,
+      kF64,
+      kF128,
+      kBF16,
+    };
+
+    double value = 0;
+    FloatingPointSuffix suffix = FloatingPointSuffix::kNone;
+    bool isDouble = false;
+    bool isFloat = false;
+    bool isLongDouble = false;
+
+    static auto from(std::string_view text,
+                     DiagnosticsClient* diagnostics = nullptr) -> Components;
+  };
+
   explicit FloatLiteral(std::string text);
 
-  [[nodiscard]] auto floatValue() const -> double { return floatValue_; }
+  [[nodiscard]] auto floatValue() const -> double {
+    return components_.value;
+  }
+
+  [[nodiscard]] auto components() const { return components_; }
+
+  void initialize() const;
 
  private:
-  double floatValue_ = 0;
+  mutable Components components_;
 };
 
 class StringLiteral final : public Literal {
