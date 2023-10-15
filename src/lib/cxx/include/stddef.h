@@ -41,3 +41,14 @@ typedef struct {
 } max_align_t;
 
 #endif /* __need_STDDEF_H_misc */
+
+#ifdef __need_wint_t
+#undef __need_wint_t
+
+#ifdef __WINT_TYPE__
+typedef __WINT_TYPE__ wint_t;
+#else
+typedef int wint_t;
+#endif
+
+#endif /* __need_wint_t */
