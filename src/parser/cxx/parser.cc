@@ -6554,19 +6554,38 @@ auto Parser::parse_gcc_attribute(AttributeSpecifierAST*& yyast) -> bool {
 }
 
 auto Parser::parse_skip_balanced() -> bool {
-  int count = 1;
-
-  while (const auto& tk = LA()) {
-    if (tk.is(TokenKind::T_LPAREN)) {
-      ++count;
-    } else if (tk.is(TokenKind::T_RPAREN)) {
-      if (!--count) return true;
-    }
-
-    consumeToken();
+  if (lookat(TokenKind::T_EOF_SYMBOL)) {
+    return false;
   }
 
-  return false;
+  if (SourceLocation lbraceLoc; match(TokenKind::T_LBRACE, lbraceLoc)) {
+    while (!lookat(TokenKind::T_EOF_SYMBOL)) {
+      if (SourceLocation rbraceLoc; match(TokenKind::T_RBRACE, rbraceLoc)) {
+        break;
+      }
+      if (!parse_skip_balanced()) return false;
+    }
+  } else if (SourceLocation lbracketLoc;
+             match(TokenKind::T_LBRACKET, lbracketLoc)) {
+    while (!lookat(TokenKind::T_EOF_SYMBOL)) {
+      if (SourceLocation rbracketLoc;
+          match(TokenKind::T_RBRACKET, rbracketLoc)) {
+        break;
+      }
+      if (!parse_skip_balanced()) return false;
+    }
+  } else if (SourceLocation lparenLoc; match(TokenKind::T_LPAREN, lparenLoc)) {
+    while (!lookat(TokenKind::T_EOF_SYMBOL)) {
+      if (SourceLocation rparenLoc; match(TokenKind::T_RPAREN, rparenLoc)) {
+        break;
+      }
+      if (!parse_skip_balanced()) return false;
+    }
+  } else {
+    (void)consumeToken();
+  }
+
+  return true;
 }
 
 auto Parser::parse_alignment_specifier(AttributeSpecifierAST*& yyast) -> bool {
