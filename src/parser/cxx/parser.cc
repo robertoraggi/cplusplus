@@ -7229,91 +7229,82 @@ auto Parser::parse_maybe_template_member() -> bool {
 
 auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
   SourceLocation extensionLoc;
-
   match(TokenKind::T___EXTENSION__, extensionLoc);
 
   List<AttributeSpecifierAST*>* attributes = nullptr;
-
   parse_optional_attribute_specifier_seq(attributes);
 
-  auto after_decl_specs = currentLocation();
-
-  DeclSpecs specs;
-
   List<SpecifierAST*>* declSpecifierList = nullptr;
+  DeclSpecs specs;
+  (void)parse_decl_specifier_seq_no_typespecs(declSpecifierList, specs);
 
-  if (!parse_decl_specifier_seq_no_typespecs(declSpecifierList, specs)) {
-    rewind(after_decl_specs);
-  }
-
-  after_decl_specs = currentLocation();
-
-  if (parse_notypespec_function_definition(yyast, declSpecifierList, specs)) {
+  auto lookat_notypespec_function_definition = [&] {
+    LookaheadParser lookahead{this};
+    if (!parse_notypespec_function_definition(yyast, declSpecifierList, specs))
+      return false;
+    lookahead.commit();
     return true;
-  }
+  };
 
-  rewind(after_decl_specs);
+  if (lookat_notypespec_function_definition()) return true;
 
   auto lastDeclSpecifier = &declSpecifierList;
-
   while (*lastDeclSpecifier) {
     lastDeclSpecifier = &(*lastDeclSpecifier)->next;
   }
 
-  if (!parse_decl_specifier_seq(*lastDeclSpecifier, specs)) {
-    rewind(after_decl_specs);
-  }
-
-  after_decl_specs = currentLocation();
+  (void)parse_decl_specifier_seq(*lastDeclSpecifier, specs);
 
   if (!specs.hasTypeSpecifier()) return false;
 
-  SourceLocation semicolonLoc;
-
-  if (match(TokenKind::T_SEMICOLON, semicolonLoc)) {
+  if (SourceLocation semicolonLoc;
+      match(TokenKind::T_SEMICOLON, semicolonLoc)) {
     auto ast = new (pool_) SimpleDeclarationAST();
     ast->attributeList = attributes;
     ast->declSpecifierList = declSpecifierList;
     ast->semicolonLoc = semicolonLoc;
     yyast = ast;
-    return true;  // ### complex typespec
+    return true;
   }
 
-  DeclaratorAST* declarator = nullptr;
-  Decl decl{specs};
-  const auto hasDeclarator = parse_declarator(declarator, decl);
+  auto lookat_function_definition = [&] {
+    LookaheadParser lookahead{this};
 
-  auto functionDeclarator = getFunctionPrototype(declarator);
+    DeclaratorAST* declarator = nullptr;
+    Decl decl{specs};
+    (void)parse_declarator(declarator, decl);
 
-  if (hasDeclarator && functionDeclarator) {
+    auto functionDeclarator = getFunctionPrototype(declarator);
+    if (!functionDeclarator) return false;
+
     RequiresClauseAST* requiresClause = nullptr;
-
-    const auto has_requires_clause = parse_requires_clause(requiresClause);
-
-    if (!has_requires_clause) parse_virt_specifier_seq(functionDeclarator);
-
-    if (lookat_function_body()) {
-      FunctionBodyAST* functionBody = nullptr;
-
-      if (!parse_function_body(functionBody)) {
-        parse_error("expected function body");
-      }
-
-      auto ast = new (pool_) FunctionDefinitionAST();
-      yyast = ast;
-
-      ast->declSpecifierList = declSpecifierList;
-      ast->declarator = declarator;
-      ast->requiresClause = requiresClause;
-      ast->functionBody = functionBody;
-
-      if (classDepth_) pendingFunctionDefinitions_.push_back(ast);
-
-      return true;
+    if (!parse_requires_clause(requiresClause)) {
+      parse_virt_specifier_seq(functionDeclarator);
     }
-  }
 
-  rewind(after_decl_specs);
+    if (!lookat_function_body()) return false;
+
+    lookahead.commit();
+
+    FunctionBodyAST* functionBody = nullptr;
+    if (!parse_function_body(functionBody)) {
+      parse_error("expected function body");
+    }
+
+    auto ast = new (pool_) FunctionDefinitionAST();
+    yyast = ast;
+
+    ast->declSpecifierList = declSpecifierList;
+    ast->declarator = declarator;
+    ast->requiresClause = requiresClause;
+    ast->functionBody = functionBody;
+
+    if (classDepth_) pendingFunctionDefinitions_.push_back(ast);
+
+    return true;
+  };
+
+  if (lookat_function_definition()) return true;
 
   auto ast = new (pool_) SimpleDeclarationAST();
   yyast = ast;
