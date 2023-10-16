@@ -3638,6 +3638,9 @@ auto Parser::parse_template_class_declaration(
 
   lookahead.commit();
 
+  List<AttributeSpecifierAST*>* trailingAttributes = nullptr;
+  (void)parse_attribute_specifier_seq(trailingAttributes);
+
   SourceLocation semicolonToken;
   expect(TokenKind::T_SEMICOLON, semicolonToken);
 
@@ -3710,6 +3713,9 @@ auto Parser::parse_type_or_forward_declaration(
     const std::vector<TemplateDeclarationAST*>& templateDeclarations,
     BindingContext ctx) -> bool {
   LookaheadParser lookahead{this};
+
+  List<AttributeSpecifierAST*>* trailingAttributes = nullptr;
+  (void)parse_attribute_specifier_seq(trailingAttributes);
 
   if (!specs.hasClassOrEnumSpecifier()) return false;
 
