@@ -409,6 +409,9 @@ class Parser final {
                                                DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_sign_type_specifier(SpecifierAST*& yyast,
                                                DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_complex_type_specifier(SpecifierAST*& yyast,
+                                                  DeclSpecs& specs) -> bool;
+
   [[nodiscard]] auto parse_type_name(UnqualifiedIdAST*& yyast) -> bool;
   [[nodiscard]] auto parse_elaborated_type_specifier(SpecifierAST*& yyast,
                                                      DeclSpecs& specs) -> bool;
