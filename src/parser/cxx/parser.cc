@@ -4408,6 +4408,7 @@ auto Parser::parse_simple_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     -> bool {
   if (parse_size_type_specifier(yyast, specs)) return true;
   if (parse_sign_type_specifier(yyast, specs)) return true;
+  if (parse_complex_type_specifier(yyast, specs)) return true;
 
   if (specs.typeSpecifier) {
     return false;
@@ -4489,6 +4490,18 @@ auto Parser::parse_sign_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   }
 
   return false;
+}
+
+auto Parser::parse_complex_type_specifier(SpecifierAST*& yyast,
+                                          DeclSpecs& specs) -> bool {
+  if (!LA().isOneOf(TokenKind::T__COMPLEX, TokenKind::T___COMPLEX__))
+    return false;
+  auto ast = new (pool_) ComplexTypeSpecifierAST();
+  yyast = ast;
+  ast->complexLoc = consumeToken();
+  specs.isComplex = true;
+
+  return true;
 }
 
 auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
@@ -4672,16 +4685,6 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
       yyast = ast;
       ast->voidLoc = consumeToken();
       specs.type = control_->getVoidType();
-
-      return true;
-    }
-
-    case TokenKind::T__COMPLEX:
-    case TokenKind::T___COMPLEX__: {
-      auto ast = new (pool_) ComplexTypeSpecifierAST();
-      yyast = ast;
-      ast->complexLoc = consumeToken();
-      specs.isComplex = true;
 
       return true;
     }
