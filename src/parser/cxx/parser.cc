@@ -3793,60 +3793,59 @@ auto Parser::parse_structured_binding(DeclarationAST*& yyast,
   return true;
 }
 
-auto Parser::parse_function_definition(
-    DeclarationAST*& yyast, List<AttributeSpecifierAST*>* attributes,
-    List<SpecifierAST*>* declSpecifierList, const DeclSpecs& specs,
-    const std::vector<TemplateDeclarationAST*>& templateDeclarations,
-    BindingContext ctx) -> bool {
-  LookaheadParser lookahead{this};
-
-  if (!context_allows_function_definition(ctx)) return false;
-
-  DeclaratorAST* declarator = nullptr;
-  Decl decl{specs};
-  if (!parse_declarator(declarator, decl)) return false;
-
-  auto functionDeclarator = getFunctionPrototype(declarator);
-  if (!functionDeclarator) return false;
-
-  RequiresClauseAST* requiresClause = nullptr;
-  (void)parse_requires_clause(requiresClause);
-
-  if (!lookat_function_body()) return false;
-
-  if (ctx == BindingContext::kTemplate) {
-    mark_maybe_template_name(declarator);
-  }
-
-  FunctionBodyAST* functionBody = nullptr;
-  if (!parse_function_body(functionBody)) parse_error("expected function body");
-
-  lookahead.commit();
-
-  auto ast = new (pool_) FunctionDefinitionAST();
-  yyast = ast;
-
-  ast->attributeList = attributes;
-  ast->declSpecifierList = declSpecifierList;
-  ast->declarator = declarator;
-  ast->requiresClause = requiresClause;
-  ast->functionBody = functionBody;
-
-  if (classDepth_) pendingFunctionDefinitions_.push_back(ast);
-
-  return true;
-}
-
 auto Parser::parse_simple_declaration(
     DeclarationAST*& yyast, List<AttributeSpecifierAST*>* attributes,
     List<SpecifierAST*>* declSpecifierList, const DeclSpecs& specs,
     const std::vector<TemplateDeclarationAST*>& templateDeclarations,
     BindingContext ctx) -> bool {
+  DeclaratorAST* declarator = nullptr;
+  Decl decl{specs};
+  if (!parse_declarator(declarator, decl)) return false;
+
+  auto lookat_function_definition = [&] {
+    if (!context_allows_function_definition(ctx)) return false;
+
+    LookaheadParser lookahead{this};
+
+    auto functionDeclarator = getFunctionPrototype(declarator);
+    if (!functionDeclarator) return false;
+
+    RequiresClauseAST* requiresClause = nullptr;
+    (void)parse_requires_clause(requiresClause);
+
+    if (!lookat_function_body()) return false;
+
+    if (ctx == BindingContext::kTemplate) {
+      mark_maybe_template_name(declarator);
+    }
+
+    FunctionBodyAST* functionBody = nullptr;
+    if (!parse_function_body(functionBody))
+      parse_error("expected function body");
+
+    lookahead.commit();
+
+    auto ast = new (pool_) FunctionDefinitionAST();
+    yyast = ast;
+
+    ast->attributeList = attributes;
+    ast->declSpecifierList = declSpecifierList;
+    ast->declarator = declarator;
+    ast->requiresClause = requiresClause;
+    ast->functionBody = functionBody;
+
+    if (classDepth_) pendingFunctionDefinitions_.push_back(ast);
+
+    return true;
+  };
+
+  if (lookat_function_definition()) return true;
+
   List<InitDeclaratorAST*>* initDeclaratorList = nullptr;
   auto declIt = &initDeclaratorList;
 
   InitDeclaratorAST* initDeclarator = nullptr;
-  if (!parse_init_declarator(initDeclarator, specs)) return false;
+  if (!parse_init_declarator(initDeclarator, declarator, specs)) return false;
 
   if (ctx == BindingContext::kTemplate) {
     auto declarator = initDeclarator->declarator;
@@ -3893,6 +3892,17 @@ auto Parser::parse_simple_declaration(
   List<AttributeSpecifierAST*>* attributes = nullptr;
   parse_optional_attribute_specifier_seq(attributes);
 
+  if (SourceLocation semicolonLoc;
+      ctx != BindingContext::kTemplate && attributes &&
+      match(TokenKind::T_SEMICOLON, semicolonLoc)) {
+    auto ast = new (pool_) AttributeDeclarationAST();
+    yyast = ast;
+
+    ast->attributeList = attributes;
+    ast->semicolonLoc = semicolonLoc;
+    return true;
+  }
+
   if (parse_template_class_declaration(yyast, attributes, templateDeclarations,
                                        ctx))
     return true;
@@ -3918,11 +3928,9 @@ auto Parser::parse_simple_declaration(
   if (parse_type_or_forward_declaration(yyast, attributes, declSpecifierList,
                                         specs, templateDeclarations, ctx))
     return true;
-  else if (parse_structured_binding(yyast, attributes, declSpecifierList, specs,
-                                    ctx))
-    return true;
-  else if (parse_function_definition(yyast, attributes, declSpecifierList,
-                                     specs, templateDeclarations, ctx))
+
+  if (parse_structured_binding(yyast, attributes, declSpecifierList, specs,
+                               ctx))
     return true;
 
   return parse_simple_declaration(yyast, attributes, declSpecifierList, specs,
@@ -4919,6 +4927,12 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
   Decl decl{specs};
   if (!parse_declarator(declarator, decl)) return false;
 
+  return parse_init_declarator(yyast, declarator, specs);
+}
+
+auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
+                                   DeclaratorAST* declarator,
+                                   const DeclSpecs& specs) -> bool {
   RequiresClauseAST* requiresClause = nullptr;
   ExpressionAST* initializer = nullptr;
 
