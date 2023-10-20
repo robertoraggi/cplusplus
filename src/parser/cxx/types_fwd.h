@@ -20,71 +20,71 @@
 
 #pragma once
 
-#include <string_view>
+#include <cxx/cxx_fwd.h>
+
+namespace cxx {
 
 #define CXX_FOR_EACH_TYPE_KIND(V) \
-  V(Invalid)                      \
+  V(Void)                         \
   V(Nullptr)                      \
-  V(Dependent)                    \
   V(DecltypeAuto)                 \
   V(Auto)                         \
-  V(Void)                         \
   V(Bool)                         \
-  V(Char)                         \
   V(SignedChar)                   \
+  V(ShortInt)                     \
+  V(Int)                          \
+  V(LongInt)                      \
+  V(LongLongInt)                  \
   V(UnsignedChar)                 \
+  V(UnsignedShortInt)             \
+  V(UnsignedInt)                  \
+  V(UnsignedLongInt)              \
+  V(UnsignedLongLongInt)          \
+  V(Char)                         \
   V(Char8)                        \
   V(Char16)                       \
   V(Char32)                       \
   V(WideChar)                     \
-  V(Short)                        \
-  V(UnsignedShort)                \
-  V(Int)                          \
-  V(UnsignedInt)                  \
-  V(Long)                         \
-  V(UnsignedLong)                 \
   V(Float)                        \
   V(Double)                       \
+  V(LongDouble)                   \
   V(Qual)                         \
+  V(BoundedArray)                 \
+  V(UnboundedArray)               \
   V(Pointer)                      \
-  V(LValueReference)              \
-  V(RValueReference)              \
-  V(Array)                        \
+  V(LvalueReference)              \
+  V(RvalueReference)              \
   V(Function)                     \
   V(Class)                        \
-  V(Namespace)                    \
-  V(MemberPointer)                \
-  V(Concept)                      \
+  V(Union)                        \
   V(Enum)                         \
-  V(Generic)                      \
-  V(Pack)                         \
-  V(ScopedEnum)
-
-namespace cxx {
-
-#define DECLARE_TYPE_KIND(kind) k##kind,
-
-enum class TypeKind { CXX_FOR_EACH_TYPE_KIND(DECLARE_TYPE_KIND) };
-
-#undef DECLARE_TYPE_KIND
-
-enum class TemplateArgumentKind {
-  kInvalid,
-  kType,
-  kLiteral,
-};
+  V(ScopedEnum)                   \
+  V(MemberObjectPointer)          \
+  V(MemberFunctionPointer)        \
+  V(ClassDescription)             \
+  V(Namespace)
 
 class Type;
-class TypeVisitor;
-class ReferenceType;
-class Parameter;
 
-#define PROCESS_TYPE(ty) class ty##Type;
+#define PROCESS_TYPE(K) class K##Type;
 CXX_FOR_EACH_TYPE_KIND(PROCESS_TYPE)
 #undef PROCESS_TYPE
 
-auto equal_to(const Type* type, const Type* other) -> bool;
+#define PROCESS_TYPE(K) k##K,
+enum class TypeKind { CXX_FOR_EACH_TYPE_KIND(PROCESS_TYPE) };
+#undef PROCESS_TYPE
 
-auto to_string(TypeKind kind) -> std::string_view;
+enum class CvQualifiers {
+  kNone,
+  kConst,
+  kVolatile,
+  kConstVolatile,
+};
+
+enum class RefQualifier {
+  kNone,
+  kLvalue,
+  kRvalue,
+};
 
 }  // namespace cxx

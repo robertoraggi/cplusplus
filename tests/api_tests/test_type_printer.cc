@@ -1,4 +1,25 @@
+// Copyright (c) 2023 Roberto Raggi <roberto.raggi@gmail.com>
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 #include <cxx/control.h>
+#include <cxx/type_printer.h>
 #include <cxx/types.h>
 #include <gtest/gtest.h>
 
@@ -15,14 +36,18 @@ TEST(TypePrinter, BasicTypes) {
   ASSERT_EQ(to_string(control.getCharType()), "char");
   ASSERT_EQ(to_string(control.getSignedCharType()), "signed char");
   ASSERT_EQ(to_string(control.getUnsignedCharType()), "unsigned char");
-  ASSERT_EQ(to_string(control.getShortType()), "short");
-  ASSERT_EQ(to_string(control.getUnsignedShortType()), "unsigned short");
+  ASSERT_EQ(to_string(control.getShortIntType()), "short");
+  ASSERT_EQ(to_string(control.getUnsignedShortIntType()), "unsigned short");
   ASSERT_EQ(to_string(control.getIntType()), "int");
   ASSERT_EQ(to_string(control.getUnsignedIntType()), "unsigned int");
-  ASSERT_EQ(to_string(control.getLongType()), "long");
-  ASSERT_EQ(to_string(control.getUnsignedLongType()), "unsigned long");
+  ASSERT_EQ(to_string(control.getLongIntType()), "long");
+  ASSERT_EQ(to_string(control.getUnsignedLongIntType()), "unsigned long");
+  ASSERT_EQ(to_string(control.getLongLongIntType()), "long long");
+  ASSERT_EQ(to_string(control.getUnsignedLongLongIntType()),
+            "unsigned long long");
   ASSERT_EQ(to_string(control.getFloatType()), "float");
   ASSERT_EQ(to_string(control.getDoubleType()), "double");
+  ASSERT_EQ(to_string(control.getLongDoubleType()), "long double");
 }
 
 TEST(TypePrinter, QualTypes) {
@@ -64,8 +89,8 @@ TEST(TypePrinter, PointerTypes) {
   ASSERT_EQ(to_string(constPointerToChar), "char* const");
 
   // pointer to array of 10 ints
-  auto pointerToArrayOf10Ints =
-      control.getPointerType(control.getArrayType(control.getIntType(), 10));
+  auto pointerToArrayOf10Ints = control.getPointerType(
+      control.getBoundedArrayType(control.getIntType(), 10));
 
   ASSERT_EQ(to_string(pointerToArrayOf10Ints), "int (*)[10]");
 
@@ -82,31 +107,31 @@ TEST(TypePrinter, LValueReferences) {
 
   // lvalue reference to unsigned long
   auto referenceToUnsignedLong =
-      control.getLValueReferenceType(control.getUnsignedLongType());
+      control.getLvalueReferenceType(control.getUnsignedLongIntType());
 
   ASSERT_EQ(to_string(referenceToUnsignedLong), "unsigned long&");
 
   // lvalue reference to pointer to char
-  auto referenceToPointerToChar = control.getLValueReferenceType(
+  auto referenceToPointerToChar = control.getLvalueReferenceType(
       control.getPointerType(control.getCharType()));
 
   ASSERT_EQ(to_string(referenceToPointerToChar), "char*&");
 
   // lvalue reference to a const pointer to char
-  auto referenceToConstPointerToChar = control.getLValueReferenceType(
+  auto referenceToConstPointerToChar = control.getLvalueReferenceType(
       control.getConstType(control.getPointerType(control.getCharType())));
 
   ASSERT_EQ(to_string(referenceToConstPointerToChar), "char* const&");
 
   // reference to array of 10 ints
-  auto referenceToArrayOf10Ints = control.getLValueReferenceType(
-      control.getArrayType(control.getIntType(), 10));
+  auto referenceToArrayOf10Ints = control.getLvalueReferenceType(
+      control.getBoundedArrayType(control.getIntType(), 10));
 
   ASSERT_EQ(to_string(referenceToArrayOf10Ints), "int (&)[10]");
 
   // reference to function returning pointer to const char
   auto referenceToFunctionReturningPointerToConstChar =
-      control.getLValueReferenceType(control.getFunctionType(
+      control.getLvalueReferenceType(control.getFunctionType(
           control.getPointerType(control.getConstType(control.getCharType())),
           {}));
 
@@ -119,12 +144,12 @@ TEST(TypePrinter, RValueReferences) {
 
   // rvalue reference to unsigned long
   auto referenceToUnsignedLong =
-      control.getRValueReferenceType(control.getUnsignedLongType());
+      control.getRvalueReferenceType(control.getUnsignedLongIntType());
 
   ASSERT_EQ(to_string(referenceToUnsignedLong), "unsigned long&&");
 
   // rvalue reference to pointer to char
-  auto referenceToPointerToChar = control.getRValueReferenceType(
+  auto referenceToPointerToChar = control.getRvalueReferenceType(
       control.getPointerType(control.getCharType()));
 
   ASSERT_EQ(to_string(referenceToPointerToChar), "char*&&");
@@ -135,26 +160,27 @@ TEST(TypePrinter, Arrays) {
 
   // array of 10 unsigned longs
   auto arrayOf10UnsignedLongs =
-      control.getArrayType(control.getUnsignedLongType(), 10);
+      control.getBoundedArrayType(control.getUnsignedLongIntType(), 10);
 
   ASSERT_EQ(to_string(arrayOf10UnsignedLongs), "unsigned long [10]");
 
   // array of 4 arrays of 2 floats
-  auto arrayOf4ArraysOf2Floats =
-      control.getArrayType(control.getArrayType(control.getFloatType(), 2), 4);
+  auto arrayOf4ArraysOf2Floats = control.getBoundedArrayType(
+      control.getBoundedArrayType(control.getFloatType(), 2), 4);
 
   ASSERT_EQ(to_string(arrayOf4ArraysOf2Floats), "float [4][2]");
 
   // array of 4 arrays of 2 pointers to char
-  auto arrayOf4ArraysOf2PointersToChar = control.getArrayType(
-      control.getArrayType(control.getPointerType(control.getCharType()), 2),
+  auto arrayOf4ArraysOf2PointersToChar = control.getBoundedArrayType(
+      control.getBoundedArrayType(control.getPointerType(control.getCharType()),
+                                  2),
       4);
 
   ASSERT_EQ(to_string(arrayOf4ArraysOf2PointersToChar), "char* [4][2]");
 
   // array of 4 arrays of 2 pointers to const char
-  auto arrayOf4ArraysOf2PointersToConstChar = control.getArrayType(
-      control.getArrayType(
+  auto arrayOf4ArraysOf2PointersToConstChar = control.getBoundedArrayType(
+      control.getBoundedArrayType(
           control.getPointerType(control.getConstType(control.getCharType())),
           2),
       4);
@@ -163,7 +189,7 @@ TEST(TypePrinter, Arrays) {
             "const char* [4][2]");
 
   // array of 4 pointers to function returning int
-  auto arrayOf4PointersToFunctionReturningInt = control.getArrayType(
+  auto arrayOf4PointersToFunctionReturningInt = control.getBoundedArrayType(
       control.getPointerType(control.getFunctionType(control.getIntType(), {})),
       4);
 
@@ -190,7 +216,7 @@ TEST(TypePrinter, Functions) {
   // variadic function return unsigned long
 
   auto variadicFunctionReturningUnsignedLong =
-      control.getFunctionType(control.getUnsignedLongType(), {}, true);
+      control.getFunctionType(control.getUnsignedLongIntType(), {}, true);
 
   ASSERT_EQ(to_string(variadicFunctionReturningUnsignedLong),
             "unsigned long (...)");

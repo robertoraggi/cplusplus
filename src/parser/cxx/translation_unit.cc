@@ -30,6 +30,7 @@
 #include <cxx/preprocessor.h>
 #include <cxx/private/ast_decoder.h>
 #include <cxx/private/ast_encoder.h>
+#include <cxx/symbols.h>
 #include <utf8/unchecked.h>
 
 #include <ostream>
@@ -115,10 +116,16 @@ void TranslationUnit::getTokenEndPosition(SourceLocation loc, unsigned* line,
 }
 
 auto TranslationUnit::parse(bool checkTypes) -> bool {
+  globalNamespace_ = control_->newNamespaceSymbol(nullptr);
   Parser parse(this);
   parse.setCheckTypes(checkTypes);
   parse(ast_);
   return true;
+}
+
+auto TranslationUnit::globalScope() const -> Scope* {
+  if (!globalNamespace_) return nullptr;
+  return globalNamespace_->scope();
 }
 
 auto TranslationUnit::load(std::span<const std::uint8_t> data) -> bool {

@@ -20,18 +20,33 @@
 
 #pragma once
 
+#include <cxx/ast_fwd.h>
+#include <cxx/const_value.h>
+#include <cxx/cxx_fwd.h>
+#include <cxx/types_fwd.h>
+
+#include <variant>
+
 namespace cxx {
 
-enum class NameKind {
-  kInvalid,
-  kIdentifier,
-  kOperatorId,
-  kDestructorId,
-};
+#define CXX_FOR_EACH_NAME(V) \
+  V(Identifier)              \
+  V(OperatorId)              \
+  V(DestructorId)            \
+  V(LiteralOperatorId)       \
+  V(ConversionFunctionId)    \
+  V(TemplateId)
+
+#define PROCESS_NAME(N) k##N,
+enum class NameKind { CXX_FOR_EACH_NAME(PROCESS_NAME) };
+#undef PROCESS_NAME
 
 class Name;
-class Identifier;
-class OperatorId;
-class DestructorId;
+
+#define PROCESS_NAME(N) class N;
+CXX_FOR_EACH_NAME(PROCESS_NAME)
+#undef PROCESS_NAME
+
+using TemplateArgument = std::variant<const Type*, ConstValue, ExpressionAST*>;
 
 }  // namespace cxx

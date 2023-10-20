@@ -36,18 +36,10 @@ class MemoryLayout {
   auto sizeOf(const Type* type) const -> int;
   auto alignmentOf(const Type* type) const -> int;
 
-#define DECLARE_METHOD(type) int sizeOf(const type##Type* type) const;
-  CXX_FOR_EACH_TYPE_KIND(DECLARE_METHOD)
-
-#undef DECLARE_METHOD
-
-#define DECLARE_METHOD(type) int alignmentOf(const type##Type* type) const;
-  CXX_FOR_EACH_TYPE_KIND(DECLARE_METHOD)
-
  private:
-  int bits_;
-  int sizeOfPointer_;
-  int sizeOfLong_;
+  int bits_ = 0;
+  int sizeOfPointer_ = 0;
+  int sizeOfLong_ = 0;
 };
 
 #undef DECLARE_METHOD

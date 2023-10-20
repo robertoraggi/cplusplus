@@ -100,6 +100,24 @@ export function gen_ast_h({ ast, output }: { ast: AST; output: string }) {
     });
   });
 
+  by_bases.forEach((nodes, base) => {
+    if (base === "AST") return;
+    if (!Array.isArray(nodes)) throw new Error("not an array");
+    emit();
+    const variantName = base.replace(/AST$/, "");
+    emit(`template <typename Visitor>`);
+    emit(`auto visit(Visitor&& visitor, ${base}* ast) {`);
+    emit(`  switch (ast->kind()) {`);
+    nodes.forEach(({ name }) => {
+      emit(
+        `  case ${name}::Kind: return std::invoke(std::forward<Visitor>(visitor), static_cast<${name}*>(ast));`
+      );
+    });
+    emit(`    default: cxx_runtime_error("unexpected ${variantName}");`);
+    emit(`  } // switch`);
+    emit(`}`);
+  });
+
   const out = `${cpy_header}
 #pragma once
 
@@ -110,6 +128,7 @@ export function gen_ast_h({ ast, output }: { ast: AST; output: string }) {
 #include <cxx/token.h>
 #include <cxx/ast_kind.h>
 #include <cxx/const_value.h>
+#include <cxx/symbols_fwd.h>
 #include <optional>
 
 namespace cxx {

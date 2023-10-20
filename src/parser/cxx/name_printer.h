@@ -20,32 +20,22 @@
 
 #pragma once
 
-#include <cxx/symbols_fwd.h>
+#include <cxx/names_fwd.h>
+
+#include <string>
 
 namespace cxx {
 
-class SymbolVisitor {
+class NamePrinter {
  public:
-  virtual ~SymbolVisitor();
-
-  virtual void visit(ClassSymbol*) = 0;
-  virtual void visit(ConceptSymbol*) = 0;
-  virtual void visit(DependentSymbol*) = 0;
-  virtual void visit(EnumeratorSymbol*) = 0;
-  virtual void visit(FunctionSymbol*) = 0;
-  virtual void visit(GlobalSymbol*) = 0;
-  virtual void visit(InjectedClassNameSymbol*) = 0;
-  virtual void visit(LocalSymbol*) = 0;
-  virtual void visit(MemberSymbol*) = 0;
-  virtual void visit(NamespaceSymbol*) = 0;
-  virtual void visit(NamespaceAliasSymbol*) = 0;
-  virtual void visit(NonTypeTemplateParameterSymbol*) = 0;
-  virtual void visit(ParameterSymbol*) = 0;
-  virtual void visit(ScopedEnumSymbol*) = 0;
-  virtual void visit(TemplateParameterSymbol*) = 0;
-  virtual void visit(TemplateParameterPackSymbol*) = 0;
-  virtual void visit(TypeAliasSymbol*) = 0;
-  virtual void visit(ValueSymbol*) = 0;
+  auto operator()(const Identifier* name) const -> std::string;
+  auto operator()(const OperatorId* name) const -> std::string;
+  auto operator()(const DestructorId* name) const -> std::string;
+  auto operator()(const LiteralOperatorId* name) const -> std::string;
+  auto operator()(const ConversionFunctionId* name) const -> std::string;
+  auto operator()(const TemplateId* name) const -> std::string;
 };
+
+auto to_string(const Name* name) -> std::string;
 
 }  // namespace cxx

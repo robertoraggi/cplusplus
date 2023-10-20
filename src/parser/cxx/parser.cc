@@ -21,9 +21,12 @@
 #include <cxx/ast.h>
 #include <cxx/control.h>
 #include <cxx/literals.h>
+#include <cxx/name_printer.h>
 #include <cxx/names.h>
 #include <cxx/parser.h>
 #include <cxx/private/format.h>
+#include <cxx/scope.h>
+#include <cxx/symbols.h>
 #include <cxx/token.h>
 #include <cxx/types.h>
 
@@ -34,6 +37,152 @@
 namespace cxx {
 
 namespace {
+
+struct ConvertToName {
+  Control* control_;
+
+  explicit ConvertToName(Control* control) : control_(control) {}
+
+  auto operator()(NameIdAST* ast) const -> const Name* {
+    return ast->identifier;
+  }
+
+  auto operator()(DestructorIdAST* ast) const -> const Name* {
+    return control_->getDestructorId(visit(*this, ast->id));
+  }
+
+  auto operator()(DecltypeIdAST* ast) const -> const Name* {
+    cxx_runtime_error("DecltypeIdAST not implemented");
+    return {};
+  }
+
+  auto operator()(OperatorFunctionIdAST* ast) const -> const Name* {
+    return control_->getOperatorId(ast->op);
+  }
+
+  auto operator()(LiteralOperatorIdAST* ast) const -> const Name* {
+    if (ast->identifier)
+      return control_->getLiteralOperatorId(ast->identifier->name());
+
+    auto value = ast->literal->value();
+    auto suffix = value.substr(value.find_last_of('"') + 1);
+    return control_->getLiteralOperatorId(suffix);
+  }
+
+  auto operator()(ConversionFunctionIdAST* ast) const -> const Name* {
+    return control_->getConversionFunctionId(ast->typeId->type);
+  }
+
+  auto operator()(SimpleTemplateIdAST* ast) const -> const Name* {
+    std::vector<TemplateArgument> arguments;
+    return control_->getTemplateId(ast->identifier, std::move(arguments));
+  }
+
+  auto operator()(LiteralOperatorTemplateIdAST* ast) const -> const Name* {
+    std::vector<TemplateArgument> arguments;
+    return control_->getTemplateId(operator()(ast->literalOperatorId),
+                                   std::move(arguments));
+  }
+
+  auto operator()(OperatorFunctionTemplateIdAST* ast) const -> const Name* {
+    std::vector<TemplateArgument> arguments;
+    return control_->getTemplateId(operator()(ast->operatorFunctionId),
+                                   std::move(arguments));
+  }
+};
+
+class DumpSymbols {
+  int depth_ = 0;
+
+ public:
+  void accept(Symbol* symbol) { visit(*this, symbol); }
+
+  auto symbolName(Symbol* symbol) const -> std::string {
+    if (!symbol->name()) return {};
+    return to_string(symbol->name());
+  }
+
+  auto dumpScope(Scope* scope) {
+    if (!scope) return;
+    ++depth_;
+    std::ranges::for_each(scope->symbols(),
+                          [&](auto symbol) { accept(symbol); });
+    --depth_;
+  }
+
+  void operator()(NamespaceSymbol* symbol) {
+    std::string indent = std::string(depth_ * 2, ' ');
+    fmt::print("{}namespace {}\n", indent, symbolName(symbol));
+    dumpScope(symbol->scope());
+  }
+
+  void operator()(ClassSymbol* symbol) {
+    std::string indent = std::string(depth_ * 2, ' ');
+    fmt::print("{}class {}\n", indent, symbolName(symbol));
+    dumpScope(symbol->scope());
+  }
+
+  void operator()(UnionSymbol* symbol) {
+    std::string indent = std::string(depth_ * 2, ' ');
+    fmt::print("{}union {}\n", indent, symbolName(symbol));
+    dumpScope(symbol->scope());
+  }
+
+  void operator()(EnumSymbol* symbol) {
+    std::string indent = std::string(depth_ * 2, ' ');
+    fmt::print("{}enum {}\n", indent, symbolName(symbol));
+    dumpScope(symbol->scope());
+  }
+
+  void operator()(ScopedEnumSymbol* symbol) {
+    std::string indent = std::string(depth_ * 2, ' ');
+    fmt::print("{}enum class {}\n", indent, symbolName(symbol));
+    dumpScope(symbol->scope());
+  }
+
+  void operator()(FunctionSymbol* symbol) {
+    std::string indent = std::string(depth_ * 2, ' ');
+    fmt::print("{}function {}\n", indent, symbolName(symbol));
+    dumpScope(symbol->scope());
+  }
+
+  void operator()(PrototypeSymbol* symbol) {
+    std::string indent = std::string(depth_ * 2, ' ');
+    fmt::print("{}prototype {}\n", indent, symbolName(symbol));
+    dumpScope(symbol->scope());
+  }
+
+  void operator()(BlockSymbol* symbol) {
+    std::string indent = std::string(depth_ * 2, ' ');
+    fmt::print("{}block\n", indent);
+    dumpScope(symbol->scope());
+  }
+
+  void operator()(TypeAliasSymbol* symbol) {
+    std::string indent = std::string(depth_ * 2, ' ');
+    fmt::print("{}typealias {}\n", indent, symbolName(symbol));
+  }
+
+  void operator()(VariableSymbol* symbol) {
+    std::string indent = std::string(depth_ * 2, ' ');
+    fmt::print("{}variable {}\n", indent, symbolName(symbol));
+  }
+
+  void operator()(FieldSymbol* symbol) {
+    std::string indent = std::string(depth_ * 2, ' ');
+    fmt::print("{}field {}\n", indent, symbolName(symbol));
+  }
+
+  void operator()(ParameterSymbol* symbol) {
+    std::string indent = std::string(depth_ * 2, ' ');
+    fmt::print("{}parameter {}\n", indent, symbolName(symbol));
+  }
+
+  void operator()(EnumeratorSymbol* symbol) {
+    std::string indent = std::string(depth_ * 2, ' ');
+    fmt::print("{}enumerator {}\n", indent, symbolName(symbol));
+  }
+};
 
 class RecordingDiagnosticsClient : public DiagnosticsClient {
  public:
@@ -123,6 +272,9 @@ Parser::Parser(TranslationUnit* unit) : unit(unit) {
   importId_ = control_->getIdentifier("import");
   finalId_ = control_->getIdentifier("final");
   overrideId_ = control_->getIdentifier("override");
+
+  globalScope_ = unit->globalScope();
+  scope_ = globalScope_;
 
   mark_maybe_template_name(control_->getIdentifier("__make_integer_seq"));
   mark_maybe_template_name(control_->getIdentifier("__type_pack_element"));
@@ -259,6 +411,12 @@ struct Parser::ClassHead {
 };
 
 struct Parser::DeclSpecs {
+  Parser* parser = nullptr;
+
+  explicit DeclSpecs(Parser* parser) : parser(parser) {}
+
+  auto control() const -> Control* { return parser->control_; }
+
   [[nodiscard]] auto hasTypeSpecifier() const -> bool {
     if (typeSpecifier) return true;
     if (isShort || isLong) return true;
@@ -341,40 +499,33 @@ struct Parser::DeclSpecs {
 
 struct Parser::Decl {
   DeclSpecs specs;
+  IdDeclaratorAST* declaratorId = nullptr;
 
   explicit Decl(const DeclSpecs& specs) : specs{specs} {}
+
+  auto getName() const -> const Name* {
+    auto control = specs.control();
+    if (!declaratorId) return nullptr;
+    if (!declaratorId->unqualifiedId) return nullptr;
+    return visit(ConvertToName{control}, declaratorId->unqualifiedId);
+  }
 };
 
-struct Parser::ScopeContext {
+struct Parser::ScopeGuard {
   Parser* p = nullptr;
+  Scope* savedScope = nullptr;
 
-  ScopeContext(const ScopeContext&) = delete;
-  auto operator=(const ScopeContext&) -> ScopeContext& = delete;
+  ScopeGuard(const ScopeGuard&) = delete;
+  auto operator=(const ScopeGuard&) -> ScopeGuard& = delete;
 
-  ScopeContext(ScopeContext&& other) noexcept : p(other.p) {
-    other.p = nullptr;
+  ScopeGuard() = default;
+
+  explicit ScopeGuard(Parser* p, Scope* scope = nullptr)
+      : p(p), savedScope(p->scope_) {
+    if (scope) p->scope_ = scope;
   }
 
-  auto operator=(ScopeContext&& other) noexcept -> ScopeContext& {
-    if (this != &other) {
-      p = other.p;
-      other.p = nullptr;
-    }
-    return *this;
-  }
-
-  ScopeContext() = default;
-  explicit ScopeContext(Parser* p) : p(p) {
-#if false
-    p->parse_warn("enter scope");
-#endif
-  }
-
-  ~ScopeContext() {
-#if false
-    if (p) p->parse_warn("leave scope");
-#endif
-  }
+  ~ScopeGuard() { p->scope_ = savedScope; }
 };
 
 struct Parser::ExprContext {
@@ -431,7 +582,13 @@ auto Parser::expect(TokenKind tk, SourceLocation& location) -> bool {
 
 void Parser::operator()(UnitAST*& ast) { parse(ast); }
 
-void Parser::parse(UnitAST*& ast) { parse_translation_unit(ast); }
+void Parser::parse(UnitAST*& ast) {
+  parse_translation_unit(ast);
+#if false
+  DumpSymbols dumpSymbols;
+  dumpSymbols.accept(globalNamespace_);
+#endif
+}
 
 void Parser::parse_warn(std::string message) {
   unit->warning(SourceLocation(cursor_), std::move(message));
@@ -1058,7 +1215,7 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
 auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
   if (!lookat(TokenKind::T_LBRACKET)) return false;
 
-  ScopeContext scopeContext{this};
+  ScopeGuard scopeGuard{this};
 
   TemplateHeadContext templateHeadContext{this};
 
@@ -1078,11 +1235,9 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
   if (ast->captureDefaultLoc)
     ast->captureDefault = unit->tokenKind(ast->captureDefaultLoc);
 
-  ScopeContext templateScopeContext;
+  ScopeGuard templateScopeGuard{this};
 
   if (match(TokenKind::T_LESS, ast->lessLoc)) {
-    templateScopeContext = ScopeContext{this};
-
     parse_template_parameter_list(ast->templateParameterList);
 
     expect(TokenKind::T_GREATER, ast->greaterLoc);
@@ -1607,7 +1762,7 @@ auto Parser::parse_compound_requirement(RequirementAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_LBRACE, lbraceLoc)) return false;
 
-  ScopeContext scopeContext{this};
+  ScopeGuard scopeGuard{this};
 
   ExpressionAST* expression = nullptr;
 
@@ -1825,7 +1980,7 @@ auto Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast) -> bool {
     LookaheadParser lookahead{this};
 
     SpecifierAST* typeSpecifier = nullptr;
-    DeclSpecs specs;
+    DeclSpecs specs{this};
 
     if (!parse_simple_type_specifier(typeSpecifier, specs)) return false;
 
@@ -1841,7 +1996,7 @@ auto Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast) -> bool {
     LookaheadParser lookahead{this};
 
     SpecifierAST* typeSpecifier = nullptr;
-    DeclSpecs specs;
+    DeclSpecs specs{this};
 
     if (!parse_simple_type_specifier(typeSpecifier, specs)) return false;
 
@@ -1866,7 +2021,7 @@ auto Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast) -> bool {
   LookaheadParser lookahead{this};
 
   SpecifierAST* typeSpecifier = nullptr;
-  DeclSpecs specs;
+  DeclSpecs specs{this};
 
   if (!parse_simple_type_specifier(typeSpecifier, specs)) return false;
 
@@ -1946,7 +2101,7 @@ auto Parser::parse_typename_expression(ExpressionAST*& yyast) -> bool {
   LookaheadParser lookahead{this};
 
   SpecifierAST* typenameSpecifier = nullptr;
-  DeclSpecs specs;
+  DeclSpecs specs{this};
   if (!parse_typename_specifier(typenameSpecifier, specs)) return false;
 
   if (BracedInitListAST* bracedInitList = nullptr;
@@ -2367,7 +2522,7 @@ auto Parser::parse_new_expression(ExpressionAST*& yyast) -> bool {
     if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
 
     List<SpecifierAST*>* typeSpecifierList = nullptr;
-    DeclSpecs specs;
+    DeclSpecs specs{this};
     if (!parse_type_specifier_seq(typeSpecifierList, specs)) return false;
 
     DeclaratorAST* declarator = nullptr;
@@ -2392,7 +2547,7 @@ auto Parser::parse_new_expression(ExpressionAST*& yyast) -> bool {
 
   if (lookat_nested_type_id()) return true;
 
-  DeclSpecs specs;
+  DeclSpecs specs{this};
   if (!parse_type_specifier_seq(ast->typeSpecifierList, specs))
     parse_error("expected a type specifier");
 
@@ -2946,7 +3101,7 @@ void Parser::parse_condition(ExpressionAST*& yyast) {
 
     List<SpecifierAST*>* declSpecifierList = nullptr;
 
-    DeclSpecs specs;
+    DeclSpecs specs{this};
 
     if (!parse_decl_specifier_seq(declSpecifierList, specs)) return false;
 
@@ -3067,6 +3222,12 @@ auto Parser::parse_compound_statement(CompoundStatementAST*& yyast, bool skip)
 
   if (!match(TokenKind::T_LBRACE, lbraceLoc)) return false;
 
+  ScopeGuard scopeGuard{this};
+
+  auto blockSymbol = control_->newBlockSymbol(scope_);
+  scope_->addSymbol(blockSymbol);
+  scope_ = blockSymbol->scope();
+
   auto ast = new (pool_) CompoundStatementAST();
   yyast = ast;
 
@@ -3140,7 +3301,7 @@ auto Parser::parse_if_statement(StatementAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_IF, ifLoc)) return false;
 
-  ScopeContext scopeContext{this};
+  ScopeGuard scopeGuard{this};
 
   if (LA().isOneOf(TokenKind::T_EXCLAIM, TokenKind::T_CONSTEVAL)) {
     auto ast = new (pool_) ConstevalIfStatementAST();
@@ -3194,7 +3355,7 @@ auto Parser::parse_switch_statement(StatementAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_SWITCH, switchLoc)) return false;
 
-  ScopeContext scopeContext{this};
+  ScopeGuard scopeGuard{this};
 
   auto ast = new (pool_) SwitchStatementAST();
   yyast = ast;
@@ -3219,7 +3380,7 @@ auto Parser::parse_while_statement(StatementAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_WHILE, whileLoc)) return false;
 
-  ScopeContext scopeContext{this};
+  ScopeGuard scopeGuard{this};
 
   auto ast = new (pool_) WhileStatementAST();
   yyast = ast;
@@ -3242,7 +3403,7 @@ auto Parser::parse_do_statement(StatementAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_DO, doLoc)) return false;
 
-  ScopeContext scopeContext{this};
+  ScopeGuard scopeGuard{this};
 
   auto ast = new (pool_) DoStatementAST();
   yyast = ast;
@@ -3340,7 +3501,7 @@ auto Parser::parse_for_range_declaration(DeclarationAST*& yyast) -> bool {
 
   List<SpecifierAST*>* declSpecifierList = nullptr;
 
-  DeclSpecs specs;
+  DeclSpecs specs{this};
 
   if (!parse_decl_specifier_seq(declSpecifierList, specs)) return false;
 
@@ -3600,12 +3761,18 @@ auto Parser::parse_alias_declaration(
 
   expect(TokenKind::T_SEMICOLON, semicolonLoc);
 
+  auto aliasName = unit->identifier(identifierLoc);
+
+  auto aliasSymbol = control_->newTypeAliasSymbol(scope_);
+  aliasSymbol->setName(aliasName);
+  scope_->addSymbol(aliasSymbol);
+
   auto ast = new (pool_) AliasDeclarationAST;
   yyast = ast;
 
   ast->usingLoc = usingLoc;
   ast->identifierLoc = identifierLoc;
-  ast->identifier = unit->identifier(ast->identifierLoc);
+  ast->identifier = aliasName;
   ast->attributeList = attributes;
   ast->equalLoc = equalLoc;
   ast->typeId = typeId;
@@ -3614,14 +3781,48 @@ auto Parser::parse_alias_declaration(
   return true;
 }
 
+auto Parser::enterOrCreateNamespace(const Name* name, bool isInline)
+    -> NamespaceSymbol* {
+  auto parentScope = scope_;
+  auto parentNamespace = symbol_cast<NamespaceSymbol>(parentScope->owner());
+
+  NamespaceSymbol* namespaceSymbol = nullptr;
+
+  if (!name) {
+    namespaceSymbol = parentNamespace->unnamedNamespace();
+  } else {
+    auto resolved =
+        parentScope->get(name) | std::views::filter(&Symbol::isNamespace);
+    if (std::ranges::distance(resolved) == 1) {
+      namespaceSymbol = symbol_cast<NamespaceSymbol>(*begin(resolved));
+    }
+  }
+
+  if (!namespaceSymbol) {
+    namespaceSymbol = control_->newNamespaceSymbol(parentScope);
+
+    if (name) {
+      namespaceSymbol->setName(name);
+    } else {
+      parentNamespace->setUnnamedNamespace(namespaceSymbol);
+    }
+
+    namespaceSymbol->setInline(isInline);
+
+    parentScope->addSymbol(namespaceSymbol);
+
+    if (isInline) {
+      parentNamespace->addUsingNamespace(namespaceSymbol);
+    }
+  }
+
+  scope_ = namespaceSymbol->scope();
+
+  return namespaceSymbol;
+}
+
 void Parser::enterFunctionScope(
     FunctionDeclaratorChunkAST* functionDeclarator) {}
-
-auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
-                                      BindingContext ctx) -> bool {
-  std::vector<TemplateDeclarationAST*> templateDeclarations;
-  return parse_simple_declaration(yyast, templateDeclarations, ctx);
-}
 
 auto Parser::parse_template_class_declaration(
     DeclarationAST*& yyast, List<AttributeSpecifierAST*>* attributes,
@@ -3632,7 +3833,7 @@ auto Parser::parse_template_class_declaration(
   if (ctx != BindingContext::kTemplate) return false;
 
   ClassSpecifierAST* classSpecifier = nullptr;
-  DeclSpecs specs;
+  DeclSpecs specs{this};
   if (!parse_class_specifier(classSpecifier, specs, templateDeclarations))
     return false;
 
@@ -3686,13 +3887,13 @@ auto Parser::parse_notypespec_function_definition(
 
   if (!context_allows_function_definition(ctx)) return false;
 
-  DeclSpecs specs;
+  DeclSpecs specs{this};
   List<SpecifierAST*>* declSpecifierList = nullptr;
 
   auto parse_optional_decl_specifier_seq_no_typespecs = [&] {
     LookaheadParser lookahead{this};
     if (!parse_decl_specifier_seq_no_typespecs(declSpecifierList, specs)) {
-      specs = {};
+      specs = DeclSpecs{this};
       return;
     }
     lookahead.commit();
@@ -3793,6 +3994,69 @@ auto Parser::parse_structured_binding(DeclarationAST*& yyast,
   return true;
 }
 
+auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
+                                      BindingContext ctx) -> bool {
+  std::vector<TemplateDeclarationAST*> templateDeclarations;
+  return parse_simple_declaration(yyast, templateDeclarations, ctx);
+}
+
+auto Parser::parse_simple_declaration(
+    DeclarationAST*& yyast,
+    const std::vector<TemplateDeclarationAST*>& templateDeclarations,
+    BindingContext ctx) -> bool {
+  SourceLocation extensionLoc;
+
+  match(TokenKind::T___EXTENSION__, extensionLoc);
+
+  List<AttributeSpecifierAST*>* attributes = nullptr;
+  parse_optional_attribute_specifier_seq(attributes);
+
+  if (SourceLocation semicolonLoc;
+      ctx != BindingContext::kTemplate && attributes &&
+      match(TokenKind::T_SEMICOLON, semicolonLoc)) {
+    // Found an attribute declaration instead of a simple declaration.
+    auto ast = new (pool_) AttributeDeclarationAST();
+    yyast = ast;
+
+    ast->attributeList = attributes;
+    ast->semicolonLoc = semicolonLoc;
+    return true;
+  }
+
+  if (parse_template_class_declaration(yyast, attributes, templateDeclarations,
+                                       ctx))
+    return true;
+  else if (parse_empty_or_attribute_declaration(yyast, attributes))
+    return true;
+  else if (parse_notypespec_function_definition(yyast, attributes,
+                                                templateDeclarations, ctx))
+    return true;
+
+  DeclSpecs specs{this};
+  List<SpecifierAST*>* declSpecifierList = nullptr;
+
+  auto lookat_decl_specifiers = [&] {
+    LookaheadParser lookahead{this};
+    if (!parse_decl_specifier_seq(declSpecifierList, specs)) return false;
+    if (!specs.hasTypeSpecifier()) return false;
+    lookahead.commit();
+    return true;
+  };
+
+  if (!lookat_decl_specifiers()) return false;
+
+  if (parse_type_or_forward_declaration(yyast, attributes, declSpecifierList,
+                                        specs, templateDeclarations, ctx))
+    return true;
+
+  if (parse_structured_binding(yyast, attributes, declSpecifierList, specs,
+                               ctx))
+    return true;
+
+  return parse_simple_declaration(yyast, attributes, declSpecifierList, specs,
+                                  templateDeclarations, ctx);
+}
+
 auto Parser::parse_simple_declaration(
     DeclarationAST*& yyast, List<AttributeSpecifierAST*>* attributes,
     List<SpecifierAST*>* declSpecifierList, const DeclSpecs& specs,
@@ -3814,6 +4078,21 @@ auto Parser::parse_simple_declaration(
     (void)parse_requires_clause(requiresClause);
 
     if (!lookat_function_body()) return false;
+
+    ScopeGuard scopeGuard{this};
+
+    const Name* functionName = decl.getName();
+
+    auto functionSymbol = control_->newFunctionSymbol(scope_);
+    functionSymbol->setName(functionName);
+    scope_->addSymbol(functionSymbol);
+
+    scope_ = functionSymbol->scope();
+
+    if (auto params = functionDeclarator->parameterDeclarationClause) {
+      scope_->addSymbol(params->prototypeSymbol);
+      scope_ = params->prototypeSymbol->scope();
+    }
 
     if (ctx == BindingContext::kTemplate) {
       mark_maybe_template_name(declarator);
@@ -3841,11 +4120,18 @@ auto Parser::parse_simple_declaration(
 
   if (lookat_function_definition()) return true;
 
+  if (specs.isTypedef) {
+    auto typeAlias = control_->newTypeAliasSymbol(scope_);
+    typeAlias->setName(
+        ast_cast<NameIdAST>(decl.declaratorId->unqualifiedId)->identifier);
+    scope_->addSymbol(typeAlias);
+  }
+
   List<InitDeclaratorAST*>* initDeclaratorList = nullptr;
   auto declIt = &initDeclaratorList;
 
   InitDeclaratorAST* initDeclarator = nullptr;
-  if (!parse_init_declarator(initDeclarator, declarator, specs)) return false;
+  if (!parse_init_declarator(initDeclarator, declarator, decl)) return false;
 
   if (ctx == BindingContext::kTemplate) {
     auto declarator = initDeclarator->declarator;
@@ -3881,68 +4167,13 @@ auto Parser::parse_simple_declaration(
   return true;
 }
 
-auto Parser::parse_simple_declaration(
-    DeclarationAST*& yyast,
-    const std::vector<TemplateDeclarationAST*>& templateDeclarations,
-    BindingContext ctx) -> bool {
-  SourceLocation extensionLoc;
-
-  match(TokenKind::T___EXTENSION__, extensionLoc);
-
-  List<AttributeSpecifierAST*>* attributes = nullptr;
-  parse_optional_attribute_specifier_seq(attributes);
-
-  if (SourceLocation semicolonLoc;
-      ctx != BindingContext::kTemplate && attributes &&
-      match(TokenKind::T_SEMICOLON, semicolonLoc)) {
-    auto ast = new (pool_) AttributeDeclarationAST();
-    yyast = ast;
-
-    ast->attributeList = attributes;
-    ast->semicolonLoc = semicolonLoc;
-    return true;
-  }
-
-  if (parse_template_class_declaration(yyast, attributes, templateDeclarations,
-                                       ctx))
-    return true;
-  else if (parse_empty_or_attribute_declaration(yyast, attributes))
-    return true;
-  else if (parse_notypespec_function_definition(yyast, attributes,
-                                                templateDeclarations, ctx))
-    return true;
-
-  DeclSpecs specs;
-  List<SpecifierAST*>* declSpecifierList = nullptr;
-
-  auto lookat_decl_specifiers = [&] {
-    LookaheadParser lookahead{this};
-    if (!parse_decl_specifier_seq(declSpecifierList, specs)) return false;
-    if (!specs.hasTypeSpecifier()) return false;
-    lookahead.commit();
-    return true;
-  };
-
-  if (!lookat_decl_specifiers()) return false;
-
-  if (parse_type_or_forward_declaration(yyast, attributes, declSpecifierList,
-                                        specs, templateDeclarations, ctx))
-    return true;
-
-  if (parse_structured_binding(yyast, attributes, declSpecifierList, specs,
-                               ctx))
-    return true;
-
-  return parse_simple_declaration(yyast, attributes, declSpecifierList, specs,
-                                  templateDeclarations, ctx);
-}
-
 auto Parser::parse_notypespec_function_definition(
     DeclarationAST*& yyast, List<SpecifierAST*>* declSpecifierList,
     const DeclSpecs& specs) -> bool {
   CoreDeclaratorAST* declaratorId = nullptr;
 
-  if (!parse_declarator_id(declaratorId, DeclaratorKind::kDeclarator))
+  Decl decl{specs};
+  if (!parse_declarator_id(declaratorId, decl, DeclaratorKind::kDeclarator))
     return false;
 
   FunctionDeclaratorChunkAST* functionDeclarator = nullptr;
@@ -3988,6 +4219,10 @@ auto Parser::parse_notypespec_function_definition(
   }
 
   if (!lookat_function_body()) return false;
+
+  auto functionSymbol = control_->newFunctionSymbol(scope_);
+  functionSymbol->setName(decl.getName());
+  scope_->addSymbol(functionSymbol);
 
   FunctionBodyAST* functionBody = nullptr;
 
@@ -4841,7 +5076,7 @@ auto Parser::parse_elaborated_enum_specifier(ElaboratedTypeSpecifierAST*& yyast,
 
 auto Parser::parse_decl_specifier_seq_no_typespecs(List<SpecifierAST*>*& yyast)
     -> bool {
-  DeclSpecs specs;
+  DeclSpecs specs{this};
   return parse_decl_specifier_seq_no_typespecs(yyast, specs);
 }
 
@@ -4927,12 +5162,26 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
   Decl decl{specs};
   if (!parse_declarator(declarator, decl)) return false;
 
-  return parse_init_declarator(yyast, declarator, specs);
+  return parse_init_declarator(yyast, declarator, decl);
 }
 
 auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
-                                   DeclaratorAST* declarator,
-                                   const DeclSpecs& specs) -> bool {
+                                   DeclaratorAST* declarator, Decl& decl)
+    -> bool {
+  if (auto declId = decl.declaratorId; declId && !decl.specs.isTypedef) {
+    const auto name = ast_cast<NameIdAST>(declId->unqualifiedId);
+    if (name) {
+      if (getFunctionPrototype(declarator)) {
+        auto symbol = control_->newFunctionSymbol(scope_);
+        symbol->setName(name->identifier);
+        scope_->addSymbol(symbol);
+      } else {
+        auto symbol = control_->newVariableSymbol(scope_);
+        symbol->setName(name->identifier);
+        scope_->addSymbol(symbol);
+      }
+    }
+  }
   RequiresClauseAST* requiresClause = nullptr;
   ExpressionAST* initializer = nullptr;
 
@@ -5059,7 +5308,7 @@ auto Parser::parse_ptr_operator_seq(List<PtrOperatorAST*>*& yyast) -> bool {
 
 auto Parser::parse_core_declarator(CoreDeclaratorAST*& yyast, Decl& decl,
                                    DeclaratorKind declaratorKind) -> bool {
-  if (parse_declarator_id(yyast, declaratorKind)) return true;
+  if (parse_declarator_id(yyast, decl, declaratorKind)) return true;
   if (parse_nested_declarator(yyast, decl, declaratorKind)) return true;
   if (declaratorKind != DeclaratorKind::kDeclarator) return true;
   return false;
@@ -5102,7 +5351,7 @@ auto Parser::parse_function_declarator(FunctionDeclaratorChunkAST*& yyast,
   SourceLocation lparenLoc;
   if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
 
-  ScopeContext scopeContext{this};
+  ScopeGuard scopeGuard{this};
 
   SourceLocation rparenLoc;
   ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
@@ -5124,7 +5373,7 @@ auto Parser::parse_function_declarator(FunctionDeclaratorChunkAST*& yyast,
   ast->parameterDeclarationClause = parameterDeclarationClause;
   ast->rparenLoc = rparenLoc;
 
-  DeclSpecs cvQualifiers;
+  DeclSpecs cvQualifiers{this};
 
   (void)parse_cv_qualifier_seq(ast->cvQualifierList, cvQualifiers);
 
@@ -5189,7 +5438,7 @@ auto Parser::parse_ptr_operator(PtrOperatorAST*& yyast) -> bool {
 
     parse_optional_attribute_specifier_seq(ast->attributeList);
 
-    DeclSpecs cvQualifiers;
+    DeclSpecs cvQualifiers{this};
     (void)parse_cv_qualifier_seq(ast->cvQualifierList, cvQualifiers);
 
     return true;
@@ -5223,7 +5472,7 @@ auto Parser::parse_ptr_operator(PtrOperatorAST*& yyast) -> bool {
 
   parse_optional_attribute_specifier_seq(ast->attributeList);
 
-  DeclSpecs cvQualifiers;
+  DeclSpecs cvQualifiers{this};
   (void)parse_cv_qualifier_seq(ast->cvQualifierList, cvQualifiers);
 
   return true;
@@ -5263,7 +5512,7 @@ auto Parser::parse_ref_qualifier(SourceLocation& refLoc) -> bool {
   return false;
 }
 
-auto Parser::parse_declarator_id(CoreDeclaratorAST*& yyast,
+auto Parser::parse_declarator_id(CoreDeclaratorAST*& yyast, Decl& decl,
                                  DeclaratorKind declaratorKind) -> bool {
   LookaheadParser lookahead{this};
 
@@ -5302,6 +5551,8 @@ auto Parser::parse_declarator_id(CoreDeclaratorAST*& yyast,
   auto ast = new (pool_) IdDeclaratorAST();
   yyast = ast;
 
+  decl.declaratorId = ast;
+
   ast->nestedNameSpecifier = nestedNameSpecifier;
   ast->templateLoc = templateLoc;
   ast->unqualifiedId = unqualifiedId;
@@ -5322,7 +5573,7 @@ auto Parser::parse_declarator_id(CoreDeclaratorAST*& yyast,
 
 auto Parser::parse_type_id(TypeIdAST*& yyast) -> bool {
   List<SpecifierAST*>* specifierList = nullptr;
-  DeclSpecs specs;
+  DeclSpecs specs{this};
   if (!parse_type_specifier_seq(specifierList, specs)) return false;
 
   yyast = new (pool_) TypeIdAST();
@@ -5337,7 +5588,7 @@ auto Parser::parse_type_id(TypeIdAST*& yyast) -> bool {
 auto Parser::parse_defining_type_id(
     TypeIdAST*& yyast,
     const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool {
-  DeclSpecs specs;
+  DeclSpecs specs{this};
 
   if (!templateDeclarations.empty()) specs.no_class_or_enum_specs = true;
 
@@ -5397,9 +5648,12 @@ auto Parser::parse_parameter_declaration_clause(
     return parsed;
   }
 
+  ScopeGuard scopeGuard{this};
+
   bool parsed = false;
 
   SourceLocation ellipsisLoc;
+  PrototypeSymbol* prototypeSymbol = nullptr;
 
   if (match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) {
     parsed = true;
@@ -5409,8 +5663,10 @@ auto Parser::parse_parameter_declaration_clause(
 
     ast->ellipsisLoc = ellipsisLoc;
     ast->isVariadic = true;
+    ast->prototypeSymbol = control_->newPrototypeSymbol(scope_);
   } else if (List<ParameterDeclarationAST*>* parameterDeclarationList = nullptr;
-             parse_parameter_declaration_list(parameterDeclarationList)) {
+             parse_parameter_declaration_list(parameterDeclarationList,
+                                              prototypeSymbol)) {
     parsed = true;
 
     auto ast = new (pool_) ParameterDeclarationClauseAST();
@@ -5418,6 +5674,7 @@ auto Parser::parse_parameter_declaration_clause(
     ast->parameterDeclarationList = parameterDeclarationList;
     match(TokenKind::T_COMMA, ast->commaLoc);
     ast->isVariadic = match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
+    ast->prototypeSymbol = prototypeSymbol;
   } else {
     parsed = false;
   }
@@ -5428,8 +5685,15 @@ auto Parser::parse_parameter_declaration_clause(
 }
 
 auto Parser::parse_parameter_declaration_list(
-    List<ParameterDeclarationAST*>*& yyast) -> bool {
+    List<ParameterDeclarationAST*>*& yyast, PrototypeSymbol*& prototypeSymbol)
+    -> bool {
   auto it = &yyast;
+
+  ScopeGuard scopeGuard{this};
+
+  prototypeSymbol = control_->newPrototypeSymbol(scope_);
+
+  scope_ = prototypeSymbol->scope();
 
   ParameterDeclarationAST* declaration = nullptr;
 
@@ -5464,7 +5728,7 @@ auto Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast,
 
   parse_optional_attribute_specifier_seq(ast->attributeList);
 
-  DeclSpecs specs;
+  DeclSpecs specs{this};
 
   specs.no_class_or_enum_specs = true;
 
@@ -5474,6 +5738,18 @@ auto Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast,
 
   Decl decl{specs};
   parse_optional_declarator_or_abstract_declarator(ast->declarator, decl);
+
+  if (!templParam) {
+    const Name* parameterName = nullptr;
+    if (auto declId = decl.declaratorId; declId && declId->unqualifiedId) {
+      parameterName = ast_cast<NameIdAST>(declId->unqualifiedId)->identifier;
+    } else {
+      parameterName = control_->makeAnonymousId("param");
+    }
+    auto parameterSymbol = control_->newParameterSymbol(scope_);
+    parameterSymbol->setName(parameterName);
+    scope_->addSymbol(parameterSymbol);
+  }
 
   if (match(TokenKind::T_EQUAL, ast->equalLoc)) {
     if (!parse_initializer_clause(ast->expression, templParam)) {
@@ -5823,9 +6099,28 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
 
   if (!match(TokenKind::T_LBRACE, lbraceLoc)) return false;
 
-  ScopeContext scopeContext{this};
+  ScopeGuard scopeGuard{this};
 
   lookahead.commit();
+
+  const Identifier* enumName = nullptr;
+
+  if (name)
+    enumName = name->identifier;
+  else
+    enumName = control_->makeAnonymousId("enum");
+
+  if (classLoc) {
+    auto enumSymbol = control_->newScopedEnumSymbol(scope_);
+    enumSymbol->setName(enumName);
+    scope_->addSymbol(enumSymbol);
+    scope_ = enumSymbol->scope();
+  } else {
+    auto enumSymbol = control_->newEnumSymbol(scope_);
+    enumSymbol->setName(enumName);
+    scope_->addSymbol(enumSymbol);
+    scope_ = enumSymbol->scope();
+  }
 
   auto ast = new (pool_) EnumSpecifierAST();
   yyast = ast;
@@ -5922,7 +6217,7 @@ auto Parser::parse_enum_base(SourceLocation& colonLoc,
                              List<SpecifierAST*>*& typeSpecifierList) -> bool {
   if (!match(TokenKind::T_COLON, colonLoc)) return false;
 
-  DeclSpecs specs;
+  DeclSpecs specs{this};
   if (!parse_type_specifier_seq(typeSpecifierList, specs)) {
     parse_error("expected a type specifier");
   }
@@ -5976,6 +6271,16 @@ void Parser::parse_enumerator(EnumeratorAST*& yyast) {
   ast->identifier = unit->identifier(ast->identifierLoc);
 
   parse_optional_attribute_specifier_seq(ast->attributeList);
+
+  auto enumeratorSymbol = control_->newEnumeratorSymbol(scope_);
+  enumeratorSymbol->setName(ast->identifier);
+  scope_->addSymbol(enumeratorSymbol);
+
+  if (auto enumSymbol = symbol_cast<EnumSymbol>(scope_->owner())) {
+    auto enumeratorSymbol = control_->newEnumeratorSymbol(scope_);
+    enumeratorSymbol->setName(ast->identifier);
+    enumSymbol->enclosingScope()->addSymbol(enumeratorSymbol);
+  }
 }
 
 auto Parser::parse_using_enum_declaration(DeclarationAST*& yyast) -> bool {
@@ -5986,7 +6291,7 @@ auto Parser::parse_using_enum_declaration(DeclarationAST*& yyast) -> bool {
 
   expect(TokenKind::T_USING, ast->usingLoc);
 
-  DeclSpecs specs;
+  DeclSpecs specs{this};
 
   if (!parse_elaborated_enum_specifier(ast->enumTypeSpecifier, specs)) {
     parse_error("expected an elaborated enum specifier");
@@ -6009,6 +6314,8 @@ auto Parser::parse_namespace_definition(DeclarationAST*& yyast) -> bool {
     return false;
   }
 
+  ScopeGuard scopeGuard{this};
+
   auto ast = new (pool_) NamespaceDefinitionAST();
   yyast = ast;
 
@@ -6030,6 +6337,9 @@ auto Parser::parse_namespace_definition(DeclarationAST*& yyast) -> bool {
 
     *it = new (pool_) List(name);
     it = &(*it)->next;
+
+    auto namepaceSymbol =
+        enterOrCreateNamespace(name->identifier, /*isInline*/ false);
 
     LoopParser loop{this};
 
@@ -6056,11 +6366,15 @@ auto Parser::parse_namespace_definition(DeclarationAST*& yyast) -> bool {
         break;
       }
 
+      auto namespaceName = unit->identifier(identifierLoc);
+
+      auto namepaceSymbol = enterOrCreateNamespace(namespaceName, isInline);
+
       auto name = new (pool_) NestedNamespaceSpecifierAST();
       name->inlineLoc = inlineLoc;
       name->identifierLoc = identifierLoc;
       name->scopeLoc = scopeLoc;
-      name->identifier = unit->identifier(name->identifierLoc);
+      name->identifier = namespaceName;
       name->isInline = isInline;
 
       *it = new (pool_) List(name);
@@ -6077,9 +6391,9 @@ auto Parser::parse_namespace_definition(DeclarationAST*& yyast) -> bool {
 
   ast->identifier = unit->identifier(ast->identifierLoc);
 
-  parse_optional_attribute_specifier_seq(ast->extraAttributeList);
+  auto namespaceSymbol = enterOrCreateNamespace(ast->identifier, ast->isInline);
 
-  ScopeContext scopeContext{this};
+  parse_optional_attribute_specifier_seq(ast->extraAttributeList);
 
   expect(TokenKind::T_LBRACE, ast->lbraceLoc);
 
@@ -7053,6 +7367,8 @@ auto Parser::parse_class_specifier(
     return parsed;
   }
 
+  ScopeGuard scopeGuard{this};
+
   ClassHead classHead{templateDeclarations};
 
   auto lookat_class_specifier = [&] {
@@ -7072,8 +7388,6 @@ auto Parser::parse_class_specifier(
   };
 
   if (!lookat_class_specifier()) return false;
-
-  ScopeContext scopeContext{this};
 
   SourceLocation lbraceLoc;
   expect(TokenKind::T_LBRACE, lbraceLoc);
@@ -7156,6 +7470,19 @@ auto Parser::parse_class_head(ClassHead& classHead) -> bool {
       !classHead.nestedNameSpecifier) {
     mark_maybe_template_name(classHead.name);
   }
+
+  auto classSymbol = control_->newClassSymbol(scope_);
+  const Identifier* id = nullptr;
+
+  if (const auto simpleName = ast_cast<NameIdAST>(classHead.name))
+    id = simpleName->identifier;
+  else if (const auto t = ast_cast<SimpleTemplateIdAST>(classHead.name))
+    id = t->identifier;
+  else
+    id = control_->makeAnonymousId("class");
+  classSymbol->setName(id);
+  scope_->addSymbol(classSymbol);
+  scope_ = classSymbol->scope();
 
   (void)parse_base_clause(classHead.colonLoc, classHead.baseSpecifierList);
 
@@ -7249,7 +7576,7 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
   parse_optional_attribute_specifier_seq(attributes);
 
   List<SpecifierAST*>* declSpecifierList = nullptr;
-  DeclSpecs specs;
+  DeclSpecs specs{this};
   (void)parse_decl_specifier_seq_no_typespecs(declSpecifierList, specs);
 
   auto lookat_notypespec_function_definition = [&] {
@@ -7299,6 +7626,10 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
     if (!lookat_function_body()) return false;
 
     lookahead.commit();
+
+    auto functionSymbol = control_->newFunctionSymbol(scope_);
+    functionSymbol->setName(decl.getName());
+    scope_->addSymbol(functionSymbol);
 
     FunctionBodyAST* functionBody = nullptr;
     if (!parse_function_body(functionBody)) {
@@ -7427,6 +7758,22 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
 
   lookahead.commit();
 
+  if (specs.isTypedef) {
+    auto typedefSymbol = control_->newTypeAliasSymbol(scope_);
+    typedefSymbol->setName(decl.getName());
+    scope_->addSymbol(typedefSymbol);
+  } else {
+    if (auto functionDeclarator = getFunctionPrototype(declarator)) {
+      auto functionSymbol = control_->newFunctionSymbol(scope_);
+      functionSymbol->setName(decl.getName());
+      scope_->addSymbol(functionSymbol);
+    } else {
+      auto fieldSymbol = control_->newFieldSymbol(scope_);
+      fieldSymbol->setName(decl.getName());
+      scope_->addSymbol(fieldSymbol);
+    }
+  }
+
   auto ast = new (pool_) InitDeclaratorAST();
   yyast = ast;
 
@@ -7499,7 +7846,7 @@ auto Parser::parse_conversion_function_id(ConversionFunctionIdAST*& yyast)
   if (!match(TokenKind::T_OPERATOR, operatorLoc)) return false;
 
   List<SpecifierAST*>* typeSpecifierList = nullptr;
-  DeclSpecs specs;
+  DeclSpecs specs{this};
   if (!parse_type_specifier_seq(typeSpecifierList, specs)) return false;
 
   lookahead.commit();
@@ -7905,7 +8252,7 @@ auto Parser::parse_template_declaration(
     std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool {
   if (!lookat(TokenKind::T_TEMPLATE, TokenKind::T_LESS)) return false;
 
-  ScopeContext scopeContext{this};
+  ScopeGuard scopeGuard{this};
   TemplateHeadContext templateHeadContext{this};
 
   auto ast = new (pool_) TemplateDeclarationAST();
@@ -8127,7 +8474,7 @@ auto Parser::parse_template_type_parameter(TemplateParameterAST*& yyast)
     -> bool {
   if (!lookat(TokenKind::T_TEMPLATE, TokenKind::T_LESS)) return false;
 
-  ScopeContext scopeContext{this};
+  ScopeGuard scopeGuard{this};
   TemplateHeadContext templateHeadContext{this};
 
   SourceLocation templateLoc;
@@ -8551,7 +8898,7 @@ auto Parser::parse_deduction_guide(DeclarationAST*& yyast) -> bool {
   auto lookat_deduction_guide = [&] {
     LookaheadParser lookahead{this};
 
-    DeclSpecs specs;
+    DeclSpecs specs{this};
     (void)parse_explicit_specifier(explicitSpecifier, specs);
 
     if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
@@ -8807,7 +9154,7 @@ auto Parser::parse_exception_declaration(ExceptionDeclarationAST*& yyast)
 
   parse_optional_attribute_specifier_seq(ast->attributeList);
 
-  DeclSpecs specs;
+  DeclSpecs specs{this};
   if (!parse_type_specifier_seq(ast->typeSpecifierList, specs)) {
     parse_error("expected a type specifier");
   }

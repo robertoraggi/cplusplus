@@ -21,9 +21,12 @@
 #pragma once
 
 #include <cxx/names_fwd.h>
+#include <cxx/token_fwd.h>
 
 #include <cstdint>
 #include <string>
+#include <tuple>
+#include <vector>
 
 namespace cxx {
 
@@ -38,45 +41,84 @@ class Name {
   NameKind kind_;
 };
 
-class Identifier : public Name {
-  std::string name_;
-
+class Identifier final : public Name, public std::tuple<std::string> {
  public:
   static constexpr auto Kind = NameKind::kIdentifier;
 
-  explicit Identifier(std::string name) : Name(Kind), name_(std::move(name)) {}
+  explicit Identifier(std::string name) : Name(Kind), tuple(std::move(name)) {}
 
-  auto isAnonymous() const -> bool { return name_.at(0) == '$'; }
-
-  auto value() const -> const std::string& { return name_; }
-  auto name() const -> const std::string& { return name_; }
-  auto length() const -> std::uint32_t { return name_.size(); }
+  auto isAnonymous() const -> bool { return name().at(0) == '$'; }
+  auto name() const -> const std::string& { return std::get<0>(*this); }
+  auto value() const -> const std::string& { return name(); }
 };
 
-class OperatorId : public Name {
-  std::string name_;
-
+class OperatorId final : public Name, public std::tuple<TokenKind> {
  public:
   static constexpr auto Kind = NameKind::kOperatorId;
 
-  explicit OperatorId(std::string name) : Name(Kind), name_(std::move(name)) {}
+  explicit OperatorId(TokenKind op) : Name(Kind), tuple(op) {}
 
-  auto name() const -> const std::string& { return name_; }
-  auto length() const -> std::uint32_t { return name_.size(); }
+  auto op() const -> TokenKind { return std::get<0>(*this); }
 };
 
-class DestructorId : public Name {
-  std::string name_;
-
+class DestructorId final : public Name, public std::tuple<const Name*> {
  public:
   static constexpr auto Kind = NameKind::kDestructorId;
 
-  explicit DestructorId(std::string name)
-      : Name(Kind), name_(std::move(name)) {}
+  explicit DestructorId(const Name* name) : Name(Kind), tuple(name) {}
 
-  auto name() const -> const std::string& { return name_; }
-  auto length() const -> std::uint32_t { return name_.size(); }
+  auto name() const -> const Name* { return std::get<0>(*this); }
 };
+
+class LiteralOperatorId final : public Name, public std::tuple<std::string> {
+ public:
+  static constexpr auto Kind = NameKind::kLiteralOperatorId;
+
+  explicit LiteralOperatorId(std::string name)
+      : Name(Kind), tuple(std::move(name)) {}
+
+  auto name() const -> const std::string& { return std::get<0>(*this); }
+};
+
+class ConversionFunctionId final : public Name, public std::tuple<const Type*> {
+ public:
+  static constexpr auto Kind = NameKind::kConversionFunctionId;
+
+  explicit ConversionFunctionId(const Type* type) : Name(Kind), tuple(type) {}
+
+  auto type() const -> const Type* { return std::get<0>(*this); }
+};
+
+class TemplateId final
+    : public Name,
+      public std::tuple<const Name*, std::vector<TemplateArgument>> {
+ public:
+  static constexpr auto Kind = NameKind::kTemplateId;
+
+  explicit TemplateId(const Name* name, std::vector<TemplateArgument> args)
+      : Name(Kind), tuple(name, std::move(args)) {}
+
+  auto name() const -> const Name* { return std::get<0>(*this); }
+
+  auto arguments() const -> const std::vector<TemplateArgument>& {
+    return std::get<1>(*this);
+  }
+};
+
+template <typename Visitor>
+auto visit(Visitor&& visitor, const Name* name) {
+#define PROCESS_NAME(N) \
+  case NameKind::k##N:  \
+    return std::forward<Visitor>(visitor)(static_cast<const N*>(name));
+
+  switch (name->kind()) {
+    CXX_FOR_EACH_NAME(PROCESS_NAME)
+    default:
+      cxx_runtime_error("invalid name kind");
+  }  // switch
+
+#undef PROCESS_NAME
+}
 
 template <typename T>
 auto name_cast(const Name* name) -> const T* {

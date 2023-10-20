@@ -29,6 +29,8 @@
 #include <cxx/private/format.h>
 #include <cxx/private/path.h>
 #include <cxx/recursive_ast_visitor.h>
+#include <cxx/scope.h>
+#include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/wasm32_wasi_toolchain.h>
 #include <cxx/windows_toolchain.h>
@@ -40,6 +42,7 @@
 #include <fmt/format.h>
 
 // std
+#include <algorithm>
 #include <cassert>
 #include <fstream>
 #include <iomanip>

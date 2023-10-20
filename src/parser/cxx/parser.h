@@ -23,6 +23,7 @@
 #include <cxx/ast_fwd.h>
 #include <cxx/control.h>
 #include <cxx/source_location.h>
+#include <cxx/symbols_fwd.h>
 #include <cxx/translation_unit.h>
 
 #include <deque>
@@ -88,7 +89,7 @@ class Parser final {
   struct Decl;
   struct TemplateHeadContext;
   struct ClassSpecifierContext;
-  struct ScopeContext;
+  struct ScopeGuard;
   struct ExprContext;
   struct LookaheadParser;
   struct LoopParser;
@@ -421,7 +422,7 @@ class Parser final {
                                            const DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_init_declarator(InitDeclaratorAST*& yyast,
                                            DeclaratorAST* declarator,
-                                           const DeclSpecs& specs) -> bool;
+                                           Decl& decl) -> bool;
   [[nodiscard]] auto parse_declarator_initializer(
       RequiresClauseAST*& requiresClause, ExpressionAST*& yyast) -> bool;
   void parse_optional_declarator_or_abstract_declarator(DeclaratorAST*& yyast,
@@ -438,7 +439,7 @@ class Parser final {
       DeclaratorAST*& yyastl, Decl& decl,
       DeclaratorKind declaratorKind = DeclaratorKind::kDeclarator) -> bool;
 
-  [[nodiscard]] auto parse_declarator_id(CoreDeclaratorAST*& yyast,
+  [[nodiscard]] auto parse_declarator_id(CoreDeclaratorAST*& yyast, Decl& decl,
                                          DeclaratorKind declaratorKind) -> bool;
 
   [[nodiscard]] auto parse_nested_declarator(CoreDeclaratorAST*& yyast,
@@ -473,7 +474,8 @@ class Parser final {
   [[nodiscard]] auto parse_parameter_declaration_clause(
       ParameterDeclarationClauseAST*& yyast) -> bool;
   [[nodiscard]] auto parse_parameter_declaration_list(
-      List<ParameterDeclarationAST*>*& yyast) -> bool;
+      List<ParameterDeclarationAST*>*& yyast, PrototypeSymbol*& prototypeSymbol)
+      -> bool;
   [[nodiscard]] auto parse_parameter_declaration(
       ParameterDeclarationAST*& yyast, bool templParam) -> bool;
   [[nodiscard]] auto parse_initializer(ExpressionAST*& yyast) -> bool;
@@ -696,6 +698,9 @@ class Parser final {
   void completePendingFunctionDefinitions();
   void completeFunctionDefinition(FunctionDefinitionAST* ast);
 
+  auto enterOrCreateNamespace(const Name* name, bool isInline)
+      -> NamespaceSymbol*;
+
   void enterFunctionScope(FunctionDeclaratorChunkAST* functionDeclarator);
 
   void check_type_traits();
@@ -711,6 +716,8 @@ class Parser final {
   Arena* pool_ = nullptr;
   Control* control_ = nullptr;
   DiagnosticsClient* diagnosticClient_ = nullptr;
+  Scope* globalScope_ = nullptr;
+  Scope* scope_ = nullptr;
   bool skipFunctionBody_ = false;
   bool checkTypes_ = false;
   bool moduleUnit_ = false;

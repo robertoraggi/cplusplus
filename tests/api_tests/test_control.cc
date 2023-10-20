@@ -1,6 +1,7 @@
 
 #include <cxx/control.h>
 #include <cxx/literals.h>
+#include <cxx/name_printer.h>
 #include <cxx/names.h>
 #include <gtest/gtest.h>
 
@@ -112,19 +113,21 @@ TEST(Control, get_identifier) {
 TEST(Control, get_operator_id) {
   Control control;
 
-  auto id = control.getOperatorId("+");
-  EXPECT_EQ(id->name(), "+");
+  auto id = control.getOperatorId(TokenKind::T_PLUS);
+  EXPECT_EQ(id->op(), TokenKind::T_PLUS);
 
-  EXPECT_EQ(control.getOperatorId("+"), id);
+  EXPECT_EQ(to_string(id), "operator +");
+
+  EXPECT_EQ(control.getOperatorId(TokenKind::T_PLUS), id);
   EXPECT_NE(name_cast<OperatorId>(id), nullptr);
 }
 
 TEST(Control, get_destructor_id) {
   Control control;
 
-  auto id = control.getDestructorId("foo");
-  EXPECT_EQ(id->name(), "foo");
+  auto id = control.getDestructorId(control.getIdentifier("foo"));
+  EXPECT_EQ(to_string(id), "~foo");
 
-  EXPECT_EQ(control.getDestructorId("foo"), id);
+  EXPECT_EQ(control.getDestructorId(control.getIdentifier("foo")), id);
   EXPECT_NE(name_cast<DestructorId>(id), nullptr);
 }
