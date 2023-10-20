@@ -25,6 +25,11 @@
 
 namespace cxx {
 
+auto to_string(const Type* type, const std::string& id) -> std::string {
+  TypePrinter printer;
+  return printer.to_string(type, id);
+}
+
 TypePrinter::TypePrinter() {
   specifiers_.clear();
   ptrOps_.clear();
@@ -60,80 +65,104 @@ auto TypePrinter::to_string(const Type* type, const std::string& id)
 }
 
 void TypePrinter::accept(const Type* type) {
-  if (type) type->accept(this);
+  if (type) visit(*this, type);
 }
 
-void TypePrinter::visit(const InvalidType* type) {}
-
-void TypePrinter::visit(const NullptrType* type) {
+void TypePrinter::operator()(const NullptrType* type) {
   specifiers_.append("decltype(nullptr)");
 }
 
-void TypePrinter::visit(const DependentType* type) {
-  specifiers_.append("dependent-type");
-}
-
-void TypePrinter::visit(const DecltypeAutoType* type) {
+void TypePrinter::operator()(const DecltypeAutoType* type) {
   specifiers_.append("decltype(auto)");
 }
 
-void TypePrinter::visit(const AutoType* type) { specifiers_.append("auto"); }
+void TypePrinter::operator()(const AutoType* type) {
+  specifiers_.append("auto");
+}
 
-void TypePrinter::visit(const VoidType* type) { specifiers_.append("void"); }
+void TypePrinter::operator()(const VoidType* type) {
+  specifiers_.append("void");
+}
 
-void TypePrinter::visit(const BoolType* type) { specifiers_.append("bool"); }
+void TypePrinter::operator()(const BoolType* type) {
+  specifiers_.append("bool");
+}
 
-void TypePrinter::visit(const CharType* type) { specifiers_.append("char"); }
+void TypePrinter::operator()(const CharType* type) {
+  specifiers_.append("char");
+}
 
-void TypePrinter::visit(const SignedCharType* type) {
+void TypePrinter::operator()(const SignedCharType* type) {
   specifiers_.append("signed char");
 }
 
-void TypePrinter::visit(const UnsignedCharType* type) {
+void TypePrinter::operator()(const UnsignedCharType* type) {
   specifiers_.append("unsigned char");
 }
 
-void TypePrinter::visit(const Char8Type* type) {
+void TypePrinter::operator()(const Char8Type* type) {
   specifiers_.append("char8_t");
 }
 
-void TypePrinter::visit(const Char16Type* type) {
+void TypePrinter::operator()(const Char16Type* type) {
   specifiers_.append("char16_t");
 }
 
-void TypePrinter::visit(const Char32Type* type) {
+void TypePrinter::operator()(const Char32Type* type) {
   specifiers_.append("char32_t");
 }
 
-void TypePrinter::visit(const WideCharType* type) {
+void TypePrinter::operator()(const WideCharType* type) {
   specifiers_.append("wchar_t");
 }
 
-void TypePrinter::visit(const ShortType* type) { specifiers_.append("short"); }
+void TypePrinter::operator()(const ShortIntType* type) {
+  specifiers_.append("short");
+}
 
-void TypePrinter::visit(const UnsignedShortType* type) {
+void TypePrinter::operator()(const UnsignedShortIntType* type) {
   specifiers_.append("unsigned short");
 }
 
-void TypePrinter::visit(const IntType* type) { specifiers_.append("int"); }
+void TypePrinter::operator()(const IntType* type) { specifiers_.append("int"); }
 
-void TypePrinter::visit(const UnsignedIntType* type) {
+void TypePrinter::operator()(const UnsignedIntType* type) {
   specifiers_.append("unsigned int");
 }
 
-void TypePrinter::visit(const LongType* type) { specifiers_.append("long"); }
+void TypePrinter::operator()(const LongIntType* type) {
+  specifiers_.append("long");
+}
 
-void TypePrinter::visit(const UnsignedLongType* type) {
+void TypePrinter::operator()(const UnsignedLongIntType* type) {
   specifiers_.append("unsigned long");
 }
 
-void TypePrinter::visit(const FloatType* type) { specifiers_.append("float"); }
+void TypePrinter::operator()(const LongLongIntType* type) {
+  specifiers_.append("long long");
+}
 
-void TypePrinter::visit(const DoubleType* type) {
+void TypePrinter::operator()(const UnsignedLongLongIntType* type) {
+  specifiers_.append("unsigned long long");
+}
+
+void TypePrinter::operator()(const FloatType* type) {
+  specifiers_.append("float");
+}
+
+void TypePrinter::operator()(const DoubleType* type) {
   specifiers_.append("double");
 }
 
-void TypePrinter::visit(const QualType* type) {
+void TypePrinter::operator()(const LongDoubleType* type) {
+  specifiers_.append("long double");
+}
+
+void TypePrinter::operator()(const ClassDescriptionType* type) {
+  specifiers_.append("class");
+}
+
+void TypePrinter::operator()(const QualType* type) {
   if (auto ptrTy = type_cast<PointerType>(type->elementType())) {
     accept(ptrTy->elementType());
 
@@ -163,23 +192,23 @@ void TypePrinter::visit(const QualType* type) {
   accept(type->elementType());
 }
 
-void TypePrinter::visit(const PointerType* type) {
+void TypePrinter::operator()(const PointerType* type) {
   ptrOps_ = "*" + ptrOps_;
   accept(type->elementType());
 }
 
-void TypePrinter::visit(const LValueReferenceType* type) {
+void TypePrinter::operator()(const LvalueReferenceType* type) {
   ptrOps_ = "&" + ptrOps_;
   accept(type->elementType());
 }
 
-void TypePrinter::visit(const RValueReferenceType* type) {
+void TypePrinter::operator()(const RvalueReferenceType* type) {
   ptrOps_ = "&&" + ptrOps_;
   accept(type->elementType());
 }
 
-void TypePrinter::visit(const ArrayType* type) {
-  auto buf = "[" + std::to_string(type->extent()) + "]";
+void TypePrinter::operator()(const BoundedArrayType* type) {
+  auto buf = "[" + std::to_string(type->size()) + "]";
 
   if (ptrOps_.empty()) {
     declarator_.append(buf);
@@ -197,28 +226,37 @@ void TypePrinter::visit(const ArrayType* type) {
   accept(type->elementType());
 }
 
-void TypePrinter::visit(const FunctionType* type) {
+void TypePrinter::operator()(const UnboundedArrayType* type) {
+  std::string buf = "[]";
+
+  if (ptrOps_.empty()) {
+    declarator_.append(buf);
+  } else {
+    std::string decl;
+    std::swap(decl, declarator_);
+    declarator_.append("(");
+    declarator_.append(ptrOps_);
+    declarator_.append(decl);
+    declarator_.append(")");
+    declarator_.append(buf);
+    ptrOps_.clear();
+  }
+
+  accept(type->elementType());
+}
+
+void TypePrinter::operator()(const FunctionType* type) {
   std::string signature;
 
   signature.append("(");
 
   TypePrinter pp;
 
-  const auto& params = type->parameters();
+  const auto& params = type->parameterTypes();
 
   for (std::size_t i = 0; i < params.size(); ++i) {
     const auto& param = params[i];
-    const Identifier* paramName = name_cast<Identifier>(param.name());
-
-    std::string paramId;
-
-    if (addFormals_ && paramName) {
-      paramId = paramName->name();
-    }
-
-    auto paramText = pp.to_string(param.type(), paramId);
-
-    signature.append(paramText);
+    signature.append(pp.to_string(param));
 
     if (i != params.size() - 1) {
       signature.append(", ");
@@ -246,30 +284,31 @@ void TypePrinter::visit(const FunctionType* type) {
   accept(type->returnType());
 }
 
-void TypePrinter::visit(const ClassType* type) {
+void TypePrinter::operator()(const ClassType* type) {
   const Identifier* className = name_cast<Identifier>(type->symbol()->name());
   specifiers_.append(className->name());
 }
 
-void TypePrinter::visit(const NamespaceType* type) {
+void TypePrinter::operator()(const UnionType* type) {
+  const Identifier* unionName = name_cast<Identifier>(type->symbol()->name());
+  specifiers_.append(unionName->name());
+}
+
+void TypePrinter::operator()(const NamespaceType* type) {
   const Identifier* className = name_cast<Identifier>(type->symbol()->name());
   specifiers_.append(className->name());
 }
 
-void TypePrinter::visit(const MemberPointerType* type) {}
+void TypePrinter::operator()(const MemberObjectPointerType* type) {}
 
-void TypePrinter::visit(const ConceptType* type) {}
+void TypePrinter::operator()(const MemberFunctionPointerType* type) {}
 
-void TypePrinter::visit(const EnumType* type) {
+void TypePrinter::operator()(const EnumType* type) {
   const Identifier* className = name_cast<Identifier>(type->symbol()->name());
   specifiers_.append(className->name());
 }
 
-void TypePrinter::visit(const GenericType* type) {}
-
-void TypePrinter::visit(const PackType* type) {}
-
-void TypePrinter::visit(const ScopedEnumType* type) {
+void TypePrinter::operator()(const ScopedEnumType* type) {
   const Identifier* className = name_cast<Identifier>(type->symbol()->name());
   specifiers_.append(className->name());
 }

@@ -23,6 +23,7 @@
 #include <cxx/literals_fwd.h>
 #include <cxx/names_fwd.h>
 #include <cxx/symbols_fwd.h>
+#include <cxx/token_fwd.h>
 #include <cxx/types_fwd.h>
 
 #include <memory>
@@ -55,92 +56,82 @@ class Control {
 
   auto makeAnonymousId(std::string_view base) -> const Identifier*;
   auto getIdentifier(std::string_view name) -> const Identifier*;
-  auto getOperatorId(std::string_view name) -> const OperatorId*;
-  auto getDestructorId(std::string_view name) -> const DestructorId*;
+  auto getOperatorId(TokenKind op) -> const OperatorId*;
+  auto getDestructorId(const Name*) -> const DestructorId*;
+  auto getLiteralOperatorId(std::string_view name) -> const LiteralOperatorId*;
+  auto getConversionFunctionId(const Type* type) -> const ConversionFunctionId*;
+  auto getTemplateId(const Name* name, std::vector<TemplateArgument> arguments)
+      -> const TemplateId*;
 
-  auto makeTypeParameter(const Name* name) -> TemplateParameter*;
-  auto makeTypeParameterPack(const Name* name) -> TemplateParameter*;
-  auto makeNonTypeParameter(const Type* type, const Name* name)
-      -> TemplateParameter*;
-
-  auto makeParameterSymbol(const Name* name, const Type* type, int index)
-      -> ParameterSymbol*;
-  auto makeClassSymbol(const Name* name) -> ClassSymbol*;
-  auto makeEnumeratorSymbol(const Name* name, const Type* type, long val)
-      -> EnumeratorSymbol*;
-  auto makeFunctionSymbol(const Name* name, const Type* type)
-      -> FunctionSymbol*;
-  auto makeGlobalSymbol(const Name* name, const Type* type) -> GlobalSymbol*;
-  auto makeInjectedClassNameSymbol(const Name* name, const Type* type)
-      -> InjectedClassNameSymbol*;
-  auto makeLocalSymbol(const Name* name, const Type* type) -> LocalSymbol*;
-  auto makeMemberSymbol(const Name* name, const Type* type, int offset)
-      -> MemberSymbol*;
-  auto makeNamespaceSymbol(const Name* name) -> NamespaceSymbol*;
-  auto makeNamespaceAliasSymbol(const Name* name, Symbol* ns)
-      -> NamespaceAliasSymbol*;
-  auto makeNonTypeTemplateParameterSymbol(const Name* name, const Type* type,
-                                          int index)
-      -> NonTypeTemplateParameterSymbol*;
-  auto makeScopedEnumSymbol(const Name* name, const Type* type)
-      -> ScopedEnumSymbol*;
-  auto makeTemplateParameterPackSymbol(const Name* name, int index)
-      -> TemplateParameterPackSymbol*;
-  auto makeTemplateParameterSymbol(const Name* name, int index)
-      -> TemplateParameterSymbol*;
-  auto makeConceptSymbol(const Name* name) -> ConceptSymbol*;
-  auto makeTypeAliasSymbol(const Name* name, const Type* type)
-      -> TypeAliasSymbol*;
-  auto makeValueSymbol(const Name* name, const Type* type, long val)
-      -> ValueSymbol*;
-
-  auto getInvalidType() -> const InvalidType*;
+  auto getVoidType() -> const VoidType*;
   auto getNullptrType() -> const NullptrType*;
   auto getDecltypeAutoType() -> const DecltypeAutoType*;
   auto getAutoType() -> const AutoType*;
-  auto getVoidType() -> const VoidType*;
   auto getBoolType() -> const BoolType*;
-  auto getCharType() -> const CharType*;
   auto getSignedCharType() -> const SignedCharType*;
+  auto getShortIntType() -> const ShortIntType*;
+  auto getIntType() -> const IntType*;
+  auto getLongIntType() -> const LongIntType*;
+  auto getLongLongIntType() -> const LongLongIntType*;
   auto getUnsignedCharType() -> const UnsignedCharType*;
+  auto getUnsignedShortIntType() -> const UnsignedShortIntType*;
+  auto getUnsignedIntType() -> const UnsignedIntType*;
+  auto getUnsignedLongIntType() -> const UnsignedLongIntType*;
+  auto getUnsignedLongLongIntType() -> const UnsignedLongLongIntType*;
+  auto getCharType() -> const CharType*;
   auto getChar8Type() -> const Char8Type*;
   auto getChar16Type() -> const Char16Type*;
   auto getChar32Type() -> const Char32Type*;
   auto getWideCharType() -> const WideCharType*;
-  auto getShortType() -> const ShortType*;
-  auto getUnsignedShortType() -> const UnsignedShortType*;
-  auto getIntType() -> const IntType*;
-  auto getUnsignedIntType() -> const UnsignedIntType*;
-  auto getLongType() -> const LongType*;
-  auto getUnsignedLongType() -> const UnsignedLongType*;
   auto getFloatType() -> const FloatType*;
   auto getDoubleType() -> const DoubleType*;
-  auto getQualType(const Type* elementType, bool isConst, bool isVolatile)
+  auto getLongDoubleType() -> const LongDoubleType*;
+  auto getClassDescriptionType() -> const ClassDescriptionType*;
+  auto getQualType(const Type* elementType, CvQualifiers cvQualifiers)
       -> const QualType*;
+  auto getConstType(const Type* elementType) -> const QualType*;
+  auto getVolatileType(const Type* elementType) -> const QualType*;
+  auto getConstVolatileType(const Type* elementType) -> const QualType*;
+  auto getBoundedArrayType(const Type* elementType, std::size_t size)
+      -> const BoundedArrayType*;
+  auto getUnboundedArrayType(const Type* elementType)
+      -> const UnboundedArrayType*;
   auto getPointerType(const Type* elementType) -> const PointerType*;
-  auto getLValueReferenceType(const Type* elementType)
-      -> const LValueReferenceType*;
-  auto getRValueReferenceType(const Type* elementType)
-      -> const RValueReferenceType*;
-  auto getArrayType(const Type* elementType, int dimension) -> const ArrayType*;
+  auto getLvalueReferenceType(const Type* elementType)
+      -> const LvalueReferenceType*;
+  auto getRvalueReferenceType(const Type* elementType)
+      -> const RvalueReferenceType*;
   auto getFunctionType(const Type* returnType,
-                       std::vector<Parameter> parameters,
-                       bool isVariadic = false) -> const FunctionType*;
-  auto getClassType(ClassSymbol* classSymbol) -> const ClassType*;
-  auto getNamespaceType(NamespaceSymbol* namespaceSymbol)
-      -> const NamespaceType*;
-  auto getMemberPointerType(const Type* classType, const Type* memberType)
-      -> const MemberPointerType*;
-  auto getConceptType(Symbol* symbol) -> const ConceptType*;
-  auto getEnumType(Symbol* symbol) -> const EnumType*;
-  auto getGenericType(Symbol* symbol) -> const GenericType*;
-  auto getPackType(Symbol* symbol) -> const PackType*;
-  auto getScopedEnumType(ScopedEnumSymbol* symbol, const Type* elementType)
-      -> const ScopedEnumType*;
-  auto getConstType(const Type* type) -> const QualType*;
-  auto getVolatileType(const Type* type) -> const QualType*;
-  auto getConstVolatileType(const Type* type) -> const QualType*;
-  auto getDependentType(DependentSymbol* symbol) -> const DependentType*;
+                       std::vector<const Type*> parameterTypes,
+                       bool isVariadic = false,
+                       CvQualifiers cvQualifiers = CvQualifiers::kNone,
+                       RefQualifier refQualifier = RefQualifier::kNone,
+                       bool isNoexcept = false) -> const FunctionType*;
+  auto getMemberObjectPointerType(const ClassType* classType,
+                                  const Type* elementType)
+      -> const MemberObjectPointerType*;
+  auto getMemberFunctionPointerType(const ClassType* classType,
+                                    const FunctionType* functionType)
+      -> const MemberFunctionPointerType*;
+  auto newClassType() -> const ClassType*;
+  auto newUnionType() -> const UnionType*;
+  auto newNamespaceType() -> const NamespaceType*;
+  auto newEnumType() -> const EnumType*;
+  auto newScopedEnumType() -> const ScopedEnumType*;
+
+  auto newNamespaceSymbol(Scope* enclosingScope) -> NamespaceSymbol*;
+  auto newClassSymbol(Scope* enclosingScope) -> ClassSymbol*;
+  auto newUnionSymbol(Scope* enclosingScope) -> UnionSymbol*;
+  auto newEnumSymbol(Scope* enclosingScope) -> EnumSymbol*;
+  auto newScopedEnumSymbol(Scope* enclosingScope) -> ScopedEnumSymbol*;
+  auto newFunctionSymbol(Scope* enclosingScope) -> FunctionSymbol*;
+  auto newPrototypeSymbol(Scope* enclosingScope) -> PrototypeSymbol*;
+  auto newBlockSymbol(Scope* enclosingScope) -> BlockSymbol*;
+  auto newTypeAliasSymbol(Scope* enclosingScope) -> TypeAliasSymbol*;
+  auto newVariableSymbol(Scope* enclosingScope) -> VariableSymbol*;
+  auto newFieldSymbol(Scope* enclosingScope) -> FieldSymbol*;
+  auto newParameterSymbol(Scope* enclosingScope) -> ParameterSymbol*;
+  auto newEnumeratorSymbol(Scope* enclosingScope) -> EnumeratorSymbol*;
 
  private:
   struct Private;

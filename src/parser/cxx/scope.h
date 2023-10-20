@@ -24,53 +24,38 @@
 #include <cxx/symbols_fwd.h>
 #include <cxx/types_fwd.h>
 
+#include <map>
+#include <ranges>
 #include <vector>
 
 namespace cxx {
 
 class Scope {
  public:
-  using MemberIterator = std::vector<Symbol*>::const_iterator;
-
-  Scope(const Scope& other) = delete;
-  auto operator=(const Scope& other) -> Scope& = delete;
-
   explicit Scope(Scope* parent = nullptr);
   ~Scope();
 
-  [[nodiscard]] auto empty() const -> bool;
-  [[nodiscard]] auto begin() const -> MemberIterator;
-  [[nodiscard]] auto end() const -> MemberIterator;
+  [[nodiscard]] auto isEnumScope() const -> bool;
 
-  [[nodiscard]] auto usings() const -> const std::vector<Scope*>&;
-  [[nodiscard]] auto owner() const -> Symbol*;
-  [[nodiscard]] auto parent() const -> Scope*;
-  [[nodiscard]] auto isTemplateScope() const -> bool;
+  [[nodiscard]] auto parent() const -> Scope* { return parent_; }
+  void setParent(Scope* parent) { parent_ = parent; }
 
-  [[nodiscard]] auto currentClassOrNamespaceScope() -> Scope*;
-  [[nodiscard]] auto currentNonTemplateScope() -> Scope*;
-  [[nodiscard]] auto enclosingClassOrNamespaceScope() -> Scope*;
+  [[nodiscard]] auto owner() const -> Symbol* { return owner_; }
+  void setOwner(Symbol* owner) { owner_ = owner; }
 
-  [[nodiscard]] auto currentNamespaceScope() -> Scope*;
-  [[nodiscard]] auto enclosingNamespaceScope() -> Scope*;
+  [[nodiscard]] auto symbols() const { return symbols_ | std::views::values; }
 
-  [[nodiscard]] auto get(const Name* name) const -> Symbol*;
-  [[nodiscard]] auto getClass(const Name* name) const -> ClassSymbol*;
+  [[nodiscard]] auto get(const Name* name) const {
+    auto [first, last] = symbols_.equal_range(name);
+    return std::ranges::subrange(first, last) | std::views::values;
+  }
 
-  void add(Symbol* symbol);
-  void addUsing(Scope* scope);
+  void addSymbol(Symbol* symbol);
 
  private:
-  void rehash();
-  void addHelper(Symbol* symbol);
-
- private:
-  std::vector<Symbol*> symbols_;
-  std::vector<Symbol*> buckets_;
-  std::vector<Scope*> usings_;
-  Symbol* owner_ = nullptr;
   Scope* parent_ = nullptr;
-  bool isTemplateScope_ = false;
+  Symbol* owner_ = nullptr;
+  std::multimap<const Name*, Symbol*> symbols_;
 };
 
 }  // namespace cxx

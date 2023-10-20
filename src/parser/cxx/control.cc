@@ -28,6 +28,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <forward_list>
+#include <set>
 #include <unordered_set>
 
 namespace cxx {
@@ -52,54 +53,8 @@ template <typename Literal>
 using LiteralSet =
     std::unordered_set<Literal, LiteralHash<Literal>, LiteralEqualTo<Literal>>;
 
-struct NameHash {
-  auto operator()(const Identifier& id) const -> std::size_t {
-    return std::hash<std::string_view>{}(id.name());
-  }
-
-  auto operator()(const OperatorId& id) const -> std::size_t {
-    return std::hash<std::string_view>{}(id.name());
-  }
-
-  auto operator()(const DestructorId& id) const -> std::size_t {
-    return std::hash<std::string_view>{}(id.name());
-  }
-};
-
-struct NameEqualTo {
-  auto operator()(const Identifier& lhs, const Identifier& rhs) const -> bool {
-    return lhs.name() == rhs.name();
-  }
-
-  auto operator()(const OperatorId& lhs, const OperatorId& rhs) const -> bool {
-    return lhs.name() == rhs.name();
-  }
-
-  auto operator()(const DestructorId& lhs, const DestructorId& rhs) const
-      -> bool {
-    return lhs.name() == rhs.name();
-  }
-};
-
 template <typename Name>
-using NameSet = std::unordered_set<Name, NameHash, NameEqualTo>;
-
-struct TypeHash {
-  template <typename T>
-  auto operator()(const T& type) const -> std::size_t {
-    return 0;
-  }
-};
-
-struct TypeEqualTo {
-  template <typename T>
-  auto operator()(const T& left, const T& right) const -> bool {
-    return left.equalTo(&right);
-  }
-};
-
-template <typename T>
-using TypeSet = std::unordered_set<T, TypeHash, TypeEqualTo>;
+using NameSet = std::set<Name>;
 
 }  // namespace
 
@@ -115,69 +70,66 @@ struct Control::Private {
   LiteralSet<Utf32StringLiteral> utf32StringLiterals;
   LiteralSet<CommentLiteral> commentLiterals;
 
-  NameSet<Identifier> identifiers;
-  NameSet<OperatorId> operatorIds;
-  NameSet<DestructorId> destructorIds;
+  std::set<Identifier> identifiers;
+  std::set<OperatorId> operatorIds;
+  std::set<DestructorId> destructorIds;
+  std::set<LiteralOperatorId> literalOperatorIds;
+  std::set<ConversionFunctionId> conversionFunctionIds;
+  std::set<TemplateId> templateIds;
 
-  std::forward_list<ClassSymbol> classSymbols;
-  std::forward_list<ConceptSymbol> conceptSymbols;
-  std::forward_list<DependentSymbol> dependentSymbols;
-  std::forward_list<EnumeratorSymbol> enumeratorSymbols;
-  std::forward_list<FunctionSymbol> functionSymbols;
-  std::forward_list<GlobalSymbol> globalSymbols;
-  std::forward_list<InjectedClassNameSymbol> injectedClassNameSymbols;
-  std::forward_list<LocalSymbol> localSymbols;
-  std::forward_list<MemberSymbol> memberSymbols;
-  std::forward_list<NamespaceSymbol> namespaceSymbols;
-  std::forward_list<NamespaceAliasSymbol> namespaceAliasSymbols;
-  std::forward_list<NonTypeTemplateParameterSymbol>
-      nonTypeTemplateParameterSymbols;
-  std::forward_list<ParameterSymbol> parameterSymbols;
-  std::forward_list<ScopedEnumSymbol> scopedEnumSymbols;
-  std::forward_list<TemplateParameterSymbol> templateParameterSymbols;
-  std::forward_list<TemplateParameterPackSymbol> templateParameterPackSymbols;
-  std::forward_list<TypeAliasSymbol> typeAliasSymbols;
-  std::forward_list<ValueSymbol> valueSymbols;
-
-  std::forward_list<TemplateParameter> templateParameters;
-
-  InvalidType invalidType;
+  VoidType voidType;
   NullptrType nullptrType;
   DecltypeAutoType decltypeAutoType;
   AutoType autoType;
-  VoidType voidType;
   BoolType boolType;
-  CharType charType;
   SignedCharType signedCharType;
+  ShortIntType shortIntType;
+  IntType intType;
+  LongIntType longIntType;
+  LongLongIntType longLongIntType;
   UnsignedCharType unsignedCharType;
+  UnsignedShortIntType unsignedShortIntType;
+  UnsignedIntType unsignedIntType;
+  UnsignedLongIntType unsignedLongIntType;
+  UnsignedLongLongIntType unsignedLongLongIntType;
+  CharType charType;
   Char8Type char8Type;
   Char16Type char16Type;
   Char32Type char32Type;
   WideCharType wideCharType;
-  ShortType shortType;
-  UnsignedShortType unsignedShortType;
-  IntType intType;
-  UnsignedIntType unsignedIntType;
-  LongType longType;
-  UnsignedLongType unsignedLongType;
   FloatType floatType;
   DoubleType doubleType;
+  LongDoubleType longDoubleType;
+  ClassDescriptionType classDescriptionType;
 
-  TypeSet<DependentType> dependentTypes;
-  TypeSet<QualType> qualTypes;
-  TypeSet<PointerType> pointerTypes;
-  TypeSet<LValueReferenceType> lValueReferenceTypes;
-  TypeSet<RValueReferenceType> rValueReferenceTypes;
-  TypeSet<ArrayType> arrayTypes;
-  TypeSet<FunctionType> functionTypes;
-  TypeSet<ClassType> classTypes;
-  TypeSet<NamespaceType> namespaceTypes;
-  TypeSet<MemberPointerType> memberPointerTypes;
-  TypeSet<ConceptType> conceptTypes;
-  TypeSet<EnumType> enumTypes;
-  TypeSet<GenericType> genericTypes;
-  TypeSet<PackType> packTypes;
-  TypeSet<ScopedEnumType> scopedEnumTypes;
+  std::set<QualType> qualTypes;
+  std::set<BoundedArrayType> boundedArrayTypes;
+  std::set<UnboundedArrayType> unboundedArrayTypes;
+  std::set<PointerType> pointerTypes;
+  std::set<LvalueReferenceType> lvalueReferenceTypes;
+  std::set<RvalueReferenceType> rvalueReferenceTypes;
+  std::set<FunctionType> functionTypes;
+  std::set<MemberObjectPointerType> memberObjectPointerTypes;
+  std::set<MemberFunctionPointerType> memberFunctionPointerTypes;
+  std::forward_list<ClassType> classTypes;
+  std::forward_list<UnionType> unionTypes;
+  std::forward_list<NamespaceType> namespaceTypes;
+  std::forward_list<EnumType> enumTypes;
+  std::forward_list<ScopedEnumType> scopedEnumTypes;
+
+  std::forward_list<NamespaceSymbol> namespaceSymbols;
+  std::forward_list<ClassSymbol> classSymbols;
+  std::forward_list<UnionSymbol> unionSymbols;
+  std::forward_list<EnumSymbol> enumSymbols;
+  std::forward_list<ScopedEnumSymbol> scopedEnumSymbols;
+  std::forward_list<FunctionSymbol> functionSymbols;
+  std::forward_list<PrototypeSymbol> prototypeSymbols;
+  std::forward_list<BlockSymbol> blockSymbols;
+  std::forward_list<TypeAliasSymbol> typeAliasSymbols;
+  std::forward_list<VariableSymbol> variableSymbols;
+  std::forward_list<FieldSymbol> fieldSymbols;
+  std::forward_list<ParameterSymbol> parameterSymbols;
+  std::forward_list<EnumeratorSymbol> enumeratorSymbols;
 
   int anonymousIdCount = 0;
 };
@@ -248,115 +200,31 @@ auto Control::getIdentifier(std::string_view name) -> const Identifier* {
   return &*d->identifiers.emplace(std::string(name)).first;
 }
 
-auto Control::getOperatorId(std::string_view name) -> const OperatorId* {
-  return &*d->operatorIds.emplace(std::string(name)).first;
+auto Control::getOperatorId(TokenKind op) -> const OperatorId* {
+  return &*d->operatorIds.emplace(op).first;
 }
 
-auto Control::getDestructorId(std::string_view name) -> const DestructorId* {
-  return &*d->destructorIds.emplace(std::string(name)).first;
+auto Control::getDestructorId(const Name* name) -> const DestructorId* {
+  return &*d->destructorIds.emplace(name).first;
 }
 
-auto Control::makeTypeParameter(const Name* name) -> TemplateParameter* {
-  return &d->templateParameters.emplace_front(
-      this, TemplateParameterKind::kType, name, nullptr);
+auto Control::getLiteralOperatorId(std::string_view name)
+    -> const LiteralOperatorId* {
+  return &*d->literalOperatorIds.emplace(std::string(name)).first;
 }
 
-auto Control::makeTypeParameterPack(const Name* name) -> TemplateParameter* {
-  return &d->templateParameters.emplace_front(
-      this, TemplateParameterKind::kPack, name, nullptr);
+auto Control::getConversionFunctionId(const Type* type)
+    -> const ConversionFunctionId* {
+  return &*d->conversionFunctionIds.emplace(type).first;
 }
 
-auto Control::makeNonTypeParameter(const Type* type, const Name* name)
-    -> TemplateParameter* {
-  return &d->templateParameters.emplace_front(
-      this, TemplateParameterKind::kNonType, name, type);
+auto Control::getTemplateId(const Name* name,
+                            std::vector<TemplateArgument> arguments)
+    -> const TemplateId* {
+  return &*d->templateIds.emplace(name, std::move(arguments)).first;
 }
 
-auto Control::makeParameterSymbol(const Name* name, const Type* type, int index)
-    -> ParameterSymbol* {
-  return &d->parameterSymbols.emplace_front(this, name, type, index);
-}
-
-auto Control::makeClassSymbol(const Name* name) -> ClassSymbol* {
-  return &d->classSymbols.emplace_front(this, name);
-}
-
-auto Control::makeEnumeratorSymbol(const Name* name, const Type* type, long val)
-    -> EnumeratorSymbol* {
-  return &d->enumeratorSymbols.emplace_front(this, name, type, val);
-}
-
-auto Control::makeFunctionSymbol(const Name* name, const Type* type)
-    -> FunctionSymbol* {
-  return &d->functionSymbols.emplace_front(this, name, type);
-}
-
-auto Control::makeGlobalSymbol(const Name* name, const Type* type)
-    -> GlobalSymbol* {
-  return &d->globalSymbols.emplace_front(this, name, type);
-}
-
-auto Control::makeInjectedClassNameSymbol(const Name* name, const Type* type)
-    -> InjectedClassNameSymbol* {
-  return &d->injectedClassNameSymbols.emplace_front(this, name, type);
-}
-
-auto Control::makeLocalSymbol(const Name* name, const Type* type)
-    -> LocalSymbol* {
-  return &d->localSymbols.emplace_front(this, name, type);
-}
-
-auto Control::makeMemberSymbol(const Name* name, const Type* type, int offset)
-    -> MemberSymbol* {
-  return &d->memberSymbols.emplace_front(this, name, type, offset);
-}
-
-auto Control::makeNamespaceSymbol(const Name* name) -> NamespaceSymbol* {
-  return &d->namespaceSymbols.emplace_front(this, name);
-}
-
-auto Control::makeNamespaceAliasSymbol(const Name* name, Symbol* ns)
-    -> NamespaceAliasSymbol* {
-  return &d->namespaceAliasSymbols.emplace_front(this, name, ns);
-}
-
-auto Control::makeNonTypeTemplateParameterSymbol(const Name* name,
-                                                 const Type* type, int index)
-    -> NonTypeTemplateParameterSymbol* {
-  return &d->nonTypeTemplateParameterSymbols.emplace_front(this, name, type,
-                                                           index);
-}
-
-auto Control::makeScopedEnumSymbol(const Name* name, const Type* type)
-    -> ScopedEnumSymbol* {
-  return &d->scopedEnumSymbols.emplace_front(this, name, type);
-}
-
-auto Control::makeTemplateParameterPackSymbol(const Name* name, int index)
-    -> TemplateParameterPackSymbol* {
-  return &d->templateParameterPackSymbols.emplace_front(this, name, index);
-}
-
-auto Control::makeTemplateParameterSymbol(const Name* name, int index)
-    -> TemplateParameterSymbol* {
-  return &d->templateParameterSymbols.emplace_front(this, name, index);
-}
-
-auto Control::makeConceptSymbol(const Name* name) -> ConceptSymbol* {
-  return &d->conceptSymbols.emplace_front(this, name);
-}
-
-auto Control::makeTypeAliasSymbol(const Name* name, const Type* type)
-    -> TypeAliasSymbol* {
-  return &d->typeAliasSymbols.emplace_front(this, name, type);
-}
-
-auto Control::makeValueSymbol(const Name* name, const Type* type, long val)
-    -> ValueSymbol* {
-  return &d->valueSymbols.emplace_front(this, name, type, val);
-}
-
-auto Control::getInvalidType() -> const InvalidType* { return &d->invalidType; }
+auto Control::getVoidType() -> const VoidType* { return &d->voidType; }
 
 auto Control::getNullptrType() -> const NullptrType* { return &d->nullptrType; }
 
@@ -366,19 +234,45 @@ auto Control::getDecltypeAutoType() -> const DecltypeAutoType* {
 
 auto Control::getAutoType() -> const AutoType* { return &d->autoType; }
 
-auto Control::getVoidType() -> const VoidType* { return &d->voidType; }
-
 auto Control::getBoolType() -> const BoolType* { return &d->boolType; }
-
-auto Control::getCharType() -> const CharType* { return &d->charType; }
 
 auto Control::getSignedCharType() -> const SignedCharType* {
   return &d->signedCharType;
 }
 
+auto Control::getShortIntType() -> const ShortIntType* {
+  return &d->shortIntType;
+}
+
+auto Control::getIntType() -> const IntType* { return &d->intType; }
+
+auto Control::getLongIntType() -> const LongIntType* { return &d->longIntType; }
+
+auto Control::getLongLongIntType() -> const LongLongIntType* {
+  return &d->longLongIntType;
+}
+
 auto Control::getUnsignedCharType() -> const UnsignedCharType* {
   return &d->unsignedCharType;
 }
+
+auto Control::getUnsignedShortIntType() -> const UnsignedShortIntType* {
+  return &d->unsignedShortIntType;
+}
+
+auto Control::getUnsignedIntType() -> const UnsignedIntType* {
+  return &d->unsignedIntType;
+}
+
+auto Control::getUnsignedLongIntType() -> const UnsignedLongIntType* {
+  return &d->unsignedLongIntType;
+}
+
+auto Control::getUnsignedLongLongIntType() -> const UnsignedLongLongIntType* {
+  return &d->unsignedLongLongIntType;
+}
+
+auto Control::getCharType() -> const CharType* { return &d->charType; }
 
 auto Control::getChar8Type() -> const Char8Type* { return &d->char8Type; }
 
@@ -390,113 +284,180 @@ auto Control::getWideCharType() -> const WideCharType* {
   return &d->wideCharType;
 }
 
-auto Control::getShortType() -> const ShortType* { return &d->shortType; }
-
-auto Control::getUnsignedShortType() -> const UnsignedShortType* {
-  return &d->unsignedShortType;
-}
-
-auto Control::getIntType() -> const IntType* { return &d->intType; }
-
-auto Control::getUnsignedIntType() -> const UnsignedIntType* {
-  return &d->unsignedIntType;
-}
-
-auto Control::getLongType() -> const LongType* { return &d->longType; }
-
-auto Control::getUnsignedLongType() -> const UnsignedLongType* {
-  return &d->unsignedLongType;
-}
-
 auto Control::getFloatType() -> const FloatType* { return &d->floatType; }
 
 auto Control::getDoubleType() -> const DoubleType* { return &d->doubleType; }
 
-auto Control::getQualType(const Type* elementType, bool isConst,
-                          bool isVolatile) -> const QualType* {
-  return &*d->qualTypes.emplace(this, elementType, isConst, isVolatile).first;
+auto Control::getLongDoubleType() -> const LongDoubleType* {
+  return &d->longDoubleType;
+}
+
+auto Control::getClassDescriptionType() -> const ClassDescriptionType* {
+  return &d->classDescriptionType;
+}
+
+auto Control::getQualType(const Type* elementType, CvQualifiers cvQualifiers)
+    -> const QualType* {
+  return &*d->qualTypes.emplace(elementType, cvQualifiers).first;
+}
+
+auto Control::getConstType(const Type* elementType) -> const QualType* {
+  return getQualType(elementType, CvQualifiers::kConst);
+}
+
+auto Control::getVolatileType(const Type* elementType) -> const QualType* {
+  return getQualType(elementType, CvQualifiers::kVolatile);
+}
+
+auto Control::getConstVolatileType(const Type* elementType) -> const QualType* {
+  return getQualType(elementType, CvQualifiers::kConstVolatile);
+}
+
+auto Control::getBoundedArrayType(const Type* elementType, std::size_t size)
+    -> const BoundedArrayType* {
+  return &*d->boundedArrayTypes.emplace(elementType, size).first;
+}
+
+auto Control::getUnboundedArrayType(const Type* elementType)
+    -> const UnboundedArrayType* {
+  return &*d->unboundedArrayTypes.emplace(elementType).first;
 }
 
 auto Control::getPointerType(const Type* elementType) -> const PointerType* {
-  return &*d->pointerTypes.emplace(this, elementType).first;
+  return &*d->pointerTypes.emplace(elementType).first;
 }
 
-auto Control::getLValueReferenceType(const Type* elementType)
-    -> const LValueReferenceType* {
-  return &*d->lValueReferenceTypes.emplace(this, elementType).first;
+auto Control::getLvalueReferenceType(const Type* elementType)
+    -> const LvalueReferenceType* {
+  return &*d->lvalueReferenceTypes.emplace(elementType).first;
 }
 
-auto Control::getRValueReferenceType(const Type* elementType)
-    -> const RValueReferenceType* {
-  return &*d->rValueReferenceTypes.emplace(this, elementType).first;
-}
-
-auto Control::getArrayType(const Type* elementType, int dimension)
-    -> const ArrayType* {
-  return &*d->arrayTypes.emplace(this, elementType, dimension).first;
+auto Control::getRvalueReferenceType(const Type* elementType)
+    -> const RvalueReferenceType* {
+  return &*d->rvalueReferenceTypes.emplace(elementType).first;
 }
 
 auto Control::getFunctionType(const Type* returnType,
-                              std::vector<Parameter> parameters,
-                              bool isVariadic) -> const FunctionType* {
+                              std::vector<const Type*> parameterTypes,
+                              bool isVariadic, CvQualifiers cvQualifiers,
+                              RefQualifier refQualifier, bool isNoexcept)
+    -> const FunctionType* {
   return &*d->functionTypes
-               .emplace(this, nullptr, returnType, std::move(parameters),
-                        isVariadic)
+               .emplace(returnType, std::move(parameterTypes), isVariadic,
+                        cvQualifiers, refQualifier, isNoexcept)
                .first;
 }
 
-auto Control::getClassType(ClassSymbol* classSymbol) -> const ClassType* {
-  return &*d->classTypes.emplace(this, classSymbol).first;
+auto Control::getMemberObjectPointerType(const ClassType* classType,
+                                         const Type* elementType)
+    -> const MemberObjectPointerType* {
+  return &*d->memberObjectPointerTypes.emplace(classType, elementType).first;
 }
 
-auto Control::getNamespaceType(NamespaceSymbol* namespaceSymbol)
-    -> const NamespaceType* {
-  return &*d->namespaceTypes.emplace(this, namespaceSymbol).first;
+auto Control::getMemberFunctionPointerType(const ClassType* classType,
+                                           const FunctionType* functionType)
+    -> const MemberFunctionPointerType* {
+  return &*d->memberFunctionPointerTypes.emplace(classType, functionType).first;
 }
 
-auto Control::getMemberPointerType(const Type* classType,
-                                   const Type* memberType)
-    -> const MemberPointerType* {
-  return &*d->memberPointerTypes.emplace(this, classType, memberType).first;
+auto Control::newClassType() -> const ClassType* {
+  return &d->classTypes.emplace_front();
 }
 
-auto Control::getConceptType(Symbol* symbol) -> const ConceptType* {
-  return &*d->conceptTypes.emplace(this, symbol).first;
+auto Control::newUnionType() -> const UnionType* {
+  return &d->unionTypes.emplace_front();
 }
 
-auto Control::getEnumType(Symbol* symbol) -> const EnumType* {
-  return &*d->enumTypes.emplace(this, symbol).first;
+auto Control::newNamespaceType() -> const NamespaceType* {
+  return &d->namespaceTypes.emplace_front();
 }
 
-auto Control::getGenericType(Symbol* symbol) -> const GenericType* {
-  return &*d->genericTypes.emplace(this, symbol).first;
+auto Control::newEnumType() -> const EnumType* {
+  return &d->enumTypes.emplace_front();
 }
 
-auto Control::getPackType(Symbol* symbol) -> const PackType* {
-  return &*d->packTypes.emplace(this, symbol).first;
+auto Control::newScopedEnumType() -> const ScopedEnumType* {
+  return &d->scopedEnumTypes.emplace_front();
 }
 
-auto Control::getScopedEnumType(ScopedEnumSymbol* symbol,
-                                const Type* elementType)
-    -> const ScopedEnumType* {
-  return &*d->scopedEnumTypes.emplace(this, symbol, elementType).first;
+auto Control::newNamespaceSymbol(Scope* enclosingScope) -> NamespaceSymbol* {
+  auto symbol = &d->namespaceSymbols.emplace_front(enclosingScope);
+  auto type = newNamespaceType();
+  symbol->setType(type);
+  type->setSymbol(symbol);
+  return symbol;
 }
 
-auto Control::getConstType(const Type* type) -> const QualType* {
-  return getQualType(type, true, false);
+auto Control::newClassSymbol(Scope* enclosingScope) -> ClassSymbol* {
+  auto symbol = &d->classSymbols.emplace_front(enclosingScope);
+  auto type = newClassType();
+  symbol->setType(type);
+  type->setSymbol(symbol);
+  return symbol;
 }
 
-auto Control::getVolatileType(const Type* type) -> const QualType* {
-  return getQualType(type, false, true);
+auto Control::newUnionSymbol(Scope* enclosingScope) -> UnionSymbol* {
+  auto symbol = &d->unionSymbols.emplace_front(enclosingScope);
+  auto type = newUnionType();
+  symbol->setType(type);
+  type->setSymbol(symbol);
+  return symbol;
 }
 
-auto Control::getConstVolatileType(const Type* type) -> const QualType* {
-  return getQualType(type, true, true);
+auto Control::newEnumSymbol(Scope* enclosingScope) -> EnumSymbol* {
+  auto symbol = &d->enumSymbols.emplace_front(enclosingScope);
+  auto type = newEnumType();
+  symbol->setType(type);
+  type->setSymbol(symbol);
+  return symbol;
 }
 
-auto Control::getDependentType(DependentSymbol* symbol)
-    -> const DependentType* {
-  return &*d->dependentTypes.emplace(this, symbol).first;
+auto Control::newScopedEnumSymbol(Scope* enclosingScope) -> ScopedEnumSymbol* {
+  auto symbol = &d->scopedEnumSymbols.emplace_front(enclosingScope);
+  auto type = newScopedEnumType();
+  symbol->setType(type);
+  type->setSymbol(symbol);
+  return symbol;
+}
+
+auto Control::newFunctionSymbol(Scope* enclosingScope) -> FunctionSymbol* {
+  auto symbol = &d->functionSymbols.emplace_front(enclosingScope);
+  return symbol;
+}
+
+auto Control::newPrototypeSymbol(Scope* enclosingScope) -> PrototypeSymbol* {
+  auto symbol = &d->prototypeSymbols.emplace_front(enclosingScope);
+  return symbol;
+}
+
+auto Control::newBlockSymbol(Scope* enclosingScope) -> BlockSymbol* {
+  auto symbol = &d->blockSymbols.emplace_front(enclosingScope);
+  return symbol;
+}
+
+auto Control::newTypeAliasSymbol(Scope* enclosingScope) -> TypeAliasSymbol* {
+  auto symbol = &d->typeAliasSymbols.emplace_front(enclosingScope);
+  return symbol;
+}
+
+auto Control::newVariableSymbol(Scope* enclosingScope) -> VariableSymbol* {
+  auto symbol = &d->variableSymbols.emplace_front(enclosingScope);
+  return symbol;
+}
+
+auto Control::newFieldSymbol(Scope* enclosingScope) -> FieldSymbol* {
+  auto symbol = &d->fieldSymbols.emplace_front(enclosingScope);
+  return symbol;
+}
+
+auto Control::newParameterSymbol(Scope* enclosingScope) -> ParameterSymbol* {
+  auto symbol = &d->parameterSymbols.emplace_front(enclosingScope);
+  return symbol;
+}
+
+auto Control::newEnumeratorSymbol(Scope* enclosingScope) -> EnumeratorSymbol* {
+  auto symbol = &d->enumeratorSymbols.emplace_front(enclosingScope);
+  return symbol;
 }
 
 }  // namespace cxx

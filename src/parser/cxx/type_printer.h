@@ -20,30 +20,32 @@
 
 #pragma once
 
-#include <cxx/type_visitor.h>
+#include <cxx/types_fwd.h>
 
 #include <string>
 
 namespace cxx {
 
-class TypePrinter final : TypeVisitor {
+class TypePrinter {
  public:
   TypePrinter();
   ~TypePrinter();
 
   auto to_string(const Type* type, const std::string& id = "") -> std::string;
 
- private:
-  void accept(const Type* type);
-
-#define PROCESS_TYPE(T) void visit(const T##Type* type);
+#define PROCESS_TYPE(T) void operator()(const T##Type* type);
   CXX_FOR_EACH_TYPE_KIND(PROCESS_TYPE)
 #undef PROCESS_TYPE
+
+ private:
+  void accept(const Type* type);
 
   std::string specifiers_;
   std::string ptrOps_;
   std::string declarator_;
   bool addFormals_ = false;
 };
+
+auto to_string(const Type* type, const std::string& id = "") -> std::string;
 
 }  // namespace cxx

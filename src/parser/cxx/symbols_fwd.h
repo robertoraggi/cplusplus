@@ -20,68 +20,34 @@
 
 #pragma once
 
-#include <string_view>
-
-#define CXX_FOR_EACH_SYMBOL_KIND(V) \
-  V(Class)                          \
-  V(Concept)                        \
-  V(Dependent)                      \
-  V(Enumerator)                     \
-  V(Function)                       \
-  V(Global)                         \
-  V(InjectedClassName)              \
-  V(Local)                          \
-  V(Member)                         \
-  V(Namespace)                      \
-  V(NamespaceAlias)                 \
-  V(NonTypeTemplateParameter)       \
-  V(Parameter)                      \
-  V(ScopedEnum)                     \
-  V(TemplateParameter)              \
-  V(TemplateParameterPack)          \
-  V(TypeAlias)                      \
-  V(Value)
+#include <cxx/cxx_fwd.h>
 
 namespace cxx {
 
-enum Lang {
-  LANG_CPP,
-  LANG_C,
-};
+#define CXX_FOR_EACH_SYMBOL(V) \
+  V(Namespace)                 \
+  V(Class)                     \
+  V(Union)                     \
+  V(Enum)                      \
+  V(ScopedEnum)                \
+  V(Function)                  \
+  V(TypeAlias)                 \
+  V(Variable)                  \
+  V(Field)                     \
+  V(Parameter)                 \
+  V(Enumerator)                \
+  V(Prototype)                 \
+  V(Block)
 
-enum class AccessKind {
-  kPublic,
-  kProtected,
-  kPrivate,
-};
-
-enum class TemplateParameterKind {
-  kType,
-  kNonType,
-  kPack,
-};
-
-#define DECLARE_SYMBOL_KIND(name) k##name,
-
-enum class SymbolKind { CXX_FOR_EACH_SYMBOL_KIND(DECLARE_SYMBOL_KIND) };
-
-#undef DECLARE_SYMBOL_KIND
-
-class Scope;
 class Symbol;
-class SymbolVisitor;
-class TemplateHead;
-class TemplateParameter;
-class TemplateArgument;
+class Scope;
 
-#define DECLARE_SYMBOL(name) class name##Symbol;
+#define PROCESS_SYMBOL(S) class S##Symbol;
+CXX_FOR_EACH_SYMBOL(PROCESS_SYMBOL)
+#undef PROCESS_SYMBOL
 
-CXX_FOR_EACH_SYMBOL_KIND(DECLARE_SYMBOL)
-
-#undef DECLARE_SYMBOL
-
-auto equal_to(const Symbol* symbol, const Symbol* other) -> bool;
-
-auto to_string(SymbolKind kind) -> std::string_view;
+#define PROCESS_SYMBOL(S) k##S,
+enum class SymbolKind { CXX_FOR_EACH_SYMBOL(PROCESS_SYMBOL) };
+#undef PROCESS_SYMBOL
 
 }  // namespace cxx

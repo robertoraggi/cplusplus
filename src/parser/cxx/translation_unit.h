@@ -26,6 +26,7 @@
 #include <cxx/literals_fwd.h>
 #include <cxx/names_fwd.h>
 #include <cxx/source_location.h>
+#include <cxx/symbols_fwd.h>
 #include <cxx/token.h>
 
 #include <functional>
@@ -56,6 +57,8 @@ class TranslationUnit {
   [[nodiscard]] auto ast() const -> UnitAST* { return ast_; }
 
   void setAST(UnitAST* ast) { ast_ = ast; }
+
+  [[nodiscard]] auto globalScope() const -> Scope*;
 
   [[nodiscard]] auto fileName() const -> const std::string& {
     return fileName_;
@@ -143,7 +146,8 @@ class TranslationUnit {
   std::string fileName_;
   UnitAST* ast_ = nullptr;
   const char* yyptr = nullptr;
-  DiagnosticsClient* diagnosticsClient_;
+  DiagnosticsClient* diagnosticsClient_ = nullptr;
+  NamespaceSymbol* globalNamespace_ = nullptr;
   std::unique_ptr<Preprocessor> preprocessor_;
 };
 

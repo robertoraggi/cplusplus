@@ -18,26 +18,50 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/memory_layout.h>
-#include <cxx/symbols.h>
+#include <cxx/name_printer.h>
+#include <cxx/names.h>
+#include <cxx/private/format.h>
+#include <cxx/token.h>
+#include <cxx/type_printer.h>
 #include <cxx/types.h>
-
-#include <cassert>
-#include <cstdlib>
 
 namespace cxx {
 
-MemoryLayout::MemoryLayout(int bits) : bits_(bits) {
-  sizeOfPointer_ = bits / 8;
-  sizeOfLong_ = bits / 8;
+auto NamePrinter::operator()(const Identifier* name) const -> std::string {
+  return name->value();
 }
 
-MemoryLayout::~MemoryLayout() = default;
+auto NamePrinter::operator()(const OperatorId* name) const -> std::string {
+  return fmt::format("operator {}", Token::spell(name->op()));
+}
 
-auto MemoryLayout::bits() const -> int { return bits_; }
+auto NamePrinter::operator()(const DestructorId* name) const -> std::string {
+  return "~" + visit(*this, name->name());
+}
 
-auto MemoryLayout::sizeOfPointer() const -> int { return sizeOfPointer_; }
+auto NamePrinter::operator()(const LiteralOperatorId* name) const
+    -> std::string {
+  return fmt::format("operator \"\"{}", name->name());
+}
 
-auto MemoryLayout::sizeOfLong() const -> int { return sizeOfLong_; }
+auto NamePrinter::operator()(const ConversionFunctionId* name) const
+    -> std::string {
+  return fmt::format("operator {}", to_string(name->type()));
+}
+
+auto NamePrinter::operator()(const TemplateId* name) const -> std::string {
+  std::string s = visit(*this, name->name());
+  s += " <";
+  for (auto&& arg : name->arguments()) {
+    if (&arg != &name->arguments().front()) s += ", ";
+    // s += to_string(arg);
+  }
+  s += '>';
+  return s;
+}
+
+auto to_string(const Name* name) -> std::string {
+  return visit(NamePrinter{}, name);
+}
 
 }  // namespace cxx

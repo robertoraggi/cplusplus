@@ -3397,6 +3397,8 @@ void ASTCloner::visit(TypeIdAST* ast) {
   }
 
   copy->declarator = accept(ast->declarator);
+
+  copy->type = ast->type;
 }
 
 void ASTCloner::visit(HandlerAST* ast) {
@@ -3465,6 +3467,8 @@ void ASTCloner::visit(ParameterDeclarationClauseAST* ast) {
   copy->commaLoc = ast->commaLoc;
 
   copy->ellipsisLoc = ast->ellipsisLoc;
+
+  copy->prototypeSymbol = ast->prototypeSymbol;
 
   copy->isVariadic = ast->isVariadic;
 }
