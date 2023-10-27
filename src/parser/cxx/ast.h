@@ -644,6 +644,7 @@ class ParameterDeclarationAST final : public DeclarationAST {
   DeclaratorAST* declarator = nullptr;
   SourceLocation equalLoc;
   ExpressionAST* expression = nullptr;
+  const Type* type = nullptr;
   bool isThisIntroduced = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
