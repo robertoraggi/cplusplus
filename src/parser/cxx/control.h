@@ -54,7 +54,7 @@ class Control {
       -> const Utf32StringLiteral*;
   auto commentLiteral(std::string_view spelling) -> const CommentLiteral*;
 
-  auto makeAnonymousId(std::string_view base) -> const Identifier*;
+  auto newAnonymousId(std::string_view base) -> const Identifier*;
   auto getIdentifier(std::string_view name) -> const Identifier*;
   auto getOperatorId(TokenKind op) -> const OperatorId*;
   auto getDestructorId(const Name*) -> const DestructorId*;

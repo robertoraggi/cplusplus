@@ -91,11 +91,11 @@ TEST(Control, comment_literals) {
 TEST(Control, make_anonymous_id) {
   Control control;
 
-  auto id = control.makeAnonymousId("foo");
+  auto id = control.newAnonymousId("foo");
   EXPECT_TRUE(id->isAnonymous());
   EXPECT_TRUE(id->name().starts_with("$foo"));
 
-  auto otherId = control.makeAnonymousId("foo");
+  auto otherId = control.newAnonymousId("foo");
   EXPECT_NE(id, otherId);
   EXPECT_NE(id->name(), otherId->name());
 }

@@ -190,7 +190,7 @@ auto Control::commentLiteral(std::string_view spelling)
 
 auto Control::memoryLayout() const -> MemoryLayout* { return d->memoryLayout; }
 
-auto Control::makeAnonymousId(std::string_view base) -> const Identifier* {
+auto Control::newAnonymousId(std::string_view base) -> const Identifier* {
   auto id = std::string("$") + std::string(base) +
             std::to_string(++d->anonymousIdCount);
   return getIdentifier(id.c_str());

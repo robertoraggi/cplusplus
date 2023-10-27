@@ -94,6 +94,7 @@ class Parser final {
   struct LookaheadParser;
   struct LoopParser;
   struct ClassHead;
+  struct GetDeclaratorType;
 
   enum struct BindingContext {
     kNamespace,

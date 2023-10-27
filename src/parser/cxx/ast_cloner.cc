@@ -610,6 +610,8 @@ void ASTCloner::visit(ParameterDeclarationAST* ast) {
 
   copy->expression = accept(ast->expression);
 
+  copy->type = ast->type;
+
   copy->isThisIntroduced = ast->isThisIntroduced;
 }
 
