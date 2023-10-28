@@ -61,6 +61,7 @@ auto NamePrinter::operator()(const TemplateId* name) const -> std::string {
 }
 
 auto to_string(const Name* name) -> std::string {
+  if (!name) return {};
   return visit(NamePrinter{}, name);
 }
 

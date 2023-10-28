@@ -98,11 +98,6 @@ class DumpSymbols {
  public:
   void accept(Symbol* symbol) { visit(*this, symbol); }
 
-  auto symbolName(Symbol* symbol) const -> std::string {
-    if (!symbol->name()) return {};
-    return to_string(symbol->name());
-  }
-
   auto dumpScope(Scope* scope) {
     if (!scope) return;
     ++depth_;
@@ -112,81 +107,71 @@ class DumpSymbols {
   }
 
   void operator()(NamespaceSymbol* symbol) {
-    std::string indent = std::string(depth_ * 2, ' ');
-    fmt::print("{}namespace {}\n", indent, symbolName(symbol));
+    fmt::print("{:{}}namespace {}\n", "", depth_ * 2,
+               to_string(symbol->name()));
     dumpScope(symbol->scope());
   }
 
   void operator()(ClassSymbol* symbol) {
-    std::string indent = std::string(depth_ * 2, ' ');
-    fmt::print("{}class {}\n", indent, symbolName(symbol));
+    fmt::print("{:{}}class {}\n", "", depth_ * 2, to_string(symbol->name()));
     dumpScope(symbol->scope());
   }
 
   void operator()(UnionSymbol* symbol) {
-    std::string indent = std::string(depth_ * 2, ' ');
-    fmt::print("{}union {}\n", indent, symbolName(symbol));
+    fmt::print("{:{}}union {}\n", "", depth_ * 2, to_string(symbol->name()));
     dumpScope(symbol->scope());
   }
 
   void operator()(EnumSymbol* symbol) {
-    std::string indent = std::string(depth_ * 2, ' ');
-    fmt::print("{}enum {}\n", indent, symbolName(symbol));
+    fmt::print("{:{}}enum {}\n", "", depth_ * 2, to_string(symbol->name()));
     dumpScope(symbol->scope());
   }
 
   void operator()(ScopedEnumSymbol* symbol) {
-    std::string indent = std::string(depth_ * 2, ' ');
-    fmt::print("{}enum class {}\n", indent, symbolName(symbol));
+    fmt::print("{:{}}enum class {}\n", "", depth_ * 2,
+               to_string(symbol->name()));
     dumpScope(symbol->scope());
   }
 
   void operator()(FunctionSymbol* symbol) {
-    std::string indent = std::string(depth_ * 2, ' ');
-    fmt::print("{}function {}: {}\n", indent, symbolName(symbol),
-               to_string(symbol->type()));
+    fmt::print("{:{}}function {}\n", "", depth_ * 2,
+               to_string(symbol->type(), symbol->name()));
     dumpScope(symbol->scope());
   }
 
   void operator()(PrototypeSymbol* symbol) {
-    std::string indent = std::string(depth_ * 2, ' ');
-    fmt::print("{}prototype {}\n", indent, symbolName(symbol));
+    fmt::print("{:{}}prototype\n", "", depth_ * 2);
     dumpScope(symbol->scope());
   }
 
   void operator()(BlockSymbol* symbol) {
-    std::string indent = std::string(depth_ * 2, ' ');
-    fmt::print("{}block\n", indent);
+    fmt::print("{:{}}block\n", "", depth_ * 2);
     dumpScope(symbol->scope());
   }
 
   void operator()(TypeAliasSymbol* symbol) {
-    std::string indent = std::string(depth_ * 2, ' ');
-    fmt::print("{}typealias {}: {}\n", indent, symbolName(symbol),
-               to_string(symbol->type()));
+    fmt::print("{:{}}typealias {}\n", "", depth_ * 2,
+               to_string(symbol->type(), symbol->name()));
   }
 
   void operator()(VariableSymbol* symbol) {
-    std::string indent = std::string(depth_ * 2, ' ');
-    fmt::print("{}variable {}: {}\n", indent, symbolName(symbol),
-               to_string(symbol->type()));
+    fmt::print("{:{}}variable {}\n", "", depth_ * 2,
+               to_string(symbol->type(), symbol->name()));
   }
 
   void operator()(FieldSymbol* symbol) {
-    std::string indent = std::string(depth_ * 2, ' ');
-    fmt::print("{}field {}: {}\n", indent, symbolName(symbol),
-               to_string(symbol->type()));
+    fmt::print("{:{}}field {}\n", "", depth_ * 2,
+               to_string(symbol->type(), symbol->name()));
   }
 
   void operator()(ParameterSymbol* symbol) {
-    std::string indent = std::string(depth_ * 2, ' ');
-    fmt::print("{}parameter {}: {}\n", indent, symbolName(symbol),
-               to_string(symbol->type()));
+    fmt::print("{:{}}parameter {}\n", "", depth_ * 2,
+               to_string(symbol->type(), symbol->name()));
   }
 
   void operator()(EnumeratorSymbol* symbol) {
-    std::string indent = std::string(depth_ * 2, ' ');
-    fmt::print("{}enumerator {}\n", indent, symbolName(symbol));
+    fmt::print("{:{}}enumerator {}\n", "", depth_ * 2,
+               to_string(symbol->type(), symbol->name()));
   }
 };
 
@@ -5004,6 +4989,8 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   ast->templateLoc = templateLoc;
   ast->unqualifiedId = unqualifiedId;
   ast->isTemplateIntroduced = isTemplateIntroduced;
+
+  specs.type = control_->getUnresolvedNameType(unit, ast);
 
   return true;
 }
