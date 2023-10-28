@@ -111,6 +111,7 @@ struct Control::Private {
   std::set<FunctionType> functionTypes;
   std::set<MemberObjectPointerType> memberObjectPointerTypes;
   std::set<MemberFunctionPointerType> memberFunctionPointerTypes;
+  std::set<UnresolvedNameType> unresolvedNameTypes;
   std::forward_list<ClassType> classTypes;
   std::forward_list<UnionType> unionTypes;
   std::forward_list<NamespaceType> namespaceTypes;
@@ -358,6 +359,12 @@ auto Control::getMemberFunctionPointerType(const ClassType* classType,
                                            const FunctionType* functionType)
     -> const MemberFunctionPointerType* {
   return &*d->memberFunctionPointerTypes.emplace(classType, functionType).first;
+}
+
+auto Control::getUnresolvedNameType(TranslationUnit* unit,
+                                    NamedTypeSpecifierAST* specifier)
+    -> const UnresolvedNameType* {
+  return &*d->unresolvedNameTypes.emplace(unit, specifier).first;
 }
 
 auto Control::newClassType() -> const ClassType* {

@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <cxx/names_fwd.h>
 #include <cxx/types_fwd.h>
 
 #include <string>
@@ -31,7 +32,7 @@ class TypePrinter {
   TypePrinter();
   ~TypePrinter();
 
-  auto to_string(const Type* type, const std::string& id = "") -> std::string;
+  auto operator()(const Type* type, const std::string& id = "") -> std::string;
 
 #define PROCESS_TYPE(T) void operator()(const T##Type* type);
   CXX_FOR_EACH_TYPE_KIND(PROCESS_TYPE)
@@ -47,5 +48,6 @@ class TypePrinter {
 };
 
 auto to_string(const Type* type, const std::string& id = "") -> std::string;
+auto to_string(const Type* type, const Name* name) -> std::string;
 
 }  // namespace cxx

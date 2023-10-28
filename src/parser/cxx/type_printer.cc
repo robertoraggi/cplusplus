@@ -18,16 +18,26 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/names.h>
-#include <cxx/symbols.h>
 #include <cxx/type_printer.h>
+
+// cxx
+#include <cxx/ast.h>
+#include <cxx/name_printer.h>
+#include <cxx/names.h>
+#include <cxx/private/format.h>
+#include <cxx/symbols.h>
+#include <cxx/translation_unit.h>
 #include <cxx/types.h>
 
 namespace cxx {
 
 auto to_string(const Type* type, const std::string& id) -> std::string {
-  TypePrinter printer;
-  return printer.to_string(type, id);
+  if (!type) return {};
+  return TypePrinter{}(type, id);
+}
+
+auto to_string(const Type* type, const Name* name) -> std::string {
+  return TypePrinter{}(type, to_string(name));
 }
 
 TypePrinter::TypePrinter() {
@@ -43,7 +53,7 @@ TypePrinter::~TypePrinter() {
   declarator_.clear();
 }
 
-auto TypePrinter::to_string(const Type* type, const std::string& id)
+auto TypePrinter::operator()(const Type* type, const std::string& id)
     -> std::string {
   specifiers_.clear();
   ptrOps_.clear();
@@ -250,13 +260,11 @@ void TypePrinter::operator()(const FunctionType* type) {
 
   signature.append("(");
 
-  TypePrinter pp;
-
   const auto& params = type->parameterTypes();
 
   for (std::size_t i = 0; i < params.size(); ++i) {
     const auto& param = params[i];
-    signature.append(pp.to_string(param));
+    signature.append(to_string(param));
 
     if (i != params.size() - 1) {
       signature.append(", ");
@@ -285,18 +293,15 @@ void TypePrinter::operator()(const FunctionType* type) {
 }
 
 void TypePrinter::operator()(const ClassType* type) {
-  const Identifier* className = name_cast<Identifier>(type->symbol()->name());
-  specifiers_.append(className->name());
+  specifiers_.append(to_string(type->symbol()->name()));
 }
 
 void TypePrinter::operator()(const UnionType* type) {
-  const Identifier* unionName = name_cast<Identifier>(type->symbol()->name());
-  specifiers_.append(unionName->name());
+  specifiers_.append(to_string(type->symbol()->name()));
 }
 
 void TypePrinter::operator()(const NamespaceType* type) {
-  const Identifier* className = name_cast<Identifier>(type->symbol()->name());
-  specifiers_.append(className->name());
+  specifiers_.append(to_string(type->symbol()->name()));
 }
 
 void TypePrinter::operator()(const MemberObjectPointerType* type) {}
@@ -304,13 +309,22 @@ void TypePrinter::operator()(const MemberObjectPointerType* type) {}
 void TypePrinter::operator()(const MemberFunctionPointerType* type) {}
 
 void TypePrinter::operator()(const EnumType* type) {
-  const Identifier* className = name_cast<Identifier>(type->symbol()->name());
-  specifiers_.append(className->name());
+  specifiers_.append(to_string(type->symbol()->name()));
 }
 
 void TypePrinter::operator()(const ScopedEnumType* type) {
-  const Identifier* className = name_cast<Identifier>(type->symbol()->name());
-  specifiers_.append(className->name());
+  specifiers_.append(to_string(type->symbol()->name()));
+}
+
+void TypePrinter::operator()(const UnresolvedNameType* type) {
+  auto unit = type->translationUnit();
+  auto [first, last] = type->specifier()->sourceLocationRange();
+  for (auto loc = first; loc != last; loc = loc.next()) {
+    const auto& tk = unit->tokenAt(loc);
+    if (loc != first && (tk.leadingSpace() || tk.startOfLine()))
+      specifiers_ += ' ';
+    specifiers_ += tk.spell();
+  }
 }
 
 }  // namespace cxx

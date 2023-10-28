@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include <cxx/ast_fwd.h>
+#include <cxx/names_fwd.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/types_fwd.h>
 
@@ -372,6 +374,25 @@ class NamespaceType final : public Type {
 
  private:
   mutable NamespaceSymbol* symbol_ = nullptr;
+};
+
+class UnresolvedNameType final
+    : public Type,
+      public std::tuple<TranslationUnit*, NamedTypeSpecifierAST*> {
+ public:
+  static constexpr TypeKind Kind = TypeKind::kUnresolvedName;
+
+  UnresolvedNameType(TranslationUnit* unit,
+                     NamedTypeSpecifierAST* namedTypeSpecifier)
+      : Type(Kind), tuple(unit, namedTypeSpecifier) {}
+
+  auto translationUnit() const -> TranslationUnit* {
+    return std::get<0>(*this);
+  }
+
+  auto specifier() const -> NamedTypeSpecifierAST* {
+    return std::get<1>(*this);
+  }
 };
 
 template <typename Visitor>

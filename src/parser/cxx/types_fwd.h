@@ -62,7 +62,8 @@ namespace cxx {
   V(MemberObjectPointer)          \
   V(MemberFunctionPointer)        \
   V(ClassDescription)             \
-  V(Namespace)
+  V(Namespace)                    \
+  V(UnresolvedName)
 
 class Type;
 
