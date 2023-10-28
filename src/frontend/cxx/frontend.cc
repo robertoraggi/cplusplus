@@ -30,6 +30,7 @@
 #include <cxx/private/path.h>
 #include <cxx/recursive_ast_visitor.h>
 #include <cxx/scope.h>
+#include <cxx/symbol_printer.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/wasm32_wasi_toolchain.h>
@@ -246,6 +247,10 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
     preprocesor->squeeze();
 
     unit.parse(/*checkTypes=*/true);
+
+    if (cli.opt_dump_symbols && unit.globalScope()) {
+      dump(std::cout, unit.globalScope()->owner());
+    }
 
     if (cli.opt_emit_ast) {
       unit.serialize(output);
