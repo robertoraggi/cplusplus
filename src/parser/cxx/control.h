@@ -116,6 +116,11 @@ class Control {
   auto getUnresolvedNameType(TranslationUnit* unit,
                              NamedTypeSpecifierAST* specifier)
       -> const UnresolvedNameType*;
+  auto getUnresolvedBoundedArrayType(TranslationUnit* unit,
+                                     const Type* elementType,
+                                     ExpressionAST* sizeExpression)
+      -> const UnresolvedBoundedArrayType*;
+
   auto newClassType() -> const ClassType*;
   auto newUnionType() -> const UnionType*;
   auto newNamespaceType() -> const NamespaceType*;

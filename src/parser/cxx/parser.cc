@@ -173,6 +173,26 @@ struct Parser::GetDeclaratorType {
   Parser* p;
   const Type* type_ = nullptr;
 
+  struct {
+    auto operator()(float value) const -> std::optional<std::size_t> {
+      return std::nullopt;
+    }
+
+    auto operator()(double value) const -> std::optional<std::size_t> {
+      return std::nullopt;
+    }
+
+    auto operator()(const StringLiteral* value) const
+        -> std::optional<std::size_t> {
+      return std::nullopt;
+    }
+
+    template <typename T>
+    auto operator()(T value) const -> std::optional<std::size_t> {
+      return static_cast<std::size_t>(value);
+    }
+  } get_size_value;
+
   explicit GetDeclaratorType(Parser* p) : p(p) {}
 
   auto control() const -> Control* { return p->unit->control(); }
@@ -307,7 +327,21 @@ struct Parser::GetDeclaratorType {
   }
 
   void operator()(ArrayDeclaratorChunkAST* ast) {
-    type_ = control()->getUnboundedArrayType(type_);
+    if (!ast->expression) {
+      type_ = control()->getUnboundedArrayType(type_);
+      return;
+    }
+
+    if (ast->expression->constValue) {
+      if (auto size =
+              std::visit(get_size_value, *ast->expression->constValue)) {
+        type_ = control()->getBoundedArrayType(type_, *size);
+        return;
+      }
+    }
+
+    type_ = control()->getUnresolvedBoundedArrayType(p->unit, type_,
+                                                     ast->expression);
   }
 
   auto operator()(ThrowExceptionSpecifierAST* ast) -> bool { return false; }

@@ -395,6 +395,25 @@ class UnresolvedNameType final
   }
 };
 
+class UnresolvedBoundedArrayType final
+    : public Type,
+      public std::tuple<TranslationUnit*, const Type*, ExpressionAST*> {
+ public:
+  static constexpr TypeKind Kind = TypeKind::kUnresolvedBoundedArray;
+
+  UnresolvedBoundedArrayType(TranslationUnit* unit, const Type* elementType,
+                             ExpressionAST* size)
+      : Type(Kind), tuple(unit, elementType, size) {}
+
+  auto translationUnit() const -> TranslationUnit* {
+    return std::get<0>(*this);
+  }
+
+  auto elementType() const -> const Type* { return std::get<1>(*this); }
+
+  auto size() const -> ExpressionAST* { return std::get<2>(*this); }
+};
+
 template <typename Visitor>
 auto visit(Visitor&& visitor, const Type* type) {
 #define PROCESS_TYPE(K) \

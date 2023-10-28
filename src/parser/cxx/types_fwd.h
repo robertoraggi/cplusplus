@@ -63,7 +63,8 @@ namespace cxx {
   V(MemberFunctionPointer)        \
   V(ClassDescription)             \
   V(Namespace)                    \
-  V(UnresolvedName)
+  V(UnresolvedName)               \
+  V(UnresolvedBoundedArray)
 
 class Type;
 
