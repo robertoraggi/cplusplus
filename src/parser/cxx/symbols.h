@@ -52,8 +52,11 @@ class Symbol {
     enclosingScope_ = enclosingScope;
   }
 
+  [[nodiscard]] auto index() const -> int { return index_; }
+  void setIndex(int index) { index_ = index; }
+
 #define PROCESS_SYMBOL(S) \
-  [[nodiscard]] auto is##S() const -> bool { return kind_ == SymbolKind::k##S; }
+  [[nodiscard]] auto is##S() const->bool { return kind_ == SymbolKind::k##S; }
   CXX_FOR_EACH_SYMBOL(PROCESS_SYMBOL)
 #undef PROCESS_SYMBOL
 
@@ -62,6 +65,7 @@ class Symbol {
   const Name* name_ = nullptr;
   const Type* type_ = nullptr;
   Scope* enclosingScope_ = nullptr;
+  int index_ = 0;
 };
 
 class NamespaceSymbol : public Symbol {
@@ -251,7 +255,7 @@ auto visit(Visitor&& visitor, Symbol* symbol) {
 }
 
 #define PROCESS_SYMBOL(S)                                \
-  inline auto is##S##Symbol(Symbol* symbol) -> bool {    \
+  inline auto is##S##Symbol(Symbol* symbol)->bool {      \
     return symbol && symbol->kind() == SymbolKind::k##S; \
   }
 

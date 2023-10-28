@@ -41,7 +41,11 @@ struct DumpSymbols {
   auto dumpScope(Scope* scope) {
     if (!scope) return;
     ++depth;
-    std::ranges::for_each(scope->symbols(),
+    auto symbols = scope->symbols();
+    std::vector<Symbol*> sortedSymbols(begin(symbols), end(symbols));
+    std::ranges::sort(sortedSymbols,
+                      [](auto a, auto b) { return a->index() < b->index(); });
+    std::ranges::for_each(sortedSymbols,
                           [&](auto symbol) { visit(*this, symbol); });
     --depth;
   }

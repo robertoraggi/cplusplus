@@ -34,6 +34,7 @@ auto Scope::isEnumScope() const -> bool {
 }
 
 void Scope::addSymbol(Symbol* symbol) {
+  symbol->setIndex(symbols_.size());
   symbols_.emplace(symbol->name(), symbol);
 }
 
