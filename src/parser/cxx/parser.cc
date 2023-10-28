@@ -92,89 +92,6 @@ struct ConvertToName {
   }
 };
 
-class DumpSymbols {
-  int depth_ = 0;
-
- public:
-  void accept(Symbol* symbol) { visit(*this, symbol); }
-
-  auto dumpScope(Scope* scope) {
-    if (!scope) return;
-    ++depth_;
-    std::ranges::for_each(scope->symbols(),
-                          [&](auto symbol) { accept(symbol); });
-    --depth_;
-  }
-
-  void operator()(NamespaceSymbol* symbol) {
-    fmt::print("{:{}}namespace {}\n", "", depth_ * 2,
-               to_string(symbol->name()));
-    dumpScope(symbol->scope());
-  }
-
-  void operator()(ClassSymbol* symbol) {
-    fmt::print("{:{}}class {}\n", "", depth_ * 2, to_string(symbol->name()));
-    dumpScope(symbol->scope());
-  }
-
-  void operator()(UnionSymbol* symbol) {
-    fmt::print("{:{}}union {}\n", "", depth_ * 2, to_string(symbol->name()));
-    dumpScope(symbol->scope());
-  }
-
-  void operator()(EnumSymbol* symbol) {
-    fmt::print("{:{}}enum {}\n", "", depth_ * 2, to_string(symbol->name()));
-    dumpScope(symbol->scope());
-  }
-
-  void operator()(ScopedEnumSymbol* symbol) {
-    fmt::print("{:{}}enum class {}\n", "", depth_ * 2,
-               to_string(symbol->name()));
-    dumpScope(symbol->scope());
-  }
-
-  void operator()(FunctionSymbol* symbol) {
-    fmt::print("{:{}}function {}\n", "", depth_ * 2,
-               to_string(symbol->type(), symbol->name()));
-    dumpScope(symbol->scope());
-  }
-
-  void operator()(PrototypeSymbol* symbol) {
-    fmt::print("{:{}}prototype\n", "", depth_ * 2);
-    dumpScope(symbol->scope());
-  }
-
-  void operator()(BlockSymbol* symbol) {
-    fmt::print("{:{}}block\n", "", depth_ * 2);
-    dumpScope(symbol->scope());
-  }
-
-  void operator()(TypeAliasSymbol* symbol) {
-    fmt::print("{:{}}typealias {}\n", "", depth_ * 2,
-               to_string(symbol->type(), symbol->name()));
-  }
-
-  void operator()(VariableSymbol* symbol) {
-    fmt::print("{:{}}variable {}\n", "", depth_ * 2,
-               to_string(symbol->type(), symbol->name()));
-  }
-
-  void operator()(FieldSymbol* symbol) {
-    fmt::print("{:{}}field {}\n", "", depth_ * 2,
-               to_string(symbol->type(), symbol->name()));
-  }
-
-  void operator()(ParameterSymbol* symbol) {
-    fmt::print("{:{}}parameter {}\n", "", depth_ * 2,
-               to_string(symbol->type(), symbol->name()));
-  }
-
-  void operator()(EnumeratorSymbol* symbol) {
-    fmt::print("{:{}}enumerator {}\n", "", depth_ * 2,
-               to_string(symbol->type(), symbol->name()));
-  }
-};
-
 class RecordingDiagnosticsClient : public DiagnosticsClient {
  public:
   void reset() { messages_.clear(); }
@@ -782,13 +699,7 @@ auto Parser::expect(TokenKind tk, SourceLocation& location) -> bool {
 
 void Parser::operator()(UnitAST*& ast) { parse(ast); }
 
-void Parser::parse(UnitAST*& ast) {
-  parse_translation_unit(ast);
-#if false
-  DumpSymbols dumpSymbols;
-  dumpSymbols.accept(globalScope_->owner());
-#endif
-}
+void Parser::parse(UnitAST*& ast) { parse_translation_unit(ast); }
 
 void Parser::parse_warn(std::string message) {
   unit->warning(SourceLocation(cursor_), std::move(message));
