@@ -308,6 +308,23 @@ struct Parser::TypeTraits {
     return visit(add_rvalue_reference_, type);
   }
 
+  // type relationships
+  auto is_same(const Type* a, const Type* b) const -> bool {
+    if (a == b) return true;
+    if (!a || !b) return false;
+    if (a->kind() != b->kind()) return false;
+#define PROCESS_TYPE(K)                             \
+  case TypeKind::k##K:                              \
+    return is_same_(static_cast<const K##Type*>(a), \
+                    static_cast<const K##Type*>(b));
+    switch (a->kind()) {
+      CXX_FOR_EACH_TYPE_KIND(PROCESS_TYPE)
+      default:
+        return false;
+    }
+#undef PROCESS_TYPE
+  }
+
   struct {
     auto operator()(const VoidType*) const -> bool { return true; }
 
@@ -663,6 +680,219 @@ struct Parser::TypeTraits {
 
     auto operator()(auto type) const { return type; }
   } remove_cv_;
+
+  struct {
+    TypeTraits& traits;
+
+    auto operator()(const VoidType*, const VoidType*) const -> bool {
+      return true;
+    }
+
+    auto operator()(const NullptrType*, const NullptrType*) const -> bool {
+      return true;
+    }
+
+    auto operator()(const DecltypeAutoType*, const DecltypeAutoType*) const
+        -> bool {
+      return true;
+    }
+
+    auto operator()(const AutoType*, const AutoType*) const -> bool {
+      return true;
+    }
+
+    auto operator()(const BoolType*, const BoolType*) const -> bool {
+      return true;
+    }
+
+    auto operator()(const SignedCharType*, const SignedCharType*) const
+        -> bool {
+      return true;
+    }
+
+    auto operator()(const ShortIntType*, const ShortIntType*) const -> bool {
+      return true;
+    }
+
+    auto operator()(const IntType*, const IntType*) const -> bool {
+      return true;
+    }
+
+    auto operator()(const LongIntType*, const LongIntType*) const -> bool {
+      return true;
+    }
+
+    auto operator()(const LongLongIntType*, const LongLongIntType*) const
+        -> bool {
+      return true;
+    }
+
+    auto operator()(const UnsignedCharType*, const UnsignedCharType*) const
+        -> bool {
+      return true;
+    }
+
+    auto operator()(const UnsignedShortIntType*,
+                    const UnsignedShortIntType*) const -> bool {
+      return true;
+    }
+
+    auto operator()(const UnsignedIntType*, const UnsignedIntType*) const
+        -> bool {
+      return true;
+    }
+
+    auto operator()(const UnsignedLongIntType*,
+                    const UnsignedLongIntType*) const -> bool {
+      return true;
+    }
+
+    auto operator()(const UnsignedLongLongIntType*,
+                    const UnsignedLongLongIntType*) const -> bool {
+      return true;
+    }
+
+    auto operator()(const CharType*, const CharType*) const -> bool {
+      return true;
+    }
+
+    auto operator()(const Char8Type*, const Char8Type*) const -> bool {
+      return true;
+    }
+
+    auto operator()(const Char16Type*, const Char16Type*) const -> bool {
+      return true;
+    }
+
+    auto operator()(const Char32Type*, const Char32Type*) const -> bool {
+      return true;
+    }
+
+    auto operator()(const WideCharType*, const WideCharType*) const -> bool {
+      return true;
+    }
+
+    auto operator()(const FloatType*, const FloatType*) const -> bool {
+      return true;
+    }
+
+    auto operator()(const DoubleType*, const DoubleType*) const -> bool {
+      return true;
+    }
+
+    auto operator()(const LongDoubleType*, const LongDoubleType*) const
+        -> bool {
+      return true;
+    }
+
+    auto operator()(const QualType* type, const QualType* otherType) const
+        -> bool {
+      if (type->cvQualifiers() != otherType->cvQualifiers()) return false;
+      return traits.is_same(type->elementType(), otherType->elementType());
+    }
+
+    auto operator()(const BoundedArrayType* type,
+                    const BoundedArrayType* otherType) const -> bool {
+      if (type->size() != otherType->size()) return false;
+      return traits.is_same(type->elementType(), otherType->elementType());
+    }
+
+    auto operator()(const UnboundedArrayType* type,
+                    const UnboundedArrayType* otherType) const -> bool {
+      return traits.is_same(type->elementType(), otherType->elementType());
+    }
+
+    auto operator()(const PointerType* type, const PointerType* otherType) const
+        -> bool {
+      return traits.is_same(type->elementType(), otherType->elementType());
+    }
+
+    auto operator()(const LvalueReferenceType* type,
+                    const LvalueReferenceType* otherType) const -> bool {
+      return traits.is_same(type->elementType(), otherType->elementType());
+    }
+
+    auto operator()(const RvalueReferenceType* type,
+                    const RvalueReferenceType* otherType) const -> bool {
+      return traits.is_same(type->elementType(), otherType->elementType());
+    }
+
+    auto operator()(const FunctionType* type,
+                    const FunctionType* otherType) const -> bool {
+      if (type->isVariadic() != otherType->isVariadic()) return false;
+      if (type->refQualifier() != otherType->refQualifier()) return false;
+      if (type->cvQualifiers() != otherType->cvQualifiers()) return false;
+      if (type->isNoexcept() != otherType->isNoexcept()) return false;
+      if (type->parameterTypes().size() != otherType->parameterTypes().size())
+        return false;
+      if (!traits.is_same(type->returnType(), otherType->returnType()))
+        return false;
+      for (std::size_t i = 0; i < type->parameterTypes().size(); ++i) {
+        if (!traits.is_same(type->parameterTypes()[i],
+                            otherType->parameterTypes()[i]))
+          return false;
+      }
+      return true;
+    }
+
+    auto operator()(const ClassType* type, const ClassType* otherType) const
+        -> bool {
+      return type->symbol() == otherType->symbol();
+    }
+
+    auto operator()(const UnionType* type, const UnionType* otherType) const
+        -> bool {
+      return type->symbol() == otherType->symbol();
+    }
+
+    auto operator()(const EnumType* type, const EnumType* otherType) const
+        -> bool {
+      return type->symbol() == otherType->symbol();
+    }
+
+    auto operator()(const ScopedEnumType* type,
+                    const ScopedEnumType* otherType) const -> bool {
+      return type->symbol() == otherType->symbol();
+    }
+
+    auto operator()(const MemberObjectPointerType* type,
+                    const MemberObjectPointerType* otherType) const -> bool {
+      if (!traits.is_same(type->classType(), otherType->classType()))
+        return false;
+      if (!traits.is_same(type->elementType(), otherType->elementType()))
+        return false;
+      return true;
+    }
+
+    auto operator()(const MemberFunctionPointerType* type,
+                    const MemberFunctionPointerType* otherType) const -> bool {
+      if (!traits.is_same(type->classType(), otherType->classType()))
+        return false;
+      if (!traits.is_same(type->functionType(), otherType->functionType()))
+        return false;
+      return true;
+    }
+
+    auto operator()(const ClassDescriptionType* type,
+                    const ClassDescriptionType* otherType) const -> bool {
+      return type == otherType;
+    }
+
+    auto operator()(const NamespaceType* type,
+                    const NamespaceType* otherType) const -> bool {
+      return type->symbol() == otherType->symbol();
+    }
+
+    auto operator()(const UnresolvedNameType* type,
+                    const UnresolvedNameType* otherType) const -> bool {
+      return type == otherType;
+    }
+
+    auto operator()(const UnresolvedBoundedArrayType* type,
+                    const UnresolvedBoundedArrayType* otherType) const -> bool {
+      return type == otherType;
+    }
+  } is_same_{*this};
 };
 
 struct Parser::GetDeclaratorType {
@@ -944,7 +1174,7 @@ struct Parser::DeclSpecs {
         type = control()->getShortIntType();
       else if (isUnsigned)
         type = control()->getUnsignedIntType();
-      else if (isSigned)
+      else
         type = control()->getIntType();
     }
 
@@ -952,6 +1182,9 @@ struct Parser::DeclSpecs {
 
     if (type == control()->getDoubleType() && isLong)
       type = control()->getLongDoubleType();
+
+    if (isSigned && type == control()->getCharType())
+      type = control()->getSignedCharType();
 
     if (isUnsigned) {
       switch (type->kind()) {
@@ -969,6 +1202,18 @@ struct Parser::DeclSpecs {
           break;
         case TypeKind::kLongLongInt:
           type = control()->getUnsignedLongLongIntType();
+          break;
+        case TypeKind::kChar8:
+          type = control()->getUnsignedCharType();
+          break;
+        case TypeKind::kChar16:
+          type = control()->getUnsignedShortIntType();
+          break;
+        case TypeKind::kChar32:
+          type = control()->getUnsignedIntType();
+          break;
+        case TypeKind::kWideChar:
+          type = control()->getUnsignedIntType();
           break;
         default:
           break;
@@ -2965,9 +3210,14 @@ auto Parser::parse_builtin_call_expression(ExpressionAST*& yyast) -> bool {
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   const Type* firstType = nullptr;
+  const Type* secondType = nullptr;
 
   if (ast->typeIdList && ast->typeIdList->value) {
     firstType = ast->typeIdList->value->type;
+
+    if (auto next = ast->typeIdList->next; next && next->value) {
+      secondType = next->value->type;
+    }
   }
 
   if (firstType) {
@@ -3113,7 +3363,14 @@ auto Parser::parse_builtin_call_expression(ExpressionAST*& yyast) -> bool {
         break;
       }
 
-      default:;
+      case TokenKind::T___IS_SAME: {
+        if (!secondType) break;
+        ast->constValue = traits.is_same(firstType, secondType);
+        break;
+      }
+
+      default:
+        break;
     }  // switch
   }
 
