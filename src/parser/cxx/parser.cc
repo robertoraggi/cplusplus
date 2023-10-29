@@ -174,6 +174,43 @@ auto getFunctionPrototype(DeclaratorAST* declarator)
 
 }  // namespace
 
+struct Parser::TypeTraits {
+  Parser& parser;
+
+  struct {
+    constexpr auto operator()(const VoidType*) const -> bool { return true; }
+
+    constexpr auto operator()(const QualType* type) const -> bool {
+      return visit(*this, type->elementType());
+    }
+
+    constexpr auto operator()(auto) const -> bool { return false; }
+  } is_void;
+
+  struct {
+    constexpr auto operator()(const LvalueReferenceType* type) const
+        -> const Type* {
+      return type->elementType();
+    }
+
+    constexpr auto operator()(const RvalueReferenceType* type) const
+        -> const Type* {
+      return type->elementType();
+    }
+
+    constexpr auto operator()(auto type) const { return type; }
+
+  } remove_reference;
+
+  struct {
+    constexpr auto operator()(const QualType* type) const -> const Type* {
+      return type->elementType();
+    }
+
+    constexpr auto operator()(auto type) const { return type; }
+  } remove_cv;
+};
+
 struct Parser::GetDeclaratorType {
   Parser* p;
   const Type* type_ = nullptr;
@@ -2393,29 +2430,42 @@ auto Parser::parse_builtin_call_expression(ExpressionAST*& yyast) -> bool {
 
   auto it = &ast->typeIdList;
 
-  TypeIdAST* typeId = nullptr;
-
-  if (!parse_type_id(typeId)) {
-    parse_error("expected a type id");
-  } else {
+  if (TypeIdAST* typeId = nullptr; parse_type_id(typeId)) {
     *it = new (pool_) List(typeId);
     it = &(*it)->next;
+  } else {
+    parse_error("expected a type id");
   }
 
   SourceLocation commaLoc;
 
   while (match(TokenKind::T_COMMA, commaLoc)) {
-    TypeIdAST* typeId = nullptr;
-
-    if (!parse_type_id(typeId)) {
-      parse_error("expected a type id");
-    } else {
+    if (TypeIdAST* typeId = nullptr; parse_type_id(typeId)) {
       *it = new (pool_) List(typeId);
       it = &(*it)->next;
+    } else {
+      parse_error("expected a type id");
     }
   }
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
+
+  const Type* firstType = nullptr;
+
+  if (ast->typeIdList && ast->typeIdList->value) {
+    firstType = ast->typeIdList->value->type;
+  }
+
+  if (firstType) {
+    switch (ast->typeTraits) {
+      case TokenKind::T___IS_VOID: {
+        ast->constValue = visit(TypeTraits{*this}.is_void, firstType);
+        break;
+      }
+
+      default:;
+    }  // switch
+  }
 
   return true;
 }
