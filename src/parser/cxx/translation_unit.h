@@ -25,6 +25,7 @@
 #include <cxx/diagnostics_client.h>
 #include <cxx/literals_fwd.h>
 #include <cxx/names_fwd.h>
+#include <cxx/parser_fwd.h>
 #include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/token.h>
@@ -128,7 +129,7 @@ class TranslationUnit {
 
   [[nodiscard]] auto literal(SourceLocation loc) const -> const Literal*;
 
-  auto parse(bool checkTypes = false) -> bool;
+  auto parse(const ParserConfiguration& config = {}) -> bool;
 
   [[nodiscard]] auto load(std::span<const std::uint8_t> data) -> bool;
 

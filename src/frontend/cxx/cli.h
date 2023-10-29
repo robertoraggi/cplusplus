@@ -66,6 +66,7 @@ class CLI {
   bool opt_S = false;
   bool opt_c = false;
   bool opt_fsyntax_only = false;
+  bool opt_fstatic_assert = false;
   bool opt_verify = false;
   bool opt_v = false;
   bool opt_emit_ast = false;

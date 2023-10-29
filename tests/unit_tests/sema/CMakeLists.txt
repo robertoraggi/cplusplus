@@ -17,42 +17,5 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-find_program(LIT_EXECUTABLE lit)
-
-find_program(FILECHECK_EXECUTABLE filecheck)
-
-if(NOT LIT_EXECUTABLE)
-    message(STATUS "lit not found: skip unit tests")
-    return()
-endif()
-
-message(STATUS "Using lit: ${LIT_EXECUTABLE}")
-
-if(NOT FILECHECK_EXECUTABLE)
-    message(STATUS "filecheck not found: skip unit tests")
-    return()
-endif()
-
-message(STATUS "Using filecheck: ${FILECHECK_EXECUTABLE}")
-
-add_executable(lit::tool IMPORTED)
-set_target_properties(lit::tool PROPERTIES IMPORTED_LOCATION ${LIT_EXECUTABLE})
-
-add_executable(filecheck::tool IMPORTED)
-set_target_properties(filecheck::tool PROPERTIES IMPORTED_LOCATION ${FILECHECK_EXECUTABLE})
-
-set(CXX_FRONTEND_TARGET_FILE $<TARGET_FILE:cxx>)
-
-file(READ lit.site.cfg.py.in lit_cfg_in)
-
-string(CONFIGURE "${lit_cfg_in}" lit_cfg @ONLY)
-
-file(GENERATE
-    OUTPUT $<CONFIG>.lit.site.cfg.py
-    CONTENT "${lit_cfg}")
-
-add_subdirectory(tokens)
-add_subdirectory(preprocessor)
-add_subdirectory(parser)
-add_subdirectory(ast)
-add_subdirectory(sema)
+add_test(NAME sema
+    COMMAND lit::tool --config-prefix $<CONFIG>.lit -v ${CMAKE_CURRENT_BINARY_DIR})

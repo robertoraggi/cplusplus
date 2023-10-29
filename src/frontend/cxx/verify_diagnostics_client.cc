@@ -94,6 +94,8 @@ void VerifyDiagnosticsClient::verifyExpectedDiagnostics() {
   if (!verify_) return;
 
   while (!reportedDiagnostics_.empty()) {
+    if (expectedDiagnostics_.empty()) break;
+
     auto expected = expectedDiagnostics_.front();
     expectedDiagnostics_.pop_front();
 

@@ -246,7 +246,10 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
   if (!shouldExit) {
     preprocesor->squeeze();
 
-    unit.parse(/*checkTypes=*/true);
+    unit.parse(ParserConfiguration{
+        .fuzzyTemplateResolution = true,
+        .staticAssert = cli.opt_fstatic_assert,
+    });
 
     if (cli.opt_dump_symbols && unit.globalScope()) {
       dump(std::cout, unit.globalScope()->owner());

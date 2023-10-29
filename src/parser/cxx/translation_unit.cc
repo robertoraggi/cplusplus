@@ -115,10 +115,10 @@ void TranslationUnit::getTokenEndPosition(SourceLocation loc, unsigned* line,
   preprocessor_->getTokenEndPosition(tokenAt(loc), line, column, fileName);
 }
 
-auto TranslationUnit::parse(bool checkTypes) -> bool {
+auto TranslationUnit::parse(const ParserConfiguration& config) -> bool {
   globalNamespace_ = control_->newNamespaceSymbol(nullptr);
   Parser parse(this);
-  parse.setCheckTypes(checkTypes);
+  parse.setConfig(config);
   parse(ast_);
   return true;
 }

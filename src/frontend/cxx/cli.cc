@@ -144,6 +144,9 @@ std::vector<CLIOptionDescr> options{
 
     {"-fsyntax-only", "Check only the syntax", &CLI::opt_fsyntax_only},
 
+    {"-fstatic-assert", "Enable static asserts", &CLI::opt_fstatic_assert,
+     CLIOptionVisibility::kExperimental},
+
     {"-emit-ast", "Emit AST files for source inputs", &CLI::opt_emit_ast},
 
     {"-ast-dump", "Build ASTs and then debug dump them", &CLI::opt_ast_dump},
