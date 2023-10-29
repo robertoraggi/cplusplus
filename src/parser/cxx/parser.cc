@@ -177,6 +177,122 @@ auto getFunctionPrototype(DeclaratorAST* declarator)
 struct Parser::TypeTraits {
   Parser& parser;
 
+  // primary type categories
+
+  auto is_void(const Type* type) const -> bool { return visit(is_void_, type); }
+
+  auto is_null_pointer(const Type* type) const -> bool {
+    return visit(is_null_pointer_, type);
+  }
+
+  auto is_integral(const Type* type) const -> bool {
+    return visit(is_integral_, type);
+  }
+
+  auto is_floating_point(const Type* type) const -> bool {
+    return visit(is_floating_point_, type);
+  }
+
+  auto is_array(const Type* type) const -> bool {
+    return visit(is_array_, type);
+  }
+
+  auto is_enum(const Type* type) const -> bool { return visit(is_enum_, type); }
+
+  auto is_union(const Type* type) const -> bool {
+    return visit(is_union_, type);
+  }
+
+  auto is_class(const Type* type) const -> bool {
+    return visit(is_class_, type);
+  }
+
+  auto is_function(const Type* type) const -> bool {
+    return visit(is_function_, type);
+  }
+
+  auto is_pointer(const Type* type) const -> bool {
+    return visit(is_pointer_, type);
+  }
+
+  auto is_lvalue_reference(const Type* type) const -> bool {
+    return visit(is_lvalue_reference_, type);
+  }
+
+  auto is_rvalue_reference(const Type* type) const -> bool {
+    return visit(is_rvalue_reference_, type);
+  }
+
+  auto is_member_object_pointer(const Type* type) const -> bool {
+    return visit(is_member_object_pointer_, type);
+  }
+
+  auto is_member_function_pointer(const Type* type) const -> bool {
+    return visit(is_member_function_pointer_, type);
+  }
+
+  // composite type categories
+
+  auto is_fundamental(const Type* type) const -> bool {
+    return is_arithmetic(type) || is_void(type) || is_null_pointer(type);
+  }
+
+  auto is_arithmetic(const Type* type) const -> bool {
+    return is_integral(type) || is_floating_point(type);
+  }
+
+  auto is_scalar(const Type* type) const -> bool {
+    return is_enum(type) || is_pointer(type) || is_member_pointer(type) ||
+           is_null_pointer(type);
+  }
+
+  auto is_object(const Type* type) const -> bool {
+    return is_scalar(type) || is_array(type) || is_union(type) ||
+           is_class(type);
+  }
+
+  auto is_compound(const Type* type) const -> bool {
+    return !is_fundamental(type);
+  }
+
+  auto is_reference(const Type* type) const -> bool {
+    return visit(is_reference_, type);
+  }
+
+  auto is_member_pointer(const Type* type) const -> bool {
+    return is_member_object_pointer(type) || is_member_function_pointer(type);
+  }
+
+  // type properties
+
+  auto is_const(const Type* type) const -> bool {
+    return visit(is_const_, type);
+  }
+
+  auto is_volatile(const Type* type) const -> bool {
+    return visit(is_volatile_, type);
+  }
+
+  auto is_signed(const Type* type) const -> bool {
+    return visit(is_signed_, type);
+  }
+
+  auto is_unsigned(const Type* type) const -> bool {
+    return visit(is_unsigned_, type);
+  }
+
+  auto is_bounded_array(const Type* type) const -> bool {
+    return visit(is_bounded_array_, type);
+  }
+
+  auto is_unbounded_array(const Type* type) const -> bool {
+    return visit(is_unbounded_array_, type);
+  }
+
+  auto is_scoped_enum(const Type* type) const -> bool {
+    return visit(is_scoped_enum_, type);
+  }
+
   struct {
     auto operator()(const VoidType*) const -> bool { return true; }
 
@@ -185,7 +301,7 @@ struct Parser::TypeTraits {
     }
 
     auto operator()(auto) const -> bool { return false; }
-  } is_void;
+  } is_void_;
 
   struct {
     auto operator()(const NullptrType*) const -> bool { return true; }
@@ -195,7 +311,7 @@ struct Parser::TypeTraits {
     }
 
     auto operator()(auto) const -> bool { return false; }
-  } is_null_pointer;
+  } is_null_pointer_;
 
   struct {
     auto operator()(const BoolType*) const -> bool { return true; }
@@ -238,7 +354,7 @@ struct Parser::TypeTraits {
 
     auto operator()(auto) const -> bool { return false; }
 
-  } is_integral;
+  } is_integral_;
 
   struct {
     auto operator()(const FloatType*) const -> bool { return true; }
@@ -252,7 +368,7 @@ struct Parser::TypeTraits {
     }
 
     auto operator()(auto) const -> bool { return false; }
-  } is_floating_point;
+  } is_floating_point_;
 
   struct {
     auto operator()(const SignedCharType*) const -> bool { return true; }
@@ -278,7 +394,7 @@ struct Parser::TypeTraits {
     }
 
     auto operator()(auto) const -> bool { return false; }
-  } is_signed;
+  } is_signed_;
 
   struct {
     auto operator()(const BoolType*) const -> bool { return true; }
@@ -308,7 +424,7 @@ struct Parser::TypeTraits {
     }
 
     auto operator()(auto) const -> bool { return false; }
-  } is_unsigned;
+  } is_unsigned_;
 
   struct {
     auto operator()(const UnboundedArrayType*) const -> bool { return true; }
@@ -320,7 +436,7 @@ struct Parser::TypeTraits {
     }
 
     auto operator()(auto) const -> bool { return false; }
-  } is_array;
+  } is_array_;
 
   struct {
     auto operator()(const EnumType*) const -> bool { return true; }
@@ -332,7 +448,7 @@ struct Parser::TypeTraits {
     }
 
     auto operator()(auto) const -> bool { return false; }
-  } is_enum;
+  } is_enum_;
 
   struct {
     auto operator()(const ScopedEnumType*) const -> bool { return true; }
@@ -342,7 +458,7 @@ struct Parser::TypeTraits {
     }
 
     auto operator()(auto) const -> bool { return false; }
-  } is_scoped_enum;
+  } is_scoped_enum_;
 
   struct {
     auto operator()(const UnionType*) const -> bool { return true; }
@@ -352,7 +468,7 @@ struct Parser::TypeTraits {
     }
 
     auto operator()(auto) const -> bool { return false; }
-  } is_union;
+  } is_union_;
 
   struct {
     auto operator()(const ClassType*) const -> bool { return true; }
@@ -362,13 +478,13 @@ struct Parser::TypeTraits {
     }
 
     auto operator()(auto) const -> bool { return false; }
-  } is_class;
+  } is_class_;
 
   struct {
     auto operator()(const FunctionType*) const -> bool { return true; }
 
     auto operator()(auto) const -> bool { return false; }
-  } is_function;
+  } is_function_;
 
   struct {
     auto operator()(const PointerType* type) const -> bool { return true; }
@@ -378,7 +494,7 @@ struct Parser::TypeTraits {
     }
 
     auto operator()(auto) const -> bool { return false; }
-  } is_pointer;
+  } is_pointer_;
 
   struct {
     auto operator()(const MemberObjectPointerType*) const -> bool {
@@ -390,7 +506,7 @@ struct Parser::TypeTraits {
     }
 
     auto operator()(auto) const -> bool { return false; }
-  } is_member_object_pointer;
+  } is_member_object_pointer_;
 
   struct {
     auto operator()(const MemberFunctionPointerType*) const -> bool {
@@ -402,7 +518,7 @@ struct Parser::TypeTraits {
     }
 
     auto operator()(auto) const -> bool { return false; }
-  } is_member_function_pointer;
+  } is_member_function_pointer_;
 
   struct {
     auto operator()(const BoundedArrayType*) const -> bool { return true; }
@@ -412,13 +528,13 @@ struct Parser::TypeTraits {
     }
 
     auto operator()(auto) const -> bool { return false; }
-  } is_bounded_array;
+  } is_bounded_array_;
 
   struct {
     auto operator()(const UnboundedArrayType*) const -> bool { return true; }
 
     auto operator()(auto) const -> bool { return false; }
-  } is_unbounded_array;
+  } is_unbounded_array_;
 
   struct {
     auto operator()(const QualType* type) const -> bool {
@@ -426,7 +542,7 @@ struct Parser::TypeTraits {
     }
 
     auto operator()(auto) const -> bool { return false; }
-  } is_const;
+  } is_const_;
 
   struct {
     auto operator()(const QualType* type) const -> bool {
@@ -434,19 +550,19 @@ struct Parser::TypeTraits {
     }
 
     auto operator()(auto) const -> bool { return false; }
-  } is_volatile;
+  } is_volatile_;
 
   struct {
     auto operator()(const LvalueReferenceType*) const -> bool { return true; }
 
     auto operator()(auto) const -> bool { return false; }
-  } is_lvalue_reference;
+  } is_lvalue_reference_;
 
   struct {
     auto operator()(const RvalueReferenceType*) const -> bool { return true; }
 
     auto operator()(auto) const -> bool { return false; }
-  } is_rvalue_reference;
+  } is_rvalue_reference_;
 
   struct {
     auto operator()(const LvalueReferenceType*) const -> bool { return true; }
@@ -454,7 +570,7 @@ struct Parser::TypeTraits {
     auto operator()(const RvalueReferenceType*) const -> bool { return true; }
 
     auto operator()(auto) const -> bool { return false; }
-  } is_reference;
+  } is_reference_;
 
   struct {
     auto operator()(const LvalueReferenceType* type) const -> const Type* {
@@ -467,7 +583,7 @@ struct Parser::TypeTraits {
 
     auto operator()(auto type) const { return type; }
 
-  } remove_reference;
+  } remove_reference_;
 
   struct {
     auto operator()(const QualType* type) const -> const Type* {
@@ -475,7 +591,7 @@ struct Parser::TypeTraits {
     }
 
     auto operator()(auto type) const { return type; }
-  } remove_cv;
+  } remove_cv_;
 };
 
 struct Parser::GetDeclaratorType {
@@ -2724,119 +2840,145 @@ auto Parser::parse_builtin_call_expression(ExpressionAST*& yyast) -> bool {
   }
 
   if (firstType) {
+    TypeTraits traits{*this};
+
     switch (ast->typeTraits) {
       case TokenKind::T___IS_VOID: {
-        ast->constValue = visit(TypeTraits{*this}.is_void, firstType);
+        ast->constValue = traits.is_void(firstType);
         break;
       }
 
       case TokenKind::T___IS_NULL_POINTER: {
-        ast->constValue = visit(TypeTraits{*this}.is_null_pointer, firstType);
+        ast->constValue = traits.is_null_pointer(firstType);
         break;
       }
 
       case TokenKind::T___IS_INTEGRAL: {
-        ast->constValue = visit(TypeTraits{*this}.is_integral, firstType);
+        ast->constValue = traits.is_integral(firstType);
         break;
       }
 
       case TokenKind::T___IS_FLOATING_POINT: {
-        ast->constValue = visit(TypeTraits{*this}.is_floating_point, firstType);
+        ast->constValue = traits.is_floating_point(firstType);
         break;
       }
 
       case TokenKind::T___IS_ARRAY: {
-        ast->constValue = visit(TypeTraits{*this}.is_array, firstType);
+        ast->constValue = traits.is_array(firstType);
         break;
       }
 
       case TokenKind::T___IS_ENUM: {
-        ast->constValue = visit(TypeTraits{*this}.is_enum, firstType);
+        ast->constValue = traits.is_enum(firstType);
         break;
       }
 
       case TokenKind::T___IS_SCOPED_ENUM: {
-        ast->constValue = visit(TypeTraits{*this}.is_scoped_enum, firstType);
+        ast->constValue = traits.is_scoped_enum(firstType);
         break;
       }
 
       case TokenKind::T___IS_UNION: {
-        ast->constValue = visit(TypeTraits{*this}.is_union, firstType);
+        ast->constValue = traits.is_union(firstType);
         break;
       }
 
       case TokenKind::T___IS_CLASS: {
-        ast->constValue = visit(TypeTraits{*this}.is_class, firstType);
+        ast->constValue = traits.is_class(firstType);
         break;
       }
 
       case TokenKind::T___IS_FUNCTION: {
-        ast->constValue = visit(TypeTraits{*this}.is_function, firstType);
+        ast->constValue = traits.is_function(firstType);
         break;
       }
 
       case TokenKind::T___IS_POINTER: {
-        ast->constValue = visit(TypeTraits{*this}.is_pointer, firstType);
+        ast->constValue = traits.is_pointer(firstType);
         break;
       }
 
       case TokenKind::T___IS_MEMBER_OBJECT_POINTER: {
-        ast->constValue =
-            visit(TypeTraits{*this}.is_member_object_pointer, firstType);
+        ast->constValue = traits.is_member_object_pointer(firstType);
         break;
       }
 
       case TokenKind::T___IS_MEMBER_FUNCTION_POINTER: {
-        ast->constValue =
-            visit(TypeTraits{*this}.is_member_function_pointer, firstType);
-        break;
-      }
-
-      case TokenKind::T___IS_BOUNDED_ARRAY: {
-        ast->constValue = visit(TypeTraits{*this}.is_bounded_array, firstType);
-        break;
-      }
-
-      case TokenKind::T___IS_UNBOUNDED_ARRAY: {
-        ast->constValue =
-            visit(TypeTraits{*this}.is_unbounded_array, firstType);
-        break;
-      }
-
-      case TokenKind::T___IS_CONST: {
-        ast->constValue = visit(TypeTraits{*this}.is_const, firstType);
-        break;
-      }
-
-      case TokenKind::T___IS_VOLATILE: {
-        ast->constValue = visit(TypeTraits{*this}.is_volatile, firstType);
+        ast->constValue = traits.is_member_function_pointer(firstType);
         break;
       }
 
       case TokenKind::T___IS_LVALUE_REFERENCE: {
-        ast->constValue =
-            visit(TypeTraits{*this}.is_lvalue_reference, firstType);
+        ast->constValue = traits.is_lvalue_reference(firstType);
         break;
       }
 
       case TokenKind::T___IS_RVALUE_REFERENCE: {
-        ast->constValue =
-            visit(TypeTraits{*this}.is_rvalue_reference, firstType);
+        ast->constValue = traits.is_rvalue_reference(firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_FUNDAMENTAL: {
+        ast->constValue = traits.is_fundamental(firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_ARITHMETIC: {
+        ast->constValue = traits.is_arithmetic(firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_SCALAR: {
+        ast->constValue = traits.is_scalar(firstType);
+      }
+
+      case TokenKind::T___IS_OBJECT: {
+        ast->constValue = traits.is_object(firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_COMPOUND: {
+        ast->constValue = traits.is_compound(firstType);
         break;
       }
 
       case TokenKind::T___IS_REFERENCE: {
-        ast->constValue = visit(TypeTraits{*this}.is_reference, firstType);
+        ast->constValue = traits.is_reference(firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_MEMBER_POINTER: {
+        ast->constValue = traits.is_member_pointer(firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_BOUNDED_ARRAY: {
+        ast->constValue = traits.is_bounded_array(firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_UNBOUNDED_ARRAY: {
+        ast->constValue = traits.is_unbounded_array(firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_CONST: {
+        ast->constValue = traits.is_const(firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_VOLATILE: {
+        ast->constValue = traits.is_volatile(firstType);
         break;
       }
 
       case TokenKind::T___IS_SIGNED: {
-        ast->constValue = visit(TypeTraits{*this}.is_signed, firstType);
+        ast->constValue = traits.is_signed(firstType);
         break;
       }
 
       case TokenKind::T___IS_UNSIGNED: {
-        ast->constValue = visit(TypeTraits{*this}.is_unsigned, firstType);
+        ast->constValue = traits.is_unsigned(firstType);
         break;
       }
 
