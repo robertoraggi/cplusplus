@@ -166,6 +166,7 @@ class CharLiteral final : public Literal {
 
   struct Components {
     int value = 0;
+    std::string_view prefix;
 
     [[nodiscard]] static auto from(std::string_view text,
                                    DiagnosticsClient* diagnostics = nullptr)

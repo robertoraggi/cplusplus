@@ -699,6 +699,10 @@ class Parser final {
 
   void check_type_traits();
 
+  auto is_prvalue(ExpressionAST* expr) -> bool;
+  auto is_lvalue(ExpressionAST* expr) -> bool;
+  auto is_xvalue(ExpressionAST* expr) -> bool;
+
   auto maybe_template_name(const Identifier* id) -> bool;
 
   void mark_maybe_template_name(const Identifier* id);

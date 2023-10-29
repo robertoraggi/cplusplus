@@ -139,8 +139,9 @@ class ExceptionSpecifierAST : public AST {
 class ExpressionAST : public AST {
  public:
   using AST::AST;
-  ValueCategory valueCategory = ValueCategory::kNone;
+  ValueCategory valueCategory = ValueCategory::kPrValue;
   std::optional<ConstValue> constValue;
+  const Type* type = nullptr;
 };
 
 class FunctionBodyAST : public AST {
@@ -2409,6 +2410,7 @@ class DecltypeSpecifierAST final : public SpecifierAST {
   SourceLocation lparenLoc;
   ExpressionAST* expression = nullptr;
   SourceLocation rparenLoc;
+  const Type* type = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
