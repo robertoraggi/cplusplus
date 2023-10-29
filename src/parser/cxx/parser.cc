@@ -177,6 +177,8 @@ auto getFunctionPrototype(DeclaratorAST* declarator)
 struct Parser::TypeTraits {
   const Parser& parser;
 
+  auto control() const -> Control* { return parser.control_; }
+
   // primary type categories
 
   auto is_void(const Type* type) const -> bool { return visit(is_void_, type); }
@@ -308,6 +310,57 @@ struct Parser::TypeTraits {
     return visit(add_rvalue_reference_, type);
   }
 
+  // arrays
+  auto remove_extent(const Type* type) const -> const Type* {
+    if (!type) return type;
+    return visit(remove_extent_, type);
+  }
+
+  // cv qualifiers
+
+  auto remove_cv(const Type* type) const -> const Type* {
+    if (!type) return type;
+    return visit(remove_cv_, type);
+  }
+
+  auto remove_cvref(const Type* type) const -> const Type* {
+    if (!type) return type;
+    return remove_cv(remove_reference(type));
+  }
+
+  auto add_const_ref(const Type* type) const -> const Type* {
+    if (!type) return type;
+    return add_lvalue_reference(add_const(type));
+  }
+
+  auto add_const(const Type* type) const -> const Type* {
+    if (!type) return type;
+    if (is_function(type)) return type;
+    if (is_reference(type)) return type;
+    if (is_const(type)) return type;
+    return control()->getConstType(type);
+  }
+
+  auto add_volatile(const Type* type) const -> const Type* {
+    if (!type) return type;
+    if (is_function(type)) return type;
+    if (is_reference(type)) return type;
+    if (is_const(type)) return type;
+    return control()->getVolatileType(type);
+  }
+
+  // pointers
+  auto remove_pointer(const Type* type) const -> const Type* {
+    if (auto ptrTy = type_cast<PointerType>(remove_cv(type)))
+      return ptrTy->elementType();
+    return type;
+  }
+
+  auto add_pointer(const Type* type) const -> const Type* {
+    if (!type) return type;
+    return visit(add_pointer_, type);
+  }
+
   // type relationships
   auto is_same(const Type* a, const Type* b) const -> bool {
     if (a == b) return true;
@@ -323,6 +376,14 @@ struct Parser::TypeTraits {
         return false;
     }
 #undef PROCESS_TYPE
+  }
+
+  auto decay(const Type* type) const -> const Type* {
+    if (!type) return type;
+    auto noref = remove_reference(type);
+    if (is_array(noref)) return add_pointer(remove_extent(noref));
+    if (is_function(noref)) return add_pointer(noref);
+    return remove_cvref(noref);
   }
 
   struct {
@@ -674,12 +735,51 @@ struct Parser::TypeTraits {
   } add_rvalue_reference_{*this};
 
   struct {
+    auto operator()(const BoundedArrayType* type) const -> const Type* {
+      return type->elementType();
+    }
+
+    auto operator()(const UnboundedArrayType* type) const -> const Type* {
+      return type->elementType();
+    }
+
+    auto operator()(const UnresolvedBoundedArrayType* type) const
+        -> const Type* {
+      return type->elementType();
+    }
+
+    auto operator()(auto type) const -> const Type* { return type; }
+  } remove_extent_;
+
+  struct {
     auto operator()(const QualType* type) const -> const Type* {
       return type->elementType();
     }
 
-    auto operator()(auto type) const { return type; }
+    auto operator()(auto type) const -> const Type* { return type; }
   } remove_cv_;
+
+  struct {
+    TypeTraits& traits;
+
+    auto control() const { return traits.parser.control_; }
+
+    auto operator()(const LvalueReferenceType* type) const -> const Type* {
+      return control()->getPointerType(type->elementType());
+    }
+
+    auto operator()(const RvalueReferenceType* type) const -> const Type* {
+      return control()->getPointerType(type->elementType());
+    }
+
+    auto operator()(const FunctionType* type) const -> const Type* {
+      if (type->refQualifier() != RefQualifier::kNone) return type;
+      if (type->cvQualifiers() != CvQualifiers::kNone) return type;
+      return control()->getPointerType(type);
+    }
+
+    auto operator()(auto type) const -> const Type* { return type; }
+  } add_pointer_{*this};
 
   struct {
     TypeTraits& traits;
@@ -6121,19 +6221,25 @@ void Parser::check_type_traits() {
   rewind(typeTraitsLoc);
 }
 
-auto Parser::is_prvalue(ExpressionAST* expr) -> bool {
+auto Parser::is_prvalue(ExpressionAST* expr) const -> bool {
   if (!expr) return false;
   return expr->valueCategory == ValueCategory::kPrValue;
 }
 
-auto Parser::is_lvalue(ExpressionAST* expr) -> bool {
+auto Parser::is_lvalue(ExpressionAST* expr) const -> bool {
   if (!expr) return false;
   return expr->valueCategory == ValueCategory::kLValue;
 }
 
-auto Parser::is_xvalue(ExpressionAST* expr) -> bool {
+auto Parser::is_xvalue(ExpressionAST* expr) const -> bool {
   if (!expr) return false;
   return expr->valueCategory == ValueCategory::kXValue;
+}
+
+auto Parser::is_glvalue(ExpressionAST* expr) const -> bool {
+  if (!expr) return false;
+  return expr->valueCategory == ValueCategory::kLValue ||
+         expr->valueCategory == ValueCategory::kXValue;
 }
 
 auto Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
