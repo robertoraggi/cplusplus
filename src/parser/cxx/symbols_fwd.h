@@ -37,7 +37,8 @@ namespace cxx {
   V(Parameter)                 \
   V(Enumerator)                \
   V(Prototype)                 \
-  V(Block)
+  V(Block)                     \
+  V(Lambda)
 
 class Symbol;
 class Scope;

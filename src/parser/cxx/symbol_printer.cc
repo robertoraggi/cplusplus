@@ -85,6 +85,12 @@ struct DumpSymbols {
     dumpScope(symbol->scope());
   }
 
+  void operator()(LambdaSymbol* symbol) {
+    fmt::print(out, "{:{}}lambda {}\n", "", depth * 2,
+               to_string(symbol->type(), symbol->name()));
+    dumpScope(symbol->scope());
+  }
+
   void operator()(PrototypeSymbol* symbol) {
     fmt::print(out, "{:{}}prototype\n", "", depth * 2);
     dumpScope(symbol->scope());
