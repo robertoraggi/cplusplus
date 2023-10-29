@@ -188,6 +188,22 @@ struct Parser::TypeTraits {
   } is_void;
 
   struct {
+    constexpr auto operator()(const QualType* type) const -> bool {
+      return type->isConst();
+    }
+
+    constexpr auto operator()(auto) const -> bool { return false; }
+  } is_const;
+
+  struct {
+    constexpr auto operator()(const QualType* type) const -> bool {
+      return type->isVolatile();
+    }
+
+    constexpr auto operator()(auto) const -> bool { return false; }
+  } is_volatile;
+
+  struct {
     constexpr auto operator()(const LvalueReferenceType* type) const
         -> const Type* {
       return type->elementType();
@@ -2460,6 +2476,16 @@ auto Parser::parse_builtin_call_expression(ExpressionAST*& yyast) -> bool {
     switch (ast->typeTraits) {
       case TokenKind::T___IS_VOID: {
         ast->constValue = visit(TypeTraits{*this}.is_void, firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_CONST: {
+        ast->constValue = visit(TypeTraits{*this}.is_const, firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_VOLATILE: {
+        ast->constValue = visit(TypeTraits{*this}.is_volatile, firstType);
         break;
       }
 
