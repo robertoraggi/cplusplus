@@ -52,6 +52,23 @@ static_assert(__is_integral(void));
 static_assert(__is_integral(void*));
 
 //
+// is_floating_point trait
+//
+
+static_assert(__is_floating_point(float));
+static_assert(__is_floating_point(double));
+static_assert(__is_floating_point(long double));
+static_assert(__is_floating_point(const float));
+static_assert(__is_floating_point(const double));
+static_assert(__is_floating_point(const long double));
+
+// expected-error@1 {{static assert failed}}
+static_assert(__is_floating_point(bool));
+
+// expected-error@1 {{static assert failed}}
+static_assert(__is_floating_point(float*));
+
+//
 // is_const trait
 //
 
