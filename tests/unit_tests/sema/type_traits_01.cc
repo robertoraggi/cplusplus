@@ -152,6 +152,16 @@ static_assert(__is_array(int));
 static_assert(__is_array(int (*)[10]));
 
 //
+// is_function trait
+//
+
+static_assert(__is_function(int()));
+static_assert(__is_function(int(int, int)));
+
+// expected-error@1 {{static assert failed}}
+static_assert(__is_function(int (*)(int)));
+
+//
 // is_bounded_array trait
 //
 

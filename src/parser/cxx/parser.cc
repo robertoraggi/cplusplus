@@ -313,6 +313,54 @@ struct Parser::TypeTraits {
   } is_array;
 
   struct {
+    auto operator()(const EnumType*) const -> bool { return true; }
+
+    auto operator()(const ScopedEnumType*) const -> bool { return true; }
+
+    auto operator()(const QualType* type) const -> bool {
+      return visit(*this, type->elementType());
+    }
+
+    auto operator()(auto) const -> bool { return false; }
+  } is_enum;
+
+  struct {
+    auto operator()(const ScopedEnumType*) const -> bool { return true; }
+
+    auto operator()(const QualType* type) const -> bool {
+      return visit(*this, type->elementType());
+    }
+
+    auto operator()(auto) const -> bool { return false; }
+  } is_scoped_enum;
+
+  struct {
+    auto operator()(const UnionType*) const -> bool { return true; }
+
+    auto operator()(const QualType* type) const -> bool {
+      return visit(*this, type->elementType());
+    }
+
+    auto operator()(auto) const -> bool { return false; }
+  } is_union;
+
+  struct {
+    auto operator()(const ClassType*) const -> bool { return true; }
+
+    auto operator()(const QualType* type) const -> bool {
+      return visit(*this, type->elementType());
+    }
+
+    auto operator()(auto) const -> bool { return false; }
+  } is_class;
+
+  struct {
+    auto operator()(const FunctionType*) const -> bool { return true; }
+
+    auto operator()(auto) const -> bool { return false; }
+  } is_function;
+
+  struct {
     auto operator()(const BoundedArrayType*) const -> bool { return true; }
 
     auto operator()(const UnresolvedBoundedArrayType*) const -> bool {
@@ -2650,6 +2698,31 @@ auto Parser::parse_builtin_call_expression(ExpressionAST*& yyast) -> bool {
 
       case TokenKind::T___IS_ARRAY: {
         ast->constValue = visit(TypeTraits{*this}.is_array, firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_ENUM: {
+        ast->constValue = visit(TypeTraits{*this}.is_enum, firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_SCOPED_ENUM: {
+        ast->constValue = visit(TypeTraits{*this}.is_scoped_enum, firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_UNION: {
+        ast->constValue = visit(TypeTraits{*this}.is_union, firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_CLASS: {
+        ast->constValue = visit(TypeTraits{*this}.is_class, firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_FUNCTION: {
+        ast->constValue = visit(TypeTraits{*this}.is_function, firstType);
         break;
       }
 
