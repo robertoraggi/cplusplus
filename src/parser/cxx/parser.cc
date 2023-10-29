@@ -204,6 +204,34 @@ struct Parser::TypeTraits {
   } is_volatile;
 
   struct {
+    constexpr auto operator()(const LvalueReferenceType*) const -> bool {
+      return true;
+    }
+
+    constexpr auto operator()(auto) const -> bool { return false; }
+  } is_lvalue_reference;
+
+  struct {
+    constexpr auto operator()(const RvalueReferenceType*) const -> bool {
+      return true;
+    }
+
+    constexpr auto operator()(auto) const -> bool { return false; }
+  } is_rvalue_reference;
+
+  struct {
+    constexpr auto operator()(const LvalueReferenceType*) const -> bool {
+      return true;
+    }
+
+    constexpr auto operator()(const RvalueReferenceType*) const -> bool {
+      return true;
+    }
+
+    constexpr auto operator()(auto) const -> bool { return false; }
+  } is_reference;
+
+  struct {
     constexpr auto operator()(const LvalueReferenceType* type) const
         -> const Type* {
       return type->elementType();
@@ -2486,6 +2514,23 @@ auto Parser::parse_builtin_call_expression(ExpressionAST*& yyast) -> bool {
 
       case TokenKind::T___IS_VOLATILE: {
         ast->constValue = visit(TypeTraits{*this}.is_volatile, firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_LVALUE_REFERENCE: {
+        ast->constValue =
+            visit(TypeTraits{*this}.is_lvalue_reference, firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_RVALUE_REFERENCE: {
+        ast->constValue =
+            visit(TypeTraits{*this}.is_rvalue_reference, firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_REFERENCE: {
+        ast->constValue = visit(TypeTraits{*this}.is_reference, firstType);
         break;
       }
 
