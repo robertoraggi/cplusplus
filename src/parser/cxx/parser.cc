@@ -39,6 +39,11 @@ namespace cxx {
 
 namespace {
 
+inline constexpr struct {
+  constexpr auto operator()(const StringLiteral*) const -> bool { return true; }
+  constexpr auto operator()(auto value) const -> bool { return !!value; }
+} to_bool;
+
 struct ConvertToName {
   Control* control_;
 
@@ -653,10 +658,6 @@ Parser::Parser(TranslationUnit* unit) : unit(unit) {
 }
 
 Parser::~Parser() = default;
-
-auto Parser::checkTypes() const -> bool { return checkTypes_; }
-
-void Parser::setCheckTypes(bool checkTypes) { checkTypes_ = checkTypes; }
 
 auto Parser::prec(TokenKind tk) -> Parser::Prec {
   switch (tk) {
@@ -4411,6 +4412,32 @@ auto Parser::parse_static_assert_declaration(DeclarationAST*& yyast) -> bool {
 
   expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
 
+  bool value = false;
+
+  if (ast->expression && ast->expression->constValue.has_value()) {
+    value = visit(to_bool, *ast->expression->constValue);
+  }
+
+  if (!value && config_.staticAssert) {
+    SourceLocation loc = ast->firstSourceLocation();
+
+    if (!ast->expression || !ast->expression->constValue.has_value()) {
+      parse_error(
+          loc,
+          "static assertion expression is not an integral constant expression");
+    } else {
+      if (ast->literalLoc)
+        loc = ast->literalLoc;
+      else if (ast->expression)
+        ast->expression->firstSourceLocation();
+
+      std::string message =
+          ast->literal ? ast->literal->value() : "static assert failed";
+
+      unit->error(loc, std::move(message));
+    }
+  }
+
   return true;
 }
 
@@ -5092,14 +5119,14 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
 }
 
 auto Parser::maybe_template_name(const Identifier* id) -> bool {
-  if (!checkTypes_) return true;
+  if (!config_.fuzzyTemplateResolution) return true;
   if (template_names_.contains(id)) return true;
   if (concept_names_.contains(id)) return true;
   return false;
 }
 
 void Parser::mark_maybe_template_name(const Identifier* id) {
-  if (!checkTypes_) return;
+  if (!config_.fuzzyTemplateResolution) return;
   if (id) template_names_.insert(id);
 }
 

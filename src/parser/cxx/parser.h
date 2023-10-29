@@ -22,6 +22,7 @@
 
 #include <cxx/ast_fwd.h>
 #include <cxx/control.h>
+#include <cxx/parser_fwd.h>
 #include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/translation_unit.h>
@@ -46,6 +47,11 @@ class Parser final {
   explicit Parser(TranslationUnit* unit);
   ~Parser();
 
+  [[nodiscard]] auto config() const -> const ParserConfiguration& {
+    return config_;
+  }
+  void setConfig(const ParserConfiguration& config) { config_ = config; }
+
   /**
    * Whether to enable fuzzy template resolution.
    */
@@ -59,20 +65,6 @@ class Parser final {
    * @param fuzzyTemplateResolution whether to enable fuzzy template resolution
    */
   void setFuzzyTemplateResolution(bool fuzzyTemplateResolution);
-
-  /**
-   * Whether to check types.
-   */
-  [[nodiscard]] auto checkTypes() const -> bool;
-
-  /**
-   * Sets whether to check types.
-   *
-   * When enabled, the parser will check types.
-   *
-   * @param checkTypes whether to check types
-   */
-  void setCheckTypes(bool checkTypes);
 
   /**
    * Parse the given unit.
@@ -719,8 +711,8 @@ class Parser final {
   DiagnosticsClient* diagnosticClient_ = nullptr;
   Scope* globalScope_ = nullptr;
   Scope* scope_ = nullptr;
+  ParserConfiguration config_{};
   bool skipFunctionBody_ = false;
-  bool checkTypes_ = false;
   bool moduleUnit_ = false;
   const Identifier* moduleId_ = nullptr;
   const Identifier* importId_ = nullptr;
