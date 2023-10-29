@@ -263,6 +263,42 @@ struct Parser::TypeTraits {
   } is_floating_point;
 
   struct {
+    constexpr auto operator()(const UnboundedArrayType*) const -> bool {
+      return true;
+    }
+
+    constexpr auto operator()(const BoundedArrayType*) const -> bool {
+      return true;
+    }
+
+    constexpr auto operator()(const UnresolvedBoundedArrayType*) const -> bool {
+      return true;
+    }
+
+    constexpr auto operator()(auto) const -> bool { return false; }
+  } is_array;
+
+  struct {
+    constexpr auto operator()(const BoundedArrayType*) const -> bool {
+      return true;
+    }
+
+    constexpr auto operator()(const UnresolvedBoundedArrayType*) const -> bool {
+      return true;
+    }
+
+    constexpr auto operator()(auto) const -> bool { return false; }
+  } is_bounded_array;
+
+  struct {
+    constexpr auto operator()(const UnboundedArrayType*) const -> bool {
+      return true;
+    }
+
+    constexpr auto operator()(auto) const -> bool { return false; }
+  } is_unbounded_array;
+
+  struct {
     constexpr auto operator()(const QualType* type) const -> bool {
       return type->isConst();
     }
@@ -2589,6 +2625,22 @@ auto Parser::parse_builtin_call_expression(ExpressionAST*& yyast) -> bool {
 
       case TokenKind::T___IS_FLOATING_POINT: {
         ast->constValue = visit(TypeTraits{*this}.is_floating_point, firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_ARRAY: {
+        ast->constValue = visit(TypeTraits{*this}.is_array, firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_BOUNDED_ARRAY: {
+        ast->constValue = visit(TypeTraits{*this}.is_bounded_array, firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_UNBOUNDED_ARRAY: {
+        ast->constValue =
+            visit(TypeTraits{*this}.is_unbounded_array, firstType);
         break;
       }
 
