@@ -247,6 +247,22 @@ struct Parser::TypeTraits {
   } is_integral;
 
   struct {
+    constexpr auto operator()(const FloatType*) const -> bool { return true; }
+
+    constexpr auto operator()(const DoubleType*) const -> bool { return true; }
+
+    constexpr auto operator()(const LongDoubleType*) const -> bool {
+      return true;
+    }
+
+    constexpr auto operator()(const QualType* type) const -> bool {
+      return visit(*this, type->elementType());
+    }
+
+    constexpr auto operator()(auto) const -> bool { return false; }
+  } is_floating_point;
+
+  struct {
     constexpr auto operator()(const QualType* type) const -> bool {
       return type->isConst();
     }
@@ -2568,6 +2584,11 @@ auto Parser::parse_builtin_call_expression(ExpressionAST*& yyast) -> bool {
 
       case TokenKind::T___IS_INTEGRAL: {
         ast->constValue = visit(TypeTraits{*this}.is_integral, firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_FLOATING_POINT: {
+        ast->constValue = visit(TypeTraits{*this}.is_floating_point, firstType);
         break;
       }
 
