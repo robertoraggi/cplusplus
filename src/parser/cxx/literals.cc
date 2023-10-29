@@ -757,6 +757,7 @@ auto CharLiteral::Components::from(std::string_view text,
   parser.parseCharLiteral();
 
   Components components;
+  components.prefix = text.substr(0, text.find_first_of('\''));
   components.value = !parser.value.empty() ? parser.value[0] : 0;
 
   return components;

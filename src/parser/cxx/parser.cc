@@ -175,7 +175,7 @@ auto getFunctionPrototype(DeclaratorAST* declarator)
 }  // namespace
 
 struct Parser::TypeTraits {
-  Parser& parser;
+  const Parser& parser;
 
   // primary type categories
 
@@ -291,6 +291,21 @@ struct Parser::TypeTraits {
 
   auto is_scoped_enum(const Type* type) const -> bool {
     return visit(is_scoped_enum_, type);
+  }
+
+  // references
+  auto remove_reference(const Type* type) const -> const Type* {
+    return visit(remove_reference_, type);
+  }
+
+  auto add_lvalue_reference(const Type* type) const -> const Type* {
+    if (!type) return type;
+    return visit(add_lvalue_reference_, type);
+  }
+
+  auto add_rvalue_reference(const Type* type) const -> const Type* {
+    if (!type) return type;
+    return visit(add_rvalue_reference_, type);
   }
 
   struct {
@@ -581,9 +596,65 @@ struct Parser::TypeTraits {
       return type->elementType();
     }
 
-    auto operator()(auto type) const { return type; }
+    auto operator()(auto type) const -> const Type* { return type; }
 
   } remove_reference_;
+
+  struct {
+    TypeTraits& traits;
+
+    auto control() const { return traits.parser.control_; }
+
+    auto operator()(const VoidType* type) const -> const Type* { return type; }
+
+    auto operator()(const QualType* type) const -> const Type* {
+      if (traits.is_void(type->elementType())) return type;
+      return control()->getLvalueReferenceType(type);
+    }
+
+    auto operator()(const RvalueReferenceType* type) const -> const Type* {
+      return control()->getLvalueReferenceType(type->elementType());
+    }
+
+    auto operator()(const FunctionType* type) const -> const Type* {
+      if (type->cvQualifiers() != CvQualifiers::kNone) return type;
+      if (type->refQualifier() != RefQualifier::kNone) return type;
+      return control()->getLvalueReferenceType(type);
+    }
+
+    auto operator()(auto type) const -> const Type* {
+      return control()->getLvalueReferenceType(type);
+    }
+
+  } add_lvalue_reference_{*this};
+
+  struct {
+    TypeTraits& traits;
+
+    auto control() const { return traits.parser.control_; }
+
+    auto operator()(const VoidType* type) const -> const Type* { return type; }
+
+    auto operator()(const QualType* type) const -> const Type* {
+      if (traits.is_void(type->elementType())) return type;
+      return control()->getRvalueReferenceType(type);
+    }
+
+    auto operator()(const RvalueReferenceType* type) const -> const Type* {
+      return control()->getRvalueReferenceType(type->elementType());
+    }
+
+    auto operator()(const FunctionType* type) const -> const Type* {
+      if (type->cvQualifiers() != CvQualifiers::kNone) return type;
+      if (type->refQualifier() != RefQualifier::kNone) return type;
+      return control()->getRvalueReferenceType(type);
+    }
+
+    auto operator()(auto type) const -> const Type* {
+      return control()->getRvalueReferenceType(type);
+    }
+
+  } add_rvalue_reference_{*this};
 
   struct {
     auto operator()(const QualType* type) const -> const Type* {
@@ -1306,6 +1377,19 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
 
       ast->constValue = ast->literal->charValue();
 
+      auto prefix = ast->literal->components().prefix;
+
+      if (prefix == "u8")
+        ast->type = control_->getChar8Type();
+      else if (prefix == "u")
+        ast->type = control_->getChar16Type();
+      else if (prefix == "U")
+        ast->type = control_->getChar32Type();
+      else if (prefix == "L")
+        ast->type = control_->getWideCharType();
+      else
+        ast->type = control_->getCharType();
+
       return true;
     }
 
@@ -1319,6 +1403,7 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
       ast->literalLoc = consumeToken();
       ast->isTrue = isTrue;
       ast->constValue = isTrue;
+      ast->type = control_->getBoolType();
 
       return true;
     }
@@ -1328,9 +1413,26 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
       yyast = ast;
 
       ast->literalLoc = consumeToken();
+
       ast->literal =
           static_cast<const IntegerLiteral*>(unit->literal(ast->literalLoc));
+
       ast->constValue = ast->literal->integerValue();
+
+      const auto& components = ast->literal->components();
+
+      if (components.isLongLong && components.isUnsigned)
+        ast->type = control_->getUnsignedLongLongIntType();
+      else if (components.isLongLong)
+        ast->type = control_->getLongLongIntType();
+      else if (components.isLong && components.isUnsigned)
+        ast->type = control_->getUnsignedLongIntType();
+      else if (components.isLong)
+        ast->type = control_->getLongIntType();
+      else if (components.isUnsigned)
+        ast->type = control_->getUnsignedIntType();
+      else
+        ast->type = control_->getIntType();
 
       return true;
     }
@@ -1340,9 +1442,22 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
       yyast = ast;
 
       ast->literalLoc = consumeToken();
+
       ast->literal =
           static_cast<const FloatLiteral*>(unit->literal(ast->literalLoc));
+
       ast->constValue = ast->literal->floatValue();
+
+      const auto& components = ast->literal->components();
+
+      if (components.isLongDouble)
+        ast->type = control_->getLongDoubleType();
+      else if (components.isDouble)
+        ast->type = control_->getDoubleType();
+      else if (components.isFloat)
+        ast->type = control_->getFloatType();
+      else
+        ast->type = control_->getDoubleType();
 
       return true;
     }
@@ -1354,6 +1469,7 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
       ast->literalLoc = consumeToken();
       ast->literal = unit->tokenKind(ast->literalLoc);
       ast->constValue = std::uint64_t(0);
+      ast->type = control_->getNullptrType();
 
       return true;
     }
@@ -1363,6 +1479,7 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
       yyast = ast;
 
       ast->literalLoc = consumeToken();
+
       ast->literal =
           static_cast<const StringLiteral*>(unit->literal(ast->literalLoc));
 
@@ -1385,6 +1502,14 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
 
       if (unit->tokenKind(literalLoc) == TokenKind::T_STRING_LITERAL) {
         ast->constValue = ast->literal;
+
+        ast->type = control_->getBoundedArrayType(
+            control_->getConstType(control_->getCharType()),
+            ast->literal->stringValue().size() + 1);
+
+        ast->constValue = ast->literal;
+
+        ast->valueCategory = ValueCategory::kLValue;
       }
 
       return true;
@@ -2096,6 +2221,12 @@ auto Parser::parse_nested_expession(ExpressionAST*& yyast) -> bool {
   parse_expression(ast->expression);
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
+
+  if (ast->expression) {
+    ast->type = ast->expression->type;
+    ast->valueCategory = ast->expression->valueCategory;
+    ast->constValue = ast->expression->constValue;
+  }
 
   return true;
 }
@@ -5545,6 +5676,8 @@ auto Parser::parse_decltype_specifier_type_specifier(SpecifierAST*& yyast,
 
   yyast = decltypeSpecifier;
 
+  specs.type = decltypeSpecifier->type;
+
   return true;
 }
 
@@ -5731,6 +5864,21 @@ void Parser::check_type_traits() {
   rewind(typeTraitsLoc);
 }
 
+auto Parser::is_prvalue(ExpressionAST* expr) -> bool {
+  if (!expr) return false;
+  return expr->valueCategory == ValueCategory::kPrValue;
+}
+
+auto Parser::is_lvalue(ExpressionAST* expr) -> bool {
+  if (!expr) return false;
+  return expr->valueCategory == ValueCategory::kLValue;
+}
+
+auto Parser::is_xvalue(ExpressionAST* expr) -> bool {
+  if (!expr) return false;
+  return expr->valueCategory == ValueCategory::kXValue;
+}
+
 auto Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
                                              DeclSpecs& specs) -> bool {
   if (specs.typeSpecifier) return false;
@@ -5826,28 +5974,39 @@ auto Parser::parse_decl_specifier_seq_no_typespecs(List<SpecifierAST*>*& yyast)
 
 auto Parser::parse_decltype_specifier(DecltypeSpecifierAST*& yyast) -> bool {
   SourceLocation decltypeLoc;
+  if (!match(TokenKind::T_DECLTYPE, decltypeLoc)) return false;
 
-  if (match(TokenKind::T_DECLTYPE, decltypeLoc)) {
-    SourceLocation lparenLoc;
+  SourceLocation lparenLoc;
+  if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
 
-    if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
+  if (lookat(TokenKind::T_AUTO)) return false;  // placeholder type specifier
 
-    if (lookat(TokenKind::T_AUTO)) return false;  // placeholder type specifier
+  auto ast = new (pool_) DecltypeSpecifierAST();
+  yyast = ast;
 
-    auto ast = new (pool_) DecltypeSpecifierAST();
-    yyast = ast;
+  ast->decltypeLoc = decltypeLoc;
+  ast->lparenLoc = lparenLoc;
 
-    ast->decltypeLoc = decltypeLoc;
-    ast->lparenLoc = lparenLoc;
+  parse_expression(ast->expression);
 
-    parse_expression(ast->expression);
+  expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
-    expect(TokenKind::T_RPAREN, ast->rparenLoc);
+  if (ast_cast<IdExpressionAST>(ast->expression) ||
+      ast_cast<MemberExpressionAST>(ast->expression)) {
+    ast->type = ast->expression->type;
+  } else if (ast->expression && ast->expression->type) {
+    TypeTraits traits{*this};
 
-    return true;
+    if (is_lvalue(ast->expression)) {
+      ast->type = traits.add_lvalue_reference(ast->expression->type);
+    } else if (is_xvalue(ast->expression)) {
+      ast->type = traits.add_rvalue_reference(ast->expression->type);
+    } else {
+      ast->type = ast->expression->type;
+    }
   }
 
-  return false;
+  return true;
 }
 
 auto Parser::parse_placeholder_type_specifier(SpecifierAST*& yyast,
