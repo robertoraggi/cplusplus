@@ -361,6 +361,40 @@ struct Parser::TypeTraits {
   } is_function;
 
   struct {
+    auto operator()(const PointerType* type) const -> bool { return true; }
+
+    auto operator()(const QualType* type) const -> bool {
+      return visit(*this, type->elementType());
+    }
+
+    auto operator()(auto) const -> bool { return false; }
+  } is_pointer;
+
+  struct {
+    auto operator()(const MemberObjectPointerType*) const -> bool {
+      return true;
+    }
+
+    auto operator()(const QualType* type) const -> bool {
+      return visit(*this, type->elementType());
+    }
+
+    auto operator()(auto) const -> bool { return false; }
+  } is_member_object_pointer;
+
+  struct {
+    auto operator()(const MemberFunctionPointerType*) const -> bool {
+      return true;
+    }
+
+    auto operator()(const QualType* type) const -> bool {
+      return visit(*this, type->elementType());
+    }
+
+    auto operator()(auto) const -> bool { return false; }
+  } is_member_function_pointer;
+
+  struct {
     auto operator()(const BoundedArrayType*) const -> bool { return true; }
 
     auto operator()(const UnresolvedBoundedArrayType*) const -> bool {
@@ -2723,6 +2757,23 @@ auto Parser::parse_builtin_call_expression(ExpressionAST*& yyast) -> bool {
 
       case TokenKind::T___IS_FUNCTION: {
         ast->constValue = visit(TypeTraits{*this}.is_function, firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_POINTER: {
+        ast->constValue = visit(TypeTraits{*this}.is_pointer, firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_MEMBER_OBJECT_POINTER: {
+        ast->constValue =
+            visit(TypeTraits{*this}.is_member_object_pointer, firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_MEMBER_FUNCTION_POINTER: {
+        ast->constValue =
+            visit(TypeTraits{*this}.is_member_function_pointer, firstType);
         break;
       }
 
