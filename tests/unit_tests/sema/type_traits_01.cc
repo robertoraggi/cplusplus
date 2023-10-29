@@ -162,6 +162,21 @@ static_assert(__is_function(int(int, int)));
 static_assert(__is_function(int (*)(int)));
 
 //
+// is_pointer trait
+//
+
+static_assert(__is_pointer(const void*));
+static_assert(__is_pointer(int*));
+static_assert(__is_pointer(int* const));
+static_assert(__is_pointer(int (*)(int)));
+
+// expected-error@1 {{static assert failed}}
+static_assert(__is_pointer(int));
+
+// expected-error@1 {{static assert failed}}
+static_assert(__is_pointer(int()));
+
+//
 // is_bounded_array trait
 //
 
