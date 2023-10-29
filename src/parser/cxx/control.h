@@ -133,6 +133,7 @@ class Control {
   auto newEnumSymbol(Scope* enclosingScope) -> EnumSymbol*;
   auto newScopedEnumSymbol(Scope* enclosingScope) -> ScopedEnumSymbol*;
   auto newFunctionSymbol(Scope* enclosingScope) -> FunctionSymbol*;
+  auto newLambdaSymbol(Scope* enclosingScope) -> LambdaSymbol*;
   auto newPrototypeSymbol(Scope* enclosingScope) -> PrototypeSymbol*;
   auto newBlockSymbol(Scope* enclosingScope) -> BlockSymbol*;
   auto newTypeAliasSymbol(Scope* enclosingScope) -> TypeAliasSymbol*;

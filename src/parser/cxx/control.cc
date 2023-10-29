@@ -126,6 +126,7 @@ struct Control::Private {
   std::forward_list<EnumSymbol> enumSymbols;
   std::forward_list<ScopedEnumSymbol> scopedEnumSymbols;
   std::forward_list<FunctionSymbol> functionSymbols;
+  std::forward_list<LambdaSymbol> lambdaSymbols;
   std::forward_list<PrototypeSymbol> prototypeSymbols;
   std::forward_list<BlockSymbol> blockSymbols;
   std::forward_list<TypeAliasSymbol> typeAliasSymbols;
@@ -440,6 +441,11 @@ auto Control::newScopedEnumSymbol(Scope* enclosingScope) -> ScopedEnumSymbol* {
 
 auto Control::newFunctionSymbol(Scope* enclosingScope) -> FunctionSymbol* {
   auto symbol = &d->functionSymbols.emplace_front(enclosingScope);
+  return symbol;
+}
+
+auto Control::newLambdaSymbol(Scope* enclosingScope) -> LambdaSymbol* {
+  auto symbol = &d->lambdaSymbols.emplace_front(enclosingScope);
   return symbol;
 }
 

@@ -352,6 +352,8 @@ void ASTCloner::visit(FunctionDefinitionAST* ast) {
   copy->requiresClause = accept(ast->requiresClause);
 
   copy->functionBody = accept(ast->functionBody);
+
+  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(TemplateDeclarationAST* ast) {
@@ -779,6 +781,8 @@ void ASTCloner::visit(CompoundStatementAST* ast) {
   }
 
   copy->rbraceLoc = ast->rbraceLoc;
+
+  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(IfStatementAST* ast) {
@@ -2370,6 +2374,8 @@ void ASTCloner::visit(DecltypeSpecifierAST* ast) {
   copy->expression = accept(ast->expression);
 
   copy->rparenLoc = ast->rparenLoc;
+
+  copy->type = ast->type;
 }
 
 void ASTCloner::visit(PlaceholderTypeSpecifierAST* ast) {

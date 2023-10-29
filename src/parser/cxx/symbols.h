@@ -56,7 +56,7 @@ class Symbol {
   void setIndex(int index) { index_ = index; }
 
 #define PROCESS_SYMBOL(S) \
-  [[nodiscard]] auto is##S() const -> bool { return kind_ == SymbolKind::k##S; }
+  [[nodiscard]] auto is##S() const->bool { return kind_ == SymbolKind::k##S; }
   CXX_FOR_EACH_SYMBOL(PROCESS_SYMBOL)
 #undef PROCESS_SYMBOL
 
@@ -173,6 +173,19 @@ class FunctionSymbol : public Symbol {
   std::unique_ptr<Scope> scope_;
 };
 
+class LambdaSymbol : public Symbol {
+ public:
+  constexpr static auto Kind = SymbolKind::kLambda;
+
+  explicit LambdaSymbol(Scope* enclosingScope);
+  ~LambdaSymbol() override;
+
+  [[nodiscard]] auto scope() const -> Scope* { return scope_.get(); }
+
+ private:
+  std::unique_ptr<Scope> scope_;
+};
+
 class PrototypeSymbol : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kPrototype;
@@ -255,7 +268,7 @@ auto visit(Visitor&& visitor, Symbol* symbol) {
 }
 
 #define PROCESS_SYMBOL(S)                                \
-  inline auto is##S##Symbol(Symbol* symbol) -> bool {    \
+  inline auto is##S##Symbol(Symbol* symbol)->bool {      \
     return symbol && symbol->kind() == SymbolKind::k##S; \
   }
 

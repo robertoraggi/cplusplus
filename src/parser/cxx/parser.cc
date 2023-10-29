@@ -1147,6 +1147,11 @@ struct Parser::GetDeclaratorType {
     if (ast->exceptionSpecifier)
       isNoexcept = visit(*this, ast->exceptionSpecifier);
 
+    if (!returnType && ast->trailingReturnType &&
+        ast->trailingReturnType->typeId) {
+      returnType = ast->trailingReturnType->typeId->type;
+    }
+
     type_ = control()->getFunctionType(returnType, std::move(parameterTypes),
                                        isVariadic, cvQualifiers, refQualifier,
                                        isNoexcept);
@@ -1274,7 +1279,7 @@ struct Parser::DeclSpecs {
         type = control()->getShortIntType();
       else if (isUnsigned)
         type = control()->getUnsignedIntType();
-      else
+      else if (isSigned)
         type = control()->getIntType();
     }
 
@@ -2253,6 +2258,12 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
 
   ScopeGuard scopeGuard{this};
 
+  auto symbol = control_->newLambdaSymbol(scope_);
+  symbol->setName(control_->newAnonymousId("lambda"));
+  scope_->addSymbol(symbol);
+
+  scope_ = symbol->scope();
+
   TemplateHeadContext templateHeadContext{this};
 
   auto ast = new (pool_) LambdaExpressionAST();
@@ -2300,6 +2311,13 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
     (void)parse_trailing_return_type(ast->trailingReturnType);
 
     (void)parse_requires_clause(ast->requiresClause);
+  }
+
+  if (auto params = ast->parameterDeclarationClause) {
+    symbol->scope()->addSymbol(params->prototypeSymbol);
+    scope_ = params->prototypeSymbol->scope();
+  } else {
+    scope_ = symbol->scope();
   }
 
   if (!parse_compound_statement(ast->statement)) {
@@ -4434,6 +4452,7 @@ auto Parser::parse_compound_statement(CompoundStatementAST*& yyast, bool skip)
   auto ast = new (pool_) CompoundStatementAST();
   yyast = ast;
 
+  ast->symbol = blockSymbol;
   ast->lbraceLoc = lbraceLoc;
 
   if (skip) {
@@ -4464,6 +4483,10 @@ auto Parser::parse_compound_statement(CompoundStatementAST*& yyast, bool skip)
 }
 
 void Parser::finish_compound_statement(CompoundStatementAST* ast) {
+  ScopeGuard scopeGuard{this};
+
+  scope_ = ast->symbol->scope();
+
   bool skipping = false;
 
   auto it = &ast->statementList;
@@ -5295,11 +5318,11 @@ auto Parser::parse_simple_declaration(
     functionSymbol->setType(functionType);
     scope_->addSymbol(functionSymbol);
 
-    scope_ = functionSymbol->scope();
-
     if (auto params = functionDeclarator->parameterDeclarationClause) {
-      scope_->addSymbol(params->prototypeSymbol);
+      functionSymbol->scope()->addSymbol(params->prototypeSymbol);
       scope_ = params->prototypeSymbol->scope();
+    } else {
+      scope_ = functionSymbol->scope();
     }
 
     if (ctx == BindingContext::kTemplate) {
@@ -5320,6 +5343,7 @@ auto Parser::parse_simple_declaration(
     ast->declarator = declarator;
     ast->requiresClause = requiresClause;
     ast->functionBody = functionBody;
+    ast->symbol = functionSymbol;
 
     if (classDepth_) pendingFunctionDefinitions_.push_back(ast);
 
@@ -5421,12 +5445,21 @@ auto Parser::parse_notypespec_function_definition(
 
   if (!lookat_function_body()) return false;
 
+  ScopeGuard scopeGuard{this};
+
   auto functionType = GetDeclaratorType{this}(declarator, decl.specs.getType());
 
   auto functionSymbol = control_->newFunctionSymbol(scope_);
   functionSymbol->setName(decl.getName());
   functionSymbol->setType(functionType);
   scope_->addSymbol(functionSymbol);
+
+  if (auto params = functionDeclarator->parameterDeclarationClause) {
+    functionSymbol->scope()->addSymbol(params->prototypeSymbol);
+    scope_ = params->prototypeSymbol->scope();
+  } else {
+    scope_ = functionSymbol->scope();
+  }
 
   FunctionBodyAST* functionBody = nullptr;
 
@@ -5438,6 +5471,7 @@ auto Parser::parse_notypespec_function_definition(
   ast->declSpecifierList = declSpecifierList;
   ast->declarator = declarator;
   ast->functionBody = functionBody;
+  ast->symbol = functionSymbol;
 
   if (classDepth_) pendingFunctionDefinitions_.push_back(ast);
 
@@ -8909,9 +8943,22 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
 
     lookahead.commit();
 
+    auto functionType =
+        GetDeclaratorType{this}(declarator, decl.specs.getType());
+
     auto functionSymbol = control_->newFunctionSymbol(scope_);
     functionSymbol->setName(decl.getName());
+    functionSymbol->setType(functionType);
     scope_->addSymbol(functionSymbol);
+
+    ScopeGuard scopeGuard{this};
+
+    if (auto params = functionDeclarator->parameterDeclarationClause) {
+      functionSymbol->scope()->addSymbol(params->prototypeSymbol);
+      scope_ = params->prototypeSymbol->scope();
+    } else {
+      scope_ = functionSymbol->scope();
+    }
 
     FunctionBodyAST* functionBody = nullptr;
     if (!parse_function_body(functionBody)) {
@@ -8925,6 +8972,7 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
     ast->declarator = declarator;
     ast->requiresClause = requiresClause;
     ast->functionBody = functionBody;
+    ast->symbol = functionSymbol;
 
     if (classDepth_) pendingFunctionDefinitions_.push_back(ast);
 
@@ -10532,6 +10580,10 @@ void Parser::completeFunctionDefinition(FunctionDefinitionAST* ast) {
       ast_cast<CompoundStatementFunctionBodyAST>(ast->functionBody);
 
   if (!functionBody) return;
+
+  ScopeGuard scopeGuard{this};
+
+  scope_ = ast->symbol->scope();
 
   const auto saved = currentLocation();
 

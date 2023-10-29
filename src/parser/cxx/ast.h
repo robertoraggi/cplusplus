@@ -429,6 +429,7 @@ class FunctionDefinitionAST final : public DeclarationAST {
   DeclaratorAST* declarator = nullptr;
   RequiresClauseAST* requiresClause = nullptr;
   FunctionBodyAST* functionBody = nullptr;
+  FunctionSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -841,6 +842,7 @@ class CompoundStatementAST final : public StatementAST {
   SourceLocation lbraceLoc;
   List<StatementAST*>* statementList = nullptr;
   SourceLocation rbraceLoc;
+  BlockSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

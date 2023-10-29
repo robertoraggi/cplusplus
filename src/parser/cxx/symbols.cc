@@ -71,6 +71,14 @@ FunctionSymbol::FunctionSymbol(Scope* enclosingScope)
 
 FunctionSymbol::~FunctionSymbol() {}
 
+LambdaSymbol::LambdaSymbol(Scope* enclosingScope)
+    : Symbol(SymbolKind::kLambda, enclosingScope) {
+  scope_ = std::make_unique<Scope>(enclosingScope);
+  scope_->setOwner(this);
+}
+
+LambdaSymbol::~LambdaSymbol() {}
+
 PrototypeSymbol::PrototypeSymbol(Scope* enclosingScope)
     : Symbol(SymbolKind::kPrototype, enclosingScope) {
   scope_ = std::make_unique<Scope>(enclosingScope);
