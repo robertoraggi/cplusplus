@@ -40,8 +40,8 @@ namespace cxx {
 namespace {
 
 inline constexpr struct {
-  constexpr auto operator()(const StringLiteral*) const -> bool { return true; }
-  constexpr auto operator()(auto value) const -> bool { return !!value; }
+  auto operator()(const StringLiteral*) const -> bool { return true; }
+  auto operator()(auto value) const -> bool { return !!value; }
 } to_bool;
 
 struct ConvertToName {
@@ -178,191 +178,155 @@ struct Parser::TypeTraits {
   Parser& parser;
 
   struct {
-    constexpr auto operator()(const VoidType*) const -> bool { return true; }
+    auto operator()(const VoidType*) const -> bool { return true; }
 
-    constexpr auto operator()(const QualType* type) const -> bool {
+    auto operator()(const QualType* type) const -> bool {
       return visit(*this, type->elementType());
     }
 
-    constexpr auto operator()(auto) const -> bool { return false; }
+    auto operator()(auto) const -> bool { return false; }
   } is_void;
 
   struct {
-    constexpr auto operator()(const BoolType*) const -> bool { return true; }
+    auto operator()(const BoolType*) const -> bool { return true; }
 
-    constexpr auto operator()(const SignedCharType*) const -> bool {
+    auto operator()(const SignedCharType*) const -> bool { return true; }
+
+    auto operator()(const ShortIntType*) const -> bool { return true; }
+
+    auto operator()(const IntType*) const -> bool { return true; }
+
+    auto operator()(const LongIntType*) const -> bool { return true; }
+
+    auto operator()(const LongLongIntType*) const -> bool { return true; }
+
+    auto operator()(const UnsignedCharType*) const -> bool { return true; }
+
+    auto operator()(const UnsignedShortIntType*) const -> bool { return true; }
+
+    auto operator()(const UnsignedIntType*) const -> bool { return true; }
+
+    auto operator()(const UnsignedLongIntType*) const -> bool { return true; }
+
+    auto operator()(const UnsignedLongLongIntType*) const -> bool {
       return true;
     }
 
-    constexpr auto operator()(const ShortIntType*) const -> bool {
-      return true;
-    }
+    auto operator()(const CharType*) const -> bool { return true; }
 
-    constexpr auto operator()(const IntType*) const -> bool { return true; }
+    auto operator()(const Char8Type*) const -> bool { return true; }
 
-    constexpr auto operator()(const LongIntType*) const -> bool { return true; }
+    auto operator()(const Char16Type*) const -> bool { return true; }
 
-    constexpr auto operator()(const LongLongIntType*) const -> bool {
-      return true;
-    }
+    auto operator()(const Char32Type*) const -> bool { return true; }
 
-    constexpr auto operator()(const UnsignedCharType*) const -> bool {
-      return true;
-    }
+    auto operator()(const WideCharType*) const -> bool { return true; }
 
-    constexpr auto operator()(const UnsignedShortIntType*) const -> bool {
-      return true;
-    }
-
-    constexpr auto operator()(const UnsignedIntType*) const -> bool {
-      return true;
-    }
-
-    constexpr auto operator()(const UnsignedLongIntType*) const -> bool {
-      return true;
-    }
-
-    constexpr auto operator()(const UnsignedLongLongIntType*) const -> bool {
-      return true;
-    }
-
-    constexpr auto operator()(const CharType*) const -> bool { return true; }
-
-    constexpr auto operator()(const Char8Type*) const -> bool { return true; }
-
-    constexpr auto operator()(const Char16Type*) const -> bool { return true; }
-
-    constexpr auto operator()(const Char32Type*) const -> bool { return true; }
-
-    constexpr auto operator()(const WideCharType*) const -> bool {
-      return true;
-    }
-
-    constexpr auto operator()(const QualType* type) const -> bool {
+    auto operator()(const QualType* type) const -> bool {
       return visit(*this, type->elementType());
     }
 
-    constexpr auto operator()(auto) const -> bool { return false; }
+    auto operator()(auto) const -> bool { return false; }
 
   } is_integral;
 
   struct {
-    constexpr auto operator()(const FloatType*) const -> bool { return true; }
+    auto operator()(const FloatType*) const -> bool { return true; }
 
-    constexpr auto operator()(const DoubleType*) const -> bool { return true; }
+    auto operator()(const DoubleType*) const -> bool { return true; }
 
-    constexpr auto operator()(const LongDoubleType*) const -> bool {
-      return true;
-    }
+    auto operator()(const LongDoubleType*) const -> bool { return true; }
 
-    constexpr auto operator()(const QualType* type) const -> bool {
+    auto operator()(const QualType* type) const -> bool {
       return visit(*this, type->elementType());
     }
 
-    constexpr auto operator()(auto) const -> bool { return false; }
+    auto operator()(auto) const -> bool { return false; }
   } is_floating_point;
 
   struct {
-    constexpr auto operator()(const UnboundedArrayType*) const -> bool {
+    auto operator()(const UnboundedArrayType*) const -> bool { return true; }
+
+    auto operator()(const BoundedArrayType*) const -> bool { return true; }
+
+    auto operator()(const UnresolvedBoundedArrayType*) const -> bool {
       return true;
     }
 
-    constexpr auto operator()(const BoundedArrayType*) const -> bool {
-      return true;
-    }
-
-    constexpr auto operator()(const UnresolvedBoundedArrayType*) const -> bool {
-      return true;
-    }
-
-    constexpr auto operator()(auto) const -> bool { return false; }
+    auto operator()(auto) const -> bool { return false; }
   } is_array;
 
   struct {
-    constexpr auto operator()(const BoundedArrayType*) const -> bool {
+    auto operator()(const BoundedArrayType*) const -> bool { return true; }
+
+    auto operator()(const UnresolvedBoundedArrayType*) const -> bool {
       return true;
     }
 
-    constexpr auto operator()(const UnresolvedBoundedArrayType*) const -> bool {
-      return true;
-    }
-
-    constexpr auto operator()(auto) const -> bool { return false; }
+    auto operator()(auto) const -> bool { return false; }
   } is_bounded_array;
 
   struct {
-    constexpr auto operator()(const UnboundedArrayType*) const -> bool {
-      return true;
-    }
+    auto operator()(const UnboundedArrayType*) const -> bool { return true; }
 
-    constexpr auto operator()(auto) const -> bool { return false; }
+    auto operator()(auto) const -> bool { return false; }
   } is_unbounded_array;
 
   struct {
-    constexpr auto operator()(const QualType* type) const -> bool {
+    auto operator()(const QualType* type) const -> bool {
       return type->isConst();
     }
 
-    constexpr auto operator()(auto) const -> bool { return false; }
+    auto operator()(auto) const -> bool { return false; }
   } is_const;
 
   struct {
-    constexpr auto operator()(const QualType* type) const -> bool {
+    auto operator()(const QualType* type) const -> bool {
       return type->isVolatile();
     }
 
-    constexpr auto operator()(auto) const -> bool { return false; }
+    auto operator()(auto) const -> bool { return false; }
   } is_volatile;
 
   struct {
-    constexpr auto operator()(const LvalueReferenceType*) const -> bool {
-      return true;
-    }
+    auto operator()(const LvalueReferenceType*) const -> bool { return true; }
 
-    constexpr auto operator()(auto) const -> bool { return false; }
+    auto operator()(auto) const -> bool { return false; }
   } is_lvalue_reference;
 
   struct {
-    constexpr auto operator()(const RvalueReferenceType*) const -> bool {
-      return true;
-    }
+    auto operator()(const RvalueReferenceType*) const -> bool { return true; }
 
-    constexpr auto operator()(auto) const -> bool { return false; }
+    auto operator()(auto) const -> bool { return false; }
   } is_rvalue_reference;
 
   struct {
-    constexpr auto operator()(const LvalueReferenceType*) const -> bool {
-      return true;
-    }
+    auto operator()(const LvalueReferenceType*) const -> bool { return true; }
 
-    constexpr auto operator()(const RvalueReferenceType*) const -> bool {
-      return true;
-    }
+    auto operator()(const RvalueReferenceType*) const -> bool { return true; }
 
-    constexpr auto operator()(auto) const -> bool { return false; }
+    auto operator()(auto) const -> bool { return false; }
   } is_reference;
 
   struct {
-    constexpr auto operator()(const LvalueReferenceType* type) const
-        -> const Type* {
+    auto operator()(const LvalueReferenceType* type) const -> const Type* {
       return type->elementType();
     }
 
-    constexpr auto operator()(const RvalueReferenceType* type) const
-        -> const Type* {
+    auto operator()(const RvalueReferenceType* type) const -> const Type* {
       return type->elementType();
     }
 
-    constexpr auto operator()(auto type) const { return type; }
+    auto operator()(auto type) const { return type; }
 
   } remove_reference;
 
   struct {
-    constexpr auto operator()(const QualType* type) const -> const Type* {
+    auto operator()(const QualType* type) const -> const Type* {
       return type->elementType();
     }
 
-    constexpr auto operator()(auto type) const { return type; }
+    auto operator()(auto type) const { return type; }
   } remove_cv;
 };
 
