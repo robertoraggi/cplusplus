@@ -16,6 +16,42 @@ static_assert(__is_void(int));
 static_assert(__is_void(void*));
 
 //
+// is_integral trait
+//
+
+static_assert(__is_integral(bool));
+static_assert(__is_integral(char));
+static_assert(__is_integral(signed char));
+static_assert(__is_integral(unsigned char));
+static_assert(__is_integral(char8_t));
+static_assert(__is_integral(char16_t));
+static_assert(__is_integral(char32_t));
+static_assert(__is_integral(wchar_t));
+static_assert(__is_integral(short));
+static_assert(__is_integral(unsigned short));
+static_assert(__is_integral(int));
+static_assert(__is_integral(unsigned int));
+static_assert(__is_integral(long));
+static_assert(__is_integral(unsigned long));
+static_assert(__is_integral(long long));
+static_assert(__is_integral(unsigned long long));
+
+// expected-error@1 {{static assert failed}}
+static_assert(__is_integral(float));
+
+// expected-error@1 {{static assert failed}}
+static_assert(__is_integral(double));
+
+// expected-error@1 {{static assert failed}}
+static_assert(__is_integral(long double));
+
+// expected-error@1 {{static assert failed}}
+static_assert(__is_integral(void));
+
+// expected-error@1 {{static assert failed}}
+static_assert(__is_integral(void*));
+
+//
 // is_const trait
 //
 

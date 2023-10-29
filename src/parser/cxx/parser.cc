@@ -188,6 +188,65 @@ struct Parser::TypeTraits {
   } is_void;
 
   struct {
+    constexpr auto operator()(const BoolType*) const -> bool { return true; }
+
+    constexpr auto operator()(const SignedCharType*) const -> bool {
+      return true;
+    }
+
+    constexpr auto operator()(const ShortIntType*) const -> bool {
+      return true;
+    }
+
+    constexpr auto operator()(const IntType*) const -> bool { return true; }
+
+    constexpr auto operator()(const LongIntType*) const -> bool { return true; }
+
+    constexpr auto operator()(const LongLongIntType*) const -> bool {
+      return true;
+    }
+
+    constexpr auto operator()(const UnsignedCharType*) const -> bool {
+      return true;
+    }
+
+    constexpr auto operator()(const UnsignedShortIntType*) const -> bool {
+      return true;
+    }
+
+    constexpr auto operator()(const UnsignedIntType*) const -> bool {
+      return true;
+    }
+
+    constexpr auto operator()(const UnsignedLongIntType*) const -> bool {
+      return true;
+    }
+
+    constexpr auto operator()(const UnsignedLongLongIntType*) const -> bool {
+      return true;
+    }
+
+    constexpr auto operator()(const CharType*) const -> bool { return true; }
+
+    constexpr auto operator()(const Char8Type*) const -> bool { return true; }
+
+    constexpr auto operator()(const Char16Type*) const -> bool { return true; }
+
+    constexpr auto operator()(const Char32Type*) const -> bool { return true; }
+
+    constexpr auto operator()(const WideCharType*) const -> bool {
+      return true;
+    }
+
+    constexpr auto operator()(const QualType* type) const -> bool {
+      return visit(*this, type->elementType());
+    }
+
+    constexpr auto operator()(auto) const -> bool { return false; }
+
+  } is_integral;
+
+  struct {
     constexpr auto operator()(const QualType* type) const -> bool {
       return type->isConst();
     }
@@ -2504,6 +2563,11 @@ auto Parser::parse_builtin_call_expression(ExpressionAST*& yyast) -> bool {
     switch (ast->typeTraits) {
       case TokenKind::T___IS_VOID: {
         ast->constValue = visit(TypeTraits{*this}.is_void, firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_INTEGRAL: {
+        ast->constValue = visit(TypeTraits{*this}.is_integral, firstType);
         break;
       }
 
