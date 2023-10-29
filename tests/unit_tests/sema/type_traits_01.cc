@@ -69,6 +69,43 @@ static_assert(__is_floating_point(bool));
 static_assert(__is_floating_point(float*));
 
 //
+// is_array trait
+//
+
+static_assert(__is_array(int[]));
+static_assert(__is_array(int[10]));
+static_assert(__is_array(const int[]));
+static_assert(__is_array(int* [10]));
+
+// expected-error@1 {{static assert failed}}
+static_assert(__is_array(int));
+
+// expected-error@1 {{static assert failed}}
+static_assert(__is_array(int (*)[10]));
+
+//
+// is_bounded_array trait
+//
+
+static_assert(__is_bounded_array(int[10]));
+static_assert(__is_bounded_array(const int[10 + 20]));
+
+// expected-error@1 {{static assert failed}}
+static_assert(__is_bounded_array(int[]));
+
+//
+// is_unbounded_array trait
+//
+
+static_assert(__is_unbounded_array(int[]));
+
+// expected-error@1 {{static assert failed}}
+static_assert(__is_unbounded_array(int[10]));
+
+// expected-error@1 {{static assert failed}}
+static_assert(__is_unbounded_array(int[10 + 20]));
+
+//
 // is_const trait
 //
 
