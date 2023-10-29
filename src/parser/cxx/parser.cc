@@ -245,6 +245,62 @@ struct Parser::TypeTraits {
   } is_floating_point;
 
   struct {
+    auto operator()(const SignedCharType*) const -> bool { return true; }
+
+    auto operator()(const ShortIntType*) const -> bool { return true; }
+
+    auto operator()(const IntType*) const -> bool { return true; }
+
+    auto operator()(const LongIntType*) const -> bool { return true; }
+
+    auto operator()(const LongLongIntType*) const -> bool { return true; }
+
+    auto operator()(const CharType*) const -> bool { return true; }
+
+    auto operator()(const FloatType*) const -> bool { return true; }
+
+    auto operator()(const DoubleType*) const -> bool { return true; }
+
+    auto operator()(const LongDoubleType*) const -> bool { return true; }
+
+    auto operator()(const QualType* type) const -> bool {
+      return visit(*this, type->elementType());
+    }
+
+    auto operator()(auto) const -> bool { return false; }
+  } is_signed;
+
+  struct {
+    auto operator()(const BoolType*) const -> bool { return true; }
+
+    auto operator()(const UnsignedCharType*) const -> bool { return true; }
+
+    auto operator()(const UnsignedShortIntType*) const -> bool { return true; }
+
+    auto operator()(const UnsignedIntType*) const -> bool { return true; }
+
+    auto operator()(const UnsignedLongIntType*) const -> bool { return true; }
+
+    auto operator()(const UnsignedLongLongIntType*) const -> bool {
+      return true;
+    }
+
+    auto operator()(const Char8Type*) const -> bool { return true; }
+
+    auto operator()(const Char16Type*) const -> bool { return true; }
+
+    auto operator()(const Char32Type*) const -> bool { return true; }
+
+    auto operator()(const WideCharType*) const -> bool { return true; }
+
+    auto operator()(const QualType* type) const -> bool {
+      return visit(*this, type->elementType());
+    }
+
+    auto operator()(auto) const -> bool { return false; }
+  } is_unsigned;
+
+  struct {
     auto operator()(const UnboundedArrayType*) const -> bool { return true; }
 
     auto operator()(const BoundedArrayType*) const -> bool { return true; }
@@ -2632,6 +2688,16 @@ auto Parser::parse_builtin_call_expression(ExpressionAST*& yyast) -> bool {
 
       case TokenKind::T___IS_REFERENCE: {
         ast->constValue = visit(TypeTraits{*this}.is_reference, firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_SIGNED: {
+        ast->constValue = visit(TypeTraits{*this}.is_signed, firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_UNSIGNED: {
+        ast->constValue = visit(TypeTraits{*this}.is_unsigned, firstType);
         break;
       }
 

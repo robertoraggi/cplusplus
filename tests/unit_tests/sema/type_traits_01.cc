@@ -69,6 +69,74 @@ static_assert(__is_floating_point(bool));
 static_assert(__is_floating_point(float*));
 
 //
+// is_signed trait
+//
+
+static_assert(__is_signed(char));
+static_assert(__is_signed(const char));
+static_assert(__is_signed(signed char));
+static_assert(__is_signed(short));
+static_assert(__is_signed(int));
+static_assert(__is_signed(long));
+static_assert(__is_signed(long long));
+static_assert(__is_signed(float));
+static_assert(__is_signed(double));
+static_assert(__is_signed(long double));
+
+// expected-error@1 {{static assert failed}}
+static_assert(__is_signed(bool));
+
+// expected-error@1 {{static assert failed}}
+static_assert(__is_signed(unsigned char));
+
+// expected-error@1 {{static assert failed}}
+static_assert(__is_signed(char8_t));
+
+// expected-error@1 {{static assert failed}}
+static_assert(__is_signed(char16_t));
+
+// expected-error@1 {{static assert failed}}
+static_assert(__is_signed(char32_t));
+
+// expected-error@1 {{static assert failed}}
+static_assert(__is_signed(wchar_t));
+
+// expected-error@1 {{static assert failed}}
+static_assert(__is_signed(void*));
+
+//
+// is_unsigned trait
+//
+
+static_assert(__is_unsigned(bool));
+static_assert(__is_unsigned(const unsigned char));
+static_assert(__is_unsigned(unsigned));
+static_assert(__is_unsigned(unsigned char));
+static_assert(__is_unsigned(unsigned short));
+static_assert(__is_unsigned(unsigned int));
+static_assert(__is_unsigned(unsigned long));
+static_assert(__is_unsigned(unsigned long long));
+static_assert(__is_unsigned(char8_t));
+static_assert(__is_unsigned(char16_t));
+static_assert(__is_unsigned(char32_t));
+static_assert(__is_unsigned(wchar_t));
+
+// expected-error@1 {{static assert failed}}
+static_assert(__is_unsigned(char));
+
+// expected-error@1 {{static assert failed}}
+static_assert(__is_unsigned(float));
+
+// expected-error@1 {{static assert failed}}
+static_assert(__is_unsigned(double));
+
+// expected-error@1 {{static assert failed}}
+static_assert(__is_unsigned(long double));
+
+// expected-error@1 {{static assert failed}}
+static_assert(__is_unsigned(const unsigned int*));
+
+//
 // is_array trait
 //
 
