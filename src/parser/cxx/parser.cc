@@ -188,6 +188,16 @@ struct Parser::TypeTraits {
   } is_void;
 
   struct {
+    auto operator()(const NullptrType*) const -> bool { return true; }
+
+    auto operator()(const QualType* type) const -> bool {
+      return visit(*this, type->elementType());
+    }
+
+    auto operator()(auto) const -> bool { return false; }
+  } is_null_pointer;
+
+  struct {
     auto operator()(const BoolType*) const -> bool { return true; }
 
     auto operator()(const SignedCharType*) const -> bool { return true; }
@@ -2717,6 +2727,11 @@ auto Parser::parse_builtin_call_expression(ExpressionAST*& yyast) -> bool {
     switch (ast->typeTraits) {
       case TokenKind::T___IS_VOID: {
         ast->constValue = visit(TypeTraits{*this}.is_void, firstType);
+        break;
+      }
+
+      case TokenKind::T___IS_NULL_POINTER: {
+        ast->constValue = visit(TypeTraits{*this}.is_null_pointer, firstType);
         break;
       }
 
