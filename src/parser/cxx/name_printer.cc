@@ -27,12 +27,34 @@
 
 namespace cxx {
 
+struct {
+  auto operator()(const Type* type) const -> std::string {
+    return to_string(type);
+  }
+
+  auto operator()(const ConstValue& value) const -> std::string { return {}; }
+
+  auto operator()(ExpressionAST* value) const -> std::string { return {}; }
+
+} template_argument_to_string;
+
 auto NamePrinter::operator()(const Identifier* name) const -> std::string {
   return name->value();
 }
 
 auto NamePrinter::operator()(const OperatorId* name) const -> std::string {
-  return fmt::format("operator {}", Token::spell(name->op()));
+  switch (name->op()) {
+    case TokenKind::T_LPAREN:
+      return "operator ()";
+    case TokenKind::T_LBRACKET:
+      return "operator []";
+    case TokenKind::T_NEW_ARRAY:
+      return "operator new[]";
+    case TokenKind::T_DELETE_ARRAY:
+      return "operator delete[]";
+    default:
+      return fmt::format("operator {}", Token::spell(name->op()));
+  }  // switch
 }
 
 auto NamePrinter::operator()(const DestructorId* name) const -> std::string {
@@ -54,7 +76,7 @@ auto NamePrinter::operator()(const TemplateId* name) const -> std::string {
   s += " <";
   for (auto&& arg : name->arguments()) {
     if (&arg != &name->arguments().front()) s += ", ";
-    // s += to_string(arg);
+    s += std::visit(template_argument_to_string, arg);
   }
   s += '>';
   return s;

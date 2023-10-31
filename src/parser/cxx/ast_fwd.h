@@ -182,7 +182,6 @@ class ParenInitializerAST;
 
 // TemplateParameterAST
 class TemplateTypeParameterAST;
-class TemplatePackTypeParameterAST;
 class NonTypeTemplateParameterAST;
 class TypenameTypeParameterAST;
 class ConstraintTypeParameterAST;

@@ -287,7 +287,6 @@ union TemplateArgument {
 
 union TemplateParameter {
   TemplateTypeParameter,
-  TemplatePackTypeParameter,
   NonTypeTemplateParameter,
   TypenameTypeParameter,
   ConstraintTypeParameter,
@@ -725,6 +724,7 @@ table ParameterDeclaration /* DeclarationAST */ {
   type_specifier_list: [Specifier];
   declarator: Declarator;
   expression: Expression;
+  identifier: string;
   this_loc: SourceLocation;
   equal_loc: SourceLocation;
 }
@@ -1648,19 +1648,9 @@ table TemplateTypeParameter /* TemplateParameterAST */ {
   less_loc: SourceLocation;
   greater_loc: SourceLocation;
   class_key_loc: SourceLocation;
-  identifier_loc: SourceLocation;
-  equal_loc: SourceLocation;
-}
-
-table TemplatePackTypeParameter /* TemplateParameterAST */ {
-  template_parameter_list: [TemplateParameter];
-  identifier: string;
-  template_loc: SourceLocation;
-  less_loc: SourceLocation;
-  greater_loc: SourceLocation;
-  class_key_loc: SourceLocation;
   ellipsis_loc: SourceLocation;
   identifier_loc: SourceLocation;
+  equal_loc: SourceLocation;
 }
 
 table NonTypeTemplateParameter /* TemplateParameterAST */ {

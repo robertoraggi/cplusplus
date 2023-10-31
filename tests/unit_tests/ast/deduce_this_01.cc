@@ -39,6 +39,7 @@ struct object {
 // CHECK-NEXT:                    parameter-declaration-clause: parameter-declaration-clause
 // CHECK-NEXT:                      parameter-declaration-list
 // CHECK-NEXT:                        parameter-declaration
+// CHECK-NEXT:                          identifier: self
 // CHECK-NEXT:                          is-this-introduced: true
 // CHECK-NEXT:                          type-specifier-list
 // CHECK-NEXT:                            auto-type-specifier

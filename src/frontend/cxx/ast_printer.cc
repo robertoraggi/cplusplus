@@ -446,10 +446,17 @@ void ASTPrinter::visit(ModuleImportDeclarationAST* ast) {
 
 void ASTPrinter::visit(ParameterDeclarationAST* ast) {
   fmt::print(out_, "{}\n", "parameter-declaration");
+  accept(ast->identifier, "identifier");
   if (ast->isThisIntroduced) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
     fmt::print(out_, "is-this-introduced: {}\n", ast->isThisIntroduced);
+    --indent_;
+  }
+  if (ast->isPack) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "is-pack: {}\n", ast->isPack);
     --indent_;
   }
   if (ast->attributeList) {
@@ -1180,6 +1187,12 @@ void ASTPrinter::visit(TemplateTypeParameterAST* ast) {
   fmt::print(out_, "index: {}\n", ast->index);
   --indent_;
   accept(ast->identifier, "identifier");
+  if (ast->isPack) {
+    ++indent_;
+    fmt::print(out_, "{:{}}", "", indent_ * 2);
+    fmt::print(out_, "is-pack: {}\n", ast->isPack);
+    --indent_;
+  }
   if (ast->templateParameterList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);
@@ -1191,28 +1204,6 @@ void ASTPrinter::visit(TemplateTypeParameterAST* ast) {
   }
   accept(ast->requiresClause, "requires-clause");
   accept(ast->idExpression, "id-expression");
-}
-
-void ASTPrinter::visit(TemplatePackTypeParameterAST* ast) {
-  fmt::print(out_, "{}\n", "template-pack-type-parameter");
-  ++indent_;
-  fmt::print(out_, "{:{}}", "", indent_ * 2);
-  fmt::print(out_, "depth: {}\n", ast->depth);
-  --indent_;
-  ++indent_;
-  fmt::print(out_, "{:{}}", "", indent_ * 2);
-  fmt::print(out_, "index: {}\n", ast->index);
-  --indent_;
-  accept(ast->identifier, "identifier");
-  if (ast->templateParameterList) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "{}\n", "template-parameter-list");
-    for (auto it = ast->templateParameterList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
 }
 
 void ASTPrinter::visit(NonTypeTemplateParameterAST* ast) {

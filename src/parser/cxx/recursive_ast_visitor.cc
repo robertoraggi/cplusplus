@@ -779,12 +779,6 @@ void RecursiveASTVisitor::visit(TemplateTypeParameterAST* ast) {
   acceptIdExpression(ast->idExpression);
 }
 
-void RecursiveASTVisitor::visit(TemplatePackTypeParameterAST* ast) {
-  for (auto it = ast->templateParameterList; it; it = it->next) {
-    acceptTemplateParameter(it->value);
-  }
-}
-
 void RecursiveASTVisitor::visit(NonTypeTemplateParameterAST* ast) {
   acceptParameterDeclaration(ast->declaration);
 }

@@ -136,7 +136,6 @@ class ASTVisitor {
 
   // TemplateParameterAST
   virtual void visit(TemplateTypeParameterAST* ast) = 0;
-  virtual void visit(TemplatePackTypeParameterAST* ast) = 0;
   virtual void visit(NonTypeTemplateParameterAST* ast) = 0;
   virtual void visit(TypenameTypeParameterAST* ast) = 0;
   virtual void visit(ConstraintTypeParameterAST* ast) = 0;

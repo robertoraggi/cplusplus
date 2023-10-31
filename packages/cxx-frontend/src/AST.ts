@@ -2146,10 +2146,25 @@ export class ParameterDeclarationAST extends DeclarationAST {
   }
 
   /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 6);
+    return cxx.getIdentifierValue(slot);
+  }
+
+  /**
    * Returns the isThisIntroduced attribute of this node
    */
   getIsThisIntroduced(): boolean {
-    return cxx.getASTSlot(this.getHandle(), 6) !== 0;
+    return cxx.getASTSlot(this.getHandle(), 7) !== 0;
+  }
+
+  /**
+   * Returns the isPack attribute of this node
+   */
+  getIsPack(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 8) !== 0;
   }
 }
 
@@ -6253,17 +6268,24 @@ export class TemplateTypeParameterAST extends TemplateParameterAST {
   }
 
   /**
+   * Returns the location of the ellipsis token in this node
+   */
+  getEllipsisToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+  }
+
+  /**
    * Returns the location of the identifier token in this node
    */
   getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
   }
 
   /**
    * Returns the location of the equal token in this node
    */
   getEqualToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 8), this.parser);
   }
 
   /**
@@ -6271,7 +6293,7 @@ export class TemplateTypeParameterAST extends TemplateParameterAST {
    */
   getIdExpression(): IdExpressionAST | undefined {
     return AST.from<IdExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 8),
+      cxx.getASTSlot(this.getHandle(), 9),
       this.parser,
     );
   }
@@ -6280,102 +6302,15 @@ export class TemplateTypeParameterAST extends TemplateParameterAST {
    * Returns the identifier attribute of this node
    */
   getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 9);
+    const slot = cxx.getASTSlot(this.getHandle(), 10);
     return cxx.getIdentifierValue(slot);
   }
-}
-
-/**
- * TemplatePackTypeParameterAST node.
- */
-export class TemplatePackTypeParameterAST extends TemplateParameterAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitTemplatePackTypeParameter(this, context);
-  }
 
   /**
-   * Returns the location of the template token in this node
+   * Returns the isPack attribute of this node
    */
-  getTemplateToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the less token in this node
-   */
-  getLessToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the templateParameterList of this node
-   */
-  getTemplateParameterList(): Iterable<TemplateParameterAST | undefined> {
-    let it = cxx.getASTSlot(this.getHandle(), 0);
-    let value: TemplateParameterAST | undefined;
-    let done = false;
-    const p = this.parser;
-    function advance() {
-      done = it === 0;
-      if (done) return;
-      const ast = cxx.getListValue(it);
-      value = AST.from<TemplateParameterAST>(ast, p);
-      it = cxx.getListNext(it);
-    }
-    function next() {
-      advance();
-      return { done, value };
-    }
-    return {
-      [Symbol.iterator]() {
-        return { next };
-      },
-    };
-  }
-
-  /**
-   * Returns the location of the greater token in this node
-   */
-  getGreaterToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
-  }
-
-  /**
-   * Returns the location of the classKey token in this node
-   */
-  getClassKeyToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
-  }
-
-  /**
-   * Returns the location of the ellipsis token in this node
-   */
-  getEllipsisToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
-  }
-
-  /**
-   * Returns the location of the identifier token in this node
-   */
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
-  }
-
-  /**
-   * Returns the identifier attribute of this node
-   */
-  getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 7);
-    return cxx.getIdentifierValue(slot);
+  getIsPack(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 11) !== 0;
   }
 }
 
@@ -12206,7 +12141,6 @@ const AST_CONSTRUCTORS: Array<
   BracedInitListAST,
   ParenInitializerAST,
   TemplateTypeParameterAST,
-  TemplatePackTypeParameterAST,
   NonTypeTemplateParameterAST,
   TypenameTypeParameterAST,
   ConstraintTypeParameterAST,

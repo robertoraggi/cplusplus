@@ -29,6 +29,7 @@ constexpr auto ident_v = ident<x>::value;
 // CHECK-NEXT:          depth: 0
 // CHECK-NEXT:          index: 0
 // CHECK-NEXT:          declaration: parameter-declaration
+// CHECK-NEXT:            identifier: x
 // CHECK-NEXT:            type-specifier-list
 // CHECK-NEXT:              placeholder-type-specifier
 // CHECK-NEXT:                type-constraint: type-constraint
@@ -66,6 +67,7 @@ constexpr auto ident_v = ident<x>::value;
 // CHECK-NEXT:          depth: 0
 // CHECK-NEXT:          index: 0
 // CHECK-NEXT:          declaration: parameter-declaration
+// CHECK-NEXT:            identifier: x
 // CHECK-NEXT:            type-specifier-list
 // CHECK-NEXT:              placeholder-type-specifier
 // CHECK-NEXT:                type-constraint: type-constraint

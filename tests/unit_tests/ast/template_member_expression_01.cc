@@ -67,6 +67,7 @@ auto copy(Allocator &A) -> void * { return A.template Allocate<char>(128); }
 // CHECK-NEXT:            parameter-declaration-clause: parameter-declaration-clause
 // CHECK-NEXT:              parameter-declaration-list
 // CHECK-NEXT:                parameter-declaration
+// CHECK-NEXT:                  identifier: A
 // CHECK-NEXT:                  type-specifier-list
 // CHECK-NEXT:                    named-type-specifier
 // CHECK-NEXT:                      unqualified-id: name-id

@@ -59,6 +59,7 @@ struct Handle {
 // CHECK-NEXT:                    parameter-declaration-clause: parameter-declaration-clause
 // CHECK-NEXT:                      parameter-declaration-list
 // CHECK-NEXT:                        parameter-declaration
+// CHECK-NEXT:                          identifier: value
 // CHECK-NEXT:                          type-specifier-list
 // CHECK-NEXT:                            integral-type-specifier
 // CHECK-NEXT:                              specifier: int
@@ -67,6 +68,7 @@ struct Handle {
 // CHECK-NEXT:                              unqualified-id: name-id
 // CHECK-NEXT:                                identifier: value
 // CHECK-NEXT:                        parameter-declaration
+// CHECK-NEXT:                          identifier: otherValue
 // CHECK-NEXT:                          type-specifier-list
 // CHECK-NEXT:                            integral-type-specifier
 // CHECK-NEXT:                              specifier: int

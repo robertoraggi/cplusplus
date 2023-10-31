@@ -20,6 +20,7 @@ void print_like(const char* fmt, ...);
 // CHECK-NEXT:                  is-variadic: true
 // CHECK-NEXT:                  parameter-declaration-list
 // CHECK-NEXT:                    parameter-declaration
+// CHECK-NEXT:                      identifier: fmt
 // CHECK-NEXT:                      type-specifier-list
 // CHECK-NEXT:                        const-qualifier
 // CHECK-NEXT:                        integral-type-specifier
