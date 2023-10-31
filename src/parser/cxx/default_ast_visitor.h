@@ -134,7 +134,6 @@ class DefaultASTVisitor : public ASTVisitor {
 
   // TemplateParameterAST
   void visit(TemplateTypeParameterAST* ast) override;
-  void visit(TemplatePackTypeParameterAST* ast) override;
   void visit(NonTypeTemplateParameterAST* ast) override;
   void visit(TypenameTypeParameterAST* ast) override;
   void visit(ConstraintTypeParameterAST* ast) override;

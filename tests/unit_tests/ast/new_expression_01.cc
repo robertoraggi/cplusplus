@@ -27,6 +27,7 @@ auto make(void* where, T init) {
 // CHECK-NEXT:              parameter-declaration-clause: parameter-declaration-clause
 // CHECK-NEXT:                parameter-declaration-list
 // CHECK-NEXT:                  parameter-declaration
+// CHECK-NEXT:                    identifier: where
 // CHECK-NEXT:                    type-specifier-list
 // CHECK-NEXT:                      void-type-specifier
 // CHECK-NEXT:                    declarator: declarator
@@ -36,6 +37,7 @@ auto make(void* where, T init) {
 // CHECK-NEXT:                        unqualified-id: name-id
 // CHECK-NEXT:                          identifier: where
 // CHECK-NEXT:                  parameter-declaration
+// CHECK-NEXT:                    identifier: init
 // CHECK-NEXT:                    type-specifier-list
 // CHECK-NEXT:                      named-type-specifier
 // CHECK-NEXT:                        unqualified-id: name-id

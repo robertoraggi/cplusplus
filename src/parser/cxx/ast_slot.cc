@@ -1085,14 +1085,24 @@ void ASTSlot::visit(ParameterDeclarationAST* ast) {
       slotKind_ = ASTSlotKind::kNode;
       slotNameIndex_ = SlotNameIndex{76};
       break;
-    case 6:  // isThisIntroduced
+    case 6:  // identifier
+      value_ = reinterpret_cast<std::intptr_t>(ast->identifier);
+      slotKind_ = ASTSlotKind::kIdentifierAttribute;
+      slotNameIndex_ = SlotNameIndex{94};
+      break;
+    case 7:  // isThisIntroduced
       value_ = std::intptr_t(ast->isThisIntroduced != 0);
       slotKind_ = ASTSlotKind::kBoolAttribute;
       slotNameIndex_ = SlotNameIndex{113};
       break;
+    case 8:  // isPack
+      value_ = std::intptr_t(ast->isPack != 0);
+      slotKind_ = ASTSlotKind::kBoolAttribute;
+      slotNameIndex_ = SlotNameIndex{110};
+      break;
   }  // switch
 
-  slotCount_ = 7;
+  slotCount_ = 9;
 }
 
 void ASTSlot::visit(AccessDeclarationAST* ast) {
@@ -3125,76 +3135,39 @@ void ASTSlot::visit(TemplateTypeParameterAST* ast) {
       slotKind_ = ASTSlotKind::kToken;
       slotNameIndex_ = SlotNameIndex{31};
       break;
-    case 6:  // identifierLoc
-      value_ = ast->identifierLoc.index();
-      slotKind_ = ASTSlotKind::kToken;
-      slotNameIndex_ = SlotNameIndex{95};
-      break;
-    case 7:  // equalLoc
-      value_ = ast->equalLoc.index();
-      slotKind_ = ASTSlotKind::kToken;
-      slotNameIndex_ = SlotNameIndex{69};
-      break;
-    case 8:  // idExpression
-      value_ = reinterpret_cast<std::intptr_t>(ast->idExpression);
-      slotKind_ = ASTSlotKind::kNode;
-      slotNameIndex_ = SlotNameIndex{93};
-      break;
-    case 9:  // identifier
-      value_ = reinterpret_cast<std::intptr_t>(ast->identifier);
-      slotKind_ = ASTSlotKind::kIdentifierAttribute;
-      slotNameIndex_ = SlotNameIndex{94};
-      break;
-  }  // switch
-
-  slotCount_ = 10;
-}
-
-void ASTSlot::visit(TemplatePackTypeParameterAST* ast) {
-  switch (slot_) {
-    case 0:  // templateLoc
-      value_ = ast->templateLoc.index();
-      slotKind_ = ASTSlotKind::kToken;
-      slotNameIndex_ = SlotNameIndex{192};
-      break;
-    case 1:  // lessLoc
-      value_ = ast->lessLoc.index();
-      slotKind_ = ASTSlotKind::kToken;
-      slotNameIndex_ = SlotNameIndex{122};
-      break;
-    case 2:  // templateParameterList
-      value_ = reinterpret_cast<std::intptr_t>(ast->templateParameterList);
-      slotKind_ = ASTSlotKind::kNodeList;
-      slotNameIndex_ = SlotNameIndex{193};
-      break;
-    case 3:  // greaterLoc
-      value_ = ast->greaterLoc.index();
-      slotKind_ = ASTSlotKind::kToken;
-      slotNameIndex_ = SlotNameIndex{89};
-      break;
-    case 4:  // classKeyLoc
-      value_ = ast->classKeyLoc.index();
-      slotKind_ = ASTSlotKind::kToken;
-      slotNameIndex_ = SlotNameIndex{31};
-      break;
-    case 5:  // ellipsisLoc
+    case 6:  // ellipsisLoc
       value_ = ast->ellipsisLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       slotNameIndex_ = SlotNameIndex{62};
       break;
-    case 6:  // identifierLoc
+    case 7:  // identifierLoc
       value_ = ast->identifierLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       slotNameIndex_ = SlotNameIndex{95};
       break;
-    case 7:  // identifier
+    case 8:  // equalLoc
+      value_ = ast->equalLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      slotNameIndex_ = SlotNameIndex{69};
+      break;
+    case 9:  // idExpression
+      value_ = reinterpret_cast<std::intptr_t>(ast->idExpression);
+      slotKind_ = ASTSlotKind::kNode;
+      slotNameIndex_ = SlotNameIndex{93};
+      break;
+    case 10:  // identifier
       value_ = reinterpret_cast<std::intptr_t>(ast->identifier);
       slotKind_ = ASTSlotKind::kIdentifierAttribute;
       slotNameIndex_ = SlotNameIndex{94};
       break;
+    case 11:  // isPack
+      value_ = std::intptr_t(ast->isPack != 0);
+      slotKind_ = ASTSlotKind::kBoolAttribute;
+      slotNameIndex_ = SlotNameIndex{110};
+      break;
   }  // switch
 
-  slotCount_ = 8;
+  slotCount_ = 12;
 }
 
 void ASTSlot::visit(NonTypeTemplateParameterAST* ast) {

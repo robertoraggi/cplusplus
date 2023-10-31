@@ -36,9 +36,12 @@ class Scope {
   ~Scope();
 
   [[nodiscard]] auto isEnumScope() const -> bool;
+  [[nodiscard]] auto isTemplateParametersScope() const -> bool;
 
   [[nodiscard]] auto parent() const -> Scope* { return parent_; }
   void setParent(Scope* parent) { parent_ = parent; }
+
+  [[nodiscard]] auto enclosingNonTemplateParametersScope() const -> Scope*;
 
   [[nodiscard]] auto owner() const -> Symbol* { return owner_; }
   void setOwner(Symbol* owner) { owner_ = owner; }

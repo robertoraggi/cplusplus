@@ -24,31 +24,33 @@
 namespace cxx {
 
 NamespaceSymbol::NamespaceSymbol(Scope* enclosingScope)
-    : Symbol(SymbolKind::kNamespace, enclosingScope) {
+    : Symbol(Kind, enclosingScope) {
   scope_ = std::make_unique<Scope>(enclosingScope);
   scope_->setOwner(this);
 }
 
 NamespaceSymbol::~NamespaceSymbol() {}
 
-ClassSymbol::ClassSymbol(Scope* enclosingScope)
-    : Symbol(SymbolKind::kClass, enclosingScope) {
+ConceptSymbol::ConceptSymbol(Scope* enclosingScope)
+    : Symbol(Kind, enclosingScope) {}
+
+ConceptSymbol::~ConceptSymbol() {}
+
+ClassSymbol::ClassSymbol(Scope* enclosingScope) : Symbol(Kind, enclosingScope) {
   scope_ = std::make_unique<Scope>(enclosingScope);
   scope_->setOwner(this);
 }
 
 ClassSymbol::~ClassSymbol() {}
 
-UnionSymbol::UnionSymbol(Scope* enclosingScope)
-    : Symbol(SymbolKind::kUnion, enclosingScope) {
+UnionSymbol::UnionSymbol(Scope* enclosingScope) : Symbol(Kind, enclosingScope) {
   scope_ = std::make_unique<Scope>(enclosingScope);
   scope_->setOwner(this);
 }
 
 UnionSymbol::~UnionSymbol() {}
 
-EnumSymbol::EnumSymbol(Scope* enclosingScope)
-    : Symbol(SymbolKind::kEnum, enclosingScope) {
+EnumSymbol::EnumSymbol(Scope* enclosingScope) : Symbol(Kind, enclosingScope) {
   scope_ = std::make_unique<Scope>(enclosingScope);
   scope_->setOwner(this);
 }
@@ -56,7 +58,7 @@ EnumSymbol::EnumSymbol(Scope* enclosingScope)
 EnumSymbol::~EnumSymbol() {}
 
 ScopedEnumSymbol::ScopedEnumSymbol(Scope* enclosingScope)
-    : Symbol(SymbolKind::kScopedEnum, enclosingScope) {
+    : Symbol(Kind, enclosingScope) {
   scope_ = std::make_unique<Scope>(enclosingScope);
   scope_->setOwner(this);
 }
@@ -64,7 +66,7 @@ ScopedEnumSymbol::ScopedEnumSymbol(Scope* enclosingScope)
 ScopedEnumSymbol::~ScopedEnumSymbol() {}
 
 FunctionSymbol::FunctionSymbol(Scope* enclosingScope)
-    : Symbol(SymbolKind::kFunction, enclosingScope) {
+    : Symbol(Kind, enclosingScope) {
   scope_ = std::make_unique<Scope>(enclosingScope);
   scope_->setOwner(this);
 }
@@ -72,23 +74,30 @@ FunctionSymbol::FunctionSymbol(Scope* enclosingScope)
 FunctionSymbol::~FunctionSymbol() {}
 
 LambdaSymbol::LambdaSymbol(Scope* enclosingScope)
-    : Symbol(SymbolKind::kLambda, enclosingScope) {
+    : Symbol(Kind, enclosingScope) {
   scope_ = std::make_unique<Scope>(enclosingScope);
   scope_->setOwner(this);
 }
 
 LambdaSymbol::~LambdaSymbol() {}
 
-PrototypeSymbol::PrototypeSymbol(Scope* enclosingScope)
-    : Symbol(SymbolKind::kPrototype, enclosingScope) {
+FunctionParametersSymbol::FunctionParametersSymbol(Scope* enclosingScope)
+    : Symbol(Kind, enclosingScope) {
   scope_ = std::make_unique<Scope>(enclosingScope);
   scope_->setOwner(this);
 }
 
-PrototypeSymbol::~PrototypeSymbol() {}
+FunctionParametersSymbol::~FunctionParametersSymbol() {}
 
-BlockSymbol::BlockSymbol(Scope* enclosingScope)
-    : Symbol(SymbolKind::kBlock, enclosingScope) {
+TemplateParametersSymbol::TemplateParametersSymbol(Scope* enclosingScope)
+    : Symbol(Kind, enclosingScope) {
+  scope_ = std::make_unique<Scope>(enclosingScope);
+  scope_->setOwner(this);
+}
+
+TemplateParametersSymbol::~TemplateParametersSymbol() {}
+
+BlockSymbol::BlockSymbol(Scope* enclosingScope) : Symbol(Kind, enclosingScope) {
   scope_ = std::make_unique<Scope>(enclosingScope);
   scope_->setOwner(this);
 }
@@ -96,27 +105,48 @@ BlockSymbol::BlockSymbol(Scope* enclosingScope)
 BlockSymbol::~BlockSymbol() {}
 
 TypeAliasSymbol::TypeAliasSymbol(Scope* enclosingScope)
-    : Symbol(SymbolKind::kTypeAlias, enclosingScope) {}
+    : Symbol(Kind, enclosingScope) {}
 
 TypeAliasSymbol::~TypeAliasSymbol() {}
 
 VariableSymbol::VariableSymbol(Scope* enclosingScope)
-    : Symbol(SymbolKind::kVariable, enclosingScope) {}
+    : Symbol(Kind, enclosingScope) {}
 
 VariableSymbol::~VariableSymbol() {}
 
 FieldSymbol::FieldSymbol(Scope* enclosingScope)
-    : Symbol(SymbolKind::kField, enclosingScope) {}
+    : Symbol(Kind, enclosingScope) {}
 
 FieldSymbol::~FieldSymbol() {}
 
 ParameterSymbol::ParameterSymbol(Scope* enclosingScope)
-    : Symbol(SymbolKind::kParameter, enclosingScope) {}
+    : Symbol(Kind, enclosingScope) {}
 
 ParameterSymbol::~ParameterSymbol() {}
 
+TypeParameterSymbol::TypeParameterSymbol(Scope* enclosingScope)
+    : Symbol(Kind, enclosingScope) {}
+
+TypeParameterSymbol::~TypeParameterSymbol() {}
+
+NonTypeParameterSymbol::NonTypeParameterSymbol(Scope* enclosingScope)
+    : Symbol(Kind, enclosingScope) {}
+
+NonTypeParameterSymbol::~NonTypeParameterSymbol() {}
+
+TemplateTypeParameterSymbol::TemplateTypeParameterSymbol(Scope* enclosingScope)
+    : Symbol(Kind, enclosingScope) {}
+
+TemplateTypeParameterSymbol::~TemplateTypeParameterSymbol() {}
+
+ConstraintTypeParameterSymbol::ConstraintTypeParameterSymbol(
+    Scope* enclosingScope)
+    : Symbol(Kind, enclosingScope) {}
+
+ConstraintTypeParameterSymbol::~ConstraintTypeParameterSymbol() {}
+
 EnumeratorSymbol::EnumeratorSymbol(Scope* enclosingScope)
-    : Symbol(SymbolKind::kEnumerator, enclosingScope) {}
+    : Symbol(Kind, enclosingScope) {}
 
 EnumeratorSymbol::~EnumeratorSymbol() {}
 

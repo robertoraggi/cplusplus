@@ -59,6 +59,7 @@ struct S {
 // CHECK-NEXT:                                  parameter-declaration-clause: parameter-declaration-clause
 // CHECK-NEXT:                                    parameter-declaration-list
 // CHECK-NEXT:                                      parameter-declaration
+// CHECK-NEXT:                                        identifier: a
 // CHECK-NEXT:                                        type-specifier-list
 // CHECK-NEXT:                                          named-type-specifier
 // CHECK-NEXT:                                            unqualified-id: name-id
@@ -68,6 +69,7 @@ struct S {
 // CHECK-NEXT:                                            unqualified-id: name-id
 // CHECK-NEXT:                                              identifier: a
 // CHECK-NEXT:                                      parameter-declaration
+// CHECK-NEXT:                                        identifier: b
 // CHECK-NEXT:                                        type-specifier-list
 // CHECK-NEXT:                                          named-type-specifier
 // CHECK-NEXT:                                            unqualified-id: name-id

@@ -370,9 +370,6 @@ auto ASTDecoder::decodeTemplateParameter(const void* ptr,
     case io::TemplateParameter_TemplateTypeParameter:
       return decodeTemplateTypeParameter(
           reinterpret_cast<const io::TemplateTypeParameter*>(ptr));
-    case io::TemplateParameter_TemplatePackTypeParameter:
-      return decodeTemplatePackTypeParameter(
-          reinterpret_cast<const io::TemplatePackTypeParameter*>(ptr));
     case io::TemplateParameter_NonTypeTemplateParameter:
       return decodeNonTypeTemplateParameter(
           reinterpret_cast<const io::NonTypeTemplateParameter*>(ptr));
@@ -1285,6 +1282,10 @@ auto ASTDecoder::decodeParameterDeclaration(
   ast->declarator = decodeDeclarator(node->declarator());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
   return ast;
 }
 
@@ -2253,28 +2254,6 @@ auto ASTDecoder::decodeTemplateTypeParameter(
   }
   ast->requiresClause = decodeRequiresClause(node->requires_clause());
   ast->idExpression = decodeIdExpression(node->id_expression());
-  if (node->identifier()) {
-    ast->identifier =
-        unit_->control()->getIdentifier(node->identifier()->str());
-  }
-  return ast;
-}
-
-auto ASTDecoder::decodeTemplatePackTypeParameter(
-    const io::TemplatePackTypeParameter* node)
-    -> TemplatePackTypeParameterAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) TemplatePackTypeParameterAST();
-  if (node->template_parameter_list()) {
-    auto* inserter = &ast->templateParameterList;
-    for (std::size_t i = 0; i < node->template_parameter_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeTemplateParameter(
-          node->template_parameter_list()->Get(i),
-          io::TemplateParameter(node->template_parameter_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());

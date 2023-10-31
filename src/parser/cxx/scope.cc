@@ -24,17 +24,79 @@
 
 namespace cxx {
 
+namespace {
+
+struct AddTemplateSymbol {
+  TemplateParametersSymbol* templateParameters;
+
+  auto addSymbol(auto symbol) {
+    auto templateScope = templateParameters->scope();
+    auto parentScope = templateScope->enclosingNonTemplateParametersScope();
+    symbol->setTemplateParameters(templateParameters);
+    parentScope->addSymbol(symbol);
+  }
+
+  auto operator()(TypeAliasSymbol* symbol) -> bool {
+    addSymbol(symbol);
+    return true;
+  }
+
+  auto operator()(ConceptSymbol* symbol) -> bool {
+    addSymbol(symbol);
+    return true;
+  }
+
+  auto operator()(ClassSymbol* symbol) -> bool {
+    addSymbol(symbol);
+    return true;
+  }
+
+  auto operator()(FunctionSymbol* symbol) -> bool {
+    addSymbol(symbol);
+    return true;
+  }
+
+  auto operator()(VariableSymbol* symbol) -> bool {
+    addSymbol(symbol);
+    return true;
+  }
+
+  auto operator()(auto) -> bool { return false; }
+};
+
+}  // namespace
+
 Scope::Scope(Scope* parent) : parent_(parent) {}
 
 Scope::~Scope() {}
 
 auto Scope::isEnumScope() const -> bool {
-  return symbol_cast<EnumSymbol>(owner()) ||
-         symbol_cast<ScopedEnumSymbol>(owner());
+  return owner_ && (owner_->isEnum() || owner_->isScopedEnum());
+}
+
+auto Scope::isTemplateParametersScope() const -> bool {
+  return owner_ && owner_->isTemplateParameters();
+}
+
+auto Scope::enclosingNonTemplateParametersScope() const -> Scope* {
+  auto scope = parent_;
+
+  while (scope && scope->isTemplateParametersScope()) {
+    scope = scope->parent();
+  }
+
+  return scope;
 }
 
 void Scope::addSymbol(Symbol* symbol) {
-  symbol->setIndex(symbols_.size());
+  if (symbol->isTemplateParameters()) return;
+
+  if (auto templateParameters = symbol_cast<TemplateParametersSymbol>(owner_)) {
+    if (visit(AddTemplateSymbol{templateParameters}, symbol)) return;
+  }
+
+  symbol->setEnclosingScope(this);
+  symbol->setInsertionPoint(symbols_.size());
   symbols_.emplace(symbol->name(), symbol);
 }
 

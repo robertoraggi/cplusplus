@@ -468,8 +468,8 @@ class Parser final {
   [[nodiscard]] auto parse_parameter_declaration_clause(
       ParameterDeclarationClauseAST*& yyast) -> bool;
   [[nodiscard]] auto parse_parameter_declaration_list(
-      List<ParameterDeclarationAST*>*& yyast, PrototypeSymbol*& prototypeSymbol)
-      -> bool;
+      List<ParameterDeclarationAST*>*& yyast,
+      FunctionParametersSymbol*& functionParametersSymbol) -> bool;
   [[nodiscard]] auto parse_parameter_declaration(
       ParameterDeclarationAST*& yyast, bool templParam) -> bool;
   [[nodiscard]] auto parse_initializer(ExpressionAST*& yyast) -> bool;
@@ -623,8 +623,7 @@ class Parser final {
   [[nodiscard]] auto parse_type_parameter(TemplateParameterAST*& yyast) -> bool;
   [[nodiscard]] auto parse_typename_type_parameter(TemplateParameterAST*& yyast)
       -> bool;
-  [[nodiscard]] auto parse_template_type_parameter(TemplateParameterAST*& yyast)
-      -> bool;
+  void parse_template_type_parameter(TemplateParameterAST*& yyast);
   [[nodiscard]] auto parse_constraint_type_parameter(
       TemplateParameterAST*& yyast) -> bool;
   [[nodiscard]] auto parse_type_parameter_key(SourceLocation& classKeyLoc)

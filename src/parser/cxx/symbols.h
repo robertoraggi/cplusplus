@@ -52,8 +52,8 @@ class Symbol {
     enclosingScope_ = enclosingScope;
   }
 
-  [[nodiscard]] auto index() const -> int { return index_; }
-  void setIndex(int index) { index_ = index; }
+  [[nodiscard]] auto insertionPoint() const -> int { return insertionPoint_; }
+  void setInsertionPoint(int index) { insertionPoint_ = index; }
 
 #define PROCESS_SYMBOL(S) \
   [[nodiscard]] auto is##S() const->bool { return kind_ == SymbolKind::k##S; }
@@ -65,10 +65,10 @@ class Symbol {
   const Name* name_ = nullptr;
   const Type* type_ = nullptr;
   Scope* enclosingScope_ = nullptr;
-  int index_ = 0;
+  int insertionPoint_ = 0;
 };
 
-class NamespaceSymbol : public Symbol {
+class NamespaceSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kNamespace;
 
@@ -104,7 +104,27 @@ class NamespaceSymbol : public Symbol {
   bool isInline_ = false;
 };
 
-class ClassSymbol : public Symbol {
+class ConceptSymbol final : public Symbol {
+ public:
+  constexpr static auto Kind = SymbolKind::kConcept;
+
+  explicit ConceptSymbol(Scope* enclosingScope);
+  ~ConceptSymbol() override;
+
+  [[nodiscard]] auto templateParameters() const
+      -> const TemplateParametersSymbol* {
+    return templateParameters_;
+  }
+
+  void setTemplateParameters(TemplateParametersSymbol* templateParameters) {
+    templateParameters_ = templateParameters;
+  }
+
+ private:
+  TemplateParametersSymbol* templateParameters_ = nullptr;
+};
+
+class ClassSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kClass;
 
@@ -113,15 +133,25 @@ class ClassSymbol : public Symbol {
 
   [[nodiscard]] auto scope() const -> Scope* { return scope_.get(); }
 
+  [[nodiscard]] auto templateParameters() const
+      -> const TemplateParametersSymbol* {
+    return templateParameters_;
+  }
+
+  void setTemplateParameters(TemplateParametersSymbol* templateParameters) {
+    templateParameters_ = templateParameters;
+  }
+
   [[nodiscard]] auto isComplete() const -> bool { return isComplete_; }
   void setComplete(bool isComplete) { isComplete_ = isComplete; }
 
  private:
   std::unique_ptr<Scope> scope_;
+  TemplateParametersSymbol* templateParameters_ = nullptr;
   bool isComplete_ = false;
 };
 
-class UnionSymbol : public Symbol {
+class UnionSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kUnion;
 
@@ -134,7 +164,7 @@ class UnionSymbol : public Symbol {
   std::unique_ptr<Scope> scope_;
 };
 
-class EnumSymbol : public Symbol {
+class EnumSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kEnum;
 
@@ -147,7 +177,7 @@ class EnumSymbol : public Symbol {
   std::unique_ptr<Scope> scope_;
 };
 
-class ScopedEnumSymbol : public Symbol {
+class ScopedEnumSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kScopedEnum;
 
@@ -160,7 +190,7 @@ class ScopedEnumSymbol : public Symbol {
   std::unique_ptr<Scope> scope_;
 };
 
-class FunctionSymbol : public Symbol {
+class FunctionSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kFunction;
 
@@ -169,11 +199,21 @@ class FunctionSymbol : public Symbol {
 
   [[nodiscard]] auto scope() const -> Scope* { return scope_.get(); }
 
+  [[nodiscard]] auto templateParameters() const
+      -> const TemplateParametersSymbol* {
+    return templateParameters_;
+  }
+
+  void setTemplateParameters(TemplateParametersSymbol* templateParameters) {
+    templateParameters_ = templateParameters;
+  }
+
  private:
   std::unique_ptr<Scope> scope_;
+  TemplateParametersSymbol* templateParameters_ = nullptr;
 };
 
-class LambdaSymbol : public Symbol {
+class LambdaSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kLambda;
 
@@ -186,12 +226,12 @@ class LambdaSymbol : public Symbol {
   std::unique_ptr<Scope> scope_;
 };
 
-class PrototypeSymbol : public Symbol {
+class FunctionParametersSymbol final : public Symbol {
  public:
-  constexpr static auto Kind = SymbolKind::kPrototype;
+  constexpr static auto Kind = SymbolKind::kFunctionParameters;
 
-  explicit PrototypeSymbol(Scope* enclosingScope);
-  ~PrototypeSymbol() override;
+  explicit FunctionParametersSymbol(Scope* enclosingScope);
+  ~FunctionParametersSymbol() override;
 
   [[nodiscard]] auto scope() const -> Scope* { return scope_.get(); }
 
@@ -199,7 +239,20 @@ class PrototypeSymbol : public Symbol {
   std::unique_ptr<Scope> scope_;
 };
 
-class BlockSymbol : public Symbol {
+class TemplateParametersSymbol final : public Symbol {
+ public:
+  constexpr static auto Kind = SymbolKind::kTemplateParameters;
+
+  explicit TemplateParametersSymbol(Scope* enclosingScope);
+  ~TemplateParametersSymbol() override;
+
+  [[nodiscard]] auto scope() const -> Scope* { return scope_.get(); }
+
+ private:
+  std::unique_ptr<Scope> scope_;
+};
+
+class BlockSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kBlock;
 
@@ -212,23 +265,47 @@ class BlockSymbol : public Symbol {
   std::unique_ptr<Scope> scope_;
 };
 
-class TypeAliasSymbol : public Symbol {
+class TypeAliasSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kTypeAlias;
 
   explicit TypeAliasSymbol(Scope* enclosingScope);
   ~TypeAliasSymbol() override;
+
+  [[nodiscard]] auto templateParameters() const
+      -> const TemplateParametersSymbol* {
+    return templateParameters_;
+  }
+
+  void setTemplateParameters(TemplateParametersSymbol* templateParameters) {
+    templateParameters_ = templateParameters;
+  }
+
+ private:
+  TemplateParametersSymbol* templateParameters_ = nullptr;
 };
 
-class VariableSymbol : public Symbol {
+class VariableSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kVariable;
 
   explicit VariableSymbol(Scope* enclosingScope);
   ~VariableSymbol() override;
+
+  [[nodiscard]] auto templateParameters() const
+      -> const TemplateParametersSymbol* {
+    return templateParameters_;
+  }
+
+  void setTemplateParameters(TemplateParametersSymbol* templateParameters) {
+    templateParameters_ = templateParameters;
+  }
+
+ private:
+  TemplateParametersSymbol* templateParameters_ = nullptr;
 };
 
-class FieldSymbol : public Symbol {
+class FieldSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kField;
 
@@ -236,7 +313,7 @@ class FieldSymbol : public Symbol {
   ~FieldSymbol() override;
 };
 
-class ParameterSymbol : public Symbol {
+class ParameterSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kParameter;
 
@@ -244,7 +321,119 @@ class ParameterSymbol : public Symbol {
   ~ParameterSymbol() override;
 };
 
-class EnumeratorSymbol : public Symbol {
+class TypeParameterSymbol final : public Symbol {
+ public:
+  constexpr static auto Kind = SymbolKind::kTypeParameter;
+
+  explicit TypeParameterSymbol(Scope* enclosingScope);
+  ~TypeParameterSymbol() override;
+
+  [[nodiscard]] auto index() const -> int { return index_; }
+  void setIndex(int index) { index_ = index; }
+
+  [[nodiscard]] auto depth() const -> int { return depth_; }
+  void setDepth(int depth) { depth_ = depth; }
+
+  [[nodiscard]] auto isParameterPack() const -> bool {
+    return isParameterPack_;
+  }
+
+  void setParameterPack(bool isParameterPack) {
+    isParameterPack_ = isParameterPack;
+  }
+
+ private:
+  int index_ = 0;
+  int depth_ = 0;
+  bool isParameterPack_ = false;
+};
+
+class NonTypeParameterSymbol final : public Symbol {
+ public:
+  constexpr static auto Kind = SymbolKind::kNonTypeParameter;
+
+  explicit NonTypeParameterSymbol(Scope* enclosingScope);
+  ~NonTypeParameterSymbol() override;
+
+  [[nodiscard]] auto index() const -> int { return index_; }
+  void setIndex(int index) { index_ = index; }
+
+  [[nodiscard]] auto depth() const -> int { return depth_; }
+  void setDepth(int depth) { depth_ = depth; }
+
+  [[nodiscard]] auto objectType() const -> const Type* { return objectType_; }
+  void setObjectType(const Type* objectType) { objectType_ = objectType; }
+
+  [[nodiscard]] auto isParameterPack() const -> bool {
+    return isParameterPack_;
+  }
+
+  void setParameterPack(bool isParameterPack) {
+    isParameterPack_ = isParameterPack;
+  }
+
+ private:
+  const Type* objectType_ = nullptr;
+  int index_ = 0;
+  int depth_ = 0;
+  bool isParameterPack_ = false;
+};
+
+class TemplateTypeParameterSymbol final : public Symbol {
+ public:
+  constexpr static auto Kind = SymbolKind::kTemplateTypeParameter;
+
+  explicit TemplateTypeParameterSymbol(Scope* enclosingScope);
+  ~TemplateTypeParameterSymbol() override;
+
+  [[nodiscard]] auto index() const -> int { return index_; }
+  void setIndex(int index) { index_ = index; }
+
+  [[nodiscard]] auto depth() const -> int { return depth_; }
+  void setDepth(int depth) { depth_ = depth; }
+
+  [[nodiscard]] auto isParameterPack() const -> bool {
+    return isParameterPack_;
+  }
+
+  void setParameterPack(bool isParameterPack) {
+    isParameterPack_ = isParameterPack;
+  }
+
+ private:
+  int index_ = 0;
+  int depth_ = 0;
+  bool isParameterPack_ = false;
+};
+
+class ConstraintTypeParameterSymbol final : public Symbol {
+ public:
+  constexpr static auto Kind = SymbolKind::kConstraintTypeParameter;
+
+  explicit ConstraintTypeParameterSymbol(Scope* enclosingScope);
+  ~ConstraintTypeParameterSymbol() override;
+
+  [[nodiscard]] auto index() const -> int { return index_; }
+  void setIndex(int index) { index_ = index; }
+
+  [[nodiscard]] auto depth() const -> int { return depth_; }
+  void setDepth(int depth) { depth_ = depth; }
+
+  [[nodiscard]] auto isParameterPack() const -> bool {
+    return isParameterPack_;
+  }
+
+  void setParameterPack(bool isParameterPack) {
+    isParameterPack_ = isParameterPack;
+  }
+
+ private:
+  int index_ = 0;
+  int depth_ = 0;
+  bool isParameterPack_ = false;
+};
+
+class EnumeratorSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kEnumerator;
 

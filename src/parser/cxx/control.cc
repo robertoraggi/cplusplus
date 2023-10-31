@@ -121,18 +121,25 @@ struct Control::Private {
   std::forward_list<ScopedEnumType> scopedEnumTypes;
 
   std::forward_list<NamespaceSymbol> namespaceSymbols;
+  std::forward_list<ConceptSymbol> conceptSymbols;
   std::forward_list<ClassSymbol> classSymbols;
   std::forward_list<UnionSymbol> unionSymbols;
   std::forward_list<EnumSymbol> enumSymbols;
   std::forward_list<ScopedEnumSymbol> scopedEnumSymbols;
   std::forward_list<FunctionSymbol> functionSymbols;
   std::forward_list<LambdaSymbol> lambdaSymbols;
-  std::forward_list<PrototypeSymbol> prototypeSymbols;
+  std::forward_list<FunctionParametersSymbol> functionParametersSymbol;
+  std::forward_list<TemplateParametersSymbol> templateParametersSymbol;
   std::forward_list<BlockSymbol> blockSymbols;
   std::forward_list<TypeAliasSymbol> typeAliasSymbols;
   std::forward_list<VariableSymbol> variableSymbols;
   std::forward_list<FieldSymbol> fieldSymbols;
   std::forward_list<ParameterSymbol> parameterSymbols;
+  std::forward_list<TypeParameterSymbol> typeParameterSymbols;
+  std::forward_list<NonTypeParameterSymbol> nonTypeParameterSymbols;
+  std::forward_list<TemplateTypeParameterSymbol> templateTypeParameterSymbols;
+  std::forward_list<ConstraintTypeParameterSymbol>
+      constraintTypeParameterSymbols;
   std::forward_list<EnumeratorSymbol> enumeratorSymbols;
 
   int anonymousIdCount = 0;
@@ -407,6 +414,11 @@ auto Control::newNamespaceSymbol(Scope* enclosingScope) -> NamespaceSymbol* {
   return symbol;
 }
 
+auto Control::newConceptSymbol(Scope* enclosingScope) -> ConceptSymbol* {
+  auto symbol = &d->conceptSymbols.emplace_front(enclosingScope);
+  return symbol;
+}
+
 auto Control::newClassSymbol(Scope* enclosingScope) -> ClassSymbol* {
   auto symbol = &d->classSymbols.emplace_front(enclosingScope);
   auto type = newClassType();
@@ -449,8 +461,15 @@ auto Control::newLambdaSymbol(Scope* enclosingScope) -> LambdaSymbol* {
   return symbol;
 }
 
-auto Control::newPrototypeSymbol(Scope* enclosingScope) -> PrototypeSymbol* {
-  auto symbol = &d->prototypeSymbols.emplace_front(enclosingScope);
+auto Control::newFunctionParametersSymbol(Scope* enclosingScope)
+    -> FunctionParametersSymbol* {
+  auto symbol = &d->functionParametersSymbol.emplace_front(enclosingScope);
+  return symbol;
+}
+
+auto Control::newTemplateParametersSymbol(Scope* enclosingScope)
+    -> TemplateParametersSymbol* {
+  auto symbol = &d->templateParametersSymbol.emplace_front(enclosingScope);
   return symbol;
 }
 
@@ -476,6 +495,31 @@ auto Control::newFieldSymbol(Scope* enclosingScope) -> FieldSymbol* {
 
 auto Control::newParameterSymbol(Scope* enclosingScope) -> ParameterSymbol* {
   auto symbol = &d->parameterSymbols.emplace_front(enclosingScope);
+  return symbol;
+}
+
+auto Control::newTypeParameterSymbol(Scope* enclosingScope)
+    -> TypeParameterSymbol* {
+  auto symbol = &d->typeParameterSymbols.emplace_front(enclosingScope);
+  return symbol;
+}
+
+auto Control::newNonTypeParameterSymbol(Scope* enclosingScope)
+    -> NonTypeParameterSymbol* {
+  auto symbol = &d->nonTypeParameterSymbols.emplace_front(enclosingScope);
+  return symbol;
+}
+
+auto Control::newTemplateTypeParameterSymbol(Scope* enclosingScope)
+    -> TemplateTypeParameterSymbol* {
+  auto symbol = &d->templateTypeParameterSymbols.emplace_front(enclosingScope);
+  return symbol;
+}
+
+auto Control::newConstraintTypeParameterSymbol(Scope* enclosingScope)
+    -> ConstraintTypeParameterSymbol* {
+  auto symbol =
+      &d->constraintTypeParameterSymbols.emplace_front(enclosingScope);
   return symbol;
 }
 

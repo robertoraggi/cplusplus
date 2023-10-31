@@ -128,18 +128,29 @@ class Control {
   auto newScopedEnumType() -> const ScopedEnumType*;
 
   auto newNamespaceSymbol(Scope* enclosingScope) -> NamespaceSymbol*;
+  auto newConceptSymbol(Scope* enclosingScope) -> ConceptSymbol*;
   auto newClassSymbol(Scope* enclosingScope) -> ClassSymbol*;
   auto newUnionSymbol(Scope* enclosingScope) -> UnionSymbol*;
   auto newEnumSymbol(Scope* enclosingScope) -> EnumSymbol*;
   auto newScopedEnumSymbol(Scope* enclosingScope) -> ScopedEnumSymbol*;
   auto newFunctionSymbol(Scope* enclosingScope) -> FunctionSymbol*;
   auto newLambdaSymbol(Scope* enclosingScope) -> LambdaSymbol*;
-  auto newPrototypeSymbol(Scope* enclosingScope) -> PrototypeSymbol*;
+  auto newFunctionParametersSymbol(Scope* enclosingScope)
+      -> FunctionParametersSymbol*;
+  auto newTemplateParametersSymbol(Scope* enclosingScope)
+      -> TemplateParametersSymbol*;
   auto newBlockSymbol(Scope* enclosingScope) -> BlockSymbol*;
   auto newTypeAliasSymbol(Scope* enclosingScope) -> TypeAliasSymbol*;
   auto newVariableSymbol(Scope* enclosingScope) -> VariableSymbol*;
   auto newFieldSymbol(Scope* enclosingScope) -> FieldSymbol*;
   auto newParameterSymbol(Scope* enclosingScope) -> ParameterSymbol*;
+  auto newTypeParameterSymbol(Scope* enclosingScope) -> TypeParameterSymbol*;
+  auto newNonTypeParameterSymbol(Scope* enclosingScope)
+      -> NonTypeParameterSymbol*;
+  auto newTemplateTypeParameterSymbol(Scope* enclosingScope)
+      -> TemplateTypeParameterSymbol*;
+  auto newConstraintTypeParameterSymbol(Scope* enclosingScope)
+      -> ConstraintTypeParameterSymbol*;
   auto newEnumeratorSymbol(Scope* enclosingScope) -> EnumeratorSymbol*;
 
  private:

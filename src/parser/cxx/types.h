@@ -35,7 +35,7 @@ class Type {
   explicit Type(TypeKind kind) : kind_(kind) {}
   virtual ~Type() = default;
 
-  auto kind() const -> TypeKind { return kind_; }
+  [[nodiscard]] auto kind() const -> TypeKind { return kind_; }
 
  private:
   TypeKind kind_;
@@ -187,13 +187,20 @@ class QualType final : public Type,
   QualType(const Type* elementType, CvQualifiers cvQualifiers)
       : Type(Kind), tuple(elementType, cvQualifiers) {}
 
-  auto elementType() const -> const Type* { return std::get<0>(*this); }
-  auto cvQualifiers() const -> CvQualifiers { return std::get<1>(*this); }
-  auto isConst() const -> bool {
+  [[nodiscard]] auto elementType() const -> const Type* {
+    return std::get<0>(*this);
+  }
+
+  [[nodiscard]] auto cvQualifiers() const -> CvQualifiers {
+    return std::get<1>(*this);
+  }
+
+  [[nodiscard]] auto isConst() const -> bool {
     return cvQualifiers() == CvQualifiers::kConst ||
            cvQualifiers() == CvQualifiers::kConstVolatile;
   }
-  auto isVolatile() const -> bool {
+
+  [[nodiscard]] auto isVolatile() const -> bool {
     return cvQualifiers() == CvQualifiers::kVolatile ||
            cvQualifiers() == CvQualifiers::kConstVolatile;
   }
@@ -207,8 +214,10 @@ class BoundedArrayType final : public Type,
   BoundedArrayType(const Type* elementType, std::size_t size)
       : Type(Kind), tuple(elementType, size) {}
 
-  auto elementType() const -> const Type* { return std::get<0>(*this); }
-  auto size() const -> std::size_t { return std::get<1>(*this); }
+  [[nodiscard]] auto elementType() const -> const Type* {
+    return std::get<0>(*this);
+  }
+  [[nodiscard]] auto size() const -> std::size_t { return std::get<1>(*this); }
 };
 
 class UnboundedArrayType final : public Type, public std::tuple<const Type*> {
@@ -218,7 +227,9 @@ class UnboundedArrayType final : public Type, public std::tuple<const Type*> {
   explicit UnboundedArrayType(const Type* elementType)
       : Type(Kind), tuple(elementType) {}
 
-  auto elementType() const -> const Type* { return std::get<0>(*this); }
+  [[nodiscard]] auto elementType() const -> const Type* {
+    return std::get<0>(*this);
+  }
 };
 
 class PointerType final : public Type, public std::tuple<const Type*> {
@@ -228,7 +239,9 @@ class PointerType final : public Type, public std::tuple<const Type*> {
   explicit PointerType(const Type* elementType)
       : Type(Kind), tuple(elementType) {}
 
-  auto elementType() const -> const Type* { return std::get<0>(*this); }
+  [[nodiscard]] auto elementType() const -> const Type* {
+    return std::get<0>(*this);
+  }
 };
 
 class LvalueReferenceType final : public Type, public std::tuple<const Type*> {
@@ -238,7 +251,9 @@ class LvalueReferenceType final : public Type, public std::tuple<const Type*> {
   explicit LvalueReferenceType(const Type* elementType)
       : Type(Kind), tuple(elementType) {}
 
-  auto elementType() const -> const Type* { return std::get<0>(*this); }
+  [[nodiscard]] auto elementType() const -> const Type* {
+    return std::get<0>(*this);
+  }
 };
 
 class RvalueReferenceType final : public Type, public std::tuple<const Type*> {
@@ -248,7 +263,9 @@ class RvalueReferenceType final : public Type, public std::tuple<const Type*> {
   explicit RvalueReferenceType(const Type* elementType)
       : Type(Kind), tuple(elementType) {}
 
-  auto elementType() const -> const Type* { return std::get<0>(*this); }
+  [[nodiscard]] auto elementType() const -> const Type* {
+    return std::get<0>(*this);
+  }
 };
 
 class FunctionType final
@@ -265,14 +282,25 @@ class FunctionType final
         tuple(returnType, std::move(parameterTypes), isVariadic, cvQualifiers,
               refQualifier, isNoexcept) {}
 
-  auto returnType() const -> const Type* { return std::get<0>(*this); }
-  auto parameterTypes() const -> const std::vector<const Type*>& {
+  [[nodiscard]] auto returnType() const -> const Type* {
+    return std::get<0>(*this);
+  }
+
+  [[nodiscard]] auto parameterTypes() const -> const std::vector<const Type*>& {
     return std::get<1>(*this);
   }
-  auto isVariadic() const -> bool { return std::get<2>(*this); }
-  auto cvQualifiers() const -> CvQualifiers { return std::get<3>(*this); }
-  auto refQualifier() const -> RefQualifier { return std::get<4>(*this); }
-  auto isNoexcept() const -> bool { return std::get<5>(*this); }
+
+  [[nodiscard]] auto isVariadic() const -> bool { return std::get<2>(*this); }
+
+  [[nodiscard]] auto cvQualifiers() const -> CvQualifiers {
+    return std::get<3>(*this);
+  }
+
+  [[nodiscard]] auto refQualifier() const -> RefQualifier {
+    return std::get<4>(*this);
+  }
+
+  [[nodiscard]] auto isNoexcept() const -> bool { return std::get<5>(*this); }
 };
 
 class ClassType final : public Type {
@@ -281,7 +309,8 @@ class ClassType final : public Type {
 
   ClassType() : Type(Kind) {}
 
-  auto symbol() const -> ClassSymbol* { return symbol_; }
+  [[nodiscard]] auto symbol() const -> ClassSymbol* { return symbol_; }
+
   void setSymbol(ClassSymbol* symbol) const { symbol_ = symbol; }
 
  private:
@@ -294,7 +323,8 @@ class UnionType final : public Type {
 
   UnionType() : Type(Kind) {}
 
-  auto symbol() const -> UnionSymbol* { return symbol_; }
+  [[nodiscard]] auto symbol() const -> UnionSymbol* { return symbol_; }
+
   void setSymbol(UnionSymbol* symbol) const { symbol_ = symbol; }
 
  private:
@@ -307,7 +337,8 @@ class EnumType final : public Type {
 
   EnumType() : Type(Kind) {}
 
-  auto symbol() const -> EnumSymbol* { return symbol_; }
+  [[nodiscard]] auto symbol() const -> EnumSymbol* { return symbol_; }
+
   void setSymbol(EnumSymbol* symbol) const { symbol_ = symbol; }
 
  private:
@@ -320,7 +351,8 @@ class ScopedEnumType final : public Type {
 
   ScopedEnumType() : Type(Kind) {}
 
-  auto symbol() const -> ScopedEnumSymbol* { return symbol_; }
+  [[nodiscard]] auto symbol() const -> ScopedEnumSymbol* { return symbol_; }
+
   void setSymbol(ScopedEnumSymbol* symbol) const { symbol_ = symbol; }
 
  private:
@@ -336,8 +368,13 @@ class MemberObjectPointerType final
   MemberObjectPointerType(const ClassType* classType, const Type* elementType)
       : Type(Kind), tuple(classType, elementType) {}
 
-  auto classType() const -> const ClassType* { return std::get<0>(*this); }
-  auto elementType() const -> const Type* { return std::get<1>(*this); }
+  [[nodiscard]] auto classType() const -> const ClassType* {
+    return std::get<0>(*this);
+  }
+
+  [[nodiscard]] auto elementType() const -> const Type* {
+    return std::get<1>(*this);
+  }
 };
 
 class MemberFunctionPointerType final
@@ -350,8 +387,11 @@ class MemberFunctionPointerType final
                             const FunctionType* functionType)
       : Type(Kind), tuple(classType, functionType) {}
 
-  auto classType() const -> const ClassType* { return std::get<0>(*this); }
-  auto functionType() const -> const FunctionType* {
+  [[nodiscard]] auto classType() const -> const ClassType* {
+    return std::get<0>(*this);
+  }
+
+  [[nodiscard]] auto functionType() const -> const FunctionType* {
     return std::get<1>(*this);
   }
 };
@@ -369,7 +409,8 @@ class NamespaceType final : public Type {
 
   NamespaceType() : Type(Kind) {}
 
-  auto symbol() const -> NamespaceSymbol* { return symbol_; }
+  [[nodiscard]] auto symbol() const -> NamespaceSymbol* { return symbol_; }
+
   void setSymbol(NamespaceSymbol* symbol) const { symbol_ = symbol; }
 
  private:
@@ -386,11 +427,11 @@ class UnresolvedNameType final
                      NamedTypeSpecifierAST* namedTypeSpecifier)
       : Type(Kind), tuple(unit, namedTypeSpecifier) {}
 
-  auto translationUnit() const -> TranslationUnit* {
+  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
     return std::get<0>(*this);
   }
 
-  auto specifier() const -> NamedTypeSpecifierAST* {
+  [[nodiscard]] auto specifier() const -> NamedTypeSpecifierAST* {
     return std::get<1>(*this);
   }
 };
@@ -405,13 +446,17 @@ class UnresolvedBoundedArrayType final
                              ExpressionAST* size)
       : Type(Kind), tuple(unit, elementType, size) {}
 
-  auto translationUnit() const -> TranslationUnit* {
+  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
     return std::get<0>(*this);
   }
 
-  auto elementType() const -> const Type* { return std::get<1>(*this); }
+  [[nodiscard]] auto elementType() const -> const Type* {
+    return std::get<1>(*this);
+  }
 
-  auto size() const -> ExpressionAST* { return std::get<2>(*this); }
+  [[nodiscard]] auto size() const -> ExpressionAST* {
+    return std::get<2>(*this);
+  }
 };
 
 template <typename Visitor>

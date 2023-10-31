@@ -992,6 +992,7 @@ struct Parser::TypeTraits {
                     const UnresolvedBoundedArrayType* otherType) const -> bool {
       return type == otherType;
     }
+
   } is_same_{*this};
 };
 
@@ -1419,6 +1420,7 @@ struct Parser::DeclSpecs {
 struct Parser::Decl {
   DeclSpecs specs;
   IdDeclaratorAST* declaratorId = nullptr;
+  bool isPack = false;
 
   explicit Decl(const DeclSpecs& specs) : specs{specs} {}
 
@@ -2259,7 +2261,6 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
   ScopeGuard scopeGuard{this};
 
   auto symbol = control_->newLambdaSymbol(scope_);
-  symbol->setName(control_->newAnonymousId("lambda"));
   scope_->addSymbol(symbol);
 
   scope_ = symbol->scope();
@@ -2314,8 +2315,8 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
   }
 
   if (auto params = ast->parameterDeclarationClause) {
-    symbol->scope()->addSymbol(params->prototypeSymbol);
-    scope_ = params->prototypeSymbol->scope();
+    symbol->scope()->addSymbol(params->functionParametersSymbol);
+    scope_ = params->functionParametersSymbol->scope();
   } else {
     scope_ = symbol->scope();
   }
@@ -5319,8 +5320,8 @@ auto Parser::parse_simple_declaration(
     scope_->addSymbol(functionSymbol);
 
     if (auto params = functionDeclarator->parameterDeclarationClause) {
-      functionSymbol->scope()->addSymbol(params->prototypeSymbol);
-      scope_ = params->prototypeSymbol->scope();
+      functionSymbol->scope()->addSymbol(params->functionParametersSymbol);
+      scope_ = params->functionParametersSymbol->scope();
     } else {
       scope_ = functionSymbol->scope();
     }
@@ -5455,8 +5456,8 @@ auto Parser::parse_notypespec_function_definition(
   scope_->addSymbol(functionSymbol);
 
   if (auto params = functionDeclarator->parameterDeclarationClause) {
-    functionSymbol->scope()->addSymbol(params->prototypeSymbol);
-    scope_ = params->prototypeSymbol->scope();
+    functionSymbol->scope()->addSymbol(params->functionParametersSymbol);
+    scope_ = params->functionParametersSymbol->scope();
   } else {
     scope_ = functionSymbol->scope();
   }
@@ -6833,6 +6834,8 @@ auto Parser::parse_declarator_id(CoreDeclaratorAST*& yyast, Decl& decl,
                  declaratorKind == DeclaratorKind::kNewDeclarator)) {
     lookahead.commit();
 
+    decl.isPack = isPack;
+
     auto ast = new (pool_) ParameterPackAST();
     ast->ellipsisLoc = ellipsisLoc;
     yyast = ast;
@@ -6861,6 +6864,7 @@ auto Parser::parse_declarator_id(CoreDeclaratorAST*& yyast, Decl& decl,
   yyast = ast;
 
   decl.declaratorId = ast;
+  decl.isPack = isPack;
 
   ast->nestedNameSpecifier = nestedNameSpecifier;
   ast->templateLoc = templateLoc;
@@ -6966,7 +6970,7 @@ auto Parser::parse_parameter_declaration_clause(
   bool parsed = false;
 
   SourceLocation ellipsisLoc;
-  PrototypeSymbol* prototypeSymbol = nullptr;
+  FunctionParametersSymbol* functionParametersSymbol = nullptr;
 
   if (match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) {
     parsed = true;
@@ -6976,10 +6980,11 @@ auto Parser::parse_parameter_declaration_clause(
 
     ast->ellipsisLoc = ellipsisLoc;
     ast->isVariadic = true;
-    ast->prototypeSymbol = control_->newPrototypeSymbol(scope_);
+    ast->functionParametersSymbol =
+        control_->newFunctionParametersSymbol(scope_);
   } else if (List<ParameterDeclarationAST*>* parameterDeclarationList = nullptr;
              parse_parameter_declaration_list(parameterDeclarationList,
-                                              prototypeSymbol)) {
+                                              functionParametersSymbol)) {
     parsed = true;
 
     auto ast = new (pool_) ParameterDeclarationClauseAST();
@@ -6987,7 +6992,7 @@ auto Parser::parse_parameter_declaration_clause(
     ast->parameterDeclarationList = parameterDeclarationList;
     match(TokenKind::T_COMMA, ast->commaLoc);
     ast->isVariadic = match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
-    ast->prototypeSymbol = prototypeSymbol;
+    ast->functionParametersSymbol = functionParametersSymbol;
   } else {
     parsed = false;
   }
@@ -6998,15 +7003,15 @@ auto Parser::parse_parameter_declaration_clause(
 }
 
 auto Parser::parse_parameter_declaration_list(
-    List<ParameterDeclarationAST*>*& yyast, PrototypeSymbol*& prototypeSymbol)
-    -> bool {
+    List<ParameterDeclarationAST*>*& yyast,
+    FunctionParametersSymbol*& functionParametersSymbol) -> bool {
   auto it = &yyast;
 
   ScopeGuard scopeGuard{this};
 
-  prototypeSymbol = control_->newPrototypeSymbol(scope_);
+  functionParametersSymbol = control_->newFunctionParametersSymbol(scope_);
 
-  scope_ = prototypeSymbol->scope();
+  scope_ = functionParametersSymbol->scope();
 
   ParameterDeclarationAST* declaration = nullptr;
 
@@ -7053,16 +7058,15 @@ auto Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast,
   parse_optional_declarator_or_abstract_declarator(ast->declarator, decl);
 
   ast->type = GetDeclaratorType{this}(ast->declarator, decl.specs.getType());
+  ast->isPack = decl.isPack;
+
+  if (auto declId = decl.declaratorId; declId && declId->unqualifiedId) {
+    ast->identifier = ast_cast<NameIdAST>(declId->unqualifiedId)->identifier;
+  }
 
   if (!templParam) {
-    const Name* parameterName = nullptr;
-    if (auto declId = decl.declaratorId; declId && declId->unqualifiedId) {
-      parameterName = ast_cast<NameIdAST>(declId->unqualifiedId)->identifier;
-    } else {
-      parameterName = control_->newAnonymousId("param");
-    }
     auto parameterSymbol = control_->newParameterSymbol(scope_);
-    parameterSymbol->setName(parameterName);
+    parameterSymbol->setName(ast->identifier);
     parameterSymbol->setType(ast->type);
     scope_->addSymbol(parameterSymbol);
   }
@@ -7419,12 +7423,7 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
 
   lookahead.commit();
 
-  const Identifier* enumName = nullptr;
-
-  if (name)
-    enumName = name->identifier;
-  else
-    enumName = control_->newAnonymousId("enum");
+  const Identifier* enumName = name ? name->identifier : nullptr;
 
   if (classLoc) {
     auto enumSymbol = control_->newScopedEnumSymbol(scope_);
@@ -8788,16 +8787,17 @@ auto Parser::parse_class_head(ClassHead& classHead) -> bool {
   }
 
   auto classSymbol = control_->newClassSymbol(scope_);
-  const Identifier* id = nullptr;
 
+  const Identifier* id = nullptr;
   if (const auto simpleName = ast_cast<NameIdAST>(classHead.name))
     id = simpleName->identifier;
   else if (const auto t = ast_cast<SimpleTemplateIdAST>(classHead.name))
     id = t->identifier;
-  else
-    id = control_->newAnonymousId("class");
+
   classSymbol->setName(id);
+
   scope_->addSymbol(classSymbol);
+
   scope_ = classSymbol->scope();
 
   (void)parse_base_clause(classHead.colonLoc, classHead.baseSpecifierList);
@@ -8954,8 +8954,8 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
     ScopeGuard scopeGuard{this};
 
     if (auto params = functionDeclarator->parameterDeclarationClause) {
-      functionSymbol->scope()->addSymbol(params->prototypeSymbol);
-      scope_ = params->prototypeSymbol->scope();
+      functionSymbol->scope()->addSymbol(params->functionParametersSymbol);
+      scope_ = params->functionParametersSymbol->scope();
     } else {
       scope_ = functionSymbol->scope();
     }
@@ -9594,6 +9594,13 @@ auto Parser::parse_template_declaration(
   auto ast = new (pool_) TemplateDeclarationAST();
   yyast = ast;
 
+  auto templateParametersSymbol = control_->newTemplateParametersSymbol(scope_);
+  ast->symbol = templateParametersSymbol;
+
+  scope_->addSymbol(templateParametersSymbol);
+
+  scope_ = ast->symbol->scope();
+
   templateDeclarations.push_back(ast);
 
   expect(TokenKind::T_TEMPLATE, ast->templateLoc);
@@ -9631,7 +9638,6 @@ void Parser::parse_template_parameter_list(
   std::swap(templateParameterCount_, templateParameterCount);
 
   TemplateParameterAST* parameter = nullptr;
-
   parse_template_parameter(parameter);
 
   parameter->depth = templateParameterDepth_;
@@ -9644,7 +9650,6 @@ void Parser::parse_template_parameter_list(
 
   while (match(TokenKind::T_COMMA, commaLoc)) {
     TemplateParameterAST* parameter = nullptr;
-
     parse_template_parameter(parameter);
 
     parameter->depth = templateParameterDepth_;
@@ -9753,19 +9758,31 @@ void Parser::parse_template_parameter(TemplateParameterAST*& yyast) {
 
   if (!parse_parameter_declaration(parameter, /*templParam*/ true)) return;
 
+  auto symbol = control_->newNonTypeParameterSymbol(scope_);
+  symbol->setIndex(templateParameterCount_);
+  symbol->setDepth(templateParameterDepth_);
+  symbol->setName(parameter->identifier);
+  symbol->setParameterPack(parameter->isPack);
+  symbol->setObjectType(parameter->type);
+  scope_->addSymbol(symbol);
+
   auto ast = new (pool_) NonTypeTemplateParameterAST();
   yyast = ast;
 
   ast->declaration = parameter;
+  ast->symbol = symbol;
 
   lookahead.commit();
 }
 
 auto Parser::parse_type_parameter(TemplateParameterAST*& yyast) -> bool {
-  if (parse_template_type_parameter(yyast))
+  if (lookat(TokenKind::T_TEMPLATE, TokenKind::T_LESS)) {
+    parse_template_type_parameter(yyast);
     return true;
-  else if (parse_typename_type_parameter(yyast))
-    return true;
+  }
+
+  if (parse_typename_type_parameter(yyast)) return true;
+
   return false;
 }
 
@@ -9797,6 +9814,15 @@ auto Parser::parse_typename_type_parameter(TemplateParameterAST*& yyast)
 
   ast->identifier = unit->identifier(ast->identifierLoc);
 
+  auto symbol = control_->newTypeParameterSymbol(scope_);
+  symbol->setIndex(templateParameterCount_);
+  symbol->setDepth(templateParameterDepth_);
+  symbol->setParameterPack(isPack);
+  symbol->setName(ast->identifier);
+  scope_->addSymbol(symbol);
+
+  ast->symbol = symbol;
+
   if (!match(TokenKind::T_EQUAL, ast->equalLoc)) return true;
 
   if (!parse_type_id(ast->typeId)) parse_error("expected a type id");
@@ -9806,100 +9832,59 @@ auto Parser::parse_typename_type_parameter(TemplateParameterAST*& yyast)
   return true;
 }
 
-auto Parser::parse_template_type_parameter(TemplateParameterAST*& yyast)
-    -> bool {
-  if (!lookat(TokenKind::T_TEMPLATE, TokenKind::T_LESS)) return false;
-
+void Parser::parse_template_type_parameter(TemplateParameterAST*& yyast) {
   ScopeGuard scopeGuard{this};
-  TemplateHeadContext templateHeadContext{this};
-
-  SourceLocation templateLoc;
-
-  expect(TokenKind::T_TEMPLATE, templateLoc);
-
-  SourceLocation lessLoc;
-
-  expect(TokenKind::T_LESS, lessLoc);
-
-  SourceLocation greaterLoc;
-  List<TemplateParameterAST*>* templateParameterList = nullptr;
-
-  if (!match(TokenKind::T_GREATER, greaterLoc)) {
-    parse_template_parameter_list(templateParameterList);
-    expect(TokenKind::T_GREATER, greaterLoc);
-  }
-
-  RequiresClauseAST* requiresClause = nullptr;
-  (void)parse_requires_clause(requiresClause);
-
-  SourceLocation classsKeyLoc;
-
-  if (!parse_type_parameter_key(classsKeyLoc)) {
-    parse_error("expected a type parameter");
-  }
-
-  if (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_EQUAL) ||
-      lookat(TokenKind::T_EQUAL)) {
-    auto ast = new (pool_) TemplateTypeParameterAST();
-    yyast = ast;
-
-    ast->templateLoc = templateLoc;
-    ast->lessLoc = lessLoc;
-    ast->templateParameterList = templateParameterList;
-    ast->greaterLoc = greaterLoc;
-    ast->requiresClause = requiresClause;
-    ast->classKeyLoc = classsKeyLoc;
-
-    match(TokenKind::T_IDENTIFIER, ast->identifierLoc);
-
-    ast->identifier = unit->identifier(ast->identifierLoc);
-
-    mark_maybe_template_name(ast->identifier);
-
-    expect(TokenKind::T_EQUAL, ast->equalLoc);
-
-    if (!parse_id_expression(ast->idExpression)) {
-      parse_error("expected an id-expression");
-    }
-
-    return true;
-  }
-
-  SourceLocation ellipsisLoc;
-
-  if (match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) {
-    SourceLocation identifierLoc;
-
-    match(TokenKind::T_IDENTIFIER, identifierLoc);
-
-    auto ast = new (pool_) TemplatePackTypeParameterAST();
-    yyast = ast;
-
-    ast->templateLoc = templateLoc;
-    ast->lessLoc = lessLoc;
-    ast->templateParameterList = templateParameterList;
-    ast->greaterLoc = greaterLoc;
-    ast->classKeyLoc = classsKeyLoc;
-    ast->ellipsisLoc = ellipsisLoc;
-    ast->identifierLoc = identifierLoc;
-    ast->identifier = unit->identifier(ast->identifierLoc);
-  }
 
   auto ast = new (pool_) TemplateTypeParameterAST();
   yyast = ast;
 
-  ast->templateLoc = templateLoc;
-  ast->lessLoc = lessLoc;
-  ast->templateParameterList = templateParameterList;
-  ast->greaterLoc = greaterLoc;
-  ast->classKeyLoc = classsKeyLoc;
+  auto symbol = control_->newTemplateTypeParameterSymbol(scope_);
+  ast->symbol = symbol;
 
-  match(TokenKind::T_IDENTIFIER, ast->identifierLoc);
-  ast->identifier = unit->identifier(ast->identifierLoc);
+  symbol->setIndex(templateParameterCount_);
+  symbol->setDepth(templateParameterDepth_);
 
-  mark_maybe_template_name(ast->identifier);
+  expect(TokenKind::T_TEMPLATE, ast->templateLoc);
+  expect(TokenKind::T_LESS, ast->lessLoc);
 
-  return true;
+  if (!match(TokenKind::T_GREATER, ast->greaterLoc)) {
+    TemplateHeadContext templateHeadContext{this};
+
+    auto parameters = control_->newTemplateParametersSymbol(scope_);
+
+    scope_ = parameters->scope();
+
+    parse_template_parameter_list(ast->templateParameterList);
+
+    expect(TokenKind::T_GREATER, ast->greaterLoc);
+
+    scope_ = parameters->enclosingScope();
+  }
+
+  (void)parse_requires_clause(ast->requiresClause);
+
+  if (!parse_type_parameter_key(ast->classKeyLoc)) {
+    parse_error("expected a type parameter");
+  }
+
+  ast->isPack = match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
+
+  symbol->setParameterPack(ast->isPack);
+
+  if (match(TokenKind::T_IDENTIFIER, ast->identifierLoc)) {
+    ast->identifier = unit->identifier(ast->identifierLoc);
+    symbol->setName(ast->identifier);
+
+    mark_maybe_template_name(ast->identifier);
+  }
+
+  scope_->addSymbol(symbol);
+
+  if (match(TokenKind::T_EQUAL, ast->equalLoc)) {
+    if (!parse_id_expression(ast->idExpression)) {
+      parse_error("expected an id-expression");
+    }
+  }
 }
 
 auto Parser::parse_constraint_type_parameter(TemplateParameterAST*& yyast)
@@ -9935,6 +9920,12 @@ auto Parser::parse_constraint_type_parameter(TemplateParameterAST*& yyast)
   ast->identifier = unit->identifier(identifierLoc);
   ast->equalLoc = equalLoc;
   ast->typeId = typeId;
+
+  auto symbol = control_->newConstraintTypeParameterSymbol(scope_);
+  symbol->setIndex(templateParameterCount_);
+  symbol->setDepth(templateParameterDepth_);
+  symbol->setName(ast->identifier);
+  scope_->addSymbol(symbol);
 
   return true;
 }
@@ -10306,6 +10297,10 @@ auto Parser::parse_concept_definition(DeclarationAST*& yyast) -> bool {
 
   expect(TokenKind::T_IDENTIFIER, ast->identifierLoc);
   ast->identifier = unit->identifier(ast->identifierLoc);
+
+  auto symbol = control_->newConceptSymbol(scope_);
+  symbol->setName(ast->identifier);
+  scope_->addSymbol(symbol);
 
   if (ast->identifierLoc) {
     concept_names_.insert(ast->identifier);

@@ -127,7 +127,6 @@ export enum ASTKind {
 
   // TemplateParameterAST
   TemplateTypeParameter,
-  TemplatePackTypeParameter,
   NonTypeTemplateParameter,
   TypenameTypeParameter,
   ConstraintTypeParameter,

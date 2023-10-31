@@ -26,6 +26,7 @@ namespace cxx {
 
 #define CXX_FOR_EACH_SYMBOL(V) \
   V(Namespace)                 \
+  V(Concept)                   \
   V(Class)                     \
   V(Union)                     \
   V(Enum)                      \
@@ -36,9 +37,14 @@ namespace cxx {
   V(Field)                     \
   V(Parameter)                 \
   V(Enumerator)                \
-  V(Prototype)                 \
+  V(FunctionParameters)        \
+  V(TemplateParameters)        \
   V(Block)                     \
-  V(Lambda)
+  V(Lambda)                    \
+  V(TypeParameter)             \
+  V(NonTypeParameter)          \
+  V(TemplateTypeParameter)     \
+  V(ConstraintTypeParameter)
 
 class Symbol;
 class Scope;

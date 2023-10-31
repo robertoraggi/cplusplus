@@ -30,6 +30,7 @@ void foo(int x, auto... xs) { foo(xs...); }
 // CHECK-NEXT:            parameter-declaration-clause: parameter-declaration-clause
 // CHECK-NEXT:              parameter-declaration-list
 // CHECK-NEXT:                parameter-declaration
+// CHECK-NEXT:                  identifier: x
 // CHECK-NEXT:                  type-specifier-list
 // CHECK-NEXT:                    integral-type-specifier
 // CHECK-NEXT:                      specifier: int
@@ -38,6 +39,8 @@ void foo(int x, auto... xs) { foo(xs...); }
 // CHECK-NEXT:                      unqualified-id: name-id
 // CHECK-NEXT:                        identifier: x
 // CHECK-NEXT:                parameter-declaration
+// CHECK-NEXT:                  identifier: xs
+// CHECK-NEXT:                  is-pack: true
 // CHECK-NEXT:                  type-specifier-list
 // CHECK-NEXT:                    auto-type-specifier
 // CHECK-NEXT:                  declarator: declarator

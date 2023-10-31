@@ -132,7 +132,6 @@ enum struct ASTKind {
 
   // TemplateParameterAST
   TemplateTypeParameter,
-  TemplatePackTypeParameter,
   NonTypeTemplateParameter,
   TypenameTypeParameter,
   ConstraintTypeParameter,

@@ -1347,21 +1347,6 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   }
 
   /**
-   * Visit a TemplatePackTypeParameter node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitTemplatePackTypeParameter(
-    node: ast.TemplatePackTypeParameterAST,
-    context: Context,
-  ): void {
-    for (const element of node.getTemplateParameterList()) {
-      this.accept(element, context);
-    }
-  }
-
-  /**
    * Visit a NonTypeTemplateParameter node.
    *
    * @param node The node to visit.

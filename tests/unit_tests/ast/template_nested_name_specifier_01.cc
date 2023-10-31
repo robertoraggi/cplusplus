@@ -49,6 +49,7 @@ void set(typename HelperT::template Lookup<int>::PointerT p);
 // CHECK-NEXT:          depth: 0
 // CHECK-NEXT:          index: 0
 // CHECK-NEXT:          declaration: parameter-declaration
+// CHECK-NEXT:            identifier: N
 // CHECK-NEXT:            type-specifier-list
 // CHECK-NEXT:              integral-type-specifier
 // CHECK-NEXT:                specifier: int
@@ -70,6 +71,7 @@ void set(typename HelperT::template Lookup<int>::PointerT p);
 // CHECK-NEXT:                  parameter-declaration-clause: parameter-declaration-clause
 // CHECK-NEXT:                    parameter-declaration-list
 // CHECK-NEXT:                      parameter-declaration
+// CHECK-NEXT:                        identifier: p
 // CHECK-NEXT:                        type-specifier-list
 // CHECK-NEXT:                          typename-specifier
 // CHECK-NEXT:                            nested-name-specifier: template-nested-name-specifier

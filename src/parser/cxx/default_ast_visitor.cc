@@ -427,10 +427,6 @@ void DefaultASTVisitor::visit(TemplateTypeParameterAST* ast) {
   cxx_runtime_error("visit(TemplateTypeParameterAST): not implemented");
 }
 
-void DefaultASTVisitor::visit(TemplatePackTypeParameterAST* ast) {
-  cxx_runtime_error("visit(TemplatePackTypeParameterAST): not implemented");
-}
-
 void DefaultASTVisitor::visit(NonTypeTemplateParameterAST* ast) {
   cxx_runtime_error("visit(NonTypeTemplateParameterAST): not implemented");
 }

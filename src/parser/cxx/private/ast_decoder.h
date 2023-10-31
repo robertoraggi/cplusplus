@@ -272,9 +272,6 @@ class ASTDecoder {
 
   auto decodeTemplateTypeParameter(const io::TemplateTypeParameter* node)
       -> TemplateTypeParameterAST*;
-  auto decodeTemplatePackTypeParameter(
-      const io::TemplatePackTypeParameter* node)
-      -> TemplatePackTypeParameterAST*;
   auto decodeNonTypeTemplateParameter(const io::NonTypeTemplateParameter* node)
       -> NonTypeTemplateParameterAST*;
   auto decodeTypenameTypeParameter(const io::TypenameTypeParameter* node)

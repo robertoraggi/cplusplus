@@ -40,13 +40,20 @@ struct DumpSymbols {
 
   auto dumpScope(Scope* scope) {
     if (!scope) return;
+
     ++depth;
+
     auto symbols = scope->symbols();
+
     std::vector<Symbol*> sortedSymbols(begin(symbols), end(symbols));
-    std::ranges::sort(sortedSymbols,
-                      [](auto a, auto b) { return a->index() < b->index(); });
+
+    std::ranges::sort(sortedSymbols, [](auto a, auto b) {
+      return a->insertionPoint() < b->insertionPoint();
+    });
+
     std::ranges::for_each(sortedSymbols,
                           [&](auto symbol) { visit(*this, symbol); });
+
     --depth;
   }
 
@@ -57,9 +64,22 @@ struct DumpSymbols {
   }
 
   void operator()(ClassSymbol* symbol) {
-    fmt::print(out, "{:{}}class {}\n", "", depth * 2,
-               to_string(symbol->name()));
+    if (symbol->templateParameters()) {
+      fmt::print(out, "{:{}}template class {}\n", "", depth * 2,
+                 to_string(symbol->name()));
+      dumpScope(symbol->templateParameters()->scope());
+    } else {
+      fmt::print(out, "{:{}}class {}\n", "", depth * 2,
+                 to_string(symbol->name()));
+    }
     dumpScope(symbol->scope());
+  }
+
+  void operator()(ConceptSymbol* symbol) {
+    fmt::print(out, "{:{}}concept {}\n", "", depth * 2,
+               to_string(symbol->name()));
+    if (symbol->templateParameters())
+      dumpScope(symbol->templateParameters()->scope());
   }
 
   void operator()(UnionSymbol* symbol) {
@@ -80,6 +100,14 @@ struct DumpSymbols {
   }
 
   void operator()(FunctionSymbol* symbol) {
+    if (symbol->templateParameters()) {
+      fmt::print(out, "{:{}}template function {}\n", "", depth * 2,
+                 to_string(symbol->type(), symbol->name()));
+      dumpScope(symbol->templateParameters()->scope());
+      dumpScope(symbol->scope());
+      return;
+    }
+
     fmt::print(out, "{:{}}function {}\n", "", depth * 2,
                to_string(symbol->type(), symbol->name()));
     dumpScope(symbol->scope());
@@ -91,8 +119,13 @@ struct DumpSymbols {
     dumpScope(symbol->scope());
   }
 
-  void operator()(PrototypeSymbol* symbol) {
-    fmt::print(out, "{:{}}prototype\n", "", depth * 2);
+  void operator()(TemplateParametersSymbol* symbol) {
+    fmt::print(out, "{:{}}template parameters\n", "", depth * 2);
+    dumpScope(symbol->scope());
+  }
+
+  void operator()(FunctionParametersSymbol* symbol) {
+    fmt::print(out, "{:{}}parameters\n", "", depth * 2);
     dumpScope(symbol->scope());
   }
 
@@ -102,11 +135,25 @@ struct DumpSymbols {
   }
 
   void operator()(TypeAliasSymbol* symbol) {
+    if (symbol->templateParameters()) {
+      fmt::print(out, "{:{}}template typealias {}\n", "", depth * 2,
+                 to_string(symbol->type(), symbol->name()));
+      dumpScope(symbol->templateParameters()->scope());
+      return;
+    }
+
     fmt::print(out, "{:{}}typealias {}\n", "", depth * 2,
                to_string(symbol->type(), symbol->name()));
   }
 
   void operator()(VariableSymbol* symbol) {
+    if (symbol->templateParameters()) {
+      fmt::print(out, "{:{}}template variable {}\n", "", depth * 2,
+                 to_string(symbol->type(), symbol->name()));
+      dumpScope(symbol->templateParameters()->scope());
+      return;
+    }
+
     fmt::print(out, "{:{}}variable {}\n", "", depth * 2,
                to_string(symbol->type(), symbol->name()));
   }
@@ -119,6 +166,35 @@ struct DumpSymbols {
   void operator()(ParameterSymbol* symbol) {
     fmt::print(out, "{:{}}parameter {}\n", "", depth * 2,
                to_string(symbol->type(), symbol->name()));
+  }
+
+  void operator()(TypeParameterSymbol* symbol) {
+    std::string_view pack = symbol->isParameterPack() ? "..." : "";
+    fmt::print(out, "{:{}}parameter typename<{}, {}>{} {}\n", "", depth * 2,
+               symbol->index(), symbol->depth(), pack,
+               to_string(symbol->name()));
+  }
+
+  void operator()(NonTypeParameterSymbol* symbol) {
+    std::string_view pack = symbol->isParameterPack() ? "..." : "";
+    fmt::print(out, "{:{}}parameter object<{}, {}, {}>{} {}\n", "", depth * 2,
+               symbol->index(), symbol->depth(),
+               to_string(symbol->objectType()), pack,
+               to_string(symbol->name()));
+  }
+
+  void operator()(TemplateTypeParameterSymbol* symbol) {
+    std::string_view pack = symbol->isParameterPack() ? "..." : "";
+    fmt::print(out, "{:{}}parameter template<{}, {}>{} {}\n", "", depth * 2,
+               symbol->index(), symbol->depth(), pack,
+               to_string(symbol->name()));
+  }
+
+  void operator()(ConstraintTypeParameterSymbol* symbol) {
+    std::string_view pack = symbol->isParameterPack() ? "..." : "";
+    fmt::print(out, "{:{}}parameter constraint<{}, {}>{} {}\n", "", depth * 2,
+               symbol->index(), symbol->depth(), pack,
+               to_string(symbol->name()));
   }
 
   void operator()(EnumeratorSymbol* symbol) {

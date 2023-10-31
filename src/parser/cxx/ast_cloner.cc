@@ -378,6 +378,8 @@ void ASTCloner::visit(TemplateDeclarationAST* ast) {
   copy->requiresClause = accept(ast->requiresClause);
 
   copy->declaration = accept(ast->declaration);
+
+  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(ConceptDefinitionAST* ast) {
@@ -395,6 +397,8 @@ void ASTCloner::visit(ConceptDefinitionAST* ast) {
   copy->semicolonLoc = ast->semicolonLoc;
 
   copy->identifier = ast->identifier;
+
+  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(DeductionGuideAST* ast) {
@@ -614,7 +618,11 @@ void ASTCloner::visit(ParameterDeclarationAST* ast) {
 
   copy->type = ast->type;
 
+  copy->identifier = ast->identifier;
+
   copy->isThisIntroduced = ast->isThisIntroduced;
+
+  copy->isPack = ast->isPack;
 }
 
 void ASTCloner::visit(AccessDeclarationAST* ast) {
@@ -2003,6 +2011,8 @@ void ASTCloner::visit(TemplateTypeParameterAST* ast) {
   auto copy = new (arena_) TemplateTypeParameterAST();
   copy_ = copy;
 
+  copy->symbol = ast->symbol;
+
   copy->depth = ast->depth;
 
   copy->index = ast->index;
@@ -2026,6 +2036,8 @@ void ASTCloner::visit(TemplateTypeParameterAST* ast) {
 
   copy->classKeyLoc = ast->classKeyLoc;
 
+  copy->ellipsisLoc = ast->ellipsisLoc;
+
   copy->identifierLoc = ast->identifierLoc;
 
   copy->equalLoc = ast->equalLoc;
@@ -2033,43 +2045,15 @@ void ASTCloner::visit(TemplateTypeParameterAST* ast) {
   copy->idExpression = accept(ast->idExpression);
 
   copy->identifier = ast->identifier;
-}
 
-void ASTCloner::visit(TemplatePackTypeParameterAST* ast) {
-  auto copy = new (arena_) TemplatePackTypeParameterAST();
-  copy_ = copy;
-
-  copy->depth = ast->depth;
-
-  copy->index = ast->index;
-
-  copy->templateLoc = ast->templateLoc;
-
-  copy->lessLoc = ast->lessLoc;
-
-  if (auto it = ast->templateParameterList) {
-    auto out = &copy->templateParameterList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
-
-  copy->greaterLoc = ast->greaterLoc;
-
-  copy->classKeyLoc = ast->classKeyLoc;
-
-  copy->ellipsisLoc = ast->ellipsisLoc;
-
-  copy->identifierLoc = ast->identifierLoc;
-
-  copy->identifier = ast->identifier;
+  copy->isPack = ast->isPack;
 }
 
 void ASTCloner::visit(NonTypeTemplateParameterAST* ast) {
   auto copy = new (arena_) NonTypeTemplateParameterAST();
   copy_ = copy;
+
+  copy->symbol = ast->symbol;
 
   copy->depth = ast->depth;
 
@@ -2081,6 +2065,8 @@ void ASTCloner::visit(NonTypeTemplateParameterAST* ast) {
 void ASTCloner::visit(TypenameTypeParameterAST* ast) {
   auto copy = new (arena_) TypenameTypeParameterAST();
   copy_ = copy;
+
+  copy->symbol = ast->symbol;
 
   copy->depth = ast->depth;
 
@@ -2104,6 +2090,8 @@ void ASTCloner::visit(TypenameTypeParameterAST* ast) {
 void ASTCloner::visit(ConstraintTypeParameterAST* ast) {
   auto copy = new (arena_) ConstraintTypeParameterAST();
   copy_ = copy;
+
+  copy->symbol = ast->symbol;
 
   copy->depth = ast->depth;
 
@@ -3572,7 +3560,7 @@ void ASTCloner::visit(ParameterDeclarationClauseAST* ast) {
 
   copy->ellipsisLoc = ast->ellipsisLoc;
 
-  copy->prototypeSymbol = ast->prototypeSymbol;
+  copy->functionParametersSymbol = ast->functionParametersSymbol;
 
   copy->isVariadic = ast->isVariadic;
 }

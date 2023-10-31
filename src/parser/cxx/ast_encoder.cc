@@ -1345,6 +1345,16 @@ void ASTEncoder::visit(ParameterDeclarationAST* ast) {
 
   const auto [expression, expressionType] = acceptExpression(ast->expression);
 
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->value());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
   io::ParameterDeclaration::Builder builder{fbb_};
   builder.add_attribute_list(attributeListOffsetsVector);
   builder.add_attribute_list_type(attributeListTypesVector);
@@ -1355,6 +1365,9 @@ void ASTEncoder::visit(ParameterDeclarationAST* ast) {
   builder.add_equal_loc(equalLoc.o);
   builder.add_expression(expression);
   builder.add_expression_type(static_cast<io::Expression>(expressionType));
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
 
   offset_ = builder.Finish().Union();
   type_ = io::Declaration_ParameterDeclaration;
@@ -3199,6 +3212,8 @@ void ASTEncoder::visit(TemplateTypeParameterAST* ast) {
 
   auto classKeyLoc = encodeSourceLocation(ast->classKeyLoc);
 
+  auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
+
   auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
 
   auto equalLoc = encodeSourceLocation(ast->equalLoc);
@@ -3223,6 +3238,7 @@ void ASTEncoder::visit(TemplateTypeParameterAST* ast) {
   builder.add_greater_loc(greaterLoc.o);
   builder.add_requires_clause(requiresClause.o);
   builder.add_class_key_loc(classKeyLoc.o);
+  builder.add_ellipsis_loc(ellipsisLoc.o);
   builder.add_identifier_loc(identifierLoc.o);
   builder.add_equal_loc(equalLoc.o);
   builder.add_id_expression(idExpression.o);
@@ -3232,62 +3248,6 @@ void ASTEncoder::visit(TemplateTypeParameterAST* ast) {
 
   offset_ = builder.Finish().Union();
   type_ = io::TemplateParameter_TemplateTypeParameter;
-}
-
-void ASTEncoder::visit(TemplatePackTypeParameterAST* ast) {
-  auto templateLoc = encodeSourceLocation(ast->templateLoc);
-
-  auto lessLoc = encodeSourceLocation(ast->lessLoc);
-
-  std::vector<flatbuffers::Offset<>> templateParameterListOffsets;
-  std::vector<std::underlying_type_t<io::TemplateParameter>>
-      templateParameterListTypes;
-
-  for (auto it = ast->templateParameterList; it; it = it->next) {
-    if (!it->value) continue;
-    const auto [offset, type] = acceptTemplateParameter(it->value);
-    templateParameterListOffsets.push_back(offset);
-    templateParameterListTypes.push_back(type);
-  }
-
-  auto templateParameterListOffsetsVector =
-      fbb_.CreateVector(templateParameterListOffsets);
-  auto templateParameterListTypesVector =
-      fbb_.CreateVector(templateParameterListTypes);
-
-  auto greaterLoc = encodeSourceLocation(ast->greaterLoc);
-
-  auto classKeyLoc = encodeSourceLocation(ast->classKeyLoc);
-
-  auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
-
-  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
-
-  flatbuffers::Offset<flatbuffers::String> identifier;
-  if (ast->identifier) {
-    if (identifiers_.contains(ast->identifier)) {
-      identifier = identifiers_.at(ast->identifier);
-    } else {
-      identifier = fbb_.CreateString(ast->identifier->value());
-      identifiers_.emplace(ast->identifier, identifier);
-    }
-  }
-
-  io::TemplatePackTypeParameter::Builder builder{fbb_};
-  builder.add_template_loc(templateLoc.o);
-  builder.add_less_loc(lessLoc.o);
-  builder.add_template_parameter_list(templateParameterListOffsetsVector);
-  builder.add_template_parameter_list_type(templateParameterListTypesVector);
-  builder.add_greater_loc(greaterLoc.o);
-  builder.add_class_key_loc(classKeyLoc.o);
-  builder.add_ellipsis_loc(ellipsisLoc.o);
-  builder.add_identifier_loc(identifierLoc.o);
-  if (ast->identifier) {
-    builder.add_identifier(identifier);
-  }
-
-  offset_ = builder.Finish().Union();
-  type_ = io::TemplateParameter_TemplatePackTypeParameter;
 }
 
 void ASTEncoder::visit(NonTypeTemplateParameterAST* ast) {
