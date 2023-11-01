@@ -345,7 +345,7 @@ struct Parser::TypeTraits {
     if (!type) return type;
     if (is_function(type)) return type;
     if (is_reference(type)) return type;
-    if (is_const(type)) return type;
+    if (is_volatile(type)) return type;
     return control()->getVolatileType(type);
   }
 
