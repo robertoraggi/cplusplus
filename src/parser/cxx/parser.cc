@@ -1154,12 +1154,14 @@ struct Parser::GetDeclaratorType {
       isNoexcept = visit(*this, ast->exceptionSpecifier);
 
     if (ast->trailingReturnType) {
+#if false
       if (!type_cast<AutoType>(returnType)) {
         p->parse_warn(ast->trailingReturnType->firstSourceLocation(),
                       fmt::format("function with trailing return type must "
                                   "be declared with 'auto', not '{}'",
                                   to_string(returnType)));
       }
+#endif
 
       if (ast->trailingReturnType->typeId) {
         returnType = ast->trailingReturnType->typeId->type;
@@ -5469,6 +5471,8 @@ auto Parser::parse_notypespec_function_definition(
 
   if (!has_requires_clause) parse_virt_specifier_seq(functionDeclarator);
 
+  parse_optional_attribute_specifier_seq(functionDeclarator->attributeList);
+
   SourceLocation equalLoc;
   SourceLocation zeroLoc;
 
@@ -9022,6 +9026,8 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
       parse_virt_specifier_seq(functionDeclarator);
     }
 
+    parse_optional_attribute_specifier_seq(functionDeclarator->attributeList);
+
     if (!lookat_function_body()) return false;
 
     lookahead.commit();
@@ -9207,6 +9213,11 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
       ast->requiresClause = requiresClause;
     } else {
       parse_virt_specifier_seq(functionDeclarator);
+
+      if (!functionDeclarator->attributeList) {
+        parse_optional_attribute_specifier_seq(
+            functionDeclarator->attributeList);
+      }
 
       SourceLocation equalLoc;
       SourceLocation zeroLoc;
