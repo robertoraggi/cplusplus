@@ -303,16 +303,22 @@ class TypePrinter {
     }
   }
 
-  void operator()(const UnresolvedBoundedArrayType* type) {
+  auto textOf(TranslationUnit* unit, SourceLocationRange range) const
+      -> std::string {
     std::string buf;
-    buf += '[';
-    auto unit = type->translationUnit();
-    auto [first, last] = type->size()->sourceLocationRange();
+    auto [first, last] = range;
     for (auto loc = first; loc != last; loc = loc.next()) {
       const auto& tk = unit->tokenAt(loc);
       if (loc != first && (tk.leadingSpace() || tk.startOfLine())) buf += ' ';
       buf += tk.spell();
     }
+    return buf;
+  }
+
+  void operator()(const UnresolvedBoundedArrayType* type) {
+    std::string buf;
+    buf += '[';
+    buf += textOf(type->translationUnit(), type->size()->sourceLocationRange());
     buf += ']';
 
     if (ptrOps_.empty()) {
@@ -329,6 +335,13 @@ class TypePrinter {
     }
 
     accept(type->elementType());
+  }
+
+  void operator()(const UnresolvedUnderlyingType* type) {
+    specifiers_ += "__underlying_type(";
+    specifiers_ +=
+        textOf(type->translationUnit(), type->typeId()->sourceLocationRange());
+    specifiers_ += ")";
   }
 
  private:

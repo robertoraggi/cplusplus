@@ -20,4 +20,17 @@
 
 #include <cxx/types.h>
 
-namespace cxx {}
+// cxx
+#include <cxx/symbols.h>
+
+namespace cxx {
+
+auto EnumType::underlyingType() const -> const Type* {
+  return symbol_->underlyingType();
+}
+
+auto ScopedEnumType::underlyingType() const -> const Type* {
+  return symbol_->underlyingType();
+}
+
+}  // namespace cxx

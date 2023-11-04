@@ -337,6 +337,8 @@ class EnumType final : public Type {
 
   EnumType() : Type(Kind) {}
 
+  [[nodiscard]] auto underlyingType() const -> const Type*;
+
   [[nodiscard]] auto symbol() const -> EnumSymbol* { return symbol_; }
 
   void setSymbol(EnumSymbol* symbol) const { symbol_ = symbol; }
@@ -350,6 +352,8 @@ class ScopedEnumType final : public Type {
   static constexpr TypeKind Kind = TypeKind::kScopedEnum;
 
   ScopedEnumType() : Type(Kind) {}
+
+  [[nodiscard]] auto underlyingType() const -> const Type*;
 
   [[nodiscard]] auto symbol() const -> ScopedEnumSymbol* { return symbol_; }
 
@@ -463,6 +467,22 @@ class UnresolvedBoundedArrayType final
   [[nodiscard]] auto size() const -> ExpressionAST* {
     return std::get<2>(*this);
   }
+};
+
+class UnresolvedUnderlyingType final
+    : public Type,
+      public std::tuple<TranslationUnit*, TypeIdAST*> {
+ public:
+  static constexpr TypeKind Kind = TypeKind::kUnresolvedUnderlying;
+
+  UnresolvedUnderlyingType(TranslationUnit* unit, TypeIdAST* typeId)
+      : Type(Kind), tuple(unit, typeId) {}
+
+  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
+    return std::get<0>(*this);
+  }
+
+  [[nodiscard]] auto typeId() const -> TypeIdAST* { return std::get<1>(*this); }
 };
 
 template <typename Visitor>

@@ -89,13 +89,27 @@ struct DumpSymbols {
   }
 
   void operator()(EnumSymbol* symbol) {
-    fmt::print(out, "{:{}}enum {}\n", "", depth * 2, to_string(symbol->name()));
+    fmt::print(out, "{:{}}enum {}", "", depth * 2, to_string(symbol->name()));
+
+    if (auto underlyingType = symbol->underlyingType()) {
+      fmt::print(out, " : {}", to_string(underlyingType));
+    }
+
+    fmt::print(out, "\n");
+
     dumpScope(symbol->scope());
   }
 
   void operator()(ScopedEnumSymbol* symbol) {
-    fmt::print(out, "{:{}}enum class {}\n", "", depth * 2,
+    fmt::print(out, "{:{}}enum class {}", "", depth * 2,
                to_string(symbol->name()));
+
+    if (auto underlyingType = symbol->underlyingType()) {
+      fmt::print(out, " : {}", to_string(underlyingType));
+    }
+
+    fmt::print(out, "\n");
+
     dumpScope(symbol->scope());
   }
 

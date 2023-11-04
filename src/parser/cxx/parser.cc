@@ -993,6 +993,11 @@ struct Parser::TypeTraits {
       return type == otherType;
     }
 
+    auto operator()(const UnresolvedUnderlyingType* type,
+                    const UnresolvedUnderlyingType* otherType) const -> bool {
+      return type == otherType;
+    }
+
   } is_same_{*this};
 };
 
@@ -6098,6 +6103,17 @@ auto Parser::parse_underlying_type_specifier(SpecifierAST*& yyast,
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
+  if (ast->typeId) {
+    if (auto enumType = type_cast<EnumType>(ast->typeId->type)) {
+      specs.type = enumType->underlyingType();
+    } else if (auto scopedEnumType =
+                   type_cast<ScopedEnumType>(ast->typeId->type)) {
+      specs.type = scopedEnumType->underlyingType();
+    } else {
+      specs.type = control_->getUnresolvedUnderlyingType(unit, ast->typeId);
+    }
+  }
+
   return true;
 }
 
@@ -7424,27 +7440,39 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   SourceLocation colonLoc;
   List<SpecifierAST*>* typeSpecifierList = nullptr;
 
-  (void)parse_enum_base(colonLoc, typeSpecifierList);
+  DeclSpecs underlyingTypeSpecs{this};
+  (void)parse_enum_base(colonLoc, typeSpecifierList, underlyingTypeSpecs);
 
   SourceLocation lbraceLoc;
-
   if (!match(TokenKind::T_LBRACE, lbraceLoc)) return false;
 
   ScopeGuard scopeGuard{this};
 
   lookahead.commit();
 
+  const auto underlyingType = underlyingTypeSpecs.getType();
+
   const Identifier* enumName = name ? name->identifier : nullptr;
+
+  Symbol* symbol = nullptr;
 
   if (classLoc) {
     auto enumSymbol = control_->newScopedEnumSymbol(scope_);
+    symbol = enumSymbol;
+
     enumSymbol->setName(enumName);
+    enumSymbol->setUnderlyingType(underlyingType);
     scope_->addSymbol(enumSymbol);
+
     scope_ = enumSymbol->scope();
   } else {
     auto enumSymbol = control_->newEnumSymbol(scope_);
+    symbol = enumSymbol;
+
     enumSymbol->setName(enumName);
+    enumSymbol->setUnderlyingType(underlyingType);
     scope_->addSymbol(enumSymbol);
+
     scope_ = enumSymbol->scope();
   }
 
@@ -7461,7 +7489,7 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   ast->lbraceLoc = lbraceLoc;
 
   if (!match(TokenKind::T_RBRACE, ast->rbraceLoc)) {
-    parse_enumerator_list(ast->enumeratorList);
+    parse_enumerator_list(ast->enumeratorList, symbol->type());
 
     match(TokenKind::T_COMMA, ast->commaLoc);
 
@@ -7495,6 +7523,7 @@ auto Parser::parse_opaque_enum_declaration(DeclarationAST*& yyast) -> bool {
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   NameIdAST* name = nullptr;
   SourceLocation colonLoc;
+  DeclSpecs underlyingTypeSpecs{this};
   List<SpecifierAST*>* typeSpecifierList = nullptr;
   SourceLocation semicolonLoc;
 
@@ -7503,7 +7532,7 @@ auto Parser::parse_opaque_enum_declaration(DeclarationAST*& yyast) -> bool {
     parse_optional_attribute_specifier_seq(attributes);
     if (!parse_enum_key(enumLoc, classLoc)) return false;
     if (!parse_enum_head_name(nestedNameSpecifier, name)) return false;
-    (void)parse_enum_base(colonLoc, typeSpecifierList);
+    (void)parse_enum_base(colonLoc, typeSpecifierList, underlyingTypeSpecs);
     if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return false;
     lookahead.commit();
     return true;
@@ -7540,10 +7569,10 @@ auto Parser::parse_enum_key(SourceLocation& enumLoc, SourceLocation& classLoc)
 }
 
 auto Parser::parse_enum_base(SourceLocation& colonLoc,
-                             List<SpecifierAST*>*& typeSpecifierList) -> bool {
+                             List<SpecifierAST*>*& typeSpecifierList,
+                             DeclSpecs& specs) -> bool {
   if (!match(TokenKind::T_COLON, colonLoc)) return false;
 
-  DeclSpecs specs{this};
   if (!parse_type_specifier_seq(typeSpecifierList, specs)) {
     parse_error("expected a type specifier");
   }
@@ -7551,12 +7580,12 @@ auto Parser::parse_enum_base(SourceLocation& colonLoc,
   return true;
 }
 
-void Parser::parse_enumerator_list(List<EnumeratorAST*>*& yyast) {
+void Parser::parse_enumerator_list(List<EnumeratorAST*>*& yyast,
+                                   const Type* type) {
   auto it = &yyast;
 
   EnumeratorAST* enumerator = nullptr;
-
-  parse_enumerator_definition(enumerator);
+  parse_enumerator_definition(enumerator, type);
 
   *it = new (pool_) List(enumerator);
   it = &(*it)->next;
@@ -7570,16 +7599,16 @@ void Parser::parse_enumerator_list(List<EnumeratorAST*>*& yyast) {
     }
 
     EnumeratorAST* enumerator = nullptr;
-
-    parse_enumerator_definition(enumerator);
+    parse_enumerator_definition(enumerator, type);
 
     *it = new (pool_) List(enumerator);
     it = &(*it)->next;
   }
 }
 
-void Parser::parse_enumerator_definition(EnumeratorAST*& yyast) {
-  parse_enumerator(yyast);
+void Parser::parse_enumerator_definition(EnumeratorAST*& yyast,
+                                         const Type* type) {
+  parse_enumerator(yyast, type);
 
   if (match(TokenKind::T_EQUAL, yyast->equalLoc)) {
     if (!parse_constant_expression(yyast->expression)) {
@@ -7588,7 +7617,7 @@ void Parser::parse_enumerator_definition(EnumeratorAST*& yyast) {
   }
 }
 
-void Parser::parse_enumerator(EnumeratorAST*& yyast) {
+void Parser::parse_enumerator(EnumeratorAST*& yyast, const Type* type) {
   auto ast = new (pool_) EnumeratorAST();
   yyast = ast;
 
@@ -7600,11 +7629,13 @@ void Parser::parse_enumerator(EnumeratorAST*& yyast) {
 
   auto enumeratorSymbol = control_->newEnumeratorSymbol(scope_);
   enumeratorSymbol->setName(ast->identifier);
+  enumeratorSymbol->setType(type);
   scope_->addSymbol(enumeratorSymbol);
 
   if (auto enumSymbol = symbol_cast<EnumSymbol>(scope_->owner())) {
     auto enumeratorSymbol = control_->newEnumeratorSymbol(scope_);
     enumeratorSymbol->setName(ast->identifier);
+    enumeratorSymbol->setType(type);
     enumSymbol->enclosingScope()->addSymbol(enumeratorSymbol);
   }
 }

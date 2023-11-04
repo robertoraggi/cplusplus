@@ -121,6 +121,8 @@ class Control {
                                      const Type* elementType,
                                      ExpressionAST* sizeExpression)
       -> const UnresolvedBoundedArrayType*;
+  auto getUnresolvedUnderlyingType(TranslationUnit* unit, TypeIdAST* typeId)
+      -> const UnresolvedUnderlyingType*;
 
   auto newClassType() -> const ClassType*;
   auto newUnionType() -> const UnionType*;
