@@ -173,8 +173,17 @@ class EnumSymbol final : public Symbol {
 
   [[nodiscard]] auto scope() const -> Scope* { return scope_.get(); }
 
+  [[nodiscard]] auto underlyingType() const -> const Type* {
+    return underlyingType_;
+  }
+
+  void setUnderlyingType(const Type* underlyingType) {
+    underlyingType_ = underlyingType;
+  }
+
  private:
   std::unique_ptr<Scope> scope_;
+  const Type* underlyingType_ = nullptr;
 };
 
 class ScopedEnumSymbol final : public Symbol {
@@ -186,8 +195,17 @@ class ScopedEnumSymbol final : public Symbol {
 
   [[nodiscard]] auto scope() const -> Scope* { return scope_.get(); }
 
+  [[nodiscard]] auto underlyingType() const -> const Type* {
+    return underlyingType_;
+  }
+
+  void setUnderlyingType(const Type* underlyingType) {
+    underlyingType_ = underlyingType;
+  }
+
  private:
   std::unique_ptr<Scope> scope_;
+  const Type* underlyingType_ = nullptr;
 };
 
 class FunctionSymbol final : public Symbol {

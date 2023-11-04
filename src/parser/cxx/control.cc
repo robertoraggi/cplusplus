@@ -113,6 +113,7 @@ struct Control::Private {
   std::set<MemberFunctionPointerType> memberFunctionPointerTypes;
   std::set<UnresolvedNameType> unresolvedNameTypes;
   std::set<UnresolvedBoundedArrayType> unresolvedBoundedArrayTypes;
+  std::set<UnresolvedUnderlyingType> unresolvedUnderlyingTypes;
 
   std::forward_list<ClassType> classTypes;
   std::forward_list<UnionType> unionTypes;
@@ -387,6 +388,12 @@ auto Control::getUnresolvedBoundedArrayType(TranslationUnit* unit,
   return &*d->unresolvedBoundedArrayTypes
                .emplace(unit, elementType, sizeExpression)
                .first;
+}
+
+auto Control::getUnresolvedUnderlyingType(TranslationUnit* unit,
+                                          TypeIdAST* typeId)
+    -> const UnresolvedUnderlyingType* {
+  return &*d->unresolvedUnderlyingTypes.emplace(unit, typeId).first;
 }
 
 auto Control::newClassType() -> const ClassType* {
