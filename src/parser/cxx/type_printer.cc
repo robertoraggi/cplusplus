@@ -288,7 +288,13 @@ class TypePrinter {
 
   void operator()(const UnresolvedNameType* type) {
     auto unit = type->translationUnit();
-    auto [first, last] = type->specifier()->sourceLocationRange();
+    SourceLocation first;
+    if (type->nestedNameSpecifier()) {
+      first = firstSourceLocation(type->nestedNameSpecifier());
+    } else {
+      first = firstSourceLocation(type->unqualifiedId());
+    }
+    auto last = lastSourceLocation(type->unqualifiedId());
     for (auto loc = first; loc != last; loc = loc.next()) {
       const auto& tk = unit->tokenAt(loc);
       if (loc != first && (tk.leadingSpace() || tk.startOfLine()))

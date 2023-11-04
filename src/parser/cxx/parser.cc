@@ -1148,9 +1148,17 @@ struct Parser::GetDeclaratorType {
     if (ast->exceptionSpecifier)
       isNoexcept = visit(*this, ast->exceptionSpecifier);
 
-    if (!returnType && ast->trailingReturnType &&
-        ast->trailingReturnType->typeId) {
-      returnType = ast->trailingReturnType->typeId->type;
+    if (ast->trailingReturnType) {
+      if (!type_cast<AutoType>(returnType)) {
+        p->parse_warn(ast->trailingReturnType->firstSourceLocation(),
+                      fmt::format("function with trailing return type must "
+                                  "be declared with 'auto', not '{}'",
+                                  to_string(returnType)));
+      }
+
+      if (ast->trailingReturnType->typeId) {
+        returnType = ast->trailingReturnType->typeId->type;
+      }
     }
 
     type_ = control()->getFunctionType(returnType, std::move(parameterTypes),
@@ -6054,7 +6062,8 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   ast->unqualifiedId = unqualifiedId;
   ast->isTemplateIntroduced = isTemplateIntroduced;
 
-  specs.type = control_->getUnresolvedNameType(unit, ast);
+  specs.type =
+      control_->getUnresolvedNameType(unit, nestedNameSpecifier, unqualifiedId);
 
   return true;
 }
@@ -6433,6 +6442,7 @@ auto Parser::parse_placeholder_type_specifier(SpecifierAST*& yyast,
     ast->autoLoc = autoLoc;
 
     specs.isAuto = true;
+    specs.type = control_->getAutoType();
   } else {
     auto ast = new (pool_) DecltypeAutoSpecifierAST();
     yyast = ast;
@@ -6443,6 +6453,7 @@ auto Parser::parse_placeholder_type_specifier(SpecifierAST*& yyast,
     expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
     specs.isDecltypeAuto = true;
+    specs.type = control_->getDecltypeAutoType();
   }
 
   if (typeConstraint) {
@@ -10324,7 +10335,7 @@ auto Parser::parse_typename_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   SourceLocation typenameLoc;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   SourceLocation templateLoc;
-  UnqualifiedIdAST* name = nullptr;
+  UnqualifiedIdAST* unqualifiedId = nullptr;
 
   auto lookat_typename_specifier = [&] {
     LookaheadParser lookahead{this};
@@ -10334,10 +10345,11 @@ auto Parser::parse_typename_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
 
     const auto isTemplateIntroduced = match(TokenKind::T_TEMPLATE, templateLoc);
 
-    if (!parse_simple_template_or_name_id(name, isTemplateIntroduced))
+    if (!parse_simple_template_or_name_id(unqualifiedId, isTemplateIntroduced))
       return false;
 
     lookahead.commit();
+
     return true;
   };
 
@@ -10348,7 +10360,10 @@ auto Parser::parse_typename_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
 
   ast->typenameLoc = typenameLoc;
   ast->nestedNameSpecifier = nestedNameSpecifier;
-  ast->unqualifiedId = name;
+  ast->unqualifiedId = unqualifiedId;
+
+  specs.type =
+      control_->getUnresolvedNameType(unit, nestedNameSpecifier, unqualifiedId);
 
   return true;
 }

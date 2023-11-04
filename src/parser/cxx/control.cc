@@ -372,9 +372,12 @@ auto Control::getMemberFunctionPointerType(const ClassType* classType,
 }
 
 auto Control::getUnresolvedNameType(TranslationUnit* unit,
-                                    NamedTypeSpecifierAST* specifier)
+                                    NestedNameSpecifierAST* nestedNameSpecifier,
+                                    UnqualifiedIdAST* unqualifiedId)
     -> const UnresolvedNameType* {
-  return &*d->unresolvedNameTypes.emplace(unit, specifier).first;
+  return &*d->unresolvedNameTypes
+               .emplace(unit, nestedNameSpecifier, unqualifiedId)
+               .first;
 }
 
 auto Control::getUnresolvedBoundedArrayType(TranslationUnit* unit,
