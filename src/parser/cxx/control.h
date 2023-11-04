@@ -114,7 +114,8 @@ class Control {
                                     const FunctionType* functionType)
       -> const MemberFunctionPointerType*;
   auto getUnresolvedNameType(TranslationUnit* unit,
-                             NamedTypeSpecifierAST* specifier)
+                             NestedNameSpecifierAST* nestedNameSpecifier,
+                             UnqualifiedIdAST* unqualifiedId)
       -> const UnresolvedNameType*;
   auto getUnresolvedBoundedArrayType(TranslationUnit* unit,
                                      const Type* elementType,

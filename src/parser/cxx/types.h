@@ -419,20 +419,26 @@ class NamespaceType final : public Type {
 
 class UnresolvedNameType final
     : public Type,
-      public std::tuple<TranslationUnit*, NamedTypeSpecifierAST*> {
+      public std::tuple<TranslationUnit*, NestedNameSpecifierAST*,
+                        UnqualifiedIdAST*> {
  public:
   static constexpr TypeKind Kind = TypeKind::kUnresolvedName;
 
   UnresolvedNameType(TranslationUnit* unit,
-                     NamedTypeSpecifierAST* namedTypeSpecifier)
-      : Type(Kind), tuple(unit, namedTypeSpecifier) {}
+                     NestedNameSpecifierAST* nestedNameSpecifier,
+                     UnqualifiedIdAST* unqualifiedId)
+      : Type(Kind), tuple(unit, nestedNameSpecifier, unqualifiedId) {}
 
   [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
     return std::get<0>(*this);
   }
 
-  [[nodiscard]] auto specifier() const -> NamedTypeSpecifierAST* {
+  [[nodiscard]] auto nestedNameSpecifier() const -> NestedNameSpecifierAST* {
     return std::get<1>(*this);
+  }
+
+  [[nodiscard]] auto unqualifiedId() const -> UnqualifiedIdAST* {
+    return std::get<2>(*this);
   }
 };
 
