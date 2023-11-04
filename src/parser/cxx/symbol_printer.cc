@@ -91,7 +91,7 @@ struct DumpSymbols {
 
   void operator()(EnumSymbol* symbol) {
     indent();
-    fmt::print(out, "enum {}", "", to_string(symbol->name()));
+    fmt::print(out, "enum {}", to_string(symbol->name()));
 
     if (auto underlyingType = symbol->underlyingType()) {
       fmt::print(out, " : {}", to_string(underlyingType));
