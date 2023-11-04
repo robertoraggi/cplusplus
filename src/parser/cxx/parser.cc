@@ -2316,7 +2316,7 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
       expect(TokenKind::T_RPAREN, ast->rparenLoc);
     }
 
-    (void)parse_lambda_specifier_seq(ast->lambdaSpecifierList);
+    (void)parse_lambda_specifier_seq(ast->lambdaSpecifierList, symbol);
 
     (void)parse_noexcept_specifier(ast->exceptionSpecifier);
 
@@ -2341,14 +2341,24 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_lambda_specifier_seq(List<LambdaSpecifierAST*>*& yyast)
-    -> bool {
+auto Parser::parse_lambda_specifier_seq(List<LambdaSpecifierAST*>*& yyast,
+                                        LambdaSymbol* symbol) -> bool {
   yyast = nullptr;
 
   auto it = &yyast;
 
-  while (LA().isOneOf(TokenKind::T_CONSTEVAL, TokenKind::T_CONSTEXPR,
-                      TokenKind::T_MUTABLE, TokenKind::T_STATIC)) {
+  while (true) {
+    if (lookat(TokenKind::T_CONSTEVAL))
+      symbol->setConsteval(true);
+    else if (lookat(TokenKind::T_CONSTEXPR))
+      symbol->setConstexpr(true);
+    else if (lookat(TokenKind::T_MUTABLE))
+      symbol->setMutable(true);
+    else if (lookat(TokenKind::T_STATIC))
+      symbol->setStatic(true);
+    else
+      break;
+
     auto specifier = new (pool_) LambdaSpecifierAST();
     specifier->specifierLoc = consumeToken();
     specifier->specifier = unit->tokenKind(specifier->specifierLoc);
@@ -5065,6 +5075,34 @@ auto Parser::enterOrCreateNamespace(const Name* name, bool isInline)
 void Parser::enterFunctionScope(
     FunctionDeclaratorChunkAST* functionDeclarator) {}
 
+void Parser::applySpecifiers(FunctionSymbol* symbol, const DeclSpecs& specs) {
+  symbol->setStatic(specs.isStatic);
+  symbol->setExtern(specs.isExtern);
+  symbol->setFriend(specs.isFriend);
+  symbol->setConstexpr(specs.isConstexpr);
+  symbol->setConsteval(specs.isConsteval);
+  symbol->setInline(specs.isInline);
+  symbol->setVirtual(specs.isVirtual);
+  symbol->setExplicit(specs.isExplicit);
+}
+
+void Parser::applySpecifiers(VariableSymbol* symbol, const DeclSpecs& specs) {
+  symbol->setStatic(specs.isStatic);
+  symbol->setThreadLocal(specs.isThreadLocal);
+  symbol->setExtern(specs.isExtern);
+  symbol->setConstexpr(specs.isConstexpr);
+  symbol->setConstinit(specs.isConstinit);
+  symbol->setInline(specs.isInline);
+}
+
+void Parser::applySpecifiers(FieldSymbol* symbol, const DeclSpecs& specs) {
+  symbol->setStatic(specs.isStatic);
+  symbol->setThreadLocal(specs.isThreadLocal);
+  symbol->setConstexpr(specs.isConstexpr);
+  symbol->setConstinit(specs.isConstinit);
+  symbol->setInline(specs.isInline);
+}
+
 auto Parser::parse_template_class_declaration(
     DeclarationAST*& yyast, List<AttributeSpecifierAST*>* attributes,
     const std::vector<TemplateDeclarationAST*>& templateDeclarations,
@@ -5328,6 +5366,7 @@ auto Parser::parse_simple_declaration(
     const Name* functionName = decl.getName();
 
     auto functionSymbol = control_->newFunctionSymbol(scope_);
+    applySpecifiers(functionSymbol, decl.specs);
     functionSymbol->setName(functionName);
     functionSymbol->setType(functionType);
     scope_->addSymbol(functionSymbol);
@@ -5464,6 +5503,7 @@ auto Parser::parse_notypespec_function_definition(
   auto functionType = GetDeclaratorType{this}(declarator, decl.specs.getType());
 
   auto functionSymbol = control_->newFunctionSymbol(scope_);
+  applySpecifiers(functionSymbol, decl.specs);
   functionSymbol->setName(decl.getName());
   functionSymbol->setType(functionType);
   scope_->addSymbol(functionSymbol);
@@ -6505,14 +6545,15 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
         symbol->setName(name);
         symbol->setType(symbolType);
         scope_->addSymbol(symbol);
-
       } else if (getFunctionPrototype(declarator)) {
-        auto symbol = control_->newFunctionSymbol(scope_);
-        symbol->setName(name);
-        symbol->setType(symbolType);
-        scope_->addSymbol(symbol);
+        auto functionSymbol = control_->newFunctionSymbol(scope_);
+        applySpecifiers(functionSymbol, decl.specs);
+        functionSymbol->setName(name);
+        functionSymbol->setType(symbolType);
+        scope_->addSymbol(functionSymbol);
       } else {
         auto symbol = control_->newVariableSymbol(scope_);
+        applySpecifiers(symbol, decl.specs);
         symbol->setName(name);
         symbol->setType(symbolType);
         scope_->addSymbol(symbol);
@@ -8989,6 +9030,7 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
         GetDeclaratorType{this}(declarator, decl.specs.getType());
 
     auto functionSymbol = control_->newFunctionSymbol(scope_);
+    applySpecifiers(functionSymbol, decl.specs);
     functionSymbol->setName(decl.getName());
     functionSymbol->setType(functionType);
     scope_->addSymbol(functionSymbol);
@@ -9140,11 +9182,13 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
   } else {
     if (auto functionDeclarator = getFunctionPrototype(declarator)) {
       auto functionSymbol = control_->newFunctionSymbol(scope_);
+      applySpecifiers(functionSymbol, decl.specs);
       functionSymbol->setName(decl.getName());
       functionSymbol->setType(symbolType);
       scope_->addSymbol(functionSymbol);
     } else {
       auto fieldSymbol = control_->newFieldSymbol(scope_);
+      applySpecifiers(fieldSymbol, decl.specs);
       fieldSymbol->setName(decl.getName());
       fieldSymbol->setType(symbolType);
       scope_->addSymbol(fieldSymbol);

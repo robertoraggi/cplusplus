@@ -226,9 +226,49 @@ class FunctionSymbol final : public Symbol {
     templateParameters_ = templateParameters;
   }
 
+  [[nodiscard]] auto isStatic() const { return isStatic_; }
+  void setStatic(bool isStatic) { isStatic_ = isStatic; }
+
+  [[nodiscard]] auto isExtern() const { return isExtern_; }
+  void setExtern(bool isExtern) { isExtern_ = isExtern; }
+
+  [[nodiscard]] auto isFriend() const { return isFriend_; }
+  void setFriend(bool isFriend) { isFriend_ = isFriend; }
+
+  [[nodiscard]] auto isConstexpr() const { return isConstexpr_; }
+  void setConstexpr(bool isConstexpr) { isConstexpr_ = isConstexpr; }
+
+  [[nodiscard]] auto isConsteval() const { return isConsteval_; }
+  void setConsteval(bool isConsteval) { isConsteval_ = isConsteval; }
+
+  [[nodiscard]] auto isInline() const { return isInline_; }
+  void setInline(bool isInline) { isInline_ = isInline; }
+
+  [[nodiscard]] auto isVirtual() const { return isVirtual_; }
+  void setVirtual(bool isVirtual) { isVirtual_ = isVirtual; }
+
+  [[nodiscard]] auto isExplicit() const { return isExplicit_; }
+  void setExplicit(bool isExplicit) { isExplicit_ = isExplicit; }
+
+  [[nodiscard]] auto isDeleted() const { return isDeleted_; }
+  void setDeleted(bool isDeleted) { isDeleted_ = isDeleted; }
+
+  [[nodiscard]] auto isDefaulted() const { return isDefaulted_; }
+  void setDefaulted(bool isDefaulted) { isDefaulted_ = isDefaulted; }
+
  private:
   std::unique_ptr<Scope> scope_;
   TemplateParametersSymbol* templateParameters_ = nullptr;
+  bool isStatic_ = false;
+  bool isExtern_ = false;
+  bool isFriend_ = false;
+  bool isConstexpr_ = false;
+  bool isConsteval_ = false;
+  bool isInline_ = false;
+  bool isVirtual_ = false;
+  bool isExplicit_ = false;
+  bool isDeleted_ = false;
+  bool isDefaulted_ = false;
 };
 
 class LambdaSymbol final : public Symbol {
@@ -238,10 +278,36 @@ class LambdaSymbol final : public Symbol {
   explicit LambdaSymbol(Scope* enclosingScope);
   ~LambdaSymbol() override;
 
+  [[nodiscard]] auto templateParameters() const
+      -> const TemplateParametersSymbol* {
+    return templateParameters_;
+  }
+
+  void setTemplateParameters(TemplateParametersSymbol* templateParameters) {
+    templateParameters_ = templateParameters;
+  }
+
   [[nodiscard]] auto scope() const -> Scope* { return scope_.get(); }
+
+  [[nodiscard]] auto isConstexpr() const { return isConstexpr_; }
+  void setConstexpr(bool isConstexpr) { isConstexpr_ = isConstexpr; }
+
+  [[nodiscard]] auto isConsteval() const { return isConsteval_; }
+  void setConsteval(bool isConsteval) { isConsteval_ = isConsteval; }
+
+  [[nodiscard]] auto isMutable() const { return isMutable_; }
+  void setMutable(bool isMutable) { isMutable_ = isMutable; }
+
+  [[nodiscard]] auto isStatic() const { return isStatic_; }
+  void setStatic(bool isStatic) { isStatic_ = isStatic; }
 
  private:
   std::unique_ptr<Scope> scope_;
+  TemplateParametersSymbol* templateParameters_ = nullptr;
+  bool isConstexpr_ = false;
+  bool isConsteval_ = false;
+  bool isMutable_ = false;
+  bool isStatic_ = false;
 };
 
 class FunctionParametersSymbol final : public Symbol {
@@ -319,8 +385,32 @@ class VariableSymbol final : public Symbol {
     templateParameters_ = templateParameters;
   }
 
+  [[nodiscard]] auto isStatic() const { return isStatic_; }
+  void setStatic(bool isStatic) { isStatic_ = isStatic; }
+
+  [[nodiscard]] auto isThreadLocal() const { return isThreadLocal_; }
+  void setThreadLocal(bool isThreadLocal) { isThreadLocal_ = isThreadLocal; }
+
+  [[nodiscard]] auto isExtern() const { return isExtern_; }
+  void setExtern(bool isExtern) { isExtern_ = isExtern; }
+
+  [[nodiscard]] auto isConstexpr() const { return isConstexpr_; }
+  void setConstexpr(bool isConstexpr) { isConstexpr_ = isConstexpr; }
+
+  [[nodiscard]] auto isConstinit() const { return isConstinit_; }
+  void setConstinit(bool isConstinit) { isConstinit_ = isConstinit; }
+
+  [[nodiscard]] auto isInline() const { return isInline_; }
+  void setInline(bool isInline) { isInline_ = isInline; }
+
  private:
   TemplateParametersSymbol* templateParameters_ = nullptr;
+  bool isStatic_ = false;
+  bool isThreadLocal_ = false;
+  bool isExtern_ = false;
+  bool isConstexpr_ = false;
+  bool isConstinit_ = false;
+  bool isInline_ = false;
 };
 
 class FieldSymbol final : public Symbol {
@@ -329,6 +419,28 @@ class FieldSymbol final : public Symbol {
 
   explicit FieldSymbol(Scope* enclosingScope);
   ~FieldSymbol() override;
+
+  [[nodiscard]] auto isStatic() const { return isStatic_; }
+  void setStatic(bool isStatic) { isStatic_ = isStatic; }
+
+  [[nodiscard]] auto isThreadLocal() const { return isThreadLocal_; }
+  void setThreadLocal(bool isThreadLocal) { isThreadLocal_ = isThreadLocal; }
+
+  [[nodiscard]] auto isConstexpr() const { return isConstexpr_; }
+  void setConstexpr(bool isConstexpr) { isConstexpr_ = isConstexpr; }
+
+  [[nodiscard]] auto isConstinit() const { return isConstinit_; }
+  void setConstinit(bool isConstinit) { isConstinit_ = isConstinit; }
+
+  [[nodiscard]] auto isInline() const { return isInline_; }
+  void setInline(bool isInline) { isInline_ = isInline; }
+
+ private:
+  bool isStatic_ = false;
+  bool isThreadLocal_ = false;
+  bool isConstexpr_ = false;
+  bool isConstinit_ = false;
+  bool isInline_ = false;
 };
 
 class ParameterSymbol final : public Symbol {

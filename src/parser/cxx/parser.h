@@ -177,7 +177,7 @@ class Parser final {
       -> bool;
   [[nodiscard]] auto parse_lambda_expression(ExpressionAST*& yyast) -> bool;
   [[nodiscard]] auto parse_lambda_specifier_seq(
-      List<LambdaSpecifierAST*>*& yyast) -> bool;
+      List<LambdaSpecifierAST*>*& yyast, LambdaSymbol* symbol) -> bool;
   [[nodiscard]] auto parse_lambda_capture(SourceLocation& captureDefaultLoc,
                                           List<LambdaCaptureAST*>*& yyast)
       -> bool;
@@ -695,6 +695,10 @@ class Parser final {
       -> NamespaceSymbol*;
 
   void enterFunctionScope(FunctionDeclaratorChunkAST* functionDeclarator);
+
+  void applySpecifiers(FunctionSymbol* symbol, const DeclSpecs& specs);
+  void applySpecifiers(VariableSymbol* symbol, const DeclSpecs& specs);
+  void applySpecifiers(FieldSymbol* symbol, const DeclSpecs& specs);
 
   void check_type_traits();
 

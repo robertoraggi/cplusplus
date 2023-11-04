@@ -57,39 +57,41 @@ struct DumpSymbols {
     --depth;
   }
 
+  void indent() { fmt::print(out, "{:{}}", "", depth * 2); }
+
   void operator()(NamespaceSymbol* symbol) {
-    fmt::print(out, "{:{}}namespace {}\n", "", depth * 2,
-               to_string(symbol->name()));
+    indent();
+    fmt::print(out, "namespace {}\n", to_string(symbol->name()));
     dumpScope(symbol->scope());
   }
 
   void operator()(ClassSymbol* symbol) {
+    indent();
     if (symbol->templateParameters()) {
-      fmt::print(out, "{:{}}template class {}\n", "", depth * 2,
-                 to_string(symbol->name()));
+      fmt::print(out, "template class {}\n", to_string(symbol->name()));
       dumpScope(symbol->templateParameters()->scope());
     } else {
-      fmt::print(out, "{:{}}class {}\n", "", depth * 2,
-                 to_string(symbol->name()));
+      fmt::print(out, "class {}\n", to_string(symbol->name()));
     }
     dumpScope(symbol->scope());
   }
 
   void operator()(ConceptSymbol* symbol) {
-    fmt::print(out, "{:{}}concept {}\n", "", depth * 2,
-               to_string(symbol->name()));
+    indent();
+    fmt::print(out, "concept {}\n", to_string(symbol->name()));
     if (symbol->templateParameters())
       dumpScope(symbol->templateParameters()->scope());
   }
 
   void operator()(UnionSymbol* symbol) {
-    fmt::print(out, "{:{}}union {}\n", "", depth * 2,
-               to_string(symbol->name()));
+    indent();
+    fmt::print(out, "union {}\n", to_string(symbol->name()));
     dumpScope(symbol->scope());
   }
 
   void operator()(EnumSymbol* symbol) {
-    fmt::print(out, "{:{}}enum {}", "", depth * 2, to_string(symbol->name()));
+    indent();
+    fmt::print(out, "enum {}", "", to_string(symbol->name()));
 
     if (auto underlyingType = symbol->underlyingType()) {
       fmt::print(out, " : {}", to_string(underlyingType));
@@ -101,8 +103,8 @@ struct DumpSymbols {
   }
 
   void operator()(ScopedEnumSymbol* symbol) {
-    fmt::print(out, "{:{}}enum class {}", "", depth * 2,
-               to_string(symbol->name()));
+    indent();
+    fmt::print(out, "enum class {}", to_string(symbol->name()));
 
     if (auto underlyingType = symbol->underlyingType()) {
       fmt::print(out, " : {}", to_string(underlyingType));
@@ -114,105 +116,152 @@ struct DumpSymbols {
   }
 
   void operator()(FunctionSymbol* symbol) {
+    indent();
+
     if (symbol->templateParameters()) {
-      fmt::print(out, "{:{}}template function {}\n", "", depth * 2,
-                 to_string(symbol->type(), symbol->name()));
-      dumpScope(symbol->templateParameters()->scope());
-      dumpScope(symbol->scope());
-      return;
+      fmt::print(out, "template ");
     }
 
-    fmt::print(out, "{:{}}function {}\n", "", depth * 2,
-               to_string(symbol->type(), symbol->name()));
+    fmt::print(out, "function");
+
+    if (symbol->isStatic()) fmt::print(" static");
+    if (symbol->isExtern()) fmt::print(" extern");
+    if (symbol->isFriend()) fmt::print(" friend");
+    if (symbol->isConstexpr()) fmt::print(" constexpr");
+    if (symbol->isConsteval()) fmt::print(" consteval");
+    if (symbol->isInline()) fmt::print(" inline");
+    if (symbol->isVirtual()) fmt::print(" virtual");
+    if (symbol->isExplicit()) fmt::print(" explicit");
+    if (symbol->isDeleted()) fmt::print(" deleted");
+    if (symbol->isDefaulted()) fmt::print(" defaulted");
+
+    fmt::print(out, " {}\n", to_string(symbol->type(), symbol->name()));
+
+    if (symbol->templateParameters()) {
+      dumpScope(symbol->templateParameters()->scope());
+    }
+
     dumpScope(symbol->scope());
   }
 
   void operator()(LambdaSymbol* symbol) {
-    fmt::print(out, "{:{}}lambda {}\n", "", depth * 2,
-               to_string(symbol->type(), symbol->name()));
+    indent();
+
+    fmt::print(out, "lambda");
+
+    if (symbol->isConstexpr()) fmt::print(" constexpr");
+    if (symbol->isConsteval()) fmt::print(" consteval");
+    if (symbol->isMutable()) fmt::print(" mutable");
+    if (symbol->isStatic()) fmt::print(" static");
+
+    fmt::print(out, "{}\n", to_string(symbol->type(), symbol->name()));
+
     dumpScope(symbol->scope());
   }
 
   void operator()(TemplateParametersSymbol* symbol) {
-    fmt::print(out, "{:{}}template parameters\n", "", depth * 2);
+    indent();
+    fmt::print(out, "template parameters\n");
     dumpScope(symbol->scope());
   }
 
   void operator()(FunctionParametersSymbol* symbol) {
-    fmt::print(out, "{:{}}parameters\n", "", depth * 2);
+    indent();
+    fmt::print(out, "parameters\n");
     dumpScope(symbol->scope());
   }
 
   void operator()(BlockSymbol* symbol) {
-    fmt::print(out, "{:{}}block\n", "", depth * 2);
+    indent();
+    fmt::print(out, "block\n");
     dumpScope(symbol->scope());
   }
 
   void operator()(TypeAliasSymbol* symbol) {
+    indent();
     if (symbol->templateParameters()) {
-      fmt::print(out, "{:{}}template typealias {}\n", "", depth * 2,
+      fmt::print(out, "template typealias {}\n",
                  to_string(symbol->type(), symbol->name()));
       dumpScope(symbol->templateParameters()->scope());
-      return;
+    } else {
+      fmt::print(out, "typealias {}\n",
+                 to_string(symbol->type(), symbol->name()));
     }
-
-    fmt::print(out, "{:{}}typealias {}\n", "", depth * 2,
-               to_string(symbol->type(), symbol->name()));
   }
 
   void operator()(VariableSymbol* symbol) {
-    if (symbol->templateParameters()) {
-      fmt::print(out, "{:{}}template variable {}\n", "", depth * 2,
-                 to_string(symbol->type(), symbol->name()));
-      dumpScope(symbol->templateParameters()->scope());
-      return;
-    }
+    indent();
 
-    fmt::print(out, "{:{}}variable {}\n", "", depth * 2,
-               to_string(symbol->type(), symbol->name()));
+    if (symbol->templateParameters()) fmt::print(out, "template ");
+
+    fmt::print(out, "variable");
+
+    if (symbol->isStatic()) fmt::print(" static");
+    if (symbol->isThreadLocal()) fmt::print(" thread_local");
+    if (symbol->isExtern()) fmt::print(" extern");
+    if (symbol->isConstexpr()) fmt::print(" constexpr");
+    if (symbol->isConstinit()) fmt::print(" constinit");
+    if (symbol->isInline()) fmt::print(" inline");
+
+    fmt::print(" {}\n", to_string(symbol->type(), symbol->name()));
+
+    if (symbol->templateParameters()) {
+      dumpScope(symbol->templateParameters()->scope());
+    }
   }
 
   void operator()(FieldSymbol* symbol) {
-    fmt::print(out, "{:{}}field {}\n", "", depth * 2,
-               to_string(symbol->type(), symbol->name()));
+    indent();
+
+    fmt::print(out, "field");
+
+    if (symbol->isStatic()) fmt::print(" static");
+    if (symbol->isThreadLocal()) fmt::print(" thread_local");
+    if (symbol->isConstexpr()) fmt::print(" constexpr");
+    if (symbol->isConstinit()) fmt::print(" constinit");
+    if (symbol->isInline()) fmt::print(" inline");
+
+    fmt::print(" {}\n", to_string(symbol->type(), symbol->name()));
   }
 
   void operator()(ParameterSymbol* symbol) {
-    fmt::print(out, "{:{}}parameter {}\n", "", depth * 2,
+    indent();
+    fmt::print(out, "parameter {}\n",
                to_string(symbol->type(), symbol->name()));
   }
 
   void operator()(TypeParameterSymbol* symbol) {
     std::string_view pack = symbol->isParameterPack() ? "..." : "";
-    fmt::print(out, "{:{}}parameter typename<{}, {}>{} {}\n", "", depth * 2,
-               symbol->index(), symbol->depth(), pack,
-               to_string(symbol->name()));
+    indent();
+    fmt::print(out, "parameter typename<{}, {}>{} {}\n", symbol->index(),
+               symbol->depth(), pack, to_string(symbol->name()));
   }
 
   void operator()(NonTypeParameterSymbol* symbol) {
     std::string_view pack = symbol->isParameterPack() ? "..." : "";
-    fmt::print(out, "{:{}}parameter object<{}, {}, {}>{} {}\n", "", depth * 2,
-               symbol->index(), symbol->depth(),
-               to_string(symbol->objectType()), pack,
+    indent();
+    fmt::print(out, "parameter object<{}, {}, {}>{} {}\n", symbol->index(),
+               symbol->depth(), to_string(symbol->objectType()), pack,
                to_string(symbol->name()));
   }
 
   void operator()(TemplateTypeParameterSymbol* symbol) {
     std::string_view pack = symbol->isParameterPack() ? "..." : "";
-    fmt::print(out, "{:{}}parameter template<{}, {}>{} {}\n", "", depth * 2,
-               symbol->index(), symbol->depth(), pack,
-               to_string(symbol->name()));
+    indent();
+    fmt::print(out, "parameter template<{}, {}>{} {}\n", symbol->index(),
+               symbol->depth(), pack, to_string(symbol->name()));
   }
 
   void operator()(ConstraintTypeParameterSymbol* symbol) {
     std::string_view pack = symbol->isParameterPack() ? "..." : "";
-    fmt::print(out, "{:{}}parameter constraint<{}, {}>{} {}\n", "", depth * 2,
-               symbol->index(), symbol->depth(), pack,
-               to_string(symbol->name()));
+    indent();
+    fmt::print(out, "parameter constraint<{}, {}>{} {}\n", symbol->index(),
+               symbol->depth(), pack, to_string(symbol->name()));
   }
 
   void operator()(EnumeratorSymbol* symbol) {
-    fmt::print(out, "{:{}}enumerator {}\n", "", depth * 2,
+    indent();
+    fmt::print(out, "enumerator {}\n",
                to_string(symbol->type(), symbol->name()));
   }
 };
