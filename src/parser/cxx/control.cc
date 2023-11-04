@@ -114,12 +114,11 @@ struct Control::Private {
   std::set<UnresolvedNameType> unresolvedNameTypes;
   std::set<UnresolvedBoundedArrayType> unresolvedBoundedArrayTypes;
   std::set<UnresolvedUnderlyingType> unresolvedUnderlyingTypes;
-
-  std::forward_list<ClassType> classTypes;
-  std::forward_list<UnionType> unionTypes;
-  std::forward_list<NamespaceType> namespaceTypes;
-  std::forward_list<EnumType> enumTypes;
-  std::forward_list<ScopedEnumType> scopedEnumTypes;
+  std::set<ClassType> classTypes;
+  std::set<UnionType> unionTypes;
+  std::set<NamespaceType> namespaceTypes;
+  std::set<EnumType> enumTypes;
+  std::set<ScopedEnumType> scopedEnumTypes;
 
   std::forward_list<NamespaceSymbol> namespaceSymbols;
   std::forward_list<ConceptSymbol> conceptSymbols;
@@ -396,31 +395,31 @@ auto Control::getUnresolvedUnderlyingType(TranslationUnit* unit,
   return &*d->unresolvedUnderlyingTypes.emplace(unit, typeId).first;
 }
 
-auto Control::newClassType() -> const ClassType* {
-  return &d->classTypes.emplace_front();
+auto Control::getClassType(ClassSymbol* symbol) -> const ClassType* {
+  return &*d->classTypes.emplace(symbol).first;
 }
 
-auto Control::newUnionType() -> const UnionType* {
-  return &d->unionTypes.emplace_front();
+auto Control::getUnionType(UnionSymbol* symbol) -> const UnionType* {
+  return &*d->unionTypes.emplace(symbol).first;
 }
 
-auto Control::newNamespaceType() -> const NamespaceType* {
-  return &d->namespaceTypes.emplace_front();
+auto Control::getNamespaceType(NamespaceSymbol* symbol)
+    -> const NamespaceType* {
+  return &*d->namespaceTypes.emplace(symbol).first;
 }
 
-auto Control::newEnumType() -> const EnumType* {
-  return &d->enumTypes.emplace_front();
+auto Control::getEnumType(EnumSymbol* symbol) -> const EnumType* {
+  return &*d->enumTypes.emplace(symbol).first;
 }
 
-auto Control::newScopedEnumType() -> const ScopedEnumType* {
-  return &d->scopedEnumTypes.emplace_front();
+auto Control::getScopedEnumType(ScopedEnumSymbol* symbol)
+    -> const ScopedEnumType* {
+  return &*d->scopedEnumTypes.emplace(symbol).first;
 }
 
 auto Control::newNamespaceSymbol(Scope* enclosingScope) -> NamespaceSymbol* {
   auto symbol = &d->namespaceSymbols.emplace_front(enclosingScope);
-  auto type = newNamespaceType();
-  symbol->setType(type);
-  type->setSymbol(symbol);
+  symbol->setType(getNamespaceType(symbol));
   return symbol;
 }
 
@@ -431,33 +430,25 @@ auto Control::newConceptSymbol(Scope* enclosingScope) -> ConceptSymbol* {
 
 auto Control::newClassSymbol(Scope* enclosingScope) -> ClassSymbol* {
   auto symbol = &d->classSymbols.emplace_front(enclosingScope);
-  auto type = newClassType();
-  symbol->setType(type);
-  type->setSymbol(symbol);
+  symbol->setType(getClassType(symbol));
   return symbol;
 }
 
 auto Control::newUnionSymbol(Scope* enclosingScope) -> UnionSymbol* {
   auto symbol = &d->unionSymbols.emplace_front(enclosingScope);
-  auto type = newUnionType();
-  symbol->setType(type);
-  type->setSymbol(symbol);
+  symbol->setType(getUnionType(symbol));
   return symbol;
 }
 
 auto Control::newEnumSymbol(Scope* enclosingScope) -> EnumSymbol* {
   auto symbol = &d->enumSymbols.emplace_front(enclosingScope);
-  auto type = newEnumType();
-  symbol->setType(type);
-  type->setSymbol(symbol);
+  symbol->setType(getEnumType(symbol));
   return symbol;
 }
 
 auto Control::newScopedEnumSymbol(Scope* enclosingScope) -> ScopedEnumSymbol* {
   auto symbol = &d->scopedEnumSymbols.emplace_front(enclosingScope);
-  auto type = newScopedEnumType();
-  symbol->setType(type);
-  type->setSymbol(symbol);
+  symbol->setType(getScopedEnumType(symbol));
   return symbol;
 }
 

@@ -303,64 +303,53 @@ class FunctionType final
   [[nodiscard]] auto isNoexcept() const -> bool { return std::get<5>(*this); }
 };
 
-class ClassType final : public Type {
+class ClassType final : public Type, public std::tuple<ClassSymbol*> {
  public:
   static constexpr TypeKind Kind = TypeKind::kClass;
 
-  ClassType() : Type(Kind) {}
+  explicit ClassType(ClassSymbol* symbol) : Type(Kind), tuple(symbol) {}
 
-  [[nodiscard]] auto symbol() const -> ClassSymbol* { return symbol_; }
-
-  void setSymbol(ClassSymbol* symbol) const { symbol_ = symbol; }
-
- private:
-  mutable ClassSymbol* symbol_ = nullptr;
+  [[nodiscard]] auto symbol() const -> ClassSymbol* {
+    return std::get<0>(*this);
+  }
 };
 
-class UnionType final : public Type {
+class UnionType final : public Type, public std::tuple<UnionSymbol*> {
  public:
   static constexpr TypeKind Kind = TypeKind::kUnion;
 
-  UnionType() : Type(Kind) {}
+  explicit UnionType(UnionSymbol* symbol) : Type(Kind), tuple(symbol) {}
 
-  [[nodiscard]] auto symbol() const -> UnionSymbol* { return symbol_; }
-
-  void setSymbol(UnionSymbol* symbol) const { symbol_ = symbol; }
-
- private:
-  mutable UnionSymbol* symbol_ = nullptr;
+  [[nodiscard]] auto symbol() const -> UnionSymbol* {
+    return std::get<0>(*this);
+  }
 };
 
-class EnumType final : public Type {
+class EnumType final : public Type, public std::tuple<EnumSymbol*> {
  public:
   static constexpr TypeKind Kind = TypeKind::kEnum;
 
-  EnumType() : Type(Kind) {}
+  explicit EnumType(EnumSymbol* symbol) : Type(Kind), tuple(symbol) {}
+
+  [[nodiscard]] auto symbol() const -> EnumSymbol* {
+    return std::get<0>(*this);
+  }
 
   [[nodiscard]] auto underlyingType() const -> const Type*;
-
-  [[nodiscard]] auto symbol() const -> EnumSymbol* { return symbol_; }
-
-  void setSymbol(EnumSymbol* symbol) const { symbol_ = symbol; }
-
- private:
-  mutable EnumSymbol* symbol_ = nullptr;
 };
 
-class ScopedEnumType final : public Type {
+class ScopedEnumType final : public Type, public std::tuple<ScopedEnumSymbol*> {
  public:
   static constexpr TypeKind Kind = TypeKind::kScopedEnum;
 
-  ScopedEnumType() : Type(Kind) {}
+  explicit ScopedEnumType(ScopedEnumSymbol* symbol)
+      : Type(Kind), tuple(symbol) {}
+
+  [[nodiscard]] auto symbol() const -> ScopedEnumSymbol* {
+    return std::get<0>(*this);
+  }
 
   [[nodiscard]] auto underlyingType() const -> const Type*;
-
-  [[nodiscard]] auto symbol() const -> ScopedEnumSymbol* { return symbol_; }
-
-  void setSymbol(ScopedEnumSymbol* symbol) const { symbol_ = symbol; }
-
- private:
-  mutable ScopedEnumSymbol* symbol_ = nullptr;
 };
 
 class MemberObjectPointerType final
@@ -407,18 +396,15 @@ class ClassDescriptionType final : public Type {
   ClassDescriptionType() : Type(Kind) {}
 };
 
-class NamespaceType final : public Type {
+class NamespaceType final : public Type, public std::tuple<NamespaceSymbol*> {
  public:
   static constexpr TypeKind Kind = TypeKind::kNamespace;
 
-  NamespaceType() : Type(Kind) {}
+  explicit NamespaceType(NamespaceSymbol* symbol) : Type(Kind), tuple(symbol) {}
 
-  [[nodiscard]] auto symbol() const -> NamespaceSymbol* { return symbol_; }
-
-  void setSymbol(NamespaceSymbol* symbol) const { symbol_ = symbol; }
-
- private:
-  mutable NamespaceSymbol* symbol_ = nullptr;
+  [[nodiscard]] auto symbol() const -> NamespaceSymbol* {
+    return std::get<0>(*this);
+  }
 };
 
 class UnresolvedNameType final

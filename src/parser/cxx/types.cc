@@ -26,11 +26,11 @@
 namespace cxx {
 
 auto EnumType::underlyingType() const -> const Type* {
-  return symbol_->underlyingType();
+  return symbol()->underlyingType();
 }
 
 auto ScopedEnumType::underlyingType() const -> const Type* {
-  return symbol_->underlyingType();
+  return symbol()->underlyingType();
 }
 
 }  // namespace cxx
