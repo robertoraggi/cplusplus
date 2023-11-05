@@ -175,7 +175,7 @@ jobs:
 
   release-please:
     runs-on: ubuntu-latest
-    if: github.repository == 'robertoraggi/cplusplus' && github.ref == 'refs/heads/main'
+    if: false && github.repository == 'robertoraggi/cplusplus' && github.ref == 'refs/heads/main'
     steps:
       - uses: GoogleCloudPlatform/release-please-action@v3
         with:
