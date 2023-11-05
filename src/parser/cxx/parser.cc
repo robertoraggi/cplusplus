@@ -233,6 +233,10 @@ struct Parser::TypeTraits {
     return visit(is_member_function_pointer_, type);
   }
 
+  auto is_complete(const Type* type) const -> bool {
+    return visit(is_complete_, type);
+  }
+
   // composite type categories
 
   auto is_fundamental(const Type* type) const -> bool {
@@ -664,6 +668,24 @@ struct Parser::TypeTraits {
 
     auto operator()(auto) const -> bool { return false; }
   } is_reference_;
+
+  struct {
+    auto operator()(const VoidType*) const -> bool { return false; }
+
+    auto operator()(const ClassType* type) const -> bool {
+      return type->isComplete();
+    }
+
+    auto operator()(const UnionType* type) const -> bool {
+      return type->isComplete();
+    }
+
+    auto operator()(const QualType* type) const -> bool {
+      return visit(*this, type->elementType());
+    }
+
+    auto operator()(auto) const -> bool { return true; }
+  } is_complete_;
 
   struct {
     auto operator()(const LvalueReferenceType* type) const -> const Type* {
@@ -6323,6 +6345,166 @@ void Parser::check_type_traits() {
   unit->replaceWithIdentifier(typeTraitsLoc);
 
   rewind(typeTraitsLoc);
+}
+
+auto Parser::lvalue_to_rvalue_conversion(ExpressionAST*& expr) -> bool {
+  if (!is_glvalue(expr)) return false;
+  TypeTraits traits{*this};
+  auto unref = traits.remove_cvref(expr->type);
+  if (traits.is_function(unref)) return false;
+  if (traits.is_array(unref)) return false;
+  if (!traits.is_complete(unref)) return false;
+  auto cast = new (pool_) ImplicitCastExpressionAST();
+  cast->castKind = ImplicitCastKind::kLValueToRValueConversion;
+  cast->expression = expr;
+  cast->type = traits.remove_reference(expr->type);
+  cast->valueCategory = ValueCategory::kPrValue;
+  expr = cast;
+  return true;
+}
+
+auto Parser::array_to_pointer_conversion(ExpressionAST*& expr) -> bool {
+  TypeTraits traits{*this};
+  auto unref = traits.remove_reference(expr->type);
+  if (!traits.is_array(unref)) return false;
+  auto cast = new (pool_) ImplicitCastExpressionAST();
+  cast->castKind = ImplicitCastKind::kArrayToPointerConversion;
+  cast->expression = expr;
+  cast->type = traits.add_pointer(traits.remove_extent(unref));
+  cast->valueCategory = ValueCategory::kPrValue;
+  expr = cast;
+  return true;
+}
+
+auto Parser::function_to_pointer_conversion(ExpressionAST*& expr) -> bool {
+  TypeTraits traits{*this};
+  auto unref = traits.remove_reference(expr->type);
+  if (!traits.is_function(unref)) return false;
+  auto cast = new (pool_) ImplicitCastExpressionAST();
+  cast->castKind = ImplicitCastKind::kFunctionToPointerConversion;
+  cast->expression = expr;
+  cast->type = traits.add_pointer(unref);
+  cast->valueCategory = ValueCategory::kPrValue;
+  expr = cast;
+  return true;
+}
+
+auto Parser::integral_promotion(ExpressionAST*& expr) -> bool {
+  if (!is_prvalue(expr)) return false;
+
+  TypeTraits traits{*this};
+
+  auto ty = traits.remove_cv(expr->type);
+
+  if (!traits.is_integral(ty) && !traits.is_enum(ty)) return false;
+
+  auto make_implicit_cast =
+      [&](const Type* type) -> ImplicitCastExpressionAST* {
+    auto cast = new (pool_) ImplicitCastExpressionAST();
+    cast->castKind = ImplicitCastKind::kIntegralPromotion;
+    cast->expression = expr;
+    cast->type = type;
+    cast->valueCategory = ValueCategory::kPrValue;
+    expr = cast;
+    return cast;
+  };
+
+  // TODO: bit-fields
+
+  switch (ty->kind()) {
+    case TypeKind::kChar:
+    case TypeKind::kSignedChar:
+    case TypeKind::kUnsignedChar:
+    case TypeKind::kShortInt:
+    case TypeKind::kUnsignedShortInt: {
+      auto cast = make_implicit_cast(control_->getIntType());
+      if (cast->expression->constValue) {
+        cast->constValue = std::visit(ArthmeticConversion<int>{},
+                                      *cast->expression->constValue);
+      }
+      return true;
+    }
+
+    case TypeKind::kChar8:
+    case TypeKind::kChar16:
+    case TypeKind::kChar32:
+    case TypeKind::kWideChar: {
+      auto cast = make_implicit_cast(control_->getIntType());
+      if (cast->expression->constValue) {
+        cast->constValue = std::visit(ArthmeticConversion<int>{},
+                                      *cast->expression->constValue);
+      }
+      return true;
+    }
+
+    case TypeKind::kBool: {
+      auto cast = make_implicit_cast(control_->getIntType());
+      if (cast->expression->constValue) {
+        cast->constValue = std::visit(ArthmeticConversion<int>{},
+                                      *cast->expression->constValue);
+      }
+      return true;
+    }
+
+    default:
+      break;
+  }  // switch
+
+  if (auto enumType = type_cast<EnumType>(ty)) {
+    auto type = enumType->underlyingType();
+
+    if (!type) {
+      // TODO: compute the from the value of the enumeration
+      type = control_->getIntType();
+    }
+
+    auto cast = make_implicit_cast(type);
+
+    if (cast->expression->constValue) {
+      // TODO: use memory layout
+
+      if (type_cast<UnsignedLongIntType>(type)) {
+        cast->constValue = std::visit(ArthmeticConversion<std::uint64_t>{},
+                                      *cast->expression->constValue);
+      } else if (type_cast<LongIntType>(type)) {
+        cast->constValue = std::visit(ArthmeticConversion<std::int64_t>{},
+                                      *cast->expression->constValue);
+      } else {
+        cast->constValue = std::visit(ArthmeticConversion<int>{},
+                                      *cast->expression->constValue);
+      }
+    }
+
+    return true;
+  }
+
+  return false;
+}
+
+auto Parser::floating_point_promotion(ExpressionAST*& expr) -> bool {
+  if (!is_prvalue(expr)) return false;
+
+  TypeTraits traits{*this};
+
+  auto ty = traits.remove_cv(expr->type);
+
+  if (!traits.is_floating_point(ty)) return false;
+
+  if (ty->kind() != TypeKind::kFloat) return false;
+
+  auto cast = new (pool_) ImplicitCastExpressionAST();
+  cast->castKind = ImplicitCastKind::kFloatingPointPromotion;
+  cast->expression = expr;
+  cast->type = control_->getDoubleType();
+  cast->valueCategory = ValueCategory::kPrValue;
+  expr = cast;
+
+  if (cast->expression->constValue) {
+    cast->constValue = std::visit(ArthmeticConversion<double>{},
+                                  *cast->expression->constValue);
+  }
+
+  return true;
 }
 
 auto Parser::is_prvalue(ExpressionAST* expr) const -> bool {

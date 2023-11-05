@@ -247,6 +247,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
     preprocesor->squeeze();
 
     unit.parse(ParserConfiguration{
+        .checkTypes = cli.opt_fcheck,
         .fuzzyTemplateResolution = true,
         .staticAssert = cli.opt_fstatic_assert,
     });

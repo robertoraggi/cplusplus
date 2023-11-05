@@ -142,6 +142,8 @@ std::vector<CLIOptionDescr> options{
     {"-x", "Specify the language from the compiler driver",
      CLIOptionDescrKind::kSeparated},
 
+    {"-fcheck", "Enable type checker (WIP)", &CLI::opt_fcheck},
+
     {"-fsyntax-only", "Check only the syntax", &CLI::opt_fsyntax_only},
 
     {"-fstatic-assert", "Enable static asserts", &CLI::opt_fstatic_assert,
