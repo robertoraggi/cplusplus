@@ -32,4 +32,15 @@ using ConstValue =
     std::variant<bool, std::int32_t, std::uint32_t, std::int64_t, std::uint64_t,
                  float, double, const StringLiteral*>;
 
+template <typename T>
+struct ArthmeticConversion {
+  auto operator()(const StringLiteral* value) const -> ConstValue {
+    return ConstValue(value);
+  }
+
+  auto operator()(auto value) const -> ConstValue {
+    return ConstValue(static_cast<T>(value));
+  }
+};
+
 }  // namespace cxx

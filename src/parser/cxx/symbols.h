@@ -160,8 +160,22 @@ class UnionSymbol final : public Symbol {
 
   [[nodiscard]] auto scope() const -> Scope* { return scope_.get(); }
 
+  [[nodiscard]] auto templateParameters() const
+      -> const TemplateParametersSymbol* {
+    return templateParameters_;
+  }
+
+  void setTemplateParameters(TemplateParametersSymbol* templateParameters) {
+    templateParameters_ = templateParameters;
+  }
+
+  [[nodiscard]] auto isComplete() const -> bool { return isComplete_; }
+  void setComplete(bool isComplete) { isComplete_ = isComplete; }
+
  private:
   std::unique_ptr<Scope> scope_;
+  TemplateParametersSymbol* templateParameters_ = nullptr;
+  bool isComplete_ = false;
 };
 
 class EnumSymbol final : public Symbol {

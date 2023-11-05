@@ -312,6 +312,8 @@ class ClassType final : public Type, public std::tuple<ClassSymbol*> {
   [[nodiscard]] auto symbol() const -> ClassSymbol* {
     return std::get<0>(*this);
   }
+
+  [[nodiscard]] auto isComplete() const -> bool;
 };
 
 class UnionType final : public Type, public std::tuple<UnionSymbol*> {
@@ -323,6 +325,8 @@ class UnionType final : public Type, public std::tuple<UnionSymbol*> {
   [[nodiscard]] auto symbol() const -> UnionSymbol* {
     return std::get<0>(*this);
   }
+
+  [[nodiscard]] auto isComplete() const -> bool;
 };
 
 class EnumType final : public Type, public std::tuple<EnumSymbol*> {

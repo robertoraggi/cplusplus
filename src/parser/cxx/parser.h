@@ -702,6 +702,13 @@ class Parser final {
 
   void check_type_traits();
 
+  // standard conversions
+  auto lvalue_to_rvalue_conversion(ExpressionAST*& expr) -> bool;
+  auto array_to_pointer_conversion(ExpressionAST*& expr) -> bool;
+  auto function_to_pointer_conversion(ExpressionAST*& expr) -> bool;
+  auto integral_promotion(ExpressionAST*& expr) -> bool;
+  auto floating_point_promotion(ExpressionAST*& expr) -> bool;
+
   auto is_prvalue(ExpressionAST* expr) const -> bool;
   auto is_lvalue(ExpressionAST* expr) const -> bool;
   auto is_xvalue(ExpressionAST* expr) const -> bool;
