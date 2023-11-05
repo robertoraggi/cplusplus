@@ -6,6 +6,7 @@ RUN wget -nd -P /tmp/ https://github.com/watchexec/watchexec/releases/download/v
 
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && apt-get -y install --no-install-recommends g++-10 ninja-build \
+    && apt-get -y purge --auto-remove cmake && pip install cmake \
     && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
 ENV CC=/usr/bin/gcc-10
