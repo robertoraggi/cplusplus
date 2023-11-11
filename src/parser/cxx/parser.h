@@ -708,6 +708,12 @@ class Parser final {
   auto function_to_pointer_conversion(ExpressionAST*& expr) -> bool;
   auto integral_promotion(ExpressionAST*& expr) -> bool;
   auto floating_point_promotion(ExpressionAST*& expr) -> bool;
+  auto integral_conversion(ExpressionAST*& expr, const Type* destinationType)
+      -> bool;
+  auto floating_point_conversion(ExpressionAST*& expr,
+                                 const Type* destinationType) -> bool;
+  auto floating_integral_conversion(ExpressionAST*& expr,
+                                    const Type* destinationType) -> bool;
 
   auto is_prvalue(ExpressionAST* expr) const -> bool;
   auto is_lvalue(ExpressionAST* expr) const -> bool;
