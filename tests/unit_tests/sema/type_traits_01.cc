@@ -205,6 +205,8 @@ static_assert(__is_unbounded_array(int[10 + 20]));
 static_assert(__is_const(const void));
 static_assert(__is_const(const volatile void));
 static_assert(__is_const(int* const));
+static_assert(__is_const(const int[3]));
+static_assert(__is_const(const int[]));
 
 // expected-error@1 {{static assert failed}}
 static_assert(__is_const(const void*));
@@ -219,6 +221,8 @@ static_assert(__is_const(int));
 static_assert(__is_volatile(volatile void));
 static_assert(__is_volatile(const volatile void));
 static_assert(__is_volatile(int* volatile));
+static_assert(__is_volatile(volatile int[3]));
+static_assert(__is_volatile(volatile int[]));
 
 // expected-error@1 {{static assert failed}}
 static_assert(__is_volatile(volatile void*));

@@ -339,18 +339,12 @@ struct Parser::TypeTraits {
 
   auto add_const(const Type* type) const -> const Type* {
     if (!type) return type;
-    if (is_function(type)) return type;
-    if (is_reference(type)) return type;
-    if (is_const(type)) return type;
-    return control()->getConstType(type);
+    return visit(add_const_, type);
   }
 
   auto add_volatile(const Type* type) const -> const Type* {
     if (!type) return type;
-    if (is_function(type)) return type;
-    if (is_reference(type)) return type;
-    if (is_volatile(type)) return type;
-    return control()->getVolatileType(type);
+    return visit(add_volatile_, type);
   }
 
   // pointers
@@ -638,12 +632,36 @@ struct Parser::TypeTraits {
       return type->isConst();
     }
 
+    auto operator()(const BoundedArrayType* type) const -> bool {
+      return visit(*this, type->elementType());
+    }
+
+    auto operator()(const UnboundedArrayType* type) const -> bool {
+      return visit(*this, type->elementType());
+    }
+
+    auto operator()(const UnresolvedBoundedArrayType* type) const -> bool {
+      return visit(*this, type->elementType());
+    }
+
     auto operator()(auto) const -> bool { return false; }
   } is_const_;
 
   struct {
     auto operator()(const QualType* type) const -> bool {
       return type->isVolatile();
+    }
+
+    auto operator()(const BoundedArrayType* type) const -> bool {
+      return visit(*this, type->elementType());
+    }
+
+    auto operator()(const UnboundedArrayType* type) const -> bool {
+      return visit(*this, type->elementType());
+    }
+
+    auto operator()(const UnresolvedBoundedArrayType* type) const -> bool {
+      return visit(*this, type->elementType());
     }
 
     auto operator()(auto) const -> bool { return false; }
@@ -755,6 +773,86 @@ struct Parser::TypeTraits {
     }
 
   } add_rvalue_reference_{*this};
+
+  struct {
+    TypeTraits& traits;
+
+    auto control() const { return traits.parser.control_; }
+
+    auto operator()(const BoundedArrayType* type) const -> const Type* {
+      auto elementType = visit(*this, type->elementType());
+      return control()->getBoundedArrayType(elementType, type->size());
+    }
+
+    auto operator()(const UnboundedArrayType* type) const -> const Type* {
+      auto elementType = visit(*this, type->elementType());
+      return control()->getUnboundedArrayType(elementType);
+    }
+
+    auto operator()(const UnresolvedBoundedArrayType* type) const
+        -> const Type* {
+      auto elementType = visit(*this, type->elementType());
+      return control()->getUnresolvedBoundedArrayType(
+          type->translationUnit(), elementType, type->size());
+    }
+
+    auto operator()(const FunctionType* type) const -> const Type* {
+      return type;
+    }
+
+    auto operator()(const LvalueReferenceType* type) const -> const Type* {
+      return type;
+    }
+
+    auto operator()(const RvalueReferenceType* type) const -> const Type* {
+      return type;
+    }
+
+    auto operator()(auto type) const -> const Type* {
+      return control()->getConstType(type);
+    }
+
+  } add_const_{*this};
+
+  struct {
+    TypeTraits& traits;
+
+    auto control() const { return traits.parser.control_; }
+
+    auto operator()(const BoundedArrayType* type) const -> const Type* {
+      auto elementType = visit(*this, type->elementType());
+      return control()->getBoundedArrayType(elementType, type->size());
+    }
+
+    auto operator()(const UnboundedArrayType* type) const -> const Type* {
+      auto elementType = visit(*this, type->elementType());
+      return control()->getUnboundedArrayType(elementType);
+    }
+
+    auto operator()(const UnresolvedBoundedArrayType* type) const
+        -> const Type* {
+      auto elementType = visit(*this, type->elementType());
+      return control()->getUnresolvedBoundedArrayType(
+          type->translationUnit(), elementType, type->size());
+    }
+
+    auto operator()(const FunctionType* type) const -> const Type* {
+      return type;
+    }
+
+    auto operator()(const LvalueReferenceType* type) const -> const Type* {
+      return type;
+    }
+
+    auto operator()(const RvalueReferenceType* type) const -> const Type* {
+      return type;
+    }
+
+    auto operator()(auto type) const -> const Type* {
+      return control()->getVolatileType(type);
+    }
+
+  } add_volatile_{*this};
 
   struct {
     auto operator()(const BoundedArrayType* type) const -> const Type* {
