@@ -1,4 +1,4 @@
-FROM emscripten/emsdk:3.1.46
+FROM emscripten/emsdk:3.1.48
 
 RUN wget -nd -P /tmp/ https://github.com/watchexec/watchexec/releases/download/v1.23.0/watchexec-1.23.0-x86_64-unknown-linux-gnu.deb \
     && dpkg -i /tmp/watchexec-1.23.0-x86_64-unknown-linux-gnu.deb \
