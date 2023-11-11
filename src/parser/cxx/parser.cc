@@ -239,6 +239,12 @@ struct Parser::TypeTraits {
 
   // composite type categories
 
+  auto is_integer(const Type* type) const -> bool { return is_integral(type); }
+
+  auto is_integral_or_unscoped_enum(const Type* type) const -> bool {
+    return is_integral(type) || (is_enum(type) && !is_scoped_enum(type));
+  }
+
   auto is_fundamental(const Type* type) const -> bool {
     return is_arithmetic(type) || is_void(type) || is_null_pointer(type);
   }
@@ -6561,14 +6567,11 @@ auto Parser::integral_promotion(ExpressionAST*& expr) -> bool {
     if (cast->expression->constValue) {
       // TODO: use memory layout
 
-      if (type_cast<UnsignedLongIntType>(type)) {
+      if (traits.is_unsigned(type)) {
         cast->constValue = std::visit(ArthmeticConversion<std::uint64_t>{},
                                       *cast->expression->constValue);
-      } else if (type_cast<LongIntType>(type)) {
-        cast->constValue = std::visit(ArthmeticConversion<std::int64_t>{},
-                                      *cast->expression->constValue);
       } else {
-        cast->constValue = std::visit(ArthmeticConversion<int>{},
+        cast->constValue = std::visit(ArthmeticConversion<std::int64_t>{},
                                       *cast->expression->constValue);
       }
     }
@@ -6600,6 +6603,85 @@ auto Parser::floating_point_promotion(ExpressionAST*& expr) -> bool {
   if (cast->expression->constValue) {
     cast->constValue = std::visit(ArthmeticConversion<double>{},
                                   *cast->expression->constValue);
+  }
+
+  return true;
+}
+
+auto Parser::integral_conversion(ExpressionAST*& expr,
+                                 const Type* destinationType) -> bool {
+  if (!is_prvalue(expr)) return false;
+
+  TypeTraits traits{*this};
+  if (!traits.is_integral_or_unscoped_enum(expr->type)) return false;
+  if (!traits.is_integer(destinationType)) return false;
+
+  auto cast = new (pool_) ImplicitCastExpressionAST();
+  cast->castKind = ImplicitCastKind::kIntegralConversion;
+  cast->expression = expr;
+  cast->type = destinationType;
+  cast->valueCategory = ValueCategory::kPrValue;
+  expr = cast;
+
+  if (cast->expression->constValue) {
+    if (traits.is_unsigned(destinationType)) {
+      cast->constValue = std::visit(ArthmeticConversion<std::uint64_t>{},
+                                    *cast->expression->constValue);
+    } else {
+      cast->constValue = std::visit(ArthmeticConversion<std::int64_t>{},
+                                    *cast->expression->constValue);
+    }
+  }
+
+  return true;
+}
+
+auto Parser::floating_point_conversion(ExpressionAST*& expr,
+                                       const Type* destinationType) -> bool {
+  if (!is_prvalue(expr)) return false;
+
+  TypeTraits traits{*this};
+  if (!traits.is_floating_point(expr->type)) return false;
+  if (!traits.is_floating_point(destinationType)) return false;
+
+  auto cast = new (pool_) ImplicitCastExpressionAST();
+  cast->castKind = ImplicitCastKind::kFloatingPointConversion;
+  cast->expression = expr;
+  cast->type = destinationType;
+  cast->valueCategory = ValueCategory::kPrValue;
+  expr = cast;
+
+  if (cast->expression->constValue) {
+    cast->constValue = std::visit(ArthmeticConversion<double>{},
+                                  *cast->expression->constValue);
+  }
+
+  return true;
+}
+
+auto Parser::floating_integral_conversion(ExpressionAST*& expr,
+                                          const Type* destinationType) -> bool {
+  if (!is_prvalue(expr)) return false;
+
+  TypeTraits traits{*this};
+  if (!traits.is_floating_point(expr->type)) return false;
+  if (!traits.is_integer(destinationType)) return false;
+
+  auto cast = new (pool_) ImplicitCastExpressionAST();
+  cast->castKind = ImplicitCastKind::kFloatingIntegralConversion;
+  cast->expression = expr;
+  cast->type = destinationType;
+  cast->valueCategory = ValueCategory::kPrValue;
+  expr = cast;
+
+  if (cast->expression->constValue) {
+    if (traits.is_unsigned(destinationType)) {
+      cast->constValue = std::visit(ArthmeticConversion<std::uint64_t>{},
+                                    *cast->expression->constValue);
+    } else {
+      cast->constValue = std::visit(ArthmeticConversion<std::int64_t>{},
+                                    *cast->expression->constValue);
+    }
   }
 
   return true;
