@@ -13,8 +13,7 @@
     "vscode": {
       "extensions": [
         "ms-vscode.cpptools",
-        "ms-vscode.cmake-tools",
-        "ms-azuretools.vscode-docker"
+        "ms-vscode.cmake-tools"
       ],
       "settings": {
         "cmake.configureArgs": ["-DCXX_LIBCXX_WITH_CLANG=ON"]
