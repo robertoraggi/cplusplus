@@ -23,6 +23,7 @@
 #include <cxx/memory_layout.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
+#include <cxx/type_traits.h>
 #include <cxx/types.h>
 
 #include <cassert>
@@ -59,6 +60,10 @@ using NameSet = std::set<Name>;
 }  // namespace
 
 struct Control::Private {
+  explicit Private(Control* control) : traits(control) {}
+
+  TypeTraits traits;
+
   MemoryLayout* memoryLayout = nullptr;
   LiteralSet<IntegerLiteral> integerLiterals;
   LiteralSet<FloatLiteral> floatLiterals;
@@ -145,7 +150,7 @@ struct Control::Private {
   int anonymousIdCount = 0;
 };
 
-Control::Control() : d(std::make_unique<Private>()) {}
+Control::Control() : d(std::make_unique<Private>(this)) {}
 
 Control::~Control() = default;
 
@@ -527,6 +532,182 @@ auto Control::newConstraintTypeParameterSymbol(Scope* enclosingScope)
 auto Control::newEnumeratorSymbol(Scope* enclosingScope) -> EnumeratorSymbol* {
   auto symbol = &d->enumeratorSymbols.emplace_front(enclosingScope);
   return symbol;
+}
+
+auto Control::is_void(const Type* type) const -> bool {
+  return d->traits.is_void(type);
+}
+
+auto Control::is_null_pointer(const Type* type) const -> bool {
+  return d->traits.is_null_pointer(type);
+}
+
+auto Control::is_integral(const Type* type) const -> bool {
+  return d->traits.is_integral(type);
+}
+
+auto Control::is_floating_point(const Type* type) const -> bool {
+  return d->traits.is_floating_point(type);
+}
+
+auto Control::is_array(const Type* type) const -> bool {
+  return d->traits.is_array(type);
+}
+
+auto Control::is_enum(const Type* type) const -> bool {
+  return d->traits.is_enum(type);
+}
+
+auto Control::is_union(const Type* type) const -> bool {
+  return d->traits.is_union(type);
+}
+
+auto Control::is_class(const Type* type) const -> bool {
+  return d->traits.is_class(type);
+}
+
+auto Control::is_function(const Type* type) const -> bool {
+  return d->traits.is_function(type);
+}
+
+auto Control::is_pointer(const Type* type) const -> bool {
+  return d->traits.is_pointer(type);
+}
+
+auto Control::is_lvalue_reference(const Type* type) const -> bool {
+  return d->traits.is_lvalue_reference(type);
+}
+
+auto Control::is_rvalue_reference(const Type* type) const -> bool {
+  return d->traits.is_rvalue_reference(type);
+}
+
+auto Control::is_member_object_pointer(const Type* type) const -> bool {
+  return d->traits.is_member_object_pointer(type);
+}
+
+auto Control::is_member_function_pointer(const Type* type) const -> bool {
+  return d->traits.is_member_function_pointer(type);
+}
+
+auto Control::is_complete(const Type* type) const -> bool {
+  return d->traits.is_complete(type);
+}
+
+auto Control::is_integer(const Type* type) const -> bool {
+  return d->traits.is_integer(type);
+}
+
+auto Control::is_integral_or_unscoped_enum(const Type* type) const -> bool {
+  return d->traits.is_integral_or_unscoped_enum(type);
+}
+
+auto Control::is_fundamental(const Type* type) const -> bool {
+  return d->traits.is_fundamental(type);
+}
+
+auto Control::is_arithmetic(const Type* type) const -> bool {
+  return d->traits.is_arithmetic(type);
+}
+
+auto Control::is_scalar(const Type* type) const -> bool {
+  return d->traits.is_scalar(type);
+}
+
+auto Control::is_object(const Type* type) const -> bool {
+  return d->traits.is_object(type);
+}
+
+auto Control::is_compound(const Type* type) const -> bool {
+  return d->traits.is_compound(type);
+}
+
+auto Control::is_reference(const Type* type) const -> bool {
+  return d->traits.is_reference(type);
+}
+
+auto Control::is_member_pointer(const Type* type) const -> bool {
+  return d->traits.is_member_pointer(type);
+}
+
+auto Control::is_const(const Type* type) const -> bool {
+  return d->traits.is_const(type);
+}
+
+auto Control::is_volatile(const Type* type) const -> bool {
+  return d->traits.is_volatile(type);
+}
+
+auto Control::is_signed(const Type* type) const -> bool {
+  return d->traits.is_signed(type);
+}
+
+auto Control::is_unsigned(const Type* type) const -> bool {
+  return d->traits.is_unsigned(type);
+}
+
+auto Control::is_bounded_array(const Type* type) const -> bool {
+  return d->traits.is_bounded_array(type);
+}
+
+auto Control::is_unbounded_array(const Type* type) const -> bool {
+  return d->traits.is_unbounded_array(type);
+}
+
+auto Control::is_scoped_enum(const Type* type) const -> bool {
+  return d->traits.is_scoped_enum(type);
+}
+
+auto Control::remove_reference(const Type* type) const -> const Type* {
+  return d->traits.remove_reference(type);
+}
+
+auto Control::add_lvalue_reference(const Type* type) const -> const Type* {
+  return d->traits.add_lvalue_reference(type);
+}
+
+auto Control::add_rvalue_reference(const Type* type) const -> const Type* {
+  return d->traits.add_rvalue_reference(type);
+}
+
+auto Control::remove_extent(const Type* type) const -> const Type* {
+  return d->traits.remove_extent(type);
+}
+
+auto Control::remove_cv(const Type* type) const -> const Type* {
+  return d->traits.remove_cv(type);
+}
+
+auto Control::remove_cvref(const Type* type) const -> const Type* {
+  return d->traits.remove_cvref(type);
+}
+
+auto Control::add_const_ref(const Type* type) const -> const Type* {
+  return d->traits.add_const_ref(type);
+}
+
+auto Control::add_const(const Type* type) const -> const Type* {
+  return d->traits.add_const(type);
+}
+
+auto Control::add_volatile(const Type* type) const -> const Type* {
+  return d->traits.add_volatile(type);
+}
+
+auto Control::remove_pointer(const Type* type) const -> const Type* {
+  return d->traits.remove_pointer(type);
+}
+
+auto Control::add_pointer(const Type* type) const -> const Type* {
+  return d->traits.add_pointer(type);
+}
+
+auto Control::is_same(const Type* a, const Type* b) const -> bool {
+  return d->traits.is_same(a, b);
+}
+
+auto Control::decay(const Type* type) const -> const Type* {
+  return d->traits.add_pointer(type);
 }
 
 }  // namespace cxx
