@@ -2161,7 +2161,6 @@ auto ASTDecoder::decodeTypeTraitsExpression(
       inserter = &(*inserter)->next;
     }
   }
-  ast->typeTraits = static_cast<TokenKind>(node->type_traits());
   return ast;
 }
 

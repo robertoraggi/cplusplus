@@ -54,6 +54,7 @@ import * as child_process from "child_process";
 import { gen_token_fwd_h } from "./gen_token_fwd_h.js";
 import { gen_tokenkind_ts } from "./gen_tokenkind_ts.js";
 import { gen_keywords_kwgen } from "./gen_keywords_kwgen.js";
+import { gen_builtins_kwgen } from "./gen_builtins_kwgen.js";
 
 const outdir = process.cwd();
 
@@ -166,6 +167,9 @@ gen_tokenkind_ts({
 });
 gen_keywords_kwgen({
   output: path.join(outdir, "src/parser/cxx/keywords.kwgen"),
+});
+gen_builtins_kwgen({
+  output: path.join(outdir, "src/parser/cxx/builtins.kwgen"),
 });
 
 child_process.execSync("clang-format -i *.h *.cc", {

@@ -30,7 +30,6 @@ export function gen_tokenkind_ts({ output }: { output: string }) {
   tokens.BASE_TOKENS.forEach((tk) => emit(`  ${tk},`));
   tokens.OPERATORS.forEach(([tk]) => emit(`  ${tk},`));
   tokens.KEYWORDS.forEach((tk) => emit(`  ${tk.toUpperCase()},`));
-  tokens.BUILTINS.forEach((tk) => emit(`  ${tk.toUpperCase()},`));
   emit("}");
 
   const out = `${cpy_header}

@@ -141,6 +141,7 @@ static std::string option_token_prefix = "Token_";
 static std::string option_char_type = "char";
 static std::string option_token_type = "int";
 static std::string option_unicode_function = "";
+static std::string option_classifier = "classify";
 
 auto token_id(const std::string &id) -> std::string {
   std::string token = option_token_prefix;
@@ -199,8 +200,8 @@ void doit(State &state) {
 }
 
 void gen_classify_n(State &start_state, int N) {
-  std::cout << "static inline " << option_token_type << " classify" << N
-            << "(const " << option_char_type << " *s) {" << std::endl;
+  std::cout << "static inline " << option_token_type << " " << option_classifier
+            << N << "(const " << option_char_type << " *s) {" << std::endl;
   doit(start_state);
   std::cout << "  return " << option_namespace_name << token_id("identifier")
             << ";" << std::endl
@@ -210,14 +211,14 @@ void gen_classify_n(State &start_state, int N) {
 
 void gen_classify(const std::multimap<size_t, std::string> &keywords) {
   std::cout << "static " << option_token_type << " " << option_namespace_name
-            << "classify(const " << option_char_type << " *s, int n) {"
-            << std::endl
+            << option_classifier << "(const " << option_char_type
+            << " *s, int n) {" << std::endl
             << "  switch (n) {" << std::endl;
   auto it = keywords.begin();
   while (it != keywords.end()) {
     size_t size = it->first;
-    std::cout << "    case " << size << ": return classify" << size << "(s);"
-              << std::endl;
+    std::cout << "    case " << size << ": return " << option_classifier << size
+              << "(s);" << std::endl;
     do {
       ++it;
     } while (it != keywords.end() && it->first == size);
@@ -267,6 +268,7 @@ auto main(int argc, char *argv[]) -> int {
   const std::string opt_char_type = "%char-type=";
   const std::string opt_unicode_function = "%unicode-function=";
   const std::string opt_token_type = "%token-type=";
+  const std::string opt_classifier = "%classifier=";
 
   while (getline(std::cin, textline)) {
     // remove trailing spaces
@@ -293,6 +295,9 @@ auto main(int argc, char *argv[]) -> int {
                                   textline.end());
         } else if (starts_with(textline, opt_token_type)) {
           option_token_type.assign(textline.begin() + opt_token_type.size(),
+                                   textline.end());
+        } else if (starts_with(textline, opt_classifier)) {
+          option_classifier.assign(textline.begin() + opt_token_type.size(),
                                    textline.end());
         } else if (starts_with(textline, opt_unicode_function)) {
           option_unicode_function.assign(

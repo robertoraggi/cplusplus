@@ -1104,12 +1104,6 @@ void ASTPrinter::visit(DesignatedInitializerClauseAST* ast) {
 
 void ASTPrinter::visit(TypeTraitsExpressionAST* ast) {
   fmt::print(out_, "{}\n", "type-traits-expression");
-  if (ast->typeTraits != TokenKind::T_EOF_SYMBOL) {
-    ++indent_;
-    fmt::print(out_, "{:{}}", "", indent_ * 2);
-    fmt::print(out_, "type-traits: {}\n", Token::spell(ast->typeTraits));
-    --indent_;
-  }
   if (ast->typeIdList) {
     ++indent_;
     fmt::print(out_, "{:{}}", "", indent_ * 2);

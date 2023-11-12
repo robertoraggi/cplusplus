@@ -26,6 +26,7 @@
 #include <cctype>
 #include <unordered_map>
 
+#include "builtins-priv.h"
 #include "keywords-priv.h"
 
 namespace cxx {
@@ -552,6 +553,10 @@ auto Lexer::skipSpaces() -> bool {
 
 auto Lexer::classifyKeyword(const std::string_view& text) -> TokenKind {
   return classify(text.data(), static_cast<int>(text.size()));
+}
+
+auto Lexer::classifyBuiltin(const std::string_view& text) -> BuiltinKind {
+  return isBuiltin(text.data(), static_cast<int>(text.size()));
 }
 
 void Lexer::clearBuffer() { buffer_.clear(); }

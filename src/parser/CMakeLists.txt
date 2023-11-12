@@ -24,6 +24,7 @@ aux_source_directory(cxx SOURCES)
 add_library(cxx-parser ${SOURCES}
     # generated files
     keywords-priv.h
+    builtins-priv.h
 )
 
 target_include_directories(cxx-parser
@@ -54,6 +55,10 @@ add_custom_command(OUTPUT keywords-priv.h
     DEPENDS cxx/keywords.kwgen
     COMMENT "Generate keywords-priv.h")
 
+    add_custom_command(OUTPUT builtins-priv.h
+    COMMAND kwgen < ${CMAKE_CURRENT_SOURCE_DIR}/cxx/builtins.kwgen > builtins-priv.h
+    DEPENDS cxx/builtins.kwgen
+    COMMENT "Generate builtins-priv.h")
 
 # generate flatbuffers decoder for ast.fbs
 flatbuffers_generate_headers(

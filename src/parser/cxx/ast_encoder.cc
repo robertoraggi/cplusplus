@@ -3059,7 +3059,6 @@ void ASTEncoder::visit(TypeTraitsExpressionAST* ast) {
   builder.add_lparen_loc(lparenLoc.o);
   builder.add_type_id_list(typeIdListOffsetsVector);
   builder.add_rparen_loc(rparenLoc.o);
-  builder.add_type_traits(static_cast<std::uint32_t>(ast->typeTraits));
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_TypeTraitsExpression;

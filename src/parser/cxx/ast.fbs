@@ -1117,7 +1117,6 @@ table DesignatedInitializerClause /* ExpressionAST */ {
 
 table TypeTraitsExpression /* ExpressionAST */ {
   type_id_list: [TypeId];
-  type_traits: uint32;
   type_traits_loc: SourceLocation;
   lparen_loc: SourceLocation;
   rparen_loc: SourceLocation;

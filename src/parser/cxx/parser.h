@@ -220,7 +220,8 @@ class Parser final {
       -> bool;
   [[nodiscard]] auto parse_typeid_expression(ExpressionAST*& yyast) -> bool;
   [[nodiscard]] auto parse_typename_expression(ExpressionAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_type_traits_op(SourceLocation& loc) -> bool;
+  [[nodiscard]] auto parse_type_traits_op(SourceLocation& loc,
+                                          BuiltinKind& builtinKind) -> bool;
   [[nodiscard]] auto parse_builtin_call_expression(ExpressionAST*& yyast)
       -> bool;
   [[nodiscard]] auto parse_expression_list(List<ExpressionAST*>*& yyast)
