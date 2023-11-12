@@ -21,17 +21,16 @@
 import * as fs from "fs";
 import * as tokens from "./tokens.js";
 
-export function gen_keywords_kwgen({ output }: { output: string }) {
+export function gen_builtins_kwgen({ output }: { output: string }) {
   const code: string[] = [];
   const emit = (line = "") => code.push(line);
 
-  tokens.KEYWORDS.forEach((tk) => emit(tk));
-  emit();
-  tokens.TOKEN_ALIASES.forEach(([tk]) => emit(tk));
+  tokens.BUILTINS.forEach((tk) => emit(tk));
 
   const out = `%no-enums
-%token-prefix=cxx::TokenKind::T_
-%token-type=cxx::TokenKind
+%token-prefix=cxx::BuiltinKind::T_
+%token-type=cxx::BuiltinKind
+%classifier=isBuiltin
 %toupper
 
 %%

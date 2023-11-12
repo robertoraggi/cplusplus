@@ -5929,13 +5929,6 @@ export class TypeTraitsExpressionAST extends ExpressionAST {
   getRparenToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
   }
-
-  /**
-   * Returns the typeTraits attribute of this node
-   */
-  getTypeTraits(): TokenKind {
-    return cxx.getASTSlot(this.getHandle(), 4);
-  }
 }
 
 /**

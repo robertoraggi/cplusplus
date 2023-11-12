@@ -1847,7 +1847,7 @@ class TypeTraitsExpressionAST final : public ExpressionAST {
   SourceLocation lparenLoc;
   List<TypeIdAST*>* typeIdList = nullptr;
   SourceLocation rparenLoc;
-  TokenKind typeTraits = TokenKind::T_EOF_SYMBOL;
+  BuiltinKind typeTraits = BuiltinKind::T_IDENTIFIER;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

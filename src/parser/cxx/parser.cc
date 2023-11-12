@@ -20,6 +20,7 @@
 
 #include <cxx/ast.h>
 #include <cxx/control.h>
+#include <cxx/lexer.h>
 #include <cxx/literals.h>
 #include <cxx/name_printer.h>
 #include <cxx/names.h>
@@ -3061,11 +3062,11 @@ auto Parser::parse_postfix_expression(ExpressionAST*& yyast) -> bool {
 }
 
 auto Parser::parse_start_of_postfix_expression(ExpressionAST*& yyast) -> bool {
-  if (parse_cpp_cast_expression(yyast))
+  if (parse_builtin_call_expression(yyast))
+    return true;
+  else if (parse_cpp_cast_expression(yyast))
     return true;
   else if (parse_typeid_expression(yyast))
-    return true;
-  else if (parse_builtin_call_expression(yyast))
     return true;
   else if (parse_typename_expression(yyast))
     return true;
@@ -3356,104 +3357,27 @@ auto Parser::parse_typename_expression(ExpressionAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_type_traits_op(SourceLocation& loc) -> bool {
-  switch (TokenKind(LA())) {
-    case TokenKind::T___HAS_UNIQUE_OBJECT_REPRESENTATIONS:
-    case TokenKind::T___HAS_VIRTUAL_DESTRUCTOR:
-    case TokenKind::T___IS_ABSTRACT:
-    case TokenKind::T___IS_AGGREGATE:
-    case TokenKind::T___IS_ARITHMETIC:
-    case TokenKind::T___IS_ARRAY:
-    case TokenKind::T___IS_ASSIGNABLE:
-    case TokenKind::T___IS_BASE_OF:
-    case TokenKind::T___IS_BOUNDED_ARRAY:
-    case TokenKind::T___IS_CLASS:
-    case TokenKind::T___IS_COMPOUND:
-    case TokenKind::T___IS_CONST:
-    case TokenKind::T___IS_CONSTRUCTIBLE:
-    case TokenKind::T___IS_CONVERTIBLE:
-    case TokenKind::T___IS_COPY_ASSIGNABLE:
-    case TokenKind::T___IS_COPY_CONSTRUCTIBLE:
-    case TokenKind::T___IS_DEFAULT_CONSTRUCTIBLE:
-    case TokenKind::T___IS_DESTRUCTIBLE:
-    case TokenKind::T___IS_EMPTY:
-    case TokenKind::T___IS_ENUM:
-    case TokenKind::T___IS_FINAL:
-    case TokenKind::T___IS_FLOATING_POINT:
-    case TokenKind::T___IS_FUNCTION:
-    case TokenKind::T___IS_FUNDAMENTAL:
-    case TokenKind::T___IS_INTEGRAL:
-    case TokenKind::T___IS_INVOCABLE:
-    case TokenKind::T___IS_INVOCABLE_R:
-    case TokenKind::T___IS_LAYOUT_COMPATIBLE:
-    case TokenKind::T___IS_LITERAL_TYPE:
-    case TokenKind::T___IS_LVALUE_REFERENCE:
-    case TokenKind::T___IS_MEMBER_FUNCTION_POINTER:
-    case TokenKind::T___IS_MEMBER_OBJECT_POINTER:
-    case TokenKind::T___IS_MEMBER_POINTER:
-    case TokenKind::T___IS_MOVE_ASSIGNABLE:
-    case TokenKind::T___IS_MOVE_CONSTRUCTIBLE:
-    case TokenKind::T___IS_NOTHROW_ASSIGNABLE:
-    case TokenKind::T___IS_NOTHROW_CONSTRUCTIBLE:
-    case TokenKind::T___IS_NOTHROW_CONVERTIBLE:
-    case TokenKind::T___IS_NOTHROW_COPY_ASSIGNABLE:
-    case TokenKind::T___IS_NOTHROW_COPY_CONSTRUCTIBLE:
-    case TokenKind::T___IS_NOTHROW_DEFAULT_CONSTRUCTIBLE:
-    case TokenKind::T___IS_NOTHROW_DESTRUCTIBLE:
-    case TokenKind::T___IS_NOTHROW_INVOCABLE:
-    case TokenKind::T___IS_NOTHROW_INVOCABLE_R:
-    case TokenKind::T___IS_NOTHROW_MOVE_ASSIGNABLE:
-    case TokenKind::T___IS_NOTHROW_MOVE_CONSTRUCTIBLE:
-    case TokenKind::T___IS_NOTHROW_SWAPPABLE:
-    case TokenKind::T___IS_NOTHROW_SWAPPABLE_WITH:
-    case TokenKind::T___IS_NULL_POINTER:
-    case TokenKind::T___IS_OBJECT:
-    case TokenKind::T___IS_POD:
-    case TokenKind::T___IS_POINTER:
-    case TokenKind::T___IS_POINTER_INTERCONVERTIBLE_BASE_OF:
-    case TokenKind::T___IS_POLYMORPHIC:
-    case TokenKind::T___IS_REFERENCE:
-    case TokenKind::T___IS_RVALUE_REFERENCE:
-    case TokenKind::T___IS_SAME:
-    case TokenKind::T___IS_SCALAR:
-    case TokenKind::T___IS_SCOPED_ENUM:
-    case TokenKind::T___IS_SIGNED:
-    case TokenKind::T___IS_STANDARD_LAYOUT:
-    case TokenKind::T___IS_SWAPPABLE:
-    case TokenKind::T___IS_SWAPPABLE_WITH:
-    case TokenKind::T___IS_TRIVIAL:
-    case TokenKind::T___IS_TRIVIALLY_ASSIGNABLE:
-    case TokenKind::T___IS_TRIVIALLY_CONSTRUCTIBLE:
-    case TokenKind::T___IS_TRIVIALLY_COPY_ASSIGNABLE:
-    case TokenKind::T___IS_TRIVIALLY_COPY_CONSTRUCTIBLE:
-    case TokenKind::T___IS_TRIVIALLY_COPYABLE:
-    case TokenKind::T___IS_TRIVIALLY_DEFAULT_CONSTRUCTIBLE:
-    case TokenKind::T___IS_TRIVIALLY_DESTRUCTIBLE:
-    case TokenKind::T___IS_TRIVIALLY_MOVE_ASSIGNABLE:
-    case TokenKind::T___IS_TRIVIALLY_MOVE_CONSTRUCTIBLE:
-    case TokenKind::T___IS_UNBOUNDED_ARRAY:
-    case TokenKind::T___IS_UNION:
-    case TokenKind::T___IS_UNSIGNED:
-    case TokenKind::T___IS_VOID:
-    case TokenKind::T___IS_VOLATILE:
-    case TokenKind::T___REFERENCE_BINDS_TO_TEMPORARY:
-      loc = consumeToken();
-      return true;
-    default:
-      return false;
-  }  // switch
+auto Parser::parse_type_traits_op(SourceLocation& loc, BuiltinKind& builtinKind)
+    -> bool {
+  if (!lookat(TokenKind::T_IDENTIFIER)) return false;
+  auto id = unit->identifier(currentLocation());
+  auto builtin = Lexer::classifyBuiltin(id->value());
+  if (builtin == BuiltinKind::T_IDENTIFIER) return false;
+  builtinKind = builtin;
+  loc = consumeToken();
+  return true;
 }
 
 auto Parser::parse_builtin_call_expression(ExpressionAST*& yyast) -> bool {
   SourceLocation typeTraitsLoc;
-
-  if (!parse_type_traits_op(typeTraitsLoc)) return false;
+  BuiltinKind builtinKind = BuiltinKind::T_IDENTIFIER;
+  if (!parse_type_traits_op(typeTraitsLoc, builtinKind)) return false;
 
   auto ast = new (pool_) TypeTraitsExpressionAST();
   yyast = ast;
 
   ast->typeTraitsLoc = typeTraitsLoc;
-  ast->typeTraits = unit->tokenKind(typeTraitsLoc);
+  ast->typeTraits = builtinKind;
 
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
@@ -3494,146 +3418,147 @@ auto Parser::parse_builtin_call_expression(ExpressionAST*& yyast) -> bool {
     TypeTraits traits{*this};
 
     switch (ast->typeTraits) {
-      case TokenKind::T___IS_VOID: {
+      case BuiltinKind::T___IS_VOID: {
         ast->constValue = traits.is_void(firstType);
         break;
       }
 
-      case TokenKind::T___IS_NULL_POINTER: {
+      case BuiltinKind::T___IS_NULL_POINTER: {
         ast->constValue = traits.is_null_pointer(firstType);
         break;
       }
 
-      case TokenKind::T___IS_INTEGRAL: {
+      case BuiltinKind::T___IS_INTEGRAL: {
         ast->constValue = traits.is_integral(firstType);
         break;
       }
 
-      case TokenKind::T___IS_FLOATING_POINT: {
+      case BuiltinKind::T___IS_FLOATING_POINT: {
         ast->constValue = traits.is_floating_point(firstType);
         break;
       }
 
-      case TokenKind::T___IS_ARRAY: {
+      case BuiltinKind::T___IS_ARRAY: {
         ast->constValue = traits.is_array(firstType);
         break;
       }
 
-      case TokenKind::T___IS_ENUM: {
+      case BuiltinKind::T___IS_ENUM: {
         ast->constValue = traits.is_enum(firstType);
         break;
       }
 
-      case TokenKind::T___IS_SCOPED_ENUM: {
+      case BuiltinKind::T___IS_SCOPED_ENUM: {
         ast->constValue = traits.is_scoped_enum(firstType);
         break;
       }
 
-      case TokenKind::T___IS_UNION: {
+      case BuiltinKind::T___IS_UNION: {
         ast->constValue = traits.is_union(firstType);
         break;
       }
 
-      case TokenKind::T___IS_CLASS: {
+      case BuiltinKind::T___IS_CLASS: {
         ast->constValue = traits.is_class(firstType);
         break;
       }
 
-      case TokenKind::T___IS_FUNCTION: {
+      case BuiltinKind::T___IS_FUNCTION: {
         ast->constValue = traits.is_function(firstType);
         break;
       }
 
-      case TokenKind::T___IS_POINTER: {
+      case BuiltinKind::T___IS_POINTER: {
         ast->constValue = traits.is_pointer(firstType);
         break;
       }
 
-      case TokenKind::T___IS_MEMBER_OBJECT_POINTER: {
+      case BuiltinKind::T___IS_MEMBER_OBJECT_POINTER: {
         ast->constValue = traits.is_member_object_pointer(firstType);
         break;
       }
 
-      case TokenKind::T___IS_MEMBER_FUNCTION_POINTER: {
+      case BuiltinKind::T___IS_MEMBER_FUNCTION_POINTER: {
         ast->constValue = traits.is_member_function_pointer(firstType);
         break;
       }
 
-      case TokenKind::T___IS_LVALUE_REFERENCE: {
+      case BuiltinKind::T___IS_LVALUE_REFERENCE: {
         ast->constValue = traits.is_lvalue_reference(firstType);
         break;
       }
 
-      case TokenKind::T___IS_RVALUE_REFERENCE: {
+      case BuiltinKind::T___IS_RVALUE_REFERENCE: {
         ast->constValue = traits.is_rvalue_reference(firstType);
         break;
       }
 
-      case TokenKind::T___IS_FUNDAMENTAL: {
+      case BuiltinKind::T___IS_FUNDAMENTAL: {
         ast->constValue = traits.is_fundamental(firstType);
         break;
       }
 
-      case TokenKind::T___IS_ARITHMETIC: {
+      case BuiltinKind::T___IS_ARITHMETIC: {
         ast->constValue = traits.is_arithmetic(firstType);
         break;
       }
 
-      case TokenKind::T___IS_SCALAR: {
+      case BuiltinKind::T___IS_SCALAR: {
         ast->constValue = traits.is_scalar(firstType);
       }
 
-      case TokenKind::T___IS_OBJECT: {
+      case BuiltinKind::T___IS_OBJECT: {
         ast->constValue = traits.is_object(firstType);
         break;
       }
 
-      case TokenKind::T___IS_COMPOUND: {
+      case BuiltinKind::T___IS_COMPOUND: {
         ast->constValue = traits.is_compound(firstType);
         break;
       }
 
-      case TokenKind::T___IS_REFERENCE: {
+      case BuiltinKind::T___IS_REFERENCE: {
         ast->constValue = traits.is_reference(firstType);
         break;
       }
 
-      case TokenKind::T___IS_MEMBER_POINTER: {
+      case BuiltinKind::T___IS_MEMBER_POINTER: {
         ast->constValue = traits.is_member_pointer(firstType);
         break;
       }
 
-      case TokenKind::T___IS_BOUNDED_ARRAY: {
+      case BuiltinKind::T___IS_BOUNDED_ARRAY: {
         ast->constValue = traits.is_bounded_array(firstType);
         break;
       }
 
-      case TokenKind::T___IS_UNBOUNDED_ARRAY: {
+      case BuiltinKind::T___IS_UNBOUNDED_ARRAY: {
         ast->constValue = traits.is_unbounded_array(firstType);
         break;
       }
 
-      case TokenKind::T___IS_CONST: {
+      case BuiltinKind::T___IS_CONST: {
         ast->constValue = traits.is_const(firstType);
         break;
       }
 
-      case TokenKind::T___IS_VOLATILE: {
+      case BuiltinKind::T___IS_VOLATILE: {
         ast->constValue = traits.is_volatile(firstType);
         break;
       }
 
-      case TokenKind::T___IS_SIGNED: {
+      case BuiltinKind::T___IS_SIGNED: {
         ast->constValue = traits.is_signed(firstType);
         break;
       }
 
-      case TokenKind::T___IS_UNSIGNED: {
+      case BuiltinKind::T___IS_UNSIGNED: {
         ast->constValue = traits.is_unsigned(firstType);
         break;
       }
 
-      case TokenKind::T___IS_SAME: {
+      case BuiltinKind::T___IS_SAME:
+      case BuiltinKind::T___IS_SAME_AS: {
         if (!secondType) break;
         ast->constValue = traits.is_same(firstType, secondType);
         break;
@@ -6435,8 +6360,8 @@ void Parser::mark_maybe_template_name(DeclaratorAST* declarator) {
 
 void Parser::check_type_traits() {
   SourceLocation typeTraitsLoc;
-
-  if (!parse_type_traits_op(typeTraitsLoc)) return;
+  BuiltinKind builtinKind = BuiltinKind::T_IDENTIFIER;
+  if (!parse_type_traits_op(typeTraitsLoc, builtinKind)) return;
 
 #if 0
   parse_warn(
@@ -6446,7 +6371,7 @@ void Parser::check_type_traits() {
                   Token::spell(unit->tokenKind(typeTraitsLoc))));
 #endif
 
-  unit->replaceWithIdentifier(typeTraitsLoc);
+  // unit->replaceWithIdentifier(typeTraitsLoc);
 
   rewind(typeTraitsLoc);
 }

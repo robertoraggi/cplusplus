@@ -44,7 +44,7 @@ export function gen_token_fwd_h({ output }: { output: string }) {
   tokens.KEYWORDS.forEach((tk) => emit(`  V(${tk.toUpperCase()}, "${tk}") \\`));
 
   emit();
-  emit("#define FOR_EACH_BUILTN_FUNCTION(V) \\");
+  emit("#define FOR_EACH_BUILTIN(V) \\");
   tokens.BUILTINS.forEach((tk) => emit(`  V(${tk.toUpperCase()}, "${tk}") \\`));
 
   emit();
@@ -69,8 +69,7 @@ ${code.join("\n")}
 #define FOR_EACH_TOKEN(V) \\
   FOR_EACH_BASE_TOKEN(V) \\
   FOR_EACH_OPERATOR(V) \\
-  FOR_EACH_KEYWORD(V) \\
-  FOR_EACH_BUILTN_FUNCTION(V)
+  FOR_EACH_KEYWORD(V)
 
 // clang-format off
 #define TOKEN_ENUM(tk, _) T_##tk,
@@ -79,6 +78,12 @@ enum struct TokenKind : std::uint8_t {
   FOR_EACH_TOKEN(TOKEN_ENUM)
   FOR_EACH_TOKEN_ALIAS(TOKEN_ALIAS_ENUM)
 };
+
+enum struct BuiltinKind {
+  T_IDENTIFIER,
+  FOR_EACH_BUILTIN(TOKEN_ENUM)
+};
+
 #undef TOKEN_ENUM
 #undef TOKEN_ALIAS_ENUM
 // clang-format on
