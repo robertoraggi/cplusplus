@@ -156,6 +156,66 @@ class Control {
       -> ConstraintTypeParameterSymbol*;
   auto newEnumeratorSymbol(Scope* enclosingScope) -> EnumeratorSymbol*;
 
+  // primary type categories
+  auto is_void(const Type* type) const -> bool;
+  auto is_null_pointer(const Type* type) const -> bool;
+  auto is_integral(const Type* type) const -> bool;
+  auto is_floating_point(const Type* type) const -> bool;
+  auto is_array(const Type* type) const -> bool;
+  auto is_enum(const Type* type) const -> bool;
+  auto is_union(const Type* type) const -> bool;
+  auto is_class(const Type* type) const -> bool;
+  auto is_function(const Type* type) const -> bool;
+  auto is_pointer(const Type* type) const -> bool;
+  auto is_lvalue_reference(const Type* type) const -> bool;
+  auto is_rvalue_reference(const Type* type) const -> bool;
+  auto is_member_object_pointer(const Type* type) const -> bool;
+  auto is_member_function_pointer(const Type* type) const -> bool;
+  auto is_complete(const Type* type) const -> bool;
+
+  // composite type categories
+  auto is_integer(const Type* type) const -> bool;
+  auto is_integral_or_unscoped_enum(const Type* type) const -> bool;
+  auto is_fundamental(const Type* type) const -> bool;
+  auto is_arithmetic(const Type* type) const -> bool;
+  auto is_scalar(const Type* type) const -> bool;
+  auto is_object(const Type* type) const -> bool;
+  auto is_compound(const Type* type) const -> bool;
+  auto is_reference(const Type* type) const -> bool;
+  auto is_member_pointer(const Type* type) const -> bool;
+
+  // type properties
+  auto is_const(const Type* type) const -> bool;
+  auto is_volatile(const Type* type) const -> bool;
+  auto is_signed(const Type* type) const -> bool;
+  auto is_unsigned(const Type* type) const -> bool;
+  auto is_bounded_array(const Type* type) const -> bool;
+  auto is_unbounded_array(const Type* type) const -> bool;
+  auto is_scoped_enum(const Type* type) const -> bool;
+
+  // references
+  auto remove_reference(const Type* type) const -> const Type*;
+  auto add_lvalue_reference(const Type* type) const -> const Type*;
+  auto add_rvalue_reference(const Type* type) const -> const Type*;
+
+  // arrays
+  auto remove_extent(const Type* type) const -> const Type*;
+
+  // cv qualifiers
+  auto remove_cv(const Type* type) const -> const Type*;
+  auto remove_cvref(const Type* type) const -> const Type*;
+  auto add_const_ref(const Type* type) const -> const Type*;
+  auto add_const(const Type* type) const -> const Type*;
+  auto add_volatile(const Type* type) const -> const Type*;
+
+  // pointers
+  auto remove_pointer(const Type* type) const -> const Type*;
+  auto add_pointer(const Type* type) const -> const Type*;
+
+  // type relationships
+  auto is_same(const Type* a, const Type* b) const -> bool;
+  auto decay(const Type* type) const -> const Type*;
+
  private:
   struct Private;
   std::unique_ptr<Private> d;

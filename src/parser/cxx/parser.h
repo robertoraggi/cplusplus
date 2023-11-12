@@ -47,9 +47,16 @@ class Parser final {
   explicit Parser(TranslationUnit* unit);
   ~Parser();
 
+  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
+    return unit;
+  }
+
+  [[nodiscard]] auto control() const -> Control* { return control_; }
+
   [[nodiscard]] auto config() const -> const ParserConfiguration& {
     return config_;
   }
+
   void setConfig(const ParserConfiguration& config) { config_ = config; }
 
   /**
@@ -87,7 +94,6 @@ class Parser final {
   struct LoopParser;
   struct ClassHead;
   struct GetDeclaratorType;
-  struct TypeTraits;
 
   enum struct BindingContext {
     kNamespace,
