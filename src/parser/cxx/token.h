@@ -86,6 +86,8 @@ class Token {
   static auto spell(TokenKind kind) -> const std::string&;
   static auto name(TokenKind kind) -> const std::string&;
 
+  static auto spell(BuiltinKind kind) -> const std::string&;
+
  private:
   std::uint64_t kind_ : 8;
   std::uint64_t startOfLine_ : 1;

@@ -20,7 +20,6 @@
 
 #include <cxx/ast.h>
 #include <cxx/control.h>
-#include <cxx/lexer.h>
 #include <cxx/literals.h>
 #include <cxx/name_printer.h>
 #include <cxx/names.h>
@@ -3359,11 +3358,8 @@ auto Parser::parse_typename_expression(ExpressionAST*& yyast) -> bool {
 
 auto Parser::parse_type_traits_op(SourceLocation& loc, BuiltinKind& builtinKind)
     -> bool {
-  if (!lookat(TokenKind::T_IDENTIFIER)) return false;
-  auto id = unit->identifier(currentLocation());
-  auto builtin = Lexer::classifyBuiltin(id->value());
-  if (builtin == BuiltinKind::T_IDENTIFIER) return false;
-  builtinKind = builtin;
+  if (!lookat(TokenKind::T_BUILTIN)) return false;
+  builtinKind = static_cast<BuiltinKind>(LA().value().intValue);
   loc = consumeToken();
   return true;
 }
@@ -6363,15 +6359,15 @@ void Parser::check_type_traits() {
   BuiltinKind builtinKind = BuiltinKind::T_IDENTIFIER;
   if (!parse_type_traits_op(typeTraitsLoc, builtinKind)) return;
 
-#if 0
+#if false
   parse_warn(
       typeTraitsLoc,
       fmt::format("keyword '{}' will be made available as an identifier for "
                   "the remainder of the translation unit",
-                  Token::spell(unit->tokenKind(typeTraitsLoc))));
+                  Token::spell(builtinKind)));
 #endif
 
-  // unit->replaceWithIdentifier(typeTraitsLoc);
+  unit->replaceWithIdentifier(typeTraitsLoc);
 
   rewind(typeTraitsLoc);
 }

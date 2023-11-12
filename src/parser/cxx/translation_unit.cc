@@ -149,14 +149,18 @@ auto TranslationUnit::serialize(
 
 void TranslationUnit::replaceWithIdentifier(SourceLocation keywordLoc) {
   const auto kind = tokenKind(keywordLoc);
+  if (kind != TokenKind::T_BUILTIN) return;
+
+  const auto builtin = tokenAt(keywordLoc).value().intValue;
 
   TokenValue value;
-  value.idValue = control_->getIdentifier(Token::spell(kind));
+  value.idValue =
+      control_->getIdentifier(Token::spell(static_cast<BuiltinKind>(builtin)));
 
   for (size_t i = keywordLoc.index(); i < tokens_.size(); ++i) {
     auto& tk = tokens_[i];
 
-    if (tk.is(kind)) {
+    if (tk.is(TokenKind::T_BUILTIN) && tk.value().intValue == builtin) {
       tk.setKind(TokenKind::T_IDENTIFIER);
       tk.setValue(value);
     }

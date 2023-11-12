@@ -192,9 +192,22 @@ auto Lexer::readToken() -> TokenKind {
     if (!isStringOrCharacterLiteral) {
       tokenIsClean_ = text_.length() == tokenLength();
 
-      return !preprocessing_
-                 ? classify(text_.c_str(), static_cast<int>(text_.length()))
-                 : TokenKind::T_IDENTIFIER;
+      if (preprocessing_) return TokenKind::T_IDENTIFIER;
+
+      if (auto keyword =
+              classify(text_.c_str(), static_cast<int>(text_.length()));
+          keyword != TokenKind::T_IDENTIFIER) {
+        return keyword;
+      }
+
+      if (auto builtin =
+              isBuiltin(text_.c_str(), static_cast<int>(text_.length()));
+          builtin != BuiltinKind::T_IDENTIFIER) {
+        tokenValue_.intValue = static_cast<int>(builtin);
+        return TokenKind::T_BUILTIN;
+      }
+
+      return TokenKind::T_IDENTIFIER;
     }
   }
 

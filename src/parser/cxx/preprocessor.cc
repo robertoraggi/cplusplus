@@ -2137,7 +2137,13 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
       case TokenKind::T_IDENTIFIER: {
         kind = Lexer::classifyKeyword(tk->text);
         if (kind == TokenKind::T_IDENTIFIER) {
-          value.idValue = d->control_->getIdentifier(tk->text);
+          if (auto builtin = Lexer::classifyBuiltin(tk->text);
+              builtin != BuiltinKind::T_IDENTIFIER) {
+            value.intValue = static_cast<int>(builtin);
+            kind = TokenKind::T_BUILTIN;
+          } else {
+            value.idValue = d->control_->getIdentifier(tk->text);
+          }
         }
         break;
       }
