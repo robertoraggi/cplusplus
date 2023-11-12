@@ -22,6 +22,7 @@ export const BASE_TOKENS: string[] = [
   "EOF_SYMBOL",
   "ERROR",
   "COMMENT",
+  "BUILTIN",
   "IDENTIFIER",
   "CHARACTER_LITERAL",
   "FLOATING_POINT_LITERAL",

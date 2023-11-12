@@ -37,10 +37,20 @@ std::string token_name[] = {
 #define TOKEN_SPELL(s, _) #s,
     FOR_EACH_TOKEN(TOKEN_SPELL)};
 #undef TOKEN_SPELL
+
+std::string builtin_spell[] = {
+#define BUILTIN_SPELL(_, s) s,
+    "", FOR_EACH_BUILTIN(BUILTIN_SPELL)};
+#undef BUILTIN_SPELL
+
 }  // namespace
 
 auto Token::spell(TokenKind kind) -> const std::string& {
   return token_spell[static_cast<int>(kind)];
+}
+
+auto Token::spell(BuiltinKind kind) -> const std::string& {
+  return builtin_spell[static_cast<int>(kind)];
 }
 
 auto Token::spell() const -> const std::string& {

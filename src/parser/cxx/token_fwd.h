@@ -33,6 +33,7 @@ class Token;
   V(EOF_SYMBOL, "<eof_symbol>")                                   \
   V(ERROR, "<error>")                                             \
   V(COMMENT, "<comment>")                                         \
+  V(BUILTIN, "<builtin>")                                         \
   V(IDENTIFIER, "<identifier>")                                   \
   V(CHARACTER_LITERAL, "<character_literal>")                     \
   V(FLOATING_POINT_LITERAL, "<floating_point_literal>")           \
