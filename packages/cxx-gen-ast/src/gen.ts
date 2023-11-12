@@ -51,6 +51,9 @@ import * as fs from "fs";
 import * as path from "path";
 import * as process from "process";
 import * as child_process from "child_process";
+import { gen_token_fwd_h } from "./gen_token_fwd_h.js";
+import { gen_tokenkind_ts } from "./gen_tokenkind_ts.js";
+import { gen_keywords_kwgen } from "./gen_keywords_kwgen.js";
 
 const outdir = process.cwd();
 
@@ -132,6 +135,10 @@ gen_ast_decoder_cc({
   output: path.join(outdir, "src/parser/cxx/ast_decoder.cc"),
 });
 
+gen_token_fwd_h({
+  output: path.join(outdir, "src/parser/cxx/token_fwd.h"),
+});
+
 // js integration
 
 gen_ast_ts({
@@ -153,6 +160,12 @@ gen_ast_kind_ts({
 gen_ast_slot_ts({
   ast,
   output: path.join(outdir, "packages/cxx-frontend/src/ASTSlot.ts"),
+});
+gen_tokenkind_ts({
+  output: path.join(outdir, "packages/cxx-frontend/src/TokenKind.ts"),
+});
+gen_keywords_kwgen({
+  output: path.join(outdir, "src/parser/cxx/keywords.kwgen"),
 });
 
 child_process.execSync("clang-format -i *.h *.cc", {
