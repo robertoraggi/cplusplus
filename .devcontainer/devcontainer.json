@@ -15,11 +15,18 @@
     }
   },
 
+  "postCreateCommand": ".devcontainer/install.sh",
+
+  "remoteEnv": {
+    "ENABLE_ORYX_BUILD": "false"
+  },
+
   "remoteUser": "vscode",
+
   "features": {
     "./features/dev": {},
-    "docker-in-docker": "latest",
-    "github-cli": "latest",
-    "node": "latest"
+    "ghcr.io/devcontainers/features/docker-in-docker": "latest",
+    "ghcr.io/devcontainers/features/github-cli": "latest",
+    "ghcr.io/devcontainers/features/node": "latest"
   }
 }
