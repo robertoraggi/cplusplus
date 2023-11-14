@@ -38,8 +38,10 @@ file(READ "${CMAKE_CURRENT_SOURCE_DIR}/package.json" package_json)
 # option to install tools
 option(CXX_INSTALL_TOOLS "Install tools" ON)
 option(CXX_INSTALL_WASI_SYSROOT "Install wasi sysroot" OFF)
+option(CXX_ENABLE_FLATBUFFERS "Enable flatbuffers" ON)
 option(CXX_LIBCXX_WITH_CLANG "Link with libc++" OFF)
-OPTION(CXX_INTERPROCEDURAL_OPTIMIZATION "Enable interprocedural optimization" OFF)
+option(CXX_BUILD_TESTS "Build tests" ON)
+option(CXX_INTERPROCEDURAL_OPTIMIZATION "Enable interprocedural optimization" OFF)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CXX_LIBCXX_WITH_CLANG)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
@@ -81,32 +83,35 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(wasi_sysroot)
 FetchContent_GetProperties(wasi_sysroot)
 
+if (CXX_ENABLE_FLATBUFFERS)
+    set(FLATBUFFERS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(FLATBUFFERS_BUILD_FLATHASH OFF CACHE BOOL "" FORCE)
+    set(FLATBUFFERS_BUILD_FLATLIB OFF CACHE BOOL "" FORCE)
+    set(FLATBUFFERS_INSTALL OFF CACHE BOOL "" FORCE)
 
-set(FLATBUFFERS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(FLATBUFFERS_BUILD_FLATHASH OFF CACHE BOOL "" FORCE)
-set(FLATBUFFERS_BUILD_FLATLIB OFF CACHE BOOL "" FORCE)
-set(FLATBUFFERS_INSTALL OFF CACHE BOOL "" FORCE)
+    if (FLATBUFFERS_FLATC_EXECUTABLE)
+        set(FLATBUFFERS_BUILD_FLATC OFF CACHE BOOL "" FORCE)
+    endif()
 
-if (FLATBUFFERS_FLATC_EXECUTABLE)
-    set(FLATBUFFERS_BUILD_FLATC OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(
+        flatbuffers
+        URL https://github.com/google/flatbuffers/archive/refs/tags/v23.5.26.tar.gz
+    )
+
+    FetchContent_MakeAvailable(flatbuffers)
+    FetchContent_GetProperties(flatbuffers)
+
+    add_library(flatbuffers::header-only INTERFACE IMPORTED)
+    set_target_properties(flatbuffers::header-only PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${flatbuffers_SOURCE_DIR}/include")
 endif()
-
-FetchContent_Declare(
-    flatbuffers
-    URL https://github.com/google/flatbuffers/archive/refs/tags/v23.5.26.tar.gz
-)
-
-FetchContent_MakeAvailable(flatbuffers)
-FetchContent_GetProperties(flatbuffers)
-
-add_library(flatbuffers::header-only INTERFACE IMPORTED)
-set_target_properties(flatbuffers::header-only PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${flatbuffers_SOURCE_DIR}/include")
-
-enable_testing()
 
 add_subdirectory(tools/kwgen)
 add_subdirectory(src)
-add_subdirectory(tests)
+
+if (CXX_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 
 configure_package_config_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/Config.cmake.in

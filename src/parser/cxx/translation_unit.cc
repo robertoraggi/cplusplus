@@ -28,9 +28,13 @@
 #include <cxx/names.h>
 #include <cxx/parser.h>
 #include <cxx/preprocessor.h>
+#include <cxx/symbols.h>
+
+#ifndef CXX_NO_FLATBUFFERS
 #include <cxx/private/ast_decoder.h>
 #include <cxx/private/ast_encoder.h>
-#include <cxx/symbols.h>
+#endif
+
 #include <utf8/unchecked.h>
 
 #include <ostream>
@@ -41,6 +45,7 @@ TranslationUnit::TranslationUnit(Control* control,
                                  DiagnosticsClient* diagnosticsClient)
     : control_(control), diagnosticsClient_(diagnosticsClient) {
   arena_ = std::make_unique<Arena>();
+  globalNamespace_ = control_->newNamespaceSymbol(nullptr);
 
   preprocessor_ = std::make_unique<Preprocessor>(control_, diagnosticsClient_);
 
@@ -116,7 +121,6 @@ void TranslationUnit::getTokenEndPosition(SourceLocation loc, unsigned* line,
 }
 
 auto TranslationUnit::parse(const ParserConfiguration& config) -> bool {
-  globalNamespace_ = control_->newNamespaceSymbol(nullptr);
   Parser parse(this);
   parse.setConfig(config);
   parse(ast_);
@@ -129,8 +133,12 @@ auto TranslationUnit::globalScope() const -> Scope* {
 }
 
 auto TranslationUnit::load(std::span<const std::uint8_t> data) -> bool {
+#ifndef CXX_NO_FLATBUFFERS
   ASTDecoder decode{this};
   return decode(data);
+#else
+  return false;
+#endif
 }
 
 auto TranslationUnit::serialize(std::ostream& out) -> bool {
@@ -141,10 +149,14 @@ auto TranslationUnit::serialize(std::ostream& out) -> bool {
 
 auto TranslationUnit::serialize(
     const std::function<void(std::span<const std::uint8_t>)>& block) -> bool {
+#ifndef CXX_NO_FLATBUFFERS
   ASTEncoder encode;
   auto data = encode(this);
   block(data);
   return true;
+#else
+  return false;
+#endif
 }
 
 void TranslationUnit::replaceWithIdentifier(SourceLocation keywordLoc) {

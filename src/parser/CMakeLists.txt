@@ -43,7 +43,6 @@ endif()
 target_link_libraries(cxx-parser
     PUBLIC  $<BUILD_INTERFACE:fmt::fmt-header-only>
             $<BUILD_INTERFACE:utf8::cpp>
-            $<BUILD_INTERFACE:flatbuffers::header-only>
 )
 
 if (CMAKE_SYSTEM_NAME STREQUAL "WASI")
@@ -60,16 +59,27 @@ add_custom_command(OUTPUT keywords-priv.h
     DEPENDS cxx/builtins.kwgen
     COMMENT "Generate builtins-priv.h")
 
-# generate flatbuffers decoder for ast.fbs
-flatbuffers_generate_headers(
-    TARGET cxx-ast-flatbuffers
-    SCHEMAS cxx/ast.fbs
-    BINARY_SCHEMAS_DIR ${CMAKE_CURRENT_BINARY_DIR}/cxx
-    FLAGS --cpp)
+if (CXX_ENABLE_FLATBUFFERS)
+    aux_source_directory(cxx/flatbuffers FLATBUFFERS_SOURCES)
+    target_sources(cxx-parser PRIVATE ${FLATBUFFERS_SOURCES})
 
-target_link_libraries(cxx-parser
-    PRIVATE $<BUILD_INTERFACE:cxx-ast-flatbuffers>
-)
+    # generate flatbuffers decoder for ast.fbs
+    flatbuffers_generate_headers(
+        TARGET cxx-ast-flatbuffers
+        SCHEMAS cxx/ast.fbs
+        BINARY_SCHEMAS_DIR ${CMAKE_CURRENT_BINARY_DIR}/cxx
+        FLAGS --cpp)
+
+    target_link_libraries(cxx-parser
+        PRIVATE $<BUILD_INTERFACE:cxx-ast-flatbuffers>
+    )
+
+    target_link_libraries(cxx-parser
+        PRIVATE $<BUILD_INTERFACE:flatbuffers::header-only>
+    )
+else()
+    target_compile_definitions(cxx-parser PRIVATE CXX_NO_FLATBUFFERS)
+endif()
 
 install(
     FILES ${CXX_INCLUDE_HEADER_FILES}
