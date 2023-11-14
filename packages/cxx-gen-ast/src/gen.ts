@@ -123,7 +123,7 @@ gen_ast_encoder_h({
 
 gen_ast_encoder_cc({
   ast,
-  output: path.join(outdir, "src/parser/cxx/ast_encoder.cc"),
+  output: path.join(outdir, "src/parser/cxx/flatbuffers/ast_encoder.cc"),
 });
 
 gen_ast_decoder_h({
@@ -133,7 +133,7 @@ gen_ast_decoder_h({
 
 gen_ast_decoder_cc({
   ast,
-  output: path.join(outdir, "src/parser/cxx/ast_decoder.cc"),
+  output: path.join(outdir, "src/parser/cxx/flatbuffers/ast_decoder.cc"),
 });
 
 gen_token_fwd_h({
@@ -174,6 +174,10 @@ gen_builtins_kwgen({
 
 child_process.execSync("clang-format -i *.h *.cc", {
   cwd: path.join(outdir, "src/parser/cxx"),
+});
+
+child_process.execSync("clang-format -i *.cc", {
+  cwd: path.join(outdir, "src/parser/cxx/flatbuffers"),
 });
 
 child_process.execSync("clang-format -i *.h", {
