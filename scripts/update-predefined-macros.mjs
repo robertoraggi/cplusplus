@@ -1,3 +1,5 @@
+#!/usr/bin/env zx
+
 // Copyright (c) 2023 Roberto Raggi <roberto.raggi@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -18,29 +20,45 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#pragma once
+import "zx/globals";
 
-#include <cxx/toolchain.h>
+const workspacePath = path.join(__dirname, "../");
 
-#include <optional>
-#include <string>
+async function main() {
+  const gcc = argv.cc ?? "g++";
+  const std = argv.std ?? "c++20";
 
-namespace cxx {
+  const predefinedMacros = String(
+    await $`${gcc} -E -dM -x c++ -std=${std} - < /dev/null`.quiet()
+  );
 
-class GCCLinuxToolchain final : public Toolchain {
- public:
-  explicit GCCLinuxToolchain(Preprocessor* preprocessor,
-                             std::string arch = "x86_64");
+  const out = [];
+  const emit = (s) => out.push(s);
 
-  [[nodiscard]] auto version() const -> std::optional<int> { return version_; }
+  const toolchain = "GCCLinuxToolchain";
 
-  void addSystemIncludePaths() override;
-  void addSystemCppIncludePaths() override;
-  void addPredefinedMacros() override;
+  emit(`void ${toolchain}::addPredefinedMacros() {`);
 
- private:
-  std::optional<int> version_;
-  std::string arch_;
-};
+  predefinedMacros.split("\n").forEach((line) => {
+    const m = /^#define (\w+(?:\([^)]+\))?) (.*)/.exec(line);
+    if (!m) return;
+    const macro = m[1];
+    const value = m[2].replace(/"/g, '\\"');
+    emit(`  defineMacro("${macro}", "${value}");`);
+  });
 
-}  // namespace cxx
+  emit(`}`);
+
+  const text = out.join("\n") + "\n";
+
+  if (argv.output) {
+    await fs.writeFile(argv.output, text);
+  } else {
+    console.log(text);
+  }
+}
+
+main().catch((e) => {
+  console.error("failed", e);
+  process.exit(1);
+});

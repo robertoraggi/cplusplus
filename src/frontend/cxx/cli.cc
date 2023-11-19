@@ -182,6 +182,11 @@ std::vector<CLIOptionDescr> options{
      "to wasm32.",
      CLIOptionDescrKind::kSeparated},
 
+    {"-arch", "<arch>",
+     "Set the architecture to 'x86_64', 'aarch64', 'wasm32'. Defaults to the "
+     "host architecture.",
+     CLIOptionDescrKind::kSeparated},
+
     {"-verify", "Verify the diagnostic messages", &CLI::opt_verify},
 
     {"-v", "Show commands to run and use verbose output", &CLI::opt_v},
