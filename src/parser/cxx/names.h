@@ -50,6 +50,16 @@ class Identifier final : public Name, public std::tuple<std::string> {
   auto isAnonymous() const -> bool { return name().at(0) == '$'; }
   auto name() const -> const std::string& { return std::get<0>(*this); }
   auto value() const -> const std::string& { return name(); }
+
+  friend auto operator<(const Identifier& identifier,
+                        const std::string_view& other) -> bool {
+    return identifier.name() < other;
+  }
+
+  friend auto operator<(const std::string_view& other,
+                        const Identifier& identifier) -> bool {
+    return other < identifier.name();
+  }
 };
 
 class OperatorId final : public Name, public std::tuple<TokenKind> {

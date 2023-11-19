@@ -150,7 +150,15 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
 
     toolchain = std::move(wasmToolchain);
   } else if (toolchainId == "linux") {
-    toolchain = std::make_unique<GCCLinuxToolchain>(preprocesor);
+    std::string host;
+#ifdef __aarch64__
+    host = "aarch64";
+#elif __x86_64__
+    host = "x86_64";
+#endif
+
+    std::string arch = cli.getSingle("-arch").value_or(host);
+    toolchain = std::make_unique<GCCLinuxToolchain>(preprocesor, arch);
   } else if (toolchainId == "windows") {
     auto windowsToolchain = std::make_unique<WindowsToolchain>(preprocesor);
 

@@ -1237,6 +1237,7 @@ auto Parser::parse_maybe_template_id(UnqualifiedIdAST*& yyast,
   }
 
   switch (TokenKind(LA())) {
+    case TokenKind::T_COLON:
     case TokenKind::T_COMMA:
     case TokenKind::T_LPAREN:
     case TokenKind::T_RPAREN:
@@ -7832,15 +7833,16 @@ auto Parser::parse_attribute_namespace(SourceLocation& attributeNamespaceLoc)
 
 auto Parser::parse_attribute_argument_clause(AttributeArgumentClauseAST*& yyast)
     -> bool {
-  SourceLocation lparenLoc;
+  const SourceLocation lparenLoc = currentLocation();
 
-  if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
-
-  (void)parse_skip_balanced();
+  if (!lookat(TokenKind::T_LPAREN)) return false;
 
   SourceLocation rparenLoc;
-
-  expect(TokenKind::T_RPAREN, rparenLoc);
+  if (parse_skip_balanced()) {
+    rparenLoc = currentLocation().previous();
+  } else {
+    expect(TokenKind::T_RPAREN, rparenLoc);
+  }
 
   auto ast = new (pool_) AttributeArgumentClauseAST();
   yyast = ast;

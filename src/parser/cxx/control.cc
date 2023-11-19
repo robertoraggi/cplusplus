@@ -75,7 +75,7 @@ struct Control::Private {
   LiteralSet<Utf32StringLiteral> utf32StringLiterals;
   LiteralSet<CommentLiteral> commentLiterals;
 
-  std::set<Identifier> identifiers;
+  std::set<Identifier, std::less<>> identifiers;
   std::set<OperatorId> operatorIds;
   std::set<DestructorId> destructorIds;
   std::set<LiteralOperatorId> literalOperatorIds;
@@ -213,6 +213,8 @@ auto Control::newAnonymousId(std::string_view base) -> const Identifier* {
 }
 
 auto Control::getIdentifier(std::string_view name) -> const Identifier* {
+  if (auto it = d->identifiers.find(name); it != d->identifiers.end())
+    return &*it;
   return &*d->identifiers.emplace(std::string(name)).first;
 }
 

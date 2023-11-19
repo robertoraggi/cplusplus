@@ -52,73 +52,47 @@
 namespace {
 
 std::unordered_set<std::string_view> builtinMacros{
-    "__has_builtin",
-    "__has_extension",
-    "__has_feature",
-    "__has_include",
+    "__has_builtin", "__has_extension", "__has_feature",
+    "__has_include", "__has_attribute",
 };
 
 std::unordered_set<std::string_view> enabledBuiltins {
-  "__is_trivially_destructible",
+  "__is_trivially_destructible", "__builtin_is_constant_evaluated",
+
+      "__has_unique_object_representations", "__has_virtual_destructor",
+      "__is_abstract", "__is_aggregate", "__is_arithmetic", "__is_array",
+      "__is_assignable", "__is_base_of", "__is_bounded_array", "__is_class",
+      "__is_compound", "__is_const", "__is_empty", "__is_enum", "__is_final",
+      "__is_floating_point", "__is_function", "__is_fundamental",
+      "__is_integral", "__is_layout_compatible", "__is_literal_type",
+      "__is_lvalue_reference", "__is_member_function_pointer",
+      "__is_member_object_pointer", "__is_member_pointer", "__is_null_pointer",
+      "__is_object", "__is_pod", "__is_pointer", "__is_polymorphic",
+      "__is_reference", "__is_rvalue_reference", "__is_same_as", "__is_same",
+      "__is_scalar", "__is_scoped_enum", "__is_signed", "__is_standard_layout",
+      "__is_swappable_with", "__is_trivial", "__is_unbounded_array",
+      "__is_union", "__is_unsigned", "__is_void", "__is_volatile",
+
 #if false
-    "__add_lvalue_reference",
-    "__add_pointer",
-    "__add_rvalue_reference",
-    "__array_extent",
-    "__array_rank",
-    "__atomic_add_fetch",
-    "__atomic_load_n",
-    "__builtin_assume",
-    "__builtin_bswap128",
-    "__builtin_char_memchr",
-    "__builtin_coro_noop",
-    "__builtin_isfinite",
-    "__builtin_isinf",
-    "__builtin_isnan",
-    "__builtin_operator_delete",
-    "__builtin_operator_new",
-    "__builtin_source_location",
-    "__builtin_va_copy",
-    "__builtin_wcslen",
-    "__builtin_wmemcmp",
-    "__decay",
-    "__has_trivial_destructor",
-    "__is_array",
-    "__is_compound",
-    "__is_const",
-    "__is_convertible_to",
-    "__is_destructible",
-    "__is_function",
-    "__is_fundamental",
-    "__is_integral",
-    "__is_lvalue_reference",
-    "__is_member_function_pointer",
-    "__is_member_object_pointer",
-    "__is_member_pointer",
-    "__is_nothrow_constructible",
-    "__is_object",
-    "__is_pointer",
-    "__is_reference",
-    "__is_referenceable",
-    "__is_rvalue_reference",
-    "__is_scalar",
-    "__is_signed",
-    "__is_trivially_destructible",
-    "__is_unsigned",
-    "__is_void",
-    "__is_volatile",
-    "__make_integer_seq",
-    "__make_signed",
-    "__make_unsigned",
-    "__remove_all_extents",
-    "__remove_const",
-    "__remove_cv",
-    "__remove_cvref",
-    "__remove_extent",
-    "__remove_pointer",
-    "__remove_reference_t",
-    "__remove_volatile",
-    "__type_pack_element",
+      "__add_lvalue_reference", "__add_pointer", "__add_rvalue_reference",
+      "__array_extent", "__array_rank", "__atomic_add_fetch", "__atomic_load_n",
+      "__builtin_assume", "__builtin_bswap128", "__builtin_char_memchr",
+      "__builtin_coro_noop", "__builtin_isfinite", "__builtin_isinf",
+      "__builtin_isnan", "__builtin_operator_delete", "__builtin_operator_new",
+      "__builtin_source_location", "__builtin_va_copy", "__builtin_wcslen",
+      "__builtin_wmemcmp", "__decay", "__has_trivial_destructor", "__is_array",
+      "__is_compound", "__is_const", "__is_convertible_to", "__is_destructible",
+      "__is_function", "__is_fundamental", "__is_integral",
+      "__is_lvalue_reference", "__is_member_function_pointer",
+      "__is_member_object_pointer", "__is_member_pointer",
+      "__is_nothrow_constructible", "__is_object", "__is_pointer",
+      "__is_reference", "__is_referenceable", "__is_rvalue_reference",
+      "__is_scalar", "__is_signed", "__is_trivially_destructible",
+      "__is_unsigned", "__is_void", "__is_volatile", "__make_integer_seq",
+      "__make_signed", "__make_unsigned", "__remove_all_extents",
+      "__remove_const", "__remove_cv", "__remove_cvref", "__remove_extent",
+      "__remove_pointer", "__remove_reference_t", "__remove_volatile",
+      "__type_pack_element",
 #endif
 };
 
@@ -1262,6 +1236,14 @@ void Preprocessor::Private::expand(
       auto id = expectId(ts);
       expect(ts, TokenKind::T_RPAREN);
       const auto enabled = enabledBuiltins.contains(id);
+      auto t =
+          Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, enabled ? "1" : "0");
+      emitToken(t);
+    } else if (!evaluateDirectives && matchId(ts, "__has_attribute")) {
+      expect(ts, TokenKind::T_LPAREN);
+      auto id = expectId(ts);
+      expect(ts, TokenKind::T_RPAREN);
+      const auto enabled = true;
       auto t =
           Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, enabled ? "1" : "0");
       emitToken(t);

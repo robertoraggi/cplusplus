@@ -22,6 +22,7 @@
 
 #include <cxx/cxx_fwd.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <new>
@@ -61,8 +62,10 @@ class Arena {
 
   auto allocate(std::size_t size) noexcept -> void* {
     if (!blocks.empty()) {
+      constexpr auto align = alignof(std::max_align_t) - 1;
+
       auto block = blocks.back();
-      block->ptr = (char*)((std::intptr_t(block->ptr) + 7) & ~7);
+      block->ptr = (char*)((std::intptr_t(block->ptr) + align) & ~align);
       void* addr = block->ptr;
       block->ptr += size;
       if (block->ptr < block->data + Block::SIZE) return addr;
