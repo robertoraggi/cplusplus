@@ -469,6 +469,7 @@ auto Control::newScopedEnumSymbol(Scope* enclosingScope) -> ScopedEnumSymbol* {
 auto Control::newOverloadSetSymbol(Scope* enclosingScope)
     -> OverloadSetSymbol* {
   auto symbol = &d->overloadSetSymbols.emplace_front(enclosingScope);
+  symbol->setType(getOverloadSetType(symbol));
   return symbol;
 }
 

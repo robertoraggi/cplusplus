@@ -162,6 +162,7 @@ class MemInitializerAST : public AST {
 class NestedNameSpecifierAST : public AST {
  public:
   using AST::AST;
+  Symbol* symbol = nullptr;
 };
 
 class NewInitializerAST : public AST {
@@ -1249,6 +1250,7 @@ class IdExpressionAST final : public ExpressionAST {
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   SourceLocation templateLoc;
   UnqualifiedIdAST* unqualifiedId = nullptr;
+  Symbol* symbol = nullptr;
   bool isTemplateIntroduced = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }

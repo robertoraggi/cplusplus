@@ -54,6 +54,7 @@ class Scope {
   }
 
   void addSymbol(Symbol* symbol);
+  void removeSymbol(Symbol* symbol);
 
  private:
   Scope* parent_ = nullptr;

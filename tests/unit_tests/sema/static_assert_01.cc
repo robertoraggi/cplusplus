@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fstatic-assert %s
+// RUN: %cxx -verify -fcheck %s
 
 static_assert(true);
 static_assert('a');

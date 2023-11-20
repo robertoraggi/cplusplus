@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fstatic-assert %s
+// RUN: %cxx -verify -fcheck %s
 
 //
 // is_void trait
@@ -261,3 +261,32 @@ static_assert(__is_reference(const int&&));
 
 // expected-error@1 {{static assert failed}}
 static_assert(__is_reference(int));
+
+int var;
+static_assert(__is_integral(decltype(var)));
+static_assert(__is_lvalue_reference(decltype((var))));
+static_assert(__is_same(decltype(var), int));
+static_assert(__is_same(decltype((var)), int&));
+
+int array[10];
+static_assert(__is_same(decltype(array), int[10]));
+static_assert(__is_same(decltype((array)), int (&)[10]));
+static_assert(__is_array(decltype(array)));
+static_assert(__is_bounded_array(decltype(array)));
+
+int func(int);
+static_assert(__is_same(decltype(func), int(int)));
+static_assert(__is_function(decltype(func)));
+
+const int ci = 0;
+static_assert(__is_same(decltype(ci), const int));
+static_assert(__is_const(decltype(ci)));
+
+const int& cri = ci;
+static_assert(__is_same(decltype(cri), const int&));
+static_assert(__is_same(decltype((cri)), const int&));
+
+int&& rrv = static_cast<int&&>(var);
+static_assert(__is_same(decltype(rrv), int&&));
+static_assert(__is_rvalue_reference(decltype(rrv)));
+static_assert(__is_same(decltype((rrv)), int&));
