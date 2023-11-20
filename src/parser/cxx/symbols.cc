@@ -73,6 +73,11 @@ FunctionSymbol::FunctionSymbol(Scope* enclosingScope)
 
 FunctionSymbol::~FunctionSymbol() {}
 
+OverloadSetSymbol::OverloadSetSymbol(Scope* enclosingScope)
+    : Symbol(Kind, enclosingScope) {}
+
+OverloadSetSymbol::~OverloadSetSymbol() {}
+
 LambdaSymbol::LambdaSymbol(Scope* enclosingScope)
     : Symbol(Kind, enclosingScope) {
   scope_ = std::make_unique<Scope>(enclosingScope);

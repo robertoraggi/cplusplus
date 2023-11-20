@@ -113,6 +113,7 @@ struct Control::Private {
   std::set<PointerType> pointerTypes;
   std::set<LvalueReferenceType> lvalueReferenceTypes;
   std::set<RvalueReferenceType> rvalueReferenceTypes;
+  std::set<OverloadSetType> overloadSetTypes;
   std::set<FunctionType> functionTypes;
   std::set<MemberObjectPointerType> memberObjectPointerTypes;
   std::set<MemberFunctionPointerType> memberFunctionPointerTypes;
@@ -131,6 +132,7 @@ struct Control::Private {
   std::forward_list<UnionSymbol> unionSymbols;
   std::forward_list<EnumSymbol> enumSymbols;
   std::forward_list<ScopedEnumSymbol> scopedEnumSymbols;
+  std::forward_list<OverloadSetSymbol> overloadSetSymbols;
   std::forward_list<FunctionSymbol> functionSymbols;
   std::forward_list<LambdaSymbol> lambdaSymbols;
   std::forward_list<FunctionParametersSymbol> functionParametersSymbol;
@@ -355,6 +357,11 @@ auto Control::getRvalueReferenceType(const Type* elementType)
   return &*d->rvalueReferenceTypes.emplace(elementType).first;
 }
 
+auto Control::getOverloadSetType(OverloadSetSymbol* symbol)
+    -> const OverloadSetType* {
+  return &*d->overloadSetTypes.emplace(symbol).first;
+}
+
 auto Control::getFunctionType(const Type* returnType,
                               std::vector<const Type*> parameterTypes,
                               bool isVariadic, CvQualifiers cvQualifiers,
@@ -456,6 +463,12 @@ auto Control::newEnumSymbol(Scope* enclosingScope) -> EnumSymbol* {
 auto Control::newScopedEnumSymbol(Scope* enclosingScope) -> ScopedEnumSymbol* {
   auto symbol = &d->scopedEnumSymbols.emplace_front(enclosingScope);
   symbol->setType(getScopedEnumType(symbol));
+  return symbol;
+}
+
+auto Control::newOverloadSetSymbol(Scope* enclosingScope)
+    -> OverloadSetSymbol* {
+  auto symbol = &d->overloadSetSymbols.emplace_front(enclosingScope);
   return symbol;
 }
 

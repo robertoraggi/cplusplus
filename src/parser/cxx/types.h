@@ -268,6 +268,19 @@ class RvalueReferenceType final : public Type, public std::tuple<const Type*> {
   }
 };
 
+class OverloadSetType final : public Type,
+                              public std::tuple<OverloadSetSymbol*> {
+ public:
+  static constexpr TypeKind Kind = TypeKind::kOverloadSet;
+
+  explicit OverloadSetType(OverloadSetSymbol* symbol)
+      : Type(Kind), tuple(symbol) {}
+
+  [[nodiscard]] auto symbol() const -> OverloadSetSymbol* {
+    return std::get<0>(*this);
+  }
+};
+
 class FunctionType final
     : public Type,
       public std::tuple<const Type*, std::vector<const Type*>, bool,
