@@ -115,6 +115,11 @@ struct DumpSymbols {
     dumpScope(symbol->scope());
   }
 
+  void operator()(OverloadSetSymbol* symbol) {
+    indent();
+    fmt::print(out, "overload set {}\n", to_string(symbol->name()));
+  }
+
   void operator()(FunctionSymbol* symbol) {
     indent();
 

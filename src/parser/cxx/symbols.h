@@ -285,6 +285,27 @@ class FunctionSymbol final : public Symbol {
   bool isDefaulted_ = false;
 };
 
+class OverloadSetSymbol final : public Symbol {
+ public:
+  constexpr static auto Kind = SymbolKind::kOverloadSet;
+
+  explicit OverloadSetSymbol(Scope* enclosingScope);
+  ~OverloadSetSymbol() override;
+
+  [[nodiscard]] auto functions() const -> const std::vector<FunctionSymbol*>& {
+    return functions_;
+  }
+
+  void setFunctions(std::vector<FunctionSymbol*> functions) {
+    functions_ = std::move(functions);
+  }
+
+  void addFunction(FunctionSymbol* function) { functions_.push_back(function); }
+
+ private:
+  std::vector<FunctionSymbol*> functions_;
+};
+
 class LambdaSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kLambda;

@@ -225,6 +225,10 @@ class TypePrinter {
     accept(type->elementType());
   }
 
+  void operator()(const OverloadSetType* type) {
+    specifiers_.append("$overload-set");
+  }
+
   void operator()(const FunctionType* type) {
     std::string signature;
 

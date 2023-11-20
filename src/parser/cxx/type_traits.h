@@ -981,6 +981,11 @@ class TypeTraits {
       return type == otherType;
     }
 
+    auto operator()(const OverloadSetType* type,
+                    const OverloadSetType* otherType) const -> bool {
+      return type->symbol() == otherType->symbol();
+    }
+
   } is_same_{*this};
 };
 

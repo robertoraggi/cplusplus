@@ -44,7 +44,8 @@ namespace cxx {
   V(TypeParameter)             \
   V(NonTypeParameter)          \
   V(TemplateTypeParameter)     \
-  V(ConstraintTypeParameter)
+  V(ConstraintTypeParameter)   \
+  V(OverloadSet)
 
 class Symbol;
 class Scope;

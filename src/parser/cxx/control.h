@@ -101,6 +101,7 @@ class Control {
       -> const LvalueReferenceType*;
   auto getRvalueReferenceType(const Type* elementType)
       -> const RvalueReferenceType*;
+  auto getOverloadSetType(OverloadSetSymbol* symbol) -> const OverloadSetType*;
   auto getFunctionType(const Type* returnType,
                        std::vector<const Type*> parameterTypes,
                        bool isVariadic = false,
@@ -136,6 +137,7 @@ class Control {
   auto newUnionSymbol(Scope* enclosingScope) -> UnionSymbol*;
   auto newEnumSymbol(Scope* enclosingScope) -> EnumSymbol*;
   auto newScopedEnumSymbol(Scope* enclosingScope) -> ScopedEnumSymbol*;
+  auto newOverloadSetSymbol(Scope* enclosingScope) -> OverloadSetSymbol*;
   auto newFunctionSymbol(Scope* enclosingScope) -> FunctionSymbol*;
   auto newLambdaSymbol(Scope* enclosingScope) -> LambdaSymbol*;
   auto newFunctionParametersSymbol(Scope* enclosingScope)
