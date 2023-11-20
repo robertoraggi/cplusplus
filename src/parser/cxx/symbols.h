@@ -20,11 +20,13 @@
 
 #pragma once
 
+#include <cxx/const_value.h>
 #include <cxx/names_fwd.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/types_fwd.h>
 
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -604,6 +606,15 @@ class EnumeratorSymbol final : public Symbol {
 
   explicit EnumeratorSymbol(Scope* enclosingScope);
   ~EnumeratorSymbol() override;
+
+  [[nodiscard]] auto value() const -> const std::optional<ConstValue>& {
+    return value_;
+  }
+
+  void setValue(const std::optional<ConstValue>& value) { value_ = value; }
+
+ private:
+  std::optional<ConstValue> value_;
 };
 
 template <typename Visitor>

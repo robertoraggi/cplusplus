@@ -257,7 +257,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
     unit.parse(ParserConfiguration{
         .checkTypes = cli.opt_fcheck,
         .fuzzyTemplateResolution = true,
-        .staticAssert = cli.opt_fstatic_assert,
+        .staticAssert = cli.opt_fstatic_assert || cli.opt_fcheck,
     });
 
     if (cli.opt_dump_symbols && unit.globalScope()) {

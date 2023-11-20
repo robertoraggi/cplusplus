@@ -1157,6 +1157,8 @@ void ASTCloner::visit(IdExpressionAST* ast) {
 
   copy->unqualifiedId = accept(ast->unqualifiedId);
 
+  copy->symbol = ast->symbol;
+
   copy->isTemplateIntroduced = ast->isTemplateIntroduced;
 }
 
@@ -2819,12 +2821,16 @@ void ASTCloner::visit(GlobalNestedNameSpecifierAST* ast) {
   auto copy = new (arena_) GlobalNestedNameSpecifierAST();
   copy_ = copy;
 
+  copy->symbol = ast->symbol;
+
   copy->scopeLoc = ast->scopeLoc;
 }
 
 void ASTCloner::visit(SimpleNestedNameSpecifierAST* ast) {
   auto copy = new (arena_) SimpleNestedNameSpecifierAST();
   copy_ = copy;
+
+  copy->symbol = ast->symbol;
 
   copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
 
@@ -2839,6 +2845,8 @@ void ASTCloner::visit(DecltypeNestedNameSpecifierAST* ast) {
   auto copy = new (arena_) DecltypeNestedNameSpecifierAST();
   copy_ = copy;
 
+  copy->symbol = ast->symbol;
+
   copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
 
   copy->decltypeSpecifier = accept(ast->decltypeSpecifier);
@@ -2849,6 +2857,8 @@ void ASTCloner::visit(DecltypeNestedNameSpecifierAST* ast) {
 void ASTCloner::visit(TemplateNestedNameSpecifierAST* ast) {
   auto copy = new (arena_) TemplateNestedNameSpecifierAST();
   copy_ = copy;
+
+  copy->symbol = ast->symbol;
 
   copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
 

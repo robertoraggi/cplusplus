@@ -94,6 +94,8 @@ class Parser final {
   struct LoopParser;
   struct ClassHead;
   struct GetDeclaratorType;
+  struct UnqualifiedLookup;
+  struct DeclareSymbol;
 
   enum struct BindingContext {
     kNamespace,
@@ -170,8 +172,16 @@ class Parser final {
   [[nodiscard]] auto parse_primary_expression(ExpressionAST*& yyast,
                                               bool inRequiresClause = false)
       -> bool;
+
+  enum struct IdExpressionContext {
+    kExpression,
+    kMember,
+    kTemplateParameter,
+    kRequiresClause,
+  };
+
   [[nodiscard]] auto parse_id_expression(IdExpressionAST*& yyast,
-                                         bool inRequiresClause = false) -> bool;
+                                         IdExpressionContext ctx) -> bool;
   [[nodiscard]] auto parse_maybe_template_id(UnqualifiedIdAST*& yyast,
                                              bool isTemplateIntroduced,
                                              bool inRequiresClause) -> bool;
@@ -505,7 +515,6 @@ class Parser final {
                                      List<SpecifierAST*>*& typeSpecifierList,
                                      DeclSpecs& specs) -> bool;
   void parse_enumerator_list(List<EnumeratorAST*>*& yyast, const Type* type);
-  void parse_enumerator_definition(EnumeratorAST*& yast, const Type* type);
   void parse_enumerator(EnumeratorAST*& yyast, const Type* type);
   [[nodiscard]] auto parse_using_enum_declaration(DeclarationAST*& yyast)
       -> bool;

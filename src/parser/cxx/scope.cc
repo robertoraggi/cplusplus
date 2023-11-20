@@ -100,4 +100,14 @@ void Scope::addSymbol(Symbol* symbol) {
   symbols_.emplace(symbol->name(), symbol);
 }
 
+void Scope::removeSymbol(Symbol* symbol) {
+  auto [first, last] = symbols_.equal_range(symbol->name());
+  for (auto it = first; it != last; ++it) {
+    if (it->second == symbol) {
+      symbols_.erase(it);
+      break;
+    }
+  }
+}
+
 }  // namespace cxx

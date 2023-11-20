@@ -593,6 +593,10 @@ class TypeTraits {
       return control()->getLvalueReferenceType(type);
     }
 
+    auto operator()(const LvalueReferenceType* type) const -> const Type* {
+      return type;
+    }
+
     auto operator()(const RvalueReferenceType* type) const -> const Type* {
       return control()->getLvalueReferenceType(type->elementType());
     }
