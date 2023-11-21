@@ -200,7 +200,7 @@ class Token;
   V(__THREAD, "__thread")                   \
   V(__UNDERLYING_TYPE, "__underlying_type")
 
-#define FOR_EACH_BUILTIN(V)                                       \
+#define FOR_EACH_BUILTIN_TYPE_TRAIT(V)                            \
   V(__HAS_UNIQUE_OBJECT_REPRESENTATIONS,                          \
     "__has_unique_object_representations")                        \
   V(__HAS_VIRTUAL_DESTRUCTOR, "__has_virtual_destructor")         \
@@ -248,6 +248,8 @@ class Token;
   V(__IS_VOID, "__is_void")                                       \
   V(__IS_VOLATILE, "__is_volatile")
 
+#define FOR_EACH_BUILTIN_CAST(V) V(__BUILTIN_BIT_CAST, "__builtin_bit_cast")
+
 #define FOR_EACH_TOKEN_ALIAS(V) \
   V(AND_EQ, AMP_EQUAL)          \
   V(AND, AMP_AMP)               \
@@ -287,6 +289,10 @@ enum struct TokenKind : std::uint8_t {
   FOR_EACH_TOKEN(TOKEN_ENUM)
   FOR_EACH_TOKEN_ALIAS(TOKEN_ALIAS_ENUM)
 };
+
+#define FOR_EACH_BUILTIN(V) \
+  FOR_EACH_BUILTIN_TYPE_TRAIT(V) \
+  FOR_EACH_BUILTIN_CAST(V)
 
 enum struct BuiltinKind {
   T_IDENTIFIER,

@@ -962,6 +962,12 @@ void ASTPrinter::visit(CppCastExpressionAST* ast) {
   accept(ast->expression, "expression");
 }
 
+void ASTPrinter::visit(BuiltinBitCastExpressionAST* ast) {
+  fmt::print(out_, "{}\n", "builtin-bit-cast-expression");
+  accept(ast->typeId, "type-id");
+  accept(ast->expression, "expression");
+}
+
 void ASTPrinter::visit(TypeidExpressionAST* ast) {
   fmt::print(out_, "{}\n", "typeid-expression");
   accept(ast->expression, "expression");

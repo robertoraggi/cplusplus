@@ -2450,6 +2450,43 @@ void ASTSlot::visit(CppCastExpressionAST* ast) {
   slotCount_ = 7;
 }
 
+void ASTSlot::visit(BuiltinBitCastExpressionAST* ast) {
+  switch (slot_) {
+    case 0:  // castLoc
+      value_ = ast->castLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      slotNameIndex_ = SlotNameIndex{28};
+      break;
+    case 1:  // lparenLoc
+      value_ = ast->lparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      slotNameIndex_ = SlotNameIndex{127};
+      break;
+    case 2:  // typeId
+      value_ = reinterpret_cast<std::intptr_t>(ast->typeId);
+      slotKind_ = ASTSlotKind::kNode;
+      slotNameIndex_ = SlotNameIndex{203};
+      break;
+    case 3:  // commaLoc
+      value_ = ast->commaLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      slotNameIndex_ = SlotNameIndex{36};
+      break;
+    case 4:  // expression
+      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
+      slotKind_ = ASTSlotKind::kNode;
+      slotNameIndex_ = SlotNameIndex{76};
+      break;
+    case 5:  // rparenLoc
+      value_ = ast->rparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      slotNameIndex_ = SlotNameIndex{173};
+      break;
+  }  // switch
+
+  slotCount_ = 6;
+}
+
 void ASTSlot::visit(TypeidExpressionAST* ast) {
   switch (slot_) {
     case 0:  // typeidLoc

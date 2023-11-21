@@ -25,7 +25,9 @@ export function gen_builtins_kwgen({ output }: { output: string }) {
   const code: string[] = [];
   const emit = (line = "") => code.push(line);
 
-  tokens.BUILTINS.forEach((tk) => emit(tk));
+  tokens.BUILTIN_TYPE_TRAITS.forEach((tk) => emit(tk));
+  emit();
+  tokens.BUILTIN_CASTS.forEach((tk) => emit(tk));
 
   const out = `%no-enums
 %token-prefix=cxx::BuiltinKind::T_

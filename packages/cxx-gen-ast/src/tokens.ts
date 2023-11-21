@@ -192,7 +192,9 @@ export const KEYWORDS: string[] = [
   "__underlying_type",
 ];
 
-export const BUILTINS: string[] = [
+export const BUILTIN_CASTS: string[] = ["__builtin_bit_cast"];
+
+export const BUILTIN_TYPE_TRAITS: string[] = [
   "__has_unique_object_representations",
   "__has_virtual_destructor",
   "__is_abstract",

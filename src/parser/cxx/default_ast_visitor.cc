@@ -318,6 +318,10 @@ void DefaultASTVisitor::visit(CppCastExpressionAST* ast) {
   cxx_runtime_error("visit(CppCastExpressionAST): not implemented");
 }
 
+void DefaultASTVisitor::visit(BuiltinBitCastExpressionAST* ast) {
+  cxx_runtime_error("visit(BuiltinBitCastExpressionAST): not implemented");
+}
+
 void DefaultASTVisitor::visit(TypeidExpressionAST* ast) {
   cxx_runtime_error("visit(TypeidExpressionAST): not implemented");
 }

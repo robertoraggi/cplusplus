@@ -153,6 +153,7 @@ class BracedTypeConstructionAST;
 class MemberExpressionAST;
 class PostIncrExpressionAST;
 class CppCastExpressionAST;
+class BuiltinBitCastExpressionAST;
 class TypeidExpressionAST;
 class TypeidOfTypeExpressionAST;
 class UnaryExpressionAST;

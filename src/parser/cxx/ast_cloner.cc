@@ -1491,6 +1491,29 @@ void ASTCloner::visit(CppCastExpressionAST* ast) {
   copy->rparenLoc = ast->rparenLoc;
 }
 
+void ASTCloner::visit(BuiltinBitCastExpressionAST* ast) {
+  auto copy = new (arena_) BuiltinBitCastExpressionAST();
+  copy_ = copy;
+
+  copy->valueCategory = ast->valueCategory;
+
+  copy->constValue = ast->constValue;
+
+  copy->type = ast->type;
+
+  copy->castLoc = ast->castLoc;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->typeId = accept(ast->typeId);
+
+  copy->commaLoc = ast->commaLoc;
+
+  copy->expression = accept(ast->expression);
+
+  copy->rparenLoc = ast->rparenLoc;
+}
+
 void ASTCloner::visit(TypeidExpressionAST* ast) {
   auto copy = new (arena_) TypeidExpressionAST();
   copy_ = copy;

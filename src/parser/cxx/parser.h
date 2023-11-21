@@ -232,6 +232,8 @@ class Parser final {
   [[nodiscard]] auto parse_postincr_expression(ExpressionAST*& yyast) -> bool;
   [[nodiscard]] auto parse_cpp_cast_head(SourceLocation& loc) -> bool;
   [[nodiscard]] auto parse_cpp_cast_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_builtin_bit_cast_expression(ExpressionAST*& yyast)
+      -> bool;
   [[nodiscard]] auto parse_cpp_type_cast_expression(ExpressionAST*& yyast)
       -> bool;
   [[nodiscard]] auto parse_typeid_expression(ExpressionAST*& yyast) -> bool;
@@ -689,6 +691,13 @@ class Parser final {
 
   [[nodiscard]] auto lookatHelper(int n, TokenKind tk, auto... rest) const {
     return LA(n).is(tk) && lookatHelper(n + 1, rest...);
+  }
+
+  [[nodiscard]] auto lookatHelper(int n, BuiltinKind bt, auto... rest) const {
+    const auto& tk = LA(n);
+    return tk.is(TokenKind::T_BUILTIN) &&
+           static_cast<BuiltinKind>(tk.value().intValue) == bt &&
+           lookatHelper(n + 1, rest...);
   }
 
   [[nodiscard]] auto LA(int n = 0) const -> const Token&;

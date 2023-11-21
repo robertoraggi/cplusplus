@@ -2242,6 +2242,8 @@ auto Parser::parse_start_of_postfix_expression(ExpressionAST*& yyast) -> bool {
     return true;
   else if (parse_cpp_type_cast_expression(yyast))
     return true;
+  else if (parse_builtin_bit_cast_expression(yyast))
+    return true;
   else
     return parse_primary_expression(yyast);
 }
@@ -2373,6 +2375,22 @@ auto Parser::parse_cpp_cast_expression(ExpressionAST*& yyast) -> bool {
 
   parse_expression(ast->expression);
 
+  expect(TokenKind::T_RPAREN, ast->rparenLoc);
+
+  return true;
+}
+
+auto Parser::parse_builtin_bit_cast_expression(ExpressionAST*& yyast) -> bool {
+  if (!lookat(BuiltinKind::T___BUILTIN_BIT_CAST)) return false;
+
+  auto ast = new (pool_) BuiltinBitCastExpressionAST();
+  yyast = ast;
+
+  ast->castLoc = consumeToken();
+  expect(TokenKind::T_LPAREN, ast->lparenLoc);
+  if (!parse_type_id(ast->typeId)) parse_error("expected a type id");
+  expect(TokenKind::T_COMMA, ast->commaLoc);
+  parse_expression(ast->expression);
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   return true;
@@ -2549,7 +2567,7 @@ auto Parser::parse_typename_expression(ExpressionAST*& yyast) -> bool {
 
 auto Parser::parse_type_traits_op(SourceLocation& loc, BuiltinKind& builtinKind)
     -> bool {
-  if (!lookat(TokenKind::T_BUILTIN)) return false;
+  if (!LA().isBuiltinTypeTrait()) return false;
   builtinKind = static_cast<BuiltinKind>(LA().value().intValue);
   loc = consumeToken();
   return true;

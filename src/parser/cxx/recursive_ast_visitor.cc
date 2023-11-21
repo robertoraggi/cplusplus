@@ -646,6 +646,11 @@ void RecursiveASTVisitor::visit(CppCastExpressionAST* ast) {
   acceptExpression(ast->expression);
 }
 
+void RecursiveASTVisitor::visit(BuiltinBitCastExpressionAST* ast) {
+  acceptTypeId(ast->typeId);
+  acceptExpression(ast->expression);
+}
+
 void RecursiveASTVisitor::visit(TypeidExpressionAST* ast) {
   acceptExpression(ast->expression);
 }

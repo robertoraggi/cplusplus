@@ -280,6 +280,9 @@ auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
     case io::Expression_CppCastExpression:
       return decodeCppCastExpression(
           reinterpret_cast<const io::CppCastExpression*>(ptr));
+    case io::Expression_BuiltinBitCastExpression:
+      return decodeBuiltinBitCastExpression(
+          reinterpret_cast<const io::BuiltinBitCastExpression*>(ptr));
     case io::Expression_TypeidExpression:
       return decodeTypeidExpression(
           reinterpret_cast<const io::TypeidExpression*>(ptr));
@@ -1907,6 +1910,17 @@ auto ASTDecoder::decodeCppCastExpression(const io::CppCastExpression* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) CppCastExpressionAST();
+  ast->typeId = decodeTypeId(node->type_id());
+  ast->expression =
+      decodeExpression(node->expression(), node->expression_type());
+  return ast;
+}
+
+auto ASTDecoder::decodeBuiltinBitCastExpression(
+    const io::BuiltinBitCastExpression* node) -> BuiltinBitCastExpressionAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) BuiltinBitCastExpressionAST();
   ast->typeId = decodeTypeId(node->type_id());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
