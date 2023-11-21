@@ -640,6 +640,8 @@ struct Parser::ScopeGuard {
 struct Parser::ExprContext {
   bool templParam = false;
   bool templArg = false;
+  bool isConstantEvaluated = false;
+  bool inRequiresClause = false;
 };
 
 struct Parser::TemplateHeadContext {
@@ -1262,7 +1264,7 @@ void Parser::parse_skip_declaration(bool& skipping) {
 }
 
 auto Parser::parse_primary_expression(ExpressionAST*& yyast,
-                                      bool inRequiresClause) -> bool {
+                                      const ExprContext& ctx) -> bool {
   UnqualifiedIdAST* name = nullptr;
 
   if (parse_this_expression(yyast)) {
@@ -1275,12 +1277,12 @@ auto Parser::parse_primary_expression(ExpressionAST*& yyast,
     return true;
   } else if (lookat(TokenKind::T_LPAREN, TokenKind::T_RPAREN)) {
     return false;
-  } else if (parse_fold_expression(yyast)) {
+  } else if (parse_fold_expression(yyast, ctx)) {
     return true;
-  } else if (parse_nested_expession(yyast)) {
+  } else if (parse_nested_expession(yyast, ctx)) {
     return true;
   } else if (IdExpressionAST* idExpression = nullptr; parse_id_expression(
-                 idExpression, inRequiresClause
+                 idExpression, ctx.inRequiresClause
                                    ? IdExpressionContext::kRequiresClause
                                    : IdExpressionContext::kExpression)) {
     yyast = idExpression;
@@ -1819,7 +1821,7 @@ auto Parser::parse_init_capture(LambdaCaptureAST*& yyast) -> bool {
 
     ExpressionAST* initializer = nullptr;
 
-    if (!parse_initializer(initializer)) {
+    if (!parse_initializer(initializer, ExprContext{})) {
       parse_error("expected an initializer");
     }
 
@@ -1845,7 +1847,7 @@ auto Parser::parse_init_capture(LambdaCaptureAST*& yyast) -> bool {
 
   ExpressionAST* initializer = nullptr;
 
-  if (!parse_initializer(initializer)) {
+  if (!parse_initializer(initializer, ExprContext{})) {
     parse_error("expected an initializer");
   }
 
@@ -1860,7 +1862,8 @@ auto Parser::parse_init_capture(LambdaCaptureAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_left_fold_expression(ExpressionAST*& yyast) -> bool {
+auto Parser::parse_left_fold_expression(ExpressionAST*& yyast,
+                                        const ExprContext& ctx) -> bool {
   if (!lookat(TokenKind::T_LPAREN, TokenKind::T_DOT_DOT_DOT)) return false;
 
   auto ast = new (pool_) LeftFoldExpressionAST();
@@ -1873,7 +1876,7 @@ auto Parser::parse_left_fold_expression(ExpressionAST*& yyast) -> bool {
     parse_error("expected fold operator");
   }
 
-  if (!parse_cast_expression(ast->expression)) {
+  if (!parse_cast_expression(ast->expression, ctx)) {
     parse_error("expected an expression");
   }
 
@@ -1894,7 +1897,8 @@ auto Parser::parse_this_expression(ExpressionAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_nested_expession(ExpressionAST*& yyast) -> bool {
+auto Parser::parse_nested_expession(ExpressionAST*& yyast,
+                                    const ExprContext& ctx) -> bool {
   SourceLocation lparenLoc;
 
   if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
@@ -1904,7 +1908,7 @@ auto Parser::parse_nested_expession(ExpressionAST*& yyast) -> bool {
 
   ast->lparenLoc = lparenLoc;
 
-  parse_expression(ast->expression);
+  parse_expression(ast->expression, ctx);
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
@@ -1917,8 +1921,9 @@ auto Parser::parse_nested_expession(ExpressionAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_fold_expression(ExpressionAST*& yyast) -> bool {
-  if (parse_left_fold_expression(yyast)) return true;
+auto Parser::parse_fold_expression(ExpressionAST*& yyast,
+                                   const ExprContext& ctx) -> bool {
+  if (parse_left_fold_expression(yyast, ctx)) return true;
 
   SourceLocation lparenLoc;
   ExpressionAST* expression = nullptr;
@@ -1929,7 +1934,7 @@ auto Parser::parse_fold_expression(ExpressionAST*& yyast) -> bool {
   auto lookat_fold_expression = [&] {
     LookaheadParser lookahead{this};
     if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
-    if (!parse_cast_expression(expression)) return false;
+    if (!parse_cast_expression(expression, ctx)) return false;
     if (!parse_fold_operator(opLoc, op)) return false;
     if (!match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) return false;
     lookahead.commit();
@@ -1965,7 +1970,7 @@ auto Parser::parse_fold_expression(ExpressionAST*& yyast) -> bool {
     parse_error("expected a fold operator");
   }
 
-  if (!parse_cast_expression(ast->rightExpression)) {
+  if (!parse_cast_expression(ast->rightExpression, ctx)) {
     parse_error("expected an expression");
   }
 
@@ -2110,7 +2115,7 @@ void Parser::parse_requirement(RequirementAST*& yyast) {
 void Parser::parse_simple_requirement(RequirementAST*& yyast) {
   ExpressionAST* expression = nullptr;
 
-  parse_expression(expression);
+  parse_expression(expression, ExprContext{});
 
   SourceLocation semicolonLoc;
 
@@ -2149,7 +2154,7 @@ auto Parser::parse_compound_requirement(RequirementAST*& yyast) -> bool {
 
   ExpressionAST* expression = nullptr;
 
-  parse_expression(expression);
+  parse_expression(expression, ExprContext{});
 
   SourceLocation rbraceLoc;
 
@@ -2207,19 +2212,20 @@ auto Parser::parse_nested_requirement(RequirementAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_postfix_expression(ExpressionAST*& yyast) -> bool {
-  if (!parse_start_of_postfix_expression(yyast)) return false;
+auto Parser::parse_postfix_expression(ExpressionAST*& yyast,
+                                      const ExprContext& ctx) -> bool {
+  if (!parse_start_of_postfix_expression(yyast, ctx)) return false;
 
   while (true) {
     LookaheadParser lookahead{this};
 
     if (parse_member_expression(yyast)) {
       //
-    } else if (parse_subscript_expression(yyast)) {
+    } else if (parse_subscript_expression(yyast, ctx)) {
       //
-    } else if (parse_call_expression(yyast)) {
+    } else if (parse_call_expression(yyast, ctx)) {
       //
-    } else if (parse_postincr_expression(yyast)) {
+    } else if (parse_postincr_expression(yyast, ctx)) {
       //
     } else {
       break;
@@ -2231,21 +2237,22 @@ auto Parser::parse_postfix_expression(ExpressionAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_start_of_postfix_expression(ExpressionAST*& yyast) -> bool {
-  if (parse_builtin_call_expression(yyast))
+auto Parser::parse_start_of_postfix_expression(ExpressionAST*& yyast,
+                                               const ExprContext& ctx) -> bool {
+  if (parse_builtin_call_expression(yyast, ctx))
     return true;
-  else if (parse_cpp_cast_expression(yyast))
+  else if (parse_cpp_cast_expression(yyast, ctx))
     return true;
-  else if (parse_typeid_expression(yyast))
+  else if (parse_typeid_expression(yyast, ctx))
     return true;
-  else if (parse_typename_expression(yyast))
+  else if (parse_typename_expression(yyast, ctx))
     return true;
-  else if (parse_cpp_type_cast_expression(yyast))
+  else if (parse_cpp_type_cast_expression(yyast, ctx))
     return true;
-  else if (parse_builtin_bit_cast_expression(yyast))
+  else if (parse_builtin_bit_cast_expression(yyast, ctx))
     return true;
   else
-    return parse_primary_expression(yyast);
+    return parse_primary_expression(yyast, ctx);
 }
 
 auto Parser::parse_member_expression(ExpressionAST*& yyast) -> bool {
@@ -2269,7 +2276,8 @@ auto Parser::parse_member_expression(ExpressionAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_subscript_expression(ExpressionAST*& yyast) -> bool {
+auto Parser::parse_subscript_expression(ExpressionAST*& yyast,
+                                        const ExprContext& ctx) -> bool {
   SourceLocation lbracketLoc;
 
   if (!match(TokenKind::T_LBRACKET, lbracketLoc)) return false;
@@ -2280,14 +2288,15 @@ auto Parser::parse_subscript_expression(ExpressionAST*& yyast) -> bool {
 
   yyast = ast;
 
-  parse_expr_or_braced_init_list(ast->indexExpression);
+  parse_expr_or_braced_init_list(ast->indexExpression, ctx);
 
   expect(TokenKind::T_RBRACKET, ast->rbracketLoc);
 
   return true;
 }
 
-auto Parser::parse_call_expression(ExpressionAST*& yyast) -> bool {
+auto Parser::parse_call_expression(ExpressionAST*& yyast,
+                                   const ExprContext& ctx) -> bool {
   SourceLocation lparenLoc;
 
   if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
@@ -2299,7 +2308,7 @@ auto Parser::parse_call_expression(ExpressionAST*& yyast) -> bool {
   yyast = ast;
 
   if (!match(TokenKind::T_RPAREN, ast->rparenLoc)) {
-    if (!parse_expression_list(ast->expressionList)) {
+    if (!parse_expression_list(ast->expressionList, ctx)) {
       parse_error("expected an expression");
     }
 
@@ -2329,7 +2338,8 @@ auto Parser::parse_call_expression(ExpressionAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_postincr_expression(ExpressionAST*& yyast) -> bool {
+auto Parser::parse_postincr_expression(ExpressionAST*& yyast,
+                                       const ExprContext& ctx) -> bool {
   SourceLocation opLoc;
 
   if (!match(TokenKind::T_MINUS_MINUS, opLoc) &&
@@ -2355,7 +2365,8 @@ auto Parser::parse_cpp_cast_head(SourceLocation& castLoc) -> bool {
   return false;
 }
 
-auto Parser::parse_cpp_cast_expression(ExpressionAST*& yyast) -> bool {
+auto Parser::parse_cpp_cast_expression(ExpressionAST*& yyast,
+                                       const ExprContext& ctx) -> bool {
   SourceLocation castLoc;
 
   if (!parse_cpp_cast_head(castLoc)) return false;
@@ -2373,14 +2384,15 @@ auto Parser::parse_cpp_cast_expression(ExpressionAST*& yyast) -> bool {
 
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
-  parse_expression(ast->expression);
+  parse_expression(ast->expression, ctx);
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   return true;
 }
 
-auto Parser::parse_builtin_bit_cast_expression(ExpressionAST*& yyast) -> bool {
+auto Parser::parse_builtin_bit_cast_expression(ExpressionAST*& yyast,
+                                               const ExprContext& ctx) -> bool {
   if (!lookat(BuiltinKind::T___BUILTIN_BIT_CAST)) return false;
 
   auto ast = new (pool_) BuiltinBitCastExpressionAST();
@@ -2390,13 +2402,14 @@ auto Parser::parse_builtin_bit_cast_expression(ExpressionAST*& yyast) -> bool {
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
   if (!parse_type_id(ast->typeId)) parse_error("expected a type id");
   expect(TokenKind::T_COMMA, ast->commaLoc);
-  parse_expression(ast->expression);
+  parse_expression(ast->expression, ctx);
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   return true;
 }
 
-auto Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast) -> bool {
+auto Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast,
+                                            const ExprContext& ctx) -> bool {
   auto lookat_function_call = [&] {
     LookaheadParser lookahead{this};
 
@@ -2423,7 +2436,7 @@ auto Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast) -> bool {
 
     BracedInitListAST* bracedInitList = nullptr;
 
-    if (!parse_braced_init_list(bracedInitList)) return false;
+    if (!parse_braced_init_list(bracedInitList, ctx)) return false;
 
     lookahead.commit();
 
@@ -2455,7 +2468,7 @@ auto Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast) -> bool {
   List<ExpressionAST*>* expressionList = nullptr;
 
   if (!match(TokenKind::T_RPAREN, rparenLoc)) {
-    if (!parse_expression_list(expressionList)) return false;
+    if (!parse_expression_list(expressionList, ctx)) return false;
 
     if (!match(TokenKind::T_RPAREN, rparenLoc)) return false;
   }
@@ -2473,7 +2486,8 @@ auto Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_typeid_expression(ExpressionAST*& yyast) -> bool {
+auto Parser::parse_typeid_expression(ExpressionAST*& yyast,
+                                     const ExprContext& ctx) -> bool {
   SourceLocation typeidLoc;
 
   if (!match(TokenKind::T_TYPEID, typeidLoc)) return false;
@@ -2511,14 +2525,15 @@ auto Parser::parse_typeid_expression(ExpressionAST*& yyast) -> bool {
   ast->typeidLoc = typeidLoc;
   ast->lparenLoc = lparenLoc;
 
-  parse_expression(ast->expression);
+  parse_expression(ast->expression, ctx);
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   return true;
 }
 
-auto Parser::parse_typename_expression(ExpressionAST*& yyast) -> bool {
+auto Parser::parse_typename_expression(ExpressionAST*& yyast,
+                                       const ExprContext& ctx) -> bool {
   LookaheadParser lookahead{this};
 
   SpecifierAST* typenameSpecifier = nullptr;
@@ -2526,7 +2541,7 @@ auto Parser::parse_typename_expression(ExpressionAST*& yyast) -> bool {
   if (!parse_typename_specifier(typenameSpecifier, specs)) return false;
 
   if (BracedInitListAST* bracedInitList = nullptr;
-      parse_braced_init_list(bracedInitList)) {
+      parse_braced_init_list(bracedInitList, ctx)) {
     lookahead.commit();
 
     auto ast = new (pool_) BracedTypeConstructionAST();
@@ -2547,7 +2562,7 @@ auto Parser::parse_typename_expression(ExpressionAST*& yyast) -> bool {
   List<ExpressionAST*>* expressionList = nullptr;
 
   if (!match(TokenKind::T_RPAREN, rparenLoc)) {
-    if (!parse_expression_list(expressionList)) return false;
+    if (!parse_expression_list(expressionList, ctx)) return false;
 
     if (!match(TokenKind::T_RPAREN, rparenLoc)) return false;
   }
@@ -2573,7 +2588,8 @@ auto Parser::parse_type_traits_op(SourceLocation& loc, BuiltinKind& builtinKind)
   return true;
 }
 
-auto Parser::parse_builtin_call_expression(ExpressionAST*& yyast) -> bool {
+auto Parser::parse_builtin_call_expression(ExpressionAST*& yyast,
+                                           const ExprContext& ctx) -> bool {
   SourceLocation typeTraitsLoc;
   BuiltinKind builtinKind = BuiltinKind::T_IDENTIFIER;
   if (!parse_type_traits_op(typeTraitsLoc, builtinKind)) return false;
@@ -2775,39 +2791,42 @@ auto Parser::parse_builtin_call_expression(ExpressionAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_expression_list(List<ExpressionAST*>*& yyast) -> bool {
-  return parse_initializer_list(yyast);
+auto Parser::parse_expression_list(List<ExpressionAST*>*& yyast,
+                                   const ExprContext& ctx) -> bool {
+  return parse_initializer_list(yyast, ctx);
 }
 
-auto Parser::parse_unary_expression(ExpressionAST*& yyast) -> bool {
-  if (parse_unop_expression(yyast))
+auto Parser::parse_unary_expression(ExpressionAST*& yyast,
+                                    const ExprContext& ctx) -> bool {
+  if (parse_unop_expression(yyast, ctx))
     return true;
-  else if (parse_complex_expression(yyast))
+  else if (parse_complex_expression(yyast, ctx))
     return true;
-  else if (parse_await_expression(yyast))
+  else if (parse_await_expression(yyast, ctx))
     return true;
-  else if (parse_sizeof_expression(yyast))
+  else if (parse_sizeof_expression(yyast, ctx))
     return true;
-  else if (parse_alignof_expression(yyast))
+  else if (parse_alignof_expression(yyast, ctx))
     return true;
-  else if (parse_noexcept_expression(yyast))
+  else if (parse_noexcept_expression(yyast, ctx))
     return true;
-  else if (parse_new_expression(yyast))
+  else if (parse_new_expression(yyast, ctx))
     return true;
-  else if (parse_delete_expression(yyast))
+  else if (parse_delete_expression(yyast, ctx))
     return true;
   else
-    return parse_postfix_expression(yyast);
+    return parse_postfix_expression(yyast, ctx);
 }
 
-auto Parser::parse_unop_expression(ExpressionAST*& yyast) -> bool {
+auto Parser::parse_unop_expression(ExpressionAST*& yyast,
+                                   const ExprContext& ctx) -> bool {
   LookaheadParser lookahead{this};
 
   SourceLocation opLoc;
   if (!parse_unary_operator(opLoc)) return false;
 
   ExpressionAST* expression = nullptr;
-  if (!parse_cast_expression(expression)) return false;
+  if (!parse_cast_expression(expression, ctx)) return false;
 
   lookahead.commit();
 
@@ -2821,7 +2840,8 @@ auto Parser::parse_unop_expression(ExpressionAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_complex_expression(ExpressionAST*& yyast) -> bool {
+auto Parser::parse_complex_expression(ExpressionAST*& yyast,
+                                      const ExprContext& ctx) -> bool {
   SourceLocation opLoc;
 
   if (!match(TokenKind::T___IMAG__, opLoc) &&
@@ -2831,7 +2851,8 @@ auto Parser::parse_complex_expression(ExpressionAST*& yyast) -> bool {
 
   ExpressionAST* expression = nullptr;
 
-  if (!parse_cast_expression(expression)) parse_error("expected an expression");
+  if (!parse_cast_expression(expression, ctx))
+    parse_error("expected an expression");
 
   auto ast = new (pool_) UnaryExpressionAST();
   yyast = ast;
@@ -2843,7 +2864,8 @@ auto Parser::parse_complex_expression(ExpressionAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_sizeof_expression(ExpressionAST*& yyast) -> bool {
+auto Parser::parse_sizeof_expression(ExpressionAST*& yyast,
+                                     const ExprContext& ctx) -> bool {
   SourceLocation sizeofLoc;
 
   if (!match(TokenKind::T_SIZEOF, sizeofLoc)) return false;
@@ -2899,14 +2921,15 @@ auto Parser::parse_sizeof_expression(ExpressionAST*& yyast) -> bool {
 
   ast->sizeofLoc = sizeofLoc;
 
-  if (!parse_unary_expression(ast->expression)) {
+  if (!parse_unary_expression(ast->expression, ctx)) {
     parse_error("expected an expression");
   }
 
   return true;
 }
 
-auto Parser::parse_alignof_expression(ExpressionAST*& yyast) -> bool {
+auto Parser::parse_alignof_expression(ExpressionAST*& yyast,
+                                      const ExprContext& ctx) -> bool {
   SourceLocation alignofLoc;
 
   if (!match(TokenKind::T_ALIGNOF, alignofLoc)) return false;
@@ -2943,7 +2966,7 @@ auto Parser::parse_alignof_expression(ExpressionAST*& yyast) -> bool {
 
   ast->alignofLoc = alignofLoc;
 
-  if (!parse_unary_expression(ast->expression)) {
+  if (!parse_unary_expression(ast->expression, ctx)) {
     parse_error("expected an expression");
   }
 
@@ -2968,7 +2991,8 @@ auto Parser::parse_unary_operator(SourceLocation& opLoc) -> bool {
   }  // switch
 }
 
-auto Parser::parse_await_expression(ExpressionAST*& yyast) -> bool {
+auto Parser::parse_await_expression(ExpressionAST*& yyast,
+                                    const ExprContext& ctx) -> bool {
   SourceLocation awaitLoc;
 
   if (!match(TokenKind::T_CO_AWAIT, awaitLoc)) return false;
@@ -2978,13 +3002,14 @@ auto Parser::parse_await_expression(ExpressionAST*& yyast) -> bool {
 
   ast->awaitLoc = awaitLoc;
 
-  if (!parse_cast_expression(ast->expression))
+  if (!parse_cast_expression(ast->expression, ctx))
     parse_error("expected an expression");
 
   return true;
 }
 
-auto Parser::parse_noexcept_expression(ExpressionAST*& yyast) -> bool {
+auto Parser::parse_noexcept_expression(ExpressionAST*& yyast,
+                                       const ExprContext& ctx) -> bool {
   SourceLocation noexceptLoc;
 
   if (!match(TokenKind::T_NOEXCEPT, noexceptLoc)) return false;
@@ -2994,14 +3019,15 @@ auto Parser::parse_noexcept_expression(ExpressionAST*& yyast) -> bool {
 
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
-  parse_expression(ast->expression);
+  parse_expression(ast->expression, ctx);
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   return true;
 }
 
-auto Parser::parse_new_expression(ExpressionAST*& yyast) -> bool {
+auto Parser::parse_new_expression(ExpressionAST*& yyast, const ExprContext& ctx)
+    -> bool {
   if (!lookat(TokenKind::T_NEW) &&
       !lookat(TokenKind::T_COLON_COLON, TokenKind::T_NEW))
     return false;
@@ -3012,7 +3038,7 @@ auto Parser::parse_new_expression(ExpressionAST*& yyast) -> bool {
   match(TokenKind::T_COLON_COLON, ast->scopeLoc);
   expect(TokenKind::T_NEW, ast->newLoc);
 
-  parse_optional_new_placement(ast->newPlacement);
+  parse_optional_new_placement(ast->newPlacement, ctx);
 
   const auto after_new_placement = currentLocation();
 
@@ -3036,7 +3062,7 @@ auto Parser::parse_new_expression(ExpressionAST*& yyast) -> bool {
     lookahead.commit();
 
     NewInitializerAST* newInitializer = nullptr;
-    parse_optional_new_initializer(newInitializer);
+    parse_optional_new_initializer(newInitializer, ctx);
 
     ast->lparenLoc = lparenLoc;
     ast->typeSpecifierList = typeSpecifierList;
@@ -3056,19 +3082,20 @@ auto Parser::parse_new_expression(ExpressionAST*& yyast) -> bool {
 
   (void)parse_declarator(ast->declarator, decl, DeclaratorKind::kNewDeclarator);
 
-  parse_optional_new_initializer(ast->newInitalizer);
+  parse_optional_new_initializer(ast->newInitalizer, ctx);
 
   return true;
 }
 
-void Parser::parse_optional_new_placement(NewPlacementAST*& yyast) {
+void Parser::parse_optional_new_placement(NewPlacementAST*& yyast,
+                                          const ExprContext& ctx) {
   LookaheadParser lookahead{this};
 
   SourceLocation lparenLoc;
   if (!match(TokenKind::T_LPAREN, lparenLoc)) return;
 
   List<ExpressionAST*>* expressionList = nullptr;
-  if (!parse_expression_list(expressionList)) return;
+  if (!parse_expression_list(expressionList, ctx)) return;
 
   SourceLocation rparenLoc;
   if (!match(TokenKind::T_RPAREN, rparenLoc)) return;
@@ -3083,9 +3110,10 @@ void Parser::parse_optional_new_placement(NewPlacementAST*& yyast) {
   ast->rparenLoc = rparenLoc;
 }
 
-void Parser::parse_optional_new_initializer(NewInitializerAST*& yyast) {
+void Parser::parse_optional_new_initializer(NewInitializerAST*& yyast,
+                                            const ExprContext& ctx) {
   if (BracedInitListAST* bracedInitList = nullptr;
-      parse_braced_init_list(bracedInitList)) {
+      parse_braced_init_list(bracedInitList, ctx)) {
     auto ast = new (pool_) NewBracedInitializerAST();
     yyast = ast;
 
@@ -3101,7 +3129,7 @@ void Parser::parse_optional_new_initializer(NewInitializerAST*& yyast) {
 
   if (!match(TokenKind::T_LPAREN, lparenLoc)) return;
   if (!match(TokenKind::T_RPAREN, rparenLoc)) {
-    if (!parse_expression_list(expressionList)) return;
+    if (!parse_expression_list(expressionList, ctx)) return;
     if (!match(TokenKind::T_RPAREN, rparenLoc)) return;
   }
 
@@ -3115,7 +3143,8 @@ void Parser::parse_optional_new_initializer(NewInitializerAST*& yyast) {
   ast->rparenLoc = rparenLoc;
 }
 
-auto Parser::parse_delete_expression(ExpressionAST*& yyast) -> bool {
+auto Parser::parse_delete_expression(ExpressionAST*& yyast,
+                                     const ExprContext& ctx) -> bool {
   if (!lookat(TokenKind::T_DELETE) &&
       !lookat(TokenKind::T_COLON_COLON, TokenKind::T_DELETE))
     return false;
@@ -3130,14 +3159,15 @@ auto Parser::parse_delete_expression(ExpressionAST*& yyast) -> bool {
     expect(TokenKind::T_RBRACKET, ast->rbracketLoc);
   }
 
-  if (!parse_cast_expression(ast->expression)) {
+  if (!parse_cast_expression(ast->expression, ctx)) {
     parse_error("expected an expression");
   }
 
   return true;
 }
 
-auto Parser::parse_cast_expression(ExpressionAST*& yyast) -> bool {
+auto Parser::parse_cast_expression(ExpressionAST*& yyast,
+                                   const ExprContext& ctx) -> bool {
   const auto start = currentLocation();
 
   if (auto it = cast_expressions_.get(start)) {
@@ -3149,7 +3179,7 @@ auto Parser::parse_cast_expression(ExpressionAST*& yyast) -> bool {
 
   auto lookat_cast_expression = [&] {
     LookaheadParser lookahead{this};
-    if (!parse_cast_expression_helper(yyast)) return false;
+    if (!parse_cast_expression_helper(yyast, ctx)) return false;
     lookahead.commit();
     return true;
   };
@@ -3157,7 +3187,7 @@ auto Parser::parse_cast_expression(ExpressionAST*& yyast) -> bool {
   auto parsed = lookat_cast_expression();
 
   if (!parsed) {
-    parsed = parse_unary_expression(yyast);
+    parsed = parse_unary_expression(yyast, ctx);
   }
 
   cast_expressions_.set(start, currentLocation(), yyast, parsed);
@@ -3165,7 +3195,8 @@ auto Parser::parse_cast_expression(ExpressionAST*& yyast) -> bool {
   return parsed;
 }
 
-auto Parser::parse_cast_expression_helper(ExpressionAST*& yyast) -> bool {
+auto Parser::parse_cast_expression_helper(ExpressionAST*& yyast,
+                                          const ExprContext& ctx) -> bool {
   SourceLocation lparenLoc;
 
   if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
@@ -3180,7 +3211,7 @@ auto Parser::parse_cast_expression_helper(ExpressionAST*& yyast) -> bool {
 
   ExpressionAST* expression = nullptr;
 
-  if (!parse_cast_expression(expression)) {
+  if (!parse_cast_expression(expression, ctx)) {
     return false;
   }
 
@@ -3254,7 +3285,7 @@ auto Parser::parse_binary_operator(SourceLocation& loc, TokenKind& tk,
 
 auto Parser::parse_binary_expression(ExpressionAST*& yyast,
                                      const ExprContext& exprContext) -> bool {
-  if (!parse_cast_expression(yyast)) return false;
+  if (!parse_cast_expression(yyast, exprContext)) return false;
 
   LookaheadParser lookahead{this};
 
@@ -3289,7 +3320,7 @@ auto Parser::parse_binary_expression_helper(ExpressionAST*& yyast, Prec minPrec,
 
     (void)parse_binary_operator(opLoc, op, exprContext);
 
-    if (!parse_cast_expression(rhs)) {
+    if (!parse_cast_expression(rhs, exprContext)) {
       rewind(saved);
       break;
     }
@@ -3340,7 +3371,7 @@ auto Parser::parse_conditional_expression(ExpressionAST*& yyast,
 
     yyast = ast;
 
-    parse_expression(ast->iftrueExpression);
+    parse_expression(ast->iftrueExpression, exprContext);
 
     expect(TokenKind::T_COLON, ast->colonLoc);
 
@@ -3349,14 +3380,15 @@ auto Parser::parse_conditional_expression(ExpressionAST*& yyast,
         parse_error("expected an expression");
       }
     } else {
-      parse_assignment_expression(ast->iffalseExpression);
+      parse_assignment_expression(ast->iffalseExpression, exprContext);
     }
   }
 
   return true;
 }
 
-auto Parser::parse_yield_expression(ExpressionAST*& yyast) -> bool {
+auto Parser::parse_yield_expression(ExpressionAST*& yyast,
+                                    const ExprContext& ctx) -> bool {
   SourceLocation yieldLoc;
 
   if (!match(TokenKind::T_CO_YIELD, yieldLoc)) return false;
@@ -3365,12 +3397,13 @@ auto Parser::parse_yield_expression(ExpressionAST*& yyast) -> bool {
   yyast = ast;
 
   ast->yieldLoc = yieldLoc;
-  parse_expr_or_braced_init_list(ast->expression);
+  parse_expr_or_braced_init_list(ast->expression, ctx);
 
   return true;
 }
 
-auto Parser::parse_throw_expression(ExpressionAST*& yyast) -> bool {
+auto Parser::parse_throw_expression(ExpressionAST*& yyast,
+                                    const ExprContext& ctx) -> bool {
   SourceLocation throwLoc;
 
   if (!match(TokenKind::T_THROW, throwLoc)) return false;
@@ -3382,15 +3415,11 @@ auto Parser::parse_throw_expression(ExpressionAST*& yyast) -> bool {
 
   LookaheadParser lookahead{this};
 
-  if (parse_maybe_assignment_expression(ast->expression)) {
+  if (parse_maybe_assignment_expression(ast->expression, ctx)) {
     lookahead.commit();
   }
 
   return true;
-}
-
-void Parser::parse_assignment_expression(ExpressionAST*& yyast) {
-  parse_assignment_expression(yyast, ExprContext{});
 }
 
 void Parser::parse_assignment_expression(ExpressionAST*& yyast,
@@ -3400,16 +3429,12 @@ void Parser::parse_assignment_expression(ExpressionAST*& yyast,
   }
 }
 
-auto Parser::parse_maybe_assignment_expression(ExpressionAST*& yyast) -> bool {
-  return parse_maybe_assignment_expression(yyast, ExprContext{});
-}
-
 auto Parser::parse_maybe_assignment_expression(ExpressionAST*& yyast,
                                                const ExprContext& exprContext)
     -> bool {
-  if (parse_yield_expression(yyast)) return true;
+  if (parse_yield_expression(yyast, exprContext)) return true;
 
-  if (parse_throw_expression(yyast)) return true;
+  if (parse_throw_expression(yyast, exprContext)) return true;
 
   if (!parse_conditional_expression(yyast, exprContext)) return false;
 
@@ -3419,7 +3444,7 @@ auto Parser::parse_maybe_assignment_expression(ExpressionAST*& yyast,
   if (parse_assignment_operator(opLoc, op)) {
     ExpressionAST* expression = nullptr;
 
-    if (!parse_initializer_clause(expression)) {
+    if (!parse_initializer_clause(expression, exprContext)) {
       parse_error("expected an expression");
     }
 
@@ -3459,21 +3484,22 @@ auto Parser::parse_assignment_operator(SourceLocation& loc, TokenKind& op)
   }  // switch
 }
 
-void Parser::parse_expression(ExpressionAST*& yyast) {
-  if (!parse_maybe_expression(yyast)) {
+void Parser::parse_expression(ExpressionAST*& yyast, const ExprContext& ctx) {
+  if (!parse_maybe_expression(yyast, ctx)) {
     parse_error("expected an expression");
   }
 }
 
-auto Parser::parse_maybe_expression(ExpressionAST*& yyast) -> bool {
-  if (!parse_maybe_assignment_expression(yyast)) return false;
+auto Parser::parse_maybe_expression(ExpressionAST*& yyast,
+                                    const ExprContext& ctx) -> bool {
+  if (!parse_maybe_assignment_expression(yyast, ExprContext{})) return false;
 
   SourceLocation commaLoc;
 
   while (match(TokenKind::T_COMMA, commaLoc)) {
     ExpressionAST* expression = nullptr;
 
-    parse_assignment_expression(expression);
+    parse_assignment_expression(expression, ctx);
 
     auto ast = new (pool_) BinaryExpressionAST();
     ast->leftExpression = yyast;
@@ -3488,6 +3514,7 @@ auto Parser::parse_maybe_expression(ExpressionAST*& yyast) -> bool {
 
 auto Parser::parse_constant_expression(ExpressionAST*& yyast) -> bool {
   ExprContext exprContext;
+  exprContext.isConstantEvaluated = true;
   return parse_conditional_expression(yyast, exprContext);
 }
 
@@ -3579,7 +3606,7 @@ void Parser::parse_init_statement(StatementAST*& yyast) {
   LookaheadParser lookahead{this};
 
   ExpressionAST* expression = nullptr;
-  if (!parse_maybe_expression(expression)) return;
+  if (!parse_maybe_expression(expression, ExprContext{})) return;
 
   SourceLocation semicolonLoc;
   if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return;
@@ -3592,7 +3619,7 @@ void Parser::parse_init_statement(StatementAST*& yyast) {
   ast->semicolonLoc = semicolonLoc;
 }
 
-void Parser::parse_condition(ExpressionAST*& yyast) {
+void Parser::parse_condition(ExpressionAST*& yyast, const ExprContext& ctx) {
   auto lookat_condition = [&] {
     LookaheadParser lookahead{this};
 
@@ -3628,7 +3655,7 @@ void Parser::parse_condition(ExpressionAST*& yyast) {
 
   if (lookat_condition()) return;
 
-  parse_expression(yyast);
+  parse_expression(yyast, ctx);
 }
 
 auto Parser::parse_labeled_statement(StatementAST*& yyast) -> bool {
@@ -3694,7 +3721,7 @@ auto Parser::parse_expression_statement(StatementAST*& yyast) -> bool {
   ExpressionAST* expression = nullptr;
 
   if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) {
-    if (!parse_maybe_expression(expression)) return false;
+    if (!parse_maybe_expression(expression, ExprContext{})) return false;
 
     expect(TokenKind::T_SEMICOLON, semicolonLoc);
   }
@@ -3843,7 +3870,7 @@ auto Parser::parse_if_statement(StatementAST*& yyast) -> bool {
 
   parse_init_statement(ast->initializer);
 
-  parse_condition(ast->condition);
+  parse_condition(ast->condition, ExprContext{});
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
@@ -3872,7 +3899,7 @@ auto Parser::parse_switch_statement(StatementAST*& yyast) -> bool {
 
   parse_init_statement(ast->initializer);
 
-  parse_condition(ast->condition);
+  parse_condition(ast->condition, ExprContext{});
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
@@ -3895,7 +3922,7 @@ auto Parser::parse_while_statement(StatementAST*& yyast) -> bool {
 
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
-  parse_condition(ast->condition);
+  parse_condition(ast->condition, ExprContext{});
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
@@ -3922,7 +3949,7 @@ auto Parser::parse_do_statement(StatementAST*& yyast) -> bool {
 
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
-  parse_expression(ast->expression);
+  parse_expression(ast->expression, ExprContext{});
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
@@ -3986,12 +4013,12 @@ auto Parser::parse_for_statement(StatementAST*& yyast) -> bool {
   parse_init_statement(ast->initializer);
 
   if (!match(TokenKind::T_SEMICOLON, ast->semicolonLoc)) {
-    parse_condition(ast->condition);
+    parse_condition(ast->condition, ExprContext{});
     expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
   }
 
   if (!match(TokenKind::T_RPAREN, ast->rparenLoc)) {
-    parse_expression(ast->expression);
+    parse_expression(ast->expression, ExprContext{});
     expect(TokenKind::T_RPAREN, ast->rparenLoc);
   }
 
@@ -4034,7 +4061,7 @@ auto Parser::parse_for_range_declaration(DeclarationAST*& yyast) -> bool {
 }
 
 void Parser::parse_for_range_initializer(ExpressionAST*& yyast) {
-  parse_expr_or_braced_init_list(yyast);
+  parse_expr_or_braced_init_list(yyast, ExprContext{});
 }
 
 auto Parser::parse_break_statement(StatementAST*& yyast) -> bool {
@@ -4078,7 +4105,7 @@ auto Parser::parse_return_statement(StatementAST*& yyast) -> bool {
   ast->returnLoc = returnLoc;
 
   if (!match(TokenKind::T_SEMICOLON, ast->semicolonLoc)) {
-    parse_expr_or_braced_init_list(ast->expression);
+    parse_expr_or_braced_init_list(ast->expression, ExprContext{});
 
     expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
   }
@@ -4116,7 +4143,7 @@ auto Parser::parse_coroutine_return_statement(StatementAST*& yyast) -> bool {
   ast->coreturnLoc = coreturnLoc;
 
   if (!match(TokenKind::T_SEMICOLON, ast->semicolonLoc)) {
-    parse_expr_or_braced_init_list(ast->expression);
+    parse_expr_or_braced_init_list(ast->expression, ExprContext{});
 
     expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
   }
@@ -4508,7 +4535,7 @@ auto Parser::parse_structured_binding(DeclarationAST*& yyast,
   SourceLocation semicolonLoc;
 
   if (ctx != BindingContext::kCondition) {
-    if (!parse_initializer(initializer)) return false;
+    if (!parse_initializer(initializer, ExprContext{})) return false;
     if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return false;
   }
 
@@ -5939,7 +5966,7 @@ auto Parser::parse_decltype_specifier(DecltypeSpecifierAST*& yyast) -> bool {
   ast->decltypeLoc = decltypeLoc;
   ast->lparenLoc = lparenLoc;
 
-  parse_expression(ast->expression);
+  parse_expression(ast->expression, ExprContext{});
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
@@ -6069,7 +6096,7 @@ auto Parser::parse_declarator_initializer(RequiresClauseAST*& requiresClause,
                                           ExpressionAST*& yyast) -> bool {
   if (parse_requires_clause(requiresClause)) return true;
 
-  return parse_initializer(yyast);
+  return parse_initializer(yyast, ExprContext{});
 }
 
 void Parser::parse_optional_declarator_or_abstract_declarator(
@@ -6627,7 +6654,9 @@ auto Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast,
   }
 
   if (match(TokenKind::T_EQUAL, ast->equalLoc)) {
-    if (!parse_initializer_clause(ast->expression, templParam)) {
+    ExprContext ctx;
+    ctx.templParam = templParam;
+    if (!parse_initializer_clause(ast->expression, ctx)) {
       if (templParam) return false;
 
       parse_error("expected an initializer");
@@ -6637,7 +6666,8 @@ auto Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast,
   return true;
 }
 
-auto Parser::parse_initializer(ExpressionAST*& yyast) -> bool {
+auto Parser::parse_initializer(ExpressionAST*& yyast, const ExprContext& ctx)
+    -> bool {
   SourceLocation lparenLoc;
 
   if (match(TokenKind::T_LPAREN, lparenLoc)) {
@@ -6648,7 +6678,7 @@ auto Parser::parse_initializer(ExpressionAST*& yyast) -> bool {
 
     ast->lparenLoc = lparenLoc;
 
-    if (!parse_expression_list(ast->expressionList)) {
+    if (!parse_expression_list(ast->expressionList, ctx)) {
       parse_error("expected an expression");
     }
 
@@ -6664,7 +6694,7 @@ auto Parser::parse_brace_or_equal_initializer(ExpressionAST*& yyast) -> bool {
   BracedInitListAST* bracedInitList = nullptr;
 
   if (lookat(TokenKind::T_LBRACE)) {
-    if (!parse_braced_init_list(bracedInitList)) return false;
+    if (!parse_braced_init_list(bracedInitList, ExprContext{})) return false;
     yyast = bracedInitList;
     return true;
   }
@@ -6678,30 +6708,27 @@ auto Parser::parse_brace_or_equal_initializer(ExpressionAST*& yyast) -> bool {
 
   ast->equalLoc = equalLoc;
 
-  if (!parse_initializer_clause(ast->expression)) {
+  if (!parse_initializer_clause(ast->expression, ExprContext{})) {
     parse_error("expected an intializer");
   }
 
   return true;
 }
 
-auto Parser::parse_initializer_clause(ExpressionAST*& yyast, bool templParam)
-    -> bool {
+auto Parser::parse_initializer_clause(ExpressionAST*& yyast,
+                                      const ExprContext& ctx) -> bool {
   BracedInitListAST* bracedInitList = nullptr;
-  if (parse_braced_init_list(bracedInitList)) {
+  if (parse_braced_init_list(bracedInitList, ctx)) {
     yyast = bracedInitList;
     return true;
   }
 
-  ExprContext exprContext;
-  exprContext.templParam = templParam;
-
-  parse_assignment_expression(yyast, exprContext);
-
+  parse_assignment_expression(yyast, ctx);
   return true;
 }
 
-auto Parser::parse_braced_init_list(BracedInitListAST*& yyast) -> bool {
+auto Parser::parse_braced_init_list(BracedInitListAST*& yyast,
+                                    const ExprContext& ctx) -> bool {
   SourceLocation lbraceLoc;
   SourceLocation rbraceLoc;
 
@@ -6766,7 +6793,7 @@ auto Parser::parse_braced_init_list(BracedInitListAST*& yyast) -> bool {
   List<ExpressionAST*>* expressionList = nullptr;
 
   if (!match(TokenKind::T_RBRACE, rbraceLoc)) {
-    if (!parse_initializer_list(expressionList)) {
+    if (!parse_initializer_list(expressionList, ctx)) {
       parse_error("expected initializer list");
     }
 
@@ -6783,12 +6810,13 @@ auto Parser::parse_braced_init_list(BracedInitListAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_initializer_list(List<ExpressionAST*>*& yyast) -> bool {
+auto Parser::parse_initializer_list(List<ExpressionAST*>*& yyast,
+                                    const ExprContext& ctx) -> bool {
   auto it = &yyast;
 
   ExpressionAST* expression = nullptr;
 
-  if (!parse_initializer_clause(expression)) return false;
+  if (!parse_initializer_clause(expression, ctx)) return false;
 
   SourceLocation ellipsisLoc;
 
@@ -6809,7 +6837,7 @@ auto Parser::parse_initializer_list(List<ExpressionAST*>*& yyast) -> bool {
 
     ExpressionAST* expression = nullptr;
 
-    if (!parse_initializer_clause(expression)) {
+    if (!parse_initializer_clause(expression, ctx)) {
       parse_error("expected initializer clause");
     }
 
@@ -6850,13 +6878,14 @@ auto Parser::parse_designated_initializer_clause(
   return true;
 }
 
-void Parser::parse_expr_or_braced_init_list(ExpressionAST*& yyast) {
+void Parser::parse_expr_or_braced_init_list(ExpressionAST*& yyast,
+                                            const ExprContext& ctx) {
   BracedInitListAST* bracedInitList = nullptr;
 
-  if (parse_braced_init_list(bracedInitList)) {
+  if (parse_braced_init_list(bracedInitList, ctx)) {
     yyast = bracedInitList;
   } else {
-    parse_expression(yyast);
+    parse_expression(yyast, ctx);
   }
 }
 
@@ -7489,7 +7518,7 @@ auto Parser::parse_asm_operand(AsmOperandAST*& yyast) -> bool {
       unit->literal(ast->constraintLiteralLoc));
 
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
-  parse_expression(ast->expression);
+  parse_expression(ast->expression, ExprContext{});
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   return true;
@@ -8961,7 +8990,7 @@ void Parser::parse_mem_initializer(MemInitializerAST*& yyast) {
     ast->nestedNameSpecifier = nestedNameSpecifier;
     ast->unqualifiedId = name;
 
-    if (!parse_braced_init_list(ast->bracedInitList)) {
+    if (!parse_braced_init_list(ast->bracedInitList, ExprContext{})) {
       parse_error("expected an initializer");
     }
 
@@ -8979,7 +9008,7 @@ void Parser::parse_mem_initializer(MemInitializerAST*& yyast) {
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
   if (!match(TokenKind::T_RPAREN, ast->rparenLoc)) {
-    if (!parse_expression_list(ast->expressionList)) {
+    if (!parse_expression_list(ast->expressionList, ExprContext{})) {
       parse_error("expected an expression");
     }
 
@@ -9258,23 +9287,27 @@ auto Parser::parse_requires_clause(RequiresClauseAST*& yyast) -> bool {
 
   yyast->requiresLoc = requiresLoc;
 
-  if (!parse_constraint_logical_or_expression(yyast->expression)) {
+  ExprContext ctx;
+  ctx.inRequiresClause = true;
+
+  if (!parse_constraint_logical_or_expression(yyast->expression, ctx)) {
     parse_error("expected a requirement expression");
   }
 
   return true;
 }
 
-auto Parser::parse_constraint_logical_or_expression(ExpressionAST*& yyast)
+auto Parser::parse_constraint_logical_or_expression(ExpressionAST*& yyast,
+                                                    const ExprContext& ctx)
     -> bool {
-  if (!parse_constraint_logical_and_expression(yyast)) return false;
+  if (!parse_constraint_logical_and_expression(yyast, ctx)) return false;
 
   SourceLocation opLoc;
 
   while (match(TokenKind::T_BAR_BAR, opLoc)) {
     ExpressionAST* expression = nullptr;
 
-    if (!parse_constraint_logical_and_expression(expression)) {
+    if (!parse_constraint_logical_and_expression(expression, ctx)) {
       parse_error("expected a requirement expression");
     }
 
@@ -9289,16 +9322,17 @@ auto Parser::parse_constraint_logical_or_expression(ExpressionAST*& yyast)
   return true;
 }
 
-auto Parser::parse_constraint_logical_and_expression(ExpressionAST*& yyast)
+auto Parser::parse_constraint_logical_and_expression(ExpressionAST*& yyast,
+                                                     const ExprContext& ctx)
     -> bool {
-  if (!parse_primary_expression(yyast, /*inRequiresClause*/ true)) return false;
+  if (!parse_primary_expression(yyast, ctx)) return false;
 
   SourceLocation opLoc;
 
   while (match(TokenKind::T_AMP_AMP, opLoc)) {
     ExpressionAST* expression = nullptr;
 
-    if (!parse_primary_expression(expression, /*inRequiresClause*/ true)) {
+    if (!parse_primary_expression(expression, ctx)) {
       parse_error("expected an expression");
     }
 
