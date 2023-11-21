@@ -69,6 +69,9 @@ auto Token::spell() const -> const std::string& {
     case TokenKind::T_COMMENT:
       return value_.literalValue ? value_.literalValue->value() : spell(kind());
 
+    case TokenKind::T_BUILTIN:
+      return spell(static_cast<BuiltinKind>(value_.intValue));
+
     default:
       return spell(kind());
   }  // switch
@@ -79,5 +82,25 @@ auto Token::name(TokenKind kind) -> const std::string& {
 }
 
 auto Token::name() const -> const std::string& { return name(kind()); }
+
+auto Token::isBuiltinTypeTrait(BuiltinKind kind) -> bool {
+#define BUILTIN_TYPE_TRAIT(s, _) \
+  case BuiltinKind::T_##s:       \
+    return true;
+
+  switch (kind) {
+    FOR_EACH_BUILTIN_TYPE_TRAIT(BUILTIN_TYPE_TRAIT)
+
+    default:
+      return false;
+  }  // switch
+
+#undef BUILTIN_TYPE_TRAIT
+}
+
+auto Token::isBuiltinTypeTrait() const -> bool {
+  return is(TokenKind::T_BUILTIN) &&
+         isBuiltinTypeTrait(static_cast<BuiltinKind>(value_.intValue));
+}
 
 }  // namespace cxx

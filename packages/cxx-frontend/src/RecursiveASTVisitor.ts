@@ -1010,6 +1010,20 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   }
 
   /**
+   * Visit a BuiltinBitCastExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitBuiltinBitCastExpression(
+    node: ast.BuiltinBitCastExpressionAST,
+    context: Context,
+  ): void {
+    this.accept(node.getTypeId(), context);
+    this.accept(node.getExpression(), context);
+  }
+
+  /**
    * Visit a TypeidExpression node.
    *
    * @param node The node to visit.

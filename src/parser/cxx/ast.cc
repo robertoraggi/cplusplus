@@ -1208,6 +1208,26 @@ auto CppCastExpressionAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto BuiltinBitCastExpressionAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(castLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::firstSourceLocation(commaLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  return {};
+}
+
+auto BuiltinBitCastExpressionAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(commaLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(castLoc)) return loc;
+  return {};
+}
+
 auto TypeidExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(typeidLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;

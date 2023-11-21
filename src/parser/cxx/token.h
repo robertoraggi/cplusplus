@@ -88,6 +88,10 @@ class Token {
 
   static auto spell(BuiltinKind kind) -> const std::string&;
 
+  static auto isBuiltinTypeTrait(BuiltinKind kind) -> bool;
+
+  auto isBuiltinTypeTrait() const -> bool;
+
  private:
   std::uint64_t kind_ : 8;
   std::uint64_t startOfLine_ : 1;

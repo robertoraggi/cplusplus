@@ -2601,6 +2601,32 @@ void ASTEncoder::visit(CppCastExpressionAST* ast) {
   type_ = io::Expression_CppCastExpression;
 }
 
+void ASTEncoder::visit(BuiltinBitCastExpressionAST* ast) {
+  auto castLoc = encodeSourceLocation(ast->castLoc);
+
+  auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
+
+  const auto typeId = accept(ast->typeId);
+
+  auto commaLoc = encodeSourceLocation(ast->commaLoc);
+
+  const auto [expression, expressionType] = acceptExpression(ast->expression);
+
+  auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
+
+  io::BuiltinBitCastExpression::Builder builder{fbb_};
+  builder.add_cast_loc(castLoc.o);
+  builder.add_lparen_loc(lparenLoc.o);
+  builder.add_type_id(typeId.o);
+  builder.add_comma_loc(commaLoc.o);
+  builder.add_expression(expression);
+  builder.add_expression_type(static_cast<io::Expression>(expressionType));
+  builder.add_rparen_loc(rparenLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Expression_BuiltinBitCastExpression;
+}
+
 void ASTEncoder::visit(TypeidExpressionAST* ast) {
   auto typeidLoc = encodeSourceLocation(ast->typeidLoc);
 

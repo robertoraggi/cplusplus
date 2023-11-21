@@ -217,6 +217,8 @@ class ASTDecoder {
       -> PostIncrExpressionAST*;
   auto decodeCppCastExpression(const io::CppCastExpression* node)
       -> CppCastExpressionAST*;
+  auto decodeBuiltinBitCastExpression(const io::BuiltinBitCastExpression* node)
+      -> BuiltinBitCastExpressionAST*;
   auto decodeTypeidExpression(const io::TypeidExpression* node)
       -> TypeidExpressionAST*;
   auto decodeTypeidOfTypeExpression(const io::TypeidOfTypeExpression* node)

@@ -878,6 +878,18 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
 
   /**
+   * Visit BuiltinBitCastExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitBuiltinBitCastExpression(
+    node: ast.BuiltinBitCastExpressionAST,
+    context: Context,
+  ): Result;
+
+  /**
    * Visit TypeidExpression node.
    *
    * @param node The node to visit.

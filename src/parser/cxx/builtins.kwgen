@@ -50,3 +50,5 @@ __is_union
 __is_unsigned
 __is_void
 __is_volatile
+
+__builtin_bit_cast
