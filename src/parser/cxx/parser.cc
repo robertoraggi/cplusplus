@@ -5837,6 +5837,80 @@ auto Parser::floating_integral_conversion(ExpressionAST*& expr,
   return true;
 }
 
+auto Parser::function_pointer_conversion(ExpressionAST*& expr,
+                                         const Type* destinationType) -> bool {
+  if (!is_prvalue(expr)) return false;
+
+  auto can_remove_noexcept_from_function = [&] {
+    const auto pointerType = type_cast<PointerType>(expr->type);
+    if (!pointerType) return false;
+
+    const auto functionType =
+        type_cast<FunctionType>(pointerType->elementType());
+
+    if (!functionType) return false;
+
+    if (functionType->isNoexcept()) return false;
+
+    const auto destinationPointerType = type_cast<PointerType>(destinationType);
+    if (!destinationPointerType) return false;
+
+    const auto destinationFunctionType =
+        type_cast<FunctionType>(destinationPointerType->elementType());
+
+    if (!destinationFunctionType) return false;
+
+    if (!control_->is_same(control_->remove_noexcept(functionType),
+                           destinationFunctionType))
+      return false;
+
+    auto cast = new (pool_) ImplicitCastExpressionAST();
+    cast->castKind = ImplicitCastKind::kFunctionPointerConversion;
+    cast->expression = expr;
+    cast->type = destinationType;
+    cast->valueCategory = ValueCategory::kPrValue;
+    expr = cast;
+
+    return true;
+  };
+
+  auto can_remove_noexcept_from_member_function__pointer = [&] {
+    const auto memberFunctionPointer =
+        type_cast<MemberFunctionPointerType>(expr->type);
+
+    if (!memberFunctionPointer) return false;
+
+    if (!memberFunctionPointer->functionType()->isNoexcept()) return false;
+
+    const auto destinationMemberFunctionPointer =
+        type_cast<MemberFunctionPointerType>(destinationType);
+
+    if (!destinationMemberFunctionPointer) return false;
+
+    if (destinationMemberFunctionPointer->functionType()->isNoexcept())
+      return false;
+
+    if (!control_->is_same(
+            control_->remove_noexcept(memberFunctionPointer->functionType()),
+            destinationMemberFunctionPointer->functionType()))
+      return false;
+
+    auto cast = new (pool_) ImplicitCastExpressionAST();
+    cast->castKind = ImplicitCastKind::kFunctionPointerConversion;
+    cast->expression = expr;
+    cast->type = destinationType;
+    cast->valueCategory = ValueCategory::kPrValue;
+    expr = cast;
+
+    return true;
+  };
+
+  if (can_remove_noexcept_from_function()) return true;
+  if (can_remove_noexcept_from_member_function__pointer()) return true;
+
+  return false;
+}
+
 auto Parser::is_prvalue(ExpressionAST* expr) const -> bool {
   if (!expr) return false;
   return expr->valueCategory == ValueCategory::kPrValue;
