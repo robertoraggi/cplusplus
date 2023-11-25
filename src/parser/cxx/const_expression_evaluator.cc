@@ -24,7 +24,10 @@
 #include <cxx/ast.h>
 #include <cxx/literals.h>
 #include <cxx/parser.h>
+#include <cxx/private/format.h>
 #include <cxx/symbols.h>
+#include <cxx/translation_unit.h>
+#include <cxx/type_printer.h>
 #include <cxx/types.h>
 
 namespace cxx {
@@ -228,11 +231,232 @@ auto ConstExpressionEvaluator::operator()(CastExpressionAST* ast)
 
 auto ConstExpressionEvaluator::operator()(ImplicitCastExpressionAST* ast)
     -> std::optional<ConstValue> {
+  if (!ast->type) return std::nullopt;
+
+  auto value = evaluate(ast->expression);
+  if (!value.has_value()) return std::nullopt;
+
+  switch (ast->type->kind()) {
+    case TypeKind::kBool:
+      if (std::get_if<const StringLiteral*>(&*value)) return ConstValue(true);
+      return std::visit(ArithmeticConversion<bool>{}, *value);
+    case TypeKind::kFloat:
+      return std::visit(ArithmeticConversion<float>{}, *value);
+    case TypeKind::kDouble:
+      return std::visit(ArithmeticConversion<double>{}, *value);
+    case TypeKind::kLongDouble:
+      return std::visit(ArithmeticConversion<long double>{}, *value);
+    default:
+      if (control()->is_integral_or_unscoped_enum(ast->type)) {
+        if (control()->is_unsigned(ast->type))
+          return std::visit(ArithmeticCast<std::uint64_t>{}, *value);
+        else
+          return std::visit(ArithmeticCast<std::int64_t>{}, *value);
+      }
+      return value;
+  }  // switch
+
   return std::nullopt;
 }
 
 auto ConstExpressionEvaluator::operator()(BinaryExpressionAST* ast)
     -> std::optional<ConstValue> {
+  if (!ast->type) return std::nullopt;
+
+  auto left = evaluate(ast->leftExpression);
+  if (!left.has_value()) return std::nullopt;
+
+  auto right = evaluate(ast->rightExpression);
+  if (!right.has_value()) return std::nullopt;
+
+  switch (ast->op) {
+    case TokenKind::T_DOT_STAR:
+      break;
+
+    case TokenKind::T_MINUS_GREATER_STAR:
+      break;
+
+    case TokenKind::T_STAR:
+      if (control()->is_floating_point(ast->type))
+        return std::visit(ArithmeticCast<double>{}, *left) +
+               std::visit(ArithmeticCast<double>{}, *right);
+      else if (control()->is_unsigned(ast->type))
+        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) +
+               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
+      else
+        return std::visit(ArithmeticCast<std::int64_t>{}, *left) +
+               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_SLASH:
+      if (control()->is_floating_point(ast->type))
+        return std::visit(ArithmeticCast<double>{}, *left) +
+               std::visit(ArithmeticCast<double>{}, *right);
+      else if (control()->is_unsigned(ast->type))
+        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) +
+               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
+      else
+        return std::visit(ArithmeticCast<std::int64_t>{}, *left) +
+               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_PERCENT:
+      if (control()->is_unsigned(ast->type))
+        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) %
+               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
+      else
+        return std::visit(ArithmeticCast<std::int64_t>{}, *left) %
+               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_PLUS:
+      if (control()->is_floating_point(ast->type))
+        return std::visit(ArithmeticCast<double>{}, *left) +
+               std::visit(ArithmeticCast<double>{}, *right);
+      else if (control()->is_unsigned(ast->type))
+        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) +
+               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
+      else
+        return std::visit(ArithmeticCast<std::int64_t>{}, *left) +
+               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_MINUS:
+      if (control()->is_floating_point(ast->type))
+        return std::visit(ArithmeticCast<double>{}, *left) -
+               std::visit(ArithmeticCast<double>{}, *right);
+      else if (control()->is_unsigned(ast->type))
+        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) -
+               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
+      else
+        return std::visit(ArithmeticCast<std::int64_t>{}, *left) -
+               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_LESS_LESS:
+      if (control()->is_unsigned(ast->type))
+        return std::visit(ArithmeticCast<std::uint64_t>{}, *left)
+               << std::visit(ArithmeticCast<std::uint64_t>{}, *right);
+      else
+        return std::visit(ArithmeticCast<std::int64_t>{}, *left)
+               << std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_GREATER_GREATER:
+      if (control()->is_unsigned(ast->type))
+        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) >>
+               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
+      else
+        return std::visit(ArithmeticCast<std::int64_t>{}, *left) >>
+               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_LESS_EQUAL_GREATER: {
+      auto convert = [](std::partial_ordering cmp) -> int {
+        if (cmp < 0) return -1;
+        if (cmp > 0) return 1;
+        return 0;
+      };
+
+      if (control()->is_floating_point(ast->type))
+        return convert(std::visit(ArithmeticCast<double>{}, *left) <=>
+                       std::visit(ArithmeticCast<double>{}, *right));
+      else if (control()->is_unsigned(ast->type))
+        return convert(std::visit(ArithmeticCast<std::uint64_t>{}, *left) <=>
+                       std::visit(ArithmeticCast<std::uint64_t>{}, *right));
+      else
+        return convert(std::visit(ArithmeticCast<std::int64_t>{}, *left) <=>
+                       std::visit(ArithmeticCast<std::int64_t>{}, *right));
+    }
+
+    case TokenKind::T_LESS_EQUAL:
+      if (control()->is_floating_point(ast->type))
+        return std::visit(ArithmeticCast<double>{}, *left) <=
+               std::visit(ArithmeticCast<double>{}, *right);
+      else if (control()->is_unsigned(ast->type))
+        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) <=
+               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
+      else
+        return std::visit(ArithmeticCast<std::int64_t>{}, *left) <=
+               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_GREATER_EQUAL:
+      if (control()->is_floating_point(ast->type))
+        return std::visit(ArithmeticCast<double>{}, *left) >=
+               std::visit(ArithmeticCast<double>{}, *right);
+      else if (control()->is_unsigned(ast->type))
+        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) >=
+               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
+      else
+        return std::visit(ArithmeticCast<std::int64_t>{}, *left) >=
+               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_LESS:
+      if (control()->is_floating_point(ast->type))
+        return std::visit(ArithmeticCast<double>{}, *left) <
+               std::visit(ArithmeticCast<double>{}, *right);
+      else if (control()->is_unsigned(ast->type))
+        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) <
+               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
+      else
+        return std::visit(ArithmeticCast<std::int64_t>{}, *left) <
+               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_GREATER:
+      if (control()->is_floating_point(ast->type))
+        return std::visit(ArithmeticCast<double>{}, *left) >
+               std::visit(ArithmeticCast<double>{}, *right);
+      else if (control()->is_unsigned(ast->type))
+        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) >
+               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
+      else
+        return std::visit(ArithmeticCast<std::int64_t>{}, *left) >
+               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_EQUAL_EQUAL:
+      if (control()->is_floating_point(ast->type))
+        return std::visit(ArithmeticCast<double>{}, *left) ==
+               std::visit(ArithmeticCast<double>{}, *right);
+      else if (control()->is_unsigned(ast->type))
+        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) ==
+               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
+      else
+        return std::visit(ArithmeticCast<std::int64_t>{}, *left) ==
+               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_EXCLAIM_EQUAL:
+      if (control()->is_floating_point(ast->type))
+        return std::visit(ArithmeticCast<double>{}, *left) !=
+               std::visit(ArithmeticCast<double>{}, *right);
+      else if (control()->is_unsigned(ast->type))
+        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) !=
+               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
+      else
+        return std::visit(ArithmeticCast<std::int64_t>{}, *left) !=
+               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_AMP:
+      return std::visit(ArithmeticCast<std::int64_t>{}, *left) &
+             std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_CARET:
+      return std::visit(ArithmeticCast<std::int64_t>{}, *left) ^
+             std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_BAR:
+      return std::visit(ArithmeticCast<std::int64_t>{}, *left) |
+             std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_AMP_AMP:
+      return std::visit(ArithmeticCast<bool>{}, *left) &&
+             std::visit(ArithmeticCast<bool>{}, *right);
+
+    case TokenKind::T_BAR_BAR:
+      return std::visit(ArithmeticCast<bool>{}, *left) ||
+             std::visit(ArithmeticCast<bool>{}, *right);
+
+    case TokenKind::T_COMMA:
+      return right;
+
+    default:
+      parser.translationUnit()->warning(ast->opLoc,
+                                        "invalid binary expression");
+      break;
+  }  // switch
+
   return std::nullopt;
 }
 
@@ -281,150 +505,94 @@ auto ConstExpressionEvaluator::operator()(TypeTraitsExpressionAST* ast)
 
   if (firstType) {
     switch (ast->typeTraits) {
-      case BuiltinKind::T___IS_VOID: {
+      case BuiltinKind::T___IS_VOID:
         return control()->is_void(firstType);
-        break;
-      }
 
-      case BuiltinKind::T___IS_NULL_POINTER: {
+      case BuiltinKind::T___IS_NULL_POINTER:
         return control()->is_null_pointer(firstType);
-        break;
-      }
 
-      case BuiltinKind::T___IS_INTEGRAL: {
+      case BuiltinKind::T___IS_INTEGRAL:
         return control()->is_integral(firstType);
-        break;
-      }
 
-      case BuiltinKind::T___IS_FLOATING_POINT: {
+      case BuiltinKind::T___IS_FLOATING_POINT:
         return control()->is_floating_point(firstType);
-        break;
-      }
 
-      case BuiltinKind::T___IS_ARRAY: {
+      case BuiltinKind::T___IS_ARRAY:
         return control()->is_array(firstType);
-        break;
-      }
 
-      case BuiltinKind::T___IS_ENUM: {
+      case BuiltinKind::T___IS_ENUM:
         return control()->is_enum(firstType);
-        break;
-      }
 
-      case BuiltinKind::T___IS_SCOPED_ENUM: {
+      case BuiltinKind::T___IS_SCOPED_ENUM:
         return control()->is_scoped_enum(firstType);
-        break;
-      }
 
-      case BuiltinKind::T___IS_UNION: {
+      case BuiltinKind::T___IS_UNION:
         return control()->is_union(firstType);
-        break;
-      }
 
-      case BuiltinKind::T___IS_CLASS: {
+      case BuiltinKind::T___IS_CLASS:
         return control()->is_class(firstType);
-        break;
-      }
 
-      case BuiltinKind::T___IS_FUNCTION: {
+      case BuiltinKind::T___IS_FUNCTION:
         return control()->is_function(firstType);
-        break;
-      }
 
-      case BuiltinKind::T___IS_POINTER: {
+      case BuiltinKind::T___IS_POINTER:
         return control()->is_pointer(firstType);
-        break;
-      }
 
-      case BuiltinKind::T___IS_MEMBER_OBJECT_POINTER: {
+      case BuiltinKind::T___IS_MEMBER_OBJECT_POINTER:
         return control()->is_member_object_pointer(firstType);
-        break;
-      }
 
-      case BuiltinKind::T___IS_MEMBER_FUNCTION_POINTER: {
+      case BuiltinKind::T___IS_MEMBER_FUNCTION_POINTER:
         return control()->is_member_function_pointer(firstType);
-        break;
-      }
 
-      case BuiltinKind::T___IS_LVALUE_REFERENCE: {
+      case BuiltinKind::T___IS_LVALUE_REFERENCE:
         return control()->is_lvalue_reference(firstType);
-        break;
-      }
 
-      case BuiltinKind::T___IS_RVALUE_REFERENCE: {
+      case BuiltinKind::T___IS_RVALUE_REFERENCE:
         return control()->is_rvalue_reference(firstType);
-        break;
-      }
 
-      case BuiltinKind::T___IS_FUNDAMENTAL: {
+      case BuiltinKind::T___IS_FUNDAMENTAL:
         return control()->is_fundamental(firstType);
-        break;
-      }
 
-      case BuiltinKind::T___IS_ARITHMETIC: {
+      case BuiltinKind::T___IS_ARITHMETIC:
         return control()->is_arithmetic(firstType);
-        break;
-      }
 
-      case BuiltinKind::T___IS_SCALAR: {
+      case BuiltinKind::T___IS_SCALAR:
         return control()->is_scalar(firstType);
-      }
 
-      case BuiltinKind::T___IS_OBJECT: {
+      case BuiltinKind::T___IS_OBJECT:
         return control()->is_object(firstType);
-        break;
-      }
 
-      case BuiltinKind::T___IS_COMPOUND: {
+      case BuiltinKind::T___IS_COMPOUND:
         return control()->is_compound(firstType);
-        break;
-      }
 
-      case BuiltinKind::T___IS_REFERENCE: {
+      case BuiltinKind::T___IS_REFERENCE:
         return control()->is_reference(firstType);
-        break;
-      }
 
-      case BuiltinKind::T___IS_MEMBER_POINTER: {
+      case BuiltinKind::T___IS_MEMBER_POINTER:
         return control()->is_member_pointer(firstType);
-        break;
-      }
 
-      case BuiltinKind::T___IS_BOUNDED_ARRAY: {
+      case BuiltinKind::T___IS_BOUNDED_ARRAY:
         return control()->is_bounded_array(firstType);
-        break;
-      }
 
-      case BuiltinKind::T___IS_UNBOUNDED_ARRAY: {
+      case BuiltinKind::T___IS_UNBOUNDED_ARRAY:
         return control()->is_unbounded_array(firstType);
-        break;
-      }
 
-      case BuiltinKind::T___IS_CONST: {
+      case BuiltinKind::T___IS_CONST:
         return control()->is_const(firstType);
-        break;
-      }
 
-      case BuiltinKind::T___IS_VOLATILE: {
+      case BuiltinKind::T___IS_VOLATILE:
         return control()->is_volatile(firstType);
-        break;
-      }
 
-      case BuiltinKind::T___IS_SIGNED: {
+      case BuiltinKind::T___IS_SIGNED:
         return control()->is_signed(firstType);
-        break;
-      }
 
-      case BuiltinKind::T___IS_UNSIGNED: {
+      case BuiltinKind::T___IS_UNSIGNED:
         return control()->is_unsigned(firstType);
-        break;
-      }
 
       case BuiltinKind::T___IS_SAME:
       case BuiltinKind::T___IS_SAME_AS: {
         if (!secondType) break;
         return control()->is_same(firstType, secondType);
-        break;
       }
 
       default:
