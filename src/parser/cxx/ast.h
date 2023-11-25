@@ -140,7 +140,6 @@ class ExpressionAST : public AST {
  public:
   using AST::AST;
   ValueCategory valueCategory = ValueCategory::kPrValue;
-  std::optional<ConstValue> constValue;
   const Type* type = nullptr;
 };
 

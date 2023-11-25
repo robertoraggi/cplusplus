@@ -315,7 +315,9 @@ class Parser final {
   void parse_expression(ExpressionAST*& yyast, const ExprContext& ctx);
   [[nodiscard]] auto parse_maybe_expression(ExpressionAST*& yyast,
                                             const ExprContext& ctx) -> bool;
-  [[nodiscard]] auto parse_constant_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_constant_expression(ExpressionAST*& yyast,
+                                               std::optional<ConstValue>& value)
+      -> bool;
   [[nodiscard]] auto parse_template_argument_constant_expression(
       ExpressionAST*& yyast) -> bool;
   void parse_statement(StatementAST*& yyast);
@@ -783,6 +785,9 @@ class Parser final {
   auto is_lvalue(ExpressionAST* expr) const -> bool;
   auto is_xvalue(ExpressionAST* expr) const -> bool;
   auto is_glvalue(ExpressionAST* expr) const -> bool;
+
+  auto evaluate_constant_expression(ExpressionAST* expr)
+      -> std::optional<ConstValue>;
 
   auto maybe_template_name(const Identifier* id) -> bool;
 

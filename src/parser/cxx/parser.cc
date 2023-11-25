@@ -18,12 +18,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/parser.h>
+
+// cxx
 #include <cxx/ast.h>
+#include <cxx/const_expression_evaluator.h>
 #include <cxx/control.h>
 #include <cxx/literals.h>
 #include <cxx/name_printer.h>
 #include <cxx/names.h>
-#include <cxx/parser.h>
 #include <cxx/private/format.h>
 #include <cxx/scope.h>
 #include <cxx/symbols.h>
@@ -352,9 +355,10 @@ struct Parser::GetDeclaratorType {
       return;
     }
 
-    if (ast->expression->constValue) {
-      if (auto size =
-              std::visit(get_size_value, *ast->expression->constValue)) {
+    auto constValue = p->evaluate_constant_expression(ast->expression);
+
+    if (constValue) {
+      if (auto size = std::visit(get_size_value, *constValue)) {
         type_ = control()->getBoundedArrayType(type_, *size);
         return;
       }
@@ -1011,8 +1015,6 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
       ast->literal =
           static_cast<const CharLiteral*>(unit->literal(ast->literalLoc));
 
-      ast->constValue = ast->literal->charValue();
-
       auto prefix = ast->literal->components().prefix;
 
       if (prefix == "u8")
@@ -1038,7 +1040,6 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
 
       ast->literalLoc = consumeToken();
       ast->isTrue = isTrue;
-      ast->constValue = isTrue;
       ast->type = control_->getBoolType();
 
       return true;
@@ -1052,8 +1053,6 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
 
       ast->literal =
           static_cast<const IntegerLiteral*>(unit->literal(ast->literalLoc));
-
-      ast->constValue = ast->literal->integerValue();
 
       const auto& components = ast->literal->components();
 
@@ -1082,8 +1081,6 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
       ast->literal =
           static_cast<const FloatLiteral*>(unit->literal(ast->literalLoc));
 
-      ast->constValue = ast->literal->floatValue();
-
       const auto& components = ast->literal->components();
 
       if (components.isLongDouble)
@@ -1104,7 +1101,6 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
 
       ast->literalLoc = consumeToken();
       ast->literal = unit->tokenKind(ast->literalLoc);
-      ast->constValue = std::uint64_t(0);
       ast->type = control_->getNullptrType();
 
       return true;
@@ -1137,13 +1133,9 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
           static_cast<const StringLiteral*>(unit->literal(literalLoc));
 
       if (unit->tokenKind(literalLoc) == TokenKind::T_STRING_LITERAL) {
-        ast->constValue = ast->literal;
-
         ast->type = control_->getBoundedArrayType(
             control_->getConstType(control_->getCharType()),
             ast->literal->stringValue().size() + 1);
-
-        ast->constValue = ast->literal;
 
         ast->valueCategory = ValueCategory::kLValue;
       }
@@ -1332,7 +1324,6 @@ auto Parser::parse_id_expression(IdExpressionAST*& yyast,
         ast->type = symbol->type();
 
         if (auto enumerator = symbol_cast<EnumeratorSymbol>(symbol)) {
-          ast->constValue = enumerator->value();
           ast->valueCategory = ValueCategory::kPrValue;
         } else {
           ast->valueCategory = ValueCategory::kLValue;
@@ -1915,7 +1906,6 @@ auto Parser::parse_nested_expession(ExpressionAST*& yyast,
   if (ast->expression) {
     ast->type = ast->expression->type;
     ast->valueCategory = ast->expression->valueCategory;
-    ast->constValue = ast->expression->constValue;
   }
 
   return true;
@@ -2623,170 +2613,6 @@ auto Parser::parse_builtin_call_expression(ExpressionAST*& yyast,
   }
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
-
-  const Type* firstType = nullptr;
-  const Type* secondType = nullptr;
-
-  if (ast->typeIdList && ast->typeIdList->value) {
-    firstType = ast->typeIdList->value->type;
-
-    if (auto next = ast->typeIdList->next; next && next->value) {
-      secondType = next->value->type;
-    }
-  }
-
-  if (firstType) {
-    switch (ast->typeTraits) {
-      case BuiltinKind::T___IS_VOID: {
-        ast->constValue = control_->is_void(firstType);
-        break;
-      }
-
-      case BuiltinKind::T___IS_NULL_POINTER: {
-        ast->constValue = control_->is_null_pointer(firstType);
-        break;
-      }
-
-      case BuiltinKind::T___IS_INTEGRAL: {
-        ast->constValue = control_->is_integral(firstType);
-        break;
-      }
-
-      case BuiltinKind::T___IS_FLOATING_POINT: {
-        ast->constValue = control_->is_floating_point(firstType);
-        break;
-      }
-
-      case BuiltinKind::T___IS_ARRAY: {
-        ast->constValue = control_->is_array(firstType);
-        break;
-      }
-
-      case BuiltinKind::T___IS_ENUM: {
-        ast->constValue = control_->is_enum(firstType);
-        break;
-      }
-
-      case BuiltinKind::T___IS_SCOPED_ENUM: {
-        ast->constValue = control_->is_scoped_enum(firstType);
-        break;
-      }
-
-      case BuiltinKind::T___IS_UNION: {
-        ast->constValue = control_->is_union(firstType);
-        break;
-      }
-
-      case BuiltinKind::T___IS_CLASS: {
-        ast->constValue = control_->is_class(firstType);
-        break;
-      }
-
-      case BuiltinKind::T___IS_FUNCTION: {
-        ast->constValue = control_->is_function(firstType);
-        break;
-      }
-
-      case BuiltinKind::T___IS_POINTER: {
-        ast->constValue = control_->is_pointer(firstType);
-        break;
-      }
-
-      case BuiltinKind::T___IS_MEMBER_OBJECT_POINTER: {
-        ast->constValue = control_->is_member_object_pointer(firstType);
-        break;
-      }
-
-      case BuiltinKind::T___IS_MEMBER_FUNCTION_POINTER: {
-        ast->constValue = control_->is_member_function_pointer(firstType);
-        break;
-      }
-
-      case BuiltinKind::T___IS_LVALUE_REFERENCE: {
-        ast->constValue = control_->is_lvalue_reference(firstType);
-        break;
-      }
-
-      case BuiltinKind::T___IS_RVALUE_REFERENCE: {
-        ast->constValue = control_->is_rvalue_reference(firstType);
-        break;
-      }
-
-      case BuiltinKind::T___IS_FUNDAMENTAL: {
-        ast->constValue = control_->is_fundamental(firstType);
-        break;
-      }
-
-      case BuiltinKind::T___IS_ARITHMETIC: {
-        ast->constValue = control_->is_arithmetic(firstType);
-        break;
-      }
-
-      case BuiltinKind::T___IS_SCALAR: {
-        ast->constValue = control_->is_scalar(firstType);
-      }
-
-      case BuiltinKind::T___IS_OBJECT: {
-        ast->constValue = control_->is_object(firstType);
-        break;
-      }
-
-      case BuiltinKind::T___IS_COMPOUND: {
-        ast->constValue = control_->is_compound(firstType);
-        break;
-      }
-
-      case BuiltinKind::T___IS_REFERENCE: {
-        ast->constValue = control_->is_reference(firstType);
-        break;
-      }
-
-      case BuiltinKind::T___IS_MEMBER_POINTER: {
-        ast->constValue = control_->is_member_pointer(firstType);
-        break;
-      }
-
-      case BuiltinKind::T___IS_BOUNDED_ARRAY: {
-        ast->constValue = control_->is_bounded_array(firstType);
-        break;
-      }
-
-      case BuiltinKind::T___IS_UNBOUNDED_ARRAY: {
-        ast->constValue = control_->is_unbounded_array(firstType);
-        break;
-      }
-
-      case BuiltinKind::T___IS_CONST: {
-        ast->constValue = control_->is_const(firstType);
-        break;
-      }
-
-      case BuiltinKind::T___IS_VOLATILE: {
-        ast->constValue = control_->is_volatile(firstType);
-        break;
-      }
-
-      case BuiltinKind::T___IS_SIGNED: {
-        ast->constValue = control_->is_signed(firstType);
-        break;
-      }
-
-      case BuiltinKind::T___IS_UNSIGNED: {
-        ast->constValue = control_->is_unsigned(firstType);
-        break;
-      }
-
-      case BuiltinKind::T___IS_SAME:
-      case BuiltinKind::T___IS_SAME_AS: {
-        if (!secondType) break;
-        ast->constValue = control_->is_same(firstType, secondType);
-        break;
-      }
-
-      default:
-        break;
-    }  // switch
-  }
 
   return true;
 }
@@ -3512,10 +3338,14 @@ auto Parser::parse_maybe_expression(ExpressionAST*& yyast,
   return true;
 }
 
-auto Parser::parse_constant_expression(ExpressionAST*& yyast) -> bool {
+auto Parser::parse_constant_expression(ExpressionAST*& yyast,
+                                       std::optional<ConstValue>& value)
+    -> bool {
   ExprContext exprContext;
   exprContext.isConstantEvaluated = true;
-  return parse_conditional_expression(yyast, exprContext);
+  if (!parse_conditional_expression(yyast, exprContext)) return false;
+  value = evaluate_constant_expression(yyast);
+  return true;
 }
 
 auto Parser::parse_template_argument_constant_expression(ExpressionAST*& yyast)
@@ -3678,8 +3508,9 @@ auto Parser::parse_case_statement(StatementAST*& yyast) -> bool {
   if (!match(TokenKind::T_CASE, caseLoc)) return false;
 
   ExpressionAST* expression = nullptr;
+  std::optional<ConstValue> value;
 
-  if (!parse_constant_expression(expression)) {
+  if (!parse_constant_expression(expression, value)) {
     parse_error("expected an expression");
   }
 
@@ -4833,7 +4664,9 @@ auto Parser::parse_static_assert_declaration(DeclarationAST*& yyast) -> bool {
 
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
-  if (!parse_constant_expression(ast->expression)) {
+  std::optional<ConstValue> constValue;
+
+  if (!parse_constant_expression(ast->expression, constValue)) {
     parse_error("expected an expression");
   }
 
@@ -4848,14 +4681,14 @@ auto Parser::parse_static_assert_declaration(DeclarationAST*& yyast) -> bool {
 
   bool value = false;
 
-  if (ast->expression && ast->expression->constValue.has_value()) {
-    value = visit(to_bool, *ast->expression->constValue);
+  if (constValue.has_value()) {
+    value = visit(to_bool, *constValue);
   }
 
   if (!value && config_.staticAssert) {
     SourceLocation loc = ast->firstSourceLocation();
 
-    if (!ast->expression || !ast->expression->constValue.has_value()) {
+    if (!ast->expression || !constValue.has_value()) {
       parse_error(
           loc,
           "static assertion expression is not an integral constant expression");
@@ -5126,7 +4959,9 @@ auto Parser::parse_explicit_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   ast->explicitLoc = explicitLoc;
 
   if (match(TokenKind::T_LPAREN, ast->lparenLoc)) {
-    if (!parse_constant_expression(ast->expression)) {
+    std::optional<ConstValue> value;
+
+    if (!parse_constant_expression(ast->expression, value)) {
       parse_error("expected a expression");
     }
 
@@ -5657,15 +5492,13 @@ auto Parser::integral_promotion(ExpressionAST*& expr) -> bool {
 
   if (!control_->is_integral(ty) && !control_->is_enum(ty)) return false;
 
-  auto make_implicit_cast =
-      [&](const Type* type) -> ImplicitCastExpressionAST* {
+  auto make_implicit_cast = [&](const Type* type) {
     auto cast = new (pool_) ImplicitCastExpressionAST();
     cast->castKind = ImplicitCastKind::kIntegralPromotion;
     cast->expression = expr;
     cast->type = type;
     cast->valueCategory = ValueCategory::kPrValue;
     expr = cast;
-    return cast;
   };
 
   // TODO: bit-fields
@@ -5676,11 +5509,7 @@ auto Parser::integral_promotion(ExpressionAST*& expr) -> bool {
     case TypeKind::kUnsignedChar:
     case TypeKind::kShortInt:
     case TypeKind::kUnsignedShortInt: {
-      auto cast = make_implicit_cast(control_->getIntType());
-      if (cast->expression->constValue) {
-        cast->constValue = std::visit(ArthmeticConversion<int>{},
-                                      *cast->expression->constValue);
-      }
+      make_implicit_cast(control_->getIntType());
       return true;
     }
 
@@ -5688,20 +5517,12 @@ auto Parser::integral_promotion(ExpressionAST*& expr) -> bool {
     case TypeKind::kChar16:
     case TypeKind::kChar32:
     case TypeKind::kWideChar: {
-      auto cast = make_implicit_cast(control_->getIntType());
-      if (cast->expression->constValue) {
-        cast->constValue = std::visit(ArthmeticConversion<int>{},
-                                      *cast->expression->constValue);
-      }
+      make_implicit_cast(control_->getIntType());
       return true;
     }
 
     case TypeKind::kBool: {
-      auto cast = make_implicit_cast(control_->getIntType());
-      if (cast->expression->constValue) {
-        cast->constValue = std::visit(ArthmeticConversion<int>{},
-                                      *cast->expression->constValue);
-      }
+      make_implicit_cast(control_->getIntType());
       return true;
     }
 
@@ -5717,19 +5538,7 @@ auto Parser::integral_promotion(ExpressionAST*& expr) -> bool {
       type = control_->getIntType();
     }
 
-    auto cast = make_implicit_cast(type);
-
-    if (cast->expression->constValue) {
-      // TODO: use memory layout
-
-      if (control_->is_unsigned(type)) {
-        cast->constValue = std::visit(ArthmeticConversion<std::uint64_t>{},
-                                      *cast->expression->constValue);
-      } else {
-        cast->constValue = std::visit(ArthmeticConversion<std::int64_t>{},
-                                      *cast->expression->constValue);
-      }
-    }
+    make_implicit_cast(type);
 
     return true;
   }
@@ -5753,11 +5562,6 @@ auto Parser::floating_point_promotion(ExpressionAST*& expr) -> bool {
   cast->valueCategory = ValueCategory::kPrValue;
   expr = cast;
 
-  if (cast->expression->constValue) {
-    cast->constValue = std::visit(ArthmeticConversion<double>{},
-                                  *cast->expression->constValue);
-  }
-
   return true;
 }
 
@@ -5774,16 +5578,6 @@ auto Parser::integral_conversion(ExpressionAST*& expr,
   cast->type = destinationType;
   cast->valueCategory = ValueCategory::kPrValue;
   expr = cast;
-
-  if (cast->expression->constValue) {
-    if (control_->is_unsigned(destinationType)) {
-      cast->constValue = std::visit(ArthmeticConversion<std::uint64_t>{},
-                                    *cast->expression->constValue);
-    } else {
-      cast->constValue = std::visit(ArthmeticConversion<std::int64_t>{},
-                                    *cast->expression->constValue);
-    }
-  }
 
   return true;
 }
@@ -5802,11 +5596,6 @@ auto Parser::floating_point_conversion(ExpressionAST*& expr,
   cast->valueCategory = ValueCategory::kPrValue;
   expr = cast;
 
-  if (cast->expression->constValue) {
-    cast->constValue = std::visit(ArthmeticConversion<double>{},
-                                  *cast->expression->constValue);
-  }
-
   return true;
 }
 
@@ -5823,16 +5612,6 @@ auto Parser::floating_integral_conversion(ExpressionAST*& expr,
   cast->type = destinationType;
   cast->valueCategory = ValueCategory::kPrValue;
   expr = cast;
-
-  if (cast->expression->constValue) {
-    if (control_->is_unsigned(destinationType)) {
-      cast->constValue = std::visit(ArthmeticConversion<std::uint64_t>{},
-                                    *cast->expression->constValue);
-    } else {
-      cast->constValue = std::visit(ArthmeticConversion<std::int64_t>{},
-                                    *cast->expression->constValue);
-    }
-  }
 
   return true;
 }
@@ -6123,6 +5902,12 @@ auto Parser::is_glvalue(ExpressionAST* expr) const -> bool {
   if (!expr) return false;
   return expr->valueCategory == ValueCategory::kLValue ||
          expr->valueCategory == ValueCategory::kXValue;
+}
+
+auto Parser::evaluate_constant_expression(ExpressionAST* expr)
+    -> std::optional<ConstValue> {
+  ConstExpressionEvaluator sem{*this};
+  return sem.evaluate(expr);
 }
 
 auto Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
@@ -6481,9 +6266,10 @@ auto Parser::parse_array_declarator(ArrayDeclaratorChunkAST*& yyast) -> bool {
 
   SourceLocation rbracketLoc;
   ExpressionAST* expression = nullptr;
+  std::optional<ConstValue> value;
 
   if (!match(TokenKind::T_RBRACKET, rbracketLoc)) {
-    if (!parse_constant_expression(expression)) return false;
+    if (!parse_constant_expression(expression, value)) return false;
     if (!match(TokenKind::T_RBRACKET, rbracketLoc)) return false;
   }
 
@@ -7443,9 +7229,7 @@ void Parser::parse_enumerator(EnumeratorAST*& yyast, const Type* type) {
   std::optional<ConstValue> value;
 
   if (match(TokenKind::T_EQUAL, ast->equalLoc)) {
-    if (parse_constant_expression(ast->expression)) {
-      value = ast->expression->constValue;
-    } else {
+    if (!parse_constant_expression(ast->expression, value)) {
       parse_error("expected an expression");
     }
   }
@@ -8154,7 +7938,9 @@ auto Parser::parse_alignment_specifier(AttributeSpecifierAST*& yyast) -> bool {
 
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
-  if (!parse_constant_expression(ast->expression)) {
+  std::optional<ConstValue> value;
+
+  if (!parse_constant_expression(ast->expression, value)) {
     parse_error("expected an expression");
   }
 
@@ -8919,7 +8705,9 @@ auto Parser::parse_bitfield_declarator(InitDeclaratorAST*& yyast) -> bool {
 
   ExpressionAST* sizeExpression = nullptr;
 
-  if (!parse_constant_expression(sizeExpression)) {
+  std::optional<ConstValue> constValue;
+
+  if (!parse_constant_expression(sizeExpression, constValue)) {
     parse_error("expected an expression");
   }
 
@@ -10415,8 +10203,10 @@ auto Parser::parse_noexcept_specifier(ExceptionSpecifierAST*& yyast) -> bool {
   ast->noexceptLoc = noexceptLoc;
 
   if (match(TokenKind::T_LPAREN, ast->lparenLoc)) {
-    if (!parse_constant_expression(ast->expression)) {
-      parse_error("expected a declaration");
+    std::optional<ConstValue> constValue;
+
+    if (!parse_constant_expression(ast->expression, constValue)) {
+      parse_error("expected an expression");
     }
 
     expect(TokenKind::T_RPAREN, ast->rparenLoc);
