@@ -18,12 +18,22 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/wasm32_wasi_toolchain.h>
+
+// cxx
+#include <cxx/memory_layout.h>
 #include <cxx/preprocessor.h>
 #include <cxx/private/format.h>
 #include <cxx/private/path.h>
-#include <cxx/wasm32_wasi_toolchain.h>
 
 namespace cxx {
+
+Wasm32WasiToolchain::Wasm32WasiToolchain(Preprocessor* preprocessor)
+    : Toolchain(preprocessor) {
+  setMemoryLayout(std::make_unique<MemoryLayout>(32));
+  memoryLayout()->setSizeOfLongDouble(16);
+  memoryLayout()->setSizeOfLongLong(8);
+}
 
 auto Wasm32WasiToolchain::appdir() const -> const std::string& {
   return appdir_;

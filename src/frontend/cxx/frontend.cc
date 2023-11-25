@@ -178,6 +178,8 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
   }
 
   if (toolchain) {
+    control.setMemoryLayout(toolchain->memoryLayout());
+
     if (!cli.opt_nostdinc) toolchain->addSystemIncludePaths();
 
     if (!cli.opt_nostdincpp) toolchain->addSystemCppIncludePaths();

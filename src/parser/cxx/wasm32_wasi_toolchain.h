@@ -29,7 +29,7 @@ namespace cxx {
 
 class Wasm32WasiToolchain final : public Toolchain {
  public:
-  using Toolchain::Toolchain;
+  explicit Wasm32WasiToolchain(Preprocessor* preprocessor);
 
   const std::string& appdir() const;
   void setAppdir(std::string appdir);

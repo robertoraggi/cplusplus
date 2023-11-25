@@ -208,6 +208,10 @@ auto Control::commentLiteral(std::string_view spelling)
 
 auto Control::memoryLayout() const -> MemoryLayout* { return d->memoryLayout; }
 
+void Control::setMemoryLayout(MemoryLayout* memoryLayout) {
+  d->memoryLayout = memoryLayout;
+}
+
 auto Control::newAnonymousId(std::string_view base) -> const Identifier* {
   auto id = std::string("$") + std::string(base) +
             std::to_string(++d->anonymousIdCount);
@@ -242,6 +246,11 @@ auto Control::getTemplateId(const Name* name,
                             std::vector<TemplateArgument> arguments)
     -> const TemplateId* {
   return &*d->templateIds.emplace(name, std::move(arguments)).first;
+}
+
+auto Control::getSizeType() -> const Type* {
+  // TODO: use the correct type
+  return getUnsignedLongIntType();
 }
 
 auto Control::getVoidType() -> const VoidType* { return &d->voidType; }

@@ -22,11 +22,13 @@
 
 #include <cxx/cxx_fwd.h>
 
+#include <memory>
 #include <string>
 
 namespace cxx {
 
 class Preprocessor;
+class MemoryLayout;
 
 class Toolchain {
  public:
@@ -35,6 +37,12 @@ class Toolchain {
 
   explicit Toolchain(Preprocessor *preprocessor);
   virtual ~Toolchain();
+
+  [[nodiscard]] auto memoryLayout() const -> MemoryLayout * {
+    return memoryLayout_.get();
+  }
+
+  void setMemoryLayout(std::unique_ptr<MemoryLayout> memoryLayout);
 
   virtual void addSystemIncludePaths() = 0;
   virtual void addSystemCppIncludePaths() = 0;
@@ -50,6 +58,7 @@ class Toolchain {
 
  private:
   Preprocessor *preprocessor_;
+  std::unique_ptr<MemoryLayout> memoryLayout_;
 };
 
 }  // namespace cxx
