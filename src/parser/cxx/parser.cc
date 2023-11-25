@@ -5837,6 +5837,86 @@ auto Parser::floating_integral_conversion(ExpressionAST*& expr,
   return true;
 }
 
+auto Parser::pointer_to_member_conversion(ExpressionAST*& expr,
+                                          const Type* destinationType) -> bool {
+  if (!is_prvalue(expr)) return false;
+
+  if (!control_->is_member_pointer(destinationType)) return false;
+
+  auto make_implicit_cast = [&] {
+    auto cast = new (pool_) ImplicitCastExpressionAST();
+    cast->castKind = ImplicitCastKind::kPointerToMemberConversion;
+    cast->expression = expr;
+    cast->type = destinationType;
+    cast->valueCategory = ValueCategory::kPrValue;
+    expr = cast;
+  };
+
+  auto can_convert_null_pointer_constant = [&] {
+    if (!is_null_pointer_constant(expr)) return false;
+
+    make_implicit_cast();
+
+    return true;
+  };
+
+  auto can_convert_member_object_pointer = [&] {
+    auto memberObjectPointerType =
+        type_cast<MemberObjectPointerType>(expr->type);
+
+    if (!memberObjectPointerType) return false;
+
+    auto destinationMemberObjectPointerType =
+        type_cast<MemberObjectPointerType>(destinationType);
+
+    if (!destinationMemberObjectPointerType) return false;
+
+    if (control_->get_cv_qualifiers(memberObjectPointerType->elementType()) !=
+        control_->get_cv_qualifiers(
+            destinationMemberObjectPointerType->elementType()))
+      return false;
+
+    if (!control_->is_base_of(destinationMemberObjectPointerType->classType(),
+                              memberObjectPointerType->classType()))
+      return false;
+
+    make_implicit_cast();
+
+    return true;
+  };
+
+  auto can_convert_member_function_pointer = [&] {
+    auto memberFunctionPointerType =
+        type_cast<MemberFunctionPointerType>(expr->type);
+
+    if (!memberFunctionPointerType) return false;
+
+    auto destinationMemberFunctionPointerType =
+        type_cast<MemberFunctionPointerType>(destinationType);
+
+    if (!destinationMemberFunctionPointerType) return false;
+
+    if (control_->get_cv_qualifiers(
+            memberFunctionPointerType->functionType()) !=
+        control_->get_cv_qualifiers(
+            destinationMemberFunctionPointerType->functionType()))
+      return false;
+
+    if (!control_->is_base_of(destinationMemberFunctionPointerType->classType(),
+                              memberFunctionPointerType->classType()))
+      return false;
+
+    make_implicit_cast();
+
+    return true;
+  };
+
+  if (can_convert_null_pointer_constant()) return true;
+  if (can_convert_member_object_pointer()) return true;
+
+  return false;
+}
+
 auto Parser::pointer_conversion(ExpressionAST*& expr,
                                 const Type* destinationType) -> bool {
   if (!is_prvalue(expr)) return false;
