@@ -775,6 +775,7 @@ class Parser final {
   auto function_pointer_conversion(ExpressionAST*& expr,
                                    const Type* destinationType) -> bool;
   auto boolean_conversion(ExpressionAST*& expr) -> bool;
+  auto temporary_materialization_conversion(ExpressionAST*& expr) -> bool;
 
   auto is_null_pointer_constant(ExpressionAST* expr) const -> bool;
 

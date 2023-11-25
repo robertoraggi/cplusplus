@@ -39,6 +39,8 @@ enum class ImplicitCastKind {
   kLValueToRValueConversion,
   kArrayToPointerConversion,
   kFunctionToPointerConversion,
+  kTemporaryMaterializationConversion,
+  kQualificationConversion,
   kIntegralPromotion,
   kFloatingPointPromotion,
   kIntegralConversion,
@@ -48,7 +50,6 @@ enum class ImplicitCastKind {
   kPointerToMemberConversion,
   kBooleanConversion,
   kFunctionPointerConversion,
-  kQualificationConversion,
   kUserDefinedConversion,
 };
 
