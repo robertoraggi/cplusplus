@@ -6082,6 +6082,20 @@ auto Parser::boolean_conversion(ExpressionAST*& expr) -> bool {
   return true;
 }
 
+auto Parser::temporary_materialization_conversion(ExpressionAST*& expr)
+    -> bool {
+  if (!is_prvalue(expr)) return false;
+
+  auto cast = new (pool_) ImplicitCastExpressionAST();
+  cast->castKind = ImplicitCastKind::kTemporaryMaterializationConversion;
+  cast->expression = expr;
+  cast->type = control_->remove_reference(expr->type);
+  cast->valueCategory = ValueCategory::kXValue;
+  expr = cast;
+
+  return true;
+}
+
 auto Parser::is_null_pointer_constant(ExpressionAST* expr) const -> bool {
   if (control_->is_null_pointer(expr->type)) return true;
   if (auto integerLiteral = ast_cast<IntLiteralExpressionAST>(expr)) {
