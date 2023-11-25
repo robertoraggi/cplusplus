@@ -618,6 +618,10 @@ auto Control::is_integral_or_unscoped_enum(const Type* type) -> bool {
   return d->traits.is_integral_or_unscoped_enum(type);
 }
 
+auto Control::is_arithmetic_or_unscoped_enum(const Type* type) -> bool {
+  return is_arithmetic(type) || (is_enum(type) && !is_scoped_enum(type));
+}
+
 auto Control::is_fundamental(const Type* type) -> bool {
   return d->traits.is_fundamental(type);
 }

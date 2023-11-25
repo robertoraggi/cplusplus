@@ -80,6 +80,7 @@ enum class ImplicitCastKind {
   kBooleanConversion,
   kFunctionPointerConversion,
   kQualificationConversion,
+  kTemporaryMaterializationConversion,
   kUserDefinedConversion,
 };
 

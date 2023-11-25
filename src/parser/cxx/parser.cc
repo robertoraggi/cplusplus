@@ -1321,7 +1321,7 @@ auto Parser::parse_id_expression(IdExpressionAST*& yyast,
         auto symbol = *candidate;
 
         ast->symbol = symbol;
-        ast->type = symbol->type();
+        ast->type = control_->remove_reference(symbol->type());
 
         if (auto enumerator = symbol_cast<EnumeratorSymbol>(symbol)) {
           ast->valueCategory = ValueCategory::kPrValue;
@@ -3171,6 +3171,18 @@ auto Parser::parse_binary_expression_helper(ExpressionAST*& yyast, Prec minPrec,
     ast->rightExpression = rhs;
     ast->op = op;
 
+    if (ast->leftExpression && ast->rightExpression) {
+      if (control_->is_arithmetic_or_unscoped_enum(ast->leftExpression->type) &&
+          control_->is_arithmetic_or_unscoped_enum(
+              ast->rightExpression->type)) {
+        auto leftType = ast->leftExpression->type;
+        auto rightType = ast->rightExpression->type;
+
+        ast->type = usual_arithmetic_conversion(ast->leftExpression,
+                                                ast->rightExpression);
+      }
+    }
+
     yyast = ast;
   }
 
@@ -3280,6 +3292,20 @@ auto Parser::parse_maybe_assignment_expression(ExpressionAST*& yyast,
     ast->rightExpression = expression;
     ast->op = op;
 
+    if (ast->leftExpression && ast->rightExpression) {
+      ast->type = ast->leftExpression->type;
+
+      auto sourceType = ast->rightExpression->type;
+
+      (void)implicit_conversion(ast->rightExpression, ast->type);
+
+#if false
+      warning(ast->opLoc,
+              fmt::format("did convert {} to {}", to_string(sourceType),
+                          to_string(ast->type)));
+#endif
+    }
+
     yyast = ast;
   }
 
@@ -3332,6 +3358,7 @@ auto Parser::parse_maybe_expression(ExpressionAST*& yyast,
     ast->opLoc = commaLoc;
     ast->op = TokenKind::T_COMMA;
     ast->rightExpression = expression;
+    ast->type = ast->rightExpression->type;
     yyast = ast;
   }
 
@@ -5603,15 +5630,25 @@ auto Parser::floating_integral_conversion(ExpressionAST*& expr,
                                           const Type* destinationType) -> bool {
   if (!is_prvalue(expr)) return false;
 
+  auto make_integral_conversion = [&] {
+    auto cast = new (pool_) ImplicitCastExpressionAST();
+    cast->castKind = ImplicitCastKind::kFloatingIntegralConversion;
+    cast->expression = expr;
+    cast->type = destinationType;
+    cast->valueCategory = ValueCategory::kPrValue;
+    expr = cast;
+  };
+
+  if (control_->is_integral_or_unscoped_enum(expr->type) &&
+      control_->is_floating_point(destinationType)) {
+    make_integral_conversion();
+    return true;
+  }
+
   if (!control_->is_floating_point(expr->type)) return false;
   if (!control_->is_integer(destinationType)) return false;
 
-  auto cast = new (pool_) ImplicitCastExpressionAST();
-  cast->castKind = ImplicitCastKind::kFloatingIntegralConversion;
-  cast->expression = expr;
-  cast->type = destinationType;
-  cast->valueCategory = ValueCategory::kPrValue;
-  expr = cast;
+  make_integral_conversion();
 
   return true;
 }
@@ -5846,7 +5883,7 @@ auto Parser::function_pointer_conversion(ExpressionAST*& expr,
 auto Parser::boolean_conversion(ExpressionAST*& expr) -> bool {
   if (!is_prvalue(expr)) return false;
 
-  if (!control_->is_integral_or_unscoped_enum(expr->type) &&
+  if (!control_->is_arithmetic_or_unscoped_enum(expr->type) &&
       !control_->is_pointer(expr->type) &&
       !control_->is_member_pointer(expr->type))
     return false;
@@ -5873,6 +5910,136 @@ auto Parser::temporary_materialization_conversion(ExpressionAST*& expr)
   expr = cast;
 
   return true;
+}
+
+auto Parser::qualification_conversion(ExpressionAST*& expr,
+                                      const Type* destinationType) -> bool {
+  return false;
+}
+
+auto Parser::implicit_conversion(ExpressionAST*& expr,
+                                 const Type* destinationType) -> bool {
+  auto savedExpr = expr;
+
+  if (lvalue_to_rvalue_conversion(expr)) {
+  } else if (array_to_pointer_conversion(expr)) {
+  } else if (function_to_pointer_conversion(expr)) {
+  }
+
+  if (integral_promotion(expr)) return true;
+  if (floating_point_promotion(expr)) return true;
+  if (integral_conversion(expr, destinationType)) return true;
+  if (floating_point_conversion(expr, destinationType)) return true;
+  if (floating_integral_conversion(expr, destinationType)) return true;
+  if (pointer_conversion(expr, destinationType)) return true;
+  if (pointer_to_member_conversion(expr, destinationType)) return true;
+  if (boolean_conversion(expr)) return true;
+  if (function_pointer_conversion(expr, destinationType)) return true;
+  if (qualification_conversion(expr, destinationType)) return true;
+
+  expr = savedExpr;
+
+  return false;
+}
+
+auto Parser::usual_arithmetic_conversion(ExpressionAST*& expr,
+                                         ExpressionAST*& other) -> const Type* {
+  if (!control_->is_arithmetic_or_unscoped_enum(expr->type) &&
+      !control_->is_arithmetic_or_unscoped_enum(other->type))
+    return nullptr;
+
+  (void)lvalue_to_rvalue_conversion(expr);
+  (void)lvalue_to_rvalue_conversion(other);
+
+  if (control_->is_scoped_enum(expr->type) ||
+      control_->is_scoped_enum(other->type))
+    return nullptr;
+
+  if (control_->is_floating_point(expr->type) ||
+      control_->is_floating_point(other->type)) {
+    auto leftType = control_->remove_cv(expr->type);
+    auto rightType = control_->remove_cv(other->type);
+
+    if (control_->is_same(leftType, rightType)) return leftType;
+
+    if (!control_->is_floating_point(leftType)) {
+      if (floating_integral_conversion(expr, rightType)) return rightType;
+      return nullptr;
+    } else if (!control_->is_floating_point(rightType)) {
+      if (floating_integral_conversion(other, leftType)) return leftType;
+      return nullptr;
+    } else if (leftType->kind() == TypeKind::kLongDouble ||
+               rightType->kind() == TypeKind::kLongDouble) {
+      (void)floating_point_conversion(expr, control_->getLongDoubleType());
+      return control_->getLongDoubleType();
+    } else if (leftType->kind() == TypeKind::kDouble ||
+               rightType->kind() == TypeKind::kDouble) {
+      (void)floating_point_conversion(expr, control_->getDoubleType());
+      return control_->getDoubleType();
+    }
+
+    return nullptr;
+  }
+
+  (void)integral_promotion(expr);
+  (void)integral_promotion(other);
+
+  const auto leftType = control_->remove_cv(expr->type);
+  const auto rightType = control_->remove_cv(other->type);
+
+  if (control_->is_same(leftType, rightType)) return leftType;
+
+  auto match_integral_type = [&](const Type* type) -> bool {
+    if (leftType->kind() == type->kind() || rightType->kind() == type->kind()) {
+      (void)integral_conversion(expr, type);
+      (void)integral_conversion(other, type);
+      return true;
+    }
+    return false;
+  };
+
+  if (control_->is_signed(leftType) && control_->is_signed(rightType)) {
+    if (match_integral_type(control_->getLongLongIntType())) {
+      return control_->getLongLongIntType();
+    } else if (match_integral_type(control_->getLongIntType())) {
+      return control_->getLongIntType();
+    } else {
+      (void)integral_conversion(expr, control_->getIntType());
+      (void)integral_conversion(other, control_->getIntType());
+      return control_->getIntType();
+    }
+  }
+
+  if (control_->is_unsigned(leftType) && control_->is_unsigned(rightType)) {
+    if (match_integral_type(control_->getUnsignedLongLongIntType())) {
+      return control_->getUnsignedLongLongIntType();
+    } else if (match_integral_type(control_->getUnsignedLongIntType())) {
+      return control_->getUnsignedLongIntType();
+    } else {
+      (void)integral_conversion(expr, control_->getUnsignedIntType());
+      return control_->getUnsignedIntType();
+    }
+  }
+
+  if (match_integral_type(control_->getUnsignedLongLongIntType())) {
+    return control_->getUnsignedLongLongIntType();
+  } else if (match_integral_type(control_->getUnsignedLongIntType())) {
+    return control_->getUnsignedLongIntType();
+  } else if (match_integral_type(control_->getUnsignedIntType())) {
+    return control_->getUnsignedIntType();
+  } else if (match_integral_type(control_->getUnsignedShortIntType())) {
+    return control_->getUnsignedShortIntType();
+  } else if (match_integral_type(control_->getUnsignedCharType())) {
+    return control_->getUnsignedCharType();
+  } else if (match_integral_type(control_->getLongLongIntType())) {
+    return control_->getLongLongIntType();
+  } else if (match_integral_type(control_->getLongIntType())) {
+    return control_->getLongIntType();
+  }
+
+  (void)integral_conversion(expr, control_->getIntType());
+  (void)integral_conversion(other, control_->getIntType());
+  return control_->getIntType();
 }
 
 auto Parser::is_null_pointer_constant(ExpressionAST* expr) const -> bool {
@@ -6022,9 +6189,10 @@ auto Parser::parse_decltype_specifier(DecltypeSpecifierAST*& yyast) -> bool {
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
-  if (ast_cast<IdExpressionAST>(ast->expression) ||
-      ast_cast<MemberExpressionAST>(ast->expression)) {
-    ast->type = ast->expression->type;
+  if (auto id = ast_cast<IdExpressionAST>(ast->expression)) {
+    if (id->symbol) ast->type = id->symbol->type();
+  } else if (auto member = ast_cast<MemberExpressionAST>(ast->expression)) {
+    if (member->symbol) ast->type = member->symbol->type();
   } else if (ast->expression && ast->expression->type) {
     if (is_lvalue(ast->expression)) {
       ast->type = control_->add_lvalue_reference(ast->expression->type);

@@ -37,60 +37,64 @@ class TypeTraits {
 
   // primary type categories
 
-  auto is_void(const Type* type) const -> bool { return visit(is_void_, type); }
+  auto is_void(const Type* type) const -> bool {
+    return type && visit(is_void_, type);
+  }
 
   auto is_null_pointer(const Type* type) const -> bool {
-    return visit(is_null_pointer_, type);
+    return type && visit(is_null_pointer_, type);
   }
 
   auto is_integral(const Type* type) const -> bool {
-    return visit(is_integral_, type);
+    return type && visit(is_integral_, type);
   }
 
   auto is_floating_point(const Type* type) const -> bool {
-    return visit(is_floating_point_, type);
+    return type && visit(is_floating_point_, type);
   }
 
   auto is_array(const Type* type) const -> bool {
-    return visit(is_array_, type);
+    return type && visit(is_array_, type);
   }
 
-  auto is_enum(const Type* type) const -> bool { return visit(is_enum_, type); }
+  auto is_enum(const Type* type) const -> bool {
+    return type && visit(is_enum_, type);
+  }
 
   auto is_union(const Type* type) const -> bool {
-    return visit(is_union_, type);
+    return type && visit(is_union_, type);
   }
 
   auto is_class(const Type* type) const -> bool {
-    return visit(is_class_, type);
+    return type && visit(is_class_, type);
   }
 
   auto is_function(const Type* type) const -> bool {
-    return visit(is_function_, type);
+    return type && visit(is_function_, type);
   }
 
   auto is_pointer(const Type* type) const -> bool {
-    return visit(is_pointer_, type);
+    return type && visit(is_pointer_, type);
   }
 
   auto is_lvalue_reference(const Type* type) const -> bool {
-    return visit(is_lvalue_reference_, type);
+    return type && visit(is_lvalue_reference_, type);
   }
 
   auto is_rvalue_reference(const Type* type) const -> bool {
-    return visit(is_rvalue_reference_, type);
+    return type && visit(is_rvalue_reference_, type);
   }
 
   auto is_member_object_pointer(const Type* type) const -> bool {
-    return visit(is_member_object_pointer_, type);
+    return type && visit(is_member_object_pointer_, type);
   }
 
   auto is_member_function_pointer(const Type* type) const -> bool {
-    return visit(is_member_function_pointer_, type);
+    return type && visit(is_member_function_pointer_, type);
   }
 
   auto is_complete(const Type* type) const -> bool {
-    return visit(is_complete_, type);
+    return type && visit(is_complete_, type);
   }
 
   // composite type categories
@@ -124,7 +128,7 @@ class TypeTraits {
   }
 
   auto is_reference(const Type* type) const -> bool {
-    return visit(is_reference_, type);
+    return type && visit(is_reference_, type);
   }
 
   auto is_member_pointer(const Type* type) const -> bool {
@@ -134,35 +138,36 @@ class TypeTraits {
   // type properties
 
   auto is_const(const Type* type) const -> bool {
-    return visit(is_const_, type);
+    return type && visit(is_const_, type);
   }
 
   auto is_volatile(const Type* type) const -> bool {
-    return visit(is_volatile_, type);
+    return type && visit(is_volatile_, type);
   }
 
   auto is_signed(const Type* type) const -> bool {
-    return visit(is_signed_, type);
+    return type && visit(is_signed_, type);
   }
 
   auto is_unsigned(const Type* type) const -> bool {
-    return visit(is_unsigned_, type);
+    return type && visit(is_unsigned_, type);
   }
 
   auto is_bounded_array(const Type* type) const -> bool {
-    return visit(is_bounded_array_, type);
+    return type && visit(is_bounded_array_, type);
   }
 
   auto is_unbounded_array(const Type* type) const -> bool {
-    return visit(is_unbounded_array_, type);
+    return type && visit(is_unbounded_array_, type);
   }
 
   auto is_scoped_enum(const Type* type) const -> bool {
-    return visit(is_scoped_enum_, type);
+    return type && visit(is_scoped_enum_, type);
   }
 
   // references
   auto remove_reference(const Type* type) const -> const Type* {
+    if (!type) return type;
     return visit(remove_reference_, type);
   }
 

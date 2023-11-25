@@ -178,6 +178,7 @@ class Control {
   // composite type categories
   auto is_integer(const Type* type) -> bool;
   auto is_integral_or_unscoped_enum(const Type* type) -> bool;
+  auto is_arithmetic_or_unscoped_enum(const Type* type) -> bool;
   auto is_fundamental(const Type* type) -> bool;
   auto is_arithmetic(const Type* type) -> bool;
   auto is_scalar(const Type* type) -> bool;

@@ -747,7 +747,7 @@ class Parser final {
   void completePendingFunctionDefinitions();
   void completeFunctionDefinition(FunctionDefinitionAST* ast);
 
-  auto enterOrCreateNamespace(const Name* name, bool isInline)
+  [[nodiscard]] auto enterOrCreateNamespace(const Name* name, bool isInline)
       -> NamespaceSymbol*;
 
   void enterFunctionScope(FunctionDeclaratorChunkAST* functionDeclarator);
@@ -759,37 +759,54 @@ class Parser final {
   void check_type_traits();
 
   // standard conversions
-  auto lvalue_to_rvalue_conversion(ExpressionAST*& expr) -> bool;
-  auto array_to_pointer_conversion(ExpressionAST*& expr) -> bool;
-  auto function_to_pointer_conversion(ExpressionAST*& expr) -> bool;
-  auto integral_promotion(ExpressionAST*& expr) -> bool;
-  auto floating_point_promotion(ExpressionAST*& expr) -> bool;
-  auto integral_conversion(ExpressionAST*& expr, const Type* destinationType)
+  [[nodiscard]] auto lvalue_to_rvalue_conversion(ExpressionAST*& expr) -> bool;
+  [[nodiscard]] auto array_to_pointer_conversion(ExpressionAST*& expr) -> bool;
+  [[nodiscard]] auto function_to_pointer_conversion(ExpressionAST*& expr)
       -> bool;
-  auto floating_point_conversion(ExpressionAST*& expr,
-                                 const Type* destinationType) -> bool;
-  auto floating_integral_conversion(ExpressionAST*& expr,
-                                    const Type* destinationType) -> bool;
-  auto pointer_conversion(ExpressionAST*& expr, const Type* destinationType)
+  [[nodiscard]] auto integral_promotion(ExpressionAST*& expr) -> bool;
+  [[nodiscard]] auto floating_point_promotion(ExpressionAST*& expr) -> bool;
+  [[nodiscard]] auto integral_conversion(ExpressionAST*& expr,
+                                         const Type* destinationType) -> bool;
+  [[nodiscard]] auto floating_point_conversion(ExpressionAST*& expr,
+                                               const Type* destinationType)
       -> bool;
-  auto pointer_to_member_conversion(ExpressionAST*& expr,
-                                    const Type* destinationType) -> bool;
-  auto function_pointer_conversion(ExpressionAST*& expr,
-                                   const Type* destinationType) -> bool;
-  auto boolean_conversion(ExpressionAST*& expr) -> bool;
-  auto temporary_materialization_conversion(ExpressionAST*& expr) -> bool;
+  [[nodiscard]] auto floating_integral_conversion(ExpressionAST*& expr,
+                                                  const Type* destinationType)
+      -> bool;
+  [[nodiscard]] auto pointer_conversion(ExpressionAST*& expr,
+                                        const Type* destinationType) -> bool;
+  [[nodiscard]] auto pointer_to_member_conversion(ExpressionAST*& expr,
+                                                  const Type* destinationType)
+      -> bool;
+  [[nodiscard]] auto function_pointer_conversion(ExpressionAST*& expr,
+                                                 const Type* destinationType)
+      -> bool;
+  [[nodiscard]] auto boolean_conversion(ExpressionAST*& expr) -> bool;
+  [[nodiscard]] auto temporary_materialization_conversion(ExpressionAST*& expr)
+      -> bool;
+  [[nodiscard]] auto qualification_conversion(ExpressionAST*& expr,
+                                              const Type* destinationType)
+      -> bool;
 
-  auto is_null_pointer_constant(ExpressionAST* expr) const -> bool;
+  [[nodiscard]] auto implicit_conversion(ExpressionAST*& expr,
+                                         const Type* destinationType) -> bool;
 
-  auto is_prvalue(ExpressionAST* expr) const -> bool;
-  auto is_lvalue(ExpressionAST* expr) const -> bool;
-  auto is_xvalue(ExpressionAST* expr) const -> bool;
-  auto is_glvalue(ExpressionAST* expr) const -> bool;
+  [[nodiscard]] auto usual_arithmetic_conversion(ExpressionAST*& expr,
+                                                 ExpressionAST*& other)
+      -> const Type*;
 
-  auto evaluate_constant_expression(ExpressionAST* expr)
+  [[nodiscard]] auto is_null_pointer_constant(ExpressionAST* expr) const
+      -> bool;
+
+  [[nodiscard]] auto is_prvalue(ExpressionAST* expr) const -> bool;
+  [[nodiscard]] auto is_lvalue(ExpressionAST* expr) const -> bool;
+  [[nodiscard]] auto is_xvalue(ExpressionAST* expr) const -> bool;
+  [[nodiscard]] auto is_glvalue(ExpressionAST* expr) const -> bool;
+
+  [[nodiscard]] auto evaluate_constant_expression(ExpressionAST* expr)
       -> std::optional<ConstValue>;
 
-  auto maybe_template_name(const Identifier* id) -> bool;
+  [[nodiscard]] auto maybe_template_name(const Identifier* id) -> bool;
 
   void mark_maybe_template_name(const Identifier* id);
   void mark_maybe_template_name(UnqualifiedIdAST* name);
