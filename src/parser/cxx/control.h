@@ -185,6 +185,7 @@ class Control {
   auto is_compound(const Type* type) -> bool;
   auto is_reference(const Type* type) -> bool;
   auto is_member_pointer(const Type* type) -> bool;
+  auto is_class_or_union(const Type* type) -> bool;
 
   // type properties
   auto is_const(const Type* type) -> bool;
@@ -209,6 +210,7 @@ class Control {
   auto add_const_ref(const Type* type) -> const Type*;
   auto add_const(const Type* type) -> const Type*;
   auto add_volatile(const Type* type) -> const Type*;
+  auto get_cv_qualifiers(const Type* type) -> CvQualifiers;
 
   // pointers
   auto remove_pointer(const Type* type) -> const Type*;
@@ -216,6 +218,9 @@ class Control {
 
   // functions
   auto remove_noexcept(const Type* type) -> const Type*;
+
+  // classes
+  auto is_base_of(const Type* base, const Type* derived) -> bool;
 
   // type relationships
   auto is_same(const Type* a, const Type* b) -> bool;

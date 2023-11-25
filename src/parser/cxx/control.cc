@@ -646,6 +646,10 @@ auto Control::is_member_pointer(const Type* type) -> bool {
   return d->traits.is_member_pointer(type);
 }
 
+auto Control::is_class_or_union(const Type* type) -> bool {
+  return is_class(type) || is_union(type);
+}
+
 auto Control::is_const(const Type* type) -> bool {
   return d->traits.is_const(type);
 }
@@ -710,6 +714,12 @@ auto Control::add_volatile(const Type* type) -> const Type* {
   return d->traits.add_volatile(type);
 }
 
+auto Control::get_cv_qualifiers(const Type* type) -> CvQualifiers {
+  if (auto qualType = type_cast<QualType>(type))
+    return qualType->cvQualifiers();
+  return CvQualifiers::kNone;
+}
+
 auto Control::remove_pointer(const Type* type) -> const Type* {
   return d->traits.remove_pointer(type);
 }
@@ -725,6 +735,12 @@ auto Control::remove_noexcept(const Type* type) -> const Type* {
       functionType->returnType(), functionType->parameterTypes(),
       functionType->isVariadic(), functionType->cvQualifiers(),
       functionType->refQualifier(), false);
+}
+
+auto Control::is_base_of(const Type* base, const Type* derived) -> bool {
+  if (!is_class_or_union(base)) return false;
+  if (!is_class_or_union(derived)) return false;
+  return false;
 }
 
 auto Control::is_same(const Type* a, const Type* b) -> bool {
