@@ -5984,6 +5984,24 @@ auto Parser::function_pointer_conversion(ExpressionAST*& expr,
   return false;
 }
 
+auto Parser::boolean_conversion(ExpressionAST*& expr) -> bool {
+  if (!is_prvalue(expr)) return false;
+
+  if (!control_->is_integral_or_unscoped_enum(expr->type) &&
+      !control_->is_pointer(expr->type) &&
+      !control_->is_member_pointer(expr->type))
+    return false;
+
+  auto cast = new (pool_) ImplicitCastExpressionAST();
+  cast->castKind = ImplicitCastKind::kBooleanConversion;
+  cast->expression = expr;
+  cast->type = control_->getBoolType();
+  cast->valueCategory = ValueCategory::kPrValue;
+  expr = cast;
+
+  return true;
+}
+
 auto Parser::is_null_pointer_constant(ExpressionAST* expr) const -> bool {
   if (control_->is_null_pointer(expr->type)) return true;
   if (auto integerLiteral = ast_cast<IntLiteralExpressionAST>(expr)) {
