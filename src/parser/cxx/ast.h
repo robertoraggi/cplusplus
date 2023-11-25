@@ -1444,6 +1444,7 @@ class MemberExpressionAST final : public ExpressionAST {
   ExpressionAST* baseExpression = nullptr;
   SourceLocation accessLoc;
   IdExpressionAST* memberId = nullptr;
+  Symbol* symbol = nullptr;
   TokenKind accessOp = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }

@@ -1406,6 +1406,8 @@ void ASTCloner::visit(MemberExpressionAST* ast) {
 
   copy->memberId = accept(ast->memberId);
 
+  copy->symbol = ast->symbol;
+
   copy->accessOp = ast->accessOp;
 }
 
