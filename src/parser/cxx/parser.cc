@@ -5837,6 +5837,79 @@ auto Parser::floating_integral_conversion(ExpressionAST*& expr,
   return true;
 }
 
+auto Parser::pointer_conversion(ExpressionAST*& expr,
+                                const Type* destinationType) -> bool {
+  if (!is_prvalue(expr)) return false;
+
+  auto make_implicit_cast = [&] {
+    auto cast = new (pool_) ImplicitCastExpressionAST();
+    cast->castKind = ImplicitCastKind::kPointerConversion;
+    cast->expression = expr;
+    cast->type = destinationType;
+    cast->valueCategory = ValueCategory::kPrValue;
+    expr = cast;
+  };
+
+  auto can_convert_null_pointer_literal = [&] {
+    if (!is_null_pointer_constant(expr)) return false;
+
+    if (!control_->is_pointer(destinationType) &&
+        !control_->is_null_pointer(destinationType))
+      return false;
+
+    make_implicit_cast();
+
+    return true;
+  };
+
+  auto can_convert_to_void_pointer = [&] {
+    const auto pointerType = type_cast<PointerType>(expr->type);
+    if (!pointerType) return false;
+
+    const auto destinationPointerType = type_cast<PointerType>(destinationType);
+    if (!destinationPointerType) return false;
+
+    if (control_->get_cv_qualifiers(pointerType->elementType()) !=
+        control_->get_cv_qualifiers(destinationPointerType->elementType()))
+      return false;
+
+    if (!control_->is_void(
+            control_->remove_cv(destinationPointerType->elementType())))
+      return false;
+
+    make_implicit_cast();
+
+    return true;
+  };
+
+  auto can_convert_to_base_class_pointer = [&] {
+    const auto pointerType = type_cast<PointerType>(expr->type);
+    if (!pointerType) return false;
+
+    const auto destinationPointerType = type_cast<PointerType>(destinationType);
+    if (!destinationPointerType) return false;
+
+    if (control_->get_cv_qualifiers(pointerType->elementType()) !=
+        control_->get_cv_qualifiers(destinationPointerType->elementType()))
+      return false;
+
+    if (!control_->is_base_of(
+            control_->remove_cv(destinationPointerType->elementType()),
+            control_->remove_cv(pointerType->elementType())))
+      return false;
+
+    make_implicit_cast();
+
+    return true;
+  };
+
+  if (can_convert_null_pointer_literal()) return true;
+  if (can_convert_to_void_pointer()) return true;
+  if (can_convert_to_base_class_pointer()) return true;
+
+  return false;
+}
+
 auto Parser::function_pointer_conversion(ExpressionAST*& expr,
                                          const Type* destinationType) -> bool {
   if (!is_prvalue(expr)) return false;
@@ -5908,6 +5981,14 @@ auto Parser::function_pointer_conversion(ExpressionAST*& expr,
   if (can_remove_noexcept_from_function()) return true;
   if (can_remove_noexcept_from_member_function__pointer()) return true;
 
+  return false;
+}
+
+auto Parser::is_null_pointer_constant(ExpressionAST* expr) const -> bool {
+  if (control_->is_null_pointer(expr->type)) return true;
+  if (auto integerLiteral = ast_cast<IntLiteralExpressionAST>(expr)) {
+    return integerLiteral->literal->value() == "0";
+  }
   return false;
 }
 
