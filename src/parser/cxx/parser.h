@@ -768,6 +768,8 @@ class Parser final {
                                  const Type* destinationType) -> bool;
   auto floating_integral_conversion(ExpressionAST*& expr,
                                     const Type* destinationType) -> bool;
+  auto function_pointer_conversion(ExpressionAST*& expr,
+                                   const Type* destinationType) -> bool;
 
   auto is_prvalue(ExpressionAST* expr) const -> bool;
   auto is_lvalue(ExpressionAST* expr) const -> bool;
