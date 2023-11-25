@@ -3172,15 +3172,98 @@ auto Parser::parse_binary_expression_helper(ExpressionAST*& yyast, Prec minPrec,
     ast->op = op;
 
     if (ast->leftExpression && ast->rightExpression) {
-      if (control_->is_arithmetic_or_unscoped_enum(ast->leftExpression->type) &&
-          control_->is_arithmetic_or_unscoped_enum(
-              ast->rightExpression->type)) {
-        auto leftType = ast->leftExpression->type;
-        auto rightType = ast->rightExpression->type;
+      switch (ast->op) {
+        case TokenKind::T_DOT_STAR:
+          break;
 
-        ast->type = usual_arithmetic_conversion(ast->leftExpression,
-                                                ast->rightExpression);
-      }
+        case TokenKind::T_MINUS_GREATER_STAR:
+          break;
+
+        case TokenKind::T_STAR:
+        case TokenKind::T_SLASH:
+        case TokenKind::T_PLUS:
+        case TokenKind::T_MINUS:
+          ast->type = usual_arithmetic_conversion(ast->leftExpression,
+                                                  ast->rightExpression);
+          break;
+
+        case TokenKind::T_PERCENT:
+          if (!control_->is_integral_or_unscoped_enum(
+                  ast->leftExpression->type))
+            break;
+
+          if (!control_->is_integral_or_unscoped_enum(
+                  ast->rightExpression->type))
+            break;
+
+          ast->type = usual_arithmetic_conversion(ast->leftExpression,
+                                                  ast->rightExpression);
+
+          break;
+
+        case TokenKind::T_LESS_LESS:
+        case TokenKind::T_GREATER_GREATER:
+          if (!control_->is_integral_or_unscoped_enum(
+                  ast->leftExpression->type))
+            break;
+
+          if (!control_->is_integral_or_unscoped_enum(
+                  ast->rightExpression->type))
+            break;
+
+          (void)usual_arithmetic_conversion(ast->leftExpression,
+                                            ast->rightExpression);
+
+          ast->type = ast->leftExpression->type;
+          break;
+
+        case TokenKind::T_LESS_EQUAL_GREATER:
+          (void)usual_arithmetic_conversion(ast->leftExpression,
+                                            ast->rightExpression);
+          ast->type = control_->getIntType();
+          break;
+
+        case TokenKind::T_LESS_EQUAL:
+        case TokenKind::T_GREATER_EQUAL:
+        case TokenKind::T_LESS:
+        case TokenKind::T_GREATER:
+        case TokenKind::T_EQUAL_EQUAL:
+        case TokenKind::T_EXCLAIM_EQUAL:
+          (void)usual_arithmetic_conversion(ast->leftExpression,
+                                            ast->rightExpression);
+          ast->type = control_->getBoolType();
+          break;
+
+        case TokenKind::T_AMP:
+        case TokenKind::T_CARET:
+        case TokenKind::T_BAR:
+          if (!control_->is_integral_or_unscoped_enum(
+                  ast->leftExpression->type))
+            break;
+
+          if (!control_->is_integral_or_unscoped_enum(
+                  ast->rightExpression->type))
+            break;
+
+          ast->type = usual_arithmetic_conversion(ast->leftExpression,
+                                                  ast->rightExpression);
+
+          break;
+
+        case TokenKind::T_AMP_AMP:
+        case TokenKind::T_BAR_BAR:
+          (void)implicit_conversion(ast->leftExpression,
+                                    control_->getBoolType());
+
+          (void)implicit_conversion(ast->rightExpression,
+                                    control_->getBoolType());
+
+          ast->type = control_->getBoolType();
+          break;
+
+        default:
+          cxx_runtime_error("invalid operator");
+      }  // switch
     }
 
     yyast = ast;
@@ -5919,6 +6002,9 @@ auto Parser::qualification_conversion(ExpressionAST*& expr,
 
 auto Parser::implicit_conversion(ExpressionAST*& expr,
                                  const Type* destinationType) -> bool {
+  if (!expr || !expr->type) return false;
+  if (!destinationType) return false;
+
   auto savedExpr = expr;
 
   if (lvalue_to_rvalue_conversion(expr)) {
@@ -5944,16 +6030,28 @@ auto Parser::implicit_conversion(ExpressionAST*& expr,
 
 auto Parser::usual_arithmetic_conversion(ExpressionAST*& expr,
                                          ExpressionAST*& other) -> const Type* {
+  if (!expr || !expr->type) return nullptr;
+  if (!other || !other->type) return nullptr;
+
+  ExpressionAST* savedExpr = expr;
+  ExpressionAST* savedOther = other;
+
+  auto unmodifiedExpressions = [&]() -> const Type* {
+    expr = savedExpr;
+    other = savedOther;
+    return nullptr;
+  };
+
   if (!control_->is_arithmetic_or_unscoped_enum(expr->type) &&
       !control_->is_arithmetic_or_unscoped_enum(other->type))
-    return nullptr;
+    return unmodifiedExpressions();
 
   (void)lvalue_to_rvalue_conversion(expr);
   (void)lvalue_to_rvalue_conversion(other);
 
   if (control_->is_scoped_enum(expr->type) ||
       control_->is_scoped_enum(other->type))
-    return nullptr;
+    return unmodifiedExpressions();
 
   if (control_->is_floating_point(expr->type) ||
       control_->is_floating_point(other->type)) {
@@ -5964,10 +6062,10 @@ auto Parser::usual_arithmetic_conversion(ExpressionAST*& expr,
 
     if (!control_->is_floating_point(leftType)) {
       if (floating_integral_conversion(expr, rightType)) return rightType;
-      return nullptr;
+      return unmodifiedExpressions();
     } else if (!control_->is_floating_point(rightType)) {
       if (floating_integral_conversion(other, leftType)) return leftType;
-      return nullptr;
+      return unmodifiedExpressions();
     } else if (leftType->kind() == TypeKind::kLongDouble ||
                rightType->kind() == TypeKind::kLongDouble) {
       (void)floating_point_conversion(expr, control_->getLongDoubleType());
@@ -5978,7 +6076,7 @@ auto Parser::usual_arithmetic_conversion(ExpressionAST*& expr,
       return control_->getDoubleType();
     }
 
-    return nullptr;
+    return unmodifiedExpressions();
   }
 
   (void)integral_promotion(expr);

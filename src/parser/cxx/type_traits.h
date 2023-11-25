@@ -770,7 +770,9 @@ class TypeTraits {
       return control()->getPointerType(type);
     }
 
-    auto operator()(auto type) const -> const Type* { return type; }
+    auto operator()(auto type) const -> const Type* {
+      return control()->getPointerType(type);
+    }
   } add_pointer_{*this};
 
   struct {

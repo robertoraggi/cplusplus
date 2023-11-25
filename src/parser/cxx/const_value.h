@@ -30,10 +30,10 @@ namespace cxx {
 
 using ConstValue =
     std::variant<bool, std::int32_t, std::uint32_t, std::int64_t, std::uint64_t,
-                 float, double, const StringLiteral*>;
+                 float, double, long double, const StringLiteral*>;
 
 template <typename T>
-struct ArthmeticConversion {
+struct ArithmeticConversion {
   auto operator()(const StringLiteral* value) const -> ConstValue {
     return ConstValue(value);
   }
@@ -41,6 +41,16 @@ struct ArthmeticConversion {
   auto operator()(auto value) const -> ConstValue {
     return ConstValue(static_cast<T>(value));
   }
+};
+
+template <typename T>
+struct ArithmeticCast {
+  auto operator()(const StringLiteral*) const -> T {
+    cxx_runtime_error("invalid artihmetic cast");
+    return T{};
+  }
+
+  auto operator()(auto value) const -> T { return static_cast<T>(value); }
 };
 
 }  // namespace cxx
