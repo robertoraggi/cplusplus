@@ -40,7 +40,8 @@ class Control {
   Control();
   ~Control();
 
-  auto memoryLayout() const -> MemoryLayout*;
+  [[nodiscard]] auto memoryLayout() const -> MemoryLayout*;
+  void setMemoryLayout(MemoryLayout* memoryLayout);
 
   auto integerLiteral(std::string_view spelling) -> const IntegerLiteral*;
   auto floatLiteral(std::string_view spelling) -> const FloatLiteral*;
@@ -62,6 +63,8 @@ class Control {
   auto getConversionFunctionId(const Type* type) -> const ConversionFunctionId*;
   auto getTemplateId(const Name* name, std::vector<TemplateArgument> arguments)
       -> const TemplateId*;
+
+  auto getSizeType() -> const Type*;
 
   auto getVoidType() -> const VoidType*;
   auto getNullptrType() -> const NullptrType*;

@@ -18,15 +18,23 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/preprocessor.h>
 #include <cxx/toolchain.h>
+
+// cxx
+#include <cxx/memory_layout.h>
+#include <cxx/preprocessor.h>
 
 namespace cxx {
 
-Toolchain::Toolchain(Preprocessor* preprocessor)
-    : preprocessor_(preprocessor) {}
+Toolchain::Toolchain(Preprocessor* preprocessor) : preprocessor_(preprocessor) {
+  setMemoryLayout(std::make_unique<MemoryLayout>(64));
+}
 
 Toolchain::~Toolchain() = default;
+
+void Toolchain::setMemoryLayout(std::unique_ptr<MemoryLayout> memoryLayout) {
+  memoryLayout_ = std::move(memoryLayout);
+}
 
 void Toolchain::defineMacro(const std::string& name,
                             const std::string& definition) {

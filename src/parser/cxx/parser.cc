@@ -2712,6 +2712,8 @@ auto Parser::parse_sizeof_expression(ExpressionAST*& yyast,
 
     expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
+    ast->type = control_->getSizeType();
+
     return true;
   }
 
@@ -2736,6 +2738,7 @@ auto Parser::parse_sizeof_expression(ExpressionAST*& yyast,
     ast->lparenLoc = lparenLoc;
     ast->typeId = typeId;
     ast->rparenLoc = rparenLoc;
+    ast->type = control_->getSizeType();
 
     return true;
   };
@@ -2750,6 +2753,8 @@ auto Parser::parse_sizeof_expression(ExpressionAST*& yyast,
   if (!parse_unary_expression(ast->expression, ctx)) {
     parse_error("expected an expression");
   }
+
+  ast->type = control_->getSizeType();
 
   return true;
 }
@@ -2781,6 +2786,7 @@ auto Parser::parse_alignof_expression(ExpressionAST*& yyast,
     ast->lparenLoc = lparenLoc;
     ast->typeId = typeId;
     ast->rparenLoc = rparenLoc;
+    ast->type = control_->getSizeType();
 
     return true;
   };
@@ -2795,6 +2801,8 @@ auto Parser::parse_alignof_expression(ExpressionAST*& yyast,
   if (!parse_unary_expression(ast->expression, ctx)) {
     parse_error("expected an expression");
   }
+
+  ast->type = control_->getSizeType();
 
   return true;
 }

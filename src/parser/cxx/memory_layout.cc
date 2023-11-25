@@ -22,22 +22,281 @@
 #include <cxx/symbols.h>
 #include <cxx/types.h>
 
-#include <cassert>
 #include <cstdlib>
+#include <optional>
 
 namespace cxx {
 
-MemoryLayout::MemoryLayout(int bits) : bits_(bits) {
+namespace {
+struct SizeOf {
+  const MemoryLayout& memoryLayout;
+
+  auto operator()(const VoidType* type) const -> std::optional<std::size_t> {
+    return std::nullopt;
+  }
+
+  auto operator()(const NullptrType* type) const -> std::optional<std::size_t> {
+    return memoryLayout.sizeOfPointer();
+  }
+
+  auto operator()(const DecltypeAutoType* type) const
+      -> std::optional<std::size_t> {
+    return std::nullopt;
+  }
+
+  auto operator()(const AutoType* type) const -> std::optional<std::size_t> {
+    return std::nullopt;
+  }
+
+  auto operator()(const BoolType* type) const -> std::optional<std::size_t> {
+    return 1;
+  }
+
+  auto operator()(const SignedCharType* type) const
+      -> std::optional<std::size_t> {
+    return 1;
+  }
+
+  auto operator()(const ShortIntType* type) const
+      -> std::optional<std::size_t> {
+    return 2;
+  }
+
+  auto operator()(const IntType* type) const -> std::optional<std::size_t> {
+    return 4;
+  }
+
+  auto operator()(const LongIntType* type) const -> std::optional<std::size_t> {
+    return memoryLayout.sizeOfLong();
+  }
+
+  auto operator()(const LongLongIntType* type) const
+      -> std::optional<std::size_t> {
+    return memoryLayout.sizeOfLongLong();
+  }
+
+  auto operator()(const UnsignedCharType* type) const
+      -> std::optional<std::size_t> {
+    return 1;
+  }
+
+  auto operator()(const UnsignedShortIntType* type) const
+      -> std::optional<std::size_t> {
+    return 2;
+  }
+
+  auto operator()(const UnsignedIntType* type) const
+      -> std::optional<std::size_t> {
+    return 4;
+  }
+
+  auto operator()(const UnsignedLongIntType* type) const
+      -> std::optional<std::size_t> {
+    return memoryLayout.sizeOfLong();
+  }
+
+  auto operator()(const UnsignedLongLongIntType* type) const
+      -> std::optional<std::size_t> {
+    return memoryLayout.sizeOfLongLong();
+  }
+
+  auto operator()(const CharType* type) const -> std::optional<std::size_t> {
+    return 1;
+  }
+
+  auto operator()(const Char8Type* type) const -> std::optional<std::size_t> {
+    return 1;
+  }
+
+  auto operator()(const Char16Type* type) const -> std::optional<std::size_t> {
+    return 2;
+  }
+
+  auto operator()(const Char32Type* type) const -> std::optional<std::size_t> {
+    return 4;
+  }
+
+  auto operator()(const WideCharType* type) const
+      -> std::optional<std::size_t> {
+    return 4;
+  }
+
+  auto operator()(const FloatType* type) const -> std::optional<std::size_t> {
+    return 4;
+  }
+
+  auto operator()(const DoubleType* type) const -> std::optional<std::size_t> {
+    return 8;
+  }
+
+  auto operator()(const LongDoubleType* type) const
+      -> std::optional<std::size_t> {
+    return memoryLayout.sizeOfLongDouble();
+  }
+
+  auto operator()(const QualType* type) const -> std::optional<std::size_t> {
+    return visit(*this, type->elementType());
+  }
+
+  auto operator()(const BoundedArrayType* type) const
+      -> std::optional<std::size_t> {
+    auto elementSize = visit(*this, type->elementType());
+    if (elementSize.has_value()) return *elementSize * type->size();
+    return std::nullopt;
+  }
+
+  auto operator()(const UnboundedArrayType* type) const
+      -> std::optional<std::size_t> {
+    return std::nullopt;
+  }
+
+  auto operator()(const PointerType* type) const -> std::optional<std::size_t> {
+    return memoryLayout.sizeOfPointer();
+  }
+
+  auto operator()(const LvalueReferenceType* type) const
+      -> std::optional<std::size_t> {
+    return memoryLayout.sizeOfPointer();
+  }
+
+  auto operator()(const RvalueReferenceType* type) const
+      -> std::optional<std::size_t> {
+    return memoryLayout.sizeOfPointer();
+  }
+
+  auto operator()(const FunctionType* type) const
+      -> std::optional<std::size_t> {
+    return memoryLayout.sizeOfPointer();
+  }
+
+  auto operator()(const ClassType* type) const -> std::optional<std::size_t> {
+    return std::nullopt;
+  }
+
+  auto operator()(const UnionType* type) const -> std::optional<std::size_t> {
+    return std::nullopt;
+  }
+
+  auto operator()(const EnumType* type) const -> std::optional<std::size_t> {
+    if (type->underlyingType()) {
+      return visit(*this, type->underlyingType());
+    }
+    return 4;
+  }
+
+  auto operator()(const ScopedEnumType* type) const
+      -> std::optional<std::size_t> {
+    if (type->underlyingType()) {
+      return visit(*this, type->underlyingType());
+    }
+    return 4;
+  }
+
+  auto operator()(const MemberObjectPointerType* type) const
+      -> std::optional<std::size_t> {
+    return memoryLayout.sizeOfPointer();
+  }
+
+  auto operator()(const MemberFunctionPointerType* type) const
+      -> std::optional<std::size_t> {
+    return memoryLayout.sizeOfPointer();
+  }
+
+  auto operator()(const ClassDescriptionType* type) const
+      -> std::optional<std::size_t> {
+    return std::nullopt;
+  }
+
+  auto operator()(const NamespaceType* type) const
+      -> std::optional<std::size_t> {
+    return std::nullopt;
+  }
+
+  auto operator()(const UnresolvedNameType* type) const
+      -> std::optional<std::size_t> {
+    return std::nullopt;
+  }
+
+  auto operator()(const UnresolvedBoundedArrayType* type) const
+      -> std::optional<std::size_t> {
+    return std::nullopt;
+  }
+
+  auto operator()(const UnresolvedUnderlyingType* type) const
+      -> std::optional<std::size_t> {
+    return std::nullopt;
+  }
+
+  auto operator()(const OverloadSetType* type) const
+      -> std::optional<std::size_t> {
+    return std::nullopt;
+  }
+};
+
+struct AlignmentOf {
+  const MemoryLayout& memoryLayout;
+
+  auto operator()(auto type) const -> std::optional<std::size_t> {
+    // ### TODO
+    return memoryLayout.sizeOf(type);
+  }
+};
+
+}  // namespace
+
+MemoryLayout::MemoryLayout(std::size_t bits) : bits_(bits) {
   sizeOfPointer_ = bits / 8;
   sizeOfLong_ = bits / 8;
+  sizeOfLongLong_ = sizeOfLong_;
+  sizeOfLongDouble_ = 8;
 }
 
 MemoryLayout::~MemoryLayout() = default;
 
-auto MemoryLayout::bits() const -> int { return bits_; }
+auto MemoryLayout::bits() const -> std::size_t { return bits_; }
 
-auto MemoryLayout::sizeOfPointer() const -> int { return sizeOfPointer_; }
+auto MemoryLayout::sizeOfSizeType() const -> std::size_t {
+  return sizeOfPointer_;
+}
 
-auto MemoryLayout::sizeOfLong() const -> int { return sizeOfLong_; }
+auto MemoryLayout::sizeOfPointer() const -> std::size_t {
+  return sizeOfPointer_;
+}
+
+auto MemoryLayout::sizeOfLong() const -> std::size_t { return sizeOfLong_; }
+
+auto MemoryLayout::sizeOfLongLong() const -> std::size_t {
+  return sizeOfLongLong_;
+}
+
+auto MemoryLayout::sizeOfLongDouble() const -> std::size_t {
+  return sizeOfLongDouble_;
+}
+
+void MemoryLayout::setSizeOfPointer(std::size_t sizeOfPointer) {
+  sizeOfPointer_ = sizeOfPointer;
+}
+
+void MemoryLayout::setSizeOfLong(std::size_t sizeOfLong) {
+  sizeOfLong_ = sizeOfLong;
+}
+
+void MemoryLayout::setSizeOfLongLong(std::size_t sizeOfLongLong) {
+  sizeOfLongLong_ = sizeOfLongLong;
+}
+
+void MemoryLayout::setSizeOfLongDouble(std::size_t sizeOfLongDouble) {
+  sizeOfLongDouble_ = sizeOfLongDouble;
+}
+
+auto MemoryLayout::sizeOf(const Type* type) const
+    -> std::optional<std::size_t> {
+  return visit(SizeOf{*this}, type);
+}
+
+auto MemoryLayout::alignmentOf(const Type* type) const
+    -> std::optional<std::size_t> {
+  return visit(AlignmentOf{*this}, type);
+}
 
 }  // namespace cxx

@@ -22,7 +22,9 @@
 
 // cxx
 #include <cxx/ast.h>
+#include <cxx/control.h>
 #include <cxx/literals.h>
+#include <cxx/memory_layout.h>
 #include <cxx/parser.h>
 #include <cxx/private/format.h>
 #include <cxx/symbols.h>
@@ -186,12 +188,20 @@ auto ConstExpressionEvaluator::operator()(AwaitExpressionAST* ast)
 
 auto ConstExpressionEvaluator::operator()(SizeofExpressionAST* ast)
     -> std::optional<ConstValue> {
-  return std::nullopt;
+  if (!ast->expression || !ast->expression->type) return std::nullopt;
+  if (!control()->memoryLayout()) return std::nullopt;
+  auto size = control()->memoryLayout()->sizeOf(ast->expression->type);
+  if (!size.has_value()) return std::nullopt;
+  return std::uint64_t(*size);
 }
 
 auto ConstExpressionEvaluator::operator()(SizeofTypeExpressionAST* ast)
     -> std::optional<ConstValue> {
-  return std::nullopt;
+  if (!ast->typeId || !ast->typeId->type) return std::nullopt;
+  if (!control()->memoryLayout()) return std::nullopt;
+  auto size = control()->memoryLayout()->sizeOf(ast->typeId->type);
+  if (!size.has_value()) return std::nullopt;
+  return std::uint64_t(*size);
 }
 
 auto ConstExpressionEvaluator::operator()(SizeofPackExpressionAST* ast)
@@ -201,12 +211,20 @@ auto ConstExpressionEvaluator::operator()(SizeofPackExpressionAST* ast)
 
 auto ConstExpressionEvaluator::operator()(AlignofTypeExpressionAST* ast)
     -> std::optional<ConstValue> {
-  return std::nullopt;
+  if (!ast->typeId || !ast->typeId->type) return std::nullopt;
+  if (!control()->memoryLayout()) return std::nullopt;
+  auto size = control()->memoryLayout()->alignmentOf(ast->typeId->type);
+  if (!size.has_value()) return std::nullopt;
+  return std::uint64_t(*size);
 }
 
 auto ConstExpressionEvaluator::operator()(AlignofExpressionAST* ast)
     -> std::optional<ConstValue> {
-  return std::nullopt;
+  if (!ast->expression || !ast->expression->type) return std::nullopt;
+  if (!control()->memoryLayout()) return std::nullopt;
+  auto size = control()->memoryLayout()->alignmentOf(ast->expression->type);
+  if (!size.has_value()) return std::nullopt;
+  return std::uint64_t(*size);
 }
 
 auto ConstExpressionEvaluator::operator()(NoexceptExpressionAST* ast)

@@ -22,24 +22,40 @@
 
 #include <cxx/types_fwd.h>
 
+#include <cstddef>
+#include <optional>
+
 namespace cxx {
 
 class MemoryLayout {
  public:
-  explicit MemoryLayout(int bits);
+  explicit MemoryLayout(std::size_t bits);
   ~MemoryLayout();
 
-  auto bits() const -> int;
-  auto sizeOfPointer() const -> int;
-  auto sizeOfLong() const -> int;
+  [[nodiscard]] auto bits() const -> std::size_t;
+  [[nodiscard]] auto sizeOfSizeType() const -> std::size_t;
+  [[nodiscard]] auto sizeOfPointer() const -> std::size_t;
+  [[nodiscard]] auto sizeOfLong() const -> std::size_t;
+  [[nodiscard]] auto sizeOfLongLong() const -> std::size_t;
+  [[nodiscard]] auto sizeOfLongDouble() const -> std::size_t;
 
-  auto sizeOf(const Type* type) const -> int;
-  auto alignmentOf(const Type* type) const -> int;
+  void setSizeOfPointer(std::size_t sizeOfPointer);
+  void setSizeOfLong(std::size_t sizeOfLong);
+  void setSizeOfLongLong(std::size_t sizeOfLongLong);
+  void setSizeOfLongDouble(std::size_t sizeOfLongDouble);
+
+  [[nodiscard]] auto sizeOf(const Type* type) const
+      -> std::optional<std::size_t>;
+
+  [[nodiscard]] auto alignmentOf(const Type* type) const
+      -> std::optional<std::size_t>;
 
  private:
-  int bits_ = 0;
-  int sizeOfPointer_ = 0;
-  int sizeOfLong_ = 0;
+  std::size_t bits_ = 0;
+  std::size_t sizeOfPointer_ = 0;
+  std::size_t sizeOfLong_ = 0;
+  std::size_t sizeOfLongLong_ = 0;
+  std::size_t sizeOfLongDouble_ = 0;
 };
 
 #undef DECLARE_METHOD
