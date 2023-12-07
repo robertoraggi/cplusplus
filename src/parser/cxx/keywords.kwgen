@@ -48,7 +48,6 @@ import
 inline
 int
 long
-module
 mutable
 namespace
 new
