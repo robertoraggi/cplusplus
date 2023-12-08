@@ -57,8 +57,8 @@ void DiagnosticsClient::report(const Diagnostic& diag) {
   preprocessor_->getTokenStartPosition(diag.token(), &line, &column, &fileName);
 
   if (!fileName.empty()) {
-    fmt::print(std::cerr, "{}:{}:{}: {}\n", fileName, line, column,
-               diag.message());
+    std::cerr << cxx::format("{}:{}:{}: {}\n", fileName, line, column,
+                             diag.message());
 
     const auto textLine = preprocessor_->getTextLine(diag.token());
 
@@ -70,9 +70,9 @@ void DiagnosticsClient::report(const Diagnostic& diag) {
       if (!std::isspace(ch)) ch = ' ';
     }
 
-    fmt::print(std::cerr, "{0}\n{1}^\n", textLine, indent);
+    std::cerr << cxx::format("{0}\n{1}^\n", textLine, indent);
   } else {
-    fmt::print(std::cerr, "{}\n", diag.message());
+    std::cerr << cxx::format("{}\n", diag.message());
   }
 
   if (diag.severity() == Severity::Fatal ||

@@ -25,7 +25,14 @@ export function gen_keywords_kwgen({ output }: { output: string }) {
   const code: string[] = [];
   const emit = (line = "") => code.push(line);
 
-  tokens.KEYWORDS.forEach((tk) => emit(tk));
+  const isContextKeyword = (kw: string) => {
+    return ["final", "override", "import", "module"].includes(kw);
+  };
+
+  tokens.KEYWORDS.filter((kw) => !isContextKeyword(kw)).forEach((tk) =>
+    emit(tk)
+  );
+
   emit();
   tokens.TOKEN_ALIASES.forEach(([tk]) => emit(tk));
 

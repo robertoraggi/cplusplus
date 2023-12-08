@@ -333,7 +333,7 @@ struct Parser::GetDeclaratorType {
 #if false
       if (!type_cast<AutoType>(returnType)) {
         p->parse_warn(ast->trailingReturnType->firstSourceLocation(),
-                      fmt::format("function with trailing return type must "
+                      cxx::format("function with trailing return type must "
                                   "be declared with 'auto', not '{}'",
                                   to_string(returnType)));
       }
@@ -688,7 +688,7 @@ struct Parser::DeclareSymbol {
       for (Symbol* candidate : scope_->get(symbol->name())) {
         if (auto currentFunction = symbol_cast<FunctionSymbol>(candidate)) {
 #if false
-          p->warning(fmt::format("create overload set for function '{}'",
+          p->warning(cxx::format("create overload set for function '{}'",
                                  to_string(symbol->name())));
 #endif
 
@@ -702,11 +702,11 @@ struct Parser::DeclareSymbol {
           ovl->addFunction(currentFunction);
 
 #if false
-          p->warning(fmt::format("add function '{}' to overload set '{}'",
+          p->warning(cxx::format("add function '{}' to overload set '{}'",
                                  to_string(currentFunction->type()),
                                  to_string(ovl->name())));
 
-          p->warning(fmt::format("add function '{}' to overload set '{}'",
+          p->warning(cxx::format("add function '{}' to overload set '{}'",
                                  to_string(symbol->type()),
                                  to_string(ovl->name())));
 #endif
@@ -717,7 +717,7 @@ struct Parser::DeclareSymbol {
 
         if (auto ovl = symbol_cast<OverloadSetSymbol>(candidate)) {
 #if false
-          p->warning(fmt::format("add function '{}' to overload set '{}'",
+          p->warning(cxx::format("add function '{}' to overload set '{}'",
                                  to_string(symbol->type()),
                                  to_string(ovl->name())));
 #endif
@@ -793,7 +793,7 @@ Parser::~Parser() = default;
 auto Parser::prec(TokenKind tk) -> Parser::Prec {
   switch (tk) {
     default:
-      cxx_runtime_error(fmt::format("expected a binary operator, found {}",
+      cxx_runtime_error(cxx::format("expected a binary operator, found {}",
                                     Token::spell(tk)));
 
     case TokenKind::T_DOT_STAR:
@@ -859,7 +859,7 @@ auto Parser::match(TokenKind tk, SourceLocation& location) -> bool {
 
 auto Parser::expect(TokenKind tk, SourceLocation& location) -> bool {
   if (match(tk, location)) return true;
-  parse_error(fmt::format("expected '{}'", Token::spell(tk)));
+  parse_error(cxx::format("expected '{}'", Token::spell(tk)));
   return false;
 }
 
@@ -2321,7 +2321,7 @@ auto Parser::parse_call_expression(ExpressionAST*& yyast,
 
   if (auto functionType = type_cast<FunctionType>(ast->baseExpression->type)) {
     parse_warn(lparenLoc,
-               fmt::format("call function {}", to_string(functionType)));
+               cxx::format("call function {}", to_string(functionType)));
   }
 #endif
 
@@ -3392,7 +3392,7 @@ auto Parser::parse_maybe_assignment_expression(ExpressionAST*& yyast,
 
 #if false
       warning(ast->opLoc,
-              fmt::format("did convert {} to {}", to_string(sourceType),
+              cxx::format("did convert {} to {}", to_string(sourceType),
                           to_string(ast->type)));
 #endif
     }
@@ -5553,7 +5553,7 @@ void Parser::check_type_traits() {
 #if false
   parse_warn(
       typeTraitsLoc,
-      fmt::format("keyword '{}' will be made available as an identifier for "
+      cxx::format("keyword '{}' will be made available as an identifier for "
                   "the remainder of the translation unit",
                   Token::spell(builtinKind)));
 #endif

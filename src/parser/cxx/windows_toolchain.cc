@@ -43,24 +43,30 @@ void WindowsToolchain::setWinsdkversion(std::string version) {
 
 void WindowsToolchain::addSystemIncludePaths() {
   addSystemIncludePath(
-      (fs::path(winsdkdir_) / fmt::format("Include/{}/winrt", winsdkversion_))
+      (fs::path(winsdkdir_) /
+       std::string(cxx::format("Include/{}/winrt", winsdkversion_)))
           .string());
 
   addSystemIncludePath(
-      (fs::path(winsdkdir_) / fmt::format("Include/{}/um", winsdkversion_))
+      (fs::path(winsdkdir_) /
+       std::string(cxx::format("Include/{}/um", winsdkversion_)))
           .string());
 
   addSystemIncludePath(
-      (fs::path(winsdkdir_) / fmt::format("Include/{}/shared", winsdkversion_))
+      (fs::path(winsdkdir_) /
+       std::string(cxx::format("Include/{}/shared", winsdkversion_)))
           .string());
 
   addSystemIncludePath(
-      (fs::path(winsdkdir_) / fmt::format("Include/{}/ucrt", winsdkversion_))
+      (fs::path(winsdkdir_) /
+       std::string(cxx::format("Include/{}/ucrt", winsdkversion_)))
           .string());
 
-  addSystemIncludePath((fs::path(vctoolsdir_) / "atlmfc/include").string());
+  addSystemIncludePath(
+      (fs::path(vctoolsdir_) / std::string("atlmfc/include")).string());
 
-  addSystemIncludePath((fs::path(vctoolsdir_) / "include").string());
+  addSystemIncludePath(
+      (fs::path(vctoolsdir_) / std::string("include")).string());
 }
 
 void WindowsToolchain::addSystemCppIncludePaths() {}

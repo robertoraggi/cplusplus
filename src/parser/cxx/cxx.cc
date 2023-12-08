@@ -21,9 +21,12 @@
 #include <cxx/cxx_fwd.h>
 #include <cxx/private/format.h>
 
-#include <cassert>
 #include <cstdlib>
+#include <iostream>
+
+#if __cpp_exceptions
 #include <stdexcept>
+#endif
 
 namespace cxx {
 
@@ -31,8 +34,7 @@ namespace cxx {
 #if __cpp_exceptions
   throw std::runtime_error(msg);
 #else
-  fmt::print(stderr, "cxx_runtime_error: {}\n", msg);
-  assert(!"cxx_runtime_error");
+  std::cerr << cxx::format("cxx_runtime_error: {}\n", msg);
   std::abort();
 #endif
 }

@@ -30,7 +30,7 @@ GCCLinuxToolchain::GCCLinuxToolchain(Preprocessor* preprocessor,
     : Toolchain(preprocessor), arch_(std::move(arch)) {
   for (int version : {14, 13, 12, 11, 10, 9}) {
     const auto path = fs::path(
-        fmt::format("/usr/lib/gcc/{}-linux-gnu/{}/include", arch_, version));
+        cxx::format("/usr/lib/gcc/{}-linux-gnu/{}/include", arch_, version));
 
     if (exists(path)) {
       version_ = version;
@@ -42,11 +42,11 @@ GCCLinuxToolchain::GCCLinuxToolchain(Preprocessor* preprocessor,
 void GCCLinuxToolchain::addSystemIncludePaths() {
   auto addSystemIncludePathForGCCVersion = [this](int version) {
     addSystemIncludePath(
-        fmt::format("/usr/lib/gcc/{}-linux-gnu/{}/include", arch_, version));
+        cxx::format("/usr/lib/gcc/{}-linux-gnu/{}/include", arch_, version));
   };
 
   addSystemIncludePath("/usr/include");
-  addSystemIncludePath(fmt::format("/usr/include/{}-linux-gnu", arch_));
+  addSystemIncludePath(cxx::format("/usr/include/{}-linux-gnu", arch_));
   addSystemIncludePath("/usr/local/include");
 
   if (version_) addSystemIncludePathForGCCVersion(*version_);
@@ -54,12 +54,12 @@ void GCCLinuxToolchain::addSystemIncludePaths() {
 
 void GCCLinuxToolchain::addSystemCppIncludePaths() {
   auto addSystemIncludePathForGCCVersion = [this](int version) {
-    addSystemIncludePath(fmt::format("/usr/include/c++/{}/backward", version));
+    addSystemIncludePath(cxx::format("/usr/include/c++/{}/backward", version));
 
     addSystemIncludePath(
-        fmt::format("/usr/include/{}-linux-gnu/c++/{}", arch_, version));
+        cxx::format("/usr/include/{}-linux-gnu/c++/{}", arch_, version));
 
-    addSystemIncludePath(fmt::format("/usr/include/c++/{}", version));
+    addSystemIncludePath(cxx::format("/usr/include/c++/{}", version));
   };
 
   if (version_) addSystemIncludePathForGCCVersion(*version_);

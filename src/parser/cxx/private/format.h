@@ -20,9 +20,8 @@
 
 #pragma once
 
-#include <cxx/names.h>
 #include <fmt/format.h>
-#include <fmt/ostream.h>
 
-template <>
-struct fmt::formatter<cxx::Name> : fmt::ostream_formatter {};
+namespace cxx {
+using fmt::format;
+}

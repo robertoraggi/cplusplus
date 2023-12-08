@@ -29,23 +29,23 @@ MacOSToolchain::MacOSToolchain(Preprocessor* preprocessor)
     : Toolchain(preprocessor) {
   std::string xcodeContentsBasePath = "/Applications/Xcode.app/Contents";
 
-  platformPath_ = fmt::format(
+  platformPath_ = cxx::format(
       "{}/Developer/Platforms/MacOSX.platform/"
       "Developer/SDKs/MacOSX.sdk",
       xcodeContentsBasePath);
 
   toolchainPath_ =
-      fmt::format("{}/Developer/Toolchains/XcodeDefault.xctoolchain",
+      cxx::format("{}/Developer/Toolchains/XcodeDefault.xctoolchain",
                   xcodeContentsBasePath);
 }
 
 void MacOSToolchain::addSystemIncludePaths() {
   addSystemIncludePath(
-      fmt::format("{}/System/Library/Frameworks", platformPath_));
+      cxx::format("{}/System/Library/Frameworks", platformPath_));
 
-  addSystemIncludePath(fmt::format("{}/usr/include", toolchainPath_));
+  addSystemIncludePath(cxx::format("{}/usr/include", toolchainPath_));
 
-  addSystemIncludePath(fmt::format("{}/usr/include", platformPath_));
+  addSystemIncludePath(cxx::format("{}/usr/include", platformPath_));
 
   std::vector<std::string_view> versions{
       "15.0.0",
@@ -53,7 +53,7 @@ void MacOSToolchain::addSystemIncludePaths() {
 
   for (auto version : versions) {
     const std::string path =
-        fmt::format("{}/usr/lib/clang/{}/include", toolchainPath_, version);
+        cxx::format("{}/usr/lib/clang/{}/include", toolchainPath_, version);
     if (fs::exists(path)) {
       addSystemIncludePath(path);
     }
@@ -61,7 +61,7 @@ void MacOSToolchain::addSystemIncludePaths() {
 }
 
 void MacOSToolchain::addSystemCppIncludePaths() {
-  addSystemIncludePath(fmt::format("{}/usr/include/c++/v1", platformPath_));
+  addSystemIncludePath(cxx::format("{}/usr/include/c++/v1", platformPath_));
 }
 
 void MacOSToolchain::addPredefinedMacros() {

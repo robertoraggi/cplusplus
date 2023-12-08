@@ -618,7 +618,7 @@ struct Preprocessor::Private {
 
   void expect(const TokList *&ts, TokenKind k) const {
     if (!match(ts, k)) {
-      error(ts->head->token(), fmt::format("expected '{}'", Token::spell(k)));
+      error(ts->head->token(), cxx::format("expected '{}'", Token::spell(k)));
     }
   }
 
@@ -973,9 +973,9 @@ void Preprocessor::Private::expand(
       auto directive = ts;
 
 #if 0
-      fmt::print("*** ({}) ", currentPath_.string());
+      std::cout << cxx::format("*** ({}) ", currentPath_.string());
       printLine(directive, std::cerr);
-      fmt::print(std::cerr, "\n");
+      std::cerr << cxx::format("\n");
 #endif
 
       if (!skipping && matchId(ts, "define")) {
@@ -1015,7 +1015,7 @@ void Preprocessor::Private::expand(
         if (!path) {
           auto errorLoc = loc ? loc : directive;
           error(errorLoc->head->token(),
-                fmt::format("file '{}' not found", file));
+                cxx::format("file '{}' not found", file));
           ts = skipLine(directive);
           continue;
         }
@@ -1143,19 +1143,19 @@ void Preprocessor::Private::expand(
 #if 0
         std::ostringstream out;
         printLine(start, out);
-        fmt::print(std::cerr, "** todo pragma: ");
+        std::cerr << cxx::format("** todo pragma: ");
         printLine(ts, std::cerr);
-        fmt::print(std::cerr, "\n");
+        std::cerr << cxx::format("\n");
         // cxx_runtime_error(out.str());
 #endif
       } else if (!skipping && matchId(ts, "error")) {
         std::ostringstream out;
         printLine(start, out, /*nl=*/false);
-        error(directive->head->token(), fmt::format("{}", out.str()));
+        error(directive->head->token(), cxx::format("{}", out.str()));
       } else if (!skipping && matchId(ts, "warning")) {
         std::ostringstream out;
         printLine(start, out, /*nl=*/false);
-        warning(directive->head->token(), fmt::format("{}", out.str()));
+        warning(directive->head->token(), cxx::format("{}", out.str()));
       }
       ts = skipLine(ts);
     } else if (evaluateDirectives && skipping) {
@@ -1262,7 +1262,7 @@ auto Preprocessor::Private::expandOne(
 
   if (ts->head->text == "__FILE__") {
     auto tk = Tok::Gen(&pool_, TokenKind::T_STRING_LITERAL,
-                       string(fmt::format("\"{}\"", currentFileName_)));
+                       string(cxx::format("\"{}\"", currentFileName_)));
     tk->bol = ts->head->bol;
     tk->space = ts->head->space;
     emitToken(tk);
@@ -1533,15 +1533,15 @@ auto Preprocessor::Private::copyLine(const TokList *ts) -> const TokList * {
 auto Preprocessor::Private::constantExpression(const TokList *ts) -> long {
   auto line = copyLine(ts);
 #if 0
-  fmt::print("\n**evaluating: ");
+  std::cout << cxx::format("\n**evaluating: ");
   print(line, std::cout);
-  fmt::print("\n");
-  fmt::print("\n**expanded to: ");
+  std::cout << cxx::format("\n");
+  std::cout << cxx::format("\n**expanded to: ");
 #endif
   auto e = expand(line, /*directives=*/false);
 #if 0
   print(e, std::cout);
-  fmt::print("\n");
+  std::cout << cxx::format("\n");
 #endif
   return conditionalExpression(e);
 }
@@ -1688,7 +1688,7 @@ auto Preprocessor::Private::binaryExpressionHelper(const TokList *&ts, long lhs,
         break;
       default:
         cxx_runtime_error(
-            fmt::format("invalid operator '{}'", Token::spell(op)));
+            cxx::format("invalid operator '{}'", Token::spell(op)));
     }  // switch
   }
   return lhs;
@@ -1823,9 +1823,9 @@ auto Preprocessor::Private::string(std::string s) -> std::string_view {
 
 void Preprocessor::Private::defineMacro(const TokList *ts) {
 #if 0
-  fmt::print("*** defining macro: ");
+  std::cout << cxx::format("*** defining macro: ");
   printLine(ts, std::cout);
-  fmt::print("\n");
+  std::cout << cxx::format("\n");
 #endif
 
   auto name = ts->head->text;
@@ -1866,7 +1866,7 @@ void Preprocessor::Private::defineMacro(const TokList *ts) {
 
   if (auto it = macros_.find(name); it != macros_.end()) {
     if (it->second != m) {
-      warning(ts->head->token(), fmt::format("'{}' macro redefined", name));
+      warning(ts->head->token(), cxx::format("'{}' macro redefined", name));
     }
 
     macros_.erase(it);
@@ -1940,11 +1940,11 @@ void Preprocessor::Private::print(const TokList *ts, std::ostream &out) const {
     auto tk = ts->head;
     if (tk->text.empty()) continue;
     if (tk->bol) {
-      fmt::print(out, "\n");
+      out << "\n";
     } else if (!first && needSpace(prevTk, tk)) {
-      fmt::print(out, " ");
+      out << " ";
     }
-    fmt::print(out, "{}", tk->text);
+    out << cxx::format("{}", tk->text);
     prevTk = tk;
     first = false;
   }
@@ -1956,13 +1956,13 @@ void Preprocessor::Private::printLine(const TokList *ts, std::ostream &out,
   for (const Tok *prevTk = nullptr; ts; ts = ts->tail) {
     auto tk = ts->head;
     if (tk->text.empty()) continue;
-    if (!first && needSpace(prevTk, tk)) fmt::print(out, " ");
-    fmt::print(out, "{}", tk->text);
+    if (!first && needSpace(prevTk, tk)) out << cxx::format(" ");
+    out << cxx::format("{}", tk->text);
     prevTk = tk;
     first = false;
     if (ts->tail && ts->tail->head->bol) break;
   }
-  if (nl) fmt::print(out, "\n");
+  if (nl) out << cxx::format("\n");
 }
 
 Preprocessor::Preprocessor(Control *control,
@@ -2070,26 +2070,26 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
       file->getTokenStartPosition(tk->offset, &line, nullptr, &fileName);
       if (outFile == tk->sourceFile && line == outLine) {
         ++outLine;
-        fmt::print(out, "\n");
+        out << cxx::format("\n");
       } else {
-        if (it != os) fmt::print(out, "\n");
+        if (it != os) out << cxx::format("\n");
         if (!d->omitLineMarkers_) {
-          fmt::print(out, "# {} \"{}\"\n", line, fileName);
+          out << cxx::format("# {} \"{}\"\n", line, fileName);
         }
         outLine = line + 1;
         outFile = tk->sourceFile;
       }
     } else if (needSpace(prevTk, tk) || tk->space || !tk->sourceFile) {
       if (tk->bol)
-        fmt::print(out, "\n");
+        out << cxx::format("\n");
       else
-        fmt::print(out, " ");
+        out << cxx::format(" ");
     }
-    fmt::print(out, "{}", tk->text);
+    out << cxx::format("{}", tk->text);
     prevTk = tk;
   }
 
-  fmt::print(out, "\n");
+  out << cxx::format("\n");
 }
 
 void Preprocessor::preprocess(std::string source, std::string fileName,
@@ -2240,22 +2240,22 @@ void Preprocessor::undefMacro(const std::string &name) {
 
 void Preprocessor::printMacros(std::ostream &out) const {
   for (const auto &[name, macro] : d->macros_) {
-    fmt::print(out, "#define {}", name);
+    out << cxx::format("#define {}", name);
     if (!macro.objLike) {
-      fmt::print(out, "(");
+      out << cxx::format("(");
       for (std::size_t i = 0; i < macro.formals.size(); ++i) {
-        if (i > 0) fmt::print(",");
-        fmt::print(out, "{}", macro.formals[i]);
+        if (i > 0) out << ",";
+        out << cxx::format("{}", macro.formals[i]);
       }
       if (macro.variadic) {
-        if (!macro.formals.empty()) fmt::print(out, ",");
-        fmt::print(out, "...");
+        if (!macro.formals.empty()) out << cxx::format(",");
+        out << cxx::format("...");
       }
-      fmt::print(out, ")");
+      out << cxx::format(")");
     }
-    if (macro.body) fmt::print(out, " ");
+    if (macro.body) out << cxx::format(" ");
     d->print(macro.body, out);
-    fmt::print(out, "\n");
+    out << cxx::format("\n");
   }
 }
 
