@@ -24,7 +24,9 @@
 #include <cxx/private/path.h>
 
 #include <array>
+#include <iostream>
 #include <sstream>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -33,15 +35,15 @@ namespace cxx {
 auto to_string(const CLIMatch& match) -> std::string {
   struct Process {
     auto operator()(const CLIFlag& o) const -> std::string {
-      return fmt::format("{}=true", std::get<0>(o));
+      return cxx::format("{}=true", std::get<0>(o));
     }
 
     auto operator()(const CLIOption& o) const -> std::string {
-      return fmt::format("{}={}", std::get<0>(o), std::get<1>(o));
+      return cxx::format("{}={}", std::get<0>(o), std::get<1>(o));
     }
 
     auto operator()(const CLIPositional& o) const -> std::string {
-      return fmt::format("{}", std::get<0>(o));
+      return cxx::format("{}", std::get<0>(o));
     }
   };
   return std::visit(Process(), match);
@@ -322,7 +324,7 @@ void CLI::parse(int& argc, char**& argv) {
           continue;
         }
 
-        fmt::print(stderr, "missing argument after '{}'\n", arg);
+        std::cerr << cxx::format("missing argument after '{}'\n", arg);
         continue;
       }
     }
@@ -338,13 +340,13 @@ void CLI::parse(int& argc, char**& argv) {
       continue;
     }
 
-    fmt::print(stderr, "unsupported option '{}'\n", arg);
+    std::cerr << cxx::format("unsupported option '{}'\n", arg);
   }
 }
 
 void CLI::showHelp() {
-  fmt::print(stderr, "Usage: cxx [options] file...\n");
-  fmt::print(stderr, "Options:\n");
+  std::cerr << cxx::format("Usage: cxx [options] file...\n");
+  std::cerr << cxx::format("Options:\n");
   for (const auto& opt : options) {
     if (opt.visibility == CLIOptionVisibility::kExperimental) {
       continue;
@@ -356,20 +358,20 @@ void CLI::showHelp() {
         if (opt.arg.empty()) {
           info = opt.option;
         } else {
-          info = fmt::format("{} {}", opt.option, opt.arg);
+          info = cxx::format("{} {}", opt.option, opt.arg);
         }
         break;
       }
       case CLIOptionDescrKind::kJoined: {
-        info = fmt::format("{}={}", opt.option, opt.arg);
+        info = cxx::format("{}={}", opt.option, opt.arg);
         break;
       }
       case CLIOptionDescrKind::kFlag: {
-        info = fmt::format("{}", opt.option);
+        info = cxx::format("{}", opt.option);
         break;
       }
     }  // switch
-    fmt::print(stderr, "  {:<28} {}\n", info, opt.help);
+    std::cerr << cxx::format("  {:<28} {}\n", info, opt.help);
   }
 }
 

@@ -53,7 +53,7 @@ auto NamePrinter::operator()(const OperatorId* name) const -> std::string {
     case TokenKind::T_DELETE_ARRAY:
       return "operator delete[]";
     default:
-      return fmt::format("operator {}", Token::spell(name->op()));
+      return cxx::format("operator {}", Token::spell(name->op()));
   }  // switch
 }
 
@@ -63,12 +63,12 @@ auto NamePrinter::operator()(const DestructorId* name) const -> std::string {
 
 auto NamePrinter::operator()(const LiteralOperatorId* name) const
     -> std::string {
-  return fmt::format("operator \"\"{}", name->name());
+  return cxx::format("operator \"\"{}", name->name());
 }
 
 auto NamePrinter::operator()(const ConversionFunctionId* name) const
     -> std::string {
-  return fmt::format("operator {}", to_string(name->type()));
+  return cxx::format("operator {}", to_string(name->type()));
 }
 
 auto NamePrinter::operator()(const TemplateId* name) const -> std::string {

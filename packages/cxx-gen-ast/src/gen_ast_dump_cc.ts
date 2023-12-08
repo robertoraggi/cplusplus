@@ -40,8 +40,8 @@ export function gen_ast_dump_cc({ ast, output }: { ast: AST; output: string }) {
     if (member.kind === "node-list") {
       emit(`  if (ast->${member.name}) {`);
       emit(`    ++indent_;`);
-      emit(`    fmt::print(out_, "{:{}}", "", indent_ * 2);`);
-      emit(`    fmt::print(out_, "{}\\n", "${fieldName}");`);
+      emit(`    out_ << cxx::format("{:{}}", "", indent_ * 2);`);
+      emit(`    out_ << cxx::format("{}\\n", "${fieldName}");`);
       emit(`    for (auto it = ast->${member.name}; it; it = it->next) {`);
       emit(`      accept(it->value);`);
       emit(`    }`);
@@ -54,21 +54,25 @@ export function gen_ast_dump_cc({ ast, output }: { ast: AST; output: string }) {
     } else if (member.kind == "attribute" && member.type === "bool") {
       emit(`  if (ast->${member.name}) {`);
       emit(`    ++indent_;`);
-      emit(`    fmt::print(out_, "{:{}}", "", indent_ * 2);`);
-      emit(`    fmt::print(out_, "${fieldName}: {}\\n", ast->${member.name});`);
+      emit(`    out_ << cxx::format("{:{}}", "", indent_ * 2);`);
+      emit(
+        `    out_ << cxx::format("${fieldName}: {}\\n", ast->${member.name});`
+      );
       emit(`    --indent_;`);
       emit(`  }`);
     } else if (member.kind == "attribute" && member.type === "int") {
       emit(`  ++indent_;`);
-      emit(`  fmt::print(out_, "{:{}}", "", indent_ * 2);`);
-      emit(`  fmt::print(out_, "${fieldName}: {}\\n", ast->${member.name});`);
+      emit(`  out_ << cxx::format("{:{}}", "", indent_ * 2);`);
+      emit(
+        `  out_ << cxx::format("${fieldName}: {}\\n", ast->${member.name});`
+      );
       emit(`  --indent_;`);
     } else if (member.kind == "attribute" && member.type.endsWith("Literal")) {
       emit(`  if (ast->${member.name}) {`);
       emit(`    ++indent_;`);
-      emit(`    fmt::print(out_, "{:{}}", "", indent_ * 2);`);
+      emit(`    out_ << cxx::format("{:{}}", "", indent_ * 2);`);
       emit(
-        `    fmt::print(out_, "${fieldName}: {}\\n", ast->${member.name}->value());`
+        `    out_ << cxx::format("${fieldName}: {}\\n", ast->${member.name}->value());`
       );
       emit(`    --indent_;`);
       emit(`  }`);
@@ -78,9 +82,9 @@ export function gen_ast_dump_cc({ ast, output }: { ast: AST; output: string }) {
     ) {
       emit(`  if (ast->${member.name} != TokenKind::T_EOF_SYMBOL) {`);
       emit(`    ++indent_;`);
-      emit(`    fmt::print(out_, "{:{}}", "", indent_ * 2);`);
+      emit(`    out_ << cxx::format("{:{}}", "", indent_ * 2);`);
       emit(
-        `    fmt::print(out_, "${fieldName}: {}\\n", Token::spell(ast->${member.name}));`
+        `    out_ << cxx::format("${fieldName}: {}\\n", Token::spell(ast->${member.name}));`
       );
       emit(`    --indent_;`);
       emit(`  }`);
@@ -91,7 +95,7 @@ export function gen_ast_dump_cc({ ast, output }: { ast: AST; output: string }) {
     nodes.forEach(({ name, base, members }) => {
       emit();
       emit(`void ASTPrinter::visit(${name}* ast) {`);
-      emit(`  fmt::print(out_, "{}\\n", "${astName(name)}");`);
+      emit(`  out_ << cxx::format("{}\\n", "${astName(name)}");`);
 
       const baseMembers = ast.baseMembers.get(base);
 
@@ -124,6 +128,7 @@ export function gen_ast_dump_cc({ ast, output }: { ast: AST; output: string }) {
 #include <cxx/private/format.h>
 
 #include <algorithm>
+#include <iostream>
 
 namespace cxx {
 
@@ -138,9 +143,9 @@ void ASTPrinter::operator()(AST* ast) {
 void ASTPrinter::accept(AST* ast, std::string_view field) {
   if (!ast) return;
   ++indent_;
-  fmt::print(out_, "{:{}}", "", indent_ * 2);
+  out_ << cxx::format("{:{}}", "", indent_ * 2);
   if (!field.empty()) {
-    fmt::print(out_, "{}: ", field);
+    out_ << cxx::format("{}: ", field);
   }
   ast->accept(this);
   --indent_;
@@ -149,9 +154,9 @@ void ASTPrinter::accept(AST* ast, std::string_view field) {
 void ASTPrinter::accept(const Identifier* id, std::string_view field) {
   if (!id) return;
   ++indent_;
-  fmt::print(out_, "{:{}}", "", indent_ * 2);
-  if (!field.empty()) fmt::print(out_, "{}: ", field);
-  fmt::print(out_, "{}\\n", id->value());
+  out_ << cxx::format("{:{}}", "", indent_ * 2);
+  if (!field.empty()) out_ << cxx::format("{}: ", field);
+  out_ << cxx::format("{}\\n", id->value());
   --indent_;
 }
 

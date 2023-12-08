@@ -60,12 +60,12 @@ void Wasm32WasiToolchain::setSysroot(std::string sysroot) {
 }
 
 void Wasm32WasiToolchain::addSystemIncludePaths() {
-  addSystemIncludePath(fmt::format("{}/include", sysroot_));
-  addSystemIncludePath(fmt::format("{}/../lib/cxx/include", appdir_));
+  addSystemIncludePath(cxx::format("{}/include", sysroot_));
+  addSystemIncludePath(cxx::format("{}/../lib/cxx/include", appdir_));
 }
 
 void Wasm32WasiToolchain::addSystemCppIncludePaths() {
-  addSystemIncludePath(fmt::format("{}/include/c++/v1", sysroot_));
+  addSystemIncludePath(cxx::format("{}/include/c++/v1", sysroot_));
 }
 
 void Wasm32WasiToolchain::addPredefinedMacros() {

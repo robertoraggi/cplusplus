@@ -95,7 +95,7 @@ void dumpTokens(const CLI& cli, TranslationUnit& unit, std::ostream& output) {
       kind = Lexer::classifyKeyword(tk.spell());
     }
 
-    fmt::print(output, "{} '{}'{}\n", Token::name(kind), tk.spell(), flags);
+    output << cxx::format("{} '{}'{}\n", Token::name(kind), tk.spell(), flags);
 
     if (tk.is(TokenKind::T_EOF_SYMBOL)) break;
   }
@@ -144,7 +144,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
     if (auto paths = cli.get("--sysroot"); !paths.empty()) {
       wasmToolchain->setSysroot(paths.back());
     } else {
-      auto sysroot_dir = app_dir / "../lib/wasi-sysroot";
+      auto sysroot_dir = app_dir / std::string("../lib/wasi-sysroot");
       wasmToolchain->setSysroot(sysroot_dir.string());
     }
 
@@ -192,12 +192,12 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
   }
 
   if (cli.opt_v) {
-    fmt::print(std::cerr, "#include <...> search starts here:\n");
+    std::cerr << cxx::format("#include <...> search starts here:\n");
     const auto& paths = preprocesor->systemIncludePaths();
     for (auto it = rbegin(paths); it != rend(paths); ++it) {
-      fmt::print(std::cerr, " {}\n", *it);
+      std::cerr << cxx::format(" {}\n", *it);
     }
-    fmt::print(std::cerr, "End of search list.\n");
+    std::cerr << cxx::format("End of search list.\n");
   }
 
   for (const auto& macro : cli.get("-D")) {
@@ -232,7 +232,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
     preprocesor->setOnWillIncludeHeader(
         [&](const std::string& header, int level) {
           std::string fill(level, '.');
-          fmt::print(stdout, "{} {}\n", fill, header);
+          std::cout << cxx::format("{} {}\n", fill, header);
         });
   }
 
