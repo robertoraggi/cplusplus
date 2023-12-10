@@ -61,9 +61,7 @@ auto main() -> int {
 // CHECK-NEXT:                  unqualified-id: name-id
 // CHECK-NEXT:                    identifier: p
 // CHECK-NEXT:                right-expression: implicit-cast-expression
-// CHECK-NEXT:                  cast-kind: boolean-conversion
-// CHECK-NEXT:                  expression: implicit-cast-expression
-// CHECK-NEXT:                    cast-kind: array-to-pointer-conversion
-// CHECK-NEXT:                    expression: id-expression
-// CHECK-NEXT:                      unqualified-id: name-id
-// CHECK-NEXT:                        identifier: a
+// CHECK-NEXT:                  cast-kind: array-to-pointer-conversion
+// CHECK-NEXT:                  expression: id-expression
+// CHECK-NEXT:                    unqualified-id: name-id
+// CHECK-NEXT:                      identifier: a
