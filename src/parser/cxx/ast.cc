@@ -3222,4 +3222,58 @@ auto NestedNamespaceSpecifierAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto to_string(ValueCategory valueCategory) -> std::string_view {
+  switch (valueCategory) {
+    case ValueCategory::kNone:
+      return "none";
+    case ValueCategory::kLValue:
+      return "lvalue";
+    case ValueCategory::kXValue:
+      return "xvalue";
+    case ValueCategory::kPrValue:
+      return "prvalue";
+    default:
+      cxx_runtime_error("Invalid value category");
+  }  // switch
+}
+
+auto to_string(ImplicitCastKind implicitCastKind) -> std::string_view {
+  switch (implicitCastKind) {
+    case ImplicitCastKind::kIdentity:
+      return "identity";
+    case ImplicitCastKind::kLValueToRValueConversion:
+      return "lvalue-to-rvalue-conversion";
+    case ImplicitCastKind::kArrayToPointerConversion:
+      return "array-to-pointer-conversion";
+    case ImplicitCastKind::kFunctionToPointerConversion:
+      return "function-to-pointer-conversion";
+    case ImplicitCastKind::kIntegralPromotion:
+      return "integral-promotion";
+    case ImplicitCastKind::kFloatingPointPromotion:
+      return "floating-point-promotion";
+    case ImplicitCastKind::kIntegralConversion:
+      return "integral-conversion";
+    case ImplicitCastKind::kFloatingPointConversion:
+      return "floating-point-conversion";
+    case ImplicitCastKind::kFloatingIntegralConversion:
+      return "floating-integral-conversion";
+    case ImplicitCastKind::kPointerConversion:
+      return "pointer-conversion";
+    case ImplicitCastKind::kPointerToMemberConversion:
+      return "pointer-to-member-conversion";
+    case ImplicitCastKind::kBooleanConversion:
+      return "boolean-conversion";
+    case ImplicitCastKind::kFunctionPointerConversion:
+      return "function-pointer-conversion";
+    case ImplicitCastKind::kQualificationConversion:
+      return "qualification-conversion";
+    case ImplicitCastKind::kTemporaryMaterializationConversion:
+      return "temporary-materialization-conversion";
+    case ImplicitCastKind::kUserDefinedConversion:
+      return "user-defined-conversion";
+    default:
+      cxx_runtime_error("Invalid implicit cast kind");
+  }  // switch
+}
+
 }  // namespace cxx

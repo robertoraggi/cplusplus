@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include <string_view>
+
 namespace cxx {
 
 template <typename T>
@@ -332,5 +334,8 @@ class AttributeAST;
 class AttributeUsingPrefixAST;
 class NewPlacementAST;
 class NestedNamespaceSpecifierAST;
+
+auto to_string(ValueCategory valueCategory) -> std::string_view;
+auto to_string(ImplicitCastKind implicitCastKind) -> std::string_view;
 
 }  // namespace cxx

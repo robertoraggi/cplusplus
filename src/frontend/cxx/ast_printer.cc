@@ -1055,6 +1055,10 @@ void ASTPrinter::visit(CastExpressionAST* ast) {
 
 void ASTPrinter::visit(ImplicitCastExpressionAST* ast) {
   out_ << cxx::format("{}\n", "implicit-cast-expression");
+  ++indent_;
+  out_ << cxx::format("{:{}}", "", indent_ * 2);
+  out_ << cxx::format("cast-kind: {}\n", to_string(ast->castKind));
+  --indent_;
   accept(ast->expression, "expression");
 }
 
