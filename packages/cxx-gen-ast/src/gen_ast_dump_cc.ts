@@ -88,6 +88,16 @@ export function gen_ast_dump_cc({ ast, output }: { ast: AST; output: string }) {
       );
       emit(`    --indent_;`);
       emit(`  }`);
+    } else if (
+      member.kind == "attribute" &&
+      member.type == "ImplicitCastKind"
+    ) {
+      emit(`  ++indent_;`);
+      emit(`  out_ << cxx::format("{:{}}", "", indent_ * 2);`);
+      emit(
+        `  out_ << cxx::format("${fieldName}: {}\\n", to_string(ast->${member.name}));`
+      );
+      emit(`  --indent_;`);
     }
   };
 

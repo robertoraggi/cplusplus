@@ -51,6 +51,8 @@ export function gen_ast_fwd_h({ ast, output }: { ast: AST; output: string }) {
 
 #pragma once
 
+#include <string_view>
+
 namespace cxx {
 
 template <typename T>
@@ -85,6 +87,9 @@ enum class ImplicitCastKind {
 };
 
 ${code.join("\n")}
+
+auto to_string(ValueCategory valueCategory) -> std::string_view;
+auto to_string(ImplicitCastKind implicitCastKind) -> std::string_view;
 
 } // namespace cxx
 `;
