@@ -781,7 +781,8 @@ class Parser final {
   [[nodiscard]] auto function_pointer_conversion(ExpressionAST*& expr,
                                                  const Type* destinationType)
       -> bool;
-  [[nodiscard]] auto boolean_conversion(ExpressionAST*& expr) -> bool;
+  [[nodiscard]] auto boolean_conversion(ExpressionAST*& expr,
+                                        const Type* destinationType) -> bool;
   [[nodiscard]] auto temporary_materialization_conversion(ExpressionAST*& expr)
       -> bool;
   [[nodiscard]] auto qualification_conversion(ExpressionAST*& expr,

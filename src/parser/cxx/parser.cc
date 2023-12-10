@@ -5971,7 +5971,10 @@ auto Parser::function_pointer_conversion(ExpressionAST*& expr,
   return false;
 }
 
-auto Parser::boolean_conversion(ExpressionAST*& expr) -> bool {
+auto Parser::boolean_conversion(ExpressionAST*& expr,
+                                const Type* destinationType) -> bool {
+  if (!type_cast<BoolType>(control_->remove_cv(destinationType))) return false;
+
   if (!is_prvalue(expr)) return false;
 
   if (!control_->is_arithmetic_or_unscoped_enum(expr->type) &&
@@ -6014,10 +6017,14 @@ auto Parser::implicit_conversion(ExpressionAST*& expr,
   if (!destinationType) return false;
 
   auto savedExpr = expr;
+  auto didConvert = false;
 
   if (lvalue_to_rvalue_conversion(expr)) {
+    didConvert = true;
   } else if (array_to_pointer_conversion(expr)) {
+    didConvert = true;
   } else if (function_to_pointer_conversion(expr)) {
+    didConvert = true;
   }
 
   if (integral_promotion(expr)) return true;
@@ -6027,9 +6034,11 @@ auto Parser::implicit_conversion(ExpressionAST*& expr,
   if (floating_integral_conversion(expr, destinationType)) return true;
   if (pointer_conversion(expr, destinationType)) return true;
   if (pointer_to_member_conversion(expr, destinationType)) return true;
-  if (boolean_conversion(expr)) return true;
+  if (boolean_conversion(expr, destinationType)) return true;
   if (function_pointer_conversion(expr, destinationType)) return true;
   if (qualification_conversion(expr, destinationType)) return true;
+
+  if (didConvert) return true;
 
   expr = savedExpr;
 
