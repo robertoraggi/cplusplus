@@ -43,7 +43,17 @@ async function strip(unitTestPath) {
 }
 
 async function updateTest(unitTestPath) {
-  const ast = await $`${cxx} -verify -ast-dump ${unitTestPath}`.quiet();
+  const source = await fs.readFile(unitTestPath, "utf-8");
+
+  const sourceLines = source.split("\n");
+
+  const fcheck =
+    sourceLines.length > 0 && sourceLines[0].includes("-fcheck")
+      ? "-fcheck"
+      : "";
+
+  const ast =
+    await $`${cxx} -verify -ast-dump ${unitTestPath} ${fcheck}`.quiet();
 
   const lines = ast.stdout.split("\n");
 
