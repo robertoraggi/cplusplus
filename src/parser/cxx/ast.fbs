@@ -956,9 +956,11 @@ table BracedTypeConstruction /* ExpressionAST */ {
 
 table MemberExpression /* ExpressionAST */ {
   base_expression: Expression;
-  member_id: IdExpression;
+  nested_name_specifier: NestedNameSpecifier;
+  unqualified_id: UnqualifiedId;
   access_op: uint32;
   access_loc: SourceLocation;
+  template_loc: SourceLocation;
 }
 
 table PostIncrExpression /* ExpressionAST */ {

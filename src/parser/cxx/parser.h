@@ -94,7 +94,6 @@ class Parser final {
   struct LoopParser;
   struct ClassHead;
   struct GetDeclaratorType;
-  struct UnqualifiedLookup;
   struct DeclareSymbol;
 
   enum struct BindingContext {
@@ -174,7 +173,6 @@ class Parser final {
 
   enum struct IdExpressionContext {
     kExpression,
-    kMember,
     kTemplateParameter,
     kRequiresClause,
   };
@@ -633,9 +631,10 @@ class Parser final {
   [[nodiscard]] auto parse_conversion_function_id(
       ConversionFunctionIdAST*& yyast) -> bool;
   [[nodiscard]] auto parse_base_clause(
-      SourceLocation& colonLoc, List<BaseSpecifierAST*>*& baseSpecifierList)
-      -> bool;
-  [[nodiscard]] auto parse_base_specifier_list(List<BaseSpecifierAST*>*& yyast)
+      ClassSymbol* classSymbol, SourceLocation& colonLoc,
+      List<BaseSpecifierAST*>*& baseSpecifierList) -> bool;
+  [[nodiscard]] auto parse_base_specifier_list(ClassSymbol* classSymbol,
+                                               List<BaseSpecifierAST*>*& yyast)
       -> bool;
   void parse_base_specifier(BaseSpecifierAST*& yyast);
   [[nodiscard]] auto parse_class_or_decltype(
@@ -746,6 +745,16 @@ class Parser final {
 
   void completePendingFunctionDefinitions();
   void completeFunctionDefinition(FunctionDefinitionAST* ast);
+
+  // lookup
+  [[nodiscard]] auto convertName(UnqualifiedIdAST* id) -> const Name*;
+  [[nodiscard]] auto unqualifiedLookup(const Name* name) -> Symbol*;
+  [[nodiscard]] auto qualifiedLookup(Scope* scope, const Name* name) -> Symbol*;
+  [[nodiscard]] auto qualifiedLookup(Symbol* scopedSymbol, const Name* name)
+      -> Symbol*;
+  [[nodiscard]] auto lookup(Symbol* where, const Name* name) -> Symbol*;
+  [[nodiscard]] auto lookupHelper(Scope* scope, const Name* name,
+                                  std::unordered_set<Scope*>& cache) -> Symbol*;
 
   [[nodiscard]] auto enterOrCreateNamespace(const Name* name, bool isInline)
       -> NamespaceSymbol*;

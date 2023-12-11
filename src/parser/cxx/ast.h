@@ -1443,9 +1443,12 @@ class MemberExpressionAST final : public ExpressionAST {
 
   ExpressionAST* baseExpression = nullptr;
   SourceLocation accessLoc;
-  IdExpressionAST* memberId = nullptr;
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  SourceLocation templateLoc;
+  UnqualifiedIdAST* unqualifiedId = nullptr;
   Symbol* symbol = nullptr;
   TokenKind accessOp = TokenKind::T_EOF_SYMBOL;
+  bool isTemplateIntroduced = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -3662,6 +3665,7 @@ class BaseSpecifierAST final : public AST {
   bool isTemplateIntroduced = false;
   bool isVirtual = false;
   TokenKind accessSpecifier = TokenKind::T_EOF_SYMBOL;
+  Symbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

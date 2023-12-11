@@ -1163,12 +1163,16 @@ auto BracedTypeConstructionAST::lastSourceLocation() -> SourceLocation {
 auto MemberExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(baseExpression)) return loc;
   if (auto loc = cxx::firstSourceLocation(accessLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(memberId)) return loc;
+  if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(templateLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(unqualifiedId)) return loc;
   return {};
 }
 
 auto MemberExpressionAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(memberId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(unqualifiedId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::lastSourceLocation(accessLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(baseExpression)) return loc;
   return {};

@@ -56,10 +56,15 @@ class Scope {
   void addSymbol(Symbol* symbol);
   void removeSymbol(Symbol* symbol);
 
+  [[nodiscard]] auto usingDirectives() const -> const std::vector<Scope*>&;
+
+  void addUsingDirective(Scope* scope);
+
  private:
   Scope* parent_ = nullptr;
   Symbol* owner_ = nullptr;
   std::multimap<const Name*, Symbol*> symbols_;
+  std::vector<Scope*> usingDirectives_;
 };
 
 }  // namespace cxx

@@ -93,19 +93,18 @@ auto copy(Allocator &A) -> void * { return A.template Allocate<char>(128); }
 // CHECK-NEXT:              expression: call-expression
 // CHECK-NEXT:                base-expression: member-expression
 // CHECK-NEXT:                  access-op: .
+// CHECK-NEXT:                  is-template-introduced: true
 // CHECK-NEXT:                  base-expression: id-expression
 // CHECK-NEXT:                    unqualified-id: name-id
 // CHECK-NEXT:                      identifier: A
-// CHECK-NEXT:                  member-id: id-expression
-// CHECK-NEXT:                    is-template-introduced: true
-// CHECK-NEXT:                    unqualified-id: simple-template-id
-// CHECK-NEXT:                      identifier: Allocate
-// CHECK-NEXT:                      template-argument-list
-// CHECK-NEXT:                        type-template-argument
-// CHECK-NEXT:                          type-id: type-id
-// CHECK-NEXT:                            type-specifier-list
-// CHECK-NEXT:                              integral-type-specifier
-// CHECK-NEXT:                                specifier: char
+// CHECK-NEXT:                  unqualified-id: simple-template-id
+// CHECK-NEXT:                    identifier: Allocate
+// CHECK-NEXT:                    template-argument-list
+// CHECK-NEXT:                      type-template-argument
+// CHECK-NEXT:                        type-id: type-id
+// CHECK-NEXT:                          type-specifier-list
+// CHECK-NEXT:                            integral-type-specifier
+// CHECK-NEXT:                              specifier: char
 // CHECK-NEXT:                expression-list
 // CHECK-NEXT:                  int-literal-expression
 // CHECK-NEXT:                    literal: 128

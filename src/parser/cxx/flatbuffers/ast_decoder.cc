@@ -1889,7 +1889,10 @@ auto ASTDecoder::decodeMemberExpression(const io::MemberExpression* node)
   auto ast = new (pool_) MemberExpressionAST();
   ast->baseExpression =
       decodeExpression(node->base_expression(), node->base_expression_type());
-  ast->memberId = decodeIdExpression(node->member_id());
+  ast->nestedNameSpecifier = decodeNestedNameSpecifier(
+      node->nested_name_specifier(), node->nested_name_specifier_type());
+  ast->unqualifiedId =
+      decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
   ast->accessOp = static_cast<TokenKind>(node->access_op());
   return ast;
 }

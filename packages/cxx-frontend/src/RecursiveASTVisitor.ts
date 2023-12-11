@@ -979,7 +979,8 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
    */
   visitMemberExpression(node: ast.MemberExpressionAST, context: Context): void {
     this.accept(node.getBaseExpression(), context);
-    this.accept(node.getMemberId(), context);
+    this.accept(node.getNestedNameSpecifier(), context);
+    this.accept(node.getUnqualifiedId(), context);
   }
 
   /**
