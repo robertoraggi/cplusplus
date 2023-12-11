@@ -90,19 +90,9 @@ class NamespaceSymbol final : public Symbol {
     unnamedNamespace_ = unnamedNamespace;
   }
 
-  [[nodiscard]] auto usingNamespaces() const
-      -> const std::vector<NamespaceSymbol*>& {
-    return usingNamespaces_;
-  }
-
-  void addUsingNamespace(NamespaceSymbol* usingNamespace) {
-    usingNamespaces_.push_back(usingNamespace);
-  }
-
  private:
   std::unique_ptr<Scope> scope_;
   NamespaceSymbol* unnamedNamespace_ = nullptr;
-  std::vector<NamespaceSymbol*> usingNamespaces_;
   bool isInline_ = false;
 };
 
@@ -135,6 +125,12 @@ class ClassSymbol final : public Symbol {
 
   [[nodiscard]] auto scope() const -> Scope* { return scope_.get(); }
 
+  [[nodiscard]] auto baseClasses() const -> const std::vector<Symbol*>& {
+    return baseClasses_;
+  }
+
+  void addBaseClass(Symbol* baseClass) { baseClasses_.push_back(baseClass); }
+
   [[nodiscard]] auto templateParameters() const
       -> const TemplateParametersSymbol* {
     return templateParameters_;
@@ -147,9 +143,13 @@ class ClassSymbol final : public Symbol {
   [[nodiscard]] auto isComplete() const -> bool { return isComplete_; }
   void setComplete(bool isComplete) { isComplete_ = isComplete; }
 
+  [[nodiscard]] auto sizeInBytes() const -> std::size_t;
+
  private:
   std::unique_ptr<Scope> scope_;
+  std::vector<Symbol*> baseClasses_;
   TemplateParametersSymbol* templateParameters_ = nullptr;
+  std::size_t sizeInBytes_ = 0;
   bool isComplete_ = false;
 };
 
@@ -174,9 +174,12 @@ class UnionSymbol final : public Symbol {
   [[nodiscard]] auto isComplete() const -> bool { return isComplete_; }
   void setComplete(bool isComplete) { isComplete_ = isComplete; }
 
+  [[nodiscard]] auto sizeInBytes() const -> std::size_t;
+
  private:
   std::unique_ptr<Scope> scope_;
   TemplateParametersSymbol* templateParameters_ = nullptr;
+  std::size_t sizeInBytes_ = 0;
   bool isComplete_ = false;
 };
 

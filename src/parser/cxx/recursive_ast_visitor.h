@@ -64,9 +64,9 @@ class RecursiveASTVisitor : public ASTVisitor {
   virtual void acceptTrailingReturnType(TrailingReturnTypeAST* ast);
   virtual void acceptRequirement(RequirementAST* ast);
   virtual void acceptBracedInitList(BracedInitListAST* ast);
-  virtual void acceptIdExpression(IdExpressionAST* ast);
   virtual void acceptNewPlacement(NewPlacementAST* ast);
   virtual void acceptNewInitializer(NewInitializerAST* ast);
+  virtual void acceptIdExpression(IdExpressionAST* ast);
   virtual void acceptParameterDeclaration(ParameterDeclarationAST* ast);
   virtual void acceptTypeConstraint(TypeConstraintAST* ast);
   virtual void acceptEnumerator(EnumeratorAST* ast);

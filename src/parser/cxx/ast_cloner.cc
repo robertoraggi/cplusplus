@@ -1404,11 +1404,17 @@ void ASTCloner::visit(MemberExpressionAST* ast) {
 
   copy->accessLoc = ast->accessLoc;
 
-  copy->memberId = accept(ast->memberId);
+  copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
+
+  copy->templateLoc = ast->templateLoc;
+
+  copy->unqualifiedId = accept(ast->unqualifiedId);
 
   copy->symbol = ast->symbol;
 
   copy->accessOp = ast->accessOp;
+
+  copy->isTemplateIntroduced = ast->isTemplateIntroduced;
 }
 
 void ASTCloner::visit(PostIncrExpressionAST* ast) {
@@ -3469,6 +3475,8 @@ void ASTCloner::visit(BaseSpecifierAST* ast) {
   copy->isVirtual = ast->isVirtual;
 
   copy->accessSpecifier = ast->accessSpecifier;
+
+  copy->symbol = ast->symbol;
 }
 
 void ASTCloner::visit(RequiresClauseAST* ast) {

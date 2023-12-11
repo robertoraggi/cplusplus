@@ -155,15 +155,15 @@ void RecursiveASTVisitor::acceptBracedInitList(BracedInitListAST* ast) {
   accept(ast);
 }
 
-void RecursiveASTVisitor::acceptIdExpression(IdExpressionAST* ast) {
-  accept(ast);
-}
-
 void RecursiveASTVisitor::acceptNewPlacement(NewPlacementAST* ast) {
   accept(ast);
 }
 
 void RecursiveASTVisitor::acceptNewInitializer(NewInitializerAST* ast) {
+  accept(ast);
+}
+
+void RecursiveASTVisitor::acceptIdExpression(IdExpressionAST* ast) {
   accept(ast);
 }
 
@@ -634,7 +634,8 @@ void RecursiveASTVisitor::visit(BracedTypeConstructionAST* ast) {
 
 void RecursiveASTVisitor::visit(MemberExpressionAST* ast) {
   acceptExpression(ast->baseExpression);
-  acceptIdExpression(ast->memberId);
+  acceptNestedNameSpecifier(ast->nestedNameSpecifier);
+  acceptUnqualifiedId(ast->unqualifiedId);
 }
 
 void RecursiveASTVisitor::visit(PostIncrExpressionAST* ast) {

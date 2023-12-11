@@ -4722,11 +4722,28 @@ export class MemberExpressionAST extends ExpressionAST {
   }
 
   /**
-   * Returns the memberId of this node
+   * Returns the nestedNameSpecifier of this node
    */
-  getMemberId(): IdExpressionAST | undefined {
-    return AST.from<IdExpressionAST>(
+  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
+    return AST.from<NestedNameSpecifierAST>(
       cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the template token in this node
+   */
+  getTemplateToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the unqualifiedId of this node
+   */
+  getUnqualifiedId(): UnqualifiedIdAST | undefined {
+    return AST.from<UnqualifiedIdAST>(
+      cxx.getASTSlot(this.getHandle(), 4),
       this.parser,
     );
   }
@@ -4735,7 +4752,14 @@ export class MemberExpressionAST extends ExpressionAST {
    * Returns the accessOp attribute of this node
    */
   getAccessOp(): TokenKind {
-    return cxx.getASTSlot(this.getHandle(), 3);
+    return cxx.getASTSlot(this.getHandle(), 5);
+  }
+
+  /**
+   * Returns the isTemplateIntroduced attribute of this node
+   */
+  getIsTemplateIntroduced(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 6) !== 0;
   }
 }
 

@@ -170,11 +170,11 @@ struct SizeOf {
   }
 
   auto operator()(const ClassType* type) const -> std::optional<std::size_t> {
-    return std::nullopt;
+    return type->symbol()->sizeInBytes();
   }
 
   auto operator()(const UnionType* type) const -> std::optional<std::size_t> {
-    return std::nullopt;
+    return type->symbol()->sizeInBytes();
   }
 
   auto operator()(const EnumType* type) const -> std::optional<std::size_t> {

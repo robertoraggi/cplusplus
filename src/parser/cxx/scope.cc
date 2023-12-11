@@ -110,4 +110,12 @@ void Scope::removeSymbol(Symbol* symbol) {
   }
 }
 
+auto Scope::usingDirectives() const -> const std::vector<Scope*>& {
+  return usingDirectives_;
+}
+
+void Scope::addUsingDirective(Scope* scope) {
+  usingDirectives_.push_back(scope);
+}
+
 }  // namespace cxx

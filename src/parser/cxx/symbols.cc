@@ -43,12 +43,16 @@ ClassSymbol::ClassSymbol(Scope* enclosingScope) : Symbol(Kind, enclosingScope) {
 
 ClassSymbol::~ClassSymbol() {}
 
+auto ClassSymbol::sizeInBytes() const -> std::size_t { return sizeInBytes_; }
+
 UnionSymbol::UnionSymbol(Scope* enclosingScope) : Symbol(Kind, enclosingScope) {
   scope_ = std::make_unique<Scope>(enclosingScope);
   scope_->setOwner(this);
 }
 
 UnionSymbol::~UnionSymbol() {}
+
+auto UnionSymbol::sizeInBytes() const -> std::size_t { return sizeInBytes_; }
 
 EnumSymbol::EnumSymbol(Scope* enclosingScope) : Symbol(Kind, enclosingScope) {
   scope_ = std::make_unique<Scope>(enclosingScope);
