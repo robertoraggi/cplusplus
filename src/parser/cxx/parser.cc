@@ -1610,9 +1610,10 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
 
     (void)parse_noexcept_specifier(ast->exceptionSpecifier);
 
-    parse_optional_attribute_specifier_seq(ast->attributeList);
-
     (void)parse_trailing_return_type(ast->trailingReturnType);
+
+    parse_optional_attribute_specifier_seq(ast->attributeList,
+                                           /*allowAsmSpecifier*/ true);
 
     (void)parse_requires_clause(ast->requiresClause);
   }
@@ -6609,12 +6610,12 @@ auto Parser::parse_function_declarator(FunctionDeclaratorChunkAST*& yyast,
 
   (void)parse_noexcept_specifier(ast->exceptionSpecifier);
 
-  parse_optional_attribute_specifier_seq(ast->attributeList,
-                                         /*allowAsmSpecifier*/ true);
-
   if (acceptTrailingReturnType) {
     (void)parse_trailing_return_type(ast->trailingReturnType);
   }
+
+  parse_optional_attribute_specifier_seq(ast->attributeList,
+                                         /*allowAsmSpecifier*/ true);
 
   return true;
 }
