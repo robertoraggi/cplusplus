@@ -187,6 +187,7 @@ class Token;
   V(_ATOMIC, "_Atomic")                     \
   V(_COMPLEX, "_Complex")                   \
   V(__ATTRIBUTE__, "__attribute__")         \
+  V(__BUILTIN_VA_ARG, "__builtin_va_arg")   \
   V(__BUILTIN_VA_LIST, "__builtin_va_list") \
   V(__COMPLEX__, "__complex__")             \
   V(__EXTENSION__, "__extension__")         \

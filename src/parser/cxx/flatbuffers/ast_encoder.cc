@@ -2426,6 +2426,32 @@ void ASTEncoder::visit(RequiresExpressionAST* ast) {
   type_ = io::Expression_RequiresExpression;
 }
 
+void ASTEncoder::visit(VaArgExpressionAST* ast) {
+  auto vaArgLoc = encodeSourceLocation(ast->vaArgLoc);
+
+  auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
+
+  const auto [expression, expressionType] = acceptExpression(ast->expression);
+
+  auto commaLoc = encodeSourceLocation(ast->commaLoc);
+
+  const auto typeId = accept(ast->typeId);
+
+  auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
+
+  io::VaArgExpression::Builder builder{fbb_};
+  builder.add_va_arg_loc(vaArgLoc.o);
+  builder.add_lparen_loc(lparenLoc.o);
+  builder.add_expression(expression);
+  builder.add_expression_type(static_cast<io::Expression>(expressionType));
+  builder.add_comma_loc(commaLoc.o);
+  builder.add_type_id(typeId.o);
+  builder.add_rparen_loc(rparenLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Expression_VaArgExpression;
+}
+
 void ASTEncoder::visit(SubscriptExpressionAST* ast) {
   const auto [baseExpression, baseExpressionType] =
       acceptExpression(ast->baseExpression);

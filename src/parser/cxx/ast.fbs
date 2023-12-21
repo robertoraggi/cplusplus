@@ -140,6 +140,7 @@ union Expression {
   RightFoldExpression,
   LeftFoldExpression,
   RequiresExpression,
+  VaArgExpression,
   SubscriptExpression,
   CallExpression,
   TypeConstruction,
@@ -926,6 +927,15 @@ table RequiresExpression /* ExpressionAST */ {
   rparen_loc: SourceLocation;
   lbrace_loc: SourceLocation;
   rbrace_loc: SourceLocation;
+}
+
+table VaArgExpression /* ExpressionAST */ {
+  expression: Expression;
+  type_id: TypeId;
+  va_arg_loc: SourceLocation;
+  lparen_loc: SourceLocation;
+  comma_loc: SourceLocation;
+  rparen_loc: SourceLocation;
 }
 
 table SubscriptExpression /* ExpressionAST */ {

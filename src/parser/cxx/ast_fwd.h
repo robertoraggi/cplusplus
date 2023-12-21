@@ -149,6 +149,7 @@ class FoldExpressionAST;
 class RightFoldExpressionAST;
 class LeftFoldExpressionAST;
 class RequiresExpressionAST;
+class VaArgExpressionAST;
 class SubscriptExpressionAST;
 class CallExpressionAST;
 class TypeConstructionAST;

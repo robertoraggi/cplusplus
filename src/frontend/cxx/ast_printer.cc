@@ -895,6 +895,12 @@ void ASTPrinter::visit(RequiresExpressionAST* ast) {
   }
 }
 
+void ASTPrinter::visit(VaArgExpressionAST* ast) {
+  out_ << cxx::format("{}\n", "va-arg-expression");
+  accept(ast->expression, "expression");
+  accept(ast->typeId, "type-id");
+}
+
 void ASTPrinter::visit(SubscriptExpressionAST* ast) {
   out_ << cxx::format("{}\n", "subscript-expression");
   accept(ast->baseExpression, "base-expression");

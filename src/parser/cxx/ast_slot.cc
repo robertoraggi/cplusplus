@@ -263,6 +263,7 @@ std::string_view kMemberSlotNames[] = {
     "unqualifiedId",
     "usingDeclaratorList",
     "usingLoc",
+    "vaArgLoc",
     "virtualLoc",
     "voidLoc",
     "volatileLoc",
@@ -1513,7 +1514,7 @@ void ASTSlot::visit(WhileStatementAST* ast) {
     case 0:  // whileLoc
       value_ = ast->whileLoc.index();
       slotKind_ = ASTSlotKind::kToken;
-      slotNameIndex_ = SlotNameIndex{217};
+      slotNameIndex_ = SlotNameIndex{218};
       break;
     case 1:  // lparenLoc
       value_ = ast->lparenLoc.index();
@@ -1555,7 +1556,7 @@ void ASTSlot::visit(DoStatementAST* ast) {
     case 2:  // whileLoc
       value_ = ast->whileLoc.index();
       slotKind_ = ASTSlotKind::kToken;
-      slotNameIndex_ = SlotNameIndex{217};
+      slotNameIndex_ = SlotNameIndex{218};
       break;
     case 3:  // lparenLoc
       value_ = ast->lparenLoc.index();
@@ -2260,6 +2261,43 @@ void ASTSlot::visit(RequiresExpressionAST* ast) {
   slotCount_ = 7;
 }
 
+void ASTSlot::visit(VaArgExpressionAST* ast) {
+  switch (slot_) {
+    case 0:  // vaArgLoc
+      value_ = ast->vaArgLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      slotNameIndex_ = SlotNameIndex{214};
+      break;
+    case 1:  // lparenLoc
+      value_ = ast->lparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      slotNameIndex_ = SlotNameIndex{127};
+      break;
+    case 2:  // expression
+      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
+      slotKind_ = ASTSlotKind::kNode;
+      slotNameIndex_ = SlotNameIndex{76};
+      break;
+    case 3:  // commaLoc
+      value_ = ast->commaLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      slotNameIndex_ = SlotNameIndex{36};
+      break;
+    case 4:  // typeId
+      value_ = reinterpret_cast<std::intptr_t>(ast->typeId);
+      slotKind_ = ASTSlotKind::kNode;
+      slotNameIndex_ = SlotNameIndex{202};
+      break;
+    case 5:  // rparenLoc
+      value_ = ast->rparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      slotNameIndex_ = SlotNameIndex{172};
+      break;
+  }  // switch
+
+  slotCount_ = 6;
+}
+
 void ASTSlot::visit(SubscriptExpressionAST* ast) {
   switch (slot_) {
     case 0:  // baseExpression
@@ -2928,7 +2966,7 @@ void ASTSlot::visit(YieldExpressionAST* ast) {
     case 0:  // yieldLoc
       value_ = ast->yieldLoc.index();
       slotKind_ = ASTSlotKind::kToken;
-      slotNameIndex_ = SlotNameIndex{218};
+      slotNameIndex_ = SlotNameIndex{219};
       break;
     case 1:  // expression
       value_ = reinterpret_cast<std::intptr_t>(ast->expression);
@@ -3443,7 +3481,7 @@ void ASTSlot::visit(VirtualSpecifierAST* ast) {
     case 0:  // virtualLoc
       value_ = ast->virtualLoc.index();
       slotKind_ = ASTSlotKind::kToken;
-      slotNameIndex_ = SlotNameIndex{214};
+      slotNameIndex_ = SlotNameIndex{215};
       break;
   }  // switch
 
@@ -3494,7 +3532,7 @@ void ASTSlot::visit(VoidTypeSpecifierAST* ast) {
     case 0:  // voidLoc
       value_ = ast->voidLoc.index();
       slotKind_ = ASTSlotKind::kToken;
-      slotNameIndex_ = SlotNameIndex{215};
+      slotNameIndex_ = SlotNameIndex{216};
       break;
   }  // switch
 
@@ -3809,7 +3847,7 @@ void ASTSlot::visit(VolatileQualifierAST* ast) {
     case 0:  // volatileLoc
       value_ = ast->volatileLoc.index();
       slotKind_ = ASTSlotKind::kToken;
-      slotNameIndex_ = SlotNameIndex{216};
+      slotNameIndex_ = SlotNameIndex{217};
       break;
   }  // switch
 

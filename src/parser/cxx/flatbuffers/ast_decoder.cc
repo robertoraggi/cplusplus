@@ -259,6 +259,9 @@ auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
     case io::Expression_RequiresExpression:
       return decodeRequiresExpression(
           reinterpret_cast<const io::RequiresExpression*>(ptr));
+    case io::Expression_VaArgExpression:
+      return decodeVaArgExpression(
+          reinterpret_cast<const io::VaArgExpression*>(ptr));
     case io::Expression_SubscriptExpression:
       return decodeSubscriptExpression(
           reinterpret_cast<const io::SubscriptExpression*>(ptr));
@@ -1818,6 +1821,17 @@ auto ASTDecoder::decodeRequiresExpression(const io::RequiresExpression* node)
       inserter = &(*inserter)->next;
     }
   }
+  return ast;
+}
+
+auto ASTDecoder::decodeVaArgExpression(const io::VaArgExpression* node)
+    -> VaArgExpressionAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) VaArgExpressionAST();
+  ast->expression =
+      decodeExpression(node->expression(), node->expression_type());
+  ast->typeId = decodeTypeId(node->type_id());
   return ast;
 }
 

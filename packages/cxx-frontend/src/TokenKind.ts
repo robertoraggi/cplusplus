@@ -172,6 +172,7 @@ export enum TokenKind {
   _ATOMIC,
   _COMPLEX,
   __ATTRIBUTE__,
+  __BUILTIN_VA_ARG,
   __BUILTIN_VA_LIST,
   __COMPLEX__,
   __EXTENSION__,

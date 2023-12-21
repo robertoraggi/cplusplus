@@ -1369,6 +1369,25 @@ class RequiresExpressionAST final : public ExpressionAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class VaArgExpressionAST final : public ExpressionAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::VaArgExpression;
+
+  VaArgExpressionAST() : ExpressionAST(Kind) {}
+
+  SourceLocation vaArgLoc;
+  SourceLocation lparenLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation commaLoc;
+  TypeIdAST* typeId = nullptr;
+  SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 class SubscriptExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::SubscriptExpression;
@@ -4059,6 +4078,9 @@ auto visit(Visitor&& visitor, ExpressionAST* ast) {
     case RequiresExpressionAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<RequiresExpressionAST*>(ast));
+    case VaArgExpressionAST::Kind:
+      return std::invoke(std::forward<Visitor>(visitor),
+                         static_cast<VaArgExpressionAST*>(ast));
     case SubscriptExpressionAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<SubscriptExpressionAST*>(ast));

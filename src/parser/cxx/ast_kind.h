@@ -96,6 +96,7 @@ enum struct ASTKind {
   RightFoldExpression,
   LeftFoldExpression,
   RequiresExpression,
+  VaArgExpression,
   SubscriptExpression,
   CallExpression,
   TypeConstruction,
