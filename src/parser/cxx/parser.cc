@@ -4759,6 +4759,24 @@ auto Parser::parse_notypespec_function_definition(
   if (!parse_declarator_id(declaratorId, decl, DeclaratorKind::kDeclarator))
     return false;
 
+  ScopeGuard scopeGuard{this};
+
+  if (decl.declaratorId) {
+    auto nested = decl.declaratorId->nestedNameSpecifier;
+    if (nested) {
+      if (auto classSymbol = symbol_cast<ClassSymbol>(nested->symbol)) {
+        scope_ = classSymbol->scope();
+      } else if (auto namespaceSymbol =
+                     symbol_cast<NamespaceSymbol>(nested->symbol)) {
+        scope_ = namespaceSymbol->scope();
+      } else {
+        if (config_.checkTypes) {
+          parse_error("expected a class or namespace");
+        }
+      }
+    }
+  }
+
   FunctionDeclaratorChunkAST* functionDeclarator = nullptr;
   if (!parse_function_declarator(functionDeclarator)) return false;
 
@@ -4776,6 +4794,8 @@ auto Parser::parse_notypespec_function_definition(
 
   parse_optional_attribute_specifier_seq(functionDeclarator->attributeList);
 
+  auto functionType = GetDeclaratorType{this}(declarator, decl.specs.getType());
+
   SourceLocation equalLoc;
   SourceLocation zeroLoc;
 
@@ -4785,11 +4805,40 @@ auto Parser::parse_notypespec_function_definition(
 
   SourceLocation semicolonLoc;
 
+  const auto isDeclaration = isPure || lookat(TokenKind::T_SEMICOLON);
+  const auto isDefinition = lookat_function_body();
+
+  if (!isDeclaration && !isDefinition) return false;
+
+  FunctionSymbol* functionSymbol = nullptr;
+  functionSymbol = control_->newFunctionSymbol(scope_);
+  applySpecifiers(functionSymbol, decl.specs);
+  functionSymbol->setName(decl.getName());
+  functionSymbol->setType(functionType);
+
+  if (is_constructor(functionSymbol)) {
+    // constructors don't have names
+    if (auto enclosingClass = symbol_cast<ClassSymbol>(scope_->owner())) {
+      FunctionSymbol* ctorDecl = nullptr;
+      if (decl.declaratorId->nestedNameSpecifier) {
+        for (auto ctor : enclosingClass->constructors()) {
+          if (control_->is_same(ctor->type(), functionType)) {
+            ctorDecl = ctor;
+            break;
+          }
+        }
+      }
+      enclosingClass->addConstructor(functionSymbol);
+    }
+  } else {
+    std::invoke(DeclareSymbol{this, scope_}, functionSymbol);
+  }
+
   if (isPure) {
     expect(TokenKind::T_SEMICOLON, semicolonLoc);
   }
 
-  if (isPure || match(TokenKind::T_SEMICOLON, semicolonLoc)) {
+  if (isDeclaration) {
     auto initDeclarator = new (pool_) InitDeclaratorAST();
     initDeclarator->declarator = declarator;
 
@@ -4803,17 +4852,7 @@ auto Parser::parse_notypespec_function_definition(
     return true;
   }
 
-  if (!lookat_function_body()) return false;
-
-  ScopeGuard scopeGuard{this};
-
-  auto functionType = GetDeclaratorType{this}(declarator, decl.specs.getType());
-
-  auto functionSymbol = control_->newFunctionSymbol(scope_);
-  applySpecifiers(functionSymbol, decl.specs);
-  functionSymbol->setName(decl.getName());
-  functionSymbol->setType(functionType);
-  std::invoke(DeclareSymbol{this, scope_}, functionSymbol);
+  // function definition
 
   if (auto params = functionDeclarator->parameterDeclarationClause) {
     auto functionScope = functionSymbol->scope();
@@ -6296,6 +6335,17 @@ auto Parser::is_glvalue(ExpressionAST* expr) const -> bool {
   if (!expr) return false;
   return expr->valueCategory == ValueCategory::kLValue ||
          expr->valueCategory == ValueCategory::kXValue;
+}
+
+auto Parser::is_constructor(Symbol* symbol) const -> bool {
+  auto functionSymbol = symbol_cast<FunctionSymbol>(symbol);
+  if (!functionSymbol) return false;
+  if (!functionSymbol->enclosingScope()) return false;
+  auto classSymbol =
+      symbol_cast<ClassSymbol>(functionSymbol->enclosingScope()->owner());
+  if (!classSymbol) return false;
+  if (classSymbol->name() != functionSymbol->name()) return false;
+  return true;
 }
 
 auto Parser::evaluate_constant_expression(ExpressionAST* expr)

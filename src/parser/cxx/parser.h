@@ -831,6 +831,8 @@ class Parser final {
   [[nodiscard]] auto is_xvalue(ExpressionAST* expr) const -> bool;
   [[nodiscard]] auto is_glvalue(ExpressionAST* expr) const -> bool;
 
+  [[nodiscard]] auto is_constructor(Symbol* symbol) const -> bool;
+
   [[nodiscard]] auto evaluate_constant_expression(ExpressionAST* expr)
       -> std::optional<ConstValue>;
 
