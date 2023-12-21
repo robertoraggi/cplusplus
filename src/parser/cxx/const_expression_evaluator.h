@@ -57,6 +57,7 @@ class ConstExpressionEvaluator {
   auto operator()(RightFoldExpressionAST* ast) -> std::optional<ConstValue>;
   auto operator()(LeftFoldExpressionAST* ast) -> std::optional<ConstValue>;
   auto operator()(RequiresExpressionAST* ast) -> std::optional<ConstValue>;
+  auto operator()(VaArgExpressionAST* ast) -> std::optional<ConstValue>;
   auto operator()(SubscriptExpressionAST* ast) -> std::optional<ConstValue>;
   auto operator()(CallExpressionAST* ast) -> std::optional<ConstValue>;
   auto operator()(TypeConstructionAST* ast) -> std::optional<ConstValue>;

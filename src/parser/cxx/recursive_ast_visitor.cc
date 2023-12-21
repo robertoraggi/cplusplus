@@ -608,6 +608,11 @@ void RecursiveASTVisitor::visit(RequiresExpressionAST* ast) {
   }
 }
 
+void RecursiveASTVisitor::visit(VaArgExpressionAST* ast) {
+  acceptExpression(ast->expression);
+  acceptTypeId(ast->typeId);
+}
+
 void RecursiveASTVisitor::visit(SubscriptExpressionAST* ast) {
   acceptExpression(ast->baseExpression);
   acceptExpression(ast->indexExpression);

@@ -2202,6 +2202,8 @@ auto Parser::parse_start_of_postfix_expression(ExpressionAST*& yyast,
                                                const ExprContext& ctx) -> bool {
   if (parse_builtin_call_expression(yyast, ctx))
     return true;
+  else if (parse_va_arg_expression(yyast, ctx))
+    return true;
   else if (parse_cpp_cast_expression(yyast, ctx))
     return true;
   else if (parse_typeid_expression(yyast, ctx))
@@ -2551,6 +2553,24 @@ auto Parser::parse_type_traits_op(SourceLocation& loc, BuiltinKind& builtinKind)
   if (!LA().isBuiltinTypeTrait()) return false;
   builtinKind = static_cast<BuiltinKind>(LA().value().intValue);
   loc = consumeToken();
+  return true;
+}
+
+auto Parser::parse_va_arg_expression(ExpressionAST*& yyast,
+                                     const ExprContext& ctx) -> bool {
+  SourceLocation vaArgLoc;
+  if (!match(TokenKind::T___BUILTIN_VA_ARG, vaArgLoc)) return false;
+  auto ast = new (pool_) VaArgExpressionAST();
+  yyast = ast;
+  ast->vaArgLoc = vaArgLoc;
+  expect(TokenKind::T_LPAREN, ast->lparenLoc);
+  parse_assignment_expression(ast->expression, ExprContext{});
+  expect(TokenKind::T_COMMA, ast->commaLoc);
+  if (!parse_type_id(ast->typeId)) parse_error("expected a type id");
+  expect(TokenKind::T_RPAREN, ast->rparenLoc);
+  if (ast->type) {
+    ast->type = ast->typeId->type;
+  }
   return true;
 }
 
@@ -3367,7 +3387,7 @@ auto Parser::parse_maybe_assignment_expression(ExpressionAST*& yyast,
       (void)implicit_conversion(ast->rightExpression, ast->type);
 
 #if false
-      warning(ast->opLoc,
+      parse_warning(ast->opLoc,
               cxx::format("did convert {} to {}", to_string(sourceType),
                           to_string(ast->type)));
 #endif
@@ -4581,8 +4601,9 @@ auto Parser::parse_simple_declaration(
 
       if (!enclosingSymbol) {
         if (config_.checkTypes) {
-          error(decl.declaratorId->nestedNameSpecifier->firstSourceLocation(),
-                cxx::format("unresolved class or namespace"));
+          parse_error(
+              decl.declaratorId->nestedNameSpecifier->firstSourceLocation(),
+              cxx::format("unresolved class or namespace"));
         }
       } else {
         if (auto classSymbol = symbol_cast<ClassSymbol>(enclosingSymbol)) {
@@ -4614,10 +4635,10 @@ auto Parser::parse_simple_declaration(
 
         if (!functionSymbol) {
           if (config_.checkTypes) {
-            error(decl.declaratorId->unqualifiedId->firstSourceLocation(),
-                  cxx::format("'{}' has no member named '{}'",
-                              to_string(enclosingSymbol->name()),
-                              to_string(functionName)));
+            parse_error(decl.declaratorId->unqualifiedId->firstSourceLocation(),
+                        cxx::format("'{}' has no member named '{}'",
+                                    to_string(enclosingSymbol->name()),
+                                    to_string(functionName)));
           }
         }
       }
@@ -5394,8 +5415,8 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     symbol = unqualifiedLookup(name);
   } else {
     if (!nestedNameSpecifier->symbol && config_.checkTypes) {
-      error(nestedNameSpecifier->firstSourceLocation(),
-            cxx::format("expected class or namespace"));
+      parse_error(nestedNameSpecifier->firstSourceLocation(),
+                  cxx::format("expected class or namespace"));
     } else {
       symbol = qualifiedLookup(nestedNameSpecifier->symbol, name);
     }

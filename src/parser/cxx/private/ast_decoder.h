@@ -203,6 +203,8 @@ class ASTDecoder {
       -> LeftFoldExpressionAST*;
   auto decodeRequiresExpression(const io::RequiresExpression* node)
       -> RequiresExpressionAST*;
+  auto decodeVaArgExpression(const io::VaArgExpression* node)
+      -> VaArgExpressionAST*;
   auto decodeSubscriptExpression(const io::SubscriptExpression* node)
       -> SubscriptExpressionAST*;
   auto decodeCallExpression(const io::CallExpression* node)

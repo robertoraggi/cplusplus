@@ -794,6 +794,18 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
 
   /**
+   * Visit VaArgExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitVaArgExpression(
+    node: ast.VaArgExpressionAST,
+    context: Context,
+  ): Result;
+
+  /**
    * Visit SubscriptExpression node.
    *
    * @param node The node to visit.

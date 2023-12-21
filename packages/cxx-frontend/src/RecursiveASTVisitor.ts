@@ -918,6 +918,17 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   }
 
   /**
+   * Visit a VaArgExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitVaArgExpression(node: ast.VaArgExpressionAST, context: Context): void {
+    this.accept(node.getExpression(), context);
+    this.accept(node.getTypeId(), context);
+  }
+
+  /**
    * Visit a SubscriptExpression node.
    *
    * @param node The node to visit.

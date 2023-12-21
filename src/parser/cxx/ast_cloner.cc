@@ -1314,6 +1314,27 @@ void ASTCloner::visit(RequiresExpressionAST* ast) {
   copy->rbraceLoc = ast->rbraceLoc;
 }
 
+void ASTCloner::visit(VaArgExpressionAST* ast) {
+  auto copy = new (arena_) VaArgExpressionAST();
+  copy_ = copy;
+
+  copy->valueCategory = ast->valueCategory;
+
+  copy->type = ast->type;
+
+  copy->vaArgLoc = ast->vaArgLoc;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->expression = accept(ast->expression);
+
+  copy->commaLoc = ast->commaLoc;
+
+  copy->typeId = accept(ast->typeId);
+
+  copy->rparenLoc = ast->rparenLoc;
+}
+
 void ASTCloner::visit(SubscriptExpressionAST* ast) {
   auto copy = new (arena_) SubscriptExpressionAST();
   copy_ = copy;

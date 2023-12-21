@@ -126,6 +126,11 @@ auto ConstExpressionEvaluator::operator()(RequiresExpressionAST* ast)
   return std::nullopt;
 }
 
+auto ConstExpressionEvaluator::operator()(VaArgExpressionAST* ast)
+    -> std::optional<ConstValue> {
+  return std::nullopt;
+}
+
 auto ConstExpressionEvaluator::operator()(SubscriptExpressionAST* ast)
     -> std::optional<ConstValue> {
   return std::nullopt;

@@ -250,6 +250,8 @@ class Parser final {
                                                const ExprContext& ctx) -> bool;
   [[nodiscard]] auto parse_type_traits_op(SourceLocation& loc,
                                           BuiltinKind& builtinKind) -> bool;
+  [[nodiscard]] auto parse_va_arg_expression(ExpressionAST*& yyast,
+                                             const ExprContext& ctx) -> bool;
   [[nodiscard]] auto parse_builtin_call_expression(ExpressionAST*& yyast,
                                                    const ExprContext& ctx)
       -> bool;

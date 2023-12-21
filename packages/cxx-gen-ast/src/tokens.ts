@@ -178,6 +178,7 @@ export const KEYWORDS: string[] = [
   "_Atomic",
   "_Complex",
   "__attribute__",
+  "__builtin_va_arg",
   "__builtin_va_list",
   "__complex__",
   "__extension__",

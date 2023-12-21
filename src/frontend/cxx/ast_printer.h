@@ -110,6 +110,7 @@ class ASTPrinter : ASTVisitor {
   void visit(RightFoldExpressionAST* ast) override;
   void visit(LeftFoldExpressionAST* ast) override;
   void visit(RequiresExpressionAST* ast) override;
+  void visit(VaArgExpressionAST* ast) override;
   void visit(SubscriptExpressionAST* ast) override;
   void visit(CallExpressionAST* ast) override;
   void visit(TypeConstructionAST* ast) override;

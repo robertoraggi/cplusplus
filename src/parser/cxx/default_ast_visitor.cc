@@ -290,6 +290,10 @@ void DefaultASTVisitor::visit(RequiresExpressionAST* ast) {
   cxx_runtime_error("visit(RequiresExpressionAST): not implemented");
 }
 
+void DefaultASTVisitor::visit(VaArgExpressionAST* ast) {
+  cxx_runtime_error("visit(VaArgExpressionAST): not implemented");
+}
+
 void DefaultASTVisitor::visit(SubscriptExpressionAST* ast) {
   cxx_runtime_error("visit(SubscriptExpressionAST): not implemented");
 }

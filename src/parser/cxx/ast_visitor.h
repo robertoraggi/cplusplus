@@ -100,6 +100,7 @@ class ASTVisitor {
   virtual void visit(RightFoldExpressionAST* ast) = 0;
   virtual void visit(LeftFoldExpressionAST* ast) = 0;
   virtual void visit(RequiresExpressionAST* ast) = 0;
+  virtual void visit(VaArgExpressionAST* ast) = 0;
   virtual void visit(SubscriptExpressionAST* ast) = 0;
   virtual void visit(CallExpressionAST* ast) = 0;
   virtual void visit(TypeConstructionAST* ast) = 0;

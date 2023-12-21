@@ -1100,6 +1100,26 @@ auto RequiresExpressionAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto VaArgExpressionAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(vaArgLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(commaLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  return {};
+}
+
+auto VaArgExpressionAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(commaLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(vaArgLoc)) return loc;
+  return {};
+}
+
 auto SubscriptExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(baseExpression)) return loc;
   if (auto loc = cxx::firstSourceLocation(lbracketLoc)) return loc;
