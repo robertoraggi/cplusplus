@@ -7,7 +7,7 @@ include(FetchContent)
 
 FetchContent_Declare(
   googletest
-  URL https://github.com/google/googletest/archive/refs/tags/v1.13.0.tar.gz
+  URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz
 )
 
 FetchContent_MakeAvailable(googletest)
