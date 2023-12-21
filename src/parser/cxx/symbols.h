@@ -54,6 +54,8 @@ class Symbol {
     enclosingScope_ = enclosingScope;
   }
 
+  [[nodiscard]] auto enclosingSymbol() const -> Symbol*;
+
   [[nodiscard]] auto insertionPoint() const -> int { return insertionPoint_; }
   void setInsertionPoint(int index) { insertionPoint_ = index; }
 
@@ -131,6 +133,15 @@ class ClassSymbol final : public Symbol {
 
   void addBaseClass(Symbol* baseClass) { baseClasses_.push_back(baseClass); }
 
+  [[nodiscard]] auto constructors() const
+      -> const std::vector<FunctionSymbol*>& {
+    return constructors_;
+  }
+
+  void addConstructor(FunctionSymbol* constructor) {
+    constructors_.push_back(constructor);
+  }
+
   [[nodiscard]] auto templateParameters() const
       -> const TemplateParametersSymbol* {
     return templateParameters_;
@@ -148,6 +159,7 @@ class ClassSymbol final : public Symbol {
  private:
   std::unique_ptr<Scope> scope_;
   std::vector<Symbol*> baseClasses_;
+  std::vector<FunctionSymbol*> constructors_;
   TemplateParametersSymbol* templateParameters_ = nullptr;
   std::size_t sizeInBytes_ = 0;
   bool isComplete_ = false;

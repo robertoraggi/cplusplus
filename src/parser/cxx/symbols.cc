@@ -23,6 +23,11 @@
 
 namespace cxx {
 
+auto Symbol::enclosingSymbol() const -> Symbol* {
+  if (!enclosingScope_) return nullptr;
+  return enclosingScope_->owner();
+}
+
 NamespaceSymbol::NamespaceSymbol(Scope* enclosingScope)
     : Symbol(Kind, enclosingScope) {
   scope_ = std::make_unique<Scope>(enclosingScope);
