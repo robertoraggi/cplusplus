@@ -138,10 +138,6 @@ class TypePrinter {
     specifiers_.append("long double");
   }
 
-  void operator()(const ClassDescriptionType* type) {
-    specifiers_.append("class");
-  }
-
   void operator()(const QualType* type) {
     if (auto ptrTy = type_cast<PointerType>(type->elementType())) {
       accept(ptrTy->elementType());

@@ -406,13 +406,6 @@ class MemberFunctionPointerType final
   }
 };
 
-class ClassDescriptionType final : public Type {
- public:
-  static constexpr TypeKind Kind = TypeKind::kClassDescription;
-
-  ClassDescriptionType() : Type(Kind) {}
-};
-
 class NamespaceType final : public Type, public std::tuple<NamespaceSymbol*> {
  public:
   static constexpr TypeKind Kind = TypeKind::kNamespace;

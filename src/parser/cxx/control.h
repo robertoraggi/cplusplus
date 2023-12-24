@@ -89,7 +89,6 @@ class Control {
   auto getFloatType() -> const FloatType*;
   auto getDoubleType() -> const DoubleType*;
   auto getLongDoubleType() -> const LongDoubleType*;
-  auto getClassDescriptionType() -> const ClassDescriptionType*;
   auto getQualType(const Type* elementType, CvQualifiers cvQualifiers)
       -> const QualType*;
   auto getConstType(const Type* elementType) -> const QualType*;

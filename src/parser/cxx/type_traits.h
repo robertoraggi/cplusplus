@@ -967,11 +967,6 @@ class TypeTraits {
       return true;
     }
 
-    auto operator()(const ClassDescriptionType* type,
-                    const ClassDescriptionType* otherType) const -> bool {
-      return type == otherType;
-    }
-
     auto operator()(const NamespaceType* type,
                     const NamespaceType* otherType) const -> bool {
       return type->symbol() == otherType->symbol();
