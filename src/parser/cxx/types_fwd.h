@@ -61,7 +61,6 @@ namespace cxx {
   V(ScopedEnum)                   \
   V(MemberObjectPointer)          \
   V(MemberFunctionPointer)        \
-  V(ClassDescription)             \
   V(Namespace)                    \
   V(UnresolvedName)               \
   V(UnresolvedBoundedArray)       \

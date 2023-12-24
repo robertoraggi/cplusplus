@@ -105,7 +105,6 @@ struct Control::Private {
   FloatType floatType;
   DoubleType doubleType;
   LongDoubleType longDoubleType;
-  ClassDescriptionType classDescriptionType;
 
   std::set<QualType> qualTypes;
   std::set<BoundedArrayType> boundedArrayTypes;
@@ -319,10 +318,6 @@ auto Control::getDoubleType() -> const DoubleType* { return &d->doubleType; }
 
 auto Control::getLongDoubleType() -> const LongDoubleType* {
   return &d->longDoubleType;
-}
-
-auto Control::getClassDescriptionType() -> const ClassDescriptionType* {
-  return &d->classDescriptionType;
 }
 
 auto Control::getQualType(const Type* elementType, CvQualifiers cvQualifiers)

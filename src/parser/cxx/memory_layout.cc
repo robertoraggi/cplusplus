@@ -202,11 +202,6 @@ struct SizeOf {
     return memoryLayout.sizeOfPointer();
   }
 
-  auto operator()(const ClassDescriptionType* type) const
-      -> std::optional<std::size_t> {
-    return std::nullopt;
-  }
-
   auto operator()(const NamespaceType* type) const
       -> std::optional<std::size_t> {
     return std::nullopt;
