@@ -43,8 +43,8 @@ class Scope {
 
   [[nodiscard]] auto enclosingNonTemplateParametersScope() const -> Scope*;
 
-  [[nodiscard]] auto owner() const -> Symbol* { return owner_; }
-  void setOwner(Symbol* owner) { owner_ = owner; }
+  [[nodiscard]] auto owner() const -> ScopedSymbol* { return owner_; }
+  void setOwner(ScopedSymbol* owner) { owner_ = owner; }
 
   [[nodiscard]] auto symbols() const { return symbols_ | std::views::values; }
 
@@ -62,7 +62,7 @@ class Scope {
 
  private:
   Scope* parent_ = nullptr;
-  Symbol* owner_ = nullptr;
+  ScopedSymbol* owner_ = nullptr;
   std::multimap<const Name*, Symbol*> symbols_;
   std::vector<Scope*> usingDirectives_;
 };
