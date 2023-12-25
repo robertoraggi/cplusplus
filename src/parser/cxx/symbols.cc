@@ -28,11 +28,18 @@ auto Symbol::enclosingSymbol() const -> Symbol* {
   return enclosingScope_->owner();
 }
 
-NamespaceSymbol::NamespaceSymbol(Scope* enclosingScope)
-    : Symbol(Kind, enclosingScope) {
+ScopedSymbol::ScopedSymbol(SymbolKind kind, Scope* enclosingScope)
+    : Symbol(kind, enclosingScope) {
   scope_ = std::make_unique<Scope>(enclosingScope);
   scope_->setOwner(this);
 }
+
+ScopedSymbol::~ScopedSymbol() {}
+
+auto ScopedSymbol::scope() const -> Scope* { return scope_.get(); }
+
+NamespaceSymbol::NamespaceSymbol(Scope* enclosingScope)
+    : ScopedSymbol(Kind, enclosingScope) {}
 
 NamespaceSymbol::~NamespaceSymbol() {}
 
@@ -41,18 +48,14 @@ ConceptSymbol::ConceptSymbol(Scope* enclosingScope)
 
 ConceptSymbol::~ConceptSymbol() {}
 
-ClassSymbol::ClassSymbol(Scope* enclosingScope) : Symbol(Kind, enclosingScope) {
-  scope_ = std::make_unique<Scope>(enclosingScope);
-  scope_->setOwner(this);
-}
+ClassSymbol::ClassSymbol(Scope* enclosingScope)
+    : ScopedSymbol(Kind, enclosingScope) {}
 
 ClassSymbol::~ClassSymbol() {}
 
 auto ClassSymbol::isUnion() const -> bool { return isUnion_; }
 
 void ClassSymbol::setIsUnion(bool isUnion) { isUnion_ = isUnion; }
-
-auto ClassSymbol::scope() const -> Scope* { return scope_.get(); }
 
 auto ClassSymbol::baseClasses() const -> const std::vector<Symbol*>& {
   return baseClasses_;
@@ -86,26 +89,18 @@ void ClassSymbol::setComplete(bool isComplete) { isComplete_ = isComplete; }
 
 auto ClassSymbol::sizeInBytes() const -> std::size_t { return sizeInBytes_; }
 
-EnumSymbol::EnumSymbol(Scope* enclosingScope) : Symbol(Kind, enclosingScope) {
-  scope_ = std::make_unique<Scope>(enclosingScope);
-  scope_->setOwner(this);
-}
+EnumSymbol::EnumSymbol(Scope* enclosingScope)
+    : ScopedSymbol(Kind, enclosingScope) {}
 
 EnumSymbol::~EnumSymbol() {}
 
 ScopedEnumSymbol::ScopedEnumSymbol(Scope* enclosingScope)
-    : Symbol(Kind, enclosingScope) {
-  scope_ = std::make_unique<Scope>(enclosingScope);
-  scope_->setOwner(this);
-}
+    : ScopedSymbol(Kind, enclosingScope) {}
 
 ScopedEnumSymbol::~ScopedEnumSymbol() {}
 
 FunctionSymbol::FunctionSymbol(Scope* enclosingScope)
-    : Symbol(Kind, enclosingScope) {
-  scope_ = std::make_unique<Scope>(enclosingScope);
-  scope_->setOwner(this);
-}
+    : ScopedSymbol(Kind, enclosingScope) {}
 
 FunctionSymbol::~FunctionSymbol() {}
 
@@ -115,33 +110,22 @@ OverloadSetSymbol::OverloadSetSymbol(Scope* enclosingScope)
 OverloadSetSymbol::~OverloadSetSymbol() {}
 
 LambdaSymbol::LambdaSymbol(Scope* enclosingScope)
-    : Symbol(Kind, enclosingScope) {
-  scope_ = std::make_unique<Scope>(enclosingScope);
-  scope_->setOwner(this);
-}
+    : ScopedSymbol(Kind, enclosingScope) {}
 
 LambdaSymbol::~LambdaSymbol() {}
 
 FunctionParametersSymbol::FunctionParametersSymbol(Scope* enclosingScope)
-    : Symbol(Kind, enclosingScope) {
-  scope_ = std::make_unique<Scope>(enclosingScope);
-  scope_->setOwner(this);
-}
+    : ScopedSymbol(Kind, enclosingScope) {}
 
 FunctionParametersSymbol::~FunctionParametersSymbol() {}
 
 TemplateParametersSymbol::TemplateParametersSymbol(Scope* enclosingScope)
-    : Symbol(Kind, enclosingScope) {
-  scope_ = std::make_unique<Scope>(enclosingScope);
-  scope_->setOwner(this);
-}
+    : ScopedSymbol(Kind, enclosingScope) {}
 
 TemplateParametersSymbol::~TemplateParametersSymbol() {}
 
-BlockSymbol::BlockSymbol(Scope* enclosingScope) : Symbol(Kind, enclosingScope) {
-  scope_ = std::make_unique<Scope>(enclosingScope);
-  scope_->setOwner(this);
-}
+BlockSymbol::BlockSymbol(Scope* enclosingScope)
+    : ScopedSymbol(Kind, enclosingScope) {}
 
 BlockSymbol::~BlockSymbol() {}
 

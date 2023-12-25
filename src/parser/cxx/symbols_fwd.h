@@ -47,6 +47,7 @@ namespace cxx {
   V(OverloadSet)
 
 class Symbol;
+class ScopedSymbol;
 class Scope;
 
 #define PROCESS_SYMBOL(S) class S##Symbol;

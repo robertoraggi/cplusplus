@@ -72,14 +72,23 @@ class Symbol {
   int insertionPoint_ = 0;
 };
 
-class NamespaceSymbol final : public Symbol {
+class ScopedSymbol : public Symbol {
+ public:
+  ScopedSymbol(SymbolKind kind, Scope* enclosingScope);
+  ~ScopedSymbol() override;
+
+  [[nodiscard]] auto scope() const -> Scope*;
+
+ private:
+  std::unique_ptr<Scope> scope_;
+};
+
+class NamespaceSymbol final : public ScopedSymbol {
  public:
   constexpr static auto Kind = SymbolKind::kNamespace;
 
   explicit NamespaceSymbol(Scope* enclosingScope);
   ~NamespaceSymbol() override;
-
-  [[nodiscard]] auto scope() const -> Scope* { return scope_.get(); }
 
   [[nodiscard]] auto isInline() const -> bool { return isInline_; }
   void setInline(bool isInline) { isInline_ = isInline; }
@@ -93,7 +102,6 @@ class NamespaceSymbol final : public Symbol {
   }
 
  private:
-  std::unique_ptr<Scope> scope_;
   NamespaceSymbol* unnamedNamespace_ = nullptr;
   bool isInline_ = false;
 };
@@ -118,7 +126,7 @@ class ConceptSymbol final : public Symbol {
   TemplateParametersSymbol* templateParameters_ = nullptr;
 };
 
-class ClassSymbol final : public Symbol {
+class ClassSymbol final : public ScopedSymbol {
  public:
   constexpr static auto Kind = SymbolKind::kClass;
 
@@ -127,8 +135,6 @@ class ClassSymbol final : public Symbol {
 
   [[nodiscard]] auto isUnion() const -> bool;
   void setIsUnion(bool isUnion);
-
-  [[nodiscard]] auto scope() const -> Scope*;
 
   [[nodiscard]] auto baseClasses() const -> const std::vector<Symbol*>&;
 
@@ -149,7 +155,6 @@ class ClassSymbol final : public Symbol {
   [[nodiscard]] auto sizeInBytes() const -> std::size_t;
 
  private:
-  std::unique_ptr<Scope> scope_;
   std::vector<Symbol*> baseClasses_;
   std::vector<FunctionSymbol*> constructors_;
   TemplateParametersSymbol* templateParameters_ = nullptr;
@@ -158,15 +163,13 @@ class ClassSymbol final : public Symbol {
   bool isComplete_ = false;
 };
 
-class EnumSymbol final : public Symbol {
+class EnumSymbol final : public ScopedSymbol {
  public:
   constexpr static auto Kind = SymbolKind::kEnum;
 
   explicit EnumSymbol(Scope* enclosingScope);
   ~EnumSymbol() override;
 
-  [[nodiscard]] auto scope() const -> Scope* { return scope_.get(); }
-
   [[nodiscard]] auto underlyingType() const -> const Type* {
     return underlyingType_;
   }
@@ -176,19 +179,16 @@ class EnumSymbol final : public Symbol {
   }
 
  private:
-  std::unique_ptr<Scope> scope_;
   const Type* underlyingType_ = nullptr;
 };
 
-class ScopedEnumSymbol final : public Symbol {
+class ScopedEnumSymbol final : public ScopedSymbol {
  public:
   constexpr static auto Kind = SymbolKind::kScopedEnum;
 
   explicit ScopedEnumSymbol(Scope* enclosingScope);
   ~ScopedEnumSymbol() override;
 
-  [[nodiscard]] auto scope() const -> Scope* { return scope_.get(); }
-
   [[nodiscard]] auto underlyingType() const -> const Type* {
     return underlyingType_;
   }
@@ -198,18 +198,15 @@ class ScopedEnumSymbol final : public Symbol {
   }
 
  private:
-  std::unique_ptr<Scope> scope_;
   const Type* underlyingType_ = nullptr;
 };
 
-class FunctionSymbol final : public Symbol {
+class FunctionSymbol final : public ScopedSymbol {
  public:
   constexpr static auto Kind = SymbolKind::kFunction;
 
   explicit FunctionSymbol(Scope* enclosingScope);
   ~FunctionSymbol() override;
-
-  [[nodiscard]] auto scope() const -> Scope* { return scope_.get(); }
 
   [[nodiscard]] auto templateParameters() const
       -> const TemplateParametersSymbol* {
@@ -251,7 +248,6 @@ class FunctionSymbol final : public Symbol {
   void setDefaulted(bool isDefaulted) { isDefaulted_ = isDefaulted; }
 
  private:
-  std::unique_ptr<Scope> scope_;
   TemplateParametersSymbol* templateParameters_ = nullptr;
   bool isStatic_ = false;
   bool isExtern_ = false;
@@ -286,7 +282,7 @@ class OverloadSetSymbol final : public Symbol {
   std::vector<FunctionSymbol*> functions_;
 };
 
-class LambdaSymbol final : public Symbol {
+class LambdaSymbol final : public ScopedSymbol {
  public:
   constexpr static auto Kind = SymbolKind::kLambda;
 
@@ -302,8 +298,6 @@ class LambdaSymbol final : public Symbol {
     templateParameters_ = templateParameters;
   }
 
-  [[nodiscard]] auto scope() const -> Scope* { return scope_.get(); }
-
   [[nodiscard]] auto isConstexpr() const { return isConstexpr_; }
   void setConstexpr(bool isConstexpr) { isConstexpr_ = isConstexpr; }
 
@@ -317,7 +311,6 @@ class LambdaSymbol final : public Symbol {
   void setStatic(bool isStatic) { isStatic_ = isStatic; }
 
  private:
-  std::unique_ptr<Scope> scope_;
   TemplateParametersSymbol* templateParameters_ = nullptr;
   bool isConstexpr_ = false;
   bool isConsteval_ = false;
@@ -325,43 +318,28 @@ class LambdaSymbol final : public Symbol {
   bool isStatic_ = false;
 };
 
-class FunctionParametersSymbol final : public Symbol {
+class FunctionParametersSymbol final : public ScopedSymbol {
  public:
   constexpr static auto Kind = SymbolKind::kFunctionParameters;
 
   explicit FunctionParametersSymbol(Scope* enclosingScope);
   ~FunctionParametersSymbol() override;
-
-  [[nodiscard]] auto scope() const -> Scope* { return scope_.get(); }
-
- private:
-  std::unique_ptr<Scope> scope_;
 };
 
-class TemplateParametersSymbol final : public Symbol {
+class TemplateParametersSymbol final : public ScopedSymbol {
  public:
   constexpr static auto Kind = SymbolKind::kTemplateParameters;
 
   explicit TemplateParametersSymbol(Scope* enclosingScope);
   ~TemplateParametersSymbol() override;
-
-  [[nodiscard]] auto scope() const -> Scope* { return scope_.get(); }
-
- private:
-  std::unique_ptr<Scope> scope_;
 };
 
-class BlockSymbol final : public Symbol {
+class BlockSymbol final : public ScopedSymbol {
  public:
   constexpr static auto Kind = SymbolKind::kBlock;
 
   explicit BlockSymbol(Scope* enclosingScope);
   ~BlockSymbol() override;
-
-  [[nodiscard]] auto scope() const -> Scope* { return scope_.get(); }
-
- private:
-  std::unique_ptr<Scope> scope_;
 };
 
 class TypeAliasSymbol final : public Symbol {

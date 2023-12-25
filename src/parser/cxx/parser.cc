@@ -4800,8 +4800,6 @@ auto Parser::parse_notypespec_function_definition(
 
   functionDeclarator->isPure = isPure;
 
-  SourceLocation semicolonLoc;
-
   const auto isDeclaration = isPure || lookat(TokenKind::T_SEMICOLON);
   const auto isDefinition = lookat_function_body();
 
@@ -4823,6 +4821,8 @@ auto Parser::parse_notypespec_function_definition(
   } else {
     std::invoke(DeclareSymbol{this, scope_}, functionSymbol);
   }
+
+  SourceLocation semicolonLoc;
 
   if (isPure) {
     expect(TokenKind::T_SEMICOLON, semicolonLoc);
