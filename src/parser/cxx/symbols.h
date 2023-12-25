@@ -125,34 +125,26 @@ class ClassSymbol final : public Symbol {
   explicit ClassSymbol(Scope* enclosingScope);
   ~ClassSymbol() override;
 
-  [[nodiscard]] auto scope() const -> Scope* { return scope_.get(); }
+  [[nodiscard]] auto isUnion() const -> bool;
+  void setIsUnion(bool isUnion);
 
-  [[nodiscard]] auto baseClasses() const -> const std::vector<Symbol*>& {
-    return baseClasses_;
-  }
+  [[nodiscard]] auto scope() const -> Scope*;
 
-  void addBaseClass(Symbol* baseClass) { baseClasses_.push_back(baseClass); }
+  [[nodiscard]] auto baseClasses() const -> const std::vector<Symbol*>&;
+
+  void addBaseClass(Symbol* baseClass);
 
   [[nodiscard]] auto constructors() const
-      -> const std::vector<FunctionSymbol*>& {
-    return constructors_;
-  }
+      -> const std::vector<FunctionSymbol*>&;
 
-  void addConstructor(FunctionSymbol* constructor) {
-    constructors_.push_back(constructor);
-  }
+  void addConstructor(FunctionSymbol* constructor);
 
   [[nodiscard]] auto templateParameters() const
-      -> const TemplateParametersSymbol* {
-    return templateParameters_;
-  }
+      -> const TemplateParametersSymbol*;
+  void setTemplateParameters(TemplateParametersSymbol* templateParameters);
 
-  void setTemplateParameters(TemplateParametersSymbol* templateParameters) {
-    templateParameters_ = templateParameters;
-  }
-
-  [[nodiscard]] auto isComplete() const -> bool { return isComplete_; }
-  void setComplete(bool isComplete) { isComplete_ = isComplete; }
+  [[nodiscard]] auto isComplete() const -> bool;
+  void setComplete(bool isComplete);
 
   [[nodiscard]] auto sizeInBytes() const -> std::size_t;
 
@@ -162,36 +154,7 @@ class ClassSymbol final : public Symbol {
   std::vector<FunctionSymbol*> constructors_;
   TemplateParametersSymbol* templateParameters_ = nullptr;
   std::size_t sizeInBytes_ = 0;
-  bool isComplete_ = false;
-};
-
-class UnionSymbol final : public Symbol {
- public:
-  constexpr static auto Kind = SymbolKind::kUnion;
-
-  explicit UnionSymbol(Scope* enclosingScope);
-  ~UnionSymbol() override;
-
-  [[nodiscard]] auto scope() const -> Scope* { return scope_.get(); }
-
-  [[nodiscard]] auto templateParameters() const
-      -> const TemplateParametersSymbol* {
-    return templateParameters_;
-  }
-
-  void setTemplateParameters(TemplateParametersSymbol* templateParameters) {
-    templateParameters_ = templateParameters;
-  }
-
-  [[nodiscard]] auto isComplete() const -> bool { return isComplete_; }
-  void setComplete(bool isComplete) { isComplete_ = isComplete; }
-
-  [[nodiscard]] auto sizeInBytes() const -> std::size_t;
-
- private:
-  std::unique_ptr<Scope> scope_;
-  TemplateParametersSymbol* templateParameters_ = nullptr;
-  std::size_t sizeInBytes_ = 0;
+  bool isUnion_ = false;
   bool isComplete_ = false;
 };
 

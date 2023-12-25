@@ -84,12 +84,6 @@ struct DumpSymbols {
       dumpScope(symbol->templateParameters()->scope());
   }
 
-  void operator()(UnionSymbol* symbol) {
-    indent();
-    out << cxx::format("union {}\n", to_string(symbol->name()));
-    dumpScope(symbol->scope());
-  }
-
   void operator()(EnumSymbol* symbol) {
     indent();
     out << cxx::format("enum {}", to_string(symbol->name()));

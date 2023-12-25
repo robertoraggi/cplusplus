@@ -327,19 +327,7 @@ class ClassType final : public Type, public std::tuple<ClassSymbol*> {
   }
 
   [[nodiscard]] auto isComplete() const -> bool;
-};
-
-class UnionType final : public Type, public std::tuple<UnionSymbol*> {
- public:
-  static constexpr TypeKind Kind = TypeKind::kUnion;
-
-  explicit UnionType(UnionSymbol* symbol) : Type(Kind), tuple(symbol) {}
-
-  [[nodiscard]] auto symbol() const -> UnionSymbol* {
-    return std::get<0>(*this);
-  }
-
-  [[nodiscard]] auto isComplete() const -> bool;
+  [[nodiscard]] auto isUnion() const -> bool;
 };
 
 class EnumType final : public Type, public std::tuple<EnumSymbol*> {

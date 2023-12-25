@@ -56,7 +56,6 @@ namespace cxx {
   V(RvalueReference)              \
   V(Function)                     \
   V(Class)                        \
-  V(Union)                        \
   V(Enum)                         \
   V(ScopedEnum)                   \
   V(MemberObjectPointer)          \

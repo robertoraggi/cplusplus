@@ -48,16 +48,43 @@ ClassSymbol::ClassSymbol(Scope* enclosingScope) : Symbol(Kind, enclosingScope) {
 
 ClassSymbol::~ClassSymbol() {}
 
-auto ClassSymbol::sizeInBytes() const -> std::size_t { return sizeInBytes_; }
+auto ClassSymbol::isUnion() const -> bool { return isUnion_; }
 
-UnionSymbol::UnionSymbol(Scope* enclosingScope) : Symbol(Kind, enclosingScope) {
-  scope_ = std::make_unique<Scope>(enclosingScope);
-  scope_->setOwner(this);
+void ClassSymbol::setIsUnion(bool isUnion) { isUnion_ = isUnion; }
+
+auto ClassSymbol::scope() const -> Scope* { return scope_.get(); }
+
+auto ClassSymbol::baseClasses() const -> const std::vector<Symbol*>& {
+  return baseClasses_;
 }
 
-UnionSymbol::~UnionSymbol() {}
+void ClassSymbol::addBaseClass(Symbol* baseClass) {
+  baseClasses_.push_back(baseClass);
+}
 
-auto UnionSymbol::sizeInBytes() const -> std::size_t { return sizeInBytes_; }
+auto ClassSymbol::constructors() const -> const std::vector<FunctionSymbol*>& {
+  return constructors_;
+}
+
+void ClassSymbol::addConstructor(FunctionSymbol* constructor) {
+  constructors_.push_back(constructor);
+}
+
+auto ClassSymbol::templateParameters() const
+    -> const TemplateParametersSymbol* {
+  return templateParameters_;
+}
+
+void ClassSymbol::setTemplateParameters(
+    TemplateParametersSymbol* templateParameters) {
+  templateParameters_ = templateParameters;
+}
+
+auto ClassSymbol::isComplete() const -> bool { return isComplete_; }
+
+void ClassSymbol::setComplete(bool isComplete) { isComplete_ = isComplete; }
+
+auto ClassSymbol::sizeInBytes() const -> std::size_t { return sizeInBytes_; }
 
 EnumSymbol::EnumSymbol(Scope* enclosingScope) : Symbol(Kind, enclosingScope) {
   scope_ = std::make_unique<Scope>(enclosingScope);

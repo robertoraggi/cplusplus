@@ -1427,9 +1427,6 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
     if (decltypeSpecifier) {
       if (auto classsType = type_cast<ClassType>(decltypeSpecifier->type)) {
         ast->symbol = classsType->symbol();
-      } else if (auto unionType =
-                     type_cast<UnionType>(decltypeSpecifier->type)) {
-        ast->symbol = unionType->symbol();
       } else if (auto enumType = type_cast<EnumType>(decltypeSpecifier->type)) {
         ast->symbol = enumType->symbol();
       } else if (auto scopedEnumType =
@@ -5466,7 +5463,6 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
       case SymbolKind::kTypeParameter:
       case SymbolKind::kTypeAlias:
       case SymbolKind::kClass:
-      case SymbolKind::kUnion:
       case SymbolKind::kEnum:
       case SymbolKind::kScopedEnum:
         return true;
@@ -8911,6 +8907,9 @@ void Parser::parse_class_body(List<DeclarationAST*>*& yyast) {
 auto Parser::parse_class_head(ClassHead& classHead) -> bool {
   if (!parse_class_key(classHead.classLoc)) return false;
 
+  const auto isUnion =
+      unit->tokenKind(classHead.classLoc) == TokenKind::T_UNION;
+
   parse_optional_attribute_specifier_seq(classHead.attributeList);
 
   auto is_class_declaration = false;
@@ -8979,6 +8978,7 @@ auto Parser::parse_class_head(ClassHead& classHead) -> bool {
 
   if (!classSymbol) {
     classSymbol = control_->newClassSymbol(scope_);
+    classSymbol->setIsUnion(isUnion);
 
     classSymbol->setName(id);
 
@@ -10857,9 +10857,6 @@ auto Parser::qualifiedLookup(Symbol* scopedSymbol, const Name* name)
           symbol_cast<NamespaceSymbol>(scopedSymbol)->scope(), name);
     case SymbolKind::kClass:
       return qualifiedLookup(symbol_cast<ClassSymbol>(scopedSymbol)->scope(),
-                             name);
-    case SymbolKind::kUnion:
-      return qualifiedLookup(symbol_cast<UnionSymbol>(scopedSymbol)->scope(),
                              name);
     case SymbolKind::kEnum:
       return qualifiedLookup(symbol_cast<EnumSymbol>(scopedSymbol)->scope(),
