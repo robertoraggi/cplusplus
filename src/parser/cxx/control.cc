@@ -120,7 +120,6 @@ struct Control::Private {
   std::set<UnresolvedBoundedArrayType> unresolvedBoundedArrayTypes;
   std::set<UnresolvedUnderlyingType> unresolvedUnderlyingTypes;
   std::set<ClassType> classTypes;
-  std::set<UnionType> unionTypes;
   std::set<NamespaceType> namespaceTypes;
   std::set<EnumType> enumTypes;
   std::set<ScopedEnumType> scopedEnumTypes;
@@ -128,7 +127,6 @@ struct Control::Private {
   std::forward_list<NamespaceSymbol> namespaceSymbols;
   std::forward_list<ConceptSymbol> conceptSymbols;
   std::forward_list<ClassSymbol> classSymbols;
-  std::forward_list<UnionSymbol> unionSymbols;
   std::forward_list<EnumSymbol> enumSymbols;
   std::forward_list<ScopedEnumSymbol> scopedEnumSymbols;
   std::forward_list<OverloadSetSymbol> overloadSetSymbols;
@@ -417,10 +415,6 @@ auto Control::getClassType(ClassSymbol* symbol) -> const ClassType* {
   return &*d->classTypes.emplace(symbol).first;
 }
 
-auto Control::getUnionType(UnionSymbol* symbol) -> const UnionType* {
-  return &*d->unionTypes.emplace(symbol).first;
-}
-
 auto Control::getNamespaceType(NamespaceSymbol* symbol)
     -> const NamespaceType* {
   return &*d->namespaceTypes.emplace(symbol).first;
@@ -449,12 +443,6 @@ auto Control::newConceptSymbol(Scope* enclosingScope) -> ConceptSymbol* {
 auto Control::newClassSymbol(Scope* enclosingScope) -> ClassSymbol* {
   auto symbol = &d->classSymbols.emplace_front(enclosingScope);
   symbol->setType(getClassType(symbol));
-  return symbol;
-}
-
-auto Control::newUnionSymbol(Scope* enclosingScope) -> UnionSymbol* {
-  auto symbol = &d->unionSymbols.emplace_front(enclosingScope);
-  symbol->setType(getUnionType(symbol));
   return symbol;
 }
 

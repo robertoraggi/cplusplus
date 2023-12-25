@@ -420,16 +420,6 @@ class TypeTraits {
   } is_scoped_enum_;
 
   struct {
-    auto operator()(const UnionType*) const -> bool { return true; }
-
-    auto operator()(const QualType* type) const -> bool {
-      return visit(*this, type->elementType());
-    }
-
-    auto operator()(auto) const -> bool { return false; }
-  } is_union_;
-
-  struct {
     auto operator()(const ClassType*) const -> bool { return true; }
 
     auto operator()(const QualType* type) const -> bool {
@@ -438,6 +428,18 @@ class TypeTraits {
 
     auto operator()(auto) const -> bool { return false; }
   } is_class_;
+
+  struct {
+    auto operator()(const ClassType* classType) const -> bool {
+      return classType->isUnion();
+    }
+
+    auto operator()(const QualType* type) const -> bool {
+      return visit(*this, type->elementType());
+    }
+
+    auto operator()(auto) const -> bool { return false; }
+  } is_union_;
 
   struct {
     auto operator()(const FunctionType*) const -> bool { return true; }
@@ -559,10 +561,6 @@ class TypeTraits {
     auto operator()(const VoidType*) const -> bool { return false; }
 
     auto operator()(const ClassType* type) const -> bool {
-      return type->isComplete();
-    }
-
-    auto operator()(const UnionType* type) const -> bool {
       return type->isComplete();
     }
 
@@ -930,11 +928,6 @@ class TypeTraits {
     }
 
     auto operator()(const ClassType* type, const ClassType* otherType) const
-        -> bool {
-      return type->symbol() == otherType->symbol();
-    }
-
-    auto operator()(const UnionType* type, const UnionType* otherType) const
         -> bool {
       return type->symbol() == otherType->symbol();
     }

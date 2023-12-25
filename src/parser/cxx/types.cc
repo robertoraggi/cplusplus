@@ -35,6 +35,6 @@ auto ScopedEnumType::underlyingType() const -> const Type* {
 
 auto ClassType::isComplete() const -> bool { return symbol()->isComplete(); }
 
-auto UnionType::isComplete() const -> bool { return symbol()->isComplete(); }
+auto ClassType::isUnion() const -> bool { return symbol()->isUnion(); }
 
 }  // namespace cxx

@@ -266,10 +266,6 @@ class TypePrinter {
     specifiers_.append(to_string(type->symbol()->name()));
   }
 
-  void operator()(const UnionType* type) {
-    specifiers_.append(to_string(type->symbol()->name()));
-  }
-
   void operator()(const NamespaceType* type) {
     specifiers_.append(to_string(type->symbol()->name()));
   }

@@ -28,7 +28,6 @@ namespace cxx {
   V(Namespace)                 \
   V(Concept)                   \
   V(Class)                     \
-  V(Union)                     \
   V(Enum)                      \
   V(ScopedEnum)                \
   V(Function)                  \

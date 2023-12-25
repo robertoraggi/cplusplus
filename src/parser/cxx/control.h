@@ -128,7 +128,6 @@ class Control {
       -> const UnresolvedUnderlyingType*;
 
   auto getClassType(ClassSymbol* symbol) -> const ClassType*;
-  auto getUnionType(UnionSymbol* symbol) -> const UnionType*;
   auto getNamespaceType(NamespaceSymbol* symbol) -> const NamespaceType*;
   auto getEnumType(EnumSymbol* symbol) -> const EnumType*;
   auto getScopedEnumType(ScopedEnumSymbol* symbol) -> const ScopedEnumType*;
@@ -136,7 +135,6 @@ class Control {
   auto newNamespaceSymbol(Scope* enclosingScope) -> NamespaceSymbol*;
   auto newConceptSymbol(Scope* enclosingScope) -> ConceptSymbol*;
   auto newClassSymbol(Scope* enclosingScope) -> ClassSymbol*;
-  auto newUnionSymbol(Scope* enclosingScope) -> UnionSymbol*;
   auto newEnumSymbol(Scope* enclosingScope) -> EnumSymbol*;
   auto newScopedEnumSymbol(Scope* enclosingScope) -> ScopedEnumSymbol*;
   auto newOverloadSetSymbol(Scope* enclosingScope) -> OverloadSetSymbol*;
