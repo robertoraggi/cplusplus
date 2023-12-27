@@ -1137,7 +1137,6 @@ void Preprocessor::Private::expand(
         // ###
         std::ostringstream out;
         printLine(start, out);
-        warning(directive->head->token(), "skipped #line directive");
       } else if (matchId(ts, "pragma")) {
         // ###
 #if 0
