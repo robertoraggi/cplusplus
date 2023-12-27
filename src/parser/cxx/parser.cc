@@ -1575,6 +1575,9 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
       expect(TokenKind::T_RPAREN, ast->rparenLoc);
     }
 
+    parse_optional_attribute_specifier_seq(ast->gnuAtributeList,
+                                           AllowedAttributes::kGnuAttribute);
+
     (void)parse_lambda_specifier_seq(ast->lambdaSpecifierList, symbol);
 
     (void)parse_noexcept_specifier(ast->exceptionSpecifier);
@@ -1582,7 +1585,7 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
     (void)parse_trailing_return_type(ast->trailingReturnType);
 
     parse_optional_attribute_specifier_seq(ast->attributeList,
-                                           /*allowAsmSpecifier*/ true);
+                                           AllowedAttributes::kAll);
 
     (void)parse_requires_clause(ast->requiresClause);
   }
@@ -6723,7 +6726,7 @@ auto Parser::parse_function_declarator(FunctionDeclaratorChunkAST*& yyast,
   }
 
   parse_optional_attribute_specifier_seq(ast->attributeList,
-                                         /*allowAsmSpecifier*/ true);
+                                         AllowedAttributes::kAll);
 
   return true;
 }
@@ -6899,7 +6902,7 @@ auto Parser::parse_declarator_id(CoreDeclaratorAST*& yyast, Decl& decl,
   ast->isTemplateIntroduced = isTemplateIntroduced;
 
   parse_optional_attribute_specifier_seq(ast->attributeList,
-                                         /*allowAsmSpecifier*/ true);
+                                         AllowedAttributes::kAll);
 
   if (isPack) {
     auto ast = new (pool_) ParameterPackAST();
@@ -8189,25 +8192,26 @@ auto Parser::parse_linkage_specification(DeclarationAST*& yyast) -> bool {
 }
 
 void Parser::parse_optional_attribute_specifier_seq(
-    List<AttributeSpecifierAST*>*& yyast, bool allowAsmSpecifier) {
-  if (!parse_attribute_specifier_seq(yyast, allowAsmSpecifier)) {
+    List<AttributeSpecifierAST*>*& yyast, AllowedAttributes allowedAttributes) {
+  if (!parse_attribute_specifier_seq(yyast, allowedAttributes)) {
     yyast = nullptr;
   }
 }
 
 auto Parser::parse_attribute_specifier_seq(List<AttributeSpecifierAST*>*& yyast,
-                                           bool allowAsmSpecifier) -> bool {
+                                           AllowedAttributes allowedAttributes)
+    -> bool {
   auto it = &yyast;
   AttributeSpecifierAST* attribute = nullptr;
 
-  if (!parse_attribute_specifier(attribute, allowAsmSpecifier)) return false;
+  if (!parse_attribute_specifier(attribute, allowedAttributes)) return false;
 
   *it = new (pool_) List(attribute);
   it = &(*it)->next;
 
   attribute = nullptr;
 
-  while (parse_attribute_specifier(attribute, allowAsmSpecifier)) {
+  while (parse_attribute_specifier(attribute, allowedAttributes)) {
     *it = new (pool_) List(attribute);
     it = &(*it)->next;
     attribute = nullptr;
@@ -8217,14 +8221,27 @@ auto Parser::parse_attribute_specifier_seq(List<AttributeSpecifierAST*>*& yyast,
 }
 
 auto Parser::parse_attribute_specifier(AttributeSpecifierAST*& yyast,
-                                       bool allowAsmSpecifier) -> bool {
-  if (parse_cxx_attribute_specifier(yyast)) return true;
+                                       AllowedAttributes allowedAttributes)
+    -> bool {
+  auto is_allowed = [allowedAttributes](AllowedAttributes attr) {
+    return static_cast<int>(attr) & static_cast<int>(allowedAttributes);
+  };
 
-  if (parse_gcc_attribute(yyast)) return true;
+  if (is_allowed(AllowedAttributes::kCxxAttribute) &&
+      parse_cxx_attribute_specifier(yyast))
+    return true;
 
-  if (parse_alignment_specifier(yyast)) return true;
+  if (is_allowed(AllowedAttributes::kGnuAttribute) &&
+      parse_gcc_attribute(yyast))
+    return true;
 
-  if (allowAsmSpecifier && parse_asm_specifier(yyast)) return true;
+  if (is_allowed(AllowedAttributes::kAlignasSpecifier) &&
+      parse_alignment_specifier(yyast))
+    return true;
+
+  if (is_allowed(AllowedAttributes::kAsmSpecifier) &&
+      parse_asm_specifier(yyast))
+    return true;
 
   return false;
 }

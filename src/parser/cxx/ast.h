@@ -1275,6 +1275,7 @@ class LambdaExpressionAST final : public ExpressionAST {
   SourceLocation lparenLoc;
   ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
   SourceLocation rparenLoc;
+  List<AttributeSpecifierAST*>* gnuAtributeList = nullptr;
   List<LambdaSpecifierAST*>* lambdaSpecifierList = nullptr;
   ExceptionSpecifierAST* exceptionSpecifier = nullptr;
   List<AttributeSpecifierAST*>* attributeList = nullptr;

@@ -817,6 +817,15 @@ void ASTPrinter::visit(LambdaExpressionAST* ast) {
   }
   accept(ast->templateRequiresClause, "template-requires-clause");
   accept(ast->parameterDeclarationClause, "parameter-declaration-clause");
+  if (ast->gnuAtributeList) {
+    ++indent_;
+    out_ << cxx::format("{:{}}", "", indent_ * 2);
+    out_ << cxx::format("{}\n", "gnu-atribute-list");
+    for (auto it = ast->gnuAtributeList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
   if (ast->lambdaSpecifierList) {
     ++indent_;
     out_ << cxx::format("{:{}}", "", indent_ * 2);

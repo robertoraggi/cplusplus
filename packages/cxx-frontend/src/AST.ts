@@ -4060,6 +4060,32 @@ export class LambdaExpressionAST extends ExpressionAST {
   }
 
   /**
+   * Returns the gnuAtributeList of this node
+   */
+  getGnuAtributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
+    }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
+  }
+
+  /**
    * Returns the lambdaSpecifierList of this node
    */
   getLambdaSpecifierList(): Iterable<LambdaSpecifierAST | undefined> {
@@ -4090,7 +4116,7 @@ export class LambdaExpressionAST extends ExpressionAST {
    */
   getExceptionSpecifier(): ExceptionSpecifierAST | undefined {
     return AST.from<ExceptionSpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 12),
+      cxx.getASTSlot(this.getHandle(), 13),
       this.parser,
     );
   }
@@ -4126,7 +4152,7 @@ export class LambdaExpressionAST extends ExpressionAST {
    */
   getTrailingReturnType(): TrailingReturnTypeAST | undefined {
     return AST.from<TrailingReturnTypeAST>(
-      cxx.getASTSlot(this.getHandle(), 14),
+      cxx.getASTSlot(this.getHandle(), 15),
       this.parser,
     );
   }
@@ -4136,7 +4162,7 @@ export class LambdaExpressionAST extends ExpressionAST {
    */
   getRequiresClause(): RequiresClauseAST | undefined {
     return AST.from<RequiresClauseAST>(
-      cxx.getASTSlot(this.getHandle(), 15),
+      cxx.getASTSlot(this.getHandle(), 16),
       this.parser,
     );
   }
@@ -4146,7 +4172,7 @@ export class LambdaExpressionAST extends ExpressionAST {
    */
   getStatement(): CompoundStatementAST | undefined {
     return AST.from<CompoundStatementAST>(
-      cxx.getASTSlot(this.getHandle(), 16),
+      cxx.getASTSlot(this.getHandle(), 17),
       this.parser,
     );
   }
@@ -4155,7 +4181,7 @@ export class LambdaExpressionAST extends ExpressionAST {
    * Returns the captureDefault attribute of this node
    */
   getCaptureDefault(): TokenKind {
-    return cxx.getASTSlot(this.getHandle(), 17);
+    return cxx.getASTSlot(this.getHandle(), 18);
   }
 }
 

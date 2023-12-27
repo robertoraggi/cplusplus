@@ -1742,6 +1742,15 @@ auto ASTDecoder::decodeLambdaExpression(const io::LambdaExpression* node)
       decodeRequiresClause(node->template_requires_clause());
   ast->parameterDeclarationClause =
       decodeParameterDeclarationClause(node->parameter_declaration_clause());
+  if (node->gnu_atribute_list()) {
+    auto* inserter = &ast->gnuAtributeList;
+    for (std::size_t i = 0; i < node->gnu_atribute_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->gnu_atribute_list()->Get(i),
+          io::AttributeSpecifier(node->gnu_atribute_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
   if (node->lambda_specifier_list()) {
     auto* inserter = &ast->lambdaSpecifierList;
     for (std::size_t i = 0; i < node->lambda_specifier_list()->size(); ++i) {
