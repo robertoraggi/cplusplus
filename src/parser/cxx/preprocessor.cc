@@ -1427,13 +1427,17 @@ auto Preprocessor::Private::substitude(
     if (lookat(ts, TokenKind::T_IDENTIFIER, TokenKind::T_HASH_HASH)) {
       const TokList *actual = nullptr;
       if (lookupMacroArgument(ts, macro, actuals, actual)) {
-        appendTokens(clone(&pool_, actual));
+        if (!actual) {
+          appendToken(Tok::Gen(&pool_, TokenKind::T_IDENTIFIER, ""));
+        } else {
+          appendTokens(clone(&pool_, actual));
+        }
         continue;
       }
     }
 
-    const TokList *actual = nullptr;
-    if (lookupMacroArgument(ts, macro, actuals, actual)) {
+    if (const TokList *actual = nullptr;
+        lookupMacroArgument(ts, macro, actuals, actual)) {
       appendTokens(expand(actual, /*directives=*/false));
       continue;
     }
