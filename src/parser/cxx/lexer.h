@@ -38,6 +38,8 @@ class Lexer {
   [[nodiscard]] auto keepComments() const -> bool { return keepComments_; }
   void setKeepComments(bool keepComments) { keepComments_ = keepComments; }
 
+  [[nodiscard]] auto hasBOM() const -> bool { return hasBOM_; }
+
   auto operator()() -> TokenKind { return next(); }
 
   auto next() -> TokenKind {
@@ -126,6 +128,7 @@ class Lexer {
   std::uint32_t currentChar_ = 0;
 
   bool preprocessing_ = false;
+  bool hasBOM_ = false;
 };
 
 }  // namespace cxx
