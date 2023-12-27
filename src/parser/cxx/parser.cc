@@ -4819,16 +4819,9 @@ auto Parser::parse_notypespec_function_definition(
   if (is_constructor(functionSymbol)) {
     // constructors don't have names
     if (auto enclosingClass = symbol_cast<ClassSymbol>(scope_->owner())) {
-      FunctionSymbol* ctorDecl = nullptr;
-      if (decl.declaratorId->nestedNameSpecifier) {
-        for (auto ctor : enclosingClass->constructors()) {
-          if (control_->is_same(ctor->type(), functionType)) {
-            ctorDecl = ctor;
-            break;
-          }
-        }
+      if (!decl.declaratorId->nestedNameSpecifier) {
+        enclosingClass->addConstructor(functionSymbol);
       }
-      enclosingClass->addConstructor(functionSymbol);
     }
   } else {
     std::invoke(DeclareSymbol{this, scope_}, functionSymbol);
