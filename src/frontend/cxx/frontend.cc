@@ -58,7 +58,8 @@
 namespace {
 using namespace cxx;
 
-auto readAll(const std::string& fileName, std::istream& in) -> std::string {
+auto readAll(const std::string& fileName, std::istream& in)
+    -> std::optional<std::string> {
   std::string code;
   char buffer[4 * 1024];
   do {
@@ -68,10 +69,10 @@ auto readAll(const std::string& fileName, std::istream& in) -> std::string {
   return code;
 }
 
-auto readAll(const std::string& fileName) -> std::string {
+auto readAll(const std::string& fileName) -> std::optional<std::string> {
   if (fileName == "-" || fileName.empty()) return readAll("<stdin>", std::cin);
-  std::ifstream stream(fileName);
-  return readAll(fileName, stream);
+  if (std::ifstream stream(fileName); stream) return readAll(fileName, stream);
+  return std::nullopt;
 }
 
 void dumpTokens(const CLI& cli, TranslationUnit& unit, std::ostream& output) {
@@ -236,21 +237,27 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
         });
   }
 
-  if (cli.opt_E && !cli.opt_dM) {
-    preprocesor->preprocess(readAll(fileName), fileName, output);
-    shouldExit = true;
-  } else {
-    unit.setSource(readAll(fileName), fileName);
+  if (auto source = readAll(fileName)) {
+    if (cli.opt_E && !cli.opt_dM) {
+      preprocesor->preprocess(std::move(*source), fileName, output);
+      shouldExit = true;
+    } else {
+      unit.setSource(std::move(*source), fileName);
 
-    if (cli.opt_dM) {
-      preprocesor->printMacros(output);
-      shouldExit = true;
-    } else if (cli.opt_dump_tokens) {
-      dumpTokens(cli, unit, output);
-      shouldExit = true;
-    } else if (cli.opt_Eonly) {
-      shouldExit = true;
+      if (cli.opt_dM) {
+        preprocesor->printMacros(output);
+        shouldExit = true;
+      } else if (cli.opt_dump_tokens) {
+        dumpTokens(cli, unit, output);
+        shouldExit = true;
+      } else if (cli.opt_Eonly) {
+        shouldExit = true;
+      }
     }
+  } else {
+    std::cerr << cxx::format("cxx: No such file or directory: '{}'\n",
+                             fileName);
+    return false;
   }
 
   if (!shouldExit) {
