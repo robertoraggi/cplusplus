@@ -1534,7 +1534,6 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
   ScopeGuard scopeGuard{this};
 
   auto symbol = control_->newLambdaSymbol(scope_);
-  std::invoke(DeclareSymbol{this, scope_}, symbol);
 
   scope_ = symbol->scope();
 
@@ -1596,6 +1595,10 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
   } else {
     scope_ = symbol->scope();
   }
+
+  if (!lookat(TokenKind::T_LBRACE)) return false;
+
+  std::invoke(DeclareSymbol{this, scope_}, symbol);
 
   if (!parse_compound_statement(ast->statement)) {
     parse_error("expected a compound statement");
