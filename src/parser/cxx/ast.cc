@@ -987,6 +987,7 @@ auto LambdaExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(parameterDeclarationClause))
     return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(gnuAtributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(lambdaSpecifierList)) return loc;
   if (auto loc = cxx::firstSourceLocation(exceptionSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
@@ -1003,6 +1004,7 @@ auto LambdaExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(exceptionSpecifier)) return loc;
   if (auto loc = cxx::lastSourceLocation(lambdaSpecifierList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(gnuAtributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(parameterDeclarationClause))
     return loc;

@@ -2239,6 +2239,20 @@ void ASTEncoder::visit(LambdaExpressionAST* ast) {
 
   auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
 
+  std::vector<flatbuffers::Offset<>> gnuAtributeListOffsets;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      gnuAtributeListTypes;
+
+  for (auto it = ast->gnuAtributeList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
+    gnuAtributeListOffsets.push_back(offset);
+    gnuAtributeListTypes.push_back(type);
+  }
+
+  auto gnuAtributeListOffsetsVector = fbb_.CreateVector(gnuAtributeListOffsets);
+  auto gnuAtributeListTypesVector = fbb_.CreateVector(gnuAtributeListTypes);
+
   std::vector<flatbuffers::Offset<io::LambdaSpecifier>>
       lambdaSpecifierListOffsets;
   for (auto it = ast->lambdaSpecifierList; it; it = it->next) {
@@ -2286,6 +2300,8 @@ void ASTEncoder::visit(LambdaExpressionAST* ast) {
   builder.add_lparen_loc(lparenLoc.o);
   builder.add_parameter_declaration_clause(parameterDeclarationClause.o);
   builder.add_rparen_loc(rparenLoc.o);
+  builder.add_gnu_atribute_list(gnuAtributeListOffsetsVector);
+  builder.add_gnu_atribute_list_type(gnuAtributeListTypesVector);
   builder.add_lambda_specifier_list(lambdaSpecifierListOffsetsVector);
   builder.add_exception_specifier(exceptionSpecifier);
   builder.add_exception_specifier_type(

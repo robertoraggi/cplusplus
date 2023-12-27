@@ -566,13 +566,29 @@ class Parser final {
   [[nodiscard]] auto parse_asm_declaration(DeclarationAST*& yyast) -> bool;
   [[nodiscard]] auto parse_linkage_specification(DeclarationAST*& yyast)
       -> bool;
+
+  enum struct AllowedAttributes {
+    kCxxAttribute = 1 << 0,
+    kGnuAttribute = 1 << 1,
+    kAsmSpecifier = 1 << 2,
+    kAlignasSpecifier = 1 << 3,
+    kIgnoreAsm = kCxxAttribute | kGnuAttribute | kAlignasSpecifier,
+    kAll = kCxxAttribute | kGnuAttribute | kAsmSpecifier | kAlignasSpecifier,
+  };
+
   void parse_optional_attribute_specifier_seq(
-      List<AttributeSpecifierAST*>*& yyast, bool allowAsmSpecifier = false);
+      List<AttributeSpecifierAST*>*& yyast,
+      AllowedAttributes allowedAttributes = AllowedAttributes::kIgnoreAsm);
+
   [[nodiscard]] auto parse_attribute_specifier_seq(
-      List<AttributeSpecifierAST*>*& yyast, bool allowAsmSpecifier = false)
+      List<AttributeSpecifierAST*>*& yyast,
+      AllowedAttributes allowedAttributes = AllowedAttributes::kIgnoreAsm)
       -> bool;
-  [[nodiscard]] auto parse_attribute_specifier(AttributeSpecifierAST*& yyast,
-                                               bool allowAsmSpecifier) -> bool;
+
+  [[nodiscard]] auto parse_attribute_specifier(
+      AttributeSpecifierAST*& yyast, AllowedAttributes allowedAttributes)
+      -> bool;
+
   auto lookat_cxx_attribute_specifier() -> bool;
   [[nodiscard]] auto parse_cxx_attribute_specifier(
       AttributeSpecifierAST*& yyast) -> bool;

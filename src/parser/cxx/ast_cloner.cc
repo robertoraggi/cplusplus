@@ -1186,6 +1186,15 @@ void ASTCloner::visit(LambdaExpressionAST* ast) {
 
   copy->rparenLoc = ast->rparenLoc;
 
+  if (auto it = ast->gnuAtributeList) {
+    auto out = &copy->gnuAtributeList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
   if (auto it = ast->lambdaSpecifierList) {
     auto out = &copy->lambdaSpecifierList;
 

@@ -576,6 +576,9 @@ void RecursiveASTVisitor::visit(LambdaExpressionAST* ast) {
   }
   acceptRequiresClause(ast->templateRequiresClause);
   acceptParameterDeclarationClause(ast->parameterDeclarationClause);
+  for (auto it = ast->gnuAtributeList; it; it = it->next) {
+    acceptAttributeSpecifier(it->value);
+  }
   for (auto it = ast->lambdaSpecifierList; it; it = it->next) {
     acceptLambdaSpecifier(it->value);
   }
