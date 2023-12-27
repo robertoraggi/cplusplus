@@ -95,10 +95,23 @@ inline void advance(It& it, int n, It end) {
   }
 }
 
+template <typename It>
+inline auto skipBOM(It& it, It end) -> bool {
+  if (it < end && *it == '\xEF') {
+    if (it + 1 < end && it[1] == '\xBB') {
+      if (it + 2 < end && it[2] == '\xBF') {
+        it += 3;
+        return true;
+      }
+    }
+  }
+  return false;
+}
 }  // namespace
 
 Lexer::Lexer(std::string_view source)
     : source_(source), pos_(cbegin(source_)), end_(cend(source_)) {
+  hasBOM_ = skipBOM(pos_, end_);
   currentChar_ = pos_ < end_ ? peekNext(pos_, end_) : 0;
 }
 
@@ -107,6 +120,7 @@ Lexer::Lexer(std::string buffer)
       source_(buffer_),
       pos_(cbegin(source_)),
       end_(cend(source_)) {
+  hasBOM_ = skipBOM(pos_, end_);
   currentChar_ = pos_ < end_ ? peekNext(pos_, end_) : 0;
 }
 
