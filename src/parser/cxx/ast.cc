@@ -1700,7 +1700,7 @@ auto SplicerAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lbracketLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(secondColonLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(rbracketLoc)) return loc;
   return {};
@@ -1709,7 +1709,7 @@ auto SplicerAST::firstSourceLocation() -> SourceLocation {
 auto SplicerAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rbracketLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(secondColonLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(lbracketLoc)) return loc;

@@ -6570,10 +6570,13 @@ export class SplicerAST extends AST {
   }
 
   /**
-   * Returns the location of the identifier token in this node
+   * Returns the expression of this node
    */
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 3),
+      this.parser,
+    );
   }
 
   /**
@@ -6588,14 +6591,6 @@ export class SplicerAST extends AST {
    */
   getRbracketToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
-  }
-
-  /**
-   * Returns the identifier attribute of this node
-   */
-  getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 6);
-    return cxx.getIdentifierValue(slot);
   }
 }
 

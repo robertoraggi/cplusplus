@@ -2049,13 +2049,11 @@ void ASTCloner::visit(SplicerAST* ast) {
 
   copy->ellipsisLoc = ast->ellipsisLoc;
 
-  copy->identifierLoc = ast->identifierLoc;
+  copy->expression = accept(ast->expression);
 
   copy->secondColonLoc = ast->secondColonLoc;
 
   copy->rbracketLoc = ast->rbracketLoc;
-
-  copy->identifier = ast->identifier;
 }
 
 void ASTCloner::visit(GlobalModuleFragmentAST* ast) {

@@ -1237,8 +1237,10 @@ auto Parser::parse_splicer(SplicerAST*& yyast) -> bool {
   ast->lbracketLoc = consumeToken();
   ast->colonLoc = consumeToken();
   match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
-  expect(TokenKind::T_IDENTIFIER, ast->identifierLoc);
-  ast->identifier = unit->identifier(ast->identifierLoc);
+  std::optional<ConstValue> value;
+  if (!parse_constant_expression(ast->expression, value)) {
+    parse_error("expected a constant expression");
+  }
   expect(TokenKind::T_COLON, ast->secondColonLoc);
   expect(TokenKind::T_RBRACKET, ast->rbracketLoc);
   return true;

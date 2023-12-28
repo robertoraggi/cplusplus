@@ -803,7 +803,9 @@ void RecursiveASTVisitor::visit(ParenInitializerAST* ast) {
   }
 }
 
-void RecursiveASTVisitor::visit(SplicerAST* ast) {}
+void RecursiveASTVisitor::visit(SplicerAST* ast) {
+  acceptExpression(ast->expression);
+}
 
 void RecursiveASTVisitor::visit(GlobalModuleFragmentAST* ast) {
   for (auto it = ast->declarationList; it; it = it->next) {

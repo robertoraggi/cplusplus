@@ -47,13 +47,14 @@ async function updateTest(unitTestPath) {
 
   const sourceLines = source.split("\n");
 
-  const fcheck =
-    sourceLines.length > 0 && sourceLines[0].includes("-fcheck")
-      ? "-fcheck"
-      : "";
+  const index = sourceLines.findIndex((line) => line.startsWith("// RUN:"));
+
+  const fcheck = sourceLines[index]?.includes("-fcheck") ? "-fcheck" : "";
+
+  const freflect = sourceLines[index]?.includes("-freflect") ? "-freflect" : "";
 
   const ast =
-    await $`${cxx} -verify -ast-dump ${unitTestPath} ${fcheck}`.quiet();
+    await $`${cxx} -verify -ast-dump ${unitTestPath} ${fcheck} ${freflect}`.quiet();
 
   const lines = ast.stdout.split("\n");
 

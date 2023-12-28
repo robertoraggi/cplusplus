@@ -2349,10 +2349,8 @@ auto ASTDecoder::decodeSplicer(const io::Splicer* node) -> SplicerAST* {
   if (!node) return nullptr;
 
   auto ast = new (pool_) SplicerAST();
-  if (node->identifier()) {
-    ast->identifier =
-        unit_->control()->getIdentifier(node->identifier()->str());
-  }
+  ast->expression =
+      decodeExpression(node->expression(), node->expression_type());
   return ast;
 }
 
