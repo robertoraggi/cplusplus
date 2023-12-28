@@ -1540,6 +1540,73 @@ void ASTCloner::visit(TypeidOfTypeExpressionAST* ast) {
   copy->rparenLoc = ast->rparenLoc;
 }
 
+void ASTCloner::visit(SpliceExpressionAST* ast) {
+  auto copy = new (arena_) SpliceExpressionAST();
+  copy_ = copy;
+
+  copy->valueCategory = ast->valueCategory;
+
+  copy->type = ast->type;
+
+  copy->splicer = accept(ast->splicer);
+}
+
+void ASTCloner::visit(GlobalScopeReflectExpressionAST* ast) {
+  auto copy = new (arena_) GlobalScopeReflectExpressionAST();
+  copy_ = copy;
+
+  copy->valueCategory = ast->valueCategory;
+
+  copy->type = ast->type;
+
+  copy->caretLoc = ast->caretLoc;
+
+  copy->scopeLoc = ast->scopeLoc;
+}
+
+void ASTCloner::visit(NamespaceReflectExpressionAST* ast) {
+  auto copy = new (arena_) NamespaceReflectExpressionAST();
+  copy_ = copy;
+
+  copy->valueCategory = ast->valueCategory;
+
+  copy->type = ast->type;
+
+  copy->caretLoc = ast->caretLoc;
+
+  copy->identifierLoc = ast->identifierLoc;
+
+  copy->identifier = ast->identifier;
+
+  copy->symbol = ast->symbol;
+}
+
+void ASTCloner::visit(TypeIdReflectExpressionAST* ast) {
+  auto copy = new (arena_) TypeIdReflectExpressionAST();
+  copy_ = copy;
+
+  copy->valueCategory = ast->valueCategory;
+
+  copy->type = ast->type;
+
+  copy->caretLoc = ast->caretLoc;
+
+  copy->typeId = accept(ast->typeId);
+}
+
+void ASTCloner::visit(ReflectExpressionAST* ast) {
+  auto copy = new (arena_) ReflectExpressionAST();
+  copy_ = copy;
+
+  copy->valueCategory = ast->valueCategory;
+
+  copy->type = ast->type;
+
+  copy->caretLoc = ast->caretLoc;
+
+  copy->expression = accept(ast->expression);
+}
+
 void ASTCloner::visit(UnaryExpressionAST* ast) {
   auto copy = new (arena_) UnaryExpressionAST();
   copy_ = copy;
@@ -1970,6 +2037,404 @@ void ASTCloner::visit(ParenInitializerAST* ast) {
   }
 
   copy->rparenLoc = ast->rparenLoc;
+}
+
+void ASTCloner::visit(SplicerAST* ast) {
+  auto copy = new (arena_) SplicerAST();
+  copy_ = copy;
+
+  copy->lbracketLoc = ast->lbracketLoc;
+
+  copy->colonLoc = ast->colonLoc;
+
+  copy->ellipsisLoc = ast->ellipsisLoc;
+
+  copy->identifierLoc = ast->identifierLoc;
+
+  copy->secondColonLoc = ast->secondColonLoc;
+
+  copy->rbracketLoc = ast->rbracketLoc;
+
+  copy->identifier = ast->identifier;
+}
+
+void ASTCloner::visit(GlobalModuleFragmentAST* ast) {
+  auto copy = new (arena_) GlobalModuleFragmentAST();
+  copy_ = copy;
+
+  copy->moduleLoc = ast->moduleLoc;
+
+  copy->semicolonLoc = ast->semicolonLoc;
+
+  if (auto it = ast->declarationList) {
+    auto out = &copy->declarationList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+}
+
+void ASTCloner::visit(PrivateModuleFragmentAST* ast) {
+  auto copy = new (arena_) PrivateModuleFragmentAST();
+  copy_ = copy;
+
+  copy->moduleLoc = ast->moduleLoc;
+
+  copy->colonLoc = ast->colonLoc;
+
+  copy->privateLoc = ast->privateLoc;
+
+  copy->semicolonLoc = ast->semicolonLoc;
+
+  if (auto it = ast->declarationList) {
+    auto out = &copy->declarationList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+}
+
+void ASTCloner::visit(ModuleDeclarationAST* ast) {
+  auto copy = new (arena_) ModuleDeclarationAST();
+  copy_ = copy;
+
+  copy->exportLoc = ast->exportLoc;
+
+  copy->moduleLoc = ast->moduleLoc;
+
+  copy->moduleName = accept(ast->moduleName);
+
+  copy->modulePartition = accept(ast->modulePartition);
+
+  if (auto it = ast->attributeList) {
+    auto out = &copy->attributeList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->semicolonLoc = ast->semicolonLoc;
+}
+
+void ASTCloner::visit(ModuleNameAST* ast) {
+  auto copy = new (arena_) ModuleNameAST();
+  copy_ = copy;
+
+  copy->moduleQualifier = accept(ast->moduleQualifier);
+
+  copy->identifierLoc = ast->identifierLoc;
+
+  copy->identifier = ast->identifier;
+}
+
+void ASTCloner::visit(ModuleQualifierAST* ast) {
+  auto copy = new (arena_) ModuleQualifierAST();
+  copy_ = copy;
+
+  copy->moduleQualifier = accept(ast->moduleQualifier);
+
+  copy->identifierLoc = ast->identifierLoc;
+
+  copy->dotLoc = ast->dotLoc;
+
+  copy->identifier = ast->identifier;
+}
+
+void ASTCloner::visit(ModulePartitionAST* ast) {
+  auto copy = new (arena_) ModulePartitionAST();
+  copy_ = copy;
+
+  copy->colonLoc = ast->colonLoc;
+
+  copy->moduleName = accept(ast->moduleName);
+}
+
+void ASTCloner::visit(ImportNameAST* ast) {
+  auto copy = new (arena_) ImportNameAST();
+  copy_ = copy;
+
+  copy->headerLoc = ast->headerLoc;
+
+  copy->modulePartition = accept(ast->modulePartition);
+
+  copy->moduleName = accept(ast->moduleName);
+}
+
+void ASTCloner::visit(InitDeclaratorAST* ast) {
+  auto copy = new (arena_) InitDeclaratorAST();
+  copy_ = copy;
+
+  copy->declarator = accept(ast->declarator);
+
+  copy->requiresClause = accept(ast->requiresClause);
+
+  copy->initializer = accept(ast->initializer);
+}
+
+void ASTCloner::visit(DeclaratorAST* ast) {
+  auto copy = new (arena_) DeclaratorAST();
+  copy_ = copy;
+
+  if (auto it = ast->ptrOpList) {
+    auto out = &copy->ptrOpList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->coreDeclarator = accept(ast->coreDeclarator);
+
+  if (auto it = ast->declaratorChunkList) {
+    auto out = &copy->declaratorChunkList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+}
+
+void ASTCloner::visit(UsingDeclaratorAST* ast) {
+  auto copy = new (arena_) UsingDeclaratorAST();
+  copy_ = copy;
+
+  copy->typenameLoc = ast->typenameLoc;
+
+  copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
+
+  copy->unqualifiedId = accept(ast->unqualifiedId);
+
+  copy->ellipsisLoc = ast->ellipsisLoc;
+
+  copy->isPack = ast->isPack;
+}
+
+void ASTCloner::visit(EnumeratorAST* ast) {
+  auto copy = new (arena_) EnumeratorAST();
+  copy_ = copy;
+
+  copy->identifierLoc = ast->identifierLoc;
+
+  if (auto it = ast->attributeList) {
+    auto out = &copy->attributeList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->equalLoc = ast->equalLoc;
+
+  copy->expression = accept(ast->expression);
+
+  copy->identifier = ast->identifier;
+}
+
+void ASTCloner::visit(TypeIdAST* ast) {
+  auto copy = new (arena_) TypeIdAST();
+  copy_ = copy;
+
+  if (auto it = ast->typeSpecifierList) {
+    auto out = &copy->typeSpecifierList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->declarator = accept(ast->declarator);
+
+  copy->type = ast->type;
+}
+
+void ASTCloner::visit(HandlerAST* ast) {
+  auto copy = new (arena_) HandlerAST();
+  copy_ = copy;
+
+  copy->catchLoc = ast->catchLoc;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->exceptionDeclaration = accept(ast->exceptionDeclaration);
+
+  copy->rparenLoc = ast->rparenLoc;
+
+  copy->statement = accept(ast->statement);
+}
+
+void ASTCloner::visit(BaseSpecifierAST* ast) {
+  auto copy = new (arena_) BaseSpecifierAST();
+  copy_ = copy;
+
+  if (auto it = ast->attributeList) {
+    auto out = &copy->attributeList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
+
+  copy->templateLoc = ast->templateLoc;
+
+  copy->unqualifiedId = accept(ast->unqualifiedId);
+
+  copy->isTemplateIntroduced = ast->isTemplateIntroduced;
+
+  copy->isVirtual = ast->isVirtual;
+
+  copy->accessSpecifier = ast->accessSpecifier;
+
+  copy->symbol = ast->symbol;
+}
+
+void ASTCloner::visit(RequiresClauseAST* ast) {
+  auto copy = new (arena_) RequiresClauseAST();
+  copy_ = copy;
+
+  copy->requiresLoc = ast->requiresLoc;
+
+  copy->expression = accept(ast->expression);
+}
+
+void ASTCloner::visit(ParameterDeclarationClauseAST* ast) {
+  auto copy = new (arena_) ParameterDeclarationClauseAST();
+  copy_ = copy;
+
+  if (auto it = ast->parameterDeclarationList) {
+    auto out = &copy->parameterDeclarationList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->commaLoc = ast->commaLoc;
+
+  copy->ellipsisLoc = ast->ellipsisLoc;
+
+  copy->functionParametersSymbol = ast->functionParametersSymbol;
+
+  copy->isVariadic = ast->isVariadic;
+}
+
+void ASTCloner::visit(TrailingReturnTypeAST* ast) {
+  auto copy = new (arena_) TrailingReturnTypeAST();
+  copy_ = copy;
+
+  copy->minusGreaterLoc = ast->minusGreaterLoc;
+
+  copy->typeId = accept(ast->typeId);
+}
+
+void ASTCloner::visit(LambdaSpecifierAST* ast) {
+  auto copy = new (arena_) LambdaSpecifierAST();
+  copy_ = copy;
+
+  copy->specifierLoc = ast->specifierLoc;
+
+  copy->specifier = ast->specifier;
+}
+
+void ASTCloner::visit(TypeConstraintAST* ast) {
+  auto copy = new (arena_) TypeConstraintAST();
+  copy_ = copy;
+
+  copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
+
+  copy->identifierLoc = ast->identifierLoc;
+
+  copy->lessLoc = ast->lessLoc;
+
+  if (auto it = ast->templateArgumentList) {
+    auto out = &copy->templateArgumentList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->greaterLoc = ast->greaterLoc;
+
+  copy->identifier = ast->identifier;
+}
+
+void ASTCloner::visit(AttributeArgumentClauseAST* ast) {
+  auto copy = new (arena_) AttributeArgumentClauseAST();
+  copy_ = copy;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  copy->rparenLoc = ast->rparenLoc;
+}
+
+void ASTCloner::visit(AttributeAST* ast) {
+  auto copy = new (arena_) AttributeAST();
+  copy_ = copy;
+
+  copy->attributeToken = accept(ast->attributeToken);
+
+  copy->attributeArgumentClause = accept(ast->attributeArgumentClause);
+
+  copy->ellipsisLoc = ast->ellipsisLoc;
+}
+
+void ASTCloner::visit(AttributeUsingPrefixAST* ast) {
+  auto copy = new (arena_) AttributeUsingPrefixAST();
+  copy_ = copy;
+
+  copy->usingLoc = ast->usingLoc;
+
+  copy->attributeNamespaceLoc = ast->attributeNamespaceLoc;
+
+  copy->colonLoc = ast->colonLoc;
+}
+
+void ASTCloner::visit(NewPlacementAST* ast) {
+  auto copy = new (arena_) NewPlacementAST();
+  copy_ = copy;
+
+  copy->lparenLoc = ast->lparenLoc;
+
+  if (auto it = ast->expressionList) {
+    auto out = &copy->expressionList;
+
+    for (; it; it = it->next) {
+      *out = new (arena_) List(accept(it->value));
+      out = &(*out)->next;
+    }
+  }
+
+  copy->rparenLoc = ast->rparenLoc;
+}
+
+void ASTCloner::visit(NestedNamespaceSpecifierAST* ast) {
+  auto copy = new (arena_) NestedNamespaceSpecifierAST();
+  copy_ = copy;
+
+  copy->inlineLoc = ast->inlineLoc;
+
+  copy->identifierLoc = ast->identifierLoc;
+
+  copy->scopeLoc = ast->scopeLoc;
+
+  copy->identifier = ast->identifier;
+
+  copy->isInline = ast->isInline;
 }
 
 void ASTCloner::visit(TemplateTypeParameterAST* ast) {
@@ -2468,6 +2933,15 @@ void ASTCloner::visit(TypenameSpecifierAST* ast) {
   copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
 
   copy->unqualifiedId = accept(ast->unqualifiedId);
+}
+
+void ASTCloner::visit(SplicerTypeSpecifierAST* ast) {
+  auto copy = new (arena_) SplicerTypeSpecifierAST();
+  copy_ = copy;
+
+  copy->typenameLoc = ast->typenameLoc;
+
+  copy->splicer = accept(ast->splicer);
 }
 
 void ASTCloner::visit(PointerOperatorAST* ast) {
@@ -3265,385 +3739,6 @@ void ASTCloner::visit(SimpleAttributeTokenAST* ast) {
   copy->identifierLoc = ast->identifierLoc;
 
   copy->identifier = ast->identifier;
-}
-
-void ASTCloner::visit(GlobalModuleFragmentAST* ast) {
-  auto copy = new (arena_) GlobalModuleFragmentAST();
-  copy_ = copy;
-
-  copy->moduleLoc = ast->moduleLoc;
-
-  copy->semicolonLoc = ast->semicolonLoc;
-
-  if (auto it = ast->declarationList) {
-    auto out = &copy->declarationList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
-}
-
-void ASTCloner::visit(PrivateModuleFragmentAST* ast) {
-  auto copy = new (arena_) PrivateModuleFragmentAST();
-  copy_ = copy;
-
-  copy->moduleLoc = ast->moduleLoc;
-
-  copy->colonLoc = ast->colonLoc;
-
-  copy->privateLoc = ast->privateLoc;
-
-  copy->semicolonLoc = ast->semicolonLoc;
-
-  if (auto it = ast->declarationList) {
-    auto out = &copy->declarationList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
-}
-
-void ASTCloner::visit(ModuleDeclarationAST* ast) {
-  auto copy = new (arena_) ModuleDeclarationAST();
-  copy_ = copy;
-
-  copy->exportLoc = ast->exportLoc;
-
-  copy->moduleLoc = ast->moduleLoc;
-
-  copy->moduleName = accept(ast->moduleName);
-
-  copy->modulePartition = accept(ast->modulePartition);
-
-  if (auto it = ast->attributeList) {
-    auto out = &copy->attributeList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
-
-  copy->semicolonLoc = ast->semicolonLoc;
-}
-
-void ASTCloner::visit(ModuleNameAST* ast) {
-  auto copy = new (arena_) ModuleNameAST();
-  copy_ = copy;
-
-  copy->moduleQualifier = accept(ast->moduleQualifier);
-
-  copy->identifierLoc = ast->identifierLoc;
-
-  copy->identifier = ast->identifier;
-}
-
-void ASTCloner::visit(ModuleQualifierAST* ast) {
-  auto copy = new (arena_) ModuleQualifierAST();
-  copy_ = copy;
-
-  copy->moduleQualifier = accept(ast->moduleQualifier);
-
-  copy->identifierLoc = ast->identifierLoc;
-
-  copy->dotLoc = ast->dotLoc;
-
-  copy->identifier = ast->identifier;
-}
-
-void ASTCloner::visit(ModulePartitionAST* ast) {
-  auto copy = new (arena_) ModulePartitionAST();
-  copy_ = copy;
-
-  copy->colonLoc = ast->colonLoc;
-
-  copy->moduleName = accept(ast->moduleName);
-}
-
-void ASTCloner::visit(ImportNameAST* ast) {
-  auto copy = new (arena_) ImportNameAST();
-  copy_ = copy;
-
-  copy->headerLoc = ast->headerLoc;
-
-  copy->modulePartition = accept(ast->modulePartition);
-
-  copy->moduleName = accept(ast->moduleName);
-}
-
-void ASTCloner::visit(InitDeclaratorAST* ast) {
-  auto copy = new (arena_) InitDeclaratorAST();
-  copy_ = copy;
-
-  copy->declarator = accept(ast->declarator);
-
-  copy->requiresClause = accept(ast->requiresClause);
-
-  copy->initializer = accept(ast->initializer);
-}
-
-void ASTCloner::visit(DeclaratorAST* ast) {
-  auto copy = new (arena_) DeclaratorAST();
-  copy_ = copy;
-
-  if (auto it = ast->ptrOpList) {
-    auto out = &copy->ptrOpList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
-
-  copy->coreDeclarator = accept(ast->coreDeclarator);
-
-  if (auto it = ast->declaratorChunkList) {
-    auto out = &copy->declaratorChunkList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
-}
-
-void ASTCloner::visit(UsingDeclaratorAST* ast) {
-  auto copy = new (arena_) UsingDeclaratorAST();
-  copy_ = copy;
-
-  copy->typenameLoc = ast->typenameLoc;
-
-  copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
-
-  copy->unqualifiedId = accept(ast->unqualifiedId);
-
-  copy->ellipsisLoc = ast->ellipsisLoc;
-
-  copy->isPack = ast->isPack;
-}
-
-void ASTCloner::visit(EnumeratorAST* ast) {
-  auto copy = new (arena_) EnumeratorAST();
-  copy_ = copy;
-
-  copy->identifierLoc = ast->identifierLoc;
-
-  if (auto it = ast->attributeList) {
-    auto out = &copy->attributeList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
-
-  copy->equalLoc = ast->equalLoc;
-
-  copy->expression = accept(ast->expression);
-
-  copy->identifier = ast->identifier;
-}
-
-void ASTCloner::visit(TypeIdAST* ast) {
-  auto copy = new (arena_) TypeIdAST();
-  copy_ = copy;
-
-  if (auto it = ast->typeSpecifierList) {
-    auto out = &copy->typeSpecifierList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
-
-  copy->declarator = accept(ast->declarator);
-
-  copy->type = ast->type;
-}
-
-void ASTCloner::visit(HandlerAST* ast) {
-  auto copy = new (arena_) HandlerAST();
-  copy_ = copy;
-
-  copy->catchLoc = ast->catchLoc;
-
-  copy->lparenLoc = ast->lparenLoc;
-
-  copy->exceptionDeclaration = accept(ast->exceptionDeclaration);
-
-  copy->rparenLoc = ast->rparenLoc;
-
-  copy->statement = accept(ast->statement);
-}
-
-void ASTCloner::visit(BaseSpecifierAST* ast) {
-  auto copy = new (arena_) BaseSpecifierAST();
-  copy_ = copy;
-
-  if (auto it = ast->attributeList) {
-    auto out = &copy->attributeList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
-
-  copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
-
-  copy->templateLoc = ast->templateLoc;
-
-  copy->unqualifiedId = accept(ast->unqualifiedId);
-
-  copy->isTemplateIntroduced = ast->isTemplateIntroduced;
-
-  copy->isVirtual = ast->isVirtual;
-
-  copy->accessSpecifier = ast->accessSpecifier;
-
-  copy->symbol = ast->symbol;
-}
-
-void ASTCloner::visit(RequiresClauseAST* ast) {
-  auto copy = new (arena_) RequiresClauseAST();
-  copy_ = copy;
-
-  copy->requiresLoc = ast->requiresLoc;
-
-  copy->expression = accept(ast->expression);
-}
-
-void ASTCloner::visit(ParameterDeclarationClauseAST* ast) {
-  auto copy = new (arena_) ParameterDeclarationClauseAST();
-  copy_ = copy;
-
-  if (auto it = ast->parameterDeclarationList) {
-    auto out = &copy->parameterDeclarationList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
-
-  copy->commaLoc = ast->commaLoc;
-
-  copy->ellipsisLoc = ast->ellipsisLoc;
-
-  copy->functionParametersSymbol = ast->functionParametersSymbol;
-
-  copy->isVariadic = ast->isVariadic;
-}
-
-void ASTCloner::visit(TrailingReturnTypeAST* ast) {
-  auto copy = new (arena_) TrailingReturnTypeAST();
-  copy_ = copy;
-
-  copy->minusGreaterLoc = ast->minusGreaterLoc;
-
-  copy->typeId = accept(ast->typeId);
-}
-
-void ASTCloner::visit(LambdaSpecifierAST* ast) {
-  auto copy = new (arena_) LambdaSpecifierAST();
-  copy_ = copy;
-
-  copy->specifierLoc = ast->specifierLoc;
-
-  copy->specifier = ast->specifier;
-}
-
-void ASTCloner::visit(TypeConstraintAST* ast) {
-  auto copy = new (arena_) TypeConstraintAST();
-  copy_ = copy;
-
-  copy->nestedNameSpecifier = accept(ast->nestedNameSpecifier);
-
-  copy->identifierLoc = ast->identifierLoc;
-
-  copy->lessLoc = ast->lessLoc;
-
-  if (auto it = ast->templateArgumentList) {
-    auto out = &copy->templateArgumentList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
-
-  copy->greaterLoc = ast->greaterLoc;
-
-  copy->identifier = ast->identifier;
-}
-
-void ASTCloner::visit(AttributeArgumentClauseAST* ast) {
-  auto copy = new (arena_) AttributeArgumentClauseAST();
-  copy_ = copy;
-
-  copy->lparenLoc = ast->lparenLoc;
-
-  copy->rparenLoc = ast->rparenLoc;
-}
-
-void ASTCloner::visit(AttributeAST* ast) {
-  auto copy = new (arena_) AttributeAST();
-  copy_ = copy;
-
-  copy->attributeToken = accept(ast->attributeToken);
-
-  copy->attributeArgumentClause = accept(ast->attributeArgumentClause);
-
-  copy->ellipsisLoc = ast->ellipsisLoc;
-}
-
-void ASTCloner::visit(AttributeUsingPrefixAST* ast) {
-  auto copy = new (arena_) AttributeUsingPrefixAST();
-  copy_ = copy;
-
-  copy->usingLoc = ast->usingLoc;
-
-  copy->attributeNamespaceLoc = ast->attributeNamespaceLoc;
-
-  copy->colonLoc = ast->colonLoc;
-}
-
-void ASTCloner::visit(NewPlacementAST* ast) {
-  auto copy = new (arena_) NewPlacementAST();
-  copy_ = copy;
-
-  copy->lparenLoc = ast->lparenLoc;
-
-  if (auto it = ast->expressionList) {
-    auto out = &copy->expressionList;
-
-    for (; it; it = it->next) {
-      *out = new (arena_) List(accept(it->value));
-      out = &(*out)->next;
-    }
-  }
-
-  copy->rparenLoc = ast->rparenLoc;
-}
-
-void ASTCloner::visit(NestedNamespaceSpecifierAST* ast) {
-  auto copy = new (arena_) NestedNamespaceSpecifierAST();
-  copy_ = copy;
-
-  copy->inlineLoc = ast->inlineLoc;
-
-  copy->identifierLoc = ast->identifierLoc;
-
-  copy->scopeLoc = ast->scopeLoc;
-
-  copy->identifier = ast->identifier;
-
-  copy->isInline = ast->isInline;
 }
 
 }  // namespace cxx

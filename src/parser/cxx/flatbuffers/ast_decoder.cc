@@ -292,6 +292,21 @@ auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
     case io::Expression_TypeidOfTypeExpression:
       return decodeTypeidOfTypeExpression(
           reinterpret_cast<const io::TypeidOfTypeExpression*>(ptr));
+    case io::Expression_SpliceExpression:
+      return decodeSpliceExpression(
+          reinterpret_cast<const io::SpliceExpression*>(ptr));
+    case io::Expression_GlobalScopeReflectExpression:
+      return decodeGlobalScopeReflectExpression(
+          reinterpret_cast<const io::GlobalScopeReflectExpression*>(ptr));
+    case io::Expression_NamespaceReflectExpression:
+      return decodeNamespaceReflectExpression(
+          reinterpret_cast<const io::NamespaceReflectExpression*>(ptr));
+    case io::Expression_TypeIdReflectExpression:
+      return decodeTypeIdReflectExpression(
+          reinterpret_cast<const io::TypeIdReflectExpression*>(ptr));
+    case io::Expression_ReflectExpression:
+      return decodeReflectExpression(
+          reinterpret_cast<const io::ReflectExpression*>(ptr));
     case io::Expression_UnaryExpression:
       return decodeUnaryExpression(
           reinterpret_cast<const io::UnaryExpression*>(ptr));
@@ -495,6 +510,9 @@ auto ASTDecoder::decodeSpecifier(const void* ptr, io::Specifier type)
     case io::Specifier_TypenameSpecifier:
       return decodeTypenameSpecifier(
           reinterpret_cast<const io::TypenameSpecifier*>(ptr));
+    case io::Specifier_SplicerTypeSpecifier:
+      return decodeSplicerTypeSpecifier(
+          reinterpret_cast<const io::SplicerTypeSpecifier*>(ptr));
     default:
       return nullptr;
   }  // switch
@@ -1972,6 +1990,56 @@ auto ASTDecoder::decodeTypeidOfTypeExpression(
   return ast;
 }
 
+auto ASTDecoder::decodeSpliceExpression(const io::SpliceExpression* node)
+    -> SpliceExpressionAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) SpliceExpressionAST();
+  ast->splicer = decodeSplicer(node->splicer());
+  return ast;
+}
+
+auto ASTDecoder::decodeGlobalScopeReflectExpression(
+    const io::GlobalScopeReflectExpression* node)
+    -> GlobalScopeReflectExpressionAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) GlobalScopeReflectExpressionAST();
+  return ast;
+}
+
+auto ASTDecoder::decodeNamespaceReflectExpression(
+    const io::NamespaceReflectExpression* node)
+    -> NamespaceReflectExpressionAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) NamespaceReflectExpressionAST();
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeTypeIdReflectExpression(
+    const io::TypeIdReflectExpression* node) -> TypeIdReflectExpressionAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) TypeIdReflectExpressionAST();
+  ast->typeId = decodeTypeId(node->type_id());
+  return ast;
+}
+
+auto ASTDecoder::decodeReflectExpression(const io::ReflectExpression* node)
+    -> ReflectExpressionAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) ReflectExpressionAST();
+  ast->expression =
+      decodeExpression(node->expression(), node->expression_type());
+  return ast;
+}
+
 auto ASTDecoder::decodeUnaryExpression(const io::UnaryExpression* node)
     -> UnaryExpressionAST* {
   if (!node) return nullptr;
@@ -2273,6 +2341,364 @@ auto ASTDecoder::decodeParenInitializer(const io::ParenInitializer* node)
           io::Expression(node->expression_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeSplicer(const io::Splicer* node) -> SplicerAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) SplicerAST();
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeGlobalModuleFragment(
+    const io::GlobalModuleFragment* node) -> GlobalModuleFragmentAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) GlobalModuleFragmentAST();
+  if (node->declaration_list()) {
+    auto* inserter = &ast->declarationList;
+    for (std::size_t i = 0; i < node->declaration_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeDeclaration(
+          node->declaration_list()->Get(i),
+          io::Declaration(node->declaration_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodePrivateModuleFragment(
+    const io::PrivateModuleFragment* node) -> PrivateModuleFragmentAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) PrivateModuleFragmentAST();
+  if (node->declaration_list()) {
+    auto* inserter = &ast->declarationList;
+    for (std::size_t i = 0; i < node->declaration_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeDeclaration(
+          node->declaration_list()->Get(i),
+          io::Declaration(node->declaration_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeModuleDeclaration(const io::ModuleDeclaration* node)
+    -> ModuleDeclarationAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) ModuleDeclarationAST();
+  ast->moduleName = decodeModuleName(node->module_name());
+  ast->modulePartition = decodeModulePartition(node->module_partition());
+  if (node->attribute_list()) {
+    auto* inserter = &ast->attributeList;
+    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeModuleName(const io::ModuleName* node)
+    -> ModuleNameAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) ModuleNameAST();
+  ast->moduleQualifier = decodeModuleQualifier(node->module_qualifier());
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeModuleQualifier(const io::ModuleQualifier* node)
+    -> ModuleQualifierAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) ModuleQualifierAST();
+  ast->moduleQualifier = decodeModuleQualifier(node->module_qualifier());
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeModulePartition(const io::ModulePartition* node)
+    -> ModulePartitionAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) ModulePartitionAST();
+  ast->moduleName = decodeModuleName(node->module_name());
+  return ast;
+}
+
+auto ASTDecoder::decodeImportName(const io::ImportName* node)
+    -> ImportNameAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) ImportNameAST();
+  ast->modulePartition = decodeModulePartition(node->module_partition());
+  ast->moduleName = decodeModuleName(node->module_name());
+  return ast;
+}
+
+auto ASTDecoder::decodeInitDeclarator(const io::InitDeclarator* node)
+    -> InitDeclaratorAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) InitDeclaratorAST();
+  ast->declarator = decodeDeclarator(node->declarator());
+  ast->requiresClause = decodeRequiresClause(node->requires_clause());
+  ast->initializer =
+      decodeExpression(node->initializer(), node->initializer_type());
+  return ast;
+}
+
+auto ASTDecoder::decodeDeclarator(const io::Declarator* node)
+    -> DeclaratorAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) DeclaratorAST();
+  if (node->ptr_op_list()) {
+    auto* inserter = &ast->ptrOpList;
+    for (std::size_t i = 0; i < node->ptr_op_list()->size(); ++i) {
+      *inserter = new (pool_) List(
+          decodePtrOperator(node->ptr_op_list()->Get(i),
+                            io::PtrOperator(node->ptr_op_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  ast->coreDeclarator = decodeCoreDeclarator(node->core_declarator(),
+                                             node->core_declarator_type());
+  if (node->declarator_chunk_list()) {
+    auto* inserter = &ast->declaratorChunkList;
+    for (std::size_t i = 0; i < node->declarator_chunk_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeDeclaratorChunk(
+          node->declarator_chunk_list()->Get(i),
+          io::DeclaratorChunk(node->declarator_chunk_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeUsingDeclarator(const io::UsingDeclarator* node)
+    -> UsingDeclaratorAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) UsingDeclaratorAST();
+  ast->nestedNameSpecifier = decodeNestedNameSpecifier(
+      node->nested_name_specifier(), node->nested_name_specifier_type());
+  ast->unqualifiedId =
+      decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
+  return ast;
+}
+
+auto ASTDecoder::decodeEnumerator(const io::Enumerator* node)
+    -> EnumeratorAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) EnumeratorAST();
+  if (node->attribute_list()) {
+    auto* inserter = &ast->attributeList;
+    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  ast->expression =
+      decodeExpression(node->expression(), node->expression_type());
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeTypeId(const io::TypeId* node) -> TypeIdAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) TypeIdAST();
+  if (node->type_specifier_list()) {
+    auto* inserter = &ast->typeSpecifierList;
+    for (std::size_t i = 0; i < node->type_specifier_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeSpecifier(
+          node->type_specifier_list()->Get(i),
+          io::Specifier(node->type_specifier_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  ast->declarator = decodeDeclarator(node->declarator());
+  return ast;
+}
+
+auto ASTDecoder::decodeHandler(const io::Handler* node) -> HandlerAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) HandlerAST();
+  ast->exceptionDeclaration = decodeExceptionDeclaration(
+      node->exception_declaration(), node->exception_declaration_type());
+  ast->statement = decodeCompoundStatement(node->statement());
+  return ast;
+}
+
+auto ASTDecoder::decodeBaseSpecifier(const io::BaseSpecifier* node)
+    -> BaseSpecifierAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) BaseSpecifierAST();
+  if (node->attribute_list()) {
+    auto* inserter = &ast->attributeList;
+    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  ast->nestedNameSpecifier = decodeNestedNameSpecifier(
+      node->nested_name_specifier(), node->nested_name_specifier_type());
+  ast->unqualifiedId =
+      decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
+  ast->accessSpecifier = static_cast<TokenKind>(node->access_specifier());
+  return ast;
+}
+
+auto ASTDecoder::decodeRequiresClause(const io::RequiresClause* node)
+    -> RequiresClauseAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) RequiresClauseAST();
+  ast->expression =
+      decodeExpression(node->expression(), node->expression_type());
+  return ast;
+}
+
+auto ASTDecoder::decodeParameterDeclarationClause(
+    const io::ParameterDeclarationClause* node)
+    -> ParameterDeclarationClauseAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) ParameterDeclarationClauseAST();
+  if (node->parameter_declaration_list()) {
+    auto* inserter = &ast->parameterDeclarationList;
+    for (std::size_t i = 0; i < node->parameter_declaration_list()->size();
+         ++i) {
+      *inserter = new (pool_) List(decodeParameterDeclaration(
+          node->parameter_declaration_list()->Get(i)));
+      inserter = &(*inserter)->next;
+    }
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeTrailingReturnType(const io::TrailingReturnType* node)
+    -> TrailingReturnTypeAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) TrailingReturnTypeAST();
+  ast->typeId = decodeTypeId(node->type_id());
+  return ast;
+}
+
+auto ASTDecoder::decodeLambdaSpecifier(const io::LambdaSpecifier* node)
+    -> LambdaSpecifierAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) LambdaSpecifierAST();
+  ast->specifier = static_cast<TokenKind>(node->specifier());
+  return ast;
+}
+
+auto ASTDecoder::decodeTypeConstraint(const io::TypeConstraint* node)
+    -> TypeConstraintAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) TypeConstraintAST();
+  ast->nestedNameSpecifier = decodeNestedNameSpecifier(
+      node->nested_name_specifier(), node->nested_name_specifier_type());
+  if (node->template_argument_list()) {
+    auto* inserter = &ast->templateArgumentList;
+    for (std::size_t i = 0; i < node->template_argument_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeTemplateArgument(
+          node->template_argument_list()->Get(i),
+          io::TemplateArgument(node->template_argument_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeAttributeArgumentClause(
+    const io::AttributeArgumentClause* node) -> AttributeArgumentClauseAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) AttributeArgumentClauseAST();
+  return ast;
+}
+
+auto ASTDecoder::decodeAttribute(const io::Attribute* node) -> AttributeAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) AttributeAST();
+  ast->attributeToken = decodeAttributeToken(node->attribute_token(),
+                                             node->attribute_token_type());
+  ast->attributeArgumentClause =
+      decodeAttributeArgumentClause(node->attribute_argument_clause());
+  return ast;
+}
+
+auto ASTDecoder::decodeAttributeUsingPrefix(
+    const io::AttributeUsingPrefix* node) -> AttributeUsingPrefixAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) AttributeUsingPrefixAST();
+  return ast;
+}
+
+auto ASTDecoder::decodeNewPlacement(const io::NewPlacement* node)
+    -> NewPlacementAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) NewPlacementAST();
+  if (node->expression_list()) {
+    auto* inserter = &ast->expressionList;
+    for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeExpression(
+          node->expression_list()->Get(i),
+          io::Expression(node->expression_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeNestedNamespaceSpecifier(
+    const io::NestedNamespaceSpecifier* node) -> NestedNamespaceSpecifierAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) NestedNamespaceSpecifierAST();
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
   }
   return ast;
 }
@@ -2701,6 +3127,15 @@ auto ASTDecoder::decodeTypenameSpecifier(const io::TypenameSpecifier* node)
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->unqualifiedId =
       decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
+  return ast;
+}
+
+auto ASTDecoder::decodeSplicerTypeSpecifier(
+    const io::SplicerTypeSpecifier* node) -> SplicerTypeSpecifierAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) SplicerTypeSpecifierAST();
+  ast->splicer = decodeSplicer(node->splicer());
   return ast;
 }
 
@@ -3424,353 +3859,6 @@ auto ASTDecoder::decodeSimpleAttributeToken(
   if (!node) return nullptr;
 
   auto ast = new (pool_) SimpleAttributeTokenAST();
-  if (node->identifier()) {
-    ast->identifier =
-        unit_->control()->getIdentifier(node->identifier()->str());
-  }
-  return ast;
-}
-
-auto ASTDecoder::decodeGlobalModuleFragment(
-    const io::GlobalModuleFragment* node) -> GlobalModuleFragmentAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) GlobalModuleFragmentAST();
-  if (node->declaration_list()) {
-    auto* inserter = &ast->declarationList;
-    for (std::size_t i = 0; i < node->declaration_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeDeclaration(
-          node->declaration_list()->Get(i),
-          io::Declaration(node->declaration_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  return ast;
-}
-
-auto ASTDecoder::decodePrivateModuleFragment(
-    const io::PrivateModuleFragment* node) -> PrivateModuleFragmentAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) PrivateModuleFragmentAST();
-  if (node->declaration_list()) {
-    auto* inserter = &ast->declarationList;
-    for (std::size_t i = 0; i < node->declaration_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeDeclaration(
-          node->declaration_list()->Get(i),
-          io::Declaration(node->declaration_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  return ast;
-}
-
-auto ASTDecoder::decodeModuleDeclaration(const io::ModuleDeclaration* node)
-    -> ModuleDeclarationAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) ModuleDeclarationAST();
-  ast->moduleName = decodeModuleName(node->module_name());
-  ast->modulePartition = decodeModulePartition(node->module_partition());
-  if (node->attribute_list()) {
-    auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeAttributeSpecifier(
-          node->attribute_list()->Get(i),
-          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  return ast;
-}
-
-auto ASTDecoder::decodeModuleName(const io::ModuleName* node)
-    -> ModuleNameAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) ModuleNameAST();
-  ast->moduleQualifier = decodeModuleQualifier(node->module_qualifier());
-  if (node->identifier()) {
-    ast->identifier =
-        unit_->control()->getIdentifier(node->identifier()->str());
-  }
-  return ast;
-}
-
-auto ASTDecoder::decodeModuleQualifier(const io::ModuleQualifier* node)
-    -> ModuleQualifierAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) ModuleQualifierAST();
-  ast->moduleQualifier = decodeModuleQualifier(node->module_qualifier());
-  if (node->identifier()) {
-    ast->identifier =
-        unit_->control()->getIdentifier(node->identifier()->str());
-  }
-  return ast;
-}
-
-auto ASTDecoder::decodeModulePartition(const io::ModulePartition* node)
-    -> ModulePartitionAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) ModulePartitionAST();
-  ast->moduleName = decodeModuleName(node->module_name());
-  return ast;
-}
-
-auto ASTDecoder::decodeImportName(const io::ImportName* node)
-    -> ImportNameAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) ImportNameAST();
-  ast->modulePartition = decodeModulePartition(node->module_partition());
-  ast->moduleName = decodeModuleName(node->module_name());
-  return ast;
-}
-
-auto ASTDecoder::decodeInitDeclarator(const io::InitDeclarator* node)
-    -> InitDeclaratorAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) InitDeclaratorAST();
-  ast->declarator = decodeDeclarator(node->declarator());
-  ast->requiresClause = decodeRequiresClause(node->requires_clause());
-  ast->initializer =
-      decodeExpression(node->initializer(), node->initializer_type());
-  return ast;
-}
-
-auto ASTDecoder::decodeDeclarator(const io::Declarator* node)
-    -> DeclaratorAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) DeclaratorAST();
-  if (node->ptr_op_list()) {
-    auto* inserter = &ast->ptrOpList;
-    for (std::size_t i = 0; i < node->ptr_op_list()->size(); ++i) {
-      *inserter = new (pool_) List(
-          decodePtrOperator(node->ptr_op_list()->Get(i),
-                            io::PtrOperator(node->ptr_op_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  ast->coreDeclarator = decodeCoreDeclarator(node->core_declarator(),
-                                             node->core_declarator_type());
-  if (node->declarator_chunk_list()) {
-    auto* inserter = &ast->declaratorChunkList;
-    for (std::size_t i = 0; i < node->declarator_chunk_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeDeclaratorChunk(
-          node->declarator_chunk_list()->Get(i),
-          io::DeclaratorChunk(node->declarator_chunk_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  return ast;
-}
-
-auto ASTDecoder::decodeUsingDeclarator(const io::UsingDeclarator* node)
-    -> UsingDeclaratorAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) UsingDeclaratorAST();
-  ast->nestedNameSpecifier = decodeNestedNameSpecifier(
-      node->nested_name_specifier(), node->nested_name_specifier_type());
-  ast->unqualifiedId =
-      decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
-  return ast;
-}
-
-auto ASTDecoder::decodeEnumerator(const io::Enumerator* node)
-    -> EnumeratorAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) EnumeratorAST();
-  if (node->attribute_list()) {
-    auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeAttributeSpecifier(
-          node->attribute_list()->Get(i),
-          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  ast->expression =
-      decodeExpression(node->expression(), node->expression_type());
-  if (node->identifier()) {
-    ast->identifier =
-        unit_->control()->getIdentifier(node->identifier()->str());
-  }
-  return ast;
-}
-
-auto ASTDecoder::decodeTypeId(const io::TypeId* node) -> TypeIdAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) TypeIdAST();
-  if (node->type_specifier_list()) {
-    auto* inserter = &ast->typeSpecifierList;
-    for (std::size_t i = 0; i < node->type_specifier_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeSpecifier(
-          node->type_specifier_list()->Get(i),
-          io::Specifier(node->type_specifier_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  ast->declarator = decodeDeclarator(node->declarator());
-  return ast;
-}
-
-auto ASTDecoder::decodeHandler(const io::Handler* node) -> HandlerAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) HandlerAST();
-  ast->exceptionDeclaration = decodeExceptionDeclaration(
-      node->exception_declaration(), node->exception_declaration_type());
-  ast->statement = decodeCompoundStatement(node->statement());
-  return ast;
-}
-
-auto ASTDecoder::decodeBaseSpecifier(const io::BaseSpecifier* node)
-    -> BaseSpecifierAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) BaseSpecifierAST();
-  if (node->attribute_list()) {
-    auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeAttributeSpecifier(
-          node->attribute_list()->Get(i),
-          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  ast->nestedNameSpecifier = decodeNestedNameSpecifier(
-      node->nested_name_specifier(), node->nested_name_specifier_type());
-  ast->unqualifiedId =
-      decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
-  ast->accessSpecifier = static_cast<TokenKind>(node->access_specifier());
-  return ast;
-}
-
-auto ASTDecoder::decodeRequiresClause(const io::RequiresClause* node)
-    -> RequiresClauseAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) RequiresClauseAST();
-  ast->expression =
-      decodeExpression(node->expression(), node->expression_type());
-  return ast;
-}
-
-auto ASTDecoder::decodeParameterDeclarationClause(
-    const io::ParameterDeclarationClause* node)
-    -> ParameterDeclarationClauseAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) ParameterDeclarationClauseAST();
-  if (node->parameter_declaration_list()) {
-    auto* inserter = &ast->parameterDeclarationList;
-    for (std::size_t i = 0; i < node->parameter_declaration_list()->size();
-         ++i) {
-      *inserter = new (pool_) List(decodeParameterDeclaration(
-          node->parameter_declaration_list()->Get(i)));
-      inserter = &(*inserter)->next;
-    }
-  }
-  return ast;
-}
-
-auto ASTDecoder::decodeTrailingReturnType(const io::TrailingReturnType* node)
-    -> TrailingReturnTypeAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) TrailingReturnTypeAST();
-  ast->typeId = decodeTypeId(node->type_id());
-  return ast;
-}
-
-auto ASTDecoder::decodeLambdaSpecifier(const io::LambdaSpecifier* node)
-    -> LambdaSpecifierAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) LambdaSpecifierAST();
-  ast->specifier = static_cast<TokenKind>(node->specifier());
-  return ast;
-}
-
-auto ASTDecoder::decodeTypeConstraint(const io::TypeConstraint* node)
-    -> TypeConstraintAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) TypeConstraintAST();
-  ast->nestedNameSpecifier = decodeNestedNameSpecifier(
-      node->nested_name_specifier(), node->nested_name_specifier_type());
-  if (node->template_argument_list()) {
-    auto* inserter = &ast->templateArgumentList;
-    for (std::size_t i = 0; i < node->template_argument_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeTemplateArgument(
-          node->template_argument_list()->Get(i),
-          io::TemplateArgument(node->template_argument_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  if (node->identifier()) {
-    ast->identifier =
-        unit_->control()->getIdentifier(node->identifier()->str());
-  }
-  return ast;
-}
-
-auto ASTDecoder::decodeAttributeArgumentClause(
-    const io::AttributeArgumentClause* node) -> AttributeArgumentClauseAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) AttributeArgumentClauseAST();
-  return ast;
-}
-
-auto ASTDecoder::decodeAttribute(const io::Attribute* node) -> AttributeAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) AttributeAST();
-  ast->attributeToken = decodeAttributeToken(node->attribute_token(),
-                                             node->attribute_token_type());
-  ast->attributeArgumentClause =
-      decodeAttributeArgumentClause(node->attribute_argument_clause());
-  return ast;
-}
-
-auto ASTDecoder::decodeAttributeUsingPrefix(
-    const io::AttributeUsingPrefix* node) -> AttributeUsingPrefixAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) AttributeUsingPrefixAST();
-  return ast;
-}
-
-auto ASTDecoder::decodeNewPlacement(const io::NewPlacement* node)
-    -> NewPlacementAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) NewPlacementAST();
-  if (node->expression_list()) {
-    auto* inserter = &ast->expressionList;
-    for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
-      *inserter = new (pool_) List(decodeExpression(
-          node->expression_list()->Get(i),
-          io::Expression(node->expression_list_type()->Get(i))));
-      inserter = &(*inserter)->next;
-    }
-  }
-  return ast;
-}
-
-auto ASTDecoder::decodeNestedNamespaceSpecifier(
-    const io::NestedNamespaceSpecifier* node) -> NestedNamespaceSpecifierAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) NestedNamespaceSpecifierAST();
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());

@@ -29,6 +29,7 @@ struct ParserConfiguration {
   bool checkTypes = false;
   bool fuzzyTemplateResolution = false;
   bool staticAssert = false;
+  bool reflect = false;
 };
 
 }  // namespace cxx

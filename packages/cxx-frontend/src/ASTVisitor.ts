@@ -926,6 +926,66 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
 
   /**
+   * Visit SpliceExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitSpliceExpression(
+    node: ast.SpliceExpressionAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit GlobalScopeReflectExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitGlobalScopeReflectExpression(
+    node: ast.GlobalScopeReflectExpressionAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit NamespaceReflectExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitNamespaceReflectExpression(
+    node: ast.NamespaceReflectExpressionAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit TypeIdReflectExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitTypeIdReflectExpression(
+    node: ast.TypeIdReflectExpressionAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit ReflectExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitReflectExpression(
+    node: ast.ReflectExpressionAST,
+    context: Context,
+  ): Result;
+
+  /**
    * Visit UnaryExpression node.
    *
    * @param node The node to visit.
@@ -1210,6 +1270,282 @@ export abstract class ASTVisitor<Context, Result> {
    */
   abstract visitParenInitializer(
     node: ast.ParenInitializerAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit Splicer node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitSplicer(node: ast.SplicerAST, context: Context): Result;
+
+  /**
+   * Visit GlobalModuleFragment node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitGlobalModuleFragment(
+    node: ast.GlobalModuleFragmentAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit PrivateModuleFragment node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitPrivateModuleFragment(
+    node: ast.PrivateModuleFragmentAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit ModuleDeclaration node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitModuleDeclaration(
+    node: ast.ModuleDeclarationAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit ModuleName node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitModuleName(node: ast.ModuleNameAST, context: Context): Result;
+
+  /**
+   * Visit ModuleQualifier node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitModuleQualifier(
+    node: ast.ModuleQualifierAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit ModulePartition node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitModulePartition(
+    node: ast.ModulePartitionAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit ImportName node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitImportName(node: ast.ImportNameAST, context: Context): Result;
+
+  /**
+   * Visit InitDeclarator node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitInitDeclarator(
+    node: ast.InitDeclaratorAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit Declarator node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitDeclarator(node: ast.DeclaratorAST, context: Context): Result;
+
+  /**
+   * Visit UsingDeclarator node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitUsingDeclarator(
+    node: ast.UsingDeclaratorAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit Enumerator node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitEnumerator(node: ast.EnumeratorAST, context: Context): Result;
+
+  /**
+   * Visit TypeId node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitTypeId(node: ast.TypeIdAST, context: Context): Result;
+
+  /**
+   * Visit Handler node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitHandler(node: ast.HandlerAST, context: Context): Result;
+
+  /**
+   * Visit BaseSpecifier node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitBaseSpecifier(
+    node: ast.BaseSpecifierAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit RequiresClause node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitRequiresClause(
+    node: ast.RequiresClauseAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit ParameterDeclarationClause node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitParameterDeclarationClause(
+    node: ast.ParameterDeclarationClauseAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit TrailingReturnType node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitTrailingReturnType(
+    node: ast.TrailingReturnTypeAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit LambdaSpecifier node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitLambdaSpecifier(
+    node: ast.LambdaSpecifierAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit TypeConstraint node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitTypeConstraint(
+    node: ast.TypeConstraintAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit AttributeArgumentClause node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitAttributeArgumentClause(
+    node: ast.AttributeArgumentClauseAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit Attribute node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitAttribute(node: ast.AttributeAST, context: Context): Result;
+
+  /**
+   * Visit AttributeUsingPrefix node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitAttributeUsingPrefix(
+    node: ast.AttributeUsingPrefixAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit NewPlacement node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitNewPlacement(
+    node: ast.NewPlacementAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit NestedNamespaceSpecifier node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitNestedNamespaceSpecifier(
+    node: ast.NestedNamespaceSpecifierAST,
     context: Context,
   ): Result;
 
@@ -1666,6 +2002,18 @@ export abstract class ASTVisitor<Context, Result> {
    */
   abstract visitTypenameSpecifier(
     node: ast.TypenameSpecifierAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit SplicerTypeSpecifier node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitSplicerTypeSpecifier(
+    node: ast.SplicerTypeSpecifierAST,
     context: Context,
   ): Result;
 
@@ -2296,273 +2644,6 @@ export abstract class ASTVisitor<Context, Result> {
    */
   abstract visitSimpleAttributeToken(
     node: ast.SimpleAttributeTokenAST,
-    context: Context,
-  ): Result;
-
-  /**
-   * Visit GlobalModuleFragment node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitGlobalModuleFragment(
-    node: ast.GlobalModuleFragmentAST,
-    context: Context,
-  ): Result;
-
-  /**
-   * Visit PrivateModuleFragment node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitPrivateModuleFragment(
-    node: ast.PrivateModuleFragmentAST,
-    context: Context,
-  ): Result;
-
-  /**
-   * Visit ModuleDeclaration node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitModuleDeclaration(
-    node: ast.ModuleDeclarationAST,
-    context: Context,
-  ): Result;
-
-  /**
-   * Visit ModuleName node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitModuleName(node: ast.ModuleNameAST, context: Context): Result;
-
-  /**
-   * Visit ModuleQualifier node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitModuleQualifier(
-    node: ast.ModuleQualifierAST,
-    context: Context,
-  ): Result;
-
-  /**
-   * Visit ModulePartition node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitModulePartition(
-    node: ast.ModulePartitionAST,
-    context: Context,
-  ): Result;
-
-  /**
-   * Visit ImportName node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitImportName(node: ast.ImportNameAST, context: Context): Result;
-
-  /**
-   * Visit InitDeclarator node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitInitDeclarator(
-    node: ast.InitDeclaratorAST,
-    context: Context,
-  ): Result;
-
-  /**
-   * Visit Declarator node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitDeclarator(node: ast.DeclaratorAST, context: Context): Result;
-
-  /**
-   * Visit UsingDeclarator node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitUsingDeclarator(
-    node: ast.UsingDeclaratorAST,
-    context: Context,
-  ): Result;
-
-  /**
-   * Visit Enumerator node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitEnumerator(node: ast.EnumeratorAST, context: Context): Result;
-
-  /**
-   * Visit TypeId node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitTypeId(node: ast.TypeIdAST, context: Context): Result;
-
-  /**
-   * Visit Handler node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitHandler(node: ast.HandlerAST, context: Context): Result;
-
-  /**
-   * Visit BaseSpecifier node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitBaseSpecifier(
-    node: ast.BaseSpecifierAST,
-    context: Context,
-  ): Result;
-
-  /**
-   * Visit RequiresClause node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitRequiresClause(
-    node: ast.RequiresClauseAST,
-    context: Context,
-  ): Result;
-
-  /**
-   * Visit ParameterDeclarationClause node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitParameterDeclarationClause(
-    node: ast.ParameterDeclarationClauseAST,
-    context: Context,
-  ): Result;
-
-  /**
-   * Visit TrailingReturnType node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitTrailingReturnType(
-    node: ast.TrailingReturnTypeAST,
-    context: Context,
-  ): Result;
-
-  /**
-   * Visit LambdaSpecifier node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitLambdaSpecifier(
-    node: ast.LambdaSpecifierAST,
-    context: Context,
-  ): Result;
-
-  /**
-   * Visit TypeConstraint node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitTypeConstraint(
-    node: ast.TypeConstraintAST,
-    context: Context,
-  ): Result;
-
-  /**
-   * Visit AttributeArgumentClause node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitAttributeArgumentClause(
-    node: ast.AttributeArgumentClauseAST,
-    context: Context,
-  ): Result;
-
-  /**
-   * Visit Attribute node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitAttribute(node: ast.AttributeAST, context: Context): Result;
-
-  /**
-   * Visit AttributeUsingPrefix node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitAttributeUsingPrefix(
-    node: ast.AttributeUsingPrefixAST,
-    context: Context,
-  ): Result;
-
-  /**
-   * Visit NewPlacement node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitNewPlacement(
-    node: ast.NewPlacementAST,
-    context: Context,
-  ): Result;
-
-  /**
-   * Visit NestedNamespaceSpecifier node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitNestedNamespaceSpecifier(
-    node: ast.NestedNamespaceSpecifierAST,
     context: Context,
   ): Result;
 }

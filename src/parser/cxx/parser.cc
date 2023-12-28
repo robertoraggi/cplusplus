@@ -1220,9 +1220,109 @@ auto Parser::parse_primary_expression(ExpressionAST*& yyast,
                                    : IdExpressionContext::kExpression)) {
     yyast = idExpression;
     return true;
+  } else if (parse_splicer_expression(yyast, ctx)) {
+    return true;
   } else {
     return false;
   }
+}
+
+auto Parser::parse_splicer(SplicerAST*& yyast) -> bool {
+  if (!config_.reflect) return false;
+
+  if (!lookat(TokenKind::T_LBRACKET, TokenKind::T_COLON)) return false;
+
+  auto ast = new (pool_) SplicerAST();
+  yyast = ast;
+  ast->lbracketLoc = consumeToken();
+  ast->colonLoc = consumeToken();
+  match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
+  expect(TokenKind::T_IDENTIFIER, ast->identifierLoc);
+  ast->identifier = unit->identifier(ast->identifierLoc);
+  expect(TokenKind::T_COLON, ast->secondColonLoc);
+  expect(TokenKind::T_RBRACKET, ast->rbracketLoc);
+  return true;
+}
+
+auto Parser::parse_splicer_expression(ExpressionAST*& yyast,
+                                      const ExprContext& ctx) -> bool {
+  if (!config_.reflect) return false;
+
+  SplicerAST* splicer = nullptr;
+  if (!parse_splicer(splicer)) return false;
+  auto ast = new (pool_) SpliceExpressionAST();
+  yyast = ast;
+  ast->splicer = splicer;
+  return true;
+}
+
+auto Parser::parse_reflect_expression(ExpressionAST*& yyast,
+                                      const ExprContext& ctx) -> bool {
+  if (!config_.reflect) return false;
+
+  SourceLocation caretLoc;
+
+  if (!match(TokenKind::T_CARET, caretLoc)) return false;
+
+  auto lookat_namespace_name = [&] {
+    LookaheadParser lookahead{this};
+    SourceLocation identifierLoc;
+    if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
+    auto identifier = unit->identifier(identifierLoc);
+    auto symbol = symbol_cast<NamespaceSymbol>(unqualifiedLookup(identifier));
+    if (!symbol) return false;
+    lookahead.commit();
+
+    auto ast = new (pool_) NamespaceReflectExpressionAST();
+    yyast = ast;
+    ast->caretLoc = caretLoc;
+    ast->identifierLoc = identifierLoc;
+    ast->identifier = identifier;
+    ast->symbol = symbol;
+    return true;
+  };
+
+  auto lookat_type_id = [&] {
+    LookaheadParser lookahead{this};
+    TypeIdAST* typeId = nullptr;
+    if (!parse_type_id(typeId)) return false;
+    lookahead.commit();
+
+    auto ast = new (pool_) TypeIdReflectExpressionAST();
+    yyast = ast;
+    ast->caretLoc = caretLoc;
+    ast->typeId = typeId;
+    return true;
+  };
+
+  auto lookat_expression = [&] {
+    LookaheadParser lookahead{this};
+    ExpressionAST* expression = nullptr;
+    if (!parse_cast_expression(expression, ctx)) return false;
+    lookahead.commit();
+
+    auto ast = new (pool_) ReflectExpressionAST();
+    yyast = ast;
+    ast->caretLoc = caretLoc;
+    ast->expression = expression;
+    return true;
+  };
+
+  if (SourceLocation scopeLoc; match(TokenKind::T_COLON_COLON, scopeLoc)) {
+    auto ast = new (pool_) GlobalScopeReflectExpressionAST();
+    yyast = ast;
+    ast->caretLoc = caretLoc;
+    ast->scopeLoc = scopeLoc;
+    return true;
+  }
+
+  if (lookat_namespace_name()) return true;
+  if (lookat_type_id()) return true;
+  if (lookat_expression()) return true;
+
+  parse_error("expected a reflacted expression");
+
+  return true;
 }
 
 auto Parser::parse_id_expression(IdExpressionAST*& yyast,
@@ -1526,6 +1626,9 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
 }
 
 auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
+  if (lookat(TokenKind::T_LBRACKET, TokenKind::T_LBRACKET)) return false;
+  if (lookat(TokenKind::T_LBRACKET, TokenKind::T_COLON)) return false;
+
   if (!lookat(TokenKind::T_LBRACKET)) return false;
 
   ScopeGuard scopeGuard{this};
@@ -2638,6 +2741,8 @@ auto Parser::parse_unary_expression(ExpressionAST*& yyast,
   else if (parse_new_expression(yyast, ctx))
     return true;
   else if (parse_delete_expression(yyast, ctx))
+    return true;
+  else if (parse_reflect_expression(yyast, ctx))
     return true;
   else
     return parse_postfix_expression(yyast, ctx);
@@ -5196,6 +5301,9 @@ auto Parser::parse_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   } else if (parse_cv_qualifier(yyast, specs)) {
     return true;
   } else if (parse_elaborated_type_specifier(yyast, specs)) {
+    specs.setTypeSpecifier(yyast);
+    return true;
+  } else if (parse_splicer_specifier(yyast, specs)) {
     specs.setTypeSpecifier(yyast);
     return true;
   } else if (parse_typename_specifier(yyast, specs)) {
@@ -10547,6 +10655,24 @@ auto Parser::parse_concept_definition(DeclarationAST*& yyast) -> bool {
 
   expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
 
+  return true;
+}
+
+auto Parser::parse_splicer_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
+    -> bool {
+  if (!config_.reflect) return false;
+  if (specs.typeSpecifier) return false;
+  LookaheadParser lookahead{this};
+  SourceLocation typenameLoc;
+  match(TokenKind::T_TYPENAME, typenameLoc);
+  SplicerAST* splicer = nullptr;
+  if (!parse_splicer(splicer)) return false;
+  lookahead.commit();
+  auto ast = new (pool_) SplicerTypeSpecifierAST();
+  yyast = ast;
+  ast->typenameLoc = typenameLoc;
+  ast->splicer = splicer;
+  specs.setTypeSpecifier(ast);
   return true;
 }
 

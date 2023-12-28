@@ -171,6 +171,14 @@ class Parser final {
   [[nodiscard]] auto parse_primary_expression(ExpressionAST*& yyast,
                                               const ExprContext& ctx) -> bool;
 
+  [[nodiscard]] auto parse_splicer(SplicerAST*& yyast) -> bool;
+
+  [[nodiscard]] auto parse_splicer_expression(ExpressionAST*& yyast,
+                                              const ExprContext& ctx) -> bool;
+
+  [[nodiscard]] auto parse_reflect_expression(ExpressionAST*& yyast,
+                                              const ExprContext& ctx) -> bool;
+
   enum struct IdExpressionContext {
     kExpression,
     kTemplateParameter,
@@ -716,6 +724,8 @@ class Parser final {
   [[nodiscard]] auto parse_constraint_expression(ExpressionAST*& yyast) -> bool;
   [[nodiscard]] auto parse_deduction_guide(DeclarationAST*& yyast) -> bool;
   [[nodiscard]] auto parse_concept_definition(DeclarationAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_splicer_specifier(SpecifierAST*& yyast,
+                                             DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_typename_specifier(SpecifierAST*& yyast,
                                               DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_explicit_instantiation(DeclarationAST*& yyast)
