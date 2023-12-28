@@ -3297,10 +3297,10 @@ void ASTSlot::visit(SplicerAST* ast) {
       slotKind_ = ASTSlotKind::kToken;
       slotNameIndex_ = SlotNameIndex{63};
       break;
-    case 3:  // identifierLoc
-      value_ = ast->identifierLoc.index();
-      slotKind_ = ASTSlotKind::kToken;
-      slotNameIndex_ = SlotNameIndex{97};
+    case 3:  // expression
+      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
+      slotKind_ = ASTSlotKind::kNode;
+      slotNameIndex_ = SlotNameIndex{77};
       break;
     case 4:  // secondColonLoc
       value_ = ast->secondColonLoc.index();
@@ -3312,14 +3312,9 @@ void ASTSlot::visit(SplicerAST* ast) {
       slotKind_ = ASTSlotKind::kToken;
       slotNameIndex_ = SlotNameIndex{163};
       break;
-    case 6:  // identifier
-      value_ = reinterpret_cast<std::intptr_t>(ast->identifier);
-      slotKind_ = ASTSlotKind::kIdentifierAttribute;
-      slotNameIndex_ = SlotNameIndex{96};
-      break;
   }  // switch
 
-  slotCount_ = 7;
+  slotCount_ = 6;
 }
 
 void ASTSlot::visit(GlobalModuleFragmentAST* ast) {

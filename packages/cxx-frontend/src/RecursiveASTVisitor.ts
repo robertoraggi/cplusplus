@@ -1422,7 +1422,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
    * @param node The node to visit.
    * @param context The context.
    */
-  visitSplicer(node: ast.SplicerAST, context: Context): void {}
+  visitSplicer(node: ast.SplicerAST, context: Context): void {
+    this.accept(node.getExpression(), context);
+  }
 
   /**
    * Visit a GlobalModuleFragment node.

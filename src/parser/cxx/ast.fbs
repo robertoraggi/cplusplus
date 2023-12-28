@@ -319,11 +319,10 @@ union UnqualifiedId {
 }
 
 table Splicer /* AST */ {
-  identifier: string;
+  expression: Expression;
   lbracket_loc: SourceLocation;
   colon_loc: SourceLocation;
   ellipsis_loc: SourceLocation;
-  identifier_loc: SourceLocation;
   second_colon_loc: SourceLocation;
   rbracket_loc: SourceLocation;
 }

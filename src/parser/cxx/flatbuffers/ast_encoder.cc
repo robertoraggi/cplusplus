@@ -3347,32 +3347,20 @@ void ASTEncoder::visit(SplicerAST* ast) {
 
   auto ellipsisLoc = encodeSourceLocation(ast->ellipsisLoc);
 
-  auto identifierLoc = encodeSourceLocation(ast->identifierLoc);
+  const auto [expression, expressionType] = acceptExpression(ast->expression);
 
   auto secondColonLoc = encodeSourceLocation(ast->secondColonLoc);
 
   auto rbracketLoc = encodeSourceLocation(ast->rbracketLoc);
 
-  flatbuffers::Offset<flatbuffers::String> identifier;
-  if (ast->identifier) {
-    if (identifiers_.contains(ast->identifier)) {
-      identifier = identifiers_.at(ast->identifier);
-    } else {
-      identifier = fbb_.CreateString(ast->identifier->value());
-      identifiers_.emplace(ast->identifier, identifier);
-    }
-  }
-
   io::Splicer::Builder builder{fbb_};
   builder.add_lbracket_loc(lbracketLoc.o);
   builder.add_colon_loc(colonLoc.o);
   builder.add_ellipsis_loc(ellipsisLoc.o);
-  builder.add_identifier_loc(identifierLoc.o);
+  builder.add_expression(expression);
+  builder.add_expression_type(static_cast<io::Expression>(expressionType));
   builder.add_second_colon_loc(secondColonLoc.o);
   builder.add_rbracket_loc(rbracketLoc.o);
-  if (ast->identifier) {
-    builder.add_identifier(identifier);
-  }
 
   offset_ = builder.Finish().Union();
 }

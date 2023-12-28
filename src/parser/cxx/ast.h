@@ -2049,10 +2049,9 @@ class SplicerAST final : public AST {
   SourceLocation lbracketLoc;
   SourceLocation colonLoc;
   SourceLocation ellipsisLoc;
-  SourceLocation identifierLoc;
+  ExpressionAST* expression = nullptr;
   SourceLocation secondColonLoc;
   SourceLocation rbracketLoc;
-  const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

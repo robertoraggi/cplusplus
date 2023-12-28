@@ -1231,7 +1231,7 @@ void ASTPrinter::visit(ParenInitializerAST* ast) {
 
 void ASTPrinter::visit(SplicerAST* ast) {
   out_ << cxx::format("{}\n", "splicer");
-  accept(ast->identifier, "identifier");
+  accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(GlobalModuleFragmentAST* ast) {
