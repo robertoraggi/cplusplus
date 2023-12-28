@@ -22,7 +22,6 @@
 #include <cxx/private/format.h>
 #include <utf8/unchecked.h>
 
-#include <cassert>
 #include <cctype>
 #include <unordered_map>
 
@@ -522,6 +521,7 @@ auto Lexer::readToken() -> TokenKind {
           consume();
         }
         leadingSpace_ = tokenLeadingSpace_;
+        startOfLine_ = tokenStartOfLine_;
         return TokenKind::T_COMMENT;
       }
       if (pos_ != end_ && LA() == '=') {
