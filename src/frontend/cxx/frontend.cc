@@ -267,6 +267,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
         .checkTypes = cli.opt_fcheck,
         .fuzzyTemplateResolution = true,
         .staticAssert = cli.opt_fstatic_assert || cli.opt_fcheck,
+        .reflect = cli.opt_freflect,
     });
 
     if (cli.opt_dump_symbols && unit.globalScope()) {

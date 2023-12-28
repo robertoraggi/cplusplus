@@ -31,6 +31,7 @@ table SourceLocation {
 }
 
 union AST {
+  Splicer,
   GlobalModuleFragment,
   PrivateModuleFragment,
   ModuleDeclaration,
@@ -151,6 +152,11 @@ union Expression {
   BuiltinBitCastExpression,
   TypeidExpression,
   TypeidOfTypeExpression,
+  SpliceExpression,
+  GlobalScopeReflectExpression,
+  NamespaceReflectExpression,
+  TypeIdReflectExpression,
+  ReflectExpression,
   UnaryExpression,
   AwaitExpression,
   SizeofExpression,
@@ -258,6 +264,7 @@ union Specifier {
   EnumSpecifier,
   ClassSpecifier,
   TypenameSpecifier,
+  SplicerTypeSpecifier,
 }
 
 union Statement {
@@ -309,6 +316,16 @@ union UnqualifiedId {
   SimpleTemplateId,
   LiteralOperatorTemplateId,
   OperatorFunctionTemplateId,
+}
+
+table Splicer /* AST */ {
+  identifier: string;
+  lbracket_loc: SourceLocation;
+  colon_loc: SourceLocation;
+  ellipsis_loc: SourceLocation;
+  identifier_loc: SourceLocation;
+  second_colon_loc: SourceLocation;
+  rbracket_loc: SourceLocation;
 }
 
 table GlobalModuleFragment /* AST */ {
@@ -1013,6 +1030,31 @@ table TypeidOfTypeExpression /* ExpressionAST */ {
   rparen_loc: SourceLocation;
 }
 
+table SpliceExpression /* ExpressionAST */ {
+  splicer: Splicer;
+}
+
+table GlobalScopeReflectExpression /* ExpressionAST */ {
+  caret_loc: SourceLocation;
+  scope_loc: SourceLocation;
+}
+
+table NamespaceReflectExpression /* ExpressionAST */ {
+  identifier: string;
+  caret_loc: SourceLocation;
+  identifier_loc: SourceLocation;
+}
+
+table TypeIdReflectExpression /* ExpressionAST */ {
+  type_id: TypeId;
+  caret_loc: SourceLocation;
+}
+
+table ReflectExpression /* ExpressionAST */ {
+  expression: Expression;
+  caret_loc: SourceLocation;
+}
+
 table UnaryExpression /* ExpressionAST */ {
   expression: Expression;
   op: uint32;
@@ -1513,6 +1555,11 @@ table ClassSpecifier /* SpecifierAST */ {
 table TypenameSpecifier /* SpecifierAST */ {
   nested_name_specifier: NestedNameSpecifier;
   unqualified_id: UnqualifiedId;
+  typename_loc: SourceLocation;
+}
+
+table SplicerTypeSpecifier /* SpecifierAST */ {
+  splicer: Splicer;
   typename_loc: SourceLocation;
 }
 

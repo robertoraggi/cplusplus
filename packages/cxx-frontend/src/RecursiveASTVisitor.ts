@@ -1062,6 +1062,64 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   }
 
   /**
+   * Visit a SpliceExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitSpliceExpression(node: ast.SpliceExpressionAST, context: Context): void {
+    this.accept(node.getSplicer(), context);
+  }
+
+  /**
+   * Visit a GlobalScopeReflectExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitGlobalScopeReflectExpression(
+    node: ast.GlobalScopeReflectExpressionAST,
+    context: Context,
+  ): void {}
+
+  /**
+   * Visit a NamespaceReflectExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitNamespaceReflectExpression(
+    node: ast.NamespaceReflectExpressionAST,
+    context: Context,
+  ): void {}
+
+  /**
+   * Visit a TypeIdReflectExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitTypeIdReflectExpression(
+    node: ast.TypeIdReflectExpressionAST,
+    context: Context,
+  ): void {
+    this.accept(node.getTypeId(), context);
+  }
+
+  /**
+   * Visit a ReflectExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitReflectExpression(
+    node: ast.ReflectExpressionAST,
+    context: Context,
+  ): void {
+    this.accept(node.getExpression(), context);
+  }
+
+  /**
    * Visit a UnaryExpression node.
    *
    * @param node The node to visit.
@@ -1357,6 +1415,307 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
       this.accept(element, context);
     }
   }
+
+  /**
+   * Visit a Splicer node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitSplicer(node: ast.SplicerAST, context: Context): void {}
+
+  /**
+   * Visit a GlobalModuleFragment node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitGlobalModuleFragment(
+    node: ast.GlobalModuleFragmentAST,
+    context: Context,
+  ): void {
+    for (const element of node.getDeclarationList()) {
+      this.accept(element, context);
+    }
+  }
+
+  /**
+   * Visit a PrivateModuleFragment node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitPrivateModuleFragment(
+    node: ast.PrivateModuleFragmentAST,
+    context: Context,
+  ): void {
+    for (const element of node.getDeclarationList()) {
+      this.accept(element, context);
+    }
+  }
+
+  /**
+   * Visit a ModuleDeclaration node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitModuleDeclaration(
+    node: ast.ModuleDeclarationAST,
+    context: Context,
+  ): void {
+    this.accept(node.getModuleName(), context);
+    this.accept(node.getModulePartition(), context);
+    for (const element of node.getAttributeList()) {
+      this.accept(element, context);
+    }
+  }
+
+  /**
+   * Visit a ModuleName node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitModuleName(node: ast.ModuleNameAST, context: Context): void {
+    this.accept(node.getModuleQualifier(), context);
+  }
+
+  /**
+   * Visit a ModuleQualifier node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitModuleQualifier(node: ast.ModuleQualifierAST, context: Context): void {
+    this.accept(node.getModuleQualifier(), context);
+  }
+
+  /**
+   * Visit a ModulePartition node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitModulePartition(node: ast.ModulePartitionAST, context: Context): void {
+    this.accept(node.getModuleName(), context);
+  }
+
+  /**
+   * Visit a ImportName node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitImportName(node: ast.ImportNameAST, context: Context): void {
+    this.accept(node.getModulePartition(), context);
+    this.accept(node.getModuleName(), context);
+  }
+
+  /**
+   * Visit a InitDeclarator node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitInitDeclarator(node: ast.InitDeclaratorAST, context: Context): void {
+    this.accept(node.getDeclarator(), context);
+    this.accept(node.getRequiresClause(), context);
+    this.accept(node.getInitializer(), context);
+  }
+
+  /**
+   * Visit a Declarator node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitDeclarator(node: ast.DeclaratorAST, context: Context): void {
+    for (const element of node.getPtrOpList()) {
+      this.accept(element, context);
+    }
+    this.accept(node.getCoreDeclarator(), context);
+    for (const element of node.getDeclaratorChunkList()) {
+      this.accept(element, context);
+    }
+  }
+
+  /**
+   * Visit a UsingDeclarator node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitUsingDeclarator(node: ast.UsingDeclaratorAST, context: Context): void {
+    this.accept(node.getNestedNameSpecifier(), context);
+    this.accept(node.getUnqualifiedId(), context);
+  }
+
+  /**
+   * Visit a Enumerator node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitEnumerator(node: ast.EnumeratorAST, context: Context): void {
+    for (const element of node.getAttributeList()) {
+      this.accept(element, context);
+    }
+    this.accept(node.getExpression(), context);
+  }
+
+  /**
+   * Visit a TypeId node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitTypeId(node: ast.TypeIdAST, context: Context): void {
+    for (const element of node.getTypeSpecifierList()) {
+      this.accept(element, context);
+    }
+    this.accept(node.getDeclarator(), context);
+  }
+
+  /**
+   * Visit a Handler node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitHandler(node: ast.HandlerAST, context: Context): void {
+    this.accept(node.getExceptionDeclaration(), context);
+    this.accept(node.getStatement(), context);
+  }
+
+  /**
+   * Visit a BaseSpecifier node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitBaseSpecifier(node: ast.BaseSpecifierAST, context: Context): void {
+    for (const element of node.getAttributeList()) {
+      this.accept(element, context);
+    }
+    this.accept(node.getNestedNameSpecifier(), context);
+    this.accept(node.getUnqualifiedId(), context);
+  }
+
+  /**
+   * Visit a RequiresClause node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitRequiresClause(node: ast.RequiresClauseAST, context: Context): void {
+    this.accept(node.getExpression(), context);
+  }
+
+  /**
+   * Visit a ParameterDeclarationClause node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitParameterDeclarationClause(
+    node: ast.ParameterDeclarationClauseAST,
+    context: Context,
+  ): void {
+    for (const element of node.getParameterDeclarationList()) {
+      this.accept(element, context);
+    }
+  }
+
+  /**
+   * Visit a TrailingReturnType node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitTrailingReturnType(
+    node: ast.TrailingReturnTypeAST,
+    context: Context,
+  ): void {
+    this.accept(node.getTypeId(), context);
+  }
+
+  /**
+   * Visit a LambdaSpecifier node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitLambdaSpecifier(node: ast.LambdaSpecifierAST, context: Context): void {}
+
+  /**
+   * Visit a TypeConstraint node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitTypeConstraint(node: ast.TypeConstraintAST, context: Context): void {
+    this.accept(node.getNestedNameSpecifier(), context);
+    for (const element of node.getTemplateArgumentList()) {
+      this.accept(element, context);
+    }
+  }
+
+  /**
+   * Visit a AttributeArgumentClause node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitAttributeArgumentClause(
+    node: ast.AttributeArgumentClauseAST,
+    context: Context,
+  ): void {}
+
+  /**
+   * Visit a Attribute node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitAttribute(node: ast.AttributeAST, context: Context): void {
+    this.accept(node.getAttributeToken(), context);
+    this.accept(node.getAttributeArgumentClause(), context);
+  }
+
+  /**
+   * Visit a AttributeUsingPrefix node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitAttributeUsingPrefix(
+    node: ast.AttributeUsingPrefixAST,
+    context: Context,
+  ): void {}
+
+  /**
+   * Visit a NewPlacement node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitNewPlacement(node: ast.NewPlacementAST, context: Context): void {
+    for (const element of node.getExpressionList()) {
+      this.accept(element, context);
+    }
+  }
+
+  /**
+   * Visit a NestedNamespaceSpecifier node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitNestedNamespaceSpecifier(
+    node: ast.NestedNamespaceSpecifierAST,
+    context: Context,
+  ): void {}
 
   /**
    * Visit a TemplateTypeParameter node.
@@ -1810,6 +2169,19 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   ): void {
     this.accept(node.getNestedNameSpecifier(), context);
     this.accept(node.getUnqualifiedId(), context);
+  }
+
+  /**
+   * Visit a SplicerTypeSpecifier node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitSplicerTypeSpecifier(
+    node: ast.SplicerTypeSpecifierAST,
+    context: Context,
+  ): void {
+    this.accept(node.getSplicer(), context);
   }
 
   /**
@@ -2494,299 +2866,6 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
    */
   visitSimpleAttributeToken(
     node: ast.SimpleAttributeTokenAST,
-    context: Context,
-  ): void {}
-
-  /**
-   * Visit a GlobalModuleFragment node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitGlobalModuleFragment(
-    node: ast.GlobalModuleFragmentAST,
-    context: Context,
-  ): void {
-    for (const element of node.getDeclarationList()) {
-      this.accept(element, context);
-    }
-  }
-
-  /**
-   * Visit a PrivateModuleFragment node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitPrivateModuleFragment(
-    node: ast.PrivateModuleFragmentAST,
-    context: Context,
-  ): void {
-    for (const element of node.getDeclarationList()) {
-      this.accept(element, context);
-    }
-  }
-
-  /**
-   * Visit a ModuleDeclaration node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitModuleDeclaration(
-    node: ast.ModuleDeclarationAST,
-    context: Context,
-  ): void {
-    this.accept(node.getModuleName(), context);
-    this.accept(node.getModulePartition(), context);
-    for (const element of node.getAttributeList()) {
-      this.accept(element, context);
-    }
-  }
-
-  /**
-   * Visit a ModuleName node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitModuleName(node: ast.ModuleNameAST, context: Context): void {
-    this.accept(node.getModuleQualifier(), context);
-  }
-
-  /**
-   * Visit a ModuleQualifier node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitModuleQualifier(node: ast.ModuleQualifierAST, context: Context): void {
-    this.accept(node.getModuleQualifier(), context);
-  }
-
-  /**
-   * Visit a ModulePartition node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitModulePartition(node: ast.ModulePartitionAST, context: Context): void {
-    this.accept(node.getModuleName(), context);
-  }
-
-  /**
-   * Visit a ImportName node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitImportName(node: ast.ImportNameAST, context: Context): void {
-    this.accept(node.getModulePartition(), context);
-    this.accept(node.getModuleName(), context);
-  }
-
-  /**
-   * Visit a InitDeclarator node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitInitDeclarator(node: ast.InitDeclaratorAST, context: Context): void {
-    this.accept(node.getDeclarator(), context);
-    this.accept(node.getRequiresClause(), context);
-    this.accept(node.getInitializer(), context);
-  }
-
-  /**
-   * Visit a Declarator node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitDeclarator(node: ast.DeclaratorAST, context: Context): void {
-    for (const element of node.getPtrOpList()) {
-      this.accept(element, context);
-    }
-    this.accept(node.getCoreDeclarator(), context);
-    for (const element of node.getDeclaratorChunkList()) {
-      this.accept(element, context);
-    }
-  }
-
-  /**
-   * Visit a UsingDeclarator node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitUsingDeclarator(node: ast.UsingDeclaratorAST, context: Context): void {
-    this.accept(node.getNestedNameSpecifier(), context);
-    this.accept(node.getUnqualifiedId(), context);
-  }
-
-  /**
-   * Visit a Enumerator node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitEnumerator(node: ast.EnumeratorAST, context: Context): void {
-    for (const element of node.getAttributeList()) {
-      this.accept(element, context);
-    }
-    this.accept(node.getExpression(), context);
-  }
-
-  /**
-   * Visit a TypeId node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitTypeId(node: ast.TypeIdAST, context: Context): void {
-    for (const element of node.getTypeSpecifierList()) {
-      this.accept(element, context);
-    }
-    this.accept(node.getDeclarator(), context);
-  }
-
-  /**
-   * Visit a Handler node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitHandler(node: ast.HandlerAST, context: Context): void {
-    this.accept(node.getExceptionDeclaration(), context);
-    this.accept(node.getStatement(), context);
-  }
-
-  /**
-   * Visit a BaseSpecifier node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitBaseSpecifier(node: ast.BaseSpecifierAST, context: Context): void {
-    for (const element of node.getAttributeList()) {
-      this.accept(element, context);
-    }
-    this.accept(node.getNestedNameSpecifier(), context);
-    this.accept(node.getUnqualifiedId(), context);
-  }
-
-  /**
-   * Visit a RequiresClause node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitRequiresClause(node: ast.RequiresClauseAST, context: Context): void {
-    this.accept(node.getExpression(), context);
-  }
-
-  /**
-   * Visit a ParameterDeclarationClause node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitParameterDeclarationClause(
-    node: ast.ParameterDeclarationClauseAST,
-    context: Context,
-  ): void {
-    for (const element of node.getParameterDeclarationList()) {
-      this.accept(element, context);
-    }
-  }
-
-  /**
-   * Visit a TrailingReturnType node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitTrailingReturnType(
-    node: ast.TrailingReturnTypeAST,
-    context: Context,
-  ): void {
-    this.accept(node.getTypeId(), context);
-  }
-
-  /**
-   * Visit a LambdaSpecifier node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitLambdaSpecifier(node: ast.LambdaSpecifierAST, context: Context): void {}
-
-  /**
-   * Visit a TypeConstraint node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitTypeConstraint(node: ast.TypeConstraintAST, context: Context): void {
-    this.accept(node.getNestedNameSpecifier(), context);
-    for (const element of node.getTemplateArgumentList()) {
-      this.accept(element, context);
-    }
-  }
-
-  /**
-   * Visit a AttributeArgumentClause node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitAttributeArgumentClause(
-    node: ast.AttributeArgumentClauseAST,
-    context: Context,
-  ): void {}
-
-  /**
-   * Visit a Attribute node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitAttribute(node: ast.AttributeAST, context: Context): void {
-    this.accept(node.getAttributeToken(), context);
-    this.accept(node.getAttributeArgumentClause(), context);
-  }
-
-  /**
-   * Visit a AttributeUsingPrefix node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitAttributeUsingPrefix(
-    node: ast.AttributeUsingPrefixAST,
-    context: Context,
-  ): void {}
-
-  /**
-   * Visit a NewPlacement node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitNewPlacement(node: ast.NewPlacementAST, context: Context): void {
-    for (const element of node.getExpressionList()) {
-      this.accept(element, context);
-    }
-  }
-
-  /**
-   * Visit a NestedNamespaceSpecifier node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitNestedNamespaceSpecifier(
-    node: ast.NestedNamespaceSpecifierAST,
     context: Context,
   ): void {}
 }

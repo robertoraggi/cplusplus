@@ -225,6 +225,18 @@ class ASTDecoder {
       -> TypeidExpressionAST*;
   auto decodeTypeidOfTypeExpression(const io::TypeidOfTypeExpression* node)
       -> TypeidOfTypeExpressionAST*;
+  auto decodeSpliceExpression(const io::SpliceExpression* node)
+      -> SpliceExpressionAST*;
+  auto decodeGlobalScopeReflectExpression(
+      const io::GlobalScopeReflectExpression* node)
+      -> GlobalScopeReflectExpressionAST*;
+  auto decodeNamespaceReflectExpression(
+      const io::NamespaceReflectExpression* node)
+      -> NamespaceReflectExpressionAST*;
+  auto decodeTypeIdReflectExpression(const io::TypeIdReflectExpression* node)
+      -> TypeIdReflectExpressionAST*;
+  auto decodeReflectExpression(const io::ReflectExpression* node)
+      -> ReflectExpressionAST*;
   auto decodeUnaryExpression(const io::UnaryExpression* node)
       -> UnaryExpressionAST*;
   auto decodeAwaitExpression(const io::AwaitExpression* node)
@@ -273,6 +285,48 @@ class ASTDecoder {
       -> BracedInitListAST*;
   auto decodeParenInitializer(const io::ParenInitializer* node)
       -> ParenInitializerAST*;
+
+  auto decodeSplicer(const io::Splicer* node) -> SplicerAST*;
+  auto decodeGlobalModuleFragment(const io::GlobalModuleFragment* node)
+      -> GlobalModuleFragmentAST*;
+  auto decodePrivateModuleFragment(const io::PrivateModuleFragment* node)
+      -> PrivateModuleFragmentAST*;
+  auto decodeModuleDeclaration(const io::ModuleDeclaration* node)
+      -> ModuleDeclarationAST*;
+  auto decodeModuleName(const io::ModuleName* node) -> ModuleNameAST*;
+  auto decodeModuleQualifier(const io::ModuleQualifier* node)
+      -> ModuleQualifierAST*;
+  auto decodeModulePartition(const io::ModulePartition* node)
+      -> ModulePartitionAST*;
+  auto decodeImportName(const io::ImportName* node) -> ImportNameAST*;
+  auto decodeInitDeclarator(const io::InitDeclarator* node)
+      -> InitDeclaratorAST*;
+  auto decodeDeclarator(const io::Declarator* node) -> DeclaratorAST*;
+  auto decodeUsingDeclarator(const io::UsingDeclarator* node)
+      -> UsingDeclaratorAST*;
+  auto decodeEnumerator(const io::Enumerator* node) -> EnumeratorAST*;
+  auto decodeTypeId(const io::TypeId* node) -> TypeIdAST*;
+  auto decodeHandler(const io::Handler* node) -> HandlerAST*;
+  auto decodeBaseSpecifier(const io::BaseSpecifier* node) -> BaseSpecifierAST*;
+  auto decodeRequiresClause(const io::RequiresClause* node)
+      -> RequiresClauseAST*;
+  auto decodeParameterDeclarationClause(
+      const io::ParameterDeclarationClause* node)
+      -> ParameterDeclarationClauseAST*;
+  auto decodeTrailingReturnType(const io::TrailingReturnType* node)
+      -> TrailingReturnTypeAST*;
+  auto decodeLambdaSpecifier(const io::LambdaSpecifier* node)
+      -> LambdaSpecifierAST*;
+  auto decodeTypeConstraint(const io::TypeConstraint* node)
+      -> TypeConstraintAST*;
+  auto decodeAttributeArgumentClause(const io::AttributeArgumentClause* node)
+      -> AttributeArgumentClauseAST*;
+  auto decodeAttribute(const io::Attribute* node) -> AttributeAST*;
+  auto decodeAttributeUsingPrefix(const io::AttributeUsingPrefix* node)
+      -> AttributeUsingPrefixAST*;
+  auto decodeNewPlacement(const io::NewPlacement* node) -> NewPlacementAST*;
+  auto decodeNestedNamespaceSpecifier(const io::NestedNamespaceSpecifier* node)
+      -> NestedNamespaceSpecifierAST*;
 
   auto decodeTemplateTypeParameter(const io::TemplateTypeParameter* node)
       -> TemplateTypeParameterAST*;
@@ -351,6 +405,8 @@ class ASTDecoder {
       -> ClassSpecifierAST*;
   auto decodeTypenameSpecifier(const io::TypenameSpecifier* node)
       -> TypenameSpecifierAST*;
+  auto decodeSplicerTypeSpecifier(const io::SplicerTypeSpecifier* node)
+      -> SplicerTypeSpecifierAST*;
 
   auto decodePointerOperator(const io::PointerOperator* node)
       -> PointerOperatorAST*;
@@ -473,47 +529,6 @@ class ASTDecoder {
       -> ScopedAttributeTokenAST*;
   auto decodeSimpleAttributeToken(const io::SimpleAttributeToken* node)
       -> SimpleAttributeTokenAST*;
-
-  auto decodeGlobalModuleFragment(const io::GlobalModuleFragment* node)
-      -> GlobalModuleFragmentAST*;
-  auto decodePrivateModuleFragment(const io::PrivateModuleFragment* node)
-      -> PrivateModuleFragmentAST*;
-  auto decodeModuleDeclaration(const io::ModuleDeclaration* node)
-      -> ModuleDeclarationAST*;
-  auto decodeModuleName(const io::ModuleName* node) -> ModuleNameAST*;
-  auto decodeModuleQualifier(const io::ModuleQualifier* node)
-      -> ModuleQualifierAST*;
-  auto decodeModulePartition(const io::ModulePartition* node)
-      -> ModulePartitionAST*;
-  auto decodeImportName(const io::ImportName* node) -> ImportNameAST*;
-  auto decodeInitDeclarator(const io::InitDeclarator* node)
-      -> InitDeclaratorAST*;
-  auto decodeDeclarator(const io::Declarator* node) -> DeclaratorAST*;
-  auto decodeUsingDeclarator(const io::UsingDeclarator* node)
-      -> UsingDeclaratorAST*;
-  auto decodeEnumerator(const io::Enumerator* node) -> EnumeratorAST*;
-  auto decodeTypeId(const io::TypeId* node) -> TypeIdAST*;
-  auto decodeHandler(const io::Handler* node) -> HandlerAST*;
-  auto decodeBaseSpecifier(const io::BaseSpecifier* node) -> BaseSpecifierAST*;
-  auto decodeRequiresClause(const io::RequiresClause* node)
-      -> RequiresClauseAST*;
-  auto decodeParameterDeclarationClause(
-      const io::ParameterDeclarationClause* node)
-      -> ParameterDeclarationClauseAST*;
-  auto decodeTrailingReturnType(const io::TrailingReturnType* node)
-      -> TrailingReturnTypeAST*;
-  auto decodeLambdaSpecifier(const io::LambdaSpecifier* node)
-      -> LambdaSpecifierAST*;
-  auto decodeTypeConstraint(const io::TypeConstraint* node)
-      -> TypeConstraintAST*;
-  auto decodeAttributeArgumentClause(const io::AttributeArgumentClause* node)
-      -> AttributeArgumentClauseAST*;
-  auto decodeAttribute(const io::Attribute* node) -> AttributeAST*;
-  auto decodeAttributeUsingPrefix(const io::AttributeUsingPrefix* node)
-      -> AttributeUsingPrefixAST*;
-  auto decodeNewPlacement(const io::NewPlacement* node) -> NewPlacementAST*;
-  auto decodeNestedNamespaceSpecifier(const io::NestedNamespaceSpecifier* node)
-      -> NestedNamespaceSpecifierAST*;
 
  private:
   TranslationUnit* unit_ = nullptr;

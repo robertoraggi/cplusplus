@@ -161,6 +161,31 @@ auto ConstExpressionEvaluator::operator()(PostIncrExpressionAST* ast)
   return std::nullopt;
 }
 
+auto ConstExpressionEvaluator::operator()(SpliceExpressionAST* ast)
+    -> std::optional<ConstValue> {
+  return std::nullopt;
+}
+
+auto ConstExpressionEvaluator::operator()(GlobalScopeReflectExpressionAST* ast)
+    -> std::optional<ConstValue> {
+  return std::nullopt;
+}
+
+auto ConstExpressionEvaluator::operator()(NamespaceReflectExpressionAST* ast)
+    -> std::optional<ConstValue> {
+  return std::nullopt;
+}
+
+auto ConstExpressionEvaluator::operator()(TypeIdReflectExpressionAST* ast)
+    -> std::optional<ConstValue> {
+  return std::nullopt;
+}
+
+auto ConstExpressionEvaluator::operator()(ReflectExpressionAST* ast)
+    -> std::optional<ConstValue> {
+  return std::nullopt;
+}
+
 auto ConstExpressionEvaluator::operator()(CppCastExpressionAST* ast)
     -> std::optional<ConstValue> {
   return std::nullopt;

@@ -111,6 +111,11 @@ class ASTVisitor {
   virtual void visit(BuiltinBitCastExpressionAST* ast) = 0;
   virtual void visit(TypeidExpressionAST* ast) = 0;
   virtual void visit(TypeidOfTypeExpressionAST* ast) = 0;
+  virtual void visit(SpliceExpressionAST* ast) = 0;
+  virtual void visit(GlobalScopeReflectExpressionAST* ast) = 0;
+  virtual void visit(NamespaceReflectExpressionAST* ast) = 0;
+  virtual void visit(TypeIdReflectExpressionAST* ast) = 0;
+  virtual void visit(ReflectExpressionAST* ast) = 0;
   virtual void visit(UnaryExpressionAST* ast) = 0;
   virtual void visit(AwaitExpressionAST* ast) = 0;
   virtual void visit(SizeofExpressionAST* ast) = 0;
@@ -135,6 +140,33 @@ class ASTVisitor {
   virtual void visit(EqualInitializerAST* ast) = 0;
   virtual void visit(BracedInitListAST* ast) = 0;
   virtual void visit(ParenInitializerAST* ast) = 0;
+
+  // AST
+  virtual void visit(SplicerAST* ast) = 0;
+  virtual void visit(GlobalModuleFragmentAST* ast) = 0;
+  virtual void visit(PrivateModuleFragmentAST* ast) = 0;
+  virtual void visit(ModuleDeclarationAST* ast) = 0;
+  virtual void visit(ModuleNameAST* ast) = 0;
+  virtual void visit(ModuleQualifierAST* ast) = 0;
+  virtual void visit(ModulePartitionAST* ast) = 0;
+  virtual void visit(ImportNameAST* ast) = 0;
+  virtual void visit(InitDeclaratorAST* ast) = 0;
+  virtual void visit(DeclaratorAST* ast) = 0;
+  virtual void visit(UsingDeclaratorAST* ast) = 0;
+  virtual void visit(EnumeratorAST* ast) = 0;
+  virtual void visit(TypeIdAST* ast) = 0;
+  virtual void visit(HandlerAST* ast) = 0;
+  virtual void visit(BaseSpecifierAST* ast) = 0;
+  virtual void visit(RequiresClauseAST* ast) = 0;
+  virtual void visit(ParameterDeclarationClauseAST* ast) = 0;
+  virtual void visit(TrailingReturnTypeAST* ast) = 0;
+  virtual void visit(LambdaSpecifierAST* ast) = 0;
+  virtual void visit(TypeConstraintAST* ast) = 0;
+  virtual void visit(AttributeArgumentClauseAST* ast) = 0;
+  virtual void visit(AttributeAST* ast) = 0;
+  virtual void visit(AttributeUsingPrefixAST* ast) = 0;
+  virtual void visit(NewPlacementAST* ast) = 0;
+  virtual void visit(NestedNamespaceSpecifierAST* ast) = 0;
 
   // TemplateParameterAST
   virtual void visit(TemplateTypeParameterAST* ast) = 0;
@@ -177,6 +209,7 @@ class ASTVisitor {
   virtual void visit(EnumSpecifierAST* ast) = 0;
   virtual void visit(ClassSpecifierAST* ast) = 0;
   virtual void visit(TypenameSpecifierAST* ast) = 0;
+  virtual void visit(SplicerTypeSpecifierAST* ast) = 0;
 
   // PtrOperatorAST
   virtual void visit(PointerOperatorAST* ast) = 0;
@@ -260,32 +293,6 @@ class ASTVisitor {
   // AttributeTokenAST
   virtual void visit(ScopedAttributeTokenAST* ast) = 0;
   virtual void visit(SimpleAttributeTokenAST* ast) = 0;
-
-  // AST
-  virtual void visit(GlobalModuleFragmentAST* ast) = 0;
-  virtual void visit(PrivateModuleFragmentAST* ast) = 0;
-  virtual void visit(ModuleDeclarationAST* ast) = 0;
-  virtual void visit(ModuleNameAST* ast) = 0;
-  virtual void visit(ModuleQualifierAST* ast) = 0;
-  virtual void visit(ModulePartitionAST* ast) = 0;
-  virtual void visit(ImportNameAST* ast) = 0;
-  virtual void visit(InitDeclaratorAST* ast) = 0;
-  virtual void visit(DeclaratorAST* ast) = 0;
-  virtual void visit(UsingDeclaratorAST* ast) = 0;
-  virtual void visit(EnumeratorAST* ast) = 0;
-  virtual void visit(TypeIdAST* ast) = 0;
-  virtual void visit(HandlerAST* ast) = 0;
-  virtual void visit(BaseSpecifierAST* ast) = 0;
-  virtual void visit(RequiresClauseAST* ast) = 0;
-  virtual void visit(ParameterDeclarationClauseAST* ast) = 0;
-  virtual void visit(TrailingReturnTypeAST* ast) = 0;
-  virtual void visit(LambdaSpecifierAST* ast) = 0;
-  virtual void visit(TypeConstraintAST* ast) = 0;
-  virtual void visit(AttributeArgumentClauseAST* ast) = 0;
-  virtual void visit(AttributeAST* ast) = 0;
-  virtual void visit(AttributeUsingPrefixAST* ast) = 0;
-  virtual void visit(NewPlacementAST* ast) = 0;
-  virtual void visit(NestedNamespaceSpecifierAST* ast) = 0;
 };
 
 }  // namespace cxx

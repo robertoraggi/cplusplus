@@ -160,6 +160,11 @@ class CppCastExpressionAST;
 class BuiltinBitCastExpressionAST;
 class TypeidExpressionAST;
 class TypeidOfTypeExpressionAST;
+class SpliceExpressionAST;
+class GlobalScopeReflectExpressionAST;
+class NamespaceReflectExpressionAST;
+class TypeIdReflectExpressionAST;
+class ReflectExpressionAST;
 class UnaryExpressionAST;
 class AwaitExpressionAST;
 class SizeofExpressionAST;
@@ -184,6 +189,33 @@ class ConditionExpressionAST;
 class EqualInitializerAST;
 class BracedInitListAST;
 class ParenInitializerAST;
+
+// AST
+class SplicerAST;
+class GlobalModuleFragmentAST;
+class PrivateModuleFragmentAST;
+class ModuleDeclarationAST;
+class ModuleNameAST;
+class ModuleQualifierAST;
+class ModulePartitionAST;
+class ImportNameAST;
+class InitDeclaratorAST;
+class DeclaratorAST;
+class UsingDeclaratorAST;
+class EnumeratorAST;
+class TypeIdAST;
+class HandlerAST;
+class BaseSpecifierAST;
+class RequiresClauseAST;
+class ParameterDeclarationClauseAST;
+class TrailingReturnTypeAST;
+class LambdaSpecifierAST;
+class TypeConstraintAST;
+class AttributeArgumentClauseAST;
+class AttributeAST;
+class AttributeUsingPrefixAST;
+class NewPlacementAST;
+class NestedNamespaceSpecifierAST;
 
 // TemplateParameterAST
 class TemplateTypeParameterAST;
@@ -226,6 +258,7 @@ class RestrictQualifierAST;
 class EnumSpecifierAST;
 class ClassSpecifierAST;
 class TypenameSpecifierAST;
+class SplicerTypeSpecifierAST;
 
 // PtrOperatorAST
 class PointerOperatorAST;
@@ -309,32 +342,6 @@ class AsmAttributeAST;
 // AttributeTokenAST
 class ScopedAttributeTokenAST;
 class SimpleAttributeTokenAST;
-
-// AST
-class GlobalModuleFragmentAST;
-class PrivateModuleFragmentAST;
-class ModuleDeclarationAST;
-class ModuleNameAST;
-class ModuleQualifierAST;
-class ModulePartitionAST;
-class ImportNameAST;
-class InitDeclaratorAST;
-class DeclaratorAST;
-class UsingDeclaratorAST;
-class EnumeratorAST;
-class TypeIdAST;
-class HandlerAST;
-class BaseSpecifierAST;
-class RequiresClauseAST;
-class ParameterDeclarationClauseAST;
-class TrailingReturnTypeAST;
-class LambdaSpecifierAST;
-class TypeConstraintAST;
-class AttributeArgumentClauseAST;
-class AttributeAST;
-class AttributeUsingPrefixAST;
-class NewPlacementAST;
-class NestedNamespaceSpecifierAST;
 
 auto to_string(ValueCategory valueCategory) -> std::string_view;
 auto to_string(ImplicitCastKind implicitCastKind) -> std::string_view;

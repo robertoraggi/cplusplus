@@ -1003,6 +1003,30 @@ void ASTPrinter::visit(TypeidOfTypeExpressionAST* ast) {
   accept(ast->typeId, "type-id");
 }
 
+void ASTPrinter::visit(SpliceExpressionAST* ast) {
+  out_ << cxx::format("{}\n", "splice-expression");
+  accept(ast->splicer, "splicer");
+}
+
+void ASTPrinter::visit(GlobalScopeReflectExpressionAST* ast) {
+  out_ << cxx::format("{}\n", "global-scope-reflect-expression");
+}
+
+void ASTPrinter::visit(NamespaceReflectExpressionAST* ast) {
+  out_ << cxx::format("{}\n", "namespace-reflect-expression");
+  accept(ast->identifier, "identifier");
+}
+
+void ASTPrinter::visit(TypeIdReflectExpressionAST* ast) {
+  out_ << cxx::format("{}\n", "type-id-reflect-expression");
+  accept(ast->typeId, "type-id");
+}
+
+void ASTPrinter::visit(ReflectExpressionAST* ast) {
+  out_ << cxx::format("{}\n", "reflect-expression");
+  accept(ast->expression, "expression");
+}
+
 void ASTPrinter::visit(UnaryExpressionAST* ast) {
   out_ << cxx::format("{}\n", "unary-expression");
   if (ast->op != TokenKind::T_EOF_SYMBOL) {
@@ -1201,6 +1225,279 @@ void ASTPrinter::visit(ParenInitializerAST* ast) {
     for (auto it = ast->expressionList; it; it = it->next) {
       accept(it->value);
     }
+    --indent_;
+  }
+}
+
+void ASTPrinter::visit(SplicerAST* ast) {
+  out_ << cxx::format("{}\n", "splicer");
+  accept(ast->identifier, "identifier");
+}
+
+void ASTPrinter::visit(GlobalModuleFragmentAST* ast) {
+  out_ << cxx::format("{}\n", "global-module-fragment");
+  if (ast->declarationList) {
+    ++indent_;
+    out_ << cxx::format("{:{}}", "", indent_ * 2);
+    out_ << cxx::format("{}\n", "declaration-list");
+    for (auto it = ast->declarationList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+}
+
+void ASTPrinter::visit(PrivateModuleFragmentAST* ast) {
+  out_ << cxx::format("{}\n", "private-module-fragment");
+  if (ast->declarationList) {
+    ++indent_;
+    out_ << cxx::format("{:{}}", "", indent_ * 2);
+    out_ << cxx::format("{}\n", "declaration-list");
+    for (auto it = ast->declarationList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+}
+
+void ASTPrinter::visit(ModuleDeclarationAST* ast) {
+  out_ << cxx::format("{}\n", "module-declaration");
+  accept(ast->moduleName, "module-name");
+  accept(ast->modulePartition, "module-partition");
+  if (ast->attributeList) {
+    ++indent_;
+    out_ << cxx::format("{:{}}", "", indent_ * 2);
+    out_ << cxx::format("{}\n", "attribute-list");
+    for (auto it = ast->attributeList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+}
+
+void ASTPrinter::visit(ModuleNameAST* ast) {
+  out_ << cxx::format("{}\n", "module-name");
+  accept(ast->identifier, "identifier");
+  accept(ast->moduleQualifier, "module-qualifier");
+}
+
+void ASTPrinter::visit(ModuleQualifierAST* ast) {
+  out_ << cxx::format("{}\n", "module-qualifier");
+  accept(ast->identifier, "identifier");
+  accept(ast->moduleQualifier, "module-qualifier");
+}
+
+void ASTPrinter::visit(ModulePartitionAST* ast) {
+  out_ << cxx::format("{}\n", "module-partition");
+  accept(ast->moduleName, "module-name");
+}
+
+void ASTPrinter::visit(ImportNameAST* ast) {
+  out_ << cxx::format("{}\n", "import-name");
+  accept(ast->modulePartition, "module-partition");
+  accept(ast->moduleName, "module-name");
+}
+
+void ASTPrinter::visit(InitDeclaratorAST* ast) {
+  out_ << cxx::format("{}\n", "init-declarator");
+  accept(ast->declarator, "declarator");
+  accept(ast->requiresClause, "requires-clause");
+  accept(ast->initializer, "initializer");
+}
+
+void ASTPrinter::visit(DeclaratorAST* ast) {
+  out_ << cxx::format("{}\n", "declarator");
+  if (ast->ptrOpList) {
+    ++indent_;
+    out_ << cxx::format("{:{}}", "", indent_ * 2);
+    out_ << cxx::format("{}\n", "ptr-op-list");
+    for (auto it = ast->ptrOpList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+  accept(ast->coreDeclarator, "core-declarator");
+  if (ast->declaratorChunkList) {
+    ++indent_;
+    out_ << cxx::format("{:{}}", "", indent_ * 2);
+    out_ << cxx::format("{}\n", "declarator-chunk-list");
+    for (auto it = ast->declaratorChunkList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+}
+
+void ASTPrinter::visit(UsingDeclaratorAST* ast) {
+  out_ << cxx::format("{}\n", "using-declarator");
+  if (ast->isPack) {
+    ++indent_;
+    out_ << cxx::format("{:{}}", "", indent_ * 2);
+    out_ << cxx::format("is-pack: {}\n", ast->isPack);
+    --indent_;
+  }
+  accept(ast->nestedNameSpecifier, "nested-name-specifier");
+  accept(ast->unqualifiedId, "unqualified-id");
+}
+
+void ASTPrinter::visit(EnumeratorAST* ast) {
+  out_ << cxx::format("{}\n", "enumerator");
+  accept(ast->identifier, "identifier");
+  if (ast->attributeList) {
+    ++indent_;
+    out_ << cxx::format("{:{}}", "", indent_ * 2);
+    out_ << cxx::format("{}\n", "attribute-list");
+    for (auto it = ast->attributeList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+  accept(ast->expression, "expression");
+}
+
+void ASTPrinter::visit(TypeIdAST* ast) {
+  out_ << cxx::format("{}\n", "type-id");
+  if (ast->typeSpecifierList) {
+    ++indent_;
+    out_ << cxx::format("{:{}}", "", indent_ * 2);
+    out_ << cxx::format("{}\n", "type-specifier-list");
+    for (auto it = ast->typeSpecifierList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+  accept(ast->declarator, "declarator");
+}
+
+void ASTPrinter::visit(HandlerAST* ast) {
+  out_ << cxx::format("{}\n", "handler");
+  accept(ast->exceptionDeclaration, "exception-declaration");
+  accept(ast->statement, "statement");
+}
+
+void ASTPrinter::visit(BaseSpecifierAST* ast) {
+  out_ << cxx::format("{}\n", "base-specifier");
+  if (ast->isTemplateIntroduced) {
+    ++indent_;
+    out_ << cxx::format("{:{}}", "", indent_ * 2);
+    out_ << cxx::format("is-template-introduced: {}\n",
+                        ast->isTemplateIntroduced);
+    --indent_;
+  }
+  if (ast->isVirtual) {
+    ++indent_;
+    out_ << cxx::format("{:{}}", "", indent_ * 2);
+    out_ << cxx::format("is-virtual: {}\n", ast->isVirtual);
+    --indent_;
+  }
+  if (ast->accessSpecifier != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    out_ << cxx::format("{:{}}", "", indent_ * 2);
+    out_ << cxx::format("access-specifier: {}\n",
+                        Token::spell(ast->accessSpecifier));
+    --indent_;
+  }
+  if (ast->attributeList) {
+    ++indent_;
+    out_ << cxx::format("{:{}}", "", indent_ * 2);
+    out_ << cxx::format("{}\n", "attribute-list");
+    for (auto it = ast->attributeList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+  accept(ast->nestedNameSpecifier, "nested-name-specifier");
+  accept(ast->unqualifiedId, "unqualified-id");
+}
+
+void ASTPrinter::visit(RequiresClauseAST* ast) {
+  out_ << cxx::format("{}\n", "requires-clause");
+  accept(ast->expression, "expression");
+}
+
+void ASTPrinter::visit(ParameterDeclarationClauseAST* ast) {
+  out_ << cxx::format("{}\n", "parameter-declaration-clause");
+  if (ast->isVariadic) {
+    ++indent_;
+    out_ << cxx::format("{:{}}", "", indent_ * 2);
+    out_ << cxx::format("is-variadic: {}\n", ast->isVariadic);
+    --indent_;
+  }
+  if (ast->parameterDeclarationList) {
+    ++indent_;
+    out_ << cxx::format("{:{}}", "", indent_ * 2);
+    out_ << cxx::format("{}\n", "parameter-declaration-list");
+    for (auto it = ast->parameterDeclarationList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+}
+
+void ASTPrinter::visit(TrailingReturnTypeAST* ast) {
+  out_ << cxx::format("{}\n", "trailing-return-type");
+  accept(ast->typeId, "type-id");
+}
+
+void ASTPrinter::visit(LambdaSpecifierAST* ast) {
+  out_ << cxx::format("{}\n", "lambda-specifier");
+  if (ast->specifier != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    out_ << cxx::format("{:{}}", "", indent_ * 2);
+    out_ << cxx::format("specifier: {}\n", Token::spell(ast->specifier));
+    --indent_;
+  }
+}
+
+void ASTPrinter::visit(TypeConstraintAST* ast) {
+  out_ << cxx::format("{}\n", "type-constraint");
+  accept(ast->identifier, "identifier");
+  accept(ast->nestedNameSpecifier, "nested-name-specifier");
+  if (ast->templateArgumentList) {
+    ++indent_;
+    out_ << cxx::format("{:{}}", "", indent_ * 2);
+    out_ << cxx::format("{}\n", "template-argument-list");
+    for (auto it = ast->templateArgumentList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+}
+
+void ASTPrinter::visit(AttributeArgumentClauseAST* ast) {
+  out_ << cxx::format("{}\n", "attribute-argument-clause");
+}
+
+void ASTPrinter::visit(AttributeAST* ast) {
+  out_ << cxx::format("{}\n", "attribute");
+  accept(ast->attributeToken, "attribute-token");
+  accept(ast->attributeArgumentClause, "attribute-argument-clause");
+}
+
+void ASTPrinter::visit(AttributeUsingPrefixAST* ast) {
+  out_ << cxx::format("{}\n", "attribute-using-prefix");
+}
+
+void ASTPrinter::visit(NewPlacementAST* ast) {
+  out_ << cxx::format("{}\n", "new-placement");
+  if (ast->expressionList) {
+    ++indent_;
+    out_ << cxx::format("{:{}}", "", indent_ * 2);
+    out_ << cxx::format("{}\n", "expression-list");
+    for (auto it = ast->expressionList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
+}
+
+void ASTPrinter::visit(NestedNamespaceSpecifierAST* ast) {
+  out_ << cxx::format("{}\n", "nested-namespace-specifier");
+  accept(ast->identifier, "identifier");
+  if (ast->isInline) {
+    ++indent_;
+    out_ << cxx::format("{:{}}", "", indent_ * 2);
+    out_ << cxx::format("is-inline: {}\n", ast->isInline);
     --indent_;
   }
 }
@@ -1558,6 +1855,11 @@ void ASTPrinter::visit(TypenameSpecifierAST* ast) {
   out_ << cxx::format("{}\n", "typename-specifier");
   accept(ast->nestedNameSpecifier, "nested-name-specifier");
   accept(ast->unqualifiedId, "unqualified-id");
+}
+
+void ASTPrinter::visit(SplicerTypeSpecifierAST* ast) {
+  out_ << cxx::format("{}\n", "splicer-type-specifier");
+  accept(ast->splicer, "splicer");
 }
 
 void ASTPrinter::visit(PointerOperatorAST* ast) {
@@ -2073,274 +2375,6 @@ void ASTPrinter::visit(ScopedAttributeTokenAST* ast) {
 void ASTPrinter::visit(SimpleAttributeTokenAST* ast) {
   out_ << cxx::format("{}\n", "simple-attribute-token");
   accept(ast->identifier, "identifier");
-}
-
-void ASTPrinter::visit(GlobalModuleFragmentAST* ast) {
-  out_ << cxx::format("{}\n", "global-module-fragment");
-  if (ast->declarationList) {
-    ++indent_;
-    out_ << cxx::format("{:{}}", "", indent_ * 2);
-    out_ << cxx::format("{}\n", "declaration-list");
-    for (auto it = ast->declarationList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-}
-
-void ASTPrinter::visit(PrivateModuleFragmentAST* ast) {
-  out_ << cxx::format("{}\n", "private-module-fragment");
-  if (ast->declarationList) {
-    ++indent_;
-    out_ << cxx::format("{:{}}", "", indent_ * 2);
-    out_ << cxx::format("{}\n", "declaration-list");
-    for (auto it = ast->declarationList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-}
-
-void ASTPrinter::visit(ModuleDeclarationAST* ast) {
-  out_ << cxx::format("{}\n", "module-declaration");
-  accept(ast->moduleName, "module-name");
-  accept(ast->modulePartition, "module-partition");
-  if (ast->attributeList) {
-    ++indent_;
-    out_ << cxx::format("{:{}}", "", indent_ * 2);
-    out_ << cxx::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-}
-
-void ASTPrinter::visit(ModuleNameAST* ast) {
-  out_ << cxx::format("{}\n", "module-name");
-  accept(ast->identifier, "identifier");
-  accept(ast->moduleQualifier, "module-qualifier");
-}
-
-void ASTPrinter::visit(ModuleQualifierAST* ast) {
-  out_ << cxx::format("{}\n", "module-qualifier");
-  accept(ast->identifier, "identifier");
-  accept(ast->moduleQualifier, "module-qualifier");
-}
-
-void ASTPrinter::visit(ModulePartitionAST* ast) {
-  out_ << cxx::format("{}\n", "module-partition");
-  accept(ast->moduleName, "module-name");
-}
-
-void ASTPrinter::visit(ImportNameAST* ast) {
-  out_ << cxx::format("{}\n", "import-name");
-  accept(ast->modulePartition, "module-partition");
-  accept(ast->moduleName, "module-name");
-}
-
-void ASTPrinter::visit(InitDeclaratorAST* ast) {
-  out_ << cxx::format("{}\n", "init-declarator");
-  accept(ast->declarator, "declarator");
-  accept(ast->requiresClause, "requires-clause");
-  accept(ast->initializer, "initializer");
-}
-
-void ASTPrinter::visit(DeclaratorAST* ast) {
-  out_ << cxx::format("{}\n", "declarator");
-  if (ast->ptrOpList) {
-    ++indent_;
-    out_ << cxx::format("{:{}}", "", indent_ * 2);
-    out_ << cxx::format("{}\n", "ptr-op-list");
-    for (auto it = ast->ptrOpList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-  accept(ast->coreDeclarator, "core-declarator");
-  if (ast->declaratorChunkList) {
-    ++indent_;
-    out_ << cxx::format("{:{}}", "", indent_ * 2);
-    out_ << cxx::format("{}\n", "declarator-chunk-list");
-    for (auto it = ast->declaratorChunkList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-}
-
-void ASTPrinter::visit(UsingDeclaratorAST* ast) {
-  out_ << cxx::format("{}\n", "using-declarator");
-  if (ast->isPack) {
-    ++indent_;
-    out_ << cxx::format("{:{}}", "", indent_ * 2);
-    out_ << cxx::format("is-pack: {}\n", ast->isPack);
-    --indent_;
-  }
-  accept(ast->nestedNameSpecifier, "nested-name-specifier");
-  accept(ast->unqualifiedId, "unqualified-id");
-}
-
-void ASTPrinter::visit(EnumeratorAST* ast) {
-  out_ << cxx::format("{}\n", "enumerator");
-  accept(ast->identifier, "identifier");
-  if (ast->attributeList) {
-    ++indent_;
-    out_ << cxx::format("{:{}}", "", indent_ * 2);
-    out_ << cxx::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-  accept(ast->expression, "expression");
-}
-
-void ASTPrinter::visit(TypeIdAST* ast) {
-  out_ << cxx::format("{}\n", "type-id");
-  if (ast->typeSpecifierList) {
-    ++indent_;
-    out_ << cxx::format("{:{}}", "", indent_ * 2);
-    out_ << cxx::format("{}\n", "type-specifier-list");
-    for (auto it = ast->typeSpecifierList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-  accept(ast->declarator, "declarator");
-}
-
-void ASTPrinter::visit(HandlerAST* ast) {
-  out_ << cxx::format("{}\n", "handler");
-  accept(ast->exceptionDeclaration, "exception-declaration");
-  accept(ast->statement, "statement");
-}
-
-void ASTPrinter::visit(BaseSpecifierAST* ast) {
-  out_ << cxx::format("{}\n", "base-specifier");
-  if (ast->isTemplateIntroduced) {
-    ++indent_;
-    out_ << cxx::format("{:{}}", "", indent_ * 2);
-    out_ << cxx::format("is-template-introduced: {}\n",
-                        ast->isTemplateIntroduced);
-    --indent_;
-  }
-  if (ast->isVirtual) {
-    ++indent_;
-    out_ << cxx::format("{:{}}", "", indent_ * 2);
-    out_ << cxx::format("is-virtual: {}\n", ast->isVirtual);
-    --indent_;
-  }
-  if (ast->accessSpecifier != TokenKind::T_EOF_SYMBOL) {
-    ++indent_;
-    out_ << cxx::format("{:{}}", "", indent_ * 2);
-    out_ << cxx::format("access-specifier: {}\n",
-                        Token::spell(ast->accessSpecifier));
-    --indent_;
-  }
-  if (ast->attributeList) {
-    ++indent_;
-    out_ << cxx::format("{:{}}", "", indent_ * 2);
-    out_ << cxx::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-  accept(ast->nestedNameSpecifier, "nested-name-specifier");
-  accept(ast->unqualifiedId, "unqualified-id");
-}
-
-void ASTPrinter::visit(RequiresClauseAST* ast) {
-  out_ << cxx::format("{}\n", "requires-clause");
-  accept(ast->expression, "expression");
-}
-
-void ASTPrinter::visit(ParameterDeclarationClauseAST* ast) {
-  out_ << cxx::format("{}\n", "parameter-declaration-clause");
-  if (ast->isVariadic) {
-    ++indent_;
-    out_ << cxx::format("{:{}}", "", indent_ * 2);
-    out_ << cxx::format("is-variadic: {}\n", ast->isVariadic);
-    --indent_;
-  }
-  if (ast->parameterDeclarationList) {
-    ++indent_;
-    out_ << cxx::format("{:{}}", "", indent_ * 2);
-    out_ << cxx::format("{}\n", "parameter-declaration-list");
-    for (auto it = ast->parameterDeclarationList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-}
-
-void ASTPrinter::visit(TrailingReturnTypeAST* ast) {
-  out_ << cxx::format("{}\n", "trailing-return-type");
-  accept(ast->typeId, "type-id");
-}
-
-void ASTPrinter::visit(LambdaSpecifierAST* ast) {
-  out_ << cxx::format("{}\n", "lambda-specifier");
-  if (ast->specifier != TokenKind::T_EOF_SYMBOL) {
-    ++indent_;
-    out_ << cxx::format("{:{}}", "", indent_ * 2);
-    out_ << cxx::format("specifier: {}\n", Token::spell(ast->specifier));
-    --indent_;
-  }
-}
-
-void ASTPrinter::visit(TypeConstraintAST* ast) {
-  out_ << cxx::format("{}\n", "type-constraint");
-  accept(ast->identifier, "identifier");
-  accept(ast->nestedNameSpecifier, "nested-name-specifier");
-  if (ast->templateArgumentList) {
-    ++indent_;
-    out_ << cxx::format("{:{}}", "", indent_ * 2);
-    out_ << cxx::format("{}\n", "template-argument-list");
-    for (auto it = ast->templateArgumentList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-}
-
-void ASTPrinter::visit(AttributeArgumentClauseAST* ast) {
-  out_ << cxx::format("{}\n", "attribute-argument-clause");
-}
-
-void ASTPrinter::visit(AttributeAST* ast) {
-  out_ << cxx::format("{}\n", "attribute");
-  accept(ast->attributeToken, "attribute-token");
-  accept(ast->attributeArgumentClause, "attribute-argument-clause");
-}
-
-void ASTPrinter::visit(AttributeUsingPrefixAST* ast) {
-  out_ << cxx::format("{}\n", "attribute-using-prefix");
-}
-
-void ASTPrinter::visit(NewPlacementAST* ast) {
-  out_ << cxx::format("{}\n", "new-placement");
-  if (ast->expressionList) {
-    ++indent_;
-    out_ << cxx::format("{:{}}", "", indent_ * 2);
-    out_ << cxx::format("{}\n", "expression-list");
-    for (auto it = ast->expressionList; it; it = it->next) {
-      accept(it->value);
-    }
-    --indent_;
-  }
-}
-
-void ASTPrinter::visit(NestedNamespaceSpecifierAST* ast) {
-  out_ << cxx::format("{}\n", "nested-namespace-specifier");
-  accept(ast->identifier, "identifier");
-  if (ast->isInline) {
-    ++indent_;
-    out_ << cxx::format("{:{}}", "", indent_ * 2);
-    out_ << cxx::format("is-inline: {}\n", ast->isInline);
-    --indent_;
-  }
 }
 
 }  // namespace cxx
