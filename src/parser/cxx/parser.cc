@@ -303,7 +303,6 @@ struct Parser::GetDeclaratorType {
     auto returnType = type_;
     std::vector<const Type*> parameterTypes;
     bool isVariadic = false;
-    CvQualifiers cvQualifiers = CvQualifiers::kNone;
 
     if (auto params = ast->parameterDeclarationClause) {
       for (auto it = params->parameterDeclarationList; it; it = it->next) {
@@ -312,6 +311,21 @@ struct Parser::GetDeclaratorType {
       }
 
       isVariadic = params->isVariadic;
+    }
+
+    CvQualifiers cvQualifiers = CvQualifiers::kNone;
+    for (auto it = ast->cvQualifierList; it; it = it->next) {
+      if (ast_cast<ConstQualifierAST>(it->value)) {
+        if (cvQualifiers == CvQualifiers::kVolatile)
+          cvQualifiers = CvQualifiers::kConstVolatile;
+        else
+          cvQualifiers = CvQualifiers::kConst;
+      } else if (ast_cast<VolatileQualifierAST>(it->value)) {
+        if (cvQualifiers == CvQualifiers::kConst)
+          cvQualifiers = CvQualifiers::kConstVolatile;
+        else
+          cvQualifiers = CvQualifiers::kVolatile;
+      }
     }
 
     RefQualifier refQualifier = RefQualifier::kNone;
