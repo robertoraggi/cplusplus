@@ -351,6 +351,7 @@ unqualified-id:
     ~ type-name
     ~ decltype-specifier
     template-id
+    [: ...-opt constant-expression :]
 
 qualified-id:
     nested-name-specifier template-opt unqualified-id
@@ -362,6 +363,8 @@ nested-name-specifier:
     decltype-specifier ::
     nested-name-specifier identifier ::
     nested-name-specifier template-opt simple-template-id ::
+    namespace-opt [: ...-opt constant-expression :] ::
+    typename-opt [: ...-opt constant-expression :] ::
 
 lambda-expression:
     lambda-introducer                                                 lambda-declarator-opt compound-statement
@@ -371,7 +374,17 @@ lambda-introducer:
     [ lambda-capture-opt ]
 
 lambda-declarator:
-    ( parameter-declaration-clause ) decl-specifier-seq-opt noexcept-specifier-opt attribute-specifier-seq-opt trailing-return-type-opt requires-clause-opt
+    ( parameter-declaration-clause ) lambda-specifier-seq-opt noexcept-specifier-opt attribute-specifier-seq-opt trailing-return-type-opt requires-clause-opt
+
+lambda-specifier:
+    consteval
+    constexpr
+    mutable
+    static
+
+lambda-specifier-seq:
+    lambda-specifier
+    lambda-specifier lambda-specifier-seq
 
 lambda-capture:
     capture-default
@@ -479,6 +492,10 @@ unary-expression:
     noexcept-expression
     new-expression
     delete-expression
+    ^ ::
+    ^ namespace-name
+    ^ type-id
+    ^ cast-expression
 
 unary-operator: one of
     *  &  +  -  !  ~
@@ -786,6 +803,7 @@ simple-type-specifier:
     float
     double
     void
+    typename-opt [: ...-opt constant-expression :]
 
 type-name:
     class-name
