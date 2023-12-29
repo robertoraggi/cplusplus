@@ -76,6 +76,8 @@ void Wasm32WasiToolchain::addPredefinedMacros() {
   defineMacro("__strong", "");
   defineMacro("__autoreleasing", "");
   defineMacro("__unsafe_unretained", "");
+  defineMacro("_Nullable", "");
+  defineMacro("_Nonnull", "");
 
   defineMacro("_GNU_SOURCE", "1");
   defineMacro("_ILP32", "1");
