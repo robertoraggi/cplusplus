@@ -247,6 +247,35 @@ class TypePrinter {
 
     signature.append(")");
 
+    switch (type->cvQualifiers()) {
+      case CvQualifiers::kConst:
+        signature.append(" const");
+        break;
+      case CvQualifiers::kVolatile:
+        signature.append(" volatile");
+        break;
+      case CvQualifiers::kConstVolatile:
+        signature.append(" const volatile");
+        break;
+      default:
+        break;
+    }  // switch
+
+    switch (type->refQualifier()) {
+      case RefQualifier::kLvalue:
+        signature.append(" &");
+        break;
+      case RefQualifier::kRvalue:
+        signature.append(" &&");
+        break;
+      default:
+        break;
+    }  // switch
+
+    if (type->isNoexcept()) {
+      signature.append(" noexcept");
+    }
+
     if (!ptrOps_.empty()) {
       std::string decl;
       std::swap(decl, declarator_);
