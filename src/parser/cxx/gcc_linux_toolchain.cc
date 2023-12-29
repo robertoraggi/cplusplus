@@ -70,6 +70,8 @@ void GCCLinuxToolchain::addPredefinedMacros() {
   defineMacro("__extension__", "");
   defineMacro("__null", "nullptr");
   defineMacro("__signed__", "signed");
+  defineMacro("_Nullable", "");
+  defineMacro("_Nonnull", "");
   defineMacro("_Pragma(x)", "");
 
   if (arch_ == "aarch64") {
