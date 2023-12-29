@@ -19,11 +19,11 @@
 // SOFTWARE.
 
 #include <cxx/lexer.h>
-#include <cxx/private/format.h>
 #include <utf8/unchecked.h>
 
 #include <cctype>
 #include <unordered_map>
+#include <vector>
 
 #include "builtins-priv.h"
 #include "keywords-priv.h"
@@ -227,46 +227,45 @@ auto Lexer::readToken() -> TokenKind {
   if (LA() == '"') {
     consume();
 
-    std::string_view delimiter;
-    const auto startDelimiter = pos_;
-    auto endDelimiter = pos_;
-
     if (isRawStringLiteral) {
+      std::vector<std::uint32_t> delimiter;
+      delimiter.reserve(8);
+
       for (; pos_ != end_; consume()) {
         const auto ch = LA();
         if (ch == '(' || ch == '"' || ch == '\\' || ch == '\n') break;
+        delimiter.push_back(ch);
       }
-      endDelimiter = pos_;
-      delimiter = source_.substr(startDelimiter - cbegin(source_),
-                                 endDelimiter - startDelimiter);
-    }
 
-    while (pos_ != end_) {
-      if (!isRawStringLiteral && LA() == '\n') break;
-      if (LA() == '"') {
-        consume();
-
-        if (!isRawStringLiteral) break;
-
-        const auto S = startDelimiter - pos_;
-        const auto N = endDelimiter - startDelimiter;
-
-        if (LA(N - 2) == ')') {
-          bool didMatch = true;
-          for (int i = 0; i < N; ++i) {
-            if (LA(S + i) != LA(N - i - 1)) {
-              didMatch = false;
-              break;
-            }
-          }
-          if (didMatch) break;
+      auto lookat_delimiter = [&]() -> bool {
+        if (LA() != ')') return false;
+        if (LA(delimiter.size() + 1) != '"') return false;
+        for (std::size_t i = 0; i < delimiter.size(); ++i) {
+          if (LA(i + 1) != delimiter[i]) return false;
         }
-      } else if (pos_ + 1 < end_ && LA() == '\\') {
-        consume(2);
-      } else {
+        return true;
+      };
+
+      while (pos_ != end_) {
+        if (lookat_delimiter()) {
+          consume(delimiter.size() + 2);
+          break;
+        }
         consume();
       }
+    } else {
+      while (pos_ != end_) {
+        if (LA() == '"') {
+          consume();
+          break;
+        } else if (pos_ + 1 < end_ && LA() == '\\') {
+          consume(2);
+        } else {
+          consume();
+        }
+      }
     }
+
     bool ud = false;
     if (std::isalpha(LA()) || LA() == '_') {
       ud = true;
