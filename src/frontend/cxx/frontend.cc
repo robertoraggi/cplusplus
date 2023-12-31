@@ -238,7 +238,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
   }
 
   if (auto source = readAll(fileName)) {
-    if (cli.opt_E && !cli.opt_dM) {
+    if (cli.opt_E && !(cli.opt_dM || cli.opt_M || cli.opt_MM)) {
       preprocesor->preprocess(std::move(*source), fileName, output);
       shouldExit = true;
     } else {
@@ -246,6 +246,12 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
 
       if (cli.opt_dM) {
         preprocesor->printMacros(output);
+        shouldExit = true;
+      } else if (cli.opt_M) {
+        preprocesor->printDependencies(output, false);
+        shouldExit = true;
+      } else if (cli.opt_MM) {
+        preprocesor->printDependencies(output, true);
         shouldExit = true;
       } else if (cli.opt_dump_tokens) {
         dumpTokens(cli, unit, output);

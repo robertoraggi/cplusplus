@@ -2262,6 +2262,29 @@ void Preprocessor::printMacros(std::ostream &out) const {
   }
 }
 
+void Preprocessor::printDependencies(std::ostream &out, bool noSysPath) const {
+  if (d->sourceFiles_.size() == 0) return;
+  const auto p = fs::path(d->sourceFiles_[0]->fileName);
+  const std::string stem = p.stem();
+  out << cxx::format("{}.o: \\\n", stem);
+  const size_t lastIdx = d->sourceFiles_.size();
+  size_t currIdx = 0;
+  for (const auto &sourceFile : d->sourceFiles_) {
+    ++currIdx;
+    if (noSysPath) {
+      bool isSysPath = false;
+      for (const auto &sysPath : d->systemIncludePaths_) {
+        if (sourceFile->fileName.find(sysPath) == 0) {
+          isSysPath = true;
+          break;
+        }
+      }
+      if (isSysPath) continue;
+    }
+    out << cxx::format("  {}{}\n", sourceFile->fileName, (currIdx < lastIdx ? " \\" : ""));
+  }
+}
+
 void Preprocessor::getTokenStartPosition(const Token &token, unsigned *line,
                                          unsigned *column,
                                          std::string_view *fileName) const {

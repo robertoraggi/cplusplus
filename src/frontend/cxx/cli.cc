@@ -132,6 +132,12 @@ std::vector<CLIOptionDescr> options{
     {"-dM", "Print macro definitions in -E mode instead of normal output",
      &CLI::opt_dM},
 
+    {"-M", "Print dependencies of the main source file",
+     &CLI::opt_M},
+
+    {"-MM", "Print dependencies of the main source file, excluding system path",
+     &CLI::opt_MM},
+
     {"-S", "Only run preprocess and compilation steps", &CLI::opt_S,
      CLIOptionVisibility::kExperimental},
 
