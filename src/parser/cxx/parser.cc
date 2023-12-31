@@ -9064,13 +9064,27 @@ auto Parser::parse_class_head(ClassHead& classHead) -> bool {
       }
     } else {
       Scope* enclosingScope = nullptr;
-      if (auto enclosingClass = symbol_cast<ClassSymbol>(enclosingSymbol))
-        enclosingScope = enclosingClass->scope();
-      else if (auto enclosingNamespace =
-                   symbol_cast<NamespaceSymbol>(enclosingSymbol))
-        enclosingScope = enclosingNamespace->scope();
 
-      scope_ = enclosingScope;
+      if (auto alias = symbol_cast<TypeAliasSymbol>(enclosingSymbol)) {
+        if (auto classTy = type_cast<ClassType>(alias->type())) {
+          enclosingScope = classTy->symbol()->scope();
+        }
+      } else if (auto enclosingClass =
+                     symbol_cast<ClassSymbol>(enclosingSymbol)) {
+        enclosingScope = enclosingClass->scope();
+      } else if (auto enclosingNamespace =
+                     symbol_cast<NamespaceSymbol>(enclosingSymbol)) {
+        enclosingScope = enclosingNamespace->scope();
+      }
+
+      if (!scope_) {
+        if (config_.checkTypes) {
+          parse_error(classHead.nestedNameSpecifier->firstSourceLocation(),
+                      "unresolved nested name specifier");
+        }
+      } else {
+        scope_ = enclosingScope;
+      }
     }
   }
 
