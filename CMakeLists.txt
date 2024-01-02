@@ -57,7 +57,7 @@ endif()
 FetchContent_Declare(
     fmt
     GIT_REPOSITORY  https://github.com/fmtlib/fmt
-    GIT_TAG         10.1.1
+    GIT_TAG         10.2.0
     GIT_SHALLOW     1
 )
 
@@ -68,12 +68,16 @@ FetchContent_MakeAvailable(fmt)
 
 FetchContent_Declare(
     utfcpp
-    GIT_REPOSITORY  https://github.com/nemtrif/utfcpp
-    GIT_TAG         v3.2.4
-    GIT_SHALLOW     1
+    GIT_REPOSITORY      https://github.com/nemtrif/utfcpp
+    GIT_TAG             v4.0.5
+    GIT_SHALLOW         1
 )
 
-FetchContent_MakeAvailable(utfcpp)
+FetchContent_Populate(utfcpp)
+FetchContent_GetProperties(utfcpp)
+
+add_library(utf8cpp::utf8cpp INTERFACE IMPORTED)
+set_target_properties(utf8cpp::utf8cpp PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${utfcpp_SOURCE_DIR}/source")
 
 FetchContent_Declare(
     wasi_sysroot
