@@ -126,6 +126,33 @@ class ConceptSymbol final : public Symbol {
   TemplateParametersSymbol* templateParameters_ = nullptr;
 };
 
+class BaseClassSymbol final : public Symbol {
+ public:
+  constexpr static auto Kind = SymbolKind::kBaseClass;
+
+  explicit BaseClassSymbol(Scope* enclosingScope);
+  ~BaseClassSymbol() override;
+
+  [[nodiscard]] auto isVirtual() const -> bool { return isVirtual_; }
+  void setVirtual(bool isVirtual) { isVirtual_ = isVirtual; }
+
+  [[nodiscard]] auto accessSpecifier() const -> AccessSpecifier {
+    return accessSpecifier_;
+  }
+
+  void setAccessSpecifier(AccessSpecifier accessSpecifier) {
+    accessSpecifier_ = accessSpecifier;
+  }
+
+  [[nodiscard]] auto symbol() const -> Symbol* { return symbol_; }
+  void setSymbol(Symbol* symbol) { symbol_ = symbol; }
+
+ private:
+  Symbol* symbol_ = nullptr;
+  AccessSpecifier accessSpecifier_ = AccessSpecifier::kPublic;
+  bool isVirtual_ = false;
+};
+
 class ClassSymbol final : public ScopedSymbol {
  public:
   constexpr static auto Kind = SymbolKind::kClass;
@@ -136,9 +163,10 @@ class ClassSymbol final : public ScopedSymbol {
   [[nodiscard]] auto isUnion() const -> bool;
   void setIsUnion(bool isUnion);
 
-  [[nodiscard]] auto baseClasses() const -> const std::vector<Symbol*>&;
+  [[nodiscard]] auto baseClasses() const
+      -> const std::vector<BaseClassSymbol*>&;
 
-  void addBaseClass(Symbol* baseClass);
+  void addBaseClass(BaseClassSymbol* baseClass);
 
   [[nodiscard]] auto constructors() const
       -> const std::vector<FunctionSymbol*>&;
@@ -155,7 +183,7 @@ class ClassSymbol final : public ScopedSymbol {
   [[nodiscard]] auto sizeInBytes() const -> std::size_t;
 
  private:
-  std::vector<Symbol*> baseClasses_;
+  std::vector<BaseClassSymbol*> baseClasses_;
   std::vector<FunctionSymbol*> constructors_;
   TemplateParametersSymbol* templateParameters_ = nullptr;
   std::size_t sizeInBytes_ = 0;

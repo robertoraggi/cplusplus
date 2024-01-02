@@ -134,6 +134,7 @@ class Control {
 
   auto newNamespaceSymbol(Scope* enclosingScope) -> NamespaceSymbol*;
   auto newConceptSymbol(Scope* enclosingScope) -> ConceptSymbol*;
+  auto newBaseClassSymbol(Scope* enclosingScope) -> BaseClassSymbol*;
   auto newClassSymbol(Scope* enclosingScope) -> ClassSymbol*;
   auto newEnumSymbol(Scope* enclosingScope) -> EnumSymbol*;
   auto newScopedEnumSymbol(Scope* enclosingScope) -> ScopedEnumSymbol*;

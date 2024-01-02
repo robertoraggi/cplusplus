@@ -48,6 +48,11 @@ ConceptSymbol::ConceptSymbol(Scope* enclosingScope)
 
 ConceptSymbol::~ConceptSymbol() {}
 
+BaseClassSymbol::BaseClassSymbol(Scope* enclosingScope)
+    : Symbol(Kind, enclosingScope) {}
+
+BaseClassSymbol::~BaseClassSymbol() {}
+
 ClassSymbol::ClassSymbol(Scope* enclosingScope)
     : ScopedSymbol(Kind, enclosingScope) {}
 
@@ -57,11 +62,11 @@ auto ClassSymbol::isUnion() const -> bool { return isUnion_; }
 
 void ClassSymbol::setIsUnion(bool isUnion) { isUnion_ = isUnion; }
 
-auto ClassSymbol::baseClasses() const -> const std::vector<Symbol*>& {
+auto ClassSymbol::baseClasses() const -> const std::vector<BaseClassSymbol*>& {
   return baseClasses_;
 }
 
-void ClassSymbol::addBaseClass(Symbol* baseClass) {
+void ClassSymbol::addBaseClass(BaseClassSymbol* baseClass) {
   baseClasses_.push_back(baseClass);
 }
 

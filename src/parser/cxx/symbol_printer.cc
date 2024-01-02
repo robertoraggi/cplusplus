@@ -66,13 +66,21 @@ struct DumpSymbols {
     dumpScope(symbol->scope());
   }
 
+  void operator()(BaseClassSymbol* symbol) {
+    indent();
+    out << cxx::format("base class {}\n", to_string(symbol->name()));
+  }
+
   void operator()(ClassSymbol* symbol) {
     indent();
+    std::string_view classKey = symbol->isUnion() ? "union" : "class";
+
     if (symbol->templateParameters()) {
-      out << cxx::format("template class {}\n", to_string(symbol->name()));
+      out << cxx::format("template {} {}\n", classKey,
+                         to_string(symbol->name()));
       dumpScope(symbol->templateParameters()->scope());
     } else {
-      out << cxx::format("class {}\n", to_string(symbol->name()));
+      out << cxx::format("{} {}\n", classKey, to_string(symbol->name()));
     }
     dumpScope(symbol->scope());
   }

@@ -9625,12 +9625,32 @@ void Parser::parse_base_specifier(BaseSpecifierAST*& yyast) {
   } else {
     if (ast_cast<NameIdAST>(ast->unqualifiedId)) {
       auto name = convertName(ast->unqualifiedId);
+      Symbol* symbol = nullptr;
       if (!ast->nestedNameSpecifier) {
-        ast->symbol = unqualifiedLookup(name);
+        symbol = unqualifiedLookup(name);
       } else {
         if (ast->nestedNameSpecifier->symbol) {
-          ast->symbol = qualifiedLookup(ast->nestedNameSpecifier->symbol, name);
+          symbol = qualifiedLookup(ast->nestedNameSpecifier->symbol, name);
         }
+      }
+      if (symbol) {
+        auto baseClassSymbol = control_->newBaseClassSymbol(scope_);
+        baseClassSymbol->setVirtual(ast->isVirtual);
+        baseClassSymbol->setSymbol(symbol);
+        switch (ast->accessSpecifier) {
+          case TokenKind::T_PRIVATE:
+            baseClassSymbol->setAccessSpecifier(AccessSpecifier::kPrivate);
+            break;
+          case TokenKind::T_PROTECTED:
+            baseClassSymbol->setAccessSpecifier(AccessSpecifier::kProtected);
+            break;
+          case TokenKind::T_PUBLIC:
+            baseClassSymbol->setAccessSpecifier(AccessSpecifier::kPublic);
+            break;
+          default:
+            break;
+        }  // switch
+        ast->symbol = baseClassSymbol;
       }
     }
   }
@@ -11044,7 +11064,7 @@ auto Parser::lookupHelper(Scope* scope, const Name* name,
 
   if (auto classSymbol = symbol_cast<ClassSymbol>(scope->owner())) {
     for (const auto& base : classSymbol->baseClasses()) {
-      auto baseClass = symbol_cast<ClassSymbol>(base);
+      auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
       if (!baseClass) continue;
       if (auto symbol = lookupHelper(baseClass->scope(), name, cache)) {
         return symbol;

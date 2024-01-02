@@ -2291,7 +2291,7 @@ class BaseSpecifierAST final : public AST {
   bool isTemplateIntroduced = false;
   bool isVirtual = false;
   TokenKind accessSpecifier = TokenKind::T_EOF_SYMBOL;
-  Symbol* symbol = nullptr;
+  BaseClassSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

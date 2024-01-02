@@ -126,6 +126,7 @@ struct Control::Private {
 
   std::forward_list<NamespaceSymbol> namespaceSymbols;
   std::forward_list<ConceptSymbol> conceptSymbols;
+  std::forward_list<BaseClassSymbol> baseClassSymbols;
   std::forward_list<ClassSymbol> classSymbols;
   std::forward_list<EnumSymbol> enumSymbols;
   std::forward_list<ScopedEnumSymbol> scopedEnumSymbols;
@@ -437,6 +438,11 @@ auto Control::newNamespaceSymbol(Scope* enclosingScope) -> NamespaceSymbol* {
 
 auto Control::newConceptSymbol(Scope* enclosingScope) -> ConceptSymbol* {
   auto symbol = &d->conceptSymbols.emplace_front(enclosingScope);
+  return symbol;
+}
+
+auto Control::newBaseClassSymbol(Scope* enclosingScope) -> BaseClassSymbol* {
+  auto symbol = &d->baseClassSymbols.emplace_front(enclosingScope);
   return symbol;
 }
 
