@@ -44,7 +44,8 @@ namespace cxx {
   V(NonTypeParameter)          \
   V(TemplateTypeParameter)     \
   V(ConstraintTypeParameter)   \
-  V(OverloadSet)
+  V(OverloadSet)               \
+  V(BaseClass)
 
 class Symbol;
 class ScopedSymbol;
@@ -57,5 +58,11 @@ CXX_FOR_EACH_SYMBOL(PROCESS_SYMBOL)
 #define PROCESS_SYMBOL(S) k##S,
 enum class SymbolKind { CXX_FOR_EACH_SYMBOL(PROCESS_SYMBOL) };
 #undef PROCESS_SYMBOL
+
+enum struct AccessSpecifier {
+  kPublic,
+  kProtected,
+  kPrivate,
+};
 
 }  // namespace cxx
