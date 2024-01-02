@@ -111,8 +111,9 @@ struct DumpSymbols {
   }
 
   void operator()(OverloadSetSymbol* symbol) {
-    indent();
-    out << cxx::format("overload set {}\n", to_string(symbol->name()));
+    for (auto function : symbol->functions()) {
+      visit(*this, function);
+    }
   }
 
   void operator()(FunctionSymbol* symbol) {
