@@ -42,7 +42,7 @@ endif()
 
 target_link_libraries(cxx-parser
     PUBLIC  $<BUILD_INTERFACE:fmt::fmt-header-only>
-            $<BUILD_INTERFACE:utf8::cpp>
+            $<BUILD_INTERFACE:utf8cpp::utf8cpp>
 )
 
 if (CMAKE_SYSTEM_NAME STREQUAL "WASI")
