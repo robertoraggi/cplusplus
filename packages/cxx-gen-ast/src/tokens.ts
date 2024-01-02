@@ -268,6 +268,8 @@ export const TOKEN_ALIASES = [
   ["__restrict", "__RESTRICT__"],
   ["__typeof__", "DECLTYPE"],
   ["__typeof", "DECLTYPE"],
+  ["__volatile__", "VOLATILE"],
+  ["__volatile", "VOLATILE"],
   ["_Alignof", "ALIGNOF"],
   ["_Static_assert", "STATIC_ASSERT"],
 ];

@@ -124,5 +124,7 @@ __inline
 __restrict
 __typeof__
 __typeof
+__volatile__
+__volatile
 _Alignof
 _Static_assert

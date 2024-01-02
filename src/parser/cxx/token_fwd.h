@@ -275,6 +275,8 @@ class Token;
   V(__RESTRICT, __RESTRICT__)   \
   V(__TYPEOF__, DECLTYPE)       \
   V(__TYPEOF, DECLTYPE)         \
+  V(__VOLATILE__, VOLATILE)     \
+  V(__VOLATILE, VOLATILE)       \
   V(_ALIGNOF, ALIGNOF)          \
   V(_STATIC_ASSERT, STATIC_ASSERT)
 
