@@ -274,6 +274,9 @@ auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
     case io::Expression_BracedTypeConstruction:
       return decodeBracedTypeConstruction(
           reinterpret_cast<const io::BracedTypeConstruction*>(ptr));
+    case io::Expression_SpliceMemberExpression:
+      return decodeSpliceMemberExpression(
+          reinterpret_cast<const io::SpliceMemberExpression*>(ptr));
     case io::Expression_MemberExpression:
       return decodeMemberExpression(
           reinterpret_cast<const io::MemberExpression*>(ptr));
@@ -1920,6 +1923,18 @@ auto ASTDecoder::decodeBracedTypeConstruction(
   ast->typeSpecifier =
       decodeSpecifier(node->type_specifier(), node->type_specifier_type());
   ast->bracedInitList = decodeBracedInitList(node->braced_init_list());
+  return ast;
+}
+
+auto ASTDecoder::decodeSpliceMemberExpression(
+    const io::SpliceMemberExpression* node) -> SpliceMemberExpressionAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) SpliceMemberExpressionAST();
+  ast->baseExpression =
+      decodeExpression(node->base_expression(), node->base_expression_type());
+  ast->splicer = decodeSplicer(node->splicer());
+  ast->accessOp = static_cast<TokenKind>(node->access_op());
   return ast;
 }
 

@@ -2348,6 +2348,28 @@ auto Parser::parse_member_expression(ExpressionAST*& yyast) -> bool {
     return false;
   }
 
+  auto lookat_splice_member = [&] {
+    LookaheadParser lookahead{this};
+    SourceLocation templateLoc;
+    const auto isTemplateIntroduced = match(TokenKind::T_TEMPLATE, templateLoc);
+    SplicerAST* splicer = nullptr;
+    if (!parse_splicer(splicer)) return false;
+    lookahead.commit();
+
+    auto ast = new (pool_) SpliceMemberExpressionAST();
+    ast->baseExpression = yyast;
+    ast->accessLoc = accessLoc;
+    ast->accessOp = unit->tokenKind(ast->accessLoc);
+    ast->templateLoc = templateLoc;
+    ast->isTemplateIntroduced = isTemplateIntroduced;
+    ast->splicer = splicer;
+    yyast = ast;
+
+    return true;
+  };
+
+  if (lookat_splice_member()) return true;
+
   auto ast = new (pool_) MemberExpressionAST();
   ast->baseExpression = yyast;
   ast->accessLoc = accessLoc;

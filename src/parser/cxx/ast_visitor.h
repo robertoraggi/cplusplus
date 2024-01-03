@@ -105,6 +105,7 @@ class ASTVisitor {
   virtual void visit(CallExpressionAST* ast) = 0;
   virtual void visit(TypeConstructionAST* ast) = 0;
   virtual void visit(BracedTypeConstructionAST* ast) = 0;
+  virtual void visit(SpliceMemberExpressionAST* ast) = 0;
   virtual void visit(MemberExpressionAST* ast) = 0;
   virtual void visit(PostIncrExpressionAST* ast) = 0;
   virtual void visit(CppCastExpressionAST* ast) = 0;

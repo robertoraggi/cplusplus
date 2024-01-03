@@ -1422,6 +1422,29 @@ void ASTCloner::visit(BracedTypeConstructionAST* ast) {
   copy->bracedInitList = accept(ast->bracedInitList);
 }
 
+void ASTCloner::visit(SpliceMemberExpressionAST* ast) {
+  auto copy = new (arena_) SpliceMemberExpressionAST();
+  copy_ = copy;
+
+  copy->valueCategory = ast->valueCategory;
+
+  copy->type = ast->type;
+
+  copy->baseExpression = accept(ast->baseExpression);
+
+  copy->accessLoc = ast->accessLoc;
+
+  copy->templateLoc = ast->templateLoc;
+
+  copy->splicer = accept(ast->splicer);
+
+  copy->symbol = ast->symbol;
+
+  copy->accessOp = ast->accessOp;
+
+  copy->isTemplateIntroduced = ast->isTemplateIntroduced;
+}
+
 void ASTCloner::visit(MemberExpressionAST* ast) {
   auto copy = new (arena_) MemberExpressionAST();
   copy_ = copy;

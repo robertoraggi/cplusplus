@@ -62,6 +62,7 @@ class ConstExpressionEvaluator {
   auto operator()(CallExpressionAST* ast) -> std::optional<ConstValue>;
   auto operator()(TypeConstructionAST* ast) -> std::optional<ConstValue>;
   auto operator()(BracedTypeConstructionAST* ast) -> std::optional<ConstValue>;
+  auto operator()(SpliceMemberExpressionAST* ast) -> std::optional<ConstValue>;
   auto operator()(MemberExpressionAST* ast) -> std::optional<ConstValue>;
   auto operator()(PostIncrExpressionAST* ast) -> std::optional<ConstValue>;
   auto operator()(SpliceExpressionAST* ast) -> std::optional<ConstValue>;

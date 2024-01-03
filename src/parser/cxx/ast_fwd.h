@@ -154,6 +154,7 @@ class SubscriptExpressionAST;
 class CallExpressionAST;
 class TypeConstructionAST;
 class BracedTypeConstructionAST;
+class SpliceMemberExpressionAST;
 class MemberExpressionAST;
 class PostIncrExpressionAST;
 class CppCastExpressionAST;

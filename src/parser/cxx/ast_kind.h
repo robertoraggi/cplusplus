@@ -101,6 +101,7 @@ enum struct ASTKind {
   CallExpression,
   TypeConstruction,
   BracedTypeConstruction,
+  SpliceMemberExpression,
   MemberExpression,
   PostIncrExpression,
   CppCastExpression,

@@ -2405,6 +2405,43 @@ void ASTSlot::visit(BracedTypeConstructionAST* ast) {
   slotCount_ = 2;
 }
 
+void ASTSlot::visit(SpliceMemberExpressionAST* ast) {
+  switch (slot_) {
+    case 0:  // baseExpression
+      value_ = reinterpret_cast<std::intptr_t>(ast->baseExpression);
+      slotKind_ = ASTSlotKind::kNode;
+      slotNameIndex_ = SlotNameIndex{19};
+      break;
+    case 1:  // accessLoc
+      value_ = ast->accessLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      slotNameIndex_ = SlotNameIndex{0};
+      break;
+    case 2:  // templateLoc
+      value_ = ast->templateLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      slotNameIndex_ = SlotNameIndex{195};
+      break;
+    case 3:  // splicer
+      value_ = reinterpret_cast<std::intptr_t>(ast->splicer);
+      slotKind_ = ASTSlotKind::kNode;
+      slotNameIndex_ = SlotNameIndex{182};
+      break;
+    case 4:  // accessOp
+      value_ = std::intptr_t(ast->accessOp);
+      slotKind_ = ASTSlotKind::kIntAttribute;
+      slotNameIndex_ = SlotNameIndex{1};
+      break;
+    case 5:  // isTemplateIntroduced
+      value_ = std::intptr_t(ast->isTemplateIntroduced != 0);
+      slotKind_ = ASTSlotKind::kBoolAttribute;
+      slotNameIndex_ = SlotNameIndex{114};
+      break;
+  }  // switch
+
+  slotCount_ = 6;
+}
+
 void ASTSlot::visit(MemberExpressionAST* ast) {
   switch (slot_) {
     case 0:  // baseExpression

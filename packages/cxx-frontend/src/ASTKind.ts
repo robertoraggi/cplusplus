@@ -96,6 +96,7 @@ export enum ASTKind {
   CallExpression,
   TypeConstruction,
   BracedTypeConstruction,
+  SpliceMemberExpression,
   MemberExpression,
   PostIncrExpression,
   CppCastExpression,

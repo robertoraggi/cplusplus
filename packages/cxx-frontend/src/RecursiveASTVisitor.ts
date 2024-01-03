@@ -986,6 +986,20 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   }
 
   /**
+   * Visit a SpliceMemberExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitSpliceMemberExpression(
+    node: ast.SpliceMemberExpressionAST,
+    context: Context,
+  ): void {
+    this.accept(node.getBaseExpression(), context);
+    this.accept(node.getSplicer(), context);
+  }
+
+  /**
    * Visit a MemberExpression node.
    *
    * @param node The node to visit.

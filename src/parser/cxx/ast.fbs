@@ -146,6 +146,7 @@ union Expression {
   CallExpression,
   TypeConstruction,
   BracedTypeConstruction,
+  SpliceMemberExpression,
   MemberExpression,
   PostIncrExpression,
   CppCastExpression,
@@ -979,6 +980,14 @@ table TypeConstruction /* ExpressionAST */ {
 table BracedTypeConstruction /* ExpressionAST */ {
   type_specifier: Specifier;
   braced_init_list: BracedInitList;
+}
+
+table SpliceMemberExpression /* ExpressionAST */ {
+  base_expression: Expression;
+  splicer: Splicer;
+  access_op: uint32;
+  access_loc: SourceLocation;
+  template_loc: SourceLocation;
 }
 
 table MemberExpression /* ExpressionAST */ {

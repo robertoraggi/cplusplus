@@ -2577,6 +2577,29 @@ void ASTEncoder::visit(BracedTypeConstructionAST* ast) {
   type_ = io::Expression_BracedTypeConstruction;
 }
 
+void ASTEncoder::visit(SpliceMemberExpressionAST* ast) {
+  const auto [baseExpression, baseExpressionType] =
+      acceptExpression(ast->baseExpression);
+
+  auto accessLoc = encodeSourceLocation(ast->accessLoc);
+
+  auto templateLoc = encodeSourceLocation(ast->templateLoc);
+
+  const auto splicer = accept(ast->splicer);
+
+  io::SpliceMemberExpression::Builder builder{fbb_};
+  builder.add_base_expression(baseExpression);
+  builder.add_base_expression_type(
+      static_cast<io::Expression>(baseExpressionType));
+  builder.add_access_loc(accessLoc.o);
+  builder.add_template_loc(templateLoc.o);
+  builder.add_splicer(splicer.o);
+  builder.add_access_op(static_cast<std::uint32_t>(ast->accessOp));
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Expression_SpliceMemberExpression;
+}
+
 void ASTEncoder::visit(MemberExpressionAST* ast) {
   const auto [baseExpression, baseExpressionType] =
       acceptExpression(ast->baseExpression);

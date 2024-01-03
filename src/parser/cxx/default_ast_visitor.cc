@@ -310,6 +310,10 @@ void DefaultASTVisitor::visit(BracedTypeConstructionAST* ast) {
   cxx_runtime_error("visit(BracedTypeConstructionAST): not implemented");
 }
 
+void DefaultASTVisitor::visit(SpliceMemberExpressionAST* ast) {
+  cxx_runtime_error("visit(SpliceMemberExpressionAST): not implemented");
+}
+
 void DefaultASTVisitor::visit(MemberExpressionAST* ast) {
   cxx_runtime_error("visit(MemberExpressionAST): not implemented");
 }

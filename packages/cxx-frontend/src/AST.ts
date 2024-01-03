@@ -4780,6 +4780,72 @@ export class BracedTypeConstructionAST extends ExpressionAST {
 }
 
 /**
+ * SpliceMemberExpressionAST node.
+ */
+export class SpliceMemberExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitSpliceMemberExpression(this, context);
+  }
+
+  /**
+   * Returns the baseExpression of this node
+   */
+  getBaseExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the access token in this node
+   */
+  getAccessToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the template token in this node
+   */
+  getTemplateToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the splicer of this node
+   */
+  getSplicer(): SplicerAST | undefined {
+    return AST.from<SplicerAST>(
+      cxx.getASTSlot(this.getHandle(), 3),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the accessOp attribute of this node
+   */
+  getAccessOp(): TokenKind {
+    return cxx.getASTSlot(this.getHandle(), 4);
+  }
+
+  /**
+   * Returns the isTemplateIntroduced attribute of this node
+   */
+  getIsTemplateIntroduced(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 5) !== 0;
+  }
+}
+
+/**
  * MemberExpressionAST node.
  */
 export class MemberExpressionAST extends ExpressionAST {
@@ -12555,6 +12621,7 @@ const AST_CONSTRUCTORS: Array<
   CallExpressionAST,
   TypeConstructionAST,
   BracedTypeConstructionAST,
+  SpliceMemberExpressionAST,
   MemberExpressionAST,
   PostIncrExpressionAST,
   CppCastExpressionAST,
