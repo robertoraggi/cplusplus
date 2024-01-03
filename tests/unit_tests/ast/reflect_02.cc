@@ -1,5 +1,5 @@
 // clang-format off
-// RUN: %cxx -verify -freflect -fcheck -ast-dump %s | %filecheck %s --match-full-lines
+// RUN: %cxx -verify -fcheck -ast-dump %s | %filecheck %s --match-full-lines
 // clang-format on
 
 struct S {
