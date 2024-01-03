@@ -642,6 +642,11 @@ void RecursiveASTVisitor::visit(BracedTypeConstructionAST* ast) {
   acceptBracedInitList(ast->bracedInitList);
 }
 
+void RecursiveASTVisitor::visit(SpliceMemberExpressionAST* ast) {
+  acceptExpression(ast->baseExpression);
+  acceptSplicer(ast->splicer);
+}
+
 void RecursiveASTVisitor::visit(MemberExpressionAST* ast) {
   acceptExpression(ast->baseExpression);
   acceptNestedNameSpecifier(ast->nestedNameSpecifier);

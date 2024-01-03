@@ -1455,6 +1455,26 @@ class BracedTypeConstructionAST final : public ExpressionAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class SpliceMemberExpressionAST final : public ExpressionAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::SpliceMemberExpression;
+
+  SpliceMemberExpressionAST() : ExpressionAST(Kind) {}
+
+  ExpressionAST* baseExpression = nullptr;
+  SourceLocation accessLoc;
+  SourceLocation templateLoc;
+  SplicerAST* splicer = nullptr;
+  Symbol* symbol = nullptr;
+  TokenKind accessOp = TokenKind::T_EOF_SYMBOL;
+  bool isTemplateIntroduced = false;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 class MemberExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::MemberExpression;
@@ -4204,6 +4224,9 @@ auto visit(Visitor&& visitor, ExpressionAST* ast) {
     case BracedTypeConstructionAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<BracedTypeConstructionAST*>(ast));
+    case SpliceMemberExpressionAST::Kind:
+      return std::invoke(std::forward<Visitor>(visitor),
+                         static_cast<SpliceMemberExpressionAST*>(ast));
     case MemberExpressionAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<MemberExpressionAST*>(ast));

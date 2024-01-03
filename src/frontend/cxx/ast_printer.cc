@@ -950,6 +950,25 @@ void ASTPrinter::visit(BracedTypeConstructionAST* ast) {
   accept(ast->bracedInitList, "braced-init-list");
 }
 
+void ASTPrinter::visit(SpliceMemberExpressionAST* ast) {
+  out_ << cxx::format("{}\n", "splice-member-expression");
+  if (ast->accessOp != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    out_ << cxx::format("{:{}}", "", indent_ * 2);
+    out_ << cxx::format("access-op: {}\n", Token::spell(ast->accessOp));
+    --indent_;
+  }
+  if (ast->isTemplateIntroduced) {
+    ++indent_;
+    out_ << cxx::format("{:{}}", "", indent_ * 2);
+    out_ << cxx::format("is-template-introduced: {}\n",
+                        ast->isTemplateIntroduced);
+    --indent_;
+  }
+  accept(ast->baseExpression, "base-expression");
+  accept(ast->splicer, "splicer");
+}
+
 void ASTPrinter::visit(MemberExpressionAST* ast) {
   out_ << cxx::format("{}\n", "member-expression");
   if (ast->accessOp != TokenKind::T_EOF_SYMBOL) {

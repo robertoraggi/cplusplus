@@ -854,6 +854,18 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
 
   /**
+   * Visit SpliceMemberExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitSpliceMemberExpression(
+    node: ast.SpliceMemberExpressionAST,
+    context: Context,
+  ): Result;
+
+  /**
    * Visit MemberExpression node.
    *
    * @param node The node to visit.

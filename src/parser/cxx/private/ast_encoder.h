@@ -205,6 +205,7 @@ class ASTEncoder : ASTVisitor {
   void visit(CallExpressionAST* ast) override;
   void visit(TypeConstructionAST* ast) override;
   void visit(BracedTypeConstructionAST* ast) override;
+  void visit(SpliceMemberExpressionAST* ast) override;
   void visit(MemberExpressionAST* ast) override;
   void visit(PostIncrExpressionAST* ast) override;
   void visit(CppCastExpressionAST* ast) override;

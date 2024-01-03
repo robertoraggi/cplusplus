@@ -151,6 +151,11 @@ auto ConstExpressionEvaluator::operator()(BracedTypeConstructionAST* ast)
   return std::nullopt;
 }
 
+auto ConstExpressionEvaluator::operator()(SpliceMemberExpressionAST* ast)
+    -> std::optional<ConstValue> {
+  return std::nullopt;
+}
+
 auto ConstExpressionEvaluator::operator()(MemberExpressionAST* ast)
     -> std::optional<ConstValue> {
   return std::nullopt;

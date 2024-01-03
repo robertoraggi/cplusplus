@@ -213,6 +213,8 @@ class ASTDecoder {
       -> TypeConstructionAST*;
   auto decodeBracedTypeConstruction(const io::BracedTypeConstruction* node)
       -> BracedTypeConstructionAST*;
+  auto decodeSpliceMemberExpression(const io::SpliceMemberExpression* node)
+      -> SpliceMemberExpressionAST*;
   auto decodeMemberExpression(const io::MemberExpression* node)
       -> MemberExpressionAST*;
   auto decodePostIncrExpression(const io::PostIncrExpression* node)
