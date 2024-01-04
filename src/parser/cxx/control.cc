@@ -740,9 +740,15 @@ auto Control::remove_noexcept(const Type* type) -> const Type* {
 }
 
 auto Control::is_base_of(const Type* base, const Type* derived) -> bool {
-  if (!is_class_or_union(base)) return false;
-  if (!is_class_or_union(derived)) return false;
-  return false;
+  auto baseClassType = type_cast<ClassType>(remove_cv(base));
+  if (!baseClassType) return false;
+  auto derivedClassType = type_cast<ClassType>(remove_cv(derived));
+  if (!derivedClassType) {
+    // todo: test for closure types
+    return false;
+  }
+  if (derivedClassType->symbol() == baseClassType->symbol()) return true;
+  return derivedClassType->symbol()->hasBaseClass(baseClassType->symbol());
 }
 
 auto Control::is_same(const Type* a, const Type* b) -> bool {

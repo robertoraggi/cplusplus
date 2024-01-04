@@ -2754,6 +2754,8 @@ auto Parser::parse_builtin_call_expression(ExpressionAST*& yyast,
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
+  ast->type = control_->getBoolType();
+
   return true;
 }
 
@@ -9645,9 +9647,17 @@ void Parser::parse_base_specifier(BaseSpecifierAST*& yyast) {
                                ast->unqualifiedId)) {
     parse_error("expected a class name");
   } else {
+    Symbol* symbol = nullptr;
+
+    if (auto decltypeId = ast_cast<DecltypeIdAST>(ast->unqualifiedId)) {
+      if (auto classType = type_cast<ClassType>(
+              control_->remove_cv(decltypeId->decltypeSpecifier->type))) {
+        symbol = classType->symbol();
+      }
+    }
+
     if (ast_cast<NameIdAST>(ast->unqualifiedId)) {
       auto name = convertName(ast->unqualifiedId);
-      Symbol* symbol = nullptr;
       if (!ast->nestedNameSpecifier) {
         symbol = unqualifiedLookup(name);
       } else {
@@ -9655,25 +9665,35 @@ void Parser::parse_base_specifier(BaseSpecifierAST*& yyast) {
           symbol = qualifiedLookup(ast->nestedNameSpecifier->symbol, name);
         }
       }
-      if (symbol) {
-        auto baseClassSymbol = control_->newBaseClassSymbol(scope_);
-        baseClassSymbol->setVirtual(ast->isVirtual);
-        baseClassSymbol->setSymbol(symbol);
-        switch (ast->accessSpecifier) {
-          case TokenKind::T_PRIVATE:
-            baseClassSymbol->setAccessSpecifier(AccessSpecifier::kPrivate);
-            break;
-          case TokenKind::T_PROTECTED:
-            baseClassSymbol->setAccessSpecifier(AccessSpecifier::kProtected);
-            break;
-          case TokenKind::T_PUBLIC:
-            baseClassSymbol->setAccessSpecifier(AccessSpecifier::kPublic);
-            break;
-          default:
-            break;
-        }  // switch
-        ast->symbol = baseClassSymbol;
+    }
+
+    if (auto typeAlias = symbol_cast<TypeAliasSymbol>(symbol)) {
+      if (auto classType =
+              type_cast<ClassType>(control_->remove_cv(typeAlias->type()))) {
+        symbol = classType->symbol();
       }
+    }
+
+    if (symbol) {
+      auto baseClassSymbol = control_->newBaseClassSymbol(scope_);
+      ast->symbol = baseClassSymbol;
+
+      baseClassSymbol->setVirtual(ast->isVirtual);
+      baseClassSymbol->setSymbol(symbol);
+
+      switch (ast->accessSpecifier) {
+        case TokenKind::T_PRIVATE:
+          baseClassSymbol->setAccessSpecifier(AccessSpecifier::kPrivate);
+          break;
+        case TokenKind::T_PROTECTED:
+          baseClassSymbol->setAccessSpecifier(AccessSpecifier::kProtected);
+          break;
+        case TokenKind::T_PUBLIC:
+          baseClassSymbol->setAccessSpecifier(AccessSpecifier::kPublic);
+          break;
+        default:
+          break;
+      }  // switch
     }
   }
 

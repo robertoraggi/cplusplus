@@ -648,6 +648,11 @@ auto ConstExpressionEvaluator::operator()(TypeTraitsExpressionAST* ast)
         return control()->is_same(firstType, secondType);
       }
 
+      case BuiltinKind::T___IS_BASE_OF: {
+        if (!secondType) break;
+        return control()->is_base_of(firstType, secondType);
+      }
+
       default:
         break;
     }  // switch

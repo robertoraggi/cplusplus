@@ -18,8 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/scope.h>
 #include <cxx/symbols.h>
+
+// cxx
+#include <cxx/scope.h>
+#include <cxx/types.h>
 
 namespace cxx {
 
@@ -93,6 +96,28 @@ auto ClassSymbol::isComplete() const -> bool { return isComplete_; }
 void ClassSymbol::setComplete(bool isComplete) { isComplete_ = isComplete; }
 
 auto ClassSymbol::sizeInBytes() const -> std::size_t { return sizeInBytes_; }
+
+auto ClassSymbol::hasBaseClass(Symbol* symbol) const -> bool {
+  std::unordered_set<const ClassSymbol*> processed;
+  return hasBaseClass(symbol, processed);
+}
+
+auto ClassSymbol::hasBaseClass(
+    Symbol* symbol, std::unordered_set<const ClassSymbol*>& processed) const
+    -> bool {
+  if (!processed.insert(this).second) {
+    return false;
+  }
+
+  for (auto baseClass : baseClasses_) {
+    auto baseClassSymbol = baseClass->symbol();
+    if (baseClassSymbol == symbol) return true;
+    if (auto baseClassType = type_cast<ClassType>(baseClassSymbol->type())) {
+      if (baseClassType->symbol()->hasBaseClass(symbol, processed)) return true;
+    }
+  }
+  return false;
+}
 
 EnumSymbol::EnumSymbol(Scope* enclosingScope)
     : ScopedSymbol(Kind, enclosingScope) {}
