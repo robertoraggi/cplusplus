@@ -178,6 +178,9 @@ class ClassSymbol final : public ScopedSymbol {
       -> const TemplateParametersSymbol*;
   void setTemplateParameters(TemplateParametersSymbol* templateParameters);
 
+  [[nodiscard]] auto isFinal() const -> bool;
+  void setFinal(bool isFinal);
+
   [[nodiscard]] auto isComplete() const -> bool;
   void setComplete(bool isComplete);
 
@@ -196,6 +199,7 @@ class ClassSymbol final : public ScopedSymbol {
   TemplateParametersSymbol* templateParameters_ = nullptr;
   std::size_t sizeInBytes_ = 0;
   bool isUnion_ = false;
+  bool isFinal_ = false;
   bool isComplete_ = false;
 };
 

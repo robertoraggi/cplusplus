@@ -456,6 +456,7 @@ struct Parser::ClassHead {
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   UnqualifiedIdAST* name = nullptr;
+  ClassSymbol* symbol = nullptr;
   SourceLocation finalLoc;
   SourceLocation colonLoc;
   List<BaseSpecifierAST*>* baseSpecifierList = nullptr;
@@ -9145,6 +9146,12 @@ auto Parser::parse_class_head(ClassHead& classHead) -> bool {
     classSymbol->setName(id);
 
     std::invoke(DeclareSymbol{this, scope_}, classSymbol);
+  }
+
+  classHead.symbol = classSymbol;
+
+  if (classHead.finalLoc) {
+    classSymbol->setFinal(true);
   }
 
   scope_ = classSymbol->scope();
