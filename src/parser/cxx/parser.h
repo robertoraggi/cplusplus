@@ -784,6 +784,9 @@ class Parser final {
   [[nodiscard]] auto lookupHelper(Scope* scope, const Name* name,
                                   std::unordered_set<Scope*>& cache) -> Symbol*;
 
+  [[nodiscard]] auto getFunction(Scope* scope, const Name* name,
+                                 const Type* type) -> FunctionSymbol*;
+
   [[nodiscard]] auto enterOrCreateNamespace(const Name* name, bool isInline)
       -> NamespaceSymbol*;
 
