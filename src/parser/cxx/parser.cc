@@ -4563,6 +4563,7 @@ auto Parser::parse_notypespec_function_definition(
     return false;
 
   lookahead.commit();
+
   return true;
 }
 
@@ -4766,21 +4767,7 @@ auto Parser::parse_simple_declaration(
           }
         }
 
-        for (auto s : scope_->get(functionName)) {
-          if (auto previous = symbol_cast<FunctionSymbol>(s)) {
-            if (control_->is_same(previous->type(), functionType)) {
-              functionSymbol = previous;
-              break;
-            }
-          } else if (auto ovl = symbol_cast<OverloadSetSymbol>(s)) {
-            for (auto previous : ovl->functions()) {
-              if (control_->is_same(previous->type(), functionType)) {
-                functionSymbol = previous;
-                break;
-              }
-            }
-          }
-        }
+        functionSymbol = getFunction(scope_, functionName, functionType);
 
         if (!functionSymbol) {
           if (config_.checkTypes) {
@@ -4792,21 +4779,7 @@ auto Parser::parse_simple_declaration(
         }
       }
     } else {
-      for (auto s : scope_->get(functionName)) {
-        if (auto previous = symbol_cast<FunctionSymbol>(s)) {
-          if (control_->is_same(previous->type(), functionType)) {
-            functionSymbol = previous;
-            break;
-          }
-        } else if (auto ovl = symbol_cast<OverloadSetSymbol>(s)) {
-          for (auto previous : ovl->functions()) {
-            if (control_->is_same(previous->type(), functionType)) {
-              functionSymbol = previous;
-              break;
-            }
-          }
-        }
-      }
+      functionSymbol = getFunction(scope_, functionName, functionType);
     }
 
     if (!functionSymbol) {
@@ -4835,6 +4808,8 @@ auto Parser::parse_simple_declaration(
       parse_error("expected function body");
 
     lookahead.commit();
+
+    functionSymbol->setDefined(true);
 
     auto ast = new (pool_) FunctionDefinitionAST();
     yyast = ast;
@@ -4951,21 +4926,23 @@ auto Parser::parse_notypespec_function_definition(
 
   if (!isDeclaration && !isDefinition) return false;
 
-  FunctionSymbol* functionSymbol = nullptr;
-  functionSymbol = control_->newFunctionSymbol(scope_);
-  applySpecifiers(functionSymbol, decl.specs);
-  functionSymbol->setName(decl.getName());
-  functionSymbol->setType(functionType);
+  FunctionSymbol* functionSymbol =
+      getFunction(scope_, decl.getName(), functionType);
 
-  if (is_constructor(functionSymbol)) {
-    // constructors don't have names
-    if (auto enclosingClass = symbol_cast<ClassSymbol>(scope_->owner())) {
-      if (!decl.declaratorId->nestedNameSpecifier) {
+  if (!functionSymbol) {
+    functionSymbol = control_->newFunctionSymbol(scope_);
+    applySpecifiers(functionSymbol, decl.specs);
+    functionSymbol->setName(decl.getName());
+    functionSymbol->setType(functionType);
+
+    if (is_constructor(functionSymbol)) {
+      auto enclosingClass = symbol_cast<ClassSymbol>(scope_->owner());
+      if (enclosingClass) {
         enclosingClass->addConstructor(functionSymbol);
       }
+    } else {
+      std::invoke(DeclareSymbol{this, scope_}, functionSymbol);
     }
-  } else {
-    std::invoke(DeclareSymbol{this, scope_}, functionSymbol);
   }
 
   SourceLocation semicolonLoc;
@@ -4989,6 +4966,8 @@ auto Parser::parse_notypespec_function_definition(
   }
 
   // function definition
+
+  functionSymbol->setDefined(true);
 
   if (auto params = functionDeclarator->parameterDeclarationClause) {
     auto functionScope = functionSymbol->scope();
@@ -11124,6 +11103,25 @@ auto Parser::lookupHelper(Scope* scope, const Name* name,
   for (auto u : scope->usingDirectives()) {
     if (auto symbol = lookupHelper(u, name, cache)) {
       return symbol;
+    }
+  }
+
+  return nullptr;
+}
+
+auto Parser::getFunction(Scope* scope, const Name* name, const Type* type)
+    -> FunctionSymbol* {
+  for (auto candidate : scope->get(name)) {
+    if (auto function = symbol_cast<FunctionSymbol>(candidate)) {
+      if (control_->is_same(function->type(), type)) {
+        return function;
+      }
+    } else if (auto overloads = symbol_cast<OverloadSetSymbol>(candidate)) {
+      for (auto function : overloads->functions()) {
+        if (control_->is_same(function->type(), type)) {
+          return function;
+        }
+      }
     }
   }
 

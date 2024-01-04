@@ -257,6 +257,9 @@ class FunctionSymbol final : public ScopedSymbol {
     templateParameters_ = templateParameters;
   }
 
+  [[nodiscard]] auto isDefined() const { return isDefined_; }
+  void setDefined(bool isDefined) { isDefined_ = isDefined; }
+
   [[nodiscard]] auto isStatic() const { return isStatic_; }
   void setStatic(bool isStatic) { isStatic_ = isStatic; }
 
@@ -289,6 +292,7 @@ class FunctionSymbol final : public ScopedSymbol {
 
  private:
   TemplateParametersSymbol* templateParameters_ = nullptr;
+  bool isDefined_ = false;
   bool isStatic_ = false;
   bool isExtern_ = false;
   bool isFriend_ = false;
