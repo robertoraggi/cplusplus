@@ -65,6 +65,10 @@ auto ClassSymbol::isUnion() const -> bool { return isUnion_; }
 
 void ClassSymbol::setIsUnion(bool isUnion) { isUnion_ = isUnion; }
 
+auto ClassSymbol::isFinal() const -> bool { return isFinal_; }
+
+void ClassSymbol::setFinal(bool isFinal) { isFinal_ = isFinal; }
+
 auto ClassSymbol::baseClasses() const -> const std::vector<BaseClassSymbol*>& {
   return baseClasses_;
 }

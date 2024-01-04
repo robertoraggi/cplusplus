@@ -653,8 +653,75 @@ auto ConstExpressionEvaluator::operator()(TypeTraitsExpressionAST* ast)
         return control()->is_base_of(firstType, secondType);
       }
 
-      default:
+      case BuiltinKind::T___HAS_UNIQUE_OBJECT_REPRESENTATIONS: {
         break;
+      }
+
+      case BuiltinKind::T___HAS_VIRTUAL_DESTRUCTOR: {
+        break;
+      }
+
+      case BuiltinKind::T___IS_ABSTRACT: {
+        break;
+      }
+
+      case BuiltinKind::T___IS_AGGREGATE: {
+        break;
+      }
+
+      case BuiltinKind::T___IS_ASSIGNABLE: {
+        break;
+      }
+
+      case BuiltinKind::T___IS_EMPTY: {
+        break;
+      }
+
+      case BuiltinKind::T___IS_FINAL: {
+        if (auto classType =
+                type_cast<ClassType>(control()->remove_cv(firstType))) {
+          return classType->symbol()->isFinal();
+        }
+        break;
+      }
+
+      case BuiltinKind::T___IS_LAYOUT_COMPATIBLE: {
+        break;
+      }
+
+      case BuiltinKind::T___IS_LITERAL_TYPE: {
+        break;
+      }
+
+      case BuiltinKind::T___IS_POD: {
+        break;
+      }
+
+      case BuiltinKind::T___IS_POLYMORPHIC: {
+        break;
+      }
+
+      case BuiltinKind::T___IS_STANDARD_LAYOUT: {
+        break;
+      }
+
+      case BuiltinKind::T___IS_SWAPPABLE_WITH: {
+        break;
+      }
+
+      case BuiltinKind::T___IS_TRIVIAL: {
+        break;
+      }
+
+      case BuiltinKind::T___BUILTIN_BIT_CAST: {
+        break;
+      }
+
+      case BuiltinKind::T_IDENTIFIER: {
+        // not a builtin
+        break;
+      }
+
     }  // switch
   }
 
