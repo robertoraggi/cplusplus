@@ -27,6 +27,7 @@
 
 #include <memory>
 #include <optional>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -181,6 +182,13 @@ class ClassSymbol final : public ScopedSymbol {
   void setComplete(bool isComplete);
 
   [[nodiscard]] auto sizeInBytes() const -> std::size_t;
+
+  [[nodiscard]] auto hasBaseClass(Symbol* symbol) const -> bool;
+
+ private:
+  [[nodiscard]] auto hasBaseClass(Symbol* symbol,
+                                  std::unordered_set<const ClassSymbol*>&) const
+      -> bool;
 
  private:
   std::vector<BaseClassSymbol*> baseClasses_;
