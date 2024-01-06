@@ -928,8 +928,8 @@ auto Parser::parse_override(SourceLocation& loc) -> bool {
 }
 
 auto Parser::parse_type_name(UnqualifiedIdAST*& yyast,
-                             NestedNameSpecifierAST* nestedNameSpecifier)
-    -> bool {
+                             NestedNameSpecifierAST* nestedNameSpecifier,
+                             bool isTemplateIntroduced) -> bool {
   auto lookat_simple_template_id = [&] {
     LookaheadParser lookahead{this};
     SimpleTemplateIdAST* templateId = nullptr;
@@ -942,12 +942,11 @@ auto Parser::parse_type_name(UnqualifiedIdAST*& yyast,
 
   if (lookat_simple_template_id()) return true;
 
-  if (NameIdAST* nameId = nullptr; parse_name_id(nameId)) {
-    yyast = nameId;
-    return true;
-  }
+  NameIdAST* nameId = nullptr;
+  if (!parse_name_id(nameId)) return false;
 
-  return false;
+  yyast = nameId;
+  return true;
 }
 
 auto Parser::parse_name_id(NameIdAST*& yyast) -> bool {
@@ -1374,12 +1373,7 @@ auto Parser::parse_id_expression(IdExpressionAST*& yyast,
 
   if (unqualifiedId) {
     auto name = convertName(unqualifiedId);
-    if (!nestedNameSpecifier) {
-      ast->symbol = unqualifiedLookup(name);
-    } else {
-      if (nestedNameSpecifier->symbol)
-        ast->symbol = qualifiedLookup(nestedNameSpecifier->symbol, name);
-    }
+    ast->symbol = lookup(nestedNameSpecifier, name);
   }
 
   if (ctx == IdExpressionContext::kExpression) {
@@ -1476,8 +1470,8 @@ auto Parser::parse_unqualified_id(UnqualifiedIdAST*& yyast,
 
       ast->id = decltypeName;
       return true;
-    } else if (UnqualifiedIdAST* name = nullptr;
-               parse_type_name(name, nestedNameSpecifier)) {
+    } else if (UnqualifiedIdAST* name = nullptr; parse_type_name(
+                   name, nestedNameSpecifier, isTemplateIntroduced)) {
       auto ast = new (pool_) DestructorIdAST();
       yyast = ast;
 
@@ -1569,15 +1563,7 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
     auto identifierLoc = consumeToken();
     auto identifier = unit->identifier(identifierLoc);
     auto scopeLoc = consumeToken();
-    Symbol* symbol = nullptr;
-
-    if (!yyast) {
-      symbol = unqualifiedLookup(identifier);
-    } else {
-      if (yyast->symbol) {
-        symbol = qualifiedLookup(yyast->symbol, identifier);
-      }
-    }
+    auto symbol = lookup(yyast, identifier);
 
     auto ast = new (pool_) SimpleNestedNameSpecifierAST();
     ast->nestedNameSpecifier = yyast;
@@ -2229,7 +2215,8 @@ auto Parser::parse_type_requirement(RequirementAST*& yyast) -> bool {
 
   parse_optional_nested_name_specifier(ast->nestedNameSpecifier);
 
-  if (!parse_type_name(ast->unqualifiedId, ast->nestedNameSpecifier))
+  if (!parse_type_name(ast->unqualifiedId, ast->nestedNameSpecifier,
+                       /*isTemplateIntroduced=*/false))
     parse_error("expected a type name");
 
   expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
@@ -5563,16 +5550,11 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   SourceLocation templateLoc;
   const auto isTemplateIntroduced = match(TokenKind::T_TEMPLATE, templateLoc);
 
-  UnqualifiedIdAST* unqualifiedId = nullptr;
+  if (!lookat(TokenKind::T_IDENTIFIER)) return false;
 
-  if (isTemplateIntroduced) {
-    if (SimpleTemplateIdAST* templateId = nullptr; parse_simple_template_id(
-            templateId, nestedNameSpecifier, isTemplateIntroduced)) {
-      unqualifiedId = templateId;
-    } else {
-      parse_error("expected a template id");
-    }
-  } else if (!parse_type_name(unqualifiedId, nestedNameSpecifier)) {
+  UnqualifiedIdAST* unqualifiedId = nullptr;
+  if (!parse_type_name(unqualifiedId, nestedNameSpecifier,
+                       isTemplateIntroduced)) {
     return false;
   }
 
@@ -5581,44 +5563,25 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
 
   if (auto templateId = dynamic_cast<SimpleTemplateIdAST*>(unqualifiedId)) {
     name = templateId->identifier;
+    // todo: instantiate templateId->primaryTemplateSymbol
   } else if (auto id = dynamic_cast<NameIdAST*>(unqualifiedId)) {
     name = id->identifier;
   } else {
     return false;
   }
 
-  Symbol* symbol = nullptr;
+  Symbol* symbol = lookup(nestedNameSpecifier, name);
 
-  if (!nestedNameSpecifier) {
-    symbol = unqualifiedLookup(name);
+  if (is_type(symbol)) {
+    specs.type = symbol->type();
   } else {
-    if (!nestedNameSpecifier->symbol && config_.checkTypes) {
-      parse_error(nestedNameSpecifier->firstSourceLocation(),
-                  cxx::format("unresolved nested name specifier"));
-    } else {
-      symbol = qualifiedLookup(nestedNameSpecifier->symbol, name);
-    }
+    if (config_.checkTypes) return false;
   }
 
-  auto is_type = [](const Symbol* symbol) -> bool {
-    if (!symbol) return false;
-    switch (symbol->kind()) {
-      case SymbolKind::kTypeParameter:
-      case SymbolKind::kTypeAlias:
-      case SymbolKind::kClass:
-      case SymbolKind::kEnum:
-      case SymbolKind::kScopedEnum:
-        return true;
-      default:
-        return false;
-    }  // switch
-  };
-
-  if (config_.checkTypes) {
-    if (!is_type(symbol)) return false;
+  if (!specs.type) {
+    specs.type = control_->getUnresolvedNameType(unit, nestedNameSpecifier,
+                                                 unqualifiedId);
   }
-
-  if (symbol) specs.type = symbol->type();
 
   lookahead.commit();
 
@@ -5629,11 +5592,6 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   ast->templateLoc = templateLoc;
   ast->unqualifiedId = unqualifiedId;
   ast->isTemplateIntroduced = isTemplateIntroduced;
-
-  if (!specs.type) {
-    specs.type = control_->getUnresolvedNameType(unit, nestedNameSpecifier,
-                                                 unqualifiedId);
-  }
 
   return true;
 }
@@ -6467,6 +6425,25 @@ auto Parser::is_glvalue(ExpressionAST* expr) const -> bool {
   if (!expr) return false;
   return expr->valueCategory == ValueCategory::kLValue ||
          expr->valueCategory == ValueCategory::kXValue;
+}
+
+auto Parser::is_type(Symbol* symbol) const -> bool {
+  if (!symbol) return false;
+  switch (symbol->kind()) {
+    case SymbolKind::kTypeParameter:
+    case SymbolKind::kTypeAlias:
+    case SymbolKind::kClass:
+    case SymbolKind::kEnum:
+    case SymbolKind::kScopedEnum:
+      return true;
+    default:
+      return false;
+  }  // switch
+}
+
+auto Parser::is_template(Symbol* symbol) const -> bool {
+  auto templateParameters = getTemplateParameters(symbol);
+  return templateParameters != nullptr;
 }
 
 auto Parser::is_constructor(Symbol* symbol) const -> bool {
@@ -9167,7 +9144,9 @@ auto Parser::parse_class_head_name(NestedNameSpecifierAST*& nestedNameSpecifier,
 
   UnqualifiedIdAST* name = nullptr;
 
-  if (!parse_type_name(name, nestedNameSpecifier)) return false;
+  if (!parse_type_name(name, nestedNameSpecifier,
+                       /*isTemplateIntroduced*/ false))
+    return false;
 
   yyast = name;
 
@@ -9732,7 +9711,7 @@ auto Parser::parse_class_or_decltype(
     decltypeName->decltypeSpecifier = decltypeSpecifier;
     unqualifiedName = decltypeName;
   } else if (UnqualifiedIdAST* name = nullptr;
-             parse_type_name(name, nestedNameSpecifier)) {
+             parse_type_name(name, nestedNameSpecifier, isTemplateIntroduced)) {
     unqualifiedName = name;
   } else {
     return false;
@@ -10448,22 +10427,39 @@ auto Parser::parse_simple_template_id(
     bool isTemplateIntroduced) -> bool {
   LookaheadParser lookahead{this};
 
-  if (!lookat(TokenKind::T_IDENTIFIER, TokenKind::T_LESS)) return false;
+  SourceLocation identifierLoc;
+  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
 
-  SourceLocation identifierLoc = consumeToken();
-  SourceLocation lessLoc = consumeToken();
+  SourceLocation lessLoc;
+  if (!match(TokenKind::T_LESS, lessLoc)) return false;
 
   auto identifier = unit->identifier(identifierLoc);
 
-  if (!isTemplateIntroduced && !maybe_template_name(identifier)) return false;
+  Symbol* primaryTemplateSymbol = nullptr;
+  Symbol* candidate = lookup(nestedNameSpecifier, identifier);
 
-  SourceLocation greaterLoc;
+  if (is_template(candidate))
+    primaryTemplateSymbol = candidate;
+  else if (auto overloads = symbol_cast<OverloadSetSymbol>(candidate)) {
+    for (auto overload : overloads->functions()) {
+      if (is_template(overload)) {
+        primaryTemplateSymbol = overload;
+        break;
+      }
+    }
+  }
+
+  if (!primaryTemplateSymbol) {
+    if (!isTemplateIntroduced) {
+      if (!maybe_template_name(identifier)) return false;
+    }
+  }
 
   List<TemplateArgumentAST*>* templateArgumentList = nullptr;
 
+  SourceLocation greaterLoc;
   if (!match(TokenKind::T_GREATER, greaterLoc)) {
     if (!parse_template_argument_list(templateArgumentList)) return false;
-
     if (!match(TokenKind::T_GREATER, greaterLoc)) return false;
   }
 
@@ -10477,6 +10473,7 @@ auto Parser::parse_simple_template_id(
   ast->lessLoc = lessLoc;
   ast->templateArgumentList = templateArgumentList;
   ast->greaterLoc = greaterLoc;
+  ast->primaryTemplateSymbol = primaryTemplateSymbol;
 
   return true;
 }
@@ -11100,6 +11097,14 @@ auto Parser::qualifiedLookup(Symbol* scopedSymbol, const Name* name)
   }  // switch
 }
 
+auto Parser::lookup(NestedNameSpecifierAST* nestedNameSpecifier,
+                    const Name* name) -> Symbol* {
+  if (!name) return nullptr;
+  if (!nestedNameSpecifier) return unqualifiedLookup(name);
+  if (!nestedNameSpecifier->symbol) return nullptr;
+  return qualifiedLookup(nestedNameSpecifier->symbol, name);
+}
+
 auto Parser::lookup(Symbol* where, const Name* name) -> Symbol* {
   if (where) return qualifiedLookup(where, name);
   return unqualifiedLookup(name);
@@ -11153,6 +11158,27 @@ auto Parser::getFunction(Scope* scope, const Name* name, const Type* type)
   }
 
   return nullptr;
+}
+
+auto Parser::getTemplateParameters(Symbol* symbol) const
+    -> TemplateParametersSymbol* {
+  if (!symbol) return nullptr;
+  if (auto typeAlias = symbol_cast<TypeAliasSymbol>(symbol)) {
+    return typeAlias->templateParameters();
+  } else if (auto classSymbol = symbol_cast<ClassSymbol>(symbol)) {
+    return classSymbol->templateParameters();
+  } else if (auto function = symbol_cast<FunctionSymbol>(symbol)) {
+    return function->templateParameters();
+  } else if (auto variable = symbol_cast<VariableSymbol>(symbol)) {
+    return variable->templateParameters();
+  } else if (auto conceptSymbol = symbol_cast<ConceptSymbol>(symbol)) {
+    return conceptSymbol->templateParameters();
+  } else if (auto templateTypeParameter =
+                 symbol_cast<TemplateTypeParameterSymbol>(symbol)) {
+    return templateTypeParameter->templateParameters();
+  } else {
+    return nullptr;
+  }
 }
 
 }  // namespace cxx

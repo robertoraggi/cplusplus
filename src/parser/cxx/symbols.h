@@ -114,8 +114,7 @@ class ConceptSymbol final : public Symbol {
   explicit ConceptSymbol(Scope* enclosingScope);
   ~ConceptSymbol() override;
 
-  [[nodiscard]] auto templateParameters() const
-      -> const TemplateParametersSymbol* {
+  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol* {
     return templateParameters_;
   }
 
@@ -174,8 +173,7 @@ class ClassSymbol final : public ScopedSymbol {
 
   void addConstructor(FunctionSymbol* constructor);
 
-  [[nodiscard]] auto templateParameters() const
-      -> const TemplateParametersSymbol*;
+  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol*;
   void setTemplateParameters(TemplateParametersSymbol* templateParameters);
 
   [[nodiscard]] auto isFinal() const -> bool;
@@ -248,8 +246,7 @@ class FunctionSymbol final : public ScopedSymbol {
   explicit FunctionSymbol(Scope* enclosingScope);
   ~FunctionSymbol() override;
 
-  [[nodiscard]] auto templateParameters() const
-      -> const TemplateParametersSymbol* {
+  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol* {
     return templateParameters_;
   }
 
@@ -333,8 +330,7 @@ class LambdaSymbol final : public ScopedSymbol {
   explicit LambdaSymbol(Scope* enclosingScope);
   ~LambdaSymbol() override;
 
-  [[nodiscard]] auto templateParameters() const
-      -> const TemplateParametersSymbol* {
+  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol* {
     return templateParameters_;
   }
 
@@ -393,8 +389,7 @@ class TypeAliasSymbol final : public Symbol {
   explicit TypeAliasSymbol(Scope* enclosingScope);
   ~TypeAliasSymbol() override;
 
-  [[nodiscard]] auto templateParameters() const
-      -> const TemplateParametersSymbol* {
+  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol* {
     return templateParameters_;
   }
 
@@ -413,8 +408,7 @@ class VariableSymbol final : public Symbol {
   explicit VariableSymbol(Scope* enclosingScope);
   ~VariableSymbol() override;
 
-  [[nodiscard]] auto templateParameters() const
-      -> const TemplateParametersSymbol* {
+  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol* {
     return templateParameters_;
   }
 
@@ -567,10 +561,19 @@ class TemplateTypeParameterSymbol final : public Symbol {
     isParameterPack_ = isParameterPack;
   }
 
+  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol* {
+    return templateParameters_;
+  }
+
+  void setTemplateParameters(TemplateParametersSymbol* templateParameters) {
+    templateParameters_ = templateParameters;
+  }
+
  private:
   int index_ = 0;
   int depth_ = 0;
   bool isParameterPack_ = false;
+  TemplateParametersSymbol* templateParameters_ = nullptr;
 };
 
 class ConstraintTypeParameterSymbol final : public Symbol {
