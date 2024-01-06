@@ -3233,6 +3233,8 @@ void ASTCloner::visit(SimpleTemplateIdAST* ast) {
   copy->greaterLoc = ast->greaterLoc;
 
   copy->identifier = ast->identifier;
+
+  copy->primaryTemplateSymbol = ast->primaryTemplateSymbol;
 }
 
 void ASTCloner::visit(LiteralOperatorTemplateIdAST* ast) {

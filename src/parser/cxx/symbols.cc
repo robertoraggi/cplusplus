@@ -85,8 +85,7 @@ void ClassSymbol::addConstructor(FunctionSymbol* constructor) {
   constructors_.push_back(constructor);
 }
 
-auto ClassSymbol::templateParameters() const
-    -> const TemplateParametersSymbol* {
+auto ClassSymbol::templateParameters() const -> TemplateParametersSymbol* {
   return templateParameters_;
 }
 

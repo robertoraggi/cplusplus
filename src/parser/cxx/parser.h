@@ -457,8 +457,8 @@ class Parser final {
                                                   DeclSpecs& specs) -> bool;
 
   [[nodiscard]] auto parse_type_name(
-      UnqualifiedIdAST*& yyast, NestedNameSpecifierAST* nestedNameSpecifier)
-      -> bool;
+      UnqualifiedIdAST*& yyast, NestedNameSpecifierAST* nestedNameSpecifier,
+      bool isTemplateIntroduced) -> bool;
   [[nodiscard]] auto parse_elaborated_type_specifier(SpecifierAST*& yyast,
                                                      DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_elaborated_type_specifier_helper(
@@ -786,11 +786,16 @@ class Parser final {
   [[nodiscard]] auto qualifiedLookup(Symbol* scopedSymbol, const Name* name)
       -> Symbol*;
   [[nodiscard]] auto lookup(Symbol* where, const Name* name) -> Symbol*;
+  [[nodiscard]] auto lookup(NestedNameSpecifierAST* nestedNameSpecifier,
+                            const Name* name) -> Symbol*;
   [[nodiscard]] auto lookupHelper(Scope* scope, const Name* name,
                                   std::unordered_set<Scope*>& cache) -> Symbol*;
 
   [[nodiscard]] auto getFunction(Scope* scope, const Name* name,
                                  const Type* type) -> FunctionSymbol*;
+
+  [[nodiscard]] auto getTemplateParameters(Symbol* symbol) const
+      -> TemplateParametersSymbol*;
 
   [[nodiscard]] auto enterOrCreateNamespace(const Name* name, bool isInline)
       -> NamespaceSymbol*;
@@ -849,6 +854,8 @@ class Parser final {
   [[nodiscard]] auto is_xvalue(ExpressionAST* expr) const -> bool;
   [[nodiscard]] auto is_glvalue(ExpressionAST* expr) const -> bool;
 
+  [[nodiscard]] auto is_type(Symbol* symbol) const -> bool;
+  [[nodiscard]] auto is_template(Symbol* symbol) const -> bool;
   [[nodiscard]] auto is_constructor(Symbol* symbol) const -> bool;
 
   [[nodiscard]] auto evaluate_constant_expression(ExpressionAST* expr)
