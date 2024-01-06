@@ -405,6 +405,19 @@ class NamespaceType final : public Type, public std::tuple<NamespaceSymbol*> {
   }
 };
 
+class TypeParameterType final : public Type,
+                                public std::tuple<TypeParameterSymbol*> {
+ public:
+  static constexpr TypeKind Kind = TypeKind::kTypeParameter;
+
+  explicit TypeParameterType(TypeParameterSymbol* symbol)
+      : Type(Kind), tuple(symbol) {}
+
+  [[nodiscard]] auto symbol() const -> TypeParameterSymbol* {
+    return std::get<0>(*this);
+  }
+};
+
 class UnresolvedNameType final
     : public Type,
       public std::tuple<TranslationUnit*, NestedNameSpecifierAST*,
