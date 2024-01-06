@@ -187,12 +187,12 @@ class Parser final {
 
   [[nodiscard]] auto parse_id_expression(IdExpressionAST*& yyast,
                                          IdExpressionContext ctx) -> bool;
-  [[nodiscard]] auto parse_maybe_template_id(UnqualifiedIdAST*& yyast,
-                                             bool isTemplateIntroduced,
-                                             bool inRequiresClause) -> bool;
-  [[nodiscard]] auto parse_unqualified_id(UnqualifiedIdAST*& yyast,
-                                          bool isTemplateIntroduced,
-                                          bool inRequiresClause) -> bool;
+  [[nodiscard]] auto parse_maybe_template_id(
+      UnqualifiedIdAST*& yyast, NestedNameSpecifierAST* nestedNameSpecifier,
+      bool isTemplateIntroduced, bool inRequiresClause) -> bool;
+  [[nodiscard]] auto parse_unqualified_id(
+      UnqualifiedIdAST*& yyast, NestedNameSpecifierAST* nestedNameSpecifier,
+      bool isTemplateIntroduced, bool inRequiresClause) -> bool;
   void parse_optional_nested_name_specifier(NestedNameSpecifierAST*& yyast);
   [[nodiscard]] auto parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
       -> bool;
@@ -456,7 +456,9 @@ class Parser final {
   [[nodiscard]] auto parse_complex_type_specifier(SpecifierAST*& yyast,
                                                   DeclSpecs& specs) -> bool;
 
-  [[nodiscard]] auto parse_type_name(UnqualifiedIdAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_type_name(
+      UnqualifiedIdAST*& yyast, NestedNameSpecifierAST* nestedNameSpecifier)
+      -> bool;
   [[nodiscard]] auto parse_elaborated_type_specifier(SpecifierAST*& yyast,
                                                      DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_elaborated_type_specifier_helper(
@@ -705,18 +707,21 @@ class Parser final {
   [[nodiscard]] auto parse_type_constraint(TypeConstraintAST*& yyast,
                                            bool parsingPlaceholderTypeSpec)
       -> bool;
-  [[nodiscard]] auto parse_simple_template_or_name_id(UnqualifiedIdAST*& yyast,
-                                                      bool isTemplateIntroduced)
-      -> bool;
-  [[nodiscard]] auto parse_simple_template_id(SimpleTemplateIdAST*& yyast,
-                                              bool isTemplateIntroduced = false)
-      -> bool;
+  [[nodiscard]] auto parse_simple_template_or_name_id(
+      UnqualifiedIdAST*& yyast, NestedNameSpecifierAST* nestedNameSpecifier,
+      bool isTemplateIntroduced) -> bool;
+  [[nodiscard]] auto parse_simple_template_id(
+      SimpleTemplateIdAST*& yyast, NestedNameSpecifierAST* nestedNameSpecifier,
+      bool isTemplateIntroduced = false) -> bool;
   [[nodiscard]] auto parse_literal_operator_template_id(
-      LiteralOperatorTemplateIdAST*& yyast) -> bool;
+      LiteralOperatorTemplateIdAST*& yyast,
+      NestedNameSpecifierAST* nestedNameSpecifier) -> bool;
   [[nodiscard]] auto parse_function_operator_template_id(
-      OperatorFunctionTemplateIdAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_template_id(UnqualifiedIdAST*& yyast,
-                                       bool isTemplateIntroduced) -> bool;
+      OperatorFunctionTemplateIdAST*& yyast,
+      NestedNameSpecifierAST* nestedNameSpecifier) -> bool;
+  [[nodiscard]] auto parse_template_id(
+      UnqualifiedIdAST*& yyast, NestedNameSpecifierAST* nestedNameSpecifier,
+      bool isTemplateIntroduced) -> bool;
   [[nodiscard]] auto parse_template_argument_list(
       List<TemplateArgumentAST*>*& yyast) -> bool;
   [[nodiscard]] auto parse_template_argument(TemplateArgumentAST*& yyast)
