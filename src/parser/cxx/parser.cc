@@ -5567,11 +5567,17 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     return false;
   }
 
-  if (config_.checkTypes) {
-    if (!unqualifiedId) return false;
+  // component name
+  const Identifier* name = nullptr;
+
+  if (auto templateId = dynamic_cast<SimpleTemplateIdAST*>(unqualifiedId)) {
+    name = templateId->identifier;
+  } else if (auto id = dynamic_cast<NameIdAST*>(unqualifiedId)) {
+    name = id->identifier;
+  } else {
+    return false;
   }
 
-  auto name = convertName(unqualifiedId);
   Symbol* symbol = nullptr;
 
   if (!nestedNameSpecifier) {
@@ -5579,7 +5585,7 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   } else {
     if (!nestedNameSpecifier->symbol && config_.checkTypes) {
       parse_error(nestedNameSpecifier->firstSourceLocation(),
-                  cxx::format("expected class or namespace"));
+                  cxx::format("unresolved nested name specifier"));
     } else {
       symbol = qualifiedLookup(nestedNameSpecifier->symbol, name);
     }

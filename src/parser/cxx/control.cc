@@ -116,6 +116,7 @@ struct Control::Private {
   std::set<FunctionType> functionTypes;
   std::set<MemberObjectPointerType> memberObjectPointerTypes;
   std::set<MemberFunctionPointerType> memberFunctionPointerTypes;
+  std::set<TypeParameterType> typeParameterTypes;
   std::set<UnresolvedNameType> unresolvedNameTypes;
   std::set<UnresolvedBoundedArrayType> unresolvedBoundedArrayTypes;
   std::set<UnresolvedUnderlyingType> unresolvedUnderlyingTypes;
@@ -388,6 +389,11 @@ auto Control::getMemberFunctionPointerType(const ClassType* classType,
   return &*d->memberFunctionPointerTypes.emplace(classType, functionType).first;
 }
 
+auto Control::getTypeParameterType(TypeParameterSymbol* symbol)
+    -> const TypeParameterType* {
+  return &*d->typeParameterTypes.emplace(symbol).first;
+}
+
 auto Control::getUnresolvedNameType(TranslationUnit* unit,
                                     NestedNameSpecifierAST* nestedNameSpecifier,
                                     UnqualifiedIdAST* unqualifiedId)
@@ -521,6 +527,7 @@ auto Control::newParameterSymbol(Scope* enclosingScope) -> ParameterSymbol* {
 auto Control::newTypeParameterSymbol(Scope* enclosingScope)
     -> TypeParameterSymbol* {
   auto symbol = &d->typeParameterSymbols.emplace_front(enclosingScope);
+  symbol->setType(getTypeParameterType(symbol));
   return symbol;
 }
 

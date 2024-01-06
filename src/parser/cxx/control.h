@@ -116,6 +116,8 @@ class Control {
   auto getMemberFunctionPointerType(const ClassType* classType,
                                     const FunctionType* functionType)
       -> const MemberFunctionPointerType*;
+  auto getTypeParameterType(TypeParameterSymbol* symbol)
+      -> const TypeParameterType*;
   auto getUnresolvedNameType(TranslationUnit* unit,
                              NestedNameSpecifierAST* nestedNameSpecifier,
                              UnqualifiedIdAST* unqualifiedId)

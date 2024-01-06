@@ -203,6 +203,11 @@ struct SizeOf {
     return std::nullopt;
   }
 
+  auto operator()(const TypeParameterType* type) const
+      -> std::optional<std::size_t> {
+    return std::nullopt;
+  }
+
   auto operator()(const UnresolvedNameType* type) const
       -> std::optional<std::size_t> {
     return std::nullopt;
