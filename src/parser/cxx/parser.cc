@@ -25,6 +25,7 @@
 #include <cxx/const_expression_evaluator.h>
 #include <cxx/control.h>
 #include <cxx/literals.h>
+#include <cxx/name_lookup.h>
 #include <cxx/name_printer.h>
 #include <cxx/names.h>
 #include <cxx/private/format.h>
@@ -1288,7 +1289,7 @@ auto Parser::parse_reflect_expression(ExpressionAST*& yyast,
     SourceLocation identifierLoc;
     if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
     auto identifier = unit->identifier(identifierLoc);
-    auto symbol = symbol_cast<NamespaceSymbol>(unqualifiedLookup(identifier));
+    auto symbol = symbol_cast<NamespaceSymbol>(Lookup{scope_}(identifier));
     if (!symbol) return false;
     lookahead.commit();
 
@@ -1373,7 +1374,7 @@ auto Parser::parse_id_expression(IdExpressionAST*& yyast,
 
   if (unqualifiedId) {
     auto name = convertName(unqualifiedId);
-    ast->symbol = lookup(nestedNameSpecifier, name);
+    ast->symbol = Lookup{scope_}(nestedNameSpecifier, name);
   }
 
   if (ctx == IdExpressionContext::kExpression) {
@@ -1563,7 +1564,7 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
     auto identifierLoc = consumeToken();
     auto identifier = unit->identifier(identifierLoc);
     auto scopeLoc = consumeToken();
-    auto symbol = lookup(yyast, identifier);
+    auto symbol = Lookup{scope_}(yyast, identifier);
 
     auto ast = new (pool_) SimpleNestedNameSpecifierAST();
     ast->nestedNameSpecifier = yyast;
@@ -5570,7 +5571,7 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     return false;
   }
 
-  Symbol* symbol = lookup(nestedNameSpecifier, name);
+  Symbol* symbol = Lookup{scope_}(nestedNameSpecifier, name);
 
   if (is_type(symbol)) {
     specs.type = symbol->type();
@@ -6509,9 +6510,21 @@ auto Parser::parse_elaborated_type_specifier_helper(
   const auto isTemplateIntroduced = match(TokenKind::T_TEMPLATE, templateLoc);
 
   UnqualifiedIdAST* unqualifiedId = nullptr;
-  if (!parse_simple_template_or_name_id(unqualifiedId, nestedNameSpecifier,
-                                        isTemplateIntroduced))
-    parse_error("expected unqualified id");
+  const auto loc = currentLocation();
+
+  if (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_LESS)) {
+    if (SimpleTemplateIdAST* templateId = nullptr; parse_simple_template_id(
+            templateId, nestedNameSpecifier, isTemplateIntroduced)) {
+      unqualifiedId = templateId;
+    } else {
+      parse_error(loc, "expected a template-id");
+    }
+  } else if (NameIdAST* nameId = nullptr; parse_name_id(nameId)) {
+    unqualifiedId = nameId;
+    auto symbol = Lookup{scope_}(nestedNameSpecifier, nameId->identifier);
+  } else {
+    parse_error("expected a name");
+  }
 
   auto ast = new (pool_) ElaboratedTypeSpecifierAST();
   yyast = ast;
@@ -8036,26 +8049,8 @@ auto Parser::parse_using_directive(DeclarationAST*& yyast) -> bool {
   if (!parse_name_id(ast->unqualifiedId)) {
     parse_error("expected a namespace name");
   } else {
-    auto id = convertName(ast->unqualifiedId);
-
-    Symbol* symbol = nullptr;
-
-    if (!ast->nestedNameSpecifier)
-      symbol = unqualifiedLookup(id);
-    else {
-      if (!ast->nestedNameSpecifier->symbol) {
-        parse_error(ast->nestedNameSpecifier->firstSourceLocation(),
-                    "expected a namespace name");
-      } else {
-        if (auto base = symbol_cast<NamespaceSymbol>(
-                ast->nestedNameSpecifier->symbol)) {
-          symbol = qualifiedLookup(base, id);
-        } else {
-          parse_error(ast->nestedNameSpecifier->firstSourceLocation(),
-                      "expected a namespace name");
-        }
-      }
-    }
+    auto id = ast->unqualifiedId->identifier;
+    auto symbol = Lookup{scope_}(ast->nestedNameSpecifier, id);
 
     if (auto namespaceSymbol = symbol_cast<NamespaceSymbol>(symbol)) {
       scope_->addUsingDirective(namespaceSymbol->scope());
@@ -9639,15 +9634,8 @@ void Parser::parse_base_specifier(BaseSpecifierAST*& yyast) {
       }
     }
 
-    if (ast_cast<NameIdAST>(ast->unqualifiedId)) {
-      auto name = convertName(ast->unqualifiedId);
-      if (!ast->nestedNameSpecifier) {
-        symbol = unqualifiedLookup(name);
-      } else {
-        if (ast->nestedNameSpecifier->symbol) {
-          symbol = qualifiedLookup(ast->nestedNameSpecifier->symbol, name);
-        }
-      }
+    if (auto nameId = ast_cast<NameIdAST>(ast->unqualifiedId)) {
+      symbol = Lookup{scope_}(ast->nestedNameSpecifier, nameId->identifier);
     }
 
     if (auto typeAlias = symbol_cast<TypeAliasSymbol>(symbol)) {
@@ -10436,7 +10424,7 @@ auto Parser::parse_simple_template_id(
   auto identifier = unit->identifier(identifierLoc);
 
   Symbol* primaryTemplateSymbol = nullptr;
-  Symbol* candidate = lookup(nestedNameSpecifier, identifier);
+  Symbol* candidate = Lookup{scope_}(nestedNameSpecifier, identifier);
 
   if (is_template(candidate))
     primaryTemplateSymbol = candidate;
@@ -11060,87 +11048,6 @@ auto Parser::convertName(UnqualifiedIdAST* id) -> const Name* {
   if (!id) return nullptr;
   return visit(ConvertToName{control_}, id);
 }
-
-auto Parser::unqualifiedLookup(const Name* name) -> Symbol* {
-  std::unordered_set<Scope*> cache;
-  for (auto current = scope_; current; current = current->parent()) {
-    if (auto symbol = lookupHelper(current, name, cache)) {
-      return symbol;
-    }
-  }
-  return nullptr;
-}
-
-auto Parser::qualifiedLookup(Scope* scope, const Name* name) -> Symbol* {
-  std::unordered_set<Scope*> cache;
-  return lookupHelper(scope, name, cache);
-}
-
-auto Parser::qualifiedLookup(Symbol* scopedSymbol, const Name* name)
-    -> Symbol* {
-  if (!scopedSymbol) return nullptr;
-  switch (scopedSymbol->kind()) {
-    case SymbolKind::kNamespace:
-      return qualifiedLookup(
-          symbol_cast<NamespaceSymbol>(scopedSymbol)->scope(), name);
-    case SymbolKind::kClass:
-      return qualifiedLookup(symbol_cast<ClassSymbol>(scopedSymbol)->scope(),
-                             name);
-    case SymbolKind::kEnum:
-      return qualifiedLookup(symbol_cast<EnumSymbol>(scopedSymbol)->scope(),
-                             name);
-    case SymbolKind::kScopedEnum:
-      return qualifiedLookup(
-          symbol_cast<ScopedEnumSymbol>(scopedSymbol)->scope(), name);
-    default:
-      return nullptr;
-  }  // switch
-}
-
-auto Parser::lookup(NestedNameSpecifierAST* nestedNameSpecifier,
-                    const Name* name) -> Symbol* {
-  if (!name) return nullptr;
-  if (!nestedNameSpecifier) return unqualifiedLookup(name);
-  if (!nestedNameSpecifier->symbol) return nullptr;
-  return qualifiedLookup(nestedNameSpecifier->symbol, name);
-}
-
-auto Parser::lookup(Symbol* where, const Name* name) -> Symbol* {
-  if (where) return qualifiedLookup(where, name);
-  return unqualifiedLookup(name);
-}
-
-auto Parser::lookupHelper(Scope* scope, const Name* name,
-                          std::unordered_set<Scope*>& cache) -> Symbol* {
-  if (cache.contains(scope)) {
-    return nullptr;
-  }
-
-  cache.insert(scope);
-
-  for (auto symbol : scope->get(name)) {
-    return symbol;
-  }
-
-  if (auto classSymbol = symbol_cast<ClassSymbol>(scope->owner())) {
-    for (const auto& base : classSymbol->baseClasses()) {
-      auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-      if (!baseClass) continue;
-      if (auto symbol = lookupHelper(baseClass->scope(), name, cache)) {
-        return symbol;
-      }
-    }
-  }
-
-  for (auto u : scope->usingDirectives()) {
-    if (auto symbol = lookupHelper(u, name, cache)) {
-      return symbol;
-    }
-  }
-
-  return nullptr;
-}
-
 auto Parser::getFunction(Scope* scope, const Name* name, const Type* type)
     -> FunctionSymbol* {
   for (auto candidate : scope->get(name)) {
