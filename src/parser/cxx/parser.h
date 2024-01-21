@@ -781,15 +781,6 @@ class Parser final {
 
   // lookup
   [[nodiscard]] auto convertName(UnqualifiedIdAST* id) -> const Name*;
-  [[nodiscard]] auto unqualifiedLookup(const Name* name) -> Symbol*;
-  [[nodiscard]] auto qualifiedLookup(Scope* scope, const Name* name) -> Symbol*;
-  [[nodiscard]] auto qualifiedLookup(Symbol* scopedSymbol, const Name* name)
-      -> Symbol*;
-  [[nodiscard]] auto lookup(Symbol* where, const Name* name) -> Symbol*;
-  [[nodiscard]] auto lookup(NestedNameSpecifierAST* nestedNameSpecifier,
-                            const Name* name) -> Symbol*;
-  [[nodiscard]] auto lookupHelper(Scope* scope, const Name* name,
-                                  std::unordered_set<Scope*>& cache) -> Symbol*;
 
   [[nodiscard]] auto getFunction(Scope* scope, const Name* name,
                                  const Type* type) -> FunctionSymbol*;
