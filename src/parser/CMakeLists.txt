@@ -45,10 +45,6 @@ target_link_libraries(cxx-parser
             $<BUILD_INTERFACE:utf8cpp::utf8cpp>
 )
 
-if (CMAKE_SYSTEM_NAME STREQUAL "WASI")
-    target_compile_definitions(cxx-parser PRIVATE CXX_NO_FILESYSTEM)
-endif()
-
 add_custom_command(OUTPUT keywords-priv.h
     COMMAND kwgen < ${CMAKE_CURRENT_SOURCE_DIR}/cxx/keywords.kwgen > keywords-priv.h
     DEPENDS cxx/keywords.kwgen

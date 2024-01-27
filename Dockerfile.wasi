@@ -1,4 +1,4 @@
-FROM ghcr.io/webassembly/wasi-sdk:wasi-sdk-20 as wasi
+FROM ghcr.io/webassembly/wasi-sdk:sha-a1b8085 as wasi
 
 RUN apt-get update && apt-get install -y \
     git \
