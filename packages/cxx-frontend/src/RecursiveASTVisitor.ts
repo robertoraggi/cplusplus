@@ -732,6 +732,17 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   }
 
   /**
+   * Visit a GeneratedLiteralExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitGeneratedLiteralExpression(
+    node: ast.GeneratedLiteralExpressionAST,
+    context: Context,
+  ): void {}
+
+  /**
    * Visit a CharLiteralExpression node.
    *
    * @param node The node to visit.
@@ -1789,6 +1800,17 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     this.accept(node.getTypeConstraint(), context);
     this.accept(node.getTypeId(), context);
   }
+
+  /**
+   * Visit a GeneratedTypeSpecifier node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitGeneratedTypeSpecifier(
+    node: ast.GeneratedTypeSpecifierAST,
+    context: Context,
+  ): void {}
 
   /**
    * Visit a TypedefSpecifier node.

@@ -81,6 +81,7 @@ enum struct ASTKind {
   TryBlockStatement,
 
   // ExpressionAST
+  GeneratedLiteralExpression,
   CharLiteralExpression,
   BoolLiteralExpression,
   IntLiteralExpression,
@@ -172,6 +173,7 @@ enum struct ASTKind {
   ConstraintTypeParameter,
 
   // SpecifierAST
+  GeneratedTypeSpecifier,
   TypedefSpecifier,
   FriendSpecifier,
   ConstevalSpecifier,

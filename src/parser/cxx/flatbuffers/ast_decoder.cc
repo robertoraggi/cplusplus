@@ -215,6 +215,9 @@ auto ASTDecoder::decodeStatement(const void* ptr, io::Statement type)
 auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
     -> ExpressionAST* {
   switch (type) {
+    case io::Expression_GeneratedLiteralExpression:
+      return decodeGeneratedLiteralExpression(
+          reinterpret_cast<const io::GeneratedLiteralExpression*>(ptr));
     case io::Expression_CharLiteralExpression:
       return decodeCharLiteralExpression(
           reinterpret_cast<const io::CharLiteralExpression*>(ptr));
@@ -411,6 +414,9 @@ auto ASTDecoder::decodeTemplateParameter(const void* ptr,
 auto ASTDecoder::decodeSpecifier(const void* ptr, io::Specifier type)
     -> SpecifierAST* {
   switch (type) {
+    case io::Specifier_GeneratedTypeSpecifier:
+      return decodeGeneratedTypeSpecifier(
+          reinterpret_cast<const io::GeneratedTypeSpecifier*>(ptr));
     case io::Specifier_TypedefSpecifier:
       return decodeTypedefSpecifier(
           reinterpret_cast<const io::TypedefSpecifier*>(ptr));
@@ -1633,6 +1639,15 @@ auto ASTDecoder::decodeTryBlockStatement(const io::TryBlockStatement* node)
   return ast;
 }
 
+auto ASTDecoder::decodeGeneratedLiteralExpression(
+    const io::GeneratedLiteralExpression* node)
+    -> GeneratedLiteralExpressionAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) GeneratedLiteralExpressionAST();
+  return ast;
+}
+
 auto ASTDecoder::decodeCharLiteralExpression(
     const io::CharLiteralExpression* node) -> CharLiteralExpressionAST* {
   if (!node) return nullptr;
@@ -2772,6 +2787,14 @@ auto ASTDecoder::decodeConstraintTypeParameter(
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
   }
+  return ast;
+}
+
+auto ASTDecoder::decodeGeneratedTypeSpecifier(
+    const io::GeneratedTypeSpecifier* node) -> GeneratedTypeSpecifierAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) GeneratedTypeSpecifierAST();
   return ast;
 }
 

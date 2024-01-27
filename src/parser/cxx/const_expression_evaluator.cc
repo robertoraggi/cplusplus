@@ -44,6 +44,11 @@ auto ConstExpressionEvaluator::control() const -> Control* {
   return parser.control();
 }
 
+auto ConstExpressionEvaluator::operator()(GeneratedLiteralExpressionAST* ast)
+    -> std::optional<ConstValue> {
+  return ast->value;
+}
+
 auto ConstExpressionEvaluator::operator()(CharLiteralExpressionAST* ast)
     -> std::optional<ConstValue> {
   return ConstValue(ast->literal->charValue());

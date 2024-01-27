@@ -40,6 +40,8 @@ class ConstExpressionEvaluator {
 
   auto control() const -> Control*;
 
+  auto operator()(GeneratedLiteralExpressionAST* ast)
+      -> std::optional<ConstValue>;
   auto operator()(CharLiteralExpressionAST* ast) -> std::optional<ConstValue>;
   auto operator()(BoolLiteralExpressionAST* ast) -> std::optional<ConstValue>;
   auto operator()(IntLiteralExpressionAST* ast) -> std::optional<ConstValue>;

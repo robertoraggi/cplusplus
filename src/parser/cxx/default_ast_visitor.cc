@@ -229,6 +229,10 @@ void DefaultASTVisitor::visit(TryBlockStatementAST* ast) {
 }
 
 // ExpressionAST
+void DefaultASTVisitor::visit(GeneratedLiteralExpressionAST* ast) {
+  cxx_runtime_error("visit(GeneratedLiteralExpressionAST): not implemented");
+}
+
 void DefaultASTVisitor::visit(CharLiteralExpressionAST* ast) {
   cxx_runtime_error("visit(CharLiteralExpressionAST): not implemented");
 }
@@ -573,6 +577,10 @@ void DefaultASTVisitor::visit(ConstraintTypeParameterAST* ast) {
 }
 
 // SpecifierAST
+void DefaultASTVisitor::visit(GeneratedTypeSpecifierAST* ast) {
+  cxx_runtime_error("visit(GeneratedTypeSpecifierAST): not implemented");
+}
+
 void DefaultASTVisitor::visit(TypedefSpecifierAST* ast) {
   cxx_runtime_error("visit(TypedefSpecifierAST): not implemented");
 }

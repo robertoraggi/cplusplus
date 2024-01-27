@@ -83,6 +83,7 @@ class DefaultASTVisitor : public ASTVisitor {
   void visit(TryBlockStatementAST* ast) override;
 
   // ExpressionAST
+  void visit(GeneratedLiteralExpressionAST* ast) override;
   void visit(CharLiteralExpressionAST* ast) override;
   void visit(BoolLiteralExpressionAST* ast) override;
   void visit(IntLiteralExpressionAST* ast) override;
@@ -174,6 +175,7 @@ class DefaultASTVisitor : public ASTVisitor {
   void visit(ConstraintTypeParameterAST* ast) override;
 
   // SpecifierAST
+  void visit(GeneratedTypeSpecifierAST* ast) override;
   void visit(TypedefSpecifierAST* ast) override;
   void visit(FriendSpecifierAST* ast) override;
   void visit(ConstevalSpecifierAST* ast) override;

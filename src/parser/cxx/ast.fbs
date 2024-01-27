@@ -126,6 +126,7 @@ union ExceptionSpecifier {
 }
 
 union Expression {
+  GeneratedLiteralExpression,
   CharLiteralExpression,
   BoolLiteralExpression,
   IntLiteralExpression,
@@ -231,6 +232,7 @@ union Requirement {
 }
 
 union Specifier {
+  GeneratedTypeSpecifier,
   TypedefSpecifier,
   FriendSpecifier,
   ConstevalSpecifier,
@@ -835,6 +837,10 @@ table NoexceptSpecifier /* ExceptionSpecifierAST */ {
   rparen_loc: SourceLocation;
 }
 
+table GeneratedLiteralExpression /* ExpressionAST */ {
+  literal_loc: SourceLocation;
+}
+
 table CharLiteralExpression /* ExpressionAST */ {
   literal: string;
   literal_loc: SourceLocation;
@@ -1378,6 +1384,10 @@ table NestedRequirement /* RequirementAST */ {
   expression: Expression;
   requires_loc: SourceLocation;
   semicolon_loc: SourceLocation;
+}
+
+table GeneratedTypeSpecifier /* SpecifierAST */ {
+  type_loc: SourceLocation;
 }
 
 table TypedefSpecifier /* SpecifierAST */ {

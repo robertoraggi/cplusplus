@@ -864,6 +864,16 @@ auto TryBlockStatementAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto GeneratedLiteralExpressionAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(literalLoc)) return loc;
+  return {};
+}
+
+auto GeneratedLiteralExpressionAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(literalLoc)) return loc;
+  return {};
+}
+
 auto CharLiteralExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(literalLoc)) return loc;
   return {};
@@ -2147,6 +2157,16 @@ auto ConstraintTypeParameterAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeConstraint)) return loc;
+  return {};
+}
+
+auto GeneratedTypeSpecifierAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(typeLoc)) return loc;
+  return {};
+}
+
+auto GeneratedTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(typeLoc)) return loc;
   return {};
 }
 

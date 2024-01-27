@@ -76,6 +76,7 @@ export enum ASTKind {
   TryBlockStatement,
 
   // ExpressionAST
+  GeneratedLiteralExpression,
   CharLiteralExpression,
   BoolLiteralExpression,
   IntLiteralExpression,
@@ -167,6 +168,7 @@ export enum ASTKind {
   ConstraintTypeParameter,
 
   // SpecifierAST
+  GeneratedTypeSpecifier,
   TypedefSpecifier,
   FriendSpecifier,
   ConstevalSpecifier,

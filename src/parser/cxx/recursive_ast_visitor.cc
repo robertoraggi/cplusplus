@@ -544,6 +544,8 @@ void RecursiveASTVisitor::visit(TryBlockStatementAST* ast) {
   }
 }
 
+void RecursiveASTVisitor::visit(GeneratedLiteralExpressionAST* ast) {}
+
 void RecursiveASTVisitor::visit(CharLiteralExpressionAST* ast) {}
 
 void RecursiveASTVisitor::visit(BoolLiteralExpressionAST* ast) {}
@@ -957,6 +959,8 @@ void RecursiveASTVisitor::visit(ConstraintTypeParameterAST* ast) {
   acceptTypeConstraint(ast->typeConstraint);
   acceptTypeId(ast->typeId);
 }
+
+void RecursiveASTVisitor::visit(GeneratedTypeSpecifierAST* ast) {}
 
 void RecursiveASTVisitor::visit(TypedefSpecifierAST* ast) {}
 
