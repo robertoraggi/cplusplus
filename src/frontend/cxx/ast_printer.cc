@@ -696,6 +696,10 @@ void ASTPrinter::visit(TryBlockStatementAST* ast) {
   }
 }
 
+void ASTPrinter::visit(GeneratedLiteralExpressionAST* ast) {
+  out_ << cxx::format("{}\n", "generated-literal-expression");
+}
+
 void ASTPrinter::visit(CharLiteralExpressionAST* ast) {
   out_ << cxx::format("{}\n", "char-literal-expression");
   if (ast->literal) {
@@ -1597,6 +1601,10 @@ void ASTPrinter::visit(ConstraintTypeParameterAST* ast) {
   accept(ast->identifier, "identifier");
   accept(ast->typeConstraint, "type-constraint");
   accept(ast->typeId, "type-id");
+}
+
+void ASTPrinter::visit(GeneratedTypeSpecifierAST* ast) {
+  out_ << cxx::format("{}\n", "generated-type-specifier");
 }
 
 void ASTPrinter::visit(TypedefSpecifierAST* ast) {

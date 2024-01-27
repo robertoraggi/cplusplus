@@ -83,6 +83,7 @@ class ASTCloner : public ASTVisitor {
   void visit(DeclarationStatementAST* ast) override;
   void visit(TryBlockStatementAST* ast) override;
 
+  void visit(GeneratedLiteralExpressionAST* ast) override;
   void visit(CharLiteralExpressionAST* ast) override;
   void visit(BoolLiteralExpressionAST* ast) override;
   void visit(IntLiteralExpressionAST* ast) override;
@@ -171,6 +172,7 @@ class ASTCloner : public ASTVisitor {
   void visit(TypenameTypeParameterAST* ast) override;
   void visit(ConstraintTypeParameterAST* ast) override;
 
+  void visit(GeneratedTypeSpecifierAST* ast) override;
   void visit(TypedefSpecifierAST* ast) override;
   void visit(FriendSpecifierAST* ast) override;
   void visit(ConstevalSpecifierAST* ast) override;

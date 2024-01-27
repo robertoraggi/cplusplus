@@ -2005,6 +2005,16 @@ void ASTEncoder::visit(TryBlockStatementAST* ast) {
   type_ = io::Statement_TryBlockStatement;
 }
 
+void ASTEncoder::visit(GeneratedLiteralExpressionAST* ast) {
+  auto literalLoc = encodeSourceLocation(ast->literalLoc);
+
+  io::GeneratedLiteralExpression::Builder builder{fbb_};
+  builder.add_literal_loc(literalLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Expression_GeneratedLiteralExpression;
+}
+
 void ASTEncoder::visit(CharLiteralExpressionAST* ast) {
   auto literalLoc = encodeSourceLocation(ast->literalLoc);
 
@@ -4137,6 +4147,16 @@ void ASTEncoder::visit(ConstraintTypeParameterAST* ast) {
 
   offset_ = builder.Finish().Union();
   type_ = io::TemplateParameter_ConstraintTypeParameter;
+}
+
+void ASTEncoder::visit(GeneratedTypeSpecifierAST* ast) {
+  auto typeLoc = encodeSourceLocation(ast->typeLoc);
+
+  io::GeneratedTypeSpecifier::Builder builder{fbb_};
+  builder.add_type_loc(typeLoc.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Specifier_GeneratedTypeSpecifier;
 }
 
 void ASTEncoder::visit(TypedefSpecifierAST* ast) {

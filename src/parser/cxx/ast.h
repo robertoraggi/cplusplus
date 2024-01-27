@@ -1105,6 +1105,21 @@ class TryBlockStatementAST final : public StatementAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class GeneratedLiteralExpressionAST final : public ExpressionAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::GeneratedLiteralExpression;
+
+  GeneratedLiteralExpressionAST() : ExpressionAST(Kind) {}
+
+  SourceLocation literalLoc;
+  ConstValue value;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 class CharLiteralExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::CharLiteralExpression;
@@ -2553,6 +2568,21 @@ class ConstraintTypeParameterAST final : public TemplateParameterAST {
   SourceLocation equalLoc;
   TypeIdAST* typeId = nullptr;
   const Identifier* identifier = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class GeneratedTypeSpecifierAST final : public SpecifierAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::GeneratedTypeSpecifier;
+
+  GeneratedTypeSpecifierAST() : SpecifierAST(Kind) {}
+
+  SourceLocation typeLoc;
+  const Type* type = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -4164,6 +4194,9 @@ auto visit(Visitor&& visitor, StatementAST* ast) {
 template <typename Visitor>
 auto visit(Visitor&& visitor, ExpressionAST* ast) {
   switch (ast->kind()) {
+    case GeneratedLiteralExpressionAST::Kind:
+      return std::invoke(std::forward<Visitor>(visitor),
+                         static_cast<GeneratedLiteralExpressionAST*>(ast));
     case CharLiteralExpressionAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<CharLiteralExpressionAST*>(ast));
@@ -4361,6 +4394,9 @@ auto visit(Visitor&& visitor, TemplateParameterAST* ast) {
 template <typename Visitor>
 auto visit(Visitor&& visitor, SpecifierAST* ast) {
   switch (ast->kind()) {
+    case GeneratedTypeSpecifierAST::Kind:
+      return std::invoke(std::forward<Visitor>(visitor),
+                         static_cast<GeneratedTypeSpecifierAST*>(ast));
     case TypedefSpecifierAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<TypedefSpecifierAST*>(ast));

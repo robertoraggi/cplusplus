@@ -134,6 +134,7 @@ class DeclarationStatementAST;
 class TryBlockStatementAST;
 
 // ExpressionAST
+class GeneratedLiteralExpressionAST;
 class CharLiteralExpressionAST;
 class BoolLiteralExpressionAST;
 class IntLiteralExpressionAST;
@@ -225,6 +226,7 @@ class TypenameTypeParameterAST;
 class ConstraintTypeParameterAST;
 
 // SpecifierAST
+class GeneratedTypeSpecifierAST;
 class TypedefSpecifierAST;
 class FriendSpecifierAST;
 class ConstevalSpecifierAST;

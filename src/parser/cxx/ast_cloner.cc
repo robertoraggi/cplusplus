@@ -1006,6 +1006,19 @@ void ASTCloner::visit(TryBlockStatementAST* ast) {
   }
 }
 
+void ASTCloner::visit(GeneratedLiteralExpressionAST* ast) {
+  auto copy = new (arena_) GeneratedLiteralExpressionAST();
+  copy_ = copy;
+
+  copy->valueCategory = ast->valueCategory;
+
+  copy->type = ast->type;
+
+  copy->literalLoc = ast->literalLoc;
+
+  copy->value = ast->value;
+}
+
 void ASTCloner::visit(CharLiteralExpressionAST* ast) {
   auto copy = new (arena_) CharLiteralExpressionAST();
   copy_ = copy;
@@ -2559,6 +2572,15 @@ void ASTCloner::visit(ConstraintTypeParameterAST* ast) {
   copy->typeId = accept(ast->typeId);
 
   copy->identifier = ast->identifier;
+}
+
+void ASTCloner::visit(GeneratedTypeSpecifierAST* ast) {
+  auto copy = new (arena_) GeneratedTypeSpecifierAST();
+  copy_ = copy;
+
+  copy->typeLoc = ast->typeLoc;
+
+  copy->type = ast->type;
 }
 
 void ASTCloner::visit(TypedefSpecifierAST* ast) {

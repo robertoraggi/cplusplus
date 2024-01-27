@@ -85,6 +85,7 @@ class ASTVisitor {
   virtual void visit(TryBlockStatementAST* ast) = 0;
 
   // ExpressionAST
+  virtual void visit(GeneratedLiteralExpressionAST* ast) = 0;
   virtual void visit(CharLiteralExpressionAST* ast) = 0;
   virtual void visit(BoolLiteralExpressionAST* ast) = 0;
   virtual void visit(IntLiteralExpressionAST* ast) = 0;
@@ -176,6 +177,7 @@ class ASTVisitor {
   virtual void visit(ConstraintTypeParameterAST* ast) = 0;
 
   // SpecifierAST
+  virtual void visit(GeneratedTypeSpecifierAST* ast) = 0;
   virtual void visit(TypedefSpecifierAST* ast) = 0;
   virtual void visit(FriendSpecifierAST* ast) = 0;
   virtual void visit(ConstevalSpecifierAST* ast) = 0;
