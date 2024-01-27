@@ -57,7 +57,7 @@ const cmakeConfigureOpts = [
   "build.wasi",
   "-DCMAKE_INSTALL_PREFIX=build.wasi/install/usr",
   "-DCMAKE_TOOLCHAIN_FILE=/usr/share/cmake/wasi-sdk.cmake",
-  `-DCMAKE_BUILD_TYPE=${argv.debug ? "Debug" : "MinRelSize"}`,
+  `-DCMAKE_BUILD_TYPE=${argv.debug ? "Debug" : "Release"}`,
   `-DCXX_INTERPROCEDURAL_OPTIMIZATION=${argv.debug ? "OFF" : "ON"}`,
   "-DKWGEN_EXECUTABLE=/usr/bin/kwgen",
   "-DFLATBUFFERS_FLATC_EXECUTABLE=/usr/bin/flatc",

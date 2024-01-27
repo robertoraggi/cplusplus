@@ -28,13 +28,13 @@ const cxxWasiPrefixPath = path.join(workspacePath, "build.wasi/install");
 const wasmtime = await which("wasmtime");
 
 const cxxArgs = [
-  `--mapdir=/usr::${cxxWasiPrefixPath}/usr`,
-  `--mapdir=/::${process.cwd()}`,
+  `--dir=${cxxWasiPrefixPath}/usr::/usr`,
+  `--dir=${process.cwd()}::/`,
   `${cxxWasiPrefixPath}/usr/bin/cxx.wasm`,
 ];
 
 try {
-  const result = await $`${wasmtime} ${cxxArgs} -- ${process.argv.slice(
+  const result = await $`${wasmtime} ${cxxArgs} ${process.argv.slice(
     3
   )}`.quiet();
 
