@@ -18,16 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+import { cpy_header } from "./cpy_header.js";
 import { groupNodesByBaseType } from "./groupNodesByBaseType.js";
 import { AST } from "./parseAST.js";
-import { cpy_header } from "./cpy_header.js";
 import * as fs from "fs";
 
-export function gen_ast_cloner_h({
+export function new_ast_rewriter_h({
   ast,
+  opName,
   output,
 }: {
   ast: AST;
+  opName: string;
   output: string;
 }) {
   const code: string[] = [];
@@ -35,44 +37,66 @@ export function gen_ast_cloner_h({
 
   const by_base = groupNodesByBaseType(ast);
 
-  emit(`class ASTCloner : public ASTVisitor {`);
-  emit(`public:`);
-  emit(`virtual auto clone(AST* ast, Arena* arena) -> AST*;`);
-  emit();
+  // chop the AST suffix for the given name
+  const chopAST = (name: string) => {
+    if (name.endsWith("AST")) return name.slice(0, -3);
+    return name;
+  };
 
-  by_base.forEach((nodes) => {
-    if (!Array.isArray(nodes)) throw new Error("not an array");
-    emit();
-    nodes.forEach(({ name }) => {
-      emit(`  void visit(${name}* ast) override;`);
-    });
+  emit();
+  emit(`  // run on the base nodes`);
+  by_base.forEach((nodes, base) => {
+    if (base === "AST") return;
+    emit(`  [[nodiscard]] auto operator()(${base}* ast) -> ${base}*;`);
+  });
+  emit();
+  emit(`  // run on the misc nodes`);
+  by_base.get("AST")?.forEach(({ name }) => {
+    emit(`  auto operator()(${name}* ast) -> ${name}*;`);
   });
 
   emit();
-  emit(`protected:`);
-  emit(`  template <typename T> auto accept(T ast) -> T {`);
-  emit(`    if (!ast) return nullptr;`);
-  emit(`    AST* copy = nullptr;`);
-  emit(`    std::swap(copy_, copy);`);
-  emit(`    ast->accept(this);`);
-  emit(`    std::swap(copy_, copy);`);
-  emit(`    return static_cast<T>(copy);`);
-  emit(`  }`);
-  emit();
-  emit(`  Arena* arena_ = nullptr;`);
-  emit(`  AST* copy_ = nullptr;`);
-  emit(`};`);
+  emit(`private:`);
+  by_base.forEach((nodes, base) => {
+    if (!Array.isArray(nodes)) throw new Error("not an array");
+    if (base === "AST") return;
+    const className = chopAST(base);
+    emit();
+    emit(`  struct ${className}Visitor {`);
+    emit(`    ${opName}& rewrite;`);
+    nodes.forEach(({ name }) => {
+      emit();
+      emit(`    [[nodiscard]] auto operator()(${name}* ast) -> ${base}*;`);
+    });
+    emit(`  };`);
+  });
 
   const out = `${cpy_header}
+
 #pragma once
 
-#include <cxx/ast_visitor.h>
-#include <cxx/ast.h>
-#include <cxx/arena.h>
+#include <cxx/ast_fwd.h>
 
 namespace cxx {
 
+class TranslationUnit;
+class Control;
+class Arena;
+
+class ${opName} {
+public:
+    explicit ${opName}(TranslationUnit* unit);
+    ~${opName}();
+
+    [[nodiscard]] auto translationUnit() const -> TranslationUnit* { return unit_; }
+
+    [[nodiscard]] auto control() const -> Control*;
+    [[nodiscard]] auto arena() const -> Arena*;
+
 ${code.join("\n")}
+
+    TranslationUnit* unit_ = nullptr;
+};
 
 } // namespace cxx
 `;
