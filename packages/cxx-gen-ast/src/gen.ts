@@ -21,8 +21,6 @@
 // SOFTWARE.
 
 import { gen_ast_cc } from "./gen_ast_cc.js";
-import { gen_ast_cloner_cc } from "./gen_ast_cloner_cc.js";
-import { gen_ast_cloner_h } from "./gen_ast_cloner_h.js";
 import { gen_ast_dump_cc } from "./gen_ast_dump_cc.js";
 import { gen_ast_dump_h } from "./gen_ast_dump_h.js";
 import { gen_ast_fwd_h } from "./gen_ast_fwd_h.js";
@@ -67,14 +65,6 @@ gen_ast_cc({ ast, output: path.join(outdir, "src/parser/cxx/ast.cc") });
 gen_ast_visitor_h({
   ast,
   output: path.join(outdir, "src/parser/cxx/ast_visitor.h"),
-});
-gen_ast_cloner_h({
-  ast,
-  output: path.join(outdir, "src/parser/cxx/ast_cloner.h"),
-});
-gen_ast_cloner_cc({
-  ast,
-  output: path.join(outdir, "src/parser/cxx/ast_cloner.cc"),
 });
 gen_ast_dump_h({
   ast,
