@@ -28,7 +28,6 @@
 #include <cxx/preprocessor.h>
 #include <cxx/private/format.h>
 #include <cxx/private/path.h>
-#include <cxx/recursive_ast_visitor.h>
 #include <cxx/scope.h>
 #include <cxx/symbol_printer.h>
 #include <cxx/symbols.h>
