@@ -34,12 +34,8 @@ import { gen_ast_slot_h } from "./get_ast_slot_h.js";
 import { gen_ast_ts } from "./gen_ast_ts.js";
 import { gen_ast_visitor_h } from "./gen_ast_visitor_h.js";
 import { gen_ast_visitor_ts } from "./gen_ast_visitor_ts.js";
-import { gen_recursive_ast_cc } from "./gen_recursive_ast_cc.js";
-import { gen_recursive_ast_h } from "./gen_recursive_ast_h.js";
 import { parseAST } from "./parseAST.js";
 import { gen_ast_kind_ts } from "./gen_ast_kind_ts.js";
-import { gen_default_ast_visitor_h } from "./gen_default_ast_visitor_h.js";
-import { gen_default_ast_visitor_cc } from "./gen_default_ast_visitor_cc.js";
 import { gen_ast_fbs } from "./gen_ast_fbs.js";
 import { gen_ast_encoder_h } from "./gen_ast_encoder_h.js";
 import { gen_ast_encoder_cc } from "./gen_ast_encoder_cc.js";
@@ -71,22 +67,6 @@ gen_ast_cc({ ast, output: path.join(outdir, "src/parser/cxx/ast.cc") });
 gen_ast_visitor_h({
   ast,
   output: path.join(outdir, "src/parser/cxx/ast_visitor.h"),
-});
-gen_default_ast_visitor_h({
-  ast,
-  output: path.join(outdir, "src/parser/cxx/default_ast_visitor.h"),
-});
-gen_default_ast_visitor_cc({
-  ast,
-  output: path.join(outdir, "src/parser/cxx/default_ast_visitor.cc"),
-});
-gen_recursive_ast_cc({
-  ast,
-  output: path.join(outdir, "src/parser/cxx/recursive_ast_visitor.cc"),
-});
-gen_recursive_ast_h({
-  ast,
-  output: path.join(outdir, "src/parser/cxx/recursive_ast_visitor.h"),
 });
 gen_ast_cloner_h({
   ast,

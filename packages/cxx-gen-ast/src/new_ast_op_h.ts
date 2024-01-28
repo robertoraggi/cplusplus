@@ -18,16 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+import { cpy_header } from "./cpy_header.js";
 import { groupNodesByBaseType } from "./groupNodesByBaseType.js";
 import { AST } from "./parseAST.js";
-import { cpy_header } from "./cpy_header.js";
 import * as fs from "fs";
 
-export function gen_recursive_ast_h({
+export function new_ast_op_h({
   ast,
+  opName,
   output,
 }: {
   ast: AST;
+  opName: string;
   output: string;
 }) {
   const code: string[] = [];
@@ -35,47 +37,76 @@ export function gen_recursive_ast_h({
 
   const by_base = groupNodesByBaseType(ast);
 
-  emit(`class RecursiveASTVisitor : public ASTVisitor {`);
-  emit(`public:`);
-  emit(`  void accept(AST* ast);`);
+  // chop the AST suffix for the given name
+  const chopAST = (name: string) => {
+    if (name.endsWith("AST")) return name.slice(0, -3);
+    return name;
+  };
+
+  by_base.forEach((nodes, base) => {
+    if (base === "AST") return;
+    emit(`  struct ${chopAST(base)}Result {};`);
+  });
   emit();
-
-  const funcName = (base: string) =>
-    "accept" + base[0].toUpperCase() + base.slice(1, -3);
-
-  const types = new Set<string>();
-
-  ast.nodes.forEach((node) => {
-    node.members.forEach((m) => {
-      if (m.kind === "node" || m.kind === "node-list") types.add(m.type);
-    });
+  by_base.get("AST")?.forEach(({ name }) => {
+    emit(`  struct ${chopAST(name)}Result {};`);
   });
 
-  Array.from(types.values()).forEach((base) => {
-    emit(`virtual void ${funcName(base)}(${base}* ast);`);
+  emit();
+  emit(`  // run on the base nodes`);
+  by_base.forEach((nodes, base) => {
+    if (base === "AST") return;
+    const resultTy = `${chopAST(base)}Result`;
+    emit(`  [[nodiscard]] auto operator()(${base}* ast) -> ${resultTy};`);
+  });
+  emit();
+  emit(`  // run on the misc nodes`);
+  by_base.get("AST")?.forEach(({ name }) => {
+    const resultTy = `${chopAST(name)}Result`;
+    emit(`  auto operator()(${name}* ast) -> ${resultTy};`);
   });
 
-  emit(`virtual auto preVisit(AST*) -> bool { return true; }`);
-  emit(`virtual void postVisit(AST*) {}`);
-
-  by_base.forEach((nodes) => {
+  emit();
+  emit(`private:`);
+  by_base.forEach((nodes, base) => {
     if (!Array.isArray(nodes)) throw new Error("not an array");
+    if (base === "AST") return;
+    const className = chopAST(base);
+    const resultTy = `${chopAST(base)}Result`;
     emit();
+    emit(`  struct ${className}Visitor {`);
+    emit(`    ${opName}& accept;`);
     nodes.forEach(({ name }) => {
-      emit(`  void visit(${name}* ast) override;`);
+      emit();
+      emit(`    [[nodiscard]] auto operator()(${name}* ast) -> ${resultTy};`);
     });
+    emit(`  };`);
   });
-
-  emit(`};`);
 
   const out = `${cpy_header}
+
 #pragma once
 
-#include <cxx/ast_visitor.h>
+#include <cxx/ast_fwd.h>
 
 namespace cxx {
 
+class TranslationUnit;
+class Control;
+
+class ${opName} {
+public:
+    explicit ${opName}(TranslationUnit* unit);
+    ~${opName}();
+
+    [[nodiscard]] auto translationUnit() const -> TranslationUnit* { return unit_; }
+
+    [[nodiscard]] auto control() const -> Control*;
+
 ${code.join("\n")}
+
+    TranslationUnit* unit_ = nullptr;
+};
 
 } // namespace cxx
 `;
