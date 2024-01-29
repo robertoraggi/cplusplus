@@ -55,11 +55,7 @@ export function new_ast_rewriter_cc({
     return name;
   };
 
-  const emitRewriterBody = (
-    members: Member[],
-    visitor: string = "rewrite",
-    arena: string = "unit_->arena()"
-  ) => {
+  const emitRewriterBody = (members: Member[], visitor: string = "rewrite") => {
     members.forEach((m) => {
       switch (m.kind) {
         case "node": {
@@ -79,9 +75,9 @@ export function new_ast_rewriter_cc({
           emit(`    for (auto it = ast->${m.name}; it; it = it->next) {`);
           emit(`        auto value = ${visitor}(it->value);`);
           if (isBase(m.type)) {
-            emit(`*out = new (${arena}) List(value);`);
+            emit(`*out = new (arena()) List(value);`);
           } else {
-            emit(`*out = new (${arena}) List(ast_cast<${m.type}>(value));`);
+            emit(`*out = new (arena()) List(ast_cast<${m.type}>(value));`);
           }
           emit(`        out = &(*out)->next;`);
           emit(`    }`);
@@ -115,7 +111,7 @@ export function new_ast_rewriter_cc({
     emit(`auto ${opName}::operator()(${name}* ast) -> ${name}* {`);
     emit(`  if (!ast) return {};`);
     emit();
-    emit(`  auto copy = new (unit_->arena()) ${name}{};`);
+    emit(`  auto copy = new (arena()) ${name}{};`);
     emit();
     emitRewriterBody(members, "operator()");
     emit();
@@ -132,9 +128,12 @@ export function new_ast_rewriter_cc({
       emit(
         `auto ${opName}::${className}Visitor::operator()(${name}* ast) -> ${base}* {`
       );
-      emit(`  auto copy = new (rewrite.arena()) ${name}{};`);
+      emit(`  auto copy = new (arena()) ${name}{};`);
       emit();
-      emitRewriterBody(members, "rewrite", "rewrite.arena()");
+      ast.baseMembers.get(base)?.forEach((m) => {
+        emit(`  copy->${m.name} = ast->${m.name};`);
+      });
+      emitRewriterBody(members, "rewrite");
       emit();
       emit(`  return copy;`);
       emit(`}`);
