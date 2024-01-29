@@ -8972,6 +8972,7 @@ auto Parser::parse_class_specifier(
   auto ast = new (pool_) ClassSpecifierAST();
   yyast = ast;
 
+  ast->symbol = classHead.symbol;
   ast->classLoc = classHead.classLoc;
   ast->attributeList = classHead.attributeList;
   ast->nestedNameSpecifier = classHead.nestedNameSpecifier;

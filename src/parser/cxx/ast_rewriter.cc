@@ -2917,6 +2917,7 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
 
   copy->rbraceLoc = ast->rbraceLoc;
   copy->classKey = ast->classKey;
+  copy->symbol = ast->symbol;
   copy->isFinal = ast->isFinal;
 
   return copy;
