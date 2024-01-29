@@ -70,38 +70,45 @@ class ASTRewriter {
   [[nodiscard]] auto operator()(AttributeTokenAST* ast) -> AttributeTokenAST*;
 
   // run on the misc nodes
-  auto operator()(SplicerAST* ast) -> SplicerAST*;
-  auto operator()(GlobalModuleFragmentAST* ast) -> GlobalModuleFragmentAST*;
-  auto operator()(PrivateModuleFragmentAST* ast) -> PrivateModuleFragmentAST*;
-  auto operator()(ModuleDeclarationAST* ast) -> ModuleDeclarationAST*;
-  auto operator()(ModuleNameAST* ast) -> ModuleNameAST*;
-  auto operator()(ModuleQualifierAST* ast) -> ModuleQualifierAST*;
-  auto operator()(ModulePartitionAST* ast) -> ModulePartitionAST*;
-  auto operator()(ImportNameAST* ast) -> ImportNameAST*;
-  auto operator()(InitDeclaratorAST* ast) -> InitDeclaratorAST*;
-  auto operator()(DeclaratorAST* ast) -> DeclaratorAST*;
-  auto operator()(UsingDeclaratorAST* ast) -> UsingDeclaratorAST*;
-  auto operator()(EnumeratorAST* ast) -> EnumeratorAST*;
-  auto operator()(TypeIdAST* ast) -> TypeIdAST*;
-  auto operator()(HandlerAST* ast) -> HandlerAST*;
-  auto operator()(BaseSpecifierAST* ast) -> BaseSpecifierAST*;
-  auto operator()(RequiresClauseAST* ast) -> RequiresClauseAST*;
-  auto operator()(ParameterDeclarationClauseAST* ast)
+  [[nodiscard]] auto operator()(SplicerAST* ast) -> SplicerAST*;
+  [[nodiscard]] auto operator()(GlobalModuleFragmentAST* ast)
+      -> GlobalModuleFragmentAST*;
+  [[nodiscard]] auto operator()(PrivateModuleFragmentAST* ast)
+      -> PrivateModuleFragmentAST*;
+  [[nodiscard]] auto operator()(ModuleDeclarationAST* ast)
+      -> ModuleDeclarationAST*;
+  [[nodiscard]] auto operator()(ModuleNameAST* ast) -> ModuleNameAST*;
+  [[nodiscard]] auto operator()(ModuleQualifierAST* ast) -> ModuleQualifierAST*;
+  [[nodiscard]] auto operator()(ModulePartitionAST* ast) -> ModulePartitionAST*;
+  [[nodiscard]] auto operator()(ImportNameAST* ast) -> ImportNameAST*;
+  [[nodiscard]] auto operator()(InitDeclaratorAST* ast) -> InitDeclaratorAST*;
+  [[nodiscard]] auto operator()(DeclaratorAST* ast) -> DeclaratorAST*;
+  [[nodiscard]] auto operator()(UsingDeclaratorAST* ast) -> UsingDeclaratorAST*;
+  [[nodiscard]] auto operator()(EnumeratorAST* ast) -> EnumeratorAST*;
+  [[nodiscard]] auto operator()(TypeIdAST* ast) -> TypeIdAST*;
+  [[nodiscard]] auto operator()(HandlerAST* ast) -> HandlerAST*;
+  [[nodiscard]] auto operator()(BaseSpecifierAST* ast) -> BaseSpecifierAST*;
+  [[nodiscard]] auto operator()(RequiresClauseAST* ast) -> RequiresClauseAST*;
+  [[nodiscard]] auto operator()(ParameterDeclarationClauseAST* ast)
       -> ParameterDeclarationClauseAST*;
-  auto operator()(TrailingReturnTypeAST* ast) -> TrailingReturnTypeAST*;
-  auto operator()(LambdaSpecifierAST* ast) -> LambdaSpecifierAST*;
-  auto operator()(TypeConstraintAST* ast) -> TypeConstraintAST*;
-  auto operator()(AttributeArgumentClauseAST* ast)
+  [[nodiscard]] auto operator()(TrailingReturnTypeAST* ast)
+      -> TrailingReturnTypeAST*;
+  [[nodiscard]] auto operator()(LambdaSpecifierAST* ast) -> LambdaSpecifierAST*;
+  [[nodiscard]] auto operator()(TypeConstraintAST* ast) -> TypeConstraintAST*;
+  [[nodiscard]] auto operator()(AttributeArgumentClauseAST* ast)
       -> AttributeArgumentClauseAST*;
-  auto operator()(AttributeAST* ast) -> AttributeAST*;
-  auto operator()(AttributeUsingPrefixAST* ast) -> AttributeUsingPrefixAST*;
-  auto operator()(NewPlacementAST* ast) -> NewPlacementAST*;
-  auto operator()(NestedNamespaceSpecifierAST* ast)
+  [[nodiscard]] auto operator()(AttributeAST* ast) -> AttributeAST*;
+  [[nodiscard]] auto operator()(AttributeUsingPrefixAST* ast)
+      -> AttributeUsingPrefixAST*;
+  [[nodiscard]] auto operator()(NewPlacementAST* ast) -> NewPlacementAST*;
+  [[nodiscard]] auto operator()(NestedNamespaceSpecifierAST* ast)
       -> NestedNamespaceSpecifierAST*;
 
  private:
   struct UnitVisitor {
     ASTRewriter& rewrite;
+
+    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
 
     [[nodiscard]] auto operator()(TranslationUnitAST* ast) -> UnitAST*;
 
@@ -110,6 +117,8 @@ class ASTRewriter {
 
   struct DeclarationVisitor {
     ASTRewriter& rewrite;
+
+    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
 
     [[nodiscard]] auto operator()(SimpleDeclarationAST* ast) -> DeclarationAST*;
 
@@ -188,6 +197,8 @@ class ASTRewriter {
   struct StatementVisitor {
     ASTRewriter& rewrite;
 
+    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
     [[nodiscard]] auto operator()(LabeledStatementAST* ast) -> StatementAST*;
 
     [[nodiscard]] auto operator()(CaseStatementAST* ast) -> StatementAST*;
@@ -232,6 +243,8 @@ class ASTRewriter {
 
   struct ExpressionVisitor {
     ASTRewriter& rewrite;
+
+    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
 
     [[nodiscard]] auto operator()(GeneratedLiteralExpressionAST* ast)
         -> ExpressionAST*;
@@ -378,6 +391,8 @@ class ASTRewriter {
   struct TemplateParameterVisitor {
     ASTRewriter& rewrite;
 
+    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
     [[nodiscard]] auto operator()(TemplateTypeParameterAST* ast)
         -> TemplateParameterAST*;
 
@@ -393,6 +408,8 @@ class ASTRewriter {
 
   struct SpecifierVisitor {
     ASTRewriter& rewrite;
+
+    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
 
     [[nodiscard]] auto operator()(GeneratedTypeSpecifierAST* ast)
         -> SpecifierAST*;
@@ -480,6 +497,8 @@ class ASTRewriter {
   struct PtrOperatorVisitor {
     ASTRewriter& rewrite;
 
+    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
     [[nodiscard]] auto operator()(PointerOperatorAST* ast) -> PtrOperatorAST*;
 
     [[nodiscard]] auto operator()(ReferenceOperatorAST* ast) -> PtrOperatorAST*;
@@ -490,6 +509,8 @@ class ASTRewriter {
 
   struct CoreDeclaratorVisitor {
     ASTRewriter& rewrite;
+
+    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
 
     [[nodiscard]] auto operator()(BitfieldDeclaratorAST* ast)
         -> CoreDeclaratorAST*;
@@ -505,6 +526,8 @@ class ASTRewriter {
   struct DeclaratorChunkVisitor {
     ASTRewriter& rewrite;
 
+    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
     [[nodiscard]] auto operator()(FunctionDeclaratorChunkAST* ast)
         -> DeclaratorChunkAST*;
 
@@ -514,6 +537,8 @@ class ASTRewriter {
 
   struct UnqualifiedIdVisitor {
     ASTRewriter& rewrite;
+
+    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
 
     [[nodiscard]] auto operator()(NameIdAST* ast) -> UnqualifiedIdAST*;
 
@@ -543,6 +568,8 @@ class ASTRewriter {
   struct NestedNameSpecifierVisitor {
     ASTRewriter& rewrite;
 
+    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
     [[nodiscard]] auto operator()(GlobalNestedNameSpecifierAST* ast)
         -> NestedNameSpecifierAST*;
 
@@ -558,6 +585,8 @@ class ASTRewriter {
 
   struct FunctionBodyVisitor {
     ASTRewriter& rewrite;
+
+    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
 
     [[nodiscard]] auto operator()(DefaultFunctionBodyAST* ast)
         -> FunctionBodyAST*;
@@ -575,6 +604,8 @@ class ASTRewriter {
   struct TemplateArgumentVisitor {
     ASTRewriter& rewrite;
 
+    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
     [[nodiscard]] auto operator()(TypeTemplateArgumentAST* ast)
         -> TemplateArgumentAST*;
 
@@ -585,6 +616,8 @@ class ASTRewriter {
   struct ExceptionSpecifierVisitor {
     ASTRewriter& rewrite;
 
+    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
     [[nodiscard]] auto operator()(ThrowExceptionSpecifierAST* ast)
         -> ExceptionSpecifierAST*;
 
@@ -594,6 +627,8 @@ class ASTRewriter {
 
   struct RequirementVisitor {
     ASTRewriter& rewrite;
+
+    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
 
     [[nodiscard]] auto operator()(SimpleRequirementAST* ast) -> RequirementAST*;
 
@@ -608,6 +643,8 @@ class ASTRewriter {
   struct NewInitializerVisitor {
     ASTRewriter& rewrite;
 
+    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
     [[nodiscard]] auto operator()(NewParenInitializerAST* ast)
         -> NewInitializerAST*;
 
@@ -618,6 +655,8 @@ class ASTRewriter {
   struct MemInitializerVisitor {
     ASTRewriter& rewrite;
 
+    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
     [[nodiscard]] auto operator()(ParenMemInitializerAST* ast)
         -> MemInitializerAST*;
 
@@ -627,6 +666,8 @@ class ASTRewriter {
 
   struct LambdaCaptureVisitor {
     ASTRewriter& rewrite;
+
+    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
 
     [[nodiscard]] auto operator()(ThisLambdaCaptureAST* ast)
         -> LambdaCaptureAST*;
@@ -650,6 +691,8 @@ class ASTRewriter {
   struct ExceptionDeclarationVisitor {
     ASTRewriter& rewrite;
 
+    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
     [[nodiscard]] auto operator()(EllipsisExceptionDeclarationAST* ast)
         -> ExceptionDeclarationAST*;
 
@@ -659,6 +702,8 @@ class ASTRewriter {
 
   struct AttributeSpecifierVisitor {
     ASTRewriter& rewrite;
+
+    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
 
     [[nodiscard]] auto operator()(CxxAttributeAST* ast)
         -> AttributeSpecifierAST*;
@@ -678,6 +723,8 @@ class ASTRewriter {
 
   struct AttributeTokenVisitor {
     ASTRewriter& rewrite;
+
+    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
 
     [[nodiscard]] auto operator()(ScopedAttributeTokenAST* ast)
         -> AttributeTokenAST*;

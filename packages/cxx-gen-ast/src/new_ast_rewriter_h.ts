@@ -52,7 +52,7 @@ export function new_ast_rewriter_h({
   emit();
   emit(`  // run on the misc nodes`);
   by_base.get("AST")?.forEach(({ name }) => {
-    emit(`  auto operator()(${name}* ast) -> ${name}*;`);
+    emit(`  [[nodiscard]] auto operator()(${name}* ast) -> ${name}*;`);
   });
 
   emit();
@@ -64,6 +64,10 @@ export function new_ast_rewriter_h({
     emit();
     emit(`  struct ${className}Visitor {`);
     emit(`    ${opName}& rewrite;`);
+    emit();
+    emit(
+      `    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }`
+    );
     nodes.forEach(({ name }) => {
       emit();
       emit(`    [[nodiscard]] auto operator()(${name}* ast) -> ${base}*;`);
