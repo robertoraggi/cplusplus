@@ -418,6 +418,20 @@ class TypeParameterType final : public Type,
   }
 };
 
+class TemplateTypeParameterType final
+    : public Type,
+      public std::tuple<TemplateTypeParameterSymbol*> {
+ public:
+  static constexpr TypeKind Kind = TypeKind::kTypeParameter;
+
+  explicit TemplateTypeParameterType(TemplateTypeParameterSymbol* symbol)
+      : Type(Kind), tuple(symbol) {}
+
+  [[nodiscard]] auto symbol() const -> TemplateTypeParameterSymbol* {
+    return std::get<0>(*this);
+  }
+};
+
 class UnresolvedNameType final
     : public Type,
       public std::tuple<TranslationUnit*, NestedNameSpecifierAST*,

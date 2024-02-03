@@ -117,6 +117,7 @@ struct Control::Private {
   std::set<MemberObjectPointerType> memberObjectPointerTypes;
   std::set<MemberFunctionPointerType> memberFunctionPointerTypes;
   std::set<TypeParameterType> typeParameterTypes;
+  std::set<TemplateTypeParameterType> templateTypeParameterTypes;
   std::set<UnresolvedNameType> unresolvedNameTypes;
   std::set<UnresolvedBoundedArrayType> unresolvedBoundedArrayTypes;
   std::set<UnresolvedUnderlyingType> unresolvedUnderlyingTypes;
@@ -394,6 +395,11 @@ auto Control::getTypeParameterType(TypeParameterSymbol* symbol)
   return &*d->typeParameterTypes.emplace(symbol).first;
 }
 
+auto Control::getTemplateTypeParameterType(TemplateTypeParameterSymbol* symbol)
+    -> const TemplateTypeParameterType* {
+  return &*d->templateTypeParameterTypes.emplace(symbol).first;
+}
+
 auto Control::getUnresolvedNameType(TranslationUnit* unit,
                                     NestedNameSpecifierAST* nestedNameSpecifier,
                                     UnqualifiedIdAST* unqualifiedId)
@@ -531,15 +537,16 @@ auto Control::newTypeParameterSymbol(Scope* enclosingScope)
   return symbol;
 }
 
-auto Control::newNonTypeParameterSymbol(Scope* enclosingScope)
-    -> NonTypeParameterSymbol* {
-  auto symbol = &d->nonTypeParameterSymbols.emplace_front(enclosingScope);
-  return symbol;
-}
-
 auto Control::newTemplateTypeParameterSymbol(Scope* enclosingScope)
     -> TemplateTypeParameterSymbol* {
   auto symbol = &d->templateTypeParameterSymbols.emplace_front(enclosingScope);
+  symbol->setType(getTemplateTypeParameterType(symbol));
+  return symbol;
+}
+
+auto Control::newNonTypeParameterSymbol(Scope* enclosingScope)
+    -> NonTypeParameterSymbol* {
+  auto symbol = &d->nonTypeParameterSymbols.emplace_front(enclosingScope);
   return symbol;
 }
 

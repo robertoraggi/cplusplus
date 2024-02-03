@@ -315,6 +315,10 @@ class TypePrinter {
     specifiers_.append(to_string(type->symbol()->name()));
   }
 
+  void operator()(const TemplateTypeParameterType* type) {
+    specifiers_.append(to_string(type->symbol()->name()));
+  }
+
   void operator()(const UnresolvedNameType* type) {
     auto unit = type->translationUnit();
     SourceLocation first;
