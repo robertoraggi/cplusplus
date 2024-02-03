@@ -118,6 +118,8 @@ class Control {
       -> const MemberFunctionPointerType*;
   auto getTypeParameterType(TypeParameterSymbol* symbol)
       -> const TypeParameterType*;
+  auto getTemplateTypeParameterType(TemplateTypeParameterSymbol* symbol)
+      -> const TemplateTypeParameterType*;
   auto getUnresolvedNameType(TranslationUnit* unit,
                              NestedNameSpecifierAST* nestedNameSpecifier,
                              UnqualifiedIdAST* unqualifiedId)

@@ -970,6 +970,11 @@ class TypeTraits {
       return type->symbol() == otherType->symbol();
     }
 
+    auto operator()(const TemplateTypeParameterType* type,
+                    const TemplateTypeParameterType* otherType) const -> bool {
+      return type->symbol() == otherType->symbol();
+    }
+
     auto operator()(const UnresolvedNameType* type,
                     const UnresolvedNameType* otherType) const -> bool {
       return type == otherType;

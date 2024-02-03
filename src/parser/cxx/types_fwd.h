@@ -62,6 +62,7 @@ namespace cxx {
   V(MemberFunctionPointer)        \
   V(Namespace)                    \
   V(TypeParameter)                \
+  V(TemplateTypeParameter)        \
   V(UnresolvedName)               \
   V(UnresolvedBoundedArray)       \
   V(UnresolvedUnderlying)         \
