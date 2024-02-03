@@ -49,7 +49,7 @@ class Scope {
     Symbol* symbol_ = nullptr;
   };
 
-  explicit Scope(Scope* parent = nullptr);
+  explicit Scope(Scope* parent);
   ~Scope();
 
   [[nodiscard]] auto isEnumScope() const -> bool;

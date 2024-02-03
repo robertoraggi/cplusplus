@@ -22,11 +22,11 @@
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
 #include <cxx/names.h>
+#include <cxx/symbol_instantiation.h>
 #include <cxx/symbols.h>
 #include <cxx/type_traits.h>
 #include <cxx/types.h>
 
-#include <cassert>
 #include <cstdlib>
 #include <forward_list>
 #include <set>
@@ -788,6 +788,13 @@ auto Control::is_same(const Type* a, const Type* b) -> bool {
 
 auto Control::decay(const Type* type) -> const Type* {
   return d->traits.add_pointer(type);
+}
+
+auto Control::instantiate(TranslationUnit* unit, Symbol* symbol,
+                          const std::vector<TemplateArgument>& arguments)
+    -> Symbol* {
+  SymbolInstantiation instantiate{unit, arguments};
+  return instantiate(symbol);
 }
 
 }  // namespace cxx

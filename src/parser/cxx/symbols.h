@@ -27,6 +27,7 @@
 
 #include <memory>
 #include <optional>
+#include <ranges>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -35,27 +36,48 @@ namespace cxx {
 
 class Symbol {
  public:
+  class EnclosingSymbolIterator {
+   public:
+    using value_type = Symbol*;
+    using difference_type = std::ptrdiff_t;
+
+    EnclosingSymbolIterator() = default;
+    explicit EnclosingSymbolIterator(ScopedSymbol* symbol) : symbol_(symbol) {}
+
+    auto operator<=>(const EnclosingSymbolIterator&) const = default;
+
+    auto operator*() const -> ScopedSymbol* { return symbol_; }
+    auto operator++() -> EnclosingSymbolIterator&;
+    auto operator++(int) -> EnclosingSymbolIterator;
+
+   private:
+    ScopedSymbol* symbol_ = nullptr;
+  };
+
   Symbol(SymbolKind kind, Scope* enclosingScope)
       : kind_(kind), enclosingScope_(enclosingScope) {}
 
   virtual ~Symbol() = default;
 
-  [[nodiscard]] auto kind() const -> SymbolKind { return kind_; }
+  [[nodiscard]] auto kind() const -> SymbolKind;
 
-  [[nodiscard]] auto name() const -> const Name* { return name_; }
-  void setName(const Name* name) { name_ = name; }
+  [[nodiscard]] auto name() const -> const Name*;
+  void setName(const Name* name);
 
-  [[nodiscard]] auto type() const -> const Type* { return type_; }
-  void setType(const Type* type) { type_ = type; }
+  [[nodiscard]] auto type() const -> const Type*;
+  void setType(const Type* type);
 
-  [[nodiscard]] auto enclosingScope() const -> Scope* {
-    return enclosingScope_;
+  [[nodiscard]] auto enclosingScope() const -> Scope*;
+  void setEnclosingScope(Scope* enclosingScope);
+
+  [[nodiscard]] auto enclosingSymbol() const -> ScopedSymbol*;
+
+  [[nodiscard]] auto enclosingSymbols() const {
+    return std::ranges::subrange(EnclosingSymbolIterator{enclosingSymbol()},
+                                 EnclosingSymbolIterator{});
   }
-  void setEnclosingScope(Scope* enclosingScope) {
-    enclosingScope_ = enclosingScope;
-  }
 
-  [[nodiscard]] auto enclosingSymbol() const -> Symbol*;
+  [[nodiscard]] auto hasEnclosingSymbol(Symbol* symbol) const -> bool;
 
   [[nodiscard]] auto next() const -> Symbol*;
 
@@ -80,6 +102,9 @@ class ScopedSymbol : public Symbol {
   ~ScopedSymbol() override;
 
   [[nodiscard]] auto scope() const -> Scope*;
+  [[nodiscard]] auto members() const -> const std::vector<Symbol*>&;
+
+  void addMember(Symbol* member);
 
  private:
   std::unique_ptr<Scope> scope_;
@@ -92,16 +117,11 @@ class NamespaceSymbol final : public ScopedSymbol {
   explicit NamespaceSymbol(Scope* enclosingScope);
   ~NamespaceSymbol() override;
 
-  [[nodiscard]] auto isInline() const -> bool { return isInline_; }
-  void setInline(bool isInline) { isInline_ = isInline; }
+  [[nodiscard]] auto isInline() const -> bool;
+  void setInline(bool isInline);
 
-  [[nodiscard]] auto unnamedNamespace() const -> NamespaceSymbol* {
-    return unnamedNamespace_;
-  }
-
-  void setUnnamedNamespace(NamespaceSymbol* unnamedNamespace) {
-    unnamedNamespace_ = unnamedNamespace;
-  }
+  [[nodiscard]] auto unnamedNamespace() const -> NamespaceSymbol*;
+  void setUnnamedNamespace(NamespaceSymbol* unnamedNamespace);
 
  private:
   NamespaceSymbol* unnamedNamespace_ = nullptr;
@@ -115,13 +135,8 @@ class ConceptSymbol final : public Symbol {
   explicit ConceptSymbol(Scope* enclosingScope);
   ~ConceptSymbol() override;
 
-  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol* {
-    return templateParameters_;
-  }
-
-  void setTemplateParameters(TemplateParametersSymbol* templateParameters) {
-    templateParameters_ = templateParameters;
-  }
+  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol*;
+  void setTemplateParameters(TemplateParametersSymbol* templateParameters);
 
  private:
   TemplateParametersSymbol* templateParameters_ = nullptr;
@@ -134,19 +149,14 @@ class BaseClassSymbol final : public Symbol {
   explicit BaseClassSymbol(Scope* enclosingScope);
   ~BaseClassSymbol() override;
 
-  [[nodiscard]] auto isVirtual() const -> bool { return isVirtual_; }
-  void setVirtual(bool isVirtual) { isVirtual_ = isVirtual; }
+  [[nodiscard]] auto isVirtual() const -> bool;
+  void setVirtual(bool isVirtual);
 
-  [[nodiscard]] auto accessSpecifier() const -> AccessSpecifier {
-    return accessSpecifier_;
-  }
+  [[nodiscard]] auto accessSpecifier() const -> AccessSpecifier;
+  void setAccessSpecifier(AccessSpecifier accessSpecifier);
 
-  void setAccessSpecifier(AccessSpecifier accessSpecifier) {
-    accessSpecifier_ = accessSpecifier;
-  }
-
-  [[nodiscard]] auto symbol() const -> Symbol* { return symbol_; }
-  void setSymbol(Symbol* symbol) { symbol_ = symbol; }
+  [[nodiscard]] auto symbol() const -> Symbol*;
+  void setSymbol(Symbol* symbol);
 
  private:
   Symbol* symbol_ = nullptr;
@@ -187,6 +197,9 @@ class ClassSymbol final : public ScopedSymbol {
 
   [[nodiscard]] auto hasBaseClass(Symbol* symbol) const -> bool;
 
+  [[nodiscard]] auto flags() const -> std::uint32_t;
+  void setFlags(std::uint32_t flags);
+
  private:
   [[nodiscard]] auto hasBaseClass(Symbol* symbol,
                                   std::unordered_set<const ClassSymbol*>&) const
@@ -197,9 +210,14 @@ class ClassSymbol final : public ScopedSymbol {
   std::vector<FunctionSymbol*> constructors_;
   TemplateParametersSymbol* templateParameters_ = nullptr;
   std::size_t sizeInBytes_ = 0;
-  bool isUnion_ = false;
-  bool isFinal_ = false;
-  bool isComplete_ = false;
+  union {
+    std::uint32_t flags_{};
+    struct {
+      std::uint32_t isUnion_ : 1;
+      std::uint32_t isFinal_ : 1;
+      std::uint32_t isComplete_ : 1;
+    };
+  };
 };
 
 class EnumSymbol final : public ScopedSymbol {
@@ -209,13 +227,8 @@ class EnumSymbol final : public ScopedSymbol {
   explicit EnumSymbol(Scope* enclosingScope);
   ~EnumSymbol() override;
 
-  [[nodiscard]] auto underlyingType() const -> const Type* {
-    return underlyingType_;
-  }
-
-  void setUnderlyingType(const Type* underlyingType) {
-    underlyingType_ = underlyingType;
-  }
+  [[nodiscard]] auto underlyingType() const -> const Type*;
+  void setUnderlyingType(const Type* underlyingType);
 
  private:
   const Type* underlyingType_ = nullptr;
@@ -228,13 +241,8 @@ class ScopedEnumSymbol final : public ScopedSymbol {
   explicit ScopedEnumSymbol(Scope* enclosingScope);
   ~ScopedEnumSymbol() override;
 
-  [[nodiscard]] auto underlyingType() const -> const Type* {
-    return underlyingType_;
-  }
-
-  void setUnderlyingType(const Type* underlyingType) {
-    underlyingType_ = underlyingType;
-  }
+  [[nodiscard]] auto underlyingType() const -> const Type*;
+  void setUnderlyingType(const Type* underlyingType);
 
  private:
   const Type* underlyingType_ = nullptr;
@@ -247,60 +255,61 @@ class FunctionSymbol final : public ScopedSymbol {
   explicit FunctionSymbol(Scope* enclosingScope);
   ~FunctionSymbol() override;
 
-  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol* {
-    return templateParameters_;
-  }
+  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol*;
+  void setTemplateParameters(TemplateParametersSymbol* templateParameters);
 
-  void setTemplateParameters(TemplateParametersSymbol* templateParameters) {
-    templateParameters_ = templateParameters;
-  }
+  [[nodiscard]] auto isDefined() const -> bool;
+  void setDefined(bool isDefined);
 
-  [[nodiscard]] auto isDefined() const { return isDefined_; }
-  void setDefined(bool isDefined) { isDefined_ = isDefined; }
+  [[nodiscard]] auto isStatic() const -> bool;
+  void setStatic(bool isStatic);
 
-  [[nodiscard]] auto isStatic() const { return isStatic_; }
-  void setStatic(bool isStatic) { isStatic_ = isStatic; }
+  [[nodiscard]] auto isExtern() const -> bool;
+  void setExtern(bool isExtern);
 
-  [[nodiscard]] auto isExtern() const { return isExtern_; }
-  void setExtern(bool isExtern) { isExtern_ = isExtern; }
+  [[nodiscard]] auto isFriend() const -> bool;
+  void setFriend(bool isFriend);
 
-  [[nodiscard]] auto isFriend() const { return isFriend_; }
-  void setFriend(bool isFriend) { isFriend_ = isFriend; }
+  [[nodiscard]] auto isConstexpr() const -> bool;
+  void setConstexpr(bool isConstexpr);
 
-  [[nodiscard]] auto isConstexpr() const { return isConstexpr_; }
-  void setConstexpr(bool isConstexpr) { isConstexpr_ = isConstexpr; }
+  [[nodiscard]] auto isConsteval() const -> bool;
+  void setConsteval(bool isConsteval);
 
-  [[nodiscard]] auto isConsteval() const { return isConsteval_; }
-  void setConsteval(bool isConsteval) { isConsteval_ = isConsteval; }
+  [[nodiscard]] auto isInline() const -> bool;
+  void setInline(bool isInline);
 
-  [[nodiscard]] auto isInline() const { return isInline_; }
-  void setInline(bool isInline) { isInline_ = isInline; }
+  [[nodiscard]] auto isVirtual() const -> bool;
+  void setVirtual(bool isVirtual);
 
-  [[nodiscard]] auto isVirtual() const { return isVirtual_; }
-  void setVirtual(bool isVirtual) { isVirtual_ = isVirtual; }
+  [[nodiscard]] auto isExplicit() const -> bool;
+  void setExplicit(bool isExplicit);
 
-  [[nodiscard]] auto isExplicit() const { return isExplicit_; }
-  void setExplicit(bool isExplicit) { isExplicit_ = isExplicit; }
+  [[nodiscard]] auto isDeleted() const -> bool;
+  void setDeleted(bool isDeleted);
 
-  [[nodiscard]] auto isDeleted() const { return isDeleted_; }
-  void setDeleted(bool isDeleted) { isDeleted_ = isDeleted; }
-
-  [[nodiscard]] auto isDefaulted() const { return isDefaulted_; }
-  void setDefaulted(bool isDefaulted) { isDefaulted_ = isDefaulted; }
+  [[nodiscard]] auto isDefaulted() const -> bool;
+  void setDefaulted(bool isDefaulted);
 
  private:
   TemplateParametersSymbol* templateParameters_ = nullptr;
-  bool isDefined_ = false;
-  bool isStatic_ = false;
-  bool isExtern_ = false;
-  bool isFriend_ = false;
-  bool isConstexpr_ = false;
-  bool isConsteval_ = false;
-  bool isInline_ = false;
-  bool isVirtual_ = false;
-  bool isExplicit_ = false;
-  bool isDeleted_ = false;
-  bool isDefaulted_ = false;
+
+  union {
+    std::uint32_t flags_{};
+    struct {
+      std::uint32_t isDefined_ : 1;
+      std::uint32_t isStatic_ : 1;
+      std::uint32_t isExtern_ : 1;
+      std::uint32_t isFriend_ : 1;
+      std::uint32_t isConstexpr_ : 1;
+      std::uint32_t isConsteval_ : 1;
+      std::uint32_t isInline_ : 1;
+      std::uint32_t isVirtual_ : 1;
+      std::uint32_t isExplicit_ : 1;
+      std::uint32_t isDeleted_ : 1;
+      std::uint32_t isDefaulted_ : 1;
+    };
+  };
 };
 
 class OverloadSetSymbol final : public Symbol {
@@ -310,15 +319,10 @@ class OverloadSetSymbol final : public Symbol {
   explicit OverloadSetSymbol(Scope* enclosingScope);
   ~OverloadSetSymbol() override;
 
-  [[nodiscard]] auto functions() const -> const std::vector<FunctionSymbol*>& {
-    return functions_;
-  }
+  [[nodiscard]] auto functions() const -> const std::vector<FunctionSymbol*>&;
 
-  void setFunctions(std::vector<FunctionSymbol*> functions) {
-    functions_ = std::move(functions);
-  }
-
-  void addFunction(FunctionSymbol* function) { functions_.push_back(function); }
+  void setFunctions(std::vector<FunctionSymbol*> functions);
+  void addFunction(FunctionSymbol* function);
 
  private:
   std::vector<FunctionSymbol*> functions_;
@@ -331,32 +335,33 @@ class LambdaSymbol final : public ScopedSymbol {
   explicit LambdaSymbol(Scope* enclosingScope);
   ~LambdaSymbol() override;
 
-  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol* {
-    return templateParameters_;
-  }
+  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol*;
+  void setTemplateParameters(TemplateParametersSymbol* templateParameters);
 
-  void setTemplateParameters(TemplateParametersSymbol* templateParameters) {
-    templateParameters_ = templateParameters;
-  }
+  [[nodiscard]] auto isConstexpr() const -> bool;
+  void setConstexpr(bool isConstexpr);
 
-  [[nodiscard]] auto isConstexpr() const { return isConstexpr_; }
-  void setConstexpr(bool isConstexpr) { isConstexpr_ = isConstexpr; }
+  [[nodiscard]] auto isConsteval() const -> bool;
+  void setConsteval(bool isConsteval);
 
-  [[nodiscard]] auto isConsteval() const { return isConsteval_; }
-  void setConsteval(bool isConsteval) { isConsteval_ = isConsteval; }
+  [[nodiscard]] auto isMutable() const -> bool;
+  void setMutable(bool isMutable);
 
-  [[nodiscard]] auto isMutable() const { return isMutable_; }
-  void setMutable(bool isMutable) { isMutable_ = isMutable; }
-
-  [[nodiscard]] auto isStatic() const { return isStatic_; }
-  void setStatic(bool isStatic) { isStatic_ = isStatic; }
+  [[nodiscard]] auto isStatic() const -> bool;
+  void setStatic(bool isStatic);
 
  private:
   TemplateParametersSymbol* templateParameters_ = nullptr;
-  bool isConstexpr_ = false;
-  bool isConsteval_ = false;
-  bool isMutable_ = false;
-  bool isStatic_ = false;
+
+  union {
+    std::uint32_t flags_{};
+    struct {
+      std::uint32_t isConstexpr_ : 1;
+      std::uint32_t isConsteval_ : 1;
+      std::uint32_t isMutable_ : 1;
+      std::uint32_t isStatic_ : 1;
+    };
+  };
 };
 
 class FunctionParametersSymbol final : public ScopedSymbol {
@@ -390,13 +395,8 @@ class TypeAliasSymbol final : public Symbol {
   explicit TypeAliasSymbol(Scope* enclosingScope);
   ~TypeAliasSymbol() override;
 
-  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol* {
-    return templateParameters_;
-  }
-
-  void setTemplateParameters(TemplateParametersSymbol* templateParameters) {
-    templateParameters_ = templateParameters;
-  }
+  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol*;
+  void setTemplateParameters(TemplateParametersSymbol* templateParameters);
 
  private:
   TemplateParametersSymbol* templateParameters_ = nullptr;
@@ -409,40 +409,41 @@ class VariableSymbol final : public Symbol {
   explicit VariableSymbol(Scope* enclosingScope);
   ~VariableSymbol() override;
 
-  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol* {
-    return templateParameters_;
-  }
+  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol*;
+  void setTemplateParameters(TemplateParametersSymbol* templateParameters);
 
-  void setTemplateParameters(TemplateParametersSymbol* templateParameters) {
-    templateParameters_ = templateParameters;
-  }
+  [[nodiscard]] auto isStatic() const -> bool;
+  void setStatic(bool isStatic);
 
-  [[nodiscard]] auto isStatic() const { return isStatic_; }
-  void setStatic(bool isStatic) { isStatic_ = isStatic; }
+  [[nodiscard]] auto isThreadLocal() const -> bool;
+  void setThreadLocal(bool isThreadLocal);
 
-  [[nodiscard]] auto isThreadLocal() const { return isThreadLocal_; }
-  void setThreadLocal(bool isThreadLocal) { isThreadLocal_ = isThreadLocal; }
+  [[nodiscard]] auto isExtern() const -> bool;
+  void setExtern(bool isExtern);
 
-  [[nodiscard]] auto isExtern() const { return isExtern_; }
-  void setExtern(bool isExtern) { isExtern_ = isExtern; }
+  [[nodiscard]] auto isConstexpr() const -> bool;
+  void setConstexpr(bool isConstexpr);
 
-  [[nodiscard]] auto isConstexpr() const { return isConstexpr_; }
-  void setConstexpr(bool isConstexpr) { isConstexpr_ = isConstexpr; }
+  [[nodiscard]] auto isConstinit() const -> bool;
+  void setConstinit(bool isConstinit);
 
-  [[nodiscard]] auto isConstinit() const { return isConstinit_; }
-  void setConstinit(bool isConstinit) { isConstinit_ = isConstinit; }
-
-  [[nodiscard]] auto isInline() const { return isInline_; }
-  void setInline(bool isInline) { isInline_ = isInline; }
+  [[nodiscard]] auto isInline() const -> bool;
+  void setInline(bool isInline);
 
  private:
   TemplateParametersSymbol* templateParameters_ = nullptr;
-  bool isStatic_ = false;
-  bool isThreadLocal_ = false;
-  bool isExtern_ = false;
-  bool isConstexpr_ = false;
-  bool isConstinit_ = false;
-  bool isInline_ = false;
+
+  union {
+    std::uint32_t flags_{};
+    struct {
+      std::uint32_t isStatic_ : 1;
+      std::uint32_t isThreadLocal_ : 1;
+      std::uint32_t isExtern_ : 1;
+      std::uint32_t isConstexpr_ : 1;
+      std::uint32_t isConstinit_ : 1;
+      std::uint32_t isInline_ : 1;
+    };
+  };
 };
 
 class FieldSymbol final : public Symbol {
@@ -452,27 +453,32 @@ class FieldSymbol final : public Symbol {
   explicit FieldSymbol(Scope* enclosingScope);
   ~FieldSymbol() override;
 
-  [[nodiscard]] auto isStatic() const { return isStatic_; }
-  void setStatic(bool isStatic) { isStatic_ = isStatic; }
+  [[nodiscard]] auto isStatic() const -> bool;
+  void setStatic(bool isStatic);
 
-  [[nodiscard]] auto isThreadLocal() const { return isThreadLocal_; }
-  void setThreadLocal(bool isThreadLocal) { isThreadLocal_ = isThreadLocal; }
+  [[nodiscard]] auto isThreadLocal() const -> bool;
+  void setThreadLocal(bool isThreadLocal);
 
-  [[nodiscard]] auto isConstexpr() const { return isConstexpr_; }
-  void setConstexpr(bool isConstexpr) { isConstexpr_ = isConstexpr; }
+  [[nodiscard]] auto isConstexpr() const -> bool;
+  void setConstexpr(bool isConstexpr);
 
-  [[nodiscard]] auto isConstinit() const { return isConstinit_; }
-  void setConstinit(bool isConstinit) { isConstinit_ = isConstinit; }
+  [[nodiscard]] auto isConstinit() const -> bool;
+  void setConstinit(bool isConstinit);
 
-  [[nodiscard]] auto isInline() const { return isInline_; }
-  void setInline(bool isInline) { isInline_ = isInline; }
+  [[nodiscard]] auto isInline() const -> bool;
+  void setInline(bool isInline);
 
  private:
-  bool isStatic_ = false;
-  bool isThreadLocal_ = false;
-  bool isConstexpr_ = false;
-  bool isConstinit_ = false;
-  bool isInline_ = false;
+  union {
+    std::uint32_t flags_{};
+    struct {
+      std::uint32_t isStatic_ : 1;
+      std::uint32_t isThreadLocal_ : 1;
+      std::uint32_t isConstexpr_ : 1;
+      std::uint32_t isConstinit_ : 1;
+      std::uint32_t isInline_ : 1;
+    };
+  };
 };
 
 class ParameterSymbol final : public Symbol {
@@ -490,19 +496,14 @@ class TypeParameterSymbol final : public Symbol {
   explicit TypeParameterSymbol(Scope* enclosingScope);
   ~TypeParameterSymbol() override;
 
-  [[nodiscard]] auto index() const -> int { return index_; }
-  void setIndex(int index) { index_ = index; }
+  [[nodiscard]] auto index() const -> int;
+  void setIndex(int index);
 
-  [[nodiscard]] auto depth() const -> int { return depth_; }
-  void setDepth(int depth) { depth_ = depth; }
+  [[nodiscard]] auto depth() const -> int;
+  void setDepth(int depth);
 
-  [[nodiscard]] auto isParameterPack() const -> bool {
-    return isParameterPack_;
-  }
-
-  void setParameterPack(bool isParameterPack) {
-    isParameterPack_ = isParameterPack;
-  }
+  [[nodiscard]] auto isParameterPack() const -> bool;
+  void setParameterPack(bool isParameterPack);
 
  private:
   int index_ = 0;
@@ -517,22 +518,17 @@ class NonTypeParameterSymbol final : public Symbol {
   explicit NonTypeParameterSymbol(Scope* enclosingScope);
   ~NonTypeParameterSymbol() override;
 
-  [[nodiscard]] auto index() const -> int { return index_; }
-  void setIndex(int index) { index_ = index; }
+  [[nodiscard]] auto index() const -> int;
+  void setIndex(int index);
 
-  [[nodiscard]] auto depth() const -> int { return depth_; }
-  void setDepth(int depth) { depth_ = depth; }
+  [[nodiscard]] auto depth() const -> int;
+  void setDepth(int depth);
 
-  [[nodiscard]] auto objectType() const -> const Type* { return objectType_; }
-  void setObjectType(const Type* objectType) { objectType_ = objectType; }
+  [[nodiscard]] auto objectType() const -> const Type*;
+  void setObjectType(const Type* objectType);
 
-  [[nodiscard]] auto isParameterPack() const -> bool {
-    return isParameterPack_;
-  }
-
-  void setParameterPack(bool isParameterPack) {
-    isParameterPack_ = isParameterPack;
-  }
+  [[nodiscard]] auto isParameterPack() const -> bool;
+  void setParameterPack(bool isParameterPack);
 
  private:
   const Type* objectType_ = nullptr;
@@ -548,27 +544,17 @@ class TemplateTypeParameterSymbol final : public Symbol {
   explicit TemplateTypeParameterSymbol(Scope* enclosingScope);
   ~TemplateTypeParameterSymbol() override;
 
-  [[nodiscard]] auto index() const -> int { return index_; }
-  void setIndex(int index) { index_ = index; }
+  [[nodiscard]] auto index() const -> int;
+  void setIndex(int index);
 
-  [[nodiscard]] auto depth() const -> int { return depth_; }
-  void setDepth(int depth) { depth_ = depth; }
+  [[nodiscard]] auto depth() const -> int;
+  void setDepth(int depth);
 
-  [[nodiscard]] auto isParameterPack() const -> bool {
-    return isParameterPack_;
-  }
+  [[nodiscard]] auto isParameterPack() const -> bool;
+  void setParameterPack(bool isParameterPack);
 
-  void setParameterPack(bool isParameterPack) {
-    isParameterPack_ = isParameterPack;
-  }
-
-  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol* {
-    return templateParameters_;
-  }
-
-  void setTemplateParameters(TemplateParametersSymbol* templateParameters) {
-    templateParameters_ = templateParameters;
-  }
+  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol*;
+  void setTemplateParameters(TemplateParametersSymbol* templateParameters);
 
  private:
   int index_ = 0;
@@ -584,19 +570,14 @@ class ConstraintTypeParameterSymbol final : public Symbol {
   explicit ConstraintTypeParameterSymbol(Scope* enclosingScope);
   ~ConstraintTypeParameterSymbol() override;
 
-  [[nodiscard]] auto index() const -> int { return index_; }
-  void setIndex(int index) { index_ = index; }
+  [[nodiscard]] auto index() const -> int;
+  void setIndex(int index);
 
-  [[nodiscard]] auto depth() const -> int { return depth_; }
-  void setDepth(int depth) { depth_ = depth; }
+  [[nodiscard]] auto depth() const -> int;
+  void setDepth(int depth);
 
-  [[nodiscard]] auto isParameterPack() const -> bool {
-    return isParameterPack_;
-  }
-
-  void setParameterPack(bool isParameterPack) {
-    isParameterPack_ = isParameterPack;
-  }
+  [[nodiscard]] auto isParameterPack() const -> bool;
+  void setParameterPack(bool isParameterPack);
 
  private:
   int index_ = 0;
@@ -611,11 +592,8 @@ class EnumeratorSymbol final : public Symbol {
   explicit EnumeratorSymbol(Scope* enclosingScope);
   ~EnumeratorSymbol() override;
 
-  [[nodiscard]] auto value() const -> const std::optional<ConstValue>& {
-    return value_;
-  }
-
-  void setValue(const std::optional<ConstValue>& value) { value_ = value; }
+  [[nodiscard]] auto value() const -> const std::optional<ConstValue>&;
+  void setValue(const std::optional<ConstValue>& value);
 
  private:
   std::optional<ConstValue> value_;
