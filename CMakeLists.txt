@@ -57,7 +57,7 @@ endif()
 FetchContent_Declare(
     fmt
     GIT_REPOSITORY  https://github.com/fmtlib/fmt
-    GIT_TAG         10.2.0
+    GIT_TAG         10.2.1
     GIT_SHALLOW     1
 )
 
