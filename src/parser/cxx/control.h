@@ -189,6 +189,10 @@ class Control {
   [[nodiscard]] auto newEnumeratorSymbol(Scope* enclosingScope)
       -> EnumeratorSymbol*;
 
+  [[nodiscard]] auto instantiate(TranslationUnit* unit, Symbol* primaryTemplate,
+                                 const std::vector<TemplateArgument>& arguments)
+      -> Symbol*;
+
   // primary type categories
   [[nodiscard]] auto is_void(const Type* type) -> bool;
   [[nodiscard]] auto is_null_pointer(const Type* type) -> bool;

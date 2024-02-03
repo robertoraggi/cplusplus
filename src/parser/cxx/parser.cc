@@ -30,6 +30,7 @@
 #include <cxx/names.h>
 #include <cxx/private/format.h>
 #include <cxx/scope.h>
+#include <cxx/symbol_instantiation.h>
 #include <cxx/symbols.h>
 #include <cxx/token.h>
 #include <cxx/type_printer.h>
@@ -5560,32 +5561,27 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     return false;
   }
 
-  // component name
-  const Identifier* name = nullptr;
+  Symbol* symbol = nullptr;
 
-  if (auto templateId = dynamic_cast<SimpleTemplateIdAST*>(unqualifiedId)) {
-    name = templateId->identifier;
-    // todo: instantiate templateId->primaryTemplateSymbol
-  } else if (auto id = dynamic_cast<NameIdAST*>(unqualifiedId)) {
-    name = id->identifier;
+  if (auto templateId = ast_cast<SimpleTemplateIdAST>(unqualifiedId)) {
+    // todo
   } else {
-    return false;
+    auto name = ast_cast<NameIdAST>(unqualifiedId);
+    symbol = Lookup{scope_}(nestedNameSpecifier, name->identifier);
+
+    if (is_type(symbol)) {
+      specs.type = symbol->type();
+    } else {
+      if (config_.checkTypes) return false;
+    }
   }
 
-  Symbol* symbol = Lookup{scope_}(nestedNameSpecifier, name);
-
-  if (is_type(symbol)) {
-    specs.type = symbol->type();
-  } else {
-    if (config_.checkTypes) return false;
-  }
+  lookahead.commit();
 
   if (!specs.type) {
     specs.type = control_->getUnresolvedNameType(unit, nestedNameSpecifier,
                                                  unqualifiedId);
   }
-
-  lookahead.commit();
 
   auto ast = new (pool_) NamedTypeSpecifierAST();
   yyast = ast;
