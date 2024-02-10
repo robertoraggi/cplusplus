@@ -26,6 +26,13 @@
 
 namespace cxx {
 
+auto Symbol::next() const -> Symbol* {
+  for (auto sym = link_; sym; sym = sym->link_) {
+    if (sym->name_ == name_) return sym;
+  }
+  return nullptr;
+}
+
 auto Symbol::enclosingSymbol() const -> Symbol* {
   if (!enclosingScope_) return nullptr;
   return enclosingScope_->owner();

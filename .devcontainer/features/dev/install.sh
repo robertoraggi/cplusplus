@@ -12,7 +12,7 @@ apt-get -y purge --auto-remove cmake clang-* python3-lldb-*
 #
 wget https://apt.llvm.org/llvm.sh
 chmod +x llvm.sh
-./llvm.sh all
+./llvm.sh 17 all
 rm -f llvm.sh
 
 update-alternatives --install /usr/bin/clang clang /usr/bin/clang-17 100

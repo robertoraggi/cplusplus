@@ -57,8 +57,7 @@ class Symbol {
 
   [[nodiscard]] auto enclosingSymbol() const -> Symbol*;
 
-  [[nodiscard]] auto insertionPoint() const -> int { return insertionPoint_; }
-  void setInsertionPoint(int index) { insertionPoint_ = index; }
+  [[nodiscard]] auto next() const -> Symbol*;
 
 #define PROCESS_SYMBOL(S) \
   [[nodiscard]] auto is##S() const -> bool { return kind_ == SymbolKind::k##S; }
@@ -66,11 +65,13 @@ class Symbol {
 #undef PROCESS_SYMBOL
 
  private:
+  friend class Scope;
+
   SymbolKind kind_;
   const Name* name_ = nullptr;
   const Type* type_ = nullptr;
   Scope* enclosingScope_ = nullptr;
-  int insertionPoint_ = 0;
+  Symbol* link_ = nullptr;
 };
 
 class ScopedSymbol : public Symbol {

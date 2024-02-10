@@ -703,15 +703,14 @@ struct Parser::DeclareSymbol {
     if (auto f = symbol_cast<FunctionSymbol>(symbol)) {
       for (Symbol* candidate : scope_->get(symbol->name())) {
         if (auto currentFunction = symbol_cast<FunctionSymbol>(candidate)) {
-          scope_->removeSymbol(currentFunction);
-
           auto ovl =
               control()->newOverloadSetSymbol(candidate->enclosingScope());
           ovl->setName(symbol->name());
-          scope_->addSymbol(ovl);
+          scope_->replaceSymbol(currentFunction, ovl);
 
           ovl->addFunction(currentFunction);
           ovl->addFunction(f);
+
           return;
         }
 
@@ -4421,7 +4420,8 @@ auto Parser::enterOrCreateNamespace(const Name* name, bool isInline)
     auto resolved =
         parentScope->get(name) | std::views::filter(&Symbol::isNamespace);
     if (std::ranges::distance(resolved) == 1) {
-      namespaceSymbol = symbol_cast<NamespaceSymbol>(*begin(resolved));
+      namespaceSymbol =
+          symbol_cast<NamespaceSymbol>(*std::ranges::begin(resolved));
     }
   }
 
