@@ -49,4 +49,11 @@ CXX_FOR_EACH_NAME(PROCESS_NAME)
 
 using TemplateArgument = std::variant<const Type*, ConstValue, ExpressionAST*>;
 
+enum class IdentifierInfoKind {
+  kTypeTrait,
+};
+
+class IdentifierInfo;
+class TypeTraitIdentifierInfo;
+
 }  // namespace cxx

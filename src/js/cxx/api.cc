@@ -90,7 +90,10 @@ struct WrappedUnit {
 
   val getDiagnostics() const { return diagnosticsClient->messages; }
 
-  bool parse() { return unit->parse(); }
+  bool parse() {
+    unit->parse();
+    return true;
+  }
 };
 
 std::string getTokenText(std::intptr_t handle, std::intptr_t unitHandle) {

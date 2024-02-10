@@ -147,7 +147,7 @@ class ASTPrinter : ASTVisitor {
   void visit(AssignmentExpressionAST* ast) override;
   void visit(PackExpansionExpressionAST* ast) override;
   void visit(DesignatedInitializerClauseAST* ast) override;
-  void visit(TypeTraitsExpressionAST* ast) override;
+  void visit(TypeTraitExpressionAST* ast) override;
   void visit(ConditionExpressionAST* ast) override;
   void visit(EqualInitializerAST* ast) override;
   void visit(BracedInitListAST* ast) override;

@@ -186,7 +186,7 @@ class ThrowExpressionAST;
 class AssignmentExpressionAST;
 class PackExpansionExpressionAST;
 class DesignatedInitializerClauseAST;
-class TypeTraitsExpressionAST;
+class TypeTraitExpressionAST;
 class ConditionExpressionAST;
 class EqualInitializerAST;
 class BracedInitListAST;

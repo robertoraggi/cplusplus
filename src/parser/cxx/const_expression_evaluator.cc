@@ -548,7 +548,7 @@ auto ConstExpressionEvaluator::operator()(DesignatedInitializerClauseAST* ast)
   return std::nullopt;
 }
 
-auto ConstExpressionEvaluator::operator()(TypeTraitsExpressionAST* ast)
+auto ConstExpressionEvaluator::operator()(TypeTraitExpressionAST* ast)
     -> std::optional<ConstValue> {
   const Type* firstType = nullptr;
   const Type* secondType = nullptr;
@@ -562,127 +562,127 @@ auto ConstExpressionEvaluator::operator()(TypeTraitsExpressionAST* ast)
   }
 
   if (firstType) {
-    switch (ast->typeTraits) {
-      case BuiltinKind::T___IS_VOID:
+    switch (ast->typeTrait) {
+      case BuiltinTypeTraitKind::T___IS_VOID:
         return control()->is_void(firstType);
 
-      case BuiltinKind::T___IS_NULL_POINTER:
+      case BuiltinTypeTraitKind::T___IS_NULL_POINTER:
         return control()->is_null_pointer(firstType);
 
-      case BuiltinKind::T___IS_INTEGRAL:
+      case BuiltinTypeTraitKind::T___IS_INTEGRAL:
         return control()->is_integral(firstType);
 
-      case BuiltinKind::T___IS_FLOATING_POINT:
+      case BuiltinTypeTraitKind::T___IS_FLOATING_POINT:
         return control()->is_floating_point(firstType);
 
-      case BuiltinKind::T___IS_ARRAY:
+      case BuiltinTypeTraitKind::T___IS_ARRAY:
         return control()->is_array(firstType);
 
-      case BuiltinKind::T___IS_ENUM:
+      case BuiltinTypeTraitKind::T___IS_ENUM:
         return control()->is_enum(firstType);
 
-      case BuiltinKind::T___IS_SCOPED_ENUM:
+      case BuiltinTypeTraitKind::T___IS_SCOPED_ENUM:
         return control()->is_scoped_enum(firstType);
 
-      case BuiltinKind::T___IS_UNION:
+      case BuiltinTypeTraitKind::T___IS_UNION:
         return control()->is_union(firstType);
 
-      case BuiltinKind::T___IS_CLASS:
+      case BuiltinTypeTraitKind::T___IS_CLASS:
         return control()->is_class(firstType);
 
-      case BuiltinKind::T___IS_FUNCTION:
+      case BuiltinTypeTraitKind::T___IS_FUNCTION:
         return control()->is_function(firstType);
 
-      case BuiltinKind::T___IS_POINTER:
+      case BuiltinTypeTraitKind::T___IS_POINTER:
         return control()->is_pointer(firstType);
 
-      case BuiltinKind::T___IS_MEMBER_OBJECT_POINTER:
+      case BuiltinTypeTraitKind::T___IS_MEMBER_OBJECT_POINTER:
         return control()->is_member_object_pointer(firstType);
 
-      case BuiltinKind::T___IS_MEMBER_FUNCTION_POINTER:
+      case BuiltinTypeTraitKind::T___IS_MEMBER_FUNCTION_POINTER:
         return control()->is_member_function_pointer(firstType);
 
-      case BuiltinKind::T___IS_LVALUE_REFERENCE:
+      case BuiltinTypeTraitKind::T___IS_LVALUE_REFERENCE:
         return control()->is_lvalue_reference(firstType);
 
-      case BuiltinKind::T___IS_RVALUE_REFERENCE:
+      case BuiltinTypeTraitKind::T___IS_RVALUE_REFERENCE:
         return control()->is_rvalue_reference(firstType);
 
-      case BuiltinKind::T___IS_FUNDAMENTAL:
+      case BuiltinTypeTraitKind::T___IS_FUNDAMENTAL:
         return control()->is_fundamental(firstType);
 
-      case BuiltinKind::T___IS_ARITHMETIC:
+      case BuiltinTypeTraitKind::T___IS_ARITHMETIC:
         return control()->is_arithmetic(firstType);
 
-      case BuiltinKind::T___IS_SCALAR:
+      case BuiltinTypeTraitKind::T___IS_SCALAR:
         return control()->is_scalar(firstType);
 
-      case BuiltinKind::T___IS_OBJECT:
+      case BuiltinTypeTraitKind::T___IS_OBJECT:
         return control()->is_object(firstType);
 
-      case BuiltinKind::T___IS_COMPOUND:
+      case BuiltinTypeTraitKind::T___IS_COMPOUND:
         return control()->is_compound(firstType);
 
-      case BuiltinKind::T___IS_REFERENCE:
+      case BuiltinTypeTraitKind::T___IS_REFERENCE:
         return control()->is_reference(firstType);
 
-      case BuiltinKind::T___IS_MEMBER_POINTER:
+      case BuiltinTypeTraitKind::T___IS_MEMBER_POINTER:
         return control()->is_member_pointer(firstType);
 
-      case BuiltinKind::T___IS_BOUNDED_ARRAY:
+      case BuiltinTypeTraitKind::T___IS_BOUNDED_ARRAY:
         return control()->is_bounded_array(firstType);
 
-      case BuiltinKind::T___IS_UNBOUNDED_ARRAY:
+      case BuiltinTypeTraitKind::T___IS_UNBOUNDED_ARRAY:
         return control()->is_unbounded_array(firstType);
 
-      case BuiltinKind::T___IS_CONST:
+      case BuiltinTypeTraitKind::T___IS_CONST:
         return control()->is_const(firstType);
 
-      case BuiltinKind::T___IS_VOLATILE:
+      case BuiltinTypeTraitKind::T___IS_VOLATILE:
         return control()->is_volatile(firstType);
 
-      case BuiltinKind::T___IS_SIGNED:
+      case BuiltinTypeTraitKind::T___IS_SIGNED:
         return control()->is_signed(firstType);
 
-      case BuiltinKind::T___IS_UNSIGNED:
+      case BuiltinTypeTraitKind::T___IS_UNSIGNED:
         return control()->is_unsigned(firstType);
 
-      case BuiltinKind::T___IS_SAME:
-      case BuiltinKind::T___IS_SAME_AS: {
+      case BuiltinTypeTraitKind::T___IS_SAME:
+      case BuiltinTypeTraitKind::T___IS_SAME_AS: {
         if (!secondType) break;
         return control()->is_same(firstType, secondType);
       }
 
-      case BuiltinKind::T___IS_BASE_OF: {
+      case BuiltinTypeTraitKind::T___IS_BASE_OF: {
         if (!secondType) break;
         return control()->is_base_of(firstType, secondType);
       }
 
-      case BuiltinKind::T___HAS_UNIQUE_OBJECT_REPRESENTATIONS: {
+      case BuiltinTypeTraitKind::T___HAS_UNIQUE_OBJECT_REPRESENTATIONS: {
         break;
       }
 
-      case BuiltinKind::T___HAS_VIRTUAL_DESTRUCTOR: {
+      case BuiltinTypeTraitKind::T___HAS_VIRTUAL_DESTRUCTOR: {
         break;
       }
 
-      case BuiltinKind::T___IS_ABSTRACT: {
+      case BuiltinTypeTraitKind::T___IS_ABSTRACT: {
         break;
       }
 
-      case BuiltinKind::T___IS_AGGREGATE: {
+      case BuiltinTypeTraitKind::T___IS_AGGREGATE: {
         break;
       }
 
-      case BuiltinKind::T___IS_ASSIGNABLE: {
+      case BuiltinTypeTraitKind::T___IS_ASSIGNABLE: {
         break;
       }
 
-      case BuiltinKind::T___IS_EMPTY: {
+      case BuiltinTypeTraitKind::T___IS_EMPTY: {
         break;
       }
 
-      case BuiltinKind::T___IS_FINAL: {
+      case BuiltinTypeTraitKind::T___IS_FINAL: {
         if (auto classType =
                 type_cast<ClassType>(control()->remove_cv(firstType))) {
           return classType->symbol()->isFinal();
@@ -690,39 +690,35 @@ auto ConstExpressionEvaluator::operator()(TypeTraitsExpressionAST* ast)
         break;
       }
 
-      case BuiltinKind::T___IS_LAYOUT_COMPATIBLE: {
+      case BuiltinTypeTraitKind::T___IS_LAYOUT_COMPATIBLE: {
         break;
       }
 
-      case BuiltinKind::T___IS_LITERAL_TYPE: {
+      case BuiltinTypeTraitKind::T___IS_LITERAL_TYPE: {
         break;
       }
 
-      case BuiltinKind::T___IS_POD: {
+      case BuiltinTypeTraitKind::T___IS_POD: {
         break;
       }
 
-      case BuiltinKind::T___IS_POLYMORPHIC: {
+      case BuiltinTypeTraitKind::T___IS_POLYMORPHIC: {
         break;
       }
 
-      case BuiltinKind::T___IS_STANDARD_LAYOUT: {
+      case BuiltinTypeTraitKind::T___IS_STANDARD_LAYOUT: {
         break;
       }
 
-      case BuiltinKind::T___IS_SWAPPABLE_WITH: {
+      case BuiltinTypeTraitKind::T___IS_SWAPPABLE_WITH: {
         break;
       }
 
-      case BuiltinKind::T___IS_TRIVIAL: {
+      case BuiltinTypeTraitKind::T___IS_TRIVIAL: {
         break;
       }
 
-      case BuiltinKind::T___BUILTIN_BIT_CAST: {
-        break;
-      }
-
-      case BuiltinKind::T_IDENTIFIER: {
+      case BuiltinTypeTraitKind::T_NONE: {
         // not a builtin
         break;
       }

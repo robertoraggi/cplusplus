@@ -6310,9 +6310,9 @@ export class DesignatedInitializerClauseAST extends ExpressionAST {
 }
 
 /**
- * TypeTraitsExpressionAST node.
+ * TypeTraitExpressionAST node.
  */
-export class TypeTraitsExpressionAST extends ExpressionAST {
+export class TypeTraitExpressionAST extends ExpressionAST {
   /**
    * Traverse this node using the given visitor.
    * @param visitor the visitor.
@@ -6323,13 +6323,13 @@ export class TypeTraitsExpressionAST extends ExpressionAST {
     visitor: ASTVisitor<Context, Result>,
     context: Context,
   ): Result {
-    return visitor.visitTypeTraitsExpression(this, context);
+    return visitor.visitTypeTraitExpression(this, context);
   }
 
   /**
-   * Returns the location of the typeTraits token in this node
+   * Returns the location of the typeTrait token in this node
    */
-  getTypeTraitsToken(): Token | undefined {
+  getTypeTraitToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
   }
 
@@ -12703,7 +12703,7 @@ const AST_CONSTRUCTORS: Array<
   AssignmentExpressionAST,
   PackExpansionExpressionAST,
   DesignatedInitializerClauseAST,
-  TypeTraitsExpressionAST,
+  TypeTraitExpressionAST,
   ConditionExpressionAST,
   EqualInitializerAST,
   BracedInitListAST,

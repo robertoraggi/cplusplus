@@ -178,7 +178,7 @@ union Expression {
   AssignmentExpression,
   PackExpansionExpression,
   DesignatedInitializerClause,
-  TypeTraitsExpression,
+  TypeTraitExpression,
   ConditionExpression,
   EqualInitializer,
   BracedInitList,
@@ -1194,9 +1194,9 @@ table DesignatedInitializerClause /* ExpressionAST */ {
   identifier_loc: SourceLocation;
 }
 
-table TypeTraitsExpression /* ExpressionAST */ {
+table TypeTraitExpression /* ExpressionAST */ {
   type_id_list: [TypeId];
-  type_traits_loc: SourceLocation;
+  type_trait_loc: SourceLocation;
   lparen_loc: SourceLocation;
   rparen_loc: SourceLocation;
 }

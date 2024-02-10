@@ -149,10 +149,29 @@ struct Control::Private {
       constraintTypeParameterSymbols;
   std::forward_list<EnumeratorSymbol> enumeratorSymbols;
 
+  std::forward_list<TypeTraitIdentifierInfo> typeTraitIdentifierInfos;
+
   int anonymousIdCount = 0;
+
+  [[nodiscard]] auto getIdentifier(std::string_view name) -> const Identifier* {
+    if (auto it = identifiers.find(name); it != identifiers.end()) return &*it;
+    return &*identifiers.emplace(std::string(name)).first;
+  }
+
+  void initBuiltinTypeTraits() {
+#define PROCESS_BUILTIN(id, name) \
+  getIdentifier(name)->setInfo(   \
+      &typeTraitIdentifierInfos.emplace_front(BuiltinTypeTraitKind::T_##id));
+
+    FOR_EACH_BUILTIN_TYPE_TRAIT(PROCESS_BUILTIN)
+
+#undef PROCESS_BUILTIN
+  }
 };
 
-Control::Control() : d(std::make_unique<Private>(this)) {}
+Control::Control() : d(std::make_unique<Private>(this)) {
+  d->initBuiltinTypeTraits();
+}
 
 Control::~Control() = default;
 
@@ -219,9 +238,7 @@ auto Control::newAnonymousId(std::string_view base) -> const Identifier* {
 }
 
 auto Control::getIdentifier(std::string_view name) -> const Identifier* {
-  if (auto it = d->identifiers.find(name); it != d->identifiers.end())
-    return &*it;
-  return &*d->identifiers.emplace(std::string(name)).first;
+  return d->getIdentifier(name);
 }
 
 auto Control::getOperatorId(TokenKind op) -> const OperatorId* {

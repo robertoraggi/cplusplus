@@ -1373,13 +1373,13 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   }
 
   /**
-   * Visit a TypeTraitsExpression node.
+   * Visit a TypeTraitExpression node.
    *
    * @param node The node to visit.
    * @param context The context.
    */
-  visitTypeTraitsExpression(
-    node: ast.TypeTraitsExpressionAST,
+  visitTypeTraitExpression(
+    node: ast.TypeTraitExpressionAST,
     context: Context,
   ): void {
     for (const element of node.getTypeIdList()) {

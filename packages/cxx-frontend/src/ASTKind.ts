@@ -128,7 +128,7 @@ export enum ASTKind {
   AssignmentExpression,
   PackExpansionExpression,
   DesignatedInitializerClause,
-  TypeTraitsExpression,
+  TypeTraitExpression,
   ConditionExpression,
   EqualInitializer,
   BracedInitList,

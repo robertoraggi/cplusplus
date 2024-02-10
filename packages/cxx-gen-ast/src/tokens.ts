@@ -22,7 +22,6 @@ export const BASE_TOKENS: string[] = [
   "EOF_SYMBOL",
   "ERROR",
   "COMMENT",
-  "BUILTIN",
   "IDENTIFIER",
   "CHARACTER_LITERAL",
   "FLOATING_POINT_LITERAL",
@@ -175,9 +174,8 @@ export const KEYWORDS: string[] = [
   "volatile",
   "wchar_t",
   "while",
-  "_Atomic",
-  "_Complex",
   "__attribute__",
+  "__builtin_bit_cast",
   "__builtin_va_arg",
   "__builtin_va_list",
   "__complex__",
@@ -191,9 +189,9 @@ export const KEYWORDS: string[] = [
   "__restrict__",
   "__thread",
   "__underlying_type",
+  "_Atomic",
+  "_Complex",
 ];
-
-export const BUILTIN_CASTS: string[] = ["__builtin_bit_cast"];
 
 export const BUILTIN_TYPE_TRAITS: string[] = [
   "__has_unique_object_representations",

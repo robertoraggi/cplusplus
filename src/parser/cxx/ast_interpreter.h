@@ -424,7 +424,7 @@ class ASTInterpreter {
     [[nodiscard]] auto operator()(DesignatedInitializerClauseAST* ast)
         -> ExpressionResult;
 
-    [[nodiscard]] auto operator()(TypeTraitsExpressionAST* ast)
+    [[nodiscard]] auto operator()(TypeTraitExpressionAST* ast)
         -> ExpressionResult;
 
     [[nodiscard]] auto operator()(ConditionExpressionAST* ast)

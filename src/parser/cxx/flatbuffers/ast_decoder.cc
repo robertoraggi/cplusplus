@@ -370,9 +370,9 @@ auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
     case io::Expression_DesignatedInitializerClause:
       return decodeDesignatedInitializerClause(
           reinterpret_cast<const io::DesignatedInitializerClause*>(ptr));
-    case io::Expression_TypeTraitsExpression:
-      return decodeTypeTraitsExpression(
-          reinterpret_cast<const io::TypeTraitsExpression*>(ptr));
+    case io::Expression_TypeTraitExpression:
+      return decodeTypeTraitExpression(
+          reinterpret_cast<const io::TypeTraitExpression*>(ptr));
     case io::Expression_ConditionExpression:
       return decodeConditionExpression(
           reinterpret_cast<const io::ConditionExpression*>(ptr));
@@ -2287,11 +2287,11 @@ auto ASTDecoder::decodeDesignatedInitializerClause(
   return ast;
 }
 
-auto ASTDecoder::decodeTypeTraitsExpression(
-    const io::TypeTraitsExpression* node) -> TypeTraitsExpressionAST* {
+auto ASTDecoder::decodeTypeTraitExpression(const io::TypeTraitExpression* node)
+    -> TypeTraitExpressionAST* {
   if (!node) return nullptr;
 
-  auto ast = new (pool_) TypeTraitsExpressionAST();
+  auto ast = new (pool_) TypeTraitExpressionAST();
   if (node->type_id_list()) {
     auto* inserter = &ast->typeIdList;
     for (std::size_t i = 0; i < node->type_id_list()->size(); ++i) {

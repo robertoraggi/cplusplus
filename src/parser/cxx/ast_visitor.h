@@ -137,7 +137,7 @@ class ASTVisitor {
   virtual void visit(AssignmentExpressionAST* ast) = 0;
   virtual void visit(PackExpansionExpressionAST* ast) = 0;
   virtual void visit(DesignatedInitializerClauseAST* ast) = 0;
-  virtual void visit(TypeTraitsExpressionAST* ast) = 0;
+  virtual void visit(TypeTraitExpressionAST* ast) = 0;
   virtual void visit(ConditionExpressionAST* ast) = 0;
   virtual void visit(EqualInitializerAST* ast) = 0;
   virtual void visit(BracedInitListAST* ast) = 0;

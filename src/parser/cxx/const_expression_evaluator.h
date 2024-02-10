@@ -99,7 +99,7 @@ class ConstExpressionEvaluator {
   auto operator()(PackExpansionExpressionAST* ast) -> std::optional<ConstValue>;
   auto operator()(DesignatedInitializerClauseAST* ast)
       -> std::optional<ConstValue>;
-  auto operator()(TypeTraitsExpressionAST* ast) -> std::optional<ConstValue>;
+  auto operator()(TypeTraitExpressionAST* ast) -> std::optional<ConstValue>;
   auto operator()(ConditionExpressionAST* ast) -> std::optional<ConstValue>;
   auto operator()(EqualInitializerAST* ast) -> std::optional<ConstValue>;
   auto operator()(BracedInitListAST* ast) -> std::optional<ConstValue>;

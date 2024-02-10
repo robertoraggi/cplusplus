@@ -129,16 +129,14 @@ class TranslationUnit {
 
   [[nodiscard]] auto literal(SourceLocation loc) const -> const Literal*;
 
-  auto parse(const ParserConfiguration& config = {}) -> bool;
+  void parse(const ParserConfiguration& config = {});
 
   [[nodiscard]] auto load(std::span<const std::uint8_t> data) -> bool;
 
-  auto serialize(std::ostream& out) -> bool;
+  [[nodiscard]] auto serialize(std::ostream& out) -> bool;
 
-  auto serialize(
+  [[nodiscard]] auto serialize(
       const std::function<void(std::span<const std::uint8_t>)>& onData) -> bool;
-
-  void replaceWithIdentifier(SourceLocation loc);
 
  private:
   Control* control_;

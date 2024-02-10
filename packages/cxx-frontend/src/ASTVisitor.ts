@@ -1238,14 +1238,14 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
 
   /**
-   * Visit TypeTraitsExpression node.
+   * Visit TypeTraitExpression node.
    *
    * @param node The node to visit.
    * @param context The context.
    * @returns The result of the visit.
    */
-  abstract visitTypeTraitsExpression(
-    node: ast.TypeTraitsExpressionAST,
+  abstract visitTypeTraitExpression(
+    node: ast.TypeTraitExpressionAST,
     context: Context,
   ): Result;
 

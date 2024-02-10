@@ -84,9 +84,8 @@ void
 volatile
 wchar_t
 while
-_Atomic
-_Complex
 __attribute__
+__builtin_bit_cast
 __builtin_va_arg
 __builtin_va_list
 __complex__
@@ -100,6 +99,8 @@ __real__
 __restrict__
 __thread
 __underlying_type
+_Atomic
+_Complex
 
 and_eq
 and

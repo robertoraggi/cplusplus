@@ -3228,8 +3228,8 @@ void ASTEncoder::visit(DesignatedInitializerClauseAST* ast) {
   type_ = io::Expression_DesignatedInitializerClause;
 }
 
-void ASTEncoder::visit(TypeTraitsExpressionAST* ast) {
-  auto typeTraitsLoc = encodeSourceLocation(ast->typeTraitsLoc);
+void ASTEncoder::visit(TypeTraitExpressionAST* ast) {
+  auto typeTraitLoc = encodeSourceLocation(ast->typeTraitLoc);
 
   auto lparenLoc = encodeSourceLocation(ast->lparenLoc);
 
@@ -3243,14 +3243,14 @@ void ASTEncoder::visit(TypeTraitsExpressionAST* ast) {
 
   auto rparenLoc = encodeSourceLocation(ast->rparenLoc);
 
-  io::TypeTraitsExpression::Builder builder{fbb_};
-  builder.add_type_traits_loc(typeTraitsLoc.o);
+  io::TypeTraitExpression::Builder builder{fbb_};
+  builder.add_type_trait_loc(typeTraitLoc.o);
   builder.add_lparen_loc(lparenLoc.o);
   builder.add_type_id_list(typeIdListOffsetsVector);
   builder.add_rparen_loc(rparenLoc.o);
 
   offset_ = builder.Finish().Union();
-  type_ = io::Expression_TypeTraitsExpression;
+  type_ = io::Expression_TypeTraitExpression;
 }
 
 void ASTEncoder::visit(ConditionExpressionAST* ast) {

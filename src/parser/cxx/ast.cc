@@ -1648,19 +1648,19 @@ auto DesignatedInitializerClauseAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto TypeTraitsExpressionAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(typeTraitsLoc)) return loc;
+auto TypeTraitExpressionAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(typeTraitLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeIdList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   return {};
 }
 
-auto TypeTraitsExpressionAST::lastSourceLocation() -> SourceLocation {
+auto TypeTraitExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeIdList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(typeTraitsLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeTraitLoc)) return loc;
   return {};
 }
 

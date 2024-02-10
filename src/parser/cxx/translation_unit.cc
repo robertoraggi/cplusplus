@@ -120,11 +120,10 @@ void TranslationUnit::getTokenEndPosition(SourceLocation loc, unsigned* line,
   preprocessor_->getTokenEndPosition(tokenAt(loc), line, column, fileName);
 }
 
-auto TranslationUnit::parse(const ParserConfiguration& config) -> bool {
+void TranslationUnit::parse(const ParserConfiguration& config) {
   Parser parse(this);
   parse.setConfig(config);
   parse(ast_);
-  return true;
 }
 
 auto TranslationUnit::globalScope() const -> Scope* {
@@ -157,26 +156,6 @@ auto TranslationUnit::serialize(
 #else
   return false;
 #endif
-}
-
-void TranslationUnit::replaceWithIdentifier(SourceLocation keywordLoc) {
-  const auto kind = tokenKind(keywordLoc);
-  if (kind != TokenKind::T_BUILTIN) return;
-
-  const auto builtin = tokenAt(keywordLoc).value().intValue;
-
-  TokenValue value;
-  value.idValue =
-      control_->getIdentifier(Token::spell(static_cast<BuiltinKind>(builtin)));
-
-  for (size_t i = keywordLoc.index(); i < tokens_.size(); ++i) {
-    auto& tk = tokens_[i];
-
-    if (tk.is(TokenKind::T_BUILTIN) && tk.value().intValue == builtin) {
-      tk.setKind(TokenKind::T_IDENTIFIER);
-      tk.setValue(value);
-    }
-  }
 }
 
 }  // namespace cxx

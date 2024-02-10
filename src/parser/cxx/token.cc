@@ -40,7 +40,7 @@ std::string token_name[] = {
 
 std::string builtin_spell[] = {
 #define BUILTIN_SPELL(_, s) s,
-    "", FOR_EACH_BUILTIN(BUILTIN_SPELL)};
+    "", FOR_EACH_BUILTIN_TYPE_TRAIT(BUILTIN_SPELL)};
 #undef BUILTIN_SPELL
 
 }  // namespace
@@ -49,7 +49,7 @@ auto Token::spell(TokenKind kind) -> const std::string& {
   return token_spell[static_cast<int>(kind)];
 }
 
-auto Token::spell(BuiltinKind kind) -> const std::string& {
+auto Token::spell(BuiltinTypeTraitKind kind) -> const std::string& {
   return builtin_spell[static_cast<int>(kind)];
 }
 
@@ -69,9 +69,6 @@ auto Token::spell() const -> const std::string& {
     case TokenKind::T_COMMENT:
       return value_.literalValue ? value_.literalValue->value() : spell(kind());
 
-    case TokenKind::T_BUILTIN:
-      return spell(static_cast<BuiltinKind>(value_.intValue));
-
     default:
       return spell(kind());
   }  // switch
@@ -83,9 +80,9 @@ auto Token::name(TokenKind kind) -> const std::string& {
 
 auto Token::name() const -> const std::string& { return name(kind()); }
 
-auto Token::isBuiltinTypeTrait(BuiltinKind kind) -> bool {
-#define BUILTIN_TYPE_TRAIT(s, _) \
-  case BuiltinKind::T_##s:       \
+auto Token::isBuiltinTypeTrait(BuiltinTypeTraitKind kind) -> bool {
+#define BUILTIN_TYPE_TRAIT(s, _)    \
+  case BuiltinTypeTraitKind::T_##s: \
     return true;
 
   switch (kind) {
@@ -98,9 +95,15 @@ auto Token::isBuiltinTypeTrait(BuiltinKind kind) -> bool {
 #undef BUILTIN_TYPE_TRAIT
 }
 
+auto Token::builtinTypeTrait() const -> BuiltinTypeTraitKind {
+  if (!is(TokenKind::T_IDENTIFIER)) return BuiltinTypeTraitKind::T_NONE;
+  auto id = value_.idValue;
+  if (!id) return BuiltinTypeTraitKind::T_NONE;
+  return id->builtinTypeTrait();
+}
+
 auto Token::isBuiltinTypeTrait() const -> bool {
-  return is(TokenKind::T_BUILTIN) &&
-         isBuiltinTypeTrait(static_cast<BuiltinKind>(value_.intValue));
+  return builtinTypeTrait() != BuiltinTypeTraitKind::T_NONE;
 }
 
 }  // namespace cxx

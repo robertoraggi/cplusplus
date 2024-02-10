@@ -20,12 +20,23 @@
 
 #include <cxx/names.h>
 
-#include <cstdio>
-#include <cstdlib>
 #include <cstring>
 
 namespace cxx {
 
 Name::~Name() = default;
+
+auto Identifier::isBuiltinTypeTrait() const -> bool {
+  return builtinTypeTrait() != BuiltinTypeTraitKind::T_NONE;
+}
+
+auto Identifier::builtinTypeTrait() const -> BuiltinTypeTraitKind {
+  if (!info_) return BuiltinTypeTraitKind::T_NONE;
+
+  if (info_->kind() != IdentifierInfoKind::kTypeTrait)
+    return BuiltinTypeTraitKind::T_NONE;
+
+  return static_cast<const TypeTraitIdentifierInfo*>(info_)->trait();
+}
 
 }  // namespace cxx
