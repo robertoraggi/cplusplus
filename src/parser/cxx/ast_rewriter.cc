@@ -2308,13 +2308,13 @@ auto ASTRewriter::ExpressionVisitor::operator()(
   return copy;
 }
 
-auto ASTRewriter::ExpressionVisitor::operator()(TypeTraitsExpressionAST* ast)
+auto ASTRewriter::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = new (arena()) TypeTraitsExpressionAST{};
+  auto copy = new (arena()) TypeTraitExpressionAST{};
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
-  copy->typeTraitsLoc = ast->typeTraitsLoc;
+  copy->typeTraitLoc = ast->typeTraitLoc;
   copy->lparenLoc = ast->lparenLoc;
 
   if (auto it = ast->typeIdList) {
@@ -2327,7 +2327,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(TypeTraitsExpressionAST* ast)
   }
 
   copy->rparenLoc = ast->rparenLoc;
-  copy->typeTraits = ast->typeTraits;
+  copy->typeTrait = ast->typeTrait;
 
   return copy;
 }

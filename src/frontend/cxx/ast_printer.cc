@@ -1184,8 +1184,8 @@ void ASTPrinter::visit(DesignatedInitializerClauseAST* ast) {
   accept(ast->initializer, "initializer");
 }
 
-void ASTPrinter::visit(TypeTraitsExpressionAST* ast) {
-  out_ << cxx::format("{}\n", "type-traits-expression");
+void ASTPrinter::visit(TypeTraitExpressionAST* ast) {
+  out_ << cxx::format("{}\n", "type-trait-expression");
   if (ast->typeIdList) {
     ++indent_;
     out_ << cxx::format("{:{}}", "", indent_ * 2);

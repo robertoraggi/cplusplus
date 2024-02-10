@@ -74,6 +74,8 @@ class Token {
   explicit operator TokenKind() const;
 
   [[nodiscard]] auto is(TokenKind k) const -> bool;
+  [[nodiscard]] auto is(BuiltinTypeTraitKind k) const -> bool;
+
   [[nodiscard]] auto isNot(TokenKind k) const -> bool;
 
   [[nodiscard]] auto isOneOf(auto... tokens) const -> bool {
@@ -83,14 +85,17 @@ class Token {
   [[nodiscard]] auto spell() const -> const std::string&;
   [[nodiscard]] auto name() const -> const std::string&;
 
-  static auto spell(TokenKind kind) -> const std::string&;
-  static auto name(TokenKind kind) -> const std::string&;
+  [[nodiscard]] static auto spell(TokenKind kind) -> const std::string&;
+  [[nodiscard]] static auto name(TokenKind kind) -> const std::string&;
 
-  static auto spell(BuiltinKind kind) -> const std::string&;
+  [[nodiscard]] static auto spell(BuiltinTypeTraitKind kind)
+      -> const std::string&;
 
-  static auto isBuiltinTypeTrait(BuiltinKind kind) -> bool;
+  [[nodiscard]] static auto isBuiltinTypeTrait(BuiltinTypeTraitKind kind)
+      -> bool;
 
-  auto isBuiltinTypeTrait() const -> bool;
+  [[nodiscard]] auto isBuiltinTypeTrait() const -> bool;
+  [[nodiscard]] auto builtinTypeTrait() const -> BuiltinTypeTraitKind;
 
  private:
   std::uint64_t kind_ : 8;
@@ -153,5 +158,9 @@ inline Token::operator TokenKind() const { return kind(); }
 inline auto Token::is(TokenKind k) const -> bool { return kind() == k; }
 
 inline auto Token::isNot(TokenKind k) const -> bool { return kind() != k; }
+
+inline auto Token::is(BuiltinTypeTraitKind k) const -> bool {
+  return builtinTypeTrait() == k;
+}
 
 }  // namespace cxx

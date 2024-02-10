@@ -1277,7 +1277,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
   return {};
 }
 
-auto ASTInterpreter::ExpressionVisitor::operator()(TypeTraitsExpressionAST* ast)
+auto ASTInterpreter::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
     -> ExpressionResult {
   for (auto it = ast->typeIdList; it; it = it->next) {
     auto value = accept(it->value);

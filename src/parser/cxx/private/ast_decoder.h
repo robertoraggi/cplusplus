@@ -280,8 +280,8 @@ class ASTDecoder {
   auto decodeDesignatedInitializerClause(
       const io::DesignatedInitializerClause* node)
       -> DesignatedInitializerClauseAST*;
-  auto decodeTypeTraitsExpression(const io::TypeTraitsExpression* node)
-      -> TypeTraitsExpressionAST*;
+  auto decodeTypeTraitExpression(const io::TypeTraitExpression* node)
+      -> TypeTraitExpressionAST*;
   auto decodeConditionExpression(const io::ConditionExpression* node)
       -> ConditionExpressionAST*;
   auto decodeEqualInitializer(const io::EqualInitializer* node)

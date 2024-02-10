@@ -230,7 +230,7 @@ export enum ASTSlot {
   typeLoc = 208,
   typeSpecifier = 209,
   typeSpecifierList = 210,
-  typeTraitsLoc = 211,
+  typeTraitLoc = 211,
   typedefLoc = 212,
   typeidLoc = 213,
   typenameLoc = 214,

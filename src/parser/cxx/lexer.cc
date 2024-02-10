@@ -25,7 +25,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "builtins-priv.h"
 #include "keywords-priv.h"
 
 namespace cxx {
@@ -211,13 +210,6 @@ auto Lexer::readToken() -> TokenKind {
               classify(text_.c_str(), static_cast<int>(text_.length()));
           keyword != TokenKind::T_IDENTIFIER) {
         return keyword;
-      }
-
-      if (auto builtin =
-              isBuiltin(text_.c_str(), static_cast<int>(text_.length()));
-          builtin != BuiltinKind::T_IDENTIFIER) {
-        tokenValue_.intValue = static_cast<int>(builtin);
-        return TokenKind::T_BUILTIN;
       }
 
       return TokenKind::T_IDENTIFIER;
@@ -579,10 +571,6 @@ auto Lexer::skipSpaces() -> bool {
 
 auto Lexer::classifyKeyword(const std::string_view& text) -> TokenKind {
   return classify(text.data(), static_cast<int>(text.size()));
-}
-
-auto Lexer::classifyBuiltin(const std::string_view& text) -> BuiltinKind {
-  return isBuiltin(text.data(), static_cast<int>(text.size()));
 }
 
 void Lexer::clearBuffer() { buffer_.clear(); }

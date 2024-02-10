@@ -133,7 +133,7 @@ enum struct ASTKind {
   AssignmentExpression,
   PackExpansionExpression,
   DesignatedInitializerClause,
-  TypeTraitsExpression,
+  TypeTraitExpression,
   ConditionExpression,
   EqualInitializer,
   BracedInitList,

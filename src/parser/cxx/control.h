@@ -43,194 +43,220 @@ class Control {
   [[nodiscard]] auto memoryLayout() const -> MemoryLayout*;
   void setMemoryLayout(MemoryLayout* memoryLayout);
 
-  auto integerLiteral(std::string_view spelling) -> const IntegerLiteral*;
-  auto floatLiteral(std::string_view spelling) -> const FloatLiteral*;
-  auto stringLiteral(std::string_view spelling) -> const StringLiteral*;
-  auto charLiteral(std::string_view spelling) -> const CharLiteral*;
-  auto wideStringLiteral(std::string_view spelling) -> const WideStringLiteral*;
-  auto utf8StringLiteral(std::string_view spelling) -> const Utf8StringLiteral*;
-  auto utf16StringLiteral(std::string_view spelling)
+  [[nodiscard]] auto integerLiteral(std::string_view spelling)
+      -> const IntegerLiteral*;
+  [[nodiscard]] auto floatLiteral(std::string_view spelling)
+      -> const FloatLiteral*;
+  [[nodiscard]] auto stringLiteral(std::string_view spelling)
+      -> const StringLiteral*;
+  [[nodiscard]] auto charLiteral(std::string_view spelling)
+      -> const CharLiteral*;
+  [[nodiscard]] auto wideStringLiteral(std::string_view spelling)
+      -> const WideStringLiteral*;
+  [[nodiscard]] auto utf8StringLiteral(std::string_view spelling)
+      -> const Utf8StringLiteral*;
+  [[nodiscard]] auto utf16StringLiteral(std::string_view spelling)
       -> const Utf16StringLiteral*;
-  auto utf32StringLiteral(std::string_view spelling)
+  [[nodiscard]] auto utf32StringLiteral(std::string_view spelling)
       -> const Utf32StringLiteral*;
-  auto commentLiteral(std::string_view spelling) -> const CommentLiteral*;
+  [[nodiscard]] auto commentLiteral(std::string_view spelling)
+      -> const CommentLiteral*;
 
-  auto newAnonymousId(std::string_view base) -> const Identifier*;
-  auto getIdentifier(std::string_view name) -> const Identifier*;
-  auto getOperatorId(TokenKind op) -> const OperatorId*;
-  auto getDestructorId(const Name*) -> const DestructorId*;
-  auto getLiteralOperatorId(std::string_view name) -> const LiteralOperatorId*;
-  auto getConversionFunctionId(const Type* type) -> const ConversionFunctionId*;
-  auto getTemplateId(const Name* name, std::vector<TemplateArgument> arguments)
+  [[nodiscard]] auto newAnonymousId(std::string_view base) -> const Identifier*;
+  [[nodiscard]] auto getIdentifier(std::string_view name) -> const Identifier*;
+  [[nodiscard]] auto getOperatorId(TokenKind op) -> const OperatorId*;
+  [[nodiscard]] auto getDestructorId(const Name*) -> const DestructorId*;
+  [[nodiscard]] auto getLiteralOperatorId(std::string_view name)
+      -> const LiteralOperatorId*;
+  [[nodiscard]] auto getConversionFunctionId(const Type* type)
+      -> const ConversionFunctionId*;
+  [[nodiscard]] auto getTemplateId(const Name* name,
+                                   std::vector<TemplateArgument> arguments)
       -> const TemplateId*;
 
-  auto getSizeType() -> const Type*;
+  [[nodiscard]] auto getSizeType() -> const Type*;
 
-  auto getVoidType() -> const VoidType*;
-  auto getNullptrType() -> const NullptrType*;
-  auto getDecltypeAutoType() -> const DecltypeAutoType*;
-  auto getAutoType() -> const AutoType*;
-  auto getBoolType() -> const BoolType*;
-  auto getSignedCharType() -> const SignedCharType*;
-  auto getShortIntType() -> const ShortIntType*;
-  auto getIntType() -> const IntType*;
-  auto getLongIntType() -> const LongIntType*;
-  auto getLongLongIntType() -> const LongLongIntType*;
-  auto getUnsignedCharType() -> const UnsignedCharType*;
-  auto getUnsignedShortIntType() -> const UnsignedShortIntType*;
-  auto getUnsignedIntType() -> const UnsignedIntType*;
-  auto getUnsignedLongIntType() -> const UnsignedLongIntType*;
-  auto getUnsignedLongLongIntType() -> const UnsignedLongLongIntType*;
-  auto getCharType() -> const CharType*;
-  auto getChar8Type() -> const Char8Type*;
-  auto getChar16Type() -> const Char16Type*;
-  auto getChar32Type() -> const Char32Type*;
-  auto getWideCharType() -> const WideCharType*;
-  auto getFloatType() -> const FloatType*;
-  auto getDoubleType() -> const DoubleType*;
-  auto getLongDoubleType() -> const LongDoubleType*;
-  auto getQualType(const Type* elementType, CvQualifiers cvQualifiers)
+  [[nodiscard]] auto getVoidType() -> const VoidType*;
+  [[nodiscard]] auto getNullptrType() -> const NullptrType*;
+  [[nodiscard]] auto getDecltypeAutoType() -> const DecltypeAutoType*;
+  [[nodiscard]] auto getAutoType() -> const AutoType*;
+  [[nodiscard]] auto getBoolType() -> const BoolType*;
+  [[nodiscard]] auto getSignedCharType() -> const SignedCharType*;
+  [[nodiscard]] auto getShortIntType() -> const ShortIntType*;
+  [[nodiscard]] auto getIntType() -> const IntType*;
+  [[nodiscard]] auto getLongIntType() -> const LongIntType*;
+  [[nodiscard]] auto getLongLongIntType() -> const LongLongIntType*;
+  [[nodiscard]] auto getUnsignedCharType() -> const UnsignedCharType*;
+  [[nodiscard]] auto getUnsignedShortIntType() -> const UnsignedShortIntType*;
+  [[nodiscard]] auto getUnsignedIntType() -> const UnsignedIntType*;
+  [[nodiscard]] auto getUnsignedLongIntType() -> const UnsignedLongIntType*;
+  [[nodiscard]] auto getUnsignedLongLongIntType()
+      -> const UnsignedLongLongIntType*;
+  [[nodiscard]] auto getCharType() -> const CharType*;
+  [[nodiscard]] auto getChar8Type() -> const Char8Type*;
+  [[nodiscard]] auto getChar16Type() -> const Char16Type*;
+  [[nodiscard]] auto getChar32Type() -> const Char32Type*;
+  [[nodiscard]] auto getWideCharType() -> const WideCharType*;
+  [[nodiscard]] auto getFloatType() -> const FloatType*;
+  [[nodiscard]] auto getDoubleType() -> const DoubleType*;
+  [[nodiscard]] auto getLongDoubleType() -> const LongDoubleType*;
+  [[nodiscard]] auto getQualType(const Type* elementType,
+                                 CvQualifiers cvQualifiers) -> const QualType*;
+  [[nodiscard]] auto getConstType(const Type* elementType) -> const QualType*;
+  [[nodiscard]] auto getVolatileType(const Type* elementType)
       -> const QualType*;
-  auto getConstType(const Type* elementType) -> const QualType*;
-  auto getVolatileType(const Type* elementType) -> const QualType*;
-  auto getConstVolatileType(const Type* elementType) -> const QualType*;
-  auto getBoundedArrayType(const Type* elementType, std::size_t size)
+  [[nodiscard]] auto getConstVolatileType(const Type* elementType)
+      -> const QualType*;
+  [[nodiscard]] auto getBoundedArrayType(const Type* elementType,
+                                         std::size_t size)
       -> const BoundedArrayType*;
-  auto getUnboundedArrayType(const Type* elementType)
+  [[nodiscard]] auto getUnboundedArrayType(const Type* elementType)
       -> const UnboundedArrayType*;
-  auto getPointerType(const Type* elementType) -> const PointerType*;
-  auto getLvalueReferenceType(const Type* elementType)
+  [[nodiscard]] auto getPointerType(const Type* elementType)
+      -> const PointerType*;
+  [[nodiscard]] auto getLvalueReferenceType(const Type* elementType)
       -> const LvalueReferenceType*;
-  auto getRvalueReferenceType(const Type* elementType)
+  [[nodiscard]] auto getRvalueReferenceType(const Type* elementType)
       -> const RvalueReferenceType*;
-  auto getOverloadSetType(OverloadSetSymbol* symbol) -> const OverloadSetType*;
-  auto getFunctionType(const Type* returnType,
-                       std::vector<const Type*> parameterTypes,
-                       bool isVariadic = false,
-                       CvQualifiers cvQualifiers = CvQualifiers::kNone,
-                       RefQualifier refQualifier = RefQualifier::kNone,
-                       bool isNoexcept = false) -> const FunctionType*;
-  auto getMemberObjectPointerType(const ClassType* classType,
-                                  const Type* elementType)
+  [[nodiscard]] auto getOverloadSetType(OverloadSetSymbol* symbol)
+      -> const OverloadSetType*;
+  [[nodiscard]] auto getFunctionType(
+      const Type* returnType, std::vector<const Type*> parameterTypes,
+      bool isVariadic = false, CvQualifiers cvQualifiers = CvQualifiers::kNone,
+      RefQualifier refQualifier = RefQualifier::kNone, bool isNoexcept = false)
+      -> const FunctionType*;
+  [[nodiscard]] auto getMemberObjectPointerType(const ClassType* classType,
+                                                const Type* elementType)
       -> const MemberObjectPointerType*;
-  auto getMemberFunctionPointerType(const ClassType* classType,
-                                    const FunctionType* functionType)
+  [[nodiscard]] auto getMemberFunctionPointerType(
+      const ClassType* classType, const FunctionType* functionType)
       -> const MemberFunctionPointerType*;
-  auto getTypeParameterType(TypeParameterSymbol* symbol)
+  [[nodiscard]] auto getTypeParameterType(TypeParameterSymbol* symbol)
       -> const TypeParameterType*;
-  auto getTemplateTypeParameterType(TemplateTypeParameterSymbol* symbol)
-      -> const TemplateTypeParameterType*;
-  auto getUnresolvedNameType(TranslationUnit* unit,
-                             NestedNameSpecifierAST* nestedNameSpecifier,
-                             UnqualifiedIdAST* unqualifiedId)
-      -> const UnresolvedNameType*;
-  auto getUnresolvedBoundedArrayType(TranslationUnit* unit,
-                                     const Type* elementType,
-                                     ExpressionAST* sizeExpression)
-      -> const UnresolvedBoundedArrayType*;
-  auto getUnresolvedUnderlyingType(TranslationUnit* unit, TypeIdAST* typeId)
+  [[nodiscard]] auto getTemplateTypeParameterType(
+      TemplateTypeParameterSymbol* symbol) -> const TemplateTypeParameterType*;
+  [[nodiscard]] auto getUnresolvedNameType(
+      TranslationUnit* unit, NestedNameSpecifierAST* nestedNameSpecifier,
+      UnqualifiedIdAST* unqualifiedId) -> const UnresolvedNameType*;
+  [[nodiscard]] auto getUnresolvedBoundedArrayType(
+      TranslationUnit* unit, const Type* elementType,
+      ExpressionAST* sizeExpression) -> const UnresolvedBoundedArrayType*;
+  [[nodiscard]] auto getUnresolvedUnderlyingType(TranslationUnit* unit,
+                                                 TypeIdAST* typeId)
       -> const UnresolvedUnderlyingType*;
 
-  auto getClassType(ClassSymbol* symbol) -> const ClassType*;
-  auto getNamespaceType(NamespaceSymbol* symbol) -> const NamespaceType*;
-  auto getEnumType(EnumSymbol* symbol) -> const EnumType*;
-  auto getScopedEnumType(ScopedEnumSymbol* symbol) -> const ScopedEnumType*;
+  [[nodiscard]] auto getClassType(ClassSymbol* symbol) -> const ClassType*;
+  [[nodiscard]] auto getNamespaceType(NamespaceSymbol* symbol)
+      -> const NamespaceType*;
+  [[nodiscard]] auto getEnumType(EnumSymbol* symbol) -> const EnumType*;
+  [[nodiscard]] auto getScopedEnumType(ScopedEnumSymbol* symbol)
+      -> const ScopedEnumType*;
 
-  auto newNamespaceSymbol(Scope* enclosingScope) -> NamespaceSymbol*;
-  auto newConceptSymbol(Scope* enclosingScope) -> ConceptSymbol*;
-  auto newBaseClassSymbol(Scope* enclosingScope) -> BaseClassSymbol*;
-  auto newClassSymbol(Scope* enclosingScope) -> ClassSymbol*;
-  auto newEnumSymbol(Scope* enclosingScope) -> EnumSymbol*;
-  auto newScopedEnumSymbol(Scope* enclosingScope) -> ScopedEnumSymbol*;
-  auto newOverloadSetSymbol(Scope* enclosingScope) -> OverloadSetSymbol*;
-  auto newFunctionSymbol(Scope* enclosingScope) -> FunctionSymbol*;
-  auto newLambdaSymbol(Scope* enclosingScope) -> LambdaSymbol*;
-  auto newFunctionParametersSymbol(Scope* enclosingScope)
+  [[nodiscard]] auto newNamespaceSymbol(Scope* enclosingScope)
+      -> NamespaceSymbol*;
+  [[nodiscard]] auto newConceptSymbol(Scope* enclosingScope) -> ConceptSymbol*;
+  [[nodiscard]] auto newBaseClassSymbol(Scope* enclosingScope)
+      -> BaseClassSymbol*;
+  [[nodiscard]] auto newClassSymbol(Scope* enclosingScope) -> ClassSymbol*;
+  [[nodiscard]] auto newEnumSymbol(Scope* enclosingScope) -> EnumSymbol*;
+  [[nodiscard]] auto newScopedEnumSymbol(Scope* enclosingScope)
+      -> ScopedEnumSymbol*;
+  [[nodiscard]] auto newOverloadSetSymbol(Scope* enclosingScope)
+      -> OverloadSetSymbol*;
+  [[nodiscard]] auto newFunctionSymbol(Scope* enclosingScope)
+      -> FunctionSymbol*;
+  [[nodiscard]] auto newLambdaSymbol(Scope* enclosingScope) -> LambdaSymbol*;
+  [[nodiscard]] auto newFunctionParametersSymbol(Scope* enclosingScope)
       -> FunctionParametersSymbol*;
-  auto newTemplateParametersSymbol(Scope* enclosingScope)
+  [[nodiscard]] auto newTemplateParametersSymbol(Scope* enclosingScope)
       -> TemplateParametersSymbol*;
-  auto newBlockSymbol(Scope* enclosingScope) -> BlockSymbol*;
-  auto newTypeAliasSymbol(Scope* enclosingScope) -> TypeAliasSymbol*;
-  auto newVariableSymbol(Scope* enclosingScope) -> VariableSymbol*;
-  auto newFieldSymbol(Scope* enclosingScope) -> FieldSymbol*;
-  auto newParameterSymbol(Scope* enclosingScope) -> ParameterSymbol*;
-  auto newTypeParameterSymbol(Scope* enclosingScope) -> TypeParameterSymbol*;
-  auto newNonTypeParameterSymbol(Scope* enclosingScope)
+  [[nodiscard]] auto newBlockSymbol(Scope* enclosingScope) -> BlockSymbol*;
+  [[nodiscard]] auto newTypeAliasSymbol(Scope* enclosingScope)
+      -> TypeAliasSymbol*;
+  [[nodiscard]] auto newVariableSymbol(Scope* enclosingScope)
+      -> VariableSymbol*;
+  [[nodiscard]] auto newFieldSymbol(Scope* enclosingScope) -> FieldSymbol*;
+  [[nodiscard]] auto newParameterSymbol(Scope* enclosingScope)
+      -> ParameterSymbol*;
+  [[nodiscard]] auto newTypeParameterSymbol(Scope* enclosingScope)
+      -> TypeParameterSymbol*;
+  [[nodiscard]] auto newNonTypeParameterSymbol(Scope* enclosingScope)
       -> NonTypeParameterSymbol*;
-  auto newTemplateTypeParameterSymbol(Scope* enclosingScope)
+  [[nodiscard]] auto newTemplateTypeParameterSymbol(Scope* enclosingScope)
       -> TemplateTypeParameterSymbol*;
-  auto newConstraintTypeParameterSymbol(Scope* enclosingScope)
+  [[nodiscard]] auto newConstraintTypeParameterSymbol(Scope* enclosingScope)
       -> ConstraintTypeParameterSymbol*;
-  auto newEnumeratorSymbol(Scope* enclosingScope) -> EnumeratorSymbol*;
+  [[nodiscard]] auto newEnumeratorSymbol(Scope* enclosingScope)
+      -> EnumeratorSymbol*;
 
   // primary type categories
-  auto is_void(const Type* type) -> bool;
-  auto is_null_pointer(const Type* type) -> bool;
-  auto is_integral(const Type* type) -> bool;
-  auto is_floating_point(const Type* type) -> bool;
-  auto is_array(const Type* type) -> bool;
-  auto is_enum(const Type* type) -> bool;
-  auto is_union(const Type* type) -> bool;
-  auto is_class(const Type* type) -> bool;
-  auto is_function(const Type* type) -> bool;
-  auto is_pointer(const Type* type) -> bool;
-  auto is_lvalue_reference(const Type* type) -> bool;
-  auto is_rvalue_reference(const Type* type) -> bool;
-  auto is_member_object_pointer(const Type* type) -> bool;
-  auto is_member_function_pointer(const Type* type) -> bool;
-  auto is_complete(const Type* type) -> bool;
+  [[nodiscard]] auto is_void(const Type* type) -> bool;
+  [[nodiscard]] auto is_null_pointer(const Type* type) -> bool;
+  [[nodiscard]] auto is_integral(const Type* type) -> bool;
+  [[nodiscard]] auto is_floating_point(const Type* type) -> bool;
+  [[nodiscard]] auto is_array(const Type* type) -> bool;
+  [[nodiscard]] auto is_enum(const Type* type) -> bool;
+  [[nodiscard]] auto is_union(const Type* type) -> bool;
+  [[nodiscard]] auto is_class(const Type* type) -> bool;
+  [[nodiscard]] auto is_function(const Type* type) -> bool;
+  [[nodiscard]] auto is_pointer(const Type* type) -> bool;
+  [[nodiscard]] auto is_lvalue_reference(const Type* type) -> bool;
+  [[nodiscard]] auto is_rvalue_reference(const Type* type) -> bool;
+  [[nodiscard]] auto is_member_object_pointer(const Type* type) -> bool;
+  [[nodiscard]] auto is_member_function_pointer(const Type* type) -> bool;
+  [[nodiscard]] auto is_complete(const Type* type) -> bool;
 
   // composite type categories
-  auto is_integer(const Type* type) -> bool;
-  auto is_integral_or_unscoped_enum(const Type* type) -> bool;
-  auto is_arithmetic_or_unscoped_enum(const Type* type) -> bool;
-  auto is_fundamental(const Type* type) -> bool;
-  auto is_arithmetic(const Type* type) -> bool;
-  auto is_scalar(const Type* type) -> bool;
-  auto is_object(const Type* type) -> bool;
-  auto is_compound(const Type* type) -> bool;
-  auto is_reference(const Type* type) -> bool;
-  auto is_member_pointer(const Type* type) -> bool;
-  auto is_class_or_union(const Type* type) -> bool;
+  [[nodiscard]] auto is_integer(const Type* type) -> bool;
+  [[nodiscard]] auto is_integral_or_unscoped_enum(const Type* type) -> bool;
+  [[nodiscard]] auto is_arithmetic_or_unscoped_enum(const Type* type) -> bool;
+  [[nodiscard]] auto is_fundamental(const Type* type) -> bool;
+  [[nodiscard]] auto is_arithmetic(const Type* type) -> bool;
+  [[nodiscard]] auto is_scalar(const Type* type) -> bool;
+  [[nodiscard]] auto is_object(const Type* type) -> bool;
+  [[nodiscard]] auto is_compound(const Type* type) -> bool;
+  [[nodiscard]] auto is_reference(const Type* type) -> bool;
+  [[nodiscard]] auto is_member_pointer(const Type* type) -> bool;
+  [[nodiscard]] auto is_class_or_union(const Type* type) -> bool;
 
   // type properties
-  auto is_const(const Type* type) -> bool;
-  auto is_volatile(const Type* type) -> bool;
-  auto is_signed(const Type* type) -> bool;
-  auto is_unsigned(const Type* type) -> bool;
-  auto is_bounded_array(const Type* type) -> bool;
-  auto is_unbounded_array(const Type* type) -> bool;
-  auto is_scoped_enum(const Type* type) -> bool;
+  [[nodiscard]] auto is_const(const Type* type) -> bool;
+  [[nodiscard]] auto is_volatile(const Type* type) -> bool;
+  [[nodiscard]] auto is_signed(const Type* type) -> bool;
+  [[nodiscard]] auto is_unsigned(const Type* type) -> bool;
+  [[nodiscard]] auto is_bounded_array(const Type* type) -> bool;
+  [[nodiscard]] auto is_unbounded_array(const Type* type) -> bool;
+  [[nodiscard]] auto is_scoped_enum(const Type* type) -> bool;
 
   // references
-  auto remove_reference(const Type* type) -> const Type*;
-  auto add_lvalue_reference(const Type* type) -> const Type*;
-  auto add_rvalue_reference(const Type* type) -> const Type*;
+  [[nodiscard]] auto remove_reference(const Type* type) -> const Type*;
+  [[nodiscard]] auto add_lvalue_reference(const Type* type) -> const Type*;
+  [[nodiscard]] auto add_rvalue_reference(const Type* type) -> const Type*;
 
   // arrays
-  auto remove_extent(const Type* type) -> const Type*;
+  [[nodiscard]] auto remove_extent(const Type* type) -> const Type*;
 
   // cv qualifiers
-  auto remove_cv(const Type* type) -> const Type*;
-  auto remove_cvref(const Type* type) -> const Type*;
-  auto add_const_ref(const Type* type) -> const Type*;
-  auto add_const(const Type* type) -> const Type*;
-  auto add_volatile(const Type* type) -> const Type*;
-  auto get_cv_qualifiers(const Type* type) -> CvQualifiers;
+  [[nodiscard]] auto remove_cv(const Type* type) -> const Type*;
+  [[nodiscard]] auto remove_cvref(const Type* type) -> const Type*;
+  [[nodiscard]] auto add_const_ref(const Type* type) -> const Type*;
+  [[nodiscard]] auto add_const(const Type* type) -> const Type*;
+  [[nodiscard]] auto add_volatile(const Type* type) -> const Type*;
+  [[nodiscard]] auto get_cv_qualifiers(const Type* type) -> CvQualifiers;
 
   // pointers
-  auto remove_pointer(const Type* type) -> const Type*;
-  auto add_pointer(const Type* type) -> const Type*;
+  [[nodiscard]] auto remove_pointer(const Type* type) -> const Type*;
+  [[nodiscard]] auto add_pointer(const Type* type) -> const Type*;
 
   // functions
-  auto remove_noexcept(const Type* type) -> const Type*;
+  [[nodiscard]] auto remove_noexcept(const Type* type) -> const Type*;
 
   // classes
-  auto is_base_of(const Type* base, const Type* derived) -> bool;
+  [[nodiscard]] auto is_base_of(const Type* base, const Type* derived) -> bool;
 
   // type relationships
-  auto is_same(const Type* a, const Type* b) -> bool;
-  auto decay(const Type* type) -> const Type*;
+  [[nodiscard]] auto is_same(const Type* a, const Type* b) -> bool;
+  [[nodiscard]] auto decay(const Type* type) -> const Type*;
 
  private:
   struct Private;

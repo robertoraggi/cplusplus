@@ -257,7 +257,8 @@ class Parser final {
   [[nodiscard]] auto parse_typename_expression(ExpressionAST*& yyast,
                                                const ExprContext& ctx) -> bool;
   [[nodiscard]] auto parse_type_traits_op(SourceLocation& loc,
-                                          BuiltinKind& builtinKind) -> bool;
+                                          BuiltinTypeTraitKind& builtinKind)
+      -> bool;
   [[nodiscard]] auto parse_va_arg_expression(ExpressionAST*& yyast,
                                              const ExprContext& ctx) -> bool;
   [[nodiscard]] auto parse_builtin_call_expression(ExpressionAST*& yyast,
@@ -756,11 +757,10 @@ class Parser final {
     return LA(n).is(tk) && lookatHelper(n + 1, rest...);
   }
 
-  [[nodiscard]] auto lookatHelper(int n, BuiltinKind bt, auto... rest) const {
+  [[nodiscard]] auto lookatHelper(int n, BuiltinTypeTraitKind bt,
+                                  auto... rest) const {
     const auto& tk = LA(n);
-    return tk.is(TokenKind::T_BUILTIN) &&
-           static_cast<BuiltinKind>(tk.value().intValue) == bt &&
-           lookatHelper(n + 1, rest...);
+    return tk.is(bt) && lookatHelper(n + 1, rest...);
   }
 
   [[nodiscard]] auto LA(int n = 0) const -> const Token&;

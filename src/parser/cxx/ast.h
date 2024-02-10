@@ -1992,17 +1992,17 @@ class DesignatedInitializerClauseAST final : public ExpressionAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class TypeTraitsExpressionAST final : public ExpressionAST {
+class TypeTraitExpressionAST final : public ExpressionAST {
  public:
-  static constexpr ASTKind Kind = ASTKind::TypeTraitsExpression;
+  static constexpr ASTKind Kind = ASTKind::TypeTraitExpression;
 
-  TypeTraitsExpressionAST() : ExpressionAST(Kind) {}
+  TypeTraitExpressionAST() : ExpressionAST(Kind) {}
 
-  SourceLocation typeTraitsLoc;
+  SourceLocation typeTraitLoc;
   SourceLocation lparenLoc;
   List<TypeIdAST*>* typeIdList = nullptr;
   SourceLocation rparenLoc;
-  BuiltinKind typeTraits = BuiltinKind::T_IDENTIFIER;
+  BuiltinTypeTraitKind typeTrait = BuiltinTypeTraitKind::T_NONE;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -4352,9 +4352,9 @@ auto visit(Visitor&& visitor, ExpressionAST* ast) {
     case DesignatedInitializerClauseAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<DesignatedInitializerClauseAST*>(ast));
-    case TypeTraitsExpressionAST::Kind:
+    case TypeTraitExpressionAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
-                         static_cast<TypeTraitsExpressionAST*>(ast));
+                         static_cast<TypeTraitExpressionAST*>(ast));
     case ConditionExpressionAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<ConditionExpressionAST*>(ast));

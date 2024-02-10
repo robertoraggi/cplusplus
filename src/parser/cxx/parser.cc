@@ -2502,7 +2502,7 @@ auto Parser::parse_cpp_cast_expression(ExpressionAST*& yyast,
 
 auto Parser::parse_builtin_bit_cast_expression(ExpressionAST*& yyast,
                                                const ExprContext& ctx) -> bool {
-  if (!lookat(BuiltinKind::T___BUILTIN_BIT_CAST)) return false;
+  if (!lookat(TokenKind::T___BUILTIN_BIT_CAST)) return false;
 
   auto ast = new (pool_) BuiltinBitCastExpressionAST();
   yyast = ast;
@@ -2689,10 +2689,11 @@ auto Parser::parse_typename_expression(ExpressionAST*& yyast,
   return true;
 }
 
-auto Parser::parse_type_traits_op(SourceLocation& loc, BuiltinKind& builtinKind)
-    -> bool {
-  if (!LA().isBuiltinTypeTrait()) return false;
-  builtinKind = static_cast<BuiltinKind>(LA().value().intValue);
+auto Parser::parse_type_traits_op(SourceLocation& loc,
+                                  BuiltinTypeTraitKind& builtinKind) -> bool {
+  const auto builtin = LA().builtinTypeTrait();
+  if (builtin == BuiltinTypeTraitKind::T_NONE) return false;
+  builtinKind = builtin;
   loc = consumeToken();
   return true;
 }
@@ -2717,15 +2718,15 @@ auto Parser::parse_va_arg_expression(ExpressionAST*& yyast,
 
 auto Parser::parse_builtin_call_expression(ExpressionAST*& yyast,
                                            const ExprContext& ctx) -> bool {
-  SourceLocation typeTraitsLoc;
-  BuiltinKind builtinKind = BuiltinKind::T_IDENTIFIER;
-  if (!parse_type_traits_op(typeTraitsLoc, builtinKind)) return false;
+  SourceLocation typeTraitLoc;
+  BuiltinTypeTraitKind builtinKind = BuiltinTypeTraitKind::T_NONE;
+  if (!parse_type_traits_op(typeTraitLoc, builtinKind)) return false;
 
-  auto ast = new (pool_) TypeTraitsExpressionAST();
+  auto ast = new (pool_) TypeTraitExpressionAST();
   yyast = ast;
 
-  ast->typeTraitsLoc = typeTraitsLoc;
-  ast->typeTraits = builtinKind;
+  ast->typeTraitLoc = typeTraitLoc;
+  ast->typeTrait = builtinKind;
 
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
@@ -5788,21 +5789,19 @@ void Parser::mark_maybe_template_name(DeclaratorAST* declarator) {
 }
 
 void Parser::check_type_traits() {
-  SourceLocation typeTraitsLoc;
-  BuiltinKind builtinKind = BuiltinKind::T_IDENTIFIER;
-  if (!parse_type_traits_op(typeTraitsLoc, builtinKind)) return;
+  SourceLocation typeTraitLoc;
+  BuiltinTypeTraitKind builtinKind = BuiltinTypeTraitKind::T_NONE;
+  if (!parse_type_traits_op(typeTraitLoc, builtinKind)) return;
 
 #if false
   parse_warn(
-      typeTraitsLoc,
+      typeTraitLoc,
       cxx::format("keyword '{}' will be made available as an identifier for "
                   "the remainder of the translation unit",
                   Token::spell(builtinKind)));
 #endif
 
-  unit->replaceWithIdentifier(typeTraitsLoc);
-
-  rewind(typeTraitsLoc);
+  rewind(typeTraitLoc);
 }
 
 auto Parser::lvalue_to_rvalue_conversion(ExpressionAST*& expr) -> bool {

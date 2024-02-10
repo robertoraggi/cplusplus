@@ -375,7 +375,7 @@ class ASTRewriter {
     [[nodiscard]] auto operator()(DesignatedInitializerClauseAST* ast)
         -> ExpressionAST*;
 
-    [[nodiscard]] auto operator()(TypeTraitsExpressionAST* ast)
+    [[nodiscard]] auto operator()(TypeTraitExpressionAST* ast)
         -> ExpressionAST*;
 
     [[nodiscard]] auto operator()(ConditionExpressionAST* ast)

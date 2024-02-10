@@ -33,7 +33,6 @@ class Token;
   V(EOF_SYMBOL, "<eof_symbol>")                                   \
   V(ERROR, "<error>")                                             \
   V(COMMENT, "<comment>")                                         \
-  V(BUILTIN, "<builtin>")                                         \
   V(IDENTIFIER, "<identifier>")                                   \
   V(CHARACTER_LITERAL, "<character_literal>")                     \
   V(FLOATING_POINT_LITERAL, "<floating_point_literal>")           \
@@ -101,105 +100,106 @@ class Token;
   V(STAR, "*")                    \
   V(TILDE, "~")
 
-#define FOR_EACH_KEYWORD(V)                 \
-  V(ALIGNAS, "alignas")                     \
-  V(ALIGNOF, "alignof")                     \
-  V(ASM, "asm")                             \
-  V(AUTO, "auto")                           \
-  V(BOOL, "bool")                           \
-  V(BREAK, "break")                         \
-  V(CASE, "case")                           \
-  V(CATCH, "catch")                         \
-  V(CHAR, "char")                           \
-  V(CHAR16_T, "char16_t")                   \
-  V(CHAR32_T, "char32_t")                   \
-  V(CHAR8_T, "char8_t")                     \
-  V(CLASS, "class")                         \
-  V(CO_AWAIT, "co_await")                   \
-  V(CO_RETURN, "co_return")                 \
-  V(CO_YIELD, "co_yield")                   \
-  V(CONCEPT, "concept")                     \
-  V(CONST_CAST, "const_cast")               \
-  V(CONST, "const")                         \
-  V(CONSTEVAL, "consteval")                 \
-  V(CONSTEXPR, "constexpr")                 \
-  V(CONSTINIT, "constinit")                 \
-  V(CONTINUE, "continue")                   \
-  V(DECLTYPE, "decltype")                   \
-  V(DEFAULT, "default")                     \
-  V(DELETE, "delete")                       \
-  V(DO, "do")                               \
-  V(DOUBLE, "double")                       \
-  V(DYNAMIC_CAST, "dynamic_cast")           \
-  V(ELSE, "else")                           \
-  V(ENUM, "enum")                           \
-  V(EXPLICIT, "explicit")                   \
-  V(EXPORT, "export")                       \
-  V(EXTERN, "extern")                       \
-  V(FALSE, "false")                         \
-  V(FLOAT, "float")                         \
-  V(FOR, "for")                             \
-  V(FRIEND, "friend")                       \
-  V(GOTO, "goto")                           \
-  V(IF, "if")                               \
-  V(IMPORT, "import")                       \
-  V(INLINE, "inline")                       \
-  V(INT, "int")                             \
-  V(LONG, "long")                           \
-  V(MODULE, "module")                       \
-  V(MUTABLE, "mutable")                     \
-  V(NAMESPACE, "namespace")                 \
-  V(NEW, "new")                             \
-  V(NOEXCEPT, "noexcept")                   \
-  V(NULLPTR, "nullptr")                     \
-  V(OPERATOR, "operator")                   \
-  V(PRIVATE, "private")                     \
-  V(PROTECTED, "protected")                 \
-  V(PUBLIC, "public")                       \
-  V(REINTERPRET_CAST, "reinterpret_cast")   \
-  V(REQUIRES, "requires")                   \
-  V(RETURN, "return")                       \
-  V(SHORT, "short")                         \
-  V(SIGNED, "signed")                       \
-  V(SIZEOF, "sizeof")                       \
-  V(STATIC_ASSERT, "static_assert")         \
-  V(STATIC_CAST, "static_cast")             \
-  V(STATIC, "static")                       \
-  V(STRUCT, "struct")                       \
-  V(SWITCH, "switch")                       \
-  V(TEMPLATE, "template")                   \
-  V(THIS, "this")                           \
-  V(THREAD_LOCAL, "thread_local")           \
-  V(THROW, "throw")                         \
-  V(TRUE, "true")                           \
-  V(TRY, "try")                             \
-  V(TYPEDEF, "typedef")                     \
-  V(TYPEID, "typeid")                       \
-  V(TYPENAME, "typename")                   \
-  V(UNION, "union")                         \
-  V(UNSIGNED, "unsigned")                   \
-  V(USING, "using")                         \
-  V(VIRTUAL, "virtual")                     \
-  V(VOID, "void")                           \
-  V(VOLATILE, "volatile")                   \
-  V(WCHAR_T, "wchar_t")                     \
-  V(WHILE, "while")                         \
-  V(_ATOMIC, "_Atomic")                     \
-  V(_COMPLEX, "_Complex")                   \
-  V(__ATTRIBUTE__, "__attribute__")         \
-  V(__BUILTIN_VA_ARG, "__builtin_va_arg")   \
-  V(__BUILTIN_VA_LIST, "__builtin_va_list") \
-  V(__COMPLEX__, "__complex__")             \
-  V(__EXTENSION__, "__extension__")         \
-  V(__FLOAT128, "__float128")               \
-  V(__FLOAT80, "__float80")                 \
-  V(__IMAG__, "__imag__")                   \
-  V(__INT128, "__int128")                   \
-  V(__INT64, "__int64")                     \
-  V(__REAL__, "__real__")                   \
-  V(__RESTRICT__, "__restrict__")           \
-  V(__THREAD, "__thread")                   \
-  V(__UNDERLYING_TYPE, "__underlying_type")
+#define FOR_EACH_KEYWORD(V)                   \
+  V(ALIGNAS, "alignas")                       \
+  V(ALIGNOF, "alignof")                       \
+  V(ASM, "asm")                               \
+  V(AUTO, "auto")                             \
+  V(BOOL, "bool")                             \
+  V(BREAK, "break")                           \
+  V(CASE, "case")                             \
+  V(CATCH, "catch")                           \
+  V(CHAR, "char")                             \
+  V(CHAR16_T, "char16_t")                     \
+  V(CHAR32_T, "char32_t")                     \
+  V(CHAR8_T, "char8_t")                       \
+  V(CLASS, "class")                           \
+  V(CO_AWAIT, "co_await")                     \
+  V(CO_RETURN, "co_return")                   \
+  V(CO_YIELD, "co_yield")                     \
+  V(CONCEPT, "concept")                       \
+  V(CONST_CAST, "const_cast")                 \
+  V(CONST, "const")                           \
+  V(CONSTEVAL, "consteval")                   \
+  V(CONSTEXPR, "constexpr")                   \
+  V(CONSTINIT, "constinit")                   \
+  V(CONTINUE, "continue")                     \
+  V(DECLTYPE, "decltype")                     \
+  V(DEFAULT, "default")                       \
+  V(DELETE, "delete")                         \
+  V(DO, "do")                                 \
+  V(DOUBLE, "double")                         \
+  V(DYNAMIC_CAST, "dynamic_cast")             \
+  V(ELSE, "else")                             \
+  V(ENUM, "enum")                             \
+  V(EXPLICIT, "explicit")                     \
+  V(EXPORT, "export")                         \
+  V(EXTERN, "extern")                         \
+  V(FALSE, "false")                           \
+  V(FLOAT, "float")                           \
+  V(FOR, "for")                               \
+  V(FRIEND, "friend")                         \
+  V(GOTO, "goto")                             \
+  V(IF, "if")                                 \
+  V(IMPORT, "import")                         \
+  V(INLINE, "inline")                         \
+  V(INT, "int")                               \
+  V(LONG, "long")                             \
+  V(MODULE, "module")                         \
+  V(MUTABLE, "mutable")                       \
+  V(NAMESPACE, "namespace")                   \
+  V(NEW, "new")                               \
+  V(NOEXCEPT, "noexcept")                     \
+  V(NULLPTR, "nullptr")                       \
+  V(OPERATOR, "operator")                     \
+  V(PRIVATE, "private")                       \
+  V(PROTECTED, "protected")                   \
+  V(PUBLIC, "public")                         \
+  V(REINTERPRET_CAST, "reinterpret_cast")     \
+  V(REQUIRES, "requires")                     \
+  V(RETURN, "return")                         \
+  V(SHORT, "short")                           \
+  V(SIGNED, "signed")                         \
+  V(SIZEOF, "sizeof")                         \
+  V(STATIC_ASSERT, "static_assert")           \
+  V(STATIC_CAST, "static_cast")               \
+  V(STATIC, "static")                         \
+  V(STRUCT, "struct")                         \
+  V(SWITCH, "switch")                         \
+  V(TEMPLATE, "template")                     \
+  V(THIS, "this")                             \
+  V(THREAD_LOCAL, "thread_local")             \
+  V(THROW, "throw")                           \
+  V(TRUE, "true")                             \
+  V(TRY, "try")                               \
+  V(TYPEDEF, "typedef")                       \
+  V(TYPEID, "typeid")                         \
+  V(TYPENAME, "typename")                     \
+  V(UNION, "union")                           \
+  V(UNSIGNED, "unsigned")                     \
+  V(USING, "using")                           \
+  V(VIRTUAL, "virtual")                       \
+  V(VOID, "void")                             \
+  V(VOLATILE, "volatile")                     \
+  V(WCHAR_T, "wchar_t")                       \
+  V(WHILE, "while")                           \
+  V(__ATTRIBUTE__, "__attribute__")           \
+  V(__BUILTIN_BIT_CAST, "__builtin_bit_cast") \
+  V(__BUILTIN_VA_ARG, "__builtin_va_arg")     \
+  V(__BUILTIN_VA_LIST, "__builtin_va_list")   \
+  V(__COMPLEX__, "__complex__")               \
+  V(__EXTENSION__, "__extension__")           \
+  V(__FLOAT128, "__float128")                 \
+  V(__FLOAT80, "__float80")                   \
+  V(__IMAG__, "__imag__")                     \
+  V(__INT128, "__int128")                     \
+  V(__INT64, "__int64")                       \
+  V(__REAL__, "__real__")                     \
+  V(__RESTRICT__, "__restrict__")             \
+  V(__THREAD, "__thread")                     \
+  V(__UNDERLYING_TYPE, "__underlying_type")   \
+  V(_ATOMIC, "_Atomic")                       \
+  V(_COMPLEX, "_Complex")
 
 #define FOR_EACH_BUILTIN_TYPE_TRAIT(V)                            \
   V(__HAS_UNIQUE_OBJECT_REPRESENTATIONS,                          \
@@ -249,8 +249,6 @@ class Token;
   V(__IS_VOID, "__is_void")                                       \
   V(__IS_VOLATILE, "__is_volatile")
 
-#define FOR_EACH_BUILTIN_CAST(V) V(__BUILTIN_BIT_CAST, "__builtin_bit_cast")
-
 #define FOR_EACH_TOKEN_ALIAS(V) \
   V(AND_EQ, AMP_EQUAL)          \
   V(AND, AMP_AMP)               \
@@ -293,13 +291,9 @@ enum struct TokenKind : std::uint8_t {
   FOR_EACH_TOKEN_ALIAS(TOKEN_ALIAS_ENUM)
 };
 
-#define FOR_EACH_BUILTIN(V) \
-  FOR_EACH_BUILTIN_TYPE_TRAIT(V) \
-  FOR_EACH_BUILTIN_CAST(V)
-
-enum struct BuiltinKind {
-  T_IDENTIFIER,
-  FOR_EACH_BUILTIN(TOKEN_ENUM)
+enum struct BuiltinTypeTraitKind {
+  T_NONE,
+  FOR_EACH_BUILTIN_TYPE_TRAIT(TOKEN_ENUM)
 };
 
 #undef TOKEN_ENUM

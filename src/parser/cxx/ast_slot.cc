@@ -260,7 +260,7 @@ std::string_view kMemberSlotNames[] = {
     "typeLoc",
     "typeSpecifier",
     "typeSpecifierList",
-    "typeTraitsLoc",
+    "typeTraitLoc",
     "typedefLoc",
     "typeidLoc",
     "typenameLoc",
@@ -3210,10 +3210,10 @@ void ASTSlot::visit(DesignatedInitializerClauseAST* ast) {
   slotCount_ = 4;
 }
 
-void ASTSlot::visit(TypeTraitsExpressionAST* ast) {
+void ASTSlot::visit(TypeTraitExpressionAST* ast) {
   switch (slot_) {
-    case 0:  // typeTraitsLoc
-      value_ = ast->typeTraitsLoc.index();
+    case 0:  // typeTraitLoc
+      value_ = ast->typeTraitLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       slotNameIndex_ = SlotNameIndex{211};
       break;

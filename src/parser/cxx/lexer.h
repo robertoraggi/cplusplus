@@ -78,7 +78,6 @@ class Lexer {
   [[nodiscard]] auto text() const -> const std::string& { return text_; }
 
   static auto classifyKeyword(const std::string_view& text) -> TokenKind;
-  static auto classifyBuiltin(const std::string_view& text) -> BuiltinKind;
 
   struct State {
     std::string_view::const_iterator pos_;

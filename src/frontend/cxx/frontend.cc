@@ -274,7 +274,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
     }
 
     if (cli.opt_emit_ast) {
-      unit.serialize(output);
+      (void)unit.serialize(output);
     }
 
     if (cli.opt_ast_dump) {

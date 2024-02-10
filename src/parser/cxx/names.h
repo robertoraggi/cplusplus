@@ -30,12 +30,37 @@
 
 namespace cxx {
 
+class IdentifierInfo {
+ public:
+  explicit IdentifierInfo(IdentifierInfoKind kind) : kind_(kind) {}
+
+  virtual ~IdentifierInfo() = default;
+
+  [[nodiscard]] auto kind() const -> IdentifierInfoKind { return kind_; }
+
+ private:
+  IdentifierInfoKind kind_;
+};
+
+class TypeTraitIdentifierInfo final : public IdentifierInfo {
+ public:
+  static constexpr auto Kind = IdentifierInfoKind::kTypeTrait;
+
+  explicit TypeTraitIdentifierInfo(BuiltinTypeTraitKind trait)
+      : IdentifierInfo(Kind), trait_(trait) {}
+
+  [[nodiscard]] auto trait() const -> BuiltinTypeTraitKind { return trait_; }
+
+ private:
+  BuiltinTypeTraitKind trait_;
+};
+
 class Name {
  public:
   explicit Name(NameKind kind) : kind_(kind) {}
   virtual ~Name();
 
-  auto kind() const -> NameKind { return kind_; }
+  [[nodiscard]] auto kind() const -> NameKind { return kind_; }
 
  private:
   NameKind kind_;
@@ -47,20 +72,33 @@ class Identifier final : public Name, public std::tuple<std::string> {
 
   explicit Identifier(std::string name) : Name(Kind), tuple(std::move(name)) {}
 
-  auto isAnonymous() const -> bool { return name().at(0) == '$'; }
-  auto name() const -> const std::string& { return std::get<0>(*this); }
-  auto value() const -> const std::string& { return name(); }
+  [[nodiscard]] auto isAnonymous() const -> bool { return name().at(0) == '$'; }
 
-  friend auto operator<(const Identifier& identifier,
-                        const std::string_view& other) -> bool {
-    return identifier.name() < other;
+  [[nodiscard]] auto name() const -> const std::string& {
+    return std::get<0>(*this);
   }
 
-  friend auto operator<(const std::string_view& other,
-                        const Identifier& identifier) -> bool {
-    return other < identifier.name();
-  }
+  [[nodiscard]] auto value() const -> const std::string& { return name(); }
+
+  [[nodiscard]] auto isBuiltinTypeTrait() const -> bool;
+  [[nodiscard]] auto builtinTypeTrait() const -> BuiltinTypeTraitKind;
+
+  [[nodiscard]] auto info() const -> const IdentifierInfo* { return info_; }
+  void setInfo(const IdentifierInfo* info) const { info_ = info; }
+
+ private:
+  mutable const IdentifierInfo* info_ = nullptr;
 };
+
+inline auto operator<(const Identifier& identifier,
+                      const std::string_view& other) -> bool {
+  return identifier.name() < other;
+}
+
+inline auto operator<(const std::string_view& other,
+                      const Identifier& identifier) -> bool {
+  return other < identifier.name();
+}
 
 class OperatorId final : public Name, public std::tuple<TokenKind> {
  public:
@@ -68,7 +106,7 @@ class OperatorId final : public Name, public std::tuple<TokenKind> {
 
   explicit OperatorId(TokenKind op) : Name(Kind), tuple(op) {}
 
-  auto op() const -> TokenKind { return std::get<0>(*this); }
+  [[nodiscard]] auto op() const -> TokenKind { return std::get<0>(*this); }
 };
 
 class DestructorId final : public Name, public std::tuple<const Name*> {
@@ -77,7 +115,7 @@ class DestructorId final : public Name, public std::tuple<const Name*> {
 
   explicit DestructorId(const Name* name) : Name(Kind), tuple(name) {}
 
-  auto name() const -> const Name* { return std::get<0>(*this); }
+  [[nodiscard]] auto name() const -> const Name* { return std::get<0>(*this); }
 };
 
 class LiteralOperatorId final : public Name, public std::tuple<std::string> {
@@ -87,7 +125,9 @@ class LiteralOperatorId final : public Name, public std::tuple<std::string> {
   explicit LiteralOperatorId(std::string name)
       : Name(Kind), tuple(std::move(name)) {}
 
-  auto name() const -> const std::string& { return std::get<0>(*this); }
+  [[nodiscard]] auto name() const -> const std::string& {
+    return std::get<0>(*this);
+  }
 };
 
 class ConversionFunctionId final : public Name, public std::tuple<const Type*> {
@@ -96,7 +136,7 @@ class ConversionFunctionId final : public Name, public std::tuple<const Type*> {
 
   explicit ConversionFunctionId(const Type* type) : Name(Kind), tuple(type) {}
 
-  auto type() const -> const Type* { return std::get<0>(*this); }
+  [[nodiscard]] auto type() const -> const Type* { return std::get<0>(*this); }
 };
 
 class TemplateId final
@@ -108,9 +148,9 @@ class TemplateId final
   explicit TemplateId(const Name* name, std::vector<TemplateArgument> args)
       : Name(Kind), tuple(name, std::move(args)) {}
 
-  auto name() const -> const Name* { return std::get<0>(*this); }
+  [[nodiscard]] auto name() const -> const Name* { return std::get<0>(*this); }
 
-  auto arguments() const -> const std::vector<TemplateArgument>& {
+  [[nodiscard]] auto arguments() const -> const std::vector<TemplateArgument>& {
     return std::get<1>(*this);
   }
 };

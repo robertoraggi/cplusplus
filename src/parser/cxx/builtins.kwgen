@@ -1,6 +1,6 @@
 %no-enums
-%token-prefix=cxx::BuiltinKind::T_
-%token-type=cxx::BuiltinKind
+%token-prefix=cxx::BuiltinTypeTraitKind::T_
+%token-type=cxx::BuiltinTypeTraitKind
 %classifier=isBuiltin
 %toupper
 
@@ -50,5 +50,3 @@ __is_union
 __is_unsigned
 __is_void
 __is_volatile
-
-__builtin_bit_cast
