@@ -22,6 +22,9 @@
 #include <cxx/scope.h>
 #include <cxx/symbols.h>
 
+#include <cassert>
+#include <functional>
+
 namespace cxx {
 
 namespace {
@@ -66,6 +69,17 @@ struct AddTemplateSymbol {
 
 }  // namespace
 
+auto Scope::MemberIterator::operator++() -> MemberIterator& {
+  symbol_ = symbol_->next();
+  return *this;
+}
+
+auto Scope::MemberIterator::operator++(int) -> MemberIterator {
+  auto it = *this;
+  symbol_ = symbol_->next();
+  return it;
+}
+
 Scope::Scope(Scope* parent) : parent_(parent) {}
 
 Scope::~Scope() {}
@@ -96,16 +110,54 @@ void Scope::addSymbol(Symbol* symbol) {
   }
 
   symbol->setEnclosingScope(this);
-  symbol->setInsertionPoint(symbols_.size());
-  symbols_.emplace(symbol->name(), symbol);
+  symbols_.push_back(symbol);
+
+  if (3 * symbols_.size() >= 2 * buckets_.size()) {
+    rehash();
+  } else {
+    const auto h = std::hash<const void*>{}(symbol->name()) % buckets_.size();
+    symbol->link_ = buckets_[h];
+    buckets_[h] = symbol;
+  }
 }
 
-void Scope::removeSymbol(Symbol* symbol) {
-  auto [first, last] = symbols_.equal_range(symbol->name());
-  for (auto it = first; it != last; ++it) {
-    if (it->second == symbol) {
-      symbols_.erase(it);
-      break;
+void Scope::rehash() {
+  const auto newSize = std::max(std::size_t(8), buckets_.size() * 2);
+
+  buckets_ = std::vector<Symbol*>(newSize);
+
+  std::hash<const void*> hash_value;
+
+  for (auto symbol : symbols_) {
+    auto index = hash_value(symbol->name()) % newSize;
+    symbol->link_ = buckets_[index];
+    buckets_[index] = symbol;
+  }
+}
+
+void Scope::replaceSymbol(Symbol* symbol, Symbol* newSymbol) {
+  if (symbol == newSymbol) return;
+
+  assert(symbol->name() == newSymbol->name());
+
+  auto it = std::find(symbols_.begin(), symbols_.end(), symbol);
+  assert(it != symbols_.end());
+
+  if (it == symbols_.end()) return;
+
+  *it = newSymbol;
+
+  newSymbol->link_ = symbol->link_;
+
+  const auto h = std::hash<const void*>{}(newSymbol->name()) % buckets_.size();
+  if (buckets_[h] == symbol) {
+    buckets_[h] = newSymbol;
+  } else {
+    for (auto p = buckets_[h]; p; p = p->link_) {
+      if (p->link_ == symbol) {
+        p->link_ = newSymbol;
+        break;
+      }
     }
   }
 }
@@ -116,6 +168,19 @@ auto Scope::usingDirectives() const -> const std::vector<Scope*>& {
 
 void Scope::addUsingDirective(Scope* scope) {
   usingDirectives_.push_back(scope);
+}
+
+auto Scope::getHelper(const Name* name) const
+    -> std::pair<MemberIterator, MemberIterator> {
+  if (!symbols_.empty()) {
+    const auto h = std::hash<const void*>{}(name) % buckets_.size();
+    for (auto symbol = buckets_[h]; symbol; symbol = symbol->link_) {
+      if (symbol->name() == name) {
+        return {MemberIterator{symbol}, MemberIterator{}};
+      }
+    }
+  }
+  return {};
 }
 
 }  // namespace cxx

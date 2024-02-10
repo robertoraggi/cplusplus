@@ -24,7 +24,6 @@
 #include <cxx/symbols_fwd.h>
 #include <cxx/types_fwd.h>
 
-#include <map>
 #include <ranges>
 #include <vector>
 
@@ -32,6 +31,24 @@ namespace cxx {
 
 class Scope {
  public:
+  class MemberIterator {
+   public:
+    using value_type = Symbol*;
+    using difference_type = std::ptrdiff_t;
+
+    MemberIterator() = default;
+    explicit MemberIterator(Symbol* symbol) : symbol_(symbol) {}
+
+    auto operator<=>(const MemberIterator&) const = default;
+
+    auto operator*() const -> Symbol* { return symbol_; }
+    auto operator++() -> MemberIterator&;
+    auto operator++(int) -> MemberIterator;
+
+   private:
+    Symbol* symbol_ = nullptr;
+  };
+
   explicit Scope(Scope* parent = nullptr);
   ~Scope();
 
@@ -46,24 +63,33 @@ class Scope {
   [[nodiscard]] auto owner() const -> ScopedSymbol* { return owner_; }
   void setOwner(ScopedSymbol* owner) { owner_ = owner; }
 
-  [[nodiscard]] auto symbols() const { return symbols_ | std::views::values; }
+  [[nodiscard]] auto symbols() const -> const std::vector<Symbol*>& {
+    return symbols_;
+  }
 
   [[nodiscard]] auto get(const Name* name) const {
-    auto [first, last] = symbols_.equal_range(name);
-    return std::ranges::subrange(first, last) | std::views::values;
+    auto [first, last] = getHelper(name);
+    return std::ranges::subrange(first, last);
   }
 
   void addSymbol(Symbol* symbol);
-  void removeSymbol(Symbol* symbol);
+  void replaceSymbol(Symbol* symbol, Symbol* newSymbol);
 
   [[nodiscard]] auto usingDirectives() const -> const std::vector<Scope*>&;
 
   void addUsingDirective(Scope* scope);
 
  private:
+  [[nodiscard]] auto getHelper(const Name* name) const
+      -> std::pair<MemberIterator, MemberIterator>;
+
+  void rehash();
+
+ private:
   Scope* parent_ = nullptr;
   ScopedSymbol* owner_ = nullptr;
-  std::multimap<const Name*, Symbol*> symbols_;
+  std::vector<Symbol*> symbols_;
+  std::vector<Symbol*> buckets_;
   std::vector<Scope*> usingDirectives_;
 };
 
