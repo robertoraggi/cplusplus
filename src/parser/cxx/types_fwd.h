@@ -66,7 +66,8 @@ namespace cxx {
   V(UnresolvedName)               \
   V(UnresolvedBoundedArray)       \
   V(UnresolvedUnderlying)         \
-  V(OverloadSet)
+  V(OverloadSet)                  \
+  V(BuiltinVaList)
 
 class Type;
 
