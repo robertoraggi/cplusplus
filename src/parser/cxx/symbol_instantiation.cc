@@ -81,6 +81,7 @@ struct SymbolInstantiation::VisitType {
     return visit(*this, type);
   }
 
+  [[nodiscard]] auto operator()(const BuiltinVaListType* type) -> const Type*;
   [[nodiscard]] auto operator()(const VoidType* type) -> const Type*;
   [[nodiscard]] auto operator()(const NullptrType* type) -> const Type*;
   [[nodiscard]] auto operator()(const DecltypeAutoType* type) -> const Type*;
@@ -341,6 +342,11 @@ auto SymbolInstantiation::VisitSymbol::operator()(BaseClassSymbol* symbol)
 }
 
 // types
+
+auto SymbolInstantiation::VisitType::operator()(const BuiltinVaListType* type)
+    -> const Type* {
+  return type;
+}
 
 auto SymbolInstantiation::VisitType::operator()(const VoidType* type)
     -> const Type* {

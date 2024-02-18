@@ -776,6 +776,11 @@ class TypeTraits {
   struct {
     TypeTraits& traits;
 
+    auto operator()(const BuiltinVaListType*, const BuiltinVaListType*) const
+        -> bool {
+      return true;
+    }
+
     auto operator()(const VoidType*, const VoidType*) const -> bool {
       return true;
     }

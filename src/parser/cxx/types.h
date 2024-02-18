@@ -41,6 +41,12 @@ class Type {
   TypeKind kind_;
 };
 
+class BuiltinVaListType final : public Type {
+ public:
+  static constexpr TypeKind Kind = TypeKind::kBuiltinVaList;
+  BuiltinVaListType() : Type(Kind) {}
+};
+
 class VoidType final : public Type {
  public:
   static constexpr TypeKind Kind = TypeKind::kVoid;

@@ -5679,9 +5679,9 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
       yyast = ast;
       ast->specifierLoc = consumeToken();
       ast->specifier = unit->tokenKind(ast->specifierLoc);
-
+      specs.type = control_->getBuiltinVaListType();
       return true;
-    };
+    }
 
     case TokenKind::T_CHAR:
       makeIntegralTypeSpecifier();

@@ -82,6 +82,10 @@ class TypePrinter {
 
   void operator()(const AutoType* type) { specifiers_.append("auto"); }
 
+  void operator()(const BuiltinVaListType* type) {
+    specifiers_.append("__builtin_va_list");
+  }
+
   void operator()(const VoidType* type) { specifiers_.append("void"); }
 
   void operator()(const BoolType* type) { specifiers_.append("bool"); }

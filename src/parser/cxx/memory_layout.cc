@@ -31,6 +31,11 @@ namespace {
 struct SizeOf {
   const MemoryLayout& memoryLayout;
 
+  auto operator()(const BuiltinVaListType* type) const
+      -> std::optional<std::size_t> {
+    return memoryLayout.sizeOfPointer();
+  }
+
   auto operator()(const VoidType* type) const -> std::optional<std::size_t> {
     return std::nullopt;
   }

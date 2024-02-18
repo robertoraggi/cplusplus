@@ -82,6 +82,7 @@ struct Control::Private {
   std::set<ConversionFunctionId> conversionFunctionIds;
   std::set<TemplateId> templateIds;
 
+  BuiltinVaListType builtinVaListType;
   VoidType voidType;
   NullptrType nullptrType;
   DecltypeAutoType decltypeAutoType;
@@ -268,6 +269,10 @@ auto Control::getTemplateId(const Name* name,
 auto Control::getSizeType() -> const Type* {
   // TODO: use the correct type
   return getUnsignedLongIntType();
+}
+
+auto Control::getBuiltinVaListType() -> const BuiltinVaListType* {
+  return &d->builtinVaListType;
 }
 
 auto Control::getVoidType() -> const VoidType* { return &d->voidType; }
