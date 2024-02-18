@@ -24,14 +24,14 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^20.8.10",
-    "@typescript-eslint/eslint-plugin": "^6.9.1",
-    "@typescript-eslint/parser": "^6.9.1",
-    "eslint": "^8.53.0",
-    "typescript": "^5.2.2"
+    "@types/node": "^20.11.19",
+    "@typescript-eslint/eslint-plugin": "^7.0.1",
+    "@typescript-eslint/parser": "^7.0.1",
+    "eslint": "^8.56.0",
+    "typescript": "^5.3.3"
   },
   "dependencies": {
-    "prettier": "^3.0.3",
+    "prettier": "^3.2.5",
     "yargs": "^17.7.2"
   }
 }
