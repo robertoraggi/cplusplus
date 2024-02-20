@@ -51,6 +51,12 @@ class Symbol;
 class ScopedSymbol;
 class Scope;
 
+template <typename S>
+struct TemplateSpecialization;
+
+template <typename S>
+class TemplateInfo;
+
 #define PROCESS_SYMBOL(S) class S##Symbol;
 CXX_FOR_EACH_SYMBOL(PROCESS_SYMBOL)
 #undef PROCESS_SYMBOL

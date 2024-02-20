@@ -173,15 +173,6 @@ void ClassSymbol::addConstructor(FunctionSymbol* constructor) {
   constructors_.push_back(constructor);
 }
 
-auto ClassSymbol::templateParameters() const -> TemplateParametersSymbol* {
-  return templateParameters_;
-}
-
-void ClassSymbol::setTemplateParameters(
-    TemplateParametersSymbol* templateParameters) {
-  templateParameters_ = templateParameters;
-}
-
 auto ClassSymbol::isComplete() const -> bool { return isComplete_; }
 
 void ClassSymbol::setComplete(bool isComplete) { isComplete_ = isComplete; }
@@ -208,6 +199,35 @@ auto ClassSymbol::hasBaseClass(
     }
   }
   return false;
+}
+
+auto ClassSymbol::templateParameters() const -> TemplateParametersSymbol* {
+  return templateInfo_ ? templateInfo_->templateParameters() : nullptr;
+}
+
+void ClassSymbol::setTemplateParameters(
+    TemplateParametersSymbol* templateParameters) {
+  if (templateInfo_) {
+    cxx_runtime_error("symbol already has template parameters");
+  }
+  templateInfo_ =
+      std::make_unique<TemplateInfo<ClassSymbol>>(this, templateParameters);
+}
+
+auto ClassSymbol::specializations() const
+    -> std::span<const TemplateSpecialization<ClassSymbol>> {
+  if (!templateInfo_) return {};
+  return templateInfo_->specializations();
+}
+
+auto ClassSymbol::findSpecialization(
+    const std::vector<TemplateArgument>& arguments) const -> ClassSymbol* {
+  return templateInfo_->findSpecialization(arguments);
+}
+
+void ClassSymbol::addSpecialization(std::vector<TemplateArgument> arguments,
+                                    ClassSymbol* specialization) {
+  templateInfo_->addSpecialization(std::move(arguments), specialization);
 }
 
 EnumSymbol::EnumSymbol(Scope* enclosingScope)

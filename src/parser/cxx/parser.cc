@@ -5561,13 +5561,40 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     return false;
   }
 
-  Symbol* symbol = nullptr;
-
   if (auto templateId = ast_cast<SimpleTemplateIdAST>(unqualifiedId)) {
-    // todo
+    if (config_.templates) {
+      std::vector<TemplateArgument> args;
+      for (auto it = templateId->templateArgumentList; it; it = it->next) {
+        if (auto arg = ast_cast<TypeTemplateArgumentAST>(it->value)) {
+          args.push_back(arg->typeId->type);
+        } else {
+          parse_error(
+              it->value->firstSourceLocation(),
+              cxx::format("only type template arguments are supported"));
+        }
+      }
+
+      auto needsInstantiation = [&]() -> bool {
+        if (args.empty()) return true;
+        for (std::size_t i = 0; i < args.size(); ++i) {
+          auto typeArgument = std::get_if<const Type*>(&args[i]);
+          if (!typeArgument) return true;
+          auto ty = type_cast<TypeParameterType>(*typeArgument);
+          if (!ty) return true;
+          if (ty->symbol()->index() != i) return true;
+        }
+        return false;
+      };
+
+      if (needsInstantiation()) {
+        auto symbol = control_->instantiate(
+            unit, templateId->primaryTemplateSymbol, std::move(args));
+        specs.type = symbol->type();
+      }
+    }
   } else {
     auto name = ast_cast<NameIdAST>(unqualifiedId);
-    symbol = Lookup{scope_}(nestedNameSpecifier, name->identifier);
+    auto symbol = Lookup{scope_}(nestedNameSpecifier, name->identifier);
 
     if (is_type(symbol)) {
       specs.type = symbol->type();

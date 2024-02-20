@@ -23,6 +23,7 @@
 // cxx
 #include <cxx/ast.h>
 #include <cxx/control.h>
+#include <cxx/private/format.h>
 #include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
@@ -145,9 +146,27 @@ auto SymbolInstantiation::control() const -> Control* {
 
 auto SymbolInstantiation::operator()(Symbol* symbol) -> Symbol* {
   if (!symbol) return symbol;
+
+  if (auto classSymbol = symbol_cast<ClassSymbol>(symbol)) {
+    if (auto specialization = classSymbol->findSpecialization(arguments_)) {
+      return specialization;
+    }
+
+    std::swap(current_, symbol);
+    auto specialization = replacement(classSymbol);
+    std::swap(current_, symbol);
+
+    if (specialization == classSymbol) {
+      cxx_runtime_error("cannot specialize itself");
+    }
+
+    classSymbol->addSpecialization(arguments_, specialization);
+  }
+
   std::swap(current_, symbol);
   auto instantiation = visit(VisitSymbol{*this}, current_);
   std::swap(current_, symbol);
+
   return instantiation;
 }
 
@@ -165,7 +184,9 @@ auto SymbolInstantiation::findOrCreateReplacement(Symbol* symbol) -> Symbol* {
 
   auto enclosingSymbol = replacement(symbol->enclosingSymbol());
   newSymbol->setEnclosingScope(enclosingSymbol->scope());
-  newSymbol->setType(visit(VisitType{*this}, symbol->type()));
+  if (symbol->type()) {
+    newSymbol->setType(visit(VisitType{*this}, symbol->type()));
+  }
 
   newSymbol->setName(symbol->name());
 
@@ -233,6 +254,7 @@ auto SymbolInstantiation::VisitSymbol::operator()(FunctionSymbol* symbol)
     -> Symbol* {
   auto newSymbol = self.replacement(symbol);
   for (auto member : symbol->members()) {
+    if (member->isBlock()) continue;
     auto newMember = self.instantiate(member);
     newSymbol->addMember(newMember);
   }
@@ -273,6 +295,7 @@ auto SymbolInstantiation::VisitSymbol::operator()(
     FunctionParametersSymbol* symbol) -> Symbol* {
   auto newSymbol = self.replacement(symbol);
   for (auto member : symbol->members()) {
+    if (member->isBlock()) continue;
     auto newMember = self.instantiate(member);
     newSymbol->addMember(newMember);
   }
@@ -304,6 +327,9 @@ auto SymbolInstantiation::VisitSymbol::operator()(LambdaSymbol* symbol)
 auto SymbolInstantiation::VisitSymbol::operator()(TypeParameterSymbol* symbol)
     -> Symbol* {
   auto newSymbol = self.replacement(symbol);
+  newSymbol->setIndex(symbol->index());
+  newSymbol->setDepth(symbol->depth());
+  newSymbol->setParameterPack(symbol->isParameterPack());
   return newSymbol;
 }
 
@@ -561,6 +587,21 @@ auto SymbolInstantiation::VisitType::operator()(
 
 auto SymbolInstantiation::VisitType::operator()(const UnresolvedNameType* type)
     -> const Type* {
+  // cxx_runtime_error("todo: substitute UnresolvedNameType");
+  if (auto templateId = ast_cast<SimpleTemplateIdAST>(type->unqualifiedId())) {
+    // todo
+    // warning(templateId->firstSourceLocation(), cxx::format("template id"));
+    std::vector<TemplateArgument> args;
+    for (auto it = templateId->templateArgumentList; it; it = it->next) {
+      if (auto arg = ast_cast<TypeTemplateArgumentAST>(it->value)) {
+        args.push_back(substitute(arg->typeId->type));
+      }
+    }
+    auto symbol = self.control()->instantiate(type->translationUnit(),
+                                              templateId->primaryTemplateSymbol,
+                                              std::move(args));
+    return symbol->type();
+  }
   cxx_runtime_error("todo: substitute UnresolvedNameType");
 }
 
