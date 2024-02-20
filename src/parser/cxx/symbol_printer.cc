@@ -54,6 +54,20 @@ struct DumpSymbols {
     --depth;
   }
 
+  template <typename S>
+  void dumpSpecializations(
+      std::span<const TemplateSpecialization<S>> specializations) {
+    if (specializations.empty()) return;
+    ++depth;
+    indent();
+    out << cxx::format("[specializations]\n");
+    ++depth;
+    for (auto specialization : specializations) {
+      visit(*this, specialization.symbol);
+    }
+    depth -= 2;
+  }
+
   void indent() { out << cxx::format("{:{}}", "", depth * 2); }
 
   void operator()(NamespaceSymbol* symbol) {
@@ -79,6 +93,7 @@ struct DumpSymbols {
       out << cxx::format("{} {}\n", classKey, to_string(symbol->name()));
     }
     dumpScope(symbol->scope());
+    dumpSpecializations(symbol->specializations());
   }
 
   void operator()(ConceptSymbol* symbol) {

@@ -28,11 +28,59 @@
 #include <memory>
 #include <optional>
 #include <ranges>
+#include <span>
 #include <unordered_set>
 #include <utility>
 #include <vector>
 
 namespace cxx {
+
+template <typename S>
+struct TemplateSpecialization {
+  S* templateSymbol = nullptr;
+  std::vector<TemplateArgument> arguments;
+  S* symbol = nullptr;
+};
+
+template <typename S>
+class TemplateInfo {
+ public:
+  TemplateInfo(S* templateSymbol, TemplateParametersSymbol* templateParameters)
+      : templateSymbol_(templateSymbol),
+        templateParameters_(templateParameters) {}
+
+  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol* {
+    return templateParameters_;
+  }
+
+  void setTemplateParameters(TemplateParametersSymbol* templateParameters) {
+    templateParameters_ = templateParameters;
+  }
+
+  [[nodiscard]] auto specializations() const
+      -> std::span<const TemplateSpecialization<S>> {
+    return specializations_;
+  }
+
+  [[nodiscard]] auto findSpecialization(
+      const std::vector<TemplateArgument>& arguments) const -> S* {
+    for (const auto& specialization : specializations_) {
+      if (specialization.arguments == arguments) return specialization.symbol;
+    }
+    return nullptr;
+  }
+
+  void addSpecialization(std::vector<TemplateArgument> arguments,
+                         S* specialization) {
+    specializations_.push_back(
+        {templateSymbol_, std::move(arguments), specialization});
+  }
+
+ private:
+  S* templateSymbol_ = nullptr;
+  TemplateParametersSymbol* templateParameters_ = nullptr;
+  std::vector<TemplateSpecialization<S>> specializations_;
+};
 
 class Symbol {
  public:
@@ -184,9 +232,6 @@ class ClassSymbol final : public ScopedSymbol {
 
   void addConstructor(FunctionSymbol* constructor);
 
-  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol*;
-  void setTemplateParameters(TemplateParametersSymbol* templateParameters);
-
   [[nodiscard]] auto isFinal() const -> bool;
   void setFinal(bool isFinal);
 
@@ -200,6 +245,18 @@ class ClassSymbol final : public ScopedSymbol {
   [[nodiscard]] auto flags() const -> std::uint32_t;
   void setFlags(std::uint32_t flags);
 
+  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol*;
+  void setTemplateParameters(TemplateParametersSymbol* templateParameters);
+
+  [[nodiscard]] auto specializations() const
+      -> std::span<const TemplateSpecialization<ClassSymbol>>;
+
+  [[nodiscard]] auto findSpecialization(
+      const std::vector<TemplateArgument>& arguments) const -> ClassSymbol*;
+
+  void addSpecialization(std::vector<TemplateArgument> arguments,
+                         ClassSymbol* specialization);
+
  private:
   [[nodiscard]] auto hasBaseClass(Symbol* symbol,
                                   std::unordered_set<const ClassSymbol*>&) const
@@ -208,7 +265,7 @@ class ClassSymbol final : public ScopedSymbol {
  private:
   std::vector<BaseClassSymbol*> baseClasses_;
   std::vector<FunctionSymbol*> constructors_;
-  TemplateParametersSymbol* templateParameters_ = nullptr;
+  std::unique_ptr<TemplateInfo<ClassSymbol>> templateInfo_;
   std::size_t sizeInBytes_ = 0;
   union {
     std::uint32_t flags_{};

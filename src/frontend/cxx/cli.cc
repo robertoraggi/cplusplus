@@ -151,6 +151,8 @@ std::vector<CLIOptionDescr> options{
     {"-fstatic-assert", "Enable static asserts", &CLI::opt_fstatic_assert,
      CLIOptionVisibility::kExperimental},
 
+    {"-ftemplates", "Enable templates (WIP)", &CLI::opt_ftemplates},
+
     {"-fno-reflect", "Disable reflection", &CLI::opt_fno_reflect},
 
     {"-emit-ast", "Emit AST files for source inputs", &CLI::opt_emit_ast},

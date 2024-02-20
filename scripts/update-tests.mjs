@@ -51,8 +51,12 @@ async function updateTest(unitTestPath) {
 
   const fcheck = sourceLines[index]?.includes("-fcheck") ? "-fcheck" : "";
 
+  const ftemplates = sourceLines[index]?.includes("-ftemplates")
+    ? "-ftemplates"
+    : "";
+
   const ast =
-    await $`${cxx} -verify -ast-dump ${unitTestPath} ${fcheck}`.quiet();
+    await $`${cxx} -verify -ast-dump ${unitTestPath} ${fcheck} ${ftemplates}`.quiet();
 
   const lines = ast.stdout.split("\n");
 
