@@ -793,6 +793,8 @@ class Parser final {
 
   void enterFunctionScope(FunctionDeclaratorChunkAST* functionDeclarator);
 
+  [[nodiscard]] auto instantiate(SimpleTemplateIdAST* templateId) -> Symbol*;
+
   void applySpecifiers(FunctionSymbol* symbol, const DeclSpecs& specs);
   void applySpecifiers(VariableSymbol* symbol, const DeclSpecs& specs);
   void applySpecifiers(FieldSymbol* symbol, const DeclSpecs& specs);

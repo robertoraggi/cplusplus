@@ -296,7 +296,20 @@ class TypePrinter {
   }
 
   void operator()(const ClassType* type) {
-    specifiers_.append(to_string(type->symbol()->name()));
+    std::string out = to_string(type->symbol()->name());
+    if (type->symbol()->isSpecialization()) {
+      out += '<';
+      std::string_view sep = "";
+      for (auto arg : type->symbol()->templateArguments()) {
+        auto type = std::get_if<const Type*>(&arg);
+        if (!type) continue;
+        out += cxx::format("{}{}", sep, to_string(*type));
+        sep = ", ";
+      }
+      out += '>';
+    }
+
+    specifiers_.append(out);
   }
 
   void operator()(const NamespaceType* type) {

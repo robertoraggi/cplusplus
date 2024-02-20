@@ -89,6 +89,16 @@ struct DumpSymbols {
       out << cxx::format("template {} {}\n", classKey,
                          to_string(symbol->name()));
       dumpScope(symbol->templateParameters()->scope());
+    } else if (symbol->isSpecialization()) {
+      out << cxx::format("{} {}<", classKey, to_string(symbol->name()));
+      std::string_view sep = "";
+      for (auto arg : symbol->templateArguments()) {
+        auto type = std::get_if<const Type*>(&arg);
+        if (!type) continue;
+        out << cxx::format("{}{}", sep, to_string(*type));
+        sep = ", ";
+      }
+      out << cxx::format(">\n");
     } else {
       out << cxx::format("{} {}\n", classKey, to_string(symbol->name()));
     }
