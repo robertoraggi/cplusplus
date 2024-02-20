@@ -227,6 +227,8 @@ auto ClassSymbol::findSpecialization(
 
 void ClassSymbol::addSpecialization(std::vector<TemplateArgument> arguments,
                                     ClassSymbol* specialization) {
+  auto index = templateInfo_->specializations().size();
+  specialization->setSpecializationInfo(this, index);
   templateInfo_->addSpecialization(std::move(arguments), specialization);
 }
 

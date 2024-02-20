@@ -257,6 +257,30 @@ class ClassSymbol final : public ScopedSymbol {
   void addSpecialization(std::vector<TemplateArgument> arguments,
                          ClassSymbol* specialization);
 
+  [[nodiscard]] auto isSpecialization() const -> bool {
+    return templateClass_ != nullptr;
+  }
+
+  [[nodiscard]] auto templateArguments() const
+      -> std::span<const TemplateArgument> {
+    if (!templateClass_) return {};
+    return templateClass_->specializations()[templateSepcializationIndex_]
+        .arguments;
+  }
+
+  void setSpecializationInfo(ClassSymbol* templateClass, std::size_t index) {
+    templateClass_ = templateClass;
+    templateSepcializationIndex_ = index;
+  }
+
+  [[nodiscard]] auto templateClass() const -> ClassSymbol* {
+    return templateClass_;
+  }
+
+  [[nodiscard]] auto templateSepcializationIndex() const -> std::size_t {
+    return templateSepcializationIndex_;
+  }
+
  private:
   [[nodiscard]] auto hasBaseClass(Symbol* symbol,
                                   std::unordered_set<const ClassSymbol*>&) const
@@ -266,6 +290,8 @@ class ClassSymbol final : public ScopedSymbol {
   std::vector<BaseClassSymbol*> baseClasses_;
   std::vector<FunctionSymbol*> constructors_;
   std::unique_ptr<TemplateInfo<ClassSymbol>> templateInfo_;
+  ClassSymbol* templateClass_ = nullptr;
+  int templateSepcializationIndex_ = 0;
   std::size_t sizeInBytes_ = 0;
   union {
     std::uint32_t flags_{};

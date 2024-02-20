@@ -587,10 +587,7 @@ auto SymbolInstantiation::VisitType::operator()(
 
 auto SymbolInstantiation::VisitType::operator()(const UnresolvedNameType* type)
     -> const Type* {
-  // cxx_runtime_error("todo: substitute UnresolvedNameType");
   if (auto templateId = ast_cast<SimpleTemplateIdAST>(type->unqualifiedId())) {
-    // todo
-    // warning(templateId->firstSourceLocation(), cxx::format("template id"));
     std::vector<TemplateArgument> args;
     for (auto it = templateId->templateArgumentList; it; it = it->next) {
       if (auto arg = ast_cast<TypeTemplateArgumentAST>(it->value)) {
