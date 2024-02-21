@@ -633,11 +633,38 @@ struct Parser::Decl {
 
   explicit Decl(const DeclSpecs& specs) : specs{specs} {}
 
-  auto getName() const -> const Name* {
+  [[nodiscard]] auto getName() const -> const Name* {
     auto control = specs.control();
     if (!declaratorId) return nullptr;
     if (!declaratorId->unqualifiedId) return nullptr;
     return visit(ConvertToName{control}, declaratorId->unqualifiedId);
+  }
+
+  [[nodiscard]] auto getNestedNameSpecifier() const -> NestedNameSpecifierAST* {
+    if (!declaratorId) return nullptr;
+    return declaratorId->nestedNameSpecifier;
+  }
+
+  [[nodiscard]] auto getScope() const -> Scope* {
+    auto nestedNameSpecifier = getNestedNameSpecifier();
+    if (!nestedNameSpecifier) return nullptr;
+
+    auto symbol = nestedNameSpecifier->symbol;
+    if (!symbol) return nullptr;
+
+    if (auto alias = symbol_cast<TypeAliasSymbol>(symbol)) {
+      if (auto classType = type_cast<ClassType>(alias->type())) {
+        symbol = classType->symbol();
+      }
+    }
+
+    if (auto classSymbol = symbol_cast<ClassSymbol>(symbol))
+      return classSymbol->scope();
+
+    if (auto namespaceSymbol = symbol_cast<NamespaceSymbol>(symbol))
+      return namespaceSymbol->scope();
+
+    return nullptr;
   }
 };
 
@@ -4743,46 +4770,25 @@ auto Parser::parse_simple_declaration(
     auto functionType =
         GetDeclaratorType{this}(declarator, decl.specs.getType());
 
-    const Name* functionName = decl.getName();
-    FunctionSymbol* functionSymbol = nullptr;
+    auto q = decl.getNestedNameSpecifier();
 
-    if (decl.declaratorId->nestedNameSpecifier) {
-      auto enclosingSymbol = decl.declaratorId->nestedNameSpecifier->symbol;
-
-      if (!enclosingSymbol) {
-        if (config_.checkTypes) {
-          parse_error(
-              decl.declaratorId->nestedNameSpecifier->firstSourceLocation(),
-              cxx::format("unresolved class or namespace"));
-        }
-      } else {
-        if (auto classSymbol = symbol_cast<ClassSymbol>(enclosingSymbol)) {
-          scope_ = classSymbol->scope();
-        } else if (auto namespaceSymbol =
-                       symbol_cast<NamespaceSymbol>(enclosingSymbol)) {
-          scope_ = namespaceSymbol->scope();
-        } else {
-          if (config_.checkTypes) {
-            parse_error("expected a class or namespace");
-          }
-        }
-
-        functionSymbol = getFunction(scope_, functionName, functionType);
-
-        if (!functionSymbol) {
-          if (config_.checkTypes) {
-            parse_error(decl.declaratorId->unqualifiedId->firstSourceLocation(),
-                        cxx::format("'{}' has no member named '{}'",
-                                    to_string(enclosingSymbol->name()),
-                                    to_string(functionName)));
-          }
-        }
-      }
-    } else {
-      functionSymbol = getFunction(scope_, functionName, functionType);
+    if (auto scope = decl.getScope()) {
+      scope_ = scope;
+    } else if (q && config_.checkTypes) {
+      parse_error(q->firstSourceLocation(),
+                  cxx::format("unresolved class or namespace"));
     }
 
+    const Name* functionName = decl.getName();
+    auto functionSymbol = getFunction(scope_, functionName, functionType);
+
     if (!functionSymbol) {
+      if (q && config_.checkTypes) {
+        parse_error(q->firstSourceLocation(),
+                    cxx::format("class or namespace has no member named '{}'",
+                                to_string(functionName)));
+      }
+
       functionSymbol = control_->newFunctionSymbol(scope_);
       applySpecifiers(functionSymbol, decl.specs);
       functionSymbol->setName(functionName);
@@ -4879,19 +4885,12 @@ auto Parser::parse_notypespec_function_definition(
 
   ScopeGuard scopeGuard{this};
 
-  if (decl.declaratorId) {
-    auto nested = decl.declaratorId->nestedNameSpecifier;
-    if (nested) {
-      if (auto classSymbol = symbol_cast<ClassSymbol>(nested->symbol)) {
-        scope_ = classSymbol->scope();
-      } else if (auto namespaceSymbol =
-                     symbol_cast<NamespaceSymbol>(nested->symbol)) {
-        scope_ = namespaceSymbol->scope();
-      } else {
-        if (config_.checkTypes) {
-          parse_error("expected a class or namespace");
-        }
-      }
+  if (auto scope = decl.getScope()) {
+    scope_ = scope;
+  } else if (auto q = decl.getNestedNameSpecifier()) {
+    if (config_.checkTypes) {
+      parse_error(q->firstSourceLocation(),
+                  cxx::format("unresolved class or namespace"));
     }
   }
 
@@ -6780,6 +6779,17 @@ auto Parser::parse_declarator(DeclaratorAST*& yyast, Decl& decl,
   CoreDeclaratorAST* coreDeclarator = nullptr;
   if (!parse_core_declarator(coreDeclarator, decl, declaratorKind)) {
     return false;
+  }
+
+  ScopeGuard scopeGuard{this};
+
+  auto q = decl.getNestedNameSpecifier();
+
+  if (auto scope = decl.getScope()) {
+    scope_ = scope;
+  } else if (q && config_.checkTypes) {
+    parse_error(q->firstSourceLocation(),
+                cxx::format("unresolved class or namespace"));
   }
 
   List<DeclaratorChunkAST*>* declaratorChunkList = nullptr;
