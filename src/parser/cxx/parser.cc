@@ -38,7 +38,6 @@
 
 #include <algorithm>
 #include <cstring>
-#include <forward_list>
 
 namespace cxx {
 
@@ -6471,7 +6470,7 @@ auto Parser::is_type(Symbol* symbol) const -> bool {
 }
 
 auto Parser::is_template(Symbol* symbol) const -> bool {
-  auto templateParameters = getTemplateParameters(symbol);
+  auto templateParameters = cxx::getTemplateParameters(symbol);
   return templateParameters != nullptr;
 }
 
@@ -11105,27 +11104,6 @@ auto Parser::getFunction(Scope* scope, const Name* name, const Type* type)
   }
 
   return nullptr;
-}
-
-auto Parser::getTemplateParameters(Symbol* symbol) const
-    -> TemplateParametersSymbol* {
-  if (!symbol) return nullptr;
-  if (auto typeAlias = symbol_cast<TypeAliasSymbol>(symbol)) {
-    return typeAlias->templateParameters();
-  } else if (auto classSymbol = symbol_cast<ClassSymbol>(symbol)) {
-    return classSymbol->templateParameters();
-  } else if (auto function = symbol_cast<FunctionSymbol>(symbol)) {
-    return function->templateParameters();
-  } else if (auto variable = symbol_cast<VariableSymbol>(symbol)) {
-    return variable->templateParameters();
-  } else if (auto conceptSymbol = symbol_cast<ConceptSymbol>(symbol)) {
-    return conceptSymbol->templateParameters();
-  } else if (auto templateTypeParameter =
-                 symbol_cast<TemplateTypeParameterSymbol>(symbol)) {
-    return templateTypeParameter->templateParameters();
-  } else {
-    return nullptr;
-  }
 }
 
 }  // namespace cxx

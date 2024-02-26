@@ -28,17 +28,17 @@ A<void*> a2;
 // CHECK-NEXT:    [specializations]
 // CHECK-NEXT:      class A<int>
 // CHECK-NEXT:        field int a
-// CHECK-NEXT:        field A<int>* next
+// CHECK-NEXT:        field ::A<int>* next
 // CHECK-NEXT:        function int get_a()
 // CHECK-NEXT:        function void set_a(const int&)
 // CHECK-NEXT:        typealias int type
 // CHECK-NEXT:        typealias int& reference
 // CHECK-NEXT:      class A<void*>
 // CHECK-NEXT:        field void* a
-// CHECK-NEXT:        field A<void*>* next
+// CHECK-NEXT:        field ::A<void*>* next
 // CHECK-NEXT:        function void* get_a()
 // CHECK-NEXT:        function void set_a(void* const&)
 // CHECK-NEXT:        typealias void* type
 // CHECK-NEXT:        typealias void*& reference
-// CHECK-NEXT:  variable A<int> a1
-// CHECK-NEXT:  variable A<void*> a2
+// CHECK-NEXT:  variable ::A<int> a1
+// CHECK-NEXT:  variable ::A<void*> a2

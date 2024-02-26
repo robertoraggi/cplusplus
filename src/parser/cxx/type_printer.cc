@@ -296,7 +296,12 @@ class TypePrinter {
   }
 
   void operator()(const ClassType* type) {
-    std::string out = to_string(type->symbol()->name());
+    std::string out;
+    if (auto parent = type->symbol()->enclosingSymbol()) {
+      accept(parent->type());
+      out += "::";
+    }
+    out += to_string(type->symbol()->name());
     if (type->symbol()->isSpecialization()) {
       out += '<';
       std::string_view sep = "";

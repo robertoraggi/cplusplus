@@ -215,6 +215,11 @@ auto SymbolInstantiation::VisitSymbol::operator()(ClassSymbol* symbol)
   auto newSymbol = self.replacement(symbol);
   newSymbol->setFlags(symbol->flags());
 
+  if (symbol != self.current_) {
+    newSymbol->setTemplateParameters(
+        self.instantiate(symbol->templateParameters()));
+  }
+
   for (auto baseClass : symbol->baseClasses()) {
     auto newBaseClass = self.instantiate(baseClass);
     newSymbol->addBaseClass(newBaseClass);
@@ -570,6 +575,12 @@ auto SymbolInstantiation::VisitType::operator()(const NamespaceType* type)
 
 auto SymbolInstantiation::VisitType::operator()(const TypeParameterType* type)
     -> const Type* {
+  auto templateParameters = getTemplateParameters(self.current_);
+
+  if (type->symbol()->enclosingSymbol() != templateParameters) {
+    return self.replacement(type->symbol())->type();
+  }
+
   auto index = type->symbol()->index();
 
   if (index >= self.arguments_.size()) {

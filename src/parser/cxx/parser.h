@@ -785,9 +785,6 @@ class Parser final {
   [[nodiscard]] auto getFunction(Scope* scope, const Name* name,
                                  const Type* type) -> FunctionSymbol*;
 
-  [[nodiscard]] auto getTemplateParameters(Symbol* symbol) const
-      -> TemplateParametersSymbol*;
-
   [[nodiscard]] auto enterOrCreateNamespace(const Name* name, bool isInline)
       -> NamespaceSymbol*;
 

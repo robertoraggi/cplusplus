@@ -17,7 +17,7 @@ auto list::at(value_type) -> value_type { return 0; }
 // CHECK-NEXT:  class list
 // CHECK-NEXT:    typealias int value_type
 // CHECK-NEXT:    class iterator
-// CHECK-NEXT:    function iterator begin()
+// CHECK-NEXT:    function ::list::iterator begin()
 // CHECK-NEXT:      block
 // CHECK-NEXT:    function int at(int)
 // CHECK-NEXT:      parameters
