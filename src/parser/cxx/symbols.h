@@ -33,6 +33,8 @@
 #include <utility>
 #include <vector>
 
+#include "cxx/ast.h"
+
 namespace cxx {
 
 template <typename S>
@@ -711,5 +713,48 @@ auto symbol_cast(Symbol* symbol) -> T* {
   if (symbol && symbol->kind() == T::Kind) return static_cast<T*>(symbol);
   return nullptr;
 }
+
+struct GetTemplateParameters {
+  auto operator()(Symbol* symbol) const -> TemplateParametersSymbol* {
+    if (!symbol) return nullptr;
+    return visit(Visitor{*this}, symbol);
+  }
+
+ private:
+  struct Visitor {
+    const GetTemplateParameters& getTemplateParameters;
+
+    auto operator()(ConceptSymbol* symbol) const -> TemplateParametersSymbol* {
+      return symbol->templateParameters();
+    }
+
+    auto operator()(ClassSymbol* symbol) const -> TemplateParametersSymbol* {
+      return symbol->templateParameters();
+    }
+
+    auto operator()(FunctionSymbol* symbol) const -> TemplateParametersSymbol* {
+      return symbol->templateParameters();
+    }
+
+    auto operator()(LambdaSymbol* symbol) const -> TemplateParametersSymbol* {
+      return symbol->templateParameters();
+    }
+
+    auto operator()(TypeAliasSymbol* symbol) const
+        -> TemplateParametersSymbol* {
+      return symbol->templateParameters();
+    }
+
+    auto operator()(VariableSymbol* symbol) const -> TemplateParametersSymbol* {
+      return symbol->templateParameters();
+    }
+
+    auto operator()(auto symbol) const -> TemplateParametersSymbol* {
+      return nullptr;
+    }
+  };
+};
+
+inline constexpr auto getTemplateParameters = GetTemplateParameters{};
 
 }  // namespace cxx

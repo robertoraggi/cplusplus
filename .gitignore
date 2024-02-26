@@ -5,3 +5,4 @@ out
 node_modules
 *.tgz
 .vscode/launch.json
+.cache
