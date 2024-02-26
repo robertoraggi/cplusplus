@@ -97,6 +97,8 @@ class Preprocessor {
 
   void printMacros(std::ostream &out) const;
 
+  void printDependencies(std::ostream &out, bool noSysPath) const;
+
   void getTokenStartPosition(const Token &token, unsigned *line,
                              unsigned *column,
                              std::string_view *fileName) const;

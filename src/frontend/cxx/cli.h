@@ -54,6 +54,8 @@ class CLI {
   bool opt_ast_dump = false;
   bool opt_ir_dump = false;
   bool opt_dM = false;
+  bool opt_MM = false;
+  bool opt_M = false;
   bool opt_dump_symbols = false;
   bool opt_dump_tokens = false;
   bool opt_E = false;
