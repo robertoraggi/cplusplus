@@ -56,6 +56,8 @@ class SymbolInstantiation {
   struct VisitSymbol;
   struct VisitType;
 
+  [[nodiscard]] auto substitute(const Type* type) -> const Type*;
+
   template <typename S>
   [[nodiscard]] auto instantiate(S* symbol) -> S* {
     return static_cast<S*>(instantiateHelper(symbol));

@@ -23,7 +23,6 @@
 // cxx
 #include <cxx/ast.h>
 #include <cxx/control.h>
-#include <cxx/private/format.h>
 #include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
@@ -185,12 +184,17 @@ auto SymbolInstantiation::findOrCreateReplacement(Symbol* symbol) -> Symbol* {
   auto enclosingSymbol = replacement(symbol->enclosingSymbol());
   newSymbol->setEnclosingScope(enclosingSymbol->scope());
   if (symbol->type()) {
-    newSymbol->setType(visit(VisitType{*this}, symbol->type()));
+    newSymbol->setType(substitute(symbol->type()));
   }
 
   newSymbol->setName(symbol->name());
 
   return newSymbol;
+}
+
+auto SymbolInstantiation::substitute(const Type* type) -> const Type* {
+  if (!type) return nullptr;
+  return visit(VisitType{*this}, type);
 }
 
 auto SymbolInstantiation::instantiateHelper(Symbol* symbol) -> Symbol* {
@@ -602,9 +606,25 @@ auto SymbolInstantiation::VisitType::operator()(const UnresolvedNameType* type)
     std::vector<TemplateArgument> args;
     for (auto it = templateId->templateArgumentList; it; it = it->next) {
       if (auto arg = ast_cast<TypeTemplateArgumentAST>(it->value)) {
-        args.push_back(substitute(arg->typeId->type));
+        auto argType = self.substitute(arg->typeId->type);
+        args.push_back(argType);
       }
     }
+
+    auto needsInstantiation = [&]() -> bool {
+      if (args.empty()) return true;
+
+      for (auto arg : args) {
+        auto typeArgument = std::get_if<const Type*>(&arg);
+        if (!typeArgument) return true;
+        auto ty = type_cast<TypeParameterType>(*typeArgument);
+        if (!ty) return true;
+      }
+      return false;
+    };
+
+    if (!needsInstantiation()) return type;
+
     auto symbol = self.control()->instantiate(type->translationUnit(),
                                               templateId->primaryTemplateSymbol,
                                               std::move(args));
