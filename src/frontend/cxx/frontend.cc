@@ -57,8 +57,8 @@
 namespace {
 using namespace cxx;
 
-auto readAll(const std::string& fileName, std::istream& in)
-    -> std::optional<std::string> {
+auto readAll(const std::string& fileName,
+             std::istream& in) -> std::optional<std::string> {
   std::string code;
   char buffer[4 * 1024];
   do {

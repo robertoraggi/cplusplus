@@ -51,7 +51,7 @@ export function gen_ast_slot_cc({ ast, output }: { ast: AST; output: string }) {
   by_base.forEach((nodes) => {
     nodes.forEach(({ name, members }) => {
       const memberSlots = members.filter(
-        (m) => classifyMemberSlot(m) !== undefined
+        (m) => classifyMemberSlot(m) !== undefined,
       );
 
       emit();
@@ -87,7 +87,7 @@ export function gen_ast_slot_cc({ ast, output }: { ast: AST; output: string }) {
             case MemberSlotClassification.IdentifierAttribute:
               emit(`  case ${slotCount}: // ${m.name}`);
               emit(
-                `    value_ = reinterpret_cast<std::intptr_t>(ast->${m.name});`
+                `    value_ = reinterpret_cast<std::intptr_t>(ast->${m.name});`,
               );
               emit(`    slotKind_ = ASTSlotKind::kIdentifierAttribute;`);
               emit(`    slotNameIndex_ = SlotNameIndex{${slotNameIndex}};`);
@@ -96,7 +96,7 @@ export function gen_ast_slot_cc({ ast, output }: { ast: AST; output: string }) {
             case MemberSlotClassification.LiteralAttribute:
               emit(`  case ${slotCount}: // ${m.name}`);
               emit(
-                `    value_ = reinterpret_cast<std::intptr_t>(ast->${m.name});`
+                `    value_ = reinterpret_cast<std::intptr_t>(ast->${m.name});`,
               );
               emit(`    slotKind_ = ASTSlotKind::kLiteralAttribute;`);
               emit(`    slotNameIndex_ = SlotNameIndex{${slotNameIndex}};`);
@@ -112,7 +112,7 @@ export function gen_ast_slot_cc({ ast, output }: { ast: AST; output: string }) {
             case MemberSlotClassification.Node:
               emit(`  case ${slotCount}: // ${m.name}`);
               emit(
-                `    value_ = reinterpret_cast<std::intptr_t>(ast->${m.name});`
+                `    value_ = reinterpret_cast<std::intptr_t>(ast->${m.name});`,
               );
               emit(`    slotKind_ = ASTSlotKind::kNode;`);
               emit(`    slotNameIndex_ = SlotNameIndex{${slotNameIndex}};`);
@@ -121,7 +121,7 @@ export function gen_ast_slot_cc({ ast, output }: { ast: AST; output: string }) {
             case MemberSlotClassification.NodeList:
               emit(`  case ${slotCount}: // ${m.name}`);
               emit(
-                `    value_ = reinterpret_cast<std::intptr_t>(ast->${m.name});`
+                `    value_ = reinterpret_cast<std::intptr_t>(ast->${m.name});`,
               );
               emit(`    slotKind_ = ASTSlotKind::kNodeList;`);
               emit(`    slotNameIndex_ = SlotNameIndex{${slotNameIndex}};`);

@@ -627,6 +627,7 @@ table StaticAssertDeclaration /* DeclarationAST */ {
 
 table AliasDeclaration /* DeclarationAST */ {
   attribute_list: [AttributeSpecifier];
+  gnu_attribute_list: [AttributeSpecifier];
   type_id: TypeId;
   identifier: string;
   using_loc: SourceLocation;

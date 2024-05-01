@@ -1,4 +1,4 @@
-FROM emscripten/emsdk:3.1.50
+FROM emscripten/emsdk:3.1.59
 
 RUN wget -nd -P /tmp/ https://github.com/watchexec/watchexec/releases/download/v1.23.0/watchexec-1.23.0-x86_64-unknown-linux-gnu.deb \
     && dpkg -i /tmp/watchexec-1.23.0-x86_64-unknown-linux-gnu.deb \
@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y \
 RUN echo emscripten ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/emscripten && \
     chmod 0440 /etc/sudoers.d/emscripten
 
-RUN wget https://github.com/google/flatbuffers/releases/download/v23.5.26/Linux.flatc.binary.g++-10.zip && \
+RUN wget https://github.com/google/flatbuffers/releases/download/v24.3.25/Linux.flatc.binary.g++-10.zip && \
     unzip Linux.flatc.binary.g++-10.zip && \
     mv flatc /usr/bin/flatc && \
     rm Linux.flatc.binary.g++-10.zip

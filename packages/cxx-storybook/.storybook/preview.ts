@@ -20,7 +20,7 @@ const preview: Preview = {
       return React.createElement(
         QueryClientProvider,
         { client: queryClient },
-        React.createElement(Story)
+        React.createElement(Story),
       );
     },
   ],

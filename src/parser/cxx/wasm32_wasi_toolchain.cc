@@ -59,13 +59,23 @@ void Wasm32WasiToolchain::setSysroot(std::string sysroot) {
   }
 }
 
+/*
+ /wasi-sysroot/include/wasm32-wasi/c++/v1
+ /wasi-sysroot/include/c++/v1
+ /usr/lib/llvm-17/lib/clang/17/include
+ /wasi-sysroot/include/wasm32-wasi
+ /wasi-sysroot/include
+ */
+
 void Wasm32WasiToolchain::addSystemIncludePaths() {
   addSystemIncludePath(cxx::format("{}/include", sysroot_));
+  addSystemIncludePath(cxx::format("{}/include/wasm32-wasi", sysroot_));
   addSystemIncludePath(cxx::format("{}/../lib/cxx/include", appdir_));
 }
 
 void Wasm32WasiToolchain::addSystemCppIncludePaths() {
   addSystemIncludePath(cxx::format("{}/include/c++/v1", sysroot_));
+  addSystemIncludePath(cxx::format("{}/include/wasm32-wasi/c++/v1", sysroot_));
 }
 
 void Wasm32WasiToolchain::addPredefinedMacros() {
@@ -78,6 +88,7 @@ void Wasm32WasiToolchain::addPredefinedMacros() {
   defineMacro("__unsafe_unretained", "");
   defineMacro("_Nullable", "");
   defineMacro("_Nonnull", "");
+  defineMacro("_Thread_local", "thread_local");
 
   defineMacro("_GNU_SOURCE", "1");
   defineMacro("_ILP32", "1");
@@ -140,6 +151,16 @@ void Wasm32WasiToolchain::addPredefinedMacros() {
   defineMacro("__FLT_MIN_EXP__", "(-125)");
   defineMacro("__FLT_MIN__", "1.17549435e-38F");
   defineMacro("__FLT_RADIX__", "2");
+  defineMacro("__FPCLASS_NEGINF", "0x0004");
+  defineMacro("__FPCLASS_NEGNORMAL", "0x0008");
+  defineMacro("__FPCLASS_NEGSUBNORMAL", "0x0010");
+  defineMacro("__FPCLASS_NEGZERO", "0x0020");
+  defineMacro("__FPCLASS_POSINF", "0x0200");
+  defineMacro("__FPCLASS_POSNORMAL", "0x0100");
+  defineMacro("__FPCLASS_POSSUBNORMAL", "0x0080");
+  defineMacro("__FPCLASS_POSZERO", "0x0040");
+  defineMacro("__FPCLASS_QNAN", "0x0002");
+  defineMacro("__FPCLASS_SNAN", "0x0001");
   defineMacro("__GCC_ATOMIC_BOOL_LOCK_FREE", "2");
   defineMacro("__GCC_ATOMIC_CHAR16_T_LOCK_FREE", "2");
   defineMacro("__GCC_ATOMIC_CHAR32_T_LOCK_FREE", "2");
@@ -399,7 +420,7 @@ void Wasm32WasiToolchain::addPredefinedMacros() {
   defineMacro("__UINT_LEAST8_MAX__", "255");
   defineMacro("__UINT_LEAST8_TYPE__", "unsigned char");
   defineMacro("__USER_LABEL_PREFIX__", "");
-  defineMacro("__VERSION__", "\"17.0.0\"");
+  defineMacro("__VERSION__", "\"Ubuntu Clang 17.0.6 (++20231209124227+6009708b4367-1~exp1~20231209124336.77)\"");
   defineMacro("__WCHAR_MAX__", "2147483647");
   defineMacro("__WCHAR_TYPE__", "int");
   defineMacro("__WCHAR_WIDTH__", "32");
@@ -410,8 +431,8 @@ void Wasm32WasiToolchain::addPredefinedMacros() {
   defineMacro("__clang_literal_encoding__", "\"UTF-8\"");
   defineMacro("__clang_major__", "17");
   defineMacro("__clang_minor__", "0");
-  defineMacro("__clang_patchlevel__", "0");
-  defineMacro("__clang_version__", "\"17.0.0\"");
+  defineMacro("__clang_patchlevel__", "6");
+  defineMacro("__clang_version__", "\"17.0.6 (++20231209124227+6009708b4367-1~exp1~20231209124336.77)\"");
   defineMacro("__clang_wide_literal_encoding__", "\"UTF-32\"");
   defineMacro("__cplusplus", "202002L");
   defineMacro("__cpp_aggregate_bases", "201603L");
@@ -425,6 +446,7 @@ void Wasm32WasiToolchain::addPredefinedMacros() {
   defineMacro("__cpp_char8_t", "202207L");
   defineMacro("__cpp_concepts", "201907L");
   defineMacro("__cpp_conditional_explicit", "201806L");
+  defineMacro("__cpp_consteval", "202211L");
   defineMacro("__cpp_constexpr", "201907L");
   defineMacro("__cpp_constexpr_dynamic_alloc", "201907L");
   defineMacro("__cpp_constexpr_in_decltype", "201711L");

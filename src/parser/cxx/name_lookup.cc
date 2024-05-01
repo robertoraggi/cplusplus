@@ -46,8 +46,8 @@ auto Lookup::qualifiedLookup(Scope* scope, const Name* name) const -> Symbol* {
   return lookupHelper(scope, name, cache);
 }
 
-auto Lookup::qualifiedLookup(Symbol* scopedSymbol, const Name* name) const
-    -> Symbol* {
+auto Lookup::qualifiedLookup(Symbol* scopedSymbol,
+                             const Name* name) const -> Symbol* {
   if (!scopedSymbol) return nullptr;
   switch (scopedSymbol->kind()) {
     case SymbolKind::kNamespace:

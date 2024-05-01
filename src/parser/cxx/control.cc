@@ -343,8 +343,8 @@ auto Control::getLongDoubleType() -> const LongDoubleType* {
   return &d->longDoubleType;
 }
 
-auto Control::getQualType(const Type* elementType, CvQualifiers cvQualifiers)
-    -> const QualType* {
+auto Control::getQualType(const Type* elementType,
+                          CvQualifiers cvQualifiers) -> const QualType* {
   return &*d->qualTypes.emplace(elementType, cvQualifiers).first;
 }
 
@@ -360,8 +360,8 @@ auto Control::getConstVolatileType(const Type* elementType) -> const QualType* {
   return getQualType(elementType, CvQualifiers::kConstVolatile);
 }
 
-auto Control::getBoundedArrayType(const Type* elementType, std::size_t size)
-    -> const BoundedArrayType* {
+auto Control::getBoundedArrayType(const Type* elementType,
+                                  std::size_t size) -> const BoundedArrayType* {
   return &*d->boundedArrayTypes.emplace(elementType, size).first;
 }
 
@@ -392,8 +392,8 @@ auto Control::getOverloadSetType(OverloadSetSymbol* symbol)
 auto Control::getFunctionType(const Type* returnType,
                               std::vector<const Type*> parameterTypes,
                               bool isVariadic, CvQualifiers cvQualifiers,
-                              RefQualifier refQualifier, bool isNoexcept)
-    -> const FunctionType* {
+                              RefQualifier refQualifier,
+                              bool isNoexcept) -> const FunctionType* {
   return &*d->functionTypes
                .emplace(returnType, std::move(parameterTypes), isVariadic,
                         cvQualifiers, refQualifier, isNoexcept)
@@ -422,19 +422,17 @@ auto Control::getTemplateTypeParameterType(TemplateTypeParameterSymbol* symbol)
   return &*d->templateTypeParameterTypes.emplace(symbol).first;
 }
 
-auto Control::getUnresolvedNameType(TranslationUnit* unit,
-                                    NestedNameSpecifierAST* nestedNameSpecifier,
-                                    UnqualifiedIdAST* unqualifiedId)
-    -> const UnresolvedNameType* {
+auto Control::getUnresolvedNameType(
+    TranslationUnit* unit, NestedNameSpecifierAST* nestedNameSpecifier,
+    UnqualifiedIdAST* unqualifiedId) -> const UnresolvedNameType* {
   return &*d->unresolvedNameTypes
                .emplace(unit, nestedNameSpecifier, unqualifiedId)
                .first;
 }
 
-auto Control::getUnresolvedBoundedArrayType(TranslationUnit* unit,
-                                            const Type* elementType,
-                                            ExpressionAST* sizeExpression)
-    -> const UnresolvedBoundedArrayType* {
+auto Control::getUnresolvedBoundedArrayType(
+    TranslationUnit* unit, const Type* elementType,
+    ExpressionAST* sizeExpression) -> const UnresolvedBoundedArrayType* {
   return &*d->unresolvedBoundedArrayTypes
                .emplace(unit, elementType, sizeExpression)
                .first;

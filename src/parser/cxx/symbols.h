@@ -132,7 +132,7 @@ class Symbol {
   [[nodiscard]] auto next() const -> Symbol*;
 
 #define PROCESS_SYMBOL(S) \
-  [[nodiscard]] auto is##S() const -> bool { return kind_ == SymbolKind::k##S; }
+  [[nodiscard]] auto is##S() const->bool { return kind_ == SymbolKind::k##S; }
   CXX_FOR_EACH_SYMBOL(PROCESS_SYMBOL)
 #undef PROCESS_SYMBOL
 
@@ -284,9 +284,8 @@ class ClassSymbol final : public ScopedSymbol {
   }
 
  private:
-  [[nodiscard]] auto hasBaseClass(Symbol* symbol,
-                                  std::unordered_set<const ClassSymbol*>&) const
-      -> bool;
+  [[nodiscard]] auto hasBaseClass(
+      Symbol* symbol, std::unordered_set<const ClassSymbol*>&) const -> bool;
 
  private:
   std::vector<BaseClassSymbol*> baseClasses_;
@@ -700,7 +699,7 @@ auto visit(Visitor&& visitor, Symbol* symbol) {
 }
 
 #define PROCESS_SYMBOL(S)                                \
-  inline auto is##S##Symbol(Symbol* symbol) -> bool {    \
+  inline auto is##S##Symbol(Symbol* symbol)->bool {      \
     return symbol && symbol->kind() == SymbolKind::k##S; \
   }
 

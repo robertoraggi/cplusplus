@@ -66,6 +66,10 @@ const cmakeConfigureOpts = [
 
 const cmakeBuildOpts = ["--build", "build.wasi", "--target", "install"];
 
-await $`${docker} build ${dockerBuildArgs}`;
-await $`${docker} run ${dockerRunOpts} cmake ${cmakeConfigureOpts}`;
-await $`${docker} run ${dockerRunOpts} cmake ${cmakeBuildOpts}`;
+async function main() {
+  await $`${docker} build ${dockerBuildArgs}`;
+  await $`${docker} run ${dockerRunOpts} cmake ${cmakeConfigureOpts}`;
+  await $`${docker} run ${dockerRunOpts} cmake ${cmakeBuildOpts}`;
+}
+
+main().catch(console.error);

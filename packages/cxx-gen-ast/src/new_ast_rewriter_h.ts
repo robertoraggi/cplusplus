@@ -66,7 +66,7 @@ export function new_ast_rewriter_h({
     emit(`    ${opName}& rewrite;`);
     emit();
     emit(
-      `    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }`
+      `    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }`,
     );
     nodes.forEach(({ name }) => {
       emit();

@@ -39,7 +39,7 @@ export function gen_syntax_cc({ ast, output }: { ast: AST; output: string }) {
     emit(`  switch (ast->kind()) {`);
     nodes.forEach(({ name }) => {
       emit(
-        `  case ${name}::Kind: return ${variantName}(static_cast<${name}*>(ast));`
+        `  case ${name}::Kind: return ${variantName}(static_cast<${name}*>(ast));`,
       );
     });
     emit(`    default: cxx_runtime_error("unexpected ${variantName}");`);

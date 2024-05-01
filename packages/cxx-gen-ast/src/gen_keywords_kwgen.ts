@@ -30,7 +30,7 @@ export function gen_keywords_kwgen({ output }: { output: string }) {
   };
 
   tokens.KEYWORDS.filter((kw) => !isContextKeyword(kw)).forEach((tk) =>
-    emit(tk)
+    emit(tk),
   );
 
   emit();

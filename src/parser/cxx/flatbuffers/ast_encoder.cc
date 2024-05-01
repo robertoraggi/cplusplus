@@ -766,6 +766,21 @@ void ASTEncoder::visit(AliasDeclarationAST* ast) {
 
   auto equalLoc = encodeSourceLocation(ast->equalLoc);
 
+  std::vector<flatbuffers::Offset<>> gnuAttributeListOffsets;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      gnuAttributeListTypes;
+
+  for (auto it = ast->gnuAttributeList; it; it = it->next) {
+    if (!it->value) continue;
+    const auto [offset, type] = acceptAttributeSpecifier(it->value);
+    gnuAttributeListOffsets.push_back(offset);
+    gnuAttributeListTypes.push_back(type);
+  }
+
+  auto gnuAttributeListOffsetsVector =
+      fbb_.CreateVector(gnuAttributeListOffsets);
+  auto gnuAttributeListTypesVector = fbb_.CreateVector(gnuAttributeListTypes);
+
   const auto typeId = accept(ast->typeId);
 
   auto semicolonLoc = encodeSourceLocation(ast->semicolonLoc);
@@ -786,6 +801,8 @@ void ASTEncoder::visit(AliasDeclarationAST* ast) {
   builder.add_attribute_list(attributeListOffsetsVector);
   builder.add_attribute_list_type(attributeListTypesVector);
   builder.add_equal_loc(equalLoc.o);
+  builder.add_gnu_attribute_list(gnuAttributeListOffsetsVector);
+  builder.add_gnu_attribute_list_type(gnuAttributeListTypesVector);
   builder.add_type_id(typeId.o);
   builder.add_semicolon_loc(semicolonLoc.o);
   if (ast->identifier) {

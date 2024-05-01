@@ -49,7 +49,7 @@ export const Basic: EditorWithSyntaxTreeStory = {
   loaders: [
     async () => {
       const response = await fetch(
-        "https://raw.githubusercontent.com/robertoraggi/cplusplus/main/src/parser/cxx/parser.cc"
+        "https://raw.githubusercontent.com/robertoraggi/cplusplus/main/src/parser/cxx/parser.cc",
       );
 
       if (!response.ok) {

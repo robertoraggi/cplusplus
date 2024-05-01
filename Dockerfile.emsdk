@@ -1,4 +1,4 @@
-FROM emscripten/emsdk:3.1.50 as em
+FROM emscripten/emsdk:3.1.59 as em
 
 RUN apt-get update && apt-get install -y \
     ninja-build \
@@ -9,7 +9,7 @@ COPY tools/kwgen/kwgen.cc /tmp/kwgen.cc
 
 RUN g++ -std=c++20 /tmp/kwgen.cc -o /usr/bin/kwgen
 
-RUN wget https://github.com/google/flatbuffers/releases/download/v23.5.26/Linux.flatc.binary.g++-10.zip && \
-    unzip Linux.flatc.binary.g++-10.zip && \
+RUN wget https://github.com/google/flatbuffers/releases/download/v24.3.25/Linux.flatc.binary.clang++-15.zip && \
+    unzip Linux.flatc.binary.clang++-15.zip && \
     mv flatc /usr/bin/flatc && \
-    rm Linux.flatc.binary.g++-10.zip
+    rm Linux.flatc.binary.clang++-15.zip

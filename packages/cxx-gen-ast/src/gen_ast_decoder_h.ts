@@ -50,7 +50,7 @@ export function gen_ast_decoder_h({
     if (base === "AST") return;
     const className = makeClassName(base);
     emit(
-      `  auto decode${className}(const void* ptr, io::${className} type) -> ${base}*;`
+      `  auto decode${className}(const void* ptr, io::${className} type) -> ${base}*;`,
     );
   });
   emit();
@@ -59,7 +59,7 @@ export function gen_ast_decoder_h({
     nodes.forEach(({ name }) => {
       const className = makeClassName(name);
       emit(
-        `  auto decode${className}(const io::${className}* node) -> ${name}*;`
+        `  auto decode${className}(const io::${className}* node) -> ${name}*;`,
       );
     });
     emit();

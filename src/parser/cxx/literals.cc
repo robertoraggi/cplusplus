@@ -354,9 +354,8 @@ void IntegerLiteral::initialize() const {
   components_ = Components::from(value(), nullptr);
 }
 
-auto IntegerLiteral::Components::from(std::string_view text,
-                                      DiagnosticsClient *diagnostics)
-    -> Components {
+auto IntegerLiteral::Components::from(
+    std::string_view text, DiagnosticsClient *diagnostics) -> Components {
   std::string integerPart;
   integerPart.reserve(text.size());
 
@@ -577,9 +576,8 @@ void FloatLiteral::initialize() const {
   components_ = Components::from(value());
 }
 
-auto FloatLiteral::Components::from(std::string_view text,
-                                    DiagnosticsClient *diagnostics)
-    -> Components {
+auto FloatLiteral::Components::from(
+    std::string_view text, DiagnosticsClient *diagnostics) -> Components {
   std::size_t pos = 0;
 
   auto LA = [&](int n = 0) -> int {
@@ -732,9 +730,8 @@ auto FloatLiteral::Components::from(std::string_view text,
   return components;
 }
 
-auto StringLiteral::Components::from(std::string_view text,
-                                     DiagnosticsClient *diagnostics)
-    -> Components {
+auto StringLiteral::Components::from(
+    std::string_view text, DiagnosticsClient *diagnostics) -> Components {
   StringLiteralParser<std::string> parser(text, diagnostics);
 
   parser.parseStringLiteral();
@@ -749,9 +746,8 @@ void StringLiteral::initialize() const {
   components_ = Components::from(value());
 }
 
-auto CharLiteral::Components::from(std::string_view text,
-                                   DiagnosticsClient *diagnostics)
-    -> Components {
+auto CharLiteral::Components::from(
+    std::string_view text, DiagnosticsClient *diagnostics) -> Components {
   StringLiteralParser<std::string> parser(text, diagnostics);
 
   parser.parseCharLiteral();

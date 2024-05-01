@@ -81,7 +81,8 @@ set_target_properties(utf8cpp::utf8cpp PROPERTIES INTERFACE_INCLUDE_DIRECTORIES 
 
 FetchContent_Declare(
     wasi_sysroot
-    URL https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-20/wasi-sysroot-20.0.tar.gz
+    URL https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-22/wasi-sysroot-22.0.tar.gz
+    PATCH_COMMAND patch -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/patches/wasi-sysroot.patch
 )
 
 FetchContent_MakeAvailable(wasi_sysroot)
@@ -99,7 +100,7 @@ if (CXX_ENABLE_FLATBUFFERS)
 
     FetchContent_Declare(
         flatbuffers
-        URL https://github.com/google/flatbuffers/archive/refs/tags/v23.5.26.tar.gz
+        URL https://github.com/google/flatbuffers/archive/refs/tags/v24.3.25.tar.gz
     )
 
     FetchContent_MakeAvailable(flatbuffers)

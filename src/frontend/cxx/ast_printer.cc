@@ -244,6 +244,15 @@ void ASTPrinter::visit(AliasDeclarationAST* ast) {
     }
     --indent_;
   }
+  if (ast->gnuAttributeList) {
+    ++indent_;
+    out_ << cxx::format("{:{}}", "", indent_ * 2);
+    out_ << cxx::format("{}\n", "gnu-attribute-list");
+    for (auto it = ast->gnuAttributeList; it; it = it->next) {
+      accept(it->value);
+    }
+    --indent_;
+  }
   accept(ast->typeId, "type-id");
 }
 

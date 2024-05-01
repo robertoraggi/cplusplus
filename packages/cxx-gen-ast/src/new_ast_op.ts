@@ -73,7 +73,7 @@ function main(args: MainArgs) {
     `clang-format -i ${baseFileName}.h ${baseFileName}.cc`,
     {
       cwd: path.join(outdir, "src/parser/cxx"),
-    }
+    },
   );
 }
 
