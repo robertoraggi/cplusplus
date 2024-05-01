@@ -35,7 +35,7 @@ const cxxFrontendSourcePath = path.join(
 // set the current working directory to the cxx-frontend source path
 $.cwd = cxxFrontendSourcePath;
 
-await build();
+build().catch(console.error);
 
 async function build() {
   const sdk = await detectEmsdk();

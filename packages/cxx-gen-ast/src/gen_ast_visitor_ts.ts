@@ -64,8 +64,8 @@ export async function gen_ast_visitor_ts({
       emit(` */`);
       emit(
         `    abstract visit${nodeName(
-          name
-        )}(node: ast.${name}, context: Context): Result;`
+          name,
+        )}(node: ast.${name}, context: Context): Result;`,
       );
     });
   });

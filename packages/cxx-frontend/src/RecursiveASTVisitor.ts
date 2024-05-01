@@ -196,6 +196,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     for (const element of node.getAttributeList()) {
       this.accept(element, context);
     }
+    for (const element of node.getGnuAttributeList()) {
+      this.accept(element, context);
+    }
     this.accept(node.getTypeId(), context);
   }
 

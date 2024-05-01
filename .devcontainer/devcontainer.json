@@ -28,6 +28,6 @@
     "ghcr.io/devcontainers/features/docker-in-docker": "latest",
     "ghcr.io/devcontainers/features/github-cli": "latest",
     "ghcr.io/devcontainers/features/node": "latest",
-    "ghcr.io/devcontainers/features/python": "latest"
+    "ghcr.io/devcontainers/features/python": "os-provided"
   }
 }

@@ -77,7 +77,7 @@ export function useConfigureEditor({
   // sync cursor position updates
   useEffect(
     () => onCursorPositionChanged?.(cursorPosition),
-    [cursorPosition, onCursorPositionChanged]
+    [cursorPosition, onCursorPositionChanged],
   );
 
   useSetEditorValue({ editor, initialValue });
@@ -127,7 +127,7 @@ export function useConfigureEditor({
         return view;
       });
     },
-    [editableCompartment, lintCompartment, updateParser]
+    [editableCompartment, lintCompartment, updateParser],
   );
 }
 

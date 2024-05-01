@@ -4,6 +4,7 @@
     "target": "ESNext",
     "moduleResolution": "NodeNext",
     "outDir": "dist",
+    "skipLibCheck": true,
     "strict": true,
     "sourceMap": true
   },

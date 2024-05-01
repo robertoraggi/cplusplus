@@ -59,8 +59,8 @@ auto ASTDecoder::decodeUnit(const void* ptr, io::Unit type) -> UnitAST* {
   }  // switch
 }
 
-auto ASTDecoder::decodeDeclaration(const void* ptr, io::Declaration type)
-    -> DeclarationAST* {
+auto ASTDecoder::decodeDeclaration(const void* ptr,
+                                   io::Declaration type) -> DeclarationAST* {
   switch (type) {
     case io::Declaration_SimpleDeclaration:
       return decodeSimpleDeclaration(
@@ -150,8 +150,8 @@ auto ASTDecoder::decodeDeclaration(const void* ptr, io::Declaration type)
   }  // switch
 }
 
-auto ASTDecoder::decodeStatement(const void* ptr, io::Statement type)
-    -> StatementAST* {
+auto ASTDecoder::decodeStatement(const void* ptr,
+                                 io::Statement type) -> StatementAST* {
   switch (type) {
     case io::Statement_LabeledStatement:
       return decodeLabeledStatement(
@@ -212,8 +212,8 @@ auto ASTDecoder::decodeStatement(const void* ptr, io::Statement type)
   }  // switch
 }
 
-auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
-    -> ExpressionAST* {
+auto ASTDecoder::decodeExpression(const void* ptr,
+                                  io::Expression type) -> ExpressionAST* {
   switch (type) {
     case io::Expression_GeneratedLiteralExpression:
       return decodeGeneratedLiteralExpression(
@@ -390,9 +390,8 @@ auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
   }  // switch
 }
 
-auto ASTDecoder::decodeTemplateParameter(const void* ptr,
-                                         io::TemplateParameter type)
-    -> TemplateParameterAST* {
+auto ASTDecoder::decodeTemplateParameter(
+    const void* ptr, io::TemplateParameter type) -> TemplateParameterAST* {
   switch (type) {
     case io::TemplateParameter_TemplateTypeParameter:
       return decodeTemplateTypeParameter(
@@ -411,8 +410,8 @@ auto ASTDecoder::decodeTemplateParameter(const void* ptr,
   }  // switch
 }
 
-auto ASTDecoder::decodeSpecifier(const void* ptr, io::Specifier type)
-    -> SpecifierAST* {
+auto ASTDecoder::decodeSpecifier(const void* ptr,
+                                 io::Specifier type) -> SpecifierAST* {
   switch (type) {
     case io::Specifier_GeneratedTypeSpecifier:
       return decodeGeneratedTypeSpecifier(
@@ -527,8 +526,8 @@ auto ASTDecoder::decodeSpecifier(const void* ptr, io::Specifier type)
   }  // switch
 }
 
-auto ASTDecoder::decodePtrOperator(const void* ptr, io::PtrOperator type)
-    -> PtrOperatorAST* {
+auto ASTDecoder::decodePtrOperator(const void* ptr,
+                                   io::PtrOperator type) -> PtrOperatorAST* {
   switch (type) {
     case io::PtrOperator_PointerOperator:
       return decodePointerOperator(
@@ -563,9 +562,8 @@ auto ASTDecoder::decodeCoreDeclarator(const void* ptr, io::CoreDeclarator type)
   }  // switch
 }
 
-auto ASTDecoder::decodeDeclaratorChunk(const void* ptr,
-                                       io::DeclaratorChunk type)
-    -> DeclaratorChunkAST* {
+auto ASTDecoder::decodeDeclaratorChunk(
+    const void* ptr, io::DeclaratorChunk type) -> DeclaratorChunkAST* {
   switch (type) {
     case io::DeclaratorChunk_FunctionDeclaratorChunk:
       return decodeFunctionDeclaratorChunk(
@@ -610,9 +608,8 @@ auto ASTDecoder::decodeUnqualifiedId(const void* ptr, io::UnqualifiedId type)
   }  // switch
 }
 
-auto ASTDecoder::decodeNestedNameSpecifier(const void* ptr,
-                                           io::NestedNameSpecifier type)
-    -> NestedNameSpecifierAST* {
+auto ASTDecoder::decodeNestedNameSpecifier(
+    const void* ptr, io::NestedNameSpecifier type) -> NestedNameSpecifierAST* {
   switch (type) {
     case io::NestedNameSpecifier_GlobalNestedNameSpecifier:
       return decodeGlobalNestedNameSpecifier(
@@ -631,8 +628,8 @@ auto ASTDecoder::decodeNestedNameSpecifier(const void* ptr,
   }  // switch
 }
 
-auto ASTDecoder::decodeFunctionBody(const void* ptr, io::FunctionBody type)
-    -> FunctionBodyAST* {
+auto ASTDecoder::decodeFunctionBody(const void* ptr,
+                                    io::FunctionBody type) -> FunctionBodyAST* {
   switch (type) {
     case io::FunctionBody_DefaultFunctionBody:
       return decodeDefaultFunctionBody(
@@ -651,9 +648,8 @@ auto ASTDecoder::decodeFunctionBody(const void* ptr, io::FunctionBody type)
   }  // switch
 }
 
-auto ASTDecoder::decodeTemplateArgument(const void* ptr,
-                                        io::TemplateArgument type)
-    -> TemplateArgumentAST* {
+auto ASTDecoder::decodeTemplateArgument(
+    const void* ptr, io::TemplateArgument type) -> TemplateArgumentAST* {
   switch (type) {
     case io::TemplateArgument_TypeTemplateArgument:
       return decodeTypeTemplateArgument(
@@ -666,9 +662,8 @@ auto ASTDecoder::decodeTemplateArgument(const void* ptr,
   }  // switch
 }
 
-auto ASTDecoder::decodeExceptionSpecifier(const void* ptr,
-                                          io::ExceptionSpecifier type)
-    -> ExceptionSpecifierAST* {
+auto ASTDecoder::decodeExceptionSpecifier(
+    const void* ptr, io::ExceptionSpecifier type) -> ExceptionSpecifierAST* {
   switch (type) {
     case io::ExceptionSpecifier_ThrowExceptionSpecifier:
       return decodeThrowExceptionSpecifier(
@@ -681,8 +676,8 @@ auto ASTDecoder::decodeExceptionSpecifier(const void* ptr,
   }  // switch
 }
 
-auto ASTDecoder::decodeRequirement(const void* ptr, io::Requirement type)
-    -> RequirementAST* {
+auto ASTDecoder::decodeRequirement(const void* ptr,
+                                   io::Requirement type) -> RequirementAST* {
   switch (type) {
     case io::Requirement_SimpleRequirement:
       return decodeSimpleRequirement(
@@ -770,9 +765,8 @@ auto ASTDecoder::decodeExceptionDeclaration(const void* ptr,
   }  // switch
 }
 
-auto ASTDecoder::decodeAttributeSpecifier(const void* ptr,
-                                          io::AttributeSpecifier type)
-    -> AttributeSpecifierAST* {
+auto ASTDecoder::decodeAttributeSpecifier(
+    const void* ptr, io::AttributeSpecifier type) -> AttributeSpecifierAST* {
   switch (type) {
     case io::AttributeSpecifier_CxxAttribute:
       return decodeCxxAttribute(reinterpret_cast<const io::CxxAttribute*>(ptr));
@@ -1018,6 +1012,15 @@ auto ASTDecoder::decodeAliasDeclaration(const io::AliasDeclaration* node)
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->attribute_list()->Get(i),
           io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  if (node->gnu_attribute_list()) {
+    auto* inserter = &ast->gnuAttributeList;
+    for (std::size_t i = 0; i < node->gnu_attribute_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->gnu_attribute_list()->Get(i),
+          io::AttributeSpecifier(node->gnu_attribute_list_type()->Get(i))));
       inserter = &(*inserter)->next;
     }
   }

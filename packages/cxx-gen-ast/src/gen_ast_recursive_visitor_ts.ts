@@ -51,7 +51,7 @@ export async function gen_ast_recursive_visitor_ts({
   emit(` * Base class for recursive AST visitors.`);
   emit(` */`);
   emit(
-    `export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {`
+    `export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {`,
   );
   emit(`    /**`);
   emit(`     * Constructor.`);
@@ -81,8 +81,8 @@ export async function gen_ast_recursive_visitor_ts({
       emit(`     */`);
       emit(
         `    visit${nodeName(
-          name
-        )}(node: ast.${name}, context: Context): void {`
+          name,
+        )}(node: ast.${name}, context: Context): void {`,
       );
       members.forEach((m) => {
         switch (m.kind) {
@@ -91,7 +91,7 @@ export async function gen_ast_recursive_visitor_ts({
             break;
           case "node-list":
             emit(
-              `        for (const element of node.${getterName(m.name)}()) {`
+              `        for (const element of node.${getterName(m.name)}()) {`,
             );
             emit(`            this.accept(element, context);`);
             emit(`        }`);

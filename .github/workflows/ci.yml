@@ -166,7 +166,11 @@ jobs:
             !build.wasi/install/usr/lib/cmake
             !build.wasi/install/usr/lib/wasi-sysroot/lib
             !build.wasi/install/usr/lib/wasi-sysroot/share
-            !build.wasi/install/usr/include
+            !build.wasi/install/usr/lib/wasi-sysroot/include/
+            !build.wasi/install/usr/include/wasm32-wasi-threads
+            !build.wasi/install/usr/include/wasm32-wasip1
+            !build.wasi/install/usr/include/wasm32-wasip1-threads
+            !build.wasi/install/usr/include/wasm32-wasip2
           retention-days: 1
 
   release-please:

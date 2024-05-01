@@ -1,3 +1,6 @@
+#include <version>
+
+//
 #include <algorithm>
 #include <any>
 #include <array>
@@ -20,7 +23,6 @@
 #include <codecvt>
 #include <complex>
 #include <condition_variable>
-#include <csetjmp>
 #include <cstdarg>
 #include <cstdbool>
 #include <cstddef>
@@ -37,7 +39,6 @@
 #include <forward_list>
 #include <fstream>
 #include <functional>
-#include <future>
 #include <initializer_list>
 #include <iomanip>
 #include <ios>
@@ -61,7 +62,6 @@
 #include <regex>
 #include <scoped_allocator>
 #include <set>
-#include <shared_mutex>
 #include <span>
 #include <sstream>
 #include <stack>
@@ -70,7 +70,6 @@
 #include <string>
 #include <string_view>
 #include <system_error>
-#include <thread>
 #include <tuple>
 #include <type_traits>
 #include <typeindex>
@@ -81,9 +80,15 @@
 #include <valarray>
 #include <variant>
 #include <vector>
-#include <version>
+
+#ifndef _LIBCPP_HAS_NO_THREADS
+#include <future>
+#include <shared_mutex>
+#include <thread>
+#endif
 
 #ifndef __wasi__
+#include <csetjmp>
 #include <csignal>
 #include <filesystem>
 #endif

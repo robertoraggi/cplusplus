@@ -1019,11 +1019,37 @@ export class AliasDeclarationAST extends DeclarationAST {
   }
 
   /**
+   * Returns the gnuAttributeList of this node
+   */
+  getGnuAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
+    }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
+  }
+
+  /**
    * Returns the typeId of this node
    */
   getTypeId(): TypeIdAST | undefined {
     return AST.from<TypeIdAST>(
-      cxx.getASTSlot(this.getHandle(), 4),
+      cxx.getASTSlot(this.getHandle(), 5),
       this.parser,
     );
   }
@@ -1032,14 +1058,14 @@ export class AliasDeclarationAST extends DeclarationAST {
    * Returns the location of the semicolon token in this node
    */
   getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
   }
 
   /**
    * Returns the identifier attribute of this node
    */
   getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 6);
+    const slot = cxx.getASTSlot(this.getHandle(), 7);
     return cxx.getIdentifierValue(slot);
   }
 }

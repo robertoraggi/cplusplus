@@ -56,7 +56,7 @@ export function gen_ast_dump_cc({ ast, output }: { ast: AST; output: string }) {
       emit(`    ++indent_;`);
       emit(`    out_ << cxx::format("{:{}}", "", indent_ * 2);`);
       emit(
-        `    out_ << cxx::format("${fieldName}: {}\\n", ast->${member.name});`
+        `    out_ << cxx::format("${fieldName}: {}\\n", ast->${member.name});`,
       );
       emit(`    --indent_;`);
       emit(`  }`);
@@ -64,7 +64,7 @@ export function gen_ast_dump_cc({ ast, output }: { ast: AST; output: string }) {
       emit(`  ++indent_;`);
       emit(`  out_ << cxx::format("{:{}}", "", indent_ * 2);`);
       emit(
-        `  out_ << cxx::format("${fieldName}: {}\\n", ast->${member.name});`
+        `  out_ << cxx::format("${fieldName}: {}\\n", ast->${member.name});`,
       );
       emit(`  --indent_;`);
     } else if (member.kind == "attribute" && member.type.endsWith("Literal")) {
@@ -72,7 +72,7 @@ export function gen_ast_dump_cc({ ast, output }: { ast: AST; output: string }) {
       emit(`    ++indent_;`);
       emit(`    out_ << cxx::format("{:{}}", "", indent_ * 2);`);
       emit(
-        `    out_ << cxx::format("${fieldName}: {}\\n", ast->${member.name}->value());`
+        `    out_ << cxx::format("${fieldName}: {}\\n", ast->${member.name}->value());`,
       );
       emit(`    --indent_;`);
       emit(`  }`);
@@ -84,7 +84,7 @@ export function gen_ast_dump_cc({ ast, output }: { ast: AST; output: string }) {
       emit(`    ++indent_;`);
       emit(`    out_ << cxx::format("{:{}}", "", indent_ * 2);`);
       emit(
-        `    out_ << cxx::format("${fieldName}: {}\\n", Token::spell(ast->${member.name}));`
+        `    out_ << cxx::format("${fieldName}: {}\\n", Token::spell(ast->${member.name}));`,
       );
       emit(`    --indent_;`);
       emit(`  }`);
@@ -95,7 +95,7 @@ export function gen_ast_dump_cc({ ast, output }: { ast: AST; output: string }) {
       emit(`  ++indent_;`);
       emit(`  out_ << cxx::format("{:{}}", "", indent_ * 2);`);
       emit(
-        `  out_ << cxx::format("${fieldName}: {}\\n", to_string(ast->${member.name}));`
+        `  out_ << cxx::format("${fieldName}: {}\\n", to_string(ast->${member.name}));`,
       );
       emit(`  --indent_;`);
     }

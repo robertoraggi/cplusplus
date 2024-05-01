@@ -39,44 +39,44 @@ class ASTDecoder {
 
  private:
   auto decodeUnit(const void* ptr, io::Unit type) -> UnitAST*;
-  auto decodeDeclaration(const void* ptr, io::Declaration type)
-      -> DeclarationAST*;
+  auto decodeDeclaration(const void* ptr,
+                         io::Declaration type) -> DeclarationAST*;
   auto decodeStatement(const void* ptr, io::Statement type) -> StatementAST*;
   auto decodeExpression(const void* ptr, io::Expression type) -> ExpressionAST*;
   auto decodeTemplateParameter(const void* ptr, io::TemplateParameter type)
       -> TemplateParameterAST*;
   auto decodeSpecifier(const void* ptr, io::Specifier type) -> SpecifierAST*;
-  auto decodePtrOperator(const void* ptr, io::PtrOperator type)
-      -> PtrOperatorAST*;
-  auto decodeCoreDeclarator(const void* ptr, io::CoreDeclarator type)
-      -> CoreDeclaratorAST*;
-  auto decodeDeclaratorChunk(const void* ptr, io::DeclaratorChunk type)
-      -> DeclaratorChunkAST*;
-  auto decodeUnqualifiedId(const void* ptr, io::UnqualifiedId type)
-      -> UnqualifiedIdAST*;
+  auto decodePtrOperator(const void* ptr,
+                         io::PtrOperator type) -> PtrOperatorAST*;
+  auto decodeCoreDeclarator(const void* ptr,
+                            io::CoreDeclarator type) -> CoreDeclaratorAST*;
+  auto decodeDeclaratorChunk(const void* ptr,
+                             io::DeclaratorChunk type) -> DeclaratorChunkAST*;
+  auto decodeUnqualifiedId(const void* ptr,
+                           io::UnqualifiedId type) -> UnqualifiedIdAST*;
   auto decodeNestedNameSpecifier(const void* ptr, io::NestedNameSpecifier type)
       -> NestedNameSpecifierAST*;
-  auto decodeFunctionBody(const void* ptr, io::FunctionBody type)
-      -> FunctionBodyAST*;
+  auto decodeFunctionBody(const void* ptr,
+                          io::FunctionBody type) -> FunctionBodyAST*;
   auto decodeTemplateArgument(const void* ptr, io::TemplateArgument type)
       -> TemplateArgumentAST*;
   auto decodeExceptionSpecifier(const void* ptr, io::ExceptionSpecifier type)
       -> ExceptionSpecifierAST*;
-  auto decodeRequirement(const void* ptr, io::Requirement type)
-      -> RequirementAST*;
-  auto decodeNewInitializer(const void* ptr, io::NewInitializer type)
-      -> NewInitializerAST*;
-  auto decodeMemInitializer(const void* ptr, io::MemInitializer type)
-      -> MemInitializerAST*;
-  auto decodeLambdaCapture(const void* ptr, io::LambdaCapture type)
-      -> LambdaCaptureAST*;
+  auto decodeRequirement(const void* ptr,
+                         io::Requirement type) -> RequirementAST*;
+  auto decodeNewInitializer(const void* ptr,
+                            io::NewInitializer type) -> NewInitializerAST*;
+  auto decodeMemInitializer(const void* ptr,
+                            io::MemInitializer type) -> MemInitializerAST*;
+  auto decodeLambdaCapture(const void* ptr,
+                           io::LambdaCapture type) -> LambdaCaptureAST*;
   auto decodeExceptionDeclaration(const void* ptr,
                                   io::ExceptionDeclaration type)
       -> ExceptionDeclarationAST*;
   auto decodeAttributeSpecifier(const void* ptr, io::AttributeSpecifier type)
       -> AttributeSpecifierAST*;
-  auto decodeAttributeToken(const void* ptr, io::AttributeToken type)
-      -> AttributeTokenAST*;
+  auto decodeAttributeToken(const void* ptr,
+                            io::AttributeToken type) -> AttributeTokenAST*;
 
   auto decodeTranslationUnit(const io::TranslationUnit* node)
       -> TranslationUnitAST*;

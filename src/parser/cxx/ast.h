@@ -388,6 +388,7 @@ class AliasDeclarationAST final : public DeclarationAST {
   SourceLocation identifierLoc;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation equalLoc;
+  List<AttributeSpecifierAST*>* gnuAttributeList = nullptr;
   TypeIdAST* typeId = nullptr;
   SourceLocation semicolonLoc;
   const Identifier* identifier = nullptr;

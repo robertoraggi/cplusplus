@@ -193,6 +193,7 @@ auto AliasDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(equalLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(gnuAttributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
   return {};
@@ -201,6 +202,7 @@ auto AliasDeclarationAST::firstSourceLocation() -> SourceLocation {
 auto AliasDeclarationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(gnuAttributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(equalLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
