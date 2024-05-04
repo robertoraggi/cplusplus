@@ -9,5 +9,5 @@ unreachable
 cc
 
 // CHECK: {{^}}aa{{$}}
-// CHECK: {{^}}bb{{$}}
+// CHECK: {{^}}    bb{{$}}
 // CHECK: {{^}}cc{{$}}
