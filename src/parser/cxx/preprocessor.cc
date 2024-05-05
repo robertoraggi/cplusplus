@@ -2157,9 +2157,34 @@ void Preprocessor::setOnWillIncludeHeader(
 void Preprocessor::squeeze() { d->pool_.reset(); }
 
 void Preprocessor::preprocess(std::string source, std::string fileName,
-                              std::ostream &out) {
-  std::vector<Token> tokens;
-  preprocess(source, fileName, tokens);
+                              std::vector<Token> &tokens) {
+  assert(!d->findSourceFile(fileName));
+  auto sourceFile = d->createSourceFile(std::move(fileName), std::move(source));
+  const auto sourceFileId = sourceFile->id;
+
+  std::string currentFileName = sourceFile->fileName;
+
+  fs::path path(currentFileName);
+  path.remove_filename();
+
+  std::swap(d->currentPath_, path);
+  std::swap(d->currentFileName_, currentFileName);
+
+  tokens.emplace_back(TokenKind::T_ERROR);
+
+  d->expand(sourceFile, tokens);
+
+  tokens.emplace_back(TokenKind::T_EOF_SYMBOL,
+                      static_cast<std::uint32_t>(sourceFile->source.size()));
+
+  tokens.back().setFileId(sourceFileId);
+
+  std::swap(d->currentPath_, path);
+  std::swap(d->currentFileName_, currentFileName);
+}
+
+void Preprocessor::getPreprocessedText(const std::vector<Token> &tokens,
+                                       std::ostream &out) const {
   // ### print tokens
   std::size_t index = 1;
   std::uint32_t lastFileId = std::numeric_limits<std::uint32_t>::max();
@@ -2220,33 +2245,6 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
   }
 
   out << '\n';
-}
-
-void Preprocessor::preprocess(std::string source, std::string fileName,
-                              std::vector<Token> &tokens) {
-  assert(!d->findSourceFile(fileName));
-  auto sourceFile = d->createSourceFile(std::move(fileName), std::move(source));
-  const auto sourceFileId = sourceFile->id;
-
-  std::string currentFileName = sourceFile->fileName;
-
-  fs::path path(currentFileName);
-  path.remove_filename();
-
-  std::swap(d->currentPath_, path);
-  std::swap(d->currentFileName_, currentFileName);
-
-  tokens.emplace_back(TokenKind::T_ERROR);
-
-  d->expand(sourceFile, tokens);
-
-  tokens.emplace_back(TokenKind::T_EOF_SYMBOL,
-                      static_cast<std::uint32_t>(sourceFile->source.size()));
-
-  tokens.back().setFileId(sourceFileId);
-
-  std::swap(d->currentPath_, path);
-  std::swap(d->currentFileName_, currentFileName);
 }
 
 auto Preprocessor::systemIncludePaths() const

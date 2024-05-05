@@ -57,8 +57,8 @@
 namespace {
 using namespace cxx;
 
-auto readAll(const std::string& fileName,
-             std::istream& in) -> std::optional<std::string> {
+auto readAll(const std::string& fileName, std::istream& in)
+    -> std::optional<std::string> {
   std::string code;
   char buffer[4 * 1024];
   do {
@@ -238,7 +238,9 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
 
   if (auto source = readAll(fileName)) {
     if (cli.opt_E && !cli.opt_dM) {
-      preprocesor->preprocess(std::move(*source), fileName, output);
+      std::vector<Token> tokens;
+      preprocesor->preprocess(std::move(*source), fileName, tokens);
+      preprocesor->getPreprocessedText(tokens, output);
       shouldExit = true;
     } else {
       unit.setSource(std::move(*source), fileName);
