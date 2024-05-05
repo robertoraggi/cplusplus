@@ -81,10 +81,11 @@ class Preprocessor {
   void setOnWillIncludeHeader(
       std::function<void(const std::string &, int)> willIncludeHeader);
 
-  void preprocess(std::string source, std::string fileName, std::ostream &out);
-
   void preprocess(std::string source, std::string fileName,
                   std::vector<Token> &tokens);
+
+  void getPreprocessedText(const std::vector<Token> &tokens,
+                           std::ostream &out) const;
 
   [[nodiscard]] auto systemIncludePaths() const
       -> const std::vector<std::string> &;

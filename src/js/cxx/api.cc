@@ -226,8 +226,10 @@ void preprocessorSetup(cxx::Preprocessor& preprocessor, val fileExistsFn,
 
 auto preprocesorPreprocess(cxx::Preprocessor& preprocessor, std::string source,
                            std::string filename) -> std::string {
+  std::vector<cxx::Token> tokens;
+  preprocessor.preprocess(std::move(source), std::move(filename), tokens);
   std::ostringstream out;
-  preprocessor.preprocess(std::move(source), std::move(filename), out);
+  preprocessor.getPreprocessedText(tokens, out);
   return out.str();
 }
 
