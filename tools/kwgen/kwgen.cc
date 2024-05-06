@@ -231,14 +231,26 @@ void gen_classify(const std::multimap<size_t, std::string> &keywords) {
 }
 
 void gen_enums(const std::multimap<size_t, std::string> &keywords) {
-  std::cout << "enum {" << std::endl;
+  std::cout << "enum class ";
+  if (!option_token_type.empty()) {
+    std::cout << option_token_type << " ";
+  }
+  std::cout << "{" << std::endl;
+  auto token_name = [](const std::string &id) {
+    auto index = id.find_last_of("::");
+    if (index != std::string::npos) {
+      return id.substr(index + 1);
+    }
+    return id;
+  };
+
+  std::cout << "  " << token_name(token_id("identifier")) << "," << std::endl;
+
   auto it = keywords.begin();
   for (; it != keywords.end(); ++it) {
-    std::cout << "  " << token_id(it->second) << "," << std::endl;
+    std::cout << "  " << token_name(token_id(it->second)) << "," << std::endl;
   }
-  std::cout << "  " << token_id("identifier") << std::endl
-            << "};" << std::endl
-            << std::endl;
+  std::cout << "};" << std::endl << std::endl;
 }
 
 inline auto not_whitespace_p(char ch) -> bool { return !std::isspace(ch); }

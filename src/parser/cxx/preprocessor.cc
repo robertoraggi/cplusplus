@@ -49,6 +49,8 @@
 #include <unordered_set>
 #include <variant>
 
+#include "pp_keywords-priv.h"
+
 namespace {
 
 std::unordered_set<std::string_view> builtinMacros{
@@ -1092,99 +1094,152 @@ void Preprocessor::Private::processDirectives(SourceFile *source,
                                               const TokList *start,
                                               const TokList *directive,
                                               std::vector<Token> &tokens) {
+  if (!lookat(directive, TokenKind::T_IDENTIFIER)) return;
+
+  const auto directiveKind = classifyDirective(directive->head->text.data(),
+                                               directive->head->text.length());
+
+  const TokList *ts = directive->tail;
+
   const auto [skipping, evaluating] = state();
 
-  const TokList *ts = directive;
+  switch (directiveKind) {
+    case PreprocessorDirectiveKind::T_INCLUDE_NEXT:
+    case PreprocessorDirectiveKind::T_INCLUDE: {
+      if (skipping) break;
+      processIncludeDirective(directive, ts, tokens);
+      break;
+    }
 
-  if (!skipping && (matchId(ts, "include") || matchId(ts, "include_next"))) {
-    processIncludeDirective(directive, ts, tokens);
-  } else if (!skipping && matchId(ts, "define")) {
-    defineMacro(copyLine(ts));
-  } else if (!skipping && matchId(ts, "undef")) {
-    auto line = copyLine(ts);
-    auto name = expectId(line);
-    if (!name.empty()) {
-      // warning(ts->head->token(), "undef '{}'", name);
-      auto it = macros_.find(name);
-      if (it != macros_.end()) macros_.erase(it);
+    case PreprocessorDirectiveKind::T_DEFINE: {
+      if (skipping) break;
+      defineMacro(copyLine(ts));
+      break;
     }
-  } else if (matchId(ts, "ifdef")) {
-    const auto value = isDefined(ts->head);
-    if (value) {
-      pushState(std::tuple(skipping, false));
-    } else {
-      pushState(std::tuple(true, !skipping));
+
+    case PreprocessorDirectiveKind::T_UNDEF: {
+      if (skipping) break;
+
+      auto line = copyLine(ts);
+      auto name = expectId(line);
+      if (!name.empty()) {
+        // warning(ts->head->token(), "undef '{}'", name);
+        auto it = macros_.find(name);
+        if (it != macros_.end()) macros_.erase(it);
+      }
+      break;
     }
-  } else if (matchId(ts, "ifndef")) {
-    const auto value = !isDefined(ts->head);
-    if (value) {
-      pushState(std::tuple(skipping, false));
-    } else {
-      pushState(std::tuple(true, !skipping));
-    }
-  } else if (matchId(ts, "if")) {
-    if (skipping) {
-      pushState(std::tuple(true, false));
-    } else {
-      const auto value = constantExpression(ts);
+
+    case PreprocessorDirectiveKind::T_IFDEF: {
+      const auto value = isDefined(ts->head);
       if (value) {
         pushState(std::tuple(skipping, false));
       } else {
         pushState(std::tuple(true, !skipping));
       }
+
+      break;
     }
-  } else if (matchId(ts, "elif")) {
-    if (!evaluating) {
-      setState(std::tuple(true, false));
-    } else {
-      const auto value = constantExpression(ts);
+
+    case PreprocessorDirectiveKind::T_IFNDEF: {
+      const auto value = !isDefined(ts->head);
       if (value) {
-        setState(std::tuple(!evaluating, false));
+        pushState(std::tuple(skipping, false));
       } else {
-        setState(std::tuple(true, evaluating));
+        pushState(std::tuple(true, !skipping));
       }
+
+      break;
     }
-  } else if (matchId(ts, "elifdef")) {
-    if (!evaluating) {
-      setState(std::tuple(true, false));
-    } else {
-      const auto value = isDefined(ts->head);
-      if (value) {
-        setState(std::tuple(!evaluating, false));
+
+    case PreprocessorDirectiveKind::T_IF: {
+      if (skipping) {
+        pushState(std::tuple(true, false));
       } else {
-        setState(std::tuple(true, evaluating));
+        const auto value = constantExpression(ts);
+        if (value) {
+          pushState(std::tuple(skipping, false));
+        } else {
+          pushState(std::tuple(true, !skipping));
+        }
       }
+
+      break;
     }
-  } else if (matchId(ts, "elifndef")) {
-    if (!evaluating) {
-      setState(std::tuple(true, false));
-    } else {
-      const auto value = isDefined(ts->head);
-      if (!value) {
-        setState(std::tuple(!evaluating, false));
+
+    case PreprocessorDirectiveKind::T_ELIF: {
+      if (!evaluating) {
+        setState(std::tuple(true, false));
       } else {
-        setState(std::tuple(true, evaluating));
+        const auto value = constantExpression(ts);
+        if (value) {
+          setState(std::tuple(!evaluating, false));
+        } else {
+          setState(std::tuple(true, evaluating));
+        }
       }
+
+      break;
     }
-  } else if (matchId(ts, "else")) {
-    setState(std::tuple(!evaluating, false));
-  } else if (matchId(ts, "endif")) {
-    popState();
-    if (evaluating_.empty()) {
-      error(directive->head->token(), "unexpected '#endif'");
-    }
-    if (source->headerProtection &&
-        evaluating_.size() == source->headerProtectionLevel) {
-      if (!lookat(ts, TokenKind::T_EOF_SYMBOL)) {
-        ifndefProtectedFiles_.erase(currentFileName_);
+
+    case PreprocessorDirectiveKind::T_ELIFDEF: {
+      if (!evaluating) {
+        setState(std::tuple(true, false));
+      } else {
+        const auto value = isDefined(ts->head);
+        if (value) {
+          setState(std::tuple(!evaluating, false));
+        } else {
+          setState(std::tuple(true, evaluating));
+        }
       }
+
+      break;
     }
-  } else if (matchId(ts, "line")) {
-    // ###
-    std::ostringstream out;
-    printLine(start, out);
-  } else if (matchId(ts, "pragma")) {
-    // ###
+
+    case PreprocessorDirectiveKind::T_ELIFNDEF: {
+      if (!evaluating) {
+        setState(std::tuple(true, false));
+      } else {
+        const auto value = isDefined(ts->head);
+        if (!value) {
+          setState(std::tuple(!evaluating, false));
+        } else {
+          setState(std::tuple(true, evaluating));
+        }
+      }
+
+      break;
+    }
+
+    case PreprocessorDirectiveKind::T_ELSE: {
+      setState(std::tuple(!evaluating, false));
+      break;
+    }
+
+    case PreprocessorDirectiveKind::T_ENDIF: {
+      popState();
+      if (evaluating_.empty()) {
+        error(directive->head->token(), "unexpected '#endif'");
+      }
+      if (source->headerProtection &&
+          evaluating_.size() == source->headerProtectionLevel) {
+        if (!lookat(ts, TokenKind::T_EOF_SYMBOL)) {
+          ifndefProtectedFiles_.erase(currentFileName_);
+        }
+      }
+      break;
+    }
+
+    case PreprocessorDirectiveKind::T_LINE: {
+      // ###
+      std::ostringstream out;
+      printLine(start, out);
+      break;
+    }
+
+    case PreprocessorDirectiveKind::T_PRAGMA: {
+      if (skipping) break;
 #if 0
         std::ostringstream out;
         printLine(start, out);
@@ -1193,15 +1248,31 @@ void Preprocessor::Private::processDirectives(SourceFile *source,
         std::cerr << cxx::format("\n");
         // cxx_runtime_error(out.str());
 #endif
-  } else if (!skipping && matchId(ts, "error")) {
-    std::ostringstream out;
-    printLine(start, out, /*nl=*/false);
-    error(directive->head->token(), cxx::format("{}", out.str()));
-  } else if (!skipping && matchId(ts, "warning")) {
-    std::ostringstream out;
-    printLine(start, out, /*nl=*/false);
-    warning(directive->head->token(), cxx::format("{}", out.str()));
-  }
+      break;
+    }
+    case PreprocessorDirectiveKind::T_ERROR: {
+      if (skipping) break;
+
+      std::ostringstream out;
+      printLine(start, out, /*nl=*/false);
+      error(directive->head->token(), cxx::format("{}", out.str()));
+
+      break;
+    }
+
+    case PreprocessorDirectiveKind::T_WARNING: {
+      if (skipping) break;
+
+      std::ostringstream out;
+      printLine(start, out, /*nl=*/false);
+      warning(directive->head->token(), cxx::format("{}", out.str()));
+
+      break;
+    }
+
+    default:
+      break;
+  }  // switch
 }
 
 void Preprocessor::Private::processIncludeDirective(
