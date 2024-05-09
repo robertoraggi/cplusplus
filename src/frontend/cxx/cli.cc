@@ -23,6 +23,7 @@
 #include <cxx/private/format.h>
 #include <cxx/private/path.h>
 
+#include <algorithm>
 #include <array>
 #include <iostream>
 #include <sstream>
