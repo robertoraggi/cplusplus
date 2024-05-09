@@ -20,8 +20,22 @@
 
 #pragma once
 
+#include <version>
+
+#if defined(__cpp_lib_format)
+
+#include <format>
+
+namespace cxx {
+using std::format;
+}
+
+#else
+
 #include <fmt/format.h>
 
 namespace cxx {
 using fmt::format;
 }
+
+#endif
