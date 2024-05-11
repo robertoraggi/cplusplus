@@ -58,22 +58,55 @@ std::unordered_set<std::string_view> builtinMacros{
     "__has_include", "__has_attribute",
 };
 
-std::unordered_set<std::string_view> enabledBuiltins {
-  "__is_trivially_destructible", "__builtin_is_constant_evaluated",
+std::unordered_set<std::string_view> enabledBuiltins{
+    "__is_trivially_destructible",
+    "__builtin_is_constant_evaluated",
 
-      "__has_unique_object_representations", "__has_virtual_destructor",
-      "__is_abstract", "__is_aggregate", "__is_arithmetic", "__is_array",
-      "__is_assignable", "__is_base_of", "__is_bounded_array", "__is_class",
-      "__is_compound", "__is_const", "__is_empty", "__is_enum", "__is_final",
-      "__is_floating_point", "__is_function", "__is_fundamental",
-      "__is_integral", "__is_layout_compatible", "__is_literal_type",
-      "__is_lvalue_reference", "__is_member_function_pointer",
-      "__is_member_object_pointer", "__is_member_pointer", "__is_null_pointer",
-      "__is_object", "__is_pod", "__is_pointer", "__is_polymorphic",
-      "__is_reference", "__is_rvalue_reference", "__is_same_as", "__is_same",
-      "__is_scalar", "__is_scoped_enum", "__is_signed", "__is_standard_layout",
-      "__is_swappable_with", "__is_trivial", "__is_unbounded_array",
-      "__is_union", "__is_unsigned", "__is_void", "__is_volatile",
+    "__has_unique_object_representations",
+    "__has_virtual_destructor",
+    "__is_abstract",
+    "__is_aggregate",
+    "__is_arithmetic",
+    "__is_array",
+    "__is_assignable",
+    "__is_base_of",
+    "__is_bounded_array",
+    "__is_class",
+    "__is_compound",
+    "__is_const",
+    "__is_empty",
+    "__is_enum",
+    "__is_final",
+    "__is_floating_point",
+    "__is_function",
+    "__is_fundamental",
+    "__is_integral",
+    "__is_layout_compatible",
+    "__is_literal_type",
+    "__is_lvalue_reference",
+    "__is_member_function_pointer",
+    "__is_member_object_pointer",
+    "__is_member_pointer",
+    "__is_null_pointer",
+    "__is_object",
+    "__is_pod",
+    "__is_pointer",
+    "__is_polymorphic",
+    "__is_reference",
+    "__is_rvalue_reference",
+    "__is_same_as",
+    "__is_same",
+    "__is_scalar",
+    "__is_scoped_enum",
+    "__is_signed",
+    "__is_standard_layout",
+    "__is_swappable_with",
+    "__is_trivial",
+    "__is_unbounded_array",
+    "__is_union",
+    "__is_unsigned",
+    "__is_void",
+    "__is_volatile",
 
 #if false
       "__add_lvalue_reference", "__add_pointer", "__add_rvalue_reference",
@@ -228,14 +261,14 @@ struct std::less<Hideset> {
     return names < hideset.names();
   }
 
-  auto operator()(const Hideset &hideset, const std::string_view &name) const
-      -> bool {
+  auto operator()(const Hideset &hideset,
+                  const std::string_view &name) const -> bool {
     return std::lexicographical_compare(begin(hideset.names()),
                                         end(hideset.names()), &name, &name + 1);
   }
 
-  auto operator()(const std::string_view &name, const Hideset &hideset) const
-      -> bool {
+  auto operator()(const std::string_view &name,
+                  const Hideset &hideset) const -> bool {
     return std::lexicographical_compare(
         &name, &name + 1, begin(hideset.names()), end(hideset.names()));
   }
@@ -286,13 +319,13 @@ struct std::equal_to<Hideset> {
     return hideset.names() == names;
   }
 
-  auto operator()(const Hideset &hideset, const std::string_view &name) const
-      -> bool {
+  auto operator()(const Hideset &hideset,
+                  const std::string_view &name) const -> bool {
     return hideset.names().size() == 1 && *hideset.names().begin() == name;
   }
 
-  auto operator()(const std::string_view &name, const Hideset &hideset) const
-      -> bool {
+  auto operator()(const std::string_view &name,
+                  const Hideset &hideset) const -> bool {
     return hideset.names().size() == 1 && *hideset.names().begin() == name;
   }
 };
@@ -325,13 +358,13 @@ struct Tok final : Managed {
 
   [[nodiscard]] auto isNot(TokenKind k) const -> bool { return kind != k; }
 
-  static auto WithHideset(Arena *pool, const Tok *tok, const Hideset *hideset)
-      -> Tok * {
+  static auto WithHideset(Arena *pool, const Tok *tok,
+                          const Hideset *hideset) -> Tok * {
     return new (pool) Tok(tok, hideset);
   }
 
-  static auto FromCurrentToken(Arena *pool, const Lexer &lex, int sourceFile)
-      -> Tok * {
+  static auto FromCurrentToken(Arena *pool, const Lexer &lex,
+                               int sourceFile) -> Tok * {
     auto tk = new (pool) Tok();
     tk->sourceFile = sourceFile;
     tk->kind = lex.tokenKind();
@@ -420,7 +453,8 @@ struct SourceFile {
   const TokList *tokens = nullptr;
   const TokList *headerProtection = nullptr;
   int headerProtectionLevel = 0;
-  int id;
+  int id = 0;
+  bool pragmaOnceProtected = false;
 
   SourceFile() noexcept = default;
   SourceFile(const SourceFile &) noexcept = default;
@@ -475,6 +509,13 @@ struct SourceFile {
 }  // namespace
 
 struct Preprocessor::Private {
+  struct Buffer {
+    SourceFile *source = nullptr;
+    fs::path currentPath;
+    const TokList *ts = nullptr;
+    int includeDepth = 0;
+  };
+
   Preprocessor *preprocessor_ = nullptr;
   Control *control_ = nullptr;
   DiagnosticsClient *diagnosticsClient_ = nullptr;
@@ -486,7 +527,6 @@ struct Preprocessor::Private {
   std::unordered_map<std::string_view, Macro> macros_;
   std::set<Hideset> hidesets;
   std::forward_list<std::string> scratchBuffer_;
-  std::unordered_set<std::string> pragmaOnceProtected_;
   std::unordered_map<std::string, std::string> ifndefProtectedFiles_;
   std::vector<std::unique_ptr<SourceFile>> sourceFiles_;
   fs::path currentPath_;
@@ -498,6 +538,7 @@ struct Preprocessor::Private {
   std::function<bool(std::string)> fileExists_;
   std::function<std::string(std::string)> readFile_;
   std::function<void(const std::string &, int)> willIncludeHeader_;
+  std::vector<Buffer> buffers_;
   int counter_ = 0;
   int includeDepth_ = 0;
   bool omitLineMarkers_ = false;
@@ -558,8 +599,8 @@ struct Preprocessor::Private {
     return nullptr;
   }
 
-  [[nodiscard]] auto createSourceFile(std::string fileName, std::string source)
-      -> SourceFile * {
+  [[nodiscard]] auto createSourceFile(std::string fileName,
+                                      std::string source) -> SourceFile * {
     if (sourceFiles_.size() >= 4096) {
       cxx_runtime_error("too many source files");
     }
@@ -652,8 +693,8 @@ struct Preprocessor::Private {
     return get(std::move(names));
   }
 
-  [[nodiscard]] auto makeIntersection(const Hideset *hs, const Hideset *other)
-      -> const Hideset * {
+  [[nodiscard]] auto makeIntersection(const Hideset *hs,
+                                      const Hideset *other) -> const Hideset * {
     if (!other || !hs) return nullptr;
     if (other == hs) return hs;
 
@@ -690,8 +731,8 @@ struct Preprocessor::Private {
     }  // switch
   }
 
-  [[nodiscard]] auto updateStringLiteralValue(Token &lastToken, const Tok *tk)
-      -> bool {
+  [[nodiscard]] auto updateStringLiteralValue(Token &lastToken,
+                                              const Tok *tk) -> bool {
     if (!isStringLiteral(lastToken.kind())) {
       return false;
     }
@@ -754,8 +795,8 @@ struct Preprocessor::Private {
 
   [[nodiscard]] auto checkPragmaOnceProtected(const TokList *ts) const -> bool;
 
-  [[nodiscard]] auto resolve(const Include &include, bool next) const
-      -> std::optional<fs::path> {
+  [[nodiscard]] auto resolve(const Include &include,
+                             bool next) const -> std::optional<fs::path> {
     if (!canResolveFiles_) return std::nullopt;
 
     struct Resolve {
@@ -836,47 +877,60 @@ struct Preprocessor::Private {
 
   [[nodiscard]] auto skipLine(const TokList *ts) -> const TokList *;
 
-  void expand(SourceFile *source, std::vector<Token> &tokens);
+  [[nodiscard]] auto expand(SourceFile *source,
+                            const std::function<void(const Tok *)> &emitToken)
+      -> bool;
 
   [[nodiscard]] auto expandLine(const TokList *ts) -> const TokList *;
 
   [[nodiscard]] auto expandOne(
-      const TokList *ts, const std::function<void(const Tok *)> &emitToken)
-      -> const TokList *;
+      const TokList *ts,
+      const std::function<void(const Tok *)> &emitToken) -> const TokList *;
 
-  [[nodiscard]] auto expandObjectLikeMacro(const TokList *&ts,
-                                           const Macro *macro)
-      -> const TokList *;
+  [[nodiscard]] auto expandObjectLikeMacro(
+      const TokList *&ts, const Macro *macro) -> const TokList *;
 
-  [[nodiscard]] auto expandFunctionLikeMacro(const TokList *&ts,
-                                             const Macro *macro)
-      -> const TokList *;
+  [[nodiscard]] auto expandFunctionLikeMacro(
+      const TokList *&ts, const Macro *macro) -> const TokList *;
 
-  void processDirectives(SourceFile *source, const TokList *start,
-                         const TokList *directive, std::vector<Token> &tokens);
+  struct ParsedIncludeDirective {
+    Include header;
+    bool includeNext = false;
+    const TokList *loc = nullptr;
+  };
 
-  void processIncludeDirective(const TokList *directive, const TokList *ts,
-                               std::vector<Token> &tokens);
+  [[nodiscard]] auto parseDirective(SourceFile *source, const TokList *start)
+      -> std::optional<ParsedIncludeDirective>;
+
+  [[nodiscard]] auto parseIncludeDirective(const TokList *directive,
+                                           const TokList *ts)
+      -> std::optional<ParsedIncludeDirective>;
+
+  [[nodiscard]] auto resolveIncludeDirective(
+      const ParsedIncludeDirective &directive) -> SourceFile *;
+
+  [[nodiscard]] auto parseHeaderName(const TokList *&ts)
+      -> std::optional<Include>;
 
   [[nodiscard]] auto substitude(const TokList *ts, const Macro *macro,
                                 const std::vector<const TokList *> &actuals,
-                                const Hideset *hideset, const TokList *os)
-      -> const TokList *;
+                                const Hideset *hideset,
+                                const TokList *os) -> const TokList *;
 
   [[nodiscard]] auto merge(const Tok *left, const Tok *right) -> const Tok *;
 
   [[nodiscard]] auto stringize(const TokList *ts) -> const Tok *;
 
-  [[nodiscard]] auto instantiate(const TokList *ts, const Hideset *hideset)
-      -> const TokList *;
+  [[nodiscard]] auto instantiate(const TokList *ts,
+                                 const Hideset *hideset) -> const TokList *;
 
-  [[nodiscard]] auto lookupMacro(const Tok *tk, const Macro *&macro) const
-      -> bool;
+  [[nodiscard]] auto lookupMacro(const Tok *tk,
+                                 const Macro *&macro) const -> bool;
 
   [[nodiscard]] auto lookupMacroArgument(
       const TokList *&ts, const Macro *macro,
-      const std::vector<const TokList *> &actuals, const TokList *&actual)
-      -> bool;
+      const std::vector<const TokList *> &actuals,
+      const TokList *&actual) -> bool;
 
   [[nodiscard]] auto copyTokens(const TokList *ts) -> const TokList *;
   [[nodiscard]] auto copyLine(const TokList *ts) -> const TokList *;
@@ -903,8 +957,8 @@ struct Preprocessor::Private {
   void finalizeToken(std::vector<Token> &tokens, const Tok *tk);
 };
 
-[[nodiscard]] static auto clone(Arena *pool, const TokList *ts)
-    -> const TokList * {
+[[nodiscard]] static auto clone(Arena *pool,
+                                const TokList *ts) -> const TokList * {
   if (!ts) return nullptr;
   return new (pool) TokList(ts->head, clone(pool, ts->tail));
 }
@@ -1006,8 +1060,8 @@ void Preprocessor::Private::finalizeToken(std::vector<Token> &tokens,
 };
 
 auto Preprocessor::Private::tokenize(const std::string_view &source,
-                                     int sourceFile, bool bol)
-    -> const TokList * {
+                                     int sourceFile,
+                                     bool bol) -> const TokList * {
   cxx::Lexer lex(source);
   lex.setKeepComments(true);
   lex.setPreprocessing(true);
@@ -1060,41 +1114,75 @@ auto Preprocessor::Private::expandLine(const TokList *ts) -> const TokList * {
   return tokens;
 }
 
-void Preprocessor::Private::expand(SourceFile *source,
-                                   std::vector<Token> &tokens) {
-  auto emitToken = [&](const Tok *tk) { finalizeToken(tokens, tk); };
+auto Preprocessor::Private::expand(
+    SourceFile *source,
+    const std::function<void(const Tok *)> &emitToken) -> bool {
+  if (buffers_.empty()) return false;
 
-  source->headerProtection = checkHeaderProtection(source->tokens);
+  auto buffer = buffers_.back();
+  buffers_.pop_back();
 
-  if (source->headerProtection) {
-    source->headerProtectionLevel = evaluating_.size();
+  // reconstruct the state from the active buffer
+  source = buffer.source;
+  currentFileName_ = source->fileName;
+  currentPath_ = buffer.currentPath;
+  includeDepth_ = buffer.includeDepth;
 
-    ifndefProtectedFiles_.insert_or_assign(
-        currentFileName_, source->headerProtection->head->text);
-  }
-
-  auto ts = source->tokens;
+  auto ts = buffer.ts;
 
   while (ts && !lookat(ts, TokenKind::T_EOF_SYMBOL)) {
     const auto [skipping, evaluating] = state();
 
-    if (const auto start = ts; ts->head->bol && match(ts, TokenKind::T_HASH)) {
-      auto directive = ts;
-      processDirectives(source, start, directive, tokens);
+    if (const auto start = ts; bol(ts) && match(ts, TokenKind::T_HASH)) {
+      // skip the rest of the line
       ts = skipLine(ts);
+
+      if (auto parsedInclude = parseDirective(source, start)) {
+        // the header file resolution may be asynchronous
+        auto continuation = resolveIncludeDirective(*parsedInclude);
+
+        if (!continuation) {
+          continue;
+        }
+
+        // suspend the current file and start processing the continuation
+        buffers_.push_back(Buffer{
+            .source = source,
+            .currentPath = currentPath_,
+            .ts = ts,
+            .includeDepth = includeDepth_,
+        });
+
+        // make the continuation the current file
+        fs::path dirpath = fs::path(continuation->fileName);
+        dirpath.remove_filename();
+
+        buffers_.push_back(Buffer{
+            .source = continuation,
+            .currentPath = dirpath,
+            .ts = continuation->tokens,
+            .includeDepth = includeDepth_ + 1,
+        });
+
+        // reset the token stream, so we can start processing the continuation
+        ts = nullptr;
+      }
     } else if (skipping) {
       ts = skipLine(ts->tail);
     } else {
       ts = expandOne(ts, emitToken);
     }
   }
+
+  return !buffers_.empty();
 }
 
-void Preprocessor::Private::processDirectives(SourceFile *source,
-                                              const TokList *start,
-                                              const TokList *directive,
-                                              std::vector<Token> &tokens) {
-  if (!lookat(directive, TokenKind::T_IDENTIFIER)) return;
+auto Preprocessor::Private::parseDirective(SourceFile *source,
+                                           const TokList *start)
+    -> std::optional<ParsedIncludeDirective> {
+  auto directive = start->tail;
+
+  if (!lookat(directive, TokenKind::T_IDENTIFIER)) return std::nullopt;
 
   const auto directiveKind = classifyDirective(directive->head->text.data(),
                                                directive->head->text.length());
@@ -1107,8 +1195,7 @@ void Preprocessor::Private::processDirectives(SourceFile *source,
     case PreprocessorDirectiveKind::T_INCLUDE_NEXT:
     case PreprocessorDirectiveKind::T_INCLUDE: {
       if (skipping) break;
-      processIncludeDirective(directive, ts, tokens);
-      break;
+      return parseIncludeDirective(directive, ts);
     }
 
     case PreprocessorDirectiveKind::T_DEFINE: {
@@ -1273,82 +1360,110 @@ void Preprocessor::Private::processDirectives(SourceFile *source,
     default:
       break;
   }  // switch
+
+  return std::nullopt;
 }
 
-void Preprocessor::Private::processIncludeDirective(
-    const TokList *directive, const TokList *ts, std::vector<Token> &tokens) {
+auto Preprocessor::Private::parseIncludeDirective(const TokList *directive,
+                                                  const TokList *ts)
+    -> std::optional<ParsedIncludeDirective> {
   if (lookat(ts, TokenKind::T_IDENTIFIER)) {
     ts = expandLine(copyLine(ts));
   }
 
   auto loc = ts;
-  if (lookat(ts, TokenKind::T_EOF_SYMBOL)) loc = directive;
+  if (!ts || lookat(ts, TokenKind::T_EOF_SYMBOL)) loc = directive;
 
   const bool next = directive->head->text == "include_next";
-  std::optional<fs::path> path;
-  std::string file;
+
+  if (auto headerFile = parseHeaderName(ts)) {
+    auto parsedInclude = ParsedIncludeDirective{
+        .header = *headerFile,
+        .includeNext = next,
+        .loc = loc,
+    };
+
+    return parsedInclude;
+  }
+
+  return std::nullopt;
+}
+
+auto Preprocessor::Private::resolveIncludeDirective(
+    const ParsedIncludeDirective &directive) -> SourceFile * {
+  const auto path = resolve(directive.header, directive.includeNext);
+
+  if (!path) {
+    std::string file;
+    if (auto quoteInclude = std::get_if<QuoteInclude>(&directive.header)) {
+      file = quoteInclude->fileName;
+    } else {
+      file = std::get<SystemInclude>(directive.header).fileName;
+    }
+    error(directive.loc->head->token(),
+          cxx::format("file '{}' not found", file));
+    return nullptr;
+  }
+
+  std::string currentFileName = path->string();
+
+  if (auto it = ifndefProtectedFiles_.find(currentFileName);
+      it != ifndefProtectedFiles_.end() && macros_.contains(it->second)) {
+    return nullptr;
+  }
+
+  auto sourceFile = findSourceFile(currentFileName);
+
+  if (sourceFile && sourceFile->pragmaOnceProtected) {
+    return nullptr;
+  }
+
+  if (!sourceFile) {
+    sourceFile = createSourceFile(path->string(), readFile(*path));
+
+    sourceFile->pragmaOnceProtected =
+        checkPragmaOnceProtected(sourceFile->tokens);
+
+    sourceFile->headerProtection = checkHeaderProtection(sourceFile->tokens);
+
+    if (sourceFile->headerProtection) {
+      sourceFile->headerProtectionLevel = evaluating_.size();
+
+      ifndefProtectedFiles_.insert_or_assign(
+          sourceFile->fileName, sourceFile->headerProtection->head->text);
+    }
+  }
+
+  if (willIncludeHeader_) {
+    willIncludeHeader_(currentFileName, includeDepth_ + 1);
+  }
+
+  return sourceFile;
+}
+
+auto Preprocessor::Private::parseHeaderName(const TokList *&ts)
+    -> std::optional<Include> {
+  Include headerFile;
+
   if (lookat(ts, TokenKind::T_STRING_LITERAL)) {
-    file = ts->head->text.substr(1, ts->head->text.length() - 2);
-    path = resolve(QuoteInclude(file), next);
+    auto file = ts->head->text.substr(1, ts->head->text.length() - 2);
+    return QuoteInclude(std::string(file));
   } else if (match(ts, TokenKind::T_LESS)) {
+    std::string file;
     while (ts && !lookat(ts, TokenKind::T_EOF_SYMBOL) && !ts->head->bol) {
       if (match(ts, TokenKind::T_GREATER)) break;
       file += ts->head->text;
       ts = ts->tail;
     }
-    path = resolve(SystemInclude(file), next);
+    return SystemInclude(file);
   }
 
-  if (!path) {
-    auto errorLoc = loc ? loc : directive;
-    error(errorLoc->head->token(), cxx::format("file '{}' not found", file));
-    return;
-  }
-
-  std::string currentFileName = path->string();
-
-  if (pragmaOnceProtected_.contains(currentFileName)) {
-    return;
-  }
-
-  if (auto it = ifndefProtectedFiles_.find(currentFileName);
-      it != ifndefProtectedFiles_.end() && macros_.contains(it->second)) {
-    return;
-  }
-
-  auto sourceFile = findSourceFile(currentFileName);
-
-  if (!sourceFile) {
-    sourceFile = createSourceFile(path->string(), readFile(*path));
-
-    if (checkPragmaOnceProtected(sourceFile->tokens)) {
-      pragmaOnceProtected_.insert(currentFileName);
-    }
-  }
-
-  ++includeDepth_;
-
-  if (willIncludeHeader_) {
-    willIncludeHeader_(currentFileName, includeDepth_);
-  }
-
-  auto dirpath = *path;
-  dirpath.remove_filename();
-
-  std::swap(currentPath_, dirpath);
-  std::swap(currentFileName_, currentFileName);
-
-  expand(sourceFile, tokens);
-
-  std::swap(currentPath_, dirpath);
-  std::swap(currentFileName_, currentFileName);
-
-  --includeDepth_;
+  return std::nullopt;
 }
 
 auto Preprocessor::Private::expandOne(
-    const TokList *ts, const std::function<void(const Tok *)> &emitToken)
-    -> const TokList * {
+    const TokList *ts,
+    const std::function<void(const Tok *)> &emitToken) -> const TokList * {
   if (!ts || lookat(ts, TokenKind::T_EOF_SYMBOL)) return ts;
 
   Tok *tk = nullptr;
@@ -1487,9 +1602,8 @@ auto Preprocessor::Private::expandOne(
   return ts;
 }
 
-auto Preprocessor::Private::expandObjectLikeMacro(const TokList *&ts,
-                                                  const Macro *macro)
-    -> const TokList * {
+auto Preprocessor::Private::expandObjectLikeMacro(
+    const TokList *&ts, const Macro *macro) -> const TokList * {
   const Tok *tk = ts->head;
 
   assert(macro->objLike);
@@ -1513,9 +1627,8 @@ auto Preprocessor::Private::expandObjectLikeMacro(const TokList *&ts,
   return expanded;
 }
 
-auto Preprocessor::Private::expandFunctionLikeMacro(const TokList *&ts,
-                                                    const Macro *macro)
-    -> const TokList * {
+auto Preprocessor::Private::expandFunctionLikeMacro(
+    const TokList *&ts, const Macro *macro) -> const TokList * {
   assert(!macro->objLike);
   assert(lookat(ts->tail, TokenKind::T_LPAREN));
 
@@ -1625,8 +1738,8 @@ auto Preprocessor::Private::substitude(
 
 auto Preprocessor::Private::lookupMacroArgument(
     const TokList *&ts, const Macro *macro,
-    const std::vector<const TokList *> &actuals, const TokList *&actual)
-    -> bool {
+    const std::vector<const TokList *> &actuals,
+    const TokList *&actual) -> bool {
   actual = nullptr;
 
   if (!lookat(ts, TokenKind::T_IDENTIFIER)) return false;
@@ -1898,21 +2011,25 @@ auto Preprocessor::Private::unaryExpression(const TokList *&ts) -> long {
 
 auto Preprocessor::Private::primaryExpression(const TokList *&ts) -> long {
   const auto tk = ts->head;
+
   if (match(ts, TokenKind::T_INTEGER_LITERAL)) {
     return IntegerLiteral::Components::from(tk->text.data()).value;
-  }
-  if (match(ts, TokenKind::T_LPAREN)) {
+  } else if (matchId(ts, "true")) {
+    return 1;
+  } else if (matchId(ts, "false")) {
+    return 0;
+  } else if (match(ts, TokenKind::T_LPAREN)) {
     auto result = conditionalExpression(ts);
     expect(ts, TokenKind::T_RPAREN);
     return result;
   }
+
   ts = ts->tail;
   return 0;
 }
 
-auto Preprocessor::Private::instantiate(const TokList *ts,
-                                        const Hideset *hideset)
-    -> const TokList * {
+auto Preprocessor::Private::instantiate(
+    const TokList *ts, const Hideset *hideset) -> const TokList * {
   for (auto ip = ts; ip; ip = ip->tail) {
     if (ip->head->hideset != hideset) {
       const_cast<TokList *>(ip)->head =
@@ -2066,8 +2183,8 @@ void Preprocessor::Private::defineMacro(const TokList *ts) {
   macros_.insert_or_assign(name, std::move(m));
 }
 
-auto Preprocessor::Private::merge(const Tok *left, const Tok *right)
-    -> const Tok * {
+auto Preprocessor::Private::merge(const Tok *left,
+                                  const Tok *right) -> const Tok * {
   if (!left) return right;
   if (!right) return left;
   const auto hideset = makeIntersection(left->hideset, right->hideset);
@@ -2230,28 +2347,38 @@ void Preprocessor::squeeze() { d->pool_.reset(); }
 void Preprocessor::preprocess(std::string source, std::string fileName,
                               std::vector<Token> &tokens) {
   assert(!d->findSourceFile(fileName));
+
   auto sourceFile = d->createSourceFile(std::move(fileName), std::move(source));
   const auto sourceFileId = sourceFile->id;
 
-  std::string currentFileName = sourceFile->fileName;
+  auto dirpath = fs::path(sourceFile->fileName);
+  dirpath.remove_filename();
 
-  fs::path path(currentFileName);
-  path.remove_filename();
+  assert(includeDepth_ == 0);
 
-  std::swap(d->currentPath_, path);
-  std::swap(d->currentFileName_, currentFileName);
+  d->buffers_.push_back(Private::Buffer{
+      .source = sourceFile,
+      .currentPath = dirpath,
+      .ts = sourceFile->tokens,
+      .includeDepth = d->includeDepth_,
+  });
 
-  tokens.emplace_back(TokenKind::T_ERROR);
+  if (!tokens.empty()) {
+    assert(tokens.back().is(TokenKind::T_EOF_SYMBOL));
+    tokens.pop_back();
+  }
 
-  d->expand(sourceFile, tokens);
+  if (tokens.empty()) {
+    tokens.emplace_back(TokenKind::T_ERROR);
+  }
 
-  tokens.emplace_back(TokenKind::T_EOF_SYMBOL,
-                      static_cast<std::uint32_t>(sourceFile->source.size()));
+  auto emitToken = [&](const Tok *tk) { d->finalizeToken(tokens, tk); };
 
-  tokens.back().setFileId(sourceFileId);
+  while (d->expand(sourceFile, emitToken)) {
+    // nothing to do
+  }
 
-  std::swap(d->currentPath_, path);
-  std::swap(d->currentFileName_, currentFileName);
+  tokens.emplace_back(TokenKind::T_EOF_SYMBOL, sourceFileId);
 }
 
 void Preprocessor::getPreprocessedText(const std::vector<Token> &tokens,
