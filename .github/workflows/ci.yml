@@ -30,11 +30,26 @@ jobs:
         run: |
           ctest --output-on-failure
 
-      - name: Parse C++ source files
+      - name: Parse C++ source files (WASI toolchain)
         run: |
           for i in src/parser/cxx/*.cc src/frontend/cxx/*.cc; do
             echo "Parsing $i"
             ./build/src/frontend/cxx \
+              -I src/parser \
+              -I build/_deps/fmt-src/include \
+              -I build/_deps/utfcpp-src/source \
+              -I build/_deps/flatbuffers-src/include \
+              -I build/src/parser \
+              -DCXX_NO_FILESYSTEM \
+              $i
+          done
+
+      - name: Parse C++ source files (Linux toolchain)
+        run: |
+          for i in src/parser/cxx/*.cc src/frontend/cxx/*.cc; do
+            echo "Parsing $i"
+            ./build/src/frontend/cxx \
+              -toolchain linux \
               -I src/parser \
               -I build/_deps/fmt-src/include \
               -I build/_deps/utfcpp-src/source \

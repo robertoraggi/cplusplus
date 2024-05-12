@@ -5822,7 +5822,13 @@ void Parser::check_type_traits() {
   BuiltinTypeTraitKind builtinKind = BuiltinTypeTraitKind::T_NONE;
   if (!parse_type_traits_op(typeTraitLoc, builtinKind)) return;
 
+  // reset the builtin type traits to be available as identifiers
+  if (auto id = unit->identifier(typeTraitLoc)) {
+    id->setInfo(nullptr);
+  }
+
 #if false
+
   parse_warn(
       typeTraitLoc,
       cxx::format("keyword '{}' will be made available as an identifier for "
