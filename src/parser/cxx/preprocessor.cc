@@ -37,12 +37,14 @@
 // stl
 #include <cxx/preprocessor.h>
 
+#include <algorithm>
 #include <cassert>
 #include <forward_list>
 #include <fstream>
 #include <functional>
 #include <iostream>
 #include <optional>
+#include <ranges>
 #include <set>
 #include <sstream>
 #include <unordered_map>
@@ -418,6 +420,33 @@ struct TokList final : Managed {
 
   explicit TokList(const Tok *head, const TokList *tail = nullptr)
       : head(head), tail(tail) {}
+};
+
+class TokIterator {
+ public:
+  using value_type = const Tok *;
+  using difference_type = std::ptrdiff_t;
+
+  TokIterator() = default;
+  explicit TokIterator(const TokList *ts) : ts_(ts) {}
+
+  auto operator<=>(const TokIterator &) const = default;
+
+  auto operator*() const -> const Tok * { return ts_->head; }
+
+  auto operator++() -> TokIterator & {
+    ts_ = ts_->tail;
+    return *this;
+  }
+
+  auto operator++(int) -> TokIterator {
+    auto it = *this;
+    ts_ = ts_->tail;
+    return it;
+  }
+
+ private:
+  const TokList *ts_ = nullptr;
 };
 
 struct Macro {
@@ -2353,8 +2382,6 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
 
   auto dirpath = fs::path(sourceFile->fileName);
   dirpath.remove_filename();
-
-  assert(includeDepth_ == 0);
 
   d->buffers_.push_back(Private::Buffer{
       .source = sourceFile,
