@@ -27,6 +27,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <variant>
 #include <vector>
 
 namespace cxx {
@@ -80,6 +81,42 @@ class Preprocessor {
 
   void setOnWillIncludeHeader(
       std::function<void(const std::string &, int)> willIncludeHeader);
+
+  void beginPreprocessing(std::string source, std::string fileName,
+                          std::vector<Token> &outputTokens);
+
+  void endPreprocessing(std::vector<Token> &outputTokens);
+
+  struct NeedToResolveInclude {
+    Preprocessor &preprocessor;
+    std::string fileName;
+    bool isQuoted = false;
+    bool isIncludeNext = false;
+    const void *loc = nullptr;
+  };
+
+  struct NeedToKnowIfFileExists {
+    Preprocessor &preprocessor;
+    std::string fileName;
+
+    void setFileExists(bool exists) const;
+  };
+
+  struct NeedToReadFile {
+    Preprocessor &preprocessor;
+    std::string fileName;
+
+    void setContents(std::string contents) const;
+  };
+
+  struct CanContinue {};
+  struct IsDone {};
+
+  using Status = std::variant<NeedToResolveInclude, NeedToKnowIfFileExists,
+                              NeedToReadFile, CanContinue, IsDone>;
+
+  [[nodiscard]] auto continuePreprocessing(std::vector<Token> &outputTokens)
+      -> Status;
 
   void preprocess(std::string source, std::string fileName,
                   std::vector<Token> &tokens);

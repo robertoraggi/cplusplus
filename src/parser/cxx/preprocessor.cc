@@ -241,7 +241,12 @@ struct QuoteInclude {
   explicit QuoteInclude(std::string fileName) : fileName(std::move(fileName)) {}
 };
 
-using Include = std::variant<std::monostate, SystemInclude, QuoteInclude>;
+using Include = std::variant<SystemInclude, QuoteInclude>;
+
+inline auto getHeaderName(const Include &include) -> std::string {
+  return std::visit([](const auto &include) { return include.fileName; },
+                    include);
+}
 
 }  // namespace
 
@@ -832,20 +837,14 @@ struct Preprocessor::Private {
       const Private *d;
       bool next;
 
-      explicit Resolve(const Private *d, bool next) : d(d), next(next) {}
-
-      [[nodiscard]] auto operator()(std::monostate) const
-          -> std::optional<fs::path> {
-        return {};
-      }
+      Resolve(const Private *d, bool next) : d(d), next(next) {}
 
       [[nodiscard]] auto operator()(const SystemInclude &include) const
           -> std::optional<fs::path> {
         bool hit = false;
-        for (auto it = rbegin(d->systemIncludePaths_);
-             it != rend(d->systemIncludePaths_); ++it) {
-          const auto p = fs::path(*it);
-          auto path = p / include.fileName;
+        for (const auto &includePath :
+             d->systemIncludePaths_ | std::views::reverse) {
+          const auto path = fs::path(includePath) / include.fileName;
           if (d->fileExists(path)) {
             if (!next || hit) return path;
             hit = true;
@@ -858,25 +857,24 @@ struct Preprocessor::Private {
           -> std::optional<fs::path> {
         bool hit = false;
 
-        if (d->fileExists(d->currentPath_ / include.fileName)) {
-          if (!next) return d->currentPath_ / include.fileName;
+        if (auto path = d->currentPath_ / include.fileName;
+            d->fileExists(path)) {
+          if (!next) return path;
           hit = true;
         }
 
-        for (auto it = rbegin(d->quoteIncludePaths_);
-             it != rend(d->quoteIncludePaths_); ++it) {
-          auto p = fs::path(*it);
-          auto path = p / include.fileName;
+        for (const auto &includePath :
+             d->quoteIncludePaths_ | std::views::reverse) {
+          const auto path = fs::path(includePath) / include.fileName;
           if (d->fileExists(path)) {
             if (!next || hit) return path;
             hit = true;
           }
         }
 
-        for (auto it = rbegin(d->systemIncludePaths_);
-             it != rend(d->systemIncludePaths_); ++it) {
-          auto p = fs::path(*it);
-          auto path = p / include.fileName;
+        for (const auto &includePath :
+             d->systemIncludePaths_ | std::views::reverse) {
+          const auto path = fs::path(includePath) / include.fileName;
           if (d->fileExists(path)) {
             if (!next || hit) return path;
             hit = true;
@@ -906,9 +904,8 @@ struct Preprocessor::Private {
 
   [[nodiscard]] auto skipLine(const TokList *ts) -> const TokList *;
 
-  [[nodiscard]] auto expand(SourceFile *source,
-                            const std::function<void(const Tok *)> &emitToken)
-      -> bool;
+  [[nodiscard]] auto expand(const std::function<void(const Tok *)> &emitToken)
+      -> Status;
 
   [[nodiscard]] auto expandLine(const TokList *ts) -> const TokList *;
 
@@ -1144,15 +1141,14 @@ auto Preprocessor::Private::expandLine(const TokList *ts) -> const TokList * {
 }
 
 auto Preprocessor::Private::expand(
-    SourceFile *source,
-    const std::function<void(const Tok *)> &emitToken) -> bool {
-  if (buffers_.empty()) return false;
+    const std::function<void(const Tok *)> &emitToken) -> Status {
+  if (buffers_.empty()) return IsDone{};
 
   auto buffer = buffers_.back();
   buffers_.pop_back();
 
   // reconstruct the state from the active buffer
-  source = buffer.source;
+  auto source = buffer.source;
   currentFileName_ = source->fileName;
   currentPath_ = buffer.currentPath;
   includeDepth_ = buffer.includeDepth;
@@ -1167,12 +1163,14 @@ auto Preprocessor::Private::expand(
       ts = skipLine(ts);
 
       if (auto parsedInclude = parseDirective(source, start)) {
-        // the header file resolution may be asynchronous
-        auto continuation = resolveIncludeDirective(*parsedInclude);
-
-        if (!continuation) {
-          continue;
-        }
+        NeedToResolveInclude status{
+            .preprocessor = *preprocessor_,
+            .fileName = getHeaderName(parsedInclude->header),
+            .isQuoted =
+                std::holds_alternative<QuoteInclude>(parsedInclude->header),
+            .isIncludeNext = parsedInclude->includeNext,
+            .loc = parsedInclude->loc,
+        };
 
         // suspend the current file and start processing the continuation
         buffers_.push_back(Buffer{
@@ -1182,19 +1180,10 @@ auto Preprocessor::Private::expand(
             .includeDepth = includeDepth_,
         });
 
-        // make the continuation the current file
-        fs::path dirpath = fs::path(continuation->fileName);
-        dirpath.remove_filename();
-
-        buffers_.push_back(Buffer{
-            .source = continuation,
-            .currentPath = dirpath,
-            .ts = continuation->tokens,
-            .includeDepth = includeDepth_ + 1,
-        });
-
         // reset the token stream, so we can start processing the continuation
         ts = nullptr;
+
+        return status;
       }
     } else if (skipping) {
       ts = skipLine(ts->tail);
@@ -1203,7 +1192,9 @@ auto Preprocessor::Private::expand(
     }
   }
 
-  return !buffers_.empty();
+  if (buffers_.empty()) return IsDone{};
+
+  return CanContinue{};
 }
 
 auto Preprocessor::Private::parseDirective(SourceFile *source,
@@ -1423,12 +1414,7 @@ auto Preprocessor::Private::resolveIncludeDirective(
   const auto path = resolve(directive.header, directive.includeNext);
 
   if (!path) {
-    std::string file;
-    if (auto quoteInclude = std::get_if<QuoteInclude>(&directive.header)) {
-      file = quoteInclude->fileName;
-    } else {
-      file = std::get<SystemInclude>(directive.header).fileName;
-    }
+    const auto file = getHeaderName(directive.header);
     error(directive.loc->head->token(),
           cxx::format("file '{}' not found", file));
     return nullptr;
@@ -2375,10 +2361,76 @@ void Preprocessor::squeeze() { d->pool_.reset(); }
 
 void Preprocessor::preprocess(std::string source, std::string fileName,
                               std::vector<Token> &tokens) {
+  struct {
+    Preprocessor &self;
+    bool done = false;
+
+    void operator()(const IsDone &) { done = true; }
+
+    void operator()(const CanContinue &) {
+      // keep going
+    }
+
+    void operator()(const NeedToResolveInclude &status) {
+      // the header file resolution may be asynchronous
+      Include header;
+
+      if (status.isQuoted) {
+        header = QuoteInclude(status.fileName);
+      } else {
+        header = SystemInclude(status.fileName);
+      }
+
+      Private::ParsedIncludeDirective parsedInclude{
+          .header = header,
+          .includeNext = status.isIncludeNext,
+          .loc = static_cast<const TokList *>(status.loc),
+      };
+
+      auto continuation = self.d->resolveIncludeDirective(parsedInclude);
+      if (!continuation) return;
+
+      // make the continuation the current file
+      fs::path dirpath = fs::path(continuation->fileName);
+      dirpath.remove_filename();
+
+      self.d->buffers_.push_back(Private::Buffer{
+          .source = continuation,
+          .currentPath = dirpath,
+          .ts = continuation->tokens,
+          .includeDepth = self.d->includeDepth_ + 1,
+      });
+    }
+
+    void operator()(const NeedToKnowIfFileExists &status) {
+      auto exists = self.d->fileExists(status.fileName);
+      status.setFileExists(exists);
+    }
+
+    void operator()(const NeedToReadFile &status) {
+      auto source = self.d->readFile(status.fileName);
+      status.setContents(std::move(source));
+    }
+  } state{*this};
+
+  beginPreprocessing(std::move(source), std::move(fileName), tokens);
+
+  while (!state.done) {
+    std::visit(state, continuePreprocessing(tokens));
+  }
+
+  endPreprocessing(tokens);
+}
+
+void Preprocessor::NeedToKnowIfFileExists::setFileExists(bool exists) const {}
+
+void Preprocessor::NeedToReadFile::setContents(std::string contents) const {}
+
+void Preprocessor::beginPreprocessing(std::string source, std::string fileName,
+                                      std::vector<Token> &tokens) {
   assert(!d->findSourceFile(fileName));
 
   auto sourceFile = d->createSourceFile(std::move(fileName), std::move(source));
-  const auto sourceFileId = sourceFile->id;
 
   auto dirpath = fs::path(sourceFile->fileName);
   dirpath.remove_filename();
@@ -2398,14 +2450,17 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
   if (tokens.empty()) {
     tokens.emplace_back(TokenKind::T_ERROR);
   }
+}
 
-  auto emitToken = [&](const Tok *tk) { d->finalizeToken(tokens, tk); };
-
-  while (d->expand(sourceFile, emitToken)) {
-    // nothing to do
-  }
-
+void Preprocessor::endPreprocessing(std::vector<Token> &tokens) {
+  if (tokens.empty()) return;
+  auto sourceFileId = tokens.back().fileId();
   tokens.emplace_back(TokenKind::T_EOF_SYMBOL, sourceFileId);
+}
+
+auto Preprocessor::continuePreprocessing(std::vector<Token> &tokens) -> Status {
+  auto emitToken = [&](const Tok *tk) { d->finalizeToken(tokens, tk); };
+  return d->expand(emitToken);
 }
 
 void Preprocessor::getPreprocessedText(const std::vector<Token> &tokens,
