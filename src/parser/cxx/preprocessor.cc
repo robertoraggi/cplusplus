@@ -907,7 +907,7 @@ struct Preprocessor::Private {
   [[nodiscard]] auto expand(const std::function<void(const Tok *)> &emitToken)
       -> Status;
 
-  [[nodiscard]] auto expandLine(const TokList *ts) -> const TokList *;
+  [[nodiscard]] auto expandTokens(const TokList *ts) -> const TokList *;
 
   [[nodiscard]] auto expandOne(
       const TokList *ts,
@@ -938,7 +938,7 @@ struct Preprocessor::Private {
   [[nodiscard]] auto parseHeaderName(const TokList *&ts)
       -> std::optional<Include>;
 
-  [[nodiscard]] auto substitude(const TokList *ts, const Macro *macro,
+  [[nodiscard]] auto substitute(const Macro *macro,
                                 const std::vector<const TokList *> &actuals,
                                 const Hideset *hideset,
                                 const TokList *os) -> const TokList *;
@@ -1126,7 +1126,7 @@ auto Preprocessor::Private::tokenize(const std::string_view &source,
   return ts;
 }
 
-auto Preprocessor::Private::expandLine(const TokList *ts) -> const TokList * {
+auto Preprocessor::Private::expandTokens(const TokList *ts) -> const TokList * {
   TokList *tokens = nullptr;
   auto out = &tokens;
 
@@ -1388,7 +1388,7 @@ auto Preprocessor::Private::parseIncludeDirective(const TokList *directive,
                                                   const TokList *ts)
     -> std::optional<ParsedIncludeDirective> {
   if (lookat(ts, TokenKind::T_IDENTIFIER)) {
-    ts = expandLine(copyLine(ts));
+    ts = expandTokens(copyLine(ts));
   }
 
   auto loc = ts;
@@ -1624,7 +1624,7 @@ auto Preprocessor::Private::expandObjectLikeMacro(
   assert(macro->objLike);
 
   const auto hideset = makeUnion(tk->hideset, tk->text);
-  auto expanded = substitude(macro->body, macro, {}, hideset, nullptr);
+  auto expanded = substitute(macro, {}, hideset, nullptr);
 
   if (expanded) {
     // assert(expanded->head->generated);
@@ -1653,7 +1653,7 @@ auto Preprocessor::Private::expandFunctionLikeMacro(
 
   auto hs = makeUnion(makeIntersection(tk->hideset, hideset), tk->text);
 
-  auto expanded = substitude(macro->body, macro, args, hs, nullptr);
+  auto expanded = substitute(macro, args, hs, nullptr);
 
   if (expanded) {
     // assert(expanded->head->generated);
@@ -1671,10 +1671,10 @@ auto Preprocessor::Private::expandFunctionLikeMacro(
   return expanded;
 }
 
-auto Preprocessor::Private::substitude(
-    const TokList *ts, const Macro *macro,
-    const std::vector<const TokList *> &actuals, const Hideset *hideset,
-    const TokList *os) -> const TokList * {
+auto Preprocessor::Private::substitute(
+    const Macro *macro, const std::vector<const TokList *> &actuals,
+    const Hideset *hideset, const TokList *os) -> const TokList * {
+  const TokList *ts = macro->body;
   auto **ip = const_cast<TokList **>(&os);
 
   auto appendTokens = [&](const TokList *rs) {
@@ -1737,7 +1737,7 @@ auto Preprocessor::Private::substitude(
     if (const TokList *actual = nullptr;
         lookupMacroArgument(ts, macro, actuals, actual)) {
       auto copy = copyTokens(actual);
-      if (auto line = expandLine(copy)) {
+      if (auto line = expandTokens(copy)) {
         // const_cast<Tok *>(line->head)->space = true;
         appendTokens(line);
       }
@@ -1856,7 +1856,7 @@ auto Preprocessor::Private::copyLine(const TokList *ts) -> const TokList * {
 
 auto Preprocessor::Private::constantExpression(const TokList *ts) -> long {
   auto line = copyLine(ts);
-  auto e = expandLine(line);
+  auto e = expandTokens(line);
   return conditionalExpression(e);
 }
 
