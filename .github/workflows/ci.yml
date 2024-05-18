@@ -168,6 +168,9 @@ jobs:
   build-wasi:
     runs-on: ubuntu-24.04
 
+    env:
+      WASMTIME_VERSION: 20.0.2
+
     steps:
       - uses: actions/checkout@v4
 
@@ -178,15 +181,36 @@ jobs:
 
       - name: Install wasmtime
         run: |
-          wget https://github.com/bytecodealliance/wasmtime/releases/download/v17.0.0/wasmtime-v17.0.0-x86_64-linux.tar.xz
-          tar Jxvf wasmtime-v17.0.0-x86_64-linux.tar.xz -C ~/
+          wget https://github.com/bytecodealliance/wasmtime/releases/download/v${{ env.WASMTIME_VERSION }}/wasmtime-v${{ env.WASMTIME_VERSION }}-x86_64-linux.tar.xz
+          tar Jxvf wasmtime-v${{ env.WASMTIME_VERSION }}-x86_64-linux.tar.xz -C ~/
 
       - name: Test
         run: |
-          ~/wasmtime-v17.0.0-x86_64-linux/wasmtime \
+          ~/wasmtime-v${{ env.WASMTIME_VERSION }}-x86_64-linux/wasmtime \
             --dir ${{github.workspace}}/build.wasi/install::/ \
             --dir tests::tests \
             ${{github.workspace}}/build.wasi/install/usr/bin/cxx.wasm -v tests/manual/source.cc
+
+      - name: Parse C++ source files (wasmtime runtime)
+        run: |
+          PATH=~/wasmtime-v${{ env.WASMTIME_VERSION }}-x86_64-linux:$PATH
+
+          for i in src/parser/cxx/*.cc src/frontend/cxx/*.cc; do
+            echo "Parsing $i"
+            wasmtime \
+                  --dir=src::/src \
+                  --dir=build.wasi/_deps::/build.wasi/_deps \
+                  --dir=build.wasi/src/parser::build.wasi/src/parser \
+                  --dir=build.wasi/install/usr::/usr \
+                  build.wasi/install/usr/bin/cxx.wasm \
+              -I src/parser \
+              -I build.wasi/_deps/fmt-src/include \
+              -I build.wasi/_deps/utfcpp-src/source \
+              -I build.wasi/_deps/flatbuffers-src/include \
+              -I build.wasi/src/parser \
+              -DCXX_NO_FILESYSTEM \
+              $i
+          done
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
