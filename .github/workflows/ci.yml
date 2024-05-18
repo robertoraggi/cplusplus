@@ -59,7 +59,6 @@ jobs:
               -I build/_deps/utfcpp-src/source \
               -I build/_deps/flatbuffers-src/include \
               -I build/src/parser \
-              -DCXX_NO_FILESYSTEM \
               $i
           done
 
@@ -151,6 +150,20 @@ jobs:
         working-directory: build
         run: |
           ctest --verbose
+
+      - name: Parse C++ source files (macOS toolchain)
+        run: |
+          for i in src/parser/cxx/*.cc src/frontend/cxx/*.cc; do
+            echo "Parsing $i"
+            ./build/src/frontend/cxx \
+              -toolchain macos \
+              -I src/parser \
+              -I build/_deps/fmt-src/include \
+              -I build/_deps/utfcpp-src/source \
+              -I build/_deps/flatbuffers-src/include \
+              -I build/src/parser \
+              $i
+          done
 
   build-wasi:
     runs-on: ubuntu-24.04
