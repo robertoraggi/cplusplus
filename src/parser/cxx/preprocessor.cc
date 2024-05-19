@@ -494,7 +494,21 @@ struct FunctionMacro {
         variadic(variadic) {}
 };
 
-using Macro = std::variant<ObjectMacro, FunctionMacro>;
+struct MacroExpansionContext {
+  const TokList *ts = nullptr;
+};
+
+struct BuiltinObjectMacro {
+  std::string_view name;
+  std::function<auto(MacroExpansionContext)->const TokList *> expand;
+
+  BuiltinObjectMacro(
+      std::string_view name,
+      std::function<auto(MacroExpansionContext)->const TokList *> expand)
+      : name(name), expand(std::move(expand)) {}
+};
+
+using Macro = std::variant<ObjectMacro, FunctionMacro, BuiltinObjectMacro>;
 
 [[nodiscard]] inline auto getMacroName(const Macro &macro) -> std::string_view {
   struct {
@@ -503,6 +517,10 @@ using Macro = std::variant<ObjectMacro, FunctionMacro>;
     }
 
     auto operator()(const FunctionMacro &macro) const -> std::string_view {
+      return macro.name;
+    }
+
+    auto operator()(const BuiltinObjectMacro &macro) const -> std::string_view {
       return macro.name;
     }
   } visitor;
@@ -519,17 +537,35 @@ using Macro = std::variant<ObjectMacro, FunctionMacro>;
     auto operator()(const FunctionMacro &macro) const -> const TokList * {
       return macro.body;
     }
+
+    auto operator()(const BuiltinObjectMacro &macro) const -> const TokList * {
+      return nullptr;
+    }
   } visitor;
 
   return std::visit(visitor, macro);
 }
 
 [[nodiscard]] inline auto isObjectLikeMacro(const Macro &macro) -> bool {
-  return std::holds_alternative<ObjectMacro>(macro);
+  struct {
+    auto operator()(const ObjectMacro &) const -> bool { return true; }
+    auto operator()(const BuiltinObjectMacro &) const -> bool { return true; }
+
+    auto operator()(const FunctionMacro &) const -> bool { return false; }
+  } visitor;
+
+  return std::visit(visitor, macro);
 }
 
 [[nodiscard]] inline auto isFunctionLikeMacro(const Macro &macro) -> bool {
-  return std::holds_alternative<FunctionMacro>(macro);
+  struct {
+    auto operator()(const FunctionMacro &) const -> bool { return true; }
+
+    auto operator()(const ObjectMacro &) const -> bool { return false; }
+    auto operator()(const BuiltinObjectMacro &) const -> bool { return false; }
+  } visitor;
+
+  return std::visit(visitor, macro);
 }
 
 struct SourceFile {
@@ -630,21 +666,9 @@ struct Preprocessor::Private {
   bool omitLineMarkers_ = false;
   Arena pool_;
 
-  Private() {
-    skipping_.push_back(false);
-    evaluating_.push_back(true);
+  Private();
 
-    time_t t;
-    time(&t);
-
-    char buffer[32];
-
-    strftime(buffer, sizeof(buffer), "\"%b %e %Y\"", localtime(&t));
-    date_ = string(buffer);
-
-    strftime(buffer, sizeof(buffer), "\"%T\"", localtime(&t));
-    time_ = string(buffer);
-  }
+  void initialize();
 
   void error(const Token &token, std::string message) const {
     diagnosticsClient_->report(token, Severity::Error, std::move(message));
@@ -951,6 +975,12 @@ struct Preprocessor::Private {
 
   void defineMacro(const TokList *ts);
 
+  void adddBuiltinMacro(
+      std::string_view name,
+      std::function<auto(MacroExpansionContext)->const TokList *> expand) {
+    macros_.insert_or_assign(name, BuiltinObjectMacro(name, std::move(expand)));
+  }
+
   [[nodiscard]] auto tokenize(const std::string_view &source, int sourceFile,
                               bool bol) -> const TokList *;
 
@@ -1046,6 +1076,79 @@ struct Preprocessor::Private {
 [[nodiscard]] static auto depth(const TokList *ts) -> int {
   if (!ts) return 0;
   return depth(ts->next) + 1;
+}
+
+Preprocessor::Private::Private() {
+  skipping_.push_back(false);
+  evaluating_.push_back(true);
+
+  time_t t;
+  time(&t);
+
+  char buffer[32];
+
+  strftime(buffer, sizeof(buffer), "\"%b %e %Y\"", localtime(&t));
+  date_ = string(buffer);
+
+  strftime(buffer, sizeof(buffer), "\"%T\"", localtime(&t));
+  time_ = string(buffer);
+}
+
+void Preprocessor::Private::initialize() {
+  adddBuiltinMacro(
+      "__FILE__",
+      [this](const MacroExpansionContext &context) -> const TokList * {
+        auto ts = context.ts;
+        auto tk = Tok::Gen(&pool_, TokenKind::T_STRING_LITERAL,
+                           string(cxx::format("\"{}\"", currentFileName_)));
+        tk->space = true;
+        tk->sourceFile = ts->tok->sourceFile;
+        return new (&pool_) TokList(tk, ts->next);
+      });
+
+  adddBuiltinMacro(
+      "__LINE__",
+      [this](const MacroExpansionContext &context) -> const TokList * {
+        auto ts = context.ts;
+        unsigned line = 0;
+        preprocessor_->getTokenStartPosition(ts->tok->token(), &line, nullptr,
+                                             nullptr);
+        auto tk = Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL,
+                           string(std::to_string(line)));
+        tk->sourceFile = ts->tok->sourceFile;
+        tk->space = true;
+        return new (&pool_) TokList(tk, ts->next);
+      });
+
+  adddBuiltinMacro(
+      "__COUNTER__",
+      [this](const MacroExpansionContext &context) -> const TokList * {
+        auto tk = Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL,
+                           string(std::to_string(counter_++)));
+        tk->sourceFile = context.ts->tok->sourceFile;
+        tk->space = true;
+        return new (&pool_) TokList(tk, context.ts->next);
+      });
+
+  adddBuiltinMacro(
+      "__DATE__",
+      [this](const MacroExpansionContext &context) -> const TokList * {
+        auto ts = context.ts;
+        auto tk = Tok::Gen(&pool_, TokenKind::T_STRING_LITERAL, date_);
+        tk->sourceFile = ts->tok->sourceFile;
+        tk->space = true;
+        return new (&pool_) TokList(tk, ts->next);
+      });
+
+  adddBuiltinMacro(
+      "__TIME__",
+      [this](const MacroExpansionContext &context) -> const TokList * {
+        auto ts = context.ts;
+        auto tk = Tok::Gen(&pool_, TokenKind::T_STRING_LITERAL, time_);
+        tk->sourceFile = ts->tok->sourceFile;
+        tk->space = true;
+        return new (&pool_) TokList(tk, ts->next);
+      });
 }
 
 void Preprocessor::Private::finalizeToken(std::vector<Token> &tokens,
@@ -1610,41 +1713,6 @@ auto Preprocessor::Private::expandOne(
     expect(ts, TokenKind::T_RPAREN);
     const auto enabled = true;
     tk = Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, enabled ? "1" : "0");
-  } else if (ts->tok->text == "__FILE__") {
-    tk = Tok::Gen(&pool_, TokenKind::T_STRING_LITERAL,
-                  string(cxx::format("\"{}\"", currentFileName_)));
-    tk->bol = ts->tok->bol;
-    tk->space = ts->tok->space;
-    ts = ts->next;
-  } else if (ts->tok->text == "__LINE__") {
-    unsigned line = 0;
-    preprocessor_->getTokenStartPosition(ts->tok->token(), &line, nullptr,
-                                         nullptr);
-    tk = Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL,
-                  string(std::to_string(line)));
-    tk->bol = ts->tok->bol;
-    tk->space = ts->tok->space;
-    tk->sourceFile = ts->tok->sourceFile;
-    ts = ts->next;
-  } else if (ts->tok->text == "__DATE__") {
-    tk = Tok::Gen(&pool_, TokenKind::T_STRING_LITERAL, date_);
-    tk->bol = ts->tok->bol;
-    tk->space = ts->tok->space;
-    tk->sourceFile = ts->tok->sourceFile;
-    ts = ts->next;
-  } else if (ts->tok->text == "__TIME__") {
-    tk = Tok::Gen(&pool_, TokenKind::T_STRING_LITERAL, time_);
-    tk->bol = ts->tok->bol;
-    tk->space = ts->tok->space;
-    tk->sourceFile = ts->tok->sourceFile;
-    ts = ts->next;
-  } else if (ts->tok->text == "__COUNTER__") {
-    tk = Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL,
-                  string(std::to_string(counter_++)));
-    tk->bol = ts->tok->bol;
-    tk->space = ts->tok->space;
-    tk->sourceFile = ts->tok->sourceFile;
-    ts = ts->next;
   } else {
     if (const Macro *macro = nullptr; lookupMacro(ts->tok, macro)) {
       if (isObjectLikeMacro(*macro)) {
@@ -1674,6 +1742,10 @@ auto Preprocessor::Private::expandOne(
 
 auto Preprocessor::Private::expandObjectLikeMacro(
     const TokList *&ts, const Macro *m) -> const TokList * {
+  if (auto builtin = std::get_if<BuiltinObjectMacro>(&*m)) {
+    return builtin->expand(MacroExpansionContext{.ts = ts});
+  }
+
   auto macro = &std::get<ObjectMacro>(*m);
   const Tok *tk = ts->tok;
 
@@ -2353,6 +2425,7 @@ Preprocessor::Preprocessor(Control *control,
   d->preprocessor_ = this;
   d->control_ = control;
   d->diagnosticsClient_ = diagnosticsClient;
+  d->initialize();
 }
 
 Preprocessor::~Preprocessor() = default;
@@ -2650,6 +2723,8 @@ void Preprocessor::printMacros(std::ostream &out) const {
 
       out << cxx::format("\n");
     }
+
+    void operator()(const BuiltinObjectMacro &) {}
 
   } printMacro{*this, out};
 
