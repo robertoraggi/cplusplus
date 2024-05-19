@@ -426,6 +426,15 @@ struct TokList final : Managed {
 
   explicit TokList(const Tok *tok, const TokList *next = nullptr)
       : tok(tok), next(next) {}
+
+  [[nodiscard]] static auto isSame(const TokList *ls,
+                                   const TokList *rs) -> bool {
+    if (ls == rs) return true;
+    if (!ls || !rs) return false;
+    if (ls->tok->kind != rs->tok->kind) return false;
+    if (ls->tok->text != rs->tok->text) return false;
+    return isSame(ls->next, rs->next);
+  }
 };
 
 class TokIterator {
@@ -463,27 +472,65 @@ struct EofTokSentinel {
 
 static_assert(std::sentinel_for<EofTokSentinel, TokIterator>);
 
-struct Macro {
+struct ObjectMacro {
+  std::string_view name;
+  const TokList *body = nullptr;
+
+  ObjectMacro(std::string_view name, const TokList *body)
+      : name(name), body(body) {}
+};
+
+struct FunctionMacro {
+  std::string_view name;
   std::vector<std::string_view> formals;
   const TokList *body = nullptr;
-  bool objLike = true;
   bool variadic = false;
 
-  auto operator==(const Macro &other) const -> bool {
-    if (formals != other.formals) return false;
-    if (objLike != other.objLike) return false;
-    if (variadic != other.variadic) return false;
-    return isSame(body, other.body);
-  }
-
-  auto isSame(const TokList *ls, const TokList *rs) const -> bool {
-    if (ls == rs) return true;
-    if (!ls || !rs) return false;
-    if (ls->tok->kind != rs->tok->kind) return false;
-    if (ls->tok->text != rs->tok->text) return false;
-    return isSame(ls->next, rs->next);
-  }
+  FunctionMacro(std::string_view name, std::vector<std::string_view> formals,
+                const TokList *body, bool variadic)
+      : name(name),
+        formals(std::move(formals)),
+        body(body),
+        variadic(variadic) {}
 };
+
+using Macro = std::variant<ObjectMacro, FunctionMacro>;
+
+[[nodiscard]] inline auto getMacroName(const Macro &macro) -> std::string_view {
+  struct {
+    auto operator()(const ObjectMacro &macro) const -> std::string_view {
+      return macro.name;
+    }
+
+    auto operator()(const FunctionMacro &macro) const -> std::string_view {
+      return macro.name;
+    }
+  } visitor;
+
+  return std::visit(visitor, macro);
+}
+
+[[nodiscard]] inline auto getMacroBody(const Macro &macro) -> const TokList * {
+  struct {
+    auto operator()(const ObjectMacro &macro) const -> const TokList * {
+      return macro.body;
+    }
+
+    auto operator()(const FunctionMacro &macro) const -> const TokList * {
+      return macro.body;
+    }
+  } visitor;
+
+  return std::visit(visitor, macro);
+}
+
+[[nodiscard]] inline auto isObjectLikeMacro(const Macro &macro) -> bool {
+  return std::holds_alternative<ObjectMacro>(macro);
+}
+
+[[nodiscard]] inline auto isFunctionLikeMacro(const Macro &macro) -> bool {
+  return std::holds_alternative<FunctionMacro>(macro);
+}
 
 struct SourceFile {
   std::string fileName;
@@ -908,6 +955,8 @@ struct Preprocessor::Private {
                               bool bol) -> const TokList *;
 
   [[nodiscard]] auto skipLine(const TokList *ts) -> const TokList *;
+
+  [[nodiscard]] auto parseMacroDefinition(const TokList *ts) -> Macro;
 
   [[nodiscard]] auto expand(const std::function<void(const Tok *)> &emitToken)
       -> Status;
@@ -1597,9 +1646,10 @@ auto Preprocessor::Private::expandOne(
     tk->sourceFile = ts->tok->sourceFile;
     ts = ts->next;
   } else {
-    const Macro *macro = nullptr;
-    if (lookupMacro(ts->tok, macro)) {
-      if (macro->objLike) return expandObjectLikeMacro(ts, macro);
+    if (const Macro *macro = nullptr; lookupMacro(ts->tok, macro)) {
+      if (isObjectLikeMacro(*macro)) {
+        return expandObjectLikeMacro(ts, macro);
+      }
 
       if (lookat(ts->next, TokenKind::T_LPAREN))
         return expandFunctionLikeMacro(ts, macro);
@@ -1623,13 +1673,12 @@ auto Preprocessor::Private::expandOne(
 }
 
 auto Preprocessor::Private::expandObjectLikeMacro(
-    const TokList *&ts, const Macro *macro) -> const TokList * {
+    const TokList *&ts, const Macro *m) -> const TokList * {
+  auto macro = &std::get<ObjectMacro>(*m);
   const Tok *tk = ts->tok;
 
-  assert(macro->objLike);
-
   const auto hideset = makeUnion(tk->hideset, tk->text);
-  auto expanded = substitute(macro, {}, hideset, nullptr);
+  auto expanded = substitute(m, {}, hideset, nullptr);
 
   if (expanded) {
     // assert(expanded->tok->generated);
@@ -1648,8 +1697,9 @@ auto Preprocessor::Private::expandObjectLikeMacro(
 }
 
 auto Preprocessor::Private::expandFunctionLikeMacro(
-    const TokList *&ts, const Macro *macro) -> const TokList * {
-  assert(!macro->objLike);
+    const TokList *&ts, const Macro *m) -> const TokList * {
+  auto macro = &std::get<FunctionMacro>(*m);
+
   assert(lookat(ts->next, TokenKind::T_LPAREN));
 
   const Tok *tk = ts->tok;
@@ -1658,7 +1708,7 @@ auto Preprocessor::Private::expandFunctionLikeMacro(
 
   auto hs = makeUnion(makeIntersection(tk->hideset, hideset), tk->text);
 
-  auto expanded = substitute(macro, args, hs, nullptr);
+  auto expanded = substitute(m, args, hs, nullptr);
 
   if (expanded) {
     // assert(expanded->tok->generated);
@@ -1679,7 +1729,7 @@ auto Preprocessor::Private::expandFunctionLikeMacro(
 auto Preprocessor::Private::substitute(
     const Macro *macro, const std::vector<const TokList *> &actuals,
     const Hideset *hideset, const TokList *os) -> const TokList * {
-  const TokList *ts = macro->body;
+  const TokList *ts = getMacroBody(*macro);
   auto **ip = const_cast<TokList **>(&os);
 
   auto appendTokens = [&](const TokList *rs) {
@@ -1757,9 +1807,12 @@ auto Preprocessor::Private::substitute(
 }
 
 auto Preprocessor::Private::lookupMacroArgument(
-    const TokList *&ts, const Macro *macro,
+    const TokList *&ts, const Macro *m,
     const std::vector<const TokList *> &actuals,
     const TokList *&actual) -> bool {
+  if (!isFunctionLikeMacro(*m)) return false;
+
+  const FunctionMacro *macro = &std::get<FunctionMacro>(*m);
   actual = nullptr;
 
   if (!lookat(ts, TokenKind::T_IDENTIFIER)) return false;
@@ -2144,20 +2197,13 @@ auto Preprocessor::Private::string(std::string s) -> std::string_view {
   return std::string_view(scratchBuffer_.emplace_front(std::move(s)));
 }
 
-void Preprocessor::Private::defineMacro(const TokList *ts) {
-#if 0
-  std::cout << cxx::format("*** defining macro: ");
-  printLine(ts, std::cout);
-  std::cout << cxx::format("\n");
-#endif
+auto Preprocessor::Private::parseMacroDefinition(const TokList *ts) -> Macro {
+  const auto name = ts->tok->text;
+  ts = ts->next;
 
-  auto name = ts->tok->text;
-
-  Macro m;
-
-  if (ts->next && !ts->next->tok->space &&
-      lookat(ts->next, TokenKind::T_LPAREN)) {
-    ts = ts->next->next;  // skip macro name and '('
+  if (lookat(ts, TokenKind::T_LPAREN) && !ts->tok->space) {
+    // parse function like macro
+    ts = ts->next;
 
     std::vector<std::string_view> formals;
     bool variadic = false;
@@ -2178,29 +2224,37 @@ void Preprocessor::Private::defineMacro(const TokList *ts) {
       expect(ts, TokenKind::T_RPAREN);
     }
 
-    m.objLike = false;
-    m.body = ts;
-    m.formals = std::move(formals);
-    m.variadic = variadic;
-  } else {
-    m.objLike = true;
-    m.body = ts->next;
+    return FunctionMacro(name, std::move(formals), ts, variadic);
   }
 
-  if (m.body) {
-    const_cast<Tok *>(m.body->tok)->space = false;
-    const_cast<Tok *>(m.body->tok)->bol = false;
+  return ObjectMacro(name, ts);
+}
+
+void Preprocessor::Private::defineMacro(const TokList *ts) {
+#if 0
+  std::cout << cxx::format("*** defining macro: ");
+  printLine(ts, std::cout);
+  std::cout << cxx::format("\n");
+#endif
+
+  auto macro = parseMacroDefinition(ts);
+  const auto name = getMacroName(macro);
+
+  if (auto body = getMacroBody(macro)) {
+    const_cast<Tok *>(body->tok)->space = false;
+    const_cast<Tok *>(body->tok)->bol = false;
   }
 
   if (auto it = macros_.find(name); it != macros_.end()) {
-    if (it->second != m) {
+    auto previousMacroBody = getMacroBody(it->second);
+    if (!TokList::isSame(getMacroBody(macro), previousMacroBody)) {
       warning(ts->tok->token(), cxx::format("'{}' macro redefined", name));
     }
 
     macros_.erase(it);
   }
 
-  macros_.insert_or_assign(name, std::move(m));
+  macros_.insert_or_assign(name, std::move(macro));
 }
 
 auto Preprocessor::Private::merge(const Tok *left,
@@ -2554,23 +2608,53 @@ void Preprocessor::undefMacro(const std::string &name) {
 }
 
 void Preprocessor::printMacros(std::ostream &out) const {
-  for (const auto &[name, macro] : d->macros_) {
-    out << cxx::format("#define {}", name);
-    if (!macro.objLike) {
+  struct {
+    const Preprocessor &self;
+    std::ostream &out;
+
+    void operator()(const FunctionMacro &macro) {
+      auto d = self.d.get();
+
+      out << cxx::format("#define {}", macro.name);
+
       out << cxx::format("(");
       for (std::size_t i = 0; i < macro.formals.size(); ++i) {
         if (i > 0) out << ",";
         out << cxx::format("{}", macro.formals[i]);
       }
+
       if (macro.variadic) {
         if (!macro.formals.empty()) out << cxx::format(",");
         out << cxx::format("...");
       }
+
       out << cxx::format(")");
+
+      if (macro.body) {
+        out << cxx::format(" ");
+        d->print(macro.body, out);
+      }
+
+      out << cxx::format("\n");
     }
-    if (macro.body) out << cxx::format(" ");
-    d->print(macro.body, out);
-    out << cxx::format("\n");
+
+    void operator()(const ObjectMacro &macro) {
+      auto d = self.d.get();
+
+      out << cxx::format("#define {}", macro.name);
+
+      if (macro.body) {
+        out << cxx::format(" ");
+        d->print(macro.body, out);
+      }
+
+      out << cxx::format("\n");
+    }
+
+  } printMacro{*this, out};
+
+  for (const auto &[name, macro] : d->macros_) {
+    std::visit(printMacro, macro);
   }
 }
 
