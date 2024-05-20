@@ -22,6 +22,8 @@
 
 import "zx/globals";
 
+$.verbose = true;
+
 const workspacePath = path.join(__dirname, "../");
 const docker = await which("docker");
 const uid = String(await $`id -u`).trim();
