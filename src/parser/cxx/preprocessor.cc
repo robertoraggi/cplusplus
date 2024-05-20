@@ -1026,11 +1026,17 @@ struct Preprocessor::Private {
       const TokList *ts, bool inConditionalExpression,
       const std::function<void(const Tok *)> &emitToken) -> const TokList *;
 
+  [[nodiscard]] auto replaceIsDefinedMacro(
+      const TokList *ts, bool inConditionalExpression,
+      const std::function<void(const Tok *)> &emitToken) -> const TokList *;
+
+  [[nodiscard]] auto expandMacro(const TokList *ts) -> const TokList *;
+
   [[nodiscard]] auto expandObjectLikeMacro(
-      const TokList *&ts, const Macro *macro) -> const TokList *;
+      const TokList *ts, const Macro *macro) -> const TokList *;
 
   [[nodiscard]] auto expandFunctionLikeMacro(
-      const TokList *&ts, const Macro *macro) -> const TokList *;
+      const TokList *ts, const Macro *macro) -> const TokList *;
 
   struct ParsedIncludeDirective {
     Include header;
@@ -1053,8 +1059,7 @@ struct Preprocessor::Private {
 
   [[nodiscard]] auto substitute(const Macro *macro,
                                 const std::vector<const TokList *> &actuals,
-                                const Hideset *hideset,
-                                const TokList *os) -> const TokList *;
+                                const Hideset *hideset) -> const TokList *;
 
   [[nodiscard]] auto merge(const Tok *left, const Tok *right) -> const Tok *;
 
@@ -1063,8 +1068,7 @@ struct Preprocessor::Private {
   [[nodiscard]] auto instantiate(const TokList *ts,
                                  const Hideset *hideset) -> const TokList *;
 
-  [[nodiscard]] auto lookupMacro(const Tok *tk,
-                                 const Macro *&macro) const -> bool;
+  [[nodiscard]] auto lookupMacro(const Tok *tk) const -> const Macro *;
 
   [[nodiscard]] auto lookupMacroArgument(
       const TokList *&ts, const Macro *macro,
@@ -1773,68 +1777,108 @@ auto Preprocessor::Private::parseHeaderName(const TokList *&ts)
 auto Preprocessor::Private::expandOne(
     const TokList *ts, bool inConditionalExpression,
     const std::function<void(const Tok *)> &emitToken) -> const TokList * {
-  if (!ts || lookat(ts, TokenKind::T_EOF_SYMBOL)) return ts;
+  if (!ts || lookat(ts, TokenKind::T_EOF_SYMBOL)) {
+    return ts;
+  }
 
-  Tok *tk = nullptr;
+  if (auto continuation =
+          replaceIsDefinedMacro(ts, inConditionalExpression, emitToken)) {
+    return continuation;
+  }
 
-  if (inConditionalExpression && matchId(ts, "defined")) {
-    auto value = false;
-    if (match(ts, TokenKind::T_LPAREN)) {
-      value = isDefined(ts->tok);
-      ts = ts->next;
-      expect(ts, TokenKind::T_RPAREN);
-    } else {
-      value = isDefined(ts->tok);
-      ts = ts->next;
-    }
-    tk = Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, value ? "1" : "0");
+  if (auto continuation = expandMacro(ts)) {
+    return continuation;
+  }
+
+  auto tk = const_cast<Tok *>(ts->tok);
+  ts = ts->next;
+  emitToken(tk);
+  return ts;
+}
+
+auto Preprocessor::Private::replaceIsDefinedMacro(
+    const TokList *ts, bool inConditionalExpression,
+    const std::function<void(const Tok *)> &emitToken) -> const TokList * {
+  if (!inConditionalExpression) {
+    return nullptr;
+  }
+
+  auto start = ts->tok;
+
+  if (!matchId(ts, "defined")) {
+    return nullptr;
+  }
+
+  bool value = false;
+
+  if (match(ts, TokenKind::T_LPAREN)) {
+    value = isDefined(ts->tok);
+    ts = ts->next;
+    expect(ts, TokenKind::T_RPAREN);
   } else {
-    if (const Macro *macro = nullptr; lookupMacro(ts->tok, macro)) {
-      if (isObjectLikeMacro(*macro)) {
-        return expandObjectLikeMacro(ts, macro);
-      }
-
-      if (lookat(ts->next, TokenKind::T_LPAREN)) {
-        return expandFunctionLikeMacro(ts, macro);
-      }
-    }
-
-    tk = const_cast<Tok *>(ts->tok);
+    value = isDefined(ts->tok);
     ts = ts->next;
   }
 
-  if (tk) {
-#if false
-    std::cerr << cxx::format(
-        "emit token: {}{}{}{}\n", tk->text, tk->generated ? " [generated]" : "",
-        tk->bol ? " [start-of-line]" : "", tk->space ? " [leasing-space]" : "");
-#endif
-
-    emitToken(tk);
-  }
+  auto tk = Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, value ? "1" : "0");
+  tk->sourceFile = start->sourceFile;
+  tk->space = start->space;
+  tk->bol = start->bol;
+  emitToken(tk);
 
   return ts;
 }
 
-auto Preprocessor::Private::expandObjectLikeMacro(
-    const TokList *&ts, const Macro *m) -> const TokList * {
-  if (auto builtin = std::get_if<BuiltinObjectMacro>(&*m)) {
-    return builtin->expand(MacroExpansionContext{.ts = ts});
+auto Preprocessor::Private::expandMacro(const TokList *ts) -> const TokList * {
+  struct ExpandMacro {
+    Private &self;
+    const TokList *ts = nullptr;
+    const Macro *macro = nullptr;
+
+    auto operator()(const ObjectMacro &) -> const TokList * {
+      return self.expandObjectLikeMacro(ts, macro);
+    }
+
+    auto operator()(const FunctionMacro &) -> const TokList * {
+      if (!self.lookat(ts->next, TokenKind::T_LPAREN)) return nullptr;
+
+      return self.expandFunctionLikeMacro(ts, macro);
+    }
+
+    auto operator()(const BuiltinObjectMacro &macro) -> const TokList * {
+      return macro.expand(MacroExpansionContext{.ts = ts});
+    }
+
+    auto operator()(const BuiltinFunctionMacro &macro) -> const TokList * {
+      if (!self.lookat(ts->next, TokenKind::T_LPAREN)) return nullptr;
+
+      return macro.expand(MacroExpansionContext{.ts = ts});
+    }
+  };
+
+  if (const Macro *macro = lookupMacro(ts->tok)) {
+    return std::visit(ExpandMacro{.self = *this, .ts = ts, .macro = macro},
+                      *macro);
   }
 
+  return nullptr;
+}
+
+auto Preprocessor::Private::expandObjectLikeMacro(
+    const TokList *ts, const Macro *m) -> const TokList * {
   auto macro = &std::get<ObjectMacro>(*m);
   const Tok *tk = ts->tok;
 
   const auto hideset = makeUnion(tk->hideset, tk->text);
-  auto expanded = substitute(m, {}, hideset, nullptr);
+  auto expanded = substitute(m, {}, hideset);
 
-  if (expanded) {
-    // assert(expanded->tok->generated);
-    const_cast<Tok *>(expanded->tok)->space = tk->space;
-    const_cast<Tok *>(expanded->tok)->bol = tk->bol;
+  if (!expanded) {
+    return ts->next;
   }
 
-  if (!expanded) return ts->next;
+  // assert(expanded->tok->generated);
+  const_cast<Tok *>(expanded->tok)->space = tk->space;
+  const_cast<Tok *>(expanded->tok)->bol = tk->bol;
 
   auto it = expanded;
 
@@ -1845,12 +1889,7 @@ auto Preprocessor::Private::expandObjectLikeMacro(
 }
 
 auto Preprocessor::Private::expandFunctionLikeMacro(
-    const TokList *&ts, const Macro *m) -> const TokList * {
-  if (auto builtin = std::get_if<BuiltinFunctionMacro>(&*m)) {
-    auto expanded = builtin->expand(MacroExpansionContext{.ts = ts});
-    return expanded;
-  }
-
+    const TokList *ts, const Macro *m) -> const TokList * {
   auto macro = &std::get<FunctionMacro>(*m);
 
   assert(lookat(ts->next, TokenKind::T_LPAREN));
@@ -1861,16 +1900,16 @@ auto Preprocessor::Private::expandFunctionLikeMacro(
 
   auto hs = makeUnion(makeIntersection(tk->hideset, hideset), tk->text);
 
-  auto expanded = substitute(m, args, hs, nullptr);
+  auto expanded = substitute(m, args, hs);
 
-  if (expanded) {
-    // assert(expanded->tok->generated);
-
-    const_cast<Tok *>(expanded->tok)->space = tk->space;
-    const_cast<Tok *>(expanded->tok)->bol = tk->bol;
+  if (!expanded) {
+    return rest;
   }
 
-  if (!expanded) return rest;
+  // assert(expanded->tok->generated);
+
+  const_cast<Tok *>(expanded->tok)->space = tk->space;
+  const_cast<Tok *>(expanded->tok)->bol = tk->bol;
 
   auto it = expanded;
   while (it->next) it = it->next;
@@ -1881,8 +1920,8 @@ auto Preprocessor::Private::expandFunctionLikeMacro(
 
 auto Preprocessor::Private::substitute(
     const Macro *macro, const std::vector<const TokList *> &actuals,
-    const Hideset *hideset, const TokList *os) -> const TokList * {
-  const TokList *ts = getMacroBody(*macro);
+    const Hideset *hideset) -> const TokList * {
+  const TokList *os = nullptr;
   auto **ip = const_cast<TokList **>(&os);
 
   auto appendTokens = [&](const TokList *rs) {
@@ -1898,12 +1937,15 @@ auto Preprocessor::Private::substitute(
     appendTokens(new (&pool_) TokList(tk));
   };
 
+  const TokList *ts = getMacroBody(*macro);
+
   while (ts && !lookat(ts, TokenKind::T_EOF_SYMBOL)) {
     if (lookat(ts, TokenKind::T_HASH, TokenKind::T_IDENTIFIER)) {
       const auto saved = ts;
       ts = ts->next;
-      const TokList *actual = nullptr;
-      if (lookupMacroArgument(ts, macro, actuals, actual)) {
+
+      if (const TokList *actual = nullptr;
+          lookupMacroArgument(ts, macro, actuals, actual)) {
         appendToken(stringize(actual));
         continue;
       }
@@ -1913,8 +1955,9 @@ auto Preprocessor::Private::substitute(
     if (lookat(ts, TokenKind::T_HASH_HASH, TokenKind::T_IDENTIFIER)) {
       const auto saved = ts;
       ts = ts->next;
-      const TokList *actual = nullptr;
-      if (lookupMacroArgument(ts, macro, actuals, actual)) {
+
+      if (const TokList *actual = nullptr;
+          lookupMacroArgument(ts, macro, actuals, actual)) {
         if (actual) {
           (*ip)->tok = merge((*ip)->tok, actual->tok);
           appendTokens(clone(&pool_, actual->next));
@@ -1931,8 +1974,8 @@ auto Preprocessor::Private::substitute(
     }
 
     if (lookat(ts, TokenKind::T_IDENTIFIER, TokenKind::T_HASH_HASH)) {
-      const TokList *actual = nullptr;
-      if (lookupMacroArgument(ts, macro, actuals, actual)) {
+      if (const TokList *actual = nullptr;
+          lookupMacroArgument(ts, macro, actuals, actual)) {
         if (!actual) {
           appendToken(Tok::Gen(&pool_, TokenKind::T_IDENTIFIER, ""));
         } else {
@@ -2432,18 +2475,18 @@ auto Preprocessor::Private::skipLine(const TokList *ts) -> const TokList * {
   return ts;
 }
 
-auto Preprocessor::Private::lookupMacro(const Tok *tk,
-                                        const Macro *&macro) const -> bool {
-  if (!tk || tk->isNot(TokenKind::T_IDENTIFIER)) return false;
-  auto it = macros_.find(tk->text);
-  if (it != macros_.end()) {
+auto Preprocessor::Private::lookupMacro(const Tok *tk) const -> const Macro * {
+  if (!tk || tk->isNot(TokenKind::T_IDENTIFIER)) {
+    return nullptr;
+  }
+
+  if (auto it = macros_.find(tk->text); it != macros_.end()) {
     const auto disabled = tk->hideset && tk->hideset->contains(tk->text);
     if (!disabled) {
-      macro = &it->second;
-      return true;
+      return &it->second;
     }
   }
-  return false;
+  return nullptr;
 }
 
 static auto wantSpace(TokenKind kind) -> bool {
