@@ -59,14 +59,6 @@ void Wasm32WasiToolchain::setSysroot(std::string sysroot) {
   }
 }
 
-/*
- /wasi-sysroot/include/wasm32-wasi/c++/v1
- /wasi-sysroot/include/c++/v1
- /usr/lib/llvm-17/lib/clang/17/include
- /wasi-sysroot/include/wasm32-wasi
- /wasi-sysroot/include
- */
-
 void Wasm32WasiToolchain::addSystemIncludePaths() {
   addSystemIncludePath(cxx::format("{}/include", sysroot_));
   addSystemIncludePath(cxx::format("{}/include/wasm32-wasi", sysroot_));
@@ -81,7 +73,6 @@ void Wasm32WasiToolchain::addSystemCppIncludePaths() {
 void Wasm32WasiToolchain::addPredefinedMacros() {
   // clang-format off
   defineMacro("_Pragma(x)", "");
-  defineMacro("__has_builtin(x)", "1");
   defineMacro("__weak", "");
   defineMacro("__strong", "");
   defineMacro("__autoreleasing", "");

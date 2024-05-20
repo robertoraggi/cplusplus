@@ -55,11 +55,6 @@
 
 namespace {
 
-std::unordered_set<std::string_view> builtinMacros{
-    "__has_builtin", "__has_extension", "__has_feature",
-    "__has_include", "__has_attribute",
-};
-
 std::unordered_set<std::string_view> enabledBuiltins{
     "__is_trivially_destructible",
     "__builtin_is_constant_evaluated",
@@ -508,7 +503,18 @@ struct BuiltinObjectMacro {
       : name(name), expand(std::move(expand)) {}
 };
 
-using Macro = std::variant<ObjectMacro, FunctionMacro, BuiltinObjectMacro>;
+struct BuiltinFunctionMacro {
+  std::string_view name;
+  std::function<auto(MacroExpansionContext)->const TokList *> expand;
+
+  BuiltinFunctionMacro(
+      std::string_view name,
+      std::function<auto(MacroExpansionContext)->const TokList *> expand)
+      : name(name), expand(std::move(expand)) {}
+};
+
+using Macro = std::variant<ObjectMacro, FunctionMacro, BuiltinObjectMacro,
+                           BuiltinFunctionMacro>;
 
 [[nodiscard]] inline auto getMacroName(const Macro &macro) -> std::string_view {
   struct {
@@ -521,6 +527,11 @@ using Macro = std::variant<ObjectMacro, FunctionMacro, BuiltinObjectMacro>;
     }
 
     auto operator()(const BuiltinObjectMacro &macro) const -> std::string_view {
+      return macro.name;
+    }
+
+    auto operator()(const BuiltinFunctionMacro &macro) const
+        -> std::string_view {
       return macro.name;
     }
   } visitor;
@@ -541,6 +552,11 @@ using Macro = std::variant<ObjectMacro, FunctionMacro, BuiltinObjectMacro>;
     auto operator()(const BuiltinObjectMacro &macro) const -> const TokList * {
       return nullptr;
     }
+
+    auto operator()(const BuiltinFunctionMacro &macro) const
+        -> const TokList * {
+      return nullptr;
+    }
   } visitor;
 
   return std::visit(visitor, macro);
@@ -552,6 +568,9 @@ using Macro = std::variant<ObjectMacro, FunctionMacro, BuiltinObjectMacro>;
     auto operator()(const BuiltinObjectMacro &) const -> bool { return true; }
 
     auto operator()(const FunctionMacro &) const -> bool { return false; }
+    auto operator()(const BuiltinFunctionMacro &) const -> bool {
+      return false;
+    }
   } visitor;
 
   return std::visit(visitor, macro);
@@ -560,6 +579,7 @@ using Macro = std::variant<ObjectMacro, FunctionMacro, BuiltinObjectMacro>;
 [[nodiscard]] inline auto isFunctionLikeMacro(const Macro &macro) -> bool {
   struct {
     auto operator()(const FunctionMacro &) const -> bool { return true; }
+    auto operator()(const BuiltinFunctionMacro &) const -> bool { return true; }
 
     auto operator()(const ObjectMacro &) const -> bool { return false; }
     auto operator()(const BuiltinObjectMacro &) const -> bool { return false; }
@@ -964,13 +984,13 @@ struct Preprocessor::Private {
   }
 
   [[nodiscard]] auto isDefined(const std::string_view &id) const -> bool {
-    if (macros_.contains(id)) return true;
-    return builtinMacros.contains(id);
+    const auto defined = macros_.contains(id);
+    return defined;
   }
 
   [[nodiscard]] auto isDefined(const Tok *tok) const -> bool {
     if (!tok) return false;
-    return isDefined(tok->text);
+    return tok->is(TokenKind::T_IDENTIFIER) && isDefined(tok->text);
   }
 
   void defineMacro(const TokList *ts);
@@ -979,6 +999,13 @@ struct Preprocessor::Private {
       std::string_view name,
       std::function<auto(MacroExpansionContext)->const TokList *> expand) {
     macros_.insert_or_assign(name, BuiltinObjectMacro(name, std::move(expand)));
+  }
+
+  void adddBuiltinFunctionMacro(
+      std::string_view name,
+      std::function<auto(MacroExpansionContext)->const TokList *> expand) {
+    macros_.insert_or_assign(name,
+                             BuiltinFunctionMacro(name, std::move(expand)));
   }
 
   [[nodiscard]] auto tokenize(const std::string_view &source, int sourceFile,
@@ -991,10 +1018,12 @@ struct Preprocessor::Private {
   [[nodiscard]] auto expand(const std::function<void(const Tok *)> &emitToken)
       -> Status;
 
-  [[nodiscard]] auto expandTokens(const TokList *ts) -> const TokList *;
+  [[nodiscard]] auto expandTokens(const TokList *ts,
+                                  bool inConditionalExpression = false)
+      -> const TokList *;
 
   [[nodiscard]] auto expandOne(
-      const TokList *ts,
+      const TokList *ts, bool inConditionalExpression,
       const std::function<void(const Tok *)> &emitToken) -> const TokList *;
 
   [[nodiscard]] auto expandObjectLikeMacro(
@@ -1095,6 +1124,8 @@ Preprocessor::Private::Private() {
 }
 
 void Preprocessor::Private::initialize() {
+  // add built-in object-like macros
+
   adddBuiltinMacro(
       "__FILE__",
       [this](const MacroExpansionContext &context) -> const TokList * {
@@ -1149,6 +1180,111 @@ void Preprocessor::Private::initialize() {
         tk->space = true;
         return new (&pool_) TokList(tk, ts->next);
       });
+
+  // add built-in function-like macros
+
+  auto replaceWithBoolLiteral = [this](const Tok *token, bool value,
+                                       const TokList *ts) {
+    auto tk = Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, value ? "1" : "0");
+    tk->sourceFile = token->sourceFile;
+    tk->space = token->space;
+    tk->bol = token->bol;
+    return new (&pool_) TokList(tk, ts);
+  };
+
+  adddBuiltinFunctionMacro(
+      "__has_feature",
+      [this, replaceWithBoolLiteral](
+          const MacroExpansionContext &context) -> const TokList * {
+        auto ts = context.ts;
+        auto macroId = ts->tok;
+        ts = ts->next;
+        expect(ts, TokenKind::T_LPAREN);
+        const auto id = expectId(ts);
+        expect(ts, TokenKind::T_RPAREN);
+        const auto enabled = enabledFeatures.contains(id);
+        return replaceWithBoolLiteral(macroId, enabled, ts);
+      });
+
+  adddBuiltinFunctionMacro(
+      "__has_builtin",
+      [this, replaceWithBoolLiteral](
+          const MacroExpansionContext &context) -> const TokList * {
+        auto ts = context.ts;
+        auto macroId = ts->tok;
+        ts = ts->next;
+        expect(ts, TokenKind::T_LPAREN);
+        const auto id = expectId(ts);
+        expect(ts, TokenKind::T_RPAREN);
+        const auto enabled = enabledBuiltins.contains(id);
+        return replaceWithBoolLiteral(macroId, enabled, ts);
+      });
+
+  adddBuiltinFunctionMacro(
+      "__has_extension",
+      [this, replaceWithBoolLiteral](
+          const MacroExpansionContext &context) -> const TokList * {
+        auto ts = context.ts;
+        auto macroId = ts->tok;
+        ts = ts->next;
+        expect(ts, TokenKind::T_LPAREN);
+        const auto id = expectId(ts);
+        expect(ts, TokenKind::T_RPAREN);
+        const auto enabled = enabledExtensions.contains(id);
+        return replaceWithBoolLiteral(macroId, enabled, ts);
+      });
+
+  adddBuiltinFunctionMacro(
+      "__has_attribute",
+      [this, replaceWithBoolLiteral](
+          const MacroExpansionContext &context) -> const TokList * {
+        auto ts = context.ts;
+        auto macroId = ts->tok;
+        ts = ts->next;
+        expect(ts, TokenKind::T_LPAREN);
+        const auto id = expectId(ts);
+        expect(ts, TokenKind::T_RPAREN);
+        const auto enabled = true;
+        return replaceWithBoolLiteral(macroId, enabled, ts);
+      });
+
+  auto hasInclude =
+      [this, replaceWithBoolLiteral](
+          const MacroExpansionContext &context) -> const TokList * {
+    auto ts = context.ts;
+
+    const auto macroName = ts->tok;
+    ts = ts->next;
+
+    const auto isIncludeNext = macroName->text == "__has_include_next";
+
+    expect(ts, TokenKind::T_LPAREN);
+
+    Include include;
+
+    if (auto literal = ts; match(ts, TokenKind::T_STRING_LITERAL)) {
+      std::string fn(
+          literal->tok->text.substr(1, literal->tok->text.length() - 2));
+      include = QuoteInclude(std::move(fn));
+    } else {
+      std::string fn;
+      expect(ts, TokenKind::T_LESS);
+      for (; ts && !lookat(ts, TokenKind::T_GREATER); ts = ts->next) {
+        fn += ts->tok->text;
+      }
+      expect(ts, TokenKind::T_GREATER);
+      include = SystemInclude(std::move(fn));
+    }
+
+    expect(ts, TokenKind::T_RPAREN);
+
+    const auto value = resolve(include, isIncludeNext);
+
+    return replaceWithBoolLiteral(macroName, value.has_value(), ts);
+  };
+
+  adddBuiltinFunctionMacro("__has_include", hasInclude);
+  adddBuiltinFunctionMacro("__has_include_next", hasInclude);
 }
 
 void Preprocessor::Private::finalizeToken(std::vector<Token> &tokens,
@@ -1283,12 +1419,13 @@ auto Preprocessor::Private::tokenize(const std::string_view &source,
   return ts;
 }
 
-auto Preprocessor::Private::expandTokens(const TokList *ts) -> const TokList * {
+auto Preprocessor::Private::expandTokens(
+    const TokList *ts, bool inConditionalExpression) -> const TokList * {
   TokList *tokens = nullptr;
   auto out = &tokens;
 
   while (ts && !lookat(ts, TokenKind::T_EOF_SYMBOL)) {
-    ts = expandOne(ts, [&](auto tok) {
+    ts = expandOne(ts, inConditionalExpression, [&](auto tok) {
       *out = new (&pool_) TokList(tok);
       out = const_cast<TokList **>(&(*out)->next);
     });
@@ -1345,7 +1482,7 @@ auto Preprocessor::Private::expand(
     } else if (skipping) {
       ts = skipLine(ts->next);
     } else {
-      ts = expandOne(ts, emitToken);
+      ts = expandOne(ts, /*inConditionalExpression*/ false, emitToken);
     }
   }
 
@@ -1634,13 +1771,13 @@ auto Preprocessor::Private::parseHeaderName(const TokList *&ts)
 }
 
 auto Preprocessor::Private::expandOne(
-    const TokList *ts,
+    const TokList *ts, bool inConditionalExpression,
     const std::function<void(const Tok *)> &emitToken) -> const TokList * {
   if (!ts || lookat(ts, TokenKind::T_EOF_SYMBOL)) return ts;
 
   Tok *tk = nullptr;
 
-  if (matchId(ts, "defined")) {
+  if (inConditionalExpression && matchId(ts, "defined")) {
     auto value = false;
     if (match(ts, TokenKind::T_LPAREN)) {
       value = isDefined(ts->tok);
@@ -1651,76 +1788,15 @@ auto Preprocessor::Private::expandOne(
       ts = ts->next;
     }
     tk = Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, value ? "1" : "0");
-  } else if (matchId(ts, "__has_include")) {
-    std::string fn;
-    expect(ts, TokenKind::T_LPAREN);
-    auto literal = ts;
-    Include include;
-    if (match(ts, TokenKind::T_STRING_LITERAL)) {
-      fn = literal->tok->text.substr(1, literal->tok->text.length() - 2);
-      include = QuoteInclude(fn);
-    } else {
-      expect(ts, TokenKind::T_LESS);
-      for (; ts && !lookat(ts, TokenKind::T_GREATER); ts = ts->next) {
-        fn += ts->tok->text;
-      }
-      expect(ts, TokenKind::T_GREATER);
-      include = SystemInclude(fn);
-    }
-    expect(ts, TokenKind::T_RPAREN);
-    const auto value = resolve(include, /*next*/ false);
-    tk = Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, value ? "1" : "0");
-  } else if (matchId(ts, "__has_include_next")) {
-    std::string fn;
-    expect(ts, TokenKind::T_LPAREN);
-    auto literal = ts;
-    Include include;
-    if (match(ts, TokenKind::T_STRING_LITERAL)) {
-      fn = literal->tok->text.substr(1, literal->tok->text.length() - 2);
-      include = QuoteInclude(fn);
-    } else {
-      expect(ts, TokenKind::T_LESS);
-      for (; ts && !lookat(ts, TokenKind::T_GREATER); ts = ts->next) {
-        fn += ts->tok->text;
-      }
-      expect(ts, TokenKind::T_GREATER);
-      include = SystemInclude(fn);
-    }
-    expect(ts, TokenKind::T_RPAREN);
-    const auto value = resolve(include, /*next*/ true);
-    tk = Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, value ? "1" : "0");
-  } else if (matchId(ts, "__has_extension")) {
-    expect(ts, TokenKind::T_LPAREN);
-    const auto id = expectId(ts);
-    expect(ts, TokenKind::T_RPAREN);
-    const auto enabled = enabledExtensions.contains(id);
-    tk = Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, enabled ? "1" : "0");
-  } else if (matchId(ts, "__has_feature")) {
-    expect(ts, TokenKind::T_LPAREN);
-    auto id = expectId(ts);
-    expect(ts, TokenKind::T_RPAREN);
-    const auto enabled = enabledFeatures.contains(id);
-    tk = Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, enabled ? "1" : "0");
-  } else if (matchId(ts, "__has_builtin")) {
-    expect(ts, TokenKind::T_LPAREN);
-    auto id = expectId(ts);
-    expect(ts, TokenKind::T_RPAREN);
-    const auto enabled = enabledBuiltins.contains(id);
-    tk = Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, enabled ? "1" : "0");
-  } else if (matchId(ts, "__has_attribute")) {
-    expect(ts, TokenKind::T_LPAREN);
-    auto id = expectId(ts);
-    expect(ts, TokenKind::T_RPAREN);
-    const auto enabled = true;
-    tk = Tok::Gen(&pool_, TokenKind::T_INTEGER_LITERAL, enabled ? "1" : "0");
   } else {
     if (const Macro *macro = nullptr; lookupMacro(ts->tok, macro)) {
       if (isObjectLikeMacro(*macro)) {
         return expandObjectLikeMacro(ts, macro);
       }
 
-      if (lookat(ts->next, TokenKind::T_LPAREN))
+      if (lookat(ts->next, TokenKind::T_LPAREN)) {
         return expandFunctionLikeMacro(ts, macro);
+      }
     }
 
     tk = const_cast<Tok *>(ts->tok);
@@ -1770,6 +1846,11 @@ auto Preprocessor::Private::expandObjectLikeMacro(
 
 auto Preprocessor::Private::expandFunctionLikeMacro(
     const TokList *&ts, const Macro *m) -> const TokList * {
+  if (auto builtin = std::get_if<BuiltinFunctionMacro>(&*m)) {
+    auto expanded = builtin->expand(MacroExpansionContext{.ts = ts});
+    return expanded;
+  }
+
   auto macro = &std::get<FunctionMacro>(*m);
 
   assert(lookat(ts->next, TokenKind::T_LPAREN));
@@ -1986,7 +2067,7 @@ auto Preprocessor::Private::copyLine(const TokList *ts) -> const TokList * {
 
 auto Preprocessor::Private::constantExpression(const TokList *ts) -> long {
   auto line = copyLine(ts);
-  auto e = expandTokens(line);
+  auto e = expandTokens(line, /*inConditionalExpression*/ true);
   return conditionalExpression(e);
 }
 
@@ -2725,6 +2806,7 @@ void Preprocessor::printMacros(std::ostream &out) const {
     }
 
     void operator()(const BuiltinObjectMacro &) {}
+    void operator()(const BuiltinFunctionMacro &) {}
 
   } printMacro{*this, out};
 
