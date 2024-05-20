@@ -24,6 +24,7 @@
 
 #include <cassert>
 #include <functional>
+#include <algorithm>
 
 namespace cxx {
 

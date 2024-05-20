@@ -27,6 +27,7 @@
 #include <cxx/symbols_fwd.h>
 #include <cxx/translation_unit.h>
 
+#include <algorithm>
 #include <deque>
 #include <optional>
 #include <unordered_map>
