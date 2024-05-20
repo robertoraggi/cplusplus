@@ -23,6 +23,8 @@ import "zx/globals";
 import * as esbuild from "esbuild";
 import * as path from "path";
 
+$.verbose = true;
+
 // get the root directory of the project
 const projectRootSourcePath = path.join(__dirname, "../../..");
 
