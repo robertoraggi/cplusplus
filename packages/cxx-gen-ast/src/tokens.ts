@@ -234,6 +234,8 @@ export const BUILTIN_TYPE_TRAITS: string[] = [
   "__is_standard_layout",
   "__is_swappable_with",
   "__is_trivial",
+  "__is_trivially_assignable",
+  "__is_trivially_constructible",
   "__is_unbounded_array",
   "__is_union",
   "__is_unsigned",

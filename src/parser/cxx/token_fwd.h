@@ -243,6 +243,8 @@ class Token;
   V(__IS_STANDARD_LAYOUT, "__is_standard_layout")                 \
   V(__IS_SWAPPABLE_WITH, "__is_swappable_with")                   \
   V(__IS_TRIVIAL, "__is_trivial")                                 \
+  V(__IS_TRIVIALLY_ASSIGNABLE, "__is_trivially_assignable")       \
+  V(__IS_TRIVIALLY_CONSTRUCTIBLE, "__is_trivially_constructible") \
   V(__IS_UNBOUNDED_ARRAY, "__is_unbounded_array")                 \
   V(__IS_UNION, "__is_union")                                     \
   V(__IS_UNSIGNED, "__is_unsigned")                               \
