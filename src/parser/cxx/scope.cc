@@ -22,9 +22,9 @@
 #include <cxx/scope.h>
 #include <cxx/symbols.h>
 
+#include <algorithm>
 #include <cassert>
 #include <functional>
-#include <algorithm>
 
 namespace cxx {
 

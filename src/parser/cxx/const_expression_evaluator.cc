@@ -718,6 +718,14 @@ auto ConstExpressionEvaluator::operator()(TypeTraitExpressionAST* ast)
         break;
       }
 
+      case BuiltinTypeTraitKind::T___IS_TRIVIALLY_CONSTRUCTIBLE: {
+        break;
+      }
+
+      case BuiltinTypeTraitKind::T___IS_TRIVIALLY_ASSIGNABLE: {
+        break;
+      }
+
       case BuiltinTypeTraitKind::T_NONE: {
         // not a builtin
         break;
