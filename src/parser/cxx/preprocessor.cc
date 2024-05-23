@@ -1300,7 +1300,11 @@ void Preprocessor::Private::finalizeToken(std::vector<Token> &tokens,
   switch (tk->kind) {
     case TokenKind::T_IDENTIFIER: {
       kind = Lexer::classifyKeyword(tk->text);
-      value.idValue = control_->getIdentifier(tk->text);
+
+      if (kind == TokenKind::T_IDENTIFIER) {
+        value.idValue = control_->getIdentifier(tk->text);
+      }
+
       break;
     }
 
