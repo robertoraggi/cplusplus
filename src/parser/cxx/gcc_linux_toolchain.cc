@@ -73,6 +73,8 @@ void GCCLinuxToolchain::addPredefinedMacros() {
   defineMacro("_Nullable", "");
   defineMacro("_Nonnull", "");
   defineMacro("_Pragma(x)", "");
+  defineMacro("__restrict__", "");
+  defineMacro("__restrict", "");
 
   if (arch_ == "aarch64") {
     defineMacro("__aarch64__", "1");
