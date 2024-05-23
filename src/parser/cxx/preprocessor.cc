@@ -1264,27 +1264,37 @@ void Preprocessor::Private::initialize() {
 
     expect(ts, TokenKind::T_LPAREN);
 
+    auto [args, rest, hideset] = readArguments(context.ts, 0, true);
+
+    if (args.empty()) {
+      error(macroName->token(), cxx::format("expected a header name"));
+      return replaceWithBoolLiteral(macroName, false, rest);
+    }
+
+    auto arg = expandTokens(args[0]);
+
     Include include;
 
-    if (auto literal = ts; match(ts, TokenKind::T_STRING_LITERAL)) {
+    if (auto literal = arg; match(arg, TokenKind::T_STRING_LITERAL)) {
       std::string fn(
           literal->tok->text.substr(1, literal->tok->text.length() - 2));
       include = QuoteInclude(std::move(fn));
-    } else {
-      std::string fn;
+    } else if (arg) {
+      auto ts = arg;
       expect(ts, TokenKind::T_LESS);
+
+      std::string fn;
       for (; ts && !lookat(ts, TokenKind::T_GREATER); ts = ts->next) {
         fn += ts->tok->text;
       }
+
       expect(ts, TokenKind::T_GREATER);
       include = SystemInclude(std::move(fn));
     }
 
-    expect(ts, TokenKind::T_RPAREN);
-
     const auto value = resolve(include, isIncludeNext);
 
-    return replaceWithBoolLiteral(macroName, value.has_value(), ts);
+    return replaceWithBoolLiteral(macroName, value.has_value(), rest);
   };
 
   adddBuiltinFunctionMacro("__has_include", hasInclude);
