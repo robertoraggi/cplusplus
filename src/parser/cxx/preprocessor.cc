@@ -692,6 +692,24 @@ struct Preprocessor::Private {
 
   void initialize();
 
+  void error(const TokList *ts, std::string message) const {
+    if (!ts || !ts->tok) {
+      cxx_runtime_error(cxx::format("no source location: {}", message));
+    } else {
+      diagnosticsClient_->report(ts->tok->token(), Severity::Error,
+                                 std::move(message));
+    }
+  }
+
+  void warning(const TokList *ts, std::string message) const {
+    if (!ts || !ts->tok) {
+      cxx_runtime_error(cxx::format("no source location: {}", message));
+    } else {
+      diagnosticsClient_->report(ts->tok->token(), Severity::Warning,
+                                 std::move(message));
+    }
+  }
+
   void error(const Token &token, std::string message) const {
     diagnosticsClient_->report(token, Severity::Error, std::move(message));
   }
@@ -842,7 +860,7 @@ struct Preprocessor::Private {
 
   void expect(const TokList *&ts, TokenKind k) const {
     if (!match(ts, k)) {
-      error(ts->tok->token(), cxx::format("expected '{}'", Token::spell(k)));
+      error(ts, cxx::format("expected '{}'", Token::spell(k)));
     }
   }
 
@@ -853,7 +871,7 @@ struct Preprocessor::Private {
       return id;
     }
     assert(ts);
-    error(ts->tok->token(), "expected an identifier");
+    error(ts, "expected an identifier");
     return {};
   }
 
@@ -1571,13 +1589,21 @@ auto Preprocessor::Private::parseDirective(SourceFile *source,
     case PreprocessorDirectiveKind::T_UNDEF: {
       if (skipping) break;
 
-      auto line = copyLine(ts);
-      auto name = expectId(line);
-      if (!name.empty()) {
-        // warning(ts->tok->token(), "undef '{}'", name);
-        auto it = macros_.find(name);
-        if (it != macros_.end()) macros_.erase(it);
+      if (bol(ts)) {
+        error(ts, cxx::format("missing macro name"));
+        break;
       }
+
+      auto macroName = expectId(ts);
+
+      if (!macroName.empty()) {
+        auto it = macros_.find(macroName);
+
+        if (it != macros_.end()) {
+          macros_.erase(it);
+        }
+      }
+
       break;
     }
 
@@ -1671,7 +1697,7 @@ auto Preprocessor::Private::parseDirective(SourceFile *source,
     case PreprocessorDirectiveKind::T_ENDIF: {
       popState();
       if (evaluating_.empty()) {
-        error(directive->tok->token(), "unexpected '#endif'");
+        error(directive, "unexpected '#endif'");
       }
       if (source->headerProtection &&
           evaluating_.size() == source->headerProtectionLevel) {
@@ -1706,7 +1732,7 @@ auto Preprocessor::Private::parseDirective(SourceFile *source,
 
       std::ostringstream out;
       printLine(start, out, /*nl=*/false);
-      error(directive->tok->token(), cxx::format("{}", out.str()));
+      error(directive, cxx::format("{}", out.str()));
 
       break;
     }
@@ -1716,7 +1742,7 @@ auto Preprocessor::Private::parseDirective(SourceFile *source,
 
       std::ostringstream out;
       printLine(start, out, /*nl=*/false);
-      warning(directive->tok->token(), cxx::format("{}", out.str()));
+      warning(directive, cxx::format("{}", out.str()));
 
       break;
     }
@@ -1759,8 +1785,7 @@ auto Preprocessor::Private::resolveIncludeDirective(
 
   if (!path) {
     const auto file = getHeaderName(directive.header);
-    error(directive.loc->tok->token(),
-          cxx::format("file '{}' not found", file));
+    error(directive.loc, cxx::format("file '{}' not found", file));
     return nullptr;
   }
 
@@ -2496,7 +2521,7 @@ void Preprocessor::Private::defineMacro(const TokList *ts) {
   if (auto it = macros_.find(name); it != macros_.end()) {
     auto previousMacroBody = getMacroBody(it->second);
     if (!TokList::isSame(getMacroBody(macro), previousMacroBody)) {
-      warning(ts->tok->token(), cxx::format("'{}' macro redefined", name));
+      warning(ts, cxx::format("'{}' macro redefined", name));
     }
 
     macros_.erase(it);
