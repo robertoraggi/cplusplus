@@ -461,13 +461,60 @@ class TokIterator {
   const TokList *ts_ = nullptr;
 };
 
-struct EofTokSentinel {
-  auto operator==(auto it) const -> bool {
-    return it == TokIterator{} || (*it)->is(TokenKind::T_EOF_SYMBOL);
+struct EndOfFileSentinel {
+  auto operator==(TokIterator it) const -> bool { return !it.toTokList(); }
+};
+
+static_assert(std::sentinel_for<EndOfFileSentinel, TokIterator>);
+
+struct EndOfTokLineSentinel {
+  TokIterator startOfLine;
+
+  EndOfTokLineSentinel() = default;
+
+  explicit EndOfTokLineSentinel(TokIterator startOfLine)
+      : startOfLine(startOfLine) {}
+
+  auto operator==(TokIterator it) const -> bool {
+    auto list = it.toTokList();
+    if (!list || !list->tok) return true;
+    if (list->tok->bol) return list != startOfLine.toTokList();
+    return false;
   }
 };
 
-static_assert(std::sentinel_for<EofTokSentinel, TokIterator>);
+static_assert(std::sentinel_for<EndOfTokLineSentinel, TokIterator>);
+
+using TokLine = std::ranges::subrange<TokIterator, EndOfTokLineSentinel>;
+
+struct LookAt {
+  template <typename I, typename S>
+  [[nodiscard]] auto operator()(I first, S last, auto... tokens) const -> bool {
+    return Helper<I, S>{}(first, last, tokens...);
+  }
+
+ private:
+  template <typename I, typename S>
+  struct Helper {
+    [[nodiscard]] auto operator()(I, S) const -> bool { return true; }
+
+    [[nodiscard]] auto operator()(I first, S last, std::string_view text,
+                                  auto... rest) const -> bool {
+      if (first == last) return false;
+      if ((*first)->text != text) return false;
+      return (*this)(++first, last, rest...);
+    }
+
+    [[nodiscard]] auto operator()(I first, S last, TokenKind kind,
+                                  auto... rest) const -> bool {
+      if (first == last) return false;
+      if ((*first)->isNot(kind)) return false;
+      return (*this)(++first, last, rest...);
+    }
+  };
+};
+
+inline constexpr LookAt lookat{};
 
 struct ObjectMacro {
   std::string_view name;
@@ -812,33 +859,7 @@ struct Preprocessor::Private {
   }
 
   [[nodiscard]] auto lookat(const TokList *ts, auto... tokens) const -> bool {
-    return lookatHelper(ts, tokens...);
-  }
-
-  [[nodiscard]] auto lookatHelper(const TokList *) const -> bool {
-    return true;
-  }
-
-  [[nodiscard]] auto lookatHelper(const TokList *ts, std::string_view text,
-                                  auto... rest) const -> bool {
-    if (!ts) return false;
-    if (!ts->tok) return false;
-    if (ts->tok->text != text) return false;
-
-    return lookatHelper(ts->next, rest...);
-  }
-
-  [[nodiscard]] auto lookatHelper(const TokList *ts, TokenKind kind,
-                                  auto... rest) const -> bool {
-    if (!ts) return false;
-
-    const auto token = ts->tok;
-
-    if (!token) return false;
-
-    if (!token->is(kind)) return false;
-
-    return lookatHelper(ts->next, rest...);
+    return cxx::lookat(TokIterator{ts}, EndOfFileSentinel{}, tokens...);
   }
 
   [[nodiscard]] auto match(const TokList *&ts, TokenKind k) const -> bool {
