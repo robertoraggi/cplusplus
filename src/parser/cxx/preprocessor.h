@@ -150,6 +150,7 @@ class Preprocessor {
 
  private:
   struct Private;
+  struct ParseArguments;
   std::unique_ptr<Private> d;
 };
 
