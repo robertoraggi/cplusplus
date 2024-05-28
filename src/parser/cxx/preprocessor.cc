@@ -442,7 +442,9 @@ class TokIterator {
 
   auto operator==(const TokIterator &other) const -> bool = default;
 
-  auto operator*() const -> const Tok * { return ts_->tok; }
+  auto operator*() const -> const Tok & { return *ts_->tok; }
+
+  auto operator->() const -> const Tok * { return ts_->tok; }
 
   auto operator++() -> TokIterator & {
     ts_ = ts_->next;
@@ -503,14 +505,14 @@ struct LookAt {
     [[nodiscard]] auto operator()(I first, S last, std::string_view text,
                                   auto... rest) const -> bool {
       if (first == last) return false;
-      if ((*first)->text != text) return false;
+      if (first->text != text) return false;
       return (*this)(++first, last, rest...);
     }
 
     [[nodiscard]] auto operator()(I first, S last, TokenKind kind,
                                   auto... rest) const -> bool {
       if (first == last) return false;
-      if ((*first)->isNot(kind)) return false;
+      if (first->isNot(kind)) return false;
       return (*this)(++first, last, rest...);
     }
   };
@@ -802,7 +804,7 @@ struct Preprocessor::Private {
     TokList *list = nullptr;
     TokList **it = &list;
     for (; first != last; ++first) {
-      *it = cons(*first);
+      *it = cons(&*first);
       it = const_cast<TokList **>(&(*it)->next);
     }
     return list;
@@ -886,6 +888,14 @@ struct Preprocessor::Private {
       return true;
     }
     return false;
+  }
+
+  [[nodiscard]] auto match(TokIterator &it, TokIterator last,
+                           TokenKind k) const -> bool {
+    if (it == last) return false;
+    if (it->isNot(k)) return false;
+    ++it;
+    return true;
   }
 
   [[nodiscard]] auto matchId(const TokList *&ts,
@@ -1111,20 +1121,19 @@ struct Preprocessor::Private {
   [[nodiscard]] auto tokenize(const std::string_view &source, int sourceFile,
                               bool bol) -> const TokList *;
 
-  [[nodiscard]] auto skipLine(const TokList *ts) -> const TokList *;
+  [[nodiscard]] auto skipLine(TokIterator it, TokIterator last) -> TokIterator;
 
   [[nodiscard]] auto parseMacroDefinition(const TokList *ts) -> Macro;
 
   [[nodiscard]] auto expand(const std::function<void(const Tok *)> &emitToken)
       -> Status;
 
-  [[nodiscard]] auto expandTokens(const TokList *ts,
-                                  bool inConditionalExpression = false)
-      -> const TokList *;
+  [[nodiscard]] auto expandTokens(TokIterator it, TokIterator last,
+                                  bool inConditionalExpression) -> TokIterator;
 
   [[nodiscard]] auto expandOne(
-      const TokList *ts, bool inConditionalExpression,
-      const std::function<void(const Tok *)> &emitToken) -> const TokList *;
+      TokIterator first, TokIterator last, bool inConditionalExpression,
+      const std::function<void(const Tok *)> &emitToken) -> TokIterator;
 
   [[nodiscard]] auto replaceIsDefinedMacro(
       const TokList *ts, bool inConditionalExpression,
@@ -1172,7 +1181,7 @@ struct Preprocessor::Private {
 
   [[nodiscard]] auto lookupMacroArgument(const TokList *&ts, const Macro *macro,
                                          const std::vector<TokRange> &actuals)
-      -> std::optional<const TokList *>;
+      -> std::optional<TokRange>;
 
   [[nodiscard]] auto copyTokens(const TokList *ts) -> const TokList *;
   [[nodiscard]] auto copyLine(const TokList *ts) -> const TokList *;
@@ -1225,7 +1234,7 @@ struct Preprocessor::ParseArguments {
       it = skipArgument(it, last, ignoreComma && formalCount == 0);
       args.push_back(TokRange{startArgument, it});
 
-      while (it != last && (*it)->is(TokenKind::T_COMMA)) {
+      while (it != last && it->is(TokenKind::T_COMMA)) {
         ++it;
 
         auto startArgument = it;
@@ -1241,7 +1250,7 @@ struct Preprocessor::ParseArguments {
       return std::nullopt;
     }
 
-    auto rparen = *it++;
+    auto rparen = it++;
 
     return Result{
         .args = std::move(args),
@@ -1253,13 +1262,13 @@ struct Preprocessor::ParseArguments {
   template <typename I, std::sentinel_for<I> S>
   auto skipArgument(I it, S last, bool ignoreComma) -> TokIterator {
     for (int depth = 0; it != last; ++it) {
-      auto tk = *it;
-      if (tk->is(TokenKind::T_LPAREN)) {
+      const auto &tk = *it;
+      if (tk.is(TokenKind::T_LPAREN)) {
         ++depth;
-      } else if (tk->is(TokenKind::T_RPAREN)) {
+      } else if (tk.is(TokenKind::T_RPAREN)) {
         if (depth == 0) break;
         --depth;
-      } else if (tk->is(TokenKind::T_COMMA)) {
+      } else if (tk.is(TokenKind::T_COMMA)) {
         if (depth == 0 && !ignoreComma) break;
       }
     }
@@ -1428,7 +1437,11 @@ void Preprocessor::Private::initialize() {
       return replaceWithBoolLiteral(macroName, false, rest);
     }
 
-    auto arg = expandTokens(toTokList(args[0]));
+    auto [startArg, endArg] = args[0];
+
+    auto arg = expandTokens(TokIterator{startArg}, TokIterator{endArg},
+                            /*expression*/ false)
+                   .toTokList();
 
     Include include;
 
@@ -1594,19 +1607,23 @@ auto Preprocessor::Private::tokenize(const std::string_view &source,
   return ts;
 }
 
-auto Preprocessor::Private::expandTokens(
-    const TokList *ts, bool inConditionalExpression) -> const TokList * {
+auto Preprocessor::Private::expandTokens(TokIterator it, TokIterator last,
+                                         bool inConditionalExpression)
+    -> TokIterator {
   TokList *tokens = nullptr;
   auto out = &tokens;
 
-  while (ts && !lookat(ts, TokenKind::T_EOF_SYMBOL)) {
-    ts = expandOne(ts, inConditionalExpression, [&](auto tok) {
+  while (it != last) {
+    if (it->is(TokenKind::T_EOF_SYMBOL)) {
+      break;
+    }
+    it = expandOne(it, last, inConditionalExpression, [&](auto tok) {
       *out = cons(tok);
       out = const_cast<TokList **>(&(*out)->next);
     });
   }
 
-  return tokens;
+  return TokIterator{tokens};
 }
 
 auto Preprocessor::Private::expand(
@@ -1622,16 +1639,21 @@ auto Preprocessor::Private::expand(
   currentPath_ = buffer.currentPath;
   includeDepth_ = buffer.includeDepth;
 
-  auto ts = buffer.ts;
+  auto it = TokIterator{buffer.ts};
+  auto last = TokIterator{};
 
-  while (ts && !lookat(ts, TokenKind::T_EOF_SYMBOL)) {
+  while (it != last) {
+    if (it->is(TokenKind::T_EOF_SYMBOL)) {
+      break;
+    }
+
     const auto [skipping, evaluating] = state();
 
-    if (const auto start = ts; bol(ts) && match(ts, TokenKind::T_HASH)) {
+    if (const auto start = it; it->bol && match(it, last, TokenKind::T_HASH)) {
       // skip the rest of the line
-      ts = skipLine(ts);
+      it = skipLine(it, last);
 
-      if (auto parsedInclude = parseDirective(source, start)) {
+      if (auto parsedInclude = parseDirective(source, start.toTokList())) {
         NeedToResolveInclude status{
             .preprocessor = *preprocessor_,
             .fileName = getHeaderName(parsedInclude->header),
@@ -1645,19 +1667,20 @@ auto Preprocessor::Private::expand(
         buffers_.push_back(Buffer{
             .source = source,
             .currentPath = currentPath_,
-            .ts = ts,
+            .ts = it.toTokList(),
             .includeDepth = includeDepth_,
         });
 
         // reset the token stream, so we can start processing the continuation
-        ts = nullptr;
+        it = last;
 
         return status;
       }
     } else if (skipping) {
-      ts = skipLine(ts->next);
+      it = skipLine(++it, last);
     } else {
-      ts = expandOne(ts, /*inConditionalExpression*/ false, emitToken);
+      it = expandOne(it, last,
+                     /*inConditionalExpression*/ false, emitToken);
     }
   }
 
@@ -1865,7 +1888,8 @@ auto Preprocessor::Private::parseIncludeDirective(const TokList *directive,
                                                   const TokList *ts)
     -> std::optional<ParsedIncludeDirective> {
   if (lookat(ts, TokenKind::T_IDENTIFIER)) {
-    ts = expandTokens(copyLine(ts));
+    auto eol = skipLine(TokIterator{ts}, TokIterator{});
+    ts = expandTokens(TokIterator{ts}, eol, /*expression*/ false).toTokList();
   }
 
   auto loc = ts;
@@ -1955,25 +1979,24 @@ auto Preprocessor::Private::parseHeaderName(const TokList *ts)
 }
 
 auto Preprocessor::Private::expandOne(
-    const TokList *ts, bool inConditionalExpression,
-    const std::function<void(const Tok *)> &emitToken) -> const TokList * {
-  if (!ts || lookat(ts, TokenKind::T_EOF_SYMBOL)) {
-    return ts;
+    TokIterator it, TokIterator last, bool inConditionalExpression,
+    const std::function<void(const Tok *)> &emitToken) -> TokIterator {
+  if (it == last) return last;
+
+  if (auto continuation = replaceIsDefinedMacro(
+          it.toTokList(), inConditionalExpression, emitToken)) {
+    return TokIterator{continuation};
   }
 
-  if (auto continuation =
-          replaceIsDefinedMacro(ts, inConditionalExpression, emitToken)) {
-    return continuation;
+  if (auto continuation = expandMacro(it.toTokList())) {
+    return TokIterator{continuation};
   }
 
-  if (auto continuation = expandMacro(ts)) {
-    return continuation;
-  }
+  emitToken(&*it);
 
-  auto tk = const_cast<Tok *>(ts->tok);
-  ts = ts->next;
-  emitToken(tk);
-  return ts;
+  ++it;
+
+  return it;
 }
 
 auto Preprocessor::Private::replaceIsDefinedMacro(
@@ -2124,8 +2147,9 @@ auto Preprocessor::Private::substitute(
       ts = ts->next;
 
       if (auto actual = lookupMacroArgument(ts, macro, actuals)) {
-        if (auto arg = *actual) {
-          appendToken(stringize(arg));
+        auto [startArg, endArg] = *actual;
+        if (startArg != endArg) {
+          appendToken(stringize(toTokList(startArg, endArg)));
         }
         continue;
       }
@@ -2137,9 +2161,12 @@ auto Preprocessor::Private::substitute(
       ts = ts->next;
 
       if (auto actual = lookupMacroArgument(ts, macro, actuals)) {
-        if (auto arg = *actual) {
-          (*ip)->tok = merge((*ip)->tok, arg->tok);
-          appendTokens(clone(arg->next));
+        auto [startArg, endArg] = *actual;
+        if (startArg != endArg) {
+          (*ip)->tok = merge((*ip)->tok, &*startArg);
+          for (auto it = ++startArg; it != endArg; ++it) {
+            appendToken(&*it);
+          }
         }
         continue;
       }
@@ -2154,8 +2181,11 @@ auto Preprocessor::Private::substitute(
 
     if (lookat(ts, TokenKind::T_IDENTIFIER, TokenKind::T_HASH_HASH)) {
       if (auto actual = lookupMacroArgument(ts, macro, actuals)) {
-        if (auto arg = *actual) {
-          appendTokens(clone(arg));
+        auto [startArg, endArg] = *actual;
+        if (startArg != endArg) {
+          for (auto it = startArg; it != endArg; ++it) {
+            appendToken(&*it);
+          }
         } else {
           // placemarker
           appendToken(gen(TokenKind::T_IDENTIFIER, ""));
@@ -2165,12 +2195,13 @@ auto Preprocessor::Private::substitute(
     }
 
     if (auto actual = lookupMacroArgument(ts, macro, actuals)) {
-      if (auto arg = *actual) {
-        auto copy = copyTokens(arg);
-        if (auto line = expandTokens(copy)) {
-          // const_cast<Tok *>(line->tok)->space = true;
-          appendTokens(line);
-        }
+      // auto copy = copyTokens(arg);
+      auto [startArg, endArg] = *actual;
+      auto line = expandTokens(startArg, endArg,
+                               /*expression*/ false);
+      if (line != TokIterator{}) {
+        // const_cast<Tok *>(line->tok)->space = true;
+        appendTokens(line.toTokList());
       }
       continue;
     }
@@ -2184,7 +2215,7 @@ auto Preprocessor::Private::substitute(
 
 auto Preprocessor::Private::lookupMacroArgument(
     const TokList *&ts, const Macro *m,
-    const std::vector<TokRange> &actuals) -> std::optional<const TokList *> {
+    const std::vector<TokRange> &actuals) -> std::optional<TokRange> {
   if (!isFunctionLikeMacro(*m)) return std::nullopt;
 
   const FunctionMacro *macro = &std::get<FunctionMacro>(*m);
@@ -2197,10 +2228,10 @@ auto Preprocessor::Private::lookupMacroArgument(
     if (matchId(ts, "__VA_ARGS__")) {
       if (actuals.size() > macro->formals.size()) {
         auto arg = actuals.back();
-        return toTokList(arg);
+        return arg;
       }
 
-      return {nullptr};
+      return {TokRange{}};
     }
 
     if (lookat(ts, "__VA_OPT__", TokenKind::T_LPAREN)) {
@@ -2212,10 +2243,10 @@ auto Preprocessor::Private::lookupMacroArgument(
       if (!args.empty() && actuals.size() > macro->formals.size()) {
         auto arg = args.front();
         ts = snoc(toTokList(arg), ts);
-        return nullptr;
+        return {TokRange{}};
       }
 
-      return {nullptr};
+      return {TokRange{}};
     }
   }
 
@@ -2226,10 +2257,10 @@ auto Preprocessor::Private::lookupMacroArgument(
       ts = ts->next;
 
       if (i < actuals.size()) {
-        return toTokList(actuals[i]);
+        return actuals[i];
       }
 
-      return {nullptr};
+      return {TokRange{}};
     }
   }
 
@@ -2297,7 +2328,9 @@ auto Preprocessor::Private::copyLine(const TokList *ts) -> const TokList * {
 
 auto Preprocessor::Private::constantExpression(const TokList *ts) -> long {
   auto line = copyLine(ts);
-  auto e = expandTokens(line, /*inConditionalExpression*/ true);
+  auto it = expandTokens(TokIterator{line}, TokIterator{},
+                         /*inConditionalExpression*/ true);
+  auto e = it.toTokList();
   return conditionalExpression(e);
 }
 
@@ -2622,11 +2655,13 @@ auto Preprocessor::Private::merge(const Tok *left,
   return tok;
 }
 
-auto Preprocessor::Private::skipLine(const TokList *ts) -> const TokList * {
-  while (ts && !lookat(ts, TokenKind::T_EOF_SYMBOL) && !bol(ts)) {
-    ts = ts->next;
+auto Preprocessor::Private::skipLine(TokIterator it,
+                                     TokIterator last) -> TokIterator {
+  for (; it != last; ++it) {
+    if (it->kind == TokenKind::T_EOF_SYMBOL) break;
+    if (it->bol) break;
   }
-  return ts;
+  return it;
 }
 
 auto Preprocessor::Private::lookupMacro(const Tok *tk) const -> const Macro * {
