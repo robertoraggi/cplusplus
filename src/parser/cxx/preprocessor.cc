@@ -485,6 +485,8 @@ struct EndOfTokLineSentinel {
 
 static_assert(std::sentinel_for<EndOfTokLineSentinel, TokIterator>);
 
+using TokRange = std::ranges::subrange<TokIterator, TokIterator>;
+
 using TokLine = std::ranges::subrange<TokIterator, EndOfTokLineSentinel>;
 
 struct LookAt {
@@ -793,6 +795,22 @@ struct Preprocessor::Private {
     const_cast<TokList *>(tail)->next = second;
 
     return first;
+  }
+
+  template <typename I, std::sentinel_for<I> S>
+  [[nodiscard]] auto toTokList(I first, S last) -> const TokList * {
+    TokList *list = nullptr;
+    TokList **it = &list;
+    for (; first != last; ++first) {
+      *it = cons(*first);
+      it = const_cast<TokList **>(&(*it)->next);
+    }
+    return list;
+  }
+
+  template <typename R>
+  [[nodiscard]] auto toTokList(const R &range) -> const TokList * {
+    return toTokList(std::ranges::begin(range), std::ranges::end(range));
   }
 
   [[nodiscard]] auto withHideset(const Tok *tok,
@@ -1140,7 +1158,7 @@ struct Preprocessor::Private {
       -> std::tuple<const TokList *, std::optional<Include>>;
 
   [[nodiscard]] auto substitute(const Macro *macro,
-                                const std::vector<const TokList *> &actuals,
+                                const std::vector<TokRange> &actuals,
                                 const Hideset *hideset) -> const TokList *;
 
   [[nodiscard]] auto merge(const Tok *left, const Tok *right) -> const Tok *;
@@ -1152,9 +1170,8 @@ struct Preprocessor::Private {
 
   [[nodiscard]] auto lookupMacro(const Tok *tk) const -> const Macro *;
 
-  [[nodiscard]] auto lookupMacroArgument(
-      const TokList *&ts, const Macro *macro,
-      const std::vector<const TokList *> &actuals)
+  [[nodiscard]] auto lookupMacroArgument(const TokList *&ts, const Macro *macro,
+                                         const std::vector<TokRange> &actuals)
       -> std::optional<const TokList *>;
 
   [[nodiscard]] auto copyTokens(const TokList *ts) -> const TokList *;
@@ -1168,10 +1185,9 @@ struct Preprocessor::Private {
   [[nodiscard]] auto unaryExpression(const TokList *&ts) -> long;
   [[nodiscard]] auto primaryExpression(const TokList *&ts) -> long;
 
-  [[nodiscard]] auto readArguments(const TokList *ts, int formalCount,
-                                   bool ignoreComma = false)
-      -> std::tuple<std::vector<const TokList *>, const TokList *,
-                    const Hideset *>;
+  [[nodiscard]] auto parseArguments(const TokList *ts, int formalCount,
+                                    bool ignoreComma = false)
+      -> std::tuple<std::vector<TokRange>, const TokList *, const Hideset *>;
 
   [[nodiscard]] auto string(std::string s) -> std::string_view;
 
@@ -1180,6 +1196,76 @@ struct Preprocessor::Private {
   void printLine(const TokList *ts, std::ostream &out, bool nl = true) const;
 
   void finalizeToken(std::vector<Token> &tokens, const Tok *tk);
+};
+
+struct Preprocessor::ParseArguments {
+  struct Result {
+    std::vector<TokRange> args;
+    TokIterator it;
+    const Hideset *hideset = nullptr;
+  };
+
+  Private &d;
+
+  template <std::sentinel_for<TokIterator> S>
+  auto operator()(TokIterator it, S last, int formalCount,
+                  bool ignoreComma) -> std::optional<Result> {
+    if (!cxx::lookat(it, last, TokenKind::T_LPAREN)) {
+      cxx_runtime_error("expected '('");
+      return std::nullopt;
+    }
+
+    auto lparen = it++;
+
+    std::vector<TokRange> args;
+
+    if (!cxx::lookat(it, last, TokenKind::T_RPAREN) || ignoreComma) {
+      auto startArgument = it;
+
+      it = skipArgument(it, last, ignoreComma && formalCount == 0);
+      args.push_back(TokRange{startArgument, it});
+
+      while (it != last && (*it)->is(TokenKind::T_COMMA)) {
+        ++it;
+
+        auto startArgument = it;
+
+        it = skipArgument(it, last, ignoreComma && args.size() >= formalCount);
+        args.push_back(TokRange{startArgument, it});
+      }
+    }
+
+    if (!cxx::lookat(it, last, TokenKind::T_RPAREN)) {
+      d.error(lparen.toTokList(),
+              cxx::format("unterminated function-like macro invocation"));
+      return std::nullopt;
+    }
+
+    auto rparen = *it++;
+
+    return Result{
+        .args = std::move(args),
+        .it = it,
+        .hideset = rparen->hideset,
+    };
+  }
+
+  template <typename I, std::sentinel_for<I> S>
+  auto skipArgument(I it, S last, bool ignoreComma) -> TokIterator {
+    for (int depth = 0; it != last; ++it) {
+      auto tk = *it;
+      if (tk->is(TokenKind::T_LPAREN)) {
+        ++depth;
+      } else if (tk->is(TokenKind::T_RPAREN)) {
+        if (depth == 0) break;
+        --depth;
+      } else if (tk->is(TokenKind::T_COMMA)) {
+        if (depth == 0 && !ignoreComma) break;
+      }
+    }
+
+    return it;
+  }
 };
 
 Preprocessor::Private::Private() {
@@ -1335,14 +1421,14 @@ void Preprocessor::Private::initialize() {
 
     expect(ts, TokenKind::T_LPAREN);
 
-    auto [args, rest, hideset] = readArguments(context.ts, 0, true);
+    auto [args, rest, hideset] = parseArguments(context.ts, 0, true);
 
     if (args.empty()) {
       error(macroName->token(), cxx::format("expected a header name"));
       return replaceWithBoolLiteral(macroName, false, rest);
     }
 
-    auto arg = expandTokens(args[0]);
+    auto arg = expandTokens(toTokList(args[0]));
 
     Include include;
 
@@ -1990,7 +2076,8 @@ auto Preprocessor::Private::expandFunctionLikeMacro(
 
   const Tok *tk = ts->tok;
 
-  auto [args, rest, hideset] = readArguments(ts, macro->formals.size());
+  auto [args, rest, hideset] =
+      parseArguments(ts, macro->formals.size(), macro->variadic);
 
   auto hs = makeUnion(makeIntersection(tk->hideset, hideset), tk->text);
 
@@ -2013,7 +2100,7 @@ auto Preprocessor::Private::expandFunctionLikeMacro(
 }
 
 auto Preprocessor::Private::substitute(
-    const Macro *macro, const std::vector<const TokList *> &actuals,
+    const Macro *macro, const std::vector<TokRange> &actuals,
     const Hideset *hideset) -> const TokList * {
   const TokList *os = nullptr;
   auto **ip = const_cast<TokList **>(&os);
@@ -2097,8 +2184,7 @@ auto Preprocessor::Private::substitute(
 
 auto Preprocessor::Private::lookupMacroArgument(
     const TokList *&ts, const Macro *m,
-    const std::vector<const TokList *> &actuals)
-    -> std::optional<const TokList *> {
+    const std::vector<TokRange> &actuals) -> std::optional<const TokList *> {
   if (!isFunctionLikeMacro(*m)) return std::nullopt;
 
   const FunctionMacro *macro = &std::get<FunctionMacro>(*m);
@@ -2110,7 +2196,8 @@ auto Preprocessor::Private::lookupMacroArgument(
   if (macro->variadic) {
     if (matchId(ts, "__VA_ARGS__")) {
       if (actuals.size() > macro->formals.size()) {
-        return actuals.back();
+        auto arg = actuals.back();
+        return toTokList(arg);
       }
 
       return {nullptr};
@@ -2118,12 +2205,13 @@ auto Preprocessor::Private::lookupMacroArgument(
 
     if (lookat(ts, "__VA_OPT__", TokenKind::T_LPAREN)) {
       const auto [args, rest, hideset] =
-          readArguments(ts, /*formal count*/ 0, /*ignore comma*/ true);
+          parseArguments(ts, /*formal count*/ 0, /*ignore comma*/ true);
 
       ts = rest;
 
       if (!args.empty() && actuals.size() > macro->formals.size()) {
-        ts = snoc(args.front(), ts);
+        auto arg = args.front();
+        ts = snoc(toTokList(arg), ts);
         return nullptr;
       }
 
@@ -2138,7 +2226,7 @@ auto Preprocessor::Private::lookupMacroArgument(
       ts = ts->next;
 
       if (i < actuals.size()) {
-        return actuals[i];
+        return toTokList(actuals[i]);
       }
 
       return {nullptr};
@@ -2406,52 +2494,20 @@ auto Preprocessor::Private::instantiate(
   return ts;
 }
 
-auto Preprocessor::Private::readArguments(const TokList *ts, int formalCount,
-                                          bool ignoreComma)
-    -> std::tuple<std::vector<const TokList *>, const TokList *,
-                  const Hideset *> {
+auto Preprocessor::Private::parseArguments(const TokList *ts, int formalCount,
+                                           bool ignoreComma)
+    -> std::tuple<std::vector<TokRange>, const TokList *, const Hideset *> {
   assert(lookat(ts, TokenKind::T_IDENTIFIER, TokenKind::T_LPAREN));
 
-  auto it = ts->next->next;
-  int depth = 1;
-  int argc = 0;
-  std::vector<const TokList *> args;
+  auto parsedArgs = ParseArguments{*this}(
+      TokIterator{ts->next}, EndOfFileSentinel{}, formalCount, ignoreComma);
 
-  const Tok *rp = nullptr;
-  if (!lookat(it, TokenKind::T_RPAREN)) {
-    TokList *arg = nullptr;
-    auto argIt = &arg;
-    while (it && !lookat(it, TokenKind::T_EOF_SYMBOL)) {
-      auto tk = it->tok;
-      it = it->next;
-      if (!ignoreComma && depth == 1 && tk->is(TokenKind::T_COMMA) &&
-          args.size() < formalCount) {
-        args.push_back(arg);
-        arg = nullptr;
-        argIt = &arg;
-        ++argc;
-        continue;
-      }
-      if (tk->is(TokenKind::T_LPAREN)) {
-        ++depth;
-      } else if (tk->is(TokenKind::T_RPAREN) && !--depth) {
-        rp = tk;
-        break;
-      }
-
-      *argIt = cons(tk);
-      argIt = const_cast<TokList **>(&(*argIt)->next);
-    }
-
-    args.push_back(arg);
-  } else {
-    rp = it->tok;
-    it = it->next;
+  if (!parsedArgs) {
+    return std::tuple(std::vector<TokRange>(), ts->next, nullptr);
   }
 
-  assert(rp);
-
-  return std::tuple(std::move(args), it, rp->hideset);
+  return std::tuple(std::move(parsedArgs->args), parsedArgs->it.toTokList(),
+                    parsedArgs->hideset);
 }
 
 auto Preprocessor::Private::stringize(const TokList *ts) -> const Tok * {
