@@ -5555,12 +5555,11 @@ auto Parser::instantiate(SimpleTemplateIdAST* templateId) -> Symbol* {
 
   auto needsInstantiation = [&]() -> bool {
     if (args.empty()) return true;
-    for (std::size_t i = 0; i < args.size(); ++i) {
-      auto typeArgument = std::get_if<const Type*>(&args[i]);
+    for (auto arg : args) {
+      auto typeArgument = std::get_if<const Type*>(&arg);
       if (!typeArgument) return true;
       auto ty = type_cast<TypeParameterType>(*typeArgument);
       if (!ty) return true;
-      if (ty->symbol()->index() != i) return true;
     }
     return false;
   };

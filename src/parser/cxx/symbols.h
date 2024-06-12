@@ -716,14 +716,17 @@ auto symbol_cast(Symbol* symbol) -> T* {
 struct GetTemplateParameters {
   auto operator()(Symbol* symbol) const -> TemplateParametersSymbol* {
     if (!symbol) return nullptr;
-    return visit(Visitor{*this}, symbol);
+    return visit(Visitor{}, symbol);
   }
 
  private:
   struct Visitor {
-    const GetTemplateParameters& getTemplateParameters;
-
     auto operator()(ConceptSymbol* symbol) const -> TemplateParametersSymbol* {
+      return symbol->templateParameters();
+    }
+
+    auto operator()(TemplateTypeParameterSymbol* symbol) const
+        -> TemplateParametersSymbol* {
       return symbol->templateParameters();
     }
 
