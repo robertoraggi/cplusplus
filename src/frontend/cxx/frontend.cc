@@ -34,12 +34,11 @@
 #include <cxx/translation_unit.h>
 #include <cxx/wasm32_wasi_toolchain.h>
 #include <cxx/windows_toolchain.h>
+#include <cxx/private/format.h>
 
 #include "ast_printer.h"
 #include "verify_diagnostics_client.h"
 
-// fmt
-#include <fmt/format.h>
 
 // std
 #include <algorithm>
