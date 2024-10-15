@@ -20,8 +20,9 @@
 
 #include <cxx/macos_toolchain.h>
 #include <cxx/preprocessor.h>
-#include <cxx/private/format.h>
 #include <cxx/private/path.h>
+
+#include <format>
 
 namespace cxx {
 
@@ -29,23 +30,23 @@ MacOSToolchain::MacOSToolchain(Preprocessor* preprocessor)
     : Toolchain(preprocessor) {
   std::string xcodeContentsBasePath = "/Applications/Xcode.app/Contents";
 
-  platformPath_ = cxx::format(
+  platformPath_ = std::format(
       "{}/Developer/Platforms/MacOSX.platform/"
       "Developer/SDKs/MacOSX.sdk",
       xcodeContentsBasePath);
 
   toolchainPath_ =
-      cxx::format("{}/Developer/Toolchains/XcodeDefault.xctoolchain",
+      std::format("{}/Developer/Toolchains/XcodeDefault.xctoolchain",
                   xcodeContentsBasePath);
 }
 
 void MacOSToolchain::addSystemIncludePaths() {
   addSystemIncludePath(
-      cxx::format("{}/System/Library/Frameworks", platformPath_));
+      std::format("{}/System/Library/Frameworks", platformPath_));
 
-  addSystemIncludePath(cxx::format("{}/usr/include", toolchainPath_));
+  addSystemIncludePath(std::format("{}/usr/include", toolchainPath_));
 
-  addSystemIncludePath(cxx::format("{}/usr/include", platformPath_));
+  addSystemIncludePath(std::format("{}/usr/include", platformPath_));
 
   std::vector<std::string_view> versions{
       "15.0.0",
@@ -53,7 +54,7 @@ void MacOSToolchain::addSystemIncludePaths() {
 
   for (auto version : versions) {
     const std::string path =
-        cxx::format("{}/usr/lib/clang/{}/include", toolchainPath_, version);
+        std::format("{}/usr/lib/clang/{}/include", toolchainPath_, version);
     if (fs::exists(path)) {
       addSystemIncludePath(path);
     }
@@ -61,7 +62,7 @@ void MacOSToolchain::addSystemIncludePaths() {
 }
 
 void MacOSToolchain::addSystemCppIncludePaths() {
-  addSystemIncludePath(cxx::format("{}/usr/include/c++/v1", platformPath_));
+  addSystemIncludePath(std::format("{}/usr/include/c++/v1", platformPath_));
 }
 
 void MacOSToolchain::addPredefinedMacros() {

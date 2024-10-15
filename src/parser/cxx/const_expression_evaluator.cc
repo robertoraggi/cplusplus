@@ -26,11 +26,12 @@
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
 #include <cxx/parser.h>
-#include <cxx/private/format.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_printer.h>
 #include <cxx/types.h>
+
+#include <format>
 
 namespace cxx {
 

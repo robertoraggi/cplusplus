@@ -20,10 +20,11 @@
 
 #include <cxx/name_printer.h>
 #include <cxx/names.h>
-#include <cxx/private/format.h>
 #include <cxx/token.h>
 #include <cxx/type_printer.h>
 #include <cxx/types.h>
+
+#include <format>
 
 namespace cxx {
 
@@ -53,7 +54,7 @@ auto NamePrinter::operator()(const OperatorId* name) const -> std::string {
     case TokenKind::T_DELETE_ARRAY:
       return "operator delete[]";
     default:
-      return cxx::format("operator {}", Token::spell(name->op()));
+      return std::format("operator {}", Token::spell(name->op()));
   }  // switch
 }
 
@@ -63,12 +64,12 @@ auto NamePrinter::operator()(const DestructorId* name) const -> std::string {
 
 auto NamePrinter::operator()(const LiteralOperatorId* name) const
     -> std::string {
-  return cxx::format("operator \"\"{}", name->name());
+  return std::format("operator \"\"{}", name->name());
 }
 
 auto NamePrinter::operator()(const ConversionFunctionId* name) const
     -> std::string {
-  return cxx::format("operator {}", to_string(name->type()));
+  return std::format("operator {}", to_string(name->type()));
 }
 
 auto NamePrinter::operator()(const TemplateId* name) const -> std::string {

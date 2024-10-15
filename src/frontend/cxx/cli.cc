@@ -20,11 +20,11 @@
 
 #include "cli.h"
 
-#include <cxx/private/format.h>
 #include <cxx/private/path.h>
 
 #include <algorithm>
 #include <array>
+#include <format>
 #include <iostream>
 #include <sstream>
 #include <tuple>
@@ -36,15 +36,15 @@ namespace cxx {
 auto to_string(const CLIMatch& match) -> std::string {
   struct Process {
     auto operator()(const CLIFlag& o) const -> std::string {
-      return cxx::format("{}=true", std::get<0>(o));
+      return std::format("{}=true", std::get<0>(o));
     }
 
     auto operator()(const CLIOption& o) const -> std::string {
-      return cxx::format("{}={}", std::get<0>(o), std::get<1>(o));
+      return std::format("{}={}", std::get<0>(o), std::get<1>(o));
     }
 
     auto operator()(const CLIPositional& o) const -> std::string {
-      return cxx::format("{}", std::get<0>(o));
+      return std::format("{}", std::get<0>(o));
     }
   };
   return std::visit(Process(), match);
@@ -329,7 +329,7 @@ void CLI::parse(int& argc, char**& argv) {
           continue;
         }
 
-        std::cerr << cxx::format("missing argument after '{}'\n", arg);
+        std::cerr << std::format("missing argument after '{}'\n", arg);
         continue;
       }
     }
@@ -345,13 +345,13 @@ void CLI::parse(int& argc, char**& argv) {
       continue;
     }
 
-    std::cerr << cxx::format("unsupported option '{}'\n", arg);
+    std::cerr << std::format("unsupported option '{}'\n", arg);
   }
 }
 
 void CLI::showHelp() {
-  std::cerr << cxx::format("Usage: cxx [options] file...\n");
-  std::cerr << cxx::format("Options:\n");
+  std::cerr << std::format("Usage: cxx [options] file...\n");
+  std::cerr << std::format("Options:\n");
   for (const auto& opt : options) {
     if (opt.visibility == CLIOptionVisibility::kExperimental) {
       continue;
@@ -363,20 +363,20 @@ void CLI::showHelp() {
         if (opt.arg.empty()) {
           info = opt.option;
         } else {
-          info = cxx::format("{} {}", opt.option, opt.arg);
+          info = std::format("{} {}", opt.option, opt.arg);
         }
         break;
       }
       case CLIOptionDescrKind::kJoined: {
-        info = cxx::format("{}={}", opt.option, opt.arg);
+        info = std::format("{}={}", opt.option, opt.arg);
         break;
       }
       case CLIOptionDescrKind::kFlag: {
-        info = cxx::format("{}", opt.option);
+        info = std::format("{}", opt.option);
         break;
       }
     }  // switch
-    std::cerr << cxx::format("  {:<28} {}\n", info, opt.help);
+    std::cerr << std::format("  {:<28} {}\n", info, opt.help);
   }
 }
 

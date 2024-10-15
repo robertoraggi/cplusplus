@@ -23,8 +23,9 @@
 // cxx
 #include <cxx/memory_layout.h>
 #include <cxx/preprocessor.h>
-#include <cxx/private/format.h>
 #include <cxx/private/path.h>
+
+#include <format>
 
 namespace cxx {
 
@@ -60,14 +61,14 @@ void Wasm32WasiToolchain::setSysroot(std::string sysroot) {
 }
 
 void Wasm32WasiToolchain::addSystemIncludePaths() {
-  addSystemIncludePath(cxx::format("{}/include", sysroot_));
-  addSystemIncludePath(cxx::format("{}/include/wasm32-wasi", sysroot_));
-  addSystemIncludePath(cxx::format("{}/../lib/cxx/include", appdir_));
+  addSystemIncludePath(std::format("{}/include", sysroot_));
+  addSystemIncludePath(std::format("{}/include/wasm32-wasi", sysroot_));
+  addSystemIncludePath(std::format("{}/../lib/cxx/include", appdir_));
 }
 
 void Wasm32WasiToolchain::addSystemCppIncludePaths() {
-  addSystemIncludePath(cxx::format("{}/include/c++/v1", sysroot_));
-  addSystemIncludePath(cxx::format("{}/include/wasm32-wasi/c++/v1", sysroot_));
+  addSystemIncludePath(std::format("{}/include/c++/v1", sysroot_));
+  addSystemIncludePath(std::format("{}/include/wasm32-wasi/c++/v1", sysroot_));
 }
 
 void Wasm32WasiToolchain::addPredefinedMacros() {

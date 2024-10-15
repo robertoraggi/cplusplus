@@ -22,9 +22,9 @@
 
 // cxx
 #include <cxx/preprocessor.h>
-#include <cxx/private/format.h>
 #include <cxx/private/path.h>
 
+#include <format>
 #include <utility>
 
 namespace cxx {
@@ -44,22 +44,22 @@ void WindowsToolchain::setWinsdkversion(std::string version) {
 void WindowsToolchain::addSystemIncludePaths() {
   addSystemIncludePath(
       (fs::path(winsdkdir_) /
-       std::string(cxx::format("Include/{}/winrt", winsdkversion_)))
+       std::string(std::format("Include/{}/winrt", winsdkversion_)))
           .string());
 
   addSystemIncludePath(
       (fs::path(winsdkdir_) /
-       std::string(cxx::format("Include/{}/um", winsdkversion_)))
+       std::string(std::format("Include/{}/um", winsdkversion_)))
           .string());
 
   addSystemIncludePath(
       (fs::path(winsdkdir_) /
-       std::string(cxx::format("Include/{}/shared", winsdkversion_)))
+       std::string(std::format("Include/{}/shared", winsdkversion_)))
           .string());
 
   addSystemIncludePath(
       (fs::path(winsdkdir_) /
-       std::string(cxx::format("Include/{}/ucrt", winsdkversion_)))
+       std::string(std::format("Include/{}/ucrt", winsdkversion_)))
           .string());
 
   addSystemIncludePath(

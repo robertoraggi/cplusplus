@@ -22,9 +22,9 @@
 
 // cxx
 #include <cxx/diagnostics_client.h>
-#include <cxx/private/format.h>
 
 #include <charconv>
+#include <format>
 
 namespace cxx {
 
