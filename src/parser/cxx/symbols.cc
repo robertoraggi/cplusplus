@@ -185,8 +185,8 @@ auto ClassSymbol::hasBaseClass(Symbol* symbol) const -> bool {
 }
 
 auto ClassSymbol::hasBaseClass(
-    Symbol* symbol,
-    std::unordered_set<const ClassSymbol*>& processed) const -> bool {
+    Symbol* symbol, std::unordered_set<const ClassSymbol*>& processed) const
+    -> bool {
   if (!processed.insert(this).second) {
     return false;
   }

@@ -6,7 +6,6 @@ auto main() -> int {
   // expected-error@1 {{expected a statement}}
 }
 
-
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list

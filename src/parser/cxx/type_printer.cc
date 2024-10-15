@@ -358,8 +358,8 @@ class TypePrinter {
     }
   }
 
-  auto textOf(TranslationUnit* unit,
-              SourceLocationRange range) const -> std::string {
+  auto textOf(TranslationUnit* unit, SourceLocationRange range) const
+      -> std::string {
     std::string buf;
     auto [first, last] = range;
     for (auto loc = first; loc != last; loc = loc.next()) {

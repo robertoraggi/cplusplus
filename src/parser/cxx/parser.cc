@@ -706,8 +706,8 @@ struct Parser::TemplateHeadContext {
 
 struct Parser::ClassSpecifierContext {
   ClassSpecifierContext(const ClassSpecifierContext&) = delete;
-  auto operator=(const ClassSpecifierContext&) -> ClassSpecifierContext& =
-                                                      delete;
+  auto operator=(const ClassSpecifierContext&)
+      -> ClassSpecifierContext& = delete;
 
   Parser* p;
 
@@ -3030,8 +3030,8 @@ auto Parser::parse_noexcept_expression(ExpressionAST*& yyast,
   return true;
 }
 
-auto Parser::parse_new_expression(ExpressionAST*& yyast,
-                                  const ExprContext& ctx) -> bool {
+auto Parser::parse_new_expression(ExpressionAST*& yyast, const ExprContext& ctx)
+    -> bool {
   if (!lookat(TokenKind::T_NEW) &&
       !lookat(TokenKind::T_COLON_COLON, TokenKind::T_NEW))
     return false;
@@ -3450,13 +3450,15 @@ auto Parser::parse_binary_expression_helper(ExpressionAST*& yyast, Prec minPrec,
   return parsed;
 }
 
-auto Parser::parse_logical_or_expression(
-    ExpressionAST*& yyast, const ExprContext& exprContext) -> bool {
+auto Parser::parse_logical_or_expression(ExpressionAST*& yyast,
+                                         const ExprContext& exprContext)
+    -> bool {
   return parse_binary_expression(yyast, exprContext);
 }
 
-auto Parser::parse_conditional_expression(
-    ExpressionAST*& yyast, const ExprContext& exprContext) -> bool {
+auto Parser::parse_conditional_expression(ExpressionAST*& yyast,
+                                          const ExprContext& exprContext)
+    -> bool {
   if (!parse_logical_or_expression(yyast, exprContext)) return false;
 
   SourceLocation questionLoc;
@@ -3526,8 +3528,9 @@ void Parser::parse_assignment_expression(ExpressionAST*& yyast,
   }
 }
 
-auto Parser::parse_maybe_assignment_expression(
-    ExpressionAST*& yyast, const ExprContext& exprContext) -> bool {
+auto Parser::parse_maybe_assignment_expression(ExpressionAST*& yyast,
+                                               const ExprContext& exprContext)
+    -> bool {
   if (parse_yield_expression(yyast, exprContext)) return true;
 
   if (parse_throw_expression(yyast, exprContext)) return true;
@@ -3570,8 +3573,8 @@ auto Parser::parse_maybe_assignment_expression(
   return true;
 }
 
-auto Parser::parse_assignment_operator(SourceLocation& loc,
-                                       TokenKind& op) -> bool {
+auto Parser::parse_assignment_operator(SourceLocation& loc, TokenKind& op)
+    -> bool {
   switch (TokenKind(LA())) {
     case TokenKind::T_EQUAL:
     case TokenKind::T_STAR_EQUAL:
@@ -3625,8 +3628,9 @@ auto Parser::parse_maybe_expression(ExpressionAST*& yyast,
   return true;
 }
 
-auto Parser::parse_constant_expression(
-    ExpressionAST*& yyast, std::optional<ConstValue>& value) -> bool {
+auto Parser::parse_constant_expression(ExpressionAST*& yyast,
+                                       std::optional<ConstValue>& value)
+    -> bool {
   ExprContext exprContext;
   exprContext.isConstantEvaluated = true;
   if (!parse_conditional_expression(yyast, exprContext)) return false;
@@ -3861,8 +3865,8 @@ auto Parser::parse_maybe_compound_statement(StatementAST*& yyast) -> bool {
   return false;
 }
 
-auto Parser::parse_compound_statement(CompoundStatementAST*& yyast,
-                                      bool skip) -> bool {
+auto Parser::parse_compound_statement(CompoundStatementAST*& yyast, bool skip)
+    -> bool {
   SourceLocation lbraceLoc;
 
   if (!match(TokenKind::T_LBRACE, lbraceLoc)) return false;
@@ -4316,8 +4320,8 @@ auto Parser::parse_template_declaration_body(
                                     BindingContext::kTemplate);
 }
 
-auto Parser::parse_declaration(DeclarationAST*& yyast,
-                               BindingContext ctx) -> bool {
+auto Parser::parse_declaration(DeclarationAST*& yyast, BindingContext ctx)
+    -> bool {
   if (lookat(TokenKind::T_RBRACE)) {
     return false;
   } else if (lookat(TokenKind::T_SEMICOLON)) {
@@ -4345,8 +4349,8 @@ auto Parser::parse_declaration(DeclarationAST*& yyast,
   }
 }
 
-auto Parser::parse_block_declaration(DeclarationAST*& yyast,
-                                     BindingContext ctx) -> bool {
+auto Parser::parse_block_declaration(DeclarationAST*& yyast, BindingContext ctx)
+    -> bool {
   if (parse_asm_declaration(yyast))
     return true;
   else if (parse_namespace_alias_definition(yyast))
@@ -4437,8 +4441,8 @@ auto Parser::parse_alias_declaration(
   return true;
 }
 
-auto Parser::enterOrCreateNamespace(const Name* name,
-                                    bool isInline) -> NamespaceSymbol* {
+auto Parser::enterOrCreateNamespace(const Name* name, bool isInline)
+    -> NamespaceSymbol* {
   auto parentScope = scope_;
   auto parentNamespace = symbol_cast<NamespaceSymbol>(parentScope->owner());
 
@@ -5102,8 +5106,8 @@ auto Parser::parse_attribute_declaration(DeclarationAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_decl_specifier(SpecifierAST*& yyast,
-                                  DeclSpecs& specs) -> bool {
+auto Parser::parse_decl_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
+    -> bool {
   switch (TokenKind(LA())) {
     case TokenKind::T_TYPEDEF: {
       auto ast = new (pool_) TypedefSpecifierAST();
@@ -5272,8 +5276,8 @@ auto Parser::parse_storage_class_specifier(SpecifierAST*& yyast,
   return false;
 }
 
-auto Parser::parse_function_specifier(SpecifierAST*& yyast,
-                                      DeclSpecs& specs) -> bool {
+auto Parser::parse_function_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
+    -> bool {
   SourceLocation virtualLoc;
 
   if (match(TokenKind::T_VIRTUAL, virtualLoc)) {
@@ -5287,8 +5291,8 @@ auto Parser::parse_function_specifier(SpecifierAST*& yyast,
   return parse_explicit_specifier(yyast, specs);
 }
 
-auto Parser::parse_explicit_specifier(SpecifierAST*& yyast,
-                                      DeclSpecs& specs) -> bool {
+auto Parser::parse_explicit_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
+    -> bool {
   SourceLocation explicitLoc;
 
   if (!match(TokenKind::T_EXPLICIT, explicitLoc)) return false;
@@ -5313,8 +5317,8 @@ auto Parser::parse_explicit_specifier(SpecifierAST*& yyast,
   return true;
 }
 
-auto Parser::parse_type_specifier(SpecifierAST*& yyast,
-                                  DeclSpecs& specs) -> bool {
+auto Parser::parse_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
+    -> bool {
   if (parse_simple_type_specifier(yyast, specs)) {
     return true;
   } else if (parse_cv_qualifier(yyast, specs)) {
@@ -5440,8 +5444,8 @@ auto Parser::parse_defining_type_specifier_seq(List<SpecifierAST*>*& yyast,
   return true;
 }
 
-auto Parser::parse_simple_type_specifier(SpecifierAST*& yyast,
-                                         DeclSpecs& specs) -> bool {
+auto Parser::parse_simple_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
+    -> bool {
   if (parse_size_type_specifier(yyast, specs)) return true;
   if (parse_sign_type_specifier(yyast, specs)) return true;
   if (parse_complex_type_specifier(yyast, specs)) return true;
@@ -5471,8 +5475,8 @@ auto Parser::parse_simple_type_specifier(SpecifierAST*& yyast,
   return false;
 }
 
-auto Parser::parse_size_type_specifier(SpecifierAST*& yyast,
-                                       DeclSpecs& specs) -> bool {
+auto Parser::parse_size_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
+    -> bool {
   if (SourceLocation specifierLoc; match(TokenKind::T_LONG, specifierLoc)) {
     auto ast = new (pool_) SizeTypeSpecifierAST();
     yyast = ast;
@@ -5501,8 +5505,8 @@ auto Parser::parse_size_type_specifier(SpecifierAST*& yyast,
   return false;
 }
 
-auto Parser::parse_sign_type_specifier(SpecifierAST*& yyast,
-                                       DeclSpecs& specs) -> bool {
+auto Parser::parse_sign_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
+    -> bool {
   if (SourceLocation specifierLoc; match(TokenKind::T_UNSIGNED, specifierLoc)) {
     auto ast = new (pool_) SignTypeSpecifierAST();
     yyast = ast;
@@ -5573,8 +5577,8 @@ auto Parser::instantiate(SimpleTemplateIdAST* templateId) -> Symbol* {
   return symbol;
 }
 
-auto Parser::parse_named_type_specifier(SpecifierAST*& yyast,
-                                        DeclSpecs& specs) -> bool {
+auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
+    -> bool {
   if (specs.isUnsigned || specs.isSigned || specs.isShort || specs.isLong)
     return false;
 
@@ -5671,8 +5675,8 @@ auto Parser::parse_underlying_type_specifier(SpecifierAST*& yyast,
   return true;
 }
 
-auto Parser::parse_atomic_type_specifier(SpecifierAST*& yyast,
-                                         DeclSpecs& specs) -> bool {
+auto Parser::parse_atomic_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
+    -> bool {
   SourceLocation atomicLoc;
   if (!match(TokenKind::T__ATOMIC, atomicLoc)) return false;
 
@@ -6702,8 +6706,8 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
 }
 
 auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
-                                   DeclaratorAST* declarator,
-                                   Decl& decl) -> bool {
+                                   DeclaratorAST* declarator, Decl& decl)
+    -> bool {
   if (auto declId = decl.declaratorId; declId) {
     auto symbolType = GetDeclaratorType{this}(declarator, decl.specs.getType());
     const auto name = convertName(declId->unqualifiedId);
@@ -7036,8 +7040,8 @@ auto Parser::parse_ptr_operator(PtrOperatorAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_cv_qualifier(SpecifierAST*& yyast,
-                                DeclSpecs& declSpecs) -> bool {
+auto Parser::parse_cv_qualifier(SpecifierAST*& yyast, DeclSpecs& declSpecs)
+    -> bool {
   SourceLocation loc;
 
   if (match(TokenKind::T_CONST, loc)) {
@@ -7339,8 +7343,8 @@ auto Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast,
   return true;
 }
 
-auto Parser::parse_initializer(ExpressionAST*& yyast,
-                               const ExprContext& ctx) -> bool {
+auto Parser::parse_initializer(ExpressionAST*& yyast, const ExprContext& ctx)
+    -> bool {
   SourceLocation lparenLoc;
 
   if (match(TokenKind::T_LPAREN, lparenLoc)) {
@@ -7649,8 +7653,8 @@ auto Parser::parse_function_body(FunctionBodyAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_enum_specifier(SpecifierAST*& yyast,
-                                  DeclSpecs& specs) -> bool {
+auto Parser::parse_enum_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
+    -> bool {
   LookaheadParser lookahead{this};
 
   SourceLocation enumLoc;
@@ -7785,8 +7789,8 @@ auto Parser::parse_opaque_enum_declaration(DeclarationAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_enum_key(SourceLocation& enumLoc,
-                            SourceLocation& classLoc) -> bool {
+auto Parser::parse_enum_key(SourceLocation& enumLoc, SourceLocation& classLoc)
+    -> bool {
   if (!match(TokenKind::T_ENUM, enumLoc)) return false;
 
   if (match(TokenKind::T_CLASS, classLoc)) {
@@ -8964,8 +8968,8 @@ void Parser::parse_private_module_fragment(PrivateModuleFragmentAST*& yyast) {
   parse_declaration_seq(yyast->declarationList);
 }
 
-auto Parser::parse_class_specifier(ClassSpecifierAST*& yyast,
-                                   DeclSpecs& specs) -> bool {
+auto Parser::parse_class_specifier(ClassSpecifierAST*& yyast, DeclSpecs& specs)
+    -> bool {
   std::vector<TemplateDeclarationAST*> templateDeclarations;
   return parse_class_specifier(yyast, specs, templateDeclarations);
 }
@@ -9592,9 +9596,10 @@ auto Parser::parse_conversion_function_id(ConversionFunctionIdAST*& yyast)
   return true;
 }
 
-auto Parser::parse_base_clause(
-    ClassSymbol* classSymbol, SourceLocation& colonLoc,
-    List<BaseSpecifierAST*>*& baseSpecifierList) -> bool {
+auto Parser::parse_base_clause(ClassSymbol* classSymbol,
+                               SourceLocation& colonLoc,
+                               List<BaseSpecifierAST*>*& baseSpecifierList)
+    -> bool {
   if (!match(TokenKind::T_COLON, colonLoc)) return false;
 
   if (!parse_base_specifier_list(classSymbol, baseSpecifierList)) {
@@ -9604,8 +9609,9 @@ auto Parser::parse_base_clause(
   return true;
 }
 
-auto Parser::parse_base_specifier_list(
-    ClassSymbol* classSymbol, List<BaseSpecifierAST*>*& yyast) -> bool {
+auto Parser::parse_base_specifier_list(ClassSymbol* classSymbol,
+                                       List<BaseSpecifierAST*>*& yyast)
+    -> bool {
   auto it = &yyast;
 
   BaseSpecifierAST* baseSpecifier = nullptr;
@@ -9769,8 +9775,8 @@ auto Parser::parse_access_specifier(SourceLocation& loc) -> bool {
 }
 
 auto Parser::parse_ctor_initializer(
-    SourceLocation& colonLoc,
-    List<MemInitializerAST*>*& memInitializerList) -> bool {
+    SourceLocation& colonLoc, List<MemInitializerAST*>*& memInitializerList)
+    -> bool {
   if (!match(TokenKind::T_COLON, colonLoc)) return false;
 
   parse_mem_initializer_list(memInitializerList);
@@ -9842,8 +9848,8 @@ void Parser::parse_mem_initializer(MemInitializerAST*& yyast) {
 }
 
 auto Parser::parse_mem_initializer_id(
-    NestedNameSpecifierAST*& yynestedNameSpecifier,
-    UnqualifiedIdAST*& yyast) -> bool {
+    NestedNameSpecifierAST*& yynestedNameSpecifier, UnqualifiedIdAST*& yyast)
+    -> bool {
   auto lookat_class_or_decltype = [&] {
     LookaheadParser lookahead{this};
     NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
@@ -9895,8 +9901,8 @@ auto Parser::parse_operator_function_id(OperatorFunctionIdAST*& yyast) -> bool {
 }
 
 auto Parser::parse_operator(TokenKind& op, SourceLocation& opLoc,
-                            SourceLocation& openLoc,
-                            SourceLocation& closeLoc) -> bool {
+                            SourceLocation& openLoc, SourceLocation& closeLoc)
+    -> bool {
   op = TokenKind(LA());
   switch (op) {
     case TokenKind::T_LPAREN:
@@ -10124,8 +10130,9 @@ auto Parser::parse_requires_clause(RequiresClauseAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_constraint_logical_or_expression(
-    ExpressionAST*& yyast, const ExprContext& ctx) -> bool {
+auto Parser::parse_constraint_logical_or_expression(ExpressionAST*& yyast,
+                                                    const ExprContext& ctx)
+    -> bool {
   if (!parse_constraint_logical_and_expression(yyast, ctx)) return false;
 
   SourceLocation opLoc;
@@ -10148,8 +10155,9 @@ auto Parser::parse_constraint_logical_or_expression(
   return true;
 }
 
-auto Parser::parse_constraint_logical_and_expression(
-    ExpressionAST*& yyast, const ExprContext& ctx) -> bool {
+auto Parser::parse_constraint_logical_and_expression(ExpressionAST*& yyast,
+                                                     const ExprContext& ctx)
+    -> bool {
   if (!parse_primary_expression(yyast, ctx)) return false;
 
   SourceLocation opLoc;
@@ -10789,8 +10797,8 @@ auto Parser::parse_concept_definition(DeclarationAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_splicer_specifier(SpecifierAST*& yyast,
-                                     DeclSpecs& specs) -> bool {
+auto Parser::parse_splicer_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
+    -> bool {
   if (!config_.reflect) return false;
   if (specs.typeSpecifier) return false;
   LookaheadParser lookahead{this};
@@ -10807,8 +10815,8 @@ auto Parser::parse_splicer_specifier(SpecifierAST*& yyast,
   return true;
 }
 
-auto Parser::parse_typename_specifier(SpecifierAST*& yyast,
-                                      DeclSpecs& specs) -> bool {
+auto Parser::parse_typename_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
+    -> bool {
   if (specs.typeSpecifier) return false;
 
   SourceLocation typenameLoc;
@@ -11090,8 +11098,8 @@ auto Parser::convertName(UnqualifiedIdAST* id) -> const Name* {
   if (!id) return nullptr;
   return visit(ConvertToName{control_}, id);
 }
-auto Parser::getFunction(Scope* scope, const Name* name,
-                         const Type* type) -> FunctionSymbol* {
+auto Parser::getFunction(Scope* scope, const Name* name, const Type* type)
+    -> FunctionSymbol* {
   for (auto candidate : scope->get(name)) {
     if (auto function = symbol_cast<FunctionSymbol>(candidate)) {
       if (control_->is_same(function->type(), type)) {

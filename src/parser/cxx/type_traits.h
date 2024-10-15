@@ -776,8 +776,8 @@ class TypeTraits {
   struct {
     TypeTraits& traits;
 
-    auto operator()(const BuiltinVaListType*,
-                    const BuiltinVaListType*) const -> bool {
+    auto operator()(const BuiltinVaListType*, const BuiltinVaListType*) const
+        -> bool {
       return true;
     }
 
@@ -789,8 +789,8 @@ class TypeTraits {
       return true;
     }
 
-    auto operator()(const DecltypeAutoType*,
-                    const DecltypeAutoType*) const -> bool {
+    auto operator()(const DecltypeAutoType*, const DecltypeAutoType*) const
+        -> bool {
       return true;
     }
 
@@ -802,8 +802,8 @@ class TypeTraits {
       return true;
     }
 
-    auto operator()(const SignedCharType*,
-                    const SignedCharType*) const -> bool {
+    auto operator()(const SignedCharType*, const SignedCharType*) const
+        -> bool {
       return true;
     }
 
@@ -819,13 +819,13 @@ class TypeTraits {
       return true;
     }
 
-    auto operator()(const LongLongIntType*,
-                    const LongLongIntType*) const -> bool {
+    auto operator()(const LongLongIntType*, const LongLongIntType*) const
+        -> bool {
       return true;
     }
 
-    auto operator()(const UnsignedCharType*,
-                    const UnsignedCharType*) const -> bool {
+    auto operator()(const UnsignedCharType*, const UnsignedCharType*) const
+        -> bool {
       return true;
     }
 
@@ -834,8 +834,8 @@ class TypeTraits {
       return true;
     }
 
-    auto operator()(const UnsignedIntType*,
-                    const UnsignedIntType*) const -> bool {
+    auto operator()(const UnsignedIntType*, const UnsignedIntType*) const
+        -> bool {
       return true;
     }
 
@@ -877,13 +877,13 @@ class TypeTraits {
       return true;
     }
 
-    auto operator()(const LongDoubleType*,
-                    const LongDoubleType*) const -> bool {
+    auto operator()(const LongDoubleType*, const LongDoubleType*) const
+        -> bool {
       return true;
     }
 
-    auto operator()(const QualType* type,
-                    const QualType* otherType) const -> bool {
+    auto operator()(const QualType* type, const QualType* otherType) const
+        -> bool {
       if (type->cvQualifiers() != otherType->cvQualifiers()) return false;
       return traits.is_same(type->elementType(), otherType->elementType());
     }
@@ -899,8 +899,8 @@ class TypeTraits {
       return traits.is_same(type->elementType(), otherType->elementType());
     }
 
-    auto operator()(const PointerType* type,
-                    const PointerType* otherType) const -> bool {
+    auto operator()(const PointerType* type, const PointerType* otherType) const
+        -> bool {
       return traits.is_same(type->elementType(), otherType->elementType());
     }
 
@@ -932,13 +932,13 @@ class TypeTraits {
       return true;
     }
 
-    auto operator()(const ClassType* type,
-                    const ClassType* otherType) const -> bool {
+    auto operator()(const ClassType* type, const ClassType* otherType) const
+        -> bool {
       return type->symbol() == otherType->symbol();
     }
 
-    auto operator()(const EnumType* type,
-                    const EnumType* otherType) const -> bool {
+    auto operator()(const EnumType* type, const EnumType* otherType) const
+        -> bool {
       return type->symbol() == otherType->symbol();
     }
 

@@ -108,8 +108,9 @@ class Control {
       -> const QualType*;
   [[nodiscard]] auto getConstVolatileType(const Type* elementType)
       -> const QualType*;
-  [[nodiscard]] auto getBoundedArrayType(
-      const Type* elementType, std::size_t size) -> const BoundedArrayType*;
+  [[nodiscard]] auto getBoundedArrayType(const Type* elementType,
+                                         std::size_t size)
+      -> const BoundedArrayType*;
   [[nodiscard]] auto getUnboundedArrayType(const Type* elementType)
       -> const UnboundedArrayType*;
   [[nodiscard]] auto getPointerType(const Type* elementType)
@@ -123,14 +124,14 @@ class Control {
   [[nodiscard]] auto getFunctionType(
       const Type* returnType, std::vector<const Type*> parameterTypes,
       bool isVariadic = false, CvQualifiers cvQualifiers = CvQualifiers::kNone,
-      RefQualifier refQualifier = RefQualifier::kNone,
-      bool isNoexcept = false) -> const FunctionType*;
+      RefQualifier refQualifier = RefQualifier::kNone, bool isNoexcept = false)
+      -> const FunctionType*;
   [[nodiscard]] auto getMemberObjectPointerType(const ClassType* classType,
                                                 const Type* elementType)
       -> const MemberObjectPointerType*;
   [[nodiscard]] auto getMemberFunctionPointerType(
-      const ClassType* classType,
-      const FunctionType* functionType) -> const MemberFunctionPointerType*;
+      const ClassType* classType, const FunctionType* functionType)
+      -> const MemberFunctionPointerType*;
   [[nodiscard]] auto getTypeParameterType(TypeParameterSymbol* symbol)
       -> const TypeParameterType*;
   [[nodiscard]] auto getTemplateTypeParameterType(
