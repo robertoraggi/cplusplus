@@ -25,10 +25,10 @@
 #include <cxx/ast.h>
 #include <cxx/literals.h>
 #include <cxx/names.h>
-#include <cxx/private/format.h>
 #include <cxx/translation_unit.h>
 
 #include <algorithm>
+#include <format>
 
 namespace cxx {
 

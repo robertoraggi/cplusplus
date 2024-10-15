@@ -24,10 +24,11 @@
 #include <cxx/ast.h>
 #include <cxx/name_printer.h>
 #include <cxx/names.h>
-#include <cxx/private/format.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
+
+#include <format>
 
 namespace cxx {
 
@@ -308,7 +309,7 @@ class TypePrinter {
       for (auto arg : type->symbol()->templateArguments()) {
         auto type = std::get_if<const Type*>(&arg);
         if (!type) continue;
-        out += cxx::format("{}{}", sep, to_string(*type));
+        out += std::format("{}{}", sep, to_string(*type));
         sep = ", ";
       }
       out += '>';

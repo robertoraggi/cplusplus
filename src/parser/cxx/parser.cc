@@ -28,7 +28,6 @@
 #include <cxx/name_lookup.h>
 #include <cxx/name_printer.h>
 #include <cxx/names.h>
-#include <cxx/private/format.h>
 #include <cxx/scope.h>
 #include <cxx/symbol_instantiation.h>
 #include <cxx/symbols.h>
@@ -38,6 +37,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <format>
 
 namespace cxx {
 
@@ -348,7 +348,7 @@ struct Parser::GetDeclaratorType {
 #if false
       if (!type_cast<AutoType>(returnType)) {
         p->parse_warn(ast->trailingReturnType->firstSourceLocation(),
-                      cxx::format("function with trailing return type must "
+                      std::format("function with trailing return type must "
                                   "be declared with 'auto', not '{}'",
                                   to_string(returnType)));
       }
@@ -776,7 +776,7 @@ Parser::~Parser() = default;
 auto Parser::prec(TokenKind tk) -> Parser::Prec {
   switch (tk) {
     default:
-      cxx_runtime_error(cxx::format("expected a binary operator, found {}",
+      cxx_runtime_error(std::format("expected a binary operator, found {}",
                                     Token::spell(tk)));
 
     case TokenKind::T_DOT_STAR:
@@ -842,7 +842,7 @@ auto Parser::match(TokenKind tk, SourceLocation& location) -> bool {
 
 auto Parser::expect(TokenKind tk, SourceLocation& location) -> bool {
   if (match(tk, location)) return true;
-  parse_error(cxx::format("expected '{}'", Token::spell(tk)));
+  parse_error(std::format("expected '{}'", Token::spell(tk)));
   return false;
 }
 
@@ -2468,7 +2468,7 @@ auto Parser::parse_call_expression(ExpressionAST*& yyast,
 
   if (auto functionType = type_cast<FunctionType>(ast->baseExpression->type)) {
     parse_warn(lparenLoc,
-               cxx::format("call function {}", to_string(functionType)));
+               std::format("call function {}", to_string(functionType)));
   }
 #endif
 
@@ -3562,7 +3562,7 @@ auto Parser::parse_maybe_assignment_expression(ExpressionAST*& yyast,
 
 #if false
       parse_warning(ast->opLoc,
-              cxx::format("did convert {} to {}", to_string(sourceType),
+              std::format("did convert {} to {}", to_string(sourceType),
                           to_string(ast->type)));
 #endif
     }
@@ -4780,7 +4780,7 @@ auto Parser::parse_simple_declaration(
       scope_ = scope;
     } else if (q && config_.checkTypes) {
       parse_error(q->firstSourceLocation(),
-                  cxx::format("unresolved class or namespace"));
+                  std::format("unresolved class or namespace"));
     }
 
     const Name* functionName = decl.getName();
@@ -4789,7 +4789,7 @@ auto Parser::parse_simple_declaration(
     if (!functionSymbol) {
       if (q && config_.checkTypes) {
         parse_error(q->firstSourceLocation(),
-                    cxx::format("class or namespace has no member named '{}'",
+                    std::format("class or namespace has no member named '{}'",
                                 to_string(functionName)));
       }
 
@@ -4894,7 +4894,7 @@ auto Parser::parse_notypespec_function_definition(
   } else if (auto q = decl.getNestedNameSpecifier()) {
     if (config_.checkTypes) {
       parse_error(q->firstSourceLocation(),
-                  cxx::format("unresolved class or namespace"));
+                  std::format("unresolved class or namespace"));
     }
   }
 
@@ -5553,7 +5553,7 @@ auto Parser::instantiate(SimpleTemplateIdAST* templateId) -> Symbol* {
       args.push_back(arg->typeId->type);
     } else {
       parse_error(it->value->firstSourceLocation(),
-                  cxx::format("only type template arguments are supported"));
+                  std::format("only type template arguments are supported"));
     }
   }
 
@@ -5835,7 +5835,7 @@ void Parser::check_type_traits() {
 
   parse_warn(
       typeTraitLoc,
-      cxx::format("keyword '{}' will be made available as an identifier for "
+      std::format("keyword '{}' will be made available as an identifier for "
                   "the remainder of the translation unit",
                   Token::spell(builtinKind)));
 #endif
@@ -6799,7 +6799,7 @@ auto Parser::parse_declarator(DeclaratorAST*& yyast, Decl& decl,
     scope_ = scope;
   } else if (q && config_.checkTypes) {
     parse_error(q->firstSourceLocation(),
-                cxx::format("unresolved class or namespace"));
+                std::format("unresolved class or namespace"));
   }
 
   List<DeclaratorChunkAST*>* declaratorChunkList = nullptr;

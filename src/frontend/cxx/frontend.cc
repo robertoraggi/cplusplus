@@ -26,7 +26,6 @@
 #include <cxx/lexer.h>
 #include <cxx/macos_toolchain.h>
 #include <cxx/preprocessor.h>
-#include <cxx/private/format.h>
 #include <cxx/private/path.h>
 #include <cxx/scope.h>
 #include <cxx/symbol_printer.h>
@@ -34,11 +33,11 @@
 #include <cxx/translation_unit.h>
 #include <cxx/wasm32_wasi_toolchain.h>
 #include <cxx/windows_toolchain.h>
-#include <cxx/private/format.h>
+
+#include <format>
 
 #include "ast_printer.h"
 #include "verify_diagnostics_client.h"
-
 
 // std
 #include <algorithm>
@@ -94,7 +93,7 @@ void dumpTokens(const CLI& cli, TranslationUnit& unit, std::ostream& output) {
       kind = Lexer::classifyKeyword(tk.spell());
     }
 
-    output << cxx::format("{} '{}'{}\n", Token::name(kind), tk.spell(), flags);
+    output << std::format("{} '{}'{}\n", Token::name(kind), tk.spell(), flags);
 
     if (tk.is(TokenKind::T_EOF_SYMBOL)) break;
   }
@@ -191,12 +190,12 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
   }
 
   if (cli.opt_v) {
-    std::cerr << cxx::format("#include <...> search starts here:\n");
+    std::cerr << std::format("#include <...> search starts here:\n");
     const auto& paths = preprocesor->systemIncludePaths();
     for (auto it = rbegin(paths); it != rend(paths); ++it) {
-      std::cerr << cxx::format(" {}\n", *it);
+      std::cerr << std::format(" {}\n", *it);
     }
-    std::cerr << cxx::format("End of search list.\n");
+    std::cerr << std::format("End of search list.\n");
   }
 
   for (const auto& macro : cli.get("-D")) {
@@ -231,7 +230,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
     preprocesor->setOnWillIncludeHeader(
         [&](const std::string& header, int level) {
           std::string fill(level, '.');
-          std::cout << cxx::format("{} {}\n", fill, header);
+          std::cout << std::format("{} {}\n", fill, header);
         });
   }
 
@@ -255,7 +254,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
       }
     }
   } else {
-    std::cerr << cxx::format("cxx: No such file or directory: '{}'\n",
+    std::cerr << std::format("cxx: No such file or directory: '{}'\n",
                              fileName);
     return false;
   }

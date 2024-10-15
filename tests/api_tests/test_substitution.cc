@@ -22,7 +22,6 @@
 #include <cxx/control.h>
 #include <cxx/name_printer.h>
 #include <cxx/names.h>
-#include <cxx/private/format.h>
 #include <cxx/scope.h>
 #include <cxx/symbol_instantiation.h>
 #include <cxx/symbol_printer.h>
@@ -32,6 +31,7 @@
 #include <cxx/types.h>
 #include <gtest/gtest.h>
 
+#include <format>
 #include <iostream>
 #include <sstream>
 

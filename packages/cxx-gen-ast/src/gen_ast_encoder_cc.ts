@@ -44,7 +44,7 @@ export function gen_ast_encoder_cc({
   const emitLiteral = (
     m: Attribute,
     table: string,
-    finalizers: (() => void)[],
+    finalizers: (() => void)[]
   ) => {
     const fieldName = toSnakeName(m.name);
 
@@ -70,7 +70,7 @@ export function gen_ast_encoder_cc({
     const className = makeClassName(base);
     emit();
     emit(
-      `  auto ASTEncoder::accept${className}(${base}* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t> {`,
+      `  auto ASTEncoder::accept${className}(${base}* ast) -> std::tuple<flatbuffers::Offset<>, std::uint32_t> {`
     );
     emit(`    if (!ast) return {};`);
     emit(`    flatbuffers::Offset<> offset;`);
@@ -201,7 +201,7 @@ export function gen_ast_encoder_cc({
 #include <cxx/literals.h>
 #include <cxx/names.h>
 #include <cxx/translation_unit.h>
-#include <cxx/private/format.h>
+#include <format>
 
 #include <algorithm>
 

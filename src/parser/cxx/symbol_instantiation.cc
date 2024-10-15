@@ -23,11 +23,12 @@
 // cxx
 #include <cxx/ast.h>
 #include <cxx/control.h>
-#include <cxx/private/format.h>
 #include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
+
+#include <format>
 
 namespace cxx {
 

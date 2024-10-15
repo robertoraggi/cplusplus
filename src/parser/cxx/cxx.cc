@@ -19,9 +19,9 @@
 // SOFTWARE.
 
 #include <cxx/cxx_fwd.h>
-#include <cxx/private/format.h>
 
 #include <cstdlib>
+#include <format>
 #include <iostream>
 
 #if __cpp_exceptions
@@ -34,7 +34,7 @@ namespace cxx {
 #if __cpp_exceptions
   throw std::runtime_error(msg);
 #else
-  std::cerr << cxx::format("cxx_runtime_error: {}\n", msg);
+  std::cerr << std::format("cxx_runtime_error: {}\n", msg);
   std::abort();
 #endif
 }

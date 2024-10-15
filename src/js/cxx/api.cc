@@ -25,13 +25,13 @@
 #include <cxx/literals.h>
 #include <cxx/names.h>
 #include <cxx/preprocessor.h>
-#include <cxx/private/format.h>
 #include <cxx/source_location.h>
 #include <cxx/translation_unit.h>
 #include <emscripten.h>
 #include <emscripten/bind.h>
 #include <emscripten/val.h>
 
+#include <format>
 #include <sstream>
 
 using namespace emscripten;

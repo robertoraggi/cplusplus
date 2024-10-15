@@ -22,10 +22,10 @@
 
 // cxx
 #include <cxx/preprocessor.h>
-#include <cxx/private/format.h>
 
 #include <cctype>
 #include <cstdlib>
+#include <format>
 #include <iostream>
 
 namespace cxx {
@@ -57,7 +57,7 @@ void DiagnosticsClient::report(const Diagnostic& diag) {
   preprocessor_->getTokenStartPosition(diag.token(), &line, &column, &fileName);
 
   if (!fileName.empty()) {
-    std::cerr << cxx::format("{}:{}:{}: {}\n", fileName, line, column,
+    std::cerr << std::format("{}:{}:{}: {}\n", fileName, line, column,
                              diag.message());
 
     const auto textLine = preprocessor_->getTextLine(diag.token());
@@ -70,9 +70,9 @@ void DiagnosticsClient::report(const Diagnostic& diag) {
       if (!std::isspace(ch)) ch = ' ';
     }
 
-    std::cerr << cxx::format("{0}\n{1}^\n", textLine, indent);
+    std::cerr << std::format("{0}\n{1}^\n", textLine, indent);
   } else {
-    std::cerr << cxx::format("{}\n", diag.message());
+    std::cerr << std::format("{}\n", diag.message());
   }
 
   if (diag.severity() == Severity::Fatal ||

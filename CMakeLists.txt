@@ -50,21 +50,7 @@ endif()
 # if CMAKE_SYSTEM_NAME is WASI disable the exceptions
 if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
-
-    set(FMT_OS OFF CACHE BOOL "" FORCE)
 endif()
-
-FetchContent_Declare(
-    fmt
-    GIT_REPOSITORY  https://github.com/fmtlib/fmt
-    GIT_TAG         11.0.2
-    GIT_SHALLOW     1
-)
-
-# set FMT_INSTALL to OFF to avoid installing fmt
-set(FMT_INSTALL OFF CACHE BOOL "" FORCE)
-
-FetchContent_MakeAvailable(fmt)
 
 FetchContent_Declare(
     utfcpp
