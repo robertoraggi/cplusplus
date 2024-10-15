@@ -22,7 +22,7 @@
 
 #include <version>
 
-#if defined(__cpp_lib_format)
+#if defined(__cpp_lib_format) || defined(__EMSCRIPTEN__)
 
 #include <format>
 
