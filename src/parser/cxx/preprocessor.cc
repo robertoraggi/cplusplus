@@ -263,14 +263,14 @@ struct std::less<Hideset> {
     return names < hideset.names();
   }
 
-  auto operator()(const Hideset &hideset,
-                  const std::string_view &name) const -> bool {
+  auto operator()(const Hideset &hideset, const std::string_view &name) const
+      -> bool {
     return std::lexicographical_compare(begin(hideset.names()),
                                         end(hideset.names()), &name, &name + 1);
   }
 
-  auto operator()(const std::string_view &name,
-                  const Hideset &hideset) const -> bool {
+  auto operator()(const std::string_view &name, const Hideset &hideset) const
+      -> bool {
     return std::lexicographical_compare(
         &name, &name + 1, begin(hideset.names()), end(hideset.names()));
   }
@@ -321,13 +321,13 @@ struct std::equal_to<Hideset> {
     return hideset.names() == names;
   }
 
-  auto operator()(const Hideset &hideset,
-                  const std::string_view &name) const -> bool {
+  auto operator()(const Hideset &hideset, const std::string_view &name) const
+      -> bool {
     return hideset.names().size() == 1 && *hideset.names().begin() == name;
   }
 
-  auto operator()(const std::string_view &name,
-                  const Hideset &hideset) const -> bool {
+  auto operator()(const std::string_view &name, const Hideset &hideset) const
+      -> bool {
     return hideset.names().size() == 1 && *hideset.names().begin() == name;
   }
 };
@@ -422,8 +422,8 @@ struct TokList final : Managed {
   explicit TokList(const Tok *tok, const TokList *next = nullptr)
       : tok(tok), next(next) {}
 
-  [[nodiscard]] static auto isSame(const TokList *ls,
-                                   const TokList *rs) -> bool {
+  [[nodiscard]] static auto isSame(const TokList *ls, const TokList *rs)
+      -> bool {
     if (ls == rs) return true;
     if (!ls || !rs) return false;
     if (ls->tok->kind != rs->tok->kind) return false;
@@ -778,13 +778,13 @@ struct Preprocessor::Private {
     return cons(ts->tok, clone(ts->next));
   }
 
-  [[nodiscard]] auto cons(const Tok *tok,
-                          const TokList *next = nullptr) -> TokList * {
+  [[nodiscard]] auto cons(const Tok *tok, const TokList *next = nullptr)
+      -> TokList * {
     return new (&pool_) TokList(tok, next);
   }
 
-  [[nodiscard]] auto snoc(const TokList *first,
-                          const TokList *second) -> const TokList * {
+  [[nodiscard]] auto snoc(const TokList *first, const TokList *second)
+      -> const TokList * {
     if (!first) return second;
     if (!second) return first;
 
@@ -815,13 +815,13 @@ struct Preprocessor::Private {
     return toTokList(std::ranges::begin(range), std::ranges::end(range));
   }
 
-  [[nodiscard]] auto withHideset(const Tok *tok,
-                                 const Hideset *hideset) -> Tok * {
+  [[nodiscard]] auto withHideset(const Tok *tok, const Hideset *hideset)
+      -> Tok * {
     return Tok::WithHideset(&pool_, tok, hideset);
   }
 
-  [[nodiscard]] auto fromCurrentToken(const Lexer &lex,
-                                      int sourceFile) -> Tok * {
+  [[nodiscard]] auto fromCurrentToken(const Lexer &lex, int sourceFile)
+      -> Tok * {
     return Tok::FromCurrentToken(&pool_, lex, sourceFile);
   }
 
@@ -857,8 +857,8 @@ struct Preprocessor::Private {
     return nullptr;
   }
 
-  [[nodiscard]] auto createSourceFile(std::string fileName,
-                                      std::string source) -> SourceFile * {
+  [[nodiscard]] auto createSourceFile(std::string fileName, std::string source)
+      -> SourceFile * {
     if (sourceFiles_.size() >= 4096) {
       cxx_runtime_error("too many source files");
     }
@@ -890,8 +890,8 @@ struct Preprocessor::Private {
     return false;
   }
 
-  [[nodiscard]] auto match(TokIterator &it, TokIterator last,
-                           TokenKind k) const -> bool {
+  [[nodiscard]] auto match(TokIterator &it, TokIterator last, TokenKind k) const
+      -> bool {
     if (it == last) return false;
     if (it->isNot(k)) return false;
     ++it;
@@ -933,8 +933,8 @@ struct Preprocessor::Private {
     return get(std::move(names));
   }
 
-  [[nodiscard]] auto makeIntersection(const Hideset *hs,
-                                      const Hideset *other) -> const Hideset * {
+  [[nodiscard]] auto makeIntersection(const Hideset *hs, const Hideset *other)
+      -> const Hideset * {
     if (!other || !hs) return nullptr;
     if (other == hs) return hs;
 
@@ -971,8 +971,8 @@ struct Preprocessor::Private {
     }  // switch
   }
 
-  [[nodiscard]] auto updateStringLiteralValue(Token &lastToken,
-                                              const Tok *tk) -> bool {
+  [[nodiscard]] auto updateStringLiteralValue(Token &lastToken, const Tok *tk)
+      -> bool {
     if (!isStringLiteral(lastToken.kind())) {
       return false;
     }
@@ -1035,8 +1035,8 @@ struct Preprocessor::Private {
 
   [[nodiscard]] auto checkPragmaOnceProtected(const TokList *ts) const -> bool;
 
-  [[nodiscard]] auto resolve(const Include &include,
-                             bool next) const -> std::optional<fs::path> {
+  [[nodiscard]] auto resolve(const Include &include, bool next) const
+      -> std::optional<fs::path> {
     if (!canResolveFiles_) return std::nullopt;
 
     struct Resolve {
@@ -1141,11 +1141,13 @@ struct Preprocessor::Private {
 
   [[nodiscard]] auto expandMacro(const TokList *ts) -> const TokList *;
 
-  [[nodiscard]] auto expandObjectLikeMacro(
-      const TokList *ts, const Macro *macro) -> const TokList *;
+  [[nodiscard]] auto expandObjectLikeMacro(const TokList *ts,
+                                           const Macro *macro)
+      -> const TokList *;
 
-  [[nodiscard]] auto expandFunctionLikeMacro(
-      const TokList *ts, const Macro *macro) -> const TokList *;
+  [[nodiscard]] auto expandFunctionLikeMacro(const TokList *ts,
+                                             const Macro *macro)
+      -> const TokList *;
 
   struct ParsedIncludeDirective {
     Include header;
@@ -1174,8 +1176,8 @@ struct Preprocessor::Private {
 
   [[nodiscard]] auto stringize(const TokList *ts) -> const Tok *;
 
-  [[nodiscard]] auto instantiate(const TokList *ts,
-                                 const Hideset *hideset) -> const TokList *;
+  [[nodiscard]] auto instantiate(const TokList *ts, const Hideset *hideset)
+      -> const TokList *;
 
   [[nodiscard]] auto lookupMacro(const Tok *tk) const -> const Macro *;
 
@@ -1217,8 +1219,8 @@ struct Preprocessor::ParseArguments {
   Private &d;
 
   template <std::sentinel_for<TokIterator> S>
-  auto operator()(TokIterator it, S last, int formalCount,
-                  bool ignoreComma) -> std::optional<Result> {
+  auto operator()(TokIterator it, S last, int formalCount, bool ignoreComma)
+      -> std::optional<Result> {
     if (!cxx::lookat(it, last, TokenKind::T_LPAREN)) {
       cxx_runtime_error("expected '('");
       return std::nullopt;
@@ -1567,8 +1569,8 @@ void Preprocessor::Private::finalizeToken(std::vector<Token> &tokens,
 };
 
 auto Preprocessor::Private::tokenize(const std::string_view &source,
-                                     int sourceFile,
-                                     bool bol) -> const TokList * {
+                                     int sourceFile, bool bol)
+    -> const TokList * {
   cxx::Lexer lex(source);
   lex.setKeepComments(true);
   lex.setPreprocessing(true);
@@ -2067,8 +2069,9 @@ auto Preprocessor::Private::expandMacro(const TokList *ts) -> const TokList * {
   return nullptr;
 }
 
-auto Preprocessor::Private::expandObjectLikeMacro(
-    const TokList *ts, const Macro *m) -> const TokList * {
+auto Preprocessor::Private::expandObjectLikeMacro(const TokList *ts,
+                                                  const Macro *m)
+    -> const TokList * {
   auto macro = &std::get<ObjectMacro>(*m);
   const Tok *tk = ts->tok;
 
@@ -2091,8 +2094,9 @@ auto Preprocessor::Private::expandObjectLikeMacro(
   return expanded;
 }
 
-auto Preprocessor::Private::expandFunctionLikeMacro(
-    const TokList *ts, const Macro *m) -> const TokList * {
+auto Preprocessor::Private::expandFunctionLikeMacro(const TokList *ts,
+                                                    const Macro *m)
+    -> const TokList * {
   auto macro = &std::get<FunctionMacro>(*m);
 
   assert(lookat(ts->next, TokenKind::T_LPAREN));
@@ -2122,9 +2126,10 @@ auto Preprocessor::Private::expandFunctionLikeMacro(
   return expanded;
 }
 
-auto Preprocessor::Private::substitute(
-    const Macro *macro, const std::vector<TokRange> &actuals,
-    const Hideset *hideset) -> const TokList * {
+auto Preprocessor::Private::substitute(const Macro *macro,
+                                       const std::vector<TokRange> &actuals,
+                                       const Hideset *hideset)
+    -> const TokList * {
   const TokList *os = nullptr;
   auto **ip = const_cast<TokList **>(&os);
 
@@ -2214,8 +2219,8 @@ auto Preprocessor::Private::substitute(
 }
 
 auto Preprocessor::Private::lookupMacroArgument(
-    const TokList *&ts, const Macro *m,
-    const std::vector<TokRange> &actuals) -> std::optional<TokRange> {
+    const TokList *&ts, const Macro *m, const std::vector<TokRange> &actuals)
+    -> std::optional<TokRange> {
   if (!isFunctionLikeMacro(*m)) return std::nullopt;
 
   const FunctionMacro *macro = &std::get<FunctionMacro>(*m);
@@ -2517,8 +2522,9 @@ auto Preprocessor::Private::primaryExpression(const TokList *&ts) -> long {
   return 0;
 }
 
-auto Preprocessor::Private::instantiate(
-    const TokList *ts, const Hideset *hideset) -> const TokList * {
+auto Preprocessor::Private::instantiate(const TokList *ts,
+                                        const Hideset *hideset)
+    -> const TokList * {
   for (auto ip = ts; ip; ip = ip->next) {
     if (ip->tok->hideset != hideset) {
       const_cast<TokList *>(ip)->tok = withHideset(ip->tok, hideset);
@@ -2640,8 +2646,8 @@ void Preprocessor::Private::defineMacro(const TokList *ts) {
   macros_.insert_or_assign(name, std::move(macro));
 }
 
-auto Preprocessor::Private::merge(const Tok *left,
-                                  const Tok *right) -> const Tok * {
+auto Preprocessor::Private::merge(const Tok *left, const Tok *right)
+    -> const Tok * {
   if (!left) return right;
   if (!right) return left;
   const auto hideset = makeIntersection(left->hideset, right->hideset);
@@ -2655,8 +2661,8 @@ auto Preprocessor::Private::merge(const Tok *left,
   return tok;
 }
 
-auto Preprocessor::Private::skipLine(TokIterator it,
-                                     TokIterator last) -> TokIterator {
+auto Preprocessor::Private::skipLine(TokIterator it, TokIterator last)
+    -> TokIterator {
   for (; it != last; ++it) {
     if (it->kind == TokenKind::T_EOF_SYMBOL) break;
     if (it->bol) break;

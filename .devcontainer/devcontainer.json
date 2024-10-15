@@ -1,5 +1,5 @@
 {
-  "name": "Ubuntu 24.04",
+  "name": "Ubuntu 24.10",
 
   "build": {
     "dockerfile": "Dockerfile"
@@ -16,19 +16,23 @@
   "postCreateCommand": "npm ci",
 
   "features": {
+    "ghcr.io/devcontainers/features/common-utils": {},
     "ghcr.io/devcontainers/features/github-cli": "latest",
-    "ghcr.io/devcontainers/features/node": "latest",
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    "ghcr.io/devcontainers/features/node": "latest"
   },
 
   "customizations": {
     "vscode": {
       "extensions": [
-        "ms-vscode.cpptools",
-        "ms-vscode.cmake-tools",
-        "esbenp.prettier-vscode",
-        "dbaeumer.vscode-eslint"
-      ]
+        "llvm-vs-code-extensions.vscode-clangd",
+        "llvm-vs-code-extensions.lldb-dap"
+      ],
+      "settings": {
+        "clangd.arguments": [
+          "--compile-commands-dir=build",
+          "--completion-style=bundled"
+        ]
+      }
     }
   }
 }

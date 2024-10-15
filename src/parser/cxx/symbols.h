@@ -284,8 +284,9 @@ class ClassSymbol final : public ScopedSymbol {
   }
 
  private:
-  [[nodiscard]] auto hasBaseClass(
-      Symbol* symbol, std::unordered_set<const ClassSymbol*>&) const -> bool;
+  [[nodiscard]] auto hasBaseClass(Symbol* symbol,
+                                  std::unordered_set<const ClassSymbol*>&) const
+      -> bool;
 
  private:
   std::vector<BaseClassSymbol*> baseClasses_;
