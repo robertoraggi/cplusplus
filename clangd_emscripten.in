@@ -1,0 +1,14 @@
+CompileFlags:
+  CompilationDatabase: build.em/
+  Add:
+    [
+      -target,
+      wasm32-unknown-emscripten,
+      -fvisibility=default,
+      -isysroot,
+      @EMSCRIPTEN_ROOT_PATH@/cache/sysroot,
+      -iwithsysroot/include/fakesdl,
+      -iwithsysroot/include/compat,
+      -iwithsysroot/include/c++/v1,
+      -iwithsysroot/include,
+    ]

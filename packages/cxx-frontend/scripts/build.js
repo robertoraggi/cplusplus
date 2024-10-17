@@ -31,7 +31,7 @@ const projectRootSourcePath = path.join(__dirname, "../../..");
 // get the source path of the cxx-frontend package
 const cxxFrontendSourcePath = path.join(
   projectRootSourcePath,
-  "packages/cxx-frontend",
+  "packages/cxx-frontend"
 );
 
 // set the current working directory to the cxx-frontend source path
@@ -42,8 +42,12 @@ build().catch(console.error);
 async function build() {
   const sdk = await detectEmsdk();
 
-  if (argv.docker === true || !sdk) {
+  if (!argv.docker || $.env.EMSCRIPTEN_ROOT) {
+    await emsdkBuildPresets();
+  } else if (argv.docker === true || !sdk) {
     await dockerBuild();
+  } else if ($.env.EMSCRIPTEN_ROOT) {
+    await emsdkBuildPresets();
   } else {
     await emsdkBuild(sdk);
   }
@@ -100,7 +104,7 @@ async function dockerBuild() {
   } else {
     cmakeOptions.push(
       "-DCMAKE_BUILD_TYPE=MinSizeRel",
-      "-DCXX_INTERPROCEDURAL_OPTIMIZATION=ON",
+      "-DCXX_INTERPROCEDURAL_OPTIMIZATION=ON"
     );
   }
 
@@ -130,11 +134,19 @@ async function emsdkBuild({ cmake, emcmake, flatc, kwgen }) {
   } else {
     cmakeOptions.push(
       `-DCMAKE_BUILD_TYPE=MinSizeRel`,
-      `-DCXX_INTERPROCEDURAL_OPTIMIZATION=${CMAKE_INTERPROCEDURAL_OPTIMIZATION}`,
+      `-DCXX_INTERPROCEDURAL_OPTIMIZATION=${CMAKE_INTERPROCEDURAL_OPTIMIZATION}`
     );
   }
 
   await $`${emcmake} ${cmake} ${cmakeOptions}`;
+
+  await $`${cmake} --build ${projectRootSourcePath}/build.em --target install`;
+}
+
+async function emsdkBuildPresets() {
+  const cmake = await which("cmake", { nothrow: true });
+
+  await $`${cmake} -S ${projectRootSourcePath} --preset emscripten`;
 
   await $`${cmake} --build ${projectRootSourcePath}/build.em --target install`;
 }

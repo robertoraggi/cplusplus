@@ -6,8 +6,10 @@ RUN apt-get update && apt-get install -y \
     clang-format \
     clangd \
     cmake \
+    lldb \
     ninja-build \
     python3-pip \
+    python3-poetry \
     python3-venv \
     wget
 

@@ -1,0 +1,63 @@
+{
+  "version": 9,
+  "configurePresets": [
+    {
+      "name": "default",
+      "displayName": "default",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "YES",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build/install",
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "inherits": "default",
+      "name": "release",
+      "displayName": "release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "YES"
+      }
+    },
+    {
+      "name": "emscripten",
+      "displayName": "emscripten",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build.em",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "YES",
+        "CMAKE_TOOLCHAIN_FILE": "$env{EMSCRIPTEN_ROOT}/cmake/Modules/Platform/Emscripten.cmake",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build.em/install/usr",
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "YES",
+        "CXX_ENABLE_FLATBUFFERS": "NO"
+      },
+      "condition": {
+        "type": "notEquals",
+        "lhs": "$env{EMSCRIPTEN_ROOT}",
+        "rhs": ""
+      }
+    },
+    {
+      "name": "wasi",
+      "displayName": "wasi",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build.wasi",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "YES",
+        "CMAKE_TOOLCHAIN_FILE": "$env{WASI_SDK_ROOT}/share/cmake/wasi-sdk.cmake",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build.wasi/install/usr",
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "YES",
+        "CXX_ENABLE_FLATBUFFERS": "NO"
+      },
+      "condition": {
+        "type": "notEquals",
+        "lhs": "$env{WASI_SDK_ROOT}",
+        "rhs": ""
+      }
+    }
+  ]
+}

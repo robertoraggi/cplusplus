@@ -32,6 +32,7 @@ endif()
 include(FetchContent)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
+include(ExternalProject)
 
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/package.json" package_json)
 
@@ -96,7 +97,26 @@ if (CXX_ENABLE_FLATBUFFERS)
     set_target_properties(flatbuffers::header-only PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${flatbuffers_SOURCE_DIR}/include")
 endif()
 
-add_subdirectory(tools/kwgen)
+if (NOT KWGEN_EXECUTABLE AND CMAKE_SYSTEM_NAME STREQUAL "WASI")
+
+    ExternalProject_Add(
+        kwgen_host
+        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tools/kwgen
+        INSTALL_COMMAND ""
+    )
+
+    ExternalProject_Get_property(kwgen_host BINARY_DIR)
+
+    add_executable(kwgen IMPORTED)
+    set_target_properties(kwgen PROPERTIES IMPORTED_LOCATION "${BINARY_DIR}/kwgen")
+    add_dependencies(kwgen kwgen_host)
+
+else()
+
+    add_subdirectory(tools/kwgen)
+
+endif()
+
 add_subdirectory(src)
 
 if (CXX_BUILD_TESTS)
@@ -127,4 +147,16 @@ install(FILES
     "${CMAKE_CURRENT_BINARY_DIR}/cxxConfig.cmake"
     "${CMAKE_CURRENT_BINARY_DIR}/cxxConfigVersion.cmake"
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/cxx
+)
+
+set(CLANGD_CONFIG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/clangd.in")
+
+if (EMSCRIPTEN)
+    set(CLANGD_CONFIG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/clangd_emscripten.in")
+endif()
+
+configure_file(
+    ${CLANGD_CONFIG_FILE}
+    ${CMAKE_CURRENT_SOURCE_DIR}/.clangd
+    @ONLY
 )
